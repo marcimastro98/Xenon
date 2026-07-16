@@ -156,10 +156,10 @@
 
   // ── Theme payload (host → widget) ────────────────────────────────
   // A widget themes itself from `appearance` (light/dark). data-appearance is a
-  // pipeline flag, not the visible surface — the Comic skin keeps it 'dark' while
-  // painting the tiles on LIGHT paper, so a widget told 'dark' would draw light
-  // text and vanish. Derive appearance from the ACTUAL panel/background luminance
-  // instead, so a widget always matches the surface it sits on under any skin.
+  // pipeline flag, not necessarily the visible surface — an imported theme may
+  // pair an old `appearance` hint with a completely different panel colour.
+  // Derive appearance from the ACTUAL panel/background luminance so a widget
+  // always matches the surface it sits on under any skin.
   function surfaceAppearance() {
     try {
       const cs = getComputedStyle(document.documentElement);
@@ -176,8 +176,66 @@
       return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6 ? 'light' : 'dark';
     } catch { return document.documentElement.getAttribute('data-appearance') || 'dark'; }
   }
-  function themePayload() {
+  function themePayload(entry) {
     const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings : {};
+    let p = (typeof window.getEffectiveThemePalette === 'function')
+      ? window.getEffectiveThemePalette()
+      : null;
+    let overrides = [];
+    // CSS custom properties do not cross an iframe document boundary. Read the
+    // final computed tokens from the frame element itself so a custom SDK widget
+    // receives the palette of its own tile, including any per-widget override.
+    // Service/Ambient frames simply inherit the global tokens through the same
+    // path. `_xenonThemeOverrides` is host-only metadata used by generated
+    // widgets to preserve an authored accent unless the tile explicitly changes
+    // it; third-party widgets may ignore it and consume the effective palette.
+    if (entry && entry.frame && window.ThemePalette) {
+      try {
+        const cs = getComputedStyle(entry.frame);
+        const read = (name, fallback) => ThemePalette.normalizeHex(cs.getPropertyValue(name), fallback);
+        const base = p || ThemePalette.derive({
+          accent: hs.accent, background: hs.background, text: hs.text,
+          contrastGuard: hs.contrastGuard,
+        }, surfaceAppearance());
+        const local = {
+          tone: ThemePalette.toneFor(read('--surface', base.surface)),
+          guard: base.guard,
+          background: read('--bg', base.background),
+          surface: read('--surface', base.surface),
+          surfaceAlt: read('--surface-alt', base.surfaceAlt),
+          control: read('--control-bg', base.control),
+          text: read('--text', base.text),
+          muted: read('--muted-text', base.muted),
+          dim: read('--dim-text', base.dim),
+          line: read('--line', base.line),
+          accent: read('--accent', base.accent),
+          onAccent: read('--on-accent', base.onAccent),
+          success: read('--color-success', base.success),
+          onSuccess: read('--on-success', base.onSuccess),
+          warning: read('--color-warn', base.warning),
+          onWarning: read('--on-warning', base.onWarning),
+          danger: read('--color-danger', base.danger),
+          onDanger: read('--on-danger', base.onDanger),
+          info: read('--color-info', base.info),
+          onInfo: read('--on-info', base.onInfo),
+        };
+        p = local;
+        const tile = entry.frame.closest('.grid-stack-item');
+        if (tile && Array.isArray(tile._xenonThemeOverrides)) overrides = tile._xenonThemeOverrides.slice();
+      } catch { /* detached frame: use the global palette below */ }
+    }
+    if (p) {
+      const palette = {
+        background: p.background, surface: p.surface, surfaceAlt: p.surfaceAlt, control: p.control,
+        text: p.text, muted: p.muted, dim: p.dim, line: p.line,
+        accent: p.accent, onAccent: p.onAccent,
+        success: p.success, onSuccess: p.onSuccess,
+        warning: p.warning, onWarning: p.onWarning,
+        danger: p.danger, onDanger: p.onDanger,
+        info: p.info, onInfo: p.onInfo,
+      };
+      return { appearance: p.tone, overrides, ...palette, palette };
+    }
     return {
       appearance: surfaceAppearance(),
       accent: typeof hs.accent === 'string' ? hs.accent : '#1ed760',
@@ -402,7 +460,7 @@
         type: 'init',
         api: 1,
         pkgId: entry.pkgId,   // the package id — lets a widget build /sdk/tile/<id> URLs
-        theme: themePayload(),
+        theme: themePayload(entry),
         lang: langCode(),
         streams: grant.streams.slice(),
         actions: grant.actions.slice(),
@@ -557,7 +615,7 @@
   // Theme changed (called from settings.js after applyHubSettings).
   function refreshTheme() {
     for (const [, entry] of frames) {
-      if (entry.ready) post(entry, { type: 'theme', theme: themePayload() });
+      if (entry.ready) post(entry, { type: 'theme', theme: themePayload(entry) });
     }
   }
 

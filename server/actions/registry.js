@@ -70,6 +70,14 @@ function isAppUserModelId(s) {
   return typeof s === 'string' && /^[\w.-]+![\w.-]+$/.test(s.trim());
 }
 
+// A Steam AppID is a plain integer (e.g. 1086940 for Baldur's Gate 3). Digits
+// only — the value is interpolated into a steam://rungameid/<id> URL, so the
+// strict charset guarantees there's nothing to inject. 1–12 digits covers every
+// real store AppID with headroom.
+function isSteamAppId(s) {
+  return typeof s === 'string' && /^\d{1,12}$/.test(s.trim());
+}
+
 // Executable / script extensions that must NOT be reachable via openFile (which
 // opens with the registered handler). A folder or a document is fine; a .bat or
 // .ps1 would run code on one tap. openApp is the only path that may launch exes.
@@ -156,6 +164,15 @@ function createRegistry(deps) {
           if (!isAppUserModelId(id)) return { ok: false, error: 'bad_app_id' };
           if (typeof d.openStoreApp !== 'function') return { ok: false, error: 'unavailable' };
           await d.openStoreApp(id);
+          return { ok: true };
+        }
+        case 'launchSteamGame': {
+          // Launch a Steam game by AppID via its registered protocol handler.
+          // Digits-only validation before interpolation → injection-safe; the URL
+          // is handed to the same shell launcher openUrl uses (openExternal).
+          const id = action.gameId.trim();
+          if (!isSteamAppId(id)) return { ok: false, error: 'bad_app_id' };
+          await d.openExternal('steam://rungameid/' + id);
           return { ok: true };
         }
         case 'openUrl': {
@@ -532,4 +549,4 @@ function createRegistry(deps) {
   return { run };
 }
 
-module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, isRunnableScriptPath, isAppUserModelId, normalizeUrl, normalizeKeys };
+module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys };

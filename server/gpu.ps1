@@ -8,6 +8,8 @@ $gpuName = $null
 $gpuTemp = $null
 $vramUsed = $null
 $vramTotal = $null
+$gpuWatts = $null
+$gpuFanRpm = $null
 
 try {
   # Path cached across worker calls ($global: survives the per-call child scope);
@@ -17,22 +19,26 @@ try {
     if ($nvidiaSmi) { $global:XenonNvidiaSmiPath = $nvidiaSmi.Source }
   }
   if ($global:XenonNvidiaSmiPath) {
-    $line = & $global:XenonNvidiaSmiPath --query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total,name --format=csv,noheader,nounits 2>$null | Select-Object -First 1
+    $line = & $global:XenonNvidiaSmiPath --query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total,power.draw,fan.speed,name --format=csv,noheader,nounits 2>$null | Select-Object -First 1
     if ($line) {
       # Split on commas rather than one all-or-nothing regex: any field can be
       # "[N/A]" on some cards/drivers, so each is parsed independently. The name is
       # the last field (rejoined in case a model name ever contains a comma).
       $parts = $line -split '\s*,\s*'
-      if ($parts.Count -ge 5) {
+      if ($parts.Count -ge 7) {
         $out = @{
           gpu     = $(if ($parts[0] -match '^\d+$') { [int]$parts[0] } else { $null })
           gpuTemp = $(if ($parts[1] -match '^\d+$') { [int]$parts[1] } else { $null })
-          gpuName = ($parts[4..($parts.Count - 1)] -join ', ').Trim()
+          gpuName = ($parts[6..($parts.Count - 1)] -join ', ').Trim()
         }
         # nvidia-smi reports memory in MiB (nounits); convert to bytes so the client
         # formats VRAM with the same helper it uses for RAM/disk.
         if ($parts[2] -match '^\d+$') { $out.vramUsed  = [int64]$parts[2] * 1048576 }
         if ($parts[3] -match '^\d+$') { $out.vramTotal = [int64]$parts[3] * 1048576 }
+        # power.draw is a float in watts; fan.speed is a PERCENT (0-100) — NVIDIA
+        # does not expose RPM, so the client must render this value unit-aware.
+        if ($parts[4] -match '^\d+(\.\d+)?$') { $out.gpuWatts  = [Math]::Round([double]$parts[4], 1) }
+        if ($parts[5] -match '^\d+$')         { $out.gpuFanPct = [int]$parts[5] }
         $out | ConvertTo-Json -Compress
         # `return` (not `exit`) ends the script for both the one-shot `-File` run and
         # the persistent worker's call-operator invocation, without killing the host.
@@ -125,6 +131,13 @@ try {
                 if ($sname -match 'Memory Used'  -and $null -eq $vramUsed)  { $vramUsed  = [int64]([double]$sensor.Value * 1048576) }
                 if ($sname -match 'Memory Total' -and $null -eq $vramTotal) { $vramTotal = [int64]([double]$sensor.Value * 1048576) }
               }
+            } elseif ($stype -eq 'Power') {
+              # Board/package power draw in watts (AMD/Intel path — NVIDIA returns
+              # early above with nvidia-smi's power.draw).
+              if ($null -ne $sensor.Value -and $null -eq $gpuWatts) { $gpuWatts = [Math]::Round([double]$sensor.Value, 1) }
+            } elseif ($stype -eq 'Fan') {
+              # LHM reports the GPU fan in RPM (unlike nvidia-smi's percent).
+              if ($null -ne $sensor.Value -and $null -eq $gpuFanRpm) { $gpuFanRpm = [int][Math]::Round([double]$sensor.Value) }
             }
           } catch { }
         }
@@ -148,7 +161,7 @@ try {
     }
   }
   $gpu = [Math]::Min(100, [Math]::Max(0, [Math]::Round($sum, 0)))
-  @{ gpu = $gpu; gpuTemp = $gpuTemp; gpuName = $gpuName; vramUsed = $vramUsed; vramTotal = $vramTotal } | ConvertTo-Json -Compress
+  @{ gpu = $gpu; gpuTemp = $gpuTemp; gpuName = $gpuName; vramUsed = $vramUsed; vramTotal = $vramTotal; gpuWatts = $gpuWatts; gpuFanRpm = $gpuFanRpm } | ConvertTo-Json -Compress
 } catch {
-  @{ gpu = $null; gpuTemp = $gpuTemp; gpuName = $gpuName; vramUsed = $vramUsed; vramTotal = $vramTotal; error = $_.Exception.Message } | ConvertTo-Json -Compress
+  @{ gpu = $null; gpuTemp = $gpuTemp; gpuName = $gpuName; vramUsed = $vramUsed; vramTotal = $vramTotal; gpuWatts = $gpuWatts; gpuFanRpm = $gpuFanRpm; error = $_.Exception.Message } | ConvertTo-Json -Compress
 }

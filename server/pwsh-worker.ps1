@@ -24,6 +24,9 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 $OutputEncoding = $utf8NoBom
 
 $root  = $PSScriptRoot
+# battery.ps1 is deliberately NOT here: its Bluetooth device sweep takes ~1s and
+# this host answers requests serially, so it would stall every sensor read behind
+# it. It gets its own one-shot spawn (see server/battery.js).
 $allow = @{ 'gpu.ps1' = $true; 'cpu-temp.ps1' = $true; 'network.ps1' = $true; 'idle.ps1' = $true }
 
 function Write-Frame($obj) {

@@ -6,6 +6,8 @@ mod cursor_guard;
 mod edge_swipe;
 #[cfg(windows)]
 mod focus_guard;
+#[cfg(windows)]
+mod gpu;
 mod monitor;
 mod prefs;
 mod tray;
@@ -418,7 +420,7 @@ pub fn run() {
             );
             let port_js = format!("try{{window.__XENON_PORT__={};}}catch(e){{}}", port);
             let init_script = format!("{EXTERNAL_LINK_SHIM}\n{caps_js}\n{port_js}");
-            let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+            let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("Xenon")
                 .inner_size(2560.0, 720.0)
                 .min_inner_size(640.0, 240.0)
@@ -561,8 +563,35 @@ pub fn run() {
                     use tauri_plugin_opener::OpenerExt;
                     let _ = nav_handle.opener().open_url(url.as_str(), None::<&str>);
                     false
-                })
-                .build()?;
+                });
+
+            // WebView2 browser arguments. `additional_browser_args` REPLACES wry's
+            // default (`--disable-features=…`), so it's re-included below.
+            //
+            // 1) Keep the unfocused kiosk renderer fully alive. The Edge window never
+            //    holds focus (WS_EX_NOACTIVATE) and lives on a secondary display, so
+            //    Chromium would background/throttle its renderer after a while —
+            //    freezing its JS timers and the SSE stream, so the dashboard silently
+            //    stops updating and the Deck stops responding even though the socket
+            //    stays open (reported as "the app stopped talking to the server").
+            //    These three switches stop that suspension.
+            // 2) Match the WebView2 render GPU to the display presenting the kiosk
+            //    (the Edge, typically an iGPU over USB-C). Rendering on a different
+            //    GPU than the one scanning out the window makes Chromium copy every
+            //    composited frame across adapters on the CPU — ~1.5 idle cores on a
+            //    hybrid-GPU machine. See gpu::webview_gpu_flag (no-op off hybrids).
+            #[cfg(windows)]
+            let builder = {
+                let mut args = String::from(
+                    "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-renderer-backgrounding --disable-background-timer-throttling --disable-backgrounding-occluded-windows",
+                );
+                if let Some(flag) = gpu::webview_gpu_flag() {
+                    args.push(' ');
+                    args.push_str(flag);
+                }
+                builder.additional_browser_args(&args)
+            };
+            let window = builder.build()?;
 
             // Place the kiosk window on the Xeneon Edge (if connected) and keep a
             // watchdog running so it returns there after display reorders, replug

@@ -231,7 +231,25 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       try {
         const d = JSON.parse(e.data);
         applySystem(d);
+        if (window.FansWidget) window.FansWidget.onSSE(d);
+        if (window.PowerWidget) window.PowerWidget.onSSE(d);
+        // Deck keys with a live 'sensor' badge (fan RPM / watts / temps).
+        if (window.Deck && window.DeckModel && window.DeckModel.sensorsFromSystem) {
+          window.Deck.refreshStates({ sensors: window.DeckModel.sensorsFromSystem(d) });
+        }
         if (window.CustomWidget) window.CustomWidget.onData('system', d);
+      } catch {}
+    });
+    es.addEventListener('battery', e => {
+      // Wireless peripheral battery (Corsair via iCUE + Bluetooth) → the
+      // Battery widget and the Deck's live 'sensor:battery:<name>' badges.
+      try {
+        const d = JSON.parse(e.data);
+        if (window.BatteryWidget) window.BatteryWidget.onSSE(d);
+        if (window.Deck && window.DeckModel && window.DeckModel.batteriesByName) {
+          window.Deck.refreshStates({ batteries: window.DeckModel.batteriesByName((d && d.devices) || []) });
+        }
+        if (window.CustomWidget) window.CustomWidget.onData('battery', d);
       } catch {}
     });
     es.addEventListener('audio', e => {
@@ -265,8 +283,9 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       try { if (window.DiscordWidget && typeof window.DiscordWidget.onNotification === 'function') window.DiscordWidget.onNotification(JSON.parse(e.data)); } catch {}
     });
     es.addEventListener('homeassistant', e => {
-      // Live Home Assistant state (event-driven, not polled) → the Smart Home tile.
-      try { const d = JSON.parse(e.data); if (window.SmartHome) window.SmartHome.onSSE(d); if (window.CustomWidget) window.CustomWidget.onData('homeassistant', d); } catch {}
+      // Live Home Assistant state (event-driven, not polled) → the Smart Home
+      // tile and the Energy widget (its `energy` selection rides the same event).
+      try { const d = JSON.parse(e.data); if (window.SmartHome) window.SmartHome.onSSE(d); if (window.PowerWidget) window.PowerWidget.onHaSSE(d); if (window.CustomWidget) window.CustomWidget.onData('homeassistant', d); } catch {}
     });
     es.addEventListener('ha_states', e => {
       // Live states for the HA entities Deck keys are bound to (the server

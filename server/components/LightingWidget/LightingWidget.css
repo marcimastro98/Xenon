@@ -114,7 +114,7 @@
 }
 .lgt-chip:hover { color: var(--text, #e7e9ee); background: rgba(255,255,255,0.08); }
 .lgt-chip.is-active {
-  color: #fff; background: rgba(var(--accent-rgb, 43,108,255), 0.9); border-color: transparent;
+  color: var(--on-accent); background: var(--accent); border-color: transparent;
   box-shadow: 0 1px 6px rgba(var(--accent-rgb, 43,108,255), 0.4);
 }
 

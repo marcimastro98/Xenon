@@ -209,8 +209,8 @@
 }
 .deck-pmenu-tool svg { width: 12px; height: 12px; fill: currentColor; }
 .deck-pmenu-tool:hover { filter: brightness(1.2); color: var(--text, #e7e9ee); }
-.deck-pmenu-tool.danger { color: #ff6b6b; }
-.deck-pmenu-tool.danger:hover { color: #ff8f8f; }
+.deck-pmenu-tool.danger { color: var(--color-danger); }
+.deck-pmenu-tool.danger:hover { color: var(--color-danger); background: var(--danger-bg); }
 .deck-pmenu-tool:disabled { opacity: .35; cursor: default; filter: none; }
 .deck-pmenu-input {
   width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 10px;
@@ -227,11 +227,11 @@
 /* One-tap cleanup of profiles left behind by removed deck tiles (edit mode only). */
 .deck-pmenu-clean {
   margin-top: 8px; width: 100%; padding: 9px; border-radius: 10px; cursor: pointer;
-  font-size: 12px; font-weight: 600; color: #ff8f8f;
+  font-size: 12px; font-weight: 600; color: var(--color-danger);
   border: 1px solid rgba(255, 107, 107, .35); background: rgba(255, 107, 107, .08);
   transition: background .15s ease, border-color .15s ease, color .15s ease;
 }
-.deck-pmenu-clean:hover { background: rgba(255, 107, 107, .16); border-color: rgba(255, 107, 107, .6); color: #ffb0b0; }
+.deck-pmenu-clean:hover { background: var(--danger-bg); border-color: rgba(var(--danger-rgb), .6); color: var(--color-danger); }
 
 /* ── Recessed key well: a carved bezel around the key area ─────────── */
 /* container-type:size makes the well a query context so the grid can derive a
@@ -923,13 +923,14 @@ body.perf-mode .deck-key .deck-key-anim { opacity: 0; }
 .deck-style-close:hover { background: rgba(255, 255, 255, .1); }
 /* Preview surface — a neutral, checkered backdrop so the deck reads on any theme. */
 .deck-style-preview {
-  display: flex; justify-content: center; align-items: center;
-  padding: 16px; border-radius: 12px; overflow: hidden;
+  display: flex; justify-content: center; align-items: flex-start;
+  flex: 0 0 auto; max-height: min(48vh, 360px);
+  padding: 16px; border-radius: 12px; overflow: auto;
   background:
     linear-gradient(rgba(0, 0, 0, .18), rgba(0, 0, 0, .18)),
     conic-gradient(#2a2f38 0 25%, #232830 0 50%, #2a2f38 0 75%, #232830 0) 0 0 / 22px 22px;
 }
-.deck-style-preview-root { pointer-events: none; width: 100%; max-width: 440px; }
+.deck-style-preview-root { pointer-events: none; width: 100%; max-width: 440px; height: auto !important; }
 /* The real deck's caps are sized from the WELL via size container queries (100cqh),
    which need a real height. The modal has no fixed height, so give the well a
    concrete one (rows × cap) — then the native sizing resolves, the caps are square,
@@ -938,7 +939,7 @@ body.perf-mode .deck-key .deck-key-anim { opacity: 0; }
   flex: 0 0 auto !important;
   height: calc(var(--deck-rows, 2) * 74px) !important;
 }
-.deck-style-preview-root .deck-device { gap: 8px; }
+.deck-style-preview-root .deck-device { flex: none; width: 100%; gap: 8px; }
 .deck-style-body { display: flex; flex-direction: column; gap: 12px; }
 .deck-style-grp { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .deck-style-cap {
@@ -1275,9 +1276,9 @@ select.deck-ed-input {
   transition: filter .15s ease, background .15s ease;
 }
 .deck-ed-btn:hover { background: rgba(255, 255, 255, .1); }
-.deck-ed-btn.primary { background: var(--accent, #2b6cff); border-color: transparent; color: #fff; }
+.deck-ed-btn.primary { background: var(--accent, #2b6cff); border-color: transparent; color: var(--on-accent, #fff); }
 .deck-ed-btn.primary:hover { filter: brightness(1.08); background: var(--accent, #2b6cff); }
-.deck-ed-btn.danger { color: #ff6b6b; border-color: rgba(255, 107, 107, .4); flex: 0 0 auto; padding: 10px 14px; }
+.deck-ed-btn.danger { color: var(--color-danger); border-color: rgba(var(--danger-rgb), .4); flex: 0 0 auto; padding: 10px 14px; }
 
 /* discordSound param: the sound dropdown + a preview (▶) button that auditions the
    selected sound locally. Row keeps the (enhanced) select filling the width and the
@@ -1572,7 +1573,7 @@ select.deck-ed-input {
   background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12); color: var(--text, #e7e9ee);
 }
 .deck-ed-stepbtn[disabled] { opacity: .3; cursor: default; }
-.deck-ed-stepbtn.danger { color: #ff6b6b; border-color: rgba(255, 107, 107, .35); }
+.deck-ed-stepbtn.danger { color: var(--color-danger); border-color: rgba(var(--danger-rgb), .35); }
 .deck-ed-stepdelay { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
 .deck-ed-step .deck-ed-params { margin-top: 8px; }
 .deck-ed-addstep {
@@ -1611,7 +1612,7 @@ select.deck-ed-input {
   background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12);
   color: var(--text-dim, #8b91a1); font-size: 13px;
 }
-.deck-ed-hotkey-clear:hover { color: #ff6b6b; border-color: rgba(255, 107, 107, .35); }
+.deck-ed-hotkey-clear:hover { color: var(--color-danger); border-color: rgba(var(--danger-rgb), .35); }
 .deck-ed-hotkey-preview {
   text-align: center; font-weight: 700; letter-spacing: .04em; font-variant-numeric: tabular-nums;
   padding: 6px; border-radius: 8px; background: rgba(255, 255, 255, .04);

@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const {
-  buildSrcdoc, encodeForJsString, sanitizeBgAssets,
+  buildSrcdoc, encodeForJsString, sanitizeBgAssets, sanitizeBgFps,
   CODE_MAX, ASSET_MAX_COUNT, ASSET_MAX_CHARS, ASSETS_TOTAL_MAX,
+  FPS_MIN, FPS_MAX, FPS_DEFAULT,
 } = require('../js/custom-bg.js');
 
 // The code-defined animated background runs UNTRUSTED user JS inside a sandboxed
@@ -27,10 +28,11 @@ function decodeEmbedded(html) {
 }
 
 // Same round-trip for the bundled assets payload: literal → JSON → object.
+// The assets literal ends where the fps literal begins.
 function decodeEmbeddedAssets(html) {
   const marker = ',__assetsJson=';
   const start = html.lastIndexOf(marker) + marker.length;
-  const end = html.indexOf(';(function(){', start);
+  const end = html.indexOf(',__fps=', start);
   const literal = html.slice(start, end);
   // eslint-disable-next-line no-eval
   return JSON.parse((0, eval)(literal));
@@ -146,4 +148,34 @@ test('assets are handed to the draw contract (factory param + 5th argument)', ()
   const html = buildSrcdoc('function draw(ctx,t,w,h,assets){}', { sprite: PNG_1PX });
   assert.ok(html.includes('new Function("canvas","ctx","assets"'), 'setup scope receives assets');
   assert.ok(html.includes('draw(ctx,el,innerWidth,innerHeight,assets)'), 'draw receives assets');
+});
+
+// ── Frame-rate cap ────────────────────────────────────────────────────────────
+
+test('sanitizeBgFps clamps to the 10–60 range and defaults to 30', () => {
+  assert.equal(sanitizeBgFps(undefined), FPS_DEFAULT);
+  assert.equal(sanitizeBgFps(null), FPS_DEFAULT);
+  assert.equal(sanitizeBgFps('nope'), FPS_DEFAULT);
+  assert.equal(sanitizeBgFps(NaN), FPS_DEFAULT);
+  assert.equal(sanitizeBgFps(1), FPS_MIN);
+  assert.equal(sanitizeBgFps(1000), FPS_MAX);
+  assert.equal(sanitizeBgFps(24.4), 24, 'rounded to an integer');
+  assert.equal(sanitizeBgFps('45'), 45, 'numeric strings accepted');
+});
+
+test('buildSrcdoc embeds the sanitized fps as a numeric literal (default when omitted)', () => {
+  assert.ok(buildSrcdoc('function draw(){}').includes(',__fps=' + FPS_DEFAULT + ';'), 'omitted → default');
+  assert.ok(buildSrcdoc('function draw(){}', null, 15).includes(',__fps=15;'), 'explicit value embedded');
+  assert.ok(buildSrcdoc('function draw(){}', null, 9999).includes(',__fps=' + FPS_MAX + ';'), 'out-of-range clamped');
+  assert.ok(buildSrcdoc('function draw(){}', null, '<img onerror=x>').includes(',__fps=' + FPS_DEFAULT + ';'),
+    'a non-numeric value can never inject markup — it collapses to the default number');
+});
+
+test('the frame loop throttles paints to the embedded fps', () => {
+  const html = buildSrcdoc('function draw(){}', null, 20);
+  assert.ok(html.includes('step=1000/__fps'), 'paint interval derived from the cap');
+  assert.ok(html.includes('if(t-last<step-1){raf=requestAnimationFrame(frame);return;}'),
+    'early rAF ticks are skipped without painting');
+  // Elapsed time stays on the real clock — skipping frames must not slow motion.
+  assert.ok(html.includes('var el=(t-start)/1000'), 'elapsed seconds follow the rAF timestamp');
 });

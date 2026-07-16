@@ -106,13 +106,13 @@ body:not([data-panel]) .system-audio-pane:not([hidden]) {
 }
 
 .vol-title {
-  color: #c0cac6;
+  color: var(--muted-text);
   font-size: 13.5px;
   font-weight: 850;
 }
 
 .vol-value {
-  color: #edf3f0;
+  color: var(--text);
   font-size: 14.5px;
   font-weight: 850;
   font-variant-numeric: tabular-nums;
@@ -123,8 +123,8 @@ body:not([data-panel]) .system-audio-pane:not([hidden]) {
   height: 32px;
   border-radius: 50%;
   border: 1px solid #293030;
-  background: #111818;
-  color: #c5cfcb;
+  background: var(--control-bg);
+  color: var(--muted-text);
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -133,7 +133,7 @@ body:not([data-panel]) .system-audio-pane:not([hidden]) {
 
 .vol-mute-btn:active { transform: scale(0.9); }
 .vol-mute-btn svg { width: 16px; height: 16px; fill: currentColor; }
-.vol-mute-btn.speaker-muted { color: var(--red); border-color: rgba(229,57,53,0.36); }
+.vol-mute-btn.speaker-muted { color: var(--color-danger); border-color: rgba(var(--danger-rgb),0.36); }
 
 .vol-slider {
   -webkit-appearance: none;
@@ -143,7 +143,7 @@ body:not([data-panel]) .system-audio-pane:not([hidden]) {
   border-radius: 999px;
   outline: none;
   cursor: pointer;
-  background: #171c1c;
+  background: var(--control-bg);
 }
 
 .vol-slider::-webkit-slider-thumb {
@@ -152,8 +152,8 @@ body:not([data-panel]) .system-audio-pane:not([hidden]) {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #e9efec;
-  box-shadow: 0 0 0 3px #111818, 0 3px 10px rgba(0,0,0,0.55);
+  background: var(--text);
+  box-shadow: 0 0 0 3px var(--surface), 0 3px 10px rgba(0,0,0,0.35);
   cursor: pointer;
 }
 
@@ -161,9 +161,9 @@ body:not([data-panel]) .system-audio-pane:not([hidden]) {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #e9efec;
-  border: 3px solid #111818;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.55);
+  background: var(--text);
+  border: 3px solid var(--surface);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
   cursor: pointer;
 }
 
@@ -192,7 +192,7 @@ body:not([data-panel]) .system-audio-pane:not([hidden]) {
 }
 
 .app-mix-row.app-mix-muted .app-mix-slider { opacity: 0.38; }
-.app-mix-row.app-mix-muted .app-mix-vol   { color: #4d5f5b; }
+.app-mix-row.app-mix-muted .app-mix-vol   { color: var(--dim-text); }
 
 .app-mix-icon {
   width: 22px;
@@ -215,7 +215,7 @@ body:not([data-panel]) .system-audio-pane:not([hidden]) {
 .app-mix-name {
   font-size: 12px;
   font-weight: 700;
-  color: #98a6a1;
+  color: var(--muted-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -228,7 +228,7 @@ body:not([data-panel]) .system-audio-pane:not([hidden]) {
   width: 100%;
   height: 4px;
   border-radius: 999px;
-  background: #171c1c;
+  background: var(--control-bg);
   outline: none;
   cursor: pointer;
 }
@@ -239,8 +239,8 @@ body:not([data-panel]) .system-audio-pane:not([hidden]) {
   width: 13px;
   height: 13px;
   border-radius: 50%;
-  background: #d8e4e0;
-  box-shadow: 0 0 0 2px #111818, 0 2px 6px rgba(0,0,0,0.5);
+  background: var(--text);
+  box-shadow: 0 0 0 2px var(--surface), 0 2px 6px rgba(0,0,0,0.35);
   cursor: pointer;
 }
 
@@ -248,9 +248,9 @@ body:not([data-panel]) .system-audio-pane:not([hidden]) {
   width: 13px;
   height: 13px;
   border-radius: 50%;
-  background: #d8e4e0;
-  border: 2px solid #111818;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  background: var(--text);
+  border: 2px solid var(--surface);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
   cursor: pointer;
 }
 
@@ -258,7 +258,7 @@ body:not([data-panel]) .system-audio-pane:not([hidden]) {
   font-size: 11px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  color: #7a8e89;
+  color: var(--muted-text);
   text-align: right;
   min-width: 30px;
 }
@@ -268,8 +268,8 @@ body:not([data-panel]) .system-audio-pane:not([hidden]) {
   height: 24px;
   border-radius: 50%;
   border: 1px solid #293030;
-  background: #0d1414;
-  color: #6a7a75;
+  background: var(--control-bg);
+  color: var(--dim-text);
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -278,4 +278,4 @@ body:not([data-panel]) .system-audio-pane:not([hidden]) {
 }
 
 .app-mix-mute svg { width: 12px; height: 12px; fill: currentColor; }
-.app-mix-mute.active { color: var(--red); border-color: rgba(229,57,53,0.36); }
+.app-mix-mute.active { color: var(--color-danger); border-color: rgba(var(--danger-rgb),0.36); }

@@ -121,7 +121,7 @@ body.voice-speaking .ai-siri-ring { animation-duration: 3s; }
   border-radius: 50%;
   opacity: 0;
   background: #f0b84f;
-  box-shadow: 0 0 8px rgba(240,184,79,.8);
+  box-shadow: 0 0 8px rgba(var(--warning-rgb),.8);
   transition: opacity .2s;
 }
 body[data-ai-wake="initializing"] .qbtn-ai::after,
@@ -1332,8 +1332,8 @@ body.ai-picker-open .ai-voice-hint { visibility: hidden; }
 .ai-pc-run:hover:not(:disabled) { background: rgba(var(--accent-rgb), .28); }
 .ai-pc-cancel:hover:not(:disabled) { background: rgba(255,255,255,.10); }
 .ai-pc-result-head { font-size: .9rem; font-weight: 700; margin-bottom: 8px; }
-.ai-pc-result.ok .ai-pc-result-head { color: #7ee7a6; }
-.ai-pc-result.err .ai-pc-result-head { color: #ff8a8a; }
+.ai-pc-result.ok .ai-pc-result-head { color: var(--color-success); }
+.ai-pc-result.err .ai-pc-result-head { color: var(--color-danger); }
 .ai-pc-out { max-height: 260px; }
 
 /* ══════════════════════════════════════════════════════════════════

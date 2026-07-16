@@ -70,3 +70,12 @@ test('the imported marker survives normalize and is never invented', () => {
   assert.equal('imported' in out[1], false);
   assert.equal('imported' in out[2], false);   // only literal true survives
 });
+
+test('an imported preset preserves only a valid install receipt id', () => {
+  const out = normalizePresets([
+    { id: 'p1', name: 'Tracked', kind: 'page', createdAt: 1, gridCols: 24, imported: true, installId: 'xi_m5abc123deadbeef', data: { items: [{ type: 'widget', widget: 'system', x: 0, y: 0, w: 8, h: 6 }] } },
+    { id: 'p2', name: 'Hostile', kind: 'page', createdAt: 1, gridCols: 24, imported: true, installId: '../bad', data: { items: [{ type: 'widget', widget: 'media', x: 0, y: 0, w: 8, h: 6 }] } },
+  ], KNOWN);
+  assert.equal(out[0].installId, 'xi_m5abc123deadbeef');
+  assert.equal('installId' in out[1], false);
+});

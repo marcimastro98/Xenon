@@ -14,7 +14,7 @@ const SETTINGS_FONT_EXTENSIONS = Object.freeze(new Set(['woff2', 'woff', 'ttf', 
 // comes from the @font-face src, so the family label never needs to match the file.
 const USER_FONT_FAMILY = 'XenonUserFont';
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'custom']);
 // Selectable stock-data providers + chart ranges (mirrors server/stocks.js).
 const STOCK_PROVIDER_IDS = Object.freeze(['auto', 'yahoo', 'twelvedata', 'finnhub']);
 const STOCK_RANGE_IDS = Object.freeze(['1d', '1w', '1m', '1y']);
@@ -111,6 +111,9 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     vitals:   Object.freeze({ x: 8, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
     unifi:    Object.freeze({ x: 8, y: 18, w: 8, h: 8, visible: false, page: 'dashboard' }),
     slideshow: Object.freeze({ x: 0, y: 48, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    fans:     Object.freeze({ x: 16, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    power:    Object.freeze({ x: 16, y: 46, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    battery:  Object.freeze({ x: 0, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
     custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
@@ -173,6 +176,7 @@ const CONTEXT_LIGHTING_STYLES = ['none', 'solid', 'breathing', 'cycle'];
 
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   appearance: 'dark', // 'light' | 'dark' | 'auto' (auto follows the OS colour scheme)
+  autoPalette: false, // true only after selecting Auto; manual colour edits freeze the palette
   // Dashboard style language. 'glass' = the Liquid Glass default; 'retro' swaps
   // the whole dashboard to the opt-in Pixel Retro-gaming skin (themes-retro.css,
   // keyed off :root[data-style="retro"]). Scanlines are a retro-only sub-toggle.
@@ -212,7 +216,18 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   accent: '#1ed760',
   dynamicAlbumTheme: true, // tint the accent from the now-playing album art
   background: '#070808',
+  // Semantic surfaces. Null means "derive from background"; explicit values
+  // travel with themes and let one palette recolour every panel/control.
+  surface: null,
+  surfaceAlt: null,
+  controlColor: null,
   text: '#f0f3f1',
+  accentText: null,
+  successColor: null,
+  warningColor: null,
+  dangerColor: null,
+  infoColor: null,
+  contrastGuard: true,
   panelAlpha: 0.94,
   bgDim: 0.48,
   bgBlur: 0,
@@ -301,6 +316,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Each is a full look { id, name, skin, appearance?, accent, background, text,
   // panelAlpha?, bgDim?, bgBlur?, retroScanlines?, dynamicAlbumTheme?, uiFont? }.
   customThemes: Object.freeze([]),
+  // Import receipts group every resource brought in by one code/catalog item so
+  // Settings can uninstall the whole download without guessing by display name.
+  contentInstalls: Object.freeze([]),
   geminiApiKey: '',
   aiProvider: 'gemini', // 'gemini' | 'ollama' | 'openai' | 'anthropic' — selected AI backend
   ollamaModel: 'auto',  // 'auto' | whitelist key | custom model tag
@@ -394,7 +412,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Code-defined animated background: a user snippet (or one carried in a shared
   // theme/package) run inside a locked-down sandboxed iframe (see js/custom-bg.js).
   // Off by default; when enabled it owns the backdrop like a static bg does.
-  bgCustom: Object.freeze({ enabled: false, name: '', code: '', assets: Object.freeze({}) }),
+  bgCustom: Object.freeze({ enabled: false, name: '', code: '', assets: Object.freeze({}), fps: 30 }),
   // Slideshow widget — an ordered set of images/GIFs (inline data: URIs) plus its
   // playback options. Rules live in js/slideshow-widget.js (shared with the server).
   slideshow: Object.freeze({ images: Object.freeze([]), intervalMs: 6000, fit: 'cover' }),
@@ -496,7 +514,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Home Assistant Smart Home bridge. url/entities are client-managed; `token` is
   // a server-only secret (redacted on the wire, restored on save), so the client
   // copy is always '' and the server surfaces a `tokenSet` flag for the UI.
-  homeAssistant: Object.freeze({ url: '', token: '', entities: Object.freeze([]), cameras: Object.freeze([]), camAngles: Object.freeze({}), tokenSet: false }),
+  homeAssistant: Object.freeze({ url: '', token: '', entities: Object.freeze([]), cameras: Object.freeze([]), energyEntities: Object.freeze([]), camAngles: Object.freeze({}), tokenSet: false }),
   // UniFi Protect cameras. host/username/cameras are client-managed; the console
   // `password` is a server-only secret (redacted on the wire, restored on save),
   // so the client copy is always '' and the server surfaces a `passwordSet` flag.
@@ -556,8 +574,10 @@ const normStyleMode = (v) => (STYLE_MODES.includes(v) ? v : 'glass');
 // deliberately NOT part of a theme (structural/personal, not the look). Keep this
 // the single source of truth: snapshot, apply and active-match all read from it.
 const THEME_SETTING_KEYS = Object.freeze([
-  'appearance', 'styleMode', 'retroScanlines',
-  'accent', 'background', 'text', 'mutedText', 'lineColor',
+  'appearance', 'autoPalette', 'styleMode', 'retroScanlines',
+  'accent', 'background', 'surface', 'surfaceAlt', 'controlColor',
+  'text', 'mutedText', 'lineColor', 'accentText',
+  'successColor', 'warningColor', 'dangerColor', 'infoColor', 'contrastGuard',
   'dynamicAlbumTheme',
   'panelAlpha', 'panelBorderStrength', 'panelShadowStrength',
   'uiRoundness', 'glassBlur', 'glassSaturate',
@@ -779,11 +799,18 @@ function normalizeBgCustom(value) {
     name: typeof source.name === 'string' ? source.name.trim().slice(0, 60) : '',
     code,
     assets: normalizeBgAssets(source.assets),
+    // Frame-rate cap (paints per second). Rule owner is CustomBg.sanitizeBgFps
+    // (same single-owner shape as the assets above); fail-closed to the default.
+    fps: (window.CustomBg && CustomBg.sanitizeBgFps) ? CustomBg.sanitizeBgFps(source.fps) : 30,
   };
   // Redistribution marker: set when the background arrived via a share code
   // (someone else's work → not re-exportable); cleared when the user replaces
   // the code with their own from the editor/presets.
   if (source.imported === true && code) out.imported = true;
+  if (out.imported && typeof ContentInstalls !== 'undefined'
+      && ContentInstalls.INSTALL_ID_RE.test(String(source.installId || ''))) {
+    out.installId = String(source.installId);
+  }
   return out;
 }
 
@@ -1082,11 +1109,21 @@ function normalizeCustomThemes(list) {
         || ('ct_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),
       name: String(raw.name || '').trim().slice(0, 40),
       appearance: ['light', 'dark', 'auto'].includes(raw.appearance) ? raw.appearance : D.appearance,
+      autoPalette: raw.autoPalette === true || (raw.autoPalette == null && raw.appearance === 'auto'),
       styleMode: normStyleMode(raw.styleMode),
       retroScanlines: raw.retroScanlines !== false,
       accent: normalizeHex(raw.accent, D.accent),
       background: normalizeHex(raw.background, D.background),
+      surface: normalizeHex(raw.surface, null),
+      surfaceAlt: normalizeHex(raw.surfaceAlt, null),
+      controlColor: normalizeHex(raw.controlColor, null),
       text: normalizeHex(raw.text, D.text),
+      accentText: normalizeHex(raw.accentText, null),
+      successColor: normalizeHex(raw.successColor, null),
+      warningColor: normalizeHex(raw.warningColor, null),
+      dangerColor: normalizeHex(raw.dangerColor, null),
+      infoColor: normalizeHex(raw.infoColor, null),
+      contrastGuard: raw.contrastGuard !== false,
       dynamicAlbumTheme: raw.dynamicAlbumTheme !== false,
       panelAlpha: clampNumber(raw.panelAlpha, SETTINGS_MIN_PANEL_ALPHA, 1, D.panelAlpha),
       panelBorderStrength: clampNumber(raw.panelBorderStrength, 0, 2, D.panelBorderStrength),
@@ -1107,6 +1144,10 @@ function normalizeCustomThemes(list) {
     // Redistribution marker: themes that arrived via a share code are someone
     // else's work — export blocks re-sharing them (see exportTheme guard).
     if (raw.imported === true) theme.imported = true;
+    if (theme.imported && typeof ContentInstalls !== 'undefined'
+        && ContentInstalls.INSTALL_ID_RE.test(String(raw.installId || ''))) {
+      theme.installId = String(raw.installId);
+    }
     out.push(theme);
     if (out.length >= 24) break;
   }
@@ -1122,6 +1163,7 @@ function normalizeSettings(source) {
   const resetLayout = layoutVersion < DASHBOARD_LAYOUT_VERSION;
   return {
     appearance: ['light', 'dark', 'auto'].includes(value.appearance) ? value.appearance : DEFAULT_HUB_SETTINGS.appearance,
+    autoPalette: value.autoPalette === true || (value.autoPalette == null && value.appearance === 'auto'),
     styleMode: normStyleMode(value.styleMode),
     retroScanlines: value.retroScanlines !== false,
     topbarStyle: value.topbarStyle === 'minimal' ? 'minimal' : 'full',
@@ -1137,7 +1179,16 @@ function normalizeSettings(source) {
     accent: normalizeHex(value.accent, DEFAULT_HUB_SETTINGS.accent),
     dynamicAlbumTheme: value.dynamicAlbumTheme !== false,
     background: normalizeHex(value.background, DEFAULT_HUB_SETTINGS.background),
+    surface: normalizeHex(value.surface, null),
+    surfaceAlt: normalizeHex(value.surfaceAlt, null),
+    controlColor: normalizeHex(value.controlColor, null),
     text: normalizeHex(value.text, DEFAULT_HUB_SETTINGS.text),
+    accentText: normalizeHex(value.accentText, null),
+    successColor: normalizeHex(value.successColor, null),
+    warningColor: normalizeHex(value.warningColor, null),
+    dangerColor: normalizeHex(value.dangerColor, null),
+    infoColor: normalizeHex(value.infoColor, null),
+    contrastGuard: value.contrastGuard !== false,
     panelAlpha: clampNumber(value.panelAlpha, SETTINGS_MIN_PANEL_ALPHA, 1, DEFAULT_HUB_SETTINGS.panelAlpha),
     bgDim: clampNumber(value.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
     bgBlur: clampNumber(value.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
@@ -1168,6 +1219,8 @@ function normalizeSettings(source) {
       ? DashboardPresets.normalizePresets(value.dashboardPresets, DASHBOARD_WIDGET_IDS)
       : (Array.isArray(value.dashboardPresets) ? value.dashboardPresets.slice(0, 60) : []),
     customThemes: normalizeCustomThemes(value.customThemes),
+    contentInstalls: (typeof ContentInstalls !== 'undefined' && ContentInstalls.normalizeContentInstalls)
+      ? ContentInstalls.normalizeContentInstalls(value.contentInstalls) : [],
     geminiApiKey: String(value.geminiApiKey || '').trim().slice(0, 200),
     aiProvider: ['ollama', 'openai', 'anthropic'].includes(value.aiProvider) ? value.aiProvider : 'gemini',
     ollamaModel: (typeof value.ollamaModel === 'string'
@@ -1310,12 +1363,18 @@ function normalizeHomeAssistant(value) {
   const cameras = Array.isArray(src.cameras)
     ? src.cameras.filter(isCam).filter((v, i, a) => a.indexOf(v) === i).slice(0, 60)
     : [];
+  // Energy widget selection (power/energy sensors) — independent of the Smart
+  // Home tile's `entities`; mirror of the server normalizer (cap 24).
+  const energyEntities = Array.isArray(src.energyEntities)
+    ? src.energyEntities.filter(isEntity).filter((v, i, a) => a.indexOf(v) === i).slice(0, 24)
+    : [];
   const camAngles = normalizeCamAngles(src.camAngles, isCam);
   return {
     url: String(src.url || '').trim().slice(0, 200),
     token: typeof src.token === 'string' ? src.token.slice(0, 400) : '',
     entities,
     cameras,
+    energyEntities,
     camAngles,
     tokenSet: src.tokenSet === true || (typeof src.token === 'string' && src.token.length > 0),
   };
@@ -2077,7 +2136,16 @@ function postHubSettingsToServer() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body,
-  }).then((res) => {
+  }).then(async (res) => {
+    // Always drain the response, success or error: an UNREAD body bigger than
+    // the network buffer keeps its connection permanently checked out of the
+    // browser's 6-per-host pool. When the save ack still echoed the full
+    // settings (multi-MB with imported themes), five discarded echoes + the
+    // SSE stream starved the whole pool and every later request on the page
+    // queued forever — the proven "dashboard deaf after importing a heavy
+    // theme" wedge. The ack is slim now ({ok, rev}); the drain stays as the
+    // client-side guarantee that no response can ever pin a connection again.
+    try { await res.arrayBuffer(); } catch { /* stream already closed — the connection is free either way */ }
     if (!res.ok) { const e = new Error('settings save failed: HTTP ' + res.status); e.status = res.status; throw e; }
     return res;
   });
@@ -2352,6 +2420,9 @@ async function _hydrateHubSettingsImpl() {
       customThemes: (Array.isArray(base.customThemes) && base.customThemes.length) ? base.customThemes
         : (Array.isArray(localRaw.customThemes) && localRaw.customThemes.length) ? localRaw.customThemes
         : (Array.isArray(data.settings.customThemes) ? data.settings.customThemes : []),
+      contentInstalls: (Array.isArray(base.contentInstalls) && base.contentInstalls.length) ? base.contentInstalls
+        : (Array.isArray(localRaw.contentInstalls) && localRaw.contentInstalls.length) ? localRaw.contentInstalls
+        : (Array.isArray(data.settings.contentInstalls) ? data.settings.contentInstalls : []),
       // Native canvas Ambient scenes are client-owned too — same survival rule.
       ambientScenes: (Array.isArray(base.ambientScenes) && base.ambientScenes.length) ? base.ambientScenes
         : (Array.isArray(localRaw.ambientScenes) && localRaw.ambientScenes.length) ? localRaw.ambientScenes
@@ -2655,39 +2726,14 @@ function replaceBackgroundNode(current, fresh, fallbackParent) {
 }
 
 // ── Appearance (light / dark / auto) ──────────────────────────────
-// Light-mode base palette. Set as inline custom properties on :root so they
-// win over the dark defaults in global.css; removed again in dark mode so the
-// stylesheet defaults (and the user's custom colours) take over. Component CSS
-// fixups for hard-coded colours live in styles/themes-light.css, keyed off
-// the [data-appearance="light"] attribute set below.
-const LIGHT_BG = '#eceff3';
-const LIGHT_TEXT = '#171d1b';
-const LIGHT_ONLY_TOKENS = Object.freeze({
-  '--muted-text': '#566159',
-  '--dim-text': '#828c87',
-  '--line': '#d6dce0',
-  '--panel-rgb': '255, 255, 255',
-  '--panel-soft-rgb': '244, 247, 250',
-  '--panel-border': 'rgba(15, 25, 30, 0.10)',
-  '--floating-ui-bg': 'rgba(255, 255, 255, 0.66)',
-  '--floating-ui-border': 'rgba(15, 25, 30, 0.12)',
-  '--glass-bg': 'linear-gradient(135deg, rgba(255,255,255,0.80), rgba(255,255,255,0.52))',
-  '--glass-border': 'rgba(255,255,255,0.88)',
-  '--glass-highlight': 'rgba(255,255,255,0.95)',
-  '--glass-sheen': 'linear-gradient(180deg, rgba(255,255,255,0.6), transparent 38%)',
-  '--oled-bg-rgb': '255, 255, 255',
-  '--oled-border': 'rgba(15, 25, 30, 0.08)',
-  '--readability-shadow': '0 1px 2px rgba(20,30,40,0.10)',
-  '--icon-readability-filter': 'none',
-  '--slider-fill': 'var(--accent)',
-  '--slider-track': 'rgba(15, 25, 30, 0.12)',
-  '--shadow-sm': '0 1px 2px rgba(20,30,40,0.08)',
-  '--shadow-md': '0 1px 2px rgba(20,30,40,0.05), 0 8px 22px -6px rgba(20,30,40,0.10)',
-  '--shadow-lg': '0 2px 4px rgba(20,30,40,0.05), 0 18px 44px -12px rgba(20,30,40,0.14)',
-  '--shadow-xl': '0 3px 6px rgba(20,30,40,0.06), 0 30px 70px -18px rgba(20,30,40,0.18)',
-  '--panel-topline': 'rgba(255,255,255,0.85)',
-  '--panel-drop': '0 1px 2px rgba(20,30,40,0.05), 0 10px 30px -16px rgba(20,30,40,0.14)',
-});
+// Mode buttons seed an accessible stock palette. After that every colour is a
+// normal editable theme field: no mode-specific constant is allowed to override
+// what the user or an imported theme selected.
+const APPEARANCE_COLOR_KEYS = Object.freeze([
+  'background', 'surface', 'surfaceAlt', 'controlColor', 'text',
+  'mutedText', 'lineColor', 'accentText',
+  'successColor', 'warningColor', 'dangerColor', 'infoColor',
+]);
 
 // Windows app theme read from the server registry (reliable). Cached in
 // localStorage so a reload starts on the correct scheme immediately, instead of
@@ -2733,7 +2779,19 @@ setInterval(refreshOsTheme, 30000);
 
 function setAppearance(mode) {
   if (!['light', 'dark', 'auto'].includes(mode)) return;
-  hubSettings.appearance = mode;
+  const resolved = mode === 'auto' ? resolveAppearance(mode) : mode;
+  const stock = window.ThemePalette && ThemePalette.STOCK[resolved];
+  const patch = { appearance: mode, autoPalette: mode === 'auto' };
+  // A mode switch is an intentional request for a usable light/dark starting
+  // point. Keep the chosen accent, but reset every surface/foreground role so
+  // Light really becomes light and Dark really becomes dark. Subsequent colour
+  // edits remain exact and are never replaced inside applyHubSettings().
+  if (stock) {
+    for (const key of APPEARANCE_COLOR_KEYS) patch[key] = null;
+    for (const key of ['background', 'surface', 'surfaceAlt', 'controlColor', 'text']) patch[key] = stock[key];
+    patch.contrastGuard = true;
+  }
+  hubSettings = normalizeSettings({ ...hubSettings, ...patch });
   saveHubSettings();
   applyHubSettings();
   syncSettingsControls();
@@ -2768,10 +2826,9 @@ function syncStyleModeControls() {
     const grid = scanRow.closest('.settings-grid');
     if (grid) grid.hidden = !retro;
   }
-  // Retro (dark CRT) and Comic (light page) both pin their own appearance, so
-  // the Modalità (light/dark/auto) control would save-but-do-nothing — dim it
-  // instead of lying active.
-  const forcedAppearance = retro || hubSettings.styleMode === 'comic';
+  // Retro owns a fixed dark CRT palette. Comic is now palette-driven and may be
+  // light or dark, so its mode buttons remain fully functional.
+  const forcedAppearance = retro;
   const themeGroup = document.querySelector('.settings-theme-group');
   if (themeGroup) themeGroup.classList.toggle('is-disabled', forcedAppearance);
 }
@@ -2793,14 +2850,95 @@ if (window.matchMedia) {
 // off.
 let _dynamicAccent = null;
 
+let _effectiveThemePalette = null;
+
+function deriveEffectiveThemePalette() {
+  const source = { ...hubSettings };
+  if (hubSettings.appearance === 'auto' && hubSettings.autoPalette === true) {
+    const stock = ThemePalette.STOCK[resolveAppearance('auto')];
+    Object.assign(source, stock, {
+      mutedText: null, lineColor: null, accentText: null,
+      successColor: null, warningColor: null, dangerColor: null, infoColor: null,
+    });
+    // Accent remains a user preference even while the neutral palette follows
+    // Windows; album-art accent may still replace it below.
+    source.accent = hubSettings.accent;
+  }
+  if (hubSettings.dynamicAlbumTheme !== false && _dynamicAccent) source.accent = _dynamicAccent;
+  // Comic's default material is printed on the Base background. Authors can
+  // still separate canvas and paper explicitly with `surface`.
+  if (hubSettings.styleMode === 'comic' && !source.surface) source.surface = source.background;
+  // Retro intentionally owns a fixed CRT palette; expose the same effective
+  // colours to SDK widgets instead of leaking the previous skin's palette.
+  if (hubSettings.styleMode === 'retro') {
+    Object.assign(source, {
+      background: '#050510', surface: '#0d0e20', surfaceAlt: '#121328', controlColor: '#181a34',
+      text: '#e8e8dc', mutedText: '#a9a9c0', lineColor: '#4c4c78', accent: '#f5c518',
+    });
+  }
+  const hint = hubSettings.styleMode === 'retro' ? 'dark' : resolveAppearance(hubSettings.appearance);
+  return ThemePalette.derive(source, hint);
+}
+
+function applyThemePaletteTokens(root, palette) {
+  Object.entries(ThemePalette.cssTokens(palette)).forEach(([key, value]) => root.style.setProperty(key, value));
+  root.dataset.appearance = palette.tone;
+  root.style.colorScheme = palette.tone;
+
+  // Component-facing semantic material tokens. They are intentionally defined
+  // in terms of the palette roles, so every future theme and per-tile override
+  // inherits coherent fields, hover states and selected states automatically.
+  const semantic = {
+    '--surface-raised': 'var(--surface-alt)',
+    '--surface-subtle': 'color-mix(in srgb, var(--surface), var(--text) 5%)',
+    '--surface-strong': 'color-mix(in srgb, var(--surface), var(--text) 10%)',
+    '--hover-bg': 'color-mix(in srgb, var(--surface), var(--text) 7%)',
+    '--active-bg': 'color-mix(in srgb, var(--surface), var(--accent) 18%)',
+    '--input-bg': 'var(--control-bg)',
+    '--divider': 'color-mix(in srgb, var(--line), transparent 28%)',
+    '--scrollbar-thumb': 'color-mix(in srgb, var(--text), transparent 76%)',
+    '--selection-bg': 'color-mix(in srgb, var(--accent), var(--surface) 76%)',
+    '--selection-text': 'var(--text)',
+    '--focus-ring': 'color-mix(in srgb, var(--accent), transparent 25%)',
+    '--floating-ui-bg': 'color-mix(in srgb, var(--surface), transparent 22%)',
+    '--floating-ui-border': 'var(--line)',
+    '--oled-bg-rgb': ThemePalette.rgb(palette.surface).join(', '),
+    '--oled-border': 'var(--line)',
+    '--slider-fill': 'var(--accent)',
+    '--slider-track': 'var(--control-bg)',
+  };
+  Object.entries(semantic).forEach(([key, value]) => root.style.setProperty(key, value));
+
+  const light = palette.tone === 'light';
+  root.style.setProperty('--glass-bg', light
+    ? 'linear-gradient(135deg, color-mix(in srgb, var(--surface) 88%, white), color-mix(in srgb, var(--surface-alt) 82%, transparent))'
+    : 'linear-gradient(135deg, color-mix(in srgb, var(--surface) 88%, white 12%), color-mix(in srgb, var(--surface) 96%, transparent) 58%, color-mix(in srgb, var(--surface-alt) 92%, white 8%))');
+  root.style.setProperty('--glass-border', light ? 'color-mix(in srgb, var(--line), white 28%)' : 'color-mix(in srgb, var(--line), white 14%)');
+  root.style.setProperty('--glass-highlight', light ? 'color-mix(in srgb, var(--surface), white 70%)' : 'rgba(255,255,255,0.38)');
+  root.style.setProperty('--glass-sheen', light
+    ? 'linear-gradient(180deg, color-mix(in srgb, var(--surface), white 58%), transparent 38%)'
+    : 'linear-gradient(180deg, rgba(255,255,255,0.14), transparent 30%)');
+  root.style.setProperty('--readability-shadow', light ? 'none' : '0 1px 3px rgba(0,0,0,0.86), 0 0 14px rgba(0,0,0,0.42)');
+  root.style.setProperty('--icon-readability-filter', light ? 'none' : 'drop-shadow(0 1px 2px rgba(0,0,0,0.86)) drop-shadow(0 0 8px rgba(0,0,0,0.32))');
+  root.style.setProperty('--shadow-sm', light ? '0 1px 2px rgba(20,30,40,0.08)' : '0 1px 2px rgba(0,0,0,0.30)');
+  root.style.setProperty('--shadow-md', light ? '0 1px 2px rgba(20,30,40,0.05), 0 8px 22px -6px rgba(20,30,40,0.10)' : '0 1px 2px rgba(0,0,0,0.22), 0 8px 22px -6px rgba(0,0,0,0.38)');
+  root.style.setProperty('--shadow-lg', light ? '0 2px 4px rgba(20,30,40,0.05), 0 18px 44px -12px rgba(20,30,40,0.14)' : '0 2px 4px rgba(0,0,0,0.24), 0 18px 44px -12px rgba(0,0,0,0.50)');
+  root.style.setProperty('--shadow-xl', light ? '0 3px 6px rgba(20,30,40,0.06), 0 30px 70px -18px rgba(20,30,40,0.18)' : '0 3px 6px rgba(0,0,0,0.26), 0 30px 70px -18px rgba(0,0,0,0.60)');
+  root.style.setProperty('--panel-topline', light ? 'color-mix(in srgb, var(--surface), white 72%)' : 'rgba(255,255,255,0.055)');
+  root.style.setProperty('--panel-drop', light ? '0 1px 2px rgba(20,30,40,0.05), 0 10px 30px -16px rgba(20,30,40,0.14)' : '0 1px 1px rgba(0,0,0,0.16), 0 10px 30px -14px rgba(0,0,0,0.45)');
+  _effectiveThemePalette = palette;
+  return palette;
+}
+
 function applyAccentColor() {
   const root = document.documentElement;
-  const useDynamic = hubSettings.dynamicAlbumTheme !== false && _dynamicAccent;
-  const accent = useDynamic ? _dynamicAccent : hubSettings.accent;
-  root.style.setProperty('--accent', accent);
-  root.style.setProperty('--green', accent);
-  root.style.setProperty('--accent-rgb', hexToRgb(accent).join(', '));
+  return applyThemePaletteTokens(root, deriveEffectiveThemePalette());
 }
+
+function getEffectiveThemePalette() {
+  return _effectiveThemePalette || deriveEffectiveThemePalette();
+}
+if (typeof window !== 'undefined') window.getEffectiveThemePalette = getEffectiveThemePalette;
 
 // Called by media.js on every media update. Pass a hex to tint the theme from
 // the album art, or null to fall back to the user's chosen accent.
@@ -2812,28 +2950,22 @@ function setDynamicAccent(hex) {
   if (next === _dynamicAccent) return;
   _dynamicAccent = next;
   applyAccentColor();
+  if (window.CustomWidget && typeof window.CustomWidget.refreshTheme === 'function') window.CustomWidget.refreshTheme();
 }
 
 // Extended full-editor theme tokens, applied inline on :root. Skipped under the
-// retro skin, which owns its own geometry/material — and whose --radius override
-// carries no !important, so a leftover inline --radius would defeat its square
-// corners (hence the explicit removal on the retro branch). The defaults reproduce
-// the stock Liquid Glass look, so an untouched theme is a visual no-op.
-function applyThemeSurfaceTokens(root, retro) {
+// full alternate skins, which own their geometry/material. A leftover inline
+// --radius would otherwise defeat Retro's square corners and Comic's hand-drawn
+// corners (hence the explicit removal on the alternate-skin branch). The defaults
+// reproduce the stock Liquid Glass look, so an untouched theme is a visual no-op.
+function applyThemeSurfaceTokens(root, alternateSkin) {
   const scoped = ['--radius', '--radius-control', '--radius-tile', '--radius-modal', '--glass-blur', '--glass-saturate'];
-  if (retro) { scoped.forEach(prop => root.style.removeProperty(prop)); return; }
+  if (alternateSkin) { scoped.forEach(prop => root.style.removeProperty(prop)); return; }
   const round = clampNumber(hubSettings.uiRoundness, 0, 2, 1);
   [['--radius', 8], ['--radius-control', 10], ['--radius-tile', 16], ['--radius-modal', 20]]
     .forEach(([prop, base]) => root.style.setProperty(prop, `${+(base * round).toFixed(2)}px`));
   root.style.setProperty('--glass-blur', `${Math.round(clampNumber(hubSettings.glassBlur, 0, 40, 22))}px`);
   root.style.setProperty('--glass-saturate', `${Math.round(clampNumber(hubSettings.glassSaturate, 100, 220, 160))}%`);
-  // --muted-text / --line are rewritten by the light/dark branch on every apply
-  // (LIGHT_ONLY_TOKENS), so a user override just layers on top; clearing it falls
-  // back to that branch's value with no residue — hence no removeProperty here.
-  const muted = normalizeHex(hubSettings.mutedText, null);
-  if (muted) root.style.setProperty('--muted-text', muted);
-  const line = normalizeHex(hubSettings.lineColor, null);
-  if (line) root.style.setProperty('--line', line);
 }
 
 function applyHubSettings() {
@@ -2881,13 +3013,9 @@ function applyHubSettings() {
   const bgBlur = Math.round(hubSettings.bgBlur);
   const bgScale = bgBlur > 0 ? Math.min(1.06, 1 + (bgBlur / 600)) : 1;
 
-  // Dashboard style language: themes-<skin>.css keys every rule off this
-  // attribute, so removing it restores Liquid Glass with zero residue.
-  // Each full skin also PINS its own appearance so the light-mode inline
-  // tokens and themes-light.css fixups never half-mix into it (the user's
-  // light/dark/auto choice is preserved and resumes on switch-back):
-  //   • Retro is always a dark CRT.
-  //   • Comic is always a light printed page (cream panels, ink text).
+  // Dashboard style language: skins own geometry/material only. Colour and
+  // contrast always flow through ThemePalette; Retro is the sole fixed-palette
+  // exception because its identity is a dark CRT.
   const retro = hubSettings.styleMode === 'retro';
   const comic = hubSettings.styleMode === 'comic';
   if (retro) root.dataset.style = 'retro';
@@ -2898,14 +3026,6 @@ function applyHubSettings() {
   // Top-bar clock alignment + meta-field visibility (Settings → Aspetto).
   applyTopbarClockSettings();
 
-  // Comic is NOT routed through the light branch: that branch hardcodes
-  // --bg/--text (LIGHT_BG/LIGHT_TEXT) and would ignore the user's Base
-  // background / Text colours. Comic is a palette-driven skin — it takes the
-  // theme's own colours (the else branch below) and only restyles the STRUCTURE
-  // in themes-comic.css, so every colour picker keeps working under it.
-  const light = !retro && !comic && resolveAppearance(hubSettings.appearance) === 'light';
-  root.dataset.appearance = light ? 'light' : 'dark';
-
   // 'auto' resolves from the cached OS scheme above (no white flash); still do one
   // fresh registry read per page load so a scheme change while the dashboard was
   // closed is picked up promptly instead of only on the next 30s poll.
@@ -2914,45 +3034,24 @@ function applyHubSettings() {
     refreshOsTheme();
   }
 
-  // Accent works in both schemes — always applied. applyAccentColor honours an
-  // active album-art override (see setDynamicAccent) while falling back to the
-  // user's saved accent.
-  applyAccentColor();
+  // One application point for every colour role. This also selects the actual
+  // light/dark compatibility layer from the derived PANEL luminance, so a custom
+  // light surface cannot accidentally keep dark component literals (or vice versa).
+  const palette = applyAccentColor();
+  const light = palette.tone === 'light';
 
-  // Custom global typeface (independent of the light/dark branch below).
+  // Custom global typeface (independent of the colour palette).
   applyUiFont();
 
-  if (light) {
-    root.style.setProperty('--bg', LIGHT_BG);
-    root.style.setProperty('--text', LIGHT_TEXT);
-    // Respect the user's panel-opacity slider in light mode too, so lowering it
-    // makes the white tiles genuinely translucent over the background.
-    root.style.setProperty('--panel-alpha', hubSettings.panelAlpha.toFixed(2));
-    root.style.setProperty('--panel-soft-alpha', panelSoftAlpha.toFixed(2));
-    root.style.setProperty('--panel-border-alpha', (0.10 * borderStrength).toFixed(3));
-    root.style.setProperty('--panel-shadow-alpha', (0.10 * shadowStrength).toFixed(3));
-    root.style.setProperty('--panel-highlight-alpha', '0.55');
-    Object.entries(LIGHT_ONLY_TOKENS).forEach(([key, val]) => root.style.setProperty(key, val));
-  } else {
-    root.style.setProperty('--bg', hubSettings.background);
-    root.style.setProperty('--text', hubSettings.text);
-    root.style.setProperty('--panel-alpha', hubSettings.panelAlpha.toFixed(2));
-    root.style.setProperty('--panel-soft-alpha', panelSoftAlpha.toFixed(2));
-    root.style.setProperty('--panel-border-alpha', panelBorderAlpha.toFixed(3));
-    root.style.setProperty('--panel-shadow-alpha', panelShadowAlpha.toFixed(3));
-    root.style.setProperty('--panel-highlight-alpha', panelHighlightAlpha.toFixed(3));
-    Object.keys(LIGHT_ONLY_TOKENS).forEach(key => root.style.removeProperty(key));
-  }
+  root.style.setProperty('--panel-alpha', (comic ? 1 : hubSettings.panelAlpha).toFixed(2));
+  root.style.setProperty('--panel-soft-alpha', (comic ? 1 : panelSoftAlpha).toFixed(2));
+  root.style.setProperty('--panel-border-alpha', (light ? 0.10 * borderStrength : panelBorderAlpha).toFixed(3));
+  root.style.setProperty('--panel-shadow-alpha', (light ? 0.10 * shadowStrength : panelShadowAlpha).toFixed(3));
+  root.style.setProperty('--panel-highlight-alpha', light ? '0.55' : panelHighlightAlpha.toFixed(3));
 
-  // Comic paper: the tile surface follows the user's Base background so it stays
-  // fully recolourable (Reset restores the theme). --bg/--text already come from
-  // the theme (else branch above); here we make the panels an OPAQUE sheet of
-  // that same paper by deriving --panel-rgb from the background and pinning the
-  // panel alpha to 1. themes-comic.css then adds the ink outline + drop over it.
+  // Comic is opaque paper by default; the palette engine already maps its
+  // automatic surface to Base background, while an explicit `surface` wins.
   if (comic) {
-    const paper = hexToRgb(hubSettings.background).join(', ');
-    root.style.setProperty('--panel-rgb', paper);
-    root.style.setProperty('--panel-soft-rgb', paper);
     root.style.setProperty('--panel-alpha', '1');
     root.style.setProperty('--panel-soft-alpha', '1');
   }
@@ -2964,21 +3063,13 @@ function applyHubSettings() {
   root.style.setProperty('--bg-scale', bgScale.toFixed(3));
 
   // Extended theme tokens — corner radius, glass blur/saturation and optional
-  // secondary colours. Glass-only (retro owns its own geometry/material).
-  applyThemeSurfaceTokens(root, retro);
+  // secondary colours. Glass-only (the full skins own their geometry/material).
+  applyThemeSurfaceTokens(root, retro || comic);
 
-  // "Linee e bordi": a chosen divider/border colour tints the visible panel
-  // border on top of the strength-derived alpha (matching the current mode), so
-  // the control has a real effect instead of only rewriting the unused --line.
-  // Inline beats the theme stylesheets; retro keeps its own !important accent
-  // border. Cleared or retro → remove so the stock white border returns clean.
-  const lineHex = !retro ? normalizeHex(hubSettings.lineColor, null) : null;
-  if (lineHex) {
-    const lineAlpha = light ? (0.10 * borderStrength) : panelBorderAlpha;
-    root.style.setProperty('--panel-border', `rgba(${hexToRgb(lineHex).join(', ')}, ${lineAlpha.toFixed(3)})`);
-  } else {
-    root.style.removeProperty('--panel-border');
-  }
+  // Borders consume the effective semantic line colour, whether it was picked
+  // manually or auto-derived. Retro's !important CRT edge still wins.
+  const lineAlpha = light ? (0.10 * borderStrength) : panelBorderAlpha;
+  root.style.setProperty('--panel-border', `rgba(${ThemePalette.rgb(palette.line).join(', ')}, ${lineAlpha.toFixed(3)})`);
 
   // ── Background FX (static bg + aurora + perspective grid) ───────
   const aurora = normalizeBgAurora(hubSettings.bgAurora);
@@ -2990,7 +3081,7 @@ function applyHubSettings() {
   // static premium bg does. Mounted/cleared through the sandboxed CustomBg module.
   const customOn = bgCustom.enabled && !!bgCustom.code && !hubSettings.backgroundMedia;
   if (window.CustomBg && typeof window.CustomBg.apply === 'function') {
-    window.CustomBg.apply(customOn ? bgCustom.code : null, customOn ? bgCustom.assets : null);
+    window.CustomBg.apply(customOn ? bgCustom.code : null, customOn ? bgCustom.assets : null, bgCustom.fps);
   }
 
   // Static premium background — mutually exclusive with the animated aurora
@@ -3039,6 +3130,14 @@ function applyHubSettings() {
   let video = $('user-bg-video');
   document.body.classList.toggle('has-user-bg', !!media);
   document.body.classList.toggle('no-user-bg', !media);
+
+  // The "Sfondo app" colour paints the canvas behind the panels, but a wallpaper,
+  // static or code background sits opaquely on top of it — so the colour has no
+  // visible effect while one is active. Warn right on that control when that's the
+  // case (aurora/grid are semi-transparent and let the canvas tint through, so
+  // they don't count). Runs before the early-return below so it always updates.
+  const bgCoveredNote = $('settings-bg-covered-note');
+  if (bgCoveredNote) bgCoveredNote.hidden = !(staticOn || customOn || !!media);
 
   if (!bgLayer || !image || !video) return;
   if (!media) {
@@ -3116,7 +3215,18 @@ function themeSignature(src) {
   return JSON.stringify(THEME_SETTING_KEYS.map(k => {
     const v = src ? src[k] : undefined;
     if (k === 'uiFont') return (v && v.url) ? String(v.url) : '';
-    if (k === 'accent' || k === 'background' || k === 'text') return normalizeHex(v, '');
+    // Provenance belongs to the install receipt, not to the visual identity.
+    // Re-importing the same look must still dedupe even when its installId differs.
+    if (k === 'bgCustom' && v && typeof v === 'object') {
+      const clean = Object.assign({}, v);
+      delete clean.imported;
+      delete clean.installId;
+      return JSON.stringify(clean);
+    }
+    if (['accent', 'background', 'surface', 'surfaceAlt', 'controlColor', 'text', 'mutedText',
+      'lineColor', 'accentText', 'successColor', 'warningColor', 'dangerColor', 'infoColor'].includes(k)) {
+      return normalizeHex(v, '');
+    }
     if (v && typeof v === 'object') return JSON.stringify(v);
     return v == null ? null : v;
   }));
@@ -3183,6 +3293,10 @@ function addThemeCard(snapshot, name, opts) {
   };
   // Redistribution marker for imported looks — export refuses to re-share them.
   if (opts && opts.imported === true) card.imported = true;
+  if (card.imported && opts && typeof ContentInstalls !== 'undefined'
+      && ContentInstalls.INSTALL_ID_RE.test(String(opts.installId || ''))) {
+    card.installId = String(opts.installId);
+  }
   hubSettings = normalizeSettings({ ...hubSettings, customThemes: existing.concat([card]) });
   saveHubSettings();
   renderThemeGallery();
@@ -3277,9 +3391,32 @@ async function saveCurrentTheme() {
 // Persist the just-imported look as a card. preset-share has already applied the
 // code, so we snapshot the resulting live settings — the card reproduces exactly
 // what the user now sees, font included.
-function saveImportedThemeCard(name) {
-  addThemeCard(snapshotCurrentTheme(), name, { imported: true });
+function saveImportedThemeCard(name, installId) {
+  return addThemeCard(snapshotCurrentTheme(), name, { imported: true, installId });
 }
+
+// Keep import receipts truthful when the user removes one imported resource by
+// hand instead of using "Remove all". Empty receipts disappear automatically.
+function forgetInstalledContentResource(field, value) {
+  if (typeof ContentInstalls === 'undefined' || !Array.isArray(hubSettings.contentInstalls)) return;
+  const listFields = new Set(['themeIds', 'pagePresetIds', 'pageIds', 'deckPresetIds', 'widgetIds', 'ambientSceneIds', 'fontUrls']);
+  if (!listFields.has(field) && field !== 'deckProfiles' && field !== 'background') return;
+  const next = hubSettings.contentInstalls.map((record) => {
+    const resources = ContentInstalls.normalizeResources(record.resources);
+    if (field === 'deckProfiles' && value && typeof value === 'object') {
+      resources.deckProfiles = resources.deckProfiles.filter(ref => !(ref.instanceId === value.instanceId && ref.profileId === value.profileId));
+    } else if (field === 'background') {
+      resources.background = false;
+    } else {
+      resources[field] = resources[field].filter(item => item !== value);
+    }
+    return Object.assign({}, record, { resources });
+  }).filter(record => ContentInstalls.resourceCount(record.resources));
+  if (JSON.stringify(next) === JSON.stringify(hubSettings.contentInstalls)) return;
+  hubSettings = normalizeSettings(Object.assign({}, hubSettings, { contentInstalls: next }));
+  saveHubSettings();
+}
+window.forgetInstalledContentResource = forgetInstalledContentResource;
 
 // Rename a saved/imported theme (double-tap its name). Built-in styles have no id
 // match, so they can't be renamed.
@@ -3304,6 +3441,7 @@ function removeCustomTheme(id) {
   const wasActive = findActiveThemeId() === id;
   const next = getCustomThemes().filter(theme => theme.id !== id);
   if (next.length === getCustomThemes().length) return;
+  forgetInstalledContentResource('themeIds', id);
   hubSettings = normalizeSettings({ ...hubSettings, customThemes: next });
   saveHubSettings();
   if (wasActive && typeof applyThemeById === 'function') {
@@ -3396,28 +3534,34 @@ function syncSettingsControls() {
     btn.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
 
-  // Sync color preview divs + hex text for each color key
-  ['accent', 'background', 'text'].forEach(key => {
+  // Required author colours are always stored explicitly.
+  [['accent', '--accent'], ['background', '--bg'], ['text', '--text']].forEach(([key, cssVar]) => {
     const hex = hubSettings[key];
     const preview = $(`settings-${key}-swatch`);
     const hexInput = $(`settings-${key}`);
-    if (preview) preview.style.background = hex;
+    if (preview) preview.style.background = getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim() || hex;
     if (hexInput) { hexInput.value = hex.toUpperCase(); hexInput.classList.remove('invalid'); }
   });
 
-  // Optional secondary colours (null = auto): the swatch previews the currently
-  // effective colour (read live off :root so "auto" shows what the skin resolves
-  // to), and the hex field is blank with an "Auto" placeholder.
-  [['mutedText', '--muted-text'], ['lineColor', '--line']].forEach(([key, cssVar]) => {
+  // Optional semantic roles (null = auto): swatches show the EFFECTIVE derived
+  // value while fields stay blank, making the automatic result inspectable.
+  [
+    ['surface', '--surface'], ['surfaceAlt', '--surface-alt'], ['controlColor', '--control-bg'],
+    ['mutedText', '--muted-text'], ['lineColor', '--line'], ['accentText', '--on-accent'],
+    ['successColor', '--color-success'], ['warningColor', '--color-warn'],
+    ['dangerColor', '--color-danger'], ['infoColor', '--color-info'],
+  ].forEach(([key, cssVar]) => {
     const val = hubSettings[key];
     const preview = $(`settings-${key}-swatch`);
     const hexInput = $(`settings-${key}`);
     if (preview) {
-      const eff = val || getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim();
+      const eff = getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim() || val;
       preview.style.background = eff || 'transparent';
     }
     if (hexInput) { hexInput.value = val ? val.toUpperCase() : ''; hexInput.classList.remove('invalid'); }
   });
+  const contrastGuard = $('settings-contrast-guard');
+  if (contrastGuard) contrastGuard.checked = hubSettings.contrastGuard !== false;
 
   const rangeMap = [
     ['settings-panel-alpha', String(hubSettings.panelAlpha)],
@@ -3599,7 +3743,9 @@ function closeSettings() {
 function setThemePreset(id) {
   const preset = SETTINGS_PRESETS.find(item => item.id === id);
   if (!preset) return;
-  hubSettings = normalizeSettings({ ...hubSettings, accent: preset.accent, background: preset.background, text: preset.text });
+  const reset = {};
+  for (const key of APPEARANCE_COLOR_KEYS) reset[key] = null;
+  hubSettings = normalizeSettings({ ...hubSettings, ...reset, autoPalette: false, accent: preset.accent, background: preset.background, text: preset.text, contrastGuard: true });
   saveHubSettings();
   applyHubSettings();
   renderSettingsModal();
@@ -3607,20 +3753,30 @@ function setThemePreset(id) {
 }
 
 function updateSettingsColor(key, value) {
-  if (!['accent', 'background', 'text', 'mutedText', 'lineColor'].includes(key)) return;
+  if (!['accent', 'background', 'surface', 'surfaceAlt', 'controlColor', 'text', 'mutedText',
+    'lineColor', 'accentText', 'successColor', 'warningColor', 'dangerColor', 'infoColor'].includes(key)) return;
   const hex = normalizeHex(value, null);
   if (!hex) return;
-  hubSettings = normalizeSettings({ ...hubSettings, [key]: hex });
+  hubSettings = normalizeSettings({ ...hubSettings, [key]: hex, autoPalette: false });
   saveHubSettings();
   applyHubSettings();
+  syncSettingsControls();
   renderThemeGallery(); // aggiorna solo l'evidenziazione delle card, senza resettare i colori aperti
 }
 
-// Reset an optional secondary colour (muted text / lines) back to "auto" — the
-// skin's own value. Only the nullable colour keys accept this.
+// Reset an optional semantic role to the palette engine's automatic value.
 function clearSettingsColor(key) {
-  if (!['mutedText', 'lineColor'].includes(key)) return;
-  hubSettings = normalizeSettings({ ...hubSettings, [key]: null });
+  if (!['surface', 'surfaceAlt', 'controlColor', 'mutedText', 'lineColor', 'accentText',
+    'successColor', 'warningColor', 'dangerColor', 'infoColor'].includes(key)) return;
+  hubSettings = normalizeSettings({ ...hubSettings, [key]: null, autoPalette: false });
+  saveHubSettings();
+  applyHubSettings();
+  syncSettingsControls();
+  renderThemeGallery();
+}
+
+function updateContrastGuard(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, contrastGuard: enabled !== false });
   saveHubSettings();
   applyHubSettings();
   syncSettingsControls();
@@ -3628,25 +3784,38 @@ function clearSettingsColor(key) {
 }
 
 // ── Xenon AI programmatic customization ───────────────────────────
-// Apply any subset of {preset, appearance, accent, background, text} in one
+// Apply any subset of the semantic palette in one
 // save+repaint, reusing the same validation as the manual controls. Called by
 // the AI's customize_appearance tool. Returns true if anything changed.
 function applyAiAppearance(opts) {
   const o = opts && typeof opts === 'object' ? opts : {};
   let changed = false;
-  // Skin switch (Liquid Glass / Pixel Retro) — routes through the same setter the
+  // Skin switch — routes through the same setter the
   // gallery uses, so it persists and repaints exactly like a manual switch.
-  if (['glass', 'retro'].includes(o.style) && typeof setStyleMode === 'function') { setStyleMode(o.style); changed = true; }
+  if (STYLE_MODES.includes(o.style) && typeof setStyleMode === 'function') { setStyleMode(o.style); changed = true; }
   const patch = {};
+  if (['light', 'dark', 'auto'].includes(o.appearance)) {
+    const resolved = o.appearance === 'auto' ? resolveAppearance('auto') : o.appearance;
+    const stock = ThemePalette.STOCK[resolved];
+    for (const key of APPEARANCE_COLOR_KEYS) patch[key] = null;
+    for (const key of ['background', 'surface', 'surfaceAlt', 'controlColor', 'text']) patch[key] = stock[key];
+    Object.assign(patch, { appearance: o.appearance, autoPalette: o.appearance === 'auto', contrastGuard: true });
+  }
   if (typeof o.preset === 'string') {
     const preset = SETTINGS_PRESETS.find(p => p.id === o.preset.trim().toLowerCase());
     if (preset) { patch.accent = preset.accent; patch.background = preset.background; patch.text = preset.text; }
   }
-  if (['light', 'dark', 'auto'].includes(o.appearance)) patch.appearance = o.appearance;
-  for (const key of ['accent', 'background', 'text']) {
-    const hex = normalizeHex(o[key], null);
-    if (hex) patch[key] = hex;
+  const colorMap = {
+    accent: 'accent', background: 'background', surface: 'surface', surface_alt: 'surfaceAlt',
+    control_color: 'controlColor', text: 'text', muted_text: 'mutedText', line_color: 'lineColor',
+    accent_text: 'accentText', success_color: 'successColor', warning_color: 'warningColor',
+    danger_color: 'dangerColor', info_color: 'infoColor',
+  };
+  for (const [arg, key] of Object.entries(colorMap)) {
+    const hex = normalizeHex(o[arg], null);
+    if (hex) { patch[key] = hex; patch.autoPalette = false; }
   }
+  if (typeof o.contrast_guard === 'boolean') patch.contrastGuard = o.contrast_guard;
   if (Object.keys(patch).length) {
     hubSettings = normalizeSettings({ ...hubSettings, ...patch });
     saveHubSettings();
@@ -3668,11 +3837,19 @@ function applyAiCreateStyle(opts) {
   const o = opts && typeof opts === 'object' ? opts : {};
   const patch = {};
   if (STYLE_MODES.includes(o.skin)) patch.styleMode = o.skin;
-  if (['light', 'dark'].includes(o.base_appearance)) patch.appearance = o.base_appearance;
-  const colorMap = { accent: 'accent', background: 'background', text: 'text', muted_text: 'mutedText', line_color: 'lineColor' };
+  if (['light', 'dark'].includes(o.base_appearance)) {
+    patch.appearance = o.base_appearance;
+    patch.autoPalette = false;
+  }
+  const colorMap = {
+    accent: 'accent', background: 'background', surface: 'surface', surface_alt: 'surfaceAlt',
+    control_color: 'controlColor', text: 'text', muted_text: 'mutedText', line_color: 'lineColor',
+    accent_text: 'accentText', success_color: 'successColor', warning_color: 'warningColor',
+    danger_color: 'dangerColor', info_color: 'infoColor',
+  };
   for (const [arg, key] of Object.entries(colorMap)) {
     const hex = normalizeHex(o[arg], null);
-    if (hex) patch[key] = hex;
+    if (hex) { patch[key] = hex; patch.autoPalette = false; }
   }
   const num = (v, min, max) => { const n = Number(v); return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : null; };
   const nums = {
@@ -3684,6 +3861,7 @@ function applyAiCreateStyle(opts) {
     panelShadowStrength: num(o.shadow_strength, 0, 2),
   };
   for (const [key, val] of Object.entries(nums)) if (val != null) patch[key] = val;
+  if (typeof o.contrast_guard === 'boolean') patch.contrastGuard = o.contrast_guard;
   hubSettings = normalizeSettings({ ...hubSettings, ...patch });
   saveHubSettings();
   applyHubSettings();
@@ -3953,7 +4131,7 @@ const BG_CUSTOM_TEMPLATES = Object.freeze({
 });
 
 function updateBgCustom(key, value) {
-  if (!['enabled', 'name', 'code', 'assets'].includes(key)) return;
+  if (!['enabled', 'name', 'code', 'assets', 'fps'].includes(key)) return;
   const current = hubSettings.bgCustom && typeof hubSettings.bgCustom === 'object' ? hubSettings.bgCustom : {};
   const next = { ...current, [key]: key === 'enabled' ? !!value : value };
   if (key === 'code') next.imported = false;   // user replaced the code → their own background again
@@ -4263,7 +4441,15 @@ function openSettingsColorPicker(key, anchor) {
   if (!window.ColorPicker) return;
   const input = $(key === 'grid' ? 'settings-grid-color' : `settings-${key}`);
   const raw = input ? input.value.trim() : '';
-  const value = normalizeHex(raw.startsWith('#') ? raw : `#${raw}`, '#1ed760');
+  const cssVars = {
+    accent: '--accent', background: '--bg', surface: '--surface', surfaceAlt: '--surface-alt',
+    controlColor: '--control-bg', text: '--text', mutedText: '--muted-text', lineColor: '--line',
+    accentText: '--on-accent', successColor: '--color-success', warningColor: '--color-warn',
+    dangerColor: '--color-danger', infoColor: '--color-info',
+  };
+  const effective = key === 'grid' ? '#1ed760'
+    : getComputedStyle(document.documentElement).getPropertyValue(cssVars[key] || '--accent').trim();
+  const value = normalizeHex(raw.startsWith('#') ? raw : `#${raw}`, normalizeHex(effective, '#1ed760'));
   window.ColorPicker.open({
     anchor, value,
     onPick: (hex) => {
@@ -4311,6 +4497,13 @@ function syncBgFxControls() {
   setChk('settings-bgcode-enabled', cb.enabled);
   const codeName = $('settings-bgcode-name');
   if (codeName && document.activeElement !== codeName) codeName.value = cb.name;
+  const codeFps = $('settings-bgcode-fps');
+  if (codeFps) {
+    // Bounds come from the rule owner so the field can never drift from what
+    // the sanitizer actually accepts (same contract as the ASSET_* caps).
+    if (window.CustomBg && CustomBg.FPS_MIN) { codeFps.min = String(CustomBg.FPS_MIN); codeFps.max = String(CustomBg.FPS_MAX); }
+    if (document.activeElement !== codeFps) codeFps.value = String(cb.fps);
+  }
   const codeField = $('settings-bgcode-input');
   // An imported background is someone else's work: never surface or let them edit
   // the source. Lock the editor entirely (empty + disabled + hidden), hide the
@@ -4659,6 +4852,7 @@ async function paintInstalledSdkPackages() {
       if (!window.confirm(t('settings_sdk_remove_confirm', 'Rimuovere questo widget? Le tile che lo usano torneranno alla scelta del widget.'))) return;
       try {
         await fetch('/sdk/widget/' + encodeURIComponent(pkg.id), { method: 'DELETE' });
+        forgetInstalledContentResource('widgetIds', pkg.id);
         // Purge its tile assignments + grant so nothing orphaned lingers.
         const cur = hubSettings.sdkWidgets || {};
         const assign = { ...(cur.assign || {}) };
@@ -5740,6 +5934,7 @@ function deleteAmbientScene(id) {
   const cur = normalizeAmbientMode(hubSettings.ambientMode);
   if (cur.sceneId === 'canvas:' + id) patch.ambientMode = { ...cur, sceneId: 'builtin' };
   hubSettings = normalizeSettings({ ...hubSettings, ...patch });
+  forgetInstalledContentResource('ambientSceneIds', id);
   saveHubSettings();
   onAmbientScenesChanged();
   setSettingsStatus('settings_saved', 'ok');

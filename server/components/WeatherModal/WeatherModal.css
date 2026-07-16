@@ -4,26 +4,21 @@
 .clock-weather {
   height: 38px;
   max-width: 200px;
-  border: 1px solid rgba(255,255,255,0.16);
+  /* Flat inline chip: no pill/button chrome so weather sits alongside the
+     clock/date text. Border kept transparent (width preserved) so the Comic
+     skin can still paint its inked panel border. */
+  border: 1px solid transparent;
   border-radius: 13px;
-  background: rgba(255,255,255,0.09);
+  background: none;
   color: #fff;
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  padding: 0 14px 0 11px;
+  padding: 0 10px;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
-  backdrop-filter: blur(14px) saturate(1.3);
-  box-shadow: 0 2px 12px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.10);
-  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
   flex-shrink: 0;
-}
-.clock-weather:hover {
-  transform: translateY(-1px);
-  background: rgba(255,255,255,0.14);
-  border-color: rgba(255,255,255,0.26);
 }
 .clock-weather.offline { opacity: 0.45; }
 /* Animated condition icon (reuses .weather-mini-icon at its native size so the
@@ -33,14 +28,8 @@
   height: 22px;
   flex-shrink: 0;
 }
-/* State tints: border + a soft matching glow so weather reads at a glance */
-.clock-weather.state-sun   { border-color: rgba(255,210,60,0.42);  background: rgba(255,200,40,0.10); }
-.clock-weather.state-moon  { border-color: rgba(110,158,255,0.38); background: rgba(90,140,255,0.10); }
-.clock-weather.state-rain,
-.clock-weather.state-storm { border-color: rgba(100,170,255,0.40); background: rgba(80,150,255,0.11); }
-.clock-weather.state-snow  { border-color: rgba(190,225,255,0.40); background: rgba(190,225,255,0.10); }
-.clock-weather.state-cloud,
-.clock-weather.state-fog   { border-color: rgba(190,200,210,0.30); background: rgba(200,210,220,0.08); }
+/* State classes stay on the element (JS/other skins may read them) but no longer
+   paint a tinted pill — the animated condition icon carries the weather at a glance. */
 
 .weather-temp {
   font-size: 17px;
@@ -524,9 +513,9 @@
 .weather-metric--good::before     { background: #4ade80; box-shadow: 0 0 12px rgba(74,222,128,0.55); }
 .weather-metric--moderate::before { background: #fbbf24; box-shadow: 0 0 12px rgba(251,191,36,0.55); }
 .weather-metric--bad::before      { background: #f87171; box-shadow: 0 0 12px rgba(248,113,113,0.55); }
-.weather-metric--good   .weather-metric-value { color: #62e39a; }
-.weather-metric--moderate .weather-metric-value { color: #fbd24e; }
-.weather-metric--bad    .weather-metric-value { color: #f78b8b; }
+.weather-metric--good   .weather-metric-value { color: var(--color-success); }
+.weather-metric--moderate .weather-metric-value { color: var(--color-warn); }
+.weather-metric--bad    .weather-metric-value { color: var(--color-danger); }
 .weather-metric-label {
   color: rgba(255,255,255,0.50);
   font-size: 9.5px;

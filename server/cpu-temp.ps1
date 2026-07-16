@@ -5,6 +5,9 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 $OutputEncoding = $utf8NoBom
 
 $script:tempCandidates = @()
+$script:fanReadings = @()
+$script:cpuWattCandidates = @()
+$script:psuWattCandidates = @()
 
 function Add-CpuTempCandidate {
   param(
@@ -86,6 +89,47 @@ function Add-HardwareTemperatureSensors {
   }
 }
 
+# Fan RPM and power (watts) live on the same LHM trees the temps come from:
+# Cpu (package power), Motherboard→SubHardware/SuperIO (chassis/CPU fan headers)
+# and Psu (digital PSUs like Corsair HXi/RMi). 0 RPM is kept — a stopped fan is
+# real data, not a missing sensor.
+function Add-HardwareFanPowerSensors {
+  param($Hardware, [string]$Context)
+
+  if ($null -eq $Hardware) { return }
+  foreach ($sensor in @($Hardware.Sensors)) {
+    try {
+      if ($null -eq $sensor.Value) { continue }
+      $stype = $sensor.SensorType.ToString()
+      if ($stype -eq 'Fan') {
+        $name = ([string]$sensor.Name).Trim()
+        if (-not $name) { $name = 'Fan' }
+        if ($name.Length -gt 48) { $name = $name.Substring(0, 48) }
+        $rpm = [int][Math]::Round([double]$sensor.Value)
+        if ($rpm -lt 0 -or $rpm -gt 20000) { continue }
+        $script:fanReadings += [pscustomobject]@{ name = $name; rpm = $rpm }
+      } elseif ($stype -eq 'Power') {
+        $watts = [Math]::Round([double]$sensor.Value, 1)
+        if ($watts -lt 0 -or $watts -gt 5000) { continue }
+        $name = [string]$sensor.Name
+        if ($Context -eq 'Cpu') {
+          $priority = 1
+          if ($name -match 'Package|PPT') { $priority = 3 }
+          elseif ($name -match 'CPU') { $priority = 2 }
+          $script:cpuWattCandidates += [pscustomobject]@{ Value = $watts; Priority = $priority }
+        } elseif ($Context -eq 'Psu') {
+          $priority = if ($name -match 'Total|Power$') { 2 } else { 1 }
+          $script:psuWattCandidates += [pscustomobject]@{ Value = $watts; Priority = $priority }
+        }
+      }
+    } catch { }
+  }
+
+  foreach ($subHardware in @($Hardware.SubHardware)) {
+    Add-HardwareFanPowerSensors $subHardware $Context
+  }
+}
+
 # Persistent LHM session. Inside pwsh-worker this script runs every few seconds
 # in the SAME process, and rebuilding the Computer each time (DLL discovery on
 # disk, hardware enumeration, kernel-driver open/close) cost ~10x the read
@@ -107,6 +151,11 @@ function Get-CpuLhmComputer {
     Add-Type -Path $dll
     $computer = [LibreHardwareMonitor.Hardware.Computer]::new()
     $computer.IsCpuEnabled = $true
+    # Motherboard (SuperIO fan headers) and PSU (digital PSUs) trees feed the
+    # fans/power readings; their per-read Update() cost is amortized by the
+    # server-side cache the same way the CPU tree's is.
+    $computer.IsMotherboardEnabled = $true
+    $computer.IsPsuEnabled = $true
     $computer.Open()
     $global:XenonCpuLhm = $computer
     $global:XenonCpuLhmFailedAt = $null
@@ -119,14 +168,23 @@ function Get-CpuLhmComputer {
   }
 }
 
-function Add-TempsFromLibreHardwareMonitorLibrary {
+function Add-SensorsFromLibreHardwareMonitorLibrary {
   $computer = Get-CpuLhmComputer
   if ($null -eq $computer) { return }
   try {
     foreach ($hardware in @($computer.Hardware)) {
-      if ($hardware.HardwareType.ToString() -notmatch 'Cpu') { continue }
-      Update-HardwareTree $hardware
-      Add-HardwareTemperatureSensors $hardware
+      $htype = $hardware.HardwareType.ToString()
+      if ($htype -match 'Cpu') {
+        Update-HardwareTree $hardware
+        Add-HardwareTemperatureSensors $hardware
+        Add-HardwareFanPowerSensors $hardware 'Cpu'
+      } elseif ($htype -match 'Motherboard') {
+        Update-HardwareTree $hardware
+        Add-HardwareFanPowerSensors $hardware 'Motherboard'
+      } elseif ($htype -match 'Psu') {
+        Update-HardwareTree $hardware
+        Add-HardwareFanPowerSensors $hardware 'Psu'
+      }
     }
   } catch {
     # Broken session (sleep/resume, driver reset): drop it and rebuild next read.
@@ -170,9 +228,10 @@ function Add-TempsFromWindowsThermalZones {
   } catch { }
 }
 
-Add-TempsFromLibreHardwareMonitorLibrary
+Add-SensorsFromLibreHardwareMonitorLibrary
 # WMI fallbacks only when the library gave nothing: each is a WMI roundtrip
 # that used to run on EVERY read even with a perfectly good LHM result.
+# (They provide temperatures only — fans/power are LHM-only by design.)
 if ($script:tempCandidates.Count -eq 0) {
   Add-TempsFromHardwareMonitorWmi -Namespace 'root/LibreHardwareMonitor' -UseCim
   Add-TempsFromHardwareMonitorWmi -Namespace 'root/OpenHardwareMonitor'
@@ -183,6 +242,17 @@ $cpuTemp = $script:tempCandidates |
   Sort-Object @{ Expression = 'Priority'; Descending = $true }, @{ Expression = 'Value'; Descending = $true } |
   Select-Object -First 1 -ExpandProperty Value
 
+$cpuWatts = $script:cpuWattCandidates |
+  Sort-Object @{ Expression = 'Priority'; Descending = $true }, @{ Expression = 'Value'; Descending = $true } |
+  Select-Object -First 1 -ExpandProperty Value
+
+$psuWatts = $script:psuWattCandidates |
+  Sort-Object @{ Expression = 'Priority'; Descending = $true }, @{ Expression = 'Value'; Descending = $true } |
+  Select-Object -First 1 -ExpandProperty Value
+
 [pscustomobject]@{
-  cpuTemp = if ($null -ne $cpuTemp) { [double]$cpuTemp } else { $null }
-} | ConvertTo-Json -Compress
+  cpuTemp  = if ($null -ne $cpuTemp) { [double]$cpuTemp } else { $null }
+  fans     = @($script:fanReadings)
+  cpuWatts = if ($null -ne $cpuWatts) { [double]$cpuWatts } else { $null }
+  psuWatts = if ($null -ne $psuWatts) { [double]$psuWatts } else { $null }
+} | ConvertTo-Json -Compress -Depth 4

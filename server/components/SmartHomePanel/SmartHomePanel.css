@@ -264,7 +264,7 @@ button.sh-item:active { transform: scale(0.97); }
 .sh-abtn svg { width: 20px; height: 20px; }
 .sh-abtn-label { font-size: 0.72rem; font-weight: 700; }
 .sh-abtn:active { transform: scale(0.96); background: rgba(255,255,255,0.08); }
-.sh-abtn--danger { color: #ff8f8f; border-color: rgba(255,120,120,0.28); }
+.sh-abtn--danger { color: var(--color-danger); border-color: rgba(var(--danger-rgb),0.28); }
 /* active state (shuffle/repeat on, fan direction, alarm disarm selected) */
 .sh-abtn.is-active { color: #fff; background: rgba(var(--accent-rgb),0.9); border-color: transparent; box-shadow: 0 4px 14px rgba(var(--accent-rgb),0.28); }
 .sh-abtn.is-active .sh-abtn-label { color: #fff; }
@@ -272,7 +272,7 @@ button.sh-item:active { transform: scale(0.97); }
 /* icon button (mute) */
 .sh-icobtn { flex: 0 0 auto; width: 38px; height: 38px; border-radius: 11px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.72); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); transition: transform 0.08s ease; }
 .sh-icobtn svg { width: 18px; height: 18px; }
-.sh-icobtn.is-active { color: #ff8f8f; background: rgba(255,120,120,0.12); border-color: rgba(255,120,120,0.3); }
+.sh-icobtn.is-active { color: var(--color-danger); background: var(--danger-bg); border-color: rgba(var(--danger-rgb),0.3); }
 .sh-icobtn:active { transform: scale(0.94); }
 
 /* media transport */
@@ -373,8 +373,8 @@ button.sh-item:active { transform: scale(0.97); }
 .sh-set-help, .sh-set-hint { font-size: 0.72rem; color: rgba(255,255,255,0.46); line-height: 1.4; }
 .sh-set-actions { display: flex; align-items: center; gap: 12px; }
 .sh-set-status { font-size: 0.8rem; font-weight: 700; color: rgba(255,255,255,0.55); }
-.sh-set-status.ok { color: #4ade80; }
-.sh-set-status.err { color: #f87171; }
+.sh-set-status.ok { color: var(--color-success); }
+.sh-set-status.err { color: var(--color-danger); }
 
 .sh-set-picker { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
 .sh-set-picker-title { font-size: 0.82rem; font-weight: 800; color: var(--text, #e7e9ee); }

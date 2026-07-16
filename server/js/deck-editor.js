@@ -955,8 +955,9 @@
     paneLook.appendChild(fBgImg);
 
     // ── Live value ON the key face: none / a ticking timer countdown (matched
-    // by label; empty = the running timer ending soonest) / a state an SDK
-    // widget publishes. Stored as key.live; rendered via textContent only. ──
+    // by label; empty = the running timer ending soonest) / a live hardware
+    // sensor (temps/load/fan RPM/watts/battery %) / a state an SDK widget
+    // publishes. Stored as key.live; rendered via textContent only. ──
     let liveSource = (existing && existing.live && existing.live.source) || '';
     let liveName = (existing && existing.live && existing.live.name) || '';
     const fLive = field('deck_edit_live');
@@ -964,13 +965,24 @@
     [['', 'deck_live_none'], ['timer', 'deck_live_timer']].forEach(([v, lk]) => {
       const o = document.createElement('option'); o.value = v; o.setAttribute('data-i18n', lk); o.textContent = t(lk); selLive.appendChild(o);
     });
-    // An existing sdkState binding gets its option SYNCHRONOUSLY: the async
-    // population below lands after the initial syncLive() call, which would
-    // otherwise read the still-empty select and silently drop the binding on
-    // save (the key loses its live badge just by opening the editor).
+    // Fixed hardware metrics (value carries the metric name).
+    const SENSOR_METRICS = (window.DeckModel && window.DeckModel.DECK_SENSOR_METRICS) || [];
+    SENSOR_METRICS.forEach((m) => {
+      const o = document.createElement('option'); o.value = 'sensor:' + m;
+      o.setAttribute('data-i18n', 'deck_live_sensor_' + m); o.textContent = t('deck_live_sensor_' + m);
+      selLive.appendChild(o);
+    });
+    // An existing sdkState/battery binding gets its option SYNCHRONOUSLY: the
+    // async population below lands after the initial syncLive() call, which
+    // would otherwise read the still-empty select and silently drop the binding
+    // on save (the key loses its live badge just by opening the editor).
     if (liveSource === 'sdkState' && liveName) {
       const o = document.createElement('option'); o.value = 'sdk:' + liveName; o.textContent = liveName; selLive.appendChild(o);
       selLive.value = 'sdk:' + liveName;
+    }
+    if (liveSource === 'sensor' && liveName && liveName.startsWith('battery:')) {
+      const o = document.createElement('option'); o.value = 'sensor:' + liveName; o.textContent = liveName.slice('battery:'.length); selLive.appendChild(o);
+      selLive.value = 'sensor:' + liveName;
     }
     // Published SDK states join the list lazily (value carries the state name).
     sdkDeckStates().then((items) => {
@@ -981,7 +993,21 @@
       });
       enhanceSelects(fLive);
     }).catch(() => {});
+    // Known wireless-device batteries join lazily too (same placeholder rule).
+    fetch('/api/battery').then((r) => r.json()).then((d) => {
+      const devs = (d && Array.isArray(d.devices)) ? d.devices : [];
+      devs.forEach((dev) => {
+        if (!dev || !dev.name) return;
+        const val = 'sensor:battery:' + dev.name;
+        const prev = Array.from(selLive.options).find((o) => o.value === val);
+        const label = t('deck_live_battery', 'Battery') + ' · ' + dev.name;
+        if (prev) { prev.textContent = label; return; }
+        const o = document.createElement('option'); o.value = val; o.textContent = label; selLive.appendChild(o);
+      });
+      if (devs.length) enhanceSelects(fLive);
+    }).catch(() => {});
     if (liveSource === 'timer') selLive.value = 'timer';
+    if (liveSource === 'sensor' && liveName && !liveName.startsWith('battery:')) selLive.value = 'sensor:' + liveName;
     fLive.appendChild(selLive);
     const liveNameWrap = document.createElement('div'); liveNameWrap.className = 'deck-ed-subfield';
     const liveNameIn = input('text', liveSource === 'timer' ? liveName : '');
@@ -991,8 +1017,9 @@
     fLive.appendChild(liveNameWrap);
     function syncLive() {
       const v = selLive.value;
-      liveSource = v === 'timer' ? 'timer' : (v.startsWith('sdk:') ? 'sdkState' : '');
+      liveSource = v === 'timer' ? 'timer' : (v.startsWith('sdk:') ? 'sdkState' : (v.startsWith('sensor:') ? 'sensor' : ''));
       if (liveSource === 'sdkState') liveName = v.slice(4);
+      else if (liveSource === 'sensor') liveName = v.slice('sensor:'.length);
       else if (liveSource === 'timer') liveName = liveNameIn.value.trim();
       liveNameWrap.style.display = liveSource === 'timer' ? '' : 'none';
     }
@@ -1512,6 +1539,7 @@
       openFile: _ai('<path d="M6 3h9l3 3v15H6z"/><path d="M9 13h6M9 17h4"/>'),
       runScript: _ai('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/>'),
       openStoreApp: _ai('<path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 0 1 6 0"/>'),
+      launchSteamGame: _ai('<rect x="2" y="7" width="20" height="10" rx="5"/><path d="M7 10v4M5 12h4M15 11h.01M18 13h.01"/>'),
       openUrl: _ai('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/>'),
       hotkey: _ai('<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>'),
       typeText: _ai('<path d="M4 7V5h16v2M12 5v14M9 19h6"/>'),
@@ -2409,7 +2437,7 @@
         } else {
           ctrl = input('text', step.params[p.name] || '');
           // Helpful example placeholders so it's obvious what to enter per param.
-          ctrl.placeholder = { path: 'C:\\...\\app.exe', file: 'C:\\...\\suono.mp3', url: 'https://esempio.com', keys: 'ctrl+shift+m', args: '{"key":"value"}', message: t('deck_ph_message'), text: t('deck_ph_text') }[p.name] || '';
+          ctrl.placeholder = { path: 'C:\\...\\app.exe', file: 'C:\\...\\suono.mp3', url: 'https://esempio.com', keys: 'ctrl+shift+m', args: '{"key":"value"}', gameId: '1086940', message: t('deck_ph_message'), text: t('deck_ph_text') }[p.name] || '';
         }
         step.params[p.name] = ctrl.value;                 // seed the default
         const write = () => { step.params[p.name] = ctrl.value; };

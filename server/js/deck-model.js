@@ -30,7 +30,7 @@ const LABEL_POSITIONS = ['bottom', 'top', 'hidden'];  // where the title sits on
 const STYLE_SIZES = ['md', 'sm', 'lg'];               // label / icon size presets
 const KEY_ANIMS = ['none', 'breathe', 'shift'];       // ambient cap animation
 // Deck-level presentation enums (whole-device look).
-const CAP_STYLES = ['lcd', 'flat', 'neon', 'glass'];  // key-cap material
+const CAP_STYLES = ['lcd', 'flat', 'neon', 'glass', 'vivid'];  // key-cap material
 const KEY_SHAPES = ['rounded', 'square', 'circle'];   // cap corner shape
 const PLATE_STYLES = ['graphite', 'carbon', 'steel', 'midnight', 'none']; // chassis faceplate
 
@@ -104,6 +104,27 @@ function normalizeDeckMediaStyle(raw) {
   if (accent) out.accent = accent;
   if (raw.imported === true) out.imported = true;
   return (out.src || out.grad || out.accent) ? out : null;
+}
+
+// Visual presentation that belongs to one profile. Missing fields inherit the
+// Deck instance defaults, while an explicit null decoration means "no artwork"
+// even when an older instance-level default exists.
+function normalizeDeckLook(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const out = {};
+  let seen = false;
+  if (CAP_STYLES.includes(raw.capStyle)) { out.capStyle = raw.capStyle; seen = true; }
+  if (KEY_SHAPES.includes(raw.keyShape)) { out.keyShape = raw.keyShape; seen = true; }
+  if (PLATE_STYLES.includes(raw.plate)) { out.plate = raw.plate; seen = true; }
+  if (Object.prototype.hasOwnProperty.call(raw, 'wellImage')) {
+    const value = normalizeDeckWellImage(raw.wellImage);
+    if (value || raw.wellImage === null) { out.wellImage = value; seen = true; }
+  }
+  if (Object.prototype.hasOwnProperty.call(raw, 'mediaStyle')) {
+    const value = normalizeDeckMediaStyle(raw.mediaStyle);
+    if (value || raw.mediaStyle === null) { out.mediaStyle = value; seen = true; }
+  }
+  return seen ? out : null;
 }
 
 // Keep `raw` only when it is one of the allowed NON-DEFAULT choices (list[0] is
@@ -286,6 +307,11 @@ function normalizeProfile(raw, cols, rows, index) {
   // else's work and can't be re-exported. Additive — never set on own profiles;
   // sanitizeDeckProfile strips it on export, so shared codes never carry it.
   if (raw && raw.imported === true) prof.imported = true;
+  if (prof.imported && /^xi_[a-z0-9]{8,32}$/.test(String(raw && raw.installId || ''))) {
+    prof.installId = String(raw.installId);
+  }
+  const look = normalizeDeckLook(raw && raw.look);
+  if (look) prof.look = look;
   return prof;
 }
 
@@ -304,7 +330,8 @@ function normalizeDeckConfig(raw) {
   const keySize = ['sm', 'md', 'lg'].includes(src.keySize) ? src.keySize : 'md';
   const autoFit = src.autoFit !== false;
   const showMedia = src.showMedia === true;
-  // Whole-device look (additive; the defaults reproduce the classic deck):
+  // Instance-level presentation defaults retained for old configs. Profiles can
+  // override these fields independently through profile.look.
   //  capStyle — key-cap material (lcd / flat / neon / glass)
   //  keyShape — cap corner shape (rounded / square / circle)
   //  plate    — chassis faceplate finish (graphite / carbon / steel / midnight / none)
@@ -319,9 +346,52 @@ function normalizeDeckConfig(raw) {
   const autoSwitch = normalizeAutoSwitch(src.autoSwitch);
   // Decoration (additive; null = classic look): a free-form picture behind the key
   // grid and optional styling of the now-playing strip.
-  const wellImage = normalizeDeckWellImage(src.wellImage);
-  const mediaStyle = normalizeDeckMediaStyle(src.mediaStyle);
+  let wellImage = normalizeDeckWellImage(src.wellImage);
+  let mediaStyle = normalizeDeckMediaStyle(src.mediaStyle);
+  // v4.5.2 migration: older profile imports wrote shared artwork onto the whole
+  // Deck. Move imported decoration to the active imported profile so the user's
+  // existing profiles immediately recover their original appearance.
+  const importedTarget = profiles.find((p) => p.id === activeProfile && p.imported === true)
+    || profiles.find((p) => p.imported === true);
+  if (importedTarget && ((wellImage && wellImage.imported === true) || (mediaStyle && mediaStyle.imported === true))) {
+    const look = Object.assign({}, importedTarget.look || {});
+    if (wellImage && wellImage.imported === true && !Object.prototype.hasOwnProperty.call(look, 'wellImage')) {
+      look.wellImage = wellImage;
+      wellImage = null;
+    }
+    if (mediaStyle && mediaStyle.imported === true && !Object.prototype.hasOwnProperty.call(look, 'mediaStyle')) {
+      look.mediaStyle = mediaStyle;
+      mediaStyle = null;
+    }
+    importedTarget.look = normalizeDeckLook(look);
+  }
   return { version: 1, cols, rows, keySize, autoFit, showMedia, capStyle, keyShape, plate, wellImage, mediaStyle, profiles, activeProfile, autoSwitch };
+}
+
+function effectiveDeckLook(config, profileId) {
+  const cfg = normalizeDeckConfig(config);
+  const profile = cfg.profiles.find((p) => p.id === profileId) || cfg.profiles[0];
+  const look = (profile && profile.look) || {};
+  const own = (field) => Object.prototype.hasOwnProperty.call(look, field);
+  return {
+    capStyle: own('capStyle') ? look.capStyle : cfg.capStyle,
+    keyShape: own('keyShape') ? look.keyShape : cfg.keyShape,
+    plate: own('plate') ? look.plate : cfg.plate,
+    wellImage: own('wellImage') ? look.wellImage : cfg.wellImage,
+    mediaStyle: own('mediaStyle') ? look.mediaStyle : cfg.mediaStyle,
+  };
+}
+
+// Update one profile's appearance without changing any sibling profile. The
+// first edit snapshots inherited defaults so subsequent instance-default changes
+// cannot silently alter a profile the user already customized.
+function setProfileLook(config, profileId, patch) {
+  const cfg = cloneConfig(normalizeDeckConfig(config));
+  const profile = cfg.profiles.find((p) => p.id === profileId) || cfg.profiles[0];
+  if (!profile) return normalizeDeckConfig(cfg);
+  const merged = Object.assign({}, effectiveDeckLook(cfg, profile.id), patch && typeof patch === 'object' ? patch : {});
+  profile.look = normalizeDeckLook(merged);
+  return normalizeDeckConfig(cfg);
 }
 
 const AUTO_SWITCH_MAX_RULES = 16;
@@ -682,8 +752,84 @@ function matchNamedState(state, bag) {
 
 // Live-value sources a key face can display (key.live). 'timer' shows a ticking
 // countdown from the timers snapshot; 'sdkState' shows the label/value an SDK
-// widget published for that state name.
-const DECK_LIVE_SOURCES = ['timer', 'sdkState'];
+// widget published for that state name; 'sensor' shows a live hardware reading
+// (temps/load/fan/watts from the system snapshot, or `battery:<device>`).
+const DECK_LIVE_SOURCES = ['timer', 'sdkState', 'sensor'];
+
+// The fixed sensor metrics a live key can bind to (live.name). Battery keys
+// use the dynamic form 'battery:<device name>' instead.
+const DECK_SENSOR_METRICS = ['cpu', 'gpu', 'cpuTemp', 'gpuTemp', 'cpuFan', 'gpuFan', 'cpuWatts', 'gpuWatts', 'totalWatts', 'psuWatts'];
+
+// Project the SSE 'system' payload into the flat bag the 'sensor' live source
+// reads (snapshot.sensors). Kept pure so dashboard, Virtual Deck popup and
+// tests share one shape. gpuFan carries a unit tag because NVIDIA reports a
+// percent where LHM reports RPM.
+function sensorsFromSystem(sys) {
+  if (!sys || typeof sys !== 'object') return {};
+  // Number(null)/Number('') are 0 — an absent reading must stay null, never
+  // masquerade as a real 0W/0RPM value.
+  const num = (v) => (v == null || v === '' ? null : (Number.isFinite(Number(v)) ? Number(v) : null));
+  const fans = Array.isArray(sys.fans) ? sys.fans : [];
+  // kind === 'gpu' is the server's typed discriminator — never match on the
+  // display name (a motherboard header can literally be called "GPU").
+  const gpuFan = fans.find((f) => f && f.kind === 'gpu');
+  const cpuFan = fans.find((f) => f && f.kind !== 'gpu' && Number.isFinite(Number(f.rpm)) && Number(f.rpm) > 0) || fans.find((f) => f && f.kind !== 'gpu');
+  const p = (sys.power && typeof sys.power === 'object') ? sys.power : {};
+  return {
+    cpu: num(sys.cpu),
+    gpu: num(sys.gpu),
+    cpuTemp: num(sys.cpuTemp),
+    gpuTemp: num(sys.gpuTemp),
+    cpuFan: cpuFan ? num(cpuFan.rpm) : null,
+    gpuFan: gpuFan ? { rpm: num(gpuFan.rpm), pct: num(gpuFan.pct) } : null,
+    cpuWatts: num(p.cpu),
+    gpuWatts: num(p.gpu),
+    totalWatts: num(p.total),
+    psuWatts: num(p.psu),
+  };
+}
+
+// Project the SSE 'battery' device list into the snapshot bag the
+// 'battery:<name>' live keys read — lowercased names, like timersByLabel.
+function batteriesByName(devices) {
+  const byName = {};
+  for (const d of (Array.isArray(devices) ? devices : [])) {
+    if (!d || !d.name) continue;
+    byName[String(d.name).toLowerCase()] = { percent: Number(d.percent), charging: d.charging === true };
+  }
+  return byName;
+}
+
+// RPM reads best short: 860 stays literal, 1240 → '1.2k'.
+function formatRpmText(rpm) {
+  if (!Number.isFinite(rpm)) return '';
+  if (rpm >= 1000) return (Math.round(rpm / 100) / 10) + 'k';
+  return String(Math.round(rpm));
+}
+
+// One sensor metric → the short text painted on the key face.
+function formatSensorText(name, snapshot) {
+  const metric = String(name || '');
+  if (metric.startsWith('battery:')) {
+    const bag = snapshot.batteries || {};
+    const entry = bag[metric.slice('battery:'.length).toLowerCase()];
+    if (!entry || !Number.isFinite(Number(entry.percent))) return '';
+    return (entry.charging ? '⚡' : '') + Math.round(entry.percent) + '%';
+  }
+  const sensors = snapshot.sensors || {};
+  const v = sensors[metric];
+  if (metric === 'gpuFan') {
+    if (!v || typeof v !== 'object') return '';
+    if (Number.isFinite(v.rpm)) return formatRpmText(v.rpm);
+    if (Number.isFinite(v.pct)) return Math.round(v.pct) + '%';
+    return '';
+  }
+  if (!Number.isFinite(v)) return '';
+  if (metric === 'cpu' || metric === 'gpu') return Math.round(v) + '%';
+  if (metric === 'cpuTemp' || metric === 'gpuTemp') return Math.round(v) + '°';
+  if (metric === 'cpuFan') return formatRpmText(v);
+  return Math.round(v) + 'W';   // cpuWatts / gpuWatts / totalWatts / psuWatts
+}
 
 // mm:ss (or h:mm:ss) for a timer snapshot entry. Running timers count down from
 // endsAt; paused ones show their frozen remaining seconds.
@@ -742,6 +888,9 @@ function formatLiveValue(live, snapshot, now) {
     if (color) out.color = color;
     return out;
   }
+  if (live.source === 'sensor') {
+    return { text: formatSensorText(live.name, snapshot) };
+  }
   return { text: '' };
 }
 
@@ -785,7 +934,7 @@ function evaluateKeyState(state, snapshot) {
   }
 }
 
-const DECK_MODEL_API = { normalizeDeckConfig, normalizeDeckWellImage, normalizeDeckMediaStyle, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, swapKeysAt, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, SLIDER_TARGETS, formatLiveValue, timersByLabel, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
+const DECK_MODEL_API = { normalizeDeckConfig, normalizeDeckWellImage, normalizeDeckMediaStyle, normalizeDeckLook, effectiveDeckLook, setProfileLook, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, reshapeDeckConfig, swapKeysAt, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, DECK_SENSOR_METRICS, SLIDER_TARGETS, formatLiveValue, timersByLabel, sensorsFromSystem, batteriesByName, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
 if (typeof window !== 'undefined') {
   window.DeckModel = DECK_MODEL_API;
 }

@@ -17,6 +17,24 @@
   gap: 6px;
   --vpet-rgb: 255, 215, 94;
   --vpet-body: rgb(var(--vpet-rgb));
+  --vpet-surface: var(--surface);
+  --vpet-control: var(--control-bg);
+  --vpet-text: var(--text);
+  --vpet-muted: var(--muted-text);
+  --vpet-line: var(--line);
+  --vpet-scrim: color-mix(in srgb, var(--bg) 80%, transparent);
+  --vpet-shadow: color-mix(in srgb, var(--bg) 58%, transparent);
+}
+.vpet-menu-anchored,
+.vpet-gameover,
+.vpet-chip-bubble {
+  --vpet-surface: var(--surface);
+  --vpet-control: var(--control-bg);
+  --vpet-text: var(--text);
+  --vpet-muted: var(--muted-text);
+  --vpet-line: var(--line);
+  --vpet-scrim: color-mix(in srgb, var(--bg) 80%, transparent);
+  --vpet-shadow: color-mix(in srgb, var(--bg) 58%, transparent);
 }
 body[data-panel] .vpet,
 body.layout-editing .vpet { display: none; }
@@ -88,10 +106,10 @@ body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
 .vpet-bubble {
   max-width: min(300px, 58vw);
   padding: 8px 10px;
-  background: #0d1117;
-  color: #e8f4ff;
+  background: var(--vpet-surface);
+  color: var(--vpet-text);
   border: 2px solid rgb(var(--vpet-rgb));
-  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.55);
+  box-shadow: 4px 4px 0 var(--vpet-shadow);
   font-family: 'VT323', 'Courier New', monospace;
   font-size: 17px;
   line-height: 1.15;
@@ -106,7 +124,7 @@ body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
   bottom: -8px;
   width: 8px;
   height: 8px;
-  background: #0d1117;
+  background: var(--vpet-surface);
   border-right: 2px solid rgb(var(--vpet-rgb));
   border-bottom: 2px solid rgb(var(--vpet-rgb));
   transform: rotate(45deg);
@@ -123,23 +141,23 @@ body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
   display: flex;
   flex-direction: column;
   gap: 5px;
-  background: #0d1117;
+  background: var(--vpet-surface);
   border: 2px solid rgb(var(--vpet-rgb));
-  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.55);
+  box-shadow: 4px 4px 0 var(--vpet-shadow);
   font-family: 'VT323', 'Courier New', monospace;
 }
 .vpet-menu-head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  color: rgb(var(--vpet-rgb));
+  color: var(--vpet-text);
   font-family: 'Press Start 2P', 'VT323', monospace;
   font-size: 10px;
   padding-bottom: 4px;
-  border-bottom: 1px dashed rgba(var(--vpet-rgb), 0.5);
+  border-bottom: 1px dashed var(--vpet-line);
 }
-.vpet-menu-lv { color: #e8f4ff; font-family: 'VT323', monospace; font-size: 15px; }
-.vpet-menu-streak { color: #ffb74d; font-family: 'VT323', monospace; font-size: 15px; }
+.vpet-menu-lv { color: var(--vpet-text); font-family: 'VT323', monospace; font-size: 15px; }
+.vpet-menu-streak { color: var(--color-warn); font-family: 'VT323', monospace; font-size: 15px; }
 
 /* Menu opened from the topbar chip: no .vpet host to nest in, so the engine
    appends it to <body>, positions it under the chip (fixed, viewport-clamped)
@@ -157,19 +175,19 @@ body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
   justify-content: space-between;
   gap: 10px;
   padding: 5px 7px;
-  border: 1px solid rgba(232, 244, 255, 0.25);
-  background: rgba(232, 244, 255, 0.06);
-  color: #e8f4ff;
+  border: 1px solid var(--vpet-line);
+  background: var(--vpet-control);
+  color: var(--vpet-text);
   font-family: inherit;
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
   text-align: left;
 }
-.vpet-menu-row:hover, .vpet-menu-act:hover { background: rgba(var(--vpet-rgb), 0.18); }
-.vpet-menu-row.is-dead { border-color: #ff5a5f; color: #ff9a9d; }
+.vpet-menu-row:hover, .vpet-menu-act:hover { background: color-mix(in srgb, rgb(var(--vpet-rgb)) 18%, var(--vpet-control)); }
+.vpet-menu-row.is-dead { border-color: var(--color-danger); color: var(--color-danger); }
 .vpet-menu-pct { font-weight: 700; }
-.vpet-menu-act { justify-content: center; color: rgb(var(--vpet-rgb)); }
+.vpet-menu-act { justify-content: center; color: var(--vpet-text); }
 
 /* Stage 2 — dashboard decay: the pager progressively drains of colour while a
    vital rots at zero. `--vpet-decay` (0..1, set by the engine each tick) ramps
@@ -223,7 +241,7 @@ body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(4, 6, 8, 0.82);
+  background: var(--vpet-scrim);
   backdrop-filter: blur(3px);
   animation: vpet-go-in 0.25s steps(4);
 }
@@ -236,9 +254,10 @@ body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
   max-width: min(430px, 86vw);
   padding: 26px 28px 20px;
   text-align: center;
-  background: #0d1117;
-  border: 3px solid #ff5a5f;
-  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.6), 0 0 34px rgba(255, 90, 95, 0.35);
+  background: var(--vpet-surface);
+  border: 3px solid var(--color-danger);
+  box-shadow: 6px 6px 0 var(--vpet-shadow),
+    0 0 34px color-mix(in srgb, var(--color-danger) 35%, transparent);
   overflow: hidden;
 }
 /* CRT scanlines across the card. */
@@ -254,8 +273,8 @@ body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
 .vpet-go-title {
   font-family: 'Press Start 2P', 'VT323', monospace;
   font-size: 26px;
-  color: #ff5a5f;
-  text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.7);
+  color: var(--color-danger);
+  text-shadow: 3px 3px 0 var(--vpet-shadow);
   margin-bottom: 12px;
   animation: vpet-go-blink 1.2s steps(2) infinite;
 }
@@ -264,7 +283,7 @@ body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
   font-family: 'VT323', 'Courier New', monospace;
   font-size: 19px;
   line-height: 1.2;
-  color: #e8f4ff;
+  color: var(--vpet-text);
   margin-bottom: 18px;
 }
 .vpet-go-actions { display: flex; gap: 10px; justify-content: center; margin-bottom: 14px; }
@@ -273,17 +292,17 @@ body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
   font-size: 10px;
   padding: 10px 14px;
   background: transparent;
-  color: #e8f4ff;
-  border: 2px solid rgba(232, 244, 255, 0.5);
+  color: var(--vpet-text);
+  border: 2px solid var(--vpet-line);
   cursor: pointer;
 }
-.vpet-go-btn.is-fix { color: #6ee787; border-color: #6ee787; box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.55); }
-.vpet-go-btn.is-fix:hover { background: rgba(110, 231, 135, 0.14); }
-.vpet-go-btn:hover { background: rgba(232, 244, 255, 0.08); }
+.vpet-go-btn.is-fix { color: var(--color-success); border-color: var(--color-success); box-shadow: 3px 3px 0 var(--vpet-shadow); }
+.vpet-go-btn.is-fix:hover { background: color-mix(in srgb, var(--color-success) 14%, var(--vpet-control)); }
+.vpet-go-btn:hover { background: var(--hover-bg); }
 .vpet-go-coin {
   font-family: 'VT323', 'Courier New', monospace;
   font-size: 15px;
-  color: rgba(232, 244, 255, 0.55);
+  color: var(--vpet-muted);
   letter-spacing: 1px;
   animation: vpet-go-blink 1.6s steps(2) infinite;
 }
@@ -324,10 +343,10 @@ body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
   position: fixed;
   z-index: 300;
   padding: 7px 9px;
-  background: #0d1117;
-  color: #e8f4ff;
+  background: var(--vpet-surface);
+  color: var(--vpet-text);
   border: 2px solid rgb(var(--vpet-rgb, 255, 215, 94));
-  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.55);
+  box-shadow: 4px 4px 0 var(--vpet-shadow);
   font-family: 'VT323', 'Courier New', monospace;
   font-size: 16px;
   line-height: 1.15;
@@ -335,7 +354,7 @@ body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
 }
 
 /* Settings: small visual break before the Bit sub-section inside the Vitals card. */
-.vpet-settings-head { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+.vpet-settings-head { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
 
 @media (prefers-reduced-motion: reduce) {
   .vpet-sprite, .vpet[data-mood] .vpet-sprite, .vpet-go-title, .vpet-go-coin,

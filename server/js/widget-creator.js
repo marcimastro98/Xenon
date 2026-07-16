@@ -61,6 +61,21 @@
 
   function themeForPreview() {
     const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings : {};
+    const p = (typeof window.getEffectiveThemePalette === 'function')
+      ? window.getEffectiveThemePalette()
+      : null;
+    if (p) {
+      const palette = {
+        background: p.background, surface: p.surface, surfaceAlt: p.surfaceAlt, control: p.control,
+        text: p.text, muted: p.muted, dim: p.dim, line: p.line,
+        accent: p.accent, onAccent: p.onAccent,
+        success: p.success, onSuccess: p.onSuccess,
+        warning: p.warning, onWarning: p.onWarning,
+        danger: p.danger, onDanger: p.onDanger,
+        info: p.info, onInfo: p.onInfo,
+      };
+      return { appearance: p.tone, ...palette, palette };
+    }
     return {
       appearance: document.documentElement.getAttribute('data-appearance') || 'dark',
       accent: typeof hs.accent === 'string' ? hs.accent : '#7c5cff',

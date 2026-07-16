@@ -181,3 +181,13 @@ test('generated index.html links external css/js and inlines no script', () => {
     assert.equal(/<script>[^]*?<\/script>/i.test(html), false, id);
   }
 });
+
+test('generated widgets choose readable authored accent text and accept explicit tile overrides', () => {
+  const lightCss = fileText(payloadFor('label', { ...WT.defaultOptions('label'), accent: '#ffffff' }), 'widget.css');
+  const darkCss = fileText(payloadFor('label', { ...WT.defaultOptions('label'), accent: '#000000' }), 'widget.css');
+  assert.match(lightCss, /--on-accent:#111111/);
+  assert.match(darkCss, /--on-accent:#ffffff/);
+  const js = fileText(payloadFor('label'), 'widget.js');
+  assert.match(js, /t\.overrides/);
+  assert.match(js, /indexOf\("accent"\)/);
+});

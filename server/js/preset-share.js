@@ -57,8 +57,9 @@
   // style/skin, colours, album-accent and surface (font travels separately as
   // fontData). Keep this in step with THEME_SETTING_KEYS in settings.js. Older
   // codes simply omit the newer fields and import as before.
-  const THEME_KEYS = ['appearance', 'styleMode', 'retroScanlines', 'accent', 'background',
-    'text', 'mutedText', 'lineColor', 'dynamicAlbumTheme',
+  const THEME_KEYS = ['appearance', 'autoPalette', 'styleMode', 'retroScanlines', 'accent', 'background',
+    'surface', 'surfaceAlt', 'controlColor', 'text', 'mutedText', 'lineColor', 'accentText',
+    'successColor', 'warningColor', 'dangerColor', 'infoColor', 'contrastGuard', 'dynamicAlbumTheme',
     'panelAlpha', 'panelBorderStrength', 'panelShadowStrength',
     'uiRoundness', 'glassBlur', 'glassSaturate',
     'bgDim', 'bgBlur', 'bgAurora', 'bgGrid', 'bgStatic', 'bgCustom'];
@@ -280,16 +281,21 @@
         if (key.bgImage && typeof key.bgImage.value === 'string' && /^blob:/i.test(key.bgImage.value)) delete key.bgImage;
       });
       const out = { name: prof.name, root: prof.root };
-      // Device LOOK (well background + music-strip styling) travels with the
-      // profile — gradients carry no bytes; images are data-URLs (no machine
-      // paths). Re-validated through the model on BOTH export and import.
+      // Per-profile presentation travels with the profile. Rebuild it through
+      // DeckModel so enum values and decoration URLs are validated on BOTH
+      // export and import; provenance flags are assigned locally on import.
       if (raw.look && typeof raw.look === 'object') {
-        const look = {};
-        const wi = M.normalizeDeckWellImage(raw.look.wellImage);
-        const ms = M.normalizeDeckMediaStyle(raw.look.mediaStyle);
-        if (wi) look.wellImage = wi;
-        if (ms) look.mediaStyle = ms;
-        if (look.wellImage || look.mediaStyle) out.look = look;
+        const normalized = M.normalizeDeckLook ? M.normalizeDeckLook(raw.look) : null;
+        if (normalized) {
+          const look = Object.assign({}, normalized);
+          for (const field of ['wellImage', 'mediaStyle']) {
+            if (look[field] && typeof look[field] === 'object') {
+              look[field] = Object.assign({}, look[field]);
+              delete look[field].imported;
+            }
+          }
+          out.look = look;
+        }
       }
       return out;
     } catch { return null; }
@@ -545,6 +551,38 @@
     const toast = (title, message, type) => {
       if (window.XenonToast) window.XenonToast.show({ type: type || 'info', title, message: message || '', duration: 3600 });
     };
+    let importSource = { source: 'import', sourceId: '' };
+    const addUnique = (list, value) => { if (value && !list.includes(value)) list.push(value); };
+    function newInstallTransaction(kind, name) {
+      const id = 'xi_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+      return {
+        id,
+        name: String(name || '').trim().slice(0, 60),
+        kind,
+        installedAt: Date.now(),
+        source: importSource.source === 'catalog' ? 'catalog' : 'import',
+        sourceId: importSource.sourceId || '',
+        resources: {
+          themeIds: [], pagePresetIds: [], pageIds: [], deckProfiles: [],
+          deckPresetIds: [], widgetIds: [], ambientSceneIds: [], fontUrls: [],
+          background: false,
+        },
+      };
+    }
+    function commitInstallTransaction(tx) {
+      if (!tx || typeof ContentInstalls === 'undefined' || !ContentInstalls.resourceCount(tx.resources)) return false;
+      const list = Array.isArray(HS().contentInstalls) ? HS().contentInstalls.slice() : [];
+      hubSettings = normalizeSettings(Object.assign({}, HS(), { contentInstalls: list.concat([tx]) }));
+      if (typeof saveHubSettings === 'function') saveHubSettings();
+      return true;
+    }
+    async function runTrackedInstall(kind, name, work) {
+      const tx = newInstallTransaction(kind, name);
+      let result = null;
+      try { result = await work(tx); } catch { result = null; }
+      if (result !== false && result != null) commitInstallTransaction(tx);
+      return result;
+    }
 
     function linkFor(code) { try { return location.origin + '/#preset=' + code; } catch { return '#preset=' + code; } }
 
@@ -786,6 +824,12 @@
       const data = { name, code };
       const assets = (window.CustomBg && CustomBg.sanitizeBgAssets) ? CustomBg.sanitizeBgAssets(cb.assets) : {};
       if (Object.keys(assets).length) data.assets = assets;
+      // Frame-rate cap rides along only when the author moved it off the default,
+      // so older codes stay byte-identical and older app versions just ignore it.
+      if (window.CustomBg && CustomBg.sanitizeBgFps) {
+        const fps = CustomBg.sanitizeBgFps(cb.fps);
+        if (fps !== CustomBg.FPS_DEFAULT) data.fps = fps;
+      }
       openShareDialog('bg', name, encodePreset('bg', name, data, { exportedAt: stamp(), appVersion: appVersion() }), null, data);
     }
     // Export a page. With more than one page, ask WHICH page first (defaulting the
@@ -1188,6 +1232,10 @@
           const bg = { name: (cb.name && String(cb.name).trim()) || tr('preset_kind_bg', 'Animated background'), code };
           const assets = (window.CustomBg && CustomBg.sanitizeBgAssets) ? CustomBg.sanitizeBgAssets(cb.assets) : {};
           if (Object.keys(assets).length) bg.assets = assets;
+          if (window.CustomBg && CustomBg.sanitizeBgFps) {
+            const fps = CustomBg.sanitizeBgFps(cb.fps);
+            if (fps !== CustomBg.FPS_DEFAULT) bg.fps = fps;
+          }
           data.bg = bg;
         }
       }
@@ -1410,7 +1458,7 @@
     }
     // Install a single imported widget through the server boundary (same validate +
     // no-auto-grant path as a bundle). Returns true on a confirmed install.
-    async function applyWidget(w) {
+    async function applyWidget(w, tx) {
       if (!w || typeof w !== 'object' || !w.payload) return false;
       try {
         // origin:'import' marks the package as someone else's work — the server
@@ -1421,6 +1469,7 @@
         });
         const d = await res.json().catch(() => ({}));
         const ok = !!(res.ok && d.ok);
+        if (ok && tx) addUnique(tx.resources.widgetIds, String(d.id || w.id || (w.payload && w.payload.id) || ''));
         // Refresh the shared package list so a freshly installed widget/scene
         // appears in the picker, palette and Ambient list immediately — without a
         // full dashboard reload. Covers every install path (single widget, ambient
@@ -1438,7 +1487,7 @@
     // assets rebuilt entry-by-entry against the data:image allowlist + size caps,
     // enabled only when code is non-empty), so an untrusted code can't set any
     // other field. The code itself only ever runs inside the sandbox iframe.
-    function applyBg(data) {
+    function applyBg(data, tx) {
       if (!data || typeof data !== 'object' || typeof data.code !== 'string' || !data.code.trim()) return false;
       try {
         const cur = (HS().bgCustom && typeof HS().bgCustom === 'object') ? HS().bgCustom : {};
@@ -1446,8 +1495,12 @@
         hubSettings = normalizeSettings(Object.assign({}, HS(), {
           // imported: someone else's background — export refuses to re-share it
           // until the user replaces the code with their own.
-          bgCustom: { code: data.code, name, assets: data.assets, enabled: true, imported: true },
+          bgCustom: {
+            code: data.code, name, assets: data.assets, fps: data.fps, enabled: true, imported: true,
+            installId: tx ? tx.id : undefined,
+          },
         }));
+        if (tx) tx.resources.background = true;
         if (typeof saveHubSettings === 'function') saveHubSettings();
         if (typeof applyHubSettings === 'function') applyHubSettings();
         if (typeof syncBgFxControls === 'function') syncBgFxControls();
@@ -1460,7 +1513,7 @@
     // the scene through AmbientScene with a FRESH id + imported marker (so it can't
     // clobber a local scene or be re-shared as the user's own), add it to the scene
     // library, and set it as the active Ambient scene. Returns true on success.
-    async function applyAmbientLayout(data, name) {
+    async function applyAmbientLayout(data, name, tx) {
       const AS = window.AmbientScene;
       if (!AS || !data || typeof data !== 'object' || !data.scene || typeof data.scene !== 'object') return false;
       // Bundled widgets — best-effort: a widget that fails to install renders as a
@@ -1468,12 +1521,7 @@
       if (Array.isArray(data.widgets)) {
         for (const w of data.widgets.slice(0, BUNDLE_MAX_WIDGETS)) {
           if (!w || !w.payload) continue;
-          try {
-            await fetch('/sdk/install', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(Object.assign({}, w.payload, { origin: 'import' })),
-            });
-          } catch { /* best-effort */ }
+          await applyWidget(w, tx);
         }
         if (window.CustomWidget && typeof CustomWidget.getPackages === 'function') {
           try { await CustomWidget.getPackages(true); } catch { /* list refresh is best-effort */ }
@@ -1483,6 +1531,7 @@
         id: '',
         name: String(name || data.scene.name || '').slice(0, AS.MAX_NAME),
         imported: true,
+        installId: tx ? tx.id : undefined,
       }));
       if (!norm) return false;
       try {
@@ -1495,6 +1544,7 @@
         if (typeof saveHubSettings === 'function') saveHubSettings();
         if (typeof applyHubSettings === 'function') applyHubSettings();
         if (typeof window.onAmbientScenesChanged === 'function') window.onAmbientScenesChanged();
+        if (tx) addUnique(tx.resources.ambientSceneIds, norm.id);
         return true;
       } catch { return false; }
     }
@@ -1504,17 +1554,17 @@
     // re-validated by its own boundary and marked imported, so nothing that
     // arrives in a bundle can be re-exported as the user's own. Returns a
     // summary for the toast/dialog.
-    async function applyBundle(data, name, gridCols) {
+    async function applyBundle(data, name, gridCols, tx) {
       const out = { theme: false, pages: 0, decks: 0, decksAsPresets: false, bg: false, widgets: { installed: 0, failed: 0 } };
       if (!data || typeof data !== 'object') return out;
       if (data.theme && typeof data.theme === 'object') {
         // Name the saved theme card after the package (e.g. "Cyberpunk / Neon"),
         // not the auto-numbered default — a bundle carries an identity too.
-        out.theme = await applyTheme(data.theme, name || null);
+        out.theme = await applyTheme(data.theme, name || null, tx);
       }
       if (Array.isArray(data.pages)) {
         for (const p of data.pages) {
-          if (p && p.data && applyPage(p.data, p.name, gridCols)) out.pages++;
+          if (p && p.data && applyPage(p.data, p.name, gridCols, tx)) out.pages++;
         }
       }
       // Deck profiles: rebuilt through sanitizeDeckProfile (untrusted!) and landed
@@ -1527,24 +1577,27 @@
         for (const raw of data.decks.slice(0, BUNDLE_MAX_DECKS)) {
           const prof = sanitizeDeckProfile(raw, deckDeps());
           if (!prof || !countProfileKeys(prof) || !D || !D.importSharedProfile) continue;
-          const r = D.importSharedProfile(tgt, prof);
-          if (r && r.ok) { out.decks++; if (r.savedAsPreset) out.decksAsPresets = true; }
+          const r = D.importSharedProfile(tgt, prof, tx && tx.id);
+          if (r && r.ok) {
+            out.decks++;
+            if (r.savedAsPreset) {
+              out.decksAsPresets = true;
+              if (tx) addUnique(tx.resources.deckPresetIds, r.presetId);
+            } else if (tx && r.instanceId && r.profileId) {
+              tx.resources.deckProfiles.push({ instanceId: r.instanceId, profileId: r.profileId });
+            }
+          }
         }
       }
       // Background AFTER the theme, so a bundle that ships both keeps its
       // explicit background (a theme snapshot can carry its own bgCustom).
-      if (data.bg && typeof data.bg === 'object') out.bg = applyBg(data.bg);
+      if (data.bg && typeof data.bg === 'object') out.bg = applyBg(data.bg, tx);
       if (Array.isArray(data.widgets)) {
         let firstScene = null;   // first ambient scene the bundle installs
         for (const w of data.widgets.slice(0, BUNDLE_MAX_WIDGETS)) {
           if (!w || !w.payload) { out.widgets.failed++; continue; }
           try {
-            const res = await fetch('/sdk/install', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(Object.assign({}, w.payload, { origin: 'import' })),
-            });
-            const d = await res.json().catch(() => ({}));
-            if (res.ok && d.ok) {
+            if (await applyWidget(w, tx)) {
               out.widgets.installed++;
               if (!firstScene && w.surface === 'ambient' && typeof w.id === 'string') firstScene = w.id;
             } else out.widgets.failed++;
@@ -1569,7 +1622,7 @@
     // server-generated-name path as a manual upload) and return its uiFont ref, or
     // null if there's nothing valid to write. Never throws — a bad font just means
     // the theme imports colours-only.
-    async function writeEmbeddedFont(fd) {
+    async function writeEmbeddedFont(fd, tx) {
       if (!fd || typeof fd !== 'object' || typeof fd.data !== 'string') return null;
       const ext = String(fd.ext || '').toLowerCase();
       if (!/^(woff2|woff|ttf|otf)$/.test(ext)) return null;
@@ -1581,10 +1634,12 @@
         const res = await fetch('/font', { method: 'POST', body: form });
         const out = await res.json().catch(() => ({}));
         if (!res.ok || !out.url) return null;
-        return { url: out.url, name: out.name || String(fd.name || '').slice(0, 120), version: String(Date.now()) };
+        const font = { url: out.url, name: out.name || String(fd.name || '').slice(0, 120), version: String(Date.now()) };
+        if (tx) addUnique(tx.resources.fontUrls, font.url);
+        return font;
       } catch { return null; }
     }
-    async function applyTheme(data, name) {
+    async function applyTheme(data, name, tx) {
       if (!data || typeof data !== 'object') return false;
       const patch = {};
       for (const k of THEME_KEYS) if (k in data) patch[k] = data[k];
@@ -1595,11 +1650,12 @@
       // it), so we always stamp it here rather than trusting what arrived.
       if (patch.bgCustom && typeof patch.bgCustom === 'object'
           && typeof patch.bgCustom.code === 'string' && patch.bgCustom.code.trim()) {
-        patch.bgCustom = Object.assign({}, patch.bgCustom, { imported: true });
+        patch.bgCustom = Object.assign({}, patch.bgCustom, { imported: true, installId: tx ? tx.id : undefined });
+        if (tx) tx.resources.background = true;
       }
       // Only touch the font when the code actually carries one — a colours-only
       // theme must never wipe the user's current typeface.
-      const uiFont = await writeEmbeddedFont(data.fontData);
+      const uiFont = await writeEmbeddedFont(data.fontData, tx);
       if (uiFont) patch.uiFont = uiFont;
       if (!Object.keys(patch).length) return false;
       try {
@@ -1611,11 +1667,12 @@
         if (typeof syncSettingsControls === 'function') syncSettingsControls();
         // Keep the imported look as a card in the Temi gallery so it can be
         // re-applied later (snapshots the now-live settings; skips duplicates).
-        if (typeof saveImportedThemeCard === 'function') saveImportedThemeCard(name);
+        const card = typeof saveImportedThemeCard === 'function' ? saveImportedThemeCard(name, tx && tx.id) : null;
+        if (tx && card && card.id) addUnique(tx.resources.themeIds, card.id);
         return true;
       } catch { return false; }
     }
-    function applyPage(data, name, gridCols) {
+    function applyPage(data, name, gridCols, tx) {
       const DP = window.DashboardPresets;
       if (!DP || !data || !Array.isArray(data.items) || !data.items.length) return false;
       const raw = {
@@ -1625,6 +1682,7 @@
         // Someone else's layout: the preset — and every page inserted from it —
         // is marked so it can't be re-exported as the user's own.
         imported: true,
+        installId: tx ? tx.id : undefined,
       };
       // Codes exported on the 24-column grid say so; legacy 12-column codes are
       // left unflagged and normalizePresets scales them ×2.
@@ -1639,7 +1697,11 @@
         list.push(norm);
         setDashboardPresets(list);
         // Adds it to the saved-presets dock AND drops it onto a fresh page now.
-        if (typeof insertDashboardPreset === 'function') insertDashboardPreset(norm.id);
+        const inserted = typeof insertDashboardPreset === 'function' ? insertDashboardPreset(norm.id) : null;
+        if (tx) {
+          addUnique(tx.resources.pagePresetIds, norm.id);
+          if (inserted && inserted.pageId) addUnique(tx.resources.pageIds, inserted.pageId);
+        }
         if (typeof refreshDashboardLayoutEditor === 'function') refreshDashboardLayoutEditor();
         return true;
       } catch { return false; }
@@ -1789,6 +1851,12 @@
         noImg.addEventListener('click', () => {
           close();
           const slim = { name: bgData.name, code: bgData.code };
+          // Same sanitize + off-default gate as the primary export sites, so a
+          // re-shared code never carries an unclamped fps.
+          if (window.CustomBg && CustomBg.sanitizeBgFps) {
+            const fps = CustomBg.sanitizeBgFps(bgData.fps);
+            if (fps !== CustomBg.FPS_DEFAULT) slim.fps = fps;
+          }
           openShareDialog('bg', name, encodePreset('bg', name, slim, { exportedAt: stamp(), appVersion: appVersion() }), null, slim);
         });
         row.appendChild(noImg);
@@ -2027,7 +2095,12 @@
       body.appendChild(note);
     }
 
-    function openImport(prefill) {
+    function openImport(prefill, sourceMeta) {
+      const source = sourceMeta && typeof sourceMeta === 'object' ? sourceMeta : {};
+      importSource = {
+        source: source.source === 'catalog' ? 'catalog' : 'import',
+        sourceId: typeof source.sourceId === 'string' ? source.sourceId.slice(0, 80) : '',
+      };
       const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
       const desc = document.createElement('p');
       desc.className = 'preset-modal-desc';
@@ -2118,6 +2191,7 @@
           if (!canonCode(unlockField.value)) { unlockField.focus(); return; }
           let inner;
           if (locked.remote) {
+            if (!importSource.sourceId) importSource = { source: 'catalog', sourceId: locked.entryId };
             // One-time supporter code: the local server attaches the install id
             // and forwards to the hub, which returns the content key on success.
             importBtn.disabled = true;
@@ -2235,7 +2309,7 @@
       // installed) BEFORE the profile lands, so its keys work right away. Each
       // payload goes through the normal /sdk/install validation; grants stay
       // per-user (approved when the widget is first assigned/used).
-      const installDeps = async () => {
+      const installDeps = async (tx) => {
         if (!widgets.length) return 0;
         let installed = 0;
         const have = new Map((await listSdkWidgets()).map((w) => [w.id, String(w.version || '')]));
@@ -2244,7 +2318,7 @@
           if (id && have.has(id) && have.get(id) === String(w.version || '')) continue;   // same build present
           // applyWidget is the ONE client-side wrapper around /sdk/install —
           // a dependency install failure never blocks the profile itself.
-          if (await applyWidget(w)) installed++;
+          if (await applyWidget(w, tx)) installed++;
         }
         return installed;
       };
@@ -2354,8 +2428,16 @@
           btn.appendChild(tn); btn.appendChild(meta);
           btn.addEventListener('click', async () => {
             btn.disabled = true;
-            await installDeps();
-            finish(D.importSharedProfile(tgt.instanceId, prof));
+            const result = await runTrackedInstall('deck', name || prof.name, async (tx) => {
+              await installDeps(tx);
+              const imported = D.importSharedProfile(tgt.instanceId, prof, tx.id);
+              if (imported && imported.ok) {
+                if (imported.savedAsPreset) addUnique(tx.resources.deckPresetIds, imported.presetId);
+                else if (imported.instanceId && imported.profileId) tx.resources.deckProfiles.push({ instanceId: imported.instanceId, profileId: imported.profileId });
+              }
+              return imported;
+            });
+            finish(result);
           });
           list.appendChild(btn);
         });
@@ -2368,8 +2450,16 @@
         go.addEventListener('click', async () => {
           if (!D || !D.importSharedProfile) { finish(null); return; }
           go.disabled = true;
-          await installDeps();
-          finish(D.importSharedProfile(targets.length ? targets[0].instanceId : '', prof));
+          const result = await runTrackedInstall('deck', name || prof.name, async (tx) => {
+            await installDeps(tx);
+            const imported = D.importSharedProfile(targets.length ? targets[0].instanceId : '', prof, tx.id);
+            if (imported && imported.ok) {
+              if (imported.savedAsPreset) addUnique(tx.resources.deckPresetIds, imported.presetId);
+              else if (imported.instanceId && imported.profileId) tx.resources.deckProfiles.push({ instanceId: imported.instanceId, profileId: imported.profileId });
+            }
+            return imported;
+          });
+          finish(result);
         });
         row.appendChild(go);
         body.appendChild(row);
@@ -2503,7 +2593,7 @@
       go.textContent = tr('preset_import_apply', 'Import');
       go.addEventListener('click', async () => {
         go.disabled = true; go.textContent = tr('preset_bundle_installing', 'Installing…');
-        const res = await applyBundle(d, name, gridCols);
+        const res = await runTrackedInstall('bundle', name, (tx) => applyBundle(d, name, gridCols, tx));
         close();
         if (!res || (!res.theme && !res.pages && !res.decks && !res.bg && !res.widgets.installed && !res.widgets.failed)) {
           toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error');
@@ -2573,7 +2663,7 @@
       go.textContent = tr('preset_import_apply', 'Import');
       go.addEventListener('click', async () => {
         go.disabled = true; go.textContent = tr('preset_bundle_installing', 'Installing…');
-        const ok = await applyWidget(w);
+        const ok = await runTrackedInstall('widget', name || w.name || w.id, (tx) => applyWidget(w, tx));
         close();
         if (!ok) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
         toast(tr('preset_import_ok', 'Preset imported'), String(name || w.name || ''), 'success');
@@ -2637,13 +2727,17 @@
       go.textContent = tr('preset_import_apply', 'Import');
       go.addEventListener('click', async () => {
         go.disabled = true; go.textContent = tr('preset_bundle_installing', 'Installing…');
-        const ok = await applyWidget(w);
+        const ok = await runTrackedInstall('ambient', name || w.name || w.id, async (tx) => {
+          const installed = await applyWidget(w, tx);
+          if (installed && setChk.checked && typeof updateAmbientSetting === 'function' && typeof w.id === 'string') {
+            updateAmbientSetting('sceneId', w.id);
+          }
+          return installed;
+        });
         close();
         if (!ok) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
-        // applyWidget already refreshed the package list on success.
-        if (setChk.checked && typeof updateAmbientSetting === 'function' && typeof w.id === 'string') {
-          updateAmbientSetting('sceneId', w.id);   // also prompts for its permissions
-        }
+        // applyWidget already refreshed the package list on success; selecting it
+        // above also prompts for its permissions.
         toast(tr('preset_import_ok', 'Preset imported'), String(name || w.name || ''), 'success');
         // A scene needs the SDK subsystem on, exactly like a tile widget —
         // without this hint an SDK-off user only ever sees the builtin fallback.
@@ -2675,7 +2769,7 @@
     }
     // A small "Apply" action row wired to run `fn` (which returns truthy on
     // success) and then toast + close. Keeps the three preview dialogs uniform.
-    function previewApplyRow(close, fn, okName, kindLabel) {
+    function previewApplyRow(close, fn, okName, kindLabel, kind) {
       const row = actionRow();
       const go = document.createElement('button');
       go.type = 'button'; go.className = 'settings-btn primary';
@@ -2683,7 +2777,7 @@
       go.addEventListener('click', async () => {
         go.disabled = true;
         let ok = false;
-        try { ok = await fn(); } catch { ok = false; }
+        try { ok = await runTrackedInstall(kind, okName || kindLabel, fn); } catch { ok = false; }
         close();
         if (!ok) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
         toast(tr('preset_import_ok', 'Preset imported'), (okName ? okName + ' · ' : '') + kindLabel, 'success');
@@ -2725,6 +2819,8 @@
       };
       addSwatch(d.accent, 'settings_accent', 'Accent');
       addSwatch(d.background, 'settings_background', 'Background');
+      addSwatch(d.surface, 'settings_panel_surface', 'Panels');
+      addSwatch(d.controlColor, 'settings_control_color', 'Controls');
       addSwatch(d.text, 'settings_text', 'Text');
       if (sw.childNodes.length) body.appendChild(sw);
 
@@ -2738,7 +2834,7 @@
       if (d.fontData && typeof d.fontData === 'object') chipFor('🔤 ' + tr('preset_theme_font', 'Custom font'));
       body.appendChild(chips);
 
-      body.appendChild(previewApplyRow(close, () => applyTheme(d, name || null), name, kindLabel));
+      body.appendChild(previewApplyRow(close, (tx) => applyTheme(d, name || null, tx), name, kindLabel, 'theme'));
     }
 
     // Review step for an imported BACKGROUND: name + a live mini-preview of the
@@ -2782,10 +2878,10 @@
         frame.setAttribute('sandbox', 'allow-scripts');
         frame.setAttribute('referrerpolicy', 'no-referrer');
         frame.setAttribute('aria-hidden', 'true');
-        try { frame.srcdoc = window.CustomBg.buildSrcdoc(code, assets); body.appendChild(frame); } catch { /* skip preview */ }
+        try { frame.srcdoc = window.CustomBg.buildSrcdoc(code, assets, d.fps); body.appendChild(frame); } catch { /* skip preview */ }
       }
 
-      body.appendChild(previewApplyRow(close, () => applyBg(d), name || d.name, kindLabel));
+      body.appendChild(previewApplyRow(close, (tx) => applyBg(d, tx), name || d.name, kindLabel, 'bg'));
     }
 
     // Review step for an imported PAGE layout: name + widget count, before it's
@@ -2810,7 +2906,7 @@
       chips.appendChild(c);
       body.appendChild(chips);
 
-      body.appendChild(previewApplyRow(close, () => applyPage(d, name, gridCols), name, kindLabel));
+      body.appendChild(previewApplyRow(close, (tx) => applyPage(d, name, gridCols, tx), name, kindLabel, 'page'));
     }
 
     // Review step for an imported native canvas SCENE: a true scaled thumbnail
@@ -2857,7 +2953,230 @@
         } catch { /* skip preview */ }
       }
 
-      body.appendChild(previewApplyRow(close, () => applyAmbientLayout(d, name), name || scene.name, kindLabel));
+      body.appendChild(previewApplyRow(close, (tx) => applyAmbientLayout(d, name, tx), name || scene.name, kindLabel, 'ambient-layout'));
+    }
+
+    // ── Installed-content manager ────────────────────────────────────────
+    function installResourceSummary(resources) {
+      const r = (typeof ContentInstalls !== 'undefined') ? ContentInstalls.normalizeResources(resources) : resources;
+      const parts = [];
+      if (r.themeIds.length) parts.push(r.themeIds.length + ' ' + tr('installed_content_themes', 'themes'));
+      if (r.pageIds.length || r.pagePresetIds.length) parts.push(Math.max(r.pageIds.length, r.pagePresetIds.length) + ' ' + tr('installed_content_pages', 'pages'));
+      const decks = r.deckProfiles.length + r.deckPresetIds.length;
+      if (decks) parts.push(decks + ' ' + tr('installed_content_decks', 'Deck profiles'));
+      if (r.widgetIds.length) parts.push(r.widgetIds.length + ' ' + tr('installed_content_widgets', 'widgets'));
+      if (r.ambientSceneIds.length) parts.push(r.ambientSceneIds.length + ' ' + tr('installed_content_scenes', 'Ambient scenes'));
+      if (r.background) parts.push(tr('installed_content_background', 'background'));
+      if (r.fontUrls.length) parts.push(r.fontUrls.length + ' ' + tr('installed_content_fonts', 'fonts'));
+      return parts.join(' · ');
+    }
+
+    async function legacyImportRecord(records, packages) {
+      const trackedWidgets = new Set();
+      (records || []).forEach(rec => (rec.resources.widgetIds || []).forEach(id => trackedWidgets.add(id)));
+      const deckInventory = window.Deck && typeof Deck.listImportedResources === 'function'
+        ? Deck.listImportedResources() : { profiles: [], presets: [] };
+      const resources = {
+        themeIds: (HS().customThemes || []).filter(x => x && x.imported === true && !x.installId).map(x => x.id),
+        pagePresetIds: (HS().dashboardPresets || []).filter(x => x && x.imported === true && !x.installId).map(x => x.id),
+        pageIds: (((HS().dashboardLayout || {}).pages) || []).filter(x => x && x.imported === true && !x.installId).map(x => x.id),
+        deckProfiles: (deckInventory.profiles || []).filter(x => !x.installId).map(x => ({ instanceId: x.instanceId, profileId: x.profileId })),
+        deckPresetIds: (deckInventory.presets || []).filter(x => !x.installId).map(x => x.presetId),
+        widgetIds: (packages || []).filter(x => x && x.origin === 'import' && !trackedWidgets.has(x.id)).map(x => x.id),
+        ambientSceneIds: (HS().ambientScenes || []).filter(x => x && x.imported === true && !x.installId).map(x => x.id),
+        fontUrls: [],
+        background: !!(HS().bgCustom && HS().bgCustom.imported === true && !HS().bgCustom.installId),
+      };
+      (HS().customThemes || []).forEach((theme) => {
+        const url = theme && theme.imported === true && !theme.installId && theme.uiFont && theme.uiFont.url;
+        if (url) addUnique(resources.fontUrls, url);
+      });
+      if (typeof ContentInstalls === 'undefined' || !ContentInstalls.resourceCount(resources)) return null;
+      return {
+        id: '__legacy__',
+        name: tr('installed_content_legacy', 'Previous imports'),
+        kind: 'bundle',
+        installedAt: 0,
+        source: 'import',
+        legacy: true,
+        resources: ContentInstalls.normalizeResources(resources),
+      };
+    }
+
+    async function uninstallContent(record) {
+      if (!record || !record.resources) return false;
+      const summary = installResourceSummary(record.resources);
+      const ok = typeof settingsPrompt === 'function'
+        ? await settingsPrompt({
+          type: 'confirm',
+          title: tr('installed_content_remove_title', 'Remove downloaded content'),
+          message: tr('installed_content_remove_confirm', 'Remove everything installed by “{name}”? This cannot be undone.')
+            .replace('{name}', record.name || tr('installed_content_unnamed', 'Imported content'))
+            + (summary ? '\n\n' + summary : ''),
+          okLabel: tr('installed_content_remove_all', 'Remove all'),
+        })
+        : window.confirm(tr('installed_content_remove_confirm', 'Remove everything installed by this item?'));
+      if (!ok) return false;
+
+      const legacy = record.legacy === true;
+      const records = Array.isArray(HS().contentInstalls) ? HS().contentInstalls : [];
+      const remaining = legacy ? records.slice() : records.filter(x => x.id !== record.id);
+      const r = ContentInstalls.normalizeResources(record.resources);
+      const themeIds = new Set(r.themeIds);
+      const pagePresetIds = new Set(r.pagePresetIds);
+      const sceneIds = new Set(r.ambientSceneIds);
+      const activeThemeId = typeof findActiveThemeId === 'function' ? findActiveThemeId() : '';
+
+      const owns = (item) => legacy
+        ? item && item.imported === true && !item.installId
+        : item && item.installId === record.id;
+      const nextThemes = (HS().customThemes || []).filter(theme => !(themeIds.has(theme.id) && owns(theme)));
+      const nextPresets = (HS().dashboardPresets || []).filter(preset => !(pagePresetIds.has(preset.id) && owns(preset)));
+      const nextScenes = (HS().ambientScenes || []).filter(scene => !(sceneIds.has(scene.id) && owns(scene)));
+      const activeThemeRemoved = themeIds.has(activeThemeId) && !(nextThemes || []).some(x => x.id === activeThemeId);
+
+      const otherWidgetRefs = new Set();
+      remaining.forEach(rec => (rec.resources.widgetIds || []).forEach(id => otherWidgetRefs.add(id)));
+      let packages = [];
+      try { packages = (await fetch('/sdk/widgets').then(res => res.json())).packages || []; } catch { packages = []; }
+      const packageById = new Map(packages.map(pkg => [pkg.id, pkg]));
+      const widgetDeleteIds = r.widgetIds.filter(id => !otherWidgetRefs.has(id) && packageById.get(id) && packageById.get(id).origin === 'import');
+      const widgetDeleteSet = new Set(widgetDeleteIds);
+
+      const currentSdk = HS().sdkWidgets || {};
+      const assign = Object.assign({}, currentSdk.assign || {});
+      for (const key of Object.keys(assign)) if (widgetDeleteSet.has(assign[key])) delete assign[key];
+      const grants = Object.assign({}, currentSdk.grants || {});
+      widgetDeleteIds.forEach(id => { delete grants[id]; });
+
+      const currentScene = HS().ambientMode && HS().ambientMode.sceneId;
+      const removedActiveScene = (typeof currentScene === 'string' && currentScene.startsWith('canvas:') && sceneIds.has(currentScene.slice(7)))
+        || widgetDeleteSet.has(currentScene);
+      const bgOwned = r.background && HS().bgCustom && (legacy
+        ? HS().bgCustom.imported === true && !HS().bgCustom.installId
+        : HS().bgCustom.installId === record.id);
+      const fontSet = new Set(r.fontUrls);
+      const fontStillUsedByCard = (url) => nextThemes.some(theme => theme && theme.uiFont && theme.uiFont.url === url);
+      const clearLiveFont = HS().uiFont && fontSet.has(HS().uiFont.url) && !fontStillUsedByCard(HS().uiFont.url);
+
+      hubSettings = normalizeSettings(Object.assign({}, HS(), {
+        customThemes: nextThemes,
+        dashboardPresets: nextPresets,
+        ambientScenes: nextScenes,
+        contentInstalls: remaining,
+        bgCustom: bgOwned ? { enabled: false, name: '', code: '', assets: {} } : HS().bgCustom,
+        uiFont: clearLiveFont ? null : HS().uiFont,
+        ambientMode: removedActiveScene ? Object.assign({}, HS().ambientMode, { sceneId: 'builtin' }) : HS().ambientMode,
+        sdkWidgets: Object.assign({}, currentSdk, { assign, grants }),
+      }));
+      if (typeof saveHubSettings === 'function') saveHubSettings();
+
+      // Remove materialized pages and Deck data through their owning modules so
+      // instance side stores and server outboxes are cleaned too.
+      if (window.DashboardPages && typeof DashboardPages.remove === 'function') {
+        for (const pageId of r.pageIds) {
+          DashboardPages.remove(pageId, legacy
+            ? { skipConfirm: true, replaceLast: true, legacy: true, skipReceipt: true }
+            : { skipConfirm: true, replaceLast: true, installId: record.id, skipReceipt: true });
+        }
+      }
+      if (window.Deck && typeof Deck.removeImportedResources === 'function') {
+        Deck.removeImportedResources(r, record.id, legacy);
+      }
+
+      for (const id of widgetDeleteIds) {
+        // Drain the ack (arrayBuffer): a discarded unread response pins its
+        // pooled connection until GC — see postHubSettingsToServer.
+        try { await fetch('/sdk/widget/' + encodeURIComponent(id), { method: 'DELETE' }).then(res => res.arrayBuffer()); } catch { /* continue cleanup */ }
+      }
+      if (window.CustomWidget && typeof CustomWidget.getPackages === 'function') {
+        try { await CustomWidget.getPackages(true); } catch { /* best-effort */ }
+      }
+
+      // Delete imported font files only when no remaining card/live setting uses
+      // them. The endpoint accepts font filenames only.
+      for (const url of r.fontUrls) {
+        const stillLive = hubSettings.uiFont && hubSettings.uiFont.url === url;
+        const stillCard = (hubSettings.customThemes || []).some(theme => theme && theme.uiFont && theme.uiFont.url === url);
+        if (stillLive || stillCard) continue;
+        const name = String(url).split('/').pop();
+        if (name) { try { await fetch('/font/' + encodeURIComponent(name), { method: 'DELETE' }).then(res => res.arrayBuffer()); } catch { /* best-effort */ } }
+      }
+
+      if (activeThemeRemoved && typeof applyThemeById === 'function') applyThemeById('glass');
+      else {
+        if (typeof applyHubSettings === 'function') applyHubSettings();
+        if (typeof syncSettingsControls === 'function') syncSettingsControls();
+      }
+      if (typeof window.onAmbientScenesChanged === 'function') window.onAmbientScenesChanged();
+      if (typeof paintInstalledSdkPackages === 'function') paintInstalledSdkPackages();
+      toast(tr('installed_content_removed', 'Downloaded content removed'), record.name || '', 'success');
+      return true;
+    }
+
+    async function openInstalledContent() {
+      const { body, close } = buildModal(tr('installed_content_title', 'Installed content'));
+      const intro = document.createElement('p');
+      intro.className = 'preset-modal-desc';
+      intro.textContent = tr('installed_content_desc', 'Remove a downloaded theme, package or preset together with everything it installed. Your own creations are never included.');
+      body.appendChild(intro);
+
+      let packages = [];
+      try { packages = (await fetch('/sdk/widgets').then(res => res.json())).packages || []; } catch { packages = []; }
+      const records = typeof ContentInstalls !== 'undefined'
+        ? ContentInstalls.normalizeContentInstalls(HS().contentInstalls) : [];
+      const legacy = await legacyImportRecord(records, packages);
+      const all = legacy ? records.concat([legacy]) : records;
+      if (!all.length) {
+        const empty = document.createElement('p');
+        empty.className = 'installed-content-empty';
+        empty.textContent = tr('installed_content_empty', 'No downloaded content to remove.');
+        body.appendChild(empty);
+        return;
+      }
+
+      const list = document.createElement('div');
+      list.className = 'installed-content-list';
+      all.slice().sort((a, b) => (b.installedAt || 0) - (a.installedAt || 0)).forEach((record) => {
+        const row = document.createElement('div');
+        row.className = 'installed-content-row' + (record.legacy ? ' is-legacy' : '');
+        const info = document.createElement('div');
+        info.className = 'installed-content-info';
+        const head = document.createElement('div');
+        head.className = 'installed-content-head';
+        const name = document.createElement('b');
+        name.textContent = record.name || tr('installed_content_unnamed', 'Imported content');
+        const kind = document.createElement('span');
+        kind.className = 'preset-modal-kind';
+        kind.textContent = record.legacy
+          ? tr('installed_content_legacy_badge', 'Legacy')
+          : tr('preset_kind_' + record.kind, record.kind);
+        head.append(name, kind);
+        const meta = document.createElement('span');
+        meta.className = 'settings-hint';
+        const bits = [installResourceSummary(record.resources)];
+        if (record.legacy) bits.unshift(tr('installed_content_legacy_note', 'Older Xenon versions did not record package ownership, so these imports are removed together.'));
+        if (record.source === 'catalog') bits.push(tr('installed_content_catalog', 'Catalog'));
+        if (record.installedAt) {
+          try { bits.push(new Date(record.installedAt).toLocaleDateString()); } catch { /* no date */ }
+        }
+        meta.textContent = bits.filter(Boolean).join(' · ');
+        info.append(head, meta);
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'settings-btn danger installed-content-remove';
+        remove.textContent = tr('installed_content_remove_all', 'Remove all');
+        remove.addEventListener('click', async () => {
+          remove.disabled = true;
+          const removed = await uninstallContent(record);
+          if (!removed) { remove.disabled = false; return; }
+          close();
+          openInstalledContent();
+        });
+        row.append(info, remove);
+        list.appendChild(row);
+      });
+      body.appendChild(list);
     }
 
     // A …/#preset=CODE link opens the dashboard straight into the import dialog,
@@ -2873,7 +3192,7 @@
       } catch { /* ignore */ }
     }
 
-    window.PresetShare = { exportTheme, exportPage, exportCurrentPage: exportPage, exportDeck, exportBundle, exportBg, exportWidget, exportAmbient, exportAmbientLayout, exportWidgetPkg, shareDeckProfile, openImport, encodePreset, decodePreset };
+    window.PresetShare = { exportTheme, exportPage, exportCurrentPage: exportPage, exportDeck, exportBundle, exportBg, exportWidget, exportAmbient, exportAmbientLayout, exportWidgetPkg, shareDeckProfile, openImport, openInstalledContent, encodePreset, decodePreset };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', checkHash, { once: true });
     else checkHash();

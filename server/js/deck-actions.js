@@ -13,6 +13,11 @@ const ACTION_CATALOG = [
   { type: 'openFile', group: 'system', labelKey: 'deck_act_openFile', params: [{ name: 'path', kind: 'path' }] },
   { type: 'runScript', group: 'system', labelKey: 'deck_act_runScript', params: [{ name: 'path', kind: 'path' }, { name: 'window', kind: 'select', options: ['visible', 'hidden'] }] },
   { type: 'openStoreApp', group: 'system', labelKey: 'deck_act_openStoreApp', params: [{ name: 'appId', kind: 'storeApp' }] },
+  // Launch a Steam game by its numeric AppID via the steam://rungameid/<id> deep
+  // link (the canonical launcher route — goes through the Steam client/overlay,
+  // unlike a raw steam.exe -applaunch, which openApp can't pass args to anyway).
+  // The id is validated to digits-only in the server registry before use.
+  { type: 'launchSteamGame', group: 'system', labelKey: 'deck_act_launchSteamGame', params: [{ name: 'gameId', kind: 'text' }] },
   { type: 'openUrl',  group: 'system', labelKey: 'deck_act_openUrl',  params: [{ name: 'url',  kind: 'url'  }] },
   { type: 'hotkey',   group: 'system', labelKey: 'deck_act_hotkey',   params: [{ name: 'keys', kind: 'text' }] },
   // Type a literal snippet into the app the user was last using (same focus

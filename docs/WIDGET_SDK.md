@@ -152,7 +152,23 @@ than the manifest requested):
 {
   xenonSdk: 1, type: 'init',
   api: 1,
-  theme:  { appearance: 'dark'|'light', accent: '#1ed760', background: '#070808', text: '#f0f3f1' },
+  theme:  {
+    appearance: 'dark'|'light',
+    // Explicit per-tile role overrides, empty for the global palette:
+    overrides: ['accent', 'panel'],
+    // Flat legacy aliases remain available:
+    accent: '#1ed760', background: '#070808', text: '#f0f3f1',
+    // Complete, contrast-checked semantic palette:
+    palette: {
+      background: '#070808', surface: '#111314', surfaceAlt: '#16191a', control: '#1c2021',
+      text: '#f0f3f1', muted: '#a6b1ad', dim: '#7f8a86', line: '#46504c',
+      accent: '#1ed760', onAccent: '#111111',
+      success: '#45d483', onSuccess: '#111111',
+      warning: '#f0b84f', onWarning: '#111111',
+      danger: '#ff6268', onDanger: '#111111',
+      info: '#62cbea', onInfo: '#111111'
+    }
+  },
   lang:   'en',                       // active UI language (en/it/ko/ja/zh)
   streams: ['system', 'media'],       // granted data streams
   actions: ['media']                  // granted action categories
@@ -196,6 +212,28 @@ Treat every string in them as untrusted display text: render with
 ### 4. `theme` — host → widget
 
 Sent whenever the dashboard theme changes: `{ type: 'theme', theme: {…} }`.
+Use `theme.palette` for new widgets. `surface` is the tile/modal surface,
+`surfaceAlt` is a nested row/card, and `control` is an input or button well.
+Use every `on…` value on top of its matching filled colour. The host derives
+missing theme roles and applies its contrast guard before this payload is sent.
+The palette is computed for this widget's own tile, so per-widget overrides
+already appear in these values even though the widget runs in an iframe.
+`theme.overrides` lists the role keys explicitly changed on that tile; most
+theme-reactive widgets can ignore the list and apply the complete palette.
+
+```js
+function applyTheme(theme) {
+  const p = theme && (theme.palette || theme); // fallback for older hosts
+  if (!p) return;
+  const vars = {
+    background: '--bg', surface: '--surface', surfaceAlt: '--surface-alt', control: '--control-bg',
+    text: '--text', muted: '--muted-text', dim: '--dim-text', line: '--line',
+    accent: '--accent', onAccent: '--on-accent', success: '--success',
+    warning: '--warning', danger: '--danger', info: '--info'
+  };
+  for (const [key, cssVar] of Object.entries(vars)) if (p[key]) document.documentElement.style.setProperty(cssVar, p[key]);
+}
+```
 
 ### 4b. `size` — host → widget
 

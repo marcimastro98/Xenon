@@ -25,6 +25,7 @@ function normalizePagesList(pages, seed) {
     const page = { id, name: clampPageName(p.name, '') };
     if (p.nameKey) page.nameKey = String(p.nameKey).slice(0, 64);
     if (p.imported === true) page.imported = true;   // arrived via a shared preset → not re-exportable
+    if (page.imported && /^xi_[a-z0-9]{8,32}$/.test(String(p.installId || ''))) page.installId = String(p.installId);
     out.push(page);
   });
   if (!out.length) return seedList.slice();
@@ -243,10 +244,24 @@ function removePageInstances(layout, pageId, widgetDefaults) {
   return removed;
 }
 
-function removeDashboardPage(id) {
+function removeDashboardPage(id, options) {
+  const opts = options && typeof options === 'object' ? options : {};
   const layout = getDashboardLayout();
-  if (layout.pages.length <= 1) return; // never below 1 page
-  if (!layout.pages.some(p => p.id === id)) return;
+  const target = layout.pages.find(p => p.id === id);
+  if (!target) return false;
+  // The import manager supplies the receipt id so a stale receipt can never
+  // remove a page that the user later replaced with an unrelated one.
+  if (opts.installId && target.installId !== opts.installId) return false;
+  if (opts.legacy === true && !(target.imported === true && !target.installId)) return false;
+  // Xenon must always retain one page. During uninstall, seed a blank survivor
+  // before removing the last imported page.
+  if (layout.pages.length <= 1) {
+    if (opts.replaceLast !== true) return false;
+    layout.pages.push({
+      id: 'page-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4),
+      name: (typeof t === 'function' ? t('page_default') : 'Page') + ' 1',
+    });
+  }
   // Count EVERY kind of tile on the page — standalone widgets, tab-groups and
   // copies — so the "this removes its modules" confirm can't be skipped for a
   // page that only holds tabbed/duplicated tiles.
@@ -255,7 +270,7 @@ function removeDashboardPage(id) {
     || (Array.isArray(layout.copies) && layout.copies.some(c => c && c.page === id));
   const msg = (typeof t === 'function') ? t('layout_remove_page_confirm')
     : 'Removing this page will remove its modules (you can restore them from the layout dock). Continue?';
-  if (hasModules && typeof confirm === 'function' && !confirm(msg)) return;
+  if (!opts.skipConfirm && hasModules && typeof confirm === 'function' && !confirm(msg)) return false;
   // Rescue any live singleton-host primary (e.g. System, which owns the live
   // Volume/Microphone panes) onto a surviving page if a copy of it lives there —
   // before the hide loop below would otherwise park the primary and leave that
@@ -287,6 +302,8 @@ function removeDashboardPage(id) {
   saveDashboardLayout(layout);
   rebuildDashboardPages();
   if (typeof refreshDashboardLayoutEditor === 'function') refreshDashboardLayoutEditor();
+  if (opts.skipReceipt !== true && window.forgetInstalledContentResource) window.forgetInstalledContentResource('pageIds', id);
+  return true;
 }
 
 function moveDashboardPage(id, dir) {

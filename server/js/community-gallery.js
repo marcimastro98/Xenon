@@ -141,7 +141,7 @@
               frame.className = 'cgal-preview-frame';
               frame.setAttribute('sandbox', 'allow-scripts');
               frame.setAttribute('referrerpolicy', 'no-referrer');
-              frame.srcdoc = CustomBg.buildSrcdoc(box._cgCode, box._cgAssets);
+              frame.srcdoc = CustomBg.buildSrcdoc(box._cgCode, box._cgAssets, box._cgFps);
               box.appendChild(frame);
             }
           } else {
@@ -156,6 +156,9 @@
     // Bundled images ride the envelope — the preview must show them, or an
     // image-based background would look broken here yet fine on import.
     host._cgAssets = CustomBg.sanitizeBgAssets ? CustomBg.sanitizeBgAssets(env.data.assets) : null;
+    // Preview at the background's own frame cap, so the smoothness (and cost)
+    // the user judges is what an install would actually run at.
+    host._cgFps = env.data.fps;
     previewObserver.observe(host);
   }
 
@@ -279,7 +282,7 @@
         return;
       }
       close();
-      if (window.PresetShare) PresetShare.openImport(code);
+      if (window.PresetShare) PresetShare.openImport(code, { source: 'catalog', sourceId: entry.id });
     });
     return b;
   }
@@ -375,7 +378,7 @@
         frame.setAttribute('sandbox', 'allow-scripts');
         frame.setAttribute('referrerpolicy', 'no-referrer');
         const assets = CustomBg.sanitizeBgAssets ? CustomBg.sanitizeBgAssets(env.data.assets) : null;
-        frame.srcdoc = CustomBg.buildSrcdoc(env.data.code, assets);
+        frame.srcdoc = CustomBg.buildSrcdoc(env.data.code, assets, env.data.fps);
         stage.appendChild(frame);
         gal.appendChild(stage);
         return gal;

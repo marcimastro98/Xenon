@@ -25,13 +25,15 @@ gameDetect.setGameHint(() => fpsMonitor.getGamingProcess());
 const lighting = require('./lighting');
 const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
 const vitalsPetCore = require('./js/vitals-pet-core'); // Bit's pure core: durable pet-state merge helpers (shared with the client + tests)
-const { sanitizeBgAssets } = require('./js/custom-bg'); // single owner of the bg image-asset rules (shared with the client + sandbox)
+const { sanitizeBgAssets, sanitizeBgFps } = require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox)
 const { sanitizeSlideshow } = require('./js/slideshow-widget'); // single owner of the slideshow image rules (shared with the client)
+const contentInstalls = require('./js/content-installs'); // validated import receipts shared with Settings
 const aiLocal = require('./ai-local');
 const aiOpenai = require('./ai-openai');
 const aiAnthropic = require('./ai-anthropic');
 const { preserveAiProviderCreds, redactAiProviderCreds } = require('./ai-provider-creds');
 const { createGuardian } = require('./guardian');
+const { createBatteryMonitor } = require('./battery');
 const { createAiMemory } = require('./ai-memory');
 const { createAiActionLog } = require('./ai-action-log');
 const aiLive = require('./ai-live');
@@ -328,7 +330,9 @@ function buildCoreAiFunctions() {
         }, required: ['app', 'action'] } },
         // ── System ──
         { name: 'lock_pc', description: 'Lock the Windows workstation', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'get_system_info', description: 'Get current CPU, GPU, RAM and disk usage stats', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'get_system_info', description: 'Get current CPU, GPU, RAM and disk usage stats, plus fan speeds (fans[]) and power draw in watts (power.cpu/gpu/psu/total)', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'get_battery_status', description: 'Get the battery level of the user\'s wireless peripherals (mouse, keyboard, headset — Corsair via iCUE and Bluetooth devices). Use for "how\'s my mouse battery", "batteria del mouse".', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'get_energy_status', description: 'Get the full energy picture: the PC\'s power draw in watts (CPU/GPU/PSU) plus the user\'s Home Assistant power/energy readings (solar production, smart plugs, home meter, UPS). Use for "how much power is the PC using", "quanto sta producendo il fotovoltaico", "consumo di casa".', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'get_weather', description: 'Get current weather conditions and forecast', parameters: { type: 'OBJECT', properties: {} } },
         // ── Stock market (Borsa) ──
         { name: 'get_stock_quote', description: 'Get the current price and day change for one or more stock, index, crypto or FX symbols (e.g. "AAPL", "FTSEMIB.MI", "BTC-EUR", "^GSPC"). Use for "how is Apple doing", "price of Bitcoin", "how is the FTSE MIB today".', parameters: { type: 'OBJECT', properties: { symbols: { type: 'STRING', description: 'One symbol, or several comma-separated (e.g. "AAPL, MSFT"). Use the ticker symbol; for Borsa Italiana add .MI (e.g. ENI.MI).' } }, required: ['symbols'] } },
@@ -425,8 +429,8 @@ function buildCoreAiFunctions() {
         { name: 'set_lighting_bridge', description: 'Turn the whole RGB lighting bridge on or off (master switch). When off, control returns to iCUE.', parameters: { type: 'OBJECT', properties: {
           enabled: { type: 'BOOLEAN', description: 'true to enable the bridge, false to disable' },
         }, required: ['enabled'] } },
-        { name: 'show_sensor', description: 'Read a current sensor value to report to the user (e.g. CPU temperature).', parameters: { type: 'OBJECT', properties: {
-          sensor: { type: 'STRING', description: 'Sensor to read: cpuTemp' },
+        { name: 'show_sensor', description: 'Read a current sensor value to report to the user (e.g. CPU temperature, fan speed, power draw).', parameters: { type: 'OBJECT', properties: {
+          sensor: { type: 'STRING', description: 'Sensor to read: cpuTemp, gpuTemp, cpu, gpu, cpuFan, gpuFan, cpuWatts, gpuWatts, totalWatts, psuWatts' },
         }, required: ['sensor'] } },
         { name: 'go_to_page', description: 'Navigate the dashboard to a page: "dashboard" (page 1) or "lighting" (page 2, RGB controls).', parameters: { type: 'OBJECT', properties: {
           page: { type: 'STRING', description: 'Page id: dashboard or lighting' },
@@ -435,23 +439,43 @@ function buildCoreAiFunctions() {
           profile: { type: 'STRING', description: 'The exact name of the deck profile to activate' },
         }, required: ['profile'] } },
         // ── Appearance & preferences (fine-grained dashboard customization) ──
-        { name: 'customize_appearance', description: 'Change the dashboard look in detail. Pass any subset: a named theme preset, the light/dark/auto mode, the base skin (glass/retro), or exact hex colours for accent, background and text. Use this (not change_theme) when the user asks for a specific colour ("make the accent orange", "usa il rosso #ff0000", "sfondo più scuro", "modalità chiara", "passa a Pixel Retro"). Applies live and persists.', parameters: { type: 'OBJECT', properties: {
+        { name: 'customize_appearance', description: 'Change the dashboard look in detail. Pass any subset: a named theme preset, the light/dark/auto mode, the base skin (glass/retro/comic), or exact semantic colours for the app canvas, panels, nested surfaces, controls, text, borders, accent and UI states. Use this (not change_theme) for any specific-colour request. Applies live, contrast-checks by default and persists.', parameters: { type: 'OBJECT', properties: {
           preset: { type: 'STRING', description: 'Optional named theme: xenon, ocean, ember, violet, mono' },
-          style: { type: 'STRING', description: 'Optional base skin: "glass" (Liquid Glass) or "retro" (Pixel Retro CRT)' },
+          style: { type: 'STRING', description: 'Optional base skin: "glass" (Liquid Glass), "retro" (Pixel Retro CRT), or "comic" (Comic Book)' },
           appearance: { type: 'STRING', description: 'Optional UI mode: light, dark, or auto' },
           accent: { type: 'STRING', description: 'Optional accent colour as #RRGGBB (the highlight/brand colour)' },
-          background: { type: 'STRING', description: 'Optional background colour as #RRGGBB' },
-          text: { type: 'STRING', description: 'Optional text colour as #RRGGBB' },
+          background: { type: 'STRING', description: 'Optional app canvas/background colour as #RRGGBB' },
+          surface: { type: 'STRING', description: 'Optional main panel/widget/modal surface colour as #RRGGBB' },
+          surface_alt: { type: 'STRING', description: 'Optional secondary row/card/tab surface colour as #RRGGBB' },
+          control_color: { type: 'STRING', description: 'Optional input/menu/button surface colour as #RRGGBB' },
+          text: { type: 'STRING', description: 'Optional primary text colour as #RRGGBB' },
+          muted_text: { type: 'STRING', description: 'Optional secondary text colour as #RRGGBB' },
+          line_color: { type: 'STRING', description: 'Optional border/divider colour as #RRGGBB' },
+          accent_text: { type: 'STRING', description: 'Optional text/icon colour used on accent-filled controls as #RRGGBB' },
+          success_color: { type: 'STRING', description: 'Optional success state colour as #RRGGBB' },
+          warning_color: { type: 'STRING', description: 'Optional warning state colour as #RRGGBB' },
+          danger_color: { type: 'STRING', description: 'Optional danger/error state colour as #RRGGBB' },
+          info_color: { type: 'STRING', description: 'Optional informational state colour as #RRGGBB' },
+          contrast_guard: { type: 'BOOLEAN', description: 'Automatically repair unsafe text/control contrast (default true)' },
         } } },
         { name: 'create_dashboard_style', description: 'Build a COMPLETE custom dashboard theme from a description, apply it live, and save it as a named card in the Temi gallery so the user can switch back to it. Pass any subset — every field defaults to the current look. Use this when the user asks for a whole vibe/aesthetic rather than one colour ("crea un tema cyberpunk viola", "make me a warm minimalist theme", "un look pastello morbido e arrotondato").', parameters: { type: 'OBJECT', properties: {
           name: { type: 'STRING', description: 'Short theme name for the gallery card (e.g. "Cyberpunk Viola")' },
-          skin: { type: 'STRING', description: 'Base skin: "glass" (Liquid Glass) or "retro" (Pixel Retro CRT)' },
+          skin: { type: 'STRING', description: 'Base skin: "glass" (Liquid Glass), "retro" (Pixel Retro CRT), or "comic" (Comic Book)' },
           base_appearance: { type: 'STRING', description: 'Base mode: "light" or "dark"' },
           accent: { type: 'STRING', description: 'Accent/brand colour #RRGGBB' },
-          background: { type: 'STRING', description: 'Background colour #RRGGBB' },
+          background: { type: 'STRING', description: 'App canvas/background colour #RRGGBB' },
+          surface: { type: 'STRING', description: 'Main panel/widget/modal surface colour #RRGGBB' },
+          surface_alt: { type: 'STRING', description: 'Secondary row/card/tab surface colour #RRGGBB' },
+          control_color: { type: 'STRING', description: 'Input/menu/button surface colour #RRGGBB' },
           text: { type: 'STRING', description: 'Primary text colour #RRGGBB' },
           muted_text: { type: 'STRING', description: 'Secondary/muted text colour #RRGGBB' },
           line_color: { type: 'STRING', description: 'Dividers/borders colour #RRGGBB' },
+          accent_text: { type: 'STRING', description: 'Text/icon colour on accent-filled controls #RRGGBB' },
+          success_color: { type: 'STRING', description: 'Success state colour #RRGGBB' },
+          warning_color: { type: 'STRING', description: 'Warning state colour #RRGGBB' },
+          danger_color: { type: 'STRING', description: 'Danger/error state colour #RRGGBB' },
+          info_color: { type: 'STRING', description: 'Informational state colour #RRGGBB' },
+          contrast_guard: { type: 'BOOLEAN', description: 'Automatically repair unsafe text/control contrast (default true)' },
           panel_opacity: { type: 'NUMBER', description: 'Panel opacity 0.05–1 (lower = more translucent)' },
           corner_radius: { type: 'NUMBER', description: 'Corner roundness 0–2 (0 = square, 1 = default, 2 = very round)' },
           glass_blur: { type: 'NUMBER', description: 'Glass blur in px 0–40 (default 22)' },
@@ -496,7 +520,7 @@ function buildCoreAiFunctions() {
             double: { type: 'ARRAY', description: 'Optional double-tap actions (same shape)', items: { type: 'OBJECT', properties: { type: { type: 'STRING' } } } },
             hold: { type: 'ARRAY', description: 'Optional press-and-hold actions (same shape)', items: { type: 'OBJECT', properties: { type: { type: 'STRING' } } } },
             state: { type: 'OBJECT', description: 'Optional live-state binding, e.g. {"source":"discordMuted"} or {"source":"haEntity","entity":"light.desk"} — the key lights while ON', properties: { source: { type: 'STRING' } } },
-            live: { type: 'OBJECT', description: 'Optional live value ON the face, e.g. {"source":"timer","name":"Pasta"} for a ticking countdown', properties: { source: { type: 'STRING' } } },
+            live: { type: 'OBJECT', description: 'Optional live value ON the face, e.g. {"source":"timer","name":"Pasta"} for a ticking countdown, or {"source":"sensor","name":"cpuWatts"} for a hardware reading (cpu, gpu, cpuTemp, gpuTemp, cpuFan, gpuFan, cpuWatts, gpuWatts, totalWatts, psuWatts, battery:<device name>)', properties: { source: { type: 'STRING' } } },
             stateStyle: { type: 'OBJECT', description: 'Optional alternate face while the state is ON: {"icon":"🔴","label":"LIVE","color":"#ff3355"}', properties: { icon: { type: 'STRING' }, label: { type: 'STRING' }, color: { type: 'STRING' } } },
             slider: { type: 'OBJECT', description: 'kind:"slider" only. target: volume|appVolume|spotifyVolume|obsInput|haLight|discordInput|discordOutput (+ app/entity/source when the target needs one); orient: "v"|"h"', properties: { target: { type: 'STRING' }, app: { type: 'STRING' }, entity: { type: 'STRING' }, source: { type: 'STRING' }, orient: { type: 'STRING' } } },
           }, required: ['title'] } },
@@ -1430,6 +1454,11 @@ async function runCollector(scriptPath, args = [], timeout = 8000) {
   }
 }
 
+// Wireless peripheral battery (Corsair via the iCUE bridge + Bluetooth via the
+// battery.ps1 PnP collector). TTL-cached inside the monitor; consumed by
+// GET /api/battery, the SSE 'battery' tick and the get_battery_status AI tool.
+const batteryMonitor = createBatteryMonitor({ runScript: runPowerShellScript, lighting });
+
 // ── Persistent SMTC media host ────────────────────────────────────────────────
 // media.ps1 used to be spawned one-shot for EVERY media poll (the SSE stream
 // broadcasts media every 2s), paying ~150-300ms of CLR + WinRT startup each
@@ -1749,8 +1778,18 @@ setInterval(() => {
     cachedCpuUsage = pct;
   }
 }, 1500).unref();
-let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, vramUsed: null, vramTotal: null, updatedAt: 0 };
-let cpuTempCache = { cpuTemp: null, updatedAt: 0 };
+// A collector reading → number, or null when the sensor reported nothing.
+// Number(null) and Number('') are BOTH 0, so a bare Number.isFinite(Number(v))
+// turns an absent sensor into a real "0 W" reading — the widgets would render
+// a phantom 0 instead of their empty state.
+const collectorNum = (v) => {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, vramUsed: null, vramTotal: null, gpuWatts: null, gpuFanRpm: null, gpuFanPct: null, updatedAt: 0 };
+let cpuTempCache = { cpuTemp: null, fans: [], cpuWatts: null, psuWatts: null, updatedAt: 0 };
 let mediaCache = { data: null, updatedAt: 0 };
 // Weather responses cached per (lang|provider|mode|city). Different surfaces —
 // and the server's own AI calls — can ask with different languages; a single
@@ -2924,8 +2963,16 @@ async function getCpuTemp() {
   cpuTempPending = (async () => {
     try {
       const data = await runCollector(CPU_TEMP_SCRIPT, [], 10000);
+      // Windows PowerShell 5.1 can unwrap a single-element array on serialize.
+      let fans = data.fans;
+      if (fans && !Array.isArray(fans)) fans = [fans];
       cpuTempCache = {
         cpuTemp: data.cpuTemp === null || data.cpuTemp === undefined ? null : Number(data.cpuTemp),
+        fans: (Array.isArray(fans) ? fans : [])
+          .filter(f => f && typeof f === 'object' && collectorNum(f.rpm) !== null)
+          .map(f => ({ name: String(f.name || 'Fan').slice(0, 48), rpm: Math.round(collectorNum(f.rpm)) })),
+        cpuWatts: collectorNum(data.cpuWatts),
+        psuWatts: collectorNum(data.psuWatts),
         updatedAt: Date.now(),
       };
     } catch {
@@ -2951,6 +2998,9 @@ async function getGpuInfo() {
       gpuTemp: (data.gpuTemp === null || data.gpuTemp === undefined) ? gpuCache.gpuTemp : data.gpuTemp,
       vramUsed: (data.vramUsed === null || data.vramUsed === undefined) ? gpuCache.vramUsed : data.vramUsed,
       vramTotal: (data.vramTotal === null || data.vramTotal === undefined) ? gpuCache.vramTotal : data.vramTotal,
+      gpuWatts: collectorNum(data.gpuWatts) ?? gpuCache.gpuWatts,
+      gpuFanRpm: collectorNum(data.gpuFanRpm) === null ? gpuCache.gpuFanRpm : Math.round(collectorNum(data.gpuFanRpm)),
+      gpuFanPct: collectorNum(data.gpuFanPct) === null ? gpuCache.gpuFanPct : Math.round(collectorNum(data.gpuFanPct)),
       updatedAt: Date.now(),
     };
   } catch {
@@ -3122,6 +3172,27 @@ async function getSystemInfo() {
   const freeMem = os.freemem();
   const usedMem = totalMem - freeMem;
 
+  // Fans: motherboard/CPU headers from the cpu collector (RPM), plus the GPU's
+  // own fan when reported — LHM gives RPM, nvidia-smi only a percent, so a fan
+  // entry carries either `rpm` or `pct` and the client renders unit-aware.
+  // `kind: 'gpu'` is the typed discriminator clients key on — `name` is pure
+  // presentation (a motherboard header literally named "GPU" must not match).
+  const fans = cpuTempCache.fans.map(f => ({ ...f }));
+  if (gpu.gpuFanRpm !== null && gpu.gpuFanRpm !== undefined) fans.push({ name: 'GPU', kind: 'gpu', rpm: gpu.gpuFanRpm });
+  else if (gpu.gpuFanPct !== null && gpu.gpuFanPct !== undefined) fans.push({ name: 'GPU', kind: 'gpu', pct: gpu.gpuFanPct });
+
+  // Power draw in watts. `total` is strictly CPU+GPU (labelled as such client-
+  // side — never a whole-system estimate); `psu` appears only when a digital
+  // PSU (Corsair HXi/RMi & co.) is visible to LHM.
+  const cpuWatts = cpuTempCache.cpuWatts;
+  const gpuWatts = gpu.gpuWatts === undefined ? null : gpu.gpuWatts;
+  const power = {
+    cpu: cpuWatts,
+    gpu: gpuWatts,
+    psu: cpuTempCache.psuWatts,
+    total: (cpuWatts !== null && gpuWatts !== null) ? Math.round((cpuWatts + gpuWatts) * 10) / 10 : null,
+  };
+
   return {
     now: new Date().toISOString(),
     hostname: os.hostname(),
@@ -3141,6 +3212,8 @@ async function getSystemInfo() {
     gpuTemp: gpu.gpuTemp,
     vramUsed: gpu.vramUsed,
     vramTotal: gpu.vramTotal,
+    fans,
+    power,
     disks,
   };
 }
@@ -3724,11 +3797,18 @@ function buildHaDeckStates() {
 }
 
 // Build the payload for the selected entities (from settings) plus connection flag.
+// `energy` carries the Energy widget's own selection (power/energy sensors) so
+// the two surfaces share one SSE event without sharing one entity list.
 async function buildHaState() {
   const s = (await readHubSettings().catch(() => null)) || {};
   const ha = (s && s.homeAssistant) || {};
   const configured = !!(ha.url && ha.token);
-  return { configured, connected: configured && deckHa.isConnected(), entities: configured ? deckHa.snapshot(ha.entities || []) : [] };
+  return {
+    configured,
+    connected: configured && deckHa.isConnected(),
+    entities: configured ? deckHa.snapshot(ha.entities || []) : [],
+    energy: configured ? deckHa.snapshot(ha.energyEntities || []) : [],
+  };
 }
 
 // Change guard for the ha_states deck broadcast: the shared HA watch fires on
@@ -3767,7 +3847,7 @@ async function refreshHaWatch() {
   const s = (await readHubSettings().catch(() => null)) || {};
   const ha = (s && s.homeAssistant) || {};
   const want = !!(ha.url && ha.token) && sseClients.size > 0;
-  const sig = want ? [ha.url, ha.token, JSON.stringify(ha.entities || [])].join(' ') : '';
+  const sig = want ? [ha.url, ha.token, JSON.stringify(ha.entities || []), JSON.stringify(ha.energyEntities || [])].join(' ') : '';
   if (want && !haStopWatch) {
     haStopWatch = deckHa.watch(scheduleHaBroadcast);
   } else if (!want && haStopWatch) {
@@ -4863,7 +4943,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
         .filter(a => !a.hidden)
         .map(a => ({ type: a.type, params: a.params.map(p => p.kind === 'select' ? { name: p.name, options: p.options } : { name: p.name }) }));
       const dm = require('./js/deck-model.js');
-      fnResult = { ok: true, actions: catalog, stateSources: dm.DECK_STATE_SOURCES, liveSources: dm.DECK_LIVE_SOURCES, sliderTargets: dm.SLIDER_TARGETS };
+      fnResult = { ok: true, actions: catalog, stateSources: dm.DECK_STATE_SOURCES, liveSources: dm.DECK_LIVE_SOURCES, sensorMetrics: dm.DECK_SENSOR_METRICS, sliderTargets: dm.SLIDER_TARGETS };
     } else if (fnName === 'marketplace_search') {
       const out = await communityCatalog.fetchVisibleCatalog(false);
       if (!out.ok) {
@@ -5065,8 +5145,37 @@ async function executeAiTool(fnName, fnArgs, deps) {
       fnResult = { ok: true, enabled: !!fnArgs.enabled, status: lighting.getStatus() };
     } else if (fnName === 'show_sensor') {
       const sys = await getSystemInfo().catch(() => null);
-      const value = (fnArgs.sensor === 'cpuTemp' && sys) ? sys.cpuTemp : null;
+      // One flat metric map over the assembled system payload — the same
+      // projections the Deck's live 'sensor' keys use.
+      let value = null;
+      if (sys) {
+        const p = sys.power || {};
+        const fans = Array.isArray(sys.fans) ? sys.fans : [];
+        // Same discriminator + spinning-fan preference as the Deck's live
+        // 'sensor' projection (deck-model.js sensorsFromSystem) — the AI and a
+        // Deck key bound to the same metric must report the same fan.
+        const gpuFan = fans.find(f => f && f.kind === 'gpu');
+        const cpuFan = fans.find(f => f && f.kind !== 'gpu' && Number(f.rpm) > 0) || fans.find(f => f && f.kind !== 'gpu');
+        const metrics = {
+          cpuTemp: sys.cpuTemp, gpuTemp: sys.gpuTemp, cpu: sys.cpu, gpu: sys.gpu,
+          cpuFan: cpuFan ? cpuFan.rpm : null,
+          gpuFan: gpuFan ? (gpuFan.rpm != null ? gpuFan.rpm + ' RPM' : (gpuFan.pct != null ? gpuFan.pct + '%' : null)) : null,
+          cpuWatts: p.cpu, gpuWatts: p.gpu, totalWatts: p.total, psuWatts: p.psu,
+        };
+        value = Object.prototype.hasOwnProperty.call(metrics, fnArgs.sensor) ? metrics[fnArgs.sensor] : null;
+      }
       fnResult = { sensor: fnArgs.sensor, value, lightingAvailable: lighting.getStatus().available };
+    } else if (fnName === 'get_battery_status') {
+      const bat = await batteryMonitor.getDevices().catch(() => null);
+      fnResult = bat || { devices: [], sources: { corsair: false, bluetooth: false } };
+    } else if (fnName === 'get_energy_status') {
+      const sys = await getSystemInfo().catch(() => null);
+      const ha = await buildHaState().catch(() => null);
+      fnResult = {
+        pc: (sys && sys.power) || { cpu: null, gpu: null, psu: null, total: null },
+        home: (ha && Array.isArray(ha.energy)) ? ha.energy.map(e => ({ name: e.name, value: e.state, unit: e.unit || '', deviceClass: e.deviceClass || '' })) : [],
+        homeConfigured: !!(ha && ha.configured),
+      };
     } else if (fnName === 'get_weather') {
       fnResult = await getWeather(uiLang, null);
     } else if (fnName === 'get_stock_quote') {
@@ -5708,7 +5817,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'custom']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -5770,6 +5879,9 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     vitals:   Object.freeze({ x: 8, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
     unifi:    Object.freeze({ x: 8, y: 18, w: 8, h: 8, visible: false, page: 'dashboard' }),
     slideshow: Object.freeze({ x: 0, y: 48, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    fans:     Object.freeze({ x: 16, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    power:    Object.freeze({ x: 16, y: 46, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    battery:  Object.freeze({ x: 0, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
     custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
@@ -5832,12 +5944,22 @@ const WEATHER_FIELDS_ALL_ON = Object.freeze(
 
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   appearance: 'dark',
+  autoPalette: false,
   styleMode: 'glass', // 'glass' | 'retro' | 'comic' — dashboard style language (Pixel Retro / Comic Book skins)
   retroScanlines: true, // retro-only CRT scanline overlay sub-toggle
   accent: '#1ed760',
   dynamicAlbumTheme: true, // tint the accent from the now-playing album art
   background: '#070808',
+  surface: null,
+  surfaceAlt: null,
+  controlColor: null,
   text: '#f0f3f1',
+  accentText: null,
+  successColor: null,
+  warningColor: null,
+  dangerColor: null,
+  infoColor: null,
+  contrastGuard: true,
   panelAlpha: 0.94,
   bgDim: 0.48,
   bgBlur: 0,
@@ -5857,6 +5979,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   ambientMode: Object.freeze({ enabled: true, idleMinutes: 0, sceneId: 'builtin' }),
   // Native canvas Ambient scenes (client-owned, like customThemes).
   ambientScenes: Object.freeze([]),
+  contentInstalls: Object.freeze([]),
   weather: Object.freeze({ mode: 'auto', city: '', provider: 'auto', refreshMin: 30, forecastDays: 3, tile: Object.freeze({ metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }) }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language
@@ -5969,7 +6092,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Static premium background (0 animations). style: none|nebulosa|prisma|halo.
   bgStatic: Object.freeze({ style: 'none', intensity: 70 }),
   // Code-defined animated background (sandboxed iframe on the client). Off by default.
-  bgCustom: Object.freeze({ enabled: false, name: '', code: '', assets: Object.freeze({}) }),
+  bgCustom: Object.freeze({ enabled: false, name: '', code: '', assets: Object.freeze({}), fps: 30 }),
   lighting: Object.freeze({
     enabled: false,            // master OFF by default — explicit opt-in, zero cost
     brightness: 1.0,
@@ -6192,11 +6315,17 @@ function normalizeBgCustom(value) {
     name: typeof source.name === 'string' ? source.name.trim().slice(0, 60) : '',
     code,
     assets: sanitizeBgAssets(source.assets),
+    // Frame-rate cap (paints per second) — rule owner is custom-bg.js, exactly
+    // like the assets above, so client/server/sandbox can never drift.
+    fps: sanitizeBgFps(source.fps),
   };
   // Redistribution marker: set when the background arrived via a share code, so
   // exports can be limited to the user's own creations. Cleared client-side when
   // the user replaces the code with their own.
   if (source.imported === true && code) out.imported = true;
+  if (out.imported && contentInstalls.INSTALL_ID_RE.test(String(source.installId || ''))) {
+    out.installId = String(source.installId);
+  }
   return out;
 }
 
@@ -6287,6 +6416,7 @@ function normalizeDashboardPages(value) {
     const page = { id, name: String(p.name == null ? '' : p.name).trim().slice(0, 40) };
     if (p.nameKey) page.nameKey = String(p.nameKey).slice(0, 64);
     if (p.imported === true) page.imported = true;   // arrived via a shared preset → not re-exportable
+    if (page.imported && contentInstalls.INSTALL_ID_RE.test(String(p.installId || ''))) page.installId = String(p.installId);
     out.push(page);
   });
   return out.length ? out.slice(0, DASHBOARD_PAGES_MAX) : seed;
@@ -6716,6 +6846,7 @@ function normalizeHubSettings(value) {
   const resetLayout = layoutVersion < DASHBOARD_LAYOUT_VERSION;
   return {
     appearance: ['light', 'dark', 'auto'].includes(source.appearance) ? source.appearance : DEFAULT_HUB_SETTINGS.appearance,
+    autoPalette: source.autoPalette === true || (source.autoPalette == null && source.appearance === 'auto'),
     styleMode: ['glass', 'retro', 'comic'].includes(source.styleMode) ? source.styleMode : 'glass',
     retroScanlines: source.retroScanlines !== false,
     accent: normalizeHex(source.accent, DEFAULT_HUB_SETTINGS.accent),
@@ -6724,7 +6855,16 @@ function normalizeHubSettings(value) {
     // so the feature re-enabled itself on every restart. Default ON via !== false.
     dynamicAlbumTheme: source.dynamicAlbumTheme !== false,
     background: normalizeHex(source.background, DEFAULT_HUB_SETTINGS.background),
+    surface: normalizeHex(source.surface, null),
+    surfaceAlt: normalizeHex(source.surfaceAlt, null),
+    controlColor: normalizeHex(source.controlColor, null),
     text: normalizeHex(source.text, DEFAULT_HUB_SETTINGS.text),
+    accentText: normalizeHex(source.accentText, null),
+    successColor: normalizeHex(source.successColor, null),
+    warningColor: normalizeHex(source.warningColor, null),
+    dangerColor: normalizeHex(source.dangerColor, null),
+    infoColor: normalizeHex(source.infoColor, null),
+    contrastGuard: source.contrastGuard !== false,
     panelAlpha: clampNumber(source.panelAlpha, SETTINGS_MIN_PANEL_ALPHA, 1, DEFAULT_HUB_SETTINGS.panelAlpha),
     bgDim: clampNumber(source.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
     bgBlur: clampNumber(source.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
@@ -6766,6 +6906,7 @@ function normalizeHubSettings(value) {
     // so they survive a restart instead of being stripped.
     customThemes: sanitizeCustomThemes(source.customThemes),
     ambientScenes: sanitizeAmbientScenes(source.ambientScenes),
+    contentInstalls: contentInstalls.normalizeContentInstalls(source.contentInstalls),
     geminiApiKey: String(source.geminiApiKey || '').trim().slice(0, 200),
     obsHost: String(source.obsHost || '').trim().slice(0, 200),
     obsPort: Math.max(1, Math.min(65535, parseInt(source.obsPort, 10) || 4455)),
@@ -6989,6 +7130,9 @@ function sanitizeCustomThemes(value) {
             name: typeof cb.name === 'string' ? cb.name : '',
             code: typeof cb.code === 'string' ? cb.code : '',
             assets: {},
+            fps: sanitizeBgFps(cb.fps),
+            ...(cb.imported === true ? { imported: true } : {}),
+            ...(contentInstalls.INSTALL_ID_RE.test(String(cb.installId || '')) ? { installId: String(cb.installId) } : {}),
           },
         };
       }
@@ -9136,6 +9280,12 @@ const server = http.createServer(async (req, res) => {
     try   { json(await getSystemInfo()); }
     catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/api/battery' && req.method === 'GET') {
+    // Read-only seed for the battery widget / deck editor (SSE 'battery'
+    // pushes updates afterwards). Never a JSONP candidate.
+    try   { json(await batteryMonitor.getDevices()); }
+    catch (e) { err500(e.message); }
+
   } else if (reqPath === '/network' && req.method === 'GET') {
     try   { json(await getNetworkInfo()); }
     catch (e) { err500(e.message); }
@@ -10400,7 +10550,7 @@ const server = http.createServer(async (req, res) => {
           && Number(prev.dashboardLayout.gridCols) === DASHBOARD_GRID_COLUMNS
           && Number(incoming.dashboardLayout && incoming.dashboardLayout.gridCols) !== DASHBOARD_GRID_COLUMNS) {
         console.warn('[settings] Save from a pre-24-column (stale) client: keeping stored layout/presets and prev-filling sections it omitted. That page needs a reload to edit the layout again.');
-        incoming = { ...prev, ...incoming, dashboardLayout: prev.dashboardLayout, dashboardPresets: prev.dashboardPresets, customThemes: prev.customThemes, ambientScenes: prev.ambientScenes };
+        incoming = { ...prev, ...incoming, dashboardLayout: prev.dashboardLayout, dashboardPresets: prev.dashboardPresets, customThemes: prev.customThemes, ambientScenes: prev.ambientScenes, contentInstalls: prev.contentInstalls };
       }
       // lighting.providers / deviceModes are bridge-owned (set only via
       // /api/lighting/*) and the client mirror never carries them — refill them
@@ -10554,7 +10704,14 @@ const server = http.createServer(async (req, res) => {
       // this save with their own stale copy on their next edit. Clients ignore
       // the event when the rev isn't newer than their local one (their own save).
       broadcastSSE('settings', { rev: settings.rev });
-      json({ ok: true, settings: redactSettingsSecrets(settings), savedAt: Date.now(), lightingApplied });
+      // Slim ack on purpose — no settings echo. The client already holds the
+      // exact blob it just posted (same normalizers both sides), nobody ever
+      // read the echoed copy, and with imported themes the echo reached
+      // multi-MB: a client that discarded it unread left the response stream
+      // permanently backpressured, burning one pooled connection per save
+      // until the page's 6-per-host pool starved and the dashboard went deaf
+      // (the "app disconnected after importing a heavy theme" wedge).
+      json({ ok: true, rev: settings.rev, savedAt: Date.now(), lightingApplied });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/community/catalog' && req.method === 'GET') {
@@ -11485,7 +11642,7 @@ const server = http.createServer(async (req, res) => {
           name: 'query_sensor_history',
           description: 'GUARDIAN: get the recorded history of ONE sensor broken down for comparison — today vs yesterday, last 24h, 7-day and 30-day averages, the peak day of the last 30 days, and the last 7 daily points. Use this (not guardian_report) for specific time comparisons like "was my GPU hotter yesterday than today", "what was my worst day this month", "how has my CPU temp trended this week".',
           parameters: { type: 'OBJECT', properties: {
-            metric: { type: 'STRING', description: 'Which sensor: "cpu" (load %), "cpuTemp", "gpu" (load %), "gpuTemp", or "mem" (RAM %). Friendly names like "gpu temp" or "ram" also work.' },
+            metric: { type: 'STRING', description: 'Which sensor: "cpu" (load %), "cpuTemp", "gpu" (load %), "gpuTemp", "mem" (RAM %), "cpuWatts" or "gpuWatts" (power draw). Friendly names like "gpu temp", "ram" or "cpu power" also work.' },
           }, required: ['metric'] },
         });
         _guardianText = ' GUARDIAN (hardware health history) is ENABLED: when the user asks about PC health, temperatures, or long-term trends, call guardian_report and base your analysis ONLY on its real data — mention notable maxima and 7d-vs-30d trends, suggest practical fixes (dust, fan curve, background apps) only when the data justifies them, and say so plainly when everything looks healthy. For a SPECIFIC time comparison or a single sensor over time (today vs yesterday, worst day this month, this week\'s trend), call query_sensor_history with the metric instead. If collectedDays is low, note that the history is still short.';
@@ -11531,7 +11688,7 @@ const server = http.createServer(async (req, res) => {
         '  • Productivity: read/replace notes; list/create/complete/delete tasks (and clear all); list/create/delete calendar events (and clear all); start/list/delete countdown timers.' +
         '  • RGB lighting: set a manual colour, clear it, enable/disable reactive effects, configure event-flash effects, and turn the whole lighting bridge on/off.' +
         '  • System & apps: read live CPU/GPU/RAM/disk stats and individual sensors (e.g. CPU temp), open or close any app/website/file on Windows, lock the PC, and turn Performance Mode on/off.' +
-        '  • Appearance: change the colour theme by name OR set exact hex colours (accent, background, text) and the light/dark/auto mode via customize_appearance — use it for any specific-colour request.' +
+        '  • Appearance: change the theme/skin by name OR set exact semantic hex colours for the app canvas, panels, nested surfaces, controls, primary/muted text, borders, accent foreground and success/warning/error/info states via customize_appearance; Light/Dark/Auto seed a coherent palette and unsafe contrast is repaired by default.' +
         '  • Preferences: set the 12h/24h clock, temperature unit, interface language, weather location (auto or a manual city), and which widgets show on the focus lock screen, via configure_preferences.' +
         '  • Dashboard UI: navigate between dashboard pages, switch the Deck to one of its profiles, and open the weather / settings / app-switcher panels or the focus lock screen.' +
         '  • Screen vision: capture and analyse any monitor.' +
@@ -12663,6 +12820,18 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ error: e.message }));
       }
     }
+
+  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {
+    // Imported-theme cleanup. Only a generated font filename inside UPLOADS_DIR
+    // is accepted; arbitrary uploads and paths remain unreachable.
+    try {
+      const name = decodeURIComponent(reqPath.slice('/font/'.length));
+      if (!/^[A-Za-z0-9._-]+\.(?:woff2?|ttf|otf)$/i.test(name)) { res.writeHead(400); res.end(); return; }
+      const abs = path.join(UPLOADS_DIR, name);
+      if (!abs.startsWith(UPLOADS_DIR + path.sep)) { res.writeHead(400); res.end(); return; }
+      await fs.promises.rm(abs, { force: true });
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/tile-asset' && req.method === 'POST') {
     // Manual per-tile decoration upload. Mirrors /background but keeps every file
@@ -14217,6 +14386,21 @@ setInterval(async () => {
     try { briefing.onSystemSample(sys); } catch {}
   } catch {}
 }, 7000).unref();
+
+// Peripheral battery moves on a minutes scale and its sources are relatively
+// expensive (iCUE SDK round-trips + a Bluetooth PnP scan), so it gets its own
+// slow tick with a change-dedup instead of riding the 7s system broadcast.
+let _lastBatteryJson = '';
+setInterval(async () => {
+  if (sseClients.size === 0) return;
+  try {
+    const payload = await batteryMonitor.getDevices();
+    const j = JSON.stringify(payload);
+    if (j === _lastBatteryJson) return;
+    _lastBatteryJson = j;
+    broadcastSSE('battery', payload);
+  } catch {}
+}, 90000).unref();
 
 // The 'audio' tick spawns SoundVolumeView.exe (native, can't move to pwsh-worker),
 // so each fire is a process + temp-CSV cycle. External volume/mute changes are rare

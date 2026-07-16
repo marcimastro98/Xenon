@@ -270,8 +270,22 @@ function createLayoutIconButton(className, titleKey, iconMarkup, handler) {
 }
 
 function createDashboardControls(element, kind, groupId, itemId) {
-  const existingControls = findDirectLayoutControls(element, kind);
+  // Widget controls must sit ABOVE the grid's drag hit-surface (.gs-edit-overlay,
+  // z-index 40 inside .grid-stack-item-content). A widget panel isolates its own
+  // stacking context (isolation: isolate), so controls appended INSIDE the panel
+  // are trapped below that overlay and can't be clicked — the click lands on the
+  // overlay and starts a drag instead (the "only the move hand" report). Host the
+  // widget controls on the grid-item content, a sibling of the overlay just like
+  // the other edit handles (gs-size-cycle, gs-add-tab…), so their z-index 60 wins.
+  // Cards are not grid items and keep hosting their own controls.
+  const host = (kind === 'widget' && element.closest('.grid-stack-item-content')) || element;
+  const existingControls = findDirectLayoutControls(host, kind);
   if (existingControls) existingControls.remove();
+  // Clean up any stale controls left directly on the panel by an earlier build.
+  if (host !== element) {
+    const strayControls = findDirectLayoutControls(element, kind);
+    if (strayControls) strayControls.remove();
+  }
   const controls = document.createElement('div');
   controls.className = 'layout-controls';
   controls.dataset.layoutKind = kind;
@@ -289,7 +303,7 @@ function createDashboardControls(element, kind, groupId, itemId) {
       createLayoutIconButton('layout-control-btn', 'layout_move_next', DASHBOARD_LAYOUT_ICONS.next, () => moveDashboardLayoutItem(kind, groupId, itemId, 1)),
     );
   }
-  element.appendChild(controls);
+  host.appendChild(controls);
 }
 
 function createDashboardChip(labelKey, titleKey, iconMarkup, handler, extraClassName = '') {
@@ -643,7 +657,7 @@ function insertDashboardPreset(presetId) {
   const res = DP.insertPreset(layout, preset, pageId);
   if (!res || !res.ok) {
     if (res && res.full && typeof setSettingsStatus === 'function') setSettingsStatus('preset_page_limit', 'error');
-    return;
+    return res || { ok: false };
   }
   saveDashboardLayout(layout);
   if (preset.kind === 'page' && window.DashboardPages && typeof window.DashboardPages.rebuild === 'function') {
@@ -652,10 +666,12 @@ function insertDashboardPreset(presetId) {
   } else {
     applyDashboardLayoutWithTransition();
   }
+  return res;
 }
 
 function deleteDashboardPreset(presetId) {
   setDashboardPresets(getDashboardPresets().filter(p => p.id !== presetId));
+  if (window.forgetInstalledContentResource) window.forgetInstalledContentResource('pagePresetIds', presetId);
   refreshDashboardLayoutEditor();
 }
 
@@ -974,8 +990,19 @@ function buildTileDecor(el, content, decor) {
 
 function applyTileStyle(el, style) {
   if (!el) return;
-  ['--accent', '--green', '--accent-rgb', '--panel-rgb', '--panel-alpha', '--text', '--tile-font',
-    '--muted-text', '--radius', '--radius-control', '--radius-tile', '--radius-modal',
+  delete el._xenonThemeOverrides;
+  ['--bg', '--surface', '--surface-alt', '--surface-raised', '--surface-subtle', '--surface-strong',
+    '--control-bg', '--input-bg', '--hover-bg', '--active-bg', '--selection-bg', '--selection-text',
+    '--surface-rgb', '--surface-alt-rgb', '--control-rgb', '--accent', '--green', '--accent-rgb',
+    '--panel-rgb', '--panel-soft-rgb', '--panel-alpha', '--text', '--text-muted', '--text-dim',
+    '--muted-text', '--dim-text', '--line', '--line-rgb', '--border', '--divider', '--on-accent',
+    '--color-success', '--color-warn', '--color-danger', '--color-info',
+    '--success-rgb', '--warning-rgb', '--danger-rgb', '--info-rgb',
+    '--success-bg', '--warning-bg', '--danger-bg', '--info-bg',
+    '--on-success', '--on-warning', '--on-danger', '--on-info', '--red', '--amber', '--cyan',
+    '--panel', '--panel-soft', '--panel-border', '--glass-bg', '--glass-border',
+    '--oled-bg-rgb', '--oled-border', '--slider-fill', '--slider-track',
+    '--tile-font', '--radius', '--radius-control', '--radius-tile', '--radius-modal',
     '--glass-blur', '--glass-saturate', '--panel-border-alpha', '--panel-shadow-alpha']
     .forEach(p => el.style.removeProperty(p));
   const content = el.querySelector(':scope > .grid-stack-item-content');
@@ -992,7 +1019,7 @@ function applyTileStyle(el, style) {
     : [];
   // The widget's own root (panel/dashboard-widget) — where a panel gradient paints.
   const panelRoots = contentRoots.filter(c => /(?:^|\s)(?:panel|dashboard-widget)(?:\s|$)/.test(c.className || ''));
-  contentRoots.forEach(r => r.style.removeProperty('--text'));
+  contentRoots.forEach(r => ['--text', '--muted-text', '--dim-text', '--on-accent'].forEach(p => r.style.removeProperty(p)));
   // Clear any inline panel gradient from a previous paint (only ever set by us).
   panelRoots.forEach(r => r.style.removeProperty('background-image'));
   // Decor (images + effects) applies independently of the colour-token mode, so a
@@ -1004,15 +1031,55 @@ function applyTileStyle(el, style) {
     return;
   }
   el.setAttribute('data-tile-style', 'custom');
-  if (style.accent) {
-    el.style.setProperty('--accent', style.accent);
-    el.style.setProperty('--green', style.accent);
-    const rgb = tileHexToRgb(style.accent);
-    if (rgb) el.style.setProperty('--accent-rgb', rgb);
-  }
-  if (style.panel) {
-    const rgb = tileHexToRgb(style.panel);
-    if (rgb) el.style.setProperty('--panel-rgb', rgb);
+  el._xenonThemeOverrides = [
+    'accent', 'panel', 'surfaceAlt', 'controlColor', 'text', 'mutedText',
+    'lineColor', 'accentText', 'successColor', 'warningColor',
+    'dangerColor', 'infoColor',
+  ].filter(key => !!style[key]);
+  const globalPalette = (typeof window.getEffectiveThemePalette === 'function')
+    ? window.getEffectiveThemePalette()
+    : null;
+  if (globalPalette && window.ThemePalette) {
+    const tilePalette = ThemePalette.derive({
+      background: globalPalette.background,
+      surface: style.panel || globalPalette.surface,
+      surfaceAlt: style.surfaceAlt || globalPalette.surfaceAlt,
+      controlColor: style.controlColor || globalPalette.control,
+      accent: style.accent || globalPalette.accent,
+      text: style.text || globalPalette.text,
+      mutedText: style.mutedText || globalPalette.muted,
+      lineColor: style.lineColor || globalPalette.line,
+      accentText: style.accentText || globalPalette.onAccent,
+      successColor: style.successColor || globalPalette.success,
+      warningColor: style.warningColor || globalPalette.warning,
+      dangerColor: style.dangerColor || globalPalette.danger,
+      infoColor: style.infoColor || globalPalette.info,
+      contrastGuard: typeof style.contrastGuard === 'boolean' ? style.contrastGuard : globalPalette.guard,
+    }, globalPalette.tone);
+    Object.entries(ThemePalette.cssTokens(tilePalette)).forEach(([key, value]) => el.style.setProperty(key, value));
+    const material = {
+      '--surface-raised': 'var(--surface-alt)',
+      '--surface-subtle': 'color-mix(in srgb, var(--surface), var(--text) 5%)',
+      '--surface-strong': 'color-mix(in srgb, var(--surface), var(--text) 10%)',
+      '--hover-bg': 'color-mix(in srgb, var(--surface), var(--text) 7%)',
+      '--active-bg': 'color-mix(in srgb, var(--surface), var(--accent) 18%)',
+      '--input-bg': 'var(--control-bg)',
+      '--divider': 'color-mix(in srgb, var(--line), transparent 28%)',
+      '--selection-bg': 'color-mix(in srgb, var(--accent), var(--surface) 76%)',
+      '--selection-text': 'var(--text)',
+      // These aliases must be rebuilt at tile scope. Inheriting their root
+      // computed values would leave a custom widget painted with global colours.
+      '--panel': 'rgba(var(--panel-rgb), var(--panel-alpha))',
+      '--panel-soft': 'rgba(var(--panel-soft-rgb), var(--panel-soft-alpha))',
+      '--panel-border': 'rgba(var(--line-rgb), var(--panel-border-alpha))',
+      '--glass-bg': 'linear-gradient(135deg, color-mix(in srgb, var(--surface) 90%, white), var(--surface) 58%, var(--surface-alt))',
+      '--glass-border': 'var(--line)',
+      '--oled-bg-rgb': 'var(--surface-rgb)',
+      '--oled-border': 'var(--line)',
+      '--slider-fill': 'var(--accent)',
+      '--slider-track': 'var(--control-bg)',
+    };
+    Object.entries(material).forEach(([key, value]) => el.style.setProperty(key, value));
   }
   // Panel background as a two-colour gradient (overrides the flat panel colour).
   // Set inline on the widget's own root(s) so it never clobbers a widget that uses
@@ -1021,13 +1088,20 @@ function applyTileStyle(el, style) {
   if (pg) panelRoots.forEach(r => r.style.setProperty('background-image', pg));
   if (typeof style.panelAlpha === 'number') el.style.setProperty('--panel-alpha', style.panelAlpha.toFixed(2));
   if (style.text) {
-    el.style.setProperty('--text', style.text);
-    contentRoots.forEach(r => r.style.setProperty('--text', style.text));
+    const effectiveText = el.style.getPropertyValue('--text') || style.text;
+    contentRoots.forEach(r => r.style.setProperty('--text', effectiveText));
   }
   if (style.font && TILE_FONT_STACKS[style.font]) el.style.setProperty('--tile-font', TILE_FONT_STACKS[style.font]);
   // Extended per-tile tokens, mirroring the global theme editor at tile scope.
   // Scoped to this wrapper's subtree via var() lazy substitution.
-  if (style.mutedText) el.style.setProperty('--muted-text', style.mutedText);
+  if (style.mutedText) {
+    const effectiveMuted = el.style.getPropertyValue('--muted-text') || style.mutedText;
+    contentRoots.forEach(r => r.style.setProperty('--muted-text', effectiveMuted));
+  }
+  if (style.accentText) {
+    const effectiveOnAccent = el.style.getPropertyValue('--on-accent') || style.accentText;
+    contentRoots.forEach(r => r.style.setProperty('--on-accent', effectiveOnAccent));
+  }
   if (typeof style.radius === 'number') {
     [['--radius', 8], ['--radius-control', 10], ['--radius-tile', 16], ['--radius-modal', 20]]
       .forEach(([prop, base]) => el.style.setProperty(prop, `${+(base * style.radius).toFixed(2)}px`));
@@ -1045,6 +1119,9 @@ function applyAllTileStyles(layout) {
   document.querySelectorAll('.grid-stack-item[gs-id]').forEach(el => {
     applyTileStyle(el, tileStyleForId(lay, el.getAttribute('gs-id')));
   });
+  if (window.CustomWidget && typeof window.CustomWidget.refreshTheme === 'function') {
+    window.CustomWidget.refreshTheme();
+  }
 }
 
 // Write a tile's style into whichever store owns it (primary / group / copy),
@@ -1114,6 +1191,11 @@ function openTileStyleEditor(id, anchor) {
   const work = {
     mode: cur.mode === 'custom' ? 'custom' : 'inherit',
     accent: cur.accent || '', panel: cur.panel || '', text: cur.text || '',
+    surfaceAlt: cur.surfaceAlt || '', controlColor: cur.controlColor || '',
+    lineColor: cur.lineColor || '', accentText: cur.accentText || '',
+    successColor: cur.successColor || '', warningColor: cur.warningColor || '',
+    dangerColor: cur.dangerColor || '', infoColor: cur.infoColor || '',
+    contrastGuard: typeof cur.contrastGuard === 'boolean' ? cur.contrastGuard : null,
     panelGrad: {
       c1: (cur.panelGrad && cur.panelGrad.c1) || '', c2: (cur.panelGrad && cur.panelGrad.c2) || '',
       angle: numOr(cur.panelGrad && cur.panelGrad.angle, 135),
@@ -1154,6 +1236,11 @@ function openTileStyleEditor(id, anchor) {
     if (work.panelGrad && work.panelGrad.c1 && work.panelGrad.c2) raw.panelGrad = work.panelGrad;
     if (work.text) raw.text = work.text;
     if (work.mutedText) raw.mutedText = work.mutedText;
+    for (const key of ['surfaceAlt', 'controlColor', 'lineColor', 'accentText',
+      'successColor', 'warningColor', 'dangerColor', 'infoColor']) {
+      if (work[key]) raw[key] = work[key];
+    }
+    if (typeof work.contrastGuard === 'boolean') raw.contrastGuard = work.contrastGuard;
     if (work.panelAlpha != null) raw.panelAlpha = work.panelAlpha;
     if (work.radius != null) raw.radius = work.radius;
     if (work.glassBlur != null) raw.glassBlur = work.glassBlur;
@@ -1304,10 +1391,18 @@ function openTileStyleEditor(id, anchor) {
   };
   custom.append(
     colorRow('tile_style_accent', 'Accent', 'accent', hs.accent),
-    colorRow('tile_style_panel', 'Panel', 'panel', hs.background),
+    colorRow('tile_style_panel', 'Panel', 'panel', hs.surface || hs.background),
+    colorRow('tile_style_surface_alt', 'Secondary surface', 'surfaceAlt', hs.surfaceAlt || hs.surface || hs.background),
+    colorRow('tile_style_control', 'Fields & controls', 'controlColor', hs.controlColor || hs.surfaceAlt || hs.background),
     gradRow('decor_gradient', 'Gradient', work.panelGrad, hs.accent, '#101216'),
     colorRow('tile_style_text', 'Text', 'text', hs.text),
     colorRow('tile_style_muted', 'Muted text', 'mutedText', hs.mutedText || '#8a8f98'),
+    colorRow('tile_style_line', 'Lines & borders', 'lineColor', hs.lineColor || '#59615e'),
+    colorRow('tile_style_accent_text', 'Text on accent', 'accentText', hs.accentText || '#111111'),
+    colorRow('tile_style_success', 'Success', 'successColor', hs.successColor || '#45d483'),
+    colorRow('tile_style_warning', 'Warning', 'warningColor', hs.warningColor || '#f0b84f'),
+    colorRow('tile_style_danger', 'Danger', 'dangerColor', hs.dangerColor || '#ff6268'),
+    colorRow('tile_style_info', 'Information', 'infoColor', hs.infoColor || '#62cbea'),
   );
   const opRow = mk('label', 'tile-style-row');
   const opChk = mk('input'); opChk.type = 'checkbox'; opChk.checked = work.panelAlpha != null;
@@ -1864,6 +1959,9 @@ function applyDashboardLayout() {
   step('footballRender', () => { if (window.FootballWidget && typeof window.FootballWidget.renderWidgets === 'function') window.FootballWidget.renderWidgets(); });
   step('claudeRender', () => { if (window.ClaudeWidget && typeof window.ClaudeWidget.renderWidgets === 'function') window.ClaudeWidget.renderWidgets(); });
   step('newsRender', () => { if (window.NewsWidget && typeof window.NewsWidget.renderWidgets === 'function') window.NewsWidget.renderWidgets(); });
+  step('fansRender', () => { if (window.FansWidget && typeof window.FansWidget.renderWidgets === 'function') window.FansWidget.renderWidgets(); });
+  step('powerRender', () => { if (window.PowerWidget && typeof window.PowerWidget.renderWidgets === 'function') window.PowerWidget.renderWidgets(); });
+  step('batteryRender', () => { if (window.BatteryWidget && typeof window.BatteryWidget.renderWidgets === 'function') window.BatteryWidget.renderWidgets(); });
   step('vitalsRender', () => { if (window.VitalsWidget && typeof window.VitalsWidget.renderWidgets === 'function') window.VitalsWidget.renderWidgets(); });
   step('slideshowRender', () => { if (window.SlideshowWidget && typeof window.SlideshowWidget.renderWidgets === 'function') window.SlideshowWidget.renderWidgets(); });
   step('tickerApply', () => { if (window.Ticker && typeof window.Ticker.apply === 'function') window.Ticker.apply(); });

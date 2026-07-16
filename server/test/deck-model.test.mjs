@@ -608,14 +608,77 @@ test('normalizeKey keeps icon/label styling and drops junk values', () => {
 });
 
 test('normalizeDeckConfig validates the whole-device look enums', () => {
-  const c = dm.normalizeDeckConfig({ capStyle: 'neon', keyShape: 'circle', plate: 'carbon' });
-  assert.equal(c.capStyle, 'neon');
+  const c = dm.normalizeDeckConfig({ capStyle: 'vivid', keyShape: 'circle', plate: 'carbon' });
+  assert.equal(c.capStyle, 'vivid');
   assert.equal(c.keyShape, 'circle');
   assert.equal(c.plate, 'carbon');
   const d = dm.normalizeDeckConfig({ capStyle: 'chrome', keyShape: 'hex', plate: 'wood' });
   assert.equal(d.capStyle, 'lcd');
   assert.equal(d.keyShape, 'rounded');
   assert.equal(d.plate, 'graphite');
+});
+
+test('an imported profile preserves only a valid install receipt id', () => {
+  const config = (installId, imported = true) => dm.normalizeDeckConfig({
+    cols: 1, rows: 1,
+    profiles: [{ id: 'p', name: 'P', imported, installId, root: { pages: [{ keys: [null] }] } }],
+    activeProfile: 'p',
+  }).profiles[0];
+  assert.equal(config('xi_m5abc123deadbeef').installId, 'xi_m5abc123deadbeef');
+  assert.equal('installId' in config('../bad'), false);
+  assert.equal('installId' in config('xi_m5abc123deadbeef', false), false);
+});
+
+test('profile looks are independent and inherit only missing fields', () => {
+  const png = 'data:image/png;base64,iVBORw0KGgo=';
+  const cfg = dm.normalizeDeckConfig({
+    capStyle: 'neon', keyShape: 'square', plate: 'carbon',
+    wellImage: { src: png, dim: 20 },
+    profiles: [
+      { id: 'comic', name: 'Comic', look: { capStyle: 'vivid', wellImage: null }, root: { pages: [{ keys: [] }] } },
+      { id: 'plain', name: 'Plain', root: { pages: [{ keys: [] }] } },
+    ],
+    activeProfile: 'comic',
+  });
+  assert.deepEqual(dm.effectiveDeckLook(cfg, 'comic'), {
+    capStyle: 'vivid', keyShape: 'square', plate: 'carbon', wellImage: null, mediaStyle: null,
+  });
+  assert.equal(dm.effectiveDeckLook(cfg, 'plain').capStyle, 'neon');
+  assert.equal(dm.effectiveDeckLook(cfg, 'plain').wellImage.src, png);
+
+  const changed = dm.setProfileLook(cfg, 'plain', { capStyle: 'flat', plate: 'steel' });
+  assert.equal(dm.effectiveDeckLook(changed, 'plain').capStyle, 'flat');
+  assert.equal(dm.effectiveDeckLook(changed, 'plain').plate, 'steel');
+  assert.equal(dm.effectiveDeckLook(changed, 'comic').capStyle, 'vivid');
+});
+
+test('profile templates preserve their own vivid look', () => {
+  const base = dm.normalizeDeckConfig({ profiles: [{ id: 'base', name: 'Base', root: { pages: [{ keys: [] }] } }] });
+  const added = dm.addProfileFromTemplate(base, {
+    name: 'Imported',
+    look: { capStyle: 'vivid', keyShape: 'rounded', plate: 'none', wellImage: null, mediaStyle: null },
+    root: { pages: [{ keys: [{ kind: 'action', title: 'A' }] }] },
+  });
+  const profile = added.profiles.find((p) => p.id === added.activeProfile);
+  assert.equal(profile.look.capStyle, 'vivid');
+  assert.equal(dm.effectiveDeckLook(added, profile.id).plate, 'none');
+  assert.equal(dm.effectiveDeckLook(added, base.activeProfile).capStyle, 'lcd');
+});
+
+test('legacy imported Deck artwork migrates from the device to the imported profile', () => {
+  const png = 'data:image/png;base64,iVBORw0KGgo=';
+  const cfg = dm.normalizeDeckConfig({
+    wellImage: { src: png, imported: true },
+    profiles: [
+      { id: 'own', name: 'Own', root: { pages: [{ keys: [] }] } },
+      { id: 'shared', name: 'Shared', imported: true, root: { pages: [{ keys: [] }] } },
+    ],
+    activeProfile: 'shared',
+  });
+  assert.equal(cfg.wellImage, null);
+  assert.equal(dm.effectiveDeckLook(cfg, 'own').wellImage, null);
+  assert.equal(dm.effectiveDeckLook(cfg, 'shared').wellImage.src, png);
+  assert.equal(dm.effectiveDeckLook(cfg, 'shared').wellImage.imported, true);
 });
 
 test('keyStyleOf extracts only style fields; applyStyleToPage repaints every placed key', () => {
@@ -713,6 +776,62 @@ test('formatLiveValue: sdkState uses published meta label + validated color', ()
   assert.deepEqual(dm.formatLiveValue({ source: 'sdkState', name: 'missing' }, snapshot, 0), { text: '' });
   assert.deepEqual(dm.formatLiveValue(null, snapshot, 0), { text: '' });
   assert.deepEqual(dm.formatLiveValue({ source: 'timer' }, null, 0), { text: '' });
+});
+
+test('formatLiveValue: sensor metrics format unit-aware (%, °, W, RPM/k)', () => {
+  const snapshot = { sensors: {
+    cpu: 43.6, gpu: 12, cpuTemp: 61.4, gpuTemp: 55,
+    cpuFan: 860, gpuFan: { rpm: null, pct: 45 },
+    cpuWatts: 87.3, gpuWatts: 62.5, totalWatts: 149.8, psuWatts: 233,
+  } };
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'cpu' }, snapshot, 0), { text: '44%' });
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'cpuTemp' }, snapshot, 0), { text: '61°' });
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'cpuFan' }, snapshot, 0), { text: '860' });
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'gpuFan' }, snapshot, 0), { text: '45%' });
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'cpuWatts' }, snapshot, 0), { text: '87W' });
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'totalWatts' }, snapshot, 0), { text: '150W' });
+  // RPM ≥ 1000 compacts to 'N.Nk'.
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'cpuFan' }, { sensors: { cpuFan: 1240 } }, 0), { text: '1.2k' });
+  // GPU fan as RPM when LHM reports it.
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'gpuFan' }, { sensors: { gpuFan: { rpm: 1750, pct: null } } }, 0), { text: '1.8k' });
+  // Missing metric / empty snapshot → empty text, never a crash.
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'psuWatts' }, { sensors: {} }, 0), { text: '' });
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'nope' }, snapshot, 0), { text: '' });
+});
+
+test('formatLiveValue: battery:<name> looks up case-insensitively, charging gets the bolt', () => {
+  const snapshot = { batteries: { 'dark core rgb pro': { percent: 85, charging: false }, 'mx keys': { percent: 40, charging: true } } };
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'battery:Dark Core RGB Pro' }, snapshot, 0), { text: '85%' });
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'battery:MX Keys' }, snapshot, 0), { text: '⚡40%' });
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'battery:Gone' }, snapshot, 0), { text: '' });
+});
+
+test('sensorsFromSystem projects the system payload; batteriesByName lowercases keys', () => {
+  const sys = {
+    cpu: 12, gpu: 3, cpuTemp: 55, gpuTemp: 48,
+    // The GPU entry is identified by kind, NOT by name — a mobo header named
+    // "GPU" must stay a plain fan.
+    fans: [{ name: 'GPU', rpm: 0 }, { name: 'CPU Fan', rpm: 900 }, { name: 'GPU', kind: 'gpu', pct: 30 }],
+    power: { cpu: 45.2, gpu: 60.1, psu: null, total: 105.3 },
+  };
+  const s = dm.sensorsFromSystem(sys);
+  assert.equal(s.cpuFan, 900);            // first spinning non-GPU fan
+  assert.deepEqual(s.gpuFan, { rpm: null, pct: 30 });
+  assert.equal(s.cpuWatts, 45.2);
+  assert.equal(s.totalWatts, 105.3);
+  assert.equal(s.psuWatts, null);
+  assert.deepEqual(dm.sensorsFromSystem(null), {});
+
+  const bag = dm.batteriesByName([{ name: 'MX Keys', percent: 51 }, { name: '', percent: 9 }]);
+  assert.deepEqual(Object.keys(bag), ['mx keys']);
+  assert.equal(bag['mx keys'].percent, 51);
+});
+
+test('normalizeKey keeps a sensor live binding (persistence + preset sanitize path)', () => {
+  const k = keyThrough({ id: 'k', kind: 'action', live: { source: 'sensor', name: 'cpuWatts' } });
+  assert.deepEqual(k.live, { source: 'sensor', name: 'cpuWatts' });
+  const bat = keyThrough({ id: 'k', kind: 'action', live: { source: 'sensor', name: 'battery:MX Keys' } });
+  assert.deepEqual(bat.live, { source: 'sensor', name: 'battery:MX Keys' });
 });
 
 // ── Generalized state sources (discord / media / HA / timer) + stateStyle ────

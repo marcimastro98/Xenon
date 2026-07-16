@@ -221,9 +221,17 @@ function renderAppWindows() {
     const appName = prettyAppName(win.app);
     const initial = escHtml((appName[0] || 'A').toUpperCase());
     const favorite = isAppFavorite(win);
+    // Real per-app icon (exe icon extracted server-side). Shown as a small badge
+    // next to the name so every card is identifiable by the app's own icon, even
+    // when the screenshot preview is an unrecognisable window thumbnail. Falls back
+    // to the app-name initial only when no icon could be extracted (e.g. some UWP apps).
+    const iconSrc = safeIconSrc(win.icon);
+    const metaIcon = iconSrc
+      ? `<img src="${iconSrc}" alt="">`
+      : `<span class="app-meta-letter">${initial}</span>`;
     const preview = win.preview
       ? `<img src="${win.preview}" alt="">`
-      : `<span class="app-fallback-icon">${win.icon ? `<img src="${win.icon}" alt="">` : initial}</span>`;
+      : `<span class="app-fallback-icon">${iconSrc ? `<img src="${iconSrc}" alt="">` : initial}</span>`;
     return `
       <div class="app-card${win.active ? ' active' : ''}" role="button" tabindex="0" onclick="focusAppWindow('${escHtml(win.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();focusAppWindow('${escHtml(win.id)}')}" title="${escHtml(t('apps_open'))}: ${escHtml(appName)}">
         <span class="app-preview">
@@ -238,8 +246,11 @@ function renderAppWindows() {
           ${win.minimized ? `<span class="app-minimized-pill">${escHtml(t('apps_minimized'))}</span>` : ''}
         </span>
         <span class="app-meta">
-          <span class="app-name">${escHtml(appName)}</span>
-          <span class="app-window-title">${escHtml(win.title || appName)}</span>
+          <span class="app-meta-icon">${metaIcon}</span>
+          <span class="app-meta-text">
+            <span class="app-name">${escHtml(appName)}</span>
+            <span class="app-window-title">${escHtml(win.title || appName)}</span>
+          </span>
         </span>
       </div>
     `;

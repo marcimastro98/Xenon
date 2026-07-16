@@ -199,14 +199,25 @@ test('sanitize carries a validated device LOOK (well + music) with the profile',
   const png = 'data:image/png;base64,iVBORw0KGgo=';
   const prof = sanitizeDeckProfile(rawProfile({}, {
     look: {
+      capStyle: 'vivid', keyShape: 'circle', plate: 'steel',
       wellImage: { grad: { c1: '#1ED760', c2: '#0A0D12', angle: 90 }, dim: 30 },
       mediaStyle: { src: png, accent: '#FF0000', dim: 40 },
     },
   }), DEPS);
   assert.ok(prof.look);
+  assert.equal(prof.look.capStyle, 'vivid');
+  assert.equal(prof.look.keyShape, 'circle');
+  assert.equal(prof.look.plate, 'steel');
   assert.deepEqual(prof.look.wellImage.grad, { c1: '#1ED760', c2: '#0A0D12', angle: 90 });
   assert.equal(prof.look.mediaStyle.accent, '#FF0000');
   assert.equal(prof.look.mediaStyle.src, png);
+});
+
+test('sanitize preserves explicit null decorations so receiver defaults cannot leak in', () => {
+  const prof = sanitizeDeckProfile(rawProfile({}, {
+    look: { capStyle: 'vivid', wellImage: null, mediaStyle: null },
+  }), DEPS);
+  assert.deepEqual(prof.look, { capStyle: 'vivid', wellImage: null, mediaStyle: null });
 });
 
 test('sanitize rejects a remote/uploads image inside a shared LOOK', () => {

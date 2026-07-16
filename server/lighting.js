@@ -133,6 +133,14 @@ function loadLib() {
       getDevices: lib.func('int CorsairGetDevices(CorsairDeviceFilter*, int, _Out_ CorsairDeviceInfo*, _Out_ int*)'),
       getLedPositions: lib.func('int CorsairGetLedPositions(const char*, int, _Out_ CorsairLedPosition*, _Out_ int*)'),
       setLedColors: lib.func('int CorsairSetLedColors(const char*, int, CorsairLedColor*)'),
+      // CorsairProperty is { CorsairDataType type; union { bool; int32; double;
+      // char*; {ptr,count} arrays } value; } — 24 bytes on x64 (4-byte type,
+      // padding, 8-byte-aligned 16-byte union). It is read from a raw byte
+      // buffer (type at offset 0, value at offset 8) instead of a koffi union:
+      // only CT_Int32 (battery percent) is ever consumed, and a raw buffer
+      // sidesteps output-union decoding entirely. See getBatteryLevels().
+      readProperty: lib.func('int CorsairReadDeviceProperty(const char*, int, uint32, _Out_ uint8_t*)'),
+      freeProperty: lib.func('int CorsairFreeProperty(uint8_t*)'),
     };
     return true;
   } catch (e) {
@@ -251,6 +259,44 @@ async function enumerate() {
   } finally {
     enumerating = false;
   }
+}
+
+// --- Device battery (CDPI_BatteryLevel) ------------------------------------
+// Battery percent of the enumerated wireless Corsair devices. Read-only and
+// side-effect free: it NEVER connects on demand — when the RGB bridge is off
+// or disconnected the caller degrades to its other sources (Bluetooth PnP).
+// Values confirmed against the official iCUE SDK v4 header (CorsairOfficial/
+// cue-sdk): CDPI_BatteryLevel = 9, CT_Int32 = 1, CE_Success = 0; wired or
+// unsupported devices answer CE_NotAllowed and are skipped. The v4 SDK has no
+// charging-state property, so only the percent is reported.
+const CDPI_BATTERY_LEVEL = 9;
+const CT_INT32 = 1;
+const CORSAIR_PROPERTY_BYTES = 24; // sizeof(CorsairProperty) on x64 — see fns.readProperty
+
+async function getBatteryLevels() {
+  if (!connected || !fns) return { ok: false, reason: 'icue_off', devices: [] };
+  const out = [];
+  for (const dev of devices) {
+    try {
+      const buf = Buffer.alloc(CORSAIR_PROPERTY_BYTES);
+      const rc = await withSdkTimeout(new Promise((resolve, reject) =>
+        fns.readProperty.async(dev.id, CDPI_BATTERY_LEVEL, 0, buf, (err, rc) => err ? reject(err) : resolve(rc))
+      ), 'CorsairReadDeviceProperty');
+      if (rc !== 0) continue; // wired / unsupported device (CE_NotAllowed etc.)
+      const dataType = buf.readInt32LE(0);
+      if (dataType !== CT_INT32) {
+        // Unexpected payload (string/array): free the SDK-side allocation and
+        // skip. Fire-and-forget on the async worker path — no sync FFI on the
+        // event loop, and nothing to wait for on a best-effort free.
+        try { fns.freeProperty.async(buf, () => {}); } catch { /* best-effort */ }
+        continue;
+      }
+      const percent = buf.readInt32LE(8);
+      if (percent < 0 || percent > 100) continue;
+      out.push({ name: String(dev.model || '').trim(), percent });
+    } catch { /* per-device failure: skip, never fail the batch */ }
+  }
+  return { ok: true, devices: out.filter(d => d.name) };
 }
 
 // Write a single uniform colour to a device (on-change only).
@@ -953,6 +999,7 @@ function getStatus() {
 
 module.exports = {
   connect, ensureConnected, disconnect, enumerate, boundedReenumerate, writeDevice, releaseAll, getDevices, isConnected, isAvailable, getLastError,
+  getBatteryLevels,
   onSystem, onAudio, onStatus, onEvent,
   setManualColor, clearManual, setDeckReaction, clearDeckReaction, setAnimation, setDeviceMode, setAlbumColor, clearAlbum, applyConfig, setEffectEnabled, setEnabled, getStatus, getConfig,
   scanExternal, addExternalDevice, pairExternalDevice, removeExternalDevice, setExternalDeviceOptIn, getExternalStatus, getExternalConfig, setExternalRuntime,

@@ -53,6 +53,13 @@ body.layout-editing .cw-wrap.cw-mounted .cw-head {
   border: 0; border-radius: 10px; background: transparent;
 }
 
+/* While arranging the layout the guest iframe must be inert: a sandboxed frame
+   fills the whole tile and would otherwise swallow the pointer, leaving only the
+   tiny header handle grabbable and making the tile awkward to drag, resize or
+   remove. Neutralising it hands the whole tile back to GridStack's drag/resize
+   and the host's hide/move controls (which sit above at their own z-index). */
+body.layout-editing .cw-wrap.cw-mounted .cw-frame { pointer-events: none; }
+
 /* ── Deliberate states: off / loading / none / missing ──────────── */
 .cw-state {
   flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center;

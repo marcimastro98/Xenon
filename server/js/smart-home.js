@@ -1132,12 +1132,43 @@
   let entitiesInflight = null;
 
   function settingsMount() { return document.getElementById('settings-smarthome-hub'); }
+  function energyMount() { return document.getElementById('settings-energy-hub'); }
+
+  // Which entities qualify as Energy-widget sources: anything HA marks as
+  // power/energy/battery, or that reports in watt/kilowatt-hour units (some
+  // integrations ship the unit without a device_class).
+  const ENERGY_CLASSES = new Set(['power', 'energy', 'battery']);
+  const ENERGY_UNITS = new Set(['W', 'kW', 'kWh', 'Wh']);
+  const isEnergySource = (e) => ENERGY_CLASSES.has(e.deviceClass) || ENERGY_UNITS.has(e.unit);
 
   function initSettings() {
     const host = settingsMount();
     if (!host) return;
     const ha = window.getHomeAssistantSettings ? window.getHomeAssistantSettings() : { url: '', entities: [], tokenSet: false };
     host.replaceChildren(buildSettingsCard(ha));
+    initEnergySettings(ha);
+  }
+
+  // The Energy widget's own picker (Settings → Smart Home → Energy sources):
+  // the same area-grouped checkbox list, filtered to power/energy sensors and
+  // persisted to the INDEPENDENT homeAssistant.energyEntities selection.
+  function initEnergySettings(ha) {
+    const host = energyMount();
+    if (!host) return;
+    host.replaceChildren();
+    if (ha.url && ha.tokenSet) {
+      const picker = el('div', 'sh-set-picker');
+      host.appendChild(picker);
+      renderPicker(picker, {
+        key: 'energyEntities',
+        filter: isEnergySource,
+        title: t('power_sources_pick', 'Power & energy sensors to show'),
+        hint: t('power_sources_hint', 'Smart plugs, solar production, home meter, UPS — shown in the Energy widget.'),
+        empty: t('power_sources_none', 'No power or energy sensors found in Home Assistant.'),
+      });
+    } else {
+      host.appendChild(el('div', 'sh-set-hint', t('settings_ha_select_first', '')));
+    }
   }
 
   function buildSettingsCard(ha) {
@@ -1189,6 +1220,9 @@
         // debounced, so a fresh GET /entities could still read the pre-save config.
         allEntities = (Array.isArray(r.entities) && r.entities.length) ? r.entities : null;
         renderPicker(picker);
+        // The Energy-sources picker gates on url+tokenSet too — refresh it now
+        // that the connection is saved instead of waiting for a Settings reopen.
+        if (window.getHomeAssistantSettings) initEnergySettings(window.getHomeAssistantSettings());
       } else {
         status.className = 'sh-set-status err'; status.textContent = t('settings_ha_fail', 'Connection failed');
       }
@@ -1219,17 +1253,24 @@
     return entitiesInflight;
   }
 
-  async function renderPicker(host) {
+  // opts (all optional — default is the Smart Home tile's device picker):
+  //   key      — homeAssistant settings array the selection persists to
+  //   filter   — entity predicate limiting what the list offers
+  //   title/hint/empty — already-localised label overrides
+  async function renderPicker(host, opts) {
+    const cfg = opts || {};
+    const key = cfg.key || 'entities';
     host.replaceChildren(el('div', 'sh-set-hint', t('settings_ha_connecting', 'Connecting…')));
-    const items = await fetchEntities();
+    let items = await fetchEntities();
+    if (cfg.filter) items = items.filter(cfg.filter);
     if (!settingsMount()) return;                // Settings closed while awaiting
     host.replaceChildren();
-    host.appendChild(el('div', 'sh-set-picker-title', t('settings_ha_entities', 'Devices to show')));
-    host.appendChild(el('div', 'sh-set-hint', t('settings_ha_entities_hint', '')));
-    if (!items.length) { host.appendChild(el('div', 'sh-set-hint', t('settings_ha_select_first', ''))); return; }
+    host.appendChild(el('div', 'sh-set-picker-title', cfg.title || t('settings_ha_entities', 'Devices to show')));
+    host.appendChild(el('div', 'sh-set-hint', cfg.hint || t('settings_ha_entities_hint', '')));
+    if (!items.length) { host.appendChild(el('div', 'sh-set-hint', cfg.empty || t('settings_ha_select_first', ''))); return; }
 
     const ha = window.getHomeAssistantSettings ? window.getHomeAssistantSettings() : { entities: [] };
-    const chosen = new Set(ha.entities || []);
+    const chosen = new Set(ha[key] || []);
 
     const search = el('input', 'sh-set-input'); search.type = 'search'; search.placeholder = t('settings_ha_search', 'Search…');
     host.appendChild(search);
@@ -1247,7 +1288,7 @@
         if (cb.checked) chosen.add(e.id); else chosen.delete(e.id);
         // Persist in the entity list's own order so the tile groups match.
         const ordered = items.filter((x) => chosen.has(x.id)).map((x) => x.id);
-        if (window.setHomeAssistantSettings) window.setHomeAssistantSettings({ entities: ordered });
+        if (window.setHomeAssistantSettings) window.setHomeAssistantSettings({ [key]: ordered });
       });
       row.append(cb, el('span', 'sh-set-check-name', shortName || e.name), el('span', 'sh-set-check-type', domainLabel(e)), el('span', 'sh-set-check-id', e.id));
       row._match = (e.name + ' ' + e.id + ' ' + (e.area || '') + ' ' + domainLabel(e)).toLowerCase();

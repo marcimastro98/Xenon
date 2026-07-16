@@ -16,7 +16,7 @@
 /* Format hint shown below the inputs */
 .timer-format-hint {
   font-size: .70rem;
-  color: rgba(255,255,255,.28);
+  color: var(--dim-text);
   padding: 3px 2px 0;
   letter-spacing: .01em;
   user-select: none;
@@ -26,7 +26,7 @@
 .timer-add-dur-input {
   flex: 1;
   min-width: 0;
-  background: rgba(255,255,255,.06);
+  background: var(--control-bg);
   border: 1.5px solid rgba(255,255,255,.1);
   border-radius: 8px;
   color: inherit;
@@ -85,7 +85,7 @@
 
 .timer-empty {
   text-align: center;
-  color: rgba(255,255,255,.35);
+  color: var(--dim-text);
   font-size: .82rem;
   padding: 20px 0;
 }
@@ -95,7 +95,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(255,255,255,.045);
+  background: var(--surface-alt);
   border: 1px solid rgba(255,255,255,.07);
   border-radius: 12px;
   padding: 8px 10px 8px 8px;
@@ -108,8 +108,8 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 .timer-card.timer-done {
-  background: rgba(255,255,255,.025);
-  border-color: rgba(255,255,255,.04);
+  background: var(--surface-alt);
+  border-color: var(--divider);
   opacity: .65;
 }
 .timer-card.timer-paused {
@@ -140,7 +140,7 @@
   will-change: stroke-dashoffset;
 }
 .timer-done .timer-circle-arc  { stroke: rgba(255,255,255,.25); }
-.timer-paused .timer-circle-arc { stroke: #fb923c; }
+.timer-paused .timer-circle-arc { stroke: var(--color-warn); }
 
 /* ── Info area ─────────────────────────────────────────────────── */
 .timer-info {
@@ -153,7 +153,7 @@
 .timer-label {
   font-size: .75rem;
   font-weight: 500;
-  color: rgba(255,255,255,.6);
+  color: var(--muted-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -163,10 +163,10 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: -.01em;
-  color: rgba(255,255,255,.95);
+  color: var(--text);
   line-height: 1.1;
 }
-.timer-done .timer-time { color: rgba(255,255,255,.45); }
+.timer-done .timer-time { color: var(--dim-text); }
 
 /* ── Controls ──────────────────────────────────────────────────── */
 .timer-actions {
@@ -180,15 +180,15 @@
   width: 28px; height: 28px;
   border-radius: 7px;
   border: 1px solid transparent;
-  background: rgba(255,255,255,.07);
-  color: rgba(255,255,255,.7);
+  background: var(--control-bg);
+  color: var(--muted-text);
   font-size: .9rem;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: background .15s, color .15s;
   will-change: transform;
 }
-.timer-btn:hover  { background: rgba(255,255,255,.14); color: #fff; }
+.timer-btn:hover  { background: var(--hover-bg); color: var(--text); }
 .timer-btn:active { transform: scale(.88); }
 .timer-btn svg { width: 14px; height: 14px; }
 
@@ -203,8 +203,8 @@
   background: rgba(var(--accent-rgb), .25);
   border-color: rgba(var(--accent-rgb), .5);
 }
-.timer-delete-btn { color: rgba(255,255,255,.4); }
-.timer-delete-btn:hover { background: rgba(248,113,113,.18); color: #fca5a5; border-color: rgba(248,113,113,.3); }
+.timer-delete-btn { color: var(--dim-text); }
+.timer-delete-btn:hover { background: color-mix(in srgb, var(--color-danger), transparent 82%); color: var(--color-danger); border-color: color-mix(in srgb, var(--color-danger), transparent 70%); }
 
 /* Timer completion now uses the unified XenonToast system (js/toast.js,
    components/Toast/Toast.css) — the old .timer-done-toast pill was removed. */

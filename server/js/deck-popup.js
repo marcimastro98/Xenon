@@ -59,6 +59,16 @@
       if (!D() || !window.DeckModel || !window.DeckModel.timersByLabel) return;
       D().refreshStates({ timers: window.DeckModel.timersByLabel(d.timers) });
     });
+    // Live 'sensor' badges (fan RPM / watts / temps / battery %) — same
+    // projections main.js feeds the dashboard snapshot.
+    on('system', (d) => {
+      if (!D() || !window.DeckModel || !window.DeckModel.sensorsFromSystem) return;
+      D().refreshStates({ sensors: window.DeckModel.sensorsFromSystem(d) });
+    });
+    on('battery', (d) => {
+      if (!D() || !window.DeckModel || !window.DeckModel.batteriesByName) return;
+      D().refreshStates({ batteries: window.DeckModel.batteriesByName((d && d.devices) || []) });
+    });
     on('deck', (d) => { if (D() && typeof D().onServerDeckRev === 'function') D().onServerDeckRev(d.rev); });
     es.onerror = () => {
       if (es.readyState === EventSource.CLOSED) setTimeout(connect, 3000);

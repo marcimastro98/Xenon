@@ -189,13 +189,10 @@ input[type="range"] { accent-color: var(--green); }
 }
 
 .settings-preview {
-  min-height: 90px;
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 14px;
   overflow: hidden;
   position: relative;
-  display: grid;
-  align-items: end;
   background: var(--bg);
 }
 .settings-preview::before {
@@ -212,31 +209,38 @@ input[type="range"] { accent-color: var(--green); }
   inset: 0;
   background: rgba(0,0,0,var(--bg-dim));
 }
+/* Compact full-width strip: kicker + title on the left, the accent bar filling
+   the rest. Replaces the old tall card that left a big empty area beside it. */
 .settings-preview-card {
   position: relative;
   z-index: 1;
-  margin: 12px;
-  width: min(360px, calc(100% - 24px));
-  padding: 13px 14px;
+  margin: 10px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 15px;
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 12px;
   background: var(--panel);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
 }
 .settings-preview-kicker {
+  flex: 0 0 auto;
   color: var(--green);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 950;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 .settings-preview-title {
-  margin-top: 5px;
+  flex: 0 0 auto;
   color: var(--text);
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 950;
 }
 .settings-preview-bar {
-  margin-top: 10px;
+  flex: 1 1 auto;
+  min-width: 60px;
   height: 5px;
   border-radius: 999px;
   background: rgba(255,255,255,0.08);
@@ -258,7 +262,7 @@ input[type="range"] { accent-color: var(--green); }
   overflow: hidden;
 }
 .settings-group-head {
-  padding: 8px 13px;
+  padding: 10px 16px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
   color: var(--text);
   font-size: 13.5px;
@@ -269,7 +273,7 @@ input[type="range"] { accent-color: var(--green); }
   gap: 8px;
 }
 .settings-grid {
-  padding: 8px 10px 10px;
+  padding: 12px 16px 14px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0,1fr));
   gap: 8px;
@@ -300,6 +304,47 @@ input[type="range"] { accent-color: var(--green); }
 .settings-note {
   display: block;
   margin-top: -3px;
+}
+/* "This colour is hidden by an active background" — reads as a reason, not a hint. */
+.settings-bg-covered-note { color: var(--color-warn); margin-top: 2px; }
+.settings-bg-covered-note[hidden] { display: none; }
+
+/* ── Body inset for sections that DON'T use .settings-grid ──────────────
+   Only .settings-grid (and a few other bodies) carry the 16px card inset, so
+   sections that drop rows/toggles straight into the group had their controls
+   touching the card border. Inset those bodies too — horizontal only, so the
+   existing vertical rhythm of each section is left exactly as it was. Plain
+   content wrappers get padding; bordered/standalone elements (toggle pills,
+   segmented controls, buttons) get margin so the whole pill is pulled in.
+   Scoped to DIRECT children of the group so the same classes used as items
+   inside .settings-grid / .settings-toggle-grid are never double-inset. */
+.settings-group > .settings-row,
+.settings-group > .settings-backup-row,
+.settings-group > .settings-ambient-row,
+.settings-group > .settings-ambient-scenes,
+.settings-group > .slideshow-assets,
+.settings-group > .settings-vitals-items,
+.settings-group > .settings-vitals-row,
+.settings-group > .settings-hint,
+.settings-group > .settings-note,
+#topbar-personalize {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+.settings-group > .settings-toggle-row,
+.settings-group > .settings-segmented,
+.settings-group > .settings-btn {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+/* Integration sub-panels render their card into a bare mount div with no inset
+   (Smart Home, Cameras/UniFi, Spotify, Twitch). The Illuminazione and Controllo
+   remoto hubs already pad themselves, so they are deliberately left out. */
+#settings-smarthome-hub,
+#settings-unifi-hub,
+#settings-spotify-hub,
+#settings-streaming-hub {
+  padding: 12px 16px 14px;
 }
 
 /* ── Swatch preview (non-interactive) + hex combo ───────── */
@@ -357,7 +402,7 @@ input[type="range"] { accent-color: var(--green); }
   border-color: rgba(var(--accent-rgb),0.48);
   background: rgba(0,0,0,0.38);
 }
-.settings-hex-input.invalid { border-color: rgba(229,57,53,0.6); }
+.settings-hex-input.invalid { border-color: rgba(var(--danger-rgb),0.6); }
 
 .settings-text-input {
   width: 100%;
@@ -435,8 +480,8 @@ input[type="range"] { accent-color: var(--green); }
   opacity: 0.7;
   font-variant-numeric: tabular-nums;
 }
-.settings-bgcode-count.is-near { color: #ffcf6b; opacity: 1; }
-.settings-bgcode-count.is-over { color: #ff7a6b; opacity: 1; font-weight: 600; }
+.settings-bgcode-count.is-near { color: var(--color-warn); opacity: 1; }
+.settings-bgcode-count.is-over { color: var(--color-danger); opacity: 1; font-weight: 600; }
 .settings-label-lead { min-width: 0; display: inline-flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
 /* Ready-made background gallery: a responsive grid of tap-to-apply tiles so a
    non-coder never has to touch the editor. */
@@ -521,7 +566,7 @@ input[type="range"] { accent-color: var(--green); }
   flex: 0 0 auto;
   transition: background .14s ease, color .14s ease;
 }
-.settings-bgasset-del:hover { background: rgba(255, 86, 74, 0.18); color: #ffd7d1; }
+.settings-bgasset-del:hover { background: var(--danger-bg); color: var(--color-danger); }
 
 /* Collapsible "how to write the code" help for the power-user path. */
 .settings-code-help { margin-top: 4px; }
@@ -684,7 +729,7 @@ input[type="range"] { accent-color: var(--green); }
 
 /* ── Lock screen widget toggles ──────────────────────────── */
 .settings-toggle-grid {
-  padding: 10px 12px 12px;
+  padding: 10px 16px 12px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0,1fr));
   gap: 8px;
@@ -1051,7 +1096,7 @@ input[type="range"] { accent-color: var(--green); }
 }
 .theme-card-wrap:hover .theme-card-remove,
 .theme-card-remove:focus-visible { opacity: 1; }
-.theme-card-remove:hover { opacity: 1; border-color: rgba(255,90,90,0.6); color: #ff8080; }
+.theme-card-remove:hover { opacity: 1; border-color: rgba(var(--danger-rgb),0.6); color: var(--color-danger); }
 /* Pixel Retro card reads as a CRT: sharp corners on the mock, no soft glow. */
 .theme-card--retro .theme-card-preview,
 .theme-card--retro .theme-card-preview::before,
@@ -1137,7 +1182,7 @@ input[type="range"] { accent-color: var(--green); }
   background: rgba(var(--accent-rgb),0.16);
   color: #f6fff9;
 }
-.settings-btn.danger { color: #ffc9c9; }
+.settings-btn.danger { color: var(--color-danger); }
 .settings-btn:disabled { opacity: 0.55; cursor: default; }
 
 /* Microphone self-test: button + colour-coded result line */
@@ -1157,8 +1202,8 @@ input[type="range"] { accent-color: var(--green); }
   color: var(--muted-text);
 }
 .settings-mictest-result.is-rec  { color: var(--text); }
-.settings-mictest-result.is-ok   { color: #7ee2a8; }
-.settings-mictest-result.is-warn { color: #ffd27a; }
+.settings-mictest-result.is-ok   { color: var(--color-success); }
+.settings-mictest-result.is-warn { color: var(--color-warn); }
 
 /* Game-mode: PresentMon install row, revealed only when the tool is missing */
 .settings-gamemode-install {
@@ -1186,7 +1231,7 @@ input[type="range"] { accent-color: var(--green); }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.settings-status.error { color: #ffb2b2; }
+.settings-status.error { color: var(--color-danger); }
 .settings-status.ok { color: var(--green); }
 
 .settings-foot {
@@ -1245,13 +1290,14 @@ input[type="range"] { accent-color: var(--green); }
   .settings-store-pill { padding: 7px 10px; }
   .settings-store-pill span { display: none; }
   .settings-body { padding: 10px; gap: 9px; }
-  .settings-preview { min-height: 138px; }
-  .settings-preview-card { margin: 10px; padding: 10px 11px; }
-  .settings-preview-title { font-size: 18px; }
+  .settings-preview-card { margin: 8px; padding: 9px 13px; gap: 12px; }
+  .settings-preview-title { font-size: 16px; }
   .settings-preview-kicker { font-size: 10px; }
   .settings-group { border-radius: 12px; }
-  .settings-group-head { padding: 8px 11px; font-size: 12.5px; }
-  .settings-grid { padding: 9px 10px 10px; gap: 8px; }
+  /* Edge is short, so keep vertical padding tight but give real horizontal
+     breathing room — content was touching the card edges. */
+  .settings-group-head { padding: 9px 16px; font-size: 12.5px; }
+  .settings-grid { padding: 10px 16px 12px; gap: 8px; }
   .settings-label-line { font-size: 11px; }
   .settings-hint, .settings-value { font-size: 10px; }
   .settings-color { height: 32px; border-radius: 8px; }
@@ -1283,7 +1329,7 @@ input[type="range"] { accent-color: var(--green); }
 .settings-body { display: flex !important; gap: 12px; align-items: stretch; overflow: hidden; }
 .settings-nav {
   flex: 0 0 auto;
-  width: 172px;
+  width: 202px;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -1309,15 +1355,17 @@ input[type="range"] { accent-color: var(--green); }
 .settings-nav-btn {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
-  padding: 10px 12px;
+  /* Roomier finger target on the Xeneon Edge touchscreen: taller rows and more
+     side padding so each category is easy to tap. */
+  padding: 12px 14px;
   border: 0;
   border-radius: 10px;
   background: transparent;
   color: var(--muted-text);
   font: inherit;
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   text-align: left;
   cursor: pointer;
@@ -1574,17 +1622,24 @@ input[type="range"] { accent-color: var(--green); }
   gap: 10px;
   align-content: start;
 }
-/* Appearance has several groups → two columns; it scrolls vertically if the
-   content is taller than the panel (never horizontally). */
-#settings-content[data-cat="appearance"],
+/* General: two even columns via grid; scrolls vertically if taller than the
+   panel (never horizontally). */
 #settings-content[data-cat="general"] {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-content: start;
-  /* Short cards (e.g. the single-toggle "Accento dall'album") must size to their
-     content, not stretch to match a tall neighbour like "Superficie". */
   align-items: start;
 }
-#settings-content [data-settings-cat] { grid-area: auto !important; }
+/* Appearance: two even columns. Wide items (live preview, theme gallery, mode
+   switch, the "Personalizza" divider) span the full width via .settings-span-all;
+   the detail cards sit in two columns, ordered so the two tall cards (Colori and
+   Superficie) pair up and the short ones follow, keeping ragged gaps small. */
+#settings-content[data-cat="appearance"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  align-items: start;
+}
+#settings-content[data-cat="appearance"] > .settings-span-all { grid-column: 1 / -1; }
+#settings-content[data-cat="general"] [data-settings-cat] { grid-area: auto !important; }
 #settings-content [data-settings-cat][hidden] { display: none !important; }
 
 /* Visible scroll thumb so a taller category (e.g. Performance) reads as
@@ -1608,8 +1663,8 @@ input[type="range"] { accent-color: var(--green); }
   .settings-nav { width: 100%; flex-direction: row; flex-wrap: wrap; }
   .settings-nav-btn { width: auto; flex: 1 1 auto; justify-content: center; }
   .settings-content,
-  #settings-content[data-cat="appearance"],
-  #settings-content[data-cat="general"] { grid-template-columns: 1fr; }
+  #settings-content[data-cat="general"],
+  #settings-content[data-cat="appearance"] { grid-template-columns: 1fr; }
 }
 
 /* ── Xenon AI provider selector ─────────────────────────────── */
@@ -1644,15 +1699,15 @@ input[type="range"] { accent-color: var(--green); }
 .ai-hw-line { font-weight: 600; }
 .ai-hw-stats { font-size: 0.85rem; opacity: 0.85; }
 .ai-hw-block.ai-incompatible { border-left: 3px solid #ff5555; padding-left: 10px; }
-.ai-hw-block.ai-incompatible .ai-hw-line { color: #ff6f6f; }
+.ai-hw-block.ai-incompatible .ai-hw-line { color: var(--color-danger); }
 .ai-hw-block .settings-btn { align-self: flex-start; }
 
 .ai-status-block { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
 .ai-status-item { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; flex-wrap: wrap; }
 .ai-status-item .settings-btn { margin-left: auto; }
-.ai-status-dot-ok::before { content: '●'; color: #1ed760; margin-right: 4px; }
-.ai-status-dot-bad::before { content: '●'; color: #ff5555; margin-right: 4px; }
-.ai-status-dot-warn::before { content: '●'; color: #f0b132; margin-right: 4px; }
+.ai-status-dot-ok::before { content: '●'; color: var(--color-success); margin-right: 4px; }
+.ai-status-dot-bad::before { content: '●'; color: var(--color-danger); margin-right: 4px; }
+.ai-status-dot-warn::before { content: '●'; color: var(--color-warn); margin-right: 4px; }
 .ai-autostart-row {
   display: flex; align-items: center; gap: 8px;
   font-size: 0.82rem; opacity: 0.9; cursor: pointer;
@@ -1702,13 +1757,13 @@ input[type="range"] { accent-color: var(--green); }
 }
 .feed-toggle input[type="checkbox"] { width: 16px; height: 16px; accent-color: rgb(var(--accent-rgb)); }
 .feed-status { font-size: 0.78rem; opacity: 0.8; min-width: 64px; flex: 1 1 auto; }
-.feed-status.is-error { color: #ef4444; opacity: 1; }
+.feed-status.is-error { color: var(--color-danger); opacity: 1; }
 .feed-remove {
   flex: 0 0 auto; min-width: 36px; min-height: 36px;
   background: transparent; border: none; color: var(--text);
   font-size: 1rem; cursor: pointer; opacity: 0.7;
 }
-.feed-remove:hover { opacity: 1; color: #ef4444; }
+.feed-remove:hover { opacity: 1; color: var(--color-danger); }
 .feed-actions { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
 .feed-add, .feed-refresh {
   display: inline-flex; align-items: center; gap: 6px;
@@ -1752,7 +1807,7 @@ input[type="range"] { accent-color: var(--green); }
   margin: 0 0 9px; font-size: 0.82rem; font-weight: 800; letter-spacing: 0.01em;
   color: var(--text);
 }
-.feed-help-group.is-warn .feed-help-title { color: #f6c560; }
+.feed-help-group.is-warn .feed-help-title { color: var(--color-warn); }
 .feed-help-steps, .feed-help-warnings {
   margin: 0; padding: 0; list-style: none;
   display: flex; flex-direction: column; gap: 7px;
@@ -1795,11 +1850,11 @@ input[type="range"] { accent-color: var(--green); }
 
 /* Streamer.bot test-connection feedback line. */
 .settings-sb-status { margin-top: 8px; }
-.settings-sb-status.is-ok { color: #22c55e; }
-.settings-sb-status.is-err { color: #f87171; }
+.settings-sb-status.is-ok { color: var(--color-success); }
+.settings-sb-status.is-err { color: var(--color-danger); }
 .settings-sb-status.is-busy { color: var(--muted-text); }
 .streaming-connected { font-size: 0.85rem; font-weight: 700; margin: 0; }
-.streaming-warn { color: #f0a93b; }
+.streaming-warn { color: var(--color-warn); }
 .streaming-card .settings-btn { align-self: flex-start; }
 .streaming-login {
   display: flex; flex-direction: column; gap: 8px; align-items: flex-start;
@@ -1829,7 +1884,7 @@ input[type="range"] { accent-color: var(--green); }
 }
 .streaming-notif .settings-note { margin: 0; }
 .streaming-poll { font-size: 0.8rem; opacity: 0.7; margin: 0; }
-.streaming-err { color: #ef4444; opacity: 1; }
+.streaming-err { color: var(--color-danger); opacity: 1; }
 
 /* Copyable value row (e.g. the OAuth redirect URI) — read-only text + Copy button. */
 .streaming-copy-row {
@@ -1867,7 +1922,7 @@ input[type="range"] { accent-color: var(--green); }
   margin: 0 0 14px; padding-left: 20px; display: flex; flex-direction: column; gap: 7px;
 }
 .settings-spotify-steps li { font-size: 0.86rem; line-height: 1.45; color: var(--text, #e7e9ee); }
-.settings-spotify-steps li::marker { color: #1ed760; font-weight: 800; }
+.settings-spotify-steps li::marker { color: var(--color-success); font-weight: 800; }
 
 /* ── Shareable presets: export/import buttons + the share/import modal ── */
 .settings-share-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -1935,6 +1990,34 @@ input[type="range"] { accent-color: var(--green); }
   background: rgba(var(--accent-rgb, 53, 224, 142), 0.16);
 }
 .preset-page-meta { flex: none; font-size: 0.78rem; color: var(--text-dim, #8b91a1); }
+
+/* One receipt per imported catalog item/package. Rows are compact and unframed
+   beyond their own boundary: this is an operational removal list, not a second
+   gallery inside the modal. */
+.installed-content-list {
+  display: flex; flex-direction: column; gap: 8px;
+  max-height: min(52vh, 420px); overflow-y: auto; padding-right: 2px;
+}
+.installed-content-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 58px; padding: 9px 10px; border-radius: 8px;
+  background: var(--control-bg, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+}
+.installed-content-row.is-legacy { border-style: dashed; }
+.installed-content-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.installed-content-head { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 7px; min-width: 0; }
+.installed-content-head b { line-height: 1.2; overflow-wrap: anywhere; }
+.installed-content-head .preset-modal-kind { flex: none; padding: 2px 6px; font-size: 0.62rem; }
+.installed-content-remove { flex: none; min-width: 92px; }
+.installed-content-empty {
+  margin: 8px 0 0; padding: 18px; text-align: center; color: var(--text-dim);
+  border: 1px dashed var(--glass-border); border-radius: 8px;
+}
+@media (max-width: 520px) {
+  .installed-content-row { align-items: stretch; flex-direction: column; }
+  .installed-content-remove { width: 100%; }
+}
 
 /* ── Bundle ("Pacchetto Xenon") export checklist + import widget list ────── */
 .preset-check-list { display: flex; flex-direction: column; gap: 6px; max-height: 46vh; overflow-y: auto; margin-bottom: 4px; }
@@ -2123,7 +2206,7 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 }
 .cgal-btn:hover { background: rgba(255, 255, 255, 0.12); }
 .cgal-btn:disabled { opacity: 0.4; cursor: default; }
-.cgal-btn.primary { color: #04120a; background: linear-gradient(135deg, rgba(var(--accent-rgb), 1), rgba(var(--accent-rgb), 0.82)); border-color: transparent; font-weight: 700; box-shadow: 0 4px 14px rgba(var(--accent-rgb), 0.28); }
+.cgal-btn.primary { color: var(--on-accent); background: var(--accent); border-color: transparent; font-weight: 700; box-shadow: 0 4px 14px rgba(var(--accent-rgb), 0.28); }
 .cgal-btn.primary:hover:not(:disabled) { filter: brightness(1.08); box-shadow: 0 6px 20px rgba(var(--accent-rgb), 0.42); }
 .cgal-unlock { color: var(--warn, #ffb454); border-color: rgba(255, 180, 84, 0.42); background: rgba(255, 180, 84, 0.1); }
 .cgal-unlock:hover { background: rgba(255, 180, 84, 0.18); }
@@ -2623,7 +2706,7 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
   background: transparent; border: 1px solid transparent;
   transition: color .15s ease, background .15s ease, border-color .15s ease;
 }
-.settings-memory-del:hover { color: #ffc9c9; background: rgba(255,80,80,0.12); border-color: rgba(255,80,80,0.35); }
+.settings-memory-del:hover { color: var(--color-danger); background: var(--danger-bg); border-color: rgba(var(--danger-rgb),0.35); }
 .settings-memory-empty { margin: 0; font-size: 12px; color: var(--muted-text); line-height: 1.4; }
 .settings-memory-actions { display: flex; justify-content: flex-end; }
 
@@ -2712,9 +2795,9 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
    the Xeneon Edge short-screen tuning (max-height:620 above) keeps winning. */
 @media (min-height: 621px) {
   .settings-content { gap: 12px; }
-  .settings-group-head { padding: 10px 14px 8px; font-size: 14px; }
+  .settings-group-head { padding: 11px 16px 9px; font-size: 14px; }
   .settings-group-head .settings-hint { font-size: 11.5px; }
-  .settings-grid { padding: 10px 12px 12px; gap: 9px; }
+  .settings-grid { padding: 13px 16px 15px; gap: 9px; }
 }
 
 /* ── Static background picker (Settings → Sfondo) ───────────────

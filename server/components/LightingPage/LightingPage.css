@@ -75,7 +75,7 @@
 }
 .lighting-provider-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .lighting-provider-name { font-weight: 600; }
-.lighting-provider-ok { font-size: 0.85em; font-weight: 600; color: #4caf78; }
+.lighting-provider-ok { font-size: 0.85em; font-weight: 600; color: var(--color-success); }
 .lighting-provider-busy { font-size: 0.85em; font-weight: 600; color: rgba(var(--accent-rgb), 0.95); }
 .lighting-progress {
   opacity: 1; font-weight: 600;

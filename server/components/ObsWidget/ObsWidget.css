@@ -32,9 +32,9 @@
   animation: live-ripple 2s ease-in-out infinite;
   will-change: transform, opacity; pointer-events: none;
 }
-.obs-pill-live.on { color: #ff7d9b; background: rgba(224,36,94,0.16); border: 1px solid rgba(224,36,94,0.38); }
+.obs-pill-live.on { color: var(--color-danger); background: var(--danger-bg); border: 1px solid rgba(var(--danger-rgb),0.38); }
 .obs-pill-live .obs-pill-dot { background: #e0245e; }
-.obs-pill-rec.on { color: #ffd27d; background: rgba(245,158,11,0.16); border: 1px solid rgba(245,158,11,0.4); }
+.obs-pill-rec.on { color: var(--color-warn); background: var(--warning-bg); border: 1px solid rgba(var(--warning-rgb),0.4); }
 .obs-pill-rec .obs-pill-dot { background: #f59e0b; }
 
 /* Cards */
@@ -56,6 +56,7 @@
 .obs-preview {
   position: relative; flex: 1 1 auto; width: 100%; min-height: 0;
   border-radius: 10px; overflow: hidden; background: #000;
+  color: #f3f7f5;
   display: flex; align-items: center; justify-content: center;
 }
 /* Fill the whole preview area edge-to-edge (no dark surround / bands); a wide-
@@ -81,11 +82,11 @@
 /* Go live = green; while streaming = red "End stream". */
 .obs-golive { border-color: rgba(34,197,94,0.5); background: rgba(34,197,94,0.16); }
 .obs-golive:hover:not(:disabled) { background: rgba(34,197,94,0.27); }
-.obs-golive.is-live { border-color: rgba(239,68,68,0.55); background: rgba(239,68,68,0.18); color: #ffdada; }
+.obs-golive.is-live { border-color: rgba(var(--danger-rgb),0.55); background: var(--danger-bg); color: var(--color-danger); }
 .obs-golive.is-live:hover:not(:disabled) { background: rgba(239,68,68,0.3); }
 /* Record red dot accent; while recording, amber-tinted "Stop rec". */
-.obs-record .obs-btn-ico { color: #e0245e; }
-.obs-record.is-rec { border-color: rgba(245,158,11,0.5); background: rgba(245,158,11,0.16); color: #ffe0b0; }
+.obs-record .obs-btn-ico { color: var(--color-danger); }
+.obs-record.is-rec { border-color: rgba(var(--warning-rgb),0.5); background: var(--warning-bg); color: var(--color-warn); }
 .obs-record.is-rec .obs-btn-ico { color: currentColor; }
 
 /* Scenes — natural height, capped so it scrolls instead of squeezing the preview. */

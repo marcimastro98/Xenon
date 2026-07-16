@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Create for Xenon — the maker's guide</title>
-<meta name="description" content="Make your own themes, backgrounds, pages, Deck profiles, widgets, scenes and full packages for the Xenon dashboard — starting from zero, no coding required. Copy-paste examples and a practical SDK guide.">
+<meta name="description" content="Make contrast-safe semantic themes, backgrounds, pages, Deck profiles, widgets, scenes and full packages for the Xenon dashboard — starting from zero, no coding required. Copy-paste examples and a practical SDK guide.">
 <link rel="icon" type="image/png" href="../images/favicon.png">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Create for Xenon — the maker's guide">
@@ -353,14 +353,57 @@
 
     <section id="themes">
       <h2>Themes — your colours &amp; look</h2>
-      <p>A theme is the whole visual identity of your dashboard: light or dark, the accent colour, the background tint, how glassy the panels are, corner roundness, even a custom font. Change any of it, then save and share it as one code.</p>
+      <p>A theme is the whole visual identity of your dashboard: light or dark, canvas, panels, controls, text, borders, state colours, glass, corner roundness and even a custom font. Xenon applies those semantic roles everywhere, so Settings, menus, Deck tools and every built-in widget stay in the same visual language. Change any of it, then save and share it as one code.</p>
 
       <h3>Make one without code</h3>
       <ol class="steps">
         <li>Open <b>Settings → Appearance</b>.</li>
-        <li>Pick a mode (Light / Dark / Auto), an <b>accent colour</b>, and adjust the surface sliders (panel opacity, blur, roundness) until it feels right. Everything updates live.</li>
+        <li>Pick a mode (Light / Dark / Auto), then set the <b>canvas, panel, secondary surface, controls, text, borders and state colours</b> you care about. Leave a role on Auto and Xenon derives it from the surface.</li>
+        <li>Keep <b>Contrast protection</b> on unless you deliberately need exact low-contrast art direction. It repairs unreadable text and state combinations while preserving colours that already pass.</li>
+        <li>Adjust panel opacity, blur and roundness until the material feels right. Everything updates live across widgets, Settings, menus and Deck tools.</li>
         <li>Tap <b>Save current theme</b> to keep it as a card you can switch back to anytime.</li>
         <li>To share it: <b>Settings → Widgets &amp; sharing → Share &amp; Import → Export theme</b>. You get a link or a <em>.json</em> — send it to anyone.</li>
+      </ol>
+
+      <h3>One palette, every surface</h3>
+      <p>Theme files use role names instead of component-specific colours. This is the complete authoring contract; old three-colour themes with only <code>accent</code>, <code>background</code> and <code>text</code> still import, and Xenon derives the missing roles safely.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Theme role</th><th>What it controls</th></tr></thead>
+        <tbody>
+          <tr><td><code>background</code></td><td>App canvas behind all panels</td></tr>
+          <tr><td><code>surface</code> / <code>surfaceAlt</code></td><td>Panels, cards, rows and raised surfaces</td></tr>
+          <tr><td><code>controlColor</code></td><td>Inputs, selects, buttons and control wells</td></tr>
+          <tr><td><code>text</code> / <code>mutedText</code></td><td>Primary copy, labels and secondary details</td></tr>
+          <tr><td><code>lineColor</code></td><td>Borders, dividers and outlines</td></tr>
+          <tr><td><code>accent</code> / <code>accentText</code></td><td>Actions and the readable foreground placed on the accent</td></tr>
+          <tr><td><code>successColor</code>, <code>warningColor</code>, <code>dangerColor</code>, <code>infoColor</code></td><td>Shared status language across every widget and integration</td></tr>
+          <tr><td><code>contrastGuard</code></td><td>Automatic readability repair; defaults to <code>true</code></td></tr>
+        </tbody>
+      </table></div>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">theme.json — semantic palette</span><span class="badge">complete contract</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code>{
+  <span class="tok-k">"appearance"</span>: <span class="tok-s">"light"</span>,
+  <span class="tok-k">"background"</span>: <span class="tok-s">"#f1ead5"</span>,
+  <span class="tok-k">"surface"</span>: <span class="tok-s">"#fff8df"</span>,
+  <span class="tok-k">"surfaceAlt"</span>: <span class="tok-s">"#e4d8bd"</span>,
+  <span class="tok-k">"controlColor"</span>: <span class="tok-s">"#d8c9a9"</span>,
+  <span class="tok-k">"text"</span>: <span class="tok-s">"#241f1b"</span>,
+  <span class="tok-k">"mutedText"</span>: <span class="tok-s">"#61564d"</span>,
+  <span class="tok-k">"lineColor"</span>: <span class="tok-s">"#403833"</span>,
+  <span class="tok-k">"accent"</span>: <span class="tok-s">"#e53e54"</span>,
+  <span class="tok-k">"accentText"</span>: <span class="tok-s">"#ffffff"</span>,
+  <span class="tok-k">"contrastGuard"</span>: <span class="tok-k">true</span>
+}</code></pre>
+      </div>
+
+      <h3>Override just one widget</h3>
+      <ol class="steps">
+        <li>Turn on <b>Layout</b> and tap the paint control on the widget.</li>
+        <li>Switch from <b>Follow theme</b> to <b>Custom</b>, then change only the roles that tile needs. Unset roles continue to inherit the global theme.</li>
+        <li>The local palette is contrast-checked, saved with the layout, included in backups and page presets, and passed into sandboxed SDK widgets.</li>
+        <li>Choose <b>Follow theme</b> again to remove the override cleanly.</li>
       </ol>
 
       <h3>Or start from a real one</h3>
@@ -393,7 +436,7 @@
       </div>
 
       <h3>Write your own (optional)</h3>
-      <p>Under the templates there's a code box. Anything you type there runs in a locked sandbox — no internet, no access to your files. You define one function, <em>draw</em>, and Xenon calls it about 60 times a second. Here's the whole idea:</p>
+      <p>Under the templates there's a code box. Anything you type there runs in a locked sandbox — no internet, no access to your files. You define one function, <em>draw</em>, and Xenon calls it at the background's frame rate — <b>30 frames per second by default</b>, adjustable from 10 to 60 right next to the editor. Here's the whole idea:</p>
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">the draw() contract</span></div>
         <button class="copy-btn" data-copy>Copy</button>
@@ -412,6 +455,9 @@
 }</code></pre>
       </div>
       <p class="muted">That's a complete, working background. Keep the work per frame small and steady and it runs forever without slowing anything down. It lives in the same locked sandbox as a widget (no network, no access to your files), so it's always safe to try one.</p>
+      <h3>Frames per second — the performance dial</h3>
+      <p>Every animated background carries its own frame-rate cap: how many times per second the scene is repainted. <b>30 is the default</b> and the sweet spot for almost any scene — smooth to the eye, light on the machine. Near-static looks (a breathing gradient, a slow starfield) are happy at 10–20; reserve 60 for genuinely fast motion. Animation <em>speed</em> never changes — a lower cap only paints less often.</p>
+      <p class="muted">Theme authors set it when packaging (<code>bgCustom.fps</code> in a theme, or <code>"backgroundFps"</code> in <code>pack.json</code>). And it's always the user's machine, so the dial stays in their hands too: Settings → Animated background → <em>Frames per second</em> works even on imported backgrounds whose code is locked.</p>
     </section>
 
     <section id="pages">
@@ -428,10 +474,11 @@
 
     <section id="deck">
       <h2>Deck profiles — your own control grid</h2>
-      <p>The Deck widget is a Stream-Deck-style grid of keys. Each key can launch an app or website, control your media, run OBS or Discord, fire a hotkey, and more — and you style every key exactly how you like.</p>
+      <p>The Deck widget is a Stream-Deck-style grid of keys. Each key can launch an app or website, control your media, run OBS or Discord, fire a hotkey, and more — and you style every key exactly how you like. Each profile also owns its device appearance: cap material, shape, faceplate, key-well artwork and music-strip styling. An imported profile changes only itself; profiles already on the Deck keep their original look.</p>
       <ol class="steps">
         <li>Add the <b>Deck</b> widget from the <b>+</b> palette in Layout mode.</li>
         <li>Tap a key to open <b>Edit key</b>: choose an icon or a picture face, a label, colours or a gradient, and the action it runs on tap / double-tap / hold.</li>
+        <li>Open <b>Personalizza</b> to choose the profile's device theme. <b>Fumetto</b> makes the chassis, keys, icons and captions look hand-inked on paper; the live preview shows its full background before you apply it.</li>
         <li>Organise keys into folders and pages; group actions into a single key for multi-step macros.</li>
         <li>Share a profile with <b>Export Deck profile</b>. For safety, actions are rebuilt from scratch on export and import, and the import screen shows exactly which action types a profile contains before you add it.</li>
       </ol>
@@ -482,18 +529,25 @@
         <pre><code>&lt;!doctype html&gt;
 &lt;meta charset="utf-8"&gt;
 &lt;style&gt;
+  :root { --accent:#b57bff; --text:#f1ecfa; }
   body { margin:0; display:grid; place-items:center; height:100vh;
-         background:transparent; font-family:system-ui; }
-  #t  { font-size:16vw; font-weight:700; color:var(--accent, #b57bff);
-         text-shadow:0 0 22px rgba(181,123,255,.5); }
+         background:transparent; color:var(--text); font-family:system-ui; }
+  #t  { font-size:16vw; font-weight:700; color:var(--accent);
+         text-shadow:0 0 22px color-mix(in srgb,var(--accent),transparent 50%); }
 &lt;/style&gt;
 &lt;div id="t"&gt;--:--&lt;/div&gt;
 &lt;script&gt;
-  <span class="tok-c">// follow the dashboard theme when it arrives</span>
+  <span class="tok-c">// use this tile's complete, contrast-checked palette</span>
+  function applyTheme(theme) {
+    const p = theme &amp;&amp; (theme.palette || theme); <span class="tok-c">// fallback for older Xenon</span>
+    if (!p) return;
+    if (p.accent) document.documentElement.style.setProperty('--accent', p.accent);
+    if (p.text) document.documentElement.style.setProperty('--text', p.text);
+  }
   addEventListener('message', e =&gt; {
     const m = e.data;
-    if (m &amp;&amp; m.xenonSdk === 1 &amp;&amp; m.theme &amp;&amp; m.theme.accent)
-      document.documentElement.style.setProperty('--accent', m.theme.accent);
+    if (m &amp;&amp; m.xenonSdk === 1 &amp;&amp;
+        (m.type === 'init' || m.type === 'theme')) applyTheme(m.theme);
   });
   <span class="tok-c">// tick the clock every second</span>
   const pad = n =&gt; String(n).padStart(2,'0');
@@ -552,7 +606,13 @@
 
 <span class="tok-c">// ── Xenon → widget (you receive these in a 'message' listener) ──</span>
 { xenonSdk:1, type:<span class="tok-s">'init'</span>,
-  theme:{ appearance:<span class="tok-s">'dark'</span>, accent:<span class="tok-s">'#1ed760'</span>, background:<span class="tok-s">'#070808'</span>, text:<span class="tok-s">'#f0f3f1'</span> },
+  theme:{ appearance:<span class="tok-s">'dark'</span>, overrides:[<span class="tok-s">'accent'</span>],
+    palette:{
+      background:<span class="tok-s">'#070808'</span>, surface:<span class="tok-s">'#111314'</span>, surfaceAlt:<span class="tok-s">'#16191a'</span>, control:<span class="tok-s">'#1c2021'</span>,
+      text:<span class="tok-s">'#f0f3f1'</span>, muted:<span class="tok-s">'#a6b1ad'</span>, dim:<span class="tok-s">'#7f8a86'</span>, line:<span class="tok-s">'#46504c'</span>,
+      accent:<span class="tok-s">'#1ed760'</span>, onAccent:<span class="tok-s">'#111111'</span>,
+      success:<span class="tok-s">'#45d483'</span>, warning:<span class="tok-s">'#f0b84f'</span>, danger:<span class="tok-s">'#ff6268'</span>, info:<span class="tok-s">'#62cbea'</span>
+    } },
   lang:<span class="tok-s">'en'</span>,                 <span class="tok-c">// en · it · ko · ja · zh</span>
   streams:[<span class="tok-s">'system'</span>],       <span class="tok-c">// what the user actually granted</span>
   actions:[<span class="tok-s">'media'</span>] }
@@ -582,18 +642,22 @@
         <pre><code>&lt;!doctype html&gt;
 &lt;meta charset="utf-8"&gt;
 &lt;style&gt;
+  :root { --accent:#1ed760; --text:#e9f2ee; }
   body { margin:0; display:grid; place-items:center; height:100vh;
-         font-family:system-ui; color:#e9f2ee; background:transparent; }
-  #v { font-size:14vw; font-weight:700; color:var(--accent,#1ed760); }
+         font-family:system-ui; color:var(--text); background:transparent; }
+  #v { font-size:14vw; font-weight:700; color:var(--accent); }
 &lt;/style&gt;
 &lt;div id="v"&gt;--%&lt;/div&gt;
 &lt;script&gt;
   addEventListener('message', e =&gt; {
     const m = e.data;
     if (!m || m.xenonSdk !== 1) return;
-    <span class="tok-c">// theme comes on init and whenever it changes</span>
-    if ((m.type === 'init' || m.type === 'theme') &amp;&amp; m.theme &amp;&amp; m.theme.accent)
-      document.documentElement.style.setProperty('--accent', m.theme.accent);
+    <span class="tok-c">// palette comes on init and whenever this tile's theme changes</span>
+    if ((m.type === 'init' || m.type === 'theme') &amp;&amp; m.theme) {
+      const p = m.theme.palette || m.theme;
+      if (p.accent) document.documentElement.style.setProperty('--accent', p.accent);
+      if (p.text) document.documentElement.style.setProperty('--text', p.text);
+    }
     <span class="tok-c">// live data for a stream we were granted</span>
     if (m.type === 'data' &amp;&amp; m.stream === 'system') {
       const cpu = Number(m.data &amp;&amp; m.data.cpu);
@@ -957,8 +1021,10 @@ parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'state'</span>,
         <li>Go to <b>Share &amp; Import → Export package</b>.</li>
         <li>Tick what to include: theme (with its font), pages, Deck profiles, background, your own widgets and Ambient scenes.</li>
         <li>You get a single code. When someone imports it, each part is re-checked on the way in, and any widgets ask for their permissions — exactly like installing them one by one, just in one step.</li>
+        <li>To uninstall it later, open <b>Share &amp; Import → Installed content</b>. Xenon shows every resource that download added and <b>Remove all</b> deletes them together without touching the user's own creations.</li>
       </ol>
       <div class="note safe"><b>Your work stays yours.</b> You can only export creations you made. Anything you imported from someone else is marked as theirs and can't be re-shared — so credit never gets lost.</div>
+      <div class="note"><b>Imports from older Xenon versions:</b> previous releases did not save package ownership. They appear in one labelled legacy group and can be cleaned up together; every new import is tracked separately and survives restart, backup export and restore.</div>
     </section>
 
     <section id="publish">

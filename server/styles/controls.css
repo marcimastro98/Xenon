@@ -14,12 +14,12 @@
 /* ═══ Scrollbars ═════════════════════════════════════════════════════ */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+  scrollbar-color: var(--scrollbar-thumb, rgba(255, 255, 255, 0.22)) transparent;
 }
 ::-webkit-scrollbar { width: 12px; height: 12px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.18);
+  background-color: var(--scrollbar-thumb, rgba(255, 255, 255, 0.18));
   border-radius: 999px;
   border: 3px solid transparent;
   background-clip: content-box;
@@ -36,12 +36,12 @@ select {
   appearance: none;
   font: inherit;
   color: var(--text, #f0f3f1);
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: var(--input-bg, rgba(255, 255, 255, 0.05));
   background-image: var(--select-chevron);
   background-repeat: no-repeat;
   background-position: right 11px center;
   background-size: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
   border-radius: var(--radius-control, 10px);
   padding: 9px 34px 9px 12px;
   cursor: pointer;
@@ -55,10 +55,10 @@ select:focus-visible {
   box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.16);
 }
 select:disabled { opacity: 0.5; cursor: default; }
-/* The option popup is OS-rendered: keep it dark + readable. */
+/* The option popup is OS-rendered but still receives the semantic palette. */
 select option {
-  background-color: #15191a;
-  color: #f0f3f1;
+  background-color: var(--control-bg, #15191a);
+  color: var(--text, #f0f3f1);
 }
 
 /* ═══ Checkboxes ═════════════════════════════════════════════════════ */
@@ -68,9 +68,9 @@ input[type="checkbox"] {
   flex-shrink: 0;
   width: 18px;
   height: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.28));
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--input-bg, rgba(255, 255, 255, 0.05));
   cursor: pointer;
   position: relative;
   display: inline-grid;
@@ -83,7 +83,7 @@ input[type="checkbox"]::after {
   width: 5px;
   height: 9px;
   margin-top: -1px;
-  border: solid var(--bg, #06080a);
+  border: solid var(--on-accent, #06080a);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg) scale(0);
   transition: transform 0.16s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));

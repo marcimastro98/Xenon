@@ -24,7 +24,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 2px;
-  color: #c0cac6;
+  color: var(--muted-text);
   font-size: 13.5px;
   font-weight: 850;
 }
@@ -58,7 +58,7 @@
   flex: 0 1 auto;
   flex-wrap: wrap;
   gap: 2px;
-  background: rgba(255,255,255,0.035);
+  background: var(--surface-alt);
   border: 1px solid rgba(255,255,255,0.055);
   border-radius: 22px;
   padding: 3px;
@@ -103,7 +103,7 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.sys-tab:hover:not(.active) { color: #d3ddd9; }
+.sys-tab:hover:not(.active) { color: var(--text); }
 .sys-tab.active {
   background: rgba(var(--accent-rgb), 0.14);
   color: var(--accent);
@@ -114,8 +114,8 @@
   padding: 3px 9px;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,0.07);
-  background: rgba(18,23,24,0.42);
-  color: #d6dfdb;
+  background: var(--surface-alt);
+  color: var(--text);
   font-size: 11.5px;
   font-weight: 800;
   white-space: nowrap;
@@ -136,8 +136,8 @@
   overflow: hidden;
 }
 .weather-pill.offline {
-  border-color: rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.04);
+  border-color: var(--divider);
+  background: var(--surface-alt);
   color: var(--muted-text);
 }
 .weather-pill svg {
@@ -163,14 +163,14 @@
 /* Network grid cards */
 .sys-net-grid .stat-row { align-items: baseline; gap: 4px; }
 .stat-unit {
-  color: #a9b8b2;
+  color: var(--muted-text);
   font-size: 13.5px;
   font-weight: 700;
   letter-spacing: 0.3px;
 }
 .stat-na {
-  background: rgba(255,255,255,0.05);
-  color: #b0bcb8;
+  background: var(--surface-alt);
+  color: var(--muted-text);
   border: 1px solid rgba(255,255,255,0.08);
   padding: 1px 7px;
   border-radius: 999px;
@@ -180,7 +180,7 @@
 }
 .stat-fill.net-ping     { background: linear-gradient(90deg,var(--green),var(--green)); }
 .stat-fill.net-fps      { background: linear-gradient(90deg,#7c5cff,#4c8cff); }
-.stat-fill.net-latency  { background: linear-gradient(90deg,#ffb74d,#ff7043); }
+.stat-fill.net-latency  { background: linear-gradient(90deg, var(--color-warn), color-mix(in srgb, var(--color-warn), var(--color-danger) 42%)); }
 .stat-row-bw {
   display: flex;
   flex-direction: column;
@@ -207,12 +207,12 @@
 .bw-value {
   font-size: 18px;
   font-weight: 900;
-  color: #e7f0ec;
+  color: var(--text);
   line-height: 1;
   min-width: 0;
 }
 .bw-unit {
-  color: #a9b8b2;
+  color: var(--muted-text);
   font-size: 12.5px;
   font-weight: 700;
 }
@@ -254,7 +254,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  color: #a6b1ad;
+  color: var(--muted-text);
   font-size: 11px;
   font-weight: 850;
   letter-spacing: 0.5px;
@@ -287,7 +287,7 @@
 .stat-head-name:empty { display: none; }
 
 .stat-head-value {
-  color: #c1cbc7;
+  color: var(--muted-text);
   font-size: 10.5px;
   font-weight: 850;
   letter-spacing: 0.2px;
@@ -305,7 +305,7 @@
   font-size: 19px;
   font-weight: 850;
   font-variant-numeric: tabular-nums;
-  color: #f0f3f1;
+  color: var(--text);
 }
 
 .stat-temp {
@@ -326,7 +326,7 @@
 
 .stat-detail {
   min-height: 12px;
-  color: #c1cbc7;
+  color: var(--muted-text);
   font-size: 11px;
   line-height: 1.15;
   font-weight: 800;
@@ -336,7 +336,7 @@
 }
 
 .stat-muted-detail {
-  color: #929d99;
+  color: var(--dim-text);
   font-size: 10.5px;
 }
 
@@ -344,7 +344,7 @@
   margin-top: 2px;
   height: 4px;
   border-radius: 999px;
-  background: #171c1c;
+  background: var(--control-bg);
   overflow: hidden;
 }
 
@@ -406,8 +406,8 @@
 .stat-head-temp:empty { display: none; }
 .stat-head-temp.amber {
   color: var(--amber);
-  background: rgba(240, 184, 79, 0.12);
-  border-color: rgba(240, 184, 79, 0.22);
+  background: var(--warning-bg);
+  border-color: rgba(var(--warning-rgb), 0.22);
 }
 
 .disk-cycle-btn {
@@ -424,7 +424,7 @@
   transition: opacity 0.15s ease, color 0.15s ease;
   flex-shrink: 0;
 }
-.disk-cycle-btn:hover { opacity: 1; color: #d0d8d4; }
+.disk-cycle-btn:hover { opacity: 1; color: var(--text); }
 .disk-cycle-btn svg { width: 12px; height: 12px; fill: currentColor; }
 
 .device-caption {

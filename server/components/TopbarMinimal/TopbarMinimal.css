@@ -147,6 +147,7 @@ body.topbar-minimal .topbar-mini .clock-weather {
   gap: 5px;
   background: none;
   border: 0;
+  box-shadow: none;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }

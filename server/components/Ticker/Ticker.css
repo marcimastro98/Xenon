@@ -11,10 +11,8 @@
   --xe-stock-down: #d32f3c;
 }
 @media (prefers-color-scheme: dark) {
-  :root { --xe-stock-up: #2fdd92; --xe-stock-down: #ff5b6a; }
+  :root { --xe-stock-up: var(--color-success); --xe-stock-down: var(--color-danger); }
 }
-:root[data-theme="dark"] { --xe-stock-up: #2fdd92; --xe-stock-down: #ff5b6a; }
-:root[data-theme="light"] { --xe-stock-up: #0a8f54; --xe-stock-down: #d32f3c; }
 
 #xe-ticker {
   position: fixed;

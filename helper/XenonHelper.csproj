@@ -39,16 +39,24 @@
          arbitrary BCL surface external code may touch. Sensors stay in the
          PowerShell worker for exactly that reason. -->
     <PublishTrimmed>true</PublishTrimmed>
+    <!-- Keep built-in COM interop under trimming: WindowsTool reads a window's
+         AUMID through IPropertyStore (SHGetPropertyStoreForWindow) to resolve
+         packaged-app tile logos. -->
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <DebugType>embedded</DebugType>
-    <!-- Bump together with install.ps1 $minVersion on any protocol/capability
+    <!-- Bump together with helper-update.ps1 $minVersion on any protocol/capability
          change, or existing installs keep the stale exe. 0.2.0 = windows tool;
          0.3.0 = screen-serve (Second-screen GDI capture host);
          0.3.1 = screen-serve "setmode" (commit the virtual display resolution);
          0.3.2 = screen-serve composites the mouse cursor into the frame;
          0.4.0 = notifications-serve (Windows notification mirror);
          0.5.0 = windows list emits each window's exe `path` (launch closed favorites);
-         0.5.2 = media position interpolated from the SMTC LastUpdatedTime stamp. -->
-    <Version>0.5.2</Version>
+         0.5.2 = media position interpolated from the SMTC LastUpdatedTime stamp;
+         0.6.0 = windows list resolves the exe path via QueryFullProcessImageName
+                 when MainModule is ACL-blocked (fixes Discord and other elevated
+                 apps) and falls back to the packaged-app tile logo for UWP windows
+                 (WhatsApp etc.) via AUMID + WinRT AppInfo.DisplayInfo.GetLogo. -->
+    <Version>0.6.0</Version>
     <Description>Xenon Helper — native companion process for the Xenon dashboard server</Description>
   </PropertyGroup>
 

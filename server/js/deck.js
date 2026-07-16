@@ -69,6 +69,11 @@
     const sizes = (window.DeckModel && window.DeckModel.KEY_SIZES) || { sm: 56, md: 76, lg: 104 };
     return sizes[cfg.keySize] || sizes.md || 76;
   }
+  function deckLookFor(cfg, profileId) {
+    const M = window.DeckModel;
+    if (M && typeof M.effectiveDeckLook === 'function') return M.effectiveDeckLook(cfg, profileId);
+    return { capStyle: cfg.capStyle, keyShape: cfg.keyShape, plate: cfg.plate, wellImage: cfg.wellImage, mediaStyle: cfg.mediaStyle };
+  }
   // True while the dashboard Layout editor is open. The deck must NOT auto-fit its
   // key grid then: the tile is mid-resize (GridStack hasn't applied its final cell
   // height yet, and the user is actively dragging the corner), so measuring it now
@@ -258,7 +263,10 @@
     markDirty(window.DeckStore.PRESETS_ID);   // both preset lists travel in one 'presets' op
   }
   function listProfilePresets() { return readPresets(); }
-  function deleteProfilePreset(id) { writePresets(readPresets().filter(p => p.id !== id)); }
+  function deleteProfilePreset(id) {
+    writePresets(readPresets().filter(p => p.id !== id));
+    if (window.forgetInstalledContentResource) window.forgetInstalledContentResource('deckPresetIds', id);
+  }
   // Save profile `profileId` of `instanceId` as a named preset (prompts for a name).
   function saveProfileAsPreset(instanceId, profileId, defName) {
     const profile = window.DeckModel.getProfile(getConfig(instanceId), profileId);
@@ -381,7 +389,7 @@
       let cfg; try { cfg = M.normalizeDeckConfig(all[id]); } catch { continue; }
       for (const prof of (cfg.profiles || [])) {
         const keys = countProfileKeys(prof);
-        if (keys > 0) out.push({ instanceId: id, profileId: prof.id, name: prof.name, keys, imported: prof.imported === true });
+        if (keys > 0) out.push({ instanceId: id, profileId: prof.id, name: prof.name, keys, imported: prof.imported === true, installId: prof.installId || '' });
       }
     }
     return out;
@@ -389,61 +397,108 @@
   // Deep-cloned profile object for export (PresetShare sanitizes + encodes it).
   function getProfileTemplate(instanceId, profileId) {
     const cfg = durableConfig(instanceId);
-    const prof = window.DeckModel.getProfile(cfg, profileId);
+    const M = window.DeckModel;
+    const prof = M.getProfile(cfg, profileId);
     if (!prof) return prof;
-    // Attach the device LOOK (well background + music-strip styling) so it travels
-    // with a shared/bundled profile. Cloned so we never mutate the live config;
-    // sanitizeDeckProfile re-validates it on export, importSharedProfile applies it.
-    // Pieces that arrived via someone else's shared profile (imported flag) stay
-    // home — you can only share your own creations.
-    const ownWell = (cfg.wellImage && cfg.wellImage.imported !== true) ? cfg.wellImage : null;
-    const ownMedia = (cfg.mediaStyle && cfg.mediaStyle.imported !== true) ? cfg.mediaStyle : null;
-    if (ownWell || ownMedia) {
-      const clone = JSON.parse(JSON.stringify(prof));
-      clone.look = {};
-      if (ownWell) clone.look.wellImage = ownWell;
-      if (ownMedia) clone.look.mediaStyle = ownMedia;
-      return clone;
-    }
-    return prof;
+    // Snapshot the effective presentation so importing this profile never depends
+    // on the receiver's Deck defaults. Imported third-party artwork stays home.
+    const clone = JSON.parse(JSON.stringify(prof));
+    const effective = M.effectiveDeckLook(cfg, profileId);
+    clone.look = {
+      capStyle: effective.capStyle,
+      keyShape: effective.keyShape,
+      plate: effective.plate,
+      wellImage: (effective.wellImage && effective.wellImage.imported !== true) ? effective.wellImage : null,
+      mediaStyle: (effective.mediaStyle && effective.mediaStyle.imported !== true) ? effective.mediaStyle : null,
+    };
+    return clone;
   }
   // Land an imported (already-sanitized) shared profile: as a new profile on
   // `instanceId` (fresh id, grid grown to fit, becomes active — the exact
   // "copy from another deck" path), or into the profile-preset library when no
   // deck tile is on the dashboard, so the import is never a dead end.
-  function importSharedProfile(instanceId, profile) {
+  function importSharedProfile(instanceId, profile, installId) {
     if (!profile || typeof profile !== 'object') return { ok: false };
     // Someone else's work: mark it so exports can refuse to redistribute it.
     // normalizeProfile preserves the flag; sanitizeDeckProfile strips it on export.
-    const marked = Object.assign({}, profile, { imported: true });
-    // The shared LOOK (well background + music strip) rides on profile.look; apply
-    // it to the target device so the imported aesthetic looks the same. Re-validated
-    // by normalizeDeckConfig inside saveConfig (defence in depth).
-    const look = (profile.look && typeof profile.look === 'object') ? profile.look : null;
+    const look = (profile.look && typeof profile.look === 'object') ? Object.assign({}, profile.look) : null;
+    if (look) {
+      // Third-party artwork provenance is profile-local: it blocks redistribution
+      // without leaking the imported look into sibling profiles.
+      if (look.wellImage) look.wellImage = Object.assign({}, look.wellImage, { imported: true });
+      if (look.mediaStyle) look.mediaStyle = Object.assign({}, look.mediaStyle, { imported: true });
+    }
+    const marked = Object.assign({}, profile, { imported: true, look });
+    if (/^xi_[a-z0-9]{8,32}$/.test(String(installId || ''))) marked.installId = String(installId);
     const inst = deckInstances().find(d => d.instanceId === instanceId);
     if (inst) {
-      let cfg = window.DeckModel.addProfileFromTemplate(getConfig(instanceId), marked);
-      if (look) {
-        cfg = Object.assign({}, cfg);
-        // Third-party artwork: stamp provenance so getProfileTemplate never
-        // re-attaches it to the user's own exports (normalizers preserve it).
-        if (look.wellImage) cfg.wellImage = Object.assign({}, look.wellImage, { imported: true });
-        if (look.mediaStyle) cfg.mediaStyle = Object.assign({}, look.mediaStyle, { imported: true });
-      }
+      const cfg = window.DeckModel.addProfileFromTemplate(getConfig(instanceId), marked);
       saveConfig(instanceId, cfg);
       const state = navOf(instanceId);
       state.path = []; state.pageIndex = 0;
       render(inst.tile, instanceId);
-      return { ok: true, added: true };
+      return { ok: true, added: true, instanceId, profileId: cfg.activeProfile };
     }
     const list = readPresets().slice();
+    const presetId = 'dp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
     list.push({
-      id: 'dp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+      id: presetId,
       name: String(marked.name || '').trim() || 'Profile',
-      profile: marked, createdAt: Date.now(),
+      profile: marked, createdAt: Date.now(), installId: marked.installId || undefined,
     });
     writePresets(list);
-    return { ok: true, savedAsPreset: true };
+    return { ok: true, savedAsPreset: true, presetId };
+  }
+
+  // Imported resource inventory + receipt-checked removal used by the content
+  // manager. A missing/old receipt may only touch legacy `imported` entries;
+  // a normal receipt must match the profile/preset installId exactly.
+  function listImportedResources() {
+    const profiles = [];
+    const M = window.DeckModel;
+    const all = readStore();
+    for (const instanceId of Object.keys(all)) {
+      let cfg; try { cfg = M.normalizeDeckConfig(all[instanceId]); } catch { continue; }
+      for (const profile of (cfg.profiles || [])) {
+        if (profile.imported === true) profiles.push({ instanceId, profileId: profile.id, installId: profile.installId || '' });
+      }
+    }
+    const presets = readPresets()
+      .filter(p => p && p.profile && p.profile.imported === true)
+      .map(p => ({ presetId: p.id, installId: p.installId || p.profile.installId || '' }));
+    return { profiles, presets };
+  }
+
+  function removeImportedResources(resources, installId, legacy) {
+    const refs = Array.isArray(resources && resources.deckProfiles) ? resources.deckProfiles : [];
+    const presetIds = new Set(Array.isArray(resources && resources.deckPresetIds) ? resources.deckPresetIds : []);
+    const isOwner = (item) => legacy === true
+      ? item && item.imported === true && !item.installId
+      : item && item.installId === installId;
+    let removed = 0;
+    const all = readStore();
+    for (const ref of refs) {
+      if (!ref || !all[ref.instanceId]) continue;
+      let cfg; try { cfg = window.DeckModel.normalizeDeckConfig(all[ref.instanceId]); } catch { continue; }
+      const target = cfg.profiles.find(p => p.id === ref.profileId);
+      if (!isOwner(target)) continue;
+      if (cfg.profiles.length <= 1) cfg = window.DeckModel.addProfile(cfg, tr('deck_profile_default', 'Profile'));
+      cfg = window.DeckModel.removeProfile(cfg, target.id);
+      saveConfig(ref.instanceId, cfg);
+      removed++;
+    }
+    const before = readPresets();
+    const after = before.filter((p) => {
+      if (!presetIds.has(p.id)) return true;
+      const owner = Object.assign({}, p.profile || {}, { installId: p.installId || (p.profile && p.profile.installId) || '' });
+      return !isOwner(owner);
+    });
+    if (after.length !== before.length) {
+      removed += before.length - after.length;
+      writePresets(after);
+    }
+    if (removed) renderAll();
+    return removed;
   }
 
   // ── Single-key presets (save one key, reuse on any slot) ──────────
@@ -1287,7 +1342,7 @@
     catch { return ''; }
   }
 
-  function buildTools(tile, instanceId, cfg) {
+  function buildTools(tile, instanceId, cfg, profileId) {
     const tools = el('div', 'deck-tools');
     // The inline toolbar keeps only the structural grid controls (size, fit,
     // cols/rows, media). The whole-device LOOK (theme/shape/plate) and the
@@ -1358,7 +1413,7 @@
     // Open the appearance modal (theme/shape/plate + background + music, with a
     // live preview of the deck and its music bar).
     const custom = el('button', 'deck-pill deck-customize', tr('deck_style_open', 'Personalizza')); custom.type = 'button';
-    custom.addEventListener('click', () => openDeckStyleModal(tile, instanceId));
+    custom.addEventListener('click', () => openDeckStyleModal(tile, instanceId, profileId));
     rowLayout.appendChild(custom);
 
     return tools;
@@ -1384,31 +1439,36 @@
       try { render(tile, instanceId); } catch (_) {}
     }
   }
-  function buildDeckStylePreview(cfg) {
-    const view = window.DeckModel.resolveView(cfg, { profileId: cfg.activeProfile, path: [], pageIndex: 0 });
+  function buildDeckStylePreview(cfg, profileId) {
+    const targetProfile = cfg.profiles.some((p) => p.id === profileId) ? profileId : cfg.activeProfile;
+    const look = deckLookFor(cfg, targetProfile);
+    const view = window.DeckModel.resolveView(cfg, { profileId: targetProfile, path: [], pageIndex: 0 });
     const root = el('div', 'deck-root deck-style-preview-root');
     root.dataset.keysize = cfg.keySize;
-    root.dataset.capstyle = cfg.capStyle;
-    root.dataset.shape = cfg.keyShape;
-    root.dataset.plate = cfg.plate;
+    root.dataset.capstyle = look.capStyle;
+    root.dataset.shape = look.keyShape;
+    root.dataset.plate = look.plate;
     root.style.setProperty('--deck-cols', cfg.cols);
     root.style.setProperty('--deck-rows', cfg.rows);
     root.style.setProperty('--deck-key-min', keyMinFor(cfg) + 'px');
     const device = el('div', 'deck-device');
     const well = el('div', 'deck-well');
-    const wl = buildWellBg(cfg.wellImage);
+    const wl = buildWellBg(look.wellImage);
     if (wl) { well.classList.add('has-bgimg'); well.appendChild(wl); }
     const grid = el('div', 'deck-grid');
     (view.page.keys || []).forEach((key) => grid.appendChild(renderKey(key)));
     well.appendChild(grid);
     device.appendChild(well);
-    device.appendChild(buildNowPlaying(cfg.mediaStyle));   // always shown so music styling is visible
+    device.appendChild(buildNowPlaying(look.mediaStyle));   // always shown so music styling is visible
     root.appendChild(device);
     return root;
   }
-  function openDeckStyleModal(tile, instanceId) {
+  function openDeckStyleModal(tile, instanceId, profileId) {
     closeDeckStyleModal();
     const M = window.DeckModel;
+    const initial = getConfig(instanceId);
+    const targetProfile = initial.profiles.some((p) => p.id === profileId) ? profileId : initial.activeProfile;
+    const getLook = () => deckLookFor(getConfig(instanceId), targetProfile);
     const overlay = el('div', 'deck-style-modal');
     overlay.addEventListener('pointerdown', (e) => { if (e.target === overlay) closeDeckStyleModal(); });
     const dialog = el('div', 'deck-style-dialog');
@@ -1422,11 +1482,11 @@
     const previewHost = el('div', 'deck-style-preview');
     // Rebuilt synchronously (a handful of keys + the music bar — cheap); rAF was
     // unreliable when the tab isn't the foreground one.
-    const refreshPreview = () => { previewHost.replaceChildren(buildDeckStylePreview(getConfig(instanceId))); };
+    const refreshPreview = () => { previewHost.replaceChildren(buildDeckStylePreview(getConfig(instanceId), targetProfile)); };
     // Persist + update the preview only; the deck behind is hidden, so it's
     // repainted once on close (closeDeckStyleModal) instead of on every keystroke.
     const saveRender = (patch) => {
-      saveConfig(instanceId, Object.assign({}, getConfig(instanceId), patch));
+      saveConfig(instanceId, M.setProfileLook(getConfig(instanceId), targetProfile, patch));
       refreshPreview();
     };
     // Continuous colour drags preview WITHOUT persisting — saveConfig stringifies
@@ -1435,12 +1495,12 @@
     // 'change' (release); closeDeckStyleModal flushes it as a safety net.
     let livePending = null;
     const previewWith = (patch) => {
-      previewHost.replaceChildren(buildDeckStylePreview(Object.assign({}, getConfig(instanceId), patch)));
+      previewHost.replaceChildren(buildDeckStylePreview(M.setProfileLook(getConfig(instanceId), targetProfile, patch), targetProfile));
     };
 
     // Segmented enum pick — updates the active button locally, no rebuild.
     const seg = (capKey, capFb, field, values, decorate) => {
-      const cfg = getConfig(instanceId);
+      const cfg = getLook();
       const grp = el('div', 'deck-style-grp');
       grp.appendChild(el('span', 'deck-style-cap', tr(capKey, capFb)));
       const s = el('div', 'deck-seg');
@@ -1448,7 +1508,7 @@
         const b = el('button', cfg[field] === val ? 'active' : ''); b.type = 'button';
         decorate(b, val);
         b.addEventListener('click', () => {
-          if (getConfig(instanceId)[field] === val) return;
+          if (getLook()[field] === val) return;
           s.querySelectorAll('button').forEach((x) => x.classList.remove('active'));
           b.classList.add('active');
           saveRender({ [field]: val });
@@ -1526,14 +1586,14 @@
     refreshPreview();
     dialog.appendChild(previewHost);
     // Controls
-    const cfg0 = getConfig(instanceId);
+    const cfg0 = getLook();
     const body = el('div', 'deck-style-body');
     const SHAPE_SVG = {
       rounded: '<svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="3.5"/></svg>',
       square: '<svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/></svg>',
       circle: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/></svg>',
     };
-    body.appendChild(seg('deck_capstyle', 'Tema', 'capStyle', M.CAP_STYLES || ['lcd', 'flat', 'neon', 'glass'],
+    body.appendChild(seg('deck_capstyle', 'Tema', 'capStyle', M.CAP_STYLES || ['lcd', 'flat', 'neon', 'glass', 'vivid'],
       (b, v) => { b.textContent = tr('deck_capstyle_' + v, v.toUpperCase()); }));
     body.appendChild(seg('deck_shape', 'Forma', 'keyShape', M.KEY_SHAPES || ['rounded', 'square', 'circle'],
       (b, v) => { b.innerHTML = SHAPE_SVG[v] || ''; b.title = tr('deck_shape_' + v, v); }));
@@ -1541,13 +1601,13 @@
       (b, v) => { b.textContent = tr('deck_plate_' + v, v); }));
     // Background section
     body.appendChild(el('div', 'deck-style-subhead', tr('deck_decor_well', 'Sfondo')));
-    body.appendChild(imagePick('deck_decor_well', 'Sfondo', () => !!(getConfig(instanceId).wellImage || {}).src,
-      (src) => { const cur = getConfig(instanceId); saveRender({ wellImage: Object.assign({ fit: 'cover', dim: 30, blur: 0 }, cur.wellImage, { src }) }); },
-      () => { const cur = getConfig(instanceId); const wi = Object.assign({}, cur.wellImage); delete wi.src; saveRender({ wellImage: wi.grad ? wi : null }); }));
+    body.appendChild(imagePick('deck_decor_well', 'Sfondo', () => !!(getLook().wellImage || {}).src,
+      (src) => { const cur = getLook(); saveRender({ wellImage: Object.assign({ fit: 'cover', dim: 30, blur: 0 }, cur.wellImage, { src }) }); },
+      () => { const cur = getLook(); const wi = Object.assign({}, cur.wellImage); delete wi.src; saveRender({ wellImage: wi.grad ? wi : null }); }));
     body.appendChild(gradPick(
-      () => (getConfig(instanceId).wellImage || {}).grad || null,
+      () => (getLook().wellImage || {}).grad || null,
       (grad, persist) => {
-        const cur = getConfig(instanceId);
+        const cur = getLook();
         const wi = Object.assign({ fit: 'cover', dim: 30, blur: 0 }, cur.wellImage);
         if (grad) wi.grad = grad; else delete wi.grad;
         const patch = { wellImage: (wi.src || wi.grad) ? wi : null };
@@ -1566,7 +1626,7 @@
     acc.disabled = !accChk.checked;
     const syncAcc = (persist) => {
       acc.disabled = !accChk.checked;
-      const cur = getConfig(instanceId);
+      const cur = getLook();
       const ms = Object.assign({}, cur.mediaStyle);
       if (accChk.checked) ms.accent = acc.value; else delete ms.accent;
       const patch = { mediaStyle: (ms.src || ms.grad || ms.accent) ? ms : null };
@@ -1578,13 +1638,13 @@
     acc.addEventListener('change', () => syncAcc(true));
     accGrp.append(accChk, acc);
     body.appendChild(accGrp);
-    body.appendChild(imagePick('deck_decor_media_bg', 'Sfondo musica', () => !!(getConfig(instanceId).mediaStyle || {}).src,
-      (src) => { const cur = getConfig(instanceId); saveRender({ mediaStyle: Object.assign({ dim: 40 }, cur.mediaStyle, { src }) }); },
-      () => { const cur = getConfig(instanceId); const ms = Object.assign({}, cur.mediaStyle); delete ms.src; delete ms.dim; saveRender({ mediaStyle: (ms.grad || ms.accent) ? ms : null }); }));
+    body.appendChild(imagePick('deck_decor_media_bg', 'Sfondo musica', () => !!(getLook().mediaStyle || {}).src,
+      (src) => { const cur = getLook(); saveRender({ mediaStyle: Object.assign({ dim: 40 }, cur.mediaStyle, { src }) }); },
+      () => { const cur = getLook(); const ms = Object.assign({}, cur.mediaStyle); delete ms.src; delete ms.dim; saveRender({ mediaStyle: (ms.grad || ms.accent) ? ms : null }); }));
     body.appendChild(gradPick(
-      () => (getConfig(instanceId).mediaStyle || {}).grad || null,
+      () => (getLook().mediaStyle || {}).grad || null,
       (grad, persist) => {
-        const cur = getConfig(instanceId);
+        const cur = getLook();
         const ms = Object.assign({}, cur.mediaStyle);
         if (grad) ms.grad = grad; else delete ms.grad;
         const patch = { mediaStyle: (ms.src || ms.grad || ms.accent) ? ms : null };
@@ -1896,6 +1956,7 @@
     });
     state.pageIndex = view.pageIndex; // resolveView clamps
     const navCtx = { profileId: shownProfile, path: state.path, pageIndex: view.pageIndex };
+    const look = deckLookFor(cfg, shownProfile);
 
     // Preserve the layout-editor overlay (the hide / move-page controls that
     // dashboard-layout.js appends to the tile). A bare replaceChildren() would
@@ -1910,9 +1971,9 @@
     root.dataset.keysize = cfg.keySize;
     // Whole-device look: cap material, cap shape and faceplate finish (see
     // DeckPanel.css [data-capstyle] / [data-shape] / [data-plate] variants).
-    root.dataset.capstyle = cfg.capStyle;
-    root.dataset.shape = cfg.keyShape;
-    root.dataset.plate = cfg.plate;
+    root.dataset.capstyle = look.capStyle;
+    root.dataset.shape = look.keyShape;
+    root.dataset.plate = look.plate;
     root.style.setProperty('--deck-cols', cfg.cols);
     root.style.setProperty('--deck-rows', cfg.rows);
     root.style.setProperty('--deck-key-min', keyMinFor(cfg) + 'px');
@@ -1965,12 +2026,12 @@
     // well, page footer, and the optional now-playing screen.
     const device = el('div', 'deck-device');
     device.appendChild(bar);
-    if (state.editing) device.appendChild(buildTools(tile, instanceId, cfg));
+    if (state.editing) device.appendChild(buildTools(tile, instanceId, cfg, shownProfile));
 
     const well = el('div', 'deck-well');
     // Free-form background behind the key grid: image, gradient, or both (additive;
     // classic look when unset).
-    const wl = buildWellBg(cfg.wellImage);
+    const wl = buildWellBg(look.wellImage);
     if (wl) { well.classList.add('has-bgimg'); well.appendChild(wl); }
     const grid = el('div', 'deck-grid');
     view.page.keys.forEach((key, slotIndex) => {
@@ -2042,7 +2103,7 @@
     // Now-playing dock (optional). Hidden while editing: it steals vertical
     // space the edit grid needs for touch-sized caps, and it isn't editable —
     // the "Musica" toolbar pill still shows/toggles the setting.
-    if (cfg.showMedia && !state.editing) device.appendChild(buildNowPlaying(cfg.mediaStyle));
+    if (cfg.showMedia && !state.editing) device.appendChild(buildNowPlaying(look.mediaStyle));
 
     root.appendChild(device);
     tile.appendChild(root);
@@ -2291,6 +2352,9 @@
         del.addEventListener('click', (e) => {
           e.stopPropagation();
           saveConfig(instanceId, window.DeckModel.removeProfile(getConfig(instanceId), p.id));
+          if (window.forgetInstalledContentResource) {
+            window.forgetInstalledContentResource('deckProfiles', { instanceId, profileId: p.id });
+          }
           state.path = []; state.pageIndex = 0; state.renamingProfile = null;
           render(tile, instanceId);
         });
@@ -2421,9 +2485,10 @@
   function openEditor(tile, instanceId, navCtx, slotIndex, key) {
     if (!window.DeckEditor) return;
     const lookCfg = getConfig(instanceId);
+    const look = deckLookFor(lookCfg, navCtx.profileId);
     window.DeckEditor.open({
       key: key || null,
-      look: { capStyle: lookCfg.capStyle, keyShape: lookCfg.keyShape },
+      look: { capStyle: look.capStyle, keyShape: look.keyShape },
       onSave: (rawKey) => {
         const cfg = getConfig(instanceId);
         saveConfig(instanceId, window.DeckModel.setKeyAt(cfg, navCtx, slotIndex, rawKey));
@@ -2995,7 +3060,7 @@
   }
 
   if (typeof window !== 'undefined') {
-    window.Deck = { render, renderAll, refreshStates, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia, listProfiles, switchProfileByName, applyGenesisDeck, forgetInstance, listKeyPresets, saveKeyPreset, deleteKeyPreset, renderKeyPreview, onServerDeckRev, listDeckTargets, listAllDeckProfiles, getProfileTemplate, importSharedProfile, onForegroundProcess, applyAiDeck, independentDecks: true };
+    window.Deck = { render, renderAll, refreshStates, setScenePreview, setObsLaunching, updateMedia: applyDeckMedia, listProfiles, switchProfileByName, applyGenesisDeck, forgetInstance, listKeyPresets, saveKeyPreset, deleteKeyPreset, renderKeyPreview, onServerDeckRev, listDeckTargets, listAllDeckProfiles, getProfileTemplate, importSharedProfile, listImportedResources, removeImportedResources, onForegroundProcess, applyAiDeck, independentDecks: true };
     // First paint from the fast local copy, then adopt the server copy (the source
     // of truth — restores keys after a WebView storage wipe). Any outbox entries
     // left from a previous session are flushed right away. Once the layout is up,

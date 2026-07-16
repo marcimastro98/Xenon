@@ -307,8 +307,8 @@ video.upd-media-el { cursor: default; }
   border-radius: 9px;
   background: rgba(255, 255, 255, 0.06);
 }
-.upd-status.ok { background: rgba(76, 175, 120, 0.14); color: #6fdca0; }
-.upd-status.error { background: rgba(220, 70, 70, 0.14); color: #ef7676; }
+.upd-status.ok { background: var(--success-bg); color: var(--color-success); }
+.upd-status.error { background: var(--danger-bg); color: var(--color-danger); }
 
 /* Updating overlay (after Apply): no close button, just a spinner. */
 .upd-updating { align-items: center; text-align: center; padding: 34px 28px; }

@@ -82,9 +82,9 @@
     'function $(id){return document.getElementById(id);}',
     'function esc(v){return v==null?"":String(v);}',
     'function send(m){try{parent.postMessage(Object.assign({xenonSdk:1},m),"*");}catch(e){}}',
-    // The widget keeps its OWN accent (CFG.accent); the theme only drives
-    // background/text/appearance so it reads well in light and dark.
-    'function applyTheme(t){if(!t||typeof t!=="object")return;if(t.background)root.style.setProperty("--bg",t.background);if(t.text)root.style.setProperty("--text",t.text);root.dataset.appearance=(t.appearance==="light")?"light":"dark";}',
+    // New hosts send a complete semantic palette; old hosts retain the flat
+    // background/text fields, so generated widgets stay backward compatible.
+    'function applyTheme(t){if(!t||typeof t!=="object")return;var p=(t.palette&&typeof t.palette==="object")?t.palette:t;var map={background:"--bg",surface:"--surface",surfaceAlt:"--surface-alt",control:"--control-bg",text:"--text",muted:"--muted-text",dim:"--dim-text",line:"--line",success:"--success",warning:"--warning",danger:"--danger",info:"--info"};Object.keys(map).forEach(function(k){if(p[k])root.style.setProperty(map[k],p[k]);});var o=Array.isArray(t.overrides)?t.overrides:[];if(o.indexOf("accent")>=0&&p.accent){root.style.setProperty("--accent",p.accent);if(p.onAccent)root.style.setProperty("--on-accent",p.onAccent);}if(o.indexOf("accentText")>=0&&p.onAccent)root.style.setProperty("--on-accent",p.onAccent);root.dataset.appearance=(t.appearance==="light")?"light":"dark";}',
   ];
   const SHARED_TAIL = [
     'var _ready=false;',
@@ -105,8 +105,16 @@
   }
 
   // Common CSS prefix: theme vars, reset, and the container so cqmin sizing works.
+  function bestForeground(background) {
+    const values = [1, 3, 5].map((i) => parseInt(background.slice(i, i + 2), 16) / 255);
+    const linear = values.map((v) => v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+    const lum = 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+    return (lum + 0.05) / 0.05 >= 1.05 / (lum + 0.05) ? '#111111' : '#ffffff';
+  }
   function baseCss(cfg) {
-    return ':root{--accent:' + (cfg.accent || '#7c5cff') + ';--bg:#07080c;--text:#eef1f6;--panel:rgba(255,255,255,0.05);--line:rgba(255,255,255,0.10);}\n'
+    const accent = cfg.accent || '#7c5cff';
+    const onAccent = bestForeground(accent);
+    return ':root{--accent:' + accent + ';--bg:#07080c;--surface:#11141a;--surface-alt:#181c23;--control-bg:#20252d;--text:#eef1f6;--muted-text:#aeb6c3;--dim-text:#7f8998;--line:#3b424d;--on-accent:' + onAccent + ';--success:#45d483;--warning:#f0b84f;--danger:#ff6268;--info:#62cbea;--panel:var(--surface-alt);}\n'
       + ':root[data-appearance="light"]{--panel:rgba(0,0,0,0.05);--line:rgba(0,0,0,0.09);}\n'
       + '*{box-sizing:border-box;margin:0}html,body{width:100%;height:100%}\n'
       + 'body{font-family:' + fontStack(cfg.font) + ';color:var(--text);background:transparent;overflow:hidden;display:flex;container-type:size;}\n';
@@ -225,7 +233,7 @@
         + '.wn-artist{font-size:0.72rem;font-weight:600;opacity:0.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--accent)}'
         + '.wn-keys{display:flex;gap:6px;justify-content:center}'
         + '.wn-keys button{font:inherit;font-size:0.9rem;width:34px;height:30px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer}'
-        + '.wn-keys button:hover{background:var(--accent);color:#08110b}',
+        + '.wn-keys button:hover{background:var(--accent);color:var(--on-accent)}',
       js: (cfg) => composeJs(cfg, [
         'var rid=0;',
         'function onReady(){var t=$("nt");t.textContent=esc(CFG.title);t.style.display=CFG.title?"block":"none";',
@@ -261,7 +269,7 @@
         + '.wl{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;padding:10px;justify-content:center;align-items:' + (cfg.align === 'left' ? 'flex-start' : cfg.align === 'right' ? 'flex-end' : 'center') + ';text-align:' + (cfg.align || 'center') + '}'
         + '.wl-text{font-weight:800;line-height:1.05;color:var(--accent);font-size:' + (TEXT_SIZE[cfg.size] || TEXT_SIZE[2]) + '}'
         + '.wl-sub{font-size:0.85rem;font-weight:600;opacity:0.7}'
-        + '.wl-badge{margin-top:4px;font-size:0.66rem;font-weight:800;letter-spacing:0.06em;padding:3px 8px;border-radius:999px;background:var(--accent);color:#08110b}',
+        + '.wl-badge{margin-top:4px;font-size:0.66rem;font-weight:800;letter-spacing:0.06em;padding:3px 8px;border-radius:999px;background:var(--accent);color:var(--on-accent)}',
       js: (cfg) => composeJs(cfg, [
         'function onReady(){$("lt").textContent=esc(CFG.text);var s=$("ls");s.textContent=esc(CFG.subtitle);s.style.display=CFG.subtitle?"block":"none";}',
         'function onStream(st,d){if(st!=="status"||!CFG.showStatus||!d||typeof d!=="object")return;var b=$("lb");',
