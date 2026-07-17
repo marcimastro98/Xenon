@@ -437,7 +437,7 @@
     <h1 data-i18n-html="hero.h">Made by <em>the community</em></h1>
     <p class="lead" data-i18n="hero.p">Themes, animated backgrounds, pages, Deck profiles, widgets, scenes and full packages, made and shared by Xenon users like you. Every entry is moderated by hand. Copy a code, paste it in Xenon, check the preview, done.</p>
     <div class="hero-links">
-      <a class="primary" href="https://github.com/marcimastro98/Xenon/issues/new?template=community-submission.yml" target="_blank" rel="noopener" data-i18n="hero.submit">✨ Submit yours</a>
+      <a class="primary" href="../submit/" data-i18n="hero.submit">✨ Submit yours</a>
       <a href="https://github.com/marcimastro98/Xenon/tree/main/docs/community" target="_blank" rel="noopener" data-i18n="hero.guide">Read the guidelines →</a>
     </div>
   </div>
@@ -1364,7 +1364,12 @@ function applyLang(lang) {
   }
   function sortList(list) {
     if (sortBy === 'name') return list.slice().sort((a, b) => a.name.localeCompare(b.name));
-    if (sortBy === 'new') return list.slice().sort((a, b) => b._i - a._i);
+    // 'new' reads the date, NOT the file position: it used to sort on `_i`
+    // descending, which assumes new entries are appended at the BOTTOM of
+    // catalog.json. They go on top, so "Newest" listed the oldest first and
+    // buried a same-day publish. ISO dates compare correctly as strings; an
+    // entry with no addedAt sorts last, and ties keep catalog order.
+    if (sortBy === 'new') return list.slice().sort((a, b) => String(b.addedAt || '').localeCompare(String(a.addedAt || '')) || (a._i - b._i));
     return list.slice().sort((a, b) => a._i - b._i);   // 'feat' = catalog order
   }
 

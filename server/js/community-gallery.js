@@ -860,7 +860,11 @@
   }
   function sortList(list) {
     if (sortBy === 'name') return list.slice().sort((a, b) => a.name.localeCompare(b.name));
-    if (sortBy === 'new') return list.slice().sort((a, b) => (b._i || 0) - (a._i || 0));
+    // 'new' reads the date, NOT the file position: sorting on `_i` descending
+    // assumes new entries are appended at the BOTTOM of catalog.json, but they
+    // go on top — so "Newest" listed the oldest first. ISO dates compare
+    // correctly as strings; no addedAt sorts last, ties keep catalog order.
+    if (sortBy === 'new') return list.slice().sort((a, b) => String(b.addedAt || '').localeCompare(String(a.addedAt || '')) || ((a._i || 0) - (b._i || 0)));
     return list.slice().sort((a, b) => (a._i || 0) - (b._i || 0));   // 'feat' = catalog order
   }
 

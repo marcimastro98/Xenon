@@ -14,7 +14,12 @@
 <link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700,500&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- Cloudflare Turnstile (the anti-spam gate; the hub verifies the token server-side). -->
-<script src="https://challenges.cloudflare.com/turnstile/api.js" async defer></script>
+<!-- The /v0/ is load-bearing: /turnstile/api.js is a 404 whose response carries
+     cross-origin-resource-policy: same-origin, so the browser reports a confusing
+     NotSameOrigin block rather than a missing file. window.turnstile then never
+     gains .render, no token is ever issued, and every submit dies on "complete the
+     anti-spam check" — with no check on screen to complete. -->
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
 <style>
   :root {

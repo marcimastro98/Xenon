@@ -6,9 +6,11 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for sharing your creation! Fill this in and the maintainer will review it and add it to the catalog (it appears in **Settings → Widget e condivisione → Community gallery** inside Xenon, usually within a few days).
+        **You probably don't need this form.** [xenon-app.com/submit](https://xenon-app.com/submit/) does the same thing without a GitHub account, and Xenon's own **✨ Publish to the catalog** button opens it already filled in. This form stays for anyone who prefers GitHub — both go to the same moderated queue.
 
-        In Xenon, use the **✨ Publish to the catalog** button on any Share dialog — it copies your share code to the clipboard so you can paste it below.
+        Fill this in and the maintainer will review it and add it to the catalog (it appears in the **Store** inside Xenon — Impostazioni → Community → *Apri lo Store* → **Sfoglia** — usually within a few days).
+
+        In Xenon, the **✨ Publish to the catalog** button on any Share dialog copies your share code to the clipboard, so you can paste it below.
   - type: input
     id: name
     attributes:
