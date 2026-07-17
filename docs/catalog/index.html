@@ -11,6 +11,7 @@
   gtag('js', new Date());
   gtag('config', 'G-LQ8Y8WZPQF');
 </script>
+<script src="/analytics.js" defer></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Xenon — community catalog</title>
@@ -1088,6 +1089,7 @@ function applyLang(lang) {
           if (code) ok = await copyText(code);
         } catch (err) { /* falls through to the retry hint */ }
         btn.disabled = false; btn.classList.toggle('ok', ok);
+        if (window.xtrack) xtrack('catalog_copy_code', { item_id: entry.id, item_kind: entry.kind, locked: entry.locked === true, ok: ok });
         hint.textContent = ok ? T('card.copied') : T('card.copyfail');
         clearTimeout(hintTimer); hintTimer = setTimeout(() => { hint.textContent = ''; btn.classList.remove('ok'); }, 6000);
       });
@@ -1109,6 +1111,7 @@ function applyLang(lang) {
     detailEl.replaceChildren(modal);
     detailEl.classList.add('open');
     detailEntry = entry;
+    if (window.xtrack) xtrack('catalog_view_item', { item_id: entry.id, item_kind: entry.kind, locked: entry.locked === true });
     deepLinked = entry.id;
     // The open card owns the URL, so the address bar is always a link to what
     // you're looking at — copy it from there or from the button in the header.
@@ -1256,6 +1259,7 @@ function applyLang(lang) {
         if (code) ok = await copyText(code);
       } catch (err) { /* falls through to the retry hint */ }
       btn.disabled = false; btn.classList.toggle('ok', ok);
+      if (window.xtrack) xtrack('catalog_copy_code', { item_id: entry.id, item_kind: entry.kind, locked: entry.locked === true, ok: ok });
       hint.textContent = ok ? T('card.copied') : T('card.copyfail');
       clearTimeout(hintTimer); hintTimer = setTimeout(() => { hint.textContent = ''; btn.classList.remove('ok'); }, 6000);
     });
