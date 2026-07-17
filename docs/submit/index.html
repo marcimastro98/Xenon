@@ -14,12 +14,18 @@
 <link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700,500&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- Cloudflare Turnstile (the anti-spam gate; the hub verifies the token server-side). -->
-<!-- The /v0/ is load-bearing: /turnstile/api.js is a 404 whose response carries
-     cross-origin-resource-policy: same-origin, so the browser reports a confusing
-     NotSameOrigin block rather than a missing file. window.turnstile then never
-     gains .render, no token is ever issued, and every submit dies on "complete the
-     anti-spam check" — with no check on screen to complete. -->
-<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<!-- Two things here are load-bearing, and both were wrong:
+     • The /v0/ path. /turnstile/api.js is a 404 whose response carries
+       cross-origin-resource-policy: same-origin, so the browser reports a
+       confusing NotSameOrigin block rather than a plain missing file.
+     • render=explicit&onload=… . Our container is a bare <div id="turnstile">
+       with no `cf-turnstile` class, so implicit mode would never render it, and
+       the callback is the only reliable "API is ready" signal.
+     Get either wrong and window.turnstile never gains .render, no token is
+     issued, and every submit dies on "complete the anti-spam check" — with no
+     check on screen to complete. `defer` (never `async`) so the API cannot fire
+     onloadTurnstile before the inline script below has defined it. -->
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onloadTurnstile" defer></script>
 
 <style>
   :root {
@@ -89,6 +95,7 @@
   .ok-screen h2 { font-family: var(--display); margin: 12px 0 8px; }
   .ok-screen p { color: var(--muted); max-width: 46ch; margin: 0 auto 8px; }
   .turnstile-wrap { margin: 14px 0 4px; min-height: 66px; }
+  .captcha-broken { color: var(--danger); font-size: 0.85rem; line-height: 1.5; border: 1px solid rgba(255,90,99,0.3); border-radius: 10px; padding: 10px 12px; background: rgba(255,90,99,0.06); }
   .langbar { display: flex; gap: 6px; }
   .langbar button { background: none; border: 0; color: var(--dim); cursor: pointer; font: inherit; font-size: 0.8rem; }
   .langbar button.on { color: var(--plasma); font-weight: 700; }
@@ -207,24 +214,28 @@
       e_code_big: 'Il codice supera i 2 MB.', e_captcha: 'Completa la verifica anti-spam.',
       e_rate: 'Troppi invii — riprova più tardi.', e_generic: 'Invio non riuscito ({err}) — riprova.',
       shot_add: '+ Aggiungi', shot_rm: 'Rimuovi', sending: 'Invio…',
+      e_captcha_blocked: 'Non è stato possibile caricare la verifica anti-spam — di solito è colpa di un ad blocker o di un\'estensione per la privacy. Disattivala per questa pagina e ricarica, oppure usa il form su GitHub.',
     },
     ko: {
       back: '← 커뮤니티 카탈로그', title: '커뮤니티 카탈로그에 게시',
       send: '검토 요청 보내기', ok_title: '제출 완료!', sending: '전송 중…',
       f_kind: '종류', f_name: '이름 *', f_author: '제작자', f_desc: '설명', f_code: '공유 코드 *',
       shot_add: '+ 추가', shot_rm: '제거',
+      e_captcha_blocked: '스팸 방지 검사를 불러오지 못했습니다 — 보통 광고 차단기나 개인정보 보호 확장 프로그램 때문입니다. 이 페이지에서 해제한 뒤 새로고침하거나, GitHub 양식을 이용하세요.',
     },
     ja: {
       back: '← コミュニティカタログ', title: 'コミュニティカタログに公開',
       send: 'レビューに送信', ok_title: '送信しました！', sending: '送信中…',
       f_kind: '種類', f_name: '名前 *', f_author: '作者', f_desc: '説明', f_code: '共有コード *',
       shot_add: '+ 追加', shot_rm: '削除',
+      e_captcha_blocked: 'スパム対策チェックを読み込めませんでした — 通常は広告ブロッカーやプライバシー拡張機能が原因です。このページで無効にして再読み込みするか、GitHub のフォームをご利用ください。',
     },
     zh: {
       back: '← 社区目录', title: '发布到社区目录',
       send: '提交审核', ok_title: '已提交！', sending: '发送中…',
       f_kind: '类型', f_name: '名称 *', f_author: '作者', f_desc: '描述', f_code: '分享代码 *',
       shot_add: '+ 添加', shot_rm: '移除',
+      e_captcha_blocked: '无法加载反垃圾验证 — 通常是广告拦截器或隐私扩展导致的。请在本页面停用它并刷新，或改用 GitHub 表单。',
     },
   };
   var LANGS = ['en', 'it', 'ko', 'ja', 'zh'];
@@ -335,16 +346,34 @@
   }
 
   // ── Turnstile ──
+  // Explicit rendering, per Cloudflare's contract: the script carries
+  // `render=explicit&onload=onloadTurnstile`, our container deliberately has no
+  // `cf-turnstile` class, and the API calls us back when it is ready. Do NOT
+  // poll for `window.turnstile` instead — the object can exist before `.render`
+  // does (and a privacy extension may leave an empty stub behind), so a poll
+  // that only checks the object throws and the widget never appears.
   var turnstileToken = '';
-  window.onloadTurnstile = function () {};
+  window.onloadTurnstile = function () { mountTurnstile(); };
   function mountTurnstile() {
-    if (!window.turnstile) { setTimeout(mountTurnstile, 200); return; }
-    window.turnstile.render('#turnstile', {
-      sitekey: TURNSTILE_SITEKEY,
-      callback: function (token) { turnstileToken = token; },
-      'expired-callback': function () { turnstileToken = ''; },
-      theme: 'dark',
-    });
+    if (!window.turnstile || typeof window.turnstile.render !== 'function') { showCaptchaBroken(); return; }
+    try {
+      window.turnstile.render('#turnstile', {
+        sitekey: TURNSTILE_SITEKEY,
+        callback: function (token) { turnstileToken = token; },
+        'expired-callback': function () { turnstileToken = ''; },
+        'error-callback': function () { turnstileToken = ''; },
+        theme: 'dark',
+      });
+    } catch (e) { showCaptchaBroken(); }
+  }
+  // Never leave the page silently unusable: without a check to complete, submit
+  // would keep refusing with "complete the anti-spam check" and no way forward.
+  function showCaptchaBroken() {
+    var host = document.getElementById('turnstile');
+    if (!host || host.dataset.broken) return;
+    host.dataset.broken = '1';
+    host.textContent = T('e_captcha_blocked', 'The anti-spam check could not load — an ad blocker or privacy extension usually causes this. Disable it for this page and reload, or use the GitHub form instead.');
+    host.className = 'captcha-broken';
   }
 
   // ── Submit ──
@@ -396,7 +425,9 @@
 
   applyLang();
   renderShots();
-  mountTurnstile();
+  // No mountTurnstile() here — onloadTurnstile fires it when the API is ready.
+  // If the script never arrives (blocked), say so instead of failing silently.
+  setTimeout(function () { if (!document.querySelector('#turnstile iframe')) showCaptchaBroken(); }, 8000);
   paintSize();
 })();
 </script>
