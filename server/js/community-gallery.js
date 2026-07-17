@@ -103,7 +103,6 @@
   // Browse state (kept while the overlay is open).
   let searchQuery = '';
   let activeKind = '';
-  let activeCategory = '';
   let sortBy = 'feat';
   let shown = PAGE;
   let limitedOnly = false;   // dedicated "Limited edition" entry point
@@ -852,7 +851,6 @@
   }
 
   function matchesBrowse(entry) {
-    if (activeCategory && entry.category !== activeCategory) return false;
     if (searchQuery) {
       const hay = [entry.name, entry.author, entry.description,
         entry.publisher && entry.publisher.handle, ...(entry.tags || [])].filter(Boolean).join(' ').toLowerCase();
@@ -916,7 +914,12 @@
     const updates = await findUpdates(browse);
     if (!overlayEl) return;
 
-    // ── Toolbar: search + category rail + category & sort selects ──
+    // ── Toolbar: search + sort select + kind rail ──
+    // No category filter: `category` says what a creation is ABOUT, `kind` says
+    // what it IS, and the two taxonomies collided on "Deck" — the same single
+    // entry answered both, so the dropdown read as a duplicate of the rail. It
+    // earned little else: most entries carry `style` and some carry nothing.
+    // The category survives as a label on the card; only the filter is gone.
     const bar = el('div', 'cgal-toolbar');
     const searchRow = el('div', 'cgal-searchrow');
     const searchBox = el('div', 'cgal-searchbox');
@@ -935,21 +938,6 @@
     searchBox.appendChild(search);
     searchRow.appendChild(searchBox);
 
-    const cats = Array.from(new Set(browse.map((e) => e.category).filter(Boolean)));
-    let selCat = null;
-    if (cats.length) {
-      const wrap = el('div', 'cgal-select');
-      selCat = document.createElement('select'); selCat.className = 'cgal-select-el'; selCat.setAttribute('data-cs-fixed', '');
-      const o0 = document.createElement('option'); o0.value = ''; o0.textContent = t('gallery_all_cats', 'All categories'); selCat.appendChild(o0);
-      cats.forEach((c) => { const o = document.createElement('option'); o.value = c; o.textContent = t('gallery_cat_' + c.replace('-', '_'), c); selCat.appendChild(o); });
-      selCat.value = activeCategory;
-      selCat.addEventListener('change', () => { activeCategory = selCat.value; shown = PAGE; paintGrid(); });
-      // Native <select> upgraded to the app's styled dropdown (the OS popup is
-      // the "tendine fanno pena" complaint); data-cs-fixed keeps its panel from
-      // being clipped by the scrollable modal body.
-      wrap.appendChild(selCat); searchRow.appendChild(wrap);
-      if (window.initCustomSelect) initCustomSelect(selCat);
-    }
     const sortWrap = el('div', 'cgal-select');
     const selSort = document.createElement('select'); selSort.className = 'cgal-select-el'; selSort.setAttribute('data-cs-fixed', '');
     [['feat', t('gallery_sort_feat', 'Featured')], ['new', t('gallery_sort_new', 'Newest')], ['name', t('gallery_sort_name', 'Name A–Z')]]
@@ -978,7 +966,6 @@
 
     function syncControls() {
       seg.querySelectorAll('.cgal-railbtn').forEach((b) => b.classList.toggle('active', b.dataset.k === (activeKind || 'all')));
-      if (selCat) selCat.value = activeCategory;
       selSort.value = sortBy;
     }
 
@@ -1075,9 +1062,9 @@
       let pool = browse.filter(matchesBrowse);
       if (activeKind) pool = pool.filter((e) => e.kind === activeKind);
 
-      const browsingAll = !activeKind && !activeCategory && !searchQuery;
+      const browsingAll = !activeKind && !searchQuery;
       // Filtered views must keep the exclusive tiers findable: a search or a
-      // category/kind filter includes matching limited + supporters entries in
+      // kind filter includes matching limited + supporters entries in
       // the results (each card carries its own tier badge and CTA). Without
       // this, searching a locked theme's name says "Nothing here yet" even
       // though the entry exists — the tier shelves render only in browse-all.
@@ -1138,7 +1125,7 @@
   // view. Keep the pseudo-kinds out of the rail — they are not catalog kinds.
   function open(filterKind) {
     close();
-    searchQuery = ''; activeKind = ''; activeCategory = ''; sortBy = 'feat'; shown = PAGE;
+    searchQuery = ''; activeKind = ''; sortBy = 'feat'; shown = PAGE;
     limitedOnly = (filterKind === '__limited');
     activeTab = (filterKind === '__installed') ? 'installed' : 'browse';
     const browseKind = (filterKind === '__limited' || filterKind === '__installed') ? undefined : filterKind;
