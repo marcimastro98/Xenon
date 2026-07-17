@@ -2,6 +2,40 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "demonic",
+      "kind": "theme",
+      "name": "Demonic",
+      "author": "Domi / spamer7777-lgtm",
+      "authorSupporter": true,
+      "tags": [
+        "demonic",
+        "dark",
+        "red",
+        "scary"
+      ],
+      "version": "1.1.0",
+      "shots": 2,
+      "addedAt": "2026-07-17",
+      "codeFile": true
+    },
+    {
+      "id": "dgm-news-general",
+      "kind": "widget",
+      "name": "DGM News General",
+      "author": "DanielGarciaMorato",
+      "description": "General news widget for Xenon with six RSS sources: El Mundo, El País, BBC, The Guardian, The New York Times and Le Monde. Features balanced rotation across sources, a Spanish and English interface, thumbnails via the official SDK proxy, visual fallbacks, and loading, partial-load, error and manual-",
+      "tags": [
+        "news",
+        "rss",
+        "multilingual",
+        "responsive",
+        "headlines"
+      ],
+      "shots": 1,
+      "addedAt": "2026-07-17",
+      "codeFile": true
+    },
+    {
       "id": "vanguard-50",
       "kind": "bundle",
       "name": "VANGUARD 50 // VOICE RELAY",
@@ -38,9 +72,11 @@
       "id": "pow-comic",
       "kind": "bundle",
       "name": "POW! — Comic Book Pack",
+      "author": "xenon",
       "authorSupporter": true,
+      "supportersOnly": true,
       "locked": true,
-      "description": "A supporter-exclusive comic-book world for your Xeneon Edge: animated skyline and screensaver, a comic System + Fans monitor, Batteries and Energy boards, plus the hand-inked Sidekick Deck. Six artifacts, one code.",
+      "description": "An exclusive comic-book universe for the Xeneon Edge, for supporters only. A living hand-inked skyline shifts with the real weather and time of day, doubling as a screensaver, alongside comic System, Fans, Batteries and Energy boards and a hand-drawn Sidekick Deck. Six artifacts, one code.",
       "category": "style",
       "tags": [
         "comic",
@@ -49,22 +85,16 @@
         "deck",
         "supporter"
       ],
-      "version": "2.0.0",
+      "version": "1.0.0",
       "appVersionMin": "4.5.3",
       "preview": {
         "accent": "#ffd23f",
         "bg": "#12101d",
         "text": "#fbf3e0"
       },
-      "publisher": {
-        "handle": "marcimastro98",
-        "url": "https://github.com/marcimastro98"
-      },
-      "shots": 6,
-      "active": false,
-      "activeFrom": "2026-07-13",
-      "activeUntil": "2026-07-31T23:59:59Z",
-      "addedAt": "2026-07-16",
+      "shots": 4,
+      "active": true,
+      "addedAt": "2026-07-17",
       "codeFile": true
     },
     {
@@ -118,30 +148,6 @@
       "shots": 2,
       "active": true,
       "addedAt": "2026-07-17",
-      "codeFile": true
-    },
-    {
-      "id": "demonic",
-      "kind": "theme",
-      "name": "Demonic",
-      "author": "spamer7777-lgtm",
-      "authorSupporter": true,
-      "description": "Demonic, Dark, Red, Scary",
-      "category": "fun",
-      "tags": [
-        "demonic",
-        "dark",
-        "red",
-        "scary"
-      ],
-      "version": "1.0.0",
-      "preview": {
-        "accent": "#d7461e",
-        "bg": "#070808",
-        "text": "#f0f3f1"
-      },
-      "shots": 2,
-      "addedAt": "2026-07-13",
       "codeFile": true
     },
     {
