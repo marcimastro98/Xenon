@@ -74,15 +74,11 @@
         "bg": "#12101d",
         "text": "#fbf3e0"
       },
-      "publisher": {
-        "handle": "marcimastro98",
-        "url": "https://github.com/marcimastro98"
-      },
-      "shots": 6,
+      "shots": 4,
       "active": false,
       "activeFrom": "2026-07-13",
       "activeUntil": "2026-07-31T23:59:59Z",
-      "addedAt": "2026-07-16",
+      "addedAt": "2026-07-17",
       "codeFile": true
     },
     {
