@@ -5,12 +5,8 @@
       "id": "pow-comic",
       "kind": "bundle",
       "name": "POW! — Comic Book Pack",
-      "codeFile": true,
-      "publisher": {
-        "handle": "marcimastro98",
-        "url": "https://github.com/marcimastro98"
-      },
       "authorSupporter": true,
+      "locked": true,
       "description": "A supporter-exclusive comic-book world for your Xeneon Edge: animated skyline and screensaver, a comic System + Fans monitor, Batteries and Energy boards, plus the hand-inked Sidekick Deck. Six artifacts, one code.",
       "category": "style",
       "tags": [
@@ -20,18 +16,23 @@
         "deck",
         "supporter"
       ],
+      "version": "2.0.0",
+      "appVersionMin": "4.5.3",
       "preview": {
         "accent": "#ffd23f",
         "bg": "#12101d",
         "text": "#fbf3e0"
       },
+      "publisher": {
+        "handle": "marcimastro98",
+        "url": "https://github.com/marcimastro98"
+      },
       "shots": 6,
-      "version": "2.0.0",
-      "appVersionMin": "4.5.3",
-      "locked": true,
+      "active": false,
       "activeFrom": "2026-07-13",
       "activeUntil": "2026-07-31T23:59:59Z",
-      "addedAt": "2026-07-16"
+      "addedAt": "2026-07-16",
+      "codeFile": true
     },
     {
       "id": "ambra",
