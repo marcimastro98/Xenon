@@ -1113,6 +1113,10 @@
             <input class="settings-range" id="settings-bg-blur" type="range" min="0" max="24" step="1" oninput="updateSettingsRange('bgBlur', this.value)">
             <span class="settings-note" id="settings-bg-blur-note" data-i18n="settings_bg_blur_note_empty">Visibile dopo aver caricato un'immagine, GIF o video.</span>
           </label>
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-idle-anim-pause" type="checkbox" onchange="updateIdleAnimationPause(this.checked)">
+            <span class="settings-label-line"><span data-i18n="settings_idle_anim_pause">Pausa animazioni quando inattivo</span><span class="settings-hint" data-i18n="settings_idle_anim_pause_hint">dopo un minuto senza tocchi mette in pausa aurora, griglia e le piccole animazioni per ridurre il consumo della GPU; riprendono al primo tocco</span></span>
+          </label>
         </div>
       </div>
 

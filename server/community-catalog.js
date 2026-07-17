@@ -26,6 +26,7 @@ const MAX_BODY_BYTES = 5 * 1024 * 1024;   // catalog JSON — generous, rejects 
 const MAX_CODE_BYTES = 2 * 1024 * 1024;   // one shared code file
 const CATALOG_TTL_MS = 45 * 60 * 1000;
 const REFRESH_MIN_INTERVAL_MS = 60 * 1000; // ?refresh=1 can't hammer the site
+const CODE_REVALIDATE_MS = 60 * 1000;      // serve a cached code blind for this long, then revalidate (etag) every request
 const MAX_ENTRIES = 200;
 const CODE_CACHE_MAX = 10;
 const CODE_INLINE_MAX = 8000;   // longer codes must ship as codes/<id>.txt
@@ -335,7 +336,13 @@ async function fetchCode(id) {
   if (!safeId) return { ok: false, error: 'bad_id' };
   const now = Date.now();
   const hit = _codeCache.get(safeId);
-  if (hit && (now - hit.fetchedAt) < CATALOG_TTL_MS) {
+  // Only the first CODE_REVALIDATE_MS are served blind, to absorb rapid reopens.
+  // After that we revalidate with a conditional GET (etag) on every request: a
+  // 304 keeps the cached copy cheaply, a changed file replaces it. A bundle can
+  // be re-published (e.g. re-encrypted with a new key) and be live within ~a
+  // minute, not 45 — the earlier CATALOG_TTL_MS window meant a supporter who had
+  // opened the entry once kept the stale, undecryptable bundle for that long.
+  if (hit && (now - hit.fetchedAt) < CODE_REVALIDATE_MS) {
     _codeCache.delete(safeId); _codeCache.set(safeId, hit);   // refresh LRU order
     return { ok: true, code: hit.text };
   }

@@ -6058,6 +6058,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   panelAlpha: 0.94,
   bgDim: 0.48,
   bgBlur: 0,
+  idleAnimationPause: true, // pause ambient FX + decorative loops when idle (client-applied)
   // Extended theme tokens (full Aspetto editor). Defaults reproduce the stock
   // Liquid Glass look; the client applies them (glass-only). Mirror of settings.js.
   uiRoundness: 1,
@@ -6967,6 +6968,7 @@ function normalizeHubSettings(value) {
     panelAlpha: clampNumber(source.panelAlpha, SETTINGS_MIN_PANEL_ALPHA, 1, DEFAULT_HUB_SETTINGS.panelAlpha),
     bgDim: clampNumber(source.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
     bgBlur: clampNumber(source.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
+    idleAnimationPause: source.idleAnimationPause !== false,
     uiRoundness: clampNumber(source.uiRoundness, 0, 2, DEFAULT_HUB_SETTINGS.uiRoundness),
     glassBlur: clampNumber(source.glassBlur, 0, 40, DEFAULT_HUB_SETTINGS.glassBlur),
     glassSaturate: clampNumber(source.glassSaturate, 100, 220, DEFAULT_HUB_SETTINGS.glassSaturate),
@@ -10815,6 +10817,17 @@ const server = http.createServer(async (req, res) => {
           },
         };
       }
+      // Weather is edited only through the dedicated POST /api/weather/config
+      // (which bumps rev + broadcasts so peer surfaces refetch the new location,
+      // GitHub #72). Keep the persisted copy on the generic settings save so a
+      // background whole-blob push — a Vitals/Bit heartbeat, or the unload beacon —
+      // from a surface that still holds the OLD location can't clobber it via
+      // last-writer-wins (the "XENON stays on the wrong weather location" bug,
+      // GitHub #109). The backup-import path sets weather deliberately and does not
+      // pass through this guard.
+      if (prev && prev.weather && typeof prev.weather === 'object') {
+        incoming.weather = prev.weather;
+      }
       const settings = await writeHubSettings(incoming);
       _serverHubSettings = settings;
       return { prev, settings };
@@ -11022,6 +11035,32 @@ const server = http.createServer(async (req, res) => {
       _serverHubSettings = saved;
       refreshStocks().catch(() => {});
       json({ ok: true, watchlist: saved.stocks.watchlist });
+      });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/weather/config' && req.method === 'POST') {
+    // Weather location/config, edited from Settings on any surface. It is
+    // deliberately NOT persisted through the whole-settings blob: that transport
+    // is shared with high-frequency automatic saves (a Vitals/Bit heartbeat) and
+    // the unload beacon, either of which — coming from a surface that still holds
+    // the OLD location — would clobber a change just made elsewhere via
+    // last-writer-wins (the "XENON stays on the wrong weather location" bug,
+    // GitHub #109). Persisted like the stocks watchlist: a dedicated writer the
+    // generic POST /settings then preserves (keep-prev). Unlike the watchlist it
+    // also bumps the settings rev and broadcasts, because a peer surface only
+    // refetches the new location once its settings hydrate updates its own
+    // hubSettings.weather (GitHub #72). writeHubSettings normalizes the whole
+    // object, so the incoming weather block is validated server-side here.
+    try {
+      await withHubSettingsLock(async () => {          // serialized with every other settings writer
+      const body = JSON.parse(await readBody(req));
+      const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+      const nextWeather = (body && body.weather && typeof body.weather === 'object') ? body.weather : {};
+      const prevRev = Number(cur.rev) || 0;
+      const saved = await writeHubSettings({ ...cur, weather: { ...(cur.weather || {}), ...nextWeather }, rev: prevRev + 1 });
+      _serverHubSettings = saved;
+      broadcastSSE('settings', { rev: saved.rev });   // peers re-hydrate → refetch the new location
+      json({ ok: true, weather: saved.weather, rev: saved.rev });
       });
     } catch (e) { err500(e.message); }
 
@@ -13509,7 +13548,16 @@ const server = http.createServer(async (req, res) => {
       if (!ns) { json({ ok: false, error: 'bad_namespace' }); return; }
       const r = sdkStore.applyStoreOp(sdkStoreLoad(ns), body.op);
       if (!r.ok) { json({ ok: false, error: r.error }); return; }
-      if (r.changed) await sdkStoreSave(ns, r.store);
+      if (r.changed) {
+        await sdkStoreSave(ns, r.store);
+        // Tell OTHER surfaces so their mounted frames of this package (and any
+        // storageGroup siblings sharing this namespace) re-mount and re-read the
+        // store — the cross-surface "custom widget not 1:1 on the XENON" fix
+        // (GitHub #109). The writer's own surface filters this out by origin.
+        // Writes only (r.changed is never set by a read), so no spurious remounts.
+        const pkgs = scan.packages.filter(p => sdkStore.storeNamespace(p) === ns).map(p => p.id);
+        broadcastSSE('sdk_store', { ns, pkgs, origin: String(body.origin || '') });
+      }
       json({ ok: true, value: r.value, keys: r.keys });
     } catch (e) {
       if (e && e.code === 'PAYLOAD_TOO_LARGE') json({ ok: false, error: 'payload_too_large' });

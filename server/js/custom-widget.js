@@ -242,6 +242,11 @@
   // would keep showing the version it first loaded. Appending ?v=<assetVersion>
   // to the src, and re-mounting when it changes, gives widget devs a live reload.
   let assetVersion = 1;
+  // This surface's identity, sent with every store WRITE so the resulting
+  // cross-surface `sdk_store` broadcast can be ignored on the surface that made it
+  // — only OTHER surfaces re-mount to pick up the change, so we never yank the
+  // frame the user is actively editing. Opaque, per page load (GitHub #109).
+  const SURFACE_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
   const lastData = {};        // stream → last payload (seed for late frames)
   let discordSeedInflight = null;   // shared one-shot seed of the `discord` stream
   // Deck states published by widgets over the bridge, keyed "pkg/stateId".
@@ -371,6 +376,12 @@
           onDanger: read('--on-danger', base.onDanger),
           info: read('--color-info', base.info),
           onInfo: read('--on-info', base.onInfo),
+          // Panel opacity ("Opacità pannelli"): the nested-card surface already
+          // carrying the user's alpha (surfaceAlt at --panel-soft-alpha), plus the
+          // raw factor — so a widget can make its own cards follow it like a native
+          // tile does. rgba string / 0..1 number; null when unavailable.
+          surfaceSoft: (cs.getPropertyValue('--panel-soft').trim() || null),
+          panelAlpha: (() => { const a = parseFloat(cs.getPropertyValue('--panel-soft-alpha')); return Number.isFinite(a) ? a : null; })(),
         };
         p = local;
         const tile = entry.frame.closest('.grid-stack-item');
@@ -386,6 +397,9 @@
         warning: p.warning, onWarning: p.onWarning,
         danger: p.danger, onDanger: p.onDanger,
         info: p.info, onInfo: p.onInfo,
+        // Optional (present when the tile's tokens were readable): a card surface
+        // that follows the user's panel opacity, and the raw 0..1 factor.
+        surfaceSoft: p.surfaceSoft || null, panelAlpha: (typeof p.panelAlpha === 'number' ? p.panelAlpha : null),
       };
       return { appearance: p.tone, overrides, ...palette, palette };
     }
@@ -594,7 +608,7 @@
     const d = await api('/sdk/store', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pkg: entry.pkgId, op: msg.op }),
+      body: JSON.stringify({ pkg: entry.pkgId, op: msg.op, origin: SURFACE_ID }),
     });
     if (!d) { reply({ ok: false, error: 'offline' }); return; }
     reply({ ok: !!d.ok, value: d.value, keys: d.keys, error: d.error });
@@ -992,6 +1006,43 @@
       if (!target) target = entry;
     }
     if (target) post(target, { type: 'handler', handler, args: payload.args || {}, callId: String(payload.callId || '') });
+  }
+
+  // A widget's persistent store was written on ANOTHER surface (SSE `sdk_store`,
+  // relayed from main.js). The sandboxed frame reads its store only at mount, so
+  // re-mount every live frame of the affected package(s) — it reloads and re-reads
+  // the now-updated store, bringing this surface 1:1 with where the edit was made
+  // (GitHub #109: "adjustments in the browser don't appear on the XENON"). We do
+  // NOT bump assetVersion: the files didn't change, only the stored data, so the
+  // no-cache+ETag re-fetch on re-mount is cheap. Our own write is filtered out by
+  // origin === SURFACE_ID so we never yank a frame the user is mid-edit on.
+  let _storeChangedPkgs = new Set();
+  let _storeChangedTimer = null;
+  function onStoreChanged(payload) {
+    if (!payload || typeof payload !== 'object') return;
+    if (payload.origin && payload.origin === SURFACE_ID) return;   // our own write
+    const pkgs = Array.isArray(payload.pkgs)
+      ? payload.pkgs
+      : (payload.pkg ? [payload.pkg] : []);
+    for (const p of pkgs) if (p) _storeChangedPkgs.add(String(p));
+    if (!_storeChangedPkgs.size || _storeChangedTimer) return;
+    // Coalesce a burst of writes (a widget that saves state rapidly) into ONE
+    // re-mount per package over a 400ms window, so a chatty store can never turn
+    // into a remount storm on the peer surface — mirrors the settings SSE coalesce.
+    _storeChangedTimer = setTimeout(() => {
+      _storeChangedTimer = null;
+      const wanted = _storeChangedPkgs;
+      _storeChangedPkgs = new Set();
+      let hit = false;
+      for (const [instId, entry] of frames) {
+        if (instId === AMBIENT_INST_ID) continue;   // AmbientMode owns its frame lifecycle
+        if (!wanted.has(entry.pkgId)) continue;
+        try { entry.frame.remove(); } catch {}
+        frames.delete(instId);
+        hit = true;
+      }
+      if (hit) paint();
+    }, 400);
   }
 
   // ── Service frames (background packages) ─────────────────────────
@@ -1632,7 +1683,7 @@
   }
 
   window.CustomWidget = {
-    renderWidgets, onData, onDiscordNotification, onHook, onHandler, refreshTheme, refreshPackages: () => fetchPackages(true), clearAssign,
+    renderWidgets, onData, onDiscordNotification, onHook, onHandler, onStoreChanged, refreshTheme, refreshPackages: () => fetchPackages(true), clearAssign,
     registerAmbientFrame, unregisterAmbientFrame, registerCanvasFrame, unregisterCanvasFrames,
     getPackages, cachedPackages, packageGranted, requestGrant,
     // Does this package still have a live (DOM-connected) frame? SdkIsland's
