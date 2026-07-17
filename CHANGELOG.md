@@ -3,7 +3,7 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [v4.6.0] - Unreleased
+## [v4.6.0] - 17-07-2026
 ### ✨ New
 - **A theme can carry both a light and a dark look, and follow your mode.** Xenon paints the half matching the mode you chose in Settings, and on Auto it follows the Windows scheme as it changes, with no re-import. The Light/Dark buttons switch between the two authored looks instead of resetting the theme, each half is contrast-checked on its own, and a colour you pick by hand always wins. Themes with a single look are unaffected. Authors: see the "one theme, light and dark" section in the maker's guide.
 - **Theme colours now come from one semantic palette across the entire app.** You can set the app canvas, panels, secondary surfaces, controls, primary and muted text, borders, text on accent and the four state colours from one place; anything left on Auto is derived from the chosen surface. A contrast guard repairs unreadable combinations by default and can be switched off deliberately. The roles survive saved themes, import and export, backups and page presets, can be overridden on a single widget, and reach sandboxed SDK widgets as that tile's effective palette. They also cover what used to keep fixed colours of its own: the small grey labels across the dashboard and Settings, the Focus detail popup, Bit's speech bubbles and quick menu, and the AI chat tile, so a light palette stays readable everywhere (the full-screen voice overlay keeps its own dark contract). Existing three-colour themes import unchanged and gain derived roles automatically.
