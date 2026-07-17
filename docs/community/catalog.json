@@ -2,6 +2,38 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "vanguard-50",
+      "kind": "bundle",
+      "name": "VANGUARD 50 // VOICE RELAY",
+      "author": "xenon",
+      "description": "A Discord voice console with live session telemetry, set in an observatory night sky with an obsidian Deck. 50 copies, each carrying its own serial. Not affiliated with or endorsed by Discord.",
+      "category": "streaming",
+      "tags": [
+        "discord",
+        "voice",
+        "drop",
+        "deck",
+        "streaming"
+      ],
+      "version": "2.0.0",
+      "appVersionMin": "4.6.0",
+      "preview": {
+        "accent": "#7c86ff",
+        "bg": "#0b0a14",
+        "text": "#f2f1fa"
+      },
+      "limited": {
+        "total": 50,
+        "claimed": 0,
+        "fulfillment": "hub",
+        "dropId": "vanguard-50",
+        "channels": "discord",
+        "numbered": true
+      },
+      "shots": 4,
+      "addedAt": "2026-07-17"
+    },
+    {
       "id": "pow-comic",
       "kind": "bundle",
       "name": "POW! — Comic Book Pack",
