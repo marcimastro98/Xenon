@@ -132,7 +132,7 @@
         <label class="f"><span data-t="f_name">Name *</span><input type="text" id="name" maxlength="60" required></label>
         <label class="f"><span data-t="f_author">Author / handle</span><input type="text" id="author" maxlength="40"></label>
         <label class="f"><span data-t="f_version">Version <small data-t="f_version_h">(e.g. 1.0.0 — bump it when you update)</small></span><input type="text" id="version" maxlength="20" placeholder="1.0.0"></label>
-        <label class="f"><span data-t="f_contact">Contact <small data-t="f_contact_h">(optional — email/Discord, only the reviewer sees it)</small></span><input type="text" id="contact" maxlength="120"></label>
+        <label class="f"><span data-t="f_contact">Contact * <small data-t="f_contact_h">(email/Discord — only the reviewer sees it, so they can reach you if something needs fixing)</small></span><input type="text" id="contact" maxlength="120" required></label>
         <label class="f"><span data-t="f_tags">Tags <small data-t="f_tags_h">(up to 6, lowercase)</small></span><input type="text" id="tags" maxlength="140" placeholder="neon dark minimal"></label>
       </div>
       <label class="f"><span data-t="f_desc">Description</span><textarea id="description" maxlength="400"></textarea></label>
@@ -196,7 +196,7 @@
       lede: 'Hai creato qualcosa per Xenon — un tema, uno sfondo, un profilo Deck, un widget, un pacchetto icone o suoni? Incolla qui il suo <b>codice di condivisione</b> e finisce nella coda di revisione. <b>Ogni proposta è revisionata da una persona</b> prima di comparire nella galleria in-app; nulla di ciò che invii può modificare da solo la dashboard di qualcuno.',
       f_kind: 'Tipo', f_name: 'Nome *', f_author: 'Autore / handle',
       f_version: 'Versione <small>(es. 1.0.0 — aumentala quando aggiorni)</small>',
-      f_contact: 'Contatto <small>(opzionale — email/Discord, lo vede solo chi revisiona)</small>',
+      f_contact: 'Contatto * <small>(email/Discord — lo vede solo chi revisiona, per scriverti se qualcosa non va)</small>',
       f_tags: 'Tag <small>(fino a 6, minuscoli)</small>', f_desc: 'Descrizione',
       f_code: 'Codice di condivisione *', code_file: 'Carica da file .txt / .json…',
       code_ph: 'Incolla il codice da Condividi & Importa → Esporta…',
@@ -211,6 +211,7 @@
       k_widget: 'widget (widget community)', k_ambient: 'ambient (scena Ambient)', k_bundle: 'bundle (pacchetto completo)',
       k_icons: 'icons (pacchetto icone Deck)', k_sounds: 'sounds (pacchetto suoni)',
       e_name: 'Dai un nome alla tua creazione.', e_code: 'Incolla il codice di condivisione.',
+      e_contact: 'Lascia un\'email o un handle Discord, così chi revisiona può scriverti se qualcosa non va.',
       e_code_big: 'Il codice supera i 2 MB.', e_captcha: 'Completa la verifica anti-spam.',
       e_rate: 'Troppi invii — riprova più tardi.', e_generic: 'Invio non riuscito ({err}) — riprova.',
       shot_add: '+ Aggiungi', shot_rm: 'Rimuovi', sending: 'Invio…',
@@ -383,8 +384,10 @@
     ev.preventDefault();
     showErr('');
     var name = document.getElementById('name').value.trim();
+    var contact = document.getElementById('contact').value.trim();
     var code = codeEl.value.trim();
     if (!name) { showErr(T('e_name', 'Give your creation a name.')); return; }
+    if (!contact) { showErr(T('e_contact', 'Leave an email or Discord handle, so the reviewer can reach you if something needs fixing.')); return; }
     if (!code) { showErr(T('e_code', 'Paste the share code.')); return; }
     if (code.length > MAX_CODE) { showErr(T('e_code_big', 'The code is over 2 MB.')); return; }
     if (!turnstileToken) { showErr(T('e_captcha', 'Complete the anti-spam check.')); return; }
