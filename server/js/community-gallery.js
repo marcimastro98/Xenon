@@ -596,6 +596,14 @@
       }
     } else if (locked) {
       cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero cgal-unlock', t('gallery_unlock', 'Unlock with a code'), 'lock'));
+      // No code yet? Offer the way to get one, right under the unlock button —
+      // the same warm heart CTA the Supporters "how it works" panel uses.
+      const support = document.createElement('a');
+      support.className = 'cgal-btn cgal-info-bmc cgal-detail-support';
+      support.href = BMC_URL; support.target = '_blank'; support.rel = 'noopener noreferrer';
+      support.appendChild(icon('supporters'));
+      support.appendChild(el('span', null, t('gallery_supporters_join', 'Become a supporter')));
+      cta.appendChild(support);
     } else {
       cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero primary', t('gallery_import', 'Import…')));
     }

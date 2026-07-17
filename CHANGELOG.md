@@ -3,6 +3,17 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v4.6.1] - Unreleased
+### ✨ New
+- **You can turn off the idle animation pause.** After a minute without a touch or keypress, the dashboard pauses the aurora, neon grid and the small looping animations to save GPU, and resumes them the instant you interact. That was always on; a new switch in Settings → Aspetto → Superficie, "Pausa animazioni quando inattivo", lets you keep everything moving while the screen sits idle. It stays on by default, since on a Xeneon Edge driven by the integrated GPU the pause saves real power. The pause while the window is hidden is unaffected.
+
+### ✨ Improvements
+- **A supporter pack now tells you how to get in.** On a supporters-only entry, both in the app's Store and on the website catalog, a warm "Diventa supporter" heart button sits right under "Unlock with a code", linking straight to Buy Me a Coffee. Before, a visitor without a code saw only the locked button and no next step. It shows only on supporter entries; free and limited-edition items are unchanged.
+- **The System tile's cards react to "Opacità pannelli" now.** Its CPU, RAM, GPU and network cards carried a fixed solid colour, so lowering panel opacity never made them see-through the way it does on other tiles. They now use that same themed colour but tied to the panel's opacity, so turning it down lets a background image show through them (the tile keeps its frame). The Pixel Retro and Comic skins, opaque by design, are unchanged.
+
+### 🐞 Fixes
+- **The "just landed in the Store" drop shows its artwork again.** The new-drop nudge was still loading its preview image from the old screenshot host, which no longer holds them, so it always fell back to a plain dark gradient. It now reads from the same assets host as the Store and the website, so a drop shows its real screenshot.
+
 ## [v4.6.0] - 17-07-2026
 ### ✨ New
 - **A theme can carry both a light and a dark look, and follow your mode.** Xenon paints the half matching the mode you chose in Settings, and on Auto it follows the Windows scheme as it changes, with no re-import. The Light/Dark buttons switch between the two authored looks instead of resetting the theme, each half is contrast-checked on its own, and a colour you pick by hand always wins. Themes with a single look are unaffected. Authors: see the "one theme, light and dark" section in the maker's guide.

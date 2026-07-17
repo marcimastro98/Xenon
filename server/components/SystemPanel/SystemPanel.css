@@ -249,6 +249,24 @@
   overflow: hidden;
 }
 
+/* ── Glassable System data cards ─────────────────────────────────────
+   The theme contract (theme-contract.css) paints every widget sub-card a solid
+   `background-color: var(--surface-alt)` for uniform theming — which, being a
+   flat colour, is also why the System CPU/RAM/GPU cards never responded to
+   "Opacità pannelli". In the glass style, re-tie the cards to the SAME themed
+   colour but carrying the panel's own alpha (--panel-soft = surfaceAlt at
+   --panel-soft-alpha), so lowering panel opacity finally shows the wallpaper
+   through them. The tile keeps its outer frame; Retro/Comic own their solid
+   material and are left untouched. Specificity here (0,5,0) intentionally beats
+   the contract's `.panel :is(...)` (0,2,0). */
+:root:not([data-style]) .panel.side-panel .stat-box {
+  background-color: var(--panel-soft);
+}
+/* Keep dense numbers legible once the cards can go see-through over a wallpaper. */
+html:not([data-style]) body.has-user-bg .side-panel .stat-box {
+  text-shadow: var(--readability-shadow);
+}
+
 .stat-head {
   display: flex;
   align-items: baseline;
