@@ -38,7 +38,7 @@
       "id": "ambra",
       "kind": "bundle",
       "name": "Ambra",
-      "author": "marcimastro98",
+      "author": "xenon",
       "description": "A warm, minimal pack: an amber theme on deep espresso with the animated 'Bruma d'Ambra' background, a redesigned weather widget (temperature-forward, with an essential hourly strip) and an Ambient screensaver showing clock and weather.",
       "category": "style",
       "tags": [
@@ -54,13 +54,9 @@
         "bg": "#14100c",
         "text": "#f3ecdf"
       },
-      "publisher": {
-        "handle": "marcimastro98",
-        "url": "https://github.com/marcimastro98"
-      },
       "shots": 3,
       "active": false,
-      "addedAt": "2026-07-16",
+      "addedAt": "2026-07-17",
       "codeFile": true
     },
     {
