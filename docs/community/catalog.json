@@ -2,6 +2,26 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "dgm-news-sports",
+      "kind": "widget",
+      "name": "DGM News Sports",
+      "author": "DanielGarciaMorato",
+      "description": "eyJ4ZW5vblByZXNldCI6MSwiZXhwb3J0ZWRBdCI6IjIwMjYtMDctMTdUMjA6NDk6MTYuMzMyWiIsImFwcFZlcnNpb24iOiIiLCJncmlkQ29scyI6MjQsImtpbmQiOiJ3aWRnZXQiLCJuYW1lIjoiREdNIE5ld3MgU3BvcnRzIiwiZGF0YSI6eyJpZCI6ImRnbS1uZXdzLXNwb3J0cyIsIm5hbWUiOiJER00gTmV3cyBTcG9ydHMiLCJzdXJmYWNlIjoidGlsZSIsImFjdGlvbnMiOlsidXJsIl0sImhvc3Rz",
+      "tags": [
+        "technology",
+        "rss",
+        "multilingual",
+        "responsive",
+        "news"
+      ],
+      "version": "1.0.0",
+      "appVersionMin": "4.6.0",
+      "shots": 1,
+      "active": false,
+      "addedAt": "2026-07-17",
+      "codeFile": true
+    },
+    {
       "id": "dgm-news-technology",
       "kind": "widget",
       "name": "DGM News Technology",
