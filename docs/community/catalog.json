@@ -135,30 +135,6 @@
       "codeFile": true
     },
     {
-      "id": "demonic",
-      "kind": "theme",
-      "name": "Demonic",
-      "author": "spamer7777-lgtm",
-      "authorSupporter": true,
-      "description": "Demonic, Dark, Red, Scary",
-      "category": "fun",
-      "tags": [
-        "demonic",
-        "dark",
-        "red",
-        "scary"
-      ],
-      "version": "1.0.0",
-      "preview": {
-        "accent": "#d7461e",
-        "bg": "#070808",
-        "text": "#f0f3f1"
-      },
-      "shots": 2,
-      "addedAt": "2026-07-13",
-      "codeFile": true
-    },
-    {
       "id": "nova-neon-district",
       "kind": "bundle",
       "name": "NØVA // NEON DISTRICT",
