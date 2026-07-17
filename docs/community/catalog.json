@@ -2,6 +2,26 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "explorador-de-mapas",
+      "kind": "widget",
+      "name": "Explorador de mapas",
+      "author": "DanielGarciaMorato",
+      "description": "Explorador de mapas es un catálogo visual para acceder rápidamente a mapas externos de videojuegos desde Xenon.\n\nIncluye 31 juegos y 32 destinos seleccionados, con buscador, favoritos y recientes. Al seleccionar un juego, el widget muestra una confirmación y abre su mapa correspondiente en el navega",
+      "tags": [
+        "gaming",
+        "maps",
+        "catalog",
+        "external-links",
+        "spanish"
+      ],
+      "version": "0.4.1",
+      "appVersionMin": "4.6.0",
+      "shots": 1,
+      "active": false,
+      "addedAt": "2026-07-17",
+      "codeFile": true
+    },
+    {
       "id": "demonic",
       "kind": "theme",
       "name": "Demonic",
