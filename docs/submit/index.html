@@ -222,6 +222,7 @@
       k_icons: 'icons (pacchetto icone Deck)', k_sounds: 'sounds (pacchetto suoni)',
       e_name: 'Dai un nome alla tua creazione.', e_code: 'Incolla il codice di condivisione.',
       e_contact: 'Lascia un\'email o un handle Discord, così chi revisiona può scriverti se qualcosa non va.',
+      e_code_incomplete: 'Il codice di condivisione sembra tagliato o incompleto — copialo per intero da Xenon (oppure usa "Carica da file"), poi reinvia.',
       e_code_big: 'Il codice supera i 2 MB.', e_captcha: 'Completa la verifica anti-spam.',
       e_rate: 'Troppi invii — riprova più tardi.', e_generic: 'Invio non riuscito ({err}) — riprova.',
       shot_add: '+ Aggiungi', shot_rm: 'Rimuovi', sending: 'Invio…',
@@ -438,6 +439,7 @@
     var err = (out && out.error) || 'network';
     if (err === 'rate_limited') showErr(T('e_rate', 'Too many submissions — try again later.'));
     else if (err === 'captcha_failed') showErr(T('e_captcha', 'Complete the anti-spam check.'));
+    else if (err === 'incomplete_code' || err === 'not_a_xenon_code') showErr(T('e_code_incomplete', 'The share code looks cut off or incomplete — copy the whole thing from Xenon (or use "Load from file"), then submit again.'));
     else showErr(T('e_generic', 'Submission failed ({err}) — please retry.').replace('{err}', err));
     if (window.turnstile) { try { window.turnstile.reset(); turnstileToken = ''; } catch (e) {} }
   });
