@@ -74,7 +74,7 @@
       "author": "xenon",
       "authorSupporter": true,
       "locked": true,
-      "description": "A supporter-exclusive comic-book world for your Xeneon Edge: animated skyline and screensaver, a comic System + Fans monitor, Batteries and Energy boards, plus the hand-inked Sidekick Deck. Six artifacts, one code.",
+      "description": "An exclusive comic-book universe for the Xeneon Edge, for supporters only. A living hand-inked skyline shifts with the real weather and time of day, doubling as a screensaver, alongside comic System, Fans, Batteries and Energy boards and a hand-drawn Sidekick Deck. Six artifacts, one code.",
       "category": "style",
       "tags": [
         "comic",
@@ -83,7 +83,7 @@
         "deck",
         "supporter"
       ],
-      "version": "2.0.0",
+      "version": "1.0.0",
       "appVersionMin": "4.5.3",
       "preview": {
         "accent": "#ffd23f",
