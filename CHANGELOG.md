@@ -3,13 +3,13 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [v4.6.1] - Unreleased
+## [v4.6.1] - 17-07-2026
 ### ✨ New
 - **You can turn off the idle animation pause.** After a minute without a touch or keypress, the dashboard pauses the aurora, neon grid and the small looping animations to save GPU, and resumes them the instant you interact. That was always on; a new switch in Settings → Aspetto → Superficie, "Pausa animazioni quando inattivo", lets you keep everything moving while the screen sits idle. It stays on by default, since on a Xeneon Edge driven by the integrated GPU the pause saves real power. The pause while the window is hidden is unaffected.
 
 ### ✨ Improvements
 - **A supporter pack now tells you how to get in.** On a supporters-only entry, both in the app's Store and on the website catalog, a warm "Diventa supporter" heart button sits right under "Unlock with a code", linking straight to Buy Me a Coffee. Before, a visitor without a code saw only the locked button and no next step. It shows only on supporter entries; free and limited-edition items are unchanged.
-- **The System tile's cards react to "Opacità pannelli" now.** Its CPU, RAM, GPU and network cards carried a fixed solid colour, so lowering panel opacity never made them see-through the way it does on other tiles. They now use that same themed colour but tied to the panel's opacity, so turning it down lets a background image show through them (the tile keeps its frame). The Pixel Retro and Comic skins, opaque by design, are unchanged.
+- **"Opacità pannelli" now reaches the cards inside every widget, not just the tiles.** The nested cards, rows and tabs across the dashboard (the System sensor cards, calendar and task rows, media, streaming and smart-home surfaces, and the rest) carried a fixed solid colour, so turning panel opacity down made the tiles see-through but left their contents opaque. They now use that same themed colour tied to the panel's opacity, so a background image shows through the whole dashboard as one piece of glass. At the default opacity everything looks exactly as before; the Pixel Retro and Comic skins, opaque by design, are unchanged. Third-party widgets can join in too: the SDK's `theme` payload now carries `surfaceSoft` and `panelAlpha`, documented in the Widget SDK guide and on the Create site, so a community widget's own cards can follow the setting like the native ones.
 
 ### 🐞 Fixes
 - **The "just landed in the Store" drop shows its artwork again.** The new-drop nudge was still loading its preview image from the old screenshot host, which no longer holds them, so it always fell back to a plain dark gradient. It now reads from the same assets host as the Store and the website, so a drop shows its real screenshot.

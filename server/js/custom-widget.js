@@ -376,6 +376,12 @@
           onDanger: read('--on-danger', base.onDanger),
           info: read('--color-info', base.info),
           onInfo: read('--on-info', base.onInfo),
+          // Panel opacity ("Opacità pannelli"): the nested-card surface already
+          // carrying the user's alpha (surfaceAlt at --panel-soft-alpha), plus the
+          // raw factor — so a widget can make its own cards follow it like a native
+          // tile does. rgba string / 0..1 number; null when unavailable.
+          surfaceSoft: (cs.getPropertyValue('--panel-soft').trim() || null),
+          panelAlpha: (() => { const a = parseFloat(cs.getPropertyValue('--panel-soft-alpha')); return Number.isFinite(a) ? a : null; })(),
         };
         p = local;
         const tile = entry.frame.closest('.grid-stack-item');
@@ -391,6 +397,9 @@
         warning: p.warning, onWarning: p.onWarning,
         danger: p.danger, onDanger: p.onDanger,
         info: p.info, onInfo: p.onInfo,
+        // Optional (present when the tile's tokens were readable): a card surface
+        // that follows the user's panel opacity, and the raw 0..1 factor.
+        surfaceSoft: p.surfaceSoft || null, panelAlpha: (typeof p.panelAlpha === 'number' ? p.panelAlpha : null),
       };
       return { appearance: p.tone, overrides, ...palette, palette };
     }

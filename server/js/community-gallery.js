@@ -414,6 +414,18 @@
     return b;
   }
 
+  // "Become a supporter" — the warm heart CTA shown next to a locked entry's
+  // "Unlock with a code", for someone who doesn't have a code yet. Same button as
+  // the Supporters "how it works" panel; links straight to Buy Me a Coffee.
+  function becomeSupporterButton() {
+    const a = document.createElement('a');
+    a.className = 'cgal-btn cgal-info-bmc cgal-support-cta';
+    a.href = BMC_URL; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    a.appendChild(icon('supporters'));
+    a.appendChild(el('span', null, t('gallery_supporters_join', 'Become a supporter')));
+    return a;
+  }
+
   // ── Fullscreen screenshot zoom (opened from the detail gallery) ─────────────
   function closeZoom() {
     if (!zoomEl) return;
@@ -596,14 +608,8 @@
       }
     } else if (locked) {
       cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero cgal-unlock', t('gallery_unlock', 'Unlock with a code'), 'lock'));
-      // No code yet? Offer the way to get one, right under the unlock button —
-      // the same warm heart CTA the Supporters "how it works" panel uses.
-      const support = document.createElement('a');
-      support.className = 'cgal-btn cgal-info-bmc cgal-detail-support';
-      support.href = BMC_URL; support.target = '_blank'; support.rel = 'noopener noreferrer';
-      support.appendChild(icon('supporters'));
-      support.appendChild(el('span', null, t('gallery_supporters_join', 'Become a supporter')));
-      cta.appendChild(support);
+      // No code yet? Offer the way to get one, right by the unlock button.
+      cta.appendChild(becomeSupporterButton());
     } else {
       cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero primary', t('gallery_import', 'Import…')));
     }
@@ -728,6 +734,7 @@
       }
     } else if (locked) {
       cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero cgal-unlock', t('gallery_unlock', 'Unlock with a code'), 'lock'));
+      cta.appendChild(becomeSupporterButton());
     } else {
       cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero primary', t('gallery_import', 'Import…')));
     }

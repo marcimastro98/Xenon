@@ -170,7 +170,10 @@ than the manifest requested):
       success: '#45d483', onSuccess: '#111111',
       warning: '#f0b84f', onWarning: '#111111',
       danger: '#ff6268', onDanger: '#111111',
-      info: '#62cbea', onInfo: '#111111'
+      info: '#62cbea', onInfo: '#111111',
+      // Optional — the nested-card surface at the user's panel opacity, and that
+      // alpha as a number. null when unavailable; fall back to surfaceAlt.
+      surfaceSoft: 'rgba(22, 25, 26, 0.92)', panelAlpha: 0.92
     }
   },
   lang:   'en',                       // active UI language (en/it/ko/ja/zh)
@@ -340,6 +343,22 @@ already appear in these values even though the widget runs in an iframe.
 `theme.overrides` lists the role keys explicitly changed on that tile; most
 theme-reactive widgets can ignore the list and apply the complete palette.
 
+**Follow the user's panel opacity (optional).** Native tiles and their inner
+cards get more see-through as the user lowers **Opacità pannelli** (Settings →
+Aspetto → Superficie), so a background image shows through them. Two optional
+palette values let your widget match that instead of looking heavier than the
+rest of the dashboard:
+
+- `palette.surfaceSoft` — the same colour as `surfaceAlt` but already carrying
+  the current panel alpha, as an `rgba(…)` string. Use it as the background of a
+  card/row you want to turn glassy with the dashboard.
+- `palette.panelAlpha` — that alpha as a plain `0..1` number, if you would rather
+  build your own colour from it.
+
+Both are `null` on older hosts, or when the tile's tokens can't be read — always
+fall back to the solid `surfaceAlt`. Keep using the solid `surfaceAlt` for any
+surface you want to stay opaque no matter what the user sets.
+
 A dual-palette theme (one that ships both a light and a dark half — see
 [THEME_SYSTEM.md](THEME_SYSTEM.md#dual-palette-themes)) is resolved before the
 payload is built, so `appearance` and `palette` always describe the tone actually
@@ -358,7 +377,11 @@ function applyTheme(theme) {
     warning: '--warning', danger: '--danger', info: '--info'
   };
   for (const [key, cssVar] of Object.entries(vars)) if (p[key]) document.documentElement.style.setProperty(cssVar, p[key]);
+  // Optional: a card surface that follows the user's panel opacity. Fall back to
+  // the solid surfaceAlt when the host didn't send it.
+  document.documentElement.style.setProperty('--surface-soft', p.surfaceSoft || p.surfaceAlt);
 }
+/* …then style your cards with it: .card { background: var(--surface-soft); } */
 ```
 
 ### 4b. `size` — host → widget

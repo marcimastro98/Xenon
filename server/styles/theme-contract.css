@@ -180,6 +180,16 @@
 .vt-btn { color: var(--text); background-color: var(--control-bg); border-color: var(--line); }
 .vt-btn:not(.vt-btn-done):hover, .vt-btn:not(.vt-btn-done):active { background-color: var(--hover-bg); }
 
+/* Widget sub-cards follow the user's "Opacità pannelli" in the glass style, so a
+   background image shows through them exactly like it does through the tiles.
+   --card-surface is the single switch: the themed nested-surface colour carrying
+   the panel's own alpha under glass (--panel-soft = surfaceAlt at
+   --panel-soft-alpha), and a flat, fully-solid surfaceAlt under Retro/Comic,
+   which own their material on purpose. At the default 94% opacity the glass value
+   is ~92% opaque, so the look is unchanged until the user turns opacity down. */
+:root { --card-surface: var(--panel-soft); }
+:root[data-style] { --card-surface: var(--surface-alt); }
+
 /* Dashboard widgets share the same material hierarchy. This intentionally
    names established component primitives once so authored themes do not need
    a separate colour patch for every integration. */
@@ -204,7 +214,7 @@
   .remote-intro, .remote-panel-section, .remote-ready-row, .remote-step, .remote-status,
   .up-setup, .up-seg, .up-seg-btn, .up-reorder-row, .up-move-btn
 ) {
-  background-color: var(--surface-alt);
+  background-color: var(--card-surface);
   border-color: var(--divider);
 }
 
