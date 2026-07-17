@@ -6,7 +6,6 @@
       "kind": "widget",
       "name": "DGM News General",
       "author": "DanielGarciaMorato",
-      "authorSupporter": true,
       "description": "General news widget for Xenon with six RSS sources: El Mundo, El País, BBC, The Guardian, The New York Times and Le Monde. Features balanced rotation across sources, a Spanish and English interface, thumbnails via the official SDK proxy, visual fallbacks, and loading, partial-load, error and manual-",
       "tags": [
         "news",
