@@ -14,17 +14,24 @@
 <link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700,500&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- Cloudflare Turnstile (the anti-spam gate; the hub verifies the token server-side). -->
-<!-- Two things here are load-bearing, and both were wrong:
+<!-- Three things here are load-bearing. All three were wrong, and each alone was
+     enough to leave the page unusable: window.turnstile never gains .render, no
+     token is issued, and every submit dies on "complete the anti-spam check" —
+     with no check on screen to complete.
+     • The container must NOT be id="turnstile". An element id becomes a property
+       of window, so <div id="turnstile"> IS window.turnstile — verified in the
+       browser: window.turnstile === that div, an HTMLDivElement. api.js guards
+       with `if (window.turnstile) → already loaded`, finds the div, warns
+       "Turnstile already has been loaded" and installs nothing. Cloudflare's own
+       demo works in the same browser; this page did not. Never name a container
+       after the global its library owns.
      • The /v0/ path. /turnstile/api.js is a 404 whose response carries
        cross-origin-resource-policy: same-origin, so the browser reports a
        confusing NotSameOrigin block rather than a plain missing file.
-     • render=explicit&onload=… . Our container is a bare <div id="turnstile">
-       with no `cf-turnstile` class, so implicit mode would never render it, and
-       the callback is the only reliable "API is ready" signal.
-     Get either wrong and window.turnstile never gains .render, no token is
-     issued, and every submit dies on "complete the anti-spam check" — with no
-     check on screen to complete. `defer` (never `async`) so the API cannot fire
-     onloadTurnstile before the inline script below has defined it. -->
+     • render=explicit&onload=… . The container has no `cf-turnstile` class, so
+       implicit mode would never render it, and the callback is the only reliable
+       "API is ready" signal. `defer` (never `async`) so the API cannot fire
+       onloadTurnstile before the inline script below has defined it. -->
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onloadTurnstile" defer></script>
 
 <style>
@@ -156,7 +163,10 @@
     </div>
 
     <div class="card">
-      <div class="turnstile-wrap"><div id="turnstile"></div></div>
+      <!-- id MUST NOT be "turnstile": an element id becomes a global on window, so
+           <div id="turnstile"> IS window.turnstile, and Cloudflare api.js reads that as
+           "already loaded" and never installs its API. -->
+      <div class="turnstile-wrap"><div id="cf-turnstile-host"></div></div>
       <div class="row">
         <button type="submit" class="btn primary" id="send" data-t="send">Submit for review</button>
       </div>
@@ -358,7 +368,7 @@
   function mountTurnstile() {
     if (!window.turnstile || typeof window.turnstile.render !== 'function') { showCaptchaBroken(); return; }
     try {
-      window.turnstile.render('#turnstile', {
+      window.turnstile.render('#cf-turnstile-host', {
         sitekey: TURNSTILE_SITEKEY,
         callback: function (token) { turnstileToken = token; },
         'expired-callback': function () { turnstileToken = ''; },
@@ -370,7 +380,7 @@
   // Never leave the page silently unusable: without a check to complete, submit
   // would keep refusing with "complete the anti-spam check" and no way forward.
   function showCaptchaBroken() {
-    var host = document.getElementById('turnstile');
+    var host = document.getElementById('cf-turnstile-host');
     if (!host || host.dataset.broken) return;
     host.dataset.broken = '1';
     host.textContent = T('e_captcha_blocked', 'The anti-spam check could not load — an ad blocker or privacy extension usually causes this. Disable it for this page and reload, or use the GitHub form instead.');
@@ -430,7 +440,7 @@
   renderShots();
   // No mountTurnstile() here — onloadTurnstile fires it when the API is ready.
   // If the script never arrives (blocked), say so instead of failing silently.
-  setTimeout(function () { if (!document.querySelector('#turnstile iframe')) showCaptchaBroken(); }, 8000);
+  setTimeout(function () { if (!document.querySelector('#cf-turnstile-host iframe')) showCaptchaBroken(); }, 8000);
   paintSize();
 })();
 </script>
