@@ -33,7 +33,7 @@
   padding: 4px;
   border: 1px solid rgba(255, 255, 255, 0.075);
   border-radius: 11px;
-  background: rgba(0, 0, 0, 0.16);
+  background: var(--surface-alt);
 }
 .settings-seg-btn {
   appearance: none;
@@ -52,7 +52,7 @@
 .settings-seg-btn.is-active {
   background: rgba(var(--accent-rgb), 0.9);
   border-color: rgba(var(--accent-rgb), 0.9);
-  color: var(--bg);
+  color: var(--on-accent);
 }
 .settings-perf-mode-hint { margin-top: 0; }
 
@@ -133,7 +133,7 @@
   font: inherit;
   font-size: 0.85rem;
   color: var(--text);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--control-bg);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-control);
 }
@@ -226,7 +226,7 @@
 .perf-btn {
   appearance: none;
   border: 1px solid var(--glass-border);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--control-bg);
   color: var(--text);
   font: inherit;
   font-weight: 600;
@@ -235,12 +235,12 @@
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
 }
-.perf-btn:hover { background: rgba(255, 255, 255, 0.12); }
+.perf-btn:hover { background: var(--hover-bg); }
 .perf-btn:active { transform: scale(0.97); }
 .perf-btn-primary {
   background: rgba(var(--accent-rgb), 0.9);
   border-color: rgba(var(--accent-rgb), 0.9);
-  color: var(--bg);
+  color: var(--on-accent);
 }
 .perf-btn-primary:hover { background: rgb(var(--accent-rgb)); }
 .perf-btn-ghost { background: transparent; }
@@ -301,9 +301,9 @@
   will-change: transform, opacity;
 }
 .perf-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
-.perf-toast.error { border-color: rgba(255, 99, 99, 0.55); }
+.perf-toast.error { border-color: rgba(var(--danger-rgb), 0.55); }
 .perf-toast::before { content: '✓'; color: rgb(var(--accent-rgb)); font-weight: 800; }
-.perf-toast.error::before { content: '✕'; color: #ff6b6b; }
+.perf-toast.error::before { content: '✕'; color: var(--color-danger); }
 
 /* ── Confirmation sheet ──────────────────────────────────────────── */
 .perf-sheet-overlay {
@@ -373,7 +373,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-alt);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-control);
 }
@@ -398,7 +398,7 @@
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-alt);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-control);
   cursor: pointer;
@@ -429,7 +429,7 @@
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-alt);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-control);
   cursor: pointer;

@@ -327,6 +327,7 @@ function isCameraEntity(s) {
 // the same preserve-on-save / redact-on-wire pattern as the remote-control creds.
 const HA_MAX_ENTITIES = 100;
 const HA_MAX_CAMERAS = 60;
+const HA_MAX_ENERGY_ENTITIES = 24;
 const HA_CAM_ROTATIONS = Object.freeze([0, 90, 180, 270]);
 
 function clampHaPan(v) {
@@ -377,11 +378,18 @@ function normalizeHomeAssistant(input) {
   const cameras = Array.isArray(src.cameras)
     ? src.cameras.filter(isCameraEntity).filter((v, i, a) => a.indexOf(v) === i).slice(0, HA_MAX_CAMERAS)
     : [];
+  // Power/energy entities the user picked for the Energy widget — a selection
+  // INDEPENDENT of the Smart Home tile's `entities`, so the two surfaces never
+  // fight over one list. OPT-IN like cameras (empty = PC-only Energy widget).
+  const energyEntities = Array.isArray(src.energyEntities)
+    ? src.energyEntities.filter(isEntityId).filter((v, i, a) => a.indexOf(v) === i).slice(0, HA_MAX_ENERGY_ENTITIES)
+    : [];
   return {
     url: haWsUrl(url) ? url : '',                    // keep only a valid http(s) HA URL
     token: typeof src.token === 'string' ? src.token.slice(0, 400) : '',
     entities,
     cameras,
+    energyEntities,
     camAngles: normalizeHaCamAngles(src.camAngles),
   };
 }
@@ -420,6 +428,7 @@ function redactHaToken(settings) {
       // to the browser (already normalized on save). Missing them here would strip
       // the user's chosen cameras on every settings round-trip.
       cameras: Array.isArray(ha.cameras) ? ha.cameras : [],
+      energyEntities: Array.isArray(ha.energyEntities) ? ha.energyEntities : [],
       camAngles: (ha.camAngles && typeof ha.camAngles === 'object') ? ha.camAngles : {},
       token: '',
       tokenSet: !!ha.token,

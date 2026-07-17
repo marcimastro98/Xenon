@@ -9,13 +9,13 @@
   gap: 8px;
   padding: 9px 10px;
   border-radius: var(--radius);
-  background: var(--panel-soft);
-  border: 1px solid #222929;
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
   cursor: pointer;
   transition: background 0.16s ease, border-color 0.16s ease, transform 0.12s ease;
 }
 
-.device-row:active { transform: scale(0.985); background: #181f1f; }
+.device-row:active { transform: scale(0.985); background: var(--active-bg); }
 
 .device-icon {
   width: 26px;
@@ -23,9 +23,9 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: #101616;
-  border: 1px solid #26302f;
-  color: #9fb0aa;
+  background: var(--control-bg);
+  border: 1px solid var(--line);
+  color: var(--muted-text);
   flex-shrink: 0;
 }
 
@@ -35,7 +35,7 @@
 .device-label { color: var(--dim-text); font-size: 10.5px; font-weight: 850; }
 .device-name {
   margin-top: 2px;
-  color: #c4cfcb;
+  color: var(--text);
   font-size: 12.5px;
   font-weight: 800;
   white-space: nowrap;
@@ -43,7 +43,7 @@
   text-overflow: ellipsis;
 }
 
-.device-chevron { color: #3c4744; font-size: 18px; font-weight: 800; flex-shrink: 0; }
+.device-chevron { color: var(--dim-text); font-size: 18px; font-weight: 800; flex-shrink: 0; }
 
 .picker-overlay {
   position: fixed;
@@ -67,8 +67,8 @@
   max-height: 70vh;
   overflow: auto;
   border-radius: var(--radius);
-  border: 1px solid #26302f;
-  background: #131718;
+  border: 1px solid var(--line);
+  background: var(--surface);
   padding: 16px;
   transform: translateY(105%);
   transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
@@ -84,15 +84,15 @@
   margin-bottom: 10px;
 }
 
-.picker-title { color: #c8d2ce; font-size: 14.5px; font-weight: 850; }
+.picker-title { color: var(--text); font-size: 14.5px; font-weight: 850; }
 
 .picker-close {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 1px solid #293030;
-  background: #101616;
-  color: #aab6b2;
+  border: 1px solid var(--line);
+  background: var(--control-bg);
+  color: var(--muted-text);
   cursor: pointer;
   display: grid;
   place-items: center;
@@ -105,24 +105,24 @@
   align-items: center;
   gap: 12px;
   padding: 12px 4px;
-  border-bottom: 1px solid #202727;
+  border-bottom: 1px solid var(--divider);
   cursor: pointer;
 }
 
 .picker-item:last-child { border-bottom: none; }
 .picker-item-text { flex: 1; min-width: 0; }
-.picker-item-name { color: #d4ddd9; font-size: 14.5px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.picker-item-name { color: var(--text); font-size: 14.5px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .picker-item-label { margin-top: 3px; color: var(--dim-text); font-size: 12.5px; font-weight: 700; }
 
 .picker-check {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  border: 2px solid #34403d;
+  border: 2px solid var(--line);
   display: grid;
   place-items: center;
   flex-shrink: 0;
 }
 
 .picker-check.checked { border-color: var(--green); background: var(--green); }
-.picker-check.checked::after { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #fff; }
+.picker-check.checked::after { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--on-accent); }

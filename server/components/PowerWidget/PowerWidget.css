@@ -1,0 +1,57 @@
+/* Energy widget — PC power draw as instrument cards (CPU / GPU / CPU+GPU /
+   PSU wall watts) plus the user's Home Assistant power/energy readings as
+   tinted rows. Same metric-card language as SystemPanel; tabular numbers. */
+
+.power-widget-mount { height: 100%; display: flex; min-height: 0; padding: 14px 16px; box-sizing: border-box; }
+.pw-wrap { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; gap: 10px; overflow: hidden auto; }
+
+.pw-head { display: flex; align-items: center; gap: 8px; padding: 2px 2px 0; flex: 0 0 auto; }
+.pw-title { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; color: var(--text, #f0f3f1); }
+
+.pw-state { opacity: 0.6; font-size: 13px; padding: 22px 4px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.pw-state-hint { font-size: 11.5px; opacity: 0.75; max-width: 280px; line-height: 1.4; }
+/* Shown under the cards when CPU watts alone are unavailable. */
+.pw-foot-hint { flex: 0 0 auto; padding: 2px 4px 0; }
+/* Why there is no PSU card: a quiet aside, not an error — it must read as a
+   footnote and never compete with the readings. */
+.pw-note { flex: 0 0 auto; font-size: 10.5px; line-height: 1.35; opacity: 0.45;
+  padding: 2px 4px 0; text-wrap: pretty; }
+
+/* PC draw — instrument cards */
+.pw-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px; flex: 0 0 auto; }
+.pw-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 10px 8px;
+  border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); min-width: 0; }
+.pw-card-val { display: inline-flex; align-items: baseline; gap: 3px; font-variant-numeric: tabular-nums; }
+.pw-card-val b { font-weight: 700; font-size: 19px; color: var(--text, #f0f3f1); }
+.pw-unit { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; opacity: 0.55; }
+.pw-card-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.55;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+/* What a derived card is made of, on the card — a hover tooltip is invisible on
+   the Xeneon Edge's touchscreen. */
+.pw-card-note { font-size: 8.5px; line-height: 1.2; opacity: 0.4; text-align: center; text-wrap: pretty; max-width: 100%; }
+.pw-card--total { border-color: rgba(var(--accent-rgb, 30, 215, 96), 0.35); }
+.pw-card--total .pw-card-val b { color: var(--accent, #1ed760); }
+/* Real wall watts — the highlight reading when a digital PSU is present. */
+.pw-card--psu { border-color: rgba(250, 200, 90, 0.35); }
+.pw-card--psu .pw-card-val b { color: rgb(250, 200, 90); }
+
+/* Home Assistant readings */
+.pw-ha { display: flex; flex-direction: column; gap: 5px; flex: 0 0 auto; }
+.pw-ha-title { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.5; padding: 2px 2px 0; }
+.pw-ha-row { --pw-tint: var(--accent-rgb, 30, 215, 96);
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px; min-width: 0; padding: 8px 11px;
+  border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05);
+  border-left: 3px solid rgba(var(--pw-tint), 0.7); }
+.pw-ha-name { font-weight: 600; font-size: 12.5px; color: var(--text, #f0f3f1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.pw-ha-val { flex: 0 0 auto; display: inline-flex; align-items: baseline; gap: 3px; font-variant-numeric: tabular-nums; }
+.pw-ha-val b { font-weight: 700; font-size: 15px; color: var(--text, #f0f3f1); }
+
+/* "Storico consumi" — the last 24h of CPU/GPU watts, drawn by the Guardian
+   history chart builder (guardian-chart / guardian-svg styles come from the
+   System tile's History tab; only the layout wrapper lives here). */
+.pw-hist { display: flex; flex-direction: column; gap: 5px; flex: 0 0 auto; }
+.pw-hist-title { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.5; padding: 2px 2px 0; }
+.pw-hist-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 6px; }
+
+/* The Energy-sources sub-head inside Settings → Smart Home. */
+.energy-sources-head { margin-top: 14px; }

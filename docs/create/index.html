@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Create for Xenon — the maker's guide</title>
-<meta name="description" content="Make your own themes, backgrounds, pages, Deck profiles, widgets, scenes and full packages for the Xenon dashboard — starting from zero, no coding required. Copy-paste examples and a practical SDK guide.">
+<meta name="description" content="Make contrast-safe semantic themes, backgrounds, pages, Deck profiles, widgets, scenes and full packages for the Xenon dashboard — starting from zero, no coding required. Copy-paste examples and a practical SDK guide.">
 <link rel="icon" type="image/png" href="../images/favicon.png">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Create for Xenon — the maker's guide">
@@ -14,27 +14,26 @@
 <script>document.documentElement.classList.add('js');</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
-<link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700,500&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 
 <style>
   :root {
-    --ink:      #04060a;
-    --ink-2:    #070b11;
-    --panel:    rgba(140, 255, 200, 0.035);
-    --panel-2:  rgba(140, 255, 200, 0.06);
-    --line:     rgba(120, 245, 180, 0.14);
-    --line-2:   rgba(120, 245, 180, 0.26);
-    --plasma:   #1ee07a;
-    --plasma-2: #40dca5;
-    --ion:      #76f7ff;
-    --hot:      #c6ff5e;
-    --text:     #e9f2ee;
-    --muted:    #8fa39c;
-    --dim:      #5f706a;
-    --display:  'Clash Display', 'Hanken Grotesk', system-ui, sans-serif;
-    --body:     'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+    --ink:      #070808;
+    --ink-2:    #0b0d0c;
+    --panel:    rgba(240, 243, 241, 0.03);
+    --panel-2:  rgba(240, 243, 241, 0.055);
+    --line:     rgba(240, 243, 241, 0.08);
+    --line-2:   rgba(240, 243, 241, 0.16);
+    --plasma:   #1ed760;   /* the locked Xenon brand green */
+    --plasma-2: #4ce38a;   /* lighter step for text-on-dark hovers */
+    --green-ink:#052012;   /* text on a green fill */
+    --ion:      #6cb8ff;   /* docs-info blue (callouts, keys) — not the Orb cyan */
+    --hot:      #ffd75e;   /* string literals */
+    --text:     #f0f3f1;
+    --muted:    #9aa8a1;
+    --dim:      #66736c;
+    --display:  'Inter', system-ui, sans-serif;
+    --body:     'Inter', system-ui, -apple-system, sans-serif;
     --mono:     'JetBrains Mono', ui-monospace, monospace;
     --nav-h:    62px;
     --side-w:   258px;
@@ -48,15 +47,14 @@
   }
   a { color: inherit; text-decoration: none; }
   img { max-width: 100%; display: block; }
-  ::selection { background: var(--plasma); color: #021; }
+  ::selection { background: var(--plasma); color: var(--green-ink); }
+  :focus-visible { outline: 2px solid var(--plasma); outline-offset: 3px; border-radius: 4px; }
   .mono { font-family: var(--mono); }
 
   /* Ambient background wash */
   body::before {
     content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background:
-      radial-gradient(80% 55% at 82% -8%, rgba(30,224,122,0.10), transparent 60%),
-      radial-gradient(70% 50% at 0% 8%, rgba(118,247,255,0.06), transparent 55%);
+    background: radial-gradient(80% 55% at 82% -8%, rgba(30,215,96,0.08), transparent 60%);
   }
 
   /* ───────── Top bar ───────── */
@@ -67,13 +65,13 @@
     border-bottom: 1px solid var(--line);
   }
   .brand { display: flex; align-items: center; gap: 9px; font-family: var(--display); font-weight: 700; font-size: 18px; letter-spacing: 0.06em; flex: none; }
-  .brand img { height: 28px; width: auto; margin: -6px 0; mix-blend-mode: screen; filter: drop-shadow(0 0 8px rgba(118,247,255,0.30)); }
+  .brand img { height: 28px; width: auto; margin: -6px 0; mix-blend-mode: screen; filter: drop-shadow(0 0 8px rgba(30,215,96,0.25)); }
   .brand .sub { font-family: var(--mono); font-weight: 500; font-size: 11px; letter-spacing: 0.14em; color: var(--plasma-2); text-transform: uppercase; padding-left: 12px; margin-left: 4px; border-left: 1px solid var(--line-2); }
   .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
   .tb-link { font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; color: var(--muted); padding: 8px 12px; border-radius: 9px; transition: color .2s, background .2s; }
   .tb-link:hover { color: var(--text); background: var(--panel-2); }
-  .tb-cta { color: #021; background: var(--plasma); font-weight: 700; }
-  .tb-cta:hover { color: #021; background: #34ec8f; }
+  .tb-cta { color: var(--green-ink); background: var(--plasma); font-weight: 700; }
+  .tb-cta:hover { color: var(--green-ink); background: var(--plasma-2); }
   .menu-btn { display: none; margin-left: auto; background: var(--panel-2); border: 1px solid var(--line); color: var(--text); width: 40px; height: 38px; border-radius: 10px; font-size: 18px; cursor: pointer; }
 
   /* ───────── Layout shell ───────── */
@@ -99,39 +97,38 @@
   .crumbs { font-family: var(--mono); font-size: 12px; color: var(--dim); margin-bottom: 22px; letter-spacing: 0.03em; }
   .crumbs a:hover { color: var(--plasma-2); }
 
-  .hero-h { font-family: var(--display); font-weight: 700; font-size: clamp(34px, 5vw, 52px); line-height: 1.04; letter-spacing: -0.01em; margin-bottom: 16px; }
-  .hero-h .g { background: linear-gradient(100deg, var(--plasma), var(--ion)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero-h { font-family: var(--display); font-weight: 700; font-size: clamp(34px, 5vw, 52px); line-height: 1.04; letter-spacing: -0.03em; margin-bottom: 16px; }
+  .hero-h .g { color: var(--plasma); }
   .lede { font-size: clamp(16px, 2.2vw, 19px); color: var(--muted); max-width: 60ch; margin-bottom: 30px; }
 
   section { scroll-margin-top: calc(var(--nav-h) + 20px); padding-top: 30px; }
   section > h2 {
-    font-family: var(--display); font-weight: 600; font-size: clamp(24px, 3.4vw, 33px);
-    letter-spacing: -0.01em; margin-bottom: 8px; padding-top: 24px;
+    font-family: var(--display); font-weight: 700; font-size: clamp(24px, 3.4vw, 33px);
+    letter-spacing: -0.02em; margin-bottom: 8px; padding-top: 24px;
     border-top: 1px solid var(--line);
   }
   section.no-rule > h2 { border-top: none; padding-top: 0; }
   section > h2 .step { font-family: var(--mono); font-size: 0.5em; color: var(--plasma); letter-spacing: 0.1em; vertical-align: middle; margin-right: 12px; }
   h3 { font-family: var(--display); font-weight: 600; font-size: clamp(17px, 2.2vw, 21px); margin: 30px 0 10px; }
-  p { margin-bottom: 14px; color: #cddbd4; }
+  p { margin-bottom: 14px; color: #c9d2ce; }
   .content a.inline { color: var(--plasma-2); border-bottom: 1px solid var(--line-2); }
   .content a.inline:hover { color: var(--plasma); }
   strong { color: var(--text); font-weight: 700; }
   .muted { color: var(--muted); }
-  em { color: var(--ion); font-style: normal; font-family: var(--mono); font-size: 0.92em; background: rgba(118,247,255,0.07); padding: 1px 6px; border-radius: 5px; }
+  em { color: var(--ion); font-style: normal; font-family: var(--mono); font-size: 0.92em; background: rgba(108,184,255,0.08); padding: 1px 6px; border-radius: 5px; }
 
-  ul, ol { margin: 0 0 16px 2px; padding-left: 20px; color: #cddbd4; }
+  ul, ol { margin: 0 0 16px 2px; padding-left: 20px; color: #c9d2ce; }
   li { margin-bottom: 7px; }
   li::marker { color: var(--plasma-2); }
 
   /* Eyebrow tag */
-  .tag { font-family: var(--mono); font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--plasma-2); display: inline-flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-  .tag::before { content: ""; width: 26px; height: 1px; background: var(--line-2); }
+  .tag { font-family: var(--body); font-size: 12px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--plasma); display: inline-flex; align-items: center; margin-bottom: 16px; }
 
   /* Cards / callouts */
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px 24px; margin: 18px 0; }
-  .note { border-left: 3px solid var(--ion); background: rgba(118,247,255,0.05); border-radius: 0 12px 12px 0; padding: 14px 18px; margin: 18px 0; font-size: 14.5px; }
+  .note { border-left: 3px solid var(--ion); background: rgba(108,184,255,0.06); border-radius: 0 12px 12px 0; padding: 14px 18px; margin: 18px 0; font-size: 14.5px; }
   .note b { color: var(--ion); }
-  .safe { border-left-color: var(--plasma); background: rgba(30,224,122,0.05); }
+  .safe { border-left-color: var(--plasma); background: rgba(30,215,96,0.05); }
   .safe b { color: var(--plasma); }
 
   /* Path steps (numbered) */
@@ -140,7 +137,7 @@
   .steps > li::before {
     content: counter(s); position: absolute; left: 0; top: 0;
     width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
-    font-family: var(--mono); font-weight: 700; font-size: 13px; color: #021;
+    font-family: var(--mono); font-weight: 700; font-size: 13px; color: var(--green-ink);
     background: linear-gradient(135deg, var(--plasma), var(--plasma-2));
   }
   .steps > li:not(:last-child)::after { content: ""; position: absolute; left: 14px; top: 34px; bottom: 4px; width: 1px; background: var(--line); }
@@ -151,8 +148,8 @@
   .code-bar { display: flex; align-items: center; flex-wrap: nowrap; gap: 8px; background: #0a0f14; border: 1px solid var(--line); border-bottom: none; border-radius: 12px 12px 0 0; padding: 8px 90px 8px 14px; font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
   .code-bar .dot { width: 9px; height: 9px; border-radius: 50%; background: #26303a; flex: none; }
   .code-bar .fname { margin-left: 4px; letter-spacing: 0.03em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .code-bar .badge { margin-left: auto; flex: none; white-space: nowrap; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--plasma); background: rgba(30,224,122,0.1); border: 1px solid var(--line); padding: 2px 8px; border-radius: 20px; }
-  pre { background: #060a0e; border: 1px solid var(--line); border-radius: 0 0 12px 12px; padding: 16px 18px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; color: #d7e6df; }
+  .code-bar .badge { margin-left: auto; flex: none; white-space: nowrap; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--plasma); background: rgba(30,215,96,0.1); border: 1px solid var(--line); padding: 2px 8px; border-radius: 20px; }
+  pre { background: #060a0e; border: 1px solid var(--line); border-radius: 0 0 12px 12px; padding: 16px 18px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; color: #d5ddd9; }
   pre.solo { border-radius: 12px; }
   pre code { white-space: pre; word-break: normal; }
   .code.oneline pre { white-space: pre-wrap; word-break: break-all; max-height: 150px; overflow-y: auto; color: var(--plasma-2); }
@@ -162,17 +159,17 @@
   .copy-btn {
     position: absolute; top: 6px; right: 10px; z-index: 3;
     font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.05em; cursor: pointer;
-    background: rgba(30,224,122,0.12); border: 1px solid var(--line-2); color: var(--plasma-2);
+    background: rgba(30,215,96,0.12); border: 1px solid var(--line-2); color: var(--plasma-2);
     padding: 6px 13px; border-radius: 8px; transition: all .18s;
   }
-  .copy-btn:hover { background: var(--plasma); color: #021; border-color: var(--plasma); }
-  .copy-btn.done { background: var(--plasma); color: #021; border-color: var(--plasma); }
+  .copy-btn:hover { background: var(--plasma); color: var(--green-ink); border-color: var(--plasma); }
+  .copy-btn.done { background: var(--plasma); color: var(--green-ink); border-color: var(--plasma); }
 
   /* Map / cheat-sheet table */
   .table-wrap { overflow-x: auto; margin: 20px 0; border: 1px solid var(--line); border-radius: 14px; }
   table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
   th, td { text-align: left; padding: 13px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--plasma-2); background: rgba(30,224,122,0.04); }
+  th { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--plasma-2); background: rgba(30,215,96,0.04); }
   tr:last-child td { border-bottom: none; }
   td .goal { color: var(--text); font-weight: 600; }
   td a { color: var(--plasma-2); border-bottom: 1px solid var(--line-2); }
@@ -264,10 +261,11 @@
       <a href="#sdk-manifest">4 · manifest.json</a>
       <a href="#sdk-streams">5 · Data streams</a>
       <a href="#sdk-actions">6 · Actions</a>
-      <a href="#sdk-network">7 · Internet &amp; webhooks</a>
-      <a href="#sdk-deck">8 · Deck integration</a>
-      <a href="#sdk-ambient">9 · Ambient scenes</a>
-      <a href="#sdk-security">10 · Versioning &amp; security</a>
+      <a href="#sdk-network">7 · Internet, tiles &amp; webhooks</a>
+      <a href="#sdk-data">8 · Settings &amp; secrets</a>
+      <a href="#sdk-deck">9 · Deck integration</a>
+      <a href="#sdk-ambient">10 · Ambient scenes</a>
+      <a href="#sdk-security">11 · Versioning &amp; security</a>
     </div>
     <div class="side-group">
       <h4>Share</h4>
@@ -318,9 +316,9 @@
 
     <section id="map">
       <h2>What you can make</h2>
-      <p>Xenon has seven kinds of creation. Each one exports as a small, self-contained code — a copyable link or a <em>.json</em> file — that anyone can import to get your exact result. Here's the whole map.</p>
+      <p>Xenon has nine kinds of creation. Each one exports as a small, self-contained code — a copyable link or a <em>.json</em> file — that anyone can import to get your exact result. Here's the whole map.</p>
       <div class="kinds">
-        <span>🎨 Theme</span><span>✨ Animated background</span><span>🧩 Page layout</span><span>🎛️ Deck profile</span><span>📦 Widget</span><span>🌙 Ambient scene</span><span>🎁 Full package</span>
+        <span>🎨 Theme</span><span>✨ Animated background</span><span>🧩 Page layout</span><span>🎛️ Deck profile</span><span>📦 Widget</span><span>🌙 Ambient scene</span><span>🖼️ Icon pack</span><span>🔊 Sound pack</span><span>🎁 Full package</span>
       </div>
       <div class="table-wrap">
         <table>
@@ -333,6 +331,8 @@
             <tr><td class="goal">Add a clock / monitor / countdown tile</td><td>Widget (from a template)</td><td>No</td><td><a href="#widgets">Widgets →</a></td></tr>
             <tr><td class="goal">Build a completely custom widget</td><td>Widget (SDK)</td><td>Yes</td><td><a href="#sdk">SDK →</a></td></tr>
             <tr><td class="goal">Design a fullscreen screensaver</td><td>Ambient scene</td><td>Some</td><td><a href="#ambient">Ambient →</a></td></tr>
+            <tr><td class="goal">Ship a set of key icons for the Deck</td><td>Icon pack (SVG/PNG files)</td><td>No</td><td><em>Settings → Widgets &amp; sharing → Create icon pack</em></td></tr>
+            <tr><td class="goal">Ship a soundboard (clips for Deck keys)</td><td>Sound pack (MP3/OGG/WAV)</td><td>No</td><td><em>Settings → Widgets &amp; sharing → Create sound pack</em></td></tr>
             <tr><td class="goal">Share my whole setup at once</td><td>Full package</td><td>No</td><td><a href="#packages">Packages →</a></td></tr>
           </tbody>
         </table>
@@ -352,14 +352,77 @@
 
     <section id="themes">
       <h2>Themes — your colours &amp; look</h2>
-      <p>A theme is the whole visual identity of your dashboard: light or dark, the accent colour, the background tint, how glassy the panels are, corner roundness, even a custom font. Change any of it, then save and share it as one code.</p>
+      <p>A theme is the whole visual identity of your dashboard: light or dark, canvas, panels, controls, text, borders, state colours, glass, corner roundness and even a custom font. Xenon applies those semantic roles everywhere, so Settings, menus, Deck tools and every built-in widget stay in the same visual language. Change any of it, then save and share it as one code.</p>
 
       <h3>Make one without code</h3>
       <ol class="steps">
         <li>Open <b>Settings → Appearance</b>.</li>
-        <li>Pick a mode (Light / Dark / Auto), an <b>accent colour</b>, and adjust the surface sliders (panel opacity, blur, roundness) until it feels right. Everything updates live.</li>
+        <li>Pick a mode (Light / Dark / Auto), then set the <b>canvas, panel, secondary surface, controls, text, borders and state colours</b> you care about. Leave a role on Auto and Xenon derives it from the surface.</li>
+        <li>Keep <b>Contrast protection</b> on unless you deliberately need exact low-contrast art direction. It repairs unreadable text and state combinations while preserving colours that already pass.</li>
+        <li>Adjust panel opacity, blur and roundness until the material feels right. Everything updates live across widgets, Settings, menus and Deck tools.</li>
         <li>Tap <b>Save current theme</b> to keep it as a card you can switch back to anytime.</li>
         <li>To share it: <b>Settings → Widgets &amp; sharing → Share &amp; Import → Export theme</b>. You get a link or a <em>.json</em> — send it to anyone.</li>
+      </ol>
+
+      <h3>One palette, every surface</h3>
+      <p>Theme files use role names instead of component-specific colours. This is the complete authoring contract; old three-colour themes with only <code>accent</code>, <code>background</code> and <code>text</code> still import, and Xenon derives the missing roles safely.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Theme role</th><th>What it controls</th></tr></thead>
+        <tbody>
+          <tr><td><code>background</code></td><td>App canvas behind all panels</td></tr>
+          <tr><td><code>surface</code> / <code>surfaceAlt</code></td><td>Panels, cards, rows and raised surfaces</td></tr>
+          <tr><td><code>controlColor</code></td><td>Inputs, selects, buttons and control wells</td></tr>
+          <tr><td><code>text</code> / <code>mutedText</code></td><td>Primary copy, labels and secondary details</td></tr>
+          <tr><td><code>lineColor</code></td><td>Borders, dividers and outlines</td></tr>
+          <tr><td><code>accent</code> / <code>accentText</code></td><td>Actions and the readable foreground placed on the accent</td></tr>
+          <tr><td><code>successColor</code>, <code>warningColor</code>, <code>dangerColor</code>, <code>infoColor</code></td><td>Shared status language across every widget and integration</td></tr>
+          <tr><td><code>contrastGuard</code></td><td>Automatic readability repair; defaults to <code>true</code></td></tr>
+        </tbody>
+      </table></div>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">theme.json — semantic palette</span><span class="badge">complete contract</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code>{
+  <span class="tok-k">"appearance"</span>: <span class="tok-s">"light"</span>,
+  <span class="tok-k">"background"</span>: <span class="tok-s">"#f1ead5"</span>,
+  <span class="tok-k">"surface"</span>: <span class="tok-s">"#fff8df"</span>,
+  <span class="tok-k">"surfaceAlt"</span>: <span class="tok-s">"#e4d8bd"</span>,
+  <span class="tok-k">"controlColor"</span>: <span class="tok-s">"#d8c9a9"</span>,
+  <span class="tok-k">"text"</span>: <span class="tok-s">"#241f1b"</span>,
+  <span class="tok-k">"mutedText"</span>: <span class="tok-s">"#61564d"</span>,
+  <span class="tok-k">"lineColor"</span>: <span class="tok-s">"#403833"</span>,
+  <span class="tok-k">"accent"</span>: <span class="tok-s">"#e53e54"</span>,
+  <span class="tok-k">"accentText"</span>: <span class="tok-s">"#ffffff"</span>,
+  <span class="tok-k">"contrastGuard"</span>: <span class="tok-k">true</span>
+}</code></pre>
+      </div>
+
+      <h3>One theme, light and dark</h3>
+      <p>A theme's colours are normally fixed: a cream theme stays cream even for someone running Windows in dark mode. Add <code>paletteVariants</code> and you ship both halves in one theme — Xenon paints the one that matches the mode the user picked, and follows Windows live when they're on <b>Auto</b>. Set <code>"appearance": "auto"</code> and the two halves become the palette.</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">theme.json — one card, two tones</span><span class="badge">v4.6.0+</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code>{
+  <span class="tok-k">"appearance"</span>: <span class="tok-s">"auto"</span>,
+  <span class="tok-k">"styleMode"</span>: <span class="tok-s">"comic"</span>,
+  <span class="tok-k">"accent"</span>: <span class="tok-s">"#e63d4e"</span>,
+  <span class="tok-k">"background"</span>: <span class="tok-s">"#efe6cf"</span>,
+  <span class="tok-k">"text"</span>: <span class="tok-s">"#1b140d"</span>,
+  <span class="tok-k">"paletteVariants"</span>: {
+    <span class="tok-k">"light"</span>: { <span class="tok-k">"accent"</span>: <span class="tok-s">"#e63d4e"</span>, <span class="tok-k">"background"</span>: <span class="tok-s">"#efe6cf"</span>, <span class="tok-k">"surface"</span>: <span class="tok-s">"#efe6cf"</span>, <span class="tok-k">"text"</span>: <span class="tok-s">"#1b140d"</span> },
+    <span class="tok-k">"dark"</span>:  { <span class="tok-k">"accent"</span>: <span class="tok-s">"#ff5566"</span>, <span class="tok-k">"background"</span>: <span class="tok-s">"#12101d"</span>, <span class="tok-k">"surface"</span>: <span class="tok-s">"#191527"</span>, <span class="tok-k">"text"</span>: <span class="tok-s">"#fbf3e0"</span> }
+  }
+}</code></pre>
+      </div>
+      <p>Each half takes any role from the table above. Write each one as a <em>complete</em> palette: a role you leave out of a half is derived for that tone rather than borrowed from the other half, so a cream <code>surface</code> can never leak into the dark side. The top-level colours stay required — they describe your primary tone and are what older Xenon versions import.</p>
+      <div class="note"><b>Check both halves.</b> The contrast guard runs per tone, and a status colour tuned for light paper is usually unreadable on a dark board. Give each half its own <code>mutedText</code> and status colours. If the user later edits a colour by hand, Xenon keeps what's on screen and drops the pair, so their choice sticks.</div>
+
+      <h3>Override just one widget</h3>
+      <ol class="steps">
+        <li>Turn on <b>Layout</b> and tap the paint control on the widget.</li>
+        <li>Switch from <b>Follow theme</b> to <b>Custom</b>, then change only the roles that tile needs. Unset roles continue to inherit the global theme.</li>
+        <li>The local palette is contrast-checked, saved with the layout, included in backups and page presets, and passed into sandboxed SDK widgets.</li>
+        <li>Choose <b>Follow theme</b> again to remove the override cleanly.</li>
       </ol>
 
       <h3>Or start from a real one</h3>
@@ -392,7 +455,7 @@
       </div>
 
       <h3>Write your own (optional)</h3>
-      <p>Under the templates there's a code box. Anything you type there runs in a locked sandbox — no internet, no access to your files. You define one function, <em>draw</em>, and Xenon calls it about 60 times a second. Here's the whole idea:</p>
+      <p>Under the templates there's a code box. Anything you type there runs in a locked sandbox — no internet, no access to your files. You define one function, <em>draw</em>, and Xenon calls it at the background's frame rate — <b>30 frames per second by default</b>, adjustable from 10 to 60 right next to the editor. Here's the whole idea:</p>
       <div class="code">
         <div class="code-bar"><span class="dot"></span><span class="fname">the draw() contract</span></div>
         <button class="copy-btn" data-copy>Copy</button>
@@ -411,6 +474,9 @@
 }</code></pre>
       </div>
       <p class="muted">That's a complete, working background. Keep the work per frame small and steady and it runs forever without slowing anything down. It lives in the same locked sandbox as a widget (no network, no access to your files), so it's always safe to try one.</p>
+      <h3>Frames per second — the performance dial</h3>
+      <p>Every animated background carries its own frame-rate cap: how many times per second the scene is repainted. <b>30 is the default</b> and the sweet spot for almost any scene — smooth to the eye, light on the machine. Near-static looks (a breathing gradient, a slow starfield) are happy at 10–20; reserve 60 for genuinely fast motion. Animation <em>speed</em> never changes — a lower cap only paints less often.</p>
+      <p class="muted">Theme authors set it when packaging (<code>bgCustom.fps</code> in a theme, or <code>"backgroundFps"</code> in <code>pack.json</code>). And it's always the user's machine, so the dial stays in their hands too: Settings → Animated background → <em>Frames per second</em> works even on imported backgrounds whose code is locked.</p>
     </section>
 
     <section id="pages">
@@ -427,10 +493,11 @@
 
     <section id="deck">
       <h2>Deck profiles — your own control grid</h2>
-      <p>The Deck widget is a Stream-Deck-style grid of keys. Each key can launch an app or website, control your media, run OBS or Discord, fire a hotkey, and more — and you style every key exactly how you like.</p>
+      <p>The Deck widget is a Stream-Deck-style grid of keys. Each key can launch an app or website, control your media, run OBS or Discord, fire a hotkey, and more — and you style every key exactly how you like. Each profile also owns its device appearance: cap material, shape, faceplate, key-well artwork and music-strip styling. An imported profile changes only itself; profiles already on the Deck keep their original look.</p>
       <ol class="steps">
         <li>Add the <b>Deck</b> widget from the <b>+</b> palette in Layout mode.</li>
         <li>Tap a key to open <b>Edit key</b>: choose an icon or a picture face, a label, colours or a gradient, and the action it runs on tap / double-tap / hold.</li>
+        <li>Open <b>Personalizza</b> to choose the profile's device theme. <b>Fumetto</b> makes the chassis, keys, icons and captions look hand-inked on paper; the live preview shows its full background before you apply it.</li>
         <li>Organise keys into folders and pages; group actions into a single key for multi-step macros.</li>
         <li>Share a profile with <b>Export Deck profile</b>. For safety, actions are rebuilt from scratch on export and import, and the import screen shows exactly which action types a profile contains before you add it.</li>
       </ol>
@@ -481,18 +548,25 @@
         <pre><code>&lt;!doctype html&gt;
 &lt;meta charset="utf-8"&gt;
 &lt;style&gt;
+  :root { --accent:#b57bff; --text:#f1ecfa; }
   body { margin:0; display:grid; place-items:center; height:100vh;
-         background:transparent; font-family:system-ui; }
-  #t  { font-size:16vw; font-weight:700; color:var(--accent, #b57bff);
-         text-shadow:0 0 22px rgba(181,123,255,.5); }
+         background:transparent; color:var(--text); font-family:system-ui; }
+  #t  { font-size:16vw; font-weight:700; color:var(--accent);
+         text-shadow:0 0 22px color-mix(in srgb,var(--accent),transparent 50%); }
 &lt;/style&gt;
 &lt;div id="t"&gt;--:--&lt;/div&gt;
 &lt;script&gt;
-  <span class="tok-c">// follow the dashboard theme when it arrives</span>
+  <span class="tok-c">// use this tile's complete, contrast-checked palette</span>
+  function applyTheme(theme) {
+    const p = theme &amp;&amp; (theme.palette || theme); <span class="tok-c">// fallback for older Xenon</span>
+    if (!p) return;
+    if (p.accent) document.documentElement.style.setProperty('--accent', p.accent);
+    if (p.text) document.documentElement.style.setProperty('--text', p.text);
+  }
   addEventListener('message', e =&gt; {
     const m = e.data;
-    if (m &amp;&amp; m.xenonSdk === 1 &amp;&amp; m.theme &amp;&amp; m.theme.accent)
-      document.documentElement.style.setProperty('--accent', m.theme.accent);
+    if (m &amp;&amp; m.xenonSdk === 1 &amp;&amp;
+        (m.type === 'init' || m.type === 'theme')) applyTheme(m.theme);
   });
   <span class="tok-c">// tick the clock every second</span>
   const pad = n =&gt; String(n).padStart(2,'0');
@@ -539,7 +613,7 @@
         <li><b>You say hello.</b> <code>parent.postMessage({ xenonSdk:1, type:'hello' }, '*')</code> kicks everything off.</li>
         <li><b>Xenon sends <code>init</code>.</b> The current theme, the language, and exactly which streams and actions the user granted (which may be fewer than you asked for &mdash; always read this, don't assume).</li>
         <li><b>Xenon replays your data.</b> Right after <code>init</code>, it sends the latest value of every granted stream, so you can paint immediately without waiting for the next update.</li>
-        <li><b>Xenon keeps you current.</b> A <code>data</code> message every time a stream changes, and a <code>theme</code> message whenever the look changes.</li>
+        <li><b>Xenon keeps you current.</b> A <code>data</code> message every time a stream changes, a <code>theme</code> message whenever the look changes, and a <code>size</code> message with your tile's pixel box + DPR (on mount and on every resize).</li>
         <li><b>You act.</b> Send an <code>action</code> to control something; Xenon replies with an <code>action_result</code> (<code>ok:true</code>, or an error code).</li>
       </ol>
       <h3>The messages, exactly</h3>
@@ -551,7 +625,13 @@
 
 <span class="tok-c">// ── Xenon → widget (you receive these in a 'message' listener) ──</span>
 { xenonSdk:1, type:<span class="tok-s">'init'</span>,
-  theme:{ appearance:<span class="tok-s">'dark'</span>, accent:<span class="tok-s">'#1ed760'</span>, background:<span class="tok-s">'#070808'</span>, text:<span class="tok-s">'#f0f3f1'</span> },
+  theme:{ appearance:<span class="tok-s">'dark'</span>, overrides:[<span class="tok-s">'accent'</span>],
+    palette:{
+      background:<span class="tok-s">'#070808'</span>, surface:<span class="tok-s">'#111314'</span>, surfaceAlt:<span class="tok-s">'#16191a'</span>, control:<span class="tok-s">'#1c2021'</span>,
+      text:<span class="tok-s">'#f0f3f1'</span>, muted:<span class="tok-s">'#a6b1ad'</span>, dim:<span class="tok-s">'#7f8a86'</span>, line:<span class="tok-s">'#46504c'</span>,
+      accent:<span class="tok-s">'#1ed760'</span>, onAccent:<span class="tok-s">'#111111'</span>,
+      success:<span class="tok-s">'#45d483'</span>, warning:<span class="tok-s">'#f0b84f'</span>, danger:<span class="tok-s">'#ff6268'</span>, info:<span class="tok-s">'#62cbea'</span>
+    } },
   lang:<span class="tok-s">'en'</span>,                 <span class="tok-c">// en · it · ko · ja · zh</span>
   streams:[<span class="tok-s">'system'</span>],       <span class="tok-c">// what the user actually granted</span>
   actions:[<span class="tok-s">'media'</span>] }
@@ -581,18 +661,22 @@
         <pre><code>&lt;!doctype html&gt;
 &lt;meta charset="utf-8"&gt;
 &lt;style&gt;
+  :root { --accent:#1ed760; --text:#e9f2ee; }
   body { margin:0; display:grid; place-items:center; height:100vh;
-         font-family:system-ui; color:#e9f2ee; background:transparent; }
-  #v { font-size:14vw; font-weight:700; color:var(--accent,#1ed760); }
+         font-family:system-ui; color:var(--text); background:transparent; }
+  #v { font-size:14vw; font-weight:700; color:var(--accent); }
 &lt;/style&gt;
 &lt;div id="v"&gt;--%&lt;/div&gt;
 &lt;script&gt;
   addEventListener('message', e =&gt; {
     const m = e.data;
     if (!m || m.xenonSdk !== 1) return;
-    <span class="tok-c">// theme comes on init and whenever it changes</span>
-    if ((m.type === 'init' || m.type === 'theme') &amp;&amp; m.theme &amp;&amp; m.theme.accent)
-      document.documentElement.style.setProperty('--accent', m.theme.accent);
+    <span class="tok-c">// palette comes on init and whenever this tile's theme changes</span>
+    if ((m.type === 'init' || m.type === 'theme') &amp;&amp; m.theme) {
+      const p = m.theme.palette || m.theme;
+      if (p.accent) document.documentElement.style.setProperty('--accent', p.accent);
+      if (p.text) document.documentElement.style.setProperty('--text', p.text);
+    }
     <span class="tok-c">// live data for a stream we were granted</span>
     if (m.type === 'data' &amp;&amp; m.stream === 'system') {
       const cpu = Number(m.data &amp;&amp; m.data.cpu);
@@ -622,7 +706,11 @@
   <span class="tok-k">"streams"</span>: [<span class="tok-s">"system"</span>, <span class="tok-s">"media"</span>],
   <span class="tok-k">"actions"</span>: [<span class="tok-s">"media"</span>, <span class="tok-s">"volume"</span>],
   <span class="tok-k">"hosts"</span>: [<span class="tok-s">"api.example.com"</span>],
-  <span class="tok-k">"hooks"</span>: [<span class="tok-s">"my-event"</span>]
+  <span class="tok-k">"userHosts"</span>: [{ <span class="tok-k">"id"</span>: <span class="tok-s">"nas"</span>, <span class="tok-k">"label"</span>: <span class="tok-s">"NAS address"</span>, <span class="tok-k">"scope"</span>: <span class="tok-s">"private"</span> }],
+  <span class="tok-k">"hooks"</span>: [<span class="tok-s">"my-event"</span>],
+  <span class="tok-k">"storage"</span>: true,
+  <span class="tok-k">"storageGroup"</span>: <span class="tok-s">"my-widget-set"</span>,
+  <span class="tok-k">"secrets"</span>: true
 }</code></pre>
       </div>
       <div class="table-wrap">
@@ -636,11 +724,16 @@
             <tr><td><code>entry</code></td><td>No</td><td>The HTML file to load. Defaults to <code>index.html</code>. Must sit in the package root.</td></tr>
             <tr><td><code>streams</code></td><td>No</td><td>The live data you want to read. Full list in <a href="#sdk-streams">§5</a>.</td></tr>
             <tr><td><code>actions</code></td><td>No</td><td>The categories of things you want to control. Full list in <a href="#sdk-actions">§6</a>.</td></tr>
-            <tr><td><code>hosts</code></td><td>No</td><td>Up to 8 hostnames your widget may reach through Xenon's fetch proxy (<a href="#sdk-network">§7</a>). Loopback / LAN names are rejected.</td></tr>
+            <tr><td><code>hosts</code></td><td>No</td><td>Up to 8 hostnames your widget may reach through Xenon's fetch proxy (<a href="#sdk-network">§7</a>). A LAN address is fine; loopback and link-local names are rejected.</td></tr>
+            <tr><td><code>userHosts</code></td><td>No</td><td>Up to 4 addresses <b>the user types in</b>, for servers you can't know in advance — a NAS, Docker, a printer (<a href="#sdk-network">§7</a>).</td></tr>
             <tr><td><code>hooks</code></td><td>No</td><td>Up to 8 hook ids a local app may push events to (<a href="#sdk-network">§7</a>).</td></tr>
-            <tr><td><code>surface</code></td><td>No</td><td><code>"tile"</code> (default) or <code>"ambient"</code> for a fullscreen scene (<a href="#sdk-ambient">§9</a>).</td></tr>
-            <tr><td><code>deck</code></td><td>No</td><td>Deck contributions: macros, published states and code-run handlers (<a href="#sdk-deck">§8</a>).</td></tr>
-            <tr><td><code>background</code></td><td>No</td><td><code>true</code> lets your Deck handlers run headless, with no tile on screen (<a href="#sdk-deck">§8</a>).</td></tr>
+            <tr><td><code>surface</code></td><td>No</td><td><code>"tile"</code> (default) or <code>"ambient"</code> for a fullscreen scene (<a href="#sdk-ambient">§10</a>).</td></tr>
+            <tr><td><code>deck</code></td><td>No</td><td>Deck contributions: macros, published states and code-run handlers (<a href="#sdk-deck">§9</a>).</td></tr>
+            <tr><td><code>background</code></td><td>No</td><td><code>true</code> lets your Deck handlers run headless, with no tile on screen (<a href="#sdk-deck">§9</a>).</td></tr>
+            <tr><td><code>storage</code></td><td>No</td><td><code>true</code> gives your widget a small key/value store that <b>survives updates</b> (<a href="#sdk-data">§8</a>).</td></tr>
+            <tr><td><code>storageGroup</code></td><td>No</td><td>A shared-store id so a set of sibling widgets share one store. Implies <code>storage</code> (<a href="#sdk-data">§8</a>).</td></tr>
+            <tr><td><code>secrets</code></td><td>No</td><td><code>true</code> gives you a write-only vault for API keys, used via <code>{{secret:NAME}}</code> in requests (<a href="#sdk-data">§8</a>).</td></tr>
+            <tr><td><code>island</code></td><td>No</td><td><code>true</code> lets your widget project <b>one short plain-text line</b> into the minimal topbar's dynamic island — host-rendered, capped at 160 chars, plain text only, with an optional dimmed <code>next</code> line and a <code>badge</code> meta column (speed, countdown). Chained lines glide karaoke-style. One owner at a time; system notifications always win; auto-cleared when your tile goes away. See the SDK guide's <i>Island projection</i> chapter.</td></tr>
           </tbody>
         </table>
       </div>
@@ -649,7 +742,7 @@
 
     <section id="sdk-streams">
       <h2>5 · Data streams — everything you can read</h2>
-      <p>List any of these in <code>streams</code>. You receive the dashboard's own live data, unchanged, as <code>data</code> messages &mdash; plus the latest value replayed right after <code>init</code>. Every string in a payload is display text: render it with <code>textContent</code>.</p>
+      <p>List any of these in <code>streams</code>. Live streams arrive as unchanged <code>data</code> messages and replay their latest cached value after <code>init</code>. The richer Discord snapshots are loaded on demand while their UI is visible. Every string in a payload is display text: render it with <code>textContent</code>.</p>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Stream</th><th>What it carries</th></tr></thead>
@@ -665,15 +758,21 @@
             <tr><td><code>claude</code></td><td>Local Claude Code usage aggregate (the "Xenon Pulse" data).</td></tr>
             <tr><td><code>obs</code></td><td>OBS state: current scene, recording / streaming flags, audio sources.</td></tr>
             <tr><td><code>discord</code></td><td>Discord voice: connected, mute / deafen, channel, who's speaking.</td></tr>
+            <tr><td><code>discordChannels</code></td><td>Discord servers, voice channels and their live member roster. Lazy: request a refresh when the Channels view opens.</td></tr>
+            <tr><td><code>discordSoundboard</code></td><td>The connected account's Soundboard catalog. Lazy and cached for 60 seconds.</td></tr>
+            <tr><td><code>discordNotifications</code></td><td>Private DM / mention notifications, respecting the user's privacy setting. <b>Privacy:</b> request this separate grant only when notification content is essential.</td></tr>
             <tr><td><code>streamerbot</code></td><td>Streamer.bot connection, globals and activity events.</td></tr>
             <tr><td><code>homeassistant</code></td><td>Home Assistant device / entity states. <b>Privacy:</b> this is your smart-home state, grant it deliberately.</td></tr>
             <tr><td><code>wavelink</code></td><td>Elgato Wave Link mixer state: inputs, faders, mute flags, monitor mix.</td></tr>
             <tr><td><code>tasks</code></td><td><code>{ tasks: [...] }</code> &mdash; the to-do list, pushed on every change (each task has an <code>id</code>).</td></tr>
             <tr><td><code>agenda</code></td><td><code>{ events: [...] }</code> &mdash; calendar events, pushed on every change.</td></tr>
             <tr><td><code>notes</code></td><td><code>{ notes: [...] }</code> &mdash; the user's notes. <b>Privacy:</b> private scratchpad text, grant it deliberately.</td></tr>
+            <tr><td><code>battery</code></td><td><code>{ devices: [...], sources: {...} }</code> &mdash; wireless peripheral battery levels (Corsair via iCUE + Bluetooth), on a ~90s tick.</td></tr>
           </tbody>
         </table>
+        <div class="note"><b>Fans and power draw need no stream of their own</b> &mdash; they ride the <code>system</code> payload as <code>fans</code>, <code>power</code> and <code>sensorAccess</code>. Three things to get right: a fan carries <code>rpm</code> <i>or</i> <code>pct</code> (never both), the GPU fan is the one with <code>kind: 'gpu'</code> (never match on <code>name</code>), and every watt reading is nullable &mdash; since <code>Number(null)</code> is <code>0</code>, guard with <code>v != null</code> first or you'll render a confident "0 W" that isn't real. Full payloads and the <code>sensorAccess</code> states are in the <a href="https://github.com/marcimastro98/xenon/blob/main/docs/WIDGET_SDK.md#3b-hardware-sensors--fans-power-device-battery-v46">SDK reference</a>.</div>
       </div>
+      <div class="note"><b>Refreshing rich Discord data:</b> send <code>{ xenonSdk:1, type:'refresh', id:7, stream:'discordChannels' }</code>. Xenon sends the normal <code>data</code> payload plus <code>refresh_result</code>. The stream name selects one fixed local source &mdash; packages cannot provide a URL &mdash; and hidden or ungranted widgets are rejected.</div>
     </section>
 
     <section id="sdk-actions">
@@ -731,7 +830,7 @@
     </section>
 
     <section id="sdk-network">
-      <h2>7 · Reaching the internet, and webhooks</h2>
+      <h2>7 · Reaching the internet, tiles &amp; webhooks</h2>
       <p>Your widget has <strong>no direct network, ever</strong> &mdash; the sandbox blocks fetch, XHR and WebSockets. For the two cases where you need the outside world, Xenon gives you safe, mediated channels.</p>
 
       <h3>Calling an API (the fetch proxy)</h3>
@@ -764,6 +863,33 @@ addEventListener('message', e =&gt; {
       </ul>
       <div class="note">Apps like Razer Synapse or Wave Link expose a <code>127.0.0.1</code> endpoint, which the sandbox blocks on purpose. Don't try to reach them directly &mdash; use the matching <code>chroma</code> / <code>wavelink</code> action category instead and let Xenon do the local talking.</div>
 
+      <h3>Addresses only the user knows (<code>userHosts</code>)</h3>
+      <p><code>hosts</code> works when you know the address as you build the widget. It doesn't when the server lives on <b>the user's</b> network &mdash; a NAS, a Docker host, a printer, a self-hosted Plex. You can't know that address, and hard-coding your own would make the widget useless to everyone else.</p>
+      <p>So declare a <b>named blank</b> instead. The user fills it in when they approve your widget, and you read it back from <code>init</code>.</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">an address the user provides</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code><span class="tok-c">// manifest:</span>
+<span class="tok-c">// "userHosts": [{ "id": "nas", "label": "NAS address", "scope": "private" }]</span>
+
+<span class="tok-c">// init hands you what they typed, with a ready-made base:</span>
+<span class="tok-c">// userHosts: { nas: { host:'192.168.1.50', port:32400, scheme:'http',</span>
+<span class="tok-c">//                     base:'http://192.168.1.50:32400' } }</span>
+const nas = init.userHosts.nas;
+if (nas) {
+  parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'fetch'</span>, id:8,
+    url: nas.base + <span class="tok-s">'/library/sections'</span> }, '*');
+}</code></pre>
+      </div>
+      <ul>
+        <li><code>label</code> is the text above the field &mdash; say plainly what you want ("Plex server address"). <code>scope</code> is <code>"private"</code> (default, the user's own network only) or <code>"any"</code> (also a public domain, for a self-hosted service).</li>
+        <li>The user can type <code>192.168.1.50:32400</code>, <code>nas.local</code> or <code>https://plex.example.com</code> &mdash; all fine. <b>Use <code>base</code></b> rather than rebuilding the URL yourself. Ports aren't part of the allowlist, so a slot covers any port on that host.</li>
+        <li>A slot they left empty is simply absent from <code>init.userHosts</code> &mdash; but in practice Xenon won't mount you until every declared slot has an address, and asks them for it instead.</li>
+        <li>The address is stored with the user's grant, never in your package: it doesn't travel when the widget is shared, and it survives updates. Users change it later from the Store's <b>Installed</b> list → <i>Address</i>.</li>
+        <li>Up to 4 slots. Ask for as few as you can &mdash; each one is a field a person has to understand and type.</li>
+      </ul>
+      <div class="note">This is the one place a widget has a say in where it can reach &mdash; so, to be exact: it still can't choose. You declare that you <i>need</i> an address and how wide it may reach; the value only ever comes from the person at the keyboard, and Xenon re-checks it on every request. Loopback and link-local stay unreachable through a slot, and <code>"private"</code> really does pin it to the LAN.</div>
+
       <h3>Local webhooks (a local app pushes to you)</h3>
       <p>Declare hook ids in <code>hooks</code>, and any local process (Streamer.bot, AutoHotkey, a script) can push an event straight into your widget.</p>
       <div class="code">
@@ -784,10 +910,71 @@ Content-Type: application/json
 });</code></pre>
       </div>
       <p class="muted">Delivery is live-only: if no dashboard is open the event is dropped and the sender is told so. Hooks reach your widget even on a page that isn't currently on screen, so you can turn them into Deck states (next).</p>
+
+      <h3>Map &amp; radar tiles</h3>
+      <p>A slippy map (a weather radar, a location picker) needs many small image tiles, which are too slow to pull one-by-one through the fetch proxy. Point your map library's tile layer straight at the same-origin tile route instead &mdash; it's allowed by the widget sandbox with no relaxation, and goes through the exact same host allowlist and safety checks as the fetch proxy, with a built-in cache.</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">tiles as a normal &lt;img&gt; / Leaflet layer</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code><span class="tok-c">// init tells you your package id: { type:'init', pkgId:'weather-radar', … }</span>
+<span class="tok-c">// manifest: "hosts": ["tile.example.com"]</span>
+const tile = (u) =&gt; <span class="tok-s">`/sdk/tile/${pkgId}?u=${encodeURIComponent(u)}`</span>;
+L.tileLayer(tile(<span class="tok-s">'https://tile.example.com/{z}/{x}/{y}.png'</span>), { <span class="tok-c">/* … */</span> });</code></pre>
+      </div>
+      <p class="muted">The tile host must be in your <code>hosts</code>. Images only, cached briefly so panning back doesn't re-hit the server, and rate-limited per widget. Bundle the map library (Leaflet's JS/CSS/marker images) inside your package as usual.</p>
+    </section>
+
+    <section id="sdk-data">
+      <h2>8 · Saving settings &amp; secrets</h2>
+      <p>The sandbox gives your widget no cookies and no <code>localStorage</code>, so Xenon hands you two host-mediated stores instead &mdash; both opt-in from the manifest, both shown in the permission dialog, and both living <strong>outside</strong> your package folder so an update that refreshes your widget never wipes the user's data.</p>
+
+      <h3>Persistent storage &mdash; a widget's own settings</h3>
+      <p>Add <code>"storage": true</code> and you get a small key/value store for the things your widget should remember: the teams a user follows, the sources they picked, a map's last centre and zoom.</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">store.set / store.get over the bridge</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code>parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'store'</span>, id:1,
+  op:{ op:<span class="tok-s">'set'</span>, key:<span class="tok-s">'teams'</span>, value:[64, 65] } }, '*');
+parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'store'</span>, id:2,
+  op:{ op:<span class="tok-s">'get'</span>, key:<span class="tok-s">'teams'</span> } }, '*');
+
+addEventListener('message', e =&gt; {
+  const m = e.data;
+  if (m &amp;&amp; m.xenonSdk === 1 &amp;&amp; m.type === 'store_result' &amp;&amp; m.id === 2)
+    console.log('teams:', m.value);   <span class="tok-c">// [64, 65]  (null if never set)</span>
+});</code></pre>
+      </div>
+      <ul>
+        <li>Ops: <code>set</code> (key, value), <code>get</code>, <code>delete</code>, <code>keys</code>, <code>clear</code>. Values are any JSON value.</li>
+        <li>Caps: up to 16&nbsp;KB per value, 128 keys, 256&nbsp;KB per store &mdash; over that you get <code>value_too_large</code> / <code>too_many_keys</code> / <code>store_full</code>.</li>
+        <li><b>Share across widgets:</b> give several packages the same <code>"storageGroup": "my-set"</code> and they read and write <em>one</em> shared store &mdash; perfect for a suite of sibling widgets that keep a common list.</li>
+      </ul>
+
+      <h3>Secrets &amp; API keys &mdash; never shipped, never seen</h3>
+      <p>A widget you publish must contain no API keys, and the sandboxed page should never hold one where an update could log it. Add <code>"secrets": true</code> and you get a <strong>write-only</strong> vault: you can store a key and use it, but you can never read it back.</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">store a key, then use it in a request</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code><span class="tok-c">// Save it once — e.g. from a settings field the user fills in:</span>
+parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'secret'</span>, id:1,
+  op:{ op:<span class="tok-s">'set'</span>, name:<span class="tok-s">'apiKey'</span>, value:userInput } }, '*');
+
+<span class="tok-c">// Use it: {{secret:NAME}} is filled in by Xenon just before the request</span>
+<span class="tok-c">// leaves — the key never travels through your widget.</span>
+parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'fetch'</span>, id:7,
+  url:<span class="tok-s">'https://api.football-data.org/v4/matches'</span>,
+  headers:{ <span class="tok-s">'X-Auth-Token'</span>: <span class="tok-s">'{{secret:apiKey}}'</span> } }, '*');</code></pre>
+      </div>
+      <ul>
+        <li>Ops: <code>set</code> (name, value), <code>delete</code>, <code>names</code>, <code>has</code>. There is deliberately <b>no <code>get</code></b> &mdash; a read never returns a value.</li>
+        <li>Reference a secret with <code>{{secret:NAME}}</code> anywhere in a <code>fetch</code>'s url, headers or body (a key-in-URL API like TheSportsDB works too). Substitution can never move the request to a different host.</li>
+        <li>Up to 16 secrets, 4&nbsp;KB each. A placeholder for a secret you haven't stored fails the request rather than sending the literal token.</li>
+      </ul>
+      <div class="note"><b>This is how you ship a widget that uses your own provider.</b> Build with the SDK, keep your keys in the vault, publish the package with no keys inside &mdash; and it keeps working across every Xenon update, because none of it touches core files.</div>
     </section>
 
     <section id="sdk-deck">
-      <h2>8 · Deck integration</h2>
+      <h2>9 · Deck integration</h2>
       <p>A widget can add keys to the Deck (Xenon's Stream-Deck-style grid) three ways. All of them are declared under a <code>deck</code> object in the manifest.</p>
 
       <h3>Macros — bundle built-in actions into one key</h3>
@@ -847,7 +1034,7 @@ parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'state'</span>,
     </section>
 
     <section id="sdk-ambient">
-      <h2>9 · Ambient scenes (fullscreen widgets)</h2>
+      <h2>10 · Ambient scenes (fullscreen widgets)</h2>
       <p>Add <code>"surface": "ambient"</code> to your manifest and your package becomes an <strong>Ambient scene</strong> &mdash; a fullscreen screensaver the user selects in Settings → Ambient instead of placing as a tile. Everything else is identical: same folder, same sandbox, same bridge, same permission dialog, same Export / Import.</p>
       <ul>
         <li><b>You render the whole screen.</b> It's landscape and watched from a distance, so design big, calm and dim &mdash; near-black backgrounds are kind to an always-on display. No scrolling (<code>overflow: hidden</code>).</li>
@@ -858,7 +1045,7 @@ parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'state'</span>,
     </section>
 
     <section id="sdk-security">
-      <h2>10 · Versioning &amp; the security model</h2>
+      <h2>11 · Versioning &amp; the security model</h2>
       <p><strong>Versioning.</strong> <code>api: 1</code> is the contract on this page. Breaking changes would ship as <code>api: 2</code> with a migration window; Xenon rejects a manifest whose <code>api</code> it doesn't support, so your widget never half-works.</p>
       <p><strong>Why this is safe</strong> (worth knowing, whichever side you're on):</p>
       <ul>
@@ -867,6 +1054,7 @@ parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'state'</span>,
         <li>The manifest is re-validated on Xenon's side; unknown streams / actions are dropped; asset paths are allowlisted by segment and extension.</li>
         <li>Xenon forwards only the streams the user granted and dispatches only granted actions; every action is re-checked in the server's action registry.</li>
         <li>All network goes through the host proxy: the host allowlist is the authority, loopback is unreachable even via DNS tricks, redirects aren't followed, sizes are bounded. Your widget never holds a network primitive.</li>
+        <li>Storage and secrets live on the server, outside your package folder. Secrets are write-only &mdash; the frame can never read one back &mdash; and are filled into a request only for the hosts you already declared, server-side.</li>
       </ul>
       <div class="note safe">That's the whole SDK. You've got the folder, the bridge, every stream and action, the network and webhook channels, Deck keys and ambient scenes. When you've built something, <a href="#publish" class="inline">publish it to the catalog</a> so others can enjoy it.</div>
     </section>
@@ -888,8 +1076,10 @@ parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'state'</span>,
         <li>Go to <b>Share &amp; Import → Export package</b>.</li>
         <li>Tick what to include: theme (with its font), pages, Deck profiles, background, your own widgets and Ambient scenes.</li>
         <li>You get a single code. When someone imports it, each part is re-checked on the way in, and any widgets ask for their permissions — exactly like installing them one by one, just in one step.</li>
+        <li>To uninstall it later, open <b>Share &amp; Import → Installed content</b>. Xenon shows every resource that download added and <b>Remove all</b> deletes them together without touching the user's own creations.</li>
       </ol>
       <div class="note safe"><b>Your work stays yours.</b> You can only export creations you made. Anything you imported from someone else is marked as theirs and can't be re-shared — so credit never gets lost.</div>
+      <div class="note"><b>Imports from older Xenon versions:</b> previous releases did not save package ownership. They appear in one labelled legacy group and can be cleaned up together; every new import is tracked separately and survives restart, backup export and restore.</div>
     </section>
 
     <section id="publish">

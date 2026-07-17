@@ -12,6 +12,9 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 - [System monitor](#system-monitor)
 - [Sensor history & PC Screen Time](#sensor-history--pc-screen-time)
 - [Network & in-game FPS](#network--in-game-fps)
+- [Fans (Ventole)](#fans-ventole)
+- [Energy (Energia)](#energy-energia)
+- [Batteries (Batterie)](#batteries-batterie)
 - [Media](#media)
 - [Audio](#audio)
 - [Microphone](#microphone)
@@ -170,6 +173,43 @@ Turn on **Sensor history** (Settings → Performance) and the System tile gains 
 - **Trend charts.** Clean sparklines of **CPU and GPU temperature and load, and RAM usage** over the last **24 hours, 7 days or 30 days** — each chart marks its latest value and its peak, so you can see at a glance that (say) your GPU has run hotter this week than last.
 - **PC Screen Time.** A screen-time breakdown for the same period: your **most-used apps** as a ranked bar list with the time spent in each, a **total active time**, and how much of it was **gaming** (games are marked 🎮 and counted separately) — the "Screen Time for your PC". Measured from the app already in focus; time while the screen is locked doesn't count.
 - **Private and cheap.** It's **off by default**, costs almost nothing (one lightweight sample every few minutes of data the dashboard already reads), and **everything stays on your PC**. If you already use the AI **Guardian** feature, the same history simply appears in this tab. Fully localised (EN/IT/KO/JA/ZH).
+
+---
+
+## Fans (Ventole)
+
+Add it from the **"+"** palette (System category). Shows the live RPM of every fan your PC exposes.
+
+- **Every fan, individually.** CPU and case fans (via LibreHardwareMonitor, the same sensor layer that reads your temperatures), plus **each** fan on your graphics card read from its own tachometer — a two-fan card shows two real readings instead of one aggregate percentage, and a card idling in zero-RPM mode correctly shows its fans stopped rather than the percentage its fan curve is merely aiming for.
+- **AIO coolers and fan hubs too.** NZXT Kraken, Aquacomputer Octo/Quadro/D5 Next, MSI CoreLiquid, Razer and Arctic controllers and more — the fans and pump that bypass the motherboard entirely and that no header-only scan can see.
+- **Grouped by where the fan physically is:** Scheda madre, Hub / AIO, Scheda video, Alimentatore. Each fan is a compact row (spinning impeller, name, speed bar, RPM), colour-coded by how hard it's working. A pump is scaled on its own faster range, so a healthy AIO pump doesn't read alarm-red.
+- **Rename any fan.** The motherboard genuinely cannot know what's plugged into "Fan #3" — only you do. Tap a fan's name to rename it ("Radiatore alto", "Case posteriore"). Names survive restarts, sync across screens, and clearing one brings the sensor's own name back.
+- **0 RPM is not drawn as a stopped fan.** Your board lists every header it physically has, plugged or not, so a zero there means "no tachometer signal" — an empty socket, or a fan that stopped — and the board can't tell which. Silent headers collapse into one quiet "No signal" line. On a graphics card or a PSU a zero *is* a genuinely stopped fan (the sensor exists because the fan does), so those stay full rows.
+- **Honest limits.** Fans on an unsupported hub (e.g. iCUE Link) or doubled on a splitter can't report — the widget says so plainly.
+
+---
+
+## Energy (Energia)
+
+Add it from the **"+"** palette (System category). A multi-source power panel.
+
+- **Your PC's live draw in watts** — CPU package and GPU. On a PSU that connects over USB (Corsair HXi/RMi and newer i-series), it also shows what the **whole machine** pulls: every rail, measured by the supply itself, not a CPU+GPU guess. When your PSU doesn't report one, the widget says so instead of silently hiding the card.
+- **What the number is, precisely.** It's the supply's **output** — what your PC consumes — not the reading at the wall socket, which conversion losses put roughly 10% higher and which no PSU here reports.
+- **Home Assistant power sensors** next to the PC cards: solar production, a metered smart plug, the home meter, a UPS — picked with a dedicated selector in Settings → Smart Home, independent from the Smart Home tile.
+- **Storico consumi.** With sensor history on, the last 24 hours of CPU and GPU draw as sparklines (the same charts also join the System tile's History tab).
+- Reads alongside iCUE without disturbing it.
+
+---
+
+## Batteries (Batterie)
+
+Add it from the **"+"** palette (System category). The charge of your wireless peripherals.
+
+- **Corsair mouse/keyboard/headset** through iCUE, **any paired Bluetooth device**, and the **system battery** of a laptop or a USB-connected UPS (the one source that also knows whether it's charging).
+- Colour-coded levels, and devices that go to sleep fade out instead of freezing at a stale percent.
+- Like Fans and Energy, it degrades gracefully: no LibreHardwareMonitor, no iCUE, no Home Assistant — you get a friendly hint, never an error.
+
+> **One tap to switch your hardware sensors on.** LibreHardwareMonitor reads CPU temperature, fan RPM and CPU watts through a driver that only loads with administrator rights. If Xenon was installed by double-clicking the installer (as most people do), those sensors stay empty. The Fans and Energy widgets say exactly that and offer an **Enable sensors** button: one Windows prompt and Xenon repairs the startup task permanently, then restarts itself so the sensors come alive immediately. The same button lives in Settings → Performance → Hardware sensors.
 
 ---
 

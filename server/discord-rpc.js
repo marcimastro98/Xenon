@@ -135,6 +135,43 @@ function normNotification(p) {
   return { title, body, icon, channelId: isSnowflake(chId) ? chId : '' };
 }
 
+// Cap a Discord-provided error message before it travels to the settings note or
+// the server log. Plain text only — the client renders it via textContent.
+function errDetail(m) { return String(m == null ? '' : m).trim().slice(0, 200); }
+
+// Classify a login-time close frame. Discord rejects a wrong/foreign Client ID by
+// closing the pipe (code 4000 "Invalid Client ID") — surface that as its own error
+// instead of the generic "Discord closed the connection", and keep the message so
+// the settings note can show Discord's actual words.
+function loginCloseError(data) {
+  const detail = errDetail(data && data.message);
+  const e = new Error(/invalid client/i.test(detail) ? 'invalid_client_id' : 'discord_closed');
+  if (detail) e.detail = detail;
+  return e;
+}
+
+// Classify an AUTHORIZE rejection. An explicit user "deny" stays authorize_denied;
+// anything else becomes authorize_failed and carries Discord's own message —
+// without this every real cause collapsed into a blind "try again".
+//
+// invalid_scope gets its own code because it's the one users actually hit, and
+// its causes are documented and specific: of the scopes we ask for, only `rpc`
+// is gated — it is "only allowed for the application owner or whitelisted
+// testers" and the app "must not have the EMBEDDED flag set" (i.e. not an
+// Activity). rpc.voice.read/write and rpc.notifications.read are public, so
+// they are never the culprit. The redirect is NOT one of the causes: AUTHORIZE
+// takes no redirect_uri (it is validated only at the token exchange), so a
+// redirect problem surfaces as token_exchange_failed instead — don't send
+// people to the Redirects page for this one.
+function authorizeError(payload) {
+  const detail = errDetail(payload && payload.message);
+  const denied = !detail || /denied|declined|cancel/i.test(detail);
+  const code = /invalid_scope/i.test(detail) ? 'invalid_scope' : (denied ? 'authorize_denied' : 'authorize_failed');
+  const e = new Error(code);
+  if (detail) e.detail = detail;
+  return e;
+}
+
 // Normalize one raw GET_SOUNDBOARD_SOUNDS entry to a client-safe shape. These
 // RPC commands are UNDOCUMENTED, so the field names aren't guaranteed — accept
 // sound_id|id and guild_id|guildId, and fall back to the id/emoji for a label.
@@ -334,7 +371,23 @@ function createDiscordProvider(deps) {
           s.on('data', decode);
           s.on('error', () => fail(new Error('discord_closed')));
           s.on('close', () => { if (!settled) fail(new Error('discord_closed')); else close(); });
-          onReady = () => { rawSend('AUTHENTICATE', { access_token: token }).then(done).catch(fail); };
+          onReady = () => {
+            rawSend('AUTHENTICATE', { access_token: token }).then(done, async () => {
+              // A rejected AUTHENTICATE usually means the token was revoked
+              // out-of-band — e.g. the user removed the app under Discord →
+              // Authorized Apps (exactly what our own re-link instructions
+              // suggest). Try one refresh: a hard refresh failure clears the
+              // creds, so the failure surfaces as 'not_connected' (the watch
+              // stops and the widget shows "connect in Settings") instead of
+              // retrying a dead token forever; a successful refresh or a
+              // network blip fails transient and the next attempt retries.
+              try {
+                await refresh();
+                const left = await creds();
+                fail(new Error(left.accessToken ? 'discord_closed' : 'not_connected'));
+              } catch { fail(new Error('discord_closed')); }
+            });
+          };
           try { s.write(encodeFrame(OP_HANDSHAKE, { v: 1, client_id: clientId })); }
           catch (e) { fail(e); }
         }, (e) => fail(e));
@@ -375,24 +428,46 @@ function createDiscordProvider(deps) {
     } catch { return null; }
   }
 
+  // A failed login, logged. Every failure path funnels through here so a user
+  // report ("Could not start login") always has a matching server-side line with
+  // Discord's real words — before this, login failures were completely silent.
+  function loginFail(error, detail) {
+    const d = errDetail(detail);
+    console.error('[discord] login failed:', error + (d ? ' — ' + d : ''));
+    const out = { ok: false, error };
+    if (d) out.detail = d;
+    return out;
+  }
+
   // Interactive login: open a throwaway IPC socket, handshake, AUTHORIZE (Discord
   // shows the user a consent dialog), exchange the returned code for tokens, and
   // persist them. Resolves once the user approves (or times out / is denied).
+  // Single-flight: a second Connect (double-tap, or a second open dashboard) while
+  // one consent dialog is pending would open a second throwaway socket and a
+  // second dialog — refuse it instead.
+  let loginBusy = false;
   async function login() {
     if (!configured()) return { ok: false, error: 'no_client' };
+    if (loginBusy) return { ok: false, error: 'login_in_progress' };
+    loginBusy = true;
+    try { return await doLogin(); }
+    finally { loginBusy = false; }
+  }
+
+  async function doLogin() {
     // Discord may serve only ONE concurrent RPC client: release our shared
     // socket first or the throwaway login socket gets a busy pipe and the
     // user sees "Discord isn't running" while Discord is clearly up.
     close();
     let s;
     try { s = await _connectPipe(); }
-    catch (e) { return { ok: false, error: (e && e.message) === 'discord_pipe_busy' ? 'discord_pipe_busy' : 'discord_not_running' }; }
+    catch (e) { return loginFail((e && e.message) === 'discord_pipe_busy' ? 'discord_pipe_busy' : 'discord_not_running'); }
     try {
       const code = await new Promise((resolve, reject) => {
         const timer = setTimeout(() => reject(new Error('authorize_timeout')), AUTHORIZE_TIMEOUT_MS);
         const decode = createDecoder((op, data) => {
           if (op === OP_PING) { try { s.write(encodeFrame(OP_PONG, data)); } catch { /* ignore */ } return; }
-          if (op === OP_CLOSE) { clearTimeout(timer); reject(new Error('discord_closed')); return; }
+          if (op === OP_CLOSE) { clearTimeout(timer); reject(loginCloseError(data)); return; }
           if (op !== OP_FRAME || !data) return;
           if (data.cmd === 'DISPATCH' && data.evt === 'READY') {
             // NOTIF_SCOPE is requested only when notifications are enabled at link
@@ -404,7 +479,7 @@ function createDiscordProvider(deps) {
           }
           if (data.cmd === 'AUTHORIZE') {
             clearTimeout(timer);
-            if (data.evt === 'ERROR' || !(data.data && data.data.code)) reject(new Error((data.data && data.data.message) || 'authorize_denied'));
+            if (data.evt === 'ERROR' || !(data.data && data.data.code)) reject(authorizeError(data.data));
             else resolve(data.data.code);
           }
         });
@@ -416,12 +491,27 @@ function createDiscordProvider(deps) {
         try { s.write(encodeFrame(OP_HANDSHAKE, { v: 1, client_id: clientId })); }
         catch (e) { clearTimeout(timer); reject(e); }
       });
-      const res = await _fetch(TOKEN_URL, {
-        method: 'POST', headers: FORM, signal: AbortSignal.timeout(8000),
-        body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI }),
-      });
+      let res;
+      try {
+        res = await _fetch(TOKEN_URL, {
+          method: 'POST', headers: FORM, signal: AbortSignal.timeout(8000),
+          body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI }),
+        });
+      } catch (e) {
+        // Discord AUTHORIZED, but this machine can't reach discord.com (VPN,
+        // firewall, proxy, offline) — a distinct, fixable cause, not "try again".
+        return loginFail('token_network_failed', e && e.message);
+      }
       const data = await res.json().catch(() => null);
-      if (!res.ok || !data || !data.access_token) return { ok: false, error: 'token_exchange_failed' };
+      if (!res.ok || !data || !data.access_token) {
+        // The OAuth error body names the exact cause: invalid_client = wrong
+        // Client Secret; anything else keeps the generic exchange error but
+        // carries Discord's description for the note and the log.
+        const oauthErr = (data && typeof data.error === 'string') ? data.error : '';
+        return loginFail(
+          oauthErr === 'invalid_client' ? 'bad_client_secret' : 'token_exchange_failed',
+          (data && (data.error_description || data.message)) || oauthErr || ('http_' + res.status));
+      }
       await persistToken(data);
       // Fresh token → whatever the OLD token's notification state was (e.g. a
       // sticky 'scope_missing') no longer means anything. The next watch
@@ -431,7 +521,7 @@ function createDiscordProvider(deps) {
       if (me) await patchCreds({ userId: me.id, username: me.username });
       return { ok: true, connected: true, username: me ? me.username : '' };
     } catch (e) {
-      return { ok: false, error: (e && e.message) || 'login_failed' };
+      return loginFail((e && e.message) || 'login_failed', e && e.detail);
     } finally {
       try { s.destroy(); } catch { /* ignore */ }
     }
@@ -898,4 +988,7 @@ module.exports = {
   channelMembers,
   encodeFrame,
   createDecoder,
+  errDetail,
+  loginCloseError,
+  authorizeError,
 };

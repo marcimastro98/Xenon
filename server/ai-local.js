@@ -337,6 +337,14 @@ function _ollamaHttpError(statusCode, data) {
     err = new Error('AI locale: memoria video (VRAM) insufficiente per questo modello. '
       + 'Scegli un modello più piccolo nelle impostazioni Xenon AI, o chiudi le app che stanno usando la GPU.');
     err.code = 'oom';
+  } else if (low.includes('exceeds the available context size') || low.includes('exceeds context length')) {
+    // The PROMPT alone did not fit the requested window — nothing was generated.
+    // _localChatOnce grows num_ctx and retries on this code, so this message is
+    // only ever seen when even the largest window we ask for is too small.
+    err = new Error('AI locale: la richiesta è troppo lunga per la finestra di contesto del modello. '
+      + 'Avvia una nuova chat (pulsante ↺) per liberare la cronologia, allega un\'immagine più piccola, '
+      + 'oppure scegli un modello con una finestra più ampia nelle impostazioni Xenon AI.');
+    err.code = 'context_exceeded';
   } else if (low.includes('not found') || low.includes('no such model') || low.includes('try pulling') || low.includes('model requires more')) {
     err = new Error('AI locale: il modello non è installato o non è disponibile. '
       + 'Scaricalo dalle impostazioni Xenon AI (provider locale).');
@@ -471,14 +479,36 @@ async function _localChatOnce({ baseUrl, model, geminiTools, history, systemText
 
   // gemma4 and other models default to 4096-token context in Ollama — too small
   // for our system prompt + tools schema. Always request a comfortable window.
-  const numCtx = isLargeModel ? 16384 : 8192;
+  //
+  // This is a STARTING window, not a fixed one: the tools schema alone measures
+  // ~8.8k tokens (72 declared functions), so the system prompt, an attached image
+  // and a few turns of history can reach the 16k ceiling on their own. When that
+  // happens Ollama rejects the request outright ("request exceeds the available
+  // context size"), and a turn that merely fits leaves too few tokens to answer
+  // in — a thinking model then burns the remainder reasoning and returns empty
+  // content. Grow on demand instead of paying the VRAM for a big window on every
+  // turn: only the turns that need the room ask for it. If the larger window does
+  // not fit the GPU, Ollama reports OOM and localChat's smaller-model fallback
+  // takes over, which is the same path a too-big model already used.
+  let numCtx = isLargeModel ? 16384 : 8192;
+  const CTX_MAX = 32768;
+  const callModel = async (payload) => {
+    for (;;) {
+      try {
+        return await _callOllamaNative(baseUrl, { ...payload, options: { num_ctx: numCtx } }, inferenceTimeout);
+      } catch (e) {
+        if (e.code !== 'context_exceeded' || numCtx >= CTX_MAX) throw e;
+        numCtx = Math.min(numCtx * 2, CTX_MAX); // keep the wider window for the rest of the turn
+      }
+    }
+  };
 
   // Raised from 4 to 6 to match the server (Gemini) side, so a multi-step local
   // request (chain of dashboard actions) isn't cut off early. Local inference is
   // slower, so we stay a little below the cloud cap of 8.
   const MAX_ITERS = 6;
   for (let iter = 0; iter < MAX_ITERS; iter++) {
-    const resp = await _callOllamaNative(baseUrl, { model, messages, tools, stream: false, options: { num_ctx: numCtx } }, inferenceTimeout);
+    const resp = await callModel({ model, messages, tools, stream: false });
     const parsed = parseOllamaNativeResponse(resp);
 
     if (!parsed.functionCall) { finalText = parsed.text; break; }
@@ -501,15 +531,25 @@ async function _localChatOnce({ baseUrl, model, geminiTools, history, systemText
 
     if (iter === MAX_ITERS - 1) {
       // Final guard: ask once more for a closing text answer.
-      const last = await _callOllamaNative(baseUrl, { model, messages, stream: false, options: { num_ctx: numCtx } }, inferenceTimeout);
+      const last = await callModel({ model, messages, stream: false });
       finalText = parseOllamaNativeResponse(last).text;
     }
   }
 
   // Safety net: some models can return empty content when passed a large tools
   // schema. Re-try once without tools to guarantee a plain-text reply.
+  //
+  // `think: false` is the other half. Thinking models (gemma4, qwen3.5…) split
+  // the reply into `thinking` and `content`, and both are drawn from the SAME
+  // generation budget: a turn that reasons until the context window runs out
+  // stops with done_reason 'length' while `content` is still empty. The parser
+  // reads `content`, so the whole turn arrives as an empty answer after minutes
+  // of real GPU work — the reported "dots, then nothing". A big pasted image
+  // makes it likely, since the picture, the system prompt and the tools schema
+  // leave little of num_ctx to answer in. Retrying with thinking off spends what
+  // is left on the answer itself.
   if (!finalText) {
-    const fallback = await _callOllamaNative(baseUrl, { model, messages, stream: false, options: { num_ctx: numCtx } }, inferenceTimeout);
+    const fallback = await callModel({ model, messages, stream: false, think: false });
     finalText = parseOllamaNativeResponse(fallback).text;
   }
 

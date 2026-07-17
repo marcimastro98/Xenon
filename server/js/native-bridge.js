@@ -734,6 +734,25 @@
     (document.head || document.documentElement).appendChild(style);
   }
 
+  // ── Native shell: rendering on the weaker of two GPUs, on purpose ────
+  // On a hybrid-GPU machine the shell deliberately renders on the integrated
+  // chip that drives the Xeneon Edge, to avoid a costly cross-adapter frame
+  // copy (see apps/native/src-tauri/src/gpu.rs). That trade removes a CPU
+  // cost but leaves less real-time budget on that weaker chip: measured live
+  // via PresentMon, a busy combination of the ambient aurora/grid plus an
+  // animated theme background can drop the kiosk's real presented frame rate
+  // into single digits, even though the same page renders at 150+ FPS in a
+  // browser on the discrete GPU. The shell's init script reports the fact
+  // (`__XENON_NATIVE_CAPS__.lowPowerGpu`, computed once from the same signal
+  // that picks the WebView2 GPU flag); backgroundfx.css uses the resulting
+  // class to pause the purely decorative ambient layers only — never the
+  // animated background the user actually chose.
+  function initNativeLowPowerGpu() {
+    if (!isNative) return;
+    const caps = window.__XENON_NATIVE_CAPS__;
+    document.body.classList.toggle('low-power-gpu', !!(caps && caps.lowPowerGpu === true));
+  }
+
   // ── Native shell: don't steal the game's focus ────────────────────────
   // Tapping the kiosk normally activates its window, so a foreground game
   // loses focus (exclusive-fullscreen titles minimize outright). While the
@@ -835,6 +854,7 @@
     initNativeCursorStyle();
     initNativeFocusGuard();
     initNativeZoom();
+    initNativeLowPowerGpu();
   }
 
   if (document.readyState === 'loading') {

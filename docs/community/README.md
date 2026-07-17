@@ -7,13 +7,19 @@ merges them.
 
 ## How to submit your creation
 
-1. Build your theme, animated background, widget, Ambient scene, page or package in
-   Xenon, then use **Share & Import → Export** to get its share code (or `.json` file).
-2. **Easiest path (v4.4+):** tap **✨ Publish to the catalog** in the Share dialog —
-   it copies your code and opens a prefilled
+1. Build your theme, animated background, widget, Ambient scene, page, icon/sound pack
+   or package in Xenon, then use **Share & Import → Export** to get its share code (or
+   `.json` file).
+2. **Easiest path (v4.5.3+): the publish portal.** Tap **✨ Publish to the catalog** in
+   the Share dialog — it copies your code and opens
+   [xenon-app.com/submit](https://xenon-app.com/submit/) prefilled. Paste the code, add
+   up to 3 screenshots, submit — **no GitHub account needed**. Your submission lands in
+   a moderated queue on the supporter hub; a human reviews it before anything is
+   published.
+3. Or use the GitHub
    [submission form](https://github.com/marcimastro98/Xenon/issues/new?template=community-submission.yml)
-   on GitHub. Paste the code, attach a screenshot if you like, submit. Done.
-3. Or open a pull request yourself that:
+   (the pre-4.5.3 flow — still fully supported).
+4. Or open a pull request yourself that:
    - adds an entry to `catalog.json` (see the field reference below), and
    - if your code is longer than ~2 KB, adds it as `codes/<id>.txt` instead of inline
      (set `"codeFile": true` and leave `"code"` out), and
@@ -23,13 +29,15 @@ merges them.
      repo (the maintainer uploads them at merge time), so `docs/community/shots/` is
      gitignored. Format is WebP (animated allowed) **or PNG** — the app tries `.webp`
      first, then `.png`; WebP is smaller and the only one that can animate.
-4. Or share the code on the [Discord](https://discord.gg/MBVrw9kZyg) `#showcase` channel
+5. Or share the code on the [Discord](https://discord.gg/MBVrw9kZyg) `#showcase` channel
    and ask for it to be added.
 
 ### Maintainer flow (submissions)
 
 **Easiest — the admin catalog manager** (supporter hub `/admin` → *Community catalog*):
-pending `community-catalog` submissions show up there pre-filled from the issue form. Import
+web-portal submissions appear under **Web submissions** (review, publish, reject or mark
+spam — publishing marks the queue row approved and cleans its temporary files), and
+pending `community-catalog` GitHub submissions show up there pre-filled from the issue form. Import
 the code in a scratch profile to check it, then in the manager: fix the id/category/tags,
 drag or import the screenshots (they upload straight to R2), set visibility, and hit
 **Publish**. That commits the `catalog.json` entry (+ `codes/<id>.txt` for big codes) in one
@@ -68,7 +76,7 @@ artifact. By submitting you agree the code may be redistributed through the gall
 | Field | Required | Notes |
 |---|---|---|
 | `id` | ✔ | Unique slug, `a-z 0-9 - _`, max 61 chars. Also the anchor `#<id>` and the `codes/<id>.txt` filename. |
-| `kind` | ✔ | One of `theme`, `bg`, `page`, `deck`, `widget`, `bundle`, `ambient`. |
+| `kind` | ✔ | One of `theme`, `bg`, `page`, `deck`, `widget`, `bundle`, `ambient`, `icons` (Deck icon pack), `sounds` (soundboard pack). |
 | `name` | ✔ | Display name, max 60 chars. |
 | `author` | | Your handle, max 60 chars. |
 | `authorSupporter` | | Set by the maintainer at merge time — ⭐ badge for supporters. |
@@ -79,13 +87,57 @@ artifact. By submitting you agree the code may be redistributed through the gall
 | `locked` / `supportersOnly` | | Marks an access-code-protected (supporter-perk) entry — shown with a 🔒 badge linking to Buy Me a Coffee. |
 | `addedAt` | | `YYYY-MM-DD`. |
 | `appVersionMin` | | Minimum Xenon version, e.g. `"4.4.0"` for Ambient scenes. |
-| `version` | | v2 — numeric-dotted (`"1.2.0"`). Powers the in-app update check for widgets. |
-| `pkgId` | | v2, `widget`/`ambient` only — the installed package id this entry updates. |
+| `version` | | v2 — numeric-dotted (`"1.2.0"`). Powers the in-app update check for **every kind** (v4.5.3+): installs record the entry's version, and a republish with a higher `version` shows an update badge in the gallery. Bump it whenever the entry's code changes. |
+| `pkgId` | | v2, `widget`/`ambient` only — the installed package id this entry updates (the pre-4.5.3 update join; still preferred for widgets since it survives non-catalog installs). |
 | `category` | | v2 — one of `deck`, `streaming`, `media`, `smart-home`, `system`, `style`, `fun`, `tools`. |
 | `tags` | | v2 — up to 5 lowercase tags (`a-z 0-9 -`, ≤20 chars each). |
 | `screenshot` | | v2 — `true` when a single `shots/<id>.webp` (or `.png`) exists (never a URL: the path is derived from the id). Legacy single-shot form of `shots`. |
 | `shots` | | v2 — integer `1`–`4`: how many screenshot/GIF sidecars this entry has. Files are `shots/<id>.webp`, then `shots/<id>-2.webp` … `shots/<id>-4.webp`. Format is **WebP (animated allowed) or PNG** — the app tries `.webp` first, then `.png`. Never a URL, the paths are derived from the id. |
 | `publisher` | | v2 — `{ "handle": "github-handle", "url": "https://github.com/…" }` (url must be on github.com). |
+
+### Automatic limited editions
+
+New limited editions should use the Supporter Hub inventory instead of a hand-edited
+`claimed` counter. The public catalog entry contains only this projection:
+
+```json
+{
+  "limited": {
+    "total": 50,
+    "claimed": 0,
+    "fulfillment": "hub",
+    "dropId": "signal-50",
+    "channels": "discord",
+    "numbered": true
+  }
+}
+```
+
+- `numbered` is opt-in. When true, every owner receives a distinct edition and bundle;
+  when false, all claim slots point to the same creation.
+- `channels` is `discord` for a Discord-only claim button, or `both` to also show the
+  styled **Claim your copy** button on the website and in the app Store.
+- `total`, `claimed`, `numbered` and `channels` are projections only. The website and app
+  hydrate live inventory from the Hub, and the admin publisher overwrites these values
+  from D1 so catalog JSON cannot forge stock.
+- Never add a public `claimUrl`. Discord claim links are generated and signed by the Hub;
+  website/app links are derived from the fixed Hub origin and only appear for `both`.
+
+Maintainer flow:
+
+1. Add a `limited` block to the creator source `pack.json`, then run
+   `.agents/skills/xenon-creator/scripts/build-limited.mjs` (or the creation's wrapper).
+2. Keep `<dropId>-limited-manifest.json` private. It contains the encrypted bundles' CEKs.
+3. In Supporter Hub `/admin` → **Automatic limited drops**, import the manifest and choose
+   **Discord only** or **Site/app + Discord** with the channel buttons.
+4. Publish the generated public catalog fragment only after the Hub migration, OAuth and
+   Turnstile configuration are live.
+
+The claim itself always signs in with Discord and verifies membership in the Xenon server.
+D1 enforces one claim per `(dropId, Discord user id)` and assigns the inventory slot with
+one atomic update, so parallel requests cannot take the same copy. The resulting personal
+`XL-` code unlocks only that artifact and is limited to three installation ids; reinstalling
+on the same installation does not consume another device.
 
 The app re-validates every field and every code goes through the normal import preview +
 permission flow — a catalog entry can never change anything silently.

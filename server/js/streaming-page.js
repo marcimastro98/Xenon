@@ -49,7 +49,15 @@
       descKey: 'streaming_discord_desc', setupKey: 'streaming_setup_discord',
       consoleUrl: 'https://discord.com/developers/applications',
       fields: [
-        { key: 'discordClientId', labelKey: 'streaming_field_clientid' },
+        // A Discord Application ID is a snowflake (a long run of digits). People
+        // routinely paste the 64-hex Public Key or the Client Secret here — both
+        // can never work — so the shape is checked at save time with a hint.
+        {
+          key: 'discordClientId', labelKey: 'streaming_field_clientid',
+          shape: /^\d{15,25}$/,
+          shapeKey: 'streaming_discord_id_shape',
+          shapeFb: 'That doesn\'t look like a Discord Client ID — it\'s the long number labeled "Application ID" on your app\'s General Information page (not the Public Key or the Client Secret).',
+        },
         { key: 'discordClientSecret', labelKey: 'streaming_field_secret' },
       ],
     },
@@ -198,7 +206,14 @@
     const save = el('button', 'settings-btn primary', t('streaming_save', 'Save'));
     save.addEventListener('click', async () => {
       const patch = {}; let any = false;
-      cfg.fields.forEach(f => { const v = inputs[f.key].value.trim(); if (v) { patch[f.key] = v; any = true; } });
+      for (const f of cfg.fields) {
+        const v = inputs[f.key].value.trim();
+        if (!v) continue;
+        // A value that can never work (wrong thing pasted) is refused with a hint
+        // now — otherwise it saves fine and every later Connect fails cryptically.
+        if (f.shape && !f.shape.test(v)) { setNote(save.closest('.streaming-card'), t(f.shapeKey, f.shapeFb)); return; }
+        patch[f.key] = v; any = true;
+      }
       if (!any) return;
       save.disabled = true;
       await api('/stream/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
@@ -218,7 +233,7 @@
       if (r && r.ok) { render(); return; }
       card.querySelectorAll('.streaming-login').forEach(n => n.remove());
       btn.disabled = false;
-      setNote(card, rpcLoginError(r && r.error));
+      setNote(card, rpcLoginError(r));
       return;
     }
     const r = await api(cfg.base + '/login', { method: 'POST' });
@@ -227,27 +242,43 @@
     pollLogin(cfg, r.deviceCode, r.interval || 5);
   }
 
-  // Map a discord-rpc login() error code to a specific, actionable note. Most RPC
+  // Map a discord-rpc login() result to a specific, actionable note. Most RPC
   // failures come down to the desktop Discord being signed in with a DIFFERENT
   // account than the one that created the app, a wrong Client ID/Secret, or a
   // redirect-URL mismatch — so each case points the user at the likely fix
-  // instead of the generic "try again".
-  function rpcLoginError(err) {
+  // instead of the generic "try again". `r.detail` carries Discord's own error
+  // words (capped, plain text) — appended so the real cause is never invisible.
+  function rpcLoginError(r) {
+    const err = (r && r.error) || '';
+    const detail = (r && typeof r.detail === 'string') ? r.detail : '';
+    const withDetail = (msg) => msg + (detail ? ' — “' + detail + '”' : '');
     switch (err) {
       case 'discord_not_running':
         return t('streaming_discord_notrunning', 'Discord desktop app not detected. Open Discord and try again.');
       case 'discord_pipe_busy':
         return t('streaming_discord_busy', 'Discord\'s local connection is busy (another app may be using it). Wait a moment and try Connect again.');
+      case 'login_in_progress':
+        return t('streaming_discord_inflight', 'A login is already waiting for approval — look for the pop-up in Discord (or wait for it to time out) before trying again.');
+      case 'invalid_client_id':
+        return t('streaming_discord_badclientid', 'Discord rejected the Client ID. Copy the "Application ID" from your app\'s General Information page in the Developer Portal and re-enter it under Edit credentials.');
       case 'discord_closed':
-        return t('streaming_discord_closed', 'Discord closed the connection. Check that the Client ID is correct and that Discord desktop is signed in with the account that created this application.');
+        return withDetail(t('streaming_discord_closed', 'Discord closed the connection. Check that the Client ID is correct and that Discord desktop is signed in with the account that created this application.'));
       case 'authorize_denied':
         return t('streaming_discord_denied', 'Authorization was denied in Discord. Approve the request — and make sure you are signed in with the account that owns this application.');
+      case 'invalid_scope':
+        return withDetail(t('streaming_discord_invalidscope', 'Discord rejected the requested permissions. Check, in this order: the Discord desktop app is signed in with the account that OWNS this application (or one you added under the app\'s OAuth2 testers); your app has at least one redirect registered (http://localhost); and the app is not an Activity — the "Embedded App" flag blocks this kind of access.'));
+      case 'authorize_failed':
+        return withDetail(t('streaming_discord_authfailed', 'Discord refused the authorization. The Discord desktop app must be signed in with the same account that owns this application in the Developer Portal.'));
       case 'authorize_timeout':
         return t('streaming_discord_timeout', 'The authorization window timed out. Try again and click "Authorize" in Discord promptly.');
+      case 'bad_client_secret':
+        return t('streaming_discord_badsecret', 'Discord rejected the Client Secret. Open your app in the Developer Portal, reset the secret, and paste the new value under Edit credentials.');
       case 'token_exchange_failed':
-        return t('streaming_token_failed', 'Login failed while exchanging the code. Check the Client Secret and that the redirect URL is exactly http://localhost.');
+        return withDetail(t('streaming_token_failed', 'Login failed while exchanging the code. Check the Client Secret and that the redirect URL is exactly http://localhost.'));
+      case 'token_network_failed':
+        return withDetail(t('streaming_discord_network', 'Discord authorized, but this PC could not reach discord.com to finish the login. Check VPN, firewall or proxy settings and try Connect again.'));
       default:
-        return t('streaming_error', 'Could not start login. Try again.');
+        return withDetail(t('streaming_error', 'Could not start login. Try again.'));
     }
   }
 

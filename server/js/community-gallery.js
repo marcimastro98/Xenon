@@ -22,6 +22,7 @@
   };
   const el = makeEl; // shared DOM factory from utils.js
   const BMC_URL = 'https://www.buymeacoffee.com/marcimastro98';
+  const HUB_BASE = 'https://xenon-supporter-hub.xenonedge.workers.dev';
   // Default reservation target for limited-edition drops (the project Discord
   // invite). A drop may override it via limited.reserveUrl, but only a Discord
   // https URL survives — re-checked here even though the server already
@@ -42,6 +43,47 @@
     return DISCORD_URL;
   }
 
+  function directClaimUrlFor(entry) {
+    const limited = entry && entry.limited;
+    if (!limited || limited.fulfillment !== 'hub' || limited.channels !== 'both') return '';
+    if (typeof limited.dropId !== 'string' || !/^[a-z0-9][a-z0-9_-]{0,60}$/.test(limited.dropId)) return '';
+    return HUB_BASE + '/limited/claim/' + encodeURIComponent(limited.dropId) + '?source=web';
+  }
+
+  function appendLimitedButtons(parent, entry) {
+    const group = el('div', 'cgal-limited-buttons');
+    const claimUrl = directClaimUrlFor(entry);
+    if (claimUrl) {
+      const claim = document.createElement('a');
+      claim.className = 'cgal-btn cgal-claim'; claim.href = claimUrl;
+      claim.target = '_blank'; claim.rel = 'noopener noreferrer';
+      claim.appendChild(icon('limited'));
+      claim.appendChild(el('span', null, t('gallery_claim_copy', 'Claim your copy')));
+      group.appendChild(claim);
+    }
+    const discord = document.createElement('a');
+    discord.className = 'cgal-btn cgal-discord'; discord.href = reserveUrlFor(entry);
+    discord.target = '_blank'; discord.rel = 'noopener noreferrer';
+    discord.appendChild(icon('discord'));
+    discord.appendChild(el('span', null, t('gallery_reserve', 'Open Discord')));
+    group.appendChild(discord);
+    parent.appendChild(group);
+  }
+
+  async function hydrateLimitedStatus(entries) {
+    const automatic = (entries || []).filter((entry) => entry && entry.limited && entry.limited.fulfillment === 'hub');
+    const ids = [...new Set(automatic.map((entry) => entry.limited.dropId).filter(Boolean))];
+    if (!ids.length) return;
+    try {
+      const out = await api('/api/community/limited-status?ids=' + encodeURIComponent(ids.join(',')));
+      if (!out || !out.ok || !out.drops) return;
+      automatic.forEach((entry) => {
+        const live = out.drops[entry.limited.dropId];
+        if (live) Object.assign(entry.limited, live);
+      });
+    } catch (e) { /* catalog fallback counters remain usable offline */ }
+  }
+
   const api = apiJson; // shared fetch-JSON helper from utils.js
 
   let overlayEl = null;
@@ -55,7 +97,7 @@
   // is unchanged. Publishing a drop now uploads shots to R2 instead of committing them.
   const SHOTS_BASE = 'https://assets.xenon-app.com/community/shots/';
   // Kind display order for the grouped ("browse all") view.
-  const KIND_ORDER = ['bundle', 'theme', 'bg', 'page', 'widget', 'deck', 'ambient'];
+  const KIND_ORDER = ['bundle', 'theme', 'bg', 'page', 'widget', 'deck', 'ambient', 'icons', 'sounds'];
   const PAGE = 9;              // load-more page size for flat (filtered) views
   const SECTION_PREVIEW = 4;   // cards per kind before "See all"
   // Browse state (kept while the overlay is open).
@@ -65,6 +107,7 @@
   let sortBy = 'feat';
   let shown = PAGE;
   let limitedOnly = false;   // dedicated "Limited edition" entry point
+  let activeTab = 'browse';  // 'browse' (the catalog) | 'installed' (this machine)
 
   // ── Inline SVG icon set (STATIC, trusted markup — the ONLY innerHTML use). ──
   // Lucide-style 24px stroke glyphs so the rail and section heads read premium
@@ -91,6 +134,7 @@
     expand: S0 + '<path d="M9 4H5a1 1 0 0 0-1 1v4"/><path d="M15 4h4a1 1 0 0 1 1 1v4"/><path d="M9 20H5a1 1 0 0 1-1-1v-4"/><path d="M15 20h4a1 1 0 0 0 1-1v-4"/></svg>',
     lock: S0 + '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
     star: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 3l2.5 5.6 6.1.6-4.6 4 1.4 6-5.4-3.2L6.1 19.2l1.4-6-4.6-4 6.1-.6z"/></svg>',
+    discord: S0 + '<path d="M21 12a8 8 0 0 1-8 8H8l-5 2 1.6-4A8 8 0 1 1 21 12z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/></svg>',
   };
   function icon(name, cls) {
     const s = el('span', 'cgal-ic' + (cls ? ' ' + cls : ''));
@@ -126,6 +170,90 @@
     return t('gallery_kind_' + kind, t('preset_kind_' + kind, kind));
   }
 
+  // ── Anonymous star ratings (proxied: /api/community/ratings|rate) ──────────
+  // Aggregates load once per gallery render (batched ids, TTL-cached by the
+  // local server) and paint into every .cgal-stars slot in the DOM. Averages
+  // show only once an entry reaches the server's minimum vote count, so a
+  // single vote can't dress up as consensus.
+  let ratingsMap = {};
+  let ratingsMin = 3;
+  async function loadRatings(entries) {
+    const ids = (entries || []).map((e) => e && e.id).filter(Boolean);
+    if (!ids.length) return;
+    for (let i = 0; i < ids.length; i += 100) {
+      const out = await api('/api/community/ratings?ids=' + encodeURIComponent(ids.slice(i, i + 100).join(',')));
+      if (!out || !out.ok || !out.ratings) continue;
+      ratingsMin = Number(out.minDisplayCount) || ratingsMin;
+      Object.assign(ratingsMap, out.ratings);
+    }
+    paintStars();
+  }
+  function starsText(r) {
+    if (!r || !Number.isFinite(Number(r.avg)) || (Number(r.count) || 0) < ratingsMin) return '';
+    return '★ ' + Number(r.avg).toFixed(1) + ' · ' + r.count;
+  }
+  function paintStars() {
+    if (!overlayEl) return;
+    overlayEl.querySelectorAll('.cgal-stars[data-id]').forEach((slot) => {
+      slot.textContent = starsText(ratingsMap[slot.dataset.id]);
+    });
+  }
+  // The detail view's interactive vote row: current average + five tap targets.
+  // Fetched with mine=1 (the local server attaches the install id) so the
+  // user's own vote is highlighted; a tap posts and repaints optimistically.
+  function ratingBoxInto(host, entry) {
+    const box = el('div', 'cgal-rate');
+    const avg = el('span', 'cgal-rate-avg');
+    const row = el('div', 'cgal-rate-row');
+    row.setAttribute('role', 'radiogroup');
+    row.setAttribute('aria-label', t('gallery_rate_title', 'Rate this'));
+    box.appendChild(row); box.appendChild(avg);
+    host.appendChild(box);
+    let mine = 0;
+    let voted = false;   // the user has cast a vote in this session
+    const paint = () => {
+      avg.textContent = starsText(ratingsMap[entry.id]) || t('gallery_rate_first', 'Be among the first to rate this');
+      row.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i < mine));
+    };
+    for (let n = 1; n <= 5; n++) {
+      const b = el('button', 'cgal-rate-star', '★');
+      b.type = 'button';
+      b.setAttribute('aria-label', n + '/5');
+      b.addEventListener('click', async () => {
+        const prev = mine;
+        mine = n; voted = true; paint();
+        const out = await api('/api/community/rate', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entryId: entry.id, stars: n }),
+        });
+        if (out && out.ok) {
+          if (window.XenonToast) XenonToast.show({ type: 'success', title: t('gallery_rating_saved', 'Thanks — rating saved!') });
+          // Refresh the aggregate so the average reflects the new vote.
+          const fresh = await api('/api/community/ratings?ids=' + encodeURIComponent(entry.id) + '&mine=1');
+          if (fresh && fresh.ok && fresh.ratings) { Object.assign(ratingsMap, fresh.ratings); paintStars(); }
+          paint();
+        } else {
+          mine = prev; paint();
+          if (window.XenonToast) XenonToast.show({ type: 'error', title: t('gallery_rating_error', 'Couldn’t save the rating — try again later.') });
+        }
+      });
+      row.appendChild(b);
+    }
+    paint();
+    api('/api/community/ratings?ids=' + encodeURIComponent(entry.id) + '&mine=1').then((out) => {
+      if (out && out.ok && out.ratings) {
+        Object.assign(ratingsMap, out.ratings);
+        // Don't let this late-resolving read stomp a vote the user already cast
+        // (a slow hub + a fast tap would otherwise "undo" the saved vote).
+        if (!voted) {
+          const r = ratingsMap[entry.id];
+          if (r && Number.isFinite(Number(r.mine))) mine = Number(r.mine);
+        }
+        paint();
+      }
+    }).catch(() => { /* offline — the control still works for a later tap */ });
+  }
+
   // Lazy live preview for 'bg' entries: mount the sandboxed iframe only while
   // the card is visible, and only for inline codes (a codeFile entry would need
   // a fetch per card — not worth it for a browse view).
@@ -141,7 +269,7 @@
               frame.className = 'cgal-preview-frame';
               frame.setAttribute('sandbox', 'allow-scripts');
               frame.setAttribute('referrerpolicy', 'no-referrer');
-              frame.srcdoc = CustomBg.buildSrcdoc(box._cgCode, box._cgAssets);
+              frame.srcdoc = CustomBg.buildSrcdoc(box._cgCode, box._cgAssets, box._cgFps);
               box.appendChild(frame);
             }
           } else {
@@ -156,6 +284,9 @@
     // Bundled images ride the envelope — the preview must show them, or an
     // image-based background would look broken here yet fine on import.
     host._cgAssets = CustomBg.sanitizeBgAssets ? CustomBg.sanitizeBgAssets(env.data.assets) : null;
+    // Preview at the background's own frame cap, so the smoothness (and cost)
+    // the user judges is what an install would actually run at.
+    host._cgFps = env.data.fps;
     previewObserver.observe(host);
   }
 
@@ -279,7 +410,7 @@
         return;
       }
       close();
-      if (window.PresetShare) PresetShare.openImport(code);
+      if (window.PresetShare) PresetShare.openImport(code, { source: 'catalog', sourceId: entry.id, sourceVersion: entry.version || '' });
     });
     return b;
   }
@@ -375,7 +506,7 @@
         frame.setAttribute('sandbox', 'allow-scripts');
         frame.setAttribute('referrerpolicy', 'no-referrer');
         const assets = CustomBg.sanitizeBgAssets ? CustomBg.sanitizeBgAssets(env.data.assets) : null;
-        frame.srcdoc = CustomBg.buildSrcdoc(env.data.code, assets);
+        frame.srcdoc = CustomBg.buildSrcdoc(env.data.code, assets, env.data.fps);
         stage.appendChild(frame);
         gal.appendChild(stage);
         return gal;
@@ -424,6 +555,13 @@
     if (entry.category) meta.appendChild(el('span', 'cgal-metachip', t('gallery_cat_' + entry.category.replace('-', '_'), entry.category)));
     if (meta.childElementCount) info.appendChild(meta);
 
+    // Star rating: live average + this install's own vote (five tap targets).
+    // Only for content the user can actually have installed — a locked
+    // supporter drop or a limited/sold-out entry can't be tried without
+    // unlocking, so rating it would be a non-owner vote; those show no control
+    // (their cards still display the aggregate where one exists).
+    if (!locked && !limited) ratingBoxInto(info, entry);
+
     if (entry.description) info.appendChild(el('p', 'cgal-detail-desc', entry.description));
 
     if (entry.preview && (entry.preview.accent || entry.preview.bg || entry.preview.text)) {
@@ -455,10 +593,7 @@
         fill.style.width = Math.round(((total - left) / total) * 100) + '%'; bar.appendChild(fill); meterWrap.appendChild(bar);
         meterWrap.appendChild(el('span', 'cgal-hero-left', t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(lim.left)).replace('{t}', String(lim.total))));
         cta.appendChild(meterWrap);
-        const reserve = document.createElement('a'); reserve.className = 'cgal-btn cgal-btn-hero cgal-reserve';
-        reserve.href = reserveUrlFor(entry); reserve.target = '_blank'; reserve.rel = 'noopener noreferrer';
-        reserve.textContent = t('gallery_reserve', 'Reserve on Discord →');
-        cta.appendChild(reserve);
+        appendLimitedButtons(cta, entry);
       }
     } else if (locked) {
       cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero cgal-unlock', t('gallery_unlock', 'Unlock with a code'), 'lock'));
@@ -582,11 +717,7 @@
         fill.style.width = Math.round(((total - left) / total) * 100) + '%'; bar.appendChild(fill); meter.appendChild(bar);
         meter.appendChild(el('span', 'cgal-hero-left', t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(lim.left)).replace('{t}', String(lim.total))));
         info.appendChild(meter);
-        const reserve = document.createElement('a');
-        reserve.className = 'cgal-btn cgal-btn-hero cgal-reserve';
-        reserve.href = reserveUrlFor(entry); reserve.target = '_blank'; reserve.rel = 'noopener noreferrer';
-        reserve.textContent = t('gallery_reserve', 'Reserve on Discord →');
-        cta.appendChild(reserve);
+        appendLimitedButtons(cta, entry);
       }
     } else if (locked) {
       cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero cgal-unlock', t('gallery_unlock', 'Unlock with a code'), 'lock'));
@@ -630,6 +761,11 @@
     body.appendChild(nameRow);
     const by = el('div', 'cgal-author'); bylineInto(by, entry);
     if (entry.category) { by.appendChild(document.createTextNode(' · ')); by.appendChild(el('span', 'cgal-catlabel', t('gallery_cat_' + entry.category.replace('-', '_'), entry.category))); }
+    // Async-filled star slot (paintStars) — empty until the aggregates land,
+    // and stays empty below the minimum vote count.
+    const stars = el('span', 'cgal-stars', starsText(ratingsMap[entry.id]));
+    stars.dataset.id = entry.id;
+    by.appendChild(stars);
     body.appendChild(by);
     if (entry.description) body.appendChild(el('div', 'cgal-desc', entry.description));
     if (Array.isArray(entry.tags) && entry.tags.length) {
@@ -644,12 +780,7 @@
       if (lim.soldOut) {
         row.appendChild(el('span', 'cgal-soldout', t('gallery_limited_soldout', 'Sold out')));
       } else {
-        const reserve = document.createElement('a');
-        reserve.className = 'cgal-btn cgal-reserve';
-        reserve.href = reserveUrlFor(entry);
-        reserve.target = '_blank'; reserve.rel = 'noopener noreferrer';
-        reserve.textContent = t('gallery_reserve', 'Reserve on Discord →');
-        row.appendChild(reserve);
+        appendLimitedButtons(row, entry);
         row.appendChild(el('span', 'cgal-limcount',
           t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(lim.left)).replace('{t}', String(lim.total))));
       }
@@ -663,34 +794,61 @@
     return card;
   }
 
-  // Available updates for installed SDK packages: catalog entries whose pkgId
-  // matches an installed manifest with an older version. Best-effort (empty
-  // when the SDK is off / nothing installed / offline). THE single update-join
-  // implementation — Settings' installed-packages manager and the daily check
-  // consume it via window.CommunityGallery.findUpdates, so the two surfaces can
-  // never disagree about whether an update exists. Locked entries are excluded:
-  // they can't be one-click updated (the code needs an access code).
+  // Available updates for INSTALLED catalog content. Two joins, one verdict:
+  //   - SDK packages: entries whose pkgId matches an installed manifest with an
+  //     older version (the original join);
+  //   - every other kind (themes, decks, pages, icon/sound packs, bundles…):
+  //     entries whose id matches a contentInstalls receipt recorded with an
+  //     older sourceVersion (receipts carry {sourceId, sourceVersion} since
+  //     v4.5.3 — older receipts lack the field and are fail-closed skipped).
+  // Best-effort (empty when nothing installed / offline). THE single
+  // update-join implementation — Settings' installed-packages manager and the
+  // daily check consume it via window.CommunityGallery.findUpdates, so the
+  // surfaces can never disagree about whether an update exists. Locked entries
+  // are excluded: they can't be one-click updated (the code needs an access
+  // code). "Update" is always a normal re-import: full preview + permission
+  // re-approval by construction, never a silent swap.
   async function findUpdates(entries) {
+    // Fail-CLOSED parse (mirrors server/semver.js, which is server-only):
+    // installed manifest versions are loosely validated ('v1.2.3',
+    // '2.0.0-beta' survive install), and coercing junk to 0.0.0 would show a
+    // false "update available" badge inviting a downgrade-reinstall. A
+    // malformed side must never produce an update hint.
+    const parse = (v) => (/^[0-9]+(\.[0-9]+)*$/.test(String(v)) ? String(v).split('.').map(Number) : null);
+    const less = (a, b) => {
+      const pa = parse(a), pb = parse(b);
+      if (!pa || !pb) return false;
+      for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+        if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) < (pb[i] || 0);
+      }
+      return false;
+    };
+    let installed = new Map();
     try {
       const inst = await api('/sdk/widgets');
-      const installed = new Map(((inst && inst.packages) || []).map((p) => [p.id, String(p.version || '0.0.0')]));
-      if (!installed.size) return [];
-      // Fail-CLOSED parse (mirrors server/semver.js, which is server-only):
-      // installed manifest versions are loosely validated ('v1.2.3',
-      // '2.0.0-beta' survive install), and coercing junk to 0.0.0 would show a
-      // false "update available" badge inviting a downgrade-reinstall. A
-      // malformed side must never produce an update hint.
-      const parse = (v) => (/^[0-9]+(\.[0-9]+)*$/.test(String(v)) ? String(v).split('.').map(Number) : null);
-      const less = (a, b) => {
-        const pa = parse(a), pb = parse(b);
-        if (!pa || !pb) return false;
-        for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-          if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) < (pb[i] || 0);
+      installed = new Map(((inst && inst.packages) || []).map((p) => [p.id, String(p.version || '0.0.0')]));
+    } catch { /* SDK off / offline → pkg join contributes nothing */ }
+    // Newest receipt per catalog entry id. Receipts are appended
+    // chronologically, so a plain forward walk leaves the latest version in
+    // the map — an update re-import "wins" and clears the badge. hubSettings
+    // is a shared-script-scope global from settings.js (bare name, guarded —
+    // same access pattern preset-share.js uses).
+    const receipts = new Map();
+    try {
+      const list = (typeof hubSettings !== 'undefined' && hubSettings && Array.isArray(hubSettings.contentInstalls))
+        ? hubSettings.contentInstalls : [];
+      for (const rec of list) {
+        if (rec && typeof rec.sourceId === 'string' && rec.sourceId && typeof rec.sourceVersion === 'string' && rec.sourceVersion) {
+          receipts.set(rec.sourceId, rec.sourceVersion);
         }
-        return false;
-      };
-      return entries.filter((e) => e && e.pkgId && e.version && !e.locked && installed.has(e.pkgId) && less(installed.get(e.pkgId), e.version));
-    } catch { return []; }
+      }
+    } catch { /* settings unavailable → receipts join contributes nothing */ }
+    if (!installed.size && !receipts.size) return [];
+    return entries.filter((e) => {
+      if (!e || !e.version || e.locked) return false;
+      if (e.pkgId) return installed.has(e.pkgId) && less(installed.get(e.pkgId), e.version);
+      return receipts.has(e.id) && less(receipts.get(e.id), e.version);
+    });
   }
 
   function matchesBrowse(entry) {
@@ -736,6 +894,8 @@
       return;
     }
     const all = Array.isArray(out.entries) ? out.entries : [];
+    await hydrateLimitedStatus(all);
+    if (!overlayEl) return;
     all.forEach((e, i) => { if (e) e._i = i; });
     // Two special tiers get their own treatment; everything else is the browse set.
     const limited = all.filter((e) => e && e.limited);
@@ -967,12 +1127,22 @@
     body.replaceChildren(shell);
     syncControls();
     paintGrid();
+    // Star aggregates: best-effort async fill (a hub hiccup just leaves the
+    // slots empty — the gallery never waits on it). paintGrid rebuilds cards
+    // from the already-loaded map, so one load per render is enough.
+    loadRatings(all).catch(() => { /* offline — slots stay empty */ });
   }
 
+  // filterKind doubles as a deep-link: a real kind ('widget', 'ambient', …)
+  // preselects the browse rail, while '__limited' / '__installed' open a whole
+  // view. Keep the pseudo-kinds out of the rail — they are not catalog kinds.
   function open(filterKind) {
     close();
     searchQuery = ''; activeKind = ''; activeCategory = ''; sortBy = 'feat'; shown = PAGE;
     limitedOnly = (filterKind === '__limited');
+    activeTab = (filterKind === '__installed') ? 'installed' : 'browse';
+    const browseKind = (filterKind === '__limited' || filterKind === '__installed') ? undefined : filterKind;
+    if (window.InstalledManager) InstalledManager.reset();
     const bd = el('div', 'preset-modal-overlay cgal-overlay');
     const modal = el('div', 'preset-modal cgal-modal');
 
@@ -1000,15 +1170,52 @@
     head.appendChild(controls);
     modal.appendChild(head);
 
+    // Two tabs: the catalog, and what this machine already has. The limited-only
+    // deep link stays a single dedicated view — it has no "installed" half.
+    let tabsEl = null;
+    if (!limitedOnly) {
+      tabsEl = el('div', 'cgal-tabs');
+      const mkTab = (id, label, iconName) => {
+        const b = el('button', 'cgal-tab'); b.type = 'button'; b.dataset.tab = id;
+        b.appendChild(icon(iconName));
+        b.appendChild(el('span', 'cgal-tab-txt', label));
+        b.addEventListener('click', () => { if (activeTab === id) return; activeTab = id; syncTabs(); paintTab(false); });
+        return b;
+      };
+      tabsEl.appendChild(mkTab('browse', t('gallery_tab_browse', 'Browse'), 'store'));
+      tabsEl.appendChild(mkTab('installed', t('gallery_tab_installed', 'Installed'), 'check'));
+      modal.appendChild(tabsEl);
+    }
+    function syncTabs() {
+      if (!tabsEl) return;
+      tabsEl.querySelectorAll('.cgal-tab').forEach((b) => {
+        const on = b.dataset.tab === activeTab;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+    }
+    function paintTab(force) {
+      if (activeTab === 'installed') {
+        // Leaving the catalog: drop the lazy bg-preview observer so the browse
+        // grid's sandboxed preview frames stop running behind the tab.
+        if (previewObserver) { previewObserver.disconnect(); previewObserver = null; }
+        if (window.InstalledManager) InstalledManager.render(body, force);
+        else body.replaceChildren(el('div', 'cgal-status', t('gallery_error', 'Could not load the gallery. Check your connection and retry.')));
+        return;
+      }
+      render(body, browseKind, force);
+    }
+
     const body = el('div', 'cgal-scroll');
     modal.appendChild(body);
     bd.appendChild(modal);
     bd.addEventListener('click', (ev) => { if (ev.target === bd) close(); });
-    refresh.addEventListener('click', () => render(body, filterKind, true));
+    refresh.addEventListener('click', () => paintTab(true));
     document.body.appendChild(bd);
     overlayEl = bd;
     window.addEventListener('resize', onResize);
-    render(body, filterKind, false);
+    syncTabs();
+    paintTab(false);
   }
 
   // Open the Store straight onto one entry's detail view — used by the "new
@@ -1023,5 +1230,10 @@
   // donate/convert path for the supporter drop modal.
   function openSupporters() { open(); openSupporterInfo(); }
 
-  window.CommunityGallery = { open, close, findUpdates, openEntry, openSupporters };
+  // kindIcon + SHOTS_BASE are shared with the Installed tab
+  // (js/installed-manager.js) so both surfaces draw from ONE icon set and ONE
+  // sidecar path rule. shotUrl derives from the entry id the server already
+  // charset-pinned — never from catalog-supplied text.
+  const shotUrl = (entryId, i, ext) => SHOTS_BASE + encodeURIComponent(entryId) + (i === 1 ? '' : '-' + i) + '.' + ext;
+  window.CommunityGallery = { open, close, findUpdates, openEntry, openSupporters, kindIcon, shotUrl };
 })();

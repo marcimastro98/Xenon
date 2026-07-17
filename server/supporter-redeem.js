@@ -36,26 +36,42 @@ const KNOWN_ERRORS = new Set(['bad_request', 'bad_code', 'bad_entry', 'expired',
 // One random UUID per install, persisted in DATA_DIR so the hub can count
 // device activations. Not a secret — just a stable anonymous identifier.
 let _installId = null;
+let _installIdInflight = null;   // shared promise so concurrent cold reads resolve once
 
 async function getInstallId(dataDir) {
   if (_installId) return _installId;
-  const file = path.join(dataDir, 'install-id.json');
+  // Serialize concurrent first-run calls (reachable now that ratings' mine=1
+  // reads and votes can fire together): without this, two callers both miss the
+  // cache, mint different UUIDs, and — sharing the same `.tmp-<pid>` path —
+  // clobber each other's temp file so one rename ENOENTs and the persisted id
+  // disagrees with the in-memory one.
+  if (_installIdInflight) return _installIdInflight;
+  _installIdInflight = (async () => {
+    const file = path.join(dataDir, 'install-id.json');
+    try {
+      const parsed = JSON.parse(await fsp.readFile(file, 'utf8'));
+      if (parsed && typeof parsed.installId === 'string'
+        && /^[0-9a-f-]{36}$/i.test(parsed.installId)) {
+        _installId = parsed.installId;
+        return _installId;
+      }
+    } catch { /* missing or corrupt — regenerate below */ }
+    const fresh = crypto.randomUUID();
+    // Temp + rename so a crash mid-write can never leave a corrupt file behind
+    // (same discipline as writeFileAtomic in server.js, local to avoid a cycle).
+    // The temp name carries a random suffix so it never collides with a
+    // parallel writer sharing this pid.
+    const tmp = file + '.tmp-' + process.pid + '-' + crypto.randomBytes(6).toString('hex');
+    await fsp.writeFile(tmp, JSON.stringify({ installId: fresh }), 'utf8');
+    await fsp.rename(tmp, file);
+    _installId = fresh;
+    return _installId;
+  })();
   try {
-    const parsed = JSON.parse(await fsp.readFile(file, 'utf8'));
-    if (parsed && typeof parsed.installId === 'string'
-      && /^[0-9a-f-]{36}$/i.test(parsed.installId)) {
-      _installId = parsed.installId;
-      return _installId;
-    }
-  } catch { /* missing or corrupt — regenerate below */ }
-  const fresh = crypto.randomUUID();
-  // Temp + rename so a crash mid-write can never leave a corrupt file behind
-  // (same discipline as writeFileAtomic in server.js, local to avoid a cycle).
-  const tmp = file + '.tmp-' + process.pid;
-  await fsp.writeFile(tmp, JSON.stringify({ installId: fresh }), 'utf8');
-  await fsp.rename(tmp, file);
-  _installId = fresh;
-  return _installId;
+    return await _installIdInflight;
+  } finally {
+    _installIdInflight = null;
+  }
 }
 
 // ── Outbound POST ────────────────────────────────────────────────────────────

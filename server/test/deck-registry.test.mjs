@@ -232,6 +232,28 @@ test('run openStoreApp validates the AUMID and launches via deps.openStoreApp', 
   assert.deepEqual(calls, ['A.B_hash!App']);
 });
 
+test('isSteamAppId accepts digit-only ids and rejects anything else', () => {
+  assert.equal(reg.isSteamAppId('1086940'), true);
+  assert.equal(reg.isSteamAppId('730'), true);
+  assert.equal(reg.isSteamAppId(' 400 '), true);              // trimmed
+  assert.equal(reg.isSteamAppId(''), false);
+  assert.equal(reg.isSteamAppId('12a'), false);
+  assert.equal(reg.isSteamAppId('123456789012345'), false);  // over 12 digits
+  assert.equal(reg.isSteamAppId('-1'), false);
+  assert.equal(reg.isSteamAppId('1; calc'), false);
+});
+
+test('run launchSteamGame validates the AppID and launches via the steam:// deep link', async () => {
+  const calls = [];
+  const deps = { openExternal: (u) => { calls.push(u); return Promise.resolve(); } };
+  // A non-numeric AppID is rejected before any launch (no injection reaches openExternal).
+  assert.deepEqual(await reg.createRegistry(deps).run({ type: 'launchSteamGame', gameId: 'x"; calc' }), { ok: false, error: 'bad_app_id' });
+  assert.deepEqual(await reg.createRegistry(deps).run({ type: 'launchSteamGame', gameId: '' }), { ok: false, error: 'bad_app_id' });
+  // A valid AppID builds the canonical rungameid URL.
+  assert.deepEqual(await reg.createRegistry(deps).run({ type: 'launchSteamGame', gameId: '1086940' }), { ok: true });
+  assert.deepEqual(calls, ['steam://rungameid/1086940']);
+});
+
 test('run sdkMacro: resolves steps via deps, runs them in order, skips nested macros', async () => {
   const calls = [];
   const deps = {

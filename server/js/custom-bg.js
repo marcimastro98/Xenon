@@ -25,6 +25,28 @@
   // as bundled image assets, not as more source.
   const CODE_MAX = 60000;
 
+  // ── Frame-rate cap ──────────────────────────────────────────────────────────
+  // A backdrop is decorative: repainting it at the display's full rate is the
+  // single biggest cost a theme can add (a full-viewport raster per frame — and
+  // on some presentation paths rAF free-runs far ABOVE the refresh rate). The
+  // frame loop therefore paints at most `fps` times per second, skipping the
+  // in-between rAF ticks; motion speed is untouched because elapsed time keeps
+  // following the real clock. Authors tune it per background (bgCustom.fps):
+  // 30 is the default sweet spot for calm scenes, 60 the ceiling for genuinely
+  // fast motion, lower still for near-static looks. Single owner of the rule —
+  // the client and server normalizers both call this (like sanitizeBgAssets).
+  const FPS_MIN = 10;
+  const FPS_MAX = 60;
+  const FPS_DEFAULT = 30;
+  function sanitizeBgFps(value) {
+    // Absent means "the default", never "clamp 0 up to the minimum" — existing
+    // stores have no fps field at all and must land on 30, not 10.
+    if (value == null || value === '') return FPS_DEFAULT;
+    const n = Math.round(Number(value));
+    if (!Number.isFinite(n)) return FPS_DEFAULT;
+    return Math.max(FPS_MIN, Math.min(FPS_MAX, n));
+  }
+
   // ── Bundled image assets ────────────────────────────────────────────────────
   // A background may carry its own images (pixel-art, sprites, textures) as
   // data: URIs — the ONLY way pictures reach the frame, since the CSP allows
@@ -109,15 +131,17 @@
   // Assets ride the same way: a JSON payload of validated data: URIs, embedded
   // as a JS string literal (identical escaping → no </script> breakout, exact
   // round-trip) and parsed back inside the frame.
-  function buildSrcdoc(code, assets) {
+  function buildSrcdoc(code, assets, fps) {
     const js = encodeForJsString(String(code || '').slice(0, CODE_MAX));
     const assetsJson = encodeForJsString(JSON.stringify(sanitizeBgAssets(assets)));
+    // sanitizeBgFps returns a plain bounded integer, so embedding it as a
+    // numeric literal is injection-safe by construction.
     return '<!doctype html><html><head><meta charset="utf-8">' +
       '<meta http-equiv="Content-Security-Policy" content="' + FRAME_CSP + '">' +
       '<style>html,body{margin:0;height:100%;overflow:hidden;background:transparent}' +
       'canvas{display:block;width:100vw;height:100vh}</style></head><body>' +
       '<canvas id="c"></canvas>' +
-      '<script>var __src=' + js + ',__assetsJson=' + assetsJson + ';' + BOOTSTRAP + '</scr' + 'ipt>' +
+      '<script>var __src=' + js + ',__assetsJson=' + assetsJson + ',__fps=' + sanitizeBgFps(fps) + ';' + BOOTSTRAP + '</scr' + 'ipt>' +
       '</body></html>';
   }
 
@@ -140,15 +164,29 @@
     'ctx.setTransform(d,0,0,d,0,0);}',
     'size();addEventListener("resize",size);',
     'var draw=null,assets={};',
-    'var raf=0,start=null;',
-    'function frame(t){if(start===null)start=t;var el=(t-start)/1000;',
+    // Paint at most __fps times per second: ticks arriving early are skipped
+    // (cheap no-op callbacks), so the cap holds even where rAF free-runs above
+    // the refresh rate. `el` stays on the real clock — skipping frames never
+    // slows the animation down. The 1ms tolerance keeps a 60fps cap from
+    // dropping every other vsync to timestamp jitter.
+    'var raf=0,start=null,step=1000/__fps,last=-1e9;',
+    'function frame(t){if(start===null)start=t;',
+    'if(t-last<step-1){raf=requestAnimationFrame(frame);return;}',
+    'last=t;var el=(t-start)/1000;',
     'try{if(draw)draw(ctx,el,innerWidth,innerHeight,assets);}catch(e){report({k:"runtime",m:String(e&&e.message||e)});raf=0;return;}',
     'raf=requestAnimationFrame(frame);}',
     'function play(){if(!raf&&draw)raf=requestAnimationFrame(frame);}',
     'function stop(){if(raf){cancelAnimationFrame(raf);raf=0;}}',
     // Pause when the tab is hidden OR the host signals it (perf/game mode).
-    'var extPause=false;',
-    'function sync(){(document.hidden||extPause)?stop():play();}',
+    // `warmedUp` gates sync() for the first few seconds after boot regardless
+    // of why sync() is called: a host pause reason can be true from the very
+    // first tick (low-power-gpu, present at page load rather than triggered
+    // later like idle/game mode), and freezing before the snippet's own
+    // entrance animation (a fade-in, a settle-in-place) finishes would leave
+    // the backdrop frozen on its half-invisible opening frame instead of a
+    // representative one.
+    'var extPause=false,warmedUp=false;',
+    'function sync(){if(!warmedUp)return;(document.hidden||extPause)?stop():play();}',
     'document.addEventListener("visibilitychange",sync);',
     'window.addEventListener("message",function(e){var d=e&&e.data;if(d&&d.__xbg){extPause=(d.__xbg==="pause");sync();}});',
     // Compile once every asset is decoded, so the snippet's setup code (and the
@@ -158,7 +196,13 @@
     'try{var factory=new Function("canvas","ctx","assets",__src+"\\n;return (typeof draw===\\"function\\")?draw:null;");',
     'draw=factory(canvas,ctx,assets);}catch(e){draw=null;cErr=String(e&&e.message||e);}',
     'report(draw?null:{k:cErr?"compile":"nodraw",m:cErr||""});',
-    'sync();}',
+    // Always start playing, bypassing sync()'s pause gate: any host pause
+    // reason present from the very first tick still lets the snippet's own
+    // entrance animation settle before warmedUp lets sync() freeze it on a
+    // representative frame.
+    'play();',
+    'setTimeout(function(){warmedUp=true;sync();},3000);',
+    '}',
     'var parsed={},names=[];try{parsed=JSON.parse(__assetsJson)||{};names=Object.keys(parsed);}catch(e){parsed={};}',
     'if(!names.length){boot();}else{',
     'var left=names.length,bad=[];',
@@ -176,6 +220,7 @@
   if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     let current = null;        // the code string currently mounted (avoid needless remounts)
     let currentAssets = {};    // shallow snapshot of the mounted assets map — a changed image remounts too
+    let currentFps = null;     // the mounted frame cap — a changed fps remounts too
     let frameEl = null;        // the live iframe, so the host can signal pause/resume
     let lastPaused = null;
 
@@ -189,15 +234,35 @@
       return true;
     }
 
-    // Performance / game mode must stop EVERY animated backdrop, custom ones
-    // included. The built-in aurora/grid are CSS (paused/hidden via body classes),
-    // but this backdrop is an iframe running its own rAF, so hiding it wouldn't
-    // stop the work. The host posts a pause/resume the frame acts on — matching
-    // aurora/grid: paused under perf-mode (also hidden via CSS) and frozen under
-    // game-mode.
+    // Performance / game mode — and idle — must stop EVERY animated backdrop,
+    // custom ones included. The built-in aurora/grid are CSS (paused/hidden via
+    // body classes), but this backdrop is an iframe running its own rAF, so
+    // hiding it wouldn't stop the work. The host posts a pause/resume the frame
+    // acts on — matching aurora/grid: paused under perf-mode (also hidden via
+    // CSS) and frozen under game-mode.
+    //
+    // `ambient-idle` is the whole-page idle freeze (ambient-idle.js): after a
+    // spell of no interaction (or the tab hidden) it pauses the aurora/grid and
+    // every decorative loop. A full-viewport repaint is the single most
+    // expensive backdrop, so it MUST join that freeze — otherwise a custom
+    // animated background is the one thing still burning GPU for a screen nobody
+    // is touching. On idle the loop stops entirely (0 cost, not just the fps
+    // cap); the first input resumes it 1:1. The frame's OWN visibilitychange
+    // already covers a hidden tab, but ambient-idle also fires on plain idle,
+    // which is exactly the Xeneon Edge case (always visible, rarely touched).
+    // `low-power-gpu`: the native kiosk deliberately renders on the weaker of
+    // two GPUs on a hybrid-GPU machine (apps/native/src-tauri/src/gpu.rs, set
+    // via js/native-bridge.js) to avoid a costly cross-adapter frame copy. That
+    // trade leaves less real-time budget on the weaker chip, and a full-viewport
+    // animated backdrop — the single most expensive layer on screen — can alone
+    // exceed it: confirmed live (a fps cap alone barely helped; only fully
+    // stopping the loop did) via PresentMon, the identical page still renders at
+    // 150+ FPS in a browser on the same PC's discrete GPU. Unlike the other
+    // three flags this one is permanent for the session, not contextual — the
+    // backdrop is a still image on this hardware instead of a temporary freeze.
     function hostPaused() {
       const c = document.body.classList;
-      return c.contains('perf-mode') || c.contains('game-mode');
+      return c.contains('perf-mode') || c.contains('game-mode') || c.contains('ambient-idle') || c.contains('low-power-gpu');
     }
     function syncPause(force) {
       if (!frameEl || !frameEl.contentWindow) return;
@@ -223,10 +288,11 @@
       if (el) el.replaceChildren();
       current = null;
       currentAssets = {};
+      currentFps = null;
       frameEl = null;
     }
 
-    function mount(code, assets) {
+    function mount(code, assets, fps) {
       const host = layer();
       const frame = document.createElement('iframe');
       // No allow-same-origin: the frame runs at a null origin, isolated from the
@@ -235,7 +301,7 @@
       frame.setAttribute('aria-hidden', 'true');
       frame.setAttribute('tabindex', '-1');
       frame.title = '';
-      frame.srcdoc = buildSrcdoc(code, assets);   // buildSrcdoc sanitizes (second guard)
+      frame.srcdoc = buildSrcdoc(code, assets, fps);   // buildSrcdoc sanitizes (second guard)
       // Once the frame's script is live, tell it the current pause state (it may
       // have been mounted while already in perf/game mode).
       frameEl = frame;
@@ -244,18 +310,23 @@
       host.replaceChildren(frame);
       current = code;
       currentAssets = Object.assign({}, (assets && typeof assets === 'object') ? assets : {});
+      currentFps = sanitizeBgFps(fps);
     }
 
-    // Mount `code` (+ optional bundled image assets) as the animated background,
-    // or clear it when falsy. Idempotent on the same code+assets so re-applying
-    // settings — which happens on EVERY settings mutation — neither restarts the
-    // animation nor pays any per-call work proportional to the asset bytes.
-    function apply(code, assets) {
+    // Mount `code` (+ optional bundled image assets, + the frame-rate cap) as the
+    // animated background, or clear it when falsy. Idempotent on the same
+    // code+assets+fps so re-applying settings — which happens on EVERY settings
+    // mutation — neither restarts the animation nor pays any per-call work
+    // proportional to the asset bytes.
+    function apply(code, assets, fps) {
       const next = (typeof code === 'string' && code.trim()) ? code.slice(0, CODE_MAX) : '';
       if (!next) { if (current !== null) unmount(); document.body.classList.remove('custom-bg-on'); return; }
       const rawAssets = (assets && typeof assets === 'object' && !Array.isArray(assets)) ? assets : {};
-      if (next === current && sameAssetMaps(rawAssets, currentAssets)) { document.body.classList.add('custom-bg-on'); return; }
-      mount(next, rawAssets);
+      if (next === current && sameAssetMaps(rawAssets, currentAssets) && sanitizeBgFps(fps) === currentFps) {
+        document.body.classList.add('custom-bg-on');
+        return;
+      }
+      mount(next, rawAssets, fps);
       document.body.classList.add('custom-bg-on');
     }
 
@@ -286,17 +357,19 @@
     });
 
     window.CustomBg = {
-      apply, buildSrcdoc, sanitizeBgAssets,
+      apply, buildSrcdoc, sanitizeBgAssets, sanitizeBgFps,
       // Caps + shape rules exported so the settings UI pre-checks (friendly
       // toasts) read the SAME numbers the sanitizer enforces.
       ASSET_DATA_RE, ASSET_MAX_COUNT, ASSET_MAX_CHARS, ASSETS_TOTAL_MAX,
+      FPS_MIN, FPS_MAX, FPS_DEFAULT,
     };
   }
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-      buildSrcdoc, encodeForJsString, sanitizeBgAssets,
+      buildSrcdoc, encodeForJsString, sanitizeBgAssets, sanitizeBgFps,
       CODE_MAX, ASSET_MAX_COUNT, ASSET_MAX_CHARS, ASSETS_TOTAL_MAX,
+      FPS_MIN, FPS_MAX, FPS_DEFAULT,
     };
   }
 })();

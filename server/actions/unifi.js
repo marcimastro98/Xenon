@@ -365,11 +365,20 @@ function createUnifiProtect(getConfig) {
     return list;
   }
 
-  // A single JPEG snapshot for one camera (Buffer). `force=true` requests a fresh
-  // frame; `ts` cache-busts. Throws on a bad id or a non-2xx response.
-  async function snapshot(id) {
+  // A single JPEG snapshot for one camera (Buffer). `ts` cache-busts. Throws on a
+  // bad id or a non-2xx response.
+  //
+  // `force` is OFF by default on purpose. `?force=true` tells Protect to CAPTURE a
+  // brand-new frame synchronously — fine for a one-off, but the Cameras tile pulls
+  // snapshots on a loop (grid AND the expanded view), and hammering `force=true`
+  // faster than the camera can produce a fresh frame makes Protect hand back BLACK
+  // frames (issue: live view black, yet a single manual click returns a real photo
+  // — that click was just the first, un-hammered request). Protect's own cached
+  // snapshot (no force) refreshes on its own and stays near-live and reliable, so
+  // that's what the tile uses. Reserve `force` for a deliberate one-shot capture.
+  async function snapshot(id, force = false) {
     if (!isCameraId(id)) throw new Error('unifi_bad_camera_id');
-    const path = '/proxy/protect/api/cameras/' + id + '/snapshot?force=true&ts=' + Date.now();
+    const path = '/proxy/protect/api/cameras/' + id + '/snapshot?' + (force ? 'force=true&' : '') + 'ts=' + Date.now();
     const r = await authedGet(path, { accept: 'image/jpeg', timeout: 8000 });
     if (r.status < 200 || r.status >= 300) throw new Error('unifi_snapshot_failed_' + r.status);
     return r.body;

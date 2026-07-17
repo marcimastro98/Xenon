@@ -123,13 +123,13 @@
 .topbtn.topbtn-xenon {
   position: relative;
   overflow: hidden;
-  color: #07120e;
+  color: var(--on-accent);
   background: var(--accent);
   border-color: transparent;
   box-shadow: 0 2px 14px rgba(var(--accent-rgb), 0.42);
 }
 .topbtn.topbtn-xenon:hover {
-  color: #07120e;
+  color: var(--on-accent);
   background: var(--accent);
   border-color: transparent;
   box-shadow: 0 2px 22px rgba(var(--accent-rgb), 0.7);
@@ -156,12 +156,12 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
 
 /* Layout editor "on" state (toggle) — accent fill */
 .topbtn.qbtn-layout.active {
-  color: #07120e;
+  color: var(--on-accent);
   background: var(--accent);
   border-color: transparent;
   box-shadow: 0 4px 16px rgba(var(--accent-rgb),0.4);
 }
-.topbtn.qbtn-layout.active svg { color: #07120e; filter: none; }
+.topbtn.qbtn-layout.active svg { color: var(--on-accent); filter: none; }
 
 /* Narrow widths: collapse labels to icons so nothing wraps */
 @media (max-width: 1180px) {
@@ -192,7 +192,7 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
   border-radius: 6px;
   display: grid;
   place-items: center;
-  background: rgba(240,184,79,0.14);
+  background: rgba(var(--warning-rgb),0.14);
   color: var(--amber);
   font-size: 11px;
   font-weight: 950;
@@ -349,26 +349,43 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
 }
 
 /* ── Status dot — live indicator ─────────────────────────── */
+/* The breathing glow lives on a pseudo-element whose OPACITY pulses: opacity
+   animates on the compositor, while animating box-shadow itself runs the
+   main-thread style→paint pipeline at full display rate for as long as the
+   dot is visible — i.e. forever, on every surface (GitHub #99). */
 .status-dot-inline {
+  position: relative;
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--accent);
   flex-shrink: 0;
+  box-shadow: 0 0 5px rgba(var(--accent-rgb), 0.55);
+}
+
+.status-dot-inline::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 13px rgba(var(--accent-rgb), 1), 0 0 24px rgba(var(--accent-rgb), 0.38);
+  opacity: 0;
   animation: dot-pulse 2.6s ease-in-out infinite;
-  will-change: box-shadow;
+  will-change: opacity;
+  pointer-events: none;
 }
 
 @keyframes dot-pulse {
-  0%, 100% { box-shadow: 0 0 5px rgba(var(--accent-rgb), 0.55); }
-  50%       { box-shadow: 0 0 13px rgba(var(--accent-rgb), 1), 0 0 24px rgba(var(--accent-rgb), 0.38); }
+  0%, 100% { opacity: 0; }
+  50%       { opacity: 1; }
 }
 
 .status-dot-inline.offline {
   background: var(--red);
-  box-shadow: 0 0 7px rgba(229, 57, 53, 0.55);
+  box-shadow: 0 0 7px rgba(var(--danger-rgb), 0.55);
   animation: none;
 }
+.status-dot-inline.offline::after { animation: none; opacity: 0; }
 
 /* ── Legacy selectors — kept as no-ops for safety ────────── */
 .clock-row  { display: contents; }

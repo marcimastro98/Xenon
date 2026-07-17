@@ -16,7 +16,7 @@
   overflow: hidden;
   border: 1px solid #26302d;
   border-radius: 14px;
-  background: #101917;
+  background: var(--surface);
   box-shadow: 0 12px 38px rgba(0,0,0,0.62);
   display: flex;
   flex-direction: column;
@@ -54,7 +54,7 @@
   padding: 0 11px;
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 9px;
-  background: rgba(255,255,255,0.04);
+  background: var(--surface-alt);
   transition: border-color 0.15s, background 0.15s;
 }
 .app-search-wrap:focus-within {
@@ -88,13 +88,13 @@
   height: 34px;
   border: none;
   border-radius: 9px;
-  background: rgba(255,255,255,0.045);
+  background: var(--control-bg);
   color: var(--muted-text);
   cursor: pointer;
   display: grid;
   place-items: center;
 }
-.app-icon-btn:hover { background: rgba(255,255,255,0.09); color: var(--text); }
+.app-icon-btn:hover { background: var(--hover-bg); color: var(--text); }
 .app-icon-btn svg { width: 16px; height: 16px; fill: currentColor; }
 
 .app-list {
@@ -113,7 +113,7 @@
   min-width: 0;
   border: 1px solid rgba(255,255,255,0.075);
   border-radius: 10px;
-  background: rgba(255,255,255,0.035);
+  background: var(--surface-alt);
   color: var(--text);
   overflow: hidden;
   cursor: pointer;
@@ -122,7 +122,7 @@
   scroll-snap-align: start;
   transition: border-color 0.15s, background 0.15s, transform 0.15s;
 }
-.app-card:hover { background: rgba(255,255,255,0.07); border-color: rgba(var(--accent-rgb),0.34); transform: translateY(-1px); }
+.app-card:hover { background: var(--hover-bg); border-color: rgba(var(--accent-rgb),0.34); transform: translateY(-1px); }
 .app-card.active { border-color: rgba(var(--accent-rgb),0.66); box-shadow: 0 0 0 1px rgba(var(--accent-rgb),0.12) inset; }
 .app-card:focus-visible { outline: 2px solid rgba(var(--accent-rgb),0.55); outline-offset: 2px; }
 
@@ -130,7 +130,7 @@
   position: relative;
   aspect-ratio: 16 / 8;
   width: 100%;
-  background: linear-gradient(145deg, rgba(var(--accent-rgb),0.08), rgba(106,167,255,0.06)), #0a0e0e;
+  background: linear-gradient(145deg, rgba(var(--accent-rgb),0.08), color-mix(in srgb, var(--color-info), transparent 94%)), var(--surface-alt);
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -166,16 +166,16 @@
   height: 36px;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(8,12,12,0.68);
-  color: rgba(220,228,224,0.65);
+  background: var(--control-bg);
+  color: var(--muted-text);
   display: grid;
   place-items: center;
   cursor: pointer;
   backdrop-filter: blur(8px);
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.app-star:hover { background: rgba(240,184,79,0.18); color: var(--amber); border-color: rgba(240,184,79,0.38); }
-.app-star.favorited { background: rgba(240,184,79,0.22); color: var(--amber); border-color: rgba(240,184,79,0.52); }
+.app-star:hover { background: rgba(var(--warning-rgb),0.18); color: var(--color-warn); border-color: rgba(var(--warning-rgb),0.38); }
+.app-star.favorited { background: rgba(var(--warning-rgb),0.22); color: var(--color-warn); border-color: rgba(var(--warning-rgb),0.52); }
 .app-star svg { width: 18px; height: 18px; fill: currentColor; }
 
 /* Close-window button (top-right). Subtle by default, red-tinted on hover; the
@@ -189,8 +189,8 @@
   height: 30px;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(8,12,12,0.68);
-  color: rgba(220,228,224,0.6);
+  background: var(--control-bg);
+  color: var(--muted-text);
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -202,9 +202,9 @@
 .app-card:focus-visible .app-close,
 .app-close:focus-visible { opacity: 1; }
 .app-close:hover {
-  background: rgba(224,86,86,0.2);
-  color: #ff9e9e;
-  border-color: rgba(224,86,86,0.45);
+  background: color-mix(in srgb, var(--color-danger), transparent 80%);
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger), transparent 55%);
 }
 .app-close svg { width: 14px; height: 14px; fill: currentColor; }
 
@@ -228,8 +228,8 @@
   bottom: 8px;
   padding: 3px 8px;
   border-radius: 999px;
-  background: rgba(106,167,255,0.18);
-  color: #b8d2ff;
+  background: color-mix(in srgb, var(--color-info), transparent 82%);
+  color: var(--color-info);
   font-size: 9.5px;
   font-weight: 900;
   text-transform: uppercase;
@@ -238,13 +238,36 @@
 .app-meta {
   min-width: 0;
   padding: 10px 12px 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Real app icon (exe icon) shown next to the name, so each card is identifiable by
+   the app's own artwork — not just its screenshot. Letter fallback when no icon. */
+.app-meta-icon {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: rgba(var(--accent-rgb),0.10);
+  border: 1px solid rgba(var(--accent-rgb),0.18);
+  overflow: hidden;
+}
+.app-meta-icon img { width: 22px; height: 22px; object-fit: contain; display: block; }
+.app-meta-letter { color: var(--green); font-size: 14px; font-weight: 900; }
+
+.app-meta-text {
+  min-width: 0;
   display: grid;
   gap: 5px;
 }
 
 .app-name {
   min-width: 0;
-  color: #edf5f2;
+  color: var(--text);
   font-size: 14px;
   font-weight: 850;
   line-height: 1.28;
@@ -277,3 +300,21 @@
   font-size: 13.5px;
   font-weight: 750;
 }
+
+/* Error state: message + a retry button, so a stalled/dead backend never leaves
+   the panel stuck on the loading text. */
+.app-empty.app-error {
+  gap: 12px;
+  align-content: center;
+}
+.app-retry {
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 7px 16px;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+.app-retry:hover { background: rgba(var(--accent-rgb), 0.2); }

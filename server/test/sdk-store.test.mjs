@@ -1,0 +1,139 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const store = require('../sdk-store.js');
+
+// ── Key/value store: caps + purity ──────────────────────────────────────────
+
+test('store: set then get round-trips a JSON value without mutating the input', () => {
+  const cur = {};
+  const set = store.applyStoreOp(cur, { op: 'set', key: 'teams', value: [1, 2, 3] });
+  assert.equal(set.ok, true);
+  assert.equal(set.changed, true);
+  assert.deepEqual(cur, {});                       // pure — original untouched
+  const get = store.applyStoreOp(set.store, { op: 'get', key: 'teams' });
+  assert.deepEqual(get.value, [1, 2, 3]);
+  assert.equal(get.changed, false);
+});
+
+test('store: get of a missing key is null, delete of a missing key is a no-op', () => {
+  assert.equal(store.applyStoreOp({}, { op: 'get', key: 'nope' }).value, null);
+  const d = store.applyStoreOp({}, { op: 'delete', key: 'nope' });
+  assert.equal(d.ok, true);
+  assert.equal(d.changed, false);
+});
+
+test('store: keys lists, clear empties', () => {
+  const s = { a: 1, b: 2 };
+  assert.deepEqual(store.applyStoreOp(s, { op: 'keys' }).keys.sort(), ['a', 'b']);
+  const c = store.applyStoreOp(s, { op: 'clear' });
+  assert.deepEqual(c.store, {});
+  assert.equal(c.changed, true);
+  assert.equal(store.applyStoreOp({}, { op: 'clear' }).changed, false);   // already empty
+});
+
+test('store: bad op / bad key / non-JSON value are rejected', () => {
+  assert.equal(store.applyStoreOp({}, { op: 'nuke' }).error, 'bad_op');
+  assert.equal(store.applyStoreOp({}, { op: 'set', key: '../x', value: 1 }).error, 'bad_key');
+  assert.equal(store.applyStoreOp({}, { op: 'set', key: 'k', value: undefined }).error, 'bad_value');
+  const cyc = {}; cyc.self = cyc;
+  assert.equal(store.applyStoreOp({}, { op: 'set', key: 'k', value: cyc }).error, 'bad_value');
+});
+
+test('store: value size, key count and total size caps hold', () => {
+  const big = 'x'.repeat(store.STORE_MAX_VALUE_BYTES + 1);
+  assert.equal(store.applyStoreOp({}, { op: 'set', key: 'k', value: big }).error, 'value_too_large');
+
+  let s = {};
+  for (let i = 0; i < store.STORE_MAX_KEYS; i++) s['k' + i] = 1;
+  assert.equal(store.applyStoreOp(s, { op: 'set', key: 'overflow', value: 1 }).error, 'too_many_keys');
+  // Overwriting an existing key at the cap is still allowed (no new key).
+  assert.equal(store.applyStoreOp(s, { op: 'set', key: 'k0', value: 2 }).ok, true);
+});
+
+// ── Secret vault: write-only, never leaks a value ───────────────────────────
+
+test('secret: set/has/names never expose a value; delete works', () => {
+  const set = store.applySecretOp({}, { op: 'set', name: 'apikey', value: 'super-secret' });
+  assert.equal(set.ok, true);
+  assert.equal(set.secrets.apikey, 'super-secret');
+  // `has` and `names` are the ONLY reads, and neither returns the value.
+  const has = store.applySecretOp(set.secrets, { op: 'has', name: 'apikey' });
+  assert.equal(has.has, true);
+  assert.equal('value' in has, false);
+  const names = store.applySecretOp(set.secrets, { op: 'names' });
+  assert.deepEqual(names.names, ['apikey']);
+  assert.equal('value' in names, false);
+  // There is deliberately no 'get' op.
+  assert.equal(store.applySecretOp(set.secrets, { op: 'get', name: 'apikey' }).error, 'bad_op');
+  const del = store.applySecretOp(set.secrets, { op: 'delete', name: 'apikey' });
+  assert.deepEqual(del.secrets, {});
+});
+
+test('secret: rejects CRLF-bearing values, oversize values and too many secrets', () => {
+  assert.equal(store.applySecretOp({}, { op: 'set', name: 'k', value: 'a\r\nb' }).error, 'bad_value');
+  assert.equal(store.applySecretOp({}, { op: 'set', name: 'k', value: 123 }).error, 'bad_value');
+  const big = 'x'.repeat(store.SECRET_MAX_VALUE_BYTES + 1);
+  assert.equal(store.applySecretOp({}, { op: 'set', name: 'k', value: big }).error, 'value_too_large');
+  let s = {};
+  for (let i = 0; i < store.SECRET_MAX_COUNT; i++) s['s' + i] = 'v';
+  assert.equal(store.applySecretOp(s, { op: 'set', name: 'more', value: 'v' }).error, 'too_many_secrets');
+});
+
+// ── Secret placeholder resolution in proxy requests ─────────────────────────
+
+test('resolveSecretsInText: substitutes known, hard-errors unknown', () => {
+  const secrets = { apikey: 'K1', token: 'T2' };
+  assert.deepEqual(store.resolveSecretsInText('key={{secret:apikey}}&t={{ secret:token }}', secrets),
+    { ok: true, text: 'key=K1&t=T2' });
+  assert.deepEqual(store.resolveSecretsInText('plain text, no tokens', secrets), { ok: true, text: 'plain text, no tokens' });
+  const bad = store.resolveSecretsInText('{{secret:missing}}', secrets);
+  assert.equal(bad.ok, false);
+  assert.equal(bad.error, 'unknown_secret');
+});
+
+test('resolveProxySecrets: fills url/headers/body, pins the host', () => {
+  const secrets = { apikey: 'K1' };
+  const hosts = ['api.football-data.org'];
+  const req = {
+    url: 'https://api.football-data.org/v4/matches',
+    method: 'GET',
+    headers: { 'x-auth-token': '{{secret:apikey}}', accept: 'application/json' },
+    body: '',
+  };
+  const r = store.resolveProxySecrets(req, secrets, hosts);
+  assert.equal(r.ok, true);
+  assert.equal(r.req.headers['x-auth-token'], 'K1');
+  assert.equal(r.req.headers.accept, 'application/json');
+});
+
+test('resolveProxySecrets: a secret can never move the request to a new host', () => {
+  // Even if a stored secret were a full URL, substitution in the URL is re-parsed
+  // and the host must stay the original, allowlisted one.
+  const secrets = { evil: 'evil.example.com/x?a=' };
+  const hosts = ['api.football-data.org'];
+  const req = {
+    url: 'https://api.football-data.org/v4/{{secret:evil}}',   // host unchanged by design
+    method: 'GET', headers: {}, body: '',
+  };
+  const ok = store.resolveProxySecrets(req, secrets, hosts);
+  assert.equal(ok.ok, true);                       // path grows but host is pinned
+  assert.equal(new URL(ok.req.url).hostname, 'api.football-data.org');
+
+  // A placeholder that references an unknown secret is a hard error, never a
+  // silently-dropped credential.
+  const bad = store.resolveProxySecrets(
+    { url: 'https://api.football-data.org/{{secret:nope}}', method: 'GET', headers: {}, body: '' },
+    secrets, hosts);
+  assert.equal(bad.ok, false);
+  assert.equal(bad.error, 'unknown_secret');
+});
+
+// ── Namespace selection (shared groups) ─────────────────────────────────────
+
+test('storeNamespace: package id by default, shared group when declared', () => {
+  assert.equal(store.storeNamespace({ id: 'weather-radar' }), 'weather-radar');
+  assert.equal(store.storeNamespace({ id: 'weather-radar', storageGroup: 'dgm' }), 'g:dgm');
+});

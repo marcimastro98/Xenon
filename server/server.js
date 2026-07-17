@@ -4,7 +4,7 @@
  * redistribution as your own. Attribution required. See LICENSE for terms.
  */
 const http = require('http');
-const { exec, execFile, spawn } = require('child_process');
+const { execFile, spawn } = require('child_process');
 const fs = require('fs');
 const https = require('https');
 const os = require('os');
@@ -16,6 +16,8 @@ const winNotif = require('./winnotif');
 const wakeWord = require('./wakeword');
 const sdkWidgets = require('./sdk-widgets');
 const sdkProxy = require('./sdk-proxy');
+const sdkStore = require('./sdk-store');
+const signalrgb = require('./signalrgb');
 // Windowed-game detection: the fullscreen heuristic misses borderless/windowed
 // titles, so the game detector also gets PresentMon's busiest flip-model
 // presenter as a hint — when it matches the focused window, that's a game.
@@ -23,12 +25,16 @@ gameDetect.setGameHint(() => fpsMonitor.getGamingProcess());
 const lighting = require('./lighting');
 const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
 const vitalsPetCore = require('./js/vitals-pet-core'); // Bit's pure core: durable pet-state merge helpers (shared with the client + tests)
-const { sanitizeBgAssets } = require('./js/custom-bg'); // single owner of the bg image-asset rules (shared with the client + sandbox)
+const { sanitizeBgAssets, sanitizeBgFps } = require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox)
+const { sanitizeSlideshow } = require('./js/slideshow-widget'); // single owner of the slideshow image rules (shared with the client)
+const contentInstalls = require('./js/content-installs'); // validated import receipts shared with Settings
+const themePalette = require('./js/theme-palette.js'); // single owner of the semantic-palette rules (shared with the client + tests)
 const aiLocal = require('./ai-local');
 const aiOpenai = require('./ai-openai');
 const aiAnthropic = require('./ai-anthropic');
 const { preserveAiProviderCreds, redactAiProviderCreds } = require('./ai-provider-creds');
 const { createGuardian } = require('./guardian');
+const { createBatteryMonitor } = require('./battery');
 const { createAiMemory } = require('./ai-memory');
 const { createAiActionLog } = require('./ai-action-log');
 const aiLive = require('./ai-live');
@@ -61,6 +67,10 @@ const { preserveNewsCreds, redactNewsCreds } = require('./news-creds');
 const claudeUsage = require('./claude-usage');
 const communityCatalog = require('./community-catalog');
 const supporterRedeem = require('./supporter-redeem');
+const iconPacks = require('./icon-packs');
+const soundPacks = require('./sound-packs');
+const communityRatings = require('./community-ratings');
+const communityLimited = require('./community-limited');
 const { createRemoteControl } = require('./remote-control');
 const { createSelfUpdate } = require('./self-update');
 const { createHelperUpdate } = require('./helper-update');
@@ -79,6 +89,14 @@ let APP_VERSION = '';
 // showed "from vv3.2.4"). Stripping here keeps /version and /update/check clean
 // regardless of what package.json holds.
 try { APP_VERSION = String(require('../package.json').version || '').trim().replace(/^v/i, ''); } catch {}
+
+// Local backend port. Overridable via XENON_PORT for side-by-side debugging;
+// any invalid/out-of-range value falls back to the canonical 3030 so a typo in
+// the env var can never strand the server on a random port with a broken host allowlist.
+const PORT = (() => {
+  const raw = parseInt(process.env.XENON_PORT, 10);
+  return Number.isInteger(raw) && raw > 0 && raw <= 65535 ? raw : 3030;
+})();
 
 // ── Update check ──────────────────────────────────────────────────────────────
 // Soft probe of the latest GitHub release so the dashboard can show a discreet
@@ -317,7 +335,9 @@ function buildCoreAiFunctions() {
         }, required: ['app', 'action'] } },
         // ── System ──
         { name: 'lock_pc', description: 'Lock the Windows workstation', parameters: { type: 'OBJECT', properties: {} } },
-        { name: 'get_system_info', description: 'Get current CPU, GPU, RAM and disk usage stats', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'get_system_info', description: 'Get current CPU, GPU, RAM and disk usage stats, plus fan speeds (fans[]) and power draw in watts (power.cpu/gpu/psu/total)', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'get_battery_status', description: 'Get the battery level of the user\'s wireless peripherals (mouse, keyboard, headset — Corsair via iCUE and Bluetooth devices). Use for "how\'s my mouse battery", "batteria del mouse".', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'get_energy_status', description: 'Get the full energy picture: the PC\'s power draw in watts (CPU/GPU/PSU) plus the user\'s Home Assistant power/energy readings (solar production, smart plugs, home meter, UPS). Use for "how much power is the PC using", "quanto sta producendo il fotovoltaico", "consumo di casa".', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'get_weather', description: 'Get current weather conditions and forecast', parameters: { type: 'OBJECT', properties: {} } },
         // ── Stock market (Borsa) ──
         { name: 'get_stock_quote', description: 'Get the current price and day change for one or more stock, index, crypto or FX symbols (e.g. "AAPL", "FTSEMIB.MI", "BTC-EUR", "^GSPC"). Use for "how is Apple doing", "price of Bitcoin", "how is the FTSE MIB today".', parameters: { type: 'OBJECT', properties: { symbols: { type: 'STRING', description: 'One symbol, or several comma-separated (e.g. "AAPL, MSFT"). Use the ticker symbol; for Borsa Italiana add .MI (e.g. ENI.MI).' } }, required: ['symbols'] } },
@@ -414,8 +434,8 @@ function buildCoreAiFunctions() {
         { name: 'set_lighting_bridge', description: 'Turn the whole RGB lighting bridge on or off (master switch). When off, control returns to iCUE.', parameters: { type: 'OBJECT', properties: {
           enabled: { type: 'BOOLEAN', description: 'true to enable the bridge, false to disable' },
         }, required: ['enabled'] } },
-        { name: 'show_sensor', description: 'Read a current sensor value to report to the user (e.g. CPU temperature).', parameters: { type: 'OBJECT', properties: {
-          sensor: { type: 'STRING', description: 'Sensor to read: cpuTemp' },
+        { name: 'show_sensor', description: 'Read a current sensor value to report to the user (e.g. CPU temperature, fan speed, power draw).', parameters: { type: 'OBJECT', properties: {
+          sensor: { type: 'STRING', description: 'Sensor to read: cpuTemp, gpuTemp, cpu, gpu, cpuFan, gpuFan, cpuWatts, gpuWatts, totalWatts, psuWatts' },
         }, required: ['sensor'] } },
         { name: 'go_to_page', description: 'Navigate the dashboard to a page: "dashboard" (page 1) or "lighting" (page 2, RGB controls).', parameters: { type: 'OBJECT', properties: {
           page: { type: 'STRING', description: 'Page id: dashboard or lighting' },
@@ -424,23 +444,43 @@ function buildCoreAiFunctions() {
           profile: { type: 'STRING', description: 'The exact name of the deck profile to activate' },
         }, required: ['profile'] } },
         // ── Appearance & preferences (fine-grained dashboard customization) ──
-        { name: 'customize_appearance', description: 'Change the dashboard look in detail. Pass any subset: a named theme preset, the light/dark/auto mode, the base skin (glass/retro), or exact hex colours for accent, background and text. Use this (not change_theme) when the user asks for a specific colour ("make the accent orange", "usa il rosso #ff0000", "sfondo più scuro", "modalità chiara", "passa a Pixel Retro"). Applies live and persists.', parameters: { type: 'OBJECT', properties: {
+        { name: 'customize_appearance', description: 'Change the dashboard look in detail. Pass any subset: a named theme preset, the light/dark/auto mode, the base skin (glass/retro/comic), or exact semantic colours for the app canvas, panels, nested surfaces, controls, text, borders, accent and UI states. Use this (not change_theme) for any specific-colour request. Applies live, contrast-checks by default and persists.', parameters: { type: 'OBJECT', properties: {
           preset: { type: 'STRING', description: 'Optional named theme: xenon, ocean, ember, violet, mono' },
-          style: { type: 'STRING', description: 'Optional base skin: "glass" (Liquid Glass) or "retro" (Pixel Retro CRT)' },
+          style: { type: 'STRING', description: 'Optional base skin: "glass" (Liquid Glass), "retro" (Pixel Retro CRT), or "comic" (Comic Book)' },
           appearance: { type: 'STRING', description: 'Optional UI mode: light, dark, or auto' },
           accent: { type: 'STRING', description: 'Optional accent colour as #RRGGBB (the highlight/brand colour)' },
-          background: { type: 'STRING', description: 'Optional background colour as #RRGGBB' },
-          text: { type: 'STRING', description: 'Optional text colour as #RRGGBB' },
+          background: { type: 'STRING', description: 'Optional app canvas/background colour as #RRGGBB' },
+          surface: { type: 'STRING', description: 'Optional main panel/widget/modal surface colour as #RRGGBB' },
+          surface_alt: { type: 'STRING', description: 'Optional secondary row/card/tab surface colour as #RRGGBB' },
+          control_color: { type: 'STRING', description: 'Optional input/menu/button surface colour as #RRGGBB' },
+          text: { type: 'STRING', description: 'Optional primary text colour as #RRGGBB' },
+          muted_text: { type: 'STRING', description: 'Optional secondary text colour as #RRGGBB' },
+          line_color: { type: 'STRING', description: 'Optional border/divider colour as #RRGGBB' },
+          accent_text: { type: 'STRING', description: 'Optional text/icon colour used on accent-filled controls as #RRGGBB' },
+          success_color: { type: 'STRING', description: 'Optional success state colour as #RRGGBB' },
+          warning_color: { type: 'STRING', description: 'Optional warning state colour as #RRGGBB' },
+          danger_color: { type: 'STRING', description: 'Optional danger/error state colour as #RRGGBB' },
+          info_color: { type: 'STRING', description: 'Optional informational state colour as #RRGGBB' },
+          contrast_guard: { type: 'BOOLEAN', description: 'Automatically repair unsafe text/control contrast (default true)' },
         } } },
         { name: 'create_dashboard_style', description: 'Build a COMPLETE custom dashboard theme from a description, apply it live, and save it as a named card in the Temi gallery so the user can switch back to it. Pass any subset — every field defaults to the current look. Use this when the user asks for a whole vibe/aesthetic rather than one colour ("crea un tema cyberpunk viola", "make me a warm minimalist theme", "un look pastello morbido e arrotondato").', parameters: { type: 'OBJECT', properties: {
           name: { type: 'STRING', description: 'Short theme name for the gallery card (e.g. "Cyberpunk Viola")' },
-          skin: { type: 'STRING', description: 'Base skin: "glass" (Liquid Glass) or "retro" (Pixel Retro CRT)' },
+          skin: { type: 'STRING', description: 'Base skin: "glass" (Liquid Glass), "retro" (Pixel Retro CRT), or "comic" (Comic Book)' },
           base_appearance: { type: 'STRING', description: 'Base mode: "light" or "dark"' },
           accent: { type: 'STRING', description: 'Accent/brand colour #RRGGBB' },
-          background: { type: 'STRING', description: 'Background colour #RRGGBB' },
+          background: { type: 'STRING', description: 'App canvas/background colour #RRGGBB' },
+          surface: { type: 'STRING', description: 'Main panel/widget/modal surface colour #RRGGBB' },
+          surface_alt: { type: 'STRING', description: 'Secondary row/card/tab surface colour #RRGGBB' },
+          control_color: { type: 'STRING', description: 'Input/menu/button surface colour #RRGGBB' },
           text: { type: 'STRING', description: 'Primary text colour #RRGGBB' },
           muted_text: { type: 'STRING', description: 'Secondary/muted text colour #RRGGBB' },
           line_color: { type: 'STRING', description: 'Dividers/borders colour #RRGGBB' },
+          accent_text: { type: 'STRING', description: 'Text/icon colour on accent-filled controls #RRGGBB' },
+          success_color: { type: 'STRING', description: 'Success state colour #RRGGBB' },
+          warning_color: { type: 'STRING', description: 'Warning state colour #RRGGBB' },
+          danger_color: { type: 'STRING', description: 'Danger/error state colour #RRGGBB' },
+          info_color: { type: 'STRING', description: 'Informational state colour #RRGGBB' },
+          contrast_guard: { type: 'BOOLEAN', description: 'Automatically repair unsafe text/control contrast (default true)' },
           panel_opacity: { type: 'NUMBER', description: 'Panel opacity 0.05–1 (lower = more translucent)' },
           corner_radius: { type: 'NUMBER', description: 'Corner roundness 0–2 (0 = square, 1 = default, 2 = very round)' },
           glass_blur: { type: 'NUMBER', description: 'Glass blur in px 0–40 (default 22)' },
@@ -485,28 +525,35 @@ function buildCoreAiFunctions() {
             double: { type: 'ARRAY', description: 'Optional double-tap actions (same shape)', items: { type: 'OBJECT', properties: { type: { type: 'STRING' } } } },
             hold: { type: 'ARRAY', description: 'Optional press-and-hold actions (same shape)', items: { type: 'OBJECT', properties: { type: { type: 'STRING' } } } },
             state: { type: 'OBJECT', description: 'Optional live-state binding, e.g. {"source":"discordMuted"} or {"source":"haEntity","entity":"light.desk"} — the key lights while ON', properties: { source: { type: 'STRING' } } },
-            live: { type: 'OBJECT', description: 'Optional live value ON the face, e.g. {"source":"timer","name":"Pasta"} for a ticking countdown', properties: { source: { type: 'STRING' } } },
+            live: { type: 'OBJECT', description: 'Optional live value ON the face, e.g. {"source":"timer","name":"Pasta"} for a ticking countdown, or {"source":"sensor","name":"cpuWatts"} for a hardware reading (cpu, gpu, cpuTemp, gpuTemp, cpuFan, gpuFan, cpuWatts, gpuWatts, totalWatts, psuWatts, battery:<device name>)', properties: { source: { type: 'STRING' } } },
             stateStyle: { type: 'OBJECT', description: 'Optional alternate face while the state is ON: {"icon":"🔴","label":"LIVE","color":"#ff3355"}', properties: { icon: { type: 'STRING' }, label: { type: 'STRING' }, color: { type: 'STRING' } } },
             slider: { type: 'OBJECT', description: 'kind:"slider" only. target: volume|appVolume|spotifyVolume|obsInput|haLight|discordInput|discordOutput (+ app/entity/source when the target needs one); orient: "v"|"h"', properties: { target: { type: 'STRING' }, app: { type: 'STRING' }, entity: { type: 'STRING' }, source: { type: 'STRING' }, orient: { type: 'STRING' } } },
           }, required: ['title'] } },
           autoSwitch: { type: 'OBJECT', description: 'Optional Smart Profiles: auto-show a profile when an app is focused. {"enabled":true,"revert":"default"|"stay","rules":[{"exe":"obs64","profile":"Streaming"}]} (exe = process name, lowercase, no .exe)', properties: { enabled: { type: 'BOOLEAN' }, revert: { type: 'STRING' }, rules: { type: 'ARRAY', items: { type: 'OBJECT', properties: { exe: { type: 'STRING' }, profile: { type: 'STRING' } }, required: ['exe', 'profile'] } } } },
         } } },
-        { name: 'create_widget', description: 'Create and install a COMMUNITY WIDGET from code you write: a sandboxed HTML/CSS/JS package rendered in a dashboard tile. Use when the user asks for a widget that does not exist ("make me a widget that shows X"). Write self-contained files (no external URLs — the sandbox has NO network except the granted fetch proxy). files MUST include manifest.json ({"api":1,"name":...,"streams":[...],"actions":[...]}) and index.html. Data arrives via postMessage: send {"xenonSdk":1,"type":"hello"} to window.parent, then listen for {"type":"data","stream",...} messages. The user still approves every permission before the widget can see or do anything.', parameters: { type: 'OBJECT', properties: {
+        { name: 'create_widget', description: 'Create and install a COMMUNITY WIDGET from code you write: a sandboxed HTML/CSS/JS package rendered in a dashboard tile. Use when the user asks for a widget that does not exist ("make me a widget that shows X"). Write self-contained files (no external URLs in markup — the sandbox has NO direct network). files MUST include manifest.json ({"api":1,"name":...,"streams":[...],"actions":[...]}) and index.html. Data arrives via postMessage: send {"xenonSdk":1,"type":"hello"} to window.parent, then listen for {"type":"data","stream",...} messages. Optional manifest capabilities, each opt-in and user-approved: "hosts":[...] to call up to 8 external APIs via the fetch proxy (type:"fetch"); "storage":true for a persistent key/value store that survives updates (type:"store" with op get/set/delete/keys/clear) — use it to remember the user\'s settings; "storageGroup":"id" to share that store across sibling widgets; "secrets":true for a write-only API-key vault (type:"secret" op set/delete/names/has) used via {{secret:NAME}} placeholders inside a fetch (never hardcode a key). Map/radar tiles load as <img>/Leaflet layers from "/sdk/tile/<id>?u=<encoded tile url>" (host must be in "hosts"). Call sdk_reference FIRST when you are unsure of a stream name, an action category, a manifest field or a protocol message — it returns the exact allowlists and the full SDK docs by section. The user still approves every permission before the widget can see or do anything.', parameters: { type: 'OBJECT', properties: {
           id: { type: 'STRING', description: 'Package id: lowercase letters/digits/dashes, 2-40 chars, e.g. "cpu-ring"' },
           files: { type: 'ARRAY', description: 'The package files as plain text (manifest.json + index.html + any .js/.css)', items: { type: 'OBJECT', properties: {
             path: { type: 'STRING', description: 'Relative path, e.g. "manifest.json", "index.html", "widget.js"' },
             content: { type: 'STRING', description: 'The file\'s full text content' },
           }, required: ['path', 'content'] } },
         }, required: ['id', 'files'] } },
-        { name: 'marketplace_search', description: 'Search the Xenon community catalog (themes, backgrounds, pages, Deck profiles, widgets, Ambient scenes, bundles) by text and/or kind. Use when the user asks what is available, e.g. "c\'è un tema cyberpunk?".', parameters: { type: 'OBJECT', properties: {
+        { name: 'marketplace_search', description: 'Search the Xenon community catalog (themes, backgrounds, pages, Deck profiles, widgets, Ambient scenes, bundles, icon packs, sound packs) by text and/or kind. Use when the user asks what is available, e.g. "c\'è un tema cyberpunk?".', parameters: { type: 'OBJECT', properties: {
           query: { type: 'STRING', description: 'Free-text search (name, author, tags)' },
-          kind: { type: 'STRING', description: 'Optional filter: theme|bg|page|deck|widget|ambient|bundle' },
+          kind: { type: 'STRING', description: 'Optional filter: theme|bg|page|deck|widget|ambient|bundle|icons|sounds' },
         } } },
         { name: 'marketplace_install', description: 'Start installing a community catalog entry by its id (from marketplace_search). This OPENS THE IMPORT REVIEW DIALOG — the user always confirms there; nothing is applied silently. Locked (supporter) entries cannot be installed this way.', parameters: { type: 'OBJECT', properties: {
           id: { type: 'STRING', description: 'The catalog entry id' },
         }, required: ['id'] } },
         { name: 'open_virtual_deck', description: 'Open the Deck as its own always-on-top window on the user\'s main monitor (Virtual Deck). Use for "apri il deck sul PC", "voglio i tasti sullo schermo principale".', parameters: { type: 'OBJECT', properties: {
           instance: { type: 'STRING', description: 'Optional deck instance id (default: the primary deck)' },
+        } } },
+        // ── App knowledge (grounding, read-only) ──
+        { name: 'xenon_knowledge', description: 'Read-only: your OWN documentation about Xenon itself. Call this BEFORE answering any question about how Xenon works, its setup, features, requirements, or troubleshooting — e.g. why sensors/fans read empty, how updates or the marketplace work, what supporter codes are, how to publish content, privacy, integrations setup. Pass the user\'s question (or a topic id) as query; call with no query to list all topic ids. Base your answer on the returned card and answer in the user\'s language.', parameters: { type: 'OBJECT', properties: {
+          query: { type: 'STRING', description: 'The user\'s question in a few words, or a topic id (e.g. "sensors", "marketplace", "troubleshooting"). Omit to list all topics.' },
+        } } },
+        { name: 'sdk_reference', description: 'Read-only: the Widget SDK reference — the EXACT data streams and action categories a widget may request (from the code, always current) plus the full SDK docs by section (bridge protocol, manifest fields, storage, secrets, fetch proxy, ambient scenes…). Call this BEFORE create_widget to ground the manifest and the postMessage protocol, and when the user asks how to develop a widget. No section → enums + section list; then call again with a section id for its full text.', parameters: { type: 'OBJECT', properties: {
+          section: { type: 'STRING', description: 'Optional docs section id or title fragment, e.g. "manifest-json", "data", "persistent-storage", "secrets".' },
         } } },
   ];
 }
@@ -533,6 +580,9 @@ const MEDIA_SCRIPT = path.join(__dirname, 'media.ps1');
 // module by module; when absent everything runs on the PS scripts as before.
 const HELPER_EXE = path.join(__dirname, 'helper', 'xenon-helper.exe');
 const CPU_TEMP_SCRIPT = path.join(__dirname, 'cpu-temp.ps1');
+// Raises the startup task to RunLevel Highest via UAC — the repair for
+// sensorAccess: 'needs_admin'. Elevates itself; never runs on the pwsh worker.
+const ENABLE_SENSORS_SCRIPT = path.join(__dirname, 'enable-sensors.ps1');
 const GPU_SCRIPT = path.join(__dirname, 'gpu.ps1');
 const NETWORK_SCRIPT = path.join(__dirname, 'network.ps1');
 const WINDOWS_SCRIPT = path.join(__dirname, 'windows.ps1');
@@ -555,6 +605,18 @@ const DECK_SOUNDS_DIR = path.join(DATA_DIR, 'sounds');
 const DECK_SOUND_MAX_BYTES = 15 * 1024 * 1024;
 const DECK_SOUND_EXTS = new Set(['.mp3', '.wav', '.ogg', '.oga', '.m4a', '.aac', '.flac', '.opus', '.weba']);
 const DECK_SOUND_NAME_RE = /^sound-[0-9]+-[0-9a-f]+\.[a-z0-9]+$/;
+// Installed Deck icon packs (the 'icons' preset kind): one validated folder per
+// pack, written/served only through icon-packs.js (see that module's boundary
+// notes). The JSON install body cap covers the 2MB decoded pack in base64.
+const ICON_PACKS_DIR = path.join(DATA_DIR, 'icon-packs');
+const ICON_PACK_BODY_MAX = 4 * 1024 * 1024;
+const iconPackStore = iconPacks.createIconPacks({ dir: ICON_PACKS_DIR });
+// Installed soundboard packs (the 'sounds' preset kind): validated folders
+// under the sounds library, written only through sound-packs.js. Their clips
+// play through the existing /deck/sound reader via pack-relative refs.
+const SOUND_PACKS_DIR = path.join(DECK_SOUNDS_DIR, 'packs');
+const SOUND_PACK_BODY_MAX = 4 * 1024 * 1024;
+const soundPackStore = soundPacks.createSoundPacks({ dir: SOUND_PACKS_DIR });
 // Virtual Deck popup: Edge app-mode children we spawned (closed on shutdown)
 // and the one-shot always-on-top helper script.
 const _deckPopupPids = new Set();
@@ -573,7 +635,7 @@ function openDeckPopupWindow(instanceRaw, topmost) {
     'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe']
     .find((p) => { try { return fs.existsSync(p); } catch { return false; } });
   if (!edge) return { ok: false, error: 'edge_not_found' };
-  const url = 'http://127.0.0.1:3030/deck-popup' + (instance ? '?instance=' + encodeURIComponent(instance) : '');
+  const url = 'http://127.0.0.1:' + PORT + '/deck-popup' + (instance ? '?instance=' + encodeURIComponent(instance) : '');
   const args = [
     '--app=' + url,
     '--user-data-dir=' + path.join(DATA_DIR, 'deck-popup-profile'),
@@ -669,6 +731,14 @@ const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 // Served ONLY through the dedicated /sdk/widget/ handler (strict path + CSP);
 // the generic static handler never reaches into DATA_DIR.
 const SDK_WIDGETS_DIR = path.join(DATA_DIR, 'widgets');
+// Bundled reference widgets installable via POST /sdk/widgets/example — id ->
+// folder name under server/sdk-example/. Fixed allowlist so the requested id
+// is a lookup key, never interpolated into a filesystem path.
+const EXAMPLE_WIDGETS = {
+  'hello-xenon': 'hello-xenon',
+  'teleprompter': 'teleprompter',
+  'github-stars': 'github-stars',
+};
 
 // Short-lived cache of the validated package scan, shared by the hot SDK paths
 // (fetch proxy, webhook ingress, deck macros) so they don't re-read manifests
@@ -770,7 +840,7 @@ function sdkFeatureEnabled() {
 // settings). Read defensively — a malformed blob collapses to "nothing granted".
 // A disabled SDK grants nothing, so every server-side consent check fails closed.
 function sdkGrantsFor(pkgId) {
-  if (!sdkFeatureEnabled()) return { actions: [], hosts: [], hooks: [], handlers: [] };
+  if (!sdkFeatureEnabled()) return { actions: [], hosts: [], hooks: [], handlers: [], userHosts: {} };
   const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
   const g = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants[pkgId] : null;
   return {
@@ -778,7 +848,139 @@ function sdkGrantsFor(pkgId) {
     hosts: (g && Array.isArray(g.hosts)) ? g.hosts : [],
     hooks: (g && Array.isArray(g.hooks)) ? g.hooks : [],
     handlers: (g && Array.isArray(g.handlers)) ? g.handlers : [],
+    storage: !!(g && g.storage === true),
+    secrets: !!(g && g.secrets === true),
+    // Raw addresses the user typed into the manifest's userHosts slots. Passed
+    // to sdkWidgets.resolveUserHosts, which is what validates them — never read
+    // as an allowlist directly.
+    userHosts: (g && g.userHosts && typeof g.userHosts === 'object' && !Array.isArray(g.userHosts)) ? g.userHosts : {},
   };
+}
+
+// ── SDK persistent store + secret vault (per-package, host-mediated) ─────────
+// The sandbox denies widgets localStorage/cookies (opaque origin), so these two
+// on-disk stores are their ONLY persistence — and they live OUTSIDE the package
+// folder (server/data/widget-store, /widget-secrets), so the updater that
+// overwrites server/data/widgets/<id>/ never touches user data, and an exported
+// package (readPackagePayload only walks the package folder) can never ship a
+// stored key. sdk-store.js holds the pure validation; here we add the fs +
+// grant/rate gates. Small in-memory caches keep the hot get/set paths off disk;
+// writes are atomic + change-driven.
+const SDK_STORE_DIR = path.join(DATA_DIR, 'widget-store');
+const SDK_SECRETS_DIR = path.join(DATA_DIR, 'widget-secrets');
+const _sdkStoreCache = new Map();     // namespace → map (lazy, kept in sync on write)
+const _sdkSecretCache = new Map();    // pkgId → map
+// A namespace ('g:<group>' or '<pkgId>') → a Windows-safe filename. The colon in
+// a group namespace is illegal on NTFS, so map by kind; both id halves are the
+// [a-z0-9-] package-id charset, so the result is always a safe leaf name.
+function sdkStoreFile(ns) {
+  const s = String(ns || '');
+  const leaf = s.startsWith('g:') ? 'group_' + s.slice(2) : 'pkg_' + s;
+  return path.join(SDK_STORE_DIR, leaf + '.json');
+}
+function readJsonMapSync(file) {
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+  } catch { return {}; }
+}
+function sdkStoreLoad(ns) {
+  if (_sdkStoreCache.has(ns)) return _sdkStoreCache.get(ns);
+  const map = readJsonMapSync(sdkStoreFile(ns));
+  _sdkStoreCache.set(ns, map);
+  return map;
+}
+async function sdkStoreSave(ns, map) {
+  _sdkStoreCache.set(ns, map);
+  try { await fs.promises.mkdir(SDK_STORE_DIR, { recursive: true }); await writeFileAtomic(sdkStoreFile(ns), JSON.stringify(map)); }
+  catch { /* store is best-effort local data — never throw into the bridge */ }
+}
+function sdkSecretsLoad(pkgId) {
+  if (_sdkSecretCache.has(pkgId)) return _sdkSecretCache.get(pkgId);
+  const map = readJsonMapSync(path.join(SDK_SECRETS_DIR, pkgId + '.json'));
+  _sdkSecretCache.set(pkgId, map);
+  return map;
+}
+async function sdkSecretsSave(pkgId, map) {
+  _sdkSecretCache.set(pkgId, map);
+  try { await fs.promises.mkdir(SDK_SECRETS_DIR, { recursive: true, mode: 0o700 }); await writeFileAtomic(path.join(SDK_SECRETS_DIR, pkgId + '.json'), JSON.stringify(map)); }
+  catch { /* best-effort */ }
+}
+
+// Per-package write-rate floor for the store/secret bridges — same shape as the
+// fetch/hook gates: a chatty widget can't turn set() into a disk-write flood.
+const _sdkStoreGate = new Map();   // pkgId → last-accept ts
+function sdkStoreGateOk(pkgId) {
+  const now = Date.now();
+  if (now - (_sdkStoreGate.get(pkgId) || 0) < 100) return false;
+  if (_sdkStoreGate.size > 512) _sdkStoreGate.clear();
+  _sdkStoreGate.set(pkgId, now);
+  return true;
+}
+
+// ── SDK map-tile cache (GET /sdk/tile/<pkg>?u=…) ────────────────────────────
+// A radar/map widget needs many small image tiles from a tile server — over the
+// postMessage fetch bridge that means base64 round-trips at ~1 req/s, unusable
+// for a slippy map. Instead the widget points an <img>/Leaflet layer straight at
+// the SAME-ORIGIN /sdk/tile route, which the CSP already allows (`img-src
+// 'self'`) with NO relaxation. The route re-uses the exact proxy trust boundary
+// (allowlisted + granted host, guardedLookup SSRF block, size cap) and adds a
+// bounded LRU + coalescing so panning a map doesn't re-hammer the origin. Only
+// image/* responses are cached/served — the tile route is images, not a second
+// data channel. Secrets are NEVER injected here (that's the fetch bridge only).
+const SDK_TILE_CACHE_MAX = 256;         // ~a few screenfuls of tiles
+const SDK_TILE_TTL_MS = 10 * 60 * 1000; // radar frames refresh on the order of minutes
+const _sdkTileCache = new Map();        // url → { at, contentType, buffer }
+const _sdkTileInflight = new Map();     // url → Promise (coalesce concurrent misses)
+function sdkTileCacheGet(url) {
+  const hit = _sdkTileCache.get(url);
+  if (!hit) return null;
+  if (Date.now() - hit.at > SDK_TILE_TTL_MS) { _sdkTileCache.delete(url); return null; }
+  // LRU touch: re-insert so eviction drops the least-recently used.
+  _sdkTileCache.delete(url);
+  _sdkTileCache.set(url, hit);
+  return hit;
+}
+function sdkTileCachePut(url, contentType, buffer) {
+  _sdkTileCache.set(url, { at: Date.now(), contentType, buffer });
+  while (_sdkTileCache.size > SDK_TILE_CACHE_MAX) {
+    const oldest = _sdkTileCache.keys().next().value;
+    if (oldest === undefined) break;
+    _sdkTileCache.delete(oldest);
+  }
+}
+// Per-package tile gate — a miss costs an outbound fetch, so bound both live
+// concurrency and a rolling rate so a widget can't turn the tile route into a
+// scraper. Cache HITS are free and never gated. Returns a release fn, or null
+// when over budget (→ 429). Maps are bounded by the ≤32-package install cap.
+const _sdkTileConc = new Map();   // pkgId → inflight miss count
+const _sdkTileRate = new Map();   // pkgId → { windowStart, count }
+function sdkTileGate(pkgId) {
+  const conc = _sdkTileConc.get(pkgId) || 0;
+  if (conc >= 6) return null;
+  const now = Date.now();
+  let r = _sdkTileRate.get(pkgId);
+  if (!r || now - r.windowStart > 10000) { r = { windowStart: now, count: 0 }; _sdkTileRate.set(pkgId, r); }
+  if (r.count >= 120) return null;
+  r.count++;
+  _sdkTileConc.set(pkgId, conc + 1);
+  return () => { _sdkTileConc.set(pkgId, Math.max(0, (_sdkTileConc.get(pkgId) || 1) - 1)); };
+}
+
+// Fetch (or coalesce onto an in-flight fetch of) one tile through the hardened
+// proxy. Resolves { contentType, buffer } for an image, or throws.
+function sdkTileFetch(url) {
+  const inflight = _sdkTileInflight.get(url);
+  if (inflight) return inflight;
+  const p = (async () => {
+    const r = await sdkProxy.proxyFetch({ url, method: 'GET', headers: {}, body: '' });
+    const ct = String(r.contentType || '');
+    if ((r.status || 0) >= 400 || !/^image\//i.test(ct)) { const e = new Error('not_a_tile'); e.status = r.status; throw e; }
+    sdkTileCachePut(url, ct, r.buffer);
+    return { contentType: ct, buffer: r.buffer };
+  })().finally(() => { _sdkTileInflight.delete(url); });
+  _sdkTileInflight.set(url, p);
+  return p;
 }
 
 // ── SDK handler actions (deck keys answered by widget code) ─────────────────
@@ -875,8 +1077,9 @@ function acceptSdkDeckStates(body) {
 // create_widget tool both land here, so validateWidgetPayload stays the one
 // trust boundary in front of the filesystem. Never grants, never assigns.
 // `origin` ('import' | 'creator') feeds the redistribution-policy record above:
-// imports default fail-closed, and mergeOrigin keeps ownership sticky when the
-// id already belongs to the user (their own folder / creator build).
+// imports default fail-closed, and mergeOrigin keeps ownership sticky BOTH ways —
+// own work is never demoted, and an already-imported id can't be relabelled
+// 'creator' by a replayed install (no laundering someone else's widget).
 async function installWidgetPayload(payload, origin) {
   const v = sdkWidgets.validateWidgetPayload(payload);
   if (!v.ok) return { ok: false, error: v.reason };
@@ -1291,6 +1494,11 @@ async function runCollector(scriptPath, args = [], timeout = 8000) {
   }
 }
 
+// Wireless peripheral battery (Corsair via the iCUE bridge + Bluetooth via the
+// battery.ps1 PnP collector). TTL-cached inside the monitor; consumed by
+// GET /api/battery, the SSE 'battery' tick and the get_battery_status AI tool.
+const batteryMonitor = createBatteryMonitor({ runScript: runPowerShellScript, lighting });
+
 // ── Persistent SMTC media host ────────────────────────────────────────────────
 // media.ps1 used to be spawned one-shot for EVERY media poll (the SSE stream
 // broadcasts media every 2s), paying ~150-300ms of CLR + WinRT startup each
@@ -1610,8 +1818,37 @@ setInterval(() => {
     cachedCpuUsage = pct;
   }
 }, 1500).unref();
-let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, vramUsed: null, vramTotal: null, updatedAt: 0 };
-let cpuTempCache = { cpuTemp: null, updatedAt: 0 };
+// A collector reading → number, or null when the sensor reported nothing.
+// Number(null) and Number('') are BOTH 0, so a bare Number.isFinite(Number(v))
+// turns an absent sensor into a real "0 W" reading — the widgets would render
+// a phantom 0 instead of their empty state.
+const collectorNum = (v) => {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+// The GPU collector's per-fan RPM list → a clean [{name, rpm}], or null when the
+// collector sent no `gpuFans` key at all (a failed/legacy read — the caller keeps
+// whatever it had). An EMPTY array is a real answer, not a gap: it means the card
+// reported no fan sensor, and it must clear the previous list rather than freeze
+// stale RPM on screen forever. 0 RPM is likewise a real reading — a card in idle
+// zero-RPM mode has genuinely stopped its fans — so it is kept.
+function normalizeGpuFans(raw) {
+  if (raw === null || raw === undefined) return null;
+  // Windows PowerShell 5.1 unwraps a single-element array on serialize, so a
+  // one-fan card arrives as a bare object.
+  const list = Array.isArray(raw) ? raw : (typeof raw === 'object' ? [raw] : []);
+  return list
+    .filter(f => f && typeof f === 'object' && collectorNum(f.rpm) !== null)
+    .map(f => ({ name: String(f.name || 'GPU Fan').slice(0, 48), rpm: Math.round(collectorNum(f.rpm)) }));
+}
+
+let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, vramUsed: null, vramTotal: null, gpuWatts: null, gpuFanRpm: null, gpuFanPct: null, gpuFans: [], updatedAt: 0 };
+let cpuTempCache = { cpuTemp: null, fans: [], cpuWatts: null, psuWatts: null, sensorAccess: null, updatedAt: 0 };
+// Why the LHM-backed sensors (fan RPM, CPU/PSU watts) are unavailable, so the
+// widgets can give the one hint that helps instead of guessing.
+const SENSOR_ACCESS = new Set(['ok', 'needs_admin', 'missing']);
 let mediaCache = { data: null, updatedAt: 0 };
 // Weather responses cached per (lang|provider|mode|city). Different surfaces —
 // and the server's own AI calls — can ask with different languages; a single
@@ -2785,8 +3022,24 @@ async function getCpuTemp() {
   cpuTempPending = (async () => {
     try {
       const data = await runCollector(CPU_TEMP_SCRIPT, [], 10000);
+      // Windows PowerShell 5.1 can unwrap a single-element array on serialize.
+      let fans = data.fans;
+      if (fans && !Array.isArray(fans)) fans = [fans];
       cpuTempCache = {
         cpuTemp: data.cpuTemp === null || data.cpuTemp === undefined ? null : Number(data.cpuTemp),
+        fans: (Array.isArray(fans) ? fans : [])
+          .filter(f => f && typeof f === 'object' && collectorNum(f.rpm) !== null)
+          // `kind` says where the fan physically is ('psu' = the PSU's own fan,
+          // 'ctrl' = an AIO/fan-hub controller); anything the collector doesn't
+          // vouch for falls back to a motherboard header.
+          .map(f => ({
+            name: String(f.name || 'Fan').slice(0, 48),
+            rpm: Math.round(collectorNum(f.rpm)),
+            kind: f.kind === 'psu' || f.kind === 'ctrl' ? f.kind : 'mb',
+          })),
+        cpuWatts: collectorNum(data.cpuWatts),
+        psuWatts: collectorNum(data.psuWatts),
+        sensorAccess: SENSOR_ACCESS.has(data.sensorAccess) ? data.sensorAccess : null,
         updatedAt: Date.now(),
       };
     } catch {
@@ -2812,6 +3065,13 @@ async function getGpuInfo() {
       gpuTemp: (data.gpuTemp === null || data.gpuTemp === undefined) ? gpuCache.gpuTemp : data.gpuTemp,
       vramUsed: (data.vramUsed === null || data.vramUsed === undefined) ? gpuCache.vramUsed : data.vramUsed,
       vramTotal: (data.vramTotal === null || data.vramTotal === undefined) ? gpuCache.vramTotal : data.vramTotal,
+      gpuWatts: collectorNum(data.gpuWatts) ?? gpuCache.gpuWatts,
+      gpuFanRpm: collectorNum(data.gpuFanRpm) === null ? gpuCache.gpuFanRpm : Math.round(collectorNum(data.gpuFanRpm)),
+      gpuFanPct: collectorNum(data.gpuFanPct) === null ? gpuCache.gpuFanPct : Math.round(collectorNum(data.gpuFanPct)),
+      // Per-fan RPM straight from the card's tachometers. `null` means the read
+      // carried no answer at all (keep the last list); an empty array means the
+      // card reported no fans (drop it) — see normalizeGpuFans.
+      gpuFans: normalizeGpuFans(data.gpuFans) ?? gpuCache.gpuFans,
       updatedAt: Date.now(),
     };
   } catch {
@@ -2983,6 +3243,39 @@ async function getSystemInfo() {
   const freeMem = os.freemem();
   const usedMem = totalMem - freeMem;
 
+  // Fans: motherboard/CPU headers from the cpu collector (RPM), plus the GPU's
+  // own fans — LHM gives RPM, nvidia-smi only a percent, so a fan entry carries
+  // either `rpm` or `pct` and the client renders unit-aware.
+  // `kind` is the typed discriminator clients key on ('mb' = a motherboard fan
+  // header, 'psu' = the power supply's own fan, 'gpu' = on the graphics card) —
+  // `name` is pure presentation, so a motherboard header literally named "GPU"
+  // must never match.
+  //
+  // Only fans wired to a motherboard header report a tachometer here: fans on an
+  // AIO pump, a Corsair Commander or any fan hub are invisible to the board, and
+  // fans daisy-chained onto one header report as a single reading. The list is
+  // therefore "what the hardware exposes", never "every fan in the case".
+  const fans = cpuTempCache.fans.map(f => ({ ...f }));
+  // Prefer each fan's real tachometer over nvidia-smi's fan.speed, which is the
+  // curve's TARGET: an idle card in zero-RPM mode reports a percent while the
+  // fans are stopped. The percent stays the fallback for cards LHM can't read.
+  if (Array.isArray(gpu.gpuFans) && gpu.gpuFans.length) {
+    gpu.gpuFans.forEach(f => fans.push({ name: f.name, kind: 'gpu', rpm: f.rpm }));
+  } else if (gpu.gpuFanRpm !== null && gpu.gpuFanRpm !== undefined) fans.push({ name: 'GPU', kind: 'gpu', rpm: gpu.gpuFanRpm });
+  else if (gpu.gpuFanPct !== null && gpu.gpuFanPct !== undefined) fans.push({ name: 'GPU', kind: 'gpu', pct: gpu.gpuFanPct });
+
+  // Power draw in watts. `total` is strictly CPU+GPU (labelled as such client-
+  // side — never a whole-system estimate); `psu` appears only when a digital
+  // PSU (Corsair HXi/RMi & co.) is visible to LHM.
+  const cpuWatts = cpuTempCache.cpuWatts;
+  const gpuWatts = gpu.gpuWatts === undefined ? null : gpu.gpuWatts;
+  const power = {
+    cpu: cpuWatts,
+    gpu: gpuWatts,
+    psu: cpuTempCache.psuWatts,
+    total: (cpuWatts !== null && gpuWatts !== null) ? Math.round((cpuWatts + gpuWatts) * 10) / 10 : null,
+  };
+
   return {
     now: new Date().toISOString(),
     hostname: os.hostname(),
@@ -2990,6 +3283,10 @@ async function getSystemInfo() {
     cpu: getCpuUsage(),
     cpuTemp,
     cpuName: getCpuName(),
+    // Why the LHM-backed readings (cpuTemp, `fans`, power.cpu/psu) may be empty:
+    // 'ok' | 'needs_admin' (LHM installed but unelevated → no kernel driver) |
+    // 'missing'. Lets the widgets name the actual fix instead of guessing.
+    sensorAccess: cpuTempCache.sensorAccess,
     memory: {
       used: usedMem,
       total: totalMem,
@@ -3002,6 +3299,8 @@ async function getSystemInfo() {
     gpuTemp: gpu.gpuTemp,
     vramUsed: gpu.vramUsed,
     vramTotal: gpu.vramTotal,
+    fans,
+    power,
     disks,
   };
 }
@@ -3585,11 +3884,18 @@ function buildHaDeckStates() {
 }
 
 // Build the payload for the selected entities (from settings) plus connection flag.
+// `energy` carries the Energy widget's own selection (power/energy sensors) so
+// the two surfaces share one SSE event without sharing one entity list.
 async function buildHaState() {
   const s = (await readHubSettings().catch(() => null)) || {};
   const ha = (s && s.homeAssistant) || {};
   const configured = !!(ha.url && ha.token);
-  return { configured, connected: configured && deckHa.isConnected(), entities: configured ? deckHa.snapshot(ha.entities || []) : [] };
+  return {
+    configured,
+    connected: configured && deckHa.isConnected(),
+    entities: configured ? deckHa.snapshot(ha.entities || []) : [],
+    energy: configured ? deckHa.snapshot(ha.energyEntities || []) : [],
+  };
 }
 
 // Change guard for the ha_states deck broadcast: the shared HA watch fires on
@@ -3628,7 +3934,7 @@ async function refreshHaWatch() {
   const s = (await readHubSettings().catch(() => null)) || {};
   const ha = (s && s.homeAssistant) || {};
   const want = !!(ha.url && ha.token) && sseClients.size > 0;
-  const sig = want ? [ha.url, ha.token, JSON.stringify(ha.entities || [])].join(' ') : '';
+  const sig = want ? [ha.url, ha.token, JSON.stringify(ha.entities || []), JSON.stringify(ha.energyEntities || [])].join(' ') : '';
   if (want && !haStopWatch) {
     haStopWatch = deckHa.watch(scheduleHaBroadcast);
   } else if (!want && haStopWatch) {
@@ -3913,6 +4219,18 @@ function resolveExecInDir(dir) {
   } catch { return ''; }
 }
 
+// Lock the Windows session. Single source of truth for the LockWorkStation call,
+// shared by the Deck lockWorkstation action, the AI lock_pc tool, the /lock
+// endpoint and the idle auto-lock flow. execFile with an argv array — never a
+// shell string.
+function lockWorkstation() {
+  return new Promise((resolve, reject) => {
+    execFile('rundll32.exe', ['user32.dll,LockWorkStation'], { windowsHide: true }, (err) => {
+      if (err) reject(err); else resolve();
+    });
+  });
+}
+
 // The Deck action dispatcher. Effects are injected here; security/validation
 // lives inside the registry. This is the only place key actions execute.
 // deckRegistryDeps is kept mutable so that deps created after this point
@@ -3920,6 +4238,16 @@ function resolveExecInDir(dir) {
 // by assigning to the object — the registry closes over the same reference.
 const deckRegistryDeps = {
   fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
+  lockWorkstation: () => lockWorkstation().then(() => ({ ok: true }), (err) => ({ ok: false, error: String(err) })),
+  // Apply a named SignalRGB scene (scene switcher, not a colour provider — see
+  // signalrgb.js). Gated on the user enabling SignalRGB in Settings → Lighting,
+  // so a stale Deck key can't drive it after the integration is turned off.
+  signalRgbEffect: (effect) => {
+    if (!(_serverHubSettings && _serverHubSettings.signalrgb && _serverHubSettings.signalrgb.enabled === true)) {
+      return Promise.resolve({ ok: false, error: 'disabled' });
+    }
+    return signalrgb.applyEffect(effect);
+  },
   openExternal: (p) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000),
   // Run a user-configured .bat/.cmd/.ps1/.py (the runScript action), in a visible
   // or hidden window. The path is validated to a real script in the registry
@@ -4702,7 +5030,15 @@ async function executeAiTool(fnName, fnArgs, deps) {
         .filter(a => !a.hidden)
         .map(a => ({ type: a.type, params: a.params.map(p => p.kind === 'select' ? { name: p.name, options: p.options } : { name: p.name }) }));
       const dm = require('./js/deck-model.js');
-      fnResult = { ok: true, actions: catalog, stateSources: dm.DECK_STATE_SOURCES, liveSources: dm.DECK_LIVE_SOURCES, sliderTargets: dm.SLIDER_TARGETS };
+      fnResult = { ok: true, actions: catalog, stateSources: dm.DECK_STATE_SOURCES, liveSources: dm.DECK_LIVE_SOURCES, sensorMetrics: dm.DECK_SENSOR_METRICS, sliderTargets: dm.SLIDER_TARGETS };
+    } else if (fnName === 'xenon_knowledge') {
+      // Read-only grounding about Xenon itself (setup, features, troubleshooting)
+      // so app questions get answered from curated facts, not guesses.
+      fnResult = require('./ai-knowledge.js').lookup(fnArgs.query || fnArgs.topic || '');
+    } else if (fnName === 'sdk_reference') {
+      // Read-only grounding for create_widget: the code-authoritative SDK
+      // allowlists plus docs/WIDGET_SDK.md by section.
+      fnResult = await require('./ai-knowledge.js').getSdkReference(fnArgs.section || '');
     } else if (fnName === 'marketplace_search') {
       const out = await communityCatalog.fetchVisibleCatalog(false);
       if (!out.ok) {
@@ -4792,9 +5128,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
         fnResult = { ok: true, level: micVol };
       }
     } else if (fnName === 'lock_pc') {
-      await new Promise((resolve, reject) => {
-        exec('rundll32.exe user32.dll,LockWorkStation', e => e ? reject(e) : resolve());
-      });
+      await lockWorkstation();
       fnResult = { ok: true };
     } else if (fnName === 'capture_screen') {
       if (latestLooksLikeClothingWeather && !latestExplicitlyWantsScreen) {
@@ -4906,8 +5240,37 @@ async function executeAiTool(fnName, fnArgs, deps) {
       fnResult = { ok: true, enabled: !!fnArgs.enabled, status: lighting.getStatus() };
     } else if (fnName === 'show_sensor') {
       const sys = await getSystemInfo().catch(() => null);
-      const value = (fnArgs.sensor === 'cpuTemp' && sys) ? sys.cpuTemp : null;
+      // One flat metric map over the assembled system payload — the same
+      // projections the Deck's live 'sensor' keys use.
+      let value = null;
+      if (sys) {
+        const p = sys.power || {};
+        const fans = Array.isArray(sys.fans) ? sys.fans : [];
+        // Same discriminator + spinning-fan preference as the Deck's live
+        // 'sensor' projection (deck-model.js sensorsFromSystem) — the AI and a
+        // Deck key bound to the same metric must report the same fan.
+        const gpuFan = fans.find(f => f && f.kind === 'gpu');
+        const cpuFan = fans.find(f => f && f.kind !== 'gpu' && Number(f.rpm) > 0) || fans.find(f => f && f.kind !== 'gpu');
+        const metrics = {
+          cpuTemp: sys.cpuTemp, gpuTemp: sys.gpuTemp, cpu: sys.cpu, gpu: sys.gpu,
+          cpuFan: cpuFan ? cpuFan.rpm : null,
+          gpuFan: gpuFan ? (gpuFan.rpm != null ? gpuFan.rpm + ' RPM' : (gpuFan.pct != null ? gpuFan.pct + '%' : null)) : null,
+          cpuWatts: p.cpu, gpuWatts: p.gpu, totalWatts: p.total, psuWatts: p.psu,
+        };
+        value = Object.prototype.hasOwnProperty.call(metrics, fnArgs.sensor) ? metrics[fnArgs.sensor] : null;
+      }
       fnResult = { sensor: fnArgs.sensor, value, lightingAvailable: lighting.getStatus().available };
+    } else if (fnName === 'get_battery_status') {
+      const bat = await batteryMonitor.getDevices().catch(() => null);
+      fnResult = bat || { devices: [], sources: { corsair: false, bluetooth: false } };
+    } else if (fnName === 'get_energy_status') {
+      const sys = await getSystemInfo().catch(() => null);
+      const ha = await buildHaState().catch(() => null);
+      fnResult = {
+        pc: (sys && sys.power) || { cpu: null, gpu: null, psu: null, total: null },
+        home: (ha && Array.isArray(ha.energy)) ? ha.energy.map(e => ({ name: e.name, value: e.state, unit: e.unit || '', deviceClass: e.deviceClass || '' })) : [],
+        homeConfigured: !!(ha && ha.configured),
+      };
     } else if (fnName === 'get_weather') {
       fnResult = await getWeather(uiLang, null);
     } else if (fnName === 'get_stock_quote') {
@@ -5549,7 +5912,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'custom']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -5610,6 +5973,10 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     claude:   Object.freeze({ x: 16, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
     vitals:   Object.freeze({ x: 8, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
     unifi:    Object.freeze({ x: 8, y: 18, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    slideshow: Object.freeze({ x: 0, y: 48, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    fans:     Object.freeze({ x: 16, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    power:    Object.freeze({ x: 16, y: 46, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    battery:  Object.freeze({ x: 0, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
     custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
@@ -5672,12 +6039,22 @@ const WEATHER_FIELDS_ALL_ON = Object.freeze(
 
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   appearance: 'dark',
-  styleMode: 'glass', // 'glass' | 'retro' — dashboard style language (Pixel Retro-gaming skin)
+  autoPalette: false,
+  styleMode: 'glass', // 'glass' | 'retro' | 'comic' — dashboard style language (Pixel Retro / Comic Book skins)
   retroScanlines: true, // retro-only CRT scanline overlay sub-toggle
   accent: '#1ed760',
   dynamicAlbumTheme: true, // tint the accent from the now-playing album art
   background: '#070808',
+  surface: null,
+  surfaceAlt: null,
+  controlColor: null,
   text: '#f0f3f1',
+  accentText: null,
+  successColor: null,
+  warningColor: null,
+  dangerColor: null,
+  infoColor: null,
+  contrastGuard: true,
   panelAlpha: 0.94,
   bgDim: 0.48,
   bgBlur: 0,
@@ -5697,6 +6074,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   ambientMode: Object.freeze({ enabled: true, idleMinutes: 0, sceneId: 'builtin' }),
   // Native canvas Ambient scenes (client-owned, like customThemes).
   ambientScenes: Object.freeze([]),
+  contentInstalls: Object.freeze([]),
   weather: Object.freeze({ mode: 'auto', city: '', provider: 'auto', refreshMin: 30, forecastDays: 3, tile: Object.freeze({ metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }) }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language
@@ -5809,7 +6187,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Static premium background (0 animations). style: none|nebulosa|prisma|halo.
   bgStatic: Object.freeze({ style: 'none', intensity: 70 }),
   // Code-defined animated background (sandboxed iframe on the client). Off by default.
-  bgCustom: Object.freeze({ enabled: false, name: '', code: '', assets: Object.freeze({}) }),
+  bgCustom: Object.freeze({ enabled: false, name: '', code: '', assets: Object.freeze({}), fps: 30 }),
   lighting: Object.freeze({
     enabled: false,            // master OFF by default — explicit opt-in, zero cost
     brightness: 1.0,
@@ -6032,12 +6410,25 @@ function normalizeBgCustom(value) {
     name: typeof source.name === 'string' ? source.name.trim().slice(0, 60) : '',
     code,
     assets: sanitizeBgAssets(source.assets),
+    // Frame-rate cap (paints per second) — rule owner is custom-bg.js, exactly
+    // like the assets above, so client/server/sandbox can never drift.
+    fps: sanitizeBgFps(source.fps),
   };
   // Redistribution marker: set when the background arrived via a share code, so
   // exports can be limited to the user's own creations. Cleared client-side when
   // the user replaces the code with their own.
   if (source.imported === true && code) out.imported = true;
+  if (out.imported && contentInstalls.INSTALL_ID_RE.test(String(source.installId || ''))) {
+    out.installId = String(source.installId);
+  }
   return out;
+}
+
+// Slideshow widget config. Rules (MIME allowlist + caps + interval clamp + fit)
+// are owned by js/slideshow-widget.js and shared with the client, so the two can
+// never drift — exactly like sanitizeBgAssets above.
+function normalizeSlideshow(value) {
+  return sanitizeSlideshow(value);
 }
 
 function normalizeBgGrid(value) {
@@ -6120,6 +6511,7 @@ function normalizeDashboardPages(value) {
     const page = { id, name: String(p.name == null ? '' : p.name).trim().slice(0, 40) };
     if (p.nameKey) page.nameKey = String(p.nameKey).slice(0, 64);
     if (p.imported === true) page.imported = true;   // arrived via a shared preset → not re-exportable
+    if (page.imported && contentInstalls.INSTALL_ID_RE.test(String(p.installId || ''))) page.installId = String(p.installId);
     out.push(page);
   });
   return out.length ? out.slice(0, DASHBOARD_PAGES_MAX) : seed;
@@ -6490,7 +6882,7 @@ function normalizeTopbarRails(value) {
 // flags. Rebuild from the canonical id set (drop unknown/dupes, append missing
 // in default order) — never spread untrusted input. Migrates the earlier
 // {date,weather} booleans onto their items when `items` is absent.
-const TOPBAR_ISLAND_IDS = ['time', 'date', 'weather', 'vitals', 'dots'];
+const TOPBAR_ISLAND_IDS = ['time', 'date', 'weather', 'vitals', 'dots', 'badges'];
 function normalizeTopbarClock(value) {
   const v = value && typeof value === 'object' ? value : {};
   const align = ['center', 'left', 'right'].includes(v.align) ? v.align : 'center';
@@ -6549,7 +6941,8 @@ function normalizeHubSettings(value) {
   const resetLayout = layoutVersion < DASHBOARD_LAYOUT_VERSION;
   return {
     appearance: ['light', 'dark', 'auto'].includes(source.appearance) ? source.appearance : DEFAULT_HUB_SETTINGS.appearance,
-    styleMode: source.styleMode === 'retro' ? 'retro' : 'glass',
+    autoPalette: source.autoPalette === true || (source.autoPalette == null && source.appearance === 'auto'),
+    styleMode: ['glass', 'retro', 'comic'].includes(source.styleMode) ? source.styleMode : 'glass',
     retroScanlines: source.retroScanlines !== false,
     accent: normalizeHex(source.accent, DEFAULT_HUB_SETTINGS.accent),
     // Album-art accent toggle. Must be round-tripped here (mirrors the client's
@@ -6557,7 +6950,20 @@ function normalizeHubSettings(value) {
     // so the feature re-enabled itself on every restart. Default ON via !== false.
     dynamicAlbumTheme: source.dynamicAlbumTheme !== false,
     background: normalizeHex(source.background, DEFAULT_HUB_SETTINGS.background),
+    surface: normalizeHex(source.surface, null),
+    surfaceAlt: normalizeHex(source.surfaceAlt, null),
+    controlColor: normalizeHex(source.controlColor, null),
     text: normalizeHex(source.text, DEFAULT_HUB_SETTINGS.text),
+    accentText: normalizeHex(source.accentText, null),
+    successColor: normalizeHex(source.successColor, null),
+    warningColor: normalizeHex(source.warningColor, null),
+    dangerColor: normalizeHex(source.dangerColor, null),
+    infoColor: normalizeHex(source.infoColor, null),
+    // Dual-palette theme ({ light, dark }). Both sides persist the field, so both
+    // rebuild it through the same engine — otherwise a restart, another surface or
+    // a backup restore would strip or corrupt the pair.
+    paletteVariants: themePalette.normalizeVariants(source.paletteVariants),
+    contrastGuard: source.contrastGuard !== false,
     panelAlpha: clampNumber(source.panelAlpha, SETTINGS_MIN_PANEL_ALPHA, 1, DEFAULT_HUB_SETTINGS.panelAlpha),
     bgDim: clampNumber(source.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
     bgBlur: clampNumber(source.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
@@ -6599,6 +7005,7 @@ function normalizeHubSettings(value) {
     // so they survive a restart instead of being stripped.
     customThemes: sanitizeCustomThemes(source.customThemes),
     ambientScenes: sanitizeAmbientScenes(source.ambientScenes),
+    contentInstalls: contentInstalls.normalizeContentInstalls(source.contentInstalls),
     geminiApiKey: String(source.geminiApiKey || '').trim().slice(0, 200),
     obsHost: String(source.obsHost || '').trim().slice(0, 200),
     obsPort: Math.max(1, Math.min(65535, parseInt(source.obsPort, 10) || 4455)),
@@ -6638,6 +7045,9 @@ function normalizeHubSettings(value) {
 
     aiFeatures: normalizeServerAiFeatures(source.aiFeatures),
     sensorHistory: normalizeSensorHistory(source.sensorHistory),
+    // User fan names for the Fans widget ("mb|Fan #3" → "Radiatore alto").
+    // Client-owned but flat enough to validate explicitly at this boundary.
+    fanLabels: normalizeServerFanLabels(source.fanLabels),
     proactive: normalizeProactive(source.proactive),
     notifications: normalizeNotifications(source.notifications),
     vitals: normalizeVitals(source.vitals),
@@ -6648,6 +7058,7 @@ function normalizeHubSettings(value) {
     bgGrid: normalizeBgGrid(source.bgGrid),
     bgStatic: normalizeBgStatic(source.bgStatic),
     bgCustom: normalizeBgCustom(source.bgCustom),
+    slideshow: normalizeSlideshow(source.slideshow),
     lighting: normalizeLighting(source.lighting),
     calendarFeeds: icsFeeds.normalizeCalendarFeeds(source.calendarFeeds, CALENDAR_FEED_PALETTE),
     stocks: stocks.normalizeStocks(source.stocks),
@@ -6664,6 +7075,8 @@ function normalizeHubSettings(value) {
     // Razer Chroma / Elgato Wave Link — local hardware SDKs, opt-in (no secrets,
     // just an enable flag; Wave Link optionally pins a port, 0 = auto-scan).
     chroma: { enabled: !!(source.chroma && source.chroma.enabled === true) },
+    // SignalRGB scene switcher — opt-in enable flag (Windows-only; no secrets).
+    signalrgb: { enabled: !!(source.signalrgb && source.signalrgb.enabled === true) },
     wavelink: normalizeWaveLinkSettings(source.wavelink),
     remoteControl: normalizeRemoteControl(source.remoteControl),
     // Client-managed settings (the client owns their full schema and re-validates
@@ -6692,6 +7105,23 @@ function normalizeHubSettings(value) {
   };
 }
 
+// Mirror of the client's normalizeFanLabels (settings.js): explicit bounded
+// rebuild of the flat { "<kind>|<sensor name>": "label" } rename map.
+function normalizeServerFanLabels(value) {
+  const v = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const out = {};
+  let n = 0;
+  for (const key of Object.keys(v)) {
+    if (n >= 64) break;
+    if (typeof key !== 'string' || key.length > 60 || !key.includes('|')) continue;
+    const label = typeof v[key] === 'string' ? v[key].trim().slice(0, 32) : '';
+    if (!label) continue;
+    out[key] = label;
+    n++;
+  }
+  return out;
+}
+
 function normalizeServerBrowserTiles(value) {
   const v = value && typeof value === 'object' ? value : {};
   const out = {};
@@ -6714,15 +7144,20 @@ function normalizeServerBrowserTiles(value) {
 // multi-tab shape here (keeping only { url }) wiped every tab on a settings save.
 // URLs are re-validated by the relay before navigating.
 function normalizeServerBrowserTileEntry(entry) {
+  // chromeHidden (toolbar hidden) is a per-tile UI pref that MUST round-trip so a
+  // "hide toolbar" set on one surface syncs to the others (this is the authoritative
+  // copy other surfaces hydrate). It was dropped here, so the Edge kept its toolbar
+  // out of step with the browser (GitHub #101).
+  const chromeHidden = !!entry.chromeHidden;
   if (Array.isArray(entry.tabs)) {
     const tabs = entry.tabs.slice(0, 6).map((tb) => ({ url: String((tb && tb.url) || '').slice(0, 2048) }));
     if (!tabs.length) return null;
-    if (tabs.length === 1 && !tabs[0].url) return null;
+    if (tabs.length === 1 && !tabs[0].url && !chromeHidden) return null;
     const active = Math.max(0, Math.min(tabs.length - 1, parseInt(entry.active, 10) || 0));
-    return { tabs, active };
+    return { tabs, active, chromeHidden };
   }
   const url = String(entry.url || '').slice(0, 2048);
-  return url ? { url } : null;
+  return (url || chromeHidden) ? { url, chromeHidden } : null;
 }
 
 function normalizeServerBrowserFavorites(value) {
@@ -6814,6 +7249,9 @@ function sanitizeCustomThemes(value) {
             name: typeof cb.name === 'string' ? cb.name : '',
             code: typeof cb.code === 'string' ? cb.code : '',
             assets: {},
+            fps: sanitizeBgFps(cb.fps),
+            ...(cb.imported === true ? { imported: true } : {}),
+            ...(contentInstalls.INSTALL_ID_RE.test(String(cb.installId || '')) ? { installId: String(cb.installId) } : {}),
           },
         };
       }
@@ -8388,6 +8826,7 @@ setInterval(() => {
 // level, so DNS-rebinding / Host-spoofing attacks from non-loopback IPs are blocked.
 const LOOPBACK_IPS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 const ALLOWED_HOSTS = new Set([
+  '127.0.0.1:' + PORT, 'localhost:' + PORT, '[::1]:' + PORT,
   '127.0.0.1:3030', 'localhost:3030', '[::1]:3030',
   '127.0.0.1', 'localhost', '[::1]',
 ]);
@@ -8412,6 +8851,10 @@ function isJsonpAllowed(pathname) {
 // sends no Origin, so the loopback/Origin checks below can't catch it. They are
 // guarded by the Sec-Fetch-Site check in the request handler.
 const CSRF_MUTATION_PATHS = new Set([
+  // Raises a UAC prompt and changes the startup task's run level. POST-only, but
+  // guarded here too: a cross-site drive-by must not be able to make the local
+  // server throw an administrator prompt at the user.
+  '/system/enable-sensors',
   '/toggle', '/mic/volume', '/volume/set', '/speaker/mute',
   '/audio/app/volume', '/audio/app/mute',
   // The iCUE widget saves notes via GET (?save=1&data=) over JSONP <script>. That
@@ -8432,6 +8875,19 @@ const CSRF_MUTATION_PATHS = new Set([
   // drive-by (or a sandboxed iframe posting with Origin: null) must not be able
   // to burn a user's activations or pump the hub.
   '/api/community/redeem',
+  // Automatic limited stock is a read, but a cache miss reaches the Hub.
+  '/api/community/limited-status',
+  // Ratings: the GET's cache miss triggers an outbound hub fetch (same rationale
+  // as /api/community/catalog); the POST casts a vote under THIS install's id —
+  // a drive-by must be able to do neither.
+  '/api/community/ratings',
+  '/api/community/rate',
+  // POST-only pack installs (the 'icons' / 'sounds' preset kinds). Belt-and-
+  // suspenders like /api/community/redeem: an Origin:null frame must not be
+  // able to write a pack folder behind the user's back — installs go through
+  // the import dialog.
+  '/icon-pack',
+  '/sound-pack',
 ]);
 
 function isAllowedRequest(req) {
@@ -8881,8 +9337,13 @@ const server = http.createServer(async (req, res) => {
   // accepts `Origin: null` (Qt WebEngine) — so a hostile page's sandboxed iframe
   // (opaque origin → Origin: null) could otherwise reach them. Prefix match:
   // /sdk/hook carries a /<pkg>/<id> tail. Loopback tools send no Sec-Fetch-Site.
-  const isSdkSensitive = reqPath === '/sdk/fetch' || reqPath.startsWith('/sdk/hook/') || reqPath === '/sdk/handler-ack' || reqPath === '/sdk/deck-states';
-  if ((CSRF_MUTATION_PATHS.has(reqPath) || isSdkSensitive) &&
+  const isSdkSensitive = reqPath === '/sdk/fetch' || reqPath.startsWith('/sdk/hook/') || reqPath === '/sdk/handler-ack' || reqPath === '/sdk/deck-states' || reqPath === '/sdk/store' || reqPath === '/sdk/secret';
+  // Pack DELETE carries a /<id> tail (not an exact CSRF_MUTATION_PATHS entry),
+  // so guard it by prefix — the same belt-and-suspenders the POST installs get,
+  // so an Origin:null iframe can never remove a user's installed packs even if
+  // the CORS method allowlist ever widens.
+  const isPackMutation = req.method === 'DELETE' && (reqPath.startsWith('/icon-pack/') || reqPath.startsWith('/sound-pack/'));
+  if ((CSRF_MUTATION_PATHS.has(reqPath) || isSdkSensitive || isPackMutation) &&
       String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
     res.writeHead(403, { 'Content-Type': 'text/plain' });
     res.end('Forbidden');
@@ -8959,6 +9420,24 @@ const server = http.createServer(async (req, res) => {
   } else if (reqPath === '/system' && req.method === 'GET') {
     try   { json(await getSystemInfo()); }
     catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/battery' && req.method === 'GET') {
+    // Read-only seed for the battery widget / deck editor (SSE 'battery'
+    // pushes updates afterwards). Never a JSONP candidate.
+    try   { json(await batteryMonitor.getDevices()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/system/enable-sensors' && req.method === 'POST') {
+    // One-tap repair for `sensorAccess: 'needs_admin'`: raise the startup task to
+    // RunLevel Highest through a UAC prompt, so LHM can load its kernel driver and
+    // CPU temperature / fan RPM / CPU watts start working. Fixed argv, no request
+    // value ever reaches a command line; the UAC prompt is the real gate, so the
+    // worst a drive-by achieves is a prompt the user declines. POST-only, never
+    // JSONP, and listed in CSRF_MUTATION_PATHS.
+    try {
+      const out = await runPowerShellScript(ENABLE_SENSORS_SCRIPT, [], 120000);
+      json(out && typeof out === 'object' ? out : { ok: false, status: 'failed', message: 'no result' });
+    } catch (e) { json({ ok: false, status: 'failed', message: e.message }); }
 
   } else if (reqPath === '/network' && req.method === 'GET') {
     try   { json(await getNetworkInfo()); }
@@ -9159,7 +9638,7 @@ const server = http.createServer(async (req, res) => {
         // user never learns it was Bit. Falls back to an immediate lock if the
         // client sent no text (older dashboards).
         if (text) spawnNag(['-AllScreens']);
-        setTimeout(() => { exec('rundll32.exe user32.dll,LockWorkStation', () => {}); }, text ? 3500 : 0);
+        setTimeout(() => { lockWorkstation().catch(() => {}); }, text ? 3500 : 0);
         json({ ok: true });
       } else {
         json({ ok: false, error: 'unknown_action' });
@@ -9529,7 +10008,14 @@ const server = http.createServer(async (req, res) => {
         '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.oga': 'audio/ogg',
         '.m4a': 'audio/mp4', '.aac': 'audio/aac', '.flac': 'audio/flac', '.opus': 'audio/opus', '.weba': 'audio/webm',
       };
-      const abs = path.resolve(urlObj.searchParams.get('path') || '');
+      // Two accepted shapes: an absolute local path (the user's own machine-
+      // local clip — same trust level as open-file keys), or a PACK-RELATIVE
+      // ref ('packs/<packId>/<clipId>.<ext>') resolved under the sounds dir.
+      // The pack shape is what shared Deck profiles carry (machine-independent)
+      // and is validated segment-by-segment + prefix-asserted in sound-packs.js
+      // BEFORE path.resolve can ever see it.
+      const rawPath = urlObj.searchParams.get('path') || '';
+      const abs = soundPackStore.resolve(rawPath) || path.resolve(rawPath);
       const mime = SOUND_MIME[path.extname(abs).toLowerCase()];
       if (!mime) { res.writeHead(415); res.end(); return; }
       const stat = await fs.promises.stat(abs);
@@ -9759,7 +10245,7 @@ const server = http.createServer(async (req, res) => {
       // lighting — the iCUE bridge, an external provider with devices, or Chroma.
       const ls = lighting.getStatus();
       const lightingConfigured = !!(ls.available || (ls.devices && ls.devices.length) || (ls.providers && ls.providers.some((p) => (p.devices || []).length)));
-      json({ catalog: ACTION_CATALOG, capabilities: { powershell: true, soundVolumeView: fs.existsSync(SVV), obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), lightingConfigured } });
+      json({ catalog: ACTION_CATALOG, capabilities: { powershell: true, soundVolumeView: fs.existsSync(SVV), obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured } });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/wavelink/state' && req.method === 'GET') {
@@ -9781,6 +10267,38 @@ const server = http.createServer(async (req, res) => {
   } else if (reqPath === '/api/chroma/test' && req.method === 'POST') {
     // Settings "Test connection": init a Chroma session then release it.
     try { json(await deckChroma.test()); } catch (e) { json({ ok: false, error: 'chroma_failed' }); }
+
+  } else if (reqPath === '/api/signalrgb/status' && req.method === 'GET') {
+    // SignalRGB card in Settings → Lighting: whether the launcher is installed on
+    // this PC and whether the user has enabled the integration. Windows-only;
+    // elsewhere `installed` is simply false and the card shows the "not found" hint.
+    const s = _serverHubSettings || {};
+    json({ ok: true, installed: signalrgb.isInstalled(), enabled: !!(s.signalrgb && s.signalrgb.enabled === true) });
+
+  } else if (reqPath === '/api/signalrgb/config' && req.method === 'POST') {
+    // Toggle the SignalRGB integration on/off (persisted like the chroma flag).
+    try {
+      const body = JSON.parse(await readBody(req, 4096) || '{}');
+      const enabled = body.enabled === true;
+      await withHubSettingsLock(async () => {
+        _serverHubSettings = await writeHubSettings({ ..._serverHubSettings, signalrgb: { enabled } });
+      });
+      signalrgb.clearCache();   // a fresh enable should re-scan, not serve a stale/empty list
+      json({ ok: true, installed: signalrgb.isInstalled(), enabled });
+    } catch (e) { json({ ok: false, error: (e && e.message) || 'save_failed' }); }
+
+  } else if (reqPath === '/api/signalrgb/effects' && req.method === 'GET') {
+    // Effect list for the Deck picker. Empty unless the integration is enabled AND
+    // installed; the scan is async + cached in signalrgb.js so repeated opens of
+    // the Deck editor don't re-walk the disk.
+    try {
+      const s = _serverHubSettings || {};
+      const enabled = !!(s.signalrgb && s.signalrgb.enabled === true);
+      const effects = (enabled && signalrgb.isInstalled()) ? await signalrgb.scanEffects() : [];
+      json({ ok: true, effects });
+    } catch (e) {
+      json({ ok: false, effects: [], error: String((e && e.message) || e) });
+    }
 
   } else if (reqPath === '/embedded-browser/available' && req.method === 'GET') {
     // Lets the Browser widget render a friendly "Edge not found" state instead of
@@ -10192,7 +10710,7 @@ const server = http.createServer(async (req, res) => {
           && Number(prev.dashboardLayout.gridCols) === DASHBOARD_GRID_COLUMNS
           && Number(incoming.dashboardLayout && incoming.dashboardLayout.gridCols) !== DASHBOARD_GRID_COLUMNS) {
         console.warn('[settings] Save from a pre-24-column (stale) client: keeping stored layout/presets and prev-filling sections it omitted. That page needs a reload to edit the layout again.');
-        incoming = { ...prev, ...incoming, dashboardLayout: prev.dashboardLayout, dashboardPresets: prev.dashboardPresets, customThemes: prev.customThemes, ambientScenes: prev.ambientScenes };
+        incoming = { ...prev, ...incoming, dashboardLayout: prev.dashboardLayout, dashboardPresets: prev.dashboardPresets, customThemes: prev.customThemes, ambientScenes: prev.ambientScenes, contentInstalls: prev.contentInstalls };
       }
       // lighting.providers / deviceModes are bridge-owned (set only via
       // /api/lighting/*) and the client mirror never carries them — refill them
@@ -10237,6 +10755,16 @@ const server = http.createServer(async (req, res) => {
           ...(incoming.news && typeof incoming.news === 'object' ? incoming.news : {}),
           feeds: prev.news.feeds,
         };
+      }
+      // Lighting is bridge-owned: every change goes through /api/lighting/* (or
+      // the AI tools), which persist via _persistLighting WITHOUT bumping the
+      // browser mirrors. A surface's mirror therefore holds whatever lighting
+      // blob it hydrated at boot, and echoing it here reverted toggles flipped
+      // on the lighting page since (empirically: "Album → LED" kept turning
+      // itself back on, painting the LEDs with the cover colour while the
+      // checkbox showed off). Keep the persisted copy.
+      if (prev && prev.lighting && typeof prev.lighting === 'object') {
+        incoming.lighting = prev.lighting;
       }
       // Vitals state is widget-owned and monotonic: a refill stamps "now", XP
       // only grows, the daily counter resets on a new day. A stale settings
@@ -10346,7 +10874,14 @@ const server = http.createServer(async (req, res) => {
       // this save with their own stale copy on their next edit. Clients ignore
       // the event when the rev isn't newer than their local one (their own save).
       broadcastSSE('settings', { rev: settings.rev });
-      json({ ok: true, settings: redactSettingsSecrets(settings), savedAt: Date.now(), lightingApplied });
+      // Slim ack on purpose — no settings echo. The client already holds the
+      // exact blob it just posted (same normalizers both sides), nobody ever
+      // read the echoed copy, and with imported themes the echo reached
+      // multi-MB: a client that discarded it unread left the response stream
+      // permanently backpressured, burning one pooled connection per save
+      // until the page's 6-per-host pool starved and the dashboard went deaf
+      // (the "app disconnected after importing a heavy theme" wedge).
+      json({ ok: true, rev: settings.rev, savedAt: Date.now(), lightingApplied });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/community/catalog' && req.method === 'GET') {
@@ -10382,6 +10917,40 @@ const server = http.createServer(async (req, res) => {
       const body = JSON.parse(await readBody(req) || '{}');
       json(await supporterRedeem.redeem({
         entryId: body.entryId, code: body.code, dataDir: DATA_DIR,
+      }));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/limited-status' && req.method === 'GET') {
+    // Live stock for automatic limited drops. The local proxy pins the Hub
+    // origin and validates every id; the browser never receives a configurable
+    // backend URL from catalog data.
+    try {
+      json(await communityLimited.fetchStatus(urlObj.searchParams.get('ids')));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/ratings' && req.method === 'GET') {
+    // Star-rating aggregates for gallery entries, proxied from the hub with a
+    // TTL cache + in-flight dedup (community-ratings.js). ?mine=1 additionally
+    // attaches THIS install's id server-side so the vote control can highlight
+    // the current choice — the browser never supplies the id. In
+    // CSRF_MUTATION_PATHS (a cache miss triggers an outbound fetch).
+    try {
+      json(await communityRatings.fetchRatings({
+        ids: urlObj.searchParams.get('ids'),
+        mine: urlObj.searchParams.has('mine'),
+        dataDir: DATA_DIR,
+      }));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/rate' && req.method === 'POST') {
+    // Cast/replace this install's 1–5 star vote on a catalog entry. Shape is
+    // validated here, the install id attached server-side, and the hub
+    // re-validates + rate-limits. In CSRF_MUTATION_PATHS (drive-by pages must
+    // not pump the hub or forge votes), never JSONP.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await communityRatings.submitRating({
+        entryId: body.entryId, stars: body.stars, dataDir: DATA_DIR,
       }));
     } catch (e) { err500(e.message); }
 
@@ -10986,9 +11555,7 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/lock' && req.method === 'POST') {
-    exec('rundll32.exe user32.dll,LockWorkStation', e => {
-      if (e) err500(e.message); else json({ ok: true });
-    });
+    lockWorkstation().then(() => json({ ok: true }), e => err500(e.message));
 
   } else if (reqPath === '/api/companion/insight' && req.method === 'POST') {
     // Game Companion (opt-in, Settings → Funzioni AI): capture the primary
@@ -11279,7 +11846,7 @@ const server = http.createServer(async (req, res) => {
           name: 'query_sensor_history',
           description: 'GUARDIAN: get the recorded history of ONE sensor broken down for comparison — today vs yesterday, last 24h, 7-day and 30-day averages, the peak day of the last 30 days, and the last 7 daily points. Use this (not guardian_report) for specific time comparisons like "was my GPU hotter yesterday than today", "what was my worst day this month", "how has my CPU temp trended this week".',
           parameters: { type: 'OBJECT', properties: {
-            metric: { type: 'STRING', description: 'Which sensor: "cpu" (load %), "cpuTemp", "gpu" (load %), "gpuTemp", or "mem" (RAM %). Friendly names like "gpu temp" or "ram" also work.' },
+            metric: { type: 'STRING', description: 'Which sensor: "cpu" (load %), "cpuTemp", "gpu" (load %), "gpuTemp", "mem" (RAM %), "cpuWatts" or "gpuWatts" (power draw). Friendly names like "gpu temp", "ram" or "cpu power" also work.' },
           }, required: ['metric'] },
         });
         _guardianText = ' GUARDIAN (hardware health history) is ENABLED: when the user asks about PC health, temperatures, or long-term trends, call guardian_report and base your analysis ONLY on its real data — mention notable maxima and 7d-vs-30d trends, suggest practical fixes (dust, fan curve, background apps) only when the data justifies them, and say so plainly when everything looks healthy. For a SPECIFIC time comparison or a single sensor over time (today vs yesterday, worst day this month, this week\'s trend), call query_sensor_history with the metric instead. If collectedDays is low, note that the history is still short.';
@@ -11325,12 +11892,14 @@ const server = http.createServer(async (req, res) => {
         '  • Productivity: read/replace notes; list/create/complete/delete tasks (and clear all); list/create/delete calendar events (and clear all); start/list/delete countdown timers.' +
         '  • RGB lighting: set a manual colour, clear it, enable/disable reactive effects, configure event-flash effects, and turn the whole lighting bridge on/off.' +
         '  • System & apps: read live CPU/GPU/RAM/disk stats and individual sensors (e.g. CPU temp), open or close any app/website/file on Windows, lock the PC, and turn Performance Mode on/off.' +
-        '  • Appearance: change the colour theme by name OR set exact hex colours (accent, background, text) and the light/dark/auto mode via customize_appearance — use it for any specific-colour request.' +
+        '  • Appearance: change the theme/skin by name OR set exact semantic hex colours for the app canvas, panels, nested surfaces, controls, primary/muted text, borders, accent foreground and success/warning/error/info states via customize_appearance; Light/Dark/Auto seed a coherent palette and unsafe contrast is repaired by default.' +
         '  • Preferences: set the 12h/24h clock, temperature unit, interface language, weather location (auto or a manual city), and which widgets show on the focus lock screen, via configure_preferences.' +
         '  • Dashboard UI: navigate between dashboard pages, switch the Deck to one of its profiles, and open the weather / settings / app-switcher panels or the focus lock screen.' +
         '  • Screen vision: capture and analyse any monitor.' +
+        '  • Creator & marketplace: search the community catalog and start installs (the user always confirms in the review dialog), CREATE brand-new custom widgets by writing their code (ground with sdk_reference, then create_widget), and build or extend full Deck profiles (ground with deck_action_catalog, then configure_deck).' +
+        ' APP KNOWLEDGE: you have built-in documentation about Xenon itself. BEFORE answering any question about how Xenon works — setup, requirements, why something reads empty (e.g. fans/watts and admin rights), updates, the marketplace, supporter codes, publishing content, integrations setup, privacy, troubleshooting — call xenon_knowledge with the question and ground your answer on the returned card instead of guessing; if the card does not cover it, say plainly what you are unsure about.' +
         ' Feature-gated extras appear as extra tools ONLY when the matching integration is connected or the user enabled them: full Spotify playback control incl. playing/queueing any song by name (spotify_control), smart-home control via Home Assistant incl. detailed brightness/colour/temperature/fan/cover control (home_assistant), Discord voice control incl. join-by-name/mute/deafen/volume (discord_voice), composing/editing dashboard pages (Genesis — pages, tabbed tiles, widget duplication, Deck setup), controlling OBS/Twitch/YouTube/Streamer.bot (Streaming), reading long-term hardware-health history (Guardian), and running arbitrary confirmed Windows commands (PC Control — run_pc_command). When such a tool is present, prefer it over a generic answer. When the user asks for something you genuinely have no tool for: if PC Control is enabled and the task is doable via a Windows command, propose one with run_pc_command; otherwise say plainly you cannot do it rather than pretending you did.' +
-        ' WHEN ASKED WHAT YOU CAN DO — OR whether you can do/control a specific thing ("puoi controllare il mio PC?", "sai gestire l\'audio?", "can you also…?"): NEVER give a vague blurb and NEVER give a NARROW answer that mentions only one slice (e.g. only "monitoring") while omitting the rest — that is underselling and it reads as dishonest. Lead with the truth that you do not just READ/monitor the PC, you actively CONTROL it, then name the real breadth from the control surface above: open & close apps, control audio/mic (incl. per-app mixer and switching the output/mic device), media & media source, RGB lighting, lock the PC, live CPU/GPU/RAM/disk stats and sensors, Performance Mode, appearance incl. exact hex colours and light/dark, preferences (clock, unit, language, weather, lock-screen widgets), notes/tasks/calendar/timers, pages/Deck profiles/panels, screen vision — plus any enabled extras (Genesis page-building, Streaming control, Guardian health history, and — when PC Control is on — running arbitrary confirmed Windows commands, which is real, deep control of the machine). In a VOICE turn answer in ONE or TWO short spoken sentences that name several of these areas in flowing prose — NO bulleted list, no "*", no line breaks — and offer to detail any (e.g. "Sì, non solo lo monitoro: apro e chiudo app, gestisco audio media e luci, blocco il PC, cambio tema e impostazioni, e con il Controllo PC attivo eseguo comandi Windows. Vuoi che ti mostri qualcosa?"). Only in a TEXT turn give a short organised list. Ground it in the tools you actually have this turn — do not invent capabilities.' +
+        ' WHEN ASKED WHAT YOU CAN DO — OR whether you can do/control a specific thing ("puoi controllare il mio PC?", "sai gestire l\'audio?", "can you also…?"): NEVER give a vague blurb and NEVER give a NARROW answer that mentions only one slice (e.g. only "monitoring") while omitting the rest — that is underselling and it reads as dishonest. Lead with the truth that you do not just READ/monitor the PC, you actively CONTROL it, then name the real breadth from the control surface above: open & close apps, control audio/mic (incl. per-app mixer and switching the output/mic device), media & media source, RGB lighting, lock the PC, live CPU/GPU/RAM/disk stats and sensors, Performance Mode, appearance incl. exact hex colours and light/dark, preferences (clock, unit, language, weather, lock-screen widgets), notes/tasks/calendar/timers, pages/Deck profiles/panels, screen vision, searching & installing community marketplace content, and CREATING new custom widgets and Deck profiles from scratch — plus any enabled extras (Genesis page-building, Streaming control, Guardian health history, and — when PC Control is on — running arbitrary confirmed Windows commands, which is real, deep control of the machine). In a VOICE turn answer in ONE or TWO short spoken sentences that name several of these areas in flowing prose — NO bulleted list, no "*", no line breaks — and offer to detail any (e.g. "Sì, non solo lo monitoro: apro e chiudo app, gestisco audio media e luci, blocco il PC, cambio tema e impostazioni, e con il Controllo PC attivo eseguo comandi Windows. Vuoi che ti mostri qualcosa?"). Only in a TEXT turn give a short organised list. Ground it in the tools you actually have this turn — do not invent capabilities.' +
         ' SCREEN VISION SAFETY: call capture_screen ONLY when the latest user message explicitly asks you to inspect/read/look at the screen, monitor, screenshot, image, window, or visible UI. Do not ask which monitor unless the user actually requested screen vision. For weather, temperature, clothing, outfit, or "what should I wear" questions, use get_weather and answer directly; never route those to capture_screen, even if speech-to-text produced a short/garbled phrase such as "che vesti".' +
 
         // ── Conversational data collection ──────────────────────────────────
@@ -12458,6 +13027,123 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+  } else if (req.method === 'DELETE' && reqPath.startsWith('/font/')) {
+    // Imported-theme cleanup. Only a generated font filename inside UPLOADS_DIR
+    // is accepted; arbitrary uploads and paths remain unreachable.
+    try {
+      const name = decodeURIComponent(reqPath.slice('/font/'.length));
+      if (!/^[A-Za-z0-9._-]+\.(?:woff2?|ttf|otf)$/i.test(name)) { res.writeHead(400); res.end(); return; }
+      const abs = path.join(UPLOADS_DIR, name);
+      if (!abs.startsWith(UPLOADS_DIR + path.sep)) { res.writeHead(400); res.end(); return; }
+      await fs.promises.rm(abs, { force: true });
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/icon-pack' && req.method === 'POST') {
+    // Install a Deck icon pack (the 'icons' preset kind). Reached only from the
+    // import preview's Apply step. All validation is fail-closed in
+    // icon-packs.js (SVG reject-list, PNG magic bytes, id charsets, size caps);
+    // files land under server-derived names via a temp-dir + rename install.
+    try {
+      const body = await readBodyBuffer(req, ICON_PACK_BODY_MAX);
+      let payload = null;
+      try { payload = JSON.parse(body.toString('utf8')); } catch { payload = null; }
+      const result = await iconPackStore.install(payload);
+      if (!result.ok) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+        return;
+      }
+      json(result);
+    } catch (e) {
+      if (e.code === 'PAYLOAD_TOO_LARGE') {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Payload too large' }));
+      } else {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    }
+
+  } else if (reqPath === '/icon-packs' && req.method === 'GET') {
+    // Installed icon-pack manifests (no file data) — feeds the Deck key icon
+    // picker's pack sections.
+    try { json({ ok: true, packs: await iconPackStore.list() }); } catch (e) { err500(e.message); }
+
+  } else if (req.method === 'GET' && reqPath.startsWith('/icon-pack/')) {
+    // Serve one pack icon (/icon-pack/<packId>/<file>). Both segments are
+    // regex-validated + prefix-asserted in icon-packs.js. The deny-all CSP +
+    // nosniff keep an SVG inert even opened top-level — defense-in-depth on top
+    // of the install-time reject-list.
+    try {
+      const parts = reqPath.slice('/icon-pack/'.length).split('/');
+      const hit = parts.length === 2
+        ? iconPackStore.resolve(decodeURIComponent(parts[0]), decodeURIComponent(parts[1]))
+        : null;
+      if (!hit) { res.writeHead(404); res.end(); return; }
+      const data = await fs.promises.readFile(hit.abs);
+      res.writeHead(200, {
+        'Content-Type': hit.mime,
+        'Content-Security-Policy': "default-src 'none'",
+        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'no-store',
+      });
+      res.end(data);
+    } catch { res.writeHead(404); res.end(); }
+
+  } else if (req.method === 'DELETE' && reqPath.startsWith('/icon-pack/')) {
+    // Uninstall a pack (Installed content cleanup). Id is regex-gated in
+    // icon-packs.js; keys that embedded a pack icon keep their copy.
+    try {
+      const id = decodeURIComponent(reqPath.slice('/icon-pack/'.length));
+      const ok = await iconPackStore.remove(id);
+      if (!ok) { res.writeHead(400); res.end(); return; }
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/sound-pack' && req.method === 'POST') {
+    // Install a soundboard pack (the 'sounds' preset kind). Reached only from
+    // the import preview's Apply step. Validation is fail-closed in
+    // sound-packs.js (per-clip magic bytes, id charsets, size caps); clips land
+    // under DETERMINISTIC server-derived names (packs/<id>/<clip>.<ext>) so
+    // shared Deck profiles can reference them across machines.
+    try {
+      const body = await readBodyBuffer(req, SOUND_PACK_BODY_MAX);
+      let payload = null;
+      try { payload = JSON.parse(body.toString('utf8')); } catch { payload = null; }
+      const result = await soundPackStore.install(payload);
+      if (!result.ok) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+        return;
+      }
+      json(result);
+    } catch (e) {
+      if (e.code === 'PAYLOAD_TOO_LARGE') {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Payload too large' }));
+      } else {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    }
+
+  } else if (reqPath === '/deck/sound-packs' && req.method === 'GET') {
+    // Installed soundboard-pack manifests (clip ids/labels + pack-relative
+    // paths, no audio data) — feeds the editor's sound picker. Additive: the
+    // loose-upload library keeps its own GET /deck/sounds contract untouched.
+    try { json({ ok: true, packs: await soundPackStore.list() }); } catch (e) { err500(e.message); }
+
+  } else if (req.method === 'DELETE' && reqPath.startsWith('/sound-pack/')) {
+    // Uninstall a pack (Installed content cleanup). Deck keys referencing its
+    // clips degrade to a no-op flash — same as any missing local file.
+    try {
+      const id = decodeURIComponent(reqPath.slice('/sound-pack/'.length));
+      const ok = await soundPackStore.remove(id);
+      if (!ok) { res.writeHead(400); res.end(); return; }
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
+
   } else if (reqPath === '/tile-asset' && req.method === 'POST') {
     // Manual per-tile decoration upload. Mirrors /background but keeps every file
     // (multiple tiles → multiple pictures); a `tileasset-*` name is server-generated
@@ -12749,19 +13435,38 @@ const server = http.createServer(async (req, res) => {
       const scan = await sdkPackagesCached();
       const pkg = scan.packages.find(p => p.id === pkgId);
       if (!pkg) { json({ ok: false, error: 'unknown_package' }); return; }
-      const v = sdkWidgets.validateProxyRequest(pkg, body);
+      const grants = sdkGrantsFor(pkgId);
+      // Addresses the user typed into the manifest's declared userHosts slots.
+      // resolveUserHosts re-validates every stored value against the manifest's
+      // own rules, so this can only ever widen the allowlist to hosts the
+      // manifest could have declared itself.
+      const filled = sdkWidgets.resolveUserHosts(pkg, grants.userHosts);
+      const v = sdkWidgets.validateProxyRequest(pkg, body, filled.hosts);
       if (!v.ok) { json({ ok: false, error: v.error }); return; }
       // Server-side consent: the manifest is the authority for WHICH hosts are
       // reachable, but the user's per-package grant is the authority for whether
       // they approved this one. Enforce it here too, not only in the client bridge
-      // — the route is reachable without a mounted widget frame.
+      // — the route is reachable without a mounted widget frame. A filled slot IS
+      // the user's consent (they typed that address), so it needs no second grant.
       let host = '';
       try { host = new URL(v.url).hostname.toLowerCase().replace(/\.$/, ''); } catch { /* v.url already validated */ }
-      if (!sdkGrantsFor(pkgId).hosts.includes(host)) { json({ ok: false, error: 'host_not_granted' }); return; }
+      if (!grants.hosts.includes(host) && !filled.hosts.includes(host)) { json({ ok: false, error: 'host_not_granted' }); return; }
+      // Secret injection: replace {{secret:NAME}} placeholders in the (already
+      // validated) url/headers/body with the package's stored secrets, so the
+      // real API key lives server-side and never rode through the sandboxed
+      // frame. Gated on the package DECLARING and being GRANTED `secrets`;
+      // resolveProxySecrets re-pins the host (a secret can't redirect the
+      // request) and re-checks headers for CRLF.
+      let outReq = v;
+      if (pkg.secrets === true && grants.secrets) {
+        const rs = sdkStore.resolveProxySecrets(v, sdkSecretsLoad(pkgId), pkg.hosts.concat(filled.hosts));
+        if (!rs.ok) { json({ ok: false, error: rs.error }); return; }
+        outReq = rs.req;
+      }
       const release = sdkFetchGateAcquire(pkgId);
       if (!release) { json({ ok: false, error: 'rate_limited' }); return; }
       try {
-        const r = await sdkProxy.proxyFetch(v);
+        const r = await sdkProxy.proxyFetch(outReq);
         const textual = sdkProxy.isTextualContentType(r.contentType);
         json({
           ok: true,
@@ -12780,6 +13485,108 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       if (e && e.code === 'PAYLOAD_TOO_LARGE') json({ ok: false, error: 'payload_too_large' });
       else err500(e.message);
+    }
+
+  } else if (reqPath === '/sdk/store' && req.method === 'POST') {
+    // Persistent key/value store for a widget's own settings (followed teams,
+    // chosen sources, a map's last view). Gated on the package DECLARING
+    // `storage` and being GRANTED it; the namespace is the package id, or a
+    // shared `storageGroup` so sibling widgets can share one store. Values
+    // round-trip through JSON and are size/count-capped in sdk-store.js; writes
+    // are change-driven. Data lives in DATA_DIR/widget-store (outside the package
+    // folder, so updates/exports never touch it). NEVER a JSONP candidate.
+    try {
+      if (!sdkFeatureEnabled()) { json({ ok: false, error: 'sdk_disabled' }); return; }
+      const body = JSON.parse(await readBody(req, 512 * 1024) || '{}');
+      const pkgId = String(body.pkg || '');
+      const scan = await sdkPackagesCached();
+      const pkg = scan.packages.find(p => p.id === pkgId);
+      if (!pkg) { json({ ok: false, error: 'unknown_package' }); return; }
+      if (pkg.storage !== true || !sdkGrantsFor(pkgId).storage) { json({ ok: false, error: 'not_granted' }); return; }
+      const isWrite = body.op && ['set', 'delete', 'clear'].includes(body.op.op);
+      if (isWrite && !sdkStoreGateOk(pkgId)) { json({ ok: false, error: 'rate_limited' }); return; }
+      const ns = sdkStore.storeNamespace(pkg);
+      if (!ns) { json({ ok: false, error: 'bad_namespace' }); return; }
+      const r = sdkStore.applyStoreOp(sdkStoreLoad(ns), body.op);
+      if (!r.ok) { json({ ok: false, error: r.error }); return; }
+      if (r.changed) await sdkStoreSave(ns, r.store);
+      json({ ok: true, value: r.value, keys: r.keys });
+    } catch (e) {
+      if (e && e.code === 'PAYLOAD_TOO_LARGE') json({ ok: false, error: 'payload_too_large' });
+      else json({ ok: false, error: (e && e.message) || 'bad_request' });
+    }
+
+  } else if (reqPath === '/sdk/secret' && req.method === 'POST') {
+    // Write-only secret vault for API keys. The widget can SET/DELETE named
+    // secrets and LIST their names or test existence (`has`), but a read NEVER
+    // returns a value — secrets are consumed only by {{secret:NAME}} substitution
+    // inside the fetch proxy, server-side, so a published package ships no keys
+    // and the sandboxed frame never sees them. Gated on the package DECLARING and
+    // being GRANTED `secrets`. Stored in DATA_DIR/widget-secrets. Never JSONP.
+    try {
+      if (!sdkFeatureEnabled()) { json({ ok: false, error: 'sdk_disabled' }); return; }
+      const body = JSON.parse(await readBody(req, 32 * 1024) || '{}');
+      const pkgId = String(body.pkg || '');
+      const scan = await sdkPackagesCached();
+      const pkg = scan.packages.find(p => p.id === pkgId);
+      if (!pkg) { json({ ok: false, error: 'unknown_package' }); return; }
+      if (pkg.secrets !== true || !sdkGrantsFor(pkgId).secrets) { json({ ok: false, error: 'not_granted' }); return; }
+      const isWrite = body.op && ['set', 'delete'].includes(body.op.op);
+      if (isWrite && !sdkStoreGateOk('sec:' + pkgId)) { json({ ok: false, error: 'rate_limited' }); return; }
+      const r = sdkStore.applySecretOp(sdkSecretsLoad(pkgId), body.op);
+      if (!r.ok) { json({ ok: false, error: r.error }); return; }
+      if (r.changed) await sdkSecretsSave(pkgId, r.secrets);
+      json({ ok: true, names: r.names, has: r.has });
+    } catch (e) {
+      if (e && e.code === 'PAYLOAD_TOO_LARGE') json({ ok: false, error: 'payload_too_large' });
+      else json({ ok: false, error: (e && e.message) || 'bad_request' });
+    }
+
+  } else if (req.method === 'GET' && reqPath.startsWith('/sdk/tile/')) {
+    // Same-origin image proxy for map/radar tiles. The widget points an
+    // <img>/Leaflet tile layer straight at this URL — allowed by the widget CSP's
+    // `img-src 'self'` with NO relaxation — so a slippy map paints at native
+    // speed instead of base64-ing every tile over the fetch bridge at ~1 req/s.
+    // Same trust boundary as the fetch proxy (allowlisted + user-GRANTED host,
+    // guardedLookup SSRF block, size cap) plus a bounded LRU + per-package gate.
+    // Read-only, images only, and secrets are NEVER injected here.
+    try {
+      if (!sdkFeatureEnabled()) { res.writeHead(404); res.end(); return; }
+      const pkgId = decodeURIComponent(reqPath.slice('/sdk/tile/'.length));
+      if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(pkgId)) { res.writeHead(404); res.end(); return; }
+      const scan = await sdkPackagesCached();
+      const pkg = scan.packages.find(p => p.id === pkgId);
+      if (!pkg) { res.writeHead(404); res.end(); return; }
+      const grants = sdkGrantsFor(pkgId);
+      // A user-filled slot can host a tile server too (a self-hosted map on the
+      // LAN), so the same resolved hosts apply here as on the fetch proxy.
+      const filled = sdkWidgets.resolveUserHosts(pkg, grants.userHosts);
+      const v = sdkWidgets.validateProxyRequest(pkg, { url: urlObj.searchParams.get('u') || '', method: 'GET' }, filled.hosts);
+      if (!v.ok) { res.writeHead(400); res.end(); return; }
+      let host = '';
+      try { host = new URL(v.url).hostname.toLowerCase().replace(/\.$/, ''); } catch { /* validated */ }
+      if (!grants.hosts.includes(host) && !filled.hosts.includes(host)) { res.writeHead(403); res.end(); return; }
+      const serve = (contentType, buffer, hit) => {
+        res.writeHead(200, {
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=600',
+          'Content-Security-Policy': "default-src 'none'; sandbox",
+          'X-Content-Type-Options': 'nosniff',
+          'X-Xenon-Tile': hit ? 'hit' : 'miss',
+        });
+        res.end(buffer);
+      };
+      const cached = sdkTileCacheGet(v.url);
+      if (cached) { serve(cached.contentType, cached.buffer, true); return; }
+      const release = sdkTileGate(pkgId);
+      if (!release) { res.writeHead(429); res.end(); return; }
+      try {
+        const tile = await sdkTileFetch(v.url);
+        serve(tile.contentType, tile.buffer, false);
+      } finally { release(); }
+    } catch (e) {
+      const st = e && Number(e.status);
+      res.writeHead(st >= 400 && st < 600 ? st : 502); res.end();
     }
 
   } else if (req.method === 'POST' && reqPath.startsWith('/sdk/hook/')) {
@@ -12846,19 +13653,23 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { json({ ok: false, error: (e && e.message) || 'bad_request' }); }
 
   } else if (reqPath === '/sdk/widgets/example' && req.method === 'POST') {
-    // One-click install of the bundled reference widget: copies the example
-    // package from the app tree into DATA_DIR/widgets. Fixed source, fixed
-    // destination, filenames re-validated — no request input reaches the FS.
-    await readBody(req);
+    // One-click install of a bundled reference widget: copies the example
+    // package from the app tree into DATA_DIR/widgets. The requested id is
+    // resolved through a fixed allowlist map — never interpolated into a
+    // path — so request input still never reaches the filesystem directly;
+    // an unknown/missing id falls back to the original default.
     try {
-      const src = path.join(__dirname, 'sdk-example', 'hello-xenon');
-      const dest = path.join(SDK_WIDGETS_DIR, 'hello-xenon');
+      const body = JSON.parse(await readBody(req, 4096) || '{}');
+      const folder = (typeof body.id === 'string' && Object.hasOwn(EXAMPLE_WIDGETS, body.id))
+        ? EXAMPLE_WIDGETS[body.id] : EXAMPLE_WIDGETS['hello-xenon'];
+      const src = path.join(__dirname, 'sdk-example', folder);
+      const dest = path.join(SDK_WIDGETS_DIR, folder);
       await fs.promises.mkdir(dest, { recursive: true });
       for (const name of await fs.promises.readdir(src)) {
         if (!/^[A-Za-z0-9._-]+$/.test(name)) continue;
         await fs.promises.copyFile(path.join(src, name), path.join(dest, name));
       }
-      await recordWidgetOrigin('hello-xenon', 'builtin');   // shipped example, not the user's work
+      await recordWidgetOrigin(folder, 'builtin');   // shipped example, not the user's work
       await refreshSdkScan();   // the new package is visible to hot paths immediately
       json({ ok: true });
     } catch {
@@ -12876,7 +13687,10 @@ const server = http.createServer(async (req, res) => {
     // `origin` rides OUTSIDE the validated payload shape (extra keys are ignored
     // by validateWidgetPayload): only 'creator' (the Widget Creator declaring the
     // user's own build) is honoured — anything else records as an import, so a
-    // share-code install can never claim to be the user's own work.
+    // share-code install can never claim to be the user's own work. And even a
+    // 'creator' claim can't relabel an id already recorded as an import
+    // (mergeOrigin makes 'import' sticky), so replaying an imported payload with
+    // origin:'creator' no longer launders it into an exportable "own" widget.
     const body = await readBody(req);
     let payload; try { payload = JSON.parse(body); } catch { payload = null; }
     const origin = (payload && payload.origin === 'creator') ? 'creator' : 'import';
@@ -13219,6 +14033,13 @@ const server = http.createServer(async (req, res) => {
     buildHaState().then((st) => { try { res.write(`event: homeassistant\ndata: ${JSON.stringify(st)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
     // Seed the just-connected client with the current Streamer.bot globals.
     buildSbState().then((st) => { try { res.write(`event: streamerbot\ndata: ${JSON.stringify(st)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
+    // Seed the current peripheral battery. The 'battery' tick is 90s, and unlike
+    // the builtin tile (which fetches GET /api/battery on mount) a sandboxed SDK
+    // widget has no seed endpoint of its own — it can only wait for the stream,
+    // so without this it sits on "Looking for devices…" for up to a minute and a
+    // half after every reload. getDevices() is TTL-cached and dedups concurrent
+    // callers, so several surfaces connecting at once still cost one read.
+    batteryMonitor.getDevices().then((payload) => { try { res.write(`event: battery\ndata: ${JSON.stringify(payload)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
     // Seed the current stock quotes (paint immediately), then kick a refresh if
     // the cache is empty/stale so a freshly opened dashboard fills in fast.
     try { if (_stocksCache.quotes.length) res.write(`event: stocks\ndata: ${JSON.stringify(_stocksCache)}\n\n`); } catch (e) { /* ignore */ }
@@ -13449,7 +14270,7 @@ function _buildLiveSystemInstruction({ langName, summary }) {
     ? ' ' + aiMemory.formatForPrompt() : '';
   const sumText = summary ? ` Earlier in this conversation: ${summary}` : '';
   const langText = langName ? ` Always reply in ${langName}.` : '';
-  return `Current date and time: ${nowDate}, ${nowTime} (${tz}). You are Xenon, the voice assistant for a CORSAIR Xeneon Edge dashboard. This is a spoken conversation: keep answers short and natural — 1-2 sentences, no markdown, no lists. Use the provided tools to control the dashboard when the user asks, and confirm briefly what you did.` + memText + sumText + langText;
+  return `Current date and time: ${nowDate}, ${nowTime} (${tz}). You are Xenon, the voice assistant for a CORSAIR Xeneon Edge dashboard. This is a spoken conversation: keep answers short and natural — 1-2 sentences, no markdown, no lists. Use the provided tools to control the dashboard when the user asks, and confirm briefly what you did. For questions about how Xenon itself works (setup, features, sensors, updates, marketplace, troubleshooting), call xenon_knowledge first and answer from its card.` + memText + sumText + langText;
 }
 
 async function _teardownLiveSession(reason) {
@@ -13640,9 +14461,17 @@ function ensureHelperUpToDate(attempt = 1) {
   } catch { /* best-effort */ }
 }
 
+// The host the last listen() attempt used, so an EADDRINUSE retry re-binds the
+// same stack (see the error handler below).
+let _listenHost = '::';
+let _eaddrinuseRetries = 0;
+const EADDRINUSE_MAX_RETRIES = 15;   // ~15 s of retrying before giving up
+const EADDRINUSE_RETRY_MS = 1000;
+
 function _startListen(host) {
-  server.listen(3030, host, () => {
-    console.log('Widget server running on http://' + host + ':3030');
+  _listenHost = host;
+  server.listen(PORT, host, () => {
+    console.log('Widget server running on http://' + host + ':' + PORT);
     // Refresh an outdated native helper left behind by an in-app self-update. Delayed
     // and fire-and-forget so it never competes with boot; runs at most once per version.
     setTimeout(() => { try { ensureHelperUpToDate(); } catch { /* ignore */ } }, 8000);
@@ -13703,7 +14532,22 @@ function _startListen(host) {
 
 server.on('error', err => {
   if (err.code === 'EADDRINUSE') {
-    console.error('Port 3030 is already in use. Close the other node process before restarting.');
+    // A previous instance (or one of its long-lived children — media host,
+    // pwsh worker, embedded browser) may still be releasing port 3030. The tray
+    // "Restart" respawns node fast, so an immediate exit here left the dashboard
+    // dead until a manual retry ("RESTART fails" in issue #100). Wait and retry
+    // a few times before giving up, so a quick restart just picks up the port
+    // once the old process finishes shutting down.
+    if (_eaddrinuseRetries < EADDRINUSE_MAX_RETRIES) {
+      _eaddrinuseRetries++;
+      console.warn('Port ' + PORT + ' in use, retrying in ' + EADDRINUSE_RETRY_MS + 'ms (' + _eaddrinuseRetries + '/' + EADDRINUSE_MAX_RETRIES + ')…');
+      // Re-listen WITHOUT a callback: the original _startListen() registered the
+      // boot callback via once('listening'), which survives failed attempts and
+      // fires on the eventual success — passing it again would double-run boot.
+      setTimeout(() => { try { server.listen(PORT, _listenHost); } catch { /* re-emits 'error' */ } }, EADDRINUSE_RETRY_MS);
+      return;
+    }
+    console.error('Port ' + PORT + ' is already in use. Close the other node process before restarting.');
     process.exit(1);
   } else if ((err.code === 'EAFNOSUPPORT' || err.code === 'EADDRNOTAVAIL') && server.listening === false) {
     // IPv6 not available on this system — fall back to IPv4 loopback
@@ -13879,6 +14723,21 @@ setInterval(async () => {
   } catch {}
 }, 7000).unref();
 
+// Peripheral battery moves on a minutes scale and its sources are relatively
+// expensive (iCUE SDK round-trips + a Bluetooth PnP scan), so it gets its own
+// slow tick with a change-dedup instead of riding the 7s system broadcast.
+let _lastBatteryJson = '';
+setInterval(async () => {
+  if (sseClients.size === 0) return;
+  try {
+    const payload = await batteryMonitor.getDevices();
+    const j = JSON.stringify(payload);
+    if (j === _lastBatteryJson) return;
+    _lastBatteryJson = j;
+    broadcastSSE('battery', payload);
+  } catch {}
+}, 90000).unref();
+
 // The 'audio' tick spawns SoundVolumeView.exe (native, can't move to pwsh-worker),
 // so each fire is a process + temp-CSV cycle. External volume/mute changes are rare
 // and this is a glance display, so an 8s cadence roughly halves the daily spawn
@@ -13911,6 +14770,27 @@ setInterval(() => {
   }
 }, 20000).unref();
 
+// ── Last-resort process guards ────────────────────────────────────────────────
+// The backend runs unattended 24/7. Node terminates the process on an unhandled
+// promise rejection (and on an uncaught exception), so a single stray error in
+// ANY of the many background tasks — SSE broadcasts, sensor polls, lighting, the
+// game/foreground probes — would take the whole dashboard down, after which the
+// tray "Restart" could race the still-held port. That is the most likely cause
+// of the "crashed again, RESTART fails" reports on machines where the PowerShell
+// sensor layer keeps failing (issue #100). Log loudly and keep serving instead
+// of dying: a broken sensor read must never kill the dashboard. Genuinely fatal
+// conditions (a failed listen) are still handled explicitly at their source, and
+// intentional shutdown sets _shuttingDown so these don't fire spuriously.
+let _shuttingDown = false;
+process.on('unhandledRejection', (reason) => {
+  if (_shuttingDown) return;
+  console.error('[unhandledRejection] ' + ((reason && reason.stack) || (reason && reason.message) || reason));
+});
+process.on('uncaughtException', (err) => {
+  if (_shuttingDown) return;
+  console.error('[uncaughtException] ' + ((err && err.stack) || err));
+});
+
 // Graceful shutdown: close SSE streams and the HTTP server so port 3030 is
 // released promptly on Ctrl+C / SIGTERM. Without this, long-lived SSE
 // connections keep the process alive for 30+ seconds after the signal,
@@ -13919,6 +14799,7 @@ setInterval(() => {
 // about suppressing Ctrl+C only applies to handlers that *return* without
 // exiting. A 3-second safety timeout force-exits if connections drain slowly.
 function _gracefulShutdown() {
+  _shuttingDown = true;
   // Flush a pending (debounced) lighting persist so the last change survives.
   // The promise is awaited by the exit path below — firing it and exiting
   // immediately could kill the process mid write-fsync-rename.

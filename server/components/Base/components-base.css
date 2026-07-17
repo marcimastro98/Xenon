@@ -27,7 +27,7 @@
 .ui-btn:active { transform: scale(0.97); }
 .ui-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
-.ui-btn--primary { background: var(--accent); color: #04140a; }
+.ui-btn--primary { background: var(--accent); color: var(--on-accent); }
 .ui-btn--primary:hover { filter: brightness(1.08); }
 
 .ui-btn--secondary {
@@ -36,9 +36,9 @@
   border: 1px solid rgba(255,255,255,0.12);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
 }
-.ui-btn--secondary:hover { background: rgba(255,255,255,0.11); }
+.ui-btn--secondary:hover { background: var(--hover-bg); }
 
-.ui-btn--danger { background: var(--color-danger); color: #fff; }
+.ui-btn--danger { background: var(--color-danger); color: var(--on-danger); }
 
 /* Toggle (checkbox-driven) */
 .ui-toggle { position: relative; display: inline-block; width: 42px; height: 24px; }

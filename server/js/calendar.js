@@ -241,7 +241,14 @@ function renderCalendar() {
 // the once-a-day rollover.
 let _calendarRenderedDay = toDateInputValue(new Date());
 function checkCalendarDayRollover() {
-  if (toDateInputValue(new Date()) === _calendarRenderedDay) return;
+  const today = toDateInputValue(new Date());
+  if (today === _calendarRenderedDay) return;
+  // The `today` highlight is recomputed on render, but `selected` follows its own
+  // variable. If the user hadn't manually picked another day (selection was still
+  // pinned to the day that was "today" until now), carry the selection forward so
+  // the rollover doesn't strand a stale `selected` cell one day behind `today` —
+  // the "two highlighted days" a dashboard left open past midnight showed.
+  if (selectedCalendarDate === _calendarRenderedDay) selectedCalendarDate = today;
   renderCalendar();       // recomputes `today`; also refreshes _calendarRenderedDay
 }
 
@@ -358,13 +365,56 @@ function renderDayModalEvents() {
     }
     item.appendChild(top);
     if (event.notes) {
-      const meta = document.createElement('div');
-      meta.className = 'event-meta';
-      meta.textContent = event.notes;
-      item.appendChild(meta);
+      item.appendChild(buildEventNote(event.notes));
     }
     list.appendChild(item);
   });
+}
+
+// An event note is the one place the calendar holds text worth taking away —
+// meeting links, IDs, passcodes, a room number. Two things were in the way: the
+// kiosk body sets `user-select: none` (right for a touchscreen, where dragging a
+// tile must not select text), and the note is clamped to one line, so most of it
+// could not even be read. So: the text opts back into selection, a tap expands
+// the clamp, and a copy button takes the whole note in one go — the only path
+// that works on the Edge's touchscreen, where a precise drag-select does not.
+function buildEventNote(notes) {
+  const meta = document.createElement('div');
+  meta.className = 'event-meta';
+
+  const text = document.createElement('div');
+  text.className = 'event-note-text';
+  text.textContent = notes;                       // untrusted (ICS feeds, AI) — never innerHTML
+  text.title = t('event_note_expand');
+  text.onclick = () => text.classList.toggle('expanded');
+
+  const copy = document.createElement('button');
+  copy.type = 'button';
+  copy.className = 'event-note-copy';
+  copy.title = t('event_note_copy');
+  copy.setAttribute('aria-label', t('event_note_copy'));
+  copy.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  copy.onclick = async () => {
+    if (await copyText(notes)) flashEventNoteCopied(copy);
+  };
+
+  meta.append(text, copy);
+  return meta;
+}
+
+// Swap the copy icon for a check for a moment, so the tap has an answer.
+function flashEventNoteCopied(btn) {
+  if (btn._resetTimer) clearTimeout(btn._resetTimer);
+  if (!btn._icon) btn._icon = btn.innerHTML;
+  btn.classList.add('is-copied');
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>';
+  btn.title = t('event_note_copied');
+  btn._resetTimer = setTimeout(() => {
+    btn.classList.remove('is-copied');
+    btn.innerHTML = btn._icon;
+    btn.title = t('event_note_copy');
+    btn._resetTimer = null;
+  }, 1400);
 }
 
 function selectCalendarDate(dateValue) {

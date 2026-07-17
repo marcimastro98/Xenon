@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { mkdtempSync, rmSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import fs from 'node:fs';
 import { tmpdir } from 'node:os';
 
 // Tests for the shared durable-store write primitive: atomic replace,
@@ -89,6 +90,47 @@ test('updateFileAtomic returning null leaves the file untouched', async () => {
     await updateFileAtomic(file, () => null);
     assert.equal(readFileSync(file, 'utf8'), 'keep');
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('a transient Windows lock on the rename (EPERM) is retried, not lost', async () => {
+  // Reproduces the "settings never persist" bug: another process (AV scan, the
+  // Search indexer, a concurrent reader of the same store) briefly held the
+  // destination open, so the temp→file rename threw EPERM on Windows. The old
+  // single-attempt rename failed the whole write; it must now retry and land.
+  const dir = freshDir();
+  const realRename = fs.promises.rename;
+  try {
+    const file = join(dir, 'store.json');
+    let calls = 0;
+    fs.promises.rename = async (from, to) => {
+      calls += 1;
+      if (calls <= 2) { const e = new Error('EPERM: operation not permitted, rename'); e.code = 'EPERM'; throw e; }
+      return realRename(from, to);
+    };
+    await writeFileAtomic(file, '{"saved":true}');
+    assert.equal(calls, 3, 'should have retried the rename past the transient locks');
+    assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { saved: true });
+    assert.deepEqual(readdirSync(dir), ['store.json'], 'no temp file left behind');
+  } finally {
+    fs.promises.rename = realRename;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a non-lock rename error is NOT retried and surfaces immediately', async () => {
+  const dir = freshDir();
+  const realRename = fs.promises.rename;
+  try {
+    const file = join(dir, 'store.json');
+    let calls = 0;
+    fs.promises.rename = async () => { calls += 1; const e = new Error('ENOSPC: no space left'); e.code = 'ENOSPC'; throw e; };
+    await assert.rejects(() => writeFileAtomic(file, 'x'), /ENOSPC/);
+    assert.equal(calls, 1, 'a genuine error must fail fast, not spin the retry loop');
+    assert.deepEqual(readdirSync(dir), [], 'temp file cleaned up on failure');
+  } finally {
+    fs.promises.rename = realRename;
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('concurrent read-modify-write updates never lose each other (token-store race)', async () => {

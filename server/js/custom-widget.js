@@ -17,6 +17,7 @@
   const ICONS = {
     puzzle: S('<path d="M14 7h4a1 1 0 0 1 1 1v3.5a1.5 1.5 0 0 0 0 3V18a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 1-3 0H8a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 1 0-3V8a1 1 0 0 1 1-1h3.5a1.5 1.5 0 0 1 3 0Z"/>'),
     swap: S('<path d="M16 3h5v5M21 3l-7 7M8 21H3v-5M3 21l7-7"/>'),
+    reload: S('<path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/>'),
   };
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
   const el = makeEl;   // shared DOM factory from utils.js
@@ -40,7 +41,84 @@
     streamerbot: ['sbDoAction', 'sbSendMessage', 'sbCodeTrigger'],
     url: ['openUrl'],
     tasks: ['taskAdd', 'taskToggle', 'taskDelete'],
+    soundboard: ['playSound', 'soundStopAll'],
   };
+  // The only playSound.file shape an SDK widget may use — an installed sound
+  // pack's clip, never an arbitrary local path (that stays a Deck-key-only
+  // privilege). Mirrors SDK_SOUND_FILE_RE in server/sdk-widgets.js.
+  const SDK_SOUND_FILE_RE = /^packs\/[a-z0-9][a-z0-9-]{1,40}\/[a-z0-9][a-z0-9_-]{0,40}\.(?:mp3|ogg|wav)$/;
+
+  // ── User-filled host slots (manifest `userHosts`) ─────────────────
+  // A widget that talks to hardware on YOUR network — a NAS, Docker, a printer —
+  // cannot know its address in advance, so its manifest declares a labelled
+  // blank and the user types the address in the permission dialog. These three
+  // mirror sdk-widgets.js (HOSTNAME_RE / isForbiddenProxyHost /
+  // isPrivateNetworkHost) so the field can say "that address won't work" while
+  // the user is still looking at it, instead of letting Allow succeed and the
+  // widget silently fail later. The SERVER is the authority — resolveUserHosts
+  // re-validates every stored value on every proxied request, so a mistake here
+  // costs a bad error message, never a widened allowlist.
+  const CW_HOSTNAME_RE = /^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?)*$/;
+  function cwForbiddenHost(host) {
+    return host === 'localhost' || host.endsWith('.localhost') || host === '0.0.0.0'
+      || /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host) || /^169\.254\.\d{1,3}\.\d{1,3}$/.test(host);
+  }
+  function cwPrivateHost(host) {
+    if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+    if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+    if (/^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+    if (host.endsWith('.local')) return true;
+    return !host.includes('.');
+  }
+  // Turn what a person actually pastes — "192.168.1.50:32400", "nas.local",
+  // "https://plex.example.com/web" — into the { host, port, scheme } triple the
+  // grant stores. Returns { ok:false, error } with the reason to show them.
+  function parseUserHost(text, scope) {
+    const raw = String(text == null ? '' : text).trim();
+    if (!raw) return { ok: false, error: 'empty' };
+    const explicitHttps = /^https:\/\//i.test(raw);
+    let u;
+    try { u = new URL(/^https?:\/\//i.test(raw) ? raw : 'http://' + raw); } catch { return { ok: false, error: 'bad' }; }
+    const host = u.hostname.toLowerCase().replace(/\.$/, '');
+    if (!host || host.length > 253 || !CW_HOSTNAME_RE.test(host)) return { ok: false, error: 'bad' };
+    if (cwForbiddenHost(host)) return { ok: false, error: 'forbidden' };
+    const priv = cwPrivateHost(host);
+    if (scope === 'private' && !priv) return { ok: false, error: 'not_private' };
+    const port = u.port ? Number(u.port) : 0;
+    if (u.port && !(Number.isInteger(port) && port >= 1 && port <= 65535)) return { ok: false, error: 'bad' };
+    // Mirror the proxy's rule rather than restate it: plain http reaches LAN
+    // gear only, so a public host is always https whatever was typed.
+    return { ok: true, value: { host, port, scheme: priv ? (explicitHttps ? 'https' : 'http') : 'https' } };
+  }
+  // The address as the user should see it back in the field when they reopen the
+  // dialog — the same text parseUserHost would accept.
+  function formatUserHost(v) {
+    if (!v || !v.host) return '';
+    const scheme = v.scheme === 'https' ? 'https://' : '';
+    return scheme + v.host + (v.port ? ':' + v.port : '');
+  }
+  // Client mirror of sdk-widgets.js resolveUserHosts — the extra hostnames the
+  // bridge accepts for this package, plus the ready-to-use base each slot hands
+  // the widget. Same skip-invalid-quietly rule: a value that no longer passes
+  // reads as "not configured", never as an error.
+  function resolvedUserHosts(pkg, grant) {
+    const slots = Array.isArray(pkg && pkg.userHosts) ? pkg.userHosts : [];
+    const values = (grant && grant.userHosts) || {};
+    const byId = {};
+    const hosts = [];
+    for (const slot of slots) {
+      const v = values[slot.id];
+      const host = v && typeof v.host === 'string' ? v.host.toLowerCase() : '';
+      if (!host || cwForbiddenHost(host) || !CW_HOSTNAME_RE.test(host)) continue;
+      const priv = cwPrivateHost(host);
+      if (slot.scope === 'private' && !priv) continue;
+      const scheme = priv ? (v.scheme === 'https' ? 'https' : 'http') : 'https';
+      const port = Number.isInteger(v.port) && v.port >= 1 && v.port <= 65535 ? v.port : 0;
+      byId[slot.id] = { host, port, scheme, base: scheme + '://' + host + (port ? ':' + port : '') };
+      if (!hosts.includes(host)) hosts.push(host);
+    }
+    return { byId, hosts };
+  }
   const STREAM_LABELS = {
     status: ['cw_stream_status', 'System status (mic, game mode)'],
     system: ['cw_stream_system', 'System sensors (CPU, GPU, RAM)'],
@@ -53,6 +131,9 @@
     claude: ['cw_stream_claude', 'Claude Code usage'],
     obs: ['cw_stream_obs', 'OBS status (scene, recording)'],
     discord: ['cw_stream_discord', 'Discord voice status'],
+    discordChannels: ['cw_stream_discord_channels', 'Discord servers, voice channels and members'],
+    discordSoundboard: ['cw_stream_discord_soundboard', 'Discord soundboard catalog'],
+    discordNotifications: ['cw_stream_discord_notifications', 'Discord notification content (DMs and mentions)'],
     streamerbot: ['cw_stream_streamerbot', 'Streamer.bot status & events'],
     homeassistant: ['cw_stream_homeassistant', 'Home Assistant device states'],
     tasks: ['cw_stream_tasks', 'Your task list'],
@@ -76,10 +157,75 @@
     streamerbot: ['cw_act_streamerbot', 'Trigger Streamer.bot actions'],
     url: ['cw_act_url', 'Open web links on this PC'],
     tasks: ['cw_act_tasks', 'Add and complete your to-do tasks'],
+    soundboard: ['cw_act_soundboard', 'Play clips from your installed sound packs'],
   };
   const ACTION_MIN_INTERVAL_MS = 250;   // per-instance action rate limit
   const FETCH_MIN_INTERVAL_MS = 1000;   // per-instance proxied-fetch rate limit
+  const REFRESH_MIN_INTERVAL_MS = 900;  // per-instance local-stream refresh rate limit
   const STATE_MIN_INTERVAL_MS = 150;    // per-instance deck-state publish rate limit
+  const ISLAND_MIN_INTERVAL_MS = 200;   // per-instance island text update rate limit
+  const ISLAND_TEXT_MAX = 160;          // island line hard cap (host-rendered textContent)
+  const BADGE_MIN_INTERVAL_MS = 500;    // per-instance badge chip update rate limit
+  const BADGE_TEXT_MAX = 20;            // badge chip hard cap — small persistent pill, not a sentence
+  const BADGE_TOOLTIP_MAX = 48;         // badge tooltip (title attribute) hard cap
+  const BADGE_ICON_MAX = 8;             // badge glyph cap — same bound as a deck state's icon meta
+
+  // Rich Discord data does not ride the high-frequency SSE voice stream. A
+  // widget may ask the host to refresh one of these fixed, same-origin sources;
+  // it can never supply a URL. This keeps the iframe's network kill-switch
+  // intact while making private notification content a separate visible grant.
+  const LOCAL_STREAM_LOADERS = Object.freeze({
+    discordChannels: Object.freeze({ ttl: 5000, load: async () => {
+      const [catalog, roster] = await Promise.all([
+        api('/stream/discord/channels'),
+        api('/stream/discord/roster'),
+      ]);
+      const byId = new Map();
+      if (catalog && Array.isArray(catalog.channels)) {
+        catalog.channels.forEach((c) => {
+          if (c && c.id != null) byId.set(String(c.id), { id: String(c.id), name: c.name || '', guild: c.guild || '', members: [] });
+        });
+      }
+      if (roster && Array.isArray(roster.channels)) {
+        roster.channels.forEach((c) => {
+          if (!c || c.id == null) return;
+          const id = String(c.id);
+          const prev = byId.get(id) || { id, name: c.name || '', guild: c.guild || '', members: [] };
+          prev.name = c.name || prev.name;
+          prev.guild = c.guild || prev.guild;
+          prev.members = Array.isArray(c.members) ? c.members : [];
+          byId.set(id, prev);
+        });
+      }
+      return { ok: !!((catalog && catalog.ok) || (roster && roster.ok)), channels: Array.from(byId.values()) };
+    } }),
+    discordSoundboard: Object.freeze({ ttl: 60000, load: async () => {
+      const data = await api('/stream/discord/sounds');
+      return { ok: !!(data && data.ok), sounds: (data && Array.isArray(data.sounds)) ? data.sounds : [] };
+    } }),
+    discordNotifications: Object.freeze({ ttl: 5000, load: async () => {
+      const data = await api('/stream/discord/notifications');
+      return data && typeof data === 'object'
+        ? data
+        : { ok: false, enabled: false, hide: true, state: 'offline', items: [] };
+    } }),
+  });
+  const localStreamLoadedAt = Object.create(null);
+  const localStreamInflight = Object.create(null);
+
+  // Reference widgets bundled in the app tree (server/sdk-example/), installable
+  // with one tap via POST /sdk/widgets/example. The server holds the
+  // authoritative id→folder allowlist (EXAMPLE_WIDGETS in server.js); these ids
+  // must match it. They install as origin 'builtin' — usable and updatable, but
+  // never re-exportable as the user's own work.
+  // `desc` mirrors each package's manifest description verbatim — an installed
+  // package's row shows the manifest text as-is (untranslated), so an example's
+  // row reads identically before and after installing.
+  const EXAMPLES = [
+    { id: 'hello-xenon', name: 'Hello Xenon', desc: 'Reference SDK widget: live clock, CPU/GPU/RAM readout and media keys. Use it as the starting point for your own widget.' },
+    { id: 'teleprompter', name: 'Teleprompter', desc: 'Write a script, play it as big auto-scrolling prompter text. Deck keys control play/pause, speed and reset; in the minimal topbar the current line appears in the dynamic island.' },
+    { id: 'github-stars', name: 'GitHub Stars', desc: 'Shows a GitHub repository\'s live star count, as a tile and as a small badge next to the clock. Configure the repo once; it refreshes automatically.' },
+  ];
 
   let pkgCache = null;        // last /sdk/widgets result ({packages, invalid})
   let pkgFetchPromise = null; // in-flight /sdk/widgets fetch (shared by callers)
@@ -89,7 +235,15 @@
   // skip them (AmbientMode owns their lifecycle).
   const AMBIENT_INST_ID = '__ambient-scene__';
   const frames = new Map();
+  // Bumped on every Rescan / manual reload so a re-mount actually reloads the
+  // widget's files. Widget assets are served no-cache+ETag, but the iframe src is
+  // otherwise identical across edits, so an already-mounted frame (especially on
+  // the Xeneon Edge, which the developer can't hard-refresh like a browser tab)
+  // would keep showing the version it first loaded. Appending ?v=<assetVersion>
+  // to the src, and re-mounting when it changes, gives widget devs a live reload.
+  let assetVersion = 1;
   const lastData = {};        // stream → last payload (seed for late frames)
+  let discordSeedInflight = null;   // shared one-shot seed of the `discord` stream
   // Deck states published by widgets over the bridge, keyed "pkg/stateId".
   // Authoritative copy — pushed wholesale into the Deck snapshot on change.
   const sdkStates = {};
@@ -98,9 +252,16 @@
 
   function tiles() { return Array.from(document.querySelectorAll('[data-dashboard-widget="custom"]')).filter(n => n.closest('.pager-page')); }
 
+  // Identity comes from the ATOM (data-dashboard-instance, set on every
+  // duplicated copy; the primary has none → base id), NEVER from the enclosing
+  // .grid-stack-item's gs-id: inside a tab group that item is the GROUP's
+  // (gs-id "g-…"), so every member would collapse onto one shared key — the
+  // assignment "vanished" into an unreachable key when a tile joined a group,
+  // two custom tabs fought over one slot, and unassigning one killed both.
+  // Standalone tiles are unaffected: a primary's gs-id IS the base id and a
+  // copy's gs-id IS its data-dashboard-instance, so stored keys keep working.
   function instanceIdOf(tile) {
-    const item = tile.closest('.grid-stack-item');
-    return (item && item.getAttribute('gs-id')) || 'custom';
+    return tile.getAttribute('data-dashboard-instance') || 'custom';
   }
 
   function sdk() {
@@ -122,6 +283,9 @@
   // an early-return here used to silently skip the rescan of a just-installed
   // package.
   async function fetchPackages(force) {
+    // A forced fetch is a Rescan / (re)install — the files on disk may have
+    // changed, so bump the asset version to force mounted frames to reload them.
+    if (force) assetVersion++;
     if (pkgFetchPromise) {
       await pkgFetchPromise;
       if (!force) return;
@@ -144,10 +308,89 @@
   }
 
   // ── Theme payload (host → widget) ────────────────────────────────
-  function themePayload() {
+  // A widget themes itself from `appearance` (light/dark). data-appearance is a
+  // pipeline flag, not necessarily the visible surface — an imported theme may
+  // pair an old `appearance` hint with a completely different panel colour.
+  // Derive appearance from the ACTUAL panel/background luminance so a widget
+  // always matches the surface it sits on under any skin.
+  function surfaceAppearance() {
+    try {
+      const cs = getComputedStyle(document.documentElement);
+      let s = cs.getPropertyValue('--panel-rgb').trim() || cs.getPropertyValue('--bg').trim();
+      let r, g, b;
+      if (s.charAt(0) === '#') {
+        const h = s.length === 4 ? s.slice(1).replace(/./g, (c) => c + c) : s.slice(1);
+        r = parseInt(h.slice(0, 2), 16); g = parseInt(h.slice(2, 4), 16); b = parseInt(h.slice(4, 6), 16);
+      } else {
+        const m = s.match(/(\d+)\D+(\d+)\D+(\d+)/);
+        if (m) { r = +m[1]; g = +m[2]; b = +m[3]; }
+      }
+      if (r == null || Number.isNaN(r)) return document.documentElement.getAttribute('data-appearance') || 'dark';
+      return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6 ? 'light' : 'dark';
+    } catch { return document.documentElement.getAttribute('data-appearance') || 'dark'; }
+  }
+  function themePayload(entry) {
     const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings : {};
+    let p = (typeof window.getEffectiveThemePalette === 'function')
+      ? window.getEffectiveThemePalette()
+      : null;
+    let overrides = [];
+    // CSS custom properties do not cross an iframe document boundary. Read the
+    // final computed tokens from the frame element itself so a custom SDK widget
+    // receives the palette of its own tile, including any per-widget override.
+    // Service/Ambient frames simply inherit the global tokens through the same
+    // path. `_xenonThemeOverrides` is host-only metadata used by generated
+    // widgets to preserve an authored accent unless the tile explicitly changes
+    // it; third-party widgets may ignore it and consume the effective palette.
+    if (entry && entry.frame && window.ThemePalette) {
+      try {
+        const cs = getComputedStyle(entry.frame);
+        const read = (name, fallback) => ThemePalette.normalizeHex(cs.getPropertyValue(name), fallback);
+        const base = p || ThemePalette.derive({
+          accent: hs.accent, background: hs.background, text: hs.text,
+          contrastGuard: hs.contrastGuard,
+        }, surfaceAppearance());
+        const local = {
+          tone: ThemePalette.toneFor(read('--surface', base.surface)),
+          guard: base.guard,
+          background: read('--bg', base.background),
+          surface: read('--surface', base.surface),
+          surfaceAlt: read('--surface-alt', base.surfaceAlt),
+          control: read('--control-bg', base.control),
+          text: read('--text', base.text),
+          muted: read('--muted-text', base.muted),
+          dim: read('--dim-text', base.dim),
+          line: read('--line', base.line),
+          accent: read('--accent', base.accent),
+          onAccent: read('--on-accent', base.onAccent),
+          success: read('--color-success', base.success),
+          onSuccess: read('--on-success', base.onSuccess),
+          warning: read('--color-warn', base.warning),
+          onWarning: read('--on-warning', base.onWarning),
+          danger: read('--color-danger', base.danger),
+          onDanger: read('--on-danger', base.onDanger),
+          info: read('--color-info', base.info),
+          onInfo: read('--on-info', base.onInfo),
+        };
+        p = local;
+        const tile = entry.frame.closest('.grid-stack-item');
+        if (tile && Array.isArray(tile._xenonThemeOverrides)) overrides = tile._xenonThemeOverrides.slice();
+      } catch { /* detached frame: use the global palette below */ }
+    }
+    if (p) {
+      const palette = {
+        background: p.background, surface: p.surface, surfaceAlt: p.surfaceAlt, control: p.control,
+        text: p.text, muted: p.muted, dim: p.dim, line: p.line,
+        accent: p.accent, onAccent: p.onAccent,
+        success: p.success, onSuccess: p.onSuccess,
+        warning: p.warning, onWarning: p.onWarning,
+        danger: p.danger, onDanger: p.onDanger,
+        info: p.info, onInfo: p.onInfo,
+      };
+      return { appearance: p.tone, overrides, ...palette, palette };
+    }
     return {
-      appearance: document.documentElement.getAttribute('data-appearance') || 'dark',
+      appearance: surfaceAppearance(),
       accent: typeof hs.accent === 'string' ? hs.accent : '#1ed760',
       background: typeof hs.background === 'string' ? hs.background : '#070808',
       text: typeof hs.text === 'string' ? hs.text : '#f0f3f1',
@@ -173,6 +416,34 @@
       if (entry.frame && entry.frame.contentWindow) entry.frame.contentWindow.postMessage({ xenonSdk: 1, ...msg }, '*');
     } catch { /* frame mid-teardown */ }
   }
+
+  // Tell a widget its tile's pixel box + devicePixelRatio, so it can scale its
+  // content to fit (see the "scale to fit" pattern in docs/WIDGET_SDK.md). This is
+  // what lets a widget look IDENTICAL on the desktop browser and the Xeneon Edge —
+  // the two surfaces give a tile a different pixel size and DPR, and viewport
+  // units (vw/vh) resolve against the iframe's own box, so a fixed-design widget
+  // scales by width/REF instead of reflowing. Change-detected (no spam), sent on
+  // mount and on every tile resize via a per-entry ResizeObserver.
+  function postSize(entry) {
+    if (!entry || !entry.ready || !entry.frame) return;
+    let r;
+    try { r = entry.frame.getBoundingClientRect(); } catch { return; }
+    const width = Math.round(r.width);
+    const height = Math.round(r.height);
+    if (!width || !height) return;   // not laid out / hidden — skip
+    const dpr = window.devicePixelRatio || 1;
+    if (entry.szW === width && entry.szH === height && entry.szDpr === dpr) return;
+    entry.szW = width; entry.szH = height; entry.szDpr = dpr;
+    post(entry, { type: 'size', width, height, dpr });
+  }
+  // Attach a ResizeObserver that lives ONLY on the entry (no shared registry), so
+  // when the entry is dropped from `frames` and its frame from the DOM the whole
+  // graph is unreferenced and GC'd — no leak, no explicit teardown at the ~13
+  // frame-removal sites. No-op where ResizeObserver is unavailable.
+  function observeSize(entry) {
+    if (typeof ResizeObserver === 'undefined' || entry.ro) return;
+    try { entry.ro = new ResizeObserver(() => postSize(entry)); entry.ro.observe(entry.frame); } catch { /* ignore */ }
+  }
   function grantsFor(pkgId) {
     const g = sdk().grants;
     const grant = (g && typeof g === 'object') ? g[pkgId] : null;
@@ -182,11 +453,68 @@
       hosts: (grant && Array.isArray(grant.hosts)) ? grant.hosts : [],
       hooks: (grant && Array.isArray(grant.hooks)) ? grant.hooks : [],
       handlers: (grant && Array.isArray(grant.handlers)) ? grant.handlers : [],
+      storage: !!(grant && grant.storage === true),
+      secrets: !!(grant && grant.secrets === true),
+      island: !!(grant && grant.island === true),
+      badge: !!(grant && grant.badge === true),
+      // Addresses the user typed into the package's userHosts slots, keyed by
+      // slot id. Raw — resolvedUserHosts() applies the manifest's rules.
+      userHosts: (grant && grant.userHosts && typeof grant.userHosts === 'object' && !Array.isArray(grant.userHosts)) ? grant.userHosts : {},
     };
   }
   function actionAllowed(grant, action) {
     if (!action || typeof action !== 'object' || typeof action.type !== 'string') return false;
     return grant.actions.some(cat => (ACTION_CATEGORIES[cat] || []).includes(action.type));
+  }
+
+  function entryCanRefreshLocalStream(entry) {
+    if (!entry || entry.service || document.hidden || !entry.frame || !entry.frame.isConnected) return false;
+    if (entry.ambient) return true;
+    try { return onVisiblePage(entry.frame) && entry.frame.getClientRects().length > 0; }
+    catch { return false; }
+  }
+
+  async function loadLocalStream(stream, force) {
+    const spec = LOCAL_STREAM_LOADERS[stream];
+    if (!spec) return null;
+    const now = Date.now();
+    if (!force && lastData[stream] !== undefined && now - (localStreamLoadedAt[stream] || 0) < spec.ttl) {
+      return lastData[stream];
+    }
+    if (!localStreamInflight[stream]) {
+      localStreamInflight[stream] = Promise.resolve(spec.load()).then((payload) => {
+        localStreamLoadedAt[stream] = Date.now();
+        onData(stream, payload);
+        return payload;
+      }).finally(() => { localStreamInflight[stream] = null; });
+    }
+    return localStreamInflight[stream];
+  }
+
+  async function onBridgeRefresh(entry, grant, msg) {
+    const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
+    const stream = typeof msg.stream === 'string' ? msg.stream : '';
+    if (!grant.streams.includes(stream) || !LOCAL_STREAM_LOADERS[stream]) {
+      post(entry, { type: 'refresh_result', id: reqId, stream, ok: false, error: 'not_allowed' });
+      return;
+    }
+    if (!entryCanRefreshLocalStream(entry)) {
+      post(entry, { type: 'refresh_result', id: reqId, stream, ok: false, error: 'not_visible' });
+      return;
+    }
+    const now = Date.now();
+    if (!entry.lastRefresh) entry.lastRefresh = Object.create(null);
+    if (now - (entry.lastRefresh[stream] || 0) < REFRESH_MIN_INTERVAL_MS) {
+      post(entry, { type: 'refresh_result', id: reqId, stream, ok: false, error: 'rate_limited' });
+      return;
+    }
+    entry.lastRefresh[stream] = now;
+    try {
+      const payload = await loadLocalStream(stream, msg.force === true);
+      post(entry, { type: 'refresh_result', id: reqId, stream, ok: !!(payload && payload.ok), error: payload && payload.ok ? undefined : 'unavailable' });
+    } catch {
+      post(entry, { type: 'refresh_result', id: reqId, stream, ok: false, error: 'offline' });
+    }
   }
 
   async function onBridgeAction(entry, grant, msg) {
@@ -199,6 +527,26 @@
     entry.lastAction = now;
     if (!actionAllowed(grant, msg.action)) {
       post(entry, { type: 'action_result', id: reqId, ok: false, error: 'not_allowed' });
+      return;
+    }
+    // Soundboard is browser-played (no server registry case): dispatch to
+    // deck.js's shared player on THIS surface. SDK-originated playSound may
+    // only name an installed pack's clip — the pack-relative regex is the gate.
+    if (msg.action.type === 'playSound' || msg.action.type === 'soundStopAll') {
+      let ok = false;
+      if (!window.DeckSoundPlayer) {
+        post(entry, { type: 'action_result', id: reqId, ok: false, error: 'unavailable' });
+        return;
+      }
+      if (msg.action.type === 'soundStopAll') {
+        ok = !!DeckSoundPlayer.stopAll();
+      } else if (SDK_SOUND_FILE_RE.test(String(msg.action.file || ''))) {
+        ok = !!(await DeckSoundPlayer.play(msg.action));
+      } else {
+        post(entry, { type: 'action_result', id: reqId, ok: false, error: 'not_allowed' });
+        return;
+      }
+      post(entry, { type: 'action_result', id: reqId, ok, error: ok ? undefined : 'failed' });
       return;
     }
     const d = await api('/actions/run', {
@@ -221,7 +569,10 @@
     entry.lastFetch = now;
     let host = '';
     try { host = new URL(String(msg.url || '')).hostname.toLowerCase().replace(/\.$/, ''); } catch { /* fall through */ }
-    if (!host || !grant.hosts.includes(host)) { reply({ ok: false, error: 'host_not_allowed' }); return; }
+    // Declared hosts the user approved, plus the addresses they typed into the
+    // package's userHosts slots (filling a slot IS the approval).
+    const filled = resolvedUserHosts(packageById(entry.pkgId), grant).hosts;
+    if (!host || !(grant.hosts.includes(host) || filled.includes(host))) { reply({ ok: false, error: 'host_not_allowed' }); return; }
     const d = await api('/sdk/fetch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -229,6 +580,40 @@
     });
     if (!d) { reply({ ok: false, error: 'offline' }); return; }
     reply({ ok: !!d.ok, status: d.status, contentType: d.contentType, location: d.location, encoding: d.encoding, body: d.body, error: d.error });
+  }
+
+  // Persistent store relay: the sandboxed frame has no localStorage, so the host
+  // relays get/set/delete/keys/clear to POST /sdk/store, where the server scopes
+  // the data to the package (or its shared storageGroup) and enforces the caps.
+  // The grant check here is the consent half; the server re-checks the grant and
+  // the manifest `storage` flag (authority). Reply carries the op result verbatim.
+  async function onBridgeStore(entry, grant, msg) {
+    const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
+    const reply = (extra) => post(entry, Object.assign({ type: 'store_result', id: reqId }, extra));
+    if (!grant.storage) { reply({ ok: false, error: 'not_granted' }); return; }
+    const d = await api('/sdk/store', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pkg: entry.pkgId, op: msg.op }),
+    });
+    if (!d) { reply({ ok: false, error: 'offline' }); return; }
+    reply({ ok: !!d.ok, value: d.value, keys: d.keys, error: d.error });
+  }
+
+  // Secret vault relay: SET/DELETE a named key, or LIST names / test existence.
+  // A read NEVER carries a value back (the server won't return one) — secrets are
+  // consumed only by {{secret:NAME}} substitution inside the fetch proxy.
+  async function onBridgeSecret(entry, grant, msg) {
+    const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
+    const reply = (extra) => post(entry, Object.assign({ type: 'secret_result', id: reqId }, extra));
+    if (!grant.secrets) { reply({ ok: false, error: 'not_granted' }); return; }
+    const d = await api('/sdk/secret', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pkg: entry.pkgId, op: msg.op }),
+    });
+    if (!d) { reply({ ok: false, error: 'offline' }); return; }
+    reply({ ok: !!d.ok, names: d.names, has: d.has, error: d.error });
   }
 
   // Deck state publish: a widget may only publish state ids DECLARED in its
@@ -293,6 +678,86 @@
     }, wait);
   }
 
+  // Island projection: a widget with the `island` capability may show ONE short
+  // plain-text line — plus an optional dimmed follow-up line (`next`) — in the
+  // minimal-topbar dynamic island. Same trust shape as onBridgeState — manifest
+  // declaration + user grant, values coerced to bounded plain strings,
+  // host-rendered via textContent (SdkIsland). Updates are coalesced by a
+  // per-entry trailing flush so a rapid burst lands its LATEST text instead of
+  // being dropped. The text never leaves this page.
+  function onBridgeIsland(entry, grant, msg) {
+    const pkg = packageById(entry.pkgId);
+    if (!pkg || pkg.island !== true || !grant.island) return;
+    const coerce = (v) => String(v == null ? '' : v)
+      .replace(/[\u0000-\u001f\u007f]/g, ' ')
+      .trim()
+      .slice(0, ISLAND_TEXT_MAX);
+    let text = coerce(msg.text);
+    let next = coerce(msg.next);
+    let badge = coerce(msg.badge).slice(0, 16);   // tiny corner chip (speed, %…)
+    if (msg.op === 'clear' || !text) { text = ''; next = ''; badge = ''; }
+    entry.islandText = text;   // latest wins; the flush reads this
+    entry.islandNext = next;
+    entry.islandBadge = badge;
+    if (entry.islandFlushTimer) return;   // a flush is pending; it carries the latest text
+    const since = Date.now() - (entry.islandFlushAt || 0);
+    const wait = since >= ISLAND_MIN_INTERVAL_MS ? 0 : (ISLAND_MIN_INTERVAL_MS - since);
+    entry.islandFlushTimer = setTimeout(() => {
+      entry.islandFlushTimer = null;
+      entry.islandFlushAt = Date.now();
+      if (!window.SdkIsland) return;
+      if (entry.islandText) SdkIsland.show(entry.pkgId, entry.islandText, entry.islandNext, entry.islandBadge);
+      else SdkIsland.clear(entry.pkgId);
+    }, wait);
+  }
+
+  // Persistent badge chip: a widget with the `badge` capability may show a
+  // small always-on text chip next to the clock — unlike `island` (one shared
+  // slot, transient), several distinct granted packages may each hold a chip
+  // at once (capped host-side by SdkBadges). Same trust shape as
+  // onBridgeIsland: manifest + grant checked, bounded plain strings,
+  // host-rendered via textContent.
+  //
+  // `icon` + `color` are the optional display meta, the same shape (and the
+  // same strict hex test) a deck key's live badge already accepts from a
+  // widget — the glyph's colour is the widget's own identity (a star is gold,
+  // not accent green), and the host has no business guessing it from the text.
+  // A colour that isn't plain hex is dropped, never passed through: the chip
+  // then renders the glyph in the topbar's own text colour.
+  function onBridgeBadge(entry, grant, msg) {
+    const pkg = packageById(entry.pkgId);
+    if (!pkg || pkg.badge !== true || !grant.badge) return;
+    const coerce = (v, max) => {
+      const s = String(v == null ? '' : v);
+      let out = '';
+      for (let i = 0; i < s.length; i++) {
+        const c = s.charCodeAt(i);
+        out += (c <= 31 || c === 127) ? ' ' : s[i];
+      }
+      return out.trim().slice(0, max);
+    };
+    let text = coerce(msg.text, BADGE_TEXT_MAX);
+    let tooltip = coerce(msg.tooltip, BADGE_TOOLTIP_MAX);
+    let icon = coerce(msg.icon, BADGE_ICON_MAX);
+    const rawColor = String(msg.color == null ? '' : msg.color).trim();
+    let color = /^#[0-9a-fA-F]{3,8}$/.test(rawColor) ? rawColor : '';
+    if (msg.op === 'clear' || !text) { text = ''; tooltip = ''; icon = ''; color = ''; }
+    entry.badgeText = text;   // latest wins; the flush reads this
+    entry.badgeTooltip = tooltip;
+    entry.badgeIcon = icon;
+    entry.badgeColor = color;
+    if (entry.badgeFlushTimer) return;   // a flush is pending; it carries the latest text
+    const since = Date.now() - (entry.badgeFlushAt || 0);
+    const wait = since >= BADGE_MIN_INTERVAL_MS ? 0 : (BADGE_MIN_INTERVAL_MS - since);
+    entry.badgeFlushTimer = setTimeout(() => {
+      entry.badgeFlushTimer = null;
+      entry.badgeFlushAt = Date.now();
+      if (!window.SdkBadges) return;
+      if (entry.badgeText) SdkBadges.set(entry.pkgId, entry.badgeText, entry.badgeTooltip, entry.badgeIcon, entry.badgeColor);
+      else SdkBadges.clear(entry.pkgId);
+    }, wait);
+  }
+
   window.addEventListener('message', (e) => {
     const d = e.data;
     if (!d || typeof d !== 'object' || d.xenonSdk !== 1 || typeof d.type !== 'string') return;
@@ -305,23 +770,45 @@
       post(entry, {
         type: 'init',
         api: 1,
-        theme: themePayload(),
+        pkgId: entry.pkgId,   // the package id — lets a widget build /sdk/tile/<id> URLs
+        theme: themePayload(entry),
         lang: langCode(),
         streams: grant.streams.slice(),
         actions: grant.actions.slice(),
         hosts: grant.hosts.slice(),
+        // Addresses the user typed into this package's declared userHosts slots,
+        // keyed by slot id, each with a ready-to-use `base` to concatenate a
+        // path onto. A slot the user hasn't filled is simply absent.
+        userHosts: resolvedUserHosts(packageById(entry.pkgId), grant).byId,
         hooks: grant.hooks.slice(),
         handlers: grant.handlers.slice(),
+        storage: grant.storage,
+        secrets: grant.secrets,
       });
       grant.streams.forEach(stream => {
         if (lastData[stream] !== undefined) post(entry, { type: 'data', stream, data: lastData[stream] });
       });
+      // Push-on-change stream with no cold-start snapshot — fetch one, then it
+      // reaches this frame (and every other) through the normal onData fan-out.
+      if (grant.streams.includes('discord') && lastData.discord === undefined) seedDiscordStream();
+      entry.szW = entry.szH = entry.szDpr = undefined;   // force the first size to send
+      postSize(entry);   // initial tile size, now that the widget is listening
     } else if (d.type === 'action') {
       if (entry.ready) onBridgeAction(entry, grant, d);
     } else if (d.type === 'fetch') {
       if (entry.ready) onBridgeFetch(entry, grant, d);
+    } else if (d.type === 'refresh') {
+      if (entry.ready) onBridgeRefresh(entry, grant, d);
+    } else if (d.type === 'store') {
+      if (entry.ready) onBridgeStore(entry, grant, d);
+    } else if (d.type === 'secret') {
+      if (entry.ready) onBridgeSecret(entry, grant, d);
     } else if (d.type === 'state') {
       if (entry.ready) onBridgeState(entry, d);
+    } else if (d.type === 'island') {
+      if (entry.ready) onBridgeIsland(entry, grant, d);
+    } else if (d.type === 'badge') {
+      if (entry.ready) onBridgeBadge(entry, grant, d);
     } else if (d.type === 'handler_ack') {
       // The widget answered a dispatched deck-handler call. The sandboxed frame
       // has no network, so the HOST page relays the ack to the parked
@@ -336,11 +823,34 @@
     }
   });
 
+  // The user's own fan names (Fans widget → tap to rename, persisted in settings
+  // as fanLabels) must reach sandboxed widgets too: the board only ever says
+  // "Fan #1", so a widget seeing the raw sensor name shows a different label than
+  // every builtin surface for the same fan — and loses the ONE clue that a header
+  // drives a pump rather than a case fan (which is how a widget ends up painting
+  // a healthy AIO pump at permanent redline). Copy-on-write: the payload is
+  // shared with the builtin tiles, so it is never mutated in place.
+  function withFanLabels(payload) {
+    if (!payload || typeof payload !== 'object' || !Array.isArray(payload.fans)) return payload;
+    const labels = (typeof window.getFanLabels === 'function') ? window.getFanLabels() : null;
+    if (!labels) return payload;
+    let touched = false;
+    const fans = payload.fans.map((f) => {
+      if (!f || typeof f !== 'object') return f;
+      const custom = labels[(f.kind || 'mb') + '|' + String(f.name)];
+      if (typeof custom !== 'string' || !custom) return f;
+      touched = true;
+      return { ...f, name: custom };
+    });
+    return touched ? { ...payload, fans } : payload;
+  }
+
   // SSE relay (called from main.js): cache + fan out to granted, ready frames.
   // Always cache lastData so a frame returning to view gets fresh data on the next
   // tick, but don't post to a hidden tab or to a frame parked on a non-current pager
   // page — a sandboxed widget shouldn't re-render (or wake its timers) off-screen.
   function onData(stream, payload) {
+    if (stream === 'system') payload = withFanLabels(payload);
     lastData[stream] = payload;
     for (const [, entry] of frames) {
       // A background service frame is deliberately ALWAYS fed — even with the
@@ -359,6 +869,93 @@
         post(entry, { type: 'data', stream, data: payload });
       }
     }
+  }
+
+  // The `discord` stream is SSE push-ON-CHANGE: server.js emits it only when the
+  // voice state actually moves, so on a cold page nothing has ever been pushed and
+  // `lastData.discord` is undefined — a widget mounting then gets no seed at all
+  // and can only conclude "not linked", even with Discord open and the account
+  // linked. The builtin widget dodges this by seeding itself from the REST
+  // endpoints; an SDK widget is sandboxed with no network, so the HOST must seed
+  // the stream on its behalf — in the exact shape server.js broadcasts, or the
+  // widget would have to understand two payload dialects. One shared in-flight
+  // promise: several frames mounting together seed once.
+  async function seedDiscordStream() {
+    if (lastData.discord !== undefined || discordSeedInflight) return;
+    discordSeedInflight = (async () => {
+      try {
+        const s = await api('/stream/discord/status');
+        if (!s || lastData.discord !== undefined) return;
+        // `connected` is "the ACCOUNT is linked" on both sides: server.js derives it
+        // from voice.connected, which the RPC layer sets to the linked flag when the
+        // pipe is down and hardcodes true when it's up. status.connected is that same
+        // linked flag, so the two agree.
+        const connected = !!s.connected;
+        const voice = connected ? await api('/stream/discord/voice').catch(() => null) : null;
+        // A real push landing mid-fetch is fresher than this snapshot — let it win.
+        if (lastData.discord !== undefined) return;
+        const payload = {
+          connected,
+          login: s.login || '',
+          voice: (voice && typeof voice === 'object') ? voice : null,
+          notif: s.notif || 'off',
+        };
+        // NOT via onData: its fan-out drops frames whose pager page isn't on
+        // screen, which is a sound rule for a live stream (don't feed an offscreen
+        // widget 30 pushes a second) and exactly wrong for a cold-start snapshot.
+        // This resolves milliseconds into boot, before the pager has marked its
+        // active page, so every frame reads as invisible and the seed would be
+        // thrown away — and with lastData now set, nothing would ever retry: the
+        // widget sits on "not linked" for the whole session. A seed is a replay,
+        // like the hello one above, so it reaches every frame that asked for it.
+        lastData.discord = payload;
+        for (const [, entry] of frames) {
+          if (entry.ready && grantsFor(entry.pkgId).streams.includes('discord')) {
+            post(entry, { type: 'data', stream: 'discord', data: payload });
+          }
+        }
+      } catch { /* offline / Discord not configured → the widget's unlinked view is correct */ }
+      finally { discordSeedInflight = null; }
+    })();
+  }
+
+  // A page scrolling back into view brings its widgets back from the dead: while
+  // parked they were cut off from onData (see its visibility gate), so each one is
+  // showing whatever it last saw — possibly minutes old, and with no scheduled
+  // correction, because most of these feeds only push when something CHANGES.
+  // Hand every frame that just became visible the current snapshot of the streams
+  // it was granted; the values are already in hand, so this costs no network and
+  // the widget's own change-detection absorbs a repeat of what it already has.
+  function replayToVisibleFrames() {
+    if (document.hidden) return;
+    for (const [, entry] of frames) {
+      if (!entry.ready || entry.service || entry.ambient) continue;   // never gated → never stale
+      if (!onVisiblePage(entry.frame)) continue;
+      const streams = grantsFor(entry.pkgId).streams;
+      streams.forEach(stream => {
+        if (lastData[stream] !== undefined) post(entry, { type: 'data', stream, data: lastData[stream] });
+      });
+    }
+  }
+  window.addEventListener('xenon:page-change', replayToVisibleFrames);
+
+  // A live DM/mention is an event, while SDK widgets consume the notifications
+  // feed as a snapshot. Fold it into the cached snapshot and keep hide=true when
+  // no seed has been loaded yet, so private body text is never revealed by
+  // default merely because the first thing observed was a live event.
+  function onDiscordNotification(item) {
+    if (!item || typeof item !== 'object') return;
+    const prev = lastData.discordNotifications;
+    const items = (prev && Array.isArray(prev.items)) ? prev.items.slice() : [];
+    items.push(item);
+    if (items.length > 40) items.splice(0, items.length - 40);
+    onData('discordNotifications', {
+      ok: true,
+      enabled: true,
+      hide: prev ? !!prev.hide : true,
+      state: 'ok',
+      items,
+    });
   }
 
   // Local webhook event (SSE `sdk_hook`, relayed from main.js): forward to the
@@ -420,10 +1017,15 @@
       for (const pkg of ((pkgCache && pkgCache.packages) || [])) {
         if (count >= SERVICE_FRAMES_MAX) break;
         if (!pkg || pkg.background !== true) continue;
+        const grant = grantsFor(pkg.id);
+        // Two things outlive a tile and so justify a headless frame: granted deck
+        // handlers (keys must answer) and a granted badge (the chip must stay in
+        // the topbar, and keep refreshing, once the tile is gone). Nothing
+        // granted → no frame.
         const declared = (pkg.deck && Array.isArray(pkg.deck.handlers)) ? pkg.deck.handlers : [];
-        if (!declared.length) continue;
-        const granted = grantsFor(pkg.id).handlers;
-        if (!declared.some(h => granted.includes(h.id))) continue;   // nothing granted → no frame
+        const handlersLive = declared.some(h => grant.handlers.includes(h.id));
+        const badgeLive = pkg.badge === true && grant.badge;
+        if (!handlersLive && !badgeLive) continue;
         wanted.set('svc:' + pkg.id, pkg);
         count++;
       }
@@ -436,15 +1038,15 @@
     // Mount the missing ones.
     for (const [key, pkg] of wanted) {
       const existing = frames.get(key);
-      if (existing && existing.pkgId === pkg.id && existing.frame.isConnected) continue;
+      if (existing && existing.pkgId === pkg.id && existing.assetVersion === assetVersion && existing.frame.isConnected) continue;
       if (existing) { try { existing.frame.remove(); } catch {} frames.delete(key); }
       const frame = document.createElement('iframe');
       frame.className = 'cw-frame cw-frame--service';
       frame.setAttribute('sandbox', 'allow-scripts');
       frame.setAttribute('referrerpolicy', 'no-referrer');
       frame.title = pkg.name;
-      frame.src = '/sdk/widget/' + encodeURIComponent(pkg.id) + '/' + pkg.entry;
-      frames.set(key, { frame, pkgId: pkg.id, ready: false, lastAction: 0, service: true });
+      frame.src = '/sdk/widget/' + encodeURIComponent(pkg.id) + '/' + pkg.entry + '?v=' + assetVersion;
+      frames.set(key, { frame, pkgId: pkg.id, ready: false, lastAction: 0, service: true, assetVersion });
       serviceHost().appendChild(frame);
     }
   }
@@ -452,7 +1054,7 @@
   // Theme changed (called from settings.js after applyHubSettings).
   function refreshTheme() {
     for (const [, entry] of frames) {
-      if (entry.ready) post(entry, { type: 'theme', theme: themePayload() });
+      if (entry.ready) post(entry, { type: 'theme', theme: themePayload(entry) });
     }
   }
 
@@ -490,24 +1092,86 @@
     // addSection already renders the raw id via textContent when no label map
     // entry exists, so these reuse it with an empty label map.
     const hosts = Array.isArray(pkg.hosts) ? pkg.hosts : [];
+    const userHostSlots = Array.isArray(pkg.userHosts) ? pkg.userHosts : [];
     const hooks = Array.isArray(pkg.hooks) ? pkg.hooks : [];
     const deckMacros = (pkg.deck && Array.isArray(pkg.deck.actions)) ? pkg.deck.actions : [];
     const deckStates = (pkg.deck && Array.isArray(pkg.deck.states)) ? pkg.deck.states : [];
     const deckHandlers = (pkg.deck && Array.isArray(pkg.deck.handlers)) ? pkg.deck.handlers : [];
     const deckNames = deckMacros.map(m => m.name).concat(deckStates.map(s => s.name)).concat(deckHandlers.map(h => h.name));
+    const wantsStorage = pkg.storage === true;
+    const wantsSecrets = pkg.secrets === true;
+    const wantsIsland = pkg.island === true;
+    const wantsBadge = pkg.badge === true;
+    const storageGroup = typeof pkg.storageGroup === 'string' ? pkg.storageGroup : '';
     if (pkg.streams.length) addSection('cw_perm_streams', 'It can see:', pkg.streams, STREAM_LABELS);
     if (pkg.actions.length) addSection('cw_perm_actions', 'It can do:', pkg.actions, ACTION_LABELS);
     if (hosts.length) addSection('cw_perm_hosts', 'It can talk to (via Xenon):', hosts, {});
+    // Addresses the widget needs but cannot know: the author declared a labelled
+    // blank, the user fills it in here. Prefilled when re-opened, so this dialog
+    // doubles as the editor when a NAS changes address.
+    const userHostFields = [];
+    if (userHostSlots.length) {
+      panel.appendChild(el('div', 'cw-perm-sec', t('cw_perm_userhosts', 'Addresses you provide:')));
+      const box = el('div', 'cw-perm-fields');
+      const saved = grantsFor(pkg.id).userHosts || {};
+      userHostSlots.forEach(slot => {
+        const field = el('label', 'cw-perm-field');
+        field.appendChild(el('span', 'cw-perm-field-label', slot.label));
+        const input = el('input', 'cw-perm-input');
+        input.type = 'text';
+        input.spellcheck = false;
+        input.autocomplete = 'off';
+        input.placeholder = slot.scope === 'private' ? '192.168.1.50:8080' : 'example.com';
+        const prev = saved[slot.id];
+        if (prev) input.value = formatUserHost(prev);
+        const err = el('span', 'cw-perm-field-err');
+        field.append(input, err);
+        box.appendChild(field);
+        userHostFields.push({ slot, input, err });
+      });
+      panel.appendChild(box);
+      panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_userhosts_note', 'This widget needs an address only you know. Xenon will let it reach exactly what you type here and nothing else — never this PC itself.')));
+    }
     if (hooks.length) addSection('cw_perm_hooks', 'It can receive local events:', hooks, {});
     if (deckNames.length) addSection('cw_perm_deck', 'It adds to the Deck:', deckNames, {});
-    if (pkg.background === true && deckHandlers.length) {
-      panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_background', 'This widget can keep running hidden in the background so its Deck keys always answer.')));
+    // Storage + secrets: local-only capabilities. Storage is the widget's own
+    // settings on this PC (shared with sibling widgets when a group is named);
+    // secrets are API keys stored write-only — the widget can use them to reach
+    // its allowed servers but can never read them back.
+    if (wantsStorage) {
+      addSection('cw_perm_storage', 'It can save settings on this PC:', [
+        storageGroup ? t('cw_perm_storage_group', 'Shared with the "{g}" widget set').replace('{g}', storageGroup) : t('cw_perm_storage_own', 'Its own settings'),
+      ], {});
     }
-    if (!pkg.streams.length && !pkg.actions.length && !hosts.length && !hooks.length && !deckNames.length) {
+    if (wantsSecrets) {
+      addSection('cw_perm_secrets', 'It can store API keys (never shown back):', [t('cw_perm_secrets_val', 'Used only to reach the servers above')], {});
+    }
+    // Island projection: one short host-rendered text line in the minimal
+    // topbar's dynamic island. Plain text only — never markup, links or images.
+    if (wantsIsland) {
+      addSection('cw_perm_island', 'It can show a line in the top status island:', [t('cw_perm_island_val', 'Short text only — never links or images')], {});
+    }
+    // Persistent badge: a small always-on chip next to the clock (both topbar
+    // chromes), distinct from the transient island above — plain text only.
+    if (wantsBadge) {
+      addSection('cw_perm_badge', 'It can show a small badge next to the clock:', [t('cw_perm_badge_val', 'Short text only — never links or images')], {});
+    }
+    // Headless running. The manifest normalizer only keeps `background` when the
+    // package has something that outlives a tile (handlers and/or a badge), so
+    // name whichever it actually is rather than always saying "Deck keys".
+    if (pkg.background === true && (deckHandlers.length || wantsBadge)) {
+      const note = (deckHandlers.length && wantsBadge)
+        ? t('cw_perm_background_both', 'This widget can keep running hidden in the background, so its Deck keys always answer and its badge stays up to date with no tile on screen.')
+        : (wantsBadge
+          ? t('cw_perm_background_badge', 'This widget can keep running hidden in the background, so its badge stays in the top bar and up to date even with no tile on screen.')
+          : t('cw_perm_background', 'This widget can keep running hidden in the background so its Deck keys always answer.'));
+      panel.appendChild(el('div', 'cw-perm-note', note));
+    }
+    if (!pkg.streams.length && !pkg.actions.length && !hosts.length && !userHostSlots.length && !hooks.length && !deckNames.length && !wantsStorage && !wantsSecrets && !wantsIsland && !wantsBadge) {
       panel.appendChild(el('div', 'cw-perm-sec cw-perm-nothing', t('cw_perm_none', 'Nothing — it only draws its own content')));
     }
     panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_note', 'Widgets run isolated from the dashboard, with no network access, and can only use what you allow here. Only install widgets from people you trust.')));
-    if (hosts.length) {
+    if (hosts.length || userHostSlots.length) {
       panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_net_note', 'Network access is limited to the servers listed above and always goes through Xenon — never directly from the widget.')));
     }
 
@@ -517,10 +1181,39 @@
     cancel.addEventListener('click', closePermDialog);
     const allow = el('button', 'cw-btn cw-btn--primary', t('cw_allow', 'Allow'));
     allow.type = 'button';
+    // Every declared slot must hold a usable address before Allow means anything
+    // — granting with a blank field would mount a widget that can only fail.
+    const UH_ERRORS = {
+      empty: ['cw_uh_empty', 'Enter an address'],
+      bad: ['cw_uh_bad', 'That doesn\'t look like an address'],
+      forbidden: ['cw_uh_forbidden', 'This address points back at this PC — widgets can never reach it'],
+      not_private: ['cw_uh_private', 'Only an address on your own network (like 192.168.1.50 or nas.local)'],
+    };
+    const readUserHosts = () => {
+      const values = {};
+      let ok = true;
+      for (const f of userHostFields) {
+        const r = parseUserHost(f.input.value, f.slot.scope);
+        if (r.ok) { values[f.slot.id] = r.value; f.err.textContent = ''; f.input.classList.remove('cw-perm-input--bad'); continue; }
+        ok = false;
+        // Stay quiet until they've typed something — an untouched field showing
+        // a red "enter an address" the moment the dialog opens reads as an error.
+        const blank = r.error === 'empty';
+        const msg = UH_ERRORS[r.error] || UH_ERRORS.bad;
+        f.err.textContent = blank ? '' : t(msg[0], msg[1]);
+        f.input.classList.toggle('cw-perm-input--bad', !blank);
+      }
+      return { ok, values };
+    };
+    const refresh = () => { allow.disabled = !readUserHosts().ok; };
+    userHostFields.forEach(f => f.input.addEventListener('input', refresh));
+    if (userHostFields.length) refresh();
     allow.addEventListener('click', () => {
+      const uh = readUserHosts();
+      if (!uh.ok) { refresh(); return; }
       const cur = sdk();
       const patch = {
-        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id) } },
+        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, secrets: wantsSecrets, island: wantsIsland, badge: wantsBadge } },
       };
       if (instId != null) patch.assign = { ...(cur.assign || {}), [instId]: pkg.id };
       persist(patch);
@@ -547,6 +1240,10 @@
     brand.append(logo, el('span', 'cw-title', t('cw_title', 'Custom widget')));
     head.appendChild(brand);
     const ctl = el('div', 'cw-ctl');
+    const reloadBtn = el('button', 'cw-hbtn cw-reload-btn');
+    reloadBtn.type = 'button'; reloadBtn.title = t('cw_reload', 'Reload widget (pick up file changes)');
+    reloadBtn.innerHTML = ICONS.reload;   // static, trusted SVG
+    ctl.appendChild(reloadBtn);
     const swapBtn = el('button', 'cw-hbtn cw-swap-btn');
     swapBtn.type = 'button'; swapBtn.title = t('cw_unassign', 'Choose another widget');
     swapBtn.innerHTML = ICONS.swap;   // static, trusted SVG
@@ -565,7 +1262,9 @@
     if (opts && opts.buttons) {
       const row = el('div', 'cw-state-btns');
       opts.buttons.forEach(b => {
-        const btn = el('button', 'cw-btn' + (b.primary ? ' cw-btn--primary' : ''), t(b.key, b.fb));
+        // `label` is a pre-built literal (a translated verb + an untranslatable
+        // proper name); everything else resolves through the i18n key.
+        const btn = el('button', 'cw-btn' + (b.primary ? ' cw-btn--primary' : ''), b.label || t(b.key, b.fb));
         btn.type = 'button';
         btn.addEventListener('click', b.onClick);
         row.appendChild(btn);
@@ -573,6 +1272,26 @@
       box.appendChild(row);
     }
     body.replaceChildren(box);
+  }
+
+  // One-tap install of a bundled reference widget. The id is one of EXAMPLES —
+  // the server re-checks it against its own allowlist, so a bad id installs
+  // nothing rather than reaching the filesystem.
+  async function installExample(id) {
+    await api('/sdk/widgets/example', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    fetchPackages(true);
+  }
+
+  // Bundled examples the user hasn't installed yet — offered alongside the
+  // installed packages so they stay reachable once something IS installed
+  // (the empty state alone would hide them forever after the first install).
+  function missingExamples() {
+    const have = new Set((pkgCache && pkgCache.packages ? pkgCache.packages : []).map(p => p && p.id));
+    return EXAMPLES.filter(ex => !have.has(ex.id));
   }
 
   // Untrusted manifest text (name/author/description) → textContent only.
@@ -604,13 +1323,6 @@
         if (meta) txt.appendChild(el('div', 'cw-pick-meta', meta));
         if (pkg.description) txt.appendChild(el('div', 'cw-pick-desc', pkg.description));
         row.appendChild(txt);
-        // Edit reopens the no-code creator for widgets it made (detected by their
-        // xgen.json at edit time); harmless on hand-made widgets — it just tells
-        // the user it can't be edited here.
-        const edit = el('button', 'cw-btn cw-btn--ghost', t('cw_edit', 'Edit'));
-        edit.type = 'button';
-        edit.addEventListener('click', () => { if (window.WidgetCreator) window.WidgetCreator.open({ editId: pkg.id, onInstalled: () => fetchPackages(true) }); });
-        row.appendChild(edit);
         const add = el('button', 'cw-btn cw-btn--primary', t('cw_add', 'Add'));
         add.type = 'button';
         add.addEventListener('click', () => openPermDialog(pkg, instId));
@@ -618,12 +1330,31 @@
         list.appendChild(row);
       });
     });
-    // Always offer "make your own", even when packs are installed.
+    // Bundled examples not yet installed, in the same grouped-row shape as the
+    // real packages above — one tap installs, then the list repaints with the
+    // package's own row (and its Add button) in place of this one.
+    const examples = missingExamples();
+    if (examples.length) {
+      list.appendChild(el('div', 'cw-pick-group', t('cw_pick_examples', 'Xenon · Examples')));
+      examples.forEach(ex => {
+        const row = el('div', 'cw-pick-row');
+        const txt = el('div', 'cw-pick-txt');
+        txt.appendChild(el('div', 'cw-pick-name', ex.name));
+        txt.appendChild(el('div', 'cw-pick-desc', ex.desc));
+        row.appendChild(txt);
+        const add = el('button', 'cw-btn', t('cw_install', 'Install'));
+        add.type = 'button';
+        add.addEventListener('click', () => installExample(ex.id));
+        row.appendChild(add);
+        list.appendChild(row);
+      });
+    }
+    // Always offer a way to get more, even when packs are installed.
     const createRow = el('div', 'cw-pick-create');
-    const createBtn = el('button', 'cw-btn cw-btn--primary', '＋ ' + t('wc_create', 'Create a widget'));
-    createBtn.type = 'button';
-    createBtn.addEventListener('click', () => { if (window.WidgetCreator) window.WidgetCreator.open({ onInstalled: () => fetchPackages(true) }); });
-    createRow.appendChild(createBtn);
+    const storeBtn = el('button', 'cw-btn cw-btn--primary', '＋ ' + t('cw_get_more', 'Get more widgets'));
+    storeBtn.type = 'button';
+    storeBtn.addEventListener('click', () => { if (window.CommunityGallery) window.CommunityGallery.open('widget'); });
+    createRow.appendChild(storeBtn);
     list.appendChild(createRow);
     frag.appendChild(list);
     body.replaceChildren(frag);
@@ -645,12 +1376,29 @@
       || man('actions').some(a => !g.actions.includes(a))
       || man('hosts').some(h => !g.hosts.includes(h))
       || man('hooks').some(h => !g.hooks.includes(h))
-      || manHandlers.some(h => !g.handlers.includes(h));
+      || manHandlers.some(h => !g.handlers.includes(h))
+      || (pkg.storage === true && !g.storage)
+      || (pkg.secrets === true && !g.secrets)
+      || (pkg.island === true && !g.island)
+      || (pkg.badge === true && !g.badge);
+  }
+  // A declared userHosts slot with no usable address is the same dead end as an
+  // ungranted host — the widget would mount and fail every request. But it is
+  // NOT the same thing to say to the user: nothing is asking for more power,
+  // there's just a blank they haven't typed yet. Kept separate from
+  // grantNeedsReview so paint() can tell the two apart.
+  function addressNeedsFilling(pkg) {
+    const slots = Array.isArray(pkg.userHosts) ? pkg.userHosts : [];
+    if (!slots.length) return false;
+    return Object.keys(resolvedUserHosts(pkg, grantsFor(pkg.id)).byId).length < slots.length;
   }
 
   function mountFrame(body, instId, pkg) {
     const existing = frames.get(instId);
-    if (existing && existing.pkgId === pkg.id && existing.frame.isConnected) return;
+    // Re-mount when the package changed OR the asset version bumped (Rescan /
+    // reload), so an edited widget's files actually reload instead of the frame
+    // sitting on the version it first loaded.
+    if (existing && existing.pkgId === pkg.id && existing.assetVersion === assetVersion && existing.frame.isConnected) return;
     if (existing) { try { existing.frame.remove(); } catch {} frames.delete(instId); }
     const frame = document.createElement('iframe');
     frame.className = 'cw-frame';
@@ -659,9 +1407,11 @@
     frame.setAttribute('sandbox', 'allow-scripts');
     frame.setAttribute('referrerpolicy', 'no-referrer');
     frame.title = pkg.name;
-    frame.src = '/sdk/widget/' + encodeURIComponent(pkg.id) + '/' + pkg.entry;
-    frames.set(instId, { frame, pkgId: pkg.id, ready: false, lastAction: 0 });
+    frame.src = '/sdk/widget/' + encodeURIComponent(pkg.id) + '/' + pkg.entry + '?v=' + assetVersion;
+    const entry = { frame, pkgId: pkg.id, ready: false, lastAction: 0, assetVersion };
+    frames.set(instId, entry);
     body.replaceChildren(frame);
+    observeSize(entry);   // report tile size to the widget on mount + on every resize
   }
 
   function paint() {
@@ -676,6 +1426,7 @@
       const wrap = mount.querySelector('.cw-wrap');
       const titleEl = mount.querySelector('.cw-title');
       const swapBtn = mount.querySelector('.cw-swap-btn');
+      const reloadBtn = mount.querySelector('.cw-reload-btn');
       // Default to "setup chrome visible"; only a successfully mounted widget
       // hides it (CSS) so the tile reads like a native widget. Re-evaluated every
       // paint so leaving/entering a mounted state flips it correctly.
@@ -692,6 +1443,19 @@
           const assign = { ...(cur.assign || {}) };
           delete assign[instId];
           persist({ assign });
+          const entry = frames.get(instId);
+          if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
+          paint();
+        };
+      }
+      // Reload: force this widget's iframe to re-fetch its files on THIS surface
+      // (the Xeneon Edge can't be hard-refreshed like a browser tab). Bumps the
+      // asset version so every mounted frame reloads fresh assets on next paint.
+      if (reloadBtn) {
+        reloadBtn.hidden = !assignedId;
+        reloadBtn.title = t('cw_reload', 'Reload widget (pick up file changes)');
+        reloadBtn.onclick = () => {
+          assetVersion++;
           const entry = frames.get(instId);
           if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
           paint();
@@ -714,10 +1478,15 @@
       if (!assignedId) {
         if (!(pkgCache.packages || []).length) {
           showState(body, 'cw_none', 'No widget packages installed', {
-            hint: ['cw_none_hint', 'Create your own with a few taps, try the built-in example, or drop a widget folder in server/data/widgets and rescan.'],
+            hint: ['cw_none_hint', 'Install one from the Store, try the built-in examples, or drop a widget folder in server/data/widgets and rescan.'],
             buttons: [
-              { key: 'wc_create', fb: 'Create a widget', primary: true, onClick: () => { if (window.WidgetCreator) window.WidgetCreator.open({ onInstalled: () => fetchPackages(true) }); } },
-              { key: 'cw_example', fb: 'Install example', onClick: async () => { await api('/sdk/widgets/example', { method: 'POST' }); fetchPackages(true); } },
+              { key: 'cw_open_store', fb: 'Open the Store', primary: true, onClick: () => { if (window.CommunityGallery) window.CommunityGallery.open('widget'); } },
+              // Same bundled examples the picker offers, so the two entry points
+              // can't drift apart.
+              ...EXAMPLES.map(ex => ({
+                label: t('cw_install', 'Install') + ' ' + ex.name,
+                onClick: () => installExample(ex.id),
+              })),
               { key: 'cw_rescan', fb: 'Rescan', onClick: () => fetchPackages(true) },
             ],
           });
@@ -739,16 +1508,26 @@
       // cover — an old grant from before hosts/hooks existed, or a widget update
       // that added a host/hook. Rather than silently dead-ending the new feature
       // (network/hook requests would just fail), ask the user to review again.
-      if (grantNeedsReview(pkg)) {
+      if (grantNeedsReview(pkg) || addressNeedsFilling(pkg)) {
         const entry = frames.get(instId);
         if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
-        showState(body, 'cw_review', 'This widget asks for new permissions', {
-          hint: ['cw_review_hint', 'It was updated (or predates a Xenon feature) and now requests capabilities you haven\'t approved.'],
-          buttons: [
-            { key: 'cw_review_btn', fb: 'Review permissions', primary: true, onClick: () => openPermDialog(pkg, instId) },
-            { key: 'cw_unassign', fb: 'Choose another', onClick: () => { if (swapBtn) swapBtn.onclick(); } },
-          ],
-        });
+        // A widget whose ONLY gap is an unfilled address isn't asking for new
+        // powers — it's asking where its server lives. "Asks for new
+        // permissions" would alarm the user over a blank field.
+        const addrOnly = !grantNeedsReview(pkg);
+        showState(body,
+          addrOnly ? 'cw_needs_addr' : 'cw_review',
+          addrOnly ? 'This widget needs an address' : 'This widget asks for new permissions', {
+            hint: addrOnly
+              ? ['cw_needs_addr_hint', 'It talks to something on your own network — tell it where to find it.']
+              : ['cw_review_hint', 'It was updated (or predates a Xenon feature) and now requests capabilities you haven\'t approved.'],
+            buttons: [
+              addrOnly
+                ? { key: 'cw_needs_addr_btn', fb: 'Set the address', primary: true, onClick: () => openPermDialog(pkg, instId) }
+                : { key: 'cw_review_btn', fb: 'Review permissions', primary: true, onClick: () => openPermDialog(pkg, instId) },
+              { key: 'cw_unassign', fb: 'Choose another', onClick: () => { if (swapBtn) swapBtn.onclick(); } },
+            ],
+          });
         return;
       }
       if (wrap) wrap.classList.add('cw-mounted');
@@ -842,17 +1621,27 @@
     return (pkgCache && Array.isArray(pkgCache.packages)) ? pkgCache.packages : [];
   }
   // Grant helpers for non-tile surfaces: has the package every capability it
-  // declares? (Same all-or-nothing rule the tiles use.)
+  // declares, and an address for every blank it asks the user to fill? (Same
+  // all-or-nothing rule the tiles use — an Ambient scene missing its NAS
+  // address is as unready as one missing a grant.)
   function packageGranted(pkg) {
-    return !!pkg && !grantNeedsReview(pkg) && sdk().grants && !!sdk().grants[pkg.id];
+    return !!pkg && !grantNeedsReview(pkg) && !addressNeedsFilling(pkg) && sdk().grants && !!sdk().grants[pkg.id];
   }
   function requestGrant(pkg, onAllow) {
     openPermDialog(pkg, null, onAllow);
   }
 
   window.CustomWidget = {
-    renderWidgets, onData, onHook, onHandler, refreshTheme, refreshPackages: () => fetchPackages(true), clearAssign,
+    renderWidgets, onData, onDiscordNotification, onHook, onHandler, refreshTheme, refreshPackages: () => fetchPackages(true), clearAssign,
     registerAmbientFrame, unregisterAmbientFrame, registerCanvasFrame, unregisterCanvasFrames,
     getPackages, cachedPackages, packageGranted, requestGrant,
+    // Does this package still have a live (DOM-connected) frame? SdkIsland's
+    // orphan sweep uses it to auto-clear island text whose owner tile is gone.
+    pkgHasLiveFrame(pkgId) {
+      for (const [, entry] of frames) {
+        if (entry.pkgId === pkgId && entry.frame && entry.frame.isConnected) return true;
+      }
+      return false;
+    },
   };
 })();

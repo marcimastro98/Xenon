@@ -209,8 +209,8 @@
 }
 .deck-pmenu-tool svg { width: 12px; height: 12px; fill: currentColor; }
 .deck-pmenu-tool:hover { filter: brightness(1.2); color: var(--text, #e7e9ee); }
-.deck-pmenu-tool.danger { color: #ff6b6b; }
-.deck-pmenu-tool.danger:hover { color: #ff8f8f; }
+.deck-pmenu-tool.danger { color: var(--color-danger); }
+.deck-pmenu-tool.danger:hover { color: var(--color-danger); background: var(--danger-bg); }
 .deck-pmenu-tool:disabled { opacity: .35; cursor: default; filter: none; }
 .deck-pmenu-input {
   width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 10px;
@@ -227,11 +227,11 @@
 /* One-tap cleanup of profiles left behind by removed deck tiles (edit mode only). */
 .deck-pmenu-clean {
   margin-top: 8px; width: 100%; padding: 9px; border-radius: 10px; cursor: pointer;
-  font-size: 12px; font-weight: 600; color: #ff8f8f;
+  font-size: 12px; font-weight: 600; color: var(--color-danger);
   border: 1px solid rgba(255, 107, 107, .35); background: rgba(255, 107, 107, .08);
   transition: background .15s ease, border-color .15s ease, color .15s ease;
 }
-.deck-pmenu-clean:hover { background: rgba(255, 107, 107, .16); border-color: rgba(255, 107, 107, .6); color: #ffb0b0; }
+.deck-pmenu-clean:hover { background: var(--danger-bg); border-color: rgba(var(--danger-rgb), .6); color: var(--color-danger); }
 
 /* ── Recessed key well: a carved bezel around the key area ─────────── */
 /* container-type:size makes the well a query context so the grid can derive a
@@ -923,13 +923,14 @@ body.perf-mode .deck-key .deck-key-anim { opacity: 0; }
 .deck-style-close:hover { background: rgba(255, 255, 255, .1); }
 /* Preview surface — a neutral, checkered backdrop so the deck reads on any theme. */
 .deck-style-preview {
-  display: flex; justify-content: center; align-items: center;
-  padding: 16px; border-radius: 12px; overflow: hidden;
+  display: flex; justify-content: center; align-items: flex-start;
+  flex: 0 0 auto; max-height: min(48vh, 360px);
+  padding: 16px; border-radius: 12px; overflow: auto;
   background:
     linear-gradient(rgba(0, 0, 0, .18), rgba(0, 0, 0, .18)),
     conic-gradient(#2a2f38 0 25%, #232830 0 50%, #2a2f38 0 75%, #232830 0) 0 0 / 22px 22px;
 }
-.deck-style-preview-root { pointer-events: none; width: 100%; max-width: 440px; }
+.deck-style-preview-root { pointer-events: none; width: 100%; max-width: 440px; height: auto !important; }
 /* The real deck's caps are sized from the WELL via size container queries (100cqh),
    which need a real height. The modal has no fixed height, so give the well a
    concrete one (rows × cap) — then the native sizing resolves, the caps are square,
@@ -938,7 +939,7 @@ body.perf-mode .deck-key .deck-key-anim { opacity: 0; }
   flex: 0 0 auto !important;
   height: calc(var(--deck-rows, 2) * 74px) !important;
 }
-.deck-style-preview-root .deck-device { gap: 8px; }
+.deck-style-preview-root .deck-device { flex: none; width: 100%; gap: 8px; }
 .deck-style-body { display: flex; flex-direction: column; gap: 12px; }
 .deck-style-grp { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .deck-style-cap {
@@ -1244,6 +1245,9 @@ select.deck-ed-input {
 .deck-ed-emoji:hover { background: rgba(255, 255, 255, .09); transform: translateY(-1px); }
 .deck-ed-emoji.sel { border-color: rgba(var(--accent-rgb, 43, 108, 255), .7); background: rgba(var(--accent-rgb, 43, 108, 255), .2); }
 .deck-ed-icon svg { width: 20px; height: 20px; fill: currentColor; }
+/* Installed icon-pack cells: bitmap/SVG files served by /icon-pack/, same cell
+   geometry as the built-in vector icons. */
+.deck-ed-packicon img { width: 20px; height: 20px; object-fit: contain; pointer-events: none; }
 .deck-ed-imgpick { display: flex; align-items: center; gap: 10px; }
 .deck-ed-file { display: none; }
 /* "Use the app's own icon" shortcut — sits under the icon-mode tabs, only for
@@ -1275,9 +1279,9 @@ select.deck-ed-input {
   transition: filter .15s ease, background .15s ease;
 }
 .deck-ed-btn:hover { background: rgba(255, 255, 255, .1); }
-.deck-ed-btn.primary { background: var(--accent, #2b6cff); border-color: transparent; color: #fff; }
+.deck-ed-btn.primary { background: var(--accent, #2b6cff); border-color: transparent; color: var(--on-accent, #fff); }
 .deck-ed-btn.primary:hover { filter: brightness(1.08); background: var(--accent, #2b6cff); }
-.deck-ed-btn.danger { color: #ff6b6b; border-color: rgba(255, 107, 107, .4); flex: 0 0 auto; padding: 10px 14px; }
+.deck-ed-btn.danger { color: var(--color-danger); border-color: rgba(var(--danger-rgb), .4); flex: 0 0 auto; padding: 10px 14px; }
 
 /* discordSound param: the sound dropdown + a preview (▶) button that auditions the
    selected sound locally. Row keeps the (enhanced) select filling the width and the
@@ -1337,13 +1341,34 @@ select.deck-ed-input {
     inset 0 0 0 2px var(--fx-color, rgba(255, 255, 255, .5)),
     inset 0 0 18px color-mix(in srgb, var(--fx-color, #fff) 45%, transparent) !important;
 }
-/* "Lampeggia": the cap blinks in a continuous loop in the effect colour. */
-.deck-key.fx-blink { animation: deck-key-blink 1s ease-in-out infinite; will-change: box-shadow; }
-@keyframes deck-key-blink {
-  0%, 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), inset 0 -7px 14px rgba(0, 0, 0, .5); }
-  50%      { box-shadow: inset 0 0 0 2px var(--fx-color, #fff),
-                         inset 0 0 26px color-mix(in srgb, var(--fx-color, #fff) 55%, transparent),
-                         0 0 16px color-mix(in srgb, var(--fx-color, #fff) 60%, transparent); }
+/* "Lampeggia": the cap blinks in a continuous loop in the effect colour.
+   The pulse lives on ::after animating only opacity (compositor-only) — the old
+   box-shadow keyframes ticked the main-thread style→paint pipeline every display
+   frame for as long as the key stayed latched (GitHub #99). The outer halo can't
+   ride ::after (the cap clips it with overflow: hidden), so it sits statically on
+   the key; the pulsing inset ring + flood carry the blink. :not(.is-glint) yields
+   ::after to the one-shot glint for its 0.5s sweep, then the pulse resumes. */
+.deck-key.fx-blink {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.14),
+    inset 0 -7px 14px rgba(0,0,0,.55),
+    0 3px 7px rgba(0,0,0,.55),
+    0 1px 0 rgba(0,0,0,.7),
+    0 0 16px color-mix(in srgb, var(--fx-color, #fff) 45%, transparent);
+}
+.deck-key.fx-blink:not(.is-glint)::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  z-index: 3; pointer-events: none;
+  box-shadow: inset 0 0 0 2px var(--fx-color, #fff),
+              inset 0 0 26px color-mix(in srgb, var(--fx-color, #fff) 55%, transparent);
+  opacity: 0;
+  animation: deck-key-blink 1s ease-in-out infinite;
+  will-change: opacity;
+}
+@keyframes deck-key-blink { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+/* Reduced motion: hold the ring steady so the latched state stays readable. */
+@media (prefers-reduced-motion: reduce) {
+  .deck-key.fx-blink:not(.is-glint)::after { animation: none; opacity: 1; }
 }
 /* "Spegni": the cap stays dark (screen powered off) until tapped again; its icon and
    label dim too. The big inset spread floods the whole face black. */
@@ -1395,6 +1420,14 @@ select.deck-ed-input {
 .deck-key.has-live .deck-key-live { opacity: 1; }
 /* When the label sits on top, the badge moves to the bottom edge instead. */
 .deck-key[data-labelpos="top"] .deck-key-live { top: auto; bottom: 6px; }
+/* The badge floats over the cap face, but the cap centres its icon and label in
+   the FULL height — so a key carrying a badge drew the glyph straight under it,
+   both fighting for the same pixels (a soundboard key's slot tag sitting on its
+   icon, a state word crossing a star). Reserve the strip the badge occupies and
+   the centred content clears it on its own. Sliders are exempt: their icon is
+   hidden and their badge already sits low, over the track. */
+.deck-key.has-live:not(.is-slider) { padding-top: 22px; }
+.deck-key[data-labelpos="top"].has-live:not(.is-slider) { padding-top: 6px; padding-bottom: 22px; }
 
 /* ── Touch faders (slider keys) ── */
 .deck-key.is-slider { touch-action: none; cursor: grab; }
@@ -1551,7 +1584,7 @@ select.deck-ed-input {
   background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12); color: var(--text, #e7e9ee);
 }
 .deck-ed-stepbtn[disabled] { opacity: .3; cursor: default; }
-.deck-ed-stepbtn.danger { color: #ff6b6b; border-color: rgba(255, 107, 107, .35); }
+.deck-ed-stepbtn.danger { color: var(--color-danger); border-color: rgba(var(--danger-rgb), .35); }
 .deck-ed-stepdelay { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
 .deck-ed-step .deck-ed-params { margin-top: 8px; }
 .deck-ed-addstep {
@@ -1590,7 +1623,7 @@ select.deck-ed-input {
   background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12);
   color: var(--text-dim, #8b91a1); font-size: 13px;
 }
-.deck-ed-hotkey-clear:hover { color: #ff6b6b; border-color: rgba(255, 107, 107, .35); }
+.deck-ed-hotkey-clear:hover { color: var(--color-danger); border-color: rgba(var(--danger-rgb), .35); }
 .deck-ed-hotkey-preview {
   text-align: center; font-weight: 700; letter-spacing: .04em; font-variant-numeric: tabular-nums;
   padding: 6px; border-radius: 8px; background: rgba(255, 255, 255, .04);

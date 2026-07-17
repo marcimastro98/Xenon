@@ -51,7 +51,7 @@
 
 .calendar-title {
   margin-top: 2px;
-  color: #f4faf7;
+  color: var(--text);
   font-size: 22.5px;
   font-weight: 900;
   line-height: 1;
@@ -71,7 +71,7 @@
   padding: 9px 10px;
   border-radius: 14px;
   border: 1px solid rgba(var(--accent-rgb),0.18);
-  background: radial-gradient(100% 150% at 0% 0%, rgba(var(--accent-rgb),0.18), transparent 58%), rgba(8,14,13,0.68);
+  background: radial-gradient(100% 150% at 0% 0%, rgba(var(--accent-rgb),0.18), transparent 58%), var(--surface-alt);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 26px rgba(0,0,0,0.18);
   cursor: pointer;
   transition: border-color 0.18s ease, background 0.18s ease, transform 0.12s ease;
@@ -79,7 +79,7 @@
 
 .calendar-mini-player:hover {
   border-color: rgba(var(--accent-rgb),0.34);
-  background: radial-gradient(100% 150% at 0% 0%, rgba(var(--accent-rgb),0.24), transparent 58%), rgba(11,18,17,0.78);
+  background: radial-gradient(100% 150% at 0% 0%, rgba(var(--accent-rgb),0.24), transparent 58%), var(--surface-alt);
 }
 
 .calendar-mini-player:active { transform: scale(0.992); }
@@ -98,7 +98,7 @@
   height: 42px;
   border-radius: 10px;
   border: 1px solid rgba(255,255,255,0.10);
-  background: linear-gradient(145deg, rgba(var(--accent-rgb),0.18), rgba(106,167,255,0.12)), #101817;
+  background: linear-gradient(145deg, rgba(var(--accent-rgb),0.18), color-mix(in srgb, var(--color-info), transparent 88%)), var(--surface-alt);
   background-size: cover;
   background-position: center;
   box-shadow: 0 8px 20px rgba(0,0,0,0.26);
@@ -120,7 +120,7 @@
 }
 
 .mini-title {
-  color: #edf6f2;
+  color: var(--text);
   font-size: 14.5px;
   font-weight: 850;
   white-space: nowrap;
@@ -149,8 +149,8 @@
   height: 32px;
   border-radius: 50%;
   border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.05);
-  color: #ecf4f1;
+  background: var(--control-bg);
+  color: var(--text);
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -166,14 +166,14 @@
   padding: 9px;
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.10);
-  background: linear-gradient(145deg, rgba(255,255,255,0.045), rgba(255,255,255,0.012)), rgba(7,12,12,0.54);
+  background: var(--surface-alt);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
 }
 
 .calendar-nav { justify-content: space-between; gap: 10px; }
 
 .calendar-month {
-  color: #eaf2ee;
+  color: var(--text);
   font-size: 15.5px;
   font-weight: 900;
   text-transform: capitalize;
@@ -187,8 +187,8 @@
   padding: 0 9px;
   border: 1px solid rgba(255,255,255,0.10);
   border-radius: 10px;
-  background: rgba(255,255,255,0.045);
-  color: #eaf2ee;
+  background: var(--control-bg);
+  color: var(--text);
   cursor: pointer;
   font-size: 12.5px;
   font-weight: 900;
@@ -209,7 +209,7 @@
 }
 
 .calendar-weekdays span {
-  color: #6e7975;
+  color: var(--dim-text);
   font-size: 10px;
   font-weight: 900;
   text-align: center;
@@ -229,8 +229,8 @@
   padding: 0;
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 8px;
-  background: rgba(255,255,255,0.025);
-  color: #d9e4df;
+  background: var(--surface-alt);
+  color: var(--text);
   cursor: pointer;
   position: relative;
   font-size: 13.5px;
@@ -249,7 +249,7 @@
 
 .day-cell.empty { opacity: 0; pointer-events: none; }
 .day-cell.today { color: var(--green); border-color: rgba(var(--accent-rgb),0.32); }
-.day-cell.selected { background: rgba(var(--accent-rgb),0.16); border-color: rgba(var(--accent-rgb),0.56); color: #f5fff9; }
+.day-cell.selected { background: rgba(var(--accent-rgb),0.16); border-color: rgba(var(--accent-rgb),0.56); color: var(--text); }
 
 .day-cell.has-events::after {
   content: '';
@@ -269,7 +269,7 @@
   padding: 8px 9px;
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.07);
-  background: rgba(8,14,13,0.55);
+  background: var(--surface-alt);
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -277,7 +277,7 @@
 }
 
 .upcoming-title {
-  color: #aab6b2;
+  color: var(--muted-text);
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.6px;
@@ -299,7 +299,7 @@
   min-width: 0;
   padding: 5px 7px;
   border-radius: 8px;
-  background: rgba(255,255,255,0.03);
+  background: var(--surface-alt);
   border: 1px solid rgba(255,255,255,0.05);
 }
 
@@ -310,7 +310,7 @@
 }
 
 .upcoming-name {
-  color: #eaf2ee;
+  color: var(--text);
   font-size: 12.5px;
   font-weight: 850;
   white-space: nowrap;
@@ -337,7 +337,7 @@
 .cal-task-toggle {
   display: flex;
   gap: 2px;
-  background: rgba(255,255,255,0.035);
+  background: var(--surface-alt);
   border: 1px solid rgba(255,255,255,0.055);
   border-radius: 22px;
   padding: 3px;

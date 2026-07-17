@@ -27,27 +27,27 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
-<link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700,500&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 <style>
   :root {
-    --ink:      #04060a;
-    --panel:    rgba(140, 255, 200, 0.035);
-    --line:     rgba(120, 245, 180, 0.14);
-    --line-2:   rgba(120, 245, 180, 0.26);
-    --plasma:   #1ee07a;
-    --plasma-2: #40dca5;
-    --iris:     #8b7bff;   /* limited drops — exclusive, distinct from the accent */
-    --gold:     #ffbe4d;   /* supporters — warm, tied to the coffee CTA */
+    --ink:      #070808;
+    --panel:    rgba(240, 243, 241, 0.03);
+    --line:     rgba(240, 243, 241, 0.08);
+    --line-2:   rgba(240, 243, 241, 0.16);
+    --plasma:   #1ed760;   /* the locked Xenon brand green */
+    --plasma-2: #4ce38a;   /* lighter step for text-on-dark hovers */
+    --green-ink:#052012;   /* text on a green fill */
+    --iris:     #8b7bff;   /* limited drops — exclusive tier, distinct from the accent */
+    --gold:     #ffc44d;   /* supporters — warm, tied to the coffee CTA */
     --danger:   #ff5a63;
-    --text:     #e9f2ee;
-    --muted:    #8fa39c;
-    --dim:      #5f706a;
-    --display:  'Clash Display', 'Hanken Grotesk', system-ui, sans-serif;
-    --body:     'Hanken Grotesk', system-ui, -apple-system, sans-serif;
-    --mono:     'JetBrains Mono', ui-monospace, monospace;
+    --text:     #f0f3f1;
+    --muted:    #9aa8a1;
+    --dim:      #66736c;
+    --display:  'Inter', system-ui, sans-serif;
+    --body:     'Inter', system-ui, -apple-system, sans-serif;
+    --mono:     'Inter', system-ui, sans-serif;
+    --code:     'JetBrains Mono', ui-monospace, monospace;
     --maxw:     1200px;
     --ease:     cubic-bezier(0.16, 1, 0.3, 1);
   }
@@ -57,12 +57,12 @@
     font-family: var(--body); background: var(--ink); color: var(--text);
     line-height: 1.55; min-height: 100dvh; overflow-x: clip; -webkit-font-smoothing: antialiased;
     background-image:
-      radial-gradient(90% 55% at 50% -8%, rgba(30,224,122,0.09), transparent 60%),
-      radial-gradient(60% 45% at 88% 108%, rgba(118,247,255,0.05), transparent 65%);
+      radial-gradient(80% 50% at 50% -8%, rgba(30,215,96,0.07), transparent 62%);
   }
   a { color: inherit; text-decoration: none; }
   img { max-width: 100%; display: block; }
-  ::selection { background: var(--plasma); color: #021; }
+  ::selection { background: var(--plasma); color: var(--green-ink); }
+  :focus-visible { outline: 2px solid var(--plasma); outline-offset: 3px; border-radius: 4px; }
 
   .wrap { width: 100%; max-width: var(--maxw); margin-inline: auto; padding-inline: 26px; }
   .mono { font-family: var(--mono); }
@@ -91,22 +91,21 @@
     border: 1px solid var(--line-2); background: rgba(7,11,17,0.96); backdrop-filter: blur(14px); display: none; flex-direction: column; gap: 2px; z-index: 50; }
   .lang.open .lang-menu { display: flex; }
   .lang-menu button { text-align: left; font-family: var(--mono); font-size: 12.5px; padding: 9px 11px; border-radius: 8px; border: 0; background: transparent; color: var(--muted); cursor: pointer; transition: background .15s, color .15s; }
-  .lang-menu button:hover { background: rgba(30,224,122,.08); color: var(--text); }
+  .lang-menu button:hover { background: rgba(30,215,96,.08); color: var(--text); }
   .lang-menu button.on { color: var(--plasma); }
 
   /* ── Hero ── */
   header.hero { padding: 62px 0 30px; }
-  .tag { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--plasma-2); display: inline-flex; align-items: center; gap: 12px; }
-  .tag::before { content: ""; width: 30px; height: 1px; background: var(--line-2); }
-  header.hero h1 { font-family: var(--display); font-weight: 600; font-size: clamp(34px, 6vw, 60px); letter-spacing: -.02em; line-height: 1.02; margin-top: 18px; }
+  .tag { font-size: 12px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--plasma); display: inline-flex; align-items: center; }
+  header.hero h1 { font-family: var(--display); font-weight: 700; font-size: clamp(34px, 6vw, 58px); letter-spacing: -.03em; line-height: 1.04; margin-top: 16px; }
   header.hero h1 em { font-style: normal; color: var(--plasma); }
   header.hero p.lead { color: var(--muted); font-size: clamp(15px, 2.1vw, 18px); max-width: 640px; margin-top: 16px; }
   .hero-links { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 24px; }
   .hero-links a { font-family: var(--mono); font-size: 13px; letter-spacing: .03em; padding: 12px 18px; border-radius: 12px; border: 1px solid var(--line-2); color: var(--text);
     transition: color .2s, border-color .2s, transform .2s, background .2s; }
   .hero-links a:hover { border-color: var(--plasma); color: var(--plasma); transform: translateY(-2px); }
-  .hero-links a.primary { background: var(--plasma); color: #07100b; border-color: transparent; font-weight: 700; }
-  .hero-links a.primary:hover { background: var(--plasma-2); color: #07100b; }
+  .hero-links a.primary { background: var(--plasma); color: var(--green-ink); border-color: transparent; font-weight: 700; box-shadow: 0 8px 30px rgba(30,215,96,0.25); }
+  .hero-links a.primary:hover { background: var(--plasma-2); color: var(--green-ink); }
 
   /* ── Toolbar ── */
   .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 22px 0 8px; padding: 12px; border-radius: 16px; border: 1px solid var(--line); background: var(--panel); }
@@ -118,7 +117,7 @@
   .seg::-webkit-scrollbar { display: none; }
   .seg button { white-space: nowrap; font-family: var(--body); font-size: 13px; font-weight: 600; color: var(--muted); background: transparent; border: 0; border-radius: 9px; padding: 8px 13px; cursor: pointer; transition: color .16s, background .16s; }
   .seg button:hover { color: var(--text); }
-  .seg button.active { color: #07100b; background: var(--plasma); }
+  .seg button.active { color: var(--green-ink); background: var(--plasma); }
   .seg button.lim.active { color: #0a0713; background: var(--iris); }
   .seg button.sup.active { color: #12100a; background: var(--gold); }
   .cat-select { position: relative; }
@@ -148,7 +147,7 @@
     border: 1px solid var(--line); background: rgba(255,255,255,.018); scroll-margin-top: 90px; transition: border-color .2s, transform .2s var(--ease), box-shadow .2s; }
   .cat-card:hover { border-color: var(--line-2); transform: translateY(-3px); box-shadow: 0 20px 44px -26px rgba(0,0,0,.9); }
   .cat-card.flash, .drop-card.flash { animation: catflash 1.8s ease; }
-  @keyframes catflash { 0%,55% { border-color: var(--plasma); box-shadow: 0 0 0 1px var(--plasma), 0 12px 44px rgba(30,224,122,.18); } 100% { box-shadow: none; } }
+  @keyframes catflash { 0%,55% { border-color: var(--plasma); box-shadow: 0 0 0 1px var(--plasma), 0 12px 44px rgba(30,215,96,.18); } 100% { box-shadow: none; } }
   .cat-card.dim { opacity: .58; }
 
   /* media area — real screenshot when present, generated canvas as fallback: always filled */
@@ -170,6 +169,7 @@
   .cat-name { font-family: var(--display); font-weight: 600; font-size: 18px; letter-spacing: -.01em; line-height: 1.2; }
   .cat-ver { font-family: var(--mono); font-size: 10.5px; font-weight: 400; color: var(--dim); margin-left: 6px; }
   .cat-by { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .cat-stars { margin-left: 6px; color: var(--gold); font-weight: 700; white-space: nowrap; }
   .cat-by a { color: var(--plasma-2); }
   .cat-by a:hover { text-decoration: underline; }
   .cat-catlabel { color: var(--dim); }
@@ -182,8 +182,20 @@
     padding: 11px 16px; border-radius: 11px; border: 1px solid var(--line-2); background: transparent; color: var(--text); cursor: pointer; transition: color .2s, border-color .2s, background .2s; }
   .cat-copy:hover { border-color: var(--plasma); color: var(--plasma); }
   .cat-copy:disabled { opacity: .55; cursor: default; }
-  .cat-copy.ok { border-color: var(--plasma); color: var(--plasma); background: rgba(30,224,122,.08); }
-  .cat-reserve { flex: 1; text-align: center; font-family: var(--mono); font-size: 12.5px; padding: 11px 16px; border-radius: 11px; border: 0; background: var(--iris); color: #0a0713; font-weight: 700; }
+  .cat-copy.ok { border-color: var(--plasma); color: var(--plasma); background: rgba(30,215,96,.08); }
+  /* Permalink grab: quiet until hovered — the code button stays the loud one. */
+  .cat-link { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; padding: 0; cursor: pointer; color: var(--dim);
+    border: 1px solid var(--line); border-radius: 11px; background: transparent;
+    transition: color .18s, border-color .18s, background-color .18s; }
+  .cat-link:hover { color: var(--text); border-color: var(--line-2); }
+  .cat-link.ok { color: var(--plasma); border-color: var(--plasma); background: rgba(30,215,96,.08); }
+  .cat-link .cico { font-size: 16px; }  /* .cico svg is 1em — size the glyph via font-size */
+  .cat-limited-actions { flex: 1 1 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 8px; }
+  .cat-claim, .cat-discord { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; text-align: center; font-family: var(--mono); font-size: 12px; padding: 10px 14px; border-radius: 8px; font-weight: 800; transition: transform .18s var(--ease), filter .18s, box-shadow .18s; }
+  .cat-claim { border: 0; background: var(--iris); color: #0a0713; box-shadow: 0 7px 22px rgba(139,123,255,.24); }
+  .cat-discord { border: 1px solid rgba(255,255,255,.18); background: #5865f2; color: #fff; box-shadow: 0 7px 22px rgba(88,101,242,.2); }
+  .cat-claim:hover, .cat-discord:hover { transform: translateY(-1px); filter: brightness(1.08); }
   .cat-soldout { flex: 1; text-align: center; font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
     color: var(--danger); padding: 11px 16px; border-radius: 11px; border: 1px solid rgba(255,90,99,.42); background: rgba(255,90,99,.08); }
   .cat-limcount { font-family: var(--mono); font-size: 11.5px; color: var(--muted); white-space: nowrap; }
@@ -313,8 +325,8 @@
   .xsel-opt {
     display: flex; align-items: center; font-family: var(--body); font-size: 13px; font-weight: 500;
     color: var(--muted); padding: 9px 11px; border-radius: 8px; cursor: pointer; white-space: nowrap; transition: background .12s, color .12s; }
-  .xsel-opt:hover { background: rgba(30,224,122,.08); color: var(--text); }
-  .xsel-opt.on { color: var(--plasma); background: rgba(30,224,122,.1); font-weight: 700; }
+  .xsel-opt:hover { background: rgba(30,215,96,.08); color: var(--text); }
+  .xsel-opt.on { color: var(--plasma); background: rgba(30,215,96,.1); font-weight: 700; }
 
   /* ── Card → detail modal ── */
   .cat-card.clickable { cursor: pointer; }
@@ -330,6 +342,13 @@
     color: var(--muted); background: rgba(255,255,255,.04); border: 1px solid var(--line); }
   .dt-x:hover { color: var(--text); border-color: var(--line-2); }
   .dt-x svg { width: 18px; height: 18px; }
+  /* Same affordance as the card's, sized to sit beside the close button. */
+  .dt-link { flex: none; width: 40px; height: 40px; padding: 0; border-radius: 11px; display: grid; place-items: center; cursor: pointer;
+    color: var(--dim); border: 1px solid var(--line); background: transparent;
+    transition: color .18s, border-color .18s, background-color .18s; }
+  .dt-link:hover { color: var(--text); border-color: var(--line-2); }
+  .dt-link.ok { color: var(--plasma); border-color: var(--plasma); background: rgba(30,215,96,.08); }
+  .dt-link .cico { font-size: 17px; }
   .dt-body { flex: 1; overflow-y: auto; display: grid; grid-template-columns: 1.25fr 1fr; gap: 22px; padding: 20px; align-items: start; }
   .dt-gal { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
   .dt-stage { position: relative; aspect-ratio: 16/10; overflow: hidden; border-radius: 14px; background: rgba(0,0,0,.4); border: 1px solid var(--line); }
@@ -367,7 +386,7 @@
   .dt-sw-dot { width: 20px; height: 20px; border-radius: 6px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.2); }
   .dt-tags { display: flex; flex-wrap: wrap; gap: 6px; }
   .dt-cta { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
-  .dt-cta .cat-copy, .dt-cta .cat-unlock, .dt-cta .cat-reserve, .dt-cta .cat-soldout { flex: none; width: 100%; }
+  .dt-cta .cat-copy, .dt-cta .cat-unlock, .dt-cta .cat-soldout, .dt-cta .cat-limited-actions { flex: none; width: 100%; }
   .dt-cta .cat-limcount { text-align: center; }
   @media (max-width: 720px) { .dt-body { grid-template-columns: 1fr; } .dt-name { font-size: 22px; } }
   @media (prefers-reduced-motion: reduce) { .dt-track { transition: none; } }
@@ -473,11 +492,12 @@ const I18N = {
     'hero.guide': 'Read the guidelines →',
     'bar.search': 'Search name, author, #tag…',
     'bar.all': 'All',
-    'k.theme': 'Theme', 'k.bg': 'Background', 'k.page': 'Page', 'k.deck': 'Deck', 'k.widget': 'Widget', 'k.bundle': 'Package', 'k.ambient': 'Ambient',
+    'k.theme': 'Theme', 'k.bg': 'Background', 'k.page': 'Page', 'k.deck': 'Deck', 'k.widget': 'Widget', 'k.bundle': 'Package', 'k.ambient': 'Ambient', 'k.icons': 'Icon pack', 'k.sounds': 'Sound pack',
     'c.deck': 'Deck', 'c.streaming': 'Streaming', 'c.media': 'Media', 'c.smart_home': 'Smart home', 'c.system': 'System', 'c.style': 'Style', 'c.fun': 'Fun', 'c.tools': 'Tools',
     'card.by': 'by', 'card.copy': 'Copy code', 'card.copied': 'Copied. Paste it in Xenon: Settings → Widgets & sharing → Import.', 'card.copyfail': 'Copy failed. Open the entry on GitHub and copy it there.',
+    'card.link': 'Copy link', 'card.linked': 'Link copied', 'card.linkfail': 'Copy failed — the link is in the address bar.',
     'card.locked': 'Supporters',
-    'k.limited': 'Limited', 'k.limited_ed': 'Limited edition', 'card.left': '{n} of {t} left', 'card.soldout': 'Sold out', 'card.reserve': 'Reserve on Discord →', 'card.reserve_hint': 'Reserved on Discord. You receive a personal access code to import it.',
+    'k.limited': 'Limited', 'k.limited_ed': 'Limited edition', 'card.left': '{n} of {t} left', 'card.soldout': 'Sold out', 'card.claim': 'Claim your copy', 'card.reserve': 'Open Discord', 'card.reserve_hint': 'Discord verifies your account and sends a personal access code.',
     'count.n': '{n} creations',
     'bar.category': 'All categories', 'bar.clear': '✕ Clear filters',
     'sort.feat': 'Featured', 'sort.new': 'Newest', 'sort.name': 'Name A–Z',
@@ -509,11 +529,12 @@ const I18N = {
     'hero.guide': 'Leggi le linee guida →',
     'bar.search': 'Cerca nome, autore, #tag…',
     'bar.all': 'Tutti',
-    'k.theme': 'Tema', 'k.bg': 'Sfondo', 'k.page': 'Pagina', 'k.deck': 'Deck', 'k.widget': 'Widget', 'k.bundle': 'Pacchetto', 'k.ambient': 'Ambient',
+    'k.theme': 'Tema', 'k.bg': 'Sfondo', 'k.page': 'Pagina', 'k.deck': 'Deck', 'k.widget': 'Widget', 'k.bundle': 'Pacchetto', 'k.ambient': 'Ambient', 'k.icons': 'Pacchetto icone', 'k.sounds': 'Pacchetto suoni',
     'c.deck': 'Deck', 'c.streaming': 'Streaming', 'c.media': 'Media', 'c.smart_home': 'Casa smart', 'c.system': 'Sistema', 'c.style': 'Stile', 'c.fun': 'Divertimento', 'c.tools': 'Strumenti',
     'card.by': 'di', 'card.copy': 'Copia codice', 'card.copied': 'Copiato. Incollalo in Xenon: Impostazioni → Widget e condivisione → Importa.', 'card.copyfail': 'Copia non riuscita. Apri la voce su GitHub e copiala da lì.',
+    'card.link': 'Copia link', 'card.linked': 'Link copiato', 'card.linkfail': 'Copia non riuscita — il link è nella barra degli indirizzi.',
     'card.locked': 'Supporter',
-    'k.limited': 'Limited', 'k.limited_ed': 'Edizione limitata', 'card.left': '{n} di {t} disponibili', 'card.soldout': 'Esaurito', 'card.reserve': 'Prenota su Discord →', 'card.reserve_hint': 'Si prenota su Discord. Ricevi un codice d\'accesso personale per importarla.',
+    'k.limited': 'Limited', 'k.limited_ed': 'Edizione limitata', 'card.left': '{n} di {t} disponibili', 'card.soldout': 'Esaurito', 'card.claim': 'Richiedi la tua copia', 'card.reserve': 'Apri Discord', 'card.reserve_hint': 'Discord verifica il tuo account e invia un codice d\'accesso personale.',
     'count.n': '{n} creazioni',
     'bar.category': 'Tutte le categorie', 'bar.clear': '✕ Azzera filtri',
     'sort.feat': 'In evidenza', 'sort.new': 'Più recenti', 'sort.name': 'Nome A–Z',
@@ -545,9 +566,10 @@ const I18N = {
     'hero.guide': '가이드라인 보기 →',
     'bar.search': '이름, 제작자, #태그 검색…',
     'bar.all': '전체',
-    'k.theme': '테마', 'k.bg': '배경', 'k.page': '페이지', 'k.deck': 'Deck', 'k.widget': '위젯', 'k.bundle': '패키지', 'k.ambient': '앰비언트',
+    'k.theme': '테마', 'k.bg': '배경', 'k.page': '페이지', 'k.deck': 'Deck', 'k.widget': '위젯', 'k.bundle': '패키지', 'k.ambient': '앰비언트', 'k.icons': '아이콘 팩', 'k.sounds': '사운드 팩',
     'c.deck': 'Deck', 'c.streaming': '스트리밍', 'c.media': '미디어', 'c.smart_home': '스마트홈', 'c.system': '시스템', 'c.style': '스타일', 'c.fun': '재미', 'c.tools': '도구',
     'card.by': '제작:', 'card.copy': '코드 복사', 'card.copied': '복사됨. Xenon에 붙여넣기: 설정 → 위젯 및 공유 → 가져오기.', 'card.copyfail': '복사 실패. GitHub에서 항목을 열어 복사하세요.',
+    'card.link': '링크 복사', 'card.linked': '링크가 복사됨', 'card.linkfail': '복사 실패 — 링크는 주소창에 있습니다.',
     'card.locked': '서포터',
     'k.limited': '한정판', 'k.limited_ed': '한정판', 'card.left': '{t}개 중 {n}개 남음', 'card.soldout': '품절', 'card.reserve': 'Discord에서 예약 →', 'card.reserve_hint': 'Discord에서 예약합니다. 가져오기용 개인 액세스 코드를 받습니다.',
     'count.n': '{n}개 작품',
@@ -581,9 +603,10 @@ const I18N = {
     'hero.guide': 'ガイドラインを読む →',
     'bar.search': '名前・作者・#タグを検索…',
     'bar.all': 'すべて',
-    'k.theme': 'テーマ', 'k.bg': '背景', 'k.page': 'ページ', 'k.deck': 'Deck', 'k.widget': 'ウィジェット', 'k.bundle': 'パッケージ', 'k.ambient': 'アンビエント',
+    'k.theme': 'テーマ', 'k.bg': '背景', 'k.page': 'ページ', 'k.deck': 'Deck', 'k.widget': 'ウィジェット', 'k.bundle': 'パッケージ', 'k.ambient': 'アンビエント', 'k.icons': 'アイコンパック', 'k.sounds': 'サウンドパック',
     'c.deck': 'Deck', 'c.streaming': 'ストリーミング', 'c.media': 'メディア', 'c.smart_home': 'スマートホーム', 'c.system': 'システム', 'c.style': 'スタイル', 'c.fun': '楽しみ', 'c.tools': 'ツール',
     'card.by': '作者:', 'card.copy': 'コードをコピー', 'card.copied': 'コピーしました。Xenonに貼り付け: 設定 → ウィジェットと共有 → インポート。', 'card.copyfail': 'コピーに失敗しました。GitHubで項目を開いてコピーしてください。',
+    'card.link': 'リンクをコピー', 'card.linked': 'リンクをコピーしました', 'card.linkfail': 'コピーに失敗しました — リンクはアドレスバーにあります。',
     'card.locked': 'サポーター',
     'k.limited': '限定', 'k.limited_ed': '限定版', 'card.left': '{t}個中 残り{n}個', 'card.soldout': '完売', 'card.reserve': 'Discordで予約 →', 'card.reserve_hint': 'Discordで予約します。インポート用の個人アクセスコードが届きます。',
     'count.n': '{n} 作品',
@@ -617,9 +640,10 @@ const I18N = {
     'hero.guide': '查看指南 →',
     'bar.search': '搜索名称、作者、#标签…',
     'bar.all': '全部',
-    'k.theme': '主题', 'k.bg': '背景', 'k.page': '页面', 'k.deck': 'Deck', 'k.widget': '组件', 'k.bundle': '套件', 'k.ambient': '氛围',
+    'k.theme': '主题', 'k.bg': '背景', 'k.page': '页面', 'k.deck': 'Deck', 'k.widget': '组件', 'k.bundle': '套件', 'k.ambient': '氛围', 'k.icons': '图标包', 'k.sounds': '音效包',
     'c.deck': 'Deck', 'c.streaming': '直播', 'c.media': '媒体', 'c.smart_home': '智能家居', 'c.system': '系统', 'c.style': '风格', 'c.fun': '趣味', 'c.tools': '工具',
     'card.by': '作者:', 'card.copy': '复制代码', 'card.copied': '已复制。粘贴到 Xenon：设置 → 组件与分享 → 导入。', 'card.copyfail': '复制失败。请在 GitHub 打开该条目并从那里复制。',
+    'card.link': '复制链接', 'card.linked': '链接已复制', 'card.linkfail': '复制失败 — 链接在地址栏中。',
     'card.locked': '支持者',
     'k.limited': '限量', 'k.limited_ed': '限量版', 'card.left': '{t} 份仅剩 {n} 份', 'card.soldout': '已售罄', 'card.reserve': '在 Discord 预订 →', 'card.reserve_hint': '在 Discord 预订。你会收到用于导入的专属访问码。',
     'count.n': '{n} 个作品',
@@ -691,7 +715,7 @@ function applyLang(lang) {
 // github.com over https, and codes are copied verbatim — never parsed here.
 // The app re-validates everything again on import.
 (function () {
-  const KINDS = ['theme', 'bg', 'page', 'deck', 'widget', 'bundle', 'ambient'];
+  const KINDS = ['theme', 'bg', 'page', 'deck', 'widget', 'bundle', 'ambient', 'icons', 'sounds'];
   const CATS = ['deck', 'streaming', 'media', 'smart-home', 'system', 'style', 'fun', 'tools'];
   const ID_RE = /^[a-z0-9][a-z0-9_-]{0,60}$/;
   const HEX = /^#[0-9a-fA-F]{3,8}$/;
@@ -707,17 +731,24 @@ function applyLang(lang) {
   const CODES_BASE = '../community/codes/';
   const COFFEE = 'https://www.buymeacoffee.com/marcimastro98';
   const DISCORD_URL = 'https://discord.gg/MBVrw9kZyg';
+  const HUB_BASE = 'https://xenon-supporter-hub.xenonedge.workers.dev';
   const SUPPORT_EMAIL = 'supportxenon@protonmail.com';
 
-  // Limited-edition drop (mirrors the app/server): reservation-only, so it may
-  // carry no code. total/claimed are bounded; left/soldOut derived. reserveUrl
-  // renders as an href only for an https Discord URL, else the default invite.
+  // Limited-edition drop (mirrors the app/server): legacy drops reserve through
+  // Discord; Hub-backed drops claim automatically. Both may carry no public code.
+  // total/claimed are bounded; left/soldOut are derived.
   function cleanLimited(raw) {
     if (!raw || typeof raw !== 'object') return null;
     const total = Number.isInteger(raw.total) ? Math.max(0, Math.min(99999, raw.total)) : 0;
     if (total <= 0) return null;
     const claimed = Number.isInteger(raw.claimed) ? Math.max(0, Math.min(total, raw.claimed)) : 0;
     const lim = { total, claimed, left: total - claimed, soldOut: claimed >= total, reserveUrl: '' };
+    const dropId = typeof raw.dropId === 'string' ? raw.dropId.trim() : '';
+    if (raw.fulfillment === 'hub' && ID_RE.test(dropId)) {
+      lim.fulfillment = 'hub'; lim.dropId = dropId;
+      lim.channels = raw.channels === 'both' ? 'both' : 'discord';
+      lim.numbered = raw.numbered === true;
+    }
     try {
       const u = new URL(String(raw.reserveUrl || ''));
       const h = u.hostname.toLowerCase();
@@ -750,6 +781,38 @@ function applyLang(lang) {
   const KIND_LABEL = (k) => T('k.' + k) || k;
   const CAT_LABEL = (c) => T('c.' + c.replace('-', '_')) || c;
 
+  function directClaimUrl(entry) {
+    const lim = entry && entry.limited;
+    if (!lim || lim.fulfillment !== 'hub' || lim.channels !== 'both' || !ID_RE.test(lim.dropId || '')) return '';
+    return HUB_BASE + '/limited/claim/' + encodeURIComponent(lim.dropId) + '?source=web';
+  }
+
+  function limitedButtons(parent, entry) {
+    const group = el('div', 'cat-limited-actions');
+    const claimUrl = directClaimUrl(entry);
+    if (claimUrl) {
+      const claim = el('a', 'cat-claim', T('card.claim')); claim.href = claimUrl;
+      claim.target = '_blank'; claim.rel = 'noopener'; group.appendChild(claim);
+    }
+    const discord = el('a', 'cat-discord', T('card.reserve'));
+    discord.href = entry.limited.reserveUrl || DISCORD_URL;
+    discord.target = '_blank'; discord.rel = 'noopener'; group.appendChild(discord);
+    parent.appendChild(group);
+  }
+
+  async function hydrateLimitedStatus(list) {
+    const automatic = list.filter((entry) => entry && entry.limited && entry.limited.fulfillment === 'hub');
+    const ids = [...new Set(automatic.map((entry) => entry.limited.dropId).filter(Boolean))];
+    if (!ids.length) return;
+    try {
+      const res = await fetch(HUB_BASE + '/limited/status?ids=' + encodeURIComponent(ids.join(',')), { cache: 'no-store' });
+      if (!res.ok) return;
+      const out = await res.json();
+      if (!out || !out.ok || !out.drops) return;
+      automatic.forEach((entry) => { const live = out.drops[entry.limited.dropId]; if (live) Object.assign(entry.limited, live); });
+    } catch (err) { /* static fallback remains visible */ }
+  }
+
   // Inline SVG icons (static, trusted markup — the only innerHTML use here). No
   // emoji anywhere in the UI; these currentColor glyphs inherit the element colour.
   const ICONS = {
@@ -757,6 +820,8 @@ function applyLang(lang) {
     lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
     star: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l2.5 5.6 6.1.6-4.6 4 1.4 6-5.4-3.2L6.1 19.2l1.4-6-4.6-4 6.1-.6z"/></svg>',
     spark: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2l1.9 5.6a2 2 0 0 0 1.3 1.3l5.6 1.9-5.6 1.9a2 2 0 0 0-1.3 1.3L12 19.8l-1.9-5.6a2 2 0 0 0-1.3-1.3L3.2 11l5.6-1.9a2 2 0 0 0 1.3-1.3z"/></svg>',
+    link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 13.5a4 4 0 0 0 5.7 0l2.6-2.6a4 4 0 1 0-5.7-5.7l-1.3 1.3"/><path d="M13.5 10.5a4 4 0 0 0-5.7 0l-2.6 2.6a4 4 0 1 0 5.7 5.7l1.3-1.3"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>',
   };
   function cico(name, cls) { const s = document.createElement('span'); s.className = 'cico' + (cls ? ' ' + cls : ''); if (ICONS[name]) s.innerHTML = ICONS[name]; return s; }
   function pill(cls, iconName, text) { const s = el('span', cls); s.appendChild(cico(iconName)); s.appendChild(document.createTextNode(text)); return s; }
@@ -771,8 +836,8 @@ function applyLang(lang) {
     const name = typeof entry.name === 'string' ? entry.name.trim() : '';
     if (!name) return null;
     const limited = cleanLimited(entry.limited);
-    // A limited drop is reservation-only and may carry no code; everything else
-    // still needs a code source.
+    // A limited drop may use Discord reservation or automatic Hub fulfillment,
+    // so it may carry no public code; everything else still needs a code source.
     const hasCode = (typeof entry.code === 'string' && entry.code.trim()) || entry.codeFile === true;
     if (!hasCode && !limited) return null;
     const out = {
@@ -842,6 +907,34 @@ function applyLang(lang) {
     }
   }
 
+  // ── Per-entry permalink (/catalog/#demonic) ────────────────────────────────
+  // The hash is the shareable unit: it survives in the URL (see deepLink) so a
+  // link can be grabbed from the address bar, and this button hands it over in
+  // one click from the grid — without opening the entry first.
+  function entryUrl(id) { return location.origin + location.pathname + '#' + encodeURIComponent(id); }
+  function linkButton(entry, cls, hint) {
+    const b = el('button', cls); b.type = 'button';
+    b.title = T('card.link'); b.setAttribute('aria-label', T('card.link') + ' — ' + entry.name);
+    const ico = cico('link'); b.appendChild(ico);
+    let timer = 0;
+    b.addEventListener('click', async (e) => {
+      // The whole card is a button: without this the copy would also open the
+      // detail view behind the toast.
+      e.stopPropagation();
+      const ok = await copyText(entryUrl(entry.id));
+      b.classList.toggle('ok', ok);
+      b.replaceChildren(cico(ok ? 'check' : 'link'));
+      b.title = T(ok ? 'card.linked' : 'card.linkfail');
+      if (hint) hint.textContent = T(ok ? 'card.linked' : 'card.linkfail');
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        b.classList.remove('ok'); b.replaceChildren(cico('link')); b.title = T('card.link');
+        if (hint) hint.textContent = '';
+      }, 2600);
+    });
+    return b;
+  }
+
   // ── Lightbox ──
   const lb = document.getElementById('lb');
   const lbImg = document.getElementById('lb-img');
@@ -867,7 +960,21 @@ function applyLang(lang) {
   const ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
   const detailEl = el('div', 'dt'); detailEl.id = 'detail'; detailEl.setAttribute('role', 'dialog'); detailEl.setAttribute('aria-modal', 'true');
   document.body.appendChild(detailEl);
-  function closeDetail() { detailEl.classList.remove('open'); detailEl.replaceChildren(); }
+  let detailEntry = null;   // entry currently on screen, or null
+  let pushedHash = false;   // true when WE added the history entry for it
+
+  function hideDetail() { detailEl.classList.remove('open'); detailEl.replaceChildren(); detailEntry = null; }
+  function clearHash() { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignore */ } deepLinked = ''; }
+  // User-initiated close (✕ / Esc / backdrop). Opening pushed a history entry so
+  // Back closes the card — unwind it here, or the Back button would reopen it.
+  // Arriving straight on #id pushed nothing: drop the hash without touching the
+  // history depth, so Back still leaves the catalog.
+  function closeDetail() {
+    const wasPushed = pushedHash; pushedHash = false;
+    hideDetail();
+    if (wasPushed) { try { history.back(); return; } catch (e) { /* fall through */ } }
+    if (location.hash) clearHash();
+  }
   detailEl.addEventListener('click', (e) => { if (e.target === detailEl) closeDetail(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && detailEl.classList.contains('open') && !lb.classList.contains('open')) closeDetail(); });
 
@@ -920,11 +1027,15 @@ function applyLang(lang) {
     return gal;
   }
 
-  function openDetail(entry) {
+  // fromHash: we got here by honouring a link, so the URL is already right and
+  // must not gain a second history entry for the same card.
+  function openDetail(entry, fromHash) {
     const modal = el('div', 'dt-modal');
     const head = el('div', 'dt-head');
     const x = el('button', 'dt-x'); x.type = 'button'; x.setAttribute('aria-label', 'Close'); x.innerHTML = ICON_X; x.addEventListener('click', closeDetail);
-    head.appendChild(el('div', 'dt-title', entry.name)); head.appendChild(x);
+    head.appendChild(el('div', 'dt-title', entry.name));
+    head.appendChild(linkButton(entry, 'dt-link'));
+    head.appendChild(x);
 
     const body = el('div', 'dt-body');
     body.appendChild(detailGallery(entry));
@@ -958,7 +1069,7 @@ function applyLang(lang) {
       const lim = entry.limited;
       if (lim.soldOut) { cta.appendChild(el('span', 'cat-soldout', T('card.soldout'))); }
       else {
-        const a = el('a', 'cat-reserve', T('card.reserve')); a.href = lim.reserveUrl || DISCORD_URL; a.target = '_blank'; a.rel = 'noopener'; cta.appendChild(a);
+        limitedButtons(cta, entry);
         const cnt = el('span', 'cat-limcount'); cnt.appendChild(el('b', null, String(lim.left))); cnt.appendChild(document.createTextNode(' / ' + lim.total)); cta.appendChild(cnt);
       }
     } else {
@@ -985,12 +1096,19 @@ function applyLang(lang) {
     modal.appendChild(head); modal.appendChild(body);
     detailEl.replaceChildren(modal);
     detailEl.classList.add('open');
+    detailEntry = entry;
+    deepLinked = entry.id;
+    // The open card owns the URL, so the address bar is always a link to what
+    // you're looking at — copy it from there or from the button in the header.
+    if (!fromHash && location.hash.slice(1) !== encodeURIComponent(entry.id)) {
+      try { history.pushState(null, '', '#' + encodeURIComponent(entry.id)); pushedHash = true; } catch (e) { /* ignore */ }
+    }
   }
 
   // ── Generated preview (fallback when an entry ships no screenshot) ──────────
   // Colours come only from the validated preview swatches (hex), used as canvas
   // fills — so a theme/bg/page card is never an empty box.
-  function catColors(entry) { const p = entry.preview || {}; return { a: p.accent || '#1ee07a', b: p.bg || '#0a0f0d', t: p.text || '#e9f2ee' }; }
+  function catColors(entry) { const p = entry.preview || {}; return { a: p.accent || '#1ed760', b: p.bg || '#0a0f0d', t: p.text || '#e9f2ee' }; }
   function rgba(c, al) { c = String(c || '#888').replace('#', ''); if (c.length === 3) c = c.split('').map((x) => x + x).join(''); if (c.length > 6) c = c.slice(0, 6); const n = parseInt(c, 16) || 0; return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + (al == null ? 1 : al) + ')'; }
   function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
   function drawPreview(canvas, entry) {
@@ -1014,6 +1132,27 @@ function applyLang(lang) {
     } else if (k === 'deck') {
       const cols = 4, rows = 2, pad = w * 0.08, gap = w * 0.03, kw = (w - pad * 2 - gap * (cols - 1)) / cols, kh = kw * 0.86, oy = (h - (kh * rows + gap * (rows - 1))) / 2; let n = 0;
       for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { const x = pad + c * (kw + gap), y = oy + r * (kh + gap), lit = (n % 3 === 0); rr(g, x, y, kw, kh, 6); g.fillStyle = lit ? rgba(a, 0.9) : rgba(t, 0.08); g.fill(); g.fillStyle = lit ? rgba(b, 0.85) : rgba(t, 0.5); g.beginPath(); g.arc(x + kw / 2, y + kh / 2, kw * 0.16, 0, Math.PI * 2); g.fill(); n++; }
+    } else if (k === 'sounds') { // sound pack → waveform bars
+      const bars = 24, pad = w * 0.09, gap = w * 0.012, bw = (w - pad * 2 - gap * (bars - 1)) / bars, cy = h / 2;
+      for (let i = 0; i < bars; i++) {
+        const x = pad + i * (bw + gap);
+        const amp = (0.18 + 0.32 * Math.abs(Math.sin(i * 0.9)) + 0.22 * Math.abs(Math.sin(i * 0.37 + 1.7))) * h * 0.5;
+        rr(g, x, cy - amp, bw, amp * 2, bw / 2);
+        g.fillStyle = i % 5 === 2 ? a : rgba(t, 0.35);
+        g.fill();
+      }
+    } else if (k === 'icons') { // icon pack → tile grid of small glyph shapes
+      const cols = 6, rows = 3, pad = w * 0.09, gap = w * 0.025, kw = (w - pad * 2 - gap * (cols - 1)) / cols, kh = kw, oy = (h - (kh * rows + gap * (rows - 1))) / 2; let n = 0;
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        const x = pad + c * (kw + gap), y = oy + r * (kh + gap), lit = (n % 4 === 1);
+        rr(g, x, y, kw, kh, 5); g.fillStyle = rgba(t, 0.07); g.fill();
+        const cx = x + kw / 2, cy = y + kh / 2, s = kw * 0.28, glyph = n % 3;
+        g.fillStyle = lit ? a : rgba(t, 0.45);
+        if (glyph === 0) { g.beginPath(); g.arc(cx, cy, s, 0, Math.PI * 2); g.fill(); }
+        else if (glyph === 1) { g.beginPath(); g.moveTo(cx - s, cy - s); g.lineTo(cx + s, cy); g.lineTo(cx - s, cy + s); g.closePath(); g.fill(); }
+        else { rr(g, cx - s, cy - s, s * 2, s * 2, 3); g.fill(); }
+        n++;
+      }
     } else { // theme / page / bundle → mini dashboard
       const pad = w * 0.07;
       rr(g, pad, h * 0.1, w - pad * 2, h * 0.11, 5); g.fillStyle = rgba(t, 0.08); g.fill();
@@ -1130,25 +1269,32 @@ function applyLang(lang) {
 
     const by = bylineEl('cat-by', entry);
     if (entry.category) { by.appendChild(document.createTextNode(' · ')); by.appendChild(el('span', 'cat-catlabel', CAT_LABEL(entry.category))); }
+    // Async-filled star slot (display-only on the website — voting happens in
+    // the app, keyed on its install id). Hidden below the minimum vote count.
+    const stars = el('span', 'cat-stars', starsText(entry.id));
+    stars.dataset.rid = entry.id;
+    by.appendChild(stars);
     body.appendChild(by);
 
     body.appendChild(el('p', 'cat-desc', entry.description || ''));
     const tags = el('div', 'cat-tags'); entry.tags.slice(0, 3).forEach((tag) => tags.appendChild(el('span', 'cat-tag', '#' + tag))); body.appendChild(tags);
 
     const foot = el('div', 'cat-foot');
-    // Limited drop: reservation-only (reserve link or a sold-out badge).
+    // Limited drop: automatic claim/reservation links or a sold-out badge.
     if (entry.limited) {
       const lim = entry.limited;
       if (lim.soldOut) { foot.appendChild(el('span', 'cat-soldout', T('card.soldout'))); }
       else {
-        const a = el('a', 'cat-reserve', T('card.reserve')); a.href = lim.reserveUrl || DISCORD_URL; a.target = '_blank'; a.rel = 'noopener'; foot.appendChild(a);
+        limitedButtons(foot, entry);
         const cnt = el('span', 'cat-limcount'); cnt.appendChild(el('b', null, String(lim.left))); cnt.appendChild(document.createTextNode(' / ' + lim.total)); foot.appendChild(cnt);
       }
+      foot.appendChild(linkButton(entry, 'cat-link'));
       body.appendChild(foot); card.appendChild(body);
       return card;
     }
     const { btn, hint } = codeButton(entry);
     foot.appendChild(btn);
+    foot.appendChild(linkButton(entry, 'cat-link', hint));
     body.appendChild(foot);
     card.appendChild(body);
     card.appendChild(hint);
@@ -1198,13 +1344,14 @@ function applyLang(lang) {
       const lim = entry.limited;
       if (lim.soldOut) { foot.appendChild(el('span', 'cat-soldout', T('card.soldout'))); }
       else {
-        const a = el('a', 'cat-reserve', T('card.reserve')); a.href = lim.reserveUrl || DISCORD_URL; a.target = '_blank'; a.rel = 'noopener'; foot.appendChild(a);
+        limitedButtons(foot, entry);
         const cnt = el('span', 'cat-limcount'); cnt.appendChild(el('b', null, String(lim.left))); cnt.appendChild(document.createTextNode(' / ' + lim.total)); foot.appendChild(cnt);
       }
     } else {
       const { btn, hint } = codeButton(entry);
       foot.appendChild(btn); foot.appendChild(hint);
     }
+    foot.appendChild(linkButton(entry, 'cat-link'));
     info.appendChild(foot);
     card.appendChild(info);
     return card;
@@ -1295,19 +1442,38 @@ function applyLang(lang) {
     const parts = T('count.n').split('{n}');
     countEl.replaceChildren(document.createTextNode(parts[0] || ''), el('b', null, String(n)), document.createTextNode(parts[1] || ''));
   }
+  // #demonic is a shareable permalink, so it STAYS in the URL — it used to be
+  // stripped on arrival, which silently made every per-item link un-copyable
+  // (and one-way: the recipient could never re-share what they were sent).
+  // deepLinked remembers which hash we already acted on: paint() runs deepLink()
+  // after every repaint, and re-honouring a live hash would yank the viewport
+  // back to the card on each 'Show more' / filter — the reason it was stripped.
+  let deepLinked = '';
   function deepLink() {
-    const hash = location.hash.replace('#', '');
-    if (!hash) return;
-    // Consume the hash: paint() calls deepLink() after every repaint, and a live
-    // hash would yank the viewport back to the card on each 'Show more'/filter.
-    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignore */ }
+    let hash = location.hash.replace('#', '');
+    try { hash = decodeURIComponent(hash); } catch (e) { /* malformed %-escape: use raw */ }
+    if (!hash || hash === deepLinked) return;
+    deepLinked = hash;
     const c = document.getElementById('cat-' + hash);
-    if (c) { c.scrollIntoView({ block: 'center' }); c.classList.add('flash'); return; }
+    // 'instant': the page sets scroll-behavior:smooth, and animating a
+    // full-page jump on arrival drags the reader through the whole grid.
+    if (c) { c.scrollIntoView({ block: 'center', behavior: 'instant' }); c.classList.add('flash'); return; }
     // Sections and pagination slice the grids, so the linked card may not be in
     // the DOM — open its detail view instead of silently doing nothing.
     const entry = entries.find((e) => e.id === hash);
-    if (entry) openDetail(entry);
+    if (entry) openDetail(entry, true);
   }
+
+  // Links pasted into the address bar, in-page #links, and Back/Forward across
+  // an open card all land here (hashchange doesn't fire for our own push/replace).
+  window.addEventListener('hashchange', () => {
+    let id = location.hash.replace('#', '');
+    try { id = decodeURIComponent(id); } catch (e) { /* use raw */ }
+    pushedHash = false;
+    if (!id) { deepLinked = ''; if (detailEntry) hideDetail(); return; }
+    if (detailEntry) { if (detailEntry.id === id) return; hideDetail(); }
+    deepLink();
+  });
 
   function paint() {
     clearEl.hidden = !(activeKind || activeCat || query);
@@ -1444,6 +1610,38 @@ function applyLang(lang) {
     redrawTimer = setTimeout(() => { document.querySelectorAll('.cat-media > canvas, .drop-media > canvas').forEach((cv) => { if (cv._entry) drawPreview(cv, cv._entry); }); }, 150);
   });
 
+  // ── Star ratings (read-only aggregates from the supporter hub) ─────────────
+  // Best-effort: a hub hiccup just leaves the slots empty; the catalog never
+  // waits on it. Voting happens inside the app (keyed on its install id).
+  const RATINGS_BASE = 'https://xenon-supporter-hub.xenonedge.workers.dev/ratings';
+  let ratingsMap = {};
+  let ratingsMin = 3;
+  function starsText(id) {
+    const r = ratingsMap[id];
+    if (!r || !isFinite(Number(r.avg)) || (Number(r.count) || 0) < ratingsMin) return '';
+    return '★ ' + Number(r.avg).toFixed(1) + ' · ' + r.count;
+  }
+  function paintStars() {
+    document.querySelectorAll('.cat-stars[data-rid]').forEach((slot) => {
+      slot.textContent = starsText(slot.dataset.rid);
+    });
+  }
+  async function loadRatings() {
+    try {
+      const ids = entries.map((e) => e.id);
+      for (let i = 0; i < ids.length; i += 100) {
+        const res = await fetch(RATINGS_BASE + '?ids=' + encodeURIComponent(ids.slice(i, i + 100).join(',')));
+        if (!res.ok) continue;
+        const out = await res.json();
+        if (out && out.ok && out.ratings) {
+          ratingsMin = Number(out.minDisplayCount) || ratingsMin;
+          Object.assign(ratingsMap, out.ratings);
+        }
+      }
+      paintStars();
+    } catch (err) { /* offline / blocked — slots stay empty */ }
+  }
+
   (async function load() {
     try {
       const res = await fetch('../community/catalog.json', { cache: 'no-store' });
@@ -1453,11 +1651,13 @@ function applyLang(lang) {
       const seen = new Set();
       entries = raw.map(clean).filter((e) => e && visible(e) && !seen.has(e.id) && seen.add(e.id)).slice(0, 200);
       if (!entries.length) { stateEl.textContent = T('state.none'); return; }
+      await hydrateLimitedStatus(entries);
       entries.forEach((e, i) => { e._i = i; });
       shown = PAGE;
       toolbarEl.hidden = false;
       buildControls();
       paint();
+      loadRatings();
     } catch (err) {
       stateEl.textContent = T('state.error');
     }

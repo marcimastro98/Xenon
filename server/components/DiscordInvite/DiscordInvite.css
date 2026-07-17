@@ -23,7 +23,7 @@
 }
 .discord-invite.is-in { transform: translateY(0); opacity: 1; }
 
-:root[data-theme="light"] .discord-invite {
+:root[data-appearance="light"] .discord-invite {
   background: #ffffff;
   border-color: rgba(0, 0, 0, 0.08);
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(88, 101, 242, 0.14);

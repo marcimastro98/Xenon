@@ -187,6 +187,12 @@ function normalizeTileStyle(src) {
   if (panelGrad) out.panelGrad = panelGrad;
   const mutedText = _tileHex(src.mutedText);
   if (mutedText) out.mutedText = mutedText;
+  for (const key of ['surfaceAlt', 'controlColor', 'lineColor', 'accentText',
+    'successColor', 'warningColor', 'dangerColor', 'infoColor']) {
+    const value = _tileHex(src[key]);
+    if (value) out[key] = value;
+  }
+  if (typeof src.contrastGuard === 'boolean') out.contrastGuard = src.contrastGuard;
   const pa = Number(src.panelAlpha);
   if (Number.isFinite(pa) && pa >= 0.05 && pa <= 1) out.panelAlpha = Math.round(pa * 100) / 100;
   const rr = Number(src.radius);

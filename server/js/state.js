@@ -6,7 +6,9 @@
 const _xcConst = (typeof window !== 'undefined' && window.Xenon && window.Xenon.constants) || null;
 
 // ── Server ───────────────────────────────────────────────────
-const SERVER = (_xcConst && _xcConst.LOOPBACK_ORIGIN) || 'http://127.0.0.1:3030';
+const SERVER = (typeof window !== 'undefined' && window.location && (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost' || window.location.hostname === '::1'))
+  ? window.location.origin
+  : ((_xcConst && _xcConst.LOOPBACK_ORIGIN) || 'http://127.0.0.1:3030');
 
 // ── Mic state ────────────────────────────────────────────────
 let muted = false;
@@ -94,6 +96,9 @@ let tasksData = [];
 // ── App switcher state ────────────────────────────────────────
 let appWindows = [];
 let appWindowsLoading = false;
+// True when the last /windows fetch failed or timed out — the panel shows a
+// retryable error instead of an eternal "Loading applications…" spinner.
+let appWindowsError = false;
 let appFavorites = parseAppFavorites(localStorage.getItem('appFavorites') || '[]');
 
 // ── DOM refs: mic ─────────────────────────────────────────────

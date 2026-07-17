@@ -219,7 +219,7 @@ body.ambient-canvas-open { overflow: hidden; }
 .settings-ambient-scene-meta { font-size: 11px; color: var(--muted-text, #8b93a7); }
 .settings-ambient-scene-acts { display: flex; gap: 6px; flex: 0 0 auto; }
 .settings-ambient-scene-acts .settings-btn { padding: 5px 10px; font-size: 12px; }
-.settings-ambient-scene-acts .settings-btn.danger { color: #ff6b6b; }
+.settings-ambient-scene-acts .settings-btn.danger { color: var(--color-danger); }
 
 /* Import-preview thumbnail (js/preset-share.js openAmbientLayoutImport): a true
    scaled render of the scene through the AmbientCanvas pipeline. */

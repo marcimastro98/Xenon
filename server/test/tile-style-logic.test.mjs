@@ -39,6 +39,21 @@ test('normalizeTileStyle keeps the extended tokens (muted/radius/glass/border/sh
   assert.deepEqual(s, { mode: 'custom', mutedText: '#aabbcc', radius: 1.5, glassBlur: 30, glassSaturate: 180, borderStrength: 0.5, shadowStrength: 1.2 });
 });
 
+test('normalizeTileStyle round-trips the complete semantic widget palette', () => {
+  const s = normalizeTileStyle({
+    mode: 'custom', surfaceAlt: '#F4F1E8', controlColor: '#E8E1D0',
+    lineColor: '#50483E', accentText: '#FFFFFF', successColor: '#147A4A',
+    warningColor: '#805800', dangerColor: '#BD303B', infoColor: '#176783',
+    contrastGuard: false,
+  });
+  assert.deepEqual(s, {
+    mode: 'custom', surfaceAlt: '#f4f1e8', controlColor: '#e8e1d0',
+    lineColor: '#50483e', accentText: '#ffffff', successColor: '#147a4a',
+    warningColor: '#805800', dangerColor: '#bd303b', infoColor: '#176783',
+    contrastGuard: false,
+  });
+});
+
 test('normalizeTileStyle accepts a panel-background gradient and drops a half one', () => {
   const s = normalizeTileStyle({ mode: 'custom', panelGrad: { c1: '#1ED760', c2: '#0A0D12', angle: 90 } });
   assert.deepEqual(s.panelGrad, { c1: '#1ed760', c2: '#0a0d12', angle: 90 });

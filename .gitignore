@@ -91,8 +91,10 @@ xenonedgehub.icuewidget
 # packages/core, recreated per checkout by `npm run link:shared` (postinstall).
 # Never commit the junctions — packages/core is the single source of truth. The
 # iCUE packaging step copies packages/core/src into the package instead.
-server/shared/
-widget/shared/
+# No trailing slash: on a POSIX checkout the bridge is a symlink, not a directory,
+# so `server/shared/` (directory-only) would miss it and leave it untracked.
+server/shared
+widget/shared
 
 # Supporter-hub content keys emitted by the xenon-creator packager (upload then delete)
 *-cek-secret.json
@@ -102,3 +104,5 @@ widget/shared/
 # Drop them here only as a staging area for the R2 upload, then let this ignore
 # them. See docs/community/README.md and the supporter-hub drop routine.
 docs/community/shots/
+.agents/
+packages/design-system

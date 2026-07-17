@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xenon — publish to the community catalog</title>
+<meta name="description" content="Submit your Xenon creation — theme, background, page, Deck profile, widget, scene, icon or sound pack — to the community catalog. A human reviews every submission.">
+<link rel="icon" type="image/png" href="../images/favicon.png">
+<meta name="robots" content="index, follow">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<!-- Cloudflare Turnstile (the anti-spam gate; the hub verifies the token server-side). -->
+<script src="https://challenges.cloudflare.com/turnstile/api.js" async defer></script>
+
+<style>
+  :root {
+    --ink: #04060a; --panel: rgba(140,255,200,0.035); --line: rgba(120,245,180,0.14);
+    --line-2: rgba(120,245,180,0.26); --plasma: #1ee07a; --plasma-2: #40dca5;
+    --danger: #ff5a63; --text: #e9f2ee; --muted: #8fa39c; --dim: #5f706a;
+    --display: 'Clash Display','Hanken Grotesk',system-ui,sans-serif;
+    --body: 'Hanken Grotesk',system-ui,-apple-system,sans-serif;
+    --mono: 'JetBrains Mono',ui-monospace,monospace;
+    --maxw: 760px; --ease: cubic-bezier(0.16,1,0.3,1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: var(--body); background: var(--ink); color: var(--text);
+    line-height: 1.55; min-height: 100dvh; -webkit-font-smoothing: antialiased;
+    background-image: radial-gradient(90% 55% at 50% -8%, rgba(30,224,122,0.09), transparent 60%);
+  }
+  a { color: var(--plasma-2); }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 32px 20px 80px; }
+  header.top { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }
+  header.top img { width: 38px; height: 38px; }
+  header.top .back { margin-left: auto; font-size: 0.9rem; color: var(--muted); text-decoration: none; }
+  header.top .back:hover { color: var(--text); }
+  h1 { font-family: var(--display); font-weight: 700; font-size: clamp(1.6rem, 4vw, 2.2rem); letter-spacing: -0.01em; }
+  .lede { color: var(--muted); margin: 10px 0 28px; max-width: 60ch; }
+  .lede b { color: var(--text); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px; margin-bottom: 18px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
+  label.f { display: block; margin-bottom: 12px; }
+  label.f > span { display: block; font-size: 0.82rem; color: var(--muted); margin-bottom: 5px; }
+  label.f small { color: var(--dim); }
+  input[type=text], select, textarea {
+    width: 100%; font: inherit; font-size: 0.95rem; color: var(--text);
+    background: rgba(0,0,0,0.35); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 12px; outline: none; transition: border-color 0.15s var(--ease);
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--line-2); }
+  textarea { resize: vertical; min-height: 90px; }
+  #code { font-family: var(--mono); font-size: 0.8rem; min-height: 120px; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .btn {
+    font: inherit; font-weight: 600; cursor: pointer; border-radius: 10px;
+    padding: 10px 18px; border: 1px solid var(--line-2);
+    background: rgba(30,224,122,0.1); color: var(--text);
+    transition: background 0.15s var(--ease), transform 0.1s var(--ease);
+  }
+  .btn:hover { background: rgba(30,224,122,0.18); }
+  .btn.primary { background: var(--plasma); color: #04160c; border-color: transparent; font-weight: 700; }
+  .btn.primary:hover { background: var(--plasma-2); }
+  .btn.primary:disabled { opacity: 0.5; cursor: default; }
+  .btn.ghost { background: transparent; border-color: var(--line); color: var(--muted); }
+  .hint { font-size: 0.82rem; color: var(--dim); margin-top: 6px; }
+  .shots { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+  .shot { width: 150px; }
+  .shot .box {
+    aspect-ratio: 16/9; border: 1px dashed var(--line-2); border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    color: var(--dim); font-size: 0.85rem; cursor: pointer; background: rgba(0,0,0,0.25);
+  }
+  .shot .box img { width: 100%; height: 100%; object-fit: cover; }
+  .shot .rm { width: 100%; margin-top: 4px; font-size: 0.75rem; padding: 4px; }
+  .err { color: var(--danger); font-size: 0.9rem; min-height: 1.3em; margin-top: 10px; }
+  .ok-screen { text-align: center; padding: 48px 20px; }
+  .ok-screen .big { font-size: 3rem; }
+  .ok-screen h2 { font-family: var(--display); margin: 12px 0 8px; }
+  .ok-screen p { color: var(--muted); max-width: 46ch; margin: 0 auto 8px; }
+  .turnstile-wrap { margin: 14px 0 4px; min-height: 66px; }
+  .langbar { display: flex; gap: 6px; }
+  .langbar button { background: none; border: 0; color: var(--dim); cursor: pointer; font: inherit; font-size: 0.8rem; }
+  .langbar button.on { color: var(--plasma); font-weight: 700; }
+  footer { margin-top: 40px; color: var(--dim); font-size: 0.82rem; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <img src="../images/logo-mark.png" alt="Xenon">
+    <div class="langbar" id="langbar"></div>
+    <a class="back" href="../catalog/" data-t="back">← Community catalog</a>
+  </header>
+
+  <h1 data-t="title">Publish to the community catalog</h1>
+  <p class="lede" data-t="lede">Made something for Xenon — a theme, a background, a Deck profile, a widget, an icon or sound pack? Paste its <b>share code</b> below and it lands in the review queue. <b>A human reviews every submission</b> before it appears in the in-app gallery; nothing you send here can change anyone's dashboard by itself.</p>
+
+  <form id="form" novalidate>
+    <div class="card">
+      <div class="grid2">
+        <label class="f"><span data-t="f_kind">Kind</span>
+          <select id="kind">
+            <option value="theme">theme</option>
+            <option value="bg" data-t="k_bg">bg (animated background)</option>
+            <option value="page" data-t="k_page">page (dashboard page)</option>
+            <option value="deck" data-t="k_deck">deck (Deck profile)</option>
+            <option value="widget" data-t="k_widget">widget (community widget)</option>
+            <option value="ambient" data-t="k_ambient">ambient (Ambient scene)</option>
+            <option value="bundle" data-t="k_bundle">bundle (full package)</option>
+            <option value="icons" data-t="k_icons">icons (Deck icon pack)</option>
+            <option value="sounds" data-t="k_sounds">sounds (soundboard pack)</option>
+          </select>
+        </label>
+        <label class="f"><span data-t="f_name">Name *</span><input type="text" id="name" maxlength="60" required></label>
+        <label class="f"><span data-t="f_author">Author / handle</span><input type="text" id="author" maxlength="40"></label>
+        <label class="f"><span data-t="f_version">Version <small data-t="f_version_h">(e.g. 1.0.0 — bump it when you update)</small></span><input type="text" id="version" maxlength="20" placeholder="1.0.0"></label>
+        <label class="f"><span data-t="f_contact">Contact <small data-t="f_contact_h">(optional — email/Discord, only the reviewer sees it)</small></span><input type="text" id="contact" maxlength="120"></label>
+        <label class="f"><span data-t="f_tags">Tags <small data-t="f_tags_h">(up to 6, lowercase)</small></span><input type="text" id="tags" maxlength="140" placeholder="neon dark minimal"></label>
+      </div>
+      <label class="f"><span data-t="f_desc">Description</span><textarea id="description" maxlength="400"></textarea></label>
+    </div>
+
+    <div class="card">
+      <label class="f"><span data-t="f_code">Share code *</span>
+        <textarea id="code" spellcheck="false" data-t-ph="code_ph" placeholder="Paste the code from Share & Import → Export…"></textarea>
+      </label>
+      <div class="row">
+        <button type="button" class="btn ghost" id="codeFileBtn" data-t="code_file">Load from .txt / .json file…</button>
+        <input type="file" id="codeFile" accept=".txt,.json,text/plain,application/json" hidden>
+        <span class="hint" id="codeSize"></span>
+      </div>
+      <p class="hint" data-t="code_hint">In Xenon: Settings → Widgets &amp; sharing → export your creation, then copy the code or download the file. Max 2&nbsp;MB.</p>
+    </div>
+
+    <div class="card">
+      <span style="font-size:0.82rem;color:var(--muted)" data-t="f_shots">Screenshots (up to 3 — PNG/JPG/WebP, max 4 MB each)</span>
+      <div class="shots" id="shots"></div>
+    </div>
+
+    <div class="card">
+      <div class="turnstile-wrap"><div id="turnstile"></div></div>
+      <div class="row">
+        <button type="submit" class="btn primary" id="send" data-t="send">Submit for review</button>
+      </div>
+      <div class="err" id="err"></div>
+    </div>
+  </form>
+
+  <div class="ok-screen" id="okScreen" hidden>
+    <div class="big">🎉</div>
+    <h2 data-t="ok_title">Submitted!</h2>
+    <p data-t="ok_p1">Your creation is in the review queue. A human looks at every submission — once approved, it appears on the community catalog and inside Xenon's Discover gallery.</p>
+    <p data-t="ok_p2">Updates later? Just submit again with the same name and a higher version.</p>
+    <p style="margin-top:18px"><a href="../catalog/" data-t="ok_back">Browse the catalog →</a></p>
+  </div>
+
+  <footer data-t="foot">Submissions are moderated. Codes are validated again inside the app at import — a catalog entry can never change anything silently.</footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  // The Turnstile PUBLIC sitekey (pair of the hub's TURNSTILE_SECRET).
+  // Create the widget at Cloudflare dashboard → Turnstile for xenon-app.com
+  // and paste the sitekey here. '1x00000000000000000000AA' is Cloudflare's
+  // always-passes TEST key — replace it before going live.
+  var TURNSTILE_SITEKEY = '0x4AAAAAAD3J3OwWA7zOElgx';
+  var HUB = 'https://xenon-supporter-hub.xenonedge.workers.dev';
+  var MAX_CODE = 2 * 1024 * 1024;
+  var MAX_SHOTS = 3;
+  var SHOT_MAX = 4 * 1024 * 1024;
+
+  // ── i18n (same 5 locales as the catalog page; en fallback) ──
+  var DICTS = {
+    en: {},
+    it: {
+      back: '← Catalogo community', title: 'Pubblica nel catalogo community',
+      lede: 'Hai creato qualcosa per Xenon — un tema, uno sfondo, un profilo Deck, un widget, un pacchetto icone o suoni? Incolla qui il suo <b>codice di condivisione</b> e finisce nella coda di revisione. <b>Ogni proposta è revisionata da una persona</b> prima di comparire nella galleria in-app; nulla di ciò che invii può modificare da solo la dashboard di qualcuno.',
+      f_kind: 'Tipo', f_name: 'Nome *', f_author: 'Autore / handle',
+      f_version: 'Versione <small>(es. 1.0.0 — aumentala quando aggiorni)</small>',
+      f_contact: 'Contatto <small>(opzionale — email/Discord, lo vede solo chi revisiona)</small>',
+      f_tags: 'Tag <small>(fino a 6, minuscoli)</small>', f_desc: 'Descrizione',
+      f_code: 'Codice di condivisione *', code_file: 'Carica da file .txt / .json…',
+      code_ph: 'Incolla il codice da Condividi & Importa → Esporta…',
+      code_hint: 'In Xenon: Impostazioni → Widget e condivisione → esporta la tua creazione, poi copia il codice o scarica il file. Max 2 MB.',
+      f_shots: 'Screenshot (fino a 3 — PNG/JPG/WebP, max 4 MB ciascuno)',
+      send: 'Invia per la revisione', ok_title: 'Inviato!',
+      ok_p1: 'La tua creazione è nella coda di revisione. Ogni proposta viene esaminata da una persona — una volta approvata compare nel catalogo community e nella galleria Scopri dentro Xenon.',
+      ok_p2: 'Aggiornamenti in futuro? Reinvia con lo stesso nome e una versione più alta.',
+      ok_back: 'Sfoglia il catalogo →',
+      foot: 'Le proposte sono moderate. I codici vengono ri-validati nell’app all’importazione — una voce del catalogo non può mai cambiare nulla in silenzio.',
+      k_bg: 'bg (sfondo animato)', k_page: 'page (pagina dashboard)', k_deck: 'deck (profilo Deck)',
+      k_widget: 'widget (widget community)', k_ambient: 'ambient (scena Ambient)', k_bundle: 'bundle (pacchetto completo)',
+      k_icons: 'icons (pacchetto icone Deck)', k_sounds: 'sounds (pacchetto suoni)',
+      e_name: 'Dai un nome alla tua creazione.', e_code: 'Incolla il codice di condivisione.',
+      e_code_big: 'Il codice supera i 2 MB.', e_captcha: 'Completa la verifica anti-spam.',
+      e_rate: 'Troppi invii — riprova più tardi.', e_generic: 'Invio non riuscito ({err}) — riprova.',
+      shot_add: '+ Aggiungi', shot_rm: 'Rimuovi', sending: 'Invio…',
+    },
+    ko: {
+      back: '← 커뮤니티 카탈로그', title: '커뮤니티 카탈로그에 게시',
+      send: '검토 요청 보내기', ok_title: '제출 완료!', sending: '전송 중…',
+      f_kind: '종류', f_name: '이름 *', f_author: '제작자', f_desc: '설명', f_code: '공유 코드 *',
+      shot_add: '+ 추가', shot_rm: '제거',
+    },
+    ja: {
+      back: '← コミュニティカタログ', title: 'コミュニティカタログに公開',
+      send: 'レビューに送信', ok_title: '送信しました！', sending: '送信中…',
+      f_kind: '種類', f_name: '名前 *', f_author: '作者', f_desc: '説明', f_code: '共有コード *',
+      shot_add: '+ 追加', shot_rm: '削除',
+    },
+    zh: {
+      back: '← 社区目录', title: '发布到社区目录',
+      send: '提交审核', ok_title: '已提交！', sending: '发送中…',
+      f_kind: '类型', f_name: '名称 *', f_author: '作者', f_desc: '描述', f_code: '分享代码 *',
+      shot_add: '+ 添加', shot_rm: '移除',
+    },
+  };
+  var LANGS = ['en', 'it', 'ko', 'ja', 'zh'];
+  var lang = (function () {
+    try { var s = localStorage.getItem('xenonCatalogLang'); if (LANGS.indexOf(s) >= 0) return s; } catch (e) {}
+    var n = (navigator.language || 'en').slice(0, 2).toLowerCase();
+    return LANGS.indexOf(n) >= 0 ? n : 'en';
+  })();
+  function T(key, fallback) {
+    var d = DICTS[lang] || {};
+    return d[key] || fallback || key;
+  }
+  function applyLang() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-t]').forEach(function (el) {
+      var key = el.getAttribute('data-t');
+      if (!el._orig) el._orig = el.innerHTML;
+      var v = (DICTS[lang] || {})[key];
+      el.innerHTML = v || el._orig;
+    });
+    document.querySelectorAll('[data-t-ph]').forEach(function (el) {
+      var key = el.getAttribute('data-t-ph');
+      if (!el._origPh) el._origPh = el.placeholder;
+      el.placeholder = (DICTS[lang] || {})[key] || el._origPh;
+    });
+    var bar = document.getElementById('langbar');
+    bar.textContent = '';
+    LANGS.forEach(function (l) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.textContent = l.toUpperCase();
+      if (l === lang) b.className = 'on';
+      b.addEventListener('click', function () {
+        lang = l;
+        try { localStorage.setItem('xenonCatalogLang', l); } catch (e) {}
+        applyLang(); renderShots();
+      });
+      bar.appendChild(b);
+    });
+  }
+
+  // ── Prefill from the app's Publish button (?kind=&name=) ──
+  var qs = new URLSearchParams(location.search);
+  var preKind = qs.get('kind') || '';
+  var kindSel = document.getElementById('kind');
+  if (Array.prototype.some.call(kindSel.options, function (o) { return o.value === preKind; })) kindSel.value = preKind;
+  document.getElementById('name').value = (qs.get('name') || '').slice(0, 60);
+
+  // ── Share code: paste or file ──
+  var codeEl = document.getElementById('code');
+  var codeSize = document.getElementById('codeSize');
+  function paintSize() {
+    var n = codeEl.value.length;
+    codeSize.textContent = n ? Math.max(1, Math.round(n / 1024)) + ' KB' : '';
+    codeSize.style.color = n > MAX_CODE ? 'var(--danger)' : '';
+  }
+  codeEl.addEventListener('input', paintSize);
+  document.getElementById('codeFileBtn').addEventListener('click', function () {
+    document.getElementById('codeFile').click();
+  });
+  document.getElementById('codeFile').addEventListener('change', function () {
+    var f = this.files && this.files[0];
+    if (!f) return;
+    if (f.size > MAX_CODE) { showErr(T('e_code_big', 'The code is over 2 MB.')); return; }
+    var r = new FileReader();
+    r.onload = function () {
+      var text = String(r.result || '');
+      // A downloaded .json export is the pretty envelope — accept it verbatim;
+      // the reviewer imports it through the app either way.
+      codeEl.value = text.trim();
+      paintSize();
+    };
+    r.readAsText(f);
+  });
+
+  // ── Screenshots ──
+  var shots = [null, null, null];
+  function renderShots() {
+    var box = document.getElementById('shots');
+    box.textContent = '';
+    for (var i = 0; i < MAX_SHOTS; i++) (function (i) {
+      var cell = document.createElement('div'); cell.className = 'shot';
+      var frame = document.createElement('div'); frame.className = 'box';
+      if (shots[i]) {
+        var img = document.createElement('img');
+        img.src = shots[i].url; img.alt = '';
+        frame.appendChild(img);
+        var rm = document.createElement('button');
+        rm.type = 'button'; rm.className = 'btn ghost rm'; rm.textContent = T('shot_rm', 'Remove');
+        rm.addEventListener('click', function () {
+          URL.revokeObjectURL(shots[i].url); shots[i] = null; renderShots();
+        });
+        cell.appendChild(frame); cell.appendChild(rm);
+      } else {
+        frame.textContent = T('shot_add', '+ Add');
+        var input = document.createElement('input');
+        input.type = 'file'; input.accept = 'image/png,image/jpeg,image/webp,image/gif'; input.hidden = true;
+        frame.addEventListener('click', function () { input.click(); });
+        input.addEventListener('change', function () {
+          var f = input.files && input.files[0];
+          if (!f || f.size > SHOT_MAX) { if (f) showErr('Max 4 MB'); return; }
+          shots[i] = { file: f, url: URL.createObjectURL(f) };
+          renderShots();
+        });
+        cell.appendChild(frame); cell.appendChild(input);
+      }
+      box.appendChild(cell);
+    })(i);
+  }
+
+  // ── Turnstile ──
+  var turnstileToken = '';
+  window.onloadTurnstile = function () {};
+  function mountTurnstile() {
+    if (!window.turnstile) { setTimeout(mountTurnstile, 200); return; }
+    window.turnstile.render('#turnstile', {
+      sitekey: TURNSTILE_SITEKEY,
+      callback: function (token) { turnstileToken = token; },
+      'expired-callback': function () { turnstileToken = ''; },
+      theme: 'dark',
+    });
+  }
+
+  // ── Submit ──
+  var errEl = document.getElementById('err');
+  function showErr(msg) { errEl.textContent = msg; }
+  document.getElementById('form').addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    showErr('');
+    var name = document.getElementById('name').value.trim();
+    var code = codeEl.value.trim();
+    if (!name) { showErr(T('e_name', 'Give your creation a name.')); return; }
+    if (!code) { showErr(T('e_code', 'Paste the share code.')); return; }
+    if (code.length > MAX_CODE) { showErr(T('e_code_big', 'The code is over 2 MB.')); return; }
+    if (!turnstileToken) { showErr(T('e_captcha', 'Complete the anti-spam check.')); return; }
+
+    var fd = new FormData();
+    fd.append('kind', kindSel.value);
+    fd.append('name', name);
+    fd.append('author', document.getElementById('author').value.trim());
+    fd.append('contact', document.getElementById('contact').value.trim());
+    fd.append('version', document.getElementById('version').value.trim());
+    fd.append('tags', document.getElementById('tags').value.trim());
+    fd.append('description', document.getElementById('description').value.trim());
+    fd.append('code', code);
+    fd.append('turnstileToken', turnstileToken);
+    var n = 0;
+    shots.forEach(function (s) { if (s) fd.append('shot' + (++n), s.file, s.file.name); });
+
+    var btn = document.getElementById('send');
+    btn.disabled = true; btn.textContent = T('sending', 'Sending…');
+    var out = null;
+    try {
+      var res = await fetch(HUB + '/submit', { method: 'POST', body: fd });
+      out = await res.json();
+    } catch (e) { out = null; }
+    btn.disabled = false; btn.textContent = T('send', 'Submit for review');
+    if (out && out.ok) {
+      document.getElementById('form').hidden = true;
+      document.getElementById('okScreen').hidden = false;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    var err = (out && out.error) || 'network';
+    if (err === 'rate_limited') showErr(T('e_rate', 'Too many submissions — try again later.'));
+    else if (err === 'captcha_failed') showErr(T('e_captcha', 'Complete the anti-spam check.'));
+    else showErr(T('e_generic', 'Submission failed ({err}) — please retry.').replace('{err}', err));
+    if (window.turnstile) { try { window.turnstile.reset(); turnstileToken = ''; } catch (e) {} }
+  });
+
+  applyLang();
+  renderShots();
+  mountTurnstile();
+  paintSize();
+})();
+</script>
+</body>
+</html>

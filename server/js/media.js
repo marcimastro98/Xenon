@@ -200,6 +200,9 @@ function mirrorChatCopies() {
     if (pane === primaryPane) return; // primary keeps the live session
     syncChatCopyPane(pane);
   });
+  // Fill any strip this pass created: the pending attachments are a singleton, so
+  // one render pass paints the primary and every copy with the same list.
+  if (typeof _aiUpdateAttachPreview === 'function') _aiUpdateAttachPreview();
 }
 
 function syncChatCopyPane(pane) {
@@ -228,9 +231,25 @@ function syncChatCopyPane(pane) {
   }
   if (srcStatus) { st.className = srcStatus.className; st.innerHTML = srcStatus.innerHTML; }
 
+  // Pending-attachment strip. Unlike the log it is NOT an innerHTML copy: ai.js
+  // renders every .ai-attach-preview from the shared _aiPendingImages, so the
+  // thumbnails and their remove buttons stay live in a copy. Without it a paste
+  // into this pane would add an attachment the user could never see or remove.
+  let prev = pane.querySelector('[data-chatf="mirror-preview"]');
+  if (!prev) {
+    prev = document.createElement('div');
+    prev.className = 'ai-attach-preview';
+    prev.setAttribute('data-chatf', 'mirror-preview');
+    prev.setAttribute('aria-label', 'Allegati in attesa');
+    prev.hidden = true;
+    pane.appendChild(prev);
+  }
+
   let row = pane.querySelector('[data-chatf="mirror-input"]');
   if (!row) { row = buildChatCopyInput(); pane.appendChild(row); }
   row.hidden = srcInputRow ? srcInputRow.hidden : !hasKey;
+  // Keep the strip directly above the composer even if the row predates it.
+  if (prev.nextElementSibling !== row) pane.insertBefore(prev, row);
 
   requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; });
 }
@@ -264,7 +283,11 @@ function buildChatCopyInput() {
 
 function sendChatFromCopy(input) {
   const text = (input.value || '').trim();
-  if (!text) return;
+  // Mirrors the primary composer: a pasted image with no caption is sendable.
+  // _aiPendingImages is a top-level binding in ai.js — both files are classic
+  // scripts, so it resolves through the shared global scope at call time.
+  const pending = typeof _aiPendingImages !== 'undefined' ? _aiPendingImages.length : 0;
+  if (!text && pending === 0) return;
   input.value = '';
   if (typeof aiSendMessage === 'function') aiSendMessage(text, false); // shared session, no TTS
 }

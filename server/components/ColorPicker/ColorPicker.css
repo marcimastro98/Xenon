@@ -94,7 +94,7 @@
   border-color: rgba(var(--accent-rgb), 0.6);
   box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.16);
 }
-.cp-hex.invalid { border-color: var(--red, #e53935); }
+.cp-hex.invalid { border-color: var(--color-danger); }
 
 /* Preset swatches. */
 .cp-swatches {

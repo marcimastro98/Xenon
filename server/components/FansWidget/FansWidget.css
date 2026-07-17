@@ -1,0 +1,121 @@
+/* Fans widget — one row per fan, in the Battery widget's visual language: a
+   small impeller that actually spins at the fan's pace, the (renamable) name,
+   a thin speed bar and the RPM. Rows group by physical origin (motherboard /
+   hub-AIO / GPU / PSU) and colour-band by how hard the fan is working.
+
+   Prefix note: `fanw-`, NOT `fw-` — `fw-` belongs to the Football widget (and is
+   referenced by theme-contract.css / themes-comic.css). Component CSS here is
+   global, so a shared prefix silently cross-styles both widgets. Keep it unique. */
+
+.fans-widget-mount { height: 100%; display: flex; min-height: 0; padding: 14px 16px; box-sizing: border-box; }
+.fanw-wrap { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; gap: 10px; }
+
+/* flex: 0 0 auto — the scroller is the only child that may shrink. */
+.fanw-head { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 2px 2px 0; }
+.fanw-title { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; color: var(--text, #f0f3f1); }
+.fanw-count { font-size: 11px; font-weight: 600; opacity: 0.7; background: rgba(255,255,255,0.07); border-radius: 999px; padding: 1px 8px; font-variant-numeric: tabular-nums; }
+
+.fanw-state { flex: 1 1 auto; opacity: 0.6; font-size: 13px; padding: 22px 4px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+.fanw-state-hint { font-size: 11.5px; opacity: 0.75; max-width: 280px; line-height: 1.4; }
+/* Shown under the fans when the GPU is the only one reporting. */
+.fanw-foot-hint { flex: 0 0 auto; padding: 2px 4px 0; }
+/* Why the case fan count doesn't match: a quiet aside, not an error — it must
+   read as a footnote and never compete with the readings. */
+.fanw-note { flex: 0 0 auto; font-size: 10.5px; line-height: 1.35; opacity: 0.45;
+  padding: 2px 4px 0; text-wrap: pretty; }
+
+/* Motherboard headers with no tachometer signal (empty socket or stopped fan).
+   Deliberately NOT a fan row: they are a fact about the board, not hardware the
+   user owns — one dim line, no glyph, no reading to misread as "broken". */
+.fanw-silent { flex: 0 0 auto; display: flex; align-items: baseline; gap: 7px; min-width: 0;
+  padding: 5px 4px 0; font-size: 10.5px; }
+.fanw-silent-label { flex: 0 0 auto; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; font-size: 9px; opacity: 0.35; }
+.fanw-silent-names { min-width: 0; opacity: 0.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* One scroll container for all groups: with many fans the tile scrolls as a
+   whole instead of each group fighting for its own slice of height.
+   flex: 0 1 auto (NOT 1 1 auto) so it takes only the height it needs: growing
+   it pinned the footnotes to the bottom edge with a void between them and the
+   fans, which read as two unrelated blocks. It still shrinks-and-scrolls when
+   the fans overflow — it is the only child allowed to shrink. */
+.fanw-scroll { flex: 0 1 auto; min-height: 0; overflow: hidden auto;
+  display: flex; flex-direction: column; gap: 10px; }
+
+.fanw-group { display: flex; flex-direction: column; gap: 6px; }
+.fanw-group-title { font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.42;
+  padding: 0 2px; color: var(--text, #f0f3f1); }
+
+/* Rows flow into columns on wide tiles (auto-fill keeps every column the same
+   width even when one group has a single fan). 230px floor: the name is the
+   identification — three cramped columns that truncate every label defeat it. */
+.fanw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; }
+
+/* Working-hard scale: calm green → yellow → orange → red → violet at full tilt.
+   A stopped fan is deliberately colourless and dimmed — "nothing here" at a glance. */
+.fanw-row { --fanw-c: 148, 163, 184;
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; min-width: 0;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); }
+.fanw-row.is-calm { --fanw-c: 74, 222, 128; }
+.fanw-row.is-mid  { --fanw-c: 250, 204, 21; }
+.fanw-row.is-warm { --fanw-c: 251, 146, 60; }
+.fanw-row.is-hot  { --fanw-c: 239, 68, 68; }
+.fanw-row.is-max  { --fanw-c: 168, 85, 247; }
+.fanw-row.is-off { opacity: 0.5; }
+
+.fanw-glyph { flex: 0 0 auto; width: 26px; height: 26px; display: block; }
+.fanw-ring { fill: none; stroke: rgba(var(--fanw-c), 0.3); stroke-width: 5; }
+.fanw-hub { fill: rgba(var(--fanw-c), 0.9); }
+.fanw-blades path { fill: rgba(var(--fanw-c), 0.85); }
+
+/* transform-box: view-box pins the origin to the SVG's own coordinate system, so
+   50px 50px is exactly the hub — no dependence on the blades' bounding box. */
+.fanw-blades {
+  transform-box: view-box;
+  transform-origin: 50px 50px;
+  animation: fanw-spin var(--fanw-dur, 2s) linear infinite;
+  will-change: transform;
+}
+/* A stopped fan must not spin — and must not keep a compositor layer alive. */
+.fanw-row.is-off .fanw-blades { animation: none; will-change: auto; }
+
+@keyframes fanw-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .fanw-blades { animation: none; will-change: auto; }
+}
+
+.fanw-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.fanw-name-line { display: flex; align-items: center; min-width: 0; }
+
+/* The name IS the rename control: a bare button so the whole name is the touch
+   target, with a quiet pencil as the visible affordance (touch has no hover). */
+.fanw-name { display: inline-flex; align-items: center; gap: 5px; min-width: 0; max-width: 100%;
+  background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-align: left;
+  font: inherit; color: var(--text, #f0f3f1); }
+.fanw-name-text { font-weight: 600; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.fanw-pencil { flex: 0 0 auto; font-size: 10px; opacity: 0.4; }
+.fanw-name:hover .fanw-pencil, .fanw-name:focus-visible .fanw-pencil { opacity: 0.85; }
+
+/* Shown only while a rename input is open, inside the body column so the row's
+   glyph/name/RPM structure is untouched: the pump-scaling rule is stated exactly
+   where it is actionable. The row being renamed spans the whole grid, so the
+   field is a comfortable touch target and the hint stays one or two lines
+   instead of fraying down a ~150px column. */
+.fanw-row:has(.fanw-rename) { grid-column: 1 / -1; }
+.fanw-rename-hint { font-size: 9.5px; line-height: 1.3; opacity: 0.5; text-wrap: pretty; }
+
+.fanw-rename { width: 100%; min-width: 0; box-sizing: border-box;
+  font: inherit; font-weight: 600; font-size: 12.5px; color: var(--text, #f0f3f1);
+  background: rgba(255,255,255,0.07); border: 1px solid rgba(var(--fanw-c), 0.5);
+  border-radius: 6px; padding: 2px 6px; outline: none; }
+
+.fanw-bar { height: 4px; border-radius: 999px; background: rgba(255,255,255,0.07); overflow: hidden; }
+.fanw-bar-fill { height: 100%; border-radius: 999px; background: rgba(var(--fanw-c), 0.85); transition: width 0.6s ease; }
+
+.fanw-val { flex: 0 0 auto; display: inline-flex; align-items: baseline; gap: 3px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.fanw-val b { font-weight: 700; font-size: 15px; color: rgb(var(--fanw-c)); }
+.fanw-row.is-off .fanw-val b { color: var(--text, #f0f3f1); }
+.fanw-unit { font-size: 9px; font-weight: 700; letter-spacing: 0.04em; opacity: 0.55; }

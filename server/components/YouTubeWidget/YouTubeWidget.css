@@ -33,10 +33,17 @@
   font-size: 0.62rem; font-weight: 900; letter-spacing: 0.07em; text-transform: uppercase;
   color: #9aa3a0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
 }
-.yt-pill-dot { width: 7px; height: 7px; border-radius: 50%; background: #6b7280; flex: 0 0 auto; }
-.yt-pill.live { color: #ff8080; background: rgba(255,0,0,0.16); border-color: rgba(255,0,0,0.4); }
-.yt-pill.live .yt-pill-dot { background: #ff0000; animation: yt-pulse 2s ease-in-out infinite; will-change: box-shadow; }
-@keyframes yt-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,0,0,0.5); } 60% { box-shadow: 0 0 0 5px rgba(255,0,0,0); } }
+.yt-pill-dot { position: relative; width: 7px; height: 7px; border-radius: 50%; background: #6b7280; flex: 0 0 auto; }
+.yt-pill.live { color: var(--color-danger); background: var(--danger-bg); border-color: rgba(var(--danger-rgb),0.4); }
+.yt-pill.live .yt-pill-dot { background: #ff0000; }
+/* Compositor-only ripple — shared `live-ripple` keyframe in styles/global.css
+   (an animated box-shadow would tick the main thread every frame, GitHub #99). */
+.yt-pill.live .yt-pill-dot::after {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  background: rgba(255,0,0,0.5);
+  animation: live-ripple 2s ease-in-out infinite;
+  will-change: transform, opacity; pointer-events: none;
+}
 
 /* Cards */
 .yt-cards { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
@@ -86,10 +93,10 @@
 }
 .yt-btn:hover:not(:disabled) { background: rgba(34,197,94,0.27); }
 .yt-btn:active:not(:disabled) { transform: translateY(1px); }
-.yt-btn.is-live { border-color: rgba(255,0,0,0.5); background: rgba(255,0,0,0.16); color: #ffdada; }
+.yt-btn.is-live { border-color: rgba(var(--danger-rgb),0.5); background: var(--danger-bg); color: var(--color-danger); }
 .yt-btn.is-live:hover:not(:disabled) { background: rgba(255,0,0,0.26); }
 .yt-btn.ok { border-color: rgba(34,197,94,0.6); }
 .yt-btn.err { border-color: rgba(239,68,68,0.6); background: rgba(239,68,68,0.2); }
 .yt-btn-ico { display: inline-flex; }
 .yt-btn-ico svg { width: 15px; height: 15px; }
-.yt-err { margin-top: 8px; font-size: 0.76rem; font-weight: 600; color: #ff8080; line-height: 1.35; }
+.yt-err { margin-top: 8px; font-size: 0.76rem; font-weight: 600; color: var(--color-danger); line-height: 1.35; }

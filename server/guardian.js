@@ -30,7 +30,7 @@ const ALERT_GPU_TEMP = 88;
 const ALERT_MEM_PCT = 95;
 const ALERT_COOLDOWN_MS = 30 * 60 * 1000;
 
-const METRICS = ['cpu', 'cpuTemp', 'gpu', 'gpuTemp', 'mem'];
+const METRICS = ['cpu', 'cpuTemp', 'gpu', 'gpuTemp', 'mem', 'cpuWatts', 'gpuWatts'];
 
 function emptyMetrics() {
   const m = {};
@@ -39,6 +39,7 @@ function emptyMetrics() {
 }
 
 function addMetric(slot, value) {
+  if (!slot) return; // bucket persisted before a metric existed (e.g. pre-watts stores)
   if (typeof value !== 'number' || !Number.isFinite(value)) return;
   slot.min = slot.min == null ? value : Math.min(slot.min, value);
   slot.max = slot.max == null ? value : Math.max(slot.max, value);
@@ -209,10 +210,16 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegro
         gpu: typeof sys.gpu === 'number' ? sys.gpu : null,
         gpuTemp: typeof sys.gpuTemp === 'number' ? sys.gpuTemp : null,
         mem: sys.memory && typeof sys.memory.percent === 'number' ? sys.memory.percent : null,
+        cpuWatts: sys.power && typeof sys.power.cpu === 'number' ? sys.power.cpu : null,
+        gpuWatts: sys.power && typeof sys.power.gpu === 'number' ? sys.power.gpu : null,
       };
       const hour = bucketFor(store.hours, 'h', localKey(now, true));
       const day = bucketFor(store.days, 'd', localKey(now, false));
       for (const k of METRICS) {
+        // Buckets persisted before a metric existed lack its slot — backfill so
+        // the first post-upgrade sample can't throw on `slot.min`.
+        if (!hour.m[k]) hour.m[k] = { min: null, max: null, sum: 0, n: 0 };
+        if (!day.m[k]) day.m[k] = { min: null, max: null, sum: 0, n: 0 };
         addMetric(hour.m[k], reading[k]);
         addMetric(day.m[k], reading[k]);
       }
@@ -308,9 +315,12 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegro
       gpu: 'gpu', gpuload: 'gpu', gpupercent: 'gpu', graphics: 'gpu',
       gputemp: 'gpuTemp', gputemperature: 'gpuTemp',
       mem: 'mem', memory: 'mem', ram: 'mem', mempercent: 'mem',
+      cpuwatts: 'cpuWatts', cpupower: 'cpuWatts', cpupowerdraw: 'cpuWatts',
+      gpuwatts: 'gpuWatts', gpupower: 'gpuWatts', gpupowerdraw: 'gpuWatts',
+      watts: 'cpuWatts', power: 'cpuWatts', powerdraw: 'cpuWatts',
     };
     const key = alias[String(metricArg || '').toLowerCase().replace(/[^a-z]/g, '')];
-    if (!key) return { error: 'unknown_metric', validMetrics: ['cpu', 'cpuTemp', 'gpu', 'gpuTemp', 'mem'] };
+    if (!key) return { error: 'unknown_metric', validMetrics: ['cpu', 'cpuTemp', 'gpu', 'gpuTemp', 'mem', 'cpuWatts', 'gpuWatts'] };
     const days = store.days;
     const dayAgg = (b) => (b ? aggregate([b], key) : null);
     let peak = null;
@@ -345,6 +355,8 @@ function createGuardian({ dataDir, getSystemInfo, isEnabled, onAlert, getForegro
       gpuLoad: aggregate(buckets, 'gpu'),
       gpuTemp: aggregate(buckets, 'gpuTemp'),
       memPercent: aggregate(buckets, 'mem'),
+      cpuWatts: aggregate(buckets, 'cpuWatts'),
+      gpuWatts: aggregate(buckets, 'gpuWatts'),
     });
     const s7 = windowStats(d7);
     const s30 = windowStats(d30);

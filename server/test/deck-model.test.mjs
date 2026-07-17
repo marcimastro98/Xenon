@@ -530,12 +530,125 @@ test('addProfileFromTemplate grows the grid so a richer template never loses key
   assert.deepEqual(placed, titles.slice().sort());
 });
 
-test('addProfileFromTemplate keeps the existing grid when the template already fits', () => {
+test('addProfileFromTemplate keeps the existing profiles\' grids untouched', () => {
   const big = dm.normalizeDeckConfig({ cols: 5, rows: 3 }); // 15 slots
   let src = dm.normalizeDeckConfig({ cols: 2, rows: 2, profiles: [{ id: 'p0', name: 'Small', root: { pages: [{ keys: [] }] } }], activeProfile: 'p0' });
   src = dm.setKeyAt(src, { profileId: 'p0', path: [], pageIndex: 0 }, 0, { id: 'k0', kind: 'action', title: 'X' });
   const out = dm.addProfileFromTemplate(big, src.profiles[0]);
-  assert.equal(out.cols, 5); assert.equal(out.rows, 3); // unchanged
+  // The pre-existing profile keeps its own 5×3; the new profile carries the
+  // template's 2×2 shape and is active. The top-level mirror stays at the MAX
+  // shape so a stale (pre-per-profile) client can never truncate a sibling.
+  assert.equal(out.profiles[0].cols, 5); assert.equal(out.profiles[0].rows, 3);
+  const added = out.profiles[out.profiles.length - 1];
+  assert.equal(added.cols, 2); assert.equal(added.rows, 2);
+  assert.equal(out.activeProfile, added.id);
+  assert.equal(out.cols, 5); assert.equal(out.rows, 3);
+});
+
+// ── Per-profile grid shape (the "catalog profile broke my other profiles" fix) ──
+
+test('reshapeDeckConfig resizes only the target profile; siblings keep their shape', () => {
+  let cfg = dm.normalizeDeckConfig({ cols: 4, rows: 4 });
+  const first = cfg.activeProfile;
+  cfg = dm.addProfile(cfg, 'Second');                    // active is now 'Second', 4×4
+  const second = cfg.activeProfile;
+  const out = dm.reshapeDeckConfig(cfg, 4, 2, { compact: false, profileId: second });
+  assert.deepEqual(dm.gridOf(out, second), { cols: 4, rows: 2 });
+  assert.deepEqual(dm.gridOf(out, first), { cols: 4, rows: 4 });   // untouched
+});
+
+test('a busy sibling profile no longer blocks shrinking the shown one', () => {
+  // UTILITY has 8 keys; another profile has 16. Shrinking UTILITY to 4×2 must
+  // work — the old global grid used the busiest page of ANY profile as the floor.
+  let cfg = dm.normalizeDeckConfig({ cols: 4, rows: 4 });
+  const util = cfg.activeProfile;
+  const nav = { profileId: util, path: [], pageIndex: 0 };
+  for (let i = 0; i < 8; i++) cfg = dm.setKeyAt(cfg, nav, i, { id: 'u' + i, kind: 'action', title: 'U' + i });
+  cfg = dm.addProfile(cfg, 'Busy');
+  const busy = cfg.activeProfile;
+  const bnav = { profileId: busy, path: [], pageIndex: 0 };
+  for (let i = 0; i < 16; i++) cfg = dm.setKeyAt(cfg, bnav, i, { id: 'b' + i, kind: 'action', title: 'B' + i });
+  const out = dm.reshapeDeckConfig(cfg, 4, 2, { compact: false, profileId: util });
+  assert.deepEqual(dm.gridOf(out, util), { cols: 4, rows: 2 });
+  assert.deepEqual(dm.gridOf(out, busy), { cols: 4, rows: 4 });    // busy profile intact
+  const busyKeys = out.profiles.find(p => p.id === busy).root.pages[0].keys.filter(Boolean);
+  assert.equal(busyKeys.length, 16);                               // no key lost
+});
+
+test('legacy configs without per-profile shapes inherit the config-level grid', () => {
+  const cfg = dm.normalizeDeckConfig({
+    cols: 4, rows: 3,
+    profiles: [
+      { id: 'a', name: 'A', root: { pages: [{ keys: [] }] } },
+      { id: 'b', name: 'B', root: { pages: [{ keys: [] }] } },
+    ],
+    activeProfile: 'b',
+  });
+  assert.deepEqual(dm.gridOf(cfg, 'a'), { cols: 4, rows: 3 });
+  assert.deepEqual(dm.gridOf(cfg, 'b'), { cols: 4, rows: 3 });
+  assert.equal(cfg.profiles[0].root.pages[0].keys.length, 12);
+});
+
+test('top-level cols/rows mirror the LARGEST profile shape (stale-client safety)', () => {
+  // A pre-per-profile client normalizes every page at the top-level shape; a
+  // mirror smaller than a sibling's grid would make it truncate that sibling's
+  // keys. The mirror must therefore track the max, not the active profile.
+  let cfg = dm.normalizeDeckConfig({ cols: 4, rows: 4 });
+  cfg = dm.addProfile(cfg, 'Small');
+  cfg = dm.reshapeDeckConfig(cfg, 2, 2, { compact: false });   // active 'Small' → 2×2
+  assert.deepEqual(dm.gridOf(cfg, cfg.activeProfile), { cols: 2, rows: 2 });
+  assert.equal(cfg.cols, 4);
+  assert.equal(cfg.rows, 4);
+});
+
+test('a null/zero per-profile shape falls back instead of collapsing to 1', () => {
+  const cfg = dm.normalizeDeckConfig({
+    cols: 3, rows: 2,
+    profiles: [{ id: 'p', name: 'P', cols: null, rows: 0, root: { pages: [{ keys: [
+      { id: 'a', kind: 'action', title: 'A' }, { id: 'b', kind: 'action', title: 'B' },
+      { id: 'c', kind: 'action', title: 'C' }, { id: 'd', kind: 'action', title: 'D' },
+      { id: 'e', kind: 'action', title: 'E' }, { id: 'f', kind: 'action', title: 'F' },
+    ] }] } }],
+    activeProfile: 'p',
+  });
+  assert.deepEqual(dm.gridOf(cfg, 'p'), { cols: 3, rows: 2 });
+  assert.equal(cfg.profiles[0].root.pages[0].keys.filter(Boolean).length, 6);   // nothing truncated
+});
+
+test('a declared shape smaller than the content grows at load instead of dropping keys', () => {
+  // A stale/corrupt profile shape (1×1) with a key at slot 7 must not let
+  // normalizePage truncate the page — the load boundary grows the grid first.
+  const keys = new Array(8).fill(null);
+  keys[0] = { id: 'a', kind: 'action', title: 'A' };
+  keys[7] = { id: 'z', kind: 'action', title: 'Z' };
+  const cfg = dm.normalizeDeckConfig({
+    cols: 3, rows: 2,
+    profiles: [{ id: 'p', name: 'P', cols: 1, rows: 1, root: { pages: [{ keys }] } }],
+    activeProfile: 'p',
+  });
+  const g = dm.gridOf(cfg, 'p');
+  assert.ok(g.cols * g.rows >= 8, `grew to hold slot 7, got ${g.cols}x${g.rows}`);
+  const loaded = cfg.profiles[0].root.pages[0].keys;
+  assert.equal(loaded[0].title, 'A');
+  assert.equal(loaded[7].title, 'Z');
+});
+
+test('gridOf falls back to the active profile for unknown ids', () => {
+  let cfg = dm.normalizeDeckConfig({ cols: 3, rows: 2 });
+  cfg = dm.reshapeDeckConfig(cfg, 5, 2, { compact: false });
+  assert.deepEqual(dm.gridOf(cfg, 'nope'), { cols: 5, rows: 2 });
+  assert.deepEqual(dm.gridOf(cfg, undefined), { cols: 5, rows: 2 });
+});
+
+test('addPageAt sizes the new page to the owning profile\'s grid', () => {
+  let cfg = dm.normalizeDeckConfig({ cols: 4, rows: 4 });
+  const first = cfg.activeProfile;
+  cfg = dm.addProfile(cfg, 'Second');
+  cfg = dm.reshapeDeckConfig(cfg, 2, 2, { compact: false });       // Second → 2×2
+  const out = dm.addPageAt(cfg, { profileId: first, path: [] });   // page on the 4×4 profile
+  const prof = out.profiles.find(p => p.id === first);
+  assert.equal(prof.root.pages.length, 2);
+  assert.equal(prof.root.pages[1].keys.length, 16);
 });
 
 // ── Per-key styling (v3.5: gradients, backdrop image, icon/label styling) ──
@@ -608,14 +721,77 @@ test('normalizeKey keeps icon/label styling and drops junk values', () => {
 });
 
 test('normalizeDeckConfig validates the whole-device look enums', () => {
-  const c = dm.normalizeDeckConfig({ capStyle: 'neon', keyShape: 'circle', plate: 'carbon' });
-  assert.equal(c.capStyle, 'neon');
+  const c = dm.normalizeDeckConfig({ capStyle: 'vivid', keyShape: 'circle', plate: 'carbon' });
+  assert.equal(c.capStyle, 'vivid');
   assert.equal(c.keyShape, 'circle');
   assert.equal(c.plate, 'carbon');
   const d = dm.normalizeDeckConfig({ capStyle: 'chrome', keyShape: 'hex', plate: 'wood' });
   assert.equal(d.capStyle, 'lcd');
   assert.equal(d.keyShape, 'rounded');
   assert.equal(d.plate, 'graphite');
+});
+
+test('an imported profile preserves only a valid install receipt id', () => {
+  const config = (installId, imported = true) => dm.normalizeDeckConfig({
+    cols: 1, rows: 1,
+    profiles: [{ id: 'p', name: 'P', imported, installId, root: { pages: [{ keys: [null] }] } }],
+    activeProfile: 'p',
+  }).profiles[0];
+  assert.equal(config('xi_m5abc123deadbeef').installId, 'xi_m5abc123deadbeef');
+  assert.equal('installId' in config('../bad'), false);
+  assert.equal('installId' in config('xi_m5abc123deadbeef', false), false);
+});
+
+test('profile looks are independent and inherit only missing fields', () => {
+  const png = 'data:image/png;base64,iVBORw0KGgo=';
+  const cfg = dm.normalizeDeckConfig({
+    capStyle: 'neon', keyShape: 'square', plate: 'carbon',
+    wellImage: { src: png, dim: 20 },
+    profiles: [
+      { id: 'comic', name: 'Comic', look: { capStyle: 'vivid', wellImage: null }, root: { pages: [{ keys: [] }] } },
+      { id: 'plain', name: 'Plain', root: { pages: [{ keys: [] }] } },
+    ],
+    activeProfile: 'comic',
+  });
+  assert.deepEqual(dm.effectiveDeckLook(cfg, 'comic'), {
+    capStyle: 'vivid', keyShape: 'square', plate: 'carbon', wellImage: null, mediaStyle: null,
+  });
+  assert.equal(dm.effectiveDeckLook(cfg, 'plain').capStyle, 'neon');
+  assert.equal(dm.effectiveDeckLook(cfg, 'plain').wellImage.src, png);
+
+  const changed = dm.setProfileLook(cfg, 'plain', { capStyle: 'flat', plate: 'steel' });
+  assert.equal(dm.effectiveDeckLook(changed, 'plain').capStyle, 'flat');
+  assert.equal(dm.effectiveDeckLook(changed, 'plain').plate, 'steel');
+  assert.equal(dm.effectiveDeckLook(changed, 'comic').capStyle, 'vivid');
+});
+
+test('profile templates preserve their own vivid look', () => {
+  const base = dm.normalizeDeckConfig({ profiles: [{ id: 'base', name: 'Base', root: { pages: [{ keys: [] }] } }] });
+  const added = dm.addProfileFromTemplate(base, {
+    name: 'Imported',
+    look: { capStyle: 'vivid', keyShape: 'rounded', plate: 'none', wellImage: null, mediaStyle: null },
+    root: { pages: [{ keys: [{ kind: 'action', title: 'A' }] }] },
+  });
+  const profile = added.profiles.find((p) => p.id === added.activeProfile);
+  assert.equal(profile.look.capStyle, 'vivid');
+  assert.equal(dm.effectiveDeckLook(added, profile.id).plate, 'none');
+  assert.equal(dm.effectiveDeckLook(added, base.activeProfile).capStyle, 'lcd');
+});
+
+test('legacy imported Deck artwork migrates from the device to the imported profile', () => {
+  const png = 'data:image/png;base64,iVBORw0KGgo=';
+  const cfg = dm.normalizeDeckConfig({
+    wellImage: { src: png, imported: true },
+    profiles: [
+      { id: 'own', name: 'Own', root: { pages: [{ keys: [] }] } },
+      { id: 'shared', name: 'Shared', imported: true, root: { pages: [{ keys: [] }] } },
+    ],
+    activeProfile: 'shared',
+  });
+  assert.equal(cfg.wellImage, null);
+  assert.equal(dm.effectiveDeckLook(cfg, 'own').wellImage, null);
+  assert.equal(dm.effectiveDeckLook(cfg, 'shared').wellImage.src, png);
+  assert.equal(dm.effectiveDeckLook(cfg, 'shared').wellImage.imported, true);
 });
 
 test('keyStyleOf extracts only style fields; applyStyleToPage repaints every placed key', () => {
@@ -713,6 +889,62 @@ test('formatLiveValue: sdkState uses published meta label + validated color', ()
   assert.deepEqual(dm.formatLiveValue({ source: 'sdkState', name: 'missing' }, snapshot, 0), { text: '' });
   assert.deepEqual(dm.formatLiveValue(null, snapshot, 0), { text: '' });
   assert.deepEqual(dm.formatLiveValue({ source: 'timer' }, null, 0), { text: '' });
+});
+
+test('formatLiveValue: sensor metrics format unit-aware (%, °, W, RPM/k)', () => {
+  const snapshot = { sensors: {
+    cpu: 43.6, gpu: 12, cpuTemp: 61.4, gpuTemp: 55,
+    cpuFan: 860, gpuFan: { rpm: null, pct: 45 },
+    cpuWatts: 87.3, gpuWatts: 62.5, totalWatts: 149.8, psuWatts: 233,
+  } };
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'cpu' }, snapshot, 0), { text: '44%' });
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'cpuTemp' }, snapshot, 0), { text: '61°' });
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'cpuFan' }, snapshot, 0), { text: '860' });
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'gpuFan' }, snapshot, 0), { text: '45%' });
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'cpuWatts' }, snapshot, 0), { text: '87W' });
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'totalWatts' }, snapshot, 0), { text: '150W' });
+  // RPM ≥ 1000 compacts to 'N.Nk'.
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'cpuFan' }, { sensors: { cpuFan: 1240 } }, 0), { text: '1.2k' });
+  // GPU fan as RPM when LHM reports it.
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'gpuFan' }, { sensors: { gpuFan: { rpm: 1750, pct: null } } }, 0), { text: '1.8k' });
+  // Missing metric / empty snapshot → empty text, never a crash.
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'psuWatts' }, { sensors: {} }, 0), { text: '' });
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'nope' }, snapshot, 0), { text: '' });
+});
+
+test('formatLiveValue: battery:<name> looks up case-insensitively, charging gets the bolt', () => {
+  const snapshot = { batteries: { 'dark core rgb pro': { percent: 85, charging: false }, 'mx keys': { percent: 40, charging: true } } };
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'battery:Dark Core RGB Pro' }, snapshot, 0), { text: '85%' });
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'battery:MX Keys' }, snapshot, 0), { text: '⚡40%' });
+  assert.deepEqual(dm.formatLiveValue({ source: 'sensor', name: 'battery:Gone' }, snapshot, 0), { text: '' });
+});
+
+test('sensorsFromSystem projects the system payload; batteriesByName lowercases keys', () => {
+  const sys = {
+    cpu: 12, gpu: 3, cpuTemp: 55, gpuTemp: 48,
+    // The GPU entry is identified by kind, NOT by name — a mobo header named
+    // "GPU" must stay a plain fan.
+    fans: [{ name: 'GPU', rpm: 0 }, { name: 'CPU Fan', rpm: 900 }, { name: 'GPU', kind: 'gpu', pct: 30 }],
+    power: { cpu: 45.2, gpu: 60.1, psu: null, total: 105.3 },
+  };
+  const s = dm.sensorsFromSystem(sys);
+  assert.equal(s.cpuFan, 900);            // first spinning non-GPU fan
+  assert.deepEqual(s.gpuFan, { rpm: null, pct: 30 });
+  assert.equal(s.cpuWatts, 45.2);
+  assert.equal(s.totalWatts, 105.3);
+  assert.equal(s.psuWatts, null);
+  assert.deepEqual(dm.sensorsFromSystem(null), {});
+
+  const bag = dm.batteriesByName([{ name: 'MX Keys', percent: 51 }, { name: '', percent: 9 }]);
+  assert.deepEqual(Object.keys(bag), ['mx keys']);
+  assert.equal(bag['mx keys'].percent, 51);
+});
+
+test('normalizeKey keeps a sensor live binding (persistence + preset sanitize path)', () => {
+  const k = keyThrough({ id: 'k', kind: 'action', live: { source: 'sensor', name: 'cpuWatts' } });
+  assert.deepEqual(k.live, { source: 'sensor', name: 'cpuWatts' });
+  const bat = keyThrough({ id: 'k', kind: 'action', live: { source: 'sensor', name: 'battery:MX Keys' } });
+  assert.deepEqual(bat.live, { source: 'sensor', name: 'battery:MX Keys' });
 });
 
 // ── Generalized state sources (discord / media / HA / timer) + stateStyle ────

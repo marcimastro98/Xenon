@@ -40,7 +40,7 @@
 .wn-muted-count {
   min-width: 14px; height: 14px; padding: 0 3px; border-radius: 999px;
   display: inline-flex; align-items: center; justify-content: center;
-  background: #ed4245; color: #fff; font-size: 0.58rem; font-weight: 800; line-height: 1;
+  background: var(--color-danger); color: var(--on-danger); font-size: 0.58rem; font-weight: 800; line-height: 1;
 }
 
 /* ── Feed ────────────────────────────────────────────────────────── */
@@ -92,7 +92,7 @@
   opacity: 0; transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 .wn-item:hover .wn-item-mute { opacity: 0.8; }
-.wn-item-mute:hover { opacity: 1 !important; color: #ed4245; background: rgba(237,66,69,0.12); }
+.wn-item-mute:hover { opacity: 1 !important; color: var(--color-danger); background: var(--danger-bg); }
 .wn-item-mute svg { width: 13px; height: 13px; }
 /* Touch devices have no hover: keep the mute control reachable. */
 @media (hover: none) { .wn-item-mute { opacity: 0.55; } }

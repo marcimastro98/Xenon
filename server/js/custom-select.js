@@ -82,11 +82,39 @@ function initCustomSelect(selectEl) {
     labelEl.textContent = currentLabel();
   }
 
-  function renderOptions() {
+  const hasSearch = selectEl.hasAttribute('data-cs-search');
+
+  function renderOptions(filterText = '') {
     panel.textContent = '';
+    const needle = filterText.trim().toLowerCase();
+    const matches = (opt) => !needle || opt.textContent.toLowerCase().includes(needle);
+
+    // Opt-in in-panel search box (data-cs-search) for long lists (e.g. SignalRGB
+    // effects). It's a sticky, non-option row that filters the list live; typing
+    // re-renders and restores focus + caret so it stays usable across keystrokes.
+    if (hasSearch) {
+      const searchLi = document.createElement('li');
+      searchLi.className = 'cs-search-wrap';
+      searchLi.setAttribute('role', 'presentation');
+      searchLi.addEventListener('click', e => e.stopPropagation());
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.className = 'cs-search-input';
+      inp.placeholder = selectEl.getAttribute('data-cs-search-placeholder') || '…';
+      inp.value = filterText;
+      inp.addEventListener('input', () => {
+        renderOptions(inp.value);
+        const next = panel.querySelector('.cs-search-input');
+        if (next) { next.focus(); next.setSelectionRange(next.value.length, next.value.length); }
+      });
+      searchLi.appendChild(inp);
+      panel.appendChild(searchLi);
+    }
+
     // One <option> → one row. A row may carry an icon via the option's
     // `data-cs-icon` attribute (a trusted inline SVG string set by the caller).
     const addOption = (opt) => {
+      if (!matches(opt)) return;
       const li = document.createElement('li');
       // A disabled <option> renders as a non-selectable hint row (e.g. "configure
       // this service in Settings"): greyed, not clickable, skipped by keyboard nav.
@@ -112,8 +140,7 @@ function initCustomSelect(selectEl) {
         selectEl.value = opt.value;
         selectEl.dispatchEvent(new Event('change', { bubbles: true }));
         syncLabel();
-        renderOptions();
-        close();
+        close();   // panel re-renders fresh (unfiltered) on next open()
       });
       panel.appendChild(li);
     };
@@ -121,12 +148,15 @@ function initCustomSelect(selectEl) {
     // options; bare <option>s (e.g. a leading "None") render directly.
     Array.from(selectEl.children).forEach(node => {
       if (node.tagName === 'OPTGROUP') {
+        const opts = Array.from(node.children).filter(o => o.tagName === 'OPTION');
+        // With a filter active, drop a group header whose options all filtered out.
+        if (!opts.some(matches)) return;
         const head = document.createElement('li');
         head.className = 'cs-group';
         head.setAttribute('role', 'presentation');
         head.textContent = node.label || '';
         panel.appendChild(head);
-        Array.from(node.children).forEach(o => { if (o.tagName === 'OPTION') addOption(o); });
+        opts.forEach(addOption);
       } else if (node.tagName === 'OPTION') {
         addOption(node);
       }
@@ -182,6 +212,10 @@ function initCustomSelect(selectEl) {
     panel.hidden = false;
     trigger.setAttribute('aria-expanded', 'true');
     positionPanel();
+    if (hasSearch) {
+      const inp = panel.querySelector('.cs-search-input');
+      if (inp) setTimeout(() => { try { inp.focus(); } catch { /* detached */ } }, 30);
+    }
   }
 
   function close() {

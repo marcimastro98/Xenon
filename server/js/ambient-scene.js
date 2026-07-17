@@ -229,6 +229,9 @@
     // arrived via a share code — someone else's work, not re-exportable — and
     // cleared when the user edits it in their own editor.
     if (raw.imported === true) out.imported = true;
+    if (out.imported && /^xi_[a-z0-9]{8,32}$/.test(String(raw.installId || ''))) {
+      out.installId = String(raw.installId);
+    }
     return out;
   }
 

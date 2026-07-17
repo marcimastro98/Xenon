@@ -147,11 +147,18 @@ body.topbar-minimal .topbar-mini .clock-weather {
   gap: 5px;
   background: none;
   border: 0;
+  box-shadow: none;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
 body.topbar-minimal .topbar-mini .clock-weather .weather-mini-icon { width: 23px; height: 20px; }
 body.topbar-minimal .topbar-mini .weather-temp { font-size: 15px; }
+
+/* SDK badge chips (js/sdk-badges.js) — size them to the pill's density. The row
+   itself is an island segment, so its divider/padding come from .island-seg
+   below; only the chips need resizing. Base look (flat, no fill) is in
+   CustomWidget.css — it needs no padding to unset here. */
+body.topbar-minimal .topbar-mini .sdk-badge { font-size: 12px; }
 
 body.topbar-minimal .topbar-mini .pager-dots:empty { display: none; }
 
@@ -191,7 +198,8 @@ body.topbar-minimal:not([data-panel]) .xtoast-stack { top: 9px; }
     opacity 0.3s ease,
     transform 0.34s cubic-bezier(0.22, 1.15, 0.36, 1);
 }
-body.topbar-minimal.xtoast-island:not([data-panel]) .topbar-mini {
+body.topbar-minimal.xtoast-island:not([data-panel]) .topbar-mini,
+body.topbar-minimal.xisland-live:not([data-panel]) .topbar-mini {
   opacity: 0;
   transform: translateX(var(--mini-tx)) translateY(-6px) scale(0.82);
   pointer-events: none;
@@ -199,7 +207,146 @@ body.topbar-minimal.xtoast-island:not([data-panel]) .topbar-mini {
 
 @media (prefers-reduced-motion: reduce) {
   .topbar-mini { transition: opacity 0.2s ease; }
-  body.topbar-minimal.xtoast-island:not([data-panel]) .topbar-mini { transform: translateX(var(--mini-tx)); }
+  body.topbar-minimal.xtoast-island:not([data-panel]) .topbar-mini,
+  body.topbar-minimal.xisland-live:not([data-panel]) .topbar-mini { transform: translateX(var(--mini-tx)); }
+}
+
+/* ── SDK island — widget text projection ──────────────────────
+   A granted SDK widget's text (js/sdk-island.js) takes the pill's spot exactly
+   like a notification does: body.xisland-live recedes the pill (rule above)
+   and this capsule morphs in at the same anchor, expanding into a small card
+   when the line wraps — current line bright, optional follow-up line dimmed
+   (NotchPrompter-style). Text is host-rendered (textContent) — this file only
+   ever styles it. A SYSTEM TOAST ALWAYS WINS: while body.xtoast-island is set
+   the capsule recedes with the pill (rule below the show rule, so it takes
+   precedence at equal specificity). */
+.sdk-island { display: none; }
+
+body.topbar-minimal.xisland-live:not([data-panel]) .sdk-island {
+  position: fixed;
+  top: 9px;
+  --mini-tx: -50%;
+  left: 50%;
+  transform: translateX(var(--mini-tx));
+  z-index: 57; /* same band as the pill: above tiles, below modals/toasts */
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  width: max-content; /* hug a short line; the cap below bounds a long one */
+  max-width: min(520px, 66vw); /* fixed cap: never widens under a tile → no reflow bobbing */
+  padding: 10px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--floating-ui-border);
+  background: var(--floating-ui-bg);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,var(--panel-highlight-alpha)), var(--shadow-lg);
+  overflow: hidden;
+  will-change: transform, opacity;
+  animation: sdk-island-in 0.34s cubic-bezier(0.22, 1.15, 0.36, 1);
+}
+/* Same edge anchors as the pill, so the capsule lands where the pill was. */
+body.topbar-minimal.xisland-live:not([data-panel])[data-topbar-align="left"] .sdk-island {
+  left: 12px;
+  --mini-tx: 0%;
+}
+body.topbar-minimal.xisland-live:not([data-panel])[data-topbar-align="right"] .sdk-island {
+  left: auto;
+  right: 12px;
+  --mini-tx: 0%;
+}
+/* Capsule-squash entrance, mirroring the toast morph (transform/opacity only). */
+@keyframes sdk-island-in {
+  from { opacity: 0; transform: translateX(var(--mini-tx)) translateY(-4px) scaleX(0.6) scaleY(0.4); }
+  to   { opacity: 1; transform: translateX(var(--mini-tx)); }
+}
+/* System toast wins: recede exactly like the pill while a toast is up. */
+body.topbar-minimal.xtoast-island:not([data-panel]) .sdk-island {
+  opacity: 0;
+  transform: translateX(var(--mini-tx)) translateY(-6px) scale(0.82);
+  pointer-events: none;
+  transition:
+    opacity 0.3s ease,
+    transform 0.34s cubic-bezier(0.22, 1.15, 0.36, 1);
+}
+
+/* Text flows as stacked sentence rows (js/sdk-island.js): dimmed past row,
+   bright current (never clamped — it wraps in full), dimmed upcoming. On a
+   prompter advance the block slides up one row (transform, its own layer)
+   while the card height tweens — a karaoke glide, not a snap. */
+.sdk-island-flow {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  will-change: transform;
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sdk-island-row {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  line-height: 1.4;
+  color: var(--text);
+  opacity: 0.5;
+  transition: opacity 0.45s ease;
+  animation: xe-isl-row-in 0.4s ease;
+}
+.sdk-island-row.is-cur { opacity: 1; }
+/* The line just spoken: one dim ellipsized row, so history never stacks up. */
+.sdk-island-row.is-past,
+.sdk-island-row:not(.is-cur) { font-size: 12px; font-weight: 500; }
+.sdk-island-row.is-past {
+  opacity: 0.32;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@keyframes xe-isl-row-in { from { opacity: 0; } }
+/* Multi-row flow pins the card width so per-sentence reflow can't wobble. */
+body.topbar-minimal.xisland-live:not([data-panel]) .sdk-island.is-flow {
+  width: min(520px, 66vw);
+}
+/* Live meta column (speed on top, time left below) — right-aligned, split off
+   by a hairline like an iOS Live Activity, so numbers never touch the prose. */
+.sdk-island-meta {
+  display: none;
+  flex: 0 0 auto;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 2px;
+  padding-left: 12px;
+  border-left: 1px solid var(--floating-ui-border);
+}
+.sdk-island.has-badge .sdk-island-meta { display: flex; }
+.sdk-island-m1 {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--accent);
+}
+.sdk-island-m2 {
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--text);
+  opacity: 0.55;
+}
+.sdk-island-m2:empty { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  body.topbar-minimal.xisland-live:not([data-panel]) .sdk-island { animation: none; }
+  body.topbar-minimal.xtoast-island:not([data-panel]) .sdk-island {
+    transition: opacity 0.2s ease;
+    transform: translateX(var(--mini-tx));
+  }
+  .sdk-island-flow { transition: none; }
+  .sdk-island-row { transition: none; animation: none; }
 }
 
 /* ── Edge rails ───────────────────────────────────────────────

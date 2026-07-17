@@ -13,15 +13,24 @@ const ACTION_CATALOG = [
   { type: 'openFile', group: 'system', labelKey: 'deck_act_openFile', params: [{ name: 'path', kind: 'path' }] },
   { type: 'runScript', group: 'system', labelKey: 'deck_act_runScript', params: [{ name: 'path', kind: 'path' }, { name: 'window', kind: 'select', options: ['visible', 'hidden'] }] },
   { type: 'openStoreApp', group: 'system', labelKey: 'deck_act_openStoreApp', params: [{ name: 'appId', kind: 'storeApp' }] },
+  // Launch a Steam game by its numeric AppID via the steam://rungameid/<id> deep
+  // link (the canonical launcher route — goes through the Steam client/overlay,
+  // unlike a raw steam.exe -applaunch, which openApp can't pass args to anyway).
+  // The id is validated to digits-only in the server registry before use.
+  { type: 'launchSteamGame', group: 'system', labelKey: 'deck_act_launchSteamGame', params: [{ name: 'gameId', kind: 'text' }] },
   { type: 'openUrl',  group: 'system', labelKey: 'deck_act_openUrl',  params: [{ name: 'url',  kind: 'url'  }] },
   { type: 'hotkey',   group: 'system', labelKey: 'deck_act_hotkey',   params: [{ name: 'keys', kind: 'text' }] },
   // Type a literal snippet into the app the user was last using (same focus
   // machinery as hotkey; KEYEVENTF_UNICODE so any character/emoji works).
   { type: 'typeText', group: 'system', labelKey: 'deck_act_typeText', params: [{ name: 'text', kind: 'text' }] },
+  { type: 'lockWorkstation', group: 'system', labelKey: 'deck_act_lockWorkstation', params: [] },
   { type: 'webhook',  group: 'system', labelKey: 'deck_act_webhook',  params: [{ name: 'url', kind: 'url' }, { name: 'method', kind: 'select', options: ['GET', 'POST'] }, { name: 'body', kind: 'text' }] },
   { type: 'media',    group: 'media',  labelKey: 'deck_act_media',    params: [{ name: 'cmd',  kind: 'select', options: ['playpause', 'next', 'previous'] }] },
-  { type: 'playSound', group: 'media', labelKey: 'deck_act_playSound', params: [{ name: 'file', kind: 'sound' }, { name: 'mode', kind: 'select', options: ['play', 'toggle', 'stop'] }, { name: 'volume', kind: 'text', optional: true }] },
-  { type: 'soundStopAll', group: 'media', labelKey: 'deck_act_soundStopAll', params: [] },
+  // Soundboard: its own picker category since sound packs made it a full
+  // feature (v4.5.3). Group is picker taxonomy only — the action TYPE strings
+  // are unchanged, so existing keys and shared profiles keep working.
+  { type: 'playSound', group: 'soundboard', labelKey: 'deck_act_playSound', params: [{ name: 'file', kind: 'sound' }, { name: 'mode', kind: 'select', options: ['play', 'toggle', 'stop'] }, { name: 'volume', kind: 'text', optional: true }] },
+  { type: 'soundStopAll', group: 'soundboard', labelKey: 'deck_act_soundStopAll', params: [] },
   // Countdown timers — the same list the Timers tile shows, addressed by label.
   // timerStart creates (or restarts) a timer; toggle pauses/resumes; cancel removes.
   { type: 'timerStart',  group: 'timer', labelKey: 'deck_act_timerStart',  params: [{ name: 'label', kind: 'text' }, { name: 'minutes', kind: 'text' }] },
@@ -131,6 +140,10 @@ const ACTION_CATALOG = [
   { type: 'lightAuto',   group: 'lighting', labelKey: 'deck_act_lightAuto',   params: [] },
   { type: 'lightEffect', group: 'lighting', labelKey: 'deck_act_lightEffect', params: [{ name: 'style', kind: 'select', options: ['none', 'solid', 'breathing', 'cycle', 'wave', 'aurora', 'candle', 'palette'] }, { name: 'color', kind: 'color' }] },
   { type: 'lightDevice', group: 'lighting', labelKey: 'deck_act_lightDevice', params: [{ name: 'device', kind: 'lightDevice' }, { name: 'mode', kind: 'select', options: ['follow', 'color', 'animation', 'temperature', 'album', 'off'] }, { name: 'color', kind: 'color' }] },
+  // SignalRGB scene switcher — separate from the colour-lighting actions above
+  // (it applies a named SignalRGB effect via its launcher, not a per-LED colour).
+  // Shown only when SignalRGB is enabled in Settings → Lighting (gated in the editor).
+  { type: 'signalRgbEffect', group: 'lighting', labelKey: 'deck_act_signalRgbEffect', params: [{ name: 'effect', kind: 'signalRgbEffect' }] },
 ];
 
 function actionSpec(type) {

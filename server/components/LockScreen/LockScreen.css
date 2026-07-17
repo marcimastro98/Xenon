@@ -179,6 +179,7 @@ body.lock-screen-active .user-bg-layer::after {
 }
 .lockscreen-greeting:empty { display: none; }
 .lockscreen-time {
+  position: relative;
   margin-top: 2px;
   display: flex;
   align-items: baseline;
@@ -188,7 +189,23 @@ body.lock-screen-active .user-bg-layer::after {
   font-weight: 760;
   font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.96);
+  text-shadow: 0 22px 72px rgba(0,0,0,0.58);
+}
+/* The breathing accent glow lives on a pseudo-element whose OPACITY pulses
+   (compositor-only). The old version animated the clock's text-shadow, which
+   runs the main-thread style→paint pipeline at full display rate — on the
+   idle screensaver of all places, where the machine should be at its calmest
+   (GitHub #99). A soft radial halo behind the digits reads the same. */
+.lockscreen-time::after {
+  content: '';
+  position: absolute;
+  inset: -14% -6%;
+  z-index: -1;
+  background: radial-gradient(58% 68% at 50% 56%, rgba(var(--accent-rgb), 0.15), transparent 72%);
+  opacity: 0;
   animation: clock-breathe 5.6s ease-in-out infinite;
+  will-change: opacity;
+  pointer-events: none;
 }
 .lock-time-h,
 .lock-time-m {
@@ -229,8 +246,8 @@ body.lock-screen-active .user-bg-layer::after {
   100% { transform: translateY(0); filter: blur(0); opacity: 1; }
 }
 @keyframes clock-breathe {
-  0%, 100% { text-shadow: 0 22px 72px rgba(0,0,0,0.58), 0 0 0 rgba(var(--accent-rgb),0); }
-  50%      { text-shadow: 0 24px 78px rgba(0,0,0,0.62), 0 0 34px rgba(var(--accent-rgb),0.16); }
+  0%, 100% { opacity: 0; }
+  50%      { opacity: 1; }
 }
 .lockscreen-date {
   color: rgba(240,246,243,0.78);

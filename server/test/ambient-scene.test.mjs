@@ -129,3 +129,12 @@ test('normalizeScenes: drops junk, dedupes ids, bounds the array', () => {
   const out = AS.normalizeScenes([{ id: 'aa' }, null, { id: 'aa' }, { id: 'bb' }]);
   assert.deepEqual(out.map(s => s.id), ['aa', 'bb']);
 });
+
+test('normalizeScene preserves a valid install id only for imported scenes', () => {
+  const tracked = AS.normalizeScene({ id: 'scene-a', imported: true, installId: 'xi_m5abc123deadbeef' });
+  const mine = AS.normalizeScene({ id: 'scene-b', installId: 'xi_m5abc123deadbeef' });
+  const hostile = AS.normalizeScene({ id: 'scene-c', imported: true, installId: '../bad' });
+  assert.equal(tracked.installId, 'xi_m5abc123deadbeef');
+  assert.equal('installId' in mine, false);
+  assert.equal('installId' in hostile, false);
+});

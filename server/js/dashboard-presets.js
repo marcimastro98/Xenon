@@ -233,6 +233,7 @@ function normalizePresets(raw, knownWidgetIds) {
     // Redistribution marker: presets that arrived via a share code are someone
     // else's work — pages inserted from them inherit the flag (see _addPage).
     if (p.imported === true) norm.imported = true;
+    if (norm.imported && /^xi_[a-z0-9]{8,32}$/.test(String(p.installId || ''))) norm.installId = String(p.installId);
     out.push(norm);
   }
   return out;
@@ -326,7 +327,7 @@ function _materializeGroup(layout, data, pageId, geom) {
   if (st) layout.groups[gid].style = st;
 }
 
-function _addPage(layout, name, imported) {
+function _addPage(layout, name, imported, installId) {
   const MAX = (typeof DASHBOARD_PAGES_MAX !== 'undefined') ? DASHBOARD_PAGES_MAX : 8;
   if (!Array.isArray(layout.pages)) layout.pages = [];
   if (layout.pages.length >= MAX) return null;
@@ -334,6 +335,7 @@ function _addPage(layout, name, imported) {
   const clean = String(name == null ? '' : name).trim().slice(0, 40);
   const page = { id, name: clean || 'Page' };
   if (imported === true) page.imported = true;   // came from a shared preset → not re-exportable
+  if (page.imported && /^xi_[a-z0-9]{8,32}$/.test(String(installId || ''))) page.installId = String(installId);
   layout.pages.push(page);
   return id;
 }
@@ -357,7 +359,7 @@ function insertPreset(layout, preset, pageId) {
     return { ok: true };
   }
   // page: create a new page and reproduce its tiles at their saved geometry.
-  const newPageId = _addPage(layout, preset.name, preset.imported === true);
+  const newPageId = _addPage(layout, preset.name, preset.imported === true, preset.installId);
   if (!newPageId) return { ok: false, full: true };
   (data.items || []).forEach(item => {
     const geom = { x: item.x || 0, y: item.y || 0, w: item.w || 8, h: item.h || 6 };

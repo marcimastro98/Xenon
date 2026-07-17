@@ -167,6 +167,23 @@ test('limited: claimed clamps to total; reserveUrl allowlisted to Discord over h
   assert.equal('reserveUrl' in http.limited, false); // http rejected
 });
 
+test('limited: automatic hub fields survive validation without accepting a claim URL', () => {
+  const N = cat.normalizeEntry;
+  const auto = N({
+    id: 'signal-50', kind: 'bundle', name: 'SIGNAL 50',
+    limited: {
+      total: 50, claimed: 4, fulfillment: 'hub', dropId: 'signal-50',
+      channels: 'both', numbered: true, claimUrl: 'https://evil.example/steal',
+    },
+  });
+  assert.deepEqual(auto.limited, {
+    total: 50, claimed: 4, left: 46, soldOut: false,
+    fulfillment: 'hub', dropId: 'signal-50', channels: 'both', numbered: true,
+  });
+  const bad = N({ id: 'bad-auto', kind: 'bundle', name: 'Bad', limited: { total: 2, fulfillment: 'hub', dropId: '../bad' } });
+  assert.equal('fulfillment' in bad.limited, false);
+});
+
 test('limited: junk/zero shapes leave the entry non-limited (and thus code-required)', () => {
   const N = cat.normalizeEntry;
   assert.equal('limited' in N(entry()), false);         // no limited block

@@ -326,7 +326,7 @@ body:not([data-panel]) .side-panel .device-caption { display: none; }
 
 .qbtn-layout { color: var(--green); }
 .qbtn-layout.active {
-  color: #0c1311;
+  color: var(--on-accent);
   background: var(--green);
   border-color: rgba(var(--accent-rgb),0.38);
 }
@@ -520,11 +520,11 @@ body.topbar-minimal .layout-dock.is-dragging .layout-dock-bar { cursor: grabbing
 }
 
 .layout-chip.primary {
-  color: #0c1311;
+  color: var(--on-accent);
   background: var(--green);
 }
 
-.layout-chip.primary:hover { color: #0c1311; filter: brightness(1.08); }
+.layout-chip.primary:hover { color: var(--on-accent); filter: brightness(1.08); }
 .layout-chip.danger:hover { color: var(--red); }
 .layout-chip-icon { width: 31px; padding: 0; }
 

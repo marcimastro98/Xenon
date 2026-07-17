@@ -1,0 +1,405 @@
+/* Semantic theme contract
+   --------------------------------------------------------------------------
+   This is the compatibility layer between the palette engine and application
+   chrome. Components consume roles; skins loaded after this file may change
+   geometry/material, but should keep the same colour contract. */
+
+::selection { background: var(--selection-bg); color: var(--selection-text); }
+
+/* Floating application surfaces. Immersive media/weather/AI canvases are
+   intentionally absent because they own a local light-on-dark palette. */
+:is(
+  .settings-panel, .app-panel, .tab-panel, .picker-panel, .day-modal-card,
+  .cs-panel, .widget-palette-modal, .tile-style-pop, .preset-modal, .cgal-modal,
+  .native-promo, .wc-modal, .cw-modal, .upd-card, .discord-invite,
+  .deck-pmenu, .deck-style-modal, .deck-ed-modal, .deck-mix-modal, .deck-toast,
+  .event-toast, .gc-pill, .gc-card, .perf-banner, .perf-toast, .perf-sheet
+) {
+  color: var(--text);
+  background-color: var(--surface);
+  border-color: var(--line);
+}
+
+:is(
+  .settings-head, .settings-foot, .app-head, .tab-head, .picker-head,
+  .picker-header, .day-modal-header, .cgal-topbar, .deck-ed-head,
+  .deck-mix-head, .settings-nav-footer
+) { border-color: var(--divider); }
+
+/* Repeated rows, cards, wells and editor sections. */
+:is(
+  .settings-group, .settings-subpanel, .settings-toggle-row, .settings-segmented,
+  .settings-upload, .settings-preview-card, .ai-provider-toggle label,
+  .app-card, .app-search-wrap, .tab-card, .picker-item,
+  .widget-palette-item, .preset-page-item, .preset-check-row, .preset-deck-act,
+  .wc-card, .wc-preview, .tile-style-seg, .tile-style-tabs,
+  .deck-ed-side, .deck-ed-step, .deck-ed-preview-stage, .deck-mix-apps,
+  .upd-notes code, .upd-hl-footer, .upd-status,
+  .gc-stat, .perf-sheet-item, .perf-sheet-opt, .perf-sheet-app
+) {
+  color: var(--text);
+  background-color: var(--surface-alt);
+  border-color: var(--divider);
+}
+
+:is(
+  .settings-group, .settings-subpanel, .settings-toggle-row, .app-card,
+  .tab-card, .picker-item, .widget-palette-item, .preset-page-item,
+  .preset-check-row, .wc-card, .deck-ed-step
+):hover { border-color: var(--line); }
+
+/* Text fields and dropdowns use one explicit role in every modal/editor. */
+:is(
+  input[type="text"], input[type="search"], input[type="number"],
+  input[type="password"], input[type="url"], textarea, select,
+  .settings-text-input, .settings-hex-input, .app-search,
+  .deck-ed-input, .deck-ed-select, .deck-ed-textarea, .cgal-search
+) {
+  color: var(--text);
+  background-color: var(--input-bg);
+  border-color: var(--line);
+  caret-color: var(--accent);
+}
+
+:is(input, textarea, select)::placeholder { color: var(--dim-text); opacity: 1; }
+:is(input, textarea, select):focus { border-color: var(--accent); }
+
+/* Generic commands. Brand-specific controls can still override these rules. */
+:is(.ui-btn, .settings-btn, .topbtn, .preset-btn, .tile-style-btn,
+  .gc-close, .gc-ask-btn, .gc-analyze, .perf-btn) {
+  color: var(--text);
+  background-color: var(--control-bg);
+  border-color: var(--line);
+}
+:is(.ui-btn, .settings-btn, .topbtn, .preset-btn, .tile-style-btn,
+  .gc-close, .gc-ask-btn, .gc-analyze, .perf-btn):hover {
+  color: var(--text);
+  background-color: var(--hover-bg);
+}
+:is(.ui-btn--primary, .settings-btn.primary, .preset-btn.primary, .perf-btn-primary) {
+  color: var(--on-accent);
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+:is(.ui-btn--danger, .settings-btn.danger) {
+  color: var(--on-danger);
+  background-color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+:is(.settings-segment-btn.active, .ui-segmented button.active, .tile-style-seg button.active) {
+  color: var(--on-accent);
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+:is(.settings-nav-btn, .picker-close, .settings-close, .preset-modal-close) {
+  color: var(--muted-text);
+}
+:is(.settings-nav-btn, .picker-close, .settings-close, .preset-modal-close):hover {
+  color: var(--text);
+  background-color: var(--hover-bg);
+}
+.settings-nav-btn.active {
+  color: var(--accent);
+  background-color: var(--active-bg);
+}
+
+/* Shared text hierarchy. Component typography remains untouched. */
+:is(.settings-hint, .settings-upload-sub, .picker-item-label, .preset-modal-desc,
+  .app-card-sub, .tab-card-sub, .wc-card-sub) { color: var(--muted-text); }
+
+.settings-toggle-row:hover,
+.picker-item:hover,
+.preset-page-item:hover,
+.preset-check-row:hover { background-color: var(--hover-bg); }
+
+/* Deck's device stays a dark physical chassis; its portaled tools do not. */
+:is(.deck-pmenu-head, .deck-pmenu-empty, .deck-ed-label, .deck-ed-sub,
+  .deck-mix-sub, .deck-toast-sub) { color: var(--muted-text); }
+:is(.deck-pmenu-pick, .deck-pmenu-tool, .deck-pmenu-add, .deck-pmenu-clean,
+  .deck-ed-close, .deck-ed-tab, .deck-ed-segbtn, .deck-ed-btn,
+  .deck-ed-stepbtn, .deck-ed-addstep, .deck-mix-close) {
+  color: var(--text);
+  background-color: var(--control-bg);
+  border-color: var(--line);
+}
+:is(.deck-pmenu-row.active, .deck-ed-tab.active, .deck-ed-segbtn.active) {
+  color: var(--on-accent);
+  background-color: var(--accent);
+}
+
+/* Home Assistant is regular dashboard chrome, not an immersive dark scene. */
+:is(.sh-inline, .sh-item, .sh-seg, .sh-chan-input, .sh-chip, .sh-abtn,
+  .sh-icobtn, .sh-tp, .sh-thermo, .sh-sheet-ico) {
+  color: var(--text);
+  background: var(--surface-alt);
+  border-color: var(--line);
+}
+.sh-sheet {
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--line);
+}
+:is(.sh-area-title, .sh-item-sub, .sh-item-unit, .sh-item--value .sh-item-name,
+  .sh-sheet-sub, .sh-ctl-label, .sh-ctl-note, .sh-seg-btn) { color: var(--muted-text); }
+:is(.sh-seg-btn.is-active, .sh-chan-go, .sh-abtn.is-active, .sh-tp--main) {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.sh-abtn.is-active .sh-abtn-label { color: var(--on-accent); }
+
+/* Connection cards in Settings (Spotify, OBS, Twitch, Streamer.bot). */
+:is(.streaming-card, .streaming-setup, .streaming-copy-row, .streaming-cred-actions) {
+  color: var(--text);
+  background-color: var(--surface-alt);
+  border-color: var(--line);
+}
+:is(.streaming-card-title, .settings-spotify-setup-head, .settings-spotify-steps li) {
+  color: var(--text);
+}
+:is(.streaming-field-label, .settings-spotify-premium, .streaming-poll) {
+  color: var(--muted-text);
+}
+.streaming-copy-val { color: var(--text); background: var(--control-bg); border-color: var(--line); }
+
+/* Vitals opens its detail view through a body-level portal. It cannot inherit
+   the widget's `.panel` contract, so state its material roles explicitly. */
+.vt-overlay {
+  background: color-mix(in srgb, var(--bg) 68%, transparent);
+}
+.vt-card {
+  color: var(--text);
+  background-color: var(--surface);
+  border-color: var(--line);
+}
+.vt-card-desc { color: var(--muted-text); }
+.vt-card-close { color: var(--muted-text); }
+.vt-card-tip { color: var(--text); background-color: var(--surface-alt); }
+.vt-btn { color: var(--text); background-color: var(--control-bg); border-color: var(--line); }
+.vt-btn:not(.vt-btn-done):hover, .vt-btn:not(.vt-btn-done):active { background-color: var(--hover-bg); }
+
+/* Dashboard widgets share the same material hierarchy. This intentionally
+   names established component primitives once so authored themes do not need
+   a separate colour patch for every integration. */
+.panel :is(
+  .stat-box, .system-tabs-left, .sys-uptime,
+  .calendar-card, .cal-task-toggle, .day-cell, .upcoming-block,
+  .timer-add-section, .timer-card, .task-item, .notes-area, .tab-card,
+  .app-card, .app-search-wrap, .device-row, .volume-wrap, .vol-mute-btn, .app-mix-mute, .mic-vol,
+  .dc-pill, .dc-tabs, .dc-btn, .dc-vol-btn, .dc-chan, .dc-member, .dc-chip, .dc-sound, .dc-notif,
+  .obs-card, .obs-scene, .obs-btn, .twitch-card, .twitch-status-pill, .twitch-act-btn,
+  .twitch-field-input, .twitch-chat-toggle, .yt-card, .yt-pill, .yt-btn,
+  .sbw-pill, .sbw-tabs, .sbw-evt, .sbw-global,
+  .wn-item, .wn-muted-row, .sw-row, .sw-stat, .sw-ranges, .sw-add-field,
+  .fw-row, .fw-hero, .fw-mini, .fw-tr, .fw-add-field,
+  .nw-item, .nw-chip, .nw-add-field, .cw-stat, .cw-live, .cw-plan, .cw-custom-input,
+  .wl-seg, .wl-monitor, .wl-row--out, .lgt-chip, .lgt-pick, .lgt-auto,
+  .sh-item, .sh-inline, .sh-seg, .sh-chip, .sh-abtn, .sh-icobtn, .sh-thermo, .sh-now,
+  .sp-tabs, .sp-pl, .sp-dev, .vt-card, .vt-row, .vt-seg, .vt-session,
+  .browser-tabs, .browser-bar, .browser-favorites, .browser-tab, .browser-btn,
+  .browser-url, .browser-fav, .browser-fav-input,
+  .ss-bar, .ss-btn, .ss-tune-panel, .ss-tune-seg, .ss-tune-opt, .ss-setup-card,
+  .remote-intro, .remote-panel-section, .remote-ready-row, .remote-step, .remote-status,
+  .up-setup, .up-seg, .up-seg-btn, .up-reorder-row, .up-move-btn
+) {
+  background-color: var(--surface-alt);
+  border-color: var(--divider);
+}
+
+/* Vitals fill segments are data, not material: the list above themes the empty
+   cells, but a lit cell must keep its per-vital colour (.vt-seg.on has the same
+   specificity and this sheet loads later — restore it one level stronger). */
+.panel .vt-row .vt-seg.on { background-color: rgb(var(--vt-rgb)); }
+
+/* Today and the picked day are state, not material — same hazard as .vt-seg.on,
+   and here it had erased the calendar's today marker outright. `.day-cell` is in
+   the list above, so at equal specificity from a later sheet it flattened
+   `.day-cell.today`'s accent ring and `.day-cell.selected`'s accent tint down to
+   the resting surface. The accent number lost twice over: to `.day-cell.selected`
+   (the grid opens with today selected, and that rule is later in CalendarView.css)
+   and, on a light palette, to `:root[data-appearance="light"] .day-cell`. Restoring
+   all three one level stronger here beats both, while the Comic skin's own
+   day-cell rules stay stronger still and keep their ink. */
+.panel .day-cell.today { color: var(--green); border-color: rgba(var(--accent-rgb), 0.55); }
+.panel .day-cell.selected {
+  background-color: rgba(var(--accent-rgb), 0.16);
+  border-color: rgba(var(--accent-rgb), 0.56);
+}
+
+.panel :is(
+  .calendar-arrow, .timer-add-btn, .timer-btn, .tasks-add-btn, .notes-foot-btn,
+  .vol-mute-btn, .app-mix-mute, .browser-btn, .ss-btn, .ss-tune-opt,
+  .dc-btn, .dc-vol-btn, .dc-chip, .obs-btn, .twitch-act-btn, .twitch-chat-toggle,
+  .yt-btn, .wn-hbtn, .wn-back, .sw-back, .sw-detail-rm, .fw-back, .fw-detail-rm,
+  .nw-manage, .cw-budget-back, .wl-monitor, .lgt-auto, .sh-chip, .sh-abtn,
+  .sh-icobtn, .sh-step, .sp-ctl, .sp-like, .vt-btn, .remote-btn,
+  .remote-btn-secondary, .up-seg-btn, .up-move-btn
+) {
+  color: var(--text);
+  background-color: var(--control-bg);
+  border-color: var(--line);
+}
+
+.panel :is(
+  .calendar-arrow, .timer-add-btn, .timer-btn, .tasks-add-btn, .notes-foot-btn,
+  .vol-mute-btn, .app-mix-mute, .browser-btn, .browser-tab, .browser-fav,
+  .ss-btn, .ss-tune-opt, .dc-btn, .dc-vol-btn, .dc-chip, .dc-chan, .dc-sound,
+  .obs-btn, .obs-scene, .twitch-act-btn, .twitch-chat-toggle, .yt-btn,
+  .wn-hbtn, .wn-back, .wn-item, .sw-back, .sw-detail-rm, .sw-row,
+  .fw-back, .fw-detail-rm, .fw-row, .nw-manage, .nw-item, .cw-budget-back,
+  .wl-monitor, .lgt-auto, .sh-chip, .sh-abtn, .sh-icobtn, .sh-step,
+  .sp-ctl, .sp-like, .vt-btn, .remote-btn, .remote-btn-secondary,
+  .up-seg-btn, .up-move-btn
+):hover {
+  color: var(--text);
+  background-color: var(--hover-bg);
+  border-color: var(--line);
+}
+
+.panel :is(
+  .section-title, .sys-uptime, .stat-value, .stat-detail, .bw-value, .stat-unit, .bw-unit,
+  .vol-title, .vol-value, .mic-vol-value, .audio-unavailable-title, .app-mix-name,
+  .timer-time, .dc-user, .dc-vol-val, .dc-guild, .dc-chan, .dc-notif-body,
+  .yt-viewers-num, .twitch-viewers-num, .obs-scene.is-active,
+  .up-setup-title, .remote-intro-title, .remote-ready-val,
+  .sh-item-name, .sh-item-value, .sh-now-title,
+  .sw-title, .sw-row-name, .sw-row-price, .sw-detail-name, .sw-detail-big, .sw-stat-value,
+  .fw-title, .fw-result-name, .fw-row-name, .fw-cell-res, .fw-detail-name,
+  .fw-hero-team, .fw-hero-score, .fw-mini-opp, .fw-td-team, .fw-pts, .nw-item-title
+) { color: var(--text); }
+
+.panel :is(
+  .stat-head, .stat-head-value, .stat-muted-detail, .sys-subsection, .stat-na,
+  .audio-unavailable, .app-mix-vol, .mic-context, .mic-vol-label,
+  .timer-format-hint, .timer-empty, .timer-label, .timer-done .timer-time, .timer-delete-btn,
+  .dc-pill:not(.in-voice), .dc-tab:not(.is-active), .dc-vol-lbl, .dc-sec-label,
+  .dc-member:not(.is-speaking), .dc-chip, .sbw-pill:not(.is-live),
+  .yt-pill:not(.live), .twitch-status-pill:not(.live),
+  .up-setup-msg, .up-seg-btn:not(.is-active), .up-move-btn,
+  .remote-hint, .remote-panel-label, .remote-ready-label,
+  .sh-item-ico, .sh-item-sub, .sh-item-go, .sh-item-unit,
+  .sh-item--value .sh-item-name, .sh-sheet-sub, .sh-sheet-close,
+  .sh-thermo-current, .sh-thermo-action, .sh-now-artist, .sh-empty-msg
+) { color: var(--muted-text); }
+
+.panel :is(
+  .obs-scene.is-active, .up-seg-btn.is-active, .ss-tune-opt.is-active,
+  .wl-seg-btn.is-active, .sh-seg-btn.is-active, .sh-abtn.is-active,
+  .sh-chip.is-active, .sh-chan-go, .lgt-chip.is-active,
+  .dc-tab.is-active, .dc-ptt.is-on, .dc-chan.is-active, .dc-chip.is-on,
+  .sbw-tab.is-active
+) {
+  color: var(--on-accent);
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+.panel :is(
+  .yt-btn.is-live, .twitch-golive.is-live, .twitch-mic.is-muted,
+  .dc-mute.is-on, .dc-deaf.is-on
+) {
+  color: var(--color-danger);
+  background-color: var(--danger-bg);
+  border-color: var(--color-danger);
+}
+
+.panel .dc-member.is-speaking {
+  color: var(--color-success);
+  background-color: var(--success-bg);
+  border-color: var(--color-success);
+}
+.panel :is(.yt-pill.live, .twitch-status-pill.live, .obs-pill-live.on) {
+  color: var(--color-danger);
+  background-color: var(--danger-bg);
+  border-color: var(--color-danger);
+}
+.panel .obs-pill-rec.on {
+  color: var(--color-warn);
+  background-color: var(--warning-bg);
+  border-color: var(--color-warn);
+}
+.panel :is(.dc-pill.in-voice, .sbw-pill.is-live) {
+  color: var(--color-info);
+  background-color: var(--info-bg);
+  border-color: var(--color-info);
+}
+.panel .yt-health-good .yt-health-dot { background-color: var(--color-success); }
+.panel .yt-health-ok .yt-health-dot { background-color: var(--color-warn); }
+.panel .yt-health-bad .yt-health-dot { background-color: var(--color-danger); }
+
+/* Status semantics. These aliases also replace the historical red/amber/cyan
+   variables, so old components inherit user-selected state colours. */
+.success, .status-ok, [data-status="success"] { color: var(--color-success); }
+.warning, .status-warn, [data-status="warning"] { color: var(--color-warn); }
+.danger, .error, .status-error, [data-status="danger"] { color: var(--color-danger); }
+.info, [data-status="info"] { color: var(--color-info); }
+
+/* ── Xenon AI chat inside a dashboard tile ─────────────────────────────
+   The chat log, composer and their icons are authored in AIPanel.css for the
+   immersive dark voice overlay — a deep light-on-dark "room" where hardcoded
+   white text is correct. initMediaChat() (js/media.js) relocates that same
+   markup into the Chat tile ([data-chatf="pane"]: the primary pane, its mirror
+   copies and the media tile's Chat tab). There the tile is regular dashboard
+   chrome, so on a light skin (Comic/POW, Light) the white text and near-white
+   icons vanish against the paper. Re-bind every hardcoded colour to a theme
+   role ONLY in the tile context — the `.ai-overlay` voice room is untouched and
+   keeps its own contrast contract. The accent is already token-based, so it
+   carries through unchanged. */
+[data-chatf="pane"] :is(.ai-msg-bubble, .ai-msg-assistant .ai-msg-bubble) { color: var(--text); }
+[data-chatf="pane"] .ai-msg-user .ai-msg-bubble {
+  color: var(--text);
+  background: rgba(var(--accent-rgb), .15);
+  border-color: rgba(var(--accent-rgb), .28);
+}
+[data-chatf="pane"] .ai-status { color: var(--muted-text); }
+
+/* Composer field + icon buttons */
+[data-chatf="pane"] .ai-text-input {
+  color: var(--text);
+  background: var(--input-bg);
+  border-color: var(--line);
+}
+[data-chatf="pane"] .ai-text-input::placeholder { color: var(--dim-text); }
+[data-chatf="pane"] .ai-text-input:focus {
+  border-color: var(--accent);
+  background: var(--input-bg);
+}
+[data-chatf="pane"] :is(.ai-attach-btn, .ai-screen-btn, .ai-dictate-btn) {
+  color: var(--muted-text);
+  background: var(--control-bg);
+  border-color: var(--line);
+}
+[data-chatf="pane"] :is(.ai-attach-btn, .ai-screen-btn, .ai-dictate-btn):hover {
+  color: var(--text);
+  background: var(--hover-bg);
+}
+/* Send button keeps its accent identity; only its base fill follows the palette. */
+[data-chatf="pane"] .ai-send-btn {
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), .16);
+  border-color: rgba(var(--accent-rgb), .30);
+}
+[data-chatf="pane"] .ai-send-btn:hover { background: rgba(var(--accent-rgb), .26); }
+
+/* Per-message copy button */
+[data-chatf="pane"] .ai-msg-copy { color: var(--muted-text); }
+[data-chatf="pane"] .ai-msg-copy:hover { color: var(--text); background: var(--hover-bg); }
+
+/* Assistant markdown typography */
+[data-chatf="pane"] .ai-msg-markdown :is(.ai-h3, .ai-h4, strong) { color: var(--text); }
+[data-chatf="pane"] .ai-msg-markdown em { color: var(--muted-text); }
+[data-chatf="pane"] .ai-msg-markdown .ai-hr { border-top-color: var(--divider); }
+[data-chatf="pane"] .ai-msg-markdown .ai-inline-code {
+  color: var(--accent);
+  background: var(--surface-alt);
+}
+
+/* Attachments (image thumbs + document chips) rendered in the transcript */
+[data-chatf="pane"] :is(.ai-bubble-img, .ai-attach-thumb) { border-color: var(--line); }
+[data-chatf="pane"] :is(.ai-attach-doc, .ai-bubble-doc) {
+  background: var(--surface-alt);
+  border-color: var(--line);
+}
+[data-chatf="pane"] .ai-attach-doc-name { color: var(--text); }

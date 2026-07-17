@@ -164,15 +164,33 @@
       try { const bin = atob(data); bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); }
       catch (e) { return; }
     }
+    // One decode in flight, latest-frame-wins — same guard as browser-tile.js
+    // (GitHub #99): a busy mirror (video, moving cursor) can emit frames faster
+    // than createImageBitmap settles; queuing every frame piles up decode work
+    // only to paint already-stale frames.
+    if (tile._decoding) { tile._pendingFrame = bytes; return; }
+    decodeFrame(tile, bytes);
+  }
+
+  function decodeFrame(tile, bytes) {
+    tile._decoding = true;
     createImageBitmap(new Blob([bytes], { type: 'image/jpeg' })).then((bmp) => {
+      if (!tile.canvas) { bmp.close && bmp.close(); return; }   // tile torn down mid-decode
       if (tile.canvas.width !== bmp.width || tile.canvas.height !== bmp.height) {
         tile.canvas.width = bmp.width; tile.canvas.height = bmp.height;
       }
       const ctx = tile.ctx || (tile.ctx = tile.canvas.getContext('2d'));
       ctx.drawImage(bmp, 0, 0);
       bmp.close && bmp.close();
-      if (tile.loadingEl) tile.loadingEl.hidden = true;
-    }).catch(() => {});
+      // Only touch the overlay when it's actually shown — re-assigning
+      // `hidden = true` still schedules a style recalc on every frame (#99).
+      if (tile.loadingEl && !tile.loadingEl.hidden) tile.loadingEl.hidden = true;
+    }).catch(() => {}).then(() => {
+      tile._decoding = false;
+      const next = tile._pendingFrame;
+      tile._pendingFrame = null;
+      if (next && tile.canvas) decodeFrame(tile, next);
+    });
   }
 
   // ── Input forwarding ──────────────────────────────────────────────────────────
@@ -283,9 +301,12 @@
   }
 
   // ── Views ─────────────────────────────────────────────────────────────────────
+  // Identity from the ATOM (data-dashboard-instance), not the enclosing grid
+  // item: inside a tab group the item's gs-id is the GROUP's, so two second
+  // screen tabs would share one capture state. Standalone values are unchanged
+  // (primary gs-id = 'secondscreen', copy gs-id = its instance id).
   function instanceIdOf(section) {
-    const item = section.closest('.grid-stack-item');
-    return (item && item.getAttribute('gs-id')) || 'secondscreen';
+    return section.getAttribute('data-dashboard-instance') || 'secondscreen';
   }
 
   function mkBtn(cls, icon, title, onClick) {

@@ -70,6 +70,14 @@ function isAppUserModelId(s) {
   return typeof s === 'string' && /^[\w.-]+![\w.-]+$/.test(s.trim());
 }
 
+// A Steam AppID is a plain integer (e.g. 1086940 for Baldur's Gate 3). Digits
+// only — the value is interpolated into a steam://rungameid/<id> URL, so the
+// strict charset guarantees there's nothing to inject. 1–12 digits covers every
+// real store AppID with headroom.
+function isSteamAppId(s) {
+  return typeof s === 'string' && /^\d{1,12}$/.test(s.trim());
+}
+
 // Executable / script extensions that must NOT be reachable via openFile (which
 // opens with the registered handler). A folder or a document is fine; a .bat or
 // .ps1 would run code on one tap. openApp is the only path that may launch exes.
@@ -158,6 +166,15 @@ function createRegistry(deps) {
           await d.openStoreApp(id);
           return { ok: true };
         }
+        case 'launchSteamGame': {
+          // Launch a Steam game by AppID via its registered protocol handler.
+          // Digits-only validation before interpolation → injection-safe; the URL
+          // is handed to the same shell launcher openUrl uses (openExternal).
+          const id = action.gameId.trim();
+          if (!isSteamAppId(id)) return { ok: false, error: 'bad_app_id' };
+          await d.openExternal('steam://rungameid/' + id);
+          return { ok: true };
+        }
         case 'openUrl': {
           const url = normalizeUrl(action.url);
           if (!url) return { ok: false, error: 'bad_url' };
@@ -195,7 +212,12 @@ function createRegistry(deps) {
           const r = await d.typeText(text);
           return r && r.ok === false ? { ok: false, error: r.error || 'type_failed' } : { ok: true };
         }
-        case 'media':   await d.mediaAction(action.cmd); return { ok: true };
+        case 'lockWorkstation': {
+          if (typeof d.lockWorkstation !== 'function') return { ok: false, error: 'unavailable' };
+          const r = await d.lockWorkstation();
+          return r && r.ok === false ? { ok: false, error: r.error || 'failed' } : { ok: true };
+        }
+        case 'media': await d.mediaAction(action.cmd); return { ok: true };
         case 'micMute': return Object.assign({ ok: true }, (await d.micMute(action.mode)) || {});
         case 'volume': {
           if (action.mode === 'set') {
@@ -437,6 +459,16 @@ function createRegistry(deps) {
           const r = await d.lightingControl(action);
           return r && r.ok === false ? { ok: false, error: r.error || 'lighting_failed' } : { ok: true };
         }
+        case 'signalRgbEffect': {
+          // SignalRGB scene switcher (separate from the colour-lighting hub above):
+          // applies a named effect via the SignalRGB launcher. Gated + validated
+          // server-side; a missing dep / disabled integration degrades to {ok:false}.
+          if (typeof d.signalRgbEffect !== 'function') return { ok: false, error: 'unavailable' };
+          const effect = action.effect;
+          if (!effect) return { ok: false, error: 'empty_effect' };
+          const r = await d.signalRgbEffect(effect);
+          return r && r.ok === false ? { ok: false, error: r.error || 'failed' } : { ok: true };
+        }
         case 'windowMove': {
           // Move/snap/minimise the foreground window. `dir` is constrained to the
           // catalog's option list, so the verb handed to the PowerShell helper is
@@ -508,7 +540,7 @@ function createRegistry(deps) {
           const r = await d.sdkHandler(ref.slice(0, slash), ref.slice(slash + 1), action.args);
           return (r && r.ok) ? { ok: true } : { ok: false, error: (r && r.error) || 'handler_failed' };
         }
-        default:        return { ok: false, error: 'unsupported' };
+        default: return { ok: false, error: 'unsupported' };
       }
     } catch (err) {
       return { ok: false, error: (err && err.message) || 'effect_error' };
@@ -517,4 +549,4 @@ function createRegistry(deps) {
   return { run };
 }
 
-module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, isRunnableScriptPath, isAppUserModelId, normalizeUrl, normalizeKeys };
+module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys };

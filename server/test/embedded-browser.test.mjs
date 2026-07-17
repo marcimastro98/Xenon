@@ -281,8 +281,12 @@ test('clearData wipes the tile page storage and hard-reloads', async () => {
     send(raw) {
       const m = JSON.parse(raw);
       sent.push(m);
-      if (m.method === 'Runtime.evaluate') {
-        // Simulate the in-page wipe returning the page origin.
+      // Answer ONLY the in-page storage wipe (it resolves to the page origin).
+      // open() also fires a Widevine warm-up Runtime.evaluate; that one must fall
+      // through to the default `{}` reply so the CDM warm-up bails immediately —
+      // intercepting it made the probe read a non-'ok' value and spin its capped
+      // (unref'd) retry loop, so open() never settled and the test hung.
+      if (m.method === 'Runtime.evaluate' && /localStorage/.test((m.params && m.params.expression) || '')) {
         setTimeout(() => this._emit('message', { data: JSON.stringify({ id: m.id, result: { result: { value: 'https://twitch.tv' } } }) }), 0);
         return;
       }
@@ -331,10 +335,19 @@ test('open() self-heals: a failed first launch is retried and then succeeds', as
       return { proc, wsUrl: 'ws://x' };
     },
   });
-  await host.open('browser', 'example.com', 400, 300, 1, () => {});
-  assert.equal(launches, 2, 'the launch was retried after the first failure');
-  assert.equal(host._tiles.has('browser'), true);
-  host.shutdown();
+  // The retry backoff between launch attempts is a deliberately unref'd timer (so
+  // it never blocks a real shutdown). A live Edge keeps the process alive via its
+  // ws socket; the fake ws is not a libuv handle, so hold the loop open across the
+  // backoff ourselves — otherwise it drains and open() never settles.
+  const keepAlive = setInterval(() => {}, 50);
+  try {
+    await host.open('browser', 'example.com', 400, 300, 1, () => {});
+    assert.equal(launches, 2, 'the launch was retried after the first failure');
+    assert.equal(host._tiles.has('browser'), true);
+  } finally {
+    clearInterval(keepAlive);
+    host.shutdown();
+  }
 });
 
 test('the headless browser is killed after the last tile closes (idle)', async () => {

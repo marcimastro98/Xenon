@@ -9,13 +9,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Xenon Edge Control</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/favicon.png">
 
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<!-- Pixel faces (Press Start 2P / VT323) are fetched lazily by the browser only
-     when the Retro style actually uses them — zero cost on the default theme. -->
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Press+Start+2P&family=VT323&display=swap">
+<!-- Display faces for the alternate skins (Press Start 2P / VT323 for Retro,
+     Bangers / Comic Neue for Comic) are fetched lazily by the browser only when
+     that style actually uses them — zero cost on the default theme, and both
+     skins also fall back to Comic Sans MS / system fonts if offline. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Press+Start+2P&family=VT323&family=Bangers&family=Comic+Neue:wght@400;700&display=swap">
 
 <!-- Global styles & design tokens -->
 <link rel="stylesheet" href="styles/global.css">
@@ -72,7 +76,11 @@
 <link rel="stylesheet" href="components/FootballWidget/FootballWidget.css">
 <link rel="stylesheet" href="components/ClaudeWidget/ClaudeWidget.css">
 <link rel="stylesheet" href="components/NewsWidget/NewsWidget.css">
+<link rel="stylesheet" href="components/FansWidget/FansWidget.css">
+<link rel="stylesheet" href="components/PowerWidget/PowerWidget.css">
+<link rel="stylesheet" href="components/BatteryWidget/BatteryWidget.css">
 <link rel="stylesheet" href="components/VitalsWidget/VitalsWidget.css">
+<link rel="stylesheet" href="components/SlideshowWidget/SlideshowWidget.css">
 <link rel="stylesheet" href="components/VitalsPet/VitalsPet.css">
 <link rel="stylesheet" href="components/Ticker/Ticker.css">
 <link rel="stylesheet" href="components/CustomWidget/CustomWidget.css">
@@ -86,8 +94,12 @@
 <link rel="stylesheet" href="styles/controls.css">
 <!-- Light-theme component fixups (keyed off :root[data-appearance="light"]) -->
 <link rel="stylesheet" href="styles/themes-light.css">
+<!-- Semantic palette contract: common chrome consumes roles, not theme literals -->
+<link rel="stylesheet" href="styles/theme-contract.css">
 <!-- Pixel Retro-gaming skin (keyed off :root[data-style="retro"]) -->
 <link rel="stylesheet" href="styles/themes-retro.css">
+<!-- Comic Book skin (keyed off :root[data-style="comic"]) -->
+<link rel="stylesheet" href="styles/themes-comic.css">
 <link rel="stylesheet" href="styles/backgroundfx.css">
 <!-- Breakpoints / embed modes (must load last to override) -->
 <link rel="stylesheet" href="styles/breakpoints.css">
@@ -147,6 +159,10 @@
              by js/vitals.js; lives inside .clock so the minimal-topbar island
              adopts it automatically when the clock is reparented. -->
         <span class="clock-vitals" id="clock-vitals" hidden></span>
+        <!-- Third-party SDK badge chips (Widget SDK `badge` capability, up to a
+             few at once). Populated by js/sdk-badges.js; lives inside .clock for
+             the same free minimal-topbar reparenting as clock-vitals above. -->
+        <span class="clock-sdkbadges" id="clock-sdkbadges" hidden></span>
       </div>
     </div>
 
@@ -479,11 +495,37 @@
         <div class="news-widget-mount"></div>
       </section>
 
+      <!-- Fans — read-only fan RPM (CPU/chassis via LHM, GPU via nvidia-smi/LHM).
+           Rides the SSE 'system' event; hidden by default, added from the "+" palette. -->
+      <section class="panel fans-panel dashboard-widget" data-dashboard-widget="fans" data-dashboard-size="normal" data-dashboard-order="31" data-dashboard-hidden="true">
+        <div class="fans-widget-mount"></div>
+      </section>
+
+      <!-- Energy — PC power draw (CPU/GPU/PSU watts) plus the user's Home
+           Assistant power/energy entities (solar, smart plugs, home meter).
+           Rides SSE 'system' + 'homeassistant'; hidden by default. -->
+      <section class="panel power-panel dashboard-widget" data-dashboard-widget="power" data-dashboard-size="normal" data-dashboard-order="32" data-dashboard-hidden="true">
+        <div class="power-widget-mount"></div>
+      </section>
+
+      <!-- Battery — wireless peripheral battery (Corsair via iCUE + Bluetooth).
+           Fed over SSE 'battery' (seed: GET /api/battery); hidden by default. -->
+      <section class="panel battery-panel dashboard-widget" data-dashboard-widget="battery" data-dashboard-size="normal" data-dashboard-order="33" data-dashboard-hidden="true">
+        <div class="battery-widget-mount"></div>
+      </section>
+
       <!-- Vitals — game-style self-care meters (hydration/energy/stamina/focus)
            that drain with time at the PC; tap to refill. Client-only (no server
            feed); hidden by default, added from the "+" palette. -->
       <section class="panel vitals-panel dashboard-widget" data-dashboard-widget="vitals" data-dashboard-size="normal" data-dashboard-order="28" data-dashboard-hidden="true">
         <div class="vitals-widget-mount"></div>
+      </section>
+
+      <!-- Slideshow — cycles a user-provided set of images/GIFs (added in
+           Settings → Slideshow). Client-only (images live inline in settings);
+           hidden by default, added from the "+" palette. -->
+      <section class="panel slideshow-panel dashboard-widget" data-dashboard-widget="slideshow" data-dashboard-size="normal" data-dashboard-order="29" data-dashboard-hidden="true">
+        <div class="slideshow-widget-mount"></div>
       </section>
 
     <aside class="panel side-panel dashboard-widget" data-dashboard-widget="system" data-dashboard-size="normal" data-dashboard-order="2">
@@ -821,6 +863,7 @@
         <div class="settings-nav-label" data-i18n="settings_nav_widgets" aria-hidden="true">Widget</div>
         <button type="button" class="settings-nav-btn" data-settings-cat="weather" onclick="settingsSetCategory('weather')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 18a4.5 4.5 0 0 1 .4-9 5.5 5.5 0 0 1 10.5 1.4A3.8 3.8 0 0 1 17 18Z"/></svg><span data-i18n="settings_weather">Meteo</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="stocks" onclick="settingsSetCategory('stocks')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/><path d="M17 8h4v4"/></svg><span data-i18n="settings_cat_feeds">Borsa, Calcio e News</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="slideshow" onclick="settingsSetCategory('slideshow')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="m4 17 4.5-4 3.5 2.5 3-2.5L20 17"/></svg><span data-i18n="settings_cat_slideshow">Slideshow</span></button>
         <div class="settings-nav-label" id="settings-nav-label-integrations" data-i18n="settings_nav_integrations" aria-hidden="true">Integrazioni</div>
         <button type="button" class="settings-nav-btn" data-settings-cat="ai" onclick="settingsSetCategory('ai')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/></svg><span data-i18n="settings_ai">Xenon AI</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="lighting" onclick="settingsSetCategory('lighting')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"/></svg><span data-i18n="settings_cat_lighting">Illuminazione</span></button>
@@ -856,7 +899,7 @@
         </div>
       </nav>
       <div class="settings-content" id="settings-content">
-      <div class="settings-preview" aria-hidden="true" data-settings-cat="appearance">
+      <div class="settings-preview settings-span-all" aria-hidden="true" data-settings-cat="appearance">
         <div class="settings-preview-card">
           <div class="settings-preview-kicker" data-i18n="settings_preview_kicker">Anteprima live</div>
           <div class="settings-preview-title">Xenon</div>
@@ -864,7 +907,7 @@
         </div>
       </div>
 
-      <div class="settings-group settings-themes-group" data-settings-cat="appearance">
+      <div class="settings-group settings-themes-group settings-span-all" data-settings-cat="appearance">
         <div class="settings-group-head">
           <span data-i18n="settings_themes">Temi</span>
           <span class="settings-hint" data-i18n="settings_themes_hint">lo stile dell'interfaccia; salva, importa ed esporta temi completi</span>
@@ -876,6 +919,7 @@
           <button type="button" class="settings-btn" onclick="saveCurrentTheme()" data-i18n="settings_theme_save">Salva tema attuale</button>
           <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.openImport()" data-i18n="settings_theme_import">Importa tema…</button>
           <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.exportTheme()" data-i18n="settings_share_theme">Esporta tema</button>
+          <button type="button" class="settings-btn subtle" onclick="resetAppearanceDefaults()" data-i18n="settings_reset">Ripristina default</button>
         </div>
         <!-- Retro-only CRT scanline sub-toggle; syncStyleModeControls() shows this
              grid (and the row) only while the Pixel Retro skin is active. -->
@@ -887,12 +931,7 @@
         </div>
       </div>
 
-      <div class="settings-section-divider" data-settings-cat="appearance">
-        <span data-i18n="settings_personalize">Personalizza</span>
-        <span class="settings-hint" data-i18n="settings_personalize_hint">colori, superficie e tipografia</span>
-      </div>
-
-      <div class="settings-group settings-theme-group" data-settings-cat="appearance">
+      <div class="settings-group settings-theme-group settings-span-all" data-settings-cat="appearance">
         <div class="settings-group-head">
           <span data-i18n="settings_theme_mode">Modalità</span>
           <span class="settings-hint" data-i18n="settings_theme_hint">chiaro, scuro o di sistema</span>
@@ -911,6 +950,11 @@
             <span data-i18n="settings_theme_auto">Auto</span>
           </button>
         </div>
+      </div>
+
+      <div class="settings-section-divider settings-span-all" data-settings-cat="appearance">
+        <span data-i18n="settings_personalize">Personalizza</span>
+        <span class="settings-hint" data-i18n="settings_personalize_hint">colori, superficie e tipografia</span>
       </div>
 
       <div class="settings-group settings-behavior-group" data-settings-cat="general">
@@ -945,7 +989,10 @@
 
 
       <div class="settings-group settings-colors-group" data-settings-cat="appearance">
-        <div class="settings-group-head" data-i18n="settings_colors">Colori</div>
+        <div class="settings-group-head">
+          <span data-i18n="settings_colors">Colori</span>
+          <span class="settings-hint" data-i18n="settings_colors_hint">a cosa si applica ogni colore nell'interfaccia</span>
+        </div>
         <div class="settings-grid">
           <label class="settings-row">
             <span class="settings-label-line"><span data-i18n="settings_accent">Accento</span><span class="settings-hint" data-i18n="settings_accent_hint">azioni e stati</span></span>
@@ -959,6 +1006,33 @@
             <div class="settings-color-wrap">
               <div class="settings-color-preview" id="settings-background-swatch" onclick="openSettingsColorPicker('background',this)"></div>
               <input class="settings-hex-input" id="settings-background" type="text" maxlength="7" placeholder="#070808" spellcheck="false" autocomplete="off" oninput="onHexInput('background',this.value)" onchange="onHexInput('background',this.value)">
+            </div>
+            <!-- Shown only when a wallpaper / static / code background sits opaquely
+                 over the canvas, so editing this colour has no visible effect. -->
+            <span class="settings-note settings-bg-covered-note" id="settings-bg-covered-note" hidden data-i18n="settings_background_covered">Coperto da uno sfondo attivo — rimuovi lo sfondo per vedere questo colore.</span>
+          </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_panel_surface">Pannelli</span><span class="settings-hint" data-i18n="settings_panel_surface_hint">widget e finestre</span></span>
+            <div class="settings-color-wrap">
+              <div class="settings-color-preview" id="settings-surface-swatch" onclick="openSettingsColorPicker('surface',this)"></div>
+              <input class="settings-hex-input" id="settings-surface" type="text" maxlength="7" placeholder="Auto" spellcheck="false" autocomplete="off" oninput="onHexInput('surface',this.value)" onchange="onHexInput('surface',this.value)">
+              <button class="settings-color-clear" type="button" onclick="clearSettingsColor('surface')" data-i18n="settings_color_auto" title="Auto">Auto</button>
+            </div>
+          </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_surface_alt">Superficie secondaria</span><span class="settings-hint" data-i18n="settings_surface_alt_hint">schede e righe</span></span>
+            <div class="settings-color-wrap">
+              <div class="settings-color-preview" id="settings-surfaceAlt-swatch" onclick="openSettingsColorPicker('surfaceAlt',this)"></div>
+              <input class="settings-hex-input" id="settings-surfaceAlt" type="text" maxlength="7" placeholder="Auto" spellcheck="false" autocomplete="off" oninput="onHexInput('surfaceAlt',this.value)" onchange="onHexInput('surfaceAlt',this.value)">
+              <button class="settings-color-clear" type="button" onclick="clearSettingsColor('surfaceAlt')" data-i18n="settings_color_auto" title="Auto">Auto</button>
+            </div>
+          </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_control_color">Campi e controlli</span><span class="settings-hint" data-i18n="settings_control_color_hint">input, menu e pulsanti</span></span>
+            <div class="settings-color-wrap">
+              <div class="settings-color-preview" id="settings-controlColor-swatch" onclick="openSettingsColorPicker('controlColor',this)"></div>
+              <input class="settings-hex-input" id="settings-controlColor" type="text" maxlength="7" placeholder="Auto" spellcheck="false" autocomplete="off" oninput="onHexInput('controlColor',this.value)" onchange="onHexInput('controlColor',this.value)">
+              <button class="settings-color-clear" type="button" onclick="clearSettingsColor('controlColor')" data-i18n="settings_color_auto" title="Auto">Auto</button>
             </div>
           </label>
           <label class="settings-row full">
@@ -984,40 +1058,21 @@
               <button class="settings-color-clear" type="button" onclick="clearSettingsColor('lineColor')" data-i18n="settings_color_auto" title="Auto">Auto</button>
             </div>
           </label>
-        </div>
-      </div>
-
-      <div class="settings-group settings-font-group" data-settings-cat="appearance">
-        <div class="settings-group-head">
-          <span data-i18n="settings_font">Font personalizzato</span>
-          <span class="settings-hint" data-i18n="settings_font_hint">tipografia dell'intera dashboard</span>
-        </div>
-        <div class="settings-grid">
-          <div class="settings-row full">
-            <div class="settings-upload-row">
-              <label class="settings-upload">
-                <input id="settings-font-file" type="file" accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf" onchange="uploadSettingsFont(this)">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v3h5.5v12h3V7H19V4H5Z"/></svg>
-                <span class="settings-upload-copy">
-                  <span class="settings-upload-title" id="settings-font-title" data-i18n="settings_font_upload">Carica un font</span>
-                  <span class="settings-upload-sub" id="settings-font-sub" data-i18n="settings_font_upload_hint">WOFF2, WOFF, TTF o OTF fino a 8 MB</span>
-                </span>
-              </label>
-              <button class="settings-btn danger" type="button" onclick="clearSettingsFont()" data-i18n="settings_font_clear">Rimuovi</button>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_accent_text">Testo su accento</span><span class="settings-hint" data-i18n="settings_accent_text_hint">pulsanti selezionati</span></span>
+            <div class="settings-color-wrap">
+              <div class="settings-color-preview" id="settings-accentText-swatch" onclick="openSettingsColorPicker('accentText',this)"></div>
+              <input class="settings-hex-input" id="settings-accentText" type="text" maxlength="7" placeholder="Auto" spellcheck="false" autocomplete="off" oninput="onHexInput('accentText',this.value)" onchange="onHexInput('accentText',this.value)">
+              <button class="settings-color-clear" type="button" onclick="clearSettingsColor('accentText')" data-i18n="settings_color_auto" title="Auto">Auto</button>
             </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="settings-group settings-fx-group" data-settings-cat="appearance">
-        <div class="settings-group-head">
-          <span data-i18n="settings_dynamic_album">Accento dall'album</span>
-          <span class="settings-hint" data-i18n="settings_dynamic_album_hint">il colore segue la copertina in riproduzione</span>
-        </div>
-        <div class="settings-grid">
+          </label>
+          <label class="settings-toggle-row full">
+            <input class="settings-check" id="settings-contrast-guard" type="checkbox" onchange="updateContrastGuard(this.checked)">
+            <span data-i18n="settings_contrast_guard">Mantieni leggibili testi e comandi</span>
+          </label>
           <label class="settings-toggle-row full">
             <input class="settings-check" id="settings-dynamic-album" type="checkbox" onchange="updateDynamicAlbumTheme(this.checked)">
-            <span data-i18n="settings_fx_enable">Attiva</span>
+            <span class="settings-label-line"><span data-i18n="settings_dynamic_album">Accento dall'album</span><span class="settings-hint" data-i18n="settings_dynamic_album_hint">l'accento dell'interfaccia segue la copertina in riproduzione</span></span>
           </label>
         </div>
       </div>
@@ -1058,6 +1113,53 @@
             <input class="settings-range" id="settings-bg-blur" type="range" min="0" max="24" step="1" oninput="updateSettingsRange('bgBlur', this.value)">
             <span class="settings-note" id="settings-bg-blur-note" data-i18n="settings_bg_blur_note_empty">Visibile dopo aver caricato un'immagine, GIF o video.</span>
           </label>
+        </div>
+      </div>
+
+      <div class="settings-group settings-colors-group" data-settings-cat="appearance">
+        <div class="settings-group-head">
+          <span data-i18n="settings_state_colors">Colori di stato</span>
+          <span class="settings-hint" data-i18n="settings_state_colors_hint">successo, avvisi, errori e informazioni</span>
+        </div>
+        <div class="settings-grid">
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_success_color">Successo</span></span>
+            <div class="settings-color-wrap"><div class="settings-color-preview" id="settings-successColor-swatch" onclick="openSettingsColorPicker('successColor',this)"></div><input class="settings-hex-input" id="settings-successColor" type="text" maxlength="7" placeholder="Auto" spellcheck="false" autocomplete="off" oninput="onHexInput('successColor',this.value)" onchange="onHexInput('successColor',this.value)"><button class="settings-color-clear" type="button" onclick="clearSettingsColor('successColor')" data-i18n="settings_color_auto" title="Auto">Auto</button></div>
+          </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_warning_color">Avviso</span></span>
+            <div class="settings-color-wrap"><div class="settings-color-preview" id="settings-warningColor-swatch" onclick="openSettingsColorPicker('warningColor',this)"></div><input class="settings-hex-input" id="settings-warningColor" type="text" maxlength="7" placeholder="Auto" spellcheck="false" autocomplete="off" oninput="onHexInput('warningColor',this.value)" onchange="onHexInput('warningColor',this.value)"><button class="settings-color-clear" type="button" onclick="clearSettingsColor('warningColor')" data-i18n="settings_color_auto" title="Auto">Auto</button></div>
+          </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_danger_color">Errore</span></span>
+            <div class="settings-color-wrap"><div class="settings-color-preview" id="settings-dangerColor-swatch" onclick="openSettingsColorPicker('dangerColor',this)"></div><input class="settings-hex-input" id="settings-dangerColor" type="text" maxlength="7" placeholder="Auto" spellcheck="false" autocomplete="off" oninput="onHexInput('dangerColor',this.value)" onchange="onHexInput('dangerColor',this.value)"><button class="settings-color-clear" type="button" onclick="clearSettingsColor('dangerColor')" data-i18n="settings_color_auto" title="Auto">Auto</button></div>
+          </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_info_color">Informazione</span></span>
+            <div class="settings-color-wrap"><div class="settings-color-preview" id="settings-infoColor-swatch" onclick="openSettingsColorPicker('infoColor',this)"></div><input class="settings-hex-input" id="settings-infoColor" type="text" maxlength="7" placeholder="Auto" spellcheck="false" autocomplete="off" oninput="onHexInput('infoColor',this.value)" onchange="onHexInput('infoColor',this.value)"><button class="settings-color-clear" type="button" onclick="clearSettingsColor('infoColor')" data-i18n="settings_color_auto" title="Auto">Auto</button></div>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-group settings-font-group" data-settings-cat="appearance">
+        <div class="settings-group-head">
+          <span data-i18n="settings_font">Font personalizzato</span>
+          <span class="settings-hint" data-i18n="settings_font_hint">tipografia dell'intera dashboard</span>
+        </div>
+        <div class="settings-grid">
+          <div class="settings-row full">
+            <div class="settings-upload-row">
+              <label class="settings-upload">
+                <input id="settings-font-file" type="file" accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf" onchange="uploadSettingsFont(this)">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v3h5.5v12h3V7H19V4H5Z"/></svg>
+                <span class="settings-upload-copy">
+                  <span class="settings-upload-title" id="settings-font-title" data-i18n="settings_font_upload">Carica un font</span>
+                  <span class="settings-upload-sub" id="settings-font-sub" data-i18n="settings_font_upload_hint">WOFF2, WOFF, TTF o OTF fino a 8 MB</span>
+                </span>
+              </label>
+              <button class="settings-btn danger" type="button" onclick="clearSettingsFont()" data-i18n="settings_font_clear">Rimuovi</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1262,6 +1364,20 @@
           <span class="settings-label-line">
             <span data-i18n="settings_notif_sounds">Suoni di notifica</span>
             <span class="settings-hint" data-i18n="settings_notif_sounds_hint">riproduci un breve suono a ogni pop-up e per il promemoria del calendario</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-winnotif-row">
+          <input class="settings-check" id="settings-winnotif" type="checkbox" onchange="updateWindowsNotifications('enabled', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_winnotif">Rispecchia le notifiche di Windows</span>
+            <span class="settings-hint" data-i18n="settings_winnotif_hint">DM, mail, Teams, WhatsApp… ogni notifica del PC arriva in dashboard: pop-up e widget Notifiche. Lettura locale — niente esce da questo PC.</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-winnotif-hide-row">
+          <input class="settings-check" id="settings-winnotif-hide" type="checkbox" onchange="updateWindowsNotifications('hide', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_winnotif_hide">Nascondi il contenuto delle notifiche</span>
+            <span class="settings-hint" data-i18n="settings_winnotif_hide_hint">nel widget e nei pop-up mostra solo l'app: il testo appare quando tocchi</span>
           </span>
         </label>
       </div>
@@ -1812,6 +1928,15 @@
             <span class="settings-label-line"><span data-i18n="settings_bg_code_name">Nome</span></span>
             <input class="settings-text-input" id="settings-bgcode-name" type="text" maxlength="60" placeholder="Il mio sfondo" spellcheck="false" autocomplete="off" oninput="updateBgCustom('name',this.value)">
           </label>
+          <!-- Frame-rate cap: works on imported backgrounds too (the code stays
+               locked, but how much CPU/GPU it may spend is the user's call). -->
+          <label class="settings-row full" id="settings-bgcode-fps-row">
+            <span class="settings-label-line"><span data-i18n="settings_bg_fps">Fotogrammi al secondo</span><span class="settings-hint" data-i18n="settings_bg_fps_hint">30 è l'ideale: fluido e leggero. Abbassalo per scene quasi statiche; 60 solo per movimenti molto rapidi.</span></span>
+            <!-- Raw value on purpose: an emptied field ('') must reach sanitizeBgFps
+                 as-is so it resets to the default 30, not Number('')=0 → clamped to 10.
+                 min/max are synced from CustomBg.FPS_MIN/FPS_MAX in syncBgFxControls. -->
+            <input type="number" id="settings-bgcode-fps" step="1" inputmode="numeric" onchange="updateBgCustom('fps', this.value)">
+          </label>
           <div class="settings-row full settings-bgcode-templates">
             <span class="settings-label-line"><span data-i18n="settings_bg_code_templates">Modelli pronti</span></span>
             <div class="settings-bgcode-gallery">
@@ -1866,6 +1991,32 @@
         <p class="settings-note settings-safenote" data-i18n="settings_bg_code_note">Il codice disegna su una canvas a schermo intero e gira in una sandbox isolata: nessuna rete, nessun accesso alla dashboard, ai tuoi file o alle impostazioni. Importa sfondi solo da persone di cui ti fidi.</p>
       </div>
 
+      <div class="settings-group settings-slideshow-group" data-settings-cat="slideshow">
+        <div class="settings-group-head">
+          <span data-i18n="settings_cat_slideshow">Slideshow</span>
+          <span class="settings-hint" data-i18n="settings_slideshow_hint">Le tue immagini o GIF che scorrono in un riquadro della dashboard. Aggiungi il widget “Slideshow” dal pulsante “+”.</span>
+        </div>
+        <div class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="settings_slideshow_images">Immagini</span><span class="slideshow-count" id="settings-slideshow-count"></span></span>
+          <div class="slideshow-assets" id="settings-slideshow-assets"></div>
+          <button type="button" class="settings-btn subtle" onclick="document.getElementById('settings-slideshow-file').click()" data-i18n="settings_slideshow_add">+ Aggiungi immagini</button>
+          <input type="file" id="settings-slideshow-file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onchange="addSlideshowImages(this)">
+          <span class="settings-hint" data-i18n="settings_slideshow_images_hint">PNG, JPEG, WebP o GIF (le GIF restano animate). Riordina con le frecce, rimuovi con ✕.</span>
+        </div>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="settings_slideshow_interval">Durata per immagine (secondi)</span></span>
+          <input type="number" id="settings-slideshow-interval" min="2" max="120" step="1" inputmode="numeric" onchange="updateSlideshowCfg({ intervalMs: Math.round(Number(this.value)) * 1000 })">
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="settings_slideshow_fit">Adattamento</span></span>
+          <select id="settings-slideshow-fit" onchange="updateSlideshowCfg({ fit: this.value })">
+            <option value="cover" data-i18n="settings_slideshow_fit_cover">Riempi il riquadro</option>
+            <option value="contain" data-i18n="settings_slideshow_fit_contain">Mostra intera</option>
+          </select>
+        </label>
+        <p class="settings-note" data-i18n="settings_slideshow_note">Le immagini sono salvate nelle impostazioni e incluse nel backup. Tocca l'immagine nel widget per mettere in pausa; usa le frecce per scorrere a mano.</p>
+      </div>
+
       <div class="settings-group settings-display-group" data-settings-cat="display">
         <div class="settings-group-head">
           <span data-i18n="settings_display_title">Schermo</span>
@@ -1874,6 +2025,15 @@
         <div class="settings-display-body" id="settings-display-body">
           <div class="settings-note" data-i18n="settings_display_loading">Rilevamento schermi…</div>
         </div>
+      </div>
+
+      <div class="settings-group" data-settings-cat="performance">
+        <div class="settings-group-head">
+          <span data-i18n="sensors_admin_title">Sensori hardware</span>
+        </div>
+        <!-- Enable-sensors card renders here (js/sensor-access.js → initSettings()):
+             visible only when LibreHardwareMonitor is present but unelevated. -->
+        <div id="settings-sensors-hub"></div>
       </div>
 
       <div class="settings-group" data-settings-cat="performance">
@@ -2248,6 +2408,12 @@
         <!-- Home Assistant connect card + device picker renders here
              (settings.js → SmartHome.initSettings()). -->
         <div id="settings-smarthome-hub"></div>
+        <!-- Energy widget sources: a second, independent picker filtered to
+             power/energy entities (smart-home.js → SmartHome.initSettings()). -->
+        <div class="settings-group-head energy-sources-head">
+          <span data-i18n="power_sources_title">Widget Energia — sorgenti</span>
+        </div>
+        <div id="settings-energy-hub"></div>
       </div>
 
       <div class="settings-group" data-settings-cat="unifi" hidden>
@@ -2398,7 +2564,7 @@
           <span class="settings-hint" data-i18n="settings_wshub_hint">Estendi la dashboard o condividi il tuo setup</span>
         </div>
         <div class="settings-wshub-body">
-          <p class="settings-wshub-intro" data-i18n="settings_wshub_intro">Qui vive tutto il ciclo: crea qualcosa di tuo (con o senza codice), condividilo come codice o file, scopri e installa ciò che pubblicano gli altri. Regola semplice: puoi esportare solo le tue creazioni — ciò che installi da altri non è ridistribuibile.</p>
+          <p class="settings-wshub-intro" data-i18n="settings_wshub_intro">Qui vive tutto il ciclo: crea qualcosa di tuo, condividilo come codice o file, scopri e installa ciò che pubblicano gli altri. Regola semplice: puoi esportare solo le tue creazioni — ciò che installi da altri non è ridistribuibile.</p>
 
           <section class="settings-store-hero" aria-labelledby="settings-store-hero-title">
             <span class="settings-store-hero-glow" aria-hidden="true"></span>
@@ -2411,36 +2577,6 @@
               <span class="settings-hint" data-i18n="settings_gallery_lead">Temi, sfondi, widget, scene e pacchetti pubblicati dalla community — sfoglia e importa con un tocco, sempre con l'anteprima prima di applicare.</span>
             </div>
             <button type="button" class="settings-btn primary settings-store-hero-cta" onclick="if(window.CommunityGallery)CommunityGallery.open()" data-i18n="settings_store_open">Apri lo Store</button>
-          </section>
-
-          <section class="settings-subcard">
-            <div class="settings-subcard-head">
-              <span class="settings-subcard-ico settings-subcard-ico--create" aria-hidden="true">🛠</span>
-              <span class="settings-subcard-titles">
-                <b data-i18n="settings_create_title">Crea</b>
-                <span class="settings-hint" data-i18n="settings_create_lead">Due strade: senza codice in un minuto, o con codice per il controllo totale.</span>
-              </span>
-            </div>
-            <div class="settings-howto-block settings-wc-block">
-              <div class="settings-howto-label" data-i18n="settings_create_nocode_label">Senza codice — Creatore di widget</div>
-              <p class="settings-hint settings-howto-text" data-i18n="settings_wc_lead">Senza scrivere codice: scegli un modello (orologio, monitor di sistema, now playing, etichetta, conto alla rovescia), personalizzalo con anteprima dal vivo e installalo con un tocco.</p>
-              <button type="button" class="settings-btn primary" onclick="if(window.WidgetCreator)WidgetCreator.open({ onInstalled: function(){ if(window.CustomWidget&&CustomWidget.refreshPackages)CustomWidget.refreshPackages(); } })" data-i18n="wc_create">Crea widget</button>
-              <p class="settings-hint settings-howto-text" data-i18n="settings_create_nocode_limits">Veloce e guidato — ma limitato ai modelli disponibili. Per qualcosa di davvero tuo, passa al codice.</p>
-            </div>
-            <div class="settings-howto-block">
-              <div class="settings-howto-label" data-i18n="settings_create_code_label">Con codice — SDK widget</div>
-              <p class="settings-hint settings-howto-text" data-i18n="settings_create_code_lead">Controllo totale su aspetto e funzioni: HTML/JS in una sandbox sicura, con dati live della dashboard e azioni approvate da chi installa.</p>
-              <ol class="settings-howto">
-                <li data-i18n="settings_create_code_step1">Leggi la guida SDK: API, dati disponibili, esempi completi.</li>
-                <li data-i18n="settings_create_code_step2">Sviluppa nella cartella server/data/widgets — il pacchetto compare nella lista dei widget installati qui sotto.</li>
-                <li data-i18n="settings_create_code_step3">Condividilo da Condividi &amp; Importa (codice o file) o pubblicalo nel catalogo della community.</li>
-              </ol>
-              <div class="settings-howto-links">
-                <a class="settings-inline-link" href="https://xenon-app.com/create/#sdk" target="_blank" rel="noopener noreferrer" data-i18n="settings_sdk_guide">Guida per creare un widget →</a>
-                <a class="settings-inline-link" href="https://github.com/marcimastro98/Xenon/blob/main/docs/community/README.md" target="_blank" rel="noopener noreferrer" data-i18n="settings_create_publish_guide">Linee guida per pubblicare nel catalogo →</a>
-              </div>
-            </div>
-            <p class="settings-note" data-i18n="settings_create_other_hint">Il resto si crea direttamente nell'app: temi e sfondi da Aspetto, le pagine dall'editor layout, i profili dal widget Deck, le scene Ambient dalla modalità Ambient.</p>
           </section>
 
           <section class="settings-subcard">
@@ -2459,31 +2595,9 @@
                 <span class="settings-hint" data-i18n="settings_sdk_enable_hint">aggiungi il tile "Widget personalizzato" dalla palette "+" e scegli un pacchetto</span>
               </span>
             </label>
-            <div class="settings-howto-block">
-              <div class="settings-howto-label" data-i18n="settings_sdk_install_label">Installare un widget</div>
-              <ol class="settings-howto">
-                <li data-i18n="settings_sdk_step1">Importa un codice dalla galleria o da Condividi &amp; Importa (oppure copia la cartella del pacchetto in server/data/widgets).</li>
-                <li data-i18n="settings_sdk_step2">Attiva l'interruttore qui sopra.</li>
-                <li data-i18n="settings_sdk_step3">Aggiungi il tile "Widget personalizzato" dalla palette "+" e scegli il pacchetto.</li>
-              </ol>
-            </div>
             <p class="settings-note settings-safenote" data-i18n="settings_sdk_note">Un widget non può toccare il server, i tuoi file o le impostazioni: gira in una sandbox isolata, senza accesso a internet, e può solo vedere i dati che approvi ed eseguire le azioni che consenti (tasti media, volume, mute microfono, luci, apri link) — ognuna ricontrollata dal server. Ogni pacchetto ti chiede i permessi prima di comparire.</p>
-            <div class="settings-howto-block">
-              <div class="settings-howto-label" data-i18n="settings_sdk_installed_label">Widget installati</div>
-              <div id="settings-sdk-installed" class="settings-sdk-installed"></div>
-            </div>
-          </section>
-
-          <section class="settings-subcard">
-            <div class="settings-subcard-head">
-              <span class="settings-subcard-ico settings-subcard-ico--limited" aria-hidden="true">✦</span>
-              <span class="settings-subcard-titles">
-                <b data-i18n="settings_limited_title">Limited edition</b>
-                <span class="settings-hint" data-i18n="settings_limited_lead">Drop esclusive a tiratura limitata — un numero fisso di copie in tutto il mondo. Si prenotano su Discord: ricevi un codice d'accesso personale per importarle.</span>
-              </span>
-            </div>
             <div class="settings-share-buttons">
-              <button type="button" class="settings-btn primary" onclick="if(window.CommunityGallery)CommunityGallery.open('__limited')" data-i18n="settings_limited_open">Vedi le limited edition</button>
+              <button type="button" class="settings-btn" onclick="if(window.CommunityGallery)CommunityGallery.open('__installed')" data-i18n="settings_sdk_manage">Gestisci gli installati…</button>
             </div>
           </section>
 
@@ -2496,16 +2610,25 @@
               </span>
             </div>
             <div class="settings-share-buttons">
-              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportTheme()" data-i18n="settings_share_theme">Esporta tema</button>
-              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportPage()" data-i18n="settings_share_page">Esporta pagina</button>
-              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportDeck()" data-i18n="settings_share_deck">Esporta profilo Deck</button>
-              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportWidget()" data-i18n="settings_share_widget">Esporta widget</button>
-              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportBg()" data-i18n="settings_bg_code_export">Esporta sfondo</button>
-              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportAmbient()" data-i18n="settings_share_ambient">Esporta scena Ambient</button>
-              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportBundle()" data-i18n="settings_share_bundle">Esporta pacchetto</button>
-              <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.openImport()" data-i18n="settings_share_import">Importa (link o file)…</button>
+              <button type="button" class="settings-btn primary" onclick="if(window.PresetShare)PresetShare.openExport()" data-i18n="settings_share_export">Esporta…</button>
+              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.openImport()" data-i18n="settings_share_import">Importa…</button>
             </div>
             <p class="settings-note settings-safenote" data-i18n="settings_share_note">All'importazione vedi sempre cosa contiene prima di confermare. Tema, pagina e Deck cambiano solo aspetto e disposizione; widget e pacchetti installano widget della community in sandbox, che restano nascosti finché non ne approvi i permessi. Importa solo da persone di cui ti fidi. E puoi esportare solo le tue creazioni: ciò che hai installato da altri non è ridistribuibile.</p>
+          </section>
+
+          <section class="settings-subcard">
+            <div class="settings-subcard-head">
+              <span class="settings-subcard-ico settings-subcard-ico--create" aria-hidden="true">🛠</span>
+              <span class="settings-subcard-titles">
+                <b data-i18n="settings_create_title">Crea</b>
+                <span class="settings-hint" data-i18n="settings_create_lead">Controllo totale su aspetto e funzioni: HTML/JS in una sandbox sicura, con dati live della dashboard e azioni approvate da chi installa.</span>
+              </span>
+            </div>
+            <div class="settings-howto-links">
+              <a class="settings-inline-link" href="https://xenon-app.com/create/#sdk" target="_blank" rel="noopener noreferrer" data-i18n="settings_sdk_guide">Guida per creare un widget →</a>
+              <a class="settings-inline-link" href="https://github.com/marcimastro98/Xenon/blob/main/docs/community/README.md" target="_blank" rel="noopener noreferrer" data-i18n="settings_create_publish_guide">Linee guida per pubblicare nel catalogo →</a>
+            </div>
+            <p class="settings-note" data-i18n="settings_create_other_hint">Il resto si crea direttamente nell'app: temi e sfondi da Aspetto, le pagine dall'editor layout, i profili dal widget Deck, le scene Ambient dalla modalità Ambient.</p>
           </section>
         </div>
       </div>
@@ -2883,7 +3006,7 @@
     <div class="settings-foot">
       <div class="settings-foot-note" data-i18n="settings_persist_note">Le preferenze restano salvate su questo PC.</div>
       <div class="settings-status" id="settings-status" aria-live="polite"></div>
-      <button class="settings-btn primary" type="button" onclick="resetHubAppearance()" data-i18n="settings_reset">Ripristina default</button>
+      <button class="settings-btn primary" type="button" onclick="resetAllSettings()" data-i18n="settings_reset_all">Ripristina tutte le impostazioni</button>
     </div>
   </section>
 </div>
@@ -3241,12 +3364,17 @@
 <script src="js/ambient-freeze.js"></script>
 <script src="js/discord-invite.js"></script>
 <script src="js/custom-bg.js"></script>
+<script src="js/slideshow-widget.js"></script>
+<script src="js/theme-palette.js"></script>
+<script src="js/content-installs.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/display-control.js"></script>
 <script src="js/performance.js"></script>
 <script src="js/tile-decor-presets.js"></script>
 <script src="js/dashboard-layout.js"></script>
 <script src="js/topbar-minimal.js"></script>
+<script src="js/sdk-island.js"></script>
+<script src="js/sdk-badges.js"></script>
 <script src="js/lockscreen.js"></script>
 <script src="js/ambient-mode.js"></script>
 <script src="js/ai.js"></script>
@@ -3288,13 +3416,15 @@
 <script src="js/football-widget.js"></script>
 <script src="js/claude-widget.js"></script>
 <script src="js/news-widget.js"></script>
+<script src="js/sensor-access.js"></script>
+<script src="js/fans-widget.js"></script>
+<script src="js/power-widget.js"></script>
+<script src="js/battery-widget.js"></script>
 <script src="js/vitals.js"></script>
 <script src="js/vitals-pet-core.js"></script>
 <script src="js/vitals-pet.js"></script>
 <script src="js/ticker.js"></script>
 <script src="js/custom-widget.js"></script>
-<script src="js/widget-templates.js"></script>
-<script src="js/widget-creator.js"></script>
 <script src="js/spotify-widget.js"></script>
 <script src="js/browser-tile.js"></script>
 <script src="js/second-screen-tile.js"></script>
@@ -3304,6 +3434,7 @@
 <script src="js/guardian-history.js"></script>
 <script src="js/context-profiles.js"></script>
 <script src="js/preset-share.js"></script>
+<script src="js/installed-manager.js"></script>
 <script src="js/community-gallery.js"></script>
 <script src="js/catalog-drop.js"></script>
 <script src="js/update.js"></script>

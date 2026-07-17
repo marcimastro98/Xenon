@@ -78,6 +78,9 @@ internal static class WindowsTool
             string? preview = null, icon = null;
             try { preview = Capture(w.Hwnd, 240, 135); } catch { }
             try { icon = IconForPath(w.Path, 48); } catch { }
+            // No exe icon (packaged/UWP app, or an exe whose icon can't be read):
+            // fall back to the app's tile logo, resolved from the window's AUMID.
+            if (icon == null) { try { icon = TileLogoForWindow(new IntPtr(w.Hwnd)); } catch { } }
             items.Add(new Dictionary<string, object?>
             {
                 ["id"] = w.Hwnd.ToString(),
@@ -180,6 +183,7 @@ internal static class WindowsTool
                 var name = string.IsNullOrWhiteSpace(process.ProcessName) ? "App" : process.ProcessName;
                 var path = "";
                 try { path = process.MainModule?.FileName ?? ""; } catch { }
+                if (string.IsNullOrEmpty(path)) path = PathFromPid(process.Id);
 
                 seen.Add(hwndValue);
                 result.Add(new WindowInfo
@@ -208,6 +212,10 @@ internal static class WindowsTool
             try { path = p.MainModule?.FileName ?? ""; } catch { }
         }
         catch { }
+        // MainModule throws for processes at a different elevation/integrity level
+        // (Discord mid-update, elevated apps) — QueryFullProcessImageName still
+        // resolves the path with only the limited query right, so their icon shows.
+        if (string.IsNullOrEmpty(path)) path = PathFromPid(pid);
         return (name, path);
     }
 
@@ -350,6 +358,86 @@ internal static class WindowsTool
         return "data:image/png;base64," + Convert.ToBase64String(ms.ToArray());
     }
 
+    // ── path / packaged-app icon fallbacks ─────────────────────────────────────
+
+    // Robust exe path when Process.MainModule throws — it does for processes at a
+    // different elevation/integrity level than this helper. Only the limited query
+    // right is needed, which OpenProcess grants where module enumeration is denied.
+    private static string PathFromPid(int pid)
+    {
+        if (pid <= 0) return "";
+        var h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+        if (h == IntPtr.Zero) return "";
+        try
+        {
+            var sb = new StringBuilder(1024);
+            int size = sb.Capacity;
+            return QueryFullProcessImageName(h, 0, sb, ref size) ? sb.ToString() : "";
+        }
+        finally { CloseHandle(h); }
+    }
+
+    // Tile logo for a packaged (UWP/Store) app whose window has no reachable exe
+    // icon — WhatsApp and other apps hosted by ApplicationFrameHost. The window's
+    // AUMID is read from its shell property store (set even on the frame host), then
+    // the correctly-scaled logo comes straight from WinRT — raw PNG bytes, no GDI,
+    // transparency preserved. Same mechanism the notification host uses for toasts.
+    private static string? TileLogoForWindow(IntPtr hWnd)
+    {
+        // AppInfo.GetFromAppUserModelId needs Windows 10 2004 (19041); older builds
+        // simply keep the letter fallback.
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041)) return null;
+        var aumid = AumidForWindow(hWnd);
+        if (string.IsNullOrEmpty(aumid)) return null;
+        try
+        {
+            var info = Windows.ApplicationModel.AppInfo.GetFromAppUserModelId(aumid);
+            var logoRef = info?.DisplayInfo?.GetLogo(new Windows.Foundation.Size(48, 48));
+            if (logoRef == null) return null;
+            using var stream = logoRef.OpenReadAsync().AsTask()
+                .WaitAsync(TimeSpan.FromMilliseconds(1500)).GetAwaiter().GetResult();
+            if (stream.Size == 0 || stream.Size > 512 * 1024) return null;
+            using var input = stream.GetInputStreamAt(0);
+            using var reader = new Windows.Storage.Streams.DataReader(input);
+            reader.LoadAsync((uint)stream.Size).AsTask()
+                .WaitAsync(TimeSpan.FromMilliseconds(1500)).GetAwaiter().GetResult();
+            var bytes = new byte[(int)stream.Size];
+            reader.ReadBytes(bytes);
+            var ct = string.IsNullOrEmpty(stream.ContentType) ? "image/png" : stream.ContentType;
+            return "data:" + ct + ";base64," + Convert.ToBase64String(bytes);
+        }
+        catch { return null; }
+    }
+
+    // Root the COM interface (and its members) so trimming can't strip it — the
+    // IL2050 warning's failure mode is exactly a silently-empty AUMID at runtime.
+    [System.Diagnostics.CodeAnalysis.DynamicDependency(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.All, typeof(IPropertyStore))]
+    private static string AumidForWindow(IntPtr hWnd)
+    {
+        IPropertyStore? store = null;
+        try
+        {
+            var iid = new Guid("886d8eeb-8cf2-4446-8d02-cdba1dbdcf99"); // IID_IPropertyStore
+            if (SHGetPropertyStoreForWindow(hWnd, ref iid, out store) != 0 || store == null) return "";
+            // PKEY_AppUserModel_ID = {9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3}, 5 (VT_LPWSTR)
+            var key = new PropertyKey { fmtid = new Guid("9f4c2855-9f79-4b39-a8d0-e1d42de1d5f3"), pid = 5 };
+            if (store.GetValue(ref key, out var pv) != 0) return "";
+            try
+            {
+                if (PropVariantToStringAlloc(ref pv, out var p) == 0 && p != IntPtr.Zero)
+                {
+                    var s = Marshal.PtrToStringUni(p) ?? "";
+                    Marshal.FreeCoTaskMem(p);
+                    return s;
+                }
+                return "";
+            }
+            finally { PropVariantClear(ref pv); }
+        }
+        catch { return ""; }
+        finally { if (store != null) Marshal.ReleaseComObject(store); }
+    }
+
     // ── Win32 ─────────────────────────────────────────────────────────────────
 
     private const int GWL_EXSTYLE = -20;
@@ -386,4 +474,31 @@ internal static class WindowsTool
     [DllImport("user32.dll")] private static extern bool PrintWindow(IntPtr hwnd, IntPtr hdcBlt, int nFlags);
     [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out int attrValue, int attrSize);
     [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out Rect rect, int attrSize);
+
+    // Path resolution + AUMID lookup for the icon fallbacks above.
+    private const int PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+    [DllImport("kernel32.dll", SetLastError = true)] private static extern IntPtr OpenProcess(int access, bool inherit, int pid);
+    [DllImport("kernel32.dll", SetLastError = true)] private static extern bool CloseHandle(IntPtr h);
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)] private static extern bool QueryFullProcessImageName(IntPtr hProcess, int flags, StringBuilder exeName, ref int size);
+    [DllImport("shell32.dll")] private static extern int SHGetPropertyStoreForWindow(IntPtr hwnd, ref Guid iid, [MarshalAs(UnmanagedType.Interface)] out IPropertyStore ppv);
+    [DllImport("propsys.dll")] private static extern int PropVariantToStringAlloc(ref PropVariant pv, out IntPtr ppszOut);
+    [DllImport("ole32.dll")] private static extern int PropVariantClear(ref PropVariant pv);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PropertyKey { public Guid fmtid; public uint pid; }
+
+    // PROPVARIANT — only the header + the pointer-sized union slot matter here
+    // (we read VT_LPWSTR via PropVariantToStringAlloc and clear via PropVariantClear).
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PropVariant { public ushort vt; public ushort w1; public ushort w2; public ushort w3; public IntPtr p1; public IntPtr p2; }
+
+    [ComImport, Guid("886d8eeb-8cf2-4446-8d02-cdba1dbdcf99"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IPropertyStore
+    {
+        int GetCount(out uint cProps);
+        int GetAt(uint iProp, out PropertyKey pkey);
+        int GetValue(ref PropertyKey key, out PropVariant pv);
+        int SetValue(ref PropertyKey key, ref PropVariant pv);
+        int Commit();
+    }
 }

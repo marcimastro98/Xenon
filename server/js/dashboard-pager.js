@@ -155,6 +155,16 @@
       entered.add(arriving.id);
       try { arriving.onEnter(); } catch (e) { console.error(e); }
     }
+    // Off-screen pages stay mounted but are cut off from live data (onVisiblePage
+    // gates the push loops, so a parked page stops costing network/API). The flip
+    // side is that whatever sits there is stale the instant it scrolls back in —
+    // it holds the last value it saw and only recovers on the NEXT change, which
+    // for a push-on-change feed may be minutes away or never. Announce the turn so
+    // anything gated on visibility can refresh what it's showing. `onEnter` can't
+    // serve this: it fires once per page, ever.
+    try {
+      window.dispatchEvent(new CustomEvent('xenon:page-change', { detail: { id: arriving ? arriving.id : '' } }));
+    } catch { /* no CustomEvent */ }
     renderDots();
   }
 

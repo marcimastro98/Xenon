@@ -53,6 +53,13 @@ body.layout-editing .cw-wrap.cw-mounted .cw-head {
   border: 0; border-radius: 10px; background: transparent;
 }
 
+/* While arranging the layout the guest iframe must be inert: a sandboxed frame
+   fills the whole tile and would otherwise swallow the pointer, leaving only the
+   tiny header handle grabbable and making the tile awkward to drag, resize or
+   remove. Neutralising it hands the whole tile back to GridStack's drag/resize
+   and the host's hide/move controls (which sit above at their own z-index). */
+body.layout-editing .cw-wrap.cw-mounted .cw-frame { pointer-events: none; }
+
 /* ── Deliberate states: off / loading / none / missing ──────────── */
 .cw-state {
   flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -152,104 +159,57 @@ body.layout-editing .cw-wrap.cw-mounted .cw-head {
   background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
 }
 :root[data-appearance="light"] .cw-perm-note { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
+/* User-filled host slots: the address fields a package's `userHosts` declares.
+   Sized for the Xeneon Edge touchscreen (44px rows), and the error line is
+   reserved space rather than inserted on demand so a message never reflows the
+   dialog under the finger that's typing. */
+.cw-perm-fields { display: flex; flex-direction: column; gap: 10px; }
+.cw-perm-field { display: flex; flex-direction: column; gap: 4px; }
+.cw-perm-field-label { font-size: 0.72rem; font-weight: 700; opacity: 0.85; }
+.cw-perm-input {
+  min-height: 44px; padding: 8px 12px; border-radius: 9px;
+  font: inherit; font-size: 0.78rem; font-weight: 600;
+  color: inherit; background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.14);
+}
+.cw-perm-input::placeholder { opacity: 0.4; }
+.cw-perm-input:focus-visible { outline: 2px solid rgba(var(--accent-rgb), 0.7); outline-offset: 1px; }
+.cw-perm-input--bad { border-color: rgba(var(--danger-rgb),0.7); }
+.cw-perm-field-err {
+  min-height: 0.95rem; font-size: 0.68rem; font-weight: 600; line-height: 1.2;
+  color: rgba(var(--danger-rgb),1);
+}
+:root[data-appearance="light"] .cw-perm-input { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.14); }
 .cw-perm-actions-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+/* Allow stays disabled until every declared address field holds a usable value
+   — it must not read as pressable while it does nothing. */
+.cw-btn:disabled { opacity: 0.4; pointer-events: none; }
 
-/* ── No-code widget creator (widget-creator.js) ──────────────────────────────
-   Full-screen wizard: template gallery → configure + live preview → save. Reuses
-   the dashboard theme tokens; sits above the settings modal. */
-.wc-overlay {
-  position: fixed; inset: 0; z-index: 100000;
-  display: flex; align-items: center; justify-content: center; padding: 20px;
-  background: rgba(4, 6, 12, 0.62); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+/* ── SDK badge chips — Widget SDK `badge` capability (js/sdk-badges.js) ──
+   Small always-on readouts next to the clock, one per granted package (up to a
+   few at once). #clock-sdkbadges is a plain span inside .clock in the base
+   markup; in the minimal chrome topbar-minimal.js reparents it into the island
+   pill as the 'badges' segment, where the segment system draws its own hairline
+   divider and padding (.island-seg::before) — so NO divider/padding belongs
+   here, or it double-draws. Spacing in the full bar comes from .clock-meta's
+   own gap, exactly like the vitals chips next door. The chips themselves are
+   FLAT text — no fill, no outline — for the same reason the weather chip is:
+   next to the plain clock and date, a raised pill reads as a button you can
+   press, and this one does nothing when tapped. Two chips stay legible apart on
+   the row gap alone, exactly like the vitals chips. */
+.clock-sdkbadges { display: inline-flex; align-items: center; gap: 10px; }
+/* An author `display` overrides the UA stylesheet's [hidden] { display: none },
+   so the empty row would keep its box — and, as an island segment, keep drawing
+   the segment hairline: a stray trailing divider with nothing after it. */
+.clock-sdkbadges[hidden] { display: none; }
+.sdk-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 13px; font-weight: 700; line-height: 1;
+  color: var(--text, #e7e9ee);
+  white-space: nowrap;
 }
-.wc-modal {
-  width: min(880px, 96vw); max-height: 92vh; display: flex; flex-direction: column;
-  border-radius: 18px; overflow: hidden;
-  background: var(--panel-bg, rgba(18, 20, 28, 0.96));
-  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55);
-}
-.wc-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1)); }
-.wc-title { flex: 1; margin: 0; font-size: 1rem; font-weight: 800; color: var(--text, #e7e9ee); }
-.wc-close {
-  flex: none; width: 32px; height: 32px; border-radius: 9px; cursor: pointer;
-  font-size: 0.9rem; color: var(--text, #e7e9ee);
-  background: rgba(255, 255, 255, 0.06); border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
-}
-.wc-close:hover { background: rgba(255, 255, 255, 0.12); }
-.wc-body { padding: 16px; overflow-y: auto; }
-.wc-lead { margin: 0 0 12px; font-size: 0.85rem; color: var(--muted-text, #aeb3bd); }
-
-/* Template gallery */
-.wc-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.wc-card {
-  display: flex; flex-direction: column; gap: 6px; text-align: left; cursor: pointer;
-  padding: 14px; border-radius: 14px; min-height: 96px;
-  background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
-  color: var(--text, #e7e9ee); transition: border-color 0.15s ease, background 0.15s ease;
-}
-.wc-card:hover { border-color: rgba(var(--accent-rgb), 0.6); background: rgba(var(--accent-rgb), 0.08); }
-.wc-card-icon { font-size: 1.5rem; }
-.wc-card-name { font-weight: 800; font-size: 0.9rem; }
-.wc-card-desc { font-size: 0.74rem; color: var(--muted-text, #aeb3bd); line-height: 1.35; }
-
-/* Name + id */
-.wc-name-row { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
-.wc-name-field { flex: 1 1 200px; display: flex; flex-direction: column; gap: 5px; }
-.wc-field-label { font-size: 0.72rem; font-weight: 700; color: var(--muted-text, #aeb3bd); }
-.wc-id-preview { font-size: 0.72rem; font-family: ui-monospace, Consolas, monospace; color: var(--muted-text, #8a8f99); padding-bottom: 8px; }
-
-/* Split: form | preview */
-.wc-split { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
-.wc-form { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.wc-field { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
-.wc-field > .settings-text-input { max-width: 200px; }
-.wc-field .wc-field-label { flex: none; }
-
-.wc-preview { position: sticky; top: 0; display: flex; flex-direction: column; gap: 6px; }
-.wc-preview-label { font-size: 0.72rem; font-weight: 700; color: var(--muted-text, #aeb3bd); }
-.wc-preview-stage {
-  height: 190px; border-radius: 14px; overflow: hidden;
-  background: radial-gradient(120% 120% at 30% 0%, rgba(var(--accent-rgb), 0.14), rgba(10, 12, 18, 0.9));
-  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
-}
-.wc-frame { width: 100%; height: 100%; border: 0; background: transparent; }
-
-/* Controls */
-.wc-switch { position: relative; display: inline-flex; width: 44px; height: 24px; flex: none; cursor: pointer; }
-.wc-switch input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
-.wc-switch-track { position: absolute; inset: 0; border-radius: 999px; background: rgba(255, 255, 255, 0.16); transition: background 0.15s ease; }
-.wc-switch-track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform 0.15s ease; }
-.wc-switch input:checked + .wc-switch-track { background: rgba(var(--accent-rgb), 0.9); }
-.wc-switch input:checked + .wc-switch-track::after { transform: translateX(20px); }
-
-.wc-range { display: flex; align-items: center; gap: 8px; }
-.wc-range input { width: 120px; accent-color: rgba(var(--accent-rgb), 1); }
-.wc-range-val { font-size: 0.8rem; font-weight: 700; width: 14px; text-align: right; color: var(--text, #e7e9ee); }
-
-.wc-seg, .wc-pills { display: inline-flex; flex-wrap: wrap; gap: 4px; }
-.wc-seg-btn, .wc-pill {
-  font: inherit; font-size: 0.74rem; font-weight: 700; cursor: pointer;
-  padding: 6px 11px; border-radius: 999px; color: var(--text, #e7e9ee);
-  background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
-}
-.wc-seg-btn.is-on, .wc-pill.is-on {
-  color: rgba(var(--accent-rgb), 1);
-  background: rgba(var(--accent-rgb), 0.16); border-color: rgba(var(--accent-rgb), 0.5);
-}
-
-.wc-color { display: inline-flex; align-items: center; gap: 8px; }
-.wc-color-swatch { width: 28px; height: 28px; flex: none; border-radius: 8px; border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.2)); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25); }
-.wc-color-hex { width: 96px; font-family: ui-monospace, Consolas, monospace; }
-.wc-color-hex.invalid { border-color: rgba(255, 86, 74, 0.7); }
-
-.wc-actions { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
-.wc-actions-spacer { flex: 1; }
-.wc-status { font-size: 0.78rem; color: var(--warn, #ffb454); }
-
-@media (max-width: 640px) {
-  .wc-split { grid-template-columns: 1fr; }
-  .wc-preview { position: static; }
-  .wc-field { flex-direction: column; align-items: stretch; }
-  .wc-field > .settings-text-input { max-width: none; }
-}
+/* The widget's own glyph. Its colour is set inline from the (hex-validated)
+   badge payload — a star is gold, a battery is green — and falls back to the
+   chip's text colour when the widget names none. */
+.sdk-badge-ico { display: inline-flex; line-height: 1; }
+.sdk-badge-ico[hidden] { display: none; }

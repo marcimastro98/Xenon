@@ -6,6 +6,8 @@ mod cursor_guard;
 mod edge_swipe;
 #[cfg(windows)]
 mod focus_guard;
+#[cfg(windows)]
+mod gpu;
 mod monitor;
 mod prefs;
 mod tray;
@@ -26,8 +28,9 @@ const EXTERNAL_LINK_SHIM: &str = r#"
   // What this shell build understands, so the dashboard never sends a signal an
   // older shell would misread (an unknown xenon-home path used to mean "go home",
   // which collapsed the kiosk to the desktop strip on load). Runtime-only caps
-  // (shellVersion, updateEvents) are merged in by the second init script built
-  // in setup() — keep this literal so old-shell semantics stay greppable.
+  // (shellVersion, updateEvents, lowPowerGpu) are merged in by the second init
+  // script built in setup() — keep this literal so old-shell semantics stay
+  // greppable.
   try { window.__XENON_NATIVE_CAPS__ = { homeGestureToggle: true, rdpToggle: true }; } catch (e) {}
   function isExternal(u) {
     try {
@@ -54,6 +57,12 @@ const EXTERNAL_LINK_SHIM: &str = r#"
     if (isExternal(u)) { window.location.href = u; return null; }
     return nativeOpen.apply(window, arguments);
   };
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'F11') {
+      e.preventDefault();
+      window.location.href = 'xenon-fullscreen:toggle';
+    }
+  });
 })();
 "#;
 
@@ -298,11 +307,11 @@ static LEGACY_RESCUE_STARTED: std::sync::atomic::AtomicBool = std::sync::atomic:
 /// If the task does not exist (widget never installed) this is a no-op and the
 /// splash's own hint tells the user what to install.
 #[cfg(windows)]
-fn spawn_backend_nudge() {
-    std::thread::spawn(|| {
+fn spawn_backend_nudge(port: u16) {
+    std::thread::spawn(move || {
         use std::net::{SocketAddr, TcpStream};
         use std::time::Duration;
-        let addr = SocketAddr::from(([127, 0, 0, 1], 3030));
+        let addr = SocketAddr::from(([127, 0, 0, 1], port));
         // ~8–16s of grace so a normally-starting backend is never interfered with.
         for _ in 0..4 {
             if TcpStream::connect_timeout(&addr, Duration::from_secs(2)).is_ok() {
@@ -310,12 +319,14 @@ fn spawn_backend_nudge() {
             }
             std::thread::sleep(Duration::from_secs(2));
         }
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        let _ = std::process::Command::new("schtasks")
-            .args(["/Run", "/TN", "Xenon Edge Widget"])
-            .creation_flags(CREATE_NO_WINDOW)
-            .status();
+        if port == 3030 {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            let _ = std::process::Command::new("schtasks")
+                .args(["/Run", "/TN", "Xenon Edge Widget"])
+                .creation_flags(CREATE_NO_WINDOW)
+                .status();
+        }
     });
 }
 
@@ -386,26 +397,45 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            let port = std::env::var("XENON_PORT")
+                .ok()
+                .and_then(|p| p.parse::<u16>().ok())
+                .unwrap_or(3030);
             // Build the kiosk window in Rust (rather than declaratively in
             // tauri.conf.json) so it can carry an initialization script and a
             // navigation hook: external links open in the OS browser while the
             // webview itself never leaves the splash/dashboard. Props mirror the
             // former config window (borderless, full-screen, 2560×720 Edge size).
             let nav_handle = app.handle().clone();
+            // Computed once, up front, so both the WebView2 launch flag below
+            // (`additional_browser_args`) and the JS-facing cap just below it
+            // read the SAME decision instead of enumerating displays twice.
+            #[cfg(windows)]
+            let gpu_flag = gpu::webview_gpu_flag();
+            #[cfg(not(windows))]
+            let gpu_flag: Option<&'static str> = None;
             // Runtime-only capabilities merged over the shim's literal caps: the
             // dashboard's update orchestrator needs the shell's own version (to
             // know whether the exe is outdated too) and whether this shell
-            // reports update progress/errors (updateEvents). serde-encoding
-            // keeps the injection a safe JS literal.
+            // reports update progress/errors (updateEvents). `lowPowerGpu` tells
+            // the dashboard it is rendering on the weaker of two GPUs on purpose
+            // (see gpu.rs) — backgroundfx.css uses it to pause the purely
+            // decorative aurora/grid layers, which on this machine's iGPU can
+            // combine with a busy animated theme background to drop the kiosk's
+            // real presented frame rate into single digits (measured via
+            // PresentMon — see the "native-app-hybrid-gpu-idle-burn" note).
+            // serde-encoding keeps the injection a safe JS literal.
             let caps_js = format!(
                 "try{{window.__XENON_NATIVE_CAPS__=Object.assign(window.__XENON_NATIVE_CAPS__||{{}},{});}}catch(e){{}}",
                 serde_json::json!({
                     "shellVersion": app.package_info().version.to_string(),
                     "updateEvents": true,
+                    "lowPowerGpu": matches!(gpu_flag, Some("--force_low_power_gpu")),
                 })
             );
-            let init_script = format!("{EXTERNAL_LINK_SHIM}\n{caps_js}");
-            let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+            let port_js = format!("try{{window.__XENON_PORT__={};}}catch(e){{}}", port);
+            let init_script = format!("{EXTERNAL_LINK_SHIM}\n{caps_js}\n{port_js}");
+            let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("Xenon")
                 .inner_size(2560.0, 720.0)
                 .min_inner_size(640.0, 240.0)
@@ -495,6 +525,20 @@ pub fn run() {
                         cursor_guard::restore();
                         return false;
                     }
+                    if scheme == "xenon-fullscreen" {
+                        // Route the F11 shortcut through the same canonical toggle the
+                        // tray uses: it honours the Edge-kiosk guard (a no-op while the
+                        // panel is owned), re-places the window on its monitor, and
+                        // persists the choice — none of which a raw set_fullscreen does.
+                        if url.path() == "toggle" {
+                            if let Some(win) = nav_handle.get_webview_window("main") {
+                                if let Ok(is_fullscreen) = win.is_fullscreen() {
+                                    monitor::set_fullscreen_pref(&nav_handle, !is_fullscreen);
+                                }
+                            }
+                        }
+                        return false;
+                    }
                     // Game-focus guard signals (never a real page): the dashboard
                     // reports game mode and text-field focus so touches don't
                     // steal the game's focus — except while the user types.
@@ -534,8 +578,37 @@ pub fn run() {
                     use tauri_plugin_opener::OpenerExt;
                     let _ = nav_handle.opener().open_url(url.as_str(), None::<&str>);
                     false
-                })
-                .build()?;
+                });
+
+            // WebView2 browser arguments. `additional_browser_args` REPLACES wry's
+            // default (`--disable-features=…`), so it's re-included below.
+            //
+            // 1) Keep the unfocused kiosk renderer fully alive. The Edge window never
+            //    holds focus (WS_EX_NOACTIVATE) and lives on a secondary display, so
+            //    Chromium would background/throttle its renderer after a while —
+            //    freezing its JS timers and the SSE stream, so the dashboard silently
+            //    stops updating and the Deck stops responding even though the socket
+            //    stays open (reported as "the app stopped talking to the server").
+            //    These three switches stop that suspension.
+            // 2) Match the WebView2 render GPU to the display presenting the kiosk
+            //    (the Edge, typically an iGPU over USB-C). Rendering on a different
+            //    GPU than the one scanning out the window makes Chromium copy every
+            //    composited frame across adapters on the CPU — ~1.5 idle cores on a
+            //    hybrid-GPU machine. See gpu::webview_gpu_flag (no-op off hybrids);
+            //    `gpu_flag` was already computed above, alongside the JS-facing
+            //    `lowPowerGpu` cap.
+            #[cfg(windows)]
+            let builder = {
+                let mut args = String::from(
+                    "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-renderer-backgrounding --disable-background-timer-throttling --disable-backgrounding-occluded-windows",
+                );
+                if let Some(flag) = gpu_flag {
+                    args.push(' ');
+                    args.push_str(flag);
+                }
+                builder.additional_browser_args(&args)
+            };
+            let window = builder.build()?;
 
             // Place the kiosk window on the Xeneon Edge (if connected) and keep a
             // watchdog running so it returns there after display reorders, replug
@@ -577,7 +650,7 @@ pub fn run() {
 
             // If the local backend never comes up, kick its logon task once.
             #[cfg(windows)]
-            spawn_backend_nudge();
+            spawn_backend_nudge(port);
 
             // Launch the kiosk automatically at login (idempotent).
             #[cfg(desktop)]

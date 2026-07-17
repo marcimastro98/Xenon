@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitHub Stars</title>
+<link rel="stylesheet" href="widget.css">
+</head>
+<body>
+  <main class="gs">
+    <!-- Setup: shown until a repo is configured (or when the user taps the
+         count to reconfigure). -->
+    <section class="setup" id="setup" hidden>
+      <div class="setup-icon" aria-hidden="true">★</div>
+      <label class="setup-label" for="repo">GitHub repository</label>
+      <input id="repo" type="text" inputmode="text" spellcheck="false" autocomplete="off" placeholder="torvalds/linux" maxlength="130">
+      <span class="setup-err" id="err"></span>
+      <div class="setup-btns">
+        <button id="save" type="button">Save</button>
+        <!-- The badge outlives this tile (background service frame), so removing
+             it has to be an explicit choice offered here. Hidden until a repo is
+             actually configured. -->
+        <button id="remove" type="button" class="ghost" hidden>Remove badge</button>
+      </div>
+    </section>
+    <!-- Count: the configured repo's live star count. Tap to reconfigure. -->
+    <section class="count" id="count" hidden>
+      <button class="count-btn" id="reconfigure" type="button">
+        <span class="count-star" aria-hidden="true">★</span>
+        <span class="count-num" id="num">--</span>
+      </button>
+      <span class="count-repo" id="repolbl"></span>
+      <span class="count-meta" id="meta"></span>
+    </section>
+  </main>
+  <!-- Inline scripts are blocked by the SDK CSP (script-src 'self') — keep JS in files. -->
+  <script src="widget.js"></script>
+</body>
+</html>

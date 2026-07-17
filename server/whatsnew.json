@@ -1,162 +1,162 @@
 {
-  "_note": "Curated 'What's New' modal shown to users already on this build. See docs/whatsnew-shotlist.md for exactly which screenshot/video goes in each highlight and how to get the GitHub URL. Bump `id` ONLY for an important release you want re-announced; keep it unchanged for pure bugfix releases so it never re-nags. title/body/footer may be a string OR a { it, en, ko, ja, zh } map. `media` must be a GitHub-hosted URL (raw.githubusercontent.com/OWNER/REPO/BRANCH/path, or an immutable github.com/user-attachments/assets/... release attachment). mediaType is \"image\" or \"video\". Empty media = text-only. IMPORTANT: use raw.githubusercontent.com URLs, NOT github.com/user-attachments/assets/... — the latter are gated behind a GitHub session cookie the dashboard's <img> (esp. the native WebView) usually lacks, so they 404 and fall back to the 'open on GitHub' link even though they load fine in your logged-in browser. v4.5 highlights ship text-only (media empty) until the screenshots exist; drop a raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/... URL into each `media` when ready. To swap an image for a video, drag the clip into a GitHub release/issue box and paste the user-attachments URL here, then set mediaType to \"video\" (videos are opened via the fallback link, so the cookie gate does not affect them).",
-  "id": "4.5.1",
+  "_note": "Curated 'What's New' modal shown to users already on this build. See docs/whatsnew-shotlist.md for exactly which screenshot/video goes in each highlight and how to get the GitHub URL. Bump `id` ONLY for an important release you want re-announced; keep it unchanged for pure bugfix releases so it never re-nags. title/body/footer may be a string OR a { it, en, ko, ja, zh } map. `media` must be a GitHub-hosted URL (raw.githubusercontent.com/OWNER/REPO/BRANCH/path, or an immutable github.com/user-attachments/assets/... release attachment). mediaType is \"image\" or \"video\". Empty media = text-only. IMPORTANT: use raw.githubusercontent.com URLs, NOT github.com/user-attachments/assets/... — the latter are gated behind a GitHub session cookie the dashboard's <img> (esp. the native WebView) usually lacks, so they 404 and fall back to the 'open on GitHub' link even though they load fine in your logged-in browser. v4.6 highlights ship text-only (media empty) until the screenshots exist; drop a raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/... URL into each `media` when ready. To swap an image for a video, drag the clip into a GitHub release/issue box and paste the user-attachments URL here, then set mediaType to \"video\" (videos are opened via the fallback link, so the cookie gate does not affect them).",
+  "id": "4.6.0",
   "title": {
-    "it": "Novità di Xenon 4.5.1",
-    "en": "What's new in Xenon 4.5.1",
-    "ko": "Xenon 4.5.1의 새로운 기능",
-    "ja": "Xenon 4.5.1 の新機能",
-    "zh": "Xenon 4.5.1 新功能"
+    "it": "Novità di Xenon 4.6.0",
+    "en": "What's new in Xenon 4.6.0",
+    "ko": "Xenon 4.6.0의 새로운 기능",
+    "ja": "Xenon 4.6.0 の新機能",
+    "zh": "Xenon 4.6.0 新功能"
   },
   "url": "https://github.com/marcimastro98/Xenon/releases/latest",
   "footer": {
-    "it": "E questi sono solo i punti salienti: la 4.5 rende ogni widget davvero tuo e tiene finalmente in sincrono tutti gli schermi. Apri le Impostazioni per scoprire tutto, e leggi il changelog completo con il pulsante \"Tutte le novità\" qui sotto.",
-    "en": "And these are just the highlights: 4.5 makes every widget truly yours and finally keeps all your screens in step. Open Settings to explore everything, and read the full changelog with the \"All the changes\" button below.",
-    "ko": "이건 주요 내용일 뿐입니다: 4.5는 모든 위젯을 진짜 당신의 것으로 만들고, 마침내 모든 화면을 동기화합니다. 설정을 열어 모두 살펴보고, 아래 \"모든 변경 사항\" 버튼으로 전체 변경 로그를 확인하세요.",
-    "ja": "これらはほんの一部です。4.5 はすべてのウィジェットを本当にあなたのものにし、ついにすべての画面を同期させます。設定を開いてすべてを確認し、下の「すべての変更点」ボタンから詳細な変更履歴をご覧ください。",
-    "zh": "这些只是重点：4.5 让每个小组件真正属于你，并终于让所有屏幕保持同步。打开设置探索全部内容，并用下方的\"全部更新内容\"按钮阅读完整更新日志。"
+    "it": "E questi sono solo i punti salienti: la 4.6 dà a Xenon un colore solo per tutta l'app, tre widget nuovi che leggono davvero il tuo PC, e una lunga serie di correzioni che gli restituiscono la CPU quando non stai facendo nulla. Apri le Impostazioni per scoprire tutto, e leggi il changelog completo con il pulsante \"Tutte le novità\" qui sotto.",
+    "en": "And these are just the highlights: 4.6 gives Xenon one colour system across the whole app, three new widgets that really read your PC, and a long run of fixes that hand your CPU back when you're doing nothing. Open Settings to explore everything, and read the full changelog with the \"All the changes\" button below.",
+    "ko": "이건 주요 내용일 뿐입니다: 4.6은 앱 전체에 하나의 색 체계를 부여하고, PC를 제대로 읽는 새 위젯 세 개를 더하며, 아무것도 하지 않을 때 CPU를 돌려주는 많은 수정들을 담았습니다. 설정을 열어 모두 살펴보고, 아래 \"모든 변경 사항\" 버튼으로 전체 변경 로그를 확인하세요.",
+    "ja": "これらはほんの一部です。4.6 はアプリ全体にひとつの色の仕組みをもたらし、PC を本当に読み取る 3 つの新しいウィジェットを加え、何もしていないときに CPU を返す多くの修正を積み重ねました。設定を開いてすべてを確認し、下の「すべての変更点」ボタンから詳細な変更履歴をご覧ください。",
+    "zh": "这些只是重点：4.6 为整个应用带来统一的配色体系、三个真正读取你 PC 的新小组件，以及一长串在你闲置时把 CPU 还给你的修复。打开设置探索全部内容，并用下方的\"全部更新内容\"按钮阅读完整更新日志。"
   },
   "highlights": [
     {
       "title": {
-        "it": "Uno Store vero per le creazioni della community",
-        "en": "A proper Store for community creations",
-        "ko": "커뮤니티 창작물을 위한 진짜 스토어",
-        "ja": "コミュニティ作品のための本物のストア",
-        "zh": "为社区创作打造的真正商店"
+        "it": "Un tema, una palette sola — e una metà chiara e una scura",
+        "en": "One theme, one palette — with a light half and a dark half",
+        "ko": "하나의 테마, 하나의 팔레트 — 밝은 쪽과 어두운 쪽",
+        "ja": "ひとつのテーマ、ひとつのパレット — 明るい面と暗い面",
+        "zh": "一个主题，一套配色 — 还有明暗两面"
       },
       "body": {
-        "it": "Il catalogo community è ora una vera vetrina, in app e sul sito. Si apre su un hero cinematografico che mette in mostra la drop del momento — una limited edition se c'è, altrimenti la creazione in evidenza — con artwork a tutta larghezza, la sua palette e un solo invito chiaro. Sotto, card premium più grandi con anteprima ricca (screenshot reale o, se manca, generata dai colori della creazione) in sezioni ordinate per tipo, dietro una rail a icone (Tutti, Limited, Temi, Sfondi, Widget, Pagine, Deck, Pacchetti, Ambient) con ricerca, categoria e ordinamento. C'è una sezione Supporters dedicata per i contenuti esclusivi, e lo Store è in primo piano nelle Impostazioni, a un tocco dallo schermo intero.",
-        "en": "The community catalog is now a real storefront, in the app and on the website. It opens on a cinematic hero that spotlights the drop of the moment — a limited edition when there's one, otherwise the featured creation — with full-width artwork, its palette and one clear call to action. Below, larger premium cards with a rich preview (a real screenshot, or one generated from the creation's own colours when there isn't one) sit in tidy sections by type, behind an icon category rail (All, Limited, Themes, Backgrounds, Widgets, Pages, Decks, Packages, Ambient) plus search, category and sort. There's a dedicated Supporters section for exclusive content, and the Store leads your Settings, one tap from full-screen.",
-        "ko": "커뮤니티 카탈로그가 앱과 웹사이트에서 진짜 스토어처럼 바뀌었습니다. 지금의 주요 드롭을 비추는 시네마틱 히어로로 열립니다 — 한정판이 있으면 한정판, 없으면 추천 창작물 — 전체 너비 아트워크와 그 팔레트, 그리고 하나의 명확한 실행 버튼과 함께. 그 아래에는 더 큰 프리미엄 카드가 풍부한 미리보기(실제 스크린샷, 없으면 창작물의 색으로 생성)와 함께 유형별로 깔끔하게 정리되어, 아이콘 카테고리 레일(전체, 한정판, 테마, 배경, 위젯, 페이지, Deck, 패키지, Ambient)과 검색·카테고리·정렬 뒤에 놓입니다. 독점 콘텐츠를 위한 전용 서포터 섹션이 있고, 스토어는 설정 화면 맨 위에 자리해 한 번의 탭으로 전체 화면으로 열립니다.",
-        "ja": "コミュニティカタログが、アプリでもウェブサイトでも本物のストアになりました。いま注目のドロップを大きく映すシネマティックなヒーローで開きます — 限定版があればそれを、無ければ注目の作品を — 全幅のアートワーク、そのパレット、そして一つの明確なアクションとともに。その下には、より大きなプレミアムなカードが豊かなプレビュー（実際のスクリーンショット、無ければ作品の色から生成）とともに種類別に整然と並び、アイコンのカテゴリレール（すべて・限定・テーマ・背景・ウィジェット・ページ・Deck・パッケージ・Ambient）と検索・カテゴリ・並べ替えの下に置かれます。限定コンテンツ用のサポーター専用セクションもあり、ストアは設定画面の先頭に置かれ、ワンタップで全画面で開けます。",
-        "zh": "社区目录如今在应用和网站上都是一个真正的商店。它以一个电影感的主视觉开场，聚焦当下的重磅内容 —— 有限量版就展示限量版，否则展示精选创作 —— 配上满幅艺术图、它的配色和一个明确的操作按钮。下方是更大的高级卡片，带有丰富预览（真实截图，或在没有时用创作自身的配色生成），按类型整齐分区，置于图标分类栏（全部、限量、主题、背景、小组件、页面、Deck、套装、Ambient）以及搜索、分类和排序之下。还有专属的支持者分区用于独家内容，商店醒目地位于设置页顶部，一键即可全屏打开。"
+        "it": "I colori del tema ora vengono da un'unica palette per tutta l'app: sfondo, pannelli, superfici secondarie, controlli, testo primario e attenuato, bordi, testo sull'accento e i quattro colori di stato si impostano da un posto solo, e ciò che lasci su Auto viene derivato dalla superficie scelta. Un guardiano del contrasto ripara da solo le combinazioni illeggibili. Sparisce così l'ultima roba a colore fisso — le etichette grigie, il popup di Focus, i fumetti di Bit, la chat AI — quindi una palette chiara resta leggibile ovunque. E un tema può portare sia un look chiaro sia uno scuro: Xenon dipinge la metà giusta e, su Auto, segue Windows mentre cambia, senza reimportare nulla.",
+        "en": "Theme colours now come from one palette across the whole app: canvas, panels, secondary surfaces, controls, primary and muted text, borders, text on accent and the four state colours are set from one place, and anything left on Auto is derived from the surface you chose. A contrast guard repairs unreadable combinations on its own. That takes care of the last things that kept fixed colours — the small grey labels, the Focus popup, Bit's speech bubbles, the AI chat — so a light palette stays readable everywhere. And one theme can carry both a light and a dark look: Xenon paints the matching half and, on Auto, follows Windows as it changes, with no re-import.",
+        "ko": "이제 테마 색이 앱 전체에서 하나의 팔레트에서 나옵니다: 캔버스, 패널, 보조 표면, 컨트롤, 기본·흐린 텍스트, 테두리, 강조색 위 텍스트, 그리고 네 가지 상태 색을 한곳에서 설정하며, Auto로 둔 것은 선택한 표면에서 파생됩니다. 대비 가드가 읽기 힘든 조합을 스스로 고칩니다. 덕분에 고정 색을 유지하던 마지막 부분들 — 작은 회색 라벨, Focus 팝업, Bit의 말풍선, AI 채팅 — 까지 해결되어, 밝은 팔레트도 어디서나 읽힙니다. 그리고 하나의 테마가 밝은 룩과 어두운 룩을 함께 담을 수 있습니다: Xenon이 맞는 쪽을 칠하고, Auto에서는 Windows가 바뀌는 대로 따라갑니다 — 다시 가져올 필요 없이.",
+        "ja": "テーマの色が、アプリ全体でひとつのパレットから来るようになりました。キャンバス、パネル、二次的な面、コントロール、主要・控えめなテキスト、境界線、アクセント上のテキスト、そして 4 つの状態色をひとつの場所で設定でき、Auto のままにしたものは選んだ面から導かれます。コントラストガードが読みにくい組み合わせを自動で直します。これで固定色のままだった最後の部分 — 小さな灰色のラベル、Focus のポップアップ、Bit の吹き出し、AI チャット — も片付き、明るいパレットでもどこでも読めます。さらにひとつのテーマが明るい見た目と暗い見た目の両方を持てます。Xenon が該当する面を描き、Auto では Windows の変化に追随します — 再インポートは不要です。",
+        "zh": "主题配色现在在整个应用中来自同一套调色板：画布、面板、次级表面、控件、主要与弱化文字、边框、强调色上的文字，以及四种状态色都在一处设置，凡是留在\"自动\"的都会从你选的表面推导出来。对比度守卫会自动修复难以辨认的组合。这也解决了最后那些固定颜色的地方 — 灰色小标签、Focus 弹窗、Bit 的对话气泡、AI 聊天 — 于是浅色配色在任何地方都清晰可读。而且一个主题可以同时带有浅色和深色两种外观：Xenon 会绘制对应的一面，在\"自动\"下随 Windows 的切换而变化，无需重新导入。"
       },
       "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "Sostieni Xenon: codice personale, ruolo Discord, tutto in automatico",
-        "en": "Support Xenon: a personal code, a Discord role, all automatic",
-        "ko": "Xenon 후원: 개인 코드, 디스코드 역할, 모두 자동",
-        "ja": "Xenon を応援：あなた専用コード、Discord ロール、すべて自動",
-        "zh": "支持 Xenon：专属代码、Discord 身份组，全部自动"
+        "it": "Tre widget nuovi: Ventole, Energia e Batterie",
+        "en": "Three new widgets: Fans, Energy and Batteries",
+        "ko": "새 위젯 셋: 팬, 전력, 배터리",
+        "ja": "3 つの新しいウィジェット：ファン・電力・バッテリー",
+        "zh": "三个新小组件：风扇、能耗和电池"
       },
       "body": {
-        "it": "Sostenere Xenon ora è tutto automatico. Fai una donazione su Buy Me a Coffee e nel giro di pochi secondi ricevi via email il tuo codice personale: è solo tuo, funziona su un massimo di 3 dispositivi, e tutto ciò che sblocchi resta tuo per sempre. Con quel codice apri i drop riservati ai sostenitori nello Store, e collegando Discord una volta sola (dal pulsante nell'email o col comando /link) ottieni subito il ruolo Supporter — che poi si gestisce da solo: un promemoria prima della scadenza, il ruolo tolto quando finisce e rimesso appena rinnovi. I vecchi codici offline continuano a funzionare come sempre.",
-        "en": "Supporting Xenon is now fully automatic. Make a donation on Buy Me a Coffee and within seconds your personal code arrives by email: it's yours alone, works on up to 3 devices, and everything you unlock stays yours forever. Use it to open supporter-only drops in the Store, and link your Discord just once (from the button in the email or the /link command) to get the Supporter role instantly — then it manages itself: a reminder before your time runs out, the role removed when it ends and restored the moment you renew. Classic offline codes keep working exactly as before.",
-        "ko": "이제 Xenon 후원이 완전 자동입니다. Buy Me a Coffee에서 후원하면 몇 초 안에 개인 코드가 이메일로 도착합니다: 오직 당신만의 것이고, 최대 3대의 기기에서 작동하며, 잠금 해제한 것은 영원히 당신의 것입니다. 이 코드로 스토어의 서포터 전용 드롭을 열고, 디스코드를 한 번만 연결하면(이메일의 버튼이나 /link 명령) 서포터 역할이 바로 부여됩니다 — 그다음은 스스로 관리됩니다: 만료 전 알림, 종료 시 역할 제거, 갱신하면 즉시 복원. 기존 오프라인 코드도 예전 그대로 작동합니다.",
-        "ja": "Xenon の応援がすべて自動になりました。Buy Me a Coffee で寄付すると、数秒であなた専用コードがメールで届きます。あなただけのもので、最大 3 台の端末で使え、アンロックしたものはずっとあなたのものです。このコードでストアのサポーター限定ドロップを開けます。Discord を一度だけ連携すれば（メールのボタンか /link コマンドで）すぐにサポーターロールが付与され、あとは自動管理：期限前のリマインド、終了時にロールを解除、更新すればすぐ復活。従来のオフラインコードもこれまでどおり使えます。",
-        "zh": "现在支持 Xenon 全程自动。在 Buy Me a Coffee 捐赠后，几秒钟内你的专属代码就会通过邮件送达：它只属于你，最多可在 3 台设备上使用，你解锁的一切永远属于你。用它在商店里打开支持者专属内容；只需连接一次 Discord（通过邮件中的按钮或 /link 命令）即可立即获得支持者身份组 —— 之后它会自我管理：到期前提醒、结束时移除身份组、续费即刻恢复。经典的离线代码也照常可用。"
+        "it": "Dal palette \"+\" (categoria Sistema). Ventole mostra gli RPM reali di ogni ventola: CPU e case, ogni ventola della scheda video presa dal suo tachimetro (quindi in zero-RPM legge ferma, non la percentuale a cui punta la curva), e gli AIO e gli hub che bypassano la scheda madre (Kraken, Octo/Quadro/D5 Next, CoreLiquid, Razer, Arctic…), raggruppati per dove stanno fisicamente. Solo tu sai cosa c'è su \"Fan #3\": tocca il nome per rinominarla, e il nome resta. Energia mostra i watt che il PC consuma davvero (CPU e GPU, più il totale da un alimentatore USB come gli i-series Corsair, ora riconosciuti chiedendo al device cos'è invece che per modello) e i sensori di energia del tuo Home Assistant, con 24 ore di storico. Batterie copre le periferiche Corsair via iCUE, il Bluetooth e il portatile o UPS.",
+        "en": "From the \"+\" palette (System category). Fans shows the real RPM of every fan: CPU and case, each graphics-card fan from its own tachometer (so a card in zero-RPM mode reads stopped, not the percentage its curve is aiming for), and the AIOs and hubs that bypass the motherboard entirely (Kraken, Octo/Quadro/D5 Next, CoreLiquid, Razer, Arctic…), grouped by where they physically sit. Only you know what's on \"Fan #3\": tap the name to rename it, and the name sticks. Energy shows the watts your PC actually draws (CPU and GPU, plus the whole-machine total from a USB power supply such as Corsair's i-series, now found by asking the device what it is instead of matching model names) and your Home Assistant's energy sensors, with 24 hours of history. Batteries covers Corsair peripherals via iCUE, Bluetooth devices, and a laptop or USB UPS.",
+        "ko": "\"+\" 팔레트(시스템 카테고리)에서 추가합니다. 팬은 모든 팬의 실제 RPM을 보여줍니다: CPU와 케이스, 그래픽카드의 각 팬을 자체 타코미터에서 읽고(그래서 제로 RPM 모드면 곡선이 목표로 하는 퍼센트가 아니라 '정지'로 표시), 메인보드를 우회하는 AIO와 허브(Kraken, Octo/Quadro/D5 Next, CoreLiquid, Razer, Arctic…)까지, 물리적 위치별로 묶어서. \"Fan #3\"에 뭐가 붙어 있는지는 당신만 압니다: 이름을 탭해 바꾸면 그대로 유지됩니다. 전력은 PC가 실제로 끌어쓰는 와트를 보여줍니다(CPU와 GPU, 그리고 Corsair i-series 같은 USB 전원 공급 장치에서 읽는 전체 합계 — 이제 모델명 매칭이 아니라 장치에 직접 물어서 찾습니다). 여기에 Home Assistant의 에너지 센서와 24시간 기록이 더해집니다. 배터리는 iCUE를 통한 Corsair 주변기기, 블루투스 기기, 노트북이나 USB UPS를 다룹니다.",
+        "ja": "「+」パレット（システム カテゴリ）から追加します。ファンはすべてのファンの実 RPM を表示します。CPU とケース、グラフィックスカードの各ファンはそれぞれのタコメーターから（ゼロ RPM モードなら、カーブが狙う割合ではなく「停止」と表示）、さらにマザーボードを介さない AIO やハブ（Kraken・Octo/Quadro/D5 Next・CoreLiquid・Razer・Arctic…）も、物理的な位置ごとにまとめて。「Fan #3」に何が付いているかを知っているのはあなただけです。名前をタップして変更すれば、その名前は残ります。電力は PC が実際に消費するワットを表示します（CPU と GPU、さらに Corsair の i-series のような USB 接続電源からの全体値 — 型番の照合ではなく、デバイス自身に問い合わせて見つけるようになりました）。加えて Home Assistant のエネルギーセンサーと 24 時間の履歴も。バッテリーは iCUE 経由の Corsair 周辺機器、Bluetooth 機器、ノート PC や USB UPS をカバーします。",
+        "zh": "从\"+\"面板（系统类别）添加。风扇显示每个风扇的真实转速：CPU 和机箱风扇、显卡的每个风扇（读取各自的转速计，所以处于零转速模式的显卡显示为停止，而不是曲线所要达到的百分比），以及完全绕过主板的一体式水冷和集线器（Kraken、Octo/Quadro/D5 Next、CoreLiquid、Razer、Arctic……），按它们的实际位置分组。只有你知道\"Fan #3\"接的是什么：点按名称即可重命名，名称会保留。能耗显示你的 PC 实际消耗的瓦数（CPU 和 GPU，以及来自 USB 电源的整机总量，比如海盗船 i 系列 —— 现在通过询问设备本身来识别，而不是匹配型号名），还有你的 Home Assistant 能耗传感器和 24 小时历史。电池涵盖通过 iCUE 连接的海盗船外设、蓝牙设备，以及笔记本或 USB UPS。"
       },
       "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "Ogni widget diventa tuo — sfondi, cornici e decorazioni",
-        "en": "Make every widget your own — backgrounds, frames and overlays",
-        "ko": "모든 위젯을 나만의 것으로 — 배경, 프레임, 데코",
-        "ja": "すべてのウィジェットをあなた仕様に — 背景・フレーム・装飾",
-        "zh": "让每个小组件都属于你 — 背景、边框和贴饰"
+        "it": "I widget possono parlare dall'isola dinamica — e tenersi un badge",
+        "en": "Widgets can speak from the dynamic island — and keep a badge",
+        "ko": "위젯이 다이내믹 아일랜드에서 말하고 — 배지도 가질 수 있습니다",
+        "ja": "ウィジェットがダイナミックアイランドで話し — バッジも持てます",
+        "zh": "小组件可以在灵动岛上说话 — 还能常驻一个徽标"
       },
       "body": {
-        "it": "Dai a ogni tile uno sfondo tutto suo — una foto, un gradiente o entrambi — aggiungi cornici ornamentali (Sengoku, Sakura, Neon, Gold, Minimal) e decorazioni che trascini dove vuoi, GIF animate comprese. Il nuovo editor 🎨 è un pannello laterale su una dashboard viva: vedi ogni scelta applicarsi al widget vero mentre la regoli. E il look viaggia dentro le pagine e i pacchetti che condividi.",
-        "en": "Give every tile a background of its own — a photo, a gradient or both — add ornamental frames (Sengoku, Sakura, Neon, Gold, Minimal) and decorations you drag anywhere, animated GIFs included. The new 🎨 editor is a side panel over a live dashboard: you watch each choice apply to the real widget as you tune it. And the look travels inside the pages and packages you share.",
-        "ko": "모든 타일에 나만의 배경을 — 사진, 그라데이션 또는 둘 다 — 장식용 프레임(Sengoku·Sakura·Neon·Gold·Minimal)과 원하는 곳에 끄는 데코(움직이는 GIF 포함)를 더하세요. 새 🎨 편집기는 살아 있는 대시보드 위의 사이드 패널입니다: 조정하는 동안 각 선택이 실제 위젯에 적용되는 것을 봅니다. 그리고 이 룩은 공유하는 페이지와 패키지에 함께 담깁니다.",
-        "ja": "どのタイルにも専用の背景を — 写真、グラデーション、またはその両方 — 装飾フレーム（Sengoku・Sakura・Neon・Gold・Minimal）や、好きな場所へドラッグできる装飾（動く GIF も）を追加できます。新しい 🎨 エディターは動いているダッシュボード上のサイドパネル。調整するそばから、選んだ内容が実際のウィジェットに反映されます。そしてこの見た目は、共有するページやパッケージに一緒に付いていきます。",
-        "zh": "为每个磁贴配上专属背景 — 照片、渐变或两者兼有 — 添加装饰边框（Sengoku、Sakura、Neon、Gold、Minimal）以及可拖到任意位置的贴饰（含动图 GIF）。全新的 🎨 编辑器是覆盖在实时仪表盘上的侧边面板：调整时就能看到每个选择应用到真实的小组件上。而且这套外观会随你分享的页面和包一起传递。"
+        "it": "Nella topbar minimale, un widget che dichiara il permesso island e che approvi può proiettare una riga di testo nella capsula dell'orologio: la frase corrente di un gobbo, la percentuale di un download, lo stato di una build. Il widget manda solo testo — la riga la disegna Xenon, mai link né markup, e le notifiche vere hanno la precedenza. Dove l'isola è per ciò che succede adesso, il permesso badge è per ciò che resta vero: un contatore di non letti, una spia di connessione, le stelle di un repo. Fino a quattro chip accanto all'orologio, in entrambe le barre. In vetrina c'è anche il nuovo Teleprompter: incolla il testo, countdown 3-2-1, scorre grande con la frase corrente evidenziata, velocità 0,5×–3×, modalità specchio e chiavi Deck.",
+        "en": "In the minimal top bar, a widget that declares the island permission and that you approve may project one line of text into the clock pill: a teleprompter's current sentence, a download percentage, a build status. The widget only ever sends text — Xenon draws the line, never links or markup, and real notifications take priority. Where the island is for what's happening right now, the badge permission is for what stays true: an unread count, a connection light, a repo's stars. Up to four chips next to the clock, in both bars. The catalog also gains Teleprompter: paste your script, a 3-2-1 countdown, then it scrolls large with the current sentence highlighted, 0.5×–3× speed, mirror mode and Deck keys.",
+        "ko": "미니멀 상단 바에서, island 권한을 선언하고 당신이 승인한 위젯은 시계 알약 안에 한 줄의 텍스트를 띄울 수 있습니다: 텔레프롬프터의 현재 문장, 다운로드 진행률, 빌드 상태. 위젯은 오직 텍스트만 보내고 — 줄은 Xenon이 그리며, 링크나 마크업은 절대 없고, 실제 알림이 우선합니다. 아일랜드가 '지금 일어나는 일'을 위한 것이라면, badge 권한은 '계속 참인 것'을 위한 것입니다: 안 읽은 개수, 연결 표시등, 저장소의 별. 두 바 모두에서 시계 옆에 최대 네 개의 칩. 카탈로그에는 텔레프롬프터도 새로 들어왔습니다: 대본을 붙여넣고, 3-2-1 카운트다운, 그다음 현재 문장이 강조된 큰 글씨로 스크롤됩니다. 속도 0.5×–3×, 미러 모드, Deck 키까지.",
+        "ja": "ミニマルなトップバーでは、island 権限を宣言しあなたが承認したウィジェットが、時計のピルに 1 行のテキストを映せます。テレプロンプターの現在の一文、ダウンロードの進捗、ビルドの状態など。ウィジェットが送るのはテキストだけ — 行を描くのは Xenon で、リンクもマークアップも決して通さず、本物の通知が優先されます。アイランドが「いま起きていること」のためなら、badge 権限は「ずっと真であること」のため。未読数、接続ランプ、リポジトリのスター。時計の隣に最大 4 つのチップを、どちらのバーでも。カタログにはテレプロンプターも登場：原稿を貼り付け、3-2-1 のカウントダウン、そして現在の一文をハイライトしながら大きくスクロール。速度 0.5×〜3×、ミラーモード、Deck キーにも対応。",
+        "zh": "在极简顶栏中，声明了 island 权限并经你批准的小组件，可以把一行文字投射到时钟胶囊里：提词器的当前句子、下载百分比、构建状态。小组件只发送文字 —— 这一行由 Xenon 绘制，绝不含链接或标记，且真实通知优先。如果说灵动岛是给\"此刻正在发生的事\"，那么 badge 权限就是给\"持续为真的事\"：未读数、连接指示灯、仓库的星标数。在两种顶栏中，时钟旁最多可放四个徽标。目录里还新增了提词器：粘贴讲稿，3-2-1 倒计时，然后以大字滚动并高亮当前句子，速度 0.5×–3×，镜像模式和 Deck 按键一应俱全。"
       },
       "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "Tutti gli schermi mostrano finalmente la stessa dashboard",
-        "en": "Every screen finally shows the same dashboard",
-        "ko": "모든 화면이 마침내 같은 대시보드를 보여줍니다",
-        "ja": "すべての画面がついに同じダッシュボードを表示",
-        "zh": "所有屏幕终于显示同一个仪表盘"
+        "it": "Pacchetti di icone e di suoni, da condividere come tutto il resto",
+        "en": "Icon packs and sound packs, shareable like everything else",
+        "ko": "아이콘 팩과 사운드 팩, 나머지처럼 공유 가능",
+        "ja": "アイコンパックとサウンドパック、ほかと同じように共有可能",
+        "zh": "图标包与音效包，和其他内容一样可分享"
       },
       "body": {
-        "it": "Cambia meteo, note, preferiti del browser o aggiungi un widget su uno schermo e appare subito sugli altri — Xeneon Edge e browser restano in sincrono dal vivo, senza ricaricare. Le note ora hanno una protezione anti-sovrascrittura: uno schermo rimasto indietro non può più cancellare una nota scritta altrove. E il ticker scorre anche con le animazioni di Windows disattivate.",
-        "en": "Change the weather, notes, browser favorites or add a widget on one screen and it shows up on the others at once — the Xeneon Edge and your browser stay in step live, no reload. Notes now have an anti-overwrite guard: a screen that fell behind can no longer wipe a note written elsewhere. And the ticker scrolls even with Windows animations turned off.",
-        "ko": "날씨·메모·브라우저 즐겨찾기를 바꾸거나 한 화면에서 위젯을 추가하면 다른 화면에도 즉시 나타납니다 — Xeneon Edge와 브라우저가 새로고침 없이 실시간으로 동기화됩니다. 메모에는 이제 덮어쓰기 방지 장치가 있어, 뒤처진 화면이 다른 곳에서 쓴 메모를 지울 수 없습니다. 그리고 티커는 Windows 애니메이션을 꺼도 흐릅니다.",
-        "ja": "天気・メモ・ブラウザーのお気に入りを変えたり、片方の画面でウィジェットを追加すると、もう片方にもすぐ表示されます — Xeneon Edge とブラウザーが再読み込みなしでリアルタイムに同期します。メモには上書き防止が付き、遅れていた画面が他所で書いたメモを消せなくなりました。そしてティッカーは Windows のアニメーションをオフにしても流れます。",
-        "zh": "在一个屏幕上更改天气、便签、浏览器收藏或添加小组件，另一个屏幕会立即显示 — Xeneon Edge 与浏览器实时保持同步，无需刷新。便签现在有防覆盖保护：落后的屏幕再也无法抹掉在别处写下的便签。而且即使关闭 Windows 动画，行情条也照常滚动。"
+        "it": "Due tipi di creazione nuovi. Metti insieme le tue icone SVG/PNG in un pacchetto icone (fino a 120, 24 KB l'una) e ottieni un codice: chi lo importa se le ritrova nel selettore icone del Deck, e l'icona scelta viene incorporata nel tasto, così i profili che condividi continuano a funzionare anche se il pacchetto viene rimosso. La validazione è fail-closed: un SVG con script o link esterni fa rifiutare tutto il pacchetto e ti dice quale file. Allo stesso modo un pacchetto suoni (MP3/OGG/WAV, fino a 24 clip) aggiunge una categoria Soundboard all'editor dei tasti — e finalmente un profilo Deck condiviso si porta dietro i suoi suoni: le clip viaggiano come riferimenti indipendenti dalla macchina, dove prima ogni profilo condiviso arrivava muto.",
+        "en": "Two new kinds of creation. Bundle your SVG/PNG icons into an icon pack (up to 120, 24 KB each) and get a share code: whoever imports it finds them in the Deck's icon picker, and the icon you pick is embedded into the key, so profiles you share keep working even if the pack is removed later. Validation is fail-closed: an SVG with scripts or external links rejects the whole pack and names the file. In the same way a sound pack (MP3/OGG/WAV, up to 24 clips) adds a Soundboard category to the key editor — and a shared Deck profile finally keeps its sounds: clips travel as machine-independent references, where before every shared profile arrived silent.",
+        "ko": "새로운 창작물 두 종류. SVG/PNG 아이콘을 아이콘 팩으로 묶으면(최대 120개, 개당 24 KB) 공유 코드가 생깁니다: 가져온 사람은 Deck의 아이콘 선택기에서 찾을 수 있고, 고른 아이콘은 키에 삽입되므로 나중에 팩을 지워도 공유한 프로필은 계속 작동합니다. 검증은 fail-closed입니다: 스크립트나 외부 링크가 있는 SVG는 팩 전체를 거부하고 어느 파일인지 알려줍니다. 같은 방식으로 사운드 팩(MP3/OGG/WAV, 최대 24개 클립)은 키 편집기에 사운드보드 카테고리를 추가합니다 — 그리고 공유된 Deck 프로필이 드디어 소리를 지킵니다: 클립이 기기에 독립적인 참조로 이동하기 때문입니다. 예전에는 공유된 프로필이 늘 무음으로 도착했습니다.",
+        "ja": "新しい作品の種類が 2 つ。SVG/PNG のアイコンをアイコンパックにまとめると（最大 120 個、1 つ 24 KB まで）共有コードができます。インポートした人は Deck のアイコンピッカーで見つけられ、選んだアイコンはキーに埋め込まれるので、あとでパックを削除しても共有したプロファイルは動き続けます。検証は fail-closed：スクリプトや外部リンクを含む SVG はパック全体を拒否し、どのファイルかを知らせます。同じようにサウンドパック（MP3/OGG/WAV、最大 24 クリップ）はキーエディターに Soundboard カテゴリを追加します — そして共有した Deck プロファイルがついに音を保てます。クリップがマシンに依存しない参照として運ばれるからです。以前は共有されたプロファイルは必ず無音で届いていました。",
+        "zh": "两种全新的创作类型。把你的 SVG/PNG 图标打包成图标包（最多 120 个，每个 24 KB），即可得到一个分享代码：导入的人会在 Deck 的图标选择器里找到它们，而你选中的图标会嵌入按键中，所以即使日后移除了图标包，你分享的配置依然可用。校验是失败即拒的：含脚本或外部链接的 SVG 会让整个包被拒绝，并指出是哪个文件。同样地，音效包（MP3/OGG/WAV，最多 24 个片段）会在按键编辑器中新增一个 Soundboard 分类 —— 而且分享的 Deck 配置终于能带上它的声音：音频片段以与机器无关的引用方式传递，而在此之前，每个分享出去的配置都是无声的。"
       },
       "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "Telecamere — disponile come vuoi tu",
-        "en": "Cameras — arrange them exactly how you want",
-        "ko": "카메라 — 원하는 대로 배치",
-        "ja": "カメラ — 好きなように配置",
-        "zh": "摄像头 — 随你安排"
+        "it": "Tutto ciò che hai installato, finalmente in un posto solo",
+        "en": "Everything you've installed, finally in one place",
+        "ko": "설치한 모든 것이 마침내 한곳에",
+        "ja": "インストールしたすべてが、ついにひとつの場所に",
+        "zh": "你安装的一切，终于集中在一处"
       },
       "body": {
-        "it": "Il widget Telecamere ora ha un layout tuo: scegli le colonne (anche 2×2), il taglio e la forma dei riquadri, e l'ordine dei feed. Tocca una telecamera per ingrandirla e trovi ruota, specchia, zoom e trascinamento per inquadrare esattamente ciò che ti interessa. In più, avvisi opt-in per le smart detection di UniFi Protect — persona, veicolo, pacco, animale, movimento, campanello.",
-        "en": "The Cameras widget now has a layout of your own: pick the columns (2×2 too), the crop and shape of each frame, and the order of your feeds. Tap a camera to enlarge it and you'll find rotate, mirror, zoom and drag to frame exactly what matters. Plus opt-in alerts for UniFi Protect smart detections — person, vehicle, package, animal, motion, doorbell.",
-        "ko": "카메라 위젯에 이제 나만의 레이아웃이 생겼습니다: 열 수(2×2도), 각 프레임의 잘림과 모양, 피드 순서를 고르세요. 카메라를 탭해 확대하면 회전·반전·줌·드래그로 원하는 부분을 정확히 담을 수 있습니다. 게다가 UniFi Protect 스마트 감지 알림을 원하는 종류만 켤 수 있습니다 — 사람·차량·택배·동물·움직임·초인종.",
-        "ja": "カメラウィジェットに専用レイアウトが加わりました。列数（2×2 も）、各フレームの切り抜きと形、フィードの順番を選べます。カメラをタップして拡大すると、回転・反転・ズーム・ドラッグで見たい部分をぴったり収められます。さらに UniFi Protect のスマート検知通知をオプトインで — 人・車両・荷物・動物・動き・呼び鈴。",
-        "zh": "摄像头小组件现在有了你自己的布局：选择列数（也支持 2×2）、每个画面的裁剪与形状，以及各路画面的顺序。点按摄像头放大，即可用旋转、镜像、缩放和拖动精确取景。还有可自选开启的 UniFi Protect 智能侦测提醒 — 人、车辆、包裹、动物、移动、门铃。"
+        "it": "Widget, temi, pagine, profili Deck, sfondi, scene Ambient, pacchetti di icone e suoni stavano in due liste separate delle Impostazioni che non mostravano mai lo stesso quadro. Ora sono una lista sola dentro lo Store, nella nuova scheda Installati, ognuno con il proprio screenshot quando il catalogo ne pubblica uno: filtra per tipo, vedi cosa ha aggiunto ogni download e da dove viene, aggiorna, imposta l'indirizzo di un widget, rimuovi una cosa sola o tutto ciò che hai mai installato. E il controllo aggiornamenti ora vale per tutto, non solo per i widget: prima temi, pagine, sfondi e pacchetti erano invisibili. La sezione \"Widget e condivisione\" delle Impostazioni, di conseguenza, è molto più calma: due pulsanti, Esporta… e Importa….",
+        "en": "Widgets, themes, pages, Deck profiles, backgrounds, Ambient scenes, icon and sound packs used to sit in two separate Settings lists that never showed the same picture. They're now one list inside the Store, in the new Installed tab, each row carrying its own screenshot when the catalog publishes one: filter by kind, see what each download added and where it came from, update, set a widget's address, remove one item or everything you've ever installed. And the update check now covers everything, not just widgets: themes, pages, backgrounds and packages were invisible to it before. Settings' \"Widgets & sharing\" section is much calmer as a result: two buttons, Export… and Import….",
+        "ko": "위젯, 테마, 페이지, Deck 프로필, 배경, Ambient 장면, 아이콘·사운드 팩이 예전에는 설정의 서로 다른 두 목록에 나뉘어 있었고, 두 목록이 같은 그림을 보여준 적이 없었습니다. 이제는 스토어 안의 새 '설치됨' 탭에 하나의 목록으로 모였고, 카탈로그가 스크린샷을 게시하면 각 행이 그것을 함께 보여줍니다: 종류별 필터, 각 다운로드가 무엇을 추가했고 어디서 왔는지, 업데이트, 위젯 주소 설정, 항목 하나만 삭제하거나 지금까지 설치한 전부 삭제까지. 그리고 업데이트 확인이 이제 위젯뿐 아니라 전부를 다룹니다: 예전에는 테마·페이지·배경·패키지가 보이지 않았습니다. 그 결과 설정의 \"위젯 및 공유\" 섹션이 훨씬 차분해졌습니다: 내보내기…와 가져오기… 두 개의 버튼.",
+        "ja": "ウィジェット、テーマ、ページ、Deck プロファイル、背景、Ambient シーン、アイコン・サウンドパックは、これまで設定内の別々の 2 つのリストに散らばり、同じ全体像を映すことがありませんでした。いまはストア内の新しい「インストール済み」タブにひとつのリストとしてまとまり、カタログがスクリーンショットを公開していれば各行がそれを持ちます。種類で絞り込み、各ダウンロードが何を追加しどこから来たかを確認し、更新し、ウィジェットのアドレスを設定し、ひとつだけ、あるいはこれまでインストールしたすべてを削除できます。さらに更新チェックがウィジェットだけでなくすべてを対象にしました。以前はテーマ・ページ・背景・パッケージは見えていませんでした。その結果、設定の「ウィジェットと共有」はずっと静かになりました。エクスポート…とインポート…の 2 つのボタンだけです。",
+        "zh": "小组件、主题、页面、Deck 配置、背景、Ambient 场景、图标包和音效包，过去分散在设置里两个各自为政的列表中，从未呈现同一幅图景。现在它们合成商店内的一个列表，位于全新的\"已安装\"标签页，只要目录发布了截图，每一行都会带上它：按类型筛选、查看每次下载添加了什么以及来自何处、更新、设置小组件的地址、移除单个项目或你曾安装过的一切。而且更新检查现在覆盖所有内容，不再只是小组件：此前主题、页面、背景和套装对它是不可见的。因此设置里的\"小组件与分享\"也清爽了许多：只剩导出…和导入…两个按钮。"
       },
       "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "Anteprima Xeneon Edge, direttamente nel browser",
-        "en": "Xeneon Edge preview, right in your browser",
-        "ko": "Xeneon Edge 미리보기, 브라우저에서 바로",
-        "ja": "Xeneon Edge プレビューをブラウザーで",
-        "zh": "在浏览器里直接预览 Xeneon Edge"
+        "it": "Voti a stelle, e pubblicare nel catalogo è una pagina web",
+        "en": "Star ratings, and publishing to the catalog is one web page",
+        "ko": "별점, 그리고 카탈로그 게시는 웹페이지 하나로",
+        "ja": "星の評価、そしてカタログへの公開はウェブページ 1 枚で",
+        "zh": "星级评分，以及一个网页就能发布到目录"
       },
       "body": {
-        "it": "Comporre il layout da un browser desktop era scomodo: una finestra normale ha tutt'altra forma del pannello 2560×720 dell'Edge. Ora attivi \"Mostra come sullo Xeneon Edge\" nelle Impostazioni (o aggiungi ?edge all'indirizzo) e la dashboard viene resa nelle proporzioni reali del dispositivo, scalata per stare nella finestra. Così il layout che sistemi è quello che vedrai davvero sull'Edge.",
-        "en": "Composing the layout from a desktop browser was awkward: a normal window is a completely different shape from the Edge's 2560×720 panel. Now flip on \"Show it as on the Xeneon Edge\" in Settings (or add ?edge to the address) and the dashboard renders at the device's real proportions, scaled to fit your window. So the layout you arrange is the one you'll actually see on the Edge.",
-        "ko": "데스크톱 브라우저에서 레이아웃을 짜기는 번거로웠습니다: 일반 창은 Edge의 2560×720 패널과 전혀 다른 모양이니까요. 이제 설정에서 \"Xeneon Edge처럼 보기\"를 켜거나 주소에 ?edge를 붙이면, 대시보드가 기기의 실제 비율로 렌더링되고 창에 맞게 축소됩니다. 그래서 정리한 레이아웃이 Edge에서 실제로 보게 될 그 모습입니다.",
-        "ja": "デスクトップのブラウザーでレイアウトを組むのは面倒でした。通常のウィンドウは Edge の 2560×720 パネルとまったく違う形だからです。設定で「Xeneon Edge の見え方で表示」をオンにする（またはアドレスに ?edge を付ける）と、ダッシュボードが実機の比率で描画され、ウィンドウに合わせて縮小されます。整えたレイアウトが、そのまま Edge で見えるものになります。",
-        "zh": "在桌面浏览器里排布局很别扭：普通窗口与 Edge 的 2560×720 面板形状完全不同。现在在设置里开启\"按 Xeneon Edge 显示\"（或在地址后加 ?edge），仪表盘就会按设备的真实比例渲染并缩放适配窗口。这样你排好的布局，就是在 Edge 上真正看到的样子。"
+        "it": "Apri una creazione in Scopri e dai da 1 a 5 stelle: niente account, niente tracciamento. Le medie compaiono sulle card, in app e sul sito, solo quando una voce ha abbastanza voti, così un voto solo non può mai sembrare un consenso. Il voto è legato all'id anonimo della tua installazione, lo stesso che usano già i codici sostenitore: uno per installazione, ritoccabile quando vuoi. Onestamente: un id anonimo alza il costo del voto gonfiato, non lo rende impossibile — al resto pensano i rate limit e la soglia minima di voti. E pubblicare non richiede più un account GitHub: il pulsante ✨ copia il tuo codice e apre il nuovo portale su xenon-app.com, già compilato. Ogni invio passa comunque dalla stessa coda moderata, letta da una persona.",
+        "en": "Open an entry in Discover and tap 1 to 5 stars: no account, no tracking. Averages appear on the cards, in the app and on the website, only once an entry has enough votes, so a single vote can never look like consensus. Your vote is tied to your installation's anonymous id, the one supporter codes already use: one per install, changeable any time. Honestly: an anonymous id raises the cost of vote stuffing rather than making it impossible — rate limits and the minimum-votes rule handle the rest. And publishing no longer needs a GitHub account: the ✨ button copies your code and opens the new portal on xenon-app.com, prefilled. Every submission still goes through the same moderated queue, read by a human.",
+        "ko": "둘러보기에서 항목을 열고 별 1~5개를 누르세요: 계정도, 추적도 없습니다. 평균은 항목에 충분한 투표가 쌓인 뒤에야 앱과 웹사이트의 카드에 나타나므로, 한 표가 합의처럼 보일 일은 없습니다. 투표는 서포터 코드가 이미 쓰는 그 익명 설치 id에 묶입니다: 설치당 하나, 언제든 바꿀 수 있습니다. 솔직히 말하면: 익명 id는 표 몰아주기를 불가능하게 만드는 게 아니라 비용을 올릴 뿐입니다 — 나머지는 속도 제한과 최소 투표 수 규칙이 맡습니다. 그리고 게시에 더 이상 GitHub 계정이 필요 없습니다: ✨ 버튼이 코드를 복사하고 xenon-app.com의 새 포털을 미리 채워진 상태로 엽니다. 모든 제출은 여전히 사람이 읽는 같은 심사 대기열을 거칩니다.",
+        "ja": "「見つける」でエントリーを開き、星 1〜5 をタップ：アカウントも追跡もありません。平均はそのエントリーに十分な票が集まってから、アプリとウェブサイトのカードに表示されます。だから 1 票が総意のように見えることはありません。投票はサポーターコードがすでに使っている、あなたのインストールの匿名 ID に紐づきます。1 インストールにつき 1 票、いつでも変更可能。正直に言えば、匿名 ID は票の水増しを不可能にするのではなく、コストを上げるだけです — 残りはレート制限と最小票数のルールが担います。そして公開に GitHub アカウントは不要になりました。✨ ボタンがコードをコピーし、xenon-app.com の新しいポータルを入力済みの状態で開きます。すべての投稿は変わらず、人が読む同じ審査キューを通ります。",
+        "zh": "在\"发现\"中打开一个条目，点 1 到 5 颗星：无需账号，不做追踪。平均分只有在条目获得足够票数后，才会显示在应用和网站的卡片上，因此单独一票永远不会看起来像共识。你的投票绑定到你安装的匿名 id，也就是支持者代码已经在用的那个：每个安装一票，随时可改。老实说：匿名 id 只是抬高了刷票的成本，而非使其不可能 —— 其余交给速率限制和最低票数规则。而且发布不再需要 GitHub 账号：✨ 按钮会复制你的代码并打开 xenon-app.com 上的新门户，且已预填。每次提交仍然要经过同一个由真人审阅的审核队列。"
       },
       "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "Un vero disinstallatore \"rimuovi tutto\"",
-        "en": "A proper \"remove everything\" uninstaller",
-        "ko": "제대로 된 \"전부 제거\" 언인스톨러",
-        "ja": "本物の「すべて削除」アンインストーラー",
-        "zh": "一个真正\"全部移除\"的卸载程序"
+        "it": "La dashboard aperta non ti tiene più occupata la CPU (#99)",
+        "en": "An open dashboard no longer keeps your CPU busy (#99)",
+        "ko": "열어 둔 대시보드가 더 이상 CPU를 붙잡지 않습니다 (#99)",
+        "ja": "開いたままのダッシュボードが CPU を占有しなくなりました (#99)",
+        "zh": "打开着的仪表盘不再占着你的 CPU (#99)"
       },
       "body": {
-        "it": "UNINSTALL.bat ora offre una vera pulizia completa: rimuove l'app nativa e i suoi avvii automatici, PresentMon, Xenon Helper, Whisper, l'adblock e le dipendenze npm, i file temporanei, e — dopo una conferma chiara — i tuoi dati e la cartella d'installazione. Le app di sistema condivise (Node, FFmpeg, Sunshine, Tailscale…) te le chiede una a una. Usa -DryRun per vedere prima cosa toglierebbe, o -KeepData per tenere note e impostazioni.",
-        "en": "UNINSTALL.bat now offers a genuine clean slate: it removes the native app and its autostart entries, PresentMon, Xenon Helper, Whisper, the adblock and npm dependencies, leftover temp files, and — after a clear confirmation — your data and the install folder. Shared system apps (Node, FFmpeg, Sunshine, Tailscale…) are asked about one at a time. Use -DryRun to preview what would go, or -KeepData to keep your notes and settings.",
-        "ko": "UNINSTALL.bat가 이제 진짜 깨끗한 초기화를 제공합니다: 네이티브 앱과 자동 시작 항목, PresentMon, Xenon Helper, Whisper, 애드블록과 npm 의존성, 남은 임시 파일, 그리고 — 명확한 확인 후 — 데이터와 설치 폴더까지 제거합니다. 공유 시스템 앱(Node, FFmpeg, Sunshine, Tailscale…)은 하나씩 물어봅니다. -DryRun으로 무엇이 지워질지 미리 보고, -KeepData로 메모와 설정을 남기세요.",
-        "ja": "UNINSTALL.bat が本当のまっさら化を提供します。ネイティブアプリと自動起動、PresentMon、Xenon Helper、Whisper、広告ブロックと npm 依存、残った一時ファイル、そして — 明確な確認のうえ — あなたのデータとインストールフォルダーまで削除します。共有のシステムアプリ（Node・FFmpeg・Sunshine・Tailscale…）は一つずつ確認します。-DryRun で何が消えるかを事前に確認、-KeepData でメモと設定を残せます。",
-        "zh": "UNINSTALL.bat 现在提供真正的彻底清理：移除原生应用及其自启动项、PresentMon、Xenon Helper、Whisper、广告拦截和 npm 依赖、残留临时文件，并在明确确认后移除你的数据和安装文件夹。共享的系统应用（Node、FFmpeg、Sunshine、Tailscale…）会逐个询问。用 -DryRun 预览将删除的内容，或用 -KeepData 保留你的便签与设置。"
+        "it": "Una manciata di effetti a puntino pulsante — il pallino online della topbar, visibile su ogni dashboard, gli indicatori live di Claude, Discord, OBS, Twitch, YouTube, Streamer.bot — teneva sveglia la pipeline di rendering anche quando non stavi facendo nulla. Idem l'effetto \"Lampeggia\" dei tasti Deck e le animazioni dello Store, e una Browser tile con una telecamera dentro poteva saturare la CPU renderizzando ogni singolo frame. Sono tutti risolti. Nella stessa serie: gli sfondi animati ora hanno un limite di fotogrammi (30/s di default, regolabile da 10 a 60) e si fermano del tutto quando ti allontani, l'app nativa non fonde più un core sui PC con due schede grafiche, e un errore in un task di sfondo non porta più giù tutto il server (#100).",
+        "en": "A handful of pulsing-dot effects — the topbar's online dot, visible on every dashboard, the live indicators in Claude, Discord, OBS, Twitch, YouTube, Streamer.bot — kept the render pipeline awake even when you were doing nothing. So did the Deck's \"Blink\" key effect and the Store's animations, and a Browser tile showing a camera could max out the CPU rendering every single frame. All fixed. In the same run: animated backgrounds now have a frame cap (30/s by default, adjustable from 10 to 60) and stop entirely when you walk away, the native app no longer fuses a core on PCs with two graphics chips, and one error in a background task no longer brings the whole server down (#100).",
+        "ko": "몇몇 깜빡이는 점 효과 — 모든 대시보드에 보이는 상단 바의 온라인 점, Claude·Discord·OBS·Twitch·YouTube·Streamer.bot의 라이브 표시등 — 이 아무것도 하지 않을 때조차 렌더 파이프라인을 깨워 두었습니다. Deck의 \"깜박임\" 키 효과와 스토어의 애니메이션도 마찬가지였고, 카메라를 띄운 Browser 타일은 매 프레임을 렌더링하며 CPU를 가득 채울 수 있었습니다. 모두 해결됐습니다. 같은 흐름에서: 애니메이션 배경에 프레임 상한이 생겼고(기본 30/s, 10~60 조절 가능) 자리를 뜨면 완전히 멈추며, 네이티브 앱이 그래픽 칩 두 개인 PC에서 더 이상 코어를 태우지 않고, 백그라운드 작업의 오류 하나가 서버 전체를 내리지 않습니다 (#100).",
+        "ja": "いくつかの点滅ドットの効果 — どのダッシュボードにも見えるトップバーのオンラインドット、Claude・Discord・OBS・Twitch・YouTube・Streamer.bot のライブインジケーター — が、何もしていないときでもレンダリングパイプラインを起こし続けていました。Deck の「点滅」キー効果やストアのアニメーションも同様で、カメラを映した Browser タイルは 1 フレームごとに描画して CPU を使い切ることがありました。すべて解決済みです。同じ流れで、アニメーション背景にフレーム上限が付き（既定 30/s、10〜60 で調整可）、離席すると完全に停止します。ネイティブアプリはグラフィックスチップが 2 つある PC でコアを焼かなくなり、バックグラウンドタスクのひとつのエラーがサーバー全体を落とすこともなくなりました (#100)。",
+        "zh": "一些脉动圆点效果 —— 每个仪表盘上都能看到的顶栏在线圆点，以及 Claude、Discord、OBS、Twitch、YouTube、Streamer.bot 的实时指示灯 —— 即便你什么都没做，也让渲染管线保持清醒。Deck 的\"闪烁\"按键效果和商店的动画同样如此，而显示摄像头画面的 Browser 磁贴可能因为渲染每一帧而占满 CPU。这些都已修复。同一批修复中：动画背景现在有了帧率上限（默认 30/秒，可在 10 到 60 之间调整），并在你离开时完全停止；原生应用不再在双显卡 PC 上烧掉一个核心；后台任务中的一个错误也不会再让整个服务器崩溃 (#100)。"
       },
       "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "App nativa più solida — e il Media che si ripara da solo",
-        "en": "A sturdier native app — and Media that heals itself",
-        "ko": "더 탄탄해진 네이티브 앱 — 스스로 복구하는 미디어",
-        "ja": "より堅牢なネイティブアプリ — 自己修復するメディア",
-        "zh": "更稳固的原生应用 — 会自愈的媒体面板"
+        "it": "Le impostazioni, adesso, restano davvero",
+        "en": "Settings now really do stick",
+        "ko": "이제 설정이 정말로 유지됩니다",
+        "ja": "設定が、本当に残るようになりました",
+        "zh": "设置现在真的会保留"
       },
       "body": {
-        "it": "L'app nativa ora può nascondersi da sola quando ti colleghi in Desktop Remoto di Windows (opzionale), e rimette a posto lo schermo intero se spegni un monitor e la barra di Windows prova a coprirla. E il pannello Media si ripara da solo: quando l'helper nativo smette di vedere la musica dopo un login o un risveglio, Xenon se ne accorge e riprende a leggerla senza che tu faccia nulla.",
-        "en": "The native app can now hide itself when you connect via Windows Remote Desktop (optional), and re-asserts full screen if you power off a monitor and the Windows taskbar tries to cover it. And the Media panel heals itself: when the native helper stops seeing your music after a sign-in or a wake, Xenon notices and starts reading it again with nothing for you to do.",
-        "ko": "네이티브 앱이 이제 Windows 원격 데스크톱으로 접속하면 스스로 숨을 수 있고(선택), 모니터를 끄면서 Windows 작업 표시줄이 덮으려 할 때 전체 화면을 다시 확보합니다. 그리고 미디어 패널은 스스로 복구됩니다: 로그인이나 절전 해제 후 네이티브 헬퍼가 음악을 못 보게 되면, Xenon이 이를 감지해 아무 조작 없이 다시 읽기 시작합니다.",
-        "ja": "ネイティブアプリは、Windows のリモートデスクトップで接続したときに自分から隠れられるようになり（任意）、モニターを消して Windows のタスクバーが覆おうとしても全画面を再確保します。そしてメディアパネルは自己修復します。サインインや復帰のあとにネイティブヘルパーが音楽を見失っても、Xenon が気づいて、あなたは何もしなくても再び読み取り始めます。",
-        "zh": "原生应用现在可以在你通过 Windows 远程桌面连接时自动隐藏（可选），并在你关闭某个显示器、Windows 任务栏试图遮挡时重新占据全屏。而且媒体面板会自愈：当原生助手在登录或唤醒后看不到音乐时，Xenon 会察觉并重新读取，你无需任何操作。"
+        "it": "Su alcune macchine una modifica sembrava salvata ma non arrivava mai su disco, così un ricaricamento — specie sullo Xeneon Edge, che a ogni sessione riparte pulito — riportava tema, colori e lingua all'ultimo stato buono. Risolto. Con lui una lunga serie di correzioni che si notano: i toggle dell'illuminazione non si rimettono più da soli, un widget dentro un gruppo di schede non perde più la sua identità, importare un tema non lascia più trasparire quello di prima, un widget con permessi salvati non te li richiede all'infinito, il pulsante nascondi per-tile in Personalizza funziona di nuovo, il calendario lasciato aperto a mezzanotte non evidenzia più due giorni, e l'app nativa sull'Edge non smette più di aggiornarsi dopo un po'.",
+        "en": "On some machines a change looked saved but never reached disk, so a reload — especially on the Xeneon Edge, which starts each session with a clean slate — snapped theme, colours and language back to the last stored state. Fixed. With it a long run of fixes you'll notice: lighting toggles no longer flip themselves back, a widget inside a tab group no longer loses its identity, importing a theme no longer lets the previous one bleed through, a widget with saved permissions no longer asks for them over and over, the per-tile hide button in Customize works again, a calendar left open past midnight no longer highlights two days, and the native app on the Edge no longer silently stops updating after a while.",
+        "ko": "일부 머신에서는 변경이 저장된 것처럼 보였지만 디스크에 도달한 적이 없었고, 그래서 새로고침 — 특히 매 세션을 깨끗한 상태로 시작하는 Xeneon Edge에서 — 하면 테마·색·언어가 마지막 저장 상태로 되돌아갔습니다. 해결됐습니다. 여기에 체감되는 수정들이 함께합니다: 조명 토글이 더 이상 스스로 되돌아가지 않고, 탭 그룹 안의 위젯이 정체성을 잃지 않으며, 테마를 가져올 때 이전 테마가 비쳐 나오지 않고, 권한을 저장한 위젯이 계속 다시 묻지 않으며, 사용자화의 타일별 숨기기 버튼이 다시 작동하고, 자정을 넘겨 열어 둔 캘린더가 두 날을 강조하지 않으며, Edge의 네이티브 앱이 얼마 뒤 조용히 갱신을 멈추는 일도 없습니다.",
+        "ja": "一部のマシンでは変更が保存されたように見えてディスクに届いておらず、再読み込み — とくに毎回まっさらな状態で始まる Xeneon Edge で — するとテーマ・色・言語が最後に保存された状態に戻っていました。修正済みです。あわせて、気づくはずの修正が並びます。照明のトグルが勝手に戻らなくなり、タブグループ内のウィジェットが自分の識別を失わなくなり、テーマのインポートで前のテーマが透けなくなり、権限を保存したウィジェットが何度も尋ねてこなくなり、カスタマイズのタイルごとの非表示ボタンが再び効き、日付をまたいで開いたままのカレンダーが 2 日を強調しなくなり、Edge 上のネイティブアプリがしばらくすると黙って更新を止めることもなくなりました。",
+        "zh": "在某些机器上，改动看起来已保存却从未写入磁盘，于是一次刷新 —— 尤其是在每次会话都从干净状态启动的 Xeneon Edge 上 —— 就会让主题、配色和语言退回到上次存储的状态。已修复。随之而来的是一长串你会注意到的修复：灯光开关不再自己弹回，标签组内的小组件不再丢失自己的身份，导入主题时不再透出上一个主题，保存了权限的小组件不再反复索要权限，自定义中的逐磁贴隐藏按钮重新可用，跨过午夜仍开着的日历不再高亮两天，Edge 上的原生应用也不再在一段时间后悄悄停止更新。"
       },
       "media": "",
       "mediaType": "image"

@@ -82,7 +82,7 @@
 .onb-skip:hover { opacity: 0.9; }
 .onb-back { background: rgba(var(--accent-rgb), 0.12); color: inherit; }
 .onb-back:hover { background: rgba(var(--accent-rgb), 0.22); }
-.onb-next { background: rgba(var(--accent-rgb), 0.9); color: #04201a; }
+.onb-next { background: var(--accent); color: var(--on-accent); }
 .onb-next:hover { background: rgba(var(--accent-rgb), 1); }
 
 /* Settings → replay tour. A single compact row: the button sits in the group

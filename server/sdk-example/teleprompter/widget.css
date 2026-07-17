@@ -1,0 +1,313 @@
+:root {
+  --accent: #1ed760;
+  --bg: #070808;
+  --text: #f0f3f1;
+  --prompter-scale: 1;
+}
+
+* { box-sizing: border-box; margin: 0; }
+
+/* The mode sections use display:flex, which would defeat the [hidden]
+   attribute the JS toggles — force it to win. */
+[hidden] { display: none !important; }
+
+html, body { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  overflow: hidden;
+}
+
+button { font: inherit; cursor: pointer; touch-action: manipulation; }
+
+.prompter { height: 100%; display: flex; flex-direction: column; }
+
+/* ── Edit mode ─────────────────────────────────────────────── */
+.edit { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 12px; min-height: 0; }
+
+/* Script library: cue-card chips. Tap to switch, tap the active one to
+   rename inline, ✕ deletes (two-step), the dashed ＋ adds. */
+.tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex: 0 0 auto;
+  padding: 1px;             /* keep chip borders out of the scroll clip */
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  color: color-mix(in srgb, var(--text) 70%, transparent);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+}
+.tab:hover { color: var(--text); border-color: color-mix(in srgb, var(--text) 28%, transparent); }
+.tab:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 1px; }
+.tab.is-on {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent);
+}
+.tab.is-armed {
+  background: color-mix(in srgb, #e5484d 14%, transparent);
+  border-color: color-mix(in srgb, #e5484d 55%, transparent);
+  color: #ff8589;
+}
+.tab-x { font-size: 10.5px; opacity: 0.55; transition: opacity 0.15s ease; }
+.tab-x:hover { opacity: 1; }
+.tab-add {
+  border-style: dashed;
+  background: transparent;
+  color: color-mix(in srgb, var(--text) 42%, transparent);
+  padding: 6px 12px;
+}
+.tab-add:hover {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+/* Inline rename: the active chip's label swaps to a bare input. */
+.tab-edit {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 0;
+  min-width: 6ch;
+  max-width: 24ch;
+}
+
+#script {
+  flex: 1;
+  min-height: 0;
+  resize: none;
+  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--text) 3.5%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: calc(15px * var(--prompter-scale));
+  line-height: 1.6;
+  padding: 14px 16px;
+  outline: none;
+  transition: border-color 0.18s ease, background-color 0.18s ease;
+}
+#script::placeholder { color: color-mix(in srgb, var(--text) 32%, transparent); }
+/* Slim themed scrollbar instead of the stock browser one. */
+#script {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text) 22%, transparent) transparent;
+}
+#script:focus {
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+
+.edit-bar { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.hint {
+  font-size: 11px;
+  letter-spacing: 0.2px;
+  color: color-mix(in srgb, var(--text) 38%, transparent);
+  margin-right: auto;
+}
+.saved { font-size: 11.5px; font-weight: 600; color: color-mix(in srgb, var(--accent) 80%, transparent); }
+#start {
+  border: 0;
+  border-radius: 999px;
+  padding: 9px 20px;
+  background: var(--accent);
+  color: #071007;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 28%, transparent);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+#start:hover { transform: translateY(-1px); box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 36%, transparent); }
+#start:active { transform: translateY(0); }
+
+/* ── Play mode ─────────────────────────────────────────────── */
+.play { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+.stage {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;       /* the stage owns its gestures (drag to reposition) */
+  user-select: none;
+  -webkit-user-select: none;
+}
+.stage:active { cursor: grabbing; }
+
+/* Mirror mode: flip the stage for beam-splitter teleprompter glass. The
+   controls live outside the stage and stay readable. */
+.play.mirror .stage { transform: scaleX(-1); }
+
+/* Cinematic edge fades: text emerges at the bottom, dissolves at the top. */
+.stage::before,
+.stage::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  height: 14%;
+  z-index: 1;
+  pointer-events: none;
+}
+.stage::before { top: 0; background: linear-gradient(to bottom, var(--bg), transparent); }
+.stage::after { bottom: 0; background: linear-gradient(to top, var(--bg), transparent); }
+
+/* The whole line stack moves as ONE transform — the cheap compositor path.
+   Never animate top/margin/scrollTop here (see the SDK performance chapter). */
+.lines {
+  padding: 12vh 8% 80vh;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+}
+
+.line {
+  font-size: calc(24px * var(--prompter-scale));
+  line-height: 1.45;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--text) 48%, transparent);
+  padding: 0.18em 0;
+  transition: color 0.3s ease;
+}
+.line.is-focus { color: var(--accent); }
+
+/* [pausa] marker rows: small dim beats in the flow; the focused one glows
+   while it holds the scroll. */
+.line.is-pause {
+  font-size: calc(13px * var(--prompter-scale));
+  letter-spacing: 0.3em;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--text) 28%, transparent);
+}
+.line.is-pause.is-focus { color: color-mix(in srgb, var(--accent) 85%, transparent); }
+
+/* 3-2-1 countdown overlay: one big number popping per tick (transform/opacity
+   only — no infinite animation). */
+.count {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(96px * var(--prompter-scale));
+  font-weight: 800;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+.count.is-tick { animation: count-pop 0.65s cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes count-pop {
+  from { opacity: 0; transform: scale(1.35); }
+  30%  { opacity: 1; transform: scale(1); }
+  to   { opacity: 0.9; transform: scale(0.96); }
+}
+
+/* ── Transport: one floating pill toolbar ──────────────────── */
+.controls { display: flex; justify-content: center; padding: 10px; flex: 0 0 auto; }
+.bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+  background: color-mix(in srgb, var(--text) 4.5%, transparent);
+  border-radius: 999px;
+  padding: 5px 8px 5px 5px;
+}
+.bar button {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: color-mix(in srgb, var(--text) 62%, transparent);
+  font-size: 14px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.bar button:hover { color: var(--text); background: color-mix(in srgb, var(--text) 8%, transparent); }
+.bar button:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 1px; }
+.bar .go {
+  width: 40px;
+  height: 40px;
+  background: var(--accent);
+  color: #071007;
+  font-size: 15px;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+.bar .go:hover { background: var(--accent); color: #071007; filter: brightness(1.07); }
+#mirrorbtn.is-on,
+#islandbtn.is-on { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+/* Island toggle: the icon is the thing itself — a capsule that FILLS while the
+   line is being projected into the topbar island, hollow once muted. */
+.bar .cap {
+  display: block;
+  width: 15px;
+  height: 8px;
+  border: 1.6px solid currentColor;
+  border-radius: 999px;
+  transition: background-color 0.18s ease;
+}
+#islandbtn.is-on .cap { background: currentColor; }
+.sep {
+  width: 1px;
+  height: 18px;
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+  margin: 0 4px;
+  flex: 0 0 auto;
+}
+/* Live meta: speed over time remaining, right-aligned tabular numbers. */
+.meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  padding: 0 10px 0 6px;
+  min-width: 54px;
+}
+.meta b {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.meta span {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--text) 52%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+.meta span:empty { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .count.is-tick { animation: none; }
+  .line { transition: none; }
+  #start, .bar button, .bar .cap, .tab { transition: none; }
+}

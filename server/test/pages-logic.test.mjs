@@ -181,3 +181,14 @@ test('normalizePagesList preserves the imported marker and never invents it', ()
   assert.equal(out[1].imported, true);
   assert.equal('imported' in out[2], false);
 });
+
+test('normalizePagesList preserves a valid receipt id only on imported pages', () => {
+  const out = p.normalizePagesList([
+    { id: 'a', name: 'Tracked', imported: true, installId: 'xi_m5abc123deadbeef' },
+    { id: 'b', name: 'Mine', installId: 'xi_m5abc123deadbeef' },
+    { id: 'c', name: 'Bad', imported: true, installId: '../bad' },
+  ], SEED);
+  assert.equal(out[0].installId, 'xi_m5abc123deadbeef');
+  assert.equal('installId' in out[1], false);
+  assert.equal('installId' in out[2], false);
+});

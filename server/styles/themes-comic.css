@@ -1,0 +1,1315 @@
+/* ============================================================
+   Comic Book skin — :root[data-style="comic"]
+   ------------------------------------------------------------
+   Opt-in alternate style language (Settings → Aspetto → Stile
+   dashboard), a sibling of themes-retro.css: every rule is keyed
+   off a single root attribute set by applyHubSettings(), so
+   switching back to Liquid Glass removes the attribute and leaves
+   zero residue.
+
+   Design: a printed comic-book page — opaque paper panels, a thick
+   ink outline, hard offset shadows (no blur), a faint halftone dot
+   field and a hand-drawn label font.
+
+   IMPORTANT — this skin is a STRUCTURE, not a palette. It forces NO
+   colour of its own: the paper is the theme's Base background, the
+   text is the theme's Text, the outline follows "Lines & borders",
+   and highlights use the Accent. So every colour picker keeps
+   working under Comic and Reset restores the theme. applyHubSettings
+   derives the actual light/dark appearance from the selected panel surface,
+   so Comic can be cream paper, dark ink-board or any user palette without a
+   second component-specific colour map.
+   ============================================================ */
+
+:root[data-style="comic"] {
+  /* The ink: outline / hairline colour follows "Lines & borders", falling back
+     to the Text colour when that's Auto. Do not assign --line back to this
+     token: doing so creates a custom-property cycle and silently invalidates
+     every border that consumes --comic-ink. */
+  --comic-ink: var(--line, var(--text));
+  --comic-shadow: color-mix(in srgb, var(--comic-ink) 82%, transparent);
+  --comic-paper: var(--surface);
+  --comic-paper-soft: color-mix(in srgb, var(--comic-paper), var(--comic-ink) 4%);
+  --comic-paper-deep: color-mix(in srgb, var(--comic-paper), var(--comic-ink) 9%);
+  --comic-paper-fill:
+    radial-gradient(circle at 20% 30%, var(--comic-pencil) 0 0.55px, transparent 0.75px) 0 0 / 9px 9px,
+    radial-gradient(circle at 70% 65%, color-mix(in srgb, var(--comic-ink) 20%, transparent) 0 0.5px, transparent 0.7px) 2px 3px / 13px 13px,
+    var(--comic-paper);
+  --comic-rule: color-mix(in srgb, var(--comic-ink) 58%, transparent);
+  --comic-pencil: color-mix(in srgb, var(--comic-ink) 34%, transparent);
+  --comic-muted: var(--muted-text);
+  --comic-accent-soft: color-mix(in srgb, var(--accent) 18%, var(--comic-paper));
+  --comic-accent-strong: color-mix(in srgb, var(--accent) 32%, var(--comic-paper));
+  --comic-accent-ink: color-mix(in srgb, var(--accent) 64%, var(--comic-ink));
+  --comic-success-ink: var(--color-success);
+  --comic-warning-ink: var(--color-warn);
+  --comic-danger-ink: var(--color-danger);
+  --comic-yellow: var(--color-warn);
+  --comic-red: var(--color-danger);
+  --comic-cyan: var(--color-info);
+  --xe-stock-up: var(--comic-success-ink);
+  --xe-stock-down: var(--comic-danger-ink);
+
+  /* themes-light.css is the app-wide literal-colour repair layer. Rebind its
+     semantic tokens to the selected Comic palette so it yields cream paper,
+     pencil grey and ink rather than an unrelated white/blue light theme. */
+  --lt-border: var(--comic-rule);
+  --lt-divider: var(--comic-pencil);
+  --lt-track: var(--comic-paper-deep);
+  --lt-hover: var(--comic-paper-deep);
+  --lt-strong: var(--text);
+  --lt-soft: var(--comic-muted);
+
+  /* Geometry: subtly uneven corners read as hand-inked without making the
+     dashboard wobble or changing any tile's measured box. */
+  --radius: 9px;
+  --radius-control: 8px;
+  --radius-tile: 11px;
+  --radius-modal: 13px;
+
+  /* Ink borders everywhere the tokens reach. */
+  --panel-border: var(--comic-ink) !important;
+  --panel-topline: transparent !important;
+
+  /* ThemePalette already provides both muted/dim spellings. Do not alias them
+     back through --comic-muted: that creates a custom-property cycle and makes
+     secondary text fall back unpredictably. */
+  --oled-bg-rgb: var(--panel-rgb) !important;
+  --oled-border: var(--comic-rule) !important;
+  --slider-fill: var(--comic-ink) !important;
+  --readability-shadow: none !important;
+  --icon-readability-filter: none !important;
+
+  /* Hard offset ink shadows — the classic comic-panel drop, no blur. */
+  --shadow-sm: 2px 2px 0 var(--comic-shadow) !important;
+  --shadow-md: 4px 4px 0 var(--comic-shadow) !important;
+  --shadow-lg: 6px 6px 0 var(--comic-shadow) !important;
+  --shadow-xl: 8px 8px 0 var(--comic-shadow) !important;
+  --panel-drop: 5px 5px 0 var(--comic-shadow) !important;
+
+  /* Glass becomes opaque paper (the Base background): no blur, no sheen. */
+  --glass-bg: rgb(var(--panel-rgb)) !important;
+  --glass-border: var(--comic-ink) !important;
+  --glass-blur: 0px !important;
+  --glass-saturate: 100% !important;
+  --glass-highlight: transparent !important;
+  --glass-sheen: none !important;
+  --floating-ui-bg: rgb(var(--panel-rgb)) !important;
+  --floating-ui-border: var(--comic-ink) !important;
+
+  --slider-track: color-mix(in srgb, rgb(var(--panel-rgb)), var(--comic-ink) 14%) !important;
+}
+
+/* Paper is opaque — actually drop the backdrop filter rather than leaving an
+   identity blur(0px), which would still force Chromium to snapshot the backdrop
+   of every glass element (topbar, modals, toasts) for nothing. */
+:root[data-style="comic"] .material-glass {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* ── App-wide utility surfaces ──────────────────────────────
+   Settings, switchers, editors and portaled menus sit outside `.panel`, so a
+   widget-only skin can never make the whole application coherent. These are
+   all paper tools. Image/video canvases and immersive AI/weather surfaces are
+   intentionally absent and keep their own light-on-dark contrast contract. */
+:root[data-style="comic"] :is(
+  .settings-panel, .app-panel, .tab-panel, .picker-panel, .day-modal-card, .cs-panel,
+  .widget-palette-modal, .tile-style-pop, .preset-modal, .cgal-modal,
+  .native-promo, .wc-modal, .cw-modal, .upd-card, .discord-invite,
+  .deck-pmenu, .deck-style-dialog, .deck-ed-modal, .deck-mix-modal, .deck-toast,
+  .vt-card
+) {
+  background: var(--comic-paper-fill);
+  color: var(--text);
+  border: 2px solid var(--comic-ink);
+  border-radius: 9px 13px 10px 12px / 12px 9px 13px 10px;
+  box-shadow: 4px 4px 0 var(--comic-shadow);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Portaled Deck tools are paper in Comic, so keep their text on the same
+   semantic ink role even though they live outside the redrawn device root. */
+:root[data-style="comic"] :is(
+  .deck-pmenu, .deck-style-dialog, .deck-ed-modal, .deck-mix-modal, .deck-toast
+) {
+  --text: var(--comic-ink);
+}
+
+/* Deck editing stays a legible paper tool while the full-screen overlay remains
+   a translucent backdrop. This also fixes compact S/M/L labels and icon buttons. */
+:root[data-style="comic"] .deck-style-modal {
+  background: color-mix(in srgb, var(--comic-ink) 58%, transparent);
+}
+:root[data-style="comic"] .vt-overlay {
+  background: color-mix(in srgb, var(--comic-ink) 58%, transparent);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+:root[data-style="comic"] .vt-card {
+  border: 2px solid var(--comic-ink);
+}
+:root[data-style="comic"] .vt-card-desc,
+:root[data-style="comic"] .vt-card-close { color: var(--comic-muted); }
+:root[data-style="comic"] .vt-card-tip {
+  background: color-mix(in srgb, rgb(var(--vt-rgb)) 12%, var(--comic-paper-soft));
+  border-left-color: var(--comic-ink);
+}
+:root[data-style="comic"] .vt-btn {
+  color: var(--text);
+  background: var(--comic-paper-soft);
+  border: 1.5px solid var(--comic-ink);
+  border-radius: 7px 10px 8px 9px / 9px 7px 10px 8px;
+  box-shadow: 1px 1px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .vt-btn-done {
+  color: var(--text);
+  background: color-mix(in srgb, rgb(var(--vt-rgb)) 18%, var(--comic-paper-soft));
+  border-color: var(--comic-ink);
+}
+:root[data-style="comic"] .vt-btn-done:active {
+  background: color-mix(in srgb, rgb(var(--vt-rgb)) 30%, var(--comic-paper-soft));
+}
+:root[data-style="comic"] :is(.deck-tools, .deck-seg) {
+  color: var(--comic-ink);
+  background: var(--comic-paper-soft);
+  border-color: var(--comic-ink);
+  box-shadow: 2px 2px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] :is(.deck-tools-cap, .deck-style-cap, .deck-style-subhead) {
+  color: var(--comic-muted);
+  letter-spacing: 0;
+  opacity: 1;
+}
+:root[data-style="comic"] .deck-style-subhead { border-color: var(--comic-rule); }
+:root[data-style="comic"] .deck-seg button {
+  min-width: 30px;
+  color: var(--comic-ink);
+  background: transparent;
+  border: 1px solid transparent;
+}
+:root[data-style="comic"] .deck-seg button.active {
+  color: var(--comic-ink);
+  background: color-mix(in srgb, var(--accent) 34%, var(--comic-paper));
+  border-color: var(--comic-ink);
+  box-shadow: 1px 1px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] :is(.deck-pill, .deck-step, .deck-style-close) {
+  color: var(--comic-ink);
+  background: var(--comic-paper);
+  border-color: var(--comic-ink);
+  box-shadow: 1px 1px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .deck-pill.on,
+:root[data-style="comic"] .deck-customize.deck-pill {
+  color: var(--comic-ink);
+  background: color-mix(in srgb, var(--accent) 25%, var(--comic-paper));
+  border-color: var(--comic-ink);
+}
+:root[data-style="comic"] .deck-step-val,
+:root[data-style="comic"] .deck-style-title { color: var(--comic-ink); }
+:root[data-style="comic"] .deck-decor-swatch { border-color: var(--comic-ink); }
+:root[data-style="comic"] .deck-style-preview {
+  background:
+    conic-gradient(var(--comic-paper-deep) 0 25%, var(--comic-paper-soft) 0 50%, var(--comic-paper-deep) 0 75%, var(--comic-paper-soft) 0) 0 0 / 22px 22px;
+  border: 1px solid var(--comic-ink);
+}
+
+:root[data-style="comic"] :is(
+  .settings-head, .settings-foot, .app-head, .tab-head, .picker-head,
+  .day-modal-header, .cgal-topbar, .deck-ed-head, .deck-mix-head,
+  .settings-nav-footer
+) { border-color: var(--comic-rule); }
+
+:root[data-style="comic"] :is(
+  .settings-group, .settings-subpanel, .settings-toggle-row, .settings-segmented,
+  .settings-upload, .settings-preview-card, .ai-provider-toggle label,
+  .app-card, .app-search-wrap, .tab-card,
+  .widget-palette-item, .preset-page-item, .preset-check-row, .preset-deck-act,
+  .wc-card, .wc-preview, .tile-style-seg, .tile-style-tabs,
+  .deck-ed-side, .deck-ed-step, .deck-ed-preview-stage, .deck-mix-apps,
+  .upd-notes code, .upd-hl-footer, .upd-status
+) {
+  background-color: var(--comic-paper-soft);
+  border-color: var(--comic-rule);
+}
+
+:root[data-style="comic"] :is(
+  .settings-group, .settings-subpanel, .settings-toggle-row,
+  .app-card, .tab-card, .widget-palette-item, .preset-page-item,
+  .preset-check-row, .wc-card, .deck-ed-step
+) {
+  border-width: 1.5px;
+  border-radius: 7px 10px 8px 9px / 9px 7px 10px 8px;
+  box-shadow: 1px 1px 0 var(--comic-pencil);
+}
+
+/* Deck's portaled profile/editor controls are authored as dark glass one by
+   one. On the Comic paper tools they need the same ink edge as every other
+   command, including the dashed "Open on the PC" row from the report. */
+:root[data-style="comic"] :is(
+  .deck-pmenu-tool, .deck-pmenu-add, .deck-pmenu-clean,
+  .upd-close, .upd-btn,
+  .deck-ed-close, .deck-ed-tab, .deck-ed-segbtn, .deck-ed-colorclear,
+  .deck-ed-emoji, .deck-ed-appicon-btn, .deck-ed-btn, .deck-ed-preset-chip,
+  .deck-ed-trigbtn, .deck-ed-stepbtn, .deck-ed-addstep,
+  .deck-ed-hotkey-mod, .deck-ed-hotkey-clear, .deck-mix-close
+) {
+  color: var(--text);
+  background: var(--comic-paper-soft);
+  border-color: var(--comic-rule);
+  box-shadow: 1px 1px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .deck-pmenu-dot { background: var(--comic-pencil); }
+:root[data-style="comic"] .deck-pmenu-head ~ .deck-pmenu-head { border-color: var(--comic-rule); }
+:root[data-style="comic"] .upd-actions { border-color: var(--comic-rule); }
+:root[data-style="comic"] .upd-notes::-webkit-scrollbar-thumb { background: var(--comic-pencil); }
+:root[data-style="comic"] :is(.upd-ver, .upd-notes a, .upd-media-fallback) {
+  color: var(--comic-accent-ink);
+}
+:root[data-style="comic"] .upd-status.ok {
+  color: var(--comic-success-ink);
+  background: color-mix(in srgb, #16844e 12%, var(--comic-paper));
+}
+:root[data-style="comic"] .upd-status.error {
+  color: var(--comic-danger-ink);
+  background: color-mix(in srgb, var(--red) 11%, var(--comic-paper));
+}
+
+/* One quiet accent wash marks selection. Solid red is reserved for errors,
+   destructive actions and tiny status marks, not entire everyday controls. */
+:root[data-style="comic"] :is(
+  .settings-segment-btn.active, .settings-nav-btn.active,
+  .tile-style-seg button.active, .tile-style-tabs button.active,
+  .widget-palette-cat.active, .deck-ed-tab.active, .deck-ed-segbtn.active,
+  .deck-ed-trigbtn.active, .deck-pmenu-row.active
+) {
+  color: var(--text);
+  background: var(--comic-accent-soft);
+  border-color: var(--comic-ink);
+  box-shadow: 1.5px 1.5px 0 var(--comic-pencil);
+}
+
+:root[data-style="comic"] :is(
+  .settings-store-pill, .settings-btn.primary, .native-promo-install,
+  .tile-style-btn.primary, .deck-ed-btn.primary, .upd-btn.primary, .feed-add
+) {
+  color: var(--text);
+  background: var(--comic-accent-strong);
+  border: 1.5px solid var(--comic-ink);
+  box-shadow: 2px 2px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] :is(.settings-btn.danger, .deck-ed-btn.danger,
+  .deck-pmenu-tool.danger, .deck-pmenu-clean) {
+  color: var(--comic-danger-ink);
+  background: color-mix(in srgb, var(--red) 10%, var(--comic-paper));
+  border-color: color-mix(in srgb, var(--red) 55%, var(--comic-ink));
+}
+
+/* Utility fields must clear dark `background` shorthands, not only change the
+   background-color layer. This covers the Notes scratchpad and every editor. */
+:root[data-style="comic"] :is(
+  .notes-area, .settings-text-input, .settings-hex-input,
+  .preset-code-field, .deck-pmenu-input, .deck-ed-input,
+  .deck-ed-modal .cs-trigger, .tile-style-font, .wc-input,
+  input[type="url"], input[type="email"]
+) {
+  background: var(--comic-paper-soft);
+  color: var(--text);
+  border-color: var(--comic-ink);
+  box-shadow: inset 1px 1px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .deck-ed-input option {
+  background: var(--comic-paper);
+  color: var(--text);
+}
+:root[data-style="comic"] select option {
+  background: var(--comic-paper);
+  color: var(--text);
+}
+
+/* Accents that are bright enough for dots and fills are not necessarily dark
+   enough for 10–12px copy on paper. Keep those roles separate. */
+:root[data-style="comic"] :is(
+  .qbtn-settings, .qbtn-tabs, .qbtn-focus, .qbtn-apps, .qbtn-layout,
+  .tab-icon, .tab-current, .settings-preview-kicker, .settings-slider-value,
+  .settings-ai-steps li a, .settings-ai-steps li::before,
+  .calendar-kicker, .day-cell.today, .upcoming-when,
+  .day-modal-kicker, .event-time, .stat-head-temp,
+  .notes-status.saved, .streaming-url, .streaming-setup-link,
+  .settings-spotify-steps li::marker
+) { color: var(--comic-accent-ink); }
+:root[data-style="comic"] .settings-spotify-steps li::marker {
+  color: var(--comic-success-ink);
+}
+
+:root[data-style="comic"] :is(
+  .settings-status.ok, .settings-mictest-result.is-ok, .settings-sb-status.is-ok,
+  .sh-set-status.ok
+) { color: var(--comic-success-ink); }
+:root[data-style="comic"] :is(
+  .settings-mictest-result.is-warn, .streaming-warn,
+  .feed-help-group.is-warn .feed-help-title
+) { color: var(--comic-warning-ink); }
+:root[data-style="comic"] :is(
+  .settings-status.error, .settings-sb-status.is-err,
+  .feed-status.is-error, .streaming-err, .settings-bgcode-error,
+  .sh-set-status.err
+) { color: var(--comic-danger-ink); }
+
+:root[data-style="comic"] :is(
+  .lang-seg.active, .day-cell.selected, .streaming-code, .ai-pull-progress #ai-pull-label
+) { color: var(--text); }
+:root[data-style="comic"] :is(.calendar-title, .day-modal-title) { color: var(--text); }
+:root[data-style="comic"] :is(
+  .sh-set-label, .sh-set-dev, .sh-set-check-name
+) { color: var(--text); }
+:root[data-style="comic"] :is(
+  .sh-set-desc, .sh-set-help, .sh-set-hint, .sh-set-status,
+  .sh-set-check-type, .sh-set-group, .sh-set-check-id,
+  .settings-ai-privacy, .settings-ai-caps-label
+) { color: var(--comic-muted); }
+:root[data-style="comic"] :is(
+  .settings-hint.settings-superseded-note,
+  .ai-provider-toggle input[type="radio"]:checked ~ .ai-prov-name,
+  .settings-inline-link, .settings-store-hero-eyebrow,
+  .settings-subcard-badge,
+  .settings-subcard-ico--limited
+) { color: var(--comic-accent-ink); }
+:root[data-style="comic"] .native-promo-beta { color: var(--text); }
+:root[data-style="comic"] .settings-seg-btn.is-active {
+  color: var(--text);
+  background: var(--comic-accent-soft);
+  border-color: var(--comic-ink);
+  box-shadow: inset 1px 1px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .support-cta-coffee {
+  color: var(--text);
+  background: color-mix(in srgb, #ff4d8d 38%, var(--comic-paper));
+  border: 1.5px solid var(--comic-ink);
+  box-shadow: 2px 2px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] :is(.sys-tab.active, .agenda-panel .cal-task-btn.active, .clock-sep) {
+  color: var(--comic-accent-ink);
+}
+:root[data-style="comic"] .tabgroup-tab.active { color: var(--comic-accent-ink); }
+:root[data-style="comic"] :is(.sys-tab.active, .agenda-panel .cal-task-btn.active, .tabgroup-tab.active) {
+  background: var(--comic-accent-soft);
+  box-shadow: inset 1px 1px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .dc-logo {
+  color: color-mix(in srgb, #5865f2 58%, var(--comic-ink));
+}
+:root[data-style="comic"] .day-modal-close {
+  color: var(--comic-muted);
+  background: var(--comic-paper-soft);
+  border-color: var(--comic-rule);
+}
+:root[data-style="comic"] :is(.discord-invite-close, .discord-invite-dismiss) {
+  color: var(--comic-muted);
+}
+:root[data-style="comic"] :is(.discord-invite-close, .discord-invite-dismiss):hover {
+  color: var(--text);
+  background: var(--comic-paper-deep);
+}
+:root[data-style="comic"] :is(.settings-nav-btn-support,
+  .settings-nav-btn-support:hover, .settings-nav-btn-support.active) {
+  color: color-mix(in srgb, #ff4d8d 52%, var(--comic-ink));
+}
+
+/* Dark hard-coded switcher labels are not covered by shared tokens. */
+:root[data-style="comic"] :is(.app-name, .tab-title, .preset-modal-title,
+  .preset-modal-whatname, .preset-check-name, .deck-pmenu-pick,
+  .deck-ed-title, .deck-mix-title, .wc-title) { color: var(--text); }
+:root[data-style="comic"] :is(.app-window-title, .preset-modal-desc,
+  .preset-page-meta, .preset-check-meta, .deck-pmenu-head,
+  .deck-pmenu-empty, .deck-ed-label, .wc-lead, .wc-field-label) {
+  color: var(--comic-muted);
+}
+
+/* ── Typography ──────────────────────────────────────────────
+   Comic Neue is the hand-drawn body face; Bangers is the inked
+   display cap, reserved for the small uppercase labels where its
+   punch reads as a title. Both fall back to Comic Sans MS —
+   guaranteed on the Windows target — so it stays hand-drawn offline. */
+:root[data-style="comic"] body {
+  font-family: 'Comic Neue', 'Comic Sans MS', 'Chalkboard SE', system-ui, sans-serif;
+  letter-spacing: 0;
+}
+:root[data-style="comic"] :is(.settings-group-head > span:first-child,
+  .settings-preview-kicker, .tabgroup-tab, .topbtn span,
+  .panel [class$="-title"]:not(.deck-root *), .panel [class$="-logo"]:not(.deck-root *),
+  .panel .section-title, .panel .dc-sec-label) {
+  font-family: 'Bangers', 'Comic Sans MS', 'Comic Neue', cursive;
+  font-weight: 400;
+  font-style: normal;           /* Bangers is a display cap — never the inherited italic */
+  letter-spacing: 0;
+}
+:root[data-style="comic"] :is(.settings-group-head > span:first-child,
+  .settings-preview-kicker, .tabgroup-tab, .topbtn span,
+  .panel .section-title, .panel .dc-sec-label) {
+  font-size: max(1.02em, 11px);
+  text-transform: uppercase;
+}
+
+/* ── Panels: inked paper cards ───────────────────────────────
+   Opaque paper fill (the derived --panel), a thick ink outline, and the
+   hard comic drop. The Liquid Glass top-light wash is removed. */
+:root[data-style="comic"] .panel {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 20% 30%, var(--comic-pencil) 0 0.55px, transparent 0.75px) 0 0 / 9px 9px,
+    radial-gradient(circle at 70% 65%, color-mix(in srgb, var(--comic-ink) 20%, transparent) 0 0.5px, transparent 0.7px) 2px 3px / 13px 13px,
+    var(--panel);
+  border: 2px solid var(--comic-ink);
+  border-radius: 8px 12px 9px 11px / 11px 8px 12px 9px;
+  box-shadow: 1px 1px 0 var(--comic-pencil), var(--panel-drop);
+}
+
+/* A second imperfect pencil pass gives every current and future top-level tile
+   the sketched outline the theme promises. It sits inside the box, so GridStack
+   geometry and touch targets remain unchanged. */
+:root[data-style="comic"] :is(.grid-stack-item-content > .panel, body[data-panel] .panel)::before {
+  content: '';
+  position: absolute;
+  inset: 2px 1px 1px 2px;
+  z-index: 30;
+  border: 1px solid var(--comic-pencil);
+  border-radius: 10px 7px 11px 8px / 7px 11px 8px 10px;
+  transform: rotate(-0.035deg);
+  pointer-events: none;
+}
+
+/* A tab-group is one physical tile. Its active member should use the parent's
+   paper rather than drawing a second card and double-shadow inside it. */
+:root[data-style="comic"] .tabgroup-body > .panel {
+  background: transparent;
+  border: 0;
+  border-radius: inherit;
+  box-shadow: none;
+}
+
+/* ── Halftone page field ─────────────────────────────────────
+   A faint benday dot grid (in the ink colour) sits under everything —
+   static paint, zero animation cost. A pack's custom animated background
+   paints on its own layer above this, so the halftone only shows on a bare
+   page. The Liquid Glass aurora blobs are hidden here. */
+:root[data-style="comic"] .aurora-blob { display: none; }
+:root[data-style="comic"] #bg-aurora::before {
+  background-image:
+    radial-gradient(color-mix(in srgb, var(--comic-ink), transparent 84%) 1.2px, transparent 1.6px),
+    radial-gradient(color-mix(in srgb, var(--comic-ink), transparent 90%) 1.2px, transparent 1.6px);
+  background-size: 22px 22px, 22px 22px;
+  background-position: 0 0, 11px 11px;
+}
+
+/* ── Controls: inked buttons with a real press ───────────────
+   A hair of ink tint lifts them off the paper; ink outline, hard shadow, and a
+   physical press (the control moves into its own shadow). */
+:root[data-style="comic"] :is(.ui-btn, .topbtn, .settings-segment-btn, .preset-btn) {
+  background: var(--comic-paper-soft);
+  color: var(--text);
+  border: 1.5px solid var(--comic-ink);
+  border-radius: 7px 10px 8px 9px / 9px 7px 10px 8px;
+  box-shadow: 2px 2px 0 var(--comic-pencil);
+  transition: transform 0.04s steps(2, end), box-shadow 0.04s steps(2, end);
+}
+:root[data-style="comic"] :is(.ui-btn, .topbtn, .settings-segment-btn, .preset-btn):active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+:root[data-style="comic"] :is(.settings-segment-btn.active, .ui-segmented button.active) {
+  background: color-mix(in srgb, var(--accent), transparent 66%);
+  color: var(--text);
+  box-shadow: inset 2px 2px 0 var(--comic-shadow);
+}
+
+/* Settings buttons (.settings-btn) aren't part of the .ui-btn family and their
+   defaults — a near-transparent white fill and near-white .primary text — vanish
+   on paper. Repaint them as inked paper so Reset buttons stay legible. */
+:root[data-style="comic"] .settings-btn {
+  border: 1.5px solid var(--comic-ink);
+  background: var(--comic-paper-soft);
+  color: var(--text);
+  box-shadow: 2px 2px 0 var(--comic-shadow);
+}
+:root[data-style="comic"] .settings-btn:hover { background: color-mix(in srgb, var(--panel), var(--comic-ink) 10%); }
+:root[data-style="comic"] .settings-btn:active { transform: translate(2px, 2px); box-shadow: none; }
+:root[data-style="comic"] :is(.settings-btn.primary, .settings-gamemode-install .settings-btn) {
+  background: var(--comic-accent-strong);
+  color: var(--text);            /* ink on the accent, never the light default */
+  border-color: var(--comic-ink);
+}
+:root[data-style="comic"] .settings-btn.danger { color: var(--color-danger); }
+
+/* Settings scrim: the comic tiles are opaque, but a theme with a low background
+   dim (a vivid animated background left bright for the dashboard) bleeds through
+   the overlay's thin default scrim and makes Settings hard to read. Lay a strong
+   scrim behind the modal so the paper UI reads cleanly — without dimming the
+   dashboard itself (this doesn't touch bgDim). */
+:root[data-style="comic"] .settings-overlay {
+  background: color-mix(in srgb, var(--bg), transparent 8%);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+/* Segmented wells and chips: recessed paper. */
+:root[data-style="comic"] :is(.ui-segmented, .settings-segmented, .tabgroup-bar) {
+  background: var(--comic-paper-deep);
+  border: 1.5px solid var(--comic-ink);
+  padding: 3px;
+}
+
+/* Toggle: inked track, accent knob. */
+:root[data-style="comic"] .ui-toggle .ui-toggle-track {
+  border: 2px solid var(--comic-ink);
+  background: color-mix(in srgb, var(--panel), var(--comic-ink) 8%);
+}
+:root[data-style="comic"] .ui-toggle .ui-toggle-track::after {
+  background: var(--accent);
+  border: 1.5px solid var(--comic-ink);
+  top: 1px; left: 1px;
+}
+
+/* Slider: chunky inked thumb. */
+:root[data-style="comic"] :is(.ui-slider, .settings-range)::-webkit-slider-thumb {
+  border: 2px solid var(--comic-ink);
+  background: var(--accent);
+  box-shadow: 2px 2px 0 var(--comic-shadow);
+}
+
+/* Inputs: paper fields with an ink rule. */
+:root[data-style="comic"] :is(input[type="text"], input[type="search"], input[type="number"],
+  input[type="time"], input[type="date"], input[type="password"], textarea, select) {
+  border: 1.5px solid var(--comic-ink);
+  background-color: var(--comic-paper-soft);
+  color: var(--text);
+  caret-color: var(--accent);
+}
+
+/* ── Inner widget language ───────────────────────────────────
+   The outer sketch alone still leaves dark-theme literals (white washes and
+   dividers) almost invisible on paper. These are the repeated card/control
+   primitives used by the built-in dashboard widgets. `background-color`
+   deliberately preserves meaningful image/gradient layers such as album art,
+   weather skies and charts. */
+:root[data-style="comic"] .panel :is(
+  .stat-box, .system-tabs-left, .sys-uptime,
+  .calendar-card, .cal-task-toggle, .day-cell, .upcoming-block,
+  .timer-add-section, .timer-card, .task-item, .notes-area, .tab-card,
+  .app-card, .app-search-wrap, .device-row, .volume-wrap, .vol-mute-btn, .app-mix-mute, .mic-vol,
+  .dc-pill, .dc-tabs, .dc-btn, .dc-vol-btn, .dc-chan, .dc-member, .dc-chip, .dc-sound, .dc-notif,
+  .obs-card, .obs-scene, .obs-btn, .twitch-card, .twitch-status-pill, .twitch-act-btn,
+  .twitch-field-input, .twitch-chat-toggle, .yt-card, .yt-pill, .yt-btn,
+  .sbw-pill, .sbw-tabs, .sbw-evt, .sbw-global,
+  .wn-item, .wn-muted-row, .sw-row, .sw-stat, .sw-ranges, .sw-add-field,
+  .fw-row, .fw-hero, .fw-mini, .fw-tr, .fw-add-field,
+  .nw-item, .nw-chip, .nw-add-field, .cw-stat, .cw-live, .cw-plan, .cw-custom-input,
+  .wl-seg, .wl-monitor, .wl-row--out, .lgt-chip, .lgt-pick, .lgt-auto,
+  .sh-item, .sh-inline, .sh-seg, .sh-chip, .sh-abtn, .sh-icobtn, .sh-thermo, .sh-now,
+  .sp-tabs, .sp-pl, .sp-dev, .vt-card, .vt-row, .vt-seg, .vt-session,
+  .browser-tabs, .browser-bar, .browser-favorites, .browser-tab, .browser-btn,
+  .browser-url, .browser-fav, .browser-fav-input,
+  .ss-bar, .ss-btn, .ss-tune-panel, .ss-tune-seg, .ss-tune-opt, .ss-setup-card,
+  .remote-intro, .remote-panel-section, .remote-ready-row, .remote-step, .remote-status,
+  .up-setup, .up-seg, .up-seg-btn, .up-reorder-row, .up-move-btn
+) {
+  background-color: var(--comic-paper-soft);
+  border-color: var(--comic-rule);
+}
+
+/* Vitals fill segments are data, not paper — keep the per-vital colour. */
+:root[data-style="comic"] .panel .vt-row .vt-seg.on { background-color: rgb(var(--vt-rgb)); }
+
+/* Repeated touch controls get a compact pencil edge and a physical press. */
+:root[data-style="comic"] .panel :is(
+  .calendar-arrow, .timer-add-btn, .timer-btn, .tasks-add-btn, .notes-foot-btn,
+  .vol-mute-btn, .app-mix-mute, .browser-btn, .ss-btn, .ss-tune-opt,
+  .dc-btn, .dc-vol-btn, .dc-chip, .obs-btn, .twitch-act-btn, .twitch-chat-toggle,
+  .yt-btn, .wn-hbtn, .wn-back, .sw-back, .sw-detail-rm, .fw-back, .fw-detail-rm,
+  .nw-manage, .cw-budget-back, .wl-monitor, .lgt-auto, .sh-chip, .sh-abtn,
+  .sh-icobtn, .sh-step, .sp-ctl, .sp-like, .vt-btn, .remote-btn, .remote-btn-secondary,
+  .up-seg-btn, .up-move-btn
+) {
+  color: var(--text);
+  border-color: var(--comic-ink);
+  box-shadow: 1.5px 1.5px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .panel :is(
+  .calendar-arrow, .timer-add-btn, .timer-btn, .tasks-add-btn, .notes-foot-btn,
+  .vol-mute-btn, .app-mix-mute, .browser-btn, .ss-btn, .ss-tune-opt,
+  .dc-btn, .dc-vol-btn, .dc-chip, .obs-btn, .twitch-act-btn, .twitch-chat-toggle,
+  .yt-btn, .wn-hbtn, .wn-back, .sw-back, .sw-detail-rm, .fw-back, .fw-detail-rm,
+  .nw-manage, .cw-budget-back, .wl-monitor, .lgt-auto, .sh-chip, .sh-abtn,
+  .sh-icobtn, .sh-step, .sp-ctl, .sp-like, .vt-btn, .remote-btn, .remote-btn-secondary,
+  .up-seg-btn, .up-move-btn
+):active {
+  transform: translate(1px, 1px);
+  box-shadow: none;
+}
+
+/* System: replace light-on-dark literals and turn each telemetry card into a
+   pencilled instrument box. Spark colours stay untouched. */
+:root[data-style="comic"] :is(.section-title, .sys-uptime, .stat-value, .stat-detail,
+  .bw-value, .stat-unit, .bw-unit) { color: var(--text); }
+:root[data-style="comic"] :is(.stat-head, .stat-head-value, .stat-muted-detail,
+  .sys-subsection, .stat-na) { color: var(--comic-muted); }
+:root[data-style="comic"] .stat-box {
+  border-width: 1.5px;
+  border-radius: 6px 9px 7px 8px / 8px 6px 9px 7px;
+  box-shadow: 1px 1px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .stat-track { background: var(--comic-paper-deep); }
+:root[data-style="comic"] .stat-track.has-spark {
+  background: repeating-linear-gradient(to bottom, var(--comic-pencil) 0 1px, transparent 1px 11px);
+}
+:root[data-style="comic"] .stat-spark-line { filter: none; stroke-width: 2.35; }
+
+/* Audio and microphone predate the shared colour tokens and contain literal
+   charcoal/white values. Rebuild their controls as pencilled hardware while
+   retaining green/red state colours and the live level fills. */
+:root[data-style="comic"] :is(.vol-title, .vol-value, .mic-vol-value,
+  .audio-unavailable-title, .app-mix-name) { color: var(--text); }
+:root[data-style="comic"] :is(.audio-unavailable, .app-mix-vol, .mic-context,
+  .mic-vol-label, .timer-format-hint, .timer-empty, .timer-label,
+  .timer-done .timer-time, .timer-delete-btn) { color: var(--comic-muted); }
+:root[data-style="comic"] :is(.speaker-apps, .mic-apps) { border-color: var(--comic-rule); }
+:root[data-style="comic"] :is(.vol-slider, .app-mix-slider) {
+  background: var(--comic-paper-deep);
+  outline: 1px solid var(--comic-pencil);
+}
+:root[data-style="comic"] :is(.vol-slider, .app-mix-slider)::-webkit-slider-thumb {
+  background: var(--accent);
+  border: 2px solid var(--comic-ink);
+  box-shadow: 1.5px 1.5px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .mic-vol-track::before {
+  background: linear-gradient(to top, var(--mic-fill) 0%, var(--mic-fill) var(--mic-level),
+    var(--comic-paper-deep) var(--mic-level), var(--comic-paper-deep) 100%);
+  outline: 1px solid var(--comic-pencil);
+}
+:root[data-style="comic"] .mic-vol-track::after,
+:root[data-style="comic"] .mic-vol-slider::-webkit-slider-thumb {
+  border-color: var(--comic-ink);
+  box-shadow: 1.5px 1.5px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .mic-btn {
+  border: 2px solid var(--comic-ink);
+  box-shadow: 3px 3px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .status-label {
+  color: var(--text);
+  border: 1.5px solid var(--comic-ink);
+  background: color-mix(in srgb, var(--green) 24%, var(--comic-paper));
+  box-shadow: 1.5px 1.5px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .status-label.muted {
+  color: var(--text);
+  background: color-mix(in srgb, var(--red) 22%, var(--comic-paper));
+}
+
+/* Timer cards use a compact comic stopwatch treatment. */
+:root[data-style="comic"] .timer-time { color: var(--text); }
+:root[data-style="comic"] .timer-circle-bg { stroke: var(--comic-pencil); }
+:root[data-style="comic"] .timer-card {
+  border-width: 1.5px;
+  border-radius: 7px 10px 8px 9px / 9px 7px 10px 8px;
+  box-shadow: 1px 1px 0 var(--comic-pencil);
+}
+
+/* Discord: preserve blurple as an accent, but redraw the translucent dark UI as
+   ink on paper. This is the panel that exposed most of the washed-out labels in
+   the original POW! screenshot. */
+:root[data-style="comic"] .dc-wrap {
+  background:
+    radial-gradient(circle at 86% 18%, rgba(88,101,242,0.12) 0 1.2px, transparent 1.4px) 0 0 / 12px 12px,
+    transparent;
+}
+:root[data-style="comic"] .dc-wrap::after { opacity: 0.045; filter: grayscale(1) contrast(1.5); }
+:root[data-style="comic"] :is(.dc-user, .dc-vol-val, .dc-guild, .dc-chan, .dc-notif-body) { color: var(--text); }
+:root[data-style="comic"] :is(.dc-pill, .dc-tab:not(.is-active), .dc-vol-lbl,
+  .dc-sec-label, .dc-member, .dc-chip) { color: var(--comic-muted); }
+:root[data-style="comic"] .dc-guild {
+  background: var(--comic-paper-deep);
+  border-color: var(--comic-rule);
+}
+:root[data-style="comic"] .dc-tab.is-active {
+  color: var(--text);
+  background: color-mix(in srgb, #5865f2 42%, var(--comic-paper));
+  border: 1.5px solid var(--comic-ink);
+  box-shadow: 2px 2px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] :is(.dc-call-label, .dc-notif-title, .dc-sound-prev) {
+  color: color-mix(in srgb, #5865f2 72%, var(--comic-ink));
+}
+
+/* Media transport is another dark-first surface. Album art remains artwork;
+   only the controls and labels are converted to inked paper. */
+:root[data-style="comic"] :is(.media-title, .media-chat-np-title, .msp-sheet-title) { color: var(--text); }
+:root[data-style="comic"] :is(.media-artist, .media-chat-np-artist, .msp-item-artist) { color: var(--muted-text); }
+:root[data-style="comic"] :is(.control-btn, .msp-ctl, .msp-pill, .media-vol-mute) {
+  color: var(--comic-ink);
+  background-color: var(--comic-paper-soft);
+  border-color: var(--comic-ink);
+  box-shadow: 1.5px 1.5px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .control-btn.primary {
+  color: var(--comic-ink);
+  background: var(--accent);
+  border: 1.5px solid var(--comic-ink);
+}
+:root[data-style="comic"] :is(.media-vol-slider, .msp-range)::-webkit-slider-thumb {
+  background: var(--comic-ink);
+  border: 1px solid var(--comic-paper);
+}
+
+/* The browser and second-screen pixels remain untouched. Only their host chrome
+   is redrawn, so web pages and captured monitors keep their true colours. */
+:root[data-style="comic"] :is(.browser-tabs, .browser-bar, .browser-favorites, .ss-bar) {
+  border-color: var(--comic-ink);
+  background: var(--comic-paper-deep);
+}
+:root[data-style="comic"] :is(.browser-tab, .browser-fav, .browser-loading,
+  .browser-unavailable, .ss-tune-label, .ss-tune-opt, .ss-loading,
+  .ss-setup-msg, .ss-setup-hint) { color: var(--comic-muted); }
+:root[data-style="comic"] :is(.browser-tab.is-active, .browser-tab:hover,
+  .browser-fav:hover, .ss-tune-opt.is-active) {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 28%, var(--comic-paper));
+}
+:root[data-style="comic"] :is(.browser-url, .browser-fav-input, .ss-tune-panel) {
+  color: var(--text);
+  background: var(--comic-paper-soft);
+  border-color: var(--comic-ink);
+  box-shadow: 2px 2px 0 var(--comic-pencil);
+  backdrop-filter: none;
+}
+
+/* Integration controls and setup states live on paper; photographic/video
+   previews (OBS, UniFi, Spotify artwork) deliberately retain their real image. */
+:root[data-style="comic"] :is(.yt-viewers-num, .twitch-viewers-num,
+  .obs-scene.is-active, .up-setup-title, .remote-intro-title,
+  .remote-ready-val, .sh-item-name, .sh-item-value, .sh-now-title) { color: var(--text); }
+:root[data-style="comic"] :is(.up-setup-msg, .up-seg-btn:not(.is-active),
+  .up-move-btn, .remote-hint, .remote-panel-label, .remote-ready-label,
+  .sh-item-ico, .sh-item-sub, .sh-item-go, .sh-item-unit,
+  .sh-sheet-sub, .sh-sheet-close, .sh-thermo-current, .sh-thermo-action,
+  .sh-now-artist, .sh-empty-msg) { color: var(--comic-muted); }
+:root[data-style="comic"] :is(.obs-scene.is-active, .up-seg-btn.is-active,
+  .ss-tune-opt.is-active, .wl-seg-btn.is-active) {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 30%, var(--comic-paper));
+  border-color: var(--comic-ink);
+}
+:root[data-style="comic"] .up-reorder-row {
+  border: 1px solid var(--comic-rule);
+  box-shadow: 1px 1px 0 var(--comic-pencil);
+}
+
+/* Light-paper contrast for common recent-widget status copy and controls. */
+:root[data-style="comic"] :is(.sbw-pill, .yt-pill, .twitch-status-pill,
+  .wn-item-body, .wn-muted-name, .sh-ctl-label, .sh-ctl-note,
+  .sh-seg-btn:not(.is-active), .sh-chip:not(.is-active), .sh-icobtn:not(.is-active)) {
+  color: var(--comic-muted);
+}
+:root[data-style="comic"] :is(.sh-seg-btn.is-active, .sh-abtn.is-active,
+  .sh-chan-go, .lgt-chip.is-active, .yt-btn.is-live, .twitch-golive.is-live) {
+  color: var(--text);
+  border-color: var(--comic-ink);
+  background: color-mix(in srgb, var(--accent) 28%, var(--comic-paper));
+}
+
+/* Top chrome visible in every screenshot must use the same paper/ink contrast. */
+:root[data-style="comic"] :is(body:not([data-panel]) .topbar, body.topbar-minimal:not([data-panel]) .topbar-mini) {
+  background: var(--comic-paper);
+  border: 1.5px solid var(--comic-ink);
+  border-radius: 9px 13px 8px 12px / 12px 8px 13px 9px;
+  box-shadow: 3px 3px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .clock-weather,
+:root[data-style="comic"] .sys-uptime {
+  background-color: var(--comic-paper-soft);
+  border-color: var(--comic-ink);
+  color: var(--text);
+}
+:root[data-style="comic"] .clock-weather :is(.weather-temp, .weather-place) { color: var(--text); }
+:root[data-style="comic"] #xe-ticker {
+  background: var(--comic-paper);
+  color: var(--text);
+  border-color: var(--comic-ink);
+}
+
+/* ── Deck cap theme: Vivid / Fumetto ────────────────────────
+   This material belongs to an individual Deck profile, independently from the
+   dashboard theme. Per-key colours become printed ink and every icon/caption
+   receives a paper-backed contrast layer. */
+.deck-root[data-capstyle="vivid"] {
+  --comic-ink: #17131d;
+  --comic-muted: #5e5961;
+  --comic-pencil: #6e685f;
+  --comic-red: #ef476f;
+  --comic-cyan: #41bfd1;
+  --comic-yellow: #f6c945;
+  --comic-paper: #f7efd8;
+  --comic-paper-soft: #fff8e6;
+  --comic-paper-deep: #e8dcc0;
+  --text: var(--comic-ink);
+  --text-dim: var(--comic-muted);
+  --deck-comic-paper: var(--comic-paper-soft);
+  --deck-comic-board: color-mix(in srgb, var(--comic-paper-deep) 82%, var(--comic-yellow));
+  --deck-comic-shadow: color-mix(in srgb, var(--comic-pencil) 84%, transparent);
+}
+.deck-root[data-capstyle="vivid"] :is(.deck-tools, .deck-seg) {
+  color: var(--comic-ink);
+  background: var(--comic-paper-soft);
+  border-color: var(--comic-ink);
+  box-shadow: 2px 2px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] .deck-tools-cap {
+  color: var(--comic-muted);
+  letter-spacing: 0;
+}
+.deck-root[data-capstyle="vivid"] .deck-seg button {
+  min-width: 30px;
+  color: var(--comic-ink);
+  background: transparent;
+  border: 1px solid transparent;
+}
+.deck-root[data-capstyle="vivid"] .deck-seg button.active {
+  color: var(--comic-ink);
+  background: color-mix(in srgb, var(--accent) 34%, var(--comic-paper));
+  border-color: var(--comic-ink);
+  box-shadow: 1px 1px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] :is(.deck-pill, .deck-step) {
+  color: var(--comic-ink);
+  background: var(--comic-paper);
+  border-color: var(--comic-ink);
+  box-shadow: 1px 1px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] :is(.deck-pill.on, .deck-customize.deck-pill) {
+  color: var(--comic-ink);
+  background: color-mix(in srgb, var(--accent) 25%, var(--comic-paper));
+  border-color: var(--comic-ink);
+}
+.deck-root[data-capstyle="vivid"] .deck-step-val { color: var(--comic-ink); }
+.deck-root[data-capstyle="vivid"] .deck-device,
+.deck-root[data-capstyle="vivid"][data-plate] .deck-device {
+  gap: 9px;
+  background:
+    radial-gradient(circle at 14% 18%, color-mix(in srgb, var(--comic-pencil) 44%, transparent) 0 .6px, transparent .8px) 0 0 / 10px 10px,
+    linear-gradient(103deg, transparent 0 48%, color-mix(in srgb, var(--comic-yellow) 18%, transparent) 48% 52%, transparent 52%),
+    var(--deck-comic-board) !important;
+  border: 2px solid var(--comic-ink) !important;
+  border-radius: 14px 20px 13px 18px / 18px 13px 20px 14px;
+  box-shadow:
+    6px 7px 0 var(--deck-comic-shadow),
+    inset 2px 2px 0 color-mix(in srgb, white 70%, transparent),
+    inset -2px -2px 0 color-mix(in srgb, var(--comic-pencil) 48%, transparent) !important;
+}
+.deck-root[data-capstyle="vivid"] .deck-device::before {
+  inset: 4px;
+  background: none;
+  border: 1px solid color-mix(in srgb, var(--comic-pencil) 72%, transparent);
+  border-radius: 11px 17px 10px 15px / 15px 10px 17px 11px;
+}
+.deck-root[data-capstyle="vivid"] .deck-bar {
+  color: var(--comic-muted);
+  font-family: var(--comic-body, "Comic Neue"), "Segoe UI", sans-serif;
+}
+.deck-root[data-capstyle="vivid"] .deck-bar .deck-crumb {
+  color: var(--comic-ink);
+  font-family: var(--comic-display, "Bangers"), "Comic Sans MS", sans-serif;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+.deck-root[data-capstyle="vivid"] .deck-bar .deck-crumb::before {
+  width: 8px;
+  height: 8px;
+  background: var(--comic-red);
+  border: 1px solid var(--comic-ink);
+  box-shadow: 1px 1px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] .deck-bar :is(.deck-back, .deck-edit),
+.deck-root[data-capstyle="vivid"] .deck-arrow {
+  color: var(--comic-ink);
+  background: var(--deck-comic-paper);
+  border: 1.5px solid var(--comic-ink);
+  border-radius: 7px 10px 6px 9px / 9px 6px 10px 7px;
+  box-shadow: 2px 2px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"].is-editing .deck-bar .deck-edit {
+  color: var(--comic-ink);
+  background: color-mix(in srgb, var(--accent) 38%, var(--comic-paper));
+  border-color: var(--comic-ink);
+  box-shadow: 2px 2px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] .deck-index {
+  color: var(--comic-ink);
+  background: color-mix(in srgb, var(--comic-red) 18%, var(--deck-comic-paper));
+  border: 1px solid var(--comic-ink);
+  border-radius: 5px 8px 5px 7px / 7px 5px 8px 5px;
+  box-shadow: 1px 1px 0 var(--comic-pencil);
+  text-shadow: none;
+}
+
+/* The key well is a moving comic panel. Both loops animate only transforms and
+   sit below the grid, so the Xeneon Edge gets motion without repainting keys. */
+.deck-root[data-capstyle="vivid"] .deck-well {
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    linear-gradient(112deg, color-mix(in srgb, var(--comic-cyan) 14%, transparent), transparent 38%),
+    linear-gradient(292deg, color-mix(in srgb, var(--comic-red) 12%, transparent), transparent 42%),
+    var(--deck-comic-paper) !important;
+  border: 2px solid var(--comic-ink);
+  border-radius: 11px 16px 10px 14px / 15px 10px 16px 11px;
+  box-shadow:
+    inset 3px 3px 0 color-mix(in srgb, var(--comic-pencil) 38%, transparent),
+    inset -2px -2px 0 color-mix(in srgb, white 70%, transparent),
+    2px 2px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] .deck-well::before,
+.deck-root[data-capstyle="vivid"] .deck-well::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+.deck-root[data-capstyle="vivid"] .deck-well::before {
+  inset: -85%;
+  background: repeating-conic-gradient(
+    from -8deg at 50% 50%,
+    transparent 0 8deg,
+    color-mix(in srgb, var(--comic-yellow) 24%, transparent) 8.2deg 9deg,
+    transparent 9.2deg 15deg,
+    color-mix(in srgb, var(--comic-red) 12%, transparent) 15.2deg 16deg
+  );
+  animation: comic-deck-rays 42s linear infinite;
+}
+.deck-root[data-capstyle="vivid"] .deck-well::after {
+  inset: -18%;
+  opacity: .5;
+  background:
+    radial-gradient(circle, var(--comic-pencil) 0 1px, transparent 1.25px) 0 0 / 13px 13px,
+    repeating-linear-gradient(164deg, transparent 0 24px, color-mix(in srgb, var(--comic-cyan) 20%, transparent) 25px 27px, transparent 28px 48px);
+  animation: comic-deck-halftone 16s ease-in-out infinite alternate;
+}
+@keyframes comic-deck-rays {
+  from { transform: rotate(0deg) scale(1); }
+  to { transform: rotate(360deg) scale(1.025); }
+}
+@keyframes comic-deck-halftone {
+  from { transform: translate3d(-2.5%, -1.5%, 0) rotate(-.5deg); }
+  to { transform: translate3d(2.5%, 1.5%, 0) rotate(.5deg); }
+}
+.deck-root[data-capstyle="vivid"] .deck-well-bg {
+  z-index: 0;
+  opacity: .16;
+  filter: grayscale(.25) contrast(.75) brightness(1.35);
+  mix-blend-mode: multiply;
+}
+.deck-root[data-capstyle="vivid"] .deck-well-bg::after {
+  background: var(--comic-paper);
+  opacity: .52;
+}
+.deck-root[data-capstyle="vivid"] .deck-grid { z-index: 2; }
+
+/* Printed key caps. Accent and gradient colours are mixed with paper instead of
+   black, then icons and captions get their own paper-backed contrast layer. */
+.deck-root[data-capstyle="vivid"] .deck-key {
+  --comic-key-tilt: -.35deg;
+  color: var(--comic-ink) !important;
+  background:
+    radial-gradient(circle at 17% 21%, color-mix(in srgb, var(--comic-pencil) 42%, transparent) 0 .65px, transparent .9px) 0 0 / 8px 8px,
+    var(--deck-comic-paper) !important;
+  border: 2px solid var(--comic-ink) !important;
+  border-radius: 9px 13px 8px 12px / 12px 8px 13px 9px;
+  box-shadow:
+    4px 4px 0 var(--comic-pencil),
+    inset 1px 1px 0 color-mix(in srgb, white 76%, transparent) !important;
+  text-shadow: none;
+  transform: rotate(var(--comic-key-tilt));
+  filter: none;
+}
+.deck-root[data-capstyle="vivid"] .deck-key:nth-child(3n + 2) { --comic-key-tilt: .32deg; }
+.deck-root[data-capstyle="vivid"] .deck-key:nth-child(4n) { --comic-key-tilt: -.18deg; }
+.deck-root[data-capstyle="vivid"] .deck-key:nth-child(5n) { --comic-key-tilt: .22deg; }
+.deck-root[data-capstyle="vivid"] .deck-key::before {
+  display: block !important;
+  inset: 3px;
+  opacity: .58;
+  background: none;
+  border: 1px solid var(--comic-pencil);
+  border-radius: 7px 10px 6px 9px / 9px 6px 10px 7px;
+}
+.deck-root[data-capstyle="vivid"] .deck-key.has-accent {
+  background:
+    radial-gradient(circle at 17% 21%, color-mix(in srgb, var(--comic-ink) 24%, transparent) 0 .65px, transparent .9px) 0 0 / 8px 8px,
+    color-mix(in srgb, var(--key-accent, var(--comic-yellow)) 48%, var(--deck-comic-paper)) !important;
+}
+.deck-root[data-capstyle="vivid"] .deck-key.has-gradient {
+  --kg-c1: color-mix(in srgb, var(--key-accent, var(--comic-red)) 48%, var(--deck-comic-paper));
+  --kg-c2: color-mix(in srgb, var(--key-accent2, var(--comic-cyan)) 44%, var(--deck-comic-paper));
+  background:
+    radial-gradient(circle at 17% 21%, color-mix(in srgb, var(--comic-ink) 24%, transparent) 0 .65px, transparent .9px) 0 0 / 8px 8px,
+    var(--kg-face) !important;
+}
+.deck-root[data-capstyle="vivid"] .deck-key .deck-key-bgimg::after {
+  background: var(--comic-paper);
+  opacity: max(.58, var(--key-dim, .35));
+}
+.deck-root[data-capstyle="vivid"] .deck-key.has-image,
+.deck-root[data-capstyle="vivid"] .deck-key.has-preview {
+  background-color: var(--deck-comic-paper) !important;
+  border-color: var(--comic-ink) !important;
+}
+
+/* Compact icons become inked stickers. The multi-sided drop-shadow outlines
+   both white and dark raster/SVG artwork, including icons whose colour is baked
+   into an imported image and cannot be changed through currentColor. */
+.deck-root[data-capstyle="vivid"] .deck-key:not(.has-image):not(.is-slider) .deck-ico {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(34px, 46%, 62px);
+  aspect-ratio: 1;
+  flex: 0 0 auto;
+  color: var(--comic-ink) !important;
+  background: var(--deck-comic-paper);
+  border: 2px solid var(--comic-ink);
+  border-radius: 43% 57% 48% 52% / 54% 45% 55% 46%;
+  box-shadow: 2px 2px 0 var(--comic-pencil);
+  filter: none;
+}
+.deck-root[data-capstyle="vivid"] .deck-key:not(.has-image):not(.is-slider) .deck-ico :is(img, svg),
+.deck-root[data-capstyle="vivid"] .deck-key:not(.has-image):not(.is-slider) .deck-ico.is-img-small img {
+  max-width: 72%;
+  max-height: 72%;
+  filter:
+    drop-shadow(1px 0 0 var(--comic-ink))
+    drop-shadow(-1px 0 0 var(--comic-ink))
+    drop-shadow(0 1px 0 var(--comic-ink))
+    drop-shadow(0 -1px 0 var(--comic-ink))
+    drop-shadow(1.5px 1.5px 0 var(--comic-pencil));
+}
+.deck-root[data-capstyle="vivid"] .deck-key .deck-label {
+  position: relative;
+  z-index: 2;
+  max-width: calc(100% - 8px);
+  padding: 2px 6px 3px;
+  color: var(--comic-ink) !important;
+  background: var(--deck-comic-paper);
+  border: 1px solid var(--comic-ink);
+  border-radius: 3px 6px 3px 5px / 5px 3px 6px 3px;
+  box-shadow: 1.5px 1.5px 0 var(--comic-pencil);
+  font-family: var(--comic-display, "Bangers"), "Comic Sans MS", sans-serif;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.05;
+  text-shadow: none !important;
+}
+.deck-root[data-capstyle="vivid"] .deck-key.has-image .deck-label {
+  left: 5px;
+  right: 5px;
+  bottom: 5px;
+  width: calc(100% - 10px);
+  padding: 3px 6px 4px;
+  background: color-mix(in srgb, var(--comic-paper) 91%, transparent);
+}
+.deck-root[data-capstyle="vivid"] .deck-key.has-image[data-labelpos="top"] .deck-label {
+  top: 5px;
+  bottom: auto;
+}
+.deck-root[data-capstyle="vivid"] .deck-key.is-empty {
+  background:
+    repeating-linear-gradient(145deg, transparent 0 8px, color-mix(in srgb, var(--comic-pencil) 18%, transparent) 8px 9px),
+    color-mix(in srgb, var(--comic-paper-deep) 72%, var(--comic-paper)) !important;
+  border: 1.5px dashed color-mix(in srgb, var(--comic-pencil) 74%, transparent) !important;
+  box-shadow: 2px 2px 0 color-mix(in srgb, var(--comic-pencil) 42%, transparent) !important;
+  opacity: .74;
+}
+.deck-root[data-capstyle="vivid"] .deck-key.is-add {
+  color: var(--comic-ink) !important;
+  background: color-mix(in srgb, var(--accent) 25%, var(--comic-paper)) !important;
+  border: 2px dashed var(--comic-ink) !important;
+  opacity: 1;
+}
+.deck-root[data-capstyle="vivid"] .deck-key.is-folder {
+  border-color: var(--comic-ink) !important;
+}
+.deck-root[data-capstyle="vivid"][data-shape="square"] .deck-key {
+  border-radius: 5px 8px 5px 7px / 7px 5px 8px 5px;
+}
+.deck-root[data-capstyle="vivid"][data-shape="circle"] .deck-key,
+.deck-root[data-capstyle="vivid"][data-shape="circle"] .deck-key::before {
+  border-radius: 50%;
+}
+.deck-root[data-capstyle="vivid"] .deck-key-live,
+.deck-root[data-capstyle="vivid"] .deck-key-trig {
+  color: var(--comic-ink);
+  background: var(--comic-paper);
+  border: 1px solid var(--comic-ink);
+  text-shadow: none;
+}
+.deck-root[data-capstyle="vivid"] .deck-slider {
+  background: var(--comic-paper-deep);
+  border: 1.5px solid var(--comic-ink);
+  box-shadow: inset 1px 1px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] .deck-slider-fill {
+  background: var(--key-accent, var(--comic-red));
+  border-top: 1px solid var(--comic-ink);
+}
+@media (hover: hover) {
+  .deck-root[data-capstyle="vivid"] .deck-key:hover {
+    transform: rotate(var(--comic-key-tilt)) translate(-1px, -2px);
+    filter: saturate(1.06);
+    box-shadow: 5px 6px 0 var(--comic-pencil), inset 1px 1px 0 color-mix(in srgb, white 76%, transparent) !important;
+  }
+  .deck-root[data-capstyle="vivid"] .deck-key.is-empty:not(.is-add):hover {
+    transform: rotate(var(--comic-key-tilt));
+    filter: none;
+  }
+}
+.deck-root[data-capstyle="vivid"] .deck-key:active,
+.deck-root[data-capstyle="vivid"] .deck-key.is-pressed {
+  transform: rotate(var(--comic-key-tilt)) translate(3px, 3px) scale(.97);
+  filter: saturate(.94);
+  box-shadow: 1px 1px 0 var(--comic-pencil), inset 2px 2px 0 color-mix(in srgb, var(--comic-pencil) 28%, transparent) !important;
+}
+.deck-root[data-capstyle="vivid"] .deck-key.is-glint::after {
+  width: 18%;
+  background: color-mix(in srgb, var(--comic-paper) 86%, transparent);
+  transform: translateX(-650%) rotate(9deg);
+  animation: comic-key-scratch .42s steps(5, end);
+}
+@keyframes comic-key-scratch {
+  from { transform: translateX(-650%) rotate(9deg); }
+  to { transform: translateX(750%) rotate(9deg); }
+}
+
+/* Page chrome and the optional music strip use the same printed materials. */
+.deck-root[data-capstyle="vivid"] .deck-foot { color: var(--comic-ink); }
+.deck-root[data-capstyle="vivid"] .deck-dots i {
+  background: var(--comic-paper);
+  border: 1px solid var(--comic-ink);
+}
+.deck-root[data-capstyle="vivid"] .deck-dots i.active {
+  width: 16px;
+  background: var(--comic-red);
+  border-radius: 3px 6px 3px 5px;
+  box-shadow: 1px 1px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] .deck-np {
+  filter: none;
+  background: color-mix(in srgb, var(--comic-cyan) 16%, var(--comic-paper)) !important;
+  border: 2px solid var(--comic-ink);
+  border-radius: 9px 13px 8px 12px / 12px 8px 13px 9px;
+  box-shadow: 3px 3px 0 var(--comic-pencil), inset 1px 1px 0 color-mix(in srgb, white 70%, transparent);
+}
+.deck-root[data-capstyle="vivid"] .deck-np.is-idle { filter: none; }
+.deck-root[data-capstyle="vivid"] .deck-np-bg,
+.deck-root[data-capstyle="vivid"] .deck-np-userbg { opacity: .1 !important; filter: grayscale(.45) contrast(.8); }
+.deck-root[data-capstyle="vivid"] .deck-np::before,
+.deck-root[data-capstyle="vivid"] .deck-np.has-accent::before {
+  background: radial-gradient(circle, color-mix(in srgb, var(--comic-pencil) 45%, transparent) 0 .7px, transparent .9px) 0 0 / 8px 8px;
+  box-shadow: none;
+}
+.deck-root[data-capstyle="vivid"] .deck-np-cover {
+  background-color: var(--comic-paper);
+  border: 1.5px solid var(--comic-ink);
+  border-radius: 5px 8px 5px 7px;
+  box-shadow: 2px 2px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] .deck-np-cover::after,
+.deck-root[data-capstyle="vivid"] .deck-np-spk,
+.deck-root[data-capstyle="vivid"] .deck-np.has-accent .deck-np-spk { color: var(--comic-ink); }
+.deck-root[data-capstyle="vivid"] :is(.deck-np-title, .deck-np-artist) {
+  color: var(--comic-ink);
+  text-shadow: none;
+}
+.deck-root[data-capstyle="vivid"] .deck-np-title {
+  font-family: var(--comic-display, "Bangers"), "Comic Sans MS", sans-serif;
+  letter-spacing: 0;
+}
+.deck-root[data-capstyle="vivid"] .deck-np-vol {
+  background: var(--comic-paper-deep);
+  border: 1px solid var(--comic-ink);
+  box-shadow: inset 1px 1px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] .deck-np-vol-fill,
+.deck-root[data-capstyle="vivid"] .deck-np.has-accent .deck-np-vol-fill {
+  background: var(--comic-red);
+  box-shadow: none;
+}
+.deck-root[data-capstyle="vivid"] .deck-np-btn,
+.deck-root[data-capstyle="vivid"] .deck-np-btn.primary {
+  color: var(--comic-ink);
+  background: var(--comic-paper);
+  border: 1.5px solid var(--comic-ink);
+  box-shadow: 1.5px 1.5px 0 var(--comic-pencil);
+}
+.deck-root[data-capstyle="vivid"] .deck-np-btn.primary { background: var(--comic-yellow); }
+
+/* The profile menu is portaled to body, outside .deck-root. */
+:root[data-style="comic"] .deck-pmenu {
+  color: var(--comic-ink);
+  background: var(--comic-paper);
+  border: 2px solid var(--comic-ink);
+  border-radius: 9px 13px 8px 12px / 12px 8px 13px 9px;
+  box-shadow: 5px 5px 0 var(--comic-pencil);
+  backdrop-filter: none;
+}
+:root[data-style="comic"] .deck-pmenu :is(.deck-pmenu-head, .deck-pmenu-empty) { color: var(--comic-muted); }
+:root[data-style="comic"] .deck-pmenu-row.active,
+:root[data-style="comic"] .deck-pmenu-pick:hover { background: color-mix(in srgb, var(--accent) 24%, var(--comic-paper)); }
+:root[data-style="comic"] .deck-pmenu-pick { color: var(--comic-ink); }
+:root[data-style="comic"] .deck-pmenu-tool,
+:root[data-style="comic"] .deck-pmenu-add {
+  color: var(--comic-ink);
+  background: var(--comic-paper-soft);
+  border-color: var(--comic-ink);
+  box-shadow: 1px 1px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .deck-pmenu-input {
+  color: var(--comic-ink);
+  background: white;
+  border-color: var(--comic-ink);
+}
+
+/* The tab-group mount belongs to the dashboard page and must use the same
+   paper material as the redrawn device instead of a graphite rectangle. */
+:root[data-style="comic"] .panel.tabgroup.deck-tab-active {
+  background:
+    radial-gradient(circle at 20% 30%, var(--comic-pencil) 0 0.55px, transparent 0.75px) 0 0 / 9px 9px,
+    var(--comic-paper);
+  border-color: var(--comic-ink);
+  box-shadow: 1px 1px 0 var(--comic-pencil), var(--panel-drop);
+}
+:root[data-style="comic"] .panel.tabgroup.deck-tab-active .tabgroup-bar {
+  background: var(--comic-paper-deep);
+  border-color: var(--comic-ink);
+  box-shadow: inset 1px 1px 0 var(--comic-pencil);
+}
+:root[data-style="comic"] .panel.tabgroup.deck-tab-active .tabgroup-tab { color: var(--comic-muted); }
+:root[data-style="comic"] .panel.tabgroup.deck-tab-active .tabgroup-tab.active {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 30%, var(--comic-paper));
+  border: 1px solid var(--comic-ink);
+  box-shadow: 1.5px 1.5px 0 var(--comic-pencil);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-root[data-capstyle="vivid"] .deck-well::before,
+  .deck-root[data-capstyle="vivid"] .deck-well::after { animation: none; transform: none; }
+  .deck-root[data-capstyle="vivid"] .deck-well-bg { display: none; }
+}
+body.perf-mode .deck-root[data-capstyle="vivid"] .deck-well::before,
+body.perf-mode .deck-root[data-capstyle="vivid"] .deck-well::after { animation: none; transform: none; }
+body.perf-mode .deck-root[data-capstyle="vivid"] .deck-well-bg { display: none; }

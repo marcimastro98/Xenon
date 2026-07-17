@@ -54,7 +54,7 @@
   border-radius: 999px;
   border: 1px solid rgba(var(--accent-rgb),0.26);
   background: rgba(var(--accent-rgb),0.10);
-  color: #bfffd4;
+  color: var(--color-success);
   font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.6px;
@@ -63,16 +63,16 @@
 }
 
 .status-label.muted {
-  border-color: rgba(229,57,53,0.32);
-  background: rgba(229,57,53,0.11);
-  color: #ffd2d0;
+  border-color: color-mix(in srgb, var(--color-danger), transparent 56%);
+  background: color-mix(in srgb, var(--color-danger), transparent 88%);
+  color: var(--color-danger);
 }
 
 .mic-context {
   width: min(100%, 320px);
   font-size: clamp(11px, 1.8vh, 14px);
   font-weight: 800;
-  color: #98a6a1;
+  color: var(--muted-text);
   max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
@@ -124,13 +124,13 @@
 }
 
 .ring.muted {
-  border-color: rgba(229,57,53,0.34);
-  background: rgba(229,57,53,0.035);
-  box-shadow: inset 0 0 0 8px rgba(229,57,53,0.03);
+  border-color: rgba(var(--danger-rgb),0.34);
+  background: rgba(var(--danger-rgb),0.035);
+  box-shadow: inset 0 0 0 8px rgba(var(--danger-rgb),0.03);
 }
 
 .ring2.muted {
-  background: conic-gradient(from 90deg, transparent 0 24%, rgba(229,57,53,0.82) 32%, transparent 42% 62%, rgba(229,57,53,0.46) 72%, transparent 82% 100%);
+  background: conic-gradient(from 90deg, transparent 0 24%, rgba(var(--danger-rgb),0.82) 32%, transparent 42% 62%, rgba(var(--danger-rgb),0.46) 72%, transparent 82% 100%);
   animation-duration: 12s;
 }
 
@@ -141,7 +141,7 @@
   opacity: 0.7;
 }
 
-.glow.muted { background: rgba(229,57,53,0.15); opacity: 0.62; }
+.glow.muted { background: rgba(var(--danger-rgb),0.15); opacity: 0.62; }
 
 @keyframes mic-orbit {
   to { transform: rotate(360deg); }
@@ -157,20 +157,21 @@
   cursor: pointer;
   display: grid;
   place-items: center;
-  background: linear-gradient(145deg, #38ea7b, #18b94f);
-  box-shadow: 0 14px 32px rgba(var(--accent-rgb),0.22), inset 0 1px 0 rgba(255,255,255,0.24), inset 0 -12px 24px rgba(0,0,0,0.16);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--color-success), white 12%), color-mix(in srgb, var(--color-success), black 18%));
+  box-shadow: 0 14px 32px rgba(var(--success-rgb),0.22), inset 0 1px 0 rgba(255,255,255,0.24), inset 0 -12px 24px rgba(0,0,0,0.16);
   transition: transform 0.12s ease, background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .mic-btn.muted {
   border-color: rgba(255,255,255,0.10);
-  background: linear-gradient(145deg, #f35b57, #c92b27);
-  box-shadow: 0 14px 30px rgba(229,57,53,0.22), inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -12px 24px rgba(0,0,0,0.16);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--color-danger), white 12%), color-mix(in srgb, var(--color-danger), black 18%));
+  box-shadow: 0 14px 30px rgba(var(--danger-rgb),0.22), inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -12px 24px rgba(0,0,0,0.16);
 }
 
 .mic-btn:hover { transform: translateY(-1px); }
 .mic-btn:active { transform: scale(0.94); }
-.mic-btn svg { width: clamp(23px, 6vh, 34px); height: clamp(23px, 6vh, 34px); fill: #fff; filter: drop-shadow(0 1px 4px rgba(0,0,0,0.34)); }
+.mic-btn svg { width: clamp(23px, 6vh, 34px); height: clamp(23px, 6vh, 34px); fill: var(--on-success); filter: drop-shadow(0 1px 4px rgba(0,0,0,0.34)); }
+.mic-btn.muted svg { fill: var(--on-danger); }
 
 .mic-vol {
   grid-area: volume;
@@ -183,7 +184,7 @@
   padding: 10px 8px 8px;
   width: 54px;
   border-radius: 16px;
-  background: rgba(9,14,14,0.72);
+  background: color-mix(in srgb, var(--surface-alt), transparent 18%);
   border: 1px solid rgba(255,255,255,0.08);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.04),
@@ -192,7 +193,7 @@
 }
 
 .mic-vol-value {
-  color: #e0ede6;
+  color: var(--text);
   font-size: 14.5px;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
@@ -223,7 +224,7 @@
   width: 4px;
   transform: translateX(-50%);
   border-radius: 999px;
-  background: linear-gradient(to top, var(--mic-fill) 0%, var(--mic-fill) var(--mic-level), #151d1b var(--mic-level), #151d1b 100%);
+  background: linear-gradient(to top, var(--mic-fill) 0%, var(--mic-fill) var(--mic-level), var(--control-bg) var(--mic-level), var(--control-bg) 100%);
   z-index: 0;
   pointer-events: none;
 }
@@ -238,7 +239,7 @@
   transform: translateX(-50%);
   border-radius: 50%;
   background: var(--mic-fill);
-  border: 2px solid #0c1311;
+  border: 2px solid var(--surface);
   box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 0 3px rgba(var(--accent-rgb),0.18);
   z-index: 1;
   pointer-events: none;
@@ -249,7 +250,7 @@
 }
 
 .mic-vol-track.muted::after {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 0 3px rgba(229,57,53,0.18);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 0 3px rgba(var(--danger-rgb),0.18);
 }
 
 .mic-vol-slider {
@@ -279,7 +280,7 @@
   height: 14px;
   border-radius: 50%;
   background: var(--green);
-  border: 2px solid #0c1311;
+  border: 2px solid var(--surface);
   box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 0 3px rgba(var(--accent-rgb),0.18);
   cursor: pointer;
 }
@@ -289,7 +290,7 @@
   font-weight: 800;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: #4d5f5b;
+  color: var(--dim-text);
   text-align: center;
   line-height: 1.2;
 }
@@ -307,9 +308,9 @@
 }
 
 /* Reuse .app-mix-row layout from AudioSection; override colours for dark mic panel */
-.mic-apps .app-mix-name  { color: #7a9490; }
-.mic-apps .app-mix-vol   { color: #5a7270; }
-.mic-apps .app-mix-mute  { background: #0a1210; border-color: rgba(255,255,255,0.08); }
+.mic-apps .app-mix-name  { color: var(--muted-text); }
+.mic-apps .app-mix-vol   { color: var(--dim-text); }
+.mic-apps .app-mix-mute  { background: var(--control-bg); border-color: var(--divider); }
 
 /* Mic rendered as the "Microfono" tab inside the System hub: a centered
    column (button + sensitivity). Class-based (not id) so a duplicated System
@@ -351,7 +352,7 @@
   width: auto;
   height: 4px;
   transform: translateY(-50%);
-  background: linear-gradient(to right, var(--mic-fill) 0%, var(--mic-fill) var(--mic-level), #151d1b var(--mic-level), #151d1b 100%);
+  background: linear-gradient(to right, var(--mic-fill) 0%, var(--mic-fill) var(--mic-level), var(--control-bg) var(--mic-level), var(--control-bg) 100%);
 }
 .system-mic-pane .mic-vol-track::after {
   left: var(--mic-level);

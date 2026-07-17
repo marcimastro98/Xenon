@@ -27,6 +27,36 @@ const fs = require('fs');
 
 const _chains = new Map();
 
+// Windows keeps a short-lived handle on a file whenever ANOTHER process has it
+// open without FILE_SHARE_DELETE — an antivirus/Defender scan of the freshly
+// written data, the Search indexer, or simply a concurrent reader of the SAME
+// store mid-write (GET /settings and the SSE broadcasters read settings.json
+// outside the write lock, and a second app instance reads it on its own timers).
+// While such a handle is open, renaming the temp file over the destination
+// fails with EPERM/EACCES/EBUSY even though the write itself is fine — the
+// handle closes microseconds later. POSIX rename has no such contention, so a
+// single un-retried rename silently failed only on Windows: the documented cause
+// of "settings never persist" when a stale second server held the file open
+// (every POST /settings 500'd on the rename). Retry the rename a handful of
+// times with escalating backoff before giving up — the same remedy write-file-
+// atomic applies on Windows.
+const _RENAME_LOCK_CODES = new Set(['EPERM', 'EACCES', 'EBUSY']);
+const _RENAME_MAX_RETRIES = 10;
+
+async function _renameWithRetry(tmp, file) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await fs.promises.rename(tmp, file);
+      return;
+    } catch (e) {
+      if (attempt >= _RENAME_MAX_RETRIES || !_RENAME_LOCK_CODES.has(e.code)) throw e;
+      // 15ms, 30, 45 … capped at 200ms; ~1.2s of retries worst case, which
+      // comfortably outlasts a transient scan/read handle without stalling saves.
+      await new Promise((r) => setTimeout(r, Math.min(200, 15 * (attempt + 1))));
+    }
+  }
+}
+
 async function _writeTmpAndRename(file, data, encoding) {
   const tmp = `${file}.${process.pid}.tmp`;
   let fh = null;
@@ -36,7 +66,7 @@ async function _writeTmpAndRename(file, data, encoding) {
     await fh.sync();
     await fh.close();
     fh = null;
-    await fs.promises.rename(tmp, file);
+    await _renameWithRetry(tmp, file);
   } catch (e) {
     if (fh) { try { await fh.close(); } catch { /* already closing */ } }
     try { await fs.promises.unlink(tmp); } catch { /* nothing to clean up */ }

@@ -47,7 +47,14 @@ Golden rule: **Bit is the meme; the Orb is the signature. Same world, two voices
 never overlapping.**
 
 Sprite source: `server/js/vitals-pet.js:34-55` (12×12 SVG, `crispEdges`).
-Orb source: `server/components/AIPanel/AIPanel.css`.
+Orb colours: `server/components/AIPanel/AIPanel.css` (`--xn-cyan`, `--xn-violet`).
+Note: **in-app**, AI activation currently renders the circular equaliser
+(`.ai-presence` / `.ai-eq`), not the Orb — the Orb is a video/press asset
+today. An app-side Orb implementation existed in `AIPanel.css` but was
+unreachable dead code (no markup ever produced it) and was removed in v4.6.0.
+The public site's 3D orb hero and boot animation were retired in the 2026-07
+redesign: the site now leads with the real dashboard in the Edge's 32:9 frame,
+so the Orb no longer appears on xenon-app.com.
 
 ---
 
@@ -154,10 +161,13 @@ system font as the wordmark.
 ## 6. Motion — the "wow" gesture
 
 Xenon's unfair advantage is that the product *moves*. Pick one memorable moment
-and show it everywhere (site, Reddit, GitHub header, store) until people
+and show it everywhere (Reddit, GitHub header, store, video) until people
 recognize it with their eyes closed. The candidate: **press ✦ and the Orb comes
-alive** — listen → think → speak. That is the animated logo. The docs site
-already opens with the Orb forming; treat it as the entrance signature.
+alive** — listen → think → speak. That is the animated logo, for video and
+press material. The public site deliberately does NOT use it (2026-07
+redesign): there the signature is the **Edge frame** — every screenshot shown
+in the display's real 32:9 body at native 2560×720, with a soft green glow.
+Product truth over spectacle on the site; the Orb moves in video.
 
 ---
 
@@ -185,8 +195,8 @@ already opens with the Orb forming; treat it as the entrance signature.
 |---|---|
 | Bit sprite (exact) | `server/js/vitals-pet.js:34-55` — `BODY`/`EYES`/`FACES`/`MOOD_RGB`. Copy it 1:1; never invent new Bit shapes. |
 | Bit voice bank | `server/js/vitals-pet-core.js` — per-language tone tiers |
-| Resonance Orb | `server/components/AIPanel/AIPanel.css` |
+| Resonance Orb | colours (`--xn-cyan`, `--xn-violet`) in `server/components/AIPanel/AIPanel.css` — video/press asset only; no longer rendered on the site |
 | Colour presets | `server/js/settings.js` — `SETTINGS_PRESETS`, `BUILTIN_THEMES` |
 | Reusable Bit mark | `docs/images/bit.svg` (scalable, derived from the sprite) |
-| Public site | `docs/index.html` (hero, `f9` companion card, i18n dict) |
+| Public site | `docs/index.html` (Edge-frame hero, `p4` Bit pillar with the VT323 line, 5-language i18n dict); `docs/catalog/` and `docs/create/` share the same tokens |
 | Reusable copy | `README.md`, `FEATURES.md` |

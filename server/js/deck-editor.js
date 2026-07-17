@@ -118,7 +118,9 @@
   let homeAssistantConfigured = null;
   let chromaEnabled = null;
   let wavelinkEnabled = null;
+  let signalrgbEnabled = null;
   let lightingConfigured = null;
+  let signalRgbEffectsPromise = null;   // SignalRGB effect list ({value,label})
   let scenesPromise = null;
   let sourcesPromise = null;
   let appsPromise = null;
@@ -147,8 +149,9 @@
       const nextHa = !!(d && d.capabilities && d.capabilities.homeAssistantConfigured);
       const nextChroma = !!(d && d.capabilities && d.capabilities.chromaEnabled);
       const nextWl = !!(d && d.capabilities && d.capabilities.wavelinkEnabled);
+      const nextSignalRgb = !!(d && d.capabilities && d.capabilities.signalrgbEnabled);
       const nextLighting = !!(d && d.capabilities && d.capabilities.lightingConfigured);
-      const changed = nextObs !== obsConfigured || nextRemote !== remoteConfigured || nextTwitch !== twitchConnected || nextYouTube !== youtubeConnected || nextSb !== streamerbotConfigured || nextDiscord !== discordConnected || nextSpotify !== spotifyConnected || nextHa !== homeAssistantConfigured || nextChroma !== chromaEnabled || nextWl !== wavelinkEnabled || nextLighting !== lightingConfigured;
+      const changed = nextObs !== obsConfigured || nextRemote !== remoteConfigured || nextTwitch !== twitchConnected || nextYouTube !== youtubeConnected || nextSb !== streamerbotConfigured || nextDiscord !== discordConnected || nextSpotify !== spotifyConnected || nextHa !== homeAssistantConfigured || nextChroma !== chromaEnabled || nextWl !== wavelinkEnabled || nextSignalRgb !== signalrgbEnabled || nextLighting !== lightingConfigured;
       obsConfigured = nextObs;
       remoteConfigured = nextRemote;
       twitchConnected = nextTwitch;
@@ -159,8 +162,9 @@
       homeAssistantConfigured = nextHa;
       chromaEnabled = nextChroma;
       wavelinkEnabled = nextWl;
+      signalrgbEnabled = nextSignalRgb;
       lightingConfigured = nextLighting;
-      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; haDomains = null; wlChannelsPromise = null; lightDevicesPromise = null; }   // config changed → re-fetch the lists
+      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; haDomains = null; wlChannelsPromise = null; lightDevicesPromise = null; signalRgbEffectsPromise = null; }   // config changed → re-fetch the lists
       // Compute the set of HA device domains the user actually HAS, so the action
       // picker offers only the actions relevant to their devices (generic, not
       // hardcoded). This runs after the fast capability check; the caller does a
@@ -237,6 +241,14 @@
       .then((d) => ((d && Array.isArray(d.sounds)) ? d.sounds : []).map((s) => ({ value: (s.guildId || '') + '|' + s.id, label: (s.guild ? s.guild + ' › ' : '') + (s.name || s.id) })))
       .catch(() => []);
     return discordSoundsPromise;
+  }
+  // Installed SignalRGB effects ({value:effectName, label:"Name (kind)"}) for the
+  // signalRgbEffect picker. Empty (→ typed field) when SignalRGB is off/absent.
+  function signalRgbEffects() {
+    if (!signalRgbEffectsPromise) signalRgbEffectsPromise = fetch('/api/signalrgb/effects').then((r) => r.json())
+      .then((d) => ((d && Array.isArray(d.effects)) ? d.effects : []).map((e) => ({ value: e.value, label: e.label })))
+      .catch(() => []);
+    return signalRgbEffectsPromise;
   }
   // Live Home Assistant entity list ({value:entity_id, label:"Area › Name"}) for the
   // haEntity picker. Falls back to [] (→ typed entity-id field) when HA is off.
@@ -532,6 +544,40 @@
         iconPanel.appendChild(head); iconPanel.appendChild(grid);
       });
     }
+    // Installed icon packs (the 'icons' preset kind): one section per pack,
+    // appended after the built-in categories. Picking a pack icon EMBEDS it
+    // into the key as an image data: URI (same shape as an uploaded picture),
+    // so the key keeps working if the pack is uninstalled and shared profiles
+    // stay self-contained. Async fill — the picker opens instantly either way.
+    fetch('/icon-packs').then((res) => res.json()).then((data) => {
+      (data && Array.isArray(data.packs) ? data.packs : []).forEach((pack) => {
+        if (!pack || !Array.isArray(pack.icons) || !pack.icons.length) return;
+        const head = document.createElement('div'); head.className = 'deck-ed-cat';
+        head.textContent = String(pack.name || pack.id || '');
+        const grid = document.createElement('div'); grid.className = 'deck-ed-emojis';
+        pack.icons.forEach((icon) => {
+          if (!icon || !icon.file) return;
+          const src = '/icon-pack/' + encodeURIComponent(pack.id) + '/' + encodeURIComponent(icon.file);
+          const b = document.createElement('button'); b.type = 'button'; b.className = 'deck-ed-emoji deck-ed-icon deck-ed-packicon';
+          b.title = String(icon.label || icon.id || '');
+          const img = document.createElement('img'); img.src = src; img.alt = ''; img.loading = 'lazy';
+          b.appendChild(img);
+          b.addEventListener('click', async () => {
+            try {
+              const blob = await fetch(src).then((r) => (r.ok ? r.blob() : null));
+              if (!blob) return;
+              const uri = await fileToDataUrl(blob);
+              if (!uri) return;
+              imageVal = uri; mode = 'image'; imageFit = 'contain';
+              if (fitSel) fitSel.value = 'contain';
+              sync();
+            } catch { /* pack file unreadable — leave the key as it was */ }
+          });
+          grid.appendChild(b);
+        });
+        iconPanel.appendChild(head); iconPanel.appendChild(grid);
+      });
+    }).catch(() => { /* no packs / offline — built-ins already rendered */ });
     wrap.appendChild(iconPanel);
 
     // ── Image upload panel. ──
@@ -661,7 +707,7 @@
     // Re-fetch OBS scene/source lists and the running-app list on each open so
     // scenes/sources just created in OBS — and apps just launched — show up
     // without a page reload.
-    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; wlChannelsPromise = null; lightDevicesPromise = null; sdkWidgetsPromise = null;
+    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; wlChannelsPromise = null; lightDevicesPromise = null; sdkWidgetsPromise = null; signalRgbEffectsPromise = null;
     const DA = window.DeckActions;
     const DM = window.DeckModel;
     // Hard dependencies: bail cleanly (rather than throwing mid-build and leaving
@@ -943,8 +989,9 @@
     paneLook.appendChild(fBgImg);
 
     // ── Live value ON the key face: none / a ticking timer countdown (matched
-    // by label; empty = the running timer ending soonest) / a state an SDK
-    // widget publishes. Stored as key.live; rendered via textContent only. ──
+    // by label; empty = the running timer ending soonest) / a live hardware
+    // sensor (temps/load/fan RPM/watts/battery %) / a state an SDK widget
+    // publishes. Stored as key.live; rendered via textContent only. ──
     let liveSource = (existing && existing.live && existing.live.source) || '';
     let liveName = (existing && existing.live && existing.live.name) || '';
     const fLive = field('deck_edit_live');
@@ -952,13 +999,24 @@
     [['', 'deck_live_none'], ['timer', 'deck_live_timer']].forEach(([v, lk]) => {
       const o = document.createElement('option'); o.value = v; o.setAttribute('data-i18n', lk); o.textContent = t(lk); selLive.appendChild(o);
     });
-    // An existing sdkState binding gets its option SYNCHRONOUSLY: the async
-    // population below lands after the initial syncLive() call, which would
-    // otherwise read the still-empty select and silently drop the binding on
-    // save (the key loses its live badge just by opening the editor).
+    // Fixed hardware metrics (value carries the metric name).
+    const SENSOR_METRICS = (window.DeckModel && window.DeckModel.DECK_SENSOR_METRICS) || [];
+    SENSOR_METRICS.forEach((m) => {
+      const o = document.createElement('option'); o.value = 'sensor:' + m;
+      o.setAttribute('data-i18n', 'deck_live_sensor_' + m); o.textContent = t('deck_live_sensor_' + m);
+      selLive.appendChild(o);
+    });
+    // An existing sdkState/battery binding gets its option SYNCHRONOUSLY: the
+    // async population below lands after the initial syncLive() call, which
+    // would otherwise read the still-empty select and silently drop the binding
+    // on save (the key loses its live badge just by opening the editor).
     if (liveSource === 'sdkState' && liveName) {
       const o = document.createElement('option'); o.value = 'sdk:' + liveName; o.textContent = liveName; selLive.appendChild(o);
       selLive.value = 'sdk:' + liveName;
+    }
+    if (liveSource === 'sensor' && liveName && liveName.startsWith('battery:')) {
+      const o = document.createElement('option'); o.value = 'sensor:' + liveName; o.textContent = liveName.slice('battery:'.length); selLive.appendChild(o);
+      selLive.value = 'sensor:' + liveName;
     }
     // Published SDK states join the list lazily (value carries the state name).
     sdkDeckStates().then((items) => {
@@ -969,7 +1027,21 @@
       });
       enhanceSelects(fLive);
     }).catch(() => {});
+    // Known wireless-device batteries join lazily too (same placeholder rule).
+    fetch('/api/battery').then((r) => r.json()).then((d) => {
+      const devs = (d && Array.isArray(d.devices)) ? d.devices : [];
+      devs.forEach((dev) => {
+        if (!dev || !dev.name) return;
+        const val = 'sensor:battery:' + dev.name;
+        const prev = Array.from(selLive.options).find((o) => o.value === val);
+        const label = t('deck_live_battery', 'Battery') + ' · ' + dev.name;
+        if (prev) { prev.textContent = label; return; }
+        const o = document.createElement('option'); o.value = val; o.textContent = label; selLive.appendChild(o);
+      });
+      if (devs.length) enhanceSelects(fLive);
+    }).catch(() => {});
     if (liveSource === 'timer') selLive.value = 'timer';
+    if (liveSource === 'sensor' && liveName && !liveName.startsWith('battery:')) selLive.value = 'sensor:' + liveName;
     fLive.appendChild(selLive);
     const liveNameWrap = document.createElement('div'); liveNameWrap.className = 'deck-ed-subfield';
     const liveNameIn = input('text', liveSource === 'timer' ? liveName : '');
@@ -979,8 +1051,9 @@
     fLive.appendChild(liveNameWrap);
     function syncLive() {
       const v = selLive.value;
-      liveSource = v === 'timer' ? 'timer' : (v.startsWith('sdk:') ? 'sdkState' : '');
+      liveSource = v === 'timer' ? 'timer' : (v.startsWith('sdk:') ? 'sdkState' : (v.startsWith('sensor:') ? 'sensor' : ''));
       if (liveSource === 'sdkState') liveName = v.slice(4);
+      else if (liveSource === 'sensor') liveName = v.slice('sensor:'.length);
       else if (liveSource === 'timer') liveName = liveNameIn.value.trim();
       liveNameWrap.style.display = liveSource === 'timer' ? '' : 'none';
     }
@@ -1476,6 +1549,7 @@
     const ACTION_CATEGORIES = [
       { group: 'system', labelKey: 'deck_cat_system' },
       { group: 'media', labelKey: 'deck_cat_media' },
+      { group: 'soundboard', labelKey: 'deck_cat_soundboard' },
       { group: 'timer', labelKey: 'deck_cat_timer' },
       { group: 'audio', labelKey: 'deck_cat_audio' },
       { group: 'obs', labelKey: 'deck_cat_obs' },
@@ -1500,9 +1574,12 @@
       openFile: _ai('<path d="M6 3h9l3 3v15H6z"/><path d="M9 13h6M9 17h4"/>'),
       runScript: _ai('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/>'),
       openStoreApp: _ai('<path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 0 1 6 0"/>'),
+      launchSteamGame: _ai('<rect x="2" y="7" width="20" height="10" rx="5"/><path d="M7 10v4M5 12h4M15 11h.01M18 13h.01"/>'),
       openUrl: _ai('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/>'),
       hotkey: _ai('<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>'),
       typeText: _ai('<path d="M4 7V5h16v2M12 5v14M9 19h6"/>'),
+      lockWorkstation: _ai('<path d="M18 8h-1V6a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm-6 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3.1-9H8.9V6a3.1 3.1 0 0 1 6.2 0z"/>'),
+      signalRgbEffect: _ai('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>'),
       webhook: _ai('<path d="M9 17H7A5 5 0 0 1 7 7h1M16 7h1a5 5 0 0 1 0 10h-2M8 12h8"/>'),
       media: _ai('<path d="M8 5v14l11-7z"/>'),
       playSound: _ai('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M16 9a4 4 0 0 1 0 6"/>'),
@@ -1608,6 +1685,11 @@
       if (a.group === 'spotify' && spotifyConnected === false) return false;
       if (a.group === 'chroma' && chromaEnabled === false) return false;
       if (a.group === 'wavelink' && wavelinkEnabled === false) return false;
+      // SignalRGB is a separate opt-in scene switcher: it lives in the lighting
+      // group but is gated on its OWN enable flag, not the colour-rig config — so
+      // it can be offered even when no iCUE/Hue/WLED rig is set up (and hidden
+      // when SignalRGB is off, whatever the rest of the lighting state is).
+      if (a.type === 'signalRgbEffect') return signalrgbEnabled === true;
       if (a.group === 'lighting' && lightingConfigured === false) return false;
       // Widget-SDK contributions: each action type is offered only once the
       // (lazy) package scan found matching entries. No locked-hint row — an
@@ -1707,6 +1789,18 @@
     // the uploaded library (GET /deck/sounds), with a "Carica" button that POSTs
     // a new clip and selects it. The manual path stays available as the first
     // option so an existing absolute-path key round-trips untouched.
+    // The pickable clip list: the uploaded library plus every installed sound
+    // pack's clips ("Pack name › clip"), whose values are the PACK-RELATIVE
+    // paths a shared profile can carry across machines.
+    async function soundLibrary() {
+      const [loose, packs] = await Promise.all([
+        fetch('/deck/sounds').then((r) => r.json()).then((d) => (d && d.sounds) || []).catch(() => []),
+        fetch('/deck/sound-packs').then((r) => r.json()).then((d) => (d && d.packs) || []).catch(() => []),
+      ]);
+      const out = loose.map((s) => ({ path: s.path, name: s.name }));
+      packs.forEach((p) => (p.clips || []).forEach((c) => out.push({ path: c.path, name: p.name + ' › ' + c.label })));
+      return out;
+    }
     function soundPickControl(step, name) {
       const wrap = document.createElement('div');
       const txt = input('text', step.params[name] || '');
@@ -1754,8 +1848,7 @@
           txt.value = d.path;
           // Rebuild the dropdown fresh so the new clip appears selected.
           wrap.querySelectorAll('select, .cs-wrap').forEach((n) => n.remove());
-          const list = await fetch('/deck/sounds').then((x) => x.json()).then((x) => (x && x.sounds) || []).catch(() => []);
-          rebuild(list);
+          rebuild(await soundLibrary());
           const sel = wrap.querySelector('select');
           if (sel) { sel.value = d.path; sel.dispatchEvent(new Event('change')); }
         } catch { toast('error', t('deck_sound_upload_failed')); }
@@ -1763,7 +1856,7 @@
       });
       wrap.appendChild(fileIn);
       wrap.appendChild(uploadBtn);
-      fetch('/deck/sounds').then((r) => r.json()).then((d) => rebuild((d && d.sounds) || [])).catch(() => {});
+      soundLibrary().then(rebuild).catch(() => {});
       return wrap;
     }
 
@@ -1817,6 +1910,34 @@
         sel.addEventListener('change', () => { step.params[name] = sel.value; });
         wrap.replaceChildren(sel);
         enhanceSelects(wrap);   // code-trigger list arrived → style its dropdown too
+      }).catch(() => {});
+      return wrap;
+    }
+
+    // A param control for the signalRgbEffect kind: a searchable dropdown of the
+    // user's installed SignalRGB effects (the list can be long → data-cs-search).
+    // A typed field is the fallback while the list is empty/loading, so an already
+    // assigned effect is never lost (mirrors sbCodeTriggerPickControl).
+    function signalRgbEffectPickControl(step, name) {
+      const wrap = document.createElement('div');
+      const txt = input('text', step.params[name] || '');
+      txt.placeholder = t('deck_param_effect');
+      const writeTxt = () => { step.params[name] = txt.value; };
+      txt.addEventListener('input', writeTxt); txt.addEventListener('change', writeTxt);
+      wrap.appendChild(txt);
+      signalRgbEffects().then((items) => {
+        if (!items || !items.length) return;   // off/absent → typed effect field only
+        const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+        sel.setAttribute('data-cs-search', '');
+        sel.setAttribute('data-cs-search-placeholder', t('deck_param_effect'));
+        const cur = step.params[name] || '';
+        if (cur && !items.some((it) => it.value === cur)) items = [{ value: cur, label: cur }, ...items];
+        items.forEach((it) => { const o = document.createElement('option'); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
+        sel.value = cur || items[0].value;
+        step.params[name] = sel.value;
+        sel.addEventListener('change', () => { step.params[name] = sel.value; });
+        wrap.replaceChildren(sel);
+        enhanceSelects(wrap);   // effect list arrived → style + search-enable its dropdown
       }).catch(() => {});
       return wrap;
     }
@@ -2296,6 +2417,12 @@
           host.appendChild(f);
           return;
         }
+        if (p.kind === 'signalRgbEffect') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(signalRgbEffectPickControl(step, p.name));
+          host.appendChild(f);
+          return;
+        }
         if (p.kind === 'sdkMacro') {
           if (step.params[p.name] == null) step.params[p.name] = '';
           f.appendChild(sdkMacroPickControl(step, p.name));
@@ -2356,7 +2483,7 @@
         } else {
           ctrl = input('text', step.params[p.name] || '');
           // Helpful example placeholders so it's obvious what to enter per param.
-          ctrl.placeholder = { path: 'C:\\...\\app.exe', file: 'C:\\...\\suono.mp3', url: 'https://esempio.com', keys: 'ctrl+shift+m', args: '{"key":"value"}', message: t('deck_ph_message'), text: t('deck_ph_text') }[p.name] || '';
+          ctrl.placeholder = { path: 'C:\\...\\app.exe', file: 'C:\\...\\suono.mp3', url: 'https://esempio.com', keys: 'ctrl+shift+m', args: '{"key":"value"}', gameId: '1086940', message: t('deck_ph_message'), text: t('deck_ph_text') }[p.name] || '';
         }
         step.params[p.name] = ctrl.value;                 // seed the default
         const write = () => { step.params[p.name] = ctrl.value; };
