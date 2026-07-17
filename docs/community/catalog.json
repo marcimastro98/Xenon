@@ -73,6 +73,7 @@
       "name": "POW! — Comic Book Pack",
       "author": "xenon",
       "authorSupporter": true,
+      "supportersOnly": true,
       "locked": true,
       "description": "An exclusive comic-book universe for the Xeneon Edge, for supporters only. A living hand-inked skyline shifts with the real weather and time of day, doubling as a screensaver, alongside comic System, Fans, Batteries and Energy boards and a hand-drawn Sidekick Deck. Six artifacts, one code.",
       "category": "style",
