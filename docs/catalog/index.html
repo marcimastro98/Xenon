@@ -447,7 +447,6 @@
   <div class="toolbar" id="toolbar" hidden>
     <input class="cat-search" id="search" type="search" data-i18n-ph="bar.search" placeholder="Search name, author, #tag…" aria-label="Search">
     <div class="seg" id="chips-kind" role="group" aria-label="Type"></div>
-    <div class="cat-select"><select id="sel-cat" aria-label="Category"></select></div>
     <div class="cat-select"><select id="sel-sort" aria-label="Sort">
       <option value="feat" data-i18n="sort.feat">Featured</option>
       <option value="new" data-i18n="sort.new">Newest</option>
@@ -499,7 +498,7 @@ const I18N = {
     'card.locked': 'Supporters',
     'k.limited': 'Limited', 'k.limited_ed': 'Limited edition', 'card.left': '{n} of {t} left', 'card.soldout': 'Sold out', 'card.claim': 'Claim your copy', 'card.reserve': 'Open Discord', 'card.reserve_hint': 'Discord verifies your account and sends a personal access code.',
     'count.n': '{n} creations',
-    'bar.category': 'All categories', 'bar.clear': '✕ Clear filters',
+    'bar.clear': '✕ Clear filters',
     'sort.feat': 'Featured', 'sort.new': 'Newest', 'sort.name': 'Name A–Z',
     'sec.tag': 'EXCLUSIVE', 'sec.seeall': 'See all →',
     'sec.limited': 'Limited drops', 'sec.limited_sub': 'A fixed number of copies worldwide, reserved on Discord. When they are gone, they are gone.',
@@ -536,7 +535,7 @@ const I18N = {
     'card.locked': 'Supporter',
     'k.limited': 'Limited', 'k.limited_ed': 'Edizione limitata', 'card.left': '{n} di {t} disponibili', 'card.soldout': 'Esaurito', 'card.claim': 'Richiedi la tua copia', 'card.reserve': 'Apri Discord', 'card.reserve_hint': 'Discord verifica il tuo account e invia un codice d\'accesso personale.',
     'count.n': '{n} creazioni',
-    'bar.category': 'Tutte le categorie', 'bar.clear': '✕ Azzera filtri',
+    'bar.clear': '✕ Azzera filtri',
     'sort.feat': 'In evidenza', 'sort.new': 'Più recenti', 'sort.name': 'Nome A–Z',
     'sec.tag': 'ESCLUSIVI', 'sec.seeall': 'Vedi tutti →',
     'sec.limited': 'Drop limitati', 'sec.limited_sub': 'Copie contate in tutto il mondo, riservate su Discord. Quando finiscono, finiscono.',
@@ -573,7 +572,7 @@ const I18N = {
     'card.locked': '서포터',
     'k.limited': '한정판', 'k.limited_ed': '한정판', 'card.left': '{t}개 중 {n}개 남음', 'card.soldout': '품절', 'card.reserve': 'Discord에서 예약 →', 'card.reserve_hint': 'Discord에서 예약합니다. 가져오기용 개인 액세스 코드를 받습니다.',
     'count.n': '{n}개 작품',
-    'bar.category': '모든 카테고리', 'bar.clear': '✕ 필터 지우기',
+    'bar.clear': '✕ 필터 지우기',
     'sort.feat': '추천순', 'sort.new': '최신순', 'sort.name': '이름 A–Z',
     'sec.tag': '독점', 'sec.seeall': '모두 보기 →',
     'sec.limited': '한정판 드롭', 'sec.limited_sub': '전 세계 한정 수량, Discord에서 예약합니다. 소진되면 끝입니다.',
@@ -610,7 +609,7 @@ const I18N = {
     'card.locked': 'サポーター',
     'k.limited': '限定', 'k.limited_ed': '限定版', 'card.left': '{t}個中 残り{n}個', 'card.soldout': '完売', 'card.reserve': 'Discordで予約 →', 'card.reserve_hint': 'Discordで予約します。インポート用の個人アクセスコードが届きます。',
     'count.n': '{n} 作品',
-    'bar.category': 'すべてのカテゴリ', 'bar.clear': '✕ フィルターをクリア',
+    'bar.clear': '✕ フィルターをクリア',
     'sort.feat': 'おすすめ', 'sort.new': '新着', 'sort.name': '名前 A–Z',
     'sec.tag': '限定', 'sec.seeall': 'すべて見る →',
     'sec.limited': '限定ドロップ', 'sec.limited_sub': '世界で数量限定、Discordで予約します。なくなり次第終了です。',
@@ -647,7 +646,7 @@ const I18N = {
     'card.locked': '支持者',
     'k.limited': '限量', 'k.limited_ed': '限量版', 'card.left': '{t} 份仅剩 {n} 份', 'card.soldout': '已售罄', 'card.reserve': '在 Discord 预订 →', 'card.reserve_hint': '在 Discord 预订。你会收到用于导入的专属访问码。',
     'count.n': '{n} 个作品',
-    'bar.category': '所有分类', 'bar.clear': '✕ 清除筛选',
+    'bar.clear': '✕ 清除筛选',
     'sort.feat': '精选', 'sort.new': '最新', 'sort.name': '名称 A–Z',
     'sec.tag': '专属', 'sec.seeall': '查看全部 →',
     'sec.limited': '限量发布', 'sec.limited_sub': '全球数量固定，在 Discord 预订。售完即止。',
@@ -765,14 +764,12 @@ function applyLang(lang) {
   const clearEl = document.getElementById('clear');
   const searchEl = document.getElementById('search');
   const segKindEl = document.getElementById('chips-kind');
-  const selCatEl = document.getElementById('sel-cat');
   const selSortEl = document.getElementById('sel-sort');
 
   const PAGE = 9;              // load-more page size for flat (filtered) views
   const SECTION_PREVIEW = 4;   // cards shown per kind before "See all"
   let entries = [];
   let activeKind = '';
-  let activeCat = '';
   let query = '';
   let sortBy = 'feat';
   let shown = PAGE;
@@ -1359,7 +1356,6 @@ function applyLang(lang) {
 
   // ── Filtering / sorting ──
   function matches(entry) {
-    if (activeCat && entry.category !== activeCat) return false;
     if (query) {
       const hay = [entry.name, entry.author, entry.description, entry.publisher && entry.publisher.handle, ...entry.tags].filter(Boolean).join(' ').toLowerCase();
       if (!hay.includes(query.replace(/^#/, ''))) return false;
@@ -1476,7 +1472,7 @@ function applyLang(lang) {
   });
 
   function paint() {
-    clearEl.hidden = !(activeKind || activeCat || query);
+    clearEl.hidden = !(activeKind || query);
     countbarEl.hidden = false;
 
     if (activeKind === '__limited') { const list = entries.filter((e) => e.limited && matches(e)); setCount(list.length); flatView(list); deepLink(); return; }
@@ -1486,7 +1482,7 @@ function applyLang(lang) {
     let pool = entries.filter((e) => matches(e) && !e.limited && !e.locked);
     if (activeKind) pool = pool.filter((e) => e.kind === activeKind);
 
-    const browsingAll = !activeKind && !activeCat && !query;
+    const browsingAll = !activeKind && !query;
     // Filtered views must keep the tiers findable: search / category / kind
     // include matching limited + locked entries (the strips only render in
     // browse-all, so without this a limited drop is unfindable by name).
@@ -1562,9 +1558,7 @@ function applyLang(lang) {
 
   function syncControls() {
     Array.from(segKindEl.children).forEach((b) => b.classList.toggle('active', b.dataset.k === (activeKind || 'all')));
-    selCatEl.value = activeCat || 'all';
     selSortEl.value = sortBy;
-    if (selCatEl._xselSync) selCatEl._xselSync();
     if (selSortEl._xselSync) selSortEl._xselSync();
   }
   function buildControls() {
@@ -1580,19 +1574,13 @@ function applyLang(lang) {
     if (hasSup) segKindEl.appendChild(mk(T('sec.supporters'), '__supporters', 'sup', 'star'));
     kinds.forEach((k) => segKindEl.appendChild(mk(KIND_LABEL(k), k)));
 
-    const cats = CATS.filter((c) => entries.some((e) => e.category === c));
-    selCatEl.replaceChildren();
-    const optAll = document.createElement('option'); optAll.value = 'all'; optAll.textContent = T('bar.category'); selCatEl.appendChild(optAll);
-    cats.forEach((c) => { const o = document.createElement('option'); o.value = c; o.textContent = CAT_LABEL(c); selCatEl.appendChild(o); });
-
     Array.from(selSortEl.options).forEach((o) => { const key = o.getAttribute('data-i18n'); if (key) { const v = T(key); if (v) o.textContent = v; } });
-    initSelect(selCatEl); initSelect(selSortEl);   // no-op after the first build
+    initSelect(selSortEl);   // no-op after the first build
     syncControls();
   }
 
-  selCatEl.addEventListener('change', () => { activeCat = selCatEl.value === 'all' ? '' : selCatEl.value; shown = PAGE; paint(); });
   selSortEl.addEventListener('change', () => { sortBy = selSortEl.value; paint(); });
-  clearEl.addEventListener('click', () => { activeKind = ''; activeCat = ''; query = ''; searchEl.value = ''; shown = PAGE; buildControls(); paint(); });
+  clearEl.addEventListener('click', () => { activeKind = ''; query = ''; searchEl.value = ''; shown = PAGE; buildControls(); paint(); });
   // Debounced like the in-app Store: paint() rebuilds the whole storefront
   // (sections + generated canvas previews), far too heavy per keystroke.
   let searchTimer = null;
