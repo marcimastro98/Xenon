@@ -382,6 +382,12 @@
   function showCaptchaBroken() {
     var host = document.getElementById('cf-turnstile-host');
     if (!host || host.dataset.broken) return;
+    // Never overwrite a widget that is on its way in: this replaces the host's
+    // children, and Turnstile mounts its iframe asynchronously after render()
+    // returns. An earlier version fired on a timer and wiped a live widget —
+    // Turnstile then logged "Cannot find Widget …" and the page reported itself
+    // broken while the gate was, in fact, working.
+    if (host.querySelector('iframe')) return;
     host.dataset.broken = '1';
     host.textContent = T('e_captcha_blocked', 'The anti-spam check could not load — an ad blocker or privacy extension usually causes this. Disable it for this page and reload, or use the GitHub form instead.');
     host.className = 'captcha-broken';
@@ -440,7 +446,12 @@
   renderShots();
   // No mountTurnstile() here — onloadTurnstile fires it when the API is ready.
   // If the script never arrives (blocked), say so instead of failing silently.
-  setTimeout(function () { if (!document.querySelector('#cf-turnstile-host iframe')) showCaptchaBroken(); }, 8000);
+  // The test is "did the API ever install", NOT "is an iframe on screen yet":
+  // a slow widget is still a working one, and treating it as broken is how the
+  // first cut of this fallback destroyed the very widget it was watching for.
+  setTimeout(function () {
+    if (!window.turnstile || typeof window.turnstile.render !== 'function') showCaptchaBroken();
+  }, 8000);
   paintSize();
 })();
 </script>
