@@ -14,27 +14,26 @@
 <script>document.documentElement.classList.add('js');</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
-<link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700,500&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 
 <style>
   :root {
-    --ink:      #04060a;
-    --ink-2:    #070b11;
-    --panel:    rgba(140, 255, 200, 0.035);
-    --panel-2:  rgba(140, 255, 200, 0.06);
-    --line:     rgba(120, 245, 180, 0.14);
-    --line-2:   rgba(120, 245, 180, 0.26);
-    --plasma:   #1ee07a;
-    --plasma-2: #40dca5;
-    --ion:      #76f7ff;
-    --hot:      #c6ff5e;
-    --text:     #e9f2ee;
-    --muted:    #8fa39c;
-    --dim:      #5f706a;
-    --display:  'Clash Display', 'Hanken Grotesk', system-ui, sans-serif;
-    --body:     'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+    --ink:      #070808;
+    --ink-2:    #0b0d0c;
+    --panel:    rgba(240, 243, 241, 0.03);
+    --panel-2:  rgba(240, 243, 241, 0.055);
+    --line:     rgba(240, 243, 241, 0.08);
+    --line-2:   rgba(240, 243, 241, 0.16);
+    --plasma:   #1ed760;   /* the locked Xenon brand green */
+    --plasma-2: #4ce38a;   /* lighter step for text-on-dark hovers */
+    --green-ink:#052012;   /* text on a green fill */
+    --ion:      #6cb8ff;   /* docs-info blue (callouts, keys) — not the Orb cyan */
+    --hot:      #ffd75e;   /* string literals */
+    --text:     #f0f3f1;
+    --muted:    #9aa8a1;
+    --dim:      #66736c;
+    --display:  'Inter', system-ui, sans-serif;
+    --body:     'Inter', system-ui, -apple-system, sans-serif;
     --mono:     'JetBrains Mono', ui-monospace, monospace;
     --nav-h:    62px;
     --side-w:   258px;
@@ -48,15 +47,14 @@
   }
   a { color: inherit; text-decoration: none; }
   img { max-width: 100%; display: block; }
-  ::selection { background: var(--plasma); color: #021; }
+  ::selection { background: var(--plasma); color: var(--green-ink); }
+  :focus-visible { outline: 2px solid var(--plasma); outline-offset: 3px; border-radius: 4px; }
   .mono { font-family: var(--mono); }
 
   /* Ambient background wash */
   body::before {
     content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background:
-      radial-gradient(80% 55% at 82% -8%, rgba(30,224,122,0.10), transparent 60%),
-      radial-gradient(70% 50% at 0% 8%, rgba(118,247,255,0.06), transparent 55%);
+    background: radial-gradient(80% 55% at 82% -8%, rgba(30,215,96,0.08), transparent 60%);
   }
 
   /* ───────── Top bar ───────── */
@@ -67,13 +65,13 @@
     border-bottom: 1px solid var(--line);
   }
   .brand { display: flex; align-items: center; gap: 9px; font-family: var(--display); font-weight: 700; font-size: 18px; letter-spacing: 0.06em; flex: none; }
-  .brand img { height: 28px; width: auto; margin: -6px 0; mix-blend-mode: screen; filter: drop-shadow(0 0 8px rgba(118,247,255,0.30)); }
+  .brand img { height: 28px; width: auto; margin: -6px 0; mix-blend-mode: screen; filter: drop-shadow(0 0 8px rgba(30,215,96,0.25)); }
   .brand .sub { font-family: var(--mono); font-weight: 500; font-size: 11px; letter-spacing: 0.14em; color: var(--plasma-2); text-transform: uppercase; padding-left: 12px; margin-left: 4px; border-left: 1px solid var(--line-2); }
   .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
   .tb-link { font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; color: var(--muted); padding: 8px 12px; border-radius: 9px; transition: color .2s, background .2s; }
   .tb-link:hover { color: var(--text); background: var(--panel-2); }
-  .tb-cta { color: #021; background: var(--plasma); font-weight: 700; }
-  .tb-cta:hover { color: #021; background: #34ec8f; }
+  .tb-cta { color: var(--green-ink); background: var(--plasma); font-weight: 700; }
+  .tb-cta:hover { color: var(--green-ink); background: var(--plasma-2); }
   .menu-btn { display: none; margin-left: auto; background: var(--panel-2); border: 1px solid var(--line); color: var(--text); width: 40px; height: 38px; border-radius: 10px; font-size: 18px; cursor: pointer; }
 
   /* ───────── Layout shell ───────── */
@@ -99,39 +97,38 @@
   .crumbs { font-family: var(--mono); font-size: 12px; color: var(--dim); margin-bottom: 22px; letter-spacing: 0.03em; }
   .crumbs a:hover { color: var(--plasma-2); }
 
-  .hero-h { font-family: var(--display); font-weight: 700; font-size: clamp(34px, 5vw, 52px); line-height: 1.04; letter-spacing: -0.01em; margin-bottom: 16px; }
-  .hero-h .g { background: linear-gradient(100deg, var(--plasma), var(--ion)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero-h { font-family: var(--display); font-weight: 700; font-size: clamp(34px, 5vw, 52px); line-height: 1.04; letter-spacing: -0.03em; margin-bottom: 16px; }
+  .hero-h .g { color: var(--plasma); }
   .lede { font-size: clamp(16px, 2.2vw, 19px); color: var(--muted); max-width: 60ch; margin-bottom: 30px; }
 
   section { scroll-margin-top: calc(var(--nav-h) + 20px); padding-top: 30px; }
   section > h2 {
-    font-family: var(--display); font-weight: 600; font-size: clamp(24px, 3.4vw, 33px);
-    letter-spacing: -0.01em; margin-bottom: 8px; padding-top: 24px;
+    font-family: var(--display); font-weight: 700; font-size: clamp(24px, 3.4vw, 33px);
+    letter-spacing: -0.02em; margin-bottom: 8px; padding-top: 24px;
     border-top: 1px solid var(--line);
   }
   section.no-rule > h2 { border-top: none; padding-top: 0; }
   section > h2 .step { font-family: var(--mono); font-size: 0.5em; color: var(--plasma); letter-spacing: 0.1em; vertical-align: middle; margin-right: 12px; }
   h3 { font-family: var(--display); font-weight: 600; font-size: clamp(17px, 2.2vw, 21px); margin: 30px 0 10px; }
-  p { margin-bottom: 14px; color: #cddbd4; }
+  p { margin-bottom: 14px; color: #c9d2ce; }
   .content a.inline { color: var(--plasma-2); border-bottom: 1px solid var(--line-2); }
   .content a.inline:hover { color: var(--plasma); }
   strong { color: var(--text); font-weight: 700; }
   .muted { color: var(--muted); }
-  em { color: var(--ion); font-style: normal; font-family: var(--mono); font-size: 0.92em; background: rgba(118,247,255,0.07); padding: 1px 6px; border-radius: 5px; }
+  em { color: var(--ion); font-style: normal; font-family: var(--mono); font-size: 0.92em; background: rgba(108,184,255,0.08); padding: 1px 6px; border-radius: 5px; }
 
-  ul, ol { margin: 0 0 16px 2px; padding-left: 20px; color: #cddbd4; }
+  ul, ol { margin: 0 0 16px 2px; padding-left: 20px; color: #c9d2ce; }
   li { margin-bottom: 7px; }
   li::marker { color: var(--plasma-2); }
 
   /* Eyebrow tag */
-  .tag { font-family: var(--mono); font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--plasma-2); display: inline-flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-  .tag::before { content: ""; width: 26px; height: 1px; background: var(--line-2); }
+  .tag { font-family: var(--body); font-size: 12px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--plasma); display: inline-flex; align-items: center; margin-bottom: 16px; }
 
   /* Cards / callouts */
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px 24px; margin: 18px 0; }
-  .note { border-left: 3px solid var(--ion); background: rgba(118,247,255,0.05); border-radius: 0 12px 12px 0; padding: 14px 18px; margin: 18px 0; font-size: 14.5px; }
+  .note { border-left: 3px solid var(--ion); background: rgba(108,184,255,0.06); border-radius: 0 12px 12px 0; padding: 14px 18px; margin: 18px 0; font-size: 14.5px; }
   .note b { color: var(--ion); }
-  .safe { border-left-color: var(--plasma); background: rgba(30,224,122,0.05); }
+  .safe { border-left-color: var(--plasma); background: rgba(30,215,96,0.05); }
   .safe b { color: var(--plasma); }
 
   /* Path steps (numbered) */
@@ -140,7 +137,7 @@
   .steps > li::before {
     content: counter(s); position: absolute; left: 0; top: 0;
     width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
-    font-family: var(--mono); font-weight: 700; font-size: 13px; color: #021;
+    font-family: var(--mono); font-weight: 700; font-size: 13px; color: var(--green-ink);
     background: linear-gradient(135deg, var(--plasma), var(--plasma-2));
   }
   .steps > li:not(:last-child)::after { content: ""; position: absolute; left: 14px; top: 34px; bottom: 4px; width: 1px; background: var(--line); }
@@ -151,8 +148,8 @@
   .code-bar { display: flex; align-items: center; flex-wrap: nowrap; gap: 8px; background: #0a0f14; border: 1px solid var(--line); border-bottom: none; border-radius: 12px 12px 0 0; padding: 8px 90px 8px 14px; font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
   .code-bar .dot { width: 9px; height: 9px; border-radius: 50%; background: #26303a; flex: none; }
   .code-bar .fname { margin-left: 4px; letter-spacing: 0.03em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .code-bar .badge { margin-left: auto; flex: none; white-space: nowrap; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--plasma); background: rgba(30,224,122,0.1); border: 1px solid var(--line); padding: 2px 8px; border-radius: 20px; }
-  pre { background: #060a0e; border: 1px solid var(--line); border-radius: 0 0 12px 12px; padding: 16px 18px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; color: #d7e6df; }
+  .code-bar .badge { margin-left: auto; flex: none; white-space: nowrap; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--plasma); background: rgba(30,215,96,0.1); border: 1px solid var(--line); padding: 2px 8px; border-radius: 20px; }
+  pre { background: #060a0e; border: 1px solid var(--line); border-radius: 0 0 12px 12px; padding: 16px 18px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; color: #d5ddd9; }
   pre.solo { border-radius: 12px; }
   pre code { white-space: pre; word-break: normal; }
   .code.oneline pre { white-space: pre-wrap; word-break: break-all; max-height: 150px; overflow-y: auto; color: var(--plasma-2); }
@@ -162,17 +159,17 @@
   .copy-btn {
     position: absolute; top: 6px; right: 10px; z-index: 3;
     font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.05em; cursor: pointer;
-    background: rgba(30,224,122,0.12); border: 1px solid var(--line-2); color: var(--plasma-2);
+    background: rgba(30,215,96,0.12); border: 1px solid var(--line-2); color: var(--plasma-2);
     padding: 6px 13px; border-radius: 8px; transition: all .18s;
   }
-  .copy-btn:hover { background: var(--plasma); color: #021; border-color: var(--plasma); }
-  .copy-btn.done { background: var(--plasma); color: #021; border-color: var(--plasma); }
+  .copy-btn:hover { background: var(--plasma); color: var(--green-ink); border-color: var(--plasma); }
+  .copy-btn.done { background: var(--plasma); color: var(--green-ink); border-color: var(--plasma); }
 
   /* Map / cheat-sheet table */
   .table-wrap { overflow-x: auto; margin: 20px 0; border: 1px solid var(--line); border-radius: 14px; }
   table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
   th, td { text-align: left; padding: 13px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--plasma-2); background: rgba(30,224,122,0.04); }
+  th { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--plasma-2); background: rgba(30,215,96,0.04); }
   tr:last-child td { border-bottom: none; }
   td .goal { color: var(--text); font-weight: 600; }
   td a { color: var(--plasma-2); border-bottom: 1px solid var(--line-2); }
@@ -399,6 +396,26 @@
   <span class="tok-k">"contrastGuard"</span>: <span class="tok-k">true</span>
 }</code></pre>
       </div>
+
+      <h3>One theme, light and dark</h3>
+      <p>A theme's colours are normally fixed: a cream theme stays cream even for someone running Windows in dark mode. Add <code>paletteVariants</code> and you ship both halves in one theme — Xenon paints the one that matches the mode the user picked, and follows Windows live when they're on <b>Auto</b>. Set <code>"appearance": "auto"</code> and the two halves become the palette.</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">theme.json — one card, two tones</span><span class="badge">v4.6.0+</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code>{
+  <span class="tok-k">"appearance"</span>: <span class="tok-s">"auto"</span>,
+  <span class="tok-k">"styleMode"</span>: <span class="tok-s">"comic"</span>,
+  <span class="tok-k">"accent"</span>: <span class="tok-s">"#e63d4e"</span>,
+  <span class="tok-k">"background"</span>: <span class="tok-s">"#efe6cf"</span>,
+  <span class="tok-k">"text"</span>: <span class="tok-s">"#1b140d"</span>,
+  <span class="tok-k">"paletteVariants"</span>: {
+    <span class="tok-k">"light"</span>: { <span class="tok-k">"accent"</span>: <span class="tok-s">"#e63d4e"</span>, <span class="tok-k">"background"</span>: <span class="tok-s">"#efe6cf"</span>, <span class="tok-k">"surface"</span>: <span class="tok-s">"#efe6cf"</span>, <span class="tok-k">"text"</span>: <span class="tok-s">"#1b140d"</span> },
+    <span class="tok-k">"dark"</span>:  { <span class="tok-k">"accent"</span>: <span class="tok-s">"#ff5566"</span>, <span class="tok-k">"background"</span>: <span class="tok-s">"#12101d"</span>, <span class="tok-k">"surface"</span>: <span class="tok-s">"#191527"</span>, <span class="tok-k">"text"</span>: <span class="tok-s">"#fbf3e0"</span> }
+  }
+}</code></pre>
+      </div>
+      <p>Each half takes any role from the table above. Write each one as a <em>complete</em> palette: a role you leave out of a half is derived for that tone rather than borrowed from the other half, so a cream <code>surface</code> can never leak into the dark side. The top-level colours stay required — they describe your primary tone and are what older Xenon versions import.</p>
+      <div class="note"><b>Check both halves.</b> The contrast guard runs per tone, and a status colour tuned for light paper is usually unreadable on a dark board. Give each half its own <code>mutedText</code> and status colours. If the user later edits a colour by hand, Xenon keeps what's on screen and drops the pair, so their choice sticks.</div>
 
       <h3>Override just one widget</h3>
       <ol class="steps">
@@ -689,6 +706,7 @@
   <span class="tok-k">"streams"</span>: [<span class="tok-s">"system"</span>, <span class="tok-s">"media"</span>],
   <span class="tok-k">"actions"</span>: [<span class="tok-s">"media"</span>, <span class="tok-s">"volume"</span>],
   <span class="tok-k">"hosts"</span>: [<span class="tok-s">"api.example.com"</span>],
+  <span class="tok-k">"userHosts"</span>: [{ <span class="tok-k">"id"</span>: <span class="tok-s">"nas"</span>, <span class="tok-k">"label"</span>: <span class="tok-s">"NAS address"</span>, <span class="tok-k">"scope"</span>: <span class="tok-s">"private"</span> }],
   <span class="tok-k">"hooks"</span>: [<span class="tok-s">"my-event"</span>],
   <span class="tok-k">"storage"</span>: true,
   <span class="tok-k">"storageGroup"</span>: <span class="tok-s">"my-widget-set"</span>,
@@ -706,7 +724,8 @@
             <tr><td><code>entry</code></td><td>No</td><td>The HTML file to load. Defaults to <code>index.html</code>. Must sit in the package root.</td></tr>
             <tr><td><code>streams</code></td><td>No</td><td>The live data you want to read. Full list in <a href="#sdk-streams">§5</a>.</td></tr>
             <tr><td><code>actions</code></td><td>No</td><td>The categories of things you want to control. Full list in <a href="#sdk-actions">§6</a>.</td></tr>
-            <tr><td><code>hosts</code></td><td>No</td><td>Up to 8 hostnames your widget may reach through Xenon's fetch proxy (<a href="#sdk-network">§7</a>). Loopback / LAN names are rejected.</td></tr>
+            <tr><td><code>hosts</code></td><td>No</td><td>Up to 8 hostnames your widget may reach through Xenon's fetch proxy (<a href="#sdk-network">§7</a>). A LAN address is fine; loopback and link-local names are rejected.</td></tr>
+            <tr><td><code>userHosts</code></td><td>No</td><td>Up to 4 addresses <b>the user types in</b>, for servers you can't know in advance — a NAS, Docker, a printer (<a href="#sdk-network">§7</a>).</td></tr>
             <tr><td><code>hooks</code></td><td>No</td><td>Up to 8 hook ids a local app may push events to (<a href="#sdk-network">§7</a>).</td></tr>
             <tr><td><code>surface</code></td><td>No</td><td><code>"tile"</code> (default) or <code>"ambient"</code> for a fullscreen scene (<a href="#sdk-ambient">§10</a>).</td></tr>
             <tr><td><code>deck</code></td><td>No</td><td>Deck contributions: macros, published states and code-run handlers (<a href="#sdk-deck">§9</a>).</td></tr>
@@ -714,6 +733,7 @@
             <tr><td><code>storage</code></td><td>No</td><td><code>true</code> gives your widget a small key/value store that <b>survives updates</b> (<a href="#sdk-data">§8</a>).</td></tr>
             <tr><td><code>storageGroup</code></td><td>No</td><td>A shared-store id so a set of sibling widgets share one store. Implies <code>storage</code> (<a href="#sdk-data">§8</a>).</td></tr>
             <tr><td><code>secrets</code></td><td>No</td><td><code>true</code> gives you a write-only vault for API keys, used via <code>{{secret:NAME}}</code> in requests (<a href="#sdk-data">§8</a>).</td></tr>
+            <tr><td><code>island</code></td><td>No</td><td><code>true</code> lets your widget project <b>one short plain-text line</b> into the minimal topbar's dynamic island — host-rendered, capped at 160 chars, plain text only, with an optional dimmed <code>next</code> line and a <code>badge</code> meta column (speed, countdown). Chained lines glide karaoke-style. One owner at a time; system notifications always win; auto-cleared when your tile goes away. See the SDK guide's <i>Island projection</i> chapter.</td></tr>
           </tbody>
         </table>
       </div>
@@ -722,7 +742,7 @@
 
     <section id="sdk-streams">
       <h2>5 · Data streams — everything you can read</h2>
-      <p>List any of these in <code>streams</code>. You receive the dashboard's own live data, unchanged, as <code>data</code> messages &mdash; plus the latest value replayed right after <code>init</code>. Every string in a payload is display text: render it with <code>textContent</code>.</p>
+      <p>List any of these in <code>streams</code>. Live streams arrive as unchanged <code>data</code> messages and replay their latest cached value after <code>init</code>. The richer Discord snapshots are loaded on demand while their UI is visible. Every string in a payload is display text: render it with <code>textContent</code>.</p>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Stream</th><th>What it carries</th></tr></thead>
@@ -738,6 +758,9 @@
             <tr><td><code>claude</code></td><td>Local Claude Code usage aggregate (the "Xenon Pulse" data).</td></tr>
             <tr><td><code>obs</code></td><td>OBS state: current scene, recording / streaming flags, audio sources.</td></tr>
             <tr><td><code>discord</code></td><td>Discord voice: connected, mute / deafen, channel, who's speaking.</td></tr>
+            <tr><td><code>discordChannels</code></td><td>Discord servers, voice channels and their live member roster. Lazy: request a refresh when the Channels view opens.</td></tr>
+            <tr><td><code>discordSoundboard</code></td><td>The connected account's Soundboard catalog. Lazy and cached for 60 seconds.</td></tr>
+            <tr><td><code>discordNotifications</code></td><td>Private DM / mention notifications, respecting the user's privacy setting. <b>Privacy:</b> request this separate grant only when notification content is essential.</td></tr>
             <tr><td><code>streamerbot</code></td><td>Streamer.bot connection, globals and activity events.</td></tr>
             <tr><td><code>homeassistant</code></td><td>Home Assistant device / entity states. <b>Privacy:</b> this is your smart-home state, grant it deliberately.</td></tr>
             <tr><td><code>wavelink</code></td><td>Elgato Wave Link mixer state: inputs, faders, mute flags, monitor mix.</td></tr>
@@ -749,6 +772,7 @@
         </table>
         <div class="note"><b>Fans and power draw need no stream of their own</b> &mdash; they ride the <code>system</code> payload as <code>fans</code>, <code>power</code> and <code>sensorAccess</code>. Three things to get right: a fan carries <code>rpm</code> <i>or</i> <code>pct</code> (never both), the GPU fan is the one with <code>kind: 'gpu'</code> (never match on <code>name</code>), and every watt reading is nullable &mdash; since <code>Number(null)</code> is <code>0</code>, guard with <code>v != null</code> first or you'll render a confident "0 W" that isn't real. Full payloads and the <code>sensorAccess</code> states are in the <a href="https://github.com/marcimastro98/xenon/blob/main/docs/WIDGET_SDK.md#3b-hardware-sensors--fans-power-device-battery-v46">SDK reference</a>.</div>
       </div>
+      <div class="note"><b>Refreshing rich Discord data:</b> send <code>{ xenonSdk:1, type:'refresh', id:7, stream:'discordChannels' }</code>. Xenon sends the normal <code>data</code> payload plus <code>refresh_result</code>. The stream name selects one fixed local source &mdash; packages cannot provide a URL &mdash; and hidden or ungranted widgets are rejected.</div>
     </section>
 
     <section id="sdk-actions">
@@ -838,6 +862,33 @@ addEventListener('message', e =&gt; {
         <li>Responses cap at 1&nbsp;MB; text arrives as UTF-8, binary as base64. Rate limit: about one request per second.</li>
       </ul>
       <div class="note">Apps like Razer Synapse or Wave Link expose a <code>127.0.0.1</code> endpoint, which the sandbox blocks on purpose. Don't try to reach them directly &mdash; use the matching <code>chroma</code> / <code>wavelink</code> action category instead and let Xenon do the local talking.</div>
+
+      <h3>Addresses only the user knows (<code>userHosts</code>)</h3>
+      <p><code>hosts</code> works when you know the address as you build the widget. It doesn't when the server lives on <b>the user's</b> network &mdash; a NAS, a Docker host, a printer, a self-hosted Plex. You can't know that address, and hard-coding your own would make the widget useless to everyone else.</p>
+      <p>So declare a <b>named blank</b> instead. The user fills it in when they approve your widget, and you read it back from <code>init</code>.</p>
+      <div class="code">
+        <div class="code-bar"><span class="dot"></span><span class="fname">an address the user provides</span></div>
+        <button class="copy-btn" data-copy>Copy</button>
+        <pre><code><span class="tok-c">// manifest:</span>
+<span class="tok-c">// "userHosts": [{ "id": "nas", "label": "NAS address", "scope": "private" }]</span>
+
+<span class="tok-c">// init hands you what they typed, with a ready-made base:</span>
+<span class="tok-c">// userHosts: { nas: { host:'192.168.1.50', port:32400, scheme:'http',</span>
+<span class="tok-c">//                     base:'http://192.168.1.50:32400' } }</span>
+const nas = init.userHosts.nas;
+if (nas) {
+  parent.postMessage({ xenonSdk:1, type:<span class="tok-s">'fetch'</span>, id:8,
+    url: nas.base + <span class="tok-s">'/library/sections'</span> }, '*');
+}</code></pre>
+      </div>
+      <ul>
+        <li><code>label</code> is the text above the field &mdash; say plainly what you want ("Plex server address"). <code>scope</code> is <code>"private"</code> (default, the user's own network only) or <code>"any"</code> (also a public domain, for a self-hosted service).</li>
+        <li>The user can type <code>192.168.1.50:32400</code>, <code>nas.local</code> or <code>https://plex.example.com</code> &mdash; all fine. <b>Use <code>base</code></b> rather than rebuilding the URL yourself. Ports aren't part of the allowlist, so a slot covers any port on that host.</li>
+        <li>A slot they left empty is simply absent from <code>init.userHosts</code> &mdash; but in practice Xenon won't mount you until every declared slot has an address, and asks them for it instead.</li>
+        <li>The address is stored with the user's grant, never in your package: it doesn't travel when the widget is shared, and it survives updates. Users change it later from the Store's <b>Installed</b> list → <i>Address</i>.</li>
+        <li>Up to 4 slots. Ask for as few as you can &mdash; each one is a field a person has to understand and type.</li>
+      </ul>
+      <div class="note">This is the one place a widget has a say in where it can reach &mdash; so, to be exact: it still can't choose. You declare that you <i>need</i> an address and how wide it may reach; the value only ever comes from the person at the keyboard, and Xenon re-checks it on every request. Loopback and link-local stay unreachable through a slot, and <code>"private"</code> really does pin it to the LAN.</div>
 
       <h3>Local webhooks (a local app pushes to you)</h3>
       <p>Declare hook ids in <code>hooks</code>, and any local process (Streamer.bot, AutoHotkey, a script) can push an event straight into your widget.</p>

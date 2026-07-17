@@ -105,3 +105,4 @@ widget/shared
 # them. See docs/community/README.md and the supporter-hub drop routine.
 docs/community/shots/
 .agents/
+packages/design-system

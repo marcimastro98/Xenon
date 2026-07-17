@@ -274,7 +274,9 @@ function aiSendText() {
   const input = $('ai-text-input');
   if (!input) return;
   const text = input.value.trim();
-  if (!text) return;
+  // A pasted or attached image with no caption is a valid message on its own —
+  // aiSendMessage() renders the attachment-only bubble and sends it.
+  if (!text && _aiPendingImages.length === 0) return;
   input.value = '';
   aiSendMessage(text, false); // text input: no TTS
 }
@@ -460,8 +462,14 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
           setTimeout(afterAnswer, 600);
         }
       }
-    } else if (fromVoice && _aiVoiceSessionActive && !pickerOpened) {
-      _aiEndVoiceSession();
+    } else {
+      // The turn produced no text. Never leave the chat silent: the thinking dots
+      // simply vanishing reads as a lost message, with nothing to retry from. A
+      // turn that only ran dashboard actions is exempt — the user watched those
+      // happen, so a "no answer" notice there would be wrong.
+      const ranActions = Array.isArray(data.clientActions) && data.clientActions.length > 0;
+      if (!ranActions) _aiAppendBubble('assistant', t('ai_no_reply'));
+      if (fromVoice && _aiVoiceSessionActive && !pickerOpened) _aiEndVoiceSession();
     }
 
     setAiStatus('');
@@ -1840,8 +1848,15 @@ function aiRemoveAttachment(index) {
 }
 
 function _aiHandlePaste(e) {
-  // Only intercept when the AI panel is open
-  if (!aiPanelOpen) return;
+  // Only intercept when the chat composer has focus. Since v3.0 the text chat lives
+  // in the media tile's Chat tab (initMediaChat() moves the input row out of the
+  // overlay), so aiPanelOpen — true only for the voice overlay — is false during
+  // normal typing and must not be the gate on its own. Any .ai-text-input counts:
+  // the primary one and a duplicated chat's mirror input both feed the same
+  // singleton session, and every pane renders the pending-attachment strip.
+  const ae = document.activeElement;
+  const onChatInput = !!(ae && ae.classList && ae.classList.contains('ai-text-input'));
+  if (!aiPanelOpen && !onChatInput) return;
   const items = e.clipboardData && e.clipboardData.items;
   if (!items) return;
   let addedImage = false;
@@ -1926,8 +1941,16 @@ function _aiFlashCopied(btn) {
 
 document.addEventListener('click', _aiHandleCopyClick);
 
+// Render the pending-attachment strip into EVERY chat instance: the primary one
+// (#ai-attach-preview, moved into the Chat tile by initMediaChat) plus the mirror
+// strip media.js injects into each duplicated chat pane. _aiPendingImages is a
+// singleton, so each strip is a full render of the same list — not a DOM clone —
+// which keeps every remove button wired to the live array.
 function _aiUpdateAttachPreview() {
-  const el = $('ai-attach-preview');
+  document.querySelectorAll('.ai-attach-preview').forEach(_aiRenderAttachPreview);
+}
+
+function _aiRenderAttachPreview(el) {
   if (!el) return;
   if (_aiPendingImages.length === 0) {
     el.hidden = true;

@@ -339,10 +339,17 @@
 
   // ── Persistence (per-instance tab list) ────────────────────────────────────────
   // Stored as { tabs: [{ url }], active }. Back-compatible with the old single-URL
-  // shape { url }, which becomes a one-tab list on first read.
-  function getTabsConfig(id) {
+  // shape { url }, which becomes a one-tab list on first read. `legacyId` is the
+  // enclosing tab-group's gs-id: instance ids used to be derived from it, so a
+  // tile that was grouped before the per-atom id fix has its typed URLs saved
+  // under the group's key — adopt that entry once rather than losing them (the
+  // next saveTabs re-homes the state under the atom id).
+  function getTabsConfig(id, legacyId) {
     let raw;
     try { raw = hubSettings.browserTiles && hubSettings.browserTiles[id]; } catch (e) { raw = null; }
+    if (!raw && legacyId) {
+      try { raw = hubSettings.browserTiles && hubSettings.browserTiles[legacyId]; } catch (e) { raw = null; }
+    }
     if (raw && Array.isArray(raw.tabs)) {
       const tabs = raw.tabs.map((tb) => ({ url: (tb && typeof tb.url === 'string') ? tb.url : '' }));
       if (!tabs.length) tabs.push({ url: '' });
@@ -462,9 +469,12 @@
   }
 
   // ── Skeleton + input wiring ───────────────────────────────────────────────────
+  // Identity from the ATOM (data-dashboard-instance), not the enclosing grid
+  // item: inside a tab group the item's gs-id is the GROUP's, so two browser
+  // tabs would share one favorites/session state. Standalone values are
+  // unchanged (primary gs-id = 'browser', copy gs-id = its instance id).
   function instanceIdOf(section) {
-    const item = section.closest('.grid-stack-item');
-    return (item && item.getAttribute('gs-id')) || 'browser';
+    return section.getAttribute('data-dashboard-instance') || 'browser';
   }
 
   function mkBtn(cls, icon, titleKey, fb, onClick) {
@@ -554,8 +564,11 @@
     };
     groups.set(id, group);
 
-    // Materialise the persisted tabs.
-    const cfg = getTabsConfig(id);
+    // Materialise the persisted tabs. When the tile sits in a tab group, its
+    // grid item is the group's — that gs-id is the LEGACY key old saves used.
+    const item = mount.closest('.grid-stack-item');
+    const gsId = item && item.getAttribute('gs-id');
+    const cfg = getTabsConfig(id, gsId !== id ? gsId : null);
     cfg.tabs.forEach((tb) => createTab(group, tb.url));
     group.active = Math.max(0, Math.min(group.tabs.length - 1, cfg.active));
     group.chromeHidden = !!cfg.chromeHidden;

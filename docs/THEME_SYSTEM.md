@@ -71,6 +71,49 @@ Legacy settings that selected `Auto` before `autoPalette` existed are migrated
 to the same OS-following behavior. Once a color is edited, `autoPalette:false`
 is persisted so that manual palette remains stable across OS mode changes.
 
+## Dual-palette themes
+
+`autoPalette` follows the OS, but only for a theme that declares no colors: it
+substitutes the stock palette and discards the author's art direction. A theme
+that wants both an exact light and an exact dark identity ships `paletteVariants`
+instead:
+
+```json
+{
+  "appearance": "auto",
+  "autoPalette": false,
+  "styleMode": "comic",
+  "accent": "#e63d4e",
+  "background": "#efe6cf",
+  "text": "#1b140d",
+  "paletteVariants": {
+    "light": { "accent": "#e63d4e", "background": "#efe6cf", "surface": "#efe6cf", "text": "#1b140d" },
+    "dark":  { "accent": "#ff5566", "background": "#12101d", "surface": "#191527", "text": "#fbf3e0" }
+  }
+}
+```
+
+The engine overlays the half matching the resolved appearance, so `light`/`dark`
+select a half and `auto` follows the Windows scheme live. Nothing is persisted on
+an OS flip, and the theme keeps exact authored colors on both sides.
+
+Each half may carry any color role. A role a half omits is derived for that tone
+and is never inherited from the other half: inheriting would splice palettes, and
+a light `surface` would survive under the dark half. Author each half as a
+complete palette. The top-level colors remain required and describe the primary
+tone for surfaces that ignore the pair, including older app versions, which drop
+the unknown key and import a single-tone theme.
+
+`contrastGuard` runs per tone, so both halves must be checked independently. A
+status color tuned for light paper is generally unreadable on a dark board.
+
+Mode buttons swap between the authored halves rather than resetting to the stock
+palette. Any manual color edit bakes the visible half into the palette and drops
+the pair, so a user edit wins and cannot be reverted by a later OS change.
+
+`ThemePalette.normalizeVariants`, `variantFor`, and `applyVariant` own these
+rules; client and server both normalize the field through them.
+
 ## Contrast guard
 
 `contrastGuard` defaults to `true`. The engine preserves valid author colors

@@ -28,8 +28,9 @@ const EXTERNAL_LINK_SHIM: &str = r#"
   // What this shell build understands, so the dashboard never sends a signal an
   // older shell would misread (an unknown xenon-home path used to mean "go home",
   // which collapsed the kiosk to the desktop strip on load). Runtime-only caps
-  // (shellVersion, updateEvents) are merged in by the second init script built
-  // in setup() — keep this literal so old-shell semantics stay greppable.
+  // (shellVersion, updateEvents, lowPowerGpu) are merged in by the second init
+  // script built in setup() — keep this literal so old-shell semantics stay
+  // greppable.
   try { window.__XENON_NATIVE_CAPS__ = { homeGestureToggle: true, rdpToggle: true }; } catch (e) {}
   function isExternal(u) {
     try {
@@ -406,16 +407,30 @@ pub fn run() {
             // webview itself never leaves the splash/dashboard. Props mirror the
             // former config window (borderless, full-screen, 2560×720 Edge size).
             let nav_handle = app.handle().clone();
+            // Computed once, up front, so both the WebView2 launch flag below
+            // (`additional_browser_args`) and the JS-facing cap just below it
+            // read the SAME decision instead of enumerating displays twice.
+            #[cfg(windows)]
+            let gpu_flag = gpu::webview_gpu_flag();
+            #[cfg(not(windows))]
+            let gpu_flag: Option<&'static str> = None;
             // Runtime-only capabilities merged over the shim's literal caps: the
             // dashboard's update orchestrator needs the shell's own version (to
             // know whether the exe is outdated too) and whether this shell
-            // reports update progress/errors (updateEvents). serde-encoding
-            // keeps the injection a safe JS literal.
+            // reports update progress/errors (updateEvents). `lowPowerGpu` tells
+            // the dashboard it is rendering on the weaker of two GPUs on purpose
+            // (see gpu.rs) — backgroundfx.css uses it to pause the purely
+            // decorative aurora/grid layers, which on this machine's iGPU can
+            // combine with a busy animated theme background to drop the kiosk's
+            // real presented frame rate into single digits (measured via
+            // PresentMon — see the "native-app-hybrid-gpu-idle-burn" note).
+            // serde-encoding keeps the injection a safe JS literal.
             let caps_js = format!(
                 "try{{window.__XENON_NATIVE_CAPS__=Object.assign(window.__XENON_NATIVE_CAPS__||{{}},{});}}catch(e){{}}",
                 serde_json::json!({
                     "shellVersion": app.package_info().version.to_string(),
                     "updateEvents": true,
+                    "lowPowerGpu": matches!(gpu_flag, Some("--force_low_power_gpu")),
                 })
             );
             let port_js = format!("try{{window.__XENON_PORT__={};}}catch(e){{}}", port);
@@ -579,13 +594,15 @@ pub fn run() {
             //    (the Edge, typically an iGPU over USB-C). Rendering on a different
             //    GPU than the one scanning out the window makes Chromium copy every
             //    composited frame across adapters on the CPU — ~1.5 idle cores on a
-            //    hybrid-GPU machine. See gpu::webview_gpu_flag (no-op off hybrids).
+            //    hybrid-GPU machine. See gpu::webview_gpu_flag (no-op off hybrids);
+            //    `gpu_flag` was already computed above, alongside the JS-facing
+            //    `lowPowerGpu` cap.
             #[cfg(windows)]
             let builder = {
                 let mut args = String::from(
                     "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-renderer-backgrounding --disable-background-timer-throttling --disable-backgrounding-occluded-windows",
                 );
-                if let Some(flag) = gpu::webview_gpu_flag() {
+                if let Some(flag) = gpu_flag {
                     args.push(' ');
                     args.push_str(flag);
                 }

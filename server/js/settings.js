@@ -227,6 +227,13 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   warningColor: null,
   dangerColor: null,
   infoColor: null,
+  // Dual-palette themes: { light: {...roles}, dark: {...roles} } or null. A theme
+  // that carries both lets one card be cream paper in Light and an ink board in
+  // Dark, and follow Windows live on Auto — without the author giving up exact
+  // authored colours the way autoPalette does. deriveEffectiveThemePalette()
+  // overlays the variant matching the resolved appearance; any manual colour edit
+  // bakes the visible variant in and drops the pair (see freezePaletteVariants).
+  paletteVariants: null,
   contrastGuard: true,
   panelAlpha: 0.94,
   bgDim: 0.48,
@@ -583,6 +590,7 @@ const THEME_SETTING_KEYS = Object.freeze([
   'accent', 'background', 'surface', 'surfaceAlt', 'controlColor',
   'text', 'mutedText', 'lineColor', 'accentText',
   'successColor', 'warningColor', 'dangerColor', 'infoColor', 'contrastGuard',
+  'paletteVariants',
   'dynamicAlbumTheme',
   'panelAlpha', 'panelBorderStrength', 'panelShadowStrength',
   'uiRoundness', 'glassBlur', 'glassSaturate',
@@ -1069,7 +1077,7 @@ function normalizeTopbarRails(value) {
 // is inlined (not a module const) because normalizeSettings runs at load time,
 // before a top-level const would be initialised — a TDZ crash otherwise.
 function normalizeTopbarClock(value) {
-  const canonical = ['time', 'date', 'weather', 'vitals', 'dots'];
+  const canonical = ['time', 'date', 'weather', 'vitals', 'dots', 'badges'];
   const v = value && typeof value === 'object' ? value : {};
   const align = ['center', 'left', 'right'].includes(v.align) ? v.align : 'center';
   const legacyHidden = {};
@@ -1128,6 +1136,7 @@ function normalizeCustomThemes(list) {
       warningColor: normalizeHex(raw.warningColor, null),
       dangerColor: normalizeHex(raw.dangerColor, null),
       infoColor: normalizeHex(raw.infoColor, null),
+      paletteVariants: normalizePaletteVariants(raw.paletteVariants),
       contrastGuard: raw.contrastGuard !== false,
       dynamicAlbumTheme: raw.dynamicAlbumTheme !== false,
       panelAlpha: clampNumber(raw.panelAlpha, SETTINGS_MIN_PANEL_ALPHA, 1, D.panelAlpha),
@@ -1157,6 +1166,14 @@ function normalizeCustomThemes(list) {
     if (out.length >= 24) break;
   }
   return out;
+}
+
+// Dual-palette themes ({ light, dark }). ThemePalette owns the rules so client
+// and server can't drift; theme-palette.js loads before this module. A function
+// declaration (not a const): loadHubSettings() normalizes at module load, far
+// above this line, and a const would still be in the temporal dead zone there.
+function normalizePaletteVariants(value) {
+  return ThemePalette.normalizeVariants(value);
 }
 
 // User fan names: a flat { "<kind>|<sensor name>": "label" } map. Explicit
@@ -1211,6 +1228,7 @@ function normalizeSettings(source) {
     warningColor: normalizeHex(value.warningColor, null),
     dangerColor: normalizeHex(value.dangerColor, null),
     infoColor: normalizeHex(value.infoColor, null),
+    paletteVariants: normalizePaletteVariants(value.paletteVariants),
     contrastGuard: value.contrastGuard !== false,
     panelAlpha: clampNumber(value.panelAlpha, SETTINGS_MIN_PANEL_ALPHA, 1, DEFAULT_HUB_SETTINGS.panelAlpha),
     bgDim: clampNumber(value.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
@@ -1695,7 +1713,7 @@ function normalizeDiscordNotifications(value) {
 // silently stripped on save, so the widget is granted a capability it can never
 // use (the exact bug where a to-do widget's `tasks` stream+action were dropped,
 // leaving it empty and un-writable). server/test/sdk-grant-cats-sync guards this.
-const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'streamerbot', 'homeassistant', 'tasks', 'notes', 'agenda', 'weather', 'battery']);
+const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'tasks', 'notes', 'agenda', 'weather', 'battery']);
 const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'mic', 'lighting', 'chroma', 'wavelink', 'spotify', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'streamerbot', 'url', 'tasks', 'soundboard']);
 const SDK_PACKAGE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // Grant-side mirrors of the server manifest rules (sdk-widgets.js is the
@@ -1703,6 +1721,33 @@ const SDK_PACKAGE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // hostname check here is safe — the server re-validates every proxied fetch).
 const SDK_HOST_RE = /^[a-z0-9][a-z0-9.-]{0,252}$/;
 const SDK_SUB_ID_RE = /^[a-z0-9][a-z0-9-]{0,40}$/;
+// Addresses the user typed into a manifest's userHosts slots, keyed by slot id.
+// Same reasoning as SDK_HOST_RE: keep the shape, let sdk-widgets.js
+// resolveUserHosts be the authority — it re-validates host and scope on every
+// proxied request, so nothing here can widen the allowlist. What this DOES have
+// to get right is round-tripping the value unharmed: a key silently dropped on
+// save is a host the user configured that never reaches the server.
+function normalizeSdkUserHosts(value) {
+  const v = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const out = {};
+  let n = 0;
+  for (const key of Object.keys(v)) {
+    if (n >= 4) break;
+    if (!SDK_SUB_ID_RE.test(key)) continue;
+    const slot = v[key];
+    if (!slot || typeof slot !== 'object' || Array.isArray(slot)) continue;
+    const host = String(slot.host || '').trim().toLowerCase();
+    if (!SDK_HOST_RE.test(host)) continue;
+    const port = Number(slot.port);
+    out[key] = {
+      host,
+      port: Number.isInteger(port) && port >= 1 && port <= 65535 ? port : 0,
+      scheme: slot.scheme === 'https' ? 'https' : 'http',
+    };
+    n++;
+  }
+  return out;
+}
 function normalizeSdkWidgets(value) {
   const v = value && typeof value === 'object' ? value : {};
   const assign = {};
@@ -1730,6 +1775,17 @@ function normalizeSdkWidgets(value) {
         hosts: Array.isArray(g.hosts) ? g.hosts.filter((s, i, a) => typeof s === 'string' && SDK_HOST_RE.test(s) && a.indexOf(s) === i).slice(0, 8) : [],
         hooks: Array.isArray(g.hooks) ? g.hooks.filter((s, i, a) => typeof s === 'string' && SDK_SUB_ID_RE.test(s) && a.indexOf(s) === i).slice(0, 8) : [],
         handlers: Array.isArray(g.handlers) ? g.handlers.filter((s, i, a) => typeof s === 'string' && SDK_SUB_ID_RE.test(s) && a.indexOf(s) === i).slice(0, 8) : [],
+        // The all-or-nothing consent flags and the user-filled addresses. These
+        // MUST be listed: this rebuild is an allowlist, so a key it omits is
+        // stripped from the grant on every save. Omitting `storage`/`secrets`
+        // silently disabled both features and — because grantNeedsReview asks
+        // "does the manifest declare something the grant lacks?" — pinned any
+        // widget requesting them in a permanent "asks for new permissions" loop.
+        storage: g.storage === true,
+        secrets: g.secrets === true,
+        island: g.island === true,
+        badge: g.badge === true,
+        userHosts: normalizeSdkUserHosts(g.userHosts),
       };
       n++;
     }
@@ -2794,6 +2850,31 @@ function resolveAppearance(mode) {
   return prefersDark ? 'dark' : 'light';
 }
 
+// ── Dual-palette themes (paletteVariants) ─────────────────────────
+// The variant a settings object is currently showing, or null when the theme
+// carries no pair (or has no half for the resolved tone). resolveAppearance()
+// already turns 'auto' into the live OS tone, so Auto follows Windows through the
+// same matchMedia / refreshOsTheme repaints that autoPalette uses — no extra
+// listener, and nothing is persisted when the OS flips.
+function activePaletteVariant(settings) {
+  if (!settings || !settings.paletteVariants) return null;
+  return ThemePalette.variantFor(settings.paletteVariants, resolveAppearance(settings.appearance));
+}
+
+// Bake the variant that's on screen into the real colour keys and drop the pair.
+// Every path where the user picks a colour themselves goes through this first:
+// otherwise their edit lives on the frozen base palette while the overlay keeps
+// painting the variant over it, so the change would look ignored — and the next
+// OS flip would silently revert it. Returns a plain patch source for
+// normalizeSettings (never mutates the input).
+function freezePaletteVariants(settings) {
+  const base = settings || {};
+  if (!base.paletteVariants) return base;
+  const frozen = ThemePalette.applyVariant(base, activePaletteVariant(base));
+  frozen.paletteVariants = null;
+  return frozen;
+}
+
 // Poll the OS theme from the server (Windows registry) so "Auto" is reliable
 // even when the WebView doesn't report prefers-color-scheme correctly.
 function refreshOsTheme() {
@@ -2818,8 +2899,22 @@ setInterval(refreshOsTheme, 30000);
 function setAppearance(mode) {
   if (!['light', 'dark', 'auto'].includes(mode)) return;
   const resolved = mode === 'auto' ? resolveAppearance(mode) : mode;
+  // A dual-palette theme already answers this question: the author drew both
+  // tones, so switching mode swaps to the authored variant instead of throwing
+  // the theme away for the stock palette. autoPalette stays false — the variants
+  // ARE the palette, and on 'auto' the overlay follows Windows by itself.
+  if (hubSettings.paletteVariants && hubSettings.paletteVariants[resolved]) {
+    hubSettings = normalizeSettings({ ...hubSettings, appearance: mode, autoPalette: false });
+    saveHubSettings();
+    applyHubSettings();
+    syncSettingsControls();
+    if (mode === 'auto') refreshOsTheme();
+    return;
+  }
+  // No variant for the requested tone: the pair can't describe this look, so it
+  // is dropped along with the rest of the previous palette below.
   const stock = window.ThemePalette && ThemePalette.STOCK[resolved];
-  const patch = { appearance: mode, autoPalette: mode === 'auto' };
+  const patch = { appearance: mode, autoPalette: mode === 'auto', paletteVariants: null };
   // A mode switch is an intentional request for a usable light/dark starting
   // point. Keep the chosen accent, but reset every surface/foreground role so
   // Light really becomes light and Dark really becomes dark. Subsequent colour
@@ -2902,6 +2997,10 @@ function deriveEffectiveThemePalette() {
     // Windows; album-art accent may still replace it below.
     source.accent = hubSettings.accent;
   }
+  // Dual-palette theme: overlay the half matching the resolved tone (on 'auto'
+  // that's the live OS tone, so Windows flips repaint through the existing
+  // matchMedia / refreshOsTheme listeners and nothing is persisted).
+  Object.assign(source, ThemePalette.applyVariant(source, activePaletteVariant(hubSettings)));
   if (hubSettings.dynamicAlbumTheme !== false && _dynamicAccent) source.accent = _dynamicAccent;
   // Comic's default material is printed on the Base background. Authors can
   // still separate canvas and paper explicitly with `surface`.
@@ -3572,9 +3671,15 @@ function syncSettingsControls() {
     btn.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
 
+  // On a dual-palette theme the stored colours describe the base tone, but the
+  // overlay is painting the other half. Read the fields from the variant that's
+  // actually on screen, or every hex would contradict the swatch beside it (which
+  // reads the computed value) and editing one would appear to do nothing.
+  const shown = activePaletteVariant(hubSettings) || {};
+
   // Required author colours are always stored explicitly.
   [['accent', '--accent'], ['background', '--bg'], ['text', '--text']].forEach(([key, cssVar]) => {
-    const hex = hubSettings[key];
+    const hex = shown[key] || hubSettings[key];
     const preview = $(`settings-${key}-swatch`);
     const hexInput = $(`settings-${key}`);
     if (preview) preview.style.background = getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim() || hex;
@@ -3589,7 +3694,9 @@ function syncSettingsControls() {
     ['successColor', '--color-success'], ['warningColor', '--color-warn'],
     ['dangerColor', '--color-danger'], ['infoColor', '--color-info'],
   ].forEach(([key, cssVar]) => {
-    const val = hubSettings[key];
+    // A role the active variant omits is derived under that tone, so it reads as
+    // Auto (blank) here even when the base tone pins it.
+    const val = hubSettings.paletteVariants ? (shown[key] || null) : hubSettings[key];
     const preview = $(`settings-${key}-swatch`);
     const hexInput = $(`settings-${key}`);
     if (preview) {
@@ -3651,6 +3758,7 @@ function syncSettingsControls() {
   syncTopbarClockControls();
   // Swap the topbar chrome (full bar ⇄ edge rails + island pill) to match.
   if (window.TopbarMinimal) window.TopbarMinimal.apply();
+  if (window.SdkIsland) window.SdkIsland.apply();
   syncClockFormatControls();
   syncWeekStartControls();
   syncLockWidgetSettings();
@@ -3749,9 +3857,6 @@ function settingsSetCategory(cat) {
   if (cat === 'display' && typeof window.loadDisplayControl === 'function') {
     window.loadDisplayControl();
   }
-  // Installed-packages list is demand-only too: it fetches /sdk/widgets, so it
-  // paints when the user actually opens the Widget pane (and skips otherwise).
-  if (cat === 'sdk') paintInstalledSdkPackages();
   // Slideshow thumbnails paint when its pane opens (and update live via applyHubSettings).
   if (cat === 'slideshow') renderSlideshowSettings();
 }
@@ -3785,7 +3890,7 @@ function setThemePreset(id) {
   if (!preset) return;
   const reset = {};
   for (const key of APPEARANCE_COLOR_KEYS) reset[key] = null;
-  hubSettings = normalizeSettings({ ...hubSettings, ...reset, autoPalette: false, accent: preset.accent, background: preset.background, text: preset.text, contrastGuard: true });
+  hubSettings = normalizeSettings({ ...hubSettings, ...reset, autoPalette: false, paletteVariants: null, accent: preset.accent, background: preset.background, text: preset.text, contrastGuard: true });
   saveHubSettings();
   applyHubSettings();
   renderSettingsModal();
@@ -3797,7 +3902,7 @@ function updateSettingsColor(key, value) {
     'lineColor', 'accentText', 'successColor', 'warningColor', 'dangerColor', 'infoColor'].includes(key)) return;
   const hex = normalizeHex(value, null);
   if (!hex) return;
-  hubSettings = normalizeSettings({ ...hubSettings, [key]: hex, autoPalette: false });
+  hubSettings = normalizeSettings({ ...freezePaletteVariants(hubSettings), [key]: hex, autoPalette: false });
   saveHubSettings();
   applyHubSettings();
   syncSettingsControls();
@@ -3808,7 +3913,7 @@ function updateSettingsColor(key, value) {
 function clearSettingsColor(key) {
   if (!['surface', 'surfaceAlt', 'controlColor', 'mutedText', 'lineColor', 'accentText',
     'successColor', 'warningColor', 'dangerColor', 'infoColor'].includes(key)) return;
-  hubSettings = normalizeSettings({ ...hubSettings, [key]: null, autoPalette: false });
+  hubSettings = normalizeSettings({ ...freezePaletteVariants(hubSettings), [key]: null, autoPalette: false });
   saveHubSettings();
   applyHubSettings();
   syncSettingsControls();
@@ -3836,10 +3941,16 @@ function applyAiAppearance(opts) {
   const patch = {};
   if (['light', 'dark', 'auto'].includes(o.appearance)) {
     const resolved = o.appearance === 'auto' ? resolveAppearance('auto') : o.appearance;
-    const stock = ThemePalette.STOCK[resolved];
-    for (const key of APPEARANCE_COLOR_KEYS) patch[key] = null;
-    for (const key of ['background', 'surface', 'surfaceAlt', 'controlColor', 'text']) patch[key] = stock[key];
-    Object.assign(patch, { appearance: o.appearance, autoPalette: o.appearance === 'auto', contrastGuard: true });
+    // Mirror setAppearance(): a dual-palette theme swaps to its authored variant
+    // rather than being replaced by the stock palette.
+    if (hubSettings.paletteVariants && hubSettings.paletteVariants[resolved]) {
+      Object.assign(patch, { appearance: o.appearance, autoPalette: false });
+    } else {
+      const stock = ThemePalette.STOCK[resolved];
+      for (const key of APPEARANCE_COLOR_KEYS) patch[key] = null;
+      for (const key of ['background', 'surface', 'surfaceAlt', 'controlColor', 'text']) patch[key] = stock[key];
+      Object.assign(patch, { appearance: o.appearance, autoPalette: o.appearance === 'auto', paletteVariants: null, contrastGuard: true });
+    }
   }
   if (typeof o.preset === 'string') {
     const preset = SETTINGS_PRESETS.find(p => p.id === o.preset.trim().toLowerCase());
@@ -3851,13 +3962,18 @@ function applyAiAppearance(opts) {
     accent_text: 'accentText', success_color: 'successColor', warning_color: 'warningColor',
     danger_color: 'dangerColor', info_color: 'infoColor',
   };
+  let colorEdited = false;
   for (const [arg, key] of Object.entries(colorMap)) {
     const hex = normalizeHex(o[arg], null);
-    if (hex) { patch[key] = hex; patch.autoPalette = false; }
+    if (hex) { patch[key] = hex; patch.autoPalette = false; colorEdited = true; }
   }
   if (typeof o.contrast_guard === 'boolean') patch.contrastGuard = o.contrast_guard;
   if (Object.keys(patch).length) {
-    hubSettings = normalizeSettings({ ...hubSettings, ...patch });
+    // An exact colour is a manual edit: freeze a dual-palette theme first, exactly
+    // like updateSettingsColor(), so the AI's colour isn't overpainted by the
+    // variant overlay (or reverted by the next OS flip).
+    const base = colorEdited ? freezePaletteVariants(hubSettings) : hubSettings;
+    hubSettings = normalizeSettings({ ...base, ...patch });
     saveHubSettings();
     applyHubSettings();
     changed = true;
@@ -3887,9 +4003,10 @@ function applyAiCreateStyle(opts) {
     accent_text: 'accentText', success_color: 'successColor', warning_color: 'warningColor',
     danger_color: 'dangerColor', info_color: 'infoColor',
   };
+  let colorEdited = false;
   for (const [arg, key] of Object.entries(colorMap)) {
     const hex = normalizeHex(o[arg], null);
-    if (hex) { patch[key] = hex; patch.autoPalette = false; }
+    if (hex) { patch[key] = hex; patch.autoPalette = false; colorEdited = true; }
   }
   const num = (v, min, max) => { const n = Number(v); return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : null; };
   const nums = {
@@ -3902,7 +4019,11 @@ function applyAiCreateStyle(opts) {
   };
   for (const [key, val] of Object.entries(nums)) if (val != null) patch[key] = val;
   if (typeof o.contrast_guard === 'boolean') patch.contrastGuard = o.contrast_guard;
-  hubSettings = normalizeSettings({ ...hubSettings, ...patch });
+  // Authoring a new look on top of a dual-palette theme replaces its palette: bake
+  // the visible variant in first, so the snapshot saved as a card is exactly what
+  // ends up on screen rather than the other tone's colours.
+  const base = (colorEdited || patch.appearance) ? freezePaletteVariants(hubSettings) : hubSettings;
+  hubSettings = normalizeSettings({ ...base, ...patch });
   saveHubSettings();
   applyHubSettings();
   // Snapshot the resulting look into a named gallery card (dedupes by signature),
@@ -4706,16 +4827,15 @@ function updateSdkWidgets(patch) {
 function syncSdkWidgetsControls() {
   const el = $('settings-sdk-enabled');
   if (el) el.checked = !!(hubSettings.sdkWidgets && hubSettings.sdkWidgets.enabled === true);
-  paintInstalledSdkPackages();
 }
 
-// ── Installed-packages manager (Settings → Widget) ─────────────────────────
-// One row per installed package: name/version/author + grant chips, with
-// Update (when the community catalog lists a newer build), Export and Remove.
-// All text is untrusted manifest content → textContent only. The update JOIN
-// itself lives in community-gallery.js (CommunityGallery.findUpdates) — ONE
-// implementation for the gallery, this manager and the daily toast, so the
-// surfaces can never disagree about whether an update exists.
+// ── Available-update lookup (feeds the daily toast) ────────────────────────
+// The list of installed packages itself now lives in the Store's "Installed"
+// tab (js/installed-manager.js) — this is only the catalog JOIN behind the
+// once-a-day "{n} widgets have updates" toast. The JOIN itself lives in
+// community-gallery.js (CommunityGallery.findUpdates) — ONE implementation for
+// the gallery, the installed manager and this toast, so the surfaces can never
+// disagree about whether an update exists.
 let _sdkUpdatesCache = null;   // pkgId → catalog entry with a newer version
 let _sdkUpdatesInflight = null;   // shared promise so concurrent cold calls fetch the catalog once
 async function _sdkCatalogUpdates(force) {
@@ -4743,181 +4863,6 @@ async function _sdkCatalogUpdates(force) {
   }
   return _sdkUpdatesInflight;
 }
-// Generation fence: the paint is triggered from both settingsSetCategory and
-// every settings sync (two fire in the SAME tick when Settings opens on this
-// pane), and it awaits network twice — without the fence the interleaved calls
-// each append their rows and the list renders doubled.
-let _sdkPaintGen = 0;
-async function paintInstalledSdkPackages() {
-  const host = $('settings-sdk-installed');
-  if (!host) return;
-  // The list lives inside the (hidden-by-default) sdk pane. Repainting on every
-  // settings sync would fetch /sdk/widgets on each slider-drag input event —
-  // paint only while the pane is actually on screen (settingsSetCategory
-  // triggers a paint when the user enters it).
-  const pane = host.closest('[data-settings-cat]');
-  if (pane && pane.hidden) return;
-  const gen = ++_sdkPaintGen;
-  let packages = [];
-  try {
-    const d = await fetch('/sdk/widgets').then((r) => r.json());
-    packages = (d && d.packages) || [];
-  } catch { /* server unreachable → leave empty */ }
-  const updates = packages.length ? await _sdkCatalogUpdates() : new Map();
-  if (gen !== _sdkPaintGen) return;   // superseded by a newer paint — let it own the DOM
-  host.replaceChildren();
-  // Show the count on the section label so a long list reads at a glance (and
-  // the list itself scrolls inside its box rather than growing the pane).
-  const label = host.previousElementSibling;
-  if (label && label.classList.contains('settings-howto-label')) {
-    let count = label.querySelector('.settings-sdk-count');
-    if (packages.length) {
-      if (!count) { count = document.createElement('span'); count.className = 'settings-sdk-count'; label.appendChild(count); }
-      count.textContent = ' (' + packages.length + ')';
-    } else if (count) { count.remove(); }
-  }
-  if (!packages.length) {
-    const empty = document.createElement('p');
-    empty.className = 'settings-hint';
-    empty.setAttribute('data-i18n', 'settings_sdk_installed_none');
-    empty.textContent = t('settings_sdk_installed_none', 'Nessun widget installato.');
-    host.appendChild(empty);
-    return;
-  }
-  const grants = (hubSettings.sdkWidgets && hubSettings.sdkWidgets.grants) || {};
-  packages.forEach((pkg) => {
-    const row = document.createElement('div');
-    row.className = 'settings-sdk-pkg';
-    const info = document.createElement('div');
-    info.className = 'settings-sdk-pkg-info';
-    const nm = document.createElement('b');
-    nm.textContent = pkg.name;
-    // Provenance at a glance. Only two honest, positive labels: your own work
-    // (creator build or a claimed dev folder) vs a community install. An
-    // 'unknown' package gets no badge — we genuinely don't know — just the
-    // "I made this" claim button below.
-    if (pkg.exportable) {
-      const badge = document.createElement('span');
-      badge.className = 'settings-sdk-pkg-origin is-mine';
-      badge.textContent = t('settings_sdk_origin_mine', 'Creato da te');
-      nm.appendChild(badge);
-    } else if (pkg.origin === 'import') {
-      const badge = document.createElement('span');
-      badge.className = 'settings-sdk-pkg-origin';
-      badge.textContent = t('settings_sdk_origin_community', 'Dalla community');
-      nm.appendChild(badge);
-    }
-    info.appendChild(nm);
-    const meta = document.createElement('span');
-    meta.className = 'settings-hint';
-    meta.textContent = ['v' + (pkg.version || '0.0.0'), pkg.author || ''].filter(Boolean).join(' · ');
-    info.appendChild(meta);
-    const g = grants[pkg.id];
-    const bits = [];
-    if (g && Array.isArray(g.streams) && g.streams.length) bits.push(g.streams.length + ' ' + t('settings_sdk_grant_streams', 'dati'));
-    if (g && Array.isArray(g.actions) && g.actions.length) bits.push(g.actions.length + ' ' + t('settings_sdk_grant_actions', 'azioni'));
-    if (g && Array.isArray(g.hosts) && g.hosts.length) bits.push(t('settings_sdk_grant_net', 'rete'));
-    if (g && Array.isArray(g.handlers) && g.handlers.length) bits.push(g.handlers.length + ' ' + t('settings_sdk_grant_handlers', 'tasti Deck'));
-    if (bits.length) {
-      const gr = document.createElement('span');
-      gr.className = 'settings-hint settings-sdk-pkg-grants';
-      gr.textContent = bits.join(' · ');
-      info.appendChild(gr);
-    }
-    row.appendChild(info);
-    const btns = document.createElement('div');
-    btns.className = 'settings-sdk-pkg-btns';
-    const upd = updates.get(pkg.id);
-    if (upd) {
-      const b = document.createElement('button');
-      b.type = 'button'; b.className = 'settings-btn primary';
-      b.textContent = t('settings_sdk_update', 'Aggiorna') + ' → v' + upd.version;
-      b.addEventListener('click', async () => {
-        b.disabled = true;
-        try {
-          // The catalog code is a widget-kind envelope → its payload re-installs
-          // through the normal /sdk/install boundary. A widened manifest re-prompts
-          // via grantNeedsReview on next mount — never silently re-granted.
-          const codeRes = upd.code ? { ok: true, code: upd.code } : await fetch('/api/community/code?id=' + encodeURIComponent(upd.id)).then((r) => r.json());
-          const env = codeRes && codeRes.ok && window.PresetShare ? window.PresetShare.decodePreset(codeRes.code) : null;
-          const payload = env && (env.kind === 'widget' || env.kind === 'ambient') ? (env.data && env.data.payload) || env.data : null;
-          if (!payload) throw new Error('bad_code');
-          // origin:'import' — a catalog update stays community-installed (and the
-          // server's sticky merge keeps the user's OWN published widget theirs).
-          const r = await fetch('/sdk/install', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, origin: 'import' }) });
-          const d = await r.json().catch(() => ({}));
-          if (!r.ok || !d.ok) throw new Error(d.error || 'install_failed');
-          if (window.CustomWidget && window.CustomWidget.refreshPackages) window.CustomWidget.refreshPackages();
-          _sdkUpdatesCache = null;
-          paintInstalledSdkPackages();
-          setSettingsStatus('settings_saved', 'ok');
-        } catch { b.disabled = false; setSettingsStatus('settings_sdk_update_failed', 'error'); }
-      });
-      btns.appendChild(b);
-    }
-    // Export THIS package (not a generic picker) — only when it's the user's
-    // own work (creator build or a claimed folder). Community installs aren't
-    // redistributable (the server refuses them anyway), so the row has no export
-    // button. An 'unknown' package instead offers "I made this" — a deliberate
-    // claim that marks a hand-built dev folder as the user's own and unlocks
-    // export. Never offered for imports or the bundled example.
-    if (pkg.exportable) {
-      const exp = document.createElement('button');
-      exp.type = 'button'; exp.className = 'settings-btn';
-      exp.setAttribute('data-i18n', 'settings_sdk_export');
-      exp.textContent = t('settings_sdk_export', 'Esporta');
-      exp.addEventListener('click', () => { if (window.PresetShare && window.PresetShare.exportWidgetPkg) window.PresetShare.exportWidgetPkg(pkg); });
-      btns.appendChild(exp);
-    } else if (pkg.origin === 'unknown') {
-      const claim = document.createElement('button');
-      claim.type = 'button'; claim.className = 'settings-btn subtle';
-      claim.setAttribute('data-i18n', 'settings_sdk_claim');
-      claim.textContent = t('settings_sdk_claim', 'L\'ho creato io');
-      claim.addEventListener('click', async () => {
-        const ok = await settingsPrompt({
-          type: 'confirm',
-          title: t('settings_sdk_claim', 'L\'ho creato io'),
-          message: t('settings_sdk_claim_confirm', 'Confermi di aver creato tu questo widget? Solo le tue creazioni originali si possono condividere — non marcare come tuo qualcosa installato da altri.'),
-          okLabel: t('settings_sdk_claim_ok', 'Sì, è mio'),
-        });
-        if (!ok) return;
-        try {
-          const r = await fetch('/sdk/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: pkg.id }) });
-          const d = await r.json().catch(() => ({}));
-          if (r.ok && d.ok) paintInstalledSdkPackages();
-          else setSettingsStatus('settings_sdk_claim_failed', 'error');
-        } catch { setSettingsStatus('settings_sdk_claim_failed', 'error'); }
-      });
-      btns.appendChild(claim);
-    }
-    const del = document.createElement('button');
-    del.type = 'button'; del.className = 'settings-btn subtle';
-    del.setAttribute('data-i18n', 'settings_sdk_remove');
-    del.textContent = t('settings_sdk_remove', 'Rimuovi');
-    del.addEventListener('click', async () => {
-      if (!window.confirm(t('settings_sdk_remove_confirm', 'Rimuovere questo widget? Le tile che lo usano torneranno alla scelta del widget.'))) return;
-      try {
-        await fetch('/sdk/widget/' + encodeURIComponent(pkg.id), { method: 'DELETE' });
-        forgetInstalledContentResource('widgetIds', pkg.id);
-        // Purge its tile assignments + grant so nothing orphaned lingers.
-        const cur = hubSettings.sdkWidgets || {};
-        const assign = { ...(cur.assign || {}) };
-        for (const k of Object.keys(assign)) { if (assign[k] === pkg.id) delete assign[k]; }
-        const nextGrants = { ...(cur.grants || {}) };
-        delete nextGrants[pkg.id];
-        updateSdkWidgets({ assign, grants: nextGrants });
-        if (window.CustomWidget && window.CustomWidget.refreshPackages) window.CustomWidget.refreshPackages();
-        paintInstalledSdkPackages();
-      } catch { setSettingsStatus('settings_sdk_remove_failed', 'error'); }
-    });
-    btns.appendChild(del);
-    row.appendChild(btns);
-    host.appendChild(row);
-  });
-  // Give the scrollbar room only when the list actually overflows its box.
-  host.classList.toggle('is-scrolling', host.scrollHeight > host.clientHeight + 1);
-}
-
 // Once-a-day update check, client-driven (no server timer): on load, when the
 // SDK is enabled and something is installed, one catalog GET (absorbed by the
 // server's 45-min TTL cache) surfaces available updates as a gentle toast.
@@ -5078,6 +5023,20 @@ function syncNotificationsControls() {
   if (snd) { snd.checked = n.sounds !== false; snd.disabled = !enabled; }
   const sndRow = $('settings-notif-sounds-row');
   if (sndRow) sndRow.classList.toggle('is-disabled', !enabled);
+  // Windows notification mirroring — the same two switches the Notifications
+  // tile carries (the tile also owns the muted-apps list). The server gates the
+  // mirror child on the master switch too, so mirror that gating here; "hide
+  // content" additionally needs the mirror itself to be on.
+  const wn = hubSettings.windowsNotifications || {};
+  const wnOn = wn.enabled === true;
+  const win = $('settings-winnotif');
+  if (win) { win.checked = wnOn; win.disabled = !enabled; }
+  const winRow = $('settings-winnotif-row');
+  if (winRow) winRow.classList.toggle('is-disabled', !enabled);
+  const winHide = $('settings-winnotif-hide');
+  if (winHide) { winHide.checked = wn.hide === true; winHide.disabled = !enabled || !wnOn; }
+  const winHideRow = $('settings-winnotif-hide-row');
+  if (winHideRow) winHideRow.classList.toggle('is-disabled', !enabled || !wnOn);
 }
 
 // ── Vitals (Settings → Notifiche, Vitals card) ──
@@ -5252,14 +5211,23 @@ function updateDiscordNotifications(field, enabled) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
-// ── Windows notification mirroring (the Notifications tile) ──────────────
-// The controls live inside the tile itself (notifications-widget.js); this is
-// its single write path. `value` is a boolean for enabled/hide and the whole
-// {id,name} array for excluded — normalizeWindowsNotifications bounds it all.
+// ── Windows notification mirroring (Settings → Notifiche + the tile) ─────
+// The enable/hide switches live in BOTH places (the tile also owns the
+// muted-apps list); this is their single write path. `value` is a boolean for
+// enabled/hide and the whole {id,name} array for excluded —
+// normalizeWindowsNotifications bounds it all.
 function updateWindowsNotifications(field, value) {
   const cur = hubSettings.windowsNotifications || {};
   hubSettings = normalizeSettings({ ...hubSettings, windowsNotifications: { ...cur, [field]: value } });
   saveHubSettings();
+  syncNotificationsControls();
+  // Repaint the tile so a toggle flipped in Settings lands there immediately —
+  // the server's SSE state push would arrive a beat later, and only once it has
+  // actually started the mirror child. Idempotent; the tile's own controls call
+  // this too and paint again harmlessly.
+  if (window.NotificationsWidget && typeof window.NotificationsWidget.renderWidgets === 'function') {
+    window.NotificationsWidget.renderWidgets();
+  }
   setSettingsStatus('settings_saved', 'ok');
 }
 
@@ -6462,6 +6430,7 @@ function updateTopbarRailsAutoHide(checked) {
   saveHubSettings();
   syncTopbarRailsAutoHide();
   if (window.TopbarMinimal) window.TopbarMinimal.apply();
+  if (window.SdkIsland) window.SdkIsland.apply();
   setSettingsStatus('settings_saved', 'ok');
 }
 
@@ -6475,13 +6444,14 @@ function updateTopbarStyle(style) {
   syncTopbarStyleControls();
   syncTopbarClockControls();
   if (window.TopbarMinimal) window.TopbarMinimal.apply();
+  if (window.SdkIsland) window.SdkIsland.apply();
   applyTopbarClockSettings();
   if (typeof applyDashboardLayoutWithTransition === 'function') applyDashboardLayoutWithTransition();
   setSettingsStatus('settings_saved', 'ok');
 }
 
 // Minimal-island segment id → i18n label key (editor rows).
-const TOPBAR_ISLAND_LABELS = { time: 'topbar_el_time', date: 'topbar_el_date', weather: 'topbar_el_weather', vitals: 'topbar_el_vitals', dots: 'topbar_el_dots' };
+const TOPBAR_ISLAND_LABELS = { time: 'topbar_el_time', date: 'topbar_el_date', weather: 'topbar_el_weather', vitals: 'topbar_el_vitals', dots: 'topbar_el_dots', badges: 'topbar_el_badges' };
 const EYE_OPEN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5C5 5 2 12 2 12s3 7 10 7 10-7 10-7-3-7-10-7Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg>';
 const EYE_OFF_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.8 3.2 1.4 4.6l3.1 3.1A12.9 12.9 0 0 0 2 12s3 7 10 7a10.8 10.8 0 0 0 4.4-.9l3 3 1.4-1.4L2.8 3.2ZM12 16a4 4 0 0 1-3.9-4.9l1.7 1.7A2 2 0 0 0 12 14a2 2 0 0 0 .2 0l1.7 1.7A4 4 0 0 1 12 16Zm0-11c7 0 10 7 10 7a13 13 0 0 1-2.2 3.2l-2.9-2.9A4 4 0 0 0 12 8a4 4 0 0 0-.4 0L9.2 5.6A10.9 10.9 0 0 1 12 5Z"/></svg>';
 const GRIP_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';

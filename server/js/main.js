@@ -280,7 +280,11 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
     });
     es.addEventListener('discord_notification', e => {
       // A single mirrored Discord notification (DM/mention) → the widget's feed.
-      try { if (window.DiscordWidget && typeof window.DiscordWidget.onNotification === 'function') window.DiscordWidget.onNotification(JSON.parse(e.data)); } catch {}
+      try {
+        const d = JSON.parse(e.data);
+        if (window.DiscordWidget && typeof window.DiscordWidget.onNotification === 'function') window.DiscordWidget.onNotification(d);
+        if (window.CustomWidget && typeof window.CustomWidget.onDiscordNotification === 'function') window.CustomWidget.onDiscordNotification(d);
+      } catch {}
     });
     es.addEventListener('homeassistant', e => {
       // Live Home Assistant state (event-driven, not polled) → the Smart Home

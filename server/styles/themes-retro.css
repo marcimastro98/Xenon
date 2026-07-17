@@ -101,11 +101,11 @@
 /* ── Square everything ───────────────────────────────────────
    One sweep instead of chasing 50 component files. The only true
    circles in the app that must survive are the Xenon voice presence
-   (.ai-presence/.ai-voice-*/.ai-siri-ring, the .xenon-voice-fab and
-   its .xvf-* layers) and loading spinners; square toggle knobs, dots
-   and LEDs are an intentional part of the pixel look. */
-:root[data-style="retro"] *:not([class*="orb"], [class*="spin"], [class*="xvf"],
-  [class*="ai-voice"], .ai-presence, .ai-siri-ring, .xenon-voice-fab) {
+   (.ai-presence/.ai-voice-*/.ai-siri-ring) and loading spinners;
+   square toggle knobs, dots and LEDs are an intentional part of the
+   pixel look. */
+:root[data-style="retro"] *:not([class*="spin"],
+  [class*="ai-voice"], .ai-presence, .ai-siri-ring) {
   border-radius: 0 !important;
 }
 

@@ -344,13 +344,53 @@
 
 .event-meta {
   margin-top: 3px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.event-note-text {
+  flex: 1 1 auto;
+  min-width: 0;
   color: var(--muted-text);
   font-size: 11px;
   font-weight: 750;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer;
+  /* body sets user-select:none for the touchscreen — opt the note back in, it is
+     the only text here worth copying (meeting links, IDs, passcodes). */
+  user-select: text;
+  -webkit-user-select: text;
 }
+/* Tapped open: the whole note, line breaks kept, long links wrapped instead of
+   pushing the modal sideways. */
+.event-note-text.expanded {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  cursor: text;
+}
+
+.event-note-copy {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--dim-text);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.event-note-copy svg { width: 13px; height: 13px; }
+.event-note-copy:hover { background: var(--hover-bg); color: var(--text); }
+.event-note-copy.is-copied { color: var(--accent); }
 
 .event-delete {
   margin-left: 6px;

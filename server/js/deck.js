@@ -1672,6 +1672,71 @@
   // Build the well-background layer (image, gradient, or both) from a wellImage
   // config, or null when there's nothing to show. Shared by render() and the
   // style-modal preview so the two never drift.
+  // ── Animated well decor vs. the app-wide animation freeze ────────────────
+  // A well backdrop may be an animated SVG or GIF, and neither can be stopped from
+  // out here: SMIL inside an <img>/background-image is unreachable from the host
+  // document and no CSS property touches it. So a decorated deck kept repainting
+  // its whole backdrop straight through perf mode, game mode, the idle freeze and
+  // the low-power-GPU trade — precisely the cost custom-bg.js exists to avoid, on
+  // precisely the weaker chip. Same four flags, same rule, one exception allowed:
+  // none.
+  //
+  // The freeze swaps the live source for a one-off raster of it, cached per
+  // source; resuming puts the live source back. The raster is the image's opening
+  // frame — a fresh <img> starts its own timeline, so there is no way to grab the
+  // frame currently on screen — which for a backdrop nobody can tell apart.
+  const ANIMATED_DECOR_RE = /^data:image\/(?:svg\+xml|gif);/i;
+  const _decorStill = new Map();   // live src → Promise<frozen data URL | null>
+
+  function deckDecorPaused() {
+    const c = document.body.classList;
+    return c.contains('perf-mode') || c.contains('game-mode')
+      || c.contains('ambient-idle') || c.contains('low-power-gpu');
+  }
+
+  function decorStill(src) {
+    if (_decorStill.has(src)) return _decorStill.get(src);
+    const p = (async () => {
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = src;
+      await (img.decode ? img.decode() : new Promise((res, rej) => { img.onload = res; img.onerror = rej; }));
+      // An SVG with only a viewBox reports Chromium's 300x150 default, which would
+      // freeze the backdrop into a blurry stamp. Fall back to the well's own
+      // aspect, and cap the raster — this is decor, not a photo viewer.
+      const nw = img.naturalWidth || 0, nh = img.naturalHeight || 0;
+      const w = nw >= 64 ? Math.min(1600, nw) : 1200;
+      const h = nh >= 64 ? Math.min(1600, nh) : 520;
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(img, 0, 0, w, h);
+      return cv.toDataURL('image/png');
+    })().catch(() => null);   // un-rasterizable → keep the live source, never a blank well
+    _decorStill.set(src, p);
+    return p;
+  }
+
+  async function paintWellLayer(wl) {
+    const live = wl.dataset.liveSrc || '';
+    const fit = wl.dataset.fit || 'cover';
+    const grad = wl.dataset.grad || null;
+    const want = ANIMATED_DECOR_RE.test(live) && deckDecorPaused();
+    if (wl.dataset.frozen === (want ? '1' : '0')) return;
+    wl.dataset.frozen = want ? '1' : '0';
+    const src = want ? (await decorStill(live)) || live : live;
+    // The flags can flip again while the raster decodes — only paint if this is
+    // still the state being asked for.
+    if (wl.dataset.frozen === (want ? '1' : '0')) paintDecorBgLayer(wl, grad, src, fit);
+  }
+
+  function syncDeckDecorPause() {
+    document.querySelectorAll('.deck-well-bg[data-live-src]').forEach((wl) => { paintWellLayer(wl); });
+  }
+  try {
+    new MutationObserver(syncDeckDecorPause)
+      .observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  } catch { /* no MutationObserver → decor just won't auto-freeze */ }
+
   function buildWellBg(wellImage) {
     const grad = wellImage && deckGradCss(wellImage.grad);
     if (!wellImage || (!wellImage.src && !grad)) return null;
@@ -1680,6 +1745,15 @@
     paintDecorBgLayer(wl, grad, wellImage.src, wellImage.fit || 'cover');
     if (wellImage.blur) wl.style.filter = `blur(${wellImage.blur}px)`;
     wl.style.setProperty('--deck-well-dim', String((wellImage.dim != null ? wellImage.dim : 30) / 100));
+    // Remember what was asked for, so the freeze can swap the image out and back
+    // without re-deriving it from the config on every flag flip.
+    if (wellImage.src) {
+      wl.dataset.liveSrc = wellImage.src;
+      wl.dataset.fit = wellImage.fit || 'cover';
+      if (grad) wl.dataset.grad = grad;
+      wl.dataset.frozen = '0';
+      paintWellLayer(wl);   // a deck rendered while already paused must not start animating
+    }
     return wl;
   }
   function buildNowPlaying(mediaStyle) {

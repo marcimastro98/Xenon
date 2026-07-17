@@ -301,9 +301,12 @@
   }
 
   // ── Views ─────────────────────────────────────────────────────────────────────
+  // Identity from the ATOM (data-dashboard-instance), not the enclosing grid
+  // item: inside a tab group the item's gs-id is the GROUP's, so two second
+  // screen tabs would share one capture state. Standalone values are unchanged
+  // (primary gs-id = 'secondscreen', copy gs-id = its instance id).
   function instanceIdOf(section) {
-    const item = section.closest('.grid-stack-item');
-    return (item && item.getAttribute('gs-id')) || 'secondscreen';
+    return section.getAttribute('data-dashboard-instance') || 'secondscreen';
   }
 
   function mkBtn(cls, icon, title, onClick) {

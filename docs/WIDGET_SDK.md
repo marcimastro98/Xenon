@@ -48,6 +48,7 @@ server/data/widgets/
   "streams": ["system", "media"],
   "actions": ["media", "volume", "mic"],
   "hosts": ["api.example.com"],
+  "userHosts": [{ "id": "nas", "label": "NAS address", "scope": "private" }],
   "hooks": ["my-event"],
   "storage": true,
   "storageGroup": "my-widget-set",
@@ -72,16 +73,19 @@ server/data/widgets/
 | `name` | yes | ≤ 60 chars. |
 | `version`, `author`, `description` | no | Shown to the user (description ≤ 200 chars). |
 | `entry` | no | HTML entry document, defaults to `index.html`. Must live in the package root. |
-| `streams` | no | Data streams you request: `status`, `system`, `media`, `audio`, `wavelink`, `stocks`, `football`, `news`, `claude`, `obs`, `discord`, `streamerbot`, `homeassistant`, `tasks`, `notes`, `agenda`, `weather`, `battery`. See *Hardware sensors* for fans/power/battery. |
+| `streams` | no | Data streams you request: `status`, `system`, `media`, `audio`, `wavelink`, `stocks`, `football`, `news`, `claude`, `obs`, `discord`, `discordChannels`, `discordSoundboard`, `discordNotifications`, `streamerbot`, `homeassistant`, `tasks`, `notes`, `agenda`, `weather`, `battery`. See *Hardware sensors* for fans/power/battery. |
 | `surface` | no | `"tile"` (default) or `"ambient"` — an ambient package renders fullscreen as an Ambient/screensaver scene instead of a dashboard tile (see *Ambient scenes*). |
 | `actions` | no | Action categories you request: `media`, `volume`, `mic`, `lighting`, `chroma`, `wavelink`, `spotify`, `obs`, `discord`, `homeassistant`, `twitch`, `youtube`, `streamerbot`, `url`, `tasks`, `soundboard`. |
 | `hosts` | no | Up to 8 exact hostnames the widget may reach **through the host-mediated fetch proxy** (see *Network*). Loopback/link-local names are rejected at install time. |
+| `userHosts` | no | Up to 4 addresses **the user types in**, for servers you can't know in advance (a NAS, Docker, a printer). Each is `{ id, label, scope }` — `id` (`^[a-z0-9][a-z0-9-]{0,40}$`) is what you read the value back under, `label` (≤ 60 chars) is the text above the field, `scope` is `"private"` (default — LAN only) or `"any"`. See *User-supplied addresses*. |
 | `hooks` | no | Up to 8 hook ids (`^[a-z0-9][a-z0-9-]{0,40}$`) the widget may receive local webhook events on (see *Local webhooks*). |
 | `deck` | no | Deck contributions: up to 8 `actions` (macros of ≤ 10 steps, each step restricted to the same low-risk action set as `actions`), up to 8 `states` the widget publishes, and up to 8 `handlers` — Deck keys answered by your own code, with up to 4 declared params each (see *Deck integration* and *Handler actions*). |
-| `background` | no | `true` + declared `deck.handlers` → the host may run your package in a hidden **service frame** so its Deck keys answer with no tile on screen (see *Handler actions*). |
+| `background` | no | `true` + declared `deck.handlers` and/or `badge` → the host may run your package in a hidden **service frame** so its Deck keys answer, and its badge keeps refreshing, with no tile on screen (see *Handler actions* and *Persistent badge*). Ignored without either. |
 | `storage` | no | `true` → your widget may keep a small persistent key/value store on this PC (its settings, chosen sources, last map view). Survives updates. See *Persistent storage*. |
 | `storageGroup` | no | A shared-store id (`^[a-z0-9][a-z0-9-]{0,40}$`). Every widget declaring the same group reads/writes ONE store, so a set of sibling widgets can share config/cache. Implies `storage`. |
 | `secrets` | no | `true` → your widget may store API keys in a **write-only** vault and use them via `{{secret:NAME}}` in proxied requests, so a published package ships no keys. See *Secrets & API keys*. |
+| `island` | no | `true` → your widget may project **one short plain-text line** into the minimal topbar's dynamic island (the floating clock pill). Host-rendered, grant-gated — see *Island projection*. |
+| `badge` | no | `true` → your widget may show a small **always-on** text chip next to the clock, in both topbar chromes. Host-rendered, grant-gated — see *Persistent badge*. |
 
 An invalid entry in any of these (a loopback host, an out-of-catalog macro step,
 a malformed id) rejects the **whole manifest** — the package shows up as invalid
@@ -171,13 +175,19 @@ than the manifest requested):
   },
   lang:   'en',                       // active UI language (en/it/ko/ja/zh)
   streams: ['system', 'media'],       // granted data streams
-  actions: ['media']                  // granted action categories
+  actions: ['media'],                 // granted action categories
+  // Addresses the user typed into your `userHosts` slots, keyed by slot id.
+  // Only slots they actually filled appear. See "User-supplied addresses".
+  userHosts: {
+    nas: { host: '192.168.1.50', port: 32400, scheme: 'http', base: 'http://192.168.1.50:32400' }
+  }
 }
 ```
 
 Immediately after `init`, the host replays the latest cached payload of each
-granted stream as `data` messages, so you paint without waiting for the next
-tick.
+granted live stream as `data` messages, so you paint without waiting for the
+next tick. The three richer Discord snapshots are loaded only when a visible
+widget explicitly requests them, as described below.
 
 ### 3. `data` — host → widget
 
@@ -197,6 +207,9 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `claude` — local Claude Code usage aggregate (the "Xenon Pulse" data)
 - `obs` — OBS state (current scene, recording/streaming flags, audio sources)
 - `discord` — Discord voice state (connected, mute/deafen, current channel, speaking)
+- `discordChannels` — `{ ok, channels:[{ id, name, guild, members:[] }] }`; Discord voice-channel catalog merged with the live roster
+- `discordSoundboard` — `{ ok, sounds:[{ id, guildId, name, guild }] }`; the soundboard catalog available to the connected Discord account
+- `discordNotifications` — `{ ok, enabled, hide, state, items:[...] }`; private DM/mention notifications, with the user's privacy setting preserved. Request this grant only when the widget genuinely displays notification content
 - `streamerbot` — Streamer.bot connection state, globals, and activity events
 - `homeassistant` — Home Assistant device/entity states (privacy note: this exposes your smart-home state — grant it deliberately)
 - `tasks` — `{ tasks: [...] }`, the user's to-do list; pushed on every change
@@ -206,6 +219,26 @@ The payloads are the dashboard's own SSE events, unmodified:
 
 `wavelink` and these last four are read-only data feeds; you also get the latest
 cached payload replayed right after `init`, so you paint without waiting.
+
+The rich Discord streams are **lazy snapshots**, not polling feeds. Request one
+only while its UI is visible:
+
+```js
+window.parent.postMessage({
+  xenonSdk: 1,
+  type: 'refresh',
+  id: 7,
+  stream: 'discordChannels'
+}, '*');
+```
+
+The host replies with the usual `data` message and then a
+`{ type:'refresh_result', id:7, stream:'discordChannels', ok:true }` result.
+Only the three fixed stream names above are accepted: a widget cannot provide a
+URL or endpoint. Refreshes require the matching user grant, are rate-limited,
+and are rejected for hidden tiles and background service frames. The channel
+and notification snapshots are cached for 5 seconds; Soundboard is cached for
+60 seconds.
 
 Treat every string in them as untrusted display text: render with
 `textContent`, never `innerHTML`.
@@ -234,6 +267,12 @@ Four rules that will bite you if you skip them:
 - **A fan carries `rpm` OR `pct`, never both.** LibreHardwareMonitor reports real
   RPM; a card LHM cannot read falls back to nvidia-smi's percentage. Check which
   field is present and label the unit accordingly — never print a percentage as RPM.
+- **`name` may be the USER's name, not the hardware's.** A board only ever says
+  "Fan #3", so Xenon lets people rename a fan in the Fans widget and forwards that
+  name to you — treat it as the label to show, and as your only clue that a header
+  drives a pump (match `/pump/i` and scale it against ~4800 RPM, not a fan's
+  ~2200, or a healthy AIO pump paints permanent redline). It is still untrusted
+  display text: `textContent`, never `innerHTML`.
 - **Identify fans by `kind`, not by `name`.** `'mb'` is a motherboard header,
   `'ctrl'` is a channel on an AIO/fan-hub controller (NZXT Kraken, Aquacomputer
   Octo/Quadro, MSI CoreLiquid…), `'psu'` is the power supply's own fan, `'gpu'`
@@ -256,6 +295,16 @@ USB (Corsair HXi/RMi and similar) is present; treat it as absent on most
 machines. It is **not** the wall-socket figure: conversion losses put that
 roughly 10% higher, and no PSU here reports it, so never label `power.psu` as
 "from the wall".
+
+**`psu` already contains `cpu` and `gpu`** — it is the total, not a fourth
+component. Adding them together counts the processor and the graphics card
+twice and produces a number that describes nothing. Show `psu` as the total and
+`cpu`/`gpu` as its parts; `psu - cpu - gpu` is everything else the supply feeds
+(motherboard, RAM, drives, fans), and it is worth showing precisely because it
+makes the parts add up to the total. Guard it: the PSU's registers are read one
+at a time, so a bouncing load can briefly make the parts out-total the whole —
+drop the remainder when it comes out `<= 0` rather than rendering a negative
+watt. Next to a `psu` reading, `total` is redundant by construction.
 
 `sensorAccess` tells you **why** `fans`/`power.cpu`/`power.psu` are empty, so your
 empty state can name the real fix: `needs_admin` means LibreHardwareMonitor is
@@ -290,6 +339,13 @@ The palette is computed for this widget's own tile, so per-widget overrides
 already appear in these values even though the widget runs in an iframe.
 `theme.overrides` lists the role keys explicitly changed on that tile; most
 theme-reactive widgets can ignore the list and apply the complete palette.
+
+A dual-palette theme (one that ships both a light and a dark half — see
+[THEME_SYSTEM.md](THEME_SYSTEM.md#dual-palette-themes)) is resolved before the
+payload is built, so `appearance` and `palette` always describe the tone actually
+on screen. A widget that reacts to `theme` messages needs no special handling: it
+receives a fresh one when the user switches mode, and when Windows flips scheme
+while they are on Auto.
 
 ```js
 function applyTheme(theme) {
@@ -399,7 +455,7 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `audio`, `battery`, `claude`, `discord`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `wavelink`, `weather`
+**Data streams** (`streams`): `agenda`, `audio`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `wavelink`, `weather`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 
@@ -459,6 +515,62 @@ Rules (enforced server-side against your **manifest**, not just your grant):
 
 To poll an API, simply `setInterval` + `fetch` in your widget — data streams and
 your visibility already gate how often you actually run.
+
+### 6b. User-supplied addresses — `userHosts`
+
+`hosts` works when you know the address at build time. It doesn't when the server
+lives on **the user's** network — a NAS, a Docker host, a printer, a self-hosted
+Plex. You can't know that address, and hard-coding your own makes the package
+useless to everyone else, so such a widget could never be published.
+
+Declare a **named blank** instead, and the user fills it in when they approve you:
+
+```json
+"userHosts": [
+  { "id": "nas", "label": "NAS address", "scope": "private" }
+]
+```
+
+| Key | Notes |
+|-----|-------|
+| `id` | What you read the value back under (`^[a-z0-9][a-z0-9-]{0,40}$`). |
+| `label` | The text shown above the field — say what you want, e.g. "Plex server address". ≤ 60 chars. |
+| `scope` | `"private"` (default) accepts only the user's own network — RFC1918 IPs, `*.local`, single-label names. `"any"` also accepts a public name, for a self-hosted service on its own domain. |
+
+The address arrives in `init` (and only for slots the user actually filled), with
+a `base` ready to concatenate a path onto:
+
+```js
+// { xenonSdk: 1, type: 'init', …,
+//   userHosts: { nas: { host: '192.168.1.50', port: 32400, scheme: 'http',
+//                       base: 'http://192.168.1.50:32400' } } }
+const nas = init.userHosts.nas;
+if (nas) fetchViaHost(nas.base + '/library/sections');   // normal proxied fetch
+```
+
+Notes that save you a debugging session:
+
+- The user may type `192.168.1.50:32400`, `nas.local`, or `https://plex.example.com`
+  — all three are accepted, and you always receive the parsed pieces plus `base`.
+  **Use `base`**; don't rebuild it from `host` and `port` yourself.
+- **Ports are not part of the allowlist**, so a slot covers any port on that host.
+- `scheme` follows the same rule as the rest of the proxy: LAN keeps the user's
+  choice (default `http`), a public host is always `https`.
+- A slot the user left empty is **absent** from `init.userHosts`. Check before
+  using it — though in practice the host won't mount you until every declared
+  slot has an address, and it prompts the user for one instead.
+- The address is stored with the user's grant, not in your package: it never
+  travels when the widget is exported or shared, and it survives updates.
+- Users can change it later from the Store's **Installed** list → *Address*.
+
+Security, since this is the one place a widget influences where it can reach: it
+still can't choose. Your manifest declares that you need an address and how wide
+it may reach; the value only ever comes from the person at the keyboard. Every
+value is re-validated server-side on every request against the same rules a
+declared `hosts` entry passes — so loopback, link-local and `localhost` are
+unreachable through a slot no matter what, `"private"` really does pin the value
+to LAN space, and a name that *resolves* back to `127.0.0.1` still dies at
+connect time.
 
 ### 7. Local webhooks — `hook` (host → widget)
 
@@ -552,11 +664,115 @@ re-coerced server-side against your declared params on every press, and
 dispatches are rate-limited (~4/s per handler).
 
 **Background service frames** (`"background": true`, top-level): normally your
-code runs only while a tile is mounted. A package that declares handlers may
-also ask to run **headless** — the host mounts a hidden sandboxed frame (same
-CSP, same grants, capped at 4 packages) so your Deck keys answer even with no
-tile on screen. Shown to the user in the permission dialog; meaningless (and
-normalized away) without handlers.
+code runs only while a tile is mounted. A package that declares handlers — or a
+`badge` — may also ask to run **headless**: the host mounts a hidden sandboxed
+frame (same CSP, same grants, capped at 4 packages) so your Deck keys answer,
+and your badge stays live, even with no tile on screen. Shown to the user in the
+permission dialog; meaningless (and normalized away) with neither.
+
+### 9b. Island projection — `island` (widget → host) (v4.6)
+
+Declare `"island": true` and — once the user grants it — your widget may show
+**one short plain-text line** in the minimal topbar's dynamic island: the clock
+pill recedes (the same morph a notification uses) and your line takes its spot,
+expanding into a small card when it wraps. A teleprompter's current sentence, a
+build status, a download percentage — anything worth a glance while the tile
+itself may be on another page. An optional `next` string renders as a dimmed
+follow-up row under the main line (prompter-style context).
+
+```js
+window.parent.postMessage({ xenonSdk: 1, type: 'island', op: 'show', text: 'Rendering… 42%' }, '*');
+window.parent.postMessage({ xenonSdk: 1, type: 'island', op: 'show', text: 'Current sentence.', next: 'The one after it.', badge: '1.5×' }, '*');
+window.parent.postMessage({ xenonSdk: 1, type: 'island', op: 'clear' }, '*');
+```
+
+Rules the host enforces (send whatever you like — this is what survives):
+
+- **Plain text only.** The host renders your strings via `textContent` — never
+  markup, links or images. Control characters are stripped; `text` and `next`
+  are each capped at **160 chars**. `text` wraps in full (never clamped);
+  `next` renders as a dimmed row below it. An optional `badge` (capped at
+  **16 chars**) renders as a right-hand meta column split off by a hairline —
+  a ` · ` inside it stacks two rows (accent on top, dim below), so
+  `badge: '1.5× · 2:40'` reads as a speed over a countdown.
+- **Chained shows glide.** When a `show`'s `text` equals the previous `next`,
+  the host treats it as a prompter advance: the old line dims into a single
+  ellipsized history row, the block slides up and the card height eases —
+  karaoke-style. Unrelated text just replaces the card content.
+- **Coalesced updates.** Bursts are rate-limited (~200 ms); the LATEST text
+  always lands, intermediate ones may be skipped. Sending more than a few
+  updates per second buys you nothing.
+- **One owner at a time.** The island is a single slot: the last granted
+  package to `show` owns it, and only the owner's `clear` clears it. Design for
+  sharing — show a line while you're genuinely active, clear when you stop.
+- **System notifications always win.** While a toast is showing your line
+  recedes; it returns when the toast dismisses. No action needed on your side.
+- **Auto-clear.** When your package's last frame goes away (tile removed,
+  package uninstalled) the host clears your line within a few seconds.
+- **Minimal chrome only.** In the full topbar there is no island: your text is
+  accepted and kept, just not displayed — the tile remains the primary display.
+  Don't put anything in the island the tile doesn't also show.
+- An empty `text` on `show` counts as `clear`. There is no reply message.
+- In a regular browser tab that's hidden, your frame's timers are throttled by
+  the browser — island updates from a background tab will stall. Irrelevant on
+  the always-visible Xeneon Edge kiosk.
+
+### 9c. Persistent badge — `badge` (widget → host) (v4.6)
+
+Declare `"badge": true` and — once granted — your widget may show a small
+**always-on** text chip next to the clock, in **both** the full and minimal
+topbar chromes (unlike Island, which is minimal-only). Use it for something
+that's true for a long time and worth a permanent glance — a repo's star
+count, an unread count, a connection status — not a one-off event.
+
+```js
+window.parent.postMessage({ xenonSdk: 1, type: 'badge', op: 'set', text: '1.2k', icon: '★', color: '#f5c518', tooltip: 'owner/repo — GitHub stars' }, '*');
+window.parent.postMessage({ xenonSdk: 1, type: 'badge', op: 'clear' }, '*');
+```
+
+Rules the host enforces:
+
+- **Plain text only**, rendered via `textContent` — never markup, links or
+  images. Control characters are stripped. `text` is capped at **20
+  characters** — this is a small persistent chip, not a sentence, so keep it
+  tight (a star count, a short status word). An optional `tooltip` (capped at
+  **48 characters**) renders as the chip's native title attribute.
+- **An optional glyph in your own colour.** `icon` (capped at **8 characters** —
+  a symbol or emoji) renders as the chip's leading glyph, and `color` (a strict
+  `#hex`, same rule as a deck key's live badge) tints **the glyph only** — the
+  value stays in the topbar's own text colour, so your chip sits in the user's
+  theme while your mark stays yours (a star is gold, a battery is green).
+  Anything that isn't plain hex is dropped and the glyph inherits the text
+  colour. Prefer this over putting the symbol in `text`: a glyph inside `text`
+  can't be tinted, and an emoji renders chunky next to the pill's typography.
+- **Multiple owners, capped.** Unlike Island's single shared slot, several
+  *distinct* granted packages may each hold one badge at the same time, up to
+  4 concurrent chips. A package trying to claim a 5th slot is silently
+  ignored — this is a cosmetic layout limit, not an error, and there's no
+  reply message either way.
+- **Coalesced updates.** Bursts are rate-limited (~500 ms); the latest text
+  always lands.
+- **No tap action yet.** Badges are display-only in this version — they don't
+  navigate anywhere when tapped.
+- **The user owns the slot.** In the minimal topbar the badge row is an island
+  segment like the clock or the weather chip: from Settings → Aspetto the user
+  can reorder it or hide it outright. Treat the badge as a bonus glance, never
+  as the only place your widget shows something.
+- **Outliving the tile — declare `background: true`.** A badge is worth having
+  precisely when the tile is *not* on screen, so a badge package may also ask to
+  run headless: the host mounts a hidden service frame (same sandbox, same
+  grants) that keeps your code — and therefore your chip — alive and refreshing
+  with no tile anywhere. Without it your chip is dropped a few seconds after
+  your last frame goes away. Note both frames run when a tile IS mounted, so
+  keep polling cheap and idempotent.
+- **Give the user a way out.** A badge that survives the tile can only be
+  removed by uninstalling your package — unless you offer something better. The
+  bundled `github-stars` example puts a *Remove badge* button in its setup view;
+  do the same.
+- **Auto-clear.** When your package's last frame goes away (tile removed *and*
+  no service frame, package uninstalled, SDK switched off) the host drops your
+  chip within a few seconds.
+- An empty `text` on `set` counts as `clear`. There is no reply message.
 
 ## Persistent storage
 

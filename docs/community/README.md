@@ -95,5 +95,49 @@ artifact. By submitting you agree the code may be redistributed through the gall
 | `shots` | | v2 — integer `1`–`4`: how many screenshot/GIF sidecars this entry has. Files are `shots/<id>.webp`, then `shots/<id>-2.webp` … `shots/<id>-4.webp`. Format is **WebP (animated allowed) or PNG** — the app tries `.webp` first, then `.png`. Never a URL, the paths are derived from the id. |
 | `publisher` | | v2 — `{ "handle": "github-handle", "url": "https://github.com/…" }` (url must be on github.com). |
 
+### Automatic limited editions
+
+New limited editions should use the Supporter Hub inventory instead of a hand-edited
+`claimed` counter. The public catalog entry contains only this projection:
+
+```json
+{
+  "limited": {
+    "total": 50,
+    "claimed": 0,
+    "fulfillment": "hub",
+    "dropId": "signal-50",
+    "channels": "discord",
+    "numbered": true
+  }
+}
+```
+
+- `numbered` is opt-in. When true, every owner receives a distinct edition and bundle;
+  when false, all claim slots point to the same creation.
+- `channels` is `discord` for a Discord-only claim button, or `both` to also show the
+  styled **Claim your copy** button on the website and in the app Store.
+- `total`, `claimed`, `numbered` and `channels` are projections only. The website and app
+  hydrate live inventory from the Hub, and the admin publisher overwrites these values
+  from D1 so catalog JSON cannot forge stock.
+- Never add a public `claimUrl`. Discord claim links are generated and signed by the Hub;
+  website/app links are derived from the fixed Hub origin and only appear for `both`.
+
+Maintainer flow:
+
+1. Add a `limited` block to the creator source `pack.json`, then run
+   `.agents/skills/xenon-creator/scripts/build-limited.mjs` (or the creation's wrapper).
+2. Keep `<dropId>-limited-manifest.json` private. It contains the encrypted bundles' CEKs.
+3. In Supporter Hub `/admin` → **Automatic limited drops**, import the manifest and choose
+   **Discord only** or **Site/app + Discord** with the channel buttons.
+4. Publish the generated public catalog fragment only after the Hub migration, OAuth and
+   Turnstile configuration are live.
+
+The claim itself always signs in with Discord and verifies membership in the Xenon server.
+D1 enforces one claim per `(dropId, Discord user id)` and assigns the inventory slot with
+one atomic update, so parallel requests cannot take the same copy. The resulting personal
+`XL-` code unlocks only that artifact and is limited to three installation ids; reinstalling
+on the same installation does not consume another device.
+
 The app re-validates every field and every code goes through the normal import preview +
 permission flow — a catalog entry can never change anything silently.

@@ -298,11 +298,13 @@
   box-shadow: var(--shadow-md);
 }
 
-/* ── Weather modal — rich, colour-led "island" stays dark ──── */
+/* ── Weather modal — rich, colour-led "island" stays dark ────
+   The text roles used to be re-pointed here. They now live on `.weather-panel`
+   itself (WeatherModal.css) together with the status roles, which were missing
+   and left the metric values unreadable: the panel is dark under every palette,
+   so its contract does not belong behind an appearance gate. Only the floating
+   controls, which genuinely differ between appearances, remain here. */
 :root[data-appearance="light"] .weather-panel {
-  --text: #ffffff;
-  --muted-text: rgba(255,255,255,0.72);
-  --dim-text: rgba(255,255,255,0.55);
   --floating-ui-bg: rgba(255,255,255,0.12);
   --floating-ui-border: rgba(255,255,255,0.22);
 }

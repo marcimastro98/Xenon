@@ -39,11 +39,15 @@
     return n >= 100 ? String(Math.round(n)) : String(Math.round(n * 10) / 10);
   }
 
-  function pcCard(labelKey, fallback, watts, cls) {
+  function pcCard(labelKey, fallback, watts, cls, note) {
     const card = el('div', 'pw-card' + (cls ? ' ' + cls : ''));
     const val = el('div', 'pw-card-val');
     val.append(el('b', null, fmtWatts(watts)), el('span', 'pw-unit', 'W'));
     card.append(val, el('div', 'pw-card-label', t(labelKey, fallback)));
+    // Spelled out ON the card, never as a title tooltip: the Xeneon Edge is a
+    // touchscreen and has no hover, so a tooltip is invisible on the very device
+    // this dashboard is built for.
+    if (note) card.appendChild(el('div', 'pw-card-note', note));
     return card;
   }
 
@@ -88,11 +92,26 @@
         const grid = el('div', 'pw-grid');
         if (isWatts(p.cpu)) grid.appendChild(pcCard('power_cpu', 'CPU', p.cpu));
         if (isWatts(p.gpu)) grid.appendChild(pcCard('power_gpu', 'GPU', p.gpu));
-        // `total` is strictly CPU+GPU — labelled as such, never a whole-system guess.
-        if (isWatts(p.total)) grid.appendChild(pcCard('power_total', 'CPU+GPU', p.total, 'pw-card--total'));
-        // The PSU's measured OUTPUT: every rail, so the real whole-PC draw —
-        // but NOT the wall socket, which is ~10% higher (conversion losses).
-        if (isWatts(p.psu)) grid.appendChild(pcCard('power_psu', 'PSU', p.psu, 'pw-card--psu'));
+        // `psu` is the supply's measured OUTPUT — every rail, so the whole PC,
+        // with the CPU and GPU watts ALREADY INSIDE it. It is therefore the
+        // total, never a fourth component to add to them, and the cards must be
+        // its PARTS or they double-count what the highlight already says.
+        // (It is not the wall socket either: conversion losses put that ~10%
+        // higher and no PSU reports it.)
+        const rest = (isWatts(p.psu) && isWatts(p.cpu) && isWatts(p.gpu))
+          ? Math.round((Number(p.psu) - Number(p.cpu) - Number(p.gpu)) * 10) / 10
+          : null;
+        // Motherboard, RAM, drives, fans. Dropped when <= 0: the PSU's registers
+        // are read one at a time, so under a bouncing load the parts can briefly
+        // out-total the whole — that's read skew, not a reading.
+        if (rest !== null && rest > 0) {
+          grid.appendChild(pcCard('power_rest', 'Everything else', rest, null,
+            t('power_rest_note', 'Motherboard, RAM, drives, fans')));
+        }
+        // CPU+GPU alongside a PSU total would be those same two watts a second
+        // time; it earns its place only when it IS the best total available.
+        if (!isWatts(p.psu) && isWatts(p.total)) grid.appendChild(pcCard('power_total', 'CPU+GPU', p.total, 'pw-card--total'));
+        if (isWatts(p.psu)) grid.appendChild(pcCard('power_psu', 'Whole PC', p.psu, 'pw-card--psu'));
         wrap.appendChild(grid);
         // GPU watts come from nvidia-smi and need nothing special, while CPU/PSU
         // watts ride LHM's kernel driver — so CPU alone can be missing, and the

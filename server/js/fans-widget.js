@@ -137,8 +137,11 @@
     // a pump's own range (see SOFT_MAX_PUMP_RPM), which is the ONLY signal we
     // have — a board that names its header "Fan #1" never says it drives a pump.
     // That coupling is invisible unless we say it, exactly where it applies.
-    if (!row.querySelector('.fanw-rename-hint')) {
-      row.appendChild(el('div', 'fanw-rename-hint', t('fans_rename_hint', 'Name it “pump” if it drives the AIO pump — it is then read on a pump’s speed range.')));
+    // It goes in the BODY (already a column) rather than the row: appending to
+    // the row would need flex-wrap, which drops the RPM onto its own line.
+    const body = row.querySelector('.fanw-body');
+    if (body && !body.querySelector('.fanw-rename-hint')) {
+      body.appendChild(el('div', 'fanw-rename-hint', t('fans_rename_hint', 'Name it “pump” if it drives the AIO pump — it is then read on a pump’s speed range.')));
     }
     input.focus();
     input.select();

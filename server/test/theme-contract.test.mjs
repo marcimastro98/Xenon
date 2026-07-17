@@ -58,6 +58,18 @@ test('semantic theme roles are carried by client, server and preset persistence'
   assert.match(tileSource, /\bpanel\b/, 'tile panel surface');
 });
 
+// A dual-palette theme is only useful if the pair survives a restart, another
+// dashboard surface and a re-import, so all three persistence layers must carry
+// the field — and both normalizers must route through the shared engine rather
+// than growing a second copy of the rules that can drift.
+test('paletteVariants is carried by client, server and preset persistence', () => {
+  for (const parts of [['js', 'settings.js'], ['js', 'preset-share.js'], ['server.js']]) {
+    assert.match(read(...parts), /\bpaletteVariants\b/, parts.join('/'));
+  }
+  assert.match(read('js', 'settings.js'), /ThemePalette\.normalizeVariants/);
+  assert.match(read('server.js'), /themePalette\.normalizeVariants/);
+});
+
 test('per-widget palettes rebuild material aliases at tile scope', () => {
   const source = read('js', 'dashboard-layout.js');
   for (const token of ['--panel', '--panel-soft', '--panel-border', '--glass-bg', '--slider-fill', '--slider-track']) {
@@ -125,4 +137,37 @@ test('Comic Deck editor uses a paper dialog while preserving the modal backdrop'
   assert.match(css, /\.deck-style-dialog[\s\S]*background:\s*var\(--comic-paper-fill\)/);
   assert.match(css, /\.deck-style-modal[\s\S]*color-mix\(in srgb, var\(--comic-ink\)/);
   assert.match(css, /\.deck-seg button\.active[\s\S]*color:\s*var\(--comic-ink\)/);
+});
+
+test('the weather modal owns a dark contract while its tile primitives follow the palette', () => {
+  const wx = read('components', 'WeatherModal', 'WeatherModal.css');
+  const light = read('styles', 'themes-light.css');
+
+  // The panel is a dark island under every palette, so its contract must not sit
+  // behind an appearance gate — Comic Book and Light both fed it paper-tuned
+  // status colours, which sank the metric values into the glass.
+  assert.match(wx, /\.weather-panel\s*\{[\s\S]*--text:\s*#ffffff/);
+  assert.match(wx, /\.weather-panel\s*\{[\s\S]*--color-warn:\s*var\(--color-warn-ondark/);
+  assert.match(wx, /\.weather-panel\s*\{[\s\S]*--color-success:\s*var\(--color-success-ondark/);
+  assert.match(wx, /\.weather-panel\s*\{[\s\S]*--color-danger:\s*var\(--color-danger-ondark/);
+  assert.match(wx, /\.weather-panel\s*\{[\s\S]*--color-info:\s*var\(--color-info-ondark/);
+  assert.doesNotMatch(light, /\.weather-panel[^}]*--text:/, 'the panel contract moved out of the light gate');
+
+  // The same primitives render inside the dashboard tile, on the widget panel's
+  // paper. They must mix from --text rather than hard-code white.
+  for (const rule of ['.weather-metric-value', '.weather-hour-temp', '.weather-fc-max']) {
+    // Anchor at line start so the severity-scoped `--good .weather-metric-value`
+    // rule, which correctly paints from a status role, is not what we read.
+    const at = wx.indexOf('\n' + rule + ' ');
+    assert.equal(at >= 0, true, rule + ' has a base rule');
+    const decl = wx.slice(at, wx.indexOf('}', at));
+    assert.match(decl, /color:\s*var\(--text\)/, rule + ' follows the surface it is on');
+  }
+  assert.match(wx, /\.weather-metric\s*\{[\s\S]*background:\s*color-mix\(in srgb, var\(--text\)/);
+  assert.match(wx, /\.weather-metric-label\s*\{[\s\S]*color:\s*color-mix\(in srgb, var\(--text\)/);
+  assert.match(wx, /\.weather-section-title\s*\{[\s\S]*color:\s*color-mix\(in srgb, var\(--text\)/);
+  assert.match(wx, /\.weather-hour-rain\s*\{[\s\S]*color:\s*var\(--color-info\)/);
+
+  // The hero sky is dark in every theme and keeps its literal white on purpose.
+  assert.match(wx, /\.weather-hero-temp\s*\{[\s\S]*color:\s*#fff/);
 });

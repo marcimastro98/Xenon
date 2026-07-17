@@ -1420,6 +1420,14 @@ select.deck-ed-input {
 .deck-key.has-live .deck-key-live { opacity: 1; }
 /* When the label sits on top, the badge moves to the bottom edge instead. */
 .deck-key[data-labelpos="top"] .deck-key-live { top: auto; bottom: 6px; }
+/* The badge floats over the cap face, but the cap centres its icon and label in
+   the FULL height — so a key carrying a badge drew the glyph straight under it,
+   both fighting for the same pixels (a soundboard key's slot tag sitting on its
+   icon, a state word crossing a star). Reserve the strip the badge occupies and
+   the centred content clears it on its own. Sliders are exempt: their icon is
+   hidden and their badge already sits low, over the track. */
+.deck-key.has-live:not(.is-slider) { padding-top: 22px; }
+.deck-key[data-labelpos="top"].has-live:not(.is-slider) { padding-top: 6px; padding-bottom: 22px; }
 
 /* ── Touch faders (slider keys) ── */
 .deck-key.is-slider { touch-action: none; cursor: grab; }

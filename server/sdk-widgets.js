@@ -25,12 +25,14 @@ const { validateAction, clampDelay } = require('./js/deck-actions.js');
 // Version of the host↔widget postMessage protocol (see docs/WIDGET_SDK.md).
 const SDK_API_VERSION = 1;
 
-// Data streams a package may request; each maps 1:1 to an SSE event the
-// dashboard already receives. The host only forwards streams the user granted.
+// Data streams a package may request. Most map 1:1 to an SSE event the dashboard
+// already receives; the three detailed Discord feeds are lazy, host-fetched
+// snapshots so a sandboxed widget never gains general access to local routes.
+// The host only forwards streams the user explicitly granted.
 // Fan RPM and power draw need no stream of their own: they ride the `system`
 // payload (fans / power / sensorAccess). `battery` is separate because wireless
 // peripheral levels move slowly and broadcast on their own 90s tick.
-const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'streamerbot', 'homeassistant', 'tasks', 'notes', 'agenda', 'weather', 'battery']);
+const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'tasks', 'notes', 'agenda', 'weather', 'battery']);
 
 // Action categories a package may request → the deck-action types each grants.
 // Deliberately a small, low-blast-radius subset of the action registry; every
@@ -141,6 +143,11 @@ const MAX_PACKAGES = 32;
 
 // Caps for the manifest extensions (all additive to api 1).
 const MAX_HOSTS = 8;
+// User-filled host slots. Deliberately smaller than MAX_HOSTS: each slot is a
+// field a human has to understand and type at approval time, so a package that
+// wants four of them is already asking too much.
+const MAX_USER_HOSTS = 4;
+const USER_HOST_SCOPES = Object.freeze(['private', 'any']);
 const MAX_HOOKS = 8;
 const MAX_MACROS = 8;
 const MAX_MACRO_STEPS = 10;
@@ -234,6 +241,81 @@ function normalizeHosts(raw) {
     if (out.length > MAX_HOSTS) return { ok: false };
   }
   return { ok: true, hosts: out };
+}
+
+// userHosts: NAMED BLANKS the user fills in at approval time. The author cannot
+// know the reader's LAN address, so a NAS/Docker/self-hosted widget that hard-
+// codes one in `hosts` only ever works on the author's own machine — which is
+// why such a widget cannot be published at all today. A slot declares the id the
+// widget reads the value back under, the label the user sees above the field,
+// and how wide the field may reach ('private' = LAN only, the default; 'any' =
+// also public names, for a self-hosted service on its own domain).
+//
+// The package still never chooses its own destination — that property is what
+// the whole proxy allowlist exists to protect. It only declares that it NEEDS an
+// address and what for; the address itself comes from the person who owns the
+// machine. See resolveUserHosts for the enforcement half.
+//
+// A duplicate id is an author bug (two labels, one slot, second silently wins),
+// so it rejects the manifest like every other malformed entry.
+function normalizeUserHosts(raw) {
+  if (raw == null) return { ok: true, userHosts: [] };
+  if (!Array.isArray(raw)) return { ok: false };
+  const out = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return { ok: false };
+    const id = typeof item.id === 'string' ? item.id.trim() : '';
+    if (!SDK_SUB_ID_RE.test(id)) return { ok: false };
+    if (out.some(s => s.id === id)) return { ok: false };
+    const label = cleanStr(item.label, 60);
+    if (!label) return { ok: false };
+    const scope = item.scope == null ? 'private' : item.scope;
+    if (!USER_HOST_SCOPES.includes(scope)) return { ok: false };
+    out.push({ id, label, scope });
+    if (out.length > MAX_USER_HOSTS) return { ok: false };
+  }
+  return { ok: true, userHosts: out };
+}
+
+// Resolve the addresses the USER typed into a manifest's declared slots into the
+// extra hosts the proxy allowlist accepts for this package, plus a ready-to-use
+// `base` per slot the widget can concatenate a path onto.
+//
+// The security contract, in one line: a slot can only ever resolve to a host the
+// manifest could have declared legally itself. Every value is re-validated here,
+// at request time, against the SAME normalizeProxyHost the install path uses —
+// so loopback, link-local and `localhost` are unreachable through a slot no
+// matter what a tampered settings blob claims, and 'private' scope additionally
+// pins the value to LAN space. guardedLookup in sdk-proxy.js still has the last
+// word at connect time, so a name that RESOLVES back to 127.0.0.1 dies there.
+//
+// Unlike normalizeUserHosts (author data, validated once at install, rejects
+// loud) this is USER data re-read on every request: a value that no longer
+// passes — a widget update narrowed the scope, someone hand-edited settings — is
+// skipped, not fatal. The slot then reads as "not configured" and the widget's
+// fetch fails with host_not_allowed, which is the same state it starts in.
+function resolveUserHosts(manifest, granted) {
+  const slots = (manifest && Array.isArray(manifest.userHosts)) ? manifest.userHosts : [];
+  const values = (granted && typeof granted === 'object' && !Array.isArray(granted)) ? granted : {};
+  const byId = {};
+  const hosts = [];
+  for (const slot of slots) {
+    const v = values[slot.id];
+    if (!v || typeof v !== 'object' || Array.isArray(v)) continue;
+    const host = normalizeProxyHost(v.host);
+    if (!host) continue;
+    const priv = isPrivateNetworkHost(host);
+    if (slot.scope === 'private' && !priv) continue;
+    // Mirror the proxy's own http-vs-https rule rather than restating it: a
+    // public host is only ever reachable over TLS, so its base must say https
+    // whatever was stored. LAN gear rarely has a cert, so there the user's
+    // choice stands and plain http is the default.
+    const scheme = priv ? (v.scheme === 'https' ? 'https' : 'http') : 'https';
+    const port = Number.isInteger(v.port) && v.port >= 1 && v.port <= 65535 ? v.port : 0;
+    byId[slot.id] = { host, port, scheme, base: `${scheme}://${host}${port ? ':' + port : ''}` };
+    if (!hosts.includes(host)) hosts.push(host);
+  }
+  return { byId, hosts };
 }
 
 // hooks: ids the package may receive local webhook events on (POST /sdk/hook/<pkg>/<id>).
@@ -408,6 +490,8 @@ function normalizeManifest(raw, folderId) {
   const actions = cleanList(raw.actions, Object.keys(SDK_ACTION_CATEGORIES), Object.keys(SDK_ACTION_CATEGORIES).length);
   const hosts = normalizeHosts(raw.hosts);
   if (!hosts.ok) return { ok: false, reason: 'bad_hosts' };
+  const userHosts = normalizeUserHosts(raw.userHosts);
+  if (!userHosts.ok) return { ok: false, reason: 'bad_user_hosts' };
   const hooks = normalizeHooks(raw.hooks);
   if (!hooks.ok) return { ok: false, reason: 'bad_hooks' };
   const deck = normalizeDeckExtras(raw.deck, actions);
@@ -425,6 +509,7 @@ function normalizeManifest(raw, folderId) {
   }
   const storage = raw.storage === true || !!storageGroup;
   const secrets = raw.secrets === true;
+  const badge = raw.badge === true;
   return {
     ok: true,
     manifest: {
@@ -442,14 +527,27 @@ function normalizeManifest(raw, folderId) {
       // Where the package renders: a dashboard tile (default) or the fullscreen
       // Ambient/screensaver surface. Anything but the exact literal is a tile.
       surface: raw.surface === 'ambient' ? 'ambient' : 'tile',
-      // A package with handler actions may ask to run headless: the host mounts
-      // a hidden sandboxed "service frame" so its deck keys answer even when no
-      // tile is on screen. Meaningless without handlers → normalized to false.
-      background: raw.background === true && deck.deck.handlers.length > 0,
+      // A package may ask to run headless: the host mounts a hidden sandboxed
+      // "service frame" so its deck keys answer — and its badge stays live and
+      // refreshing — with no tile on screen. Only handlers and badges outlive a
+      // tile, so without either it is meaningless → normalized to false.
+      background: raw.background === true && (deck.deck.handlers.length > 0 || badge),
+      // The widget may project ONE short plain-text line into the minimal-topbar
+      // dynamic island. Host-rendered (textContent) and grant-gated; the text
+      // never reaches the server, so no server-side enforcement exists here.
+      island: raw.island === true,
+      // The widget may show a small persistent text chip next to the clock, in
+      // both topbar chromes — up to a few widgets at once (unlike `island`,
+      // which is a single shared slot). Same host-rendered/grant-gated shape.
+      badge,
       entry,
       streams: cleanList(raw.streams, SDK_STREAMS, SDK_STREAMS.length),
       actions,
       hosts: hosts.hosts,
+      // Blanks the user fills in at approval time; the values live in the grant,
+      // never in the package. resolveUserHosts turns the two into the extra
+      // hosts this package may reach.
+      userHosts: userHosts.userHosts,
       hooks: hooks.hooks,
       deck: deck.deck,
     },
@@ -462,7 +560,13 @@ function normalizeManifest(raw, folderId) {
 // declared allowlist (which can never contain loopback/link-local); plain http
 // only to private-network targets; headers rebuilt from an allowlist with
 // control characters rejected (no header injection); body bounded.
-function validateProxyRequest(manifest, raw) {
+//
+// `extraHosts` is the resolved value of the manifest's userHosts slots (see
+// resolveUserHosts) — addresses the USER supplied for blanks this manifest
+// declared. Callers must pass the output of resolveUserHosts and nothing else:
+// it is the function that re-validates those values, so an arbitrary list here
+// would widen the allowlist past what the manifest permits.
+function validateProxyRequest(manifest, raw, extraHosts) {
   if (!manifest || !raw || typeof raw !== 'object') return { ok: false, error: 'bad_request' };
   const urlStr = typeof raw.url === 'string' ? raw.url.trim() : '';
   if (!urlStr || urlStr.length > 4096) return { ok: false, error: 'bad_url' };
@@ -471,7 +575,9 @@ function validateProxyRequest(manifest, raw) {
   if (url.protocol !== 'https:' && url.protocol !== 'http:') return { ok: false, error: 'bad_scheme' };
   if (url.username || url.password) return { ok: false, error: 'bad_url' };
   const host = normalizeProxyHost(url.hostname);
-  if (!host || !(manifest.hosts || []).includes(host)) return { ok: false, error: 'host_not_allowed' };
+  const declared = Array.isArray(manifest.hosts) ? manifest.hosts : [];
+  const filled = Array.isArray(extraHosts) ? extraHosts : [];
+  if (!host || !(declared.includes(host) || filled.includes(host))) return { ok: false, error: 'host_not_allowed' };
   if (url.protocol === 'http:' && !isPrivateNetworkHost(host)) return { ok: false, error: 'https_required' };
   const method = typeof raw.method === 'string' ? raw.method.toUpperCase() : 'GET';
   if (!PROXY_METHODS.includes(method)) return { ok: false, error: 'bad_method' };
@@ -716,6 +822,7 @@ module.exports = {
   normalizeManifest,
   isPrivateNetworkHost,   // unit-tested (proxy allowlist boundary)
   validateProxyRequest,
+  resolveUserHosts,       // unit-tested (user-filled host slot boundary)
   macroCategories,
   validateHandlerArgs,    // unit-tested (handler-args coercion boundary)
   resolveAsset,

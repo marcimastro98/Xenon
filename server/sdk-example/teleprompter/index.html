@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Teleprompter</title>
+<link rel="stylesheet" href="widget.css">
+</head>
+<body>
+  <main class="prompter">
+    <!-- Edit mode: the script library is a row of cue-card chips (tap to
+         switch, tap the active one to rename inline, ✕ to delete with a
+         two-step confirm, ＋ to add) over a calm, generous textarea. -->
+    <section class="edit" id="edit">
+      <div class="tabs" id="tabs"></div>
+      <textarea id="script" maxlength="12000" spellcheck="false" placeholder="Write or paste your script here…&#10;&#10;One sentence per line works best — each line becomes a prompter row, and the highlighted row is what the island shows."></textarea>
+      <div class="edit-bar">
+        <span class="hint" id="hint">[2s] in the text = automatic pause</span>
+        <span class="saved" id="saved"></span>
+        <button id="start" type="button">▶ Start</button>
+      </div>
+    </section>
+    <!-- Play mode: stacked sentence rows scrolled with transform only, faded
+         at the stage edges. Drag to reposition; 3-2-1 countdown into playback;
+         a floating pill toolbar carries the transport + live speed/time. -->
+    <section class="play" id="play" hidden>
+      <div class="stage" id="stage">
+        <div class="lines" id="lines"></div>
+        <div class="count" id="count" hidden aria-hidden="true">3</div>
+      </div>
+      <div class="controls">
+        <div class="bar">
+          <button id="back" type="button" aria-label="Edit script">✎</button>
+          <button id="mirrorbtn" type="button" aria-label="Mirror text">⇄</button>
+          <button id="islandbtn" type="button" class="is-on" aria-pressed="true" aria-label="Show in island"><i class="cap"></i></button>
+          <span class="sep" aria-hidden="true"></span>
+          <button id="slower" type="button" aria-label="Slower">−</button>
+          <button id="toggle" type="button" class="go" aria-label="Play/Pause">⏸</button>
+          <button id="faster" type="button" aria-label="Faster">＋</button>
+          <span class="sep" aria-hidden="true"></span>
+          <button id="rewind" type="button" aria-label="Back to top">⏮</button>
+          <span class="meta"><b id="speedlbl">1.0×</b><span id="etalbl"></span></span>
+        </div>
+      </div>
+    </section>
+  </main>
+  <!-- Inline scripts are blocked by the SDK CSP (script-src 'self') — keep JS in files. -->
+  <script src="widget.js"></script>
+</body>
+</html>

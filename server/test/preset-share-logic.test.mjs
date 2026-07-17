@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, stripProfileImages, countProfileKeys, lockPreset, unlockPreset, peekLocked, canonCode } = require('../js/preset-share.js');
+const { encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, stripProfileImages, countProfileKeys, lockPreset, unlockPreset, peekLocked, canonCode, themeImportPatch } = require('../js/preset-share.js');
 const DeckModel = require('../js/deck-model.js');
 const DeckActions = require('../js/deck-actions.js');
 
@@ -124,6 +124,88 @@ test('encode stamps gridCols=24 and decode passes it through (legacy codes → 0
   // a pre-24-column code has no gridCols field → importers scale it ×2
   const legacy = Buffer.from(JSON.stringify({ xenonPreset: 1, kind: 'page', name: 'old', data: { items: [] } }), 'utf8').toString('base64url');
   assert.equal(decodePreset(legacy).gridCols, 0);
+});
+
+// ── Theme import patch: replace, never merge ────────────────────────────────
+
+// Regression: a theme code from an older Xenon (or written by hand) omits the
+// optional semantic roles it doesn't know about; treating the omission as "keep
+// the current value" spliced palettes across imports. Proven in the field: a
+// comic pack's cream surface (#efe6cf) and paper-tuned status colours survived
+// under a dark theme installed after it, so the "dark" theme rendered light —
+// and the merged palette was then snapshotted into the imported theme's gallery
+// card, making the corruption permanent. Omitted roles must import as explicit
+// nulls (= derive from the code's own background/text).
+test('a theme code that omits optional roles resets them instead of inheriting', () => {
+  // Demonic-shaped code: declares the author colours, says nothing about
+  // surface/status roles.
+  const patch = themeImportPatch({
+    appearance: 'dark', styleMode: 'glass',
+    accent: '#d7461e', background: '#070808', text: '#f0f3f1',
+  });
+  assert.equal(patch.background, '#070808');
+  for (const k of ['surface', 'surfaceAlt', 'controlColor', 'mutedText', 'lineColor',
+    'accentText', 'successColor', 'warningColor', 'dangerColor', 'infoColor']) {
+    assert.equal(k in patch, true, k + ' must be present in the patch');
+    assert.equal(patch[k], null, k + ' must reset to automatic, not inherit');
+  }
+});
+
+test('declared roles pass through and non-palette codes leave the roles alone', () => {
+  // A full modern export keeps every declared value byte-for-byte.
+  const full = themeImportPatch({
+    accent: '#e63d4e', background: '#efe6cf', text: '#1b140d',
+    surface: '#efe6cf', successColor: '#236844',
+  });
+  assert.equal(full.surface, '#efe6cf');
+  assert.equal(full.successColor, '#236844');
+  // …while the roles it omits still reset (it carries a palette).
+  assert.equal(full.warningColor, null);
+
+  // A code with no colour keys at all (effects-only) must not touch the roles.
+  const fx = themeImportPatch({ bgDim: 0.5, glassBlur: 30 });
+  assert.equal('surface' in fx, false);
+  assert.equal('successColor' in fx, false);
+  assert.equal(fx.bgDim, 0.5);
+
+  // Junk in, empty patch out.
+  assert.deepEqual(themeImportPatch(null), {});
+  assert.deepEqual(themeImportPatch('nope'), {});
+});
+
+// Dual-palette themes travel in the code and follow the same reset rule as the
+// individual roles: a single-tone theme landing on top of a pair must clear it,
+// or the old theme's other half would keep repainting the new palette on every
+// light/dark (or OS) flip — the palette-splicing bug, one level up.
+test('paletteVariants round-trip through a theme code and reset on a single-tone import', () => {
+  const variants = {
+    light: { background: '#efe6cf', surface: '#efe6cf', text: '#1b140d' },
+    dark: { background: '#12101d', surface: '#191527', text: '#fbf3e0' },
+  };
+  const code = encodePreset('theme', 'POW! Comic', {
+    appearance: 'auto', styleMode: 'comic', accent: '#e63d4e',
+    background: '#efe6cf', text: '#1b140d', paletteVariants: variants,
+  }, { exportedAt: '2026-07-17', appVersion: '4.6.0' });
+  const env = decodePreset(code);
+  assert.deepEqual(env.data.paletteVariants, variants);
+
+  const dual = themeImportPatch(env.data);
+  assert.deepEqual(dual.paletteVariants, variants);
+
+  // A plain single-tone theme clears the pair.
+  const single = themeImportPatch({ accent: '#d7461e', background: '#070808', text: '#f0f3f1' });
+  assert.equal('paletteVariants' in single, true);
+  assert.equal(single.paletteVariants, null);
+
+  // A code carrying ONLY the pair still counts as carrying a palette, so the
+  // roles it omits reset rather than inherit the previous theme's.
+  const pairOnly = themeImportPatch({ paletteVariants: variants });
+  assert.deepEqual(pairOnly.paletteVariants, variants);
+  assert.equal(pairOnly.surface, null);
+
+  // An effects-only code leaves the pair (and the roles) untouched.
+  const fx = themeImportPatch({ bgDim: 0.5 });
+  assert.equal('paletteVariants' in fx, false);
 });
 
 // ── Bundle ("Pacchetto Xenon") format ────────────────────────────────────────

@@ -83,6 +83,21 @@
     0 44px 130px rgba(0,0,0,0.65),
     0 0 0 0.5px rgba(255,255,255,0.08);
   isolation: isolate;
+
+  /* Local dark contract. The modal floats over a 55%-black scrim in every theme,
+     so it is an immersive dark island rather than application chrome and owns its
+     palette instead of following the dashboard's. Without this a light or Comic
+     Book palette pushes its paper-tuned text and status colours onto the sky —
+     the metric values (air quality, UV, PM, humidity) then sit at ~1.7:1 and
+     vanish. The shared metric/hour/forecast primitives below paint from --text,
+     so redefining it here is what keeps them light-on-dark inside the modal. */
+  --text: #ffffff;
+  --muted-text: rgba(255,255,255,0.72);
+  --dim-text: rgba(255,255,255,0.55);
+  --color-success: var(--color-success-ondark, #45d483);
+  --color-warn: var(--color-warn-ondark, #f0b84f);
+  --color-danger: var(--color-danger-ondark, #ff6268);
+  --color-info: var(--color-info-ondark, #62cbea);
 }
 /* Specular glass sheen — top-left light reflection */
 .weather-panel::before {
@@ -479,23 +494,34 @@
   grid-template-columns: repeat(4, minmax(0,1fr));
   gap: 8px;
 }
+/* Metric, hour and forecast cards are shared by the modal and the dashboard tile.
+   The modal is always dark glass, but the tile's sections sit on the widget panel
+   — cream paper under Comic Book, white under Light — so these primitives mix
+   their washes and text from --text instead of hard-coding white. On a dark
+   palette --text is near-white and the result is the glass they always were; on
+   paper they invert with the surface. Anything keyed to the sky itself (the hero
+   card, its chips) stays literal white: that surface is dark in every theme. */
 .weather-metric {
+  /* Anchor for the --good/--moderate/--bad level bar below: without it the
+     bar resolves against .weather-panel and every metric's bar stacks in one
+     stripe down the panel's left edge instead of marking its own card. */
+  position: relative;
   min-width: 0;
   min-height: 64px;
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
   border-radius: 18px;
   padding: 11px 13px;
   display: grid;
   align-content: space-between;
   gap: 5px;
-  background: rgba(255,255,255,0.07);
+  background: color-mix(in srgb, var(--text) 7%, transparent);
   backdrop-filter: blur(28px) saturate(1.9);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.16);
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .weather-metric:hover {
-  background: rgba(255,255,255,0.13);
-  border-color: rgba(255,255,255,0.22);
+  background: color-mix(in srgb, var(--text) 13%, transparent);
+  border-color: color-mix(in srgb, var(--text) 22%, transparent);
 }
 
 /* Semantic colour per metric value (air quality, UV, PM, humidity, visibility) */
@@ -517,7 +543,7 @@
 .weather-metric--moderate .weather-metric-value { color: var(--color-warn); }
 .weather-metric--bad    .weather-metric-value { color: var(--color-danger); }
 .weather-metric-label {
-  color: rgba(255,255,255,0.50);
+  color: color-mix(in srgb, var(--text) 50%, transparent);
   font-size: 9.5px;
   font-weight: 600;
   text-transform: uppercase;
@@ -527,7 +553,7 @@
   text-overflow: ellipsis;
 }
 .weather-metric-value {
-  color: #fff;
+  color: var(--text);
   font-size: 19px;
   font-weight: 600;
   line-height: 1;
@@ -537,7 +563,7 @@
   text-overflow: ellipsis;
 }
 .weather-metric-sub {
-  color: rgba(255,255,255,0.42);
+  color: color-mix(in srgb, var(--text) 42%, transparent);
   font-size: 10.5px;
   font-weight: 500;
   white-space: nowrap;
@@ -564,8 +590,8 @@
 .weather-section-title {
   margin-bottom: 8px;
   padding-bottom: 6px;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
-  color: rgba(255,255,255,0.50);
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 7%, transparent);
+  color: color-mix(in srgb, var(--text) 50%, transparent);
   font-size: 10.5px;
   font-weight: 600;
   text-transform: uppercase;
@@ -582,8 +608,8 @@
   min-width: 0;
   min-height: 74px;
   border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.11);
-  background: rgba(255,255,255,0.05);
+  border: 1px solid color-mix(in srgb, var(--text) 11%, transparent);
+  background: color-mix(in srgb, var(--text) 5%, transparent);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.13);
   padding: 8px 7px;
   display: grid;
@@ -595,17 +621,17 @@
 }
 .weather-hour:hover {
   transform: translateY(-2px);
-  background: rgba(255,255,255,0.13);
-  border-color: rgba(255,255,255,0.18);
+  background: color-mix(in srgb, var(--text) 13%, transparent);
+  border-color: color-mix(in srgb, var(--text) 18%, transparent);
 }
 .weather-hour-time {
-  color: rgba(255,255,255,0.52);
+  color: color-mix(in srgb, var(--text) 52%, transparent);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.2px;
 }
 .weather-hour-temp {
-  color: #fff;
+  color: var(--text);
   font-size: 17px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -613,8 +639,10 @@
 /* In the hourly list rain is already shown as "Pioggia X%" text — drop the mini
    icon's rain/storm dots (their box-shadow spilled over the temperature). */
 .weather-hour .weather-mini-icon { box-shadow: none !important; }
+/* Rain chance is the one informational accent here; as a role it survives the
+   move onto paper, where a pale sky-blue would not. */
 .weather-hour-rain {
-  color: rgba(155,210,255,0.90);
+  color: var(--color-info);
   font-size: 9.5px;
   font-weight: 600;
 }
@@ -1013,11 +1041,11 @@
   align-items: center;
   gap: 12px;
   padding: 6px 4px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 6%, transparent);
 }
 .weather-fc-row:last-child { border-bottom: none; }
 .weather-fc-day {
-  color: rgba(255,255,255,0.92);
+  color: color-mix(in srgb, var(--text) 92%, transparent);
   font-size: 13px;
   font-weight: 600;
   text-transform: capitalize;
@@ -1026,13 +1054,13 @@
   text-overflow: ellipsis;
 }
 .weather-fc-row .weather-mini-icon { width: 26px; height: 22px; }
-.weather-fc-min { color: rgba(255,255,255,0.55); font-size: 14px; font-variant-numeric: tabular-nums; text-align: right; }
-.weather-fc-max { color: #fff; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.weather-fc-min { color: color-mix(in srgb, var(--text) 55%, transparent); font-size: 14px; font-variant-numeric: tabular-nums; text-align: right; }
+.weather-fc-max { color: var(--text); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .weather-fc-bar {
   position: relative;
   height: 6px;
   border-radius: 999px;
-  background: rgba(255,255,255,0.14);
+  background: color-mix(in srgb, var(--text) 14%, transparent);
   overflow: hidden;
 }
 .weather-fc-fill {

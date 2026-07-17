@@ -10,7 +10,8 @@
 .fans-widget-mount { height: 100%; display: flex; min-height: 0; padding: 14px 16px; box-sizing: border-box; }
 .fanw-wrap { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; gap: 10px; }
 
-.fanw-head { display: flex; align-items: center; gap: 8px; padding: 2px 2px 0; }
+/* flex: 0 0 auto — the scroller is the only child that may shrink. */
+.fanw-head { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 2px 2px 0; }
 .fanw-title { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; color: var(--text, #f0f3f1); }
 .fanw-count { font-size: 11px; font-weight: 600; opacity: 0.7; background: rgba(255,255,255,0.07); border-radius: 999px; padding: 1px 8px; font-variant-numeric: tabular-nums; }
 
@@ -34,8 +35,12 @@
 .fanw-silent-names { min-width: 0; opacity: 0.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* One scroll container for all groups: with many fans the tile scrolls as a
-   whole instead of each group fighting for its own slice of height. */
-.fanw-scroll { flex: 1 1 auto; min-height: 0; overflow: hidden auto;
+   whole instead of each group fighting for its own slice of height.
+   flex: 0 1 auto (NOT 1 1 auto) so it takes only the height it needs: growing
+   it pinned the footnotes to the bottom edge with a void between them and the
+   fans, which read as two unrelated blocks. It still shrinks-and-scrolls when
+   the fans overflow — it is the only child allowed to shrink. */
+.fanw-scroll { flex: 0 1 auto; min-height: 0; overflow: hidden auto;
   display: flex; flex-direction: column; gap: 10px; }
 
 .fanw-group { display: flex; flex-direction: column; gap: 6px; }
@@ -94,11 +99,13 @@
 .fanw-pencil { flex: 0 0 auto; font-size: 10px; opacity: 0.4; }
 .fanw-name:hover .fanw-pencil, .fanw-name:focus-visible .fanw-pencil { opacity: 0.85; }
 
-/* Shown only while a rename input is open: the row goes full-width and the hint
-   sits under it, so the pump-scaling rule is stated where it is actionable. */
-.fanw-row:has(.fanw-rename) { flex-wrap: wrap; }
-.fanw-rename-hint { flex: 1 0 100%; font-size: 9.5px; line-height: 1.3; opacity: 0.5;
-  padding: 4px 0 0 36px; text-wrap: pretty; }
+/* Shown only while a rename input is open, inside the body column so the row's
+   glyph/name/RPM structure is untouched: the pump-scaling rule is stated exactly
+   where it is actionable. The row being renamed spans the whole grid, so the
+   field is a comfortable touch target and the hint stays one or two lines
+   instead of fraying down a ~150px column. */
+.fanw-row:has(.fanw-rename) { grid-column: 1 / -1; }
+.fanw-rename-hint { font-size: 9.5px; line-height: 1.3; opacity: 0.5; text-wrap: pretty; }
 
 .fanw-rename { width: 100%; min-width: 0; box-sizing: border-box;
   font: inherit; font-weight: 600; font-size: 12.5px; color: var(--text, #f0f3f1);

@@ -1,0 +1,13 @@
+{
+  "api": 1,
+  "id": "github-stars",
+  "name": "GitHub Stars",
+  "version": "1.0.0",
+  "author": "Xenon",
+  "description": "Shows a GitHub repository's live star count, as a tile and as a small badge next to the clock. Configure the repo once; it refreshes automatically.",
+  "entry": "index.html",
+  "storage": true,
+  "badge": true,
+  "background": true,
+  "hosts": ["api.github.com"]
+}

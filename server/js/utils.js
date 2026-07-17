@@ -27,6 +27,33 @@ function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// Copy text to the clipboard; true only when it actually landed. The legacy
+// textarea path is not vestigial: navigator.clipboard is absent or rejects in
+// some WebView builds, so the async API alone silently drops the copy there.
+async function copyText(text) {
+  const value = String(text || '');
+  if (!value) return false;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+  } catch (_) { /* fall through to the legacy path */ }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = value;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  } catch (_) {
+    return false;
+  }
+}
+
 // CSS url(...) layer for a user-supplied image source: quoted, with embedded
 // double quotes percent-escaped so the value can't terminate the url() token.
 // Falsy src → '' (drops out of a `[grad, img].filter(Boolean)` layer list).

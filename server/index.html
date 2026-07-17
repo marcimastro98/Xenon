@@ -159,6 +159,10 @@
              by js/vitals.js; lives inside .clock so the minimal-topbar island
              adopts it automatically when the clock is reparented. -->
         <span class="clock-vitals" id="clock-vitals" hidden></span>
+        <!-- Third-party SDK badge chips (Widget SDK `badge` capability, up to a
+             few at once). Populated by js/sdk-badges.js; lives inside .clock for
+             the same free minimal-topbar reparenting as clock-vitals above. -->
+        <span class="clock-sdkbadges" id="clock-sdkbadges" hidden></span>
       </div>
     </div>
 
@@ -1362,6 +1366,20 @@
             <span class="settings-hint" data-i18n="settings_notif_sounds_hint">riproduci un breve suono a ogni pop-up e per il promemoria del calendario</span>
           </span>
         </label>
+        <label class="settings-toggle-row full" id="settings-winnotif-row">
+          <input class="settings-check" id="settings-winnotif" type="checkbox" onchange="updateWindowsNotifications('enabled', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_winnotif">Rispecchia le notifiche di Windows</span>
+            <span class="settings-hint" data-i18n="settings_winnotif_hint">DM, mail, Teams, WhatsApp… ogni notifica del PC arriva in dashboard: pop-up e widget Notifiche. Lettura locale — niente esce da questo PC.</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-winnotif-hide-row">
+          <input class="settings-check" id="settings-winnotif-hide" type="checkbox" onchange="updateWindowsNotifications('hide', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_winnotif_hide">Nascondi il contenuto delle notifiche</span>
+            <span class="settings-hint" data-i18n="settings_winnotif_hide_hint">nel widget e nei pop-up mostra solo l'app: il testo appare quando tocchi</span>
+          </span>
+        </label>
       </div>
 
       <div class="settings-group settings-behavior-group" data-settings-cat="bit">
@@ -2546,7 +2564,7 @@
           <span class="settings-hint" data-i18n="settings_wshub_hint">Estendi la dashboard o condividi il tuo setup</span>
         </div>
         <div class="settings-wshub-body">
-          <p class="settings-wshub-intro" data-i18n="settings_wshub_intro">Qui vive tutto il ciclo: crea qualcosa di tuo (con o senza codice), condividilo come codice o file, scopri e installa ciò che pubblicano gli altri. Regola semplice: puoi esportare solo le tue creazioni — ciò che installi da altri non è ridistribuibile.</p>
+          <p class="settings-wshub-intro" data-i18n="settings_wshub_intro">Qui vive tutto il ciclo: crea qualcosa di tuo, condividilo come codice o file, scopri e installa ciò che pubblicano gli altri. Regola semplice: puoi esportare solo le tue creazioni — ciò che installi da altri non è ridistribuibile.</p>
 
           <section class="settings-store-hero" aria-labelledby="settings-store-hero-title">
             <span class="settings-store-hero-glow" aria-hidden="true"></span>
@@ -2559,36 +2577,6 @@
               <span class="settings-hint" data-i18n="settings_gallery_lead">Temi, sfondi, widget, scene e pacchetti pubblicati dalla community — sfoglia e importa con un tocco, sempre con l'anteprima prima di applicare.</span>
             </div>
             <button type="button" class="settings-btn primary settings-store-hero-cta" onclick="if(window.CommunityGallery)CommunityGallery.open()" data-i18n="settings_store_open">Apri lo Store</button>
-          </section>
-
-          <section class="settings-subcard">
-            <div class="settings-subcard-head">
-              <span class="settings-subcard-ico settings-subcard-ico--create" aria-hidden="true">🛠</span>
-              <span class="settings-subcard-titles">
-                <b data-i18n="settings_create_title">Crea</b>
-                <span class="settings-hint" data-i18n="settings_create_lead">Due strade: senza codice in un minuto, o con codice per il controllo totale.</span>
-              </span>
-            </div>
-            <div class="settings-howto-block settings-wc-block">
-              <div class="settings-howto-label" data-i18n="settings_create_nocode_label">Senza codice — Creatore di widget</div>
-              <p class="settings-hint settings-howto-text" data-i18n="settings_wc_lead">Senza scrivere codice: scegli un modello (orologio, monitor di sistema, now playing, etichetta, conto alla rovescia), personalizzalo con anteprima dal vivo e installalo con un tocco.</p>
-              <button type="button" class="settings-btn primary" onclick="if(window.WidgetCreator)WidgetCreator.open({ onInstalled: function(){ if(window.CustomWidget&&CustomWidget.refreshPackages)CustomWidget.refreshPackages(); } })" data-i18n="wc_create">Crea widget</button>
-              <p class="settings-hint settings-howto-text" data-i18n="settings_create_nocode_limits">Veloce e guidato — ma limitato ai modelli disponibili. Per qualcosa di davvero tuo, passa al codice.</p>
-            </div>
-            <div class="settings-howto-block">
-              <div class="settings-howto-label" data-i18n="settings_create_code_label">Con codice — SDK widget</div>
-              <p class="settings-hint settings-howto-text" data-i18n="settings_create_code_lead">Controllo totale su aspetto e funzioni: HTML/JS in una sandbox sicura, con dati live della dashboard e azioni approvate da chi installa.</p>
-              <ol class="settings-howto">
-                <li data-i18n="settings_create_code_step1">Leggi la guida SDK: API, dati disponibili, esempi completi.</li>
-                <li data-i18n="settings_create_code_step2">Sviluppa nella cartella server/data/widgets — il pacchetto compare nella lista dei widget installati qui sotto.</li>
-                <li data-i18n="settings_create_code_step3">Condividilo da Condividi &amp; Importa (codice o file) o pubblicalo nel catalogo della community.</li>
-              </ol>
-              <div class="settings-howto-links">
-                <a class="settings-inline-link" href="https://xenon-app.com/create/#sdk" target="_blank" rel="noopener noreferrer" data-i18n="settings_sdk_guide">Guida per creare un widget →</a>
-                <a class="settings-inline-link" href="https://github.com/marcimastro98/Xenon/blob/main/docs/community/README.md" target="_blank" rel="noopener noreferrer" data-i18n="settings_create_publish_guide">Linee guida per pubblicare nel catalogo →</a>
-              </div>
-            </div>
-            <p class="settings-note" data-i18n="settings_create_other_hint">Il resto si crea direttamente nell'app: temi e sfondi da Aspetto, le pagine dall'editor layout, i profili dal widget Deck, le scene Ambient dalla modalità Ambient.</p>
           </section>
 
           <section class="settings-subcard">
@@ -2607,31 +2595,9 @@
                 <span class="settings-hint" data-i18n="settings_sdk_enable_hint">aggiungi il tile "Widget personalizzato" dalla palette "+" e scegli un pacchetto</span>
               </span>
             </label>
-            <div class="settings-howto-block">
-              <div class="settings-howto-label" data-i18n="settings_sdk_install_label">Installare un widget</div>
-              <ol class="settings-howto">
-                <li data-i18n="settings_sdk_step1">Importa un codice dalla galleria o da Condividi &amp; Importa (oppure copia la cartella del pacchetto in server/data/widgets).</li>
-                <li data-i18n="settings_sdk_step2">Attiva l'interruttore qui sopra.</li>
-                <li data-i18n="settings_sdk_step3">Aggiungi il tile "Widget personalizzato" dalla palette "+" e scegli il pacchetto.</li>
-              </ol>
-            </div>
             <p class="settings-note settings-safenote" data-i18n="settings_sdk_note">Un widget non può toccare il server, i tuoi file o le impostazioni: gira in una sandbox isolata, senza accesso a internet, e può solo vedere i dati che approvi ed eseguire le azioni che consenti (tasti media, volume, mute microfono, luci, apri link) — ognuna ricontrollata dal server. Ogni pacchetto ti chiede i permessi prima di comparire.</p>
-            <div class="settings-howto-block">
-              <div class="settings-howto-label" data-i18n="settings_sdk_installed_label">Widget installati</div>
-              <div id="settings-sdk-installed" class="settings-sdk-installed"></div>
-            </div>
-          </section>
-
-          <section class="settings-subcard">
-            <div class="settings-subcard-head">
-              <span class="settings-subcard-ico settings-subcard-ico--limited" aria-hidden="true">✦</span>
-              <span class="settings-subcard-titles">
-                <b data-i18n="settings_limited_title">Limited edition</b>
-                <span class="settings-hint" data-i18n="settings_limited_lead">Drop esclusive a tiratura limitata — un numero fisso di copie in tutto il mondo. Si prenotano su Discord: ricevi un codice d'accesso personale per importarle.</span>
-              </span>
-            </div>
             <div class="settings-share-buttons">
-              <button type="button" class="settings-btn primary" onclick="if(window.CommunityGallery)CommunityGallery.open('__limited')" data-i18n="settings_limited_open">Vedi le limited edition</button>
+              <button type="button" class="settings-btn" onclick="if(window.CommunityGallery)CommunityGallery.open('__installed')" data-i18n="settings_sdk_manage">Gestisci gli installati…</button>
             </div>
           </section>
 
@@ -2644,19 +2610,25 @@
               </span>
             </div>
             <div class="settings-share-buttons">
-              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportTheme()" data-i18n="settings_share_theme">Esporta tema</button>
-              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportPage()" data-i18n="settings_share_page">Esporta pagina</button>
-              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportDeck()" data-i18n="settings_share_deck">Esporta profilo Deck</button>
-              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportWidget()" data-i18n="settings_share_widget">Esporta widget</button>
-              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportBg()" data-i18n="settings_bg_code_export">Esporta sfondo</button>
-              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportAmbient()" data-i18n="settings_share_ambient">Esporta scena Ambient</button>
-              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportIcons()" data-i18n="settings_share_icons">Crea pacchetto icone</button>
-              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportSounds()" data-i18n="settings_share_sounds">Crea pacchetto suoni</button>
-              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.exportBundle()" data-i18n="settings_share_bundle">Esporta pacchetto</button>
-              <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.openImport()" data-i18n="settings_share_import">Importa (link o file)…</button>
-              <button type="button" class="settings-btn subtle" onclick="if(window.PresetShare)PresetShare.openInstalledContent()" data-i18n="installed_content_open">Contenuti installati</button>
+              <button type="button" class="settings-btn primary" onclick="if(window.PresetShare)PresetShare.openExport()" data-i18n="settings_share_export">Esporta…</button>
+              <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.openImport()" data-i18n="settings_share_import">Importa…</button>
             </div>
-            <p class="settings-note settings-safenote" data-i18n="settings_share_note">All'importazione vedi sempre cosa contiene prima di confermare. Tema, pagina e Deck cambiano solo aspetto e disposizione; widget e pacchetti installano widget della community in sandbox, che restano nascosti finché non ne approvi i permessi. Da Contenuti installati puoi rimuovere in una volta sola tutto ciò che ogni download ha aggiunto. Importa solo da persone di cui ti fidi. E puoi esportare solo le tue creazioni: ciò che hai installato da altri non è ridistribuibile.</p>
+            <p class="settings-note settings-safenote" data-i18n="settings_share_note">All'importazione vedi sempre cosa contiene prima di confermare. Tema, pagina e Deck cambiano solo aspetto e disposizione; widget e pacchetti installano widget della community in sandbox, che restano nascosti finché non ne approvi i permessi. Importa solo da persone di cui ti fidi. E puoi esportare solo le tue creazioni: ciò che hai installato da altri non è ridistribuibile.</p>
+          </section>
+
+          <section class="settings-subcard">
+            <div class="settings-subcard-head">
+              <span class="settings-subcard-ico settings-subcard-ico--create" aria-hidden="true">🛠</span>
+              <span class="settings-subcard-titles">
+                <b data-i18n="settings_create_title">Crea</b>
+                <span class="settings-hint" data-i18n="settings_create_lead">Controllo totale su aspetto e funzioni: HTML/JS in una sandbox sicura, con dati live della dashboard e azioni approvate da chi installa.</span>
+              </span>
+            </div>
+            <div class="settings-howto-links">
+              <a class="settings-inline-link" href="https://xenon-app.com/create/#sdk" target="_blank" rel="noopener noreferrer" data-i18n="settings_sdk_guide">Guida per creare un widget →</a>
+              <a class="settings-inline-link" href="https://github.com/marcimastro98/Xenon/blob/main/docs/community/README.md" target="_blank" rel="noopener noreferrer" data-i18n="settings_create_publish_guide">Linee guida per pubblicare nel catalogo →</a>
+            </div>
+            <p class="settings-note" data-i18n="settings_create_other_hint">Il resto si crea direttamente nell'app: temi e sfondi da Aspetto, le pagine dall'editor layout, i profili dal widget Deck, le scene Ambient dalla modalità Ambient.</p>
           </section>
         </div>
       </div>
@@ -3401,6 +3373,8 @@
 <script src="js/tile-decor-presets.js"></script>
 <script src="js/dashboard-layout.js"></script>
 <script src="js/topbar-minimal.js"></script>
+<script src="js/sdk-island.js"></script>
+<script src="js/sdk-badges.js"></script>
 <script src="js/lockscreen.js"></script>
 <script src="js/ambient-mode.js"></script>
 <script src="js/ai.js"></script>
@@ -3451,8 +3425,6 @@
 <script src="js/vitals-pet.js"></script>
 <script src="js/ticker.js"></script>
 <script src="js/custom-widget.js"></script>
-<script src="js/widget-templates.js"></script>
-<script src="js/widget-creator.js"></script>
 <script src="js/spotify-widget.js"></script>
 <script src="js/browser-tile.js"></script>
 <script src="js/second-screen-tile.js"></script>
@@ -3462,6 +3434,7 @@
 <script src="js/guardian-history.js"></script>
 <script src="js/context-profiles.js"></script>
 <script src="js/preset-share.js"></script>
+<script src="js/installed-manager.js"></script>
 <script src="js/community-gallery.js"></script>
 <script src="js/catalog-drop.js"></script>
 <script src="js/update.js"></script>

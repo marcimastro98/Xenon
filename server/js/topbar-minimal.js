@@ -55,8 +55,11 @@
     if (typeof saveHubSettings === 'function') saveHubSettings({ server: true });
   }
 
-  // The five reorderable island segments, in their default display order.
-  const ISLAND_SEG_IDS = ['time', 'date', 'weather', 'vitals', 'dots'];
+  // The reorderable island segments, in their default display order. A new id
+  // must also be added to the canonical list in normalizeTopbarClock (client
+  // settings.js AND its server.js twin) and labelled in TOPBAR_ISLAND_LABELS,
+  // or it is dropped on the next settings save.
+  const ISLAND_SEG_IDS = ['time', 'date', 'weather', 'vitals', 'dots', 'badges'];
 
   function captureTopbarEls() {
     if (els) return els;
@@ -74,10 +77,11 @@
     const metaSep = clock.querySelector('.clock-meta-sep');
     const clockWeather = clock.querySelector('.clock-weather');
     const clockVitals = clock.querySelector('.clock-vitals'); // optional (vitals opt-in)
+    const clockBadges = clock.querySelector('.clock-sdkbadges'); // SDK badge chips (js/sdk-badges.js)
     if (!clockFace || !clockMeta || !clockDate || !clockWeather) return null;
     els = {
       topbar, quickbar, clock, topActions, pagerDots,
-      clockFace, clockMeta, statusDot, clockDate, metaSep, clockWeather, clockVitals,
+      clockFace, clockMeta, statusDot, clockDate, metaSep, clockWeather, clockVitals, clockBadges,
     };
     return els;
   }
@@ -90,6 +94,7 @@
       case 'weather': return els.clockWeather;
       case 'vitals': return els.clockVitals;
       case 'dots': return els.pagerDots;
+      case 'badges': return els.clockBadges;
       default: return null;
     }
   }
@@ -269,8 +274,9 @@
       el.style.removeProperty('order');
       el.classList.remove('island-seg', 'island-seg-lead', 'island-seg-hidden');
     });
-    // clock-meta ← status-dot · date · sep · weather · vitals (fixed original order)
-    [els.statusDot, els.clockDate, els.metaSep, els.clockWeather, els.clockVitals]
+    // clock-meta ← status-dot · date · sep · weather · vitals · badges
+    // (fixed original order — must match index.html)
+    [els.statusDot, els.clockDate, els.metaSep, els.clockWeather, els.clockVitals, els.clockBadges]
       .forEach(el => { if (el) els.clockMeta.appendChild(el); });
     els.clock.append(els.clockFace, els.clockMeta);
     // Topbar's original child order: quickbar · clock · top-actions, with the

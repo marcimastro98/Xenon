@@ -617,9 +617,13 @@
     evaluate();
   }
 
+  // Identity from the ATOM (data-dashboard-instance), not the enclosing grid
+  // item: inside a tab group the item's gs-id is the GROUP's, so two camera
+  // tabs would collapse onto one tile entry (one camera selection, one stream).
+  // Standalone values are unchanged (primary gs-id = 'unifi', copy gs-id = its
+  // instance id).
   function instanceIdOf(section) {
-    const item = section.closest('.grid-stack-item');
-    return (item && item.getAttribute('gs-id')) || 'unifi';
+    return section.getAttribute('data-dashboard-instance') || 'unifi';
   }
 
   // ── Scanning ──────────────────────────────────────────────────────────────────

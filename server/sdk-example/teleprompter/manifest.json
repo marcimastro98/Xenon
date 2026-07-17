@@ -1,0 +1,25 @@
+{
+  "api": 1,
+  "id": "teleprompter",
+  "name": "Teleprompter",
+  "version": "1.0.0",
+  "author": "Xenon",
+  "description": "Write a script, play it as big auto-scrolling prompter text. Deck keys control play/pause, speed and reset; in the minimal topbar the current line appears in the dynamic island.",
+  "entry": "index.html",
+  "storage": true,
+  "island": true,
+  "deck": {
+    "states": [
+      { "id": "playing", "name": "Teleprompter: playing" },
+      { "id": "speed", "name": "Teleprompter: speed" },
+      { "id": "remaining", "name": "Teleprompter: time remaining" }
+    ],
+    "handlers": [
+      { "id": "play", "name": "Prompter: Play / Pause" },
+      { "id": "speed", "name": "Prompter: Speed", "params": [
+        { "name": "dir", "label": "Direction", "kind": "select", "options": ["faster", "slower"] }
+      ] },
+      { "id": "reset", "name": "Prompter: Back to top" }
+    ]
+  }
+}

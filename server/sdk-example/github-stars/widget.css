@@ -1,0 +1,113 @@
+:root {
+  --accent: #1ed760;
+  --bg: #070808;
+  --text: #f0f3f1;
+  --gs-scale: 1;
+  /* GitHub's own star gold — the star is the widget's identity, so it keeps its
+     colour under every dashboard theme instead of following the accent. Keep in
+     step with STAR_GOLD in widget.js, which sends it to the topbar badge. */
+  --gs-star: #f5c518;
+}
+
+* { box-sizing: border-box; margin: 0; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  overflow: hidden;
+}
+
+button { font: inherit; cursor: pointer; touch-action: manipulation; color: inherit; background: none; border: 0; }
+input { font: inherit; color: inherit; }
+
+.gs { height: 100%; display: flex; align-items: center; justify-content: center; padding: 12px; }
+
+/* ── Setup ─────────────────────────────────────────────────── */
+.setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 260px;
+  text-align: center;
+}
+.setup-icon {
+  font-size: calc(28px * var(--gs-scale));
+  color: var(--gs-star);
+  line-height: 1;
+}
+.setup-label {
+  font-size: calc(12px * var(--gs-scale));
+  opacity: 0.7;
+}
+.setup input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-size: calc(14px * var(--gs-scale));
+  text-align: center;
+}
+.setup input:focus-visible { outline: 2px solid rgba(var(--accent-rgb, 30, 215, 96), 0.7); outline-offset: 1px; }
+.setup-err {
+  min-height: 1em;
+  font-size: calc(11px * var(--gs-scale));
+  color: #ff6b6b;
+}
+.setup-btns { display: flex; align-items: center; gap: 8px; }
+.setup button {
+  padding: 7px 18px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #05130b;
+  font-weight: 700;
+  font-size: calc(13px * var(--gs-scale));
+}
+.setup button:active { transform: scale(0.97); }
+/* Destructive-but-reversible: present, never louder than Save. */
+.setup button.ghost {
+  background: none;
+  color: var(--text);
+  opacity: 0.55;
+  font-weight: 600;
+  padding: 7px 12px;
+}
+.setup button.ghost:active { opacity: 0.85; }
+
+/* ── Count ─────────────────────────────────────────────────── */
+.count {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+}
+.count-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 10px;
+}
+.count-btn:active { background: rgba(255, 255, 255, 0.08); }
+.count-star { font-size: calc(24px * var(--gs-scale)); color: var(--gs-star); line-height: 1; }
+.count-num { font-size: calc(34px * var(--gs-scale)); font-weight: 800; letter-spacing: -0.5px; line-height: 1; }
+.count-repo {
+  font-size: calc(12px * var(--gs-scale));
+  opacity: 0.65;
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.count-meta {
+  font-size: calc(10px * var(--gs-scale));
+  opacity: 0.45;
+  min-height: 1em;
+}
+.count-meta.is-stale { color: #ffb74d; opacity: 0.85; }

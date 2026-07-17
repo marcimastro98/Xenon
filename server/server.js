@@ -28,6 +28,7 @@ const vitalsPetCore = require('./js/vitals-pet-core'); // Bit's pure core: durab
 const { sanitizeBgAssets, sanitizeBgFps } = require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox)
 const { sanitizeSlideshow } = require('./js/slideshow-widget'); // single owner of the slideshow image rules (shared with the client)
 const contentInstalls = require('./js/content-installs'); // validated import receipts shared with Settings
+const themePalette = require('./js/theme-palette.js'); // single owner of the semantic-palette rules (shared with the client + tests)
 const aiLocal = require('./ai-local');
 const aiOpenai = require('./ai-openai');
 const aiAnthropic = require('./ai-anthropic');
@@ -69,6 +70,7 @@ const supporterRedeem = require('./supporter-redeem');
 const iconPacks = require('./icon-packs');
 const soundPacks = require('./sound-packs');
 const communityRatings = require('./community-ratings');
+const communityLimited = require('./community-limited');
 const { createRemoteControl } = require('./remote-control');
 const { createSelfUpdate } = require('./self-update');
 const { createHelperUpdate } = require('./helper-update');
@@ -729,6 +731,14 @@ const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 // Served ONLY through the dedicated /sdk/widget/ handler (strict path + CSP);
 // the generic static handler never reaches into DATA_DIR.
 const SDK_WIDGETS_DIR = path.join(DATA_DIR, 'widgets');
+// Bundled reference widgets installable via POST /sdk/widgets/example — id ->
+// folder name under server/sdk-example/. Fixed allowlist so the requested id
+// is a lookup key, never interpolated into a filesystem path.
+const EXAMPLE_WIDGETS = {
+  'hello-xenon': 'hello-xenon',
+  'teleprompter': 'teleprompter',
+  'github-stars': 'github-stars',
+};
 
 // Short-lived cache of the validated package scan, shared by the hot SDK paths
 // (fetch proxy, webhook ingress, deck macros) so they don't re-read manifests
@@ -830,7 +840,7 @@ function sdkFeatureEnabled() {
 // settings). Read defensively — a malformed blob collapses to "nothing granted".
 // A disabled SDK grants nothing, so every server-side consent check fails closed.
 function sdkGrantsFor(pkgId) {
-  if (!sdkFeatureEnabled()) return { actions: [], hosts: [], hooks: [], handlers: [] };
+  if (!sdkFeatureEnabled()) return { actions: [], hosts: [], hooks: [], handlers: [], userHosts: {} };
   const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
   const g = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants[pkgId] : null;
   return {
@@ -840,6 +850,10 @@ function sdkGrantsFor(pkgId) {
     handlers: (g && Array.isArray(g.handlers)) ? g.handlers : [],
     storage: !!(g && g.storage === true),
     secrets: !!(g && g.secrets === true),
+    // Raw addresses the user typed into the manifest's userHosts slots. Passed
+    // to sdkWidgets.resolveUserHosts, which is what validates them — never read
+    // as an allowlist directly.
+    userHosts: (g && g.userHosts && typeof g.userHosts === 'object' && !Array.isArray(g.userHosts)) ? g.userHosts : {},
   };
 }
 
@@ -6868,7 +6882,7 @@ function normalizeTopbarRails(value) {
 // flags. Rebuild from the canonical id set (drop unknown/dupes, append missing
 // in default order) — never spread untrusted input. Migrates the earlier
 // {date,weather} booleans onto their items when `items` is absent.
-const TOPBAR_ISLAND_IDS = ['time', 'date', 'weather', 'vitals', 'dots'];
+const TOPBAR_ISLAND_IDS = ['time', 'date', 'weather', 'vitals', 'dots', 'badges'];
 function normalizeTopbarClock(value) {
   const v = value && typeof value === 'object' ? value : {};
   const align = ['center', 'left', 'right'].includes(v.align) ? v.align : 'center';
@@ -6945,6 +6959,10 @@ function normalizeHubSettings(value) {
     warningColor: normalizeHex(source.warningColor, null),
     dangerColor: normalizeHex(source.dangerColor, null),
     infoColor: normalizeHex(source.infoColor, null),
+    // Dual-palette theme ({ light, dark }). Both sides persist the field, so both
+    // rebuild it through the same engine — otherwise a restart, another surface or
+    // a backup restore would strip or corrupt the pair.
+    paletteVariants: themePalette.normalizeVariants(source.paletteVariants),
     contrastGuard: source.contrastGuard !== false,
     panelAlpha: clampNumber(source.panelAlpha, SETTINGS_MIN_PANEL_ALPHA, 1, DEFAULT_HUB_SETTINGS.panelAlpha),
     bgDim: clampNumber(source.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
@@ -8857,6 +8875,8 @@ const CSRF_MUTATION_PATHS = new Set([
   // drive-by (or a sandboxed iframe posting with Origin: null) must not be able
   // to burn a user's activations or pump the hub.
   '/api/community/redeem',
+  // Automatic limited stock is a read, but a cache miss reaches the Hub.
+  '/api/community/limited-status',
   // Ratings: the GET's cache miss triggers an outbound hub fetch (same rationale
   // as /api/community/catalog); the POST casts a vote under THIS install's id —
   // a drive-by must be able to do neither.
@@ -10736,6 +10756,16 @@ const server = http.createServer(async (req, res) => {
           feeds: prev.news.feeds,
         };
       }
+      // Lighting is bridge-owned: every change goes through /api/lighting/* (or
+      // the AI tools), which persist via _persistLighting WITHOUT bumping the
+      // browser mirrors. A surface's mirror therefore holds whatever lighting
+      // blob it hydrated at boot, and echoing it here reverted toggles flipped
+      // on the lighting page since (empirically: "Album → LED" kept turning
+      // itself back on, painting the LEDs with the cover colour while the
+      // checkbox showed off). Keep the persisted copy.
+      if (prev && prev.lighting && typeof prev.lighting === 'object') {
+        incoming.lighting = prev.lighting;
+      }
       // Vitals state is widget-owned and monotonic: a refill stamps "now", XP
       // only grows, the daily counter resets on a new day. A stale settings
       // mirror from another surface must never rewind a refill the user just
@@ -10888,6 +10918,14 @@ const server = http.createServer(async (req, res) => {
       json(await supporterRedeem.redeem({
         entryId: body.entryId, code: body.code, dataDir: DATA_DIR,
       }));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/limited-status' && req.method === 'GET') {
+    // Live stock for automatic limited drops. The local proxy pins the Hub
+    // origin and validates every id; the browser never receives a configurable
+    // backend URL from catalog data.
+    try {
+      json(await communityLimited.fetchStatus(urlObj.searchParams.get('ids')));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/community/ratings' && req.method === 'GET') {
@@ -13397,15 +13435,22 @@ const server = http.createServer(async (req, res) => {
       const scan = await sdkPackagesCached();
       const pkg = scan.packages.find(p => p.id === pkgId);
       if (!pkg) { json({ ok: false, error: 'unknown_package' }); return; }
-      const v = sdkWidgets.validateProxyRequest(pkg, body);
+      const grants = sdkGrantsFor(pkgId);
+      // Addresses the user typed into the manifest's declared userHosts slots.
+      // resolveUserHosts re-validates every stored value against the manifest's
+      // own rules, so this can only ever widen the allowlist to hosts the
+      // manifest could have declared itself.
+      const filled = sdkWidgets.resolveUserHosts(pkg, grants.userHosts);
+      const v = sdkWidgets.validateProxyRequest(pkg, body, filled.hosts);
       if (!v.ok) { json({ ok: false, error: v.error }); return; }
       // Server-side consent: the manifest is the authority for WHICH hosts are
       // reachable, but the user's per-package grant is the authority for whether
       // they approved this one. Enforce it here too, not only in the client bridge
-      // — the route is reachable without a mounted widget frame.
+      // — the route is reachable without a mounted widget frame. A filled slot IS
+      // the user's consent (they typed that address), so it needs no second grant.
       let host = '';
       try { host = new URL(v.url).hostname.toLowerCase().replace(/\.$/, ''); } catch { /* v.url already validated */ }
-      if (!sdkGrantsFor(pkgId).hosts.includes(host)) { json({ ok: false, error: 'host_not_granted' }); return; }
+      if (!grants.hosts.includes(host) && !filled.hosts.includes(host)) { json({ ok: false, error: 'host_not_granted' }); return; }
       // Secret injection: replace {{secret:NAME}} placeholders in the (already
       // validated) url/headers/body with the package's stored secrets, so the
       // real API key lives server-side and never rode through the sandboxed
@@ -13413,8 +13458,8 @@ const server = http.createServer(async (req, res) => {
       // resolveProxySecrets re-pins the host (a secret can't redirect the
       // request) and re-checks headers for CRLF.
       let outReq = v;
-      if (pkg.secrets === true && sdkGrantsFor(pkgId).secrets) {
-        const rs = sdkStore.resolveProxySecrets(v, sdkSecretsLoad(pkgId), pkg.hosts);
+      if (pkg.secrets === true && grants.secrets) {
+        const rs = sdkStore.resolveProxySecrets(v, sdkSecretsLoad(pkgId), pkg.hosts.concat(filled.hosts));
         if (!rs.ok) { json({ ok: false, error: rs.error }); return; }
         outReq = rs.req;
       }
@@ -13512,11 +13557,15 @@ const server = http.createServer(async (req, res) => {
       const scan = await sdkPackagesCached();
       const pkg = scan.packages.find(p => p.id === pkgId);
       if (!pkg) { res.writeHead(404); res.end(); return; }
-      const v = sdkWidgets.validateProxyRequest(pkg, { url: urlObj.searchParams.get('u') || '', method: 'GET' });
+      const grants = sdkGrantsFor(pkgId);
+      // A user-filled slot can host a tile server too (a self-hosted map on the
+      // LAN), so the same resolved hosts apply here as on the fetch proxy.
+      const filled = sdkWidgets.resolveUserHosts(pkg, grants.userHosts);
+      const v = sdkWidgets.validateProxyRequest(pkg, { url: urlObj.searchParams.get('u') || '', method: 'GET' }, filled.hosts);
       if (!v.ok) { res.writeHead(400); res.end(); return; }
       let host = '';
       try { host = new URL(v.url).hostname.toLowerCase().replace(/\.$/, ''); } catch { /* validated */ }
-      if (!sdkGrantsFor(pkgId).hosts.includes(host)) { res.writeHead(403); res.end(); return; }
+      if (!grants.hosts.includes(host) && !filled.hosts.includes(host)) { res.writeHead(403); res.end(); return; }
       const serve = (contentType, buffer, hit) => {
         res.writeHead(200, {
           'Content-Type': contentType,
@@ -13604,19 +13653,23 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { json({ ok: false, error: (e && e.message) || 'bad_request' }); }
 
   } else if (reqPath === '/sdk/widgets/example' && req.method === 'POST') {
-    // One-click install of the bundled reference widget: copies the example
-    // package from the app tree into DATA_DIR/widgets. Fixed source, fixed
-    // destination, filenames re-validated — no request input reaches the FS.
-    await readBody(req);
+    // One-click install of a bundled reference widget: copies the example
+    // package from the app tree into DATA_DIR/widgets. The requested id is
+    // resolved through a fixed allowlist map — never interpolated into a
+    // path — so request input still never reaches the filesystem directly;
+    // an unknown/missing id falls back to the original default.
     try {
-      const src = path.join(__dirname, 'sdk-example', 'hello-xenon');
-      const dest = path.join(SDK_WIDGETS_DIR, 'hello-xenon');
+      const body = JSON.parse(await readBody(req, 4096) || '{}');
+      const folder = (typeof body.id === 'string' && Object.hasOwn(EXAMPLE_WIDGETS, body.id))
+        ? EXAMPLE_WIDGETS[body.id] : EXAMPLE_WIDGETS['hello-xenon'];
+      const src = path.join(__dirname, 'sdk-example', folder);
+      const dest = path.join(SDK_WIDGETS_DIR, folder);
       await fs.promises.mkdir(dest, { recursive: true });
       for (const name of await fs.promises.readdir(src)) {
         if (!/^[A-Za-z0-9._-]+$/.test(name)) continue;
         await fs.promises.copyFile(path.join(src, name), path.join(dest, name));
       }
-      await recordWidgetOrigin('hello-xenon', 'builtin');   // shipped example, not the user's work
+      await recordWidgetOrigin(folder, 'builtin');   // shipped example, not the user's work
       await refreshSdkScan();   // the new package is visible to hot paths immediately
       json({ ok: true });
     } catch {
@@ -13980,6 +14033,13 @@ const server = http.createServer(async (req, res) => {
     buildHaState().then((st) => { try { res.write(`event: homeassistant\ndata: ${JSON.stringify(st)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
     // Seed the just-connected client with the current Streamer.bot globals.
     buildSbState().then((st) => { try { res.write(`event: streamerbot\ndata: ${JSON.stringify(st)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
+    // Seed the current peripheral battery. The 'battery' tick is 90s, and unlike
+    // the builtin tile (which fetches GET /api/battery on mount) a sandboxed SDK
+    // widget has no seed endpoint of its own — it can only wait for the stream,
+    // so without this it sits on "Looking for devices…" for up to a minute and a
+    // half after every reload. getDevices() is TTL-cached and dedups concurrent
+    // callers, so several surfaces connecting at once still cost one read.
+    batteryMonitor.getDevices().then((payload) => { try { res.write(`event: battery\ndata: ${JSON.stringify(payload)}\n\n`); } catch (e) { /* ignore */ } }).catch(() => {});
     // Seed the current stock quotes (paint immediately), then kick a refresh if
     // the cache is empty/stale so a freshly opened dashboard fills in fast.
     try { if (_stocksCache.quotes.length) res.write(`event: stocks\ndata: ${JSON.stringify(_stocksCache)}\n\n`); } catch (e) { /* ignore */ }

@@ -62,20 +62,23 @@ function cleanStr(value, max) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
 
-// Limited-edition drop metadata (optional, additive). A limited entry is a
-// curated pack sold in a fixed number of copies and RESERVED via Discord, not
-// imported directly — so it may legitimately carry no share code. total/claimed
-// are bounded integer counts; `left`/`soldOut` are derived server-side so the
-// client never computes availability itself. `reserveUrl` renders as an href
-// only under an https + Discord-host allowlist (same shape as the publisher.url
-// github guard) — anything else is dropped and the client falls back to the
-// project Discord invite.
+// Limited-edition metadata. Legacy entries use the catalog's claimed fallback
+// and a Discord reserveUrl. Automatic entries add fulfillment:'hub' + dropId;
+// the gallery then overlays live D1 stock through /api/community/limited-status.
+// Claim URLs are always derived from the fixed Hub base, never accepted here.
 function normalizeLimited(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const total = Number.isInteger(raw.total) ? Math.max(0, Math.min(99999, raw.total)) : 0;
   if (total <= 0) return null;
   const claimed = Number.isInteger(raw.claimed) ? Math.max(0, Math.min(total, raw.claimed)) : 0;
   const lim = { total, claimed, left: total - claimed, soldOut: claimed >= total };
+  const dropId = cleanStr(raw.dropId, 61);
+  if (raw.fulfillment === 'hub' && ENTRY_ID_RE.test(dropId)) {
+    lim.fulfillment = 'hub';
+    lim.dropId = dropId;
+    lim.channels = raw.channels === 'both' ? 'both' : 'discord';
+    lim.numbered = raw.numbered === true;
+  }
   const url = cleanStr(raw.reserveUrl, 200);
   try {
     const u = new URL(url);

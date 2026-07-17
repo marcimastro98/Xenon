@@ -26,6 +26,9 @@
 .pw-unit { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; opacity: 0.55; }
 .pw-card-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.55;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+/* What a derived card is made of, on the card — a hover tooltip is invisible on
+   the Xeneon Edge's touchscreen. */
+.pw-card-note { font-size: 8.5px; line-height: 1.2; opacity: 0.4; text-align: center; text-wrap: pretty; max-width: 100%; }
 .pw-card--total { border-color: rgba(var(--accent-rgb, 30, 215, 96), 0.35); }
 .pw-card--total .pw-card-val b { color: var(--accent, #1ed760); }
 /* Real wall watts — the highlight reading when a digital PSU is present. */

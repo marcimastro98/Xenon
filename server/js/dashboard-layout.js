@@ -1672,7 +1672,14 @@ function applyDashboardWidgets(layout) {
   // 1) standalone widgets (not members of any group)
   DASHBOARD_WIDGET_IDS.forEach(widgetId => {
     const preferences = layout.widgets[widgetId];
-    const tile = document.querySelector(`[data-dashboard-widget="${widgetId}"]`);
+    // The BASE atom only — never a copy's clone. Copies carry the same
+    // data-dashboard-widget as their base (plus data-dashboard-instance), so an
+    // unqualified query returns whichever comes first in the DOM. A copy on an
+    // earlier page would then be handed the BASE's preferences and, when the base
+    // is hidden (the normal case once you duplicate a tile), get stamped
+    // dashboardHidden='true' — the copy vanished the moment layout apply ran, i.e.
+    // on Done. Copies get their own visibility from applyDashboardCopies.
+    const tile = document.querySelector(`[data-dashboard-widget="${widgetId}"]:not([data-dashboard-instance])`);
     if (!tile) return;
     const grouped = !!groupOf(widgetId);
     tile.dataset.dashboardHidden = (preferences.visible && !grouped) ? 'false' : 'true';

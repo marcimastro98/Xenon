@@ -620,6 +620,9 @@
   border-color: var(--comic-rule);
 }
 
+/* Vitals fill segments are data, not paper — keep the per-vital colour. */
+:root[data-style="comic"] .panel .vt-row .vt-seg.on { background-color: rgb(var(--vt-rgb)); }
+
 /* Repeated touch controls get a compact pencil edge and a physical press. */
 :root[data-style="comic"] .panel :is(
   .calendar-arrow, .timer-add-btn, .timer-btn, .tasks-add-btn, .notes-foot-btn,

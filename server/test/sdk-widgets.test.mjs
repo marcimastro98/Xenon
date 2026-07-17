@@ -15,10 +15,10 @@ test('manifest: valid minimal manifest normalizes', () => {
   assert.equal(r.ok, true);
   assert.deepEqual(r.manifest, {
     id: 'clock', api: 1, name: 'Clock', version: '0.0.0', author: '',
-    description: '', surface: 'tile', background: false,
+    description: '', surface: 'tile', background: false, island: false, badge: false,
     storage: false, storageGroup: '', secrets: false,
     entry: 'index.html', streams: [], actions: [],
-    hosts: [], hooks: [], deck: { actions: [], states: [], handlers: [] },
+    hosts: [], userHosts: [], hooks: [], deck: { actions: [], states: [], handlers: [] },
   });
 });
 
@@ -34,6 +34,24 @@ test('manifest: storage/secrets default off, opt in with booleans', () => {
   const junk = sdk.normalizeManifest({ api: 1, name: 'X', storage: 1, secrets: 'yes' }, 'x0').manifest;
   assert.equal(junk.storage, false);
   assert.equal(junk.secrets, false);
+});
+
+test('manifest: island defaults off, opts in only on the exact true literal', () => {
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X' }, 'x0').manifest.island, false);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', island: true }, 'x0').manifest.island, true);
+  // Truthy junk stays off — same rule as storage/secrets.
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', island: 1 }, 'x0').manifest.island, false);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', island: 'yes' }, 'x0').manifest.island, false);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', island: {} }, 'x0').manifest.island, false);
+});
+
+test('manifest: badge defaults off, opts in only on the exact true literal', () => {
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X' }, 'x0').manifest.badge, false);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', badge: true }, 'x0').manifest.badge, true);
+  // Truthy junk stays off — same rule as storage/secrets/island.
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', badge: 1 }, 'x0').manifest.badge, false);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', badge: 'yes' }, 'x0').manifest.badge, false);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', badge: {} }, 'x0').manifest.badge, false);
 });
 
 test('manifest: storageGroup implies storage and must be a valid id', () => {
@@ -56,6 +74,13 @@ test('manifest: surface defaults to tile, keeps only the ambient literal', () =>
 test('streams: weather is a declarable stream', () => {
   const r = sdk.normalizeManifest({ api: 1, name: 'X', streams: ['weather'] }, 'x0');
   assert.deepEqual(r.manifest.streams, ['weather']);
+});
+
+test('streams: rich Discord surfaces are independently declarable', () => {
+  const streams = ['discord', 'discordChannels', 'discordSoundboard', 'discordNotifications'];
+  const r = sdk.normalizeManifest({ api: 1, name: 'X', streams }, 'x0');
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.manifest.streams, streams);
 });
 
 test('manifest: unknown streams/actions dropped, dupes deduped, extras never survive', () => {
@@ -207,6 +232,106 @@ test('proxy: scheme/host/injection rules', () => {
   assert.equal(err({ url: 'https://api.example.com/', method: 'POST', body: 'x'.repeat(300000) }), 'body_too_large');
 });
 
+// ── userHosts: the blanks the USER fills in ─────────────────────────────────
+// The author declares a labelled slot, the user types the address. The security
+// claim being tested: a slot can only ever resolve to a host the manifest could
+// have declared itself — so it widens WHO chooses the address, never WHAT is
+// reachable. Loopback stays unreachable through a slot even when the stored
+// value says otherwise (a hand-edited settings blob).
+
+test('userHosts: valid slots normalize; malformed ones reject the manifest', () => {
+  const r = sdk.normalizeManifest({
+    api: 1, name: 'X',
+    userHosts: [{ id: 'nas', label: 'NAS address' }, { id: 'plex', label: 'Plex server', scope: 'any' }],
+  }, 'x0');
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.manifest.userHosts, [
+    { id: 'nas', label: 'NAS address', scope: 'private' },   // scope defaults to LAN-only
+    { id: 'plex', label: 'Plex server', scope: 'any' },
+  ]);
+  assert.deepEqual(sdk.normalizeManifest({ api: 1, name: 'X' }, 'x0').manifest.userHosts, []);
+  const bad = [
+    'not-an-array',
+    [{ label: 'No id' }],                              // missing id
+    [{ id: 'Bad Id', label: 'x' }],                    // id charset
+    [{ id: 'nas' }],                                   // missing label
+    [{ id: 'nas', label: '' }],
+    [{ id: 'nas', label: 'x', scope: 'anything' }],    // unknown scope
+    [{ id: 'nas', label: 'x' }, { id: 'nas', label: 'y' }],   // duplicate id
+    ['nas'],                                           // not an object
+    [{ id: 'a', label: 'a' }, { id: 'b', label: 'b' }, { id: 'c', label: 'c' },
+      { id: 'd', label: 'd' }, { id: 'e', label: 'e' }],      // > 4
+  ];
+  for (const userHosts of bad) {
+    assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', userHosts }, 'x0').reason, 'bad_user_hosts', JSON.stringify(userHosts));
+  }
+});
+
+const SLOTTED = sdk.normalizeManifest({
+  api: 1, name: 'X', hosts: ['api.example.com'],
+  userHosts: [{ id: 'nas', label: 'NAS' }, { id: 'srv', label: 'Server', scope: 'any' }],
+}, 'x0').manifest;
+
+test('userHosts: resolve keeps good values, drops what the manifest would never allow', () => {
+  const r = sdk.resolveUserHosts(SLOTTED, {
+    nas: { host: '192.168.1.50', port: 32400, scheme: 'http' },
+    srv: { host: 'plex.example.com', port: 0, scheme: 'https' },
+  });
+  assert.deepEqual(r.hosts, ['192.168.1.50', 'plex.example.com']);
+  assert.equal(r.byId.nas.base, 'http://192.168.1.50:32400');
+  assert.equal(r.byId.srv.base, 'https://plex.example.com');
+
+  // Every value a tampered grant could carry that the manifest itself could not
+  // legally declare. Each must vanish — no host, no slot.
+  const rejected = {
+    loopback: { nas: { host: '127.0.0.1' } },
+    localhost: { nas: { host: 'localhost' } },
+    linkLocal: { nas: { host: '169.254.1.1' } },
+    unspecified: { nas: { host: '0.0.0.0' } },
+    // 'private' scope pins the slot to LAN space: a public host can't sneak in.
+    publicInPrivateSlot: { nas: { host: 'evil.example.com' } },
+    badCharset: { nas: { host: 'not a host' } },
+    ipv6: { nas: { host: '::1' } },
+    notAnObject: { nas: 'evil.example.com' },
+    // A slot the manifest never declared can't be conjured by the grant.
+    undeclared: { ghost: { host: '192.168.1.9' } },
+  };
+  for (const [why, granted] of Object.entries(rejected)) {
+    const out = sdk.resolveUserHosts(SLOTTED, granted);
+    assert.deepEqual(out.hosts, [], why);
+    assert.deepEqual(Object.keys(out.byId), [], why);
+  }
+});
+
+test('userHosts: base mirrors the proxy https rule and clamps the port', () => {
+  const base = (id, v) => (sdk.resolveUserHosts(SLOTTED, { [id]: v }).byId[id] || {}).base;
+  // Public host in an 'any' slot: always https, whatever was stored.
+  assert.equal(base('srv', { host: 'plex.example.com', scheme: 'http' }), 'https://plex.example.com');
+  // LAN keeps the user's choice, defaulting to http (LAN gear rarely has TLS).
+  assert.equal(base('nas', { host: 'nas.local' }), 'http://nas.local');
+  assert.equal(base('nas', { host: 'nas.local', scheme: 'https' }), 'https://nas.local');
+  // Out-of-range / junk ports collapse to "no port", never into the base string.
+  for (const port of [0, -1, 70000, 1.5, '8080', null]) {
+    assert.equal(base('nas', { host: 'nas.local', port }), 'http://nas.local', String(port));
+  }
+  assert.equal(base('nas', { host: 'nas.local', port: 65535 }), 'http://nas.local:65535');
+});
+
+test('proxy: a filled slot is reachable, an empty one is not', () => {
+  const filled = sdk.resolveUserHosts(SLOTTED, { nas: { host: '192.168.1.50', port: 32400 } });
+  // The manifest's own declared host still works, with or without slots.
+  assert.equal(sdk.validateProxyRequest(SLOTTED, { url: 'https://api.example.com/' }, filled.hosts).ok, true);
+  // The address the user typed is reachable — over plain http, it's LAN.
+  assert.equal(sdk.validateProxyRequest(SLOTTED, { url: 'http://192.168.1.50:32400/library' }, filled.hosts).ok, true);
+  // Same package, no address filled in → the host is not allowed.
+  assert.equal(sdk.validateProxyRequest(SLOTTED, { url: 'http://192.168.1.50:32400/library' }, []).error, 'host_not_allowed');
+  // A slot NEVER re-opens the kill-switch, even if extraHosts is lied to.
+  assert.equal(sdk.validateProxyRequest(SLOTTED, { url: 'http://127.0.0.1:3030/settings' }, ['127.0.0.1']).error, 'host_not_allowed');
+  // An omitted extraHosts argument must behave exactly like the old two-arg call.
+  assert.equal(sdk.validateProxyRequest(SLOTTED, { url: 'http://192.168.1.50/x' }).error, 'host_not_allowed');
+  assert.equal(sdk.validateProxyRequest(SLOTTED, { url: 'https://api.example.com/' }).ok, true);
+});
+
 // ── manifest hooks + deck extras ─────────────────────────────────────────────
 
 test('hooks: valid ids pass; bad ids/overflow reject the manifest', () => {
@@ -297,7 +422,9 @@ test('handlers: hostile shapes reject the whole manifest', () => {
   }
 });
 
-test('background: true only survives alongside declared handlers', () => {
+// Only handlers and badges outlive a tile, so only they justify a headless
+// service frame — background without either is meaningless and normalizes off.
+test('background: true only survives alongside declared handlers or a badge', () => {
   assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', background: true }, 'x0').manifest.background, false);
   assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', background: 'yes' }, 'x0').manifest.background, false);
   const withHandlers = sdk.normalizeManifest({
@@ -305,6 +432,11 @@ test('background: true only survives alongside declared handlers', () => {
     deck: { handlers: [{ id: 'go', name: 'Go' }] },
   }, 'x0');
   assert.equal(withHandlers.manifest.background, true);
+  // A badge-only package: the chip must keep refreshing with no tile on screen.
+  const withBadge = sdk.normalizeManifest({ api: 1, name: 'X', background: true, badge: true }, 'x0');
+  assert.equal(withBadge.manifest.background, true);
+  // …but the badge must be the real literal, not truthy junk.
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', background: true, badge: 1 }, 'x0').manifest.background, false);
 });
 
 test('validateHandlerArgs: coerces declared params, rejects unparseable input, drops undeclared keys', () => {

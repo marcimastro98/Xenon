@@ -10,6 +10,15 @@ const dc = require('../discord-rpc.js');
 const reg = require('../actions/registry.js');
 const { validateAction } = require('../js/deck-actions.js');
 
+async function waitFor(predicate, timeoutMs = 1000) {
+  const deadline = Date.now() + timeoutMs;
+  while (!predicate()) {
+    if (Date.now() >= deadline) return false;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  return true;
+}
+
 // ── Pure helpers ─────────────────────────────────────────────────────────────
 
 test('isSnowflake accepts channel ids, rejects junk', () => {
@@ -588,7 +597,7 @@ test('a token minted without the scope reports scope_missing but keeps the voice
   });
   const states = [];
   const stop = p.watchVoice((s) => states.push(s), () => {});
-  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(await waitFor(() => p.notifStatus() === 'scope_missing'), true);
   assert.equal(p.notifStatus(), 'scope_missing');
   // The voice watch itself still delivered a live snapshot.
   assert.equal(states[states.length - 1].ok, true);
@@ -617,4 +626,161 @@ test('login requests the notification scope only when wanted', async () => {
   assert.equal(authScopes[0].includes('rpc.notifications.read'), false);
   assert.equal((await dc.createDiscordProvider(mkDeps(true)).login()).ok, true);
   assert.equal(authScopes[1].includes('rpc.notifications.read'), true);
+});
+
+// ── Login error classification ───────────────────────────────────────────────
+
+test('errDetail caps and stringifies Discord-provided text', () => {
+  assert.equal(dc.errDetail('  boom  '), 'boom');
+  assert.equal(dc.errDetail(null), '');
+  assert.equal(dc.errDetail('x'.repeat(500)).length, 200);
+});
+
+test('loginCloseError maps "Invalid Client ID" to its own code, keeps the message', () => {
+  const e = dc.loginCloseError({ code: 4000, message: 'Invalid Client ID' });
+  assert.equal(e.message, 'invalid_client_id');
+  assert.equal(e.detail, 'Invalid Client ID');
+  const other = dc.loginCloseError({ code: 1000, message: 'connection reset' });
+  assert.equal(other.message, 'discord_closed');
+  assert.equal(other.detail, 'connection reset');
+  assert.equal(dc.loginCloseError(null).message, 'discord_closed');
+});
+
+test('authorizeError keeps an explicit deny as authorize_denied, else authorize_failed + detail', () => {
+  assert.equal(dc.authorizeError({ message: 'Authorization denied by user' }).message, 'authorize_denied');
+  assert.equal(dc.authorizeError({ message: 'User cancelled the request' }).message, 'authorize_denied');
+  assert.equal(dc.authorizeError(null).message, 'authorize_denied');   // no message → assume deny
+  const e = dc.authorizeError({ message: 'Something else went wrong' });
+  assert.equal(e.message, 'authorize_failed');
+  assert.equal(e.detail, 'Something else went wrong');
+});
+
+// The exact message a real user hit (the `rpc` scope is owner/tester-only and is
+// refused for an Activity app or one with no redirect registered). It must NOT
+// fall into authorize_failed, whose note blames the signed-in account alone.
+test('authorizeError singles out invalid_scope, keeping Discord\'s wording', () => {
+  const e = dc.authorizeError({ message: 'OAuth2 Error: invalid_scope: The requested scope is invalid, unknown, or malformed.' });
+  assert.equal(e.message, 'invalid_scope');
+  assert.equal(e.detail, 'OAuth2 Error: invalid_scope: The requested scope is invalid, unknown, or malformed.');
+});
+
+test('login surfaces the real-world invalid_scope rejection end to end', async () => {
+  const p = dc.createDiscordProvider(loginDeps((sock, msg) => {
+    sock.emit('data', dc.encodeFrame(1, {
+      cmd: 'AUTHORIZE', nonce: msg.nonce, evt: 'ERROR',
+      data: { code: 4007, message: 'OAuth2 Error: invalid_scope: The requested scope is invalid, unknown, or malformed.' },
+    }));
+  }));
+  assert.deepEqual(await p.login(), {
+    ok: false, error: 'invalid_scope',
+    detail: 'OAuth2 Error: invalid_scope: The requested scope is invalid, unknown, or malformed.',
+  });
+});
+
+// A login-dance pipe: handshake → READY; AUTHORIZE answered by `onAuthorize`
+// (return a frame body, or emit whatever you like on the socket yourself).
+function loginPipe(onAuthorize) {
+  const sock = new EventEmitter();
+  sock.destroy = () => {};
+  sock.write = (buf) => {
+    const op = buf.readInt32LE(0);
+    const msg = JSON.parse(buf.subarray(8, 8 + buf.readInt32LE(4)).toString('utf8'));
+    queueMicrotask(() => {
+      if (op === 0) { sock.emit('data', dc.encodeFrame(1, { cmd: 'DISPATCH', evt: 'READY', data: {} })); return; }
+      if (op === 1 && msg.cmd === 'AUTHORIZE') onAuthorize(sock, msg);
+    });
+    return true;
+  };
+  return sock;
+}
+
+function loginDeps(onAuthorize, fetchImpl) {
+  return {
+    clientId: 'id', clientSecret: 'secret',
+    tokensFile: path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'xdc-')), 'tokens.json'),
+    connect: () => Promise.resolve(loginPipe(onAuthorize)),
+    fetch: fetchImpl || (async () => ({ ok: true, json: async () => ({ access_token: 't', refresh_token: 'r', expires_in: 3600 }) })),
+  };
+}
+
+test('login surfaces an AUTHORIZE rejection as authorize_failed with Discord\'s message', async () => {
+  const p = dc.createDiscordProvider(loginDeps((sock, msg) => {
+    sock.emit('data', dc.encodeFrame(1, { cmd: 'AUTHORIZE', nonce: msg.nonce, evt: 'ERROR', data: { message: 'Invalid scopes' } }));
+  }));
+  assert.deepEqual(await p.login(), { ok: false, error: 'authorize_failed', detail: 'Invalid scopes' });
+});
+
+test('login surfaces a close-with-Invalid-Client-ID as invalid_client_id', async () => {
+  const p = dc.createDiscordProvider(loginDeps((sock) => {
+    sock.emit('data', dc.encodeFrame(2, { code: 4000, message: 'Invalid Client ID' }));
+  }));
+  assert.deepEqual(await p.login(), { ok: false, error: 'invalid_client_id', detail: 'Invalid Client ID' });
+});
+
+test('login maps an invalid_client token exchange to bad_client_secret', async () => {
+  const p = dc.createDiscordProvider(loginDeps(
+    (sock, msg) => sock.emit('data', dc.encodeFrame(1, { cmd: 'AUTHORIZE', nonce: msg.nonce, data: { code: 'abc' } })),
+    async () => ({ ok: false, status: 401, json: async () => ({ error: 'invalid_client', error_description: 'Invalid client credentials' }) }),
+  ));
+  assert.deepEqual(await p.login(), { ok: false, error: 'bad_client_secret', detail: 'Invalid client credentials' });
+});
+
+test('login maps a thrown token exchange (network) to token_network_failed', async () => {
+  const p = dc.createDiscordProvider(loginDeps(
+    (sock, msg) => sock.emit('data', dc.encodeFrame(1, { cmd: 'AUTHORIZE', nonce: msg.nonce, data: { code: 'abc' } })),
+    async () => { throw new Error('fetch failed'); },
+  ));
+  assert.deepEqual(await p.login(), { ok: false, error: 'token_network_failed', detail: 'fetch failed' });
+});
+
+test('login keeps token_exchange_failed for other OAuth errors, with the description', async () => {
+  const p = dc.createDiscordProvider(loginDeps(
+    (sock, msg) => sock.emit('data', dc.encodeFrame(1, { cmd: 'AUTHORIZE', nonce: msg.nonce, data: { code: 'abc' } })),
+    async () => ({ ok: false, status: 400, json: async () => ({ error: 'invalid_grant', error_description: 'Invalid redirect_uri' }) }),
+  ));
+  assert.deepEqual(await p.login(), { ok: false, error: 'token_exchange_failed', detail: 'Invalid redirect_uri' });
+});
+
+test('a second concurrent login is refused with login_in_progress', async () => {
+  let firstSock = null;
+  const deps = loginDeps((sock) => { firstSock = sock; /* dialog pending — never answer */ });
+  // The retry after the first login settles must not wait out the 120s authorize
+  // timeout — fail its pipe connect instantly instead.
+  const pipeOnce = deps.connect;
+  let calls = 0;
+  deps.connect = () => (++calls >= 2 ? Promise.reject(new Error('discord_not_running')) : pipeOnce());
+  const p = dc.createDiscordProvider(deps);
+  const first = p.login();
+  await waitFor(() => !!firstSock);
+  assert.deepEqual(await p.login(), { ok: false, error: 'login_in_progress' });
+  firstSock.emit('close');                       // user closes Discord mid-consent
+  assert.equal((await first).error, 'discord_closed');
+  // The guard is released — the same provider accepts a fresh login attempt.
+  assert.equal((await p.login()).error, 'discord_not_running');
+});
+
+test('a rejected AUTHENTICATE whose refresh hard-fails clears creds and reports not_connected', async () => {
+  const tokensFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'xdc-')), 'tokens.json');
+  fs.writeFileSync(tokensFile, JSON.stringify({ discord: { accessToken: 'revoked', refreshToken: 'r', expiresAt: Date.now() + 3600_000 } }));
+  const sock = new EventEmitter();
+  sock.destroy = () => {};
+  sock.write = (buf) => {
+    const op = buf.readInt32LE(0);
+    const msg = JSON.parse(buf.subarray(8, 8 + buf.readInt32LE(4)).toString('utf8'));
+    queueMicrotask(() => {
+      if (op === 0) { sock.emit('data', dc.encodeFrame(1, { cmd: 'DISPATCH', evt: 'READY', data: {} })); return; }
+      if (msg.cmd === 'AUTHENTICATE') sock.emit('data', dc.encodeFrame(1, { cmd: 'AUTHENTICATE', nonce: msg.nonce, evt: 'ERROR', data: { message: 'Invalid token' } }));
+    });
+    return true;
+  };
+  const p = dc.createDiscordProvider({
+    clientId: 'id', clientSecret: 'secret', tokensFile,
+    connect: () => Promise.resolve(sock),
+    // The refresh attempt is refused hard (token revoked) → creds are cleared.
+    fetch: async () => ({ ok: false, status: 400, json: async () => ({ error: 'invalid_grant' }) }),
+  });
+  const r = await p.voiceState();
+  assert.deepEqual(r, { ok: false, error: 'not_connected' });
+  assert.equal((await p.status()).connected, false);   // creds actually cleared
+  p.close();
 });

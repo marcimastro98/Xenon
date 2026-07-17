@@ -93,9 +93,12 @@
     // A tile with no layout box (display:none page, unselected tab group) must not
     // advance — same visibility test the Spotify/Cameras tiles use.
     function isShowing(tile) { return tile.getClientRects().length > 0; }
+    // Identity from the ATOM (data-dashboard-instance), not the enclosing grid
+    // item: inside a tab group the item's gs-id is the GROUP's, so two
+    // slideshow tabs would share one position/paused state. Standalone values
+    // are unchanged (primary gs-id = 'slideshow', copy gs-id = its instance id).
     function keyOf(tile) {
-      const item = tile.closest('.grid-stack-item');
-      return (item && item.getAttribute('gs-id')) || 'slideshow';
+      return tile.getAttribute('data-dashboard-instance') || 'slideshow';
     }
     function stateOf(key) {
       let s = tileStates.get(key);

@@ -14,7 +14,20 @@ test('the install receipt normalizer loads before settings and the manager is re
     html.indexOf('<script src="js/content-installs.js"') < html.indexOf('<script src="js/settings.js"'),
     true,
   );
-  assert.match(html, /PresetShare\.openInstalledContent\(\)/);
+  // The manager lives in the Store's "Installed" tab since v4.5.2 — Settings
+  // links into it rather than owning a second copy of the removal UI.
+  assert.match(html, /CommunityGallery\.open\('__installed'\)/);
+});
+
+test('the installed manager reuses the one removal engine instead of forking it', () => {
+  const presets = read('js', 'preset-share.js');
+  const manager = read('js', 'installed-manager.js');
+  // uninstallContent is the reference-counted removal path (see the receipt
+  // engine tests below). The Store tab must CALL it, never reimplement it.
+  assert.match(presets, /window\.PresetShare = \{[^\n]*uninstallContent/);
+  assert.match(manager, /window\.PresetShare/);
+  assert.match(manager, /\.uninstallContent\(/);
+  assert.doesNotMatch(manager, /otherWidgetRefs|contentInstalls: remaining/);
 });
 
 test('catalog imports preserve their source and every applied kind uses tracked installation', () => {

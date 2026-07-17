@@ -50,6 +50,19 @@
   --text: #f0f3f1;
   --muted-text: #a6b1ad;
   --dim-text: #7f8a86;
+  /* Legacy aliases. Component CSS declares --text-dim/--text-muted with a hard
+     literal fallback, but only the Comic skin ever defined them — so on every
+     other skin those literals won: ~115 sites frozen to a hardcoded grey the
+     palette engine could not touch, and unreadable on a light palette (#8b91a1
+     on white is 3.15:1, under the 4.5:1 floor). Pointing them at the semantic
+     roles hands them back to the palette. Comic keeps its own override.
+     Caveat: an alias is substituted at computed-value time HERE, so it freezes
+     to this element's --dim-text and does not track a DESCENDANT override of it
+     (the light .media-panel island and .weather-panel both redefine --dim-text).
+     No --text-dim user sits inside those today; if one ever does, re-declare the
+     alias in that scope too. Same-element overrides (skins on :root) are fine. */
+  --text-dim: var(--dim-text);
+  --text-muted: var(--muted-text);
   --green: var(--accent);
   --bg-dim: 0.48;
   --bg-safe-dim: 0.48;

@@ -22,6 +22,11 @@
     dark: Object.freeze({ success: '#45d483', warning: '#f0b84f', danger: '#ff6268', info: '#62cbea' }),
     light: Object.freeze({ success: '#147a4a', warning: '#805800', danger: '#bd303b', info: '#176783' }),
   });
+  // A few surfaces stay dark under every palette because they own an immersive
+  // canvas rather than application chrome (the weather sky, the voice overlay).
+  // Status roles repaired against light paper are unreadable there, so each role
+  // also gets a variant re-contrasted against this representative dark island.
+  const IMMERSIVE_SURFACE = '#20242a';
 
   function normalizeHex(value, fallback) {
     const raw = String(value || '').trim();
@@ -126,15 +131,26 @@
       const raw = optional(s, key) || stateDefaults[role];
       state[role] = guard ? ensureContrast(raw, surface, 4.5) : raw;
       state['on' + role[0].toUpperCase() + role.slice(1)] = bestText(state[role]);
+      // The same role as seen from an immersive island. An author colour carries
+      // over when it can be read there — a neon danger stays the author's neon —
+      // but one tuned for paper falls back to the dark default rather than being
+      // repaired: mixing a dark hue toward white to reach 4.5 yields a washed-out
+      // sage/mud (#735514 becomes #9d885a), which is worse than the stock colour
+      // on both counts. No author colour at all means the dark defaults, never the
+      // light ones.
+      const authored = optional(s, key);
+      state[role + 'OnDark'] = !authored ? STATE.dark[role]
+        : (!guard || contrast(authored, IMMERSIVE_SURFACE) >= 4.5) ? authored
+          : STATE.dark[role];
     }
 
     return Object.freeze({
       tone, guard, background, surface, surfaceAlt, control, text, muted, dim, line,
       accent, onAccent,
-      success: state.success, onSuccess: state.onSuccess,
-      warning: state.warning, onWarning: state.onWarning,
-      danger: state.danger, onDanger: state.onDanger,
-      info: state.info, onInfo: state.onInfo,
+      success: state.success, onSuccess: state.onSuccess, successOnDark: state.successOnDark,
+      warning: state.warning, onWarning: state.onWarning, warningOnDark: state.warningOnDark,
+      danger: state.danger, onDanger: state.onDanger, dangerOnDark: state.dangerOnDark,
+      info: state.info, onInfo: state.onInfo, infoOnDark: state.infoOnDark,
     });
   }
 
@@ -165,6 +181,10 @@
       '--color-warn': p.warning,
       '--color-danger': p.danger,
       '--color-info': p.info,
+      '--color-success-ondark': p.successOnDark,
+      '--color-warn-ondark': p.warningOnDark,
+      '--color-danger-ondark': p.dangerOnDark,
+      '--color-info-ondark': p.infoOnDark,
       '--success-rgb': rgb(p.success).join(', '),
       '--warning-rgb': rgb(p.warning).join(', '),
       '--danger-rgb': rgb(p.danger).join(', '),
@@ -184,5 +204,66 @@
     return values;
   }
 
-  return { STOCK, STATE, normalizeHex, rgb, mix, luminance, contrast, bestText, ensureContrast, ensureBackgroundContrast, toneFor, derive, cssTokens };
+  // ── Dual-palette themes ─────────────────────────────────────────
+  // A theme may ship BOTH tones as `paletteVariants: { light, dark }`, so one
+  // card can be cream paper in Light and an ink board in Dark and still follow
+  // the OS on Auto — which `autoPalette` can't do, since it only works while the
+  // author declares no colours at all. The engine owns the rules; settings.js and
+  // server.js both consume them so client and server can't drift.
+  // Required roles always hold a value, so a variant that omits one keeps the
+  // theme's own. Optional roles are nullable ("derive"), so a variant that omits
+  // one must RESET it: inheriting the other tone's value splices palettes exactly
+  // the way a partial theme import does, and a cream `surface` would survive
+  // under the dark half.
+  const VARIANT_REQUIRED_KEYS = Object.freeze(['accent', 'background', 'text']);
+  const VARIANT_OPTIONAL_KEYS = Object.freeze([
+    'surface', 'surfaceAlt', 'controlColor', 'mutedText', 'lineColor', 'accentText',
+    'successColor', 'warningColor', 'dangerColor', 'infoColor',
+  ]);
+  const VARIANT_KEYS = Object.freeze([...VARIANT_REQUIRED_KEYS, ...VARIANT_OPTIONAL_KEYS]);
+
+  // { light, dark } → the same shape with known roles and valid hexes only, or
+  // null when nothing usable survives. Explicit known-key rebuild (never a spread
+  // of untrusted input); a tone is kept only when it carries at least one role,
+  // so an empty half can't blank that side of the palette.
+  function normalizeVariants(value) {
+    const src = value && typeof value === 'object' && !Array.isArray(value) ? value : null;
+    if (!src) return null;
+    const out = {};
+    for (const tone of ['light', 'dark']) {
+      const raw = src[tone];
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
+      const variant = {};
+      for (const key of VARIANT_KEYS) {
+        const value = normalizeHex(raw[key], null);
+        if (value) variant[key] = value;
+      }
+      if (Object.keys(variant).length) out[tone] = variant;
+    }
+    return Object.keys(out).length ? out : null;
+  }
+
+  // The half to paint for a resolved tone ('light' | 'dark'), or null when the
+  // theme carries no pair or no half for that tone.
+  function variantFor(variants, tone) {
+    if (!variants) return null;
+    return variants[tone === 'dark' ? 'dark' : 'light'] || null;
+  }
+
+  // Overlay a variant onto a theme source, returning a new object ready for
+  // derive(). Nulling the omitted optional roles is the whole point — see above.
+  function applyVariant(source, variant) {
+    const out = Object.assign({}, source);
+    if (!variant) return out;
+    for (const key of VARIANT_OPTIONAL_KEYS) out[key] = variant[key] || null;
+    for (const key of VARIANT_REQUIRED_KEYS) if (variant[key]) out[key] = variant[key];
+    return out;
+  }
+
+  return {
+    STOCK, STATE, IMMERSIVE_SURFACE, normalizeHex, rgb, mix, luminance, contrast, bestText,
+    ensureContrast, ensureBackgroundContrast, toneFor, derive, cssTokens,
+    VARIANT_KEYS, VARIANT_REQUIRED_KEYS, VARIANT_OPTIONAL_KEYS,
+    normalizeVariants, variantFor, applyVariant,
+  };
 });

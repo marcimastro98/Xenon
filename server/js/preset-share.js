@@ -72,10 +72,43 @@
   // codes simply omit the newer fields and import as before.
   const THEME_KEYS = ['appearance', 'autoPalette', 'styleMode', 'retroScanlines', 'accent', 'background',
     'surface', 'surfaceAlt', 'controlColor', 'text', 'mutedText', 'lineColor', 'accentText',
-    'successColor', 'warningColor', 'dangerColor', 'infoColor', 'contrastGuard', 'dynamicAlbumTheme',
+    'successColor', 'warningColor', 'dangerColor', 'infoColor', 'paletteVariants',
+    'contrastGuard', 'dynamicAlbumTheme',
     'panelAlpha', 'panelBorderStrength', 'panelShadowStrength',
     'uiRoundness', 'glassBlur', 'glassSaturate',
     'bgDim', 'bgBlur', 'bgAurora', 'bgGrid', 'bgStatic', 'bgCustom'];
+  // The optional semantic roles of the palette: null means "derive from
+  // background/text" (see theme-palette.js). Importing a theme must treat a
+  // missing role as that null, never as "keep the previous theme's value" —
+  // Xenon-exported codes carry every key explicitly, so an omission only occurs
+  // in codes from older versions or written by hand, and inheriting across
+  // themes splices palettes: a comic pack's cream surface and paper-tuned status
+  // colours once survived under a dark theme imported after it, flipping the
+  // whole UI to light-tone while Settings claimed "dark" (and the merged result
+  // was then snapshotted into the imported theme's gallery card, making the
+  // corruption permanent). Mode switches already reset these
+  // (APPEARANCE_COLOR_KEYS in settings.js); imports follow the same rule.
+  const THEME_OPTIONAL_ROLE_KEYS = ['surface', 'surfaceAlt', 'controlColor', 'mutedText',
+    'lineColor', 'accentText', 'successColor', 'warningColor', 'dangerColor', 'infoColor'];
+
+  // Pure patch builder for a theme import: the declared keys, plus explicit
+  // nulls for every optional role a colour-carrying code omits. Codes that carry
+  // no colours at all (e.g. background-effects-only) leave the roles untouched.
+  function themeImportPatch(data) {
+    if (!data || typeof data !== 'object') return {};
+    const patch = {};
+    for (const k of THEME_KEYS) if (k in data) patch[k] = data[k];
+    const carriesPalette = ['accent', 'background', 'text', 'paletteVariants', ...THEME_OPTIONAL_ROLE_KEYS]
+      .some((k) => k in data);
+    if (carriesPalette) {
+      for (const k of THEME_OPTIONAL_ROLE_KEYS) if (!(k in data)) patch[k] = null;
+      // Same rule for the light/dark pair of a dual-palette theme: a single-tone
+      // code that lands on top of one must clear it, or the previous theme's other
+      // half would keep repainting the new palette on every OS/mode flip.
+      if (!('paletteVariants' in data)) patch.paletteVariants = null;
+    }
+    return patch;
+  }
   // Hard decode guard (pre-JSON.parse). Theme/page presets are tiny, but a deck
   // profile can embed photo key-faces as data: URLs (up to ~1.5MB per key), so
   // the cap is sized for those while still rejecting absurd payloads.
@@ -2030,8 +2063,9 @@
     }
     async function applyTheme(data, name, tx) {
       if (!data || typeof data !== 'object') return false;
-      const patch = {};
-      for (const k of THEME_KEYS) if (k in data) patch[k] = data[k];
+      // Declared keys plus explicit nulls for omitted optional roles — an import
+      // replaces the palette, it never merges with the previous theme's.
+      const patch = themeImportPatch(data);
       // A theme can carry its own animated background (bgCustom.code). Mirror
       // applyBg: force the imported marker so the installer can use the backdrop
       // but the export guard refuses to let them re-share someone else's work as
@@ -3540,10 +3574,12 @@
       };
     }
 
-    async function uninstallContent(record) {
+    // opts.skipConfirm: the caller already took ONE confirmation for a whole
+    // sweep (the Store's "Remove all") — never a way to remove without asking.
+    async function uninstallContent(record, opts) {
       if (!record || !record.resources) return false;
       const summary = installResourceSummary(record.resources);
-      const ok = typeof settingsPrompt === 'function'
+      const ok = (opts && opts.skipConfirm === true) || (typeof settingsPrompt === 'function'
         ? await settingsPrompt({
           type: 'confirm',
           title: tr('installed_content_remove_title', 'Remove downloaded content'),
@@ -3552,7 +3588,7 @@
             + (summary ? '\n\n' + summary : ''),
           okLabel: tr('installed_content_remove_all', 'Remove all'),
         })
-        : window.confirm(tr('installed_content_remove_confirm', 'Remove everything installed by this item?'));
+        : window.confirm(tr('installed_content_remove_confirm', 'Remove everything installed by this item?')));
       if (!ok) return false;
 
       const legacy = record.legacy === true;
@@ -3666,72 +3702,56 @@
         if (typeof syncSettingsControls === 'function') syncSettingsControls();
       }
       if (typeof window.onAmbientScenesChanged === 'function') window.onAmbientScenesChanged();
-      if (typeof paintInstalledSdkPackages === 'function') paintInstalledSdkPackages();
-      toast(tr('installed_content_removed', 'Downloaded content removed'), record.name || '', 'success');
+      // One toast per sweep, not per item: the "Remove all" caller reports its
+      // own outcome once it has finished.
+      if (!(opts && opts.skipConfirm === true)) toast(tr('installed_content_removed', 'Downloaded content removed'), record.name || '', 'success');
       return true;
     }
 
-    async function openInstalledContent() {
-      const { body, close } = buildModal(tr('installed_content_title', 'Installed content'));
+    // ── Export picker ────────────────────────────────────────────────────
+    // One door instead of nine buttons. Each row runs the SAME per-kind export
+    // it always did — this only replaces the wall of buttons that used to sit in
+    // Settings, so nothing about what gets exported (or the your-creations-only
+    // rule each exporter enforces) changes here.
+    const EXPORT_KINDS = [
+      { kind: 'theme', label: ['settings_share_theme', 'Esporta tema'], desc: ['export_pick_theme', 'Colori, font e stile della dashboard.'], run: () => exportTheme() },
+      { kind: 'bg', label: ['settings_bg_code_export', 'Esporta sfondo'], desc: ['export_pick_bg', 'Lo sfondo animato attivo.'], run: () => exportBg() },
+      { kind: 'page', label: ['settings_share_page', 'Esporta pagina'], desc: ['export_pick_page', 'La disposizione dei tile di una pagina.'], run: () => exportPage() },
+      { kind: 'deck', label: ['settings_share_deck', 'Esporta profilo Deck'], desc: ['export_pick_deck', 'Tasti, icone e azioni di un profilo Deck.'], run: () => exportDeck() },
+      { kind: 'widget', label: ['settings_share_widget', 'Esporta widget'], desc: ['export_pick_widget', 'Un widget SDK che hai creato tu.'], run: () => exportWidget() },
+      { kind: 'ambient', label: ['settings_share_ambient', 'Esporta scena Ambient'], desc: ['export_pick_ambient', 'Una scena della modalità Ambient.'], run: () => exportAmbient() },
+      { kind: 'icons', label: ['settings_share_icons', 'Crea pacchetto icone'], desc: ['export_pick_icons', 'Raccogli icone Deck in un pacchetto.'], run: () => exportIcons() },
+      { kind: 'sounds', label: ['settings_share_sounds', 'Crea pacchetto suoni'], desc: ['export_pick_sounds', 'Raccogli clip audio in un pacchetto.'], run: () => exportSounds() },
+      { kind: 'bundle', label: ['settings_share_bundle', 'Esporta pacchetto'], desc: ['export_pick_bundle', 'Tema, sfondo, pagine e widget insieme.'], run: () => exportBundle() },
+    ];
+
+    function openExport() {
+      const { body, close } = buildModal(tr('settings_share_export_title', 'Esporta'));
       const intro = document.createElement('p');
       intro.className = 'preset-modal-desc';
-      intro.textContent = tr('installed_content_desc', 'Remove a downloaded theme, package or preset together with everything it installed. Your own creations are never included.');
+      intro.textContent = tr('export_pick_desc', 'Cosa vuoi esportare? Puoi condividere solo le tue creazioni — ciò che hai installato da altri non è ridistribuibile.');
       body.appendChild(intro);
 
-      let packages = [];
-      try { packages = (await fetch('/sdk/widgets').then(res => res.json())).packages || []; } catch { packages = []; }
-      const records = typeof ContentInstalls !== 'undefined'
-        ? ContentInstalls.normalizeContentInstalls(HS().contentInstalls) : [];
-      const legacy = await legacyImportRecord(records, packages);
-      const all = legacy ? records.concat([legacy]) : records;
-      if (!all.length) {
-        const empty = document.createElement('p');
-        empty.className = 'installed-content-empty';
-        empty.textContent = tr('installed_content_empty', 'No downloaded content to remove.');
-        body.appendChild(empty);
-        return;
-      }
-
       const list = document.createElement('div');
-      list.className = 'installed-content-list';
-      all.slice().sort((a, b) => (b.installedAt || 0) - (a.installedAt || 0)).forEach((record) => {
-        const row = document.createElement('div');
-        row.className = 'installed-content-row' + (record.legacy ? ' is-legacy' : '');
-        const info = document.createElement('div');
-        info.className = 'installed-content-info';
-        const head = document.createElement('div');
-        head.className = 'installed-content-head';
+      list.className = 'export-pick-list';
+      EXPORT_KINDS.forEach((item) => {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'export-pick-row';
+        const txt = document.createElement('span');
+        txt.className = 'export-pick-txt';
         const name = document.createElement('b');
-        name.textContent = record.name || tr('installed_content_unnamed', 'Imported content');
+        name.textContent = tr(item.label[0], item.label[1]);
+        const desc = document.createElement('span');
+        desc.className = 'settings-hint';
+        desc.textContent = tr(item.desc[0], item.desc[1]);
+        txt.append(name, desc);
         const kind = document.createElement('span');
         kind.className = 'preset-modal-kind';
-        kind.textContent = record.legacy
-          ? tr('installed_content_legacy_badge', 'Legacy')
-          : tr('preset_kind_' + record.kind, record.kind);
-        head.append(name, kind);
-        const meta = document.createElement('span');
-        meta.className = 'settings-hint';
-        const bits = [installResourceSummary(record.resources)];
-        if (record.legacy) bits.unshift(tr('installed_content_legacy_note', 'Older Xenon versions did not record package ownership, so these imports are removed together.'));
-        if (record.source === 'catalog') bits.push(tr('installed_content_catalog', 'Catalog'));
-        if (record.sourceVersion) bits.push('v' + record.sourceVersion);
-        if (record.installedAt) {
-          try { bits.push(new Date(record.installedAt).toLocaleDateString()); } catch { /* no date */ }
-        }
-        meta.textContent = bits.filter(Boolean).join(' · ');
-        info.append(head, meta);
-        const remove = document.createElement('button');
-        remove.type = 'button';
-        remove.className = 'settings-btn danger installed-content-remove';
-        remove.textContent = tr('installed_content_remove_all', 'Remove all');
-        remove.addEventListener('click', async () => {
-          remove.disabled = true;
-          const removed = await uninstallContent(record);
-          if (!removed) { remove.disabled = false; return; }
-          close();
-          openInstalledContent();
-        });
-        row.append(info, remove);
+        kind.textContent = tr('preset_kind_' + item.kind, item.kind);
+        row.append(txt, kind);
+        // Close first: every exporter opens its own modal on top.
+        row.addEventListener('click', () => { close(); item.run(); });
         list.appendChild(row);
       });
       body.appendChild(list);
@@ -3750,13 +3770,17 @@
       } catch { /* ignore */ }
     }
 
-    window.PresetShare = { exportTheme, exportPage, exportCurrentPage: exportPage, exportDeck, exportBundle, exportBg, exportIcons, exportSounds, exportWidget, exportAmbient, exportAmbientLayout, exportWidgetPkg, shareDeckProfile, openImport, openInstalledContent, encodePreset, decodePreset };
+    // uninstallContent / installResourceSummary / legacyImportRecord are the
+    // receipt engine behind the Store's "Installed" tab (js/installed-manager.js)
+    // — ONE removal path, so the two surfaces can never disagree about what a
+    // download owns or reference-count it differently.
+    window.PresetShare = { exportTheme, exportPage, exportCurrentPage: exportPage, exportDeck, exportBundle, exportBg, exportIcons, exportSounds, exportWidget, exportAmbient, exportAmbientLayout, exportWidgetPkg, shareDeckProfile, openExport, openImport, uninstallContent, installResourceSummary, legacyImportRecord, encodePreset, decodePreset };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', checkHash, { once: true });
     else checkHash();
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, stripProfileImages, countProfileKeys, lockPreset, unlockPreset, unlockWithCek, peekLocked, canonCode, LOCK_FORMAT_REMOTE, iconSvgProblem, iconIdFromFilename };
+    module.exports = { encodePreset, decodePreset, sanitizeDeckProfile, profileActionSummary, stripProfileImages, countProfileKeys, lockPreset, unlockPreset, unlockWithCek, peekLocked, canonCode, LOCK_FORMAT_REMOTE, iconSvgProblem, iconIdFromFilename, themeImportPatch };
   }
 })();

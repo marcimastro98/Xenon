@@ -208,6 +208,26 @@
   border-color: var(--divider);
 }
 
+/* Vitals fill segments are data, not material: the list above themes the empty
+   cells, but a lit cell must keep its per-vital colour (.vt-seg.on has the same
+   specificity and this sheet loads later — restore it one level stronger). */
+.panel .vt-row .vt-seg.on { background-color: rgb(var(--vt-rgb)); }
+
+/* Today and the picked day are state, not material — same hazard as .vt-seg.on,
+   and here it had erased the calendar's today marker outright. `.day-cell` is in
+   the list above, so at equal specificity from a later sheet it flattened
+   `.day-cell.today`'s accent ring and `.day-cell.selected`'s accent tint down to
+   the resting surface. The accent number lost twice over: to `.day-cell.selected`
+   (the grid opens with today selected, and that rule is later in CalendarView.css)
+   and, on a light palette, to `:root[data-appearance="light"] .day-cell`. Restoring
+   all three one level stronger here beats both, while the Comic skin's own
+   day-cell rules stay stronger still and keep their ink. */
+.panel .day-cell.today { color: var(--green); border-color: rgba(var(--accent-rgb), 0.55); }
+.panel .day-cell.selected {
+  background-color: rgba(var(--accent-rgb), 0.16);
+  border-color: rgba(var(--accent-rgb), 0.56);
+}
+
 .panel :is(
   .calendar-arrow, .timer-add-btn, .timer-btn, .tasks-add-btn, .notes-foot-btn,
   .vol-mute-btn, .app-mix-mute, .browser-btn, .ss-btn, .ss-tune-opt,

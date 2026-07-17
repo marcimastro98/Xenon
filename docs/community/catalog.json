@@ -2,6 +2,95 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "pow-comic",
+      "kind": "bundle",
+      "name": "POW! — Comic Book Pack",
+      "codeFile": true,
+      "publisher": {
+        "handle": "marcimastro98",
+        "url": "https://github.com/marcimastro98"
+      },
+      "authorSupporter": true,
+      "description": "A supporter-exclusive comic-book world for your Xeneon Edge: animated skyline and screensaver, a comic System + Fans monitor, Batteries and Energy boards, plus the hand-inked Sidekick Deck. Six artifacts, one code.",
+      "category": "style",
+      "tags": [
+        "comic",
+        "halftone",
+        "system",
+        "deck",
+        "supporter"
+      ],
+      "preview": {
+        "accent": "#ffd23f",
+        "bg": "#12101d",
+        "text": "#fbf3e0"
+      },
+      "shots": 6,
+      "version": "2.0.0",
+      "appVersionMin": "4.5.3",
+      "locked": true,
+      "activeFrom": "2026-07-13",
+      "activeUntil": "2026-07-31T23:59:59Z",
+      "addedAt": "2026-07-16"
+    },
+    {
+      "id": "ambra",
+      "kind": "bundle",
+      "name": "Ambra",
+      "author": "marcimastro98",
+      "publisher": {
+        "handle": "marcimastro98",
+        "url": "https://github.com/marcimastro98"
+      },
+      "description": "A warm, minimal pack: an amber theme on deep espresso with the animated 'Bruma d'Ambra' background, a redesigned weather widget (temperature-forward, with an essential hourly strip) and an Ambient screensaver showing clock and weather.",
+      "category": "style",
+      "tags": [
+        "warm",
+        "minimal",
+        "amber",
+        "weather",
+        "cozy"
+      ],
+      "version": "1.0.0",
+      "preview": {
+        "accent": "#e8a34c",
+        "bg": "#14100c",
+        "text": "#f3ecdf"
+      },
+      "shots": 3,
+      "codeFile": true,
+      "addedAt": "2026-07-16"
+    },
+    {
+      "id": "teleprompter",
+      "kind": "widget",
+      "name": "Teleprompter",
+      "pkgId": "teleprompter",
+      "publisher": {
+        "handle": "marcimastro98",
+        "url": "https://github.com/marcimastro98"
+      },
+      "description": "Write a script, then read it like a pro: large auto-scrolling prompter text with the current sentence lit, a 3-2-1 countdown, drag-to-scrub, 0.5×–3× speed and a live time-remaining estimate. Keep a library of named scripts, drop [2s] anywhere to pause, and mirror it for prompter glass.",
+      "category": "tools",
+      "tags": [
+        "teleprompter",
+        "streaming",
+        "script",
+        "island",
+        "deck"
+      ],
+      "version": "1.0.0",
+      "appVersionMin": "4.6.0",
+      "preview": {
+        "accent": "#1ed760",
+        "bg": "#06080a",
+        "text": "#f0f3f1"
+      },
+      "shots": 2,
+      "codeFile": true,
+      "addedAt": "2026-07-16"
+    },
+    {
       "id": "demonic",
       "kind": "theme",
       "name": "Demonic",

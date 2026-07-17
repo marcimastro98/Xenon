@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Xenon — community catalog</title>
+<meta name="robots" content="noindex">
+<!--
+  The community gallery moved to /catalog/ — this folder now only holds the data
+  it renders (catalog.json, codes/). Per-item links like /community/#demonic were
+  shared on Discord long before the move and kept 404ing, so this stub forwards
+  them, hash intact, to the same entry in the new catalog.
+
+  The hash never reaches the server, so the redirect has to happen here in JS;
+  <meta http-equiv="refresh"> would drop it. replace() keeps the dead URL out of
+  the history, so Back goes where the visitor came from, not into a redirect loop.
+-->
+<link rel="canonical" href="https://xenon-app.com/catalog/">
+<script>
+  (function () {
+    var hash = location.hash || '';
+    // Only a catalog id may ride along — same shape the catalog validates ids
+    // against. Anything else (an injected URL, markup) is dropped, not forwarded.
+    if (!/^#[a-z0-9][a-z0-9_-]{0,60}$/.test(hash)) hash = '';
+    location.replace('../catalog/' + hash);
+  })();
+</script>
+<style>
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center;
+         background: #05080c; color: #9fb0c0; font: 15px/1.6 system-ui, sans-serif; }
+  a { color: #1ed760; }
+</style>
+</head>
+<body>
+  <p>The community catalog moved — <a href="../catalog/">continue to xenon-app.com/catalog/</a>.</p>
+</body>
+</html>

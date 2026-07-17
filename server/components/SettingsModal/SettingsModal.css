@@ -1991,33 +1991,22 @@ input[type="range"] { accent-color: var(--green); }
 }
 .preset-page-meta { flex: none; font-size: 0.78rem; color: var(--text-dim, #8b91a1); }
 
-/* One receipt per imported catalog item/package. Rows are compact and unframed
-   beyond their own boundary: this is an operational removal list, not a second
-   gallery inside the modal. */
-.installed-content-list {
-  display: flex; flex-direction: column; gap: 8px;
-  max-height: min(52vh, 420px); overflow-y: auto; padding-right: 2px;
-}
-.installed-content-row {
+/* ── Export picker (Settings → Condividi & Importa → Esporta…) ───────────── */
+/* One door replacing nine buttons: a scannable list of what can be exported,
+   each row a single tap straight into that kind's existing export dialog. */
+.export-pick-list { display: flex; flex-direction: column; gap: 6px; }
+.export-pick-row {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  min-height: 58px; padding: 9px 10px; border-radius: 8px;
+  width: 100%; text-align: left; cursor: pointer; font: inherit;
+  padding: 11px 12px; border-radius: 10px; color: var(--text, #e7e9ee);
   background: var(--control-bg, rgba(255, 255, 255, 0.05));
   border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
-.installed-content-row.is-legacy { border-style: dashed; }
-.installed-content-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.installed-content-head { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 7px; min-width: 0; }
-.installed-content-head b { line-height: 1.2; overflow-wrap: anywhere; }
-.installed-content-head .preset-modal-kind { flex: none; padding: 2px 6px; font-size: 0.62rem; }
-.installed-content-remove { flex: none; min-width: 92px; }
-.installed-content-empty {
-  margin: 8px 0 0; padding: 18px; text-align: center; color: var(--text-dim);
-  border: 1px dashed var(--glass-border); border-radius: 8px;
-}
-@media (max-width: 520px) {
-  .installed-content-row { align-items: stretch; flex-direction: column; }
-  .installed-content-remove { width: 100%; }
-}
+.export-pick-row:hover { background: rgba(var(--accent-rgb), 0.09); border-color: rgba(var(--accent-rgb), 0.45); }
+.export-pick-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.export-pick-txt b { line-height: 1.2; }
+.export-pick-row .preset-modal-kind { flex: none; padding: 2px 6px; font-size: 0.62rem; }
 
 /* ── Bundle ("Pacchetto Xenon") export checklist + import widget list ────── */
 .preset-check-list { display: flex; flex-direction: column; gap: 6px; max-height: 46vh; overflow-y: auto; margin-bottom: 4px; }
@@ -2105,8 +2094,101 @@ input[type="range"] { accent-color: var(--green); }
 .cgal-iconbtn:hover { color: var(--text, #e7e9ee); background: rgba(255, 255, 255, 0.09); }
 .cgal-iconbtn svg { width: 18px; height: 18px; }
 
+/* ── Tabs: the catalog vs what this machine already has ── */
+/* Underline tabs, not pills: the rail below already uses pills for kind
+   filtering, so the two levels must not read as the same control. */
+.cgal-tabs {
+  display: flex; gap: 4px; flex: none; padding: 0 18px;
+  border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+}
+.cgal-tab {
+  appearance: none; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 13px 14px; font: inherit; font-size: 0.88rem; font-weight: 650;
+  color: var(--text-dim, #8b91a1); background: none; border: 0;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.cgal-tab svg { width: 16px; height: 16px; }
+.cgal-tab:hover { color: var(--text, #e8eaf0); }
+.cgal-tab.active { color: var(--accent, #35e08e); border-bottom-color: var(--accent, #35e08e); }
+
 /* ── Scroll body ── */
 .cgal-scroll { flex: 1; overflow-y: auto; padding: 18px; min-height: 220px; }
+
+/* ── Installed tab (js/installed-manager.js) ── */
+/* Deliberately NOT a second gallery: this is an operational list, so rows are
+   dense and text-first. Kind chips reuse the rail's visual language. */
+.inst-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.inst-chip {
+  display: inline-flex; align-items: center; white-space: nowrap; cursor: pointer;
+  padding: 8px 14px; border-radius: 999px; font: inherit; font-size: 0.82rem; font-weight: 600;
+  color: var(--text-dim, #8b91a1); background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.inst-chip:hover { color: var(--text, #e8eaf0); background: rgba(255, 255, 255, 0.08); }
+.inst-chip.active { color: var(--accent, #35e08e); background: rgba(var(--accent-rgb), 0.16); border-color: rgba(var(--accent-rgb), 0.4); }
+
+.inst-list { display: flex; flex-direction: column; gap: 8px; }
+.inst-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 12px 14px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+}
+/* Legacy = imports from before receipts existed; they are removed as one group,
+   so the dashed edge marks them as a different kind of row. */
+.inst-row.is-legacy { border-style: dashed; }
+
+/* Thumbnail: the catalog screenshot when the entry publishes one, otherwise the
+   kind glyph. A fixed box either way so the rows stay on one rhythm — a list
+   that jumps between framed and unframed rows reads as broken. */
+.inst-thumb {
+  flex: none; width: 52px; height: 52px; border-radius: 10px; overflow: hidden;
+  display: grid; place-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+}
+.inst-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.inst-thumb.is-glyph { color: var(--text-dim, #8b91a1); background: rgba(var(--accent-rgb), 0.07); border-color: rgba(var(--accent-rgb), 0.18); }
+.inst-thumb.is-glyph svg { width: 22px; height: 22px; }
+
+.inst-row-info { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
+.inst-row-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; min-width: 0; }
+.inst-row-name { font-size: 0.94rem; line-height: 1.25; overflow-wrap: anywhere; color: var(--text, #e7e9ee); }
+.inst-row-meta { font-size: 0.76rem; line-height: 1.4; color: var(--text-dim, #8b91a1); overflow-wrap: anywhere; }
+.inst-kind {
+  flex: none; padding: 2px 7px; border-radius: 999px;
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-dim, #8b91a1); background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+}
+.inst-origin {
+  flex: none; padding: 2px 7px; border-radius: 999px; font-size: 0.62rem; font-weight: 700;
+  color: var(--text-dim, #8b91a1); background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+}
+.inst-origin.is-mine { color: var(--accent, #35e08e); background: rgba(var(--accent-rgb), 0.12); border-color: rgba(var(--accent-rgb), 0.3); }
+.inst-row-btns { display: flex; align-items: center; gap: 8px; flex: none; }
+
+.inst-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  margin-top: 18px; padding-top: 16px;
+  border-top: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+}
+.inst-foot .cgal-status { padding: 0; text-align: left; font-size: 0.76rem; }
+.inst-foot .settings-btn { flex: none; }
+
+.inst-empty { padding: 52px 6px; text-align: center; }
+.inst-empty-title { margin: 0 0 6px; font-size: 1.02rem; font-weight: 700; color: var(--text, #e7e9ee); }
+.inst-empty .cgal-status { padding: 0 0 18px; max-width: 46ch; margin: 0 auto; }
+
+@media (max-width: 560px) {
+  .inst-row { flex-direction: column; align-items: stretch; }
+  .inst-row-btns { justify-content: flex-end; }
+  .inst-foot { flex-direction: column; align-items: stretch; }
+  .inst-foot .settings-btn { width: 100%; }
+}
 
 /* ── Toolbar: search + selects + icon rail ── */
 .cgal-toolbar { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
@@ -2222,11 +2304,15 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-btn.primary:hover:not(:disabled) { filter: brightness(1.08); box-shadow: 0 6px 20px rgba(var(--accent-rgb), 0.42); }
 .cgal-unlock { color: var(--warn, #ffb454); border-color: rgba(255, 180, 84, 0.42); background: rgba(255, 180, 84, 0.1); }
 .cgal-unlock:hover { background: rgba(255, 180, 84, 0.18); }
-.cgal-reserve { color: #cabfff; border-color: rgba(139, 123, 255, 0.5); background: rgba(139, 123, 255, 0.14); white-space: nowrap; }
-.cgal-reserve:hover { background: rgba(139, 123, 255, 0.24); }
-.cgal-card-actions { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 10px; }
+.cgal-limited-buttons { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(138px, 1fr)); gap: 8px; }
+.cgal-limited-buttons .cgal-ic { width: 16px; height: 16px; }
+.cgal-claim { color: #110b27; border-color: transparent; background: #a99cff; box-shadow: 0 5px 18px rgba(139, 123, 255, 0.3); white-space: nowrap; }
+.cgal-claim:hover { background: #bcb2ff; box-shadow: 0 7px 24px rgba(139, 123, 255, 0.42); }
+.cgal-discord { color: #fff; border-color: rgba(255, 255, 255, 0.16); background: #5865f2; box-shadow: 0 5px 18px rgba(88, 101, 242, 0.25); white-space: nowrap; }
+.cgal-discord:hover { background: #6975f5; box-shadow: 0 7px 24px rgba(88, 101, 242, 0.38); }
+.cgal-card-actions { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 10px; flex-wrap: wrap; }
 .cgal-card-actions .cgal-btn { flex: 1; }
-.cgal-limcount { flex: none; font-size: 0.74rem; color: var(--text-dim, #8b91a1); font-variant-numeric: tabular-nums; }
+.cgal-limcount { flex: none; width: 100%; text-align: right; font-size: 0.74rem; color: var(--text-dim, #8b91a1); font-variant-numeric: tabular-nums; }
 .cgal-needs { font-size: 0.72rem; color: var(--text-dim, #8b91a1); }
 .cgal-soldout { flex: 1; text-align: center; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #ff5a63; padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(255, 90, 99, 0.42); background: rgba(255, 90, 99, 0.1); }
 
@@ -2611,10 +2697,6 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .settings-subcard-ico--share {
   background: rgba(86,138,242,0.16); border-color: rgba(86,138,242,0.42);
 }
-.settings-subcard-ico--limited {
-  background: rgba(var(--accent-rgb),0.16); border-color: rgba(var(--accent-rgb),0.42);
-  color: rgba(var(--accent-rgb),1);
-}
 .settings-subcard-titles { display: grid; gap: 2px; min-width: 0; flex: 1; }
 .settings-subcard-titles b { font-size: 13px; font-weight: 900; color: var(--text); }
 .settings-subcard-badge {
@@ -2970,34 +3052,6 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 }
 .settings-display-reset:hover { background: rgba(var(--accent-rgb), 0.12); border-color: rgba(var(--accent-rgb), 0.5); }
 .settings-display-reset:disabled { opacity: 0.5; cursor: default; }
-
-/* ── Installed SDK packages manager (Settings → Widget e condivisione) ── */
-/* Installed packages: a compact, self-scrolling area so many widgets never turn
-   the pane into an endless wall — roughly five rows tall, then it scrolls. */
-.settings-sdk-installed { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; padding-right: 2px; }
-.settings-sdk-installed.is-scrolling { padding-right: 6px; }
-.settings-sdk-pkg {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 8px 10px; border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08);
-}
-.settings-sdk-pkg-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.settings-sdk-pkg-info b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Provenance badge: your own builds vs community installs (not re-exportable). */
-.settings-sdk-pkg-origin {
-  display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px;
-  font-size: 0.68rem; font-weight: 600; letter-spacing: 0.02em; vertical-align: 1px;
-  color: var(--text-dim, #8b91a1); background: rgba(255, 255, 255, 0.06);
-  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
-}
-.settings-sdk-pkg-origin.is-mine {
-  color: var(--accent, #35e08e);
-  background: rgba(var(--accent-rgb, 53, 224, 142), 0.12);
-  border-color: rgba(var(--accent-rgb, 53, 224, 142), 0.3);
-}
-.settings-sdk-count { color: var(--text-dim, #8b91a1); font-weight: 700; }
-.settings-sdk-pkg-grants { font-size: 11px; }
-.settings-sdk-pkg-btns { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
 
 /* (Community gallery toolbar styles moved into the premium storefront block above.) */
 

@@ -22,6 +22,7 @@
   };
   const el = makeEl; // shared DOM factory from utils.js
   const BMC_URL = 'https://www.buymeacoffee.com/marcimastro98';
+  const HUB_BASE = 'https://xenon-supporter-hub.xenonedge.workers.dev';
   // Default reservation target for limited-edition drops (the project Discord
   // invite). A drop may override it via limited.reserveUrl, but only a Discord
   // https URL survives — re-checked here even though the server already
@@ -40,6 +41,47 @@
       } catch (e) { /* fall through to the default invite */ }
     }
     return DISCORD_URL;
+  }
+
+  function directClaimUrlFor(entry) {
+    const limited = entry && entry.limited;
+    if (!limited || limited.fulfillment !== 'hub' || limited.channels !== 'both') return '';
+    if (typeof limited.dropId !== 'string' || !/^[a-z0-9][a-z0-9_-]{0,60}$/.test(limited.dropId)) return '';
+    return HUB_BASE + '/limited/claim/' + encodeURIComponent(limited.dropId) + '?source=web';
+  }
+
+  function appendLimitedButtons(parent, entry) {
+    const group = el('div', 'cgal-limited-buttons');
+    const claimUrl = directClaimUrlFor(entry);
+    if (claimUrl) {
+      const claim = document.createElement('a');
+      claim.className = 'cgal-btn cgal-claim'; claim.href = claimUrl;
+      claim.target = '_blank'; claim.rel = 'noopener noreferrer';
+      claim.appendChild(icon('limited'));
+      claim.appendChild(el('span', null, t('gallery_claim_copy', 'Claim your copy')));
+      group.appendChild(claim);
+    }
+    const discord = document.createElement('a');
+    discord.className = 'cgal-btn cgal-discord'; discord.href = reserveUrlFor(entry);
+    discord.target = '_blank'; discord.rel = 'noopener noreferrer';
+    discord.appendChild(icon('discord'));
+    discord.appendChild(el('span', null, t('gallery_reserve', 'Open Discord')));
+    group.appendChild(discord);
+    parent.appendChild(group);
+  }
+
+  async function hydrateLimitedStatus(entries) {
+    const automatic = (entries || []).filter((entry) => entry && entry.limited && entry.limited.fulfillment === 'hub');
+    const ids = [...new Set(automatic.map((entry) => entry.limited.dropId).filter(Boolean))];
+    if (!ids.length) return;
+    try {
+      const out = await api('/api/community/limited-status?ids=' + encodeURIComponent(ids.join(',')));
+      if (!out || !out.ok || !out.drops) return;
+      automatic.forEach((entry) => {
+        const live = out.drops[entry.limited.dropId];
+        if (live) Object.assign(entry.limited, live);
+      });
+    } catch (e) { /* catalog fallback counters remain usable offline */ }
   }
 
   const api = apiJson; // shared fetch-JSON helper from utils.js
@@ -65,6 +107,7 @@
   let sortBy = 'feat';
   let shown = PAGE;
   let limitedOnly = false;   // dedicated "Limited edition" entry point
+  let activeTab = 'browse';  // 'browse' (the catalog) | 'installed' (this machine)
 
   // ── Inline SVG icon set (STATIC, trusted markup — the ONLY innerHTML use). ──
   // Lucide-style 24px stroke glyphs so the rail and section heads read premium
@@ -91,6 +134,7 @@
     expand: S0 + '<path d="M9 4H5a1 1 0 0 0-1 1v4"/><path d="M15 4h4a1 1 0 0 1 1 1v4"/><path d="M9 20H5a1 1 0 0 1-1-1v-4"/><path d="M15 20h4a1 1 0 0 0 1-1v-4"/></svg>',
     lock: S0 + '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
     star: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 3l2.5 5.6 6.1.6-4.6 4 1.4 6-5.4-3.2L6.1 19.2l1.4-6-4.6-4 6.1-.6z"/></svg>',
+    discord: S0 + '<path d="M21 12a8 8 0 0 1-8 8H8l-5 2 1.6-4A8 8 0 1 1 21 12z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/></svg>',
   };
   function icon(name, cls) {
     const s = el('span', 'cgal-ic' + (cls ? ' ' + cls : ''));
@@ -549,10 +593,7 @@
         fill.style.width = Math.round(((total - left) / total) * 100) + '%'; bar.appendChild(fill); meterWrap.appendChild(bar);
         meterWrap.appendChild(el('span', 'cgal-hero-left', t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(lim.left)).replace('{t}', String(lim.total))));
         cta.appendChild(meterWrap);
-        const reserve = document.createElement('a'); reserve.className = 'cgal-btn cgal-btn-hero cgal-reserve';
-        reserve.href = reserveUrlFor(entry); reserve.target = '_blank'; reserve.rel = 'noopener noreferrer';
-        reserve.textContent = t('gallery_reserve', 'Reserve on Discord →');
-        cta.appendChild(reserve);
+        appendLimitedButtons(cta, entry);
       }
     } else if (locked) {
       cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero cgal-unlock', t('gallery_unlock', 'Unlock with a code'), 'lock'));
@@ -676,11 +717,7 @@
         fill.style.width = Math.round(((total - left) / total) * 100) + '%'; bar.appendChild(fill); meter.appendChild(bar);
         meter.appendChild(el('span', 'cgal-hero-left', t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(lim.left)).replace('{t}', String(lim.total))));
         info.appendChild(meter);
-        const reserve = document.createElement('a');
-        reserve.className = 'cgal-btn cgal-btn-hero cgal-reserve';
-        reserve.href = reserveUrlFor(entry); reserve.target = '_blank'; reserve.rel = 'noopener noreferrer';
-        reserve.textContent = t('gallery_reserve', 'Reserve on Discord →');
-        cta.appendChild(reserve);
+        appendLimitedButtons(cta, entry);
       }
     } else if (locked) {
       cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero cgal-unlock', t('gallery_unlock', 'Unlock with a code'), 'lock'));
@@ -743,12 +780,7 @@
       if (lim.soldOut) {
         row.appendChild(el('span', 'cgal-soldout', t('gallery_limited_soldout', 'Sold out')));
       } else {
-        const reserve = document.createElement('a');
-        reserve.className = 'cgal-btn cgal-reserve';
-        reserve.href = reserveUrlFor(entry);
-        reserve.target = '_blank'; reserve.rel = 'noopener noreferrer';
-        reserve.textContent = t('gallery_reserve', 'Reserve on Discord →');
-        row.appendChild(reserve);
+        appendLimitedButtons(row, entry);
         row.appendChild(el('span', 'cgal-limcount',
           t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(lim.left)).replace('{t}', String(lim.total))));
       }
@@ -862,6 +894,8 @@
       return;
     }
     const all = Array.isArray(out.entries) ? out.entries : [];
+    await hydrateLimitedStatus(all);
+    if (!overlayEl) return;
     all.forEach((e, i) => { if (e) e._i = i; });
     // Two special tiers get their own treatment; everything else is the browse set.
     const limited = all.filter((e) => e && e.limited);
@@ -1099,10 +1133,16 @@
     loadRatings(all).catch(() => { /* offline — slots stay empty */ });
   }
 
+  // filterKind doubles as a deep-link: a real kind ('widget', 'ambient', …)
+  // preselects the browse rail, while '__limited' / '__installed' open a whole
+  // view. Keep the pseudo-kinds out of the rail — they are not catalog kinds.
   function open(filterKind) {
     close();
     searchQuery = ''; activeKind = ''; activeCategory = ''; sortBy = 'feat'; shown = PAGE;
     limitedOnly = (filterKind === '__limited');
+    activeTab = (filterKind === '__installed') ? 'installed' : 'browse';
+    const browseKind = (filterKind === '__limited' || filterKind === '__installed') ? undefined : filterKind;
+    if (window.InstalledManager) InstalledManager.reset();
     const bd = el('div', 'preset-modal-overlay cgal-overlay');
     const modal = el('div', 'preset-modal cgal-modal');
 
@@ -1130,15 +1170,52 @@
     head.appendChild(controls);
     modal.appendChild(head);
 
+    // Two tabs: the catalog, and what this machine already has. The limited-only
+    // deep link stays a single dedicated view — it has no "installed" half.
+    let tabsEl = null;
+    if (!limitedOnly) {
+      tabsEl = el('div', 'cgal-tabs');
+      const mkTab = (id, label, iconName) => {
+        const b = el('button', 'cgal-tab'); b.type = 'button'; b.dataset.tab = id;
+        b.appendChild(icon(iconName));
+        b.appendChild(el('span', 'cgal-tab-txt', label));
+        b.addEventListener('click', () => { if (activeTab === id) return; activeTab = id; syncTabs(); paintTab(false); });
+        return b;
+      };
+      tabsEl.appendChild(mkTab('browse', t('gallery_tab_browse', 'Browse'), 'store'));
+      tabsEl.appendChild(mkTab('installed', t('gallery_tab_installed', 'Installed'), 'check'));
+      modal.appendChild(tabsEl);
+    }
+    function syncTabs() {
+      if (!tabsEl) return;
+      tabsEl.querySelectorAll('.cgal-tab').forEach((b) => {
+        const on = b.dataset.tab === activeTab;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+    }
+    function paintTab(force) {
+      if (activeTab === 'installed') {
+        // Leaving the catalog: drop the lazy bg-preview observer so the browse
+        // grid's sandboxed preview frames stop running behind the tab.
+        if (previewObserver) { previewObserver.disconnect(); previewObserver = null; }
+        if (window.InstalledManager) InstalledManager.render(body, force);
+        else body.replaceChildren(el('div', 'cgal-status', t('gallery_error', 'Could not load the gallery. Check your connection and retry.')));
+        return;
+      }
+      render(body, browseKind, force);
+    }
+
     const body = el('div', 'cgal-scroll');
     modal.appendChild(body);
     bd.appendChild(modal);
     bd.addEventListener('click', (ev) => { if (ev.target === bd) close(); });
-    refresh.addEventListener('click', () => render(body, filterKind, true));
+    refresh.addEventListener('click', () => paintTab(true));
     document.body.appendChild(bd);
     overlayEl = bd;
     window.addEventListener('resize', onResize);
-    render(body, filterKind, false);
+    syncTabs();
+    paintTab(false);
   }
 
   // Open the Store straight onto one entry's detail view — used by the "new
@@ -1153,5 +1230,10 @@
   // donate/convert path for the supporter drop modal.
   function openSupporters() { open(); openSupporterInfo(); }
 
-  window.CommunityGallery = { open, close, findUpdates, openEntry, openSupporters };
+  // kindIcon + SHOTS_BASE are shared with the Installed tab
+  // (js/installed-manager.js) so both surfaces draw from ONE icon set and ONE
+  // sidecar path rule. shotUrl derives from the entry id the server already
+  // charset-pinned — never from catalog-supplied text.
+  const shotUrl = (entryId, i, ext) => SHOTS_BASE + encodeURIComponent(entryId) + (i === 1 ? '' : '-' + i) + '.' + ext;
+  window.CommunityGallery = { open, close, findUpdates, openEntry, openSupporters, kindIcon, shotUrl };
 })();

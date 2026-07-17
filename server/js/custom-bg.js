@@ -178,8 +178,15 @@
     'function play(){if(!raf&&draw)raf=requestAnimationFrame(frame);}',
     'function stop(){if(raf){cancelAnimationFrame(raf);raf=0;}}',
     // Pause when the tab is hidden OR the host signals it (perf/game mode).
-    'var extPause=false;',
-    'function sync(){(document.hidden||extPause)?stop():play();}',
+    // `warmedUp` gates sync() for the first few seconds after boot regardless
+    // of why sync() is called: a host pause reason can be true from the very
+    // first tick (low-power-gpu, present at page load rather than triggered
+    // later like idle/game mode), and freezing before the snippet's own
+    // entrance animation (a fade-in, a settle-in-place) finishes would leave
+    // the backdrop frozen on its half-invisible opening frame instead of a
+    // representative one.
+    'var extPause=false,warmedUp=false;',
+    'function sync(){if(!warmedUp)return;(document.hidden||extPause)?stop():play();}',
     'document.addEventListener("visibilitychange",sync);',
     'window.addEventListener("message",function(e){var d=e&&e.data;if(d&&d.__xbg){extPause=(d.__xbg==="pause");sync();}});',
     // Compile once every asset is decoded, so the snippet's setup code (and the
@@ -189,7 +196,13 @@
     'try{var factory=new Function("canvas","ctx","assets",__src+"\\n;return (typeof draw===\\"function\\")?draw:null;");',
     'draw=factory(canvas,ctx,assets);}catch(e){draw=null;cErr=String(e&&e.message||e);}',
     'report(draw?null:{k:cErr?"compile":"nodraw",m:cErr||""});',
-    'sync();}',
+    // Always start playing, bypassing sync()'s pause gate: any host pause
+    // reason present from the very first tick still lets the snippet's own
+    // entrance animation settle before warmedUp lets sync() freeze it on a
+    // representative frame.
+    'play();',
+    'setTimeout(function(){warmedUp=true;sync();},3000);',
+    '}',
     'var parsed={},names=[];try{parsed=JSON.parse(__assetsJson)||{};names=Object.keys(parsed);}catch(e){parsed={};}',
     'if(!names.length){boot();}else{',
     'var left=names.length,bad=[];',
@@ -237,9 +250,19 @@
     // cap); the first input resumes it 1:1. The frame's OWN visibilitychange
     // already covers a hidden tab, but ambient-idle also fires on plain idle,
     // which is exactly the Xeneon Edge case (always visible, rarely touched).
+    // `low-power-gpu`: the native kiosk deliberately renders on the weaker of
+    // two GPUs on a hybrid-GPU machine (apps/native/src-tauri/src/gpu.rs, set
+    // via js/native-bridge.js) to avoid a costly cross-adapter frame copy. That
+    // trade leaves less real-time budget on the weaker chip, and a full-viewport
+    // animated backdrop — the single most expensive layer on screen — can alone
+    // exceed it: confirmed live (a fps cap alone barely helped; only fully
+    // stopping the loop did) via PresentMon, the identical page still renders at
+    // 150+ FPS in a browser on the same PC's discrete GPU. Unlike the other
+    // three flags this one is permanent for the session, not contextual — the
+    // backdrop is a still image on this hardware instead of a temporary freeze.
     function hostPaused() {
       const c = document.body.classList;
-      return c.contains('perf-mode') || c.contains('game-mode') || c.contains('ambient-idle');
+      return c.contains('perf-mode') || c.contains('game-mode') || c.contains('ambient-idle') || c.contains('low-power-gpu');
     }
     function syncPause(force) {
       if (!frameEl || !frameEl.contentWindow) return;
