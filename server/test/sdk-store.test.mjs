@@ -137,3 +137,26 @@ test('storeNamespace: package id by default, shared group when declared', () => 
   assert.equal(store.storeNamespace({ id: 'weather-radar' }), 'weather-radar');
   assert.equal(store.storeNamespace({ id: 'weather-radar', storageGroup: 'dgm' }), 'g:dgm');
 });
+
+// The `sdk_store` cross-surface broadcast (GitHub #109) re-mounts frames of every
+// package that SHARES the written namespace, so sibling widgets in a storageGroup
+// stay 1:1 too — not only the one that wrote. This locks the exact fanout the
+// server sends: packages.filter(p => storeNamespace(p) === ns).map(p => p.id).
+test('storeNamespace fanout: a group write targets every sibling, a solo write only itself', () => {
+  const packages = [
+    { id: 'radar-a', storageGroup: 'dgm' },
+    { id: 'radar-b', storageGroup: 'dgm' },
+    { id: 'teleprompter' },                    // no group → its own namespace
+    { id: 'clock' },
+  ];
+  const affected = (writerId) => {
+    const ns = store.storeNamespace(packages.find(p => p.id === writerId));
+    return packages.filter(p => store.storeNamespace(p) === ns).map(p => p.id).sort();
+  };
+  // A write by one group member re-mounts BOTH members of the group.
+  assert.deepEqual(affected('radar-a'), ['radar-a', 'radar-b']);
+  assert.deepEqual(affected('radar-b'), ['radar-a', 'radar-b']);
+  // A standalone widget's write re-mounts only itself — never an unrelated package.
+  assert.deepEqual(affected('teleprompter'), ['teleprompter']);
+  assert.deepEqual(affected('clock'), ['clock']);
+});

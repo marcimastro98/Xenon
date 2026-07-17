@@ -2,6 +2,7 @@
 
 const i18n = {
   it: {
+    settings_idle_anim_pause: 'Pausa animazioni quando inattivo', settings_idle_anim_pause_hint: 'dopo un minuto senza tocchi mette in pausa aurora, griglia e le piccole animazioni per ridurre il consumo della GPU; riprendono al primo tocco',
     // v4.4.0 i18n completeness fill (deck task actions, topbar minimal, gallery/preset/share-card/ambient).
     deck_act_taskAdd: 'Aggiungi attività',
     deck_act_taskToggle: 'Completa/riapri attività',
@@ -1962,6 +1963,7 @@ const i18n = {
     'remote.widget_disabled': 'Controllo remoto non attivo — abilitalo in Impostazioni',
   },
   en: {
+    settings_idle_anim_pause: 'Pause animations when idle', settings_idle_anim_pause_hint: 'after a minute without input, pauses the aurora, grid and small looping animations to lower GPU use; they resume on the next touch',
     // v4.4.0 i18n completeness fill (deck task actions, topbar minimal, gallery/preset/share-card/ambient).
     deck_act_taskAdd: 'Add task',
     deck_act_taskToggle: 'Toggle task done',

@@ -2559,6 +2559,12 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-detail-cta { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
 .cgal-detail-cta .cgal-btn { width: 100%; }
 .cgal-detail-cta .cgal-hero-meter { margin: 0 0 2px; }
+/* "Become a supporter" beside the unlock button (locked entries, in the detail
+   view and the featured hero). Reuses the warm heart CTA (.cgal-info-bmc) but a
+   step quieter, so the unlock stays the primary action. */
+.cgal-support-cta { font-size: 0.84rem; opacity: 0.94; }
+.cgal-support-cta:hover { opacity: 1; }
+.cgal-support-cta .cgal-ic { width: 15px; height: 15px; }
 
 /* Fullscreen zoom */
 .cgal-zoom {

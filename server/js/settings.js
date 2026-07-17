@@ -238,6 +238,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   panelAlpha: 0.94,
   bgDim: 0.48,
   bgBlur: 0,
+  // Pause the aurora/grid + decorative loops after a minute of no interaction to
+  // save GPU (js/ambient-idle.js). On by default; users can switch it off so the
+  // dashboard keeps animating while idle.
+  idleAnimationPause: true,
   // Extended theme tokens (full Aspetto editor). All part of a saved theme; the
   // defaults reproduce the stock Liquid Glass look exactly, and they apply inline
   // only under glass (retro owns its own geometry/material).
@@ -1233,6 +1237,7 @@ function normalizeSettings(source) {
     panelAlpha: clampNumber(value.panelAlpha, SETTINGS_MIN_PANEL_ALPHA, 1, DEFAULT_HUB_SETTINGS.panelAlpha),
     bgDim: clampNumber(value.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
     bgBlur: clampNumber(value.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
+    idleAnimationPause: value.idleAnimationPause !== false,
     uiRoundness: clampNumber(value.uiRoundness, 0, 2, DEFAULT_HUB_SETTINGS.uiRoundness),
     glassBlur: clampNumber(value.glassBlur, 0, 40, DEFAULT_HUB_SETTINGS.glassBlur),
     glassSaturate: clampNumber(value.glassSaturate, 100, 220, DEFAULT_HUB_SETTINGS.glassSaturate),
@@ -2269,6 +2274,63 @@ function queueHubSettingsServerSave() {
   }, 250);
 }
 
+// ── weather config: its OWN save channel, not the whole-settings blob ────────
+// Weather (location/mode/provider/tile prefs) is edited from Settings on any
+// surface, but the whole-blob transport is shared with high-frequency automatic
+// saves (a Vitals/Bit heartbeat) and the unload beacon. A blob push from a
+// surface that still holds the OLD location would clobber a change just made
+// here via last-writer-wins — the empirically-reported "XENON stays on the wrong
+// weather location, browser only fixes on Ctrl+R" bug (GitHub #109). So weather
+// is persisted like the stocks watchlist / news feeds: a dedicated endpoint the
+// server treats as the sole writer (POST /settings keeps prev.weather). The
+// server bumps rev + broadcasts, so peer surfaces re-hydrate and refetch (#72).
+let weatherConfigSaveTimer = null;
+let _weatherConfigSaveToken = 0;
+let _weatherConfigSavePending = false;  // a change made before the first hydrate
+function postWeatherConfigToServer() {
+  const weather = normalizeWeatherSettings(hubSettings && hubSettings.weather);
+  return fetch('/api/weather/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ weather }),
+  }).then(async (res) => {
+    try { await res.arrayBuffer(); } catch { /* connection freed either way */ }
+    if (!res.ok) { const e = new Error('weather save failed: HTTP ' + res.status); e.status = res.status; throw e; }
+    return res;
+  });
+}
+function _postWeatherConfigWithRetry(token, attempt) {
+  if (token !== _weatherConfigSaveToken) return;               // superseded by a newer save
+  postWeatherConfigToServer().catch((err) => {
+    if (token !== _weatherConfigSaveToken) return;
+    if (!_settingsSaveRetryable(err)) {                         // permanent client error → stop
+      console.error('weather: server rejected the save and won\'t accept it — giving up', err);
+      return;
+    }
+    setTimeout(() => _postWeatherConfigWithRetry(token, attempt + 1), Math.min(800 * Math.pow(2, attempt), 10000));
+  });
+}
+function queueWeatherConfigServerSave() {
+  clearTimeout(weatherConfigSaveTimer);
+  const token = ++_weatherConfigSaveToken;
+  weatherConfigSaveTimer = setTimeout(() => {
+    weatherConfigSaveTimer = null;
+    _postWeatherConfigWithRetry(token, 0);
+  }, 250);
+}
+
+// Persist a weather-block change: bump rev + mirror locally (so this surface
+// shows it at once), exactly like saveHubSettings — but push ONLY the weather
+// block through its dedicated endpoint instead of the whole-settings blob. Every
+// weather control calls this in place of saveHubSettings(); see the note above.
+function commitWeatherChange() {
+  const cur = Number.isFinite(hubSettings && hubSettings.rev) ? hubSettings.rev : 0;
+  hubSettings = normalizeSettings({ ...hubSettings, rev: cur + 1 });
+  saveLocalHubSettings();
+  if (_hubHydratedFromServer) queueWeatherConfigServerSave();
+  else _weatherConfigSavePending = true;   // flushed right after the first hydrate
+}
+
 // Immediate, awaitable save: cancel the debounced duplicate AND any retry chain
 // (both would only re-post the same current state after us), then POST now.
 // For callers that need the server to have the change before their next step —
@@ -2381,6 +2443,19 @@ function sendHubSettingsBeacon() {
   // server (fresh storage, server down at boot) must not beacon its defaults
   // over the user's stored configuration on unload.
   if (!_hubHydratedFromServer) return;
+  // A weather change still inside its 250ms debounce would be lost on unload: the
+  // whole-blob beacon below no longer carries weather (POST /settings keeps
+  // prev.weather), so flush it through its own endpoint. sendBeacon first, then a
+  // keepalive fetch — the only requests that survive the page tearing down.
+  if (weatherConfigSaveTimer) {
+    weatherConfigSaveTimer = null;
+    try {
+      const wbody = JSON.stringify({ weather: normalizeWeatherSettings(hubSettings && hubSettings.weather) });
+      if (!(navigator.sendBeacon && navigator.sendBeacon('/api/weather/config', new Blob([wbody], { type: 'application/json' })))) {
+        fetch('/api/weather/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: wbody, keepalive: true }).catch(() => {});
+      }
+    } catch { /* best-effort on unload */ }
+  }
   try {
     const body = JSON.stringify({ settings: normalizeSettings(hubSettings) });
     // sendBeacon refuses bodies over its ~64KB queue limit (returns false), and a
@@ -2538,6 +2613,10 @@ async function _hydrateHubSettingsImpl() {
       queueHubSettingsServerSave();
     }
     _hubServerSavePending = false;
+    // A weather change made before this first hydrate was parked (it must not push
+    // over its own dedicated channel until we've merged with the server); flush it
+    // now that we have, so the pre-hydrate location edit still reaches the server.
+    if (_weatherConfigSavePending) { _weatherConfigSavePending = false; queueWeatherConfigServerSave(); }
     applyHubSettings();
     // Rebuild the pager when the page set changed (creates the missing page
     // section + dot); otherwise just reposition widgets in the existing grids.
@@ -3160,6 +3239,10 @@ function applyHubSettings() {
   else delete root.dataset.style;
   document.body.classList.toggle('retro-scanlines', retro && hubSettings.retroScanlines);
 
+  // Idle animation auto-pause (ambient-idle.js runs independently; push the
+  // current preference so toggling it takes effect at once).
+  if (window.AmbientIdle) window.AmbientIdle.setEnabled(hubSettings.idleAnimationPause !== false);
+
   // Top-bar clock alignment + meta-field visibility (Settings → Aspetto).
   applyTopbarClockSettings();
 
@@ -3707,6 +3790,8 @@ function syncSettingsControls() {
   });
   const contrastGuard = $('settings-contrast-guard');
   if (contrastGuard) contrastGuard.checked = hubSettings.contrastGuard !== false;
+  const idleAnimPause = $('settings-idle-anim-pause');
+  if (idleAnimPause) idleAnimPause.checked = hubSettings.idleAnimationPause !== false;
 
   const rangeMap = [
     ['settings-panel-alpha', String(hubSettings.panelAlpha)],
@@ -3926,6 +4011,13 @@ function updateContrastGuard(enabled) {
   applyHubSettings();
   syncSettingsControls();
   renderThemeGallery();
+}
+
+function updateIdleAnimationPause(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, idleAnimationPause: enabled !== false });
+  saveHubSettings();
+  applyHubSettings();
+  syncSettingsControls();
 }
 
 // ── Xenon AI programmatic customization ───────────────────────────
@@ -6311,7 +6403,7 @@ function updateWeatherProvider(provider) {
     ...hubSettings,
     weather: { ...hubSettings.weather, provider },
   });
-  saveHubSettings();
+  commitWeatherChange();
   syncWeatherSettingsControls();
   queueWeatherSettingsRefresh();
   setSettingsStatus('settings_weather_saved', 'ok');
@@ -6328,7 +6420,7 @@ function updateWeatherRefresh(value) {
     ...hubSettings,
     weather: { ...hubSettings.weather, refreshMin: min },
   });
-  saveHubSettings();
+  commitWeatherChange();
   syncWeatherSettingsControls();
   if (typeof startWeatherPolling === 'function') startWeatherPolling();
   setSettingsStatus('settings_weather_saved', 'ok');
@@ -6345,7 +6437,7 @@ function updateWeatherForecastDays(value) {
     ...hubSettings,
     weather: { ...hubSettings.weather, forecastDays: days },
   });
-  saveHubSettings();
+  commitWeatherChange();
   syncWeatherSettingsControls();
   if (typeof renderWeatherTile === 'function') renderWeatherTile();
   if (typeof renderWeatherDetails === 'function') renderWeatherDetails();
@@ -6359,7 +6451,7 @@ function updateWeatherTileSection(key, checked) {
     ...hubSettings,
     weather: { ...hubSettings.weather, tile },
   });
-  saveHubSettings();
+  commitWeatherChange();
   syncWeatherSettingsControls();
   if (typeof renderWeatherTile === 'function') renderWeatherTile();
   setSettingsStatus('settings_weather_saved', 'ok');
@@ -6375,7 +6467,7 @@ function updateWeatherTileField(id, checked) {
     ...hubSettings,
     weather: { ...hubSettings.weather, tile },
   });
-  saveHubSettings();
+  commitWeatherChange();
   syncWeatherSettingsControls();
   if (typeof renderWeatherTile === 'function') renderWeatherTile();
   if (typeof renderWeatherDetails === 'function') renderWeatherDetails();
@@ -6388,7 +6480,7 @@ function updateWeatherMode(mode) {
     ...hubSettings,
     weather: { ...hubSettings.weather, mode },
   });
-  saveHubSettings();
+  commitWeatherChange();
   syncWeatherSettingsControls();
   queueWeatherSettingsRefresh();
   setSettingsStatus('settings_weather_saved', 'ok');
@@ -6663,7 +6755,7 @@ function updateWeatherCity(value, commit = false) {
     ...hubSettings,
     weather: { ...hubSettings.weather, city: value },
   });
-  saveHubSettings();
+  commitWeatherChange();
   if (commit) syncWeatherSettingsControls();
   if (hubSettings.weather.mode === 'manual' && hubSettings.weather.city) queueWeatherSettingsRefresh(450);
   setSettingsStatus('settings_weather_saved', 'ok');

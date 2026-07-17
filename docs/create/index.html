@@ -2,6 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script src="/analytics.js" defer></script>
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Create for Xenon — the maker's guide</title>
 <meta name="description" content="Make contrast-safe semantic themes, backgrounds, pages, Deck profiles, widgets, scenes and full packages for the Xenon dashboard — starting from zero, no coding required. Copy-paste examples and a practical SDK guide.">
@@ -218,7 +229,7 @@
   }
 </style>
 </head>
-<body>
+<body data-track-view="create_start">
 
 <header class="topbar">
   <a class="brand" href="../"><img src="../images/logo.png" alt="" width="42" height="28"> XENON <span class="sub">Create</span></a>
@@ -630,7 +641,8 @@
       background:<span class="tok-s">'#070808'</span>, surface:<span class="tok-s">'#111314'</span>, surfaceAlt:<span class="tok-s">'#16191a'</span>, control:<span class="tok-s">'#1c2021'</span>,
       text:<span class="tok-s">'#f0f3f1'</span>, muted:<span class="tok-s">'#a6b1ad'</span>, dim:<span class="tok-s">'#7f8a86'</span>, line:<span class="tok-s">'#46504c'</span>,
       accent:<span class="tok-s">'#1ed760'</span>, onAccent:<span class="tok-s">'#111111'</span>,
-      success:<span class="tok-s">'#45d483'</span>, warning:<span class="tok-s">'#f0b84f'</span>, danger:<span class="tok-s">'#ff6268'</span>, info:<span class="tok-s">'#62cbea'</span>
+      success:<span class="tok-s">'#45d483'</span>, warning:<span class="tok-s">'#f0b84f'</span>, danger:<span class="tok-s">'#ff6268'</span>, info:<span class="tok-s">'#62cbea'</span>,
+      surfaceSoft:<span class="tok-s">'rgba(22,25,26,0.92)'</span>, panelAlpha:<span class="tok-s">0.92</span>  <span class="tok-c">// card surface at the user's panel opacity (null → use surfaceAlt)</span>
     } },
   lang:<span class="tok-s">'en'</span>,                 <span class="tok-c">// en · it · ko · ja · zh</span>
   streams:[<span class="tok-s">'system'</span>],       <span class="tok-c">// what the user actually granted</span>

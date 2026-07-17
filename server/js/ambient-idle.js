@@ -59,6 +59,7 @@
   let idleTimer = null;
   let paused = false;
   let lastRearm = 0;
+  let enabled = true; // hubSettings.idleAnimationPause — driven from Settings
   let frozenAnims = []; // decorative loops paused via WAAPI, to resume on wake
 
   function isInfinite(a) {
@@ -101,6 +102,7 @@
   }
 
   function armIdle() {
+    if (!enabled) return; // idle auto-pause switched off by the user
     if (idleTimer) clearTimeout(idleTimer);
     idleTimer = setTimeout(() => setPaused(true), IDLE_MS);
   }
@@ -114,6 +116,24 @@
     lastRearm = now;
     armIdle();
   }
+
+  // Settings toggle (hubSettings.idleAnimationPause, default on). Off = the
+  // ambient FX and decorative loops never freeze from inactivity — the constant
+  // idle GPU cost is accepted for an always-lively screen. The tab-hidden pause
+  // (visibilitychange below) intentionally stays on either way: it frees the GPU
+  // only while nobody can possibly see the dashboard, so it's never visible.
+  function setEnabled(on) {
+    on = on !== false;
+    if (on === enabled) return;
+    enabled = on;
+    if (!enabled) {
+      if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+      setPaused(false); // thaw anything the idle timer had already frozen
+    } else if (!document.hidden) {
+      lastRearm = 0; wake(); // resume + start a fresh countdown from now
+    }
+  }
+  window.AmbientIdle = { setEnabled };
 
   const EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'];
   for (const ev of EVENTS) window.addEventListener(ev, wake, { passive: true });
