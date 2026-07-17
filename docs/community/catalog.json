@@ -2,6 +2,25 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "dgm-news-general",
+      "kind": "widget",
+      "name": "DGM News General",
+      "author": "DanielGarciaMorato",
+      "authorSupporter": true,
+      "description": "General news widget for Xenon with six RSS sources: El Mundo, El País, BBC, The Guardian, The New York Times and Le Monde. Features balanced rotation across sources, a Spanish and English interface, thumbnails via the official SDK proxy, visual fallbacks, and loading, partial-load, error and manual-",
+      "tags": [
+        "news",
+        "rss",
+        "multilingual",
+        "responsive",
+        "headlines"
+      ],
+      "shots": 1,
+      "active": false,
+      "addedAt": "2026-07-17",
+      "codeFile": true
+    },
+    {
       "id": "vanguard-50",
       "kind": "bundle",
       "name": "VANGUARD 50 // VOICE RELAY",
