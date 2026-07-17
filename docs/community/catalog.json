@@ -39,6 +39,7 @@
       "kind": "bundle",
       "name": "Ambra",
       "author": "xenon",
+      "authorSupporter": true,
       "description": "A warm, minimal pack: an amber theme on deep espresso with the animated 'Bruma d'Ambra' background, a redesigned weather widget (temperature-forward, with an essential hourly strip) and an Ambient screensaver showing clock and weather.",
       "category": "style",
       "tags": [
@@ -49,13 +50,13 @@
         "cozy"
       ],
       "version": "1.0.0",
+      "appVersionMin": "4.6.0",
       "preview": {
         "accent": "#e8a34c",
         "bg": "#14100c",
         "text": "#f3ecdf"
       },
       "shots": 3,
-      "active": false,
       "addedAt": "2026-07-17",
       "codeFile": true
     },
