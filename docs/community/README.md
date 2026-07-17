@@ -1,7 +1,7 @@
 # Xenon community gallery
 
-This folder powers the **Discover** gallery — both on the website and inside the app
-(Settings → Widget e condivisione → Scopri). Everything in `catalog.json` is shown to
+This folder powers the community catalog — both on the website and inside the app's
+**Store** (Impostazioni → Community → *Apri lo Store* → **Sfoglia**). Everything in `catalog.json` is shown to
 every Xenon user, so entries are **moderated**: they only land here when the maintainer
 merges them.
 
