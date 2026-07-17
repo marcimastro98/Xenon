@@ -39,10 +39,6 @@
       "kind": "bundle",
       "name": "Ambra",
       "author": "marcimastro98",
-      "publisher": {
-        "handle": "marcimastro98",
-        "url": "https://github.com/marcimastro98"
-      },
       "description": "A warm, minimal pack: an amber theme on deep espresso with the animated 'Bruma d'Ambra' background, a redesigned weather widget (temperature-forward, with an essential hourly strip) and an Ambient screensaver showing clock and weather.",
       "category": "style",
       "tags": [
@@ -58,9 +54,14 @@
         "bg": "#14100c",
         "text": "#f3ecdf"
       },
+      "publisher": {
+        "handle": "marcimastro98",
+        "url": "https://github.com/marcimastro98"
+      },
       "shots": 3,
-      "codeFile": true,
-      "addedAt": "2026-07-16"
+      "active": false,
+      "addedAt": "2026-07-16",
+      "codeFile": true
     },
     {
       "id": "teleprompter",
