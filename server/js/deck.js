@@ -155,10 +155,9 @@
     displayConfigs.delete(instanceId);
     let all = readStore();
     if (hadFitOverride) {
+      // Grid shape is per-profile: fold each profile back onto ITS canonical shape.
       const prev = window.DeckStore.instanceConfig(M, all, instanceId);
-      if (cfg.cols !== prev.cols || cfg.rows !== prev.rows) {
-        cfg = M.reshapeDeckConfig(cfg, prev.cols, prev.rows, { preserve: true });
-      }
+      cfg = M.foldDeckGrids(cfg, prev);
     }
     // Each Deck owns its full config (grid + profiles + keys + view prefs); writing
     // it under the instance's own key keeps decks independent — editing one never
@@ -269,7 +268,10 @@
   }
   // Save profile `profileId` of `instanceId` as a named preset (prompts for a name).
   function saveProfileAsPreset(instanceId, profileId, defName) {
-    const profile = window.DeckModel.getProfile(getConfig(instanceId), profileId);
+    // Snapshot from the DURABLE config: profiles now carry their grid shape, and
+    // the display config may hold a render-only auto-fit reshape of it — a preset
+    // must carry the authored shape, not a per-tile artifact.
+    const profile = window.DeckModel.getProfile(durableConfig(instanceId), profileId);
     if (!profile) return;
     const suggested = defName || profile.name || tr('deck_profile_default', 'Profilo');
     const name = (typeof prompt === 'function') ? prompt(tr('preset_name_prompt', 'Nome del preset:'), suggested) : suggested;
@@ -283,7 +285,10 @@
   function insertProfilePreset(instanceId, presetId) {
     const ps = readPresets().find(p => p.id === presetId);
     if (!ps) return;
-    saveConfig(instanceId, window.DeckModel.addProfileFromTemplate(getConfig(instanceId), ps.profile));
+    // Build on the DURABLE config: a shapeless legacy preset falls back to the
+    // active profile's shape, which must be the canonical one — not a render-only
+    // auto-fit reshape that would then persist on the new profile.
+    saveConfig(instanceId, window.DeckModel.addProfileFromTemplate(durableConfig(instanceId), ps.profile));
   }
 
   // ── Reuse profiles across independent decks ───────────────────────
@@ -367,7 +372,9 @@
     let cfg; try { cfg = M.normalizeDeckConfig(readStore()[sourceInstanceId]); } catch { return; }
     const prof = (cfg.profiles || []).find(p => p.id === profileId);
     if (!prof) return;
-    saveConfig(targetInstanceId, M.addProfileFromTemplate(getConfig(targetInstanceId), prof));
+    // Durable config: see insertProfilePreset — never seed a new profile's shape
+    // from the render-only auto-fit override.
+    saveConfig(targetInstanceId, M.addProfileFromTemplate(durableConfig(targetInstanceId), prof));
   }
 
   // ── Shared-profile bridge (PresetShare) ───────────────────────────
@@ -432,7 +439,9 @@
     if (/^xi_[a-z0-9]{8,32}$/.test(String(installId || ''))) marked.installId = String(installId);
     const inst = deckInstances().find(d => d.instanceId === instanceId);
     if (inst) {
-      const cfg = window.DeckModel.addProfileFromTemplate(getConfig(instanceId), marked);
+      // Durable config: see insertProfilePreset — a shapeless shared code must
+      // inherit the canonical active shape, not the auto-fit display reshape.
+      const cfg = window.DeckModel.addProfileFromTemplate(durableConfig(instanceId), marked);
       saveConfig(instanceId, cfg);
       const state = navOf(instanceId);
       state.path = []; state.pageIndex = 0;
@@ -1385,21 +1394,25 @@
 
     if (!cfg.autoFit) {
       const min = window.DeckModel.DECK_MIN, max = window.DeckModel.DECK_MAX;
+      // The steppers act on the SHOWN profile's own grid — each profile keeps its
+      // own cols/rows, so resizing this one never reflows the others.
+      const grid = window.DeckModel.gridOf(cfg, profileId);
       const mkStepper = (dim, label) => {
         const grp = el('div', 'deck-tools-grp');
         grp.appendChild(el('span', 'deck-tools-cap', label));
-        const dec = el('button', 'deck-step', '−'); dec.type = 'button'; dec.disabled = cfg[dim] <= min;
-        const val = el('span', 'deck-step-val', String(cfg[dim]));
-        const inc = el('button', 'deck-step', '+'); inc.type = 'button'; inc.disabled = cfg[dim] >= max;
+        const dec = el('button', 'deck-step', '−'); dec.type = 'button'; dec.disabled = grid[dim] <= min;
+        const val = el('span', 'deck-step-val', String(grid[dim]));
+        const inc = el('button', 'deck-step', '+'); inc.type = 'button'; inc.disabled = grid[dim] >= max;
         const setDim = (n) => {
           const cur = getConfig(instanceId);
-          const cols = dim === 'cols' ? n : cur.cols;
-          const rows = dim === 'rows' ? n : cur.rows;
-          saveConfig(instanceId, window.DeckModel.reshapeDeckConfig(cur, cols, rows, { compact: false }));
+          const g = window.DeckModel.gridOf(cur, profileId);
+          const cols = dim === 'cols' ? n : g.cols;
+          const rows = dim === 'rows' ? n : g.rows;
+          saveConfig(instanceId, window.DeckModel.reshapeDeckConfig(cur, cols, rows, { compact: false, profileId }));
           render(tile, instanceId);
         };
-        dec.addEventListener('click', () => setDim(cfg[dim] - 1));
-        inc.addEventListener('click', () => setDim(cfg[dim] + 1));
+        dec.addEventListener('click', () => setDim(grid[dim] - 1));
+        inc.addEventListener('click', () => setDim(grid[dim] + 1));
         grp.append(dec, val, inc);
         return grp;
       };
@@ -1447,13 +1460,14 @@
     const targetProfile = cfg.profiles.some((p) => p.id === profileId) ? profileId : cfg.activeProfile;
     const look = deckLookFor(cfg, targetProfile);
     const view = window.DeckModel.resolveView(cfg, { profileId: targetProfile, path: [], pageIndex: 0 });
+    const shape = window.DeckModel.gridOf(cfg, targetProfile);
     const root = el('div', 'deck-root deck-style-preview-root');
     root.dataset.keysize = cfg.keySize;
     root.dataset.capstyle = look.capStyle;
     root.dataset.shape = look.keyShape;
     root.dataset.plate = look.plate;
-    root.style.setProperty('--deck-cols', cfg.cols);
-    root.style.setProperty('--deck-rows', cfg.rows);
+    root.style.setProperty('--deck-cols', shape.cols);
+    root.style.setProperty('--deck-rows', shape.rows);
     root.style.setProperty('--deck-key-min', keyMinFor(cfg) + 'px');
     const device = el('div', 'deck-device');
     const well = el('div', 'deck-well');
@@ -1866,7 +1880,7 @@
         const st = navOf(instanceId);
         if (st.editing || isLayoutEditing()) return;
         const fitted = applyAutoGrid(tile, instanceId, cur);
-        if (fitted.cols !== cur.cols || fitted.rows !== cur.rows) {
+        if (!sameGridShape(fitted, cur)) {
           saveConfigDisplay(instanceId, fitted);   // render-only; never drifts the durable grid
           render(tile, instanceId);
         }
@@ -1891,11 +1905,24 @@
   // wide tile with few keys. Pure: no DOM.
   function computeAutoGrid(cfg, w, h) {
     const DM = window.DeckModel;
-    if (!(w > 20 && h > 20) || !(DM && DM.gridForSize && DM.reshapeDeckConfig)) return cfg;
+    if (!(w > 20 && h > 20) || !(DM && DM.gridForSize && DM.fitDeckGrids)) return cfg;
     const { cols, rows } = DM.gridForSize(w, h, cfg.keySize);
-    const grid = DM.reshapeDeckConfig(cfg, cols, rows, { preserve: true });
-    if (grid.cols === cfg.cols && grid.rows === cfg.rows) return cfg;
+    // The tile size fits the same target for every profile, but each profile grows
+    // independently to hold its own keys — grids are per-profile now.
+    const grid = DM.fitDeckGrids(cfg, cols, rows);
+    if (sameGridShape(grid, cfg)) return cfg;   // identity return = "no change" for callers
     return grid;
+  }
+
+  // True when every profile has the same cols/rows in both configs — the per-profile
+  // replacement for the old top-level cols/rows comparison.
+  function sameGridShape(a, b) {
+    if (a === b) return true;
+    if (!a || !b || a.profiles.length !== b.profiles.length) return false;
+    return a.profiles.every((p, i) => {
+      const q = b.profiles[i];
+      return q && q.id === p.id && q.cols === p.cols && q.rows === p.rows;
+    });
   }
 
   // The well's CONTENT box — the same box the CSS square-cap formula reads via
@@ -1946,7 +1973,7 @@
         if (!(w > 20 && h > 20)) return;
         editWellSizes.set(instanceId, { w, h });   // sync re-fit source for later edit renders
         const fitted = computeAutoGrid(cur, w, h);
-        if (fitted.cols !== cur.cols || fitted.rows !== cur.rows) {
+        if (!sameGridShape(fitted, cur)) {
           saveConfigDisplay(instanceId, fitted);   // render-only; converges (the well size is stable)
           render(tile, instanceId);
         }
@@ -1989,7 +2016,7 @@
         const cur = getConfig(instanceId);
         if (!cur.autoFit) return;
         const next = applyAutoGrid(tile, instanceId, cur);   // same fill algorithm as first-paint
-        if (next.cols === cur.cols && next.rows === cur.rows) return;  // no change after fill
+        if (sameGridShape(next, cur)) return;  // no change after fill
         saveConfigDisplay(instanceId, next);   // render-only; the durable grid stays put
         render(tile, instanceId);   // re-render re-creates this observer
       });
@@ -2018,7 +2045,7 @@
       const cached = editWellSizes.get(instanceId);
       if (cached) {
         const fitted = computeAutoGrid(cfg, cached.w, cached.h);
-        if (fitted.cols !== cfg.cols || fitted.rows !== cfg.rows) {
+        if (!sameGridShape(fitted, cfg)) {
           saveConfigDisplay(instanceId, fitted);   // render-only, like every auto-fit
           cfg = fitted;
         }
@@ -2052,8 +2079,9 @@
     root.dataset.capstyle = look.capStyle;
     root.dataset.shape = look.keyShape;
     root.dataset.plate = look.plate;
-    root.style.setProperty('--deck-cols', cfg.cols);
-    root.style.setProperty('--deck-rows', cfg.rows);
+    const shownGrid = window.DeckModel.gridOf(cfg, shownProfile);
+    root.style.setProperty('--deck-cols', shownGrid.cols);
+    root.style.setProperty('--deck-rows', shownGrid.rows);
     root.style.setProperty('--deck-key-min', keyMinFor(cfg) + 'px');
     // Suppress the browser's long-press / right-click context menu on the deck so
     // a press-and-hold triggers OUR hold gesture instead of the native menu.
@@ -2418,7 +2446,9 @@
           share.innerHTML = SHARE_SVG; share.title = tr('deck_profile_share', 'Condividi');
           share.addEventListener('click', (e) => {
             e.stopPropagation();
-            const profile = window.DeckModel.getProfile(getConfig(instanceId), p.id);
+            // Durable config: the share code carries the profile's grid shape,
+            // which must be the authored one, not the auto-fit display reshape.
+            const profile = window.DeckModel.getProfile(durableConfig(instanceId), p.id);
             closeProfileMenu(state, instanceId);
             render(tile, instanceId);
             window.PresetShare.shareDeckProfile(profile);
@@ -2447,7 +2477,10 @@
       const add = el('button', 'deck-pmenu-add'); add.type = 'button';
       add.textContent = '＋ ' + tr('deck_profile_new', 'Nuovo profilo');
       add.addEventListener('click', () => {
-        const cur = getConfig(instanceId);
+        // Durable config: the new profile copies the active profile's shape, and
+        // that must be the canonical one — foldDeckGrids can't restore a profile
+        // the durable store has never seen, so a display-fitted shape would stick.
+        const cur = durableConfig(instanceId);
         const name = tr('deck_profile_default', 'Profilo') + ' ' + (cur.profiles.length + 1);
         const next = window.DeckModel.addProfile(cur, name);
         saveConfig(instanceId, next);
@@ -2965,12 +2998,15 @@
     const autoRows = n <= 3 ? 1 : n <= 8 ? 2 : 3;
     const autoCols = Math.ceil(n / autoRows);
     const clampDim = (v, fb) => { const x = Math.round(Number(v)); return Number.isFinite(x) && x >= 1 ? Math.min(8, x) : fb; };
-    const wantCols = clampDim(spec.cols, autoCols);
-    const wantRows = clampDim(spec.rows, autoRows);
+    let wantCols = clampDim(spec.cols, autoCols);
+    let wantRows = clampDim(spec.rows, autoRows);
+    // An absurd shape for the key count (e.g. 1×1 with 24 keys → 24 one-key
+    // pages) falls back to the derived balanced grid; at most ~3 pages.
+    if (wantCols * wantRows * 3 < n) { wantCols = autoCols; wantRows = autoRows; }
     // Work on this instance's own durable config (never the render-only auto-fit
-    // override) and only GROW the grid so existing profiles keep their exact layout.
-    let cfg = durableConfig(instanceId);
-    cfg = M.reshapeDeckConfig(cfg, Math.max(cfg.cols, wantCols), Math.max(cfg.rows, wantRows), { preserve: true });
+    // override). Grids are per-profile: only the NEW profile gets the AI's shape,
+    // so existing profiles keep their exact layout untouched.
+    const cfg = durableConfig(instanceId);
     // A pristine deck (no key placed in any profile — e.g. the fresh copy on a
     // Genesis page) gets the AI profile as its ONLY one, instead of keeping an
     // empty "Profile 1" alongside. A configured deck keeps all its profiles.
@@ -2986,7 +3022,9 @@
     }
     const prof = next.profiles.find(p => p.id === next.activeProfile);
     if (!prof) return false;
-    const slots = next.cols * next.rows;
+    prof.cols = wantCols;
+    prof.rows = wantRows;
+    const slots = wantCols * wantRows;
     const pages = [];
     for (let i = 0; i < rawKeys.length; i += slots) pages.push({ keys: rawKeys.slice(i, i + slots) });
     prof.root = { pages };

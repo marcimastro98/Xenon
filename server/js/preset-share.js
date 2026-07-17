@@ -411,6 +411,14 @@
         if (key.bgImage && typeof key.bgImage.value === 'string' && /^blob:/i.test(key.bgImage.value)) delete key.bgImage;
       });
       const out = { name: prof.name, root: prof.root };
+      // The author's grid shape travels with the profile (per-profile grids), so
+      // an import reproduces the intended composition instead of guessing from
+      // the key count. Shapeless/legacy codes stay valid — the importer falls
+      // back to the receiving deck's shape and grows to fit.
+      const minDim = M.DECK_MIN || 1, maxDim = M.DECK_MAX || 8;
+      const shapeCols = Math.round(Number(raw.cols)), shapeRows = Math.round(Number(raw.rows));
+      if (shapeCols >= minDim && shapeCols <= maxDim) out.cols = shapeCols;
+      if (shapeRows >= minDim && shapeRows <= maxDim) out.rows = shapeRows;
       // Per-profile presentation travels with the profile. Rebuild it through
       // DeckModel so enum values and decoration URLs are validated on BOTH
       // export and import; provenance flags are assigned locally on import.

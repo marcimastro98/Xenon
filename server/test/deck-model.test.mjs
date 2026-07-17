@@ -530,12 +530,125 @@ test('addProfileFromTemplate grows the grid so a richer template never loses key
   assert.deepEqual(placed, titles.slice().sort());
 });
 
-test('addProfileFromTemplate keeps the existing grid when the template already fits', () => {
+test('addProfileFromTemplate keeps the existing profiles\' grids untouched', () => {
   const big = dm.normalizeDeckConfig({ cols: 5, rows: 3 }); // 15 slots
   let src = dm.normalizeDeckConfig({ cols: 2, rows: 2, profiles: [{ id: 'p0', name: 'Small', root: { pages: [{ keys: [] }] } }], activeProfile: 'p0' });
   src = dm.setKeyAt(src, { profileId: 'p0', path: [], pageIndex: 0 }, 0, { id: 'k0', kind: 'action', title: 'X' });
   const out = dm.addProfileFromTemplate(big, src.profiles[0]);
-  assert.equal(out.cols, 5); assert.equal(out.rows, 3); // unchanged
+  // The pre-existing profile keeps its own 5×3; the new profile carries the
+  // template's 2×2 shape and is active. The top-level mirror stays at the MAX
+  // shape so a stale (pre-per-profile) client can never truncate a sibling.
+  assert.equal(out.profiles[0].cols, 5); assert.equal(out.profiles[0].rows, 3);
+  const added = out.profiles[out.profiles.length - 1];
+  assert.equal(added.cols, 2); assert.equal(added.rows, 2);
+  assert.equal(out.activeProfile, added.id);
+  assert.equal(out.cols, 5); assert.equal(out.rows, 3);
+});
+
+// ── Per-profile grid shape (the "catalog profile broke my other profiles" fix) ──
+
+test('reshapeDeckConfig resizes only the target profile; siblings keep their shape', () => {
+  let cfg = dm.normalizeDeckConfig({ cols: 4, rows: 4 });
+  const first = cfg.activeProfile;
+  cfg = dm.addProfile(cfg, 'Second');                    // active is now 'Second', 4×4
+  const second = cfg.activeProfile;
+  const out = dm.reshapeDeckConfig(cfg, 4, 2, { compact: false, profileId: second });
+  assert.deepEqual(dm.gridOf(out, second), { cols: 4, rows: 2 });
+  assert.deepEqual(dm.gridOf(out, first), { cols: 4, rows: 4 });   // untouched
+});
+
+test('a busy sibling profile no longer blocks shrinking the shown one', () => {
+  // UTILITY has 8 keys; another profile has 16. Shrinking UTILITY to 4×2 must
+  // work — the old global grid used the busiest page of ANY profile as the floor.
+  let cfg = dm.normalizeDeckConfig({ cols: 4, rows: 4 });
+  const util = cfg.activeProfile;
+  const nav = { profileId: util, path: [], pageIndex: 0 };
+  for (let i = 0; i < 8; i++) cfg = dm.setKeyAt(cfg, nav, i, { id: 'u' + i, kind: 'action', title: 'U' + i });
+  cfg = dm.addProfile(cfg, 'Busy');
+  const busy = cfg.activeProfile;
+  const bnav = { profileId: busy, path: [], pageIndex: 0 };
+  for (let i = 0; i < 16; i++) cfg = dm.setKeyAt(cfg, bnav, i, { id: 'b' + i, kind: 'action', title: 'B' + i });
+  const out = dm.reshapeDeckConfig(cfg, 4, 2, { compact: false, profileId: util });
+  assert.deepEqual(dm.gridOf(out, util), { cols: 4, rows: 2 });
+  assert.deepEqual(dm.gridOf(out, busy), { cols: 4, rows: 4 });    // busy profile intact
+  const busyKeys = out.profiles.find(p => p.id === busy).root.pages[0].keys.filter(Boolean);
+  assert.equal(busyKeys.length, 16);                               // no key lost
+});
+
+test('legacy configs without per-profile shapes inherit the config-level grid', () => {
+  const cfg = dm.normalizeDeckConfig({
+    cols: 4, rows: 3,
+    profiles: [
+      { id: 'a', name: 'A', root: { pages: [{ keys: [] }] } },
+      { id: 'b', name: 'B', root: { pages: [{ keys: [] }] } },
+    ],
+    activeProfile: 'b',
+  });
+  assert.deepEqual(dm.gridOf(cfg, 'a'), { cols: 4, rows: 3 });
+  assert.deepEqual(dm.gridOf(cfg, 'b'), { cols: 4, rows: 3 });
+  assert.equal(cfg.profiles[0].root.pages[0].keys.length, 12);
+});
+
+test('top-level cols/rows mirror the LARGEST profile shape (stale-client safety)', () => {
+  // A pre-per-profile client normalizes every page at the top-level shape; a
+  // mirror smaller than a sibling's grid would make it truncate that sibling's
+  // keys. The mirror must therefore track the max, not the active profile.
+  let cfg = dm.normalizeDeckConfig({ cols: 4, rows: 4 });
+  cfg = dm.addProfile(cfg, 'Small');
+  cfg = dm.reshapeDeckConfig(cfg, 2, 2, { compact: false });   // active 'Small' → 2×2
+  assert.deepEqual(dm.gridOf(cfg, cfg.activeProfile), { cols: 2, rows: 2 });
+  assert.equal(cfg.cols, 4);
+  assert.equal(cfg.rows, 4);
+});
+
+test('a null/zero per-profile shape falls back instead of collapsing to 1', () => {
+  const cfg = dm.normalizeDeckConfig({
+    cols: 3, rows: 2,
+    profiles: [{ id: 'p', name: 'P', cols: null, rows: 0, root: { pages: [{ keys: [
+      { id: 'a', kind: 'action', title: 'A' }, { id: 'b', kind: 'action', title: 'B' },
+      { id: 'c', kind: 'action', title: 'C' }, { id: 'd', kind: 'action', title: 'D' },
+      { id: 'e', kind: 'action', title: 'E' }, { id: 'f', kind: 'action', title: 'F' },
+    ] }] } }],
+    activeProfile: 'p',
+  });
+  assert.deepEqual(dm.gridOf(cfg, 'p'), { cols: 3, rows: 2 });
+  assert.equal(cfg.profiles[0].root.pages[0].keys.filter(Boolean).length, 6);   // nothing truncated
+});
+
+test('a declared shape smaller than the content grows at load instead of dropping keys', () => {
+  // A stale/corrupt profile shape (1×1) with a key at slot 7 must not let
+  // normalizePage truncate the page — the load boundary grows the grid first.
+  const keys = new Array(8).fill(null);
+  keys[0] = { id: 'a', kind: 'action', title: 'A' };
+  keys[7] = { id: 'z', kind: 'action', title: 'Z' };
+  const cfg = dm.normalizeDeckConfig({
+    cols: 3, rows: 2,
+    profiles: [{ id: 'p', name: 'P', cols: 1, rows: 1, root: { pages: [{ keys }] } }],
+    activeProfile: 'p',
+  });
+  const g = dm.gridOf(cfg, 'p');
+  assert.ok(g.cols * g.rows >= 8, `grew to hold slot 7, got ${g.cols}x${g.rows}`);
+  const loaded = cfg.profiles[0].root.pages[0].keys;
+  assert.equal(loaded[0].title, 'A');
+  assert.equal(loaded[7].title, 'Z');
+});
+
+test('gridOf falls back to the active profile for unknown ids', () => {
+  let cfg = dm.normalizeDeckConfig({ cols: 3, rows: 2 });
+  cfg = dm.reshapeDeckConfig(cfg, 5, 2, { compact: false });
+  assert.deepEqual(dm.gridOf(cfg, 'nope'), { cols: 5, rows: 2 });
+  assert.deepEqual(dm.gridOf(cfg, undefined), { cols: 5, rows: 2 });
+});
+
+test('addPageAt sizes the new page to the owning profile\'s grid', () => {
+  let cfg = dm.normalizeDeckConfig({ cols: 4, rows: 4 });
+  const first = cfg.activeProfile;
+  cfg = dm.addProfile(cfg, 'Second');
+  cfg = dm.reshapeDeckConfig(cfg, 2, 2, { compact: false });       // Second → 2×2
+  const out = dm.addPageAt(cfg, { profileId: first, path: [] });   // page on the 4×4 profile
+  const prof = out.profiles.find(p => p.id === first);
+  assert.equal(prof.root.pages.length, 2);
+  assert.equal(prof.root.pages[1].keys.length, 16);
 });
 
 // ── Per-key styling (v3.5: gradients, backdrop image, icon/label styling) ──
