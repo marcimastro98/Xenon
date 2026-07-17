@@ -2304,6 +2304,16 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-btn.primary:hover:not(:disabled) { filter: brightness(1.08); box-shadow: 0 6px 20px rgba(var(--accent-rgb), 0.42); }
 .cgal-unlock { color: var(--warn, #ffb454); border-color: rgba(255, 180, 84, 0.42); background: rgba(255, 180, 84, 0.1); }
 .cgal-unlock:hover { background: rgba(255, 180, 84, 0.18); }
+/* Settled "already installed" state — a non-interactive chip, not a button, so it
+   reads as done and can't re-trigger an import. Wins over .primary/.cgal-unlock
+   colours by coming later at equal specificity. */
+.cgal-btn.cgal-installed {
+  cursor: default; font-weight: 700; box-shadow: none; filter: none;
+  color: var(--success, #45d483);
+  background: rgba(69, 212, 131, 0.14);
+  border-color: rgba(69, 212, 131, 0.4);
+}
+.cgal-btn.cgal-installed:hover { background: rgba(69, 212, 131, 0.14); filter: none; }
 .cgal-limited-buttons { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(138px, 1fr)); gap: 8px; }
 .cgal-limited-buttons .cgal-ic { width: 16px; height: 16px; }
 .cgal-claim { color: #110b27; border-color: transparent; background: #a99cff; box-shadow: 0 5px 18px rgba(139, 123, 255, 0.3); white-space: nowrap; }

@@ -331,6 +331,11 @@
   }
   function themePayload(entry) {
     const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings : {};
+    // Resolved 12h/24h preference (auto/12/24 → boolean) so a widget rendering
+    // its own clock — e.g. the Ambient scene's hero time — agrees with the
+    // dashboard instead of hard-coding 24h. Sent on init AND on refreshTheme, so
+    // toggling the format in Settings updates a live widget without a reload.
+    const clock12 = (typeof clockUses12h === 'function') ? clockUses12h() : false;
     let p = (typeof window.getEffectiveThemePalette === 'function')
       ? window.getEffectiveThemePalette()
       : null;
@@ -387,13 +392,14 @@
         danger: p.danger, onDanger: p.onDanger,
         info: p.info, onInfo: p.onInfo,
       };
-      return { appearance: p.tone, overrides, ...palette, palette };
+      return { appearance: p.tone, overrides, clock12, ...palette, palette };
     }
     return {
       appearance: surfaceAppearance(),
       accent: typeof hs.accent === 'string' ? hs.accent : '#1ed760',
       background: typeof hs.background === 'string' ? hs.background : '#070808',
       text: typeof hs.text === 'string' ? hs.text : '#f0f3f1',
+      clock12,
     };
   }
   function langCode() {

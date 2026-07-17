@@ -158,6 +158,10 @@ than the manifest requested):
   api: 1,
   theme:  {
     appearance: 'dark'|'light',
+    // true when the user runs a 12-hour clock (Settings → Appearance, auto/12/24
+    // already resolved). Use it if your widget renders its own time. Also present
+    // on every `theme` refresh, so a live toggle updates without a reload.
+    clock12: false,
     // Explicit per-tile role overrides, empty for the global palette:
     overrides: ['accent', 'panel'],
     // Flat legacy aliases remain available:

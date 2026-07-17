@@ -3,6 +3,24 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v4.6.2] - 18-07-2026
+### ✨ Improvements
+- **SDK widgets that draw their own clock now follow your 12h/24h choice.** A sandboxed widget that renders time itself — like the POW! Comic screensaver's big hero clock — had no way to know whether you run a 12- or 24-hour clock, so it was stuck on 24-hour. The `theme` bridge payload now carries a resolved `clock12` flag (auto/12/24 already decided), sent on connect and re-sent the instant you change the setting, so a widget's own clock can match the dashboard and show `01:30 PM` without a reload. Documented in the Widget SDK guide.
+
+### 🐞 Fixes
+- **The Store no longer offers to re-import something you already have — it offers to update it.** Every catalog entry you've installed now shows a settled "Installed" state instead of an Import button, so you can't accidentally re-run an import over your own tweaks. When a newer version of an installed item is published, that same button turns into "Update…" (a normal re-import with the full preview and permission re-approval). This covers supporter drops too: an unlocked pack reads as installed, and shows "Update…" only when a newer version ships.
+
+## [v4.6.1] - 17-07-2026
+### ✨ New
+- **You can turn off the idle animation pause.** After a minute without a touch or keypress, the dashboard pauses the aurora, neon grid and the small looping animations to save GPU, and resumes them the instant you interact. That was always on; a new switch in Settings → Aspetto → Superficie, "Pausa animazioni quando inattivo", lets you keep everything moving while the screen sits idle. It stays on by default, since on a Xeneon Edge driven by the integrated GPU the pause saves real power. The pause while the window is hidden is unaffected.
+
+### ✨ Improvements
+- **A supporter pack now tells you how to get in.** On a supporters-only entry, both in the app's Store and on the website catalog, a warm "Diventa supporter" heart button sits right under "Unlock with a code", linking straight to Buy Me a Coffee. Before, a visitor without a code saw only the locked button and no next step. It shows only on supporter entries; free and limited-edition items are unchanged.
+- **"Opacità pannelli" now reaches the cards inside every widget, not just the tiles.** The nested cards, rows and tabs across the dashboard (the System sensor cards, calendar and task rows, media, streaming and smart-home surfaces, and the rest) carried a fixed solid colour, so turning panel opacity down made the tiles see-through but left their contents opaque. They now use that same themed colour tied to the panel's opacity, so a background image shows through the whole dashboard as one piece of glass. At the default opacity everything looks exactly as before; the Pixel Retro and Comic skins, opaque by design, are unchanged. Third-party widgets can join in too: the SDK's `theme` payload now carries `surfaceSoft` and `panelAlpha`, documented in the Widget SDK guide and on the Create site, so a community widget's own cards can follow the setting like the native ones.
+
+### 🐞 Fixes
+- **The "just landed in the Store" drop shows its artwork again.** The new-drop nudge was still loading its preview image from the old screenshot host, which no longer holds them, so it always fell back to a plain dark gradient. It now reads from the same assets host as the Store and the website, so a drop shows its real screenshot.
+
 ## [v4.6.0] - 17-07-2026
 ### ✨ New
 - **A theme can carry both a light and a dark look, and follow your mode.** Xenon paints the half matching the mode you chose in Settings, and on Auto it follows the Windows scheme as it changes, with no re-import. The Light/Dark buttons switch between the two authored looks instead of resetting the theme, each half is contrast-checked on its own, and a colour you pick by hand always wins. Themes with a single look are unaffected. Authors: see the "one theme, light and dark" section in the maker's guide.

@@ -394,11 +394,24 @@
   }
 
   // The import button — normal + supporter (locked) both funnel through the one
-  // import boundary; version gating is a server-computed verdict we just render.
+  // import boundary. It also renders the install state: already installed and up
+  // to date shows a settled "Installed" chip (no re-import — importing something
+  // you already have only risks clobbering your tweaks); an older install turns
+  // the CTA into "Update…", which is a normal re-import (full preview + permission
+  // re-approval, and for a locked drop, re-unlock with the code).
   function importButton(entry, cls, label, iconName) {
+    const state = entryInstallState(entry);
+    if (state === 'current') {
+      const chip = el('span', (cls ? cls + ' ' : '') + 'cgal-installed');
+      chip.appendChild(icon('check'));
+      chip.appendChild(el('span', null, t('gallery_installed', 'Installed')));
+      return chip;
+    }
+    const isUpdate = state === 'update';
     const b = el('button', cls); b.type = 'button';
-    if (iconName) b.appendChild(icon(iconName));
-    b.appendChild(el('span', null, label));
+    const glyph = isUpdate ? 'update' : iconName;
+    if (glyph) b.appendChild(icon(glyph));
+    b.appendChild(el('span', null, isUpdate ? t('gallery_update', 'Update…') : label));
     if (entry.needsNewerApp) b.disabled = true;
     b.addEventListener('click', async () => {
       b.disabled = true;
@@ -807,31 +820,36 @@
   // are excluded: they can't be one-click updated (the code needs an access
   // code). "Update" is always a normal re-import: full preview + permission
   // re-approval by construction, never a silent swap.
-  async function findUpdates(entries) {
-    // Fail-CLOSED parse (mirrors server/semver.js, which is server-only):
-    // installed manifest versions are loosely validated ('v1.2.3',
-    // '2.0.0-beta' survive install), and coercing junk to 0.0.0 would show a
-    // false "update available" badge inviting a downgrade-reinstall. A
-    // malformed side must never produce an update hint.
-    const parse = (v) => (/^[0-9]+(\.[0-9]+)*$/.test(String(v)) ? String(v).split('.').map(Number) : null);
-    const less = (a, b) => {
-      const pa = parse(a), pb = parse(b);
-      if (!pa || !pb) return false;
-      for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-        if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) < (pb[i] || 0);
-      }
-      return false;
-    };
-    let installed = new Map();
+  // Fail-CLOSED semver parse (mirrors server/semver.js, which is server-only):
+  // installed manifest versions are loosely validated ('v1.2.3', '2.0.0-beta'
+  // survive install), and coercing junk to 0.0.0 would show a false "update
+  // available" badge inviting a downgrade-reinstall. A malformed side must never
+  // produce an update hint — nor mark an entry "installed" against a junk version.
+  const verParse = (v) => (/^[0-9]+(\.[0-9]+)*$/.test(String(v)) ? String(v).split('.').map(Number) : null);
+  const verLess = (a, b) => {
+    const pa = verParse(a), pb = verParse(b);
+    if (!pa || !pb) return false;
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+      if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) < (pb[i] || 0);
+    }
+    return false;
+  };
+
+  // What this machine has installed, joined two ways (same joins findUpdates
+  // uses): SDK packages by pkgId, everything else by contentInstalls receipt id.
+  // Cached per render() so card/detail buttons can read install state
+  // synchronously; refreshed whenever the update join runs.
+  let installIndex = null;   // { pkg: Map<pkgId,ver>, receipts: Map<entryId,ver> } | null
+  async function refreshInstallIndex() {
+    let pkg = new Map();
     try {
       const inst = await api('/sdk/widgets');
-      installed = new Map(((inst && inst.packages) || []).map((p) => [p.id, String(p.version || '0.0.0')]));
+      pkg = new Map(((inst && inst.packages) || []).map((p) => [p.id, String(p.version || '0.0.0')]));
     } catch { /* SDK off / offline → pkg join contributes nothing */ }
-    // Newest receipt per catalog entry id. Receipts are appended
-    // chronologically, so a plain forward walk leaves the latest version in
-    // the map — an update re-import "wins" and clears the badge. hubSettings
-    // is a shared-script-scope global from settings.js (bare name, guarded —
-    // same access pattern preset-share.js uses).
+    // Newest receipt per catalog entry id. Receipts are appended chronologically,
+    // so a forward walk leaves the latest version in the map — an update re-import
+    // "wins" and clears the badge. hubSettings is a shared-script-scope global
+    // from settings.js (bare name, guarded — same access pattern preset-share uses).
     const receipts = new Map();
     try {
       const list = (typeof hubSettings !== 'undefined' && hubSettings && Array.isArray(hubSettings.contentInstalls))
@@ -842,11 +860,33 @@
         }
       }
     } catch { /* settings unavailable → receipts join contributes nothing */ }
-    if (!installed.size && !receipts.size) return [];
+    installIndex = { pkg, receipts };
+    return installIndex;
+  }
+
+  // Install state of a single entry, read from the cached index (null → 'none',
+  // the safe default that preserves the plain Import button). Unlike findUpdates,
+  // this INCLUDES locked entries: a supporter drop you already unlocked should
+  // read as installed too, and offer Update (re-unlock) only when a newer version
+  // ships. 'none' = not installed · 'current' = installed & up to date ·
+  // 'update' = installed at an older version than the catalog now lists.
+  function entryInstallState(entry) {
+    if (!entry || !installIndex) return 'none';
+    let have = null;
+    if (entry.pkgId && installIndex.pkg.has(entry.pkgId)) have = installIndex.pkg.get(entry.pkgId);
+    else if (installIndex.receipts.has(entry.id)) have = installIndex.receipts.get(entry.id);
+    if (have == null) return 'none';
+    if (entry.version && verLess(have, entry.version)) return 'update';
+    return 'current';
+  }
+
+  async function findUpdates(entries) {
+    const idx = await refreshInstallIndex();
+    if (!idx.pkg.size && !idx.receipts.size) return [];
     return entries.filter((e) => {
       if (!e || !e.version || e.locked) return false;
-      if (e.pkgId) return installed.has(e.pkgId) && less(installed.get(e.pkgId), e.version);
-      return receipts.has(e.id) && less(receipts.get(e.id), e.version);
+      if (e.pkgId) return idx.pkg.has(e.pkgId) && verLess(idx.pkg.get(e.pkgId), e.version);
+      return idx.receipts.has(e.id) && verLess(idx.receipts.get(e.id), e.version);
     });
   }
 

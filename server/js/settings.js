@@ -6621,6 +6621,9 @@ function updateClockFormat(fmt) {
   syncClockFormatControls();
   if (typeof tickClock === 'function') tickClock();
   if (typeof renderLockClock === 'function') renderLockClock();
+  // SDK widgets that render their own clock (e.g. the POW! Ambient scene) read
+  // the resolved 12h/24h flag from the theme bridge — re-push it so they follow.
+  if (window.CustomWidget && typeof window.CustomWidget.refreshTheme === 'function') window.CustomWidget.refreshTheme();
   setSettingsStatus('settings_saved', 'ok');
 }
 
