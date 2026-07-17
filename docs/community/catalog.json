@@ -67,6 +67,7 @@
       "id": "teleprompter",
       "kind": "widget",
       "name": "Teleprompter",
+      "author": "xenon",
       "description": "Write a script, then read it like a pro: large auto-scrolling prompter text with the current sentence lit, a 3-2-1 countdown, drag-to-scrub, 0.5×–3× speed and a live time-remaining estimate. Keep a library of named scripts, drop [2s] anywhere to pause, and mirror it for prompter glass.",
       "category": "tools",
       "tags": [
@@ -84,13 +85,9 @@
         "bg": "#06080a",
         "text": "#f0f3f1"
       },
-      "publisher": {
-        "handle": "marcimastro98",
-        "url": "https://github.com/marcimastro98"
-      },
       "shots": 2,
-      "active": false,
-      "addedAt": "2026-07-16",
+      "active": true,
+      "addedAt": "2026-07-17",
       "codeFile": true
     },
     {
