@@ -1,0 +1,6 @@
+# Collector fixtures are byte-for-byte captures of Linux tool output. A Windows
+# checkout with core.autocrlf=true would rewrite them to CRLF, and `\r` is a line
+# terminator in JS regex, so `.` does not match it: a CRLF row fails a pattern
+# anchored with `$` outright rather than leaving a stray character. The parsers
+# tolerate both endings, but the fixtures should still stay exactly as captured.
+server/test/fixtures/** -text

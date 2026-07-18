@@ -38,6 +38,29 @@ function run(cmd, args, timeoutMs) {
 
 const isNum = (s) => /^-?\d+(\.\d+)?$/.test(String(s).trim());
 
+// Split on LF or CRLF. Worth being explicit about why: `\r` counts as a line
+// terminator in JS regex, so `.` does not match it, and a pattern anchored with
+// `$` fails on a CRLF line entirely instead of merely capturing a trailing
+// character. These parsers read tool output on Linux, but the fixtures behind
+// them are files that a Windows checkout can convert, so the parsers accept both.
+const splitLines = (text) => String(text || '').split(/\r?\n/);
+
+// Run an async mapper over items with at most `limit` in flight. Promise.all on
+// a whole window list forks that many processes at once; a desktop with many
+// windows would spike to one xprop per window in a single tick.
+async function mapLimit(items, limit, fn) {
+  const out = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i], i);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
 // --- GPU: nvidia-smi, matching gpu.ps1's field order and byte units ----------
 // gpu.ps1 queried: utilization.gpu,temperature.gpu,memory.used,memory.total,name
 // and converted MiB -> bytes (value * 1048576). We reproduce that exactly.
@@ -45,7 +68,7 @@ const isNum = (s) => /^-?\d+(\.\d+)?$/.test(String(s).trim());
 // sysfs rather than a query tool, so those cards still report nulls here.
 const EMPTY_GPU = { gpu: null, gpuTemp: null, gpuName: null, vramUsed: null, vramTotal: null };
 function parseGpu(out) {
-  const first = String(out || '').trim().split('\n')[0] || '';
+  const first = splitLines(String(out || '').trim())[0] || '';
   const p = first.split(',').map((s) => s.trim());
   if (p.length < 5) return { ...EMPTY_GPU };
   return {
@@ -82,7 +105,7 @@ function skipMount(target) {
 }
 // Split out so the parsing is unit-testable against a captured `df` fixture.
 function parseDisks(out) {
-  const lines = String(out || '').trim().split('\n').slice(1); // drop header
+  const lines = splitLines(String(out || '').trim()).slice(1); // drop header
   const seen = new Set();
   const drives = [];
   for (const line of lines) {
@@ -95,8 +118,16 @@ function parseDisks(out) {
     if (PSEUDO_FS.has(fstype) || fstype.startsWith('fuse.')) continue;
     if (skipMount(target)) continue;
     if (!(total > 0)) continue;
-    if (seen.has(source)) continue; // dedupe bind mounts / btrfs subvolumes
-    seen.add(source);
+    // Key on the pair, not the device. A btrfs (or LVM-thin, or ZFS) layout
+    // mounts several subvolumes from ONE source, so deduping on source alone
+    // silently drops every mount after the first: on the common
+    // /-plus-/home-on-one-device setup, /home disappeared entirely. The pair
+    // still collapses a genuinely repeated row. Note that sibling subvolumes
+    // share one pool, so their capacities are the same filesystem counted once
+    // per mount, not independent space.
+    const key = source + '\0' + target;
+    if (seen.has(key)) continue;
+    seen.add(key);
     const removable = target.startsWith('/media') || target.startsWith('/mnt') ||
                       target.includes('/run/media');
     drives.push({
@@ -156,7 +187,7 @@ const VIRTUAL_IFACE = /^(lo|veth|docker|br-|virbr|tun|tap|wg|vmnet|vboxnet|zt|pp
 function parseNetDev(text) {
   let rx = 0;
   let tx = 0;
-  const lines = String(text || '').split('\n').slice(2);
+  const lines = splitLines(text).slice(2);
   for (const line of lines) {
     const idx = line.indexOf(':');
     if (idx < 0) continue;
@@ -208,6 +239,8 @@ async function network() {
 // KNOWN LIMIT: X11 only. Wayland has no equivalent unprivileged window-listing
 // protocol, so this returns an empty list under a Wayland session.
 const MAX_WINDOWS = 24;
+// At most this many xprop processes in flight at once.
+const XPROP_CONCURRENCY = 8;
 
 // Ensure X access even when the server was launched without a session env.
 function xEnv() {
@@ -242,7 +275,7 @@ async function appFromExe(pid) {
 // the first four fields are unambiguous and the remainder is the title.
 function parseWmctrl(raw) {
   const rows = [];
-  for (const line of String(raw || '').split('\n')) {
+  for (const line of splitLines(raw)) {
     const m = line.match(/^(0x[0-9a-fA-F]+)\s+(-?\d+)\s+(\d+)\s+(\S+)(?:\s+(.*))?$/);
     if (!m) continue;
     const title = (m[5] || '').trim();
@@ -288,7 +321,7 @@ async function listWindows() {
     a.title.localeCompare(b.title));
   const capped = withExe.slice(0, MAX_WINDOWS);
 
-  const props = await Promise.all(capped.map((r) => windowProps(r.hexId)));
+  const props = await mapLimit(capped, XPROP_CONCURRENCY, (r) => windowProps(r.hexId));
   const windows = [];
   capped.forEach((r, i) => {
     const p = props[i];
@@ -478,8 +511,19 @@ function buildAudioRows(n) {
   return rows;
 }
 
+// Rows are rebuilt at most this often: several dashboard surfaces can ask for
+// audio on the same tick, and each rebuild forks pw-dump.
+const AUDIO_ROWS_TTL_MS = 900;
+let audioRowsCache = { rows: null, at: 0 };
+
 async function audioRows() {
-  return buildAudioRows(await pwNodes());
+  const now = Date.now();
+  if (audioRowsCache.rows && (now - audioRowsCache.at) < AUDIO_ROWS_TTL_MS) {
+    return audioRowsCache.rows;
+  }
+  const rows = buildAudioRows(await pwNodes());
+  audioRowsCache = { rows, at: Date.now() };
+  return rows;
 }
 
 // Resolve a SoundVolumeView write target to one or more PipeWire node ids.
@@ -512,6 +556,9 @@ async function audioCommand(args) {
   const n = await pwNodes();
   const ids = resolveTargets(n, list[1]);
   if (!ids.length) throw new Error(`no audio node matches "${list[1]}"`);
+  // Drop the cached rows: a volume or mute change must be visible on the very
+  // next read, not up to a TTL later.
+  audioRowsCache = { rows: null, at: 0 };
   for (const id of ids) {
     if (action === '/SetVolume') {
       const pct = Math.max(0, Math.min(100, parseInt(list[2], 10) || 0));

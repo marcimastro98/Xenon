@@ -39,6 +39,28 @@ test('parseDisks: bytes and percent match the Windows drive shape', () => {
   assert.equal(root.driveType, 'Fixed');
 });
 
+test('parseDisks: keeps every subvolume of a shared device', () => {
+  // btrfs (and LVM-thin, and ZFS) mount several subvolumes from ONE source.
+  // Deduping on the device alone dropped every mount after the first, so /home
+  // vanished on the common /-plus-/home-on-one-disk layout.
+  const df = [
+    'Filesystem Mounted-on Type 1B-blocks Used Avail',
+    '/dev/nvme0n1p2 / btrfs 500107862016 120000000000 380107862016',
+    '/dev/nvme0n1p2 /home btrfs 500107862016 120000000000 380107862016',
+    '/dev/nvme0n1p1 /boot/efi vfat 1124999168 39997440 1085001728',
+  ].join('\n');
+  assert.deepEqual(lc.parseDisks(df).map((d) => d.drive), ['/', '/home', '/boot/efi']);
+});
+
+test('parseDisks: still collapses a genuinely repeated row', () => {
+  const df = [
+    'Filesystem Mounted-on Type 1B-blocks Used Avail',
+    '/dev/sda1 / ext4 100 40 60',
+    '/dev/sda1 / ext4 100 40 60',
+  ].join('\n');
+  assert.equal(lc.parseDisks(df).length, 1);
+});
+
 test('parseDisks: tolerates empty or header-only input', () => {
   assert.deepEqual(lc.parseDisks(''), []);
   assert.deepEqual(lc.parseDisks('Filesystem Mounted on Type 1B-blocks Used Avail'), []);
@@ -91,6 +113,26 @@ test('parseWmctrl: titles with spaces and RTL text survive intact', () => {
   const rtl = rows.find((r) => r.hexId === '0x0400001c');
   assert.ok(rtl.title.includes('Mountain View North Coast'));
   assert.ok(rtl.title.endsWith('Facebook - Google Chrome‬‎'));
+});
+
+// A Windows checkout with core.autocrlf=true rewrites the fixtures, and `\r` is
+// a line terminator in JS regex, so `.` will not match it: a CRLF row fails a
+// `$`-anchored pattern outright and the parser returns nothing at all. These two
+// pin the tolerance so the suite passes on Windows as well as Linux.
+const toCRLF = (s) => s.replace(/\r?\n/g, '\r\n');
+
+test('parseWmctrl: CRLF input parses identically to LF', () => {
+  const lf = lc.parseWmctrl(fixture('linux-wmctrl.txt'));
+  const crlf = lc.parseWmctrl(toCRLF(fixture('linux-wmctrl.txt')));
+  assert.equal(crlf.length, lf.length);
+  assert.ok(crlf.length > 0, 'CRLF input must not parse to zero rows');
+  assert.deepEqual(crlf, lf);
+});
+
+test('parseDisks, parseNetDev and parseGpu also tolerate CRLF', () => {
+  assert.deepEqual(lc.parseDisks(toCRLF(fixture('linux-df.txt'))), lc.parseDisks(fixture('linux-df.txt')));
+  assert.deepEqual(lc.parseNetDev(toCRLF(fixture('linux-proc-net-dev.txt'))), lc.parseNetDev(fixture('linux-proc-net-dev.txt')));
+  assert.deepEqual(lc.parseGpu('11, 45, 1653, 32607, NVIDIA GeForce RTX 5090\r\n'), lc.parseGpu('11, 45, 1653, 32607, NVIDIA GeForce RTX 5090\n'));
 });
 
 test('parseWmctrl: skips untitled and malformed rows', () => {
