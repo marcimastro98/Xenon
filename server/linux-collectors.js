@@ -14,6 +14,9 @@
 // untouched. server.js only calls in when process.platform === 'linux'; the
 // Windows code paths are unchanged.
 //
+// Everything here is async: these run on the SSE sensor path, so there is no
+// synchronous filesystem access anywhere in this file.
+//
 // Requirements on Linux (each degrades to the previous "--" behaviour if the
 // tool is absent): nvidia-smi for GPU, wmctrl + xdotool + x11-utils for the app
 // switcher (X11 sessions), pipewire + wireplumber (pw-dump, wpctl) for audio.
@@ -21,10 +24,9 @@
 'use strict';
 
 const { execFile } = require('child_process');
-const fs = require('fs');
+const fsp = require('fs').promises;
 
-// Promise wrapper around execFile with a hard timeout; resolves stdout (never
-// rejects for our callers - collectors degrade to null on any failure).
+// Promise wrapper around execFile with a hard timeout; resolves stdout.
 function run(cmd, args, timeoutMs) {
   return new Promise((resolve, reject) => {
     execFile(cmd, args, { timeout: timeoutMs, windowsHide: true }, (err, stdout) => {
@@ -39,29 +41,34 @@ const isNum = (s) => /^-?\d+(\.\d+)?$/.test(String(s).trim());
 // --- GPU: nvidia-smi, matching gpu.ps1's field order and byte units ----------
 // gpu.ps1 queried: utilization.gpu,temperature.gpu,memory.used,memory.total,name
 // and converted MiB -> bytes (value * 1048576). We reproduce that exactly.
+// KNOWN LIMIT: NVIDIA only. AMD (amdgpu) and Intel expose their counters through
+// sysfs rather than a query tool, so those cards still report nulls here.
+const EMPTY_GPU = { gpu: null, gpuTemp: null, gpuName: null, vramUsed: null, vramTotal: null };
+function parseGpu(out) {
+  const first = String(out || '').trim().split('\n')[0] || '';
+  const p = first.split(',').map((s) => s.trim());
+  if (p.length < 5) return { ...EMPTY_GPU };
+  return {
+    gpu: isNum(p[0]) ? Math.round(Number(p[0])) : null,
+    gpuTemp: isNum(p[1]) ? Math.round(Number(p[1])) : null,
+    vramUsed: isNum(p[2]) ? Math.round(Number(p[2])) * 1048576 : null,
+    vramTotal: isNum(p[3]) ? Math.round(Number(p[3])) * 1048576 : null,
+    gpuName: p.slice(4).join(', ').trim() || null,
+  };
+}
 async function gpu() {
   try {
-    const out = await run('nvidia-smi',
+    return parseGpu(await run('nvidia-smi',
       ['--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total,name',
-       '--format=csv,noheader,nounits'], 5000);
-    const first = out.trim().split('\n')[0] || '';
-    const p = first.split(',').map((s) => s.trim());
-    if (p.length < 5) return { gpu: null, gpuTemp: null, gpuName: null, vramUsed: null, vramTotal: null };
-    return {
-      gpu: isNum(p[0]) ? Math.round(Number(p[0])) : null,
-      gpuTemp: isNum(p[1]) ? Math.round(Number(p[1])) : null,
-      vramUsed: isNum(p[2]) ? Math.round(Number(p[2])) * 1048576 : null,
-      vramTotal: isNum(p[3]) ? Math.round(Number(p[3])) * 1048576 : null,
-      gpuName: p.slice(4).join(', ').trim() || null,
-    };
+       '--format=csv,noheader,nounits'], 5000));
   } catch {
-    return { gpu: null, gpuTemp: null, gpuName: null, vramUsed: null, vramTotal: null };
+    return { ...EMPTY_GPU };
   }
 }
 
 // --- Disks: df, matching getAllDisksInfo()'s drive object shape --------------
 // Real filesystems only: skip pseudo/virtual mounts (tmpfs, overlay, snap loops,
-// docker, /boot/efi noise is kept as it is a genuine volume). Bytes throughout.
+// docker). /boot/efi is kept as it is a genuine volume. Bytes throughout.
 const PSEUDO_FS = new Set([
   'tmpfs', 'devtmpfs', 'sysfs', 'proc', 'cgroup', 'cgroup2', 'overlay', 'squashfs',
   'efivarfs', 'devpts', 'mqueue', 'hugetlbfs', 'debugfs', 'tracefs', 'fusectl',
@@ -73,40 +80,42 @@ function skipMount(target) {
          target.startsWith('/proc') || target.startsWith('/sys') ||
          target.startsWith('/dev') || target.startsWith('/run');
 }
+// Split out so the parsing is unit-testable against a captured `df` fixture.
+function parseDisks(out) {
+  const lines = String(out || '').trim().split('\n').slice(1); // drop header
+  const seen = new Set();
+  const drives = [];
+  for (const line of lines) {
+    const c = line.trim().split(/\s+/);
+    if (c.length < 6) continue;
+    const [source, target, fstype] = c;
+    const total = Number(c[3]);
+    const used = Number(c[4]);
+    const free = Number(c[5]);
+    if (PSEUDO_FS.has(fstype) || fstype.startsWith('fuse.')) continue;
+    if (skipMount(target)) continue;
+    if (!(total > 0)) continue;
+    if (seen.has(source)) continue; // dedupe bind mounts / btrfs subvolumes
+    seen.add(source);
+    const removable = target.startsWith('/media') || target.startsWith('/mnt') ||
+                      target.includes('/run/media');
+    drives.push({
+      drive: target,
+      total,
+      used,
+      free,
+      percent: Math.round((used / total) * 100),
+      label: target === '/' ? 'System' : target.split('/').filter(Boolean).pop() || '',
+      fileSystem: fstype,
+      driveType: removable ? 'Removable' : 'Fixed',
+    });
+  }
+  return drives;
+}
 async function disks() {
   try {
-    const out = await run('df',
-      ['-B1', '--output=source,target,fstype,size,used,avail'], 5000);
-    const lines = out.trim().split('\n').slice(1); // drop header
-    const seen = new Set();
-    const drives = [];
-    for (const line of lines) {
-      const c = line.trim().split(/\s+/);
-      if (c.length < 6) continue;
-      const source = c[0];
-      const target = c[1];
-      const fstype = c[2];
-      const total = Number(c[3]);
-      const used = Number(c[4]);
-      const free = Number(c[5]);
-      if (PSEUDO_FS.has(fstype) || fstype.startsWith('fuse.')) continue;
-      if (skipMount(target)) continue;
-      if (!(total > 0)) continue;
-      if (seen.has(source)) continue; // dedupe bind mounts / btrfs subvolumes
-      seen.add(source);
-      const removable = target.startsWith('/media') || target.startsWith('/mnt') ||
-                        target.includes('/run/media');
-      drives.push({
-        drive: target,
-        total,
-        used,
-        free,
-        percent: Math.round((used / total) * 100),
-        label: target === '/' ? 'System' : target.split('/').filter(Boolean).pop() || '',
-        fileSystem: fstype,
-        driveType: removable ? 'Removable' : 'Fixed',
-      });
-    }
+    const out = await run('df', ['-B1', '--output=source,target,fstype,size,used,avail'], 5000);
+    const drives = parseDisks(out);
     return drives.length ? drives : null;
   } catch {
     return null;
@@ -115,90 +124,97 @@ async function disks() {
 
 // --- CPU temperature: k10temp/coretemp under /sys/class/hwmon ----------------
 // Returns { cpuTemp: number|null } to match the CPU_TEMP_SCRIPT collector.
-function cpuTemp() {
+const readText = async (p) => (await fsp.readFile(p, 'utf8')).trim();
+async function cpuTemp() {
   try {
     const base = '/sys/class/hwmon';
-    for (const d of fs.readdirSync(base)) {
+    for (const d of await fsp.readdir(base)) {
       const dir = `${base}/${d}`;
       let name = '';
-      try { name = fs.readFileSync(`${dir}/name`, 'utf8').trim(); } catch { continue; }
+      try { name = await readText(`${dir}/name`); } catch { continue; }
       if (name !== 'k10temp' && name !== 'coretemp') continue;
       for (let i = 1; i <= 8; i++) {
-        const input = `${dir}/temp${i}_input`;
-        if (!fs.existsSync(input)) continue;
+        let raw;
+        try { raw = await readText(`${dir}/temp${i}_input`); } catch { continue; }
         let label = '';
-        try { label = fs.readFileSync(`${dir}/temp${i}_label`, 'utf8').trim(); } catch { }
+        try { label = await readText(`${dir}/temp${i}_label`); } catch { /* unlabelled */ }
         if (/Tctl|Tdie|Tccd|Package|Core 0/i.test(label) || i === 1) {
-          const milli = Number(fs.readFileSync(input, 'utf8').trim());
+          const milli = Number(raw);
           if (Number.isFinite(milli)) return { cpuTemp: Math.round((milli / 1000) * 10) / 10 };
         }
       }
     }
-  } catch { }
+  } catch { /* no hwmon, or unreadable */ }
   return { cpuTemp: null };
 }
 
 // --- Network: ping (1.1.1.1) + /proc/net/dev, matching network.ps1 shape -----
 // Returns { ping, latency, rxBytes, txBytes, fps, gpuLatency }. server.js turns
 // the rx/tx byte counters into down/up bandwidth via its own inter-poll delta.
-function readNetBytes() {
+// Physical NICs only: skip loopback, containers, bridges, tunnels, VPNs.
+const VIRTUAL_IFACE = /^(lo|veth|docker|br-|virbr|tun|tap|wg|vmnet|vboxnet|zt|ppp|bond|dummy)/;
+function parseNetDev(text) {
   let rx = 0;
   let tx = 0;
-  try {
-    const lines = fs.readFileSync('/proc/net/dev', 'utf8').split('\n').slice(2);
-    for (const line of lines) {
-      const idx = line.indexOf(':');
-      if (idx < 0) continue;
-      const iface = line.slice(0, idx).trim();
-      // Physical NICs only: skip loopback, containers, bridges, tunnels, VPNs.
-      if (/^(lo|veth|docker|br-|virbr|tun|tap|wg|vmnet|vboxnet|zt|ppp|bond|dummy)/.test(iface)) continue;
-      const f = line.slice(idx + 1).trim().split(/\s+/);
-      if (f.length < 9) continue;
-      rx += Number(f[0]) || 0;  // Receive bytes
-      tx += Number(f[8]) || 0;  // Transmit bytes
-    }
-  } catch { }
+  const lines = String(text || '').split('\n').slice(2);
+  for (const line of lines) {
+    const idx = line.indexOf(':');
+    if (idx < 0) continue;
+    const iface = line.slice(0, idx).trim();
+    if (VIRTUAL_IFACE.test(iface)) continue;
+    const f = line.slice(idx + 1).trim().split(/\s+/);
+    if (f.length < 9) continue;
+    rx += Number(f[0]) || 0;  // Receive bytes
+    tx += Number(f[8]) || 0;  // Transmit bytes
+  }
   return { rx, tx };
+}
+async function readNetBytes() {
+  try {
+    return parseNetDev(await fsp.readFile('/proc/net/dev', 'utf8'));
+  } catch {
+    return { rx: 0, tx: 0 };
+  }
+}
+// ping's summary line gives min/avg/max/mdev; ping=avg, latency=jitter (max-min),
+// the same two numbers network.ps1 derives from its three echoes.
+function parsePing(out) {
+  const m = String(out || '').match(/=\s*([\d.]+)\/([\d.]+)\/([\d.]+)\/([\d.]+)\s*ms/);
+  if (!m) return { ping: null, latency: null };
+  return { ping: Math.round(Number(m[2])), latency: Math.round(Number(m[3]) - Number(m[1])) };
 }
 async function pingStats() {
   try {
-    // 3 echoes to 1.1.1.1, mirroring network.ps1. ping's own summary line gives
-    // min/avg/max/mdev; ping=avg, latency=jitter (max-min), same as the PS script.
-    const out = await run('ping', ['-c', '3', '-W', '1', '-n', '1.1.1.1'], 5000);
-    const m = out.match(/=\s*([\d.]+)\/([\d.]+)\/([\d.]+)\/([\d.]+)\s*ms/);
-    if (m) {
-      const min = Number(m[1]);
-      const avg = Number(m[2]);
-      const max = Number(m[3]);
-      return { ping: Math.round(avg), latency: Math.round(max - min) };
-    }
-  } catch { }
-  return { ping: null, latency: null };
+    return parsePing(await run('ping', ['-c', '3', '-W', '1', '-n', '1.1.1.1'], 5000));
+  } catch {
+    return { ping: null, latency: null };
+  }
 }
 async function network() {
-  const [{ ping, latency }, { rx, tx }] = await Promise.all([
-    pingStats(), Promise.resolve(readNetBytes()),
-  ]);
+  const [{ ping, latency }, { rx, tx }] = await Promise.all([pingStats(), readNetBytes()]);
   return { ping, latency, rxBytes: rx, txBytes: tx, fps: null, gpuLatency: null };
 }
 
 // --- Open windows / app switcher: wmctrl + xdotool (X11) --------------------
 // Xenon's /windows endpoint (list/focus/close) drives its "Open applications"
-// widget through a Windows helper (windows.ps1, Win32 EnumWindows), so on Linux
-// it errored ("No open windows found"). We reproduce the same JSON contract the
-// PowerShell path emits:
+// widget through a Windows helper (windows.ps1, Win32 EnumWindows). We reproduce
+// the same JSON contract the PowerShell path emits:
 //   list  -> { windows: [ { id, title, app, path, active, minimized, icon } ] }
 //   focus -> { ok }
-//   close -> { ok, app, path }  (or { ok:false, error:'protected'|'not_found', app })
+//   close -> { ok, app, path }  (or { ok:false, error:'protected'|'not_found' })
 // ids are DECIMAL strings (server.js validates /^\d{1,24}$/), matching the HWND
 // contract; here they are the X11 window id in decimal.
+//
+// KNOWN LIMIT: X11 only. Wayland has no equivalent unprivileged window-listing
+// protocol, so this returns an empty list under a Wayland session.
+const MAX_WINDOWS = 24;
 
 // Ensure X access even when the server was launched without a session env.
 function xEnv() {
   const env = { ...process.env };
   if (!env.DISPLAY) env.DISPLAY = ':0';
   if (!env.XAUTHORITY) {
-    try { env.XAUTHORITY = `/run/user/${process.getuid()}/gdm/Xauthority`; } catch { }
+    try { env.XAUTHORITY = `/run/user/${process.getuid()}/gdm/Xauthority`; } catch { /* no getuid */ }
   }
   return env;
 }
@@ -210,30 +226,45 @@ function runX(cmd, args, timeoutMs) {
   });
 }
 
-// WM_CLASS classes we never surface/close: the desktop shell and our own kiosk.
+// WM_CLASS classes we never surface/close: the desktop shell itself.
 const PROTECTED_CLASSES = new Set(['gnome-shell', 'Gnome-shell', 'xfdesktop', 'plasmashell']);
 
-function appFromExe(pid) {
+async function appFromExe(pid) {
   try {
-    const exe = fs.readlinkSync(`/proc/${pid}/exe`);
+    const exe = await fsp.readlink(`/proc/${pid}/exe`);
     return { path: exe, name: exe.split('/').filter(Boolean).pop() || '' };
   } catch {
     return { path: '', name: '' };
   }
 }
 
-// One xprop read per window: WM_CLASS (nicer app label) + _NET_WM_STATE (hidden).
-async function windowProps(hexId) {
-  const out = await runX('xprop', ['-id', hexId, 'WM_CLASS', '_NET_WM_STATE'], 3000);
+// wmctrl -lp: "<id> <desktop> <pid> <host> <title...>". host is one token, so
+// the first four fields are unambiguous and the remainder is the title.
+function parseWmctrl(raw) {
+  const rows = [];
+  for (const line of String(raw || '').split('\n')) {
+    const m = line.match(/^(0x[0-9a-fA-F]+)\s+(-?\d+)\s+(\d+)\s+(\S+)(?:\s+(.*))?$/);
+    if (!m) continue;
+    const title = (m[5] || '').trim();
+    if (!title) continue; // untitled utility/override-redirect windows
+    rows.push({ hexId: m[1], pid: m[3], title, dec: parseInt(m[1], 16) });
+  }
+  return rows;
+}
+
+// WM_CLASS(STRING) = "instance", "Class" -> take the Class (2nd) string.
+function parseWindowProps(out) {
   const minimized = !!(out && out.includes('_NET_WM_STATE_HIDDEN'));
   let cls = '';
   if (out) {
-    // WM_CLASS(STRING) = "instance", "Class"  -> take the Class (2nd) string.
     const m = out.match(/WM_CLASS\(STRING\)\s*=\s*"(?:[^"]*)",\s*"([^"]*)"/) ||
               out.match(/WM_CLASS\(STRING\)\s*=\s*"([^"]*)"/);
     if (m) cls = m[1];
   }
   return { minimized, cls };
+}
+async function windowProps(hexId) {
+  return parseWindowProps(await runX('xprop', ['-id', hexId, 'WM_CLASS', '_NET_WM_STATE'], 3000));
 }
 
 async function listWindows() {
@@ -244,42 +275,42 @@ async function listWindows() {
   if (!raw) return { windows: [] };
   const activeDec = activeRaw ? Number(String(activeRaw).trim()) : -1;
 
-  // wmctrl -lp: "<id> <desktop> <pid> <host> <title...>". host is one token, so
-  // the first four fields are unambiguous and the remainder is the title.
-  const rows = [];
-  for (const line of raw.split('\n')) {
-    const m = line.match(/^(0x[0-9a-fA-F]+)\s+(-?\d+)\s+(\d+)\s+(\S+)(?:\s+(.*))?$/);
-    if (!m) continue;
-    const hexId = m[1];
-    const pid = m[3];
-    const title = (m[5] || '').trim();
-    if (!title) continue; // untitled utility/override-redirect windows
-    rows.push({ hexId, pid, title, dec: parseInt(hexId, 16) });
-  }
+  const rows = parseWmctrl(raw);
+  // Resolve the executable first: /proc readlink is cheap and needs no process.
+  // Sorting and capping on that name means we spawn xprop for at most
+  // MAX_WINDOWS windows instead of one per window on the whole desktop.
+  const withExe = await Promise.all(rows.map(async (r) => ({
+    ...r, exe: await appFromExe(r.pid), active: r.dec === activeDec,
+  })));
+  withExe.sort((a, b) =>
+    (b.active - a.active) ||
+    a.exe.name.localeCompare(b.exe.name) ||
+    a.title.localeCompare(b.title));
+  const capped = withExe.slice(0, MAX_WINDOWS);
 
-  const props = await Promise.all(rows.map((r) => windowProps(r.hexId)));
+  const props = await Promise.all(capped.map((r) => windowProps(r.hexId)));
   const windows = [];
-  rows.forEach((r, i) => {
+  capped.forEach((r, i) => {
     const p = props[i];
     if (PROTECTED_CLASSES.has(p.cls)) return; // hide the desktop shell
-    const exe = appFromExe(r.pid);
     windows.push({
       id: String(r.dec),
       title: r.title,
-      app: p.cls || exe.name || 'App',
-      path: exe.path,
-      active: r.dec === activeDec,
+      app: p.cls || r.exe.name || 'App',
+      path: r.exe.path,
+      active: r.active,
       minimized: p.minimized,
       icon: null, // no icon extraction on Linux; the UI falls back to an initial
     });
   });
 
-  // Match the PowerShell ordering: active first, then app name, then title; cap 24.
+  // Re-sort on the final labels (WM_CLASS is nicer than the binary name), which
+  // is the ordering the PowerShell path emits: active first, then app, then title.
   windows.sort((a, b) =>
     (b.active - a.active) ||
     a.app.localeCompare(b.app) ||
     a.title.localeCompare(b.title));
-  return { windows: windows.slice(0, 24) };
+  return { windows };
 }
 
 async function focusWindow(decId) {
@@ -290,7 +321,7 @@ async function focusWindow(decId) {
 async function closeWindow(decId) {
   const hex = '0x' + Number(decId).toString(16);
   const pid = (await runX('xdotool', ['getwindowpid', String(decId)], 3000) || '').trim();
-  const exe = pid ? appFromExe(pid) : { path: '', name: '' };
+  const exe = pid ? await appFromExe(pid) : { path: '', name: '' };
   const props = await windowProps(hex);
   if (PROTECTED_CLASSES.has(props.cls)) {
     return { ok: false, error: 'protected', app: props.cls };
@@ -307,46 +338,42 @@ async function windows(action, id) {
   return listWindows();
 }
 
-// --- Audio: PipeWire (pw-dump for reads, wpctl for reads+writes) ------------
+// --- Audio: PipeWire (pw-dump for reads, wpctl for writes) ------------------
 // Xenon's audio mixer drives everything through SoundVolumeView.exe (a Windows
-// NirSoft tool) - on Linux those spawns fail (EACCES/ENOENT), so the Volume
-// section shows "audio unavailable". We reproduce two things:
-//   - readSoundVolumeRows() -> rows in SoundVolumeView's /scomma column layout
-//     (the F.* indices), so _getAudioInfoRaw()/'/audio/apps' work unchanged.
-//   - svvShim() -> translates the inline `execFile(SVV, ...)` write calls
-//     (/SetVolume, /Mute, /Unmute, /Switch, /ChangeVolume, /SetDefault) to wpctl.
-// System is PipeWire (no pactl); wpctl volume is linear 0..1 == the value the
-// user sees, so percent = round(v*100) round-trips cleanly.
+// NirSoft tool). We reproduce two things:
+//   - audioRows()     -> rows in SoundVolumeView's /scomma column layout (the
+//     F.* indices), so _getAudioInfoRaw() and /audio/apps work unchanged.
+//   - audioCommand()  -> translates one SoundVolumeView invocation (/SetVolume,
+//     /ChangeVolume, /Mute, /Unmute, /Switch, /SetDefault) into wpctl.
+//
+// Volumes come out of the pw-dump payload itself rather than a wpctl call per
+// node. Note the scale: PipeWire stores CUBIC volume in channelVolumes, and
+// what wpctl prints (and what the user sees) is its cube root. Reading
+// channelVolumes directly without the cbrt would report 7% for a sink actually
+// sitting at 42%.
+const cubicToLinear = (v) => Math.cbrt(Math.max(0, Number(v) || 0));
 
 function audioEnv() {
   const env = { ...process.env };
   if (!env.XDG_RUNTIME_DIR) {
-    try { env.XDG_RUNTIME_DIR = `/run/user/${process.getuid()}`; } catch { }
+    try { env.XDG_RUNTIME_DIR = `/run/user/${process.getuid()}`; } catch { /* no getuid */ }
   }
   return env;
 }
 function audioRun(cmd, args, timeoutMs) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     execFile(cmd, args, { timeout: timeoutMs, env: audioEnv(), windowsHide: true }, (err, stdout) => {
-      resolve(err ? null : String(stdout || ''));
+      if (err) reject(err);
+      else resolve(String(stdout || ''));
     });
   });
 }
 
-// "Volume: 0.43" or "Volume: 0.43 [MUTED]" -> { volume: 0..100, muted }.
-async function nodeVolume(id) {
-  const out = await audioRun('wpctl', ['get-volume', String(id)], 3000);
-  if (!out) return { volume: 0, muted: false };
-  const m = out.match(/Volume:\s*([\d.]+)/);
-  return { volume: m ? Math.round(parseFloat(m[1]) * 100) : 0, muted: /MUTED/.test(out) };
-}
-
-// Parse pw-dump into audio nodes we care about.
-async function pwNodes() {
-  const raw = await audioRun('pw-dump', [], 5000);
-  if (!raw) return null;
+// Parse a pw-dump payload into the audio nodes we care about, with volume.
+function parsePwDump(raw) {
   let dump;
   try { dump = JSON.parse(raw); } catch { return null; }
+  if (!Array.isArray(dump)) return null;
 
   let defSink = '';
   let defSource = '';
@@ -356,16 +383,29 @@ async function pwNodes() {
   const inStreams = [];
 
   for (const o of dump) {
-    if (o.type === 'PipeWire:Interface:Metadata' &&
+    if (o && o.type === 'PipeWire:Interface:Metadata' &&
         o.props && o.props['metadata.name'] === 'default') {
       for (const m of (o.metadata || [])) {
         if (m.key === 'default.audio.sink' && m.value) defSink = m.value.name || '';
         if (m.key === 'default.audio.source' && m.value) defSource = m.value.name || '';
       }
     }
-    if (o.type !== 'PipeWire:Interface:Node') continue;
-    const p = (o.info && o.info.props) || {};
+    if (!o || o.type !== 'PipeWire:Interface:Node') continue;
+    const info = o.info || {};
+    const p = info.props || {};
     const cls = p['media.class'];
+
+    // Volume + mute live in the Props param on the node itself.
+    let volume = 0;
+    let muted = false;
+    const propsParam = ((info.params || {}).Props || [])[0];
+    if (propsParam) {
+      muted = propsParam.mute === true;
+      const cv = propsParam.channelVolumes;
+      if (Array.isArray(cv) && cv.length) volume = Math.round(cubicToLinear(cv[0]) * 100);
+      else if (propsParam.volume != null) volume = Math.round(cubicToLinear(propsParam.volume) * 100);
+    }
+
     const node = {
       id: o.id,
       name: p['node.name'] || '',
@@ -374,6 +414,8 @@ async function pwNodes() {
       binary: p['application.process.binary'] || '',
       pid: p['application.process.id'] || '',
       mediaName: p['media.name'] || '',
+      volume,
+      muted,
     };
     if (cls === 'Audio/Sink') sinks.push(node);
     else if (cls === 'Audio/Source' && !node.name.endsWith('.monitor')) sources.push(node);
@@ -383,20 +425,23 @@ async function pwNodes() {
   return { defSink, defSource, sinks, sources, outStreams, inStreams };
 }
 
-// Build rows matching SoundVolumeView's /scomma columns (see F.* in server.js).
-async function audioRows() {
-  const n = await pwNodes();
-  if (!n) return [];
-  const all = [...n.sinks, ...n.sources, ...n.outStreams, ...n.inStreams];
-  const vols = await Promise.all(all.map((x) => nodeVolume(x.id)));
-  const volById = new Map(all.map((x, i) => [x.id, vols[i]]));
+async function pwNodes() {
+  // Let the spawn failure propagate: a missing pw-dump must surface as "audio
+  // unavailable", not as an empty (but apparently working) mixer.
+  const parsed = parsePwDump(await audioRun('pw-dump', [], 5000));
+  if (!parsed) throw new Error('pw-dump returned unparseable output');
+  return parsed;
+}
 
+// SoundVolumeView /scomma column indices (see the F.* map in server.js).
+const F = { NAME: 0, TYPE: 1, DIR: 2, DEVICE_NAME: 3, DEFAULT: 4, STATE: 7, MUTED: 8, VOL_PCT: 10, CLI_ID: 18, PROC_PATH: 19, PROC_ID: 20, WINDOW_TITLE: 21 };
+
+// Build rows matching SoundVolumeView's /scomma layout from parsed pw-dump data.
+function buildAudioRows(n) {
   const rows = [];
   const row = () => new Array(22).fill('');
-  const F = { NAME: 0, TYPE: 1, DIR: 2, DEVICE_NAME: 3, DEFAULT: 4, STATE: 7, MUTED: 8, VOL_PCT: 10, CLI_ID: 18, PROC_PATH: 19, PROC_ID: 20, WINDOW_TITLE: 21 };
 
   const addDevice = (node, dir, isDefault) => {
-    const v = volById.get(node.id) || { volume: 0, muted: false };
     const r = row();
     r[F.NAME] = node.desc;
     r[F.TYPE] = 'Device';
@@ -404,24 +449,23 @@ async function audioRows() {
     r[F.DEVICE_NAME] = node.desc;
     r[F.DEFAULT] = isDefault ? dir : '';
     r[F.STATE] = 'Active';
-    r[F.MUTED] = v.muted ? 'Yes' : 'No';
-    r[F.VOL_PCT] = String(v.volume);
+    r[F.MUTED] = node.muted ? 'Yes' : 'No';
+    r[F.VOL_PCT] = String(node.volume);
     r[F.CLI_ID] = String(node.id);
     rows.push(r);
   };
   const addApp = (node, dir) => {
-    const v = volById.get(node.id) || { volume: 0, muted: false };
     const r = row();
-    // Bare binary name (no path/backslash) so server's split('\\').pop() yields it.
+    // Bare binary name (no path separator) so server's split('\\').pop() yields it.
     const proc = node.binary || (node.appName || 'app').toLowerCase().replace(/\s+/g, '');
     r[F.NAME] = node.appName || proc;
     r[F.TYPE] = 'Application';
     r[F.DIR] = dir;
     r[F.STATE] = 'Active';
-    r[F.MUTED] = v.muted ? 'Yes' : 'No';
-    r[F.VOL_PCT] = String(v.volume);
+    r[F.MUTED] = node.muted ? 'Yes' : 'No';
+    r[F.VOL_PCT] = String(node.volume);
     r[F.CLI_ID] = String(node.id);
-    r[F.PROC_PATH] = proc; // durable target; svvShim maps "<proc>.exe" back to nodes
+    r[F.PROC_PATH] = proc; // durable target; audioCommand maps "<proc>.exe" back
     r[F.PROC_ID] = String(node.pid || '');
     r[F.WINDOW_TITLE] = node.mediaName || '';
     rows.push(r);
@@ -434,42 +478,47 @@ async function audioRows() {
   return rows;
 }
 
+async function audioRows() {
+  return buildAudioRows(await pwNodes());
+}
+
 // Resolve a SoundVolumeView write target to one or more PipeWire node ids.
-async function resolveAudioTargets(target) {
+function resolveTargets(n, target) {
   const t = String(target || '').trim();
   if (/^\d+$/.test(t)) return [Number(t)];
-  const n = await pwNodes();
-  if (!n) return [];
   if (t === 'DefaultCaptureDevice' || t === 'DefaultRenderDevice') {
-    const want = t === 'DefaultCaptureDevice' ? n.defSource : n.defSink;
-    const list = t === 'DefaultCaptureDevice' ? n.sources : n.sinks;
+    const capture = t === 'DefaultCaptureDevice';
+    const want = capture ? n.defSource : n.defSink;
+    const list = capture ? n.sources : n.sinks;
     const hit = list.find((x) => x.name === want);
     return hit ? [hit.id] : [];
   }
   // App target: "<binary>.exe" or a bare name -> every matching stream node.
   const name = t.replace(/\.exe$/i, '').toLowerCase();
-  const streams = [...n.outStreams, ...n.inStreams];
-  const ids = streams
+  return [...n.outStreams, ...n.inStreams]
     .filter((s) => (s.binary || '').toLowerCase() === name ||
                    (s.appName || '').toLowerCase().replace(/\s+/g, '') === name ||
                    (s.appName || '').toLowerCase().includes(name))
     .map((s) => s.id);
-  return ids;
 }
 
-// Translate one SoundVolumeView invocation to wpctl. args mirror the SVV CLI.
-async function audioSet(args) {
-  const action = args[0];
+// Map one SoundVolumeView invocation onto wpctl. args mirror the SVV CLI.
+// Throws when the target matched nothing, so the caller reports a failure
+// rather than confirming an action that never reached the audio server.
+async function audioCommand(args) {
+  const list = Array.isArray(args) ? args : [];
+  const action = list[0];
   if (action === '/scomma') return; // reads are served by audioRows()
-  const ids = await resolveAudioTargets(args[1]);
+  const n = await pwNodes();
+  const ids = resolveTargets(n, list[1]);
+  if (!ids.length) throw new Error(`no audio node matches "${list[1]}"`);
   for (const id of ids) {
     if (action === '/SetVolume') {
-      const pct = Math.max(0, Math.min(100, parseInt(args[2], 10) || 0));
+      const pct = Math.max(0, Math.min(100, parseInt(list[2], 10) || 0));
       await audioRun('wpctl', ['set-volume', String(id), (pct / 100).toFixed(3)], 3000);
     } else if (action === '/ChangeVolume') {
-      const step = parseInt(args[2], 10) || 0;
-      const arg = `${Math.abs(step) / 100}${step < 0 ? '-' : '+'}`;
-      await audioRun('wpctl', ['set-volume', String(id), arg], 3000);
+      const step = parseInt(list[2], 10) || 0;
+      await audioRun('wpctl', ['set-volume', String(id), `${Math.abs(step) / 100}${step < 0 ? '-' : '+'}`], 3000);
     } else if (action === '/Mute') {
       await audioRun('wpctl', ['set-mute', String(id), '1'], 3000);
     } else if (action === '/Unmute') {
@@ -478,19 +527,24 @@ async function audioSet(args) {
       await audioRun('wpctl', ['set-mute', String(id), 'toggle'], 3000);
     } else if (action === '/SetDefault') {
       await audioRun('wpctl', ['set-default', String(id)], 3000);
+    } else {
+      throw new Error(`unsupported audio action "${action}"`);
     }
   }
 }
 
-// Drop-in for the inline `execFile(SVV, ...)` calls: same (args, ...cb) contract.
-// callArgs is the full arguments object of the intercepted execFile call.
-function svvShim(callArgs) {
-  const argsArray = Array.isArray(callArgs[1]) ? callArgs[1] : [];
-  const last = callArgs[callArgs.length - 1];
-  const cb = typeof last === 'function' ? last : null;
-  audioSet(argsArray)
-    .then(() => { if (cb) cb(null, '', ''); })
-    .catch((e) => { if (cb) cb(e); });
+// Cheap capability probe for /actions: is a usable PipeWire mixer present?
+let _audioProbe = null;
+async function audioAvailable() {
+  if (_audioProbe === null) {
+    _audioProbe = pwNodes().then(() => true).catch(() => false);
+  }
+  return _audioProbe;
 }
 
-module.exports = { gpu, disks, cpuTemp, network, windows, audioRows, svvShim };
+module.exports = {
+  gpu, disks, cpuTemp, network, windows, audioRows, audioCommand, audioAvailable,
+  // exported for unit tests
+  parseGpu, parseDisks, parseNetDev, parsePing, parseWmctrl, parseWindowProps,
+  parsePwDump, buildAudioRows, resolveTargets, cubicToLinear,
+};

@@ -1,0 +1,71 @@
+[
+  {
+    "type": "PipeWire:Interface:Metadata",
+    "props": {
+      "metadata.name": "default"
+    },
+    "metadata": [
+      {
+        "subject": 0,
+        "key": "default.audio.sink",
+        "type": "Spa:String:JSON",
+        "value": {
+          "name": "bluez_output.00_A4_1C_C2_C9_F8.1"
+        }
+      },
+      {
+        "subject": 0,
+        "key": "default.audio.source",
+        "type": "Spa:String:JSON",
+        "value": {
+          "name": "alsa_input.usb-ESS_Technology_AUDIO_DONGLE-00.mono-fallback"
+        }
+      }
+    ]
+  },
+  {
+    "type": "PipeWire:Interface:Node",
+    "id": 55,
+    "info": {
+      "props": {
+        "media.class": "Audio/Sink",
+        "node.name": "alsa_output.usb-GN_Audio_A_S_Jabra_Evolve2_40_SE_A900100E8B2611-00.analog-stereo",
+        "node.description": "Jabra Evolve2 40 SE Analog Stereo"
+      },
+      "params": {
+        "Props": [
+          {
+            "volume": 1.0,
+            "mute": false,
+            "channelVolumes": [
+              0.226982,
+              0.226982
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "PipeWire:Interface:Node",
+    "id": 56,
+    "info": {
+      "props": {
+        "media.class": "Audio/Source",
+        "node.name": "alsa_input.usb-GN_Audio_A_S_Jabra_Evolve2_40_SE_A900100E8B2611-00.mono-fallback",
+        "node.description": "Jabra Evolve2 40 SE Mono"
+      },
+      "params": {
+        "Props": [
+          {
+            "volume": 1.0,
+            "mute": false,
+            "channelVolumes": [
+              0.558493
+            ]
+          }
+        ]
+      }
+    }
+  }
+]

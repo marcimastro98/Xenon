@@ -1,0 +1,5 @@
+0x02600004 -1 10106  q-pc Xenon Edge Control - Google Chrome
+0x0380000a  0 12827  q-pc ⠂ xeneon-ctl-qt6-app
+0x0400001c  0 15385  q-pc ‎‫ملاك ماونتن فيو رأس الحكمه Mountain View North Coast | Facebook - Google Chrome‬‎
+0x03c00003  0 15286  q-pc Software Updater
+0x0400012a  0 15385  q-pc Low-power Wi-Fi and Bluetooth microcontrollers - Google Chrome
