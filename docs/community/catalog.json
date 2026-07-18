@@ -2,6 +2,31 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "dgm-radar-de-tormentas",
+      "kind": "widget",
+      "name": "DGM weather radar",
+      "author": "DanielGarciaMorato",
+      "description": "Interactive map displaying the latest available radar precipitation layer for the city set in DGM Current Weather. It allows for panning, zooming, re-centering, and data refreshing. Colors represent different levels of precipitation intensity; the presence of precipitation does not necessarily imply",
+      "category": "system",
+      "tags": [
+        "weather-radar",
+        "precipitation",
+        "map",
+        "rainviewer",
+        "leaflet"
+      ],
+      "version": "0.1.6",
+      "pkgId": "dgm-weather-radar-sdk",
+      "preview": {
+        "accent": "#3f78b5",
+        "bg": "#08111c",
+        "text": "#e9edf6"
+      },
+      "shots": 2,
+      "addedAt": "2026-07-18",
+      "codeFile": true
+    },
+    {
       "id": "keyring",
       "kind": "widget",
       "name": "Keyring",
