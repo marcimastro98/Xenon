@@ -115,7 +115,7 @@
     {
       "id": "explorador-de-mapas",
       "kind": "widget",
-      "name": "Explorador de mapas",
+      "name": "Map Explorer",
       "author": "DanielGarciaMorato",
       "description": "DGM Map Explorer is a visual catalog for quickly accessing external video game maps from Xenon.\n\nIt includes 31 games and 32 selected destinations, with search, session-based favorites and recently opened games. Selecting a game displays a confirmation before opening its corresponding map in the def",
       "category": "media",
