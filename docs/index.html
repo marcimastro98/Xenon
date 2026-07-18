@@ -1654,6 +1654,31 @@ I18N.zh = {
       if (!Array.isArray(entries)) return;
     } catch { return; } // offline or opened as file:// — the section stays hidden
 
+    // catalog.json carries the stock as it was when the entry was published, so
+    // the counter here read "50 di 50" while two copies were already claimed, and
+    // a drop that sold out would have gone on inviting people to claim it. The hub
+    // is the only thing that knows: same conditional call the catalog page makes,
+    // same shape merged in. It stays best-effort — if the hub is unreachable the
+    // published numbers remain, which is the old behaviour, not a broken section.
+    try {
+      const ids = [...new Set(entries
+        .filter((e) => e && e.limited && e.limited.fulfillment === 'hub' && ID_RE.test(String(e.limited.dropId || '')))
+        .map((e) => e.limited.dropId))];
+      if (ids.length) {
+        const live = await fetch('https://xenon-supporter-hub.xenonedge.workers.dev/limited/status?ids='
+          + encodeURIComponent(ids.join(',')), { cache: 'no-store' });
+        if (live.ok) {
+          const out = await live.json();
+          if (out && out.ok && out.drops) {
+            entries.forEach((e) => {
+              const d = e && e.limited && out.drops[e.limited.dropId];
+              if (d) Object.assign(e.limited, d);
+            });
+          }
+        }
+      }
+    } catch { /* keep the published numbers */ }
+
     const premium = entries
       .filter((e) => e && ID_RE.test(String(e.id || '')) && (e.locked === true || e.limited))
       .filter(started)   // a drop that has not opened yet is nobody's business yet
