@@ -2,6 +2,32 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "dgm-previsi-n-7-d-as",
+      "kind": "widget",
+      "name": "DGM Previsión 7 días",
+      "author": "DanielGarciaMorato",
+      "description": "Show the daily weather forecast for the next seven days, including high and low temperatures, precipitation, and wind. It uses the city configured in DGM Current Weather, avoiding duplicate settings. Compatible with Spanish and English, as well as metric and imperial units. Data provided by Open-Met",
+      "category": "system",
+      "tags": [
+        "weather",
+        "forecast",
+        "seven-day",
+        "precipitation",
+        "open-meteo"
+      ],
+      "version": "0.1.6",
+      "pkgId": "dgm-weather-seven-day-sdk",
+      "preview": {
+        "accent": "#5b8fd1",
+        "bg": "#0b0d12",
+        "text": "#e9edf6"
+      },
+      "shots": 2,
+      "active": false,
+      "addedAt": "2026-07-18",
+      "codeFile": true
+    },
+    {
       "id": "dgm-radar-de-tormentas",
       "kind": "widget",
       "name": "DGM weather radar",
