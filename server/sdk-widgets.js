@@ -510,6 +510,7 @@ function normalizeManifest(raw, folderId) {
   const storage = raw.storage === true || !!storageGroup;
   const secrets = raw.secrets === true;
   const badge = raw.badge === true;
+  const clipboard = raw.clipboard === true;
   return {
     ok: true,
     manifest: {
@@ -540,6 +541,11 @@ function normalizeManifest(raw, folderId) {
       // both topbar chromes — up to a few widgets at once (unlike `island`,
       // which is a single shared slot). Same host-rendered/grant-gated shape.
       badge,
+      // The widget may ask to write to the system clipboard — but only through a
+      // host-rendered confirmation the user taps for each copy (the widget never
+      // copies on its own). Write-only, no read; enforced entirely host-side in
+      // js/custom-widget.js, so there is no server enforcement here.
+      clipboard,
       entry,
       streams: cleanList(raw.streams, SDK_STREAMS, SDK_STREAMS.length),
       actions,

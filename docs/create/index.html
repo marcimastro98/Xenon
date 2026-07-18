@@ -769,6 +769,7 @@
             <tr><td><code>storageGroup</code></td><td>No</td><td>A shared-store id so a set of sibling widgets share one store. Implies <code>storage</code> (<a href="#sdk-data">§8</a>).</td></tr>
             <tr><td><code>secrets</code></td><td>No</td><td><code>true</code> gives you a write-only vault for API keys, used via <code>{{secret:NAME}}</code> in requests (<a href="#sdk-data">§8</a>).</td></tr>
             <tr><td><code>island</code></td><td>No</td><td><code>true</code> lets your widget project <b>one short plain-text line</b> into the minimal topbar's dynamic island — host-rendered, capped at 160 chars, plain text only, with an optional dimmed <code>next</code> line and a <code>badge</code> meta column (speed, countdown). Chained lines glide karaoke-style. One owner at a time; system notifications always win; auto-cleared when your tile goes away. See the SDK guide's <i>Island projection</i> chapter.</td></tr>
+            <tr><td><code>clipboard</code></td><td>No</td><td><code>true</code> lets your widget <b>ask</b> to copy text to the clipboard. It can never copy silently and can never read the clipboard: each copy raises a Xenon confirmation the user taps. Right for a password or a one-time code. See the SDK guide's <i>Clipboard</i> chapter.</td></tr>
           </tbody>
         </table>
       </div>

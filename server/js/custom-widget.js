@@ -169,6 +169,9 @@
   const BADGE_TEXT_MAX = 20;            // badge chip hard cap — small persistent pill, not a sentence
   const BADGE_TOOLTIP_MAX = 48;         // badge tooltip (title attribute) hard cap
   const BADGE_ICON_MAX = 8;             // badge glyph cap — same bound as a deck state's icon meta
+  const CLIP_MIN_INTERVAL_MS = 1200;    // per-instance clipboard-request rate limit (a copy needs a human tap anyway)
+  const CLIP_TEXT_MAX = 4096;           // max chars a single copy may carry
+  const CLIP_LABEL_MAX = 64;            // the short "what is this" label shown in the confirm prompt
 
   // Rich Discord data does not ride the high-frequency SSE voice stream. A
   // widget may ask the host to refresh one of these fixed, same-origin sources;
@@ -477,6 +480,7 @@
       secrets: !!(grant && grant.secrets === true),
       island: !!(grant && grant.island === true),
       badge: !!(grant && grant.badge === true),
+      clipboard: !!(grant && grant.clipboard === true),
       // Addresses the user typed into the package's userHosts slots, keyed by
       // slot id. Raw — resolvedUserHosts() applies the manifest's rules.
       userHosts: (grant && grant.userHosts && typeof grant.userHosts === 'object' && !Array.isArray(grant.userHosts)) ? grant.userHosts : {},
@@ -780,6 +784,44 @@
     }, wait);
   }
 
+  // Clipboard copy request. Deliberately NOT a silent write: the widget only ASKS,
+  // and the actual navigator.clipboard write happens inside a host-rendered
+  // confirmation the user taps (openClipboardConfirm). This is load-bearing —
+  // user activation propagates from a sandboxed iframe to the host and stays live
+  // for ~3-4s after ANY tap, so forwarding the widget's message straight to the
+  // clipboard would let a widget rewrite the clipboard off an unrelated tap. Tying
+  // the write to a fresh host tap the user reads makes the gesture unambiguous.
+  // Write-only, no read op exists. We ALWAYS reply (the native write promise can
+  // hang forever otherwise), and reject control chars rather than silently
+  // scrubbing them — a scrubbed password is a wrong password the user won't notice.
+  function onBridgeClipboard(entry, grant, msg) {
+    const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
+    const reply = (ok, error) => post(entry, { type: 'clipboard_result', id: reqId, ok, error });
+    const pkg = packageById(entry.pkgId);
+    if (!pkg || pkg.clipboard !== true || !grant.clipboard) { reply(false, 'not_allowed'); return; }
+
+    const now = Date.now();
+    if (now - (entry.clipAt || 0) < CLIP_MIN_INTERVAL_MS) { reply(false, 'rate_limited'); return; }
+    entry.clipAt = now;
+
+    const text = typeof msg.text === 'string' ? msg.text : '';
+    if (!text) { reply(false, 'empty'); return; }
+    if (text.length > CLIP_TEXT_MAX) { reply(false, 'too_long'); return; }
+    // Reject C0/C1/DEL control chars outright — a credential copy never needs them,
+    // and stripping would hand back a corrupted value.
+    if (/[\u0000-\u001f\u007f-\u009f]/.test(text)) { reply(false, 'bad_text'); return; }
+
+    // The label is display-only chrome ("GitHub password"); scrubbing it is fine.
+    const label = String(msg.label == null ? '' : msg.label)
+      .replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, CLIP_LABEL_MAX);
+    // `secret: false` lets the widget mark a non-sensitive copy (a TOTP code) so the
+    // prompt can show it in full; anything else is masked.
+    const secret = msg.secret !== false;
+
+    openClipboardConfirm({ pkgId: entry.pkgId, label, text, secret })
+      .then((ok) => reply(!!ok, ok ? undefined : 'declined'));
+  }
+
   window.addEventListener('message', (e) => {
     const d = e.data;
     if (!d || typeof d !== 'object' || d.xenonSdk !== 1 || typeof d.type !== 'string') return;
@@ -806,6 +848,10 @@
         handlers: grant.handlers.slice(),
         storage: grant.storage,
         secrets: grant.secrets,
+        // Unlike island/badge (host-rendered, so the widget need not know), a
+        // clipboard copy is widget-initiated and returns a result — the widget
+        // needs to know it was granted so it can show an honest copy affordance.
+        clipboard: grant.clipboard,
       });
       grant.streams.forEach(stream => {
         if (lastData[stream] !== undefined) post(entry, { type: 'data', stream, data: lastData[stream] });
@@ -831,6 +877,8 @@
       if (entry.ready) onBridgeIsland(entry, grant, d);
     } else if (d.type === 'badge') {
       if (entry.ready) onBridgeBadge(entry, grant, d);
+    } else if (d.type === 'clipboard') {
+      if (entry.ready) onBridgeClipboard(entry, grant, d);
     } else if (d.type === 'handler_ack') {
       // The widget answered a dispatched deck-handler call. The sandboxed frame
       // has no network, so the HOST page relays the ack to the parked
@@ -1153,6 +1201,85 @@
     const bd = document.querySelector('.cw-perm-backdrop');
     if (bd) bd.remove();
   }
+
+  // ── Clipboard copy confirmation ──────────────────────────────────
+  // The host-drawn gate that makes the `clipboard` capability safe. The widget's
+  // request lands here; the real navigator.clipboard write only happens inside the
+  // Copy button's click handler below, so the user activation that authorises it is
+  // unambiguously the user approving THIS copy — never an unrelated tap the widget
+  // rode. Resolves the onBridgeClipboard promise: true = copied, false = declined/
+  // superseded/timed out. Only one prompt exists at a time.
+  let clipCloseTimer = null;
+  function closeClipConfirm(result) {
+    const bd = document.querySelector('.cw-clip-backdrop');
+    if (!bd) return;
+    const resolve = bd._resolve;
+    bd.remove();
+    if (clipCloseTimer) { clearTimeout(clipCloseTimer); clipCloseTimer = null; }
+    if (typeof resolve === 'function') resolve(result === true);
+  }
+  function openClipboardConfirm({ pkgId, label, text, secret }) {
+    closeClipConfirm(false);   // a fresh request supersedes any pending one (declined)
+    return new Promise((resolve) => {
+      const pkg = packageById(pkgId);
+      const who = (pkg && pkg.name) ? pkg.name : t('cw_clip_widget', 'A widget');
+      const bd = el('div', 'cw-clip-backdrop');
+      bd._resolve = resolve;
+      const panel = el('div', 'cw-clip');
+      panel.appendChild(el('div', 'cw-clip-title', t('cw_clip_title', 'Copy to clipboard?')));
+
+      const whatLine = el('div', 'cw-clip-what');
+      whatLine.appendChild(el('span', 'cw-clip-who', who));
+      if (label) whatLine.appendChild(el('span', 'cw-clip-label', label));
+      panel.appendChild(whatLine);
+
+      // Preview. A secret (password) is masked by default; the user can reveal it —
+      // it is their own value and they are about to copy it. A non-secret (a TOTP
+      // code the widget flagged secret:false) shows in full so they can sanity-check.
+      const preview = el('div', 'cw-clip-preview');
+      const val = el('span', 'cw-clip-val');
+      const maskText = () => '•'.repeat(Math.min(Math.max(text.length, 4), 24));
+      val.textContent = secret ? maskText() : text;
+      preview.appendChild(val);
+      if (secret) {
+        const eye = el('button', 'cw-clip-eye');
+        eye.type = 'button';
+        let shown = false;
+        const paint = () => { eye.textContent = shown ? t('cw_clip_hide', 'Hide') : t('cw_clip_show', 'Show'); val.textContent = shown ? text : maskText(); };
+        eye.addEventListener('click', () => { shown = !shown; paint(); });
+        paint();
+        preview.appendChild(eye);
+      }
+      panel.appendChild(preview);
+      panel.appendChild(el('div', 'cw-clip-note', t('cw_clip_note', 'Xenon puts this on your clipboard only when you tap Copy. It can never read your clipboard.')));
+
+      const row = el('div', 'cw-clip-actions');
+      const cancel = el('button', 'cw-btn', t('cw_cancel', 'Cancel'));
+      cancel.type = 'button';
+      cancel.addEventListener('click', () => closeClipConfirm(false));
+      const copy = el('button', 'cw-btn cw-btn--primary', t('cw_clip_copy', 'Copy'));
+      copy.type = 'button';
+      copy.addEventListener('click', async () => {
+        if (copy.disabled) return;
+        copy.disabled = true;
+        // Inside a real user gesture → the clipboard write is permitted.
+        const ok = await copyText(text);
+        closeClipConfirm(ok);
+        if (ok && window.XenonToast) {
+          try { XenonToast.show({ type: 'success', title: t('cw_clip_done', 'Copied'), message: label || who, duration: 2200 }); } catch (_) { /* toast is optional */ }
+        }
+      });
+      row.append(cancel, copy);
+      panel.appendChild(row);
+
+      bd.appendChild(panel);
+      bd.addEventListener('click', (ev) => { if (ev.target === bd) closeClipConfirm(false); });
+      document.body.appendChild(bd);
+      setTimeout(() => { try { copy.focus(); } catch (_) { /* focus is best-effort */ } }, 0);
+      // A forgotten prompt resolves (declined) rather than pinning the widget forever.
+      clipCloseTimer = setTimeout(() => closeClipConfirm(false), 20000);
+    });
+  }
   // instId assigns the package to a tile on Allow; pass instId = null (with an
   // optional onAllow callback) to grant without assigning — used by AmbientMode,
   // where the "assignment" is ambientMode.sceneId, not a tile.
@@ -1192,6 +1319,7 @@
     const wantsSecrets = pkg.secrets === true;
     const wantsIsland = pkg.island === true;
     const wantsBadge = pkg.badge === true;
+    const wantsClipboard = pkg.clipboard === true;
     const storageGroup = typeof pkg.storageGroup === 'string' ? pkg.storageGroup : '';
     if (pkg.streams.length) addSection('cw_perm_streams', 'It can see:', pkg.streams, STREAM_LABELS);
     if (pkg.actions.length) addSection('cw_perm_actions', 'It can do:', pkg.actions, ACTION_LABELS);
@@ -1246,6 +1374,12 @@
     if (wantsBadge) {
       addSection('cw_perm_badge', 'It can show a small badge next to the clock:', [t('cw_perm_badge_val', 'Short text only — never links or images')], {});
     }
+    // Clipboard: the widget can ask to copy text, but every copy needs a tap on a
+    // Xenon-drawn confirmation first — it can never copy silently or read what you
+    // have copied. Say exactly that, so "can copy" doesn't read as "can snoop".
+    if (wantsClipboard) {
+      addSection('cw_perm_clipboard', 'It can copy to your clipboard (with a tap):', [t('cw_perm_clipboard_val', 'You confirm each copy, and it can never read your clipboard')], {});
+    }
     // Headless running. The manifest normalizer only keeps `background` when the
     // package has something that outlives a tile (handlers and/or a badge), so
     // name whichever it actually is rather than always saying "Deck keys".
@@ -1257,7 +1391,7 @@
           : t('cw_perm_background', 'This widget can keep running hidden in the background so its Deck keys always answer.'));
       panel.appendChild(el('div', 'cw-perm-note', note));
     }
-    if (!pkg.streams.length && !pkg.actions.length && !hosts.length && !userHostSlots.length && !hooks.length && !deckNames.length && !wantsStorage && !wantsSecrets && !wantsIsland && !wantsBadge) {
+    if (!pkg.streams.length && !pkg.actions.length && !hosts.length && !userHostSlots.length && !hooks.length && !deckNames.length && !wantsStorage && !wantsSecrets && !wantsIsland && !wantsBadge && !wantsClipboard) {
       panel.appendChild(el('div', 'cw-perm-sec cw-perm-nothing', t('cw_perm_none', 'Nothing — it only draws its own content')));
     }
     panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_note', 'Widgets run isolated from the dashboard, with no network access, and can only use what you allow here. Only install widgets from people you trust.')));
@@ -1303,7 +1437,7 @@
       if (!uh.ok) { refresh(); return; }
       const cur = sdk();
       const patch = {
-        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, secrets: wantsSecrets, island: wantsIsland, badge: wantsBadge } },
+        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, secrets: wantsSecrets, island: wantsIsland, badge: wantsBadge, clipboard: wantsClipboard } },
       };
       if (instId != null) patch.assign = { ...(cur.assign || {}), [instId]: pkg.id };
       persist(patch);
@@ -1470,7 +1604,8 @@
       || (pkg.storage === true && !g.storage)
       || (pkg.secrets === true && !g.secrets)
       || (pkg.island === true && !g.island)
-      || (pkg.badge === true && !g.badge);
+      || (pkg.badge === true && !g.badge)
+      || (pkg.clipboard === true && !g.clipboard);
   }
   // A declared userHosts slot with no usable address is the same dead end as an
   // ungranted host — the widget would mount and fail every request. But it is

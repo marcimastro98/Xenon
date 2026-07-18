@@ -3,6 +3,11 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v4.7.0] - Unreleased
+### ✨ New
+- **Store widgets can now copy to your clipboard, and every copy asks you first.** A widget could always show you a value, but never place one on your clipboard, so a password manager on the Edge meant reading a password and retyping it. Widgets can now request a copy, and Xenon draws a small confirmation you tap before anything is written. A widget can never copy on its own and can never read your clipboard: the copy only happens on your tap, and a password is masked in the prompt until you choose to show it. This is a new opt-in permission shown in the widget's approval dialog, off unless the widget asks for it and you allow it.
+- **The first widget built on it: Keyring, a 2FA and password vault, published to the Store.** It keeps your one-time codes and passwords in one place, encrypted on your PC with a passphrase you set (there is no cloud and no recovery). Your 2FA codes stay on screen next to your keyboard with a countdown ring, so signing in is a glance and six digits with nothing to unlock or pick up; when a desktop app you have a code for is in focus, its code floats to the top on its own. Passwords copy through the new confirmation above. It is a community Store download, not part of the app itself, and its security limits are stated plainly inside it.
+
 ## [v4.6.2] - 18-07-2026
 ### ✨ New
 - **Xenon now has a privacy page, and it holds nothing back.** [xenon-app.com/privacy.html](https://xenon-app.com/privacy.html) lists every network call the app makes, when it makes it, and what it sends — including the ones that were always there and never written down: the update check that runs at launch, the IP-to-city lookup the weather widget uses if you leave auto-location on, and the anonymous install id attached to catalog ratings. Nothing about the app changed here; what changed is that you no longer have to read the source to know. If a future release adds a call, that page gets updated in the same release.

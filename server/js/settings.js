@@ -1803,6 +1803,7 @@ function normalizeSdkWidgets(value) {
         secrets: g.secrets === true,
         island: g.island === true,
         badge: g.badge === true,
+        clipboard: g.clipboard === true,
         userHosts: normalizeSdkUserHosts(g.userHosts),
       };
       n++;

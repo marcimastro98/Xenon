@@ -16,7 +16,7 @@ test('manifest: valid minimal manifest normalizes', () => {
   assert.deepEqual(r.manifest, {
     id: 'clock', api: 1, name: 'Clock', version: '0.0.0', author: '',
     description: '', surface: 'tile', background: false, island: false, badge: false,
-    storage: false, storageGroup: '', secrets: false,
+    clipboard: false, storage: false, storageGroup: '', secrets: false,
     entry: 'index.html', streams: [], actions: [],
     hosts: [], userHosts: [], hooks: [], deck: { actions: [], states: [], handlers: [] },
   });
@@ -52,6 +52,15 @@ test('manifest: badge defaults off, opts in only on the exact true literal', () 
   assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', badge: 1 }, 'x0').manifest.badge, false);
   assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', badge: 'yes' }, 'x0').manifest.badge, false);
   assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', badge: {} }, 'x0').manifest.badge, false);
+});
+
+test('manifest: clipboard defaults off, opts in only on the exact true literal', () => {
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X' }, 'x0').manifest.clipboard, false);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', clipboard: true }, 'x0').manifest.clipboard, true);
+  // Truthy junk stays off — same rule as storage/secrets/island/badge.
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', clipboard: 1 }, 'x0').manifest.clipboard, false);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', clipboard: 'yes' }, 'x0').manifest.clipboard, false);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', clipboard: {} }, 'x0').manifest.clipboard, false);
 });
 
 test('manifest: storageGroup implies storage and must be a valid id', () => {

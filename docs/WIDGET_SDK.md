@@ -86,6 +86,7 @@ server/data/widgets/
 | `secrets` | no | `true` → your widget may store API keys in a **write-only** vault and use them via `{{secret:NAME}}` in proxied requests, so a published package ships no keys. See *Secrets & API keys*. |
 | `island` | no | `true` → your widget may project **one short plain-text line** into the minimal topbar's dynamic island (the floating clock pill). Host-rendered, grant-gated — see *Island projection*. |
 | `badge` | no | `true` → your widget may show a small **always-on** text chip next to the clock, in both topbar chromes. Host-rendered, grant-gated — see *Persistent badge*. |
+| `clipboard` | no | `true` → your widget may **ask** to copy text to the system clipboard. It can never copy silently and can never read the clipboard: each copy shows a Xenon confirmation the user taps. See *Clipboard*. |
 
 An invalid entry in any of these (a loopback host, an out-of-catalog macro step,
 a malformed id) rejects the **whole manifest** — the package shows up as invalid
@@ -866,6 +867,41 @@ window.parent.postMessage({ xenonSdk: 1, type: 'fetch', id: 7,
 A placeholder for a secret you haven't stored fails the request
 (`error: 'unknown_secret'`) — it's never sent literally. Substitution can never
 move the request to a different host than the one you declared.
+
+## Clipboard
+
+Declare `"clipboard": true` and your widget may **ask** the host to copy text to
+the system clipboard. It is deliberately not a silent write: your widget can never
+put something on the clipboard on its own, and can never read the clipboard. Every
+copy raises a small Xenon confirmation the user taps, so the copy is always a
+visible, intentional action — the right shape for a password or a one-time code.
+
+```js
+// Ask to copy. `secret: true` masks the value in the confirmation (a password);
+// `secret: false` shows it in full (a short-lived 2FA code you also want to read).
+window.parent.postMessage({ xenonSdk: 1, type: 'clipboard', id: 1,
+  text: 'S3cretPass!', label: 'GitHub password', secret: true }, '*');
+// → { xenonSdk: 1, type: 'clipboard_result', id: 1, ok: true }
+//   or { …, ok: false, error: 'declined' | 'rate_limited' | 'too_long' | 'bad_text' | 'not_allowed' }
+```
+
+- `text` is the value to copy (≤ 4096 chars). **Control characters are rejected**
+  (`error: 'bad_text'`) rather than silently stripped — a scrubbed password is a
+  wrong password you would not notice.
+- `label` is a short, plain description shown in the confirmation ("GitHub
+  password"). Display only; keep it under ~64 chars.
+- `secret` (default `true`) decides whether the confirmation masks the value.
+- You always get a `clipboard_result`. If the user dismisses or ignores the
+  confirmation you get `ok: false, error: 'declined'` — the native clipboard
+  promise would otherwise hang forever, so never assume success.
+- Rate-limited to roughly one request per ~1.2s per tile (a copy needs a human
+  tap anyway). `init` echoes your granted `clipboard` flag so you can render an
+  honest copy affordance (or hide it) when the capability was declined.
+
+Why the confirmation: a sandboxed iframe's tap propagates a live "user activation"
+to the host for a few seconds, so a widget that copied on its own could rewrite
+your clipboard off an unrelated tap. Tying every copy to a fresh host tap the user
+reads removes that entirely.
 
 ## Map & radar tiles (`/sdk/tile/`)
 
