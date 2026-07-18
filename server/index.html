@@ -79,6 +79,7 @@
 <link rel="stylesheet" href="components/FansWidget/FansWidget.css">
 <link rel="stylesheet" href="components/PowerWidget/PowerWidget.css">
 <link rel="stylesheet" href="components/BatteryWidget/BatteryWidget.css">
+<link rel="stylesheet" href="components/AdhanWidget/AdhanWidget.css">
 <link rel="stylesheet" href="components/VitalsWidget/VitalsWidget.css">
 <link rel="stylesheet" href="components/SlideshowWidget/SlideshowWidget.css">
 <link rel="stylesheet" href="components/VitalsPet/VitalsPet.css">
@@ -486,6 +487,12 @@
            Fed over SSE ('football'); hidden by default, added from the "+" palette. -->
       <section class="panel football-panel dashboard-widget" data-dashboard-widget="football" data-dashboard-size="normal" data-dashboard-order="26" data-dashboard-hidden="true">
         <div class="football-widget-mount"></div>
+      </section>
+
+      <!-- Adhan - prayer times for the current location, computed locally.
+           Fed over SSE ('adhan'); hidden by default, added from the "+" palette. -->
+      <section class="panel adhan-panel dashboard-widget" data-dashboard-widget="adhan" data-dashboard-size="normal" data-dashboard-order="27" data-dashboard-hidden="true">
+        <div class="adhan-widget-mount"></div>
       </section>
 
       <!-- Claude Code usage ("Xenon Pulse") — local ~/.claude token reactor.
@@ -2540,6 +2547,70 @@
 
       <div class="settings-group" data-settings-cat="stocks" hidden>
         <div class="settings-group-head">
+          <span data-i18n="set_adhan_heading">Orari di preghiera</span>
+          <span class="settings-hint" data-i18n="set_adhan_hint">Gli orari sono calcolati in locale dalla posizione del sole: nessuna chiave API e nessuna connessione necessaria. In modalita' automatica le coordinate arrivano dalla posizione gia' rilevata per il meteo.</span>
+        </div>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="set_adhan_method">Metodo di calcolo</span></span>
+          <select class="settings-text-input" id="settings-adhan-method" onchange="updateAdhanCfg({ method: this.value })">
+            <option value="egyptian">Egyptian General Authority</option>
+            <option value="mwl">Muslim World League</option>
+            <option value="isna">ISNA (North America)</option>
+            <option value="makkah">Umm al-Qura (Makkah)</option>
+            <option value="karachi">Univ. of Islamic Sciences, Karachi</option>
+            <option value="dubai">Dubai (UAE)</option>
+            <option value="turkey">Diyanet (Turkey)</option>
+            <option value="singapore">Singapore / MUIS</option>
+            <option value="tehran">Univ. of Tehran</option>
+          </select>
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="set_adhan_asr">Calcolo dell'Asr</span></span>
+          <select class="settings-text-input" id="settings-adhan-asr" onchange="updateAdhanCfg({ asr: this.value })">
+            <option value="standard">Standard (Shafi'i, Maliki, Hanbali)</option>
+            <option value="hanafi">Hanafi</option>
+          </select>
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="set_adhan_mode">Posizione</span></span>
+          <select class="settings-text-input" id="settings-adhan-mode" onchange="updateAdhanCfg({ mode: this.value })">
+            <option value="auto">Automatica</option>
+            <option value="manual">Coordinate manuali</option>
+          </select>
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="set_adhan_city">Nome della citta' (facoltativo)</span></span>
+          <input class="settings-text-input" id="settings-adhan-city" type="text" spellcheck="false" onchange="updateAdhanCfg({ city: this.value })">
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="set_adhan_lat">Latitudine</span></span>
+          <input class="settings-text-input" id="settings-adhan-lat" type="number" min="-90" max="90" step="0.0001" onchange="updateAdhanCfg({ lat: this.value === '' ? null : Number(this.value) })">
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="set_adhan_lon">Longitudine</span></span>
+          <input class="settings-text-input" id="settings-adhan-lon" type="number" min="-180" max="180" step="0.0001" onchange="updateAdhanCfg({ lon: this.value === '' ? null : Number(this.value) })">
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="set_adhan_alert">Preavviso visivo (minuti, 0 = disattivato)</span></span>
+          <input class="settings-text-input" id="settings-adhan-alert" type="number" min="0" max="60" step="1" onchange="updateAdhanCfg({ alertMinutes: Number(this.value) })">
+        </label>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-adhan-hijri" type="checkbox" onchange="updateAdhanCfg({ hijri: this.checked })">
+          <span class="settings-label-line"><span data-i18n="set_adhan_hijri">Mostra la data hijri</span></span>
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="set_adhan_highlat">Latitudini elevate</span></span>
+          <select class="settings-text-input" id="settings-adhan-highlat" onchange="updateAdhanCfg({ highLat: this.value })">
+            <option value="nightMiddle">Meta' della notte</option>
+            <option value="oneSeventh">Un settimo della notte</option>
+            <option value="angleBased">Basato sull'angolo</option>
+            <option value="none">Nessuna correzione</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="settings-group" data-settings-cat="stocks" hidden>
+        <div class="settings-group-head">
           <span data-i18n="set_football_heading">Calcio</span>
           <span class="settings-hint" data-i18n="set_football_keyhint">Segui le tue squadre dal widget Calcio. Senza chiave usa TheSportsDB (gratis); una chiave Premium sblocca i punteggi in diretta.</span>
         </div>
@@ -3468,6 +3539,7 @@
 <script src="js/fans-widget.js"></script>
 <script src="js/power-widget.js"></script>
 <script src="js/battery-widget.js"></script>
+<script src="js/adhan-widget.js"></script>
 <script src="js/vitals.js"></script>
 <script src="js/vitals-pet-core.js"></script>
 <script src="js/vitals-pet.js"></script>

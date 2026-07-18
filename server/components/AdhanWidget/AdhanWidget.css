@@ -1,0 +1,69 @@
+/* Adhan widget - the next prayer as the hero (name, time, live countdown),
+   with the full day listed beneath it. The current prayer is accented, past
+   ones recede, and the tile glows as the next prayer approaches then flashes
+   once when it comes in (silent: no audio anywhere in this widget). */
+
+.adhan-widget-mount { height: 100%; display: flex; min-height: 0; padding: 14px 16px; box-sizing: border-box; }
+.adh-wrap { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; gap: 10px; }
+
+.adh-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 2px 2px 0; min-width: 0; }
+.adh-place { font-weight: 700; font-size: 13px; letter-spacing: -0.01em; color: var(--text, #f0f3f1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.adh-hijri { flex: 0 0 auto; font-size: 10.5px; font-weight: 600; opacity: 0.62; white-space: nowrap; }
+
+/* Hero block: the next prayer. */
+.adh-next { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 13px; border-radius: 14px; min-width: 0;
+  background: linear-gradient(135deg, rgba(var(--accent-rgb, 74 222 128), 0.16), rgba(var(--accent-rgb, 74 222 128), 0.05));
+  border: 1px solid rgba(var(--accent-rgb, 74 222 128), 0.28); }
+.adh-next-left { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.adh-next-label { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.6; }
+.adh-next-name { font-weight: 700; font-size: 19px; letter-spacing: -0.02em; color: var(--text, #f0f3f1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adh-next-right { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.adh-next-time { font-weight: 700; font-size: 17px; font-variant-numeric: tabular-nums; color: var(--text, #f0f3f1); }
+.adh-countdown { font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+  color: rgb(var(--accent-rgb, 74 222 128)); opacity: 0.95; }
+
+/* The day's list. */
+.adh-list { flex: 1 1 auto; min-height: 0; min-width: 0; overflow: hidden auto; display: flex; flex-direction: column; gap: 4px; }
+.adh-row { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 6px 11px; border-radius: 10px; min-width: 0;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); }
+.adh-row-name { font-weight: 600; font-size: 12.5px; color: var(--text, #f0f3f1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.adh-row-time { flex: 0 0 auto; font-weight: 700; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--text, #f0f3f1); }
+
+/* Sunrise is a reference point, not a prayer. */
+.adh-row.is-ref { background: transparent; border-style: dashed; border-color: rgba(255,255,255,0.07); }
+.adh-row.is-ref .adh-row-name, .adh-row.is-ref .adh-row-time { opacity: 0.55; font-weight: 600; }
+.adh-row.is-past { opacity: 0.42; }
+.adh-row.is-current { background: rgba(var(--accent-rgb, 74 222 128), 0.12);
+  border-color: rgba(var(--accent-rgb, 74 222 128), 0.3); opacity: 1; }
+.adh-row.is-current .adh-row-name { color: rgb(var(--accent-rgb, 74 222 128)); }
+.adh-row.is-next .adh-row-time { color: rgb(var(--accent-rgb, 74 222 128)); }
+
+.adh-state { flex: 1 1 auto; opacity: 0.6; font-size: 13px; padding: 22px 4px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+.adh-state-hint { font-size: 11.5px; opacity: 0.75; max-width: 280px; line-height: 1.4; }
+
+/* Approaching: a steady glow on the tile. Arrived: a short flash. Both silent. */
+.dashboard-widget[data-dashboard-widget="adhan"].is-imminent .adh-next {
+  border-color: rgba(var(--accent-rgb, 74 222 128), 0.55);
+  box-shadow: 0 0 0 1px rgba(var(--accent-rgb, 74 222 128), 0.25), 0 0 18px rgba(var(--accent-rgb, 74 222 128), 0.18); }
+.dashboard-widget[data-dashboard-widget="adhan"].is-now .adh-next { animation: adh-flash 1.6s ease-in-out infinite; }
+@keyframes adh-flash {
+  0%, 100% { border-color: rgba(var(--accent-rgb, 74 222 128), 0.35);
+             box-shadow: 0 0 0 1px rgba(var(--accent-rgb, 74 222 128), 0.15); }
+  50%      { border-color: rgba(var(--accent-rgb, 74 222 128), 0.9);
+             box-shadow: 0 0 0 1px rgba(var(--accent-rgb, 74 222 128), 0.5), 0 0 26px rgba(var(--accent-rgb, 74 222 128), 0.32); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-widget[data-dashboard-widget="adhan"].is-now .adh-next { animation: none;
+    border-color: rgba(var(--accent-rgb, 74 222 128), 0.8); }
+}
+
+/* Short tiles: drop the list to keep the hero legible. */
+@container (max-height: 190px) {
+  .adh-list { display: none; }
+}

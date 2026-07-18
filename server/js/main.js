@@ -364,6 +364,12 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // widget feeds the ticker itself (it composes the score chips).
       try { const d = JSON.parse(e.data); if (window.FootballWidget) window.FootballWidget.onSSE(d); if (window.CustomWidget) window.CustomWidget.onData('football', d); } catch {}
     });
+
+    es.addEventListener('adhan', e => {
+      // Prayer times + which one is next -> the Adhan widget. Pushed only when a
+      // prayer boundary is crossed; the widget runs its own countdown locally.
+      try { const d = JSON.parse(e.data); if (window.AdhanWidget) window.AdhanWidget.onSSE(d); if (window.CustomWidget) window.CustomWidget.onData('adhan', d); } catch {}
+    });
     es.addEventListener('claude', e => {
       // Local Claude Code usage aggregate → the Xenon Pulse reactor widget.
       try { const d = JSON.parse(e.data); if (window.ClaudeWidget) window.ClaudeWidget.onSSE(d); if (window.CustomWidget) window.CustomWidget.onData('claude', d); } catch {}

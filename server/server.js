@@ -67,6 +67,7 @@ const { createUnifiEvents } = require('./unifi-events');
 const stocks = require('./stocks');
 const { preserveStockCreds, redactStockCreds } = require('./stocks-creds');
 const football = require('./football');
+const adhan = require('./adhan');
 const { preserveFootballCreds, redactFootballCreds } = require('./football-creds');
 const news = require('./news');
 const { preserveNewsCreds, redactNewsCreds } = require('./news-creds');
@@ -5954,7 +5955,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'adhan', 'custom']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -6011,6 +6012,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     notifications: Object.freeze({ x: 16, y: 18, w: 8, h: 10, visible: false, page: 'dashboard' }),
     stocks:   Object.freeze({ x: 0, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
     football: Object.freeze({ x: 8, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    adhan:    Object.freeze({ x: 16, y: 38, w: 8, h: 10, visible: false, page: 'dashboard' }),
     news:     Object.freeze({ x: 0, y: 38, w: 8, h: 10, visible: false, page: 'dashboard' }),
     claude:   Object.freeze({ x: 16, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
     vitals:   Object.freeze({ x: 8, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
@@ -6277,6 +6279,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Football (Calcio) widget + ticker. teams/refresh are client-visible; the
   // optional TheSportsDB Premium key below is a server-only secret.
   football: football.DEFAULT_FOOTBALL,
+  adhan: adhan.DEFAULT_ADHAN,
   sportsDbKey: '',     // optional TheSportsDB Premium key (server-only; preserve+redact)
   // News widget + ticker. feeds/refresh are client-visible; the optional
   // NewsData.io key below is a server-only secret.
@@ -7124,6 +7127,7 @@ function normalizeHubSettings(value) {
     twelveDataKey: String(source.twelveDataKey || '').trim().slice(0, 120),
     finnhubKey: String(source.finnhubKey || '').trim().slice(0, 120),
     football: football.normalizeFootball(source.football),
+    adhan: adhan.normalizeAdhan(source.adhan),
     sportsDbKey: String(source.sportsDbKey || '').trim().slice(0, 60),
     news: news.normalizeNews(source.news),
     newsDataKey: String(source.newsDataKey || '').trim().slice(0, 120),
@@ -8780,6 +8784,51 @@ setInterval(() => {
   if (Date.now() - _footballLastFetch < period) return;
   refreshFootball().catch(() => {});
 }, 15000).unref();
+
+// ── Adhan (prayer times) ─────────────────────────────────────────────────────
+// Times are pure local astronomy (server/adhan.js), so the recompute is cheap
+// and needs no network. In 'auto' mode the coordinates come from the weather
+// widget's cached geolocation rather than a second lookup; in 'manual' mode
+// nothing leaves the machine at all. The signature dedupe means a broadcast
+// only actually goes out when a prayer passes or the day rolls over.
+let _adhanCache = null;
+let _adhanSig = null;
+
+function _adhanSettings() {
+  const s = _serverHubSettings && _serverHubSettings.adhan;
+  return s || adhan.DEFAULT_ADHAN;
+}
+
+async function refreshAdhan() {
+  const cfg = _adhanSettings();
+  // Only the auto mode needs a place; manual coordinates skip the lookup.
+  let place = null;
+  if (cfg.mode !== 'manual') {
+    try { place = await resolveAutoLocation(); } catch { place = null; }
+  }
+  _adhanCache = adhan.buildAdhanPayload(cfg, place, new Date(), 'en');
+  _pushAdhan();
+  return _adhanCache;
+}
+
+function _pushAdhan() {
+  if (!_adhanCache) return;
+  const sig = JSON.stringify([
+    _adhanCache.ok, _adhanCache.times, _adhanCache.next, _adhanCache.current,
+    _adhanCache.location, _adhanCache.method, _adhanCache.asr, _adhanCache.hijri,
+  ]);
+  if (sig === _adhanSig) return;
+  _adhanSig = sig;
+  broadcastSSE('adhan', _adhanCache);
+}
+
+setTimeout(() => { if (sseClients.size) refreshAdhan().catch(() => {}); }, 5000).unref();
+// 30s is fine: the payload is deduped, so this only broadcasts when the current
+// or next prayer actually changes, and the computation itself is trivial.
+setInterval(() => {
+  if (sseClients.size === 0) return;
+  refreshAdhan().catch(() => {});
+}, 30000).unref();
 
 // ── News ─────────────────────────────────────────────────────────────────────
 // In-memory only. Headlines from the followed feeds are pulled on a client-gated
@@ -11394,6 +11443,13 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = JSON.parse(await readBody(req));
       json({ ok: _claudeRunner.stop(String(body && body.id || '')) });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/adhan' && req.method === 'GET') {
+    // Today's prayer times for the widget's initial paint (SSE keeps it live).
+    try {
+      if (!_adhanCache || urlObj.searchParams.has('refresh')) await refreshAdhan();
+      json({ ...(_adhanCache || {}), methods: adhan.METHOD_KEYS.map(k => ({ key: k, label: adhan.CALC_METHODS[k].label })) });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/football' && req.method === 'GET') {

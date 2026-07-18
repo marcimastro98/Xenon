@@ -14,7 +14,7 @@ const SETTINGS_FONT_EXTENSIONS = Object.freeze(new Set(['woff2', 'woff', 'ttf', 
 // comes from the @font-face src, so the family label never needs to match the file.
 const USER_FONT_FAMILY = 'XenonUserFont';
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'adhan', 'custom']);
 // Selectable stock-data providers + chart ranges (mirrors server/stocks.js).
 const STOCK_PROVIDER_IDS = Object.freeze(['auto', 'yahoo', 'twelvedata', 'finnhub']);
 const STOCK_RANGE_IDS = Object.freeze(['1d', '1w', '1m', '1y']);
@@ -106,6 +106,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     notifications: Object.freeze({ x: 16, y: 18, w: 8, h: 10, visible: false, page: 'dashboard' }),
     stocks:   Object.freeze({ x: 0, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
     football: Object.freeze({ x: 8, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    adhan:    Object.freeze({ x: 16, y: 38, w: 8, h: 10, visible: false, page: 'dashboard' }),
     news:     Object.freeze({ x: 0, y: 38, w: 8, h: 10, visible: false, page: 'dashboard' }),
     claude:   Object.freeze({ x: 16, y: 28, w: 8, h: 10, visible: false, page: 'dashboard' }),
     vitals:   Object.freeze({ x: 8, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
@@ -1351,6 +1352,7 @@ function normalizeSettings(source) {
     finnhubKey: String(value.finnhubKey || '').trim().slice(0, 120),
     finnhubKeySet: value.finnhubKeySet === true || (typeof value.finnhubKey === 'string' && value.finnhubKey.length > 0),
     football: normalizeFootballClient(value.football),
+    adhan: normalizeAdhanClient(value.adhan),
     sportsDbKey: String(value.sportsDbKey || '').trim().slice(0, 60),
     sportsDbKeySet: value.sportsDbKeySet === true || (typeof value.sportsDbKey === 'string' && value.sportsDbKey.length > 0),
     news: normalizeNewsClient(value.news),
@@ -1881,6 +1883,30 @@ function normalizeStocksClient(value) {
 // Football (Calcio) config — mirrors server/football.js normalizeFootball. Team
 // ids are numeric strings; the Premium key is handled separately (server-only,
 // redacted). Known-key rebuild, bounded.
+// Mirror of normalizeAdhan() in server/adhan.js. Kept in step with it: the
+// server re-normalizes on write, so anything this lets through is clamped there
+// anyway, but matching avoids the UI showing a value the server will reject.
+function normalizeAdhanClient(value) {
+  // Inlined rather than a module-level const: normalizeSettings() runs during
+  // load, before a const declared further down this file is initialized, and
+  // the resulting TDZ throw would take the whole settings load with it.
+  const METHODS = ['egyptian', 'mwl', 'isna', 'makkah', 'karachi', 'dubai', 'turkey', 'singapore', 'tehran'];
+  const src = value && typeof value === 'object' ? value : {};
+  const lat = Number(src.lat);
+  const lon = Number(src.lon);
+  return {
+    method: METHODS.includes(src.method) ? src.method : 'egyptian',
+    asr: src.asr === 'hanafi' ? 'hanafi' : 'standard',
+    highLat: ['none', 'nightMiddle', 'oneSeventh', 'angleBased'].includes(src.highLat) ? src.highLat : 'nightMiddle',
+    mode: src.mode === 'manual' ? 'manual' : 'auto',
+    lat: Number.isFinite(lat) && Math.abs(lat) <= 90 ? lat : null,
+    lon: Number.isFinite(lon) && Math.abs(lon) <= 180 ? lon : null,
+    city: String(src.city || '').slice(0, 80),
+    alertMinutes: clampNumber(src.alertMinutes, 0, 60, 10),
+    hijri: src.hijri !== false,
+  };
+}
+
 function normalizeFootballClient(value) {
   const src = value && typeof value === 'object' ? value : {};
   const refreshSec = clampNumber(src.refreshSec, 60, 900, 120);
@@ -5284,6 +5310,18 @@ function syncStocksTickerControls() {
   setChk('settings-football-standings', ft.standings !== false);
   const sk = $('settings-football-sportsdb');
   if (sk) { sk.value = ''; sk.placeholder = hubSettings.sportsDbKeySet ? '••••••••' : '—'; }
+  // Adhan (prayer times)
+  const ad = hubSettings.adhan || {};
+  setVal('settings-adhan-method', ad.method || 'egyptian');
+  setVal('settings-adhan-asr', ad.asr || 'standard');
+  setVal('settings-adhan-highlat', ad.highLat || 'nightMiddle');
+  setVal('settings-adhan-mode', ad.mode || 'auto');
+  setVal('settings-adhan-lat', ad.lat != null ? ad.lat : '');
+  setVal('settings-adhan-lon', ad.lon != null ? ad.lon : '');
+  setVal('settings-adhan-city', ad.city || '');
+  setVal('settings-adhan-alert', ad.alertMinutes != null ? ad.alertMinutes : 10);
+  setChk('settings-adhan-hijri', ad.hijri !== false);
+  syncAdhanModeControls();
   // News
   const nw = hubSettings.news || {};
   setVal('settings-news-refresh', nw.refreshSec != null ? nw.refreshSec : 600);
@@ -5304,6 +5342,23 @@ function updateStocksCfg(patch) {
   hubSettings = normalizeSettings({ ...hubSettings, stocks: { ...cur, ...patch } });
   saveHubSettings();
   syncStocksTickerControls();
+}
+
+function updateAdhanCfg(patch) {
+  const cur = hubSettings.adhan || {};
+  hubSettings = normalizeSettings({ ...hubSettings, adhan: { ...cur, ...patch } });
+  saveHubSettings();
+  syncAdhanModeControls();
+}
+
+// Manual coordinates only matter in manual mode; grey them out otherwise so the
+// panel can't suggest a pinned location is in effect when it isn't.
+function syncAdhanModeControls() {
+  const manual = (hubSettings.adhan || {}).mode === 'manual';
+  ['settings-adhan-lat', 'settings-adhan-lon', 'settings-adhan-city'].forEach(id => {
+    const n = document.getElementById(id);
+    if (n) { n.disabled = !manual; n.closest('.settings-row')?.classList.toggle('is-disabled', !manual); }
+  });
 }
 
 function updateFootballCfg(patch) {
