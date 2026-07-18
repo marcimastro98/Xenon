@@ -4,7 +4,7 @@
     {
       "id": "dgm-previsi-n-7-d-as",
       "kind": "widget",
-      "name": "DGM Previsión 7 días",
+      "name": "DGM 7-Day Forecast",
       "author": "DanielGarciaMorato",
       "description": "Show the daily weather forecast for the next seven days, including high and low temperatures, precipitation, and wind. It uses the city configured in DGM Current Weather, avoiding duplicate settings. Compatible with Spanish and English, as well as metric and imperial units. Data provided by Open-Met",
       "category": "system",
@@ -25,7 +25,8 @@
       "shots": 2,
       "active": false,
       "addedAt": "2026-07-18",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-07-18"
     },
     {
       "id": "dgm-radar-de-tormentas",
