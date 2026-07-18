@@ -1,6 +1,6 @@
 {
   "xenonPreset": 1,
-  "exportedAt": "2026-07-17T14:04:21.034Z",
+  "exportedAt": "2026-07-18T20:12:35.793Z",
   "appVersion": "",
   "gridCols": 24,
   "kind": "widget",
@@ -81,7 +81,7 @@
         },
         {
           "path": "manifest.json",
-          "data": "ewogICJhcGkiOiAxLAogICJpZCI6ICJkZ20tbmV3cy1nZW5lcmFsIiwKICAibmFtZSI6ICJER00gTmV3cyBHZW5lcmFsIiwKICAidmVyc2lvbiI6ICIwLjMuMyIsCiAgImF1dGhvciI6ICJYZW5vbiBER00iLAogICJkZXNjcmlwdGlvbiI6ICJTdGFibGUgYmFsYW5jZWQgaGVhZGxpbmVzIGZyb20gc2l4IG91dGxldHMgd2l0aCBjb21wYWN0IHRodW1ibmFpbHMgKFNESykuIiwKICAiZW50cnkiOiAiaW5kZXguaHRtbCIsCiAgImhvc3RzIjogWwogICAgInd3dy5lbG11bmRvLmVzIiwKICAgICJmZWVkcy5lbHBhaXMuY29tIiwKICAgICJmZWVkcy5iYmNpLmNvLnVrIiwKICAgICJ3d3cudGhlZ3VhcmRpYW4uY29tIiwKICAgICJyc3Mubnl0aW1lcy5jb20iLAogICAgInd3dy5sZW1vbmRlLmZyIiwKICAgICJpY2hlZi5iYmNpLmNvLnVrIiwKICAgICJpLmd1aW0uY28udWsiCiAgXSwKICAiYWN0aW9ucyI6IFsKICAgICJ1cmwiCiAgXQp9"
+          "data": "ewogICJhcGkiOiAxLAogICJpZCI6ICJkZ20tbmV3cy1nZW5lcmFsIiwKICAibmFtZSI6ICJER00gTmV3cyBHZW5lcmFsIiwKICAidmVyc2lvbiI6ICIwLjMuMiIsCiAgImF1dGhvciI6ICJYZW5vbiBER00iLAogICJkZXNjcmlwdGlvbiI6ICJTdGFibGUgYmFsYW5jZWQgaGVhZGxpbmVzIGZyb20gc2l4IG91dGxldHMgd2l0aCBjb21wYWN0IHRodW1ibmFpbHMgKFNESykuIiwKICAiZW50cnkiOiAiaW5kZXguaHRtbCIsCiAgImhvc3RzIjogWwogICAgInd3dy5lbG11bmRvLmVzIiwKICAgICJmZWVkcy5lbHBhaXMuY29tIiwKICAgICJmZWVkcy5iYmNpLmNvLnVrIiwKICAgICJ3d3cudGhlZ3VhcmRpYW4uY29tIiwKICAgICJyc3Mubnl0aW1lcy5jb20iLAogICAgInd3dy5sZW1vbmRlLmZyIiwKICAgICJpY2hlZi5iYmNpLmNvLnVrIiwKICAgICJpLmd1aW0uY28udWsiCiAgXSwKICAiYWN0aW9ucyI6IFsKICAgICJ1cmwiCiAgXQp9"
         },
         {
           "path": "README.md",
