@@ -1,0 +1,9 @@
+Filesystem     Mounted on                Type         1B-blocks          Used         Avail
+tmpfs          /run                      tmpfs      13260906496       4739072   13256167424
+/dev/nvme1n1p1 /                         ext4     3935709487104 1271786557440 2463923310592
+tmpfs          /dev/shm                  tmpfs      66304512000     435830784   65868681216
+tmpfs          /run/lock                 tmpfs          5242880         24576       5218304
+efivarfs       /sys/firmware/efi/efivars efivarfs        131072         79901         46051
+tmpfs          /run/qemu                 tmpfs      66304512000             0   66304512000
+/dev/nvme1n1p2 /boot/efi                 vfat        1124999168      39997440    1085001728
+tmpfs          /run/user/1000            tmpfs      13260902400        200704   13260701696

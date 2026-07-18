@@ -10,6 +10,10 @@ const https = require('https');
 const os = require('os');
 const crypto = require('crypto');
 const path = require('path');
+// Linux native collectors (GPU/disk/CPU-temp/network). Windows keeps the
+// PowerShell path; on Linux those spawns fail (powershell.exe ENOENT) so the
+// system tiles fall back to these. See linux-collectors.js.
+const linuxCollectors = process.platform === 'linux' ? require('./linux-collectors') : null;
 const fpsMonitor = require('./fpsmon');
 const gameDetect = require('./gamedetect');
 const winNotif = require('./winnotif');
@@ -1316,6 +1320,7 @@ function runHelperOneShot(args, timeout = 8000) {
 // back to windows.ps1 transparently on ANY helper problem (missing, crashed,
 // bad output) — the PowerShell path is the permanent safety net.
 async function runWindowsTool(args, timeout) {
+  if (linuxCollectors) return linuxCollectors.windows(args[0], args[1]);
   if (fs.existsSync(HELPER_EXE)) {
     try { return await runHelperOneShot(['windows', ...args], timeout); }
     catch { /* fall through to the PowerShell path */ }
@@ -1998,6 +2003,7 @@ function makeCsvPath() {
 }
 
 function readSoundVolumeRows() {
+  if (linuxCollectors) return linuxCollectors.audioRows();
   return new Promise((resolve, reject) => {
     const csv = makeCsvPath();
     execFile(SVV, ['/scomma', csv, '/AvoidPrompts'], { timeout: 6000 }, err => {
@@ -3021,7 +3027,7 @@ async function getCpuTemp() {
 
   cpuTempPending = (async () => {
     try {
-      const data = await runCollector(CPU_TEMP_SCRIPT, [], 10000);
+      const data = linuxCollectors ? await linuxCollectors.cpuTemp() : await runCollector(CPU_TEMP_SCRIPT, [], 10000);
       // Windows PowerShell 5.1 can unwrap a single-element array on serialize.
       let fans = data.fans;
       if (fans && !Array.isArray(fans)) fans = [fans];
@@ -3058,7 +3064,7 @@ async function getGpuInfo() {
   if (gpuPending) return gpuPending;
   gpuPending = (async () => {
   try {
-    const data = await runCollector(GPU_SCRIPT, [], 12000);
+    const data = linuxCollectors ? await linuxCollectors.gpu() : await runCollector(GPU_SCRIPT, [], 12000);
     gpuCache = {
       gpu: data.gpu === null || data.gpu === undefined ? gpuCache.gpu : data.gpu,
       gpuName: data.gpuName || gpuCache.gpuName || null,
@@ -3133,6 +3139,7 @@ let _diskLettersCache = { letters: null, at: 0 };
 const DISK_LETTERS_TTL = 60 * 1000;
 
 async function getAllDisksInfo() {
+  if (linuxCollectors) return linuxCollectors.disks();
   const drives = [];
   const details = await getDiskDetails();
   // Probing all 24 letters with statfs every cycle (~7s) is wasteful — valid
@@ -3322,7 +3329,7 @@ async function _getNetworkInfoRaw() {
   // worker, delaying every other queued sensor read.
   let skipFps = false;
   try { skipFps = fpsMonitor.isAvailable(); } catch { skipFps = false; }
-  const data = await runCollector(NETWORK_SCRIPT, skipFps ? ['-SkipFps'] : [], 8000);
+  const data = linuxCollectors ? await linuxCollectors.network() : await runCollector(NETWORK_SCRIPT, skipFps ? ['-SkipFps'] : [], 8000);
   const now = Date.now();
   const rx = Number(data.rxBytes) || 0;
   const tx = Number(data.txBytes) || 0;
@@ -3624,15 +3631,19 @@ function setMicMute(mute) {
   // Use the cached mic CLI ID (resolved from SoundVolumeView output) so the call works
   // regardless of the Windows display language. Falls back silently if the cache is empty.
   if (cachedMicId) {
-    execFile(SVV, [action, cachedMicId], err => { if (err) console.error(err.message); });
+    svvExec([action, cachedMicId]).catch(e => console.error(e.message));
   } else if (cachedSpeakerName) {
     // Last-resort: try the generic 'DefaultCaptureDevice' selector understood by SVV
-    execFile(SVV, [action, 'DefaultCaptureDevice'], err => { if (err) console.error(err.message); });
+    svvExec([action, 'DefaultCaptureDevice']).catch(e => console.error(e.message));
   }
 }
 
-// Promise wrapper around a single SoundVolumeView call.
+// Promise wrapper around a single SoundVolumeView call, and the ONE place that
+// knows SoundVolumeView is Windows-only: on Linux the same argv is translated to
+// wpctl. Every SVV call site goes through here, so there is no execFile shadow
+// and no platform check scattered through the audio code.
 function svvExec(args) {
+  if (linuxCollectors) return linuxCollectors.audioCommand(args);
   return new Promise((resolve, reject) => execFile(SVV, args, e => (e ? reject(e) : resolve())));
 }
 
@@ -4712,7 +4723,7 @@ function _duckSpeakerVolume() {
   if (!_duckActive && cachedSpeakerId) {
     _duckSavedVolume = _lastSpeakerVolume;
     _duckActive = true;
-    execFile(SVV, ['/SetVolume', cachedSpeakerId, '30'], () => {});
+    svvExec(['/SetVolume', cachedSpeakerId, '30']).catch(() => {});
     process.stdout.write(`[Duck] volume ${_duckSavedVolume} → 30\n`);
   }
 }
@@ -4721,7 +4732,7 @@ function _restoreSpeakerVolume() {
     const vol = _duckSavedVolume != null ? _duckSavedVolume : 70;
     _duckActive = false;
     _duckSavedVolume = null;
-    execFile(SVV, ['/SetVolume', cachedSpeakerId, String(vol)], () => {});
+    svvExec(['/SetVolume', cachedSpeakerId, String(vol)]).catch(() => {});
     process.stdout.write(`[Duck] restored → ${vol}\n`);
   }
 }
@@ -5105,26 +5116,20 @@ async function executeAiTool(fnName, fnArgs, deps) {
     } else if (fnName === 'set_volume') {
       const vol = Math.max(0, Math.min(100, parseInt(fnArgs.level || 50)));
       if (cachedSpeakerId) {
-        await new Promise((resolve, reject) => {
-          execFile(SVV, ['/SetVolume', cachedSpeakerId, String(vol)], e => e ? reject(e) : resolve());
-        });
+        await svvExec(['/SetVolume', cachedSpeakerId, String(vol)]);
       }
       fnResult = { ok: true, level: vol };
     } else if (fnName === 'toggle_speaker_mute') {
       if (!cachedSpeakerId) { fnResult = { error: 'audio not ready' }; }
       else {
-        await new Promise((resolve, reject) => {
-          execFile(SVV, ['/Switch', cachedSpeakerId], e => e ? reject(e) : resolve());
-        });
+        await svvExec(['/Switch', cachedSpeakerId]);
         fnResult = { ok: true };
       }
     } else if (fnName === 'set_mic_volume') {
       const micVol = Math.max(0, Math.min(100, parseInt(fnArgs.level || 50)));
       if (!cachedMicId) { fnResult = { error: 'mic not ready' }; }
       else {
-        await new Promise((resolve, reject) => {
-          execFile(SVV, ['/SetVolume', cachedMicId, String(micVol)], e => e ? reject(e) : resolve());
-        });
+        await svvExec(['/SetVolume', cachedMicId, String(micVol)]);
         fnResult = { ok: true, level: micVol };
       }
     } else if (fnName === 'lock_pc') {
@@ -5766,7 +5771,7 @@ async function executeAiTool(fnName, fnArgs, deps) {
           if (!match || !match.id) {
             fnResult = { error: 'not_found', available: list.map(d => d.label || d.name).slice(0, 24) };
           } else {
-            await new Promise((resolve, reject) => execFile(SVV, ['/SetDefault', match.id, 'all'], e => e ? reject(e) : resolve()));
+            await svvExec(['/SetDefault', match.id, 'all']);
             if (kind === 'speaker') cachedSpeakerId = match.id;
             else { cachedMicId = match.id; if (isMuted) setMicMute(true); }
             fnResult = { ok: true, kind: kind === 'speaker' ? 'speaker' : 'microphone', device: match.label || match.name };
@@ -9894,9 +9899,7 @@ const server = http.createServer(async (req, res) => {
       }
       const vol = Math.max(0, Math.min(100, parseInt(level)));
       if (!cachedSpeakerId) { err500('Cache not ready'); return; }
-      execFile(SVV, ['/SetVolume', cachedSpeakerId, String(vol)], e => {
-        if (e) err500(e.message); else json({ ok: true, level: vol });
-      });
+      svvExec(['/SetVolume', cachedSpeakerId, String(vol)]).then(() => json({ ok: true, level: vol }), e => err500(e.message));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/mic/volume' && (req.method === 'POST' || req.method === 'GET')) {
@@ -9910,19 +9913,14 @@ const server = http.createServer(async (req, res) => {
       const vol = Math.max(0, Math.min(100, parseInt(level)));
       if (!cachedMicId) { err500('Cache not ready'); return; }
       // Natural behaviour: 0 = silent (muted), >0 = audible at that level.
-      execFile(SVV, ['/SetVolume', cachedMicId, String(vol)], e1 => {
-        if (e1) { err500(e1.message); return; }
-        execFile(SVV, [vol === 0 ? '/Mute' : '/Unmute', cachedMicId], e => {
-          if (e) err500(e.message); else json({ ok: true, level: vol });
-        });
-      });
+      svvExec(['/SetVolume', cachedMicId, String(vol)])
+        .then(() => svvExec([vol === 0 ? '/Mute' : '/Unmute', cachedMicId]))
+        .then(() => json({ ok: true, level: vol }), e => err500(e.message));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/speaker/mute' && (req.method === 'POST' || req.method === 'GET')) {
     if (!cachedSpeakerId) { err500('Cache not ready'); return; }
-    execFile(SVV, ['/Switch', cachedSpeakerId], e => {
-      if (e) err500(e.message); else json({ ok: true });
-    });
+    svvExec(['/Switch', cachedSpeakerId]).then(() => json({ ok: true }), e => err500(e.message));
 
   } else if (reqPath === '/audio/app/volume' && (req.method === 'POST' || req.method === 'GET')) {
     try {
@@ -9940,12 +9938,9 @@ const server = http.createServer(async (req, res) => {
       const target = proc ? appAudioTarget(proc) : id;
       const vol = Math.max(0, Math.min(100, parseInt(level)));
       // Natural behaviour: 0 = silent (muted) for that app, >0 = audible.
-      execFile(SVV, ['/SetVolume', target, String(vol)], e1 => {
-        if (e1) { err500(e1.message); return; }
-        execFile(SVV, [vol === 0 ? '/Mute' : '/Unmute', target], e => {
-          if (e) err500(e.message); else json({ ok: true, level: vol });
-        });
-      });
+      svvExec(['/SetVolume', target, String(vol)])
+        .then(() => svvExec([vol === 0 ? '/Mute' : '/Unmute', target]))
+        .then(() => json({ ok: true, level: vol }), e => err500(e.message));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/audio/app/mute' && (req.method === 'POST' || req.method === 'GET')) {
@@ -9965,9 +9960,7 @@ const server = http.createServer(async (req, res) => {
       const action = muted === undefined || muted === null
         ? '/Switch'
         : ((muted === true || muted === 'true' || muted === '1') ? '/Mute' : '/Unmute');
-      execFile(SVV, [action, target], e => {
-        if (e) err500(e.message); else json({ ok: true });
-      });
+      svvExec([action, target]).then(() => json({ ok: true }), e => err500(e.message));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/audio/apps' && req.method === 'GET') {
@@ -10167,20 +10160,17 @@ const server = http.createServer(async (req, res) => {
   } else if (reqPath === '/speaker/set' && req.method === 'POST') {
     try {
       const { id } = JSON.parse(await readBody(req));
-      execFile(SVV, ['/SetDefault', id, 'all'], e => {
-        if (e) err500(e.message); else { cachedSpeakerId = id; json({ ok: true }); }
-      });
+      svvExec(['/SetDefault', id, 'all']).then(() => { cachedSpeakerId = id; json({ ok: true }); }, e => err500(e.message));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/mic/set' && req.method === 'POST') {
     try {
       const { id } = JSON.parse(await readBody(req));
-      execFile(SVV, ['/SetDefault', id, 'all'], e => {
-        if (e) { err500(e.message); return; }
+      svvExec(['/SetDefault', id, 'all']).then(() => {
         cachedMicId = id;
         if (isMuted) setMicMute(true);
         json({ ok: true });
-      });
+      }, e => err500(e.message));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/actions/run' && req.method === 'POST') {
@@ -10247,7 +10237,14 @@ const server = http.createServer(async (req, res) => {
       // lighting — the iCUE bridge, an external provider with devices, or Chroma.
       const ls = lighting.getStatus();
       const lightingConfigured = !!(ls.available || (ls.devices && ls.devices.length) || (ls.providers && ls.providers.some((p) => (p.devices || []).length)));
-      json({ catalog: ACTION_CATALOG, capabilities: { powershell: true, soundVolumeView: fs.existsSync(SVV), obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured } });
+      // Capability probe: on Linux there is no PowerShell and no SoundVolumeView,
+      // but the audio actions still work when a PipeWire mixer answers, so report
+      // what is actually usable rather than the Windows assumption.
+      const powershellAvailable = process.platform === 'win32';
+      const audioControlAvailable = linuxCollectors
+        ? await linuxCollectors.audioAvailable()
+        : fs.existsSync(SVV);
+      json({ catalog: ACTION_CATALOG, capabilities: { powershell: powershellAvailable, soundVolumeView: audioControlAvailable, obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured } });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/wavelink/state' && req.method === 'GET') {
@@ -12953,7 +12950,7 @@ const server = http.createServer(async (req, res) => {
       if (!_duckActive && cachedSpeakerId) {
         _duckSavedVolume = _lastSpeakerVolume;
         _duckActive = true;
-        execFile(SVV, ['/SetVolume', cachedSpeakerId, '20'], () => {});
+        svvExec(['/SetVolume', cachedSpeakerId, '20']).catch(() => {});
       }
       res.writeHead(204); res.end();
     } catch { res.writeHead(204); res.end(); }
@@ -12965,7 +12962,7 @@ const server = http.createServer(async (req, res) => {
         const vol = _duckSavedVolume != null ? _duckSavedVolume : 70;
         _duckActive = false;
         _duckSavedVolume = null;
-        execFile(SVV, ['/SetVolume', cachedSpeakerId, String(vol)], () => {});
+        svvExec(['/SetVolume', cachedSpeakerId, String(vol)]).catch(() => {});
       }
       res.writeHead(204); res.end();
     } catch { res.writeHead(204); res.end(); }
