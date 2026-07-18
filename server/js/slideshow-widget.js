@@ -20,18 +20,27 @@
 (function () {
   // ── Shared rules (client + server + settings normalizer) ──────────────────
   // GIF stays in the allowlist — animated GIFs are the whole point of the ask.
+  //
+  // Two storage models, both accepted here:
+  //  1. DISK-BACKED (the default now, like iCUE): the image is a file under the
+  //     server's data/uploads/ dir and the config stores only a tiny reference
+  //     `/uploads/slideshow-*`. The set is bounded by disk, not by localStorage,
+  //     so a folder of many GIFs is no longer a problem. New uploads take this path.
+  //  2. LEGACY INLINE: an existing slideshow may still carry `data:` base64 URIs
+  //     that live in the settings blob. Those are kept working, but stay bounded by
+  //     the byte budget below (they weigh on localStorage + the settings backup).
   const SLIDE_DATA_RE = /^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/;
-  // What actually keeps the slideshow efficient is the BYTE budget, not the count:
-  // images live inline as data: URIs in the settings blob (localStorage + backup),
-  // so SLIDES_TOTAL_MAX bounds the whole set's weight and SLIDE_MAX_CHARS bounds any
-  // one image. SLIDE_MAX_COUNT is therefore a high safety CEILING, not a UX limit —
-  // it only exists so a degenerate set of thousands of tiny valid URIs can't grow
-  // the array (and the one-row-per-image settings list) without bound. In normal use
-  // the byte budget is what binds first, so small images are no longer capped at 30.
-  const SLIDE_MAX_COUNT = 200;         // safety ceiling on the array length
-  const SLIDE_MAX_CHARS = 1400000;     // ~1 MB per image (as base64 chars)
-  const SLIDES_TOTAL_MAX = 6000000;    // ~4.4 MB for the whole set — the real guard:
-                                       // keeps the settings blob (and backup) sane
+  // A server-generated upload reference: `/uploads/slideshow-<ts>-<rand>.<ext>`.
+  // The `slideshow-` prefix is what the server's reference-counted GC keys off, so
+  // orphaned files are reclaimed when an image is removed (see server.js).
+  const SLIDE_UPLOAD_RE = /^\/uploads\/slideshow-[A-Za-z0-9._-]+$/;
+  // The count is now the practical bound (disk-backed images cost ~40 chars each in
+  // the blob, nothing on localStorage), kept as a sane CEILING so a degenerate set
+  // can't grow the array and the one-row-per-image settings list without bound.
+  const SLIDE_MAX_COUNT = 200;         // ceiling on the number of images
+  const SLIDE_MAX_CHARS = 1400000;     // ~1 MB per LEGACY inline image (base64 chars)
+  const SLIDES_TOTAL_MAX = 6000000;    // ~4.4 MB of LEGACY inline images — bounds only
+                                       // the base64 set still living in the blob
   const FIT_MODES = ['cover', 'contain'];
   const INTERVAL_MIN = 1500;
   const INTERVAL_MAX = 120000;
@@ -55,9 +64,15 @@
     for (const it of list) {
       if (images.length >= SLIDE_MAX_COUNT) break;
       const uri = (it && typeof it.uri === 'string') ? it.uri : '';
-      if (uri.length > SLIDE_MAX_CHARS || !SLIDE_DATA_RE.test(uri)) continue;
-      if (total + uri.length > SLIDES_TOTAL_MAX) break;   // set is full — stop, keep what fits
-      total += uri.length;
+      // Disk-backed reference: a tiny path string, no weight on the blob — keep it
+      // as-is (the file itself is size-capped by the upload endpoint).
+      if (!SLIDE_UPLOAD_RE.test(uri)) {
+        // Legacy inline data: URI — still gated by the per-image and total caps so
+        // an old base64 set can never bloat the settings blob.
+        if (uri.length > SLIDE_MAX_CHARS || !SLIDE_DATA_RE.test(uri)) continue;
+        if (total + uri.length > SLIDES_TOTAL_MAX) break;   // set is full — stop, keep what fits
+        total += uri.length;
+      }
       const name = (it && typeof it.name === 'string') ? it.name.trim().slice(0, 80) : '';
       images.push({ name, uri });
     }
@@ -69,7 +84,7 @@
   }
 
   const CAPS = {
-    SLIDE_DATA_RE, SLIDE_MAX_COUNT, SLIDE_MAX_CHARS, SLIDES_TOTAL_MAX,
+    SLIDE_DATA_RE, SLIDE_UPLOAD_RE, SLIDE_MAX_COUNT, SLIDE_MAX_CHARS, SLIDES_TOTAL_MAX,
     FIT_MODES, INTERVAL_MIN, INTERVAL_MAX, INTERVAL_DEFAULT,
   };
 

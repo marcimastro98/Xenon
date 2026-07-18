@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [v4.6.2] - 18-07-2026
 ### ✨ Improvements
-- **The Slideshow widget no longer stops you at 30 images.** The old cap wasn't really about count — the images live inline in your settings, so what keeps things fast is the total size of the set, not how many there are. A folder of small icons or short GIFs was hitting "30" long before it hit any real limit. The set is now bounded by its overall weight (about 4.4 MB, unchanged) with a generous safety ceiling on top, so a run of small images just keeps adding while a few large ones still fill up on size, exactly as before. Nothing about how a slideshow plays or persists changes.
+- **The Slideshow widget no longer stops you at 30 images.** The old limit existed because every image was stored inside your settings as text, which had to stay small enough for the settings backup — a folder of GIFs hit the wall fast. Slideshow images now live as real files on disk (the way iCUE keeps them), and your settings only remember which file goes where. So a slideshow can hold a whole folder of GIFs, saving and loading stays fast no matter how many you add, and unused images are cleaned up automatically when you remove them. Any slideshow you already have keeps working untouched. One thing to know: because the pictures now live on disk, a slideshow built this way isn't carried inside a settings backup the way the old inline images were — tell us if you'd like it to be.
 
 ## [v4.6.1] - 17-07-2026
 ### ✨ New

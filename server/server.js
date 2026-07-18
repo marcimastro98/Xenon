@@ -1194,6 +1194,15 @@ const TILE_ASSET_MIME_BY_EXT = new Map([
 ]);
 const TILE_ASSET_EXT_BY_MIME = new Map([...TILE_ASSET_MIME_BY_EXT.entries()].map(([ext, mime]) => [mime, ext]));
 
+// Slideshow images. Same disk-backed, reference-counted model as tile decorations
+// (many images, no one-live-file policy), but referenced from hubSettings.slideshow
+// rather than the dashboard layout, and with their own `slideshow-*` name prefix so
+// the two GCs never reclaim each other's files. Animated GIFs are the whole point of
+// the widget and run large, so the per-file cap is roomier than a tile decoration's.
+const SLIDESHOW_ASSET_MAX_BYTES = 20 * 1024 * 1024;
+const SLIDESHOW_ASSET_MIME_BY_EXT = TILE_ASSET_MIME_BY_EXT;   // same image allowlist
+const SLIDESHOW_ASSET_EXT_BY_MIME = TILE_ASSET_EXT_BY_MIME;
+
 // CSV column indices for SoundVolumeView /scomma (no header row)
 const F = { NAME: 0, TYPE: 1, DIR: 2, DEVICE_NAME: 3, DEFAULT: 4, STATE: 7, MUTED: 8, VOL_PCT: 10, CLI_ID: 18, PROC_PATH: 19, PROC_ID: 20, WINDOW_TITLE: 21 };
 
@@ -4660,6 +4669,42 @@ function cleanupUnreferencedTileAssets(layout, presets) {
   )).catch(() => {});
 }
 
+// Slideshow images are the same kind of reference-counted upload as tile assets,
+// but their references live in hubSettings.slideshow.images[].uri (a `/uploads/
+// slideshow-*` string per image). Sweep the `slideshow-*` files no surviving image
+// still names, reusing the tile-asset grace window + throttle constants.
+function collectSlideshowAssetRefs(slideshow) {
+  const set = new Set();
+  const imgs = slideshow && Array.isArray(slideshow.images) ? slideshow.images : [];
+  for (const it of imgs) {
+    const src = it && typeof it.uri === 'string' ? it.uri : '';
+    const m = src.match(/^\/uploads\/(slideshow-[A-Za-z0-9._-]+)$/);
+    if (m) set.add(m[1]);
+  }
+  return set;
+}
+let _slideshowAssetGcSig = null;
+let _slideshowAssetGcAt = 0;
+function cleanupUnreferencedSlideshowAssets(slideshow) {
+  const referenced = collectSlideshowAssetRefs(slideshow);
+  const sig = [...referenced].sort().join('|');
+  const now = Date.now();
+  if (sig === _slideshowAssetGcSig && (now - _slideshowAssetGcAt) < TILE_ASSET_GC_MIN_INTERVAL_MS) return;
+  _slideshowAssetGcSig = sig;
+  _slideshowAssetGcAt = now;
+  const cutoff = now - TILE_ASSET_GC_GRACE_MS;
+  fs.promises.readdir(UPLOADS_DIR).then(files => Promise.all(files
+    .filter(f => f.startsWith('slideshow-') && !referenced.has(f))
+    .map(async (f) => {
+      try {
+        const p = path.join(UPLOADS_DIR, f);
+        const st = await fs.promises.stat(p);
+        if (st.mtimeMs < cutoff) await fs.promises.unlink(p).catch(() => {});
+      } catch { /* file vanished mid-sweep — fine */ }
+    })
+  )).catch(() => {});
+}
+
 // ── Screen enumeration + capture (shared by /api/screens, /api/screenshot,
 //    and the AI capture_screen function) ───────────────────────────────────
 async function listScreens() {
@@ -7400,6 +7445,8 @@ async function writeHubSettings(settings) {
   // windowed so a just-uploaded asset isn't swept before its layout save lands).
   // Saved presets count as references too — inserting one must still find its images.
   cleanupUnreferencedTileAssets(safe.dashboardLayout, safe.dashboardPresets);
+  // Slideshow images are disk-backed uploads too, referenced from safe.slideshow.
+  cleanupUnreferencedSlideshowAssets(safe.slideshow);
   return safe;
 }
 
@@ -13205,6 +13252,42 @@ const server = http.createServer(async (req, res) => {
       }
       await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
       const safeName = `tileasset-${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`;
+      await fs.promises.writeFile(path.join(UPLOADS_DIR, safeName), file.data);
+      json({ ok: true, url: `/uploads/${safeName}`, name: file.originalName, type: expectedType, size: file.data.length });
+    } catch (e) {
+      if (e.code === 'PAYLOAD_TOO_LARGE') {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Payload too large' }));
+      } else {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    }
+
+  } else if (reqPath === '/slideshow-asset' && req.method === 'POST') {
+    // Slideshow image upload. Mirrors /tile-asset: keeps every file (a slideshow is
+    // many pictures), a server-generated `slideshow-*` name, orphans reclaimed by
+    // cleanupUnreferencedSlideshowAssets() on settings save. This is what lets a
+    // slideshow hold far more images than the old inline-base64 model — they live on
+    // disk, not in the settings blob.
+    try {
+      const body = await readBodyBuffer(req, SLIDESHOW_ASSET_MAX_BYTES);
+      const file = parseMultipartBackground(req, body, 'asset');
+      const extFromName = path.extname(file.originalName).toLowerCase();
+      const ext = SLIDESHOW_ASSET_MIME_BY_EXT.has(extFromName) ? extFromName : SLIDESHOW_ASSET_EXT_BY_MIME.get(file.contentType);
+      if (!ext || !SLIDESHOW_ASSET_MIME_BY_EXT.has(ext)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unsupported file type' }));
+        return;
+      }
+      const expectedType = SLIDESHOW_ASSET_MIME_BY_EXT.get(ext);
+      if (file.contentType && file.contentType !== 'application/octet-stream' && file.contentType !== expectedType) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'File type mismatch' }));
+        return;
+      }
+      await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
+      const safeName = `slideshow-${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`;
       await fs.promises.writeFile(path.join(UPLOADS_DIR, safeName), file.data);
       json({ ok: true, url: `/uploads/${safeName}`, name: file.originalName, type: expectedType, size: file.data.length });
     } catch (e) {

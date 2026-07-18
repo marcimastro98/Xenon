@@ -4484,6 +4484,24 @@ function updateSlideshowCfg(patch) {
   renderSlideshowSettings();
 }
 
+// Upload one slideshow image to the server's disk-backed store and resolve its
+// served /uploads/ URL. Images live on disk (not inline in the settings blob), so
+// a slideshow can hold far more of them without weighing on localStorage/backups.
+async function uploadSlideshowAsset(file) {
+  const type = file.type || 'image/jpeg';
+  const ext = type === 'image/png' ? 'png' : type === 'image/gif' ? 'gif' : type === 'image/webp' ? 'webp' : 'jpg';
+  const form = new FormData();
+  form.append('asset', file, `slide.${ext}`);
+  const res = await fetch('/slideshow-asset', { method: 'POST', body: form });
+  const j = await res.json().catch(() => null);
+  if (!res.ok || !j || !j.url) {
+    const err = new Error((j && j.error) || 'upload failed');
+    err.tooBig = res.status === 413;
+    throw err;
+  }
+  return j.url;
+}
+
 async function addSlideshowImages(input) {
   const files = input && input.files ? Array.from(input.files) : [];
   if (input) input.value = '';   // allow re-picking the same file
@@ -4491,7 +4509,6 @@ async function addSlideshowImages(input) {
   const S = SlideshowWidget;
   const current = normalizeSlideshow(hubSettings.slideshow);
   const images = current.images.slice();
-  let total = images.reduce((sum, im) => sum + im.uri.length, 0);
   let added = 0;
   const warn = (titleKey, message) => {
     if (window.XenonToast) window.XenonToast.show({ type: 'error', title: t(titleKey), message: message || '' });
@@ -4499,16 +4516,13 @@ async function addSlideshowImages(input) {
   for (const file of files) {
     if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) { warn('slideshow_img_invalid', file.name); continue; }
     if (images.length >= S.SLIDE_MAX_COUNT) { warn('slideshow_full'); break; }
-    const uri = await new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-      reader.onerror = () => resolve('');
-      reader.readAsDataURL(file);
-    });
-    if (!uri || !S.SLIDE_DATA_RE.test(uri)) { warn('slideshow_img_invalid', file.name); continue; }
-    if (uri.length > S.SLIDE_MAX_CHARS || total + uri.length > S.SLIDES_TOTAL_MAX) { warn('slideshow_img_too_big', file.name); continue; }
-    images.push({ name: String(file.name || '').slice(0, 80), uri });
-    total += uri.length; added++;
+    try {
+      const uri = await uploadSlideshowAsset(file);
+      images.push({ name: String(file.name || '').slice(0, 80), uri });
+      added++;
+    } catch (e) {
+      warn(e && e.tooBig ? 'slideshow_img_too_big' : 'slideshow_img_invalid', file.name);
+    }
   }
   if (added) updateSlideshowCfg({ images });
 }
