@@ -1,6 +1,6 @@
 {
   "xenonPreset": 1,
-  "exportedAt": "2026-07-18T20:12:46.715Z",
+  "exportedAt": "2026-07-17T14:08:41.118Z",
   "appVersion": "",
   "gridCols": 24,
   "kind": "widget",
@@ -81,7 +81,7 @@
         },
         {
           "path": "manifest.json",
-          "data": "ewogICJhcGkiOiAxLAogICJpZCI6ICJkZ20tbmV3cy10ZWNobm9sb2d5IiwKICAibmFtZSI6ICJER00gTmV3cyBUZWNobm9sb2d5IiwKICAidmVyc2lvbiI6ICIwLjEuMi1zZGs0ZSIsCiAgImF1dGhvciI6ICJYZW5vbiBER00iLAogICJkZXNjcmlwdGlvbiI6ICJUZWNobm9sb2d5IG5ld3MgZnJvbSBTcGFuaXNoIGFuZCBpbnRlcm5hdGlvbmFsIHNvdXJjZXMgd2l0aCBiYWxhbmNlZCByb3RhdGlvbiBhbmQgUlNTIHVwZGF0ZXMuIiwKICAiZW50cnkiOiAiaW5kZXguaHRtbCIsCiAgImhvc3RzIjogWwogICAgInd3dy54YXRha2EuY29tIiwKICAgICJoaXBlcnRleHR1YWwuY29tIiwKICAgICJ3d3cubWljcm9zaWVydm9zLmNvbSIsCiAgICAiZmVlZHMuYmJjaS5jby51ayIsCiAgICAid3d3LnRoZWd1YXJkaWFuLmNvbSIsCiAgICAiZmVlZHMuYXJzdGVjaG5pY2EuY29tIiwKICAgICJpY2hlZi5iYmNpLmNvLnVrIiwKICAgICJpLmd1aW0uY28udWsiCiAgXSwKICAiYWN0aW9ucyI6IFsidXJsIl0KfQo="
+          "data": "ewogICJhcGkiOiAxLAogICJpZCI6ICJkZ20tbmV3cy10ZWNobm9sb2d5IiwKICAibmFtZSI6ICJER00gTmV3cyBUZWNobm9sb2d5IiwKICAidmVyc2lvbiI6ICIxLjAuMSIsCiAgImF1dGhvciI6ICJYZW5vbiBER00iLAogICJkZXNjcmlwdGlvbiI6ICJUZWNobm9sb2d5IG5ld3MgZnJvbSBTcGFuaXNoIGFuZCBpbnRlcm5hdGlvbmFsIHNvdXJjZXMgd2l0aCBiYWxhbmNlZCByb3RhdGlvbiBhbmQgUlNTIHVwZGF0ZXMuIiwKICAiZW50cnkiOiAiaW5kZXguaHRtbCIsCiAgImhvc3RzIjogWwogICAgInd3dy54YXRha2EuY29tIiwKICAgICJoaXBlcnRleHR1YWwuY29tIiwKICAgICJ3d3cubWljcm9zaWVydm9zLmNvbSIsCiAgICAiZmVlZHMuYmJjaS5jby51ayIsCiAgICAid3d3LnRoZWd1YXJkaWFuLmNvbSIsCiAgICAiZmVlZHMuYXJzdGVjaG5pY2EuY29tIiwKICAgICJpY2hlZi5iYmNpLmNvLnVrIiwKICAgICJpLmd1aW0uY28udWsiCiAgXSwKICAiYWN0aW9ucyI6IFsKICAgICJ1cmwiCiAgXQp9"
         },
         {
           "path": "README.md",
