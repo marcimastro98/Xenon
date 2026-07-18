@@ -2363,6 +2363,10 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-claim:hover { background: #bcb2ff; box-shadow: 0 7px 24px rgba(139, 123, 255, 0.42); }
 .cgal-discord { color: #fff; border-color: rgba(255, 255, 255, 0.16); background: #5865f2; box-shadow: 0 5px 18px rgba(88, 101, 242, 0.25); white-space: nowrap; }
 .cgal-discord:hover { background: #6975f5; box-shadow: 0 7px 24px rgba(88, 101, 242, 0.38); }
+/* "I have a code" — deliberately the quiet one of the row: it matters only to
+   the few who already claimed, and must not compete with the claim button. */
+.cgal-havecode { color: var(--text-muted, #a7adbb); border-color: var(--glass-border, rgba(255, 255, 255, 0.14)); background: transparent; white-space: nowrap; }
+.cgal-havecode:hover { color: var(--text, #e7e9ee); background: rgba(255, 255, 255, 0.08); }
 .cgal-card-actions { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 10px; flex-wrap: wrap; }
 .cgal-card-actions .cgal-btn { flex: 1; }
 .cgal-limcount { flex: none; width: 100%; text-align: right; font-size: 0.74rem; color: var(--text-dim, #8b91a1); font-variant-numeric: tabular-nums; }

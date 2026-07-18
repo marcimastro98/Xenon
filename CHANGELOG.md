@@ -2,6 +2,12 @@
 
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [v4.7.1] - 18-07-2026
+### 🐞 Fixes
+- **Claiming a limited edition now works, and the Store tells you where to put your code.** A limited drop hands you two things: a personal file and a personal code that unlocks it, both sent by Discord DM and shown on the claim page. Neither of them lives in the catalog, because every copy is its own numbered artifact, so once you had them the Store had nothing left to offer you and no field to type the code into. The only way in was Settings → Widget e condivisione → Importa…, which you had to already know about. The card of a limited drop now carries an **"Ho il codice"** button that opens that import window directly. It stays there after you claim, on purpose: your code works on three devices, so it is also the way back in on a second PC or after a reinstall.
+- **The "Apri Discord" button on a limited drop no longer drops you on the welcome channel.** It is meant to open the drop's own post, but when an entry does not name one it fell back to the plain server invite, so it looked like a broken claim button sitting next to the real one. It now appears only when it has somewhere to go, or when the drop can be claimed on Discord and nowhere else.
+- **A sold-out limited edition no longer sits in the Store next to one you can still get.** The Limited edition shelf listed every drop ever released, so a sold-out card kept the shelf occupied while a claimable one led the page. Sold-out drops now show only when nothing in the tier can still be claimed, which is also how the website has always behaved. They stay reachable through search and the Limited filter, where seeing the history is the point.
+
 ## [v4.7.0] - 18-07-2026
 ### ✨ New
 - **Xenon now has a privacy page, and it holds nothing back.** [xenon-app.com/privacy.html](https://xenon-app.com/privacy.html) lists every network call the app makes, when it makes it, and what it sends — including the ones that were always there and never written down: the update check that runs at launch, the IP-to-city lookup the weather widget uses if you leave auto-location on, and the anonymous install id attached to catalog ratings. Nothing about the app changed here; what changed is that you no longer have to read the source to know. If a future release adds a call, that page gets updated in the same release.

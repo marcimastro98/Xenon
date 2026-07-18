@@ -31,6 +31,10 @@
   // Where supporters send their email/donation screenshot to be registered and
   // receive their personal access code (rendered only as a mailto: link).
   const SUPPORT_EMAIL = 'supportxenon@protonmail.com';
+  // The drop's OWN Discord destination, '' when the entry sets none. The generic
+  // server invite is only an acceptable last resort for a Discord-only drop: put
+  // next to a working "Claim your copy" it lands you on the welcome channel with
+  // nothing about the drop in sight, which reads as a broken button.
   function reserveUrlFor(entry) {
     const u = entry && entry.limited && entry.limited.reserveUrl;
     if (typeof u === 'string') {
@@ -38,9 +42,9 @@
         const p = new URL(u);
         const h = p.hostname.toLowerCase();
         if (p.protocol === 'https:' && (h === 'discord.gg' || h === 'discord.com' || h === 'www.discord.com')) return p.toString();
-      } catch (e) { /* fall through to the default invite */ }
+      } catch (e) { /* not a usable Discord link */ }
     }
-    return DISCORD_URL;
+    return '';
   }
 
   function directClaimUrlFor(entry) {
@@ -61,12 +65,31 @@
       claim.appendChild(el('span', null, t('gallery_claim_copy', 'Claim your copy')));
       group.appendChild(claim);
     }
-    const discord = document.createElement('a');
-    discord.className = 'cgal-btn cgal-discord'; discord.href = reserveUrlFor(entry);
-    discord.target = '_blank'; discord.rel = 'noopener noreferrer';
-    discord.appendChild(icon('discord'));
-    discord.appendChild(el('span', null, t('gallery_reserve', 'Open Discord')));
-    group.appendChild(discord);
+    const reserve = reserveUrlFor(entry);
+    if (reserve || !claimUrl) {
+      const discord = document.createElement('a');
+      discord.className = 'cgal-btn cgal-discord'; discord.href = reserve || DISCORD_URL;
+      discord.target = '_blank'; discord.rel = 'noopener noreferrer';
+      discord.appendChild(icon('discord'));
+      discord.appendChild(el('span', null, t('gallery_reserve', 'Open Discord')));
+      group.appendChild(discord);
+    }
+    // A claimed copy arrives as a personal file plus a personal code, by DM and
+    // on the claim page — never through the catalog, because each copy is its
+    // own numbered artifact. So the Store, which is where you go looking, had
+    // nowhere to put the code you were just given: the import dialog was reachable
+    // only from Settings, and only if you knew it was the right one. This opens it
+    // directly. It stays visible after claiming (the card cannot know you claimed)
+    // and that is the point — it is the way back in.
+    if (claimUrl) {
+      const have = el('button', 'cgal-btn cgal-havecode'); have.type = 'button';
+      have.appendChild(icon('lock'));
+      have.appendChild(el('span', null, t('gallery_have_code', 'I have a code')));
+      have.addEventListener('click', () => {
+        if (window.PresetShare && window.PresetShare.openImport) window.PresetShare.openImport();
+      });
+      group.appendChild(have);
+    }
     parent.appendChild(group);
   }
 
@@ -1175,7 +1198,17 @@
         // and packs through install receipts, so the heading has to as well.
         if (updates.length) frag.appendChild(section('__updates', updates, 'update', t('gallery_updates', 'Aggiornamenti per i tuoi contenuti')));
         // Two exclusive shelves, on par with each other: Limited then Supporters.
-        const restLimited = sortList(limited).filter((e) => e.id !== heroId);
+        // A sold-out drop holds the shelf only when nothing in the tier can still
+        // be claimed — otherwise the section sat next to a claimable hero showing
+        // one nobody can get. The test is over the WHOLE tier, not over what is
+        // left after the hero: with one live drop leading and one sold out, the
+        // remainder is all sold out, and testing only the remainder would put it
+        // straight back. Sold-out drops stay reachable through search and the
+        // Limited tab, where the history is the point. Same rule as the website
+        // catalog's limited strip.
+        const anyClaimable = limited.some((e) => !(e.limited && e.limited.soldOut));
+        const restLimited = sortList(limited)
+          .filter((e) => e.id !== heroId && !(anyClaimable && e.limited && e.limited.soldOut));
         if (restLimited.length) frag.appendChild(featureSection({
           items: restLimited, iconName: 'limited', cls: 'is-limited', seeAllKind: '__limited',
           title: t('gallery_limited_section', 'Limited edition'),
