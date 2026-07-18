@@ -195,8 +195,8 @@
         "numbered": true
       },
       "shots": 4,
-      "active": false,
-      "addedAt": "2026-07-17"
+      "addedAt": "2026-07-17",
+      "updatedAt": "2026-07-18"
     },
     {
       "id": "pow-comic",
