@@ -267,3 +267,27 @@ test('catalog: filterVisibleEntries drops hidden/scheduled entries', () => {
   assert.deepEqual(ids, ['a', 'e']);
   assert.deepEqual(cat.filterVisibleEntries(null, now), []);
 });
+
+// ── v3: changelog + updatedAt ────────────────────────────────────────────────
+// Both feed the update prompt: `changelog` is the only thing that can tell a
+// user WHAT an update changes, `updatedAt` is the only "last modified" signal
+// (addedAt deliberately stays the first-publish date).
+
+test('v3: changelog is kept, bounded, and dropped when blank', () => {
+  const N = cat.normalizeEntry;
+  assert.equal(N(entry({ changelog: 'Fixes the DST rollover' })).changelog, 'Fixes the DST rollover');
+  assert.equal(N(entry({ changelog: 'x'.repeat(500) })).changelog.length, 300);
+  assert.equal(N(entry({ changelog: '   ' })).changelog, undefined);
+  assert.equal(N(entry({ changelog: 42 })).changelog, undefined);
+  assert.equal(N(entry()).changelog, undefined);
+});
+
+test('v3: updatedAt is date-validated and independent of addedAt', () => {
+  const N = cat.normalizeEntry;
+  const e = N(entry({ addedAt: '2026-01-01', updatedAt: '2026-07-18' }));
+  assert.equal(e.addedAt, '2026-01-01', 'addedAt stays the first-publish date');
+  assert.equal(e.updatedAt, '2026-07-18');
+  assert.equal(N(entry({ updatedAt: 'soon' })).updatedAt, undefined);
+  assert.equal(N(entry({ updatedAt: '2026-13-45' })).updatedAt, undefined, 'a well-shaped but impossible date is rejected');
+  assert.equal(N(entry()).updatedAt, undefined, 'a v1/v2 entry is untouched');
+});

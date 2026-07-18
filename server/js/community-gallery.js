@@ -579,6 +579,17 @@
     if (entry.category) meta.appendChild(el('span', 'cgal-metachip', t('gallery_cat_' + entry.category.replace('-', '_'), entry.category)));
     if (meta.childElementCount) info.appendChild(meta);
 
+    // What the current version changed. Shown to everyone, but it earns its
+    // place hardest for someone looking at an "Update…" button and deciding
+    // whether a permission re-approval is worth it.
+    if (entry.changelog) {
+      const cl = el('div', 'cgal-detail-changelog');
+      cl.appendChild(el('span', 'cgal-changelog-label',
+        t('gallery_changelog', 'Novità in v{ver}').replace('{ver}', entry.version || '')));
+      cl.appendChild(el('span', 'cgal-changelog-text', entry.changelog));
+      info.appendChild(cl);
+    }
+
     // Star rating: live average + this install's own vote (five tap targets).
     // Only for content the user can actually have installed — a locked
     // supporter drop or a limited/sold-out entry can't be tried without
@@ -836,18 +847,34 @@
   // code). "Update" is always a normal re-import: full preview + permission
   // re-approval by construction, never a silent swap.
   // Fail-CLOSED semver parse (mirrors server/semver.js, which is server-only):
-  // installed manifest versions are loosely validated ('v1.2.3', '2.0.0-beta'
-  // survive install), and coercing junk to 0.0.0 would show a false "update
-  // available" badge inviting a downgrade-reinstall. A malformed side must never
-  // produce an update hint — nor mark an entry "installed" against a junk version.
-  const verParse = (v) => (/^[0-9]+(\.[0-9]+)*$/.test(String(v)) ? String(v).split('.').map(Number) : null);
+  // coercing junk to 0.0.0 would show a false "update available" badge inviting a
+  // downgrade-reinstall. A malformed side must never produce an update hint — nor
+  // mark an entry "installed" against a junk version.
+  //
+  // The accepted shape has to match what actually gets INSTALLED, not what the
+  // catalog accepts. sdk-widgets.js normalizeManifest allows [0-9A-Za-z._-], so
+  // 'v1.2.3' and '2.0.0-beta' are real installed versions — and the old
+  // numeric-dotted-only test parsed them as null, which fail-closed into "never
+  // updatable". A prerelease package was stuck on its beta forever, silently:
+  // no badge, no toast, no error. So parse the numeric core plus an optional
+  // -prerelease / +build, and keep returning null for genuine junk.
+  const verParse = (v) => {
+    const m = /^v?([0-9]+(?:\.[0-9]+)*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/.exec(String(v == null ? '' : v).trim());
+    return m ? { core: m[1].split('.').map(Number), pre: m[2] || '' } : null;
+  };
   const verLess = (a, b) => {
     const pa = verParse(a), pb = verParse(b);
     if (!pa || !pb) return false;
-    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-      if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) < (pb[i] || 0);
+    for (let i = 0; i < Math.max(pa.core.length, pb.core.length); i++) {
+      if ((pa.core[i] || 0) !== (pb.core[i] || 0)) return (pa.core[i] || 0) < (pb.core[i] || 0);
     }
-    return false;
+    // Same numeric core: a prerelease precedes its release (2.0.0-beta < 2.0.0),
+    // which is the case that matters — it lets a beta tester land on the stable
+    // build. Two prereleases of the same core fall back to a plain string
+    // compare (beta.1 < beta.2); that is not full semver precedence and does not
+    // pretend to be, it just has to be a stable ordering that never regresses.
+    if (!pa.pre !== !pb.pre) return !!pa.pre;
+    return pa.pre < pb.pre;
   };
 
   // What this machine has installed, joined two ways (same joins findUpdates
@@ -1144,7 +1171,9 @@
           || (pool.length ? sortList(pool)[0] : (limited.length ? sortList(limited)[0] : null));
         const heroId = heroEntry ? heroEntry.id : null;
         if (heroEntry) frag.appendChild(heroBanner(heroEntry));
-        if (updates.length) frag.appendChild(section('__updates', updates, 'update', t('gallery_updates', 'Updates for your widgets')));
+        // Not "for your widgets" any more: the join covers themes, decks, pages
+        // and packs through install receipts, so the heading has to as well.
+        if (updates.length) frag.appendChild(section('__updates', updates, 'update', t('gallery_updates', 'Aggiornamenti per i tuoi contenuti')));
         // Two exclusive shelves, on par with each other: Limited then Supporters.
         const restLimited = sortList(limited).filter((e) => e.id !== heroId);
         if (restLimited.length) frag.appendChild(featureSection({

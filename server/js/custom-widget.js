@@ -614,7 +614,9 @@
     const d = await api('/sdk/store', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pkg: entry.pkgId, op: msg.op, origin: SURFACE_ID }),
+      // `quiet` marks a write made while this package is still settling after a
+      // sync re-mount: stored, but not broadcast back (see onStoreChanged).
+      body: JSON.stringify({ pkg: entry.pkgId, op: msg.op, origin: SURFACE_ID, quiet: storeWriteIsQuiet(entry.pkgId) }),
     });
     if (!d) { reply({ ok: false, error: 'offline' }); return; }
     reply({ ok: !!d.ok, value: d.value, keys: d.keys, error: d.error });
@@ -1022,6 +1024,33 @@
   // NOT bump assetVersion: the files didn't change, only the stored data, so the
   // no-cache+ETag re-fetch on re-mount is cheap. Our own write is filtered out by
   // origin === SURFACE_ID so we never yank a frame the user is mid-edit on.
+  //
+  // Two guards keep this from feeding itself, and BOTH are load-bearing. A widget
+  // that saves its own state as it starts (a cache, a "last updated" stamp — the
+  // norm, not the exception) writes again as soon as we re-mount it. Without the
+  // guards that write broadcasts back, the first surface re-mounts, its widget
+  // writes, and the two surfaces bounce off each other forever: the widget
+  // visibly reloads over and over on both screens. That regression shipped in
+  // v4.6.1 and is what these guards close.
+  //
+  //  1. QUIET WINDOW. For a moment after a sync re-mount, writes from that
+  //     package are sent with `quiet: true` and the server stores them without
+  //     broadcasting (see POST /sdk/store). Start-up writes therefore land but
+  //     stay silent, so the echo dies at the first hop. Deliberately short: a
+  //     genuine user edit made inside the window would not propagate, and losing
+  //     a real edit is worse than a slightly late sync.
+  //  2. COOLDOWN. A package we just re-mounted is not re-mounted again for
+  //     SYNC_REMOUNT_COOLDOWN_MS. Guard 1 handles the widget's own echo; this
+  //     bounds everything else (a peer on a fast refresh timer, three surfaces
+  //     open at once) so the worst case is one reload per window, never a storm.
+  const SYNC_QUIET_MS = 4000;
+  const SYNC_REMOUNT_COOLDOWN_MS = 15000;
+  const _syncQuietUntil = new Map();     // pkgId → ts: writes stay unbroadcast until
+  const _syncRemountedAt = new Map();    // pkgId → ts of our last sync re-mount
+  // Is a write from this package currently a re-mount echo rather than a user change?
+  function storeWriteIsQuiet(pkgId) {
+    return Date.now() < (_syncQuietUntil.get(pkgId) || 0);
+  }
   let _storeChangedPkgs = new Set();
   let _storeChangedTimer = null;
   function onStoreChanged(payload) {
@@ -1039,10 +1068,14 @@
       _storeChangedTimer = null;
       const wanted = _storeChangedPkgs;
       _storeChangedPkgs = new Set();
+      const now = Date.now();
       let hit = false;
       for (const [instId, entry] of frames) {
         if (instId === AMBIENT_INST_ID) continue;   // AmbientMode owns its frame lifecycle
         if (!wanted.has(entry.pkgId)) continue;
+        if (now - (_syncRemountedAt.get(entry.pkgId) || 0) < SYNC_REMOUNT_COOLDOWN_MS) continue;
+        _syncRemountedAt.set(entry.pkgId, now);
+        _syncQuietUntil.set(entry.pkgId, now + SYNC_QUIET_MS);
         try { entry.frame.remove(); } catch {}
         frames.delete(instId);
         hit = true;

@@ -2287,12 +2287,26 @@ function queueHubSettingsServerSave() {
 let weatherConfigSaveTimer = null;
 let _weatherConfigSaveToken = 0;
 let _weatherConfigSavePending = false;  // a change made before the first hydrate
+// The rev MUST travel with the weather block, exactly like the whole-blob save
+// sends its own. commitWeatherChange() bumps the local rev on every keystroke in
+// the city field while only the last one survives the 250ms debounce, so a server
+// that re-derived the rev from its own stored copy (prevRev + 1) would fall
+// several revisions BEHIND this surface. That gap is not cosmetic: a lower server
+// rev makes _runSettingsSseHydrate() skip every incoming broadcast, and makes the
+// boot hydrate treat the local copy as newer and ignore the server's — so this
+// surface stops adopting a location set on another one (the "browser keeps auto
+// location" residual of GitHub #109).
+function weatherConfigPayload() {
+  return {
+    weather: normalizeWeatherSettings(hubSettings && hubSettings.weather),
+    rev: Number.isFinite(hubSettings && hubSettings.rev) ? hubSettings.rev : 0,
+  };
+}
 function postWeatherConfigToServer() {
-  const weather = normalizeWeatherSettings(hubSettings && hubSettings.weather);
   return fetch('/api/weather/config', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ weather }),
+    body: JSON.stringify(weatherConfigPayload()),
   }).then(async (res) => {
     try { await res.arrayBuffer(); } catch { /* connection freed either way */ }
     if (!res.ok) { const e = new Error('weather save failed: HTTP ' + res.status); e.status = res.status; throw e; }
@@ -2450,7 +2464,7 @@ function sendHubSettingsBeacon() {
   if (weatherConfigSaveTimer) {
     weatherConfigSaveTimer = null;
     try {
-      const wbody = JSON.stringify({ weather: normalizeWeatherSettings(hubSettings && hubSettings.weather) });
+      const wbody = JSON.stringify(weatherConfigPayload());   // carries the rev too — see the note there
       if (!(navigator.sendBeacon && navigator.sendBeacon('/api/weather/config', new Blob([wbody], { type: 'application/json' })))) {
         fetch('/api/weather/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: wbody, keepalive: true }).catch(() => {});
       }
@@ -4969,28 +4983,50 @@ async function _sdkCatalogUpdates(force) {
   }
   return _sdkUpdatesInflight;
 }
-// Once-a-day update check, client-driven (no server timer): on load, when the
-// SDK is enabled and something is installed, one catalog GET (absorbed by the
+// Once-a-day update check, client-driven (no server timer): on load, when
+// anything from the catalog is installed, one catalog GET (absorbed by the
 // server's 45-min TTL cache) surfaces available updates as a gentle toast.
+//
+// It counts EVERYTHING findUpdates returns, not just SDK packages. The old
+// version gated on `sdkWidgets.enabled` and bailed unless a widget package was
+// installed, so a user whose themes, decks and icon packs all had updates
+// waiting was told nothing — and with the SDK off, never told anything at all.
+// The gallery had the answer the whole time; only this notice was narrow.
 async function checkSdkUpdatesDaily() {
   try {
-    if (!(hubSettings.sdkWidgets && hubSettings.sdkWidgets.enabled === true)) return;
     const KEY = 'xeneonedge.sdkUpdateCheck';
     const last = Number(localStorage.getItem(KEY) || 0);
     if (Date.now() - last < 24 * 3600 * 1000) return;
-    const inst = await fetch('/sdk/widgets').then((r) => r.json()).catch(() => null);
-    if (!inst || !Array.isArray(inst.packages) || !inst.packages.length) return;
+    if (!window.CommunityGallery || !window.CommunityGallery.findUpdates) return;
+    const cat = await fetch('/api/community/catalog').then((r) => r.json()).catch(() => null);
+    const entries = (cat && cat.entries) || [];
+    if (!entries.length) return;
+    // Stamp only once the check actually ran end-to-end — an offline attempt
+    // must not burn the day's slot and hide a real update until tomorrow.
+    const updates = await window.CommunityGallery.findUpdates(entries);
     localStorage.setItem(KEY, String(Date.now()));
-    const updates = await _sdkCatalogUpdates(true);
-    if (updates.size && window.XenonToast) {
-      window.XenonToast.show({
-        type: 'notification',
-        kicker: t('settings_sdk_title', 'Widget della community'),
-        title: t('settings_sdk_updates_toast', '{n} widget hanno un aggiornamento').replace('{n}', String(updates.size)),
-        message: t('settings_sdk_updates_toast_sub', 'Aggiorna da Impostazioni → Widget e condivisione'),
-        duration: 7000,
-      });
-    }
+    _sdkUpdatesCache = null;   // the package manager re-derives its pkgId view lazily
+    if (!updates.length || !window.XenonToast) return;
+    // Name the thing when there is only one — "1 aggiornamento" is a riddle,
+    // "Aggiornamento per Nocturne" is an answer.
+    const title = updates.length === 1
+      ? t('settings_updates_toast_one', 'Aggiornamento per {name}').replace('{name}', updates[0].name || '')
+      : t('settings_updates_toast_n', '{n} contenuti hanno un aggiornamento').replace('{n}', String(updates.length));
+    window.XenonToast.show({
+      type: 'notification',
+      kicker: t('settings_sdk_title', 'Widget della community'),
+      title,
+      message: updates.length === 1 && updates[0].changelog
+        ? updates[0].changelog
+        : t('settings_updates_toast_sub', 'Apri lo Store → Installati per aggiornare'),
+      duration: 7000,
+      // '__installed' is the gallery's own deep-link to the Installed tab, where
+      // every update has its button. A notice you can't act on is just noise.
+      onClick: () => {
+        try { if (window.CommunityGallery) window.CommunityGallery.open('__installed'); }
+        catch { /* the toast is a hint, never a hard dependency */ }
+      },
+    });
   } catch { /* best-effort */ }
 }
 setTimeout(checkSdkUpdatesDaily, 15000);

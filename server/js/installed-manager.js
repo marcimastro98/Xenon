@@ -42,6 +42,54 @@
   const KIND_ORDER = ['bundle', 'theme', 'bg', 'page', 'widget', 'deck', 'ambient', 'icons', 'sounds'];
   let activeKind = '';
 
+  // ── Rejected widget folders ────────────────────────────────────────────────
+  // The package scan already records WHY it skipped a folder (server-side
+  // listPackages → `invalid`), and the host has always cached that list — but
+  // nothing ever put it on screen. So dropping a folder Xenon can't read meant
+  // the widget simply never appeared, with no message anywhere: the user was
+  // left guessing, which is exactly the silent no-op the project forbids. The
+  // reported case was a folder named "ip-info-widget 1.0.0" — the folder name IS
+  // the package id, so a space and dots fail the id rule and the whole folder is
+  // skipped. Listing it here with the reason turns a dead end into a fix.
+  const REJECT_HINTS = {
+    bad_id: ['installed_bad_id', 'Il nome della cartella può contenere solo lettere minuscole, cifre e trattini. Rinominala (per esempio «ip-info-widget») e riapri lo Store.'],
+    id_mismatch: ['installed_bad_id_mismatch', 'L\'id nel manifest.json non corrisponde al nome della cartella. Rendili identici.'],
+    missing_manifest: ['installed_no_manifest', 'Manca manifest.json nella cartella.'],
+    bad_manifest: ['installed_bad_manifest', 'manifest.json non è leggibile o è troppo grande.'],
+    missing_entry: ['installed_no_entry', 'Il file indicato da "entry" nel manifest non esiste nella cartella.'],
+    bad_entry: ['installed_bad_entry', 'Il campo "entry" del manifest non è valido.'],
+    missing_name: ['installed_no_name', 'Nel manifest manca il campo "name".'],
+    bad_version: ['installed_bad_version', 'Il campo "version" del manifest non è valido.'],
+    unsupported_api: ['installed_bad_api', 'Il widget dichiara una versione di API che questa build non supporta.'],
+    too_large: ['installed_too_large', 'La cartella supera il limite di dimensione.'],
+  };
+  function rejectHint(reason) {
+    const hit = REJECT_HINTS[reason];
+    if (hit) return t(hit[0], hit[1]);
+    // Unknown/rarer reasons (bad_hosts, bad_deck, bad_storage_group…) still get a
+    // real answer: the raw code names the offending manifest field precisely
+    // enough for a creator to act on, which beats inventing a vague sentence.
+    return t('installed_bad_generic', 'Il manifest non ha superato il controllo ({r}).').replace('{r}', String(reason || '?'));
+  }
+  function rejectedBlock(invalid) {
+    if (!Array.isArray(invalid) || !invalid.length) return null;
+    const box = el('div', 'inst-rejected');
+    box.appendChild(el('p', 'inst-rejected-title', invalid.length === 1
+      ? t('installed_rejected_one', '1 cartella widget non è stata caricata')
+      : t('installed_rejected_n', '{n} cartelle widget non sono state caricate').replace('{n}', String(invalid.length))));
+    const list = el('div', 'inst-rejected-list');
+    invalid.forEach((bad) => {
+      const row = el('div', 'inst-rejected-row');
+      // Folder names are untrusted filesystem text → textContent, never markup.
+      row.appendChild(el('code', 'inst-rejected-name', String((bad && bad.id) || '?')));
+      row.appendChild(el('span', 'inst-rejected-why', rejectHint(bad && bad.reason)));
+      list.appendChild(row);
+    });
+    box.appendChild(list);
+    box.appendChild(el('p', 'cgal-status', t('installed_rejected_foot', 'Le cartelle si trovano in server/data/widgets. Dopo averle sistemate, riapri lo Store.')));
+    return box;
+  }
+
   // A row answers to ONE chip: the thing it actually is. A receipt files under
   // the kind it was published as — so a bundle lives under "Packages", not under
   // every kind it happens to contain. Filtering "Widget" must list widgets, not
@@ -91,7 +139,12 @@
   let catalogCache = null;
   async function catalogIndex(force) {
     if (catalogCache && !force) return catalogCache;
-    const out = { updates: new Map(), byId: new Map(), byPkgId: new Map() };
+    // `updates` is keyed by pkgId (SDK packages), `updatesById` by catalog entry
+    // id (everything installed through a receipt: themes, decks, packs, pages).
+    // Keeping only the pkgId half — as this did — meant a theme with a published
+    // update showed no button here at all, even though findUpdates had returned
+    // it and the gallery was already offering it.
+    const out = { updates: new Map(), updatesById: new Map(), byId: new Map(), byPkgId: new Map() };
     try {
       const cat = await fetch('/api/community/catalog').then((r) => r.json());
       const entries = (cat && cat.entries) || [];
@@ -102,7 +155,10 @@
       }
       const updates = (window.CommunityGallery && window.CommunityGallery.findUpdates)
         ? await window.CommunityGallery.findUpdates(entries) : [];
-      for (const entry of updates) if (entry.pkgId) out.updates.set(entry.pkgId, entry);
+      for (const entry of updates) {
+        if (entry.pkgId) out.updates.set(entry.pkgId, entry);
+        else out.updatesById.set(entry.id, entry);
+      }
     } catch { /* offline → no update hints, no thumbnails */ }
     catalogCache = out;
     return out;
@@ -242,8 +298,59 @@
     return bits.filter(Boolean).join(' · ');
   }
 
+  // The catalog entry offering a newer version of this row, joined the same two
+  // ways the rows themselves are built: SDK packages by pkgId, receipt-installed
+  // content by the entry id it came from.
+  function updateFor(row, cat) {
+    if (row.pkg && cat.updates.has(row.pkg.id)) return cat.updates.get(row.pkg.id);
+    if (row.record && row.record.source === 'catalog' && row.record.sourceId) {
+      return cat.updatesById.get(row.record.sourceId) || null;
+    }
+    return null;
+  }
+
+  // Apply an available update. Returns true when the row should repaint.
+  //
+  // Two shapes, because installing a widget and installing a theme are genuinely
+  // different acts. An SDK package re-installs through /sdk/install (a widened
+  // manifest re-prompts via grantNeedsReview on next mount, never auto-granted).
+  // Everything else goes back through PresetShare.openImport — the same full
+  // preview + approval a first install gets. Neither path ever swaps content
+  // silently, which is the property that makes a one-click update safe to offer.
+  async function applyUpdate(upd) {
+    try {
+      const codeRes = upd.code
+        ? { ok: true, code: upd.code }
+        : await fetch('/api/community/code?id=' + encodeURIComponent(upd.id)).then((r) => r.json());
+      if (!codeRes || !codeRes.ok || !codeRes.code) throw new Error('bad_code');
+      const env = PS() ? PS().decodePreset(codeRes.code) : null;
+      if (!env) throw new Error('bad_code');
+
+      if (env.kind === 'widget' || env.kind === 'ambient') {
+        const payload = (env.data && env.data.payload) || env.data;
+        if (!payload) throw new Error('bad_code');
+        const r = await fetch('/sdk/install', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(Object.assign({}, payload, { origin: 'import' })),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || !d.ok) throw new Error(d.error || 'install_failed');
+        if (window.CustomWidget && CustomWidget.refreshPackages) CustomWidget.refreshPackages();
+        return true;
+      }
+
+      // A theme/deck/pack update is an import: it opens the normal dialog, which
+      // owns the outcome from here (including the receipt that clears the badge).
+      if (!PS()) throw new Error('no_import');
+      PS().openImport(codeRes.code, { source: 'catalog', sourceId: upd.id, sourceVersion: upd.version || '' });
+      return false;
+    } catch {
+      toast(t('settings_sdk_update_failed', 'Aggiornamento non riuscito'), '', 'error');
+      return false;
+    }
+  }
+
   function renderRow(row, cat, repaint) {
-    const updates = cat.updates;
     const wrap = el('div', 'inst-row' + (row.record && row.record.legacy ? ' is-legacy' : ''));
     wrap.appendChild(thumbFor(row, entryFor(row, cat)));
     const info = el('div', 'inst-row-info');
@@ -269,28 +376,25 @@
     if (meta) info.appendChild(el('span', 'inst-row-meta', meta));
     wrap.appendChild(info);
 
+    const upd = updateFor(row, cat);
+    // What the new version changes, straight from the publisher. Before this the
+    // prompt asked for a permission re-approval while explaining nothing, so
+    // "should I?" had no answerable form.
+    if (upd && upd.changelog) {
+      const cl = el('span', 'inst-row-changelog');
+      cl.textContent = '“' + upd.changelog + '”';
+      info.appendChild(cl);
+    }
+
     const btns = el('div', 'inst-row-btns');
-    const upd = row.pkg ? updates.get(row.pkg.id) : null;
     if (upd) {
       const b = el('button', 'settings-btn primary', t('settings_sdk_update', 'Aggiorna') + ' → v' + upd.version);
       b.type = 'button';
       b.addEventListener('click', async () => {
         b.disabled = true;
-        try {
-          // The catalog code is a widget-kind envelope → its payload re-installs
-          // through the normal /sdk/install boundary. A widened manifest
-          // re-prompts via grantNeedsReview on next mount, never auto-granted.
-          const codeRes = upd.code ? { ok: true, code: upd.code } : await fetch('/api/community/code?id=' + encodeURIComponent(upd.id)).then((r) => r.json());
-          const env = codeRes && codeRes.ok && PS() ? PS().decodePreset(codeRes.code) : null;
-          const payload = env && (env.kind === 'widget' || env.kind === 'ambient') ? (env.data && env.data.payload) || env.data : null;
-          if (!payload) throw new Error('bad_code');
-          const r = await fetch('/sdk/install', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({}, payload, { origin: 'import' })) });
-          const d = await r.json().catch(() => ({}));
-          if (!r.ok || !d.ok) throw new Error(d.error || 'install_failed');
-          if (window.CustomWidget && CustomWidget.refreshPackages) CustomWidget.refreshPackages();
-          catalogCache = null;
-          repaint();
-        } catch { b.disabled = false; toast(t('settings_sdk_update_failed', 'Aggiornamento non riuscito'), '', 'error'); }
+        const done = await applyUpdate(upd);
+        if (done) { catalogCache = null; repaint(); }
+        else b.disabled = false;
       });
       btns.appendChild(b);
     }
@@ -357,9 +461,25 @@
     const cat = await catalogIndex(force);
     if (!host.isConnected) return;
     const repaint = () => render(host, false);
+    // Folders the package scan refused. Read from the same cached list the tiles
+    // use; a `force` repaint re-scans so a fixed folder disappears from here.
+    let rejected = [];
+    try {
+      if (window.CustomWidget && typeof window.CustomWidget.getPackages === 'function') {
+        const scan = await window.CustomWidget.getPackages(!!force);
+        if (scan && Array.isArray(scan.invalid)) rejected = scan.invalid;
+      }
+    } catch { /* the scan is advisory — never block the list on it */ }
+    if (!host.isConnected) return;
 
     const frag = document.createDocumentFragment();
     if (!rows.length) {
+      // The rejected block goes in BEFORE this early return on purpose: a user
+      // whose only widget folder was refused has nothing installed, and would
+      // otherwise get "you haven't installed anything" with no hint that a
+      // folder was found and skipped.
+      const rejEmpty = rejectedBlock(rejected);
+      if (rejEmpty) frag.appendChild(rejEmpty);
       const empty = el('div', 'inst-empty');
       empty.appendChild(el('p', 'inst-empty-title', t('installed_empty_title', 'Non hai ancora installato nulla')));
       empty.appendChild(el('p', 'cgal-status', t('installed_empty_desc', 'Temi, sfondi, widget, scene e pacchetti che installi dallo Store compaiono qui — con tutto ciò che hanno aggiunto.')));
@@ -386,6 +506,52 @@
     chips.appendChild(mkChip('', t('gallery_all', 'Tutti')));
     KIND_ORDER.filter((k) => present.has(k)).forEach((k) => chips.appendChild(mkChip(k, t('preset_kind_' + k, k))));
     frag.appendChild(chips);
+
+    // Above the list, not buried under it: a folder that was refused is the
+    // reason someone is looking at this tab in the first place.
+    const rejBlock = rejectedBlock(rejected);
+    if (rejBlock) frag.appendChild(rejBlock);
+
+    // ── Update all ──
+    // Only for rows that can genuinely go one-click: an SDK package re-installs
+    // without a dialog. Import-kinds (themes, decks, packs) each open their own
+    // preview + approval, and firing several of those at once would bury the user
+    // under stacked modals — so they keep their per-row button and are counted
+    // out of this banner rather than silently included in a promise it can't keep.
+    const updatable = rows.filter((row) => {
+      const u = updateFor(row, cat);
+      return u && row.pkg && cat.updates.has(row.pkg.id);
+    });
+    const otherUpdates = rows.filter((row) => updateFor(row, cat)).length - updatable.length;
+    if (updatable.length) {
+      const bar = el('div', 'inst-updbar');
+      const label = updatable.length === 1
+        ? t('installed_update_one', '1 aggiornamento disponibile')
+        : t('installed_update_n', '{n} aggiornamenti disponibili').replace('{n}', String(updatable.length));
+      bar.appendChild(el('span', 'inst-updbar-txt', otherUpdates
+        ? label + ' · ' + t('installed_update_others', '{n} altri da aggiornare singolarmente').replace('{n}', String(otherUpdates))
+        : label));
+      const go = el('button', 'settings-btn primary', t('installed_update_all', 'Aggiorna tutti'));
+      go.type = 'button';
+      go.addEventListener('click', async () => {
+        go.disabled = true;
+        go.textContent = t('installed_updating', 'Aggiorno…');
+        let done = 0;
+        for (const row of updatable) {
+          const u = updateFor(row, cat);
+          if (u && await applyUpdate(u)) done++;
+        }
+        catalogCache = null;
+        if (done === updatable.length) toast(t('installed_update_all_done', 'Tutto aggiornato'), '', 'success');
+        // Report the shortfall honestly rather than claiming a clean sweep —
+        // same rule the remove-all path follows.
+        else toast(t('installed_update_all_partial', 'Aggiornati {n} di {total} — riprova per i restanti.')
+          .replace('{n}', String(done)).replace('{total}', String(updatable.length)), '', 'error');
+        repaint();
+      });
+      bar.appendChild(go);
+      frag.appendChild(bar);
+    }
 
     const shown = activeKind ? rows.filter((row) => kindOf(row) === activeKind) : rows;
     const list = el('div', 'inst-list');

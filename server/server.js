@@ -110,6 +110,7 @@ const UPDATE_NOTES_MAX = 8000;                  // cap the release-notes body we
 const UPDATE_MEDIA_MAX = 6;                     // at most this many bare URLs get a content-type probe
 let _updateCache = { at: 0, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '', mediaTypes: {} };
 const { parseSemver, semverNewer } = require('./semver');
+const { nextSettingsRev } = require('./settings-rev');   // shared by every settings writer
 
 // ── Release-notes media (screenshots + videos) ──────────────────────────────
 // The modal renders images/videos embedded in the GitHub release body. Because
@@ -10734,8 +10735,9 @@ const server = http.createServer(async (req, res) => {
       // documented residual), but the assigned rev must be strictly higher than
       // the stored one, so the broadcast below always exceeds every stale local
       // rev and the losing surface re-hydrates instead of silently diverging.
-      const prevRev = (prev && Number(prev.rev)) || 0;
-      if (!(Number(incoming.rev) > prevRev)) incoming.rev = prevRev + 1;
+      // Shared with POST /api/weather/config — see settings-rev.js for why the
+      // rule must live in ONE place.
+      incoming.rev = nextSettingsRev(prev && prev.rev, incoming.rev);
       // Grid-units guard: a dashboard left open across the v4 update (typically
       // the Xeneon Edge screen or an iCUE-mode page) still runs pre-24-column
       // client JS — its normalizer strips layout.gridCols and clamps every tile
@@ -11103,8 +11105,14 @@ const server = http.createServer(async (req, res) => {
       const body = JSON.parse(await readBody(req));
       const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
       const nextWeather = (body && body.weather && typeof body.weather === 'object') ? body.weather : {};
-      const prevRev = Number(cur.rev) || 0;
-      const saved = await writeHubSettings({ ...cur, weather: { ...(cur.weather || {}), ...nextWeather }, rev: prevRev + 1 });
+      // Exact same monotonic rule as POST /settings, through the shared helper:
+      // re-deriving the rev from the stored copy alone left this endpoint BELOW
+      // the client's rev (the city field bumps it per keystroke, only the last
+      // debounced save reaches us), and a broadcast under a surface's own rev is
+      // ignored by its hydrate — so that surface stopped adopting a location set
+      // elsewhere (the "browser keeps auto location" residual of GitHub #109).
+      const rev = nextSettingsRev(cur.rev, body && body.rev);
+      const saved = await writeHubSettings({ ...cur, weather: { ...(cur.weather || {}), ...nextWeather }, rev });
       _serverHubSettings = saved;
       broadcastSSE('settings', { rev: saved.rev });   // peers re-hydrate → refetch the new location
       json({ ok: true, weather: saved.weather, rev: saved.rev });
@@ -13638,8 +13646,17 @@ const server = http.createServer(async (req, res) => {
         // store — the cross-surface "custom widget not 1:1 on the XENON" fix
         // (GitHub #109). The writer's own surface filters this out by origin.
         // Writes only (r.changed is never set by a read), so no spurious remounts.
-        const pkgs = scan.packages.filter(p => sdkStore.storeNamespace(p) === ns).map(p => p.id);
-        broadcastSSE('sdk_store', { ns, pkgs, origin: String(body.origin || '') });
+        //
+        // `quiet` writes are stored but NOT announced. The host sets it while a
+        // package is settling after a sync re-mount, because a widget that saves
+        // its own start-up state would otherwise echo the re-mount straight back
+        // and the two surfaces would reload each other without end (the v4.6.1
+        // regression). Persisting still matters: the data must be there for the
+        // next read, it just isn't news to anyone.
+        if (!body.quiet) {
+          const pkgs = scan.packages.filter(p => sdkStore.storeNamespace(p) === ns).map(p => p.id);
+          broadcastSSE('sdk_store', { ns, pkgs, origin: String(body.origin || '') });
+        }
       }
       json({ ok: true, value: r.value, keys: r.keys });
     } catch (e) {

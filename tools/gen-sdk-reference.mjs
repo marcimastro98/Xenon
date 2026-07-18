@@ -57,7 +57,15 @@ const doc = readFileSync(DOC, 'utf8');
 const next = render(doc, buildBlock());
 const check = process.argv.includes('--check');
 
-if (next === doc) {
+// A Windows checkout materialises the doc with CRLF (core.autocrlf), while the
+// block we generate is always LF — so a byte comparison reports STALE on every
+// Windows machine even when the content matches, and `npm test` fails out of a
+// clean clone. Compare on normalised newlines (real drift only), and write back
+// in whatever convention the file already uses so regenerating never churns it.
+const eol = doc.includes('\r\n') ? '\r\n' : '\n';
+const norm = (s) => s.replace(/\r\n/g, '\n');
+
+if (norm(next) === norm(doc)) {
   console.log('SDK reference block is up to date.');
   process.exit(0);
 }
@@ -65,5 +73,5 @@ if (check) {
   console.error('SDK reference block is STALE. Run: node tools/gen-sdk-reference.mjs');
   process.exit(1);
 }
-writeFileSync(DOC, next);
+writeFileSync(DOC, eol === '\r\n' ? norm(next).replace(/\n/g, '\r\n') : norm(next));
 console.log('Updated SDK reference block in docs/WIDGET_SDK.md.');

@@ -1,0 +1,41 @@
+# Keep the published website out of the archive users actually install.
+#
+# self-update.js downloads GitHub's auto-generated source zip for the tag, and
+# update-apply.ps1 robocopies the whole thing into the install root (only
+# server\data is excluded). Without this file every install carries ~16 MB of
+# GitHub Pages payload — README images, the catalog gallery, the community
+# preset codes — that nothing on the user's machine ever reads.
+#
+# export-ignore only affects `git archive` (which is what GitHub builds tag
+# zips with). The files stay in the repo and Pages keeps publishing them: it
+# builds from the branch, not from an archive. The gallery is unaffected — it
+# fetches catalog.json and codes/<id>.txt over HTTPS from xenon-app.com, never
+# from disk (see CATALOG_BASE in server/community-catalog.js).
+#
+# NOTE: do not export-ignore all of docs/. server/ai-knowledge.js reads
+# docs/WIDGET_SDK.md from disk to serve the AI's sdk_reference tool; excluding
+# it degrades that tool to 'docs_unavailable'. The .md files at the root of
+# docs/ are deliberately kept.
+
+# Website payload — images, gallery pages, community catalog + preset codes
+docs/images/                    export-ignore
+docs/community/                 export-ignore
+docs/catalog/                   export-ignore
+docs/create/                    export-ignore
+docs/get/                       export-ignore
+docs/submit/                    export-ignore
+
+# Site root: entry page, analytics, Pages/DNS plumbing, search-console token
+docs/index.html                 export-ignore
+docs/analytics.js               export-ignore
+docs/CNAME                      export-ignore
+docs/.nojekyll                  export-ignore
+docs/google1e9e2b8c85c56502.html export-ignore
+
+# Site data + maintainer notes, not read by the app
+docs/supporters.json            export-ignore
+docs/supporters-overrides.json  export-ignore
+docs/whatsnew-shotlist.md       export-ignore
+
+# Offline iCUE SDK documentation mirror — development reference only
+WidgetBuilder/                  export-ignore
