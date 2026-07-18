@@ -3,6 +3,10 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v4.6.2] - 18-07-2026
+### ✨ Improvements
+- **The Slideshow widget no longer stops you at 30 images.** The old cap wasn't really about count — the images live inline in your settings, so what keeps things fast is the total size of the set, not how many there are. A folder of small icons or short GIFs was hitting "30" long before it hit any real limit. The set is now bounded by its overall weight (about 4.4 MB, unchanged) with a generous safety ceiling on top, so a run of small images just keeps adding while a few large ones still fill up on size, exactly as before. Nothing about how a slideshow plays or persists changes.
+
 ## [v4.6.1] - 17-07-2026
 ### ✨ New
 - **You can turn off the idle animation pause.** After a minute without a touch or keypress, the dashboard pauses the aurora, neon grid and the small looping animations to save GPU, and resumes them the instant you interact. That was always on; a new switch in Settings → Aspetto → Superficie, "Pausa animazioni quando inattivo", lets you keep everything moving while the screen sits idle. It stays on by default, since on a Xeneon Edge driven by the integrated GPU the pause saves real power. The pause while the window is hidden is unaffected.

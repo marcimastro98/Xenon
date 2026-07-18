@@ -4543,7 +4543,7 @@ function openSlideshowSettings() {
 // in the DOM, and skips the grid rebuild when the image set is unchanged.
 function renderSlideshowSettings() {
   const c = normalizeSlideshow(hubSettings.slideshow);
-  const cap = window.SlideshowWidget ? SlideshowWidget.SLIDE_MAX_COUNT : 30;
+  const cap = window.SlideshowWidget ? SlideshowWidget.SLIDE_MAX_COUNT : 200;
   const intInput = $('settings-slideshow-interval');
   if (intInput && document.activeElement !== intInput) intInput.value = String(Math.round(c.intervalMs / 1000));
   const fitSel = $('settings-slideshow-fit');

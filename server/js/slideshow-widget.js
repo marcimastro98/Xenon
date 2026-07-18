@@ -21,10 +21,17 @@
   // ── Shared rules (client + server + settings normalizer) ──────────────────
   // GIF stays in the allowlist — animated GIFs are the whole point of the ask.
   const SLIDE_DATA_RE = /^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/;
-  const SLIDE_MAX_COUNT = 30;          // images per slideshow
+  // What actually keeps the slideshow efficient is the BYTE budget, not the count:
+  // images live inline as data: URIs in the settings blob (localStorage + backup),
+  // so SLIDES_TOTAL_MAX bounds the whole set's weight and SLIDE_MAX_CHARS bounds any
+  // one image. SLIDE_MAX_COUNT is therefore a high safety CEILING, not a UX limit —
+  // it only exists so a degenerate set of thousands of tiny valid URIs can't grow
+  // the array (and the one-row-per-image settings list) without bound. In normal use
+  // the byte budget is what binds first, so small images are no longer capped at 30.
+  const SLIDE_MAX_COUNT = 200;         // safety ceiling on the array length
   const SLIDE_MAX_CHARS = 1400000;     // ~1 MB per image (as base64 chars)
-  const SLIDES_TOTAL_MAX = 6000000;    // ~4.4 MB for the whole set — keeps the
-                                       // settings blob (and thus its backup) sane
+  const SLIDES_TOTAL_MAX = 6000000;    // ~4.4 MB for the whole set — the real guard:
+                                       // keeps the settings blob (and backup) sane
   const FIT_MODES = ['cover', 'contain'];
   const INTERVAL_MIN = 1500;
   const INTERVAL_MAX = 120000;
