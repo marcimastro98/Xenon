@@ -71,6 +71,7 @@ const { preserveNewsCreds, redactNewsCreds } = require('./news-creds');
 const claudeUsage = require('./claude-usage');
 const communityCatalog = require('./community-catalog');
 const supporterRedeem = require('./supporter-redeem');
+const versionPing = require('./version-ping');
 const iconPacks = require('./icon-packs');
 const soundPacks = require('./sound-packs');
 const communityRatings = require('./community-ratings');
@@ -114,6 +115,7 @@ const UPDATE_NOTES_MAX = 8000;                  // cap the release-notes body we
 const UPDATE_MEDIA_MAX = 6;                     // at most this many bare URLs get a content-type probe
 let _updateCache = { at: 0, ok: false, latest: '', tag: '', url: '', notes: '', name: '', publishedAt: '', mediaTypes: {} };
 const { parseSemver, semverNewer } = require('./semver');
+const { nextSettingsRev } = require('./settings-rev');   // shared by every settings writer
 
 // ── Release-notes media (screenshots + videos) ──────────────────────────────
 // The modal renders images/videos embedded in the GitHub release body. Because
@@ -1197,6 +1199,15 @@ const TILE_ASSET_MIME_BY_EXT = new Map([
   ['.webp', 'image/webp'], ['.gif', 'image/gif'],
 ]);
 const TILE_ASSET_EXT_BY_MIME = new Map([...TILE_ASSET_MIME_BY_EXT.entries()].map(([ext, mime]) => [mime, ext]));
+
+// Slideshow images. Same disk-backed, reference-counted model as tile decorations
+// (many images, no one-live-file policy), but referenced from hubSettings.slideshow
+// rather than the dashboard layout, and with their own `slideshow-*` name prefix so
+// the two GCs never reclaim each other's files. Animated GIFs are the whole point of
+// the widget and run large, so the per-file cap is roomier than a tile decoration's.
+const SLIDESHOW_ASSET_MAX_BYTES = 20 * 1024 * 1024;
+const SLIDESHOW_ASSET_MIME_BY_EXT = TILE_ASSET_MIME_BY_EXT;   // same image allowlist
+const SLIDESHOW_ASSET_EXT_BY_MIME = TILE_ASSET_EXT_BY_MIME;
 
 // CSV column indices for SoundVolumeView /scomma (no header row)
 const F = { NAME: 0, TYPE: 1, DIR: 2, DEVICE_NAME: 3, DEFAULT: 4, STATE: 7, MUTED: 8, VOL_PCT: 10, CLI_ID: 18, PROC_PATH: 19, PROC_ID: 20, WINDOW_TITLE: 21 };
@@ -4671,6 +4682,42 @@ function cleanupUnreferencedTileAssets(layout, presets) {
   )).catch(() => {});
 }
 
+// Slideshow images are the same kind of reference-counted upload as tile assets,
+// but their references live in hubSettings.slideshow.images[].uri (a `/uploads/
+// slideshow-*` string per image). Sweep the `slideshow-*` files no surviving image
+// still names, reusing the tile-asset grace window + throttle constants.
+function collectSlideshowAssetRefs(slideshow) {
+  const set = new Set();
+  const imgs = slideshow && Array.isArray(slideshow.images) ? slideshow.images : [];
+  for (const it of imgs) {
+    const src = it && typeof it.uri === 'string' ? it.uri : '';
+    const m = src.match(/^\/uploads\/(slideshow-[A-Za-z0-9._-]+)$/);
+    if (m) set.add(m[1]);
+  }
+  return set;
+}
+let _slideshowAssetGcSig = null;
+let _slideshowAssetGcAt = 0;
+function cleanupUnreferencedSlideshowAssets(slideshow) {
+  const referenced = collectSlideshowAssetRefs(slideshow);
+  const sig = [...referenced].sort().join('|');
+  const now = Date.now();
+  if (sig === _slideshowAssetGcSig && (now - _slideshowAssetGcAt) < TILE_ASSET_GC_MIN_INTERVAL_MS) return;
+  _slideshowAssetGcSig = sig;
+  _slideshowAssetGcAt = now;
+  const cutoff = now - TILE_ASSET_GC_GRACE_MS;
+  fs.promises.readdir(UPLOADS_DIR).then(files => Promise.all(files
+    .filter(f => f.startsWith('slideshow-') && !referenced.has(f))
+    .map(async (f) => {
+      try {
+        const p = path.join(UPLOADS_DIR, f);
+        const st = await fs.promises.stat(p);
+        if (st.mtimeMs < cutoff) await fs.promises.unlink(p).catch(() => {});
+      } catch { /* file vanished mid-sweep — fine */ }
+    })
+  )).catch(() => {});
+}
+
 // ── Screen enumeration + capture (shared by /api/screens, /api/screenshot,
 //    and the AI capture_screen function) ───────────────────────────────────
 async function listScreens() {
@@ -6064,6 +6111,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   bgDim: 0.48,
   bgBlur: 0,
   idleAnimationPause: true, // pause ambient FX + decorative loops when idle (client-applied)
+  hybridGpuAnimationPause: true, // freeze ambient FX + animated bg + Deck decor on a hybrid-GPU native session (client-applied)
   // Extended theme tokens (full Aspetto editor). Defaults reproduce the stock
   // Liquid Glass look; the client applies them (glass-only). Mirror of settings.js.
   uiRoundness: 1,
@@ -6121,6 +6169,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // intent (default on); the actual scheduled task is registered/removed by
   // /startup/auto-open and only ever for real-browser use, never Xeneon Edge.
   autoOpenBrowser: true,
+  // Anonymous version ping — OFF unless the user opts in (Settings → Generale → Aggiornamenti).
+  // Sends only {version, os} on the update check the app already makes; never
+  // the install id. See server/version-ping.js and docs/privacy.html.
+  versionPing: false,
   // Opt-in ad-blocker for the Browser tile (Settings → Browser). OFF by default;
   // when on, the server loads an unpacked uBOL MV3 extension into the tile's Edge.
   browserAdblock: false,
@@ -6974,6 +7026,7 @@ function normalizeHubSettings(value) {
     bgDim: clampNumber(source.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
     bgBlur: clampNumber(source.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
     idleAnimationPause: source.idleAnimationPause !== false,
+    hybridGpuAnimationPause: source.hybridGpuAnimationPause !== false,
     uiRoundness: clampNumber(source.uiRoundness, 0, 2, DEFAULT_HUB_SETTINGS.uiRoundness),
     glassBlur: clampNumber(source.glassBlur, 0, 40, DEFAULT_HUB_SETTINGS.glassBlur),
     glassSaturate: clampNumber(source.glassSaturate, 100, 220, DEFAULT_HUB_SETTINGS.glassSaturate),
@@ -6998,6 +7051,7 @@ function normalizeHubSettings(value) {
     nativeZoom: clampNumber(source.nativeZoom, 0.6, 1.6, DEFAULT_HUB_SETTINGS.nativeZoom),
     hideOnRdp: source.hideOnRdp === true,
     autoOpenBrowser: source.autoOpenBrowser !== false,
+    versionPing: source.versionPing === true,
     browserAdblock: source.browserAdblock === true,
     dashboardLayout: resetLayout
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
@@ -7405,6 +7459,8 @@ async function writeHubSettings(settings) {
   // windowed so a just-uploaded asset isn't swept before its layout save lands).
   // Saved presets count as references too — inserting one must still find its images.
   cleanupUnreferencedTileAssets(safe.dashboardLayout, safe.dashboardPresets);
+  // Slideshow images are disk-backed uploads too, referenced from safe.slideshow.
+  cleanupUnreferencedSlideshowAssets(safe.slideshow);
   return safe;
 }
 
@@ -10510,6 +10566,14 @@ const server = http.createServer(async (req, res) => {
         mediaTypes: u.ok ? (u.mediaTypes || {}) : {},
         updateAvailable: !!(u.ok && semverNewer(u.latest, APP_VERSION)),
       });
+      // Opt-in anonymous version ping, off by default. Deliberately piggybacks
+      // on this check so enabling it adds no new outbound request, and is
+      // fire-and-forget so it can never delay or fail the update response.
+      versionPing.maybePing({
+        dataDir: DATA_DIR,
+        version: APP_VERSION,
+        enabled: !!(_serverHubSettings && _serverHubSettings.versionPing === true),
+      }).catch(() => { /* best-effort: a failed ping is never user-visible */ });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/update/self-status' && req.method === 'GET') {
@@ -10684,8 +10748,9 @@ const server = http.createServer(async (req, res) => {
       // documented residual), but the assigned rev must be strictly higher than
       // the stored one, so the broadcast below always exceeds every stale local
       // rev and the losing surface re-hydrates instead of silently diverging.
-      const prevRev = (prev && Number(prev.rev)) || 0;
-      if (!(Number(incoming.rev) > prevRev)) incoming.rev = prevRev + 1;
+      // Shared with POST /api/weather/config — see settings-rev.js for why the
+      // rule must live in ONE place.
+      incoming.rev = nextSettingsRev(prev && prev.rev, incoming.rev);
       // Grid-units guard: a dashboard left open across the v4 update (typically
       // the Xeneon Edge screen or an iCUE-mode page) still runs pre-24-column
       // client JS — its normalizer strips layout.gridCols and clamps every tile
@@ -11053,8 +11118,14 @@ const server = http.createServer(async (req, res) => {
       const body = JSON.parse(await readBody(req));
       const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
       const nextWeather = (body && body.weather && typeof body.weather === 'object') ? body.weather : {};
-      const prevRev = Number(cur.rev) || 0;
-      const saved = await writeHubSettings({ ...cur, weather: { ...(cur.weather || {}), ...nextWeather }, rev: prevRev + 1 });
+      // Exact same monotonic rule as POST /settings, through the shared helper:
+      // re-deriving the rev from the stored copy alone left this endpoint BELOW
+      // the client's rev (the city field bumps it per keystroke, only the last
+      // debounced save reaches us), and a broadcast under a surface's own rev is
+      // ignored by its hydrate — so that surface stopped adopting a location set
+      // elsewhere (the "browser keeps auto location" residual of GitHub #109).
+      const rev = nextSettingsRev(cur.rev, body && body.rev);
+      const saved = await writeHubSettings({ ...cur, weather: { ...(cur.weather || {}), ...nextWeather }, rev });
       _serverHubSettings = saved;
       broadcastSSE('settings', { rev: saved.rev });   // peers re-hydrate → refetch the new location
       json({ ok: true, weather: saved.weather, rev: saved.rev });
@@ -13214,6 +13285,42 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+  } else if (reqPath === '/slideshow-asset' && req.method === 'POST') {
+    // Slideshow image upload. Mirrors /tile-asset: keeps every file (a slideshow is
+    // many pictures), a server-generated `slideshow-*` name, orphans reclaimed by
+    // cleanupUnreferencedSlideshowAssets() on settings save. This is what lets a
+    // slideshow hold far more images than the old inline-base64 model — they live on
+    // disk, not in the settings blob.
+    try {
+      const body = await readBodyBuffer(req, SLIDESHOW_ASSET_MAX_BYTES);
+      const file = parseMultipartBackground(req, body, 'asset');
+      const extFromName = path.extname(file.originalName).toLowerCase();
+      const ext = SLIDESHOW_ASSET_MIME_BY_EXT.has(extFromName) ? extFromName : SLIDESHOW_ASSET_EXT_BY_MIME.get(file.contentType);
+      if (!ext || !SLIDESHOW_ASSET_MIME_BY_EXT.has(ext)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unsupported file type' }));
+        return;
+      }
+      const expectedType = SLIDESHOW_ASSET_MIME_BY_EXT.get(ext);
+      if (file.contentType && file.contentType !== 'application/octet-stream' && file.contentType !== expectedType) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'File type mismatch' }));
+        return;
+      }
+      await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
+      const safeName = `slideshow-${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`;
+      await fs.promises.writeFile(path.join(UPLOADS_DIR, safeName), file.data);
+      json({ ok: true, url: `/uploads/${safeName}`, name: file.originalName, type: expectedType, size: file.data.length });
+    } catch (e) {
+      if (e.code === 'PAYLOAD_TOO_LARGE') {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Payload too large' }));
+      } else {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    }
+
   } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {
     try {
       const name = decodeURIComponent(reqPath.slice('/uploads/'.length));
@@ -13552,8 +13659,17 @@ const server = http.createServer(async (req, res) => {
         // store — the cross-surface "custom widget not 1:1 on the XENON" fix
         // (GitHub #109). The writer's own surface filters this out by origin.
         // Writes only (r.changed is never set by a read), so no spurious remounts.
-        const pkgs = scan.packages.filter(p => sdkStore.storeNamespace(p) === ns).map(p => p.id);
-        broadcastSSE('sdk_store', { ns, pkgs, origin: String(body.origin || '') });
+        //
+        // `quiet` writes are stored but NOT announced. The host sets it while a
+        // package is settling after a sync re-mount, because a widget that saves
+        // its own start-up state would otherwise echo the re-mount straight back
+        // and the two surfaces would reload each other without end (the v4.6.1
+        // regression). Persisting still matters: the data must be there for the
+        // next read, it just isn't news to anyone.
+        if (!body.quiet) {
+          const pkgs = scan.packages.filter(p => sdkStore.storeNamespace(p) === ns).map(p => p.id);
+          broadcastSSE('sdk_store', { ns, pkgs, origin: String(body.origin || '') });
+        }
       }
       json({ ok: true, value: r.value, keys: r.keys });
     } catch (e) {

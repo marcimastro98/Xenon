@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 
 const require = createRequire(import.meta.url);
 const store = require('../sdk-store.js');
@@ -159,4 +160,35 @@ test('storeNamespace fanout: a group write targets every sibling, a solo write o
   // A standalone widget's write re-mounts only itself — never an unrelated package.
   assert.deepEqual(affected('teleprompter'), ['teleprompter']);
   assert.deepEqual(affected('clock'), ['clock']);
+});
+
+// ── The sync feedback loop, and the guards that close it ────────────────────
+// v4.6.1 broadcast EVERY store write and re-mounted the package's frames on
+// every other surface. A widget that saves its own start-up state (a cache, a
+// "last updated" stamp) then wrote again the moment it was re-mounted, that
+// write broadcast back, and two surfaces re-mounted each other without end —
+// the widget visibly reloaded over and over on both screens. Two guards close
+// it, and these assert they are still wired end to end. They check the source,
+// not the behaviour: the loop needs two live surfaces, which no unit test here
+// can stand up. Treat a failure as "the loop protection was removed".
+
+test('sync guard: the host marks post-remount writes quiet and the server keeps them silent', () => {
+  const client = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
+  const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+
+  // Host half: the store write carries the quiet flag.
+  assert.match(client, /quiet:\s*storeWriteIsQuiet\(/,
+    'the /sdk/store write must send quiet — without it a re-mount echoes back');
+  // Host half: a sync re-mount opens the quiet window AND stamps the cooldown.
+  assert.match(client, /_syncQuietUntil\.set\(/, 'a sync re-mount must open the quiet window');
+  assert.match(client, /_syncRemountedAt\.set\(/, 'a sync re-mount must stamp the cooldown');
+  assert.match(client, /SYNC_REMOUNT_COOLDOWN_MS\)\s*continue/,
+    'a package re-mounted within the cooldown must be skipped');
+
+  // Server half: a quiet write is stored, but never announced.
+  assert.match(server, /if\s*\(!body\.quiet\)\s*\{[\s\S]{0,400}?broadcastSSE\('sdk_store'/,
+    'the sdk_store broadcast must be gated on !body.quiet');
+  // The save itself is NOT gated — quiet data must still persist for the next read.
+  assert.match(server, /if\s*\(r\.changed\)\s*\{\s*\n\s*await sdkStoreSave\(/,
+    'a quiet write must still be persisted, only the broadcast is suppressed');
 });

@@ -3,15 +3,38 @@
 <head>
 <meta charset="UTF-8">
 
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
   gtag('js', new Date());
   gtag('config', 'G-LQ8Y8WZPQF');
 </script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
 <script src="/analytics.js" defer></script>
+<script src="/consent.js" defer></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Xenon — publish to the community catalog</title>
@@ -98,6 +121,11 @@
   .btn.primary:disabled { opacity: 0.5; cursor: default; }
   .btn.ghost { background: transparent; border-color: var(--line); color: var(--muted); }
   .hint { font-size: 0.82rem; color: var(--dim); margin-top: 6px; }
+  .hint.good { color: var(--plasma); }
+  .hint.warn { color: #ffb454; }
+  label.chk { display: flex; gap: 10px; align-items: center; cursor: pointer; font-size: 0.92rem; }
+  label.chk input { width: 18px; height: 18px; accent-color: var(--plasma); flex: none; cursor: pointer; }
+  #updateFields { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
   .shots { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
   .shot { width: 150px; }
   .shot .box {
@@ -132,6 +160,24 @@
   <p class="lede" data-t="lede">Made something for Xenon — a theme, a background, a Deck profile, a widget, an icon or sound pack? Paste its <b>share code</b> below and it lands in the review queue. <b>A human reviews every submission</b> before it appears in the in-app gallery; nothing you send here can change anyone's dashboard by itself.</p>
 
   <form id="form" novalidate>
+    <!-- Update mode. Without this, an update was indistinguishable from a new
+         listing: the reviewer had to recognise it by eye and retype the original
+         entry id, and a wrong id grew a duplicate that reaches nobody. -->
+    <div class="card">
+      <label class="chk"><input type="checkbox" id="isUpdate"><span data-t="f_isupdate">This is an update to something I already have in the catalog</span></label>
+      <div id="updateFields" hidden>
+        <label class="f"><span data-t="f_target">Which entry? *</span>
+          <input type="text" id="targetEntryId" list="entryList" maxlength="61" autocomplete="off" data-t-ph="target_ph" placeholder="Start typing your entry's name…">
+          <datalist id="entryList"></datalist>
+        </label>
+        <p class="hint" id="targetHint"></p>
+        <label class="f"><span data-t="f_changelog">What changed? * <small data-t="f_changelog_h">(one line — users see this on the update prompt)</small></span>
+          <textarea id="changelog" maxlength="300" rows="2" data-t-ph="changelog_ph" placeholder="Fixed the clock drifting after DST"></textarea>
+        </label>
+        <p class="hint" data-t="update_hint">Bump the version above — the app only offers an update when the version rises.</p>
+      </div>
+    </div>
+
     <div class="card">
       <div class="grid2">
         <label class="f"><span data-t="f_kind">Kind</span>
@@ -189,7 +235,7 @@
     <div class="big">🎉</div>
     <h2 data-t="ok_title">Submitted!</h2>
     <p data-t="ok_p1">Your creation is in the review queue. A human looks at every submission — once approved, it appears on the community catalog and inside Xenon's Discover gallery.</p>
-    <p data-t="ok_p2">Updates later? Just submit again with the same name and a higher version.</p>
+    <p data-t="ok_p2">Shipping an update later? Come back, tick <b>“This is an update”</b>, pick your entry and bump the version — it replaces the published one instead of becoming a second listing.</p>
     <p style="margin-top:18px"><a href="../catalog/" data-t="ok_back">Browse the catalog →</a></p>
   </div>
 
@@ -219,13 +265,24 @@
       f_version: 'Versione <small>(es. 1.0.0 — aumentala quando aggiorni)</small>',
       f_contact: 'Contatto * <small>(email/Discord — lo vede solo chi revisiona, per scriverti se qualcosa non va)</small>',
       f_tags: 'Tag <small>(fino a 6, minuscoli)</small>', f_desc: 'Descrizione',
+      f_isupdate: 'È un aggiornamento di qualcosa che ho già nel catalogo',
+      f_target: 'Quale voce? *', target_ph: 'Inizia a scrivere il nome della tua voce…',
+      f_changelog: 'Cosa è cambiato? * <small>(una riga — gli utenti la vedono nella richiesta di aggiornamento)</small>',
+      changelog_ph: 'Corretto l\'orologio che sballava dopo il cambio d\'ora',
+      update_hint: 'Aumenta la versione qui sopra — l\'app propone l\'aggiornamento solo se la versione sale.',
+      target_found: 'Aggiorni “{name}”, ora alla v{ver}.',
+      target_suggest: 'Usa {next} o superiore.',
+      target_unknown: 'Nessuna voce del catalogo con quell\'id — scegline una dall\'elenco, altrimenti chi revisiona la tratterà come una nuova pubblicazione.',
+      e_changelog: 'Scrivi cosa è cambiato in questa versione — quella riga la vedono gli utenti nella richiesta di aggiornamento.',
+      e_version: 'Un aggiornamento ha bisogno di un numero di versione, e deve essere più alto di quello pubblicato.',
+      e_version_same: 'La v{ver} è già pubblicata — aumenta la versione, altrimenti a nessuno verrà proposto l\'aggiornamento.',
       f_code: 'Codice di condivisione *', code_file: 'Carica da file .txt / .json…',
       code_ph: 'Incolla il codice da Condividi & Importa → Esporta…',
       code_hint: 'In Xenon: Impostazioni → Widget e condivisione → esporta la tua creazione, poi copia il codice o scarica il file. Max 2 MB.',
       f_shots: 'Screenshot (fino a 3 — PNG/JPG/WebP, max 4 MB ciascuno)',
       send: 'Invia per la revisione', ok_title: 'Inviato!',
       ok_p1: 'La tua creazione è nella coda di revisione. Ogni proposta viene esaminata da una persona — una volta approvata compare nel catalogo community e nella galleria Scopri dentro Xenon.',
-      ok_p2: 'Aggiornamenti in futuro? Reinvia con lo stesso nome e una versione più alta.',
+      ok_p2: 'Un aggiornamento in futuro? Torna qui, spunta <b>“È un aggiornamento”</b>, scegli la tua voce e aumenta la versione — sostituisce quella pubblicata invece di diventare una seconda voce.',
       ok_back: 'Sfoglia il catalogo →',
       foot: 'Le proposte sono moderate. I codici vengono ri-validati nell’app all’importazione — una voce del catalogo non può mai cambiare nulla in silenzio.',
       k_bg: 'bg (sfondo animato)', k_page: 'page (pagina dashboard)', k_deck: 'deck (profilo Deck)',
@@ -429,6 +486,85 @@
     host.className = 'captcha-broken';
   }
 
+  // ── Update mode ──
+  // The creator picks the entry they are superseding out of the live catalog
+  // instead of typing an id from memory, so the reviewer gets an unambiguous
+  // target and the "duplicate instead of update" mistake stops being possible.
+  var isUpdateEl = document.getElementById('isUpdate');
+  var updateFields = document.getElementById('updateFields');
+  var targetEl = document.getElementById('targetEntryId');
+  var targetHint = document.getElementById('targetHint');
+  var changelogEl = document.getElementById('changelog');
+  var catalogEntries = [];
+
+  function loadCatalogForPicker() {
+    fetch('../community/catalog.json', { cache: 'no-cache' }).then(function (r) {
+      return r.ok ? r.json() : null;
+    }).then(function (cat) {
+      catalogEntries = (cat && Array.isArray(cat.entries) ? cat.entries : []).filter(function (e) {
+        return e && typeof e.id === 'string' && typeof e.name === 'string';
+      });
+      var list = document.getElementById('entryList');
+      catalogEntries.forEach(function (e) {
+        var opt = document.createElement('option');
+        // The value IS the id (that is what the hub stores); the label carries
+        // the human name, so nobody has to know their own entry id by heart.
+        opt.value = e.id;
+        opt.label = e.name + (e.author ? ' — ' + e.author : '') + (e.version ? ' (v' + e.version + ')' : '');
+        list.appendChild(opt);
+      });
+    }).catch(function () { /* offline → the field still accepts a typed id */ });
+  }
+
+  function findEntry(id) {
+    var want = String(id || '').trim().toLowerCase();
+    for (var i = 0; i < catalogEntries.length; i++) if (catalogEntries[i].id === want) return catalogEntries[i];
+    return null;
+  }
+
+  // Bump the last numeric segment — the version the app will actually treat as
+  // newer. Mirrors nextPatchVersion in the hub's catalog-admin.js.
+  function nextVersion(v) {
+    if (!/^[0-9]+(\.[0-9]+)*$/.test(String(v || ''))) return '';
+    var parts = String(v).split('.').map(Number);
+    parts[parts.length - 1] += 1;
+    return parts.join('.');
+  }
+
+  function syncTargetHint() {
+    var hit = findEntry(targetEl.value);
+    targetHint.className = 'hint';
+    if (!targetEl.value.trim()) { targetHint.textContent = ''; return; }
+    if (!hit) {
+      targetHint.classList.add('warn');
+      targetHint.textContent = T('target_unknown', 'No catalog entry with that id — pick one from the list. The reviewer will treat this as a new listing otherwise.');
+      return;
+    }
+    targetHint.classList.add('good');
+    var suggested = nextVersion(hit.version);
+    targetHint.textContent = T('target_found', 'Updating “{name}”, currently v{ver}.')
+      .replace('{name}', hit.name).replace('{ver}', hit.version || '—')
+      + (suggested ? ' ' + T('target_suggest', 'Use {next} or higher.').replace('{next}', suggested) : '');
+    // Prefill the fields that must match the entry being replaced, so a mismatch
+    // can't creep in between the two forms.
+    var kindSelEl = document.getElementById('kind');
+    if (hit.kind) kindSelEl.value = hit.kind;
+    var nameEl = document.getElementById('name');
+    if (!nameEl.value.trim()) nameEl.value = hit.name;
+    var authorEl = document.getElementById('author');
+    if (!authorEl.value.trim() && hit.author) authorEl.value = hit.author;
+    var verEl = document.getElementById('version');
+    if (!verEl.value.trim() && suggested) verEl.value = suggested;
+  }
+
+  isUpdateEl.addEventListener('change', function () {
+    updateFields.hidden = !isUpdateEl.checked;
+    if (isUpdateEl.checked && !catalogEntries.length) loadCatalogForPicker();
+    if (!isUpdateEl.checked) { targetEl.value = ''; targetHint.textContent = ''; }
+  });
+  targetEl.addEventListener('input', syncTargetHint);
+  targetEl.addEventListener('change', syncTargetHint);
+
   // ── Submit ──
   var errEl = document.getElementById('err');
   function showErr(msg) { errEl.textContent = msg; }
@@ -441,6 +577,20 @@
     if (!name) { showErr(T('e_name', 'Give your creation a name.')); return; }
     if (!contact) { showErr(T('e_contact', 'Leave an email or Discord handle, so the reviewer can reach you if something needs fixing.')); return; }
     if (!code) { showErr(T('e_code', 'Paste the share code.')); return; }
+    var targetId = isUpdateEl.checked ? targetEl.value.trim().toLowerCase() : '';
+    var changelog = changelogEl.value.trim();
+    var version = document.getElementById('version').value.trim();
+    if (targetId) {
+      if (!changelog) { showErr(T('e_changelog', 'Say what changed in this version — users see that line on the update prompt.')); return; }
+      if (!version) { showErr(T('e_version', 'An update needs a version number, and it has to be higher than the published one.')); return; }
+      // The published version is right there in the catalog, so catch the
+      // no-op update here rather than letting the reviewer discover it.
+      var target = findEntry(targetId);
+      if (target && target.version === version) {
+        showErr(T('e_version_same', 'v{ver} is already published — bump the version, or nobody will be offered the update.').replace('{ver}', version));
+        return;
+      }
+    }
     if (code.length > MAX_CODE) { showErr(T('e_code_big', 'The code is over 2 MB.')); return; }
     // Catch a code that is already cut off in the browser — a clipboard that
     // pasted short, a half-saved file — before it is ever sent. If it fails to
@@ -454,7 +604,8 @@
     fd.append('name', name);
     fd.append('author', document.getElementById('author').value.trim());
     fd.append('contact', document.getElementById('contact').value.trim());
-    fd.append('version', document.getElementById('version').value.trim());
+    fd.append('version', version);
+    if (targetId) { fd.append('targetEntryId', targetId); fd.append('changelog', changelog); }
     fd.append('tags', document.getElementById('tags').value.trim());
     fd.append('description', document.getElementById('description').value.trim());
     fd.append('code', code);
@@ -480,6 +631,8 @@
     if (err === 'rate_limited') showErr(T('e_rate', 'Too many submissions — try again later.'));
     else if (err === 'captcha_failed') showErr(T('e_captcha', 'Complete the anti-spam check.'));
     else if (err === 'incomplete_code' || err === 'not_a_xenon_code') showErr(T('e_code_incomplete', 'The share code looks cut off or incomplete — copy the whole thing from Xenon (or use "Load from file"), then submit again.'));
+    else if (err === 'missing_changelog') showErr(T('e_changelog', 'Say what changed in this version — users see that line on the update prompt.'));
+    else if (err === 'missing_version') showErr(T('e_version', 'An update needs a version number, and it has to be higher than the published one.'));
     else showErr(T('e_generic', 'Submission failed ({err}) — please retry.').replace('{err}', err));
     if (window.turnstile) { try { window.turnstile.reset(); turnstileToken = ''; } catch (e) {} }
   });

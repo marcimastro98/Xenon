@@ -2170,6 +2170,49 @@ input[type="range"] { accent-color: var(--green); }
 }
 .inst-origin.is-mine { color: var(--accent, #35e08e); background: rgba(var(--accent-rgb), 0.12); border-color: rgba(var(--accent-rgb), 0.3); }
 .inst-row-btns { display: flex; align-items: center; gap: 8px; flex: none; }
+/* The publisher's note about what a pending update changes. */
+.inst-row-changelog {
+  font-size: 0.76rem; line-height: 1.4; color: var(--accent, #35e08e);
+  overflow-wrap: anywhere; font-style: italic;
+}
+/* "N updates available · Update all" — sits above the list, so the answer to
+   "is anything waiting?" is the first thing the tab says. */
+.inst-updbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  margin: 0 0 14px; padding: 10px 14px; border-radius: 12px;
+  background: rgba(var(--accent-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-rgb), 0.28);
+}
+.inst-updbar-txt { font-size: 0.82rem; font-weight: 600; color: var(--text, #e7e9ee); }
+.inst-updbar .settings-btn { flex: none; }
+@media (max-width: 560px) {
+  .inst-updbar { flex-direction: column; align-items: stretch; gap: 10px; }
+}
+
+/* Widget folders the scan refused. Warning-toned, not error-toned: nothing is
+   broken, a folder just needs renaming — and it must read as actionable rather
+   than alarming. Uses the theme's warning role so it follows light/dark and the
+   Comic/Retro skins instead of pinning its own colour. */
+.inst-rejected {
+  margin: 0 0 14px; padding: 11px 14px; border-radius: 12px;
+  background: color-mix(in srgb, var(--warning, #e0a33e) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning, #e0a33e) 34%, transparent);
+}
+.inst-rejected-title {
+  margin: 0 0 8px; font-size: 0.82rem; font-weight: 600;
+  color: var(--text, #e7e9ee);
+}
+.inst-rejected-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 8px; }
+.inst-rejected-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 9px; }
+.inst-rejected-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.76rem; padding: 2px 7px; border-radius: 6px;
+  background: rgba(0, 0, 0, 0.22); color: var(--text, #e7e9ee);
+  /* A pasted folder name can be long and has no spaces to break on. */
+  overflow-wrap: anywhere;
+}
+.inst-rejected-why { font-size: 0.78rem; color: var(--muted-text, #aab1c0); flex: 1 1 220px; min-width: 0; }
+.inst-rejected .cgal-status { margin: 0; }
 
 .inst-foot {
   display: flex; align-items: center; justify-content: space-between; gap: 14px;
@@ -2304,6 +2347,16 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-btn.primary:hover:not(:disabled) { filter: brightness(1.08); box-shadow: 0 6px 20px rgba(var(--accent-rgb), 0.42); }
 .cgal-unlock { color: var(--warn, #ffb454); border-color: rgba(255, 180, 84, 0.42); background: rgba(255, 180, 84, 0.1); }
 .cgal-unlock:hover { background: rgba(255, 180, 84, 0.18); }
+/* Settled "already installed" state — a non-interactive chip, not a button, so it
+   reads as done and can't re-trigger an import. Wins over .primary/.cgal-unlock
+   colours by coming later at equal specificity. */
+.cgal-btn.cgal-installed {
+  cursor: default; font-weight: 700; box-shadow: none; filter: none;
+  color: var(--success, #45d483);
+  background: rgba(69, 212, 131, 0.14);
+  border-color: rgba(69, 212, 131, 0.4);
+}
+.cgal-btn.cgal-installed:hover { background: rgba(69, 212, 131, 0.14); filter: none; }
 .cgal-limited-buttons { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(138px, 1fr)); gap: 8px; }
 .cgal-limited-buttons .cgal-ic { width: 16px; height: 16px; }
 .cgal-claim { color: #110b27; border-color: transparent; background: #a99cff; box-shadow: 0 5px 18px rgba(139, 123, 255, 0.3); white-space: nowrap; }
@@ -2550,6 +2603,18 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-detail-by a { color: rgba(var(--accent-rgb), 0.95); text-decoration: none; }
 .cgal-detail-by a:hover { text-decoration: underline; }
 .cgal-detail-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+/* "What's new in v1.2.0" + the publisher's own line. */
+.cgal-detail-changelog {
+  display: flex; flex-direction: column; gap: 3px;
+  margin-top: 10px; padding: 9px 12px; border-radius: 10px;
+  background: rgba(var(--accent-rgb), 0.08);
+  border: 1px solid rgba(var(--accent-rgb), 0.2);
+}
+.cgal-changelog-label {
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--accent, #35e08e);
+}
+.cgal-changelog-text { font-size: 0.82rem; line-height: 1.45; color: var(--text, #e7e9ee); overflow-wrap: anywhere; }
 .cgal-metachip { font-size: 0.72rem; font-weight: 600; color: var(--text-dim, #8b91a1); padding: 3px 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); }
 .cgal-detail-desc { margin: 0; font-size: 0.92rem; line-height: 1.6; color: var(--text-soft, #c3c8d2); }
 .cgal-detail-swatches { display: flex; flex-direction: column; gap: 7px; }

@@ -45,6 +45,51 @@ test('sanitizeSlideshow: non-image / wrong-scheme / oversize URIs are dropped', 
   assert.equal(out.images[0].uri, uri(30));
 });
 
+test('sanitizeSlideshow: disk-backed /uploads/slideshow-* refs are kept as-is', () => {
+  const out = S.sanitizeSlideshow({
+    images: [
+      { name: 'a.gif', uri: '/uploads/slideshow-1700000000000-abc123.gif' },
+      { name: 'b.png', uri: '/uploads/slideshow-1700000000001-def456.png' },
+    ],
+  });
+  assert.equal(out.images.length, 2);
+  assert.equal(out.images[0].uri, '/uploads/slideshow-1700000000000-abc123.gif');
+  assert.equal(out.images[0].name, 'a.gif');
+});
+
+test('sanitizeSlideshow: only the slideshow- upload prefix is accepted, not other paths', () => {
+  const out = S.sanitizeSlideshow({
+    images: [
+      { uri: '/uploads/tileasset-1-x.png' },          // another feature's assets
+      { uri: '/uploads/../secret.png' },              // traversal-shaped
+      { uri: '/uploads/slideshow-9-ok.webp' },        // the one good ref
+      { uri: 'uploads/slideshow-9-ok.webp' },         // missing leading slash
+    ],
+  });
+  assert.equal(out.images.length, 1);
+  assert.equal(out.images[0].uri, '/uploads/slideshow-9-ok.webp');
+});
+
+test('sanitizeSlideshow: disk-backed refs do NOT count against the byte budget', () => {
+  // The total-size cap only guards legacy inline base64; a full set of disk refs
+  // (each a tiny path) is bounded by the count ceiling, not by SLIDES_TOTAL_MAX.
+  const many = Array.from({ length: S.SLIDE_MAX_COUNT }, (_, i) => ({ uri: `/uploads/slideshow-${i}-x.gif` }));
+  const out = S.sanitizeSlideshow({ images: many });
+  assert.equal(out.images.length, S.SLIDE_MAX_COUNT);
+});
+
+test('sanitizeSlideshow: legacy inline and disk-backed images coexist in order', () => {
+  const out = S.sanitizeSlideshow({
+    images: [
+      { name: 'legacy', uri: uri(20, 'gif') },
+      { name: 'disk', uri: '/uploads/slideshow-1-y.png' },
+    ],
+  });
+  assert.equal(out.images.length, 2);
+  assert.equal(out.images[0].name, 'legacy');
+  assert.equal(out.images[1].uri, '/uploads/slideshow-1-y.png');
+});
+
 test('sanitizeSlideshow: the count cap bounds the set', () => {
   const many = Array.from({ length: S.SLIDE_MAX_COUNT + 10 }, () => ({ uri: uri(20) }));
   const out = S.sanitizeSlideshow({ images: many });

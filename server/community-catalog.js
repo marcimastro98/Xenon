@@ -138,6 +138,15 @@ function normalizeEntry(raw) {
   // ── v2 fields (all optional; a v1 entry is untouched) ──
   const version = cleanStr(raw.version, 20);
   if (VERSION_RE.test(version)) entry.version = version;
+  // What changed in this version, shown on the update prompt. Plain text only —
+  // it is rendered with textContent, never as markup.
+  const changelog = cleanStr(raw.changelog, 300);
+  if (changelog) entry.changelog = changelog;
+  // Last-modified date, stamped by the hub only when a save really changes the
+  // entry. addedAt stays the first-publish date, so the two together let the
+  // gallery sort by "recently updated" without lying about a debut.
+  const updatedAt = cleanStr(raw.updatedAt, 20);
+  if (ISO_DATE_RE.test(updatedAt) && Number.isFinite(Date.parse(updatedAt))) entry.updatedAt = updatedAt;
   // The installed-package id a widget/ambient entry updates (join key for the
   // in-app update check). Only meaningful for code-carrying kinds.
   const pkgId = cleanStr(raw.pkgId, 41);
