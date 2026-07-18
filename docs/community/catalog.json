@@ -72,8 +72,10 @@
       ],
       "version": "1.0.0",
       "shots": 2,
+      "active": false,
       "addedAt": "2026-07-18",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-07-18"
     },
     {
       "id": "dgm-news-sports",
