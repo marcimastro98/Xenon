@@ -147,7 +147,7 @@
         "external-links",
         "spanish"
       ],
-      "version": "0.4.2",
+      "version": "0.4.3",
       "changelog": "Simplified the interface with a single navigation bar for All, Favorites and Recent; renamed the visible widget to “Explorador de mapas”; and removed redundant headings, provider filters and settings. The catalog, URLs and permissions remain unchanged.",
       "pkgId": "dgm-gaming-map-companion",
       "appVersionMin": "4.6.0",
