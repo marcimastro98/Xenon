@@ -2,6 +2,34 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "keyring",
+      "kind": "widget",
+      "name": "Keyring",
+      "author": "xenon",
+      "authorSupporter": true,
+      "description": "Encrypted 2FA codes and passwords in one place. Codes stay on screen by your keyboard with a countdown ring; the code for a focused desktop app floats to the top. Copying a password needs a tap you confirm. Everything is encrypted on this PC, with no cloud and no recovery.",
+      "category": "tools",
+      "tags": [
+        "2fa",
+        "totp",
+        "passwords",
+        "security",
+        "vault"
+      ],
+      "version": "1.0.0",
+      "pkgId": "keyring",
+      "appVersionMin": "4.7.0",
+      "preview": {
+        "accent": "#1ed760",
+        "bg": "#0c0f10",
+        "text": "#eef2f0"
+      },
+      "shots": 4,
+      "active": false,
+      "addedAt": "2026-07-18",
+      "codeFile": true
+    },
+    {
       "id": "thermal-card",
       "kind": "widget",
       "name": "Thermal Card",
