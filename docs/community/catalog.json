@@ -25,9 +25,9 @@
         "text": "#eef2f0"
       },
       "shots": 4,
-      "active": false,
       "addedAt": "2026-07-18",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-07-18"
     },
     {
       "id": "thermal-card",
