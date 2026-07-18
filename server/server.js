@@ -4,12 +4,27 @@
  * redistribution as your own. Attribution required. See LICENSE for terms.
  */
 const http = require('http');
-const { execFile, spawn } = require('child_process');
+const { execFile: _execFileReal, spawn } = require('child_process');
+// On Linux, transparently route SoundVolumeView.exe calls to PipeWire (wpctl)
+// via linuxCollectors.svvShim; every other execFile call is forwarded verbatim.
+// SVV and linuxCollectors are defined below but resolved at call time.
+function execFile(...callArgs) {
+  // try/catch guards the (rare) case of an execFile call during early module
+  // load, before the SVV / linuxCollectors consts below are initialized (TDZ).
+  try {
+    if (linuxCollectors && callArgs[0] === SVV) return linuxCollectors.svvShim(callArgs);
+  } catch { /* consts not ready yet, fall through to the real execFile */ }
+  return _execFileReal(...callArgs);
+}
 const fs = require('fs');
 const https = require('https');
 const os = require('os');
 const crypto = require('crypto');
 const path = require('path');
+// Linux native collectors (GPU/disk/CPU-temp/network). Windows keeps the
+// PowerShell path; on Linux those spawns fail (powershell.exe ENOENT) so the
+// system tiles fall back to these. See linux-collectors.js.
+const linuxCollectors = process.platform === 'linux' ? require('./linux-collectors') : null;
 const fpsMonitor = require('./fpsmon');
 const gameDetect = require('./gamedetect');
 const winNotif = require('./winnotif');
@@ -1316,6 +1331,7 @@ function runHelperOneShot(args, timeout = 8000) {
 // back to windows.ps1 transparently on ANY helper problem (missing, crashed,
 // bad output) — the PowerShell path is the permanent safety net.
 async function runWindowsTool(args, timeout) {
+  if (linuxCollectors) return linuxCollectors.windows(args[0], args[1]);
   if (fs.existsSync(HELPER_EXE)) {
     try { return await runHelperOneShot(['windows', ...args], timeout); }
     catch { /* fall through to the PowerShell path */ }
@@ -1998,6 +2014,7 @@ function makeCsvPath() {
 }
 
 function readSoundVolumeRows() {
+  if (linuxCollectors) return linuxCollectors.audioRows();
   return new Promise((resolve, reject) => {
     const csv = makeCsvPath();
     execFile(SVV, ['/scomma', csv, '/AvoidPrompts'], { timeout: 6000 }, err => {
@@ -3021,7 +3038,7 @@ async function getCpuTemp() {
 
   cpuTempPending = (async () => {
     try {
-      const data = await runCollector(CPU_TEMP_SCRIPT, [], 10000);
+      const data = linuxCollectors ? linuxCollectors.cpuTemp() : await runCollector(CPU_TEMP_SCRIPT, [], 10000);
       // Windows PowerShell 5.1 can unwrap a single-element array on serialize.
       let fans = data.fans;
       if (fans && !Array.isArray(fans)) fans = [fans];
@@ -3058,7 +3075,7 @@ async function getGpuInfo() {
   if (gpuPending) return gpuPending;
   gpuPending = (async () => {
   try {
-    const data = await runCollector(GPU_SCRIPT, [], 12000);
+    const data = linuxCollectors ? await linuxCollectors.gpu() : await runCollector(GPU_SCRIPT, [], 12000);
     gpuCache = {
       gpu: data.gpu === null || data.gpu === undefined ? gpuCache.gpu : data.gpu,
       gpuName: data.gpuName || gpuCache.gpuName || null,
@@ -3133,6 +3150,7 @@ let _diskLettersCache = { letters: null, at: 0 };
 const DISK_LETTERS_TTL = 60 * 1000;
 
 async function getAllDisksInfo() {
+  if (linuxCollectors) return linuxCollectors.disks();
   const drives = [];
   const details = await getDiskDetails();
   // Probing all 24 letters with statfs every cycle (~7s) is wasteful — valid
@@ -3322,7 +3340,7 @@ async function _getNetworkInfoRaw() {
   // worker, delaying every other queued sensor read.
   let skipFps = false;
   try { skipFps = fpsMonitor.isAvailable(); } catch { skipFps = false; }
-  const data = await runCollector(NETWORK_SCRIPT, skipFps ? ['-SkipFps'] : [], 8000);
+  const data = linuxCollectors ? await linuxCollectors.network() : await runCollector(NETWORK_SCRIPT, skipFps ? ['-SkipFps'] : [], 8000);
   const now = Date.now();
   const rx = Number(data.rxBytes) || 0;
   const tx = Number(data.txBytes) || 0;
