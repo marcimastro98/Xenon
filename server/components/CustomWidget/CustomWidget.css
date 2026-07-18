@@ -185,6 +185,51 @@ body.layout-editing .cw-wrap.cw-mounted .cw-frame { pointer-events: none; }
    — it must not read as pressable while it does nothing. */
 .cw-btn:disabled { opacity: 0.4; pointer-events: none; }
 
+/* ── Clipboard copy confirmation — Widget SDK `clipboard` capability ──
+   The host-drawn gate a widget's copy request must pass through. Same modal
+   language as the permission dialog (shared .cw-btn), so it reads as a Xenon
+   decision the user is making, not the widget's own UI. */
+.cw-clip-backdrop {
+  position: fixed; inset: 0; z-index: 1210;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.55); padding: 18px;
+}
+.cw-clip {
+  width: min(400px, 94vw); border-radius: 16px; padding: 18px 18px 16px;
+  background: rgb(var(--panel-rgb, 17, 19, 20));
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 18px 60px rgba(0,0,0,0.5);
+  display: flex; flex-direction: column; gap: 10px;
+}
+:root[data-appearance="light"] .cw-clip { background: #f4f6f8; border-color: rgba(0,0,0,0.1); }
+.cw-clip-title { font-size: 0.95rem; font-weight: 800; }
+.cw-clip-what { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.cw-clip-who { font-size: 0.82rem; font-weight: 800; color: rgba(var(--accent-rgb), 1); }
+.cw-clip-label { font-size: 0.78rem; font-weight: 600; opacity: 0.85; overflow-wrap: anywhere; }
+.cw-clip-preview {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; border-radius: 10px;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+}
+:root[data-appearance="light"] .cw-clip-preview { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
+.cw-clip-val {
+  flex: 1 1 auto; min-width: 0;
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 0.95rem; font-weight: 700; letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
+}
+.cw-clip-eye {
+  flex: 0 0 auto; padding: 4px 9px; border-radius: 7px;
+  border: 1px solid rgba(255,255,255,0.14); background: transparent;
+  color: inherit; font-size: 0.68rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.05em; cursor: pointer; opacity: 0.8;
+}
+.cw-clip-eye:hover { opacity: 1; }
+.cw-clip-note {
+  font-size: 0.72rem; font-weight: 600; line-height: 1.4; opacity: 0.7;
+}
+.cw-clip-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+
 /* ── SDK badge chips — Widget SDK `badge` capability (js/sdk-badges.js) ──
    Small always-on readouts next to the clock, one per granted package (up to a
    few at once). #clock-sdkbadges is a plain span inside .clock in the base

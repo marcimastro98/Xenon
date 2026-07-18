@@ -10,7 +10,8 @@
 //
 // This is the one-tap repair: POST /system/enable-sensors raises a UAC prompt and
 // sets the task to Highest, permanently. Shared by the Fans and Energy widgets and
-// by Settings → System so the fix is wherever the user notices the problem.
+// by Settings → Performance ("Hardware sensors", #settings-sensors-hub) so the fix
+// is wherever the user notices the problem.
 (function () {
   const el = makeEl;
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));

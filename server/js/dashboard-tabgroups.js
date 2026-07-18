@@ -89,6 +89,37 @@ function _tabIcon(mid) {
   return span;
 }
 
+// Label a tab for a member. A custom-widget host ('custom') carries the generic
+// type name; swap in the assigned package's real name (e.g. "Keyring") when one
+// is known. The name is an untrusted package field, so it goes through
+// textContent, and its data-i18n key is cleared so applyTranslations can't
+// overwrite it back to "Custom widget".
+function _applyMemberLabel(label, base, mid) {
+  let custom = '';
+  if (base === 'custom' && window.CustomWidget
+      && typeof window.CustomWidget.assignedName === 'function') {
+    custom = window.CustomWidget.assignedName(mid) || '';
+  }
+  if (custom) {
+    label.removeAttribute('data-i18n');
+    label.textContent = custom;
+  } else {
+    label.setAttribute('data-i18n', 'layout_widget_' + base);
+    label.textContent = base;
+  }
+}
+
+// Re-label existing custom tabs once the SDK package list loads (names aren't
+// available on the first layout pass during a cold reload). Cheap: touches only
+// the label text of already-rendered tabs, never relocates member atoms.
+function _refreshGroupLabels() {
+  document.querySelectorAll('.tabgroup-tab').forEach(tab => {
+    if (tab.dataset.base !== 'custom') return;
+    const label = tab.querySelector('.tabgroup-tab-label');
+    if (label) _applyMemberLabel(label, tab.dataset.base, tab.dataset.member);
+  });
+}
+
 // Build/refresh a group's tab-group tile inside its grid item: a tab bar + the
 // active member's content. Member atom DOM is relocated into the group body
 // (moved by id → media.js/ai.js bindings survive). `gridItem` = .grid-stack-item.
@@ -120,11 +151,13 @@ function renderGroupTile(gridItem, group) {
     const tab = document.createElement('button');
     tab.type = 'button';
     tab.className = 'tabgroup-tab' + (mid === group.active ? ' active' : '');
+    tab.dataset.member = mid;
+    tab.dataset.base = base;
     const icon = _tabIcon(base);
     if (icon) tab.appendChild(icon);
     const label = document.createElement('span');
-    label.setAttribute('data-i18n', 'layout_widget_' + base);
-    label.textContent = base;
+    label.className = 'tabgroup-tab-label';
+    _applyMemberLabel(label, base, mid);
     tab.appendChild(label);
     tab.addEventListener('click', () => setGroupActive(group.id, mid));
     // Edit-mode "×": removes THIS member from the tab group (hidden, restorable
@@ -271,6 +304,10 @@ function mergeOnDrop(draggedWidgetId, targetWidgetId) {
 
 if (typeof window !== 'undefined') {
   window.DashboardTabGroups = { renderGroupTile, setGroupActive, extractToStandalone, extractMember, mergeOnDrop, addAsTab, rectsOverlapRatio, widgetGroupOf };
+  // The SDK package list arrives after the first layout pass on a cold reload, so
+  // a custom tab first paints with the generic type name — refresh it once names
+  // are known (also covers a Rescan swapping which widget a tile hosts).
+  window.addEventListener('xenon:sdk-packages', _refreshGroupLabels);
 }
 
 if (typeof module !== 'undefined' && module.exports) {

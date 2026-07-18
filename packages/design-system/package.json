@@ -1,6 +1,6 @@
 {
   "name": "@xenon/design-system",
-  "version": "4.6.1",
+  "version": "4.7.0",
   "private": true,
   "description": "Xenon brand and design reference. The brand book (BRAND.md, plus the interactive brand-book.html) is the source of truth; shared CSS tokens are lifted here incrementally without changing runtime behavior.",
   "license": "SEE LICENSE IN ../../LICENSE",

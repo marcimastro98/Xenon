@@ -1117,6 +1117,11 @@
             <input class="settings-check" id="settings-idle-anim-pause" type="checkbox" onchange="updateIdleAnimationPause(this.checked)">
             <span class="settings-label-line"><span data-i18n="settings_idle_anim_pause">Pausa animazioni quando inattivo</span><span class="settings-hint" data-i18n="settings_idle_anim_pause_hint">dopo un minuto senza tocchi mette in pausa aurora, griglia e le piccole animazioni per ridurre il consumo della GPU; riprendono al primo tocco</span></span>
           </label>
+          <!-- Shown only on a hybrid-GPU machine running the native app; syncSettingsControls() hides it everywhere else. -->
+          <label class="settings-toggle-row full" id="settings-hybrid-gpu-pause-row" hidden>
+            <input class="settings-check" id="settings-hybrid-gpu-pause" type="checkbox" onchange="updateHybridGpuAnimationPause(this.checked)">
+            <span class="settings-label-line"><span data-i18n="settings_hybrid_gpu_pause">Riduci animazioni su GPU ibrida</span><span class="settings-hint" data-i18n="settings_hybrid_gpu_pause_hint">questo PC ha due schede video e Xenon disegna su quella integrata, che ha meno margine: aurora, griglia, sfondo animato e decorazioni dei tasti restano fermi. Spegnilo per tenere tutto in movimento, a costo di qualche fotogramma</span></span>
+          </label>
         </div>
       </div>
 
@@ -1214,6 +1219,20 @@
           <span class="settings-label-line">
             <span data-i18n="settings_auto_open">Apri la dashboard nel browser</span>
             <span class="settings-hint" data-i18n="settings_auto_open_hint">apre questa pagina nel browser predefinito quando accendi il PC</span>
+          </span>
+        </label>
+      </div>
+
+      <div class="settings-group settings-behavior-group" data-settings-cat="general">
+        <div class="settings-group-head">
+          <span data-i18n="settings_updates">Aggiornamenti</span>
+          <span class="settings-hint" data-i18n="settings_updates_hint">Xenon controlla già se esiste una versione più recente</span>
+        </div>
+        <label class="settings-toggle-row full">
+          <input class="settings-check" id="settings-version-ping" type="checkbox" onchange="updateVersionPing(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_version_ping">Conta questa installazione, in forma anonima</span>
+            <span class="settings-hint" data-i18n="settings_version_ping_hint">aggiunge solo versione e sistema operativo al controllo aggiornamenti già in corso: niente identificatori, nessuna richiesta in più</span>
           </span>
         </label>
       </div>
@@ -1971,6 +1990,8 @@
             <span class="settings-label-line"><span class="settings-label-lead"><span data-i18n="settings_bg_code_editor">Codice</span> <span class="settings-hint" data-i18n="settings_bg_code_editor_hint">per chi vuole scriverlo a mano</span></span><span class="settings-bgcode-count" id="settings-bgcode-count"></span></span>
             <textarea class="settings-code-field" id="settings-bgcode-input" rows="8" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="function draw(ctx, t, w, h) { … }" oninput="updateBgCodeCount(this.value.length);updateBgCustomCodeLive(this.value)" onchange="updateBgCustom('code',this.value)"></textarea>
             <p class="settings-bgcode-error" id="settings-bgcode-error" role="alert" hidden></p>
+            <!-- Not an error: the machine froze the loop, not the code. Filled by renderBgFrozenNote(). -->
+            <p class="settings-note" id="settings-bgcode-frozen" hidden></p>
             <p class="settings-bgcode-error" id="settings-bgcode-overlimit" role="alert" hidden data-i18n="settings_bg_code_overlimit">Oltre il limite: il codice in eccesso non viene salvato. Sposta il dettaglio grafico pesante nelle Immagini qui sopra.</p>
           </label>
           <details class="settings-code-help full" id="settings-bgcode-help">

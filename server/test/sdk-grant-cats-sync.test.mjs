@@ -17,7 +17,7 @@ const sdk = require(join(ROOT, 'server', 'sdk-widgets.js'));
 
 // Every all-or-nothing boolean capability. Adding one to the SDK means adding it
 // here — the three tests below then pin the three places it must be wired.
-const BOOLEAN_CAPS = ['storage', 'secrets', 'island', 'badge'];
+const BOOLEAN_CAPS = ['storage', 'secrets', 'island', 'badge', 'clipboard'];
 
 // Pull a `const NAME = Object.freeze([...])` string array out of settings.js.
 function clientList(name) {

@@ -242,6 +242,13 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // save GPU (js/ambient-idle.js). On by default; users can switch it off so the
   // dashboard keeps animating while idle.
   idleAnimationPause: true,
+  // Freeze the aurora/grid, the animated background and the Deck decor for the
+  // whole session when the native shell is rendering on the weaker of two GPUs
+  // (js/native-bridge.js → body.low-power-gpu). On by default: on that hardware a
+  // frame cap alone did not recover the frame rate, only stopping the loops did.
+  // Off = keep everything moving and accept the cost. Inert on single-GPU
+  // machines and on the browser surface, where the class is never set.
+  hybridGpuAnimationPause: true,
   // Extended theme tokens (full Aspetto editor). All part of a saved theme; the
   // defaults reproduce the stock Liquid Glass look exactly, and they apply inline
   // only under glass (retro owns its own geometry/material).
@@ -277,6 +284,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Only reconciled into a real scheduled task from a standalone browser view —
   // never from inside the Xeneon Edge iframe (see reconcileAutoOpenBrowser).
   autoOpenBrowser: true,
+  // Anonymous version ping — OFF unless the user opts in (Settings → Generale → Aggiornamenti).
+  // Sends only {version, os} on the update check the app already makes, never
+  // the install id. Mirror of server.js; see docs/privacy.html.
+  versionPing: false,
   // Opt-in ad-blocker for the Browser tile (Settings → Browser). OFF by default.
   browserAdblock: false,
   // Stock-market (Borsa) widget + ticker. Keys are server-only (redacted); the
@@ -1238,6 +1249,7 @@ function normalizeSettings(source) {
     bgDim: clampNumber(value.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
     bgBlur: clampNumber(value.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
     idleAnimationPause: value.idleAnimationPause !== false,
+    hybridGpuAnimationPause: value.hybridGpuAnimationPause !== false,
     uiRoundness: clampNumber(value.uiRoundness, 0, 2, DEFAULT_HUB_SETTINGS.uiRoundness),
     glassBlur: clampNumber(value.glassBlur, 0, 40, DEFAULT_HUB_SETTINGS.glassBlur),
     glassSaturate: clampNumber(value.glassSaturate, 100, 220, DEFAULT_HUB_SETTINGS.glassSaturate),
@@ -1253,6 +1265,7 @@ function normalizeSettings(source) {
     weather: normalizeWeatherSettings(value.weather),
     tempUnit: value.tempUnit === 'f' ? 'f' : 'c',
     autoOpenBrowser: value.autoOpenBrowser !== false,
+    versionPing: value.versionPing === true,
     browserAdblock: value.browserAdblock === true,
     dashboardLayout: resetLayout
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
@@ -1790,6 +1803,7 @@ function normalizeSdkWidgets(value) {
         secrets: g.secrets === true,
         island: g.island === true,
         badge: g.badge === true,
+        clipboard: g.clipboard === true,
         userHosts: normalizeSdkUserHosts(g.userHosts),
       };
       n++;
@@ -2287,12 +2301,26 @@ function queueHubSettingsServerSave() {
 let weatherConfigSaveTimer = null;
 let _weatherConfigSaveToken = 0;
 let _weatherConfigSavePending = false;  // a change made before the first hydrate
+// The rev MUST travel with the weather block, exactly like the whole-blob save
+// sends its own. commitWeatherChange() bumps the local rev on every keystroke in
+// the city field while only the last one survives the 250ms debounce, so a server
+// that re-derived the rev from its own stored copy (prevRev + 1) would fall
+// several revisions BEHIND this surface. That gap is not cosmetic: a lower server
+// rev makes _runSettingsSseHydrate() skip every incoming broadcast, and makes the
+// boot hydrate treat the local copy as newer and ignore the server's — so this
+// surface stops adopting a location set on another one (the "browser keeps auto
+// location" residual of GitHub #109).
+function weatherConfigPayload() {
+  return {
+    weather: normalizeWeatherSettings(hubSettings && hubSettings.weather),
+    rev: Number.isFinite(hubSettings && hubSettings.rev) ? hubSettings.rev : 0,
+  };
+}
 function postWeatherConfigToServer() {
-  const weather = normalizeWeatherSettings(hubSettings && hubSettings.weather);
   return fetch('/api/weather/config', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ weather }),
+    body: JSON.stringify(weatherConfigPayload()),
   }).then(async (res) => {
     try { await res.arrayBuffer(); } catch { /* connection freed either way */ }
     if (!res.ok) { const e = new Error('weather save failed: HTTP ' + res.status); e.status = res.status; throw e; }
@@ -2450,7 +2478,7 @@ function sendHubSettingsBeacon() {
   if (weatherConfigSaveTimer) {
     weatherConfigSaveTimer = null;
     try {
-      const wbody = JSON.stringify({ weather: normalizeWeatherSettings(hubSettings && hubSettings.weather) });
+      const wbody = JSON.stringify(weatherConfigPayload());   // carries the rev too — see the note there
       if (!(navigator.sendBeacon && navigator.sendBeacon('/api/weather/config', new Blob([wbody], { type: 'application/json' })))) {
         fetch('/api/weather/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: wbody, keepalive: true }).catch(() => {});
       }
@@ -3243,6 +3271,10 @@ function applyHubSettings() {
   // current preference so toggling it takes effect at once).
   if (window.AmbientIdle) window.AmbientIdle.setEnabled(hubSettings.idleAnimationPause !== false);
 
+  // Hybrid-GPU session freeze (js/native-bridge.js owns body.low-power-gpu; a
+  // no-op on every other machine and on the browser surface).
+  if (window.NativeGpuPause) window.NativeGpuPause.setEnabled(hubSettings.hybridGpuAnimationPause !== false);
+
   // Top-bar clock alignment + meta-field visibility (Settings → Aspetto).
   applyTopbarClockSettings();
 
@@ -3792,6 +3824,17 @@ function syncSettingsControls() {
   if (contrastGuard) contrastGuard.checked = hubSettings.contrastGuard !== false;
   const idleAnimPause = $('settings-idle-anim-pause');
   if (idleAnimPause) idleAnimPause.checked = hubSettings.idleAnimationPause !== false;
+  // The hybrid-GPU freeze only exists on an iGPU+dGPU machine running the native
+  // shell, so the row is hidden everywhere else rather than offering a switch
+  // that provably does nothing.
+  const hybridGpuPause = $('settings-hybrid-gpu-pause');
+  if (hybridGpuPause) hybridGpuPause.checked = hubSettings.hybridGpuAnimationPause !== false;
+  const hybridGpuRow = $('settings-hybrid-gpu-pause-row');
+  if (hybridGpuRow) {
+    hybridGpuRow.hidden = !(window.NativeGpuPause && window.NativeGpuPause.isLowPowerGpu());
+  }
+  const versionPing = $('settings-version-ping');
+  if (versionPing) versionPing.checked = hubSettings.versionPing === true;
 
   const rangeMap = [
     ['settings-panel-alpha', String(hubSettings.panelAlpha)],
@@ -4018,6 +4061,16 @@ function updateIdleAnimationPause(enabled) {
   saveHubSettings();
   applyHubSettings();
   syncSettingsControls();
+}
+
+function updateHybridGpuAnimationPause(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, hybridGpuAnimationPause: enabled !== false });
+  saveHubSettings();
+  applyHubSettings();
+  syncSettingsControls();
+  // The background editor's "frozen on this machine" note is driven by the same
+  // signal, so refresh it in the same gesture instead of on the next repaint.
+  renderBgFrozenNote();
 }
 
 // ── Xenon AI programmatic customization ───────────────────────────
@@ -4484,6 +4537,24 @@ function updateSlideshowCfg(patch) {
   renderSlideshowSettings();
 }
 
+// Upload one slideshow image to the server's disk-backed store and resolve its
+// served /uploads/ URL. Images live on disk (not inline in the settings blob), so
+// a slideshow can hold far more of them without weighing on localStorage/backups.
+async function uploadSlideshowAsset(file) {
+  const type = file.type || 'image/jpeg';
+  const ext = type === 'image/png' ? 'png' : type === 'image/gif' ? 'gif' : type === 'image/webp' ? 'webp' : 'jpg';
+  const form = new FormData();
+  form.append('asset', file, `slide.${ext}`);
+  const res = await fetch('/slideshow-asset', { method: 'POST', body: form });
+  const j = await res.json().catch(() => null);
+  if (!res.ok || !j || !j.url) {
+    const err = new Error((j && j.error) || 'upload failed');
+    err.tooBig = res.status === 413;
+    throw err;
+  }
+  return j.url;
+}
+
 async function addSlideshowImages(input) {
   const files = input && input.files ? Array.from(input.files) : [];
   if (input) input.value = '';   // allow re-picking the same file
@@ -4491,7 +4562,6 @@ async function addSlideshowImages(input) {
   const S = SlideshowWidget;
   const current = normalizeSlideshow(hubSettings.slideshow);
   const images = current.images.slice();
-  let total = images.reduce((sum, im) => sum + im.uri.length, 0);
   let added = 0;
   const warn = (titleKey, message) => {
     if (window.XenonToast) window.XenonToast.show({ type: 'error', title: t(titleKey), message: message || '' });
@@ -4499,16 +4569,13 @@ async function addSlideshowImages(input) {
   for (const file of files) {
     if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) { warn('slideshow_img_invalid', file.name); continue; }
     if (images.length >= S.SLIDE_MAX_COUNT) { warn('slideshow_full'); break; }
-    const uri = await new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-      reader.onerror = () => resolve('');
-      reader.readAsDataURL(file);
-    });
-    if (!uri || !S.SLIDE_DATA_RE.test(uri)) { warn('slideshow_img_invalid', file.name); continue; }
-    if (uri.length > S.SLIDE_MAX_CHARS || total + uri.length > S.SLIDES_TOTAL_MAX) { warn('slideshow_img_too_big', file.name); continue; }
-    images.push({ name: String(file.name || '').slice(0, 80), uri });
-    total += uri.length; added++;
+    try {
+      const uri = await uploadSlideshowAsset(file);
+      images.push({ name: String(file.name || '').slice(0, 80), uri });
+      added++;
+    } catch (e) {
+      warn(e && e.tooBig ? 'slideshow_img_too_big' : 'slideshow_img_invalid', file.name);
+    }
   }
   if (added) updateSlideshowCfg({ images });
 }
@@ -4543,7 +4610,7 @@ function openSlideshowSettings() {
 // in the DOM, and skips the grid rebuild when the image set is unchanged.
 function renderSlideshowSettings() {
   const c = normalizeSlideshow(hubSettings.slideshow);
-  const cap = window.SlideshowWidget ? SlideshowWidget.SLIDE_MAX_COUNT : 30;
+  const cap = window.SlideshowWidget ? SlideshowWidget.SLIDE_MAX_COUNT : 200;
   const intInput = $('settings-slideshow-interval');
   if (intInput && document.activeElement !== intInput) intInput.value = String(Math.round(c.intervalMs / 1000));
   const fitSel = $('settings-slideshow-fit');
@@ -4663,6 +4730,22 @@ if (typeof document !== 'undefined') {
   document.addEventListener('xenon-bg-status', (e) => renderBgCodeError(e && e.detail));
 }
 
+// Tell the author when their snippet is frozen by the machine rather than by
+// their code. On a hybrid-GPU machine the background runs for ~3s and then stops
+// for the session (js/custom-bg.js hostPaused → body.low-power-gpu), which reads
+// exactly like a broken animation loop: a theme author burned hours rewriting a
+// working snippet before we found it (#118). This is not an error, so it is a
+// separate note from renderBgCodeError's alert and says how to switch it off.
+function renderBgFrozenNote() {
+  const el = $('settings-bgcode-frozen');
+  if (!el) return;
+  const frozen = !!(window.NativeGpuPause
+    && window.NativeGpuPause.isLowPowerGpu()
+    && hubSettings.hybridGpuAnimationPause !== false);
+  el.textContent = frozen ? t('settings_bg_code_frozen_gpu') : '';
+  el.hidden = !frozen;
+}
+
 // Drop a starter snippet into the code box (and enable the background so the user
 // sees it immediately). Never overwrites non-empty code without asking.
 async function applyBgCustomTemplate(id) {
@@ -4746,6 +4829,7 @@ function syncBgFxControls() {
 
   // Code-defined background controls + its own priority. When it's on it owns the
   // backdrop just like a static bg, so the aurora/grid/static are superseded.
+  renderBgFrozenNote();
   const cb = normalizeBgCustom(hubSettings.bgCustom);
   setChk('settings-bgcode-enabled', cb.enabled);
   const codeName = $('settings-bgcode-name');
@@ -4955,28 +5039,50 @@ async function _sdkCatalogUpdates(force) {
   }
   return _sdkUpdatesInflight;
 }
-// Once-a-day update check, client-driven (no server timer): on load, when the
-// SDK is enabled and something is installed, one catalog GET (absorbed by the
+// Once-a-day update check, client-driven (no server timer): on load, when
+// anything from the catalog is installed, one catalog GET (absorbed by the
 // server's 45-min TTL cache) surfaces available updates as a gentle toast.
+//
+// It counts EVERYTHING findUpdates returns, not just SDK packages. The old
+// version gated on `sdkWidgets.enabled` and bailed unless a widget package was
+// installed, so a user whose themes, decks and icon packs all had updates
+// waiting was told nothing — and with the SDK off, never told anything at all.
+// The gallery had the answer the whole time; only this notice was narrow.
 async function checkSdkUpdatesDaily() {
   try {
-    if (!(hubSettings.sdkWidgets && hubSettings.sdkWidgets.enabled === true)) return;
     const KEY = 'xeneonedge.sdkUpdateCheck';
     const last = Number(localStorage.getItem(KEY) || 0);
     if (Date.now() - last < 24 * 3600 * 1000) return;
-    const inst = await fetch('/sdk/widgets').then((r) => r.json()).catch(() => null);
-    if (!inst || !Array.isArray(inst.packages) || !inst.packages.length) return;
+    if (!window.CommunityGallery || !window.CommunityGallery.findUpdates) return;
+    const cat = await fetch('/api/community/catalog').then((r) => r.json()).catch(() => null);
+    const entries = (cat && cat.entries) || [];
+    if (!entries.length) return;
+    // Stamp only once the check actually ran end-to-end — an offline attempt
+    // must not burn the day's slot and hide a real update until tomorrow.
+    const updates = await window.CommunityGallery.findUpdates(entries);
     localStorage.setItem(KEY, String(Date.now()));
-    const updates = await _sdkCatalogUpdates(true);
-    if (updates.size && window.XenonToast) {
-      window.XenonToast.show({
-        type: 'notification',
-        kicker: t('settings_sdk_title', 'Widget della community'),
-        title: t('settings_sdk_updates_toast', '{n} widget hanno un aggiornamento').replace('{n}', String(updates.size)),
-        message: t('settings_sdk_updates_toast_sub', 'Aggiorna da Impostazioni → Widget e condivisione'),
-        duration: 7000,
-      });
-    }
+    _sdkUpdatesCache = null;   // the package manager re-derives its pkgId view lazily
+    if (!updates.length || !window.XenonToast) return;
+    // Name the thing when there is only one — "1 aggiornamento" is a riddle,
+    // "Aggiornamento per Nocturne" is an answer.
+    const title = updates.length === 1
+      ? t('settings_updates_toast_one', 'Aggiornamento per {name}').replace('{name}', updates[0].name || '')
+      : t('settings_updates_toast_n', '{n} contenuti hanno un aggiornamento').replace('{n}', String(updates.length));
+    window.XenonToast.show({
+      type: 'notification',
+      kicker: t('settings_sdk_title', 'Widget della community'),
+      title,
+      message: updates.length === 1 && updates[0].changelog
+        ? updates[0].changelog
+        : t('settings_updates_toast_sub', 'Apri lo Store → Installati per aggiornare'),
+      duration: 7000,
+      // '__installed' is the gallery's own deep-link to the Installed tab, where
+      // every update has its button. A notice you can't act on is just noise.
+      onClick: () => {
+        try { if (window.CommunityGallery) window.CommunityGallery.open('__installed'); }
+        catch { /* the toast is a hint, never a hard dependency */ }
+      },
+    });
   } catch { /* best-effort */ }
 }
 setTimeout(checkSdkUpdatesDaily, 15000);
@@ -6203,6 +6309,15 @@ function updateAutoOpenBrowser(checked) {
   }).catch(() => setSettingsStatus('settings_error', 'error'));
 }
 
+// Anonymous version ping. Purely a stored preference — the server reads it on
+// the next update check and decides whether to send, so there is nothing to
+// call here and nothing to undo if the user switches it straight back off.
+function updateVersionPing(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, versionPing: checked === true });
+  saveHubSettings();
+  syncSettingsControls();
+}
+
 // Brings the real scheduled task in line with the user's saved intent — but
 // only from a standalone browser, never from the Edge iframe. So a pure-Edge
 // install never registers a browser-open task (no surprise tab), while a
@@ -6713,6 +6828,9 @@ function updateClockFormat(fmt) {
   syncClockFormatControls();
   if (typeof tickClock === 'function') tickClock();
   if (typeof renderLockClock === 'function') renderLockClock();
+  // SDK widgets that render their own clock (e.g. the POW! Ambient scene) read
+  // the resolved 12h/24h flag from the theme bridge — re-push it so they follow.
+  if (window.CustomWidget && typeof window.CustomWidget.refreshTheme === 'function') window.CustomWidget.refreshTheme();
   setSettingsStatus('settings_saved', 'ok');
 }
 

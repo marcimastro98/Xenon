@@ -1,6 +1,6 @@
 [package]
 name = "xenon-native"
-version = "4.6.1"
+version = "4.7.0"
 description = "Xenon native kiosk shell for the CORSAIR Xeneon Edge"
 authors = ["Marcello Mastroeni (marcimastro98)"]
 edition = "2021"

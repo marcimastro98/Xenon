@@ -3,15 +3,38 @@
 <head>
 <meta charset="UTF-8">
 
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
   gtag('js', new Date());
   gtag('config', 'G-LQ8Y8WZPQF');
 </script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
 <script src="/analytics.js" defer></script>
+<script src="/consent.js" defer></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Xenon: the control center of your PC, with a personality</title>
@@ -653,7 +676,7 @@
   <div class="proof">
     <div class="wrap proof-inner">
       <div class="proof-item"><b data-i18n="proof.1t">100% local</b><span data-i18n="proof.1s">Your data never leaves your PC</span></div>
-      <div class="proof-item"><b data-i18n="proof.2t">Zero telemetry</b><span data-i18n="proof.2s">No ads, no accounts, no tracking</span></div>
+      <div class="proof-item"><b data-i18n="proof.2t">Zero telemetry</b><span data-i18n="proof.2s">No ads, no accounts, no tracking in the app</span></div>
       <div class="proof-item"><b data-i18n="proof.3t">Free forever</b><span data-i18n="proof.3s">Open source, funded by coffee</span></div>
     </div>
   </div>
@@ -979,6 +1002,7 @@
           <a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a>
           <a href="https://github.com/marcimastro98/Xenon/releases/latest" target="_blank" rel="noopener" data-i18n="foot.releases">Releases</a>
           <a href="https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md" target="_blank" rel="noopener" data-i18n="foot.bug">Report a bug</a>
+          <a href="/privacy.html" data-i18n="foot.privacy">Privacy</a>
         </div>
         <div class="foot-col">
           <h5 data-i18n="foot.community">Community</h5>
@@ -1007,7 +1031,7 @@ I18N.en = {
   'cta.download': 'Download for Windows', 'cta.discord': 'Join the Discord',
   'hero.free1': 'Free', 'hero.free2': 'Open source', 'hero.free3': 'Windows 10/11',
   'proof.1t': '100% local', 'proof.1s': 'Your data never leaves your PC',
-  'proof.2t': 'Zero telemetry', 'proof.2s': 'No ads, no accounts, no tracking',
+  'proof.2t': 'Zero telemetry', 'proof.2s': 'No ads, no accounts, no tracking in the app',
   'proof.3t': 'Free forever', 'proof.3s': 'Open source, funded by coffee',
   'feat.kicker': 'The essentials', 'feat.h2': 'Start with<br>these four.',
   'feat.p': 'Xenon has more than 30 widgets. These are the four that people actually use every day.',
@@ -1076,7 +1100,7 @@ I18N.en = {
   'fin.h2': 'Put it on<br><em>your desk.</em>',
   'fin.p': 'Free, open source, and it runs on your machine. About a minute to install.',
   'foot.note': 'A local-first dashboard for the CORSAIR Xeneon Edge and any Windows browser. Custom non-commercial license. Not affiliated with CORSAIR.',
-  'foot.project': 'Project', 'foot.releases': 'Releases', 'foot.bug': 'Report a bug',
+  'foot.project': 'Project', 'foot.releases': 'Releases', 'foot.bug': 'Report a bug', 'foot.privacy': 'Privacy',
   'foot.community': 'Community', 'foot.catalog': 'Catalog', 'foot.create': 'Creator guide',
   'foot.support': 'Support', 'foot.coffee': 'Buy me a coffee'
 };
@@ -1088,7 +1112,7 @@ I18N.it = {
   'cta.download': 'Scarica per Windows', 'cta.discord': 'Entra nel Discord',
   'hero.free1': 'Gratis', 'hero.free2': 'Open source', 'hero.free3': 'Windows 10/11',
   'proof.1t': '100% locale', 'proof.1s': 'I tuoi dati non lasciano mai il tuo PC',
-  'proof.2t': 'Zero telemetria', 'proof.2s': 'Niente pubblicità, account o tracciamenti',
+  'proof.2t': 'Zero telemetria', 'proof.2s': "Nessuna pubblicità, account o tracciamento nell'app",
   'proof.3t': 'Gratis per sempre', 'proof.3s': 'Open source, va avanti a caffè',
   'feat.kicker': 'L\'essenziale', 'feat.h2': 'Parti da<br>questi quattro.',
   'feat.p': 'Xenon ha più di 30 widget. Questi sono i quattro che la gente usa davvero tutti i giorni.',
@@ -1157,7 +1181,7 @@ I18N.it = {
   'fin.h2': 'Mettilo sulla<br><em>tua scrivania.</em>',
   'fin.p': 'Gratuito, open source, e gira sulla tua macchina. Ci vuole circa un minuto.',
   'foot.note': 'Una dashboard local-first per il CORSAIR Xeneon Edge e qualsiasi browser Windows. Licenza custom non commerciale. Non affiliato a CORSAIR.',
-  'foot.project': 'Progetto', 'foot.releases': 'Release', 'foot.bug': 'Segnala un bug',
+  'foot.project': 'Progetto', 'foot.releases': 'Release', 'foot.bug': 'Segnala un bug', 'foot.privacy': 'Privacy',
   'foot.community': 'Community', 'foot.catalog': 'Catalogo', 'foot.create': 'Guida per creator',
   'foot.support': 'Sostieni', 'foot.coffee': 'Offrimi un caffè'
 };
@@ -1169,7 +1193,7 @@ I18N.ko = {
   'cta.download': 'Windows용 다운로드', 'cta.discord': 'Discord 참여',
   'hero.free1': '무료', 'hero.free2': '오픈소스', 'hero.free3': 'Windows 10/11',
   'proof.1t': '100% 로컬', 'proof.1s': '데이터가 PC를 떠나지 않습니다',
-  'proof.2t': '텔레메트리 제로', 'proof.2s': '광고, 계정, 추적 없음',
+  'proof.2t': '텔레메트리 제로', 'proof.2s': '앱에는 광고, 계정, 추적이 없습니다',
   'proof.3t': '영원히 무료', 'proof.3s': '오픈소스, 커피로 굴러갑니다',
   'feat.kicker': '핵심 기능', 'feat.h2': '이 네 가지부터<br>시작하세요.',
   'feat.p': 'Xenon에는 위젯이 30개 넘게 있습니다. 그중 사람들이 매일 실제로 쓰는 건 이 네 가지입니다.',
@@ -1238,7 +1262,7 @@ I18N.ko = {
   'fin.h2': '당신의 책상에<br><em>올려두세요.</em>',
   'fin.p': '무료, 오픈소스, 당신의 PC에서 실행됩니다. 설치는 1분 정도.',
   'foot.note': 'CORSAIR Xeneon Edge와 모든 Windows 브라우저를 위한 로컬 우선 대시보드. 커스텀 비상업 라이선스. CORSAIR와 무관합니다.',
-  'foot.project': '프로젝트', 'foot.releases': '릴리스', 'foot.bug': '버그 신고',
+  'foot.project': '프로젝트', 'foot.releases': '릴리스', 'foot.bug': '버그 신고', 'foot.privacy': '개인정보',
   'foot.community': '커뮤니티', 'foot.catalog': '카탈로그', 'foot.create': '크리에이터 가이드',
   'foot.support': '후원', 'foot.coffee': '커피 사주기'
 };
@@ -1250,7 +1274,7 @@ I18N.ja = {
   'cta.download': 'Windows 版をダウンロード', 'cta.discord': 'Discord に参加',
   'hero.free1': '無料', 'hero.free2': 'オープンソース', 'hero.free3': 'Windows 10/11',
   'proof.1t': '100% ローカル', 'proof.1s': 'データが PC の外に出ることはありません',
-  'proof.2t': 'テレメトリゼロ', 'proof.2s': '広告なし、アカウントなし、トラッキングなし',
+  'proof.2t': 'テレメトリゼロ', 'proof.2s': 'アプリに広告・アカウント・トラッキングはありません',
   'proof.3t': 'ずっと無料', 'proof.3s': 'オープンソース、コーヒーで回っています',
   'feat.kicker': 'まずはここから', 'feat.h2': 'まずは<br>この4つから。',
   'feat.p': 'Xenon にはウィジェットが 30 個以上あります。そのうち、みんなが毎日実際に使うのはこの4つです。',
@@ -1319,7 +1343,7 @@ I18N.ja = {
   'fin.h2': 'あなたの机に<br><em>置いてみてください。</em>',
   'fin.p': '無料、オープンソース、あなたのマシンで動きます。インストールは1分ほど。',
   'foot.note': 'CORSAIR Xeneon Edge とあらゆる Windows ブラウザのためのローカルファーストなダッシュボード。カスタム非商用ライセンス。CORSAIR とは無関係です。',
-  'foot.project': 'プロジェクト', 'foot.releases': 'リリース', 'foot.bug': 'バグを報告',
+  'foot.project': 'プロジェクト', 'foot.releases': 'リリース', 'foot.bug': 'バグを報告', 'foot.privacy': 'プライバシー',
   'foot.community': 'コミュニティ', 'foot.catalog': 'カタログ', 'foot.create': 'クリエイターガイド',
   'foot.support': '応援する', 'foot.coffee': 'コーヒーをおごる'
 };
@@ -1331,7 +1355,7 @@ I18N.zh = {
   'cta.download': '下载 Windows 版', 'cta.discord': '加入 Discord',
   'hero.free1': '免费', 'hero.free2': '开源', 'hero.free3': 'Windows 10/11',
   'proof.1t': '100% 本地', 'proof.1s': '你的数据永不离开你的 PC',
-  'proof.2t': '零遥测', 'proof.2s': '无广告、无账号、无跟踪',
+  'proof.2t': '零遥测', 'proof.2s': '应用内无广告、无账号、无跟踪',
   'proof.3t': '永久免费', 'proof.3s': '开源项目，靠咖啡运转',
   'feat.kicker': '核心功能', 'feat.h2': '先从<br>这四样开始。',
   'feat.p': 'Xenon 有 30 多个小组件。这四个,是大家每天真正会用的。',
@@ -1400,7 +1424,7 @@ I18N.zh = {
   'fin.h2': '把它放到<br><em>你的桌上。</em>',
   'fin.p': '免费、开源,在你自己的机器上运行。装好大约一分钟。',
   'foot.note': '为 CORSAIR Xeneon Edge 及任何 Windows 浏览器打造的本地优先仪表盘。自定义非商业许可。与 CORSAIR 无关联。',
-  'foot.project': '项目', 'foot.releases': '版本发布', 'foot.bug': '报告问题',
+  'foot.project': '项目', 'foot.releases': '版本发布', 'foot.bug': '报告问题', 'foot.privacy': '隐私',
   'foot.community': '社区', 'foot.catalog': '目录', 'foot.create': '创作者指南',
   'foot.support': '支持', 'foot.coffee': '请我喝咖啡'
 };

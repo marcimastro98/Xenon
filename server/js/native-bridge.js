@@ -744,14 +744,52 @@
   // into single digits, even though the same page renders at 150+ FPS in a
   // browser on the discrete GPU. The shell's init script reports the fact
   // (`__XENON_NATIVE_CAPS__.lowPowerGpu`, computed once from the same signal
-  // that picks the WebView2 GPU flag); backgroundfx.css uses the resulting
-  // class to pause the purely decorative ambient layers only — never the
-  // animated background the user actually chose.
-  function initNativeLowPowerGpu() {
-    if (!isNative) return;
+  // that picks the WebView2 GPU flag), and `body.low-power-gpu` carries it to
+  // every consumer: backgroundfx.css (aurora/grid), js/custom-bg.js (the
+  // animated background) and js/deck.js (animated key decor).
+  //
+  // Until v4.6.2 this comment claimed the class paused "the decorative ambient
+  // layers only — never the animated background the user actually chose". That
+  // was the intent, but the reverse shipped: no stylesheet ever matched the
+  // class, while custom-bg.js added it to its pause set in v4.6.0. So Xenon's
+  // own aurora kept animating and the background the user wrote was the one
+  // frozen, with nothing on screen explaining why (#118). Both now freeze, and
+  // the settings editor says so when it applies.
+  //
+  // The freeze is not contextual like idle/game mode: it holds for the whole
+  // session, because a frame cap alone did not recover the frame rate in
+  // testing — only stopping the loops did. So it is a real trade, and
+  // `hubSettings.hybridGpuAnimationPause` (default on) lets the user take the
+  // other side of it: dropping the class releases all three consumers at once.
+  let lowPowerGpuAllowed = true;
+
+  // Is this machine actually rendering on the weaker GPU? Independent of the
+  // user's preference — the settings UI needs it to decide whether the toggle
+  // is worth showing at all, since on every other machine it does nothing.
+  function isLowPowerGpu() {
     const caps = window.__XENON_NATIVE_CAPS__;
-    document.body.classList.toggle('low-power-gpu', !!(caps && caps.lowPowerGpu === true));
+    return !!(isNative && caps && caps.lowPowerGpu === true);
   }
+
+  function applyLowPowerGpuClass() {
+    if (!isNative) return;
+    document.body.classList.toggle('low-power-gpu', isLowPowerGpu() && lowPowerGpuAllowed);
+  }
+
+  function initNativeLowPowerGpu() {
+    applyLowPowerGpuClass();
+  }
+
+  // Driven from settings.js/applyHubSettings, mirroring window.AmbientIdle.
+  window.NativeGpuPause = {
+    isLowPowerGpu,
+    setEnabled(on) {
+      const next = on !== false;
+      if (next === lowPowerGpuAllowed) return;
+      lowPowerGpuAllowed = next;
+      applyLowPowerGpuClass();
+    },
+  };
 
   // ── Native shell: don't steal the game's focus ────────────────────────
   // Tapping the kiosk normally activates its window, so a foreground game
