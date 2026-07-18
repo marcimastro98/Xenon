@@ -117,7 +117,8 @@
       "kind": "widget",
       "name": "Explorador de mapas",
       "author": "DanielGarciaMorato",
-      "description": "Explorador de mapas es un catálogo visual para acceder rápidamente a mapas externos de videojuegos desde Xenon.\n\nIncluye 31 juegos y 32 destinos seleccionados, con buscador, favoritos y recientes. Al seleccionar un juego, el widget muestra una confirmación y abre su mapa correspondiente en el navega",
+      "description": "DGM Map Explorer is a visual catalog for quickly accessing external video game maps from Xenon.\n\nIt includes 31 games and 32 selected destinations, with search, session-based favorites and recently opened games. Selecting a game displays a confirmation before opening its corresponding map in the def",
+      "category": "media",
       "tags": [
         "gaming",
         "maps",
@@ -125,11 +126,19 @@
         "external-links",
         "spanish"
       ],
-      "version": "0.4.1",
+      "version": "0.4.2",
+      "changelog": "Simplified the interface with a single navigation bar for All, Favorites and Recent; renamed the visible widget to “Explorador de mapas”; and removed redundant headings, provider filters and settings. The catalog, URLs and permissions remain unchanged.",
+      "pkgId": "dgm-gaming-map-companion",
       "appVersionMin": "4.6.0",
-      "shots": 1,
-      "addedAt": "2026-07-17",
-      "codeFile": true
+      "preview": {
+        "accent": "#3f78b5",
+        "bg": "#08111c",
+        "text": "#e9edf6"
+      },
+      "shots": 2,
+      "addedAt": "2026-07-18",
+      "codeFile": true,
+      "updatedAt": "2026-07-18"
     },
     {
       "id": "demonic",
