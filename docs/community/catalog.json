@@ -108,6 +108,8 @@
       "kind": "widget",
       "name": "DGM News Technology",
       "author": "DanielGarciaMorato",
+      "description": "Tech news widget for Xenon featuring six RSS feeds: Xataka, Hipertextual, Microsiervos, BBC Technology, The Guardian Technology, and Ars Technica. It includes balanced feed rotation, a Spanish and English interface, thumbnail generation via the official SDK proxy, visual fallbacks and loading states",
+      "category": "media",
       "tags": [
         "technology",
         "rss",
@@ -115,11 +117,19 @@
         "responsive",
         "news"
       ],
-      "version": "1.0.0",
+      "version": "0.1.2",
+      "changelog": "Re-exported after the publishing platform issue; no functional code changes.",
+      "pkgId": "dgm-news-technology",
       "appVersionMin": "4.6.0",
-      "shots": 1,
-      "addedAt": "2026-07-17",
-      "codeFile": true
+      "preview": {
+        "accent": "#38bdf8",
+        "bg": "#0b0d12",
+        "text": "#e9edf6"
+      },
+      "shots": 2,
+      "addedAt": "2026-07-18",
+      "codeFile": true,
+      "updatedAt": "2026-07-18"
     },
     {
       "id": "explorador-de-mapas",
