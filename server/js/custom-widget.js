@@ -1860,6 +1860,19 @@
     renderWidgets, onData, onDiscordNotification, onHook, onHandler, onStoreChanged, refreshTheme, refreshPackages: () => fetchPackages(true), clearAssign,
     registerAmbientFrame, unregisterAmbientFrame, registerCanvasFrame, unregisterCanvasFrames,
     getPackages, cachedPackages, packageGranted, requestGrant,
+    // Display name of the package assigned to a custom-widget instance (the tile's
+    // data-dashboard-instance id, or 'custom' for the base tile). Lets other UI —
+    // e.g. the tab-group bar — label a custom tile with the real widget name
+    // instead of the generic "Custom widget" type name. Empty when unassigned or
+    // packages aren't loaded yet.
+    assignedName(instId) {
+      try {
+        const cfg = sdk();
+        const id = (cfg.assign && typeof cfg.assign === 'object') ? cfg.assign[instId || 'custom'] : null;
+        const pkg = id ? packageById(id) : null;
+        return (pkg && pkg.name) ? String(pkg.name) : '';
+      } catch { return ''; }
+    },
     // Does this package still have a live (DOM-connected) frame? SdkIsland's
     // orphan sweep uses it to auto-clear island text whose owner tile is gone.
     pkgHasLiveFrame(pkgId) {

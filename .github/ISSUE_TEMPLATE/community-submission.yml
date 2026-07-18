@@ -38,7 +38,8 @@ body:
   - type: dropdown
     id: category
     attributes:
-      label: Category (optional)
+      label: Category
+      description: Where it is filed in the Store.
       options:
         - deck
         - streaming
@@ -48,6 +49,8 @@ body:
         - style
         - fun
         - tools
+    validations:
+      required: true
   - type: input
     id: author
     attributes:
@@ -62,6 +65,16 @@ body:
       label: Version
       description: "Numeric, e.g. 1.0.0 — bump it when you submit an update so installed copies see it."
       placeholder: 1.0.0
+    validations:
+      required: true
+  - type: input
+    id: palette
+    attributes:
+      label: Palette
+      description: "Three hex colours in this order — accent, background, text. They colour your card in the Store, so use the ones your creation actually uses."
+      placeholder: "#1ed760, #0b0d12, #e9edf6"
+    validations:
+      required: true
   - type: input
     id: pkgid
     attributes:
@@ -70,9 +83,11 @@ body:
   - type: input
     id: tags
     attributes:
-      label: Tags (optional)
-      description: "Up to 5, comma-separated, lowercase (a-z, 0-9, dashes)."
+      label: Tags
+      description: "Up to 5, comma-separated, lowercase (a-z, 0-9, dashes). This is how people find it in the Store's search."
       placeholder: neon, cyberpunk, obs
+    validations:
+      required: true
   - type: textarea
     id: description
     attributes:
@@ -91,8 +106,10 @@ body:
   - type: textarea
     id: screenshot
     attributes:
-      label: Screenshots / GIFs (optional)
-      description: "Drag up to 4 images here (ideally 16:9; animated WebP or GIF welcome). The first becomes the card preview (shots/<id>.webp), the rest shots/<id>-2.webp … shots/<id>-4.webp. The maintainer converts them to WebP."
+      label: Screenshots / GIFs
+      description: "Drag at least 2 images here, up to 4 (ideally 16:9; animated WebP or GIF welcome). The first becomes the card preview (shots/<id>.webp), the rest shots/<id>-2.webp … shots/<id>-4.webp. The maintainer converts them to WebP. A submission with no pictures cannot be published — nobody installs a blank card."
+    validations:
+      required: true
   - type: checkboxes
     id: confirm
     attributes:

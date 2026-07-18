@@ -126,6 +126,17 @@
   label.chk { display: flex; gap: 10px; align-items: center; cursor: pointer; font-size: 0.92rem; }
   label.chk input { width: 18px; height: 18px; accent-color: var(--plasma); flex: none; cursor: pointer; }
   #updateFields { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .pal { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 8px; }
+  @media (max-width: 560px) { .pal { grid-template-columns: 1fr; } }
+  /* Specific enough to beat `label.f > span { display: block }` above — as a
+     plain `.cf` rule the swatch and the hex box stacked instead of sitting side
+     by side. */
+  label.f > span.cf { display: flex; gap: 8px; align-items: center; margin-bottom: 0; }
+  .cf input[type=color] {
+    flex: none; width: 42px; height: 42px; padding: 3px; cursor: pointer;
+    background: rgba(0,0,0,0.35); border: 1px solid var(--line); border-radius: 10px;
+  }
+  .cf input[type=text] { flex: 1; min-width: 0; font-family: var(--mono); font-size: 0.85rem; text-transform: lowercase; }
   .shots { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
   .shot { width: 150px; }
   .shot .box {
@@ -193,13 +204,26 @@
             <option value="sounds" data-t="k_sounds">sounds (soundboard pack)</option>
           </select>
         </label>
+        <label class="f"><span data-t="f_category">Category *</span>
+          <select id="category">
+            <option value="" data-t="c_none">Choose one…</option>
+            <option value="style" data-t="c_style">style (themes, backgrounds, looks)</option>
+            <option value="deck" data-t="c_deck">deck (Deck profiles)</option>
+            <option value="streaming" data-t="c_streaming">streaming</option>
+            <option value="media" data-t="c_media">media</option>
+            <option value="smart-home" data-t="c_smarthome">smart-home</option>
+            <option value="system" data-t="c_system">system</option>
+            <option value="tools" data-t="c_tools">tools</option>
+            <option value="fun" data-t="c_fun">fun</option>
+          </select>
+        </label>
         <label class="f"><span data-t="f_name">Name *</span><input type="text" id="name" maxlength="60" required></label>
-        <label class="f"><span data-t="f_author">Author / handle</span><input type="text" id="author" maxlength="40"></label>
-        <label class="f"><span data-t="f_version">Version <small data-t="f_version_h">(e.g. 1.0.0 — bump it when you update)</small></span><input type="text" id="version" maxlength="20" placeholder="1.0.0"></label>
+        <label class="f"><span data-t="f_author">Author / handle *</span><input type="text" id="author" maxlength="40" required></label>
+        <label class="f"><span data-t="f_version">Version * <small data-t="f_version_h">(e.g. 1.0.0 — bump it when you update)</small></span><input type="text" id="version" maxlength="20" placeholder="1.0.0" required></label>
         <label class="f"><span data-t="f_contact">Contact * <small data-t="f_contact_h">(email/Discord — only the reviewer sees it, so they can reach you if something needs fixing)</small></span><input type="text" id="contact" maxlength="120" required></label>
-        <label class="f"><span data-t="f_tags">Tags <small data-t="f_tags_h">(up to 6, lowercase)</small></span><input type="text" id="tags" maxlength="140" placeholder="neon dark minimal"></label>
+        <label class="f"><span data-t="f_tags">Tags * <small data-t="f_tags_h">(up to 6, lowercase — this is how people find it in the Store)</small></span><input type="text" id="tags" maxlength="140" placeholder="neon dark minimal" required></label>
       </div>
-      <label class="f"><span data-t="f_desc">Description</span><textarea id="description" maxlength="400"></textarea></label>
+      <label class="f"><span data-t="f_desc">Description *</span><textarea id="description" maxlength="400" required></textarea></label>
     </div>
 
     <div class="card">
@@ -214,8 +238,27 @@
       <p class="hint" data-t="code_hint">In Xenon: Settings → Widgets &amp; sharing → export your creation, then copy the code or download the file. Max 2&nbsp;MB.</p>
     </div>
 
+    <!-- Card palette. These three colours paint the entry's card in the Store,
+         so they are read straight out of the pasted code when it carries a theme
+         and stay editable — the creator confirms rather than transcribes. -->
     <div class="card">
-      <span style="font-size:0.82rem;color:var(--muted)" data-t="f_shots">Screenshots (up to 3 — PNG/JPG/WebP, max 4 MB each)</span>
+      <span style="font-size:0.82rem;color:var(--muted)" data-t="f_palette">Card colours * <small data-t="f_palette_h">(they paint your card in the Store)</small></span>
+      <div class="pal" id="pal">
+        <label class="f"><span data-t="f_accent">Accent *</span>
+          <span class="cf"><input type="color" id="accentPick" value="#1ed760"><input type="text" id="accentHex" maxlength="7" spellcheck="false" placeholder="#1ed760"></span>
+        </label>
+        <label class="f"><span data-t="f_bgcol">Background *</span>
+          <span class="cf"><input type="color" id="bgPick" value="#0b0d12"><input type="text" id="bgHex" maxlength="7" spellcheck="false" placeholder="#0b0d12"></span>
+        </label>
+        <label class="f"><span data-t="f_textcol">Text *</span>
+          <span class="cf"><input type="color" id="textPick" value="#e9edf6"><input type="text" id="textHex" maxlength="7" spellcheck="false" placeholder="#e9edf6"></span>
+        </label>
+      </div>
+      <p class="hint" id="palHint"></p>
+    </div>
+
+    <div class="card">
+      <span style="font-size:0.82rem;color:var(--muted)" data-t="f_shots">Screenshots * (at least 2, up to 3 — PNG/JPG/WebP, max 4 MB each)</span>
       <div class="shots" id="shots"></div>
     </div>
 
@@ -253,6 +296,7 @@
   var HUB = 'https://xenon-supporter-hub.xenonedge.workers.dev';
   var MAX_CODE = 2 * 1024 * 1024;
   var MAX_SHOTS = 3;
+  var MIN_SHOTS = 2;               // mirrors the hub's MIN_SHOTS
   var SHOT_MAX = 4 * 1024 * 1024;
 
   // ── i18n (same 5 locales as the catalog page; en fallback) ──
@@ -261,10 +305,25 @@
     it: {
       back: '← Catalogo community', title: 'Pubblica nel catalogo community',
       lede: 'Hai creato qualcosa per Xenon — un tema, uno sfondo, un profilo Deck, un widget, un pacchetto icone o suoni? Incolla qui il suo <b>codice di condivisione</b> e finisce nella coda di revisione. <b>Ogni proposta è revisionata da una persona</b> prima di comparire nella galleria in-app; nulla di ciò che invii può modificare da solo la dashboard di qualcuno.',
-      f_kind: 'Tipo', f_name: 'Nome *', f_author: 'Autore / handle',
-      f_version: 'Versione <small>(es. 1.0.0 — aumentala quando aggiorni)</small>',
+      f_kind: 'Tipo', f_name: 'Nome *', f_author: 'Autore / handle *',
+      f_version: 'Versione * <small>(es. 1.0.0 — aumentala quando aggiorni)</small>',
       f_contact: 'Contatto * <small>(email/Discord — lo vede solo chi revisiona, per scriverti se qualcosa non va)</small>',
-      f_tags: 'Tag <small>(fino a 6, minuscoli)</small>', f_desc: 'Descrizione',
+      f_tags: 'Tag * <small>(fino a 6, minuscoli — è così che ti trovano nello Store)</small>', f_desc: 'Descrizione *',
+      f_category: 'Categoria *', c_none: 'Scegli…',
+      c_style: 'style (temi, sfondi, aspetto)', c_deck: 'deck (profili Deck)', c_streaming: 'streaming',
+      c_media: 'media', c_smarthome: 'smart-home', c_system: 'system', c_tools: 'tools', c_fun: 'fun',
+      f_palette: 'Colori della card * <small>(dipingono la tua scheda nello Store)</small>',
+      f_accent: 'Accento *', f_bgcol: 'Sfondo *', f_textcol: 'Testo *',
+      pal_auto: 'Compilati dal tuo codice — cambiali se la card deve avere un altro aspetto.',
+      pal_manual: 'Questo tipo non contiene un tema — scegli i tre colori adatti alla tua creazione.',
+      e_category: 'Scegli una categoria — decide dove finisce la tua voce nello Store.',
+      e_author: 'Metti il nome o l\'handle che vuoi far vedere come autore sulla card.',
+      e_version_req: 'Metti un numero di versione, es. 1.0.0.',
+      e_version_bad: 'La versione deve avere solo numeri e punti, es. 1.0.0.',
+      e_tags: 'Aggiungi almeno un tag — i tag sono il modo in cui la gente trova la tua voce nello Store.',
+      e_desc: 'Scrivi una riga o due sulla tua creazione — è quello che mostra la card.',
+      e_palette: 'Imposta tutti e tre i colori della card — vengono compilati dal tuo codice se contiene un tema.',
+      e_shots: 'Aggiungi almeno 2 screenshot — una voce senza immagini non viene installata da nessuno.',
       f_isupdate: 'È un aggiornamento di qualcosa che ho già nel catalogo',
       f_target: 'Quale voce? *', target_ph: 'Inizia a scrivere il nome della tua voce…',
       f_changelog: 'Cosa è cambiato? * <small>(una riga — gli utenti la vedono nella richiesta di aggiornamento)</small>',
@@ -279,7 +338,7 @@
       f_code: 'Codice di condivisione *', code_file: 'Carica da file .txt / .json…',
       code_ph: 'Incolla il codice da Condividi & Importa → Esporta…',
       code_hint: 'In Xenon: Impostazioni → Widget e condivisione → esporta la tua creazione, poi copia il codice o scarica il file. Max 2 MB.',
-      f_shots: 'Screenshot (fino a 3 — PNG/JPG/WebP, max 4 MB ciascuno)',
+      f_shots: 'Screenshot * (almeno 2, fino a 3 — PNG/JPG/WebP, max 4 MB ciascuno)',
       send: 'Invia per la revisione', ok_title: 'Inviato!',
       ok_p1: 'La tua creazione è nella coda di revisione. Ogni proposta viene esaminata da una persona — una volta approvata compare nel catalogo community e nella galleria Scopri dentro Xenon.',
       ok_p2: 'Un aggiornamento in futuro? Torna qui, spunta <b>“È un aggiornamento”</b>, scegli la tua voce e aumenta la versione — sostituisce quella pubblicata invece di diventare una seconda voce.',
@@ -371,7 +430,14 @@
     codeSize.textContent = n ? Math.max(1, Math.round(n / 1024)) + ' KB' : '';
     codeSize.style.color = n > MAX_CODE ? 'var(--danger)' : '';
   }
-  codeEl.addEventListener('input', paintSize);
+  // Debounced: parsing runs over a code that can reach 2 MB, so it must not fire
+  // on every keystroke of a paste.
+  var syncTimer = 0;
+  function syncFromCodeSoon() {
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(function () { syncFromCode(); }, 350);
+  }
+  codeEl.addEventListener('input', function () { paintSize(); syncFromCodeSoon(); });
   document.getElementById('codeFileBtn').addEventListener('click', function () {
     document.getElementById('codeFile').click();
   });
@@ -386,6 +452,7 @@
       // the reviewer imports it through the app either way.
       codeEl.value = text.trim();
       paintSize();
+      syncFromCode();
     };
     r.readAsText(f);
   });
@@ -429,9 +496,9 @@
   // parseShareCode: a truncated code throws mid-parse, a complete one carries an
   // envelope marker. The point is to fail HERE, on the author's machine, where
   // "cut off" is fixable, rather than after a round-trip.
-  function codeParsesWhole(raw) {
+  function parseEnvelope(raw) {
     var value = String(raw || '').trim();
-    if (!value) return false;
+    if (!value) return null;
     var obj;
     try {
       if (value.charAt(0) === '{') {
@@ -444,9 +511,92 @@
         for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
         obj = JSON.parse(new TextDecoder().decode(bytes));
       }
-    } catch (e) { return false; }
-    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false;
-    return obj.xenonPreset === 1 || obj.xenonLocked != null || obj.xenonLimitedDrop === 1;
+    } catch (e) { return null; }
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null;
+    var isEnvelope = obj.xenonPreset === 1 || obj.xenonLocked != null || obj.xenonLimitedDrop === 1;
+    return isEnvelope ? obj : null;
+  }
+
+  // ── Card palette ──
+  // The three colours that paint the entry's card in the Store. A theme (or a
+  // bundle carrying one) already states them, so they are read out of the pasted
+  // code and the creator only confirms — before this, they were collected from
+  // nobody and the reviewer had to open the code and pick them out by hand.
+  var PAL = [
+    { key: 'accent', pick: 'accentPick', hex: 'accentHex', touched: false },
+    { key: 'bg', pick: 'bgPick', hex: 'bgHex', touched: false },
+    { key: 'text', pick: 'textPick', hex: 'textHex', touched: false },
+  ];
+  var palHint = document.getElementById('palHint');
+
+  // #abc → #aabbcc; anything that is not a plain hex colour (rgb(), a CSS var,
+  // a gradient string) returns '' so it can never be sent as a colour.
+  function normHex(v) {
+    var s = String(v == null ? '' : v).trim().toLowerCase();
+    if (/^#[0-9a-f]{3}$/.test(s)) return '#' + s[1] + s[1] + s[2] + s[2] + s[3] + s[3];
+    return /^#[0-9a-f]{6}$/.test(s) ? s : '';
+  }
+
+  PAL.forEach(function (p) {
+    var pick = document.getElementById(p.pick);
+    var hex = document.getElementById(p.hex);
+    // 'change' as well as 'input': picking the swatch's current colour in the OS
+    // dialog fires no 'input', and the hex box would stay empty while the user
+    // believes they chose one.
+    var fromPick = function () { hex.value = pick.value.toLowerCase(); p.touched = true; };
+    pick.addEventListener('input', fromPick);
+    pick.addEventListener('change', fromPick);
+    hex.addEventListener('input', function () {
+      p.touched = true;
+      var v = normHex(hex.value);
+      if (v) pick.value = v;
+    });
+  });
+
+  function setPalette(values) {
+    var filled = 0;
+    PAL.forEach(function (p) {
+      var v = normHex(values[p.key]);
+      // Never overwrite a colour the creator chose themselves — a re-paste of the
+      // same code would otherwise silently undo their correction.
+      if (!v || p.touched) return;
+      document.getElementById(p.hex).value = v;
+      document.getElementById(p.pick).value = v;
+      filled++;
+    });
+    return filled;
+  }
+
+  function readPalette() {
+    var out = {};
+    PAL.forEach(function (p) { out[p.key] = normHex(document.getElementById(p.hex).value); });
+    return out;
+  }
+
+  // Pull everything the code already knows: its kind, the widget/scene package
+  // id, and the theme palette. Mirrors previewFromEnvelope in the admin panel, so
+  // an imported file and a portal submission produce the same entry.
+  var derivedPkgId = '';
+  function syncFromCode() {
+    var env = parseEnvelope(codeEl.value);
+    if (!env) { palHint.textContent = ''; palHint.className = 'hint'; return; }
+    if (env.kind && Array.prototype.some.call(kindSel.options, function (o) { return o.value === env.kind; })) {
+      kindSel.value = env.kind;
+    }
+    derivedPkgId = (env.kind === 'widget' || env.kind === 'ambient') && env.data && typeof env.data.id === 'string'
+      ? env.data.id : '';
+    var theme = env.kind === 'theme' ? env.data
+      : (env.kind === 'bundle' && env.data && env.data.theme ? env.data.theme : null);
+    palHint.className = 'hint';
+    if (!theme || typeof theme !== 'object') {
+      palHint.textContent = T('pal_manual', 'This kind carries no theme — pick the three colours that suit your creation.');
+      return;
+    }
+    var n = setPalette({ accent: theme.accent, bg: theme.background, text: theme.text });
+    if (n) {
+      palHint.classList.add('good');
+      palHint.textContent = T('pal_auto', 'Filled in from your code — change them if the card should look different.');
+    }
   }
 
   // ── Turnstile ──
@@ -573,16 +723,32 @@
     showErr('');
     var name = document.getElementById('name').value.trim();
     var contact = document.getElementById('contact').value.trim();
+    var author = document.getElementById('author').value.trim();
+    var category = document.getElementById('category').value;
+    var tags = document.getElementById('tags').value.trim();
+    var description = document.getElementById('description').value.trim();
     var code = codeEl.value.trim();
+    var version = document.getElementById('version').value.trim();
+    var palette = readPalette();
+    var shotCount = shots.filter(Boolean).length;
     if (!name) { showErr(T('e_name', 'Give your creation a name.')); return; }
+    if (!category) { showErr(T('e_category', 'Pick a category — it decides where your entry is filed in the Store.')); return; }
+    if (!author) { showErr(T('e_author', 'Add the name or handle you want shown as the author on the card.')); return; }
+    // The version is what the app compares to decide an update exists, so an
+    // entry without one can never ship a second version to the people who
+    // installed the first.
+    if (!version) { showErr(T('e_version_req', 'Add a version number, e.g. 1.0.0.')); return; }
+    if (!/^[0-9]+(\.[0-9]+)*$/.test(version)) { showErr(T('e_version_bad', 'The version must be numbers and dots only, e.g. 1.0.0.')); return; }
     if (!contact) { showErr(T('e_contact', 'Leave an email or Discord handle, so the reviewer can reach you if something needs fixing.')); return; }
+    if (!/[a-z0-9-]/.test(tags.toLowerCase())) { showErr(T('e_tags', 'Add at least one tag — tags are how people find your entry in the Store.')); return; }
+    if (!description) { showErr(T('e_desc', 'Write a line or two about your creation — it is what the card shows.')); return; }
     if (!code) { showErr(T('e_code', 'Paste the share code.')); return; }
+    if (!palette.accent || !palette.bg || !palette.text) { showErr(T('e_palette', 'Set all three card colours — they are filled in from your code when it carries a theme.')); return; }
+    if (shotCount < MIN_SHOTS) { showErr(T('e_shots', 'Add at least 2 screenshots — an entry with no pictures does not get installed.')); return; }
     var targetId = isUpdateEl.checked ? targetEl.value.trim().toLowerCase() : '';
     var changelog = changelogEl.value.trim();
-    var version = document.getElementById('version').value.trim();
     if (targetId) {
       if (!changelog) { showErr(T('e_changelog', 'Say what changed in this version — users see that line on the update prompt.')); return; }
-      if (!version) { showErr(T('e_version', 'An update needs a version number, and it has to be higher than the published one.')); return; }
       // The published version is right there in the catalog, so catch the
       // no-op update here rather than letting the reviewer discover it.
       var target = findEntry(targetId);
@@ -596,18 +762,25 @@
     // pasted short, a half-saved file — before it is ever sent. If it fails to
     // parse HERE, the truncation happened on this machine; if it parses here but
     // the hub still rejects it, the cut is in transport. Same check the hub runs.
-    if (!codeParsesWhole(code)) { showErr(T('e_code_incomplete', 'The share code looks cut off or incomplete — copy the whole thing from Xenon (or use "Load from file"), then submit again.')); return; }
+    if (!parseEnvelope(code)) { showErr(T('e_code_incomplete', 'The share code looks cut off or incomplete — copy the whole thing from Xenon (or use "Load from file"), then submit again.')); return; }
     if (!turnstileToken) { showErr(T('e_captcha', 'Complete the anti-spam check.')); return; }
 
     var fd = new FormData();
     fd.append('kind', kindSel.value);
+    fd.append('category', category);
     fd.append('name', name);
-    fd.append('author', document.getElementById('author').value.trim());
-    fd.append('contact', document.getElementById('contact').value.trim());
+    fd.append('author', author);
+    fd.append('contact', contact);
     fd.append('version', version);
     if (targetId) { fd.append('targetEntryId', targetId); fd.append('changelog', changelog); }
-    fd.append('tags', document.getElementById('tags').value.trim());
-    fd.append('description', document.getElementById('description').value.trim());
+    fd.append('tags', tags);
+    fd.append('description', description);
+    fd.append('accent', palette.accent);
+    fd.append('bg', palette.bg);
+    fd.append('textColor', palette.text);
+    // Read out of the code, never typed: it is what joins an installed widget or
+    // scene to its update.
+    if (derivedPkgId) fd.append('pkgId', derivedPkgId);
     fd.append('code', code);
     fd.append('turnstileToken', turnstileToken);
     var n = 0;
@@ -632,7 +805,14 @@
     else if (err === 'captcha_failed') showErr(T('e_captcha', 'Complete the anti-spam check.'));
     else if (err === 'incomplete_code' || err === 'not_a_xenon_code') showErr(T('e_code_incomplete', 'The share code looks cut off or incomplete — copy the whole thing from Xenon (or use "Load from file"), then submit again.'));
     else if (err === 'missing_changelog') showErr(T('e_changelog', 'Say what changed in this version — users see that line on the update prompt.'));
-    else if (err === 'missing_version') showErr(T('e_version', 'An update needs a version number, and it has to be higher than the published one.'));
+    else if (err === 'missing_version') showErr(T('e_version_req', 'Add a version number, e.g. 1.0.0.'));
+    else if (err === 'bad_version') showErr(T('e_version_bad', 'The version must be numbers and dots only, e.g. 1.0.0.'));
+    else if (err === 'missing_category') showErr(T('e_category', 'Pick a category — it decides where your entry is filed in the Store.'));
+    else if (err === 'missing_author') showErr(T('e_author', 'Add the name or handle you want shown as the author on the card.'));
+    else if (err === 'missing_tags') showErr(T('e_tags', 'Add at least one tag — tags are how people find your entry in the Store.'));
+    else if (err === 'missing_description') showErr(T('e_desc', 'Write a line or two about your creation — it is what the card shows.'));
+    else if (err === 'missing_palette') showErr(T('e_palette', 'Set all three card colours — they are filled in from your code when it carries a theme.'));
+    else if (err === 'missing_shots') showErr(T('e_shots', 'Add at least 2 screenshots — an entry with no pictures does not get installed.'));
     else showErr(T('e_generic', 'Submission failed ({err}) — please retry.').replace('{err}', err));
     if (window.turnstile) { try { window.turnstile.reset(); turnstileToken = ''; } catch (e) {} }
   });
