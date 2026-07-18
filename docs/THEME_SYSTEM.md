@@ -29,6 +29,20 @@ state color. `--success-bg`, `--warning-bg`, `--danger-bg`, and `--info-bg`
 provide theme-aware translucent state surfaces; the matching `--*-rgb` tokens
 support legacy `rgba(var(--danger-rgb), .2)` effects.
 
+### Panel opacity — glass surfaces
+
+Users set **Opacità pannelli** (Settings → Aspetto → Superficie) to make the
+dashboard more see-through over a background image. In the default glass style,
+panels use `surface` at that alpha and every nested card, row and tab uses
+`--card-surface` — the same `surfaceAlt` colour carrying the panel's alpha
+(`--panel-soft`). Authored dashboard surfaces therefore follow the user's opacity
+on their own. Use `var(--surface-alt)` when a surface must stay fully solid
+regardless. The Pixel Retro and Comic skins keep solid cards by design, and at
+the default opacity the glass surface is near-solid, so nothing looks different
+until the user turns it down. SDK widgets receive the same thing as
+`palette.surfaceSoft` / `palette.panelAlpha` — see
+[WIDGET_SDK.md](WIDGET_SDK.md#4-theme--host--widget).
+
 ## Minimal and complete themes
 
 Old three-color themes remain valid:

@@ -16,9 +16,11 @@
   const api = apiJson;               // shared fetch-JSON helper from utils.js
   const t = (k, fb) => { const v = (typeof window.t === 'function') ? window.t(k) : k; return (v === k && fb != null) ? fb : v; };
 
-  // Screenshots live next to the catalog on the project site; the URL is derived
-  // from the (server-charset-pinned) entry id, never from catalog text.
-  const SHOTS_BASE = 'https://marcimastro98.github.io/Xenon/community/shots/';
+  // Screenshots are served from the assets host (R2), same as the Store gallery
+  // and the website catalog; the URL is derived from the (server-charset-pinned)
+  // entry id, never from catalog text. Must stay in step with SHOTS_BASE in
+  // community-gallery.js — a stale host here just shows the gradient fallback.
+  const SHOTS_BASE = 'https://assets.xenon-app.com/community/shots/';
   const DAY = 24 * 3600 * 1000;
 
   // ── Local, per-device UX state (mirrors the daily SDK-update check pattern) ──

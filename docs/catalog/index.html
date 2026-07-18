@@ -389,6 +389,12 @@
   .dt-cta { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
   .dt-cta .cat-copy, .dt-cta .cat-unlock, .dt-cta .cat-soldout, .dt-cta .cat-limited-actions { flex: none; width: 100%; }
   .dt-cta .cat-limcount { text-align: center; }
+  /* "Become a supporter" under the unlock button (locked entries) — warm gold
+     heart CTA, a step quieter than the unlock above it. */
+  .dt-support { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: 100%; text-decoration: none;
+    font-family: var(--body); font-weight: 700; font-size: 13px; color: #12100a; background: var(--gold);
+    border: 0; border-radius: 11px; padding: 10px 16px; cursor: pointer; opacity: .94; transition: filter .18s, opacity .18s; }
+  .dt-support:hover { filter: brightness(1.06); opacity: 1; }
   @media (max-width: 720px) { .dt-body { grid-template-columns: 1fr; } .dt-name { font-size: 22px; } }
   @media (prefers-reduced-motion: reduce) { .dt-track { transition: none; } }
 
@@ -1087,7 +1093,16 @@ function applyLang(lang) {
         hint.textContent = ok ? T('card.copied') : T('card.copyfail');
         clearTimeout(hintTimer); hintTimer = setTimeout(() => { hint.textContent = ''; btn.classList.remove('ok'); }, 6000);
       });
-      cta.appendChild(btn); cta.appendChild(hint);
+      cta.appendChild(btn);
+      // Supporter-locked entry: offer the way to get a code, right under the
+      // unlock button — a warm heart CTA to Buy Me a Coffee.
+      if (entry.locked) {
+        const join = el('a', 'dt-support'); join.appendChild(cico('heart'));
+        join.appendChild(document.createTextNode(T('sec.supporters_join')));
+        join.href = COFFEE; join.target = '_blank'; join.rel = 'noopener';
+        cta.appendChild(join);
+      }
+      cta.appendChild(hint);
     }
     info.appendChild(cta);
 

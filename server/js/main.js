@@ -473,6 +473,11 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // the package's live frames; the first ack resolves the parked key press.
       try { if (window.CustomWidget && typeof window.CustomWidget.onHandler === 'function') window.CustomWidget.onHandler(JSON.parse(e.data)); } catch {}
     });
+    es.addEventListener('sdk_store', e => {
+      // A widget's persistent store was written on another surface — re-mount this
+      // surface's frames of that package so they re-read it (GitHub #109).
+      try { if (window.CustomWidget && typeof window.CustomWidget.onStoreChanged === 'function') window.CustomWidget.onStoreChanged(JSON.parse(e.data)); } catch {}
+    });
     es.addEventListener('windows_notifications', e => {
       // Windows notification mirror: reader state change / full feed replacement.
       try { if (window.NotificationsWidget && typeof window.NotificationsWidget.onState === 'function') window.NotificationsWidget.onState(JSON.parse(e.data)); } catch {}

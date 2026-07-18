@@ -1194,6 +1194,15 @@ const TILE_ASSET_MIME_BY_EXT = new Map([
 ]);
 const TILE_ASSET_EXT_BY_MIME = new Map([...TILE_ASSET_MIME_BY_EXT.entries()].map(([ext, mime]) => [mime, ext]));
 
+// Slideshow images. Same disk-backed, reference-counted model as tile decorations
+// (many images, no one-live-file policy), but referenced from hubSettings.slideshow
+// rather than the dashboard layout, and with their own `slideshow-*` name prefix so
+// the two GCs never reclaim each other's files. Animated GIFs are the whole point of
+// the widget and run large, so the per-file cap is roomier than a tile decoration's.
+const SLIDESHOW_ASSET_MAX_BYTES = 20 * 1024 * 1024;
+const SLIDESHOW_ASSET_MIME_BY_EXT = TILE_ASSET_MIME_BY_EXT;   // same image allowlist
+const SLIDESHOW_ASSET_EXT_BY_MIME = TILE_ASSET_EXT_BY_MIME;
+
 // CSV column indices for SoundVolumeView /scomma (no header row)
 const F = { NAME: 0, TYPE: 1, DIR: 2, DEVICE_NAME: 3, DEFAULT: 4, STATE: 7, MUTED: 8, VOL_PCT: 10, CLI_ID: 18, PROC_PATH: 19, PROC_ID: 20, WINDOW_TITLE: 21 };
 
@@ -4660,6 +4669,42 @@ function cleanupUnreferencedTileAssets(layout, presets) {
   )).catch(() => {});
 }
 
+// Slideshow images are the same kind of reference-counted upload as tile assets,
+// but their references live in hubSettings.slideshow.images[].uri (a `/uploads/
+// slideshow-*` string per image). Sweep the `slideshow-*` files no surviving image
+// still names, reusing the tile-asset grace window + throttle constants.
+function collectSlideshowAssetRefs(slideshow) {
+  const set = new Set();
+  const imgs = slideshow && Array.isArray(slideshow.images) ? slideshow.images : [];
+  for (const it of imgs) {
+    const src = it && typeof it.uri === 'string' ? it.uri : '';
+    const m = src.match(/^\/uploads\/(slideshow-[A-Za-z0-9._-]+)$/);
+    if (m) set.add(m[1]);
+  }
+  return set;
+}
+let _slideshowAssetGcSig = null;
+let _slideshowAssetGcAt = 0;
+function cleanupUnreferencedSlideshowAssets(slideshow) {
+  const referenced = collectSlideshowAssetRefs(slideshow);
+  const sig = [...referenced].sort().join('|');
+  const now = Date.now();
+  if (sig === _slideshowAssetGcSig && (now - _slideshowAssetGcAt) < TILE_ASSET_GC_MIN_INTERVAL_MS) return;
+  _slideshowAssetGcSig = sig;
+  _slideshowAssetGcAt = now;
+  const cutoff = now - TILE_ASSET_GC_GRACE_MS;
+  fs.promises.readdir(UPLOADS_DIR).then(files => Promise.all(files
+    .filter(f => f.startsWith('slideshow-') && !referenced.has(f))
+    .map(async (f) => {
+      try {
+        const p = path.join(UPLOADS_DIR, f);
+        const st = await fs.promises.stat(p);
+        if (st.mtimeMs < cutoff) await fs.promises.unlink(p).catch(() => {});
+      } catch { /* file vanished mid-sweep — fine */ }
+    })
+  )).catch(() => {});
+}
+
 // ── Screen enumeration + capture (shared by /api/screens, /api/screenshot,
 //    and the AI capture_screen function) ───────────────────────────────────
 async function listScreens() {
@@ -6058,6 +6103,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   panelAlpha: 0.94,
   bgDim: 0.48,
   bgBlur: 0,
+  idleAnimationPause: true, // pause ambient FX + decorative loops when idle (client-applied)
   // Extended theme tokens (full Aspetto editor). Defaults reproduce the stock
   // Liquid Glass look; the client applies them (glass-only). Mirror of settings.js.
   uiRoundness: 1,
@@ -6967,6 +7013,7 @@ function normalizeHubSettings(value) {
     panelAlpha: clampNumber(source.panelAlpha, SETTINGS_MIN_PANEL_ALPHA, 1, DEFAULT_HUB_SETTINGS.panelAlpha),
     bgDim: clampNumber(source.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
     bgBlur: clampNumber(source.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
+    idleAnimationPause: source.idleAnimationPause !== false,
     uiRoundness: clampNumber(source.uiRoundness, 0, 2, DEFAULT_HUB_SETTINGS.uiRoundness),
     glassBlur: clampNumber(source.glassBlur, 0, 40, DEFAULT_HUB_SETTINGS.glassBlur),
     glassSaturate: clampNumber(source.glassSaturate, 100, 220, DEFAULT_HUB_SETTINGS.glassSaturate),
@@ -7398,6 +7445,8 @@ async function writeHubSettings(settings) {
   // windowed so a just-uploaded asset isn't swept before its layout save lands).
   // Saved presets count as references too — inserting one must still find its images.
   cleanupUnreferencedTileAssets(safe.dashboardLayout, safe.dashboardPresets);
+  // Slideshow images are disk-backed uploads too, referenced from safe.slideshow.
+  cleanupUnreferencedSlideshowAssets(safe.slideshow);
   return safe;
 }
 
@@ -10815,6 +10864,17 @@ const server = http.createServer(async (req, res) => {
           },
         };
       }
+      // Weather is edited only through the dedicated POST /api/weather/config
+      // (which bumps rev + broadcasts so peer surfaces refetch the new location,
+      // GitHub #72). Keep the persisted copy on the generic settings save so a
+      // background whole-blob push — a Vitals/Bit heartbeat, or the unload beacon —
+      // from a surface that still holds the OLD location can't clobber it via
+      // last-writer-wins (the "XENON stays on the wrong weather location" bug,
+      // GitHub #109). The backup-import path sets weather deliberately and does not
+      // pass through this guard.
+      if (prev && prev.weather && typeof prev.weather === 'object') {
+        incoming.weather = prev.weather;
+      }
       const settings = await writeHubSettings(incoming);
       _serverHubSettings = settings;
       return { prev, settings };
@@ -11022,6 +11082,32 @@ const server = http.createServer(async (req, res) => {
       _serverHubSettings = saved;
       refreshStocks().catch(() => {});
       json({ ok: true, watchlist: saved.stocks.watchlist });
+      });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/weather/config' && req.method === 'POST') {
+    // Weather location/config, edited from Settings on any surface. It is
+    // deliberately NOT persisted through the whole-settings blob: that transport
+    // is shared with high-frequency automatic saves (a Vitals/Bit heartbeat) and
+    // the unload beacon, either of which — coming from a surface that still holds
+    // the OLD location — would clobber a change just made elsewhere via
+    // last-writer-wins (the "XENON stays on the wrong weather location" bug,
+    // GitHub #109). Persisted like the stocks watchlist: a dedicated writer the
+    // generic POST /settings then preserves (keep-prev). Unlike the watchlist it
+    // also bumps the settings rev and broadcasts, because a peer surface only
+    // refetches the new location once its settings hydrate updates its own
+    // hubSettings.weather (GitHub #72). writeHubSettings normalizes the whole
+    // object, so the incoming weather block is validated server-side here.
+    try {
+      await withHubSettingsLock(async () => {          // serialized with every other settings writer
+      const body = JSON.parse(await readBody(req));
+      const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+      const nextWeather = (body && body.weather && typeof body.weather === 'object') ? body.weather : {};
+      const prevRev = Number(cur.rev) || 0;
+      const saved = await writeHubSettings({ ...cur, weather: { ...(cur.weather || {}), ...nextWeather }, rev: prevRev + 1 });
+      _serverHubSettings = saved;
+      broadcastSSE('settings', { rev: saved.rev });   // peers re-hydrate → refetch the new location
+      json({ ok: true, weather: saved.weather, rev: saved.rev });
       });
     } catch (e) { err500(e.message); }
 
@@ -13178,6 +13264,42 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+  } else if (reqPath === '/slideshow-asset' && req.method === 'POST') {
+    // Slideshow image upload. Mirrors /tile-asset: keeps every file (a slideshow is
+    // many pictures), a server-generated `slideshow-*` name, orphans reclaimed by
+    // cleanupUnreferencedSlideshowAssets() on settings save. This is what lets a
+    // slideshow hold far more images than the old inline-base64 model — they live on
+    // disk, not in the settings blob.
+    try {
+      const body = await readBodyBuffer(req, SLIDESHOW_ASSET_MAX_BYTES);
+      const file = parseMultipartBackground(req, body, 'asset');
+      const extFromName = path.extname(file.originalName).toLowerCase();
+      const ext = SLIDESHOW_ASSET_MIME_BY_EXT.has(extFromName) ? extFromName : SLIDESHOW_ASSET_EXT_BY_MIME.get(file.contentType);
+      if (!ext || !SLIDESHOW_ASSET_MIME_BY_EXT.has(ext)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unsupported file type' }));
+        return;
+      }
+      const expectedType = SLIDESHOW_ASSET_MIME_BY_EXT.get(ext);
+      if (file.contentType && file.contentType !== 'application/octet-stream' && file.contentType !== expectedType) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'File type mismatch' }));
+        return;
+      }
+      await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
+      const safeName = `slideshow-${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`;
+      await fs.promises.writeFile(path.join(UPLOADS_DIR, safeName), file.data);
+      json({ ok: true, url: `/uploads/${safeName}`, name: file.originalName, type: expectedType, size: file.data.length });
+    } catch (e) {
+      if (e.code === 'PAYLOAD_TOO_LARGE') {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Payload too large' }));
+      } else {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    }
+
   } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {
     try {
       const name = decodeURIComponent(reqPath.slice('/uploads/'.length));
@@ -13509,7 +13631,16 @@ const server = http.createServer(async (req, res) => {
       if (!ns) { json({ ok: false, error: 'bad_namespace' }); return; }
       const r = sdkStore.applyStoreOp(sdkStoreLoad(ns), body.op);
       if (!r.ok) { json({ ok: false, error: r.error }); return; }
-      if (r.changed) await sdkStoreSave(ns, r.store);
+      if (r.changed) {
+        await sdkStoreSave(ns, r.store);
+        // Tell OTHER surfaces so their mounted frames of this package (and any
+        // storageGroup siblings sharing this namespace) re-mount and re-read the
+        // store — the cross-surface "custom widget not 1:1 on the XENON" fix
+        // (GitHub #109). The writer's own surface filters this out by origin.
+        // Writes only (r.changed is never set by a read), so no spurious remounts.
+        const pkgs = scan.packages.filter(p => sdkStore.storeNamespace(p) === ns).map(p => p.id);
+        broadcastSSE('sdk_store', { ns, pkgs, origin: String(body.origin || '') });
+      }
       json({ ok: true, value: r.value, keys: r.keys });
     } catch (e) {
       if (e && e.code === 'PAYLOAD_TOO_LARGE') json({ ok: false, error: 'payload_too_large' });

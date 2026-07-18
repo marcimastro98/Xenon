@@ -2,6 +2,7 @@
 
 const i18n = {
   it: {
+    settings_idle_anim_pause: 'Pausa animazioni quando inattivo', settings_idle_anim_pause_hint: 'dopo un minuto senza tocchi mette in pausa aurora, griglia e le piccole animazioni per ridurre il consumo della GPU; riprendono al primo tocco',
     // v4.4.0 i18n completeness fill (deck task actions, topbar minimal, gallery/preset/share-card/ambient).
     deck_act_taskAdd: 'Aggiungi attività',
     deck_act_taskToggle: 'Completa/riapri attività',
@@ -253,7 +254,7 @@ const i18n = {
     settings_slideshow_fit: 'Adattamento',
     settings_slideshow_fit_cover: 'Riempi il riquadro',
     settings_slideshow_fit_contain: 'Mostra intera',
-    settings_slideshow_note: 'Le immagini sono salvate nelle impostazioni e incluse nel backup. Tocca l’immagine nel widget per mettere in pausa; usa le frecce per scorrere a mano.',
+    settings_slideshow_note: 'Le immagini sono salvate come file su questo PC, così puoi aggiungerne quante vuoi. Tocca l’immagine nel widget per mettere in pausa; usa le frecce per scorrere a mano.',
     slideshow_empty: 'Nessuna immagine',
     slideshow_empty_add: 'Aggiungi immagini',
     slideshow_prev: 'Precedente',
@@ -1964,6 +1965,7 @@ const i18n = {
     'remote.widget_disabled': 'Controllo remoto non attivo — abilitalo in Impostazioni',
   },
   en: {
+    settings_idle_anim_pause: 'Pause animations when idle', settings_idle_anim_pause_hint: 'after a minute without input, pauses the aurora, grid and small looping animations to lower GPU use; they resume on the next touch',
     // v4.4.0 i18n completeness fill (deck task actions, topbar minimal, gallery/preset/share-card/ambient).
     deck_act_taskAdd: 'Add task',
     deck_act_taskToggle: 'Toggle task done',
@@ -2204,7 +2206,7 @@ const i18n = {
     settings_slideshow_fit: 'Fit',
     settings_slideshow_fit_cover: 'Fill the tile',
     settings_slideshow_fit_contain: 'Show whole image',
-    settings_slideshow_note: 'Images are saved in your settings and included in the backup. Tap the image in the widget to pause; use the arrows to step through by hand.',
+    settings_slideshow_note: 'Images are saved as files on this PC, so you can add as many as you like. Tap the image in the widget to pause; use the arrows to step through by hand.',
     slideshow_empty: 'No images yet',
     slideshow_empty_add: 'Add images',
     slideshow_prev: 'Previous',
