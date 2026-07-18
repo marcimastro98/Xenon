@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xenon — Privacy</title>
+<meta name="description" content="What the Xenon app sends (almost nothing, and why), what this website collects, and how to change your choice.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="images/favicon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --ink:   #070808;
+    --panel: rgba(240,243,241,0.03);
+    --line:  rgba(240,243,241,0.08);
+    --line-2:rgba(240,243,241,0.16);
+    --green: #1ed760;
+    --text:  #f0f3f1;
+    --muted: #9aa8a1;
+    --dim:   #66736c;
+    --sans:  'Inter', system-ui, -apple-system, sans-serif;
+    --mono:  'JetBrains Mono', ui-monospace, monospace;
+    --maxw:  760px;
+    --radius:14px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--ink); color: var(--text);
+    font-family: var(--sans); font-size: 16px; line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  header.top {
+    border-bottom: 1px solid var(--line);
+    padding: 20px 0; position: sticky; top: 0; z-index: 10;
+    background: rgba(7,8,8,0.82); backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .logo {
+    display: inline-flex; align-items: center; gap: 10px;
+    color: var(--text); text-decoration: none;
+    font-weight: 700; letter-spacing: 0.16em; font-size: 14px;
+  }
+  .logo img { width: 34px; height: 23px; }
+  .back { color: var(--dim); text-decoration: none; font-size: 13.5px; }
+  .back:hover { color: var(--green); }
+
+  main { padding: 56px 0 96px; }
+  h1 { font-size: clamp(30px, 5vw, 42px); line-height: 1.15; letter-spacing: -0.02em; margin: 0 0 16px; }
+  .lede { font-size: 17.5px; color: var(--muted); margin: 0 0 10px; }
+  .updated { font-family: var(--mono); font-size: 12.5px; color: var(--dim); margin: 0 0 48px; }
+
+  h2 {
+    font-size: 22px; letter-spacing: -0.01em; margin: 56px 0 6px;
+    padding-top: 28px; border-top: 1px solid var(--line);
+  }
+  h2:first-of-type { border-top: none; padding-top: 0; margin-top: 40px; }
+  h3 { font-size: 16.5px; margin: 32px 0 8px; }
+  p { margin: 0 0 16px; color: var(--muted); }
+  p strong, li strong { color: var(--text); font-weight: 600; }
+  a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+  ul { margin: 0 0 16px; padding-left: 22px; color: var(--muted); }
+  li { margin-bottom: 10px; }
+  code {
+    font-family: var(--mono); font-size: 13px;
+    background: rgba(240,243,241,0.06); padding: 2px 6px; border-radius: 6px; color: var(--text);
+  }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 22px 24px; margin: 24px 0;
+  }
+  .card.accent { border-color: rgba(30,215,96,0.28); }
+  .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+
+  .tbl-scroll { overflow-x: auto; margin: 20px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 14px; }
+  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--text); font-weight: 600; font-size: 13px; letter-spacing: 0.02em; }
+  td { color: var(--muted); }
+  td code { font-size: 12.5px; }
+
+  button.consent-reset {
+    font-family: var(--sans); font-size: 14px; font-weight: 600;
+    min-height: 44px; padding: 11px 20px; border-radius: 11px; cursor: pointer;
+    background: transparent; color: var(--text); border: 1px solid var(--line-2);
+    transition: border-color .2s, color .2s;
+  }
+  button.consent-reset:hover { border-color: var(--green); color: var(--green); }
+
+  footer {
+    border-top: 1px solid var(--line); padding: 32px 0 56px;
+    color: var(--dim); font-size: 13.5px;
+  }
+  footer a { color: var(--dim); }
+  footer a:hover { color: var(--green); }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="/"><img src="images/logo.png" alt="" width="34" height="23"> XENON</a>
+    <a class="back" href="/">← Back to the site</a>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <h1>Privacy</h1>
+    <p class="lede">
+      Xenon is built to run on your machine, and the app holds to that. This website is a separate
+      thing with separate rules. This page keeps the two apart and tells you exactly what each one does.
+    </p>
+    <p class="updated">Last updated: 18 July 2026</p>
+
+    <h2>The short version</h2>
+    <div class="card accent">
+      <ul>
+        <li><strong>The Xenon app sends no telemetry.</strong> It does not track how you use it, and there is no account, no profile and no usage log leaving your PC.</li>
+        <li><strong>It is not fully offline either</strong>, and pretending otherwise would be the dishonest version. It checks for updates, and it contacts a service for weather or a music API only when you turn those features on. Every one of those calls is listed below.</li>
+        <li><strong>This website uses Google Analytics</strong> to see which pages and downloads people reach. In the EEA, UK and Switzerland nothing is stored until you accept the banner.</li>
+      </ul>
+    </div>
+
+    <h2>Who is responsible</h2>
+    <p>
+      Xenon is a personal open-source project by Marcello Mastroeni, and I am the data controller for
+      this website. For anything on this page — a question, a correction, or a request about your data —
+      write to <a href="mailto:marcellomastroeni4@gmail.com">marcellomastroeni4@gmail.com</a> or open an
+      issue on <a href="https://github.com/marcimastro98/Xenon/issues" target="_blank" rel="noopener">GitHub</a>.
+    </p>
+
+    <h2>This website (xenon-app.com)</h2>
+    <p>
+      The site uses <strong>Google Analytics 4</strong> (measurement id <code>G-LQ8Y8WZPQF</code>) to
+      understand which pages get read, which downloads get clicked, and where visitors come from. It is
+      aggregate reporting about the site — it is not connected to your copy of the app, and there is no
+      way for me to link a visit here to an installation on your PC.
+    </p>
+
+    <h3>What Analytics receives</h3>
+    <ul>
+      <li>Pages you view on this site, and referring page.</li>
+      <li>Clicks I have flagged as meaningful: downloads, Discord joins, catalog and creator-page entries, GitHub links.</li>
+      <li>Approximate location (country/city level, derived by Google from your IP — the full IP is not stored in the reports), device type, browser and language.</li>
+      <li>Cookies named <code>_ga</code> and <code>_ga_*</code>, used to tell a returning visitor from a new one. They last up to two years.</li>
+    </ul>
+
+    <h3>Your choice, and how it works</h3>
+    <p>
+      The site uses Google Consent Mode. If you are in the <strong>EEA, the UK or Switzerland</strong>,
+      every storage and advertising signal starts as <em>denied</em>: until you press Accept, no cookie is
+      written and Analytics receives only cookieless, non-identifying pings. Outside those regions the
+      default is granted, and pressing Reject switches it off. Rejecting is one click, in the same place,
+      at the same size as accepting.
+    </p>
+    <div class="card">
+      <p>You can change your mind at any time — this clears the stored choice and shows the banner again:</p>
+      <button class="consent-reset" type="button" id="consent-reset">Change my cookie choice</button>
+    </div>
+    <p>
+      Your choice is remembered in your browser's local storage under <code>xenon.site.consent</code>.
+      That value never leaves your device. Clearing your browser data resets it.
+    </p>
+
+    <h3>Hosting and fonts</h3>
+    <p>
+      The site is served by <strong>GitHub Pages</strong>, which processes the request and your IP address
+      to deliver the page and keeps short-lived security logs — this is technically necessary and happens
+      before any consent decision. Web fonts are loaded from <strong>Google Fonts</strong>, which likewise
+      sees the request. Community screenshots are served from <strong>Cloudflare R2</strong>
+      (<code>assets.xenon-app.com</code>).
+    </p>
+
+    <h2>The Xenon app</h2>
+    <p>
+      The app keeps your data on your machine. Settings, notes, tasks, events, decks, AI memory and
+      uploaded backgrounds all live in <code>server/data/</code> on your PC. Nothing in that folder is
+      uploaded anywhere, and there is no analytics SDK, no crash reporter and no usage tracking in the app.
+    </p>
+    <p>
+      What the app <em>does</em> do is make network calls for features that inherently need the network.
+      Here is the complete list, and when each one happens.
+    </p>
+
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr><th>What it contacts</th><th>When</th><th>Why, and what it sends</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>api.github.com</code></td>
+            <td>Automatic, at launch (cached 24h)</td>
+            <td>Checks whether a newer release exists. It sends no identifier — but as with any HTTP request, GitHub sees your IP address. This is the one call that happens without you enabling anything.</td>
+          </tr>
+          <tr>
+            <td><code>xenon-app.com</code></td>
+            <td>When you open the community catalog or Store</td>
+            <td>Downloads the public catalog of community themes, widgets and packs. Read-only, no identifier.</td>
+          </tr>
+          <tr>
+            <td>Supporter hub<br><span style="color:var(--dim)">(Cloudflare Worker)</span></td>
+            <td>When you rate a catalog item or redeem a supporter code</td>
+            <td>Sends a random per-install UUID (<code>install-id.json</code>) so a vote counts once and a code cannot be reused endlessly. It is not tied to your hardware, your name or your PC — delete the file and a new one is generated.</td>
+          </tr>
+          <tr>
+            <td><code>ipwho.is</code></td>
+            <td>Only if weather auto-location is on</td>
+            <td>Turns your IP into an approximate city so the weather widget knows where you are. Set the location manually and this call never happens.</td>
+          </tr>
+          <tr>
+            <td>Weather and air-quality APIs<br><span style="color:var(--dim)">open-meteo, met.no, wttr.in</span></td>
+            <td>Only with a weather widget on your dashboard</td>
+            <td>Sends the coordinates being forecast. No identifier.</td>
+          </tr>
+          <tr>
+            <td><code>itunes.apple.com</code></td>
+            <td>While media is playing</td>
+            <td>Looks up album artwork by track title. No identifier.</td>
+          </tr>
+          <tr>
+            <td>Services you connect yourself<br><span style="color:var(--dim)">Spotify, Twitch, YouTube, Discord, Home Assistant, OBS, AI providers, stock/news/football feeds</span></td>
+            <td>Only after you configure that integration</td>
+            <td>Each talks to its own provider under that provider's privacy policy, using credentials you supply. They stay dormant until set up.</td>
+          </tr>
+          <tr>
+            <td>Anonymous version ping<br><span style="color:var(--dim)">supporter hub</span></td>
+            <td><strong>Off by default</strong> — only if you switch it on</td>
+            <td>See the section below.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      Local AI features (Ollama, Whisper) run entirely on your machine. Cloud AI providers do not:
+      if you choose Gemini, OpenAI or Anthropic, your prompts go to that provider under their terms.
+      The app makes that choice yours, and never sends anything to a cloud model you did not select.
+    </p>
+
+    <h2>The optional version ping</h2>
+    <p>
+      I have no idea how many people actually run Xenon. Download counts are noise, and I would rather
+      know whether people are stuck on an old release than guess. So there is a switch in
+      <strong>Settings → General → Updates</strong>, <strong>off unless you turn it on</strong>, that
+      adds two fields to the update check the app already makes:
+    </p>
+    <ul>
+      <li>the version you are running (e.g. <code>4.6.1</code>);</li>
+      <li>your operating system family (e.g. <code>win32</code>).</li>
+    </ul>
+    <p>
+      That is the entire payload. It deliberately does <strong>not</strong> include your install UUID —
+      that identifier stays reserved for ratings and supporter codes, and mixing it in here would let me
+      correlate the two, which is exactly what I do not want to be able to do. There is no extra network
+      request either: the ping rides the update check that already runs, so enabling it does not make the
+      app talk to anything new.
+    </p>
+    <p>
+      On the server side, a request increments a counter for <em>(version, operating system, day)</em>
+      and is then discarded. No per-request rows are kept, so there is no dataset that could be handed
+      over, subpoenaed or leaked. The result I can see is a chart of how many installs run which version
+      per day — never who.
+    </p>
+
+    <h2>Your rights</h2>
+    <p>
+      Under the GDPR you can ask for access to, correction of, or erasure of your personal data, and you
+      can object to processing. For this website, the practical routes are: press Reject (or the button
+      above) to stop Analytics, use Google's
+      <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">opt-out add-on</a>,
+      or clear your browser data. For the app, uninstalling stops every call described above, and deleting
+      <code>server/data/</code> removes everything the app stored, including the install UUID.
+    </p>
+    <p>
+      You also have the right to lodge a complaint with a supervisory authority — in Italy, the
+      <a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">Garante per la protezione dei dati personali</a>.
+    </p>
+
+    <h2>Changes to this page</h2>
+    <p>
+      If the app starts making a network call that is not on the table above, that table gets updated in
+      the same release — that is the commitment, and the release notes will say so. The date at the top
+      tells you when this page last changed.
+    </p>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="/">xenon-app.com</a> ·
+    <a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a> ·
+    <a href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">Discord</a>
+  </div>
+</footer>
+
+<script>
+  // The reset helper is defined by consent.js, which is deferred — so guard for
+  // the case where an adblocker stripped it and keep the button honest.
+  document.getElementById('consent-reset').addEventListener('click', function () {
+    if (typeof window.xenonConsentReset === 'function') window.xenonConsentReset();
+    else this.textContent = 'Consent banner unavailable — clear your browser data to reset.';
+  });
+</script>
+
+</body>
+</html>

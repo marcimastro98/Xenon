@@ -67,6 +67,7 @@ const { preserveNewsCreds, redactNewsCreds } = require('./news-creds');
 const claudeUsage = require('./claude-usage');
 const communityCatalog = require('./community-catalog');
 const supporterRedeem = require('./supporter-redeem');
+const versionPing = require('./version-ping');
 const iconPacks = require('./icon-packs');
 const soundPacks = require('./sound-packs');
 const communityRatings = require('./community-ratings');
@@ -6105,6 +6106,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   bgDim: 0.48,
   bgBlur: 0,
   idleAnimationPause: true, // pause ambient FX + decorative loops when idle (client-applied)
+  hybridGpuAnimationPause: true, // freeze ambient FX + animated bg + Deck decor on a hybrid-GPU native session (client-applied)
   // Extended theme tokens (full Aspetto editor). Defaults reproduce the stock
   // Liquid Glass look; the client applies them (glass-only). Mirror of settings.js.
   uiRoundness: 1,
@@ -6162,6 +6164,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // intent (default on); the actual scheduled task is registered/removed by
   // /startup/auto-open and only ever for real-browser use, never Xeneon Edge.
   autoOpenBrowser: true,
+  // Anonymous version ping — OFF unless the user opts in (Settings → Generale → Aggiornamenti).
+  // Sends only {version, os} on the update check the app already makes; never
+  // the install id. See server/version-ping.js and docs/privacy.html.
+  versionPing: false,
   // Opt-in ad-blocker for the Browser tile (Settings → Browser). OFF by default;
   // when on, the server loads an unpacked uBOL MV3 extension into the tile's Edge.
   browserAdblock: false,
@@ -7015,6 +7021,7 @@ function normalizeHubSettings(value) {
     bgDim: clampNumber(source.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
     bgBlur: clampNumber(source.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
     idleAnimationPause: source.idleAnimationPause !== false,
+    hybridGpuAnimationPause: source.hybridGpuAnimationPause !== false,
     uiRoundness: clampNumber(source.uiRoundness, 0, 2, DEFAULT_HUB_SETTINGS.uiRoundness),
     glassBlur: clampNumber(source.glassBlur, 0, 40, DEFAULT_HUB_SETTINGS.glassBlur),
     glassSaturate: clampNumber(source.glassSaturate, 100, 220, DEFAULT_HUB_SETTINGS.glassSaturate),
@@ -7039,6 +7046,7 @@ function normalizeHubSettings(value) {
     nativeZoom: clampNumber(source.nativeZoom, 0.6, 1.6, DEFAULT_HUB_SETTINGS.nativeZoom),
     hideOnRdp: source.hideOnRdp === true,
     autoOpenBrowser: source.autoOpenBrowser !== false,
+    versionPing: source.versionPing === true,
     browserAdblock: source.browserAdblock === true,
     dashboardLayout: resetLayout
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
@@ -10561,6 +10569,14 @@ const server = http.createServer(async (req, res) => {
         mediaTypes: u.ok ? (u.mediaTypes || {}) : {},
         updateAvailable: !!(u.ok && semverNewer(u.latest, APP_VERSION)),
       });
+      // Opt-in anonymous version ping, off by default. Deliberately piggybacks
+      // on this check so enabling it adds no new outbound request, and is
+      // fire-and-forget so it can never delay or fail the update response.
+      versionPing.maybePing({
+        dataDir: DATA_DIR,
+        version: APP_VERSION,
+        enabled: !!(_serverHubSettings && _serverHubSettings.versionPing === true),
+      }).catch(() => { /* best-effort: a failed ping is never user-visible */ });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/update/self-status' && req.method === 'GET') {

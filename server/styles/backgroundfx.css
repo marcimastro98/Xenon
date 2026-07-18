@@ -216,6 +216,23 @@ body.game-mode .grid-plane { animation-play-state: paused; }
 body.overlay-frozen .aurora-blob,
 body.overlay-frozen .grid-plane { animation-play-state: paused; }
 
+/* ── Hybrid GPU: freeze the ambient for the whole session. On an iGPU+dGPU
+   machine the native shell deliberately renders on the chip that drives the
+   target display (apps/native/src-tauri/src/gpu.rs) so composited frames are not
+   copied cross-adapter — ~1.5 idle CPU cores saved, but far less real-time budget
+   on the weaker chip. js/custom-bg.js and js/deck.js already freeze the animated
+   background and the Deck decor on this signal; the aurora/grid were left out by
+   oversight until v4.6.2, which meant the two layers Xenon draws for decoration
+   kept animating while the background the USER chose was the one stopped —
+   exactly backwards, and it sent a theme author debugging their own code (#118).
+   Unlike the freezes above this one is not contextual: it holds for the session,
+   so the ambient is a still image on this hardware. The user can switch it off
+   (hubSettings.hybridGpuAnimationPause → js/native-bridge.js drops the class),
+   accepting the frame-rate cost. No effect on single-GPU machines, dual-discrete
+   rigs, or the browser surface. ─────────────────────────────────────────── */
+body.low-power-gpu .aurora-blob,
+body.low-power-gpu .grid-plane { animation-play-state: paused; }
+
 /* ── Idle / hidden: pause the ambient once the user stops interacting, or when
    the dashboard tab is hidden. The layers stay visible at their current frame
    (opacity untouched) but the per-frame compositor work stops — the real win on

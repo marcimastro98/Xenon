@@ -242,6 +242,13 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // save GPU (js/ambient-idle.js). On by default; users can switch it off so the
   // dashboard keeps animating while idle.
   idleAnimationPause: true,
+  // Freeze the aurora/grid, the animated background and the Deck decor for the
+  // whole session when the native shell is rendering on the weaker of two GPUs
+  // (js/native-bridge.js → body.low-power-gpu). On by default: on that hardware a
+  // frame cap alone did not recover the frame rate, only stopping the loops did.
+  // Off = keep everything moving and accept the cost. Inert on single-GPU
+  // machines and on the browser surface, where the class is never set.
+  hybridGpuAnimationPause: true,
   // Extended theme tokens (full Aspetto editor). All part of a saved theme; the
   // defaults reproduce the stock Liquid Glass look exactly, and they apply inline
   // only under glass (retro owns its own geometry/material).
@@ -277,6 +284,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Only reconciled into a real scheduled task from a standalone browser view —
   // never from inside the Xeneon Edge iframe (see reconcileAutoOpenBrowser).
   autoOpenBrowser: true,
+  // Anonymous version ping — OFF unless the user opts in (Settings → Generale → Aggiornamenti).
+  // Sends only {version, os} on the update check the app already makes, never
+  // the install id. Mirror of server.js; see docs/privacy.html.
+  versionPing: false,
   // Opt-in ad-blocker for the Browser tile (Settings → Browser). OFF by default.
   browserAdblock: false,
   // Stock-market (Borsa) widget + ticker. Keys are server-only (redacted); the
@@ -1238,6 +1249,7 @@ function normalizeSettings(source) {
     bgDim: clampNumber(value.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
     bgBlur: clampNumber(value.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
     idleAnimationPause: value.idleAnimationPause !== false,
+    hybridGpuAnimationPause: value.hybridGpuAnimationPause !== false,
     uiRoundness: clampNumber(value.uiRoundness, 0, 2, DEFAULT_HUB_SETTINGS.uiRoundness),
     glassBlur: clampNumber(value.glassBlur, 0, 40, DEFAULT_HUB_SETTINGS.glassBlur),
     glassSaturate: clampNumber(value.glassSaturate, 100, 220, DEFAULT_HUB_SETTINGS.glassSaturate),
@@ -1253,6 +1265,7 @@ function normalizeSettings(source) {
     weather: normalizeWeatherSettings(value.weather),
     tempUnit: value.tempUnit === 'f' ? 'f' : 'c',
     autoOpenBrowser: value.autoOpenBrowser !== false,
+    versionPing: value.versionPing === true,
     browserAdblock: value.browserAdblock === true,
     dashboardLayout: resetLayout
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
@@ -3257,6 +3270,10 @@ function applyHubSettings() {
   // current preference so toggling it takes effect at once).
   if (window.AmbientIdle) window.AmbientIdle.setEnabled(hubSettings.idleAnimationPause !== false);
 
+  // Hybrid-GPU session freeze (js/native-bridge.js owns body.low-power-gpu; a
+  // no-op on every other machine and on the browser surface).
+  if (window.NativeGpuPause) window.NativeGpuPause.setEnabled(hubSettings.hybridGpuAnimationPause !== false);
+
   // Top-bar clock alignment + meta-field visibility (Settings → Aspetto).
   applyTopbarClockSettings();
 
@@ -3806,6 +3823,17 @@ function syncSettingsControls() {
   if (contrastGuard) contrastGuard.checked = hubSettings.contrastGuard !== false;
   const idleAnimPause = $('settings-idle-anim-pause');
   if (idleAnimPause) idleAnimPause.checked = hubSettings.idleAnimationPause !== false;
+  // The hybrid-GPU freeze only exists on an iGPU+dGPU machine running the native
+  // shell, so the row is hidden everywhere else rather than offering a switch
+  // that provably does nothing.
+  const hybridGpuPause = $('settings-hybrid-gpu-pause');
+  if (hybridGpuPause) hybridGpuPause.checked = hubSettings.hybridGpuAnimationPause !== false;
+  const hybridGpuRow = $('settings-hybrid-gpu-pause-row');
+  if (hybridGpuRow) {
+    hybridGpuRow.hidden = !(window.NativeGpuPause && window.NativeGpuPause.isLowPowerGpu());
+  }
+  const versionPing = $('settings-version-ping');
+  if (versionPing) versionPing.checked = hubSettings.versionPing === true;
 
   const rangeMap = [
     ['settings-panel-alpha', String(hubSettings.panelAlpha)],
@@ -4032,6 +4060,16 @@ function updateIdleAnimationPause(enabled) {
   saveHubSettings();
   applyHubSettings();
   syncSettingsControls();
+}
+
+function updateHybridGpuAnimationPause(enabled) {
+  hubSettings = normalizeSettings({ ...hubSettings, hybridGpuAnimationPause: enabled !== false });
+  saveHubSettings();
+  applyHubSettings();
+  syncSettingsControls();
+  // The background editor's "frozen on this machine" note is driven by the same
+  // signal, so refresh it in the same gesture instead of on the next repaint.
+  renderBgFrozenNote();
 }
 
 // ── Xenon AI programmatic customization ───────────────────────────
@@ -4691,6 +4729,22 @@ if (typeof document !== 'undefined') {
   document.addEventListener('xenon-bg-status', (e) => renderBgCodeError(e && e.detail));
 }
 
+// Tell the author when their snippet is frozen by the machine rather than by
+// their code. On a hybrid-GPU machine the background runs for ~3s and then stops
+// for the session (js/custom-bg.js hostPaused → body.low-power-gpu), which reads
+// exactly like a broken animation loop: a theme author burned hours rewriting a
+// working snippet before we found it (#118). This is not an error, so it is a
+// separate note from renderBgCodeError's alert and says how to switch it off.
+function renderBgFrozenNote() {
+  const el = $('settings-bgcode-frozen');
+  if (!el) return;
+  const frozen = !!(window.NativeGpuPause
+    && window.NativeGpuPause.isLowPowerGpu()
+    && hubSettings.hybridGpuAnimationPause !== false);
+  el.textContent = frozen ? t('settings_bg_code_frozen_gpu') : '';
+  el.hidden = !frozen;
+}
+
 // Drop a starter snippet into the code box (and enable the background so the user
 // sees it immediately). Never overwrites non-empty code without asking.
 async function applyBgCustomTemplate(id) {
@@ -4774,6 +4828,7 @@ function syncBgFxControls() {
 
   // Code-defined background controls + its own priority. When it's on it owns the
   // backdrop just like a static bg, so the aurora/grid/static are superseded.
+  renderBgFrozenNote();
   const cb = normalizeBgCustom(hubSettings.bgCustom);
   setChk('settings-bgcode-enabled', cb.enabled);
   const codeName = $('settings-bgcode-name');
@@ -6251,6 +6306,15 @@ function updateAutoOpenBrowser(checked) {
     if (!data || data.ok !== true) { setSettingsStatus('settings_error', 'error'); return; }
     setSettingsStatus('settings_saved', 'ok');
   }).catch(() => setSettingsStatus('settings_error', 'error'));
+}
+
+// Anonymous version ping. Purely a stored preference — the server reads it on
+// the next update check and decides whether to send, so there is nothing to
+// call here and nothing to undo if the user switches it straight back off.
+function updateVersionPing(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, versionPing: checked === true });
+  saveHubSettings();
+  syncSettingsControls();
 }
 
 // Brings the real scheduled task in line with the user's saved intent — but

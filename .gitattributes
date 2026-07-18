@@ -28,6 +28,8 @@ docs/submit/                    export-ignore
 # Site root: entry page, analytics, Pages/DNS plumbing, search-console token
 docs/index.html                 export-ignore
 docs/analytics.js               export-ignore
+docs/consent.js                 export-ignore
+docs/privacy.html               export-ignore
 docs/CNAME                      export-ignore
 docs/.nojekyll                  export-ignore
 docs/google1e9e2b8c85c56502.html export-ignore
