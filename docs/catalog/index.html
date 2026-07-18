@@ -1539,7 +1539,17 @@ function applyLang(lang) {
       pool = pool.concat(tierPool);
     }
     if (browsingAll) {
-      const limited = entries.filter((e) => e.limited);
+      const limitedAll = entries.filter((e) => e.limited);
+      // A sold-out drop is a dead end, so it does not get to sit at the top of
+      // the page next to one that can still be claimed. It stays on the strip
+      // only when nothing is live, so the section never vanishes and the tier
+      // keeps being explained; either way it remains reachable through search
+      // and the Limited tab, where showing history is the point. Runs after
+      // hydrateLimitedStatus(), so it reads the hub's live count, not the
+      // static catalog copy. Mirrors the in-app hero rule: a sold-out limited
+      // never leads.
+      const limitedLive = limitedAll.filter((e) => !e.limited.soldOut);
+      const limited = limitedLive.length ? limitedLive : limitedAll;
       // !e.limited: a dual-flag (limited + supporters) entry belongs to the
       // Limited strip only — both strips rendering it would duplicate its
       // cat-<id> DOM id and double-count it (mirrors the in-app gallery).
