@@ -2,7 +2,7 @@
 
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
-## [v4.7.0] - Unreleased
+## [v4.7.0] - 18-07-2026
 ### ✨ New
 - **Xenon now has a privacy page, and it holds nothing back.** [xenon-app.com/privacy.html](https://xenon-app.com/privacy.html) lists every network call the app makes, when it makes it, and what it sends — including the ones that were always there and never written down: the update check that runs at launch, the IP-to-city lookup the weather widget uses if you leave auto-location on, and the anonymous install id attached to catalog ratings. Nothing about the app changed here; what changed is that you no longer have to read the source to know. If a future release adds a call, that page gets updated in the same release.
 - **You can now be counted, if you want to be.** A new switch in Settings → Generale → Aggiornamenti, **off unless you turn it on**, adds your version number and operating system to the update check Xenon already performs. That's the whole payload — no install id, no identifiers, and no extra network request, because it rides a call that was already happening. The server keeps a daily count per version and throws the request away, so there's no record of you, only a number. It exists because "how many people are still on an old release" is currently unanswerable, and the alternative was guessing from download counts.
