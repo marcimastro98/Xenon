@@ -80,7 +80,8 @@
       "kind": "widget",
       "name": "DGM News Sports",
       "author": "DanielGarciaMorato",
-      "description": "eyJ4ZW5vblByZXNldCI6MSwiZXhwb3J0ZWRBdCI6IjIwMjYtMDctMTdUMjA6NDk6MTYuMzMyWiIsImFwcFZlcnNpb24iOiIiLCJncmlkQ29scyI6MjQsImtpbmQiOiJ3aWRnZXQiLCJuYW1lIjoiREdNIE5ld3MgU3BvcnRzIiwiZGF0YSI6eyJpZCI6ImRnbS1uZXdzLXNwb3J0cyIsIm5hbWUiOiJER00gTmV3cyBTcG9ydHMiLCJzdXJmYWNlIjoidGlsZSIsImFjdGlvbnMiOlsidXJsIl0sImhvc3Rz",
+      "description": "Sports news widget for Xenon with six RSS feeds: Marca, AS, Mundo Deportivo, BBC Sport, The Guardian Sport, and ESPN. Features include balanced feed rotation, Spanish and English interface, thumbnails via the official SDK proxy, visual fallbacks and loading status indicators (partial load, error, an",
+      "category": "media",
       "tags": [
         "technology",
         "rss",
@@ -88,11 +89,19 @@
         "responsive",
         "news"
       ],
-      "version": "1.0.0",
+      "version": "0.1.2",
+      "changelog": "Re-exported after the publishing platform issue; no functional code changes.",
+      "pkgId": "dgm-news-sports",
       "appVersionMin": "4.6.0",
-      "shots": 1,
-      "addedAt": "2026-07-17",
-      "codeFile": true
+      "preview": {
+        "accent": "#f5a623",
+        "bg": "#0b0d12",
+        "text": "#e9edf6"
+      },
+      "shots": 2,
+      "addedAt": "2026-07-18",
+      "codeFile": true,
+      "updatedAt": "2026-07-18"
     },
     {
       "id": "dgm-news-technology",
