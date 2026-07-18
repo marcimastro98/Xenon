@@ -315,7 +315,7 @@
       f_palette: 'Colori della card * <small>(dipingono la tua scheda nello Store)</small>',
       f_accent: 'Accento *', f_bgcol: 'Sfondo *', f_textcol: 'Testo *',
       pal_auto: 'Compilati dal tuo codice — cambiali se la card deve avere un altro aspetto.',
-      pal_manual: 'Questo tipo non contiene un tema — scegli i tre colori adatti alla tua creazione.',
+      pal_manual: 'Questo tipo non contiene un tema, quindi i tre colori qui sotto partono dai valori predefiniti di Xenon — cambiali per adattarli alla tua creazione.',
       e_category: 'Scegli una categoria — decide dove finisce la tua voce nello Store.',
       e_author: 'Metti il nome o l\'handle che vuoi far vedere come autore sulla card.',
       e_version_req: 'Metti un numero di versione, es. 1.0.0.',
@@ -540,6 +540,14 @@
   PAL.forEach(function (p) {
     var pick = document.getElementById(p.pick);
     var hex = document.getElementById(p.hex);
+    // Seed the box from the swatch, which always holds a colour. Without this the
+    // box carried only a placeholder — grey sample text that reads as a filled-in
+    // value — while the swatch beside it showed a real colour, so the row LOOKED
+    // set and submit still refused with "set all three card colours". It bit every
+    // widget and scene submission, because setPalette() only fills these boxes when
+    // the pasted code carries a theme and a package never does. Not a `value`
+    // attribute in the markup: the defaults then live in two places and drift.
+    hex.value = normHex(pick.value);
     // 'change' as well as 'input': picking the swatch's current colour in the OS
     // dialog fires no 'input', and the hex box would stay empty while the user
     // believes they chose one.
@@ -569,7 +577,13 @@
 
   function readPalette() {
     var out = {};
-    PAL.forEach(function (p) { out[p.key] = normHex(document.getElementById(p.hex).value); });
+    PAL.forEach(function (p) {
+      // Fall back to the swatch when the box is empty or half-typed ('#38b'). The
+      // swatch is the colour the creator can SEE on the row, so sending it is what
+      // the page promises; refusing the submit while a colour is on screen is not.
+      out[p.key] = normHex(document.getElementById(p.hex).value)
+        || normHex(document.getElementById(p.pick).value);
+    });
     return out;
   }
 
@@ -589,7 +603,7 @@
       : (env.kind === 'bundle' && env.data && env.data.theme ? env.data.theme : null);
     palHint.className = 'hint';
     if (!theme || typeof theme !== 'object') {
-      palHint.textContent = T('pal_manual', 'This kind carries no theme — pick the three colours that suit your creation.');
+      palHint.textContent = T('pal_manual', 'This kind carries no theme, so the three colours below start at Xenon\'s defaults — change them to suit your creation.');
       return;
     }
     var n = setPalette({ accent: theme.accent, bg: theme.background, text: theme.text });

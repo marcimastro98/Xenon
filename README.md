@@ -16,7 +16,7 @@ community catalog) — every one of those calls is listed in the [privacy page](
 ![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
 ![license](https://img.shields.io/badge/license-non--commercial-blue)
-![version](https://img.shields.io/badge/version-4.7.0-informational)
+![version](https://img.shields.io/badge/version-4.7.1-informational)
 [![Discord](https://img.shields.io/badge/Discord-join%20the%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/MBVrw9kZyg)
 
 ![Xenon dashboard overview](docs/images/overview.png)
