@@ -24,9 +24,9 @@
         "text": "#f0f3f1"
       },
       "shots": 3,
-      "active": false,
       "addedAt": "2026-07-19",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-07-19"
     },
     {
       "id": "dgm-calidad-del-aire",
