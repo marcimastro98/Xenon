@@ -2,6 +2,33 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "dgm-tiempo-actual",
+      "kind": "widget",
+      "name": "DGM Current weather",
+      "author": "DanielGarciaMorato",
+      "description": "Check current weather conditions for a manually selected city: temperature, feels-like temperature, humidity, wind, and precipitation. Supports metric or imperial units and Spanish or English. The configured city is shared with other DGM Weather widgets via Xenon's official storage. Data provided by",
+      "category": "system",
+      "tags": [
+        "weather",
+        "current",
+        "temperature",
+        "precipitation",
+        "open-meteo"
+      ],
+      "version": "0.1.7",
+      "pkgId": "dgm-weather-current-sdk",
+      "appVersionMin": "4.6.0",
+      "preview": {
+        "accent": "#5b8fd1",
+        "bg": "#0b0d12",
+        "text": "#e9edf6"
+      },
+      "shots": 2,
+      "active": false,
+      "addedAt": "2026-07-19",
+      "codeFile": true
+    },
+    {
       "id": "dgm-previsi-n-7-d-as",
       "kind": "widget",
       "name": "DGM 7-Day Forecast",
