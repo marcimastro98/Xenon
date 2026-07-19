@@ -2,6 +2,33 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "prayer-times",
+      "kind": "widget",
+      "name": "Prayer Times",
+      "author": "aabdelghani",
+      "description": "The five daily prayers plus sunrise, with a live countdown to the next one. Times are computed on your PC from the sun's position, so there is no account, no API key and no service to go down: it works offline. Nine calculation authorities, both Asr schools, per-prayer fine-tuning.",
+      "category": "tools",
+      "tags": [
+        "prayer",
+        "adhan",
+        "islam",
+        "salah",
+        "offline"
+      ],
+      "version": "1.0.0",
+      "pkgId": "adhan-prayer-times",
+      "appVersionMin": "4.7.0",
+      "preview": {
+        "accent": "#1ed760",
+        "bg": "#070808",
+        "text": "#f0f3f1"
+      },
+      "shots": 3,
+      "active": false,
+      "addedAt": "2026-07-19",
+      "codeFile": true
+    },
+    {
       "id": "dgm-calidad-del-aire",
       "kind": "widget",
       "name": "DGM Air Quality",
