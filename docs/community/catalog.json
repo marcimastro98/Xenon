@@ -24,9 +24,9 @@
         "text": "#e9edf6"
       },
       "shots": 2,
-      "active": false,
       "addedAt": "2026-07-19",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-07-19"
     },
     {
       "id": "dgm-tiempo-actual",
