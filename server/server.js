@@ -27,6 +27,7 @@ const signalrgb = require('./signalrgb');
 // presenter as a hint — when it matches the focused window, that's a game.
 gameDetect.setGameHint(() => fpsMonitor.getGamingProcess());
 const lighting = require('./lighting');
+const icueSdkInstall = require('./icue-sdk-install');
 const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
 const vitalsPetCore = require('./js/vitals-pet-core'); // Bit's pure core: durable pet-state merge helpers (shared with the client + tests)
 const { sanitizeBgAssets, sanitizeBgFps } = require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox)
@@ -9047,6 +9048,11 @@ const CSRF_MUTATION_PATHS = new Set([
   // the import dialog.
   '/icon-pack',
   '/sound-pack',
+  // Downloads a native DLL from an external release and drops it where the
+  // server will later load it as code. A drive-by page must not be able to start
+  // that: the fetch is pinned and hash-checked, but the decision to run it is the
+  // user's. POST-only already; listed so an Origin:null frame is refused too.
+  '/api/lighting/sdk-install',
   // Claude Code bridge. The two ingest paths are POSTed by the `claude` process
   // itself (which sends no Sec-Fetch-Site, so this never blocks them) and are
   // additionally token-gated; listing them stops a browser page from POSTing
@@ -9890,6 +9896,19 @@ const server = http.createServer(async (req, res) => {
       } else {
         json({ ok: false, error: 'no download url' });
       }
+    } catch (e) { json({ ok: false, error: e.message }); }
+
+  } else if (reqPath === '/api/lighting/sdk-install' && req.method === 'POST') {
+    // Fetches the CORSAIR iCUE SDK client component from Corsair's official
+    // release (pinned version + SHA-256, both in icue-sdk-update.ps1). The
+    // installer does this too, but an existing install never re-runs it, so
+    // without this button a self-updated install has no route to CORSAIR RGB.
+    // Never throws: a failed fetch is a message the lighting page shows.
+    try {
+      const r = await icueSdkInstall.install();
+      // The memoized DLL probe would keep reporting "missing" for its whole TTL.
+      if (r.ok) lighting.refreshAvailability();
+      json({ ok: r.ok, status: r.status, error: r.ok ? null : r.detail, lighting: lighting.getStatus() });
     } catch (e) { json({ ok: false, error: e.message }); }
 
   } else if (reqPath === '/api/guardian/history' && req.method === 'GET') {

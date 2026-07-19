@@ -70,9 +70,13 @@
       wrap.appendChild(hintP(status.reason || 'Connessione a iCUE non riuscita. Verifica che iCUE sia in esecuzione con l\'SDK abilitato.'));
     }
 
-    // No iCUE detected — friendly note (everything else still works).
+    // The SDK client component isn't on this PC. Since iCUE 5.48 stopped
+    // installing it, this is the ordinary case rather than a broken iCUE — so
+    // offer to fetch it instead of sending the user off to check iCUE settings
+    // that are almost certainly fine.
     if (!status.available) {
-      wrap.appendChild(hintP('iCUE non rilevato. Avvia iCUE e abilita l\'SDK per controllare le luci Corsair.', 'lighting_unavailable'));
+      wrap.appendChild(hintP('Componente iCUE SDK non presente su questo PC. Serve per controllare le luci Corsair: Xenon può scaricarlo da Corsair.', 'lighting_sdk_missing'));
+      wrap.appendChild(sdkInstallRow(host));
     }
 
     const eff = status.effects || {};
@@ -606,6 +610,50 @@
     if (i18nKey) p.setAttribute('data-i18n', i18nKey);
     p.textContent = text;
     return p;
+  }
+
+  // One-tap fetch of the iCUE SDK component from Corsair's official release.
+  // Deliberately NOT automatic: it downloads native code the server then loads,
+  // so the user starts it. The server pins the version and verifies the archive's
+  // SHA-256 before anything is extracted (icue-sdk-update.ps1).
+  function sdkInstallRow(host) {
+    const row = document.createElement('div');
+    row.className = 'lighting-row lighting-sdk-install';
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'lighting-clear';
+    btn.setAttribute('data-i18n', 'lighting_sdk_install');
+    btn.textContent = 'Scarica componente';
+
+    const state = hintP('');
+    state.hidden = true;
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      state.hidden = false;
+      state.removeAttribute('data-i18n');       // live status replaces any translated text
+      state.textContent = tr('lighting_sdk_installing', 'Download in corso…');
+      let r = null;
+      try {
+        r = await (await fetch('/api/lighting/sdk-install', { method: 'POST' })).json();
+      } catch (e) {
+        r = { ok: false, error: e && e.message };
+      }
+      if (r && r.ok) {
+        state.textContent = tr('lighting_sdk_installed', 'Componente installato. Attivo alla prossima connessione a iCUE.');
+        init(host);                              // re-render: the controls are available now
+        return;
+      }
+      // Keep the real reason visible: a checksum mismatch or a blocked download
+      // is exactly what the user needs to see, not a generic failure.
+      state.textContent = tr('lighting_sdk_failed', 'Download non riuscito.') + (r && r.error ? ' ' + r.error : '');
+      btn.disabled = false;
+    });
+
+    row.appendChild(btn);
+    row.appendChild(state);
+    return row;
   }
 
   // SignalRGB card: an explanatory line plus — only when the launcher is present —

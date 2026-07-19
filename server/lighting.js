@@ -56,6 +56,12 @@ function resolveDllPath() {
   return found;
 }
 
+// Drops the memoized probe so the very next isAvailable() sees a DLL that was
+// just fetched — without this the lighting page keeps saying "not installed" for
+// up to DLL_PROBE_TTL_MS after the user pressed the button, which reads as a
+// failed install.
+function refreshAvailability() { dllProbe = { at: 0, path: null }; }
+
 function probeDllPath() {
   const candidates = [
     process.env.ICUE_SDK_DLL,
@@ -1108,7 +1114,7 @@ function getStatus() {
 }
 
 module.exports = {
-  connect, ensureConnected, disconnect, enumerate, boundedReenumerate, writeDevice, releaseAll, getDevices, isConnected, isAvailable, getLastError,
+  connect, ensureConnected, disconnect, enumerate, boundedReenumerate, writeDevice, releaseAll, getDevices, isConnected, isAvailable, refreshAvailability, getLastError,
   getBatteryLevels,
   onSystem, onAudio, onStatus, onEvent,
   setManualColor, clearManual, setDeckReaction, clearDeckReaction, setAnimation, setDeviceMode, setAlbumColor, clearAlbum, applyConfig, setEffectEnabled, setEnabled, getStatus, getConfig,

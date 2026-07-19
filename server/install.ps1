@@ -1,4 +1,4 @@
-# -Mode native|icue skips the interactive surface prompt (used by the native
+﻿# -Mode native|icue skips the interactive surface prompt (used by the native
 # setup.exe bootstrap, where env vars don't survive the -Verb RunAs elevation).
 param([ValidateSet('native', 'icue', '')][string]$Mode = '')
 
@@ -589,49 +589,21 @@ function Install-PresentMonIfNeeded {
 }
 
 function Install-ICueSdkIfNeeded {
-  # The iCUE SDK client DLL is what server/lighting.js talks to for CORSAIR RGB.
-  # iCUE 5.48 no longer installs it anywhere, so without this step the only
-  # machines with working RGB are the ones where some unrelated software happens
-  # to ship a copy.
-  #
-  # It is DOWNLOADED from Corsair's own official release, never shipped with
-  # Xenon: the SDK EULA (in the zip's PDF) grants a "nonexclusive, nontransferable
-  # royalty-free license to allow You to use the Software" and forbids transferring
-  # "all or any portion of the Software ... to any other person". Bundling it, or
-  # mirroring it as one of our release assets, would be that transfer. Fetching it
-  # from Corsair on the user's own machine is not.
-  #
-  # Version and hash are pinned: an asset that changes underneath us must fail
-  # loudly rather than install something we never verified.
-  $sdkVersion = '4.0.84'
-  $sdkZipSha  = 'EB4414CF505145F3E507DC839AD587BF7CA684D64BE3D9A834F416A136736D5D'
-  $dir = Join-Path $filesDir 'icue-sdk'
-  $dll = Join-Path $dir 'iCUESDK.x64_2019.dll'
-  if (Test-Path $dll) { Write-Step "iCUE SDK found: $dll"; return }
-
-  Write-Step 'Installing the CORSAIR iCUE SDK component for RGB lighting...'
-  $zip = Join-Path $env:TEMP "iCUESDK_$sdkVersion.zip"
-  $stage = Join-Path $env:TEMP "iCUESDK_$sdkVersion"
+  # The download, the pinned version/hash and the licence rationale live in
+  # icue-sdk-update.ps1, the single source of truth shared with the in-app fetch
+  # button on the lighting page. Invoke it as a CHILD process (never dot-source)
+  # so its exit code can't abort the installer.
+  $script = Join-Path $filesDir 'icue-sdk-update.ps1'
+  if (-not (Test-Path $script)) {
+    Write-Host 'icue-sdk-update.ps1 not found; skipping the iCUE SDK component (CORSAIR RGB stays unavailable).' -ForegroundColor Yellow
+    return
+  }
+  Write-Step 'Setting up the CORSAIR iCUE SDK component for RGB lighting...'
+  $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
   try {
-    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $uri = "https://github.com/CorsairOfficial/cue-sdk/releases/download/v$sdkVersion/iCUESDK_$sdkVersion.zip"
-    Invoke-DownloadWithSpinner -Uri $uri -OutFile $zip -Headers @{ 'User-Agent' = 'XenonEdgeHub' } -TimeoutSec 120 -Activity 'Downloading the iCUE SDK component'
-
-    $hash = (Get-FileHash -Path $zip -Algorithm SHA256).Hash
-    if ($hash -ne $sdkZipSha) { throw "checksum mismatch (expected $sdkZipSha, got $hash)" }
-
-    if (Test-Path $stage) { Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue }
-    Expand-Archive -Path $zip -DestinationPath $stage -Force
-    $src = Join-Path $stage 'iCUESDK\redist\x64\iCUESDK.x64_2019.dll'
-    if (-not (Test-Path $src)) { throw 'the archive did not contain redist\x64\iCUESDK.x64_2019.dll' }
-    Copy-Item -Path $src -Destination $dll -Force
-    Write-Step "iCUE SDK installed: $dll"
+    & $psExe -NoProfile -ExecutionPolicy Bypass -File $script -SdkDir (Join-Path $filesDir 'icue-sdk')
   } catch {
-    Write-Host "The iCUE SDK component could not be installed automatically ($($_.Exception.Message)). CORSAIR RGB control will be unavailable until it is; everything else works normally." -ForegroundColor Yellow
-  } finally {
-    Remove-Item $zip -Force -ErrorAction SilentlyContinue
-    Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
+    Write-Host "The iCUE SDK component could not be installed automatically ($($_.Exception.Message)). Everything else works normally; CORSAIR RGB control stays unavailable until it is fetched from the lighting page." -ForegroundColor Yellow
   }
 }
 
