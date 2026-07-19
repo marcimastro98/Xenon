@@ -145,6 +145,7 @@
       "name": "Thermal Card",
       "author": "xenon",
       "authorSupporter": true,
+      "perfWarning": true,
       "description": "CPU and GPU temperature, VRAM and RAM in one card. Tap any row to swap which value leads, and pick which monitors you want. Reads sensors only, with no actions and no network.",
       "category": "system",
       "tags": [
@@ -173,6 +174,7 @@
       "name": "Forest",
       "author": "Domi / spamer7777-lgtm",
       "authorSupporter": true,
+      "perfWarning": true,
       "description": "Bring the calming essence of nature directly to your screen. With its lush fern-green palette, earthy textures, and subtle golden accents, this theme transforms your dashboard into a quiet forest at twilight. Designed with high-contrast glass panels for clean readability, it’s the perfect dark aesth",
       "tags": [
         "peace",
@@ -192,6 +194,7 @@
       "kind": "widget",
       "name": "DGM News Sports",
       "author": "DanielGarciaMorato",
+      "perfWarning": true,
       "description": "Sports news widget for Xenon with six RSS feeds: Marca, AS, Mundo Deportivo, BBC Sport, The Guardian Sport, and ESPN. Features include balanced feed rotation, Spanish and English interface, thumbnails via the official SDK proxy, visual fallbacks and loading status indicators (partial load, error, an",
       "category": "media",
       "tags": [
@@ -220,6 +223,7 @@
       "kind": "widget",
       "name": "DGM News Technology",
       "author": "DanielGarciaMorato",
+      "perfWarning": true,
       "description": "Tech news widget for Xenon featuring six RSS feeds: Xataka, Hipertextual, Microsiervos, BBC Technology, The Guardian Technology, and Ars Technica. It includes balanced feed rotation, a Spanish and English interface, thumbnail generation via the official SDK proxy, visual fallbacks and loading states",
       "category": "media",
       "tags": [
@@ -248,6 +252,7 @@
       "kind": "widget",
       "name": "Map Explorer",
       "author": "DanielGarciaMorato",
+      "perfWarning": true,
       "description": "DGM Map Explorer is a visual catalog for quickly accessing external video game maps from Xenon.\n\nIt includes 31 games and 32 selected destinations, with search, session-based favorites and recently opened games. Selecting a game displays a confirmation before opening its corresponding map in the def",
       "category": "media",
       "tags": [
@@ -277,6 +282,7 @@
       "name": "Demonic",
       "author": "Domi / spamer7777-lgtm",
       "authorSupporter": true,
+      "perfWarning": true,
       "tags": [
         "demonic",
         "dark",
@@ -293,6 +299,7 @@
       "kind": "widget",
       "name": "DGM News General",
       "author": "DanielGarciaMorato",
+      "perfWarning": true,
       "description": "Widget de noticias generales para Xenon con seis fuentes RSS internacionales: El Mundo, El País, BBC News, The Guardian, The New York Times y Le Monde. Ofrece rotación equilibrada entre fuentes, interfaz en español e inglés, miniaturas mediante el proxy oficial del SDK, fallbacks visuales y estados ",
       "category": "media",
       "tags": [
@@ -320,6 +327,7 @@
       "kind": "bundle",
       "name": "VANGUARD 50 // VOICE RELAY",
       "author": "xenon",
+      "perfWarning": true,
       "description": "A Discord voice console with live session telemetry, set in an observatory night sky with an obsidian Deck. 50 copies, each carrying its own serial. Not affiliated with or endorsed by Discord.",
       "category": "streaming",
       "tags": [
@@ -356,6 +364,7 @@
       "authorSupporter": true,
       "supportersOnly": true,
       "locked": true,
+      "perfWarning": true,
       "description": "An exclusive comic-book universe for the Xeneon Edge, for supporters only. A living hand-inked skyline shifts with the real weather and time of day, doubling as a screensaver, alongside comic System, Fans, Batteries and Energy boards and a hand-drawn Sidekick Deck. Six artifacts, one code.",
       "category": "style",
       "tags": [
@@ -383,6 +392,7 @@
       "name": "Ambra",
       "author": "xenon",
       "authorSupporter": true,
+      "perfWarning": true,
       "description": "A warm, minimal pack: an amber theme on deep espresso with the animated 'Bruma d'Ambra' background, a redesigned weather widget (temperature-forward, with an essential hourly strip) and an Ambient screensaver showing clock and weather.",
       "category": "style",
       "tags": [
@@ -408,6 +418,7 @@
       "kind": "widget",
       "name": "Teleprompter",
       "author": "xenon",
+      "perfWarning": true,
       "description": "Write a script, then read it like a pro: large auto-scrolling prompter text with the current sentence lit, a 3-2-1 countdown, drag-to-scrub, 0.5×–3× speed and a live time-remaining estimate. Keep a library of named scripts, drop [2s] anywhere to pause, and mirror it for prompter glass.",
       "category": "tools",
       "tags": [
@@ -436,6 +447,7 @@
       "name": "NØVA // NEON DISTRICT",
       "author": "Xenon",
       "authorSupporter": false,
+      "perfWarning": true,
       "description": "A limited cyberpunk drop: a neon duotone theme, the animated Megacity Drift background with a holographic whale, the Orbitron display font, three bespoke widgets (Vitals rings, Now Playing, Skynode weather), an Ambient scene and a Deck profile. Reserved on Discord: each buyer gets a personal access code. Only 5 exist worldwide.",
       "category": "style",
       "tags": [
@@ -464,6 +476,7 @@
       "name": "Ember Nights",
       "author": "Xenon",
       "authorSupporter": false,
+      "perfWarning": true,
       "description": "Warm amber accent over a deep charcoal glass, a cozy evening look for the Edge.",
       "preview": {
         "accent": "#ff7a45",
@@ -480,6 +493,7 @@
       "name": "Deep Ocean",
       "author": "Xenon",
       "authorSupporter": false,
+      "perfWarning": true,
       "description": "Cool cyan on abyssal navy: calm, high-contrast and easy on the eyes at night.",
       "preview": {
         "accent": "#4cc3ff",
@@ -496,6 +510,7 @@
       "name": "Silk Waves",
       "author": "Xenon",
       "authorSupporter": false,
+      "perfWarning": true,
       "description": "Slow flowing wave lines over a midnight gradient, an animated backdrop that stays out of the way.",
       "category": "style",
       "addedAt": "2026-07-09",
@@ -507,6 +522,7 @@
       "name": "Nocturne",
       "author": "Xenon",
       "authorSupporter": false,
+      "perfWarning": true,
       "description": "A quiet late-night look: sage-teal accent over deep charcoal-navy glass, with a soft drifting backdrop baked in. Calm and easy on the eyes after dark.",
       "preview": {
         "accent": "#5cc9a7",
@@ -530,6 +546,7 @@
       "name": "Nocturne Drift",
       "author": "Xenon",
       "authorSupporter": false,
+      "perfWarning": true,
       "description": "A calm animated backdrop: slow sage glows drifting over a near-black wash with a faint twinkling starfield. Bounded and quiet, it stays out of the way.",
       "category": "style",
       "tags": [
@@ -548,6 +565,7 @@
       "name": "Nocturne Control",
       "author": "Xenon",
       "authorSupporter": false,
+      "perfWarning": true,
       "description": "An eight-key Deck profile for everyday control: media transport, mic mute, volume up or down, a 25-minute focus timer and a volume fader. Portable across machines.",
       "category": "deck",
       "tags": [
@@ -567,6 +585,7 @@
       "name": "Nocturne Desk",
       "author": "Xenon",
       "authorSupporter": false,
+      "perfWarning": true,
       "description": "A tidy dashboard page: now playing on the left with system, weather, agenda and tasks arranged cleanly beside it. A calm home screen for the Edge.",
       "category": "system",
       "tags": [
@@ -583,6 +602,7 @@
       "name": "Nocturne Now Playing",
       "author": "Xenon",
       "authorSupporter": false,
+      "perfWarning": true,
       "description": "A now-playing player: the album cover fills the tile behind the track, artist, a progress bar and play/pause, previous and next controls. Follows your theme accent. Needs media access and control.",
       "category": "media",
       "tags": [
@@ -602,6 +622,7 @@
       "name": "Nocturne Hours",
       "author": "Xenon",
       "authorSupporter": false,
+      "perfWarning": true,
       "description": "A calm fullscreen clock for Ambient mode: big time, the date and one slow breathing glow on a dim OLED-friendly background. Requests no permissions.",
       "category": "style",
       "tags": [
@@ -622,6 +643,7 @@
       "name": "Nocturne Pack",
       "author": "Xenon",
       "authorSupporter": false,
+      "perfWarning": true,
       "description": "The whole Nocturne look in one install: the theme with its drifting backdrop, the now-playing widget, the ambient clock scene, the Deck profile and the desk page.",
       "category": "style",
       "tags": [
@@ -641,6 +663,7 @@
       "name": "Tranquility",
       "author": "spamer7777-lgtm",
       "authorSupporter": true,
+      "perfWarning": true,
       "description": "A serene Himalayan lake at golden hour: a temple, prayer flags and a boat, with drifting clouds, fireflies and shimmering water layered on top.",
       "category": "style",
       "tags": [
@@ -659,6 +682,7 @@
       "name": "Cats",
       "author": "spamer7777-lgtm",
       "authorSupporter": true,
+      "perfWarning": true,
       "description": "A cozy pastel room full of adorable cats, with floating hearts and soft sparkles drifting over the scene. Cute and sweet.",
       "category": "fun",
       "tags": [
@@ -677,6 +701,7 @@
       "name": "Sakura",
       "author": "spamer7777-lgtm",
       "authorSupporter": true,
+      "perfWarning": true,
       "description": "A pink cherry-blossom look over deep plum glass. Its backdrop is a hand-painted Japanese scene (temple, torii and a coiling dragon) with sakura petals, drifting light rays and glowing lanterns animating gently on top.",
       "category": "style",
       "tags": [
