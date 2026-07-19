@@ -61,6 +61,7 @@
       "kind": "widget",
       "name": "DGM weather radar",
       "author": "DanielGarciaMorato",
+      "perfWarning": true,
       "description": "Interactive map displaying the latest available radar precipitation layer for the city set in DGM Current Weather. It allows for panning, zooming, re-centering, and data refreshing. Colors represent different levels of precipitation intensity; the presence of precipitation does not necessarily imply",
       "category": "system",
       "tags": [
@@ -78,8 +79,9 @@
         "text": "#e9edf6"
       },
       "shots": 2,
-      "addedAt": "2026-07-18",
-      "codeFile": true
+      "addedAt": "2026-07-19",
+      "codeFile": true,
+      "updatedAt": "2026-07-19"
     },
     {
       "id": "keyring",
