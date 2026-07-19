@@ -6,6 +6,7 @@
       "kind": "widget",
       "name": "DGM Current weather",
       "author": "DanielGarciaMorato",
+      "perfWarning": true,
       "description": "Check current weather conditions for a manually selected city: temperature, feels-like temperature, humidity, wind, and precipitation. Supports metric or imperial units and Spanish or English. The configured city is shared with other DGM Weather widgets via Xenon's official storage. Data provided by",
       "category": "system",
       "tags": [
@@ -26,7 +27,8 @@
       "shots": 2,
       "active": false,
       "addedAt": "2026-07-19",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-07-19"
     },
     {
       "id": "dgm-previsi-n-7-d-as",
