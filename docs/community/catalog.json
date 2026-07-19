@@ -327,6 +327,7 @@
       "kind": "bundle",
       "name": "VANGUARD 50 // VOICE RELAY",
       "author": "xenon",
+      "authorSupporter": true,
       "perfWarning": true,
       "description": "A Discord voice console with live session telemetry, set in an observatory night sky with an obsidian Deck. 50 copies, each carrying its own serial. Not affiliated with or endorsed by Discord.",
       "category": "streaming",
@@ -346,15 +347,15 @@
       },
       "limited": {
         "total": 50,
-        "claimed": 0,
+        "claimed": 18,
         "fulfillment": "hub",
         "dropId": "vanguard-50",
         "channels": "both",
         "numbered": true
       },
       "shots": 4,
-      "addedAt": "2026-07-17",
-      "updatedAt": "2026-07-18"
+      "addedAt": "2026-07-19",
+      "updatedAt": "2026-07-19"
     },
     {
       "id": "pow-comic",
