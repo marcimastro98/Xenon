@@ -13,15 +13,24 @@
 //   ~/.claude/projects/<encoded-cwd>/<session-uuid>.jsonl
 // One JSON object per line. Assistant lines carry `message.usage` (input/output/
 // cache tokens), `message.model`, `cwd` (where), `gitBranch` (which branch) and
-// `timestamp` (when). This is the same source `ccusage` reads — there is NO
-// official Anthropic API for a subscription plan's remaining quota, so the local
-// transcript is the only universal, per-machine source. Reads are throttled and
-// mtime-gated so a fresh aggregate never re-parses an unchanged file.
+// `timestamp` (when). This is the same source `ccusage` reads, and it works for
+// every user with no setup at all. Reads are throttled and mtime-gated so a
+// fresh aggregate never re-parses an unchanged file.
+//
+// WHAT THIS MODULE CANNOT SEE: the transcripts carry no quota. The real
+// subscription windows (5-hour / 7-day, consumed % + reset epoch) arrive on the
+// OTHER feed — claude-bridge.js, fed by the statusline command that
+// claude-link.js installs. Live session state is the same story: what's here is
+// inferred from file mtimes, what's on the bridge is reported by Claude Code
+// itself. Prefer the bridge wherever both exist; this module is the fallback
+// that always works (and the only source of history, which the bridge has none
+// of, being per-boot and in-memory).
 
 const fs = require('fs');
 const fsp = fs.promises;
 const os = require('os');
 const path = require('path');
+const { isInjectedPrompt } = require('./claude-bridge.js');
 
 const READ_CONCURRENCY = 6;             // parallel file reads; keeps the FS burst polite
 const MAX_FILE_BYTES = 64 * 1024 * 1024; // skip a pathologically large transcript
@@ -195,9 +204,10 @@ function humanPrompt(msg) {
   if (typeof c === 'string') txt = c;
   else if (Array.isArray(c)) { const tb = c.find(b => b && b.type === 'text' && typeof b.text === 'string'); if (tb) txt = tb.text; }
   txt = txt.trim();
-  if (!txt || txt.charAt(0) === '<' || txt.charAt(0) === '[') return '';
-  // Skip harness/skill-injected "user" lines so the task shows the real prompt.
-  if (/^(Base directory for this skill\b|Caveat:|The user (opened|selected)|This session is|<[a-z-]+>)/.test(txt)) return '';
+  // Harness/skill-injected "user" lines are not the task. Shared with the live
+  // bridge so the transcript view and the session list agree on what counts as
+  // something the user actually asked for.
+  if (isInjectedPrompt(txt)) return '';
   return txt;
 }
 

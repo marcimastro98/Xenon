@@ -428,6 +428,15 @@ input[type="range"] { accent-color: var(--green); }
   color: var(--muted-text);
   opacity: 0.64;
 }
+/* The AI model pickers are <select class="settings-text-input"> upgraded to the
+   shared custom dropdown; the native element is hidden and the wrapper is
+   inserted right before it, so the wrapper has to carry the full-width sizing.
+   Matched by that adjacency so the other custom selects in Settings, which are
+   deliberately auto-width, are left alone. */
+.cs-wrap:has(+ select.settings-text-input) { width: 100%; }
+.cs-wrap:has(+ select.settings-text-input) .cs-trigger {
+  width: 100%; height: 34px; font-size: 13px;
+}
 
 /* Code-defined animated background editor: a monospace code box + template row. */
 .settings-code-field {
@@ -711,6 +720,7 @@ input[type="range"] { accent-color: var(--green); }
 /* The shared display rules outrank the UA [hidden] style — restate it so
    `el.hidden = true` really hides rows/grids anywhere in Settings. */
 .settings-toggle-row[hidden],
+.settings-row[hidden],
 .settings-grid[hidden] { display: none; }
 /* A whole group that doesn't apply right now (e.g. Tema while Pixel Retro
    forces the dark CRT look) is dimmed and inert rather than lying active. */
@@ -2049,6 +2059,13 @@ input[type="range"] { accent-color: var(--green); }
   background: rgba(var(--accent-rgb, 30, 215, 96), 0.08);
 }
 .preset-modal-note { font-style: italic; }
+/* The catalog's "may use more resources" note, repeated inside the import dialog. */
+.preset-perf-note {
+  font-size: 0.8rem; color: var(--warn, #ffb454);
+  padding: 8px 10px; border-radius: 8px;
+  border: 1px solid rgba(255, 180, 84, 0.3);
+  background: rgba(255, 180, 84, 0.08);
+}
 
 /* ══ Community gallery ("Store") — premium storefront overlay ══════════════ */
 .cgal-overlay { padding: 3.2vh 3vw; }
@@ -2169,6 +2186,15 @@ input[type="range"] { accent-color: var(--green); }
   border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
 }
 .inst-origin.is-mine { color: var(--accent, #35e08e); background: rgba(var(--accent-rgb), 0.12); border-color: rgba(var(--accent-rgb), 0.3); }
+/* Live activity chip fed by the widget perf probe (ok / busy / heavy / paused). */
+.inst-activity {
+  flex: none; padding: 2px 7px; border-radius: 999px; font-size: 0.62rem; font-weight: 700;
+  color: var(--text-dim, #8b91a1); background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+}
+.inst-activity.is-busy { color: var(--warn, #ffb454); background: rgba(255, 180, 84, 0.1); border-color: rgba(255, 180, 84, 0.3); }
+.inst-activity.is-heavy { color: var(--red, #ff5b6a); background: rgba(255, 91, 106, 0.1); border-color: rgba(255, 91, 106, 0.32); }
+.inst-activity.is-paused { color: var(--text-dim, #8b91a1); background: rgba(255, 255, 255, 0.08); border-style: dashed; }
 .inst-row-btns { display: flex; align-items: center; gap: 8px; flex: none; }
 /* The publisher's note about what a pending update changes. */
 .inst-row-changelog {
@@ -2267,6 +2293,20 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 
 /* ── Grid + product cards ── */
 .cgal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 16px; }
+/* One-entry sections lay the card out wide instead of stranding a 232px card at
+   the left edge of a full-width shelf. Same shape as the website catalog: media
+   left, details right, and the description gets the room to be read. */
+.cgal-grid.is-solo { grid-template-columns: 1fr; }
+.cgal-grid.is-solo > .cgal-card { flex-direction: row; align-items: stretch; }
+.cgal-grid.is-solo > .cgal-card > .cgal-media { flex: 0 0 44%; aspect-ratio: auto; min-height: 232px; }
+.cgal-grid.is-solo > .cgal-card > .cgal-body { justify-content: center; gap: 9px; padding: 22px 26px; }
+.cgal-grid.is-solo .cgal-name { font-size: 1.22rem; letter-spacing: -0.01em; }
+.cgal-grid.is-solo .cgal-version { font-size: 0.78rem; }
+.cgal-grid.is-solo .cgal-author { font-size: 0.84rem; }
+.cgal-grid.is-solo .cgal-desc { font-size: 0.9rem; line-height: 1.55; -webkit-line-clamp: 5; max-width: 62ch; }
+/* The card's `margin-top: auto` pins the actions to the bottom of a tall tile;
+   in the wide layout the whole block is centred instead, so it must go. */
+.cgal-grid.is-solo .cgal-card-actions { margin-top: 4px; max-width: 420px; }
 .cgal-card {
   position: relative; display: flex; flex-direction: column; min-width: 0;
   border-radius: 16px; overflow: hidden;
@@ -2332,6 +2372,18 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-desc { font-size: 0.82rem; line-height: 1.45; color: var(--text-dim, #8b91a1); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .cgal-tags { display: flex; gap: 6px; flex-wrap: wrap; }
 .cgal-tag { font-size: 0.72rem; color: rgba(var(--accent-rgb), 0.8); }
+/* "May use more resources" — the catalog's performance note. Amber pill on the
+   card/hero byline and the detail meta row; the long sentence sits below in the
+   detail view. Informational, never blocking. */
+.cgal-perfchip {
+  flex: none; display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 999px;
+  font-size: 0.64rem; font-weight: 700; letter-spacing: 0.02em;
+  color: var(--warn, #ffb454); background: rgba(255, 180, 84, 0.1);
+  border: 1px solid rgba(255, 180, 84, 0.32);
+}
+.cgal-detail-perfnote {
+  margin: 2px 0 0; font-size: 0.8rem; line-height: 1.45; color: var(--warn, #ffb454); opacity: 0.9;
+}
 
 /* ── Buttons ── */
 .cgal-btn {
@@ -2506,6 +2558,12 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
   .cgal-media-hero { min-height: 190px; aspect-ratio: 16 / 9; }
   .cgal-hero-title { font-size: 1.4rem; }
   .cgal-grid { grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 12px; }
+  /* Too narrow to sit side by side — back to the stacked card. */
+  .cgal-grid.is-solo > .cgal-card { flex-direction: column; }
+  .cgal-grid.is-solo > .cgal-card > .cgal-media { flex: none; aspect-ratio: 16 / 10; min-height: 0; }
+  .cgal-grid.is-solo > .cgal-card > .cgal-body { padding: 13px 14px 14px; gap: 6px; }
+  .cgal-grid.is-solo .cgal-name { font-size: 0.98rem; }
+  .cgal-grid.is-solo .cgal-desc { font-size: 0.82rem; -webkit-line-clamp: 3; }
   .cgal-brand-sub, .cgal-trust { display: none; }
   .cgal-brand-title { font-size: 1.12rem; }
 }

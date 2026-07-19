@@ -7,13 +7,22 @@ const { createSecondScreen, buildConfigXml } = require('../second-screen.js');
 
 // Fake winget installer (mirrors remote-control/installer.js) so tests never touch
 // winget or elevate anything.
-function fakeInstaller({ winget = true, vdd = false, installCode = 0 } = {}) {
+// `install` flips the installed state like winget does, because installDriver now
+// trusts a re-probe over winget's exit code (which is non-zero for benign cases
+// such as "already installed" or "reboot required"). `installSucceeds: false`
+// models a package that really did not land.
+function fakeInstaller({ winget = true, vdd = false, installCode = 0, installSucceeds = true } = {}) {
   const calls = [];
+  let installed = vdd;
   return {
     calls,
     isWingetAvailable: async () => winget,
-    isInstalled: async (name) => { calls.push(['isInstalled', name]); return name === 'vdd' ? vdd : false; },
-    install: async (name) => { calls.push(['install', name]); return { code: installCode }; },
+    isInstalled: async (name) => { calls.push(['isInstalled', name]); return name === 'vdd' ? installed : false; },
+    install: async (name) => {
+      calls.push(['install', name]);
+      if (name === 'vdd' && installSucceeds) installed = true;
+      return { code: installCode };
+    },
   };
 }
 
@@ -74,6 +83,27 @@ test('installDriver: installs the VDD package', async () => {
   assert.deepEqual(d.installer.calls.find((c) => c[0] === 'install'), ['install', 'vdd']);
 });
 
+// winget reports non-zero for benign outcomes ("already installed", "reboot
+// required"), so a non-zero exit with the package present must NOT read as a
+// failed setup — the UI would tell the user to retry something that worked.
+test('installDriver: non-zero winget exit but package present → success', async () => {
+  const r = await createSecondScreen(deps({ inst: { installCode: 0x8A15002B } })).installDriver();
+  assert.equal(r.ok, true);
+  assert.equal(r.code, 'vdd_installed');
+});
+
+test('installDriver: package still absent afterwards → retry code', async () => {
+  const r = await createSecondScreen(deps({ inst: { installSucceeds: false } })).installDriver();
+  assert.equal(r.ok, false);
+  assert.equal(r.code, 'vdd_install_failed');
+});
+
+test('installDriver: UAC declined → its own code, distinct from a failure', async () => {
+  const r = await createSecondScreen(deps({ inst: { installCode: 1223, installSucceeds: false } })).installDriver();
+  assert.equal(r.ok, false);
+  assert.equal(r.code, 'vdd_install_declined');
+});
+
 test('installDriver: winget missing → manual code, no throw', async () => {
   const r = await createSecondScreen(deps({ inst: { winget: false } })).installDriver();
   assert.equal(r.ok, false);
@@ -103,11 +133,26 @@ test('createDisplay: device created but not yet enumerated → reboot hint', asy
   assert.equal(r.action, 'reboot_maybe');
 });
 
+// devcon exit codes: 0 = done, 1 = done but a reboot is needed, 2 = failed.
 test('createDisplay: devcon failure → retry code', async () => {
-  const d = deps({ run: { elevatedCode: 1 }, writeConfig: () => {} });
+  const d = deps({ run: { elevatedCode: 2 }, writeConfig: () => {} });
   const r = await createSecondScreen(d).createDisplay();
   assert.equal(r.ok, false);
   assert.equal(r.code, 'display_create_failed');
+});
+
+test('createDisplay: devcon exit 1 means "reboot needed", not failure', async () => {
+  const d = deps({ run: { elevatedCode: 1 }, writeConfig: () => {}, displayActive: true });
+  const r = await createSecondScreen(d).createDisplay();
+  assert.equal(r.ok, true);
+  assert.equal(r.code, 'display_ready');
+});
+
+test('createDisplay: UAC declined → its own code, distinct from a failure', async () => {
+  const d = deps({ run: { elevatedCode: 1223 }, writeConfig: () => {} });
+  const r = await createSecondScreen(d).createDisplay();
+  assert.equal(r.ok, false);
+  assert.equal(r.code, 'display_create_declined');
 });
 
 test('createDisplay: package files missing → guided code', async () => {

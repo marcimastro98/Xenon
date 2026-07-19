@@ -32,6 +32,9 @@
   animation: live-ripple 2s ease-in-out infinite;
   will-change: transform, opacity; pointer-events: none;
 }
+/* Paused while a frosted overlay covers the dashboard (see backgroundfx.css overlay-frozen). */
+body.overlay-frozen .obs-pill-live .obs-pill-dot::after,
+body.overlay-frozen .obs-pill-rec .obs-pill-dot::after { animation-play-state: paused; }
 .obs-pill-live.on { color: var(--color-danger); background: var(--danger-bg); border: 1px solid rgba(var(--danger-rgb),0.38); }
 .obs-pill-live .obs-pill-dot { background: #e0245e; }
 .obs-pill-rec.on { color: var(--color-warn); background: var(--warning-bg); border: 1px solid rgba(var(--warning-rgb),0.4); }

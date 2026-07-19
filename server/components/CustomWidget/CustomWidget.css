@@ -126,8 +126,12 @@ body.layout-editing .cw-wrap.cw-mounted .cw-frame { pointer-events: none; }
 
 /* ── Permission dialog (solid background — must stay readable at any
       glass transparency, like the preset share/import dialogs) ───── */
+/* Above .preset-modal-overlay (2000). A grant prompt is raised BY those dialogs —
+   an import installing a package asks right after — so anything lower renders
+   behind the modal that triggered it and reads as "the permission dialog didn't
+   appear". Every host-drawn decision below shares this floor for the same reason. */
 .cw-perm-backdrop {
-  position: fixed; inset: 0; z-index: 1200;
+  position: fixed; inset: 0; z-index: 2100;
   display: flex; align-items: center; justify-content: center;
   background: rgba(0,0,0,0.55); padding: 18px;
 }
@@ -190,7 +194,7 @@ body.layout-editing .cw-wrap.cw-mounted .cw-frame { pointer-events: none; }
    language as the permission dialog (shared .cw-btn), so it reads as a Xenon
    decision the user is making, not the widget's own UI. */
 .cw-clip-backdrop {
-  position: fixed; inset: 0; z-index: 1210;
+  position: fixed; inset: 0; z-index: 2110;
   display: flex; align-items: center; justify-content: center;
   background: rgba(0,0,0,0.55); padding: 18px;
 }
@@ -229,6 +233,27 @@ body.layout-editing .cw-wrap.cw-mounted .cw-frame { pointer-events: none; }
   font-size: 0.72rem; font-weight: 600; line-height: 1.4; opacity: 0.7;
 }
 .cw-clip-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+
+.cw-ext-backdrop {
+  position: fixed; inset: 0; z-index: 2110;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.55); padding: 18px;
+}
+
+/* External-open confirmation — reuses the clipboard modal shell. The domain is
+   the decision the user is making, so it is the one thing set at full size;
+   the path sits under it, dimmed and truncated, and can never push it out of
+   view. */
+.cw-ext-preview { align-items: flex-start; }
+.cw-ext-urlbox { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cw-ext-host {
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 0.98rem; font-weight: 800; letter-spacing: 0.01em; overflow-wrap: anywhere;
+}
+.cw-ext-path {
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 0.72rem; font-weight: 600; opacity: 0.62; overflow-wrap: anywhere;
+}
 
 /* ── SDK badge chips — Widget SDK `badge` capability (js/sdk-badges.js) ──
    Small always-on readouts next to the clock, one per granted package (up to a

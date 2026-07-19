@@ -11,6 +11,8 @@
       • bundled/downloaded extras inside the folder: node_modules, PresentMon,
         Xenon Helper, Whisper.cpp, the embedded-browser adblock
       • the Windows edge-swipe policy the installer set (needs admin)
+      • the second-screen virtual display device + its config (needs admin);
+        the driver package itself is shared and asked for separately below
       • leftover %TEMP% files
       • your data (server\data: settings, notes, events, tasks, timers, deck, …)
         unless you pass -KeepData
@@ -214,6 +216,40 @@ Step 'Clearing temp files'
 # 'xenon*' already covers the 'xenonedge-*' sensor dumps — one pass, no duplicates.
 Get-ChildItem -Path $env:TEMP -Filter 'xenon*' -Force -ErrorAction SilentlyContinue |
   ForEach-Object { Remove-PathSafe $_.FullName "temp: $($_.Name)" }
+
+# ── 6b) second-screen virtual display (admin) ────────────────────────────────
+# The device node is Xenon-owned: only our second-screen setup creates it, so it
+# goes by default. It MUST be removed before the winget package below, because
+# devcon.exe lives inside that package. Leaving it behind was what accumulated
+# phantom "VDD by MTT" monitors on machines that had used the feature.
+Step 'Removing the second-screen virtual display'
+$vddNodes = @(Get-PnpDevice -Class Display -ErrorAction SilentlyContinue |
+  Where-Object { $_.FriendlyName -match 'Virtual Display Driver' })
+if (-not $vddNodes) {
+  Info 'no virtual display present'
+} elseif ($DryRun) {
+  Info "$tag would remove the virtual display device (devcon remove Root\MttVDD)"
+} elseif (-not $isAdmin) {
+  Warn 'skipped the virtual display (needs admin) — run UNINSTALL.bat to include it'
+} else {
+  $vddPkg = Get-ChildItem (Join-Path $localAppData 'Microsoft\WinGet\Packages') -Directory -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -like 'VirtualDrivers.Virtual-Display-Driver_*' } | Select-Object -First 1
+  $devcon = if ($vddPkg) { Join-Path $vddPkg.FullName 'Dependencies\devcon.exe' } else { $null }
+  if (-not $devcon -or -not (Test-Path -LiteralPath $devcon)) {
+    Warn 'devcon.exe not found — remove "Virtual Display Driver" from Device Manager by hand'
+  } else {
+    & $devcon remove 'Root\MttVDD' 2>$null | Out-Null
+    # devcon: 0 = removed, 1 = removed but a reboot is needed. Anything else failed.
+    if ($LASTEXITCODE -eq 0 -or $LASTEXITCODE -eq 1) {
+      Ok 'removed the virtual display device'
+      if ($LASTEXITCODE -eq 1) { Info 'a restart will finish clearing it' }
+      # Only ours to delete once the device is gone; the driver reads it at start-up.
+      Remove-PathSafe 'C:\VirtualDisplayDriver' 'virtual display config (C:\VirtualDisplayDriver)'
+    } else {
+      Warn "devcon exited $LASTEXITCODE — remove the virtual display from Device Manager by hand"
+    }
+  }
+}
 
 # ── 7) shared / system packages (ask or -RemoveShared) ───────────────────────
 Step 'Shared system packages (installed via winget)'

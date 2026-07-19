@@ -34,6 +34,14 @@
   scroll-snap-align: start;
   scroll-snap-stop: always;
 }
+/* Parked = active but not the current page (set by dashboard-pager.js once a
+   scroll settles, dropped the instant scrolling starts). Skips rendering of the
+   whole off-screen subtree — SDK widget iframes included, whose rAF/animations
+   the browser then stops. The page's own box is explicitly sized (flex-basis +
+   height 100%), so offsetLeft and scroll-snap geometry are unaffected. */
+.pager-page.is-parked { content-visibility: hidden; }
+/* Layout mode measures and mutates every page's grid — never park while editing. */
+body.layout-editing .pager-page.is-parked { content-visibility: visible; }
 
 /* Dot indicators. Sit in the topbar's actions; keep touch targets comfortable. */
 .pager-dots {

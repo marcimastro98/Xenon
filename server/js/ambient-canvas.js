@@ -36,7 +36,18 @@
   function isOpen() { const o = overlayEl(); return !!(o && !o.hidden); }
   function sdkEnabled() {
     const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings.sdkWidgets : null;
+    // Safe mode pauses third-party code everywhere, canvas scenes included —
+    // this mirrors ambient-mode.js's gate so a refresh under safe mode swaps
+    // SDK components for placeholders instead of remounting live frames.
+    if (typeof hubSettings === 'object' && hubSettings && hubSettings.safeMode === true) return false;
     return !!(hs && hs.enabled);
+  }
+  // Per-package pause (Store → Installed → Sospendi) covers canvas-embedded
+  // frames too; without this a suspended package kept running fullscreen.
+  function pkgSuspended(pkgId) {
+    const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings.sdkWidgets : null;
+    const s = (hs && Array.isArray(hs.suspended)) ? hs.suspended : [];
+    return typeof pkgId === 'string' && s.includes(pkgId);
   }
 
   // ── background ──────────────────────────────────────────────────────────
@@ -319,11 +330,13 @@
         const granted = pkg && CustomWidget.packageGranted && CustomWidget.packageGranted(pkg);
         // A static preview (import thumbnail) never mounts a live frame — it would
         // register a canvas frame the throwaway preview DOM can't clean up.
-        if ((opts && opts.noSdkFrame) || !sdkEnabled() || !pkg || !granted) {
+        if ((opts && opts.noSdkFrame) || !sdkEnabled() || !pkg || !granted || pkgSuspended(pkg.id)) {
           const ph = body.appendChild(el('div', 'ac-sdk-missing'));
           ph.textContent = !sdkEnabled()
             ? tt('ambient_sdk_off', 'Community widgets are turned off')
-            : tt('ambient_sdk_widget_unavailable', 'Widget unavailable');
+            : (pkg && pkgSuspended(pkg.id))
+              ? tt('cw_suspended', 'Widget paused')
+              : tt('ambient_sdk_widget_unavailable', 'Widget unavailable');
           return;
         }
         const frame = document.createElement('iframe');

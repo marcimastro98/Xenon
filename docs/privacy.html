@@ -267,7 +267,7 @@
           </tr>
           <tr>
             <td>Anonymous version ping<br><span style="color:var(--dim)">supporter hub</span></td>
-            <td><strong>Off by default</strong> — only if you switch it on</td>
+            <td><strong>On by default on installs from v4.8.0</strong>; off on earlier installs unless you switched it on</td>
             <td>See the section below.</td>
           </tr>
         </tbody>
@@ -280,12 +280,12 @@
       The app makes that choice yours, and never sends anything to a cloud model you did not select.
     </p>
 
-    <h2>The optional version ping</h2>
+    <h2>The version ping</h2>
     <p>
       I have no idea how many people actually run Xenon. Download counts are noise, and I would rather
       know whether people are stuck on an old release than guess. So there is a switch in
-      <strong>Settings → General → Updates</strong>, <strong>off unless you turn it on</strong>, that
-      adds two fields to the update check the app already makes:
+      <strong>Settings → General → Updates</strong> that adds two fields to the update check the app
+      already makes:
     </p>
     <ul>
       <li>the version you are running (e.g. <code>4.6.1</code>);</li>
@@ -303,6 +303,20 @@
       and is then discarded. No per-request rows are kept, so there is no dataset that could be handed
       over, subpoenaed or leaked. The result I can see is a chart of how many installs run which version
       per day — never who.
+    </p>
+    <h3>What changed in v4.8.0, and who it affects</h3>
+    <p>
+      Up to v4.7.1 this switch was off until you turned it on. From <strong>v4.8.0 it is on by default
+      on new installs</strong>, because almost nobody turns a switch like this on and the count was
+      therefore useless. You can turn it off at any time in Settings, and turning it off takes effect
+      immediately.
+    </p>
+    <p>
+      <strong>If you already had Xenon installed, nothing changed for you.</strong> The new default is
+      read only when there is no settings file yet, which means a fresh install. If you installed before
+      v4.8.0 and left the switch alone, it stays off — you were told it was off unless you chose
+      otherwise, and an update is not a place to quietly revisit that. If you had turned it on, it stays
+      on. Either way the app keeps whatever your settings already say.
     </p>
 
     <h2>Your rights</h2>

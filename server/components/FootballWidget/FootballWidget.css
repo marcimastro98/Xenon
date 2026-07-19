@@ -91,6 +91,8 @@
 /* live badge */
 .fw-live { display: inline-flex; align-items: center; gap: 5px; color: var(--xe-stock-down, #ff5b6a); font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; }
 .fw-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--xe-stock-down, #ff5b6a); box-shadow: 0 0 7px var(--xe-stock-down, #ff5b6a); animation: fw-pulse 1.4s ease-in-out infinite; will-change: opacity, transform; }
+/* Paused while a frosted overlay covers the dashboard (see backgroundfx.css overlay-frozen). */
+body.overlay-frozen .fw-live-dot { animation-play-state: paused; }
 @keyframes fw-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.72); } }
 .fw-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; opacity: 0.6; }
 .fw-badge--pp { color: var(--xe-stock-down); opacity: 0.85; }

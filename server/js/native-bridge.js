@@ -784,9 +784,14 @@
   window.NativeGpuPause = {
     isLowPowerGpu,
     setEnabled(on) {
-      const next = on !== false;
-      if (next === lowPowerGpuAllowed) return;
-      lowPowerGpuAllowed = next;
+      lowPowerGpuAllowed = on !== false;
+      // Re-assert the class on every apply, not only when the preference itself
+      // moved. This is the ONLY thing that freezes the animated background on
+      // this hardware, and the previous early return made the freeze
+      // unrecoverable for the rest of the session: once anything else dropped
+      // the class from body, every later settings apply carried the same value,
+      // returned early, and never put it back — a reload was the only way out.
+      // classList.toggle is idempotent, so re-asserting costs nothing.
       applyLowPowerGpuClass();
     },
   };

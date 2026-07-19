@@ -369,3 +369,48 @@ test('run volume/appVolume set: an EMPTY value rejects loud instead of coercing 
   assert.deepEqual(await r.run({ type: 'appVolume', app: 'x.exe', mode: 'set', value: '  ' }), { ok: false, error: 'bad_value' });
   assert.equal(calls.length, 0);
 });
+
+// ── Claude Code keys ─────────────────────────────────────────────────────────
+
+test('claudeAsk passes the key config to the runner and reports its refusal', async () => {
+  const seen = [];
+  const deps = { claudeRun: (o) => { seen.push(o); return Promise.resolve({ ok: true }); } };
+  const r = reg.createRegistry(deps);
+  assert.deepEqual(await r.run({ type: 'claudeAsk', projectId: 'p1', prompt: 'run the tests', model: 'opus' }), { ok: true });
+  assert.deepEqual(seen[0], { projectId: 'p1', prompt: 'run the tests', model: 'opus' });
+
+  // The runner is the authority on whether the project still exists; the key
+  // must surface that refusal rather than swallow it.
+  const no = reg.createRegistry({ claudeRun: () => Promise.resolve({ ok: false, error: 'unknown_project' }) });
+  assert.deepEqual(await no.run({ type: 'claudeAsk', projectId: 'gone', prompt: 'hi' }), { ok: false, error: 'unknown_project' });
+});
+
+test('claudeAsk refuses an empty prompt and a missing runner', async () => {
+  const r = reg.createRegistry({ claudeRun: () => Promise.resolve({ ok: true }) });
+  assert.deepEqual(await r.run({ type: 'claudeAsk', projectId: 'p1', prompt: '   ' }), { ok: false, error: 'empty_prompt' });
+  const bare = reg.createRegistry({});
+  assert.deepEqual(await bare.run({ type: 'claudeAsk', projectId: 'p1', prompt: 'x' }), { ok: false, error: 'claude_unavailable' });
+});
+
+test('claudeStop reports honestly when there was nothing to stop', async () => {
+  assert.deepEqual(await reg.createRegistry({ claudeStop: () => true }).run({ type: 'claudeStop' }), { ok: true });
+  assert.deepEqual(await reg.createRegistry({ claudeStop: () => false }).run({ type: 'claudeStop' }),
+    { ok: false, error: 'nothing_running' });
+  assert.deepEqual(await reg.createRegistry({}).run({ type: 'claudeStop' }), { ok: false, error: 'claude_unavailable' });
+});
+
+test('a Claude key can never carry a folder path, only a project id', async () => {
+  const seen = [];
+  const r = reg.createRegistry({ claudeRun: (o) => { seen.push(o); return Promise.resolve({ ok: true }); } });
+  // Extra fields a hand-edited or imported key might smuggle in are dropped by
+  // the shared validator before the registry ever sees them.
+  await r.run({ type: 'claudeAsk', projectId: 'p1', prompt: 'x', cwd: 'C:/Windows', path: 'C:/secrets' });
+  assert.equal('cwd' in seen[0], false);
+  assert.equal('path' in seen[0], false);
+});
+
+test('there is no Deck action that answers a pending permission', () => {
+  const { ACTION_CATALOG } = require('../js/deck-actions.js');
+  const claude = ACTION_CATALOG.filter(a => a.group === 'claude').map(a => a.type);
+  assert.deepEqual(claude.sort(), ['claudeAsk', 'claudeStop']);
+});

@@ -52,6 +52,8 @@
   animation: live-ripple 2s ease-in-out infinite;
   will-change: transform, opacity; pointer-events: none;
 }
+/* Paused while a frosted overlay covers the dashboard (see backgroundfx.css overlay-frozen). */
+body.overlay-frozen .dc-pill.in-voice .dc-pill-dot::after { animation-play-state: paused; }
 
 /* "Account not linked" call-to-action — opens Settings → Streaming. */
 .dc-notice {

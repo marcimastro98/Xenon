@@ -24,6 +24,13 @@ const os = require('node:os');
 const defaultRunner = require('./remote-control/runner');
 const { createInstaller } = require('./remote-control/installer');
 
+// devcon usa exit code propri: 0 = fatto, 1 = fatto ma serve un riavvio, 2 =
+// fallito, 3 = errore di sintassi. `runElevated` riporta l'exit code reale del
+// processo elevato, quindi 1 va letto come successo o il setup segnalerebbe un
+// errore proprio quando ha funzionato.
+const DEVCON_OK = new Set([0, 1]);
+const devconOk = (r) => !!(r && DEVCON_OK.has(r.code));
+
 const VDD_HWID = 'Root\\MttVDD';
 const CONFIG_DIR = 'C:\\VirtualDisplayDriver';
 const CONFIG_PATH = path.join(CONFIG_DIR, 'vdd_settings.xml');
@@ -171,9 +178,16 @@ function createSecondScreen({
       return { ok: false, action: 'manual', code: 'winget_missing' };
     }
     const r = await inst.install('vdd');
-    return (r && r.code === 0)
-      ? { ok: true, action: 'next', code: 'vdd_installed', raw: r }
-      : { ok: false, action: 'retry', code: 'vdd_install_failed', raw: r };
+    if (r && r.code === defaultRunner.UAC_CANCELLED) {
+      return { ok: false, action: 'retry', code: 'vdd_install_declined', raw: r };
+    }
+    // L'exit code di winget e' solo un indizio (restituisce non-zero anche per
+    // "gia' installato" o "serve un riavvio"): la verita' e' se il pacchetto ora
+    // c'e'. Ricontrolliamo lo stato invece di dichiarare un fallimento falso.
+    if (await inst.isInstalled('vdd')) {
+      return { ok: true, action: 'next', code: 'vdd_installed', raw: r };
+    }
+    return { ok: false, action: 'retry', code: 'vdd_install_failed', raw: r };
   }
 
   // Create (or re-apply the config of) THE virtual display: write the config,
@@ -198,7 +212,10 @@ function createSecondScreen({
     // Clear any/all existing instances first (no-op if none) so we never stack.
     await runner.runElevated(devcon, ['remove', VDD_HWID]);
     const r = await runner.runElevated(devcon, ['install', inf, VDD_HWID]);
-    if (!(r && r.code === 0)) return { ok: false, action: 'retry', code: 'display_create_failed', raw: r };
+    if (r && r.code === defaultRunner.UAC_CANCELLED) {
+      return { ok: false, action: 'retry', code: 'display_create_declined', raw: r };
+    }
+    if (!devconOk(r)) return { ok: false, action: 'retry', code: 'display_create_failed', raw: r };
     // A fresh device node may not be enumerated yet; if so a reboot resolves it —
     // surface that rather than appearing broken.
     const active = await isDisplayActive();
@@ -213,7 +230,7 @@ function createSecondScreen({
     if (!dir) return { ok: false, code: 'vdd_files_missing' };
     const devcon = path.join(dir, 'Dependencies', 'devcon.exe');
     const r = await runner.runElevated(devcon, ['remove', VDD_HWID]);
-    return { ok: !!(r && r.code === 0), raw: r };
+    return { ok: devconOk(r), raw: r };
   }
 
   return { requirements, installDriver, createDisplay, removeDisplay, buildConfigXml };

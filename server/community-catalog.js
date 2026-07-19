@@ -151,6 +151,10 @@ function normalizeEntry(raw) {
   // in-app update check). Only meaningful for code-carrying kinds.
   const pkgId = cleanStr(raw.pkgId, 41);
   if ((kind === 'widget' || kind === 'ambient') && PKG_ID_RE.test(pkgId)) entry.pkgId = pkgId;
+  // Performance note stamped by the hub's audit at approve time (admin can
+  // override). Boolean-true-only, like the other v2 flags — the gallery shows a
+  // "may use more resources" chip and the import dialog repeats it.
+  if (raw.perfWarning === true) entry.perfWarning = true;
   const category = cleanStr(raw.category, 20);
   if (CATALOG_CATEGORIES.has(category)) entry.category = category;
   if (Array.isArray(raw.tags)) {

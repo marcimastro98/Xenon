@@ -1357,6 +1357,7 @@ function openTileStyleEditor(id, anchor) {
     const span = mk('span', 'tile-style-label'); span.textContent = tt(labelKey, fb);
     const color = mk('input'); color.type = 'color';
     color.value = work[field] || seed || '#1ed760'; color.disabled = !work[field];
+    if (window.ColorPicker) window.ColorPicker.bind(color);
     chk.addEventListener('change', () => { work[field] = chk.checked ? color.value : ''; color.disabled = !chk.checked; commit(); });
     color.addEventListener('input', () => { work[field] = color.value; commit(); });
     row.append(chk, span, color);
@@ -1371,6 +1372,7 @@ function openTileStyleEditor(id, anchor) {
     const span = mk('span', 'tile-style-label'); span.textContent = tt(labelKey, fb);
     const c1 = mk('input'); c1.type = 'color'; c1.className = 'tile-style-grad-sw'; c1.value = gradObj.c1 || seed1 || '#1ed760';
     const c2 = mk('input'); c2.type = 'color'; c2.className = 'tile-style-grad-sw'; c2.value = gradObj.c2 || seed2 || '#101216';
+    if (window.ColorPicker) { window.ColorPicker.bind(c1); window.ColorPicker.bind(c2); }
     const angle = mk('input'); angle.type = 'range'; angle.className = 'tile-style-grad-angle';
     angle.min = '0'; angle.max = '360'; angle.step = '5'; angle.value = String(gradObj.angle || 135);
     angle.title = tt('decor_gradient_angle', 'Gradient angle');
@@ -1660,6 +1662,18 @@ function openTileStyleEditor(id, anchor) {
 
   overlay.appendChild(pop);
   document.body.appendChild(overlay);
+  // Upgrade the native <select>s to the shared custom dropdown. A native select
+  // opens an OS-level list Xenon cannot place, so near the bottom of the Edge it
+  // drops off-screen; the custom panel is anchored, clamped to the viewport and
+  // flips up when there is no room below. data-cs-fixed because this panel
+  // scrolls, which would clip an absolutely-positioned list.
+  if (typeof window.initCustomSelect === 'function') {
+    pop.querySelectorAll('select').forEach((s) => {
+      if (s.dataset.csInit) return;
+      s.setAttribute('data-cs-fixed', '');
+      window.initCustomSelect(s);
+    });
+  }
   _tileStyleOverlay = overlay;
 }
 if (typeof window !== 'undefined') {

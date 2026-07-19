@@ -44,6 +44,17 @@
     return allPageIds.filter(p => used.has(p));
   }
 
+  // Indices of active pages other than the current one — the pages that can be
+  // render-parked (content-visibility) once a scroll settles. Pure, so testable.
+  function computeParkedIndices(pagesList, current) {
+    const out = [];
+    if (!Array.isArray(pagesList)) return out;
+    pagesList.forEach((p, i) => {
+      if (p && p.active !== false && i !== current) out.push(i);
+    });
+    return out;
+  }
+
   const pages = [];        // { id, label, element, onEnter, onLeave }
   let viewport = null;     // the scroll-snap container
   let dotsHost = null;     // element that holds the dot buttons
@@ -53,6 +64,39 @@
 
   function getCurrentPage() {
     return pages[currentIndex] ? pages[currentIndex].id : null;
+  }
+
+  // ── Render parking ─────────────────────────────────────────────────────────
+  // Non-current pages stay mounted (see isOnCurrentPage below) but, once a
+  // scroll settles, get `content-visibility: hidden` via .is-parked so the
+  // browser skips painting/compositing their whole subtree — including SDK
+  // widget iframes, whose rAF and CSS animations stop for free. Parking is
+  // dropped the instant any scroll starts, so partially-visible pages always
+  // render during a swipe; it never applies while editing (GridStack measures
+  // every page there — belt and braces with the CSS override).
+  function parkInactivePages() {
+    if (typeof document === 'undefined' || document.body.classList.contains('layout-editing')) return;
+    const parked = new Set(computeParkedIndices(pages, currentIndex));
+    pages.forEach((p, i) => {
+      if (p.element) p.element.classList.toggle('is-parked', parked.has(i));
+    });
+  }
+
+  function unparkAll() {
+    pages.forEach(p => { if (p.element) p.element.classList.remove('is-parked'); });
+  }
+
+  // Park once things settle WITHOUT a scroll: boot and page-set rebuilds land on
+  // their target via scrollTo with no position change, so no scroll event (and
+  // thus no settle-callback park) ever fires — an idle Edge that boots to page 1
+  // and sits there for hours got zero parking, the feature's headline scenario.
+  // A short delay lets the initial layout/grid fit measure fully rendered pages;
+  // any real scroll meanwhile unparks first and re-parks on its own settle.
+  let parkSettleTimer = null;
+  function scheduleParkSettle() {
+    if (typeof setTimeout !== 'function') return;
+    clearTimeout(parkSettleTimer);
+    parkSettleTimer = setTimeout(() => { parkSettleTimer = null; parkInactivePages(); }, 1000);
   }
 
   // True when `el` is on the page the user is actually looking at. The pager
@@ -184,6 +228,7 @@
   function goToPage(id) {
     const page = pages.find(p => p.id === id);
     if (!page || page.active === false || !viewport || !page.element) return;
+    unparkAll();   // render the target during the smooth scroll; settle re-parks
     viewport.scrollTo({ left: page.element.offsetLeft, behavior: 'smooth' });
     setCurrentIndex(pages.indexOf(page));
   }
@@ -207,7 +252,9 @@
       const firstActive = pages.findIndex(p => p.active);
       if (firstActive >= 0) {
         currentIndex = firstActive;
+        unparkAll();
         if (viewport && pages[firstActive].element) viewport.scrollTo({ left: pages[firstActive].element.offsetLeft });
+        scheduleParkSettle();   // covers a same-offset jump that fires no scroll event
       }
     }
     renderDots();
@@ -232,9 +279,17 @@
   function bindEvents() {
     // Reconcile current page after a scroll settles (covers swipe + drag).
     viewport.addEventListener('scroll', () => {
+      // Unpark FIRST: the scroll event fires the instant a swipe/smooth-scroll
+      // starts, so the page coming into view renders while it slides in. Also
+      // cancel a pending boot/rebuild park — it must never land mid-swipe.
+      unparkAll();
+      clearTimeout(parkSettleTimer);
       clearTimeout(scrollSettleTimer);
       scrollSettleTimer = setTimeout(() => {
         setCurrentIndex(nearestActiveIndex());
+        // Park AFTER setCurrentIndex: the xenon:page-change replay (custom-widget)
+        // runs with everything unparked, so returning frames have real boxes.
+        parkInactivePages();
         // Minimal-topbar mode tags only the VISIBLE page's tiles with the
         // floating-island clearance (the overlap test is viewport-relative), so
         // a freshly-scrolled-to page has no clearance until we re-run it here —
@@ -290,6 +345,7 @@
     refreshSwipe();
     setCurrentIndex(0);
     renderDots();
+    scheduleParkSettle();
   }
 
   // Replace the registered pages wholesale (used when the user adds/removes/
@@ -303,9 +359,11 @@
     const idx = prevId ? pages.findIndex(p => p.id === prevId) : -1;
     currentIndex = idx >= 0 ? idx : 0;
     renderDots();
+    unparkAll();   // fresh page set: never carry a stale .is-parked over
     if (viewport && pages[currentIndex] && pages[currentIndex].element) {
       viewport.scrollTo({ left: pages[currentIndex].element.offsetLeft });
     }
+    scheduleParkSettle();   // re-park even when the scrollTo lands on the same offset
   }
 
   if (typeof window !== 'undefined') {
@@ -316,6 +374,6 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { clampPageIndex, resolvePageId, shouldPageOnWheel, computeActivePages };
+    module.exports = { clampPageIndex, resolvePageId, shouldPageOnWheel, computeActivePages, computeParkedIndices };
   }
 })();

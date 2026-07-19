@@ -1546,6 +1546,7 @@
       const chk = el('input'); chk.type = 'checkbox'; chk.className = 'deck-decor-gradchk'; chk.checked = !!(g.c1 && g.c2);
       const c1 = el('input'); c1.type = 'color'; c1.className = 'deck-decor-swatch'; c1.value = g.c1 || '#1ed760';
       const c2 = el('input'); c2.type = 'color'; c2.className = 'deck-decor-swatch'; c2.value = g.c2 || '#101216';
+      if (window.ColorPicker) { window.ColorPicker.bind(c1); window.ColorPicker.bind(c2); }
       const setDisabled = () => { c1.disabled = c2.disabled = !chk.checked; };
       setDisabled();
       const gradOf = () => chk.checked ? { c1: c1.value, c2: c2.value, angle: (getGrad() || {}).angle || 135 } : null;
@@ -1642,6 +1643,7 @@
     const acc = el('input'); acc.type = 'color'; acc.className = 'deck-decor-swatch';
     acc.value = (cfg0.mediaStyle && cfg0.mediaStyle.accent) || '#1ed760';
     acc.disabled = !accChk.checked;
+    if (window.ColorPicker) window.ColorPicker.bind(acc);
     const syncAcc = (persist) => {
       acc.disabled = !accChk.checked;
       const cur = getLook();

@@ -337,6 +337,16 @@ body.xe-has-ticker.xe-ticker-bottom .vpet { bottom: 52px; }
 .clock-bit[data-mood="angry"] .cb-sprite { animation: vpet-shake 0.55s steps(2) infinite; }
 .clock-bit[data-mood="ghost"] .cb-sprite { animation: vpet-float 3.4s ease-in-out infinite; opacity: 0.92; }
 .clock-bit[data-mood="sleep"] .cb-sprite { animation: vpet-sleep 4.6s ease-in-out infinite; }
+/* Frosted overlay open: pause the pet's INFINITE loops only — one-shot moves
+   (glitch, go-in, chip pops) must finish or they'd freeze mid-frame. The 700ms
+   JS sprite flipper is gated on the same class in vitals-pet.js.
+   (See the overlay-frozen block in styles/backgroundfx.css.) */
+body.overlay-frozen .vpet-sprite,
+body.overlay-frozen .vpet[data-mood="sleep"]::after,
+body.overlay-frozen .clock-bit[data-mood="sleep"]::after,
+body.overlay-frozen .vpet-go-title,
+body.overlay-frozen .vpet-go-coin,
+body.overlay-frozen .cb-sprite { animation-play-state: paused; }
 
 /* Compact bubble under the chip — used when the floating pet is off. */
 .vpet-chip-bubble {

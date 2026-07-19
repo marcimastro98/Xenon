@@ -163,6 +163,11 @@
              few at once). Populated by js/sdk-badges.js; lives inside .clock for
              the same free minimal-topbar reparenting as clock-vitals above. -->
         <span class="clock-sdkbadges" id="clock-sdkbadges" hidden></span>
+        <!-- Claude Code marker: shows while a session is working and lights up
+             when one finishes answering. Populated by js/claude-widget.js; lives
+             inside .clock for the same free minimal-topbar reparenting as the
+             two above, so it is present in both the full and minimal bars. -->
+        <span class="clock-claude" id="clock-claude" hidden></span>
       </div>
     </div>
 
@@ -2021,25 +2026,48 @@
           <span data-i18n="settings_cat_slideshow">Slideshow</span>
           <span class="settings-hint" data-i18n="settings_slideshow_hint">Le tue immagini o GIF che scorrono in un riquadro della dashboard. Aggiungi il widget “Slideshow” dal pulsante “+”.</span>
         </div>
-        <div class="settings-row full">
-          <span class="settings-label-line"><span data-i18n="settings_slideshow_images">Immagini</span><span class="slideshow-count" id="settings-slideshow-count"></span></span>
-          <div class="slideshow-assets" id="settings-slideshow-assets"></div>
-          <button type="button" class="settings-btn subtle" onclick="document.getElementById('settings-slideshow-file').click()" data-i18n="settings_slideshow_add">+ Aggiungi immagini</button>
-          <input type="file" id="settings-slideshow-file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onchange="addSlideshowImages(this)">
-          <span class="settings-hint" data-i18n="settings_slideshow_images_hint">PNG, JPEG, WebP o GIF (le GIF restano animate). Riordina con le frecce, rimuovi con ✕.</span>
+        <div class="settings-grid">
+          <label class="settings-row full">
+            <span class="settings-label-line"><span data-i18n="settings_slideshow_source">Da dove prendere le immagini</span></span>
+            <select id="settings-slideshow-source" data-custom-select data-cs-fixed onchange="updateSlideshowCfg({ source: this.value })">
+              <option value="library" data-i18n="settings_slideshow_source_library">Immagini aggiunte qui</option>
+              <option value="folder" data-i18n="settings_slideshow_source_folder">Una cartella su questo PC</option>
+            </select>
+          </label>
+          <div class="settings-row full" id="settings-slideshow-library">
+            <span class="settings-label-line"><span data-i18n="settings_slideshow_images">Immagini</span><span class="slideshow-count" id="settings-slideshow-count"></span></span>
+            <div class="slideshow-assets" id="settings-slideshow-assets"></div>
+            <button type="button" class="settings-btn subtle" onclick="document.getElementById('settings-slideshow-file').click()" data-i18n="settings_slideshow_add">+ Aggiungi immagini</button>
+            <input type="file" id="settings-slideshow-file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden onchange="addSlideshowImages(this)">
+            <span class="settings-hint" data-i18n="settings_slideshow_images_hint">PNG, JPEG, WebP o GIF (le GIF restano animate). Riordina con le frecce, rimuovi con ✕.</span>
+          </div>
+          <div class="settings-row full" id="settings-slideshow-folderblock" hidden>
+            <span class="settings-label-line"><span data-i18n="settings_slideshow_folder">Cartella</span></span>
+            <input class="settings-text-input" type="text" id="settings-slideshow-folder" spellcheck="false" placeholder="C:\Users\nome\Pictures\GIF" onchange="updateSlideshowFolder(this.value)">
+            <span class="settings-hint" id="settings-slideshow-folder-status"></span>
+            <span class="settings-hint" data-i18n="settings_slideshow_folder_hint">Incolla il percorso della cartella. Xenon mostra le immagini che ci sono dentro senza copiarle, quindi non c'è un limite al numero, e quello che aggiungi nella cartella compare da solo. Le sottocartelle non vengono lette.</span>
+          </div>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_slideshow_interval">Durata per immagine (secondi)</span></span>
+            <input type="number" id="settings-slideshow-interval" min="2" max="120" step="1" inputmode="numeric" onchange="updateSlideshowCfg({ intervalMs: Math.round(Number(this.value)) * 1000 })">
+          </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_slideshow_fit">Adattamento</span></span>
+            <select id="settings-slideshow-fit" data-custom-select data-cs-fixed onchange="updateSlideshowCfg({ fit: this.value })">
+              <option value="cover" data-i18n="settings_slideshow_fit_cover">Riempi il riquadro</option>
+              <option value="contain" data-i18n="settings_slideshow_fit_contain">Mostra intera</option>
+            </select>
+          </label>
         </div>
-        <label class="settings-row full">
-          <span class="settings-label-line"><span data-i18n="settings_slideshow_interval">Durata per immagine (secondi)</span></span>
-          <input type="number" id="settings-slideshow-interval" min="2" max="120" step="1" inputmode="numeric" onchange="updateSlideshowCfg({ intervalMs: Math.round(Number(this.value)) * 1000 })">
+        <label class="settings-toggle-row full">
+          <input class="settings-check" id="settings-slideshow-shuffle" type="checkbox" onchange="updateSlideshowCfg({ shuffle: this.checked })">
+          <span class="settings-label-line"><span data-i18n="settings_slideshow_shuffle">Ordine casuale</span><span class="settings-hint" data-i18n="settings_slideshow_shuffle_hint">mescola le immagini invece di mostrarle in ordine</span></span>
         </label>
-        <label class="settings-row full">
-          <span class="settings-label-line"><span data-i18n="settings_slideshow_fit">Adattamento</span></span>
-          <select id="settings-slideshow-fit" onchange="updateSlideshowCfg({ fit: this.value })">
-            <option value="cover" data-i18n="settings_slideshow_fit_cover">Riempi il riquadro</option>
-            <option value="contain" data-i18n="settings_slideshow_fit_contain">Mostra intera</option>
-          </select>
+        <label class="settings-toggle-row full">
+          <input class="settings-check" id="settings-slideshow-pause-game" type="checkbox" onchange="updateSlideshowCfg({ pauseGame: this.checked })">
+          <span class="settings-label-line"><span data-i18n="settings_slideshow_pause_game">Ferma le GIF durante i giochi</span><span class="settings-hint" data-i18n="settings_slideshow_pause_game_hint">mentre sono attive la modalità gioco o quella prestazioni</span></span>
         </label>
-        <p class="settings-note" data-i18n="settings_slideshow_note">Le immagini sono salvate nelle impostazioni e incluse nel backup. Tocca l'immagine nel widget per mettere in pausa; usa le frecce per scorrere a mano.</p>
+        <p class="settings-note" data-i18n="settings_slideshow_note">Le immagini sono salvate come file su questo PC. Tocca l'immagine nel widget per mettere in pausa; usa le frecce per scorrere a mano.</p>
       </div>
 
       <div class="settings-group settings-display-group" data-settings-cat="display">
@@ -2621,6 +2649,13 @@
               </span>
             </label>
             <p class="settings-note settings-safenote" data-i18n="settings_sdk_note">Un widget non può toccare il server, i tuoi file o le impostazioni: gira in una sandbox isolata, senza accesso a internet, e può solo vedere i dati che approvi ed eseguire le azioni che consenti (tasti media, volume, mute microfono, luci, apri link) — ognuna ricontrollata dal server. Ogni pacchetto ti chiede i permessi prima di comparire.</p>
+            <label class="settings-toggle-row">
+              <input class="settings-check" id="settings-safe-mode" type="checkbox" onchange="setSafeMode(this.checked)">
+              <span class="settings-label-line">
+                <span data-i18n="settings_safe_mode">Modalità sicura</span>
+                <span class="settings-hint" data-i18n="settings_safe_mode_hint">mette in pausa widget di terze parti, tema personalizzato e sfondi importati e torna all'aspetto di fabbrica. Non disinstalla niente: togli la spunta e tutto torna come prima. Utile per capire se un contenuto installato causa problemi</span>
+              </span>
+            </label>
             <div class="settings-share-buttons">
               <button type="button" class="settings-btn" onclick="if(window.CommunityGallery)CommunityGallery.open('__installed')" data-i18n="settings_sdk_manage">Gestisci gli installati…</button>
             </div>
@@ -2771,7 +2806,7 @@
             <!-- Model selector -->
             <label class="settings-row full">
               <span class="settings-label-line"><span data-i18n="ai_model_label">Modello</span></span>
-              <select class="settings-text-input" id="ai-model-select">
+              <select class="settings-text-input" id="ai-model-select" data-custom-select data-cs-fixed>
                 <option value="auto" data-i18n="ai_model_auto">Auto (consigliato)</option>
                 <option value="qwen2.5:3b" data-i18n="ai_model_light">Leggero</option>
                 <option value="qwen2.5:7b" data-i18n="ai_model_balanced">Bilanciato</option>
@@ -2827,7 +2862,7 @@
             </label>
             <label class="settings-row full">
               <span class="settings-label-line"><span data-i18n="settings_openai_model">Modello</span><span class="settings-hint" data-i18n="settings_model_live_hint">i più recenti dal tuo account</span></span>
-              <select class="settings-text-input" id="settings-openai-model" onchange="onOpenaiModelSelect(this.value)"></select>
+              <select class="settings-text-input" id="settings-openai-model" data-custom-select data-cs-fixed onchange="onOpenaiModelSelect(this.value)"></select>
               <input class="settings-text-input" id="settings-openai-model-custom" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="gpt-4o" oninput="updateOpenaiModel(this.value)" hidden>
             </label>
           </div>
@@ -2841,7 +2876,7 @@
             </label>
             <label class="settings-row full">
               <span class="settings-label-line"><span data-i18n="settings_anthropic_model">Modello</span><span class="settings-hint" data-i18n="settings_model_live_hint">i più recenti dal tuo account</span></span>
-              <select class="settings-text-input" id="settings-anthropic-model" onchange="onAnthropicModelSelect(this.value)"></select>
+              <select class="settings-text-input" id="settings-anthropic-model" data-custom-select data-cs-fixed onchange="onAnthropicModelSelect(this.value)"></select>
               <input class="settings-text-input" id="settings-anthropic-model-custom" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="claude-sonnet-5" oninput="updateAnthropicModel(this.value)" hidden>
             </label>
           </div>
@@ -3449,6 +3484,7 @@
 <script src="js/vitals-pet-core.js"></script>
 <script src="js/vitals-pet.js"></script>
 <script src="js/ticker.js"></script>
+<script src="js/sdk-perf.js"></script>
 <script src="js/custom-widget.js"></script>
 <script src="js/spotify-widget.js"></script>
 <script src="js/browser-tile.js"></script>

@@ -168,7 +168,24 @@
 
   // Restore the monitor's factory defaults, then re-render so the sliders snap to
   // the values the panel actually applied.
+  //
+  // Confirmed first: this writes to the MONITOR (MCCS `0x04`), not to Xenon, and
+  // the button sits in a settings panel where "factory defaults" reads like it
+  // resets the app. One stray tap on a touchscreen should not reach the panel's
+  // firmware. Uses the in-app prompt (native confirm() is clumsy on the Edge);
+  // if it is unavailable the reset still runs, since a missing dialog must not
+  // silently break the feature.
   async function resetDisplay(key, btn) {
+    if (typeof settingsPrompt === 'function') {
+      const mon = monitors.find(m => m.key === key);
+      const ok = await settingsPrompt({
+        type: 'confirm',
+        title: tr('settings_display_reset'),
+        message: [mon && mon.name, tr('settings_display_reset_confirm')].filter(Boolean).join(': '),
+        okLabel: tr('settings_display_reset'),
+      });
+      if (!ok) return;
+    }
     if (btn) btn.disabled = true;
     try {
       const res = await fetch('/display/reset', {

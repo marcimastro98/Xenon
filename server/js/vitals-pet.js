@@ -285,6 +285,9 @@
     // sits idle (ambient-idle pauses every decorative loop) or when the user
     // asked for reduced motion.
     if (document.body.classList.contains('ambient-idle')) return;
+    // Frosted overlay open: the sprite is invisible under the blur, but every
+    // innerHTML swap would still force a re-blur of the overlay above it.
+    if (document.body.classList.contains('overlay-frozen')) return;
     if (reducedMotion && reducedMotion.matches) return;
     frameAlt = !frameAlt;
     paintSprites();

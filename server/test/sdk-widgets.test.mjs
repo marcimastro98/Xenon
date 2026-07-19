@@ -176,6 +176,30 @@ test('action categories only expose the intended low-risk deck actions', () => {
   }
 });
 
+// The `browser` category (v4.8) is dispatched in the browser, like `soundboard`:
+// custom-widget.js hands browserOpen to browser-tile.js and it never reaches the
+// server action registry. What must hold server-side is that the category exists,
+// carries exactly one type, and is grantable through a manifest — the host-side
+// dispatch is what makes it work, and the grant list lockstep is pinned by
+// sdk-grant-cats-sync.test.mjs.
+test('browser category: browserOpen is declarable and normalizes, and stays a lone type', () => {
+  assert.deepEqual([...sdk.SDK_ACTION_CATEGORIES.browser], ['browserOpen']);
+  const r = sdk.normalizeManifest({ api: 1, name: 'Maps', actions: ['browser'] }, 'maps');
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.manifest.actions, ['browser']);
+});
+
+// browserOpen navigates a surface the user is looking at, so it must not be
+// reachable from a manifest Deck macro: the Deck validator doesn't know the type,
+// and the manifest is rejected outright rather than installing a key that would
+// silently do nothing when pressed.
+test('browser category: a manifest deck macro using browserOpen is rejected at install', () => {
+  const deck = { actions: [{ id: 'm', name: 'M', steps: [{ action: { type: 'browserOpen', url: 'https://example.com' } }] }] };
+  const r = sdk.normalizeManifest({ api: 1, name: 'Maps', actions: ['browser'], deck }, 'maps');
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, 'bad_deck');
+});
+
 // ── manifest hosts: the proxy allowlist boundary ─────────────────────────────
 
 test('hosts: valid hosts normalize (lowercased, deduped); loopback rejects the manifest', () => {
@@ -557,4 +581,44 @@ test('origin: originExportable allows only the user\'s own creations (fail-close
   assert.equal(sdk.originExportable('unknown'), false);
   assert.equal(sdk.originExportable(null), false);
   assert.equal(sdk.originExportable(undefined), false);
+});
+
+// ── Performance probe: reserved asset + HTML injection ───────────────────────
+
+test('probe: the reserved filename is never resolvable from a package on disk', () => {
+  assert.equal(sdk.resolveAsset(ROOT, 'clock', sdk.PERF_PROBE_FILENAME), null);
+  assert.equal(sdk.resolveAsset(ROOT, 'clock', 'assets/' + sdk.PERF_PROBE_FILENAME), null);
+});
+
+test('probe: a bundled file under the reserved name is dropped, the rest installs', () => {
+  const r = sdk.validateWidgetPayload({ id: 'hi-widget', files: [
+    { path: 'manifest.json', data: goodManifest() },
+    { path: 'index.html', data: b64('<!doctype html><body>hi') },
+    { path: sdk.PERF_PROBE_FILENAME, data: b64('evil()') },
+    { path: 'assets/' + sdk.PERF_PROBE_FILENAME, data: b64('evil()') },
+  ] });
+  assert.equal(r.ok, true);
+  assert.ok(!r.files.some(f => f.relPath.endsWith(sdk.PERF_PROBE_FILENAME)));
+  assert.equal(r.files.length, 2);
+});
+
+test('probe: injectPerfProbe lands right after <head>, exactly once', () => {
+  const tag = `<script src="${sdk.PERF_PROBE_FILENAME}" defer></script>`;
+  const out = sdk.injectPerfProbe('<!doctype html><html><head lang="en"><title>x</title></head><body></body></html>');
+  assert.ok(out.includes('<head lang="en">' + tag));
+  assert.equal(out.split(tag).length - 1, 1);
+});
+
+test('probe: injectPerfProbe falls back before </body>, then to append', () => {
+  const tag = `<script src="${sdk.PERF_PROBE_FILENAME}" defer></script>`;
+  assert.ok(sdk.injectPerfProbe('<body>hi</body>').includes(tag + '</body>'));
+  const bare = sdk.injectPerfProbe('hello');
+  assert.equal(bare, 'hello' + tag);
+  assert.equal(sdk.injectPerfProbe(null), tag);
+});
+
+test('probe: PERF_PROBE_SOURCE parses and cannot break out of a script tag', () => {
+  assert.ok(sdk.PERF_PROBE_SOURCE.length > 0);
+  assert.ok(!sdk.PERF_PROBE_SOURCE.includes('</script'));
+  assert.doesNotThrow(() => new Function(sdk.PERF_PROBE_SOURCE));
 });

@@ -15,6 +15,9 @@
   const el = makeEl;                 // shared DOM factory (textContent-safe) from utils.js
   const api = apiJson;               // shared fetch-JSON helper from utils.js
   const t = (k, fb) => { const v = (typeof window.t === 'function') ? window.t(k) : k; return (v === k && fb != null) ? fb : v; };
+  // Same shape the server and the hub accept for an id — checked before a dropId
+  // from the catalog is ever interpolated into a URL.
+  const ID_RE = /^[a-z0-9][a-z0-9_-]{0,60}$/;
 
   // Screenshots are served from the assets host (R2), same as the Store gallery
   // and the website catalog; the URL is derived from the (server-charset-pinned)
@@ -49,6 +52,26 @@
     if (!e || !e.id) return false;
     if (e.limited) return !e.limited.soldOut;
     return !!(e.locked || e.supportersOnly);
+  }
+
+  // catalog.json freezes the stock at publish time, so the scarcity meter read
+  // "50 of 50 left" while copies were already gone, and a drop that sold out
+  // would still have been announced as available. The hub is the only thing that
+  // knows; the Store asks it the same way. Best-effort: no answer leaves the
+  // published numbers, which is what this did before.
+  async function hydrateLimited(entries) {
+    try {
+      const ids = [...new Set((entries || [])
+        .filter((e) => e && e.limited && e.limited.fulfillment === 'hub' && ID_RE.test(String(e.limited.dropId || '')))
+        .map((e) => e.limited.dropId))];
+      if (!ids.length) return;
+      const out = await api('/api/community/limited-status?ids=' + encodeURIComponent(ids.join(',')));
+      if (!out || !out.ok || !out.drops) return;
+      entries.forEach((e) => {
+        const live = e && e.limited && out.drops[e.limited.dropId];
+        if (live) Object.assign(e.limited, live);
+      });
+    } catch { /* keep the published numbers */ }
   }
   const variantOf = (e) => (e.limited ? 'limited' : 'supporter');
 
@@ -93,13 +116,32 @@
 
   let overlay = null;
   let onKey = null;
+  // Drops still waiting their turn. A limited edition and a supporter pack are
+  // two different offers, and announcing only the first meant the second was
+  // marked as "already announced" and never seen by anyone. They queue instead:
+  // the next one opens when the current is DISMISSED, never when the user
+  // followed it into the Store, and never after "don't show me new drops".
+  let queued = [];
+  let dropSeq = 0;   // per-instance ambientFreeze tokens (see close())
+
+  function showNextQueued() {
+    if (isMuted()) { queued = []; return; }
+    const next = queued.shift();
+    if (next) setTimeout(() => show(next), 320);   // after the close animation
+  }
 
   function close(muted) {
     if (!overlay) return;
     if (onKey) { document.removeEventListener('keydown', onKey); onKey = null; }
     overlay.classList.add('closing');
     const node = overlay; overlay = null;
-    setTimeout(() => node.remove(), 200);
+    // Thaw when the node actually leaves the DOM. The token is per-instance:
+    // show() can reopen a new drop before this 200ms timer fires, and a shared
+    // token would let the OLD overlay's timer thaw the freshly opened one.
+    setTimeout(() => {
+      node.remove();
+      if (node._freezeToken && typeof window.ambientFreeze === 'function') window.ambientFreeze(node._freezeToken, false);
+    }, 200);
     if (muted && window.XenonToast) {
       window.XenonToast.show({ type: 'info', title: t('drop_muted_toast', 'Got it — we won’t show new drops again. Find them anytime in the Store.'), duration: 5000 });
     }
@@ -113,6 +155,8 @@
     const isLim = variant === 'limited';
 
     const bd = el('div', 'xdrop-overlay');
+    bd._freezeToken = 'catalog-drop:' + (++dropSeq);
+    if (typeof window.ambientFreeze === 'function') window.ambientFreeze(bd._freezeToken, true);
     const card = el('div', 'xdrop-card ' + (isLim ? 'is-limited' : 'is-sup'));
 
     // Close (X)
@@ -155,7 +199,10 @@
 
     // Actions
     const actions = el('div', 'xdrop-actions');
-    const primary = el('button', 'xdrop-btn xdrop-primary', isLim ? t('gallery_reserve', 'Reserve on Discord →') : t('gallery_supporters_join', 'Become a supporter'));
+    // Say what the button does. It opens the entry in the Store, where the claim
+    // lives; "Reserve on Discord" promised a jump to Discord that never happened,
+    // and on a drop with no Discord post of its own the promise was doubly wrong.
+    const primary = el('button', 'xdrop-btn xdrop-primary', isLim ? t('gallery_claim_copy', 'Claim your copy') : t('gallery_supporters_join', 'Become a supporter'));
     primary.type = 'button';
     primary.addEventListener('click', () => {
       close();
@@ -179,7 +226,7 @@
     foot.appendChild(lab); foot.appendChild(later);
     body.appendChild(foot);
 
-    const dismiss = () => { const m = cb.checked; if (m) mute(); close(m); };
+    const dismiss = () => { const m = cb.checked; if (m) mute(); close(m); showNextQueued(); };
     x.addEventListener('click', dismiss);
     later.addEventListener('click', dismiss);
     bd.addEventListener('click', (ev) => { if (ev.target === bd) dismiss(); });
@@ -202,8 +249,18 @@
     if (isMuted()) return;                    // muted from another surface meanwhile
     if (!busy()) {
       STAMP();
-      show(fresh[0]);                         // lead with the top (catalog-featured) drop
-      markSeen(fresh.map((e) => e.id));       // announce the batch once
+      // One of each kind, limited first: it is the one with copies running out,
+      // so it is the one that cannot wait for tomorrow. The supporter pack opens
+      // behind it if the user dismisses rather than following the first in.
+      const lead = fresh.find((e) => e.limited) || fresh[0];
+      const other = fresh.find((e) => e.id !== lead.id && variantOf(e) !== variantOf(lead));
+      queued = other ? [other] : [];
+      show(lead);
+      // Mark ONLY what was actually announced (shown or queued). Stamping the
+      // whole batch silently buried a second drop of the SAME variant forever:
+      // it never queued, yet its id landed in the seen list and every future
+      // checkDaily filtered it out. Left unstamped, it becomes tomorrow's lead.
+      markSeen([lead.id].concat(queued.map((e) => e.id)));
       return;
     }
     if (tries > 200) return;                  // ~5 min of polling, then retry next load
@@ -219,6 +276,7 @@
       if (Date.now() - last < DAY) return;
       const out = await api('/api/community/catalog');
       if (!out || !out.ok || !Array.isArray(out.entries)) return;   // offline → retry next load
+      await hydrateLimited(out.entries);
       const seen = readSeen();
       const fresh = out.entries.filter((e) => isPaidDrop(e) && !seen.includes(e.id));
       if (!fresh.length) { STAMP(); return; }   // nothing new → don't refetch again today

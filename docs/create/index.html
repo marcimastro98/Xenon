@@ -831,7 +831,8 @@
             <tr><td><code>twitch</code></td><td><code>twitchClip</code>, <code>twitchMarker</code>, <code>twitchAd</code>, <code>twitchTitle</code>, <code>twitchGame</code>, <code>twitchChat</code>, <code>twitchShoutout</code>. Needs Twitch connected.</td></tr>
             <tr><td><code>youtube</code></td><td><code>ytBroadcast</code> &mdash; start / stop your broadcast. Needs YouTube connected.</td></tr>
             <tr><td><code>streamerbot</code></td><td><code>sbDoAction</code>, <code>sbSendMessage</code>, <code>sbCodeTrigger</code>. Needs Streamer.bot connected.</td></tr>
-            <tr><td><code>url</code></td><td><code>{ type:'openUrl', url:'https://…' }</code> (http / https only).</td></tr>
+            <tr><td><code>url</code></td><td><code>{ type:'openUrl', url:'https://…' }</code> (http / https only) &mdash; opens in the default browser, on whichever monitor Windows chooses.</td></tr>
+            <tr><td><code>browser</code></td><td><code>{ type:'browserOpen', url:'https://…', expand:true }</code> &mdash; show the page in the Browser tile on the dashboard, so it stays on the Xeneon Edge with touch working. Needs a Browser tile visible.</td></tr>
             <tr><td><code>tasks</code></td><td><code>{ type:'taskAdd', text }</code>, <code>taskToggle</code>, <code>taskDelete</code> &mdash; edit the same to-do list the Tasks tile shows (pair with the <code>tasks</code> stream to read ids).</td></tr>
           </tbody>
         </table>

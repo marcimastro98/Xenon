@@ -287,6 +287,11 @@
   border: 1px solid var(--panel-border); border-radius: 8px;
   background: rgba(255, 255, 255, 0.06); color: var(--text); cursor: pointer;
 }
+/* The font/fit pickers are upgraded to the shared custom dropdown when the panel
+   opens (custom-select.js hides the native <select> and inserts a .cs-wrap before
+   it), so the sizing above has to carry over to the wrapper. */
+.tile-style-row > .cs-wrap { flex: 0 0 auto; min-width: 150px; }
+.tile-style-row > .cs-wrap .cs-trigger { width: 100%; font-size: 12.5px; }
 .tile-style-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 2px; }
 .tile-style-btn {
   padding: 8px 16px; cursor: pointer; border: 1px solid var(--panel-border);

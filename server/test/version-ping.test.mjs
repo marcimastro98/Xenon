@@ -118,3 +118,33 @@ test('concurrent calls collapse to a single ping', async () => {
 test('utcDay formats an epoch as YYYY-MM-DD', () => {
   assert.equal(versionPing.utcDay(Date.UTC(2026, 6, 18, 23, 59)), '2026-07-18');
 });
+
+// ── The opt-in → opt-out change (v4.8.0) ──────────────────────────────────────
+// The default flipped to ON for FRESH installs only. Existing installs keep what
+// their settings blob says, including "nothing", because those users were told in
+// the release notes and on the privacy page that it was off unless they chose it.
+// The mechanism is subtle — a default that only applies when there is no file,
+// plus a strict `=== true` normalizer — so these pin both halves.
+
+// Mirror of the normalizer's rule in server.js / js/settings.js. If that test is
+// ever relaxed to `!== false`, this fails and says why.
+const normalizeVersionPing = (blob) => blob.versionPing === true;
+
+test('versionPing: a settings blob predating the key stays OFF after an update', () => {
+  // A pre-v4.7.0 install that never saved settings has no key at all. An update
+  // must not read that silence as consent.
+  assert.equal(normalizeVersionPing({}), false);
+  assert.equal(normalizeVersionPing({ versionPing: undefined }), false);
+});
+
+test('versionPing: an explicit choice is never overridden', () => {
+  assert.equal(normalizeVersionPing({ versionPing: false }), false);
+  assert.equal(normalizeVersionPing({ versionPing: true }), true);
+});
+
+test('versionPing: only a real boolean true counts as opted in', () => {
+  // Guards against a truthy value from a hand-edited or migrated blob enabling it.
+  for (const v of [1, 'true', 'yes', {}, []]) {
+    assert.equal(normalizeVersionPing({ versionPing: v }), false, String(v));
+  }
+});

@@ -31,6 +31,7 @@ const deckStore = require('./js/deck-store'); // pure per-instance Deck merge he
 const vitalsPetCore = require('./js/vitals-pet-core'); // Bit's pure core: durable pet-state merge helpers (shared with the client + tests)
 const { sanitizeBgAssets, sanitizeBgFps } = require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox)
 const { sanitizeSlideshow } = require('./js/slideshow-widget'); // single owner of the slideshow image rules (shared with the client)
+const slideshowFolder = require('./slideshow-folder');          // the slideshow's "folder on this PC" source
 const contentInstalls = require('./js/content-installs'); // validated import receipts shared with Settings
 const themePalette = require('./js/theme-palette.js'); // single owner of the semantic-palette rules (shared with the client + tests)
 const aiLocal = require('./ai-local');
@@ -69,6 +70,11 @@ const { preserveFootballCreds, redactFootballCreds } = require('./football-creds
 const news = require('./news');
 const { preserveNewsCreds, redactNewsCreds } = require('./news-creds');
 const claudeUsage = require('./claude-usage');
+const claudeBridge = require('./claude-bridge');
+const claudeLink = require('./claude-link');
+const claudeRun = require('./claude-run');
+const claudeTranscript = require('./claude-transcript');
+const claudeAttach = require('./claude-attach');
 const communityCatalog = require('./community-catalog');
 const supporterRedeem = require('./supporter-redeem');
 const versionPing = require('./version-ping');
@@ -782,7 +788,14 @@ const _widgetOrigins = (() => {   // one small read at startup, never on a reque
         const rec = raw[id];
         if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(id)) continue;
         if (!rec || !['import', 'creator', 'builtin', 'local'].includes(rec.origin)) continue;
-        out[id] = { origin: rec.origin, at: typeof rec.at === 'string' ? rec.at.slice(0, 32) : '' };
+        out[id] = {
+          origin: rec.origin,
+          at: typeof rec.at === 'string' ? rec.at.slice(0, 32) : '',
+          // Which CATALOG version this package was last installed from — see
+          // recordWidgetOrigin. Same charset the SDK accepts for a version.
+          catalogVersion: (typeof rec.catalogVersion === 'string' && /^[0-9A-Za-z._+-]{1,32}$/.test(rec.catalogVersion))
+            ? rec.catalogVersion : '',
+        };
       }
     }
     return out;
@@ -796,16 +809,47 @@ function widgetOriginOf(id) {
   const rec = _widgetOrigins[id];
   return rec ? rec.origin : 'unknown';
 }
+// The catalog-entry version this package was last installed from ('' when it
+// never came from the catalog, or predates this record).
+function widgetCatalogVersionOf(id) {
+  const rec = _widgetOrigins[id];
+  return (rec && rec.catalogVersion) || '';
+}
 function widgetExportable(id) {
   return sdkWidgets.originExportable(widgetOriginOf(id));
 }
 // origin: 'import' | 'creator' | 'builtin' | 'local' to set a record, or
 // 'forget' to drop it (on package removal). Advisory store — a write failure
 // never fails an install.
-async function recordWidgetOrigin(id, origin) {
+//
+// `catalogVersion` is the version of the CATALOG ENTRY this install came from,
+// which is NOT the same number as the package manifest's version: the entry is
+// versioned by whoever publishes it, the manifest by whoever builds it. When
+// they disagree, comparing them produces an update that can never be applied —
+// a package whose manifest reads '0.1.2-sdk3e' against a catalog entry at
+// '0.1.2' parses as a prerelease, so it counts as older, forever. Every open of
+// the Store re-offered it, installing it changed nothing, and the badge came
+// back. Recording what the catalog CALLED this install lets the check compare
+// like with like; without a record it falls back to the manifest as before.
+async function recordWidgetOrigin(id, origin, catalogVersion) {
   const prev = _widgetOrigins[id];
+  const ver = (typeof catalogVersion === 'string' && /^[0-9A-Za-z._+-]{1,32}$/.test(catalogVersion)) ? catalogVersion : '';
   if (origin === 'forget') { if (!prev) return; delete _widgetOrigins[id]; }
-  else { if (prev && prev.origin === origin) return; _widgetOrigins[id] = { origin, at: new Date().toISOString() }; }
+  else {
+    // Unchanged origin AND unchanged catalog version → nothing to persist.
+    if (prev && prev.origin === origin && (prev.catalogVersion || '') === ver) return;
+    _widgetOrigins[id] = {
+      origin,
+      at: new Date().toISOString(),
+      // The stamp describes the LAST install. A stamp-less install REPLACED the
+      // package files with a build the catalog didn't describe (pasted code,
+      // bundle, local rebuild), so the old stamp must clear — keeping it made a
+      // later catalog "update" silently downgrade a newer imported build (the
+      // stale stamp compared below the new entry version while the manifest on
+      // disk was actually ahead).
+      catalogVersion: ver,
+    };
+  }
   try { await writeFileAtomic(WIDGET_ORIGINS_FILE, JSON.stringify(_widgetOrigins, null, 2)); }
   catch { /* origin records are advisory — never fail an install over them */ }
 }
@@ -838,15 +882,31 @@ function sdkHookGateOk(key) {
 // kill-switch: with it off, no SDK ingress (fetch proxy, webhooks, deck macros)
 // may act, even if stale grants linger in settings.json.
 function sdkFeatureEnabled() {
+  // Safe mode is an EFFECTIVE off for every SDK surface, server side included:
+  // without this, deck MACROS (executed here via /actions/run), the fetch proxy
+  // and webhooks kept acting for "paused" third-party packages — a false
+  // negative in the exact triage safe mode exists for. The stored enabled flag
+  // and grants stay untouched, matching the client's sdk() mask.
+  if (_serverHubSettings && _serverHubSettings.safeMode === true) return false;
   const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
   return !!(sw && sw.enabled === true);
 }
 
+// A package the user paused from the Store's Installed tab. Server-side twin of
+// the client's isSuspended: the suspend card promises "its Deck keys are paused
+// too", which must cover server-executed macro steps, not only handler frames.
+function sdkPkgSuspended(pkgId) {
+  const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
+  const s = sw && Array.isArray(sw.suspended) ? sw.suspended : [];
+  return typeof pkgId === 'string' && s.includes(pkgId);
+}
+
 // The user's per-package SDK grants (client-owned schema, round-tripped through
 // settings). Read defensively — a malformed blob collapses to "nothing granted".
-// A disabled SDK grants nothing, so every server-side consent check fails closed.
+// A disabled SDK (or a suspended package) grants nothing, so every server-side
+// consent check fails closed.
 function sdkGrantsFor(pkgId) {
-  if (!sdkFeatureEnabled()) return { actions: [], hosts: [], hooks: [], handlers: [], userHosts: {} };
+  if (!sdkFeatureEnabled() || sdkPkgSuspended(pkgId)) return { actions: [], hosts: [], hooks: [], handlers: [], userHosts: {} };
   const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
   const g = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants[pkgId] : null;
   return {
@@ -1086,7 +1146,7 @@ function acceptSdkDeckStates(body) {
 // imports default fail-closed, and mergeOrigin keeps ownership sticky BOTH ways —
 // own work is never demoted, and an already-imported id can't be relabelled
 // 'creator' by a replayed install (no laundering someone else's widget).
-async function installWidgetPayload(payload, origin) {
+async function installWidgetPayload(payload, origin, catalogVersion) {
   const v = sdkWidgets.validateWidgetPayload(payload);
   if (!v.ok) return { ok: false, error: v.reason };
   try {
@@ -1102,7 +1162,7 @@ async function installWidgetPayload(payload, origin) {
       await fs.promises.mkdir(path.dirname(abs), { recursive: true });
       await fs.promises.writeFile(abs, f.bytes);
     }
-    await recordWidgetOrigin(v.id, sdkWidgets.mergeOrigin(existed ? widgetOriginOf(v.id) : null, origin));
+    await recordWidgetOrigin(v.id, sdkWidgets.mergeOrigin(existed ? widgetOriginOf(v.id) : null, origin), catalogVersion);
     await refreshSdkScan();
     return { ok: true, id: v.id, name: v.manifest.name, actions: v.manifest.actions, streams: v.manifest.streams, hosts: v.manifest.hosts };
   } catch {
@@ -4504,6 +4564,26 @@ const deckRegistryDeps = {
     if (args === null) return { ok: false, error: 'bad_args' };
     return sdkHandlerDispatch(pkgId, handlerId, args);
   },
+  // Claude Code: start a run from a Deck key, or stop the one going. Both go
+  // through the SAME runner as the touchscreen panel, so the project id is
+  // re-checked against the server-built allowlist on every press and the run
+  // uses normal permission mode — a key can start work, never authorise it.
+  // Deliberately declared here rather than as a thin wrapper elsewhere: the
+  // registry is the single execution boundary and these are its side effects.
+  claudeRun: (opts) => _claudeRunner.start({
+    projectId: String((opts && opts.projectId) || ''),
+    prompt: String((opts && opts.prompt) || ''),
+    model: String((opts && opts.model) || ''),
+    resume: '',
+  }),
+  // Stops the newest run still going. "Newest" because a key press means "stop
+  // what I just started"; with nothing running it reports false so the key can
+  // say so rather than claiming it worked.
+  claudeStop: () => {
+    const running = _claudeRunner.snapshot().filter(r => r.state === 'running');
+    if (!running.length) return false;
+    return _claudeRunner.stop(running[running.length - 1].id);
+  },
   // remote: injected below once remoteControl is created (see createRemoteControl call)
 };
 const deckRegistry = createRegistry(deckRegistryDeps);
@@ -6169,10 +6249,18 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // intent (default on); the actual scheduled task is registered/removed by
   // /startup/auto-open and only ever for real-browser use, never Xeneon Edge.
   autoOpenBrowser: true,
-  // Anonymous version ping — OFF unless the user opts in (Settings → Generale → Aggiornamenti).
-  // Sends only {version, os} on the update check the app already makes; never
-  // the install id. See server/version-ping.js and docs/privacy.html.
-  versionPing: false,
+  // Anonymous version ping — ON by default for installs made from v4.8.0 onwards;
+  // the switch is in Settings → Generale → Aggiornamenti. Sends only {version, os}
+  // on the update check the app already makes; never the install id. See
+  // server/version-ping.js and docs/privacy.html.
+  //
+  // These defaults are read ONLY when settings.json does not exist yet (see the
+  // `|| { ...DEFAULT_HUB_SETTINGS }` fallbacks), so this reaches a fresh install
+  // and nothing else. `normalizeHubSettings` deliberately keeps the strict
+  // `=== true` test, which means an existing install whose blob predates the key
+  // stays OFF instead of being switched on by an update — it was documented to
+  // those users as off-unless-you-choose. Do not relax that test to `!== false`.
+  versionPing: true,
   // Opt-in ad-blocker for the Browser tile (Settings → Browser). OFF by default;
   // when on, the server loads an unpacked uBOL MV3 extension into the tile's Edge.
   browserAdblock: false,
@@ -6940,7 +7028,7 @@ function normalizeTopbarRails(value) {
 // flags. Rebuild from the canonical id set (drop unknown/dupes, append missing
 // in default order) — never spread untrusted input. Migrates the earlier
 // {date,weather} booleans onto their items when `items` is absent.
-const TOPBAR_ISLAND_IDS = ['time', 'date', 'weather', 'vitals', 'dots', 'badges'];
+const TOPBAR_ISLAND_IDS = ['time', 'date', 'weather', 'vitals', 'dots', 'badges', 'claude'];
 function normalizeTopbarClock(value) {
   const v = value && typeof value === 'object' ? value : {};
   const align = ['center', 'left', 'right'].includes(v.align) ? v.align : 'center';
@@ -7144,6 +7232,9 @@ function normalizeHubSettings(value) {
     // on load): round-trip them so they survive a server restart instead of being
     // stripped. A bounded passthrough keeps settings.json safe.
     gameMode: typeof source.gameMode === 'boolean' ? source.gameMode : true,
+    // Safe mode: temporarily disables third-party widgets and custom theming
+    // (nothing is uninstalled). Client-enforced; persisted so it survives restarts.
+    safeMode: source.safeMode === true,
     performance: sanitizeServerPassthrough(source.performance),
     // Smart context profiles (client-owned schema; the client re-validates on load).
     contextProfiles: sanitizeServerPassthrough(source.contextProfiles),
@@ -7461,7 +7552,24 @@ async function writeHubSettings(settings) {
   cleanupUnreferencedTileAssets(safe.dashboardLayout, safe.dashboardPresets);
   // Slideshow images are disk-backed uploads too, referenced from safe.slideshow.
   cleanupUnreferencedSlideshowAssets(safe.slideshow);
+  // A folder-source slideshow keeps its enumeration in memory; pointing the setting
+  // at a different folder must show the new count now, not up to a TTL later.
+  slideshowFolder.invalidate();
+  _slideshowDirCache = (safe.slideshow && typeof safe.slideshow.folder === 'string') ? safe.slideshow.folder : '';
   return safe;
+}
+
+// The slideshow tile requests /slideshow/file every few seconds per surface, and
+// each request only needs ONE string from settings. Re-reading + re-normalizing
+// the whole settings blob per image was steady synchronous event-loop work on
+// the same loop that serves SSE. The cache is refreshed on every settings write
+// above (the sole writer), so it can never serve a stale folder.
+let _slideshowDirCache = null;   // '' = no folder configured; null = not loaded yet
+async function getSlideshowDir() {
+  if (_slideshowDirCache !== null) return _slideshowDirCache;
+  const s = (await readHubSettings().catch(() => null)) || {};
+  _slideshowDirCache = (s.slideshow && typeof s.slideshow.folder === 'string') ? s.slideshow.folder : '';
+  return _slideshowDirCache;
 }
 
 // ── settings store: serialized read-modify-write ────────────────────────────
@@ -8831,6 +8939,54 @@ let _claudeCache = { data: null, sig: '', refreshedAt: 0 };
 let _claudeRefreshing = false;
 let _claudeLastFetch = 0;
 
+// ── the live bridge ──────────────────────────────────────────────────────────
+// Where the transcript reader above infers activity from file mtimes, the bridge
+// is told: Claude Code itself POSTs its statusline payload and its lifecycle
+// hooks here (see claude-link.js for how that config is installed). It supplies
+// the two things the filesystem cannot — the real subscription quota, and a
+// blocking permission request the user answers from the touchscreen.
+const _claudeBridge = claudeBridge.createBridge({ onChange: () => _claudeBridgeChanged() });
+let _claudeBridgeToken = '';        // resolved once at boot from DATA_DIR
+let _claudeBridgePushTimer = null;
+
+// Runs the dashboard starts itself. It shares the bridge's repaint throttle
+// because a run and the permission requests it triggers are one story on screen.
+// The runs go through Claude Code's NORMAL permission mode, so every tool call
+// comes back through the bridge as a card the user answers here.
+// Files handed to a run from the touchscreen. They live under DATA_DIR, which is
+// never HTTP-reachable; only their path travels, and only into the prompt.
+const _claudeAttach = claudeAttach.createAttachments({ dir: path.join(DATA_DIR, 'claude-attach') });
+
+const _claudeRunner = claudeRun.createRunner({
+  projectsDir: () => claudeUsage.resolveProjectsDir(),
+  onChange: () => _claudeBridgeChanged(),
+});
+
+// Bridge-driven repaints are throttled (a busy session fires Pre/PostToolUse per
+// tool call) but NOT gated on the widget being on the dashboard the way the
+// filesystem scan is: a pending approval must reach the fullscreen overlay even
+// when the user never added the tile, and a push costs no disk I/O.
+function _claudeBridgeChanged() {
+  if (_claudeBridgePushTimer || sseClients.size === 0) return;
+  _claudeBridgePushTimer = setTimeout(() => {
+    _claudeBridgePushTimer = null;
+    try { _claudeBroadcast(); } catch { /* a repaint must never break ingest */ }
+  }, 300);
+  if (typeof _claudeBridgePushTimer.unref === 'function') _claudeBridgePushTimer.unref();
+}
+
+// Constant-time compare so the token can't be probed byte-by-byte.
+function _claudeBridgeAuth(req) {
+  const got = String(req.headers['x-xenon-bridge'] || '');
+  if (!_claudeBridgeToken || got.length !== _claudeBridgeToken.length) return false;
+  try { return crypto.timingSafeEqual(Buffer.from(got), Buffer.from(_claudeBridgeToken)); }
+  catch { return false; }
+}
+
+// Resolve (or mint) the bridge token once at boot. Until it lands, both ingest
+// endpoints reject — which is the safe direction, and the window is a few ms.
+claudeLink.ensureToken(DATA_DIR).then((t) => { _claudeBridgeToken = t; }).catch(() => {});
+
 function _claudeSettings() {
   const s = _serverHubSettings && _serverHubSettings.claude;
   return (s && typeof s === 'object') ? s : claudeUsage.DEFAULT_CLAUDE;
@@ -8843,6 +8999,13 @@ function _claudePayload(usage) {
   const cfg = _claudeSettings();
   return {
     usage,
+    // Live state straight from Claude Code (quota, sessions, pending approvals).
+    // Null-safe for every consumer: the widget falls back to the transcript
+    // aggregate whenever the user hasn't linked Claude Code yet.
+    live: _claudeBridge.snapshot(),
+    // Runs the dashboard started itself, so the tile can show progress and offer
+    // a stop. Empty for every user who never uses the feature.
+    runs: _claudeRunner.snapshot(),
     budget: {
       weekly: claudeUsage.effectiveWeeklyBudget(cfg),
       plan: cfg.plan,
@@ -8853,19 +9016,43 @@ function _claudePayload(usage) {
   };
 }
 
+// Every read path must rebuild the live block rather than serve the copy stored
+// in the cache: bridge changes are only broadcast while an SSE client is
+// connected, so the cached `live` can be arbitrarily old. Serving it would let a
+// dashboard seed itself with an empty approvals list while Claude Code is
+// actually blocked waiting for a tap.
+function _claudeFresh() {
+  return _claudePayload(_claudeCache.data ? _claudeCache.data.usage : null);
+}
+
+// Single exit point for both feeds. `usage` defaults to whatever the last
+// filesystem scan produced, so a bridge-only change (a tool call, an approval)
+// repaints without re-reading any transcript.
+function _claudeBroadcast(usage) {
+  const u = usage !== undefined ? usage : (_claudeCache.data ? _claudeCache.data.usage : null);
+  const payload = _claudePayload(u);
+  // Change detection folds in the budget so a settings edit repaints too, the
+  // bridge signature so live state does as well — not just token activity — and
+  // the runs, without which a run the dashboard just started would sit in the
+  // payload and never be pushed: nothing else about the payload changes when a
+  // run appears, so the broadcast was suppressed and the tile showed nothing.
+  // Elapsed time is deliberately NOT in the signature; a still-running run must
+  // not force a repaint every tick.
+  const runSig = payload.runs.map(r => `${r.id}:${r.state}:${r.output.length}`).join(',');
+  const fullSig = `${u ? u.sig : ''}|${payload.budget.weekly}|${payload.budget.plan}|${payload.live.sig}|${runSig}`;
+  const changed = fullSig !== _claudeCache.sig;
+  _claudeCache = { data: payload, sig: fullSig, refreshedAt: payload.refreshedAt };
+  if (changed) broadcastSSE('claude', payload);
+  return payload;
+}
+
 async function refreshClaude() {
   if (_claudeRefreshing) return _claudeCache;
   _claudeRefreshing = true;
   _claudeLastFetch = Date.now();
   try {
     const usage = await _claudeReader.getUsage(Date.now());
-    const payload = _claudePayload(usage);
-    // Change detection folds in the budget so a settings edit repaints too, not
-    // just new token activity.
-    const fullSig = `${usage.sig}|${payload.budget.weekly}|${payload.budget.plan}`;
-    const changed = fullSig !== _claudeCache.sig;
-    _claudeCache = { data: payload, sig: fullSig, refreshedAt: payload.refreshedAt };
-    if (changed) broadcastSSE('claude', payload);
+    _claudeBroadcast(usage);
   } catch { /* keep last good cache */ }
   finally { _claudeRefreshing = false; }
   return _claudeCache;
@@ -8951,6 +9138,21 @@ const CSRF_MUTATION_PATHS = new Set([
   // the import dialog.
   '/icon-pack',
   '/sound-pack',
+  // Claude Code bridge. The two ingest paths are POSTed by the `claude` process
+  // itself (which sends no Sec-Fetch-Site, so this never blocks them) and are
+  // additionally token-gated; listing them stops a browser page from POSTing
+  // fabricated sessions or, worse, fabricated permission requests at the
+  // touchscreen. /decide answers a real one and /link writes Claude Code's own
+  // settings.json — neither may ever be reachable from a drive-by or from an
+  // Origin:null sandboxed iframe.
+  '/api/claude/event',
+  '/api/claude/permission',
+  '/api/claude/decide',
+  '/api/claude/link',
+  '/api/claude/unlink',
+  '/api/claude/run',
+  '/api/claude/run/stop',
+  '/api/claude/attach',
 ]);
 
 function isAllowedRequest(req) {
@@ -9406,8 +9608,16 @@ const server = http.createServer(async (req, res) => {
   // so an Origin:null iframe can never remove a user's installed packs even if
   // the CORS method allowlist ever widens.
   const isPackMutation = req.method === 'DELETE' && (reqPath.startsWith('/icon-pack/') || reqPath.startsWith('/sound-pack/'));
+  // A top-level NAVIGATION to any of these has no legitimate caller: every one is
+  // a fetch/JSONP/POST endpoint, never a page a browser should land on. The
+  // Sec-Fetch-Site layer alone misses that shape, because a browser-INITIATED
+  // navigation stamps `none` rather than `cross-site` — which is exactly what a
+  // CDP-driven navigate sends, so the embedded browser tile could otherwise be
+  // pointed at every GET mutator above (`/notes?save=` replaces the whole notes
+  // store). Absent header = non-browser caller, still allowed.
+  const isTopLevelNav = String(req.headers['sec-fetch-mode'] || '').toLowerCase() === 'navigate';
   if ((CSRF_MUTATION_PATHS.has(reqPath) || isSdkSensitive || isPackMutation) &&
-      String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
+      (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site' || isTopLevelNav)) {
     res.writeHead(403, { 'Content-Type': 'text/plain' });
     res.end('Forbidden');
     return;
@@ -10296,11 +10506,15 @@ const server = http.createServer(async (req, res) => {
       // Capability probe: on Linux there is no PowerShell and no SoundVolumeView,
       // but the audio actions still work when a PipeWire mixer answers, so report
       // what is actually usable rather than the Windows assumption.
+      // Claude Code keys are offered only once the hooks are installed. Without
+      // them a run's permission prompts land in a terminal the user isn't
+      // looking at, and a key that starts invisible work is worse than no key.
+      const claudeLinked = await claudeLink.status(DATA_DIR, PORT).then(r => !!(r && r.linked)).catch(() => false);
       const powershellAvailable = process.platform === 'win32';
       const audioControlAvailable = linuxCollectors
         ? await linuxCollectors.audioAvailable()
         : fs.existsSync(SVV);
-      json({ catalog: ACTION_CATALOG, capabilities: { powershell: powershellAvailable, soundVolumeView: audioControlAvailable, obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured } });
+      json({ catalog: ACTION_CATALOG, capabilities: { powershell: powershellAvailable, soundVolumeView: audioControlAvailable, obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked } });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/wavelink/state' && req.method === 'GET') {
@@ -11141,7 +11355,7 @@ const server = http.createServer(async (req, res) => {
       // Widget just (re)added after a gated-idle stretch: serve the cache now,
       // catch up in background; the SSE push repaints when it lands.
       else if (Date.now() - _claudeCache.refreshedAt > 5 * 60 * 1000) refreshClaude().catch(() => {});
-      json(_claudeCache.data || _claudePayload(null));
+      json(_claudeFresh());        // never the cached `live` block — see _claudeFresh
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/claude/budget' && req.method === 'POST') {
@@ -11161,6 +11375,142 @@ const server = http.createServer(async (req, res) => {
       refreshClaude().catch(() => {});
       json({ ok: true, budget: { weekly: claudeUsage.effectiveWeeklyBudget(saved.claude), plan: saved.claude.plan, weeklyTokenBudget: saved.claude.weeklyTokenBudget }, tile: saved.claude.tile });
       });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/claude/event' && req.method === 'POST') {
+    // Ingest from Claude Code: the statusline payload (X-Xenon-Source: statusline)
+    // or a non-blocking lifecycle hook. Answers 204 with NO body on purpose — a
+    // hook response body is parsed as a decision, and this endpoint must never
+    // accidentally influence what Claude Code does.
+    if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
+    try {
+      const data = JSON.parse(await readBody(req));
+      if (String(req.headers['x-xenon-source'] || '') === 'statusline') _claudeBridge.applyStatus(data);
+      else _claudeBridge.applyHook(data);
+    } catch { /* a malformed event must never fail the caller's tool call */ }
+    res.writeHead(204); res.end();
+
+  } else if (reqPath === '/api/claude/permission' && req.method === 'POST') {
+    // The blocking one. Claude Code holds its tool call open while this request
+    // is unanswered, so the user can decide on the Xeneon Edge instead of at the
+    // keyboard. Every path that is not an explicit tap answers 2xx with an EMPTY
+    // object, which means "no decision" and hands the prompt back to Claude
+    // Code's own terminal UI — this endpoint can never auto-approve anything.
+    if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
+    try {
+      const data = JSON.parse(await readBody(req));
+      const pendingReq = _claudeBridge.requestPermission(data);
+      if (!pendingReq) { json({}); return; }        // too many already waiting
+      // Claude Code gave up (Ctrl-C, or its own hook timeout): stop showing a
+      // card nobody can answer any more.
+      const onGone = () => _claudeBridge.cancel(pendingReq.id);
+      res.on('close', onGone);
+      const verdict = await pendingReq.promise;
+      res.off('close', onGone);
+      // The wait can end because the caller vanished (Ctrl-C), in which case the
+      // socket is already gone and writing would throw from inside the catch.
+      if (res.writableEnded || res.destroyed) return;
+      if (verdict === 'allow' || verdict === 'deny') {
+        json({ hookSpecificOutput: { hookEventName: 'PermissionRequest', decision: { behavior: verdict } } });
+      } else {
+        json({});                                    // timed out → ask in the terminal
+      }
+    } catch { try { if (!res.writableEnded && !res.destroyed) json({}); } catch { /* caller already gone */ } }
+
+  } else if (reqPath === '/api/claude/decide' && req.method === 'POST') {
+    // The touchscreen answering a pending request. Browser-originated, so it is
+    // CSRF-guarded rather than token-gated.
+    try {
+      const body = JSON.parse(await readBody(req));
+      const ok = _claudeBridge.decide(String(body && body.id || ''), body && body.behavior === 'allow' ? 'allow' : 'deny');
+      // ok:false means the request already expired or was answered on another
+      // surface — the widget tells the user rather than silently doing nothing.
+      json({ ok });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/claude/link' && req.method === 'GET') {
+    try { json(await claudeLink.status(DATA_DIR, PORT)); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/claude/link' && req.method === 'POST') {
+    // Writes the hub's hooks + statusline into the user's Claude Code
+    // settings.json (backed up first, existing statusline chained, not lost).
+    try {
+      const st = await claudeLink.link(DATA_DIR, PORT);
+      _claudeBridgeToken = await claudeLink.ensureToken(DATA_DIR);
+      json({ ok: true, ...st });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/claude/unlink' && req.method === 'POST') {
+    try { json({ ok: true, ...(await claudeLink.unlink(DATA_DIR, PORT)) }); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/claude/projects' && req.method === 'GET') {
+    // The places the dashboard is allowed to start work in: read out of Claude
+    // Code's own transcripts, so it is exactly the set of projects the user
+    // already works in. The client picks one by id — it never sends a path.
+    try {
+      const list = await _claudeRunner.listProjects(urlObj.searchParams.has('refresh'));
+      json({ projects: list.map(p => ({ id: p.id, name: p.name, path: p.path })) });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/claude/transcript' && req.method === 'GET') {
+    // The last turns of one session, so a follow-up is not written blind. Pure
+    // read, and the session id is matched against a strict shape before it is
+    // ever used to look for a file.
+    try {
+      const out = await claudeTranscript.readTail(
+        claudeUsage.resolveProjectsDir(),
+        urlObj.searchParams.get('session') || '');
+      json(out);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/claude/attach' && req.method === 'POST') {
+    // One file, raw bytes, with the browser's filename in the query string as a
+    // LABEL: the module validates its extension and builds the name that lands
+    // on disk, so nothing the page sends is ever used as a path component.
+    try {
+      const data = await readBodyBuffer(req, claudeAttach.MAX_BYTES);
+      json(await _claudeAttach.save(urlObj.searchParams.get('name') || '', data));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/claude/run' && req.method === 'POST') {
+    // Starts a Claude Code run from the touchscreen. Browser-originated, so it
+    // is CSRF-guarded like /decide. The runner refuses anything it cannot vouch
+    // for (unknown project, malformed session/model, empty prompt) and never
+    // takes a filesystem path from this body.
+    try {
+      const body = JSON.parse(await readBody(req));
+      const resume = String(body && body.resume || '');
+      let projectId = String(body && body.projectId || '');
+      // Continuing a session: the folder is the session's own, so resolve it
+      // here from the live bridge rather than trusting the client to have
+      // matched it. The client only ever saw the folder's NAME, which is not
+      // unique — two checkouts can both be called `xenon`, and a session Xenon
+      // learned about late has no name at all. Matching on the real path picks
+      // the right project or none.
+      if (resume) {
+        const cwd = _claudeBridge.cwdFor(resume);
+        if (cwd) {
+          const want = path.resolve(cwd).toLowerCase();
+          const hit = (await _claudeRunner.listProjects(false))
+            .find(p => path.resolve(p.path).toLowerCase() === want);
+          if (hit) projectId = hit.id;
+        }
+      }
+      const out = await _claudeRunner.start({
+        projectId,
+        prompt: String(body && body.prompt || ''),
+        model: String(body && body.model || ''),
+        resume,
+      });
+      json(out);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/claude/run/stop' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req));
+      json({ ok: _claudeRunner.stop(String(body && body.id || '')) });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/football' && req.method === 'GET') {
@@ -13321,6 +13671,55 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+  } else if (reqPath === '/slideshow/folder' && req.method === 'GET') {
+    // How many images the configured slideshow folder holds (plus why it can't be
+    // read, when it can't). The folder comes from the SETTINGS, never from the
+    // query — the only thing a caller may influence is `?refresh=1`, which skips
+    // the 30s enumeration cache so the settings pane reflects a folder the user
+    // just filled. Read-only, so it stays out of CSRF_MUTATION_PATHS.
+    try {
+      const dir = await getSlideshowDir();
+      const refresh = urlObj.searchParams.get('refresh') === '1';
+      json(await slideshowFolder.listFolder(dir, { refresh }));
+    } catch (e) {
+      err500(e.message);
+    }
+
+  } else if (reqPath === '/slideshow/file' && req.method === 'GET') {
+    // Stream the Nth image of the configured folder. The index is the ONLY thing
+    // the caller supplies; slideshow-folder.js resolves it against its own
+    // enumeration of the folder named in the settings, so no caller-supplied path
+    // ever reaches an fs call. Out of range or vanished → 404, because a folder
+    // legitimately changes while a slideshow is running.
+    try {
+      const dir = await getSlideshowDir();
+      const hit = await slideshowFolder.resolveFile(dir, urlObj.searchParams.get('i'));
+      if (!hit) { res.writeHead(404); res.end(); return; }
+      const stat = await fs.promises.stat(hit.abs);
+      if (!stat.isFile()) { res.writeHead(404); res.end(); return; }
+      // The upload path caps each image; a folder is not curated by us, so cap it
+      // here too. 413 rather than 404 so the tile can tell "too big" from "gone" —
+      // both make it step to the next image, but only one is worth explaining.
+      if (stat.size > slideshowFolder.MAX_BYTES) { res.writeHead(413); res.end(); return; }
+      // Not `immutable` like /uploads/: an uploaded asset has a unique generated
+      // name, but index N of a folder means a different file the moment the user
+      // adds or deletes one. Revalidate against mtime+size instead.
+      const etag = `"${stat.size}-${Math.round(stat.mtimeMs)}"`;
+      // Honor the revalidation the ETag invites: without this, every playlist
+      // wrap re-streamed unchanged bodies (up to 20 MB each) forever.
+      if (req.headers['if-none-match'] === etag) { res.writeHead(304); res.end(); return; }
+      res.writeHead(200, {
+        'Content-Type': hit.mime,
+        'Content-Length': String(stat.size),
+        'Cache-Control': 'private, no-cache',
+        'ETag': etag,
+      });
+      fs.createReadStream(hit.abs).pipe(res);
+    } catch (e) {
+      if (e.code === 'ENOENT') { res.writeHead(404); res.end(); }
+      else err500(e.message);
+    }
+
   } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {
     try {
       const name = decodeURIComponent(reqPath.slice('/uploads/'.length));
@@ -13558,7 +13957,12 @@ const server = http.createServer(async (req, res) => {
     // decorated (copy — the cached scan stays undecorated) with its origin +
     // exportable flag so the UI can limit exports to the user's own creations.
     const scan = await refreshSdkScan();
-    const packages = scan.packages.map(p => ({ ...p, origin: widgetOriginOf(p.id), exportable: widgetExportable(p.id) }));
+    const packages = scan.packages.map(p => ({
+      ...p,
+      origin: widgetOriginOf(p.id),
+      exportable: widgetExportable(p.id),
+      catalogVersion: widgetCatalogVersionOf(p.id),
+    }));
     json({ ok: true, api: sdkWidgets.SDK_API_VERSION, packages, invalid: scan.invalid });
 
   } else if (reqPath === '/sdk/fetch' && req.method === 'POST') {
@@ -13855,7 +14259,11 @@ const server = http.createServer(async (req, res) => {
     const body = await readBody(req);
     let payload; try { payload = JSON.parse(body); } catch { payload = null; }
     const origin = (payload && payload.origin === 'creator') ? 'creator' : 'import';
-    const r = await installWidgetPayload(payload, origin);
+    // Optional: the version of the catalog ENTRY this payload came from. Only the
+    // caller knows it (the manifest carries its own, unrelated number), and it is
+    // what makes 'is there an update' comparable — see recordWidgetOrigin.
+    const catalogVersion = (payload && typeof payload.catalogVersion === 'string') ? payload.catalogVersion : '';
+    const r = await installWidgetPayload(payload, origin, catalogVersion);
     json(r);
 
   } else if (reqPath === '/sdk/claim' && req.method === 'POST') {
@@ -13913,18 +14321,38 @@ const server = http.createServer(async (req, res) => {
     // Origin:null, which isAllowedRequest() accepts for the iCUE WebView, so
     // this CSP is the layer that keeps widget code away from the local API.
     const m = /^\/sdk\/widget\/([^/]+)\/(.+)$/.exec(reqPath);
-    const abs = m ? sdkWidgets.resolveAsset(SDK_WIDGETS_DIR, m[1], m[2]) : null;
-    if (!abs) { res.writeHead(404); res.end(); }
+    // Reserved probe asset: served from server memory, BEFORE resolveAsset (which
+    // refuses the name so a package file can never shadow it from disk). Same
+    // headers as every widget asset — the probe runs under the identical sandbox.
+    let probePath = null;
+    try { probePath = m ? decodeURIComponent(m[2]) : null; } catch { probePath = null; }
+    const abs = (m && probePath !== sdkWidgets.PERF_PROBE_FILENAME)
+      ? sdkWidgets.resolveAsset(SDK_WIDGETS_DIR, m[1], m[2]) : null;
+    if (m && probePath === sdkWidgets.PERF_PROBE_FILENAME) {
+      res.writeHead(200, {
+        'Content-Type': 'text/javascript; charset=utf-8',
+        'Cache-Control': 'no-cache',
+        'Content-Security-Policy': sdkWidgets.WIDGET_CSP,
+        'X-Content-Type-Options': 'nosniff',
+      });
+      res.end(sdkWidgets.PERF_PROBE_SOURCE);
+    } else if (!abs) { res.writeHead(404); res.end(); }
     else {
       try {
         const data = await fs.promises.readFile(abs);
+        const mime = sdkWidgets.mimeFor(abs);
+        // Widget HTML gets the perf-probe <script> injected at serve time; every
+        // other asset streams verbatim.
+        const payload = mime.startsWith('text/html')
+          ? sdkWidgets.injectPerfProbe(data.toString('utf8'))
+          : data;
         res.writeHead(200, {
-          'Content-Type': sdkWidgets.mimeFor(abs),
+          'Content-Type': mime,
           'Cache-Control': 'no-cache',
           'Content-Security-Policy': sdkWidgets.WIDGET_CSP,
           'X-Content-Type-Options': 'nosniff',
         });
-        res.end(data);
+        res.end(payload);
       } catch (e) {
         if (e.code === 'ENOENT' || e.code === 'EISDIR') { res.writeHead(404); res.end(); }
         else err500(e.message);
@@ -14214,7 +14642,7 @@ const server = http.createServer(async (req, res) => {
     if (_feedWidgetInUse('news', 'news') && (!_newsCache.items.length || Date.now() - _newsCache.refreshedAt > 15 * 60 * 1000)) refreshNews().catch(() => {});
     // Seed the current Claude Code usage aggregate, then refresh if empty/stale
     // (display-only feed: only when the widget is on the dashboard).
-    try { if (_claudeCache.data) res.write(`event: claude\ndata: ${JSON.stringify(_claudeCache.data)}\n\n`); } catch (e) { /* ignore */ }
+    try { res.write(`event: claude\ndata: ${JSON.stringify(_claudeFresh())}\n\n`); } catch (e) { /* ignore */ }
     if (_feedWidgetInUse('claude') && (!_claudeCache.data || Date.now() - _claudeCache.refreshedAt > 5 * 60 * 1000)) refreshClaude().catch(() => {});
     // Seed the SDK data-only streams (tasks/notes/agenda) for custom widgets.
     // Unlike system/media/audio/status these are broadcast ONLY on change, so a
@@ -14990,6 +15418,14 @@ function _gracefulShutdown() {
   try { winNotif.stop(); } catch {}
   try { wakeWord.stop(); } catch {}
   try { guardian.stop(); } catch {}
+  // Settle every pending Claude Code permission request. These are HTTP requests
+  // the `claude` process is actively blocked on — exiting without answering would
+  // leave each of them hanging until their own 600s hook timeout expires.
+  try { _claudeBridge.stop(); } catch {}
+  // Runs the dashboard started are children with no job object: exiting without
+  // this orphans a `claude` process (and the tool processes it spawned) with no
+  // terminal attached to stop it.
+  try { _claudeRunner.stopAll(); } catch {}
   // Kill any in-flight STT recorder: unlike the other children it has no stop
   // module, so Ctrl+C mid-recording would orphan an ffmpeg that keeps the mic
   // device open — blocking the wake word after restart.

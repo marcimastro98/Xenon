@@ -128,7 +128,22 @@
       if (solo) merged.add(solo.id);
       return { record, pkg: solo || null };
     });
-    packages.filter((p) => !merged.has(p.id)).forEach((pkg) => rows.push({ record: null, pkg }));
+    // A bundle's widgets stay individually listed, so the SAME package appears
+    // twice: once as the download it came in, once as the removable widget. The
+    // widget half had nothing to look itself up with — the catalog publishes the
+    // BUNDLE (pkgId: null), not its parts — so it fell back to the grey glyph and
+    // the two rows for one thing looked like two different things. The receipt
+    // already records which widgets it installed, so the owner is provable rather
+    // than guessed, and the widget row inherits the artwork of the package it
+    // arrived in.
+    const ownerByPkg = new Map();
+    for (const record of all) {
+      for (const id of (record.resources.widgetIds || [])) {
+        if (!merged.has(id) && !ownerByPkg.has(id)) ownerByPkg.set(id, record);
+      }
+    }
+    packages.filter((p) => !merged.has(p.id))
+      .forEach((pkg) => rows.push({ record: null, pkg, owner: ownerByPkg.get(pkg.id) || null }));
     return rows;
   }
 
@@ -144,7 +159,7 @@
     // Keeping only the pkgId half — as this did — meant a theme with a published
     // update showed no button here at all, even though findUpdates had returned
     // it and the gallery was already offering it.
-    const out = { updates: new Map(), updatesById: new Map(), byId: new Map(), byPkgId: new Map() };
+    const out = { updates: new Map(), updatesById: new Map(), byId: new Map(), byPkgId: new Map(), byDropId: new Map() };
     try {
       const cat = await fetch('/api/community/catalog').then((r) => r.json());
       const entries = (cat && cat.entries) || [];
@@ -152,6 +167,15 @@
         if (!e || !e.id) continue;
         out.byId.set(e.id, e);
         if (e.pkgId) out.byPkgId.set(e.pkgId, e);
+        // Every copy id a numbered drop can hand out, mapped to the one published
+        // entry, so a receipt naming a single copy still finds its catalog row.
+        const lim = e.limited;
+        if (lim && lim.numbered && lim.dropId && Number(lim.total) > 0) {
+          const width = String(lim.total).length;
+          for (let n = 1; n <= Math.min(Number(lim.total), 999); n++) {
+            out.byDropId.set(lim.dropId + '-' + String(n).padStart(width, '0'), e);
+          }
+        }
       }
       const updates = (window.CommunityGallery && window.CommunityGallery.findUpdates)
         ? await window.CommunityGallery.findUpdates(entries) : [];
@@ -169,11 +193,26 @@
   // the catalog publishes it under. An import from a pasted code has neither —
   // it gets the kind glyph instead of a screenshot, which is honest.
   function entryFor(row, cat) {
+    const fromRecord = (record) => {
+      if (!record || record.source !== 'catalog' || !record.sourceId) return null;
+      return cat.byId.get(record.sourceId) || cat.byDropId.get(record.sourceId) || null;
+    };
     if (row.record && row.record.source === 'catalog' && row.record.sourceId) {
       const e = cat.byId.get(row.record.sourceId);
       if (e) return e;
+      // A NUMBERED limited drop hands out one artifact per copy, each with its own
+      // redeem id ('vanguard-50-01'), while the catalog publishes ONE entry for the
+      // drop ('vanguard-50'). The receipt records the copy, so a direct lookup
+      // misses and the owner of a numbered edition — the most special thing they
+      // can install — got the generic glyph and was never offered its updates.
+      // Matched through the entry's declared `limited.dropId`, never by trimming
+      // the id blind: an unrelated entry that merely ends in -01 must not claim it.
+      const drop = cat.byDropId.get(row.record.sourceId);
+      if (drop) return drop;
     }
-    if (row.pkg) return cat.byPkgId.get(row.pkg.id) || null;
+    // A widget published on its own carries the pkgId the catalog knows it by;
+    // one that arrived inside a package inherits that package's entry.
+    if (row.pkg) return cat.byPkgId.get(row.pkg.id) || fromRecord(row.owner) || null;
     return null;
   }
 
@@ -304,7 +343,12 @@
   function updateFor(row, cat) {
     if (row.pkg && cat.updates.has(row.pkg.id)) return cat.updates.get(row.pkg.id);
     if (row.record && row.record.source === 'catalog' && row.record.sourceId) {
-      return cat.updatesById.get(row.record.sourceId) || null;
+      const direct = cat.updatesById.get(row.record.sourceId);
+      if (direct) return direct;
+      // Same copy-id/entry-id gap entryFor() closes: an update published for the
+      // drop is an update for every copy of it.
+      const drop = cat.byDropId.get(row.record.sourceId);
+      return (drop && cat.updatesById.get(drop.id)) || null;
     }
     return null;
   }
@@ -331,7 +375,11 @@
         if (!payload) throw new Error('bad_code');
         const r = await fetch('/sdk/install', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(Object.assign({}, payload, { origin: 'import' })),
+          // Tell the server which catalog version this is. The package manifest
+          // carries a different number, set by whoever built it, and comparing
+          // the two produced an update that re-appeared after every successful
+          // install (see recordWidgetOrigin in server.js).
+          body: JSON.stringify(Object.assign({}, payload, { origin: 'import', catalogVersion: upd.version || '' })),
         });
         const d = await r.json().catch(() => ({}));
         if (!r.ok || !d.ok) throw new Error(d.error || 'install_failed');
@@ -370,6 +418,22 @@
     // install. An 'unknown' package gets none; it offers the claim button below.
     if (row.pkg && row.pkg.exportable) head.appendChild(el('span', 'inst-origin is-mine', t('settings_sdk_origin_mine', 'Creato da te')));
     else if (row.record ? row.record.source === 'catalog' : row.pkg.origin === 'import') head.appendChild(el('span', 'inst-origin', t('settings_sdk_origin_community', 'Dalla community')));
+    // Live resource accounting from the host probe (custom-widget.js): a small
+    // chip so the user can SEE which installed widget is costing CPU instead of
+    // bisecting by uninstall. Only shown once a report exists for this package.
+    const suspended = row.pkg && window.CustomWidget && typeof CustomWidget.isSuspended === 'function'
+      && CustomWidget.isSuspended(row.pkg.id);
+    if (suspended) {
+      head.appendChild(el('span', 'inst-activity is-paused', t('settings_sdk_suspended_badge', 'In pausa')));
+    } else if (row.pkg && window.CustomWidget && typeof CustomWidget.getPerfStats === 'function') {
+      const stat = CustomWidget.getPerfStats()[row.pkg.id];
+      if (stat) {
+        const chip = el('span', 'inst-activity is-' + stat.level,
+          t('settings_sdk_activity', 'Attività') + ': ' + t('settings_sdk_activity_' + stat.level, stat.level));
+        if (stat.longTaskMsPerMin > 0) chip.title = t('settings_sdk_activity_detail', 'Tempo CPU bloccato al minuto') + ': ~' + stat.longTaskMsPerMin + ' ms';
+        head.appendChild(chip);
+      }
+    }
     info.appendChild(head);
 
     const meta = metaLine(row);
@@ -397,6 +461,20 @@
         else b.disabled = false;
       });
       btns.appendChild(b);
+    }
+    // An installed-but-ungranted package is an installed DEAD package, and this
+    // list was the one place that showed it without offering the fix. Placing a
+    // tile used to be the only way to reach the dialog — impossible for a widget
+    // that needs no tile (a badge-only one with `background`), which is exactly
+    // how a package could install, look right here, and never appear anywhere.
+    if (row.pkg && window.CustomWidget && typeof CustomWidget.packageGranted === 'function'
+        && !CustomWidget.packageGranted(row.pkg)) {
+      const gr = el('button', 'settings-btn primary', t('settings_sdk_grant_btn', 'Permessi'));
+      gr.type = 'button';
+      gr.addEventListener('click', () => {
+        if (CustomWidget.requestGrant) CustomWidget.requestGrant(row.pkg, repaint);
+      });
+      btns.appendChild(gr);
     }
     // A package with user-filled address slots needs a way back to the field
     // after approval — a NAS gets a new IP, a port changes, someone mistypes.
@@ -436,6 +514,16 @@
         } catch { toast(t('settings_sdk_claim_failed', 'Operazione non riuscita'), '', 'error'); }
       });
       btns.appendChild(claim);
+    }
+    // Pause without uninstalling: the frame (tile + background) stops, grants
+    // and assignments stay, and Resume brings it back exactly as it was. The
+    // cheap answer to "this widget is heavy but I still want it".
+    if (row.pkg && window.CustomWidget && typeof CustomWidget.setSuspended === 'function') {
+      const isSus = !!suspended;
+      const sus = el('button', 'settings-btn', isSus ? t('settings_sdk_resume', 'Riattiva') : t('settings_sdk_suspend', 'Sospendi'));
+      sus.type = 'button';
+      sus.addEventListener('click', () => { CustomWidget.setSuspended(row.pkg.id, !isSus); repaint(); });
+      btns.appendChild(sus);
     }
     const del = el('button', 'settings-btn danger', t('settings_sdk_remove', 'Rimuovi'));
     del.type = 'button';

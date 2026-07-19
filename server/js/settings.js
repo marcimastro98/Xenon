@@ -242,6 +242,12 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // save GPU (js/ambient-idle.js). On by default; users can switch it off so the
   // dashboard keeps animating while idle.
   idleAnimationPause: true,
+  // Safe mode: temporarily run without any imported content — third-party SDK
+  // widgets, custom themes/skins, code and image/video backgrounds all go back
+  // to factory look. Nothing is uninstalled or overwritten: every stored key
+  // stays as-is and turning safe mode off restores the exact prior state. Used
+  // to triage "is an imported item causing this?" without a bisect.
+  safeMode: false,
   // Freeze the aurora/grid, the animated background and the Deck decor for the
   // whole session when the native shell is rendering on the weaker of two GPUs
   // (js/native-bridge.js → body.low-power-gpu). On by default: on that hardware a
@@ -284,10 +290,18 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Only reconciled into a real scheduled task from a standalone browser view —
   // never from inside the Xeneon Edge iframe (see reconcileAutoOpenBrowser).
   autoOpenBrowser: true,
-  // Anonymous version ping — OFF unless the user opts in (Settings → Generale → Aggiornamenti).
-  // Sends only {version, os} on the update check the app already makes, never
-  // the install id. Mirror of server.js; see docs/privacy.html.
-  versionPing: false,
+  // Anonymous version ping — ON by default for installs made from v4.8.0 onwards;
+  // the switch is in Settings → Generale → Aggiornamenti. Sends only {version, os}
+  // on the update check the app already makes, never the install id. Mirror of
+  // server.js; see docs/privacy.html.
+  //
+  // This default reaches ONLY a fresh install, and that is deliberate: it applies
+  // when there is no settings file yet, while `normalizeSettings` keeps the strict
+  // `=== true` test so a stored blob decides for itself. An install that predates
+  // the key therefore stays OFF rather than being switched on by an update — those
+  // users read "off unless you turn it on" and left it alone, which is a choice.
+  // Do not "simplify" that test to `!== false`: it would flip exactly those people.
+  versionPing: true,
   // Opt-in ad-blocker for the Browser tile (Settings → Browser). OFF by default.
   browserAdblock: false,
   // Stock-market (Borsa) widget + ticker. Keys are server-only (redacted); the
@@ -427,7 +441,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // packages run in a sandboxed, network-less iframe and each one gets an
   // explicit per-package permission grant (data streams + action categories)
   // before it renders. `assign` maps a tile instance id → package id.
-  sdkWidgets: Object.freeze({ enabled: false, assign: Object.freeze({}), grants: Object.freeze({}) }),
+  sdkWidgets: Object.freeze({ enabled: false, assign: Object.freeze({}), grants: Object.freeze({}), suspended: Object.freeze([]) }),
   // Background FX (all 0..100 unless noted). Aurora = soft flowing accent
   // gradients behind the grid (only when no custom image/video bg). Grid =
   // a perspective neon grid scrolling toward a glowing horizon.
@@ -440,9 +454,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // theme/package) run inside a locked-down sandboxed iframe (see js/custom-bg.js).
   // Off by default; when enabled it owns the backdrop like a static bg does.
   bgCustom: Object.freeze({ enabled: false, name: '', code: '', assets: Object.freeze({}), fps: 30 }),
-  // Slideshow widget — an ordered set of images/GIFs (inline data: URIs) plus its
-  // playback options. Rules live in js/slideshow-widget.js (shared with the server).
-  slideshow: Object.freeze({ images: Object.freeze([]), intervalMs: 6000, fit: 'cover' }),
+  // Slideshow widget — either an ordered set of uploaded images/GIFs or a folder on
+  // this PC (`source`), plus its playback options. Rules live in
+  // js/slideshow-widget.js (shared with the server).
+  slideshow: Object.freeze({ images: Object.freeze([]), source: 'library', folder: '', shuffle: false, pauseGame: true, intervalMs: 6000, fit: 'cover' }),
   gameMode: true, // auto-pause ambient FX while a game / intensive app is running
   // Performance Mode (opt-in, off by default). Broader than gameMode: a
   // user-triggered / suggested profile that pauses dashboard animations and
@@ -1092,7 +1107,7 @@ function normalizeTopbarRails(value) {
 // is inlined (not a module const) because normalizeSettings runs at load time,
 // before a top-level const would be initialised — a TDZ crash otherwise.
 function normalizeTopbarClock(value) {
-  const canonical = ['time', 'date', 'weather', 'vitals', 'dots', 'badges'];
+  const canonical = ['time', 'date', 'weather', 'vitals', 'dots', 'badges', 'claude'];
   const v = value && typeof value === 'object' ? value : {};
   const align = ['center', 'left', 'right'].includes(v.align) ? v.align : 'center';
   const legacyHidden = {};
@@ -1249,6 +1264,7 @@ function normalizeSettings(source) {
     bgDim: clampNumber(value.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
     bgBlur: clampNumber(value.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
     idleAnimationPause: value.idleAnimationPause !== false,
+    safeMode: value.safeMode === true,
     hybridGpuAnimationPause: value.hybridGpuAnimationPause !== false,
     uiRoundness: clampNumber(value.uiRoundness, 0, 2, DEFAULT_HUB_SETTINGS.uiRoundness),
     glassBlur: clampNumber(value.glassBlur, 0, 40, DEFAULT_HUB_SETTINGS.glassBlur),
@@ -1732,7 +1748,7 @@ function normalizeDiscordNotifications(value) {
 // use (the exact bug where a to-do widget's `tasks` stream+action were dropped,
 // leaving it empty and un-writable). server/test/sdk-grant-cats-sync guards this.
 const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'tasks', 'notes', 'agenda', 'weather', 'battery']);
-const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'mic', 'lighting', 'chroma', 'wavelink', 'spotify', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'streamerbot', 'url', 'tasks', 'soundboard']);
+const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'mic', 'lighting', 'chroma', 'wavelink', 'spotify', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'streamerbot', 'url', 'tasks', 'soundboard', 'browser']);
 const SDK_PACKAGE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // Grant-side mirrors of the server manifest rules (sdk-widgets.js is the
 // authority; a grant can never widen what the manifest declared, so a loose
@@ -1809,7 +1825,12 @@ function normalizeSdkWidgets(value) {
       n++;
     }
   }
-  return { enabled: v.enabled === true, assign, grants };
+  // Per-package pause list (Store → Installed → Sospendi). Grants/assignments
+  // stay intact — resuming brings the widget back exactly as it was.
+  const suspended = (window.SdkPerf && typeof SdkPerf.normalizeSuspended === 'function')
+    ? SdkPerf.normalizeSuspended(v.suspended, SDK_PACKAGE_ID_RE)
+    : (Array.isArray(v.suspended) ? v.suspended.filter((s, i, a) => typeof s === 'string' && SDK_PACKAGE_ID_RE.test(s) && a.indexOf(s) === i).slice(0, 32) : []);
+  return { enabled: v.enabled === true, assign, grants, suspended };
 }
 
 // Windows notification mirroring — same shape the server persists (known-key
@@ -2596,6 +2617,9 @@ async function _hydrateHubSettingsImpl() {
     // never refreshes on sync — leaving the tile stuck on "package was removed"
     // until a manual Rescan (GitHub #72). Refresh the registry when this changes.
     const sdkBefore = JSON.stringify((hubSettings && hubSettings.sdkWidgets) || {});
+    // Safe mode lives OUTSIDE sdkWidgets but changes what the widget tiles show —
+    // a flip saved on another surface must repaint them here too.
+    const safeModeBefore = !!(hubSettings && hubSettings.safeMode);
     // Weather inputs before the merge: when ANOTHER surface changed them, this
     // sync path is the only signal we get — without a refetch here the widget
     // keeps showing the previous location's data until the next poll (GitHub
@@ -2683,6 +2707,10 @@ async function _hydrateHubSettingsImpl() {
     if (JSON.stringify(hubSettings.sdkWidgets || {}) !== sdkBefore
         && window.CustomWidget && typeof window.CustomWidget.refreshPackages === 'function') {
       window.CustomWidget.refreshPackages();
+    }
+    if (safeModeBefore !== !!hubSettings.safeMode
+        && window.CustomWidget && typeof window.CustomWidget.renderWidgets === 'function') {
+      window.CustomWidget.renderWidgets();
     }
     // Re-push the current album-art colour to the lighting bridge now that the
     // settings (and thus the server's lighting state) are hydrated: at a cold
@@ -3093,6 +3121,13 @@ let _dynamicAccent = null;
 let _effectiveThemePalette = null;
 
 function deriveEffectiveThemePalette() {
+  // Safe mode: factory palette, full stop. Derives from STOCK without reading
+  // any user colour/variant key, so nothing saved is touched and toggling off
+  // re-derives the user's theme unchanged.
+  if (hubSettings.safeMode === true) {
+    const tone = resolveAppearance(hubSettings.appearance);
+    return ThemePalette.derive({ ...ThemePalette.STOCK[tone] }, tone);
+  }
   const source = { ...hubSettings };
   if (hubSettings.appearance === 'auto' && hubSettings.autoPalette === true) {
     const stock = ThemePalette.STOCK[resolveAppearance('auto')];
@@ -3260,8 +3295,10 @@ function applyHubSettings() {
   // Dashboard style language: skins own geometry/material only. Colour and
   // contrast always flow through ThemePalette; Retro is the sole fixed-palette
   // exception because its identity is a dark CRT.
-  const retro = hubSettings.styleMode === 'retro';
-  const comic = hubSettings.styleMode === 'comic';
+  // Safe mode neutralizes the skins too (styleMode itself stays saved).
+  const safe = hubSettings.safeMode === true;
+  const retro = !safe && hubSettings.styleMode === 'retro';
+  const comic = !safe && hubSettings.styleMode === 'comic';
   if (retro) root.dataset.style = 'retro';
   else if (comic) root.dataset.style = 'comic';
   else delete root.dataset.style;
@@ -3316,7 +3353,8 @@ function applyHubSettings() {
 
   // Extended theme tokens — corner radius, glass blur/saturation and optional
   // secondary colours. Glass-only (the full skins own their geometry/material).
-  applyThemeSurfaceTokens(root, retro || comic);
+  // Safe mode drops the inline overrides too: stylesheet defaults = factory glass.
+  applyThemeSurfaceTokens(root, retro || comic || safe);
 
   // Borders consume the effective semantic line colour, whether it was picked
   // manually or auto-derived. Retro's !important CRT edge still wins.
@@ -3328,10 +3366,14 @@ function applyHubSettings() {
   const grid = normalizeBgGrid(hubSettings.bgGrid);
   const bgStatic = normalizeBgStatic(hubSettings.bgStatic);
   const bgCustom = normalizeBgCustom(hubSettings.bgCustom);
+  // Safe mode hides user-imported backdrops (code background + image/video
+  // wallpaper) but keeps the factory FX (aurora/grid/static) as the user set
+  // them. The stored keys are untouched — everything returns on toggle-off.
+  const media = safe ? null : hubSettings.backgroundMedia;
   // Code-defined animated background: when enabled (and no image/video wallpaper),
   // it owns the backdrop and suppresses the built-in FX below, exactly like a
   // static premium bg does. Mounted/cleared through the sandboxed CustomBg module.
-  const customOn = bgCustom.enabled && !!bgCustom.code && !hubSettings.backgroundMedia;
+  const customOn = !safe && bgCustom.enabled && !!bgCustom.code && !media;
   if (window.CustomBg && typeof window.CustomBg.apply === 'function') {
     window.CustomBg.apply(customOn ? bgCustom.code : null, customOn ? bgCustom.assets : null, bgCustom.fps);
   }
@@ -3340,13 +3382,13 @@ function applyHubSettings() {
   // (turning one on switches the other off: "zero animation" is the point) and,
   // like the aurora/grid, hidden when a custom image/video background is set or a
   // code-defined background owns the backdrop.
-  const staticOn = bgStatic.style !== 'none' && !hubSettings.backgroundMedia && !customOn;
+  const staticOn = bgStatic.style !== 'none' && !media && !customOn;
   if (staticOn) document.body.dataset.bgStatic = bgStatic.style;
   else delete document.body.dataset.bgStatic;
   root.style.setProperty('--static-opacity', (0.30 + (bgStatic.intensity / 100) * 0.70).toFixed(3));
 
   // Aurora only shows when there's no custom background and no static/code bg is active.
-  const auroraOn = aurora.enabled && !hubSettings.backgroundMedia && !staticOn && !customOn;
+  const auroraOn = aurora.enabled && !media && !staticOn && !customOn;
   document.body.classList.toggle('aurora-on', auroraOn);
   root.style.setProperty('--aurora-opacity', (0.12 + (aurora.intensity / 100) * 0.5).toFixed(3));
   root.style.setProperty('--aurora-duration', `${(72 - (aurora.speed / 100) * 54).toFixed(1)}s`);
@@ -3355,7 +3397,7 @@ function applyHubSettings() {
   // background — it shouldn't compete with (or visibly flicker over) a user
   // wallpaper. A static premium OR code-defined background also owns the backdrop
   // on its own, so the animated grid is suppressed while one is active.
-  document.body.classList.toggle('grid-on', grid.enabled && !hubSettings.backgroundMedia && !staticOn && !customOn);
+  document.body.classList.toggle('grid-on', grid.enabled && !media && !staticOn && !customOn);
   root.style.setProperty('--grid-color', grid.color);
   root.style.setProperty('--grid-rgb', hexToRgb(grid.color).join(', '));
   // The grid reads stronger on a light background, so keep it gentler there.
@@ -3376,7 +3418,6 @@ function applyHubSettings() {
   // timer whenever settings change, from any source (UI, AI, another surface).
   if (window.AmbientMode) window.AmbientMode.onSettingsChanged();
 
-  const media = hubSettings.backgroundMedia;
   const bgLayer = $('user-bg-layer');
   let image = $('user-bg-image');
   let video = $('user-bg-video');
@@ -4063,6 +4104,17 @@ function updateIdleAnimationPause(enabled) {
   syncSettingsControls();
 }
 
+// Safe mode: everything imported goes quiet (widgets, custom theme/skin, custom
+// backgrounds) without touching any stored key — applyHubSettings derives the
+// factory look while the flag is on, so toggling off restores the prior state.
+function setSafeMode(on) {
+  hubSettings = normalizeSettings({ ...hubSettings, safeMode: on === true });
+  saveHubSettings();
+  applyHubSettings();
+  syncSettingsControls();
+  if (window.CustomWidget && CustomWidget.renderWidgets) CustomWidget.renderWidgets();
+}
+
 function updateHybridGpuAnimationPause(enabled) {
   hubSettings = normalizeSettings({ ...hubSettings, hybridGpuAnimationPause: enabled !== false });
   saveHubSettings();
@@ -4597,6 +4649,58 @@ function moveSlideshowImage(idx, dir) {
   updateSlideshowCfg({ images });
 }
 
+// Ask the server how many images the configured folder holds, and say so under
+// the field. The path is validated by the server (it owns the disk), so this is
+// also where a typo, a missing drive or a folder with no images gets explained —
+// the alternative was a tile that silently stayed empty.
+let slideshowFolderStatusPending = false;
+let _slideshowFolderStatusSeq = 0;   // a forced refresh orphans an in-flight one
+function refreshSlideshowFolderStatus(force) {
+  const out = $('settings-slideshow-folder-status');
+  if (!out) return;
+  // force supersedes a pending fetch (the seq below keeps the superseded
+  // response from painting a stale answer over the fresh one).
+  if (slideshowFolderStatusPending && !force) return;
+  const c = normalizeSlideshow(hubSettings.slideshow);
+  if (!c.folder) { out.textContent = ''; return; }
+  const seq = ++_slideshowFolderStatusSeq;
+  slideshowFolderStatusPending = true;
+  fetch('/slideshow/folder' + (force ? '?refresh=1' : ''))
+    .then(r => (r.ok ? r.json() : Promise.reject(new Error('http ' + r.status))))
+    .then(d => {
+      if (seq !== _slideshowFolderStatusSeq) return;
+      if (d.ok) {
+        out.textContent = d.truncated
+          ? t('slideshow_folder_truncated').replace('{n}', String(d.count))
+          : t('slideshow_folder_found').replace('{n}', String(d.count));
+      } else {
+        // t() falls back to the key name, so an unknown code must be mapped here
+        // rather than tested for truthiness — otherwise a raw key reaches the UI.
+        const known = ['no_folder', 'not_found', 'not_a_dir', 'denied', 'read_failed'];
+        const code = known.includes(d.error) ? d.error : 'read_failed';
+        out.textContent = t('slideshow_folder_err_' + code);
+      }
+    })
+    .catch(() => { if (seq === _slideshowFolderStatusSeq) out.textContent = t('slideshow_folder_err_read_failed'); })
+    .finally(() => { if (seq === _slideshowFolderStatusSeq) slideshowFolderStatusPending = false; });
+}
+
+async function updateSlideshowFolder(value) {
+  updateSlideshowCfg({ folder: String(value || '') });
+  // The status endpoint reads the folder from the SERVER's persisted settings,
+  // and the background save above is debounced 250ms — asking now would
+  // enumerate the PREVIOUS folder and the answer would stick (the widget caches
+  // it under the new path for minutes). Flush the save first, then ask, and
+  // force-refresh the widget's own folder cache with the real answer.
+  clearTimeout(settingsServerSaveTimer);
+  settingsServerSaveTimer = null;
+  const token = ++_settingsSaveToken;
+  try { await postHubSettingsToServer(); }
+  catch { _postHubSettingsWithRetry(token, 0); }
+  refreshSlideshowFolderStatus(true);
+  if (window.SlideshowWidget && typeof SlideshowWidget.refreshFolderNow === 'function') SlideshowWidget.refreshFolderNow();
+}
+
 // Open the Settings overlay straight at the Slideshow pane (the widget's empty
 // state links here).
 function openSlideshowSettings() {
@@ -4605,30 +4709,96 @@ function openSlideshowSettings() {
   settingsSetCategory('slideshow');
 }
 
-// Fill the Slideshow settings pane: the thumbnail grid (reorder + remove) plus
-// the interval and fit fields. Safe to call anytime — no-ops when the pane isn't
-// in the DOM, and skips the grid rebuild when the image set is unchanged.
+// Thumbnails are drawn to a CANVAS, not shown as <img>. An animated GIF in an
+// <img> keeps animating for as long as it is in the document, so a library of a
+// few hundred GIFs meant a few hundred clips playing at once inside the Settings
+// overlay — reported from the field as making the whole app lag, and the reason a
+// large library felt unusable even though the widget itself only ever shows one
+// image. Drawing frame 0 once and dropping the decoder costs nothing afterwards.
+// The Image is created detached, drawn, and released; only cells that scroll into
+// view are ever loaded, so opening the pane doesn't decode the whole library.
+let slideshowThumbObserver = null;
+function drawSlideshowThumb(canvas, uri) {
+  const img = new Image();
+  img.decoding = 'async';
+  // Release = clear the handlers FIRST, then drop the attribute. Assigning
+  // src = '' fires 'error', and an onerror that re-assigns '' loops forever
+  // (measured: hundreds of thousands of error events per thumbnail).
+  // removeAttribute is the same release freezeTile uses in slideshow-widget.js.
+  const release = () => { img.onload = null; img.onerror = null; img.removeAttribute('src'); };
+  img.onload = () => {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { release(); return; }
+    // Cover-fit the source into the square cell, same framing the tile uses.
+    const scale = Math.max(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight);
+    const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
+    ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+    release();   // the frame now lives in the canvas
+  };
+  img.onerror = release;
+  img.src = uri;
+}
+
+// Fill the Slideshow settings pane: the source picker, the thumbnail grid
+// (reorder + remove) or the folder field, plus the playback options. Safe to call
+// anytime — no-ops when the pane isn't in the DOM, and skips the grid rebuild when
+// the image set is unchanged.
 function renderSlideshowSettings() {
   const c = normalizeSlideshow(hubSettings.slideshow);
   const cap = window.SlideshowWidget ? SlideshowWidget.SLIDE_MAX_COUNT : 200;
+  const isFolder = c.source === 'folder';
+  // Both selects are upgraded to styled dropdowns, whose trigger label only
+  // follows a real `change` event — assigning .value needs the explicit re-sync
+  // or the dropdown keeps showing the previous option.
+  const setSelect = (el, value) => {
+    if (!el || document.activeElement === el) return;
+    el.value = value;
+    if (typeof el._csSync === 'function') el._csSync();
+  };
+  const srcSel = $('settings-slideshow-source');
+  setSelect(srcSel, c.source);
+  const libBlock = $('settings-slideshow-library');
+  if (libBlock) libBlock.hidden = isFolder;
+  const folderBlock = $('settings-slideshow-folderblock');
+  if (folderBlock) folderBlock.hidden = !isFolder;
+  const folderInput = $('settings-slideshow-folder');
+  if (folderInput && document.activeElement !== folderInput) folderInput.value = c.folder;
+  const shuffleBox = $('settings-slideshow-shuffle');
+  if (shuffleBox) shuffleBox.checked = c.shuffle;
+  const pauseGameBox = $('settings-slideshow-pause-game');
+  if (pauseGameBox) pauseGameBox.checked = c.pauseGame;
   const intInput = $('settings-slideshow-interval');
   if (intInput && document.activeElement !== intInput) intInput.value = String(Math.round(c.intervalMs / 1000));
-  const fitSel = $('settings-slideshow-fit');
-  if (fitSel && document.activeElement !== fitSel) fitSel.value = c.fit;
+  setSelect($('settings-slideshow-fit'), c.fit);
   const countEl = $('settings-slideshow-count');
   if (countEl) countEl.textContent = c.images.length + ' / ' + cap;
+  if (isFolder) refreshSlideshowFolderStatus(false);
   const host = $('settings-slideshow-assets');
   if (!host) return;
   const sig = c.images.length + '|' + c.images.map(im => im.uri.length).join(',');
   if (host.dataset.sig === sig) return;
   host.dataset.sig = sig;
+  // Rebuilding the grid orphans the previous cells — drop the observer watching
+  // them rather than leaving it holding detached nodes.
+  if (slideshowThumbObserver) { slideshowThumbObserver.disconnect(); slideshowThumbObserver = null; }
   const svg = (p) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
   const L = svg('<path d="M15 18l-6-6 6-6"/>'), R = svg('<path d="M9 18l6-6-6-6"/>'), X = svg('<path d="M6 6l12 12M18 6L6 18"/>');
+  slideshowThumbObserver = new IntersectionObserver((entries, obs) => {
+    entries.forEach((e) => {
+      if (!e.isIntersecting) return;
+      obs.unobserve(e.target);
+      drawSlideshowThumb(e.target, e.target.dataset.uri || '');
+    });
+  }, { rootMargin: '200px' });
   const frag = document.createDocumentFragment();
   c.images.forEach((im, i) => {
     const cell = document.createElement('div'); cell.className = 'sl-asset';
-    const img = document.createElement('img'); img.src = im.uri; img.alt = im.name || ''; img.decoding = 'async'; img.loading = 'lazy';
-    cell.appendChild(img);
+    const canvas = document.createElement('canvas');
+    canvas.width = 132; canvas.height = 132;              // 2x the 66px CSS cell
+    canvas.dataset.uri = im.uri;
+    if (im.name) canvas.setAttribute('aria-label', im.name);
+    cell.appendChild(canvas);
+    slideshowThumbObserver.observe(canvas);
     const actions = document.createElement('div'); actions.className = 'sl-asset-actions';
     const mk = (cls, html, aria, on, disabled) => {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'sl-asset-btn ' + cls;
@@ -5002,7 +5172,11 @@ function updateSdkWidgets(patch) {
 
 function syncSdkWidgetsControls() {
   const el = $('settings-sdk-enabled');
+  // Reflect the STORED flag, not the safe-mode-effective one: the whole point
+  // of safe mode is that the user's choices stay visibly intact underneath.
   if (el) el.checked = !!(hubSettings.sdkWidgets && hubSettings.sdkWidgets.enabled === true);
+  const safe = $('settings-safe-mode');
+  if (safe) safe.checked = hubSettings.safeMode === true;
 }
 
 // ── Available-update lookup (feeds the daily toast) ────────────────────────
@@ -6658,7 +6832,7 @@ function updateTopbarStyle(style) {
 }
 
 // Minimal-island segment id → i18n label key (editor rows).
-const TOPBAR_ISLAND_LABELS = { time: 'topbar_el_time', date: 'topbar_el_date', weather: 'topbar_el_weather', vitals: 'topbar_el_vitals', dots: 'topbar_el_dots', badges: 'topbar_el_badges' };
+const TOPBAR_ISLAND_LABELS = { time: 'topbar_el_time', date: 'topbar_el_date', weather: 'topbar_el_weather', vitals: 'topbar_el_vitals', dots: 'topbar_el_dots', badges: 'topbar_el_badges', claude: 'topbar_el_claude' };
 const EYE_OPEN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5C5 5 2 12 2 12s3 7 10 7 10-7 10-7-3-7-10-7Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg>';
 const EYE_OFF_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.8 3.2 1.4 4.6l3.1 3.1A12.9 12.9 0 0 0 2 12s3 7 10 7a10.8 10.8 0 0 0 4.4-.9l3 3 1.4-1.4L2.8 3.2ZM12 16a4 4 0 0 1-3.9-4.9l1.7 1.7A2 2 0 0 0 12 14a2 2 0 0 0 .2 0l1.7 1.7A4 4 0 0 1 12 16Zm0-11c7 0 10 7 10 7a13 13 0 0 1-2.2 3.2l-2.9-2.9A4 4 0 0 0 12 8a4 4 0 0 0-.4 0L9.2 5.6A10.9 10.9 0 0 1 12 5Z"/></svg>';
 const GRIP_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
@@ -7319,6 +7493,9 @@ function _reflectModelSelection() {
     if (modelCustom) { modelCustom.hidden = false; modelCustom.value = model; }
     if (modelWarn) modelWarn.hidden = false;
   }
+  // The select is a data-custom-select: assigning .value fires no event, so the
+  // visible trigger would keep the previous label.
+  if (typeof modelSel._csSync === 'function') modelSel._csSync();
 }
 
 // Resolve the concrete model tag for the current UI selection (not the stored
@@ -7754,6 +7931,7 @@ function _aiPopulateModelSelect(selId, custId, models, saved) {
   }
   const co = document.createElement('option'); co.value = '__custom__'; co.textContent = t('ai_model_custom'); sel.appendChild(co);
   sel.value = saved || (list[0] && list[0].id) || '';
+  if (typeof sel._csSync === 'function') sel._csSync(); // .value assignment fires no event
   if (cust) cust.hidden = true;
 }
 

@@ -26,6 +26,21 @@
     };
   }
 
+  // Does anything want an iCUE session right now? Mirrors shouldConnect() in
+  // server/lighting.js: every effect drives the LEDs on its own, independent of
+  // the master toggle, so gating the "not connected" hint on `enabled` alone hid
+  // the failure from exactly the users relying on Album → LED or an event flash
+  // with the master off — lights dead, nothing on screen explaining why. Keep the
+  // two lists in step; listing an effect here that shouldConnect() ignores would
+  // report a broken connection the server never intended to open.
+  function wantsSession(status) {
+    const e = status.effects || {};
+    return !!status.enabled || !!e.temperature || !!e.musicAlbum
+      || !!(e.timer && e.timer.enabled !== false)
+      || !!(e.notification && e.notification.enabled !== false)
+      || !!(e.reminder && e.reminder.enabled !== false);
+  }
+
   // POST a lighting command. Endpoints return either a full status or { status }.
   // Mirror whichever we get into the client settings store.
   async function post(path, body) {
@@ -50,8 +65,8 @@
       init(host);
     }));
 
-    // iCUE connection hint: enabled but the SDK session isn't up.
-    if (status.enabled && status.available && !status.connected) {
+    // iCUE connection hint: something wants the LEDs but the SDK session isn't up.
+    if (wantsSession(status) && status.available && !status.connected) {
       wrap.appendChild(hintP(status.reason || 'Connessione a iCUE non riuscita. Verifica che iCUE sia in esecuzione con l\'SDK abilitato.'));
     }
 

@@ -69,6 +69,8 @@
 }
 .lgt-hero.is-off { filter: grayscale(0.9) brightness(0.6); opacity: 0.85; }
 .lgt-hero.is-dynamic .lgt-hero-glow { animation: lgt-breathe 3.4s ease-in-out infinite; will-change: opacity, transform; }
+/* Paused while a frosted overlay covers the dashboard (see backgroundfx.css overlay-frozen). */
+body.overlay-frozen .lgt-hero.is-dynamic .lgt-hero-glow { animation-play-state: paused; }
 @keyframes lgt-breathe {
   0%, 100% { opacity: 0.45; transform: scale(0.92); }
   50%      { opacity: 1;    transform: scale(1.06); }

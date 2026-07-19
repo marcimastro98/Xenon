@@ -42,6 +42,7 @@
     url: ['openUrl'],
     tasks: ['taskAdd', 'taskToggle', 'taskDelete'],
     soundboard: ['playSound', 'soundStopAll'],
+    browser: ['browserOpen'],
   };
   // The only playSound.file shape an SDK widget may use — an installed sound
   // pack's clip, never an arbitrary local path (that stays a Deck-key-only
@@ -158,6 +159,7 @@
     url: ['cw_act_url', 'Open web links on this PC'],
     tasks: ['cw_act_tasks', 'Add and complete your to-do tasks'],
     soundboard: ['cw_act_soundboard', 'Play clips from your installed sound packs'],
+    browser: ['cw_act_browser', 'Open web pages in the Browser tile on your dashboard'],
   };
   const ACTION_MIN_INTERVAL_MS = 250;   // per-instance action rate limit
   const FETCH_MIN_INTERVAL_MS = 1000;   // per-instance proxied-fetch rate limit
@@ -272,12 +274,34 @@
     return tile.getAttribute('data-dashboard-instance') || 'custom';
   }
 
+  function safeModeOn() {
+    return typeof hubSettings === 'object' && hubSettings && hubSettings.safeMode === true;
+  }
   function sdk() {
     const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings.sdkWidgets : null;
-    return (hs && typeof hs === 'object') ? hs : { enabled: false, assign: {}, grants: {} };
+    const cfg = (hs && typeof hs === 'object') ? hs : { enabled: false, assign: {}, grants: {} };
+    // Safe mode: EFFECTIVE off for every reader (paint, service frames, ambient)
+    // while the stored flag/grants/assignments stay untouched — persist() merges
+    // into the real hubSettings.sdkWidgets, never into this copy.
+    if (safeModeOn()) return { ...cfg, enabled: false };
+    return cfg;
   }
   function persist(patch) {
     if (typeof updateSdkWidgets === 'function') updateSdkWidgets(patch);
+  }
+  function isSuspended(pkgId) {
+    const s = sdk().suspended;
+    return Array.isArray(s) && s.includes(pkgId);
+  }
+  // Pause/resume one package (Store → Installed). Persists through the normal
+  // settings path (cross-surface via SSE) and re-syncs the service frames that
+  // updateSdkWidgets' repaint alone would not touch.
+  function setSuspended(pkgId, on) {
+    if (typeof pkgId !== 'string' || !pkgId) return;
+    const cur = Array.isArray(sdk().suspended) ? sdk().suspended : [];
+    const next = on ? (cur.includes(pkgId) ? cur : cur.concat(pkgId)) : cur.filter(id => id !== pkgId);
+    persist({ suspended: next });
+    syncServiceFrames();
   }
 
   function packageById(id) {
@@ -573,6 +597,48 @@
       post(entry, { type: 'action_result', id: reqId, ok, error: ok ? undefined : 'failed' });
       return;
     }
+    // The Browser tile is a dashboard surface, not a server action, so it is
+    // dispatched here the same way soundboard goes to deck.js. browser-tile.js
+    // re-checks the scheme and refuses when no tile is visible; the widget still
+    // never touches the relay or sees the page.
+    //
+    // The destination needs the same two gates openUrl gets, for a stronger
+    // reason: the tile is a cookie-bearing Chromium, so a navigation the widget
+    // names is network access outside the manifest host allowlist. Loopback and
+    // LAN addresses are refused outright (browser-tile.js repeats the check —
+    // this copy exists so we never open a confirm dialog for an address that
+    // would be blocked anyway), and any other host the user did not already
+    // grant has to be approved by name.
+    if (msg.action.type === 'browserOpen') {
+      if (!window.BrowserTile || typeof BrowserTile.openFromSdk !== 'function') {
+        post(entry, { type: 'action_result', id: reqId, ok: false, error: 'unavailable' });
+        return;
+      }
+      let bHost = '';
+      try { bHost = new URL(String(msg.action.url || '').trim()).hostname.toLowerCase(); } catch (_) { bHost = ''; }
+      if (!bHost || cwForbiddenHost(bHost) || cwPrivateHost(bHost) || bHost === '[::1]' || bHost === '::1') {
+        post(entry, { type: 'action_result', id: reqId, ok: false, error: 'blocked_host' });
+        return;
+      }
+      const bApproved = await externalOpenApproved(entry, grant, msg.action.url);
+      if (!bApproved) {
+        post(entry, { type: 'action_result', id: reqId, ok: false, error: 'declined' });
+        return;
+      }
+      const res = BrowserTile.openFromSdk(msg.action.url, { expand: msg.action.expand === true });
+      post(entry, { type: 'action_result', id: reqId, ok: !!(res && res.ok), error: (res && res.ok) ? undefined : ((res && res.error) || 'failed') });
+      return;
+    }
+    // The user sees the destination before the browser leaves Xenon. Declining
+    // is a normal outcome, not an error the widget should retry: it reports
+    // 'declined', the same shape the clipboard prompt uses.
+    if (msg.action.type === 'openUrl') {
+      const approved = await externalOpenApproved(entry, grant, msg.action.url);
+      if (!approved) {
+        post(entry, { type: 'action_result', id: reqId, ok: false, error: 'declined' });
+        return;
+      }
+    }
     const d = await api('/actions/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -822,6 +888,54 @@
       .then((ok) => reply(!!ok, ok ? undefined : 'declined'));
   }
 
+  // ── Widget performance accounting (probe reports → per-package aggregate) ──
+  // Reports come from the host-injected probe, but the frame could forge them:
+  // SdkPerf.validatePerfReport clamps every field and the per-frame rate limit
+  // bounds the flood. Aggregated per PACKAGE (a service frame and a tile of the
+  // same package fold together — it's the package's CPU either way).
+  const perfByPkg = new Map();   // pkgId → SdkPerf aggregate
+  function onBridgePerf(entry, msg) {
+    if (!window.SdkPerf) return;
+    const now = Date.now();
+    if (now - (entry.perfAt || 0) < SdkPerf.PERF_MIN_INTERVAL_MS) return;
+    entry.perfAt = now;
+    const report = SdkPerf.validatePerfReport(msg);
+    if (!report) return;
+    // FPS strikes only count while a tile of this package is actually on the
+    // current page — parked/service frames are rAF-throttled by design.
+    const visible = !entry.service && !entry.ambient && !document.hidden && onVisiblePage(entry.frame);
+    const agg = SdkPerf.foldPerfReport(perfByPkg.get(entry.pkgId), report, visible, now);
+    perfByPkg.set(entry.pkgId, agg);
+    if (SdkPerf.classifyPerf(agg) === 'heavy' && !agg.notified) {
+      agg.notified = true;   // once per package per page load — never nags
+      const pkg = packageById(entry.pkgId);
+      const name = (pkg && pkg.name) ? pkg.name : entry.pkgId;
+      if (window.XenonToast && typeof window.XenonToast.show === 'function') {
+        window.XenonToast.show({
+          type: 'info',
+          title: t('cw_perf_heavy_toast', 'A widget is using a lot of resources:') + ' ' + name + '. '
+            + t('cw_perf_heavy_toast_hint', 'You can pause it from the Store, Installed tab.'),
+          duration: 7000,
+        });
+      }
+    }
+  }
+
+  // Plain serializable snapshot for the Installed tab's activity chips.
+  function getPerfStats() {
+    const out = {};
+    if (!window.SdkPerf) return out;
+    perfByPkg.forEach((agg, pkgId) => {
+      out[pkgId] = {
+        level: SdkPerf.classifyPerf(agg),
+        longTaskMsPerMin: SdkPerf.longTaskMsPerMin(agg),
+        layoutShifts: agg.layoutShifts,
+        updatedAt: agg.updatedAt,
+      };
+    });
+    return out;
+  }
+
   window.addEventListener('message', (e) => {
     const d = e.data;
     if (!d || typeof d !== 'object' || d.xenonSdk !== 1 || typeof d.type !== 'string') return;
@@ -879,6 +993,13 @@
       if (entry.ready) onBridgeBadge(entry, grant, d);
     } else if (d.type === 'clipboard') {
       if (entry.ready) onBridgeClipboard(entry, grant, d);
+    } else if (d.type === 'perf') {
+      // Host-injected probe report (see sdk-widgets.js PERF_PROBE_SOURCE). Not
+      // part of the public widget API and grants nothing — pure diagnostics.
+      // Deliberately NOT gated on entry.ready: a pure HTML/CSS widget never
+      // posts 'hello', and those decorative packages are exactly the ones the
+      // resource accounting exists to expose.
+      onBridgePerf(entry, d);
     } else if (d.type === 'handler_ack') {
       // The widget answered a dispatched deck-handler call. The sandboxed frame
       // has no network, so the HOST page relays the ack to the parked
@@ -1155,6 +1276,9 @@
       for (const pkg of ((pkgCache && pkgCache.packages) || [])) {
         if (count >= SERVICE_FRAMES_MAX) break;
         if (!pkg || pkg.background !== true) continue;
+        // A suspended package runs nothing, background included — its deck keys
+        // go dead on purpose (the suspend card says so).
+        if (isSuspended(pkg.id)) continue;
         const grant = grantsFor(pkg.id);
         // Two things outlive a tile and so justify a headless frame: granted deck
         // handlers (keys must answer) and a granted badge (the chip must stay in
@@ -1197,9 +1321,32 @@
   }
 
   // ── Permission dialog ────────────────────────────────────────────
+  // Closing runs the dialog's onClose on EVERY path — Allow, Cancel and backdrop
+  // click. A queue that advances only on Allow would stall forever on the first
+  // Cancel, leaving the rest of a package's widgets silently ungranted, which is
+  // the bug this whole path exists to stop.
+  //
+  // Exactly ONE dialog exists at a time: a request arriving while one is open
+  // QUEUES instead of superseding. The old supersede path ran the closed
+  // dialog's onClose (the requestGrants queue's `next`) synchronously in the
+  // middle of the interrupting openPermDialog, which appended a second backdrop
+  // — and every close targets the FIRST '.cw-perm-backdrop' in the DOM, so
+  // Allow/Cancel on the visible dialog tore down the other one and grants could
+  // land on the wrong dialog's buttons.
+  const pendingPermRequests = [];
   function closePermDialog() {
     const bd = document.querySelector('.cw-perm-backdrop');
-    if (bd) bd.remove();
+    if (!bd) return;
+    const after = bd._onClose;
+    bd._onClose = null;
+    bd.remove();
+    if (typeof after === 'function') { try { after(); } catch { /* queue teardown is best-effort */ } }
+    // Drain a parked request only if the onClose above (a requestGrants `next`)
+    // didn't already open the following dialog itself.
+    if (!document.querySelector('.cw-perm-backdrop') && pendingPermRequests.length) {
+      const req = pendingPermRequests.shift();
+      openPermDialog(req.pkg, req.instId, req.onAllow, req.onClose);
+    }
   }
 
   // ── Clipboard copy confirmation ──────────────────────────────────
@@ -1218,6 +1365,117 @@
     if (clipCloseTimer) { clearTimeout(clipCloseTimer); clipCloseTimer = null; }
     if (typeof resolve === 'function') resolve(result === true);
   }
+  /* ── External-open confirmation ────────────────────────────────────────────
+     A widget with the `url` grant can ask the host to open any address it likes,
+     and the addresses that matter are the ones it never declared: a news widget
+     links to whatever its feed says, so `hosts` (which governs fetch) cannot
+     cover them. That leaves the user one click away from a site chosen by
+     whoever controls the feed, with nothing on screen saying where it leads.
+     So the HOST names the destination — not the widget, which may simply choose
+     not to.
+
+     Asking every time would train people to click through, so consent is
+     remembered per (package, host) for the session: a widget's regular
+     destinations are approved once, while a NEW domain — the hijack case —
+     always surfaces. Session-scoped on purpose: nothing is written to settings,
+     so this cannot become another stale-surface write, and a restart re-asks. */
+  const approvedExternalHosts = new Set();
+  let extCloseTimer = null;
+
+  function closeExternalConfirm(result) {
+    const bd = document.querySelector('.cw-ext-backdrop');
+    if (!bd) return;
+    const resolve = bd._resolve;
+    bd.remove();
+    if (extCloseTimer) { clearTimeout(extCloseTimer); extCloseTimer = null; }
+    if (typeof resolve === 'function') resolve(result === true);
+  }
+
+  /**
+   * @returns {Promise<boolean>} true when the user approved the open.
+   */
+  function openExternalConfirm({ pkgId, url }) {
+    closeExternalConfirm(false);   // a fresh request supersedes any pending one
+    return new Promise((resolve) => {
+      const pkg = packageById(pkgId);
+      const who = (pkg && pkg.name) ? pkg.name : t('cw_clip_widget', 'A widget');
+      // Its own backdrop class, deliberately: closeClipConfirm() closes by
+      // querying '.cw-clip-backdrop', and sharing that class would let either
+      // dialog tear down the other and resolve the wrong promise.
+      const bd = el('div', 'cw-ext-backdrop');
+      bd._resolve = resolve;
+      const panel = el('div', 'cw-clip');
+      panel.appendChild(el('div', 'cw-clip-title', t('cw_ext_title', 'Open this site?')));
+
+      const whatLine = el('div', 'cw-clip-what');
+      whatLine.appendChild(el('span', 'cw-clip-who', who));
+      panel.appendChild(whatLine);
+
+      // The host is the decision, so it is the biggest thing on the panel; the
+      // rest of the URL is shown under it, truncated, because a long path can
+      // push the domain out of sight — which is exactly how a lookalike link
+      // gets approved.
+      const preview = el('div', 'cw-clip-preview cw-ext-preview');
+      const box = el('div', 'cw-ext-urlbox');
+      box.appendChild(el('div', 'cw-ext-host', url.hostname));
+      const rest = (url.pathname || '') + (url.search || '');
+      if (rest && rest !== '/') {
+        box.appendChild(el('div', 'cw-ext-path', rest.length > 120 ? rest.slice(0, 120) + '…' : rest));
+      }
+      preview.appendChild(box);
+      panel.appendChild(preview);
+
+      panel.appendChild(el('div', 'cw-clip-note',
+        t('cw_ext_note', 'This opens in your default browser, outside Xenon. Xenon will not ask again for this site while it is running.')));
+
+      const row = el('div', 'cw-clip-actions');
+      const cancel = el('button', 'cw-btn', t('cw_cancel', 'Cancel'));
+      cancel.type = 'button';
+      cancel.addEventListener('click', () => closeExternalConfirm(false));
+      const go = el('button', 'cw-btn cw-btn--primary', t('cw_ext_open', 'Open'));
+      go.type = 'button';
+      go.addEventListener('click', () => closeExternalConfirm(true));
+      row.append(cancel, go);
+      panel.appendChild(row);
+
+      bd.appendChild(panel);
+      bd.addEventListener('click', (ev) => { if (ev.target === bd) closeExternalConfirm(false); });
+      document.body.appendChild(bd);
+      // Cancel is focused, not Open: a prompt the user did not expect should not
+      // turn a stray Enter into an approved navigation.
+      setTimeout(() => { try { cancel.focus(); } catch (_) { /* focus is best-effort */ } }, 0);
+      extCloseTimer = setTimeout(() => closeExternalConfirm(false), 20000);
+    });
+  }
+
+  /**
+   * Gate for widget-initiated openUrl. Resolves false when the user declines.
+   * A host the package DECLARED was approved at install time, so it passes
+   * silently; everything else is the user's call.
+   */
+  async function externalOpenApproved(entry, grant, rawUrl) {
+    let url;
+    try { url = new URL(String(rawUrl || '')); } catch (_) { return false; }
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return false;
+    const host = url.hostname.toLowerCase();
+    // Loopback and link-local are refused before anything else, including before
+    // the granted-hosts check and the dialog. openUrl hands the address to the
+    // system browser, which loads it as a top-level navigation — the same shape
+    // browserOpen produces, and the shape the server's mutation gate had to start
+    // rejecting. A widget has no honest reason to send the user to this machine's
+    // own services, and a confirm dialog reading "127.0.0.1" is not consent a
+    // person can meaningfully give. LAN addresses stay allowed: opening a NAS or
+    // a printer page is a real use, and it still goes through the dialog unless
+    // the user granted that host at install.
+    if (cwForbiddenHost(host) || host === '[::1]' || host === '::1') return false;
+    if ((grant.hosts || []).some((h) => String(h).toLowerCase() === host)) return true;
+    const key = entry.pkgId + '|' + host;
+    if (approvedExternalHosts.has(key)) return true;
+    const ok = await openExternalConfirm({ pkgId: entry.pkgId, url });
+    if (ok) approvedExternalHosts.add(key);
+    return ok;
+  }
+
   function openClipboardConfirm({ pkgId, label, text, secret }) {
     closeClipConfirm(false);   // a fresh request supersedes any pending one (declined)
     return new Promise((resolve) => {
@@ -1283,9 +1541,16 @@
   // instId assigns the package to a tile on Allow; pass instId = null (with an
   // optional onAllow callback) to grant without assigning — used by AmbientMode,
   // where the "assignment" is ambientMode.sceneId, not a tile.
-  function openPermDialog(pkg, instId, onAllow) {
-    closePermDialog();
+  function openPermDialog(pkg, instId, onAllow, onClose) {
+    // One dialog at a time: park this request until the open one resolves (see
+    // closePermDialog). Never supersede — that re-entered this function mid-
+    // construction and stacked two backdrops.
+    if (document.querySelector('.cw-perm-backdrop')) {
+      pendingPermRequests.push({ pkg, instId, onAllow, onClose });
+      return;
+    }
     const bd = el('div', 'cw-perm-backdrop');
+    bd._onClose = typeof onClose === 'function' ? onClose : null;
     const panel = el('div', 'cw-perm');
     panel.appendChild(el('div', 'cw-perm-title', t('cw_perm_title', 'Allow this widget?')));
     const who = el('div', 'cw-perm-pkg');
@@ -1686,6 +1951,19 @@
           paint();
         };
       }
+      // Safe mode first: sdk() forces enabled=false while it's on, so without
+      // this branch the generic card below would offer "Turn on" — a button that
+      // flips the STORED flag while safe mode still keeps everything off (a
+      // control that lies). Offer the only action that actually works instead.
+      if (safeModeOn()) {
+        const entry = frames.get(instId);
+        if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
+        showState(body, 'cw_safemode', 'Safe mode is on', {
+          hint: ['cw_safemode_hint', 'Third-party widgets are paused while safe mode is on. Nothing was removed: turn safe mode off and everything comes back as it was.'],
+          buttons: [{ key: 'cw_safemode_off', fb: 'Turn safe mode off', primary: true, onClick: () => { if (typeof setSafeMode === 'function') setSafeMode(false); } }],
+        });
+        return;
+      }
       if (!cfg.enabled) {
         const entry = frames.get(instId);
         if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
@@ -1726,6 +2004,15 @@
             { key: 'cw_unassign', fb: 'Choose another', primary: true, onClick: () => { if (swapBtn) swapBtn.onclick(); } },
             { key: 'cw_rescan', fb: 'Rescan', onClick: () => fetchPackages(true) },
           ],
+        });
+        return;
+      }
+      if (isSuspended(pkg.id)) {
+        const entry = frames.get(instId);
+        if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
+        showState(body, 'cw_suspended', 'Widget paused', {
+          hint: ['cw_suspended_hint', 'You paused it from the Store (Installed tab). Its Deck keys are paused too. Resume whenever you want: settings and permissions stay saved.'],
+          buttons: [{ key: 'cw_resume', fb: 'Resume', primary: true, onClick: () => setSuspended(pkg.id, false) }],
         });
         return;
       }
@@ -1774,6 +2061,12 @@
   }
 
   function renderWidgets() {
+    // Reconcile service frames on EVERY render pass, not only on package
+    // (re)scans: a safe-mode or suspend flip repaints tiles through here (local
+    // toggle and cross-surface hydrate alike), and without this the hidden
+    // background frames kept running third-party code while every tile said
+    // "paused". Idempotent and cheap when nothing changed.
+    syncServiceFrames();
     if (!tiles().length) {
       for (const [instId, entry] of frames) {
         if (entry.ambient || entry.service) continue;   // see the paint() sweep note
@@ -1852,6 +2145,36 @@
   function packageGranted(pkg) {
     return !!pkg && !grantNeedsReview(pkg) && !addressNeedsFilling(pkg) && sdk().grants && !!sdk().grants[pkg.id];
   }
+  /**
+   * Ask for several packages' permissions, one dialog at a time.
+   *
+   * A package import installs widgets but grants nothing, and until v4.8 the only
+   * way to approve one was to place its tile — so a widget that needs no tile (a
+   * badge-only widget with `background`) had NO reachable path to a grant and
+   * stayed silently dead. Worse, the one prompt that did fire during an import
+   * (the ambient scene) opened UNDER the import modal, so it read as "sometimes
+   * the dialog doesn't appear".
+   *
+   * Sequential because openPermDialog supersedes: firing four at once would leave
+   * the user approving the last and silently dropping three.
+   *
+   * @param {Array<object|string>} pkgs packages or package ids
+   */
+  function requestGrants(pkgs) {
+    const queue = (Array.isArray(pkgs) ? pkgs : [pkgs])
+      .map((p) => (typeof p === 'string' ? packageById(p) : p))
+      // Re-checked at dequeue time too: approving one can install another's
+      // dependency, and re-asking for something already granted is noise.
+      .filter((p) => p && !packageGranted(p));
+    const next = () => {
+      const pkg = queue.shift();
+      if (!pkg) return;
+      if (packageGranted(pkg)) { next(); return; }
+      openPermDialog(pkg, null, null, next);
+    };
+    next();
+  }
+
   function requestGrant(pkg, onAllow) {
     openPermDialog(pkg, null, onAllow);
   }
@@ -1859,7 +2182,8 @@
   window.CustomWidget = {
     renderWidgets, onData, onDiscordNotification, onHook, onHandler, onStoreChanged, refreshTheme, refreshPackages: () => fetchPackages(true), clearAssign,
     registerAmbientFrame, unregisterAmbientFrame, registerCanvasFrame, unregisterCanvasFrames,
-    getPackages, cachedPackages, packageGranted, requestGrant,
+    getPackages, cachedPackages, packageGranted, requestGrant, requestGrants,
+    getPerfStats, setSuspended, isSuspended,
     // Display name of the package assigned to a custom-widget instance (the tile's
     // data-dashboard-instance id, or 'custom' for the base tile). Lets other UI —
     // e.g. the tab-group bar — label a custom tile with the real widget name

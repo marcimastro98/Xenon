@@ -136,6 +136,8 @@ button.sh-item:active { transform: scale(0.97); }
   will-change: opacity; pointer-events: none;
 }
 @keyframes sh-pulse { 0%, 100% { opacity: 1; } 55% { opacity: 0; } }
+/* Paused while a frosted overlay covers the dashboard (see backgroundfx.css overlay-frozen). */
+body.overlay-frozen .sh-item--media.is-playing .sh-media-art::after { animation-play-state: paused; }
 .sh-mini-btn {
   position: relative; z-index: 1; flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;

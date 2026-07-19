@@ -59,7 +59,7 @@
   // must also be added to the canonical list in normalizeTopbarClock (client
   // settings.js AND its server.js twin) and labelled in TOPBAR_ISLAND_LABELS,
   // or it is dropped on the next settings save.
-  const ISLAND_SEG_IDS = ['time', 'date', 'weather', 'vitals', 'dots', 'badges'];
+  const ISLAND_SEG_IDS = ['time', 'date', 'weather', 'vitals', 'dots', 'badges', 'claude'];
 
   function captureTopbarEls() {
     if (els) return els;
@@ -78,10 +78,11 @@
     const clockWeather = clock.querySelector('.clock-weather');
     const clockVitals = clock.querySelector('.clock-vitals'); // optional (vitals opt-in)
     const clockBadges = clock.querySelector('.clock-sdkbadges'); // SDK badge chips (js/sdk-badges.js)
+    const clockClaude = clock.querySelector('.clock-claude'); // Claude Code marker (js/claude-widget.js)
     if (!clockFace || !clockMeta || !clockDate || !clockWeather) return null;
     els = {
       topbar, quickbar, clock, topActions, pagerDots,
-      clockFace, clockMeta, statusDot, clockDate, metaSep, clockWeather, clockVitals, clockBadges,
+      clockFace, clockMeta, statusDot, clockDate, metaSep, clockWeather, clockVitals, clockBadges, clockClaude,
     };
     return els;
   }
@@ -95,6 +96,7 @@
       case 'vitals': return els.clockVitals;
       case 'dots': return els.pagerDots;
       case 'badges': return els.clockBadges;
+      case 'claude': return els.clockClaude;
       default: return null;
     }
   }

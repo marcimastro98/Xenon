@@ -80,6 +80,8 @@
 }
 /* A stopped fan must not spin — and must not keep a compositor layer alive. */
 .fanw-row.is-off .fanw-blades { animation: none; will-change: auto; }
+/* Paused while a frosted overlay covers the dashboard (see backgroundfx.css overlay-frozen). */
+body.overlay-frozen .fanw-blades { animation-play-state: paused; }
 
 @keyframes fanw-spin { to { transform: rotate(360deg); } }
 
