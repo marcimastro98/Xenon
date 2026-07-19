@@ -446,10 +446,10 @@
       "id": "nova-neon-district",
       "kind": "bundle",
       "name": "NØVA // NEON DISTRICT",
-      "author": "Xenon",
-      "authorSupporter": false,
+      "author": "xenon",
+      "authorSupporter": true,
       "perfWarning": true,
-      "description": "A limited cyberpunk drop: a neon duotone theme, the animated Megacity Drift background with a holographic whale, the Orbitron display font, three bespoke widgets (Vitals rings, Now Playing, Skynode weather), an Ambient scene and a Deck profile. Reserved on Discord: each buyer gets a personal access code. Only 5 exist worldwide.",
+      "description": "A limited cyberpunk drop: a neon duotone theme, the animated Megacity Drift background with a holographic whale, the Orbitron display font, three bespoke widgets (Vitals rings, Now Playing, Skynode weather), an Ambient scene and a Deck profile. Reserved on Discord: each buyer gets a personal access ",
       "category": "style",
       "tags": [
         "cyberpunk",
@@ -457,19 +457,20 @@
         "limited",
         "bundle"
       ],
-      "limited": {
-        "total": 5,
-        "claimed": 5,
-        "reserveUrl": "https://discord.gg/MBVrw9kZyg"
-      },
+      "appVersionMin": "4.4.0",
       "preview": {
         "accent": "#00e5ff",
         "bg": "#060010",
         "text": "#eafcff"
       },
-      "appVersionMin": "4.4.0",
-      "addedAt": "2026-07-11",
-      "shots": 6
+      "limited": {
+        "total": 5,
+        "claimed": 5,
+        "reserveUrl": "https://discord.gg/MBVrw9kZyg"
+      },
+      "shots": 4,
+      "addedAt": "2026-07-19",
+      "updatedAt": "2026-07-19"
     },
     {
       "id": "ember-nights",
