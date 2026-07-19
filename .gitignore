@@ -39,6 +39,13 @@ server/soundvolumeview-x64/*.cfg.bak
 # PresentMon — downloaded by the installer for in-game FPS (not committed)
 server/presentmon/
 
+# CORSAIR iCUE SDK client DLL — downloaded from Corsair's official release by
+# install.ps1. MUST NOT be committed: the SDK EULA grants a nontransferable
+# licence to USE the software and forbids transferring any portion of it to
+# another person, so shipping it in this repo (or as a release asset) is not
+# permitted. Each machine fetches its own copy from Corsair.
+server/icue-sdk/
+
 # Whisper.cpp — local STT binaries + model, downloaded on-demand by the
 # dashboard (Settings → Xenon AI). Large, platform-specific, never committed.
 server/whisper/

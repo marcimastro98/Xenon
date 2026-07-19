@@ -588,6 +588,53 @@ function Install-PresentMonIfNeeded {
   }
 }
 
+function Install-ICueSdkIfNeeded {
+  # The iCUE SDK client DLL is what server/lighting.js talks to for CORSAIR RGB.
+  # iCUE 5.48 no longer installs it anywhere, so without this step the only
+  # machines with working RGB are the ones where some unrelated software happens
+  # to ship a copy.
+  #
+  # It is DOWNLOADED from Corsair's own official release, never shipped with
+  # Xenon: the SDK EULA (in the zip's PDF) grants a "nonexclusive, nontransferable
+  # royalty-free license to allow You to use the Software" and forbids transferring
+  # "all or any portion of the Software ... to any other person". Bundling it, or
+  # mirroring it as one of our release assets, would be that transfer. Fetching it
+  # from Corsair on the user's own machine is not.
+  #
+  # Version and hash are pinned: an asset that changes underneath us must fail
+  # loudly rather than install something we never verified.
+  $sdkVersion = '4.0.84'
+  $sdkZipSha  = 'EB4414CF505145F3E507DC839AD587BF7CA684D64BE3D9A834F416A136736D5D'
+  $dir = Join-Path $filesDir 'icue-sdk'
+  $dll = Join-Path $dir 'iCUESDK.x64_2019.dll'
+  if (Test-Path $dll) { Write-Step "iCUE SDK found: $dll"; return }
+
+  Write-Step 'Installing the CORSAIR iCUE SDK component for RGB lighting...'
+  $zip = Join-Path $env:TEMP "iCUESDK_$sdkVersion.zip"
+  $stage = Join-Path $env:TEMP "iCUESDK_$sdkVersion"
+  try {
+    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $uri = "https://github.com/CorsairOfficial/cue-sdk/releases/download/v$sdkVersion/iCUESDK_$sdkVersion.zip"
+    Invoke-DownloadWithSpinner -Uri $uri -OutFile $zip -Headers @{ 'User-Agent' = 'XenonEdgeHub' } -TimeoutSec 120 -Activity 'Downloading the iCUE SDK component'
+
+    $hash = (Get-FileHash -Path $zip -Algorithm SHA256).Hash
+    if ($hash -ne $sdkZipSha) { throw "checksum mismatch (expected $sdkZipSha, got $hash)" }
+
+    if (Test-Path $stage) { Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue }
+    Expand-Archive -Path $zip -DestinationPath $stage -Force
+    $src = Join-Path $stage 'iCUESDK\redist\x64\iCUESDK.x64_2019.dll'
+    if (-not (Test-Path $src)) { throw 'the archive did not contain redist\x64\iCUESDK.x64_2019.dll' }
+    Copy-Item -Path $src -Destination $dll -Force
+    Write-Step "iCUE SDK installed: $dll"
+  } catch {
+    Write-Host "The iCUE SDK component could not be installed automatically ($($_.Exception.Message)). CORSAIR RGB control will be unavailable until it is; everything else works normally." -ForegroundColor Yellow
+  } finally {
+    Remove-Item $zip -Force -ErrorAction SilentlyContinue
+    Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
+  }
+}
+
 function Install-XenonHelperIfNeeded {
   # The helper download + required-version gate live in helper-update.ps1, the
   # single source of truth shared with the in-app self-update (server.js runs the
@@ -1019,6 +1066,7 @@ Install-LibreHardwareMonitorIfNeeded | Out-Null
 Install-PawnIoIfNeeded | Out-Null
 Install-PresentMonIfNeeded
 Install-XenonHelperIfNeeded
+Install-ICueSdkIfNeeded
 # Anything that failed above gets ONE automatic second pass before the backend
 # starts (the dashboard libraries are required for it to even boot).
 Invoke-ComponentRetryPass

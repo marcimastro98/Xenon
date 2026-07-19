@@ -4021,11 +4021,6 @@ function settingsSetCategory(cat) {
   document.querySelectorAll('.settings-nav-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.settingsCat === cat);
   });
-  // Display (DDC/CI) control is demand-only: enumerating monitors spawns a helper
-  // process, so we only load it when the user actually opens the Schermo panel.
-  if (cat === 'display' && typeof window.loadDisplayControl === 'function') {
-    window.loadDisplayControl();
-  }
   // Slideshow thumbnails paint when its pane opens (and update live via applyHubSettings).
   if (cat === 'slideshow') renderSlideshowSettings();
 }

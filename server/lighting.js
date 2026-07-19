@@ -23,14 +23,53 @@ const CSS_CONNECTED = 6; // CorsairSessionState::CSS_Connected (confirmed on har
 // Resolve the SDK client DLL across installs. The redistributable client DLL is
 // not always shipped under the Corsair path; an env override and a bundled copy
 // take priority so the bridge is self-contained when possible.
+const SDK_DLL_NAME = 'iCUESDK.x64_2019.dll';
+
+// Every folder directly under the Corsair install root, newest first. iCUE has
+// shipped under at least three different folder names ("CUE", "CORSAIR iCUE 5
+// Software", "Corsair iCUE5 Software" as of 5.48) and hardcoding them meant the
+// list silently rotted with each rename. Scanning the root survives the next one.
+function corsairInstallCandidates() {
+  const roots = ['C:\\Program Files\\Corsair', 'C:\\Program Files (x86)\\Corsair'];
+  const out = [];
+  for (const root of roots) {
+    let entries = [];
+    try { entries = fs.readdirSync(root, { withFileTypes: true }); } catch { continue; }
+    for (const e of entries) if (e.isDirectory()) out.push(path.join(root, e.name, SDK_DLL_NAME));
+  }
+  return out;
+}
+
+// Memoized: isAvailable() sits on the apply() tick (every 60ms during an event
+// flash) and on /api/lighting/status, and the probe now reads two directories.
+// The path can't change under a running process except right after the installer
+// drops the DLL, so a short TTL picks that up without a restart while keeping the
+// hot path free of synchronous FS.
+let dllProbe = { at: 0, path: null };
+const DLL_PROBE_TTL_MS = 30000;
+
 function resolveDllPath() {
+  const now = Date.now();
+  if (dllProbe.at && now - dllProbe.at < DLL_PROBE_TTL_MS) return dllProbe.path;
+  const found = probeDllPath();
+  dllProbe = { at: now, path: found };
+  return found;
+}
+
+function probeDllPath() {
   const candidates = [
     process.env.ICUE_SDK_DLL,
-    path.join(__dirname, 'vendor', 'iCUESDK.x64_2019.dll'),
-    'C:\\Program Files\\Corsair\\CUE\\iCUESDK.x64_2019.dll',
-    'C:\\Program Files\\Corsair\\CORSAIR iCUE 5 Software\\iCUESDK.x64_2019.dll',
-    'C:\\Program Files\\Corsair\\CORSAIR iCUE Software\\iCUESDK.x64_2019.dll',
-    'C:\\Program Files\\GIGABYTE\\Control Center\\Lib\\MBStorage\\iCUESDK.x64_2019.dll',
+    // Downloaded from Corsair's official release by install.ps1
+    // (Install-ICueSdkIfNeeded). First because it is the only copy whose version
+    // we pin; iCUE 5.48 installs no SDK DLL at all, so on most machines it is
+    // also the ONLY copy. Never committed to the repo — the SDK EULA grants use,
+    // not redistribution.
+    path.join(__dirname, 'icue-sdk', SDK_DLL_NAME),
+    path.join(__dirname, 'vendor', SDK_DLL_NAME),
+    ...corsairInstallCandidates(),
+    // Shipped incidentally by unrelated software. Last resort: it can be years
+    // older than the running iCUE.
+    'C:\\Program Files\\GIGABYTE\\Control Center\\Lib\\MBStorage\\' + SDK_DLL_NAME,
   ].filter(Boolean);
   for (const p of candidates) { try { if (fs.existsSync(p)) return p; } catch { /* ignore */ } }
   return null;
@@ -99,6 +138,7 @@ let animTimer = null;                            // ambient-animation ticker; ex
 let applyInFlight = false;                       // prevents concurrent apply() calls while an async LED write is in progress
 let lastConnectAttempt = 0;                      // throttle for the apply()-driven on-demand (re)connect
 let lastEnumerate = 0;                            // throttle for the apply()-driven re-enumerate when connected-but-empty
+let lastDeviceScan = 0;                           // last completed enumerate(), success or not — throttles the slow rescan below
 let enumerating = false;                          // guards against overlapping enumerate() calls (connect callback + retry)
 let partialEnumRetries = 0;                        // bounded retries when a device enumerated with 0 LEDs (iCUE LINK boot race); reset on a complete enumeration / fresh connect
 const MAX_PARTIAL_ENUM_RETRIES = 6;                // ~12s at CONNECT_RETRY_MS — long enough for iCUE to register LINK cooler/fans after a cold boot, bounded so a genuinely LED-less hub doesn't re-enumerate forever
@@ -110,6 +150,7 @@ const clampEventDuration = (ms, fallback) =>
 const EVENT_TICK_MS = 60;
 const ANIM_TICK_MS = 66;                         // ~15 fps; on-change guard makes most ticks a free no-op
 const CONNECT_RETRY_MS = 2000;                   // min gap between on-demand reconnect attempts while an effect wants paint
+const DEVICE_RESCAN_MS = 30000;                  // slow rescan for devices that registered after the initial enumeration (one SDK call, only while painting)
 
 function loadLib() {
   if (lib) return true;
@@ -222,6 +263,53 @@ function withSdkTimeout(promise, label) {
   return Promise.race([Promise.resolve(promise).finally(() => clearTimeout(t)), guard]);
 }
 
+// CorsairError names (official iCUE SDK v4 header), so a failure reads as
+// something a user can act on instead of a bare number.
+const CE_NAMES = {
+  0: 'CE_Success', 1: 'CE_NotConnected', 2: 'CE_NoControl', 3: 'CE_IncompatibleProtocol',
+  4: 'CE_InvalidArguments', 5: 'CE_InvalidOperation', 6: 'CE_DeviceNotFound', 7: 'CE_NotAllowed',
+};
+const CE_NOT_CONNECTED = 1;
+
+class SdkError extends Error {
+  constructor(label, rc) {
+    super(`${label} rc=${rc} (${CE_NAMES[rc] || 'unknown'})`);
+    this.rc = rc;
+  }
+}
+
+// Run an SDK call and FAIL on a non-zero return code.
+//
+// The SDK reports failure through the return code, never an exception: the koffi
+// callback's `err` is only set when the FFI call itself breaks. Discarding the rc
+// meant a dead session (iCUE restarted or reinstalled under us) answered
+// CE_NotConnected on every write while `connected` stayed true — the write was a
+// silent no-op, the on-change cache in writeDevice() recorded it as painted, and
+// nothing ever retried or told the user. Every SDK call goes through here now.
+function sdkCall(fn, label, ...args) {
+  return withSdkTimeout(new Promise((resolve, reject) => {
+    fn.async(...args, (err, rc) => {
+      if (err) return reject(err);
+      if (rc !== 0) return reject(new SdkError(label, rc));
+      resolve();
+    });
+  }), label);
+}
+
+// A write that failed because the session is gone must drop `connected`, so
+// maybeReconnectForPaint() can rebuild it on the next apply() tick. Without this
+// the bridge sits on a dead handle forever: the state callback fires only for
+// transitions the SDK still knows about, and a service that died under us never
+// sends one.
+function noteSdkFailure(e) {
+  lastError = e.message;
+  if (e instanceof SdkError && e.rc === CE_NOT_CONNECTED) {
+    connected = false;
+    devices = [];
+    lastWrite.clear();
+  }
+}
+
 // Enumerate connected iCUE devices and their LED layouts.
 // CRITICAL: every FFI call uses koffi's `.async` form so it runs on a worker
 // thread, never the event-loop thread. A synchronous CorsairGetDevices /
@@ -235,28 +323,32 @@ async function enumerate() {
     const filter = { deviceTypeMask: -1 };
     const buf = Array(64).fill(null).map(() => ({}));
     const count = [0];
-    await withSdkTimeout(new Promise((resolve, reject) =>
-      fns.getDevices.async(filter, 64, buf, count, err => err ? reject(err) : resolve())
-    ), 'CorsairGetDevices');
+    await sdkCall(fns.getDevices, 'CorsairGetDevices', filter, 64, buf, count);
     const list = [];
     for (let i = 0; i < count[0]; i++) {
       const d = buf[i];
       const pos = Array(d.ledCount).fill(null).map(() => ({}));
       const pc = [0];
-      await withSdkTimeout(new Promise((resolve, reject) =>
-        fns.getLedPositions.async(d.id, d.ledCount, pos, pc, err => err ? reject(err) : resolve())
-      ), 'CorsairGetLedPositions');
+      // One device failing to report its layout must not abandon the whole
+      // enumeration: it lands with an empty ledIds, which enumerationComplete()
+      // treats as incomplete and boundedReenumerate() retries.
+      try {
+        await sdkCall(fns.getLedPositions, 'CorsairGetLedPositions', d.id, d.ledCount, pos, pc);
+      } catch (e) { lastError = e.message; pc[0] = 0; }
       list.push({ id: d.id, model: d.model, type: d.type, ledCount: d.ledCount, ledIds: pos.slice(0, pc[0]).map(p => p.id) });
     }
     devices = list;
-    // A complete enumeration (every device has LEDs) clears the partial-retry
-    // budget, so a later 0-LED reappearance (e.g. an iCUE LINK hot-replug) gets
-    // its own fresh round of retries.
-    if (list.length && list.every(d => d.ledCount > 0)) partialEnumRetries = 0;
+    // A complete enumeration (every device answered with real LED ids) clears the
+    // partial-retry budget, so a later 0-LED reappearance (e.g. an iCUE LINK
+    // hot-replug) gets its own fresh round of retries.
+    if (enumerationComplete(list)) partialEnumRetries = 0;
   } catch (e) {
-    lastError = 'enumerate failed: ' + e.message;
+    noteSdkFailure(e);
     devices = [];
   } finally {
+    // Stamped on failure too, so a wedged SDK can't turn the slow rescan into a
+    // per-tick retry (the fast partial-retry path below stays throttled on its own).
+    lastDeviceScan = Date.now();
     enumerating = false;
   }
 }
@@ -306,13 +398,15 @@ async function writeDevice(deviceId, color) {
   if (!dev || !connected) return;
   const key = `${color.r},${color.g},${color.b}`;
   if (lastWrite.get(deviceId) === key) return; // unchanged → skip
+  // A device whose layout never arrived has nothing to write to. Skipping keeps
+  // it out of the on-change cache, so it repaints the moment a re-enumeration
+  // fills in its LED ids.
+  if (!dev.ledIds.length) return;
   try {
     const arr = dev.ledIds.map(id => ({ id, r: color.r, g: color.g, b: color.b, a: 255 }));
-    await withSdkTimeout(new Promise((resolve, reject) =>
-      fns.setLedColors.async(deviceId, arr.length, arr, (err, _rc) => err ? reject(err) : resolve())
-    ), 'CorsairSetLedColors');
-    lastWrite.set(deviceId, key);
-  } catch (e) { lastError = 'write failed: ' + e.message; }
+    await sdkCall(fns.setLedColors, 'CorsairSetLedColors', deviceId, arr.length, arr);
+    lastWrite.set(deviceId, key); // cached only after the SDK confirmed the write
+  } catch (e) { noteSdkFailure(e); }
 }
 
 // Paint a multi-stop gradient across the device's LEDs (album palette). Same
@@ -323,14 +417,13 @@ async function writeDeviceGradient(dev, palette) {
   if (!dev || !connected) return;
   const key = 'grad:' + palette.map(c => `${c.r},${c.g},${c.b}`).join('|');
   if (lastWrite.get(dev.id) === key) return; // unchanged → skip
+  if (!dev.ledIds.length) return; // no layout yet — see writeDevice()
   try {
     const stops = fx.paletteGradient(palette, dev.ledIds.length);
     const arr = dev.ledIds.map((id, i) => ({ id, r: stops[i].r, g: stops[i].g, b: stops[i].b, a: 255 }));
-    await withSdkTimeout(new Promise((resolve, reject) =>
-      fns.setLedColors.async(dev.id, arr.length, arr, (err, _rc) => err ? reject(err) : resolve())
-    ), 'CorsairSetLedColors');
+    await sdkCall(fns.setLedColors, 'CorsairSetLedColors', dev.id, arr.length, arr);
     lastWrite.set(dev.id, key);
-  } catch (e) { lastError = 'write failed: ' + e.message; }
+  } catch (e) { noteSdkFailure(e); }
 }
 
 // Paint the current spatial-animation frame (wave/palette) across the device's
@@ -345,11 +438,9 @@ async function writeDeviceAnimGradient(dev, stops, key) {
       const c = stops[Math.min(i, stops.length - 1)];
       return { id, r: c.r, g: c.g, b: c.b, a: 255 };
     });
-    await withSdkTimeout(new Promise((resolve, reject) =>
-      fns.setLedColors.async(dev.id, arr.length, arr, (err, _rc) => err ? reject(err) : resolve())
-    ), 'CorsairSetLedColors');
+    await sdkCall(fns.setLedColors, 'CorsairSetLedColors', dev.id, arr.length, arr);
     lastWrite.set(dev.id, key);
-  } catch (e) { lastError = 'write failed: ' + e.message; }
+  } catch (e) { noteSdkFailure(e); }
 }
 
 // Release: hand control back to iCUE (alpha-0 transparent, confirmed in Task 1)
@@ -363,13 +454,12 @@ async function releaseAll() {
   if (connected) {
     for (const dev of devices) {
       try {
+        if (!dev.ledIds.length) continue;
         const arr = dev.ledIds.map(id => ({ id, r: 0, g: 0, b: 0, a: 0 }));
         // Same timeout guard as every other SDK call — a wedged iCUE service must
         // not stall the release path (apply() awaits it while holding applyInFlight).
-        await withSdkTimeout(new Promise((resolve, reject) =>
-          fns.setLedColors.async(dev.id, arr.length, arr, (err, _rc) => err ? reject(err) : resolve())
-        ), 'CorsairSetLedColors');
-      } catch (e) { lastError = 'release failed: ' + e.message; }
+        await sdkCall(fns.setLedColors, 'CorsairSetLedColors', dev.id, arr.length, arr);
+      } catch (e) { noteSdkFailure(e); }
     }
   }
   try { external.release(); } catch { /* external is best-effort */ }
@@ -546,25 +636,45 @@ function maybeReconnectForPaint() {
 // — the SDK reports Connected before the devices are registered) we'd otherwise be
 // stuck. Two shapes of "not ready":
 //   - EMPTY list: nothing enumerated at all → keep retrying indefinitely.
-//   - PARTIAL list: a device shows up with ledCount 0. The iCUE LINK System Hub
-//     reports 0 LEDs until iCUE finishes registering the cooler/fans behind it, so
-//     the RAM (a direct device) lights up while the AIO + fans stay dark. Retry, but
-//     BOUND it — a hub with no RGB children legitimately has 0 LEDs, so we must not
-//     re-enumerate forever.
+//   - PARTIAL list: a device enumerated without usable LED ids. The iCUE LINK
+//     System Hub reports no LEDs until iCUE finishes registering the cooler/fans
+//     behind it, so the RAM (a direct device) lights up while the AIO + fans stay
+//     dark. Retry, but BOUND it — a hub with no RGB children legitimately has no
+//     LEDs, so we must not re-enumerate forever.
+//
+// Completeness is judged on `ledIds` (what CorsairGetLedPositions actually
+// returned, and the array every write iterates), NOT on `ledCount` from
+// CorsairDeviceInfo. A device can declare 20 LEDs and hand back zero positions:
+// that passed the old ledCount test, so the list looked ready while every write
+// to it built an empty colour array and painted nothing.
+function enumerationComplete(list) {
+  return list.length > 0 && list.every(d => d.ledIds.length > 0);
+}
+
 function enumerationIncomplete() {
-  return connected && (devices.length === 0 || devices.some(d => d.ledCount === 0));
+  return connected && !enumerationComplete(devices);
 }
 
 // Throttled, bounded re-enumeration shared by the apply() tick and the status
 // endpoint. Returns the enumerate() promise when it fires, else undefined.
 // Fire-and-forget safe: enumerate is async (worker thread), never blocks here.
 function boundedReenumerate() {
+  if (!connected) return;
+  const now = Date.now();
+  // Slow rescan. Neither test above can see a device that never appeared at all:
+  // a list holding only the RAM is "complete" by every measure while the iCUE LINK
+  // hub — registered seconds later on a slower boot path, because the server
+  // starts before iCUE finishes coming up — is simply absent, and the initial
+  // enumerate() from the connect callback is the only one that ever ran. That is
+  // the empirically-proven "the radiator never lights up until I restart the
+  // server" bug. Rescanning on a slow cadence also picks up genuine hot-plugs.
+  if (now - lastDeviceScan >= DEVICE_RESCAN_MS) { lastEnumerate = now; return enumerate(); }
   if (!enumerationIncomplete()) return;
   // Empty keeps retrying; a partial list is capped so a genuinely LED-less device
   // doesn't trigger perpetual re-enumeration.
   if (devices.length > 0 && partialEnumRetries >= MAX_PARTIAL_ENUM_RETRIES) return;
-  if (Date.now() - lastEnumerate < CONNECT_RETRY_MS) return;
-  lastEnumerate = Date.now();
+  if (now - lastEnumerate < CONNECT_RETRY_MS) return;
+  lastEnumerate = now;
   if (devices.length > 0) partialEnumRetries++;
   return enumerate();
 }
@@ -1004,4 +1114,5 @@ module.exports = {
   setManualColor, clearManual, setDeckReaction, clearDeckReaction, setAnimation, setDeviceMode, setAlbumColor, clearAlbum, applyConfig, setEffectEnabled, setEnabled, getStatus, getConfig,
   scanExternal, addExternalDevice, pairExternalDevice, removeExternalDevice, setExternalDeviceOptIn, getExternalStatus, getExternalConfig, setExternalRuntime,
   _fx: fx,
+  _enumerationComplete: enumerationComplete, // pure predicate — unit-tested in lighting-enumeration.test.mjs
 };
