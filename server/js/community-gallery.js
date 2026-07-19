@@ -186,6 +186,7 @@
     // just drop its document-level Escape listener and the reference.
     if (detailEl) { document.removeEventListener('keydown', detailEl._onKey); detailEl = null; }
     if (overlayEl) { overlayEl.remove(); overlayEl = null; }
+    if (typeof window.ambientFreeze === 'function') window.ambientFreeze('gallery', false);
   }
 
   function kindLabel(kind) {
@@ -416,6 +417,16 @@
     if (entry.authorSupporter) { host.appendChild(document.createTextNode(' ')); const st = icon('star', 'cgal-authorstar'); st.title = t('gallery_supporter_badge', 'Xenon supporter'); host.appendChild(st); }
   }
 
+  // Amber "may use more resources" chip — stamped by the catalog's audit
+  // (entry.perfWarning). Informational, never blocking: the user still installs
+  // with the normal preview, and the import dialog repeats the note.
+  function perfChip(entry) {
+    if (entry.perfWarning !== true) return null;
+    const chip = el('span', 'cgal-perfchip', t('gallery_perf_warning', 'May use more resources'));
+    chip.title = t('gallery_perf_warning_long', 'This item runs heavier animations or frequent updates. On small devices it can use noticeable CPU or GPU.');
+    return chip;
+  }
+
   // The import button — normal + supporter (locked) both funnel through the one
   // import boundary. It also renders the install state: already installed and up
   // to date shows a settled "Installed" chip (no re-import — importing something
@@ -445,7 +456,7 @@
         return;
       }
       close();
-      if (window.PresetShare) PresetShare.openImport(code, { source: 'catalog', sourceId: entry.id, sourceVersion: entry.version || '' });
+      if (window.PresetShare) PresetShare.openImport(code, { source: 'catalog', sourceId: entry.id, sourceVersion: entry.version || '', perfWarning: entry.perfWarning === true });
     });
     return b;
   }
@@ -600,7 +611,13 @@
     const meta = el('div', 'cgal-detail-meta');
     if (entry.version) meta.appendChild(el('span', 'cgal-metachip', 'v' + entry.version));
     if (entry.category) meta.appendChild(el('span', 'cgal-metachip', t('gallery_cat_' + entry.category.replace('-', '_'), entry.category)));
+    const detPerf = perfChip(entry); if (detPerf) meta.appendChild(detPerf);
     if (meta.childElementCount) info.appendChild(meta);
+    // The detail view has room for the full sentence, not just the chip.
+    if (entry.perfWarning === true) {
+      info.appendChild(el('p', 'cgal-detail-perfnote',
+        t('gallery_perf_warning_long', 'This item runs heavier animations or frequent updates. On small devices it can use noticeable CPU or GPU.')));
+    }
 
     // What the current version changed. Shown to everyone, but it earns its
     // place hardest for someone looking at an "Update…" button and deciding
@@ -755,7 +772,9 @@
     info.appendChild(eyebrow);
 
     info.appendChild(el('h4', 'cgal-hero-title', entry.name));
-    const by = el('div', 'cgal-hero-by'); bylineInto(by, entry); info.appendChild(by);
+    const by = el('div', 'cgal-hero-by'); bylineInto(by, entry);
+    const heroPerf = perfChip(entry); if (heroPerf) by.appendChild(heroPerf);
+    info.appendChild(by);
     if (entry.description) info.appendChild(el('p', 'cgal-hero-desc', entry.description));
 
     if (Array.isArray(entry.tags) && entry.tags.length) {
@@ -827,6 +846,7 @@
     const stars = el('span', 'cgal-stars', starsText(ratingsMap[entry.id]));
     stars.dataset.id = entry.id;
     by.appendChild(stars);
+    const cardPerf = perfChip(entry); if (cardPerf) by.appendChild(cardPerf);
     body.appendChild(by);
     if (entry.description) body.appendChild(el('div', 'cgal-desc', entry.description));
     if (Array.isArray(entry.tags) && entry.tags.length) {
@@ -907,25 +927,42 @@
   let installIndex = null;   // { pkg: Map<pkgId,ver>, receipts: Map<entryId,ver> } | null
   async function refreshInstallIndex() {
     let pkg = new Map();
+    // catalogVersion is what the CATALOG called the install; version is what the
+    // package's own manifest says. They are set by different people and routinely
+    // differ ('0.1.2' vs '0.1.2-sdk3e'), and comparing a catalog number against a
+    // manifest number made a permanent phantom update: offered on every open,
+    // installed fine, offered again. Prefer the catalog stamp when the server has
+    // one, fall back to the manifest for packages installed before it existed.
     try {
       const inst = await api('/sdk/widgets');
-      pkg = new Map(((inst && inst.packages) || []).map((p) => [p.id, String(p.version || '0.0.0')]));
+      pkg = new Map(((inst && inst.packages) || []).map((p) => [p.id, {
+        manifest: String(p.version || '0.0.0'),
+        catalog: typeof p.catalogVersion === 'string' ? p.catalogVersion : '',
+      }]));
     } catch { /* SDK off / offline → pkg join contributes nothing */ }
     // Newest receipt per catalog entry id. Receipts are appended chronologically,
     // so a forward walk leaves the latest version in the map — an update re-import
     // "wins" and clears the badge. hubSettings is a shared-script-scope global
     // from settings.js (bare name, guarded — same access pattern preset-share uses).
     const receipts = new Map();
+    // Numbered limited copies install under their COPY id ('vanguard-50-01')
+    // while the catalog publishes one entry per edition ('vanguard-50'), so a
+    // copy receipt never matches an entry id directly. Index the base id too
+    // (copy id minus its trailing -digits); consulted ONLY for entries that are
+    // limited drops, so a plain entry can never be joined by accident.
+    const dropReceipts = new Map();
     try {
       const list = (typeof hubSettings !== 'undefined' && hubSettings && Array.isArray(hubSettings.contentInstalls))
         ? hubSettings.contentInstalls : [];
       for (const rec of list) {
         if (rec && typeof rec.sourceId === 'string' && rec.sourceId && typeof rec.sourceVersion === 'string' && rec.sourceVersion) {
           receipts.set(rec.sourceId, rec.sourceVersion);
+          const m = /^(.+)-(\d{1,4})$/.exec(rec.sourceId);
+          if (m) dropReceipts.set(m[1], rec.sourceVersion);
         }
       }
     } catch { /* settings unavailable → receipts join contributes nothing */ }
-    installIndex = { pkg, receipts };
+    installIndex = { pkg, receipts, dropReceipts };
     return installIndex;
   }
 
@@ -935,11 +972,20 @@
   // read as installed too, and offer Update (re-unlock) only when a newer version
   // ships. 'none' = not installed · 'current' = installed & up to date ·
   // 'update' = installed at an older version than the catalog now lists.
+  // The version to compare an installed PACKAGE against the catalog with. The
+  // catalog stamp wins when present: it is the only one written in the same
+  // numbering as entry.version.
+  function installedPkgVersion(rec) {
+    if (!rec) return null;
+    return rec.catalog || rec.manifest || null;
+  }
+
   function entryInstallState(entry) {
     if (!entry || !installIndex) return 'none';
     let have = null;
-    if (entry.pkgId && installIndex.pkg.has(entry.pkgId)) have = installIndex.pkg.get(entry.pkgId);
+    if (entry.pkgId && installIndex.pkg.has(entry.pkgId)) have = installedPkgVersion(installIndex.pkg.get(entry.pkgId));
     else if (installIndex.receipts.has(entry.id)) have = installIndex.receipts.get(entry.id);
+    else if (entry.limited && installIndex.dropReceipts && installIndex.dropReceipts.has(entry.id)) have = installIndex.dropReceipts.get(entry.id);
     if (have == null) return 'none';
     if (entry.version && verLess(have, entry.version)) return 'update';
     return 'current';
@@ -950,8 +996,13 @@
     if (!idx.pkg.size && !idx.receipts.size) return [];
     return entries.filter((e) => {
       if (!e || !e.version || e.locked) return false;
-      if (e.pkgId) return idx.pkg.has(e.pkgId) && verLess(idx.pkg.get(e.pkgId), e.version);
-      return idx.receipts.has(e.id) && verLess(idx.receipts.get(e.id), e.version);
+      if (e.pkgId) return idx.pkg.has(e.pkgId) && verLess(installedPkgVersion(idx.pkg.get(e.pkgId)), e.version);
+      // Owned numbered copies join through the drop-id index (see
+      // refreshInstallIndex) — without it a numbered edition's owner never saw
+      // an update offer, because the copy receipt never matches the entry id.
+      const have = idx.receipts.has(e.id) ? idx.receipts.get(e.id)
+        : (e.limited && idx.dropReceipts && idx.dropReceipts.has(e.id)) ? idx.dropReceipts.get(e.id) : null;
+      return have != null && verLess(have, e.version);
     });
   }
 
@@ -1082,6 +1133,17 @@
     const stale = out.stale ? el('div', 'cgal-status cgal-stale', t('gallery_stale', 'Offline — showing the last saved copy.')) : null;
 
     // ── View builders ──
+    // The one place a card grid is built. A section holding a SINGLE entry gets
+    // `.is-solo`, which lays that card out wide (media left, details right) the
+    // way the website catalog does. Without it the lone 232px card sat at the
+    // left edge of a full-width shelf with the rest of the row empty, and its
+    // description stayed clipped to two lines while there was room to spare.
+    function cardGrid(items, limit) {
+      const list = typeof limit === 'number' ? items.slice(0, limit) : items;
+      const grid = el('div', 'cgal-grid' + (list.length === 1 ? ' is-solo' : ''));
+      list.forEach((e) => grid.appendChild(renderCard(e)));
+      return grid;
+    }
     function section(k, items, iconName, titleText) {
       const wrap = el('div', 'cgal-kblock');
       const head = el('div', 'cgal-khead');
@@ -1097,9 +1159,7 @@
         head.appendChild(sa);
       }
       wrap.appendChild(head);
-      const grid = el('div', 'cgal-grid');
-      items.slice(0, k === '__updates' ? items.length : SECTION_PREVIEW).forEach((e) => grid.appendChild(renderCard(e)));
-      wrap.appendChild(grid);
+      wrap.appendChild(cardGrid(items, k === '__updates' ? items.length : SECTION_PREVIEW));
       return wrap;
     }
     // A premium "shelf" for the two exclusive tiers (Limited and Supporters) —
@@ -1138,17 +1198,13 @@
       if (actions.childElementCount) head.appendChild(actions);
       wrap.appendChild(head);
       if (opts.lead) wrap.appendChild(el('p', 'cgal-feat-lead', opts.lead));
-      const grid = el('div', 'cgal-grid');
-      opts.items.slice(0, SECTION_PREVIEW).forEach((e) => grid.appendChild(renderCard(e)));
-      wrap.appendChild(grid);
+      wrap.appendChild(cardGrid(opts.items, SECTION_PREVIEW));
       return wrap;
     }
     function flatInto(frag, list) {
       list = sortList(list);
       if (!list.length) { frag.appendChild(el('div', 'cgal-status', t('gallery_empty', 'Nothing here yet — new community creations will appear as they are published.'))); return; }
-      const grid = el('div', 'cgal-grid');
-      list.slice(0, shown).forEach((e) => grid.appendChild(renderCard(e)));
-      frag.appendChild(grid);
+      frag.appendChild(cardGrid(list, shown));
       if (list.length > shown) {
         const lm = el('div', 'cgal-loadmore');
         const b = el('button', 'cgal-btn cgal-loadmore-btn', t('gallery_loadmore', 'Show more ({n})').replace('{n}', String(list.length - shown))); b.type = 'button';
@@ -1162,7 +1218,7 @@
       const frag = document.createDocumentFragment();
       if (activeKind === '__limited') {
         const lim = sortList(limited.filter(matchesBrowse));
-        if (lim.length) { frag.appendChild(heroBanner(lim[0])); if (lim.length > 1) { const g = el('div', 'cgal-grid'); lim.slice(1).forEach((e) => g.appendChild(renderCard(e))); frag.appendChild(g); } }
+        if (lim.length) { frag.appendChild(heroBanner(lim[0])); if (lim.length > 1) frag.appendChild(cardGrid(lim.slice(1))); }
         else frag.appendChild(el('div', 'cgal-status', t('gallery_limited_empty', 'No limited drops right now — check back soon.')));
         host.replaceChildren(frag); return;
       }
@@ -1246,6 +1302,10 @@
   // view. Keep the pseudo-kinds out of the rail — they are not catalog kinds.
   function open(filterKind) {
     close();
+    // Same freeze the Settings/update overlays use: the store is a full-viewport
+    // frosted overlay, so stop the dashboard animating (and re-blurring) under it.
+    // Shared token is safe — close() above runs synchronously before this refreeze.
+    if (typeof window.ambientFreeze === 'function') window.ambientFreeze('gallery', true);
     searchQuery = ''; activeKind = ''; sortBy = 'feat'; shown = PAGE;
     limitedOnly = (filterKind === '__limited');
     activeTab = (filterKind === '__installed') ? 'installed' : 'browse';

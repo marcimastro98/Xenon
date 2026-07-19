@@ -57,6 +57,16 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   youtube: Object.freeze(['ytBroadcast']),
   streamerbot: Object.freeze(['sbDoAction', 'sbSendMessage', 'sbCodeTrigger']),
   url: Object.freeze(['openUrl']),
+  // Show a page in the Browser tile already on the dashboard. `openUrl` hands
+  // the address to the Windows shell, so the page lands on the default browser
+  // on the primary monitor — no use to a widget whose point is to put something
+  // ON the Xeneon Edge. This keeps the same shape (the widget names an address,
+  // it never sees the page) while the destination is a surface Xenon owns.
+  // Browser-dispatched like `soundboard`: no registry case, the host hands it to
+  // browser-tile.js, which is the only caller of the CDP relay. Deliberately NOT
+  // usable from a manifest Deck macro — `validateAction` doesn't know the type,
+  // so declaring one fails at install rather than shipping a dead key.
+  browser: Object.freeze(['browserOpen']),
   // Personal to-do list: add / toggle / delete a task in the same list the Tasks
   // tile shows. Low-risk (your own notes-style data, no system reach), grant-gated,
   // and each mutation is validated + length-capped in the action registry.
@@ -624,6 +634,9 @@ function resolveAsset(rootDir, id, relPath) {
   for (const seg of segments) {
     if (!SEGMENT_RE.test(seg) || seg === '.' || seg === '..' || seg.startsWith('..')) return null;
   }
+  // The probe filename is reserved: it is served from memory by the route, and
+  // a package file by that name must never shadow it from disk.
+  if (segments[segments.length - 1] === PERF_PROBE_FILENAME) return null;
   const ext = path.extname(segments[segments.length - 1]).toLowerCase();
   if (!ASSET_MIME[ext]) return null;
   const base = path.join(rootDir, id);
@@ -634,6 +647,70 @@ function resolveAsset(rootDir, id, relPath) {
 
 function mimeFor(absPath) {
   return ASSET_MIME[path.extname(absPath).toLowerCase()] || 'application/octet-stream';
+}
+
+// ── Host performance probe (reserved same-origin asset) ─────────────────────
+// The sandbox CSP is `script-src 'self'` (no inline), so the probe ships as a
+// separate script the server injects a <script src> tag for into every served
+// widget HTML. The RELATIVE src resolves inside /sdk/widget/<id>/, where the
+// route serves PERF_PROBE_SOURCE from memory — the name is reserved end to end
+// (resolveAsset refuses it, validateWidgetPayload drops it) so a package can
+// never smuggle its own file under it. Diagnostics, not security: the probe
+// runs in the widget's context and a hostile widget can tamper with it — the
+// security boundary remains the CSP sandbox.
+const PERF_PROBE_FILENAME = '__xenon-perf.js';
+
+// Zero DOM access, one namespaced global, every path try/caught: the probe must
+// never break or observably change a widget. It stays silent while the frame is
+// idle/throttled (all-zero window → no message).
+const PERF_PROBE_SOURCE = [
+  '(() => {',
+  "  'use strict';",
+  '  try {',
+  '    if (window.__xenonPerf) return;',
+  '    const S = window.__xenonPerf = { lt: 0, ltN: 0, cls: 0, frames: 0, t0: performance.now() };',
+  '    try {',
+  '      new PerformanceObserver((l) => { for (const e of l.getEntries()) { S.lt += e.duration; S.ltN++; } })',
+  "        .observe({ type: 'longtask', buffered: true });",
+  '    } catch (e) { /* observer type unsupported */ }',
+  '    try {',
+  '      new PerformanceObserver((l) => { for (const e of l.getEntries()) { if (!e.hadRecentInput) S.cls++; } })',
+  "        .observe({ type: 'layout-shift', buffered: true });",
+  '    } catch (e) { /* observer type unsupported */ }',
+  '    const tick = () => { S.frames++; try { requestAnimationFrame(tick); } catch (e) { /* stop */ } };',
+  '    try { requestAnimationFrame(tick); } catch (e) { /* no rAF */ }',
+  '    setInterval(() => {',
+  '      try {',
+  '        const now = performance.now();',
+  '        const win = now - S.t0;',
+  '        const r = {',
+  '          xenonSdk: 1, type: \'perf\', windowMs: Math.round(win),',
+  '          longTaskMs: Math.round(S.lt), longTasks: S.ltN,',
+  '          fps: win > 0 ? Math.round((S.frames * 1000) / win) : 0,',
+  '          layoutShifts: S.cls,',
+  '        };',
+  '        S.lt = 0; S.ltN = 0; S.cls = 0; S.frames = 0; S.t0 = now;',
+  '        if (!r.longTasks && !r.layoutShifts && !r.fps) return;',
+  "        parent.postMessage(r, '*');",
+  '      } catch (e) { /* never disturb the widget */ }',
+  '    }, 12000);',
+  '  } catch (e) { /* never disturb the widget */ }',
+  '})();',
+].join('\n');
+
+// Insert the probe <script> tag into a served widget HTML document. Early in
+// <head> with `defer`: registered before any widget script runs (defer executes
+// in document order, this tag first) while never blocking parsing; observers
+// use buffered:true so even pre-registration entries are captured. Pure string
+// transform, unit-tested.
+function injectPerfProbe(html) {
+  const tag = `<script src="${PERF_PROBE_FILENAME}" defer></script>`;
+  const src = String(html == null ? '' : html);
+  const head = src.match(/<head\b[^>]*>/i);
+  if (head) return src.slice(0, head.index + head[0].length) + tag + src.slice(head.index + head[0].length);
+  const body = src.search(/<\/body\s*>/i);
+  if (body >= 0) return src.slice(0, body) + tag + src.slice(body);
+  return src + tag;
 }
 
 // Scan the packages dir. Returns { packages:[manifest…], invalid:[{id,reason}] }.
@@ -722,6 +799,9 @@ function validateWidgetPayload(raw) {
     if (!f || typeof f !== 'object') return { ok: false, reason: 'bad_files' };
     const relPath = normalizeAssetRelPath(f.path);
     if (!relPath || seen.has(relPath)) return { ok: false, reason: 'bad_path' };
+    // Reserved probe name: drop the file, keep the rest of the bundle valid —
+    // resolveAsset would refuse to serve it anyway, this just avoids dead bytes.
+    if (relPath.split('/').pop() === PERF_PROBE_FILENAME) continue;
     seen.add(relPath);
     let bytes;
     try { bytes = Buffer.from(String(f.data == null ? '' : f.data), 'base64'); } catch { return { ok: false, reason: 'bad_data' }; }
@@ -833,6 +913,9 @@ module.exports = {
   validateHandlerArgs,    // unit-tested (handler-args coercion boundary)
   resolveAsset,
   mimeFor,
+  PERF_PROBE_FILENAME,
+  PERF_PROBE_SOURCE,
+  injectPerfProbe,        // unit-tested (probe injection is a pure transform)
   listPackages,
   validateWidgetPayload,  // unit-tested (bundle install boundary)
   readPackagePayload,

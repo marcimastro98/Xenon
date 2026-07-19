@@ -121,6 +121,7 @@
     const pick = document.createElement('input');
     pick.type = 'color'; pick.className = 'lgt-pick'; pick.value = '#7c5cff';
     pick.addEventListener('input', () => setColor(pick.value));
+    if (window.ColorPicker) window.ColorPicker.bind(pick);
     colors.appendChild(pick);
     const auto = el('button', 'lgt-auto', t('lgt_auto', 'Auto')); auto.type = 'button';
     auto.addEventListener('click', clearColor);

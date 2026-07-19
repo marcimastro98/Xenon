@@ -34,9 +34,10 @@ test('catalog imports preserve their source and every applied kind uses tracked 
   const gallery = read('js', 'community-gallery.js');
   const presets = read('js', 'preset-share.js');
   // sourceVersion rides along since v4.5.3 so every kind is update-checkable;
-  // the invariant under test is unchanged: catalog installs go through
-  // openImport with a 'catalog' source, never a direct apply.
-  assert.match(gallery, /openImport\(code, \{ source: 'catalog', sourceId: entry\.id, sourceVersion: entry\.version \|\| '' \}\)/);
+  // perfWarning since v4.8.0 so the import dialog repeats the store's chip. The
+  // invariant under test is unchanged: catalog installs go through openImport
+  // with a 'catalog' source, never a direct apply.
+  assert.match(gallery, /openImport\(code, \{ source: 'catalog', sourceId: entry\.id, sourceVersion: entry\.version \|\| '', perfWarning: entry\.perfWarning === true \}\)/);
   for (const kind of ['deck', 'bundle', 'widget', 'ambient']) {
     assert.match(presets, new RegExp(`runTrackedInstall\\(['"]${kind}['"]`), kind);
   }

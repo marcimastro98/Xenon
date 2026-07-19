@@ -34,6 +34,13 @@ server/data/widgets/
     (images, fonts, …)
 ```
 
+One filename is reserved: `__xenon-perf.js`. The host serves its own small
+performance probe under that name inside every package (it measures long tasks
+and frame rate and reports them to the dashboard, so users can see which widget
+is using resources). A file with that name inside your package is ignored. The
+probe never touches your DOM or globals beyond `window.__xenonPerf`, and you do
+not need to do anything to support it.
+
 ## manifest.json
 
 ```json
@@ -106,6 +113,10 @@ Request only what you need — an empty `streams`/`actions` widget renders with 
 - **Inline `<script>` is blocked** (`script-src 'self'`) — put all JS in files.
   Inline `<style>` is allowed.
 - Images/fonts must be bundled in your package or `data:` URIs.
+- **You cannot render a website inside your widget**: not in an iframe, not in an
+  `<embed>`, not by fetching it. If your widget's job is to put a web page in front
+  of the user, ask for the `browser` action category instead: you name the address
+  and the dashboard's Browser tile shows it. See *Opening a page on the dashboard*.
 - All data arrives over `postMessage` from the host; all effects go back the
   same way.
 
@@ -141,6 +152,20 @@ cost is entirely yours.
 Every message in both directions is an object with `xenonSdk: 1` plus a `type`.
 Send to `window.parent` with target origin `'*'` (the host validates the
 source, not the origin — your frame's origin is opaque by design).
+
+> **Why `'*'`, and why your listener need not check `event.origin`.** Your frame
+> is sandboxed without `allow-same-origin`, so its origin is the opaque string
+> `"null"`: there is no stable origin for you to target or to compare against.
+> The host does the check that matters on its side: it matches the
+> `event.source` against the frame it created, so a message from any other frame
+> is dropped before it is read. Nothing you receive can therefore come from
+> somewhere else, and nothing you send goes anywhere but the host.
+>
+> What this does **not** protect is the reverse direction inside your own frame:
+> if some other code ends up running in it, it can post messages your handlers
+> will treat as host messages. Treat `init`/`theme`/`fetch_result` as data to
+> validate, not as trusted state, the same way you would treat a network
+> response. Do not build a security decision on having received an `init`.
 
 ### 1. Handshake — widget → host
 
@@ -466,7 +491,8 @@ the same gate Deck keys go through):
 | `twitch` | `twitchClip`, `twitchMarker`, `twitchAd`, `twitchTitle`, `twitchGame`, `twitchChat`, `twitchShoutout`, `twitchChatMode` — control your Twitch channel. Requires Twitch connected. |
 | `youtube` | `ytBroadcast` — start/stop your YouTube broadcast. Requires YouTube connected. |
 | `streamerbot` | `sbDoAction`, `sbSendMessage`, `sbCodeTrigger` — trigger Streamer.bot actions, send chat, fire code triggers. Requires Streamer.bot connected. |
-| `url` | `{ type: 'openUrl', url: 'https://…' }` (http/https only) |
+| `url` | `{ type: 'openUrl', url: 'https://…' }` (http/https only). Opens in the user's **default browser**, on whichever monitor Windows puts it. Use `browser` below when the page should stay on the Xeneon Edge. |
+| `browser` | `{ type: 'browserOpen', url: 'https://…', expand?: true }` (http/https only). Shows the page in the **Browser tile** already on the dashboard. See [Opening a page on the dashboard](#opening-a-page-on-the-dashboard-browser) below. |
 | `tasks` | `{ type: 'taskAdd', text }`, `{ type: 'taskToggle', id }`, `{ type: 'taskDelete', id }` — add / complete-toggle / delete a to-do in the same list the Tasks tile shows (pair with the `tasks` **stream** to read the list and each task's `id`). `text` is capped at 200 chars server-side; a new task is created with default (medium) priority. No external service required. |
 | `soundboard` | `{ type: 'playSound', file, mode?: 'play' \| 'toggle' \| 'stop', volume? }`, `{ type: 'soundStopAll' }` — play clips from an **installed sound pack** (the `sounds` preset kind). `file` MUST be a pack-relative reference of the exact shape `packs/<packId>/<clipId>.<mp3\|ogg\|wav>` — arbitrary local paths are rejected for widgets (that stays a Deck-key-only, user-configured privilege). Same rule applies to `playSound` steps inside manifest `deck.actions` macros (validated at install). Playback happens on the surface where your widget runs. Ship your clips as a companion sound pack, or document which pack the widget expects. |
 
@@ -475,6 +501,95 @@ The `wavelink` **stream** pushes the live mixer state — `{ connected, inputs: 
 > Local-hardware note: apps like Razer Synapse and Wave Link expose a **loopback** endpoint, which the sandbox and fetch proxy deliberately block. These `chroma`/`wavelink` categories are the supported path — Xenon's backend does the local talking, you request the category, the user grants it. Do **not** try to reach `127.0.0.1` from a widget; it won't work by design.
 
 Actions are rate-limited to one per ~250 ms per widget instance.
+
+#### `openUrl` and the destination prompt (v4.8)
+
+`hosts` governs **fetch**, not links. A widget that opens articles, maps or
+profiles sends the user to addresses it never declared and, for a feed-driven
+widget, never chose: the destination comes from the data. So the **host** names
+it: the first time your widget opens a given domain, Xenon shows the domain and
+the user approves or cancels.
+
+Consent is remembered per (widget, domain) for as long as Xenon is running, so a
+reader is asked once per outlet, not once per headline. A domain listed in your
+manifest `hosts` never prompts: the user already approved it at install.
+
+A cancel comes back as a normal result, not an error to retry:
+
+```js
+{ xenonSdk: 1, type: 'action_result', id, ok: false, error: 'declined' }
+```
+
+Treat `declined` as "the user said no": return to the idle state, do not re-post
+the action, and do not present it as a failure. Two things follow for your UI:
+
+- **Show where a click leads**: the domain, next to the link. The prompt is a
+  backstop, not a substitute for the user knowing before they tap.
+- **Never fire `openUrl` without a user gesture.** An open the user did not ask
+  for now produces a modal they did not ask for either.
+
+### 5b. Opening a page on the dashboard: `browser` (v4.8)
+
+Your widget cannot render a website itself. The sandbox serves `frame-src 'none'`
+and `connect-src 'none'`, so there is no iframe, no embed and no fetch to a remote
+origin; that is the core of the security model and it is not negotiable.
+
+`openUrl` was the only way out, and it hands the address to Windows: the page opens
+in the default browser, on the primary monitor. For a widget whose whole point is to
+put something **on** the Xeneon Edge, that is the wrong screen.
+
+The `browser` category fixes that without touching the sandbox. It has exactly the
+shape of `openUrl` (you name an address, you never see the page) but the
+destination is the **Browser tile** the user already has on their dashboard, which
+renders the page for real and forwards touch, so pans, pinches and taps work.
+
+```js
+window.parent.postMessage({
+  xenonSdk: 1, type: 'action', id: 7,
+  action: { type: 'browserOpen', url: 'https://mapgenie.io/…', expand: true }
+}, '*');
+// { xenonSdk: 1, type: 'action_result', id: 7, ok: true }
+// { xenonSdk: 1, type: 'action_result', id: 7, ok: false, error: 'no_browser_tile' }
+```
+
+| Field | |
+|---|---|
+| `url` | Required, `http:`/`https:` only. Anything else fails with `bad_url`. Public addresses only: loopback, LAN and intranet names fail with `blocked_host`. |
+| `expand` | Optional. `true` paints the tile over the whole dashboard; on the Xeneon Edge, the whole screen. The user leaves with Escape or the collapse button. |
+
+Declare it in your manifest like any other category:
+
+```json
+{ "actions": ["browser"] }
+```
+
+Rules worth knowing before you build on it:
+
+- **It navigates the tile the user is looking at.** A Browser tile on another
+  dashboard page is never touched; replacing a page nobody can see would throw away
+  whatever was open there. If no Browser tile is visible you get `no_browser_tile`;
+  handle it, and tell the user to add one rather than failing silently.
+- **It replaces the tile's active tab.** Treat it as "put this on screen", not as
+  "open a window I own". The user can still use the tabs, the address bar and their
+  own favourites afterwards.
+- **You have no read access to that page.** No URL back, no content, no scroll
+  position, no events. The Browser tile is a surface Xenon owns; your widget only
+  ever names a destination.
+- **Not available in manifest Deck macros.** `deck.actions` steps go through the
+  Deck action validator, which does not know `browserOpen`; a macro declaring one
+  fails at install rather than shipping a key that does nothing.
+- **The user is told where you are sending them.** A host listed in your manifest
+  `hosts` opens straight away, because they approved it at install. Any other
+  address shows them the domain first and they can decline, which comes back as
+  `error: 'declined'`, a normal answer rather than a failure to retry. Declare the hosts
+  your widget really uses and the tile stays quiet.
+- **Local addresses are refused.** `127.0.0.1`, `localhost`, `192.168.x`, `10.x`,
+  `172.16-31.x`, `169.254.x`, `.local` names and bare intranet names all fail with
+  `blocked_host`. The tile is a real browser with real cookies, so pointing it at
+  the machine's own services would be a way around the sandbox, not a feature.
+
+The user grants this at install time like every other category, listed as "Open web
+pages in the Browser tile on your dashboard".
 
 <!-- SDK-REFERENCE:START (auto-generated by tools/gen-sdk-reference.mjs — do not edit by hand) -->
 ### Capability reference (auto-generated)
@@ -489,6 +604,7 @@ the user granted, and every action is re-validated server-side.
 
 | Category | Action types |
 |----------|--------------|
+| `browser` | `browserOpen` |
 | `chroma` | `chromaColor`, `chromaOff` |
 | `discord` | `discordMute`, `discordDeafen`, `discordPtt`, `discordJoin`, `discordLeave`, `discordInputVol`, `discordOutputVol`, `discordAudioToggle`, `discordSoundboard` |
 | `homeassistant` | `haToggle`, `haLight`, `haMedia`, `haCover`, `haClimate`, `haFan`, `haVacuum`, `haLock`, `haAlarm`, `haScene`, `haScript`, `haButton` |

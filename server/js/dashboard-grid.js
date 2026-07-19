@@ -837,6 +837,11 @@ if (typeof window !== 'undefined') {
   window.DashboardGrid = { mountPageGrid, pruneGrids, setEditing, serialize, applyWidgetGeometry, addWidgetToPage, packPageItems, availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps, fitGridHeights, refreshPageAddAffordances, ensureTileHandles, forEachInstance, GRID_COLUMNS, removePlacement, cycleTileSize };
   let _fitT = null;
   window.addEventListener('resize', () => { clearTimeout(_fitT); _fitT = setTimeout(fitGridHeights, 120); });
+  // A render-parked page (content-visibility, dashboard-pager .is-parked) reports
+  // clientHeight 0 and gets skipped above — a window resize while it was parked
+  // never reached its grid. Re-fit when the user lands on a page; shares the
+  // resize debounce so a resize + page change coalesce into one pass.
+  window.addEventListener('xenon:page-change', () => { clearTimeout(_fitT); _fitT = setTimeout(fitGridHeights, 120); });
   // Track the pointer so dragstop can hit-test the drop target (merge → tab).
   const _trackPointer = (e) => { const p = e.touches ? e.touches[0] : e; if (p) { _lastPointer.x = p.clientX; _lastPointer.y = p.clientY; } };
   window.addEventListener('pointermove', _trackPointer, true);

@@ -53,6 +53,8 @@
   animation: live-ripple 2s ease-in-out infinite;
   will-change: transform, opacity; pointer-events: none;
 }
+/* Paused while a frosted overlay covers the dashboard (see backgroundfx.css overlay-frozen). */
+body.overlay-frozen .twitch-status-pill.live .twitch-status-dot::after { animation-play-state: paused; }
 
 /* "Twitch account not linked" call-to-action — a full-width tap target that
    opens Settings → Streaming, so the OFFLINE/— state explains itself. */

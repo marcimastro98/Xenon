@@ -44,6 +44,8 @@
   animation: live-ripple 2s ease-in-out infinite;
   will-change: transform, opacity; pointer-events: none;
 }
+/* Paused while a frosted overlay covers the dashboard (see backgroundfx.css overlay-frozen). */
+body.overlay-frozen .yt-pill.live .yt-pill-dot::after { animation-play-state: paused; }
 
 /* Cards */
 .yt-cards { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; }

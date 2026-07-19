@@ -3,7 +3,24 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { clampPageIndex, resolvePageId, shouldPageOnWheel, computeActivePages } = require('../js/dashboard-pager.js');
+const { clampPageIndex, resolvePageId, shouldPageOnWheel, computeActivePages, computeParkedIndices } = require('../js/dashboard-pager.js');
+
+test('computeParkedIndices: every active page except the current one', () => {
+  const pages = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+  assert.deepEqual(computeParkedIndices(pages, 0), [1, 2]);
+  assert.deepEqual(computeParkedIndices(pages, 1), [0, 2]);
+});
+
+test('computeParkedIndices: inactive pages are never parked (they are display:none already)', () => {
+  const pages = [{ id: 'a' }, { id: 'b', active: false }, { id: 'c' }];
+  assert.deepEqual(computeParkedIndices(pages, 0), [2]);
+});
+
+test('computeParkedIndices: tolerates empty and malformed input', () => {
+  assert.deepEqual(computeParkedIndices([], 0), []);
+  assert.deepEqual(computeParkedIndices(null, 0), []);
+  assert.deepEqual(computeParkedIndices([null, { id: 'b' }], 1), []);
+});
 
 test('clampPageIndex keeps index inside [0, count-1]', () => {
   assert.equal(clampPageIndex(-2, 3), 0);

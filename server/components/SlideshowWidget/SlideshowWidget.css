@@ -138,6 +138,11 @@
 }
 .sl-pausepip svg { width: 14px; height: 14px; }
 
+/* The frozen still that replaces the <img> while nobody is looking. It carries
+   .sl-img too, so cover/contain fit and sizing are the shared rules — the swap
+   must be invisible. */
+.sl-freeze[hidden] { display: none; }
+
 /* ── Settings panel: the image manager ── */
 .slideshow-assets {
   display: flex;

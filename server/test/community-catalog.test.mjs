@@ -273,6 +273,15 @@ test('catalog: filterVisibleEntries drops hidden/scheduled entries', () => {
 // user WHAT an update changes, `updatedAt` is the only "last modified" signal
 // (addedAt deliberately stays the first-publish date).
 
+test('perfWarning: boolean-true-only passthrough (the store\'s performance chip)', () => {
+  const N = cat.normalizeEntry;
+  assert.equal(N(entry({ perfWarning: true })).perfWarning, true);
+  assert.equal(N(entry({ perfWarning: 'true' })).perfWarning, undefined);
+  assert.equal(N(entry({ perfWarning: 1 })).perfWarning, undefined);
+  assert.equal(N(entry({ perfWarning: false })).perfWarning, undefined);
+  assert.equal(N(entry()).perfWarning, undefined);
+});
+
 test('v3: changelog is kept, bounded, and dropped when blank', () => {
   const N = cat.normalizeEntry;
   assert.equal(N(entry({ changelog: 'Fixes the DST rollover' })).changelog, 'Fixes the DST rollover');

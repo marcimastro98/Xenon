@@ -41,6 +41,8 @@
   animation: live-ripple 2s ease-in-out infinite;
   will-change: transform, opacity; pointer-events: none;
 }
+/* Paused while a frosted overlay covers the dashboard (see backgroundfx.css overlay-frozen). */
+body.overlay-frozen .sbw-pill.is-live .sbw-pill-dot::after { animation-play-state: paused; }
 
 /* "Not connected" call-to-action — opens Settings → Streaming. */
 .sbw-notice {

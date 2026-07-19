@@ -125,6 +125,32 @@ fn is_discrete(name: &str) -> bool {
         || n.contains("arc ")
 }
 
+/// GDI device names ("\\\\.\\DISPLAYn") of attached displays driven by a virtual
+/// display adapter rather than real hardware. Xenon's own second-screen feature
+/// installs one (MttVDD) and offers 2560×720 among its modes, which is exactly the
+/// Edge's panel size — so size alone cannot tell the two apart. Used by
+/// `monitor::find_edge` to skip them.
+pub fn virtual_display_names() -> Vec<String> {
+    let mut out = Vec::new();
+    let mut i = 0u32;
+    loop {
+        let mut dd: DisplayDeviceW = unsafe { std::mem::zeroed() };
+        dd.cb = std::mem::size_of::<DisplayDeviceW>() as u32;
+        if unsafe { EnumDisplayDevicesW(std::ptr::null(), i, &mut dd, 0) } == 0 {
+            break;
+        }
+        i += 1;
+        if dd.state_flags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP == 0 {
+            continue;
+        }
+        let gpu = wide_to_string(&dd.device_string).to_ascii_lowercase();
+        if gpu.contains("virtual display") || gpu.contains("mttvdd") || gpu.contains("iddsample") {
+            out.push(wide_to_string(&dd.device_name));
+        }
+    }
+    out
+}
+
 /// Enumerate every attached display with the GPU that drives it and its resolution.
 fn enumerate_displays() -> Vec<Display> {
     let mut out = Vec::new();

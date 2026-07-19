@@ -120,6 +120,8 @@
   let wavelinkEnabled = null;
   let signalrgbEnabled = null;
   let lightingConfigured = null;
+  let claudeLinked = null;        // Claude Code hooks installed (gates the claude group)
+  let claudeProjectsPromise = null;   // the projects a run may be started in
   let signalRgbEffectsPromise = null;   // SignalRGB effect list ({value,label})
   let scenesPromise = null;
   let sourcesPromise = null;
@@ -151,7 +153,8 @@
       const nextWl = !!(d && d.capabilities && d.capabilities.wavelinkEnabled);
       const nextSignalRgb = !!(d && d.capabilities && d.capabilities.signalrgbEnabled);
       const nextLighting = !!(d && d.capabilities && d.capabilities.lightingConfigured);
-      const changed = nextObs !== obsConfigured || nextRemote !== remoteConfigured || nextTwitch !== twitchConnected || nextYouTube !== youtubeConnected || nextSb !== streamerbotConfigured || nextDiscord !== discordConnected || nextSpotify !== spotifyConnected || nextHa !== homeAssistantConfigured || nextChroma !== chromaEnabled || nextWl !== wavelinkEnabled || nextSignalRgb !== signalrgbEnabled || nextLighting !== lightingConfigured;
+      const nextClaude = !!(d && d.capabilities && d.capabilities.claudeLinked);
+      const changed = nextObs !== obsConfigured || nextRemote !== remoteConfigured || nextTwitch !== twitchConnected || nextYouTube !== youtubeConnected || nextSb !== streamerbotConfigured || nextDiscord !== discordConnected || nextSpotify !== spotifyConnected || nextHa !== homeAssistantConfigured || nextChroma !== chromaEnabled || nextWl !== wavelinkEnabled || nextSignalRgb !== signalrgbEnabled || nextLighting !== lightingConfigured || nextClaude !== claudeLinked;
       obsConfigured = nextObs;
       remoteConfigured = nextRemote;
       twitchConnected = nextTwitch;
@@ -164,7 +167,8 @@
       wavelinkEnabled = nextWl;
       signalrgbEnabled = nextSignalRgb;
       lightingConfigured = nextLighting;
-      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; haDomains = null; wlChannelsPromise = null; lightDevicesPromise = null; signalRgbEffectsPromise = null; }   // config changed → re-fetch the lists
+      claudeLinked = nextClaude;
+      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; haDomains = null; wlChannelsPromise = null; lightDevicesPromise = null; signalRgbEffectsPromise = null; claudeProjectsPromise = null; }   // config changed → re-fetch the lists
       // Compute the set of HA device domains the user actually HAS, so the action
       // picker offers only the actions relevant to their devices (generic, not
       // hardcoded). This runs after the fast capability check; the caller does a
@@ -258,6 +262,18 @@
       .catch(() => []);
     return haEntitiesPromise;
   }
+  // The projects a Claude Code run may be started in ({value:id, label:name}) —
+  // the server's own allowlist, so the editor cannot offer a folder the runner
+  // would refuse.
+  function claudeProjects() {
+    if (!claudeProjectsPromise) {
+      claudeProjectsPromise = fetch('/api/claude/projects').then((r) => r.json())
+        .then((d) => ((d && Array.isArray(d.projects)) ? d.projects : []).map((p) => ({ value: p.id, label: p.name })))
+        .catch(() => []);
+    }
+    return claudeProjectsPromise;
+  }
+
   // Live Wave Link mixer channel list ({value:mixId, label:name}) for the wlChannel
   // picker. Falls back to [] (→ typed mixId field) when Wave Link is off/unreachable.
   function wlChannels() {
@@ -1565,11 +1581,14 @@
       { group: 'remote', labelKey: 'deck_cat_remote' },
       { group: 'sdk', labelKey: 'deck_cat_sdk' },
       { group: 'ai', labelKey: 'deck_cat_ai' },
+      { group: 'claude', labelKey: 'deck_cat_claude' },
     ];
     // Per-action inline icons (currentColor). Kept compact; an action with no
     // entry simply shows no icon.
     const _ai = (p) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
     const ACTION_ICONS = {
+      claudeAsk: _ai('<path d="M21 11.5a8.5 8.5 0 0 1-12.2 7.7L3 21l1.8-5.8A8.5 8.5 0 1 1 21 11.5z"/><path d="M9.5 11h5M9.5 14h3"/>'),
+      claudeStop: _ai('<circle cx="12" cy="12" r="9"/><rect x="9" y="9" width="6" height="6" rx="1"/>'),
       openApp: _ai('<rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/>'),
       openFile: _ai('<path d="M6 3h9l3 3v15H6z"/><path d="M9 13h6M9 17h4"/>'),
       runScript: _ai('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/>'),
@@ -1691,6 +1710,10 @@
       // when SignalRGB is off, whatever the rest of the lighting state is).
       if (a.type === 'signalRgbEffect') return signalrgbEnabled === true;
       if (a.group === 'lighting' && lightingConfigured === false) return false;
+      // Claude Code keys need the hooks: without them a run's permission prompts
+      // land in a terminal nobody is watching, so the key would start work you
+      // cannot see or approve.
+      if (a.group === 'claude' && claudeLinked === false) return false;
       // Widget-SDK contributions: each action type is offered only once the
       // (lazy) package scan found matching entries. No locked-hint row — an
       // empty "Widget" category would be noise for everyone else.
@@ -2170,6 +2193,34 @@
       return wrap;
     }
 
+    // A param control for the claudeProject kind: a dropdown of the projects a
+    // run may be started in, stored by id. The list is the server's — the same
+    // one the touchscreen panel offers, built from Claude Code's own history —
+    // and the key only ever carries the id, never a folder path. A typed field
+    // is the fallback while the list can't be read, so a key configured earlier
+    // keeps its project rather than silently losing it (mirrors wlChannel).
+    function claudeProjectPickControl(step, name) {
+      const wrap = document.createElement('div');
+      const txt = input('text', step.params[name] || '');
+      txt.placeholder = t('deck_param_claude_project');
+      const writeTxt = () => { step.params[name] = txt.value; };
+      txt.addEventListener('input', writeTxt); txt.addEventListener('change', writeTxt);
+      wrap.appendChild(txt);
+      claudeProjects().then((items) => {
+        if (!items || !items.length) return;
+        const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+        const cur = step.params[name] || '';
+        if (cur && !items.some((it) => it.value === cur)) items = [{ value: cur, label: cur }, ...items];
+        items.forEach((it) => { const o = document.createElement('option'); o.value = it.value; o.textContent = it.label; sel.appendChild(o); });
+        sel.value = cur || items[0].value;
+        step.params[name] = sel.value;
+        sel.addEventListener('change', () => { step.params[name] = sel.value; });
+        wrap.replaceChildren(sel);
+        enhanceSelects(wrap);
+      }).catch(() => {});
+      return wrap;
+    }
+
     // A param control for the lightDevice kind: a dropdown of the user's lighting
     // devices ({value:id, label}), stored by device id. A typed field is the
     // fallback while no lighting is configured, so an assigned id survives offline
@@ -2450,6 +2501,12 @@
         if (p.kind === 'wlChannel') {
           if (step.params[p.name] == null) step.params[p.name] = '';
           f.appendChild(wlChannelPickControl(step, p.name));
+          host.appendChild(f);
+          return;
+        }
+        if (p.kind === 'claudeProject') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(claudeProjectPickControl(step, p.name));
           host.appendChild(f);
           return;
         }

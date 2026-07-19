@@ -125,17 +125,29 @@
 
     // Position near the anchor, clamped to the viewport (fixed positioning so it
     // escapes any overflow:hidden ancestor, e.g. the settings modal body).
-    const r = anchor.getBoundingClientRect();
+    // Clamping order matters: cap the size to the viewport FIRST (the popover is
+    // taller than a short window, and then no placement can fit it), flip above
+    // the anchor when there is no room below, and clamp last so left/top can
+    // never end up negative — off-screen in the other direction is still
+    // off-screen.
     pop.style.visibility = 'hidden';
-    requestAnimationFrame(() => {
-      const pw = pop.offsetWidth, ph = pop.offsetHeight, pad = 8;
-      let left = Math.min(Math.max(pad, r.left), window.innerWidth - pw - pad);
+    const place = () => {
+      if (!pop) return;
+      const pad = 8;
+      const vw = window.innerWidth, vh = window.innerHeight;
+      pop.style.maxWidth = Math.max(160, vw - pad * 2) + 'px';
+      pop.style.maxHeight = Math.max(160, vh - pad * 2) + 'px';
+      const r = anchor.getBoundingClientRect();
+      const pw = pop.offsetWidth, ph = pop.offsetHeight;
       let top = r.bottom + 6;
-      if (top + ph > window.innerHeight - pad) top = Math.max(pad, r.top - ph - 6);
-      pop.style.left = left + 'px';
-      pop.style.top = top + 'px';
+      if (top + ph > vh - pad) top = r.top - ph - 6; // flip above the anchor
+      pop.style.left = Math.max(pad, Math.min(r.left, vw - pw - pad)) + 'px';
+      pop.style.top = Math.max(pad, Math.min(top, vh - ph - pad)) + 'px';
       pop.style.visibility = '';
-    });
+    };
+    requestAnimationFrame(place);
+    window.addEventListener('resize', place);
+    cleanupFns.push(() => window.removeEventListener('resize', place));
 
     function paint() {
       const hex = rgbToHex(...hsvToRgb(h, s, v));
@@ -213,7 +225,32 @@
     paint();
   }
 
-  if (typeof window !== 'undefined') window.ColorPicker = { open, close };
+  // Bind a native <input type="color"> to this popover. The browser's own colour
+  // dialog is an OS-level window we cannot position or clamp — on the Xeneon Edge
+  // (and any small window) it opens partly off-screen, which is unusable on a
+  // touchscreen with no way to drag it back. The input stays as the swatch and
+  // the value holder; only its click is redirected. The picked colour is written
+  // back and re-dispatched as 'input' + 'change', so existing listeners on the
+  // input keep working unchanged.
+  function bind(input, onPick) {
+    if (!input) return;
+    input.addEventListener('click', (ev) => {
+      ev.preventDefault(); // suppresses the native dialog (also for keyboard activation)
+      if (input.disabled) return;
+      open({
+        anchor: input,
+        value: input.value,
+        onPick: (hex) => {
+          input.value = hex;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+          if (typeof onPick === 'function') onPick(hex);
+        },
+      });
+    });
+  }
+
+  if (typeof window !== 'undefined') window.ColorPicker = { open, close, bind };
   // Node (unit tests): expose the DOM-free colour math.
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = { hexToRgb, rgbToHex, rgbToHsv, hsvToRgb };

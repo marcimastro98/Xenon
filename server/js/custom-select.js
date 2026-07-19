@@ -133,6 +133,16 @@ function initCustomSelect(selectEl) {
       const txt = document.createElement('span');
       txt.className = 'cs-option-label';
       txt.textContent = opt.textContent.trim();
+      // Opt-in second line (`data-cs-note`) for options whose name alone doesn't
+      // say what they do. It belongs in the open list and NOT in the trigger,
+      // which keeps showing the short label — a sentence there stretches the
+      // closed control across whatever row it sits in.
+      if (opt.dataset && opt.dataset.csNote) {
+        const note = document.createElement('span');
+        note.className = 'cs-option-note';
+        note.textContent = opt.dataset.csNote;
+        txt.appendChild(note);
+      }
       li.appendChild(txt);
       li.addEventListener('click', e => {
         e.stopPropagation();
@@ -196,13 +206,27 @@ function initCustomSelect(selectEl) {
     // when it's taller than the room available.
     const h = Math.min(natural, vh - 2 * edge);
     panel.style.maxHeight = h + 'px';
-    let left = Math.min(r.left, vw - m - panel.offsetWidth);
-    panel.style.left = Math.max(m, left) + 'px';
+    const wantLeft = Math.max(m, Math.min(r.left, vw - m - panel.offsetWidth));
     // Anchor to the trigger, then clamp so the whole panel stays within the
     // breathing margins (on a tiny screen it may overlap the trigger —
     // visible-and-scrollable beats clipped-and-unreachable).
     const top = placeBelow ? r.bottom + gap : r.top - gap - h;
-    panel.style.top = Math.max(edge, Math.min(top, vh - edge - h)) + 'px';
+    const wantTop = Math.max(edge, Math.min(top, vh - edge - h));
+    panel.style.left = wantLeft + 'px';
+    panel.style.top = wantTop + 'px';
+
+    // A transformed, filtered or contained ancestor becomes the containing block
+    // for `position: fixed`, so the coordinates just written are measured from
+    // THAT box rather than the viewport and the panel lands away from its
+    // trigger — which is what happened inside the Claude tile's panel. Rather
+    // than hunt for which ancestor did it, measure where the panel actually
+    // ended up and correct by the difference; that holds whatever the cause.
+    const got = panel.getBoundingClientRect();
+    const dx = wantLeft - got.left, dy = wantTop - got.top;
+    if (dx || dy) {
+      panel.style.left = (wantLeft + dx) + 'px';
+      panel.style.top = (wantTop + dy) + 'px';
+    }
   }
 
   function open() {
@@ -255,9 +279,15 @@ function initCustomSelect(selectEl) {
   // set of global listeners (installed once) — no per-instance leak.
   _csArmGlobal();
 
-  // Re-sync label when the native select changes programmatically
-  // (e.g. via selectEl.value = '...' in JS).
   selectEl.addEventListener('change', syncLabel);
+
+  // Assigning `selectEl.value` does NOT fire `change`, so a pane that repaints its
+  // controls from state (Settings does this on every sync) would leave the trigger
+  // showing the OLD option while the native select already holds the new one. Hand
+  // the caller an explicit re-sync — dispatching a synthetic `change` instead would
+  // re-enter the element's own onchange and, for a handler that saves and repaints,
+  // loop. Same shape as `wrap._csClose` above.
+  selectEl._csSync = syncLabel;
 
   // Re-render when option text changes (i18n language switch updates textContent).
   const obs = new MutationObserver(() => { syncLabel(); });

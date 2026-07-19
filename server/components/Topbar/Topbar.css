@@ -147,6 +147,12 @@
   animation: xenon-shimmer 5s ease-in-out infinite;
   pointer-events: none;
 }
+/* Frosted overlay open: every change under a full-screen backdrop-filter forces a
+   re-blur of the whole surface, so the topbar's infinite loops pause while hidden
+   behind the haze (see the overlay-frozen block in styles/backgroundfx.css). */
+body.overlay-frozen .topbtn.topbtn-xenon::after,
+body.overlay-frozen .clock-sep,
+body.overlay-frozen .status-dot-inline::after { animation-play-state: paused; }
 @keyframes xenon-shimmer {
   0%, 58%  { transform: translateX(-130%); }
   82%, 100% { transform: translateX(130%); }

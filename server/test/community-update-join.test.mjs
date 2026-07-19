@@ -66,3 +66,44 @@ test('update join: the Installed tab keys updates by pkgId AND by entry id', () 
   assert.match(src, /else out\.updatesById\.set\(entry\.id, entry\)/);
   assert.match(src, /function updateFor/, 'rows must resolve updates through both joins');
 });
+
+// Lift installedPkgVersion() out of the same source, next to the compare pair.
+function loadInstalledPkgVersion() {
+  const at = SRC.indexOf('  function installedPkgVersion(rec) {');
+  assert.ok(at > 0, 'installedPkgVersion not found — did community-gallery.js move it?');
+  const close = SRC.indexOf('\n  }', at);
+  assert.ok(close > at, 'installedPkgVersion block not delimited as expected');
+  const ctx = vm.createContext({});
+  vm.runInContext(SRC.slice(at, close + 4) + '\nthis.installedPkgVersion = installedPkgVersion;', ctx);
+  return ctx.installedPkgVersion;
+}
+
+test('update join: a catalog stamp is preferred over the package manifest', () => {
+  const installedPkgVersion = loadInstalledPkgVersion();
+  const { verLess } = loadVersionCompare();
+
+  // THE regression this pair exists for. A publisher versions the catalog ENTRY
+  // ('0.1.2') while the package they built reports '0.1.2-sdk3e'. Those are two
+  // different numbering systems, and the suffix parses as a PRERELEASE, so the
+  // manifest compares as older than the entry — forever. Every open of the Store
+  // offered the update, "Update all" installed it and truthfully reported
+  // success, the package still reported '0.1.2-sdk3e', and the badge came back.
+  // Observed live on dgm-news-sports, dgm-news-technology and explorador-de-mapas.
+  assert.equal(verLess('0.1.2-sdk3e', '0.1.2'), true, 'the raw compare is what loops');
+
+  // With the catalog stamp recorded at install time, like is compared with like.
+  const stamped = { manifest: '0.1.2-sdk3e', catalog: '0.1.2' };
+  assert.equal(installedPkgVersion(stamped), '0.1.2');
+  assert.equal(verLess(installedPkgVersion(stamped), '0.1.2'), false, 'the phantom update is gone');
+
+  // A genuinely newer entry is still offered.
+  assert.equal(verLess(installedPkgVersion(stamped), '0.1.3'), true);
+
+  // No stamp (installed before this record existed, or never from the catalog)
+  // → fall back to the manifest, i.e. exactly the previous behaviour.
+  const legacy = { manifest: '2.0.0-beta', catalog: '' };
+  assert.equal(installedPkgVersion(legacy), '2.0.0-beta');
+  assert.equal(verLess(installedPkgVersion(legacy), '2.0.0'), true, 'beta → stable must still be offered');
+
+  assert.equal(installedPkgVersion(null), null);
+});

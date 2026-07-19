@@ -90,7 +90,18 @@ if (typeof window !== 'undefined') (function () {
   }
   function sdkEnabled() {
     const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings.sdkWidgets : null;
+    // Safe mode pauses SDK ambient scenes with the rest of the third-party
+    // widgets (the builtin scene keeps working — it's first-party).
+    if (typeof hubSettings === 'object' && hubSettings && hubSettings.safeMode === true) return false;
     return !!(hs && hs.enabled);
+  }
+  // A per-package pause (Store → Installed → Sospendi) covers the package's
+  // ambient scene too. Only consulted for the CONFIGURED scene id, so it slots
+  // into the same sdkEnabled gate resolveAmbientScene already falls back on.
+  function sceneSuspended(id) {
+    const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings.sdkWidgets : null;
+    const s = (hs && Array.isArray(hs.suspended)) ? hs.suspended : [];
+    return typeof id === 'string' && s.includes(id);
   }
   function savedScenes() {
     const arr = (typeof hubSettings === 'object' && hubSettings) ? hubSettings.ambientScenes : null;
@@ -215,7 +226,7 @@ if (typeof window !== 'undefined') (function () {
     // interleaved during the package await above (which already made this call
     // return at the isOpen() guard) can never be mis-flagged as an idle scene.
     const markAuto = () => { if (!manual && isOpen()) { idleStarted = true; armDismiss(); } };
-    const scene = resolveAmbientScene(c, packages, sdkEnabled(), savedScenes());
+    const scene = resolveAmbientScene(c, packages, sdkEnabled() && !sceneSuspended(c.sceneId), savedScenes());
     if (scene.builtin) {
       // Don't claim "removed" when we simply couldn't list packages right now.
       openBuiltin(scene.fallback === 'missing' && listUnavailable ? '' : scene.fallback);
@@ -439,10 +450,17 @@ if (typeof window !== 'undefined') (function () {
   // save (vitals state, theme tweaks, SSE re-hydrates), so the screensaver
   // could never fire on a busy multi-surface setup.
   let lastCfgKey = '';
+  let lastSuspendedKey = '';
   function onSettingsChanged() {
     const c = cfg();
-    const sdkOn = sdkEnabled();
-    const key = (c.enabled !== false) + '|' + c.idleMinutes + '|' + c.sceneId + '|' + sdkOn;
+    const sdkOn = sdkEnabled() && !sceneSuspended(c.sceneId);
+    // The suspended list itself is part of the key: a canvas scene's sceneId is
+    // 'canvas:<id>' (never a package id), so a per-package pause only becomes
+    // visible through the list — without it no refresh fires and a suspended
+    // package's frame embedded in an open canvas scene kept running.
+    const hsSdk = (typeof hubSettings === 'object' && hubSettings) ? hubSettings.sdkWidgets : null;
+    const suspendedKey = (hsSdk && Array.isArray(hsSdk.suspended)) ? hsSdk.suspended.join(',') : '';
+    const key = (c.enabled !== false) + '|' + c.idleMinutes + '|' + c.sceneId + '|' + sdkOn + '|' + suspendedKey;
     if (key === lastCfgKey) return;
     lastCfgKey = key;
     // Button visibility must follow the setting on EVERY apply path (boot,
@@ -459,8 +477,11 @@ if (typeof window !== 'undefined') (function () {
     if (!sdkOn && sceneOpen()) { disarmDismiss(); idleStarted = false; unmountScene(); }
     // A native canvas scene is first-party, so it stays open when SDK widgets are
     // turned off — but any SDK components it embeds must die with the master
-    // switch. Rebuild in place: those frames come back as quiet placeholders.
-    if (!sdkOn && canvasOpen() && window.AmbientCanvas && AmbientCanvas.refresh) AmbientCanvas.refresh();
+    // switch OR a per-package pause. Rebuild in place: ambient-canvas re-runs its
+    // own safe-mode/suspend gates and the frames come back as quiet placeholders.
+    if ((!sdkOn || suspendedKey !== lastSuspendedKey) && canvasOpen()
+        && window.AmbientCanvas && AmbientCanvas.refresh) AmbientCanvas.refresh();
+    lastSuspendedKey = suspendedKey;
     armIdleTimer();
   }
 

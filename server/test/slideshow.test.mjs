@@ -12,8 +12,59 @@ function uri(bodyLen, mime = 'gif') {
 
 test('sanitizeSlideshow: junk input returns the safe defaults', () => {
   for (const v of [null, undefined, 42, 'x', [], {}]) {
-    assert.deepEqual(S.sanitizeSlideshow(v), { images: [], intervalMs: S.INTERVAL_DEFAULT, fit: 'cover' });
+    assert.deepEqual(S.sanitizeSlideshow(v), {
+      images: [], source: 'library', folder: '', shuffle: false,
+      pauseGame: true,
+      intervalMs: S.INTERVAL_DEFAULT, fit: 'cover',
+    });
   }
+});
+
+test('sanitizeSlideshow: source falls back to the uploaded library', () => {
+  assert.equal(S.sanitizeSlideshow({ source: 'folder' }).source, 'folder');
+  for (const v of ['network', '', null, 42, 'FOLDER']) {
+    assert.equal(S.sanitizeSlideshow({ source: v }).source, 'library');
+  }
+});
+
+test('sanitizeSlideshow: the GIF-freeze option defaults ON and only false disables', () => {
+  // A settings blob that predates the key must come back with it ON, not off.
+  assert.equal(S.sanitizeSlideshow({}).pauseGame, true);
+  assert.equal(S.sanitizeSlideshow({ pauseGame: false }).pauseGame, false);
+  // Anything that is not exactly false leaves the protection on.
+  for (const v of [0, '', null, 'no']) {
+    assert.equal(S.sanitizeSlideshow({ pauseGame: v }).pauseGame, true);
+  }
+});
+
+test('sanitizeSlideshow: there is no inactivity-based freeze option', () => {
+  // `ambient-idle` means "no input for a while", which on the Edge is how this
+  // widget is normally watched — freezing on it stopped the slideshow dead. The
+  // key must stay gone, not come back as an unused leftover (see globalFreeze).
+  const out = S.sanitizeSlideshow({ pauseIdle: true });
+  assert.equal('pauseIdle' in out, false);
+});
+
+test('sanitizeSlideshow: shuffle is strictly boolean', () => {
+  assert.equal(S.sanitizeSlideshow({ shuffle: true }).shuffle, true);
+  // Truthy-but-not-true must NOT enable it: the value round-trips through JSON and
+  // a stale mirror carrying `1` should not silently turn shuffle on.
+  for (const v of [1, 'true', {}, 'yes']) {
+    assert.equal(S.sanitizeSlideshow({ shuffle: v }).shuffle, false);
+  }
+});
+
+test('sanitizeSlideshow: folder path is trimmed, bounded, and control-char free', () => {
+  assert.equal(S.sanitizeSlideshow({ folder: '  C:\\gifs  ' }).folder, 'C:\\gifs');
+  assert.equal(S.sanitizeSlideshow({ folder: 42 }).folder, '');
+  // A path carrying a NUL or a newline must never reach an fs call.
+  for (const ch of [String.fromCharCode(0), String.fromCharCode(10), String.fromCharCode(13), String.fromCharCode(127)]) {
+    assert.equal(S.sanitizeSlideshow({ folder: 'C:\\a' + ch + 'b' }).folder, '');
+  }
+  assert.equal(
+    S.sanitizeSlideshow({ folder: 'C:\\' + 'x'.repeat(S.SLIDE_FOLDER_MAX_CHARS + 100) }).folder.length,
+    S.SLIDE_FOLDER_MAX_CHARS,
+  );
 });
 
 test('sanitizeSlideshow: valid images are kept in order, names trimmed/bounded', () => {

@@ -19,13 +19,22 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  touch-action: none; /* the SV/hue drags own the gesture */
+  /* On a short viewport the popover is capped to the screen by color-picker.js
+     and scrolls instead of running past the bottom edge. pan-y (not none) keeps
+     that scroll reachable by finger; the SV/hue boxes below still own their own
+     drag gesture. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
+.cp-sv,
+.cp-hue { touch-action: none; } /* the SV/hue drags own the gesture */
 
 /* Saturation/value square: hue background + white→ + →black overlays. */
 .cp-sv {
   position: relative;
   height: 140px;
+  flex: none; /* never squashed by the scroll cap above */
   border-radius: 10px;
   overflow: hidden;
   cursor: crosshair;
@@ -43,6 +52,7 @@
 .cp-hue {
   position: relative;
   height: 22px;       /* tall enough to grab by finger */
+  flex: none;
   border-radius: 11px;
   cursor: pointer;
   background: linear-gradient(to right,

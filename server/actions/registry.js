@@ -108,6 +108,7 @@ function isRunnableScriptPath(p) {
 //         mediaAction(cmd)->Promise, micMute(mode)->Promise<{muted}>, volume(mode)->Promise,
 //         obs(requestType, requestData)->Promise, obsNext()->Promise,
 //         lighting(action)->Promise<boolean>,
+//         claudeRun({projectId,prompt,model})->Promise<{ok,error}>, claudeStop()->bool,
 //         remote: RemoteControl orchestrator instance (optional, injected after init) }
 function createRegistry(deps) {
   const d = deps || {};
@@ -526,6 +527,28 @@ function createRegistry(deps) {
             if (r && r.ok === false && result.ok) result = { ok: false, error: r.error || 'macro_step_failed' };
           }
           return result;
+        }
+        case 'claudeAsk': {
+          // The key names a project by id and the RUNNER decides whether that id
+          // exists — the allowlist is built server-side from Claude Code's own
+          // history, and a stored key must not be able to widen it just by
+          // outliving the project. Everything else the run does still arrives as
+          // an approval card; this starts work, it does not authorise any.
+          if (typeof d.claudeRun !== 'function') return { ok: false, error: 'claude_unavailable' };
+          const prompt = String(action.prompt || '').trim();
+          if (!prompt) return { ok: false, error: 'empty_prompt' };
+          const r = await d.claudeRun({
+            projectId: String(action.projectId || ''),
+            prompt,
+            model: String(action.model || ''),
+          });
+          return (r && r.ok) ? { ok: true } : { ok: false, error: (r && r.error) || 'run_failed' };
+        }
+        case 'claudeStop': {
+          if (typeof d.claudeStop !== 'function') return { ok: false, error: 'claude_unavailable' };
+          // Nothing running is not a failure of the key, but it must not report
+          // success either — the user pressed stop and nothing stopped.
+          return d.claudeStop() ? { ok: true } : { ok: false, error: 'nothing_running' };
         }
         case 'sdkHandler': {
           // A handler action contributed by an installed SDK widget package:

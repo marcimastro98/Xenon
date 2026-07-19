@@ -123,6 +123,31 @@
   .hint { font-size: 0.82rem; color: var(--dim); margin-top: 6px; }
   .hint.good { color: var(--plasma); }
   .hint.warn { color: #ffb454; }
+  .hint.bad { color: var(--danger); }
+  /* Automatic pre-submit check */
+  .audit-line { font-size: 0.88rem; color: var(--muted); margin-top: 10px; }
+  .audit-findings { display: grid; gap: 10px; margin-top: 10px; max-height: 320px; overflow-y: auto; padding-right: 4px; }
+  .finding { border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; background: rgba(0,0,0,0.25); font-size: 0.88rem; }
+  .finding .floc { font-family: var(--mono); font-size: 0.74rem; color: var(--dim); margin-top: 2px; }
+  .finding .fwhy { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+  .finding code.fex {
+    display: block; font-family: var(--mono); font-size: 0.72rem; color: var(--muted);
+    background: rgba(0,0,0,0.35); border: 1px solid var(--line); border-radius: 8px;
+    padding: 6px 8px; margin-top: 6px; white-space: pre-wrap; word-break: break-word;
+    max-height: 110px; overflow-y: auto;
+  }
+  .sev {
+    display: inline-block; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.05em;
+    border-radius: 999px; padding: 2px 8px; margin-right: 8px; vertical-align: 1px;
+  }
+  .sev.block { color: var(--danger); background: rgba(255,90,99,0.12); border: 1px solid rgba(255,90,99,0.35); }
+  .sev.warn { color: #ffb454; background: rgba(255,180,84,0.1); border: 1px solid rgba(255,180,84,0.3); }
+  .sev.info { color: var(--muted); background: rgba(0,0,0,0.3); border: 1px solid var(--line); }
+  .audit-notes { margin-top: 8px; }
+  .audit-notes summary { cursor: pointer; font-size: 0.82rem; color: var(--dim); }
+  .audit-export { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .audit-export .btn { font-size: 0.8rem; padding: 7px 12px; }
+  #justifyWrap { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
   label.chk { display: flex; gap: 10px; align-items: center; cursor: pointer; font-size: 0.92rem; }
   label.chk input { width: 18px; height: 18px; accent-color: var(--plasma); flex: none; cursor: pointer; }
   #updateFields { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
@@ -236,6 +261,23 @@
         <span class="hint" id="codeSize"></span>
       </div>
       <p class="hint" data-t="code_hint">In Xenon: Settings → Widgets &amp; sharing → export your creation, then copy the code or download the file. Max 2&nbsp;MB.</p>
+    </div>
+
+    <!-- Automatic pre-submit check. The hub audits the pasted code (POST /audit)
+         and the SAME audit runs server-side at submit; this card only previews
+         the outcome so a flagged submission arrives with the creator's
+         explanation attached instead of bouncing. When the endpoint is
+         unreachable the card says so and the page keeps working: it must never
+         block a submit on its own. -->
+    <div class="card">
+      <span style="font-size:0.82rem;color:var(--muted)" data-t="f_audit">Automatic check</span>
+      <div id="auditBox"></div>
+      <div id="justifyWrap" hidden>
+        <p class="hint warn" id="auditNotice"></p>
+        <label class="f"><span data-t="f_justify">Why does your creation need this? *</span>
+          <textarea id="justification" maxlength="600" rows="3"></textarea>
+        </label>
+      </div>
     </div>
 
     <!-- Card palette. These three colours paint the entry's card in the Store,
@@ -355,6 +397,22 @@
       e_rate: 'Troppi invii — riprova più tardi.', e_generic: 'Invio non riuscito ({err}) — riprova.',
       shot_add: '+ Aggiungi', shot_rm: 'Rimuovi', sending: 'Invio…',
       e_captcha_blocked: 'Non è stato possibile caricare la verifica anti-spam — di solito è colpa di un ad blocker o di un\'estensione per la privacy. Disattivala per questa pagina e ricarica, oppure usa il form su GitHub.',
+      f_audit: 'Controllo automatico',
+      f_justify: 'Perché la tua creazione ne ha bisogno? *',
+      audit_idle: 'Incolla il codice di condivisione qui sopra e viene controllato automaticamente.',
+      audit_checking: 'Controllo del codice in corso…',
+      audit_green: 'I controlli automatici non hanno trovato nulla di bloccante. Una persona revisiona comunque tutto.',
+      audit_notes: '{n} note',
+      audit_export_save: 'Salva il report (.md)',
+      audit_export_copy: 'Copia il report',
+      audit_export_done: 'Fatto',
+      audit_export_failed: 'Non e riuscito',
+      audit_red_notice: 'Il controllo ha trovato problemi bloccanti. Proposte così di solito non vengono accettate. Spiega qui sotto perché la tua creazione ne ha bisogno, chi revisiona lo legge per primo.',
+      audit_yellow_notice: 'Il controllo ha segnalato cose che una persona deve leggere. La tua proposta potrebbe non essere accettata. Spiega qui sotto perché la tua creazione ne ha bisogno.',
+      audit_locked_notice: 'Pacchetto cifrato: non può essere controllato automaticamente e riceve una revisione manuale completa. Racconta a chi revisiona cosa contiene.',
+      audit_unavailable: 'Il controllo automatico non è riuscito a partire qui. Viene eseguito sul server quando invii.',
+      e_justify: 'Spiega perché la tua creazione ha bisogno degli elementi segnalati',
+      sev_block: 'BLOCCO', sev_warn: 'AVVISO', sev_info: 'INFO',
     },
     ko: {
       back: '← 커뮤니티 카탈로그', title: '커뮤니티 카탈로그에 게시',
@@ -362,6 +420,22 @@
       f_kind: '종류', f_name: '이름 *', f_author: '제작자', f_desc: '설명', f_code: '공유 코드 *',
       shot_add: '+ 추가', shot_rm: '제거',
       e_captcha_blocked: '스팸 방지 검사를 불러오지 못했습니다 — 보통 광고 차단기나 개인정보 보호 확장 프로그램 때문입니다. 이 페이지에서 해제한 뒤 새로고침하거나, GitHub 양식을 이용하세요.',
+      f_audit: '자동 검사',
+      f_justify: '왜 필요한가요? *',
+      audit_idle: '공유 코드를 붙여넣으면 자동으로 검사됩니다.',
+      audit_checking: '코드 검사 중…',
+      audit_green: '자동 검사에서 차단할 문제가 발견되지 않았습니다. 그래도 사람이 모두 검토합니다.',
+      audit_notes: '참고 {n}개',
+      audit_export_save: '보고서 저장 (.md)',
+      audit_export_copy: '보고서 복사',
+      audit_export_done: '완료',
+      audit_export_failed: '실패했습니다',
+      audit_red_notice: '검사에서 차단 사유가 발견되었습니다. 이런 제출은 보통 승인되지 않습니다. 왜 필요한지 아래에 설명해 주세요. 검토자가 먼저 읽습니다.',
+      audit_yellow_notice: '검사에서 사람이 확인해야 할 항목이 발견되었습니다. 승인되지 않을 수 있습니다. 왜 필요한지 아래에 설명해 주세요.',
+      audit_locked_notice: '암호화된 패키지: 자동 검사가 불가능하여 전체 수동 검토를 받습니다. 내용을 검토자에게 알려 주세요.',
+      audit_unavailable: '자동 검사를 여기서 실행할 수 없었습니다. 제출 시 서버에서 실행됩니다.',
+      e_justify: '표시된 항목이 왜 필요한지 설명해 주세요',
+      sev_block: '차단', sev_warn: '주의', sev_info: '정보',
     },
     ja: {
       back: '← コミュニティカタログ', title: 'コミュニティカタログに公開',
@@ -369,6 +443,22 @@
       f_kind: '種類', f_name: '名前 *', f_author: '作者', f_desc: '説明', f_code: '共有コード *',
       shot_add: '+ 追加', shot_rm: '削除',
       e_captcha_blocked: 'スパム対策チェックを読み込めませんでした — 通常は広告ブロッカーやプライバシー拡張機能が原因です。このページで無効にして再読み込みするか、GitHub のフォームをご利用ください。',
+      f_audit: '自動チェック',
+      f_justify: 'なぜ必要ですか？ *',
+      audit_idle: '共有コードを貼り付けると自動でチェックされます。',
+      audit_checking: 'コードをチェック中…',
+      audit_green: '自動チェックで問題は見つかりませんでした。それでも人間がすべて確認します。',
+      audit_notes: 'メモ {n} 件',
+      audit_export_save: 'レポートを保存 (.md)',
+      audit_export_copy: 'レポートをコピー',
+      audit_export_done: '完了',
+      audit_export_failed: '失敗しました',
+      audit_red_notice: 'チェックでブロック対象の問題が見つかりました。このような提出は通常承認されません。なぜ必要なのか下に説明してください。レビュアーが最初に読みます。',
+      audit_yellow_notice: 'チェックで人間の確認が必要な項目が見つかりました。承認されない場合があります。なぜ必要なのか下に説明してください。',
+      audit_locked_notice: '暗号化パッケージ: 自動チェックできないため、完全な手動レビューになります。内容をレビュアーに伝えてください。',
+      audit_unavailable: '自動チェックをここでは実行できませんでした。送信時にサーバー側で実行されます。',
+      e_justify: '指摘された項目がなぜ必要か説明してください',
+      sev_block: 'ブロック', sev_warn: '注意', sev_info: '情報',
     },
     zh: {
       back: '← 社区目录', title: '发布到社区目录',
@@ -376,6 +466,22 @@
       f_kind: '类型', f_name: '名称 *', f_author: '作者', f_desc: '描述', f_code: '分享代码 *',
       shot_add: '+ 添加', shot_rm: '移除',
       e_captcha_blocked: '无法加载反垃圾验证 — 通常是广告拦截器或隐私扩展导致的。请在本页面停用它并刷新，或改用 GitHub 表单。',
+      f_audit: '自动检查',
+      f_justify: '为什么需要它？ *',
+      audit_idle: '粘贴分享代码后会自动进行检查。',
+      audit_checking: '正在检查代码…',
+      audit_green: '自动检查未发现阻止性问题。仍会有人工审核所有内容。',
+      audit_notes: '{n} 条备注',
+      audit_export_save: '保存报告 (.md)',
+      audit_export_copy: '复制报告',
+      audit_export_done: '完成',
+      audit_export_failed: '未能完成',
+      audit_red_notice: '检查发现了阻止性问题。此类提交通常不会被接受。请在下方说明你的作品为何需要它们，审核者会先阅读。',
+      audit_yellow_notice: '检查发现了需要人工确认的内容。你的提交可能不会被接受。请在下方说明为何需要它们。',
+      audit_locked_notice: '加密包：无法自动检查，将进行完整的人工审核。请告诉审核者里面有什么。',
+      audit_unavailable: '自动检查无法在此运行。提交时会在服务器上运行。',
+      e_justify: '请说明你的作品为何需要被标记的项目',
+      sev_block: '阻止', sev_warn: '警告', sev_info: '信息',
     },
   };
   var LANGS = ['en', 'it', 'ko', 'ja', 'zh'];
@@ -410,7 +516,7 @@
       b.addEventListener('click', function () {
         lang = l;
         try { localStorage.setItem('xenonCatalogLang', l); } catch (e) {}
-        applyLang(); renderShots();
+        applyLang(); renderShots(); renderAudit();
       });
       bar.appendChild(b);
     });
@@ -594,12 +700,13 @@
   var derivedPkgId = '';
   function syncFromCode() {
     var env = parseEnvelope(codeEl.value);
-    if (!env) { palHint.textContent = ''; palHint.className = 'hint'; return; }
+    if (!env) { palHint.textContent = ''; palHint.className = 'hint'; resetAudit(); return; }
     if (env.kind && Array.prototype.some.call(kindSel.options, function (o) { return o.value === env.kind; })) {
       kindSel.value = env.kind;
     }
     derivedPkgId = (env.kind === 'widget' || env.kind === 'ambient') && env.data && typeof env.data.id === 'string'
       ? env.data.id : '';
+    scheduleAudit(codeEl.value.trim());
     var theme = env.kind === 'theme' ? env.data
       : (env.kind === 'bundle' && env.data && env.data.theme ? env.data.theme : null);
     palHint.className = 'hint';
@@ -612,6 +719,216 @@
       palHint.classList.add('good');
       palHint.textContent = T('pal_auto', 'Filled in from your code — change them if the card should look different.');
     }
+  }
+
+  // ── Automatic pre-submit check ──
+  // POST {HUB}/audit with the pasted code, show the outcome in #auditBox, and
+  // when the audit flags something (yellow/red/locked) ask the creator for a
+  // justification before the code leaves the page. The server runs the SAME
+  // audit at submit, so this preview failing (offline, rate-limited) must never
+  // block anything: 'unavailable' renders a neutral line and submit proceeds.
+  var auditBox = document.getElementById('auditBox');
+  var justifyWrap = document.getElementById('justifyWrap');
+  var auditNotice = document.getElementById('auditNotice');
+  var justificationEl = document.getElementById('justification');
+  var auditState = 'none'; // none | pending | green | yellow | red | locked | unavailable
+  var lastAudit = null;    // the audit payload the current state renders
+  // The downloadable report arrives WITH the audit, formatted by the hub. It is
+  // never built here: the reviewer reads the same document from the same
+  // formatter, and a copy of it in this page would drift the first time the
+  // engine changes. Cleared with the audit so a stale report can never be saved
+  // against a code the creator has since edited.
+  var lastReport = '';
+  var lastReportName = 'audit.md';
+  var auditFor = '';       // the exact code string the current result belongs to
+  var auditSeq = 0;        // monotonic request id — only the newest response may render
+  var auditTimer = 0;
+
+  function verdictOf(audit) {
+    if (audit.locked) return 'locked';
+    return audit.verdict === 'red' ? 'red' : audit.verdict === 'yellow' ? 'yellow' : 'green';
+  }
+
+  // One finding. Everything comes out of the audited code, so it is untrusted
+  // text: textContent only, never innerHTML. The submit-time 400 carries
+  // findings trimmed to {id,severity,category,file,line,message} — why, excerpt
+  // and line are all optional here.
+  function findingNode(f) {
+    var item = document.createElement('div');
+    item.className = 'finding';
+    var sev = f && f.severity === 'block' ? 'block' : f && f.severity === 'warn' ? 'warn' : 'info';
+    var chip = document.createElement('span');
+    chip.className = 'sev ' + sev;
+    chip.textContent = T('sev_' + sev, sev.toUpperCase());
+    item.appendChild(chip);
+    var msg = document.createElement('span');
+    msg.textContent = String((f && (f.message || f.id)) || '');
+    item.appendChild(msg);
+    if (f && f.file) {
+      var loc = document.createElement('div');
+      loc.className = 'floc';
+      loc.textContent = String(f.file) + (f.line != null ? ':' + f.line : '');
+      item.appendChild(loc);
+    }
+    if (f && f.why) {
+      var why = document.createElement('div');
+      why.className = 'fwhy';
+      why.textContent = String(f.why);
+      item.appendChild(why);
+    }
+    if (f && f.excerpt) {
+      var ex = document.createElement('code');
+      ex.className = 'fex';
+      ex.textContent = String(f.excerpt);
+      item.appendChild(ex);
+    }
+    return item;
+  }
+
+  function auditLine(text) {
+    var p = document.createElement('p');
+    p.className = 'audit-line';
+    p.textContent = text;
+    return p;
+  }
+
+  // Save or copy the report the hub built. It is the same document the reviewer
+  // opens, so a creator can work through the findings offline, keep a record of
+  // what a version was flagged for, or paste it somewhere to ask for help.
+  function auditExportRow() {
+    var row = document.createElement('div');
+    row.className = 'audit-export';
+
+    function actionButton(label, run) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn ghost';
+      b.textContent = label;
+      b.onclick = function () {
+        var was = b.textContent;
+        Promise.resolve().then(run).then(function () {
+          b.textContent = T('audit_export_done', 'Done');
+        }).catch(function () {
+          b.textContent = T('audit_export_failed', 'Could not do that');
+        }).then(function () {
+          setTimeout(function () { b.textContent = was; }, 1400);
+        });
+      };
+      return b;
+    }
+
+    row.appendChild(actionButton(T('audit_export_save', 'Save report (.md)'), function () {
+      var blob = new Blob([lastReport], { type: 'text/markdown;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = lastReportName || 'audit.md';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+    }));
+    row.appendChild(actionButton(T('audit_export_copy', 'Copy report'), function () {
+      return navigator.clipboard.writeText(lastReport);
+    }));
+    return row;
+  }
+
+  function renderAudit() {
+    auditBox.textContent = '';
+    var findings = (lastAudit && Array.isArray(lastAudit.findings)) ? lastAudit.findings : [];
+    if (auditState === 'pending') {
+      auditBox.appendChild(auditLine(T('audit_checking', 'Checking your code…')));
+    } else if (auditState === 'unavailable') {
+      auditBox.appendChild(auditLine(T('audit_unavailable', 'The automatic check could not run here. It runs on the server when you submit.')));
+    } else if (auditState === 'green') {
+      auditBox.appendChild(auditLine(T('audit_green', 'Automatic checks found nothing blocking. A human still reviews everything.')));
+      var infos = findings.filter(function (f) { return f && f.severity === 'info'; });
+      if (infos.length) {
+        var det = document.createElement('details');
+        det.className = 'audit-notes';
+        var sum = document.createElement('summary');
+        sum.textContent = T('audit_notes', '{n} notes').replace('{n}', infos.length);
+        det.appendChild(sum);
+        var list = document.createElement('div');
+        list.className = 'audit-findings';
+        infos.forEach(function (f) { list.appendChild(findingNode(f)); });
+        det.appendChild(list);
+        auditBox.appendChild(det);
+      }
+    } else if (auditState === 'yellow' || auditState === 'red' || auditState === 'locked') {
+      var all = document.createElement('div');
+      all.className = 'audit-findings';
+      findings.forEach(function (f) { all.appendChild(findingNode(f)); });
+      if (findings.length) auditBox.appendChild(all);
+    } else { // none
+      auditBox.appendChild(auditLine(T('audit_idle', 'Paste your share code above and it is checked automatically.')));
+    }
+    // Offered on every state that actually produced a report, green included:
+    // a clean result is worth keeping too, and the button appears only when
+    // there is a document behind it.
+    if (lastReport) auditBox.appendChild(auditExportRow());
+    var flagged = auditState === 'yellow' || auditState === 'red' || auditState === 'locked';
+    justifyWrap.hidden = !flagged;
+    if (flagged) {
+      auditNotice.className = 'hint ' + (auditState === 'red' ? 'bad' : 'warn');
+      auditNotice.textContent = auditState === 'red'
+        ? T('audit_red_notice', 'The check found blocking issues. Submissions like this are usually not accepted. Explain below why your creation needs this, the reviewer reads it first.')
+        : auditState === 'locked'
+          ? T('audit_locked_notice', 'Encrypted package: it cannot be checked automatically and gets a full manual review. Tell the reviewer what is inside.')
+          : T('audit_yellow_notice', 'The check flagged things a human must read. Your submission may not be accepted. Explain below why your creation needs them.');
+    }
+  }
+
+  function setAudit(state, audit, report, reportName) {
+    auditState = state;
+    lastAudit = audit || null;
+    lastReport = report || '';
+    lastReportName = reportName || 'audit.md';
+    renderAudit();
+  }
+
+  function resetAudit() {
+    clearTimeout(auditTimer);
+    auditSeq++; // orphan any in-flight response
+    auditFor = '';
+    if (auditState !== 'none') setAudit('none', null);
+  }
+
+  function scheduleAudit(code) {
+    // Same code, result already in hand (or on its way): the result stands. A
+    // re-edited code arrives here as a different string, invalidates it and
+    // re-runs. 'unavailable' retries so a network blip is not sticky.
+    if (code === auditFor && auditState !== 'none' && auditState !== 'unavailable') return;
+    clearTimeout(auditTimer);
+    auditFor = code;
+    setAudit('pending', null);
+    auditTimer = setTimeout(function () { runAudit(code); }, 600);
+  }
+
+  async function runAudit(code) {
+    var seq = ++auditSeq;
+    var out = null;
+    try {
+      var res = await fetch(HUB + '/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: code,
+          version: document.getElementById('version').value.trim(),
+          kind: kindSel.value,
+          pkgId: derivedPkgId || '',
+          // Header fields for the exported report. Display only: the hub bounds
+          // them and never trusts them for anything the audit decides.
+          name: document.getElementById('name').value.trim(),
+          author: document.getElementById('author').value.trim(),
+        }),
+      });
+      out = await res.json();
+    } catch (e) { out = null; }
+    // Out-of-order guard: a newer request already took a higher seq, or the
+    // debounce re-armed for a newer code while this one was in flight — either
+    // way this response is stale and must not paint.
+    if (seq !== auditSeq || code !== auditFor) return;
+    if (!out || !out.ok || !out.audit) { setAudit('unavailable', null); return; }
+    setAudit(verdictOf(out.audit), out.audit, out.report, out.reportFilename);
   }
 
   // ── Turnstile ──
@@ -808,6 +1125,16 @@
     // parse HERE, the truncation happened on this machine; if it parses here but
     // the hub still rejects it, the cut is in transport. Same check the hub runs.
     if (!parseEnvelope(code)) { showErr(T('e_code_incomplete', 'The share code looks cut off or incomplete — copy the whole thing from Xenon (or use "Load from file"), then submit again.')); return; }
+    // A flagged audit (yellow/red/locked) needs the creator's explanation before
+    // the code leaves the page. none/pending/unavailable never block here: the
+    // server runs the same audit and answers justification_required if needed.
+    var justification = justificationEl.value.trim();
+    if ((auditState === 'yellow' || auditState === 'red' || auditState === 'locked') && !justification) {
+      showErr(T('e_justify', 'Please explain why your creation needs the flagged items'));
+      justifyWrap.hidden = false;
+      justificationEl.focus();
+      return;
+    }
     if (!turnstileToken) { showErr(T('e_captcha', 'Complete the anti-spam check.')); return; }
 
     var fd = new FormData();
@@ -826,6 +1153,7 @@
     // Read out of the code, never typed: it is what joins an installed widget or
     // scene to its update.
     if (derivedPkgId) fd.append('pkgId', derivedPkgId);
+    if (justification) fd.append('justification', justification);
     fd.append('code', code);
     fd.append('turnstileToken', turnstileToken);
     var n = 0;
@@ -858,12 +1186,23 @@
     else if (err === 'missing_description') showErr(T('e_desc', 'Write a line or two about your creation — it is what the card shows.'));
     else if (err === 'missing_palette') showErr(T('e_palette', 'Set all three card colours — they are filled in from your code when it carries a theme.'));
     else if (err === 'missing_shots') showErr(T('e_shots', 'Add at least 2 screenshots — an entry with no pictures does not get installed.'));
+    else if (err === 'justification_required') {
+      // The hub ran the same audit server-side and wants an explanation. Its
+      // 400 carries the audit with findings trimmed to the basics (no why or
+      // excerpt) — render it through the same renderer, which tolerates that.
+      if (out.audit) setAudit(verdictOf(out.audit), out.audit, out.report, out.reportFilename);
+      else if (justifyWrap.hidden) setAudit('yellow', null);
+      showErr(T('e_justify', 'Please explain why your creation needs the flagged items'));
+      justifyWrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      justificationEl.focus({ preventScroll: true });
+    }
     else showErr(T('e_generic', 'Submission failed ({err}) — please retry.').replace('{err}', err));
     if (window.turnstile) { try { window.turnstile.reset(); turnstileToken = ''; } catch (e) {} }
   });
 
   applyLang();
   renderShots();
+  renderAudit(); // paints the idle line of the Automatic check card
   // No mountTurnstile() here — onloadTurnstile fires it when the API is ready.
   // If the script never arrives (blocked), say so instead of failing silently.
   // The test is "did the API ever install", NOT "is an iframe on screen yet":

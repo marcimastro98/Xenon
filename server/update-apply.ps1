@@ -166,7 +166,7 @@ function Remove-UpdateAdditions {
 # is defense-in-depth on top of it. This deliberately deletes ONE known file at
 # a time from the updater's own previous manifest — never a directory mirror
 # (the /MIR class of data loss stays impossible).
-$protectedPrefixes = @('server\data\', 'node_modules\', '.git\', 'server\shared\', 'server\helper\', 'server\presentmon\')
+$protectedPrefixes = @('server\data\', 'node_modules\', '.git\', 'server\shared\', 'server\helper\', 'server\presentmon\', 'server\icue-sdk\')
 function Test-ProtectedPath($rel) {
   foreach ($p in $protectedPrefixes) {
     if ($rel.StartsWith($p, [StringComparison]::OrdinalIgnoreCase)) { return $true }

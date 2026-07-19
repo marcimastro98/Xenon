@@ -28,6 +28,12 @@
 .vt-heart { width: 18px; height: 18px; display: inline-flex; }
 .vt-heart svg { width: 100%; height: 100%; }
 .vt-heart { animation: vt-heartbeat 1.6s steps(2, end) infinite; will-change: transform; }
+/* Paused while a frosted overlay covers the dashboard (see backgroundfx.css overlay-frozen). */
+body.overlay-frozen .vt-heart,
+body.overlay-frozen .vt-row.is-low .vt-seg.on,
+body.overlay-frozen .vt-row.is-empty .vt-seg,
+body.overlay-frozen .clock-vital.is-empty .cv-ico,
+body.overlay-frozen .clock-vital.is-low .cv-ico { animation-play-state: paused; }
 @keyframes vt-heartbeat {
   0%, 70%, 100% { transform: scale(1); }
   80%, 90% { transform: scale(1.18); }

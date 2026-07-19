@@ -122,6 +122,16 @@ const ACTION_CATALOG = [
   // A macro contributed by an installed SDK widget package. `macro` is the
   // composite "pkg/macroId" ref; the server resolves it against the package
   // manifest and re-validates every step at run time (see actions/registry.js).
+  // Claude Code — start a run in one of the user's projects, or stop the one
+  // going. The key carries the project id (never a path: the server holds the
+  // allowlist and the runner is the authority on it), the prompt, and an
+  // optional model. Runs start in Claude Code's NORMAL permission mode, so every
+  // command and file write still comes back to the Xeneon Edge as a card to
+  // approve — a Deck key starts work, it grants nothing. There is deliberately
+  // no "approve the pending request" action: a fixed key that answers a prompt
+  // without showing it removes the one step the approval flow exists for.
+  { type: 'claudeAsk',  group: 'claude', labelKey: 'deck_act_claudeAsk',  params: [{ name: 'projectId', kind: 'claudeProject' }, { name: 'prompt', kind: 'text', maxLen: 2000 }, { name: 'model', kind: 'text', optional: true, maxLen: 40 }] },
+  { type: 'claudeStop', group: 'claude', labelKey: 'deck_act_claudeStop', params: [] },
   { type: 'sdkMacro', group: 'sdk', labelKey: 'deck_act_sdkMacro', params: [{ name: 'macro', kind: 'sdkMacro' }] },
   // A handler action answered by the widget package's own code: `handler` is the
   // composite "pkg/handlerId" ref; `args` is a JSON string the editor composes

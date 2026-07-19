@@ -100,12 +100,30 @@ fn is_edge(monitor: &Monitor) -> bool {
 }
 
 /// Locate the Edge among the currently connected monitors, if present.
+///
+/// A virtual display can advertise 2560×720 too (Xenon's own second-screen driver
+/// offers that mode), so `is_edge` alone can land the kiosk on a screen the user
+/// cannot see. We therefore prefer a match that is NOT a known virtual display,
+/// and fall back to the plain first match — if the virtual-display lookup is
+/// wrong or unavailable, the worst case is the old behaviour rather than no Edge
+/// at all.
 fn find_edge(window: &WebviewWindow) -> Option<Monitor> {
-    window
+    let candidates: Vec<Monitor> = window
         .available_monitors()
         .ok()?
         .into_iter()
-        .find(is_edge)
+        .filter(is_edge)
+        .collect();
+    if candidates.len() < 2 {
+        return candidates.into_iter().next();
+    }
+    let virtual_names = crate::gpu::virtual_display_names();
+    let is_virtual = |m: &Monitor| {
+        matches!(m.name(), Some(name) if virtual_names.iter().any(|v| v == name))
+    };
+    let real = candidates.iter().position(|m| !is_virtual(m));
+    let pick = real.unwrap_or(0);
+    candidates.into_iter().nth(pick)
 }
 
 /// Whether the window currently sits on the given monitor (compared by origin).

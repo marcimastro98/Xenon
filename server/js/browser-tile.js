@@ -967,6 +967,59 @@
     });
   }
 
+  // ── SDK entry point ───────────────────────────────────────────────
+  // An SDK widget granted the `browser` category asks the tile to show a page
+  // through here. The widget never sees that page: it names an address and the
+  // tile does the loading, exactly as `openUrl` hands one to the Windows shell.
+  // Nothing about the widget sandbox changes — `frame-src 'none'` and
+  // `connect-src 'none'` still stand, which is why this indirection exists at
+  // all. It lives in this module because the tile owns the CDP relay, and the
+  // relay must keep having exactly one caller.
+  // The tile is a real Chromium with a persistent cookie jar, so a widget-named
+  // navigation is network access — the one thing the SDK sandbox (connect-src
+  // 'none' + the /sdk/fetch host allowlist) exists to withhold. A loopback or
+  // LAN address is the dangerous half: a top-level navigation stamps
+  // `Sec-Fetch-Site: none`, which the server's CSRF gate used to accept, so
+  // `/notes?save=` and friends were reachable from a sandboxed widget. Mirrors
+  // isForbiddenProxyHost/isPrivateNetworkHost in sdk-widgets.js; the check is
+  // repeated in custom-widget.js so the user is never prompted to approve an
+  // address that would be refused here anyway.
+  function sdkBlockedHost(host) {
+    if (!host) return true;
+    if (host === 'localhost' || host.endsWith('.localhost') || host === '0.0.0.0') return true;
+    if (host === '[::1]' || host === '::1') return true;
+    if (/^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+    if (/^169\.254\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+    if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+    if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+    if (/^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+    if (host.endsWith('.local')) return true;
+    return !host.includes('.');   // a bare name is an intranet host
+  }
+
+  function openFromSdk(rawUrl, opts) {
+    // http(s) only. The relay refuses other schemes too ('blocked_scheme'), but
+    // stopping a file:/javascript: address here means it never reaches Chromium.
+    let parsed = null;
+    try { parsed = new URL(String(rawUrl || '').trim()); } catch (e) { return { ok: false, error: 'bad_url' }; }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return { ok: false, error: 'bad_url' };
+    if (sdkBlockedHost(parsed.hostname.toLowerCase())) return { ok: false, error: 'blocked_host' };
+    // Only a tile the user can actually see. Navigating a Browser tile sitting
+    // on another dashboard page would throw away whatever was open there, out of
+    // sight — the user would come back to a page they never asked for.
+    let target = null;
+    groups.forEach((group) => { if (!target && group.visible) target = group; });
+    if (!target) return { ok: false, error: 'no_browser_tile' };
+    navigateActive(target, parsed.href);
+    // Opt-in, and deliberately not silent: expand() paints the tile over the
+    // whole dashboard, which on the Xeneon Edge is the whole screen. The user
+    // granted "open pages in the Browser tile" and can leave with Escape or the
+    // collapse button. Native fullscreen needs a user gesture and is allowed to
+    // fail — the overlay alone already fills the surface.
+    if (opts && opts.expand === true) expand(target);
+    return { ok: true };
+  }
+
   // Expose pure helpers for tests / debugging, plus restart()/reconcile for settings.js.
-  window.BrowserTile = { mapPointerToPage, cdpModifiers, tabLabel, restart, reconcileFromSettings };
+  window.BrowserTile = { mapPointerToPage, cdpModifiers, tabLabel, restart, reconcileFromSettings, openFromSdk, sdkBlockedHost };
 })();

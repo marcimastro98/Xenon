@@ -1852,7 +1852,7 @@
       if (env.kind === 'icons') return applyIcons(env.data);
       if (env.kind === 'sounds') return applySounds(env.data);
       // An ambient scene is the same validated /sdk/install payload as a widget.
-      if (env.kind === 'widget' || env.kind === 'ambient') return applyWidget(env.data);
+      if (env.kind === 'widget' || env.kind === 'ambient') return applyWidget(env.data, null, { catalogStamp: true });
       return false;
     }
     // Install a sound pack through the server boundary (POST /sound-pack —
@@ -1888,14 +1888,24 @@
     }
     // Install a single imported widget through the server boundary (same validate +
     // no-auto-grant path as a bundle). Returns true on a confirmed install.
-    async function applyWidget(w, tx) {
+    async function applyWidget(w, tx, opts) {
       if (!w || typeof w !== 'object' || !w.payload) return false;
       try {
         // origin:'import' marks the package as someone else's work — the server
         // records it and refuses to re-export it as a new share code.
+        // A catalog SINGLE-package install (kind widget/ambient) also stamps
+        // WHICH catalog version this is: the package manifest can carry a
+        // different number (set by the author), and comparing the two produced
+        // the phantom "update available on every open" loop. The Installed
+        // tab's Update button already stamps; without stamping here too, the
+        // Store's own install/update path kept the loop. Bundles deliberately
+        // do NOT stamp — a bundle's entry version is not its widgets' versions.
+        const catalogVersion = (opts && opts.catalogStamp === true
+          && importSource && importSource.source === 'catalog' && importSource.sourceVersion)
+          ? importSource.sourceVersion : '';
         const res = await fetch('/sdk/install', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(Object.assign({}, w.payload, { origin: 'import' })),
+          body: JSON.stringify(Object.assign({}, w.payload, { origin: 'import', catalogVersion })),
         });
         const d = await res.json().catch(() => ({}));
         const ok = !!(res.ok && d.ok);
@@ -1985,7 +1995,7 @@
     // arrives in a bundle can be re-exported as the user's own. Returns a
     // summary for the toast/dialog.
     async function applyBundle(data, name, gridCols, tx) {
-      const out = { theme: false, pages: 0, decks: 0, decksAsPresets: false, bg: false, widgets: { installed: 0, failed: 0 } };
+      const out = { theme: false, pages: 0, decks: 0, decksAsPresets: false, bg: false, widgets: { installed: 0, failed: 0, ids: [] } };
       if (!data || typeof data !== 'object') return out;
       if (data.theme && typeof data.theme === 'object') {
         // Name the saved theme card after the package (e.g. "Cyberpunk / Neon"),
@@ -2029,6 +2039,11 @@
           try {
             if (await applyWidget(w, tx)) {
               out.widgets.installed++;
+              // Collected so the caller can ask for their permissions once the
+              // import dialog is gone — a widget installed and never granted is
+              // installed and dead, and a badge-only one has no tile to place.
+              const wid = String((w && w.id) || (w.payload && w.payload.id) || '');
+              if (wid) out.widgets.ids.push(wid);
               if (!firstScene && w.surface === 'ambient' && typeof w.id === 'string') firstScene = w.id;
             } else out.widgets.failed++;
           } catch { out.widgets.failed++; }
@@ -2139,6 +2154,7 @@
     }
 
     // ---- minimal modal ----
+    let presetModalSeq = 0;
     function buildModal(titleText, onClose) {
       const overlay = document.createElement('div');
       overlay.className = 'preset-modal-overlay';
@@ -2160,11 +2176,17 @@
       modal.appendChild(head); modal.appendChild(body);
       overlay.appendChild(modal);
       let closed = false;
+      // Preset dialogs stack (deck-deps → share, import → review), so each modal
+      // freezes the dashboard under its own token; the reference-counted registry
+      // thaws only when the LAST one closes. The `closed` flag keeps it 1:1.
+      const freezeToken = 'preset-modal:' + (++presetModalSeq);
+      if (typeof window.ambientFreeze === 'function') window.ambientFreeze(freezeToken, true);
       const close = () => {
         if (closed) return;
         closed = true;
         overlay.remove();
         document.removeEventListener('keydown', onKey);
+        if (typeof window.ambientFreeze === 'function') window.ambientFreeze(freezeToken, false);
         // Run teardown on EVERY close path (✕, Escape, backdrop, Apply), so a
         // dialog that started something — e.g. the sound-preview <audio> and its
         // object URLs — always stops it (stop-what-you-start).
@@ -2533,12 +2555,21 @@
         // Catalog entry version — recorded in the install receipt so EVERY
         // kind (not just pkgId widgets) becomes update-checkable.
         sourceVersion: typeof source.sourceVersion === 'string' ? source.sourceVersion.slice(0, 20) : '',
+        // Catalog-stamped performance note — repeated inside the import dialog
+        // so it is seen at the moment of decision, not only on the store card.
+        perfWarning: source.perfWarning === true,
       };
       const { body, close } = buildModal(tr('preset_import_title', 'Import preset'));
       const desc = document.createElement('p');
       desc.className = 'preset-modal-desc';
       desc.textContent = tr('preset_import_desc', 'Paste a preset link or code, or choose a .json file.');
       body.appendChild(desc);
+      if (importSource.perfWarning) {
+        const perfNote = document.createElement('p');
+        perfNote.className = 'preset-modal-desc preset-perf-note';
+        perfNote.textContent = tr('preset_perf_warning', 'Heads up: this item may use more resources than most. You can pause it anytime from the Store, Installed tab.');
+        body.appendChild(perfNote);
+      }
 
       const field = codeField('', false);
       field.placeholder = tr('preset_import_placeholder', 'Paste the link or code here…');
@@ -3060,6 +3091,16 @@
         go.disabled = true; go.textContent = tr('preset_bundle_installing', 'Installing…');
         const res = await runTrackedInstall('bundle', name, (tx) => applyBundle(d, name, gridCols, tx));
         close();
+        // AFTER close(), never before: the grant dialog is a separate overlay, and
+        // asking while this modal is still up is what made the prompt look like it
+        // never appeared. Ungranted widgets are asked for one at a time here
+        // because placing a tile is not a path every widget has — a badge-only
+        // package would otherwise install and stay dead with nothing to tap.
+        if (res && res.widgets && res.widgets.ids.length && window.CustomWidget
+            && typeof CustomWidget.requestGrants === 'function') {
+          try { await CustomWidget.getPackages(true); } catch { /* refresh best-effort */ }
+          CustomWidget.requestGrants(res.widgets.ids);
+        }
         if (!res || (!res.theme && !res.pages && !res.decks && !res.bg && !res.widgets.installed && !res.widgets.failed)) {
           toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error');
           return;
@@ -3128,7 +3169,7 @@
       go.textContent = tr('preset_import_apply', 'Import');
       go.addEventListener('click', async () => {
         go.disabled = true; go.textContent = tr('preset_bundle_installing', 'Installing…');
-        const ok = await runTrackedInstall('widget', name || w.name || w.id, (tx) => applyWidget(w, tx));
+        const ok = await runTrackedInstall('widget', name || w.name || w.id, (tx) => applyWidget(w, tx, { catalogStamp: true }));
         close();
         if (!ok) { toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return; }
         toast(tr('preset_import_ok', 'Preset imported'), String(name || w.name || ''), 'success');
@@ -3193,7 +3234,7 @@
       go.addEventListener('click', async () => {
         go.disabled = true; go.textContent = tr('preset_bundle_installing', 'Installing…');
         const ok = await runTrackedInstall('ambient', name || w.name || w.id, async (tx) => {
-          const installed = await applyWidget(w, tx);
+          const installed = await applyWidget(w, tx, { catalogStamp: true });
           if (installed && setChk.checked && typeof updateAmbientSetting === 'function' && typeof w.id === 'string') {
             updateAmbientSetting('sceneId', w.id);
           }
