@@ -2,6 +2,13 @@
 
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [Unreleased]
+### ✨ New
+- **Prayer times, as an optional widget.** A new Adhan tile shows the five daily prayers plus sunrise, with the next one as a hero block and a live countdown to it. It is hidden by default and added from the "+" palette, like the other optional tiles, so nothing changes for anyone who does not want it. The times are worked out on this PC from the position of the sun, so there is no API key, no account, and nothing to sign up for, and the tile keeps working with the network down. Nine calculation methods are selectable (Egyptian, Muslim World League, ISNA, Umm al-Qura, Karachi, Dubai, Diyanet, Singapore and Tehran), along with the Asr school and what to do at high latitudes, and each prayer can be nudged by a few minutes to match the local mosque. Location follows the coordinates the weather widget has already resolved rather than asking for them a second time, and can be pinned by hand instead, in which case nothing about your location leaves the machine. The optional alert is visual only: the tile marks the approaching prayer a set number of minutes ahead. It never plays audio, so it cannot interrupt a stream or a game.
+
+### 🐞 Fixes
+- An Adhan location saved with no coordinates was re-read as latitude 0, longitude 0, a real point in the Gulf of Guinea, because `Number(null)` is `0` and that passes a range check. An absent location now stays absent, and a `0` you typed yourself is still honored.
+
 ## [v4.8.0] - 19-07-2026
 ### ✨ New
 - **The Claude Code widget now shows how much of your plan is actually left.** This was the one thing it could not tell you. It read your local session transcripts, which contain how many tokens you spent but nothing at all about your subscription, so the gauge measured you against a weekly ceiling you had to type in yourself and then trust. Claude Code does report the real figures, through its status line, and Xenon now reads them: the 5-hour window and the 7-day window, each as the percentage you have left and a live countdown to when it resets. To get them, press **Collega Claude Code** on the widget. It adds a status line and a set of hooks to your Claude Code settings, keeps a copy of the file first, and if you already had a status line of your own it keeps running yours as well instead of replacing it. **Scollega** puts everything back. The windows exist for Claude Pro and Max subscriptions; on an API key there are none to show, so the widget keeps the weekly budget it always had, and says which of the two you are looking at.

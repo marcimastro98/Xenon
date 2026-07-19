@@ -1,0 +1,1952 @@
+{
+ "source": "api.aladhan.com/v1/timings",
+ "date": "19-07-2026",
+ "latitudeAdjustmentMethod": "angleBased (aladhan latitudeAdjustmentMethod=3)",
+ "note": "Reference times for cross-checking the local computation.",
+ "rows": [
+  {
+   "method": "egyptian",
+   "city": "Cairo",
+   "lat": 30.0444,
+   "lon": 31.2357,
+   "tz": "Africa/Cairo",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:24",
+    "sunrise": "06:06",
+    "dhuhr": "13:01",
+    "asr": "16:38",
+    "maghrib": "19:56",
+    "isha": "21:26"
+   }
+  },
+  {
+   "method": "egyptian",
+   "city": "Cairo",
+   "lat": 30.0444,
+   "lon": 31.2357,
+   "tz": "Africa/Cairo",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:24",
+    "sunrise": "06:06",
+    "dhuhr": "13:01",
+    "asr": "17:52",
+    "maghrib": "19:56",
+    "isha": "21:26"
+   }
+  },
+  {
+   "method": "egyptian",
+   "city": "Makkah",
+   "lat": 21.3891,
+   "lon": 39.8579,
+   "tz": "Asia/Riyadh",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:18",
+    "sunrise": "05:49",
+    "dhuhr": "12:27",
+    "asr": "15:42",
+    "maghrib": "19:05",
+    "isha": "20:25"
+   }
+  },
+  {
+   "method": "egyptian",
+   "city": "Makkah",
+   "lat": 21.3891,
+   "lon": 39.8579,
+   "tz": "Asia/Riyadh",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:18",
+    "sunrise": "05:49",
+    "dhuhr": "12:27",
+    "asr": "17:02",
+    "maghrib": "19:05",
+    "isha": "20:25"
+   }
+  },
+  {
+   "method": "egyptian",
+   "city": "Istanbul",
+   "lat": 41.0082,
+   "lon": 28.9784,
+   "tz": "Europe/Istanbul",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "03:36",
+    "sunrise": "05:48",
+    "dhuhr": "13:10",
+    "asr": "17:09",
+    "maghrib": "20:32",
+    "isha": "22:27"
+   }
+  },
+  {
+   "method": "egyptian",
+   "city": "Istanbul",
+   "lat": 41.0082,
+   "lon": 28.9784,
+   "tz": "Europe/Istanbul",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "03:36",
+    "sunrise": "05:48",
+    "dhuhr": "13:10",
+    "asr": "18:19",
+    "maghrib": "20:32",
+    "isha": "22:27"
+   }
+  },
+  {
+   "method": "egyptian",
+   "city": "Dubai",
+   "lat": 25.2048,
+   "lon": 55.2708,
+   "tz": "Asia/Dubai",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:05",
+    "sunrise": "05:40",
+    "dhuhr": "12:25",
+    "asr": "15:51",
+    "maghrib": "19:10",
+    "isha": "20:34"
+   }
+  },
+  {
+   "method": "egyptian",
+   "city": "Dubai",
+   "lat": 25.2048,
+   "lon": 55.2708,
+   "tz": "Asia/Dubai",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:05",
+    "sunrise": "05:40",
+    "dhuhr": "12:25",
+    "asr": "17:07",
+    "maghrib": "19:10",
+    "isha": "20:34"
+   }
+  },
+  {
+   "method": "egyptian",
+   "city": "Jakarta",
+   "lat": -6.2088,
+   "lon": 106.8456,
+   "tz": "Asia/Jakarta",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:45",
+    "sunrise": "06:05",
+    "dhuhr": "11:59",
+    "asr": "15:21",
+    "maghrib": "17:53",
+    "isha": "19:05"
+   }
+  },
+  {
+   "method": "egyptian",
+   "city": "Jakarta",
+   "lat": -6.2088,
+   "lon": 106.8456,
+   "tz": "Asia/Jakarta",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:45",
+    "sunrise": "06:05",
+    "dhuhr": "11:59",
+    "asr": "16:14",
+    "maghrib": "17:53",
+    "isha": "19:05"
+   }
+  },
+  {
+   "method": "egyptian",
+   "city": "London",
+   "lat": 51.5074,
+   "lon": -0.1278,
+   "tz": "Europe/London",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "02:30",
+    "sunrise": "05:06",
+    "dhuhr": "13:07",
+    "asr": "17:24",
+    "maghrib": "21:07",
+    "isha": "23:27"
+   }
+  },
+  {
+   "method": "egyptian",
+   "city": "London",
+   "lat": 51.5074,
+   "lon": -0.1278,
+   "tz": "Europe/London",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "02:30",
+    "sunrise": "05:06",
+    "dhuhr": "13:07",
+    "asr": "18:35",
+    "maghrib": "21:07",
+    "isha": "23:27"
+   }
+  },
+  {
+   "method": "mwl",
+   "city": "Cairo",
+   "lat": 30.0444,
+   "lon": 31.2357,
+   "tz": "Africa/Cairo",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:33",
+    "sunrise": "06:06",
+    "dhuhr": "13:01",
+    "asr": "16:38",
+    "maghrib": "19:56",
+    "isha": "21:23"
+   }
+  },
+  {
+   "method": "mwl",
+   "city": "Cairo",
+   "lat": 30.0444,
+   "lon": 31.2357,
+   "tz": "Africa/Cairo",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:33",
+    "sunrise": "06:06",
+    "dhuhr": "13:01",
+    "asr": "17:52",
+    "maghrib": "19:56",
+    "isha": "21:23"
+   }
+  },
+  {
+   "method": "mwl",
+   "city": "Makkah",
+   "lat": 21.3891,
+   "lon": 39.8579,
+   "tz": "Asia/Riyadh",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:26",
+    "sunrise": "05:49",
+    "dhuhr": "12:27",
+    "asr": "15:42",
+    "maghrib": "19:05",
+    "isha": "20:23"
+   }
+  },
+  {
+   "method": "mwl",
+   "city": "Makkah",
+   "lat": 21.3891,
+   "lon": 39.8579,
+   "tz": "Asia/Riyadh",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:26",
+    "sunrise": "05:49",
+    "dhuhr": "12:27",
+    "asr": "17:02",
+    "maghrib": "19:05",
+    "isha": "20:23"
+   }
+  },
+  {
+   "method": "mwl",
+   "city": "Istanbul",
+   "lat": 41.0082,
+   "lon": 28.9784,
+   "tz": "Europe/Istanbul",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "03:49",
+    "sunrise": "05:48",
+    "dhuhr": "13:10",
+    "asr": "17:09",
+    "maghrib": "20:32",
+    "isha": "22:23"
+   }
+  },
+  {
+   "method": "mwl",
+   "city": "Istanbul",
+   "lat": 41.0082,
+   "lon": 28.9784,
+   "tz": "Europe/Istanbul",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "03:49",
+    "sunrise": "05:48",
+    "dhuhr": "13:10",
+    "asr": "18:19",
+    "maghrib": "20:32",
+    "isha": "22:23"
+   }
+  },
+  {
+   "method": "mwl",
+   "city": "Dubai",
+   "lat": 25.2048,
+   "lon": 55.2708,
+   "tz": "Asia/Dubai",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:13",
+    "sunrise": "05:40",
+    "dhuhr": "12:25",
+    "asr": "15:51",
+    "maghrib": "19:10",
+    "isha": "20:32"
+   }
+  },
+  {
+   "method": "mwl",
+   "city": "Dubai",
+   "lat": 25.2048,
+   "lon": 55.2708,
+   "tz": "Asia/Dubai",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:13",
+    "sunrise": "05:40",
+    "dhuhr": "12:25",
+    "asr": "17:07",
+    "maghrib": "19:10",
+    "isha": "20:32"
+   }
+  },
+  {
+   "method": "mwl",
+   "city": "Jakarta",
+   "lat": -6.2088,
+   "lon": 106.8456,
+   "tz": "Asia/Jakarta",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:51",
+    "sunrise": "06:05",
+    "dhuhr": "11:59",
+    "asr": "15:21",
+    "maghrib": "17:53",
+    "isha": "19:02"
+   }
+  },
+  {
+   "method": "mwl",
+   "city": "Jakarta",
+   "lat": -6.2088,
+   "lon": 106.8456,
+   "tz": "Asia/Jakarta",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:51",
+    "sunrise": "06:05",
+    "dhuhr": "11:59",
+    "asr": "16:14",
+    "maghrib": "17:53",
+    "isha": "19:02"
+   }
+  },
+  {
+   "method": "mwl",
+   "city": "London",
+   "lat": 51.5074,
+   "lon": -0.1278,
+   "tz": "Europe/London",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "02:42",
+    "sunrise": "05:06",
+    "dhuhr": "13:07",
+    "asr": "17:24",
+    "maghrib": "21:07",
+    "isha": "23:23"
+   }
+  },
+  {
+   "method": "mwl",
+   "city": "London",
+   "lat": 51.5074,
+   "lon": -0.1278,
+   "tz": "Europe/London",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "02:42",
+    "sunrise": "05:06",
+    "dhuhr": "13:07",
+    "asr": "18:35",
+    "maghrib": "21:07",
+    "isha": "23:23"
+   }
+  },
+  {
+   "method": "isna",
+   "city": "Cairo",
+   "lat": 30.0444,
+   "lon": 31.2357,
+   "tz": "Africa/Cairo",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:51",
+    "sunrise": "06:06",
+    "dhuhr": "13:01",
+    "asr": "16:38",
+    "maghrib": "19:56",
+    "isha": "21:12"
+   }
+  },
+  {
+   "method": "isna",
+   "city": "Cairo",
+   "lat": 30.0444,
+   "lon": 31.2357,
+   "tz": "Africa/Cairo",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:51",
+    "sunrise": "06:06",
+    "dhuhr": "13:01",
+    "asr": "17:52",
+    "maghrib": "19:56",
+    "isha": "21:12"
+   }
+  },
+  {
+   "method": "isna",
+   "city": "Makkah",
+   "lat": 21.3891,
+   "lon": 39.8579,
+   "tz": "Asia/Riyadh",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:41",
+    "sunrise": "05:49",
+    "dhuhr": "12:27",
+    "asr": "15:42",
+    "maghrib": "19:05",
+    "isha": "20:13"
+   }
+  },
+  {
+   "method": "isna",
+   "city": "Makkah",
+   "lat": 21.3891,
+   "lon": 39.8579,
+   "tz": "Asia/Riyadh",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:41",
+    "sunrise": "05:49",
+    "dhuhr": "12:27",
+    "asr": "17:02",
+    "maghrib": "19:05",
+    "isha": "20:13"
+   }
+  },
+  {
+   "method": "isna",
+   "city": "Istanbul",
+   "lat": 41.0082,
+   "lon": 28.9784,
+   "tz": "Europe/Istanbul",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:13",
+    "sunrise": "05:48",
+    "dhuhr": "13:10",
+    "asr": "17:09",
+    "maghrib": "20:32",
+    "isha": "22:07"
+   }
+  },
+  {
+   "method": "isna",
+   "city": "Istanbul",
+   "lat": 41.0082,
+   "lon": 28.9784,
+   "tz": "Europe/Istanbul",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:13",
+    "sunrise": "05:48",
+    "dhuhr": "13:10",
+    "asr": "18:19",
+    "maghrib": "20:32",
+    "isha": "22:07"
+   }
+  },
+  {
+   "method": "isna",
+   "city": "Dubai",
+   "lat": 25.2048,
+   "lon": 55.2708,
+   "tz": "Asia/Dubai",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:29",
+    "sunrise": "05:40",
+    "dhuhr": "12:25",
+    "asr": "15:51",
+    "maghrib": "19:10",
+    "isha": "20:21"
+   }
+  },
+  {
+   "method": "isna",
+   "city": "Dubai",
+   "lat": 25.2048,
+   "lon": 55.2708,
+   "tz": "Asia/Dubai",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:29",
+    "sunrise": "05:40",
+    "dhuhr": "12:25",
+    "asr": "17:07",
+    "maghrib": "19:10",
+    "isha": "20:21"
+   }
+  },
+  {
+   "method": "isna",
+   "city": "Jakarta",
+   "lat": -6.2088,
+   "lon": 106.8456,
+   "tz": "Asia/Jakarta",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "05:04",
+    "sunrise": "06:05",
+    "dhuhr": "11:59",
+    "asr": "15:21",
+    "maghrib": "17:53",
+    "isha": "18:54"
+   }
+  },
+  {
+   "method": "isna",
+   "city": "Jakarta",
+   "lat": -6.2088,
+   "lon": 106.8456,
+   "tz": "Asia/Jakarta",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "05:04",
+    "sunrise": "06:05",
+    "dhuhr": "11:59",
+    "asr": "16:14",
+    "maghrib": "17:53",
+    "isha": "18:54"
+   }
+  },
+  {
+   "method": "isna",
+   "city": "London",
+   "lat": 51.5074,
+   "lon": -0.1278,
+   "tz": "Europe/London",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "03:06",
+    "sunrise": "05:06",
+    "dhuhr": "13:07",
+    "asr": "17:24",
+    "maghrib": "21:07",
+    "isha": "23:07"
+   }
+  },
+  {
+   "method": "isna",
+   "city": "London",
+   "lat": 51.5074,
+   "lon": -0.1278,
+   "tz": "Europe/London",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "03:06",
+    "sunrise": "05:06",
+    "dhuhr": "13:07",
+    "asr": "18:35",
+    "maghrib": "21:07",
+    "isha": "23:07"
+   }
+  },
+  {
+   "method": "makkah",
+   "city": "Cairo",
+   "lat": 30.0444,
+   "lon": 31.2357,
+   "tz": "Africa/Cairo",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:30",
+    "sunrise": "06:06",
+    "dhuhr": "13:01",
+    "asr": "16:38",
+    "maghrib": "19:56",
+    "isha": "21:26"
+   }
+  },
+  {
+   "method": "makkah",
+   "city": "Cairo",
+   "lat": 30.0444,
+   "lon": 31.2357,
+   "tz": "Africa/Cairo",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:30",
+    "sunrise": "06:06",
+    "dhuhr": "13:01",
+    "asr": "17:52",
+    "maghrib": "19:56",
+    "isha": "21:26"
+   }
+  },
+  {
+   "method": "makkah",
+   "city": "Makkah",
+   "lat": 21.3891,
+   "lon": 39.8579,
+   "tz": "Asia/Riyadh",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:23",
+    "sunrise": "05:49",
+    "dhuhr": "12:27",
+    "asr": "15:43",
+    "maghrib": "19:05",
+    "isha": "20:35"
+   }
+  },
+  {
+   "method": "makkah",
+   "city": "Makkah",
+   "lat": 21.3891,
+   "lon": 39.8579,
+   "tz": "Asia/Riyadh",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:23",
+    "sunrise": "05:49",
+    "dhuhr": "12:27",
+    "asr": "17:02",
+    "maghrib": "19:05",
+    "isha": "20:35"
+   }
+  },
+  {
+   "method": "makkah",
+   "city": "Istanbul",
+   "lat": 41.0082,
+   "lon": 28.9784,
+   "tz": "Europe/Istanbul",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "03:45",
+    "sunrise": "05:48",
+    "dhuhr": "13:10",
+    "asr": "17:09",
+    "maghrib": "20:32",
+    "isha": "22:02"
+   }
+  },
+  {
+   "method": "makkah",
+   "city": "Istanbul",
+   "lat": 41.0082,
+   "lon": 28.9784,
+   "tz": "Europe/Istanbul",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "03:45",
+    "sunrise": "05:48",
+    "dhuhr": "13:10",
+    "asr": "18:19",
+    "maghrib": "20:32",
+    "isha": "22:02"
+   }
+  },
+  {
+   "method": "makkah",
+   "city": "Dubai",
+   "lat": 25.2048,
+   "lon": 55.2708,
+   "tz": "Asia/Dubai",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:10",
+    "sunrise": "05:40",
+    "dhuhr": "12:25",
+    "asr": "15:51",
+    "maghrib": "19:10",
+    "isha": "20:40"
+   }
+  },
+  {
+   "method": "makkah",
+   "city": "Dubai",
+   "lat": 25.2048,
+   "lon": 55.2708,
+   "tz": "Asia/Dubai",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:10",
+    "sunrise": "05:40",
+    "dhuhr": "12:25",
+    "asr": "17:07",
+    "maghrib": "19:10",
+    "isha": "20:40"
+   }
+  },
+  {
+   "method": "makkah",
+   "city": "Jakarta",
+   "lat": -6.2088,
+   "lon": 106.8456,
+   "tz": "Asia/Jakarta",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:49",
+    "sunrise": "06:05",
+    "dhuhr": "11:59",
+    "asr": "15:21",
+    "maghrib": "17:53",
+    "isha": "19:23"
+   }
+  },
+  {
+   "method": "makkah",
+   "city": "Jakarta",
+   "lat": -6.2088,
+   "lon": 106.8456,
+   "tz": "Asia/Jakarta",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:49",
+    "sunrise": "06:05",
+    "dhuhr": "11:59",
+    "asr": "16:14",
+    "maghrib": "17:53",
+    "isha": "19:23"
+   }
+  },
+  {
+   "method": "makkah",
+   "city": "London",
+   "lat": 51.5074,
+   "lon": -0.1278,
+   "tz": "Europe/London",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "02:38",
+    "sunrise": "05:06",
+    "dhuhr": "13:07",
+    "asr": "17:24",
+    "maghrib": "21:07",
+    "isha": "22:37"
+   }
+  },
+  {
+   "method": "makkah",
+   "city": "London",
+   "lat": 51.5074,
+   "lon": -0.1278,
+   "tz": "Europe/London",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "02:38",
+    "sunrise": "05:06",
+    "dhuhr": "13:07",
+    "asr": "18:35",
+    "maghrib": "21:07",
+    "isha": "22:37"
+   }
+  },
+  {
+   "method": "karachi",
+   "city": "Cairo",
+   "lat": 30.0444,
+   "lon": 31.2357,
+   "tz": "Africa/Cairo",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:33",
+    "sunrise": "06:06",
+    "dhuhr": "13:01",
+    "asr": "16:38",
+    "maghrib": "19:56",
+    "isha": "21:29"
+   }
+  },
+  {
+   "method": "karachi",
+   "city": "Cairo",
+   "lat": 30.0444,
+   "lon": 31.2357,
+   "tz": "Africa/Cairo",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:33",
+    "sunrise": "06:06",
+    "dhuhr": "13:01",
+    "asr": "17:52",
+    "maghrib": "19:56",
+    "isha": "21:29"
+   }
+  },
+  {
+   "method": "karachi",
+   "city": "Makkah",
+   "lat": 21.3891,
+   "lon": 39.8579,
+   "tz": "Asia/Riyadh",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:26",
+    "sunrise": "05:49",
+    "dhuhr": "12:27",
+    "asr": "15:42",
+    "maghrib": "19:05",
+    "isha": "20:28"
+   }
+  },
+  {
+   "method": "karachi",
+   "city": "Makkah",
+   "lat": 21.3891,
+   "lon": 39.8579,
+   "tz": "Asia/Riyadh",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:26",
+    "sunrise": "05:49",
+    "dhuhr": "12:27",
+    "asr": "17:02",
+    "maghrib": "19:05",
+    "isha": "20:28"
+   }
+  },
+  {
+   "method": "karachi",
+   "city": "Istanbul",
+   "lat": 41.0082,
+   "lon": 28.9784,
+   "tz": "Europe/Istanbul",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "03:49",
+    "sunrise": "05:48",
+    "dhuhr": "13:10",
+    "asr": "17:09",
+    "maghrib": "20:32",
+    "isha": "22:31"
+   }
+  },
+  {
+   "method": "karachi",
+   "city": "Istanbul",
+   "lat": 41.0082,
+   "lon": 28.9784,
+   "tz": "Europe/Istanbul",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "03:49",
+    "sunrise": "05:48",
+    "dhuhr": "13:10",
+    "asr": "18:19",
+    "maghrib": "20:32",
+    "isha": "22:31"
+   }
+  },
+  {
+   "method": "karachi",
+   "city": "Dubai",
+   "lat": 25.2048,
+   "lon": 55.2708,
+   "tz": "Asia/Dubai",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:13",
+    "sunrise": "05:40",
+    "dhuhr": "12:25",
+    "asr": "15:51",
+    "maghrib": "19:10",
+    "isha": "20:37"
+   }
+  },
+  {
+   "method": "karachi",
+   "city": "Dubai",
+   "lat": 25.2048,
+   "lon": 55.2708,
+   "tz": "Asia/Dubai",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:13",
+    "sunrise": "05:40",
+    "dhuhr": "12:25",
+    "asr": "17:07",
+    "maghrib": "19:10",
+    "isha": "20:37"
+   }
+  },
+  {
+   "method": "karachi",
+   "city": "Jakarta",
+   "lat": -6.2088,
+   "lon": 106.8456,
+   "tz": "Asia/Jakarta",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:51",
+    "sunrise": "06:05",
+    "dhuhr": "11:59",
+    "asr": "15:21",
+    "maghrib": "17:53",
+    "isha": "19:07"
+   }
+  },
+  {
+   "method": "karachi",
+   "city": "Jakarta",
+   "lat": -6.2088,
+   "lon": 106.8456,
+   "tz": "Asia/Jakarta",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:51",
+    "sunrise": "06:05",
+    "dhuhr": "11:59",
+    "asr": "16:14",
+    "maghrib": "17:53",
+    "isha": "19:07"
+   }
+  },
+  {
+   "method": "karachi",
+   "city": "London",
+   "lat": 51.5074,
+   "lon": -0.1278,
+   "tz": "Europe/London",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "02:42",
+    "sunrise": "05:06",
+    "dhuhr": "13:07",
+    "asr": "17:24",
+    "maghrib": "21:07",
+    "isha": "23:31"
+   }
+  },
+  {
+   "method": "karachi",
+   "city": "London",
+   "lat": 51.5074,
+   "lon": -0.1278,
+   "tz": "Europe/London",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "02:42",
+    "sunrise": "05:06",
+    "dhuhr": "13:07",
+    "asr": "18:35",
+    "maghrib": "21:07",
+    "isha": "23:31"
+   }
+  },
+  {
+   "method": "dubai",
+   "city": "Cairo",
+   "lat": 30.0444,
+   "lon": 31.2357,
+   "tz": "Africa/Cairo",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:32",
+    "sunrise": "06:06",
+    "dhuhr": "13:04",
+    "asr": "16:38",
+    "maghrib": "19:59",
+    "isha": "21:30"
+   }
+  },
+  {
+   "method": "dubai",
+   "city": "Cairo",
+   "lat": 30.0444,
+   "lon": 31.2357,
+   "tz": "Africa/Cairo",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:32",
+    "sunrise": "06:06",
+    "dhuhr": "13:04",
+    "asr": "17:52",
+    "maghrib": "19:59",
+    "isha": "21:30"
+   }
+  },
+  {
+   "method": "dubai",
+   "city": "Makkah",
+   "lat": 21.3891,
+   "lon": 39.8579,
+   "tz": "Asia/Riyadh",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:25",
+    "sunrise": "05:49",
+    "dhuhr": "12:30",
+    "asr": "15:42",
+    "maghrib": "19:08",
+    "isha": "20:29"
+   }
+  },
+  {
+   "method": "dubai",
+   "city": "Makkah",
+   "lat": 21.3891,
+   "lon": 39.8579,
+   "tz": "Asia/Riyadh",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:25",
+    "sunrise": "05:49",
+    "dhuhr": "12:30",
+    "asr": "17:02",
+    "maghrib": "19:08",
+    "isha": "20:29"
+   }
+  },
+  {
+   "method": "dubai",
+   "city": "Istanbul",
+   "lat": 41.0082,
+   "lon": 28.9784,
+   "tz": "Europe/Istanbul",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "03:48",
+    "sunrise": "05:48",
+    "dhuhr": "13:13",
+    "asr": "17:09",
+    "maghrib": "20:35",
+    "isha": "22:33"
+   }
+  },
+  {
+   "method": "dubai",
+   "city": "Istanbul",
+   "lat": 41.0082,
+   "lon": 28.9784,
+   "tz": "Europe/Istanbul",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "03:48",
+    "sunrise": "05:48",
+    "dhuhr": "13:13",
+    "asr": "18:19",
+    "maghrib": "20:35",
+    "isha": "22:33"
+   }
+  },
+  {
+   "method": "dubai",
+   "city": "Dubai",
+   "lat": 25.2048,
+   "lon": 55.2708,
+   "tz": "Asia/Dubai",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:12",
+    "sunrise": "05:40",
+    "dhuhr": "12:28",
+    "asr": "15:51",
+    "maghrib": "19:13",
+    "isha": "20:38"
+   }
+  },
+  {
+   "method": "dubai",
+   "city": "Dubai",
+   "lat": 25.2048,
+   "lon": 55.2708,
+   "tz": "Asia/Dubai",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:12",
+    "sunrise": "05:40",
+    "dhuhr": "12:28",
+    "asr": "17:07",
+    "maghrib": "19:13",
+    "isha": "20:38"
+   }
+  },
+  {
+   "method": "dubai",
+   "city": "Jakarta",
+   "lat": -6.2088,
+   "lon": 106.8456,
+   "tz": "Asia/Jakarta",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:50",
+    "sunrise": "06:05",
+    "dhuhr": "12:02",
+    "asr": "15:21",
+    "maghrib": "17:56",
+    "isha": "19:08"
+   }
+  },
+  {
+   "method": "dubai",
+   "city": "Jakarta",
+   "lat": -6.2088,
+   "lon": 106.8456,
+   "tz": "Asia/Jakarta",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:50",
+    "sunrise": "06:05",
+    "dhuhr": "12:02",
+    "asr": "16:14",
+    "maghrib": "17:56",
+    "isha": "19:08"
+   }
+  },
+  {
+   "method": "dubai",
+   "city": "London",
+   "lat": 51.5074,
+   "lon": -0.1278,
+   "tz": "Europe/London",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "02:41",
+    "sunrise": "05:06",
+    "dhuhr": "13:10",
+    "asr": "17:24",
+    "maghrib": "21:10",
+    "isha": "23:32"
+   }
+  },
+  {
+   "method": "dubai",
+   "city": "London",
+   "lat": 51.5074,
+   "lon": -0.1278,
+   "tz": "Europe/London",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "02:41",
+    "sunrise": "05:06",
+    "dhuhr": "13:10",
+    "asr": "18:35",
+    "maghrib": "21:10",
+    "isha": "23:32"
+   }
+  },
+  {
+   "method": "turkey",
+   "city": "Cairo",
+   "lat": 30.0444,
+   "lon": 31.2357,
+   "tz": "Africa/Cairo",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:33",
+    "sunrise": "05:59",
+    "dhuhr": "13:06",
+    "asr": "16:42",
+    "maghrib": "20:03",
+    "isha": "21:23"
+   }
+  },
+  {
+   "method": "turkey",
+   "city": "Cairo",
+   "lat": 30.0444,
+   "lon": 31.2357,
+   "tz": "Africa/Cairo",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:33",
+    "sunrise": "05:59",
+    "dhuhr": "13:06",
+    "asr": "17:56",
+    "maghrib": "20:03",
+    "isha": "21:23"
+   }
+  },
+  {
+   "method": "turkey",
+   "city": "Makkah",
+   "lat": 21.3891,
+   "lon": 39.8579,
+   "tz": "Asia/Riyadh",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:26",
+    "sunrise": "05:42",
+    "dhuhr": "12:32",
+    "asr": "15:46",
+    "maghrib": "19:12",
+    "isha": "20:23"
+   }
+  },
+  {
+   "method": "turkey",
+   "city": "Makkah",
+   "lat": 21.3891,
+   "lon": 39.8579,
+   "tz": "Asia/Riyadh",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:26",
+    "sunrise": "05:42",
+    "dhuhr": "12:32",
+    "asr": "17:06",
+    "maghrib": "19:12",
+    "isha": "20:23"
+   }
+  },
+  {
+   "method": "turkey",
+   "city": "Istanbul",
+   "lat": 41.0082,
+   "lon": 28.9784,
+   "tz": "Europe/Istanbul",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "03:49",
+    "sunrise": "05:41",
+    "dhuhr": "13:15",
+    "asr": "17:13",
+    "maghrib": "20:39",
+    "isha": "22:23"
+   }
+  },
+  {
+   "method": "turkey",
+   "city": "Istanbul",
+   "lat": 41.0082,
+   "lon": 28.9784,
+   "tz": "Europe/Istanbul",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "03:49",
+    "sunrise": "05:41",
+    "dhuhr": "13:15",
+    "asr": "18:24",
+    "maghrib": "20:39",
+    "isha": "22:23"
+   }
+  },
+  {
+   "method": "turkey",
+   "city": "Dubai",
+   "lat": 25.2048,
+   "lon": 55.2708,
+   "tz": "Asia/Dubai",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:13",
+    "sunrise": "05:33",
+    "dhuhr": "12:30",
+    "asr": "15:55",
+    "maghrib": "19:17",
+    "isha": "20:32"
+   }
+  },
+  {
+   "method": "turkey",
+   "city": "Dubai",
+   "lat": 25.2048,
+   "lon": 55.2708,
+   "tz": "Asia/Dubai",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:13",
+    "sunrise": "05:33",
+    "dhuhr": "12:30",
+    "asr": "17:11",
+    "maghrib": "19:17",
+    "isha": "20:32"
+   }
+  },
+  {
+   "method": "turkey",
+   "city": "Jakarta",
+   "lat": -6.2088,
+   "lon": 106.8456,
+   "tz": "Asia/Jakarta",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:51",
+    "sunrise": "05:58",
+    "dhuhr": "12:04",
+    "asr": "15:25",
+    "maghrib": "18:00",
+    "isha": "19:02"
+   }
+  },
+  {
+   "method": "turkey",
+   "city": "Jakarta",
+   "lat": -6.2088,
+   "lon": 106.8456,
+   "tz": "Asia/Jakarta",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:51",
+    "sunrise": "05:58",
+    "dhuhr": "12:04",
+    "asr": "16:18",
+    "maghrib": "18:00",
+    "isha": "19:02"
+   }
+  },
+  {
+   "method": "turkey",
+   "city": "London",
+   "lat": 51.5074,
+   "lon": -0.1278,
+   "tz": "Europe/London",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "02:42",
+    "sunrise": "04:59",
+    "dhuhr": "13:12",
+    "asr": "17:28",
+    "maghrib": "21:14",
+    "isha": "23:23"
+   }
+  },
+  {
+   "method": "turkey",
+   "city": "London",
+   "lat": 51.5074,
+   "lon": -0.1278,
+   "tz": "Europe/London",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "02:42",
+    "sunrise": "04:59",
+    "dhuhr": "13:12",
+    "asr": "18:39",
+    "maghrib": "21:14",
+    "isha": "23:23"
+   }
+  },
+  {
+   "method": "singapore",
+   "city": "Cairo",
+   "lat": 30.0444,
+   "lon": 31.2357,
+   "tz": "Africa/Cairo",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:21",
+    "sunrise": "06:06",
+    "dhuhr": "13:01",
+    "asr": "16:38",
+    "maghrib": "19:56",
+    "isha": "21:29"
+   }
+  },
+  {
+   "method": "singapore",
+   "city": "Cairo",
+   "lat": 30.0444,
+   "lon": 31.2357,
+   "tz": "Africa/Cairo",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:21",
+    "sunrise": "06:06",
+    "dhuhr": "13:01",
+    "asr": "17:52",
+    "maghrib": "19:56",
+    "isha": "21:29"
+   }
+  },
+  {
+   "method": "singapore",
+   "city": "Makkah",
+   "lat": 21.3891,
+   "lon": 39.8579,
+   "tz": "Asia/Riyadh",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:16",
+    "sunrise": "05:49",
+    "dhuhr": "12:27",
+    "asr": "15:42",
+    "maghrib": "19:05",
+    "isha": "20:28"
+   }
+  },
+  {
+   "method": "singapore",
+   "city": "Makkah",
+   "lat": 21.3891,
+   "lon": 39.8579,
+   "tz": "Asia/Riyadh",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:16",
+    "sunrise": "05:49",
+    "dhuhr": "12:27",
+    "asr": "17:02",
+    "maghrib": "19:05",
+    "isha": "20:28"
+   }
+  },
+  {
+   "method": "singapore",
+   "city": "Istanbul",
+   "lat": 41.0082,
+   "lon": 28.9784,
+   "tz": "Europe/Istanbul",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "03:32",
+    "sunrise": "05:48",
+    "dhuhr": "13:10",
+    "asr": "17:09",
+    "maghrib": "20:32",
+    "isha": "22:31"
+   }
+  },
+  {
+   "method": "singapore",
+   "city": "Istanbul",
+   "lat": 41.0082,
+   "lon": 28.9784,
+   "tz": "Europe/Istanbul",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "03:32",
+    "sunrise": "05:48",
+    "dhuhr": "13:10",
+    "asr": "18:19",
+    "maghrib": "20:32",
+    "isha": "22:31"
+   }
+  },
+  {
+   "method": "singapore",
+   "city": "Dubai",
+   "lat": 25.2048,
+   "lon": 55.2708,
+   "tz": "Asia/Dubai",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:02",
+    "sunrise": "05:40",
+    "dhuhr": "12:25",
+    "asr": "15:51",
+    "maghrib": "19:10",
+    "isha": "20:37"
+   }
+  },
+  {
+   "method": "singapore",
+   "city": "Dubai",
+   "lat": 25.2048,
+   "lon": 55.2708,
+   "tz": "Asia/Dubai",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:02",
+    "sunrise": "05:40",
+    "dhuhr": "12:25",
+    "asr": "17:07",
+    "maghrib": "19:10",
+    "isha": "20:37"
+   }
+  },
+  {
+   "method": "singapore",
+   "city": "Jakarta",
+   "lat": -6.2088,
+   "lon": 106.8456,
+   "tz": "Asia/Jakarta",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:43",
+    "sunrise": "06:05",
+    "dhuhr": "11:59",
+    "asr": "15:21",
+    "maghrib": "17:53",
+    "isha": "19:07"
+   }
+  },
+  {
+   "method": "singapore",
+   "city": "Jakarta",
+   "lat": -6.2088,
+   "lon": 106.8456,
+   "tz": "Asia/Jakarta",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:43",
+    "sunrise": "06:05",
+    "dhuhr": "11:59",
+    "asr": "16:14",
+    "maghrib": "17:53",
+    "isha": "19:07"
+   }
+  },
+  {
+   "method": "singapore",
+   "city": "London",
+   "lat": 51.5074,
+   "lon": -0.1278,
+   "tz": "Europe/London",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "02:26",
+    "sunrise": "05:06",
+    "dhuhr": "13:07",
+    "asr": "17:24",
+    "maghrib": "21:07",
+    "isha": "23:31"
+   }
+  },
+  {
+   "method": "singapore",
+   "city": "London",
+   "lat": 51.5074,
+   "lon": -0.1278,
+   "tz": "Europe/London",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "02:26",
+    "sunrise": "05:06",
+    "dhuhr": "13:07",
+    "asr": "18:35",
+    "maghrib": "21:07",
+    "isha": "23:31"
+   }
+  },
+  {
+   "method": "tehran",
+   "city": "Cairo",
+   "lat": 30.0444,
+   "lon": 31.2357,
+   "tz": "Africa/Cairo",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:35",
+    "sunrise": "06:06",
+    "dhuhr": "13:01",
+    "asr": "16:38",
+    "maghrib": "20:15",
+    "isha": "21:06"
+   }
+  },
+  {
+   "method": "tehran",
+   "city": "Cairo",
+   "lat": 30.0444,
+   "lon": 31.2357,
+   "tz": "Africa/Cairo",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:35",
+    "sunrise": "06:06",
+    "dhuhr": "13:01",
+    "asr": "17:52",
+    "maghrib": "20:15",
+    "isha": "21:06"
+   }
+  },
+  {
+   "method": "tehran",
+   "city": "Makkah",
+   "lat": 21.3891,
+   "lon": 39.8579,
+   "tz": "Asia/Riyadh",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:27",
+    "sunrise": "05:49",
+    "dhuhr": "12:27",
+    "asr": "15:42",
+    "maghrib": "19:22",
+    "isha": "20:08"
+   }
+  },
+  {
+   "method": "tehran",
+   "city": "Makkah",
+   "lat": 21.3891,
+   "lon": 39.8579,
+   "tz": "Asia/Riyadh",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:27",
+    "sunrise": "05:49",
+    "dhuhr": "12:27",
+    "asr": "17:02",
+    "maghrib": "19:22",
+    "isha": "20:08"
+   }
+  },
+  {
+   "method": "tehran",
+   "city": "Istanbul",
+   "lat": 41.0082,
+   "lon": 28.9784,
+   "tz": "Europe/Istanbul",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "03:52",
+    "sunrise": "05:48",
+    "dhuhr": "13:10",
+    "asr": "17:09",
+    "maghrib": "20:55",
+    "isha": "21:59"
+   }
+  },
+  {
+   "method": "tehran",
+   "city": "Istanbul",
+   "lat": 41.0082,
+   "lon": 28.9784,
+   "tz": "Europe/Istanbul",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "03:52",
+    "sunrise": "05:48",
+    "dhuhr": "13:10",
+    "asr": "18:19",
+    "maghrib": "20:55",
+    "isha": "21:59"
+   }
+  },
+  {
+   "method": "tehran",
+   "city": "Dubai",
+   "lat": 25.2048,
+   "lon": 55.2708,
+   "tz": "Asia/Dubai",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:15",
+    "sunrise": "05:40",
+    "dhuhr": "12:25",
+    "asr": "15:51",
+    "maghrib": "19:28",
+    "isha": "20:16"
+   }
+  },
+  {
+   "method": "tehran",
+   "city": "Dubai",
+   "lat": 25.2048,
+   "lon": 55.2708,
+   "tz": "Asia/Dubai",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:15",
+    "sunrise": "05:40",
+    "dhuhr": "12:25",
+    "asr": "17:07",
+    "maghrib": "19:28",
+    "isha": "20:16"
+   }
+  },
+  {
+   "method": "tehran",
+   "city": "Jakarta",
+   "lat": -6.2088,
+   "lon": 106.8456,
+   "tz": "Asia/Jakarta",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:52",
+    "sunrise": "06:05",
+    "dhuhr": "11:59",
+    "asr": "15:21",
+    "maghrib": "18:09",
+    "isha": "18:50"
+   }
+  },
+  {
+   "method": "tehran",
+   "city": "Jakarta",
+   "lat": -6.2088,
+   "lon": 106.8456,
+   "tz": "Asia/Jakarta",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "04:52",
+    "sunrise": "06:05",
+    "dhuhr": "11:59",
+    "asr": "16:14",
+    "maghrib": "18:09",
+    "isha": "18:50"
+   }
+  },
+  {
+   "method": "tehran",
+   "city": "London",
+   "lat": 51.5074,
+   "lon": -0.1278,
+   "tz": "Europe/London",
+   "asr": "standard",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "02:45",
+    "sunrise": "05:06",
+    "dhuhr": "13:07",
+    "asr": "17:24",
+    "maghrib": "21:37",
+    "isha": "22:59"
+   }
+  },
+  {
+   "method": "tehran",
+   "city": "London",
+   "lat": 51.5074,
+   "lon": -0.1278,
+   "tz": "Europe/London",
+   "asr": "hanafi",
+   "date": "19-07-2026",
+   "highLat": "angleBased",
+   "expect": {
+    "fajr": "02:45",
+    "sunrise": "05:06",
+    "dhuhr": "13:07",
+    "asr": "18:35",
+    "maghrib": "21:37",
+    "isha": "22:59"
+   }
+  }
+ ]
+}

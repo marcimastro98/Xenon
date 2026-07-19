@@ -182,8 +182,12 @@ function normalizeAdhan(source) {
   const tuneIn = s.tune && typeof s.tune === 'object' ? s.tune : {};
   const tune = {};
   for (const k of PRAYER_KEYS) tune[k] = clampInt(tuneIn[k], -60, 60, 0);
-  const lat = Number(s.lat);
-  const lon = Number(s.lon);
+  // Number(null) and Number('') are both 0, a valid-looking coordinate, so an
+  // absent location would normalize to 0,0 instead of staying absent. Map the
+  // empty forms to NaN first and let the range check below reject them.
+  const coord = (v) => (v === null || v === undefined || v === '' ? NaN : Number(v));
+  const lat = coord(s.lat);
+  const lon = coord(s.lon);
   return {
     method: METHOD_KEYS.includes(s.method) ? s.method : DEFAULT_METHOD,
     asr: s.asr === 'hanafi' ? 'hanafi' : 'standard',
