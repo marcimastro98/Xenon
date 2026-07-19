@@ -77,6 +77,8 @@ const claudeRun = require('./claude-run');
 const claudeTranscript = require('./claude-transcript');
 const claudeAttach = require('./claude-attach');
 const communityCatalog = require('./community-catalog');
+const communityMessages = require('./community-messages');
+const communityInstalls = require('./community-installs');
 const supporterRedeem = require('./supporter-redeem');
 const versionPing = require('./version-ping');
 const iconPacks = require('./icon-packs');
@@ -6171,6 +6173,22 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // stays OFF instead of being switched on by an update — it was documented to
   // those users as off-unless-you-choose. Do not relax that test to `!== false`.
   versionPing: true,
+  // Announcements (js/hub-messages.js) and the paid-drop card (js/catalog-drop.js).
+  // ON by default and normalized with `!== false`, which is the OPPOSITE of
+  // versionPing above and deliberate: these are not a data opt-in, they are a
+  // preference about being interrupted, and the honest default for a channel the
+  // user can switch off in one tap is on. Both were localStorage-only before
+  // v4.9.0 — per surface, and with no way back once muted (see the migration in
+  // each module).
+  hubMessages: true,
+  catalogDrops: true,
+  // Counts an install of a catalog entry, with NO identifier attached: the hub
+  // bumps a per-entry counter and discards the request (see community-installs.js).
+  // Normalized `=== true` like versionPing, NOT `!== false` like the two above:
+  // this is a new outbound report, so a fresh install starts on and an existing
+  // one stays off until its owner chooses. Turning it on for everyone during an
+  // update is the move that costs trust.
+  catalogStats: true,
   // Opt-in ad-blocker for the Browser tile (Settings → Browser). OFF by default;
   // when on, the server loads an unpacked uBOL MV3 extension into the tile's Edge.
   browserAdblock: false,
@@ -7050,6 +7068,12 @@ function normalizeHubSettings(value) {
     hideOnRdp: source.hideOnRdp === true,
     autoOpenBrowser: source.autoOpenBrowser !== false,
     versionPing: source.versionPing === true,
+    // `!== false` on purpose: absent means on, so existing installs keep getting
+    // announcements and drop cards rather than being silently switched off by an
+    // update. See the note on the defaults above.
+    hubMessages: source.hubMessages !== false,
+    catalogDrops: source.catalogDrops !== false,
+    catalogStats: source.catalogStats === true,
     browserAdblock: source.browserAdblock === true,
     dashboardLayout: resetLayout
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
@@ -9030,6 +9054,13 @@ const CSRF_MUTATION_PATHS = new Set([
   // request for codes/<id>.txt with no refresh throttle — a cross-site <img>
   // loop over ids would turn the local server into a request pump without this.
   '/api/community/code',
+  // Same property as the catalog: ?refresh=1 busts the TTL and forces an
+  // outbound fetch of messages.json, so a drive-by must not be able to drive it.
+  '/api/community/messages',
+  // POST triggers an outbound request to the hub; the GET's cache miss does too.
+  '/api/community/installed',
+  '/api/community/installs',
+  '/api/community/poll',
   // POST-only, but it triggers an outbound request to the supporter hub AND a
   // successful call consumes one of the code's device activations — a cross-site
   // drive-by (or a sandboxed iframe posting with Origin: null) must not be able
@@ -11069,6 +11100,56 @@ const server = http.createServer(async (req, res) => {
           ? { ...e, needsNewerApp: semverNewer(e.appVersionMin, APP_VERSION) } : e);
       }
       json(out);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/installed' && req.method === 'POST') {
+    // Count one install of a catalog entry. NO identifier is sent: the hub only
+    // increments a per-entry counter, and "have I already reported this one?"
+    // is answered from this machine's own install receipts (js/preset-share.js).
+    // So the number means installs REPORTED, not unique owners — say that
+    // wherever it is shown. Gated like the version ping: a new install is on by
+    // default, an existing one stays off until the user says otherwise.
+    // In CSRF_MUTATION_PATHS (an outbound request, and Origin:null iframes post).
+    try {
+      if (!(_serverHubSettings && _serverHubSettings.catalogStats === true)) { json({ ok: false, error: 'disabled' }); return; }
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await communityInstalls.reportInstall({ entryId: body.entryId }));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/poll' && req.method === 'POST') {
+    // One answer to a poll carried by an announcement. Nothing identifies the
+    // sender: the hub bumps a counter for (message, option) and discards the
+    // request, and "have I already answered this?" is remembered on this PC.
+    // Gated by the same switch as the announcements themselves — a channel you
+    // switched off must not still be collecting answers from you.
+    // In CSRF_MUTATION_PATHS.
+    try {
+      if (!(_serverHubSettings && _serverHubSettings.hubMessages !== false)) { json({ ok: false, error: 'disabled' }); return; }
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await communityInstalls.submitPollVote({ messageId: body.messageId, optionId: body.optionId }));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/installs' && req.method === 'GET') {
+    // Public per-entry totals for the Store. Read-only, cached; not gated by the
+    // setting, because reading a public number reveals nothing about this install.
+    try {
+      json(await communityInstalls.fetchInstallCounts({ ids: urlObj.searchParams.get('ids') }));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/messages' && req.method === 'GET') {
+    // Announcement feed — messages.json on the project site, proxied with the
+    // same TTL cache + ETag revalidation as the catalog. Every install gets the
+    // WHOLE feed; the `match` block is evaluated client-side (js/hub-messages.js)
+    // so targeting costs no identifier and the server cannot tell who saw what.
+    // In CSRF_MUTATION_PATHS: a cache miss triggers an outbound fetch. Never a
+    // JSONP candidate.
+    try {
+      const out = await communityMessages.fetchVisibleMessages(urlObj.searchParams.has('refresh'));
+      // `context` is what THIS install is, handed to the client so it can match
+      // locally: the browser has no reliable read of either, and the os token has
+      // to come from the same vocabulary version-ping.js uses or a filter written
+      // against one would silently miss the other. It travels inward only.
+      json({ ...out, context: { version: APP_VERSION, os: process.platform } });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/community/code' && req.method === 'GET') {

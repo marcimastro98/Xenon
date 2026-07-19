@@ -132,6 +132,61 @@ test('resolveProxySecrets: a secret can never move the request to a new host', (
   assert.equal(bad.error, 'unknown_secret');
 });
 
+// A key carried in a PATH segment (TheSportsDB V1: /api/v1/json/<key>/...) is
+// the case that used to ship the literal token to the provider: validateProxyRequest
+// serialises the URL, and `{`/`}` are in the WHATWG path percent-encode set, so the
+// placeholder reached substitution as `%7B%7B...%7D%7D` and no longer matched.
+test('resolveProxySecrets: resolves a placeholder that URL serialisation encoded in the path', () => {
+  const secrets = { THESPORTSDB_API_KEY: 'K9' };
+  const hosts = ['www.thesportsdb.com'];
+  const req = {
+    url: 'https://www.thesportsdb.com/api/v1/json/%7B%7Bsecret:THESPORTSDB_API_KEY%7D%7D/all_leagues.php',
+    method: 'GET', headers: {}, body: '',
+  };
+  const r = store.resolveProxySecrets(req, secrets, hosts);
+  assert.equal(r.ok, true);
+  assert.equal(r.req.url, 'https://www.thesportsdb.com/api/v1/json/K9/all_leagues.php');
+
+  // Lowercase hex and the raw form both resolve; an unknown name stays a hard error.
+  const lower = store.resolveProxySecrets(
+    { ...req, url: 'https://www.thesportsdb.com/api/v1/json/%7b%7bsecret:THESPORTSDB_API_KEY%7d%7d/x.php' },
+    secrets, hosts);
+  assert.equal(lower.ok, true);
+  assert.equal(new URL(lower.req.url).pathname, '/api/v1/json/K9/x.php');
+
+  const bad = store.resolveProxySecrets(
+    { ...req, url: 'https://www.thesportsdb.com/api/v1/json/%7B%7Bsecret:NOPE%7D%7D/x.php' },
+    secrets, hosts);
+  assert.equal(bad.ok, false);
+  assert.equal(bad.error, 'unknown_secret');
+});
+
+test('restoreEncodedPlaceholders: only rewrites well-formed placeholders', () => {
+  const keep = 'https://h/x?q=%7B%22a%22%3A1%7D';          // an encoded JSON object, not a placeholder
+  assert.equal(store.restoreEncodedPlaceholders(keep), keep);
+  const none = 'https://h/plain/path';
+  assert.equal(store.restoreEncodedPlaceholders(none), none);
+  assert.equal(
+    store.restoreEncodedPlaceholders('https://h/%7B%7B%20secret:A%20%7D%7D/b'),
+    'https://h/{{secret:A}}/b');
+});
+
+// The end-to-end shape the widget actually hits: validateProxyRequest first
+// (which is what encodes the braces), then secret substitution.
+test('proxy pipeline: a path placeholder survives validateProxyRequest into substitution', () => {
+  const widgets = require('../sdk-widgets.js');
+  const manifest = { id: 'dgm-results', hosts: ['www.thesportsdb.com'], secrets: true };
+  const v = widgets.validateProxyRequest(manifest, {
+    url: 'https://www.thesportsdb.com/api/v1/json/{{secret:K}}/all_leagues.php',
+    method: 'GET',
+  });
+  assert.equal(v.ok, true);
+  assert.match(v.url, /%7B%7Bsecret:K%7D%7D/);   // pins WHY the recovery pass exists
+  const r = store.resolveProxySecrets(v, { K: 'abc' }, manifest.hosts);
+  assert.equal(r.ok, true);
+  assert.equal(r.req.url, 'https://www.thesportsdb.com/api/v1/json/abc/all_leagues.php');
+});
+
 // ── Namespace selection (shared groups) ─────────────────────────────────────
 
 test('storeNamespace: package id by default, shared group when declared', () => {

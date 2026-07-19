@@ -709,11 +709,33 @@
         },
       };
     }
+    // Count one install of a catalog entry, at most once per entry on this
+    // machine. The "have I already reported this?" question is answered from the
+    // receipts we are about to add to — which is the whole reason no identifier
+    // is sent: dedup lives where the identity already is, and never leaves.
+    // Fire-and-forget: a lost count must never affect the install itself.
+    function reportCatalogInstall(tx, priorList) {
+      if (!tx || tx.source !== 'catalog' || !tx.sourceId) return;
+      // The server refuses this when the setting is off, so the check here is not
+      // what protects the user — it is what keeps the switch honest at the point
+      // of use, so nothing is even attempted once they have said no.
+      if (HS().catalogStats !== true) return;
+      if (priorList.some((r) => r && r.source === 'catalog' && r.sourceId === tx.sourceId)) return;
+      try {
+        fetch('/api/community/installed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entryId: tx.sourceId }),
+        }).catch(() => {});
+      } catch { /* ignore */ }
+    }
+
     function commitInstallTransaction(tx) {
       if (!tx || typeof ContentInstalls === 'undefined' || !ContentInstalls.resourceCount(tx.resources)) return false;
       const list = Array.isArray(HS().contentInstalls) ? HS().contentInstalls.slice() : [];
       hubSettings = normalizeSettings(Object.assign({}, HS(), { contentInstalls: list.concat([tx]) }));
       if (typeof saveHubSettings === 'function') saveHubSettings();
+      reportCatalogInstall(tx, list);   // `list` is the state BEFORE this receipt
       return true;
     }
     async function runTrackedInstall(kind, name, work) {

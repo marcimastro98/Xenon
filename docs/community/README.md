@@ -141,3 +141,91 @@ on the same installation does not consume another device.
 
 The app re-validates every field and every code goes through the normal import preview +
 permission flow — a catalog entry can never change anything silently.
+
+## Announcements (`messages.json`)
+
+A second static file next to `catalog.json`, serving the app's announcement channel:
+release notes, "new in the Store" nudges, and the occasional note. The app fetches it at
+most once a day through `GET /api/community/messages`
+(`server/community-messages.js`), which validates every field before the dashboard sees it.
+
+**Targeting runs on the user's machine, not here.** Every install downloads the whole file
+and `server/js/hub-match.js` decides locally which messages apply. Nothing about a user is
+sent to receive a targeted message, so there is no way to address an individual install and
+no record of who saw what. This is the same constraint `server/version-ping.js` documents
+for usage counts, and it is the reason the feed is a public static file rather than an API.
+Do not add a per-install query.
+
+```jsonc
+{
+  "messages": [
+    {
+      "id": "v490-release",        // ^[a-z0-9][a-z0-9_-]{0,60}$, unique; also the "already shown" key
+      "level": "toast",            // toast (default choice) | modal | banner
+      "kicker": "Xenon",           // optional, ≤24 chars
+      "title": "Xenon 4.9.0",      // required, ≤120 chars
+      "body": "What changed.",     // optional, ≤600 chars
+      "entryId": "neon-pack",      // optional catalog entry this is about
+      "action": {
+        "type": "url",             // url | store | dismiss
+        "label": "Read more",      // required, ≤40 chars
+        "url": "https://xenon-app.com/changelog"
+      },
+      "match": {                   // optional; omit for "everyone"
+        "minVersion": "4.9.0",     // inclusive, digits and dots only
+        "maxVersion": "4.9.9",     // inclusive
+        "os": ["win32"],           // process.platform tokens
+        "lang": ["it"],            // two-letter UI language
+        "hasEntry": ["dgm-news"]   // matches anyone running ANY of these
+      },
+      "activeFrom": "2026-07-20",  // optional ISO date/datetime
+      "activeUntil": "2026-08-01"
+    }
+  ]
+}
+```
+
+Rules worth knowing before you write one:
+
+- **`level: "toast"` unless it truly warrants a full stop.** A modal takes the dashboard's
+  one interruption slot for the day, shared with the paid-drop card, and loses to it.
+- **A `match` block that fails validation drops the message entirely**, rather than being
+  ignored and shown to everyone. Same on the client: a condition it does not recognise
+  matches nobody. A filter that was meant to narrow the audience must never widen it.
+- **`action.url` is restricted** to `xenon-app.com`, `github.com` and Discord, https only.
+  Anything else is stripped and the message renders without a button.
+- **`action: "store"` needs `entryId`**, and opens the Store through the normal import
+  preview — a message can never install anything.
+- **`id` is permanent.** It is how a dashboard remembers it has already shown a message,
+  and it shares that set with the drop card, so an announcement about an entry the drop
+  card already covered will not appear twice. Reusing an id hides the new message.
+- Max 50 messages; the file is capped at 512 KB.
+
+### Polls
+
+A message can carry a poll instead of a button. The title asks the question, the options
+answer it:
+
+```jsonc
+{
+  "id": "what-next",
+  "level": "modal",           // forced to modal anyway: the options are buttons
+  "title": "What should come next?",
+  "poll": {
+    "options": [              // 2 to 5, ids charset-pinned like every other id
+      { "id": "deck", "label": "A bigger Deck" },
+      { "id": "ai",   "label": "Smarter AI" }
+    ]
+  }
+}
+```
+
+Answers go to `POST /feedback/poll` and land in a `(message_id, option_id) → count` table.
+**Nothing identifies who answered**: no install id, no IP kept, no per-vote row and no
+timestamp, so there is no way to ask what a given dashboard chose. One answer per dashboard
+is enforced in the app, which remembers what it has answered — weaker than a server-side
+constraint, and deliberately so, since that constraint would need exactly the identifier
+this avoids. Read a result as a sense of the room, not a ballot.
+
+An invalid poll drops the whole message rather than shipping as a plain announcement: the
+title is usually a question, and a question with no way to answer it reads as broken.

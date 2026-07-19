@@ -2359,6 +2359,10 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-catlabel { color: var(--text-dim, #8b91a1); }
 /* Star ratings: the async-filled card slot and the detail view's vote row. */
 .cgal-stars { margin-left: 6px; color: var(--warn, #ffb454); font-weight: 600; white-space: nowrap; }
+/* Install count: deliberately quieter than the rating. It is a rough popularity
+   signal, not a quality one, and it should never out-shout the stars. */
+.cgal-installs { margin-left: 6px; color: var(--text-dim, #8b91a1); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cgal-installs:empty { display: none; }
 .cgal-rate { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0 2px; }
 .cgal-rate-row { display: inline-flex; gap: 2px; }
 .cgal-rate-star {
@@ -3233,4 +3237,78 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 @media (prefers-reduced-motion: reduce) {
   .xdrop-overlay, .xdrop-card { animation: none; }
   .xdrop-btn { transition: none; }
+}
+
+/* ── Hub announcement (js/hub-messages.js) ───────────────────────────────────
+   Sits next to the drop card because they are the same kind of surface, and
+   deliberately reads quieter than it: this one is a note, not an offer. Neutral
+   accent, no scarcity meter, no artwork. If it ever starts looking like the
+   card above, the channel has drifted into advertising. */
+.hubmsg-overlay {
+  position: fixed; inset: 0; z-index: 9000;
+  display: flex; align-items: center; justify-content: center; padding: 4vh 4vw;
+  background: rgba(5, 7, 11, 0.62); backdrop-filter: blur(4px);
+  animation: xdrop-fade 0.3s ease;
+}
+.hubmsg-overlay.closing { animation: xdrop-fade 0.2s ease reverse; }
+
+.hubmsg-card {
+  position: relative; width: min(420px, 96vw); max-height: 92vh; overflow-y: auto;
+  display: flex; flex-direction: column;
+  padding: 26px 24px 18px;
+  border-radius: 22px;
+  background: var(--glass-bg, #14181c);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.14));
+  box-shadow: 0 40px 90px -28px rgba(0, 0, 0, 0.78), 0 1px 0 rgba(255, 255, 255, 0.08) inset;
+  animation: xdrop-pop 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.hubmsg-close {
+  position: absolute; top: 12px; right: 12px; width: 32px; height: 32px;
+  appearance: none; border: 0; cursor: pointer; font-family: inherit; font-size: 1.3rem; line-height: 1;
+  border-radius: 50%; background: rgba(255, 255, 255, 0.07); color: var(--text-dim, #8b91a1);
+}
+.hubmsg-close:hover { background: rgba(255, 255, 255, 0.13); color: var(--text, #e7e9ee); }
+
+.hubmsg-kicker {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: rgba(var(--accent-rgb, 30, 215, 96), 1); margin-bottom: 8px;
+}
+.hubmsg-title { margin: 0; font-size: 1.2rem; font-weight: 700; letter-spacing: -0.015em; color: var(--text, #e7e9ee); }
+.hubmsg-body { margin: 10px 0 0; font-size: 0.9rem; line-height: 1.5; color: var(--text-soft, #c3c8d2); }
+
+.hubmsg-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+/* Poll options. Stacked and full width so every answer is the same size — a
+   wider button reads as the recommended one, which biases the result. */
+.hubmsg-poll { display: flex; flex-direction: column; gap: 9px; margin-top: 20px; }
+.hubmsg-poll .hubmsg-btn { width: 100%; height: 46px; font-size: 0.92rem; font-weight: 600; }
+.hubmsg-btn {
+  appearance: none; border: 0; cursor: pointer; font-family: inherit;
+  border-radius: 14px; font-weight: 700; letter-spacing: -0.01em;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  transition: transform 0.12s ease, filter 0.18s ease, background 0.15s ease;
+}
+.hubmsg-btn:active { transform: translateY(1px) scale(0.995); }
+.hubmsg-btn.primary {
+  height: 48px; font-size: 0.96rem; color: var(--accent-ink, #06210f);
+  background: rgba(var(--accent-rgb, 30, 215, 96), 1);
+}
+.hubmsg-btn.primary:hover { filter: brightness(1.06); }
+.hubmsg-btn.ghost {
+  height: 42px; font-size: 0.88rem; font-weight: 600; color: var(--text, #e7e9ee);
+  background: transparent; border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.16));
+}
+.hubmsg-btn.ghost:hover { background: rgba(255, 255, 255, 0.06); }
+
+/* The opt-out is plain and always present — never a hidden setting. */
+.hubmsg-optout {
+  margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--glass-border, rgba(255, 255, 255, 0.09));
+  background: none; border-left: 0; border-right: 0; border-bottom: 0; cursor: pointer; font-family: inherit;
+  color: var(--text-dim, #8b91a1); font-size: 0.8rem; font-weight: 600; text-align: center;
+}
+.hubmsg-optout:hover { color: var(--text-soft, #c3c8d2); }
+
+@media (max-width: 460px) { .hubmsg-card { width: 100%; } }
+@media (prefers-reduced-motion: reduce) {
+  .hubmsg-overlay, .hubmsg-card { animation: none; }
+  .hubmsg-btn { transition: none; }
 }

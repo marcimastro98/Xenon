@@ -1239,6 +1239,27 @@
             <span class="settings-hint" data-i18n="settings_version_ping_hint">aggiunge solo versione e sistema operativo al controllo aggiornamenti già in corso: niente identificatori, nessuna richiesta in più</span>
           </span>
         </label>
+        <label class="settings-toggle-row full">
+          <input class="settings-check" id="settings-hub-messages" type="checkbox" onchange="updateHubMessages(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_hub_messages">Annunci e novità</span>
+            <span class="settings-hint" data-i18n="settings_hub_messages_hint">una breve nota quando esce una versione o arriva qualcosa di nuovo nello Store, al massimo una volta al giorno</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full">
+          <input class="settings-check" id="settings-catalog-stats" type="checkbox" onchange="updateCatalogStats(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_catalog_stats">Conta le installazioni dallo Store, in forma anonima</span>
+            <span class="settings-hint" data-i18n="settings_catalog_stats_hint">quando installi qualcosa dallo Store, aggiunge 1 al contatore di quella creazione: nessun identificatore, così l'autore vede quanto è usata la sua opera</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full">
+          <input class="settings-check" id="settings-catalog-drops" type="checkbox" onchange="updateCatalogDrops(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_catalog_drops">Segnala nuove edizioni limitate e contenuti per sostenitori</span>
+            <span class="settings-hint" data-i18n="settings_catalog_drops_hint">la scheda che compare quando esce una copia numerata o un pacchetto per sostenitori</span>
+          </span>
+        </label>
       </div>
 
       <div class="settings-group settings-behavior-group" data-settings-cat="general">
@@ -3389,6 +3410,9 @@
 <script src="js/color-picker.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/toast.js"></script>
+<!-- Interrupt arbiter: owns busy()/whenIdle()/the daily budget for every modal
+     channel. Must load before any channel that waits its turn (catalog-drop). -->
+<script src="js/interrupt-queue.js"></script>
 <script src="js/state.js"></script>
 <script src="js/status.js"></script>
 <script src="js/i18n.js"></script>
@@ -3486,6 +3510,10 @@
 <script src="js/installed-manager.js"></script>
 <script src="js/community-gallery.js"></script>
 <script src="js/catalog-drop.js"></script>
+<!-- Announcement feed: hub-match.js is the pure targeting filter (unit tested),
+     hub-messages.js the surface that renders what survives it. -->
+<script src="js/hub-match.js"></script>
+<script src="js/hub-messages.js"></script>
 <script src="js/update.js"></script>
 <script src="js/main.js"></script>
 

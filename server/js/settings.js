@@ -302,6 +302,14 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // users read "off unless you turn it on" and left it alone, which is a choice.
   // Do not "simplify" that test to `!== false`: it would flip exactly those people.
   versionPing: true,
+  // Announcements and the paid-drop card. ON by default, and normalized with
+  // `!== false` — the opposite of versionPing above, deliberately: this is a
+  // preference about being interrupted, not a data opt-in.
+  hubMessages: true,
+  catalogDrops: true,
+  // `=== true` like versionPing, not `!== false`: a new outbound report starts
+  // on for fresh installs only, never switched on under an existing user.
+  catalogStats: true,
   // Opt-in ad-blocker for the Browser tile (Settings → Browser). OFF by default.
   browserAdblock: false,
   // Stock-market (Borsa) widget + ticker. Keys are server-only (redacted); the
@@ -1282,6 +1290,9 @@ function normalizeSettings(source) {
     tempUnit: value.tempUnit === 'f' ? 'f' : 'c',
     autoOpenBrowser: value.autoOpenBrowser !== false,
     versionPing: value.versionPing === true,
+    hubMessages: value.hubMessages !== false,
+    catalogDrops: value.catalogDrops !== false,
+    catalogStats: value.catalogStats === true,
     browserAdblock: value.browserAdblock === true,
     dashboardLayout: resetLayout
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
@@ -3876,6 +3887,12 @@ function syncSettingsControls() {
   }
   const versionPing = $('settings-version-ping');
   if (versionPing) versionPing.checked = hubSettings.versionPing === true;
+  const hubMsg = $('settings-hub-messages');
+  if (hubMsg) hubMsg.checked = hubSettings.hubMessages !== false;
+  const catDrops = $('settings-catalog-drops');
+  if (catDrops) catDrops.checked = hubSettings.catalogDrops !== false;
+  const catStats = $('settings-catalog-stats');
+  if (catStats) catStats.checked = hubSettings.catalogStats === true;
 
   const rangeMap = [
     ['settings-panel-alpha', String(hubSettings.panelAlpha)],
@@ -6486,6 +6503,29 @@ function updateVersionPing(checked) {
   saveHubSettings();
   syncSettingsControls();
 }
+
+// Announcements / paid-drop card. Both were localStorage-only before v4.9.0, so
+// turning one back ON here must also clear the legacy per-device flag — otherwise
+// a user who once pressed "don't show me these again" would flip the switch and
+// see nothing change, because the old flag still muted that surface. Turning OFF
+// writes only the setting: it syncs to every surface on its own.
+const LEGACY_MUTE_KEYS = { hubMessages: 'xeneonedge.hubMessagesMuted', catalogDrops: 'xeneonedge.catalogDropsMuted' };
+
+function updateAnnouncementPref(key, checked) {
+  const on = checked === true;
+  if (on) { try { localStorage.removeItem(LEGACY_MUTE_KEYS[key]); } catch { /* ignore */ } }
+  hubSettings = normalizeSettings({ ...hubSettings, [key]: on });
+  saveHubSettings();
+  syncSettingsControls();
+}
+function updateHubMessages(checked) { updateAnnouncementPref('hubMessages', checked); }
+// No legacy flag to clear for this one — it never lived in localStorage.
+function updateCatalogStats(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, catalogStats: checked === true });
+  saveHubSettings();
+  syncSettingsControls();
+}
+function updateCatalogDrops(checked) { updateAnnouncementPref('catalogDrops', checked); }
 
 // Brings the real scheduled task in line with the user's saved intent — but
 // only from a standalone browser, never from the Edge iframe. So a pure-Edge
