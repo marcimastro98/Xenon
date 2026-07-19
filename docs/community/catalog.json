@@ -643,8 +643,8 @@
       "id": "nocturne-pack",
       "kind": "bundle",
       "name": "Nocturne Pack",
-      "author": "Xenon",
-      "authorSupporter": false,
+      "author": "xenon",
+      "authorSupporter": true,
       "perfWarning": true,
       "description": "The whole Nocturne look in one install: the theme with its drifting backdrop, the now-playing widget, the ambient clock scene, the Deck profile and the desk page.",
       "category": "style",
@@ -655,9 +655,15 @@
         "dark"
       ],
       "appVersionMin": "4.4.0",
-      "addedAt": "2026-07-10",
       "shots": 1,
-      "codeFile": true
+      "addedAt": "2026-07-19",
+      "codeFile": true,
+      "preview": {
+        "accent": "#5cc9a7",
+        "bg": "#0b0f14",
+        "text": "#e6ecea"
+      },
+      "updatedAt": "2026-07-19"
     },
     {
       "id": "tranquility",
