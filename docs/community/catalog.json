@@ -89,6 +89,7 @@
       "name": "Keyring",
       "author": "xenon",
       "authorSupporter": true,
+      "perfWarning": true,
       "description": "Encrypted 2FA codes and passwords in one place. Codes stay on screen by your keyboard with a countdown ring; the code for a focused desktop app floats to the top. Copying a password needs a tap you confirm. Everything is encrypted on this PC, with no cloud and no recovery.",
       "category": "tools",
       "tags": [
@@ -107,9 +108,9 @@
         "text": "#eef2f0"
       },
       "shots": 4,
-      "addedAt": "2026-07-18",
+      "addedAt": "2026-07-19",
       "codeFile": true,
-      "updatedAt": "2026-07-18"
+      "updatedAt": "2026-07-19"
     },
     {
       "id": "thermal-card",
