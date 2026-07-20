@@ -121,8 +121,8 @@ function stripChatClone(clone) {
     .forEach(el => el.remove());
 }
 // An Agenda clone strips singleton sub-widget controls (task add-row, timer
-// add-section) so the copy doesn't show broken form inputs. The sub-tab toggle
-// bar is kept for visual fidelity but becomes inert once IDs are stripped.
+// add-section) so the copy doesn't show broken form inputs, then re-wires its
+// sub-tab bar the same way a System copy gets one.
 // Sub-pane content (events, tasks, notes, timers) is a snapshot of the hub state
 // at clone time: panes emptied by an extracted sub-widget show as empty in both
 // the original and its copy — this is expected with a single-content model.
@@ -133,6 +133,50 @@ function stripAgendaClone(clone) {
   if (ctrlRow) ctrlRow.remove();
   const timerAdd = clone.querySelector('.timer-add-section');
   if (timerAdd) timerAdd.remove();
+  wireAgendaCloneTabs(clone);
+}
+
+// Bind Calendario/Task/Timer/Appunti switching inside one cloned Agenda tile.
+// The bar used to be left with its stock inline onclick, which resolves panes
+// and buttons through getElementById — and stripCloneFor removes every id from a
+// copy, so those lookups landed on the PRIMARY tile instead. Clicking a tab on a
+// copy silently switched an Agenda that was off screen (pooled, or on another
+// page) and persisted the choice, so the copy only ever caught up on the next
+// reload, when it is re-cloned from the primary. Match panes by data-calpane,
+// exactly as wireSystemCloneTabs matches by class.
+function wireAgendaCloneTabs(clone) {
+  const tabs = Array.from(clone.querySelectorAll('.cal-task-btn'));
+  const panes = new Map();
+  clone.querySelectorAll('.cal-pane').forEach(p => {
+    if (p.dataset.calpane) panes.set(p.dataset.calpane, p);
+  });
+  if (!tabs.length || !panes.size) return;
+  const setTab = (name) => {
+    if (!panes.has(name)) return;
+    panes.forEach((pane, key) => { pane.hidden = key !== name; });
+    tabs.forEach(b => {
+      const active = b.dataset.caltab === name;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-selected', String(active));
+    });
+  };
+  tabs.forEach(b => {
+    b.removeAttribute('onclick'); // stock handler targets the primary tile by id
+    const name = b.dataset.caltab;
+    if (!panes.has(name)) { b.remove(); return; }
+    b.addEventListener('click', () => setTab(name));
+  });
+  // Tabs inherit the primary's hidden state, so a copy made while Task/Timer/
+  // Appunti are extracted would show a bar holding only "Calendario". Queried
+  // off the bar (not the captured `tabs`) because the clone is still detached
+  // here, so the removals above are only visible through the subtree.
+  const bar = clone.querySelector('.cal-task-toggle');
+  const visible = bar ? Array.from(bar.querySelectorAll('.cal-task-btn')).filter(b => !b.hidden) : [];
+  if (bar && visible.length <= 1) bar.style.display = 'none';
+  // Seed from the state the clone inherited. An extracted (hidden) active tab
+  // falls back to the first tab still in the bar, never a blank pane.
+  const seed = visible.find(b => b.classList.contains('active')) || visible[0];
+  if (seed) setTab(seed.dataset.caltab);
 }
 // Calendar and Notes clones need no special stripping: calendar nav uses inline
 // onclick globals, notes has no add-row.
@@ -1881,7 +1925,11 @@ function applyDashboardCalendarTabs(layout) {
   const inHub = ['calendar', 'tasks', 'timer', 'notes']
     .filter(id => !(layout.widgets[id] && layout.widgets[id].visible));
   // With one or zero items left in the hub, the tab bar is pointless — hide it.
-  const toggleBar = document.querySelector('.cal-task-toggle');
+  // Scoped like switchCalendarTaskView: a bare document query can land on an
+  // agenda parked in the hidden pool during a pager rebuild, which would style a
+  // bar nobody sees and leave the visible one untouched.
+  const agendaScope = (typeof agendaScopeFor === 'function') ? agendaScopeFor(null) : document;
+  const toggleBar = agendaScope.querySelector('.cal-task-toggle');
   if (toggleBar) toggleBar.style.display = inHub.length <= 1 ? 'none' : '';
   const active = layout.calendarTabs.active;
   const target = inHub.includes(active) ? active : (inHub[0] || null);

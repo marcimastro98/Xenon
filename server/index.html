@@ -283,25 +283,25 @@
         </div>
 
         <div class="cal-task-toggle" role="tablist">
-          <button class="cal-task-btn active" id="toggle-cal" role="tab" aria-selected="true" onclick="switchCalendarTaskView('calendar')">
+          <button class="cal-task-btn active" id="toggle-cal" data-caltab="calendar" role="tab" aria-selected="true" onclick="switchCalendarTaskView('calendar', { from: this })">
             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
             <span data-i18n="calendar">Calendario</span>
           </button>
-          <button class="cal-task-btn" id="toggle-tasks" role="tab" aria-selected="false" onclick="switchCalendarTaskView('tasks')">
+          <button class="cal-task-btn" id="toggle-tasks" data-caltab="tasks" role="tab" aria-selected="false" onclick="switchCalendarTaskView('tasks', { from: this })">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9,11 12,14 22,4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
             <span data-i18n="tasks_title">Task</span>
           </button>
-          <button class="cal-task-btn" id="toggle-timer" role="tab" aria-selected="false" onclick="switchCalendarTaskView('timer')">
+          <button class="cal-task-btn" id="toggle-timer" data-caltab="timer" role="tab" aria-selected="false" onclick="switchCalendarTaskView('timer', { from: this })">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2"/><path d="M9 3h6M12 3v2"/></svg>
             <span data-i18n="timer_title">Timer</span>
           </button>
-          <button class="cal-task-btn" id="toggle-notes" role="tab" aria-selected="false" onclick="switchCalendarTaskView('notes')">
+          <button class="cal-task-btn" id="toggle-notes" data-caltab="notes" role="tab" aria-selected="false" onclick="switchCalendarTaskView('notes', { from: this })">
             <svg viewBox="0 0 24 24"><path d="M5 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.83a2 2 0 0 0-.59-1.42l-3.83-3.83A2 2 0 0 0 15.17 3H5Zm2 4h6v2H7V7Zm0 4h10v2H7v-2Zm0 4h10v2H7v-2Z"/></svg>
             <span data-i18n="notes_title">Appunti</span>
           </button>
         </div>
 
-        <div class="cal-pane" id="cal-pane-calendar">
+        <div class="cal-pane" id="cal-pane-calendar" data-calpane="calendar">
           <div class="calendar-card">
             <div class="calendar-nav">
               <div class="calendar-month" id="calendar-month" data-calf="month">--</div>
@@ -320,7 +320,7 @@
           </div>
         </div>
 
-        <div class="cal-pane" id="cal-pane-tasks" hidden>
+        <div class="cal-pane" id="cal-pane-tasks" data-calpane="tasks" hidden>
           <div class="tasks-add-row">
             <input class="tasks-new-input" id="tasks-new-input" type="text" maxlength="200"
               data-i18n-placeholder="tasks_placeholder" placeholder="Nuovo task…"
@@ -360,7 +360,7 @@
           </div>
         </div>
 
-        <div class="cal-pane" id="cal-pane-timer" hidden>
+        <div class="cal-pane" id="cal-pane-timer" data-calpane="timer" hidden>
           <div class="timer-add-section">
             <div class="timer-add-row">
               <input class="timer-add-label-input" id="timer-label-input" type="text" maxlength="40"
@@ -375,7 +375,7 @@
           </div>
           <div class="timer-list" id="timer-list" data-timerf="list"></div>
         </div>
-        <div class="cal-pane" id="cal-pane-notes" hidden>
+        <div class="cal-pane" id="cal-pane-notes" data-calpane="notes" hidden>
           <!-- Multi-note UI is rendered here by notes.js (renderNotes). The same
                [data-notesf="root"] block moves to the standalone panel when the
                notes widget is extracted, and is duplicated for mirror copies. -->
