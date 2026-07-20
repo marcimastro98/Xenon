@@ -32,7 +32,11 @@ const SDK_API_VERSION = 1;
 // Fan RPM and power draw need no stream of their own: they ride the `system`
 // payload (fans / power / sensorAccess). `battery` is separate because wireless
 // peripheral levels move slowly and broadcast on their own 90s tick.
-const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'tasks', 'notes', 'agenda', 'weather', 'battery']);
+// `audioLevels` is the only high-rate stream here (~12/s vs the 8s `audio` tick).
+// It carries nothing `audio` does not already expose about WHICH apps exist — only
+// how loud each one currently is — so it is no wider a permission, but a widget
+// that takes it should expect to be re-rendered continuously.
+const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'audioLevels', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'tasks', 'notes', 'agenda', 'weather', 'battery']);
 
 // Action categories a package may request → the deck-action types each grants.
 // Deliberately a small, low-blast-radius subset of the action registry; every
@@ -40,6 +44,11 @@ const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'waveli
 const SDK_ACTION_CATEGORIES = Object.freeze({
   media: Object.freeze(['media']),
   volume: Object.freeze(['volume', 'appVolume', 'appMute']),
+  // Deliberately separate from `volume`: packages already granted `volume` were
+  // approved for "raise and lower", and folding device switching in would widen
+  // that grant retroactively, with no prompt. Server-side the id is checked
+  // against the live OUTPUT enumeration only — see the audioDevice dep.
+  audioDevice: Object.freeze(['audioDevice']),
   mic: Object.freeze(['micMute']),
   lighting: Object.freeze(['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice']),
   chroma: Object.freeze(['chromaColor', 'chromaOff']),

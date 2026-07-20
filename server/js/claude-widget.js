@@ -92,7 +92,28 @@
 
   function live() { return (payload && payload.live) || null; }
   function limits() { const l = live(); return (l && l.limits) || null; }
-  function approvals() { const l = live(); return (l && l.approvals) || []; }
+
+  // ── what this widget is allowed to put in front of you ─────────────────────
+  // Both surfaces below appear OUTSIDE the tile — the approval cards escalate to
+  // a fullscreen overlay and the topbar marker sits in the clock island — so they
+  // show up even when the widget isn't on the current page. That is deliberate
+  // (a blocked tool call must stay answerable), but it has to be the user's
+  // choice, so each is a switch in Settings → Claude Code. Defaults stay on.
+  function cfg() {
+    return (typeof hubSettings === 'object' && hubSettings && hubSettings.claudeWidget) || null;
+  }
+  function approvalsOn() { const c = cfg(); return !c || c.approvals !== false; }
+  function topbarOn() { const c = cfg(); return !c || c.topbar !== false; }
+
+  // With approvals off there is nothing to show, nothing to escalate and nothing
+  // for the topbar to call urgent — one gate covers all three. The server also
+  // answers the hook immediately in that case, so the prompt is already back in
+  // the terminal by the time this runs.
+  function approvals() {
+    if (!approvalsOn()) return [];
+    const l = live();
+    return (l && l.approvals) || [];
+  }
 
   // Bridge sessions when Claude Code is linked (exact state), transcript-derived
   // sessions otherwise (recency heuristic). Never both — mixing an exact list
@@ -235,10 +256,11 @@
     return f ? f() : (tool || 'tool');
   }
 
-  // AskUserQuestion is a different animal: approving it does not answer it, it
-  // only lets Claude put the question on screen — and the screen is the
-  // terminal, because a hook cannot supply a tool's result. So the card shows
-  // the question and the options for real, and says plainly where to answer.
+  // AskUserQuestion is not a permission and is no longer treated as one: the
+  // server answers it immediately so Claude's own prompt reaches the terminal,
+  // and this card is only a heads-up that you are being asked something. It
+  // shows the question and the options for real, and says where to answer —
+  // here it cannot be answered, because a hook cannot supply a tool's result.
   function questionBody(a) {
     const wrap = el('div', 'cw-appr-qs');
     a.questions.forEach((q) => {
@@ -258,7 +280,7 @@
       wrap.appendChild(box);
     });
     wrap.appendChild(el('div', 'cw-appr-qnote',
-      t('claude_ask_answer_where', 'Approve to let Claude ask. The answer is given in the terminal.')));
+      t('claude_ask_answer_where', 'Answer in the terminal — Claude is waiting for you there.')));
     return wrap;
   }
 
@@ -279,25 +301,44 @@
     head.appendChild(left);
     card.appendChild(head);
 
+    // Everything between the header and the buttons goes in one scrollable box.
+    // Without it a card taller than the tile (or than a short display, for the
+    // fullscreen one) was simply cut off — and what got cut was the bottom,
+    // which is where Allow and Deny live. Now the card can only ever lose the
+    // MIDDLE, which scrolls, and the two things you must be able to see — what
+    // is being asked and the buttons that answer it — always stay on screen.
+    const body = el('div', 'cw-appr-body');
     const intent = el('div', 'cw-appr-tool', toolIntent(a.tool));
     intent.appendChild(el('span', 'cw-appr-toolname', a.tool || ''));
-    card.appendChild(intent);
+    body.appendChild(intent);
 
-    if (isAsk) card.appendChild(questionBody(a));
-    else if (a.detail) card.appendChild(el('div', 'cw-appr-detail', a.detail));
+    if (isAsk) body.appendChild(questionBody(a));
+    else if (a.detail) body.appendChild(el('div', 'cw-appr-detail', a.detail));
+    card.appendChild(body);
 
     const busy = deciding.has(a.id);
     const acts = el('div', 'cw-appr-acts');
-    const allow = el('button', 'cw-appr-allow'); allow.type = 'button';
-    allow.textContent = isAsk ? t('claude_ask_show', 'Ask me') : t('claude_allow', 'Allow');
-    allow.disabled = busy;
-    allow.addEventListener('click', () => decide(a.id, 'allow'));
-    const deny = el('button', 'cw-appr-deny'); deny.type = 'button';
-    deny.textContent = t('claude_deny', 'Deny');
-    deny.disabled = busy;
-    deny.addEventListener('click', () => decide(a.id, 'deny'));
-    acts.appendChild(allow);
-    acts.appendChild(deny);
+    // A notice settles nothing, so it gets one button that means "seen" and no
+    // Allow/Deny pair — offering a choice over something already decided is how
+    // the old card got read as "tap to answer the question", which it never was.
+    if (a.notice) {
+      const ok = el('button', 'cw-appr-ok'); ok.type = 'button';
+      ok.textContent = t('claude_ask_dismiss', 'Got it');
+      ok.disabled = busy;
+      ok.addEventListener('click', () => decide(a.id, 'allow'));
+      acts.appendChild(ok);
+    } else {
+      const allow = el('button', 'cw-appr-allow'); allow.type = 'button';
+      allow.textContent = t('claude_allow', 'Allow');
+      allow.disabled = busy;
+      allow.addEventListener('click', () => decide(a.id, 'allow'));
+      const deny = el('button', 'cw-appr-deny'); deny.type = 'button';
+      deny.textContent = t('claude_deny', 'Deny');
+      deny.disabled = busy;
+      deny.addEventListener('click', () => decide(a.id, 'deny'));
+      acts.appendChild(allow);
+      acts.appendChild(deny);
+    }
     card.appendChild(acts);
     return card;
   }
@@ -1527,6 +1568,14 @@
   function syncTopbar() {
     const host = document.getElementById('clock-claude');
     if (!host) return;
+    // Switched off in Settings → the island gets its space back and stays that
+    // way. The signature is cleared too, so re-enabling redraws immediately
+    // instead of matching a stale one and staying blank.
+    if (!topbarOn()) {
+      if (!host.hidden) { host.hidden = true; host.replaceChildren(); }
+      topbarSig = '';
+      return;
+    }
     const list = sessions();
     const working = list.filter(s => s.state === 'running').length;
     const done = otherNotices().length ? doneNotices.length : 0;
@@ -1584,5 +1633,16 @@
     paint();
   }
 
-  window.ClaudeWidget = { renderWidgets, onSSE };
+  // Either switch was flipped in Settings. Both surfaces are redrawn from the
+  // payload already in hand — an approval that is still pending server-side
+  // reappears the moment cards are turned back on, without waiting for the next
+  // SSE push.
+  function onSettingsChanged() {
+    if (!approvalsOn()) closeOverlay();
+    topbarSig = '';
+    syncTopbar();
+    paint();
+  }
+
+  window.ClaudeWidget = { renderWidgets, onSSE, onSettingsChanged };
 })();

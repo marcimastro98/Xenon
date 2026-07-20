@@ -801,6 +801,46 @@ function swapKeysAt(config, nav, indexA, indexB) {
   return normalizeDeckConfig(cfg);
 }
 
+// Resolve a cross-page move to { folder, sourcePage, targetSlot }, or null when it
+// cannot happen: no key in the source slot, target page missing or the same one, or
+// the target page already full. Shared by canMoveKeyToPage and moveKeyToPage so the
+// answer the view offers and the mutation it triggers can never disagree.
+// A full target page is REFUSED rather than grown: appending past the page's slots
+// would make normalizeProfile grow the shape to fit, silently reshaping every page
+// of the profile (a 3x2 deck becomes 3x3) to accommodate one dropped key.
+function planPageMove(cfg, nav, slotIndex, targetPageIndex) {
+  const folder = folderAtPath(cfg, (nav && nav.profileId) || cfg.activeProfile, nav && nav.path);
+  const sourcePage = clampInt(nav && nav.pageIndex, 0, folder.pages.length - 1, 0);
+  if (!Number.isInteger(targetPageIndex) || targetPageIndex < 0 || targetPageIndex >= folder.pages.length) return null;
+  if (targetPageIndex === sourcePage) return null;
+  const keys = folder.pages[sourcePage].keys;
+  if (!(slotIndex >= 0 && slotIndex < keys.length) || !keys[slotIndex]) return null;
+  const targetSlot = folder.pages[targetPageIndex].keys.indexOf(null);
+  if (targetSlot < 0) return null;
+  return { folder, sourcePage, targetSlot };
+}
+
+// Whether dragging the key at slotIndex onto targetPageIndex would move it. The
+// view asks BEFORE offering the drop, so a page with no room never lights up as a
+// target and the drag falls back to a plain in-page reorder.
+function canMoveKeyToPage(config, nav, slotIndex, targetPageIndex) {
+  return planPageMove(normalizeDeckConfig(config), nav, slotIndex, targetPageIndex) != null;
+}
+
+// Move the key at slotIndex to the first free slot of another page in the same
+// folder (edit-mode drag onto a pager arrow). No-op when the move is refused —
+// see planPageMove. Returns a NEW normalized config; the input is not mutated.
+function moveKeyToPage(config, nav, slotIndex, targetPageIndex) {
+  const cfg = cloneConfig(normalizeDeckConfig(config));
+  const plan = planPageMove(cfg, nav, slotIndex, targetPageIndex);
+  if (plan) {
+    const source = plan.folder.pages[plan.sourcePage].keys;
+    plan.folder.pages[targetPageIndex].keys[plan.targetSlot] = source[slotIndex];
+    source[slotIndex] = null;
+  }
+  return normalizeDeckConfig(cfg);
+}
+
 // Append an empty page to the resolved folder, sized to the OWNING profile's
 // grid. Returns a NEW normalized config.
 function addPageAt(config, nav) {
@@ -1066,7 +1106,7 @@ function evaluateKeyState(state, snapshot) {
   }
 }
 
-const DECK_MODEL_API = { normalizeDeckConfig, normalizeDeckWellImage, normalizeDeckMediaStyle, normalizeDeckLook, effectiveDeckLook, setProfileLook, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, gridOf, reshapeDeckConfig, fitDeckGrids, foldDeckGrids, swapKeysAt, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, DECK_SENSOR_METRICS, SLIDER_TARGETS, formatLiveValue, timersByLabel, sensorsFromSystem, batteriesByName, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
+const DECK_MODEL_API = { normalizeDeckConfig, normalizeDeckWellImage, normalizeDeckMediaStyle, normalizeDeckLook, effectiveDeckLook, setProfileLook, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, gridOf, reshapeDeckConfig, fitDeckGrids, foldDeckGrids, swapKeysAt, canMoveKeyToPage, moveKeyToPage, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, DECK_SENSOR_METRICS, SLIDER_TARGETS, formatLiveValue, timersByLabel, sensorsFromSystem, batteriesByName, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
 if (typeof window !== 'undefined') {
   window.DeckModel = DECK_MODEL_API;
 }

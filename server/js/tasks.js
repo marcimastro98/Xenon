@@ -384,6 +384,11 @@ function switchCalendarTaskView(view, { persist = true } = {}) {
     notes:    document.getElementById('toggle-notes'),
   };
 
+  // An extracted view moved its content into a standalone tile and hid its tab
+  // button; showing its now-empty hub pane would be a blank panel. Fall back to
+  // the calendar, which is always in the hub.
+  if (btns[view] && btns[view].hidden) view = 'calendar';
+
   // Hide all panes, then show the active one
   for (const [key, pane] of Object.entries(panes)) {
     if (!pane) continue;

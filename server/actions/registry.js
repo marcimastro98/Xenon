@@ -295,6 +295,16 @@ function createRegistry(deps) {
           const r = await d.appMute(app, action.mode);
           return r && r.ok === false ? { ok: false, error: r.error || 'app_mute_failed' } : { ok: true };
         }
+        case 'audioDevice': {
+          // Only shape-checked here: the id is meaningless without the live
+          // device list, so the authority check (must be a CURRENT output
+          // device) lives in the dep, next to the enumeration it compares to.
+          if (typeof d.audioDevice !== 'function') return { ok: false, error: 'unavailable' };
+          const device = String(action.device || '').trim();
+          if (!device || device.length > 260) return { ok: false, error: 'no_device' };
+          const r = await d.audioDevice(device);
+          return r && r.ok === false ? { ok: false, error: r.error || 'audio_device_failed' } : { ok: true };
+        }
         case 'obsSceneNext': {
           if (typeof d.obsNext !== 'function') return { ok: false, error: 'obs_unavailable' };
           await d.obsNext();
@@ -572,4 +582,18 @@ function createRegistry(deps) {
   return { run };
 }
 
-module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys };
+// Resolve an output-device id against a LIVE enumeration. Pure and exported so
+// the check that makes `audioDevice` safe is unit-tested rather than trusted:
+// SoundVolumeView's /SetDefault accepts render and capture ids from one
+// namespace, so accepting an unmatched string would let a caller change the
+// default MICROPHONE. Only entries present in the `speakers` (render) list are
+// resolvable — an id that is merely well-formed, or that names a capture
+// device, has no match and cannot be used.
+function resolveOutputDevice(id, speakers) {
+  const wanted = String(id == null ? '' : id).trim();
+  if (!wanted) return null;
+  const list = Array.isArray(speakers) ? speakers : [];
+  return list.find((s) => s && typeof s.id === 'string' && s.id === wanted) || null;
+}
+
+module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys, resolveOutputDevice };

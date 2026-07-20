@@ -1,5 +1,24 @@
 'use strict';
 
+// The tab bar of the PRIMARY System tile. Duplicated tiles carry their own bar
+// with the ids stripped (see wireSystemCloneTabs), so anchoring on the id-bearing
+// History button keeps a clone from being mistaken for the original.
+function primarySystemTabBar() {
+  const anchor = document.getElementById('sys-tab-history');
+  return (anchor && anchor.closest('.system-tabs-left')) || document.querySelector('.system-tabs-left');
+}
+
+// A one-tab bar is just a decorative pill, so hide it. Which tabs exist is
+// decided elsewhere and can change at any time (Volume/Microfono hide when
+// extracted, History appears with sensor history), so count what is actually
+// shown rather than re-deriving the rules here.
+function syncSystemTabBar() {
+  const bar = primarySystemTabBar();
+  if (!bar) return;
+  const shown = Array.from(bar.querySelectorAll('.sys-tab')).filter(b => !b.hidden).length;
+  bar.style.display = shown <= 1 ? 'none' : '';
+}
+
 function setSystemTab(name, options = {}) {
   // System & Network are merged into one "Sistema" view; map any legacy 'net'.
   if (name === 'net') name = 'main';
@@ -9,6 +28,15 @@ function setSystemTab(name, options = {}) {
   // when it's off, so the tile never lands on a hidden pane.
   if (name === 'history' && !(typeof window.systemHistoryAvailable === 'function' && window.systemHistoryAvailable())) {
     name = 'main';
+  }
+  // Volume/Microfono move their content into a standalone tile when extracted,
+  // leaving an empty hub pane; their tab button is hidden then. Honour that here
+  // too, so a persisted selection or a programmatic/keyboard path can't land the
+  // tile on a blank pane.
+  if (name === 'volume' || name === 'mic') {
+    const bar = primarySystemTabBar();
+    const extractedTab = bar && bar.querySelector(`.sys-tab[data-systab="${name}"]`);
+    if (extractedTab && extractedTab.hidden) name = 'main';
   }
   currentSysTab = name;
   document.querySelectorAll('.sys-tab').forEach(b => {

@@ -43,6 +43,10 @@ const APPROVAL_TTL_MS = 9 * 60 * 1000;
 // An unanswered request older than this escalates from the tile to a fullscreen
 // overlay: at that point the user plainly hasn't noticed the tile.
 const URGENT_AFTER_MS = 25 * 1000;
+// A question NOTICE is not a permission and nobody is blocked on it, so it does
+// not get the full approval window — it is just a heads-up that self-clears if
+// the user answered in the terminal and never dismissed the card.
+const NOTICE_TTL_MS = 3 * 60 * 1000;
 
 const MAX_SESSIONS = 20;      // bounds the live list (and therefore the payload)
 const MAX_PENDING = 8;        // bounds concurrent approvals
@@ -346,6 +350,58 @@ function createBridge(opts) {
     return { id, promise };
   }
 
+  // AskUserQuestion, shown but never blocked on.
+  //
+  // It is the one tool that cannot touch anything: it asks, and that is all. So
+  // a permission prompt over it was a trap in both directions. Approving only
+  // meant "put the question in the terminal" — the card could show the question
+  // but never take the answer, because a hook cannot supply a tool's result —
+  // and denying silently destroyed a question the user then never saw anywhere,
+  // leaving Claude to guess at exactly the point it had decided to ask.
+  //
+  // The caller answers "no decision" immediately instead, which is already the
+  // path that routes the prompt to Claude Code's own terminal UI. This leaves a
+  // card behind purely as a heads-up, so someone at the display still learns
+  // they are being asked something and where to answer. It resolves nothing and
+  // holds no response open: dismissing it is housekeeping, not a decision.
+  function postQuestion(data) {
+    const d = (data && typeof data === 'object') ? data : {};
+    const questions = describeQuestions(d.tool_input);
+    if (!questions) return null;                   // nothing readable to show
+    if (pending.size >= MAX_PENDING) return null;
+
+    const sessionId = str(d.session_id, 80);
+    const s = sessions.get(sessionId);
+    const id = 'q' + (++seq) + '-' + now().toString(36);
+    const createdAt = now();
+    const rec = {
+      id,
+      sessionId,
+      project: (s && s.project) || projectName(d.cwd),
+      tool: 'AskUserQuestion',
+      detail: '',
+      questions,
+      task: (s && s.task) || '',
+      model: (s && s.model) || '',
+      createdAt,
+      expiresAt: createdAt + NOTICE_TTL_MS,
+      urgentAt: Infinity,          // never hijacks the display: nothing is blocked
+      notice: true,
+      resolve: null,
+      timer: null,
+    };
+    rec.timer = setTimeout(() => {
+      if (pending.get(id) !== rec) return;
+      pending.delete(id);
+      emit();
+    }, NOTICE_TTL_MS);
+    if (typeof rec.timer.unref === 'function') rec.timer.unref();
+
+    pending.set(id, rec);
+    emit();
+    return id;
+  }
+
   // The user tapped. Returns true when this actually settled a live request —
   // a stale tap (already expired, or answered on another surface) returns false
   // so the caller can tell the surface its decision arrived too late.
@@ -356,6 +412,10 @@ function createBridge(opts) {
     pending.delete(rec.id);
     if (rec.timer) clearTimeout(rec.timer);
     const s = sessions.get(rec.sessionId);
+    // A notice blocks nothing, so a tap on it is a dismissal and must NOT touch
+    // the session state: the session is still legitimately waiting on the user,
+    // in the terminal, and marking it 'running' would show it as unblocked.
+    if (rec.notice) { emit(); return true; }
     if (s) { s.state = 'running'; s.lastAt = now(); }
     rec.resolve(verdict);
     emit();
@@ -372,7 +432,7 @@ function createBridge(opts) {
     if (rec.timer) clearTimeout(rec.timer);
     const s = sessions.get(rec.sessionId);
     if (s) s.state = 'running';
-    rec.resolve('timeout');
+    if (rec.resolve) rec.resolve('timeout');   // a notice has nobody waiting
     emit();
     return true;
   }
@@ -419,6 +479,7 @@ function createBridge(opts) {
         waitedMs: t - p.createdAt,
         expiresInMs: Math.max(0, p.expiresAt - t),
         urgent: t >= p.urgentAt,
+        notice: !!p.notice,
       }));
 
     return {
@@ -448,7 +509,7 @@ function createBridge(opts) {
   function stop() {
     for (const [, rec] of pending) {
       if (rec.timer) clearTimeout(rec.timer);
-      rec.resolve('timeout');
+      if (rec.resolve) rec.resolve('timeout');   // a notice has nobody waiting
     }
     pending.clear();
     sessions.clear();
@@ -464,7 +525,7 @@ function createBridge(opts) {
     return (s && s.cwd) || '';
   }
 
-  return { applyStatus, applyHook, requestPermission, decide, cancel, snapshot, stop, cwdFor,
+  return { applyStatus, applyHook, requestPermission, postQuestion, decide, cancel, snapshot, stop, cwdFor,
     get pendingCount() { return pending.size; } };
 }
 
@@ -475,6 +536,7 @@ module.exports = {
   isInjectedPrompt,
   APPROVAL_TTL_MS,
   URGENT_AFTER_MS,
+  NOTICE_TTL_MS,
   SESSION_STALE_MS,
   SESSION_RESTING_MS,
 };

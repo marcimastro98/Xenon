@@ -378,9 +378,17 @@ function renderStatSpark(fillEl, value) {
     svg.setAttribute('class', 'stat-spark');
     svg.setAttribute('viewBox', '0 0 100 30');
     svg.setAttribute('preserveAspectRatio', 'none');
+    // Two stacked strokes, not one stroke plus a drop-shadow filter. The glow is
+    // a wider, translucent copy of the same path drawn underneath: it reads like
+    // a soft halo but costs one more ordinary stroke raster, whereas a
+    // `filter: drop-shadow` on a path whose `d` is TRANSITIONING re-runs a
+    // gaussian blur on every frame of every transition (see the sparkline note in
+    // SystemPanel.css).
+    const glow = document.createElementNS(NS, 'path');
+    glow.setAttribute('class', 'stat-spark-glow');
     const line = document.createElementNS(NS, 'path');
     line.setAttribute('class', 'stat-spark-line');
-    svg.append(line);
+    svg.append(glow, line);
     svg.style.color = _statSparkColor(fillEl);
     track.appendChild(svg);
   }
@@ -403,5 +411,6 @@ function renderStatSpark(fillEl, value) {
     const y = (3 + (1 - norm) * 24).toFixed(2);
     d += (i === 0 ? 'M' : 'L') + x + ' ' + y + ' ';
   }
-  svg.querySelector('.stat-spark-line').setAttribute('d', d.trim());
+  const path = d.trim();
+  svg.querySelectorAll('.stat-spark-line, .stat-spark-glow').forEach(p => p.setAttribute('d', path));
 }

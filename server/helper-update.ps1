@@ -28,7 +28,7 @@ $ProgressPreference = 'SilentlyContinue'
 # THE required helper version. Bump this together with helper/XenonHelper.csproj
 # <Version> whenever a helper stdio protocol or behaviour changes, so BOTH a re-run
 # of INSTALL.bat and the in-app self-update refresh an outdated exe.
-$minVersion = [Version]'0.6.0'
+$minVersion = [Version]'0.7.0'
 $repo = 'marcimastro98/Xenon'
 
 if (-not $HelperDir) { $HelperDir = Join-Path $PSScriptRoot 'helper' }

@@ -363,6 +363,9 @@
   transition: background 0.22s ease, color 0.22s ease, box-shadow 0.22s ease;
   will-change: background, color;
 }
+/* `display: flex` above outranks the UA `[hidden]{display:none}` rule — without
+   this an extracted Attività/Timer/Note tab stays clickable and opens an empty pane. */
+.cal-task-btn[hidden] { display: none; }
 
 .cal-task-btn svg {
   width: 11px;

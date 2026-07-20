@@ -143,27 +143,38 @@ input[type="range"] { accent-color: var(--green); }
 }
 
 /* Store pill — the standout header action: a solid accent fill so the
-   community catalog is one tap from any Settings category. */
+   community catalog is one tap from any Settings category.
+   The ink is --on-accent, never a hardcoded #fff: the palette derives it from
+   the accent's own luminance and guards it to 4.5:1, so a light accent gets
+   dark ink. Hardcoded white scored 2.15:1 on the stock amber — the label and
+   the bag glyph both washed out. The fill is solid for the same reason: at 0.9
+   the dark modal showed through and dragged the ratio down again. */
 .settings-store-pill {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 7px 13px;
+  gap: 9px;
+  /* Sized to lead the header, not to match the close button beside it. At the
+     old 31px it sat level with a 32px icon button and read as one more control
+     in a row of controls, which is the opposite of what it is. */
+  padding: 10px 18px;
   border-radius: 999px;
-  border: 1px solid rgba(var(--accent-rgb), 0.55);
-  background: rgba(var(--accent-rgb), 0.9);
-  color: #fff;
+  border: 1px solid transparent;
+  background: var(--accent);
+  color: var(--on-accent);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 850;
   cursor: pointer;
   white-space: nowrap;
   box-shadow: 0 4px 14px rgba(var(--accent-rgb), 0.28);
   transition: background .15s ease, box-shadow .15s ease, transform .12s ease;
 }
-.settings-store-pill:hover { background: rgb(var(--accent-rgb)); box-shadow: 0 6px 18px rgba(var(--accent-rgb), 0.4); }
+.settings-store-pill:hover { filter: brightness(1.07); box-shadow: 0 6px 18px rgba(var(--accent-rgb), 0.4); }
 .settings-store-pill:active { transform: translateY(1px); }
-.settings-store-pill svg { width: 16px; height: 16px; flex: 0 0 auto; fill: currentColor; }
+/* The bag is an outline, so it must not inherit the filled-glyph treatment the
+   rest of this header uses — a fill would close the handle and lose the shape. */
+.store-glyph { fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.settings-store-pill svg { width: 19px; height: 19px; flex: 0 0 auto; }
 
 .settings-close {
   width: 32px;
@@ -2866,7 +2877,9 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
   display: grid; place-items: center; color: rgba(var(--accent-rgb),1);
   background: rgba(var(--accent-rgb),0.16); border: 1px solid rgba(var(--accent-rgb),0.4);
 }
-.settings-store-hero-ico svg { width: 27px; height: 27px; fill: currentColor; }
+/* No `fill` here: this selector is more specific than .store-glyph, so setting
+   one would win and fill the outline bag solid. */
+.settings-store-hero-ico svg { width: 27px; height: 27px; }
 .settings-store-hero-body { position: relative; display: grid; gap: 3px; min-width: 0; flex: 1; }
 .settings-store-hero-eyebrow {
   font-size: 9.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
@@ -3289,7 +3302,9 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 }
 .hubmsg-btn:active { transform: translateY(1px) scale(0.995); }
 .hubmsg-btn.primary {
-  height: 48px; font-size: 0.96rem; color: var(--accent-ink, #06210f);
+  /* --on-accent, not the never-defined --accent-ink this used to name: that
+     token resolves nowhere, so the fallback ink was pinned regardless of theme. */
+  height: 48px; font-size: 0.96rem; color: var(--on-accent, #06210f);
   background: rgba(var(--accent-rgb, 30, 215, 96), 1);
 }
 .hubmsg-btn.primary:hover { filter: brightness(1.06); }

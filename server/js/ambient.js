@@ -27,6 +27,36 @@
     }
   }
 
+  // LOCAL calendar day. toISOString() is UTC, and pairing a UTC date with the
+  // local getHours() below shifted the rollover: east of Greenwich the 'night'
+  // greeting shown at 23:30 kept suppressing the one just after midnight,
+  // because the UTC date was still the previous day until 01:00/02:00 local.
+  function localDateKey(d) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
+  // Whole-PC idle (GetLastInputInfo) off the status SSE, same source AmbientMode
+  // uses — the dashboard's own events only see one screen. null = probe off or
+  // an older server, and then presence is assumed rather than blocking forever.
+  let sysIdleSec = null;
+  let lastLocalInputAt = 0;
+  const PRESENT_IDLE_SEC = 120;
+
+  function userPresent() {
+    if (Date.now() - lastLocalInputAt < PRESENT_IDLE_SEC * 1000) return true;
+    return sysIdleSec == null || sysIdleSec < PRESENT_IDLE_SEC;
+  }
+
+  function onStatus(data) {
+    const raw = data ? Number(data.idleSec) : NaN;
+    const prev = sysIdleSec;
+    sysIdleSec = (Number.isFinite(raw) && raw >= 0) ? raw : null;
+    // Idle just dropped: someone came back. Greet on the spot instead of making
+    // them wait out the rest of the minute tick.
+    if (prev != null && sysIdleSec != null && sysIdleSec < prev && sysIdleSec < PRESENT_IDLE_SEC) tick();
+  }
+
   function dayPart(d) {
     const h = d.getHours();
     if (h >= 5 && h < 12) return 'morning';
@@ -73,10 +103,18 @@
   function maybeGreet() {
     const now = new Date();
     const part = dayPart(now);
-    const dateKey = now.toISOString().slice(0, 10);
+    const dateKey = localDateKey(now);
     const store = readStore();
     if (store.greetDate === dateKey && store.greetPart === part) return;
-    writeStore({ ...store, greetDate: dateKey, greetPart: part });
+    // Wait for someone to actually BE there. The splash is 8 seconds long and
+    // burns the day-part for the rest of the day, so firing it the minute the
+    // clock crosses 05:00 spent the morning greeting on an empty room — on an
+    // always-on panel document.hidden is never true, so it was the only gate and
+    // it never caught this. Hold the day-part instead and greet on the first
+    // sign of presence; the part is recomputed then, so arriving at 11:30 still
+    // gets "good morning". When the whole-PC idle signal is unavailable, keep
+    // the old always-greet behaviour rather than going silent.
+    if (!userPresent()) return;
     // Morning briefing: the greeting also carries (and speaks) today's first
     // events when the proactive "morning" moment is enabled.
     const agenda = (part === 'morning' && proactiveOn('morning')) ? todayAgenda(now) : [];
@@ -89,11 +127,19 @@
         .replace('{time}', first.time);
       text = `${text} ${spoken}`;
     }
+    // Mark AFTER something has actually been shown. Marking first meant a splash
+    // that threw (or a missing GreetingSplash) still consumed the day-part and
+    // the user saw nothing until the next one.
+    let shown = false;
     if (window.GreetingSplash) {
-      try { GreetingSplash.show(part, agenda); } catch { if (typeof showHubToast === 'function') showHubToast('Xenon', text, ''); }
-    } else if (typeof showHubToast === 'function') {
-      showHubToast('Xenon', text, '');
+      try { GreetingSplash.show(part, agenda); shown = true; } catch { /* fall through to the toast */ }
     }
+    if (!shown && typeof showHubToast === 'function') {
+      showHubToast('Xenon', text, '');
+      shown = true;
+    }
+    if (!shown) return;
+    writeStore({ ...store, greetDate: dateKey, greetPart: part });
     speak(text);
   }
 
@@ -181,5 +227,20 @@
     setInterval(tick, 60000);
   });
 
-  window.Ambient = { onGuardianAlert, onBriefingMoment };
+  // Local input is the second presence signal: it also covers the surfaces the
+  // whole-PC probe can't speak for. Passive + capture so it never interferes.
+  let lastInputTickAt = 0;
+  for (const ev of ['pointerdown', 'keydown', 'wheel', 'touchstart']) {
+    window.addEventListener(ev, () => {
+      const now = Date.now();
+      lastLocalInputAt = now;
+      // Throttled: this runs on every tap of a touchscreen, and tick() reads
+      // localStorage. 5s is far below any day-part boundary.
+      if (now - lastInputTickAt < 5000) return;
+      lastInputTickAt = now;
+      if (enabled() && !document.hidden) tick();
+    }, { passive: true, capture: true });
+  }
+
+  window.Ambient = { onGuardianAlert, onBriefingMoment, onStatus };
 })();

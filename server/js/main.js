@@ -175,6 +175,10 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // it never fires while the user is active on another screen (only the
       // dashboard window's own events would otherwise be seen).
       step(() => { if (window.AmbientMode && typeof window.AmbientMode.onStatus === 'function') window.AmbientMode.onStatus(data); });
+      // Greeting splash: same whole-PC idle signal decides PRESENCE, so a
+      // day-part boundary crossed while nobody is there holds the greeting
+      // instead of spending it on an empty room.
+      step(() => { if (window.Ambient && typeof window.Ambient.onStatus === 'function') window.Ambient.onStatus(data); });
       // Deck Smart Profiles: auto-switch the shown profile to match the app in
       // focus. Guarded on change here so the 3s status beat costs nothing idle.
       step(() => {
@@ -261,6 +265,21 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
           window.Deck.refreshStates({ masterVolume: Number(d.speaker.volume) });
         }
         if (window.CustomWidget) window.CustomWidget.onData('audio', d);
+      } catch {}
+    });
+    // Real per-app peak meters from the native helper (opt-in in Settings, so this
+    // event simply never arrives when the feature is off). Widget-only: nothing in
+    // the built-in dashboard draws meters, so there is no applyX() here.
+    es.addEventListener('audiolevels', e => {
+      try {
+        const d = JSON.parse(e.data);
+        // `problem` rides the same event so a widget can explain a feed that
+        // never starts (helper too old) instead of just showing dead meters.
+        if (window.CustomWidget) {
+          window.CustomWidget.onData('audioLevels', d && d.problem
+            ? { peaks: {}, problem: d.problem, minVersion: d.minVersion || '' }
+            : ((d && d.peaks) || {}));
+        }
       } catch {}
     });
     es.addEventListener('discord', e => {

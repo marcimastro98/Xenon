@@ -42,6 +42,7 @@ const ACTION_CATALOG = [
   { type: 'appVolume', group: 'audio', labelKey: 'deck_act_appVolume', params: [{ name: 'app', kind: 'audioApp' }, { name: 'mode', kind: 'select', options: ['up', 'down', 'set'] }, { name: 'value', kind: 'text', optional: true }] },
   { type: 'appMute',   group: 'audio', labelKey: 'deck_act_appMute',   params: [{ name: 'app', kind: 'audioApp' }, { name: 'mode', kind: 'select', options: ['toggle', 'mute', 'unmute'] }] },
   { type: 'appMixer',  group: 'audio', labelKey: 'deck_act_appMixer',  params: [] },
+  { type: 'audioDevice', group: 'audio', labelKey: 'deck_act_audioDevice', params: [{ name: 'device', kind: 'text' }] },
   { type: 'obsScene',  group: 'obs', labelKey: 'deck_act_obsScene',  params: [{ name: 'scene',  kind: 'obsScene' }] },
   { type: 'obsSceneNext', group: 'obs', labelKey: 'deck_act_obsSceneNext', params: [] },
   { type: 'obsRecord', group: 'obs', labelKey: 'deck_act_obsRecord', params: [{ name: 'mode', kind: 'select', options: ['toggle', 'start', 'stop'] }] },

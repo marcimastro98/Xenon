@@ -194,7 +194,10 @@
       });
       // ADD / DUPLICATE: every known widget not already a member (a duplicable one
       // is duplicated; a hidden one is brought in).
-      let addIds = DASHBOARD_WIDGET_IDS.filter(id => layout.widgets[id] && !members.includes(id));
+      // `custom` is exempt from the "already a member" filter: every SDK package
+      // shares that one widget id and each add mints its own copy instance, so one
+      // group can hold several custom widgets (Thermal Card + Keyring + …).
+      let addIds = DASHBOARD_WIDGET_IDS.filter(id => layout.widgets[id] && (id === 'custom' || !members.includes(id)));
       if (!remoteConfigured()) addIds = addIds.filter(id => id !== 'remote');
       const addEntries = addIds.map(id => ({ id, base: id }));
 

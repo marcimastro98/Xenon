@@ -158,10 +158,14 @@ body.overlay-frozen .cw-sess-dot::after { animation-play-state: paused; }
    is left. `--cw-appr` carries the tier colour so one variable retints the whole
    card: amber for a permission, accent blue for a question, red when urgent —
    a question is never a risk, so it must not borrow the alarm colour. */
-.cw-appr-list { flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px; }
+/* The list may shrink (0 1) rather than holding its natural height: on a short
+   tile a fixed-height list simply overflowed the bottom edge and took the Allow
+   and Deny buttons with it. Cards give up their MIDDLE instead — see
+   .cw-appr-body, which scrolls. */
+.cw-appr-list { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
 .cw-appr {
   --cw-appr: var(--xe-warn, #f5a524);
-  position: relative; overflow: hidden;
+  position: relative; overflow: hidden; min-height: 0;
   display: flex; flex-direction: column; gap: 9px; padding: 12px 13px 12px 15px; border-radius: 14px;
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--cw-appr) 13%, transparent), transparent 62%),
@@ -179,7 +183,7 @@ body.overlay-frozen .cw-sess-dot::after { animation-play-state: paused; }
   border-color: color-mix(in srgb, var(--cw-appr) 62%, transparent);
 }
 
-.cw-appr-head { display: flex; align-items: center; gap: 8px; }
+.cw-appr-head { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
 .cw-appr-badge {
   font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.09em;
   color: var(--cw-appr); padding: 3px 7px; border-radius: 6px;
@@ -190,6 +194,15 @@ body.overlay-frozen .cw-sess-dot::after { animation-play-state: paused; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text, #f0f3f1);
 }
 .cw-appr-timer { flex: 0 0 auto; font-size: 11px; opacity: 0.45; font-variant-numeric: tabular-nums; }
+
+/* What is being asked. The only part of the card allowed to run out of room, so
+   the header above it and the buttons below it are always visible however small
+   the tile or however long the question. */
+.cw-appr-body {
+  flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: 9px;
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent;
+}
 
 /* Intent headline + the raw tool name kept as a quiet chip beside it: "Bash"
    alone means nothing to most people, but it is what the docs and the terminal
@@ -233,14 +246,25 @@ body.overlay-frozen .cw-sess-dot::after { animation-play-state: paused; }
    tappable and the card promises something it cannot do. */
 .cw-appr-qnote { font-size: 10.5px; line-height: 1.4; opacity: 0.5; color: var(--text, #f0f3f1); }
 
-.cw-appr-acts { display: flex; gap: 8px; margin-top: 1px; }
-.cw-appr-allow, .cw-appr-deny {
+.cw-appr-acts { flex: 0 0 auto; display: flex; gap: 8px; margin-top: 1px; }
+.cw-appr-allow, .cw-appr-deny, .cw-appr-ok {
   flex: 1 1 0; min-height: 44px; border-radius: 11px; cursor: pointer;
   font-size: 13px; font-weight: 750; letter-spacing: 0.01em;
   transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, transform 0.08s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.cw-appr-allow:active:not(:disabled), .cw-appr-deny:active:not(:disabled) { transform: translateY(1px); }
+.cw-appr-allow:active:not(:disabled), .cw-appr-deny:active:not(:disabled),
+.cw-appr-ok:active:not(:disabled) { transform: translateY(1px); }
+/* A notice's only button dismisses the card. It is deliberately quiet: nothing
+   is waiting on the tap, so it must not read like the decision the Allow button
+   is. Full width, because there is nothing to sit beside. */
+.cw-appr-ok {
+  flex: 1 1 0;
+  border: 1px solid rgba(255,255,255,0.16); color: var(--text, #f0f3f1);
+  background: rgba(255,255,255,0.05);
+}
+.cw-appr-ok:hover:not(:disabled) { background: rgba(255,255,255,0.11); }
+.cw-appr-ok:disabled { opacity: 0.45; cursor: default; }
 .cw-appr-allow {
   border: 1px solid var(--xe-stock-up, #4ade80); color: #06210f;
   background: var(--xe-stock-up, #4ade80);
@@ -517,14 +541,20 @@ body.overlay-frozen .cw-typing-dot { animation: none; opacity: 0.6; }
 .cw-run-stop:hover { background: rgba(255,255,255,0.12); }
 
 /* ── fullscreen escalation ── */
+/* The Xeneon Edge is a SHORT display, and a question card with several options
+   is tall. Centring a box that no longer fits cut it off at both ends with no
+   way to scroll — so the padding scales with the viewport and the card is
+   capped at the height actually available. */
 .cw-overlay {
   position: fixed; inset: 0; z-index: 9000;
-  display: grid; place-items: center; padding: 24px;
+  display: flex; align-items: center; justify-content: center;
+  padding: clamp(10px, 3vh, 24px); box-sizing: border-box;
   background: rgba(6, 8, 10, 0.82); backdrop-filter: blur(10px);
   animation: cw-fade 0.18s ease-out;
 }
 .cw-appr--big {
-  width: min(560px, 100%); gap: 13px; padding: 24px 26px 24px 28px; border-radius: 20px;
+  width: min(560px, 100%); max-height: 100%;
+  gap: 13px; padding: 24px 26px 24px 28px; border-radius: 20px;
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--cw-appr) 14%, transparent), transparent 58%),
     rgba(18, 20, 24, 0.96);
@@ -533,13 +563,26 @@ body.overlay-frozen .cw-typing-dot { animation: none; opacity: 0.6; }
 .cw-appr--big::before { width: 4px; }
 .cw-appr--big .cw-appr-tool { font-size: 23px; }
 .cw-appr--big .cw-appr-toolname { font-size: 11px; }
-.cw-appr--big .cw-appr-detail { font-size: 13px; padding: 11px 13px; -webkit-line-clamp: 6; }
+/* Full screen and scrollable, so there is no reason to hide the tail of a
+   command here: you are being asked to approve it, you get to read all of it. */
+.cw-appr--big .cw-appr-detail { font-size: 13px; padding: 11px 13px; display: block; -webkit-line-clamp: none; }
 .cw-appr--big .cw-appr-qtext { font-size: 15px; }
 .cw-appr--big .cw-appr-qopt { padding: 10px 13px; }
 .cw-appr--big .cw-appr-qopt-label { font-size: 13px; }
 .cw-appr--big .cw-appr-qopt-desc { font-size: 11.5px; }
 .cw-appr--big .cw-appr-qnote { font-size: 12px; }
-.cw-appr--big .cw-appr-allow, .cw-appr--big .cw-appr-deny { min-height: 54px; font-size: 15px; }
+.cw-appr--big .cw-appr-allow, .cw-appr--big .cw-appr-deny,
+.cw-appr--big .cw-appr-ok { min-height: 54px; font-size: 15px; }
+/* Under ~560px of height the generous version stops fitting: give the padding
+   and the headline back to the question rather than letting the card fill the
+   screen edge to edge. Touch targets stay at 44px, which is the floor. */
+@media (max-height: 560px) {
+  .cw-appr--big { gap: 10px; padding: 15px 17px 15px 19px; border-radius: 16px; }
+  .cw-appr--big .cw-appr-tool { font-size: 19px; }
+  .cw-appr--big .cw-appr-qtext { font-size: 13.5px; }
+  .cw-appr--big .cw-appr-allow, .cw-appr--big .cw-appr-deny,
+  .cw-appr--big .cw-appr-ok { min-height: 46px; font-size: 14px; }
+}
 
 /* ── connect call-to-action ── */
 .cw-cta {
@@ -701,7 +744,10 @@ body.overlay-frozen .cw-typing-dot { animation: none; opacity: 0.6; }
   animation: cw-tb-breathe 2.4s ease-in-out infinite; will-change: opacity;
 }
 @keyframes cw-tb-breathe { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
-body.overlay-frozen .cw-tb.is-working .cw-tb-dot { animation: none; opacity: 0.75; }
+body.overlay-frozen .cw-tb.is-working .cw-tb-dot,
+body.ambient-idle .cw-tb.is-working .cw-tb-dot,
+body.game-mode .cw-tb.is-working .cw-tb-dot,
+body.low-power-gpu .cw-tb.is-working .cw-tb-dot { animation: none; opacity: 0.75; }
 
 /* Finished, and you have not looked yet: solid accent, no motion. It is a
    result waiting to be read, not something still happening. */

@@ -16,6 +16,7 @@ const path = require('path');
 const linuxCollectors = process.platform === 'linux' ? require('./linux-collectors') : null;
 const fpsMonitor = require('./fpsmon');
 const gameDetect = require('./gamedetect');
+const audioLevels = require('./audio-levels');
 const winNotif = require('./winnotif');
 const wakeWord = require('./wakeword');
 const sdkWidgets = require('./sdk-widgets');
@@ -47,7 +48,7 @@ const aiLive = require('./ai-live');
 const { splitSentences } = require('./tts-chunks');
 const { createBriefingEngine } = require('./briefing');
 const icsFeeds = require('./ics-feeds.js');
-const { createRegistry } = require('./actions/registry');
+const { createRegistry, resolveOutputDevice } = require('./actions/registry');
 const { createPerfRegistry } = require('./actions/perf-registry');
 const { createObs, scenePreviewRequest } = require('./actions/obs');
 const { createStreamerbot } = require('./actions/streamerbot');
@@ -909,10 +910,14 @@ function sdkPkgSuspended(pkgId) {
 // A disabled SDK (or a suspended package) grants nothing, so every server-side
 // consent check fails closed.
 function sdkGrantsFor(pkgId) {
-  if (!sdkFeatureEnabled() || sdkPkgSuspended(pkgId)) return { actions: [], hosts: [], hooks: [], handlers: [], userHosts: {} };
+  if (!sdkFeatureEnabled() || sdkPkgSuspended(pkgId)) return { streams: [], actions: [], hosts: [], hooks: [], handlers: [], userHosts: {} };
   const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
   const g = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants[pkgId] : null;
   return {
+    // `streams` is read here too: the audio-meter host decides whether to run at
+    // all from "has anyone been granted audioLevels", so it needs the same
+    // fail-closed reader every other consent check uses.
+    streams: (g && Array.isArray(g.streams)) ? g.streams : [],
     actions: (g && Array.isArray(g.actions)) ? g.actions : [],
     hosts: (g && Array.isArray(g.hosts)) ? g.hosts : [],
     hooks: (g && Array.isArray(g.hooks)) ? g.hooks : [],
@@ -4279,6 +4284,25 @@ const deckRegistryDeps = {
     const verb = mode === 'mute' ? '/Mute' : mode === 'unmute' ? '/Unmute' : '/Switch';
     return svvExec([verb, target]);
   },
+  // Switch the default OUTPUT device. The id is matched against the live
+  // enumeration before it is used, and only against `speakers` — this is the
+  // load-bearing check, not a formality: SoundVolumeView's /SetDefault takes
+  // render and capture ids from the SAME namespace (they differ only by a
+  // trailing \Render or \Capture), so an unchecked string would let a caller
+  // change which MICROPHONE is live. That is a different and much worse
+  // capability than "where does sound come out", and it is not on offer here.
+  audioDevice: async (id) => {
+    const wanted = String(id || '').trim();
+    if (!wanted) return { ok: false, error: 'no_device' };
+    let info;
+    try { info = await getAudioInfo(); } catch { return { ok: false, error: 'audio_unavailable' }; }
+    const match = resolveOutputDevice(wanted, info && info.speakers);
+    if (!match) return { ok: false, error: 'unknown_device' };
+    await svvExec(['/SetDefault', match.id, 'all']);
+    cachedSpeakerId = match.id;
+    cachedSpeakerName = match.name || cachedSpeakerName;
+    return { ok: true };
+  },
   // Task-list mutations (the `tasks` action category). All go through writeTasks,
   // which normalises (assigns id/createdAt, caps text to 200, drops empties) and
   // broadcasts the updated `tasks` stream — so the Tasks tile and every granted
@@ -6192,6 +6216,11 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Opt-in ad-blocker for the Browser tile (Settings → Browser). OFF by default;
   // when on, the server loads an unpacked uBOL MV3 extension into the tile's Edge.
   browserAdblock: false,
+  // Claude Code widget: the permission / question cards (Settings → Claude Code)
+  // and the topbar marker. Both on — they are what the Claude Code link is for —
+  // and both switchable, because they are the two things this widget can put on
+  // screen while you are looking at something else.
+  claudeWidget: { approvals: true, topbar: true },
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
   dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
   geminiApiKey: '',
@@ -6503,6 +6532,16 @@ function normalizeBgCustom(value) {
 // never drift — exactly like sanitizeBgAssets above.
 function normalizeSlideshow(value) {
   return sanitizeSlideshow(value);
+}
+
+// Claude Code widget surfaces that show up outside its tile: the permission /
+// question cards and the topbar marker. Both on unless explicitly stored false,
+// so an existing install keeps what it has. `approvals` is not display-only —
+// /api/claude/permission reads it and hands the prompt straight back to the
+// terminal when it is off. Twin of normalizeClaudeWidget in js/settings.js.
+function normalizeClaudeWidget(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  return { approvals: source.approvals !== false, topbar: source.topbar !== false };
 }
 
 function normalizeBgGrid(value) {
@@ -7142,6 +7181,7 @@ function normalizeHubSettings(value) {
     bgStatic: normalizeBgStatic(source.bgStatic),
     bgCustom: normalizeBgCustom(source.bgCustom),
     slideshow: normalizeSlideshow(source.slideshow),
+    claudeWidget: normalizeClaudeWidget(source.claudeWidget),
     lighting: normalizeLighting(source.lighting),
     calendarFeeds: icsFeeds.normalizeCalendarFeeds(source.calendarFeeds, CALENDAR_FEED_PALETTE),
     stocks: stocks.normalizeStocks(source.stocks),
@@ -8151,6 +8191,52 @@ winNotif.init({
 function refreshWinNotifWatch() {
   winNotif.sync(winNotifWanted() && sseClients.size > 0);
 }
+
+// ── Per-app audio peak meters ───────────────────────────────────────────────
+// Demand-driven, with NO setting of its own. This is a ~12/s broadcast, so it
+// must not run for everyone by default — but a second global switch was the
+// wrong way to hold that line: approving the widget's `audioLevels` permission
+// IS the consent, and every other stream starts working the moment you grant it.
+// Asking twice, in two different places, only made the widget look broken until
+// you found the second switch. So the cost follows the grant: the helper child
+// starts when some installed package has actually been granted this stream and a
+// dashboard is open, and stops otherwise. sdkGrantsFor() fails closed under safe
+// mode and per-package suspend, so both of those turn it off for free.
+function audioLevelsWanted() {
+  if (!audioLevels.available()) return false;
+  const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
+  const grants = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants : null;
+  if (!grants) return false;
+  for (const pkgId of Object.keys(grants)) {
+    if (sdkGrantsFor(pkgId).streams.includes('audioLevels')) return true;
+  }
+  return false;
+}
+function refreshAudioLevelsWatch() {
+  if (audioLevelsWanted() && sseClients.size > 0) audioLevels.start();
+  else audioLevels.stop();
+}
+// Each tick goes straight out; the helper's own interval is the rate limit, and
+// the payload is only the apps that are actually making sound.
+audioLevels.onTick((peaks) => {
+  if (sseClients.size === 0) return;
+  broadcastSSE('audiolevels', { peaks });
+});
+
+// When metering is wanted but cannot run — almost always a helper that predates
+// audio-serve — say so ONCE on the same channel instead of leaving the widget
+// with a feed that simply never starts. There is no Settings row to put this on
+// (the grant is the switch), so it has to reach the widget itself.
+let _audioLevelsProblemSaid = '';
+function announceAudioLevelsProblem() {
+  const problem = audioLevelsWanted() ? audioLevels.failure() : '';
+  if (problem === _audioLevelsProblemSaid) return;
+  _audioLevelsProblemSaid = problem;
+  if (problem && sseClients.size > 0) {
+    broadcastSSE('audiolevels', { peaks: {}, problem, minVersion: audioLevels.minVersion() });
+  }
+}
+setInterval(announceAudioLevelsProblem, 5000).unref();
 
 // ── Local "Hey Xenon" wake word ─────────────────────────────────────────────
 // Same lifecycle discipline as the notification mirror: the ffmpeg capture
@@ -10188,6 +10274,18 @@ const server = http.createServer(async (req, res) => {
       svvExec([action, target]).then(() => json({ ok: true }), e => err500(e.message));
     } catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/audio/levels/status' && req.method === 'GET') {
+    // Read-only: why the meters are (or are not) running, so Settings can explain
+    // a switch that appears to do nothing instead of leaving the user guessing.
+    json({
+      ok: true,
+      wanted: audioLevelsWanted(),
+      available: audioLevels.available(),
+      running: audioLevels.isRunning(),
+      failure: audioLevels.failure(),
+      minVersion: audioLevels.minVersion(),
+    });
+
   } else if (reqPath === '/audio/apps' && req.method === 'GET') {
     // Broader app list for the Deck editor's app picker: every application audio
     // session (active OR inactive) that has a real exe, deduped by process name.
@@ -11065,6 +11163,8 @@ const server = http.createServer(async (req, res) => {
       winNotif.applyExclusions();
       // Wake word toggled → start/stop the mic listener (sync() is idempotent).
       refreshWakeWordWatch();
+      // A grant change can add or remove the only consumer of the meter host.
+      refreshAudioLevelsWatch();
       refreshStocks().catch(() => {}); // pick up watchlist/provider/key changes immediately
       refreshFootball().catch(() => {}); // pick up team/refresh/key changes immediately
       refreshNews().catch(() => {});      // pick up feed/refresh/key changes immediately
@@ -11361,8 +11461,29 @@ const server = http.createServer(async (req, res) => {
     // object, which means "no decision" and hands the prompt back to Claude
     // Code's own terminal UI — this endpoint can never auto-approve anything.
     if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
+    // Approval cards switched off in Settings → answer immediately with "no
+    // decision". Refusing to QUEUE the request is the whole point: leaving it
+    // pending would block the session for the full approval window waiting on a
+    // card that is never drawn, which is worse than the prompt the user asked
+    // not to see. Same empty answer as a timeout, so the terminal asks instead.
+    if (_serverHubSettings && _serverHubSettings.claudeWidget
+      && _serverHubSettings.claudeWidget.approvals === false) {
+      req.resume();                                  // drain the body we won't read
+      json({});
+      return;
+    }
     try {
       const data = JSON.parse(await readBody(req));
+      // A question is never held open. Approving it could not answer it and
+      // denying it threw it away unread, so it is answered "no decision" at
+      // once — the path that hands the prompt to the terminal, where it can
+      // actually be answered — and left on the tile only as a heads-up.
+      // See postQuestion() in claude-bridge.js.
+      if (data && data.tool_name === 'AskUserQuestion') {
+        _claudeBridge.postQuestion(data);
+        json({});
+        return;
+      }
       const pendingReq = _claudeBridge.requestPermission(data);
       if (!pendingReq) { json({}); return; }        // too many already waiting
       // Claude Code gave up (Ctrl-C, or its own hook timeout): stop showing a
@@ -14562,7 +14683,8 @@ const server = http.createServer(async (req, res) => {
     refreshUnifiEventsWatch();
     refreshWinNotifWatch();
     refreshWakeWordWatch();
-    req.on('close', () => { sseClients.delete(res); if (sseClients.size === 0) obsLocalWanted = false; _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWlWatch(); refreshUnifiEventsWatch(); refreshWinNotifWatch(); refreshWakeWordWatch(); });
+    refreshAudioLevelsWatch();
+    req.on('close', () => { sseClients.delete(res); if (sseClients.size === 0) obsLocalWanted = false; _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWlWatch(); refreshUnifiEventsWatch(); refreshWinNotifWatch(); refreshWakeWordWatch(); refreshAudioLevelsWatch(); });
 
     // Push current state immediately so the client doesn't wait for the first tick.
     Promise.all([
@@ -15124,11 +15246,12 @@ _startListen('::');
 // never tap that monitor), so the pet's PC-invading actions key off REAL input
 // recency via GetLastInputInfo (idle.ps1, hosted in the persistent worker —
 // Add-Type compiles once per worker lifetime, repeat reads are instant).
-// Three consumers: the pet's PC-invading actions (/api/vitals/nag), the meters'
-// away-pause (vitals.js freezes decay once idleSec crosses its threshold), and
-// the Ambient screensaver auto-start (ambient-mode.js starts/dismisses on
-// whole-PC idle so it never fires while the user is busy on another screen), so
-// the probe runs when ANY of them wants it. Polled only while an SSE client is
+// Four consumers: the pet's PC-invading actions (/api/vitals/nag), the meters'
+// away-pause (vitals.js freezes decay once idleSec crosses its threshold), the
+// Ambient screensaver auto-start (ambient-mode.js starts/dismisses on whole-PC
+// idle so it never fires while the user is busy on another screen), and the
+// greeting splash's presence gate (ambient.js holds a day-part until someone is
+// there), so the probe runs when ANY of them wants it. Polled only while an SSE client is
 // connected: zero cost at idle. Consumed by statusPayload() and /api/vitals/nag.
 const _idleProbe = { sec: null, at: 0 };
 const _vitalsNagLast = { overlay: 0, minimize: 0, lock: 0 };
@@ -15146,6 +15269,11 @@ function idleProbeWanted() {
   // while the user is active on another screen (idleMinutes clamped by normalize).
   const a = _serverHubSettings && _serverHubSettings.ambientMode;
   if (a && a.enabled !== false && Number(a.idleMinutes) > 0) return true;
+  // Presenza ambientale (ambient.js): the greeting splash holds a day-part until
+  // someone is actually at the PC. Without this signal it falls back to greeting
+  // on the clock alone, which spends the morning greeting on an empty room.
+  const f = _serverHubSettings && _serverHubSettings.aiFeatures;
+  if (f && f.enabled === true && f.ambient === true) return true;
   return false;
 }
 // Adaptive cadence: 15s while the user is active (presence changes slowly),
@@ -15381,6 +15509,7 @@ function _gracefulShutdown() {
   try { gameDetect.stopGameDetect(); } catch {}
   try { winNotif.stop(); } catch {}
   try { wakeWord.stop(); } catch {}
+  try { audioLevels.stop(); } catch {}
   try { guardian.stop(); } catch {}
   // Settle every pending Claude Code permission request. These are HTTP requests
   // the `claude` process is actively blocked on — exiting without answering would

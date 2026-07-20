@@ -55,8 +55,11 @@
          0.6.0 = windows list resolves the exe path via QueryFullProcessImageName
                  when MainModule is ACL-blocked (fixes Discord and other elevated
                  apps) and falls back to the packaged-app tile logo for UWP windows
-                 (WhatsApp etc.) via AUMID + WinRT AppInfo.DisplayInfo.GetLogo. -->
-    <Version>0.6.0</Version>
+                 (WhatsApp etc.) via AUMID + WinRT AppInfo.DisplayInfo.GetLogo;
+         0.7.0 = audio-serve (per-app peak meters via IAudioMeterInformation —
+                 the first real audio LEVEL source in the product; SoundVolumeView
+                 exports volume and mute but no meter column). -->
+    <Version>0.7.0</Version>
     <Description>Xenon Helper — native companion process for the Xenon dashboard server</Description>
   </PropertyGroup>
 

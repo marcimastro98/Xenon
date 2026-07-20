@@ -70,6 +70,14 @@ function wireSystemCloneTabs(clone) {
     if (!['main', 'volume', 'mic'].includes(name)) { b.remove(); return; }
     b.addEventListener('click', () => setTab(name));
   });
+  // Tabs inherit the primary's hidden state, so a copy made while Volume and
+  // Microfono are extracted would show a bar holding only "Sistema".
+  // Queried off the bar (not the captured `tabs`) because the clone is still
+  // detached here, so the removals above are only visible through the subtree.
+  const cloneBar = clone.querySelector('.system-tabs-left');
+  if (cloneBar && Array.from(cloneBar.querySelectorAll('.sys-tab')).filter(b => !b.hidden).length <= 1) {
+    cloneBar.style.display = 'none';
+  }
   setTab('main');
 }
 
@@ -1851,12 +1859,12 @@ function applyDashboardCards(layout) {
 function applyDashboardTabs(layout) {
   // Volume (audio) and Microphone live as System-hub tabs until extracted into
   // their own tiles; once extracted their tab buttons are hidden by the sync
-  // functions. With only "Sistema" left, hide the tab bar entirely.
+  // functions. With only "Sistema" left, hide the tab bar entirely — counted
+  // from the buttons themselves, so the History tab (owned by guardian-history)
+  // is included instead of being silently dropped from the total.
   const audioExtracted = !!(layout.widgets.audio && layout.widgets.audio.visible);
   const micExtracted = !!(layout.widgets.mic && layout.widgets.mic.visible);
-  const visibleSysTabs = 1 + (audioExtracted ? 0 : 1) + (micExtracted ? 0 : 1);
-  const sysTabBar = document.querySelector('.system-tabs-left');
-  if (sysTabBar) sysTabBar.style.display = visibleSysTabs <= 1 ? 'none' : '';
+  if (typeof syncSystemTabBar === 'function') syncSystemTabBar();
 
   // Keep the active tab valid: fall back to "main" when the requested tab has
   // been extracted (or is the legacy "net" id).
