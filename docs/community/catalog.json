@@ -430,7 +430,7 @@
         "weather",
         "cozy"
       ],
-      "version": "1.0.0",
+      "version": "1.0.1",
       "appVersionMin": "4.6.0",
       "preview": {
         "accent": "#e8a34c",
@@ -438,8 +438,9 @@
         "text": "#f3ecdf"
       },
       "shots": 3,
-      "addedAt": "2026-07-17",
-      "codeFile": true
+      "addedAt": "2026-07-20",
+      "codeFile": true,
+      "updatedAt": "2026-07-20"
     },
     {
       "id": "teleprompter",
