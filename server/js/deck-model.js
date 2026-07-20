@@ -801,6 +801,36 @@ function swapKeysAt(config, nav, indexA, indexB) {
   return normalizeDeckConfig(cfg);
 }
 
+// Move a key from its current slot to the first available slot on a target page.
+// Used for drag-and-dropping across pages. Returns a NEW normalized config.
+function moveKeyToPage(config, nav, sourceIndex, targetPageIndex) {
+  const cfg = cloneConfig(normalizeDeckConfig(config));
+  const folder = folderAtPath(cfg, (nav && nav.profileId) || cfg.activeProfile, nav && nav.path);
+  const sourcePageIndex = clampInt(nav && nav.pageIndex, 0, folder.pages.length - 1, 0);
+  
+  if (sourcePageIndex === targetPageIndex || targetPageIndex < 0 || targetPageIndex >= folder.pages.length) {
+    return normalizeDeckConfig(cfg);
+  }
+  
+  const sourceKeys = folder.pages[sourcePageIndex].keys;
+  const targetKeys = folder.pages[targetPageIndex].keys;
+  
+  if (sourceIndex >= 0 && sourceIndex < sourceKeys.length && sourceKeys[sourceIndex]) {
+    // Find first empty slot on target page
+    let emptySlot = targetKeys.findIndex(k => k === null);
+    if (emptySlot === -1) {
+      // If full, expand the target page
+      emptySlot = targetKeys.length;
+      targetKeys.push(null);
+    }
+    
+    // Move key
+    targetKeys[emptySlot] = sourceKeys[sourceIndex];
+    sourceKeys[sourceIndex] = null;
+  }
+  return normalizeDeckConfig(cfg);
+}
+
 // Append an empty page to the resolved folder, sized to the OWNING profile's
 // grid. Returns a NEW normalized config.
 function addPageAt(config, nav) {
@@ -1066,7 +1096,7 @@ function evaluateKeyState(state, snapshot) {
   }
 }
 
-const DECK_MODEL_API = { normalizeDeckConfig, normalizeDeckWellImage, normalizeDeckMediaStyle, normalizeDeckLook, effectiveDeckLook, setProfileLook, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, gridOf, reshapeDeckConfig, fitDeckGrids, foldDeckGrids, swapKeysAt, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, DECK_SENSOR_METRICS, SLIDER_TARGETS, formatLiveValue, timersByLabel, sensorsFromSystem, batteriesByName, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
+const DECK_MODEL_API = { normalizeDeckConfig, normalizeDeckWellImage, normalizeDeckMediaStyle, normalizeDeckLook, effectiveDeckLook, setProfileLook, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, gridOf, reshapeDeckConfig, fitDeckGrids, foldDeckGrids, swapKeysAt, moveKeyToPage, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, DECK_SENSOR_METRICS, SLIDER_TARGETS, formatLiveValue, timersByLabel, sensorsFromSystem, batteriesByName, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
 if (typeof window !== 'undefined') {
   window.DeckModel = DECK_MODEL_API;
 }

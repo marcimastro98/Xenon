@@ -1051,6 +1051,7 @@
   // tap to open the editor. A small movement threshold separates a tap from a drag.
   function bindEditKey(tile, instanceId, navCtx, slotIndex, key, node) {
     bindPressFeedback(node);
+    node.ondragstart = (e) => e.preventDefault(); // Stop native HTML5 drag of images
 
     // Quick-delete badge (top-left). Its own pointerdown is swallowed so it never
     // starts a drag or the cap's press depression.
@@ -1101,7 +1102,6 @@
       clone.style.borderRadius = getComputedStyle(node).borderRadius;
       Object.assign(clone.style, { position: 'fixed', left: (r.left / z) + 'px', top: (r.top / z) + 'px', width: (r.width / z) + 'px', height: (r.height / z) + 'px', margin: '0' });
       document.body.appendChild(clone);
-      try { node.setPointerCapture(e.pointerId); } catch { /* capture unsupported */ }
     };
     const moveClone = (e) => {
       const z = zoom();
@@ -1109,7 +1109,12 @@
       clone.style.top = ((e.clientY - oy) / z) + 'px';
       clearDrop();
       const tgt = slotUnder(e.clientX, e.clientY);
-      if (tgt && tgt !== node) tgt.classList.add('is-drop');
+      if (tgt && tgt !== node) {
+        tgt.classList.add('is-drop');
+      } else {
+        const pager = document.elementsFromPoint(e.clientX, e.clientY).find(el => el.classList && (el.classList.contains('deck-prev') || el.classList.contains('deck-next')));
+        if (pager && !pager.disabled) pager.classList.add('is-drop');
+      }
     };
     const endDrag = (e) => {
       if (clone) { clone.remove(); clone = null; }
@@ -1118,9 +1123,20 @@
       if (!dragging) return;
       dragging = false;
       const tgt = slotUnder(e.clientX, e.clientY);
-      const to = tgt ? parseInt(tgt.dataset.slot, 10) : NaN;
-      if (Number.isInteger(to) && to !== slotIndex) {
-        saveConfig(instanceId, window.DeckModel.swapKeysAt(getConfig(instanceId), navCtx, slotIndex, to));
+      const pager = document.elementsFromPoint(e.clientX, e.clientY).find(el => el.classList && (el.classList.contains('deck-prev') || el.classList.contains('deck-next')));
+      
+      if (pager && !pager.disabled && window.DeckModel.moveKeyToPage) {
+        const dir = pager.classList.contains('deck-prev') ? -1 : 1;
+        const targetPage = navCtx.pageIndex + dir;
+        saveConfig(instanceId, window.DeckModel.moveKeyToPage(getConfig(instanceId), navCtx, slotIndex, targetPage));
+        // Switch view to the target page to show the dropped item
+        const st = navOf(instanceId);
+        st.pageIndex = targetPage;
+      } else {
+        const to = tgt ? parseInt(tgt.dataset.slot, 10) : NaN;
+        if (Number.isInteger(to) && to !== slotIndex) {
+          saveConfig(instanceId, window.DeckModel.swapKeysAt(getConfig(instanceId), navCtx, slotIndex, to));
+        }
       }
       render(tile, instanceId);   // rebuild (also clears any transient drag state)
     };
@@ -1128,6 +1144,7 @@
     node.addEventListener('pointerdown', (e) => {
       if (e.button != null && e.button > 0) return;
       pid = e.pointerId; downX = e.clientX; downY = e.clientY; moved = false;
+      try { node.setPointerCapture(e.pointerId); } catch { /* capture unsupported */ }
     });
     node.addEventListener('pointermove', (e) => {
       if (pid == null || e.pointerId !== pid) return;
@@ -1208,6 +1225,7 @@
         if (key.bgImage.blur) { btn.classList.add('has-bgblur'); btn.style.setProperty('--key-blur', key.bgImage.blur + 'px'); }
         const wrap = el('div', 'deck-key-bgimg');
         const bgImg = document.createElement('img');
+        bgImg.draggable = false;
         bgImg.src = bgSrc; bgImg.alt = '';
         wrap.appendChild(bgImg);
         btn.appendChild(wrap);
@@ -1228,6 +1246,7 @@
       ? window.DeckIcons.el(key.icon.value) : null;
     if (iconSrc) {
       const img = document.createElement('img');
+      img.draggable = false;
       img.src = iconSrc; img.alt = '';
       ico.appendChild(img);
       // Image fit: 'cover' = full-bleed (label gets a readable scrim), 'contain' =
@@ -2176,12 +2195,12 @@
     // Footer: arrows + page dots (only when more than one page, or in edit mode)
     if (view.pageCount > 1 || state.editing) {
       const foot = el('div', 'deck-foot');
-      const prev = el('button', 'deck-arrow', '‹'); prev.type = 'button';
+      const prev = el('button', 'deck-arrow deck-prev', '‹'); prev.type = 'button';
       prev.disabled = view.pageIndex === 0;
       prev.addEventListener('click', () => { state.pageIndex = Math.max(0, view.pageIndex - 1); render(tile, instanceId); });
       const dots = el('div', 'deck-dots');
       for (let i = 0; i < view.pageCount; i++) { const d = el('i'); if (i === view.pageIndex) d.classList.add('active'); dots.appendChild(d); }
-      const next = el('button', 'deck-arrow', '›'); next.type = 'button';
+      const next = el('button', 'deck-arrow deck-next', '›'); next.type = 'button';
       next.disabled = view.pageIndex >= view.pageCount - 1;
       next.addEventListener('click', () => { state.pageIndex = Math.min(view.pageCount - 1, view.pageIndex + 1); render(tile, instanceId); });
       foot.appendChild(prev); foot.appendChild(dots); foot.appendChild(next);

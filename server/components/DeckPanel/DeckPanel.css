@@ -536,7 +536,7 @@ body.perf-mode .deck-key .deck-key-anim { opacity: 0; }
   transition: transform .12s ease, filter .12s ease;
 }
 .deck-arrow:hover:not([disabled]) { filter: brightness(1.25); color: var(--text, #e7e9ee); }
-.deck-arrow:active:not([disabled]) { transform: translateY(1px); }
+.deck-arrow:active:not([disabled]), .deck-arrow.is-drop:not([disabled]) { transform: translateY(1px); background: rgba(255, 255, 255, 0.15); border-radius: 4px; }
 .deck-arrow[disabled] { opacity: .3; cursor: default; }
 .deck-dots { display: flex; gap: 6px; align-items: center; }
 .deck-dots i {
