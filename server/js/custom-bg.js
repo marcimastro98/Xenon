@@ -159,8 +159,21 @@
     // an object {k,m} carries the failure kind + message so the editor can show a
     // real error instead of a silently-black backdrop.
     'function report(err){try{parent.postMessage({__xbgError:(err==null?null:err)},"*");}catch(e){}}',
+    // Cap the backing store. A backdrop is the one surface that is repainted in
+    // full every frame and re-uploaded to the GPU each time, so its pixel count is
+    // a per-frame bandwidth cost, not a one-off allocation. At a 4K desktop on
+    // 150% scaling this was ~7.3M pixels a frame; on the hybrid-GPU kiosk that
+    // lands on a minimal integrated adapter sharing system memory, which is
+    // precisely where there is no bandwidth to spare. The snippet still draws in
+    // CSS pixels (setTransform below), the element still fills the viewport, and
+    // the browser scales the result — invisible on a soft backdrop sitting behind
+    // a dim veil and the whole UI, and it never makes a backdrop look different
+    // between surfaces, only slightly softer on very large ones.
+    'var BG_MAX_PX=2600000;',
     'function size(){var d=Math.min(window.devicePixelRatio||1,2);',
-    'canvas.width=Math.max(1,Math.floor(innerWidth*d));canvas.height=Math.max(1,Math.floor(innerHeight*d));',
+    'var w=Math.max(1,innerWidth),h=Math.max(1,innerHeight);',
+    'var over=(w*d)*(h*d)/BG_MAX_PX;if(over>1)d=d/Math.sqrt(over);',
+    'canvas.width=Math.max(1,Math.floor(w*d));canvas.height=Math.max(1,Math.floor(h*d));',
     'ctx.setTransform(d,0,0,d,0,0);}',
     'size();addEventListener("resize",size);',
     'var draw=null,assets={};',

@@ -500,6 +500,22 @@ body.perf-mode .deck-key.is-glint::after { display: none; }
   .deck-key .deck-key-anim { opacity: 0; }
 }
 body.perf-mode .deck-key .deck-key-anim { opacity: 0; }
+/* Same treatment for every other freeze state. These two loops (breathe on the
+   element, sheen on its ::before) animate CONTINUOUSLY, so leaving them out of a
+   freeze set keeps the compositor producing frames for the whole dashboard.
+   They were missing from all four of these; the hybrid-GPU toggle even promised
+   "key decorations stay still" while this file had no low-power-gpu rule at all.
+   `animation: none` is required alongside `opacity: 0` (verified live): the
+   breathe keyframes animate opacity, and a running animation overrides the
+   static declaration in the cascade, so opacity: 0 alone changes nothing. */
+body.overlay-frozen .deck-key .deck-key-anim,
+body.ambient-idle .deck-key .deck-key-anim,
+body.game-mode .deck-key .deck-key-anim,
+body.low-power-gpu .deck-key .deck-key-anim { animation: none; opacity: 0; }
+body.overlay-frozen .deck-key.anim-shift .deck-key-anim::before,
+body.ambient-idle .deck-key.anim-shift .deck-key-anim::before,
+body.game-mode .deck-key.anim-shift .deck-key-anim::before,
+body.low-power-gpu .deck-key.anim-shift .deck-key-anim::before { animation: none; }
 
 .deck-key.is-folder {
   border-color: rgba(180, 150, 230, .4);
@@ -538,6 +554,14 @@ body.perf-mode .deck-key .deck-key-anim { opacity: 0; }
 .deck-arrow:hover:not([disabled]) { filter: brightness(1.25); color: var(--text, #e7e9ee); }
 .deck-arrow:active:not([disabled]) { transform: translateY(1px); }
 .deck-arrow[disabled] { opacity: .3; cursor: default; }
+/* Edit mode: a dragged cap held over an arrow moves to that page on release. Same
+   accent language as a slot drop target, on the arrow's own 7px radius. */
+.deck-arrow.is-drop {
+  color: var(--text, #e7e9ee);
+  border-color: rgba(var(--accent-rgb, 43, 108, 255), .95);
+  background: rgba(var(--accent-rgb, 43, 108, 255), .28);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 0 12px rgba(var(--accent-rgb, 43, 108, 255), .5);
+}
 .deck-dots { display: flex; gap: 6px; align-items: center; }
 .deck-dots i {
   width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.18);

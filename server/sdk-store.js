@@ -40,6 +40,14 @@ const SECRET_OPS = Object.freeze(['set', 'delete', 'names', 'has']);
 // `{{secret:NAME}}` (optional inner whitespace). Global — a request may weave in
 // several. The captured name is re-checked against SECRET_NAME_RE on use.
 const SECRET_PLACEHOLDER_RE = /\{\{\s*secret:([A-Za-z0-9][A-Za-z0-9._-]{0,63})\s*\}\}/g;
+// The same placeholder as it survives URL serialisation inside a PATH segment.
+// `{` and `}` are in the WHATWG path percent-encode set (the query set doesn't
+// contain them), so validateProxyRequest's `url.toString()` rewrites a path
+// placeholder to `%7B%7Bsecret:NAME%7D%7D` and the literal above stops matching.
+// That silently shipped the unsubstituted token to the API for any provider
+// that carries its key in the path (TheSportsDB V1: /api/v1/json/<key>/...)
+// while `?key={{secret:NAME}}` worked, which is why it went unnoticed.
+const SECRET_PLACEHOLDER_ENCODED_RE = /%7[Bb]%7[Bb](?:\s|%20)*secret:([A-Za-z0-9][A-Za-z0-9._-]{0,63})(?:\s|%20)*%7[Dd]%7[Dd]/g;
 
 // A control character in a secret would let a stored value inject a header
 // (CRLF) once substituted; reject at write time so substitution is always safe.
@@ -146,6 +154,18 @@ function applySecretOp(current, op) {
 // unresolved placeholder is a hard error (never send the literal token to an
 // API, and never silently drop an intended credential). `secrets` is the raw
 // name→value map; a name outside SECRET_NAME_RE can't be a key so it's "unknown".
+// Undo the path-segment encoding of a placeholder so the literal form below is
+// the only thing the substitution has to know about. URL-only: a header or body
+// is never URL-serialised, so an encoded placeholder there is the widget's own
+// text and must stay untouched. Applied BEFORE substitution, so the host re-pin
+// in resolveProxySecrets still sees the resolved URL — the ordering that keeps a
+// secret from moving the request to another host is unchanged.
+function restoreEncodedPlaceholders(urlStr) {
+  const src = String(urlStr == null ? '' : urlStr);
+  if (src.indexOf('%7') === -1) return src;   // covers %7B and %7b alike
+  return src.replace(SECRET_PLACEHOLDER_ENCODED_RE, (_m, name) => `{{secret:${name}}}`);
+}
+
 function resolveSecretsInText(text, secrets) {
   const src = String(text == null ? '' : text);
   if (src.indexOf('{{') === -1) return { ok: true, text: src };
@@ -172,7 +192,7 @@ function resolveProxySecrets(req, secrets, allowedHosts) {
   if (!req || typeof req !== 'object') return { ok: false, error: 'bad_request' };
   const origHost = hostOf(req.url);
 
-  const u = resolveSecretsInText(req.url, secrets);
+  const u = resolveSecretsInText(restoreEncodedPlaceholders(req.url), secrets);
   if (!u.ok) return { ok: false, error: u.error };
   const newHost = hostOf(u.text);
   const allow = Array.isArray(allowedHosts) ? allowedHosts : [];
@@ -225,6 +245,7 @@ module.exports = {
   normalizeSecretName,
   applySecretOp,
   resolveSecretsInText,
+  restoreEncodedPlaceholders,   // unit-tested (path-segment placeholder recovery)
   resolveProxySecrets,
   storeNamespace,
 };

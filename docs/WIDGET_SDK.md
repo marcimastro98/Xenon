@@ -80,7 +80,7 @@ not need to do anything to support it.
 | `name` | yes | ≤ 60 chars. |
 | `version`, `author`, `description` | no | Shown to the user (description ≤ 200 chars). |
 | `entry` | no | HTML entry document, defaults to `index.html`. Must live in the package root. |
-| `streams` | no | Data streams you request: `status`, `system`, `media`, `audio`, `wavelink`, `stocks`, `football`, `news`, `claude`, `obs`, `discord`, `discordChannels`, `discordSoundboard`, `discordNotifications`, `streamerbot`, `homeassistant`, `tasks`, `notes`, `agenda`, `weather`, `battery`. See *Hardware sensors* for fans/power/battery. |
+| `streams` | no | Data streams you request: `status`, `system`, `media`, `audio`, `audioLevels`, `wavelink`, `stocks`, `football`, `news`, `claude`, `obs`, `discord`, `discordChannels`, `discordSoundboard`, `discordNotifications`, `streamerbot`, `homeassistant`, `tasks`, `notes`, `agenda`, `weather`, `battery`. See *Hardware sensors* for fans/power/battery. |
 | `surface` | no | `"tile"` (default) or `"ambient"` — an ambient package renders fullscreen as an Ambient/screensaver scene instead of a dashboard tile (see *Ambient scenes*). |
 | `actions` | no | Action categories you request: `media`, `volume`, `mic`, `lighting`, `chroma`, `wavelink`, `spotify`, `obs`, `discord`, `homeassistant`, `twitch`, `youtube`, `streamerbot`, `url`, `tasks`, `soundboard`. |
 | `hosts` | no | Up to 8 exact hostnames the widget may reach **through the host-mediated fetch proxy** (see *Network*). Loopback/link-local names are rejected at install time. |
@@ -142,10 +142,11 @@ exactly what GitHub issue #99 was about). Rules of thumb:
   at display rate forces continuous layout work (we've measured a widget doing
   ~150 layouts/second — that alone can spin fans on a laptop).
 
-The host already helps from the outside: your frame receives no `data` while
-the dashboard tab is hidden or your tile's page is off-screen, and the browser
-throttles off-viewport frames. But while your widget is visible, its rendering
-cost is entirely yours.
+The host already helps from the outside: your frame receives no `data` while your
+tile is off screen, and the browser throttles off-viewport frames. But the host
+cannot stop a timer inside your iframe — only you can. Listen for
+[`visibility`](#4c-visibility--host--widget) and stop your own work when you are
+told you are hidden. While your widget is visible, its cost is entirely yours.
 
 ## The bridge protocol (v1)
 
@@ -233,7 +234,8 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `status` — mic mute, game mode/activity, foreground process
 - `system` — `cpu` (%), `gpu` (%|null), `memory.percent`, temperatures, uptime…
 - `media` — `title`, `artist`, `album`, playback state, source…
-- `audio` — volume, mute, output device…
+- `audio` — volume, mute, output device, and `speakerApps[]` / `micApps[]`: the per-application mixer (one entry per active session, with `proc`, `volume`, `muted` and a resolved `icon`). Polled, so it updates about every 8 seconds
+- `audioLevels` — **how loud each app actually is right now**: `{ "discord": 0.42, "spotify": 0.81 }`, peak per process in `0..1`, roughly 12 times a second. See *Real audio levels* below — this one has conditions
 - `stocks` — the quotes/indices the user follows (same payload the Stocks tile gets)
 - `football` — followed teams' fixtures, live scores and results
 - `news` — merged headlines from the user's news sources
@@ -252,6 +254,49 @@ The payloads are the dashboard's own SSE events, unmodified:
 
 `wavelink` and these last four are read-only data feeds; you also get the latest
 cached payload replayed right after `init`, so you paint without waiting.
+
+### Real audio levels (`audioLevels`)
+
+This is the only stream that measures the sound itself rather than a setting.
+Peak per process, `0..1`, about 12 times a second:
+
+```js
+if (m.type === 'data' && m.stream === 'audioLevels') {
+  // { discord: 0.42, spotify: 0.81 } — only apps currently making sound
+  for (const [proc, peak] of Object.entries(m.data)) drawMeter(proc, peak);
+}
+```
+
+Four things to design around, or your widget will look broken on someone else's
+machine:
+
+1. **It can be absent, and that is normal.** It needs Xenon Helper, the optional
+   native companion, and Windows has no way to read peak levels without it — so
+   there is no fallback to degrade to. There is no separate switch to turn it on:
+   the user granting your package this stream is what starts the measurement, and
+   it stops when no granted package is left (or under safe mode / package pause).
+   Treat "no `audioLevels` data" as the ordinary case and draw something sensible
+   without it.
+2. **Silence sends nothing.** Apps at digital silence are omitted from the map
+   instead of being sent as `0`, so a process that vanishes from one tick to the
+   next has gone quiet — it has not closed. Decay your meters toward zero rather
+   than dropping them.
+3. **The keys are process names**, lower-case and without `.exe` (`discord`,
+   `chrome`). They match the `proc` field in the `audio` stream, which is how you
+   pair a level with the app's name, icon and volume.
+4. **It re-renders you continuously.** Twelve payloads a second is a lot of work
+   to hand a widget. Keep the paint cheap, and remember the host stops sending
+   `data` while your tile is off-screen (see §4c) — resume from the visibility
+   message rather than assuming the feed was uninterrupted.
+
+Peak is the same measure the Windows volume mixer draws, already scaled by the
+app's own volume: a quiet app reads quiet.
+
+When the measurement is wanted but cannot run — practically always a helper older
+than the one that introduced it — the host sends one payload of the shape
+`{ peaks: {}, problem: 'helper-too-old', minVersion: '0.7.0' }` on this same
+stream. Handle it if you want to explain yourself to the user; ignore it and you
+simply get no data, which is the case you already handle.
 
 The rich Discord streams are **lazy snapshots**, not polling feeds. Request one
 only while its UI is visible:
@@ -460,6 +505,44 @@ size from `window.innerWidth`/`innerHeight` too, but `size` also carries `dpr` a
 fires on tile resize.) Size the tile itself by dragging its corner in layout-edit
 mode — that's the only thing that sets a widget's height.
 
+### 4c. `visibility` — host → widget (v4.9)
+
+Whether your tile is on screen right now. Sent immediately after `init`, then
+again every time the answer changes:
+
+```js
+{ xenonSdk: 1, type: 'visibility', visible: false }
+```
+
+**You cannot work this out for yourself, so do not try.** `document.hidden`
+inside your iframe follows the whole *browser* tab. It stays `false` when your
+tile is behind another tab in a tab group, or on a dashboard page the user has
+scrolled away from — cases where nobody can see you, which on an always-on
+display is most of the time.
+
+While `visible` is `false`: you receive no `data` pushes, `refresh` is refused
+with `not_visible`, and the browser has already stopped your
+`requestAnimationFrame` loop. What keeps running is **every `setInterval` and
+`setTimeout` you started**, and that is CPU spent on a tile nobody is looking at.
+Stop them:
+
+```js
+let timer = null;
+addEventListener('message', (e) => {
+  const m = e.data;
+  if (!m || m.xenonSdk !== 1) return;
+  if (m.type === 'visibility') {
+    if (m.visible) { if (!timer) timer = setInterval(tick, 1000); tick(); }
+    else { clearInterval(timer); timer = null; }
+  }
+});
+```
+
+When you come back, the host replays the current value of every stream you were
+granted, so you do not need to re-request anything — just render what arrives.
+Background **service frames** never receive this message: they exist precisely to
+keep running out of sight.
+
 ### 5. `action` — widget → host, and `action_result` — host → widget
 
 ```js
@@ -479,7 +562,8 @@ the same gate Deck keys go through):
 | Category | Actions |
 |----------|---------|
 | `media` | `{ type: 'media', cmd: 'playpause' \| 'next' \| 'previous' }` |
-| `volume` | `{ type: 'volume', mode: 'mute' \| 'up' \| 'down' }`, `{ type: 'appVolume', app, mode }`, `{ type: 'appMute', app, mode }` |
+| `volume` | `{ type: 'volume', mode: 'mute' \| 'up' \| 'down' \| 'set', value }`, `{ type: 'appVolume', app, mode, value }`, `{ type: 'appMute', app, mode }` — `app` is the `proc` field from the `audio` stream. Note `appVolume` with `mode:'set'` does **not** unmute: raise a muted app and send `appMute` too, or nothing comes out. |
+| `audioDevice` | `{ type: 'audioDevice', device }` — make an output device the default, i.e. move your sound to another set of speakers or headphones. `device` is the `id` of an entry in the `audio` stream's `speakers[]`; nothing else works. A **separate grant from `volume`** on purpose: approving "change the volume" is not approving "choose my speakers", and folding the two together would have widened every existing grant with no prompt. The server resolves the id against the live output enumeration before acting, so an id that is merely well-formed — or that names a microphone — is refused. There is no action to change the *input* device. |
 | `mic` | `{ type: 'micMute', mode: 'toggle' \| 'mute' \| 'unmute' }` |
 | `lighting` | `{ type: 'lightPower', state: 'toggle' \| 'on' \| 'off' }`, `{ type: 'lightColor', color: '#rrggbb' }`, `{ type: 'lightAuto' }`, `{ type: 'lightEffect', style, color }`, `{ type: 'lightDevice', device, mode, color }` — the whole RGB system (iCUE + WLED/Hue/Nanoleaf/OpenRGB/Home Assistant lights/Chroma). `style`: `none\|solid\|breathing\|cycle\|wave\|aurora\|candle\|palette`; `mode`: `follow\|color\|animation\|temperature\|album\|off`; `color`: `#rrggbb`. `lightColor` sets a fixed colour across the whole rig, `lightAuto` clears it back to your configured lighting. Requires lighting configured in Settings → Illuminazione. |
 | `chroma` | `{ type: 'chromaColor', device, color }`, `{ type: 'chromaOff', device }` — Razer Chroma per-device lighting (`device`: `all` \| `keyboard` \| `mouse` \| `mousepad` \| `headset` \| `keypad` \| `chromalink`; `color`: `#rrggbb`). Requires the user to enable Razer Chroma in Settings. |
@@ -598,12 +682,13 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `audio`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `wavelink`, `weather`
+**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `wavelink`, `weather`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 
 | Category | Action types |
 |----------|--------------|
+| `audioDevice` | `audioDevice` |
 | `browser` | `browserOpen` |
 | `chroma` | `chromaColor`, `chromaOff` |
 | `discord` | `discordMute`, `discordDeafen`, `discordPtt`, `discordJoin`, `discordLeave`, `discordInputVol`, `discordOutputVol`, `discordAudioToggle`, `discordSoundboard` |

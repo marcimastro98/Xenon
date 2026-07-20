@@ -665,7 +665,11 @@
 :root[data-style="comic"] .stat-track.has-spark {
   background: repeating-linear-gradient(to bottom, var(--comic-pencil) 0 1px, transparent 1px 11px);
 }
-:root[data-style="comic"] .stat-spark-line { filter: none; stroke-width: 2.35; }
+/* Comic is flat ink on paper: no halo. The base rule dropped its drop-shadow
+   filter for cost (see SystemPanel.css) and replaced it with an underlaid
+   translucent stroke, so what this theme has to switch off is that stroke. */
+:root[data-style="comic"] .stat-spark-line { stroke-width: 2.35; }
+:root[data-style="comic"] .stat-spark-glow { display: none; }
 
 /* Audio and microphone predate the shared colour tokens and contain literal
    charcoal/white values. Rebuild their controls as pencilled hardware while

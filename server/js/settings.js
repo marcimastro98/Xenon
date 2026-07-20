@@ -302,6 +302,14 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // users read "off unless you turn it on" and left it alone, which is a choice.
   // Do not "simplify" that test to `!== false`: it would flip exactly those people.
   versionPing: true,
+  // Announcements and the paid-drop card. ON by default, and normalized with
+  // `!== false` — the opposite of versionPing above, deliberately: this is a
+  // preference about being interrupted, not a data opt-in.
+  hubMessages: true,
+  catalogDrops: true,
+  // `=== true` like versionPing, not `!== false`: a new outbound report starts
+  // on for fresh installs only, never switched on under an existing user.
+  catalogStats: true,
   // Opt-in ad-blocker for the Browser tile (Settings → Browser). OFF by default.
   browserAdblock: false,
   // Stock-market (Borsa) widget + ticker. Keys are server-only (redacted); the
@@ -458,6 +466,11 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // this PC (`source`), plus its playback options. Rules live in
   // js/slideshow-widget.js (shared with the server).
   slideshow: Object.freeze({ images: Object.freeze([]), source: 'library', folder: '', shuffle: false, pauseGame: true, intervalMs: 6000, fit: 'cover' }),
+  // Claude Code widget surfaces that appear OUTSIDE its tile, and so show up
+  // even when the widget is on another page or not added at all: the permission
+  // / question cards (with their fullscreen escalation) and the topbar marker.
+  // Both on by default; see js/claude-widget.js.
+  claudeWidget: Object.freeze({ approvals: true, topbar: true }),
   gameMode: true, // auto-pause ambient FX while a game / intensive app is running
   // Performance Mode (opt-in, off by default). Broader than gameMode: a
   // user-triggered / suggested profile that pauses dashboard animations and
@@ -868,6 +881,14 @@ function normalizeSlideshow(value) {
     : { images: [], intervalMs: 6000, fit: 'cover' };
 }
 
+// Claude Code widget: the two surfaces that can appear without the tile being on
+// screen. Both read "on unless explicitly stored false", so an existing install
+// keeps the behaviour it has. Mirrored by normalizeClaudeWidget on the server.
+function normalizeClaudeWidget(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return { approvals: v.approvals !== false, topbar: v.topbar !== false };
+}
+
 function cloneDashboardLayout(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -961,6 +982,36 @@ function normalizeDashboardPages(value) {
     out.push(page);
   });
   return out.length ? out.slice(0, 8) : seed;
+}
+
+// Duplicated-widget placements. DashboardInstances loads AFTER settings.js, so
+// the parse-time loadHubSettings() runs with it undefined. Falling back to []
+// there was silent data loss, not a safe default: normalizeDashboardGroups drops
+// members it can't resolve and DELETES any group left under two, so a tab group
+// holding a copy (every SDK-widget tab group — they always join as copies) was
+// erased on every boot. The hydrate normally repaired it, but a GridStack mount
+// `change` firing first serialized the mutilated layout and bumped `rev`, which
+// then won the merge against the server and made the loss permanent.
+// So fall back to a bounded RAW passthrough instead — same idiom as
+// normalizeAmbientScenes/dashboardPresets. The deep normalize runs on the next
+// pass once the module is up, and the grid re-normalizes before building DOM.
+function normalizeDashboardCopies(rawCopies, widgets, pageIds) {
+  if (typeof DashboardInstances !== 'undefined' && DashboardInstances.normalizeCopies) {
+    return DashboardInstances.normalizeCopies(rawCopies, widgets, pageIds);
+  }
+  if (!Array.isArray(rawCopies)) return [];
+  const seen = new Set();
+  const out = [];
+  rawCopies.forEach(c => {
+    if (!c || typeof c !== 'object') return;
+    const id = String(c.id || '').trim();
+    const widget = String(c.widget || '').trim();
+    if (!id || id.indexOf('~') < 0 || seen.has(id)) return;
+    if (!widgets || !widgets[widget]) return;
+    seen.add(id);
+    out.push(c);
+  });
+  return out.slice(0, 60);
 }
 
 function normalizeDashboardGroups(value, widgets, pageIds, copies) {
@@ -1075,9 +1126,7 @@ function normalizeDashboardLayout(value) {
     if (!pageIds.includes(layout.widgets[widgetId].page)) layout.widgets[widgetId].page = firstPage;
   });
   // Extra placements (duplicated widgets). Validated against known widgets/pages.
-  layout.copies = (typeof DashboardInstances !== 'undefined')
-    ? DashboardInstances.normalizeCopies(source.copies, layout.widgets, pageIds)
-    : [];
+  layout.copies = normalizeDashboardCopies(source.copies, layout.widgets, pageIds);
   // Fall back to the seeded default groups when the source has none (e.g. reset,
   // or a pre-groups saved layout) — otherwise the welcome media-group is lost.
   layout.groups = normalizeDashboardGroups(
@@ -1282,6 +1331,9 @@ function normalizeSettings(source) {
     tempUnit: value.tempUnit === 'f' ? 'f' : 'c',
     autoOpenBrowser: value.autoOpenBrowser !== false,
     versionPing: value.versionPing === true,
+    hubMessages: value.hubMessages !== false,
+    catalogDrops: value.catalogDrops !== false,
+    catalogStats: value.catalogStats === true,
     browserAdblock: value.browserAdblock === true,
     dashboardLayout: resetLayout
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
@@ -1294,8 +1346,12 @@ function normalizeSettings(source) {
       ? DashboardPresets.normalizePresets(value.dashboardPresets, DASHBOARD_WIDGET_IDS)
       : (Array.isArray(value.dashboardPresets) ? value.dashboardPresets.slice(0, 60) : []),
     customThemes: normalizeCustomThemes(value.customThemes),
+    // Same load-order hazard as dashboardLayout.copies: ContentInstalls loads
+    // after settings.js, so fail-closed here would drop every install receipt at
+    // the parse-time normalize and a pre-hydrate save would persist the loss.
     contentInstalls: (typeof ContentInstalls !== 'undefined' && ContentInstalls.normalizeContentInstalls)
-      ? ContentInstalls.normalizeContentInstalls(value.contentInstalls) : [],
+      ? ContentInstalls.normalizeContentInstalls(value.contentInstalls)
+      : (Array.isArray(value.contentInstalls) ? value.contentInstalls.slice(0, 200) : []),
     geminiApiKey: String(value.geminiApiKey || '').trim().slice(0, 200),
     aiProvider: ['ollama', 'openai', 'anthropic'].includes(value.aiProvider) ? value.aiProvider : 'gemini',
     ollamaModel: (typeof value.ollamaModel === 'string'
@@ -1340,6 +1396,7 @@ function normalizeSettings(source) {
     bgStatic: normalizeBgStatic(value.bgStatic),
     bgCustom: normalizeBgCustom(value.bgCustom),
     slideshow: normalizeSlideshow(value.slideshow),
+    claudeWidget: normalizeClaudeWidget(value.claudeWidget),
     gameMode: value.gameMode !== false,
     performance: normalizePerformance(value.performance),
     contextProfiles: normalizeContextProfiles(value.contextProfiles),
@@ -1747,8 +1804,8 @@ function normalizeDiscordNotifications(value) {
 // silently stripped on save, so the widget is granted a capability it can never
 // use (the exact bug where a to-do widget's `tasks` stream+action were dropped,
 // leaving it empty and un-writable). server/test/sdk-grant-cats-sync guards this.
-const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'tasks', 'notes', 'agenda', 'weather', 'battery']);
-const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'mic', 'lighting', 'chroma', 'wavelink', 'spotify', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'streamerbot', 'url', 'tasks', 'soundboard', 'browser']);
+const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'audioLevels', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'tasks', 'notes', 'agenda', 'weather', 'battery']);
+const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'audioDevice', 'mic', 'lighting', 'chroma', 'wavelink', 'spotify', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'streamerbot', 'url', 'tasks', 'soundboard', 'browser']);
 const SDK_PACKAGE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // Grant-side mirrors of the server manifest rules (sdk-widgets.js is the
 // authority; a grant can never widen what the manifest declared, so a loose
@@ -3417,6 +3474,9 @@ function applyHubSettings() {
   // Ambient mode reads enabled/idleMinutes live — re-arm (or cancel) its idle
   // timer whenever settings change, from any source (UI, AI, another surface).
   if (window.AmbientMode) window.AmbientMode.onSettingsChanged();
+  // Same reason: the Claude widget's approval cards and topbar marker are
+  // settings-gated, and the switch can be flipped on another surface.
+  if (window.ClaudeWidget && typeof ClaudeWidget.onSettingsChanged === 'function') ClaudeWidget.onSettingsChanged();
 
   const bgLayer = $('user-bg-layer');
   let image = $('user-bg-image');
@@ -3868,6 +3928,12 @@ function syncSettingsControls() {
   // The hybrid-GPU freeze only exists on an iGPU+dGPU machine running the native
   // shell, so the row is hidden everywhere else rather than offering a switch
   // that provably does nothing.
+  const claudeCfg = hubSettings.claudeWidget || {};
+  const claudeAppr = $('settings-claude-approvals');
+  if (claudeAppr) claudeAppr.checked = claudeCfg.approvals !== false;
+  const claudeTb = $('settings-claude-topbar');
+  if (claudeTb) claudeTb.checked = claudeCfg.topbar !== false;
+
   const hybridGpuPause = $('settings-hybrid-gpu-pause');
   if (hybridGpuPause) hybridGpuPause.checked = hubSettings.hybridGpuAnimationPause !== false;
   const hybridGpuRow = $('settings-hybrid-gpu-pause-row');
@@ -3876,6 +3942,12 @@ function syncSettingsControls() {
   }
   const versionPing = $('settings-version-ping');
   if (versionPing) versionPing.checked = hubSettings.versionPing === true;
+  const hubMsg = $('settings-hub-messages');
+  if (hubMsg) hubMsg.checked = hubSettings.hubMessages !== false;
+  const catDrops = $('settings-catalog-drops');
+  if (catDrops) catDrops.checked = hubSettings.catalogDrops !== false;
+  const catStats = $('settings-catalog-stats');
+  if (catStats) catStats.checked = hubSettings.catalogStats === true;
 
   const rangeMap = [
     ['settings-panel-alpha', String(hubSettings.panelAlpha)],
@@ -4109,6 +4181,8 @@ function setSafeMode(on) {
   syncSettingsControls();
   if (window.CustomWidget && CustomWidget.renderWidgets) CustomWidget.renderWidgets();
 }
+
+
 
 function updateHybridGpuAnimationPause(enabled) {
   hubSettings = normalizeSettings({ ...hubSettings, hybridGpuAnimationPause: enabled !== false });
@@ -6478,6 +6552,21 @@ function updateAutoOpenBrowser(checked) {
   }).catch(() => setSettingsStatus('settings_error', 'error'));
 }
 
+// Claude Code widget: the approval cards and the topbar marker. Saved like any
+// other preference, then handed to the widget so both surfaces change on the
+// spot — a card already on screen when you switch them off must disappear, not
+// wait for the next event. The approvals switch is ALSO read server-side: with
+// it off, Claude Code's permission hook is answered immediately with "no
+// decision", which puts the prompt back in the terminal instead of leaving the
+// session blocked on a card that will never be drawn.
+function updateClaudeWidgetCfg(patch) {
+  const current = (hubSettings.claudeWidget && typeof hubSettings.claudeWidget === 'object') ? hubSettings.claudeWidget : {};
+  hubSettings = normalizeSettings({ ...hubSettings, claudeWidget: { ...current, ...patch } });
+  saveHubSettings();
+  syncSettingsControls();
+  if (window.ClaudeWidget && typeof ClaudeWidget.onSettingsChanged === 'function') ClaudeWidget.onSettingsChanged();
+}
+
 // Anonymous version ping. Purely a stored preference — the server reads it on
 // the next update check and decides whether to send, so there is nothing to
 // call here and nothing to undo if the user switches it straight back off.
@@ -6486,6 +6575,29 @@ function updateVersionPing(checked) {
   saveHubSettings();
   syncSettingsControls();
 }
+
+// Announcements / paid-drop card. Both were localStorage-only before v4.9.0, so
+// turning one back ON here must also clear the legacy per-device flag — otherwise
+// a user who once pressed "don't show me these again" would flip the switch and
+// see nothing change, because the old flag still muted that surface. Turning OFF
+// writes only the setting: it syncs to every surface on its own.
+const LEGACY_MUTE_KEYS = { hubMessages: 'xeneonedge.hubMessagesMuted', catalogDrops: 'xeneonedge.catalogDropsMuted' };
+
+function updateAnnouncementPref(key, checked) {
+  const on = checked === true;
+  if (on) { try { localStorage.removeItem(LEGACY_MUTE_KEYS[key]); } catch { /* ignore */ } }
+  hubSettings = normalizeSettings({ ...hubSettings, [key]: on });
+  saveHubSettings();
+  syncSettingsControls();
+}
+function updateHubMessages(checked) { updateAnnouncementPref('hubMessages', checked); }
+// No legacy flag to clear for this one — it never lived in localStorage.
+function updateCatalogStats(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, catalogStats: checked === true });
+  saveHubSettings();
+  syncSettingsControls();
+}
+function updateCatalogDrops(checked) { updateAnnouncementPref('catalogDrops', checked); }
 
 // Brings the real scheduled task in line with the user's saved intent — but
 // only from a standalone browser, never from the Edge iframe. So a pure-Edge
@@ -6781,7 +6893,12 @@ function syncClockFormatControls() {
 }
 
 function syncTopbarStyleControls() {
-  const style = hubSettings.topbarStyle === 'minimal' ? 'minimal' : 'full';
+  // Two different things: whether the bar is there at all (the layout flag, also
+  // toggled from the Layout editor) and what it looks like when it is. Hidden wins,
+  // so the segment agrees with the screen however the bar was switched off.
+  const layout = (hubSettings && hubSettings.dashboardLayout) || {};
+  const style = layout.topbarHidden === true ? 'none'
+    : (hubSettings.topbarStyle === 'minimal' ? 'minimal' : 'full');
   document.querySelectorAll('.settings-topbar-style[data-topbar-style]').forEach(btn => {
     const active = btn.dataset.topbarStyle === style;
     btn.classList.toggle('active', active);
@@ -6810,12 +6927,24 @@ function updateTopbarRailsAutoHide(checked) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
-// Switch between the full glass topbar and the minimal chrome (edge rails +
-// island pill). Re-applies the dashboard layout so the grid reclaims/returns
-// the bar's row with a smooth transition.
+// Switch between the full glass topbar, the minimal chrome (edge rails + island
+// pill), and no bar at all. Re-applies the dashboard layout so the grid reclaims/
+// returns the bar's row with a smooth transition.
+// "None" is deliberately NOT a third topbarStyle: it writes the same
+// dashboardLayout.topbarHidden flag the Layout editor's hide button already owns.
+// A second flag for the same question would let the two controls disagree, and the
+// existing one is what the body class, TopbarMinimal and the floating Layout button
+// (the way back in once the bar is gone) all read.
 function updateTopbarStyle(style) {
-  if (!['full', 'minimal'].includes(style)) return;
-  hubSettings = normalizeSettings({ ...hubSettings, topbarStyle: style });
+  if (!['full', 'minimal', 'none'].includes(style)) return;
+  const hide = style === 'none';
+  hubSettings = normalizeSettings({
+    ...hubSettings,
+    // Hiding keeps the style underneath, so bringing the bar back restores the look
+    // the user had instead of dropping them on Full.
+    topbarStyle: hide ? hubSettings.topbarStyle : style,
+    dashboardLayout: { ...getDashboardLayout(), topbarHidden: hide },
+  });
   saveHubSettings();
   syncTopbarStyleControls();
   syncTopbarClockControls();

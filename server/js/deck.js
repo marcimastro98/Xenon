@@ -1051,6 +1051,10 @@
   // tap to open the editor. A small movement threshold separates a tap from a drag.
   function bindEditKey(tile, instanceId, navCtx, slotIndex, key, node) {
     bindPressFeedback(node);
+    // A key's icon and background are <img>, and an image is natively draggable: the
+    // browser's own drag starts, swallows the pointer stream and the cap never moves.
+    // The images opt out individually; this catches anything draggable added later.
+    node.addEventListener('dragstart', (e) => e.preventDefault());
 
     // Quick-delete badge (top-left). Its own pointerdown is swallowed so it never
     // starts a drag or the cap's press depression.
@@ -1068,15 +1072,26 @@
 
     const THRESH = 7;
     let pid = null, downX = 0, downY = 0, dragging = false, moved = false, clone = null, ox = 0, oy = 0;
+    // Which neighbouring pages can actually take this key, answered ONCE when the drag
+    // starts (the config cannot change mid-drag) instead of on every pointermove — the
+    // check normalizes the whole config, which is far too much for the move path.
+    let canDropPage = { '-1': false, '1': false };
 
-    const slotUnder = (x, y) => {
+    // ONE hit test per pointermove for both drop targets: a slot in THIS deck, or a
+    // pager arrow (drop there to carry the key onto the neighbouring page). Elements
+    // outside the tile are skipped, which also discards the drag clone — it lives in
+    // <body> and sits under the finger on every single move.
+    const dropUnder = (x, y) => {
       for (const elx of document.elementsFromPoint(x, y)) {
-        const k = elx.closest && elx.closest('.deck-key');
-        if (k && k.dataset.slot != null && tile.contains(k)) return k;
+        if (!elx.closest || !tile.contains(elx)) continue;
+        const k = elx.closest('.deck-key');
+        if (k && k.dataset.slot != null) return { slot: k };
+        const arrow = elx.closest('.deck-arrow');
+        if (arrow && !arrow.disabled) return { arrow, dir: arrow.classList.contains('deck-prev') ? -1 : 1 };
       }
-      return null;
+      return {};
     };
-    const clearDrop = () => tile.querySelectorAll('.deck-key.is-drop').forEach((n) => n.classList.remove('is-drop'));
+    const clearDrop = () => tile.querySelectorAll('.is-drop').forEach((n) => n.classList.remove('is-drop'));
     // The drag clone is appended to <body>, which on the Xeneon Edge sits inside an
     // <html> with CSS `zoom` applied (fractional-DPR compensation). `zoom` magnifies
     // a descendant's inline px, so client-space coordinates (clientX/Y, getBoundingClientRect)
@@ -1086,6 +1101,11 @@
     const startDrag = (e) => {
       dragging = true;
       node.classList.add('is-dragging');
+      const cfg = getConfig(instanceId);
+      canDropPage = {
+        '-1': window.DeckModel.canMoveKeyToPage(cfg, navCtx, slotIndex, navCtx.pageIndex - 1),
+        '1': window.DeckModel.canMoveKeyToPage(cfg, navCtx, slotIndex, navCtx.pageIndex + 1),
+      };
       const r = node.getBoundingClientRect();
       const z = zoom();
       ox = e.clientX - r.left; oy = e.clientY - r.top;          // offset stays in client space
@@ -1101,15 +1121,15 @@
       clone.style.borderRadius = getComputedStyle(node).borderRadius;
       Object.assign(clone.style, { position: 'fixed', left: (r.left / z) + 'px', top: (r.top / z) + 'px', width: (r.width / z) + 'px', height: (r.height / z) + 'px', margin: '0' });
       document.body.appendChild(clone);
-      try { node.setPointerCapture(e.pointerId); } catch { /* capture unsupported */ }
     };
     const moveClone = (e) => {
       const z = zoom();
       clone.style.left = ((e.clientX - ox) / z) + 'px';
       clone.style.top = ((e.clientY - oy) / z) + 'px';
       clearDrop();
-      const tgt = slotUnder(e.clientX, e.clientY);
-      if (tgt && tgt !== node) tgt.classList.add('is-drop');
+      const hit = dropUnder(e.clientX, e.clientY);
+      if (hit.slot && hit.slot !== node) hit.slot.classList.add('is-drop');
+      else if (hit.arrow && canDropPage[hit.dir]) hit.arrow.classList.add('is-drop');
     };
     const endDrag = (e) => {
       if (clone) { clone.remove(); clone = null; }
@@ -1117,10 +1137,18 @@
       node.classList.remove('is-dragging');
       if (!dragging) return;
       dragging = false;
-      const tgt = slotUnder(e.clientX, e.clientY);
-      const to = tgt ? parseInt(tgt.dataset.slot, 10) : NaN;
-      if (Number.isInteger(to) && to !== slotIndex) {
-        saveConfig(instanceId, window.DeckModel.swapKeysAt(getConfig(instanceId), navCtx, slotIndex, to));
+      const hit = dropUnder(e.clientX, e.clientY);
+      if (hit.arrow && canDropPage[hit.dir]) {
+        // Dropped on a pager arrow: the key moves to the neighbouring page and the
+        // deck follows it there, so the drop stays visible instead of vanishing.
+        const to = navCtx.pageIndex + hit.dir;
+        saveConfig(instanceId, window.DeckModel.moveKeyToPage(getConfig(instanceId), navCtx, slotIndex, to));
+        navOf(instanceId).pageIndex = to;
+      } else {
+        const to = hit.slot ? parseInt(hit.slot.dataset.slot, 10) : NaN;
+        if (Number.isInteger(to) && to !== slotIndex) {
+          saveConfig(instanceId, window.DeckModel.swapKeysAt(getConfig(instanceId), navCtx, slotIndex, to));
+        }
       }
       render(tile, instanceId);   // rebuild (also clears any transient drag state)
     };
@@ -1128,6 +1156,11 @@
     node.addEventListener('pointerdown', (e) => {
       if (e.button != null && e.button > 0) return;
       pid = e.pointerId; downX = e.clientX; downY = e.clientY; moved = false;
+      // Capture on the way DOWN, not once the drag starts: the drag only starts on the
+      // first pointermove past the threshold, and a fast flick can leave the cap before
+      // that move is delivered — no move on the node, no drag, the key stays put. The
+      // badge stops propagation, so its own press never reaches here and never captures.
+      try { node.setPointerCapture(e.pointerId); } catch { /* capture unsupported */ }
     });
     node.addEventListener('pointermove', (e) => {
       if (pid == null || e.pointerId !== pid) return;
@@ -1208,6 +1241,7 @@
         if (key.bgImage.blur) { btn.classList.add('has-bgblur'); btn.style.setProperty('--key-blur', key.bgImage.blur + 'px'); }
         const wrap = el('div', 'deck-key-bgimg');
         const bgImg = document.createElement('img');
+        bgImg.draggable = false;          // never let the native image drag eat the reorder
         bgImg.src = bgSrc; bgImg.alt = '';
         wrap.appendChild(bgImg);
         btn.appendChild(wrap);
@@ -1228,6 +1262,7 @@
       ? window.DeckIcons.el(key.icon.value) : null;
     if (iconSrc) {
       const img = document.createElement('img');
+      img.draggable = false;              // never let the native image drag eat the reorder
       img.src = iconSrc; img.alt = '';
       ico.appendChild(img);
       // Image fit: 'cover' = full-bleed (label gets a readable scrim), 'contain' =
@@ -2176,12 +2211,12 @@
     // Footer: arrows + page dots (only when more than one page, or in edit mode)
     if (view.pageCount > 1 || state.editing) {
       const foot = el('div', 'deck-foot');
-      const prev = el('button', 'deck-arrow', '‹'); prev.type = 'button';
+      const prev = el('button', 'deck-arrow deck-prev', '‹'); prev.type = 'button';
       prev.disabled = view.pageIndex === 0;
       prev.addEventListener('click', () => { state.pageIndex = Math.max(0, view.pageIndex - 1); render(tile, instanceId); });
       const dots = el('div', 'deck-dots');
       for (let i = 0; i < view.pageCount; i++) { const d = el('i'); if (i === view.pageIndex) d.classList.add('active'); dots.appendChild(d); }
-      const next = el('button', 'deck-arrow', '›'); next.type = 'button';
+      const next = el('button', 'deck-arrow deck-next', '›'); next.type = 'button';
       next.disabled = view.pageIndex >= view.pageCount - 1;
       next.addEventListener('click', () => { state.pageIndex = Math.min(view.pageCount - 1, view.pageIndex + 1); render(tile, instanceId); });
       foot.appendChild(prev); foot.appendChild(dots); foot.appendChild(next);

@@ -93,6 +93,11 @@
   white-space: nowrap;
   transition: background 0.22s ease, color 0.22s ease, box-shadow 0.22s ease;
 }
+/* The `display: inline-flex` above outranks the UA `[hidden]{display:none}` rule,
+   so without this the Volume/Microfono tabs stay clickable after their content is
+   extracted into a standalone tile, opening an empty pane. Same for History while
+   sensor history is off. */
+.sys-tab[hidden] { display: none; }
 .sys-tab svg {
   width: 12px;
   height: 12px;
@@ -378,19 +383,46 @@
 }
 .stat-track.has-spark .stat-fill { display: none; }
 .stat-spark { width: 100%; height: 100%; display: block; overflow: visible; color: var(--accent); }
+/* The sparkline is TWO stacked strokes, and deliberately carries no filter.
+   `transition: d` interpolates the path GEOMETRY, which is not compositable: the
+   path is re-rasterised on every frame of the transition. A
+   `filter: drop-shadow()` on top of that re-ran a gaussian blur on every one of
+   those frames, and with a sample arriving each second the 0.6s transition means
+   each chart animates ~60% of the time — eight charts on a page kept the GPU
+   process busy at ~7% with the renderer idle. The halo is now a wider translucent
+   copy of the same path underneath (`.stat-spark-glow`, painted by
+   renderStatSpark in js/utils.js), which is one ordinary stroke raster instead of
+   an offscreen surface plus a blur pass. Do not put a filter back on either path.
+   `stroke-opacity`, not `opacity`: opacity would force its own compositing group. */
+.stat-spark-glow,
 .stat-spark-line {
   fill: none;
   stroke: currentColor;
-  stroke-width: 2;
   stroke-linejoin: round;
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
-  filter: drop-shadow(0 0 4px currentColor);
   transition: d 0.6s ease;
 }
+.stat-spark-glow {
+  stroke-width: 6;
+  stroke-opacity: 0.16;
+}
+.stat-spark-line {
+  stroke-width: 2;
+}
 @media (prefers-reduced-motion: reduce) {
+  .stat-spark-glow,
   .stat-spark-line { transition: none; }
 }
+/* The glide is invisible to every freeze mechanism: it is a TRANSITION retriggered
+   by each SSE sample (one per second, forever), not an infinite animation, so the
+   ambient-idle WAAPI sweep never sees it and it kept re-rasterising both strokes
+   at display rate even with the dashboard untouched, under overlays, and in game
+   mode. Snap to the new value in those states; the data still updates. */
+body.overlay-frozen .stat-spark-glow, body.overlay-frozen .stat-spark-line,
+body.ambient-idle .stat-spark-glow, body.ambient-idle .stat-spark-line,
+body.game-mode .stat-spark-glow, body.game-mode .stat-spark-line,
+body.low-power-gpu .stat-spark-glow, body.low-power-gpu .stat-spark-line { transition: none; }
 
 .stat-head-temp {
   padding: 1px 6px 2px;

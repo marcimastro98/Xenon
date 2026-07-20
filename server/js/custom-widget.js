@@ -28,6 +28,7 @@
   const ACTION_CATEGORIES = {
     media: ['media'],
     volume: ['volume', 'appVolume', 'appMute'],
+    audioDevice: ['audioDevice'],
     mic: ['micMute'],
     lighting: ['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice'],
     chroma: ['chromaColor', 'chromaOff'],
@@ -125,6 +126,7 @@
     system: ['cw_stream_system', 'System sensors (CPU, GPU, RAM)'],
     media: ['cw_stream_media', 'Now playing'],
     audio: ['cw_stream_audio', 'Volume & audio devices'],
+    audioLevels: ['cw_stream_audiolevels', 'How loud each app is playing'],
     wavelink: ['cw_stream_wavelink', 'Wave Link mixer state'],
     stocks: ['cw_stream_stocks', 'Stock quotes & indices'],
     football: ['cw_stream_football', 'Football fixtures & scores'],
@@ -145,6 +147,7 @@
   const ACTION_LABELS = {
     media: ['cw_act_media', 'Control media playback'],
     volume: ['cw_act_volume', 'Change the volume'],
+    audioDevice: ['cw_act_audiodevice', 'Choose which speakers your sound comes out of'],
     mic: ['cw_act_mic', 'Mute/unmute the microphone'],
     lighting: ['cw_act_lighting', 'Control the RGB lighting'],
     chroma: ['cw_act_chroma', 'Control Razer Chroma lighting'],
@@ -513,6 +516,46 @@
   function actionAllowed(grant, action) {
     if (!action || typeof action !== 'object' || typeof action.type !== 'string') return false;
     return grant.actions.some(cat => (ACTION_CATEGORIES[cat] || []).includes(action.type));
+  }
+
+  // Is this frame's tile actually on screen? `onVisiblePage` answers only "is its
+  // pager page the current one" and says nothing about a tile hidden INSIDE that
+  // page — which is exactly what an inactive tab-group tab is (the atom carries
+  // data-dashboard-hidden="true" and CSS collapses it with display:none). Without
+  // the second half the host read a widget sitting behind another tab as fully
+  // visible and kept pushing every SSE tick at it, so a widget nobody could see
+  // re-rendered forever and its own low frame rate counted as a strike against it.
+  // Reads a cached element + an attribute, never a layout box, so this is safe to
+  // call on the data hot path.
+  function entryOnScreen(entry) {
+    if (!entry || !entry.frame) return false;
+    if (entry.service) return true;   // background by design — see the onData note
+    if (entry.ambient) return true;   // exists only while its overlay is open
+    if (document.hidden) return false;
+    if (!onVisiblePage(entry.frame)) return false;
+    return !(entry.tile && entry.tile.dataset.dashboardHidden === 'true');
+  }
+
+  // Tell a widget whether its tile is on screen. A guest cannot work this out for
+  // itself: `document.hidden` inside the iframe follows the BROWSER tab, so a
+  // widget parked behind another tab-group tab reads as visible there and keeps
+  // its timers running. display:none stops requestAnimationFrame for free, but
+  // nothing stops a setInterval — a widget that wants to behave has to be told.
+  // Change-detected, so a widget gets one message per real transition.
+  function postVisibility(entry, force) {
+    if (!entry || !entry.ready || entry.service) return;
+    const visible = entryOnScreen(entry);
+    if (!force && entry.visible === visible) return;
+    entry.visible = visible;
+    post(entry, { type: 'visibility', visible });
+    // Back on screen: hand over the current snapshot of every granted stream. It
+    // received no `data` while hidden, so it is showing whatever it last saw and
+    // most of these feeds only push when something CHANGES.
+    if (visible) replayTo(entry);
+  }
+
+  function syncVisibility() {
+    for (const [, entry] of frames) postVisibility(entry);
   }
 
   function entryCanRefreshLocalStream(entry) {
@@ -903,7 +946,7 @@
     if (!report) return;
     // FPS strikes only count while a tile of this package is actually on the
     // current page — parked/service frames are rAF-throttled by design.
-    const visible = !entry.service && !entry.ambient && !document.hidden && onVisiblePage(entry.frame);
+    const visible = !entry.service && !entry.ambient && entryOnScreen(entry);
     const agg = SdkPerf.foldPerfReport(perfByPkg.get(entry.pkgId), report, visible, now);
     perfByPkg.set(entry.pkgId, agg);
     if (SdkPerf.classifyPerf(agg) === 'heavy' && !agg.notified) {
@@ -975,6 +1018,12 @@
       if (grant.streams.includes('discord') && lastData.discord === undefined) seedDiscordStream();
       entry.szW = entry.szH = entry.szDpr = undefined;   // force the first size to send
       postSize(entry);   // initial tile size, now that the widget is listening
+      // A widget must know where it stands the moment it starts, not at the first
+      // transition — one mounted into an inactive tab has never been on screen.
+      // Posted directly rather than through postVisibility: the seed above already
+      // served as this frame's replay, and going through it would repeat it.
+      entry.visible = entryOnScreen(entry);
+      post(entry, { type: 'visibility', visible: entry.visible });
     } else if (d.type === 'action') {
       if (entry.ready) onBridgeAction(entry, grant, d);
     } else if (d.type === 'fetch') {
@@ -1049,14 +1098,13 @@
       // handlers/states alive while the user drives keys from another surface
       // (e.g. the Virtual Deck popup). Everything else is gated on visibility:
       // an ambient scene frame only exists while its overlay is open, and tile
-      // frames additionally need their pager page on screen.
+      // frames additionally need their page on screen AND their own tile shown
+      // (an inactive tab-group tab is not).
       if (entry.service) {
         if (entry.ready && grantsFor(entry.pkgId).streams.includes(stream)) post(entry, { type: 'data', stream, data: payload });
         continue;
       }
-      if (document.hidden) continue;
-      const visible = entry.ambient ? true : onVisiblePage(entry.frame);
-      if (entry.ready && visible && grantsFor(entry.pkgId).streams.includes(stream)) {
+      if (entry.ready && entryOnScreen(entry) && grantsFor(entry.pkgId).streams.includes(stream)) {
         post(entry, { type: 'data', stream, data: payload });
       }
     }
@@ -1117,18 +1165,19 @@
   // Hand every frame that just became visible the current snapshot of the streams
   // it was granted; the values are already in hand, so this costs no network and
   // the widget's own change-detection absorbs a repeat of what it already has.
-  function replayToVisibleFrames() {
-    if (document.hidden) return;
-    for (const [, entry] of frames) {
-      if (!entry.ready || entry.service || entry.ambient) continue;   // never gated → never stale
-      if (!onVisiblePage(entry.frame)) continue;
-      const streams = grantsFor(entry.pkgId).streams;
-      streams.forEach(stream => {
-        if (lastData[stream] !== undefined) post(entry, { type: 'data', stream, data: lastData[stream] });
-      });
-    }
+  function replayTo(entry) {
+    if (!entry || !entry.ready || entry.service || entry.ambient) return;   // never gated → never stale
+    grantsFor(entry.pkgId).streams.forEach(stream => {
+      if (lastData[stream] !== undefined) post(entry, { type: 'data', stream, data: lastData[stream] });
+    });
   }
-  window.addEventListener('xenon:page-change', replayToVisibleFrames);
+  // A page change flips visibility for every frame it moved off or onto the
+  // screen; postVisibility replays to the ones that just came back, so the replay
+  // rides the same transition instead of being a second unconditional sweep.
+  window.addEventListener('xenon:page-change', syncVisibility);
+  // The whole dashboard going into the background hides every tile at once, and
+  // coming back reveals them — the same transition, from a different cause.
+  document.addEventListener('visibilitychange', syncVisibility);
 
   // A live DM/mention is an event, while SDK widgets consume the notifications
   // feed as a snapshot. Fold it into the cached snapshot and keep hide=true when
@@ -1857,6 +1906,31 @@
   // never granted (which would leave the new feature dead). A manifest that
   // declares NOTHING new never triggers a re-review, so untouched widgets keep
   // working across the upgrade.
+  // Capabilities the package declares that THIS dashboard build has never heard
+  // of — the package is newer than the code running here. It matters because the
+  // grant save filters unknown ids out: the manifest keeps asking for them, the
+  // stored grant can never contain them, and the user is left tapping "allow" on
+  // a card that never goes away. Naming the situation beats looping in silence.
+  // Compared against the grant-filter allowlists, NOT against the label maps: a
+  // stream with no friendly label is a cosmetic gap (the dialog falls back to the
+  // id), while a stream missing from the allowlist is the thing that actually
+  // makes the grant unsaveable. `battery` is exactly that case today — labelless
+  // but perfectly supported — and judging by labels would have declared every
+  // battery widget too new for the app it is already running in.
+  // settings.js loads first; these lists are pinned to the server's by
+  // test/sdk-grant-cats-sync.test.mjs.
+  function unknownCapabilities(pkg) {
+    const knownStreams = typeof SDK_WIDGET_STREAMS !== 'undefined' ? SDK_WIDGET_STREAMS : null;
+    const knownActions = typeof SDK_WIDGET_ACTION_CATS !== 'undefined' ? SDK_WIDGET_ACTION_CATS : null;
+    if (!knownStreams || !knownActions) return [];   // can't tell → never block
+    const streams = Array.isArray(pkg.streams) ? pkg.streams : [];
+    const actions = Array.isArray(pkg.actions) ? pkg.actions : [];
+    return [
+      ...streams.filter(s => !knownStreams.includes(s)),
+      ...actions.filter(a => !knownActions.includes(a)),
+    ];
+  }
+
   function grantNeedsReview(pkg) {
     const g = grantsFor(pkg.id);
     const man = (k) => Array.isArray(pkg[k]) ? pkg[k] : [];
@@ -1883,7 +1957,7 @@
     return Object.keys(resolvedUserHosts(pkg, grantsFor(pkg.id)).byId).length < slots.length;
   }
 
-  function mountFrame(body, instId, pkg) {
+  function mountFrame(body, instId, pkg, tile) {
     const existing = frames.get(instId);
     // Re-mount when the package changed OR the asset version bumped (Rescan /
     // reload), so an edited widget's files actually reload instead of the frame
@@ -1898,7 +1972,10 @@
     frame.setAttribute('referrerpolicy', 'no-referrer');
     frame.title = pkg.name;
     frame.src = '/sdk/widget/' + encodeURIComponent(pkg.id) + '/' + pkg.entry + '?v=' + assetVersion;
-    const entry = { frame, pkgId: pkg.id, ready: false, lastAction: 0, assetVersion };
+    // `tile` is the widget atom (the .dashboard-widget section). Cached because
+    // entryOnScreen reads its data-dashboard-hidden on the data hot path; the atom
+    // survives reparenting (extract, page move), so the reference stays valid.
+    const entry = { frame, pkgId: pkg.id, ready: false, lastAction: 0, assetVersion, tile: tile || null };
     frames.set(instId, entry);
     body.replaceChildren(frame);
     observeSize(entry);   // report tile size to the widget on mount + on every resize
@@ -2020,6 +2097,21 @@
       // cover — an old grant from before hosts/hooks existed, or a widget update
       // that added a host/hook. Rather than silently dead-ending the new feature
       // (network/hook requests would just fail), ask the user to review again.
+      // Checked BEFORE the review card: approving cannot help here, so offering
+      // the approve button would be a button that does nothing.
+      const unknown = unknownCapabilities(pkg);
+      if (unknown.length) {
+        const entry = frames.get(instId);
+        if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
+        showState(body, 'cw_too_new', 'This widget needs a newer Xenon', {
+          hint: ['cw_too_new_hint', 'It asks for something this version does not have yet (' + unknown.join(', ') + '). Update Xenon — and if you just did, reload the dashboard.'],
+          buttons: [
+            { key: 'cw_rescan', fb: 'Rescan', primary: true, onClick: () => fetchPackages(true) },
+            { key: 'cw_unassign', fb: 'Choose another', onClick: () => { if (swapBtn) swapBtn.onclick(); } },
+          ],
+        });
+        return;
+      }
       if (grantNeedsReview(pkg) || addressNeedsFilling(pkg)) {
         const entry = frames.get(instId);
         if (entry) { try { entry.frame.remove(); } catch {} frames.delete(instId); }
@@ -2043,7 +2135,7 @@
         return;
       }
       if (wrap) wrap.classList.add('cw-mounted');
-      mountFrame(body, instId, pkg);
+      mountFrame(body, instId, pkg, tile);
     });
     // Drop bridge entries whose tile no longer exists (widget removed / page
     // deleted) so a dead iframe can't keep receiving data. Ambient entries are
@@ -2058,9 +2150,40 @@
         frames.delete(instId);
       }
     }
+    // Every path that shows or hides a tile repaints through here — a tab switch,
+    // a layout apply, a page rebuild — so this is where a widget learns it went
+    // off screen (and gets its data cut) or came back (and gets a replay).
+    syncVisibility();
+  }
+
+  // Drop assignments whose copy id no longer exists in the layout. They are the
+  // residue of a deleted duplicate (and, before the copies-normalize fix, of tab
+  // groups the parse-time normalize erased): invisible, but normalizeSdkWidgets
+  // keeps only the FIRST 32 assign keys, so enough orphans would start pushing
+  // real assignments out and tiles would come back as the empty picker.
+  // Only ever runs against an authoritative layout: after the server hydrate and
+  // with DashboardInstances up, so a pre-hydrate layout can never drive a delete.
+  // Safe against the add path too — mergeIntoGroup saves the copy into the layout
+  // before the permission dialog writes its assign entry.
+  function pruneOrphanAssigns() {
+    if (typeof _hubHydratedFromServer === 'undefined' || !_hubHydratedFromServer) return;
+    if (typeof DashboardInstances === 'undefined') return;
+    const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings : null;
+    const cur = hs && hs.sdkWidgets;                  // raw, not the safe-mode mask
+    const layout = hs && hs.dashboardLayout;
+    if (!cur || !cur.assign || !layout || !layout.widgets) return;
+    const live = new Set((Array.isArray(layout.copies) ? layout.copies : []).map(c => c && c.id));
+    const assign = {};
+    let dropped = 0;
+    for (const key of Object.keys(cur.assign)) {
+      if (key.indexOf('~') >= 0 && !live.has(key)) { dropped++; continue; }
+      assign[key] = cur.assign[key];
+    }
+    if (dropped) persist({ assign });
   }
 
   function renderWidgets() {
+    pruneOrphanAssigns();
     // Reconcile service frames on EVERY render pass, not only on package
     // (re)scans: a safe-mode or suspend flip repaints tiles through here (local
     // toggle and cross-surface hydrate alike), and without this the hidden

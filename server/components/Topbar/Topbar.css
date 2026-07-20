@@ -308,6 +308,23 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.15; }
 }
+/* Topbar loops restart whenever a data pass re-renders their element, which slips
+   them past ambient-idle's one-shot WAAPI freeze — a CSS gate holds regardless of
+   when the animation (re)starts. `animation: none` + a solid resting state, not
+   play-state paused: a pause mid-keyframe would strand the colon half-faded and
+   the shimmer band as a permanent diagonal streak. */
+body.overlay-frozen .clock-sep,
+body.ambient-idle .clock-sep,
+body.game-mode .clock-sep,
+body.low-power-gpu .clock-sep { animation: none; opacity: 1; }
+body.overlay-frozen .topbtn.topbtn-xenon::after,
+body.ambient-idle .topbtn.topbtn-xenon::after,
+body.game-mode .topbtn.topbtn-xenon::after,
+body.low-power-gpu .topbtn.topbtn-xenon::after { animation: none; }
+body.overlay-frozen .status-dot-inline::after,
+body.ambient-idle .status-dot-inline::after,
+body.game-mode .status-dot-inline::after,
+body.low-power-gpu .status-dot-inline::after { animation: none; opacity: 0.6; }
 
 /* AM/PM — a quiet uppercase suffix riding the top of the digits, no box.
    The bordered pill read as clutter next to the big numerals; a bare

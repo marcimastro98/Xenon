@@ -34,6 +34,10 @@
 </script>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
 <script src="/consent.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Xenon — Privacy</title>
@@ -157,9 +161,10 @@
     <h2>The short version</h2>
     <div class="card accent">
       <ul>
-        <li><strong>The Xenon app sends no telemetry.</strong> It does not track how you use it, and there is no account, no profile and no usage log leaving your PC.</li>
+        <li><strong>The Xenon app does not track how you use it.</strong> There is no account, no profile and no usage log leaving your PC. Two counters exist: one adds your version number to the update check, one adds 1 to a creation&rsquo;s install count when you install it from the Store. <strong>On a new install both start switched on</strong>, and you can turn either off in Settings &rarr; Aggiornamenti; if you were already running Xenon before the version that added one, it stayed off for you. Neither carries an identifier, so neither can be tied back to you or joined to the other.</li>
         <li><strong>It is not fully offline either</strong>, and pretending otherwise would be the dishonest version. It checks for updates, and it contacts a service for weather or a music API only when you turn those features on. Every one of those calls is listed below.</li>
         <li><strong>This website uses Google Analytics</strong> to see which pages and downloads people reach. In the EEA, UK and Switzerland nothing is stored until you accept the banner.</li>
+        <li><strong>It also counts pageviews with Cloudflare Web Analytics</strong>, which sets no cookie and builds no profile — it only tells me how many people reached a page.</li>
       </ul>
     </div>
 
@@ -186,6 +191,16 @@
       <li>Approximate location (country/city level, derived by Google from your IP — the full IP is not stored in the reports), device type, browser and language.</li>
       <li>Cookies named <code>_ga</code> and <code>_ga_*</code>, used to tell a returning visitor from a new one. They last up to two years.</li>
     </ul>
+
+    <h3>Cloudflare Web Analytics</h3>
+    <p>
+      Alongside Analytics the site loads <strong>Cloudflare Web Analytics</strong>, a cookieless
+      pageview counter. It sets no cookie, stores no identifier and cannot follow you between sites
+      or between visits; it reports the page URL, referrer, country, device type and page-load timing
+      in aggregate. Because it identifies nobody it runs without the consent banner — but it is listed
+      here rather than left unmentioned. Why both: Analytics only counts visitors who accept the
+      banner, so this is the honest total those numbers are read against.
+    </p>
 
     <h3>Your choice, and how it works</h3>
     <p>
@@ -217,7 +232,7 @@
     <p>
       The app keeps your data on your machine. Settings, notes, tasks, events, decks, AI memory and
       uploaded backgrounds all live in <code>server/data/</code> on your PC. Nothing in that folder is
-      uploaded anywhere, and there is no analytics SDK, no crash reporter and no usage tracking in the app.
+      uploaded anywhere, and there is no analytics SDK, no crash reporter and no behavioural tracking in the app. The two anonymous counters described below are the only things the app ever reports about itself, and each is a single number with nothing attached.
     </p>
     <p>
       What the app <em>does</em> do is make network calls for features that inherently need the network.
@@ -239,6 +254,21 @@
             <td><code>xenon-app.com</code></td>
             <td>When you open the community catalog or Store</td>
             <td>Downloads the public catalog of community themes, widgets and packs. Read-only, no identifier.</td>
+          </tr>
+          <tr>
+            <td><code>xenon-app.com</code><br><span style="color:var(--dim)">(announcements)</span></td>
+            <td>Automatic, at most once a day</td>
+            <td>Downloads the same short list of announcements that everyone gets: a new release, something new in the Store, the occasional note. Read-only, no identifier. Some announcements are meant for a subset of people — those running a particular widget, or a particular version — and that filtering happens <strong>on your PC</strong>: your dashboard downloads the whole list and decides for itself which ones apply. Nothing about what you have installed is ever sent to decide what you are shown, so I can neither target you nor tell who saw what. You can turn announcements off from any of them.</td>
+          </tr>
+          <tr>
+            <td>Supporter hub<br><span style="color:var(--dim)">(poll answers)</span></td>
+            <td>Only if you tap an answer on a poll shown in an announcement</td>
+            <td>Sends which option you chose, and nothing else: no install UUID, no IP kept, no account, and not even a time. The server adds 1 to that option&rsquo;s counter and discards the request, so there is no way to ask what any particular PC answered &mdash; including by me. Tapping nothing sends nothing, and turning announcements off stops it entirely.</td>
+          </tr>
+          <tr>
+            <td>Supporter hub<br><span style="color:var(--dim)">(install counts)</span></td>
+            <td>When you install something from the Store, and only if that switch is on</td>
+            <td>Sends the id of the creation you installed, and nothing else: no install UUID, no IP kept, no account. The server adds 1 to that creation's counter and discards the request. Your dashboard remembers on your own PC which ones it has already counted, so it reports each creation at most once — which is why nothing identifying has to be sent to avoid double-counting. The consequence is that the number means "installs reported", not "how many people own it", and it is labelled that way wherever it is shown.</td>
           </tr>
           <tr>
             <td>Supporter hub<br><span style="color:var(--dim)">(Cloudflare Worker)</span></td>

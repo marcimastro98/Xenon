@@ -50,6 +50,8 @@
     const on = historyOn();
     const tab = $('sys-tab-history');
     if (tab) tab.hidden = !on;
+    // Adding/removing a tab can take the bar to or from a single button.
+    if (typeof syncSystemTabBar === 'function') syncSystemTabBar();
     if (!on && typeof currentSysTab !== 'undefined' && currentSysTab === 'history'
         && typeof setSystemTab === 'function') {
       setSystemTab('main');

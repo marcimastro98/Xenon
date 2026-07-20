@@ -27,24 +27,26 @@
   const DAY = 24 * 3600 * 1000;
 
   // ── Local, per-device UX state (mirrors the daily SDK-update check pattern) ──
-  const K_SEEN = 'xeneonedge.catalogSeen';       // JSON array of drop ids already announced
   const K_MUTED = 'xeneonedge.catalogDropsMuted'; // '1' once the user opts out
   const K_CHECK = 'xeneonedge.catalogDropCheck';  // last-check timestamp (daily throttle)
-  const SEEN_CAP = 250;
 
-  function readSeen() {
-    try { const a = JSON.parse(localStorage.getItem(K_SEEN) || '[]'); return Array.isArray(a) ? a : []; }
-    catch { return []; }
-  }
-  function markSeen(ids) {
-    if (!ids || !ids.length) return;
-    const set = readSeen();
-    for (const id of ids) if (id && !set.includes(id)) set.push(id);
-    // Keep the most recent ids only — an unbounded list would grow forever.
-    try { localStorage.setItem(K_SEEN, JSON.stringify(set.slice(-SEEN_CAP))); } catch { /* storage full/blocked */ }
-  }
-  const isMuted = () => { try { return localStorage.getItem(K_MUTED) === '1'; } catch { return false; } };
-  const mute = () => { try { localStorage.setItem(K_MUTED, '1'); } catch { /* ignore */ } };
+  // The announced-id set moved to js/interrupt-queue.js (same storage key, so
+  // existing history carries over): a hub announcement can name the same entry
+  // this modal already showed, and only a shared set can catch that.
+  const readSeen = () => window.XenonInterrupts.readSeen();
+  const markSeen = (ids) => window.XenonInterrupts.markSeen(ids);
+  // Settings → Aggiornamenti owns this now (v4.9.0). Before that it was a
+  // localStorage flag only: per device, and with no way back once pressed. The
+  // legacy key still mutes, and Settings clears it when you switch drops back on.
+  const HS = () => { try { return (typeof hubSettings !== 'undefined' && hubSettings) ? hubSettings : {}; } catch { return {}; } };
+  const isMuted = () => {
+    if (HS().catalogDrops === false) return true;
+    try { return localStorage.getItem(K_MUTED) === '1'; } catch { return false; }
+  };
+  const mute = () => {
+    try { localStorage.setItem(K_MUTED, '1'); } catch { /* ignore */ }
+    try { if (typeof updateCatalogDrops === 'function') updateCatalogDrops(false); } catch { /* ignore */ }
+  };
 
   // A drop worth nudging about = an AVAILABLE limited edition, or a
   // supporters-only / locked creation. Free community items never trigger this.
@@ -75,16 +77,11 @@
   }
   const variantOf = (e) => (e.limited ? 'limited' : 'supporter');
 
-  // Don't interrupt the user mid-flow: hold while a game/lockscreen/ambient is
-  // active or another overlay is already up. `.upd-overlay` is the What's-New /
-  // update-available modal, which ALWAYS takes precedence — the drop waits for it
-  // to close and appears afterwards (see presentWhenIdle).
-  function busy() {
-    const c = document.body.classList;
-    if (c.contains('game-mode') || c.contains('lock-screen-active') || c.contains('ambient-scene-open')
-      || c.contains('ambient-canvas-open') || c.contains('ambient-idle')) return true;
-    return !!document.querySelector('.upd-overlay, .preset-modal-overlay, .cgal-overlay, .xdrop-overlay');
-  }
+  // Never interrupt mid-flow: the hold-while-busy test and the waiting poller live
+  // in js/interrupt-queue.js now (see presentWhenIdle). `.upd-overlay` — What's New
+  // / update-available — still takes precedence there, so a drop keeps appearing
+  // only after it closes. The once-a-day rule below stays this module's own, so
+  // paid drops keep exactly the cadence they always had.
 
   // ── Preview media: a real screenshot when the drop has one, else a premium
   // gradient built from the server-validated preview swatches (never an empty box).
@@ -244,10 +241,13 @@
   // stamped only once we actually show — so if the user leaves What's New open and
   // walks away, we simply retry on the next load instead of burning the day.
   const STAMP = () => { try { localStorage.setItem(K_CHECK, String(Date.now())); } catch { /* ignore */ } };
-  function presentWhenIdle(fresh, tries) {
-    tries = tries || 0;
-    if (isMuted()) return;                    // muted from another surface meanwhile
-    if (!busy()) {
+  function presentWhenIdle(fresh) {
+    const P = window.XenonInterrupts.PRIORITY;
+    // A limited edition outranks a supporter pack in the shared queue for the same
+    // reason it leads the batch below: its copies run out.
+    const priority = fresh.some((e) => e.limited) ? P.limited : P.drop;
+    window.XenonInterrupts.whenIdle(() => {
+      if (isMuted()) return;                  // muted from another surface while waiting
       STAMP();
       // One of each kind, limited first: it is the one with copies running out,
       // so it is the one that cannot wait for tomorrow. The supporter pack opens
@@ -261,10 +261,7 @@
       // it never queued, yet its id landed in the seen list and every future
       // checkDaily filtered it out. Left unstamped, it becomes tomorrow's lead.
       markSeen([lead.id].concat(queued.map((e) => e.id)));
-      return;
-    }
-    if (tries > 200) return;                  // ~5 min of polling, then retry next load
-    setTimeout(() => presentWhenIdle(fresh, tries + 1), 1500);
+    }, { priority });                         // gives up after ~5 min, retries next load
   }
 
   // Once-a-day check, client-driven (no server timer): fetch the catalog (absorbed

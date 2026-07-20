@@ -790,7 +790,8 @@
             <tr><td><code>system</code></td><td>CPU %, GPU % (or null), memory, temperatures, uptime.</td></tr>
             <tr><td><code>status</code></td><td>Mic mute state, game mode / activity, foreground app.</td></tr>
             <tr><td><code>media</code></td><td>Now playing: title, artist, album, playback state, source.</td></tr>
-            <tr><td><code>audio</code></td><td>Master volume, mute, output device.</td></tr>
+            <tr><td><code>audio</code></td><td>Master volume, mute, output device, plus <code>speakerApps[]</code> &mdash; the per-app mixer, with each session's process name, volume, mute and icon. Polled, so about every 8 seconds.</td></tr>
+            <tr><td><code>audioLevels</code></td><td>How loud each app <b>actually is</b>, right now: <code>{ "discord": 0.42 }</code>, peak per process in <code>0..1</code>, ~12&times;/s. Needs Xenon Helper, so design for it being absent. There is no extra switch: the user granting this stream is what starts the measurement. Silent apps are omitted rather than sent as <code>0</code>.</td></tr>
             <tr><td><code>weather</code></td><td>The user's weather (current conditions and forecast).</td></tr>
             <tr><td><code>stocks</code></td><td>The quotes and indices the user follows.</td></tr>
             <tr><td><code>football</code></td><td>Followed teams: fixtures, live scores, results.</td></tr>
@@ -823,7 +824,8 @@
           <thead><tr><th>Category</th><th>Action types &amp; params</th></tr></thead>
           <tbody>
             <tr><td><code>media</code></td><td><code>{ type:'media', cmd:'playpause'|'next'|'previous' }</code></td></tr>
-            <tr><td><code>volume</code></td><td><code>{ type:'volume', mode:'mute'|'up'|'down' }</code>, plus per-app <code>appVolume</code> / <code>appMute</code></td></tr>
+            <tr><td><code>volume</code></td><td><code>{ type:'volume', mode:'mute'|'up'|'down'|'set', value }</code>, plus per-app <code>appVolume</code> / <code>appMute</code> (<code>app</code> = the <code>proc</code> from the <code>audio</code> stream). <code>appVolume</code> with <code>set</code> does not unmute &mdash; send <code>appMute</code> as well.</td></tr>
+            <tr><td><code>audioDevice</code></td><td><code>{ type:'audioDevice', device }</code> &mdash; move the sound to another output device. <code>device</code> is the <code>id</code> of an entry in the <code>audio</code> stream's <code>speakers[]</code>. <b>Separate grant from <code>volume</code></b>: "change the volume" is not "choose my speakers". The server checks the id against the live output list, so a microphone id is refused; there is no action for input devices.</td></tr>
             <tr><td><code>mic</code></td><td><code>{ type:'micMute', mode:'toggle'|'mute'|'unmute' }</code></td></tr>
             <tr><td><code>lighting</code></td><td>The whole RGB rig (iCUE + WLED / Hue / Nanoleaf / OpenRGB / HA lights): <code>lightPower</code>, <code>lightColor</code>, <code>lightAuto</code>, <code>lightEffect</code>, <code>lightDevice</code>. Needs lighting configured in Settings.</td></tr>
             <tr><td><code>chroma</code></td><td>Razer Chroma per device: <code>chromaColor</code>, <code>chromaOff</code> (device: <code>all</code>/<code>keyboard</code>/<code>mouse</code>/…). Needs Chroma enabled.</td></tr>

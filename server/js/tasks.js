@@ -370,19 +370,43 @@ function syncMicWidgetPlacement() {
   }
 }
 
-function switchCalendarTaskView(view, { persist = true } = {}) {
-  const panes = {
-    calendar: document.getElementById('cal-pane-calendar'),
-    tasks:    document.getElementById('cal-pane-tasks'),
-    timer:    document.getElementById('cal-pane-timer'),
-    notes:    document.getElementById('cal-pane-notes'),
-  };
-  const btns = {
-    calendar: document.getElementById('toggle-cal'),
-    tasks:    document.getElementById('toggle-tasks'),
-    timer:    document.getElementById('toggle-timer'),
-    notes:    document.getElementById('toggle-notes'),
-  };
+const CAL_VIEWS = ['calendar', 'tasks', 'timer', 'notes'];
+
+// Which Agenda tile does this call belong to?
+//
+// Everything here used to be resolved with getElementById, which binds to
+// whichever agenda atom comes FIRST in the document rather than the one the user
+// pressed. That is wrong in two ways. A tap on a duplicated Agenda switched the
+// original instead (copies lose their ids, so the lookups escaped the copy
+// entirely), and any moment where a layout rebuild leaves a second agenda atom in
+// the document — the pager parks every tile in the hidden #widget-pool while it
+// rebuilds — aims the whole function at a tile nobody can see. In both cases the
+// click still persisted, so the tab appeared to change only after a reload.
+// Scoping to the pressed button's own tile makes the id situation irrelevant.
+function agendaScopeFor(from) {
+  if (from && typeof from.closest === 'function') {
+    const host = from.closest('[data-dashboard-widget="agenda"]');
+    if (host) return host;
+  }
+  // Programmatic call (applyDashboardCalendarTabs): prefer an Agenda that is
+  // actually on a page over one parked in the pool.
+  const agendas = Array.from(document.querySelectorAll('[data-dashboard-widget="agenda"]'));
+  return agendas.find(el => !el.closest('#widget-pool')) || agendas[0] || document;
+}
+
+function switchCalendarTaskView(view, { persist = true, from = null } = {}) {
+  const scope = agendaScopeFor(from);
+  const panes = {};
+  const btns = {};
+  for (const key of CAL_VIEWS) {
+    panes[key] = scope.querySelector(`[data-calpane="${key}"]`);
+    btns[key] = scope.querySelector(`[data-caltab="${key}"]`);
+  }
+
+  // An extracted view moved its content into a standalone tile and hid its tab
+  // button; showing its now-empty hub pane would be a blank panel. Fall back to
+  // the calendar, which is always in the hub.
+  if (btns[view] && btns[view].hidden) view = 'calendar';
 
   // Hide all panes, then show the active one
   for (const [key, pane] of Object.entries(panes)) {

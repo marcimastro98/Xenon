@@ -266,7 +266,15 @@ function addAsTab(widgetId, targetMember, opts = {}) {
   // createCopyAtom would clone an empty shell. Use the move path instead: setting
   // visible=true lets the sync function fill the element before renderGroupTile
   // locates it.
-  if (!move && DI && DI.isDuplicable(widgetId) && layout.widgets[widgetId] && layout.widgets[widgetId].visible) {
+  // A custom-widget host is the exception: it ALWAYS copies, even while the base
+  // tile is hidden. Which package fills it lives outside the layout
+  // (hubSettings.sdkWidgets.assign, keyed by instance id) and every SDK package
+  // shares the single widget id 'custom' — so moving the base in would resurrect
+  // the package it held last time instead of showing the picker, and would cap a
+  // group at one custom tab (an id can only be a member once). Its static shell is
+  // an empty mount, so cloning it while hidden is safe.
+  const alwaysCopy = !move && widgetId === 'custom';
+  if (alwaysCopy || (!move && DI && DI.isDuplicable(widgetId) && layout.widgets[widgetId] && layout.widgets[widgetId].visible)) {
     const existing = new Set([...Object.keys(layout.widgets), ...((layout.copies || []).map(c => c.id))]);
     const copyId = DI.makeCopyId(widgetId, existing);
     if (!Array.isArray(layout.copies)) layout.copies = [];
@@ -311,5 +319,5 @@ if (typeof window !== 'undefined') {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { rectsOverlapRatio, widgetGroupOf, mergeWidgets, extractMember };
+  module.exports = { rectsOverlapRatio, widgetGroupOf, mergeWidgets, extractMember, addAsTab };
 }

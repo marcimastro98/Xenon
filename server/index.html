@@ -283,25 +283,25 @@
         </div>
 
         <div class="cal-task-toggle" role="tablist">
-          <button class="cal-task-btn active" id="toggle-cal" role="tab" aria-selected="true" onclick="switchCalendarTaskView('calendar')">
+          <button class="cal-task-btn active" id="toggle-cal" data-caltab="calendar" role="tab" aria-selected="true" onclick="switchCalendarTaskView('calendar', { from: this })">
             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
             <span data-i18n="calendar">Calendario</span>
           </button>
-          <button class="cal-task-btn" id="toggle-tasks" role="tab" aria-selected="false" onclick="switchCalendarTaskView('tasks')">
+          <button class="cal-task-btn" id="toggle-tasks" data-caltab="tasks" role="tab" aria-selected="false" onclick="switchCalendarTaskView('tasks', { from: this })">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9,11 12,14 22,4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
             <span data-i18n="tasks_title">Task</span>
           </button>
-          <button class="cal-task-btn" id="toggle-timer" role="tab" aria-selected="false" onclick="switchCalendarTaskView('timer')">
+          <button class="cal-task-btn" id="toggle-timer" data-caltab="timer" role="tab" aria-selected="false" onclick="switchCalendarTaskView('timer', { from: this })">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2"/><path d="M9 3h6M12 3v2"/></svg>
             <span data-i18n="timer_title">Timer</span>
           </button>
-          <button class="cal-task-btn" id="toggle-notes" role="tab" aria-selected="false" onclick="switchCalendarTaskView('notes')">
+          <button class="cal-task-btn" id="toggle-notes" data-caltab="notes" role="tab" aria-selected="false" onclick="switchCalendarTaskView('notes', { from: this })">
             <svg viewBox="0 0 24 24"><path d="M5 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.83a2 2 0 0 0-.59-1.42l-3.83-3.83A2 2 0 0 0 15.17 3H5Zm2 4h6v2H7V7Zm0 4h10v2H7v-2Zm0 4h10v2H7v-2Z"/></svg>
             <span data-i18n="notes_title">Appunti</span>
           </button>
         </div>
 
-        <div class="cal-pane" id="cal-pane-calendar">
+        <div class="cal-pane" id="cal-pane-calendar" data-calpane="calendar">
           <div class="calendar-card">
             <div class="calendar-nav">
               <div class="calendar-month" id="calendar-month" data-calf="month">--</div>
@@ -320,7 +320,7 @@
           </div>
         </div>
 
-        <div class="cal-pane" id="cal-pane-tasks" hidden>
+        <div class="cal-pane" id="cal-pane-tasks" data-calpane="tasks" hidden>
           <div class="tasks-add-row">
             <input class="tasks-new-input" id="tasks-new-input" type="text" maxlength="200"
               data-i18n-placeholder="tasks_placeholder" placeholder="Nuovo task…"
@@ -360,7 +360,7 @@
           </div>
         </div>
 
-        <div class="cal-pane" id="cal-pane-timer" hidden>
+        <div class="cal-pane" id="cal-pane-timer" data-calpane="timer" hidden>
           <div class="timer-add-section">
             <div class="timer-add-row">
               <input class="timer-add-label-input" id="timer-label-input" type="text" maxlength="40"
@@ -375,7 +375,7 @@
           </div>
           <div class="timer-list" id="timer-list" data-timerf="list"></div>
         </div>
-        <div class="cal-pane" id="cal-pane-notes" hidden>
+        <div class="cal-pane" id="cal-pane-notes" data-calpane="notes" hidden>
           <!-- Multi-note UI is rendered here by notes.js (renderNotes). The same
                [data-notesf="root"] block moves to the standalone panel when the
                notes widget is extracted, and is duplicated for mirror copies. -->
@@ -822,7 +822,7 @@
              header so it's reachable from every Settings category, not only its
              own section. -->
         <button type="button" class="settings-store-pill" onclick="if(window.CommunityGallery)CommunityGallery.open()" data-i18n-title="settings_store_open" title="Apri lo Store">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14l1.1 4.4a2.6 2.6 0 0 1-5.05.6 2.6 2.6 0 0 1-5.1 0 2.6 2.6 0 0 1-5.05-.6L5 4Zm.5 7.2A4 4 0 0 0 9 10.3a4 4 0 0 0 6 0 4 4 0 0 0 3.5.9V20a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-8.8Z"/></svg>
+          <svg class="store-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.2 2.7h11.6L21 7.1v12.2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7.1L6.2 2.7Z"/><path d="M3 7.1h18"/><path d="M16 11.1a4 4 0 0 1-8 0"/></svg>
           <span data-i18n="ui_store">Store</span>
         </button>
         <!-- "Try the native app" pill — shown only on the browser/iCUE surfaces
@@ -868,6 +868,7 @@
         <button type="button" class="settings-nav-btn" data-settings-cat="weather" onclick="settingsSetCategory('weather')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 18a4.5 4.5 0 0 1 .4-9 5.5 5.5 0 0 1 10.5 1.4A3.8 3.8 0 0 1 17 18Z"/></svg><span data-i18n="settings_weather">Meteo</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="stocks" onclick="settingsSetCategory('stocks')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/><path d="M17 8h4v4"/></svg><span data-i18n="settings_cat_feeds">Borsa, Calcio e News</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="slideshow" onclick="settingsSetCategory('slideshow')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="m4 17 4.5-4 3.5 2.5 3-2.5L20 17"/></svg><span data-i18n="settings_cat_slideshow">Slideshow</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="claude" onclick="settingsSetCategory('claude')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 9-3 3 3 3"/><path d="m16 9 3 3-3 3"/><path d="M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/></svg><span data-i18n="settings_cat_claude">Claude Code</span></button>
         <div class="settings-nav-label" id="settings-nav-label-integrations" data-i18n="settings_nav_integrations" aria-hidden="true">Integrazioni</div>
         <button type="button" class="settings-nav-btn" data-settings-cat="ai" onclick="settingsSetCategory('ai')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/></svg><span data-i18n="settings_ai">Xenon AI</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="lighting" onclick="settingsSetCategory('lighting')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2Z"/></svg><span data-i18n="settings_cat_lighting">Illuminazione</span></button>
@@ -1186,6 +1187,7 @@
           <div class="settings-segmented" role="group" aria-label="Stile barra superiore">
             <button class="settings-topbar-style settings-segment-btn" type="button" data-topbar-style="full" onclick="updateTopbarStyle('full')" aria-pressed="true" data-i18n="settings_topbar_full">Completa</button>
             <button class="settings-topbar-style settings-segment-btn" type="button" data-topbar-style="minimal" onclick="updateTopbarStyle('minimal')" aria-pressed="false" data-i18n="settings_topbar_minimal">Minimal</button>
+            <button class="settings-topbar-style settings-segment-btn" type="button" data-topbar-style="none" onclick="updateTopbarStyle('none')" aria-pressed="false" data-i18n="settings_topbar_none">Nessuna</button>
           </div>
         </div>
         <!-- Minimal-island personalization: shown only when the Minimal style is
@@ -1237,6 +1239,27 @@
           <span class="settings-label-line">
             <span data-i18n="settings_version_ping">Conta questa installazione, in forma anonima</span>
             <span class="settings-hint" data-i18n="settings_version_ping_hint">aggiunge solo versione e sistema operativo al controllo aggiornamenti già in corso: niente identificatori, nessuna richiesta in più</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full">
+          <input class="settings-check" id="settings-hub-messages" type="checkbox" onchange="updateHubMessages(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_hub_messages">Annunci e novità</span>
+            <span class="settings-hint" data-i18n="settings_hub_messages_hint">una breve nota quando esce una versione o arriva qualcosa di nuovo nello Store, al massimo una volta al giorno</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full">
+          <input class="settings-check" id="settings-catalog-stats" type="checkbox" onchange="updateCatalogStats(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_catalog_stats">Conta le installazioni dallo Store, in forma anonima</span>
+            <span class="settings-hint" data-i18n="settings_catalog_stats_hint">quando installi qualcosa dallo Store, aggiunge 1 al contatore di quella creazione: nessun identificatore, così l'autore vede quanto è usata la sua opera</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full">
+          <input class="settings-check" id="settings-catalog-drops" type="checkbox" onchange="updateCatalogDrops(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_catalog_drops">Segnala nuove edizioni limitate e contenuti per sostenitori</span>
+            <span class="settings-hint" data-i18n="settings_catalog_drops_hint">la scheda che compare quando esce una copia numerata o un pacchetto per sostenitori</span>
           </span>
         </label>
       </div>
@@ -2069,6 +2092,25 @@
         <p class="settings-note" data-i18n="settings_slideshow_note">Le immagini sono salvate come file su questo PC. Tocca l'immagine nel widget per mettere in pausa; usa le frecce per scorrere a mano.</p>
       </div>
 
+      <!-- Claude Code widget. Only the two things it can show while you are
+           looking elsewhere: the approval cards and the topbar marker. The rest
+           of the widget (quota, sessioni, collegamento) is configured inside the
+           tile itself, where the state it describes actually lives. -->
+      <div class="settings-group" data-settings-cat="claude">
+        <div class="settings-group-head">
+          <span data-i18n="settings_cat_claude">Claude Code</span>
+          <span class="settings-hint" data-i18n="settings_claude_hint">Il widget “Claude Code” si aggiunge dal pulsante “+” della dashboard. Qui decidi solo cosa può comparire quando il widget non è sullo schermo.</span>
+        </div>
+        <label class="settings-toggle-row full">
+          <input class="settings-check" id="settings-claude-approvals" type="checkbox" onchange="updateClaudeWidgetCfg({ approvals: this.checked })">
+          <span class="settings-label-line"><span data-i18n="settings_claude_approvals">Chiedi i permessi su questo schermo</span><span class="settings-hint" data-i18n="settings_claude_approvals_hint">quando Claude Code chiede di eseguire un comando o di scrivere un file, la richiesta compare qui da approvare. Se disattivi, la domanda resta nel terminale come prima</span></span>
+        </label>
+        <label class="settings-toggle-row full">
+          <input class="settings-check" id="settings-claude-topbar" type="checkbox" onchange="updateClaudeWidgetCfg({ topbar: this.checked })">
+          <span class="settings-label-line"><span data-i18n="settings_claude_topbar">Mostra Claude Code nella barra in alto</span><span class="settings-hint" data-i18n="settings_claude_topbar_hint">l'indicatore accanto all'orologio che dice se una sessione sta lavorando o ha finito</span></span>
+        </label>
+      </div>
+
       <div class="settings-group" data-settings-cat="performance">
         <div class="settings-group-head">
           <span data-i18n="sensors_admin_title">Sensori hardware</span>
@@ -2611,7 +2653,7 @@
           <section class="settings-store-hero" aria-labelledby="settings-store-hero-title">
             <span class="settings-store-hero-glow" aria-hidden="true"></span>
             <span class="settings-store-hero-ico" aria-hidden="true">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14l1.1 4.4a2.6 2.6 0 0 1-5.05.6 2.6 2.6 0 0 1-5.1 0 2.6 2.6 0 0 1-5.05-.6L5 4Zm.5 7.2A4 4 0 0 0 9 10.3a4 4 0 0 0 6 0 4 4 0 0 0 3.5.9V20a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-8.8Z"/></svg>
+              <svg class="store-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.2 2.7h11.6L21 7.1v12.2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7.1L6.2 2.7Z"/><path d="M3 7.1h18"/><path d="M16 11.1a4 4 0 0 1-8 0"/></svg>
             </span>
             <div class="settings-store-hero-body">
               <span class="settings-store-hero-eyebrow" data-i18n="settings_store_eyebrow">Community</span>
@@ -3389,6 +3431,9 @@
 <script src="js/color-picker.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/toast.js"></script>
+<!-- Interrupt arbiter: owns busy()/whenIdle()/the daily budget for every modal
+     channel. Must load before any channel that waits its turn (catalog-drop). -->
+<script src="js/interrupt-queue.js"></script>
 <script src="js/state.js"></script>
 <script src="js/status.js"></script>
 <script src="js/i18n.js"></script>
@@ -3486,6 +3531,10 @@
 <script src="js/installed-manager.js"></script>
 <script src="js/community-gallery.js"></script>
 <script src="js/catalog-drop.js"></script>
+<!-- Announcement feed: hub-match.js is the pure targeting filter (unit tested),
+     hub-messages.js the surface that renders what survives it. -->
+<script src="js/hub-match.js"></script>
+<script src="js/hub-messages.js"></script>
 <script src="js/update.js"></script>
 <script src="js/main.js"></script>
 

@@ -221,6 +221,52 @@
       slot.textContent = starsText(ratingsMap[slot.dataset.id]);
     });
   }
+
+  // ── Install counts (proxied: /api/community/installs) ─────────────────────
+  // Same shape as the ratings aggregates above: batched, TTL-cached by the local
+  // server, painted into slots once they land.
+  //
+  // The number is what dashboards REPORTED, not how many people own the thing:
+  // reporting is a setting, a reinstall counts again, and nothing identifies the
+  // sender (that is the point — see server/community-installs.js). So it is
+  // labelled "installs" and never "owners" or "downloads", and the tooltip says
+  // what it actually counts. Below MIN_SHOWN it stays blank rather than telling a
+  // creator their work has four installs, which is noise either way.
+  const MIN_INSTALLS_SHOWN = 10;
+  let installsMap = {};
+  async function loadInstalls(entries) {
+    const ids = (entries || []).map((e) => e && e.id).filter(Boolean);
+    if (!ids.length) return;
+    for (let i = 0; i < ids.length; i += 100) {
+      const out = await api('/api/community/installs?ids=' + encodeURIComponent(ids.slice(i, i + 100).join(',')));
+      if (!out || !out.ok || !out.counts) continue;
+      Object.assign(installsMap, out.counts);
+    }
+    paintInstalls();
+  }
+  // Compact and always at most 4 characters of number: "999", "1.2k", "34k",
+  // "1.2M". Without the millions step a seven-figure count printed as "1000k".
+  function compactCount(n) {
+    if (n < 1000) return String(n);
+    const unit = n < 1e6 ? { div: 1e3, suffix: 'k' } : { div: 1e6, suffix: 'M' };
+    const v = n / unit.div;
+    return (v < 10 ? v.toFixed(1) : String(Math.round(v))) + unit.suffix;
+  }
+  function installsText(id) {
+    const n = Number(installsMap[id]) || 0;
+    if (n < MIN_INSTALLS_SHOWN) return '';
+    return '↓ ' + compactCount(n);
+  }
+  function paintInstalls() {
+    if (!overlayEl) return;
+    overlayEl.querySelectorAll('.cgal-installs[data-id]').forEach((slot) => {
+      const text = installsText(slot.dataset.id);
+      slot.textContent = text;
+      slot.title = text
+        ? t('gallery_installs_title', 'Installs reported by dashboards that count them. Not a number of owners.')
+        : '';
+    });
+  }
   // The detail view's interactive vote row: current average + five tap targets.
   // Fetched with mine=1 (the local server attaches the install id) so the
   // user's own vote is highlighted; a tap posts and repaints optimistically.
@@ -846,6 +892,11 @@
     const stars = el('span', 'cgal-stars', starsText(ratingsMap[entry.id]));
     stars.dataset.id = entry.id;
     by.appendChild(stars);
+    // Same async-slot treatment: blank until the counts land, and blank below
+    // the display floor.
+    const installs = el('span', 'cgal-installs', installsText(entry.id));
+    installs.dataset.id = entry.id;
+    by.appendChild(installs);
     const cardPerf = perfChip(entry); if (cardPerf) by.appendChild(cardPerf);
     body.appendChild(by);
     if (entry.description) body.appendChild(el('div', 'cgal-desc', entry.description));
@@ -1295,6 +1346,7 @@
     // slots empty — the gallery never waits on it). paintGrid rebuilds cards
     // from the already-loaded map, so one load per render is enough.
     loadRatings(all).catch(() => { /* offline — slots stay empty */ });
+    loadInstalls(all).catch(() => { /* offline — slots stay empty */ });
   }
 
   // filterKind doubles as a deep-link: a real kind ('widget', 'ambient', …)

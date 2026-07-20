@@ -170,12 +170,14 @@ test('an injected prompt never becomes the session task', () => {
 });
 
 // ── AskUserQuestion projection ────────────────────────────────────────────────
-// Approving one of these lets Claude ASK; it never answers. The card exists so
-// the user can read the question instead of approving an opaque tool name.
+// These are NOT permissions: the server answers them at once and posts a notice
+// instead, so the card is a heads-up that can be read and dismissed. It resolves
+// nothing, must never escalate to the fullscreen overlay, and dismissing it must
+// not mark the session as unblocked — it is still waiting, in the terminal.
 
 test('AskUserQuestion projects its question and options', () => {
   const { bridge } = makeBridge();
-  bridge.requestPermission({
+  bridge.postQuestion({
     session_id: 's1', tool_name: 'AskUserQuestion',
     tool_input: {
       questions: [{
@@ -198,7 +200,7 @@ test('AskUserQuestion projects its question and options', () => {
 
 test('question projection is bounded and drops junk options', () => {
   const { bridge } = makeBridge();
-  bridge.requestPermission({
+  bridge.postQuestion({
     session_id: 's1', tool_name: 'AskUserQuestion',
     tool_input: {
       questions: Array.from({ length: 9 }, () => ({
@@ -220,10 +222,51 @@ test('a non-question tool carries no questions block', () => {
   assert.equal(bridge.snapshot().approvals[0].questions, null);
 });
 
-test('AskUserQuestion without a usable questions array degrades to no block', () => {
+test('AskUserQuestion without a usable questions array posts no card at all', () => {
   const { bridge } = makeBridge();
-  bridge.requestPermission({ session_id: 's1', tool_name: 'AskUserQuestion', tool_input: { questions: 'nope' } });
-  assert.equal(bridge.snapshot().approvals[0].questions, null);
+  // Nothing readable to show, and nothing is blocked on it, so there is no card
+  // worth drawing — the terminal already has the prompt.
+  assert.equal(bridge.postQuestion({ session_id: 's1', tool_name: 'AskUserQuestion', tool_input: { questions: 'nope' } }), null);
+  assert.equal(bridge.snapshot().approvals.length, 0);
+});
+
+test('a question notice is flagged, never urgent, and blocks nothing', () => {
+  const { bridge } = makeBridge();
+  bridge.applyHook({ session_id: 's1', hook_event_name: 'PreToolUse', tool_name: 'Read', cwd: '/p' });
+  const id = bridge.postQuestion({
+    session_id: 's1', tool_name: 'AskUserQuestion',
+    tool_input: { questions: [{ question: 'Which one?', options: [{ label: 'A' }] }] },
+  });
+  assert.ok(id, 'notice posted');
+  const [a] = bridge.snapshot().approvals;
+  assert.equal(a.notice, true);
+  assert.equal(a.urgent, false, 'a notice must never take over the display');
+  assert.equal(bridge.pendingCount, 1);
+});
+
+test('dismissing a notice clears the card without touching session state', () => {
+  const { bridge } = makeBridge();
+  bridge.applyHook({ session_id: 's1', hook_event_name: 'Notification', message: 'waiting', cwd: '/p' });
+  const before = bridge.snapshot().sessions[0].state;
+  const id = bridge.postQuestion({
+    session_id: 's1', tool_name: 'AskUserQuestion',
+    tool_input: { questions: [{ question: 'Which one?', options: [{ label: 'A' }] }] },
+  });
+  assert.equal(bridge.decide(id, 'allow'), true);
+  assert.equal(bridge.snapshot().approvals.length, 0, 'card dismissed');
+  assert.equal(bridge.snapshot().sessions[0].state, before,
+    'the session is still waiting on the user in the terminal');
+});
+
+test('stop() settles blocked permissions and steps over notices', () => {
+  const { bridge } = makeBridge();
+  const req = bridge.requestPermission({ session_id: 's1', tool_name: 'Bash', tool_input: { command: 'ls' } });
+  bridge.postQuestion({
+    session_id: 's1', tool_name: 'AskUserQuestion',
+    tool_input: { questions: [{ question: 'Which one?', options: [{ label: 'A' }] }] },
+  });
+  bridge.stop();                       // a notice has no resolve to call
+  return req.promise.then(v => assert.equal(v, 'timeout'));
 });
 
 test('destructive commands are urgent immediately', () => {

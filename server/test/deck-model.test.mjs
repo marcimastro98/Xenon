@@ -509,6 +509,47 @@ test('swapKeysAt swaps two slots and moves a key into an empty one', () => {
   assert.equal(s3.profiles[0].root.pages[0].keys[0].title, 'A');
 });
 
+test('moveKeyToPage moves a key to the first free slot of another page', () => {
+  const nav = { profileId: 'p', path: [], pageIndex: 0 };
+  const mk = (pages) => dm.normalizeDeckConfig({ cols: 2, rows: 1, profiles: [{ id: 'p', name: 'P', cols: 2, rows: 1, root: { pages } }], activeProfile: 'p' });
+  const A = { id: 'a', kind: 'action', title: 'A' };
+  const B = { id: 'b', kind: 'action', title: 'B' };
+
+  // page 0 slot 0 → page 1, which is empty: lands in slot 0 and leaves the source empty
+  const moved = dm.moveKeyToPage(mk([{ keys: [A, null] }, { keys: [null, null] }]), nav, 0, 1);
+  assert.equal(moved.profiles[0].root.pages[0].keys[0], null);
+  assert.equal(moved.profiles[0].root.pages[1].keys[0].title, 'A');
+  // skips an occupied slot: B holds slot 0, so A takes slot 1
+  const after = dm.moveKeyToPage(mk([{ keys: [A, null] }, { keys: [B, null] }]), nav, 0, 1);
+  assert.equal(after.profiles[0].root.pages[1].keys[1].title, 'A');
+});
+
+test('moveKeyToPage refuses a full page instead of growing the grid', () => {
+  const nav = { profileId: 'p', path: [], pageIndex: 0 };
+  const A = { id: 'a', kind: 'action', title: 'A' };
+  const full = [{ id: 'x', kind: 'action', title: 'X' }, { id: 'y', kind: 'action', title: 'Y' }];
+  const cfg = dm.normalizeDeckConfig({ cols: 2, rows: 1, profiles: [{ id: 'p', name: 'P', cols: 2, rows: 1, root: { pages: [{ keys: [A, null] }, { keys: full }] } }], activeProfile: 'p' });
+  assert.equal(dm.canMoveKeyToPage(cfg, nav, 0, 1), false);
+  const out = dm.moveKeyToPage(cfg, nav, 0, 1);
+  // The key stays put AND the profile keeps its shape: appending past the last slot
+  // would make normalizeProfile grow every page of the profile to fit.
+  assert.equal(out.profiles[0].root.pages[0].keys[0].title, 'A');
+  assert.equal(out.profiles[0].cols, 2);
+  assert.equal(out.profiles[0].rows, 1);
+});
+
+test('canMoveKeyToPage rejects an empty source slot, the same page and a missing page', () => {
+  const nav = { profileId: 'p', path: [], pageIndex: 0 };
+  const A = { id: 'a', kind: 'action', title: 'A' };
+  const cfg = dm.normalizeDeckConfig({ cols: 2, rows: 1, profiles: [{ id: 'p', name: 'P', cols: 2, rows: 1, root: { pages: [{ keys: [A, null] }, { keys: [null, null] }] } }], activeProfile: 'p' });
+  assert.equal(dm.canMoveKeyToPage(cfg, nav, 1, 1), false);    // source slot is empty
+  assert.equal(dm.canMoveKeyToPage(cfg, nav, 0, 0), false);    // same page
+  assert.equal(dm.canMoveKeyToPage(cfg, nav, 0, 2), false);    // no such page
+  assert.equal(dm.canMoveKeyToPage(cfg, nav, 0, -1), false);   // before the first page
+  assert.equal(dm.canMoveKeyToPage(cfg, nav, 9, 1), false);    // source slot out of range
+  assert.equal(dm.canMoveKeyToPage(cfg, nav, 0, 1), true);
+});
+
 test('addProfileFromTemplate grows the grid so a richer template never loses keys', () => {
   // Source profile: 8 keys laid out on a 4x2 grid (slots 0..7).
   const titles = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
