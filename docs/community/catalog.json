@@ -639,23 +639,6 @@
       "codeFile": true
     },
     {
-      "id": "nocturne-page",
-      "kind": "page",
-      "name": "Nocturne Desk",
-      "author": "Xenon",
-      "authorSupporter": false,
-      "perfWarning": true,
-      "description": "A tidy dashboard page: now playing on the left with system, weather, agenda and tasks arranged cleanly beside it. A calm home screen for the Edge.",
-      "category": "system",
-      "tags": [
-        "layout",
-        "desk",
-        "clean"
-      ],
-      "addedAt": "2026-07-10",
-      "codeFile": true
-    },
-    {
       "id": "nocturne-now",
       "kind": "widget",
       "name": "Nocturne Now Playing",
