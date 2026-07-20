@@ -6,7 +6,7 @@
   // Widgets grouped into scannable categories (instead of one long flat list).
   // An id not in any category falls into a trailing "misc" grid so nothing is lost.
   const WIDGET_CATEGORIES = [
-    { labelKey: 'palette_cat_productivity', ids: ['agenda', 'calendar', 'tasks', 'timer', 'notes', 'weather', 'stocks', 'football', 'news', 'notifications', 'vitals'] },
+    { labelKey: 'palette_cat_productivity', ids: ['agenda', 'calendar', 'tasks', 'timer', 'notes', 'weather', 'stocks', 'football', 'news', 'notifications', 'vitals', 'digitalclock'] },
     { labelKey: 'palette_cat_media', ids: ['media', 'chat', 'browser', 'slideshow'] },
     { labelKey: 'palette_cat_system', ids: ['system', 'fans', 'power', 'battery', 'audio', 'mic', 'secondscreen', 'remote', 'smarthome', 'unifi', 'lighting', 'claude'] },
     { labelKey: 'palette_cat_streaming', ids: ['twitch', 'youtube', 'obs', 'discord', 'spotify', 'streamerbot', 'wavelink', 'deck'] },
@@ -46,9 +46,10 @@
     claude: I('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.2c.35 2.6 1.05 3.3 3.6 3.6-2.55.35-3.25 1.05-3.6 3.6-.35-2.55-1.05-3.25-3.6-3.6 2.55-.35 3.25-1.05 3.6-3.6Z"/>'),
     vitals: I('<path d="M12 21S3.8 15.9 2.9 10.8A5.2 5.2 0 0 1 12 6.4a5.2 5.2 0 0 1 9.1 4.4C20.2 15.9 12 21 12 21Z"/><path d="M7 12h2.4l1.3-2.6 2 4.4 1.4-1.8H17"/>'),
     unifi: I('<rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 4.6-2.6a1 1 0 0 1 1.5.9v7.4a1 1 0 0 1-1.5.9L16 14"/><circle cx="9" cy="12" r="2.5"/>'),
-    fans: I('<circle cx="12" cy="12" r="2"/><path d="M12 10c0-3.5 1.5-6 4-6 1.8 0 2.6 1.6 1.6 3.1C16.5 8.7 14 10 12 10ZM14 12c3.5 0 6 1.5 6 4 0 1.8-1.6 2.6-3.1 1.6C15.3 16.5 14 14 14 12ZM12 14c0 3.5-1.5 6-4 6-1.8 0-2.6-1.6-1.6-3.1C7.5 15.3 10 14 12 14ZM10 12c-3.5 0-6-1.5-6-4 0-1.8 1.6-2.6 3.1-1.6C8.7 7.5 10 10 10 12Z"/>'),
+    fans: I('<circle cx="12" cy="12" r="2"/><path d="M12 10c0-3.5 1.5-6 4-6 1.8 0 2.6 1.6 1.6 3.1C16.5 8.7 14 10 12 10ZM14 12c3.5 0 6 1.5 6 4 0 1.8-1.6 2.6-3.1 1.6C15.3 16.5 14 14 12ZM12 14c0 3.5-1.5 6-4 6-1.8 0-2.6-1.6-1.6-3.1C7.5 15.3 10 14 12 14ZM10 12c-3.5 0-6-1.5-6-4 0-1.8 1.6-2.6 3.1-1.6C8.7 7.5 10 10 10 12Z"/>'),
     power: I('<path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/>'),
     battery: I('<rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 10v4M5.5 10.5v3M9 10.5v3"/>'),
+    digitalclock: I('<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 12h.01M12 12h.01M17 12h.01"/>'),
     custom: I('<path d="M14 7h4a1 1 0 0 1 1 1v3.5a1.5 1.5 0 0 0 0 3V18a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 1-3 0H8a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 1 0-3V8a1 1 0 0 1 1-1h3.5a1.5 1.5 0 0 1 3 0Z"/>'),
   };
   const FALLBACK_ICON = I('<rect x="3" y="3" width="18" height="18" rx="3"/>');

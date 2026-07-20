@@ -1,0 +1,96 @@
+/* ── Digital Clock Widget ────────────────────────────────────────────── */
+
+.digitalclock-panel {
+  display: flex;
+  container-type: size;
+  container-name: digitalclock;
+}
+
+.digitalclock-widget-mount {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  min-height: 0;
+  border-radius: inherit;
+}
+
+.dclock-wrap {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  gap: clamp(4px, 2cqh, 16px);
+  box-sizing: border-box;
+  background: radial-gradient(100% 120% at 50% 0%, rgba(255, 255, 255, 0.05), transparent 80%);
+  border-radius: inherit;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+
+.dclock-time-row {
+  display: flex;
+  align-items: baseline; /* Perfect alignment when font weights match */
+  justify-content: center;
+  gap: 4px;
+}
+
+.dclock-hour, .dclock-colon, .dclock-min {
+  font-family: inherit;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--accent, #ffffff);
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(2rem, 25cqi, 12rem);
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), 0 0 40px rgba(var(--accent-rgb, 255, 255, 255), 0.15);
+}
+
+.dclock-colon {
+  margin: 0 0.05em; /* Positive padding for spacious look */
+  opacity: 0.8;
+  font-weight: 500;
+  transform: translateY(-0.1em);
+  animation: dclock-blink 1.5s infinite;
+}
+
+@keyframes dclock-blink {
+  0%, 50%, 100% { opacity: 0.8; }
+  25%, 75% { opacity: 0.3; }
+}
+
+.dclock-min {
+  font-weight: 800; /* Reverted to same as hours */
+  opacity: 1;
+}
+
+.dclock-ampm {
+  font-weight: 700;
+  color: var(--accent, #ffffff);
+  opacity: 0.65;
+  text-transform: uppercase;
+  font-size: clamp(0.7rem, 6cqi, 3.5rem);
+}
+
+.dclock-date {
+  font-weight: 600;
+  color: var(--accent, #ffffff);
+  opacity: 0.55;
+  letter-spacing: 0.03em;
+  font-size: clamp(0.55rem, 5cqi, 1.8rem);
+  text-transform: uppercase;
+}
+
+/* Fallback Container Queries to handle extreme proportions */
+@container digitalclock (max-width: 120px) {
+  .dclock-hour, .dclock-colon, .dclock-min { font-size: 2.2rem; }
+  .dclock-ampm { display: none; }
+  .dclock-date { font-size: 0.65rem; }
+}
+
+@container digitalclock (max-height: 100px) {
+  .dclock-hour, .dclock-colon, .dclock-min { font-size: 2.2rem; }
+  .dclock-ampm { font-size: 0.85rem; }
+  .dclock-date { display: none; }
+}

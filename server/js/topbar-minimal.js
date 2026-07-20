@@ -261,8 +261,9 @@
       if (el) ui.pill.appendChild(el);
     });
     document.body.classList.add('topbar-minimal');
-    active = true;
     applyIslandLayout();
+    if (ui && ui.pill) ui.pill.style.display = (typeof hubSettings !== 'undefined' && hubSettings && hubSettings.topbarStyle === 'hidden') ? 'none' : '';
+    active = true;
     configureAutoHide();
   }
 
@@ -359,8 +360,9 @@
     if (document.body.dataset.panel) return;
     const settings = (typeof hubSettings !== 'undefined' && hubSettings) ? hubSettings : null;
     const barHidden = !!(settings && settings.dashboardLayout && settings.dashboardLayout.topbarHidden === true);
-    const wantMinimal = !!(settings && settings.topbarStyle === 'minimal' && !barHidden);
+    const wantMinimal = !!(settings && ['minimal', 'hidden'].includes(settings.topbarStyle) && !barHidden);
     if (wantMinimal) enable(); else disable();
+    if (active && ui && ui.pill) ui.pill.style.display = settings && settings.topbarStyle === 'hidden' ? 'none' : '';
     // Pick up an auto-hide setting change even when already active (enable() would
     // have early-returned). Self-guards when inactive.
     configureAutoHide();
