@@ -2,19 +2,28 @@
   "author": "Marcello Mastroeni",
   "id": "com.marcimastro.xenon.fps",
   "name": "Xenon FPS",
-  "description": "Live in-game frames per second from the iCUE Sensors plugin, with a performance-coloured reading and a real-time graph. Part of the Xenon widget collection for the CORSAIR Xeneon Edge.",
+  "description": "Live in-game frames per second from the iCUE FPS plugin, with a performance-coloured reading, the name of the running game and a real-time graph. Part of the Xenon widget collection for the CORSAIR Xeneon Edge.",
   "version": "1.0.0",
   "preview_icon": "resources/icon.png",
+  "min_app_version": "5.47",
   "min_framework_version": "1.0.0",
   "os": [
-    { "platform": "windows" }
+    {
+      "platform": "windows"
+    }
   ],
   "supported_devices": [
-    { "type": "dashboard_lcd" },
-    { "type": "pump_lcd" },
-    { "type": "keyboard_lcd" }
+    {
+      "type": "dashboard_lcd"
+    },
+    {
+      "type": "pump_lcd"
+    },
+    {
+      "type": "keyboard_lcd"
+    }
   ],
   "required_plugins": [
-    "widgetbuilder.sensorsdataprovider:Sensors:1.0"
+    "widgetbuilder.fpsdataprovider:Fps:1.0"
   ]
 }

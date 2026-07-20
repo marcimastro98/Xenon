@@ -6,6 +6,21 @@ real client code in `server/js/` (cited per widget). Update **Status** as work m
 
 **Status legend:** `todo` · `wip` · `done` · `blocked` (needs a CORSAIR capability not yet shipped)
 
+> **SDK recheck, 2026-07-20 — Widget API 1.4.0 (iCUE 5.47+).** CORSAIR added three plugins
+> since this plan was written: **FPS**, **Stream Deck** and **Device Action**. All three are
+> data providers, so none of the `blocked` rows below moved: there is still no network, audio,
+> system or companion-bridge capability, and the manifest still has no permissions model.
+> What did change:
+> - **FPS** now has a dedicated plugin and row 3 was rebuilt on it (see note 3a).
+> - **Stream Deck** could partly cover the Deck row, but only for people who already own a
+>   Stream Deck, so it stays out of scope as a minority feature rather than the real Deck.
+> - **Device Action** reports dial and key presses; the Edge is touch only, so it does not apply.
+>
+> Two manifest fixes landed with this pass: **`min_app_version` is now a required field** (all
+> eight widgets were missing it and would fail current CLI validation), and **`interactive: true`**
+> is now declared on the five tap-driven widgets (Calendar, Tasks, Notes, Timers, Media), which
+> governs touch click handling and was missing everywhere.
+
 ## Build queue — ordered by roadmap phase
 
 **Guiding principle (from `report corsair/Xenon-Roadmap-IT.md`): a feature's native
@@ -21,7 +36,7 @@ a picker group (`x-icue-widget-group: "Xenon"`) and the `common/` library, inlin
 |---|--------|---------------|-------------------------------|--------|
 | 1 | **Clock** | Pure UI + Intl; 12/24 + locale | none | `done` (browser-verified; in-iCUE test blocked) |
 | 2 | **System monitor** | `Sensors` plugin — CPU/GPU/RAM load+temp only (no disk/network/FPS — see note 2) | none | `done` (browser-verified; in-iCUE test blocked) |
-| 3 | **FPS in-game** | `Sensors` plugin, `fps` type — `getDefaultSensorIdBlock('fps')` (see note 3a) | none | `done` (browser-verified; in-iCUE test blocked) |
+| 3 | **FPS in-game** | **`Fps` plugin** (Widget API 1.4.0) — frame rate, availability flag and running-game name, no sensor picker (see note 3a) | none | `done` (browser-verified; in-iCUE test blocked) |
 | 4 | **Notes** | Textarea + autosave (debounce 500 ms) + `common/storage` | localStorage → local file (Phase 4 bridge) | `done` (browser-verified; in-iCUE test blocked) |
 | 5 | **Tasks** | To-do + priority + daily/weekly/custom recurrence + `common/storage` | localStorage → local file (Phase 4 bridge) | `done` (browser-verified; in-iCUE test blocked) |
 | 6 | **Timers** | Countdown + SVG ring + Web Audio chime + `common/storage` | localStorage → local file (Phase 4 bridge) | `done` (browser-verified; in-iCUE test blocked) |
@@ -52,8 +67,12 @@ a picker group (`x-icue-widget-group: "Xenon"`) and the `common/` library, inlin
 ## Not converting (server-only — stay on `server/`)
 
 Mic · speaker volume · per-app mixer · network stats · RGB lighting · Xenon AI ·
-Deck · remote PC control · browser tile · real in-game FPS · app **switcher**
+Deck · remote PC control · browser tile · app **switcher**
 (window list/focus) · self-update/backup. These need the companion server; not forced native.
+
+(**Real in-game FPS was removed from this list on 2026-07-20**: the 1.4.0 `Fps` plugin covers it
+natively, so it is Phase-1 row 3 above, not a server-only feature. It is the only item that has
+ever moved off this list.)
 
 **Also server-only inside the System tile** (no iCUE sensor/API exists): **Disk** usage/free/model,
 **RAM used/total GB + module string**, **Ping / Latency / Bandwidth**, System-tile **tabs**,
@@ -80,15 +99,26 @@ Deck · remote PC control · browser tile · real in-game FPS · app **switcher*
    - **Tabs** (System / Volume / Microphone), **Optimize** button, **Uptime** pill — server-only.
    Demo values in browser preview are a random walk (no plugin outside iCUE); real numbers
    appear only inside iCUE. This is expected, not a bug.
-3a. **FPS in-game** (Phase 1) — own widget. `Sensors` plugin, `fps` sensor type:
-   `getDefaultSensorIdBlock('fps')` seeds the picker, live updates via `sensorValueChanged`.
-   A single card: "FPS" label + LIVE pill, a large **performance-coloured** reading
-   (green ≥60 / amber ≥30 / red below), the source/sensor name, and a real-time graph
-   (sparkline ported from `utils.js renderStatSpark`). The `fps` sensor reads 0 / disconnects
-   when no game is running, so the widget shows an **idle state** ("Start a game to see FPS")
-   instead of "0 FPS". Fully native today — this is the FPS the web tile reads from PresentMon,
-   exposed here straight from the Sensors plugin (no companion server needed). Demo reading
-   ("Cyberpunk 2077") shows only in browser preview.
+3a. **FPS in-game** (Phase 1) — own widget. **Rebuilt on the `Fps` plugin (Widget API 1.4.0,
+   `widgetbuilder.fpsdataprovider:Fps:1.0`) on 2026-07-20**; it previously read the `fps` Sensors
+   type via `getDefaultSensorIdBlock('fps')`. Three things improved:
+   - **No sensor picker.** The plugin reports the frame rate directly, so the `sensors-combobox`
+     property and its settings group are gone. The user has nothing to configure.
+   - **Exact idle state.** `getFpsAvailable()` + the `fpsAvailabilityChanged` signal replace the
+     old inference "the sensor reads 0 or disconnects, so no game is running".
+   - **The running game is named.** `getCurrentProcess()` + `processChanged` give the foreground
+     process, so the subtitle shows the actual game ("Cyberpunk2077.exe" → "Cyberpunk2077")
+     instead of a sensor name. Only the `.exe` suffix is stripped, deliberately: splitting
+     CamelCase would mangle real executable names. When the plugin reports
+     FPS with no process name the subtitle falls back to a localized "In game".
+   Unchanged: a single card with the "FPS" label + LIVE pill, a large **performance-coloured**
+   reading (green ≥60 / amber ≥30 / red below), and the real-time sparkline ported from
+   `utils.js renderStatSpark`. Live updates now arrive on `fpsUpdated` rather than
+   `sensorValueChanged`. This is the same FPS the web tile reads from PresentMon, now supplied by
+   the platform with no companion server. Demo reading shows only in browser preview.
+   **Unverified in-iCUE:** the runtime object name `window.plugins.Fpsdataprovider` and the
+   `pluginFpsdataprovider_initialized` flag follow the documented SDK convention (as
+   `Sensorsdataprovider` does) but are not spelled out in the FPS plugin page; confirm on device.
 3. **Media** — `media.js`: app badge, title (`cleanTitle`), artist|album, album art (+blurred bg),
    play/pause toggle. **Native build = faithful port of the web tile's now-playing view**: animated
    equalizer artwork placeholder (mirrors the web's no-cover fallback) + big bold title (`cleanTitle`

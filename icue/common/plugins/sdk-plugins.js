@@ -4,7 +4,8 @@
  *
  * iCUE injects Qt WebChannel plugin objects into window.plugins.* before widget
  * scripts run. These wrappers turn the callback-based Qt API into Promises.
- * Only Sensors, Media and Link are officially supported. (FPS is a Sensors type.)
+ * Supported plugins: Sensors, Media, Link, and — since Widget API 1.4.0 — FPS,
+ * StreamDeck and DeviceAction. We wrap the ones we use.
  *
  * Each plugin used must also be declared in the widget's manifest.json
  * `required_plugins`. This file is inlined into the widget at build time.
@@ -58,6 +59,18 @@ class SimpleSensorApiWrapper extends IcueWidgetApiWrapper {
   getSensorKind(sensorId)       { return this.request(this.plugin.getSensorKind, sensorId); }
   getAllSensorIds()             { return this.request(this.plugin.getAllSensorIds); }
   sensorIsConnected(sensorId)   { return this.request(this.plugin.sensorIsConnected, sensorId); }
+}
+
+/* In-game frames per second, plus the foreground process name. Added in Widget
+ * API 1.4.0; supersedes reading the "fps" Sensors type, which had no availability
+ * flag and could not name the running game.
+ * Signals (connect directly on the plugin): fpsUpdated(fps),
+ * fpsAvailabilityChanged(available), processChanged(process).
+ * manifest: "widgetbuilder.fpsdataprovider:Fps:1.0" */
+class SimpleFpsApiWrapper extends IcueWidgetApiWrapper {
+  getCurrentFps()     { return this.request(this.plugin.getCurrentFps); }
+  getFpsAvailable()   { return this.request(this.plugin.getFpsAvailable); }
+  getCurrentProcess() { return this.request(this.plugin.getCurrentProcess); }
 }
 
 /* Now-playing track info (read-only fields; controls are separate Qt signals).

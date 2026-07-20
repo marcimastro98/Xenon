@@ -10,11 +10,10 @@
        expression, so the group name must be a quoted string literal. -->
   <meta name="x-icue-widget-group" content="'Xenon'">
 
-  <!-- FPS sensor picker. The default seeds the system's frames-per-second sensor
-       (the `fps` sensor type, populated while a game is running); the user can
-       reassign it. data-default is a JS expression evaluated by iCUE. -->
-  <meta name="x-icue-property" content="fpsSensor" data-label="tr('FPS Sensor')" data-type="sensors-combobox"
-        data-default="plugins.Sensorsdataprovider.getDefaultSensorIdBlock('fps')">
+  <!-- No sensor picker: the FPS Data Provider (Widget API 1.4.0) reports the frame
+       rate directly, so there is nothing for the user to choose. It also reports
+       whether FPS data is available and which process is in the foreground, which
+       the "fps" Sensors type could not do. -->
 
   <!-- Widget personalization (canonical order). accentColor tints the label pill;
        the FPS reading itself is performance-coloured (green/amber/red). -->
@@ -26,7 +25,6 @@
 
   <script id="x-icue-groups" type="application/json">
   [
-    { "title": "tr('Sensor')", "properties": ["fpsSensor"] },
     { "title": "tr('Widget Personalization')", "properties": ["textColor", "accentColor", "backgroundColor", "transparency"] }
   ]
   </script>
@@ -64,26 +62,28 @@
   </div>
 
   <script>
-    // iCUE event bridge + Sensors plugin event bridge — both bare assignments so
+    // iCUE event bridge + FPS plugin event bridge — both bare assignments so
     // the runtime can see the handlers in a sandboxed Function() context.
     icueEvents = {
       'onDataUpdated': onIcueDataUpdated,
       'onICUEInitialized': onIcueInitialized
     };
-    pluginSensorsdataproviderEvents = { 'onInitialized': onSensorsReady };
+    pluginFpsdataproviderEvents = { 'onInitialized': onFpsReady };
 
     let languageCode = 'en';
-    let sensorApi = null;
-    let fpsSensorId = null;       // resolved sensor id, for live-update matching
+    let fpsApi = null;
+    let fpsAvailable = false;     // pushed by the plugin, no longer inferred from 0
+    let lastFps = 0;
+    let processName = '';         // foreground process, e.g. "Cyberpunk2077.exe"
     let demoTimer = null;
 
     // In-body UI strings (the meta tr() pipeline only localizes settings labels).
     const STRINGS = {
-      en: { idle: 'Start a game to see FPS', live: 'LIVE', source: 'FPS source' },
-      it: { idle: 'Avvia un gioco per vedere gli FPS', live: 'LIVE', source: 'Sorgente FPS' },
-      ko: { idle: '게임을 실행하면 FPS가 표시됩니다', live: 'LIVE', source: 'FPS 소스' },
-      ja: { idle: 'ゲームを起動するとFPSが表示されます', live: 'LIVE', source: 'FPSソース' },
-      zh: { idle: '启动游戏以查看 FPS', live: 'LIVE', source: 'FPS 来源' }
+      en: { idle: 'Start a game to see FPS', live: 'LIVE', source: 'In game' },
+      it: { idle: 'Avvia un gioco per vedere gli FPS', live: 'LIVE', source: 'In gioco' },
+      ko: { idle: '게임을 실행하면 FPS가 표시됩니다', live: 'LIVE', source: '게임 중' },
+      ja: { idle: 'ゲームを起動するとFPSが表示されます', live: 'LIVE', source: 'ゲーム中' },
+      zh: { idle: '启动游戏以查看 FPS', live: 'LIVE', source: '游戏中' }
     };
     function L(key) {
       const dict = STRINGS[languageCode] || STRINGS.en;
@@ -142,13 +142,20 @@
     }
 
     // ── Rendering ─────────────────────────────────────────────────────────────
-    // A frames-per-second sensor reads 0 (or disconnects) when no game is running,
-    // so distinguish "live" from "idle" and show a friendly hint in the idle case.
+    // "Foo.exe" → "Foo". The plugin reports the raw process image name; the bare
+    // name reads better as a subtitle and is what the user recognises.
+    function prettyProcess(p) {
+      if (typeof p !== 'string' || !p) return '';
+      return p.replace(/\.exe$/i, '');
+    }
+
+    // Availability now comes from the plugin (getFpsAvailable / fpsAvailabilityChanged)
+    // instead of being inferred from a sensor reading 0, so the idle state is exact.
     function renderFps(value, name) {
       const n = Number(value);
       const wrap = $('.fps-wrap');
       const tag = $('[data-tag]');
-      const live = isFinite(n) && n > 0;
+      const live = fpsAvailable && isFinite(n) && n > 0;
 
       if (!live) {
         const idleEl = $('[data-value]');
@@ -170,43 +177,62 @@
       renderSpark(color, n);
     }
 
-    async function renderFromSensor() {
-      const sensorId = getIcueProperty('fpsSensor');
-      if (!sensorApi || !sensorId) { return; }
-      fpsSensorId = sensorId;
+    // Repaint from whatever the plugin last pushed. The subtitle names the running
+    // game when the plugin knows it, and falls back to a generic label when it
+    // reports FPS without a process name.
+    function repaint() {
+      renderFps(lastFps, prettyProcess(processName) || L('source'));
+    }
+
+    async function refreshFromPlugin() {
+      if (!fpsApi) return;
       try {
-        const value = await sensorApi.getSensorValue(sensorId);
-        const name = await sensorApi.getSensorName(sensorId);
-        renderFps(value, name || L('source'));
+        const [available, fps, proc] = await Promise.all([
+          fpsApi.getFpsAvailable(),
+          fpsApi.getCurrentFps(),
+          fpsApi.getCurrentProcess()
+        ]);
+        fpsAvailable = !!available;
+        lastFps = Number(fps) || 0;
+        processName = typeof proc === 'string' ? proc : '';
       } catch (e) {
-        renderFps(0, '');     // never let a sensor read break the UI
+        fpsAvailable = false;   // never let a failed read break the UI
+        lastFps = 0;
       }
+      repaint();
     }
 
-    function onSensorValueChanged(id, val) {
-      if (id !== fpsSensorId) return;
-      renderFps(val, null);   // keep the last source name; just update the number
+    function onFpsUpdated(fps) { lastFps = Number(fps) || 0; repaint(); }
+    function onFpsAvailabilityChanged(available) { fpsAvailable = !!available; repaint(); }
+    function onProcessChanged(proc) {
+      processName = typeof proc === 'string' ? proc : '';
+      repaint();
     }
 
-    function onSensorsReady() {
-      if (window.plugins && window.plugins.Sensorsdataprovider) {
-        sensorApi = new SimpleSensorApiWrapper(window.plugins.Sensorsdataprovider);
-        window.plugins.Sensorsdataprovider.sensorValueChanged.connect(onSensorValueChanged);
+    // Runtime object name follows the SDK convention: module widgetbuilder.fpsdataprovider
+    // is injected as window.plugins.Fpsdataprovider (as Sensorsdataprovider is).
+    function onFpsReady() {
+      const plugin = window.plugins && window.plugins.Fpsdataprovider;
+      if (plugin) {
+        fpsApi = new SimpleFpsApiWrapper(plugin);
+        plugin.fpsUpdated.connect(onFpsUpdated);
+        plugin.fpsAvailabilityChanged.connect(onFpsAvailabilityChanged);
+        plugin.processChanged.connect(onProcessChanged);
       }
-      renderFromSensor();
+      refreshFromPlugin();
       showState('content');
     }
 
     function onIcueDataUpdated() {
       applyPersonalization();
-      if (sensorApi) renderFromSensor();
+      repaint();
       showState('content');
     }
 
     function onIcueInitialized() {
       languageCode = readLanguage();
-      if (typeof pluginSensorsdataprovider_initialized !== 'undefined' && pluginSensorsdataprovider_initialized) {
-        onSensorsReady();
+      if (typeof pluginFpsdataprovider_initialized !== 'undefined' && pluginFpsdataprovider_initialized) {
+        onFpsReady();
       }
       onIcueDataUpdated();
     }
@@ -215,10 +241,14 @@
     // (no plugin outside iCUE). Never runs inside iCUE — real sensor pushes do.
     function startDemoTicker() {
       let v = 142;
-      renderFps(v, 'Cyberpunk 2077');
+      fpsAvailable = true;
+      processName = 'Cyberpunk2077.exe';
+      lastFps = v;
+      repaint();
       demoTimer = setInterval(function () {
         v = clampRange(v + (Math.random() * 18 - 9), 38, 240, v);
-        renderFps(Math.round(v), 'Cyberpunk 2077');
+        lastFps = Math.round(v);
+        repaint();
       }, 900);
     }
 
