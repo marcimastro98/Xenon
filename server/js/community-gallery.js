@@ -145,6 +145,9 @@
   // async ratings / install-count loaders re-sort the grid once their data lands,
   // so "Top rated" / "Most downloaded" settle without the user re-picking the sort.
   let regrid = null;
+  // Set while the Store is open: refreshes the red update-count badge on the
+  // Installed tab when an install/update lands (so the number drops as you update).
+  let refreshInstalledBadge = null;
 
   // ── Inline SVG icon set (STATIC, trusted markup — the ONLY innerHTML use). ──
   // Lucide-style 24px stroke glyphs so the rail and section heads read premium
@@ -204,6 +207,7 @@
     if (overlayEl) { overlayEl.remove(); overlayEl = null; }
     repaintStore = null;
     regrid = null;
+    refreshInstalledBadge = null;
     if (typeof window.ambientFreeze === 'function') window.ambientFreeze('gallery', false);
     // The visit we just made advanced the marker, clearing (or shrinking) the
     // "new since last visit" set — update the Settings dot to match (#5).
@@ -1499,6 +1503,21 @@
       tabsEl.appendChild(mkTab('installed', t('gallery_tab_installed', 'Installed'), 'check'));
       modal.appendChild(tabsEl);
     }
+    // Red count of available updates on the Installed tab — you open it to update.
+    // Async (findUpdates joins the catalog against the install index); refreshed on
+    // open and whenever an install/update lands (via refreshInstalledBadge).
+    function refreshInstalledTabBadge() {
+      if (!tabsEl) return;
+      const tab = tabsEl.querySelector('.cgal-tab[data-tab="installed"]');
+      if (!tab) return;
+      countUpdates().then((n) => {
+        let b = tab.querySelector('.cgal-tab-badge');
+        if (n > 0) { if (!b) { b = el('span', 'cgal-tab-badge'); tab.appendChild(b); } b.textContent = n > 99 ? '99+' : String(n); }
+        else if (b) { b.remove(); }
+      }).catch(() => { /* best-effort — no badge is fine */ });
+    }
+    refreshInstalledBadge = refreshInstalledTabBadge;
+    refreshInstalledTabBadge();
     function syncTabs() {
       if (!tabsEl) return;
       tabsEl.querySelectorAll('.cgal-tab').forEach((b) => {
@@ -1565,18 +1584,37 @@
       return out.entries.filter((e) => { const ts = Date.parse(e && e.addedAt); return Number.isFinite(ts) && ts > last; }).length;
     } catch { return 0; }
   }
-  // Paint (or clear) the "N new" dot on the Settings entry points to the Store. The
-  // buttons are static in index.html, so they exist even before Settings opens;
-  // refreshed at boot and whenever the Store closes.
+  // Number of OWNED catalog items with an update available — the red badge on the
+  // Store buttons and the Installed tab. Standalone (works while the Store is
+  // closed): findUpdates() re-reads the install index and joins it against the
+  // catalog exactly like the Store's own "Aggiornamenti" section, so the three
+  // never disagree.
+  async function countUpdates() {
+    try {
+      const out = await api('/api/community/catalog');
+      if (!out || !out.ok || !Array.isArray(out.entries)) return 0;
+      const ups = await findUpdates(out.entries);
+      return Array.isArray(ups) ? ups.length : 0;
+    } catch { return 0; }
+  }
+  // Paint (or clear) the badge on the Settings entry points to the Store. UPDATES
+  // win — a red count of owned items with a newer version, the actionable "open
+  // the Store and update" signal. With none pending it falls back to the accent
+  // "N new since your last visit" discovery count (#5). Refreshed at boot, when the
+  // Store closes, and whenever an install/update lands.
   function refreshStoreDot() {
     const btns = document.querySelectorAll('.settings-store-pill, .settings-store-hero-cta');
     if (!btns.length) return;
-    newSinceLastVisit().then((n) => {
+    Promise.all([countUpdates(), newSinceLastVisit()]).then(([updates, fresh]) => {
+      const n = updates > 0 ? updates : fresh;
+      const isUpdate = updates > 0;
       btns.forEach((btn) => {
         let dot = btn.querySelector('.cgal-store-dot');
         if (n > 0) {
           if (!dot) { dot = el('span', 'cgal-store-dot'); btn.appendChild(dot); }
           dot.textContent = n > 99 ? '99+' : String(n);
+          dot.classList.toggle('is-new', !isUpdate);   // accent for "new", red for updates
+          dot.title = isUpdate ? t('gallery_updates', 'Updates') : t('gallery_new_filter', 'New');
         } else if (dot) { dot.remove(); }
       });
     }).catch(() => { /* best-effort — no dot is fine */ });
@@ -1587,7 +1625,11 @@
   // index, so a card flips to "Installed" without a manual ↻ — the finishing half
   // of keeping the Store open across an install (#1). No-op while closed.
   try {
-    window.addEventListener('xenon-content-installed', () => { if (repaintStore) repaintStore(); });
+    window.addEventListener('xenon-content-installed', () => {
+      if (repaintStore) repaintStore();
+      if (refreshInstalledBadge) refreshInstalledBadge();   // the update count on the Installed tab drops
+      refreshStoreDot();                                    // and the Settings dot follows
+    });
   } catch { /* no window (non-browser context) — nothing to repaint */ }
   // Seed the Settings "new items" dot a few seconds after boot (the server catalog
   // is SWR-cached, so this is cheap and usually instant).
