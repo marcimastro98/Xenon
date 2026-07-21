@@ -23,9 +23,9 @@
         "text": "#e9edf6"
       },
       "shots": 3,
-      "active": false,
       "addedAt": "2026-07-21",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-07-21"
     },
     {
       "id": "dgm-resultados",
