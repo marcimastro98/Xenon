@@ -309,7 +309,7 @@
       "name": "Map Explorer",
       "author": "DanielGarciaMorato",
       "perfWarning": true,
-      "description": "DGM Map Explorer is a visual catalog for quickly accessing external video game maps from Xenon.\n\nIt includes 31 games and 32 selected destinations, with search, session-based favorites and recently opened games. Selecting a game displays a confirmation before opening its corresponding map in the def",
+      "description": "Browse built-in and custom video game map destinations directly from your Xenon dashboard.\n\nMap Explorer includes a searchable catalog of game maps, favorites, recently opened destinations and support for custom entries. Custom titles, URLs, favorites, recents and language preference are saved throu",
       "category": "media",
       "tags": [
         "gaming",
@@ -318,19 +318,19 @@
         "external-links",
         "spanish"
       ],
-      "version": "0.4.3",
-      "changelog": "Simplified the interface with a single navigation bar for All, Favorites and Recent; renamed the visible widget to “Explorador de mapas”; and removed redundant headings, provider filters and settings. The catalog, URLs and permissions remain unchanged.",
+      "version": "0.6.0",
+      "changelog": "Updated Map Explorer to version 0.6.0.\n\n- Added persistent custom map entries with editing and deletion.\n- Added persistent favorites, recents and language preference.\n- Added optional local images for custom maps during the current session, with Cover and Contain display modes.\n- Local images",
       "pkgId": "dgm-gaming-map-companion",
       "appVersionMin": "4.6.0",
       "preview": {
-        "accent": "#3f78b5",
-        "bg": "#08111c",
+        "accent": "#1ed760",
+        "bg": "#0b0d12",
         "text": "#e9edf6"
       },
-      "shots": 2,
-      "addedAt": "2026-07-18",
+      "shots": 4,
+      "addedAt": "2026-07-21",
       "codeFile": true,
-      "updatedAt": "2026-07-18"
+      "updatedAt": "2026-07-21"
     },
     {
       "id": "demonic",
