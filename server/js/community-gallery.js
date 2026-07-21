@@ -141,6 +141,10 @@
   // so the grid never floods with badges the first time someone browses.
   const K_STORE_VISIT = 'xeneonedge.storeLastVisit';
   let storeLastVisit = 0;
+  // Points at the current render's paintGrid while the Store is open: lets the
+  // async ratings / install-count loaders re-sort the grid once their data lands,
+  // so "Top rated" / "Most downloaded" settle without the user re-picking the sort.
+  let regrid = null;
 
   // ── Inline SVG icon set (STATIC, trusted markup — the ONLY innerHTML use). ──
   // Lucide-style 24px stroke glyphs so the rail and section heads read premium
@@ -156,6 +160,7 @@
     deck: S0 + '<rect x="3.5" y="4.5" width="4.3" height="4.3" rx="1.2"/><rect x="9.9" y="4.5" width="4.3" height="4.3" rx="1.2"/><rect x="16.3" y="4.5" width="4.3" height="4.3" rx="1.2"/><rect x="3.5" y="11" width="4.3" height="4.3" rx="1.2"/><rect x="9.9" y="11" width="4.3" height="4.3" rx="1.2"/><rect x="16.3" y="11" width="4.3" height="4.3" rx="1.2"/><rect x="3.5" y="17.5" width="4.3" height="2.3" rx="1.1"/><rect x="9.9" y="17.5" width="10.7" height="2.3" rx="1.1"/></svg>',
     ambient: S0 + '<path d="M20.5 14.3A8 8 0 1 1 9.7 3.5a6.3 6.3 0 0 0 10.8 10.8z"/></svg>',
     bundle: S0 + '<path d="M21 8.5l-9-5-9 5 9 5 9-5z"/><path d="M3 8.5V16l9 5 9-5V8.5"/><path d="M12 13.5V21"/></svg>',
+    new: S0 + '<path d="M12 3l1.9 5.2L19 10l-5.1 1.8L12 17l-1.9-5.2L5 10l5.1-1.8z"/></svg>',
     limited: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2.2l1.9 5.6a2 2 0 0 0 1.3 1.3l5.6 1.9-5.6 1.9a2 2 0 0 0-1.3 1.3L12 19.8l-1.9-5.6a2 2 0 0 0-1.3-1.3L3.2 11l5.6-1.9a2 2 0 0 0 1.3-1.3z"/></svg>',
     supporters: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 20.4l-1.5-1.3C5.7 14.9 3 12.4 3 9.3A4.3 4.3 0 0 1 7.3 5c1.5 0 3 .8 3.7 2 .7-1.2 2.2-2 3.7-2A4.3 4.3 0 0 1 21 9.3c0 3.1-2.7 5.6-7.5 9.8z"/></svg>',
     search: S0 + '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.2-4.2"/></svg>',
@@ -198,7 +203,11 @@
     if (detailEl) { document.removeEventListener('keydown', detailEl._onKey); detailEl = null; }
     if (overlayEl) { overlayEl.remove(); overlayEl = null; }
     repaintStore = null;
+    regrid = null;
     if (typeof window.ambientFreeze === 'function') window.ambientFreeze('gallery', false);
+    // The visit we just made advanced the marker, clearing (or shrinking) the
+    // "new since last visit" set — update the Settings dot to match (#5).
+    try { refreshStoreDot(); } catch { /* defined below; hoisted */ }
   }
 
   function kindLabel(kind) {
@@ -221,7 +230,10 @@
       ratingsMin = Number(out.minDisplayCount) || ratingsMin;
       Object.assign(ratingsMap, out.ratings);
     }
-    paintStars();
+    // Ordering by rating? The freshly-loaded scores change it — re-sort, then
+    // refill the star/install slots the rebuilt cards expose.
+    if (sortBy === 'rated' && typeof regrid === 'function') regrid();
+    paintStars(); paintInstalls();
   }
   function starsText(r) {
     if (!r || !Number.isFinite(Number(r.avg)) || (Number(r.count) || 0) < ratingsMin) return '';
@@ -254,7 +266,10 @@
       if (!out || !out.ok || !out.counts) continue;
       Object.assign(installsMap, out.counts);
     }
-    paintInstalls();
+    // Ordering by downloads? The freshly-loaded counts change it — re-sort, then
+    // refill the install/star slots the rebuilt cards expose.
+    if (sortBy === 'installs' && typeof regrid === 'function') regrid();
+    paintInstalls(); paintStars();
   }
   // Compact and always at most 4 characters of number: "999", "1.2k", "34k",
   // "1.2M". Without the millions step a seven-figure count printed as "1000k".
@@ -1102,6 +1117,16 @@
     }
     return true;
   }
+  // Rating score for the "Top rated" sort: the displayed average, or -1 when the
+  // entry is unrated or still below the min vote count (so those sink to the
+  // bottom instead of tying at 0 with genuinely low-rated ones).
+  function ratedScore(e) {
+    const r = e && ratingsMap[e.id];
+    if (!r || (Number(r.count) || 0) < ratingsMin) return -1;
+    return Number(r.avg) || 0;
+  }
+  function ratedCount(e) { const r = e && ratingsMap[e.id]; return (r && Number(r.count)) || 0; }
+  function installCount(e) { return (e && Number(installsMap[e.id])) || 0; }
   function sortList(list) {
     if (sortBy === 'name') return list.slice().sort((a, b) => a.name.localeCompare(b.name));
     // 'new' reads the date, NOT the file position: sorting on `_i` descending
@@ -1109,6 +1134,12 @@
     // go on top — so "Newest" listed the oldest first. ISO dates compare
     // correctly as strings; no addedAt sorts last, ties keep catalog order.
     if (sortBy === 'new') return list.slice().sort((a, b) => String(b.addedAt || '').localeCompare(String(a.addedAt || '')) || ((a._i || 0) - (b._i || 0)));
+    // Install counts and ratings load asynchronously AFTER the first paint, so at
+    // that moment these order by whatever has arrived (often nothing) and ties fall
+    // back to catalog order; loadInstalls/loadRatings re-run paintGrid once their
+    // data lands, so the order settles without the user touching anything.
+    if (sortBy === 'installs') return list.slice().sort((a, b) => (installCount(b) - installCount(a)) || ((a._i || 0) - (b._i || 0)));
+    if (sortBy === 'rated') return list.slice().sort((a, b) => (ratedScore(b) - ratedScore(a)) || (ratedCount(b) - ratedCount(a)) || ((a._i || 0) - (b._i || 0)));
     return list.slice().sort((a, b) => (a._i || 0) - (b._i || 0));   // 'feat' = catalog order
   }
 
@@ -1197,7 +1228,9 @@
 
     const sortWrap = el('div', 'cgal-select');
     const selSort = document.createElement('select'); selSort.className = 'cgal-select-el'; selSort.setAttribute('data-cs-fixed', '');
-    [['feat', t('gallery_sort_feat', 'Featured')], ['new', t('gallery_sort_new', 'Newest')], ['name', t('gallery_sort_name', 'Name A–Z')]]
+    [['feat', t('gallery_sort_feat', 'Featured')], ['new', t('gallery_sort_new', 'Newest')],
+     ['installs', t('gallery_sort_installs', 'Most downloaded')], ['rated', t('gallery_sort_rated', 'Top rated')],
+     ['name', t('gallery_sort_name', 'Name A–Z')]]
       .forEach(([v, label]) => { const o = document.createElement('option'); o.value = v; o.textContent = label; selSort.appendChild(o); });
     selSort.value = sortBy;
     selSort.addEventListener('change', () => { sortBy = selSort.value; paintGrid(); });
@@ -1216,6 +1249,8 @@
       return b;
     };
     seg.appendChild(mkSeg('all', t('gallery_all', 'All'), 'all'));
+    // "Novità" chip — shown only when something IS new since the last visit (#5).
+    if (all.some(isNewEntry)) seg.appendChild(mkSeg('new', t('gallery_new_filter', 'Novità'), '__new', 'is-new'));
     if (limited.length) seg.appendChild(mkSeg('limited', t('gallery_limited_badge', 'Limited'), '__limited', 'lim'));
     if (supporters.length) seg.appendChild(mkSeg('supporters', t('gallery_supporters_section', 'Supporters'), '__supporters', 'sup'));
     kinds.forEach((k) => seg.appendChild(mkSeg(k, kindLabel(k), k)));
@@ -1320,6 +1355,13 @@
         host.replaceChildren(frag); return;
       }
       if (activeKind === '__supporters') { flatInto(frag, supporters.filter(matchesBrowse)); host.replaceChildren(frag); return; }
+      // "Novità": every kind/tier published since the last visit, newest first (#5).
+      if (activeKind === '__new') {
+        const prevSort = sortBy; sortBy = 'new';
+        flatInto(frag, browse.concat(limited, supporters).filter(matchesBrowse).filter(isNewEntry));
+        sortBy = prevSort;
+        host.replaceChildren(frag); return;
+      }
 
       let pool = browse.filter(matchesBrowse);
       if (activeKind) pool = pool.filter((e) => e.kind === activeKind);
@@ -1387,6 +1429,7 @@
     shell.appendChild(bar); shell.appendChild(host); if (stale) shell.appendChild(stale);
     body.replaceChildren(shell);
     syncControls();
+    regrid = paintGrid;   // async ratings/installs can re-sort this grid in place
     paintGrid();
     // Star aggregates: best-effort async fill (a hub hiccup just leaves the
     // slots empty — the gallery never waits on it). paintGrid rebuilds cards
@@ -1508,6 +1551,37 @@
   // sidecar path rule. shotUrl derives from the entry id the server already
   // charset-pinned — never from catalog-supplied text.
   const shotUrl = (entryId, i, ext) => SHOTS_BASE + encodeURIComponent(entryId) + (i === 1 ? '' : '-' + i) + '.' + ext;
+  // Count entries published since the user's last Store visit — for the dot on the
+  // Settings "Open the Store" buttons. Read-only: it never stamps the visit
+  // (opening the Store is what advances the marker), and returns 0 when the Store
+  // was never opened, so nothing is flagged before the first browse (#5).
+  async function newSinceLastVisit() {
+    let last = 0;
+    try { last = Number(localStorage.getItem(K_STORE_VISIT)) || 0; } catch { /* storage off */ }
+    if (!last) return 0;
+    try {
+      const out = await api('/api/community/catalog');
+      if (!out || !out.ok || !Array.isArray(out.entries)) return 0;
+      return out.entries.filter((e) => { const ts = Date.parse(e && e.addedAt); return Number.isFinite(ts) && ts > last; }).length;
+    } catch { return 0; }
+  }
+  // Paint (or clear) the "N new" dot on the Settings entry points to the Store. The
+  // buttons are static in index.html, so they exist even before Settings opens;
+  // refreshed at boot and whenever the Store closes.
+  function refreshStoreDot() {
+    const btns = document.querySelectorAll('.settings-store-pill, .settings-store-hero-cta');
+    if (!btns.length) return;
+    newSinceLastVisit().then((n) => {
+      btns.forEach((btn) => {
+        let dot = btn.querySelector('.cgal-store-dot');
+        if (n > 0) {
+          if (!dot) { dot = el('span', 'cgal-store-dot'); btn.appendChild(dot); }
+          dot.textContent = n > 99 ? '99+' : String(n);
+        } else if (dot) { dot.remove(); }
+      });
+    }).catch(() => { /* best-effort — no dot is fine */ });
+  }
+
   // An install committed anywhere (a catalog receipt written in preset-share.js
   // fires 'xenon-content-installed') asks an open Store to re-read its install
   // index, so a card flips to "Installed" without a manual ↻ — the finishing half
@@ -1515,6 +1589,9 @@
   try {
     window.addEventListener('xenon-content-installed', () => { if (repaintStore) repaintStore(); });
   } catch { /* no window (non-browser context) — nothing to repaint */ }
+  // Seed the Settings "new items" dot a few seconds after boot (the server catalog
+  // is SWR-cached, so this is cheap and usually instant).
+  try { setTimeout(() => { try { refreshStoreDot(); } catch { /* ignore */ } }, 4000); } catch { /* no timers */ }
 
-  window.CommunityGallery = { open, close, findUpdates, openEntry, openSupporters, kindIcon, shotUrl };
+  window.CommunityGallery = { open, close, findUpdates, openEntry, openSupporters, kindIcon, shotUrl, refreshStoreDot };
 })();

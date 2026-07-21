@@ -2287,8 +2287,11 @@ input.cgal-search {
 }
 input.cgal-search::placeholder { color: var(--text-dim, #8b91a1); }
 input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0.55); background: rgba(255, 255, 255, 0.07); }
-.cgal-rail { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
-.cgal-rail::-webkit-scrollbar { display: none; }
+/* Wrap the category filters onto as many rows as needed instead of scrolling
+   them horizontally — a scrolling rail left the last filter (e.g. "deck") cut off
+   at the right edge, "almost out of range" (#3). With the modal height now locked
+   (#2), the extra row just sits at the top of the scroll area. */
+.cgal-rail { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 2px; }
 .cgal-railbtn {
   display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; cursor: pointer;
   padding: 9px 15px; border-radius: 12px; font-size: 0.84rem; font-weight: 600;
@@ -2369,6 +2372,21 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
   padding: 4px 9px; border-radius: 999px; color: var(--accent, #35e08e);
   background: rgba(8, 10, 14, 0.62); border: 1px solid rgba(var(--accent-rgb, 53, 224, 142), 0.55);
   backdrop-filter: blur(8px);
+}
+/* "Novità" rail chip — accent-tinted so it reads as fresh among the kind filters (#5). */
+.cgal-railbtn.is-new { color: var(--accent, #35e08e); }
+.cgal-railbtn.is-new.active { background: rgba(var(--accent-rgb), 0.16); border-color: rgba(var(--accent-rgb), 0.4); }
+/* "N new since your last visit" count dot on the Settings entry points to the Store
+   (#5). The buttons are made position:relative so the dot sits at their corner; a
+   fixed red keeps it readable on both the neutral pill and the accent hero CTA. */
+.settings-store-pill, .settings-store-hero-cta { position: relative; overflow: visible; }
+.cgal-store-dot {
+  position: absolute; top: -6px; right: -6px; z-index: 2;
+  min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.62rem; font-weight: 800; line-height: 1; border-radius: 999px;
+  color: #fff; background: #e5484d; border: 1.5px solid var(--panel, #12151c);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 .cgal-swatches { position: absolute; bottom: 10px; right: 10px; z-index: 3; display: flex; gap: 4px; padding: 4px 6px; border-radius: 999px; background: rgba(8, 10, 14, 0.55); backdrop-filter: blur(6px); }
 .cgal-swatches .preset-swatch-dot { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16); }
