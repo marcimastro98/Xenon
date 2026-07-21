@@ -2379,6 +2379,15 @@ function queueHubSettingsServerSave() {
 let weatherConfigSaveTimer = null;
 let _weatherConfigSaveToken = 0;
 let _weatherConfigSavePending = false;  // a change made before the first hydrate
+// True from the moment a weather change is committed on THIS surface until the
+// server acknowledges it. Weather is server-owned (POST /api/weather/config is
+// its sole writer; the whole-blob POST /settings keeps the stored copy —
+// server.js keep-prev guard, GitHub #109), so a hydrate adopts the SERVER's
+// weather as authoritative — EXCEPT while this flag is set, when an as-yet-
+// unacknowledged local edit must not be clobbered by the copy we just fetched
+// (the app-vs-browser location divergence / "reverts to auto on restart"
+// follow-up of GitHub #88).
+let _weatherConfigDirty = false;
 // The rev MUST travel with the weather block, exactly like the whole-blob save
 // sends its own. commitWeatherChange() bumps the local rev on every keystroke in
 // the city field while only the last one survives the 250ms debounce, so a server
@@ -2400,14 +2409,41 @@ function postWeatherConfigToServer() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(weatherConfigPayload()),
   }).then(async (res) => {
-    try { await res.arrayBuffer(); } catch { /* connection freed either way */ }
+    // Read (not just drain) the slim { ok, weather, rev } ack so we can adopt the
+    // server-assigned rev. nextSettingsRev() always returns a rev strictly
+    // greater than the stored one, so after our save the server sits ABOVE this
+    // surface's local rev. Left unread, that gap makes our own later broadcasts
+    // look "already held" and, at the next boot, can flip this surface to
+    // localNewer and resurrect a stale location — the divergence this fix closes.
+    // json() consumes the body either way (an unread body would pin the socket).
+    let ack = null;
+    try { ack = await res.json(); } catch { /* empty/non-JSON body — nothing to adopt */ }
     if (!res.ok) { const e = new Error('weather save failed: HTTP ' + res.status); e.status = res.status; throw e; }
-    return res;
+    return ack;
   });
+}
+// Adopt the server's ack after a weather save: raise this surface's rev to the
+// server's (never lower it — a newer local edit may have raced) and mirror the
+// server-normalized weather block. Local-only (saveLocalHubSettings): the server
+// already holds this exact state, so it must NOT trigger another save.
+function _adoptWeatherConfigAck(ack) {
+  if (!ack || typeof ack !== 'object') return;
+  const serverRev = Number.isFinite(ack.rev) ? ack.rev : 0;
+  const localRev = Number.isFinite(hubSettings && hubSettings.rev) ? hubSettings.rev : 0;
+  const nextRev = Math.max(localRev, serverRev);
+  const curWeather = hubSettings && hubSettings.weather;
+  const nextWeather = (ack.weather && typeof ack.weather === 'object') ? ack.weather : curWeather;
+  if (nextRev === localRev && nextWeather === curWeather) return;
+  hubSettings = normalizeSettings({ ...hubSettings, weather: nextWeather, rev: nextRev });
+  saveLocalHubSettings();
 }
 function _postWeatherConfigWithRetry(token, attempt) {
   if (token !== _weatherConfigSaveToken) return;               // superseded by a newer save
-  postWeatherConfigToServer().catch((err) => {
+  postWeatherConfigToServer().then((ack) => {
+    if (token !== _weatherConfigSaveToken) return;             // a newer save is pending → stay dirty
+    _weatherConfigDirty = false;                               // server now holds our latest weather
+    _adoptWeatherConfigAck(ack);                               // keep our rev in step with the server's
+  }).catch((err) => {
     if (token !== _weatherConfigSaveToken) return;
     if (!_settingsSaveRetryable(err)) {                         // permanent client error → stop
       console.error('weather: server rejected the save and won\'t accept it — giving up', err);
@@ -2433,6 +2469,7 @@ function commitWeatherChange() {
   const cur = Number.isFinite(hubSettings && hubSettings.rev) ? hubSettings.rev : 0;
   hubSettings = normalizeSettings({ ...hubSettings, rev: cur + 1 });
   saveLocalHubSettings();
+  _weatherConfigDirty = true;              // unacknowledged local edit until the server confirms
   if (_hubHydratedFromServer) queueWeatherConfigServerSave();
   else _weatherConfigSavePending = true;   // flushed right after the first hydrate
 }
@@ -2707,6 +2744,20 @@ async function _hydrateHubSettingsImpl() {
         : (Array.isArray(data.settings.ambientScenes) ? data.settings.ambientScenes : []),
       gameMode: typeof base.gameMode === 'boolean' ? base.gameMode
         : (typeof data.settings.gameMode === 'boolean' ? data.settings.gameMode : localRaw.gameMode),
+      // Weather is server-owned: POST /api/weather/config is its sole writer and
+      // the whole-blob POST /settings preserves the stored copy (server.js
+      // keep-prev guard, GitHub #109). So the SERVER's weather is authoritative
+      // here — even when `base` is localRaw because this surface's unrelated local
+      // edits pushed its top-level rev past the server's. Without this override,
+      // such a surface takes ...base.weather and resurrects its own stale location
+      // (e.g. flips a manual city back to auto on every restart) and ignores a
+      // location set on another surface — the app-vs-browser divergence reported
+      // as the GitHub #88 follow-up. The one exception is a local weather edit
+      // this surface hasn't had acknowledged yet (dirty / parked pre-first-hydrate):
+      // keep it so the copy we just fetched can't clobber a change still in flight.
+      weather: (_weatherConfigDirty || _weatherConfigSavePending)
+        ? ((localRaw && localRaw.weather) || data.settings.weather)
+        : (data.settings.weather || (localRaw && localRaw.weather)),
     });
     saveHubSettings({ server: false });
     // The merge landed — server-bound saves are safe from here on: whatever we
