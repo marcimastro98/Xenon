@@ -63,7 +63,7 @@
       "name": "DGM Air Quality",
       "author": "DanielGarciaMorato",
       "perfWarning": true,
-      "description": "Shows the European Air Quality Index and concentrations of PM2.5, PM10, ozone, and nitrogen dioxide for the city set in DGM Current Weather. The data are indicative and may differ from local station measurements. This widget provides environmental information and does not constitute a medical diagno",
+      "description": "View local air-quality information using the European Air Quality Index together with PM2.5, PM10, ozone and nitrogen dioxide measurements.\n\nThe widget automatically uses the location selected in DGM Current Weather and supports English and Spanish.\n\nAir-quality data are provided by Open-Meteo. Valu",
       "category": "system",
       "tags": [
         "air-quality",
@@ -72,17 +72,18 @@
         "pm10",
         "environment"
       ],
-      "version": "0.1.7",
+      "version": "0.1.8",
+      "changelog": "Added Xenon 4.6.0 compatibility metadata for shared storage and improved package consistency.",
       "pkgId": "dgm-weather-air-quality-sdk",
       "preview": {
-        "accent": "#f5b942",
+        "accent": "#1ed760",
         "bg": "#0b0d12",
         "text": "#e9edf6"
       },
-      "shots": 2,
-      "addedAt": "2026-07-19",
+      "shots": 3,
+      "addedAt": "2026-07-21",
       "codeFile": true,
-      "updatedAt": "2026-07-19"
+      "updatedAt": "2026-07-21"
     },
     {
       "id": "dgm-tiempo-actual",
