@@ -119,7 +119,7 @@
       "name": "DGM 7-Day Forecast",
       "author": "DanielGarciaMorato",
       "perfWarning": true,
-      "description": "Show the daily weather forecast for the next seven days, including high and low temperatures, precipitation, and wind. It uses the city configured in DGM Current Weather, avoiding duplicate settings. Compatible with Spanish and English, as well as metric and imperial units. Data provided by Open-Met",
+      "description": "View a seven-day weather forecast with daily high and low temperatures, precipitation probability and wind information.\n\nThe widget identifies Today and Tomorrow and automatically uses the location, language and unit preferences selected in DGM Current Weather.\n\nIt supports metric and imperial units",
       "category": "system",
       "tags": [
         "weather",
@@ -128,17 +128,18 @@
         "precipitation",
         "open-meteo"
       ],
-      "version": "0.1.6",
+      "version": "0.1.7",
+      "changelog": "Paused periodic refresh work while the widget is hidden, prevented duplicate refresh requests when it becomes visible again, and improved lifecycle cleanup.",
       "pkgId": "dgm-weather-seven-day-sdk",
       "preview": {
-        "accent": "#5b8fd1",
+        "accent": "#1ed760",
         "bg": "#0b0d12",
         "text": "#e9edf6"
       },
       "shots": 2,
-      "addedAt": "2026-07-19",
+      "addedAt": "2026-07-21",
       "codeFile": true,
-      "updatedAt": "2026-07-19"
+      "updatedAt": "2026-07-21"
     },
     {
       "id": "dgm-radar-de-tormentas",
