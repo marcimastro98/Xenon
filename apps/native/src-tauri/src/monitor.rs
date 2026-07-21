@@ -532,7 +532,21 @@ pub fn start_watchdog(app: AppHandle) {
             if !topology.is_empty() {
                 last_topology = topology;
             }
-            if topology_changed || !window_is_on(&window, &edge) {
+            // While a game is running, a topology change is almost always the game
+            // itself switching the desktop resolution for exclusive full-screen.
+            // Re-pinning here calls set_focus() (see place_on_edge), which yanks the
+            // foreground off the game; the game re-enters full-screen, flips the
+            // resolution again, and the two bounce until Xenon is force-quit — the
+            // "screen goes back and forth between Xenon and the game on launch"
+            // report, seen only with resolution-CHANGING exclusive-fullscreen games
+            // plus an Edge attached (a game at native resolution never moves the
+            // signature, which is why it is rare). Hold the re-pin off while gaming:
+            // focus_guard keeps the game foreground, and the watchdog re-pins once
+            // the game exits. last_topology stays current (updated above), so the
+            // resolution reverting on exit is not itself seen as a change to chase.
+            if !crate::focus_guard::game_mode()
+                && (topology_changed || !window_is_on(&window, &edge))
+            {
                 place_on_edge(&window, &edge);
             }
         } else {

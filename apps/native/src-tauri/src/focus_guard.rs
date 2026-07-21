@@ -161,6 +161,14 @@ pub fn set_game_mode(on: bool) {
     apply_guard(armed());
 }
 
+/// True while the dashboard reports game mode. Read by the display watchdog
+/// (`monitor.rs`) so it does not re-pin — and steal the foreground from — a
+/// running game that is switching the desktop resolution for exclusive
+/// full-screen (that re-pin calls `set_focus()`, which yanks focus off the game).
+pub fn game_mode() -> bool {
+    GAME_MODE.load(Ordering::Relaxed)
+}
+
 /// The kiosk window just got the OS focus. While armed this should not happen
 /// (no-activate), but WebView2 can still focus itself programmatically — give
 /// the foreground straight back to the game.
