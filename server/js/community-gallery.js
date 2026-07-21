@@ -135,6 +135,12 @@
   // to "Installed" — the finishing half of keeping the Store open across an
   // install (#1). Browse state (search/sort/filter) above survives the repaint.
   let repaintStore = null;
+  // "New since your last visit" flag (#5): the PREVIOUS visit timestamp, captured
+  // (and re-stamped to now) each time the Store opens. Per-device, like the drop
+  // check's K_CHECK. Nothing is flagged on the very first open (no prior visit),
+  // so the grid never floods with badges the first time someone browses.
+  const K_STORE_VISIT = 'xeneonedge.storeLastVisit';
+  let storeLastVisit = 0;
 
   // ── Inline SVG icon set (STATIC, trusted markup — the ONLY innerHTML use). ──
   // Lucide-style 24px stroke glyphs so the rail and section heads read premium
@@ -869,6 +875,15 @@
     return hero;
   }
 
+  // Published since the user's last Store visit? Only from the SECOND visit on
+  // (storeLastVisit 0 = never opened → nothing is "new", so the grid doesn't
+  // flood with badges the first time). addedAt is the first-publish date (#5).
+  function isNewEntry(entry) {
+    if (!storeLastVisit || !entry || !entry.addedAt) return false;
+    const ts = Date.parse(entry.addedAt);
+    return Number.isFinite(ts) && ts > storeLastVisit;
+  }
+
   // One uniform product card.
   function renderCard(entry) {
     const locked = !!(entry.locked || entry.supportersOnly);
@@ -884,6 +899,8 @@
     else if (locked) { tier.classList.add('t-sup'); tier.appendChild(icon('supporters')); tier.appendChild(el('span', null, t('gallery_locked_badge', 'Supporters'))); }
     else { tier.appendChild(kindIcon(entry.kind)); tier.appendChild(el('span', null, kindLabel(entry.kind))); }
     media.appendChild(tier);
+    // "New since your last visit" flag (top-right, opposite the tier pill) — #5.
+    if (isNewEntry(entry)) media.appendChild(el('div', 'cgal-new', t('gallery_new_badge', 'NEW')));
     // Theme swatches (server-validated hex — used only as CSS background).
     if (entry.preview && (entry.preview.accent || entry.preview.bg || entry.preview.text)) {
       const sw = el('div', 'cgal-swatches');
@@ -1383,6 +1400,10 @@
   // view. Keep the pseudo-kinds out of the rail — they are not catalog kinds.
   function open(filterKind) {
     close();
+    // Stamp this visit and keep the PREVIOUS one, so renderCard can flag entries
+    // published since (#5). Best-effort: storage off just means no "New" badges.
+    try { storeLastVisit = Number(localStorage.getItem(K_STORE_VISIT)) || 0; localStorage.setItem(K_STORE_VISIT, String(Date.now())); }
+    catch { storeLastVisit = 0; }
     // Same freeze the Settings/update overlays use: the store is a full-viewport
     // frosted overlay, so stop the dashboard animating (and re-blurring) under it.
     // Shared token is safe — close() above runs synchronously before this refreeze.

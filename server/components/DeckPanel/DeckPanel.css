@@ -163,8 +163,14 @@
 }
 .deck-bar .deck-crumb-btn:hover { background: rgba(255,255,255,.06); }
 .deck-bar .deck-crumb-btn.is-open { background: rgba(255,255,255,.09); }
-.deck-crumb-caret { font-size: 8px; opacity: .55; transition: transform .15s ease; }
+.deck-crumb-caret { font-size: 8px; opacity: .55; transition: transform .15s ease; flex: 0 0 auto; }
 .deck-crumb-btn.is-open .deck-crumb-caret { transform: rotate(180deg); }
+/* A long profile name must ELLIPSIZE, not shove the page counter and the edit
+   button off the right edge of a narrow deck — the "button on the right of the
+   profile is almost out of range" report. The crumb button is allowed to shrink
+   and its label truncates; the fixed-width controls keep their place. */
+.deck-bar .deck-crumb-btn { min-width: 0; }
+.deck-bar .deck-crumb-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* The popover is portaled to <body> (so the tile's overflow:hidden can't clip it)
    and positioned via JS; fixed + a high z-index keeps it above the dashboard. */
