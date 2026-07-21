@@ -130,6 +130,11 @@
   let shown = PAGE;
   let limitedOnly = false;   // dedicated "Limited edition" entry point
   let activeTab = 'browse';  // 'browse' (the catalog) | 'installed' (this machine)
+  // Set to a repaint fn while the Store is open, cleared on close. Lets an install
+  // committed elsewhere (preset-share.js) re-render the open Store so a card flips
+  // to "Installed" — the finishing half of keeping the Store open across an
+  // install (#1). Browse state (search/sort/filter) above survives the repaint.
+  let repaintStore = null;
 
   // ── Inline SVG icon set (STATIC, trusted markup — the ONLY innerHTML use). ──
   // Lucide-style 24px stroke glyphs so the rail and section heads read premium
@@ -186,6 +191,7 @@
     // just drop its document-level Escape listener and the reference.
     if (detailEl) { document.removeEventListener('keydown', detailEl._onKey); detailEl = null; }
     if (overlayEl) { overlayEl.remove(); overlayEl = null; }
+    repaintStore = null;
     if (typeof window.ambientFreeze === 'function') window.ambientFreeze('gallery', false);
   }
 
@@ -501,7 +507,13 @@
         if (window.XenonToast) XenonToast.show({ type: 'error', title: t('gallery_error', 'Could not load this entry.') });
         return;
       }
-      close();
+      // #1 — keep the Store open BEHIND the import dialog so several things can be
+      // installed in a row without reopening and losing your place. The import
+      // modal shares the Store's .preset-modal-overlay class and is appended after
+      // it, so it stacks on top; the Store has no Escape/backdrop handler that the
+      // stacked dialog would trip, and it reappears when the dialog closes. On a
+      // committed install, the 'xenon-content-installed' listener repaints it so
+      // the card flips to "Installed".
       if (window.PresetShare) PresetShare.openImport(code, { source: 'catalog', sourceId: entry.id, sourceVersion: entry.version || '', perfWarning: entry.perfWarning === true });
     });
     return b;
@@ -1006,7 +1018,15 @@
       const list = (typeof hubSettings !== 'undefined' && hubSettings && Array.isArray(hubSettings.contentInstalls))
         ? hubSettings.contentInstalls : [];
       for (const rec of list) {
-        if (rec && typeof rec.sourceId === 'string' && rec.sourceId && typeof rec.sourceVersion === 'string' && rec.sourceVersion) {
+        // Index every catalog receipt by id — even one with an EMPTY sourceVersion.
+        // Most non-widget kinds (themes, backgrounds, pages, decks) publish no
+        // version, so their install records sourceVersion:'', and the old
+        // `&& rec.sourceVersion` guard dropped them here — so the card never
+        // flipped to "Installed" even though it was (#6: only widgets showed it).
+        // entryInstallState treats a present-but-versionless receipt as 'current'
+        // (installed), and findUpdates already skips versionless entries, so this
+        // can never produce a false "Update" badge.
+        if (rec && typeof rec.sourceId === 'string' && rec.sourceId && typeof rec.sourceVersion === 'string') {
           receipts.set(rec.sourceId, rec.sourceVersion);
           const m = /^(.+)-(\d{1,4})$/.exec(rec.sourceId);
           if (m) dropReceipts.set(m[1], rec.sourceVersion);
@@ -1444,6 +1464,9 @@
     overlayEl = bd;
     window.addEventListener('resize', onResize);
     syncTabs();
+    // While open, an install committed elsewhere repaints this Store — guarded to
+    // the grid view so it never yanks a detail card or zoom the user is reading.
+    repaintStore = () => { if (overlayEl && !detailEl && !zoomEl) paintTab(false); };
     paintTab(false);
   }
 
@@ -1464,5 +1487,13 @@
   // sidecar path rule. shotUrl derives from the entry id the server already
   // charset-pinned — never from catalog-supplied text.
   const shotUrl = (entryId, i, ext) => SHOTS_BASE + encodeURIComponent(entryId) + (i === 1 ? '' : '-' + i) + '.' + ext;
+  // An install committed anywhere (a catalog receipt written in preset-share.js
+  // fires 'xenon-content-installed') asks an open Store to re-read its install
+  // index, so a card flips to "Installed" without a manual ↻ — the finishing half
+  // of keeping the Store open across an install (#1). No-op while closed.
+  try {
+    window.addEventListener('xenon-content-installed', () => { if (repaintStore) repaintStore(); });
+  } catch { /* no window (non-browser context) — nothing to repaint */ }
+
   window.CommunityGallery = { open, close, findUpdates, openEntry, openSupporters, kindIcon, shotUrl };
 })();

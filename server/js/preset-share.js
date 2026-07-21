@@ -736,6 +736,14 @@
       hubSettings = normalizeSettings(Object.assign({}, HS(), { contentInstalls: list.concat([tx]) }));
       if (typeof saveHubSettings === 'function') saveHubSettings();
       reportCatalogInstall(tx, list);   // `list` is the state BEFORE this receipt
+      // Let an open surface react to the fresh receipt — notably the Store, which
+      // now stays open across an install and re-reads its install index so the
+      // card flips to "Installed" (community-gallery.js). Decoupled + best-effort.
+      try {
+        window.dispatchEvent(new CustomEvent('xenon-content-installed', {
+          detail: { sourceId: (tx.source === 'catalog' && tx.sourceId) ? tx.sourceId : '' },
+        }));
+      } catch { /* CustomEvent unavailable — the Store still updates on its next open */ }
       return true;
     }
     async function runTrackedInstall(kind, name, work) {
