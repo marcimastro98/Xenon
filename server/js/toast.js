@@ -73,8 +73,13 @@
   // notification takes the floating clock island's spot at top-centre — so we tag the
   // body to let the pill recede and the toast grow out of it (see Toast.css /
   // TopbarMinimal.css). No-op in the full topbar (there's no pill to replace).
+  // Style "none" keeps the rails but drops the capsule (body.topbar-noisland), so
+  // there is nothing for the toast to grow out of — fall back to the normal stack.
   function isMinimalChrome() {
-    return document.body.classList.contains('topbar-minimal') && !document.body.dataset.panel;
+    const body = document.body;
+    return body.classList.contains('topbar-minimal')
+      && !body.classList.contains('topbar-noisland')
+      && !body.dataset.panel;
   }
   function syncIsland() {
     document.body.classList.toggle('xtoast-island', toasts.size > 0 && isMinimalChrome());

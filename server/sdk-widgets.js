@@ -528,6 +528,12 @@ function normalizeManifest(raw, folderId) {
   }
   const storage = raw.storage === true || !!storageGroup;
   const secrets = raw.secrets === true;
+  // Backward compatible split: `island:true` is the original one-line text
+  // projection. A structured object must opt into `dynamic:true`; it receives a
+  // separate grant so an old "short text only" approval never silently expands
+  // into interactive/takeover UI after a package update.
+  const islandDynamic = !!(raw.island && typeof raw.island === 'object' && !Array.isArray(raw.island) && raw.island.dynamic === true);
+  const island = raw.island === true || islandDynamic;
   const badge = raw.badge === true;
   const clipboard = raw.clipboard === true;
   return {
@@ -547,15 +553,13 @@ function normalizeManifest(raw, folderId) {
       // Where the package renders: a dashboard tile (default) or the fullscreen
       // Ambient/screensaver surface. Anything but the exact literal is a tile.
       surface: raw.surface === 'ambient' ? 'ambient' : 'tile',
-      // A package may ask to run headless: the host mounts a hidden sandboxed
-      // "service frame" so its deck keys answer — and its badge stays live and
-      // refreshing — with no tile on screen. Only handlers and badges outlive a
-      // tile, so without either it is meaningless → normalized to false.
-      background: raw.background === true && (deck.deck.handlers.length > 0 || badge),
-      // The widget may project ONE short plain-text line into the minimal-topbar
-      // dynamic island. Host-rendered (textContent) and grant-gated; the text
-      // never reaches the server, so no server-side enforcement exists here.
-      island: raw.island === true,
+      // A package may ask to run headless: handlers, badges and structured Live
+      // Activities are the capabilities that can meaningfully outlive a tile.
+      background: raw.background === true && (deck.deck.handlers.length > 0 || badge || islandDynamic),
+      // Legacy text projection + the separately-consented structured surface.
+      // Both remain host-rendered and never weaken the widget iframe sandbox.
+      island,
+      islandDynamic,
       // The widget may show a small persistent text chip next to the clock, in
       // both topbar chromes — up to a few widgets at once (unlike `island`,
       // which is a single shared slot). Same host-rendered/grant-gated shape.

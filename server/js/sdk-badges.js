@@ -37,6 +37,10 @@
     return document.getElementById('clock-sdkbadges');
   }
 
+  function sourceEnabled(pkgId) {
+    return !window.SdkIsland || typeof SdkIsland.sourceEnabled !== 'function' || SdkIsland.sourceEnabled(pkgId);
+  }
+
   // The chip row is an island segment ('badges' in topbar-minimal.js), so a
   // STRUCTURAL change (chips appearing/disappearing) must re-run the island
   // layout: applyIslandLayout keeps the first-visible segment's "lead" (no left
@@ -51,7 +55,7 @@
   }
 
   function syncHostVisibility(h) {
-    if (h) h.hidden = owners.size === 0;
+    if (h) h.hidden = !Array.from(owners.keys()).some(sourceEnabled);
   }
 
   function render(pkgId) {
@@ -59,6 +63,13 @@
     if (!h) return;
     const owner = owners.get(pkgId);
     if (!owner) return;
+    if (!sourceEnabled(pkgId)) {
+      if (owner.chip && owner.chip.parentNode) owner.chip.parentNode.removeChild(owner.chip);
+      owner.chip = null;
+      syncHostVisibility(h);
+      syncIslandLayout();
+      return;
+    }
     // A chip appearing changes the pill's structure; a chip's TEXT changing does
     // not (see syncIslandLayout).
     let structural = false;
@@ -136,5 +147,13 @@
     syncSweep();
   }
 
-  window.SdkBadges = { set, clear };
+  // A per-package Dynamic Island switch changed. Keep the latest value in
+  // memory so re-enabling restores it immediately, but reconcile its host chip.
+  function apply() {
+    for (const pkgId of owners.keys()) render(pkgId);
+    syncHostVisibility(host());
+    syncIslandLayout();
+  }
+
+  window.SdkBadges = { set, clear, apply };
 })();

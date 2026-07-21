@@ -28,10 +28,25 @@ const renderer = arrayLiteral(
   'ISLAND_SEG_IDS in topbar-minimal.js',
 );
 
+function clientNormalizer() {
+  const src = read('server', 'js', 'settings.js');
+  const start = src.indexOf('function normalizeTopbarClock(value, legacyRoot)');
+  assert.ok(start >= 0, 'normalizeTopbarClock implementation not found');
+  const open = src.indexOf('{', start);
+  let depth = 0;
+  let end = -1;
+  for (let i = open; i < src.length; i++) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}' && --depth === 0) { end = i + 1; break; }
+  }
+  assert.ok(end > open, 'normalizeTopbarClock closing brace not found');
+  return Function('return (' + src.slice(start, end) + ')')();
+}
+
 test('settings.js normalizeTopbarClock covers every island segment the renderer draws', () => {
   const client = arrayLiteral(
     read('server', 'js', 'settings.js'),
-    /normalizeTopbarClock\(value\)\s*\{\s*const canonical\s*=\s*\[([^\]]*)\]/,
+    /normalizeTopbarClock\(value, legacyRoot\)\s*\{\s*const canonical\s*=\s*\[([^\]]*)\]/,
     'canonical list in settings.js normalizeTopbarClock',
   );
   assert.deepEqual([...client].sort(), [...renderer].sort());
@@ -44,6 +59,52 @@ test('server.js TOPBAR_ISLAND_IDS mirrors the client canonical list', () => {
     'TOPBAR_ISLAND_IDS in server.js',
   );
   assert.deepEqual([...server].sort(), [...renderer].sort());
+});
+
+test('v2 migration folds the former Claude and Vitals switches into item visibility once', () => {
+  const normalize = clientNormalizer();
+  const migrated = normalize({
+    align: 'left',
+    items: renderer.map((id) => ({ id, hidden: false })),
+  }, {
+    claudeWidget: { topbar: false },
+    vitals: { topbar: false },
+  });
+  assert.equal(migrated.version, 2);
+  assert.equal(migrated.items.find((item) => item.id === 'claude').hidden, true);
+  assert.equal(migrated.items.find((item) => item.id === 'vitals').hidden, true);
+
+  // Once v2 owns the setting, stale feature-local booleans cannot overwrite an
+  // eye toggle on a later save/hydrate.
+  const v2 = normalize({ ...migrated, items: migrated.items.map((item) => ({ ...item, hidden: false })) }, {
+    claudeWidget: { topbar: false },
+    vitals: { topbar: false },
+  });
+  assert.equal(v2.items.find((item) => item.id === 'claude').hidden, false);
+  assert.equal(v2.items.find((item) => item.id === 'vitals').hidden, false);
+});
+
+test('fresh settings keep the formerly opt-in Vitals chips hidden', () => {
+  const normalize = clientNormalizer();
+  const fresh = normalize(null, {});
+  assert.equal(fresh.items.find((item) => item.id === 'vitals').hidden, true);
+  assert.equal(fresh.items.find((item) => item.id === 'claude').hidden, false);
+});
+
+test('island source opt-outs are deduped, bounded and fail closed on ids', () => {
+  const normalize = clientNormalizer();
+  const valid = Array.from({ length: 70 }, (_, index) => `source-${index}`);
+  const result = normalize({
+    version: 2,
+    hiddenSources: ['github-stars', 'github-stars', 'Bad Source', '../escape', ...valid],
+    takeovers: false,
+  }, {});
+  assert.equal(result.takeovers, false);
+  assert.equal(result.hiddenSources[0], 'github-stars');
+  assert.equal(result.hiddenSources.filter((id) => id === 'github-stars').length, 1);
+  assert.equal(result.hiddenSources.length, 64);
+  assert.equal(result.hiddenSources.includes('Bad Source'), false);
+  assert.equal(result.hiddenSources.includes('../escape'), false);
 });
 
 test('every island segment has an editor label key, and that key exists in i18n', () => {

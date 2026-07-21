@@ -237,7 +237,7 @@ test('sync guard: the host marks post-remount writes quiet and the server keeps 
   // Host half: a sync re-mount opens the quiet window AND stamps the cooldown.
   assert.match(client, /_syncQuietUntil\.set\(/, 'a sync re-mount must open the quiet window');
   assert.match(client, /_syncRemountedAt\.set\(/, 'a sync re-mount must stamp the cooldown');
-  assert.match(client, /SYNC_REMOUNT_COOLDOWN_MS\)\s*continue/,
+  assert.match(client, /SYNC_REMOUNT_COOLDOWN_MS\)\s*\{\s*coolingDown\.add\(entry\.pkgId\);\s*continue/,
     'a package re-mounted within the cooldown must be skipped');
 
   // Server half: a quiet write is stored, but never announced.
@@ -246,4 +246,16 @@ test('sync guard: the host marks post-remount writes quiet and the server keeps 
   // The save itself is NOT gated — quiet data must still persist for the next read.
   assert.match(server, /if\s*\(r\.changed\)\s*\{\s*\n\s*await sdkStoreSave\(/,
     'a quiet write must still be persisted, only the broadcast is suppressed');
+});
+
+test('store sync restores background service frames after the visible repaint', () => {
+  const client = readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8');
+
+  // A cross-surface store update removes every live frame of the package.
+  // paint() only recreates visible tiles; without this explicit reconciliation,
+  // persistent badges and Dynamic Island activities disappear on the orphan sweep.
+  assert.match(client, /if\s*\(hit\)\s*\{\s*paint\(\);\s*[^}]*syncServiceFrames\(\);/,
+    'the store-sync remount must restore headless service frames after paint');
+  assert.match(client, /const remounting = new Set\(\);[\s\S]{0,1400}?remounting\.add\(entry\.pkgId\)[\s\S]{0,900}?frames\.delete\(instId\)/,
+    'the per-package cooldown must not prevent sibling frames from remounting');
 });

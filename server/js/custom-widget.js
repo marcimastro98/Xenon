@@ -506,6 +506,7 @@
       storage: !!(grant && grant.storage === true),
       secrets: !!(grant && grant.secrets === true),
       island: !!(grant && grant.island === true),
+      islandDynamic: !!(grant && grant.islandDynamic === true),
       badge: !!(grant && grant.badge === true),
       clipboard: !!(grant && grant.clipboard === true),
       // Addresses the user typed into the package's userHosts slots, keyed by
@@ -813,16 +814,34 @@
     }, wait);
   }
 
-  // Island projection: a widget with the `island` capability may show ONE short
-  // plain-text line — plus an optional dimmed follow-up line (`next`) — in the
-  // minimal-topbar dynamic island. Same trust shape as onBridgeState — manifest
-  // declaration + user grant, values coerced to bounded plain strings,
-  // host-rendered via textContent (SdkIsland). Updates are coalesced by a
-  // per-entry trailing flush so a rapid burst lands its LATEST text instead of
-  // being dropped. The text never leaves this page.
+  // Dynamic Island bridge. `island:true` keeps the v4.6 plain-text projection;
+  // `island:{dynamic:true}` adds structured host-rendered Live Activities behind
+  // a SEPARATE grant. The schema accepts only bounded primitives — never guest
+  // HTML/CSS — and buttons post an id back to this exact frame.
   function onBridgeIsland(entry, grant, msg) {
     const pkg = packageById(entry.pkgId);
     if (!pkg || pkg.island !== true || !grant.island) return;
+    const advanced = msg.op === 'present' || Array.isArray(msg.blocks) || msg.scope != null;
+    if (advanced) {
+      if (pkg.islandDynamic !== true || !grant.islandDynamic || !window.SdkIslandSchema) return;
+      const view = SdkIslandSchema.normalize(msg);
+      if (!view) return;
+      entry.islandDynamicView = view;
+      entry.islandText = '';
+      if (entry.islandFlushTimer) return;
+      const since = Date.now() - (entry.islandFlushAt || 0);
+      const wait = since >= ISLAND_MIN_INTERVAL_MS ? 0 : (ISLAND_MIN_INTERVAL_MS - since);
+      entry.islandFlushTimer = setTimeout(() => {
+        entry.islandFlushTimer = null;
+        entry.islandFlushAt = Date.now();
+        if (!window.SdkIsland || !entry.islandDynamicView) return;
+        const pending = entry.islandDynamicView;
+        entry.islandDynamicView = null;
+        if (pending.op === 'clear') SdkIsland.clear(entry.pkgId, pending.scope);
+        else SdkIsland.present(entry.pkgId, pending, (id) => post(entry, { type: 'island_action', id }));
+      }, wait);
+      return;
+    }
     const coerce = (v) => String(v == null ? '' : v)
       .replace(/[\u0000-\u001f\u007f]/g, ' ')
       .trim()
@@ -834,6 +853,7 @@
     entry.islandText = text;   // latest wins; the flush reads this
     entry.islandNext = next;
     entry.islandBadge = badge;
+    entry.islandDynamicView = null;
     if (entry.islandFlushTimer) return;   // a flush is pending; it carries the latest text
     const since = Date.now() - (entry.islandFlushAt || 0);
     const wait = since >= ISLAND_MIN_INTERVAL_MS ? 0 : (ISLAND_MIN_INTERVAL_MS - since);
@@ -1288,23 +1308,42 @@
       _storeChangedPkgs = new Set();
       const now = Date.now();
       let hit = false;
+      const remounting = new Set();
+      const coolingDown = new Set();
       for (const [instId, entry] of frames) {
         if (instId === AMBIENT_INST_ID) continue;   // AmbientMode owns its frame lifecycle
         if (!wanted.has(entry.pkgId)) continue;
-        if (now - (_syncRemountedAt.get(entry.pkgId) || 0) < SYNC_REMOUNT_COOLDOWN_MS) continue;
-        _syncRemountedAt.set(entry.pkgId, now);
-        _syncQuietUntil.set(entry.pkgId, now + SYNC_QUIET_MS);
+        // The cooldown is per package, not per frame. Once one instance is
+        // accepted, every tile/service instance of that package must be removed
+        // in this pass and then rebuilt from the same fresh store snapshot.
+        if (!remounting.has(entry.pkgId) && !coolingDown.has(entry.pkgId)) {
+          if (now - (_syncRemountedAt.get(entry.pkgId) || 0) < SYNC_REMOUNT_COOLDOWN_MS) {
+            coolingDown.add(entry.pkgId);
+            continue;
+          }
+          remounting.add(entry.pkgId);
+          _syncRemountedAt.set(entry.pkgId, now);
+          _syncQuietUntil.set(entry.pkgId, now + SYNC_QUIET_MS);
+        }
+        if (coolingDown.has(entry.pkgId)) continue;
         try { entry.frame.remove(); } catch {}
         frames.delete(instId);
         hit = true;
       }
-      if (hit) paint();
+      if (hit) {
+        paint();
+        // paint() owns visible tile frames only. Restore headless background
+        // frames too, otherwise their badge/island contribution is swept as an
+        // orphan a few seconds after another dashboard surface writes storage.
+        syncServiceFrames();
+      }
     }, 400);
   }
 
   // ── Service frames (background packages) ─────────────────────────
-  // A granted package that declares handlers AND `background: true` gets a
-  // hidden sandboxed frame so its deck keys answer even with no tile on screen.
+  // A granted package with a persistent contribution (handlers, badge or
+  // Dynamic Island activity) AND `background: true` gets a hidden sandboxed
+  // frame so it stays live with no tile on screen.
   // Same sandbox + registry as every frame; capped; torn down when the grant or
   // the package goes away (the sweep runs on every package/grant refresh).
   const SERVICE_FRAMES_MAX = 4;
@@ -1329,14 +1368,12 @@
         // go dead on purpose (the suspend card says so).
         if (isSuspended(pkg.id)) continue;
         const grant = grantsFor(pkg.id);
-        // Two things outlive a tile and so justify a headless frame: granted deck
-        // handlers (keys must answer) and a granted badge (the chip must stay in
-        // the topbar, and keep refreshing, once the tile is gone). Nothing
-        // granted → no frame.
+        // Only granted persistent capabilities justify a headless frame.
         const declared = (pkg.deck && Array.isArray(pkg.deck.handlers)) ? pkg.deck.handlers : [];
         const handlersLive = declared.some(h => grant.handlers.includes(h.id));
         const badgeLive = pkg.badge === true && grant.badge;
-        if (!handlersLive && !badgeLive) continue;
+        const islandLive = pkg.islandDynamic === true && grant.island && grant.islandDynamic;
+        if (!handlersLive && !badgeLive && !islandLive) continue;
         wanted.set('svc:' + pkg.id, pkg);
         count++;
       }
@@ -1632,6 +1669,7 @@
     const wantsStorage = pkg.storage === true;
     const wantsSecrets = pkg.secrets === true;
     const wantsIsland = pkg.island === true;
+    const wantsIslandDynamic = pkg.islandDynamic === true;
     const wantsBadge = pkg.badge === true;
     const wantsClipboard = pkg.clipboard === true;
     const storageGroup = typeof pkg.storageGroup === 'string' ? pkg.storageGroup : '';
@@ -1678,10 +1716,14 @@
     if (wantsSecrets) {
       addSection('cw_perm_secrets', 'It can store API keys (never shown back):', [t('cw_perm_secrets_val', 'Used only to reach the servers above')], {});
     }
-    // Island projection: one short host-rendered text line in the minimal
-    // topbar's dynamic island. Plain text only — never markup, links or images.
+    // Island projection. The legacy permission is short text only; structured
+    // Live Activities are named separately because they may replace the clock,
+    // animate a temporary takeover and expose Xenon-drawn action buttons.
     if (wantsIsland) {
       addSection('cw_perm_island', 'It can show a line in the top status island:', [t('cw_perm_island_val', 'Short text only — never links or images')], {});
+    }
+    if (wantsIslandDynamic) {
+      addSection('cw_perm_island_dynamic', 'It can create Dynamic Island activities:', [t('cw_perm_island_dynamic_val', 'May temporarily replace the clock with Xenon-drawn text, meters and buttons')], {});
     }
     // Persistent badge: a small always-on chip next to the clock (both topbar
     // chromes), distinct from the transient island above — plain text only.
@@ -1695,12 +1737,14 @@
       addSection('cw_perm_clipboard', 'It can copy to your clipboard (with a tap):', [t('cw_perm_clipboard_val', 'You confirm each copy, and it can never read your clipboard')], {});
     }
     // Headless running. The manifest normalizer only keeps `background` when the
-    // package has something that outlives a tile (handlers and/or a badge), so
+    // package has something that outlives a tile (handlers, badge or island), so
     // name whichever it actually is rather than always saying "Deck keys".
-    if (pkg.background === true && (deckHandlers.length || wantsBadge)) {
+    if (pkg.background === true && (deckHandlers.length || wantsBadge || wantsIslandDynamic)) {
       const note = (deckHandlers.length && wantsBadge)
         ? t('cw_perm_background_both', 'This widget can keep running hidden in the background, so its Deck keys always answer and its badge stays up to date with no tile on screen.')
-        : (wantsBadge
+        : (wantsIslandDynamic
+          ? t('cw_perm_background_island', 'This widget can keep running hidden in the background so its Dynamic Island activities stay up to date even with no tile on screen.')
+          : wantsBadge
           ? t('cw_perm_background_badge', 'This widget can keep running hidden in the background, so its badge stays in the top bar and up to date even with no tile on screen.')
           : t('cw_perm_background', 'This widget can keep running hidden in the background so its Deck keys always answer.'));
       panel.appendChild(el('div', 'cw-perm-note', note));
@@ -1751,7 +1795,7 @@
       if (!uh.ok) { refresh(); return; }
       const cur = sdk();
       const patch = {
-        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, secrets: wantsSecrets, island: wantsIsland, badge: wantsBadge, clipboard: wantsClipboard } },
+        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, secrets: wantsSecrets, island: wantsIsland, islandDynamic: wantsIslandDynamic, badge: wantsBadge, clipboard: wantsClipboard } },
       };
       if (instId != null) patch.assign = { ...(cur.assign || {}), [instId]: pkg.id };
       persist(patch);
@@ -1943,6 +1987,7 @@
       || (pkg.storage === true && !g.storage)
       || (pkg.secrets === true && !g.secrets)
       || (pkg.island === true && !g.island)
+      || (pkg.islandDynamic === true && !g.islandDynamic)
       || (pkg.badge === true && !g.badge)
       || (pkg.clipboard === true && !g.clipboard);
   }

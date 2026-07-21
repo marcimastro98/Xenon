@@ -590,9 +590,12 @@ function buildDashboardDockBar(dock, collapsed) {
   return bar;
 }
 
-// Floating Layout button — the only way back into the editor once the top bar
-// is hidden. Created once; CSS shows it solely while `body.topbar-hidden` and not
-// editing. Tapping enters edit mode, which re-reveals the bar for full editing.
+// Floating Layout button — the fallback way back into the editor once the top
+// bar is hidden. Normally invisible: a hidden bar keeps the edge rails, which
+// already carry Layout/Settings/App, so the CSS additionally requires
+// `:not(.topbar-minimal)` and it surfaces only if the minimal chrome could not be
+// built. Kept rather than deleted because without it that failure would leave no
+// route into Settings at all. Tapping enters edit mode.
 function ensureLayoutFab() {
   let fab = document.getElementById('layout-fab');
   if (fab) {
@@ -2057,10 +2060,12 @@ function applyDashboardLayout() {
   document.body.classList.toggle('layout-editing', dashboardLayoutEditing);
   // Hide the top bar entirely when the user opted out of it — but never while
   // editing, so the full toolset (pager dots, page add/remove, Done) stays
-  // reachable. A floating Layout button (below) re-opens the editor.
+  // reachable.
   document.body.classList.toggle('topbar-hidden', layout.topbarHidden === true);
-  // Minimal chrome (edge rails + island pill) follows the settings; a fully
-  // hidden bar wins over it — TopbarMinimal.apply() checks both.
+  // Must run right after that class flip, and on BOTH edges of it: a hidden bar
+  // now means "edge rails, no island" rather than "no chrome", so this call is
+  // what builds the rails on the way out — and what reparents the quick actions
+  // back into the bar on the way in, which would otherwise return empty.
   if (window.TopbarMinimal) window.TopbarMinimal.apply();
   ensureLayoutFab();
   const toggle = document.getElementById('layout-edit-toggle');

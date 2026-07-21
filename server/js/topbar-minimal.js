@@ -1,4 +1,4 @@
-// Topbar minimal mode — an alternative dashboard chrome (Settings → Aspetto).
+// Topbar minimal mode — an alternative dashboard chrome (Settings → Dynamic Island).
 // Instead of the full glass bar, the quick actions dock into two collapsible
 // vertical rails hugging the screen edges (left: Lock/Focus/Xenon, right:
 // Layout/Settings/App + favorites) and the clock/date/weather/page-dots merge
@@ -24,7 +24,7 @@
   // tuck away (class is-auto-hidden), leaving the dashboard clean but keeping the
   // slim handle peeking so there's a visible arrow to reopen them; a tap on that
   // handle — or anywhere in the screen-edge strip — brings them back and restarts
-  // the countdown. Opt-out via Settings → Aspetto (topbarRailsAutoHide=false),
+  // the countdown. Opt-out via Settings → Dynamic Island (topbarRailsAutoHide=false),
   // which keeps them always on screen. Transient visual state only — it never
   // touches the persisted per-rail collapsed choice (topbarRails).
   const AUTO_HIDE_MS = 10000;
@@ -109,26 +109,42 @@
     return ISLAND_SEG_IDS.map(id => ({ id, hidden: false }));
   }
 
-  // Apply the user's segment order + visibility onto the flattened pill children.
-  // Order is pure CSS `order`; visibility a class; the first VISIBLE segment gets
+  // Apply the user's segment visibility in BOTH chromes and its order onto the
+  // flattened Minimal pill. Full keeps its classic two-row composition, but an
+  // eye toggle still removes that contribution there too. The first VISIBLE
+  // Minimal segment gets
   // `island-seg-lead` so it carries no left hairline divider (CSS :first-child
   // can't see flex order, and a segment display:none'd by the vitals feature must
   // not count as the lead). Idempotent — safe to call on every settings apply.
   function applyIslandLayout() {
-    if (!active || !ui || !ui.pill) return;
+    if (!els && !captureTopbarEls()) return;
     const items = readIslandItems();
     let leadDone = false;
     items.forEach((it, index) => {
       const el = islandSegEl(it && it.id);
       if (!el) return;
+      const hidden = it.hidden === true;
+      el.classList.toggle('topbar-item-hidden', hidden);
+      if (!active || !ui || !ui.pill) {
+        el.style.removeProperty('order');
+        el.classList.remove('island-seg', 'island-seg-lead', 'island-seg-hidden');
+        return;
+      }
       el.classList.add('island-seg');
       el.style.order = String(index);
-      const hidden = it.hidden === true;
       el.classList.toggle('island-seg-hidden', hidden);
       const effectivelyHidden = hidden || el.hidden === true; // el.hidden: vitals off
       if (!effectivelyHidden && !leadDone) { el.classList.add('island-seg-lead'); leadDone = true; }
       else el.classList.remove('island-seg-lead');
     });
+    // The middle dot is punctuation between date and weather, not an
+    // independently configurable item. Never leave it floating when either
+    // neighbour has been hidden in the Full bar.
+    const itemById = new Map(items.map((item) => [item.id, item]));
+    if (els.metaSep) {
+      const hideSep = itemById.get('date')?.hidden === true || itemById.get('weather')?.hidden === true;
+      els.metaSep.classList.toggle('topbar-item-hidden', hideSep);
+    }
   }
 
   function buildRail(side) {
@@ -278,7 +294,7 @@
     });
     // clock-meta ← status-dot · date · sep · weather · vitals · badges
     // (fixed original order — must match index.html)
-    [els.statusDot, els.clockDate, els.metaSep, els.clockWeather, els.clockVitals, els.clockBadges]
+    [els.statusDot, els.clockDate, els.metaSep, els.clockWeather, els.clockVitals, els.clockBadges, els.clockClaude]
       .forEach(el => { if (el) els.clockMeta.appendChild(el); });
     els.clock.append(els.clockFace, els.clockMeta);
     // Topbar's original child order: quickbar · clock · top-actions, with the
@@ -288,6 +304,7 @@
     document.body.classList.remove('topbar-minimal');
     clearIslandTags();
     active = false;
+    applyIslandLayout();
     // Stop the idle countdown and clear the transient hidden state, so switching
     // back to minimal later starts from fully-visible rails.
     clearAutoHideTimer();
@@ -313,19 +330,43 @@
     try {
       const pill = ui.pill.getBoundingClientRect();
       if (!pill.height) { clearIslandTags(); return; }
+      // Geometry is read ONCE, from a single rendered grid, and every tile is then
+      // placed from its GridStack coords rather than its own DOM rect. Pager pages
+      // sit side by side at the same size and vertical origin, so one measurement
+      // answers for all of them. Two measured reasons, beyond being less work:
+      //   - A rect read inside a parked page (.is-parked → content-visibility:
+      //     hidden) forces Chromium to render the very subtree the parking exists
+      //     to skip, which is the "Rendering was performed in a subtree hidden by
+      //     content-visibility" console flood.
+      //   - Interleaving per-tile reads with the --island-clear writes below
+      //     invalidated layout between them, so each read re-ran it: the 35-56ms
+      //     "Forced reflow while executing JavaScript" violations.
+      // Grid coords stay correct for off-screen pages, so paging still never
+      // reveals an overlap — that is why this must not simply skip parked pages.
+      const grids = Array.from(document.querySelectorAll('.pager-page .grid-stack'));
+      const ref = grids.find(g => !g.closest('.pager-page.is-parked')) || grids[0];
+      if (!ref) { clearIslandTags(); return; }
+      const g = ref.getBoundingClientRect();
+      if (!g.height || !g.width) { clearIslandTags(); return; }
+      const clearance = Math.max(0, Math.ceil(pill.bottom - g.top) + 12);
+      if (!clearance) { clearIslandTags(); return; }
+      // The pill is fixed to the viewport; express its span in page-local pixels so
+      // the same test applies to pages scrolled off to either side.
+      const cols = (window.DashboardGrid && window.DashboardGrid.GRID_COLUMNS) || 24;
+      const colWidth = g.width / cols;
+      const pillLeft = pill.left - g.left;
+      const pillRight = pill.right - g.left;
       const want = new Map(); // item element -> clearance px string
-      document.querySelectorAll('.pager-page .grid-stack').forEach(grid => {
-        const g = grid.getBoundingClientRect();
-        if (!g.height) return;
-        const clearance = Math.max(0, Math.ceil(pill.bottom - g.top) + 12);
-        if (!clearance) return;
+      grids.forEach(grid => {
         grid.querySelectorAll(':scope > .grid-stack-item').forEach(item => {
-          const r = item.getBoundingClientRect();
-          if (!r.height) return;
-          if (r.top - g.top > 6) return;                 // top row only
+          const n = item.gridstackNode;
+          if (!n) return;                                // not mounted yet
+          if ((n.y || 0) !== 0) return;                  // top row only
+          const left = (n.x || 0) * colWidth;
+          const right = left + (n.w || 0) * colWidth;
           // Must genuinely sit under the pill (≥12px horizontal overlap) — with
           // the fine 24-column grid more than one tile can straddle it.
-          const overlap = Math.min(r.right, pill.right) - Math.max(r.left, pill.left);
+          const overlap = Math.min(right, pillRight) - Math.max(left, pillLeft);
           if (overlap < 12) return;
           want.set(item, clearance + 'px');
         });
@@ -353,14 +394,25 @@
   // the layout, so the editor previews the bar you actually run: the grid keeps
   // its run-time position and the layout dock floats over the top instead of
   // pushing tiles down, and the edge rails are hidden while editing so they don't
-  // cover the tiles' move/resize handles (see TopbarMinimal.css). Only "Nascondi
-  // barra" (layout editor) overrides it: that hides the bar entirely.
+  // cover the tiles' move/resize handles (see TopbarMinimal.css).
+  //
+  // Two chromes, one enable path — the difference is only the island pill:
+  //   'minimal'                      → edge rails + the clock island
+  //   'none' (dashboardLayout.topbarHidden) → edge rails, NO island, no bar
+  // "None" used to tear the rails down as well, which left the dashboard with no
+  // reachable quick actions at all and made the floating Layout button the only
+  // way back in. The rails ARE the chrome; only the island is what "none" drops.
+  // body.topbar-noisland is what suppresses the pill (TopbarMinimal.css) and what
+  // tells the island's other tenants — the SDK island and the toast morph — that
+  // there is no capsule to take over.
   function apply() {
     if (document.body.dataset.panel) return;
     const settings = (typeof hubSettings !== 'undefined' && hubSettings) ? hubSettings : null;
     const barHidden = !!(settings && settings.dashboardLayout && settings.dashboardLayout.topbarHidden === true);
-    const wantMinimal = !!(settings && settings.topbarStyle === 'minimal' && !barHidden);
-    if (wantMinimal) enable(); else disable();
+    const wantRails = !!(settings && (settings.topbarStyle === 'minimal' || barHidden));
+    document.body.classList.toggle('topbar-noisland', wantRails && barHidden);
+    if (wantRails) enable(); else disable();
+    applyIslandLayout();
     // Pick up an auto-hide setting change even when already active (enable() would
     // have early-returned). Self-guards when inactive.
     configureAutoHide();

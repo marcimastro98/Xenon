@@ -38,6 +38,17 @@
     return Array.from(document.querySelectorAll('[data-dashboard-widget="claude"]')).filter(n => n.closest('.pager-page'));
   }
 
+  // A page the pager has parked (.is-parked → content-visibility: hidden,
+  // DashboardPager.css) is not rendered, but it KEEPS its box — so a rects-only
+  // test reads a tile sitting there as visible. Same test the slideshow tile
+  // uses, including the layout-editing exception: editing un-parks those pages,
+  // matching the CSS, so it must not count as parked there.
+  function isParked(tile) {
+    const page = tile.closest('.pager-page');
+    return !!(page && page.classList.contains('is-parked')
+      && !document.body.classList.contains('layout-editing'));
+  }
+
   // ── model → hue. Encodes which model produced the work, not decoration. ──
   const MODEL_COLORS = Object.freeze({ opus: '#D97757', fable: '#A98BE0', mythos: '#A98BE0', sonnet: '#3FB9C4', haiku: '#79C267' });
   function modelHue(model) {
@@ -103,7 +114,15 @@
     return (typeof hubSettings === 'object' && hubSettings && hubSettings.claudeWidget) || null;
   }
   function approvalsOn() { const c = cfg(); return !c || c.approvals !== false; }
-  function topbarOn() { const c = cfg(); return !c || c.topbar !== false; }
+  function topbarOn() {
+    const c = cfg();
+    try {
+      const items = hubSettings && hubSettings.topbarClock && hubSettings.topbarClock.items;
+      const item = Array.isArray(items) ? items.find((entry) => entry && entry.id === 'claude') : null;
+      if (item) return item.hidden !== true;
+    } catch { /* legacy settings fallback below */ }
+    return !c || c.topbar !== false;
+  }
 
   // With approvals off there is nothing to show, nothing to escalate and nothing
   // for the topbar to call urgent — one gate covers all three. The server also
@@ -1443,6 +1462,15 @@
     tiles().forEach(tile => {
       const mount = tile.querySelector('.claude-widget-mount');
       if (!mount) return;
+      // Nothing on a parked page is on screen, and the scroll reads just below
+      // are LAYOUT reads: performing them there forces Chromium to render the
+      // very subtree the parking exists to skip (the "Rendering was performed in
+      // a subtree hidden by content-visibility" console flood), on every SSE
+      // push, to rebuild a tile nobody can see and preserve a scroll position
+      // nobody is holding. The page-change listener below repaints it at the one
+      // moment it can next be looked at. The overlay, topbar marker and ticker
+      // are handled outside this loop and stay live regardless of page.
+      if (isParked(tile)) return;
       // A repaint rebuilds the tile, and an SSE push can land at any moment —
       // so without this the session list would jump back to the top while the
       // user is scrolling through it.
@@ -1643,6 +1671,11 @@
     syncTopbar();
     paint();
   }
+
+  // A tile on a parked page skips its rebuild in paint(), so it can be holding
+  // state from before the page was parked. Landing on the page is exactly when
+  // that becomes visible, so redraw it from the payload already in hand.
+  window.addEventListener('xenon:page-change', () => { if (tiles().length) paint(); });
 
   window.ClaudeWidget = { renderWidgets, onSSE, onSettingsChanged };
 })();

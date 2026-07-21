@@ -87,11 +87,11 @@ not need to do anything to support it.
 | `userHosts` | no | Up to 4 addresses **the user types in**, for servers you can't know in advance (a NAS, Docker, a printer). Each is `{ id, label, scope }` — `id` (`^[a-z0-9][a-z0-9-]{0,40}$`) is what you read the value back under, `label` (≤ 60 chars) is the text above the field, `scope` is `"private"` (default — LAN only) or `"any"`. See *User-supplied addresses*. |
 | `hooks` | no | Up to 8 hook ids (`^[a-z0-9][a-z0-9-]{0,40}$`) the widget may receive local webhook events on (see *Local webhooks*). |
 | `deck` | no | Deck contributions: up to 8 `actions` (macros of ≤ 10 steps, each step restricted to the same low-risk action set as `actions`), up to 8 `states` the widget publishes, and up to 8 `handlers` — Deck keys answered by your own code, with up to 4 declared params each (see *Deck integration* and *Handler actions*). |
-| `background` | no | `true` + declared `deck.handlers` and/or `badge` → the host may run your package in a hidden **service frame** so its Deck keys answer, and its badge keeps refreshing, with no tile on screen (see *Handler actions* and *Persistent badge*). Ignored without either. |
+| `background` | no | `true` + declared `deck.handlers`, `badge`, and/or `island: { "dynamic": true }` → the host may run your package in a hidden **service frame** so its Deck keys, badge or Dynamic Island activity keep working with no tile on screen. Ignored without one of those capabilities. |
 | `storage` | no | `true` → your widget may keep a small persistent key/value store on this PC (its settings, chosen sources, last map view). Survives updates. See *Persistent storage*. |
 | `storageGroup` | no | A shared-store id (`^[a-z0-9][a-z0-9-]{0,40}$`). Every widget declaring the same group reads/writes ONE store, so a set of sibling widgets can share config/cache. Implies `storage`. |
 | `secrets` | no | `true` → your widget may store API keys in a **write-only** vault and use them via `{{secret:NAME}}` in proxied requests, so a published package ships no keys. See *Secrets & API keys*. |
-| `island` | no | `true` → your widget may project **one short plain-text line** into the minimal topbar's dynamic island (the floating clock pill). Host-rendered, grant-gated — see *Island projection*. |
+| `island` | no | `true` keeps the v4.6 **short plain-text line** API. `{ "dynamic": true }` requests the separate advanced permission for host-rendered Live Activities, timed takeovers and action buttons in **Full and Minimal**. See *Dynamic Island*. |
 | `badge` | no | `true` → your widget may show a small **always-on** text chip next to the clock, in both topbar chromes. Host-rendered, grant-gated — see *Persistent badge*. |
 | `clipboard` | no | `true` → your widget may **ask** to copy text to the system clipboard. It can never copy silently and can never read the clipboard: each copy shows a Xenon confirmation the user taps. See *Clipboard*. |
 
@@ -185,7 +185,7 @@ than the manifest requested):
   api: 1,
   theme:  {
     appearance: 'dark'|'light',
-    // true when the user runs a 12-hour clock (Settings → Appearance, auto/12/24
+    // true when the user runs a 12-hour clock (Settings → Dynamic Island, auto/12/24
     // already resolved). Use it if your widget renders its own time. Also present
     // on every `theme` refresh, so a live toggle updates without a reload.
     clock12: false,
@@ -893,21 +893,24 @@ re-coerced server-side against your declared params on every press, and
 dispatches are rate-limited (~4/s per handler).
 
 **Background service frames** (`"background": true`, top-level): normally your
-code runs only while a tile is mounted. A package that declares handlers — or a
-`badge` — may also ask to run **headless**: the host mounts a hidden sandboxed
-frame (same CSP, same grants, capped at 4 packages) so your Deck keys answer,
-and your badge stays live, even with no tile on screen. Shown to the user in the
-permission dialog; meaningless (and normalized away) with neither.
+code runs only while a tile is mounted. A package that declares handlers, a
+`badge`, or advanced Dynamic Island activities may also ask to run **headless**:
+the host mounts a hidden sandboxed frame (same CSP, same grants, capped at 4
+packages) so those contributions remain live with no tile on screen. Shown to
+the user in the permission dialog; meaningless (and normalized away) without
+one of those capabilities.
 
-### 9b. Island projection — `island` (widget → host) (v4.6)
+### 9b. Dynamic Island — `island` (widget → host) (v4.6 / v4.10)
 
-Declare `"island": true` and — once the user grants it — your widget may show
-**one short plain-text line** in the minimal topbar's dynamic island: the clock
-pill recedes (the same morph a notification uses) and your line takes its spot,
-expanding into a small card when it wraps. A teleprompter's current sentence, a
-build status, a download percentage — anything worth a glance while the tile
-itself may be on another page. An optional `next` string renders as a dimmed
-follow-up row under the main line (prompter-style context).
+There are two compatible levels. Both are opt-in permissions, host-rendered and
+available in **Full and Minimal** topbar styles. Style **None** has no island
+surface, so updates are kept but not displayed.
+
+#### Legacy short line (`"island": true`)
+
+The v4.6 API remains unchanged. It is ideal for a teleprompter sentence, build
+status or download percentage. The clock recedes and the short line takes its
+place; `next` adds a dim follow-up row and `badge` adds a tiny meta column.
 
 ```js
 window.parent.postMessage({ xenonSdk: 1, type: 'island', op: 'show', text: 'Rendering… 42%' }, '*');
@@ -931,26 +934,125 @@ Rules the host enforces (send whatever you like — this is what survives):
 - **Coalesced updates.** Bursts are rate-limited (~200 ms); the LATEST text
   always lands, intermediate ones may be skipped. Sending more than a few
   updates per second buys you nothing.
-- **One owner at a time.** The island is a single slot: the last granted
-  package to `show` owns it, and only the owner's `clear` clears it. Design for
-  sharing — show a line while you're genuinely active, clear when you stop.
+- **One visible live owner at a time.** Xenon keeps the latest live state per
+  package; whichever package updated most recently is shown. Clearing it restores
+  the previous eligible source instead of losing everybody else's state.
 - **System notifications always win.** While a toast is showing your line
   recedes; it returns when the toast dismisses. No action needed on your side.
 - **Auto-clear.** When your package's last frame goes away (tile removed,
   package uninstalled) the host clears your line within a few seconds.
-- **Minimal chrome only.** In the full topbar there is no island: your text is
-  accepted and kept, just not displayed — the tile remains the primary display.
-  Don't put anything in the island the tile doesn't also show.
+- **Full and Minimal.** The same content replaces the centre clock in Full or the
+  floating capsule in Minimal. In None it stays cached but is not drawn.
 - An empty `text` on `show` counts as `clear`. There is no reply message.
 - In a regular browser tab that's hidden, your frame's timers are throttled by
   the browser — island updates from a background tab will stall. Irrelevant on
   the always-visible Xeneon Edge kiosk.
 
+#### Structured Live Activities (`"island": { "dynamic": true }`)
+
+This manifest form requests a **separate, visibly broader grant**. Existing
+widgets approved only for a short line never inherit it during an update. The
+widget describes a small layout, but Xenon rebuilds it from fixed primitives:
+guest HTML, CSS, URLs and event handlers never cross the sandbox boundary.
+
+A persistent music activity that keeps only the time, playback bars and title:
+
+```js
+window.parent.postMessage({
+  xenonSdk: 1,
+  type: 'island',
+  op: 'present',
+  mode: 'live',
+  layout: 'compact',
+  accent: '#1ed760',
+  blocks: [
+    { type: 'builtin', value: 'time' },
+    { type: 'bars', values: [0.3, 0.8, 0.55, 1, 0.4], animated: true },
+    { type: 'text', text: 'Midnight City', weight: 'strong', maxLines: 1 },
+    { type: 'button', id: 'pause', label: 'Pause', emphasis: true }
+  ]
+}, '*');
+```
+
+A goal takeover temporarily replaces whatever live/default content is present,
+plays its entrance, waits, plays its exit, then restores the previous state:
+
+```js
+window.parent.postMessage({
+  xenonSdk: 1,
+  type: 'island',
+  op: 'present',
+  mode: 'takeover',
+  duration: 6000,
+  enter: 'pop',
+  exit: 'slide',
+  accent: '#e31b23',
+  blocks: [
+    { type: 'icon', text: '⚽' },
+    { type: 'text', text: 'GOAL · Arsenal 2–1', weight: 'strong', tone: 'accent' },
+    { type: 'text', text: 'Saka · 78′', tone: 'muted' }
+  ]
+}, '*');
+```
+
+Clear only your persistent activity, only your pending takeover, or both:
+
+```js
+window.parent.postMessage({ xenonSdk: 1, type: 'island', op: 'clear', scope: 'live' }, '*');
+window.parent.postMessage({ xenonSdk: 1, type: 'island', op: 'clear', scope: 'takeover' }, '*');
+window.parent.postMessage({ xenonSdk: 1, type: 'island', op: 'clear', scope: 'all' }, '*');
+```
+
+Allowed blocks (maximum **10** after validation):
+
+| Block | Fields that survive |
+|-------|---------------------|
+| `text` | `text` (≤160 chars), `tone`: `primary\|muted\|accent\|success\|warning\|danger`, `weight`: `normal\|strong`, `maxLines`: `1\|2` |
+| `icon` | `text` (≤8 chars; glyph/emoji), optional strict `color: "#rrggbb"` |
+| `progress` | `value` from `0` to `1` |
+| `bars` | `values`: up to 12 numbers from `0` to `1`; `animated: true` uses a host animation that obeys reduced motion, game/idle and GPU pause modes |
+| `builtin` | `value`: `time`, `date` or `weather`; these mirror Xenon's own live readout |
+| `button` | `id` (`^[a-z0-9][a-z0-9_-]{0,31}$`), `label` (≤28 chars), optional `emphasis`; maximum **2** distinct buttons |
+| `spacer` | `size`: `small\|large` |
+
+Top-level fields:
+
+- `mode`: `live` (default) or `takeover`.
+- `layout`: `compact` (default) or `expanded`.
+- `accent`: optional strict `#rrggbb`; it only colours Xenon's allowed accents.
+- `enter`: `morph` (default), `slide`, `pop` or `fade`.
+- `exit`: `morph` (default), `slide` or `fade`.
+- `duration`: takeover lifetime, clamped to **1,200–30,000 ms** (default 5s).
+
+When a host-rendered button is tapped, the owning frame alone receives:
+
+```js
+addEventListener('message', (event) => {
+  const message = event.data;
+  if (message?.xenonSdk === 1 && message.type === 'island_action') {
+    if (message.id === 'pause') togglePlayback();
+  }
+});
+```
+
+Bursts are coalesced to the latest state at roughly 200 ms. Xenon retains only
+the newest takeover globally: a new goal or alert supersedes an older pending
+event, then restores the live activity or normal island when it leaves. System
+notifications remain above all SDK content.
+
+#### The user owns every contribution
+
+Settings → **Dynamic Island** lists only currently installed packages that
+declare an island activity or badge. The user can disable any package's entire
+contribution without uninstalling it, can hide/reorder Xenon's built-in items,
+and can globally turn timed takeovers off. Treat the island as enhancement, not
+the only place essential information or controls exist.
+
 ### 9c. Persistent badge — `badge` (widget → host) (v4.6)
 
 Declare `"badge": true` and — once granted — your widget may show a small
 **always-on** text chip next to the clock, in **both** the full and minimal
-topbar chromes (unlike Island, which is minimal-only). Use it for something
+topbar chromes. Use it for something
 that's true for a long time and worth a permanent glance — a repo's star
 count, an unread count, a connection status — not a one-off event.
 
@@ -983,10 +1085,10 @@ Rules the host enforces:
   always lands.
 - **No tap action yet.** Badges are display-only in this version — they don't
   navigate anywhere when tapped.
-- **The user owns the slot.** In the minimal topbar the badge row is an island
-  segment like the clock or the weather chip: from Settings → Aspetto the user
-  can reorder it or hide it outright. Treat the badge as a bonus glance, never
-  as the only place your widget shows something.
+- **The user owns the slot.** Settings → Dynamic Island can hide the badge row
+  globally or disable your package's island/badge contribution specifically.
+  Treat the badge as a bonus glance, never as the only place your widget shows
+  something.
 - **Outliving the tile — declare `background: true`.** A badge is worth having
   precisely when the tile is *not* on screen, so a badge package may also ask to
   run headless: the host mounts a hidden service frame (same sandbox, same
@@ -994,10 +1096,9 @@ Rules the host enforces:
   with no tile anywhere. Without it your chip is dropped a few seconds after
   your last frame goes away. Note both frames run when a tile IS mounted, so
   keep polling cheap and idempotent.
-- **Give the user a way out.** A badge that survives the tile can only be
-  removed by uninstalling your package — unless you offer something better. The
-  bundled `github-stars` example puts a *Remove badge* button in its setup view;
-  do the same.
+- **Offer an in-widget control too.** Xenon's package switch is the universal way
+  out; a contextual *Remove badge* or *Stop activity* control inside your own
+  setup still makes the feature easier to understand.
 - **Auto-clear.** When your package's last frame goes away (tile removed *and*
   no service frame, package uninstalled, SDK switched off) the host drops your
   chip within a few seconds.

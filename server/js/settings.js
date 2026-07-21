@@ -193,18 +193,23 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Minimal-mode edge rails auto-hide after ~10s untouched (revealed by an edge
   // touch). Default on; off keeps them always visible. See js/topbar-minimal.js.
   topbarRailsAutoHide: true,
-  // Minimal-island personalization (Settings → Aspetto → Barra superiore).
-  // align: island anchor (centre/left/right). items: ordered island segments,
-  // each with a hidden flag. Full-bar mode ignores this. Defaults = centred
-  // island with every segment shown.
+  // Dynamic Island personalization shared by Full + Minimal. `items` controls
+  // built-in segments (order in Minimal, visibility in both chromes), while
+  // hiddenSources holds per-installed-package opt-outs and takeovers gates the
+  // temporary goal/build/track cards from the advanced SDK.
   topbarClock: {
+    version: 2,
     align: 'center',
+    takeovers: true,
+    hiddenSources: [],
     items: [
       { id: 'time', hidden: false },
       { id: 'date', hidden: false },
       { id: 'weather', hidden: false },
-      { id: 'vitals', hidden: false },
+      { id: 'vitals', hidden: true },
       { id: 'dots', hidden: false },
+      { id: 'badges', hidden: false },
+      { id: 'claude', hidden: false },
     ],
   },
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language (en → 12h)
@@ -1155,14 +1160,25 @@ function normalizeTopbarRails(value) {
 // is absent. Mirrors normalizeTopbarClock on the server. The canonical id list
 // is inlined (not a module const) because normalizeSettings runs at load time,
 // before a top-level const would be initialised — a TDZ crash otherwise.
-function normalizeTopbarClock(value) {
+function normalizeTopbarClock(value, legacyRoot) {
   const canonical = ['time', 'date', 'weather', 'vitals', 'dots', 'badges', 'claude'];
   const v = value && typeof value === 'object' ? value : {};
+  const legacy = legacyRoot && typeof legacyRoot === 'object' ? legacyRoot : {};
+  const version = Number(v.version) || 0;
   const align = ['center', 'left', 'right'].includes(v.align) ? v.align : 'center';
   const legacyHidden = {};
   if (!Array.isArray(v.items)) {
     if (v.date === false) legacyHidden.date = true;
     if (v.weather === false) legacyHidden.weather = true;
+  }
+  // One-time consolidation of switches that used to live under Claude/Vitals.
+  // version 2 makes the island list the single owner from then on, so changing
+  // an eye button is never overwritten by a stale legacy boolean on the next save.
+  if (version < 2) {
+    if (legacy.claudeWidget && legacy.claudeWidget.topbar === false) legacyHidden.claude = true;
+    // Vitals' old topbar switch defaulted off, including when the whole vitals
+    // object was absent on a fresh install.
+    if (!legacy.vitals || legacy.vitals.topbar !== true) legacyHidden.vitals = true;
   }
   const seen = new Set();
   const items = [];
@@ -1171,14 +1187,22 @@ function normalizeTopbarClock(value) {
       const id = it && typeof it === 'object' ? it.id : null;
       if (!canonical.includes(id) || seen.has(id)) continue;
       seen.add(id);
-      items.push({ id, hidden: it.hidden === true });
+      items.push({ id, hidden: it.hidden === true || (version < 2 && legacyHidden[id] === true) });
     }
   }
   for (const id of canonical) {
     if (seen.has(id)) continue;
     items.push({ id, hidden: legacyHidden[id] === true });
   }
-  return { align, items };
+  const hiddenSources = [];
+  const sourceRe = /^[a-z0-9][a-z0-9-]{1,40}$/;
+  if (Array.isArray(v.hiddenSources)) {
+    for (const id of v.hiddenSources) {
+      if (hiddenSources.length >= 64) break;
+      if (typeof id === 'string' && sourceRe.test(id) && !hiddenSources.includes(id)) hiddenSources.push(id);
+    }
+  }
+  return { version: 2, align, items, hiddenSources, takeovers: v.takeovers !== false };
 }
 
 // Rebuild the imported-themes list from untrusted input (localStorage, server
@@ -1288,7 +1312,7 @@ function normalizeSettings(source) {
     topbarStyle: value.topbarStyle === 'minimal' ? 'minimal' : 'full',
     topbarRails: normalizeTopbarRails(value.topbarRails),
     topbarRailsAutoHide: value.topbarRailsAutoHide !== false,
-    topbarClock: normalizeTopbarClock(value.topbarClock),
+    topbarClock: normalizeTopbarClock(value.topbarClock, value),
     clockFormat: ['auto', '12', '24'].includes(value.clockFormat) ? value.clockFormat : DEFAULT_HUB_SETTINGS.clockFormat,
     weekStart: ['mon', 'sun'].includes(value.weekStart) ? value.weekStart : DEFAULT_HUB_SETTINGS.weekStart,
     swipeNavigation: value.swipeNavigation !== false,
@@ -1875,6 +1899,7 @@ function normalizeSdkWidgets(value) {
         storage: g.storage === true,
         secrets: g.secrets === true,
         island: g.island === true,
+        islandDynamic: g.islandDynamic === true,
         badge: g.badge === true,
         clipboard: g.clipboard === true,
         userHosts: normalizeSdkUserHosts(g.userHosts),
@@ -3420,7 +3445,7 @@ function applyHubSettings() {
   // no-op on every other machine and on the browser surface).
   if (window.NativeGpuPause) window.NativeGpuPause.setEnabled(hubSettings.hybridGpuAnimationPause !== false);
 
-  // Top-bar clock alignment + meta-field visibility (Settings → Aspetto).
+  // Top-bar clock alignment + meta-field visibility (Settings → Dynamic Island).
   applyTopbarClockSettings();
 
   // 'auto' resolves from the cached OS scheme above (no white flash); still do one
@@ -3982,8 +4007,6 @@ function syncSettingsControls() {
   const claudeCfg = hubSettings.claudeWidget || {};
   const claudeAppr = $('settings-claude-approvals');
   if (claudeAppr) claudeAppr.checked = claudeCfg.approvals !== false;
-  const claudeTb = $('settings-claude-topbar');
-  if (claudeTb) claudeTb.checked = claudeCfg.topbar !== false;
 
   const hybridGpuPause = $('settings-hybrid-gpu-pause');
   if (hybridGpuPause) hybridGpuPause.checked = hubSettings.hybridGpuAnimationPause !== false;
@@ -4146,6 +4169,7 @@ function settingsSetCategory(cat) {
   });
   // Slideshow thumbnails paint when its pane opens (and update live via applyHubSettings).
   if (cat === 'slideshow') renderSlideshowSettings();
+  if (cat === 'island') renderDynamicIslandSources();
 }
 
 // The Settings overlay is a full-viewport frosted backdrop (backdrop-filter blur),
@@ -5607,7 +5631,7 @@ function syncVitalsControls() {
   const enabled = v.enabled !== false;
   const en = $('settings-vitals-enabled');
   if (en) en.checked = enabled;
-  [['settings-vitals-topbar', v.topbar === true], ['settings-vitals-reminders', v.reminders !== false],
+  [['settings-vitals-reminders', v.reminders !== false],
    ['settings-vitals-awaypause', v.awayPause !== false]].forEach(([id, on]) => {
     const box = $(id);
     if (box) { box.checked = on; box.disabled = !enabled; }
@@ -6955,10 +6979,15 @@ function syncTopbarStyleControls() {
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-pressed', String(active));
   });
-  // The clock position + island editor personalise the MINIMAL island only, so
-  // hide the whole block in Full mode — the full bar has no personalization.
+  // Built-in visibility applies to Full and Minimal. Position only belongs to
+  // Minimal; edge rails exist in Minimal and None (the user's existing no-pill
+  // mode deliberately keeps those controls reachable).
   const personalize = document.getElementById('topbar-personalize');
-  if (personalize) personalize.hidden = style !== 'minimal';
+  if (personalize) personalize.hidden = false;
+  const alignRow = document.getElementById('topbar-align-personalize');
+  if (alignRow) alignRow.hidden = style !== 'minimal';
+  const railsRow = document.getElementById('topbar-rails-personalize');
+  if (railsRow) railsRow.hidden = style === 'full';
   syncTopbarRailsAutoHide();
 }
 
@@ -7006,14 +7035,13 @@ function updateTopbarStyle(style) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
-// Minimal-island segment id → i18n label key (editor rows).
+// Built-in island segment id → i18n label key (editor rows).
 const TOPBAR_ISLAND_LABELS = { time: 'topbar_el_time', date: 'topbar_el_date', weather: 'topbar_el_weather', vitals: 'topbar_el_vitals', dots: 'topbar_el_dots', badges: 'topbar_el_badges', claude: 'topbar_el_claude' };
 const EYE_OPEN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5C5 5 2 12 2 12s3 7 10 7 10-7 10-7-3-7-10-7Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg>';
 const EYE_OFF_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.8 3.2 1.4 4.6l3.1 3.1A12.9 12.9 0 0 0 2 12s3 7 10 7a10.8 10.8 0 0 0 4.4-.9l3 3 1.4-1.4L2.8 3.2ZM12 16a4 4 0 0 1-3.9-4.9l1.7 1.7A2 2 0 0 0 12 14a2 2 0 0 0 .2 0l1.7 1.7A4 4 0 0 1 12 16Zm0-11c7 0 10 7 10 7a13 13 0 0 1-2.2 3.2l-2.9-2.9A4 4 0 0 0 12 8a4 4 0 0 0-.4 0L9.2 5.6A10.9 10.9 0 0 1 12 5Z"/></svg>';
 const GRIP_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 
-// Reflect the island anchor on its segmented control, gate the block to minimal
-// mode, and (re)render the segment reorder/visibility list.
+// Reflect the island anchor and (re)render the built-in visibility/order list.
 function syncTopbarClockControls() {
   const cfg = hubSettings.topbarClock || {};
   const align = ['center', 'left', 'right'].includes(cfg.align) ? cfg.align : 'center';
@@ -7023,6 +7051,8 @@ function syncTopbarClockControls() {
     btn.setAttribute('aria-pressed', String(active));
   });
   renderTopbarIslandEditor();
+  const takeovers = $('settings-island-takeovers');
+  if (takeovers) takeovers.checked = cfg.takeovers !== false;
 }
 
 // Build the island segment list: one row per item in display order, each with a
@@ -7131,16 +7161,22 @@ function toggleTopbarIslandItem(id) {
 }
 
 function _saveTopbarIslandItems(items) {
-  hubSettings = normalizeSettings({ ...hubSettings, topbarClock: { ...(hubSettings.topbarClock || {}), items } });
+  const hidden = new Map(items.map((item) => [item.id, item.hidden === true]));
+  hubSettings = normalizeSettings({
+    ...hubSettings,
+    topbarClock: { ...(hubSettings.topbarClock || {}), items },
+    // Keep the old feature-local flags in sync for runtimes predating the
+    // centralized editor. normalizeTopbarClock v2 owns migration thereafter.
+    claudeWidget: { ...(hubSettings.claudeWidget || {}), topbar: !hidden.get('claude') },
+    vitals: { ...(hubSettings.vitals || {}), topbar: !hidden.get('vitals') },
+  });
   saveHubSettings();
   syncTopbarClockControls();
   applyTopbarClockSettings();
   setSettingsStatus('settings_saved', 'ok');
 }
 
-// Push the island anchor + segment layout onto the live topbar. MINIMAL only —
-// in Full mode there is no personalization, so the attribute is cleared and the
-// bar renders its default centred cluster.
+// Push visibility onto both chromes and ordering/anchor onto Minimal.
 function applyTopbarClockSettings() {
   const cfg = hubSettings.topbarClock || {};
   const align = ['center', 'left', 'right'].includes(cfg.align) ? cfg.align : 'center';
@@ -7154,8 +7190,129 @@ function applyTopbarClockSettings() {
     }
   } else {
     delete document.body.dataset.topbarAlign;
+    if (window.TopbarMinimal && window.TopbarMinimal.applyIslandLayout) window.TopbarMinimal.applyIslandLayout();
   }
 }
+
+const ISLAND_SOURCE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
+
+function dynamicIslandHiddenSources() {
+  const list = hubSettings.topbarClock && hubSettings.topbarClock.hiddenSources;
+  return Array.isArray(list) ? list.slice() : [];
+}
+
+// Installed packages are the source of truth: an uninstalled Vanguard/Claude/
+// Teleprompter contribution never leaves a stale switch behind in Settings.
+async function renderDynamicIslandSources() {
+  const host = $('settings-island-sources');
+  if (!host || !window.CustomWidget || typeof CustomWidget.getPackages !== 'function') return;
+  host.replaceChildren();
+  const loading = document.createElement('div');
+  loading.className = 'island-source-empty';
+  loading.textContent = t('settings_island_loading');
+  host.appendChild(loading);
+  let payload;
+  try { payload = await CustomWidget.getPackages(); }
+  catch { payload = { packages: [] }; }
+  if (!host.isConnected) return;
+  const packages = (payload && Array.isArray(payload.packages) ? payload.packages : [])
+    .filter((pkg) => pkg && (pkg.island === true || pkg.islandDynamic === true || pkg.badge === true))
+    .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)));
+  host.replaceChildren();
+  if (!packages.length) {
+    const empty = document.createElement('div');
+    empty.className = 'island-source-empty';
+    empty.textContent = t('settings_island_empty');
+    host.appendChild(empty);
+    return;
+  }
+  const hidden = new Set(dynamicIslandHiddenSources());
+  packages.forEach((pkg) => {
+    const row = document.createElement('label');
+    row.className = 'island-source-row';
+
+    const copy = document.createElement('span');
+    copy.className = 'island-source-copy';
+    const title = document.createElement('strong');
+    title.textContent = String(pkg.name || pkg.id);
+    const capabilities = document.createElement('span');
+    capabilities.className = 'island-source-capabilities';
+    const keys = [];
+    if (pkg.islandDynamic === true) keys.push('island_source_dynamic');
+    else if (pkg.island === true) keys.push('island_source_live');
+    if (pkg.badge === true) keys.push('island_source_badge');
+    capabilities.textContent = keys.map((key) => t(key)).join(' · ');
+    copy.append(title, capabilities);
+
+    const toggle = document.createElement('input');
+    toggle.type = 'checkbox';
+    toggle.className = 'settings-check';
+    toggle.checked = !hidden.has(pkg.id);
+    toggle.setAttribute('aria-label', String(pkg.name || pkg.id));
+    toggle.addEventListener('change', () => toggleDynamicIslandSource(pkg.id, toggle.checked));
+    row.append(copy, toggle);
+    host.appendChild(row);
+  });
+}
+
+function toggleDynamicIslandSource(pkgId, enabled) {
+  if (typeof pkgId !== 'string' || !ISLAND_SOURCE_ID_RE.test(pkgId)) return;
+  const hidden = new Set(dynamicIslandHiddenSources());
+  if (enabled) hidden.delete(pkgId);
+  else hidden.add(pkgId);
+  hubSettings = normalizeSettings({
+    ...hubSettings,
+    topbarClock: { ...(hubSettings.topbarClock || {}), hiddenSources: Array.from(hidden) },
+  });
+  saveHubSettings();
+  if (window.SdkIsland) window.SdkIsland.apply();
+  if (window.SdkBadges) window.SdkBadges.apply();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function updateDynamicIslandTakeovers(checked) {
+  hubSettings = normalizeSettings({
+    ...hubSettings,
+    topbarClock: { ...(hubSettings.topbarClock || {}), takeovers: checked === true },
+  });
+  saveHubSettings();
+  syncTopbarClockControls();
+  if (window.SdkIsland) window.SdkIsland.apply();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function resetDynamicIslandSettings() {
+  const items = DEFAULT_HUB_SETTINGS.topbarClock.items.map((item) => ({ ...item }));
+  hubSettings = normalizeSettings({
+    ...hubSettings,
+    topbarStyle: DEFAULT_HUB_SETTINGS.topbarStyle,
+    topbarRails: { ...DEFAULT_HUB_SETTINGS.topbarRails },
+    topbarRailsAutoHide: DEFAULT_HUB_SETTINGS.topbarRailsAutoHide,
+    clockFormat: DEFAULT_HUB_SETTINGS.clockFormat,
+    topbarClock: { version: 2, align: 'center', takeovers: true, hiddenSources: [], items },
+    dashboardLayout: { ...getDashboardLayout(), topbarHidden: false },
+    claudeWidget: { ...(hubSettings.claudeWidget || {}), topbar: true },
+    vitals: { ...(hubSettings.vitals || {}), topbar: false },
+  });
+  saveHubSettings();
+  syncTopbarStyleControls();
+  syncTopbarClockControls();
+  syncClockFormatControls();
+  if (window.TopbarMinimal) window.TopbarMinimal.apply();
+  applyTopbarClockSettings();
+  if (typeof tickClock === 'function') tickClock();
+  if (typeof renderLockClock === 'function') renderLockClock();
+  if (window.CustomWidget && typeof window.CustomWidget.refreshTheme === 'function') window.CustomWidget.refreshTheme();
+  if (window.SdkIsland) window.SdkIsland.apply();
+  if (window.SdkBadges) window.SdkBadges.apply();
+  renderDynamicIslandSources();
+  if (typeof applyDashboardLayoutWithTransition === 'function') applyDashboardLayoutWithTransition();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+window.addEventListener('xenon:sdk-packages', () => {
+  if (_settingsCat === 'island') renderDynamicIslandSources();
+});
 
 // Anchor the minimal island left/centre/right. Display-only.
 function updateTopbarAlign(align) {

@@ -1,45 +1,61 @@
-// SDK Island — host-side renderer for the Widget SDK `island` capability.
+// Dynamic Island host runtime.
 //
-// A granted widget projects one short plain-text line — plus an optional
-// dimmed follow-up line — into the minimal-topbar dynamic island: the pill
-// recedes (same morph the toast system uses via body.xtoast-island) and this
-// capsule takes its spot, expanding into a small card. Text renders as
-// stacked sentence rows, prompter-style: a dimmed past row, the bright
-// current line (never clamped — it wraps in full), a dimmed upcoming line.
-// When a `show` arrives whose text IS the previous `next` (the natural
-// prompter advance), the SAME row elements are re-classed and the block
-// slides up one row (transform) while the card height tweens — a karaoke
-// glide instead of a snap. All strings arrive pre-coerced from
-// custom-widget.js (onBridgeIsland: manifest + grant checked, control chars
-// stripped, hard length cap) and are rendered ONLY via textContent — never
-// markup. Nothing here ever reaches the server.
+// Legacy Widget SDK packages may still project the v4.6 plain-text line. New
+// packages that separately request `islandDynamic` can compose a host-rendered
+// Live Activity from a bounded set of blocks (text, icon, progress, bars,
+// selected Xenon readouts and buttons). The guest never supplies HTML/CSS and
+// never receives DOM access: custom-widget.js validates the manifest + grant,
+// sdk-island-schema.js rebuilds the message, and this file creates every node.
 //
-// Arbitration is deliberately simple (v1): ONE owner package at a time, the
-// last granted `show` wins; `clear` is honored only from the current owner.
-// System toasts always win visually (body.xtoast-island recedes this capsule
-// exactly like the pill — pure CSS, see TopbarMinimal.css). While an owner is
-// set, a 5s sweep asks CustomWidget whether the owner still has a live frame
-// and auto-clears when its tile is gone — the timer exists ONLY while there is
-// content to watch (gate-periodic-work invariant).
-//
-// In full (non-minimal) topbar chrome there is no pill: text is accepted and
-// kept, simply not rendered; switching to minimal shows the current line.
+// Two lanes coexist:
+//   - live: long-running content such as now playing; last update wins;
+//   - takeover: a bounded 1.2–30s event such as a goal; newest event temporarily
+//     replaces the live lane and the normal clock, then the previous state
+//     returns automatically.
+// System notifications remain above both lanes. Full and Minimal topbars share
+// the same runtime; style None has no island surface and renders nothing.
 (() => {
   'use strict';
 
   const SWEEP_MS = 5000;
-  const ROW_GAP = 2;   // keep in sync with .sdk-island-flow gap
+  const EXIT_MS = 220;
+  const ROW_GAP = 2;
 
-  let owner = null;        // { pkgId, text, next, badge } — the single island slot
-  let ui = null;           // { host, flow, badge } — sentence rows live inside flow
+  const live = new Map();       // pkgId -> record
+  let takeovers = [];           // at most one global event; a newer event supersedes it
+  let current = null;           // record currently painted
+  let ui = null;
+  let seq = 0;
   let sweepTimer = null;
+  let expiryTimer = null;
+  let exitTimer = null;
+  let transitionToken = 0;
+  let builtinObserver = null;
 
-  function minimalChrome() {
-    return document.body.classList.contains('topbar-minimal') && !document.body.dataset.panel;
+  function settings() {
+    try { return (typeof hubSettings === 'object' && hubSettings && hubSettings.topbarClock) || {}; }
+    catch { return {}; }
+  }
+
+  function sourceEnabled(pkgId) {
+    const hidden = settings().hiddenSources;
+    return !(Array.isArray(hidden) && hidden.includes(pkgId));
+  }
+
+  function takeoversEnabled() {
+    return settings().takeovers !== false;
+  }
+
+  function surfaceAvailable() {
+    const body = document.body;
+    if (!body || body.dataset.panel || body.classList.contains('topbar-noisland') || body.classList.contains('topbar-hidden')) return false;
+    if (body.classList.contains('topbar-minimal')) return true;
+    const topbar = document.querySelector('.topbar');
+    return !!(topbar && topbar.getClientRects().length);
   }
 
   function reducedMotion() {
-    return window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
   }
 
   function ensureUi() {
@@ -47,6 +63,9 @@
     const host = document.createElement('div');
     host.id = 'sdk-island';
     host.className = 'sdk-island';
+    host.setAttribute('role', 'status');
+    host.setAttribute('aria-live', 'polite');
+
     const flow = document.createElement('div');
     flow.className = 'sdk-island-flow';
     const meta = document.createElement('div');
@@ -56,42 +75,69 @@
     const m2 = document.createElement('span');
     m2.className = 'sdk-island-m2';
     meta.append(m1, m2);
-    host.append(flow, meta);
+
+    const blocks = document.createElement('div');
+    blocks.className = 'sdk-island-blocks';
+    host.append(flow, meta, blocks);
     document.body.appendChild(host);
-    ui = { host, flow, m1, m2 };
+    ui = { host, flow, m1, m2, blocks };
     return ui;
   }
 
-  // Live meta column (speed, time left…) — plain text, shown only when set.
-  // A ' · ' in the badge splits it into two stacked right-aligned rows.
-  function syncBadge() {
-    const raw = owner && owner.badge ? owner.badge : '';
-    const parts = raw.split('·').map((s) => s.trim()).filter(Boolean).slice(0, 2);
-    ui.m1.textContent = parts[0] || '';
-    ui.m2.textContent = parts[1] || '';
-    ui.host.classList.toggle('has-badge', parts.length > 0);
+  function stopBuiltinObserver() {
+    if (builtinObserver) builtinObserver.disconnect();
+    builtinObserver = null;
+  }
+
+  function syncBuiltin(node, value) {
+    if (!node) return;
+    if (value === 'time') {
+      const h = document.getElementById('clock-h');
+      const m = document.getElementById('clock-m');
+      const ap = document.getElementById('clock-ampm');
+      node.textContent = `${h ? h.textContent : '--'}:${m ? m.textContent : '--'}${ap && ap.textContent ? ` ${ap.textContent}` : ''}`;
+    } else if (value === 'date') {
+      const date = document.getElementById('clock-date');
+      node.textContent = date ? date.textContent : '';
+    } else if (value === 'weather') {
+      const temp = document.getElementById('weather-temp');
+      const place = document.getElementById('weather-place');
+      node.textContent = [temp && temp.textContent, place && place.textContent].filter(Boolean).join(' ');
+    }
+  }
+
+  function syncBuiltins() {
+    if (!ui) return;
+    ui.blocks.querySelectorAll('[data-island-builtin]').forEach((node) => syncBuiltin(node, node.dataset.islandBuiltin));
+  }
+
+  function observeBuiltins() {
+    stopBuiltinObserver();
+    if (!ui || !ui.blocks.querySelector('[data-island-builtin]') || typeof MutationObserver === 'undefined') return;
+    builtinObserver = new MutationObserver(syncBuiltins);
+    ['clock-h', 'clock-m', 'clock-ampm', 'clock-date', 'weather-temp', 'weather-place'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) builtinObserver.observe(el, { childList: true, characterData: true, subtree: true });
+    });
   }
 
   function mkRow(text, cls) {
-    const d = document.createElement('div');
-    d.className = cls ? 'sdk-island-row ' + cls : 'sdk-island-row';
-    d.textContent = text;   // untrusted widget text → textContent ONLY
-    return d;
+    const row = document.createElement('div');
+    row.className = cls ? `sdk-island-row ${cls}` : 'sdk-island-row';
+    row.textContent = text;
+    return row;
   }
 
-  // height:auto can't transition natively, so tween it: the caller measures
-  // the card BEFORE mutating, we measure after and animate between the two.
-  // One bounded ~350ms burst per sentence change on a small fixed-position
-  // element — not a loop (issue #99 class stays out).
   function tweenHeight(from) {
+    if (!ui || !from || reducedMotion()) return;
     const host = ui.host;
     const to = host.offsetHeight;
-    if (!from || from === to || reducedMotion()) return;
+    if (from === to) return;
     host.style.transition = 'none';
-    host.style.height = from + 'px';
+    host.style.height = `${from}px`;
     void host.offsetHeight;
     host.style.transition = 'height 0.35s cubic-bezier(0.22, 1, 0.36, 1)';
-    host.style.height = to + 'px';
+    host.style.height = `${to}px`;
     setTimeout(() => {
       if (!ui) return;
       ui.host.style.transition = '';
@@ -99,73 +145,214 @@
     }, 380);
   }
 
-  function syncFlowClass() {
-    ui.host.classList.toggle('is-flow', ui.flow.childElementCount > 1);
+  function syncLegacyBadge(record) {
+    const raw = record && record.badge ? record.badge : '';
+    const parts = raw.split('·').map((part) => part.trim()).filter(Boolean).slice(0, 2);
+    ui.m1.textContent = parts[0] || '';
+    ui.m2.textContent = parts[1] || '';
+    ui.host.classList.toggle('has-badge', parts.length > 0);
   }
 
-  // Full rebuild — first show, a jump to unrelated text, or a chrome change.
-  function render() {
-    const active = !!(owner && owner.text) && minimalChrome();
-    document.body.classList.toggle('xisland-live', active);
-    if (!active) {
-      if (ui) {
-        ui.flow.replaceChildren();
-        ui.m1.textContent = '';
-        ui.m2.textContent = '';
-        ui.host.classList.remove('is-flow', 'has-badge');
+  function renderLegacy(record, previous) {
+    stopBuiltinObserver();
+    ui.host.classList.remove('is-structured', 'is-expanded');
+    ui.host.classList.toggle('is-flow', !!record.next);
+    ui.blocks.replaceChildren();
+    const from = ui.host.offsetHeight;
+    const canAdvance = previous && previous.id === record.id && previous.next && previous.next === record.text
+      && ui.flow.childElementCount;
+    if (!canAdvance) {
+      ui.flow.replaceChildren(mkRow(record.text, 'is-cur'));
+      if (record.next) ui.flow.appendChild(mkRow(record.next, ''));
+    } else {
+      const flow = ui.flow;
+      const past = flow.querySelector('.is-past');
+      const cur = flow.querySelector('.is-cur');
+      let nextRow = cur ? cur.nextElementSibling : null;
+      let slide = 0;
+      if (past) { slide = past.offsetHeight + ROW_GAP; past.remove(); }
+      if (cur) { cur.classList.remove('is-cur'); cur.classList.add('is-past'); }
+      if (!nextRow) nextRow = flow.appendChild(mkRow('', ''));
+      nextRow.classList.add('is-cur');
+      nextRow.textContent = record.text;
+      if (record.next) flow.appendChild(mkRow(record.next, ''));
+      if (slide && !reducedMotion()) {
+        flow.style.transition = 'none';
+        flow.style.transform = `translate3d(0,${slide}px,0)`;
+        void flow.offsetHeight;
+        flow.style.transition = '';
+        flow.style.transform = 'translate3d(0,0,0)';
       }
+    }
+    syncLegacyBadge(record);
+    tweenHeight(from);
+  }
+
+  function toneClass(tone) {
+    return ['muted', 'accent', 'success', 'warning', 'danger'].includes(tone) ? ` tone-${tone}` : '';
+  }
+
+  function renderBlock(block, record) {
+    let node;
+    if (block.type === 'text') {
+      node = document.createElement('span');
+      node.className = `sdk-island-text${toneClass(block.tone)}${block.weight === 'strong' ? ' is-strong' : ''}${block.maxLines === 2 ? ' two-lines' : ''}`;
+      node.textContent = block.text;
+    } else if (block.type === 'icon') {
+      node = document.createElement('span');
+      node.className = 'sdk-island-icon';
+      node.textContent = block.text;
+      if (block.color) node.style.color = block.color;
+    } else if (block.type === 'progress') {
+      node = document.createElement('span');
+      node.className = 'sdk-island-progress';
+      const fill = document.createElement('span');
+      fill.style.transform = `scaleX(${block.value})`;
+      node.appendChild(fill);
+    } else if (block.type === 'bars') {
+      node = document.createElement('span');
+      node.className = `sdk-island-bars${block.animated ? ' is-animated' : ''}`;
+      block.values.forEach((value, index) => {
+        const bar = document.createElement('i');
+        bar.style.setProperty('--bar-level', String(Math.max(0.08, value)));
+        bar.style.setProperty('--bar-i', String(index));
+        node.appendChild(bar);
+      });
+    } else if (block.type === 'builtin') {
+      node = document.createElement('span');
+      node.className = `sdk-island-builtin sdk-island-builtin-${block.value}`;
+      node.dataset.islandBuiltin = block.value;
+      syncBuiltin(node, block.value);
+    } else if (block.type === 'button') {
+      node = document.createElement('button');
+      node.type = 'button';
+      node.className = `sdk-island-action${block.emphasis ? ' is-emphasis' : ''}`;
+      node.textContent = block.label;
+      node.addEventListener('click', () => {
+        if (record && typeof record.onAction === 'function') record.onAction(block.id);
+      });
+    } else {
+      node = document.createElement('span');
+      node.className = `sdk-island-spacer is-${block.size}`;
+    }
+    return node;
+  }
+
+  function renderStructured(record) {
+    stopBuiltinObserver();
+    const from = ui.host.offsetHeight;
+    ui.flow.replaceChildren();
+    ui.m1.textContent = '';
+    ui.m2.textContent = '';
+    ui.host.classList.remove('is-flow', 'has-badge');
+    ui.host.classList.add('is-structured');
+    ui.host.classList.toggle('is-expanded', record.view.layout === 'expanded');
+    ui.blocks.replaceChildren(...record.view.blocks.map((block) => renderBlock(block, record)));
+    observeBuiltins();
+    tweenHeight(from);
+  }
+
+  function clearUi() {
+    stopBuiltinObserver();
+    if (!ui) return;
+    ui.flow.replaceChildren();
+    ui.blocks.replaceChildren();
+    ui.m1.textContent = '';
+    ui.m2.textContent = '';
+    ui.host.className = 'sdk-island';
+    ui.host.style.removeProperty('--island-accent');
+  }
+
+  function paint(previous) {
+    const active = !!current && surfaceAvailable() && sourceEnabled(current.pkgId);
+    document.body.classList.toggle('xisland-live', active);
+    if (!active) { clearUi(); return; }
+    ensureUi();
+    const host = ui.host;
+    host.className = `sdk-island enter-${current.enter || 'morph'}`;
+    host.dataset.islandMode = current.mode;
+    if (current.view && current.view.accent) host.style.setProperty('--island-accent', current.view.accent);
+    else host.style.removeProperty('--island-accent');
+    if (current.view) renderStructured(current);
+    else renderLegacy(current, previous);
+  }
+
+  function pruneExpired() {
+    const now = Date.now();
+    takeovers = takeovers.filter((record) => record.expiresAt > now);
+  }
+
+  function selected() {
+    pruneExpired();
+    if (takeoversEnabled()) {
+      for (let i = takeovers.length - 1; i >= 0; i--) {
+        if (sourceEnabled(takeovers[i].pkgId)) return takeovers[i];
+      }
+    }
+    let winner = null;
+    for (const record of live.values()) {
+      if (sourceEnabled(record.pkgId) && (!winner || record.seq > winner.seq)) winner = record;
+    }
+    return winner;
+  }
+
+  function scheduleExpiry() {
+    if (expiryTimer) { clearTimeout(expiryTimer); expiryTimer = null; }
+    pruneExpired();
+    if (!takeovers.length) return;
+    const at = Math.min(...takeovers.map((record) => record.expiresAt));
+    expiryTimer = setTimeout(() => {
+      expiryTimer = null;
+      reconcile(true);
+      scheduleExpiry();
+      syncSweep();
+    }, Math.max(0, at - Date.now()) + 8);
+  }
+
+  function reconcile(animateExit) {
+    const next = selected();
+    const same = !!(current && next && current.id === next.id);
+    if (same) {
+      const previous = current;
+      current = next;
+      paint(previous);
       return;
     }
-    ensureUi();
-    const from = ui.host.offsetHeight;
-    ui.flow.replaceChildren(mkRow(owner.text, 'is-cur'));
-    if (owner.next) ui.flow.appendChild(mkRow(owner.next, ''));
-    syncFlowClass();
-    syncBadge();
-    tweenHeight(from);
-  }
-
-  // Karaoke advance: reuse the live rows so their opacity actually fades
-  // (past dims, upcoming brightens) and slide the block up by the height of
-  // the row that left — the text glides instead of snapping between slots.
-  function advanceRows() {
-    const flow = ui.flow;
-    const from = ui.host.offsetHeight;
-    const past = flow.querySelector('.is-past');
-    const cur = flow.querySelector('.is-cur');
-    let nextRow = cur ? cur.nextElementSibling : null;
-    let slide = 0;
-    if (past) { slide = past.offsetHeight + ROW_GAP; past.remove(); }
-    if (cur) { cur.classList.remove('is-cur'); cur.classList.add('is-past'); }
-    if (!nextRow) nextRow = flow.appendChild(mkRow('', ''));
-    nextRow.classList.add('is-cur');
-    nextRow.textContent = owner.text;
-    if (owner.next) flow.appendChild(mkRow(owner.next, ''));
-    syncFlowClass();
-    syncBadge();
-    if (slide && !reducedMotion()) {
-      flow.style.transition = 'none';
-      flow.style.transform = 'translate3d(0,' + slide + 'px,0)';
-      void flow.offsetHeight;
-      flow.style.transition = '';
-      flow.style.transform = 'translate3d(0,0,0)';
+    const canExit = animateExit && current && ui && document.body.classList.contains('xisland-live') && !reducedMotion();
+    if (!canExit) {
+      const previous = current;
+      current = next;
+      paint(previous);
+      return;
     }
-    tweenHeight(from);
+    const token = ++transitionToken;
+    if (exitTimer) clearTimeout(exitTimer);
+    ui.host.classList.add('is-leaving', `exit-${current.exit || 'morph'}`);
+    exitTimer = setTimeout(() => {
+      exitTimer = null;
+      if (token !== transitionToken) return;
+      const previous = current;
+      current = selected();
+      paint(previous);
+    }, EXIT_MS);
   }
 
-  // Auto-clear when the owning package no longer has a live frame (tile
-  // removed, package uninstalled, SDK switched off). Runs only while owned.
   function syncSweep() {
-    const want = !!owner;
+    const want = live.size > 0 || takeovers.length > 0;
     if (want && !sweepTimer) {
       sweepTimer = setInterval(() => {
-        if (!owner) return;
         const cw = window.CustomWidget;
-        if (!cw || typeof cw.pkgHasLiveFrame !== 'function' || !cw.pkgHasLiveFrame(owner.pkgId)) {
-          owner = null;
-          render();
-          syncSweep();
+        if (!cw || typeof cw.pkgHasLiveFrame !== 'function') return;
+        let changed = false;
+        for (const pkgId of Array.from(live.keys())) {
+          if (!cw.pkgHasLiveFrame(pkgId)) { live.delete(pkgId); changed = true; }
         }
+        const before = takeovers.length;
+        takeovers = takeovers.filter((record) => cw.pkgHasLiveFrame(record.pkgId));
+        if (takeovers.length !== before) changed = true;
+        if (changed) reconcile(true);
+        scheduleExpiry();
+        syncSweep();
       }, SWEEP_MS);
     } else if (!want && sweepTimer) {
       clearInterval(sweepTimer);
@@ -173,40 +360,56 @@
     }
   }
 
+  // v4.6 compatibility: plain text + next line + tiny meta chip.
   function show(pkgId, text, next, badge) {
     if (typeof pkgId !== 'string' || !pkgId || typeof text !== 'string' || !text) return;
-    const prev = owner;
-    owner = {
-      pkgId,
-      text,
-      next: typeof next === 'string' ? next : '',
-      badge: typeof badge === 'string' ? badge : '',
+    const record = {
+      id: `live:${pkgId}`,
+      pkgId, mode: 'live', seq: ++seq,
+      text, next: typeof next === 'string' ? next : '', badge: typeof badge === 'string' ? badge : '',
+      enter: 'morph', exit: 'morph',
     };
-    const live = !!(ui && ui.flow.childElementCount && document.body.classList.contains('xisland-live') && minimalChrome());
-    // Badge-only refresh (a ticking countdown/speed chip): swap the chip in
-    // place — a full rebuild would replay the row fade-in every second.
-    if (live && prev && prev.pkgId === pkgId && prev.text === text && (prev.next || '') === owner.next) {
-      syncBadge();
-      syncSweep();
-      return;
+    live.set(pkgId, record);
+    reconcile(false);
+    syncSweep();
+  }
+
+  function present(pkgId, view, onAction) {
+    if (typeof pkgId !== 'string' || !pkgId || !view || view.op !== 'present') return;
+    const nextSeq = ++seq;
+    const record = {
+      id: view.mode === 'takeover' ? `takeover:${pkgId}:${nextSeq}` : `live:${pkgId}`,
+      pkgId, mode: view.mode, seq: nextSeq, view,
+      enter: view.enter, exit: view.exit,
+      onAction: typeof onAction === 'function' ? onAction : null,
+    };
+    if (view.mode === 'takeover') {
+      record.expiresAt = Date.now() + view.duration;
+      // A takeover always restores the live/default lane when it leaves. Replacing
+      // the pending event globally prevents an older goal or alert resurfacing late.
+      takeovers = [record];
+      scheduleExpiry();
+    } else {
+      live.set(pkgId, record);
     }
-    const isAdvance = !!(live && prev && prev.pkgId === pkgId && prev.next && prev.next === text);
-    if (isAdvance) advanceRows();
-    else render();
+    reconcile(false);
     syncSweep();
   }
 
-  function clear(pkgId) {
-    if (!owner || owner.pkgId !== pkgId) return;   // only the owner may clear
-    owner = null;
-    render();
+  function clear(pkgId, scope) {
+    if (typeof pkgId !== 'string' || !pkgId) return;
+    const which = ['live', 'takeover', 'all'].includes(scope) ? scope : 'all';
+    if (which !== 'takeover') live.delete(pkgId);
+    if (which !== 'live') takeovers = takeovers.filter((record) => record.pkgId !== pkgId);
+    scheduleExpiry();
+    reconcile(true);
     syncSweep();
   }
 
-  // Re-evaluate on chrome changes (topbarStyle flips, settings apply).
   function apply() {
-    render();
+    scheduleExpiry();
+    reconcile(true);
   }
 
-  window.SdkIsland = { show, clear, apply };
+  window.SdkIsland = { show, present, clear, apply, sourceEnabled };
 })();

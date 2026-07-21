@@ -55,7 +55,13 @@
   // ── config / state access (hubSettings.vitals, normalized in settings.js) ──
   function cfg() {
     const v = (typeof hubSettings === 'object' && hubSettings && hubSettings.vitals) ? hubSettings.vitals : null;
-    return v || { enabled: false, topbar: false, reminders: true, items: {}, state: { last: {}, xp: 0, day: '', fills: 0 } };
+    const out = v || { enabled: false, topbar: false, reminders: true, items: {}, state: { last: {}, xp: 0, day: '', fills: 0 } };
+    try {
+      const islandItems = hubSettings && hubSettings.topbarClock && hubSettings.topbarClock.items;
+      const item = Array.isArray(islandItems) ? islandItems.find((entry) => entry && entry.id === 'vitals') : null;
+      if (item) return { ...out, topbar: item.hidden !== true };
+    } catch { /* legacy settings fallback below */ }
+    return out;
   }
   function enabledIds(v) {
     return VITALS_IDS.filter(id => v.items && v.items[id] && v.items[id].on !== false);

@@ -17,7 +17,7 @@ const sdk = require(join(ROOT, 'server', 'sdk-widgets.js'));
 
 // Every all-or-nothing boolean capability. Adding one to the SDK means adding it
 // here — the three tests below then pin the three places it must be wired.
-const BOOLEAN_CAPS = ['storage', 'secrets', 'island', 'badge', 'clipboard'];
+const BOOLEAN_CAPS = ['storage', 'secrets', 'island', 'islandDynamic', 'badge', 'clipboard'];
 
 // Pull a `const NAME = Object.freeze([...])` string array out of settings.js.
 function clientList(name) {
@@ -83,4 +83,10 @@ test('custom-widget.js persists every boolean capability in the grant patch', ()
     assert.ok(new RegExp('\\b' + flag + ':').test(patch[0]),
       'the Allow grant patch must include ' + flag);
   }
+});
+
+test('advanced island grants can justify a background service frame', () => {
+  const src = readFileSync(join(ROOT, 'server', 'js', 'custom-widget.js'), 'utf8');
+  assert.match(src, /const islandLive = pkg\.islandDynamic === true && grant\.island && grant\.islandDynamic/);
+  assert.match(src, /!handlersLive && !badgeLive && !islandLive/);
 });

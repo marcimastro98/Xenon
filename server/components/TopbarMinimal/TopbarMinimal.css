@@ -52,6 +52,12 @@ body.topbar-minimal .grid-stack-item.island-clear > .grid-stack-item-content {
    tile's top edge, mirroring how the rails hover over the side tiles. */
 .topbar-mini { display: none; }
 
+/* Style "none": rails yes, capsule no. The pill still HOLDS the reparented clock
+   segments (so switching back to Minimal restores the user's exact island order
+   and visibility) — it simply never paints. !important because every pill rule
+   below is written against body.topbar-minimal, which "none" also carries. */
+body.topbar-noisland .topbar-mini { display: none !important; }
+
 body.topbar-minimal:not([data-panel]) .topbar-mini {
   position: fixed;
   top: 9px;
@@ -222,7 +228,17 @@ body.topbar-minimal.xisland-live:not([data-panel]) .topbar-mini {
    precedence at equal specificity). */
 .sdk-island { display: none; }
 
-body.topbar-minimal.xisland-live:not([data-panel]) .sdk-island {
+/* Full and Minimal share one Dynamic Island surface. In Full the centre clock
+   recedes inside the glass bar; in Minimal the floating capsule recedes through
+   the existing rule above. Style None carries topbar-noisland and is excluded. */
+.clock { transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
+body.xisland-live:not(.topbar-minimal):not(.topbar-hidden):not(.topbar-noisland):not([data-panel]) .clock {
+  opacity: 0;
+  transform: translateY(-5px) scale(0.86);
+  pointer-events: none;
+}
+
+body.xisland-live:not(.topbar-hidden):not(.topbar-noisland):not([data-panel]) .sdk-island {
   position: fixed;
   top: 9px;
   --mini-tx: -50%;
@@ -243,7 +259,7 @@ body.topbar-minimal.xisland-live:not([data-panel]) .sdk-island {
   box-shadow: inset 0 1px 0 rgba(255,255,255,var(--panel-highlight-alpha)), var(--shadow-lg);
   overflow: hidden;
   will-change: transform, opacity;
-  animation: sdk-island-in 0.34s cubic-bezier(0.22, 1.15, 0.36, 1);
+  --island-accent: var(--accent);
 }
 /* Same edge anchors as the pill, so the capsule lands where the pill was. */
 body.topbar-minimal.xisland-live:not([data-panel])[data-topbar-align="left"] .sdk-island {
@@ -260,8 +276,26 @@ body.topbar-minimal.xisland-live:not([data-panel])[data-topbar-align="right"] .s
   from { opacity: 0; transform: translateX(var(--mini-tx)) translateY(-4px) scaleX(0.6) scaleY(0.4); }
   to   { opacity: 1; transform: translateX(var(--mini-tx)); }
 }
+.sdk-island.enter-morph { animation: sdk-island-in 0.34s cubic-bezier(0.22, 1.15, 0.36, 1); }
+@keyframes sdk-island-slide-in {
+  from { opacity: 0; transform: translateX(var(--mini-tx)) translateY(-14px); }
+  to { opacity: 1; transform: translateX(var(--mini-tx)); }
+}
+.sdk-island.enter-slide { animation: sdk-island-slide-in 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes sdk-island-pop-in {
+  from { opacity: 0; transform: translateX(var(--mini-tx)) scale(0.72); }
+  to { opacity: 1; transform: translateX(var(--mini-tx)); }
+}
+.sdk-island.enter-pop { animation: sdk-island-pop-in 0.28s cubic-bezier(0.2, 1.3, 0.3, 1); }
+@keyframes sdk-island-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.sdk-island.enter-fade { animation: sdk-island-fade-in 0.24s ease; }
+
+.sdk-island.is-leaving { animation: none; transition: opacity 0.2s ease, transform 0.22s ease; }
+.sdk-island.is-leaving.exit-morph { opacity: 0; transform: translateX(var(--mini-tx)) translateY(-5px) scale(0.78); }
+.sdk-island.is-leaving.exit-slide { opacity: 0; transform: translateX(var(--mini-tx)) translateY(-14px); }
+.sdk-island.is-leaving.exit-fade { opacity: 0; }
 /* System toast wins: recede exactly like the pill while a toast is up. */
-body.topbar-minimal.xtoast-island:not([data-panel]) .sdk-island {
+body.xtoast-island:not([data-panel]) .sdk-island {
   opacity: 0;
   transform: translateX(var(--mini-tx)) translateY(-6px) scale(0.82);
   pointer-events: none;
@@ -306,7 +340,7 @@ body.topbar-minimal.xtoast-island:not([data-panel]) .sdk-island {
 }
 @keyframes xe-isl-row-in { from { opacity: 0; } }
 /* Multi-row flow pins the card width so per-sentence reflow can't wobble. */
-body.topbar-minimal.xisland-live:not([data-panel]) .sdk-island.is-flow {
+body.xisland-live:not(.topbar-hidden):not(.topbar-noisland):not([data-panel]) .sdk-island.is-flow {
   width: min(520px, 66vw);
 }
 /* Live meta column (speed on top, time left below) — right-aligned, split off
@@ -339,14 +373,135 @@ body.topbar-minimal.xisland-live:not([data-panel]) .sdk-island.is-flow {
   opacity: 0.55;
 }
 .sdk-island-m2:empty { display: none; }
+
+/* ── Structured Live Activities (SDK islandDynamic) ────────────────
+   Every node is built by Xenon from sdk-island-schema.js. Widget strings are
+   textContent; the CSS is fixed host chrome and cannot be supplied by a guest. */
+.sdk-island.is-structured { align-items: center; padding: 9px 12px; }
+.sdk-island.is-structured.is-expanded { max-width: min(680px, 82vw); padding: 12px 16px; }
+.sdk-island.is-structured .sdk-island-flow,
+.sdk-island.is-structured .sdk-island-meta { display: none; }
+.sdk-island-blocks {
+  display: none;
+  align-items: center;
+  min-width: 0;
+  gap: 9px;
+}
+.sdk-island.is-structured .sdk-island-blocks { display: flex; }
+.sdk-island-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  min-width: 24px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--island-accent);
+}
+.sdk-island-text {
+  min-width: 0;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.sdk-island-text.two-lines {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.sdk-island-text.is-strong { font-weight: 850; }
+.sdk-island-text.tone-muted { color: var(--muted-text); }
+.sdk-island-text.tone-accent { color: var(--island-accent); }
+.sdk-island-text.tone-success { color: var(--color-success); }
+.sdk-island-text.tone-warning { color: var(--color-warn); }
+.sdk-island-text.tone-danger { color: var(--color-danger); }
+.sdk-island-progress {
+  width: 72px;
+  height: 5px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.12);
+}
+.sdk-island-progress > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  border-radius: inherit;
+  background: var(--island-accent);
+  transition: transform 0.24s ease;
+}
+.sdk-island-bars {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 42px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+.sdk-island-bars > i {
+  width: 2.5px;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--island-accent);
+  transform: scaleY(var(--bar-level));
+  will-change: transform;
+}
+@keyframes sdk-island-bar-pulse {
+  0%, 100% { transform: scaleY(var(--bar-level)); }
+  50% { transform: scaleY(1); }
+}
+.sdk-island-bars.is-animated > i {
+  animation: sdk-island-bar-pulse calc(0.72s + var(--bar-i) * 0.035s) ease-in-out infinite alternate;
+  animation-delay: calc(var(--bar-i) * -0.08s);
+}
+body.overlay-frozen .sdk-island-bars.is-animated > i,
+body.ambient-idle .sdk-island-bars.is-animated > i,
+body.game-mode .sdk-island-bars.is-animated > i,
+body.low-power-gpu .sdk-island-bars.is-animated > i { animation: none; }
+.sdk-island-builtin {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 750;
+  color: var(--muted-text);
+  white-space: nowrap;
+}
+.sdk-island-builtin-time { font-size: 15px; color: var(--text); font-variant-numeric: tabular-nums; }
+.sdk-island-action {
+  min-height: 30px;
+  max-width: 120px;
+  padding: 0 11px;
+  border-radius: 10px;
+  border: 1px solid var(--floating-ui-border);
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.sdk-island-action.is-emphasis { color: var(--on-accent); background: var(--island-accent); border-color: transparent; }
+.sdk-island-spacer { width: 5px; flex: 0 0 auto; }
+.sdk-island-spacer.is-large { width: 14px; }
 @media (prefers-reduced-motion: reduce) {
-  body.topbar-minimal.xisland-live:not([data-panel]) .sdk-island { animation: none; }
-  body.topbar-minimal.xtoast-island:not([data-panel]) .sdk-island {
+  body.xisland-live:not(.topbar-hidden):not(.topbar-noisland):not([data-panel]) .sdk-island { animation: none; }
+  body.xtoast-island:not([data-panel]) .sdk-island {
     transition: opacity 0.2s ease;
     transform: translateX(var(--mini-tx));
   }
   .sdk-island-flow { transition: none; }
   .sdk-island-row { transition: none; animation: none; }
+  .sdk-island-bars.is-animated > i { animation: none; }
 }
 
 /* ── Edge rails ───────────────────────────────────────────────

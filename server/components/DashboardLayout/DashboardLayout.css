@@ -551,8 +551,11 @@ body[data-panel] .layout-controls {
 body.topbar-hidden .topbar { display: none; }
 /* Not editing → the pager fills the whole shell (no topbar/dock rows). */
 body.topbar-hidden:not(.layout-editing) .shell { grid-template-rows: minmax(0, 1fr); }
-/* Editing → only the dock row + pager (the empty topbar row is dropped). */
-body.topbar-hidden.layout-editing .shell { grid-template-rows: auto minmax(0, 1fr); }
+/* Editing → only the dock row + pager (the empty topbar row is dropped).
+   Excluded under the minimal chrome ("none" carries both classes now): there the
+   dock is position:fixed and floats over the grid, so reserving a row for it
+   would leave a blank strip at the top. TopbarMinimal.css owns that case. */
+body.topbar-hidden.layout-editing:not(.topbar-minimal) .shell { grid-template-rows: auto minmax(0, 1fr); }
 
 .layout-fab {
   position: fixed;
@@ -584,8 +587,12 @@ body.topbar-hidden.layout-editing .shell { grid-template-rows: auto minmax(0, 1f
 .layout-fab:hover { background: rgba(14, 20, 20, 0.92); box-shadow: 0 10px 32px rgba(0,0,0,0.5), 0 0 26px rgba(var(--accent-rgb), 0.18); }
 .layout-fab:active { transform: scale(0.96); }
 
-/* Visible only when the bar is hidden and not actively editing. */
-body.topbar-hidden:not(.layout-editing) .layout-fab { display: inline-flex; }
+/* Last-resort escape hatch only. With the bar hidden the edge rails stay up and
+   already carry Layout/Settings/App, so in normal use this button never shows —
+   :not(.topbar-minimal) is what keeps it off screen. It reappears only if the
+   minimal chrome failed to build (captureTopbarEls found no topbar to reparent),
+   which would otherwise leave no way back into Settings at all. */
+body.topbar-hidden:not(.layout-editing):not(.topbar-minimal) .layout-fab { display: inline-flex; }
 /* Lift the button clear of a bottom ticker so it never sits on the moving news. */
 body.xe-has-ticker.xe-ticker-bottom .layout-fab { bottom: calc(18px + var(--xe-ticker-h)); }
 /* Never overlap an open full-screen panel (settings / app switcher). */

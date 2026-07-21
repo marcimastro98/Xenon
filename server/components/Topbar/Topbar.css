@@ -270,6 +270,11 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
   text-align: center;
 }
 
+/* Dynamic Island visibility is shared by Full + Minimal. Minimal adds its own
+   segment class too; this host-level class is what makes the same eye switch
+   authoritative in the classic full topbar. */
+.topbar-item-hidden { display: none !important; }
+
 /* ── Face: big digit display ─────────────────────────────── */
 .clock-face {
   display: flex;

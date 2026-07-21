@@ -15,7 +15,7 @@ test('manifest: valid minimal manifest normalizes', () => {
   assert.equal(r.ok, true);
   assert.deepEqual(r.manifest, {
     id: 'clock', api: 1, name: 'Clock', version: '0.0.0', author: '',
-    description: '', surface: 'tile', background: false, island: false, badge: false,
+    description: '', surface: 'tile', background: false, island: false, islandDynamic: false, badge: false,
     clipboard: false, storage: false, storageGroup: '', secrets: false,
     entry: 'index.html', streams: [], actions: [],
     hosts: [], userHosts: [], hooks: [], deck: { actions: [], states: [], handlers: [] },
@@ -36,13 +36,18 @@ test('manifest: storage/secrets default off, opt in with booleans', () => {
   assert.equal(junk.secrets, false);
 });
 
-test('manifest: island defaults off, opts in only on the exact true literal', () => {
+test('manifest: legacy island and separately granted dynamic island normalize exactly', () => {
   assert.equal(sdk.normalizeManifest({ api: 1, name: 'X' }, 'x0').manifest.island, false);
   assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', island: true }, 'x0').manifest.island, true);
-  // Truthy junk stays off — same rule as storage/secrets.
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', island: true }, 'x0').manifest.islandDynamic, false);
+  const dynamic = sdk.normalizeManifest({ api: 1, name: 'X', island: { dynamic: true } }, 'x0').manifest;
+  assert.equal(dynamic.island, true);
+  assert.equal(dynamic.islandDynamic, true);
+  // Truthy junk and near-miss object values stay off.
   assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', island: 1 }, 'x0').manifest.island, false);
   assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', island: 'yes' }, 'x0').manifest.island, false);
   assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', island: {} }, 'x0').manifest.island, false);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', island: { dynamic: 1 } }, 'x0').manifest.islandDynamic, false);
 });
 
 test('manifest: badge defaults off, opts in only on the exact true literal', () => {
@@ -455,9 +460,9 @@ test('handlers: hostile shapes reject the whole manifest', () => {
   }
 });
 
-// Only handlers and badges outlive a tile, so only they justify a headless
-// service frame — background without either is meaningless and normalizes off.
-test('background: true only survives alongside declared handlers or a badge', () => {
+// Handlers, badges and Dynamic Island activities can outlive a tile, so only
+// those capabilities justify a headless service frame.
+test('background: true only survives alongside handlers, badge or dynamic island', () => {
   assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', background: true }, 'x0').manifest.background, false);
   assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', background: 'yes' }, 'x0').manifest.background, false);
   const withHandlers = sdk.normalizeManifest({
@@ -468,8 +473,12 @@ test('background: true only survives alongside declared handlers or a badge', ()
   // A badge-only package: the chip must keep refreshing with no tile on screen.
   const withBadge = sdk.normalizeManifest({ api: 1, name: 'X', background: true, badge: true }, 'x0');
   assert.equal(withBadge.manifest.background, true);
+  const withIsland = sdk.normalizeManifest({ api: 1, name: 'X', background: true, island: { dynamic: true } }, 'x0');
+  assert.equal(withIsland.manifest.background, true);
   // …but the badge must be the real literal, not truthy junk.
   assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', background: true, badge: 1 }, 'x0').manifest.background, false);
+  // The legacy one-line projection alone does not gain headless execution.
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', background: true, island: true }, 'x0').manifest.background, false);
 });
 
 test('validateHandlerArgs: coerces declared params, rejects unparseable input, drops undeclared keys', () => {

@@ -144,8 +144,9 @@ let animTimer = null;                            // ambient-animation ticker; ex
 let applyInFlight = false;                       // prevents concurrent apply() calls while an async LED write is in progress
 let lastConnectAttempt = 0;                      // throttle for the apply()-driven on-demand (re)connect
 let lastEnumerate = 0;                            // throttle for the apply()-driven re-enumerate when connected-but-empty
-let lastDeviceScan = 0;                           // last completed enumerate(), success or not — throttles the slow rescan below
+let lastDeviceScan = 0;                           // last enumerate(), stamped at fire time AND on completion (success or not) — throttles the slow rescan below
 let enumerating = false;                          // guards against overlapping enumerate() calls (connect callback + retry)
+let enumeratePending = null;                      // the in-flight enumerate() promise, so a concurrent caller joins it instead of getting an instantly-resolved one (see enumerate())
 let partialEnumRetries = 0;                        // bounded retries when a device enumerated with 0 LEDs (iCUE LINK boot race); reset on a complete enumeration / fresh connect
 const MAX_PARTIAL_ENUM_RETRIES = 6;                // ~12s at CONNECT_RETRY_MS — long enough for iCUE to register LINK cooler/fans after a cold boot, bounded so a genuinely LED-less hub doesn't re-enumerate forever
 const EVENT_DURATION_MS = 1800;
@@ -321,10 +322,24 @@ function noteSdkFailure(e) {
 // thread, never the event-loop thread. A synchronous CorsairGetDevices /
 // CorsairGetLedPositions here would block (and, when called from inside the SDK
 // state callback, deadlock) the entire Node process — see connect()'s callback.
-async function enumerate() {
-  if (!fns) { devices = []; return; }
-  if (enumerating) return; // a concurrent enumeration is already in flight (connect callback vs. apply-driven retry)
+// A concurrent caller JOINS the running enumeration — it must never be handed an
+// instantly-resolved promise. maybeReenumerate() chains apply() onto whatever this
+// returns, and apply() calls straight back into here: with an already-settled
+// promise that chain becomes a self-sustaining MICROTASK loop, which starves the
+// event loop, which is the only thing that can deliver the worker-thread result the
+// real enumeration is awaiting. The process then spins at 100% CPU and never serves
+// another request — it cannot recover on its own. Returning the in-flight promise
+// keeps the chain waiting on real work, so lastDeviceScan is always stamped before
+// the next rescan test runs.
+function enumerate() {
+  if (!fns) { devices = []; return Promise.resolve(); }
+  if (enumerating) return enumeratePending;
   enumerating = true;
+  enumeratePending = enumerateOnce();
+  return enumeratePending;
+}
+
+async function enumerateOnce() {
   try {
     const filter = { deviceTypeMask: -1 };
     const buf = Array(64).fill(null).map(() => ({}));
@@ -356,6 +371,7 @@ async function enumerate() {
     // per-tick retry (the fast partial-retry path below stays throttled on its own).
     lastDeviceScan = Date.now();
     enumerating = false;
+    enumeratePending = null;
   }
 }
 
@@ -674,7 +690,13 @@ function boundedReenumerate() {
   // enumerate() from the connect callback is the only one that ever ran. That is
   // the empirically-proven "the radiator never lights up until I restart the
   // server" bug. Rescanning on a slow cadence also picks up genuine hot-plugs.
-  if (now - lastDeviceScan >= DEVICE_RESCAN_MS) { lastEnumerate = now; return enumerate(); }
+  // Stamped HERE as well as in enumerate()'s finally: the stamp must land even on
+  // the paths that leave enumerate() before its try/finally (no `fns`, or joining
+  // an enumeration already in flight). Otherwise the rescan test stays true on every
+  // tick and this branch re-fires forever — the fast partial-retry path below has
+  // its own throttle, this one had none. Cadence therefore runs from the start of a
+  // scan; the finally re-stamps at completion, which only ever pushes it later.
+  if (now - lastDeviceScan >= DEVICE_RESCAN_MS) { lastEnumerate = now; lastDeviceScan = now; return enumerate(); }
   if (!enumerationIncomplete()) return;
   // Empty keeps retrying; a partial list is capped so a genuinely LED-less device
   // doesn't trigger perpetual re-enumeration.

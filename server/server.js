@@ -6161,18 +6161,22 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Minimal-mode edge rails auto-hide after ~10s of no interaction, revealed again
   // by a touch at the screen edge. Default on; off keeps them always on screen.
   topbarRailsAutoHide: true,
-  // Minimal-island personalization (Settings → Aspetto → Barra superiore).
-  // align: island anchor (centre/left/right). items: the island segments in
-  // display order, each with a hidden flag. Full-bar mode ignores this entirely.
-  // Defaults reproduce the classic centred island with every segment shown.
+  // Dynamic Island personalization (Settings → Dynamic Island). Visibility is
+  // shared by Full + Minimal; order/anchor apply to the Minimal capsule. The
+  // installed-package opt-outs and takeover gate are kept in the same object.
   topbarClock: Object.freeze({
+    version: 2,
     align: 'center',
+    takeovers: true,
+    hiddenSources: Object.freeze([]),
     items: Object.freeze([
       Object.freeze({ id: 'time', hidden: false }),
       Object.freeze({ id: 'date', hidden: false }),
       Object.freeze({ id: 'weather', hidden: false }),
-      Object.freeze({ id: 'vitals', hidden: false }),
+      Object.freeze({ id: 'vitals', hidden: true }),
       Object.freeze({ id: 'dots', hidden: false }),
+      Object.freeze({ id: 'badges', hidden: false }),
+      Object.freeze({ id: 'claude', hidden: false }),
     ]),
   }),
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
@@ -7001,13 +7005,19 @@ function normalizeTopbarRails(value) {
 // in default order) — never spread untrusted input. Migrates the earlier
 // {date,weather} booleans onto their items when `items` is absent.
 const TOPBAR_ISLAND_IDS = ['time', 'date', 'weather', 'vitals', 'dots', 'badges', 'claude'];
-function normalizeTopbarClock(value) {
+function normalizeTopbarClock(value, legacyRoot) {
   const v = value && typeof value === 'object' ? value : {};
+  const legacy = legacyRoot && typeof legacyRoot === 'object' ? legacyRoot : {};
+  const version = Number(v.version) || 0;
   const align = ['center', 'left', 'right'].includes(v.align) ? v.align : 'center';
   const legacyHidden = {};
   if (!Array.isArray(v.items)) {
     if (v.date === false) legacyHidden.date = true;
     if (v.weather === false) legacyHidden.weather = true;
+  }
+  if (version < 2) {
+    if (legacy.claudeWidget && legacy.claudeWidget.topbar === false) legacyHidden.claude = true;
+    if (!legacy.vitals || legacy.vitals.topbar !== true) legacyHidden.vitals = true;
   }
   const seen = new Set();
   const items = [];
@@ -7016,14 +7026,22 @@ function normalizeTopbarClock(value) {
       const id = it && typeof it === 'object' ? it.id : null;
       if (!TOPBAR_ISLAND_IDS.includes(id) || seen.has(id)) continue;
       seen.add(id);
-      items.push({ id, hidden: it.hidden === true });
+      items.push({ id, hidden: it.hidden === true || (version < 2 && legacyHidden[id] === true) });
     }
   }
   for (const id of TOPBAR_ISLAND_IDS) {
     if (seen.has(id)) continue;
     items.push({ id, hidden: legacyHidden[id] === true });
   }
-  return { align, items };
+  const hiddenSources = [];
+  const sourceRe = /^[a-z0-9][a-z0-9-]{1,40}$/;
+  if (Array.isArray(v.hiddenSources)) {
+    for (const id of v.hiddenSources) {
+      if (hiddenSources.length >= 64) break;
+      if (typeof id === 'string' && sourceRe.test(id) && !hiddenSources.includes(id)) hiddenSources.push(id);
+    }
+  }
+  return { version: 2, align, items, hiddenSources, takeovers: v.takeovers !== false };
 }
 
 // Scrolling ticker bar config: enabled, edge position, marquee speed and which
@@ -7104,7 +7122,7 @@ function normalizeHubSettings(value) {
     topbarStyle: source.topbarStyle === 'minimal' ? 'minimal' : 'full',
     topbarRails: normalizeTopbarRails(source.topbarRails),
     topbarRailsAutoHide: source.topbarRailsAutoHide !== false,
-    topbarClock: normalizeTopbarClock(source.topbarClock),
+    topbarClock: normalizeTopbarClock(source.topbarClock, source),
     weekStart: ['mon', 'sun'].includes(source.weekStart) ? source.weekStart : 'mon',
     swipeNavigation: source.swipeNavigation !== false,
     swipeHomeGesture: source.swipeHomeGesture !== false,
