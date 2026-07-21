@@ -9628,6 +9628,14 @@ const server = http.createServer(async (req, res) => {
 
   const reqPath = urlObj.pathname;
 
+  // Any audio route means a surface is showing (or driving) the Volume UI right
+  // now, which is what keeps the 8s SoundVolumeView tick alive — see
+  // audioPollWanted(). Done here rather than in each handler so a route added
+  // later cannot forget it and silently let the mixer go stale mid-adjustment.
+  if (reqPath.startsWith('/audio') || reqPath.startsWith('/volume/') || reqPath.startsWith('/speaker/')) {
+    _noteAudioWatched();
+  }
+
   // CSRF guard: reject cross-site drive-by requests to state-mutating endpoints.
   // The browser stamps Sec-Fetch-Site and a page can't forge it — a cross-site
   // <script>/<img>/fetch is 'cross-site', while the same-origin dashboard's own
@@ -15428,14 +15436,44 @@ setInterval(async () => {
 // so each fire is a process + temp-CSV cycle. External volume/mute changes are rare
 // and this is a glance display, so an 8s cadence roughly halves the daily spawn
 // count vs 5s while staying responsive; a dirty-check then skips the SSE broadcast
-// (and the client-side mixer rebuild) when nothing actually changed. Lighting still
-// sees every sample so volume-reactive effects stay live.
+// (and the client-side mixer rebuild) when nothing actually changed.
+//
+// "A dashboard is open" was the WRONG gate, though: this tick was firing whenever
+// any surface was connected, whether or not anything consumed it, which is a
+// process spawn every 8 seconds forever (~10.8k/day) for a number nobody was
+// reading. It also outlived its second consumer without noticing — lighting.onAudio
+// has been a no-op since the volume flash was removed, so the old comment claiming
+// "lighting still sees every sample" was describing a consumer that no longer
+// exists. Gate it on actual demand instead, the same shape as audioLevelsWanted()
+// and idleProbeWanted():
+//   - a widget granted the `audio` stream is fed straight off this tick, so it
+//     keeps the poll alive for as long as it is installed and un-suspended;
+//   - otherwise the poll runs only while someone is plausibly looking at the
+//     Volume UI. fetchAudio() runs when that panel opens, so a recent GET /audio
+//     is the signal, and the window is generous because it is refreshed by any
+//     interaction. The trade is that a mixer left open and untouched past the
+//     window stops noticing volume changes made OUTSIDE Xenon until it is touched
+//     again; changes made through Xenon apply locally and are unaffected.
+const AUDIO_WATCH_WINDOW_MS = 120000;
+let _audioWatchedAt = 0;
+function _noteAudioWatched() { _audioWatchedAt = Date.now(); }
+function audioPollWanted() {
+  const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
+  const grants = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants : null;
+  if (grants) {
+    for (const pkgId of Object.keys(grants)) {
+      if (sdkGrantsFor(pkgId).streams.includes('audio')) return true;
+    }
+  }
+  return Date.now() - _audioWatchedAt < AUDIO_WATCH_WINDOW_MS;
+}
 let _lastAudioJson = '';
 setInterval(async () => {
   if (sseClients.size === 0) return;
+  if (!audioPollWanted()) return;
   try {
     const a = await getAudioInfo();
-    lighting.onAudio(a);
+    lighting.onAudio(a);   // no-op today; kept as the seam a future audio effect binds to
     const j = JSON.stringify(a);
     if (j !== _lastAudioJson) { _lastAudioJson = j; broadcastSSE('audio', a); }
   } catch {

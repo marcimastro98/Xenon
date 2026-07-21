@@ -2,6 +2,10 @@
 
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [v4.9.1] - unreleased
+### 🐞 Fixes
+- **Xenon stops reading your volume when nothing is asking for it.** To show the mixer, Xenon runs a small tool that reads the volume of every app, and it was doing that every 8 seconds for as long as any dashboard was open. It did not matter whether the Volume panel was on screen, whether it was even on the current page, or whether anything was reading the result: that is around ten thousand times a day for a number nobody was looking at. It now runs while you are actually using the Volume panel, and for as long as a widget you gave the audio permission to is installed, and otherwise not at all. Nothing changes in what you see: opening the mixer still shows current values immediately, because that has always been fetched on the spot. The one difference is that a mixer left open and untouched for two minutes stops noticing volume changes you make outside Xenon until you touch it again; anything you change from Xenon itself is unaffected.
+
 ## [v4.9.0] - 20-07-2026
 ### ✨ New
 - **A widget can now move your sound to another set of speakers.** Until now a widget could turn the volume up and down but not choose where that volume came out, so a mixer could not offer the one control people reach for when they unplug their headphones. It can now ask for that ability, and it has to ask **separately**: it is its own permission rather than something bundled into "change the volume", because approving one is not approving the other — and folding them together would have handed the new power to every widget you had already approved, without asking you again. A widget can only pick from the output devices Windows is already showing you, and only outputs: there is deliberately no way for one to change which microphone is listening.
