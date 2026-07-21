@@ -356,7 +356,7 @@
       "name": "DGM News General",
       "author": "DanielGarciaMorato",
       "perfWarning": true,
-      "description": "Widget de noticias generales para Xenon con seis fuentes RSS internacionales: El Mundo, El País, BBC News, The Guardian, The New York Times y Le Monde. Ofrece rotación equilibrada entre fuentes, interfaz en español e inglés, miniaturas mediante el proxy oficial del SDK, fallbacks visuales y estados ",
+      "description": "A multilingual general news widget for Xenon featuring six international RSS sources: El Mundo, El País, BBC News, The Guardian, The New York Times and Le Monde.\n\nIt includes balanced source rotation, Spanish and English interface options, secure HTTPS article opening, SDK-proxied thumbnails convert",
       "category": "media",
       "tags": [
         "news",
@@ -365,18 +365,18 @@
         "responsive",
         "headlines"
       ],
-      "version": "0.3.2",
-      "changelog": "Re-exported after the publishing platform issue; no functional code changes.",
+      "version": "1.1.0",
+      "changelog": "Updated to version 1.1.0 with persistent SDK preferences, clean production packaging, improved image visibility controls and Xenon 4.6.0 compatibility.",
       "pkgId": "dgm-news-general",
       "preview": {
         "accent": "#1ed760",
         "bg": "#0b0d12",
         "text": "#e9edf6"
       },
-      "shots": 1,
-      "addedAt": "2026-07-18",
+      "shots": 4,
+      "addedAt": "2026-07-21",
       "codeFile": true,
-      "updatedAt": "2026-07-18"
+      "updatedAt": "2026-07-21"
     },
     {
       "id": "vanguard-50",
