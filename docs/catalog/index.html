@@ -198,6 +198,9 @@
   .cat-ver { font-family: var(--mono); font-size: 10.5px; font-weight: 400; color: var(--dim); margin-left: 6px; }
   .cat-by { font-family: var(--mono); font-size: 11px; color: var(--muted); }
   .cat-stars { margin-left: 6px; color: var(--gold); font-weight: 700; white-space: nowrap; }
+  .cat-installs { margin-left: 6px; color: var(--muted); font-weight: 700; white-space: nowrap; }
+  /* "New since your last visit" flag, mirroring the in-app Store's card badge. */
+  .cat-new { position: absolute; top: 8px; right: 8px; z-index: 3; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; color: var(--plasma-2, #7cc8ff); background: rgba(8,10,14,.66); border: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(6px); }
   .cat-by a { color: var(--plasma-2); }
   .cat-by a:hover { text-decoration: underline; }
   .cat-catlabel { color: var(--dim); }
@@ -484,6 +487,8 @@
     <div class="cat-select"><select id="sel-sort" aria-label="Sort">
       <option value="feat" data-i18n="sort.feat">Featured</option>
       <option value="new" data-i18n="sort.new">Newest</option>
+      <option value="installs" data-i18n="sort.installs">Most downloaded</option>
+      <option value="rated" data-i18n="sort.rated">Top rated</option>
       <option value="name" data-i18n="sort.name">Name A–Z</option>
     </select></div>
   </div>
@@ -533,7 +538,7 @@ const I18N = {
     'k.limited': 'Limited', 'k.limited_ed': 'Limited edition', 'card.left': '{n} of {t} left', 'card.soldout': 'Sold out', 'card.claim': 'Claim your copy', 'card.reserve': 'Open Discord', 'card.reserve_hint': 'Discord verifies your account and sends a personal access code.',
     'count.n': '{n} creations',
     'bar.clear': '✕ Clear filters',
-    'sort.feat': 'Featured', 'sort.new': 'Newest', 'sort.name': 'Name A–Z',
+    'sort.feat': 'Featured', 'sort.new': 'Newest', 'sort.installs': 'Most downloaded', 'sort.rated': 'Top rated', 'sort.name': 'Name A–Z', 'card.new': 'New',
     'sec.tag': 'EXCLUSIVE', 'sec.seeall': 'See all →',
     'sec.limited': 'Limited drops', 'sec.limited_sub': 'A fixed number of copies worldwide, reserved on Discord. When they are gone, they are gone.',
     'sec.freehead': 'Free, from the community',
@@ -570,7 +575,7 @@ const I18N = {
     'k.limited': 'Limited', 'k.limited_ed': 'Edizione limitata', 'card.left': '{n} di {t} disponibili', 'card.soldout': 'Esaurito', 'card.claim': 'Richiedi la tua copia', 'card.reserve': 'Apri Discord', 'card.reserve_hint': 'Discord verifica il tuo account e invia un codice d\'accesso personale.',
     'count.n': '{n} creazioni',
     'bar.clear': '✕ Azzera filtri',
-    'sort.feat': 'In evidenza', 'sort.new': 'Più recenti', 'sort.name': 'Nome A–Z',
+    'sort.feat': 'In evidenza', 'sort.new': 'Più recenti', 'sort.installs': 'Più scaricati', 'sort.rated': 'Più votati', 'sort.name': 'Nome A–Z', 'card.new': 'Novità',
     'sec.tag': 'ESCLUSIVI', 'sec.seeall': 'Vedi tutti →',
     'sec.limited': 'Drop limitati', 'sec.limited_sub': 'Copie contate in tutto il mondo, riservate su Discord. Quando finiscono, finiscono.',
     'sec.freehead': 'Gratis, dalla community',
@@ -1303,7 +1308,9 @@ function applyLang(lang) {
     card.addEventListener('click', (e) => { if (e.target.closest('.cat-foot, a, button')) return; openDetail(entry); });
     card.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === card) { e.preventDefault(); openDetail(entry); } });
 
-    card.appendChild(mediaBlock(entry, 'cat-media', false));
+    const media = mediaBlock(entry, 'cat-media', false);
+    if (isNewEntry(entry)) media.appendChild(el('span', 'cat-new', T('card.new') || 'New'));
+    card.appendChild(media);
 
     const body = el('div', 'cat-body');
     const nameRow = el('h3', 'cat-name', entry.name);
@@ -1317,6 +1324,9 @@ function applyLang(lang) {
     const stars = el('span', 'cat-stars', starsText(entry.id));
     stars.dataset.rid = entry.id;
     by.appendChild(stars);
+    const installs = el('span', 'cat-installs', installsText(entry.id));
+    installs.dataset.iid = entry.id;
+    by.appendChild(installs);
     body.appendChild(by);
 
     body.appendChild(el('p', 'cat-desc', entry.description || ''));
@@ -1408,6 +1418,10 @@ function applyLang(lang) {
     }
     return true;
   }
+  // Mirrors the in-app Store's sort helpers so both storefronts order identically.
+  function ratedScore(e) { const r = e && ratingsMap[e.id]; if (!r || (Number(r.count) || 0) < ratingsMin) return -1; return Number(r.avg) || 0; }
+  function ratedCount(e) { const r = e && ratingsMap[e.id]; return (r && Number(r.count)) || 0; }
+  function installCount(e) { return (e && Number(installsMap[e.id])) || 0; }
   function sortList(list) {
     if (sortBy === 'name') return list.slice().sort((a, b) => a.name.localeCompare(b.name));
     // 'new' reads the date, NOT the file position: it used to sort on `_i`
@@ -1416,6 +1430,11 @@ function applyLang(lang) {
     // buried a same-day publish. ISO dates compare correctly as strings; an
     // entry with no addedAt sorts last, and ties keep catalog order.
     if (sortBy === 'new') return list.slice().sort((a, b) => String(b.addedAt || '').localeCompare(String(a.addedAt || '')) || (a._i - b._i));
+    // Install counts / ratings load async from the hub, so at first paint these
+    // order by whatever has arrived; loadInstalls/loadRatings re-paint once the
+    // data lands, so the order settles on its own (same as the app).
+    if (sortBy === 'installs') return list.slice().sort((a, b) => (installCount(b) - installCount(a)) || (a._i - b._i));
+    if (sortBy === 'rated') return list.slice().sort((a, b) => (ratedScore(b) - ratedScore(a)) || (ratedCount(b) - ratedCount(a)) || (a._i - b._i));
     return list.slice().sort((a, b) => a._i - b._i);   // 'feat' = catalog order
   }
 
@@ -1687,8 +1706,49 @@ function applyLang(lang) {
           Object.assign(ratingsMap, out.ratings);
         }
       }
-      paintStars();
+      // Ordering by rating? Re-sort with the loaded scores; else fill the slots.
+      if (sortBy === 'rated') paint(); else paintStars();
     } catch (err) { /* offline / blocked — slots stay empty */ }
+  }
+
+  // ── Install counts (read-only aggregates from the supporter hub) ───────────
+  // Same shape as the ratings block above and the in-app Store: what dashboards
+  // REPORTED, not owners; blank below a floor so a tiny count isn't noise.
+  const INSTALLS_BASE = HUB_BASE + '/catalog/installs';
+  const MIN_INSTALLS_SHOWN = 10;
+  let installsMap = {};
+  function compactCount(n) {
+    if (n < 1000) return String(n);
+    const u = n < 1e6 ? { d: 1e3, s: 'k' } : { d: 1e6, s: 'M' };
+    const v = n / u.d; return (v < 10 ? v.toFixed(1) : String(Math.round(v))) + u.s;
+  }
+  function installsText(id) { const n = Number(installsMap[id]) || 0; return n < MIN_INSTALLS_SHOWN ? '' : '↓ ' + compactCount(n); }
+  function paintInstalls() {
+    document.querySelectorAll('.cat-installs[data-iid]').forEach((slot) => { slot.textContent = installsText(slot.dataset.iid); });
+  }
+  async function loadInstalls() {
+    try {
+      const ids = entries.map((e) => e.id);
+      for (let i = 0; i < ids.length; i += 100) {
+        const res = await fetch(INSTALLS_BASE + '?ids=' + encodeURIComponent(ids.slice(i, i + 100).join(',')));
+        if (!res.ok) continue;
+        const out = await res.json();
+        if (out && out.ok && out.counts) Object.assign(installsMap, out.counts);
+      }
+      // Ordering by downloads? Re-sort with the loaded counts; else fill the slots.
+      if (sortBy === 'installs') paint(); else paintInstalls();
+    } catch (err) { /* offline / blocked — slots stay empty */ }
+  }
+
+  // "New since your last visit" flag (mirrors the app's #5): the previous visit
+  // timestamp, captured and re-stamped in load(). Per-browser; nothing is flagged
+  // on the very first visit so the grid doesn't flood with badges.
+  const K_WEB_VISIT = 'xenon.catalog.lastVisit';
+  let webLastVisit = 0;
+  function isNewEntry(entry) {
+    if (!webLastVisit || !entry || !entry.addedAt) return false;
+    const ts = Date.parse(entry.addedAt);
+    return isFinite(ts) && ts > webLastVisit;
   }
 
   (async function load() {
@@ -1702,11 +1762,14 @@ function applyLang(lang) {
       if (!entries.length) { stateEl.textContent = T('state.none'); return; }
       await hydrateLimitedStatus(entries);
       entries.forEach((e, i) => { e._i = i; });
+      // Capture the previous visit for the "New" badge, then stamp this one.
+      try { webLastVisit = Number(localStorage.getItem(K_WEB_VISIT)) || 0; localStorage.setItem(K_WEB_VISIT, String(Date.now())); } catch (e) { webLastVisit = 0; }
       shown = PAGE;
       toolbarEl.hidden = false;
       buildControls();
       paint();
       loadRatings();
+      loadInstalls();
     } catch (err) {
       stateEl.textContent = T('state.error');
     }
