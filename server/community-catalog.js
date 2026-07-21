@@ -17,6 +17,9 @@
 // for unit tests (server/test/community-catalog.test.mjs).
 
 const https = require('https');
+const fs = require('fs');
+const path = require('path');
+const { writeFileAtomic } = require('./atomic-write');
 
 const CATALOG_BASE = 'https://xenon-app.com/community/';
 const CATALOG_URL = CATALOG_BASE + 'catalog.json';
@@ -284,10 +287,76 @@ function fetchText(url, validators, _hops = 0) {
   });
 }
 
-// ── Catalog cache (module-level, request-driven) ─────────────────────────────
+// ── Catalog cache (module-level, request-driven, disk-backed) ────────────────
 let _catalogCache = null;   // { entries, fetchedAt, etag }
 let _catalogPending = null; // in-flight dedup
 let _lastForcedAt = 0;
+let _cacheFile = null;      // set by initCache(); null = memory-only (unit tests)
+let _fetchImpl = fetchText; // injectable so the SWR flow is testable without a network
+
+// Load the last-good catalog from disk at startup. The in-memory cache used to
+// die with the process, so the FIRST open after every server restart re-blocked
+// on the 8s upstream fetch and showed "could not load the gallery" whenever the
+// site was momentarily unreachable — the "lots of gallery errors" report. A
+// disk copy lets the Store open instantly and offline right after a restart.
+function initCache(opts) {
+  const dir = opts && opts.dataDir;
+  if (!dir) return;
+  _cacheFile = path.join(dir, 'community-catalog-cache.json');
+  try {
+    const raw = JSON.parse(fs.readFileSync(_cacheFile, 'utf8'));
+    if (raw && Array.isArray(raw.entries)) {
+      // Re-normalize on load: the persisted copy could predate a schema change,
+      // and it is re-validated key-by-key exactly like a fresh network fetch.
+      _catalogCache = {
+        entries: normalizeCatalog(raw.entries),
+        fetchedAt: Number(raw.fetchedAt) || 0,
+        etag: typeof raw.etag === 'string' ? raw.etag : '',
+      };
+    }
+  } catch { /* absent or corrupt — start cold; the first fetch repopulates it */ }
+}
+
+function _persistCatalogCache() {
+  if (!_cacheFile || !_catalogCache) return;
+  const snapshot = JSON.stringify({
+    entries: _catalogCache.entries,
+    fetchedAt: _catalogCache.fetchedAt,
+    etag: _catalogCache.etag,
+  });
+  try { writeFileAtomic(_cacheFile, snapshot).catch(() => {}); }
+  catch { /* best-effort — the memory copy still serves this run */ }
+}
+
+// The actual upstream fetch + cache update, dedup'd via _catalogPending. Never
+// throws: a failure with a cache degrades to the last good copy, a cold failure
+// returns { ok: false }.
+function _revalidateCatalog(doForce) {
+  if (_catalogPending) return _catalogPending;
+  _catalogPending = (async () => {
+    try {
+      const resp = await _fetchImpl(CATALOG_URL, _catalogCache && !doForce ? { etag: _catalogCache.etag } : null);
+      if (resp.notModified && _catalogCache) {
+        _catalogCache.fetchedAt = Date.now();
+        _persistCatalogCache();
+        return { ok: true, entries: _catalogCache.entries, cached: true };
+      }
+      let parsed;
+      try { parsed = JSON.parse(resp.text || ''); } catch { throw new Error('bad catalog JSON'); }
+      const entries = normalizeCatalog(parsed);
+      _catalogCache = { entries, fetchedAt: Date.now(), etag: resp.etag || '' };
+      _persistCatalogCache();
+      return { ok: true, entries, cached: false };
+    } catch (e) {
+      // Degrade to the last good copy when the network is down.
+      if (_catalogCache) return { ok: true, entries: _catalogCache.entries, cached: true, stale: true };
+      return { ok: false, error: String(e && e.message || e).slice(0, 200), entries: [] };
+    } finally {
+      _catalogPending = null;
+    }
+  })();
+  return _catalogPending;
+}
 
 async function fetchCatalog(force) {
   const now = Date.now();
@@ -300,27 +369,18 @@ async function fetchCatalog(force) {
   if (!doForce && cacheIsFresh(_catalogCache, now)) {
     return { ok: true, entries: _catalogCache.entries, cached: true };
   }
-  _catalogPending = (async () => {
-    try {
-      const resp = await fetchText(CATALOG_URL, _catalogCache && !doForce ? { etag: _catalogCache.etag } : null);
-      if (resp.notModified && _catalogCache) {
-        _catalogCache.fetchedAt = Date.now();
-        return { ok: true, entries: _catalogCache.entries, cached: true };
-      }
-      let parsed;
-      try { parsed = JSON.parse(resp.text || ''); } catch { throw new Error('bad catalog JSON'); }
-      const entries = normalizeCatalog(parsed);
-      _catalogCache = { entries, fetchedAt: Date.now(), etag: resp.etag || '' };
-      return { ok: true, entries, cached: false };
-    } catch (e) {
-      // Degrade to the last good copy when the network is down.
-      if (_catalogCache) return { ok: true, entries: _catalogCache.entries, cached: true, stale: true };
-      return { ok: false, error: String(e && e.message || e).slice(0, 200), entries: [] };
-    } finally {
-      _catalogPending = null;
-    }
-  })();
-  return _catalogPending;
+  // Stale-while-revalidate: a cache exists but is past its TTL. Serve the last
+  // good copy IMMEDIATELY and refresh in the background, so opening the Store is
+  // never blocked on the upstream fetch (the "loading takes lots of time"
+  // report). Only a truly cold cache — fresh install, or a restart with no
+  // persisted copy — awaits the network, the one case with nothing to show. A
+  // manual ↻ (doForce) always awaits, so the user who asked for fresh data gets it.
+  const haveCache = !!(_catalogCache && Array.isArray(_catalogCache.entries));
+  const revalidate = _revalidateCatalog(doForce);
+  if (haveCache && !doForce) {
+    return { ok: true, entries: _catalogCache.entries, cached: true, revalidating: true };
+  }
+  return revalidate;
 }
 
 // The catalog with hidden/scheduled entries dropped — what every CONSUMER (the
@@ -388,7 +448,13 @@ module.exports = {
   isEntryVisible,
   filterVisibleEntries,
   cacheIsFresh,
+  initCache,
   fetchCatalog,
   fetchVisibleCatalog,
   fetchCode,
+  // Test seams (mirrors community-installs.js): inject the upstream fetcher and
+  // reset the module cache so the SWR flow can be exercised without a network.
+  _setFetcher(fn) { _fetchImpl = fn || fetchText; },
+  _resetCache() { _catalogCache = null; _catalogPending = null; _lastForcedAt = 0; _cacheFile = null; },
+  _expireCache() { if (_catalogCache) _catalogCache.fetchedAt = 0; },   // age past the TTL for tests
 };

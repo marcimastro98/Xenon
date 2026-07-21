@@ -1095,11 +1095,20 @@
     // A re-render (↻) replaces every card — release the old ones from the
     // preview observer or refreshed grids pile up detached nodes + bg code.
     if (previewObserver) { previewObserver.disconnect(); previewObserver = null; }
-    body.replaceChildren(skeleton(6));
+    // #4 — don't flash to skeletons on a ↻ refresh. The grid is already on
+    // screen, so keep it visible through the fetch and swap it atomically for the
+    // fresh one below; the blank-then-rebuild also made the modal visibly jump
+    // height. A cold open or a tab switch (empty / other-tab content) still shows
+    // the skeleton so there is never a blank pause with nothing on screen.
+    const keepDuringRefresh = force === true && !!body.firstChild;
+    if (!keepDuringRefresh) body.replaceChildren(skeleton(6));
     const out = await api('/api/community/catalog' + (force ? '?refresh=1' : ''));
     if (!overlayEl) return;   // closed while loading
     if (!out || !out.ok) {
-      body.replaceChildren(el('div', 'cgal-status', t('gallery_error', 'Could not load the gallery. Check your connection and retry.')));
+      // Keep the catalog that's already on screen on a failed ↻; only a cold open
+      // with nothing to show falls back to the full error message (#7). The server
+      // now disk-backs the catalog, so this path is reached only truly offline.
+      if (!keepDuringRefresh) body.replaceChildren(el('div', 'cgal-status', t('gallery_error', 'Could not load the gallery. Check your connection and retry.')));
       return;
     }
     const all = Array.isArray(out.entries) ? out.entries : [];

@@ -615,6 +615,11 @@ const VITALS_NAG_SCRIPT = path.join(__dirname, 'vitals-nag.ps1');
 // streaming config/tokens) lives in a single DATA_DIR instead of being scattered
 // loose in server/. Tool binaries (presentmon/, whisper/, vendor/, …) stay put.
 const DATA_DIR = path.join(__dirname, 'data');
+// Disk-back the community catalog cache so the Store opens instantly (and offline)
+// right after a server restart, instead of re-blocking on the upstream fetch and
+// erroring when the site is momentarily unreachable. Read is tolerant of an absent
+// file; the writable dir is ensured by migrateLegacyData() before any fetch writes.
+communityCatalog.initCache({ dataDir: DATA_DIR });
 // Deck soundboard library: uploaded clips live here under server-generated
 // names; the extension set mirrors the /deck/sound streaming allowlist.
 const DECK_SOUNDS_DIR = path.join(DATA_DIR, 'sounds');
