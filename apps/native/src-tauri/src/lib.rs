@@ -461,6 +461,19 @@ pub fn run() {
                         spawn_update_install(nav_handle.clone());
                         return false;
                     }
+                    // The Settings "Restart Xenon" button navigates here (never a
+                    // real page): a full, clean relaunch — clears transient/stuck
+                    // state (a wedged widget, a stalled probe) WITHOUT touching the
+                    // user's saved settings, layout, backgrounds or widgets, which
+                    // are all persisted and re-hydrate on launch. Same call the tray
+                    // "Restart" item uses.
+                    #[cfg(desktop)]
+                    if scheme == "xenon-app" {
+                        if url.path() == "restart" {
+                            nav_handle.restart();
+                        }
+                        return false;
+                    }
                     // The home-bar gesture taps navigate here (never a real page):
                     //   xenon-home:go          → collapse to the desktop strip
                     //   xenon-home:return      → restore the kiosk on the Edge

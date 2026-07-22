@@ -7493,6 +7493,21 @@ function clearSettingsFont() {
   setSettingsStatus('settings_font_removed', 'ok');
 }
 
+// Footer "Riavvia Xenon" (feature request): a clean restart to clear transient /
+// stuck state — a widget that got wedged, a background probe that stalled — WITHOUT
+// losing anything. Settings, dashboard layout, backgrounds and widgets are all
+// persisted (settings.json + localStorage) and re-hydrate on launch, so nothing
+// personal is touched. Native → full app relaunch (app.restart via native-bridge);
+// a plain browser → dashboard reload. Confirmed first, since it interrupts the
+// session.
+function restartXenon() {
+  const msg = t('settings_restart_confirm', 'Riavviare Xenon? Le tue impostazioni, i widget e gli sfondi restano — serve solo a ripulire eventuali blocchi.');
+  if (typeof window.confirm === 'function' && !window.confirm(msg)) return;
+  setSettingsStatus('settings_restart_running', 'ok');
+  if (typeof window.restartXenonApp === 'function') window.restartXenonApp();
+  else { try { window.location.reload(); } catch (e) { /* nothing else to try */ } }
+}
+
 // Footer "Ripristina tutte le impostazioni": a full reset of every preference to
 // its default. Only the dashboard layout and the external calendar feed
 // subscriptions are preserved (they're structural/personal, not "settings" the

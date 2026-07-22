@@ -26,6 +26,22 @@
   const isNative = window.__XENON_NATIVE__ === true || window.isTauri === true;
   const SERVER = (window.Xenon && window.Xenon.constants && window.Xenon.constants.LOOPBACK_ORIGIN) || '';
 
+  // Restart the app from the dashboard (Settings → "Riavvia Xenon"). A clean
+  // relaunch that clears transient/stuck state — a wedged widget, a stalled
+  // background probe — WITHOUT losing anything: settings, layout, backgrounds and
+  // widgets are all persisted (settings.json + localStorage) and re-hydrate on
+  // launch. Native → the shell's app.restart() (same as the tray "Restart"), via
+  // the xenon-app scheme the on_navigation hook intercepts. A plain browser has no
+  // native process to relaunch, so it reloads the dashboard — which re-hydrates
+  // and clears client-side glitches all the same.
+  function restartApp() {
+    if (isNative) {
+      try { window.location.href = 'xenon-app:restart'; return; } catch (e) { /* fall through to reload */ }
+    }
+    try { window.location.reload(); } catch (e) { /* nothing else to try */ }
+  }
+  window.restartXenonApp = restartApp;
+
   // Localized string with a plain-English fallback (the dashboard's own t()).
   function tr(key, fallback) {
     try {
