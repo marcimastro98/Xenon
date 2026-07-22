@@ -204,6 +204,29 @@ body.topbar-minimal:not([data-panel]) .xtoast-stack { top: 9px; }
     opacity 0.3s ease,
     transform 0.34s cubic-bezier(0.22, 1.15, 0.36, 1);
 }
+
+/* ── Island morph (js/topbar-minimal.js morphIsland) ──────────────────────────
+   Structural swaps — today the music takeover starting or ending on play/pause —
+   fade the capsule's contents out, exchange them while they are invisible, then
+   glide the box between its old and new size as they fade back in. Widths are
+   pinned inline for the duration only; nothing here sizes the pill on its own.
+   The durations must stay in step with MORPH_DIM_MS / MORPH_BOX_MS there. */
+body.topbar-minimal:not([data-panel]) .topbar-mini > * { transition: opacity 0.16s ease; }
+body.topbar-minimal:not([data-panel]) .topbar-mini.mini-morph-dim > * { opacity: 0; }
+body.topbar-minimal:not([data-panel]) .topbar-mini.mini-morphing {
+  /* The pinned box is briefly smaller than what it holds; clip rather than let
+     the old contents spill past the capsule's rounded edge. */
+  overflow: hidden;
+  transition:
+    width 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.3s ease,
+    transform 0.34s cubic-bezier(0.22, 1.15, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.topbar-minimal:not([data-panel]) .topbar-mini > * { transition: none; }
+}
 body.topbar-minimal.xtoast-island:not([data-panel]) .topbar-mini,
 body.topbar-minimal.xisland-live:not([data-panel]) .topbar-mini {
   opacity: 0;
@@ -379,6 +402,16 @@ body.xisland-live:not(.topbar-hidden):not(.topbar-noisland):not([data-panel]) .s
    textContent; the CSS is fixed host chrome and cannot be supplied by a guest. */
 .sdk-island.is-structured { align-items: center; padding: 9px 12px; }
 .sdk-island.is-structured.is-expanded { max-width: min(680px, 82vw); padding: 12px 16px; }
+
+/* Full-bar activity (`"island": { "full": true }`, layout: 'full') — the widest
+   step, for an activity that genuinely needs the room. It stays a CAPSULE: still
+   `width: max-content`, so it hugs its content and grows only as far as it must,
+   and it keeps the island's height, radius and padding. It is deliberately NOT
+   pinned edge to edge — a capsule stretched across the screen stops reading as
+   an island, leaves a wide empty middle, and pushes the content to the corners.
+   Only the cap moves. */
+.sdk-island.is-structured.is-full { max-width: min(1040px, 94vw); padding: 12px 18px; gap: 14px; }
+.sdk-island.is-structured.is-full .sdk-island-blocks { gap: 14px; }
 .sdk-island.is-structured .sdk-island-flow,
 .sdk-island.is-structured .sdk-island-meta { display: none; }
 .sdk-island-blocks {

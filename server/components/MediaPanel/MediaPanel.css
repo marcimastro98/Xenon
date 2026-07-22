@@ -6,6 +6,15 @@
   gap: 12px;
   padding: 18px;
   isolation: isolate;
+  /* Size container: the playback layout steps down from the TILE's own box (see
+     the @container ladder at the end of this file), not the viewport — a media
+     tile shrunk on the grid, or nested in a tab group, has to reflow while the
+     screen size never changes. Safe because the panel's height is always set
+     from outside (DashboardGrid.css: .grid-stack-item-content > .panel and
+     .tabgroup-body > .dashboard-widget both force height:100%), so size
+     containment can't collapse it. */
+  container-type: size;
+  container-name: mediatile;
 }
 
 /* Media tile tabs (Riproduzione | Chat) + panes */
@@ -16,7 +25,10 @@
    clone — keeps the playback grid layout instead of collapsing. */
 .media-pane-play:not([hidden]) {
   display: grid;
-  grid-template-columns: minmax(120px, 170px) minmax(0, 1fr);
+  /* `auto` (not a min floor): the cover sizes itself from the tile via the
+     min() below, so a short/narrow tile shrinks the art instead of squeezing
+     the text column to nothing and pushing the transport row out of view. */
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 18px;
 }
@@ -160,8 +172,10 @@
 .media-art {
   position: relative;
   aspect-ratio: 1;
-  width: 100%;
-  max-width: 170px;
+  /* Sized from the tile, capped at the original 170px so a full-size tile looks
+     exactly as before. cqh is what keeps a SHORT tile from clipping: the cover
+     is square, so its height is its width. */
+  width: min(34cqw, 44cqh, 170px);
   border-radius: var(--radius);
   background: #101516;
   border: 1px solid rgba(255,255,255,0.08);
@@ -666,4 +680,129 @@
 
 @media (prefers-reduced-motion: reduce) {
   .msp-ctl, .msp-item-go, .msp-range::-webkit-slider-thumb { transition: none; }
+}
+
+/* ── Tile size ladder ────────────────────────────────────────────────────────
+   The media tile is resizable on the grid and can also be dropped into a tab
+   group, so its available box changes with no viewport change at all — the
+   `breakpoints.css` @media rules never fire for it. These @container steps read
+   the tile's own box (container-name: mediatile, declared on .media-panel at the
+   top of this file).
+
+   Two independent axes, deliberately kept apart:
+     · HEIGHT scales things DOWN (type, controls, gaps). Losing height alone
+       never removes anything except the two optional rows, because a short but
+       WIDE tile has plenty of room — it just needs a different shape, which is
+       the strip layout below.
+     · WIDTH is what actually removes things, and only once the horizontal room
+       for them is genuinely gone.
+   Getting this wrong is what made a wide, short tile look empty while hiding the
+   provider chip and the artist for lack of vertical space it did not need.
+
+   Order matters: steps are additive and later ones win at equal specificity, so
+   the strip restores what the height steps compressed. Nothing here applies at
+   full size — a large tile renders exactly as before.
+
+   Note: an element can't be styled by its OWN container query, so .media-panel's
+   padding/gap stay fixed; every rule below targets a descendant. */
+
+/* ── Height: scale down ───────────────────────────────────────────────────── */
+
+/* The per-app volume row and the Spotify strip are extras stacked below the
+   transport — they are the only things height alone removes, and the title stops
+   taking a second line. */
+@container mediatile (max-height: 360px) {
+  .media-panel .media-volume,
+  .media-panel .msp { display: none; }
+  .media-panel .media-title { -webkit-line-clamp: 1; }
+}
+
+@container mediatile (max-height: 270px) {
+  .media-panel .media-pane-play:not([hidden]) { gap: 13px; }
+  .media-panel .media-content { gap: 9px; }
+  .media-panel .media-title { font-size: 22px; }
+  .media-panel .media-artist { font-size: 13px; margin-top: 2px; }
+  .media-panel .media-actions { gap: 9px; }
+  .media-panel .control-btn { width: 36px; height: 36px; }
+  .media-panel .control-btn.primary { width: 44px; height: 44px; }
+  .media-panel .control-btn svg { width: 16px; height: 16px; }
+  .media-panel .control-btn.primary svg { width: 19px; height: 19px; }
+  .media-panel .app-pill { height: 23px; padding: 0 8px; font-size: 11.5px; }
+}
+
+@container mediatile (max-height: 200px) {
+  .media-panel .media-content { gap: 7px; }
+  .media-panel .media-title { font-size: 19px; }
+  .media-panel .media-artist { font-size: 12px; }
+  .media-panel .control-btn { width: 32px; height: 32px; }
+  .media-panel .control-btn.primary { width: 38px; height: 38px; }
+  .media-panel .control-btn svg { width: 14px; height: 14px; }
+  .media-panel .control-btn.primary svg { width: 17px; height: 17px; }
+}
+
+@container mediatile (max-height: 150px) {
+  .media-panel .media-title { font-size: 17px; }
+  .media-panel .media-actions { gap: 7px; }
+  .media-panel .control-btn { width: 28px; height: 28px; }
+  .media-panel .control-btn.primary { width: 34px; height: 34px; }
+  .media-panel .control-btn.primary svg { width: 15px; height: 15px; }
+}
+
+/* ── Short but wide: lay the content out as a strip ───────────────────────────
+   The default content column stacks chip / title / transport vertically, which
+   is what runs out of height first. With this much width the same pieces fit on
+   one line beside each other, so the tile uses the space it has instead of
+   dropping content and leaving the right half empty. The title block takes the
+   slack, pushing the transport to the far end. */
+@container mediatile (max-height: 300px) and (min-width: 430px) {
+  .media-panel .media-content { flex-direction: row; align-items: center; gap: 16px; }
+  .media-panel .media-textblock { flex: 1 1 auto; min-width: 0; }
+  .media-panel .media-app-row,
+  .media-panel .media-actions { flex: 0 0 auto; }
+  /* Restore what the height steps above gave up: there is room for both now. */
+  .media-panel .media-app-row { display: flex; }
+  .media-panel .media-artist { display: block; }
+  /* Two lines fit here even when the tile is short, and a track title is what
+     the space should go to. */
+  .media-panel .media-title { -webkit-line-clamp: 2; }
+}
+
+/* Very wide strip: give the title back its full weight — at this width it is
+   the tile's headline, not a label squeezed next to the buttons. */
+@container mediatile (max-height: 300px) and (min-width: 620px) {
+  .media-panel .media-content { gap: 20px; }
+  .media-panel .media-title { font-size: 26px; }
+  .media-panel .media-artist { font-size: 14px; }
+  .media-panel .control-btn { width: 38px; height: 38px; }
+  .media-panel .control-btn.primary { width: 46px; height: 46px; }
+  .media-panel .control-btn svg { width: 17px; height: 17px; }
+  .media-panel .control-btn.primary svg { width: 20px; height: 20px; }
+}
+
+/* ── Width: start removing ────────────────────────────────────────────────── */
+
+/* Too narrow for the strip AND too short to stack: the provider chip goes, then
+   the artist line. The cover already says which app is playing. */
+@container mediatile (max-height: 200px) and (max-width: 430px) {
+  .media-panel .media-app-row { display: none; }
+}
+@container mediatile (max-height: 150px) and (max-width: 430px) {
+  .media-panel .media-artist { display: none; }
+}
+
+/* Below this the cover and the text column can't share a row without one of them
+   becoming unreadable, so the cover yields — the title and the transport are
+   what the tile is for. */
+@container mediatile (max-width: 330px) {
+  .media-panel .media-pane-play:not([hidden]) { grid-template-columns: minmax(0, 1fr); }
+  .media-panel .media-art { display: none; }
+  .media-panel .media-title { font-size: 21px; -webkit-line-clamp: 2; }
+}
+
+@container mediatile (max-width: 240px) {
+  .media-panel .media-app-row { display: none; }
+  .media-panel .media-title { font-size: 18px; }
+  .media-panel .media-actions { gap: 8px; }
+  .media-panel .control-btn { width: 32px; height: 32px; }
+  .media-panel .control-btn.primary { width: 38px; height: 38px; }
 }

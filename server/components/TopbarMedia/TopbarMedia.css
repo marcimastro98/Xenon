@@ -1,0 +1,238 @@
+/* Topbar now-playing segment (js/topbar-media.js) — cover + track + transport,
+   living inside #clock-media in .clock-meta. Styled once for the Full bar, then
+   densified for the Minimal capsule at the bottom, exactly like the vitals chips
+   and the SDK badge row it sits beside. */
+
+/* The host is a one-column grid, not a flex row, purely so it can OPEN and CLOSE
+   like a real Dynamic Island: `grid-template-columns` animates 0fr → 1fr, which
+   interpolates to the segment's exact content width, so the capsule grows to
+   meet the track and shrinks away when playback ends instead of snapping between
+   two widths. A max-width transition was the obvious alternative and is worse:
+   the cap has to exceed the widest possible track, so the visible growth finishes
+   early and the pill lands before the animation does. The inner flex row carries
+   the actual layout (and the scale/fade), which keeps this split invisible to
+   every other rule. */
+.clock-media {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: center;
+  margin-left: 4px;
+  min-width: 0;
+  transition:
+    grid-template-columns 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    margin 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.24s ease;
+}
+.clock-media[hidden] { display: none; }
+
+.tbm-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  transition:
+    transform 0.42s cubic-bezier(0.22, 1.15, 0.36, 1),
+    opacity 0.24s ease;
+}
+
+/* Closed: no width, no divider, no padding — the segment contributes nothing to
+   the pill. `tbm-anim` clips only WHILE opening or closing, so the settled state
+   never crops the cover art's drop shadow. */
+.clock-media.tbm-collapsed { grid-template-columns: 0fr; margin-left: 0; opacity: 0; }
+.clock-media.tbm-collapsed .tbm-inner { transform: scale(0.82); opacity: 0; }
+.clock-media.tbm-anim,
+.clock-media.tbm-anim .tbm-inner { overflow: hidden; }
+
+/* Track changes cross-fade rather than swapping under you: set by
+   js/topbar-media.js only when the text actually differs, never on every media
+   update — a transition re-triggered by each incoming sample would run forever
+   (the sparkline lesson in CLAUDE.md). */
+.tbm-txt { transition: opacity 0.16s ease; }
+.tbm-txt.tbm-swap { opacity: 0; }
+
+/* Matched to the play button so the segment reads as one block rather than a
+   thumbnail with oversized controls next to it. */
+.tbm-art {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.07) center / cover no-repeat;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+}
+.tbm-art[hidden] { display: none; }
+
+.tbm-txt {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  line-height: 1.15;
+}
+/* Capped so a long track title can never push the clock row wide enough to
+   crowd the weather chip or the page dots — it ellipsizes instead. */
+.tbm-title {
+  max-width: 150px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tbm-artist {
+  max-width: 150px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--muted-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tbm-artist[hidden] { display: none; }
+
+.tbm-ctrls { display: inline-flex; align-items: center; gap: 3px; flex: 0 0 auto; }
+
+.tbm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Sized for a touchscreen first: these are the transport controls people reach
+     for without opening anything, so they take priority over keeping the bar as
+     thin as possible. */
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.15s ease, background 0.15s ease, transform 0.12s ease;
+}
+.tbm-btn:hover { opacity: 1; background: rgba(255,255,255,0.10); }
+.tbm-btn:active { transform: scale(0.9); }
+.tbm-btn svg { width: 16px; height: 16px; fill: currentColor; }
+.tbm-btn-play { width: 32px; height: 32px; background: rgba(255,255,255,0.12); opacity: 1; }
+.tbm-btn-play:hover { background: rgba(255,255,255,0.2); }
+.tbm-btn-play svg { width: 18px; height: 18px; }
+
+/* One button, two glyphs — the pause face shows only while playing. */
+.tbm-btn-play .tbm-ico-pause { display: none; }
+.tbm-btn-play.is-playing .tbm-ico-play { display: none; }
+.tbm-btn-play.is-playing .tbm-ico-pause { display: inline; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tbm-btn { transition: none; }
+  /* The segment still appears and disappears — it just does it at once. JS reads
+     the same preference and skips the two-frame open/close dance. */
+  .clock-media, .tbm-inner, .tbm-txt { transition: none; }
+}
+
+/* ── Minimal topbar ──────────────────────────────────────────────────────────
+   The whole .clock reparents into the capsule, so only density changes here.
+   The segment's left hairline divider and padding come from .island-seg
+   (TopbarMinimal.css) — none belongs here.
+   The transport buttons are deliberately NOT shrunk: the capsule is the surface
+   you tap on the touchscreen, so they keep their full size and only the text
+   tightens. */
+body.topbar-minimal .topbar-mini .clock-media { margin-left: 0; }
+body.topbar-minimal .topbar-mini .tbm-inner { gap: 8px; }
+
+/* While closed the segment must also give back the island-seg padding and its
+   left hairline, or an empty gap with a divider in it stays in the capsule. The
+   selectors mirror TopbarMinimal.css's own island-seg rules so they win on
+   specificity instead of on !important. */
+body.topbar-minimal:not([data-panel]) .topbar-mini > .clock-media.tbm-collapsed {
+  padding-left: 0;
+  padding-right: 0;
+}
+body.topbar-minimal:not([data-panel]) .topbar-mini > .clock-media.tbm-collapsed::before {
+  opacity: 0;
+}
+body.topbar-minimal .topbar-mini .tbm-title { max-width: 140px; font-size: 12px; }
+body.topbar-minimal .topbar-mini .tbm-artist { max-width: 140px; font-size: 10px; }
+
+/* Narrow screens: the cover and the artist line are the first things to go —
+   the title and the transport are the point of the segment. */
+@media (max-width: 720px) {
+  .tbm-art { display: none; }
+  .tbm-title, .tbm-artist { max-width: 96px; }
+}
+
+/* Text and progress stack; the transport sits beside the pair. */
+.tbm-main { display: flex; flex-direction: column; min-width: 0; }
+
+/* ── Progress row ────────────────────────────────────────────────────────────
+   Drawn only in the Music bar (js/topbar-media.js hides it elsewhere, and the
+   rule below is the belt to that braces). Read-only: `position`/`duration` come
+   from the SMTC timeline every player reports, but writing a position back is a
+   Spotify Web API operation and lives in the media tile, not here. */
+.tbm-prog { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+.tbm-prog[hidden] { display: none; }
+.clock-media:not(.tbm-takeover) .tbm-prog { display: none; }
+
+.tbm-prog-track {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.18);
+  overflow: hidden;
+}
+.tbm-prog-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--text);
+  transform: scaleX(0);
+  transform-origin: left center;
+  /* Just under the 1s tick, so the bar glides between samples instead of
+     stepping. Transform only — no filter, no geometry — so this stays a
+     compositor job (the sparkline lesson in CLAUDE.md). */
+  transition: transform 0.9s linear;
+}
+.tbm-prog-time {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-text);
+}
+
+/* A transition re-triggered by every incoming sample is invisible to the
+   one-shot animation freeze, so it would keep running under a frosted overlay,
+   in Ambient, in game mode and on low-power GPUs. Gate it off in all four, per
+   the freeze invariant. */
+body.overlay-frozen .tbm-prog-fill,
+body.ambient-idle .tbm-prog-fill,
+body.game-mode .tbm-prog-fill,
+body.low-power-gpu .tbm-prog-fill { transition: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tbm-prog-fill { transition: none; }
+}
+
+/* ── Takeover ────────────────────────────────────────────────────────────────
+   Settings → Dynamic Island → Musica → "occupa tutta l'isola". While a track is
+   playing the player is the only segment left in the capsule (topbar-minimal.js
+   masks the rest), so it can breathe: a bigger cover, room for the artist, and
+   the elapsed/total row.
+
+   The capsule keeps its OWN natural size throughout — it hugs the player exactly
+   as it hugs the clock. Nothing here sets a width: no `left`/`right`, no
+   stretching to the screen. That is the point of the mode, not an omission. */
+.clock-media.tbm-takeover .tbm-inner { gap: 11px; }
+.clock-media.tbm-takeover .tbm-art { width: 38px; height: 38px; border-radius: 8px; }
+.clock-media.tbm-takeover .tbm-title { max-width: 260px; font-size: 13.5px; }
+.clock-media.tbm-takeover .tbm-artist { max-width: 260px; font-size: 11px; }
+
+body.topbar-minimal .topbar-mini .clock-media.tbm-takeover .tbm-title,
+body.topbar-minimal .topbar-mini .clock-media.tbm-takeover .tbm-artist { max-width: 240px; }
+
+/* The bar is a fixed, modest width: it reads as a progress indicator inside the
+   island, not as a line stretched across the screen. */
+.clock-media.tbm-takeover .tbm-prog-track { flex: 0 0 auto; width: 130px; }

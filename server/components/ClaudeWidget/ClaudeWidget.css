@@ -106,7 +106,20 @@
 }
 .cw-sess.is-running .cw-sess-dot::after { background: rgba(74,222,128,0.55); }
 .cw-sess.is-waiting .cw-sess-dot::after { background: rgba(245,165,36,0.6); }
-body.overlay-frozen .cw-sess-dot::after { animation-play-state: paused; }
+/* Freeze states. The extra `.cw-sess` in the selector is load-bearing, not
+   decoration: the ripple above is declared with the `animation` SHORTHAND, which
+   sets animation-play-state to `running`, and it does so from a (0,3,1) selector.
+   The previous rule here was `body.overlay-frozen .cw-sess-dot::after` — (0,2,2),
+   which LOSES on class count — so the freeze never applied and the ripple kept
+   compositing under every overlay, in ambient idle, in game mode and on the
+   low-power GPU path. Verified live before and after. Same reason the sibling
+   rules use `animation: none` plus a static opacity rather than play-state alone
+   (see the deck-key note in DeckPanel.css): a running animation beats a static
+   declaration, so `opacity: 0` on its own changes nothing. */
+body.overlay-frozen .cw-sess .cw-sess-dot::after,
+body.ambient-idle .cw-sess .cw-sess-dot::after,
+body.game-mode .cw-sess .cw-sess-dot::after,
+body.low-power-gpu .cw-sess .cw-sess-dot::after { animation: none; opacity: 0; }
 
 .cw-sess-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .cw-sess-top { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
@@ -697,7 +710,12 @@ body.overlay-frozen .cw-typing-dot { animation: none; opacity: 0.6; }
 }
 @keyframes cw-fade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .cw-sess-dot::after { animation: none; opacity: 0; }
+  /* Must repeat the ripple's own two selectors: a bare `.cw-sess-dot::after` is
+     (0,1,1) and loses to the (0,3,1) rule that declares the animation, so the
+     ripple ignored this preference entirely. Matching the shape makes it a tie
+     that this rule wins on source order. */
+  .cw-sess.is-running .cw-sess-dot::after,
+  .cw-sess.is-waiting .cw-sess-dot::after { animation: none; opacity: 0; }
   .cw-overlay { animation: none; }
   .cw-lim-fill, .cw-proj-bar { transition: none; }
 }

@@ -71,6 +71,14 @@ const PRESENTMON_CANDIDATES = [
   path.join(__dirname, 'PresentMon.exe'),
 ];
 
+// Dedicated ETW session name. PresentMon's default name ("PresentMon") is
+// shared territory: other frame tools use the same collector, and our
+// -stop_existing_session would steal the session from whoever owns it (the
+// NVIDIA App's FPS overlay reads frames through the same mechanism). With our
+// own name, -stop_existing_session only ever clears a stale session left by a
+// previous unclean Xenon exit — never another tool's.
+const ETW_SESSION_NAME = 'XenonFps';
+
 let _proc = null;
 let _cols = null;                // { frameTime, fps, app, pid }
 let _consecutiveFastFails = 0;
@@ -95,6 +103,20 @@ function presentMonPath() {
 // True when the PresentMon binary is present locally (vs. relying on PATH).
 function isAvailable() {
   return PRESENTMON_CANDIDATES.some(c => { try { return fs.existsSync(c); } catch { return false; } });
+}
+
+// A killed PresentMon cannot clean up after itself: proc.kill() is
+// TerminateProcess on Windows, and the ETW session it registered survives the
+// process — until reboot — unless stopped explicitly. logman ships with
+// Windows. Without the admin rights PresentMon needs, no session was ever
+// created and the stop fails; every outcome is deliberately ignored.
+function stopEtwSession() {
+  if (process.platform !== 'win32') return;
+  try {
+    spawn('logman.exe', ['stop', ETW_SESSION_NAME, '-ets'], { windowsHide: true, stdio: 'ignore' })
+      .on('error', () => { /* ignore */ })
+      .unref(); // must never delay server shutdown
+  } catch { /* ignore */ }
 }
 
 function normHeader(name) {
@@ -172,7 +194,7 @@ function start() {
   _byPid.clear(); // fresh PresentMon session → PIDs from the old one are meaningless
   const startedAt = Date.now();
   try {
-    _proc = spawn(exe, ['-output_stdout', '-stop_existing_session', '-no_top'], { windowsHide: true });
+    _proc = spawn(exe, ['-output_stdout', '-stop_existing_session', '-no_top', '-session_name', ETW_SESSION_NAME], { windowsHide: true });
   } catch {
     _proc = null;
     scheduleRestart(startedAt);
@@ -270,7 +292,7 @@ function pauseFpsMonitor() {
   if (_paused) return;
   _paused = true;
   if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
-  if (_proc) { try { _proc.kill(); } catch { /* ignore */ } _proc = null; }
+  if (_proc) { try { _proc.kill(); } catch { /* ignore */ } _proc = null; stopEtwSession(); }
   _byPid.clear(); // a future session's PIDs are unrelated to this one
 }
 
@@ -284,7 +306,7 @@ function resumeFpsMonitor() {
 function stopFpsMonitor() {
   _stopped = true;
   if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
-  if (_proc) { try { _proc.kill(); } catch { /* ignore */ } _proc = null; }
+  if (_proc) { try { _proc.kill(); } catch { /* ignore */ } _proc = null; stopEtwSession(); }
   _byPid.clear();
 }
 

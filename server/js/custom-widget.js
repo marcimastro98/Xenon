@@ -507,6 +507,7 @@
       secrets: !!(grant && grant.secrets === true),
       island: !!(grant && grant.island === true),
       islandDynamic: !!(grant && grant.islandDynamic === true),
+      islandFull: !!(grant && grant.islandFull === true),
       badge: !!(grant && grant.badge === true),
       clipboard: !!(grant && grant.clipboard === true),
       // Addresses the user typed into the package's userHosts slots, keyed by
@@ -826,6 +827,11 @@
       if (pkg.islandDynamic !== true || !grant.islandDynamic || !window.SdkIslandSchema) return;
       const view = SdkIslandSchema.normalize(msg);
       if (!view) return;
+      // A full-bar layout is a separate grant. Downgrade rather than drop: a
+      // widget that asks for the whole bar without the permission should still
+      // show its activity in the capsule, not go silently dark — the user would
+      // have no way to tell a refused permission from a broken widget.
+      if (view.layout === 'full' && (pkg.islandFull !== true || !grant.islandFull)) view.layout = 'expanded';
       entry.islandDynamicView = view;
       entry.islandText = '';
       if (entry.islandFlushTimer) return;
@@ -1670,6 +1676,7 @@
     const wantsSecrets = pkg.secrets === true;
     const wantsIsland = pkg.island === true;
     const wantsIslandDynamic = pkg.islandDynamic === true;
+    const wantsIslandFull = pkg.islandFull === true;
     const wantsBadge = pkg.badge === true;
     const wantsClipboard = pkg.clipboard === true;
     const storageGroup = typeof pkg.storageGroup === 'string' ? pkg.storageGroup : '';
@@ -1724,6 +1731,11 @@
     }
     if (wantsIslandDynamic) {
       addSection('cw_perm_island_dynamic', 'It can create Dynamic Island activities:', [t('cw_perm_island_dynamic_val', 'May temporarily replace the clock with Xenon-drawn text, meters and buttons')], {});
+    }
+    // Taking the WHOLE bar is visibly more than replacing the clock, so it is
+    // named on its own line rather than folded into the one above.
+    if (wantsIslandFull) {
+      addSection('cw_perm_island_full', 'It can take over the whole top bar:', [t('cw_perm_island_full_val', 'Its activity may span the entire bar, in place of the clock, date and weather')], {});
     }
     // Persistent badge: a small always-on chip next to the clock (both topbar
     // chromes), distinct from the transient island above — plain text only.
@@ -1795,7 +1807,7 @@
       if (!uh.ok) { refresh(); return; }
       const cur = sdk();
       const patch = {
-        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, secrets: wantsSecrets, island: wantsIsland, islandDynamic: wantsIslandDynamic, badge: wantsBadge, clipboard: wantsClipboard } },
+        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, secrets: wantsSecrets, island: wantsIsland, islandDynamic: wantsIslandDynamic, islandFull: wantsIslandFull, badge: wantsBadge, clipboard: wantsClipboard } },
       };
       if (instId != null) patch.assign = { ...(cur.assign || {}), [instId]: pkg.id };
       persist(patch);
@@ -1988,6 +2000,7 @@
       || (pkg.secrets === true && !g.secrets)
       || (pkg.island === true && !g.island)
       || (pkg.islandDynamic === true && !g.islandDynamic)
+      || (pkg.islandFull === true && !g.islandFull)
       || (pkg.badge === true && !g.badge)
       || (pkg.clipboard === true && !g.clipboard);
   }

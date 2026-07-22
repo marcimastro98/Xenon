@@ -9,6 +9,7 @@
   const MAX_BARS = 12;
   const BLOCK_TYPES = Object.freeze(['text', 'icon', 'progress', 'bars', 'builtin', 'button', 'spacer']);
   const BUILTINS = Object.freeze(['time', 'date', 'weather']);
+  const LAYOUTS = Object.freeze(['compact', 'expanded', 'full']);
   const ENTERS = Object.freeze(['morph', 'slide', 'pop', 'fade']);
   const EXITS = Object.freeze(['morph', 'slide', 'fade']);
   const TONES = Object.freeze(['primary', 'muted', 'accent', 'success', 'warning', 'danger']);
@@ -95,7 +96,11 @@
       : 0;
     return {
       op: 'present', mode, duration,
-      layout: raw.layout === 'expanded' ? 'expanded' : 'compact',
+      // 'full' spans the whole top bar. The schema only says the shape is legal;
+      // whether this package may USE it is a grant question, answered in
+      // custom-widget.js (which downgrades an ungranted 'full' rather than
+      // dropping the message — the schema has no grant context here).
+      layout: LAYOUTS.includes(raw.layout) ? raw.layout : 'compact',
       enter: ENTERS.includes(raw.enter) ? raw.enter : 'morph',
       exit: EXITS.includes(raw.exit) ? raw.exit : 'morph',
       accent: typeof raw.accent === 'string' && HEX_RE.test(raw.accent.trim()) ? raw.accent.trim().toLowerCase() : '',
@@ -103,7 +108,7 @@
     };
   }
 
-  const api = { MAX_BLOCKS, MAX_ACTIONS, MAX_BARS, BLOCK_TYPES, BUILTINS, normalize };
+  const api = { MAX_BLOCKS, MAX_ACTIONS, MAX_BARS, BLOCK_TYPES, BUILTINS, LAYOUTS, normalize };
   if (root && typeof root === 'object') root.SdkIslandSchema = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

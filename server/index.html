@@ -32,6 +32,7 @@
 <link rel="stylesheet" href="components/Topbar/Topbar.css">
 <link rel="stylesheet" href="components/TopbarMinimal/TopbarMinimal.css">
 <link rel="stylesheet" href="components/MediaPanel/MediaPanel.css">
+<link rel="stylesheet" href="components/TopbarMedia/TopbarMedia.css">
 <link rel="stylesheet" href="components/CalendarView/CalendarView.css">
 <link rel="stylesheet" href="components/DayModal/DayModal.css">
 <link rel="stylesheet" href="components/Toast/Toast.css">
@@ -155,6 +156,12 @@
           <span class="weather-temp" id="weather-temp">--°</span>
           <span class="weather-place" id="weather-place" data-i18n="weather_local">Locale</span>
         </button>
+        <!-- Now playing: cover, track and prev/play-pause/next. Populated by
+             js/topbar-media.js; lives inside .clock so it serves the full bar
+             and the minimal island alike (the clock is reparented, not cloned).
+             Hidden whenever nothing is playing; turned off for good from
+             Settings → Dynamic Island, where it is a normal segment row. -->
+        <span class="clock-media" id="clock-media" hidden></span>
         <!-- Vitals mini chips (opt-in, Settings → Notifiche → Vitals). Populated
              by js/vitals.js; lives inside .clock so the minimal-topbar island
              adopts it automatically when the clock is reparented. -->
@@ -215,7 +222,7 @@
             </select>
           </label>
         </div>
-        <div>
+        <div class="media-textblock">
           <div class="media-title" data-mf="media-title" data-i18n="media_empty_title">Niente in riproduzione</div>
           <div class="media-artist" data-mf="media-artist" data-i18n="media_empty_sub">Spotify, YouTube e altri player compariranno qui</div>
         </div>
@@ -1187,8 +1194,7 @@
           <span class="settings-label-line"><span data-i18n="settings_topbar_style">Stile</span><span class="settings-hint" data-i18n="settings_topbar_style_hint">minimal: azioni in barre laterali richiudibili, orologio e meteo in una capsula</span></span>
           <div class="settings-segmented" role="group" aria-label="Stile barra superiore">
             <button class="settings-topbar-style settings-segment-btn" type="button" data-topbar-style="full" onclick="updateTopbarStyle('full')" aria-pressed="true" data-i18n="settings_topbar_full">Completa</button>
-            <button class="settings-topbar-style settings-segment-btn" type="button" data-topbar-style="minimal" onclick="updateTopbarStyle('minimal')" aria-pressed="false" data-i18n="settings_topbar_minimal">Minimal</button>
-            <button class="settings-topbar-style settings-segment-btn" type="button" data-topbar-style="none" onclick="updateTopbarStyle('none')" aria-pressed="false" data-i18n="settings_topbar_none">Nessuna</button>
+            <button class="settings-topbar-style settings-segment-btn" type="button" data-topbar-style="minimal" onclick="updateTopbarStyle('minimal')" aria-pressed="false" data-i18n="settings_topbar_minimal">Minimal</button>            <button class="settings-topbar-style settings-segment-btn" type="button" data-topbar-style="none" onclick="updateTopbarStyle('none')" aria-pressed="false" data-i18n="settings_topbar_none">Nessuna</button>
           </div>
         </div>
         <div id="topbar-personalize">
@@ -3469,6 +3475,7 @@
 <script src="js/tile-decor-presets.js"></script>
 <script src="js/dashboard-layout.js"></script>
 <script src="js/topbar-minimal.js"></script>
+<script src="js/topbar-media.js"></script>
 <script src="js/sdk-island-schema.js"></script>
 <script src="js/sdk-island.js"></script>
 <script src="js/sdk-badges.js"></script>

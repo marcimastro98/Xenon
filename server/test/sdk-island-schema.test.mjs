@@ -28,6 +28,23 @@ test('dynamic island: normalizes a bounded live activity without retaining extra
   });
 });
 
+test('dynamic island: layout is an allowlist, and full survives normalization', () => {
+  const view = (layout) => schema.normalize({
+    type: 'island', op: 'present', mode: 'live', layout,
+    blocks: [{ type: 'text', text: 'x' }],
+  }).layout;
+  assert.equal(view('full'), 'full');
+  assert.equal(view('expanded'), 'expanded');
+  assert.equal(view('compact'), 'compact');
+  // Anything else falls back rather than passing through — the renderer keys CSS
+  // off this value. Whether the package MAY use 'full' is a grant question,
+  // answered in custom-widget.js, not here.
+  assert.equal(view('FULL'), 'compact');
+  assert.equal(view('fullscreen'), 'compact');
+  assert.equal(view(1), 'compact');
+  assert.equal(view(undefined), 'compact');
+});
+
 test('dynamic island: clamps takeover timing, bars and action count', () => {
   const view = schema.normalize({
     op: 'present', mode: 'takeover', duration: 99, enter: 'pop', exit: 'slide',

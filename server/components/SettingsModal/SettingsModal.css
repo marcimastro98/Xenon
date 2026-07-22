@@ -702,6 +702,7 @@ input[type="range"] { accent-color: var(--green); }
 .island-edit-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap; /* the options panel below drops onto its own line */
   gap: 10px;
   padding: 7px 10px;
   border: 1px solid var(--floating-ui-border);
@@ -715,6 +716,39 @@ input[type="range"] { accent-color: var(--green); }
   box-shadow: var(--shadow-lg);
 }
 .island-edit-list.reordering .island-edit-row:not(.dragging) { transition: transform 0.16s ease; }
+
+/* Per-segment options, revealed by the chevron. It lives INSIDE the row (on a
+   wrapped line) rather than as a sibling, so the reorder drag — which measures
+   whole `.island-edit-row` rects to pick an insertion point — keeps measuring
+   the whole item whether the panel is open or closed. */
+.island-edit-caret {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted-text);
+  cursor: pointer;
+}
+.island-edit-caret:hover { background: rgba(255,255,255,0.07); color: var(--text); }
+.island-edit-caret svg { width: 15px; height: 15px; transition: transform 0.18s ease; }
+.island-edit-row.is-open .island-edit-caret svg { transform: rotate(90deg); }
+.island-edit-sub {
+  flex: 0 0 100%;
+  margin: 2px 0 2px 36px;
+  padding-top: 8px;
+  border-top: 1px solid var(--floating-ui-border);
+}
+.island-edit-sub[hidden] { display: none; }
+.island-edit-sub .settings-toggle-row { margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .island-edit-caret svg { transition: none; }
+}
 .island-edit-handle {
   display: grid;
   place-items: center;

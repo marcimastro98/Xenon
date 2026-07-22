@@ -87,11 +87,11 @@ not need to do anything to support it.
 | `userHosts` | no | Up to 4 addresses **the user types in**, for servers you can't know in advance (a NAS, Docker, a printer). Each is `{ id, label, scope }` — `id` (`^[a-z0-9][a-z0-9-]{0,40}$`) is what you read the value back under, `label` (≤ 60 chars) is the text above the field, `scope` is `"private"` (default — LAN only) or `"any"`. See *User-supplied addresses*. |
 | `hooks` | no | Up to 8 hook ids (`^[a-z0-9][a-z0-9-]{0,40}$`) the widget may receive local webhook events on (see *Local webhooks*). |
 | `deck` | no | Deck contributions: up to 8 `actions` (macros of ≤ 10 steps, each step restricted to the same low-risk action set as `actions`), up to 8 `states` the widget publishes, and up to 8 `handlers` — Deck keys answered by your own code, with up to 4 declared params each (see *Deck integration* and *Handler actions*). |
-| `background` | no | `true` + declared `deck.handlers`, `badge`, and/or `island: { "dynamic": true }` → the host may run your package in a hidden **service frame** so its Deck keys, badge or Dynamic Island activity keep working with no tile on screen. Ignored without one of those capabilities. |
+| `background` | no | `true` + declared `deck.handlers`, `badge`, and/or `island: { "dynamic": true }` or `island: { "full": true }` → the host may run your package in a hidden **service frame** so its Deck keys, badge or Dynamic Island activity keep working with no tile on screen. Ignored without one of those capabilities. |
 | `storage` | no | `true` → your widget may keep a small persistent key/value store on this PC (its settings, chosen sources, last map view). Survives updates. See *Persistent storage*. |
 | `storageGroup` | no | A shared-store id (`^[a-z0-9][a-z0-9-]{0,40}$`). Every widget declaring the same group reads/writes ONE store, so a set of sibling widgets can share config/cache. Implies `storage`. |
 | `secrets` | no | `true` → your widget may store API keys in a **write-only** vault and use them via `{{secret:NAME}}` in proxied requests, so a published package ships no keys. See *Secrets & API keys*. |
-| `island` | no | `true` keeps the v4.6 **short plain-text line** API. `{ "dynamic": true }` requests the separate advanced permission for host-rendered Live Activities, timed takeovers and action buttons in **Full and Minimal**. See *Dynamic Island*. |
+| `island` | no | `true` keeps the v4.6 **short plain-text line** API. `{ "dynamic": true }` requests the separate advanced permission for host-rendered Live Activities, timed takeovers and action buttons in **Full and Minimal**. `{ "full": true }` requests a third permission on top: activities that span the **whole top bar**. See *Dynamic Island*. |
 | `badge` | no | `true` → your widget may show a small **always-on** text chip next to the clock, in both topbar chromes. Host-rendered, grant-gated — see *Persistent badge*. |
 | `clipboard` | no | `true` → your widget may **ask** to copy text to the system clipboard. It can never copy silently and can never read the clipboard: each copy shows a Xenon confirmation the user taps. See *Clipboard*. |
 
@@ -902,7 +902,7 @@ one of those capabilities.
 
 ### 9b. Dynamic Island — `island` (widget → host) (v4.6 / v4.10)
 
-There are two compatible levels. Both are opt-in permissions, host-rendered and
+There are three compatible levels. All are opt-in permissions, host-rendered and
 available in **Full and Minimal** topbar styles. Style **None** has no island
 surface, so updates are kept but not displayed.
 
@@ -1018,7 +1018,7 @@ Allowed blocks (maximum **10** after validation):
 Top-level fields:
 
 - `mode`: `live` (default) or `takeover`.
-- `layout`: `compact` (default) or `expanded`.
+- `layout`: `compact` (default), `expanded`, or `full` (requires `island: { "full": true }` — see below). An unrecognised value falls back to `compact`.
 - `accent`: optional strict `#rrggbb`; it only colours Xenon's allowed accents.
 - `enter`: `morph` (default), `slide`, `pop` or `fade`.
 - `exit`: `morph` (default), `slide` or `fade`.
@@ -1039,6 +1039,52 @@ Bursts are coalesced to the latest state at roughly 200 ms. Xenon retains only
 the newest takeover globally: a new goal or alert supersedes an older pending
 event, then restores the live activity or normal island when it leaves. System
 notifications remain above all SDK content.
+
+#### Full-bar activities (`"island": { "full": true }`)
+
+A third, separately approved step. It changes nothing about *what* you may draw —
+the same bounded blocks, the same 10-block cap, the same host rendering — only
+*how much room* the activity gets: `layout: "full"` is the widest step, for an
+activity that genuinely needs it, in place of the clock, date and weather.
+
+It stays a capsule. Xenon still sizes it to its content and only lets it grow
+further than `expanded` does; it is never pinned edge to edge. Do not design for
+a fixed full-screen width — you will not get one.
+
+```json
+{ "island": { "full": true } }
+```
+
+```js
+parent.postMessage({
+  xenonSdk: 1, type: 'island', op: 'present', mode: 'live', layout: 'full',
+  blocks: [
+    { type: 'icon', value: '🎧' },
+    { type: 'text', text: 'Radio Nightwave', weight: 'strong' },
+    { type: 'bars', values: [0.2, 0.6, 0.9, 0.5], animated: true },
+    { type: 'spacer', size: 'large' },
+    { type: 'button', id: 'skip', label: 'Skip' },
+  ],
+}, '*');
+```
+
+It is split from `dynamic` for the same reason `dynamic` was split from the
+legacy line: taking the entire bar is visibly more than replacing the clock, so
+an approval the user already gave must never grow into it after an update. A
+package that declares `full` implies `dynamic` — there is no way to fill a bar
+through the one-line text API — and both permissions are listed separately in the
+install dialog.
+
+**If the permission is missing, `full` is downgraded to `expanded`, not dropped.**
+Your activity still appears, in the capsule. Design for that: a full-bar layout
+must stay readable at capsule width, because a user who declined the permission
+(or an older Xenon) will see exactly that. Do not rely on the extra width to make
+essential information legible.
+
+Xenon's own now-playing segment can do something similar (Settings → **Dynamic
+Island** → Musica), but that is a built-in, not an SDK surface. An SDK activity
+takes precedence over it while it is showing, and system notifications still win
+over everything.
 
 #### The user owns every contribution
 

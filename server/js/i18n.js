@@ -1915,6 +1915,7 @@ const i18n = {
     streaming_discord_authorize: 'Apri Discord e clicca "Autorizza" nella finestra che appare.',
     streaming_discord_notrunning: 'App desktop Discord non rilevata. Apri Discord e riprova.',
     streaming_discord_busy: 'La connessione locale di Discord è occupata (forse da un\'altra app). Aspetta un attimo e ripremi Connetti.',
+    streaming_discord_pipedenied: 'Discord è in esecuzione come amministratore, quindi Xenon non ha il permesso di comunicarci. Chiudi Discord del tutto (icona nella tray → Esci) e riaprilo normalmente, poi premi Connetti. Aspettare non serve.',
     streaming_discord_closed: 'Discord ha chiuso la connessione. Verifica che il Client ID sia corretto e che l\'app desktop Discord sia connessa con l\'account che ha creato questa applicazione.',
     streaming_discord_denied: 'Autorizzazione negata su Discord. Approva la richiesta — e assicurati di essere connesso con l\'account proprietario dell\'applicazione.',
     streaming_discord_timeout: 'La finestra di autorizzazione è scaduta. Riprova e clicca "Autorizza" su Discord rapidamente.',
@@ -4073,6 +4074,7 @@ const i18n = {
     streaming_discord_authorize: 'Open Discord and click "Authorize" in the pop-up that appears.',
     streaming_discord_notrunning: 'Discord desktop app not detected. Open Discord and try again.',
     streaming_discord_busy: 'Discord\'s local connection is busy (another app may be using it). Wait a moment and try Connect again.',
+    streaming_discord_pipedenied: 'Discord is running as administrator, so Xenon is not allowed to talk to it. Quit Discord completely (tray icon → Quit) and reopen it normally, then press Connect. Waiting will not help.',
     streaming_discord_closed: 'Discord closed the connection. Check that the Client ID is correct and that Discord desktop is signed in with the account that created this application.',
     streaming_discord_denied: 'Authorization was denied in Discord. Approve the request — and make sure you are signed in with the account that owns this application.',
     streaming_discord_timeout: 'The authorization window timed out. Try again and click "Authorize" in Discord promptly.',
@@ -5982,6 +5984,7 @@ Object.assign(i18n, {
     streaming_discord_authorize: 'Discord를 열고 나타나는 팝업에서 "승인"을 클릭하세요.',
     streaming_discord_notrunning: 'Discord 데스크톱 앱이 감지되지 않았습니다. Discord를 열고 다시 시도하세요.',
     streaming_discord_busy: 'Discord 로컬 연결이 사용 중입니다(다른 앱이 사용 중일 수 있음). 잠시 후 다시 연결을 시도하세요.',
+    streaming_discord_pipedenied: 'Discord가 관리자 권한으로 실행 중이어서 Xenon이 통신할 수 없습니다. Discord를 완전히 종료한 뒤(트레이 아이콘 → 종료) 일반 권한으로 다시 열고 연결을 누르세요. 기다려도 해결되지 않습니다.',
     streaming_discord_closed: 'Discord가 연결을 종료했습니다. 클라이언트 ID가 올바른지, 그리고 이 애플리케이션을 만든 계정으로 Discord 데스크톱 앱에 로그인되어 있는지 확인하세요.',
     streaming_discord_denied: 'Discord에서 인증이 거부되었습니다. 요청을 승인하고, 이 애플리케이션을 소유한 계정으로 로그인되어 있는지 확인하세요.',
     streaming_discord_timeout: '인증 창이 시간 초과되었습니다. 다시 시도하고 Discord에서 "승인"을 빠르게 클릭하세요.',
@@ -7870,6 +7873,7 @@ Object.assign(i18n, {
     streaming_discord_authorize: 'Discord を開き、表示されるポップアップで「認証」をクリックしてください。',
     streaming_discord_notrunning: 'Discord デスクトップ アプリが検出されません。Discord を開いて再試行してください。',
     streaming_discord_busy: 'Discord のローカル接続が使用中です（他のアプリが使用している可能性があります）。少し待ってから再度「接続」を押してください。',
+    streaming_discord_pipedenied: 'Discord が管理者として実行されているため、Xenon から通信できません。Discord を完全に終了し（トレイアイコン → 終了）、通常どおり起動し直してから「接続」を押してください。待っても解決しません。',
     streaming_discord_closed: 'Discord が接続を閉じました。クライアント ID が正しいこと、そしてこのアプリケーションを作成したアカウントで Discord デスクトップ アプリにサインインしていることを確認してください。',
     streaming_discord_denied: 'Discord で認証が拒否されました。リクエストを承認し、このアプリケーションを所有するアカウントでサインインしていることを確認してください。',
     streaming_discord_timeout: '認証ウィンドウがタイムアウトしました。もう一度試して、Discord で「認証」を素早くクリックしてください。',
@@ -9758,6 +9762,7 @@ Object.assign(i18n, {
     streaming_discord_authorize: '打开 Discord，在弹出的窗口中点击“授权”。',
     streaming_discord_notrunning: '未检测到 Discord 桌面应用。请打开 Discord 后重试。',
     streaming_discord_busy: 'Discord 本地连接正忙（可能被其他应用占用）。请稍等片刻后再点击连接。',
+    streaming_discord_pipedenied: 'Discord 正以管理员身份运行，因此 Xenon 无权与其通信。请彻底退出 Discord（托盘图标 → 退出），以普通方式重新打开，然后点击连接。等待没有用。',
     streaming_discord_closed: 'Discord 关闭了连接。请检查 Client ID 是否正确，以及 Discord 桌面应用是否已用创建此应用程序的账户登录。',
     streaming_discord_denied: 'Discord 中的授权被拒绝。请批准请求，并确保已用拥有此应用程序的账户登录。',
     streaming_discord_timeout: '授权窗口已超时。请重试并在 Discord 中尽快点击“授权”。',
@@ -10949,6 +10954,7 @@ Object.assign(i18n, {
     streaming_discord_authorize: 'Abre Discord y haz clic en "Autorizar" en la ventana que aparece.',
     streaming_discord_notrunning: 'No se detecta la app de escritorio de Discord. Ábrela e inténtalo de nuevo.',
     streaming_discord_busy: 'La conexión local de Discord está ocupada (puede que la esté usando otra app). Espera un momento y vuelve a pulsar Conectar.',
+    streaming_discord_pipedenied: 'Discord se está ejecutando como administrador, así que Xenon no tiene permiso para comunicarse con él. Cierra Discord por completo (icono de la bandeja → Salir), ábrelo con normalidad y pulsa Conectar. Esperar no servirá de nada.',
     streaming_discord_closed: 'Discord cerró la conexión. Comprueba que el Client ID sea correcto y que la app de escritorio de Discord haya iniciado sesión con la cuenta que creó esta aplicación.',
     streaming_discord_denied: 'Se denegó la autorización en Discord. Aprueba la solicitud y asegúrate de haber iniciado sesión con la cuenta propietaria de la aplicación.',
     streaming_discord_timeout: 'La ventana de autorización caducó. Inténtalo de nuevo y pulsa "Autorizar" en Discord enseguida.',
@@ -11933,6 +11939,7 @@ Object.assign(i18n, {
     streaming_discord_authorize: 'Ouvre Discord et clique sur « Autoriser » dans la fenêtre qui apparaît.',
     streaming_discord_notrunning: 'Application de bureau Discord non détectée. Ouvre Discord et réessaie.',
     streaming_discord_busy: 'La connexion locale de Discord est occupée (une autre application l\'utilise peut-être). Patiente un instant et réappuie sur Connecter.',
+    streaming_discord_pipedenied: 'Discord tourne en tant qu\'administrateur, Xenon n\'a donc pas le droit de communiquer avec lui. Quitte Discord complètement (icône dans la zone de notification → Quitter), rouvre-le normalement, puis appuie sur Connecter. Attendre ne changera rien.',
     streaming_discord_closed: 'Discord a fermé la connexion. Vérifie que le Client ID est correct et que l\'application de bureau Discord est connectée avec le compte qui a créé cette application.',
     streaming_discord_denied: 'L\'autorisation a été refusée dans Discord. Approuve la demande — et assure-toi d\'être connecté avec le compte propriétaire de l\'application.',
     streaming_discord_timeout: 'La fenêtre d\'autorisation a expiré. Réessaie et clique rapidement sur « Autoriser » dans Discord.',
@@ -12917,6 +12924,7 @@ Object.assign(i18n, {
     streaming_discord_authorize: 'Öffne Discord und klicke im erscheinenden Fenster auf „Autorisieren“.',
     streaming_discord_notrunning: 'Discord-Desktop-App nicht erkannt. Öffne Discord und versuche es erneut.',
     streaming_discord_busy: 'Die lokale Verbindung von Discord ist belegt (möglicherweise nutzt sie eine andere App). Warte einen Moment und drücke erneut auf Verbinden.',
+    streaming_discord_pipedenied: 'Discord läuft als Administrator, deshalb darf Xenon nicht mit ihm sprechen. Beende Discord vollständig (Symbol im Infobereich → Beenden), öffne es normal und drücke dann auf Verbinden. Warten hilft nicht.',
     streaming_discord_closed: 'Discord hat die Verbindung geschlossen. Prüfe, ob die Client ID stimmt und ob die Discord-Desktop-App mit dem Konto angemeldet ist, das diese Anwendung erstellt hat.',
     streaming_discord_denied: 'Die Autorisierung wurde in Discord abgelehnt. Bestätige die Anfrage — und stelle sicher, dass du mit dem Konto angemeldet bist, dem die Anwendung gehört.',
     streaming_discord_timeout: 'Das Autorisierungsfenster ist abgelaufen. Versuche es erneut und klicke in Discord zügig auf „Autorisieren“.',
@@ -13901,6 +13909,7 @@ Object.assign(i18n, {
     streaming_discord_authorize: 'Abre o Discord e clica em "Autorizar" na janela que aparece.',
     streaming_discord_notrunning: 'App de computador do Discord não detetada. Abre o Discord e tenta novamente.',
     streaming_discord_busy: 'A ligação local do Discord está ocupada (outra app pode estar a usá-la). Espera um momento e volta a premir Ligar.',
+    streaming_discord_pipedenied: 'O Discord está a correr como administrador, por isso o Xenon não tem permissão para falar com ele. Fecha o Discord por completo (ícone na bandeja → Sair) e abre-o normalmente, depois carrega em Ligar. Esperar não resolve.',
     streaming_discord_closed: 'O Discord fechou a ligação. Verifica se o Client ID está correto e se a app de computador do Discord tem sessão iniciada com a conta que criou esta aplicação.',
     streaming_discord_denied: 'A autorização foi negada no Discord. Aprova o pedido — e certifica-te de que tens sessão iniciada com a conta proprietária da aplicação.',
     streaming_discord_timeout: 'A janela de autorização expirou. Tenta novamente e clica em "Autorizar" no Discord rapidamente.',
@@ -14885,6 +14894,7 @@ Object.assign(i18n, {
     streaming_discord_authorize: 'Откройте Discord и нажмите «Авторизовать» в появившемся окне.',
     streaming_discord_notrunning: 'Настольное приложение Discord не обнаружено. Откройте Discord и попробуйте снова.',
     streaming_discord_busy: 'Локальное подключение Discord занято (возможно, его использует другое приложение). Подождите немного и снова нажмите «Подключить».',
+    streaming_discord_pipedenied: 'Discord запущен от имени администратора, поэтому Xenon не может с ним связаться. Полностью закройте Discord (значок в трее → «Выход») и откройте его обычным способом, затем нажмите «Подключить». Ожидание не поможет.',
     streaming_discord_closed: 'Discord закрыл подключение. Проверьте, верен ли Client ID и вошло ли настольное приложение Discord под тем аккаунтом, который создал это приложение.',
     streaming_discord_denied: 'Авторизация в Discord отклонена. Подтвердите запрос — и убедитесь, что вы вошли под аккаунтом-владельцем приложения.',
     streaming_discord_timeout: 'Время окна авторизации истекло. Попробуйте снова и сразу нажмите «Авторизовать» в Discord.',
@@ -17102,6 +17112,7 @@ Object.assign(i18n, {
     "streaming_discord_authorize": "Open Discord en klik op \"Autoriseren\" in het pop-upvenster dat verschijnt.",
     "streaming_discord_notrunning": "Discord-desktopapp niet gedetecteerd. Open Discord en probeer het opnieuw.",
     "streaming_discord_busy": "De lokale verbinding van Discord is bezet (mogelijk gebruikt een andere app deze). Wacht even en probeer opnieuw te verbinden.",
+    "streaming_discord_pipedenied": "Discord draait als administrator, waardoor Xenon er niet mee mag praten. Sluit Discord volledig af (pictogram in het systeemvak → Afsluiten), open het normaal en druk daarna op Verbinden. Wachten helpt niet.",
     "streaming_discord_closed": "Discord heeft de verbinding gesloten. Controleer of de Client ID juist is en of Discord desktop is ingelogd met het account waarmee deze applicatie is aangemaakt.",
     "streaming_discord_denied": "De autorisatie is geweigerd in Discord. Keur het verzoek goed — en zorg dat je bent ingelogd met het account dat eigenaar is van deze applicatie.",
     "streaming_discord_timeout": "De tijd voor het autorisatievenster is verstreken. Probeer het opnieuw en klik direct op \"Autoriseren\" in Discord.",
@@ -17511,6 +17522,102 @@ Object.assign(i18n.nl, {
   settings_island_sources: 'Apps en widgets', settings_island_sources_hint: 'alleen geïnstalleerde extensies die iets aan het eiland toevoegen verschijnen hier', settings_island_takeovers: 'Tijdelijke overnames toestaan', settings_island_takeovers_hint: 'een doelpunt, nieuw nummer of resultaat kan de normale inhoud kort vervangen en daarna herstellen',
   settings_island_reset: 'Dynamic Island herstellen', settings_island_empty: 'Geen geïnstalleerde app of widget voegt inhoud toe aan Dynamic Island.', settings_island_loading: 'Geïnstalleerde extensies laden…', island_source_live: 'Live-regel', island_source_dynamic: 'Dynamische activiteiten', island_source_badge: 'Badge',
   cw_perm_island_dynamic: 'Kan Dynamic Island-activiteiten maken:', cw_perm_island_dynamic_val: 'Kan de klok tijdelijk vervangen door tekst, meters en knoppen die Xenon tekent', cw_perm_background_island: 'Deze widget kan verborgen op de achtergrond actief blijven zodat Dynamic Island-activiteiten ook zonder tegel actueel blijven.',
+});
+
+// v4.10 — the SDK `island: { full: true }` capability: a widget activity that
+// spans the whole top bar. Named on its own permission line because taking the
+// entire bar is visibly more than replacing the clock.
+Object.assign(i18n.it, {
+  cw_perm_island_full: 'Può occupare tutta la barra superiore:', cw_perm_island_full_val: 'La sua attività può estendersi su tutta la barra, al posto di orologio, data e meteo', island_source_full: 'Barra intera',
+});
+Object.assign(i18n.en, {
+  cw_perm_island_full: 'It can take over the whole top bar:', cw_perm_island_full_val: 'Its activity may span the entire bar, in place of the clock, date and weather', island_source_full: 'Whole bar',
+});
+Object.assign(i18n.ko, {
+  cw_perm_island_full: '상단 바 전체를 사용할 수 있습니다:', cw_perm_island_full_val: '해당 활동이 시계·날짜·날씨 대신 바 전체에 표시될 수 있습니다', island_source_full: '바 전체',
+});
+Object.assign(i18n.ja, {
+  cw_perm_island_full: '上部バー全体を使用できます:', cw_perm_island_full_val: 'アクティビティが時刻・日付・天気に代わってバー全体に表示されることがあります', island_source_full: 'バー全体',
+});
+Object.assign(i18n.zh, {
+  cw_perm_island_full: '可以占用整个顶栏：', cw_perm_island_full_val: '其活动可跨越整个顶栏，取代时钟、日期和天气', island_source_full: '整个顶栏',
+});
+Object.assign(i18n.es, {
+  cw_perm_island_full: 'Puede ocupar toda la barra superior:', cw_perm_island_full_val: 'Su actividad puede abarcar toda la barra, en lugar del reloj, la fecha y el clima', island_source_full: 'Barra entera',
+});
+Object.assign(i18n.fr, {
+  cw_perm_island_full: 'Il peut occuper toute la barre supérieure :', cw_perm_island_full_val: 'Son activité peut couvrir toute la barre, à la place de l\'horloge, de la date et de la météo', island_source_full: 'Barre entière',
+});
+Object.assign(i18n.de, {
+  cw_perm_island_full: 'Es kann die gesamte obere Leiste einnehmen:', cw_perm_island_full_val: 'Seine Aktivität kann die ganze Leiste einnehmen, anstelle von Uhr, Datum und Wetter', island_source_full: 'Ganze Leiste',
+});
+Object.assign(i18n.pt, {
+  cw_perm_island_full: 'Pode ocupar toda a barra superior:', cw_perm_island_full_val: 'A sua atividade pode abranger a barra inteira, em vez do relógio, da data e do clima', island_source_full: 'Barra inteira',
+});
+Object.assign(i18n.ru, {
+  cw_perm_island_full: 'Может занять всю верхнюю панель:', cw_perm_island_full_val: 'Его активность может занимать всю панель вместо часов, даты и погоды', island_source_full: 'Вся панель',
+});
+Object.assign(i18n.nl, {
+  cw_perm_island_full: 'Het kan de hele bovenbalk overnemen:', cw_perm_island_full_val: 'De activiteit kan de hele balk beslaan, in plaats van klok, datum en weer', island_source_full: 'Hele balk',
+});
+
+// Now playing in the topbar — the 'media' island segment (js/topbar-media.js),
+// plus its per-segment option: while a track plays the player can take the whole
+// capsule, and the other segments return the moment it pauses.
+Object.assign(i18n.it, {
+  topbar_el_media: 'Musica', topbar_el_options: 'Opzioni',
+  topbar_el_media_full: 'Occupa tutta l\'isola mentre suona',
+  topbar_el_media_full_hint: 'ora, data e meteo si spostano finché la musica va, e tornano appena metti in pausa o chiudi il player',
+});
+Object.assign(i18n.en, {
+  topbar_el_media: 'Music', topbar_el_options: 'Options',
+  topbar_el_media_full: 'Fill the island while playing',
+  topbar_el_media_full_hint: 'time, date and weather step aside while music plays, and come back as soon as you pause or close the player',
+});
+Object.assign(i18n.ko, {
+  topbar_el_media: '음악', topbar_el_options: '옵션',
+  topbar_el_media_full: '재생 중 아일랜드 전체 사용',
+  topbar_el_media_full_hint: '음악이 재생되는 동안 시간·날짜·날씨가 물러나고, 일시정지하거나 플레이어를 닫으면 바로 돌아옵니다',
+});
+Object.assign(i18n.ja, {
+  topbar_el_media: '音楽', topbar_el_options: 'オプション',
+  topbar_el_media_full: '再生中はアイランド全体を使う',
+  topbar_el_media_full_hint: '再生中は時刻・日付・天気が下がり、一時停止するかプレーヤーを閉じるとすぐ戻ります',
+});
+Object.assign(i18n.zh, {
+  topbar_el_media: '音乐', topbar_el_options: '选项',
+  topbar_el_media_full: '播放时占用整个胶囊',
+  topbar_el_media_full_hint: '播放期间时间、日期和天气让位，暂停或关闭播放器后立即返回',
+});
+Object.assign(i18n.es, {
+  topbar_el_media: 'Música', topbar_el_options: 'Opciones',
+  topbar_el_media_full: 'Ocupar toda la cápsula mientras suena',
+  topbar_el_media_full_hint: 'la hora, la fecha y el clima se apartan mientras suena la música, y vuelven en cuanto pausas o cierras el reproductor',
+});
+Object.assign(i18n.fr, {
+  topbar_el_media: 'Musique', topbar_el_options: 'Options',
+  topbar_el_media_full: 'Occuper toute la capsule pendant la lecture',
+  topbar_el_media_full_hint: 'l\'heure, la date et la météo s\'écartent pendant la lecture et reviennent dès que vous mettez en pause ou fermez le lecteur',
+});
+Object.assign(i18n.de, {
+  topbar_el_media: 'Musik', topbar_el_options: 'Optionen',
+  topbar_el_media_full: 'Während der Wiedergabe die ganze Kapsel einnehmen',
+  topbar_el_media_full_hint: 'Uhrzeit, Datum und Wetter treten während der Wiedergabe zurück und kommen zurück, sobald du pausierst oder den Player schließt',
+});
+Object.assign(i18n.pt, {
+  topbar_el_media: 'Música', topbar_el_options: 'Opções',
+  topbar_el_media_full: 'Ocupar toda a cápsula durante a reprodução',
+  topbar_el_media_full_hint: 'a hora, a data e o clima saem de cena enquanto a música toca e voltam assim que pausas ou fechas o leitor',
+});
+Object.assign(i18n.ru, {
+  topbar_el_media: 'Музыка', topbar_el_options: 'Параметры',
+  topbar_el_media_full: 'Занимать всю капсулу во время воспроизведения',
+  topbar_el_media_full_hint: 'время, дата и погода уступают место, пока играет музыка, и возвращаются, как только вы поставите на паузу или закроете плеер',
+});
+Object.assign(i18n.nl, {
+  topbar_el_media: 'Muziek', topbar_el_options: 'Opties',
+  topbar_el_media_full: 'De hele capsule vullen tijdens het afspelen',
+  topbar_el_media_full_hint: 'tijd, datum en weer gaan opzij zolang muziek speelt en komen terug zodra je pauzeert of de speler sluit',
 });
 
 function t(key) {

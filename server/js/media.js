@@ -480,11 +480,15 @@ function applyMediaInto(root, ctx) {
 function applyMedia(data) {
   mediaData = data;
   renderMediaSourcePicker(data);
-  if (!$('media-panel')) return; // media tile transiently detached (tab-group build)
+  // False while the tile is transiently detached (tab-group build) or simply not
+  // on this dashboard. The topbar now-playing segment must survive both, so the
+  // guard is applied per-consumer below instead of returning early here.
+  const hasPanel = !!$('media-panel');
 
   const active = data && data.active && (data.title || data.artist || data.app);
   if (!active) {
-    refreshMediaEmpty();
+    refreshMediaEmpty(); // also clears the topbar segment
+    if (!hasPanel) return;
     calendarAutoShown = preferredMediaView() !== 'calendar';
     showCalendar(true, true);
     updateCalendarMiniPlayer();
@@ -492,12 +496,6 @@ function applyMedia(data) {
     updateMediaChatPreview();
     return;
   }
-
-  if (calendarAutoShown) {
-    calendarAutoShown = false;
-    showCalendar(preferredMediaView() === 'calendar', true);
-  }
-  mediaAutoTab();
 
   // Browser playback only tells us the host browser via SMTC — resolve the real
   // service (Twitch/YouTube/…) so the badge, mini-player and chat preview agree.
@@ -520,8 +518,24 @@ function applyMedia(data) {
     title: cleanTitle(data.title) || t('media_unknown_title'),
     artist: data.artist || data.album || '',
     thumb, playing,
+    // Whole seconds off the SMTC timeline, so every player reports them, not
+    // just Spotify. 0/0 means "no timeline" (live streams, radio) — consumers
+    // must treat that as "no progress to show", not as "at the start".
+    position: Number(data.position) || 0,
+    duration: Number(data.duration) || 0,
     isSpotify: /spotify/i.test(app), isYoutube: /youtube/i.test(app), isTwitch: /twitch/i.test(app),
   };
+  // Topbar/island now-playing first: it is a surface of its own and works with
+  // no media tile on the dashboard (js/topbar-media.js).
+  if (window.TopbarMedia) window.TopbarMedia.sync(ctx);
+  if (!hasPanel) return;
+
+  if (calendarAutoShown) {
+    calendarAutoShown = false;
+    showCalendar(preferredMediaView() === 'calendar', true);
+  }
+  mediaAutoTab();
+
   eachMedia(root => applyMediaInto(root, ctx));
 
   updateAlbumAccent(thumb);
@@ -568,6 +582,7 @@ function refreshMediaEmpty() {
   _lastThumb = '';
   _lastThumbKey = '';
   updateAlbumAccent(''); // no media → restore the user's saved accent
+  if (window.TopbarMedia) window.TopbarMedia.sync(null); // hide the topbar segment
   if (!$('media-panel')) return; // media tile transiently detached
   eachMedia(root => applyMediaInto(root, { empty: true }));
   syncLockMediaPlaybackIcon(false);

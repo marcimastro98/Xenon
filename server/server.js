@@ -6168,11 +6168,15 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     version: 2,
     align: 'center',
     takeovers: true,
+    // Music takeover: the player owns the whole capsule while a track plays, and
+    // the other segments return the moment it pauses. Off by default.
+    mediaTakeover: false,
     hiddenSources: Object.freeze([]),
     items: Object.freeze([
       Object.freeze({ id: 'time', hidden: false }),
       Object.freeze({ id: 'date', hidden: false }),
       Object.freeze({ id: 'weather', hidden: false }),
+      Object.freeze({ id: 'media', hidden: false }),
       Object.freeze({ id: 'vitals', hidden: true }),
       Object.freeze({ id: 'dots', hidden: false }),
       Object.freeze({ id: 'badges', hidden: false }),
@@ -7004,7 +7008,7 @@ function normalizeTopbarRails(value) {
 // flags. Rebuild from the canonical id set (drop unknown/dupes, append missing
 // in default order) — never spread untrusted input. Migrates the earlier
 // {date,weather} booleans onto their items when `items` is absent.
-const TOPBAR_ISLAND_IDS = ['time', 'date', 'weather', 'vitals', 'dots', 'badges', 'claude'];
+const TOPBAR_ISLAND_IDS = ['time', 'date', 'weather', 'media', 'vitals', 'dots', 'badges', 'claude'];
 function normalizeTopbarClock(value, legacyRoot) {
   const v = value && typeof value === 'object' ? value : {};
   const legacy = legacyRoot && typeof legacyRoot === 'object' ? legacyRoot : {};
@@ -7041,7 +7045,7 @@ function normalizeTopbarClock(value, legacyRoot) {
       if (typeof id === 'string' && sourceRe.test(id) && !hiddenSources.includes(id)) hiddenSources.push(id);
     }
   }
-  return { version: 2, align, items, hiddenSources, takeovers: v.takeovers !== false };
+  return { version: 2, align, items, hiddenSources, takeovers: v.takeovers !== false, mediaTakeover: v.mediaTakeover === true };
 }
 
 // Scrolling ticker bar config: enabled, edge position, marquee speed and which

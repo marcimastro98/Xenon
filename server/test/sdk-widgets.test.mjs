@@ -15,7 +15,7 @@ test('manifest: valid minimal manifest normalizes', () => {
   assert.equal(r.ok, true);
   assert.deepEqual(r.manifest, {
     id: 'clock', api: 1, name: 'Clock', version: '0.0.0', author: '',
-    description: '', surface: 'tile', background: false, island: false, islandDynamic: false, badge: false,
+    description: '', surface: 'tile', background: false, island: false, islandDynamic: false, islandFull: false, badge: false,
     clipboard: false, storage: false, storageGroup: '', secrets: false,
     entry: 'index.html', streams: [], actions: [],
     hosts: [], userHosts: [], hooks: [], deck: { actions: [], states: [], handlers: [] },
@@ -48,6 +48,23 @@ test('manifest: legacy island and separately granted dynamic island normalize ex
   assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', island: 'yes' }, 'x0').manifest.island, false);
   assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', island: {} }, 'x0').manifest.island, false);
   assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', island: { dynamic: 1 } }, 'x0').manifest.islandDynamic, false);
+});
+
+test('manifest: full-bar island is a third opt-in that implies the two below it', () => {
+  const full = sdk.normalizeManifest({ api: 1, name: 'X', island: { full: true } }, 'x0').manifest;
+  assert.equal(full.islandFull, true);
+  // Nothing can fill a bar through the one-line text API, so full implies both.
+  assert.equal(full.islandDynamic, true);
+  assert.equal(full.island, true);
+  // Dynamic alone must NOT grow into the full bar.
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', island: { dynamic: true } }, 'x0').manifest.islandFull, false);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', island: true }, 'x0').manifest.islandFull, false);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X' }, 'x0').manifest.islandFull, false);
+  // Truthy junk stays off, same as every other boolean capability.
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', island: { full: 1 } }, 'x0').manifest.islandFull, false);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', island: { full: 'yes' } }, 'x0').manifest.islandFull, false);
+  // It justifies a hidden service frame, like a badge or a dynamic activity.
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', island: { full: true }, background: true }, 'x0').manifest.background, true);
 });
 
 test('manifest: badge defaults off, opts in only on the exact true literal', () => {

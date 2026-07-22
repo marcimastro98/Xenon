@@ -59,7 +59,7 @@
   // must also be added to the canonical list in normalizeTopbarClock (client
   // settings.js AND its server.js twin) and labelled in TOPBAR_ISLAND_LABELS,
   // or it is dropped on the next settings save.
-  const ISLAND_SEG_IDS = ['time', 'date', 'weather', 'vitals', 'dots', 'badges', 'claude'];
+  const ISLAND_SEG_IDS = ['time', 'date', 'weather', 'media', 'vitals', 'dots', 'badges', 'claude'];
 
   function captureTopbarEls() {
     if (els) return els;
@@ -76,13 +76,14 @@
     const clockDate = clock.querySelector('.clock-date');
     const metaSep = clock.querySelector('.clock-meta-sep');
     const clockWeather = clock.querySelector('.clock-weather');
+    const clockMedia = clock.querySelector('.clock-media'); // now playing (js/topbar-media.js)
     const clockVitals = clock.querySelector('.clock-vitals'); // optional (vitals opt-in)
     const clockBadges = clock.querySelector('.clock-sdkbadges'); // SDK badge chips (js/sdk-badges.js)
     const clockClaude = clock.querySelector('.clock-claude'); // Claude Code marker (js/claude-widget.js)
     if (!clockFace || !clockMeta || !clockDate || !clockWeather) return null;
     els = {
       topbar, quickbar, clock, topActions, pagerDots,
-      clockFace, clockMeta, statusDot, clockDate, metaSep, clockWeather, clockVitals, clockBadges, clockClaude,
+      clockFace, clockMeta, statusDot, clockDate, metaSep, clockWeather, clockMedia, clockVitals, clockBadges, clockClaude,
     };
     return els;
   }
@@ -93,6 +94,7 @@
       case 'time': return els.clockFace;
       case 'date': return els.clockDate;
       case 'weather': return els.clockWeather;
+      case 'media': return els.clockMedia;
       case 'vitals': return els.clockVitals;
       case 'dots': return els.pagerDots;
       case 'badges': return els.clockBadges;
@@ -119,11 +121,22 @@
   function applyIslandLayout() {
     if (!els && !captureTopbarEls()) return;
     const items = readIslandItems();
+    // Music takeover (Settings → Dynamic Island → Musica → "occupa tutta
+    // l'isola"): while a track is actually PLAYING, the player gets the whole
+    // capsule and every other segment is masked off. It ends the moment playback
+    // pauses, stops or the player closes, and the bar's normal contents come
+    // straight back. This is an effective-off mask, never a write: the user's own
+    // show/hide choices are untouched throughout (same shape as the safe-mode
+    // masks in js/custom-widget.js). A media segment the user hid stays hidden
+    // and never takes anything over.
+    const mediaItem = items.find((it) => it && it.id === 'media');
+    const musicOnly = !!(mediaItem && mediaItem.hidden !== true
+      && window.TopbarMedia && typeof TopbarMedia.takingOver === 'function' && TopbarMedia.takingOver());
     let leadDone = false;
     items.forEach((it, index) => {
       const el = islandSegEl(it && it.id);
       if (!el) return;
-      const hidden = it.hidden === true;
+      const hidden = it.hidden === true || (musicOnly && it.id !== 'media');
       el.classList.toggle('topbar-item-hidden', hidden);
       if (!active || !ui || !ui.pill) {
         el.style.removeProperty('order');
@@ -142,9 +155,72 @@
     // neighbour has been hidden in the Full bar.
     const itemById = new Map(items.map((item) => [item.id, item]));
     if (els.metaSep) {
-      const hideSep = itemById.get('date')?.hidden === true || itemById.get('weather')?.hidden === true;
+      const hideSep = musicOnly
+        || itemById.get('date')?.hidden === true
+        || itemById.get('weather')?.hidden === true;
       els.metaSep.classList.toggle('topbar-item-hidden', hideSep);
     }
+  }
+
+  // ── Island morph ────────────────────────────────────────────────────────────
+  // A change that swaps WHICH segments the capsule holds — today only the music
+  // takeover starting or ending on play/pause — is a structural change, and doing
+  // it plainly is a hard cut: half the pill's contents vanish or appear at once
+  // and the capsule snaps between two widths in a single frame.
+  //
+  // This is the same trick a real Dynamic Island uses. The pill's CONTENTS fade
+  // out, the swap happens while nothing is visible, and the BOX glides from its
+  // old size to its new one (measured before and after, then transitioned — the
+  // capsule sizes itself to its content, so there is no width to animate without
+  // pinning one for the duration) while the new contents fade back in. What the
+  // eye follows is one shape changing, not two layouts trading places.
+  //
+  // Deliberately NOT wired into applyIslandLayout itself: that runs on every
+  // settings apply and must stay synchronous and idempotent. Callers ask for the
+  // morph when they know they are making a structural change.
+  const MORPH_DIM_MS = 110;   // contents fade out; must match TopbarMinimal.css
+  const MORPH_BOX_MS = 340;   // box glides; must match TopbarMinimal.css
+  let morphOutTimer = 0;
+  let morphEndTimer = 0;
+
+  function morphIsland(mutate) {
+    const pill = ui && ui.pill;
+    const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!active || !pill || !document.body.classList.contains('topbar-minimal') || reduced) {
+      mutate();
+      return;
+    }
+    clearTimeout(morphOutTimer);
+    clearTimeout(morphEndTimer);
+    // Opacity does not affect layout, so the "before" box can be measured with
+    // the fade already running.
+    pill.classList.add('mini-morph-dim');
+    const from = pill.getBoundingClientRect();
+    morphOutTimer = setTimeout(() => {
+      mutate();
+      const to = pill.getBoundingClientRect();
+      // Nothing actually resized (e.g. the takeover is switched off, so a
+      // play/pause only changed a glyph) — don't animate a box that isn't moving.
+      if (Math.abs(to.width - from.width) < 2 && Math.abs(to.height - from.height) < 2) {
+        pill.classList.remove('mini-morph-dim');
+        return;
+      }
+      pill.classList.add('mini-morphing');
+      pill.style.width = from.width + 'px';
+      pill.style.height = from.height + 'px';
+      void pill.offsetWidth; // commit the old box as the transition's start
+      pill.classList.remove('mini-morph-dim'); // fade back in as the box travels
+      pill.style.width = to.width + 'px';
+      pill.style.height = to.height + 'px';
+      morphEndTimer = setTimeout(() => {
+        // Hand the capsule back to its own content sizing; an inline width left
+        // behind would freeze it at whatever the track was called at the time.
+        pill.classList.remove('mini-morphing');
+        pill.style.removeProperty('width');
+        pill.style.removeProperty('height');
+        reflowIsland();
+      }, MORPH_BOX_MS);
+    }, MORPH_DIM_MS);
   }
 
   function buildRail(side) {
@@ -292,9 +368,9 @@
       el.style.removeProperty('order');
       el.classList.remove('island-seg', 'island-seg-lead', 'island-seg-hidden');
     });
-    // clock-meta ← status-dot · date · sep · weather · vitals · badges
+    // clock-meta ← status-dot · date · sep · weather · media · vitals · badges · claude
     // (fixed original order — must match index.html)
-    [els.statusDot, els.clockDate, els.metaSep, els.clockWeather, els.clockVitals, els.clockBadges, els.clockClaude]
+    [els.statusDot, els.clockDate, els.metaSep, els.clockWeather, els.clockMedia, els.clockVitals, els.clockBadges, els.clockClaude]
       .forEach(el => { if (el) els.clockMeta.appendChild(el); });
     els.clock.append(els.clockFace, els.clockMeta);
     // Topbar's original child order: quickbar · clock · top-actions, with the
@@ -413,10 +489,12 @@
     document.body.classList.toggle('topbar-noisland', wantRails && barHidden);
     if (wantRails) enable(); else disable();
     applyIslandLayout();
+    // The progress row belongs to Music only, and its ticker is gated on it.
+    if (window.TopbarMedia && typeof TopbarMedia.apply === 'function') TopbarMedia.apply();
     // Pick up an auto-hide setting change even when already active (enable() would
     // have early-returned). Self-guards when inactive.
     configureAutoHide();
   }
 
-  window.TopbarMinimal = { apply, reflowIsland, applyIslandLayout };
+  window.TopbarMinimal = { apply, reflowIsland, applyIslandLayout, morphIsland };
 })();

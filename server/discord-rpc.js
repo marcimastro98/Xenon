@@ -216,21 +216,34 @@ function createDecoder(onMessage) {
 function pipePath(i) { return '\\\\?\\pipe\\discord-ipc-' + i; }
 
 // Try discord-ipc-0..9 in turn; resolve the first that connects, else reject.
-// EPERM means the pipe EXISTS but refused us — Discord serves a limited number
-// of concurrent RPC clients (often just one), so "busy" is a transient state
-// worth distinguishing from "Discord isn't running" (ENOENT everywhere): the
-// watch retries a busy pipe, and the login error can say "try again" instead
-// of the misleading "open Discord".
+// A pipe that EXISTS but refuses us fails in two ways that need OPPOSITE advice,
+// and libuv reports them differently (measured against a live Discord):
+//   EPERM        → ERROR_ACCESS_DENIED. Discord is running ELEVATED, so its pipe
+//                  carries a high integrity label and our medium-integrity server
+//                  is refused. Permanent: retrying never helps, Discord must be
+//                  restarted un-elevated.
+//   ECONNREFUSED → ERROR_PIPE_BUSY. Discord serves a limited number of concurrent
+//                  RPC clients (often just one). Transient: retrying works.
+// Treating both as "busy" told users to wait for a condition that would never
+// clear. ENOENT everywhere means Discord simply isn't running. Denied wins over
+// busy: it is the specific, actionable one.
 function connectPipe() {
   return new Promise((resolve, reject) => {
     let i = 0;
     let sawBusy = false;
+    let sawDenied = false;
     const tryNext = () => {
-      if (i >= PIPE_COUNT) { reject(new Error(sawBusy ? 'discord_pipe_busy' : 'discord_not_running')); return; }
+      if (i >= PIPE_COUNT) {
+        const why = sawDenied ? 'discord_pipe_denied' : (sawBusy ? 'discord_pipe_busy' : 'discord_not_running');
+        reject(new Error(why));
+        return;
+      }
       const sock = net.connect({ path: pipePath(i) });
       i += 1;
       const onErr = (e) => {
-        if (e && e.code === 'EPERM') sawBusy = true;
+        const code = e && e.code;
+        if (code === 'EPERM' || code === 'EACCES') sawDenied = true;
+        else if (code === 'ECONNREFUSED' || code === 'EBUSY') sawBusy = true;
         sock.removeAllListeners(); try { sock.destroy(); } catch { /* ignore */ } tryNext();
       };
       sock.once('error', onErr);
@@ -461,7 +474,12 @@ function createDiscordProvider(deps) {
     close();
     let s;
     try { s = await _connectPipe(); }
-    catch (e) { return loginFail((e && e.message) === 'discord_pipe_busy' ? 'discord_pipe_busy' : 'discord_not_running'); }
+    catch (e) {
+      // Pass through only the reasons connectPipe() is allowed to produce, so an
+      // unexpected throw still degrades to the safe "is Discord open?" answer.
+      const why = (e && e.message) || '';
+      return loginFail(why === 'discord_pipe_denied' || why === 'discord_pipe_busy' ? why : 'discord_not_running');
+    }
     try {
       const code = await new Promise((resolve, reject) => {
         const timer = setTimeout(() => reject(new Error('authorize_timeout')), AUTHORIZE_TIMEOUT_MS);

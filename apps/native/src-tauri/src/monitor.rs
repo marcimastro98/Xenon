@@ -139,7 +139,18 @@ fn window_is_on(window: &WebviewWindow, monitor: &Monitor) -> bool {
 /// Fullscreen follows the monitor the window sits on, so we must drop fullscreen,
 /// move onto the Edge origin, then re-enter fullscreen — otherwise `set_position`
 /// is ignored while the window is still fullscreen on another display.
-fn place_on_edge(window: &WebviewWindow, edge: &Monitor) {
+///
+/// `focus` is what separates a deliberate placement from a background repair.
+/// Placing the kiosk at startup, or when the user asks for it, should bring it
+/// forward. A watchdog re-pin should NOT: it fires on its own schedule, and
+/// `set_focus()` there yanks the foreground away from whatever the user is doing
+/// — including a window they just dragged onto the Edge, which then drops behind
+/// the kiosk and reads as "Xenon is pinned in front of everything". The watchdog
+/// passes the answer to "was the kiosk already the foreground?", so a re-pin can
+/// still re-raise the kiosk over a taskbar that Windows relocated on top of it
+/// (the case the topology check exists for) without ever stealing focus from
+/// another app.
+fn place_on_edge(window: &WebviewWindow, edge: &Monitor, focus: bool) {
     let origin: PhysicalPosition<i32> = *edge.position();
     let _ = window.set_fullscreen(false);
     // Enforce the kiosk chrome: borderless and hidden from the taskbar/Alt-Tab, so
@@ -149,7 +160,9 @@ fn place_on_edge(window: &WebviewWindow, edge: &Monitor) {
     let _ = window.set_skip_taskbar(true);
     let _ = window.set_position(origin);
     let _ = window.set_fullscreen(true);
-    let _ = window.set_focus();
+    if focus {
+        let _ = window.set_focus();
+    }
 }
 
 /// A window size that fits inside the given monitor (never wider or taller than
@@ -249,7 +262,7 @@ pub fn apply_prefs(window: &WebviewWindow) {
 /// the saved display preference. Called once at startup.
 pub fn place_now(window: &WebviewWindow) {
     match find_edge(window) {
-        Some(edge) => place_on_edge(window, &edge),
+        Some(edge) => place_on_edge(window, &edge, true),
         None => apply_prefs(window),
     }
 }
@@ -309,6 +322,81 @@ fn clip_round(window: &WebviewWindow, round: bool, diameter: i32) {
             SetWindowRgn(hwnd, 0, 1);
         }
     }
+}
+
+/// True when the kiosk window currently holds the OS foreground. The watchdog
+/// asks before re-focusing on a re-pin: re-asserting full-screen over a taskbar
+/// Windows moved onto the Edge is worth a raise, but only when the kiosk was
+/// already the window in use. If anything else has the foreground — most often a
+/// window the user deliberately dragged onto the Edge — the re-pin stays silent.
+#[cfg(windows)]
+fn kiosk_has_foreground(window: &WebviewWindow) -> bool {
+    #[link(name = "user32")]
+    extern "system" {
+        fn GetForegroundWindow() -> isize;
+    }
+    let Ok(hwnd) = window.hwnd() else { return false };
+    unsafe { GetForegroundWindow() == hwnd.0 as isize }
+}
+
+#[cfg(not(windows))]
+fn kiosk_has_foreground(_window: &WebviewWindow) -> bool {
+    true
+}
+
+/// Self-heal a stuck "always on top". The only thing that legitimately makes the
+/// kiosk topmost is the round home button (`enter_home`), and `exit_home` clears
+/// it — but nothing clears a `WS_EX_TOPMOST` that arrives any other way (an
+/// abandoned home mode, an external tool, a shell that lost the flag's bookkeeping
+/// across a hide/show). Left set, every window the user moves onto the Edge lands
+/// behind the dashboard with no way to bring it forward, which is a dead end for
+/// them and invisible to us.
+///
+/// The style is READ first and only cleared when actually set: `SetWindowPos` with
+/// `HWND_NOTOPMOST` also lifts the window to the top of the normal z-order, so
+/// calling it unconditionally would reintroduce, once per tick, exactly the
+/// jumping-to-the-front this is meant to stop. Cheap enough to check every tick.
+#[cfg(windows)]
+fn clear_stuck_topmost(window: &WebviewWindow) {
+    #[link(name = "user32")]
+    extern "system" {
+        fn GetWindowLongPtrW(hwnd: isize, index: i32) -> isize;
+        fn SetWindowPos(
+            hwnd: isize,
+            insert_after: isize,
+            x: i32,
+            y: i32,
+            cx: i32,
+            cy: i32,
+            flags: u32,
+        ) -> i32;
+    }
+    const GWL_EXSTYLE: i32 = -20;
+    const WS_EX_TOPMOST: isize = 0x0000_0008;
+    const HWND_NOTOPMOST: isize = -2;
+    const SWP_NOMOVE: u32 = 0x0002;
+    const SWP_NOSIZE: u32 = 0x0001;
+    const SWP_NOACTIVATE: u32 = 0x0010;
+
+    let Ok(hwnd) = window.hwnd() else { return };
+    let hwnd = hwnd.0 as isize;
+    unsafe {
+        if GetWindowLongPtrW(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST == 0 {
+            return; // not pinned — nothing to undo
+        }
+        SetWindowPos(
+            hwnd,
+            HWND_NOTOPMOST,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+        );
+    }
+    // Keep the shell's own bookkeeping in step, so a later always-on-top toggle
+    // still sees a state change and issues its SetWindowPos.
+    let _ = window.set_always_on_top(false);
 }
 
 /// Swipe-up-to-desktop: collapse the kiosk to a small, round, always-on-top
@@ -511,10 +599,15 @@ pub fn start_watchdog(app: AppHandle) {
             place_now(&window);
         }
 
-        // The user deliberately dropped to the home-bar strip — don't fight it.
+        // The user deliberately dropped to the home-bar strip — don't fight it
+        // (and leave the round button's always-on-top alone; that one is wanted).
         if HOME_MODE.load(Ordering::SeqCst) {
             continue;
         }
+
+        // Outside home mode the kiosk must never be pinned above other windows.
+        #[cfg(windows)]
+        clear_stuck_topmost(&window);
 
         if let Some(edge) = find_edge(&window) {
             // Re-pin when the window drifted off the Edge OR the display topology
@@ -547,7 +640,11 @@ pub fn start_watchdog(app: AppHandle) {
             if !crate::focus_guard::game_mode()
                 && (topology_changed || !window_is_on(&window, &edge))
             {
-                place_on_edge(&window, &edge);
+                // Re-place, but only re-raise if the kiosk already had the
+                // foreground — see `place_on_edge`. A window the user moved onto
+                // the Edge must stay in front of the dashboard.
+                let focus = kiosk_has_foreground(&window);
+                place_on_edge(&window, &edge, focus);
             }
         } else {
             // Off the Edge: keep the baseline current so returning to it re-pins once.

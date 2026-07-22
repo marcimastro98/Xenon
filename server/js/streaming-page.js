@@ -257,6 +257,8 @@
         return t('streaming_discord_notrunning', 'Discord desktop app not detected. Open Discord and try again.');
       case 'discord_pipe_busy':
         return t('streaming_discord_busy', 'Discord\'s local connection is busy (another app may be using it). Wait a moment and try Connect again.');
+      case 'discord_pipe_denied':
+        return t('streaming_discord_pipedenied', 'Discord is running as administrator, so Xenon is not allowed to talk to it. Quit Discord completely (tray icon → Quit) and reopen it normally, then press Connect. Waiting will not help.');
       case 'login_in_progress':
         return t('streaming_discord_inflight', 'A login is already waiting for approval — look for the pop-up in Discord (or wait for it to time out) before trying again.');
       case 'invalid_client_id':

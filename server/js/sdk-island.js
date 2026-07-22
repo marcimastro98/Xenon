@@ -155,7 +155,7 @@
 
   function renderLegacy(record, previous) {
     stopBuiltinObserver();
-    ui.host.classList.remove('is-structured', 'is-expanded');
+    ui.host.classList.remove('is-structured', 'is-expanded', 'is-full');
     ui.host.classList.toggle('is-flow', !!record.next);
     ui.blocks.replaceChildren();
     const from = ui.host.offsetHeight;
@@ -247,6 +247,7 @@
     ui.host.classList.remove('is-flow', 'has-badge');
     ui.host.classList.add('is-structured');
     ui.host.classList.toggle('is-expanded', record.view.layout === 'expanded');
+    ui.host.classList.toggle('is-full', record.view.layout === 'full');
     ui.blocks.replaceChildren(...record.view.blocks.map((block) => renderBlock(block, record)));
     observeBuiltins();
     tweenHeight(from);
@@ -266,6 +267,9 @@
   function paint(previous) {
     const active = !!current && surfaceAvailable() && sourceEnabled(current.pkgId);
     document.body.classList.toggle('xisland-live', active);
+    // Body-level, because a full-bar activity is a layout question for the whole
+    // top row, not just for the capsule element.
+    document.body.classList.toggle('xisland-full', active && !!(current.view && current.view.layout === 'full'));
     if (!active) { clearUi(); return; }
     ensureUi();
     const host = ui.host;

@@ -224,6 +224,28 @@ test('provider.login reports discord_pipe_busy distinctly (pipe exists but refus
   assert.deepEqual(await p.login(), { ok: false, error: 'discord_pipe_busy' });
 });
 
+// Access-denied (Discord elevated) and pipe-busy both surface as EPERM-family
+// failures but need opposite advice: "restart Discord un-elevated" vs "wait and
+// retry". Conflating them told users to wait for something that never clears.
+test('provider.login reports discord_pipe_denied distinctly (Discord elevated)', async () => {
+  const p = dc.createDiscordProvider({
+    clientId: 'id', clientSecret: 'secret',
+    tokensFile: path.join(os.tmpdir(), 'no-such-tokens.json'),
+    connect: () => Promise.reject(new Error('discord_pipe_denied')),
+  });
+  assert.deepEqual(await p.login(), { ok: false, error: 'discord_pipe_denied' });
+});
+
+// An unexpected connector throw must not masquerade as a specific diagnosis.
+test('provider.login falls back to discord_not_running on an unknown connect error', async () => {
+  const p = dc.createDiscordProvider({
+    clientId: 'id', clientSecret: 'secret',
+    tokensFile: path.join(os.tmpdir(), 'no-such-tokens.json'),
+    connect: () => Promise.reject(new Error('something_else_entirely')),
+  });
+  assert.deepEqual(await p.login(), { ok: false, error: 'discord_not_running' });
+});
+
 test('provider.login needs both client id and secret', async () => {
   const p = dc.createDiscordProvider({ clientId: 'id', clientSecret: '', connect: () => Promise.reject(new Error('x')) });
   assert.equal(p.configured(), false);
