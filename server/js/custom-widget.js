@@ -1888,68 +1888,177 @@
     return EXAMPLES.filter(ex => !have.has(ex.id));
   }
 
+  // ── Picker filters ───────────────────────────────────────────────
+  // Categories are derived from what a manifest DECLARES (its data streams),
+  // never from a free-text field a package could put anything in — so the chips
+  // stay meaningful no matter who authored the widget. A chip is only rendered
+  // when at least one listed widget falls in it, so tapping one can never empty
+  // the list on its own.
+  const PICK_CATS = [
+    { id: 'system', key: 'cw_cat_system', fb: 'System', streams: ['status', 'system', 'battery'] },
+    { id: 'media', key: 'cw_cat_media', fb: 'Media', streams: ['media', 'audio', 'audioLevels', 'wavelink'] },
+    { id: 'stream', key: 'cw_cat_stream', fb: 'Streaming', streams: ['obs', 'streamerbot', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications'] },
+    { id: 'info', key: 'cw_cat_info', fb: 'Info', streams: ['weather', 'stocks', 'football', 'news'] },
+    { id: 'work', key: 'cw_cat_work', fb: 'Productivity', streams: ['tasks', 'notes', 'agenda', 'claude'] },
+    { id: 'home', key: 'cw_cat_home', fb: 'Smart home', streams: ['homeassistant'] },
+  ];
+  // Below this many entries the list is already scannable and the filter bar
+  // would cost more tile height than it saves.
+  const PICK_FILTER_MIN = 6;
+  // Search text and active chip, per tile instance. Kept outside the DOM so a
+  // repaint (a rescan, a package install) doesn't drop what the user typed.
+  const pickFilter = new Map();
+
+  // Accent- and case-insensitive, so "meteo" finds "Météo" and vice versa.
+  function pickNorm(s) {
+    return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+  }
+
+  // Category ids an entry belongs to. Anything matching none — a clock, a
+  // decorative tile — lands in 'other' so no widget is unreachable by chip.
+  function pickCatsOf(streams) {
+    const have = new Set(Array.isArray(streams) ? streams : []);
+    const hits = PICK_CATS.filter(c => c.streams.some(s => have.has(s))).map(c => c.id);
+    return hits.length ? hits : ['other'];
+  }
+
   // Untrusted manifest text (name/author/description) → textContent only.
   function paintPicker(body, instId) {
     const frag = document.createDocumentFragment();
     frag.appendChild(el('div', 'cw-pick-title', t('cw_pick', 'Choose a widget for this tile')));
-    const list = el('div', 'cw-pick-list');
-    // Group widgets by "pack" — the manifest author (e.g. "Xenon · Cyberpunk
-    // pack") — under a header, so a pack's widgets sit together. Named packs come
-    // first (alphabetical); widgets with no author fall through last with no
-    // header. Author is untrusted manifest text → el() renders it as textContent.
-    const groups = new Map();
+
+    // One flat model for both installed packages and not-yet-installed bundled
+    // examples, so search and chips treat them identically.
     // Ambient scenes render fullscreen, not in a tile — they're picked in
     // Settings → Ambient, so keep them out of the tile picker.
-    (pkgCache.packages || []).filter(pkg => pkg && pkg.surface !== 'ambient').forEach(pkg => {
-      const key = (pkg.author && String(pkg.author).trim()) || '';
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(pkg);
-    });
-    const keys = Array.from(groups.keys()).sort((a, b) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)));
-    keys.forEach(key => {
-      if (key) list.appendChild(el('div', 'cw-pick-group', key));
-      groups.get(key).forEach(pkg => {
-        const row = el('div', 'cw-pick-row');
-        const txt = el('div', 'cw-pick-txt');
-        txt.appendChild(el('div', 'cw-pick-name', pkg.name));
-        // Author is now the group header — the row meta keeps only the version.
-        const meta = pkg.version ? 'v' + pkg.version : '';
-        if (meta) txt.appendChild(el('div', 'cw-pick-meta', meta));
-        if (pkg.description) txt.appendChild(el('div', 'cw-pick-desc', pkg.description));
-        row.appendChild(txt);
-        const add = el('button', 'cw-btn cw-btn--primary', t('cw_add', 'Add'));
-        add.type = 'button';
-        add.addEventListener('click', () => openPermDialog(pkg, instId));
-        row.appendChild(add);
-        list.appendChild(row);
-      });
-    });
-    // Bundled examples not yet installed, in the same grouped-row shape as the
-    // real packages above — one tap installs, then the list repaints with the
-    // package's own row (and its Add button) in place of this one.
-    const examples = missingExamples();
-    if (examples.length) {
-      list.appendChild(el('div', 'cw-pick-group', t('cw_pick_examples', 'Xenon · Examples')));
-      examples.forEach(ex => {
-        const row = el('div', 'cw-pick-row');
-        const txt = el('div', 'cw-pick-txt');
-        txt.appendChild(el('div', 'cw-pick-name', ex.name));
-        txt.appendChild(el('div', 'cw-pick-desc', ex.desc));
-        row.appendChild(txt);
-        const add = el('button', 'cw-btn', t('cw_install', 'Install'));
-        add.type = 'button';
-        add.addEventListener('click', () => installExample(ex.id));
-        row.appendChild(add);
-        list.appendChild(row);
-      });
+    const items = (pkgCache.packages || [])
+      .filter(pkg => pkg && pkg.surface !== 'ambient')
+      .map(pkg => ({
+        kind: 'pkg',
+        pkg,
+        // Group by "pack" — the manifest author (e.g. "Xenon · Cyberpunk pack").
+        group: (pkg.author && String(pkg.author).trim()) || '',
+        name: pkg.name,
+        desc: pkg.description || '',
+        cats: pickCatsOf(pkg.streams),
+      }))
+      .concat(missingExamples().map(ex => ({
+        kind: 'example',
+        ex,
+        group: t('cw_pick_examples', 'Xenon · Examples'),
+        name: ex.name,
+        desc: ex.desc || '',
+        cats: ['other'],
+      })));
+    items.forEach(it => { it.hay = pickNorm(it.name + ' ' + it.group + ' ' + it.desc); });
+
+    const state = pickFilter.get(instId) || { q: '', cat: '' };
+    const cats = PICK_CATS.filter(c => items.some(it => it.cats.includes(c.id)));
+    // "Other" only earns a chip when there is something else to tell it apart from.
+    if (cats.length && items.some(it => it.cats.includes('other'))) {
+      cats.push({ id: 'other', key: 'cw_cat_other', fb: 'Other' });
     }
-    // Always offer a way to get more, even when packs are installed.
-    const createRow = el('div', 'cw-pick-create');
-    const storeBtn = el('button', 'cw-btn cw-btn--primary', '＋ ' + t('cw_get_more', 'Get more widgets'));
-    storeBtn.type = 'button';
-    storeBtn.addEventListener('click', () => { if (window.CommunityGallery) window.CommunityGallery.open('widget'); });
-    createRow.appendChild(storeBtn);
-    list.appendChild(createRow);
+    if (state.cat && !cats.some(c => c.id === state.cat)) state.cat = '';
+
+    const list = el('div', 'cw-pick-list');
+
+    // Only the rows repaint on every keystroke — the search field itself is
+    // built once and stays focused while the user types.
+    const renderRows = () => {
+      const q = pickNorm(state.q).trim();
+      const terms = q ? q.split(/\s+/) : [];
+      const shown = items.filter(it => (
+        (!state.cat || it.cats.includes(state.cat)) &&
+        terms.every(term => it.hay.includes(term))
+      ));
+      const rows = document.createDocumentFragment();
+      if (!shown.length) {
+        rows.appendChild(el('div', 'cw-pick-empty', t('cw_pick_none', 'No widget matches this search.')));
+      }
+      // Named packs first (alphabetical); widgets with no author fall through
+      // last with no header. Group text is untrusted → el() sets textContent.
+      const groups = new Map();
+      shown.forEach(it => {
+        if (!groups.has(it.group)) groups.set(it.group, []);
+        groups.get(it.group).push(it);
+      });
+      const keys = Array.from(groups.keys()).sort((a, b) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)));
+      keys.forEach(key => {
+        if (key) rows.appendChild(el('div', 'cw-pick-group', key));
+        groups.get(key).forEach(it => {
+          const row = el('div', 'cw-pick-row');
+          const txt = el('div', 'cw-pick-txt');
+          txt.appendChild(el('div', 'cw-pick-name', it.name));
+          if (it.kind === 'pkg') {
+            // Author is the group header — the row meta keeps only the version.
+            const meta = it.pkg.version ? 'v' + it.pkg.version : '';
+            if (meta) txt.appendChild(el('div', 'cw-pick-meta', meta));
+          }
+          if (it.desc) txt.appendChild(el('div', 'cw-pick-desc', it.desc));
+          row.appendChild(txt);
+          const isPkg = it.kind === 'pkg';
+          const add = el('button', 'cw-btn' + (isPkg ? ' cw-btn--primary' : ''),
+            isPkg ? t('cw_add', 'Add') : t('cw_install', 'Install'));
+          add.type = 'button';
+          // One tap installs an example, then the list repaints with the
+          // package's own row (and its Add button) in place of this one.
+          add.addEventListener('click', () => (isPkg ? openPermDialog(it.pkg, instId) : installExample(it.ex.id)));
+          row.appendChild(add);
+          rows.appendChild(row);
+        });
+      });
+      // Always offer a way to get more, even when packs are installed.
+      const createRow = el('div', 'cw-pick-create');
+      const storeBtn = el('button', 'cw-btn cw-btn--primary', '＋ ' + t('cw_get_more', 'Get more widgets'));
+      storeBtn.type = 'button';
+      storeBtn.addEventListener('click', () => { if (window.CommunityGallery) window.CommunityGallery.open('widget'); });
+      createRow.appendChild(storeBtn);
+      rows.appendChild(createRow);
+      list.replaceChildren(rows);
+    };
+
+    if (items.length >= PICK_FILTER_MIN) {
+      pickFilter.set(instId, state);
+      const bar = el('div', 'cw-pick-filter');
+      const search = el('div', 'cw-pick-search');
+      const input = document.createElement('input');
+      input.type = 'search';
+      input.className = 'cw-pick-input';
+      input.value = state.q;
+      input.placeholder = t('cw_pick_search', 'Search widgets…');
+      input.setAttribute('aria-label', t('cw_pick_search', 'Search widgets…'));
+      input.addEventListener('input', () => { state.q = input.value; renderRows(); });
+      search.appendChild(input);
+      bar.appendChild(search);
+      if (cats.length > 1) {
+        const chips = el('div', 'cw-pick-chips');
+        const mk = (id, label) => {
+          const chip = el('button', 'cw-pick-chip' + (state.cat === id ? ' is-on' : ''), label);
+          chip.type = 'button';
+          chip.setAttribute('aria-pressed', state.cat === id ? 'true' : 'false');
+          chip.addEventListener('click', () => {
+            state.cat = state.cat === id ? '' : id;   // tapping the active chip clears it
+            chips.querySelectorAll('.cw-pick-chip').forEach(c => {
+              const on = c.dataset.cat === state.cat;
+              c.classList.toggle('is-on', on);
+              c.setAttribute('aria-pressed', on ? 'true' : 'false');
+            });
+            renderRows();
+          });
+          chip.dataset.cat = id;
+          chips.appendChild(chip);
+        };
+        mk('', t('cw_cat_all', 'All'));
+        cats.forEach(c => mk(c.id, t(c.key, c.fb)));
+        bar.appendChild(chips);
+      }
+      frag.appendChild(bar);
+    } else {
+      pickFilter.delete(instId);
+      state.q = ''; state.cat = '';
+    }
+
+    renderRows();
     frag.appendChild(list);
     body.replaceChildren(frag);
   }
