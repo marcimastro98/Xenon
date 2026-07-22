@@ -34,6 +34,19 @@ test('edgeArgs disables extensions by default and loads them when opted in', () 
   assert.ok(multi.includes('--load-extension=C:/a,C:/b'));
 });
 
+test('edgeArgs keeps off-screen tiles from being throttled (live streams stay alive, #116)', () => {
+  // Every headless window is parked off-screen, so without these Chromium
+  // backgrounds the renderer and throttles timers on EVERY tile — an HLS stream
+  // then dies ~5 min in with hls.networkError.levelLoadTimeOut. These four flags
+  // (the last carried in --disable-features) keep the page running at full speed.
+  const args = eb.edgeArgs('C:/profile');
+  assert.ok(args.includes('--disable-background-timer-throttling'));
+  assert.ok(args.includes('--disable-backgrounding-occluded-windows'));
+  assert.ok(args.includes('--disable-renderer-backgrounding'));
+  const feats = args.find((a) => a.startsWith('--disable-features='));
+  assert.ok(feats && feats.split('=')[1].split(',').includes('CalculateNativeWinOcclusion'));
+});
+
 test('normalizeUrl rejects non-http(s) schemes and empty input', () => {
   assert.equal(eb.normalizeUrl('').ok, false);
   assert.equal(eb.normalizeUrl('   ').error, 'empty_url');

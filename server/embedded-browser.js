@@ -1029,6 +1029,20 @@ function edgeArgs(profileDir, extensionDirs) {
     // frame can never land on a monitor. Rendering is unaffected — the
     // screencast draws the emulated viewport, not the OS window.
     '--window-position=-32000,-32000',
+    // Parking every window off-screen (above) makes Chromium's occlusion
+    // detection consider EVERY tile — even the one the user is actively watching
+    // — hidden/occluded, so it backgrounds the renderer and throttles background
+    // timers. A live HLS stream drives its segment/playlist fetches off those
+    // timers, so ~5 min in the throttled fetch times out and the player dies with
+    // `hls.networkError.levelLoadTimeOut` while the source is still online
+    // (GitHub #116). These are the same flags Puppeteer/Playwright/Electron ship
+    // by default; they keep the page running at full speed so a stream stays live.
+    // CalculateNativeWinOcclusion (disabled in --disable-features below) is the
+    // Windows-specific half — without it the off-screen window is still marked
+    // occluded and rAF/decoding can stall regardless of the throttling flags.
+    '--disable-background-timer-throttling',
+    '--disable-backgrounding-occluded-windows',
+    '--disable-renderer-backgrounding',
     '--remote-debugging-port=0',
     '--remote-debugging-address=127.0.0.1',
     '--user-data-dir=' + profileDir,
@@ -1067,7 +1081,10 @@ function edgeArgs(profileDir, extensionDirs) {
     '--disable-default-apps',
     '--disable-breakpad',
     '--no-pings',
-    '--disable-features=Translate,TranslateUI,MediaRouter,OptimizationHints',
+    // CalculateNativeWinOcclusion: see the anti-throttling block above — the
+    // off-screen window must not be reported occluded, or the renderer stalls
+    // (frozen rAF / paused media decode) even with the backgrounding flags set.
+    '--disable-features=Translate,TranslateUI,MediaRouter,OptimizationHints,CalculateNativeWinOcclusion',
     'about:blank',
   ];
 }
