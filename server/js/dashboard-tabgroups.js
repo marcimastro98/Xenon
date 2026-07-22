@@ -248,7 +248,17 @@ function addAsTab(widgetId, targetMember, opts = {}) {
   const layout = getDashboardLayout();
   const DI = window.DashboardInstances;
   const move = !!(opts && opts.move);
-  if (!targetMember || widgetId === targetMember) return;
+  // A custom-widget host ALWAYS mints a fresh copy id (see the alwaysCopy note
+  // below), so widgetId === targetMember is a real duplicate here, NOT a no-op
+  // self-add: it's exactly "+ Tab → Custom widget" on a tile that already shows
+  // the custom PRIMARY, because _tabTargetMember resolves a standalone custom (or
+  // a group whose first member is the custom primary) to the bare id 'custom'.
+  // Guarding it out silently swallowed every such add — the reported "can't add a
+  // second custom tab / can't assign it independently". Every non-custom caller
+  // already filters widgetId === targetMember out before calling, so scoping the
+  // guard to the non-copy paths changes nothing for them.
+  const alwaysCopy = !move && widgetId === 'custom';
+  if (!targetMember || (!alwaysCopy && widgetId === targetMember)) return;
   const groups = layout.groups || (layout.groups = {});
   const targetGeo = layout.widgets[targetMember]
     || (Array.isArray(layout.copies) ? layout.copies.find(c => c.id === targetMember) : null);
@@ -272,8 +282,8 @@ function addAsTab(widgetId, targetMember, opts = {}) {
   // shares the single widget id 'custom' — so moving the base in would resurrect
   // the package it held last time instead of showing the picker, and would cap a
   // group at one custom tab (an id can only be a member once). Its static shell is
-  // an empty mount, so cloning it while hidden is safe.
-  const alwaysCopy = !move && widgetId === 'custom';
+  // an empty mount, so cloning it while hidden is safe. (alwaysCopy is computed
+  // above, next to the self-add guard it also governs.)
   if (alwaysCopy || (!move && DI && DI.isDuplicable(widgetId) && layout.widgets[widgetId] && layout.widgets[widgetId].visible)) {
     const existing = new Set([...Object.keys(layout.widgets), ...((layout.copies || []).map(c => c.id))]);
     const copyId = DI.makeCopyId(widgetId, existing);

@@ -76,6 +76,45 @@ test('addAsTab: a custom widget always joins as a NEW copy, never the hidden bas
   assert.equal(layout.widgets.custom.visible, false, 'the base custom tile is left alone');
 });
 
+test("addAsTab: adding 'custom' onto the custom PRIMARY stacks a new copy (was a silent no-op)", () => {
+  // _tabTargetMember resolves a standalone custom tile — and a group whose first
+  // member is the custom primary — to the bare id 'custom', so "+ Tab → Custom
+  // widget" reaches addAsTab('custom', 'custom'). The old widgetId===targetMember
+  // guard swallowed exactly that, so a custom tile could never become a two-tab
+  // group of independently-assignable custom widgets (Swiv's report).
+  const layout = {
+    widgets: { custom: { x: 0, y: 0, w: 4, h: 4, page: 'dashboard', visible: true } },
+    groups: {}, copies: [],
+  };
+  const saved = withStubbedLayout(layout, () => { tg.addAsTab('custom', 'custom'); });
+  assert.equal(saved.length, 1, 'the add is no longer swallowed');
+  const gid = Object.keys(layout.groups)[0];
+  assert.ok(gid, 'a tab group is created from the standalone primary');
+  const g = layout.groups[gid];
+  assert.equal(layout.copies.length, 1, 'a fresh copy instance was minted');
+  assert.ok(g.members.includes('custom'), 'the primary stays a member (keeps its own assignment)');
+  assert.ok(g.members.includes(layout.copies[0].id), 'the new copy is a member');
+  assert.notEqual(layout.copies[0].id, 'custom', 'the copy is a distinct instance id');
+  assert.equal(g.active, layout.copies[0].id, 'the freshly added tab is active');
+  // A further "+ Tab → Custom" (target still resolves to members[0] === 'custom')
+  // keeps stacking distinct copies rather than no-opping.
+  withStubbedLayout(layout, () => { tg.addAsTab('custom', 'custom'); });
+  assert.equal(layout.copies.length, 2, 'a second custom tab stacks another copy');
+  assert.equal(new Set(layout.copies.map(c => c.id)).size, 2, 'copy ids stay distinct');
+});
+
+test("addAsTab: a non-custom self-add is still a no-op (guard intact for movable widgets)", () => {
+  // The guard must still reject widgetId===targetMember for everything that is
+  // NOT the always-copy custom host — a media tile can't be tabbed into itself.
+  const layout = {
+    widgets: { media: { x: 0, y: 0, w: 4, h: 4, page: 'dashboard', visible: true } },
+    groups: {}, copies: [],
+  };
+  const saved = withStubbedLayout(layout, () => { tg.addAsTab('media', 'media'); });
+  assert.equal(saved.length, 0, 'self-add of a non-custom widget does nothing');
+  assert.equal(Object.keys(layout.groups).length, 0);
+});
+
 test('addAsTab: move:true still relocates the existing custom tile, package intact', () => {
   const layout = {
     widgets: { media: { x: 0, y: 0, w: 4, h: 4, page: 'dashboard', visible: true }, custom: { x: 0, y: 0, w: 4, h: 4, page: 'dashboard', visible: true } },
