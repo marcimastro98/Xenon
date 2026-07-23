@@ -608,6 +608,7 @@
       "supportersOnly": true,
       "locked": true,
       "perfWarning": true,
+      "featured": "main",
       "description": "An exclusive comic-book universe for the Xeneon Edge, for supporters only. A living hand-inked skyline shifts with the real weather and time of day, doubling as a screensaver, alongside comic System, Fans, Batteries and Energy boards and a hand-drawn Sidekick Deck. Six artifacts, one code.",
       "category": "style",
       "tags": [
@@ -626,8 +627,9 @@
       },
       "shots": 4,
       "active": true,
-      "addedAt": "2026-07-17",
-      "codeFile": true
+      "addedAt": "2026-07-23",
+      "codeFile": true,
+      "updatedAt": "2026-07-23"
     },
     {
       "id": "ambra",
