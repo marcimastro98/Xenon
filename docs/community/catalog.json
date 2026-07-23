@@ -26,31 +26,6 @@
       "codeFile": true
     },
     {
-      "id": "docker-container-stats-via-glances",
-      "kind": "widget",
-      "name": "Docker Container Stats via Glances",
-      "author": "Swiv",
-      "description": "Tracks docker container CPU and Memory usage via Glances: https://github.com/nicolargo/glances\n\nExample Docker Compose for Glances:\n\n  glances:\n    image: nicolargo/glances:latest-full\n    container_name: glances\n    restart: unless-stopped\n    pids_limit: 200\n    ports:\n      - \"61208:61208\"\n    vo",
-      "category": "system",
-      "tags": [
-        "stats",
-        "docker",
-        "nas",
-        "container"
-      ],
-      "version": "2.0.0",
-      "pkgId": "docker-stats",
-      "preview": {
-        "accent": "#1ed760",
-        "bg": "#0b0d12",
-        "text": "#e9edf6"
-      },
-      "active": false,
-      "addedAt": "2026-07-23",
-      "updatedAt": "2026-07-23",
-      "codeFile": true
-    },
-    {
       "id": "dgm-clasificaci-n",
       "kind": "widget",
       "name": "DGM league table",
