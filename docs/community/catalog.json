@@ -309,20 +309,24 @@
       "name": "Forest",
       "author": "Domi / spamer7777-lgtm",
       "authorSupporter": true,
-      "perfWarning": true,
-      "description": "Bring the calming essence of nature directly to your screen. With its lush fern-green palette, earthy textures, and subtle golden accents, this theme transforms your dashboard into a quiet forest at twilight. Designed with high-contrast glass panels for clean readability, it’s the perfect dark aesth",
+      "description": "Dimmly lit forest with fireflies flying around",
+      "category": "style",
       "tags": [
-        "peace",
         "forest",
-        "relax",
+        "chill",
+        "peace",
         "green"
       ],
-      "version": "1.0.0",
+      "version": "1.1.0",
+      "preview": {
+        "accent": "#7aa864",
+        "bg": "#0a110a",
+        "text": "#e0ebd9"
+      },
       "shots": 2,
-      "active": false,
-      "addedAt": "2026-07-18",
+      "addedAt": "2026-07-23",
       "codeFile": true,
-      "updatedAt": "2026-07-18"
+      "updatedAt": "2026-07-23"
     },
     {
       "id": "dgm-news-sports",
