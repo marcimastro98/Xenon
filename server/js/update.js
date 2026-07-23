@@ -2,11 +2,12 @@
 
 // ── Update awareness ────────────────────────────────────────────────────────
 // At startup the dashboard asks the server (which probes GitHub at most daily,
-// fail-silent) whether a newer release exists. If so — and the user hasn't said
-// "don't show again" for that version — a polished modal presents the release
-// notes (the GitHub release body, rendered with a tiny safe markdown parser)
-// and offers Download / Later / Don't-show-again. A manual "Check for updates"
-// button forces a fresh probe. Everything degrades to nothing when offline.
+// fail-silent) whether a newer release exists. If so — and the user hasn't
+// skipped that exact version — a polished modal presents the release notes (the
+// GitHub release body, rendered with a tiny safe markdown parser) and offers
+// Download / Later / Skip-this-version. A manual "Check for updates" button
+// forces a fresh probe. Everything degrades to nothing when offline.
+// The skip stores ONE version, never a flag: the next release always prompts.
 
 (function () {
   const DISMISS_KEY = 'xenon.update.dismissed'; // last version the user dismissed
@@ -79,11 +80,21 @@
   // fire-and-forget toast that only updated the shell (and swallowed every
   // failure) is exactly the "Updating Xenon… and nothing happens" bug.
 
+  // "Skip this version" — the stored value is ONE version, never a flag, so the
+  // next release always prompts again. Normalized through stripV because the two
+  // surfaces that write it disagree on the prefix: the server's /update/check
+  // may report "v4.9.2" while the Tauri updater hands the native toast "4.9.2",
+  // and an unnormalized compare would make each surface blind to the other's
+  // skip.
   function dismissedVersion() {
-    try { return localStorage.getItem(DISMISS_KEY) || ''; } catch { return ''; }
+    try { return stripV(localStorage.getItem(DISMISS_KEY) || ''); } catch { return ''; }
   }
   function rememberDismissed(version) {
-    try { localStorage.setItem(DISMISS_KEY, String(version || '')); } catch { /* ignore */ }
+    try { localStorage.setItem(DISMISS_KEY, stripV(version)); } catch { /* ignore */ }
+  }
+  function isVersionSkipped(version) {
+    const v = stripV(version);
+    return !!v && dismissedVersion() === v;
   }
 
   async function check(force) {
@@ -400,12 +411,17 @@
     laterBtn.addEventListener('click', closeModal);
     actions.appendChild(laterBtn);
 
-    const dismissBtn = document.createElement('button');
-    dismissBtn.type = 'button';
-    dismissBtn.className = 'upd-btn ghost';
-    dismissBtn.textContent = tr('update_dismiss', 'Non mostrare più');
-    dismissBtn.addEventListener('click', () => { rememberDismissed(info.latest); closeModal(); });
-    actions.appendChild(dismissBtn);
+    // Skips THIS release only — the button used to say "Don't show again", which
+    // promised something the code never did (and made people afraid to press it).
+    // The title spells out that the next release still prompts.
+    const skipBtn = document.createElement('button');
+    skipBtn.type = 'button';
+    skipBtn.className = 'upd-btn ghost';
+    skipBtn.textContent = tr('update_skip', 'Salta questa versione');
+    skipBtn.title = tr('update_skip_hint', 'Non chiedere più per la v{v}. Il prossimo aggiornamento verrà mostrato.')
+      .replace('{v}', stripV(info.latest));
+    skipBtn.addEventListener('click', () => { rememberDismissed(info.latest); closeModal(); });
+    actions.appendChild(skipBtn);
 
     card.appendChild(actions);
     overlay.appendChild(card);
@@ -964,7 +980,7 @@
     surfacePendingUpdateNotices(info); // fire-and-forget; only ever shows toasts
     const wnPending = !!(wn && wn.id && dismissedWhatsNew() !== wn.id
       && Array.isArray(wn.highlights) && wn.highlights.length);
-    const updatePending = !!(info && info.updateAvailable && dismissedVersion() !== info.latest);
+    const updatePending = !!(info && info.updateAvailable && !isVersionSkipped(info.latest));
     if (wnPending) openWhatsNew(wn);
     // On the native app, don't auto-pop this web modal: the shell shows its own
     // in-app "update available — tap to install" toast (native-bridge.js), and
@@ -988,6 +1004,7 @@
         kicker: 'Xenon',
         title: tr('update_uptodate', 'Sei alla versione più recente'),
         message: info && info.current ? 'v' + info.current : '',
+        important: true,   // the answer to the user's own "check for updates" tap
       });
     }
   };
@@ -1000,6 +1017,10 @@
     openModal,
     refresh: () => check(false).then(refreshIndicators),
     nativeOrchestrate: nativeUpdateFlow,
+    // Shared with the native shell's own update toast (native-bridge.js) so both
+    // surfaces read and write ONE skipped version, normalized the same way.
+    isVersionSkipped,
+    skipVersion: rememberDismissed,
   };
   window.XenonWhatsNew = { load: loadWhatsNew, open: openWhatsNew };
 

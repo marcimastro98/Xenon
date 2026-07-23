@@ -327,7 +327,7 @@
           body: JSON.stringify({ entryId: entry.id, stars: n }),
         });
         if (out && out.ok) {
-          if (window.XenonToast) XenonToast.show({ type: 'success', title: t('gallery_rating_saved', 'Thanks — rating saved!') });
+          if (window.XenonToast) XenonToast.show({ type: 'success', title: t('gallery_rating_saved', 'Thanks — rating saved!'), important: true });
           // Refresh the aggregate so the average reflects the new vote.
           const fresh = await api('/api/community/ratings?ids=' + encodeURIComponent(entry.id) + '&mine=1');
           if (fresh && fresh.ok && fresh.ratings) { Object.assign(ratingsMap, fresh.ratings); paintStars(); }
@@ -894,6 +894,85 @@
     return hero;
   }
 
+  // ── The spotlight: what leads the Store ─────────────────────────────────────
+  // Chosen in the hub admin (entry.featured), not inferred from catalog order:
+  // 'main' is the full-width hero, every other featured entry rides in the
+  // column beside it, capped so the top of the Store stays one screenful.
+  // Entries past the cap are not lost — they keep their normal place in the
+  // sections below, exactly as if they had not been featured.
+  const SPOT_SIDE_MAX = 3;
+  function isFeatured(entry) { return !!entry && (entry.featured === 'main' || entry.featured === 'on'); }
+  function spotlightPick(limitedList, supportersList, freePool) {
+    const featured = sortList(limitedList.concat(supportersList, freePool).filter(isFeatured));
+    if (featured.length) {
+      // An explicit main wins outright, including a sold-out drop that the
+      // automatic ladder below would refuse to lead with: putting it there is a
+      // decision someone made while looking at its remaining copies.
+      const main = featured.find((e) => e.featured === 'main') || featured[0];
+      return { main, side: featured.filter((e) => e !== main).slice(0, SPOT_SIDE_MAX) };
+    }
+    // Nothing featured anywhere → the original automatic ladder, unchanged:
+    //   1. an AVAILABLE limited drop → 2. a supporter/paid creation
+    //   → 3. the featured free creation.
+    // A sold-out limited never leads on its own (dead end) — it still shows in
+    // its own Limited section below. "Entice, don't frustrate."
+    const availLimited = sortList(limitedList).filter((e) => !(e.limited && e.limited.soldOut));
+    const main = availLimited[0]
+      || sortList(supportersList)[0]
+      || (freePool.length ? sortList(freePool)[0] : (limitedList.length ? sortList(limitedList)[0] : null));
+    return { main, side: [] };
+  }
+
+  // One featured entry beside the hero: thumbnail, tier, name, one action. Small
+  // enough that three stack against the hero's height without scrolling.
+  function spotCard(entry) {
+    const limited = !!entry.limited;
+    const locked = !limited && !!(entry.locked || entry.supportersOnly);
+    const card = el('div', 'cgal-spotcard' + (limited ? ' is-limited' : locked ? ' is-sup' : ''));
+    card.id = 'cgal-' + entry.id;
+    wireCardOpen(card, entry);
+    card.appendChild(buildMedia(entry));
+
+    const body = el('div', 'cgal-spotcard-body');
+    const eyebrow = el('div', 'cgal-spotcard-eyebrow');
+    if (limited) { eyebrow.appendChild(icon('limited')); eyebrow.appendChild(el('span', null, t('gallery_limited_badge', 'Limited'))); }
+    else if (locked) { eyebrow.appendChild(icon('supporters')); eyebrow.appendChild(el('span', null, t('gallery_locked_badge', 'Supporters'))); }
+    else { eyebrow.appendChild(kindIcon(entry.kind)); eyebrow.appendChild(el('span', null, kindLabel(entry.kind))); }
+    body.appendChild(eyebrow);
+    body.appendChild(el('div', 'cgal-spotcard-title', entry.name));
+
+    // Keeps .cgal-card-actions so wireCardOpen ignores taps in here — the count
+    // text is not a button, and a tap on it must not open the detail view.
+    const row = el('div', 'cgal-card-actions cgal-spotcard-cta');
+    if (limited) {
+      const lim = entry.limited;
+      if (lim.soldOut) row.appendChild(el('span', 'cgal-soldout', t('gallery_limited_soldout', 'Sold out')));
+      else {
+        appendLimitedButtons(row, entry);
+        row.appendChild(el('span', 'cgal-limcount',
+          t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(lim.left)).replace('{t}', String(lim.total))));
+      }
+    } else {
+      row.appendChild(importButton(entry, locked ? 'cgal-btn cgal-unlock' : 'cgal-btn primary',
+        locked ? t('gallery_unlock', 'Unlock with a code') : t('gallery_import', 'Import…'), locked ? 'lock' : null));
+    }
+    body.appendChild(row);
+    card.appendChild(body);
+    return card;
+  }
+
+  // Hero + column. With a single featured entry there is no column and the hero
+  // keeps the whole width, which is the layout the Store has always had.
+  function spotlightBlock(main, side) {
+    if (!side.length) return heroBanner(main);
+    const wrap = el('div', 'cgal-spot');
+    wrap.appendChild(heroBanner(main));
+    const col = el('div', 'cgal-spot-side');
+    side.forEach((entry) => col.appendChild(spotCard(entry)));
+    wrap.appendChild(col);
+    return wrap;
+  }
+
   // Published since the user's last Store visit? Only from the SECOND visit on
   // (storeLastVisit 0 = never opened → nothing is "new", so the grid doesn't
   // flood with badges the first time). addedAt is the first-publish date (#5).
@@ -1308,7 +1387,9 @@
       const l = el('div', 'cgal-khead-l');
       l.appendChild(icon(opts.iconName, 'cgal-khead-ic'));
       l.appendChild(el('span', 'cgal-khead-title', opts.title));
-      l.appendChild(el('span', 'cgal-khead-cnt', String(opts.items.length)));
+      // No "0" when the whole tier is up in the spotlight — the block is then
+      // just its explainer and its join button, and a zero would read as empty.
+      if (opts.items.length) l.appendChild(el('span', 'cgal-khead-cnt', String(opts.items.length)));
       head.appendChild(l);
       const actions = el('div', 'cgal-khead-actions');
       if (opts.items.length > SECTION_PREVIEW) {
@@ -1334,7 +1415,7 @@
       if (actions.childElementCount) head.appendChild(actions);
       wrap.appendChild(head);
       if (opts.lead) wrap.appendChild(el('p', 'cgal-feat-lead', opts.lead));
-      wrap.appendChild(cardGrid(opts.items, SECTION_PREVIEW));
+      if (opts.items.length) wrap.appendChild(cardGrid(opts.items, SECTION_PREVIEW));
       return wrap;
     }
     function flatInto(frag, list) {
@@ -1382,17 +1463,15 @@
         pool = pool.concat(tierPool);
       }
       if (browsingAll) {
-        // Hero priority ladder (what leads the Store, big, up top):
-        //   1. an AVAILABLE limited drop  →  2. a supporter/paid creation
-        //   →  3. the featured free creation.
-        // A sold-out limited never leads (dead end) — it still shows in its own
-        // Limited section below. This is the "entice, don't frustrate" order.
-        const availLimited = sortList(limited).filter((e) => !(e.limited && e.limited.soldOut));
-        const heroEntry = availLimited[0]
-          || sortList(supporters)[0]
-          || (pool.length ? sortList(pool)[0] : (limited.length ? sortList(limited)[0] : null));
-        const heroId = heroEntry ? heroEntry.id : null;
-        if (heroEntry) frag.appendChild(heroBanner(heroEntry));
+        // What leads the Store: the admin's spotlight when the catalog sets one,
+        // else the automatic ladder (see spotlightPick). Everything in the
+        // spotlight is skipped by the sections below — one card per entry, or the
+        // duplicate would double its DOM id and its install/rating slots.
+        const spot = spotlightPick(limited, supporters, pool);
+        const heroEntry = spot.main;
+        const spotIds = new Set(spot.side.map((e) => e.id));
+        if (heroEntry) spotIds.add(heroEntry.id);
+        if (heroEntry) frag.appendChild(spotlightBlock(heroEntry, spot.side));
         // Not "for your widgets" any more: the join covers themes, decks, pages
         // and packs through install receipts, so the heading has to as well.
         if (updates.length) frag.appendChild(section('__updates', updates, 'update', t('gallery_updates', 'Aggiornamenti per i tuoi contenuti')));
@@ -1407,21 +1486,24 @@
         // catalog's limited strip.
         const anyClaimable = limited.some((e) => !(e.limited && e.limited.soldOut));
         const restLimited = sortList(limited)
-          .filter((e) => e.id !== heroId && !(anyClaimable && e.limited && e.limited.soldOut));
+          .filter((e) => !spotIds.has(e.id) && !(anyClaimable && e.limited && e.limited.soldOut));
         if (restLimited.length) frag.appendChild(featureSection({
           items: restLimited, iconName: 'limited', cls: 'is-limited', seeAllKind: '__limited',
           title: t('gallery_limited_section', 'Limited edition'),
           lead: t('gallery_limited_lead_short', 'A fixed number of copies worldwide — reserved on Discord.'),
         }));
-        const restSupporters = sortList(supporters).filter((e) => e.id !== heroId);
-        if (restSupporters.length) frag.appendChild(featureSection({
+        // The shelf renders whenever the tier EXISTS, even with every entry up in
+        // the spotlight: it carries the "how it works" panel and the join button,
+        // which are the whole conversion path. Only the card grid empties out.
+        const restSupporters = sortList(supporters).filter((e) => !spotIds.has(e.id));
+        if (supporters.length) frag.appendChild(featureSection({
           items: restSupporters, iconName: 'supporters', cls: 'is-sup', seeAllKind: '__supporters',
           title: t('gallery_supporters_section', 'Supporters'),
           lead: t('gallery_supporters_lead', 'Themes and packs reserved for Xenon supporters — become one to unlock them.'),
           joinLabel: t('gallery_supporters_join', 'Become a supporter'), joinHref: BMC_URL, joinIcon: 'supporters',
           onInfo: openSupporterInfo,
         }));
-        KIND_ORDER.forEach((k) => { const items = sortList(pool.filter((e) => e.kind === k && e.id !== heroId)); if (items.length) frag.appendChild(section(k, items)); });
+        KIND_ORDER.forEach((k) => { const items = sortList(pool.filter((e) => e.kind === k && !spotIds.has(e.id))); if (items.length) frag.appendChild(section(k, items)); });
         host.replaceChildren(frag);
         return;
       }

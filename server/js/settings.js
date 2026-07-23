@@ -14,7 +14,7 @@ const SETTINGS_FONT_EXTENSIONS = Object.freeze(new Set(['woff2', 'woff', 'ttf', 
 // comes from the @font-face src, so the family label never needs to match the file.
 const USER_FONT_FAMILY = 'XenonUserFont';
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'custom']);
 // Selectable stock-data providers + chart ranges (mirrors server/stocks.js).
 const STOCK_PROVIDER_IDS = Object.freeze(['auto', 'yahoo', 'twelvedata', 'finnhub']);
 const STOCK_RANGE_IDS = Object.freeze(['1d', '1w', '1m', '1y']);
@@ -114,6 +114,8 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     fans:     Object.freeze({ x: 16, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
     power:    Object.freeze({ x: 16, y: 46, w: 8, h: 8, visible: false, page: 'dashboard' }),
     battery:  Object.freeze({ x: 0, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    search:   Object.freeze({ x: 8, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    disk:     Object.freeze({ x: 16, y: 54, w: 8, h: 10, visible: false, page: 'dashboard' }),
     custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
@@ -427,7 +429,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // `popups` (default ON) keeps the feeds but suppresses on-screen toasts.
   // `sounds` (default ON) plays a short synthesized cue per pop-up (and the
   // calendar reminder alarm); off keeps the toasts silent.
-  notifications: Object.freeze({ enabled: true, popups: true, sounds: true }),
+  notifications: Object.freeze({ enabled: true, popups: true, sounds: true, quiet: 'auto' }),
   // Vitals (Settings → Notifiche → Vitals). Game-style self-care meters that
   // drain with time at the PC; tap to refill. Master ON (the widget is still
   // hidden until added from the "+" palette); topbar chips are an opt-in.
@@ -455,6 +457,11 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // listens to the microphone locally (ffmpeg + whisper.cpp) while a dashboard
   // is open; audio never leaves the PC and candidate clips are never stored.
   wakeWord: Object.freeze({ enabled: false }),
+  // Local search (Spotlight) + Disk widget knobs. Hotkey OFF by default (it
+  // registers a system-wide key); dev folders empty (build dirs stay
+  // non-cleanable until the user names their project roots).
+  searchSettings: Object.freeze({ indexRoots: Object.freeze(['C:\\']), hotkeyEnabled: false, hotkeyCombo: 'alt+space', aiFullContext: false }),
+  diskSettings: Object.freeze({ devFolders: Object.freeze([]), installerAgeDays: 30 }),
   // Third-party widget SDK (the Custom widget tile). OFF by default — community
   // packages run in a sandboxed, network-less iframe and each one gets an
   // explicit per-package permission grant (data streams + action categories)
@@ -1419,6 +1426,8 @@ function normalizeSettings(source) {
     discordNotifications: normalizeDiscordNotifications(value.discordNotifications),
     windowsNotifications: normalizeWindowsNotifications(value.windowsNotifications),
     wakeWord: normalizeWakeWord(value.wakeWord),
+    searchSettings: normalizeSearchSettings(value.searchSettings),
+    diskSettings: normalizeDiskSettings(value.diskSettings),
     sdkWidgets: normalizeSdkWidgets(value.sdkWidgets),
     bgAurora: normalizeBgAurora(value.bgAurora),
     bgGrid: normalizeBgGrid(value.bgGrid),
@@ -1701,11 +1710,58 @@ function normalizeWakeWord(value) {
   return { enabled: v.enabled === true };
 }
 
+// Local search (Spotlight) — mirrors the server's normalizeSearchSettings so
+// both sides rebuild the same shape (settings invariant).
+function normalizeSearchSettings(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  // indexRoots: the Living Index roots (drives or folders). Migration: older
+  // saves carried extraFolders (the retired one-shot crawl) — adopt them.
+  // Never-set → default to the WHOLE system drive (product decision: the
+  // living experience out of the box); an explicitly emptied list means the
+  // user turned the index off and stays empty.
+  const rawRoots = Array.isArray(v.indexRoots) ? v.indexRoots
+    : (Array.isArray(v.extraFolders) && v.extraFolders.length ? v.extraFolders : null);
+  // Separators normalized to backslashes, exactly as the server does — every
+  // consumer downstream compares against backslash paths.
+  const roots = rawRoots == null ? ['C:\\'] : rawRoots
+    .map((f) => String(f || '').trim().slice(0, 260).replace(/\//g, '\\'))
+    .filter((f) => /^[A-Za-z]:\\?$|^[A-Za-z]:\\.+/.test(f))
+    .map((f) => (f.length === 2 ? f + '\\' : f))
+    .slice(0, 8);
+  const combo = String(v.hotkeyCombo || 'alt+space').toLowerCase().trim().slice(0, 40);
+  return {
+    indexRoots: roots,
+    hotkeyEnabled: v.hotkeyEnabled === true,
+    hotkeyCombo: /^[a-z0-9+ ]{3,40}$/.test(combo) ? combo : 'alt+space',
+    // AI full context for explicit Search + Disk Advisor calls —
+    // privacy-touching, strict opt-in like the wake word.
+    aiFullContext: v.aiFullContext === true,
+  };
+}
+
+// Disk widget knobs — mirrors the server's normalizeDiskSettings.
+function normalizeDiskSettings(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const folders = Array.isArray(v.devFolders)
+    ? v.devFolders.map((f) => String(f || '').trim().slice(0, 260)).filter((f) => /^[A-Za-z]:[\\/]/.test(f)).slice(0, 10)
+    : [];
+  const age = Number(v.installerAgeDays);
+  return {
+    devFolders: folders,
+    installerAgeDays: Number.isFinite(age) ? Math.max(7, Math.min(365, Math.round(age))) : 30,
+  };
+}
+
 // Master notifications switch (Settings → Notifiche). Both default ON; same shape
 // the server persists so both sides normalize identically.
 function normalizeNotifications(value) {
   const v = value && typeof value === 'object' ? value : {};
-  return { enabled: v.enabled !== false, popups: v.popups !== false, sounds: v.sounds !== false };
+  // Do-not-disturb mode, mirrored from the server normalizer (server.js).
+  // 'auto' (default) holds routine pop-ups back while the screen is immersive,
+  // 'always' holds them back the whole time, 'off' never does. Enforced in
+  // js/toast.js, which never holds back an error, warning, reminder or timer.
+  const quiet = (v.quiet === 'off' || v.quiet === 'always') ? v.quiet : 'auto';
+  return { enabled: v.enabled !== false, popups: v.popups !== false, sounds: v.sounds !== false, quiet };
 }
 
 // Vitals — known-key rebuild, identical to the server normalizer (server.js):
@@ -1908,6 +1964,7 @@ function normalizeSdkWidgets(value) {
         islandFull: g.islandFull === true,
         badge: g.badge === true,
         clipboard: g.clipboard === true,
+        accent: g.accent === true,
         userHosts: normalizeSdkUserHosts(g.userHosts),
       };
       n++;
@@ -3255,7 +3312,18 @@ if (window.matchMedia) {
 // hubSettings.accent stays the persistent user choice — this only layers a
 // visual tint on top, and clears back to it when music stops or the feature is
 // off.
-let _dynamicAccent = null;
+//
+// Two sources feed the SAME visual tint through setDynamicAccent: the album art
+// (media.js, source 'album') and a granted SDK widget with the `accent`
+// capability (custom-widget.js, source 'widget'). They are kept in SEPARATE
+// slots so neither can silently clobber or erase the other: a track starting
+// while a widget owns the tint must not wipe the widget's colour, and a widget
+// being torn down must not null out the album accent set after it. The effective
+// value is widget-over-album — an explicit, granted, actively-pushed signal wins
+// over the passive automatic one — and falls back the moment its owner clears.
+let _albumAccent = null;
+let _widgetAccent = null;
+let _dynamicAccent = null;   // effective: _widgetAccent || _albumAccent
 
 let _effectiveThemePalette = null;
 
@@ -3358,17 +3426,32 @@ function getEffectiveThemePalette() {
 }
 if (typeof window !== 'undefined') window.getEffectiveThemePalette = getEffectiveThemePalette;
 
-// Called by media.js on every media update. Pass a hex to tint the theme from
-// the album art, or null to fall back to the user's chosen accent.
-function setDynamicAccent(hex) {
+// Called by media.js on every media update (source 'album', the default) and by
+// custom-widget.js for the SDK `accent` capability (source 'widget'). Pass a hex
+// to tint the theme, or null to clear THAT source and fall back — to the other
+// source if it is still set, else to the user's chosen accent. One toggle
+// (dynamicAlbumTheme) governs both sources on purpose.
+function setDynamicAccent(hex, source) {
   const valid = hubSettings.dynamicAlbumTheme !== false
     && typeof hex === 'string'
     && /^#[0-9a-fA-F]{6}$/.test(hex);
   const next = valid ? hex : null;
-  if (next === _dynamicAccent) return;
-  _dynamicAccent = next;
+  if (source === 'widget') _widgetAccent = next;
+  else _albumAccent = next;
+  const eff = _widgetAccent || _albumAccent;
+  if (eff === _dynamicAccent) return;
+  _dynamicAccent = eff;
   applyAccentColor();
-  if (window.CustomWidget && typeof window.CustomWidget.refreshTheme === 'function') window.CustomWidget.refreshTheme();
+  // A tile with a custom style carries a FROZEN copy of the palette inline
+  // (dashboard-layout.js stamps --accent and friends on the wrapper), so
+  // repainting :root alone left those tiles — and every SDK widget inside them,
+  // since a widget reads its theme from its own frame's computed tokens — on the
+  // accent of whatever was playing when the tile was last painted. Re-derive them
+  // from the live palette; colorsOnly keeps decor layers untouched, because this
+  // runs on every track change. applyAllTileStyles ends with
+  // CustomWidget.refreshTheme(), so the widget payload goes out on the same pass.
+  if (typeof applyAllTileStyles === 'function') applyAllTileStyles(null, { colorsOnly: true });
+  else if (window.CustomWidget && typeof window.CustomWidget.refreshTheme === 'function') window.CustomWidget.refreshTheme();
 }
 
 // Extended full-editor theme tokens, applied inline on :root. Skipped under the
@@ -4181,6 +4264,98 @@ function settingsSetCategory(cat) {
   // Slideshow thumbnails paint when its pane opens (and update live via applyHubSettings).
   if (cat === 'slideshow') renderSlideshowSettings();
   if (cat === 'island') renderDynamicIslandSources();
+  if (cat === 'search') renderSearchDiskSettings();
+}
+
+// ── Ricerca e disco (Spotlight + Disk widget knobs) ─────────────────────────
+function updateSearchSettings(patch) {
+  const cur = hubSettings.searchSettings || {};
+  hubSettings = normalizeSettings({ ...hubSettings, searchSettings: { ...cur, ...patch } });
+  saveHubSettings();
+  renderSearchDiskSettings();
+}
+function getSearchSettings() {
+  const cur = hubSettings.searchSettings || {};
+  return { ...cur, indexRoots: [...(cur.indexRoots || [])] };
+}
+async function addSearchIndexRoot(rootPath) {
+  const current = (hubSettings.searchSettings || {}).indexRoots || [];
+  const candidate = String(rootPath || '').trim();
+  if (current.some((r) => String(r).toLowerCase() === candidate.toLowerCase())) {
+    return getSearchSettings();
+  }
+  const normalized = normalizeSearchSettings({
+    ...(hubSettings.searchSettings || {}),
+    indexRoots: [...current, candidate],
+  });
+  if (normalized.indexRoots.length === current.length) return normalized;
+  updateSearchSettings({ indexRoots: normalized.indexRoots });
+  // A disk-chip tap immediately asks /disk/status for the new root. Commit the
+  // settings first when hydration is complete so that request cannot race the
+  // normal debounced save and make the chip appear to do nothing.
+  if (_hubHydratedFromServer) {
+    try { await flushHubSettingsToServer(); } catch { /* the normal retry still owns recovery */ }
+  }
+  return normalized;
+}
+window.updateSearchSettings = updateSearchSettings;
+window.getSearchSettings = getSearchSettings;
+window.addSearchIndexRoot = addSearchIndexRoot;
+function updateDiskSettings(patch) {
+  const cur = hubSettings.diskSettings || {};
+  hubSettings = normalizeSettings({ ...hubSettings, diskSettings: { ...cur, ...patch } });
+  saveHubSettings();
+  renderSearchDiskSettings();
+}
+function renderSearchDiskSettings() {
+  const s = hubSettings.searchSettings || {};
+  const d = hubSettings.diskSettings || {};
+  const hot = document.getElementById('settings-search-hotkey');
+  if (hot) hot.checked = s.hotkeyEnabled === true;
+  const combo = document.getElementById('settings-search-combo');
+  if (combo && document.activeElement !== combo) combo.value = s.hotkeyCombo || 'alt+space';
+  const folders = document.getElementById('settings-search-folders');
+  if (folders && document.activeElement !== folders) folders.value = (s.indexRoots || []).join('\n');
+  const brain = document.getElementById('settings-search-aibrain');
+  if (brain) brain.checked = s.aiFullContext === true;
+  const dev = document.getElementById('settings-disk-devfolders');
+  if (dev && document.activeElement !== dev) dev.value = (d.devFolders || []).join('\n');
+  const age = document.getElementById('settings-disk-installer-age');
+  if (age && document.activeElement !== age) age.value = d.installerAgeDays || 30;
+  // Living Index state (files, RAM, building) — asked while the pane is open.
+  const idxStatus = document.getElementById('settings-search-index-status');
+  if (idxStatus) {
+    if (!(s.indexRoots || []).length) { idxStatus.hidden = true; }
+    else {
+      fetch('/index/status').then((r) => r.json()).then((st) => {
+        if (_settingsCat !== 'search' || !st) return;
+        idxStatus.textContent = !st.on || !st.helper
+          ? t('settings_search_idx_helper', 'L’indice vivo richiede Xenon Helper (installato da INSTALL.bat).')
+          : st.building
+            ? t('settings_search_idx_building', 'Sto imparando il disco…') + ' ' + ((st.progress && st.progress.files) || st.files || 0).toLocaleString() + ' file'
+            : t('settings_search_idx_on', 'Indice vivo attivo:') + ' ' + (st.files || 0).toLocaleString() + ' file · ~' + (st.ramMB || 0) + ' MB RAM';
+        idxStatus.hidden = !idxStatus.textContent;
+      }).catch(() => { idxStatus.hidden = true; });
+    }
+  }
+  // Hotkey listener state, asked only while the pane is open and the toggle on.
+  const status = document.getElementById('settings-search-hotkey-status');
+  if (!status) return;
+  if (s.hotkeyEnabled !== true) { status.hidden = true; return; }
+  fetch('/search/hotkey-status').then((r) => r.json()).then((st) => {
+    if (_settingsCat !== 'search' || !st) return;
+    const map = {
+      listening: t('settings_search_hk_on', 'Scorciatoia attiva.'),
+      taken: t('settings_search_hk_taken', 'La combinazione è già usata da un’altra app: scegline una diversa.'),
+      helper_missing: t('settings_search_hk_helper', 'Serve Xenon Helper (installato da INSTALL.bat).'),
+      error: t('settings_search_hk_err', 'La scorciatoia non è partita. Riprova salvando di nuovo.'),
+      starting: t('settings_search_hk_starting', 'Attivazione…'),
+      retrying: t('settings_search_hk_retry', 'Non è partita. Xenon riprova tra poco.'),
+      off: '',
+    };
+    status.textContent = map[st.state] || '';
+    status.hidden = !status.textContent;
+  }).catch(() => { status.hidden = true; });
 }
 
 // The Settings overlay is a full-viewport frosted backdrop (backdrop-filter blur),
@@ -5527,6 +5702,16 @@ function setStockApiKey(field, value) {
 }
 
 function updateNotifications(field, enabled) {
+  // `quiet` is the one non-boolean here — a three-way select, normalized (and
+  // defaulted back to 'auto' on anything unexpected) by normalizeNotifications.
+  if (field === 'quiet') {
+    const cur = hubSettings.notifications || {};
+    hubSettings = normalizeSettings({ ...hubSettings, notifications: { ...cur, quiet: String(enabled || '') } });
+    saveHubSettings();
+    syncNotificationsControls();
+    setSettingsStatus('settings_saved', 'ok');
+    return;
+  }
   if (field !== 'enabled' && field !== 'popups' && field !== 'sounds') return;
   const cur = hubSettings.notifications || {};
   hubSettings = normalizeSettings({ ...hubSettings, notifications: { ...cur, [field]: !!enabled } });
@@ -5550,6 +5735,18 @@ function syncNotificationsControls() {
   if (snd) { snd.checked = n.sounds !== false; snd.disabled = !enabled; }
   const sndRow = $('settings-notif-sounds-row');
   if (sndRow) sndRow.classList.toggle('is-disabled', !enabled);
+  // Do-not-disturb. Also meaningless with the master switch off, so it follows
+  // the same gating as the two above.
+  const quiet = $('settings-notif-quiet');
+  if (quiet) {
+    quiet.value = (n.quiet === 'off' || n.quiet === 'always') ? n.quiet : 'auto';
+    quiet.disabled = !enabled;
+    // The native <select> is hidden behind the custom dropdown, so setting .value
+    // alone leaves the visible label on the old option.
+    if (typeof quiet._csSync === 'function') quiet._csSync();
+  }
+  const quietRow = $('settings-notif-quiet-row');
+  if (quietRow) quietRow.classList.toggle('is-disabled', !enabled);
   // Windows notification mirroring — the same two switches the Notifications
   // tile carries (the tile also owns the muted-apps list). The server gates the
   // mirror child on the master switch too, so mirror that gating here; "hide
@@ -6241,7 +6438,7 @@ function syncSecondScreenControls() {
 function updateDynamicAlbumTheme(enabled) {
   hubSettings = normalizeSettings({ ...hubSettings, dynamicAlbumTheme: !!enabled });
   saveHubSettings();
-  if (!enabled) _dynamicAccent = null;
+  if (!enabled) { _albumAccent = null; _widgetAccent = null; _dynamicAccent = null; }
   applyAccentColor();
   syncDynamicAlbumControls();
   // Re-tint immediately from the current track when turning the feature on.
@@ -7272,6 +7469,11 @@ function applyTopbarClockSettings() {
     delete document.body.dataset.topbarAlign;
     if (window.TopbarMinimal && window.TopbarMinimal.applyIslandLayout) window.TopbarMinimal.applyIslandLayout();
   }
+  // Whether the pager dots are visible depends on the chrome and (in Minimal) on
+  // the island's hide toggles — both settled by now. Re-evaluate the floating
+  // fallback so it appears the moment the real dots go off-screen and vanishes
+  // when they come back. renderDots is idempotent and rebuilds only a few dots.
+  if (window.DashboardPager && typeof window.DashboardPager.renderDots === 'function') window.DashboardPager.renderDots();
 }
 
 const ISLAND_SOURCE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
@@ -8619,7 +8821,7 @@ async function clearAiMemory() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ all: true }),
     });
-    if (window.XenonToast) window.XenonToast.show({ type: 'success', title: t('settings_ai_memory_cleared', 'Memory cleared') });
+    if (window.XenonToast) window.XenonToast.show({ type: 'success', title: t('settings_ai_memory_cleared', 'Memory cleared'), important: true });
   } catch { /* ignore — the list refresh below reflects the true state */ }
   renderAiMemoryList();
 }

@@ -7,7 +7,7 @@
 // regardless of context) and the separate timer "pill", which looked inconsistent.
 //
 // API:
-//   XenonToast.show({ type, kicker, title, message, duration }) -> id
+//   XenonToast.show({ type, kicker, title, message, duration, important }) -> id
 //   XenonToast.dismiss(id)
 //   XenonToast.dismissAll()
 // Types: info | success | warning | error | reminder | timer | update.
@@ -83,6 +83,43 @@
   }
   function syncIsland() {
     document.body.classList.toggle('xtoast-island', toasts.size > 0 && isMinimalChrome());
+    // Tell sandboxed SDK widgets whether a pop-up is currently on screen, so an
+    // interactive one (a game, a teleprompter) can pause itself and resume after.
+    // Deliberately content-FREE: a widget learns that something is showing, never
+    // what it says. Windows notification mirroring puts real message text in these
+    // cards, and a third-party widget in a sandbox has no business reading it.
+    if (window.CustomWidget && typeof window.CustomWidget.onToastState === 'function') {
+      try { window.CustomWidget.onToastState(toasts.size > 0); } catch { /* never break a toast */ }
+    }
+  }
+
+  // ── Do not disturb ──────────────────────────────────────────────────────────
+  // Settings → Notifiche → "Non disturbare". 'auto' (the default) holds routine
+  // pop-ups back while the screen is immersive: a full-screen ambient scene, or
+  // game mode. 'always' holds them back the whole time, 'off' never does.
+  //
+  // These four types are NEVER held back, on any setting: an error is a real
+  // failure and must not be hidden behind a silent no-op, a warning needs
+  // attention, and a reminder or a finished timer is something the user asked
+  // for by name — silencing an alarm the user set is not "do not disturb", it is
+  // a bug.
+  // On top of the types, a caller may pass `important: true` for the RESULT of
+  // something the user just did on this screen — a cleanup that has already
+  // moved files to the Recycle Bin, a save that just landed. Do not disturb is
+  // about unsolicited pop-ups; swallowing the answer to the user's own tap left
+  // them with no confirmation that anything happened, which is the opposite of
+  // "state changes must be obvious and immediate". Do NOT set it on anything
+  // the user did not just trigger by hand.
+  const QUIET_EXEMPT = new Set(['error', 'warning', 'reminder', 'timer']);
+  function quietSuppressed(type, opts) {
+    if (opts && opts.important === true) return false;
+    if (QUIET_EXEMPT.has(type)) return false;
+    const n = (typeof hubSettings === 'object' && hubSettings && hubSettings.notifications) ? hubSettings.notifications : null;
+    const mode = (n && (n.quiet === 'off' || n.quiet === 'always')) ? n.quiet : 'auto';
+    if (mode === 'off') return false;
+    if (mode === 'always') return true;
+    const c = document.body.classList;
+    return c.contains('game-mode') || c.contains('ambient-scene-open');
   }
 
   function clearTimer(rec) { if (rec && rec.timer) { clearTimeout(rec.timer); rec.timer = null; } }
@@ -131,6 +168,9 @@
     const type = TYPES[o.type] ? o.type : 'info';
     const cfg = TYPES[type];
     const dur = (o.duration != null) ? Number(o.duration) : (DEFAULT_DURATION[type] || 6000);
+    // Held back by do-not-disturb. Returns 0, which dismiss() ignores, so a
+    // caller that keeps the id to close its own toast later is unaffected.
+    if (quietSuppressed(type, o)) return 0;
     ensureContainer();
 
     const id = ++seq;
@@ -169,6 +209,29 @@
       m.className = 'xtoast-msg';
       m.textContent = String(o.message);
       body.appendChild(m);
+    }
+    // Optional explicit actions, rendered under the message. Distinct from
+    // `onClick` (which makes the WHOLE toast the action): use these when the
+    // toast offers a second, non-obvious choice — "Skip this version" next to a
+    // tap-to-install. Handlers run before the toast closes, and a click here
+    // never bubbles into the tap action or the swipe gesture.
+    if (Array.isArray(o.actions) && o.actions.length) {
+      const row = document.createElement('div');
+      row.className = 'xtoast-actions';
+      o.actions.slice(0, 2).forEach((a) => {
+        if (!a || typeof a.onClick !== 'function') return;
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'xtoast-action' + (a.primary ? ' is-primary' : '');
+        b.textContent = String(a.label || '');
+        b.addEventListener('click', (e) => {
+          e.stopPropagation();
+          try { a.onClick(); } catch { /* an action must not break the toast */ }
+          if (a.keepOpen !== true) dismiss(id);
+        });
+        row.appendChild(b);
+      });
+      if (row.childElementCount) body.appendChild(row);
     }
     el.appendChild(body);
 

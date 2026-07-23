@@ -751,6 +751,59 @@
     </div>
   </section>
 
+  <!-- ───── FILES & SPACE ───── -->
+  <section id="files" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="kicker" data-i18n="fs.k">Files and space</span>
+        <h2 data-i18n-html="fs.h2">Find anything on your PC.<br>See where the space <em>went.</em></h2>
+        <p data-i18n="fs.p">Xenon keeps a list of every file on your drives and updates it the moment something changes. Search and disk space both use that list. It stays on your PC and is never uploaded anywhere.</p>
+      </div>
+
+      <div class="pillar reveal">
+        <div class="pillar-text">
+          <span class="kicker" data-i18n="fs1.k">Search</span>
+          <h3 data-i18n="fs1.h">Pull the bar down and type</h3>
+          <p data-i18n="fs1.p">Pull the top bar down with your finger and the search opens. Then type the way you talk: “photos from december”, “big videos from this year”, “invoice last month”. What Xenon understood shows up as small tags, and if it got one wrong you tap it off. Results come up while you type and nothing leaves your PC. If you prefer the keyboard, you can switch on a shortcut, Alt+Space, that opens the same bar over any app.</p>
+          <div class="pillar-tags">
+            <span class="chip" data-i18n="fs1.c1">Type it like you say it</span>
+            <span class="chip" data-i18n="fs1.c2">Alt+Space, if you want it</span>
+            <span class="chip" data-i18n="fs1.c3">One pull to open</span>
+          </div>
+        </div>
+        <div class="pillar-media"><div class="shot-card"><img src="images/search.gif" width="920" height="474" alt="Pulling the top bar down to open Xenon's search and typing a phrase" loading="lazy"></div></div>
+      </div>
+
+      <div class="pillar flip reveal">
+        <div class="pillar-text">
+          <span class="kicker" data-i18n="fs2.k">AI mode</span>
+          <h3 data-i18n="fs2.h">Ask in a full sentence</h3>
+          <p data-i18n="fs2.p">Tap the AI button in the bar, or press Ctrl+I, and you can ask in a full sentence. The AI only turns your words into a search: the looking is still done by your PC. All it gets is your sentence and today's date, no file names and no paths. If you want it to know your apps and folders too, so that “open the program for my lights” works, there is a switch in Settings that stays off until you turn it on. No AI set up? The same Enter searches offline and tells you so.</p>
+          <div class="pillar-tags">
+            <span class="chip" data-i18n="fs2.c1">Gemini, Claude, OpenAI or local Ollama</span>
+            <span class="chip" data-i18n="fs2.c2">Nothing is sent while you type</span>
+            <span class="chip" data-i18n="fs2.c3">Optional, off by default</span>
+          </div>
+        </div>
+        <div class="pillar-media"><div class="shot-card"><img src="images/search-ai.png" width="812" height="701" alt="AI search mode reading “big videos from this year” as size, date and file type" loading="lazy"></div></div>
+      </div>
+
+      <div class="pillar reveal">
+        <div class="pillar-text">
+          <span class="kicker" data-i18n="fs3.k">Disk space</span>
+          <h3 data-i18n="fs3.h">No scan button, ever</h3>
+          <p data-i18n="fs3.p">Tap a drive and the map is already there. No waiting, no scan. Tap a folder to go inside it, look at your biggest files, and find the duplicates you forgot you had. When it comes to cleaning up, Xenon only ever offers things you can afford to lose: temporary files, browser caches, old installers. You confirm each one, it all goes to the Recycle Bin, and Xenon AI can look at the numbers but cannot delete anything.</p>
+          <div class="pillar-tags">
+            <span class="chip" data-i18n="fs3.c1">Always up to date</span>
+            <span class="chip" data-i18n="fs3.c2">Everything goes to the Recycle Bin</span>
+            <span class="chip" data-i18n="fs3.c3">The AI cannot delete</span>
+          </div>
+        </div>
+        <div class="pillar-media"><div class="shot-card"><img src="images/disk.gif" width="720" height="590" alt="Tapping through the disk space map, then the protected cleanup plan" loading="lazy"></div></div>
+      </div>
+    </div>
+  </section>
+
   <!-- ───── CINEMA: RGB ───── -->
   <section class="cinema">
     <div class="wrap">
@@ -818,6 +871,9 @@
       <figure class="shot"><img src="images/widget-sdk.png" loading="lazy" alt="A community widget built with the SDK"><figcaption><span data-i18n="g10">Widget SDK</span><span class="n">10</span></figcaption></figure>
       <figure class="shot"><img src="images/app-switcher.png" loading="lazy" alt="App switcher"><figcaption><span data-i18n="g11">App switcher</span><span class="n">11</span></figcaption></figure>
       <figure class="shot"><img src="images/system-history.png" loading="lazy" alt="Sensor history charts"><figcaption><span data-i18n="g12">Sensor history</span><span class="n">12</span></figcaption></figure>
+      <figure class="shot"><img src="images/search-spotlight.png" loading="lazy" alt="Spotlight search reading a phrase as a date and a file type"><figcaption><span data-i18n="g13">Search, in your words</span><span class="n">13</span></figcaption></figure>
+      <figure class="shot"><img src="images/disk-explore.png" loading="lazy" alt="Largest folders and largest files on a drive"><figcaption><span data-i18n="g14">What is taking the space</span><span class="n">14</span></figcaption></figure>
+      <figure class="shot"><img src="images/disk-cleanup.png" loading="lazy" alt="The protected cleanup plan with its categories"><figcaption><span data-i18n="g15">Protected cleanup</span><span class="n">15</span></figcaption></figure>
     </div>
     <div class="strip-cue" data-i18n="gal.cue">← Drag · tap to enlarge →</div>
   </section>
@@ -1051,6 +1107,17 @@ I18N.en = {
   'p4.k': 'The companion', 'p4.h': 'Bit, the pixel guardian',
   'p4.p': 'Vitals tracks hydration, focus and posture like a game HUD. Bit is the pixel pet in the corner who notices when they drop, and keeps bothering you until you take the break. It can be sarcastic. It is never mean. It stays off until you turn it on.',
   'p4.bit': '"Signed: your guilt, in 8-bit. — Bit"',
+  'fs.k': 'Files and space', 'fs.h2': 'Find anything on your PC.<br>See where the space <em>went.</em>',
+  'fs.p': 'Xenon keeps a list of every file on your drives and updates it the moment something changes. Search and disk space both use that list. It stays on your PC and is never uploaded anywhere.',
+  'fs1.k': 'Search', 'fs1.h': 'Pull the bar down and type',
+  'fs1.p': 'Pull the top bar down with your finger and the search opens. Then type the way you talk: “photos from december”, “big videos from this year”, “invoice last month”. What Xenon understood shows up as small tags, and if it got one wrong you tap it off. Results come up while you type and nothing leaves your PC. If you prefer the keyboard, you can switch on a shortcut, Alt+Space, that opens the same bar over any app.',
+  'fs1.c1': 'Type it like you say it', 'fs1.c2': 'Alt+Space, if you want it', 'fs1.c3': 'One pull to open',
+  'fs2.k': 'AI mode', 'fs2.h': 'Ask in a full sentence',
+  'fs2.p': 'Tap the AI button in the bar, or press Ctrl+I, and you can ask in a full sentence. The AI only turns your words into a search: the looking is still done by your PC. All it gets is your sentence and today\'s date, no file names and no paths. If you want it to know your apps and folders too, so that “open the program for my lights” works, there is a switch in Settings that stays off until you turn it on. No AI set up? The same Enter searches offline and tells you so.',
+  'fs2.c1': 'Gemini, Claude, OpenAI or local Ollama', 'fs2.c2': 'Nothing is sent while you type', 'fs2.c3': 'Optional, off by default',
+  'fs3.k': 'Disk space', 'fs3.h': 'No scan button, ever',
+  'fs3.p': 'Tap a drive and the map is already there. No waiting, no scan. Tap a folder to go inside it, look at your biggest files, and find the duplicates you forgot you had. When it comes to cleaning up, Xenon only ever offers things you can afford to lose: temporary files, browser caches, old installers. You confirm each one, it all goes to the Recycle Bin, and Xenon AI can look at the numbers but cannot delete anything.',
+  'fs3.c1': 'Always up to date', 'fs3.c2': 'Everything goes to the Recycle Bin', 'fs3.c3': 'The AI cannot delete',
   'rgb.k': 'For the glow', 'rgb.h2': 'RGB that reacts to real data',
   'rgb.p': 'Your CORSAIR gear plus Philips Hue, WLED, Govee, LIFX and Nanoleaf, driven by CPU temperature, album art or timers. It runs alongside iCUE without fighting it, and it stays off until you switch it on.',
   'more.k': 'And the rest', 'more.h2': 'There are more than 30.',
@@ -1074,6 +1141,7 @@ I18N.en = {
   'gal.k': 'The gallery', 'gal.h2': 'A closer look', 'gal.cue': '← Drag · tap to enlarge →',
   'g1': 'Media & now playing', 'g2': 'Calendar & ICS sync', 'g3': 'Twitch & OBS', 'g4': 'Discord voice', 'g5': 'Markets & charts', 'g6': 'Football, live',
   'g7': 'News stream', 'g8': 'Weather', 'g9': 'Spotify player', 'g10': 'Widget SDK', 'g11': 'App switcher', 'g12': 'Sensor history',
+  'g13': 'Search, in your words', 'g14': 'What is taking the space', 'g15': 'Protected cleanup',
   'com.k': 'Community catalog', 'com.h2': 'Themes and widgets from <em>the community</em>',
   'com.p': 'Themes, backgrounds, widgets and whole packs, shared by other Xenon users. Every one is checked by hand and all of them are free. Copy the code, paste it into Xenon, and it applies.',
   'com.by': 'by', 'com.kind.theme': 'Theme', 'com.kind.bg': 'Background', 'com.kind.pack': 'Package',
@@ -1132,6 +1200,17 @@ I18N.it = {
   'p4.k': 'Il compagno', 'p4.h': 'Bit, il guardiano pixel',
   'p4.p': 'I Vitals tracciano idratazione, focus e postura come un HUD di gioco. Bit è il pet pixel nell\'angolo che si accorge quando scendono, e continua a romperti finché la pausa non la fai. Può essere sarcastico. Non è mai cattivo. Resta spento finché non lo accendi.',
   'p4.bit': '"Firmato: il tuo senso di colpa, in 8-bit. — Bit"',
+  'fs.k': 'File e spazio', 'fs.h2': 'Trova qualsiasi cosa sul PC.<br>Guarda dove è finito <em>lo spazio.</em>',
+  'fs.p': 'Xenon tiene un elenco di tutti i file dei tuoi dischi e lo aggiorna nel momento in cui qualcosa cambia. Lo usano sia la ricerca sia lo spazio su disco. Resta sul tuo PC e non viene caricato da nessuna parte.',
+  'fs1.k': 'Ricerca', 'fs1.h': 'Tira giù la barra e scrivi',
+  'fs1.p': 'Tiri giù la barra in alto con un dito e si apre la ricerca. Poi scrivi come parli: “foto di dicembre”, “video grandi di quest\'anno”, “fattura del mese scorso”. Quello che Xenon ha capito compare come piccole etichette, e se ha capito male ne togli una con un tocco. I risultati arrivano mentre scrivi e non esce niente dal tuo PC. Se preferisci la tastiera puoi attivare una scorciatoia, Alt+Space, che apre la stessa barra sopra qualsiasi programma.',
+  'fs1.c1': 'Scrivi come parli', 'fs1.c2': 'Alt+Space, se la vuoi', 'fs1.c3': 'Si apre con un tocco',
+  'fs2.k': 'Modalità AI', 'fs2.h': 'Chiedi con una frase intera',
+  'fs2.p': 'Tocchi il pulsante AI nella barra, oppure premi Ctrl+I, e puoi chiedere con una frase intera. L\'AI trasforma solo le tue parole in una ricerca: a cercare resta il tuo PC. Riceve la frase e la data di oggi, nient\'altro, nessun nome di file e nessun percorso. Se vuoi che conosca anche le tue app e le tue cartelle, così che “apri il programma delle luci” funzioni, nelle Impostazioni c\'è un interruttore spento finché non lo accendi tu. Non hai un\'AI configurata? Lo stesso Invio cerca offline e te lo dice.',
+  'fs2.c1': 'Gemini, Claude, OpenAI o Ollama locale', 'fs2.c2': 'Mentre scrivi non parte nulla', 'fs2.c3': 'Facoltativa, spenta di default',
+  'fs3.k': 'Spazio su disco', 'fs3.h': 'Nessun pulsante Scansiona',
+  'fs3.p': 'Tocchi un disco e la mappa è già pronta. Niente attesa, niente scansione. Tocchi una cartella per entrarci, guardi i file più grandi e trovi le copie doppie che non ricordavi di avere. Quando si tratta di fare pulizia, Xenon propone solo cose che puoi permetterti di perdere: file temporanei, cache dei browser, vecchi installer. Confermi voce per voce, va tutto nel Cestino, e Xenon AI può guardare i numeri ma non può cancellare niente.',
+  'fs3.c1': 'Sempre aggiornata', 'fs3.c2': 'Va tutto nel Cestino', 'fs3.c3': 'L\'AI non può cancellare',
   'rgb.k': 'Per chi ama la luce', 'rgb.h2': 'RGB che reagisce a dati reali',
   'rgb.p': 'Il tuo hardware CORSAIR più Philips Hue, WLED, Govee, LIFX e Nanoleaf, guidati da temperatura CPU, copertine o timer. Convive con iCUE senza litigarci, e resta spento finché non lo accendi.',
   'more.k': 'E il resto', 'more.h2': 'Ce ne sono più di 30.',
@@ -1155,6 +1234,7 @@ I18N.it = {
   'gal.k': 'La galleria', 'gal.h2': 'Più da vicino', 'gal.cue': '← Trascina · tocca per ingrandire →',
   'g1': 'Media e now playing', 'g2': 'Calendario e sync ICS', 'g3': 'Twitch e OBS', 'g4': 'Voce Discord', 'g5': 'Mercati e grafici', 'g6': 'Calcio live',
   'g7': 'Flusso news', 'g8': 'Meteo', 'g9': 'Player Spotify', 'g10': 'Widget SDK', 'g11': 'App switcher', 'g12': 'Storico sensori',
+  'g13': 'Ricerca, a parole tue', 'g14': 'Cosa occupa lo spazio', 'g15': 'Pulizia protetta',
   'com.k': 'Catalogo della community', 'com.h2': 'Setup creati da <em>gente come te</em>',
   'com.p': 'Temi, sfondi, widget e pacchetti completi, condivisi da altri utenti Xenon. Li controllo tutti a mano e sono tutti gratis. Copi il codice, lo incolli in Xenon, e si applica.',
   'com.by': 'di', 'com.kind.theme': 'Tema', 'com.kind.bg': 'Sfondo', 'com.kind.pack': 'Pacchetto',
@@ -1213,6 +1293,17 @@ I18N.ko = {
   'p4.k': '동반자', 'p4.h': '픽셀 수호자, Bit',
   'p4.p': 'Vitals는 수분, 집중, 자세를 게임 HUD처럼 추적합니다. 구석의 픽셀 펫 Bit은 수치가 떨어지는 걸 알아채고, 당신이 쉴 때까지 계속 잔소리합니다. 비꼴 수는 있어도 못되게 굴지는 않습니다. 켜기 전까지는 꺼져 있습니다.',
   'p4.bit': '"서명: 당신의 죄책감, 8비트로. — Bit"',
+  'fs.k': '파일과 공간', 'fs.h2': 'PC 안의 무엇이든 찾고,<br>공간이 어디로 갔는지 <em>확인하세요.</em>',
+  'fs.p': 'Xenon은 드라이브에 있는 모든 파일의 목록을 가지고 있고, 무언가 바뀌면 바로 반영합니다. 검색과 디스크 공간이 같은 목록을 씁니다. 목록은 이 PC 안에만 있고 어디에도 올라가지 않습니다.',
+  'fs1.k': '검색', 'fs1.h': '상단 바를 아래로 당겨 입력하세요',
+  'fs1.p': '손가락으로 상단 바를 아래로 당기면 검색이 열립니다. 그다음은 말하듯이 쓰면 됩니다. “photos from december”, “big videos from this year”처럼요. Xenon이 이해한 내용은 작은 태그로 표시되고, 잘못 알아들었으면 탭 한 번으로 뺄 수 있습니다. 결과는 입력하는 동안 바로 나오고, PC 밖으로 나가는 것은 없습니다. 키보드가 편하다면 단축키 Alt+Space를 켜서 어떤 프로그램 위에서든 같은 창을 열 수 있습니다.',
+  'fs1.c1': '말하듯이 입력', 'fs1.c2': '원하면 Alt+Space', 'fs1.c3': '한 번 당기면 열림',
+  'fs2.k': 'AI 모드', 'fs2.h': '문장 그대로 물어보세요',
+  'fs2.p': '바의 AI 버튼을 누르거나 Ctrl+I를 누르면 문장 그대로 물어볼 수 있습니다. AI는 여러분의 말을 검색 조건으로 바꿔 줄 뿐이고, 실제로 찾는 일은 이 PC가 합니다. AI에게 가는 것은 문장과 오늘 날짜뿐입니다. 파일 이름도 경로도 보내지 않습니다. 설치된 앱과 자주 쓰는 폴더까지 알려 주어 “조명 켜는 프로그램 열어”가 통하게 하고 싶다면, 설정에 켜기 전까지 꺼져 있는 스위치가 있습니다. AI를 설정하지 않았다면 같은 Enter가 오프라인으로 찾고, 그렇게 했다고 알려 줍니다.',
+  'fs2.c1': 'Gemini, Claude, OpenAI 또는 로컬 Ollama', 'fs2.c2': '입력하는 동안에는 아무것도 전송되지 않음', 'fs2.c3': '선택 사항, 기본값은 꺼짐',
+  'fs3.k': '디스크 공간', 'fs3.h': '검사 버튼은 없습니다',
+  'fs3.p': '드라이브를 탭하면 지도가 이미 준비되어 있습니다. 기다림도 검사도 없습니다. 폴더를 탭해 들어가고, 가장 큰 파일을 보고, 있는 줄도 몰랐던 중복 파일을 찾아보세요. 정리할 때 Xenon이 제안하는 것은 없어져도 괜찮은 것들뿐입니다. 임시 파일, 브라우저 캐시, 오래된 설치 파일. 항목마다 직접 확인하고, 모두 휴지통으로 가며, Xenon AI는 숫자를 볼 수는 있어도 아무것도 지울 수 없습니다.',
+  'fs3.c1': '항상 최신', 'fs3.c2': '모두 휴지통으로', 'fs3.c3': 'AI는 삭제할 수 없음',
   'rgb.k': '빛을 위하여', 'rgb.h2': '실제 데이터에 반응하는 RGB',
   'rgb.p': 'CORSAIR 기기에 Philips Hue, WLED, Govee, LIFX, Nanoleaf까지, CPU 온도나 앨범 아트나 타이머로 구동됩니다. iCUE와 충돌 없이 함께 돌아가고, 켜기 전까지는 꺼져 있습니다.',
   'more.k': '그리고 나머지', 'more.h2': '30개가 넘습니다.',
@@ -1236,6 +1327,7 @@ I18N.ko = {
   'gal.k': '갤러리', 'gal.h2': '조금 더 가까이', 'gal.cue': '← 드래그 · 탭하여 확대 →',
   'g1': '미디어 & 재생 정보', 'g2': '캘린더 & ICS 동기화', 'g3': 'Twitch & OBS', 'g4': 'Discord 음성', 'g5': '마켓 & 차트', 'g6': '축구 라이브',
   'g7': '뉴스 스트림', 'g8': '날씨', 'g9': 'Spotify 플레이어', 'g10': '위젯 SDK', 'g11': '앱 전환기', 'g12': '센서 기록',
+  'g13': '내 말로 하는 검색', 'g14': '공간을 차지하는 것', 'g15': '보호된 정리',
   'com.k': '커뮤니티 카탈로그', 'com.h2': '<em>커뮤니티</em>가 만든 테마와 위젯',
   'com.p': '다른 Xenon 사용자들이 공유한 테마, 배경, 위젯, 완성된 팩. 전부 직접 검수하고 전부 무료입니다. 코드를 복사해 Xenon에 붙여넣으면 적용됩니다.',
   'com.by': '제작:', 'com.kind.theme': '테마', 'com.kind.bg': '배경', 'com.kind.pack': '패키지',
@@ -1294,6 +1386,17 @@ I18N.ja = {
   'p4.k': '相棒', 'p4.h': 'ピクセルの守護者、Bit',
   'p4.p': 'Vitals は水分・集中・姿勢をゲームの HUD のように追跡します。隅にいるピクセルペットの Bit は数値が下がったことに気づき、あなたが休憩するまで言い続けます。皮肉は言いますが、意地悪はしません。オンにするまではオフのままです。',
   'p4.bit': '"署名：あなたの罪悪感、8ビットで。 — Bit"',
+  'fs.k': 'ファイルと容量', 'fs.h2': 'PC の中の何でも見つかる。<br>容量の行き先が <em>ひと目で。</em>',
+  'fs.p': 'Xenon はドライブにあるファイルの一覧を持っていて、何か変わればすぐに反映します。検索も容量も同じ一覧を使います。一覧はこの PC の中だけにあり、どこにもアップロードされません。',
+  'fs1.k': '検索', 'fs1.h': 'バーを下に引いて入力',
+  'fs1.p': '上のバーを指で下に引くと検索が開きます。あとは話すように書くだけです。「photos from december」「big videos from this year」のように。Xenon が理解した内容は小さなタグで表示され、違っていればタップで外せます。結果は入力しながら出てきて、PC の外には何も出ません。キーボードのほうがよければ、ショートカット Alt+Space をオンにして、どのアプリの上でも同じバーを開けます。',
+  'fs1.c1': '話すように入力', 'fs1.c2': '必要なら Alt+Space', 'fs1.c3': 'ひと引きで開く',
+  'fs2.k': 'AI モード', 'fs2.h': '文章のまま聞けます',
+  'fs2.p': 'バーの AI ボタン、または Ctrl+I を押すと、文章のまま聞けます。AI は言葉を検索条件に変えるだけで、探すのはこの PC のままです。AI に渡るのは文章と今日の日付だけ。ファイル名もパスも送りません。「照明のアプリを開いて」が通じるように、インストール済みのアプリやよく使うフォルダーも渡したいときは、設定にオンにするまで切れているスイッチがあります。AI を設定していなければ、同じ Enter がオフラインで探し、そのことを画面で伝えます。',
+  'fs2.c1': 'Gemini、Claude、OpenAI、ローカルの Ollama', 'fs2.c2': '入力中は何も送信しない', 'fs2.c3': '任意、既定はオフ',
+  'fs3.k': 'ディスク容量', 'fs3.h': 'スキャンボタンはありません',
+  'fs3.p': 'ドライブをタップすると、マップはもう出来ています。待ち時間もスキャンもありません。フォルダーをタップして中に入り、大きいファイルを確かめ、あることも忘れていた重複ファイルを見つけられます。片づけで Xenon が挙げるのは、なくなっても困らないものだけです。一時ファイル、ブラウザーのキャッシュ、古いインストーラー。ひとつずつ確認して、すべてごみ箱に入ります。Xenon AI は数字を見られますが、何も削除できません。',
+  'fs3.c1': 'いつでも最新', 'fs3.c2': 'すべてごみ箱へ', 'fs3.c3': 'AI は削除できない',
   'rgb.k': '光にこだわる人へ', 'rgb.h2': 'リアルなデータに反応する RGB',
   'rgb.p': 'CORSAIR 機器に加えて Philips Hue、WLED、Govee、LIFX、Nanoleaf を、CPU 温度やアルバムアート、タイマーで駆動します。iCUE とぶつからずに共存し、オンにするまではオフのままです。',
   'more.k': 'そのほかにも', 'more.h2': '30 個以上あります。',
@@ -1317,6 +1420,7 @@ I18N.ja = {
   'gal.k': 'ギャラリー', 'gal.h2': 'もう少し近くで', 'gal.cue': '← ドラッグ · タップで拡大 →',
   'g1': 'メディア & 再生情報', 'g2': 'カレンダー & ICS 同期', 'g3': 'Twitch & OBS', 'g4': 'Discord ボイス', 'g5': 'マーケット & チャート', 'g6': 'サッカーライブ',
   'g7': 'ニュースストリーム', 'g8': '天気', 'g9': 'Spotify プレイヤー', 'g10': 'ウィジェット SDK', 'g11': 'アプリスイッチャー', 'g12': 'センサー履歴',
+  'g13': '自分の言葉で検索', 'g14': '容量を使っているもの', 'g15': '保護されたクリーンアップ',
   'com.k': 'コミュニティカタログ', 'com.h2': '<em>コミュニティ</em>が作ったテーマとウィジェット',
   'com.p': '他の Xenon ユーザーが共有したテーマ、背景、ウィジェット、フルパック。すべて手作業でチェックしていて、すべて無料です。コードをコピーして Xenon に貼り付ければ適用されます。',
   'com.by': '作者:', 'com.kind.theme': 'テーマ', 'com.kind.bg': '背景', 'com.kind.pack': 'パッケージ',
@@ -1375,6 +1479,17 @@ I18N.zh = {
   'p4.k': '伙伴', 'p4.h': 'Bit,像素守护者',
   'p4.p': 'Vitals 像游戏 HUD 一样追踪饮水、专注和坐姿。住在角落的像素宠物 Bit 会注意到它们下降,然后一直念叨到你真的去休息。它会挖苦,但从不刻薄。你不开它,它就一直关着。',
   'p4.bit': '"署名:你的负罪感,8 位版。 — Bit"',
+  'fs.k': '文件与空间', 'fs.h2': '在电脑里找到任何东西。<br>看清空间 <em>去了哪里。</em>',
+  'fs.p': 'Xenon 保存着你磁盘里所有文件的清单，有变化就立刻更新。搜索和磁盘空间用的是同一份清单。它只留在这台电脑里，不会上传到任何地方。',
+  'fs1.k': '搜索', 'fs1.h': '把顶栏往下拉，然后打字',
+  'fs1.p': '用手指把顶栏往下拉，搜索就打开了。接着照你说话的方式写就行，比如“photos from december”“big videos from this year”。Xenon 理解到的内容会变成一个个小标签，理解错了点一下就能去掉。结果在你打字时就出来，什么都不会离开这台电脑。如果你更习惯键盘，可以打开快捷键 Alt+Space，在任何程序上面打开同一个搜索栏。',
+  'fs1.c1': '像说话一样打字', 'fs1.c2': '需要的话用 Alt+Space', 'fs1.c3': '一拉就打开',
+  'fs2.k': 'AI 模式', 'fs2.h': '用一整句话来问',
+  'fs2.p': '点搜索栏里的 AI 按钮，或者按 Ctrl+I，就可以用一整句话来问。AI 只负责把你的话变成搜索条件，真正去找的还是你的电脑。它拿到的只有你这句话和今天的日期，没有文件名，也没有路径。如果你想让它也知道你装了哪些应用、常用哪些文件夹，好让“打开控制灯光的那个程序”能用，设置里有一个开关，你不打开它就一直关着。没有配置 AI 也没关系，同样按回车会用离线方式搜索，并且明确告诉你。',
+  'fs2.c1': 'Gemini、Claude、OpenAI 或本地 Ollama', 'fs2.c2': '打字过程中不发送任何内容', 'fs2.c3': '可选，默认关闭',
+  'fs3.k': '磁盘空间', 'fs3.h': '没有“扫描”按钮',
+  'fs3.p': '点一下磁盘，地图就已经在那里了。不用等，也不用扫描。点进文件夹，看看最大的文件，找出你早就忘了的重复副本。要清理的时候，Xenon 只会列出丢了也没关系的东西：临时文件、浏览器缓存、旧的安装包。每一项都由你确认，全部进回收站，而 Xenon AI 只能看数字，删不了任何东西。',
+  'fs3.c1': '始终是最新的', 'fs3.c2': '全部进回收站', 'fs3.c3': 'AI 无法删除',
   'rgb.k': '为光而生', 'rgb.h2': '随真实数据起舞的 RGB',
   'rgb.p': '你的 CORSAIR 设备,加上 Philips Hue、WLED、Govee、LIFX 和 Nanoleaf,由 CPU 温度、专辑封面或计时器驱动。它和 iCUE 各跑各的,互不打架,你不开它就一直关着。',
   'more.k': '还有更多', 'more.h2': '还有 30 多个。',
@@ -1398,6 +1513,7 @@ I18N.zh = {
   'gal.k': '图库', 'gal.h2': '再看近一点', 'gal.cue': '← 拖动 · 点按放大 →',
   'g1': '媒体 & 播放信息', 'g2': '日历 & ICS 同步', 'g3': 'Twitch & OBS', 'g4': 'Discord 语音', 'g5': '行情 & 图表', 'g6': '足球直播',
   'g7': '新闻流', 'g8': '天气', 'g9': 'Spotify 播放器', 'g10': '小组件 SDK', 'g11': '应用切换器', 'g12': '传感器历史',
+  'g13': '用你自己的话搜索', 'g14': '占空间的是什么', 'g15': '受保护的清理',
   'com.k': '社区目录', 'com.h2': '来自<em>社区</em>的主题和小组件',
   'com.p': '其他 Xenon 用户分享的主题、背景、小组件和完整套装。每一个我都亲自检查过,而且全部免费。复制代码,粘贴进 Xenon,就生效了。',
   'com.by': '作者:', 'com.kind.theme': '主题', 'com.kind.bg': '背景', 'com.kind.pack': '套装',

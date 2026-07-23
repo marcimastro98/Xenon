@@ -16,10 +16,18 @@ test('manifest: valid minimal manifest normalizes', () => {
   assert.deepEqual(r.manifest, {
     id: 'clock', api: 1, name: 'Clock', version: '0.0.0', author: '',
     description: '', surface: 'tile', background: false, island: false, islandDynamic: false, islandFull: false, badge: false,
-    clipboard: false, storage: false, storageGroup: '', secrets: false,
+    clipboard: false, accent: false, storage: false, storageGroup: '', secrets: false,
     entry: 'index.html', streams: [], actions: [],
     hosts: [], userHosts: [], hooks: [], deck: { actions: [], states: [], handlers: [] },
   });
+});
+
+test('manifest: accent defaults off, opts in only on the exact true literal', () => {
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X' }, 'a0').manifest.accent, false);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', accent: true }, 'a1').manifest.accent, true);
+  // A truthy non-boolean must never buy the capability — same rule as clipboard.
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', accent: 'true' }, 'a2').manifest.accent, false);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', accent: 1 }, 'a3').manifest.accent, false);
 });
 
 test('manifest: storage/secrets default off, opt in with booleans', () => {

@@ -25,6 +25,8 @@ The complete guide to everything Xenon can do. For installation see **[README.md
 - [Tasks](#tasks)
 - [Timers](#timers)
 - [Notes](#notes)
+- [Local search (Spotlight)](#local-search-spotlight)
+- [Disk space](#disk-space)
 - [Notifications](#notifications)
 - [Weather](#weather)
 - [Stocks (Borsa)](#stocks-borsa)
@@ -477,6 +479,32 @@ Part of the **Agenda** hub (or its own tile). Create a timer by typing a label a
 
 ---
 
+## Local search (Spotlight)
+
+Find any file on your PC by describing it the way you would say it — right from the dashboard, with no AI and no internet required.
+
+- **Pull down to search.** Drag the top bar down and the clock capsule itself stretches and drips into a water drop that becomes the search pill — a short pull is just the effect (the capsule absorbs the drop back with a bounce), a full pull opens the search over the still-visible dashboard, dimmed softly around the pill. A 🔍 button in the top bar (both Full and Minimal) and a **Search** tile from the **"+" → Productivity** palette open the same surface; **Ctrl+Space** works from a keyboard.
+- **Natural phrases, understood offline.** "foto di dicembre", "big pdf", "contratto affitto", "file modificati ieri", "più di 100 mb" — Xenon's own parser turns the phrase into type, date and size filters plus search terms, in Italian and English, with no model involved. Every interpretation shows as a **removable chip**: if "dicembre" was meant as a file name and not a month, tap the chip and it searches as a word instead.
+- **The Living Index.** With the Xenon Helper, the companion keeps an in-memory index of every file under the roots you choose (**all of C: by default**) — built in seconds, kept current in **real time** by filesystem watchers, instant to query, and honest about its RAM cost. It covers what Windows' own index quietly skips; Windows Search still contributes matches on the **text inside documents**. Ranking blends name-match quality, recency, **how often you open each result from Xenon** and folder affinity — signals that never leave your PC.
+- **Safe by construction.** Tapping a result opens it with its normal app; files that could run code (exe, scripts, shortcuts) deliberately refuse to open from search and offer **Show in folder** instead. Actions travel as opaque result ids — the browser never sends a path to the server.
+- **On your main PC too.** An optional **global shortcut** (default Alt+Space, configurable in Settings → Search & disk; needs the Xenon Helper) opens the search on your main monitor: with the **native app** running it is a floating, frameless, always-on-top pill in your exact theme; otherwise a themed window opens instead. Xenon AI uses the same engine by voice or chat: *"apri il contratto dell'affitto"*.
+- Everything is local: no query, file name or result ever leaves your PC. Fully localised in all 11 languages.
+
+---
+
+## Disk space
+
+Know what is eating your drive — live, with **no scan button**. Add the **Disk space** tile from the **"+" → System** palette (needs the Xenon Helper companion, like the Second screen).
+
+- **One coherent live snapshot.** The widget reads the same **Living Index** the search uses: drives and folders appear as chips with their real volume name/model, letter and filesystem; tapping one composes capacity/free-space pressure, the **treemap** (tap through level by level), largest files, cleanup candidates and duplicate candidates in one bounded pass — not several competing full-index scans. Each level is opened through an opaque server id and includes both subfolders and files stored directly there, so a huge Desktop made mostly of loose files is explained instead of becoming an empty view. The snapshot is cached briefly and the index follows filesystem changes in real time; every destructive decision is still rechecked against the live filesystem. Add another drive with one tap; a "learning" badge shows progress while a new root is indexed, and **Index RAM** says plainly that the adjacent number is memory used to keep files searchable, not disk space.
+- **Safe-to-clean categories, closed by design.** Xenon classifies only what is genuinely safe to remove: temporary files, browser caches, package-manager caches (npm, pip, NuGet, Gradle…), old installers in Downloads, the Recycle Bin, and build folders (`node_modules`, `target`…) **only inside project folders you explicitly name** in Settings. Everything else is shown with its size and has **no delete button** — deleting the wrong file is the one mistake this feature refuses to risk.
+- **The Recycle Bin is the undo.** Every cleanup moves files to the Recycle Bin — never a permanent delete — and a confirmation first shows the count, total size and biggest items. The one exception is emptying the Bin itself, which is labelled as permanent before you confirm. While it works, the widget shows the real current phase — selection verification, move and filesystem verification, then map refresh — rather than a fake percentage. Afterwards it reports exactly what happened: how many files, how much space freed, and where they went.
+- **Real duplicates, not guesses.** Same-size files are verified byte-for-byte (SHA-256) before they are called duplicates; the widget shows the groups and how much space the extra copies waste.
+- **Xenon Storage Advisor + optional AI.** **Open analysis** opens a complete modal inside the Disk tile — never a chat tile that may not exist. Its private deterministic report works with AI disabled and includes drive pressure, human-readable cleanup decisions, a category chart, what every category is for, what happens after cleaning, how to reduce recurrence, verified duplicates, the largest folders/files and a clear “largest does not mean deletable” boundary. If you press **Deepen with AI**, the configured provider receives the selected read-only snapshot and can connect it to your apps, habits and hardware only when the separate **Complete brain for AI search and cleanup** setting is enabled. The request exposes no function tools, so an AI can neither complain that a `disk_insights` tool is missing nor perform an action. The AI **cannot delete anything**: the only thing that starts a deletion is your tap on the confirm button.
+- Fully localised in all 11 languages.
+
+---
+
 ## Notifications
 
 ![Notifications](docs/images/notification.png)
@@ -512,12 +540,8 @@ Xenon mirrors your whole PC's pings onto the Xeneon Edge so you never have to tu
 
 ## Stocks (Borsa)
 
-<!--TODO-->
-<!-- SCREENSHOT: Borsa widget — watchlist with sparklines. Save as docs/images/stocks-widget.png -->
 ![Borsa widget — live watchlist with sparklines](docs/images/stocks-widget.png)
-<!-- SCREENSHOT: Borsa detail — price chart with range switch. Save as docs/images/stocks-chart.png -->
 ![Borsa detail — price chart with 1D/1W/1M/1Y ranges](docs/images/stocks-chart.png)
-<!-- SCREENSHOT: Scrolling ticker bar at the bottom edge. Save as docs/images/stocks-ticker.png -->
 ![Scrolling ticker bar](docs/images/stocks-ticker.png)
 
 Track stocks, indices, crypto and currencies right on the dashboard. Add the **Borsa** tile from the **"+" → Productivity** palette.
@@ -533,10 +557,7 @@ Track stocks, indices, crypto and currencies right on the dashboard. Add the **B
 ---
 
 ## Football (Calcio)
-<!--TODO-->
-<!-- SCREENSHOT: Calcio widget — favorite teams with crests, result and next fixture. Save as docs/images/football-widget.png -->
 ![Calcio widget — favorite teams with results and fixtures](docs/images/football-widget.png)
-<!-- SCREENSHOT: Calcio detail — match hero, recent results, upcoming, league table. Save as docs/images/football-detail.png -->
 ![Calcio detail — match hero, results and league table](docs/images/football-detail.png)
 
 Follow your football clubs right on the dashboard. Add the **Calcio** tile from the **"+" → Productivity** palette.
@@ -565,8 +586,6 @@ If you use **Claude Code** on your PC, this tile turns your token consumption in
 ---
 
 ## News
-<!--TODO-->
-<!-- SCREENSHOT: News widget — merged headline stream. Save as docs/images/news-widget.png -->
 ![News widget — headlines from followed outlets and topics](docs/images/news-widget.png)
 
 A single, time-sorted stream of headlines from the outlets and topics you follow. Add the **News** tile from the **"+" → Productivity** palette.
@@ -581,8 +600,8 @@ A single, time-sorted stream of headlines from the outlets and topics you follow
 ---
 
 ## Vitals
-<!--TODO-->
-<!-- SCREENSHOT: Vitals widget — pixel-art self-care HUD. Save as docs/images/vitals-widget.png -->
+
+![Vitals widget — pixel-art self-care HUD](docs/images/vitals-widget.png)
 
 A retro game HUD for looking after yourself: pixel-art meters that drain the longer you sit at the PC, and refill when you tap them. Add the **Vitals** tile from the **"+" → Productivity** palette.
 

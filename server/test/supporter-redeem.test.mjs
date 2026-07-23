@@ -32,6 +32,30 @@ test('installId: generated once, persisted, and reused', withTransport(async () 
   assert.equal(id2, id1, 'reloaded from disk, not regenerated');
 }));
 
+test('scoped ids: one install, two values, neither of them the install id', withTransport(async () => {
+  const dir = tmp();
+  const raw = await redeemMod.getInstallId(dir);
+  const device = await redeemMod.getScopedId(dir, redeemMod.SCOPE_DEVICES);
+  const voter = await redeemMod.getScopedId(dir, redeemMod.SCOPE_RATINGS);
+
+  assert.match(device, /^[0-9a-f]{64}$/);
+  assert.match(voter, /^[0-9a-f]{64}$/);
+  // The whole point: the hub stores these in two tables, and they must not be
+  // the same value, or a supporter's activations name the votes they cast.
+  assert.notEqual(device, voter);
+  assert.notEqual(device, raw);
+  assert.notEqual(voter, raw);
+
+  // Stable across calls, and derived from the id on disk (not the cache), so an
+  // upgraded install keeps its vote and its device slot.
+  redeemMod._resetInstallIdCache();
+  assert.equal(await redeemMod.getScopedId(dir, redeemMod.SCOPE_DEVICES), device);
+
+  const { createHash } = await import('node:crypto');
+  assert.equal(device, createHash('sha256').update(raw.toLowerCase() + '|activations').digest('hex'));
+  assert.equal(voter, createHash('sha256').update(raw.toLowerCase() + '|ratings').digest('hex'));
+}));
+
 test('installId: corrupt file is replaced, not fatal', withTransport(async () => {
   const dir = tmp();
   const file = path.join(dir, 'install-id.json');
@@ -69,7 +93,7 @@ test('redeem: XL item codes pass the shape gate like XS supporter codes', withTr
   assert.equal(seen.code, 'XLABCDEFGHJKLM', 'canonical XL form travels');
 }));
 
-test('redeem: happy path forwards canonical code + installId and passes the cek through', withTransport(async () => {
+test('redeem: happy path forwards canonical code + device id and passes the cek through', withTransport(async () => {
   const dir = tmp();
   let seen = null;
   redeemMod._setTransport(async (url, body) => {
@@ -84,7 +108,8 @@ test('redeem: happy path forwards canonical code + installId and passes the cek 
   assert.equal(seen.url, redeemMod.HUB_BASE + '/redeem');
   assert.equal(seen.body.code, 'XSABCDEFGHJKLM', 'canonical form travels');
   assert.equal(seen.body.entryId, GOOD.entryId);
-  assert.match(seen.body.installId, /^[0-9a-f-]{36}$/i);
+  assert.match(seen.body.scopedId, /^[0-9a-f]{64}$/);
+  assert.equal(seen.body.installId, undefined, 'the raw install id never leaves this machine');
 }));
 
 test('redeem: whitelisted errors pass through, unknown ones map to network', withTransport(async () => {

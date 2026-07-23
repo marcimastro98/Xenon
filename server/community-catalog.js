@@ -158,6 +158,10 @@ function normalizeEntry(raw) {
   // override). Boolean-true-only, like the other v2 flags — the gallery shows a
   // "may use more resources" chip and the import dialog repeats it.
   if (raw.perfWarning === true) entry.perfWarning = true;
+  // Storefront spotlight, chosen in the hub admin: 'main' leads the Store at full
+  // width, 'on' rides in the column beside it. Two literals only — an unknown
+  // value must read as "not featured" rather than promote an entry by accident.
+  if (raw.featured === 'main' || raw.featured === 'on') entry.featured = raw.featured;
   const category = cleanStr(raw.category, 20);
   if (CATALOG_CATEGORIES.has(category)) entry.category = category;
   if (Array.isArray(raw.tags)) {

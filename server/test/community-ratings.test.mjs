@@ -43,16 +43,17 @@ test('fetchRatings validates ids before any network and caches the aggregate rea
   assert.ok(!calls[0].url.includes('installId='), 'anonymous read carries no install id');
 });
 
-test('mine=1 attaches the persisted install id server-side and skips the shared cache', async () => {
+test('mine=1 attaches the ratings-scoped id server-side and skips the shared cache', async () => {
   const dir = tmpDataDir();
   await ratings.fetchRatings({ ids: 'neon-theme', mine: true, dataDir: dir });
   assert.equal(calls.length, 1);
   const url = new URL(calls[0].url);
-  const installId = url.searchParams.get('installId');
-  assert.match(installId, /^[0-9a-f-]{36}$/i, 'a UUID install id rides along');
-  // The same id must persist across calls (it identifies THIS install).
+  const scopedId = url.searchParams.get('scopedId');
+  assert.match(scopedId, /^[0-9a-f]{64}$/, 'a hashed, ratings-scoped id rides along');
+  assert.equal(url.searchParams.get('installId'), null, 'the raw install id never leaves this machine');
+  // The same id must persist across calls (it identifies THIS install's votes).
   await ratings.fetchRatings({ ids: 'neon-theme', mine: true, dataDir: dir });
-  assert.equal(new URL(calls[1].url).searchParams.get('installId'), installId);
+  assert.equal(new URL(calls[1].url).searchParams.get('scopedId'), scopedId);
 });
 
 test('submitRating validates shape locally and invalidates cached sets containing the entry', async () => {
@@ -74,7 +75,8 @@ test('submitRating validates shape locally and invalidates cached sets containin
   assert.equal(post.opts.method, 'POST');
   assert.equal(post.opts.body.entryId, 'neon-theme');
   assert.equal(post.opts.body.stars, 5);
-  assert.match(post.opts.body.installId, /^[0-9a-f-]{36}$/i);
+  assert.match(post.opts.body.scopedId, /^[0-9a-f]{64}$/);
+  assert.equal(post.opts.body.installId, undefined, 'the raw install id is never posted');
 
   // The warmed cache was invalidated → next read goes out again.
   responder = () => ({ ok: true, minDisplayCount: 3, ratings: { 'neon-theme': { avg: 5, count: 8 } } });

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { clampPageIndex, resolvePageId, shouldPageOnWheel, computeActivePages, computeParkedIndices } = require('../js/dashboard-pager.js');
+const { clampPageIndex, resolvePageId, shouldPageOnWheel, computeActivePages, computeParkedIndices, shouldFloatDots } = require('../js/dashboard-pager.js');
 
 test('computeParkedIndices: every active page except the current one', () => {
   const pages = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
@@ -67,4 +67,19 @@ test('computeActivePages: a page with a visible widget stays', () => {
     lighting: { visible: true, page: 'lighting' },
   };
   assert.deepEqual(computeActivePages(all, widgets, false), ['dashboard', 'lighting']);
+});
+
+// The floating fallback page indicator exists for one situation: a full-page
+// tile in a chrome where the normal dots are not shown (the "None" bar, or
+// Minimal with the dots segment hidden), where the page swipe cannot begin over
+// the widget's iframe. It must appear ONLY then.
+test('shouldFloatDots: only with >1 page, not editing, and the real dots hidden', () => {
+  // The one case it exists for: two pages, dots off-screen, not editing.
+  assert.equal(shouldFloatDots(2, false, false), true);
+  // Real dots on screen (Full bar, or Minimal with dots shown) → never doubles them.
+  assert.equal(shouldFloatDots(2, false, true), false);
+  // A single page has nowhere to go.
+  assert.equal(shouldFloatDots(1, false, false), false);
+  // Editing: the topbar host carries the page-manager controls; don't float.
+  assert.equal(shouldFloatDots(3, true, false), false);
 });

@@ -227,6 +227,37 @@ body.topbar-minimal:not([data-panel]) .xtoast-in .xtoast-body { opacity: 1; }
   overflow: hidden;
 }
 
+/* Explicit toast actions (opts.actions) — a second choice next to the toast's
+   own tap action. Touch-sized, because the Edge is a touchscreen. */
+.xtoast-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 9px;
+}
+.xtoast-action {
+  min-height: 34px;
+  padding: 7px 13px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+.xtoast-action:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.26); }
+.xtoast-action:active { transform: scale(0.97); }
+.xtoast-action:focus-visible { outline: 2px solid rgba(var(--xt-rgb), 0.85); outline-offset: 2px; }
+.xtoast-action.is-primary {
+  border-color: rgba(var(--xt-rgb), 0.55);
+  background: rgba(var(--xt-rgb), 0.16);
+  color: rgb(var(--xt-rgb));
+}
+.xtoast-action.is-primary:hover { background: rgba(var(--xt-rgb), 0.24); }
+
 .xtoast-close {
   width: 32px;
   height: 32px;

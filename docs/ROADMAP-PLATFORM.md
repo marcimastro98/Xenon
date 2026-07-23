@@ -25,7 +25,7 @@ opt-in, visible, and revocable.
 
 ---
 
-## Phase 1 — Marketplace v2 *(this release line)*
+## Phase 1 — Marketplace v2 *(shipped in v4.6.0 – v4.7.0)*
 
 Closes the content-category gaps vs. the Elgato Marketplace and upgrades the
 community gallery from a moderated list into a real marketplace flow — with
@@ -103,9 +103,11 @@ deliberately unresolved until Phases 1–2 prove the catalog demand.
   catalog, a link, a code or an update ever auto-applies or auto-grants.
 - **The sandbox CSP is the kill-switch** for L1/L2; relaxing it is a security
   regression, not a feature.
-- **Install id ≠ identity.** Xenon remains account-free and telemetry-free;
-  the per-install UUID exists only for entitlements and vote dedup, and is
-  never treated as proof of person.
+- **Install id ≠ identity.** Xenon remains account-free and telemetry-free.
+  The per-install UUID never leaves the machine: what reaches the hub is a
+  one-way hash of it, and entitlements and vote dedup use two different hashes,
+  so the codes a supporter has redeemed cannot be matched against the ratings
+  they have cast. Neither value is ever treated as proof of person.
 - **Hub endpoints stay minimal and fail closed.** Fixed base URLs, scoped
   CORS exceptions only where a browser must call them, mandatory abuse
   protection before any public write endpoint goes live.
@@ -116,7 +118,7 @@ deliberately unresolved until Phases 1–2 prove the catalog demand.
 
 | Phase | Content | Status |
 |---|---|---|
-| 1 | Icon packs, sound packs/soundboard, submission portal, versioning for all kinds, star ratings | 🚧 In progress (v4.6 line) |
+| 1 | Icon packs, sound packs/soundboard, submission portal, versioning for all kinds, star ratings | ✅ Shipped (v4.6.0 – v4.7.0) |
 | 2 | L2 connectors, CLI + TS types + dev portal, audio routing | 🔮 Planned |
 | 3 | Native plugins: signing, process host, registry extension, review + revocation | 🔮 Planned |
 | 4 | Storefront: merchant-of-record checkout, entitlements, payouts | 🔮 Planned |

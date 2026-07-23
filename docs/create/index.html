@@ -775,6 +775,7 @@
             <tr><td><code>island</code></td><td>No</td><td><code>true</code> keeps the short plain-text line API. <code>{ "dynamic": true }</code> requests a separate advanced permission for Xenon-rendered Live Activities: text, icons, progress, playback bars, selected built-in readouts and up to two action buttons; timed takeover cards animate in/out and restore the previous content. Works in Full and Minimal. See the SDK guide's <i>Dynamic Island</i> chapter.</td></tr>
             <tr><td><code>badge</code></td><td>No</td><td><code>true</code> adds a small persistent host-rendered chip next to the clock. The user can disable each installed package from Settings → Dynamic Island.</td></tr>
             <tr><td><code>clipboard</code></td><td>No</td><td><code>true</code> lets your widget <b>ask</b> to copy text to the clipboard. It can never copy silently and can never read the clipboard: each copy raises a Xenon confirmation the user taps. Right for a password or a one-time code. See the SDK guide's <i>Clipboard</i> chapter.</td></tr>
+            <tr><td><code>accent</code></td><td>No</td><td><code>true</code> lets your widget tint the <b>dashboard's accent colour</b> while it runs — the same channel the album-art theme uses, for players Windows never reports (Plex, a console, a game overlay). The accent only, never saved, and handed back automatically when your widget is removed or paused. See the SDK guide's <i>Dashboard accent</i> chapter.</td></tr>
           </tbody>
         </table>
       </div>

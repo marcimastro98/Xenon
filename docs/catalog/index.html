@@ -252,6 +252,9 @@
   .drop-card:focus-visible { outline: 2px solid var(--plasma); outline-offset: 2px; }
   .drop-card.gold { border-color: rgba(255,190,77,.28); background: linear-gradient(115deg, rgba(255,190,77,.08), rgba(255,255,255,.012) 55%); }
   .drop-card.gold:hover { border-color: rgba(255,190,77,.55); }
+  /* A featured free creation gets the same stage without the exclusive tint. */
+  .drop-card.plain { border-color: var(--line-2); background: linear-gradient(115deg, rgba(255,255,255,.035), rgba(255,255,255,.012) 55%); }
+  .drop-card.plain:hover { border-color: rgba(255,255,255,.3); }
   .drop-media { position: relative; min-height: 260px; background: rgba(0,0,0,.35); border-right: 1px solid var(--line); overflow: hidden; }
   .drop-media > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   .drop-media .cat-shots { position: absolute; inset: 0; }
@@ -277,6 +280,36 @@
     .drop-card { grid-template-columns: 1fr; }
     .drop-media { min-height: 0; aspect-ratio: 16 / 9; border-right: 0; border-bottom: 1px solid var(--line); }
   }
+  /* ── Spotlight: the main featured card plus the column beside it ──
+     Rendered only when the catalog features more than one entry; a single
+     featured entry keeps the full-width drop card. The column is capped at
+     three in JS so this block never outgrows the card next to it. */
+  .spot { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(250px, 1fr); gap: 18px; align-items: stretch; margin-top: 26px; }
+  .spot > .drop-card { margin: 0; }
+  .spot-side { display: grid; grid-auto-rows: 1fr; gap: 18px; min-width: 0; }
+  .spot-card { position: relative; display: grid; grid-template-columns: 132px minmax(0, 1fr); border-radius: 16px; overflow: hidden; cursor: pointer; scroll-margin-top: 90px;
+    border: 1px solid var(--line-2); background: rgba(255,255,255,.012); transition: border-color .2s, transform .25s var(--ease); }
+  .spot-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.28); }
+  .spot-card:focus-visible { outline: 2px solid var(--plasma); outline-offset: 2px; }
+  .spot-card.lim { border-color: rgba(139,123,255,.3); }
+  .spot-card.lim:hover { border-color: rgba(139,123,255,.6); }
+  .spot-card.gold { border-color: rgba(255,190,77,.28); }
+  .spot-card.gold:hover { border-color: rgba(255,190,77,.55); }
+  .spot-media { position: relative; overflow: hidden; border-right: 1px solid var(--line); background: rgba(0,0,0,.35); min-height: 104px; }
+  .spot-media > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .spot-media .cat-shots { position: absolute; inset: 0; }
+  .spot-info { display: flex; flex-direction: column; justify-content: center; gap: 9px; padding: 15px 17px; min-width: 0; }
+  .spot-name { font-family: var(--display); font-weight: 600; font-size: 17px; line-height: 1.2; letter-spacing: -.01em; }
+  .spot-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .spot-foot .cat-copy, .spot-foot .cat-unlock, .spot-foot .cat-soldout { padding: 9px 15px; font-size: 12px; }
+  .spot-foot .cat-hint, .spot-foot .cat-limited-actions { flex-basis: 100%; }
+  .spot-foot .cat-limited-actions { grid-template-columns: 1fr; }
+  @media (max-width: 1080px) {
+    .spot { grid-template-columns: 1fr; }
+    .spot-side { grid-auto-rows: auto; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  }
+  @media (max-width: 560px) { .spot-card { grid-template-columns: 104px minmax(0, 1fr); } }
+
   /* Free content sits under a muted eyebrow, deliberately quieter than the drops */
   .free-eyebrow { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: .24em; text-transform: uppercase; color: var(--dim); margin: 42px 0 0; }
 
@@ -886,6 +919,10 @@ function applyLang(lang) {
       description: typeof entry.description === 'string' ? entry.description.trim().slice(0, 300) : '',
       version: (typeof entry.version === 'string' && VERSION_RE.test(entry.version.trim())) ? entry.version.trim() : '',
       category: CATS.includes(entry.category) ? entry.category : '',
+      // Storefront spotlight set in the hub admin — 'main' leads the page, 'on'
+      // sits in the column beside it. Two literals only, like the app's read
+      // boundary: anything else means not featured.
+      featured: (entry.featured === 'main' || entry.featured === 'on') ? entry.featured : '',
       tags: [], preview: null, publisher: null, shots: 0,
     };
     if (Array.isArray(entry.tags)) {
@@ -1410,6 +1447,72 @@ function applyLang(lang) {
     return card;
   }
 
+  // ── Spotlight ──
+  // Which entries lead the page, and in which shape. The choice is the hub
+  // admin's (entry.featured), not catalog order: 'main' takes the full-width
+  // drop card, the rest fill the column beside it. Capped at three so the block
+  // stays one screenful; anything past the cap simply keeps its normal place in
+  // the strips below. Mirrors spotlightPick in the app's community-gallery.js.
+  const SPOT_SIDE_MAX = 3;
+  function spotlightPick(list) {
+    const featured = sortList(list.filter((e) => e.featured === 'main' || e.featured === 'on'));
+    if (!featured.length) return { main: null, side: [] };
+    const main = featured.find((e) => e.featured === 'main') || featured[0];
+    return { main, side: featured.filter((e) => e !== main).slice(0, SPOT_SIDE_MAX) };
+  }
+
+  // A featured entry beside the main card: thumbnail, name, one action.
+  function spotCard(entry) {
+    const card = el('article', 'spot-card' + (entry.limited ? ' lim' : entry.locked ? ' gold' : ''));
+    card.id = 'cat-' + entry.id;
+    card.tabIndex = 0; card.setAttribute('role', 'button');
+    card.addEventListener('click', (e) => { if (e.target.closest('.spot-foot, a, button')) return; openDetail(entry); });
+    card.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === card) { e.preventDefault(); openDetail(entry); } });
+
+    card.appendChild(mediaBlock(entry, 'spot-media', true));
+
+    const info = el('div', 'spot-info');
+    const badges = el('div', 'drop-badges');
+    if (entry.limited) {
+      badges.appendChild(pill('drop-badge lim', 'spark', T('k.limited')));
+      if (entry.limited.soldOut) badges.appendChild(el('span', 'drop-badge sold', T('card.soldout')));
+    } else if (entry.locked) badges.appendChild(pill('drop-badge gold', 'star', T('sec.supporters')));
+    else badges.appendChild(el('span', 'drop-badge', KIND_LABEL(entry.kind)));
+    info.appendChild(badges);
+    info.appendChild(el('h3', 'spot-name', entry.name));
+
+    const foot = el('div', 'spot-foot');
+    if (entry.limited) {
+      if (entry.limited.soldOut) foot.appendChild(el('span', 'cat-soldout', T('card.soldout')));
+      else limitedButtons(foot, entry);
+    } else {
+      const { btn, hint } = codeButton(entry);
+      foot.appendChild(btn); foot.appendChild(hint);
+    }
+    info.appendChild(foot);
+    card.appendChild(info);
+    return card;
+  }
+
+  // The main card borrows the drop-card shape whatever the tier, so a featured
+  // free creation gets the same stage — 'plain' just drops the iris/gold tint
+  // that would otherwise imply it is limited.
+  function mainCard(entry) {
+    const card = featuredCard(entry, !entry.limited && entry.locked);
+    if (!entry.limited && !entry.locked) card.classList.add('plain');
+    return card;
+  }
+
+  function spotlightBlock(main, side) {
+    if (!side.length) return mainCard(main);
+    const wrap = el('div', 'spot');
+    wrap.appendChild(mainCard(main));
+    const col = el('div', 'spot-side');
+    side.forEach((entry) => col.appendChild(spotCard(entry)));
+    wrap.appendChild(col);
+    return wrap;
+  }
+
   // ── Filtering / sorting ──
   function matches(entry) {
     if (query) {
@@ -1487,7 +1590,9 @@ function applyLang(lang) {
     reg.appendChild(mail);
     perks.appendChild(reg);
     s.appendChild(perks);
-    s.appendChild(dropsOf(items, true));
+    // Empty when the whole tier is up in the spotlight — the strip is then just
+    // its explainer and its join buttons, which is exactly what should survive.
+    if (items.length) s.appendChild(dropsOf(items, true));
     return s;
   }
   function flatView(list) {
@@ -1572,19 +1677,32 @@ function applyLang(lang) {
       // static catalog copy. Mirrors the in-app hero rule: a sold-out limited
       // never leads.
       const limitedLive = limitedAll.filter((e) => !e.limited.soldOut);
-      const limited = limitedLive.length ? limitedLive : limitedAll;
+      const limitedTier = limitedLive.length ? limitedLive : limitedAll;
       // !e.limited: a dual-flag (limited + supporters) entry belongs to the
       // Limited strip only — both strips rendering it would duplicate its
       // cat-<id> DOM id and double-count it (mirrors the in-app gallery).
-      const sup = entries.filter((e) => e.locked && !e.limited);
-      setCount(pool.length + limited.length + sup.length);
+      const supTier = entries.filter((e) => e.locked && !e.limited);
+      // The spotlight is drawn from everything on the page and takes its entries
+      // OUT of the strips and sections below, for the same reason: one card per
+      // entry, or its cat-<id> anchor and its counters exist twice.
+      const spot = spotlightPick(pool.concat(limitedTier, supTier));
+      const spotIds = new Set(spot.side.map((e) => e.id));
+      if (spot.main) spotIds.add(spot.main.id);
+      const limited = limitedTier.filter((e) => !spotIds.has(e.id));
+      const sup = supTier.filter((e) => !spotIds.has(e.id));
+      const free = pool.filter((e) => !spotIds.has(e.id));
+      setCount(pool.length + limitedTier.length + supTier.length);
       const frag = document.createDocumentFragment();
+      if (spot.main) frag.appendChild(spotlightBlock(spot.main, spot.side));
       if (limited.length) frag.appendChild(limitedStrip(limited));
-      if (sup.length) frag.appendChild(supportersStrip(sup));
+      // The supporters strip renders whenever the tier exists, even with every
+      // entry up in the spotlight: it carries the perks panel and the join
+      // button, which are the whole point of the tier. Only its cards empty out.
+      if (supTier.length) frag.appendChild(supportersStrip(sup));
       // Free entries sit under a deliberately quieter eyebrow, so the featured
       // tiers above keep the visual priority (mirrors the homepage hierarchy).
-      if ((limited.length || sup.length) && pool.length) frag.appendChild(el('div', 'free-eyebrow', T('sec.freehead')));
-      KINDS.forEach((k) => { const items = sortList(pool.filter((e) => e.kind === k)); if (items.length) frag.appendChild(section(k, items)); });
+      if ((spot.main || limited.length || supTier.length) && free.length) frag.appendChild(el('div', 'free-eyebrow', T('sec.freehead')));
+      KINDS.forEach((k) => { const items = sortList(free.filter((e) => e.kind === k)); if (items.length) frag.appendChild(section(k, items)); });
       stateEl.hidden = true;
       contentEl.replaceChildren(frag);
       deepLink(); return;

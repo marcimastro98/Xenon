@@ -596,4 +596,4 @@ function resolveOutputDevice(id, speakers) {
   return list.find((s) => s && typeof s.id === 'string' && s.id === wanted) || null;
 }
 
-module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys, resolveOutputDevice };
+module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, isBlockedOpenPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys, resolveOutputDevice };

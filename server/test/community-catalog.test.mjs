@@ -282,6 +282,17 @@ test('perfWarning: boolean-true-only passthrough (the store\'s performance chip)
   assert.equal(N(entry()).perfWarning, undefined);
 });
 
+test('featured: only the two spotlight literals survive normalization', () => {
+  const N = cat.normalizeEntry;
+  assert.equal(N(entry({ featured: 'main' })).featured, 'main');
+  assert.equal(N(entry({ featured: 'on' })).featured, 'on');
+  // An unknown value must read as "not featured" — never promote by accident.
+  assert.equal(N(entry({ featured: 'yes' })).featured, undefined);
+  assert.equal(N(entry({ featured: true })).featured, undefined);
+  assert.equal(N(entry({ featured: '' })).featured, undefined);
+  assert.equal(N(entry()).featured, undefined);
+});
+
 test('v3: changelog is kept, bounded, and dropped when blank', () => {
   const N = cat.normalizeEntry;
   assert.equal(N(entry({ changelog: 'Fixes the DST rollover' })).changelog, 'Fixes the DST rollover');

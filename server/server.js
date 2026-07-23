@@ -34,6 +34,9 @@ const vitalsPetCore = require('./js/vitals-pet-core'); // Bit's pure core: durab
 const { sanitizeBgAssets, sanitizeBgFps } = require('./js/custom-bg'); // single owner of the bg image-asset + frame-cap rules (shared with the client + sandbox)
 const { sanitizeSlideshow } = require('./js/slideshow-widget'); // single owner of the slideshow image rules (shared with the client)
 const slideshowFolder = require('./slideshow-folder');          // the slideshow's "folder on this PC" source
+const { createFileSearch } = require('./filesearch');           // local file search (Spotlight backend)
+const { createDiskSpace } = require('./diskspace');             // disk usage scan + guarded recycle-bin cleanup (helper-gated)
+const { createLivingIndex } = require('./living-index');       // the Living Index: helper-held in-RAM file index + watchers
 const contentInstalls = require('./js/content-installs'); // validated import receipts shared with Settings
 const themePalette = require('./js/theme-palette.js'); // single owner of the semantic-palette rules (shared with the client + tests)
 const aiLocal = require('./ai-local');
@@ -426,6 +429,17 @@ function buildCoreAiFunctions() {
         { name: 'close_application', description: 'Close / terminate a running application on the user\'s Windows PC. Use the plain app name (e.g. "spotify", "chrome", "notepad", "discord", "steam", "obs", "vlc"). Works for any process.', parameters: { type: 'OBJECT', properties: {
           target: { type: 'STRING', description: 'App name to close, e.g. "spotify", "chrome", "discord"' },
         }, required: ['target'] } },
+        // ── Local file search ──
+        { name: 'search_files', description: 'Search files on the user\'s PC by name and (where Windows indexed it) content — all local, nothing leaves the machine. The query understands natural filters in EN/IT: kind ("photos"/"foto", "documents"), extensions ("pdf", "excel"), dates ("last month", "dicembre 2024", "ieri"), sizes ("more than 100 mb", "grandi"). Use for "find my rental contract", "cerca le foto di dicembre", "il pdf della fattura". Returns top results each with an id — to open one, call open_search_result with that id.', parameters: { type: 'OBJECT', properties: {
+          query: { type: 'STRING', description: 'The search phrase, in the user\'s own words (e.g. "contratto affitto pdf", "foto di dicembre")' },
+        }, required: ['query'] } },
+        { name: 'open_search_result', description: 'Open one result returned by search_files, by its id (default app for files, Explorer for folders). Executable/script files are refused for safety — pass reveal:true to show the file selected in its folder instead, which runs nothing.', parameters: { type: 'OBJECT', properties: {
+          id: { type: 'STRING', description: 'The result id from search_files' },
+          reveal: { type: 'BOOLEAN', description: 'true to reveal the file in Explorer instead of opening it' },
+        }, required: ['id'] } },
+        { name: 'disk_insights', description: 'Read a live, local disk-space analysis: volume capacity/free space, indexed usage, safe-to-clean categories (temp, browser/package caches, build output, old installers, Recycle Bin), the biggest folders/files, verified duplicate waste, and Xenon\'s risk-ranked cleanup plan with a why/effect/action explanation. READ-ONLY: you can explain and recommend, but deletion happens only when the user taps the confirmation in the disk widget — you have no delete capability. Use for "what is eating my disk", "cosa occupa spazio", "posso liberare spazio?".', parameters: { type: 'OBJECT', properties: {
+          rootIndex: { type: 'INTEGER', description: 'Optional index of the configured disk/folder root to analyze. Omit for the first root.' },
+        } } },
         // ── RGB Lighting (Corsair / iCUE bridge) ──
         { name: 'set_lights', description: 'Set a manual RGB colour on the Corsair devices (overrides reactive effects until cleared). Accepts a colour name (EN or IT, e.g. "red"/"rosso") or a #RRGGBB hex. Use "off"/"spento" to turn them dark.', parameters: { type: 'OBJECT', properties: {
           color: { type: 'STRING', description: 'Colour name or #RRGGBB, e.g. "red", "rosso", "#00ff88", "off"' },
@@ -626,6 +640,290 @@ const DECK_SOUNDS_DIR = path.join(DATA_DIR, 'sounds');
 const DECK_SOUND_MAX_BYTES = 15 * 1024 * 1024;
 const DECK_SOUND_EXTS = new Set(['.mp3', '.wav', '.ogg', '.oga', '.m4a', '.aac', '.flac', '.opus', '.weba']);
 const DECK_SOUND_NAME_RE = /^sound-[0-9]+-[0-9a-f]+\.[a-z0-9]+$/;
+// ── Installed applications (the search's Applications tier) ────────────────
+// Two sources, merged and cached: Start Menu .lnk shortcuts (classic desktop
+// apps — Steam, Chrome) and Get-StartApps UWP entries (Store apps — Spotify,
+// WhatsApp — whose launcher is an AUMID, not an exe on disk, which is exactly
+// why a filename search can never find them). The search pins name-matching
+// apps above every file result, macOS-style. Entries are server-enumerated
+// only: launching resolves an opaque result id back to THIS list — never a
+// caller-supplied path or AUMID.
+const _installedApps = { list: [], at: 0, inflight: null };
+const INSTALLED_APPS_TTL_MS = 15 * 60 * 1000;
+
+async function _enumStartMenuLnks() {
+  const roots = [
+    path.join(process.env.ProgramData || 'C:\\ProgramData', 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
+    process.env.APPDATA ? path.join(process.env.APPDATA, 'Microsoft', 'Windows', 'Start Menu', 'Programs') : '',
+  ];
+  const out = [];
+  for (const root of roots) {
+    if (!root) continue;
+    const stack = [root];
+    let guard = 0;
+    while (stack.length && guard++ < 400) {
+      const dir = stack.pop();
+      let entries = [];
+      try { entries = await fs.promises.readdir(dir, { withFileTypes: true }); } catch { continue; }
+      for (const ent of entries) {
+        const full = path.join(dir, ent.name);
+        if (ent.isDirectory()) {
+          stack.push(full);
+        } else if (ent.isFile() && /\.lnk$/i.test(ent.name)) {
+          const name = ent.name.replace(/\.lnk$/i, '');
+          // Uninstallers and doc links masquerade as apps — drop the obvious ones.
+          if (/uninstall|disinstalla|readme|website|web site|documentation|user manual|release notes/i.test(name)) continue;
+          out.push({ name, kind: 'lnk', target: full });
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function _enumStoreApps() {
+  return new Promise((resolve) => {
+    execFile('powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command',
+        "Get-StartApps | Where-Object { $_.AppID -like '*!*' } | Select-Object Name,AppID | ConvertTo-Json -Compress"],
+      { timeout: 9000, windowsHide: true, maxBuffer: 2 * 1024 * 1024 },
+      (e, stdout) => {
+        const apps = [];
+        try {
+          const parsed = JSON.parse(String(stdout || '').trim() || '[]');
+          for (const a of Array.isArray(parsed) ? parsed : [parsed]) {
+            const aumid = a && a.AppID ? String(a.AppID) : '';
+            // Same strict AUMID shape the Deck's storeapp action validates.
+            if (!/^[\w.-]+![\w.-]+$/.test(aumid)) continue;
+            apps.push({ name: a && a.Name ? String(a.Name) : aumid, kind: 'store', target: aumid });
+          }
+        } catch { /* store enumeration is best-effort */ }
+        resolve(apps);
+      });
+  });
+}
+
+function getInstalledApps() {
+  const now = Date.now();
+  if (now - _installedApps.at < INSTALLED_APPS_TTL_MS) return Promise.resolve(_installedApps.list);
+  if (_installedApps.inflight) return _installedApps.inflight;
+  _installedApps.inflight = Promise.all([_enumStartMenuLnks(), _enumStoreApps()])
+    .then(([lnks, store]) => {
+      // Same display name in both worlds (a Store app plus a desktop shortcut):
+      // the Store entry wins — it launches even when the lnk is stale.
+      const byName = new Map();
+      for (const a of [...lnks, ...store]) byName.set(a.name.toLowerCase(), a);
+      _installedApps.list = [...byName.values()];
+      _installedApps.at = Date.now();
+      _installedApps.inflight = null;
+      return _installedApps.list;
+    })
+    .catch(() => { _installedApps.inflight = null; return _installedApps.list; });
+  return _installedApps.inflight;
+}
+
+async function launchInstalledApp(app) {
+  if (app.kind === 'store') {
+    if (!/^[\w.-]+![\w.-]+$/.test(app.target)) throw new Error('bad_aumid');
+    await new Promise((resolve, reject) => {
+      // argv array, no shell — the AUMID lands as one discrete argument.
+      execFile('explorer.exe', ['shell:AppsFolder\\' + app.target], { windowsHide: true }, (e) => (e ? reject(e) : resolve()));
+    });
+    return;
+  }
+  // Start-Menu shortcut: server-enumerated, so this IS the app's launcher —
+  // opened by the same deck-actions 'open' verb every Deck key uses.
+  await fs.promises.stat(app.target);
+  await runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', app.target], 8000);
+}
+
+// Local file search (Spotlight). Opens go through deck-actions.ps1's 'open'
+// verb — the same launcher every Deck key uses — after the module re-checks
+// the openFile blocklist; the PS search host it manages is retired in
+// _gracefulShutdown.
+const livingIndex = createLivingIndex({ helperExe: HELPER_EXE });
+const fileSearch = createFileSearch({
+  dataDir: DATA_DIR,
+  livingIndex,
+  openExternal: (p) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000),
+  appsProvider: getInstalledApps,
+  launchApp: launchInstalledApp,
+});
+// Global Spotlight hotkey (helper-gated, opt-in). The helper's hotkey-serve
+// owns a RegisterHotKey + message loop and pushes a line per press; the server
+// opens/refocuses the /spotlight Edge app-mode window on the main PC. State is
+// surfaced to Settings via GET /search/hotkey-status; 'taken' means another
+// app (PowerToys Run on Alt+Space, typically) owns the combo.
+const _hotkey = { proc: null, combo: '', state: 'off', diedAt: 0 };
+const _spotlightPopupPids = new Set();
+
+function openSpotlightPopupWindow() {
+  // Reuse: alive popup → just re-pin it topmost (brings it above); else spawn.
+  for (const pid of _spotlightPopupPids) {
+    try {
+      process.kill(pid, 0); // liveness probe only
+      runPowerShellScript(DECK_POPUP_TOP_SCRIPT, ['-ProcessId', String(pid), '-Title', 'Xenon Search'], 8000).catch(() => {});
+      return { ok: true };
+    } catch { _spotlightPopupPids.delete(pid); }
+  }
+  const edge = ['C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe']
+    .find((p) => { try { return fs.existsSync(p); } catch { return false; } });
+  if (!edge) return { ok: false, error: 'edge_not_found' };
+  const args = [
+    '--app=http://127.0.0.1:' + PORT + '/spotlight',
+    '--user-data-dir=' + path.join(DATA_DIR, 'spotlight-popup-profile'),
+    '--no-first-run', '--no-default-browser-check',
+    '--window-size=760,540',
+  ];
+  let pid = 0;
+  try {
+    const child = spawn(edge, args, { detached: true, stdio: 'ignore' });
+    child.unref();
+    pid = child.pid || 0;
+    _spotlightPopupPids.add(child.pid);
+    child.on('exit', () => _spotlightPopupPids.delete(child.pid));
+  } catch { return { ok: false, error: 'popup_failed' }; }
+  setTimeout(() => {
+    try { runPowerShellScript(DECK_POPUP_TOP_SCRIPT, ['-ProcessId', String(pid), '-Title', 'Xenon Search'], 8000).catch(() => {}); }
+    catch { /* best-effort */ }
+  }, 1500).unref();
+  return { ok: true };
+}
+
+// Native first: the hotkey is broadcast to every dashboard; a NATIVE kiosk
+// webview opens the frameless Tauri Spotlight window and claims it (POST
+// /spotlight/claimed). No claim within the window → the Edge app-mode popup
+// opens instead, so browser-only installs lose nothing.
+let _spotlightClaimTimer = null;
+let _spotlightClaimed = false;
+function routeSpotlightHotkey() {
+  _spotlightClaimed = false;
+  broadcastSSE('spotlight_hotkey', { at: Date.now() });
+  if (_spotlightClaimTimer) clearTimeout(_spotlightClaimTimer);
+  _spotlightClaimTimer = setTimeout(() => {
+    _spotlightClaimTimer = null;
+    if (!_spotlightClaimed) { try { openSpotlightPopupWindow(); } catch { /* best-effort */ } }
+  }, 450);
+  _spotlightClaimTimer.unref();
+}
+
+// One pending retry at a time. Without it a single helper crash disabled the
+// global shortcut until the user re-saved settings or restarted the app:
+// refreshHotkeyListener() is only called from POST /settings and at boot.
+const HOTKEY_RETRY_MS = 15000;
+let _hotkeyRetryTimer = null;
+function _scheduleHotkeyRetry(ms) {
+  if (_hotkeyRetryTimer) return;   // cancelled in _gracefulShutdown
+  _hotkeyRetryTimer = setTimeout(() => {
+    _hotkeyRetryTimer = null;
+    try { refreshHotkeyListener(); } catch { /* next save will retry */ }
+  }, Math.max(1000, ms || HOTKEY_RETRY_MS));
+  _hotkeyRetryTimer.unref();
+}
+function _cancelHotkeyRetry() {
+  if (_hotkeyRetryTimer) { clearTimeout(_hotkeyRetryTimer); _hotkeyRetryTimer = null; }
+}
+
+function _stopHotkeyListener() {
+  const p = _hotkey.proc;
+  _hotkey.proc = null;
+  if (!p) return;
+  try { p.stdin.end(); } catch {}
+  const force = setTimeout(() => { try { p.kill(); } catch {} }, 2000);
+  force.unref();
+  p.once('exit', () => clearTimeout(force));
+}
+
+function refreshHotkeyListener() {
+  const cfg = (_serverHubSettings && _serverHubSettings.searchSettings) || {};
+  const want = cfg.hotkeyEnabled === true;
+  const combo = String(cfg.hotkeyCombo || 'alt+space');
+  if (!want) { _cancelHotkeyRetry(); _stopHotkeyListener(); _hotkey.state = 'off'; return; }
+  if (_hotkey.proc && _hotkey.combo === combo) return;   // already right
+  _stopHotkeyListener();
+  let helperOk = false;
+  try { helperOk = fs.existsSync(HELPER_EXE); } catch {}
+  if (!helperOk) { _hotkey.state = 'helper_missing'; return; }
+  // Fast-fail backoff. The state MUST be corrected here: this path can be
+  // reached right after stopping a listener that was running (the user changed
+  // the combo inside the window), and leaving 'listening' behind made Settings
+  // claim the shortcut was active while nothing was registered.
+  const sinceDeath = Date.now() - _hotkey.diedAt;
+  if (sinceDeath < HOTKEY_RETRY_MS) {
+    _hotkey.state = 'retrying';
+    _scheduleHotkeyRetry(HOTKEY_RETRY_MS - sinceDeath);
+    return;
+  }
+  let proc;
+  try { proc = spawn(HELPER_EXE, ['hotkey-serve', combo], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] }); }
+  catch { _hotkey.state = 'error'; _hotkey.diedAt = Date.now(); _scheduleHotkeyRetry(); return; }
+  _hotkey.proc = proc;
+  _hotkey.combo = combo;
+  _hotkey.state = 'starting';
+  let buf = '';
+  proc.stdout.setEncoding('utf8');
+  proc.stdout.on('data', (chunk) => {
+    buf += chunk;
+    let nl;
+    while ((nl = buf.indexOf('\n')) !== -1) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      let ev;
+      try { ev = JSON.parse(line); } catch { continue; }
+      if (ev.event === 'ready') _hotkey.state = 'listening';
+      else if (ev.event === 'hotkey') { try { routeSpotlightHotkey(); } catch {} }
+      else if (ev.event === 'error') { _hotkey.state = ev.error === 'hotkey_taken' ? 'taken' : 'error'; }
+    }
+  });
+  proc.on('error', () => {
+    if (_hotkey.proc !== proc) return;
+    _hotkey.proc = null; _hotkey.state = 'error'; _hotkey.diedAt = Date.now();
+    _scheduleHotkeyRetry();
+  });
+  proc.on('exit', () => {
+    if (_hotkey.proc !== proc) return;
+    _hotkey.proc = null;
+    if (_hotkey.state === 'listening' || _hotkey.state === 'starting') _hotkey.state = 'error';
+    _hotkey.diedAt = Date.now();
+    // 'taken' means another app owns the combo — retrying on a cadence is
+    // still right (that app can close), it just stays cheap at 15 s.
+    _scheduleHotkeyRetry();
+  });
+  proc.unref();
+}
+
+// Point the Living Index at the configured roots (idempotent — setRoots
+// restarts the host only when they actually changed).
+function refreshLivingIndex() {
+  const cfg = (_serverHubSettings && _serverHubSettings.searchSettings) || {};
+  try { livingIndex.setRoots(cfg.indexRoots || []); } catch { /* helper absent */ }
+}
+// Disk space (helper-gated, like the Second screen). Scans stream from the
+// helper's disk-scan; deletion is recycle-bin-only through shell-delete after
+// the guard re-checks every resolved path. Settings feed the category rules
+// (dev folders, installer age); the scan child is stopped in _gracefulShutdown.
+const diskSpace = createDiskSpace({
+  dataDir: DATA_DIR,
+  helperExe: HELPER_EXE,
+  livingIndex,
+  getIndexRoots: async () => {
+    const s = await readHubSettings();
+    return (s && s.searchSettings && s.searchSettings.indexRoots) || [];
+  },
+  // Reuse the system tile's ten-minute volume cache: the disk widget gets
+  // friendly labels/models without adding another recurring PowerShell probe.
+  getDriveDetails: () => getDiskDetails(),
+  appRoot: path.join(__dirname, '..'),
+  getSettings: async () => {
+    const s = await readHubSettings();
+    const d = (s && s.diskSettings) || {};
+    return { devFolders: d.devFolders, installerAgeDays: d.installerAgeDays };
+  },
+  // A cleanup runs as a background job; push its progress to the dashboard over
+  // SSE so the widget shows real advancement and can re-attach after a reload.
+  onCleanProgress: (snapshot) => { try { broadcastSSE('disk_clean', snapshot || {}); } catch {} },
+});
 // Installed Deck icon packs (the 'icons' preset kind): one validated folder per
 // pack, written/served only through icon-packs.js (see that module's boundary
 // notes). The JSON install body cap covers the 2MB decoded pack in base64.
@@ -3091,11 +3389,24 @@ async function getDiskDetails() {
   if (diskDetailsCache.data && Date.now() - diskDetailsCache.updatedAt < DISK_DETAILS_TTL_MS) return diskDetailsCache.data;
   const command = `
     $ErrorActionPreference = 'Stop'
+    $models = @{}
+    try {
+      $diskNames = @{}
+      Get-Disk -ErrorAction Stop | ForEach-Object {
+        $diskNames[[int]$_.Number] = ([string]$_.FriendlyName).Trim()
+      }
+      Get-Partition -ErrorAction Stop | Where-Object { $_.DriveLetter } | ForEach-Object {
+        $driveKey = (([string]$_.DriveLetter + ':').ToUpperInvariant())
+        $models[$driveKey] = ([string]$diskNames[[int]$_.DiskNumber]).Trim()
+      }
+    } catch { }
     try {
       $volumes = @(Get-Volume -ErrorAction Stop | Where-Object { $_.DriveLetter } | ForEach-Object {
+        $drive = ([string]$_.DriveLetter + ':').ToUpperInvariant()
         [pscustomobject]@{
-          drive = ([string]$_.DriveLetter + ':')
+          drive = $drive
           label = ([string]$_.FileSystemLabel).Trim()
+          model = ([string]$models[$drive]).Trim()
           fileSystem = ([string]$_.FileSystem).Trim()
           driveType = ([string]$_.DriveType).Trim()
         }
@@ -3105,6 +3416,7 @@ async function getDiskDetails() {
         [pscustomobject]@{
           drive = ([string]$_.DeviceID).Trim()
           label = ([string]$_.VolumeName).Trim()
+          model = ''
           fileSystem = ([string]$_.FileSystem).Trim()
           driveType = ([string]$_.Description).Trim()
         }
@@ -4097,7 +4409,7 @@ async function refreshUnifiEventsWatch() {
   const want = configured && notify.enabled === true && sseClients.size > 0;
   // Reconnect if the console credentials changed under an active watch (the socket
   // is bound to the old session); a mere toggle of the type checkboxes doesn't need it.
-  const sig = want ? [u.host, u.username, u.password].join(' ') : '';
+  const sig = want ? [u.host, u.username, u.password].join('\u0000') : '';
   if (want && !unifiEventsStopWatch) {
     unifiEventsStopWatch = deckUnifiEvents.watch(_onUnifiDetection);
   } else if (!want && unifiEventsStopWatch) {
@@ -5628,6 +5940,39 @@ async function executeAiTool(fnName, fnArgs, deps) {
           fnResult = { error: closeErr.message };
         }
       }
+    } else if (fnName === 'search_files') {
+      // Local search — same pipeline as the Spotlight UI (parser + Windows
+      // Search + crawler index + ranker). Read-only; results carry the opaque
+      // ids open_search_result resolves, so the model never handles a path as
+      // an actionable value.
+      const q = String(fnArgs.query || '').trim().slice(0, 200);
+      if (!q) { fnResult = { error: 'empty query' }; }
+      else {
+        const out = await fileSearch.search(q);
+        fnResult = {
+          windowsSearch: out.wds,
+          results: out.results.slice(0, 12).map(r => ({
+            id: r.id, name: r.name, folder: r.dir, size: r.size,
+            modified: r.mtime ? new Date(r.mtime).toISOString() : '',
+          })),
+        };
+        if (out.wds === 'unavailable' && !out.results.length) {
+          fnResult.note = 'Windows Search service is disabled on this PC';
+        }
+      }
+    } else if (fnName === 'open_search_result') {
+      const rid = String(fnArgs.id || '').trim();
+      if (!rid) { fnResult = { error: 'missing id' }; }
+      else {
+        const out = fnArgs.reveal === true ? await fileSearch.reveal(rid) : await fileSearch.open(rid);
+        if (out.ok) fnResult = { ok: true };
+        else fnResult = { error: out.error, revealable: out.revealable === true };
+      }
+    } else if (fnName === 'disk_insights') {
+      // Read-only by construction: there is no deleteFile action type anywhere
+      // (registry, Deck, SDK, AI) — a human tap on the disk widget is the only
+      // path to a deletion, and even that goes to the Recycle Bin.
+      fnResult = await diskSpace.insights(fnArgs.rootIndex);
     } else if (fnName === 'start_timer') {
       const durSecs = Math.max(1, Math.round(Number(fnArgs.duration_secs) || 60));
       const timerLabel = String(fnArgs.label || 'Timer').trim().slice(0, 40);
@@ -5985,7 +6330,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'custom']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -6050,6 +6395,8 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     fans:     Object.freeze({ x: 16, y: 38, w: 8, h: 8, visible: false, page: 'dashboard' }),
     power:    Object.freeze({ x: 16, y: 46, w: 8, h: 8, visible: false, page: 'dashboard' }),
     battery:  Object.freeze({ x: 0, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    search:   Object.freeze({ x: 8, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
+    disk:     Object.freeze({ x: 16, y: 54, w: 8, h: 10, visible: false, page: 'dashboard' }),
     custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
@@ -6287,7 +6634,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // silence EVERYTHING (pop-ups + feeds) and stop the background watchers in one
   // place. `popups` alone keeps the feeds but suppresses the on-screen toasts;
   // `sounds` alone silences the per-pop-up cue (client-played, WebAudio).
-  notifications: Object.freeze({ enabled: true, popups: true, sounds: true }),
+  notifications: Object.freeze({ enabled: true, popups: true, sounds: true, quiet: 'auto' }),
   // Discord notification mirroring (Settings → Streaming → Discord). OFF by
   // default — it's privacy-touching, and enabling it requests the extra
   // rpc.notifications.read scope, which means a one-time Discord re-link.
@@ -6298,6 +6645,8 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // read locally via ffmpeg + whisper.cpp while a dashboard is open; nothing
   // leaves the PC.
   wakeWord: Object.freeze({ enabled: false }),
+  searchSettings: Object.freeze({ indexRoots: Object.freeze(['C:\\']), hotkeyEnabled: false, hotkeyCombo: 'alt+space', aiFullContext: false }),
+  diskSettings: Object.freeze({ devFolders: Object.freeze([]), installerAgeDays: 30 }),
   bgAurora: Object.freeze({ enabled: true, intensity: 55, speed: 50 }),
   bgGrid: Object.freeze({ enabled: true, color: '#1ed760', intensity: 45, speed: 50 }),
   // Static premium background (0 animations). style: none|nebulosa|prisma|halo.
@@ -6843,7 +7192,12 @@ function normalizeProactive(value) {
 // toggles the client-played pop-up cue. All round-trip as booleans.
 function normalizeNotifications(value) {
   const v = value && typeof value === 'object' ? value : {};
-  return { enabled: v.enabled !== false, popups: v.popups !== false, sounds: v.sounds !== false };
+  // `quiet` is the do-not-disturb mode: 'auto' (default) holds routine pop-ups
+  // back while the screen is immersive (a full-screen ambient scene, game mode),
+  // 'always' holds them back the whole time, 'off' never does. Errors, warnings,
+  // reminders and finished timers are never held back on any setting.
+  const quiet = (v.quiet === 'off' || v.quiet === 'always') ? v.quiet : 'auto';
+  return { enabled: v.enabled !== false, popups: v.popups !== false, sounds: v.sounds !== false, quiet };
 }
 
 // Vitals — game-style self-care meters. Known-key rebuild, identical to the
@@ -6994,6 +7348,59 @@ function normalizeWindowsNotifications(value) {
 function normalizeWakeWord(value) {
   const v = value && typeof value === 'object' ? value : {};
   return { enabled: v.enabled === true };
+}
+
+// Local file search (Spotlight). extraFolders are the crawler's roots — real
+// absolute directories the user names in Settings; the crawl enumerates them
+// server-side and search results address by opaque id, so this list is the
+// only place a path exists. The global hotkey is helper-gated and OFF by
+// default (it registers a system-wide key).
+function normalizeSearchSettings(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  // indexRoots: the Living Index roots (drives or folders). Migration: older
+  // saves carried extraFolders (the retired one-shot crawl) — adopt them.
+  // Never-set → default to the WHOLE system drive (product decision: the
+  // living experience out of the box); an explicitly emptied list means the
+  // user turned the index off and stays empty.
+  const rawRoots = Array.isArray(v.indexRoots) ? v.indexRoots
+    : (Array.isArray(v.extraFolders) && v.extraFolders.length ? v.extraFolders : null);
+  // Separators are normalized to backslashes here, once: every consumer
+  // downstream (the disk overview's root prefix test, registerBrowsePath, the
+  // guard) compares against backslash paths, so a root saved as "C:/Projects"
+  // passed validation and then matched nothing — an empty treemap with no
+  // explanation.
+  const roots = rawRoots == null ? ['C:\\'] : rawRoots
+    .map((f) => String(f || '').trim().slice(0, 260).replace(/\//g, '\\'))
+    .filter((f) => /^[A-Za-z]:\\?$|^[A-Za-z]:\\.+/.test(f))
+    .map((f) => (f.length === 2 ? f + '\\' : f))
+    .slice(0, 8);
+  const combo = String(v.hotkeyCombo || 'alt+space').toLowerCase().trim().slice(0, 40);
+  return {
+    indexRoots: roots,
+    hotkeyEnabled: v.hotkeyEnabled === true,
+    hotkeyCombo: /^[a-z0-9+ ]{3,40}$/.test(combo) ? combo : 'alt+space',
+    // AI full context ("the brain"): enriches explicit AI search / Disk Advisor
+    // requests with installed-app names, index roots, frequent folders and
+    // recent opens. Privacy-touching → strict opt-in, anything not literally
+    // true stays off (same rule as the wake word).
+    aiFullContext: v.aiFullContext === true,
+  };
+}
+
+// Disk widget knobs: dev folders (the ONLY places build-output dirs become
+// cleanable) and how old a Downloads installer must be before it classifies.
+function normalizeDiskSettings(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const folders = Array.isArray(v.devFolders)
+    ? v.devFolders
+      .map((f) => String(f || '').trim().slice(0, 260))
+      .filter((f) => /^[A-Za-z]:[\\/]/.test(f))
+      .slice(0, 10)
+    : [];
+  return {
+    devFolders: folders,
+    installerAgeDays: clampNumber(v.installerAgeDays, 7, 365, 30),
+  };
 }
 
 // Minimal-mode edge-rail drawer state (true = collapsed). Both sides default
@@ -7203,6 +7610,8 @@ function normalizeHubSettings(value) {
     discordNotifications: normalizeDiscordNotifications(source.discordNotifications),
     windowsNotifications: normalizeWindowsNotifications(source.windowsNotifications),
     wakeWord: normalizeWakeWord(source.wakeWord),
+    searchSettings: normalizeSearchSettings(source.searchSettings),
+    diskSettings: normalizeDiskSettings(source.diskSettings),
     bgAurora: normalizeBgAurora(source.bgAurora),
     bgGrid: normalizeBgGrid(source.bgGrid),
     bgStatic: normalizeBgStatic(source.bgStatic),
@@ -9212,6 +9621,27 @@ const CSRF_MUTATION_PATHS = new Set([
   '/api/claude/run',
   '/api/claude/run/stop',
   '/api/claude/attach',
+  // Local file search: /open launches a file with its registered handler and
+  // /reveal opens an Explorer window — a drive-by or Origin:null iframe must
+  // be able to do neither, even though both only accept server-minted opaque
+  // ids. POST-only already; listed as belt-and-suspenders.
+  '/search/open',
+  '/search/reveal',
+  // /search/ai spends the user's AI quota on an outbound provider call —
+  // never reachable from a drive-by or an Origin:null sandboxed iframe.
+  '/search/ai',
+  // Disk space: /scan spawns a full-drive walk (minutes of I/O), /clean moves
+  // files to the Recycle Bin and /api/disk/advisor spends AI quota while
+  // sharing the explicitly selected snapshot with the configured provider —
+  // none may be reachable from a drive-by or Origin:null sandboxed iframe.
+  '/disk/scan',
+  '/disk/scan/cancel',
+  '/disk/clean',
+  '/disk/clean/cancel',
+  '/api/disk/advisor',
+  // Suppresses the Edge fallback after the native kiosk opened the Spotlight
+  // window — a drive-by must not be able to swallow the user's hotkey.
+  '/spotlight/claimed',
 ]);
 
 function isAllowedRequest(req) {
@@ -9703,6 +10133,13 @@ const server = http.createServer(async (req, res) => {
     // Virtual Deck popup document (main-PC window). Same loopback trust as '/';
     // no-store so the popup never boots from a stale entry document.
     const html = await fs.promises.readFile(path.join(__dirname, 'deck-popup.html'), 'utf8');
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(html);
+
+  } else if (reqPath === '/spotlight' && req.method === 'GET') {
+    // Spotlight popup document (main-PC window, opened by the global hotkey).
+    // Same loopback trust as '/'; no-store like /deck-popup.
+    const html = await fs.promises.readFile(path.join(__dirname, 'spotlight.html'), 'utf8');
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(html);
 
@@ -11198,6 +11635,10 @@ const server = http.createServer(async (req, res) => {
       winNotif.applyExclusions();
       // Wake word toggled → start/stop the mic listener (sync() is idempotent).
       refreshWakeWordWatch();
+      // Spotlight: hotkey combo/enable changed → restart the helper listener;
+      // index roots changed → repoint the Living Index (restart only on change).
+      refreshHotkeyListener();
+      refreshLivingIndex();
       // A grant change can add or remove the only consumer of the meter host.
       refreshAudioLevelsWatch();
       refreshStocks().catch(() => {}); // pick up watchlist/provider/key changes immediately
@@ -13840,6 +14281,346 @@ const server = http.createServer(async (req, res) => {
       else err500(e.message);
     }
 
+  } else if (reqPath === '/search' && req.method === 'GET') {
+    // Local file search (Spotlight). Read-only compute over the Windows Search
+    // catalog + the crawler index — no mutation, no outbound network, so it
+    // stays out of CSRF_MUTATION_PATHS (and is NEVER a JSONP candidate: the
+    // results carry the user's file names). Result paths travel OUT as display
+    // text only; acting on a result goes through the opaque id below.
+    try {
+      const q = String(urlObj.searchParams.get('q') || '').slice(0, 200);
+      let disable;
+      try {
+        const rawDisable = urlObj.searchParams.get('disable');
+        disable = rawDisable ? JSON.parse(rawDisable) : undefined;
+        if (disable && typeof disable !== 'object') disable = undefined;
+      } catch { disable = undefined; }
+      json(await fileSearch.search(q, { disable }));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/search/open' && req.method === 'POST') {
+    // Open one search result. The body carries an opaque id minted by the
+    // search above — never a path; filesearch.js resolves it against its own
+    // bounded cache and re-applies the Deck openFile rules (executable/script
+    // extensions refuse with revealable:true). In CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await fileSearch.open(body.id));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/search/reveal' && req.method === 'POST') {
+    // Show one search result in Explorer (select-in-folder) — the safe path
+    // for results openFile refuses. Same opaque-id contract as /search/open.
+    // In CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await fileSearch.reveal(body.id));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/search/icon' && req.method === 'GET') {
+    // The real logo for a search result: app results get the Store tile logo
+    // (Spotify, WhatsApp) or their Start-Menu shortcut's icon; exe/lnk file
+    // results get their embedded icon. Read-only: takes the opaque result id
+    // — never a path, per the search invariant — and reuses the Deck's cached
+    // extractors. A null extraction is evicted from the cache so a transient
+    // failure retries on the next request instead of pinning "no icon".
+    try {
+      const target = fileSearch.iconTarget(urlObj.searchParams.get('id'));
+      let icon = null;
+      let extractPath = null;
+      if (target && target.app) {
+        if (target.kind === 'store') icon = await resolveStoreAppIcon(target.target);
+        else extractPath = target.target;
+      } else if (target && (target.ext === 'exe' || target.ext === 'lnk')) {
+        extractPath = target.path;
+      }
+      if (extractPath) {
+        const icons = await resolveAppIcons([extractPath]);
+        icon = icons[0] || null;
+        if (!icon) appIconCache.delete(extractPath.toLowerCase());
+      }
+      json({ ok: !!icon, icon: icon || null });
+    } catch { json({ ok: false, icon: null }); }
+
+  } else if (reqPath === '/search/ai' && req.method === 'POST') {
+    // AI search mode: the typed phrase goes to the user's configured Xenon AI
+    // provider (settings are the authority — no key travels in this request),
+    // which translates it into the SAME structured filter the offline parser
+    // produces. filesearch.searchStructured re-validates every field at the
+    // boundary (untrusted model output) and runs the normal engine, so the AI
+    // names terms and bounds, never a path, and sees nothing of the disk.
+    // Any failure answers { ok:false } so the client degrades to the offline
+    // parser with a visible notice. In CSRF_MUTATION_PATHS: it spends quota.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const phrase = String(body.q || '').replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, 300);
+      if (!phrase) { json({ ok: false, error: 'empty' }); return; }
+      const settings = await readHubSettings().catch(() => null);
+      const provider = aiLocal.sanitizeProvider(settings && settings.aiProvider);
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const fmtDay = (x) => x.getFullYear() + '-' + pad(x.getMonth() + 1) + '-' + pad(x.getDate());
+      const todayStr = fmtDay(d);
+      const yesterdayStr = fmtDay(new Date(d.getTime() - 86400000));
+      const lastYear = d.getFullYear() - 1;
+      // The "full brain" (strict opt-in in Settings → Ricerca): bounded LOCAL
+      // knowledge — app names, index roots, frequent folders, recent opens —
+      // so vague references ("the app for the lights", "the file I opened
+      // yesterday") resolve to concrete terms. Names only, never contents;
+      // with the toggle off the provider gets the phrase and today's date.
+      let contextText = '';
+      if (settings && settings.searchSettings && settings.searchSettings.aiFullContext === true) {
+        const clip = (s, n) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, n);
+        const parts = [];
+        const apps = await getInstalledApps().catch(() => []);
+        if (apps.length) {
+          // Store apps first: they are the consumer apps a purpose-phrase
+          // means ("the music app" → Spotify), while the Start Menu side is
+          // diluted by dev-tool entries; the cap must not cut them off.
+          const ordered = [...apps].sort((a, b) =>
+            ((a.kind === 'store' ? 0 : 1) - (b.kind === 'store' ? 0 : 1))
+            || String(a.name).localeCompare(String(b.name)));
+          parts.push('Installed applications: ' + ordered.slice(0, 150).map((a) => clip(a.name, 40)).filter(Boolean).join(', ') + '.');
+        }
+        const roots = (settings.searchSettings.indexRoots || []).map((r) => clip(r, 80)).filter(Boolean);
+        if (roots.length) parts.push('Indexed drives and folders: ' + roots.join(', ') + '.');
+        const snap = await fileSearch.usageSnapshot().catch(() => null);
+        if (snap && snap.folders.length) parts.push('Folders the user opens results from most: ' + snap.folders.map((f) => clip(f, 120)).filter(Boolean).join(' ; ') + '.');
+        if (snap && snap.opens.length) {
+          const fmtLast = (ms) => fmtDay(new Date(ms));
+          parts.push('Recently opened from search: ' + snap.opens.map((o) => clip(o.name, 60) + ' (' + fmtLast(o.last) + ')').join(' ; ') + '.');
+        }
+        if (parts.length) {
+          contextText = 'Local context the user opted in to sharing: ' + parts.join(' ')
+            + ' When the request names an application by PURPOSE ("the music app", "the program for the lights"), find the matching '
+            + 'installed application above and put ITS name in terms with "app": true. When it references a recent open '
+            + '("the file I opened yesterday"), put that file\'s name words in terms. Ignore the context when the request is already explicit. ';
+        }
+      }
+      // The examples matter more than the rules for small models: they pin
+      // the two mistakes seen live (type words leaking into terms, and
+      // "executable/program" collapsing onto kind:document because the kind
+      // list has no such entry — executables are an exts+app question).
+      const sysText = 'You translate a natural-language file-search request into ONE JSON object, nothing else. '
+        + 'Fields (omit any that do not apply): '
+        + '"terms": array of distinctive words expected in the file NAME itself, lowercase. NEVER include words that merely '
+        + 'describe the type, date or size ("documents", "photos", "files", "recent", "big"); may be empty. '
+        + '"kind": one of image|video|audio|document|archive. '
+        + '"exts": array of file extensions without dots, whenever the request implies formats the kinds do not cover: '
+        + 'executable/program/eseguibile -> ["exe"], installer -> ["exe","msi"], shortcut -> ["lnk"], '
+        + 'spreadsheet -> ["xlsx","xls","csv"], code -> the languages named. '
+        + 'Screenshots: Windows names them "Screenshot ...", so use {"terms":["screenshot"],"kind":"image"} plus any date. '
+        + 'The engine matches file names, dates, sizes and text inside documents — NEVER what an image or video shows; '
+        + 'drop visual-content descriptions ("that shows a mixer") instead of turning them into name terms. '
+        + '"app": true when the user is looking for an installed application or program (to launch or locate). '
+        + '"after" and "before": modified-date bounds, YYYY-MM-DD. "minBytes" and "maxBytes": file size bounds in bytes. '
+        + 'Today is ' + todayStr + '. The request may be in any language; keep terms in the language of the request. '
+        + contextText
+        + 'Examples: '
+        + '"l eseguibile dell applicativo steam" -> {"terms":["steam"],"exts":["exe"],"app":true} ; '
+        + '"le foto di natale dell anno scorso" -> {"terms":["natale"],"kind":"image","after":"' + lastYear + '-01-01","before":"' + lastYear + '-12-31"} ; '
+        + '"big videos" -> {"kind":"video","minBytes":104857600} ; '
+        + '"il pdf che ho scannerizzato ieri" -> {"exts":["pdf"],"after":"' + yesterdayStr + '"}. '
+        + 'Respond with the JSON object only, no prose, no markdown fences.';
+      const userText = 'Request: ' + phrase;
+      let text = '';
+      if (provider === 'ollama') {
+        const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
+        const model = aiLocal.resolveModel(aiLocal.sanitizeModel(settings && settings.ollamaModel), settings && settings.hardwareScan);
+        const result = await aiLocal.localChat({
+          baseUrl, model, geminiTools: [],
+          history: [{ role: 'user', parts: [{ text: userText }] }],
+          systemText: sysText,
+          executeTool: async () => ({ fnResult: {}, clientActions: [] }),
+        }).catch(() => null);
+        text = result && result.text ? String(result.text) : '';
+      } else if (provider === 'openai' || provider === 'anthropic') {
+        const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
+        const provKey = provider === 'openai' ? (settings && settings.openaiApiKey) : (settings && settings.anthropicApiKey);
+        const provModel = provider === 'openai' ? (settings && settings.openaiModel) : (settings && settings.anthropicModel);
+        if (!provKey) { json({ ok: false, error: 'no_provider' }); return; }
+        text = await mod.oneShot({ apiKey: provKey, model: provModel, systemText: sysText, userText, maxTokens: 300 }).catch(() => '');
+      } else {
+        const key = settings && settings.geminiApiKey;
+        if (!key) { json({ ok: false, error: 'no_provider' }); return; }
+        text = await _geminiGenerateJSON(sysText + '\n\n' + userText, key) || '';
+      }
+      let spec = null;
+      if (text) {
+        // Tolerate prose or fences around the object; the strict validation
+        // of its CONTENT happens in searchStructured.
+        const m = /\{[\s\S]*\}/.exec(String(text));
+        if (m) { try { spec = JSON.parse(m[0]); } catch { spec = null; } }
+      }
+      if (!spec) { json({ ok: false, error: 'ai_failed' }); return; }
+      json(await fileSearch.searchStructured(spec));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/index/status' && req.method === 'GET') {
+    // Living Index state for Settings + the disk widget: on/off, building
+    // progress, file count, resident RAM, roots. Read-only.
+    try { json(await livingIndex.stats()); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/spotlight/claimed' && req.method === 'POST') {
+    // The native kiosk claims the hotkey: it just opened the frameless
+    // Spotlight window, so the Edge fallback must NOT also fire. In
+    // CSRF_MUTATION_PATHS.
+    _spotlightClaimed = true;
+    json({ ok: true });
+
+  } else if (reqPath === '/search/hotkey-status' && req.method === 'GET') {
+    // Settings → Ricerca row: is the global hotkey listening, or why not
+    // ('taken' = another app owns the combo, e.g. PowerToys Run on Alt+Space).
+    try {
+      const ss = (_serverHubSettings && _serverHubSettings.searchSettings) || {};
+      json({ state: _hotkey.state, combo: _hotkey.combo || ss.hotkeyCombo || 'alt+space' });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/disk/status' && req.method === 'GET') {
+    // Disk widget state: helper presence, scan progress, last summary and —
+    // after a scan — the treemap tree, categories, top files and verified
+    // duplicates. Read-only; the widget polls this only while a scan runs.
+    try { json(await diskSpace.status()); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/disk/overview' && req.method === 'GET') {
+    // Per-root live overview (Living-Index path): ?i=N indexes the configured
+    // roots — the wire never carries a path (Slideshow shape). Read-only
+    // compute over the in-RAM index; ?refresh=1 skips the 30s cache.
+    try {
+      json(await diskSpace.overview(urlObj.searchParams.get('i'), urlObj.searchParams.get('refresh') === '1'));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/disk/browse' && req.method === 'GET') {
+    // One directory level from the current disk overview. The client returns
+    // only the opaque node id minted by diskspace.js — never a filesystem path.
+    try {
+      json(await diskSpace.browse(urlObj.searchParams.get('i'), urlObj.searchParams.get('node')));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/disk/advisor' && req.method === 'POST') {
+    // Dedicated, read-only storage analysis for the Disk modal. It receives a
+    // root INDEX, obtains the real snapshot server-side and calls the selected
+    // provider with NO tools, so it can neither lose `disk_insights` nor run an
+    // action. Clicking the modal button is the explicit quota/privacy action.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const rootIndex = Number(body.rootIndex);
+      if (!Number.isInteger(rootIndex) || rootIndex < 0) {
+        json({ ok: false, error: 'bad_root' }); return;
+      }
+      const insight = await diskSpace.insights(rootIndex);
+      if (!insight || (!insight.totalBytes && !insight.volume)) {
+        json({ ok: false, error: 'index_unavailable' }); return;
+      }
+      const settings = await readHubSettings().catch(() => null);
+      const provider = aiLocal.sanitizeProvider(settings && settings.aiProvider);
+      const uiLang = String(body.lang || 'en').toLowerCase().slice(0, 2);
+      const langNames = {
+        it: 'Italian', en: 'English', ko: 'Korean', ja: 'Japanese',
+        zh: 'Chinese', es: 'Spanish', fr: 'French', de: 'German',
+        pt: 'Portuguese', ru: 'Russian', nl: 'Dutch',
+      };
+      const fullContext = !!(settings && settings.searchSettings &&
+        settings.searchSettings.aiFullContext === true);
+      const optedContext = {};
+      if (fullContext) {
+        const clip = (value, max) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, max);
+        const apps = await getInstalledApps().catch(() => []);
+        optedContext.installedApplications = apps
+          .slice(0, 150).map((app) => clip(app.name, 60)).filter(Boolean);
+        const usage = await fileSearch.usageSnapshot().catch(() => null);
+        if (usage) {
+          optedContext.frequentFolders = (usage.folders || []).slice(0, 12)
+            .map((folder) => clip(folder, 160)).filter(Boolean);
+          optedContext.recentSearchOpens = (usage.opens || []).slice(0, 12)
+            .map((entry) => ({
+              name: clip(entry.name, 80),
+              lastOpened: Number(entry.last) || 0,
+            }));
+        }
+        if (settings && settings.hardwareScan) {
+          optedContext.pcHardwareProfile = settings.hardwareScan;
+        }
+      }
+      const sysText = 'You are Xenon Storage Advisor, a read-only expert embedded in a Windows disk-cleanup interface. ' +
+        'Use ONLY the supplied local snapshot; never invent a file, application, age, purpose or saving. Clearly label any inference. ' +
+        'You cannot delete or run commands. Write a thorough but practical report in ' + (langNames[uiLang] || 'English') + '. ' +
+        'Cover: (1) diagnosis of capacity, free/used/indexed space and any unexplained difference; ' +
+        '(2) a priority cleanup plan with exact sizes/counts; (3) for every present category, what creates it, what it is for, ' +
+        'why cleaning may or may not be sensible, what is recreated afterwards and practical ways to reduce recurrence; ' +
+        '(4) the largest folders/files and likely owning apps only when the names justify that inference; ' +
+        '(5) duplicates and what must be checked before choosing a copy; (6) what must not be touched; ' +
+        '(7) a short ordered next-action checklist. Distinguish recommended cleanup from choices only the user can make. ' +
+        'If the snapshot is capped or incomplete, say so prominently. Never claim personal files are safe to delete.';
+      const userText = 'Local storage snapshot selected by the user:\n' +
+        JSON.stringify({ disk: insight, ...(fullContext ? { optedInPcContext: optedContext } : {}) }).slice(0, 60000);
+      let text = '';
+      if (provider === 'ollama') {
+        const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
+        const model = aiLocal.resolveModel(aiLocal.sanitizeModel(settings && settings.ollamaModel), settings && settings.hardwareScan);
+        const result = await aiLocal.localChat({
+          baseUrl, model, geminiTools: [],
+          history: [{ role: 'user', parts: [{ text: userText }] }],
+          systemText: sysText,
+          executeTool: async () => ({ fnResult: {}, clientActions: [] }),
+        }).catch(() => null);
+        text = result && result.text ? String(result.text).trim() : '';
+      } else if (provider === 'openai' || provider === 'anthropic') {
+        const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
+        const key = provider === 'openai'
+          ? settings && settings.openaiApiKey
+          : settings && settings.anthropicApiKey;
+        const model = provider === 'openai'
+          ? settings && settings.openaiModel
+          : settings && settings.anthropicModel;
+        if (!key) { json({ ok: false, error: 'no_provider' }); return; }
+        text = await mod.oneShot({
+          apiKey: key, model, systemText: sysText, userText, maxTokens: 1500,
+        }).catch(() => '');
+      } else {
+        const key = settings && settings.geminiApiKey;
+        if (!key) { json({ ok: false, error: 'no_provider' }); return; }
+        text = await _geminiOneShot(key, [{ text: userText }], sysText, 1500).catch(() => '');
+      }
+      if (!text) { json({ ok: false, error: 'ai_failed' }); return; }
+      json({
+        ok: true,
+        text: String(text).slice(0, 20000),
+        provider,
+        fullContext,
+      });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/disk/scan' && req.method === 'POST') {
+    // Start a scan (helper-gated, one at a time, manual only — never
+    // automatic). Root is a strictly-validated drive letter. In
+    // CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(diskSpace.startScan(body.root));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/disk/scan/cancel' && req.method === 'POST') {
+    try { json(diskSpace.cancelScan()); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/disk/clean' && req.method === 'POST') {
+    // Start a cleanup. The body carries category + item ids resolved against
+    // the server's own enumeration (never paths); every resolved path is
+    // re-stated live and re-checked against the guard blocklist, then moved
+    // to the RECYCLE BIN by the helper. Returns as soon as the job is accepted
+    // ({ ok, started, id } or { ok:false, error:'busy' }); progress streams on
+    // the SSE `disk_clean` event and is re-exposed by /disk/status. In
+    // CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await diskSpace.clean(body));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/disk/clean/cancel' && req.method === 'POST') {
+    // Stop a running cleanup after the current batch (never mid-move). In
+    // CSRF_MUTATION_PATHS.
+    try { json(diskSpace.cancelClean()); } catch (e) { err500(e.message); }
+
   } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {
     try {
       const name = decodeURIComponent(reqPath.slice('/uploads/'.length));
@@ -15236,6 +16017,13 @@ function _startListen(host) {
       // version may have left so it never launches itself again: drop the
       // auto-start scheduled task (one fire-and-forget call, silent if absent).
       try { execFile('schtasks', ['/Delete', '/TN', 'XenonEdge OpenRGB', '/F'], { windowsHide: true }, () => {}); } catch { /* ignore */ }
+      // Spotlight: start the global-hotkey listener if enabled, and rebuild the
+      // crawler index for the user's extra search folders (both no-op/cheap
+      // when off; delayed so they never compete with boot).
+      setTimeout(() => {
+        try { refreshHotkeyListener(); } catch { /* ignore */ }
+        try { refreshLivingIndex(); } catch { /* ignore */ }
+      }, 5000).unref();
     }).catch(() => {});
   });
 }
@@ -15616,6 +16404,21 @@ function _gracefulShutdown() {
   // Resolve any parked sdk_handler calls so their /actions/run responses flush
   // before the server closes (their timers are cleared with them).
   try { sdkHandlerShutdown(); } catch {}
+  // Retire the local-search PS host (stdin close → clean COM release) and
+  // flush its pending open-frequency write. stop() RETURNS that write's
+  // promise: folding it into shutdownFlush is what makes the exit path wait
+  // for it, otherwise every result opened in the last debounce window before
+  // quitting was silently lost.
+  try { shutdownFlush = Promise.all([shutdownFlush, Promise.resolve(fileSearch.stop()).catch(() => {})]); } catch {}
+  // Stop a running disk scan (the helper child has no job object).
+  try { diskSpace.stop(); } catch {}
+  // Stop the Living Index host (in-RAM index + watchers).
+  try { livingIndex.stop(); } catch {}
+  // Unregister the global Spotlight hotkey (and cancel a pending respawn, so a
+  // retry can't spawn a helper on the way out) and close its popup windows.
+  try { _cancelHotkeyRetry(); _stopHotkeyListener(); } catch {}
+  for (const pid of _spotlightPopupPids) { try { process.kill(pid); } catch {} }
+  _spotlightPopupPids.clear();
   // Close any Virtual Deck popup windows we spawned — they have no job object,
   // so process.exit would orphan them on a dead server.
   for (const pid of _deckPopupPids) { try { process.kill(pid); } catch {} }

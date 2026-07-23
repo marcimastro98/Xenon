@@ -1,0 +1,487 @@
+/* ── Spotlight — local file search overlay ─────────────────────────────────────
+   Apple-style: closed, it is ONE clean glass pill floating over the dashboard
+   (which stays visible — no fullscreen frost; a soft halo dims just the area
+   around the pill). While you type it grows into a single continuous rounded
+   panel. The pull-down gesture hangs a real droplet under the top chrome that
+   stretches with the finger and either snaps back (short pull) or glides into
+   place as the pill (long pull). Theme-aware via the shared tokens;
+   reduced-motion falls back to plain fades. */
+
+/* The pull-down gesture needs the VERTICAL pan on the top chrome: without
+   this, a touch drag can be claimed by the browser as a scroll and our
+   pointermove stream ends in pointercancel before the droplet threshold.
+   pan-x keeps the favorites strip horizontally scrollable. */
+.topbar, .topbar-mini { touch-action: pan-x; }
+
+.spotlight {
+  position: fixed;
+  inset: 0;
+  /* Above the settings panel (220) and pickers, below toasts (5200). */
+  z-index: 4600;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  /* No fullscreen frost: the dashboard stays visible. */
+  background: transparent;
+}
+/* Author styles would otherwise beat the UA's [hidden] { display:none } —
+   this was exactly the "cannot close it in any way" bug: close() set the
+   attribute but the flex display kept the overlay up and eating every tap. */
+.spotlight[hidden] { display: none !important; }
+
+/* Soft halo dimming just the area around the pill, so it reads against any
+   dashboard without frosting the whole screen. */
+.spotlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 78% 62% at 50% 24%, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.12) 58%, transparent 92%);
+}
+:root[data-theme="light"] .spotlight::before {
+  background: radial-gradient(ellipse 78% 62% at 50% 24%, rgba(0, 0, 0, 0.26), rgba(0, 0, 0, 0.08) 58%, transparent 92%);
+}
+
+.spotlight.spot-pop .spot-shell {
+  animation: spot-pop-in 0.32s cubic-bezier(0.26, 1.2, 0.4, 1);
+}
+@keyframes spot-pop-in {
+  from { opacity: 0; transform: translateY(-14px) scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── The shell: macOS-Spotlight-style panel — same look as the native
+   Alt+Space window: near-opaque theme surface, sober radius, hairline. ── */
+.spot-shell {
+  margin-top: min(26vh, 220px);
+  width: min(620px, calc(100vw - 48px));
+  border-radius: 18px;
+  background: rgba(var(--panel-rgb), 0.93);
+  -webkit-backdrop-filter: blur(28px) saturate(1.3);
+  backdrop-filter: blur(28px) saturate(1.3);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5),
+              inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.28s cubic-bezier(0.3, 0.9, 0.3, 1),
+              border-radius 0.28s ease,
+              margin-top 0.28s ease;
+}
+:root[data-theme="light"] .spot-shell {
+  background: rgba(255, 255, 255, 0.93);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.spot-expanded .spot-shell {
+  width: min(720px, calc(100vw - 32px));
+  border-radius: 16px;
+  margin-top: min(12vh, 96px);
+}
+
+/* ── The capsule melting: stretch / return / absorb ──────────────────────────
+   Driven per-frame by --spot-pull (0..1) from spotlight.js. The minimal island
+   composes with its own --mini-tx anchor (same pattern as the notification
+   morph in TopbarMinimal.css); the Full topbar gets a subtler bottom stretch.
+   While stretching there is NO transition (the finger drives); the return and
+   absorb states re-enable one with an elastic overshoot. */
+body.topbar-minimal:not([data-panel]) #topbar-mini.spot-zone-stretch {
+  /* Gentle: a strong scaleY visibly squashes the clock/icons inside the
+     island, which reads as glitch, not liquid. The elongation illusion comes
+     from the drop + neck, the capsule itself only leans into the pull. */
+  transform: translateX(var(--mini-tx, -50%))
+             translateY(calc(var(--spot-pull, 0) * 6px))
+             scaleY(calc(1 + var(--spot-pull, 0) * 0.08));
+  transform-origin: 50% 0;
+  border-bottom-left-radius: calc(24px + var(--spot-pull, 0) * 10px);
+  border-bottom-right-radius: calc(24px + var(--spot-pull, 0) * 10px);
+  transition: none;
+}
+body.topbar-minimal:not([data-panel]) #topbar-mini.spot-zone-return {
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.5, 1),
+              border-radius 0.4s ease;
+}
+body.topbar-minimal:not([data-panel]) #topbar-mini.spot-zone-absorb {
+  animation: spot-absorb-mini 0.4s cubic-bezier(0.34, 1.56, 0.5, 1);
+}
+@keyframes spot-absorb-mini {
+  0%   { transform: translateX(var(--mini-tx, -50%)); }
+  40%  { transform: translateX(var(--mini-tx, -50%)) translateY(2px) scaleY(1.05); }
+  100% { transform: translateX(var(--mini-tx, -50%)); }
+}
+.topbar.spot-zone-stretch {
+  transform: scaleY(calc(1 + var(--spot-pull, 0) * 0.04));
+  transform-origin: 50% 0;
+  transition: none;
+}
+.topbar.spot-zone-return { transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.5, 1); }
+.topbar.spot-zone-absorb { animation: spot-absorb-bar 0.4s cubic-bezier(0.34, 1.56, 0.5, 1); }
+@keyframes spot-absorb-bar {
+  40% { transform: scaleY(1.03); }
+}
+
+/* ── The droplet ── */
+.spot-drop {
+  position: fixed;
+  z-index: 4599;
+  pointer-events: none;
+  /* Nearly opaque, NO backdrop-filter: a blur re-samples the backdrop on
+     every frame of the drag — that per-frame cost was the visible jank. */
+  background: rgba(var(--panel-rgb), 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+/* Attached phase: the drop is part of the capsule — no seam on the touching
+   side, and a stretching NECK (sized per-frame via --neck-h/--neck-w from
+   spotlight.js) bridges whatever gap the pull opens, thinning until it
+   snaps at the pinch-off. */
+.spot-drop.spot-drop-attached {
+  border-top-color: transparent;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
+}
+.spot-drop.spot-drop-attached::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: calc(-1 * var(--neck-h, 10px));
+  transform: translateX(-50%);
+  width: var(--neck-w, 26px);
+  height: calc(var(--neck-h, 10px) + 12px);
+  background: rgba(var(--panel-rgb), 0.94);
+  border-radius: 46%;
+}
+.spot-drop.spot-drop-ready {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4),
+              0 0 0 2px rgba(var(--accent-rgb), 0.5),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+/* Fly-back (surface tension) and glide-into-place transitions. */
+.spot-drop.spot-drop-retract {
+  transition: left 0.17s cubic-bezier(0.4, 0, 0.6, 0.5),
+              top 0.17s cubic-bezier(0.4, 0, 0.6, 0.5),
+              width 0.17s ease-in,
+              height 0.17s ease-in,
+              opacity 0.2s ease-out;
+  opacity: 0.25;
+}
+.spot-drop.spot-drop-commit {
+  transition: left 0.26s cubic-bezier(0.3, 0.9, 0.35, 1.04),
+              top 0.26s cubic-bezier(0.3, 0.9, 0.35, 1.04),
+              width 0.26s cubic-bezier(0.3, 0.9, 0.35, 1.04),
+              height 0.26s cubic-bezier(0.3, 0.9, 0.35, 1.04),
+              border-radius 0.26s ease;
+}
+
+/* ── Input bar (the pill face) ── */
+.spot-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 22px;
+  min-height: 62px;
+  flex: 0 0 auto;
+}
+.spot-bar-icon {
+  width: 24px; height: 24px;
+  fill: rgba(var(--accent-rgb), 0.95);
+  flex: 0 0 auto;
+}
+.spot-loading .spot-bar-icon { animation: spot-pulse 0.9s ease-in-out infinite; }
+@keyframes spot-pulse { 50% { opacity: 0.35; } }
+body.game-mode .spot-loading .spot-bar-icon { animation: none; }
+
+/* Explicit resets on every state: Chromium's form-control theming (auto dark
+   mode, autofill, WebView2) can paint its own field background, which is the
+   boxed-input look the pill must never have. */
+.spot-bar .spot-input,
+.spot-bar .spot-input:focus,
+.spot-bar .spot-input:hover {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  padding: 0;
+  color: inherit;
+  caret-color: rgb(var(--accent-rgb));
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  font-family: inherit;
+}
+.spot-input::selection { background: rgba(var(--accent-rgb), 0.3); }
+.spot-input::placeholder { color: rgba(255, 255, 255, 0.35); }
+:root[data-theme="light"] .spot-input::placeholder { color: rgba(0, 0, 0, 0.35); }
+
+/* ── AI mode ────────────────────────────────────────────────────────────────
+   The bar wears the Xenon AI identity: the same conic accent→cyan→violet
+   light that breathes around the display rim in voice mode (AIPanel.css
+   .ai-siri-ring), here as a thin ring hugging the shell's inner edge. The
+   angle is a registered property because a conic gradient can only animate
+   through a typed custom var (same technique as --ai-angle; duplicated under
+   its own name because the /spotlight popup loads WITHOUT AIPanel.css). */
+@property --spot-ai-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes spot-ai-spin { to { --spot-ai-angle: 360deg; } }
+
+.spot-ai-toggle {
+  flex: 0 0 auto;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  opacity: 0.55;
+  transition: opacity 0.18s ease, background 0.18s ease,
+              border-color 0.18s ease, box-shadow 0.25s ease;
+}
+.spot-ai-toggle svg { width: 19px; height: 19px; fill: rgba(255, 255, 255, 0.75); }
+:root[data-theme="light"] .spot-ai-toggle svg { fill: rgba(0, 0, 0, 0.6); }
+.spot-ai-toggle:hover { opacity: 0.9; background: rgba(255, 255, 255, 0.07); }
+:root[data-theme="light"] .spot-ai-toggle:hover { background: rgba(0, 0, 0, 0.06); }
+.spot-ai-toggle:active { transform: scale(0.94); }
+.spot-ai-toggle.is-on {
+  opacity: 1;
+  background: rgba(var(--accent-rgb), 0.16);
+  border-color: rgba(var(--accent-rgb), 0.45);
+  box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.35);
+}
+.spot-ai-toggle.is-on svg,
+:root[data-theme="light"] .spot-ai-toggle.is-on svg {
+  fill: rgb(var(--accent-rgb));
+  filter: drop-shadow(0 0 4px rgba(var(--accent-rgb), 0.6));
+}
+
+/* The ring: drawn INSIDE the shell (::after + mask ring), so the same rule
+   lights up the dashboard pill and the frameless native window, whatever
+   the radius. Overflow:hidden on the shell keeps it flush with the edge. */
+.spot-ai .spot-shell { position: relative; }
+.spot-ai .spot-shell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  /* 2px, not thinner: at fractional display scaling a 1.5px ring rounds to
+     different physical widths per side and reads as uneven. */
+  padding: 2px;
+  background: conic-gradient(from var(--spot-ai-angle),
+    rgb(var(--accent-rgb)), #7ad7ff 30%, #b69dff 60%, rgb(var(--accent-rgb)));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.85;
+  animation: spot-ai-spin 6s linear infinite;
+}
+/* Soft accent bloom around the pill while the mode is armed; brighter and
+   faster while the provider is interpreting. */
+.spot-ai .spot-shell {
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5),
+              0 0 34px rgba(var(--accent-rgb), 0.22),
+              inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+:root[data-theme="light"] .spot-ai .spot-shell {
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25),
+              0 0 34px rgba(var(--accent-rgb), 0.28),
+              inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.spot-ai.spot-ai-thinking .spot-shell::after { animation-duration: 1.4s; opacity: 1; }
+.spot-ai.spot-ai-thinking .spot-ai-toggle.is-on svg { animation: spot-pulse 0.9s ease-in-out infinite; }
+.spot-ai .spot-input::placeholder { color: rgba(var(--accent-rgb), 0.55); }
+/* Game mode and reduced motion: the ring holds still (static gradient). */
+body.game-mode .spot-ai .spot-shell::after { animation: none; }
+
+/* AI interpretation chips are display-only. */
+.spot-chip.spot-chip-fixed { cursor: default; }
+
+.spot-close {
+  flex: 0 0 auto;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  font-size: 21px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.8;
+}
+:root[data-theme="light"] .spot-close { background: rgba(0, 0, 0, 0.08); }
+.spot-close:active { transform: scale(0.94); }
+
+/* ── Expandable body ── */
+.spot-body {
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 10px 10px;
+  min-height: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+:root[data-theme="light"] .spot-body { border-top-color: rgba(0, 0, 0, 0.08); }
+.spot-expanded .spot-body { display: flex; }
+
+/* ── Chips ── */
+.spot-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 10px 0;
+}
+.spot-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 15px;
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  background: rgba(var(--accent-rgb), 0.14);
+  color: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.spot-chip-x { opacity: 0.7; font-size: 15px; }
+
+/* ── Status ── */
+.spot-status {
+  padding: 6px 12px 0;
+  font-size: 13px;
+  opacity: 0.7;
+}
+.spot-status:empty { display: none; }
+
+/* ── Results ── */
+.spot-list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  max-height: min(58vh, calc(100vh - 210px));
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 4px 0 0;
+}
+/* Thin, quiet scrollbar — the Chromium default reads as a gray slab. */
+.spot-list::-webkit-scrollbar { width: 8px; }
+.spot-list::-webkit-scrollbar-track { background: transparent; }
+.spot-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+:root[data-theme="light"] .spot-list::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.2); background-clip: content-box; }
+.spot-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.spot-row:hover { background: rgba(var(--accent-rgb), 0.08); }
+.spot-row:active { transform: scale(0.997); background: rgba(var(--accent-rgb), 0.13); }
+.spot-row.is-selected { border-color: rgba(var(--accent-rgb), 0.55); background: rgba(var(--accent-rgb), 0.09); }
+.spot-row-blocked { border-color: rgba(255, 170, 60, 0.5); }
+
+.spot-icon {
+  width: 22px; height: 22px;
+  flex: 0 0 auto;
+  fill: rgba(255, 255, 255, 0.75);
+}
+/* Real app logo (exe/lnk results): the extracted 32px icon, kept crisp. */
+img.spot-icon-app {
+  object-fit: contain;
+  border-radius: 5px;
+}
+/* Application rows (the launchable tier above file results). */
+.spot-row-app .spot-icon { width: 26px; height: 26px; }
+.spot-icon-appglyph { fill: rgba(var(--accent-rgb), 0.9); }
+:root[data-theme="light"] .spot-icon { fill: rgba(0, 0, 0, 0.6); }
+.spot-icon-image { fill: #4fc3f7; }
+.spot-icon-video { fill: #b388ff; }
+.spot-icon-audio { fill: #69f0ae; }
+.spot-icon-doc   { fill: #ffb74d; }
+.spot-icon-zip   { fill: #a1887f; }
+.spot-icon-folder { fill: rgba(var(--accent-rgb), 0.9); }
+
+.spot-row-mid { flex: 1; min-width: 0; }
+.spot-row-name {
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.spot-row-name b { color: rgb(var(--accent-rgb)); font-weight: 700; }
+.spot-row-meta {
+  font-size: 11.5px;
+  opacity: 0.52;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 1px;
+}
+.spot-row-note {
+  font-size: 12px;
+  color: #ffb74d;
+  white-space: nowrap;
+}
+
+.spot-row-reveal {
+  flex: 0 0 auto;
+  width: 34px; height: 34px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  opacity: 0.45;
+}
+.spot-row:hover .spot-row-reveal, .spot-row.is-selected .spot-row-reveal { opacity: 1; }
+.spot-row-reveal:hover { border-color: rgba(255, 255, 255, 0.15); }
+.spot-row-reveal svg {
+  width: 16px; height: 16px;
+  fill: rgba(255, 255, 255, 0.6);
+}
+:root[data-theme="light"] .spot-row-reveal svg { fill: rgba(0, 0, 0, 0.55); }
+.spot-row-reveal:active { transform: scale(0.92); }
+
+/* Edge bar (short viewport). */
+@media (max-height: 760px) {
+  .spot-shell { margin-top: 9vh; }
+  /* SAME offset when expanded: rising to the very top overlapped the island/
+     topbar behind the halo — results grow downward instead. */
+  .spot-expanded .spot-shell { margin-top: 9vh; }
+  .spot-bar { min-height: 54px; }
+  .spot-bar .spot-input { font-size: 19px; }
+  .spot-list { max-height: calc(100vh - 140px); }
+  .spotlight::before {
+    background: radial-gradient(ellipse 88% 78% at 50% 30%, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.12) 58%, transparent 94%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spotlight.spot-pop .spot-shell { animation: none; }
+  .spot-shell { transition: none; }
+  .spot-drop { display: none; }
+  .spot-loading .spot-bar-icon { animation: none; }
+  .spot-ai .spot-shell::after { animation: none; }
+  .spot-ai.spot-ai-thinking .spot-ai-toggle.is-on svg { animation: none; }
+}

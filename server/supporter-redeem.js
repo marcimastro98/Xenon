@@ -1,7 +1,8 @@
 // Supporter-code redemption proxy. The dashboard never talks to the hub
 // directly: the browser POSTs /api/community/redeem to this local server,
-// which attaches the per-install id (a UUID persisted in DATA_DIR) and
-// forwards to the author-owned Cloudflare Worker. The hub validates the
+// which attaches the device id (a hash of the per-install UUID persisted in
+// DATA_DIR — see "Scoped ids" below) and forwards to the author-owned
+// Cloudflare Worker. The hub validates the
 // one-time code (3-device cap, expiry gate) and answers with the content
 // key the client then uses to decrypt the v2 remote-locked bundle.
 //
@@ -33,8 +34,9 @@ const HUB_CODE_RE = /^X[SL][A-Z0-9]{12}$/;
 const KNOWN_ERRORS = new Set(['bad_request', 'bad_code', 'bad_entry', 'expired', 'limit', 'rate_limited', 'wrong_code']);
 
 // ── Install id ───────────────────────────────────────────────────────────────
-// One random UUID per install, persisted in DATA_DIR so the hub can count
-// device activations. Not a secret — just a stable anonymous identifier.
+// One random UUID per install, persisted in DATA_DIR. Not a secret — just a
+// stable anonymous identifier, and the seed for the scoped ids below. It is
+// LOCAL: nothing sends this value itself to the hub.
 let _installId = null;
 let _installIdInflight = null;   // shared promise so concurrent cold reads resolve once
 
@@ -72,6 +74,32 @@ async function getInstallId(dataDir) {
   } finally {
     _installIdInflight = null;
   }
+}
+
+// ── Scoped ids ───────────────────────────────────────────────────────────────
+// The install id itself never leaves this machine. What goes to the hub is a
+// per-purpose hash of it: SHA-256 over `<uuid>|<scope>`.
+//
+// Sending the raw UUID to both /redeem and /ratings put the same value in the
+// hub's `activations` and `ratings` tables, which made "which star ratings did
+// this named supporter cast" answerable with one join (a supporter's code links
+// to their Discord account). Two scopes, two unlinkable values, and the thing
+// that ties them together stays on the user's disk.
+//
+// The scope labels are a wire contract with the hub (src/scoped-ids.js there):
+// change one and every existing row is orphaned — the user would lose their
+// vote and burn a fresh device slot on their next redeem.
+const SCOPE_RATINGS = 'ratings';
+const SCOPE_DEVICES = 'activations';
+const _scopedCache = new Map();
+
+async function getScopedId(dataDir, scope) {
+  const cached = _scopedCache.get(scope);
+  if (cached) return cached;
+  const raw = await getInstallId(dataDir);
+  const scoped = crypto.createHash('sha256').update(raw.toLowerCase() + '|' + scope).digest('hex');
+  _scopedCache.set(scope, scoped);
+  return scoped;
 }
 
 // ── Outbound POST ────────────────────────────────────────────────────────────
@@ -125,11 +153,11 @@ async function redeem({ entryId, code, dataDir }) {
   if (!ENTRY_ID_RE.test(id) || !HUB_CODE_RE.test(canon)) {
     return { ok: false, error: 'bad_request' };
   }
-  let installId;
-  try { installId = await getInstallId(dataDir); }
+  let scopedId;
+  try { scopedId = await getScopedId(dataDir, SCOPE_DEVICES); }
   catch { return { ok: false, error: 'network' }; }
   let out;
-  try { out = await _transport(HUB_BASE + '/redeem', { entryId: id, code: canon, installId }); }
+  try { out = await _transport(HUB_BASE + '/redeem', { entryId: id, code: canon, scopedId }); }
   catch { return { ok: false, error: 'network' }; }
   if (out && out.ok === true && typeof out.cek === 'string' && out.cek) {
     return { ok: true, cek: out.cek, name: typeof out.name === 'string' ? out.name.slice(0, 120) : '' };
@@ -141,7 +169,10 @@ async function redeem({ entryId, code, dataDir }) {
 module.exports = {
   redeem,
   getInstallId,
+  getScopedId,
+  SCOPE_RATINGS,
+  SCOPE_DEVICES,
   HUB_BASE,
   _setTransport(fn) { _transport = fn || postJson; },
-  _resetInstallIdCache() { _installId = null; },
+  _resetInstallIdCache() { _installId = null; _scopedCache.clear(); },
 };

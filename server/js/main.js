@@ -422,6 +422,12 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       } catch {}
     });
     es.addEventListener('agenda', e => { try { if (window.CustomWidget) window.CustomWidget.onData('agenda', JSON.parse(e.data)); } catch {} });
+    es.addEventListener('disk_clean', e => {
+      // Live progress for a background disk cleanup — real advancement, and a
+      // page reloaded mid-cleanup re-attaches to it (the widget also re-reads
+      // status.clean on its own poll).
+      try { if (window.DiskWidget && window.DiskWidget.onCleanProgress) window.DiskWidget.onCleanProgress(JSON.parse(e.data)); } catch {}
+    });
     es.addEventListener('guardian_alert', e => {
       // Guardian (opt-in): server-side threshold alert → friendly toast.
       try {
@@ -527,6 +533,22 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // The server heard "Hey Xenon" — open the voice session (no-op when one
       // is already live; the server-side 409 guard covers multi-tab races).
       if (typeof window._aiHandleWake === 'function') window._aiHandleWake();
+    });
+    es.addEventListener('spotlight_hotkey', () => {
+      // Global search hotkey. Only the NATIVE kiosk can host the frameless
+      // Tauri Spotlight window: it claims the hotkey (suppressing the server's
+      // Edge-popup fallback) and asks the shell to open it via the same
+      // scheme channel every other shell interaction uses. Browser tabs
+      // ignore the event — the fallback popup covers them.
+      const isNative = window.__XENON_NATIVE__ === true || window.isTauri === true;
+      if (!isNative) return;
+      try {
+        // keepalive: the scheme navigation below starts (then gets cancelled
+        // by the shell hook) — a plain fetch could be aborted by that race and
+        // the server would open the Edge fallback ON TOP of the native window.
+        fetch('/spotlight/claimed', { method: 'POST', keepalive: true }).catch(() => {});
+        window.location.href = 'xenon-app:spotlight-open';
+      } catch { /* the Edge fallback fires */ }
     });
     es.addEventListener('speak_start', () => {
       // The server's voice playback actually began — switch the UI to "speaking".

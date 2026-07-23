@@ -10,7 +10,33 @@ mod focus_guard;
 mod gpu;
 mod monitor;
 mod prefs;
+mod spotlight_window;
 mod tray;
+
+/// WebView2 browser arguments shared by EVERY webview in this process.
+///
+/// WebView2 requires all webviews on the same user-data folder to be created
+/// with IDENTICAL environment options: a second webview created with different
+/// `additional_browser_args` fails its (asynchronous) creation SILENTLY — the
+/// OS window appears, the web content never does. That was exactly the blank
+/// Spotlight bar. Any new `WebviewWindowBuilder` in this app MUST pass
+/// `.additional_browser_args(&browser_args(...))` with the same flag set.
+///
+/// The switches: wry's default `--disable-features` set (replaced wholesale by
+/// this override, so it is re-included), the three anti-throttling switches
+/// that keep the unfocused kiosk renderer alive, and the hybrid-GPU pin from
+/// `gpu::webview_gpu_flag()`.
+#[cfg(windows)]
+pub(crate) fn browser_args(gpu_flag: Option<&str>) -> String {
+    let mut args = String::from(
+        "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-renderer-backgrounding --disable-background-timer-throttling --disable-backgrounding-occluded-windows",
+    );
+    if let Some(flag) = gpu_flag {
+        args.push(' ');
+        args.push_str(flag);
+    }
+    args
+}
 
 /// Injected into every page the kiosk webview loads (the splash and, after it
 /// hands over, the loopback dashboard). In a Tauri webview a `target="_blank"`
@@ -469,8 +495,23 @@ pub fn run() {
                     // "Restart" item uses.
                     #[cfg(desktop)]
                     if scheme == "xenon-app" {
-                        if url.path() == "restart" {
-                            nav_handle.restart();
+                        match url.path() {
+                            "restart" => nav_handle.restart(),
+                            // The dashboard (this webview) relays the server's
+                            // global-hotkey broadcast: open the native Spotlight
+                            // window on the PRIMARY monitor. Close/expand/
+                            // collapse are handled by that window's own hook.
+                            // MUST run on its own thread: window creation
+                            // sends a message to the event loop and BLOCKS for
+                            // the reply, and this hook (like run_on_main_thread
+                            // — both were proven deadlocks live) runs inside
+                            // that very loop, so the reply can never arrive.
+                            // From a plain thread the loop is free to serve it.
+                            "spotlight-open" => {
+                                let h = nav_handle.clone();
+                                std::thread::spawn(move || spotlight_window::open(&h));
+                            }
+                            _ => {}
                         }
                         return false;
                     }
@@ -611,16 +652,7 @@ pub fn run() {
             //    `gpu_flag` was already computed above, alongside the JS-facing
             //    `lowPowerGpu` cap.
             #[cfg(windows)]
-            let builder = {
-                let mut args = String::from(
-                    "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --disable-renderer-backgrounding --disable-background-timer-throttling --disable-backgrounding-occluded-windows",
-                );
-                if let Some(flag) = gpu_flag {
-                    args.push(' ');
-                    args.push_str(flag);
-                }
-                builder.additional_browser_args(&args)
-            };
+            let builder = builder.additional_browser_args(&browser_args(gpu_flag));
             let window = builder.build()?;
 
             // Place the kiosk window on the Xeneon Edge (if connected) and keep a

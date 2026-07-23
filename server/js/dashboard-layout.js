@@ -1043,8 +1043,14 @@ function buildTileDecor(el, content, decor) {
   }
 }
 
-function applyTileStyle(el, style) {
+// `opts.colorsOnly` repaints the colour tokens WITHOUT tearing down and
+// rebuilding the decor layers. Used by the per-track album accent, which fires on
+// every song change: rebuilding decor there would re-create image layers and
+// restart their effects several times an album, for a repaint that only ever
+// touches colours.
+function applyTileStyle(el, style, opts) {
   if (!el) return;
+  const colorsOnly = !!(opts && opts.colorsOnly);
   delete el._xenonThemeOverrides;
   ['--bg', '--surface', '--surface-alt', '--surface-raised', '--surface-subtle', '--surface-strong',
     '--control-bg', '--input-bg', '--hover-bg', '--active-bg', '--selection-bg', '--selection-text',
@@ -1062,7 +1068,7 @@ function applyTileStyle(el, style) {
     .forEach(p => el.style.removeProperty(p));
   const content = el.querySelector(':scope > .grid-stack-item-content');
   // Decor layers are managed DOM, torn down and rebuilt every repaint.
-  clearTileDecor(el, content);
+  if (!colorsOnly) clearTileDecor(el, content);
   // Some tile content roots re-declare --text locally under the Light theme (the
   // "dark island" readability fix on .media-panel / .deck-root), which would
   // defeat a value merely inherited from the wrapper. Mirror ONLY --text onto
@@ -1079,7 +1085,7 @@ function applyTileStyle(el, style) {
   panelRoots.forEach(r => r.style.removeProperty('background-image'));
   // Decor (images + effects) applies independently of the colour-token mode, so a
   // tile can carry a dragon overlay while still following the global theme colours.
-  if (style && style.decor) buildTileDecor(el, content, style.decor);
+  if (style && style.decor && !colorsOnly) buildTileDecor(el, content, style.decor);
   if (!style || style.mode !== 'custom') {
     if (style && style.decor) { el.setAttribute('data-tile-style', 'custom'); return; }
     el.removeAttribute('data-tile-style');
@@ -1169,10 +1175,10 @@ function applyTileStyle(el, style) {
   if (typeof style.borderStrength === 'number') el.style.setProperty('--panel-border-alpha', Math.min(0.4, (0.045 + tp * 0.08) * style.borderStrength).toFixed(3));
   if (typeof style.shadowStrength === 'number') el.style.setProperty('--panel-shadow-alpha', Math.min(0.6, (0.05 + tp * 0.18) * style.shadowStrength).toFixed(3));
 }
-function applyAllTileStyles(layout) {
+function applyAllTileStyles(layout, opts) {
   const lay = layout || getDashboardLayout();
   document.querySelectorAll('.grid-stack-item[gs-id]').forEach(el => {
-    applyTileStyle(el, tileStyleForId(lay, el.getAttribute('gs-id')));
+    applyTileStyle(el, tileStyleForId(lay, el.getAttribute('gs-id')), opts);
   });
   if (window.CustomWidget && typeof window.CustomWidget.refreshTheme === 'function') {
     window.CustomWidget.refreshTheme();
@@ -2040,6 +2046,8 @@ function applyDashboardLayout() {
   step('claudeRender', () => { if (window.ClaudeWidget && typeof window.ClaudeWidget.renderWidgets === 'function') window.ClaudeWidget.renderWidgets(); });
   step('newsRender', () => { if (window.NewsWidget && typeof window.NewsWidget.renderWidgets === 'function') window.NewsWidget.renderWidgets(); });
   step('fansRender', () => { if (window.FansWidget && typeof window.FansWidget.renderWidgets === 'function') window.FansWidget.renderWidgets(); });
+  step('searchRender', () => { if (window.SearchWidget && typeof window.SearchWidget.renderWidgets === 'function') window.SearchWidget.renderWidgets(); });
+  step('diskRender', () => { if (window.DiskWidget && typeof window.DiskWidget.renderWidgets === 'function') window.DiskWidget.renderWidgets(); });
   step('powerRender', () => { if (window.PowerWidget && typeof window.PowerWidget.renderWidgets === 'function') window.PowerWidget.renderWidgets(); });
   step('batteryRender', () => { if (window.BatteryWidget && typeof window.BatteryWidget.renderWidgets === 'function') window.BatteryWidget.renderWidgets(); });
   step('vitalsRender', () => { if (window.VitalsWidget && typeof window.VitalsWidget.renderWidgets === 'function') window.VitalsWidget.renderWidgets(); });

@@ -55,6 +55,14 @@
     return out;
   }
 
+  // When to show the floating fallback page indicator. Pure, so testable. True
+  // only when there is more than one page to move between, we are NOT in layout
+  // edit mode (the topbar host owns page management there), and the normal dots
+  // are not currently on screen.
+  function shouldFloatDots(activeCount, editing, dotsVisible) {
+    return activeCount > 1 && !editing && !dotsVisible;
+  }
+
   const pages = [];        // { id, label, element, onEnter, onLeave }
   let viewport = null;     // the scroll-snap container
   let dotsHost = null;     // element that holds the dot buttons
@@ -128,25 +136,68 @@
     });
   }
 
+  // One navigation dot. Shared by the topbar host and the floating fallback so
+  // the two never drift.
+  function navDot(page, i) {
+    const dot = document.createElement('button');
+    dot.type = 'button';
+    dot.className = 'pager-dot' + (i === currentIndex ? ' is-active' : '');
+    dot.setAttribute('aria-label', page.label);
+    dot.setAttribute('aria-current', i === currentIndex ? 'true' : 'false');
+    dot.addEventListener('click', () => goToPage(page.id));
+    return dot;
+  }
+
+  // Is an element actually laid out on screen? getClientRects() is empty for a
+  // display:none ancestor, which is exactly how the dots disappear: the whole
+  // topbar is display:none in the "None" chrome, and the Minimal island hides
+  // the dots segment with `.topbar-item-hidden { display:none }`.
+  function onScreen(el) { return !!(el && el.getClientRects && el.getClientRects().length > 0); }
+
+  // Floating page indicator, created on demand. It is the answer to "a full-page
+  // tile and no visible dots means no way to change page": the page swipe can't
+  // begin over a widget (a cross-origin iframe swallows the pointer), and in the
+  // None chrome — or Minimal with the dots hidden — the normal dots aren't shown
+  // either. This sits above the tiles, bottom-centre, and is populated ONLY when
+  // the real dots are off-screen, so it never doubles them.
+  let floatHost = null;
+  function ensureFloatHost() {
+    if (floatHost && document.body.contains(floatHost)) return floatHost;
+    floatHost = document.createElement('div');
+    floatHost.className = 'pager-dots pager-dots-floating';
+    floatHost.setAttribute('role', 'tablist');
+    floatHost.setAttribute('aria-label', 'Dashboard pages');
+    floatHost.hidden = true;
+    document.body.appendChild(floatHost);
+    return floatHost;
+  }
+  function renderFloatDots(editing) {
+    let active = 0;
+    pages.forEach((p) => { if (p.active !== false) active++; });
+    // Only when there is somewhere to page to, the real dots are hidden, and we
+    // are not editing (in edit mode the topbar host carries the page-manager
+    // controls, which the fallback deliberately does not mirror).
+    const need = shouldFloatDots(active, editing, onScreen(dotsHost));
+    if (!need) { if (floatHost) { floatHost.hidden = true; floatHost.textContent = ''; } return; }
+    const host = ensureFloatHost();
+    host.textContent = '';
+    pages.forEach((page, i) => { if (page.active !== false) host.appendChild(navDot(page, i)); });
+    host.hidden = false;
+  }
+
   function renderDots() {
-    if (!dotsHost) return;
+    const editing = typeof document !== 'undefined' && document.body.classList.contains('layout-editing');
+    if (!dotsHost) { renderFloatDots(editing); return; }
     dotsHost.textContent = '';
     let activeCount = 0;
     pages.forEach((page, i) => {
       if (page.active === false) return;
       activeCount++;
-      const dot = document.createElement('button');
-      dot.type = 'button';
-      dot.className = 'pager-dot' + (i === currentIndex ? ' is-active' : '');
-      dot.setAttribute('aria-label', page.label);
-      dot.setAttribute('aria-current', i === currentIndex ? 'true' : 'false');
-      dot.addEventListener('click', () => goToPage(page.id));
-      dotsHost.appendChild(dot);
+      dotsHost.appendChild(navDot(page, i));
     });
     // In Layout mode, the dots double as a page manager: reorder the current
     // page (‹ › — swap with its neighbour), remove it (× — disabled when it's
     // the only one) and add a new, unnamed one (+).
-    const editing = typeof document !== 'undefined' && document.body.classList.contains('layout-editing');
     if (editing && window.DashboardPages) {
       const label = (key, fb) => (typeof t === 'function' ? t(key) : fb);
       const activeIdx = pages.map((p, i) => (p.active === false ? -1 : i)).filter(i => i >= 0);
@@ -186,6 +237,7 @@
       add.addEventListener('click', () => window.DashboardPages.add());
       dotsHost.appendChild(add);
     }
+    renderFloatDots(editing);
   }
 
   function setCurrentIndex(index) {
@@ -374,6 +426,6 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { clampPageIndex, resolvePageId, shouldPageOnWheel, computeActivePages, computeParkedIndices };
+    module.exports = { clampPageIndex, resolvePageId, shouldPageOnWheel, computeActivePages, computeParkedIndices, shouldFloatDots };
   }
 })();

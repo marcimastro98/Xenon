@@ -67,6 +67,29 @@ body.layout-editing .pager-page.is-parked { content-visibility: visible; }
 .pager-dot:hover { background-color: rgba(var(--accent-rgb), 0.5); }
 .pager-dot.is-active { background-color: var(--accent); transform: scale(1.25); }
 
+/* Floating fallback page indicator (dashboard-pager.js). Only mounted when the
+   normal dots are off-screen and a full-page tile would otherwise leave no way
+   to change page — see renderFloatDots. Bottom-centre, on the tile band (below
+   every modal/toast, above tiles), in a small glass pill so it reads over any
+   background or widget. Themed like the pill/rails it stands in for. */
+.pager-dots-floating {
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 56;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(var(--panel-rgb), 0.62);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.34), inset 0 0 0 1px var(--glass-border);
+  pointer-events: auto;
+}
+.pager-dots-floating[hidden] { display: none; }
+/* Editing owns page management from the topbar host; never float over it. */
+body.layout-editing .pager-dots-floating { display: none; }
+
 /* The existing dashboard becomes the content of page 1. It used to be the
    second grid row of .shell (auto-stretched to fill height); nested inside a
    .pager-page (display:block) it needs an explicit height:100% so its own

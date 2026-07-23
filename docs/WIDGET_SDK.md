@@ -94,6 +94,7 @@ not need to do anything to support it.
 | `island` | no | `true` keeps the v4.6 **short plain-text line** API. `{ "dynamic": true }` requests the separate advanced permission for host-rendered Live Activities, timed takeovers and action buttons in **Full and Minimal**. `{ "full": true }` requests a third permission on top: activities that span the **whole top bar**. See *Dynamic Island*. |
 | `badge` | no | `true` → your widget may show a small **always-on** text chip next to the clock, in both topbar chromes. Host-rendered, grant-gated — see *Persistent badge*. |
 | `clipboard` | no | `true` → your widget may **ask** to copy text to the system clipboard. It can never copy silently and can never read the clipboard: each copy shows a Xenon confirmation the user taps. See *Clipboard*. |
+| `accent` | no | `true` → your widget may tint the **dashboard accent colour** while it runs (the same channel the album-art accent uses). Accent only, never saved, released when your widget goes away. See *Dashboard accent*. |
 
 An invalid entry in any of these (a loopback host, an out-of-catalog macro step,
 a malformed id) rejects the **whole manifest** — the package shows up as invalid
@@ -113,6 +114,12 @@ Request only what you need — an empty `streams`/`actions` widget renders with 
 - **Inline `<script>` is blocked** (`script-src 'self'`) — put all JS in files.
   Inline `<style>` is allowed.
 - Images/fonts must be bundled in your package or `data:` URIs.
+- **Keyboard events reach you only while your frame has focus.** A `keydown`
+  listener inside the iframe hears nothing until the user has clicked or tapped
+  inside your widget, and focus goes back to the dashboard as soon as they touch
+  anything else. So never make a key the only way to use your widget: pointer and
+  touch input must cover the same ground, which is what the touchscreen needs
+  anyway.
 - **You cannot render a website inside your widget**: not in an iframe, not in an
   `<embed>`, not by fetching it. If your widget's job is to put a web page in front
   of the user, ask for the `browser` action category instead: you name the address
@@ -210,6 +217,9 @@ than the manifest requested):
   lang:   'en',                       // active UI language (en/it/ko/ja/zh)
   streams: ['system', 'media'],       // granted data streams
   actions: ['media'],                 // granted action categories
+  // Granted boolean capabilities you have to know about because YOU decide
+  // whether to use them. See "Clipboard" and "Dashboard accent".
+  clipboard: false, accent: true,
   // Addresses the user typed into your `userHosts` slots, keyed by slot id.
   // Only slots they actually filled appear. See "User-supplied addresses".
   userHosts: {
@@ -505,6 +515,27 @@ size from `window.innerWidth`/`innerHeight` too, but `size` also carries `dpr` a
 fires on tile resize.) Size the tile itself by dragging its corner in layout-edit
 mode — that's the only thing that sets a widget's height.
 
+**What `dpr` is for, and what it is not.** `width` and `height` are already the
+tile's real CSS pixels; `dpr` never multiplies them. It exists for one job:
+sizing a `<canvas>` **backing store** so your drawing isn't blurry on a
+high-density surface.
+
+```js
+const CSS_W = 600, CSS_H = 400;             // the canvas' CSS box
+canvas.style.width  = CSS_W + 'px';         // CSS px, never multiplied by dpr
+canvas.style.height = CSS_H + 'px';
+canvas.width  = Math.round(CSS_W * dpr);    // device px, the backing store
+canvas.height = Math.round(CSS_H * dpr);
+ctx.setTransform(dpr, 0, 0, dpr, 0, 0);     // keep drawing in CSS px coordinates
+```
+
+Multiply a **CSS** size by `dpr` and your content comes out 1.25× to 2× bigger
+than the tile on a Windows desktop at 125–200% scaling, while looking perfectly
+fine on the Edge, where `dpr` is 1. The overflow is clipped, so whatever lives at
+the edges of your layout (a paddle, a sidebar, a button) is simply not there on
+the browser. If a widget looks right on one surface and cropped on the other,
+this is the first thing to check.
+
 ### 4c. `visibility` — host → widget (v4.9)
 
 Whether your tile is on screen right now. Sent immediately after `init`, then
@@ -542,6 +573,43 @@ When you come back, the host replays the current value of every stream you were
 granted, so you do not need to re-request anything — just render what arrives.
 Background **service frames** never receive this message: they exist precisely to
 keep running out of sight.
+
+### 4d. `notice` — host → widget (v4.10)
+
+Whether a Xenon pop-up is on screen right now. Sent immediately after `init`,
+then again every time the answer changes:
+
+```js
+{ xenonSdk: 1, type: 'notice', active: true }
+```
+
+A pop-up does not hide your tile, so `visibility` never fires for one — but it
+does cover part of the screen for a few seconds. This exists for widgets where
+that matters: a game, a teleprompter, anything the user is actively following.
+Pause on `active: true`, carry on when it goes back to `false`.
+
+```js
+addEventListener('message', (e) => {
+  const m = e.data;
+  if (m && m.xenonSdk === 1 && m.type === 'notice') {
+    if (m.active) game.pause(); else game.resume();
+  }
+});
+```
+
+**It carries no content, and it never will.** You learn that something is
+showing, never what it says: Xenon mirrors Windows notifications, which means
+real message text, and a sandboxed widget has no business reading it. For the
+same reason there is nothing to grant here — "a pop-up is up" is UI state, like
+`visibility`.
+
+There is also no way for a widget to suppress a pop-up. Whether an interruption
+is worth showing is the user's call, not a widget's, and it is theirs to make in
+Settings → Notifiche → **Non disturbare**, which can hold routine pop-ups back
+while a full-screen scene or game mode is running. Errors, warnings, reminders
+and timers always come through, on every setting.
+
+Background **service frames** never receive this message.
 
 ### 5. `action` — widget → host, and `action_result` — host → widget
 
@@ -1250,6 +1318,40 @@ Why the confirmation: a sandboxed iframe's tap propagates a live "user activatio
 to the host for a few seconds, so a widget that copied on its own could rewrite
 your clipboard off an unrelated tap. Tying every copy to a fresh host tap the user
 reads removes that entirely.
+
+## Dashboard accent
+
+Declare `"accent": true` and your widget may tint the **whole dashboard's accent
+colour** while it runs. This is the same runtime channel Xenon's album-art theme
+uses, opened up for the sources Windows' media session never sees — a Plex or
+Plexamp client, a console, a game overlay, anything your widget knows about and
+the OS does not.
+
+```js
+// Tint everything from the artwork you just loaded.
+window.parent.postMessage({ xenonSdk: 1, type: 'accent', hex: '#c94f2d' }, '*');
+
+// Hand it back (playback stopped, nothing to theme from).
+window.parent.postMessage({ xenonSdk: 1, type: 'accent', hex: null }, '*');
+```
+
+What it is, exactly:
+
+- **The accent only.** Background, surfaces and text stay the user's. A widget
+  cannot make the dashboard unreadable, by accident or otherwise.
+- **Runtime only.** Nothing is written to settings. The user's saved theme is
+  untouched and a reload restores it.
+- **One owner.** The last widget to set a colour owns the tint. It is released
+  automatically when that widget is removed, its package is suspended, safe mode
+  is on, or the grant is withdrawn — so a widget that disappears can never leave
+  the dashboard stuck on a colour with nothing on screen to explain it.
+- **The user still has the switch.** Settings → *Tema dall'album* governs this
+  too: with it off, your `accent` messages are accepted and do nothing. `init`
+  echoes your granted `accent` flag, so check it before building UI around this.
+- `hex` must be `#rrggbb`. Anything else — including `null` — releases the tint.
+
+Tiles with a custom style follow the tint as well, so a themed tile and the
+widget inside it stay in step with the rest of the dashboard.
 
 ## Map & radar tiles (`/sdk/tile/`)
 

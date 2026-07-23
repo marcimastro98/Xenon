@@ -2,9 +2,14 @@
 // Anonymous star-rating proxy. The dashboard never talks to the hub directly:
 //   GET  /api/community/ratings?ids=a,b[&mine=1] → aggregate stars per entry
 //   POST /api/community/rate {entryId, stars}    → set THIS install's vote
-// This local server validates shape, attaches the persisted install id itself
-// (the browser never supplies it — same rule as the redeem proxy) and forwards
-// to the author-owned hub (fixed HUB_BASE, never user-configurable).
+// This local server validates shape, attaches the voter id itself (the browser
+// never supplies it — same rule as the redeem proxy) and forwards to the
+// author-owned hub (fixed HUB_BASE, never user-configurable).
+//
+// The voter id is the RATINGS-scoped hash of the install id, not the install id
+// (supporter-redeem.getScopedId). A vote and a supporter activation must not
+// carry the same value, or the hub could tell which ratings a named supporter
+// cast; the raw id stays on this machine.
 //
 // Both halves follow the community-catalog proxy discipline: https-only,
 // timeout, bounded body, no redirects, no-throw result objects, TTL cache +
@@ -12,7 +17,7 @@
 // which is why both routes sit in CSRF_MUTATION_PATHS).
 
 const https = require('https');
-const { getInstallId, HUB_BASE } = require('./supporter-redeem');
+const { getScopedId, SCOPE_RATINGS, HUB_BASE } = require('./supporter-redeem');
 
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_RESPONSE_BYTES = 256 * 1024;
@@ -93,7 +98,7 @@ async function fetchRatings({ ids, mine, dataDir }) {
   }
   const run = (async () => {
     let url = HUB_BASE + '/ratings?ids=' + encodeURIComponent(clean.join(','));
-    if (wantMine) url += '&installId=' + encodeURIComponent(await getInstallId(dataDir));
+    if (wantMine) url += '&scopedId=' + encodeURIComponent(await getScopedId(dataDir, SCOPE_RATINGS));
     const out = await _transport(url);
     const data = (out && out.ok && out.ratings && typeof out.ratings === 'object')
       ? { ok: true, minDisplayCount: Number(out.minDisplayCount) || 3, ratings: out.ratings }
@@ -118,8 +123,8 @@ async function submitRating({ entryId, stars, dataDir }) {
   if (!ENTRY_ID_RE.test(id) || !Number.isInteger(n) || n < 1 || n > 5) {
     return { ok: false, error: 'bad_request' };
   }
-  const installId = await getInstallId(dataDir);
-  const out = await _transport(HUB_BASE + '/ratings', { method: 'POST', body: { entryId: id, installId, stars: n } });
+  const scopedId = await getScopedId(dataDir, SCOPE_RATINGS);
+  const out = await _transport(HUB_BASE + '/ratings', { method: 'POST', body: { entryId: id, scopedId, stars: n } });
   if (out && out.ok) {
     // The shared aggregate cache now under-counts this entry — drop every set
     // containing it so the next read reflects the vote.

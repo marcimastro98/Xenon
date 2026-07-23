@@ -1,0 +1,2312 @@
+/* Disk Intelligence — dense, touch-first and entirely semantic-palette driven. */
+
+.disk-panel {
+  container-type: size;
+}
+
+.disk-panel .disk-widget-mount {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+  padding: 12px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text), transparent 76%) transparent;
+  color: var(--text);
+}
+
+.disk-widget-mount button {
+  color: inherit;
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.diskw-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.diskw-title-block,
+.diskw-title-block > * {
+  min-width: 0;
+}
+
+.diskw-title {
+  overflow: hidden;
+  font-size: 15.5px;
+  font-weight: 760;
+  letter-spacing: -0.025em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-subtitle {
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--muted-text);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-head-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+}
+
+.diskw-live-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 0 9px;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 55%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent), transparent 89%);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.diskw-live-badge.is-building {
+  border-color: var(--line);
+  background: var(--surface-alt);
+  color: var(--muted-text);
+}
+
+.diskw-icon-btn,
+.diskw-copy-btn,
+.diskw-small-btn {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--control-bg);
+  cursor: pointer;
+}
+
+.diskw-icon-btn {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  place-items: center;
+  font-size: 17px;
+}
+
+.diskw-icon-btn:hover,
+.diskw-copy-btn:hover,
+.diskw-small-btn:hover {
+  border-color: color-mix(in srgb, var(--accent), transparent 58%);
+  background: var(--hover-bg);
+}
+
+.diskw-icon-btn:active,
+.diskw-copy-btn:active,
+.diskw-small-btn:active,
+.diskw-btn:active,
+.diskw-root:active,
+.diskw-tab:active,
+.diskw-review-btn:active,
+.diskw-ai-btn:active {
+  transform: scale(0.97);
+}
+
+.diskw-icon-btn:disabled,
+.diskw-btn:disabled,
+.diskw-root:disabled,
+.diskw-tab:disabled,
+.diskw-ai-btn:disabled {
+  cursor: default;
+  opacity: 0.42;
+  transform: none;
+}
+
+/* Roots */
+
+.diskw-roots {
+  display: flex;
+  gap: 7px;
+  min-height: 46px;
+  padding-bottom: 1px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.diskw-roots::-webkit-scrollbar {
+  display: none;
+}
+
+.diskw-root {
+  display: flex;
+  flex: 0 0 auto;
+  max-width: 270px;
+  min-width: 92px;
+  min-height: 44px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 5px 13px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--control-bg);
+  cursor: pointer;
+  text-align: left;
+}
+
+.diskw-root strong,
+.diskw-root small {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-root strong {
+  font-size: 11.5px;
+  font-weight: 730;
+  line-height: 1.15;
+}
+
+.diskw-root small {
+  margin-top: 2px;
+  color: var(--muted-text);
+  font-size: 8.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.diskw-root:hover {
+  background: var(--hover-bg);
+}
+
+.diskw-root.is-active {
+  border-color: color-mix(in srgb, var(--accent), transparent 38%);
+  background: color-mix(in srgb, var(--accent), transparent 86%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent), transparent 78%);
+  color: var(--accent);
+}
+
+.diskw-root.is-active small {
+  color: color-mix(in srgb, var(--accent), var(--muted-text) 42%);
+}
+
+.diskw-root-add {
+  border-style: dashed;
+  color: var(--muted-text);
+}
+
+/* Navigation */
+
+.diskw-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-alt);
+}
+
+.diskw-tab {
+  min-height: 34px;
+  padding: 0 8px;
+  overflow: hidden;
+  border: 0;
+  border-radius: calc(var(--radius-control) - 3px);
+  background: transparent;
+  color: var(--muted-text) !important;
+  cursor: pointer;
+  font-size: 11.5px !important;
+  font-weight: 680 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-tab:hover {
+  color: var(--text) !important;
+}
+
+.diskw-tab.is-active {
+  background: var(--control-bg);
+  box-shadow: var(--shadow-sm);
+  color: var(--text) !important;
+}
+
+.diskw-view {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Capacity hero */
+
+.diskw-capacity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-tile);
+  background:
+    linear-gradient(125deg, color-mix(in srgb, var(--accent), transparent 94%), transparent 52%),
+    var(--surface-alt);
+}
+
+.diskw-gauge {
+  --gauge-color: var(--accent);
+  display: grid;
+  width: 92px;
+  aspect-ratio: 1;
+  padding: 9px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--gauge-color) 0 var(--disk-used),
+    color-mix(in srgb, var(--text), transparent 91%) var(--disk-used) 100%
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text), transparent 93%);
+  place-items: center;
+}
+
+.diskw-gauge[data-pressure="critical"] {
+  --gauge-color: var(--color-danger);
+}
+
+.diskw-gauge[data-pressure="low"] {
+  --gauge-color: var(--color-warn);
+}
+
+.diskw-gauge-inner {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--surface);
+  place-content: center;
+  text-align: center;
+}
+
+.diskw-gauge-inner strong {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.diskw-gauge-inner span {
+  margin-top: 3px;
+  color: var(--muted-text);
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.diskw-capacity-copy {
+  min-width: 0;
+}
+
+.diskw-capacity-main {
+  font-size: clamp(15px, 2.4cqw, 21px);
+  font-weight: 760;
+  letter-spacing: -0.03em;
+}
+
+.diskw-capacity-sub {
+  margin-top: 3px;
+  color: var(--muted-text);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.diskw-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 11px;
+}
+
+.diskw-metric {
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+.diskw-metric span,
+.diskw-metric strong,
+.diskw-metric small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-metric span {
+  color: var(--muted-text);
+  font-size: 9.5px;
+  font-weight: 650;
+}
+
+.diskw-metric strong {
+  margin-top: 2px;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.diskw-metric small {
+  margin-top: 3px;
+  color: var(--dim-text);
+  font-size: 8px;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.diskw-tone-safe strong {
+  color: var(--color-success);
+}
+
+.diskw-tone-review strong {
+  color: var(--color-warn);
+}
+
+/* Advisor */
+
+.diskw-advisor {
+  position: relative;
+  overflow: hidden;
+  padding: 13px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 66%);
+  border-radius: var(--radius-tile);
+  background:
+    radial-gradient(circle at 0 0, color-mix(in srgb, var(--accent), transparent 84%), transparent 44%),
+    linear-gradient(140deg, color-mix(in srgb, var(--accent), transparent 94%), transparent 60%),
+    var(--surface-alt);
+}
+
+.diskw-advisor::after {
+  position: absolute;
+  top: -38px;
+  right: -28px;
+  width: 116px;
+  height: 116px;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 82%);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 18px color-mix(in srgb, var(--accent), transparent 96%),
+    0 0 0 36px color-mix(in srgb, var(--accent), transparent 98%);
+  content: "";
+  pointer-events: none;
+}
+
+.diskw-advisor-top,
+.diskw-advisor-brand,
+.diskw-safeguards {
+  display: flex;
+  align-items: center;
+}
+
+.diskw-advisor-top {
+  position: relative;
+  z-index: 1;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.diskw-advisor-brand {
+  min-width: 0;
+  gap: 9px;
+}
+
+.diskw-advisor-mark {
+  display: grid;
+  flex: 0 0 auto;
+  width: 31px;
+  height: 31px;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 54%);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent), transparent 86%);
+  color: var(--accent);
+  font-size: 15px;
+  place-items: center;
+}
+
+.diskw-advisor-title {
+  font-size: 12.5px;
+  font-weight: 760;
+}
+
+.diskw-advisor-mode {
+  margin-top: 1px;
+  color: var(--muted-text);
+  font-size: 9.5px;
+}
+
+.diskw-ai-btn {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 44%);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--accent), transparent 84%);
+  color: var(--accent) !important;
+  cursor: pointer;
+  font-size: 11px !important;
+  font-weight: 750 !important;
+}
+
+.diskw-advisor-headline {
+  position: relative;
+  z-index: 1;
+  max-width: 82%;
+  margin-top: 11px;
+  font-size: clamp(14px, 2.15cqw, 18px);
+  font-weight: 760;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+}
+
+.diskw-advisor-detail {
+  position: relative;
+  z-index: 1;
+  max-width: 92%;
+  margin-top: 5px;
+  color: var(--muted-text);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.diskw-safeguards {
+  position: relative;
+  z-index: 1;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.diskw-safeguards span {
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface), transparent 18%);
+  color: var(--muted-text);
+  font-size: 9px;
+  font-weight: 650;
+}
+
+/* Sections and treemap */
+
+.diskw-section {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-tile);
+  background: var(--surface-alt);
+}
+
+.diskw-section > h3,
+.diskw-section-head h3 {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 760;
+}
+
+.diskw-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.diskw-section-head p {
+  max-width: min(70cqw, 520px);
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: var(--muted-text);
+  direction: rtl;
+  font-size: 9.5px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-small-btn {
+  min-height: 30px;
+  padding: 0 10px;
+  color: var(--muted-text) !important;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+}
+
+.diskw-treemap {
+  position: relative;
+  width: 100%;
+  height: clamp(180px, 38cqh, 300px);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+.diskw-cell {
+  position: absolute;
+  left: calc(var(--x) + 1px);
+  top: calc(var(--y) + 1px);
+  display: flex;
+  width: calc(var(--w) - 2px);
+  height: calc(var(--h) - 2px);
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: clamp(4px, 0.75cqw, 8px);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--text), transparent 89%);
+  border-radius: calc(var(--radius-control) - 4px);
+  background:
+    linear-gradient(145deg,
+      color-mix(in srgb, var(--accent), transparent 72%),
+      color-mix(in srgb, var(--surface-strong), transparent 12%));
+  cursor: pointer;
+  text-align: left;
+}
+
+.diskw-cell:nth-child(3n + 2) {
+  background:
+    linear-gradient(145deg,
+      color-mix(in srgb, var(--accent), transparent 79%),
+      color-mix(in srgb, var(--surface-strong), transparent 7%));
+}
+
+.diskw-cell:nth-child(3n) {
+  background:
+    linear-gradient(145deg,
+      color-mix(in srgb, var(--accent), transparent 84%),
+      color-mix(in srgb, var(--surface-strong), transparent 3%));
+}
+
+.diskw-cell:hover {
+  z-index: 2;
+  border-color: color-mix(in srgb, var(--accent), transparent 42%);
+  background:
+    linear-gradient(145deg,
+      color-mix(in srgb, var(--accent), transparent 62%),
+      var(--surface-strong));
+}
+
+.diskw-cell-other {
+  cursor: default;
+  opacity: 0.56;
+}
+
+/* The grouped tile IS tappable (opens the list), so it reads as an action:
+   dashed accent border, a subtle stripe, and it lifts on hover like the rest. */
+.diskw-cell-grouped {
+  cursor: pointer;
+  opacity: 1;
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--accent), transparent 55%);
+  background:
+    repeating-linear-gradient(135deg,
+      color-mix(in srgb, var(--accent), transparent 88%) 0 7px,
+      color-mix(in srgb, var(--accent), transparent 94%) 7px 14px);
+}
+.diskw-cell-grouped:hover {
+  border-color: color-mix(in srgb, var(--accent), transparent 30%);
+  background:
+    repeating-linear-gradient(135deg,
+      color-mix(in srgb, var(--accent), transparent 80%) 0 7px,
+      color-mix(in srgb, var(--accent), transparent 90%) 7px 14px);
+}
+.diskw-cell-grouped .diskw-cell-name::before {
+  content: "⊞ ";
+  color: var(--accent);
+}
+
+/* The "Altre N voci" list, floating over the map area. */
+.diskw-otherlist {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  background: color-mix(in srgb, var(--bg), transparent 30%);
+  backdrop-filter: blur(2px);
+  border-radius: inherit;
+}
+.diskw-otherlist-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(340px, 78%);
+  background: var(--surface-strong);
+  border-left: 1px solid var(--line);
+  box-shadow: -12px 0 30px color-mix(in srgb, var(--bg), transparent 40%);
+}
+.diskw-otherlist-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--line);
+}
+.diskw-otherlist-head strong { font-size: 11px; }
+.diskw-otherlist-sub {
+  display: block;
+  margin-top: 1px;
+  color: var(--muted-text);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+.diskw-otherlist-rows {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.diskw-otherlist-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+.diskw-otherlist-row:hover { background: color-mix(in srgb, var(--accent), transparent 88%); }
+.diskw-otherlist-row.is-file { cursor: default; color: var(--muted-text); }
+.diskw-otherlist-row.is-file:hover { background: transparent; }
+.diskw-otherlist-icon { flex: 0 0 auto; color: var(--accent); opacity: 0.8; }
+.diskw-otherlist-row.is-file .diskw-otherlist-icon { color: var(--muted-text); }
+.diskw-otherlist-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.diskw-otherlist-size {
+  flex: 0 0 auto;
+  color: var(--muted-text);
+  font-variant-numeric: tabular-nums;
+}
+.diskw-otherlist-arrow { flex: 0 0 auto; color: var(--muted-text); font-size: 13px; }
+
+.diskw-cell-file {
+  border-style: dashed;
+  cursor: default;
+}
+
+.diskw-cell-name,
+.diskw-cell-value {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.25;
+}
+.diskw-cell-value { font-size: 9px; opacity: 0.82; }
+
+/* Short-but-wide cells: name and value share one row so neither is clipped by
+   the cell's height (the "Program Files / 18.6 GB" that got cut in half). */
+.diskw-cell.is-flat {
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.diskw-cell.is-flat .diskw-cell-name { flex: 1 1 auto; min-width: 0; }
+.diskw-cell.is-flat .diskw-cell-value { flex: 0 0 auto; }
+
+/* Unattributed space: a quiet, non-interactive tile, visibly not a folder. */
+.diskw-cell-residual {
+  cursor: default;
+  opacity: 0.66;
+  border-style: dashed;
+  background:
+    repeating-linear-gradient(45deg,
+      color-mix(in srgb, var(--text), transparent 92%) 0 6px,
+      color-mix(in srgb, var(--text), transparent 96%) 6px 12px);
+}
+
+.diskw-map-note {
+  margin: 7px 1px 0;
+  color: var(--muted-text);
+  font-size: 9.5px;
+  line-height: 1.4;
+}
+
+.diskw-map-loading,
+.diskw-map-error {
+  display: flex;
+  min-height: 150px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--muted-text);
+  font-size: 10.5px;
+}
+
+.diskw-map-error {
+  flex-direction: column;
+  border-color: color-mix(in srgb, var(--color-danger), transparent 66%);
+  background: var(--danger-bg);
+  text-align: center;
+}
+
+.diskw-map-error strong {
+  color: var(--text);
+  font-size: 11.5px;
+}
+
+.diskw-cell-name {
+  font-size: clamp(9px, 1.5cqw, 12px);
+  font-weight: 740;
+}
+
+.diskw-cell-value {
+  margin-top: 1px;
+  color: var(--muted-text);
+  font-size: clamp(8px, 1.2cqw, 10px);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cleanup */
+
+.diskw-clean-loader {
+  position: relative;
+  display: flex;
+  min-height: 240px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+  padding: clamp(16px, 3cqw, 24px);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 48%);
+  border-radius: var(--radius-tile);
+  background:
+    radial-gradient(circle at 12% 0, color-mix(in srgb, var(--accent), transparent 78%), transparent 36%),
+    linear-gradient(140deg, color-mix(in srgb, var(--accent), transparent 94%), transparent 64%),
+    var(--surface-alt);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text), transparent 92%);
+}
+
+.diskw-clean-loader.is-permanent {
+  border-color: color-mix(in srgb, var(--color-danger), transparent 48%);
+  background:
+    radial-gradient(circle at 12% 0, color-mix(in srgb, var(--color-danger), transparent 80%), transparent 36%),
+    linear-gradient(140deg, color-mix(in srgb, var(--color-danger), transparent 95%), transparent 64%),
+    var(--surface-alt);
+}
+
+.diskw-clean-loader-hero {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-width: 0;
+}
+
+.diskw-clean-orbit {
+  position: relative;
+  display: grid;
+  flex: 0 0 auto;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent), transparent 88%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--accent), transparent 64%),
+    0 0 32px color-mix(in srgb, var(--accent), transparent 80%);
+  color: var(--accent);
+  font-size: 20px;
+  place-items: center;
+}
+
+.diskw-clean-orbit::before {
+  position: absolute;
+  inset: -4px;
+  border: 2px solid transparent;
+  border-top-color: var(--accent);
+  border-right-color: color-mix(in srgb, var(--accent), transparent 52%);
+  border-radius: inherit;
+  animation: diskw-spin 0.9s linear infinite;
+  content: "";
+  will-change: transform;
+}
+
+.diskw-clean-loader.is-permanent .diskw-clean-orbit {
+  background: color-mix(in srgb, var(--color-danger), transparent 88%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--color-danger), transparent 64%),
+    0 0 32px color-mix(in srgb, var(--color-danger), transparent 80%);
+  color: var(--color-danger);
+}
+
+.diskw-clean-loader.is-permanent .diskw-clean-orbit::before {
+  border-top-color: var(--color-danger);
+  border-right-color: color-mix(in srgb, var(--color-danger), transparent 52%);
+}
+
+.diskw-clean-loader-copy {
+  min-width: 0;
+}
+
+.diskw-clean-loader-kicker {
+  display: block;
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 780;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.diskw-clean-loader.is-permanent .diskw-clean-loader-kicker {
+  color: var(--color-danger);
+}
+
+.diskw-clean-loader h3 {
+  margin: 3px 0 0;
+  font-size: clamp(16px, 2.8cqw, 22px);
+  letter-spacing: -0.035em;
+}
+
+.diskw-clean-loader p {
+  max-width: 680px;
+  margin: 5px 0 0;
+  color: var(--muted-text);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.diskw-clean-payload {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.diskw-clean-payload span {
+  max-width: 100%;
+  padding: 5px 8px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface), transparent 12%);
+  color: var(--muted-text);
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-clean-track {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text), transparent 91%);
+}
+
+.diskw-clean-track > span {
+  display: block;
+  width: 38%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: diskw-clean-sweep 1.35s ease-in-out infinite;
+  will-change: transform;
+}
+
+.diskw-clean-loader.is-permanent .diskw-clean-track > span {
+  background: linear-gradient(90deg, transparent, var(--color-danger), transparent);
+}
+
+@keyframes diskw-clean-sweep {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(265%); }
+}
+
+/* Determinate fill: the width is set inline (processed/total) with the sweep
+   animation turned off, so the bar grows as items are actually recycled. */
+.diskw-clean-track > span[style*="width"] {
+  background: var(--accent);
+  transition: width 0.35s ease;
+}
+
+.diskw-clean-count {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.diskw-clean-cancel {
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+.diskw-clean-stages {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.diskw-clean-stage {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--surface), transparent 10%);
+  color: var(--dim-text);
+}
+
+.diskw-clean-stage-dot {
+  display: grid;
+  flex: 0 0 auto;
+  width: 19px;
+  height: 19px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font-size: 8.5px;
+  place-items: center;
+}
+
+.diskw-clean-stage strong {
+  overflow: hidden;
+  font-size: 9.5px;
+  font-weight: 680;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-clean-stage.is-done {
+  color: var(--color-success);
+}
+
+.diskw-clean-stage.is-done .diskw-clean-stage-dot {
+  border-color: color-mix(in srgb, var(--color-success), transparent 54%);
+  background: var(--success-bg);
+}
+
+.diskw-clean-stage.is-active {
+  border-color: color-mix(in srgb, var(--accent), transparent 54%);
+  background: color-mix(in srgb, var(--accent), transparent 91%);
+  color: var(--text);
+}
+
+.diskw-clean-loader.is-permanent .diskw-clean-stage.is-active {
+  border-color: color-mix(in srgb, var(--color-danger), transparent 54%);
+  background: color-mix(in srgb, var(--color-danger), transparent 91%);
+}
+
+.diskw-clean-stage.is-active .diskw-clean-stage-dot {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent), transparent 86%);
+}
+
+.diskw-clean-loader.is-permanent .diskw-clean-stage.is-active .diskw-clean-stage-dot {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger), transparent 86%);
+}
+
+.diskw-clean-summary,
+.diskw-dupe-intro {
+  display: grid;
+  padding: 13px 14px;
+  border: 1px solid color-mix(in srgb, var(--color-success), transparent 70%);
+  border-radius: var(--radius-tile);
+  background: var(--success-bg);
+}
+
+.diskw-dupe-intro {
+  border-color: color-mix(in srgb, var(--color-info), transparent 70%);
+  background: var(--info-bg);
+}
+
+.diskw-clean-summary-kicker,
+.diskw-confirm-kicker {
+  color: var(--muted-text);
+  font-size: 9.5px;
+  font-weight: 760;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.diskw-clean-summary > strong,
+.diskw-dupe-intro > strong {
+  margin-top: 3px;
+  font-size: clamp(19px, 3.4cqw, 26px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+}
+
+.diskw-clean-summary p,
+.diskw-dupe-intro p {
+  margin: 4px 0 0;
+  color: var(--muted-text);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.diskw-cats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 8px;
+}
+
+.diskw-cat {
+  display: flex;
+  min-width: 0;
+  min-height: 145px;
+  flex-direction: column;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-tile);
+  background: var(--surface-alt);
+}
+
+.diskw-cat-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.diskw-cat-icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 31px;
+  height: 31px;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 72%);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent), transparent 91%);
+  color: var(--accent);
+  font-size: 15px;
+  place-items: center;
+}
+
+.diskw-risk-review .diskw-cat-icon {
+  border-color: color-mix(in srgb, var(--color-warn), transparent 67%);
+  background: var(--warning-bg);
+  color: var(--color-warn);
+}
+
+.diskw-risk-permanent .diskw-cat-icon {
+  border-color: color-mix(in srgb, var(--color-danger), transparent 67%);
+  background: var(--danger-bg);
+  color: var(--color-danger);
+}
+
+.diskw-cat-title {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.diskw-cat-title > span {
+  overflow: hidden;
+  font-size: 11.5px;
+  font-weight: 730;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-risk {
+  margin-top: 1px;
+  color: var(--color-success);
+  font-size: 8.5px;
+  font-weight: 720;
+  text-transform: uppercase;
+}
+
+.diskw-risk-review .diskw-risk {
+  color: var(--color-warn);
+}
+
+.diskw-risk-permanent .diskw-risk {
+  color: var(--color-danger);
+}
+
+.diskw-cat-size {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.diskw-cat-desc {
+  display: -webkit-box;
+  margin: 9px 0;
+  overflow: hidden;
+  color: var(--muted-text);
+  font-size: 10.5px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-height: 1.4;
+}
+
+.diskw-cat-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.diskw-cat-foot > span {
+  overflow: hidden;
+  color: var(--dim-text);
+  font-size: 9.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-review-btn {
+  min-height: 31px;
+  padding: 0 11px;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 58%);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--accent), transparent 89%);
+  color: var(--accent) !important;
+  cursor: pointer;
+  font-size: 10px !important;
+  font-weight: 730 !important;
+}
+
+/* Confirmation */
+
+.diskw-confirm {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid color-mix(in srgb, var(--color-warn), transparent 54%);
+  border-radius: var(--radius-tile);
+  background: color-mix(in srgb, var(--color-warn), transparent 94%);
+}
+
+.diskw-confirm.diskw-risk-permanent {
+  border-color: color-mix(in srgb, var(--color-danger), transparent 50%);
+  background: var(--danger-bg);
+}
+
+.diskw-confirm-head,
+.diskw-selection-summary,
+.diskw-confirm-actions {
+  display: flex;
+  align-items: center;
+}
+
+.diskw-confirm-head {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.diskw-confirm-head h3 {
+  margin: 2px 0 0;
+  font-size: 15px;
+}
+
+.diskw-selection-summary {
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-alt);
+}
+
+.diskw-selection-summary strong {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.diskw-selection-summary > span {
+  flex: 1 1 auto;
+  color: var(--muted-text);
+  font-size: 10.5px;
+}
+
+.diskw-confirm-list {
+  display: flex;
+  max-height: min(38cqh, 320px);
+  flex-direction: column;
+  gap: 5px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.diskw-confirm-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-alt);
+  cursor: pointer;
+}
+
+.diskw-confirm-row:has(input:checked) {
+  border-color: color-mix(in srgb, var(--accent), transparent 62%);
+  background: color-mix(in srgb, var(--accent), transparent 92%);
+}
+
+.diskw-confirm-row input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.diskw-confirm-copy,
+.diskw-confirm-path,
+.diskw-confirm-copy small {
+  display: block;
+  min-width: 0;
+}
+
+.diskw-confirm-path {
+  overflow: hidden;
+  direction: rtl;
+  font-size: 10.5px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-confirm-copy small {
+  margin-top: 2px;
+  color: var(--muted-text);
+  font-size: 9px;
+}
+
+.diskw-confirm-note {
+  margin: 0;
+  color: var(--muted-text);
+  font-size: 9.5px;
+  line-height: 1.4;
+}
+
+.diskw-permanent-callout {
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-danger), transparent 52%);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-danger), transparent 88%);
+  color: var(--color-danger);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.diskw-confirm-actions {
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.diskw-btn {
+  min-height: 37px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--control-bg);
+  cursor: pointer;
+  font-size: 11px !important;
+  font-weight: 730 !important;
+}
+
+.diskw-btn-accent {
+  border-color: color-mix(in srgb, var(--accent), transparent 52%);
+  background: color-mix(in srgb, var(--accent), transparent 86%);
+  color: var(--accent) !important;
+}
+
+.diskw-btn-danger {
+  border-color: color-mix(in srgb, var(--color-danger), transparent 48%);
+  background: color-mix(in srgb, var(--color-danger), transparent 84%);
+  color: var(--color-danger) !important;
+}
+
+/* Explorer and duplicate rows */
+
+.diskw-explore {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.diskw-path-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 47px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.diskw-path-row:last-child {
+  border-bottom: 0;
+}
+
+.diskw-path-icon {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent), transparent 90%);
+  color: var(--accent);
+  font-size: 10px;
+  place-items: center;
+}
+
+.diskw-path-copy {
+  min-width: 0;
+}
+
+.diskw-path-copy strong,
+.diskw-path-copy span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-path-copy strong {
+  font-size: 10.5px;
+  font-weight: 690;
+}
+
+.diskw-path-copy span {
+  margin-top: 2px;
+  color: var(--dim-text);
+  direction: rtl;
+  font-size: 8.5px;
+  text-align: left;
+}
+
+.diskw-path-size {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.diskw-copy-btn {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  padding: 0;
+  color: var(--muted-text) !important;
+  cursor: pointer;
+  font-size: 12px !important;
+  place-items: center;
+}
+
+.diskw-dupe-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.diskw-dupe-group {
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-tile);
+  background: var(--surface-alt);
+}
+
+.diskw-dupe-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--line);
+}
+
+.diskw-dupe-head strong {
+  font-size: 11px;
+}
+
+.diskw-dupe-head span {
+  color: var(--muted-text);
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.diskw-dupe-path {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 39px;
+  border-bottom: 1px solid var(--line);
+}
+
+.diskw-dupe-path:last-child {
+  border-bottom: 0;
+}
+
+.diskw-dupe-path > span {
+  overflow: hidden;
+  color: var(--muted-text);
+  direction: rtl;
+  font-size: 9.5px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Loading, reports, empty and helper states */
+
+.diskw-state-card,
+.diskw-hint,
+.diskw-empty-card {
+  display: flex;
+  min-height: 150px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-tile);
+  background: var(--surface-alt);
+  text-align: center;
+}
+
+.diskw-state-card strong,
+.diskw-hint-title {
+  margin-top: 9px;
+  font-size: 13px;
+  font-weight: 740;
+}
+
+.diskw-state-card p,
+.diskw-hint-text {
+  max-width: 500px;
+  margin: 5px 0 0;
+  color: var(--muted-text);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.diskw-state-card .diskw-btn {
+  margin-top: 12px;
+}
+
+.diskw-state-error {
+  border-color: color-mix(in srgb, var(--color-danger), transparent 66%);
+  background: var(--danger-bg);
+}
+
+.diskw-spinner {
+  width: 31px;
+  height: 31px;
+  border: 2px solid color-mix(in srgb, var(--accent), transparent 80%);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: diskw-spin 0.9s linear infinite;
+  will-change: transform;
+}
+
+@keyframes diskw-spin {
+  to { transform: rotate(360deg); }
+}
+
+body.overlay-frozen .diskw-spinner,
+body.ambient-idle .diskw-spinner,
+body.game-mode .diskw-spinner,
+body.low-power-gpu .diskw-spinner,
+body.overlay-frozen .diskw-clean-orbit::before,
+body.ambient-idle .diskw-clean-orbit::before,
+body.game-mode .diskw-clean-orbit::before,
+body.low-power-gpu .diskw-clean-orbit::before,
+body.overlay-frozen .diskw-clean-track > span,
+body.ambient-idle .diskw-clean-track > span,
+body.game-mode .diskw-clean-track > span,
+body.low-power-gpu .diskw-clean-track > span {
+  animation: none;
+}
+
+.diskw-hint-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 58%);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--accent), transparent 88%);
+  color: var(--accent);
+  font-size: 18px;
+  place-items: center;
+}
+
+.diskw-report {
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--color-success), transparent 68%);
+  border-radius: var(--radius-control);
+  background: var(--success-bg);
+  color: var(--text);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.diskw-index-note {
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--color-warn), transparent 64%);
+  border-radius: var(--radius-control);
+  background: var(--warning-bg);
+  color: var(--muted-text);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.diskw-report.is-warning {
+  border-color: color-mix(in srgb, var(--color-warn), transparent 64%);
+  background: var(--warning-bg);
+}
+
+.diskw-report.is-error {
+  border-color: color-mix(in srgb, var(--color-danger), transparent 64%);
+  background: var(--danger-bg);
+}
+
+.diskw-empty {
+  padding: 12px 2px;
+  color: var(--muted-text);
+  font-size: 10.5px;
+}
+
+/* Storage Advisor modal */
+
+body.diskw-advisor-open {
+  overflow: hidden;
+}
+
+.diskw-advisor-modal {
+  position: fixed;
+  z-index: 12000;
+  inset: 0;
+  display: grid;
+  padding: clamp(12px, 2.5vw, 28px);
+  overflow: auto;
+  background: color-mix(in srgb, var(--background), transparent 14%);
+  backdrop-filter: blur(18px) saturate(1.15);
+  place-items: center;
+}
+
+.diskw-advisor-dialog {
+  --diskw-modal-pad: clamp(14px, 2.2vw, 24px);
+  width: min(1040px, 100%);
+  max-height: min(920px, calc(100vh - 28px));
+  padding: var(--diskw-modal-pad);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 64%);
+  border-radius: calc(var(--radius-tile) + 6px);
+  background:
+    radial-gradient(circle at 0 0, color-mix(in srgb, var(--accent), transparent 87%), transparent 34%),
+    var(--surface);
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+  scrollbar-width: thin;
+}
+
+.diskw-modal-head,
+.diskw-modal-heading,
+.diskw-modal-ai-head,
+.diskw-modal-guide-head {
+  display: flex;
+  align-items: center;
+}
+
+.diskw-modal-head {
+  position: sticky;
+  z-index: 3;
+  top: calc(0px - var(--diskw-modal-pad));
+  justify-content: space-between;
+  gap: 14px;
+  margin: calc(0px - var(--diskw-modal-pad)) calc(0px - var(--diskw-modal-pad)) 14px;
+  padding: 14px var(--diskw-modal-pad);
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface), transparent 5%);
+  backdrop-filter: blur(16px);
+}
+
+.diskw-modal-heading {
+  min-width: 0;
+  gap: 10px;
+}
+
+.diskw-modal-mark {
+  display: grid;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 52%);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent), transparent 84%);
+  color: var(--accent);
+  font-size: 17px;
+  place-items: center;
+}
+
+.diskw-modal-heading h2,
+.diskw-modal-section h3 {
+  margin: 0;
+}
+
+.diskw-modal-heading h2 {
+  overflow: hidden;
+  font-size: clamp(17px, 2.5vw, 23px);
+  letter-spacing: -0.035em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-modal-heading p {
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: var(--muted-text);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-modal-close {
+  display: grid;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--control-bg);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 22px;
+  place-items: center;
+}
+
+.diskw-modal-local {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--color-success), transparent 65%);
+  border-radius: var(--radius-control);
+  background: var(--success-bg);
+  font-size: 10px;
+}
+
+.diskw-modal-local strong {
+  flex: 0 0 auto;
+  color: var(--color-success);
+}
+
+.diskw-modal-local span {
+  color: var(--muted-text);
+}
+
+.diskw-modal-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.diskw-modal-stat {
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface-alt);
+}
+
+.diskw-modal-stat > span,
+.diskw-modal-stat > strong,
+.diskw-modal-stat > small {
+  display: block;
+}
+
+.diskw-modal-stat > span {
+  color: var(--muted-text);
+  font-size: 9px;
+  font-weight: 680;
+}
+
+.diskw-modal-stat > strong {
+  margin-top: 3px;
+  overflow: hidden;
+  font-size: clamp(15px, 2.2vw, 20px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.035em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-modal-stat > small {
+  margin-top: 3px;
+  color: var(--dim-text);
+  font-size: 8.5px;
+  line-height: 1.35;
+}
+
+.diskw-modal-section {
+  margin-top: 10px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-tile);
+  background: var(--surface-alt);
+}
+
+.diskw-modal-section h3 {
+  font-size: 13px;
+  letter-spacing: -0.015em;
+}
+
+.diskw-modal-section-intro {
+  margin: 3px 0 10px;
+  color: var(--muted-text);
+  font-size: 9.5px;
+  line-height: 1.45;
+}
+
+.diskw-modal-chart {
+  display: grid;
+  gap: 8px;
+}
+
+.diskw-modal-chart-row > div:first-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+  font-size: 9.5px;
+}
+
+.diskw-modal-chart-row strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.diskw-modal-chart-track {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text), transparent 91%);
+}
+
+.diskw-modal-chart-track span {
+  display: block;
+  height: 100%;
+  min-width: 4px;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.diskw-modal-chart-row.diskw-risk-safe .diskw-modal-chart-track span {
+  background: var(--color-success);
+}
+
+.diskw-modal-chart-row.diskw-risk-review .diskw-modal-chart-track span {
+  background: var(--color-warn);
+}
+
+.diskw-modal-chart-row.diskw-risk-permanent .diskw-modal-chart-track span {
+  background: var(--color-danger);
+}
+
+.diskw-modal-guides {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.diskw-modal-guide {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+.diskw-modal-guide.diskw-risk-safe {
+  border-color: color-mix(in srgb, var(--color-success), transparent 72%);
+}
+
+.diskw-modal-guide.diskw-risk-review {
+  border-color: color-mix(in srgb, var(--color-warn), transparent 72%);
+}
+
+.diskw-modal-guide.diskw-risk-permanent {
+  border-color: color-mix(in srgb, var(--color-danger), transparent 68%);
+}
+
+.diskw-modal-guide-head {
+  gap: 8px;
+}
+
+.diskw-modal-guide-head > div:nth-child(2) {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.diskw-modal-guide-head > div:nth-child(2) strong,
+.diskw-modal-guide-head > div:nth-child(2) small,
+.diskw-modal-guide-size strong,
+.diskw-modal-guide-size small {
+  display: block;
+}
+
+.diskw-modal-guide-head > div:nth-child(2) strong {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-modal-guide-head > div:nth-child(2) small {
+  margin-top: 1px;
+  color: var(--muted-text);
+  font-size: 8px;
+}
+
+.diskw-modal-guide-size {
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+.diskw-modal-guide-size strong {
+  color: var(--accent);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.diskw-modal-guide-size small {
+  margin-top: 1px;
+  color: var(--dim-text);
+  font-size: 8px;
+}
+
+.diskw-modal-fact {
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.diskw-modal-fact strong {
+  display: block;
+  font-size: 8.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.045em;
+}
+
+.diskw-modal-fact p {
+  margin: 3px 0 0;
+  color: var(--muted-text);
+  font-size: 9.5px;
+  line-height: 1.45;
+}
+
+.diskw-modal-review {
+  align-self: flex-start;
+  min-height: 32px;
+  margin-top: 10px;
+  padding: 0 11px;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 56%);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--accent), transparent 89%);
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 9.5px;
+  font-weight: 720;
+}
+
+.diskw-modal-largest {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 14px;
+}
+
+.diskw-modal-largest-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 42px;
+  border-bottom: 1px solid var(--line);
+}
+
+.diskw-modal-largest-row > div {
+  min-width: 0;
+}
+
+.diskw-modal-largest-row strong,
+.diskw-modal-largest-row > div > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diskw-modal-largest-row strong {
+  font-size: 9.5px;
+}
+
+.diskw-modal-largest-row > div > span {
+  margin-top: 1px;
+  color: var(--dim-text);
+  direction: rtl;
+  font-size: 7.5px;
+  text-align: left;
+}
+
+.diskw-modal-largest-row b {
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.diskw-modal-do-not-touch {
+  margin-top: 10px;
+  padding: 10px 11px;
+  border: 1px solid color-mix(in srgb, var(--color-info), transparent 66%);
+  border-radius: var(--radius-control);
+  background: var(--info-bg);
+}
+
+.diskw-modal-do-not-touch strong {
+  font-size: 10px;
+}
+
+.diskw-modal-do-not-touch p {
+  margin: 3px 0 0;
+  color: var(--muted-text);
+  font-size: 9.5px;
+  line-height: 1.45;
+}
+
+.diskw-modal-ai {
+  border-color: color-mix(in srgb, var(--accent), transparent 62%);
+  background:
+    radial-gradient(circle at 0 0, color-mix(in srgb, var(--accent), transparent 87%), transparent 45%),
+    var(--surface-alt);
+}
+
+.diskw-modal-ai-head {
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.diskw-modal-ai-head p {
+  max-width: 720px;
+  margin: 4px 0 0;
+  color: var(--muted-text);
+  font-size: 9.5px;
+  line-height: 1.45;
+}
+
+.diskw-modal-ai-output {
+  margin-top: 10px;
+}
+
+.diskw-modal-ai-ready,
+.diskw-modal-ai-error {
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--muted-text);
+  font-size: 9.5px;
+  line-height: 1.45;
+}
+
+.diskw-modal-ai-error {
+  border-color: color-mix(in srgb, var(--color-danger), transparent 66%);
+  background: var(--danger-bg);
+}
+
+.diskw-modal-ai-busy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 66px;
+  color: var(--muted-text);
+  font-size: 10px;
+}
+
+.diskw-modal-ai-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 7px;
+}
+
+.diskw-modal-ai-meta span {
+  padding: 4px 7px;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 67%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent), transparent 91%);
+  color: var(--accent);
+  font-size: 8.5px;
+  font-weight: 690;
+}
+
+.diskw-modal-ai-text {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font-size: 10.5px;
+  line-height: 1.55;
+}
+
+/* Rendered AI markdown (renderAiMarkdown builds these as DOM nodes). */
+.diskw-md-h {
+  font-weight: 720;
+  line-height: 1.3;
+  margin: 12px 0 5px;
+  color: var(--text);
+}
+.diskw-md-h:first-child { margin-top: 0; }
+.diskw-md-h1 { font-size: 13.5px; }
+.diskw-md-h2 { font-size: 12px; }
+.diskw-md-h3 { font-size: 11px; letter-spacing: 0.01em; }
+.diskw-md-h4 { font-size: 10.5px; color: var(--muted-text); text-transform: uppercase; letter-spacing: 0.04em; }
+.diskw-md-p { margin: 6px 0; }
+.diskw-md-p:first-child { margin-top: 0; }
+.diskw-md-hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 11px 0;
+}
+.diskw-md-list { margin: 6px 0; display: flex; flex-direction: column; gap: 3px; }
+.diskw-md-li { display: flex; gap: 7px; align-items: baseline; }
+.diskw-md-li.is-sub { padding-left: 16px; }
+.diskw-md-bullet { color: var(--accent); font-weight: 680; flex: 0 0 auto; min-width: 12px; }
+.diskw-md-litext { min-width: 0; flex: 1 1 auto; }
+.diskw-md-code {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 9.5px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--text), transparent 92%);
+}
+/* Tables scroll inside their own box so a wide plan never widens the dialog. */
+.diskw-md-tablewrap { overflow-x: auto; margin: 8px 0; border: 1px solid var(--line); border-radius: 8px; }
+.diskw-md-table { border-collapse: collapse; width: 100%; font-size: 9.75px; }
+.diskw-md-table th,
+.diskw-md-table td {
+  text-align: left;
+  padding: 6px 9px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+  vertical-align: top;
+}
+.diskw-md-table th {
+  background: color-mix(in srgb, var(--accent), transparent 92%);
+  color: var(--text);
+  font-weight: 700;
+}
+.diskw-md-table tbody tr:last-child td { border-bottom: 0; }
+.diskw-md-table tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--text), transparent 96%); }
+
+.diskw-modal-empty {
+  padding: 14px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-control);
+  color: var(--muted-text);
+  font-size: 9.5px;
+  text-align: center;
+}
+
+/* The 14.5" Edge often uses short/wide tiles; container rules preserve the
+   hierarchy without turning the dashboard into a desktop settings page. */
+
+@container (max-width: 560px) {
+  .disk-panel .disk-widget-mount {
+    padding: 10px;
+  }
+
+  .diskw-live-badge {
+    max-width: 86px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .diskw-capacity {
+    gap: 11px;
+    padding: 11px;
+  }
+
+  .diskw-gauge {
+    width: 76px;
+  }
+
+  .diskw-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .diskw-metric:last-child {
+    display: none;
+  }
+
+  .diskw-advisor-headline,
+  .diskw-advisor-detail {
+    max-width: 100%;
+  }
+
+  .diskw-safeguards {
+    display: none;
+  }
+
+  .diskw-explore {
+    grid-template-columns: 1fr;
+  }
+
+  .diskw-clean-stages {
+    grid-template-columns: 1fr;
+  }
+}
+
+@container (max-width: 400px) {
+  .diskw-live-badge {
+    display: none;
+  }
+
+  .diskw-title {
+    font-size: 14px;
+  }
+
+  .diskw-tabs {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .diskw-capacity {
+    grid-template-columns: 1fr;
+  }
+
+  .diskw-gauge {
+    display: none;
+  }
+
+  .diskw-advisor-top {
+    align-items: flex-start;
+  }
+
+  .diskw-advisor-mode {
+    display: none;
+  }
+
+  .diskw-path-size {
+    display: none;
+  }
+}
+
+@container (max-height: 320px) {
+  .diskw-subtitle,
+  .diskw-live-badge,
+  .diskw-safeguards {
+    display: none;
+  }
+
+  .diskw-capacity {
+    padding-block: 9px;
+  }
+
+  .diskw-gauge {
+    width: 64px;
+  }
+
+  .diskw-advisor-detail {
+    display: none;
+  }
+
+  .diskw-treemap {
+    height: 150px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diskw-spinner,
+  .diskw-clean-orbit::before,
+  .diskw-clean-track > span {
+    animation: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .diskw-advisor-modal {
+    padding: 6px;
+    place-items: stretch;
+  }
+
+  .diskw-advisor-dialog {
+    max-height: calc(100vh - 12px);
+  }
+
+  .diskw-modal-stats,
+  .diskw-modal-guides,
+  .diskw-modal-largest {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .diskw-modal-ai-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .diskw-modal-local {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .diskw-modal-stats,
+  .diskw-modal-guides,
+  .diskw-modal-largest {
+    grid-template-columns: 1fr;
+  }
+}

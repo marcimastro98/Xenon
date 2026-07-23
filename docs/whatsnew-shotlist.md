@@ -4,7 +4,9 @@ This is the capture guide for the curated **What's New** modal (`server/whatsnew
 the card users see at startup after an important release. One entry per highlight: what to
 capture, and exactly which field to fill.
 
-Current shot list: **v4.6.0**, 8 highlights, all shipped **text-only** (`media: ""`).
+Current shot list: **v4.10.0**, 7 highlights. Six carry media (search + disk, the two tentpoles);
+highlight 1 (the living index, an invisible engine) ships **text-only** on purpose. The assets live
+in `docs/images/` and are wired into `server/whatsnew.json`.
 
 ---
 
@@ -48,24 +50,25 @@ the card yet, without re-nagging those who have.
 
 ---
 
-## The 8 highlights (in order)
+## The 7 highlights (in order)
 
-| # | Highlight | `mediaType` | What to capture | Video idea (optional, better) |
-|---|-----------|-------------|-----------------|-------------------------------|
-| 1 | **One theme, one palette — light half and dark half** | image → **video** | The Aspetto → Colori panel showing the semantic roles (canvas, panels, surfaces, controls, text, borders, state colours), ideally next to the dashboard they paint. | 🎥 Much stronger as video: flip Light ⇄ Dark on a theme authored with both halves and watch the whole app repaint — labels, Focus popup, Bit's bubbles, AI chat included. ~8s. |
-| 2 | **Fans, Energy and Batteries** | image | The three tiles together on one page. Ideally a machine with a GPU at zero-RPM (reads *stopped*) and an AIO, so the physical grouping (Scheda madre / Hub-AIO / Scheda video / Alimentatore) is visible. | 🎥 Optional: rename a fan (tap the name, type, it sticks) — that's the bit people don't expect. ~6s. |
-| 3 | **Island, badge and the Teleprompter** | image → **video** | The minimal top bar with a line projected into the clock pill, plus a badge chip or two beside it. | 🎥 Best as video: Teleprompter counts 3-2-1, scrolls with the current sentence highlighted, and the same sentence rides the island. Sells island + widget in one clip. ~10s. |
-| 4 | **Icon packs and sound packs** | image | The Deck key icon picker with an imported pack's section under the built-in library, or the key editor's new Soundboard category. | 🎥 Optional: import a pack code → the icons appear in the picker → assign one to a key. ~8s. |
-| 5 | **The Store's Installed tab** | image | The Installed list with a mix of kinds (widget, theme, page, Deck profile, pack), each row with its screenshot and version, filter rail visible. | 🎥 Optional: filter by kind, open a row to show what the download added and where it came from. ~8s. |
-| 6 | **Star ratings and the publish portal** | image | A catalog entry with its star control and an average on the card. Alternative: the publish portal on xenon-app.com, prefilled from the ✨ button. | 🎥 Optional: tap a rating, watch the card's average update. ~5s. |
-| 7 | **Your CPU back when you're idle (#99, #100)** | image | Hard to shoot — it's an absence. Best: Task Manager (or the Performance tile) beside an idle dashboard showing near-zero CPU. A before/after pair is worth more than a single shot. | 🎥 Good as video: the Fotogrammi al secondo dial on an animated background, then walk away and the scene freezes. ~8s. |
-| 8 | **Settings that really stick** | image | Also an absence — nothing to photograph. Reasonable stand-in: the Settings screen after the readability pass (wider sidebar, taller rows, cards with breathing room), which shipped in the same version. Or leave text-only. | — |
+| # | Highlight | `mediaType` | Asset in `docs/images/` | What it shows |
+|---|-----------|-------------|-------------------------|---------------|
+| 1 | **A living index of your files** | text-only | — (`media: ""`) | The engine is invisible (an in-RAM index), and an absence photographs badly. Deliberately text-only. |
+| 2 | **Search your PC from the dashboard** | image (gif) | `search.gif` | Pull the top bar down, type a plain phrase, watch the removable interpretation chips appear and the results land. The gesture is the point, so a clip beats a still. |
+| 3 | **The same search anywhere, in your theme** | image | `search-spotlight.png` | The frameless Alt+Space search pill on the main monitor, in the user's theme. A clean hero still. |
+| 4 | **Search has an AI mode, one key away** | image | `search-ai.png` | The bar in its Xenon AI look (accent light running around it), a natural-language query typed in, chips derived from it. |
+| 5 | **See what is eating your disk, no scan button** | image (gif) | `disk.gif` | Tap a drive chip, the treemap of where the space went is simply there and stays live. Shows drives-as-chips → map → drill-down. |
+| 6 | **Explore the biggest files and verified duplicates** | image | `disk-explore.png` | The Explore view (largest files/folders) or the Duplicates view with byte-verified groups. |
+| 7 | **Protected cleanup + Storage Advisor** | image | `disk-cleanup.png` | The Cleanup view with its closed category list and the formatted Advisor report (headings/tables), no delete button on unclassified items. |
 
-Legend: **image → video** = an image works, but a short clip sells it much better.
-For video use **`Win + G`** (Xbox Game Bar → Record) or OBS; keep it **10–20s**, no audio needed.
+For a clip use **`Win + G`** (Xbox Game Bar → Record) or OBS; keep it **10–20s**, no audio needed.
+A `.gif` goes straight into `media` as `mediaType: "image"` (the host allowlist is host-based, not
+extension-based, and an `<img>` animates it). To swap a gif for a real video, drag the clip into a
+draft release/issue box and use the `user-attachments` URL with `mediaType: "video"`.
 
-Note on 7 and 8: both are fixes, and fixes photograph badly. Text-only is a perfectly good
-answer for either — an unconvincing screenshot is worse than none.
+Note on 1: it is a fix-adjacent engine feature, and those photograph badly. Text-only is the right
+answer — an unconvincing screenshot is worse than none.
 
 ---
 

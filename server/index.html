@@ -91,6 +91,9 @@
 <link rel="stylesheet" href="components/SmartHomePanel/SmartHomePanel.css">
 <link rel="stylesheet" href="components/UnifiPanel/UnifiPanel.css">
 <link rel="stylesheet" href="components/DiscordInvite/DiscordInvite.css">
+<link rel="stylesheet" href="components/Spotlight/Spotlight.css">
+<link rel="stylesheet" href="components/SearchWidget/SearchWidget.css">
+<link rel="stylesheet" href="components/DiskWidget/DiskWidget.css">
 <!-- App-wide control styling: scrollbars, selects, checkboxes -->
 <link rel="stylesheet" href="styles/controls.css">
 <!-- Light-theme component fixups (keyed off :root[data-appearance="light"]) -->
@@ -135,6 +138,13 @@
       <button class="topbtn topbtn-xenon" type="button" onclick="startVoiceSession()" data-i18n-title="ai_voice_session" title="Xenon AI">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 0 C12.7 6.1 17.9 11.3 24 12 C17.9 12.7 12.7 17.9 12 24 C11.3 17.9 6.1 12.7 0 12 C6.1 11.3 11.3 6.1 12 0 Z M12 9 L15 12 L12 15 L9 12 Z"/></svg>
         <span>Xenon</span>
+      </button>
+      <!-- Spotlight: discoverable path beside the pull-down gesture; the
+           quickbar is adopted whole by the Minimal left rail, so this button
+           exists in both chromes for free. -->
+      <button class="topbtn qbtn-search" type="button" onclick="if(window.Spotlight)Spotlight.open()" data-i18n-title="tip_search" title="Cerca sul PC">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm0 2.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM20.7 22.1l-4.8-4.8 1.4-1.4 4.8 4.8-1.4 1.4Z"/></svg>
+        <span data-i18n="ui_search">Cerca</span>
       </button>
     </div>
 
@@ -520,6 +530,20 @@
         <div class="power-widget-mount"></div>
       </section>
 
+      <!-- Search — doorway to the Spotlight (local file search): a static
+           search-bar look-alike, quick chips and recent searches. No fetch at
+           rest; every tap opens the Spotlight overlay. Hidden by default. -->
+      <section class="panel search-panel dashboard-widget" data-dashboard-widget="search" data-dashboard-size="normal" data-dashboard-order="34" data-dashboard-hidden="true">
+        <div class="search-widget-mount"></div>
+      </section>
+
+      <!-- Disk — what is eating the drive + safe recycle-bin cleanup. Helper-
+           gated (clear hint without the exe); scans are manual, polling only
+           while one runs. Hidden by default. -->
+      <section class="panel disk-panel dashboard-widget" data-dashboard-widget="disk" data-dashboard-size="normal" data-dashboard-order="35" data-dashboard-hidden="true">
+        <div class="disk-widget-mount"></div>
+      </section>
+
       <!-- Battery — wireless peripheral battery (Corsair via iCUE + Bluetooth).
            Fed over SSE 'battery' (seed: GET /api/battery); hidden by default. -->
       <section class="panel battery-panel dashboard-widget" data-dashboard-widget="battery" data-dashboard-size="normal" data-dashboard-order="33" data-dashboard-hidden="true">
@@ -885,6 +909,7 @@
         <button type="button" class="settings-nav-btn" data-settings-cat="spotify" onclick="settingsSetCategory('spotify')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.42 1.56-.299.421-1.02.599-1.559.3z"/></svg><span data-i18n="settings_cat_spotify">Spotify</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="streaming" onclick="settingsSetCategory('streaming')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.5"/><path d="M7.5 7.5a6 6 0 0 0 0 9M16.5 7.5a6 6 0 0 1 0 9M4.5 4.5a10 10 0 0 0 0 15M19.5 4.5a10 10 0 0 1 0 15"/></svg><span data-i18n="settings_cat_streaming">Streaming</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="browser" onclick="settingsSetCategory('browser')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></svg><span data-i18n="settings_cat_browser">Browser</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="search" onclick="settingsSetCategory('search')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg><span data-i18n="settings_cat_search">Ricerca e disco</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="secondscreen" onclick="settingsSetCategory('secondscreen')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4M14 8l3 2.5-3 2.5"/></svg><span data-i18n="settings_cat_secondscreen">Secondo schermo</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="remote" onclick="settingsSetCategory('remote')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><circle cx="12" cy="10" r="3"/><path d="M12 7v0M12 13v0"/></svg><span data-i18n="settings_cat_remote">Controllo Remoto</span></button>
         <div class="settings-nav-label" data-i18n="settings_nav_system" aria-hidden="true">Sistema</div>
@@ -1433,6 +1458,17 @@
             <span data-i18n="settings_notif_sounds">Suoni di notifica</span>
             <span class="settings-hint" data-i18n="settings_notif_sounds_hint">riproduci un breve suono a ogni pop-up e per il promemoria del calendario</span>
           </span>
+        </label>
+        <label class="settings-row full" id="settings-notif-quiet-row">
+          <span class="settings-label-line">
+            <span data-i18n="settings_notif_quiet">Non disturbare</span>
+            <span class="settings-hint" data-i18n="settings_notif_quiet_hint">trattiene i pop-up di routine; errori, avvisi, promemoria e timer arrivano sempre</span>
+          </span>
+          <select class="settings-select" id="settings-notif-quiet" data-custom-select data-cs-fixed onchange="updateNotifications('quiet', this.value)">
+            <option value="auto" data-i18n="settings_notif_quiet_auto">Durante scena e gioco</option>
+            <option value="always" data-i18n="settings_notif_quiet_always">Sempre</option>
+            <option value="off" data-i18n="settings_notif_quiet_off">Mai</option>
+          </select>
         </label>
         <label class="settings-toggle-row full" id="settings-winnotif-row">
           <input class="settings-check" id="settings-winnotif" type="checkbox" onchange="updateWindowsNotifications('enabled', this.checked)">
@@ -2649,6 +2685,58 @@
         <p class="settings-note" id="settings-browser-adblock-status" hidden></p>
       </div>
 
+      <div class="settings-group settings-behavior-group settings-searchdisk-group" data-settings-cat="search" hidden>
+        <div class="settings-group-head">
+          <span data-i18n="settings_search_title">Ricerca locale</span>
+          <span class="settings-hint" data-i18n="settings_search_hint">la Spotlight: cerca i file del PC in linguaggio naturale, tutto in locale</span>
+        </div>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-search-hotkey" type="checkbox" onchange="updateSearchSettings({ hotkeyEnabled: this.checked })">
+          <span class="settings-label-line">
+            <span data-i18n="settings_search_hotkey">Scorciatoia globale sul PC</span>
+            <span class="settings-hint" data-i18n="settings_search_hotkey_hint">apre la Spotlight sul monitor principale, ovunque tu sia (richiede Xenon Helper)</span>
+          </span>
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="settings_search_combo">Combinazione</span></span>
+          <input class="settings-text-input" id="settings-search-combo" type="text" autocomplete="off" spellcheck="false" placeholder="alt+space" onchange="updateSearchSettings({ hotkeyCombo: this.value })">
+        </label>
+        <p class="settings-note" id="settings-search-hotkey-status" hidden></p>
+        <p class="settings-hint full" data-i18n="settings_search_combo_note">Se un'altra app usa già la combinazione (PowerToys Run usa Alt+Space), scegline una diversa, ad esempio ctrl+alt+space.</p>
+        <label class="settings-row full">
+          <span class="settings-label-line">
+            <span data-i18n="settings_search_folders">Indice vivo: dischi e cartelle</span>
+            <span class="settings-hint" data-i18n="settings_search_folders_hint">uno per riga (es. C:\ oppure D:\Archivio). Tenuto aggiornato in tempo reale; svuota la lista per spegnerlo (richiede Xenon Helper)</span>
+          </span>
+          <textarea class="settings-text-input settings-textarea" id="settings-search-folders" rows="3" spellcheck="false" placeholder="C:\" onchange="updateSearchSettings({ indexRoots: this.value.split('\n') })"></textarea>
+        </label>
+        <p class="settings-note" id="settings-search-index-status" hidden></p>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-search-aibrain" type="checkbox" onchange="updateSearchSettings({ aiFullContext: this.checked })">
+          <span class="settings-label-line">
+            <span data-i18n="settings_search_aibrain">Cervello completo per ricerca e pulizia AI</span>
+            <span class="settings-hint" data-i18n="settings_search_aibrain_hint">aiuta Xenon a collegare dischi, app e abitudini locali quando glielo chiedi</span>
+          </span>
+        </label>
+        <p class="settings-hint full" data-i18n="settings_search_aibrain_note">Quando lo attivi, la ricerca AI può usare i nomi delle app installate, delle cartelle più usate e delle aperture recenti. Nell'Advisor disco, solo dopo che premi Approfondisci con AI, il provider riceve anche il profilo hardware e nomi, percorsi e pesi dei principali file/cartelle e candidati della fotografia selezionata. Mai il contenuto dei file. Spento, la ricerca invia solo la frase e la data; l'Advisor invia solo la fotografia che hai aperto e soltanto su richiesta.</p>
+
+        <div class="settings-group-head settings-group-head-followup">
+          <span data-i18n="settings_disk_title">Spazio disco</span>
+          <span class="settings-hint" data-i18n="settings_disk_hint">regole del widget Spazio disco</span>
+        </div>
+        <label class="settings-row full">
+          <span class="settings-label-line">
+            <span data-i18n="settings_disk_devfolders">Cartelle dei progetti</span>
+            <span class="settings-hint" data-i18n="settings_disk_devfolders_hint">una per riga; solo qui dentro node_modules e le altre cartelle di build diventano pulibili</span>
+          </span>
+          <textarea class="settings-text-input settings-textarea" id="settings-disk-devfolders" rows="3" spellcheck="false" placeholder="C:\Users\tu\Progetti" onchange="updateDiskSettings({ devFolders: this.value.split('\n') })"></textarea>
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="settings_disk_installer_age">Età minima installer (giorni)</span></span>
+          <input class="settings-text-input" id="settings-disk-installer-age" type="number" min="7" max="365" step="1" onchange="updateDiskSettings({ installerAgeDays: Number(this.value) })">
+        </label>
+      </div>
+
       <div class="settings-group settings-behavior-group settings-wshub-group" data-settings-cat="sdk" hidden>
         <div class="settings-group-head">
           <span data-i18n="settings_wshub_title">Widget e condivisione</span>
@@ -3522,6 +3610,10 @@
 <script src="js/news-widget.js"></script>
 <script src="js/sensor-access.js"></script>
 <script src="js/fans-widget.js"></script>
+<script src="js/spotlight.js"></script>
+<script src="js/search-widget.js"></script>
+<script src="js/disk-intelligence.js"></script>
+<script src="js/disk-widget.js"></script>
 <script src="js/power-widget.js"></script>
 <script src="js/battery-widget.js"></script>
 <script src="js/vitals.js"></script>

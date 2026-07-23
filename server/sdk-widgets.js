@@ -543,6 +543,7 @@ function normalizeManifest(raw, folderId) {
   const island = raw.island === true || islandDynamic || islandFull;
   const badge = raw.badge === true;
   const clipboard = raw.clipboard === true;
+  const accent = raw.accent === true;
   return {
     ok: true,
     manifest: {
@@ -577,6 +578,13 @@ function normalizeManifest(raw, folderId) {
       // copies on its own). Write-only, no read; enforced entirely host-side in
       // js/custom-widget.js, so there is no server enforcement here.
       clipboard,
+      // The widget may tint the dashboard's ACCENT at runtime — the same channel
+      // the album-art accent uses, for sources Windows' media session never sees
+      // (a Plex/Plexamp client, a game overlay). Runtime only: it never writes a
+      // setting, it cannot touch background/surface/text, it follows the user's
+      // "album theme" toggle, and it is released the moment the widget goes away.
+      // Enforced host-side in js/custom-widget.js, like clipboard.
+      accent,
       entry,
       streams: cleanList(raw.streams, SDK_STREAMS, SDK_STREAMS.length),
       actions,

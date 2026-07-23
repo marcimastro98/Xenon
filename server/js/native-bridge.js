@@ -84,14 +84,29 @@
   function showUpdatePrompt(version) {
     if (!isNative || updatePromptShown) return;
     if (!window.XenonToast || typeof window.XenonToast.show !== 'function') return;
-    updatePromptShown = true;
     const ver = version ? String(version) : '';
+    // A version the user chose to skip stays skipped across restarts — but only
+    // that one, so the next release prompts again. update.js owns the store; if
+    // it failed to load we show the prompt, because a missed update is worse
+    // than one extra toast.
+    const upd0 = window.XenonUpdate;
+    if (upd0 && typeof upd0.isVersionSkipped === 'function' && upd0.isVersionSkipped(ver)) return;
+    updatePromptShown = true;
     const msg = tr('native_update_tap', 'Tap to install the latest version.') + (ver ? ' (v' + ver + ')' : '');
     window.XenonToast.show({
       type: 'info',
       duration: 0, // stays until tapped or dismissed
       title: tr('native_update_title', 'Update available'),
       message: msg,
+      // The X means "not now" and the toast returns next launch; this is the
+      // way to say "not this release" without silencing the next one.
+      actions: [{
+        label: tr('update_skip', 'Skip this version'),
+        onClick: function () {
+          const upd = window.XenonUpdate;
+          if (upd && typeof upd.skipVersion === 'function') upd.skipVersion(ver);
+        },
+      }],
       onClick: function () {
         // Prefer the full orchestrated flow (backend first, then the shell —
         // with progress and errors on screen). The raw scheme navigation stays

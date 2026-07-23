@@ -235,6 +235,12 @@
       uploaded anywhere, and there is no analytics SDK, no crash reporter and no behavioural tracking in the app. The two anonymous counters described below are the only things the app ever reports about itself, and each is a single number with nothing attached.
     </p>
     <p>
+      The local file search and the disk-space widget are fully local by construction: your search
+      phrases, file names, the folder index and the disk-scan results are computed on your PC and
+      never sent anywhere. The list of which files you open from search (used to rank your own
+      results better) lives in <code>server/data/</code> like everything else.
+    </p>
+    <p>
       What the app <em>does</em> do is make network calls for features that inherently need the network.
       Here is the complete list, and when each one happens.
     </p>
@@ -273,7 +279,7 @@
           <tr>
             <td>Supporter hub<br><span style="color:var(--dim)">(Cloudflare Worker)</span></td>
             <td>When you rate a catalog item or redeem a supporter code</td>
-            <td>Sends a random per-install UUID (<code>install-id.json</code>) so a vote counts once and a code cannot be reused endlessly. It is not tied to your hardware, your name or your PC — delete the file and a new one is generated.</td>
+            <td>Your PC keeps a random UUID (<code>install-id.json</code>) so a vote counts once and a code cannot be reused endlessly. That UUID never leaves your machine: what is sent is a one-way hash of it, and rating something and redeeming a code use <strong>different</strong> hashes of the same UUID. That is deliberate — with one shared value, a supporter code (which can be linked to a Discord account) and a star rating would sit in the database under the same identifier, and I would be able to see which creations a named supporter rated. With two, there is nothing to match them on. Neither hash is tied to your hardware or your name; delete the file and a new UUID is generated.</td>
           </tr>
           <tr>
             <td><code>ipwho.is</code></td>

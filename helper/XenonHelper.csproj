@@ -58,8 +58,10 @@
                  (WhatsApp etc.) via AUMID + WinRT AppInfo.DisplayInfo.GetLogo;
          0.7.0 = audio-serve (per-app peak meters via IAudioMeterInformation —
                  the first real audio LEVEL source in the product; SoundVolumeView
-                 exports volume and mute but no meter column). -->
-    <Version>0.7.0</Version>
+                 exports volume and mute but no meter column);
+         0.10.0 = one-pass Living Index overview for multi-million-file disks;
+         0.11.0 = opaque-id disk drill-down with direct files + child folders. -->
+    <Version>0.11.3</Version>
     <Description>Xenon Helper — native companion process for the Xenon dashboard server</Description>
   </PropertyGroup>
 

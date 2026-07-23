@@ -28,6 +28,12 @@ const linkPaths = [
 function log(msg) { process.stdout.write(`[link-shared] ${msg}\n`); }
 
 function linkOne(linkPath) {
+  // The surface itself may not be on disk: widget/ is export-ignored, so a real
+  // user install has no iCUE package to link into. Skip it quietly. Without this
+  // the symlink below throws ENOENT, the catch at the bottom swallows it, and
+  // every single install prints "could not create shared junction" — an error
+  // message for a non-problem, on the one path where nothing is wrong.
+  if (!existsSync(dirname(linkPath))) { log(`skip: ${dirname(linkPath)} is not part of this install`); return; }
   // Already linked to the right place? Leave it. existsSync() follows links, so
   // a junction whose target vanished (repo moved/renamed) reads as absent —
   // lstat the entry itself or the stale link would survive and EEXIST below.

@@ -2601,6 +2601,34 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-hero-cta { display: flex; align-items: center; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
 .cgal-btn-hero { padding: 13px 26px; font-size: 0.94rem; }
 
+/* ── Spotlight: the hero plus the admin's other featured entries ──
+   Only rendered when the catalog features more than one entry; a single
+   featured entry keeps the full-width hero above, untouched. The column is
+   capped at three cards in JS, so this never grows past the hero's height. */
+.cgal-spot { display: grid; grid-template-columns: minmax(0, 2.15fr) minmax(240px, 1fr); gap: 16px; align-items: stretch; margin-bottom: 24px; }
+.cgal-spot > .cgal-hero { margin-bottom: 0; }
+.cgal-spot-side { display: grid; grid-auto-rows: 1fr; gap: 16px; min-width: 0; }
+.cgal-spotcard {
+  display: grid; grid-template-columns: 128px minmax(0, 1fr); min-width: 0;
+  border-radius: 16px; overflow: hidden; border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+  background: rgba(255, 255, 255, 0.03); transition: border-color 0.18s ease, transform 0.18s ease;
+}
+.cgal-spotcard:hover { transform: translateY(-2px); border-color: rgba(255, 255, 255, 0.22); }
+.cgal-spotcard.is-limited { border-color: rgba(139, 123, 255, 0.34); }
+.cgal-spotcard.is-limited:hover { border-color: rgba(139, 123, 255, 0.6); }
+.cgal-spotcard.is-sup { border-color: rgba(255, 180, 84, 0.3); }
+.cgal-spotcard.is-sup:hover { border-color: rgba(255, 180, 84, 0.55); }
+.cgal-spotcard .cgal-media { aspect-ratio: auto; height: 100%; min-height: 96px; }
+.cgal-spotcard-body { display: flex; flex-direction: column; justify-content: center; gap: 7px; padding: 13px 15px; min-width: 0; }
+.cgal-spotcard-eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim, #8b91a1); }
+.cgal-spotcard-eyebrow svg { width: 13px; height: 13px; }
+.cgal-spotcard.is-limited .cgal-spotcard-eyebrow { color: #bcb0ff; }
+.cgal-spotcard.is-sup .cgal-spotcard-eyebrow { color: var(--warn, #ffb454); }
+.cgal-spotcard-title { font-size: 0.98rem; font-weight: 700; line-height: 1.2; color: var(--text, #e7e9ee); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.cgal-spotcard-cta { gap: 8px; margin-top: 4px; padding-top: 0; }
+.cgal-spotcard-cta .cgal-btn { flex: 1; padding: 8px 12px; font-size: 0.78rem; }
+.cgal-spotcard-cta .cgal-limcount { text-align: left; }
+
 /* ── Section blocks + counts ── */
 .cgal-kblock { margin-top: 28px; }
 .cgal-kblock:first-child { margin-top: 0; }
@@ -2689,9 +2717,16 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-skel-btn { height: 38px; border-radius: 11px; margin-top: 12px; }
 @keyframes cgal-shimmer { from { transform: translateX(-75%); } to { transform: translateX(0); } }
 
+/* Below this the column would squeeze both halves: the featured cards drop under
+   the hero as a row instead, still one block, still ahead of everything else. */
+@media (max-width: 1080px) {
+  .cgal-spot { grid-template-columns: 1fr; }
+  .cgal-spot-side { grid-auto-rows: auto; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+}
 @media (max-width: 680px) {
   .cgal-hero { grid-template-columns: 1fr; }
   .cgal-media-hero { min-height: 190px; aspect-ratio: 16 / 9; }
+  .cgal-spotcard { grid-template-columns: 104px minmax(0, 1fr); }
   .cgal-hero-title { font-size: 1.4rem; }
   .cgal-grid { grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 12px; }
   /* Too narrow to sit side by side — back to the stacked card. */
@@ -3447,4 +3482,22 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 @media (prefers-reduced-motion: reduce) {
   .hubmsg-overlay, .hubmsg-card { animation: none; }
   .hubmsg-btn { transition: none; }
+}
+
+/* Ricerca e disco: vertical rhythm for rows dropped straight into the group
+   (no .settings-grid here), the second head, and multiline folder inputs. */
+.settings-searchdisk-group > .settings-row,
+.settings-searchdisk-group > .settings-toggle-row,
+.settings-searchdisk-group > .settings-hint,
+.settings-searchdisk-group > .settings-note { margin-bottom: 12px; }
+.settings-searchdisk-group > .settings-group-head { margin-bottom: 10px; }
+
+/* (see above) the second head inside the shared group, and multiline
+   folder inputs (one path per line). */
+.settings-group-head-followup { margin-top: 16px; }
+.settings-textarea {
+  resize: vertical;
+  min-height: 58px;
+  font-family: inherit;
+  line-height: 1.4;
 }

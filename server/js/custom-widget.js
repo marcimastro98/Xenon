@@ -510,6 +510,7 @@
       islandFull: !!(grant && grant.islandFull === true),
       badge: !!(grant && grant.badge === true),
       clipboard: !!(grant && grant.clipboard === true),
+      accent: !!(grant && grant.accent === true),
       // Addresses the user typed into the package's userHosts slots, keyed by
       // slot id. Raw — resolvedUserHosts() applies the manifest's rules.
       userHosts: (grant && grant.userHosts && typeof grant.userHosts === 'object' && !Array.isArray(grant.userHosts)) ? grant.userHosts : {},
@@ -558,6 +559,26 @@
 
   function syncVisibility() {
     for (const [, entry] of frames) postVisibility(entry);
+  }
+
+  // ── Pop-up awareness (`notice`) ─────────────────────────────────────────────
+  // A toast does not hide a tile, so `visibility` never fires for one — but it
+  // does cover part of the screen, and an interactive widget (a game, a
+  // teleprompter) usually wants to pause while one is up and carry on after.
+  // js/toast.js calls this whenever the number of visible toasts crosses zero.
+  //
+  // The message carries NO content, and that is the whole design: Windows
+  // notification mirroring puts real message text in those cards, and a
+  // sandboxed third-party widget must never be handed it. "Something is showing"
+  // is UI state, so it needs no grant — same as `visibility`.
+  let noticeActive = false;
+  function onToastState(active) {
+    const next = !!active;
+    if (next === noticeActive) return;
+    noticeActive = next;
+    for (const [, entry] of frames) {
+      if (entry.ready && !entry.service) post(entry, { type: 'notice', active: next });
+    }
   }
 
   function entryCanRefreshLocalStream(entry) {
@@ -957,6 +978,55 @@
       .then((ok) => reply(!!ok, ok ? undefined : 'declined'));
   }
 
+  // ── Dashboard accent tint (`accent` capability) ──────────────────────────
+  // A granted widget may push an accent colour to the WHOLE dashboard — the same
+  // runtime channel the album-art accent uses. It exists for the sources Windows'
+  // media session cannot see: a Plex/Plexamp client, a console, a game overlay.
+  //
+  // Deliberate limits, and none of them are negotiable:
+  //   - accent ONLY. Background, surface and text stay the user's, so a widget can
+  //     never render the dashboard unreadable.
+  //   - runtime ONLY. It never writes a setting, so the user's saved theme is
+  //     untouched and a reload restores it. setDynamicAccent already refuses when
+  //     the user has turned the album-art theme off, which is the same visual
+  //     behaviour under a different source — one switch governs both.
+  //   - ONE owner at a time, tracked here. Whoever sets it last owns it, and the
+  //     tint is RELEASED when that widget is torn down, suspended, or its package
+  //     loses the grant. Without an owner a removed widget would leave the
+  //     dashboard stuck on the colour of a track that stopped playing hours ago,
+  //     with nothing on screen to explain it.
+  let accentOwner = null;   // the frame entry currently tinting the dashboard
+  function setHostAccent(hex) {
+    // Source-tagged: the widget accent is its own slot in settings.js, so it
+    // neither clobbers the album-art tint nor gets wiped by it. Whichever clears
+    // falls back to the other; releasing here only nulls the widget's slot.
+    if (typeof window.setDynamicAccent === 'function') window.setDynamicAccent(hex, 'widget');
+  }
+  function releaseAccent() {
+    if (!accentOwner) return;
+    accentOwner = null;
+    setHostAccent(null);
+  }
+  function onBridgeAccent(entry, grant, msg) {
+    const pkg = packageById(entry.pkgId);
+    if (!pkg || pkg.accent !== true || !grant.accent) return;
+    const hex = (typeof msg.hex === 'string' && /^#[0-9a-fA-F]{6}$/.test(msg.hex)) ? msg.hex : null;
+    if (!hex) { if (accentOwner === entry) releaseAccent(); return; }
+    accentOwner = entry;
+    setHostAccent(hex);
+  }
+  // The release half, run on every re-render: the tint dies with the widget that
+  // set it. One sweep covers every way it can go — tile removed, package
+  // uninstalled or suspended, safe mode on, grant revoked — because all of them
+  // end with that frame gone from `frames` or its grant gone from settings.
+  function sweepAccentOwner() {
+    if (!accentOwner) return;
+    let live = false;
+    for (const [, e] of frames) { if (e === accentOwner) { live = true; break; } }
+    const pkg = live ? packageById(accentOwner.pkgId) : null;
+    if (!pkg || pkg.accent !== true || !grantsFor(accentOwner.pkgId).accent) releaseAccent();
+  }
+
   // ── Widget performance accounting (probe reports → per-package aggregate) ──
   // Reports come from the host-injected probe, but the frame could forge them:
   // SdkPerf.validatePerfReport clamps every field and the per-frame rate limit
@@ -1035,6 +1105,9 @@
         // clipboard copy is widget-initiated and returns a result — the widget
         // needs to know it was granted so it can show an honest copy affordance.
         clipboard: grant.clipboard,
+        // Same reason as clipboard: the widget decides whether to drive the
+        // dashboard accent at all, so it has to know whether it may.
+        accent: grant.accent,
       });
       grant.streams.forEach(stream => {
         if (lastData[stream] !== undefined) post(entry, { type: 'data', stream, data: lastData[stream] });
@@ -1050,6 +1123,9 @@
       // served as this frame's replay, and going through it would repeat it.
       entry.visible = entryOnScreen(entry);
       post(entry, { type: 'visibility', visible: entry.visible });
+      // Same reasoning for pop-ups: a widget mounting while a toast is already up
+      // must start in the right state, not learn about it at the next transition.
+      if (!entry.service) post(entry, { type: 'notice', active: noticeActive });
     } else if (d.type === 'action') {
       if (entry.ready) onBridgeAction(entry, grant, d);
     } else if (d.type === 'fetch') {
@@ -1068,6 +1144,8 @@
       if (entry.ready) onBridgeBadge(entry, grant, d);
     } else if (d.type === 'clipboard') {
       if (entry.ready) onBridgeClipboard(entry, grant, d);
+    } else if (d.type === 'accent') {
+      if (entry.ready) onBridgeAccent(entry, grant, d);
     } else if (d.type === 'perf') {
       // Host-injected probe report (see sdk-widgets.js PERF_PROBE_SOURCE). Not
       // part of the public widget API and grants nothing — pure diagnostics.
@@ -1616,7 +1694,9 @@
         const ok = await copyText(text);
         closeClipConfirm(ok);
         if (ok && window.XenonToast) {
-          try { XenonToast.show({ type: 'success', title: t('cw_clip_done', 'Copied'), message: label || who, duration: 2200 }); } catch (_) { /* toast is optional */ }
+          // important: the user just approved this copy in a dialog — do not
+          // disturb must not swallow the only confirmation it happened.
+          try { XenonToast.show({ type: 'success', title: t('cw_clip_done', 'Copied'), message: label || who, duration: 2200, important: true }); } catch (_) { /* toast is optional */ }
         }
       });
       row.append(cancel, copy);
@@ -1679,6 +1759,7 @@
     const wantsIslandFull = pkg.islandFull === true;
     const wantsBadge = pkg.badge === true;
     const wantsClipboard = pkg.clipboard === true;
+    const wantsAccent = pkg.accent === true;
     const storageGroup = typeof pkg.storageGroup === 'string' ? pkg.storageGroup : '';
     if (pkg.streams.length) addSection('cw_perm_streams', 'It can see:', pkg.streams, STREAM_LABELS);
     if (pkg.actions.length) addSection('cw_perm_actions', 'It can do:', pkg.actions, ACTION_LABELS);
@@ -1748,6 +1829,12 @@
     if (wantsClipboard) {
       addSection('cw_perm_clipboard', 'It can copy to your clipboard (with a tap):', [t('cw_perm_clipboard_val', 'You confirm each copy, and it can never read your clipboard')], {});
     }
+    // Accent: the widget can tint the dashboard while it runs. Name the limits in
+    // the same breath — accent only, nothing saved — because "it can change your
+    // theme" would otherwise read as far more than it is.
+    if (wantsAccent) {
+      addSection('cw_perm_accent', 'It can tint the dashboard accent colour:', [t('cw_perm_accent_val', 'The accent only, while it runs — your saved theme is never changed')], {});
+    }
     // Headless running. The manifest normalizer only keeps `background` when the
     // package has something that outlives a tile (handlers, badge or island), so
     // name whichever it actually is rather than always saying "Deck keys".
@@ -1807,7 +1894,7 @@
       if (!uh.ok) { refresh(); return; }
       const cur = sdk();
       const patch = {
-        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, secrets: wantsSecrets, island: wantsIsland, islandDynamic: wantsIslandDynamic, islandFull: wantsIslandFull, badge: wantsBadge, clipboard: wantsClipboard } },
+        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, secrets: wantsSecrets, island: wantsIsland, islandDynamic: wantsIslandDynamic, islandFull: wantsIslandFull, badge: wantsBadge, clipboard: wantsClipboard, accent: wantsAccent } },
       };
       if (instId != null) patch.assign = { ...(cur.assign || {}), [instId]: pkg.id };
       persist(patch);
@@ -2111,7 +2198,8 @@
       || (pkg.islandDynamic === true && !g.islandDynamic)
       || (pkg.islandFull === true && !g.islandFull)
       || (pkg.badge === true && !g.badge)
-      || (pkg.clipboard === true && !g.clipboard);
+      || (pkg.clipboard === true && !g.clipboard)
+      || (pkg.accent === true && !g.accent);
   }
   // A declared userHosts slot with no usable address is the same dead end as an
   // ungranted host — the widget would mount and fail every request. But it is
@@ -2363,9 +2451,14 @@
         try { entry.frame.remove(); } catch {}
         frames.delete(instId);
       }
+      sweepAccentOwner();
       return;
     }
     paint();
+    // AFTER the mount/unmount pass, so a widget torn down by this very render
+    // (tile removed, package suspended, safe mode on) hands the accent back
+    // immediately instead of one render late.
+    sweepAccentOwner();
   }
 
   // Reset a tile to "unassigned" — drop any saved package + live frame — so the
@@ -2470,7 +2563,7 @@
   }
 
   window.CustomWidget = {
-    renderWidgets, onData, onDiscordNotification, onHook, onHandler, onStoreChanged, refreshTheme, refreshPackages: () => fetchPackages(true), clearAssign,
+    renderWidgets, onData, onDiscordNotification, onHook, onHandler, onStoreChanged, onToastState, refreshTheme, refreshPackages: () => fetchPackages(true), clearAssign,
     registerAmbientFrame, unregisterAmbientFrame, registerCanvasFrame, unregisterCanvasFrames,
     getPackages, cachedPackages, packageGranted, requestGrant, requestGrants,
     getPerfStats, setSuspended, isSuspended,

@@ -41,3 +41,43 @@ docs/whatsnew-shotlist.md       export-ignore
 
 # Offline iCUE SDK documentation mirror — development reference only
 WidgetBuilder/                  export-ignore
+
+# ── Development-only trees ───────────────────────────────────────────────────
+# Same reasoning as the website payload above: an install carries whatever the
+# tag archive contains, so anything only a contributor needs is dead weight on
+# every user's disk. Roughly 3 MB of the 15 MB archive. Existing installs shed
+# these on their next update — Remove-StaleAppFiles in update-apply.ps1 deletes
+# what the previous manifest listed and the new tree no longer ships.
+#
+# Before adding a line here, confirm nothing reads the path AT RUNTIME. The ones
+# deliberately NOT excluded, and why:
+#   server/sdk-example/   served by server.js (the SDK's example widgets)
+#   docs/*.md at root     ai-knowledge.js reads docs/WIDGET_SDK.md for the AI
+#   packages/core/        IS server/shared (junction created on postinstall)
+#   tools/                link-shared.mjs runs on npm postinstall
+#   CHANGELOG.md          the thing users actually read after an update
+
+# Unit tests — never run on an install (~1 MB, the single biggest win here)
+server/test/                    export-ignore
+packages/core/test/             export-ignore
+
+# Tauri shell sources. The kiosk app ships as its own signed setup exe; the
+# NSIS hook and xenon-bootstrap.ps1 are bundled INTO that installer (a Tauri
+# `resources` entry), never read from the backend install tree.
+apps/native/                    export-ignore
+
+# Native helper sources (C#). Users get the compiled xenon-helper.exe from the
+# GitHub release into server/helper/, which is a different, gitignored path.
+helper/                         export-ignore
+
+# iCUE widget package — a separate distribution, never loaded by the server.
+widget/                         export-ignore
+
+# CI workflows
+.github/                        export-ignore
+
+# Retired Windows-service artifacts. Both callers of service/uninstall-service.ps1
+# (install.ps1, uninstall.ps1) already guard with Test-Path and fall back to
+# `sc.exe stop/delete XenonEdgeService`, which does the same job — keep that
+# fallback if you ever touch those scripts.
+service/                        export-ignore

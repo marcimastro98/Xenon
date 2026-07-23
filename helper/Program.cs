@@ -13,6 +13,11 @@ namespace XenonHelper;
 //   screen-serve           — GDI capture host for the Second-screen tile (ScreenHost)
 //   notifications-serve [ms] — Windows notification mirror (NotificationHost)
 //   audio-serve [ms]       — per-app audio peak meters (AudioHost)
+//   disk-scan <root> [...] — streaming full-tree size scan (DiskScanHost)
+//   crawl <dir> [...]      — file index for the local search (DiskScanHost)
+//   shell-delete           — recycle-bin delete / empty bin (ShellDelete)
+//   hotkey-serve <combo>   — global hotkey → Spotlight popup (HotkeyHost)
+//   index-serve <root> ... — the Living Index: in-RAM file index + watchers (IndexHost)
 //
 // media-serve protocol (one message per line, both directions):
 //   stdin  : {"id":N,"action":"info","preferredSource":"..."}
@@ -57,8 +62,18 @@ internal static class Program
                 var audioMs = 80;
                 if (args.Length > 1 && int.TryParse(args[1], out var audioParsed) && audioParsed >= 40) audioMs = audioParsed;
                 return AudioHost.Run(audioMs);
+            case "disk-scan":
+                return DiskScanHost.RunDiskScan(args);
+            case "crawl":
+                return DiskScanHost.RunCrawl(args);
+            case "shell-delete":
+                return ShellDelete.Run();
+            case "hotkey-serve":
+                return HotkeyHost.Run(args);
+            case "index-serve":
+                return IndexHost.Run(args);
             default:
-                Console.Error.WriteLine("usage: xenon-helper media-serve | foreground-serve [intervalMs] | windows list|focus|close [hwnd] | screen-serve | notifications-serve [intervalMs] | audio-serve [intervalMs]");
+                Console.Error.WriteLine("usage: xenon-helper media-serve | foreground-serve [intervalMs] | windows list|focus|close [hwnd] | screen-serve | notifications-serve [intervalMs] | audio-serve [intervalMs] | disk-scan <root> [detailRoot ...] | crawl <dir> [dir ...] | shell-delete | hotkey-serve <combo> | index-serve <root> [root ...]");
                 return 2;
         }
     }

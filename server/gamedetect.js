@@ -53,8 +53,15 @@ const FAIL_BACKOFF_MS = 60000;   // back off after repeated instant failures
 // Distinctive names match as a substring; short, collision-prone ones
 // (cmd/wt/hyper/steam, and xenon — real games like Xenonauts/Xenon Racer)
 // are matched exactly so they are not swallowed.
+// The `.old-<stamp>` tail on our OWN names is not cosmetic: a running Windows
+// image cannot be overwritten but CAN be renamed, so an update (and the helper
+// refresh, which does exactly this) leaves the still-running process reporting
+// `Xenon-native.old-1753…`. Under an exact match that stopped being "us" and the
+// kiosk window tripped game mode against itself, pinning Xenon to the Companion
+// pill until the next restart. Both shapes appear depending on which side did
+// the rename, so `.exe` may sit before the tail.
 // Matched against the bare process name (no ".exe") reported by the probe.
-const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplore|icue|corsair|explorer|searchhost|shellexperiencehost|lockapp|logonui|windowsterminal|openconsole|conhost|powershell|pwsh|alacritty|wezterm|mintty|putty|tabby|discord|slack|spotify|obs64|obs32|streamlabs|xsplit|vmix|steamwebhelper|docker|rancher|podman|^(?:code(?:[ -]+insiders)?|cursor|devenv|cmd|wt|hyper|steam|xenon(?:-native|-helper)?)$/i;
+const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplore|icue|corsair|explorer|searchhost|shellexperiencehost|lockapp|logonui|windowsterminal|openconsole|conhost|powershell|pwsh|alacritty|wezterm|mintty|putty|tabby|discord|slack|spotify|obs64|obs32|streamlabs|xsplit|vmix|steamwebhelper|docker|rancher|podman|^(?:code(?:[ -]+insiders)?|cursor|devenv|cmd|wt|hyper|steam|xenon(?:-native|-helper)?(?:\.exe)?(?:\.old-[\w.-]*)?)$/i;
 
 // Stricter ignore list for the WINDOWED hint path: media players and creative
 // editors also present flip-model frames continuously, so a focused windowed
@@ -317,4 +324,4 @@ function stopGameDetect() {
   if (_proc) { try { _proc.kill(); } catch { /* ignore */ } _proc = null; }
 }
 
-module.exports = { startGameDetect, stopGameDetect, isGaming, isGameRunning, getActivity, getForegroundProcess, getGameProcess, getGameDiag, classifyActivity, getGamingWindow, setGameHint, onGamingChange };
+module.exports = { startGameDetect, stopGameDetect, isGaming, isGameRunning, getActivity, getForegroundProcess, getGameProcess, getGameDiag, classifyActivity, getGamingWindow, setGameHint, onGamingChange, isIgnoredProc };

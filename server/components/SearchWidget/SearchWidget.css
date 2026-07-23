@@ -1,0 +1,81 @@
+/* ── Search widget tile — the Spotlight's doorway on a dashboard page ────────
+   Static at rest (no animation, no fetch): a search-bar look-alike, quick
+   chips and the recent searches. Theme-aware via the shared tokens. */
+
+.search-panel .search-widget-mount {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+.searchw-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-soft);
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.searchw-bar:active { transform: scale(0.99); }
+.searchw-glass {
+  width: 20px; height: 20px;
+  flex: 0 0 auto;
+  fill: rgba(var(--accent-rgb), 0.95);
+}
+.searchw-ph {
+  font-size: 15.5px;
+  opacity: 0.55;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.searchw-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.searchw-chip {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 17px;
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  background: rgba(var(--accent-rgb), 0.10);
+  color: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.searchw-chip:active { transform: scale(0.96); }
+
+.searchw-recent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.searchw-recent-item {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+  opacity: 0.8;
+  cursor: pointer;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.searchw-recent-item:active { background: var(--panel-soft); }
