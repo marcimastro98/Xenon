@@ -9,7 +9,7 @@
       "authorSupporter": true,
       "supportersOnly": true,
       "locked": true,
-      "featured": "on",
+      "featured": "main",
       "description": "An impasto night sky in the spirit of Van Gogh. The stars and swirls really move, the widget paints CPU, GPU and temperature as brushstrokes, and the Ambient scene shows only the time, the weather and what is playing.",
       "category": "style",
       "tags": [
