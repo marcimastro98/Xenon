@@ -1815,8 +1815,24 @@ I18N.zh = {
         return { e, lim, open, limited: !!lim };
       });
 
+    // ONE card per tier, so the section always shows that both exist: the
+    // limited edition leads (its copies run out) and a supporter drop sits
+    // beside it. Among supporters a SCHEDULED one wins — an entry with a real
+    // window is this month's drop, the one worth showing. Taking simply the
+    // first two in catalog order (the old rule) dropped the limited edition
+    // off the page entirely the moment two supporter packs were published.
     const open = premium.filter((d) => d.open);
-    const show = (open.length ? open : premium).slice(0, 2);
+    const pool = open.length ? open : premium;   // nothing open → the closed ones still show
+    const tier = (isLimited) => pool.filter((d) => d.limited === isLimited);
+    const supporters = tier(false);
+    const picks = [
+      tier(true)[0],
+      supporters.find((d) => d.e.activeFrom || d.e.activeUntil) || supporters[0],
+    ].filter(Boolean);
+    // A tier with nothing to show hands its slot to the other one, so the
+    // section is never half empty just because one side is quiet.
+    for (const d of pool) { if (picks.length >= 2) break; if (!picks.includes(d)) picks.push(d); }
+    const show = picks.slice(0, 2);
     if (!show.length) return;
     // Two drops sit side by side as upright cards (.drops.duo) instead of two
     // stacked full-width banners — a wall of banner before the free content.
