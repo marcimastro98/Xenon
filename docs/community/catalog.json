@@ -2,6 +2,34 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "lakeside",
+      "kind": "theme",
+      "name": "Lakeside",
+      "author": "xenon",
+      "supportersOnly": true,
+      "locked": true,
+      "description": "A painted mountain lake that follows the real world: the season turns with the calendar and the sun and moon cross the sky at your actual sunrise and sunset. The matching Ambient scene ships as its own entry, Lakeside Scene.",
+      "category": "style",
+      "tags": [
+        "nature",
+        "lake",
+        "painted",
+        "weather",
+        "dark"
+      ],
+      "version": "2.0.0",
+      "changelog": "Rebuilt on new painted artwork with four full seasons. The landscape now changes with the season as well as the hour, and the sun and moon follow your real sunrise and sunset.",
+      "appVersionMin": "4.6.0",
+      "preview": {
+        "accent": "#e0a05a",
+        "bg": "#070c14",
+        "text": "#e9eff7"
+      },
+      "shots": 4,
+      "addedAt": "2026-07-23",
+      "codeFile": true
+    },
+    {
       "id": "notte-stellata",
       "kind": "bundle",
       "name": "Notte Stellata",
