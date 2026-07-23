@@ -718,6 +718,8 @@
       },
       "shots": 4,
       "active": true,
+      "activeFrom": "2026-07-24",
+      "activeUntil": "2026-08-24",
       "addedAt": "2026-07-23",
       "codeFile": true,
       "updatedAt": "2026-07-23"
