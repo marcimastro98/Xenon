@@ -2,6 +2,37 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "notte-stellata",
+      "kind": "bundle",
+      "name": "Notte Stellata",
+      "author": "xenon",
+      "authorSupporter": true,
+      "supportersOnly": true,
+      "locked": true,
+      "featured": "on",
+      "description": "An impasto night sky in the spirit of Van Gogh. The stars and swirls really move, the widget paints CPU, GPU and temperature as brushstrokes, and the Ambient scene shows only the time, the weather and what is playing.",
+      "category": "style",
+      "tags": [
+        "vangogh",
+        "painterly",
+        "animated",
+        "system",
+        "supporter"
+      ],
+      "version": "1.0.0",
+      "changelog": "1.0.0: the theme, the animated impasto background, the system widget and the Ambient scene, in ten languages.",
+      "appVersionMin": "4.9.0",
+      "preview": {
+        "accent": "#F7C93D",
+        "bg": "#06183F",
+        "text": "#FFF5D6"
+      },
+      "shots": 3,
+      "active": false,
+      "addedAt": "2026-07-23",
+      "codeFile": true
+    },
+    {
       "id": "kintsugi",
       "kind": "bundle",
       "name": "Kintsugi",
