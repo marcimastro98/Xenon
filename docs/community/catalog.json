@@ -2,6 +2,81 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "docker-container-stats-display",
+      "kind": "widget",
+      "name": "Docker Container Stats Display",
+      "author": "Swiv",
+      "description": "Displays Memory and CPU Usage by individal Docker Containers via Glances API found here - github.com/nicolargo/glances\n  glances:\n    image: nicolargo/glances:latest-full\n    container_name: glances\n    restart: unless-stopped\n    pids_limit: 200\n    ports:\n      - \"61208:61208\"\n    volumes:\n      -",
+      "category": "system",
+      "tags": [
+        "stats",
+        "docker",
+        "nas",
+        "container"
+      ],
+      "version": "2.0.0",
+      "pkgId": "docker-stats",
+      "preview": {
+        "accent": "#1ed760",
+        "bg": "#0b0d12",
+        "text": "#e9edf6"
+      },
+      "shots": 2,
+      "addedAt": "2026-07-23",
+      "codeFile": true
+    },
+    {
+      "id": "dgm-clasificaci-n",
+      "kind": "widget",
+      "name": "DGM league table",
+      "author": "DanielGarciaMorato",
+      "description": "DGM Standings displays football league tables for major domestic and international competitions in a compact Xenon widget.\n\nFootball-Data.org and API-Football are the primary sources for competitive standings, including position, matches played, goal difference and points. TheSportsDB Free V1 is use",
+      "category": "media",
+      "tags": [
+        "football",
+        "standings",
+        "leagues",
+        "tables",
+        "sports"
+      ],
+      "version": "0.6.5",
+      "pkgId": "dgm-football-standings",
+      "preview": {
+        "accent": "#1ed760",
+        "bg": "#0b0d12",
+        "text": "#e9edf6"
+      },
+      "shots": 3,
+      "addedAt": "2026-07-21",
+      "codeFile": true,
+      "updatedAt": "2026-07-21"
+    },
+    {
+      "id": "dgm-resultados",
+      "kind": "widget",
+      "name": "DGM Results",
+      "author": "DanielGarciaMorato",
+      "description": "DGM Results provides upcoming and recent football matches across major competitions in a compact Xenon widget.\n\nFootball-Data.org and API-Football are used as the primary sources for competitive information, including fixtures, schedules, match status and scores. TheSportsDB Free V1 is used only for",
+      "category": "media",
+      "tags": [
+        "football",
+        "scores",
+        "fixtures",
+        "matches",
+        "sports"
+      ],
+      "version": "0.5.3",
+      "pkgId": "dgm-football-results",
+      "preview": {
+        "accent": "#1ed760",
+        "bg": "#0b0d12",
+        "text": "#e9edf6"
+      },
+      "shots": 3,
+      "addedAt": "2026-07-21",
+      "codeFile": true
+    },
+    {
       "id": "mixer",
       "kind": "widget",
       "name": "Mixer",
@@ -63,7 +138,7 @@
       "name": "DGM Air Quality",
       "author": "DanielGarciaMorato",
       "perfWarning": true,
-      "description": "Shows the European Air Quality Index and concentrations of PM2.5, PM10, ozone, and nitrogen dioxide for the city set in DGM Current Weather. The data are indicative and may differ from local station measurements. This widget provides environmental information and does not constitute a medical diagno",
+      "description": "View local air-quality information using the European Air Quality Index together with PM2.5, PM10, ozone and nitrogen dioxide measurements.\n\nThe widget automatically uses the location selected in DGM Current Weather and supports English and Spanish.\n\nAir-quality data are provided by Open-Meteo. Valu",
       "category": "system",
       "tags": [
         "air-quality",
@@ -72,17 +147,18 @@
         "pm10",
         "environment"
       ],
-      "version": "0.1.7",
+      "version": "0.1.8",
+      "changelog": "Added Xenon 4.6.0 compatibility metadata for shared storage and improved package consistency.",
       "pkgId": "dgm-weather-air-quality-sdk",
       "preview": {
-        "accent": "#f5b942",
+        "accent": "#1ed760",
         "bg": "#0b0d12",
         "text": "#e9edf6"
       },
-      "shots": 2,
-      "addedAt": "2026-07-19",
+      "shots": 3,
+      "addedAt": "2026-07-21",
       "codeFile": true,
-      "updatedAt": "2026-07-19"
+      "updatedAt": "2026-07-21"
     },
     {
       "id": "dgm-tiempo-actual",
@@ -90,7 +166,7 @@
       "name": "DGM Current weather",
       "author": "DanielGarciaMorato",
       "perfWarning": true,
-      "description": "Check current weather conditions for a manually selected city: temperature, feels-like temperature, humidity, wind, and precipitation. Supports metric or imperial units and Spanish or English. The configured city is shared with other DGM Weather widgets via Xenon's official storage. Data provided by",
+      "description": "View current weather conditions for a manually selected city, including temperature, feels-like temperature, humidity, wind and precipitation.\n\nDGM Current Weather supports metric and imperial units, English and Spanish, and shares its selected location with the other DGM Weather widgets through Xen",
       "category": "system",
       "tags": [
         "weather",
@@ -99,18 +175,19 @@
         "precipitation",
         "open-meteo"
       ],
-      "version": "0.1.7",
+      "version": "0.1.8",
+      "changelog": "Added Xenon 4.6.0 compatibility metadata for reliable shared storage and improved package consistency.",
       "pkgId": "dgm-weather-current-sdk",
       "appVersionMin": "4.6.0",
       "preview": {
-        "accent": "#5b8fd1",
+        "accent": "#1ed760",
         "bg": "#0b0d12",
         "text": "#e9edf6"
       },
       "shots": 2,
-      "addedAt": "2026-07-19",
-      "updatedAt": "2026-07-19",
-      "codeFile": true
+      "addedAt": "2026-07-21",
+      "codeFile": true,
+      "updatedAt": "2026-07-21"
     },
     {
       "id": "dgm-previsi-n-7-d-as",
@@ -118,7 +195,7 @@
       "name": "DGM 7-Day Forecast",
       "author": "DanielGarciaMorato",
       "perfWarning": true,
-      "description": "Show the daily weather forecast for the next seven days, including high and low temperatures, precipitation, and wind. It uses the city configured in DGM Current Weather, avoiding duplicate settings. Compatible with Spanish and English, as well as metric and imperial units. Data provided by Open-Met",
+      "description": "View a seven-day weather forecast with daily high and low temperatures, precipitation probability and wind information.\n\nThe widget identifies Today and Tomorrow and automatically uses the location, language and unit preferences selected in DGM Current Weather.\n\nIt supports metric and imperial units",
       "category": "system",
       "tags": [
         "weather",
@@ -127,17 +204,18 @@
         "precipitation",
         "open-meteo"
       ],
-      "version": "0.1.6",
+      "version": "0.1.7",
+      "changelog": "Paused periodic refresh work while the widget is hidden, prevented duplicate refresh requests when it becomes visible again, and improved lifecycle cleanup.",
       "pkgId": "dgm-weather-seven-day-sdk",
       "preview": {
-        "accent": "#5b8fd1",
+        "accent": "#1ed760",
         "bg": "#0b0d12",
         "text": "#e9edf6"
       },
       "shots": 2,
-      "addedAt": "2026-07-19",
+      "addedAt": "2026-07-21",
       "codeFile": true,
-      "updatedAt": "2026-07-19"
+      "updatedAt": "2026-07-21"
     },
     {
       "id": "dgm-radar-de-tormentas",
@@ -145,7 +223,7 @@
       "name": "DGM weather radar",
       "author": "DanielGarciaMorato",
       "perfWarning": true,
-      "description": "Interactive map displaying the latest available radar precipitation layer for the city set in DGM Current Weather. It allows for panning, zooming, re-centering, and data refreshing. Colors represent different levels of precipitation intensity; the presence of precipitation does not necessarily imply",
+      "description": "Explore the latest available precipitation radar frame on an interactive map centred on the location selected in DGM Current Weather.\n\nThe widget uses Leaflet, CARTO map tiles and RainViewer radar data through Xenon's official tile proxy. It includes pan, zoom, recenter and refresh controls together",
       "category": "system",
       "tags": [
         "weather-radar",
@@ -154,17 +232,18 @@
         "rainviewer",
         "leaflet"
       ],
-      "version": "0.1.6",
+      "version": "0.1.7",
+      "changelog": "Added Xenon 4.6.0 compatibility metadata, aligned the package with the published 0.1.6 release and improved package consistency.",
       "pkgId": "dgm-weather-radar-sdk",
       "preview": {
-        "accent": "#3f78b5",
-        "bg": "#08111c",
+        "accent": "#1ed760",
+        "bg": "#0b0d12",
         "text": "#e9edf6"
       },
-      "shots": 2,
-      "addedAt": "2026-07-19",
+      "shots": 3,
+      "addedAt": "2026-07-21",
       "codeFile": true,
-      "updatedAt": "2026-07-19"
+      "updatedAt": "2026-07-21"
     },
     {
       "id": "keyring",
@@ -230,20 +309,24 @@
       "name": "Forest",
       "author": "Domi / spamer7777-lgtm",
       "authorSupporter": true,
-      "perfWarning": true,
-      "description": "Bring the calming essence of nature directly to your screen. With its lush fern-green palette, earthy textures, and subtle golden accents, this theme transforms your dashboard into a quiet forest at twilight. Designed with high-contrast glass panels for clean readability, it’s the perfect dark aesth",
+      "description": "Dimmly lit forest with fireflies flying around",
+      "category": "style",
       "tags": [
-        "peace",
         "forest",
-        "relax",
+        "chill",
+        "peace",
         "green"
       ],
-      "version": "1.0.0",
+      "version": "1.1.0",
+      "preview": {
+        "accent": "#7aa864",
+        "bg": "#0a110a",
+        "text": "#e0ebd9"
+      },
       "shots": 2,
-      "active": false,
-      "addedAt": "2026-07-18",
+      "addedAt": "2026-07-23",
       "codeFile": true,
-      "updatedAt": "2026-07-18"
+      "updatedAt": "2026-07-23"
     },
     {
       "id": "dgm-news-sports",
@@ -251,7 +334,7 @@
       "name": "DGM News Sports",
       "author": "DanielGarciaMorato",
       "perfWarning": true,
-      "description": "Sports news widget for Xenon with six RSS feeds: Marca, AS, Mundo Deportivo, BBC Sport, The Guardian Sport, and ESPN. Features include balanced feed rotation, Spanish and English interface, thumbnails via the official SDK proxy, visual fallbacks and loading status indicators (partial load, error, an",
+      "description": "A multilingual sports news widget for Xenon featuring six RSS sources: Marca, AS, Mundo Deportivo, BBC Sport, The Guardian Sport and ESPN.\n\nIt includes balanced source rotation, Spanish and English interface options, secure HTTPS article opening, SDK-proxied thumbnails converted to blob URLs, visual",
       "category": "media",
       "tags": [
         "technology",
@@ -260,19 +343,19 @@
         "responsive",
         "news"
       ],
-      "version": "1.0.1",
-      "changelog": "Re-exported after the publishing platform issue; no functional code changes.",
+      "version": "1.1.0",
+      "changelog": "Updated to version 1.1.0 with persistent SDK preferences, clean production packaging, corrected documentation, improved image visibility controls and Xenon 4.6.0 compatibility.",
       "pkgId": "dgm-news-sports",
       "appVersionMin": "4.6.0",
       "preview": {
-        "accent": "#f5a623",
+        "accent": "#1ed760",
         "bg": "#0b0d12",
         "text": "#e9edf6"
       },
-      "shots": 2,
-      "addedAt": "2026-07-18",
+      "shots": 4,
+      "addedAt": "2026-07-21",
       "codeFile": true,
-      "updatedAt": "2026-07-18"
+      "updatedAt": "2026-07-21"
     },
     {
       "id": "dgm-news-technology",
@@ -280,7 +363,7 @@
       "name": "DGM News Technology",
       "author": "DanielGarciaMorato",
       "perfWarning": true,
-      "description": "Tech news widget for Xenon featuring six RSS feeds: Xataka, Hipertextual, Microsiervos, BBC Technology, The Guardian Technology, and Ars Technica. It includes balanced feed rotation, a Spanish and English interface, thumbnail generation via the official SDK proxy, visual fallbacks and loading states",
+      "description": "A multilingual technology news widget for Xenon featuring six RSS sources: Xataka, Hipertextual, Microsiervos, BBC Technology, The Guardian Technology and Ars Technica.\n\nIt includes balanced source rotation, Spanish and English interface options, secure HTTPS article opening, SDK-proxied thumbnails ",
       "category": "media",
       "tags": [
         "technology",
@@ -289,19 +372,19 @@
         "responsive",
         "news"
       ],
-      "version": "1.0.1",
-      "changelog": "Re-exported after the publishing platform issue; no functional code changes.",
+      "version": "1.1.0",
+      "changelog": "Updated to version 1.1.0 with persistent SDK preferences, clean production packaging, improved documentation, improved image visibility controls and Xenon 4.6.0 compatibility.",
       "pkgId": "dgm-news-technology",
       "appVersionMin": "4.6.0",
       "preview": {
-        "accent": "#38bdf8",
+        "accent": "#1ed760",
         "bg": "#0b0d12",
         "text": "#e9edf6"
       },
-      "shots": 2,
-      "addedAt": "2026-07-18",
+      "shots": 4,
+      "addedAt": "2026-07-21",
       "codeFile": true,
-      "updatedAt": "2026-07-18"
+      "updatedAt": "2026-07-21"
     },
     {
       "id": "explorador-de-mapas",
@@ -309,7 +392,7 @@
       "name": "Map Explorer",
       "author": "DanielGarciaMorato",
       "perfWarning": true,
-      "description": "DGM Map Explorer is a visual catalog for quickly accessing external video game maps from Xenon.\n\nIt includes 31 games and 32 selected destinations, with search, session-based favorites and recently opened games. Selecting a game displays a confirmation before opening its corresponding map in the def",
+      "description": "Browse built-in and custom video game map destinations directly from your Xenon dashboard.\n\nMap Explorer includes a searchable catalog of game maps, favorites, recently opened destinations and support for custom entries. Custom titles, URLs, favorites, recents and language preference are saved throu",
       "category": "media",
       "tags": [
         "gaming",
@@ -318,19 +401,19 @@
         "external-links",
         "spanish"
       ],
-      "version": "0.4.3",
-      "changelog": "Simplified the interface with a single navigation bar for All, Favorites and Recent; renamed the visible widget to “Explorador de mapas”; and removed redundant headings, provider filters and settings. The catalog, URLs and permissions remain unchanged.",
+      "version": "0.6.0",
+      "changelog": "Updated Map Explorer to version 0.6.0.\n\n- Added persistent custom map entries with editing and deletion.\n- Added persistent favorites, recents and language preference.\n- Added optional local images for custom maps during the current session, with Cover and Contain display modes.\n- Local images",
       "pkgId": "dgm-gaming-map-companion",
       "appVersionMin": "4.6.0",
       "preview": {
-        "accent": "#3f78b5",
-        "bg": "#08111c",
+        "accent": "#1ed760",
+        "bg": "#0b0d12",
         "text": "#e9edf6"
       },
-      "shots": 2,
-      "addedAt": "2026-07-18",
+      "shots": 4,
+      "addedAt": "2026-07-21",
       "codeFile": true,
-      "updatedAt": "2026-07-18"
+      "updatedAt": "2026-07-21"
     },
     {
       "id": "demonic",
@@ -356,7 +439,7 @@
       "name": "DGM News General",
       "author": "DanielGarciaMorato",
       "perfWarning": true,
-      "description": "Widget de noticias generales para Xenon con seis fuentes RSS internacionales: El Mundo, El País, BBC News, The Guardian, The New York Times y Le Monde. Ofrece rotación equilibrada entre fuentes, interfaz en español e inglés, miniaturas mediante el proxy oficial del SDK, fallbacks visuales y estados ",
+      "description": "A multilingual general news widget for Xenon featuring six international RSS sources: El Mundo, El País, BBC News, The Guardian, The New York Times and Le Monde.\n\nIt includes balanced source rotation, Spanish and English interface options, secure HTTPS article opening, SDK-proxied thumbnails convert",
       "category": "media",
       "tags": [
         "news",
@@ -365,18 +448,18 @@
         "responsive",
         "headlines"
       ],
-      "version": "0.3.2",
-      "changelog": "Re-exported after the publishing platform issue; no functional code changes.",
+      "version": "1.1.0",
+      "changelog": "Updated to version 1.1.0 with persistent SDK preferences, clean production packaging, improved image visibility controls and Xenon 4.6.0 compatibility.",
       "pkgId": "dgm-news-general",
       "preview": {
         "accent": "#1ed760",
         "bg": "#0b0d12",
         "text": "#e9edf6"
       },
-      "shots": 1,
-      "addedAt": "2026-07-18",
+      "shots": 4,
+      "addedAt": "2026-07-21",
       "codeFile": true,
-      "updatedAt": "2026-07-18"
+      "updatedAt": "2026-07-21"
     },
     {
       "id": "vanguard-50",
