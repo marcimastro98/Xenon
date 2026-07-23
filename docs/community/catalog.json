@@ -2,6 +2,32 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "limnograph",
+      "kind": "bundle",
+      "name": "Limnograph",
+      "author": "xenon",
+      "description": "A 1970s alpine field station built around a mountain-lake photograph. Frosted survey panels, slow natural water refraction, and a fullscreen Ambient logbook with local time and live weather.",
+      "category": "style",
+      "tags": [
+        "alpine",
+        "lake",
+        "weather",
+        "instrument",
+        "dual-tone"
+      ],
+      "version": "1.0.1",
+      "changelog": "Removed the artificial survey lines and moving scan from both the dashboard background and Ambient scene. The lake now moves only through subtle natural refraction.",
+      "appVersionMin": "4.6.0",
+      "preview": {
+        "accent": "#006f68",
+        "bg": "#d9e8df",
+        "text": "#102b2b"
+      },
+      "shots": 3,
+      "addedAt": "2026-07-23",
+      "codeFile": true
+    },
+    {
       "id": "afterimage",
       "kind": "bundle",
       "name": "Afterimage",
