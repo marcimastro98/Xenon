@@ -21,9 +21,9 @@
         "bg": "#0b0d12",
         "text": "#e9edf6"
       },
-      "active": false,
       "addedAt": "2026-07-23",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-07-23"
     },
     {
       "id": "dgm-clasificaci-n",
