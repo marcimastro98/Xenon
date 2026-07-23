@@ -2,6 +2,30 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "docker-container-stats-via-glances",
+      "kind": "widget",
+      "name": "Docker Container Stats via Glances",
+      "author": "Swiv",
+      "description": "Tracks docker container CPU and Memory usage via Glances: https://github.com/nicolargo/glances\n\nExample Docker Compose for Glances:\n\n  glances:\n    image: nicolargo/glances:latest-full\n    container_name: glances\n    restart: unless-stopped\n    pids_limit: 200\n    ports:\n      - \"61208:61208\"\n    vo",
+      "category": "system",
+      "tags": [
+        "stats",
+        "docker",
+        "nas",
+        "container"
+      ],
+      "version": "2.0.0",
+      "pkgId": "docker-stats",
+      "preview": {
+        "accent": "#1ed760",
+        "bg": "#0b0d12",
+        "text": "#e9edf6"
+      },
+      "active": false,
+      "addedAt": "2026-07-23",
+      "codeFile": true
+    },
+    {
       "id": "dgm-clasificaci-n",
       "kind": "widget",
       "name": "DGM league table",
