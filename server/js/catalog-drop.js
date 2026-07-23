@@ -113,19 +113,7 @@
 
   let overlay = null;
   let onKey = null;
-  // Drops still waiting their turn. A limited edition and a supporter pack are
-  // two different offers, and announcing only the first meant the second was
-  // marked as "already announced" and never seen by anyone. They queue instead:
-  // the next one opens when the current is DISMISSED, never when the user
-  // followed it into the Store, and never after "don't show me new drops".
-  let queued = [];
   let dropSeq = 0;   // per-instance ambientFreeze tokens (see close())
-
-  function showNextQueued() {
-    if (isMuted()) { queued = []; return; }
-    const next = queued.shift();
-    if (next) setTimeout(() => show(next), 320);   // after the close animation
-  }
 
   function close(muted) {
     if (!overlay) return;
@@ -223,7 +211,84 @@
     foot.appendChild(lab); foot.appendChild(later);
     body.appendChild(foot);
 
-    const dismiss = () => { const m = cb.checked; if (m) mute(); close(m); showNextQueued(); };
+    const dismiss = () => { const m = cb.checked; if (m) mute(); close(m); };
+    x.addEventListener('click', dismiss);
+    later.addEventListener('click', dismiss);
+    bd.addEventListener('click', (ev) => { if (ev.target === bd) dismiss(); });
+    onKey = (ev) => { if (ev.key === 'Escape') dismiss(); };
+    document.addEventListener('keydown', onKey);
+
+    card.appendChild(body);
+    bd.appendChild(card);
+    document.body.appendChild(bd);
+    overlay = bd;
+  }
+
+  // Several new drops at once → ONE grouping modal, never a modal per item: a
+  // short list of what landed (thumbnail, tier, name), each row opening its
+  // detail in the Store, plus a single "open the Store" CTA. Same import
+  // boundary as the single-drop card: nothing here applies or buys anything.
+  function showBatch(drops) {
+    if (!Array.isArray(drops) || !drops.length || !window.CommunityGallery) return;
+    close();
+    const bd = el('div', 'xdrop-overlay');
+    bd._freezeToken = 'catalog-drop:' + (++dropSeq);
+    if (typeof window.ambientFreeze === 'function') window.ambientFreeze(bd._freezeToken, true);
+    const card = el('div', 'xdrop-card is-batch');
+
+    const x = el('button', 'xdrop-x'); x.type = 'button'; x.setAttribute('aria-label', t('gallery_close', 'Close'));
+    x.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+    card.appendChild(x);
+
+    const body = el('div', 'xdrop-body');
+    const kicker = el('div', 'xdrop-kicker');
+    kicker.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.2 2.7h11.6L21 7.1v12.2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7.1L6.2 2.7Z"/><path d="M3 7.1h18"/><path d="M16 11.1a4 4 0 0 1-8 0"/></svg>';
+    kicker.appendChild(el('span', null, t('drop_headline', 'Just landed in the Store')));
+    body.appendChild(kicker);
+    body.appendChild(el('h2', 'xdrop-title', t('gallery_new_filter', 'Novità')));
+    body.appendChild(el('p', 'xdrop-sub',
+      t('drop_batch_sub', '{n} nuove creazioni sono arrivate nello Store: toccane una per vederla da vicino.').replace('{n}', String(drops.length))));
+
+    const list = el('div', 'xdrop-batch');
+    for (const entry of drops) {
+      const isLim = variantOf(entry) === 'limited';
+      const row = el('button', 'xdrop-row ' + (isLim ? 'is-limited' : 'is-sup'));
+      row.type = 'button';
+      const thumb = buildMedia(entry);
+      thumb.classList.add('xdrop-thumb');
+      row.appendChild(thumb);
+      const mid = el('div', 'xdrop-row-mid');
+      const tier = el('span', 'xdrop-row-tier', isLim ? t('gallery_limited_badge', 'Limited') : t('gallery_locked_badge', 'Supporters'));
+      mid.appendChild(tier);
+      mid.appendChild(el('span', 'xdrop-row-name', entry.name || ''));
+      if (isLim && entry.limited && !entry.limited.soldOut) {
+        mid.appendChild(el('span', 'xdrop-row-left',
+          t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(entry.limited.left)).replace('{t}', String(entry.limited.total))));
+      }
+      row.appendChild(mid);
+      row.addEventListener('click', () => { close(); window.CommunityGallery.openEntry(entry); });
+      list.appendChild(row);
+    }
+    body.appendChild(list);
+
+    const actions = el('div', 'xdrop-actions');
+    const primary = el('button', 'xdrop-btn xdrop-primary', t('settings_store_open', 'Apri lo Store'));
+    primary.type = 'button';
+    primary.addEventListener('click', () => { close(); window.CommunityGallery.open(); });
+    actions.appendChild(primary);
+    body.appendChild(actions);
+
+    const foot = el('div', 'xdrop-foot');
+    const lab = el('label', 'xdrop-dontshow');
+    const cb = document.createElement('input'); cb.type = 'checkbox';
+    const box = el('span', 'xdrop-box');
+    box.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg>';
+    lab.appendChild(cb); lab.appendChild(box); lab.appendChild(el('span', null, t('drop_mute', 'Don’t show me new drops')));
+    const later = el('button', 'xdrop-later', t('drop_later', 'Maybe later')); later.type = 'button';
+    foot.appendChild(lab); foot.appendChild(later);
+    body.appendChild(foot);
+
+    const dismiss = () => { const m = cb.checked; if (m) mute(); close(m); };
     x.addEventListener('click', dismiss);
     later.addEventListener('click', dismiss);
     bd.addEventListener('click', (ev) => { if (ev.target === bd) dismiss(); });
@@ -249,18 +314,15 @@
     window.XenonInterrupts.whenIdle(() => {
       if (isMuted()) return;                  // muted from another surface while waiting
       STAMP();
-      // One of each kind, limited first: it is the one with copies running out,
-      // so it is the one that cannot wait for tomorrow. The supporter pack opens
-      // behind it if the user dismisses rather than following the first in.
-      const lead = fresh.find((e) => e.limited) || fresh[0];
-      const other = fresh.find((e) => e.id !== lead.id && variantOf(e) !== variantOf(lead));
-      queued = other ? [other] : [];
-      show(lead);
-      // Mark ONLY what was actually announced (shown or queued). Stamping the
-      // whole batch silently buried a second drop of the SAME variant forever:
-      // it never queued, yet its id landed in the seen list and every future
-      // checkDaily filtered it out. Left unstamped, it becomes tomorrow's lead.
-      markSeen([lead.id].concat(queued.map((e) => e.id)));
+      // ONE announcement, whatever landed: a single drop keeps the full
+      // cinematic card; several get grouped into one short list (never a modal
+      // per item, and never a queue of modals). Limited drops list first — they
+      // are the ones with copies running out. Everything announced is marked
+      // seen, shown rows included: the batch showed each of them by name.
+      const ordered = fresh.filter((e) => e.limited).concat(fresh.filter((e) => !e.limited));
+      if (ordered.length === 1) show(ordered[0]);
+      else showBatch(ordered);
+      markSeen(ordered.map((e) => e.id));
     }, { priority });                         // gives up after ~5 min, retries next load
   }
 
@@ -281,7 +343,7 @@
     } catch { /* best-effort — never surface an error for a promo nudge */ }
   }
 
-  window.CatalogDrop = { checkDaily, show, close };
+  window.CatalogDrop = { checkDaily, show, showBatch, close };
   // Staggered a little after the SDK daily check so the two catalog reads don't
   // race the first paint (both hit the same TTL-cached endpoint anyway).
   setTimeout(() => { try { checkDaily(); } catch { /* ignore */ } }, 20000);

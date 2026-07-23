@@ -309,6 +309,31 @@
     .spot-side { grid-auto-rows: auto; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
   }
   @media (max-width: 560px) { .spot-card { grid-template-columns: 104px minmax(0, 1fr); } }
+  /* ── Duo: exactly two featured entries — both get the full stage, upright at
+     equal width. A lone side card stretched to the main card's height read as
+     broken. Scoped to the width where they actually sit side by side; below
+     1080px the .spot collapse above takes over and the cards stack in their
+     default horizontal drop shape. */
+  @media (min-width: 1081px) {
+    .spot-duo { grid-template-columns: 1fr 1fr; }
+    .spot-duo .drop-card { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .spot-duo .drop-media { min-height: 0; aspect-ratio: 16 / 9; border-right: 0; border-bottom: 1px solid var(--line); }
+    .spot-duo .drop-info { padding: 24px 26px 28px; gap: 11px; justify-content: flex-start; }
+    .spot-duo .drop-name { font-size: clamp(22px, 2vw, 28px); }
+    .spot-duo .drop-desc { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  }
+  /* "Available until {d}" — the scheduling deadline on supporter/limited cards
+     and the detail view, tier-coloured (gold = supporters, iris = limited). */
+  .drop-until, .cat-until, .dt-until { font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: .02em; }
+  .drop-until.is-gold, .cat-until.is-gold, .dt-until.is-gold { color: var(--gold); }
+  .drop-until.is-lim, .cat-until.is-lim, .dt-until.is-lim { color: var(--iris); }
+  .cat-until { margin-top: 2px; }
+
+  /* The gold join CTA when it leads a featured locked card's foot (the .sup-head
+     .sjoin rules are scoped to the strip and don't reach here). */
+  .drop-foot .sjoin { font-family: var(--body); font-weight: 700; font-size: 13.5px; color: #12100a; background: var(--gold);
+    border: 0; border-radius: 11px; padding: 12px 22px; cursor: pointer; white-space: nowrap; transition: filter .18s; }
+  .drop-foot .sjoin:hover { filter: brightness(1.06); }
 
   /* Free content sits under a muted eyebrow, deliberately quieter than the drops */
   .free-eyebrow { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: .24em; text-transform: uppercase; color: var(--dim); margin: 42px 0 0; }
@@ -567,7 +592,7 @@ const I18N = {
     'c.deck': 'Deck', 'c.streaming': 'Streaming', 'c.media': 'Media', 'c.smart_home': 'Smart home', 'c.system': 'System', 'c.style': 'Style', 'c.fun': 'Fun', 'c.tools': 'Tools',
     'card.by': 'by', 'card.copy': 'Copy code', 'card.copied': 'Copied. Paste it in Xenon: Settings → Widgets & sharing → Import.', 'card.copyfail': 'Copy failed. Open the entry on GitHub and copy it there.',
     'card.link': 'Copy link', 'card.linked': 'Link copied', 'card.linkfail': 'Copy failed — the link is in the address bar.',
-    'card.locked': 'Supporters',
+    'card.until': "Available until {d}", 'card.locked': 'Supporters',
     'k.limited': 'Limited', 'k.limited_ed': 'Limited edition', 'card.left': '{n} of {t} left', 'card.soldout': 'Sold out', 'card.claim': 'Claim your copy', 'card.reserve': 'Open Discord', 'card.reserve_hint': 'Discord verifies your account and sends a personal access code.',
     'count.n': '{n} creations',
     'bar.clear': '✕ Clear filters',
@@ -604,7 +629,7 @@ const I18N = {
     'c.deck': 'Deck', 'c.streaming': 'Streaming', 'c.media': 'Media', 'c.smart_home': 'Casa smart', 'c.system': 'Sistema', 'c.style': 'Stile', 'c.fun': 'Divertimento', 'c.tools': 'Strumenti',
     'card.by': 'di', 'card.copy': 'Copia codice', 'card.copied': 'Copiato. Incollalo in Xenon: Impostazioni → Widget e condivisione → Importa.', 'card.copyfail': 'Copia non riuscita. Apri la voce su GitHub e copiala da lì.',
     'card.link': 'Copia link', 'card.linked': 'Link copiato', 'card.linkfail': 'Copia non riuscita — il link è nella barra degli indirizzi.',
-    'card.locked': 'Supporter',
+    'card.until': "Disponibile fino al {d}", 'card.locked': 'Supporter',
     'k.limited': 'Limited', 'k.limited_ed': 'Edizione limitata', 'card.left': '{n} di {t} disponibili', 'card.soldout': 'Esaurito', 'card.claim': 'Richiedi la tua copia', 'card.reserve': 'Apri Discord', 'card.reserve_hint': 'Discord verifica il tuo account e invia un codice d\'accesso personale.',
     'count.n': '{n} creazioni',
     'bar.clear': '✕ Azzera filtri',
@@ -641,7 +666,7 @@ const I18N = {
     'c.deck': 'Deck', 'c.streaming': '스트리밍', 'c.media': '미디어', 'c.smart_home': '스마트홈', 'c.system': '시스템', 'c.style': '스타일', 'c.fun': '재미', 'c.tools': '도구',
     'card.by': '제작:', 'card.copy': '코드 복사', 'card.copied': '복사됨. Xenon에 붙여넣기: 설정 → 위젯 및 공유 → 가져오기.', 'card.copyfail': '복사 실패. GitHub에서 항목을 열어 복사하세요.',
     'card.link': '링크 복사', 'card.linked': '링크가 복사됨', 'card.linkfail': '복사 실패 — 링크는 주소창에 있습니다.',
-    'card.locked': '서포터',
+    'card.until': "{d}까지 이용 가능", 'card.locked': '서포터',
     'k.limited': '한정판', 'k.limited_ed': '한정판', 'card.left': '{t}개 중 {n}개 남음', 'card.soldout': '품절', 'card.reserve': 'Discord에서 예약 →', 'card.reserve_hint': 'Discord에서 예약합니다. 가져오기용 개인 액세스 코드를 받습니다.',
     'count.n': '{n}개 작품',
     'bar.clear': '✕ 필터 지우기',
@@ -678,7 +703,7 @@ const I18N = {
     'c.deck': 'Deck', 'c.streaming': 'ストリーミング', 'c.media': 'メディア', 'c.smart_home': 'スマートホーム', 'c.system': 'システム', 'c.style': 'スタイル', 'c.fun': '楽しみ', 'c.tools': 'ツール',
     'card.by': '作者:', 'card.copy': 'コードをコピー', 'card.copied': 'コピーしました。Xenonに貼り付け: 設定 → ウィジェットと共有 → インポート。', 'card.copyfail': 'コピーに失敗しました。GitHubで項目を開いてコピーしてください。',
     'card.link': 'リンクをコピー', 'card.linked': 'リンクをコピーしました', 'card.linkfail': 'コピーに失敗しました — リンクはアドレスバーにあります。',
-    'card.locked': 'サポーター',
+    'card.until': "{d}まで入手可能", 'card.locked': 'サポーター',
     'k.limited': '限定', 'k.limited_ed': '限定版', 'card.left': '{t}個中 残り{n}個', 'card.soldout': '完売', 'card.reserve': 'Discordで予約 →', 'card.reserve_hint': 'Discordで予約します。インポート用の個人アクセスコードが届きます。',
     'count.n': '{n} 作品',
     'bar.clear': '✕ フィルターをクリア',
@@ -715,7 +740,7 @@ const I18N = {
     'c.deck': 'Deck', 'c.streaming': '直播', 'c.media': '媒体', 'c.smart_home': '智能家居', 'c.system': '系统', 'c.style': '风格', 'c.fun': '趣味', 'c.tools': '工具',
     'card.by': '作者:', 'card.copy': '复制代码', 'card.copied': '已复制。粘贴到 Xenon：设置 → 组件与分享 → 导入。', 'card.copyfail': '复制失败。请在 GitHub 打开该条目并从那里复制。',
     'card.link': '复制链接', 'card.linked': '链接已复制', 'card.linkfail': '复制失败 — 链接在地址栏中。',
-    'card.locked': '支持者',
+    'card.until': "开放至 {d}", 'card.locked': '支持者',
     'k.limited': '限量', 'k.limited_ed': '限量版', 'card.left': '{t} 份仅剩 {n} 份', 'card.soldout': '已售罄', 'card.reserve': '在 Discord 预订 →', 'card.reserve_hint': '在 Discord 预订。你会收到用于导入的专属访问码。',
     'count.n': '{n} 个作品',
     'bar.clear': '✕ 清除筛选',
@@ -1126,6 +1151,7 @@ function applyLang(lang) {
     if (entry.version) meta.appendChild(el('span', 'dt-chip', 'v' + entry.version));
     if (entry.category) meta.appendChild(el('span', 'dt-chip', CAT_LABEL(entry.category)));
     if (meta.childElementCount) info.appendChild(meta);
+    const dtUntil = untilEl(entry, 'dt-until'); if (dtUntil) info.appendChild(dtUntil);
 
     if (entry.description) info.appendChild(el('p', 'dt-desc', entry.description));
 
@@ -1366,6 +1392,7 @@ function applyLang(lang) {
     by.appendChild(installs);
     body.appendChild(by);
 
+    const cardUntil = untilEl(entry, 'cat-until'); if (cardUntil) body.appendChild(cardUntil);
     body.appendChild(el('p', 'cat-desc', entry.description || ''));
     const tags = el('div', 'cat-tags'); entry.tags.slice(0, 3).forEach((tag) => tags.appendChild(el('span', 'cat-tag', '#' + tag))); body.appendChild(tags);
 
@@ -1418,6 +1445,7 @@ function applyLang(lang) {
     if (entry.version) name.appendChild(el('span', 'cat-ver', 'v' + entry.version));
     info.appendChild(name);
     info.appendChild(bylineEl('drop-by', entry));
+    const dropUntil = untilEl(entry, 'drop-until'); if (dropUntil) info.appendChild(dropUntil);
 
     if (entry.description) info.appendChild(el('p', 'drop-desc', entry.description));
 
@@ -1439,6 +1467,15 @@ function applyLang(lang) {
       }
     } else {
       const { btn, hint } = codeButton(entry);
+      // Conversion leads on a locked drop: the gold join CTA first — "Unlock
+      // with a code" speaks only to people who already hold a code.
+      if (entry.locked) {
+        const join = el('a', 'sjoin drop-join');
+        join.appendChild(cico('heart'));
+        join.appendChild(document.createTextNode(T('sec.supporters_join')));
+        join.href = COFFEE; join.target = '_blank'; join.rel = 'noopener';
+        foot.appendChild(join);
+      }
       foot.appendChild(btn); foot.appendChild(hint);
     }
     foot.appendChild(linkButton(entry, 'cat-link'));
@@ -1494,6 +1531,21 @@ function applyLang(lang) {
     return card;
   }
 
+  // "Available until {d}" — the scheduling deadline on a supporter/limited
+  // entry (the page already hides it once the date passes; this says so up
+  // front). UTC on purpose: activeUntil is authored as an end-of-day UTC stamp,
+  // and a local-time render shows "1 August" east of Greenwich for a date
+  // authored as 31 July — same rule as the home page's drop banner.
+  function untilEl(entry, cls) {
+    if (!entry || !entry.activeUntil || !(entry.limited || entry.locked)) return null;
+    const ts = Date.parse(entry.activeUntil);
+    if (!Number.isFinite(ts)) return null;
+    let d;
+    try { d = new Date(ts).toLocaleDateString(document.documentElement.lang || 'en', { day: 'numeric', month: 'long', timeZone: 'UTC' }); }
+    catch (e) { d = new Date(ts).toLocaleDateString('en', { day: 'numeric', month: 'long', timeZone: 'UTC' }); }
+    return el('div', cls + (entry.limited ? ' is-lim' : ' is-gold'), T('card.until').replace('{d}', d));
+  }
+
   // The main card borrows the drop-card shape whatever the tier, so a featured
   // free creation gets the same stage — 'plain' just drops the iris/gold tint
   // that would otherwise imply it is limited.
@@ -1505,6 +1557,16 @@ function applyLang(lang) {
 
   function spotlightBlock(main, side) {
     if (!side.length) return mainCard(main);
+    // Exactly two featured entries: a lone side card stretched to the main
+    // card's full height read as broken (a 132px media sliver, crushed text) —
+    // give both entries the full drop-card stage instead, upright and side by
+    // side at equal width (all CSS via .spot-duo).
+    if (side.length === 1) {
+      const wrap = el('div', 'spot spot-duo');
+      wrap.appendChild(mainCard(main));
+      wrap.appendChild(mainCard(side[0]));
+      return wrap;
+    }
     const wrap = el('div', 'spot');
     wrap.appendChild(mainCard(main));
     const col = el('div', 'spot-side');

@@ -135,12 +135,32 @@
   // to "Installed" — the finishing half of keeping the Store open across an
   // install (#1). Browse state (search/sort/filter) above survives the repaint.
   let repaintStore = null;
-  // "New since your last visit" flag (#5): the PREVIOUS visit timestamp, captured
-  // (and re-stamped to now) each time the Store opens. Per-device, like the drop
-  // check's K_CHECK. Nothing is flagged on the very first open (no prior visit),
-  // so the grid never floods with badges the first time someone browses.
-  const K_STORE_VISIT = 'xeneonedge.storeLastVisit';
-  let storeLastVisit = 0;
+  // "New" tracking (#5): the per-device set of catalog entry ids this Store has
+  // already shown (bounded; replaces the old last-visit timestamp, whose
+  // day-granular addedAt comparison could never flag something uploaded later
+  // on a day you had already browsed).
+  const K_STORE_SEEN = 'xeneonedge.storeSeenIds';
+  // Snapshot of the seen-id set taken when the Store OPENS (null = never
+  // browsed): what this render calls "new". The persisted set is refreshed to
+  // the full current catalog on every render, so newness clears exactly when
+  // the user next opens the Store — and never before.
+  let storeSeenPrev = null;
+  function readSeenIds() {
+    try {
+      const arr = JSON.parse(localStorage.getItem(K_STORE_SEEN) || 'null');
+      return Array.isArray(arr) ? new Set(arr.filter((s) => typeof s === 'string')) : null;
+    } catch { return null; }
+  }
+  function markCatalogSeen(entries) {
+    try {
+      const cur = (entries || []).map((e) => e && e.id).filter(Boolean);
+      const prev = readSeenIds();
+      // Union (an entry inside a scheduling window must not re-flag when it
+      // comes back), current ids last so the cap sheds the oldest strangers.
+      const merged = [...new Set([...(prev ? [...prev] : []), ...cur])].slice(-1000);
+      localStorage.setItem(K_STORE_SEEN, JSON.stringify(merged));
+    } catch { /* storage off → no "new" tracking, badges just stay off */ }
+  }
   // Points at the current render's paintGrid while the Store is open: lets the
   // async ratings / install-count loaders re-sort the grid once their data lands,
   // so "Top rated" / "Most downloaded" settle without the user re-picking the sort.
@@ -544,16 +564,33 @@
     return b;
   }
 
-  // "Become a supporter" — the warm heart CTA shown next to a locked entry's
+  // "Become a supporter" — the warm heart CTA shown beside a locked entry's
   // "Unlock with a code", for someone who doesn't have a code yet. Same button as
   // the Supporters "how it works" panel; links straight to Buy Me a Coffee.
-  function becomeSupporterButton() {
+  // `cls` overrides the default (compact) classes where the button leads the row.
+  function becomeSupporterButton(cls) {
     const a = document.createElement('a');
-    a.className = 'cgal-btn cgal-info-bmc cgal-support-cta';
+    a.className = cls || 'cgal-btn cgal-info-bmc cgal-support-cta';
     a.href = BMC_URL; a.target = '_blank'; a.rel = 'noopener noreferrer';
     a.appendChild(icon('supporters'));
     a.appendChild(el('span', null, t('gallery_supporters_join', 'Become a supporter')));
     return a;
+  }
+
+  // The CTA pair on a locked entry (hero + detail view). For someone who has not
+  // installed it, conversion leads: the gold "Become a supporter" first, with
+  // "Unlock with a code" beside it for people who already hold a code. Once the
+  // entry IS installed, the join pitch steps back behind the Installed/Update
+  // control — no point selling a membership to an owner.
+  function appendLockedButtons(cta, entry) {
+    const unlock = importButton(entry, 'cgal-btn cgal-btn-hero cgal-unlock', t('gallery_unlock', 'Unlock with a code'), 'lock');
+    if (entryInstallState(entry) === 'none') {
+      cta.appendChild(becomeSupporterButton('cgal-btn cgal-btn-hero cgal-info-bmc'));
+      cta.appendChild(unlock);
+    } else {
+      cta.appendChild(unlock);
+      cta.appendChild(becomeSupporterButton());
+    }
   }
 
   // ── Fullscreen screenshot zoom (opened from the detail gallery) ─────────────
@@ -696,6 +733,7 @@
     if (entry.category) meta.appendChild(el('span', 'cgal-metachip', t('gallery_cat_' + entry.category.replace('-', '_'), entry.category)));
     const detPerf = perfChip(entry); if (detPerf) meta.appendChild(detPerf);
     if (meta.childElementCount) info.appendChild(meta);
+    const detUntil = untilLabel(entry, 'cgal-until-big'); if (detUntil) info.appendChild(detUntil);
     // The detail view has room for the full sentence, not just the chip.
     if (entry.perfWarning === true) {
       info.appendChild(el('p', 'cgal-detail-perfnote',
@@ -754,9 +792,7 @@
         appendLimitedButtons(cta, entry);
       }
     } else if (locked) {
-      cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero cgal-unlock', t('gallery_unlock', 'Unlock with a code'), 'lock'));
-      // No code yet? Offer the way to get one, right by the unlock button.
-      cta.appendChild(becomeSupporterButton());
+      appendLockedButtons(cta, entry);
     } else {
       cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero primary', t('gallery_import', 'Import…')));
     }
@@ -858,6 +894,7 @@
     const by = el('div', 'cgal-hero-by'); bylineInto(by, entry);
     const heroPerf = perfChip(entry); if (heroPerf) by.appendChild(heroPerf);
     info.appendChild(by);
+    const heroUntil = untilLabel(entry, 'cgal-until-big'); if (heroUntil) info.appendChild(heroUntil);
     if (entry.description) info.appendChild(el('p', 'cgal-hero-desc', entry.description));
 
     if (Array.isArray(entry.tags) && entry.tags.length) {
@@ -882,8 +919,7 @@
         appendLimitedButtons(cta, entry);
       }
     } else if (locked) {
-      cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero cgal-unlock', t('gallery_unlock', 'Unlock with a code'), 'lock'));
-      cta.appendChild(becomeSupporterButton());
+      appendLockedButtons(cta, entry);
     } else {
       cta.appendChild(importButton(entry, 'cgal-btn cgal-btn-hero primary', t('gallery_import', 'Import…')));
     }
@@ -962,9 +998,19 @@
   }
 
   // Hero + column. With a single featured entry there is no column and the hero
-  // keeps the whole width, which is the layout the Store has always had.
+  // keeps the whole width, which is the layout the Store has always had. With
+  // exactly TWO, the column is skipped as well: a lone side card stretched to
+  // the hero's full height read as broken (a 128px-wide media sliver, crushed
+  // text) — instead both entries get the full hero treatment, upright and side
+  // by side at equal width (the duo, all CSS via .is-duo).
   function spotlightBlock(main, side) {
     if (!side.length) return heroBanner(main);
+    if (side.length === 1) {
+      const duo = el('div', 'cgal-spot is-duo');
+      duo.appendChild(heroBanner(main));
+      duo.appendChild(heroBanner(side[0]));
+      return duo;
+    }
     const wrap = el('div', 'cgal-spot');
     wrap.appendChild(heroBanner(main));
     const col = el('div', 'cgal-spot-side');
@@ -973,21 +1019,44 @@
     return wrap;
   }
 
-  // Published since the user's last Store visit? Only from the SECOND visit on
-  // (storeLastVisit 0 = never opened → nothing is "new", so the grid doesn't
-  // flood with badges the first time). addedAt is the first-publish date (#5).
+  // "New" = an entry id this device has never had on screen in the Store.
+  // Deliberately id-based, NOT addedAt-vs-last-visit: addedAt is a plain date
+  // (midnight), so anything published later on a day you had already browsed
+  // could never flag — the empirically-hit "uploaded today, no badge anywhere"
+  // hole. Nothing is flagged before the very first browse (no stored set), so
+  // the grid never floods with badges the first time someone opens the Store (#5).
   function isNewEntry(entry) {
-    if (!storeLastVisit || !entry || !entry.addedAt) return false;
-    const ts = Date.parse(entry.addedAt);
-    return Number.isFinite(ts) && ts > storeLastVisit;
+    return !!storeSeenPrev && !!entry && !!entry.id && !storeSeenPrev.has(entry.id);
   }
 
-  // One uniform product card.
-  function renderCard(entry) {
+  // "Available until {d}" — the scheduling deadline on a supporter/limited
+  // entry, the honest urgency line (the server already hides the entry once the
+  // date passes; this just says so up front). Rendered in UTC on purpose:
+  // activeUntil is authored as an end-of-day UTC stamp, and a local-time render
+  // turns "31 July" into "1 August" for anyone east of Greenwich — same rule as
+  // the website home. Null for free entries or without a deadline.
+  function untilLabel(entry, cls) {
+    if (!entry || !entry.activeUntil || !(entry.limited || entry.locked || entry.supportersOnly)) return null;
+    const ts = Date.parse(entry.activeUntil);
+    if (!Number.isFinite(ts)) return null;
+    const l = t('locale', '');
+    const loc = /^[a-z]{2}(-[A-Za-z0-9]{2,8})*$/.test(l) ? l : undefined;
+    let d;
+    try { d = new Date(ts).toLocaleDateString(loc, { day: 'numeric', month: 'long', timeZone: 'UTC' }); }
+    catch { d = new Date(ts).toLocaleDateString(undefined, { day: 'numeric', month: 'long', timeZone: 'UTC' }); }
+    return el('div', 'cgal-until' + (cls ? ' ' + cls : ''), t('gallery_until', 'Disponibile fino al {d}').replace('{d}', d));
+  }
+
+  // One uniform product card. `noId` skips the DOM id for a card whose entry is
+  // ALSO rendered elsewhere in the same view (spotlight + tier shelf + Novità
+  // can now all show the same entry) — ids must stay unique; the star/install
+  // slots key on data-id and are filled by querySelectorAll, so duplicates of
+  // those are fine by construction.
+  function renderCard(entry, noId) {
     const locked = !!(entry.locked || entry.supportersOnly);
     const limited = !!entry.limited;
     const card = el('div', 'cgal-card' + (limited ? ' is-limited' : locked ? ' is-sup' : '') + (limited && entry.limited.soldOut ? ' dim' : ''));
-    card.id = 'cgal-' + entry.id;
+    if (!noId) card.id = 'cgal-' + entry.id;
     wireCardOpen(card, entry);
 
     const media = buildMedia(entry);
@@ -1026,6 +1095,7 @@
     by.appendChild(installs);
     const cardPerf = perfChip(entry); if (cardPerf) by.appendChild(cardPerf);
     body.appendChild(by);
+    const cardUntil = untilLabel(entry); if (cardUntil) body.appendChild(cardUntil);
     if (entry.description) body.appendChild(el('div', 'cgal-desc', entry.description));
     if (Array.isArray(entry.tags) && entry.tags.length) {
       const tags = el('div', 'cgal-tags');
@@ -1266,6 +1336,9 @@
     await hydrateLimitedStatus(all);
     if (!overlayEl) return;
     all.forEach((e, i) => { if (e) e._i = i; });
+    // Everything now on screen counts as seen from the NEXT open onwards;
+    // this render keeps flagging against the snapshot taken at open().
+    markCatalogSeen(all);
     // Two special tiers get their own treatment; everything else is the browse set.
     const limited = all.filter((e) => e && e.limited);
     const supporters = all.filter((e) => e && !e.limited && (e.locked || e.supportersOnly));
@@ -1332,8 +1405,14 @@
       return b;
     };
     seg.appendChild(mkSeg('all', t('gallery_all', 'All'), 'all'));
-    // "Novità" chip — shown only when something IS new since the last visit (#5).
-    if (all.some(isNewEntry)) seg.appendChild(mkSeg('new', t('gallery_new_filter', 'Novità'), '__new', 'is-new'));
+    // "Novità" chip — shown only when something IS new since the last visit
+    // (#5), with the count right on it so the rail says how much is waiting.
+    const newCount = all.filter(isNewEntry).length;
+    if (newCount) {
+      const nb = mkSeg('new', t('gallery_new_filter', 'Novità'), '__new', 'is-new');
+      nb.appendChild(el('span', 'cgal-rail-cnt', newCount > 99 ? '99+' : String(newCount)));
+      seg.appendChild(nb);
+    }
     if (limited.length) seg.appendChild(mkSeg('limited', t('gallery_limited_badge', 'Limited'), '__limited', 'lim'));
     if (supporters.length) seg.appendChild(mkSeg('supporters', t('gallery_supporters_section', 'Supporters'), '__supporters', 'sup'));
     kinds.forEach((k) => seg.appendChild(mkSeg(k, kindLabel(k), k)));
@@ -1353,13 +1432,13 @@
     // way the website catalog does. Without it the lone 232px card sat at the
     // left edge of a full-width shelf with the rest of the row empty, and its
     // description stayed clipped to two lines while there was room to spare.
-    function cardGrid(items, limit) {
+    function cardGrid(items, limit, noId) {
       const list = typeof limit === 'number' ? items.slice(0, limit) : items;
       const grid = el('div', 'cgal-grid' + (list.length === 1 ? ' is-solo' : ''));
-      list.forEach((e) => grid.appendChild(renderCard(e)));
+      list.forEach((e) => grid.appendChild(renderCard(e, noId)));
       return grid;
     }
-    function section(k, items, iconName, titleText) {
+    function section(k, items, iconName, titleText, noId) {
       const wrap = el('div', 'cgal-kblock');
       const head = el('div', 'cgal-khead');
       const l = el('div', 'cgal-khead-l');
@@ -1374,7 +1453,7 @@
         head.appendChild(sa);
       }
       wrap.appendChild(head);
-      wrap.appendChild(cardGrid(items, k === '__updates' ? items.length : SECTION_PREVIEW));
+      wrap.appendChild(cardGrid(items, k === '__updates' ? items.length : SECTION_PREVIEW, noId));
       return wrap;
     }
     // A premium "shelf" for the two exclusive tiers (Limited and Supporters) —
@@ -1415,7 +1494,18 @@
       if (actions.childElementCount) head.appendChild(actions);
       wrap.appendChild(head);
       if (opts.lead) wrap.appendChild(el('p', 'cgal-feat-lead', opts.lead));
-      if (opts.items.length) wrap.appendChild(cardGrid(opts.items, SECTION_PREVIEW));
+      // The shelf carries the WHOLE tier — including entries already up in the
+      // spotlight (opts.dupIds marks those so their card skips the DOM id).
+      // More cards than fit the width scroll horizontally with a finger swipe
+      // (.cgal-hrail, native overflow-x pan); nothing is cut to a preview count.
+      // A single entry keeps the wide solo card instead of a lonely rail.
+      if (opts.items.length === 1) {
+        wrap.appendChild(cardGrid(opts.items, 1, !!(opts.dupIds && opts.dupIds.has(opts.items[0].id))));
+      } else if (opts.items.length) {
+        const rail = el('div', 'cgal-hrail');
+        opts.items.forEach((e) => rail.appendChild(renderCard(e, !!(opts.dupIds && opts.dupIds.has(e.id)))));
+        wrap.appendChild(rail);
+      }
       return wrap;
     }
     function flatInto(frag, list) {
@@ -1464,9 +1554,11 @@
       }
       if (browsingAll) {
         // What leads the Store: the admin's spotlight when the catalog sets one,
-        // else the automatic ladder (see spotlightPick). Everything in the
-        // spotlight is skipped by the sections below — one card per entry, or the
-        // duplicate would double its DOM id and its install/rating slots.
+        // else the automatic ladder (see spotlightPick). The KIND sections below
+        // skip whatever the spotlight shows; the tier shelves and the Novità
+        // shelf deliberately do NOT (a tier shelf shows its whole tier) — their
+        // duplicate cards skip the DOM id, and the install/rating slots key on
+        // data-id filled via querySelectorAll, so duplicates are safe there.
         const spot = spotlightPick(limited, supporters, pool);
         const heroEntry = spot.main;
         const spotIds = new Set(spot.side.map((e) => e.id));
@@ -1475,29 +1567,34 @@
         // Not "for your widgets" any more: the join covers themes, decks, pages
         // and packs through install receipts, so the heading has to as well.
         if (updates.length) frag.appendChild(section('__updates', updates, 'update', t('gallery_updates', 'Aggiornamenti per i tuoi contenuti')));
+        // "Novità" shelf: everything published since the last visit in one
+        // place, newest first, whatever its tier. Cards here duplicate their
+        // tier/kind section entries by design → noId. "See all" opens the
+        // dedicated __new view the rail chip also reaches.
+        const freshAll = browse.concat(limited, supporters).filter(isNewEntry)
+          .sort((a, b) => String(b.addedAt || '').localeCompare(String(a.addedAt || '')));
+        if (freshAll.length) frag.appendChild(section('__new', freshAll, 'new', t('gallery_new_filter', 'Novità'), true));
         // Two exclusive shelves, on par with each other: Limited then Supporters.
-        // A sold-out drop holds the shelf only when nothing in the tier can still
-        // be claimed — otherwise the section sat next to a claimable hero showing
-        // one nobody can get. The test is over the WHOLE tier, not over what is
-        // left after the hero: with one live drop leading and one sold out, the
-        // remainder is all sold out, and testing only the remainder would put it
-        // straight back. Sold-out drops stay reachable through search and the
+        // Each carries its WHOLE tier — including entries up in the spotlight
+        // (dupIds makes those cards skip the DOM id): a 4-item tier must read
+        // as 4 items on its shelf, not as the 2 left over after the spotlight.
+        // A sold-out drop holds the Limited shelf only when nothing in the tier
+        // can still be claimed — a claimable hero must never sit next to one
+        // nobody can get. Sold-out drops stay reachable through search and the
         // Limited tab, where the history is the point. Same rule as the website
         // catalog's limited strip.
         const anyClaimable = limited.some((e) => !(e.limited && e.limited.soldOut));
-        const restLimited = sortList(limited)
-          .filter((e) => !spotIds.has(e.id) && !(anyClaimable && e.limited && e.limited.soldOut));
-        if (restLimited.length) frag.appendChild(featureSection({
-          items: restLimited, iconName: 'limited', cls: 'is-limited', seeAllKind: '__limited',
+        const shelfLimited = sortList(limited)
+          .filter((e) => !(anyClaimable && e.limited && e.limited.soldOut));
+        if (shelfLimited.length) frag.appendChild(featureSection({
+          items: shelfLimited, dupIds: spotIds, iconName: 'limited', cls: 'is-limited', seeAllKind: '__limited',
           title: t('gallery_limited_section', 'Limited edition'),
           lead: t('gallery_limited_lead_short', 'A fixed number of copies worldwide — reserved on Discord.'),
         }));
-        // The shelf renders whenever the tier EXISTS, even with every entry up in
-        // the spotlight: it carries the "how it works" panel and the join button,
-        // which are the whole conversion path. Only the card grid empties out.
-        const restSupporters = sortList(supporters).filter((e) => !spotIds.has(e.id));
+        // The shelf renders whenever the tier EXISTS: it carries the "how it
+        // works" panel and the join button, which are the whole conversion path.
         if (supporters.length) frag.appendChild(featureSection({
-          items: restSupporters, iconName: 'supporters', cls: 'is-sup', seeAllKind: '__supporters',
+          items: sortList(supporters), dupIds: spotIds, iconName: 'supporters', cls: 'is-sup', seeAllKind: '__supporters',
           title: t('gallery_supporters_section', 'Supporters'),
           lead: t('gallery_supporters_lead', 'Themes and packs reserved for Xenon supporters — become one to unlock them.'),
           joinLabel: t('gallery_supporters_join', 'Become a supporter'), joinHref: BMC_URL, joinIcon: 'supporters',
@@ -1529,10 +1626,10 @@
   // view. Keep the pseudo-kinds out of the rail — they are not catalog kinds.
   function open(filterKind) {
     close();
-    // Stamp this visit and keep the PREVIOUS one, so renderCard can flag entries
-    // published since (#5). Best-effort: storage off just means no "New" badges.
-    try { storeLastVisit = Number(localStorage.getItem(K_STORE_VISIT)) || 0; localStorage.setItem(K_STORE_VISIT, String(Date.now())); }
-    catch { storeLastVisit = 0; }
+    // Capture the seen-id set as it was BEFORE this visit — that snapshot is
+    // what this render flags as new; render() then persists the full current
+    // catalog as seen, so everything clears on the NEXT open (#5).
+    storeSeenPrev = readSeenIds();
     // Same freeze the Settings/update overlays use: the store is a full-viewport
     // frosted overlay, so stop the dashboard animating (and re-blurring) under it.
     // Shared token is safe — close() above runs synchronously before this refreeze.
@@ -1652,18 +1749,18 @@
   // sidecar path rule. shotUrl derives from the entry id the server already
   // charset-pinned — never from catalog-supplied text.
   const shotUrl = (entryId, i, ext) => SHOTS_BASE + encodeURIComponent(entryId) + (i === 1 ? '' : '-' + i) + '.' + ext;
-  // Count entries published since the user's last Store visit — for the dot on the
-  // Settings "Open the Store" buttons. Read-only: it never stamps the visit
-  // (opening the Store is what advances the marker), and returns 0 when the Store
-  // was never opened, so nothing is flagged before the first browse (#5).
+  // Count catalog entries this device has never seen in the Store — for the count
+  // on the Settings gear and the "Open the Store" buttons. Read-only: it never
+  // touches the seen set (browsing the Store is what marks entries seen), and
+  // returns 0 when the Store was never opened, so nothing is flagged before the
+  // first browse (#5).
   async function newSinceLastVisit() {
-    let last = 0;
-    try { last = Number(localStorage.getItem(K_STORE_VISIT)) || 0; } catch { /* storage off */ }
-    if (!last) return 0;
+    const seen = readSeenIds();
+    if (!seen) return 0;   // never browsed the Store yet → nothing to advertise
     try {
       const out = await api('/api/community/catalog');
       if (!out || !out.ok || !Array.isArray(out.entries)) return 0;
-      return out.entries.filter((e) => { const ts = Date.parse(e && e.addedAt); return Number.isFinite(ts) && ts > last; }).length;
+      return out.entries.filter((e) => e && e.id && !seen.has(e.id)).length;
     } catch { return 0; }
   }
   // Number of OWNED catalog items with an update available — the red badge on the
@@ -1685,7 +1782,10 @@
   // "N new since your last visit" discovery count (#5). Refreshed at boot, when the
   // Store closes, and whenever an install/update lands.
   function refreshStoreDot() {
-    const btns = document.querySelectorAll('.settings-store-pill, .settings-store-hero-cta');
+    // The Settings entry points to the Store, plus the topbar Settings gear —
+    // the gear is what you see WITHOUT opening anything, so the count reaches
+    // you on the dashboard itself and clears once the Store is opened.
+    const btns = document.querySelectorAll('.settings-store-pill, .settings-store-hero-cta, .qbtn-settings');
     if (!btns.length) return;
     Promise.all([countUpdates(), newSinceLastVisit()]).then(([updates, fresh]) => {
       const n = updates > 0 ? updates : fresh;

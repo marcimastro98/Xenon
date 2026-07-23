@@ -1,6 +1,10 @@
-/* ── Search widget tile — the Spotlight's doorway on a dashboard page ────────
-   Static at rest (no animation, no fetch): a search-bar look-alike, quick
-   chips and the recent searches. Theme-aware via the shared tokens. */
+/* ── Search widget tile — the Spotlight engine embedded in a dashboard tile ──
+   The tile hosts its own createSearchUI() instance (spotlight.js): a real
+   input, the parser chips, the result list and the AI mode all live INSIDE
+   the tile. The shared .spot-* rules (Spotlight.css) style the structure;
+   everything here is the tile-scoped variant: compact bar, list that fills
+   the tile, AI ring drawn around the bar instead of the overlay shell.
+   Idle it costs nothing: no fetch, no animation. */
 
 .search-panel .search-widget-mount {
   display: flex;
@@ -11,32 +15,91 @@
   min-height: 0;
 }
 
-.searchw-bar {
+/* The live surface: bar + body. State classes (spot-expanded, spot-loading,
+   spot-ai, spot-ai-thinking) land on THIS element, so the descendant rules in
+   Spotlight.css (.spot-expanded .spot-body, .spot-loading .spot-bar-icon, …)
+   apply scoped to the tile. */
+.searchw-live {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 48px;
-  padding: 0 16px;
+  flex-direction: column;
+  min-height: 0;
+  flex: 0 0 auto;
+}
+.searchw-live.spot-expanded { flex: 1 1 auto; }
+
+/* Compact pill bar (the tile panel is the surface; the bar keeps the old
+   search-bar look the tile always had). */
+.searchw-live .spot-bar {
+  position: relative;
+  min-height: 46px;
+  padding: 0 6px 0 14px;
+  gap: 10px;
   border-radius: 14px;
   border: 1px solid var(--panel-border);
   background: var(--panel-soft);
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
 }
-.searchw-bar:active { transform: scale(0.99); }
-.searchw-glass {
-  width: 20px; height: 20px;
-  flex: 0 0 auto;
-  fill: rgba(var(--accent-rgb), 0.95);
+.searchw-live .spot-bar-icon { width: 20px; height: 20px; }
+.searchw-live .spot-bar .spot-input { font-size: 15.5px; }
+.searchw-live .spot-ai-toggle { width: 32px; height: 32px; }
+.searchw-live .spot-ai-toggle svg { width: 17px; height: 17px; }
+
+/* Body: no divider (the bar's own border separates), list fills the tile. */
+.searchw-live .spot-body {
+  border-top: none;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 4px 0 0;
 }
-.searchw-ph {
-  font-size: 15.5px;
-  opacity: 0.55;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.searchw-live .spot-chips { padding: 8px 2px 0; }
+.searchw-live .spot-list {
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 0;
 }
+
+/* AI mode: the same conic accent→cyan→violet ring the overlay shell wears
+   (Spotlight.css registers --spot-ai-angle and the spot-ai-spin keyframes),
+   here hugging the bar. Per the freeze invariant, the infinite spin is gated
+   off in every frozen state below — the gradient stays, the motion stops. */
+.searchw-live.spot-ai .spot-bar { border-color: transparent; }
+.searchw-live.spot-ai .spot-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(from var(--spot-ai-angle),
+    rgb(var(--accent-rgb)), #7ad7ff 30%, #b69dff 60%, rgb(var(--accent-rgb)));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.85;
+  animation: spot-ai-spin 6s linear infinite;
+}
+.searchw-live.spot-ai.spot-ai-thinking .spot-bar::after { animation-duration: 1.4s; opacity: 1; }
+/* A running animation beats a static declaration — pair the gates with
+   animation: none (freeze invariant: overlay-frozen, ambient-idle, game-mode,
+   low-power-gpu, plus reduced motion). */
+body.overlay-frozen .searchw-live.spot-ai .spot-bar::after,
+body.ambient-idle .searchw-live.spot-ai .spot-bar::after,
+body.game-mode .searchw-live.spot-ai .spot-bar::after,
+body.low-power-gpu .searchw-live.spot-ai .spot-bar::after {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .searchw-live.spot-ai .spot-bar::after { animation: none; }
+}
+
+/* ── Idle content: quick chips + recent searches (hidden while results show) ── */
+.searchw-idle {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+.searchw-idle[hidden] { display: none; }
 
 .searchw-chips {
   display: flex;
@@ -55,27 +118,3 @@
   cursor: pointer;
 }
 .searchw-chip:active { transform: scale(0.96); }
-
-.searchw-recent {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  overflow-y: auto;
-  min-height: 0;
-}
-.searchw-recent-item {
-  min-height: 36px;
-  padding: 0 12px;
-  border-radius: 10px;
-  border: none;
-  background: transparent;
-  color: inherit;
-  font-size: 14px;
-  opacity: 0.8;
-  cursor: pointer;
-  text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.searchw-recent-item:active { background: var(--panel-soft); }

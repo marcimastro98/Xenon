@@ -2453,6 +2453,21 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 /* "Novità" rail chip — accent-tinted so it reads as fresh among the kind filters (#5). */
 .cgal-railbtn.is-new { color: var(--accent, #35e08e); }
 .cgal-railbtn.is-new.active { background: rgba(var(--accent-rgb), 0.16); border-color: rgba(var(--accent-rgb), 0.4); }
+/* "Available until {d}" — the scheduling deadline on supporter/limited cards,
+   hero and detail view. Tier-coloured: gold for supporters, violet on limited. */
+.cgal-until { font-size: 0.74rem; font-weight: 700; color: var(--warn, #ffb454); }
+.cgal-card.is-limited .cgal-until, .cgal-hero.is-limited .cgal-until, .cgal-detail-info .t-limited ~ .cgal-until { color: #bcb0ff; }
+.cgal-until-big { font-size: 0.84rem; }
+
+/* Count riding the "Novità" rail chip — how many entries are new since the last
+   visit (the same number the Settings gear and Store pill badges carry). */
+.cgal-rail-cnt {
+  margin-left: 6px;
+  min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.62rem; font-weight: 800; line-height: 1; border-radius: 999px;
+  color: #04240f; background: var(--accent, #35e08e);
+}
 /* "N new since your last visit" count dot on the Settings entry points to the Store
    (#5). The buttons are made position:relative so the dot sits at their corner; a
    fixed red keeps it readable on both the neutral pill and the accent hero CTA. */
@@ -2468,6 +2483,10 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 /* Accent variant of the Store dot: shown only when there are no updates but there
    ARE new items since the last visit — discovery, not a call to action (#5). */
 .cgal-store-dot.is-new { background: var(--accent, #35e08e); color: #04240f; border-color: var(--panel, #12151c); }
+/* On the topbar Settings gear the count sits at the TOP-LEFT corner: the
+   top-right is the app-update dot's spot (UpdateModal.css), and the two can be
+   up at the same time — an update and new Store content are different news. */
+.qbtn-settings .cgal-store-dot { top: 2px; left: 6px; right: auto; }
 /* Red count of available updates on the Store's Installed tab — how many owned
    items have a newer version waiting. Sits inline after the tab label. */
 .cgal-tab-badge {
@@ -2629,6 +2648,24 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-spotcard-cta .cgal-btn { flex: 1; padding: 8px 12px; font-size: 0.78rem; }
 .cgal-spotcard-cta .cgal-limcount { text-align: left; }
 
+/* Duo — exactly two featured entries. A lone side card stretched to the hero's
+   full height read as broken (a 128px media sliver, crushed text), so both
+   entries get the full hero treatment instead: upright, equal width, media on
+   top. Scoped to the width where they actually sit side by side; below it the
+   spotlight collapse in the 1080px query takes over and the heroes stack in
+   their default horizontal shape. */
+@media (min-width: 1081px) {
+  .cgal-spot.is-duo { grid-template-columns: 1fr 1fr; }
+  .cgal-spot.is-duo > .cgal-hero { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .cgal-spot.is-duo .cgal-media-hero { height: auto; min-height: 0; aspect-ratio: 21 / 9; }
+  /* The side veil is shaped for media-left/info-right; upright only needs the bottom fade. */
+  .cgal-spot.is-duo .cgal-media-hero .cgal-media-veil { background: linear-gradient(180deg, transparent 55%, rgba(6, 8, 10, 0.45) 100%); }
+  .cgal-spot.is-duo .cgal-hero-info { padding: 18px 22px 22px; justify-content: flex-start; gap: 9px; }
+  .cgal-spot.is-duo .cgal-hero-title { font-size: 1.3rem; }
+  .cgal-spot.is-duo .cgal-hero-desc { -webkit-line-clamp: 2; }
+  .cgal-spot.is-duo .cgal-btn-hero { padding: 11px 20px; font-size: 0.88rem; }
+}
+
 /* ── Section blocks + counts ── */
 .cgal-kblock { margin-top: 28px; }
 .cgal-kblock:first-child { margin-top: 0; }
@@ -2642,6 +2679,30 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 
 /* ── Exclusive shelves (Limited + Supporters), on par with each other ── */
 .cgal-feat-block { position: relative; margin-top: 26px; padding: 18px 18px 4px; border-radius: 18px; border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1)); }
+/* The tier shelves hold their WHOLE tier as a horizontal rail: fixed-width
+   cards, native touch pan (finger swipe right-left on the Edge), snap to card
+   edges, a quiet scrollbar for the mouse. Vertical page scroll is untouched —
+   the browser splits pan axes on its own. */
+.cgal-hrail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 232px;
+  gap: 16px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  padding: 2px 2px 12px;
+}
+.cgal-hrail > .cgal-card { scroll-snap-align: start; min-width: 0; }
+.cgal-hrail::-webkit-scrollbar { height: 8px; }
+.cgal-hrail::-webkit-scrollbar-track { background: transparent; }
+.cgal-hrail::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+:root[data-theme="light"] .cgal-hrail::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.2); background-clip: content-box; }
 .cgal-feat-block .cgal-khead { margin-bottom: 4px; }
 .cgal-feat-block.is-limited { border-color: rgba(139, 123, 255, 0.3); background: radial-gradient(130% 100% at 100% 0, rgba(139, 123, 255, 0.1), transparent 60%), rgba(139, 123, 255, 0.02); }
 .cgal-feat-block.is-limited .cgal-khead-ic { color: #bcb0ff; }
@@ -2729,6 +2790,7 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
   .cgal-spotcard { grid-template-columns: 104px minmax(0, 1fr); }
   .cgal-hero-title { font-size: 1.4rem; }
   .cgal-grid { grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 12px; }
+  .cgal-hrail { grid-auto-columns: 188px; gap: 12px; }
   /* Too narrow to sit side by side — back to the stacked card. */
   .cgal-grid.is-solo > .cgal-card { flex-direction: column; }
   .cgal-grid.is-solo > .cgal-card > .cgal-media { flex: none; aspect-ratio: 16 / 10; min-height: 0; }
@@ -3398,6 +3460,29 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .xdrop-dontshow input:focus-visible + .xdrop-box { outline: 2px solid rgb(var(--xd)); outline-offset: 2px; }
 .xdrop-later { background: none; border: 0; cursor: pointer; font-family: inherit; padding: 6px; color: var(--text-dim, #8b91a1); font-size: 0.8rem; font-weight: 600; }
 .xdrop-later:hover { color: var(--text-soft, #c3c8d2); }
+
+/* ── Batch variant: several drops landed at once → ONE grouping card with a
+   short tappable list (thumbnail, tier, name), never a modal per item. The
+   card wears the theme accent (it holds mixed tiers); each ROW carries its
+   own tier colour, gold or violet. */
+.xdrop-card.is-batch { --xd: var(--accent-rgb, 53, 224, 142); --xd-ink: #04240f; width: min(470px, 96vw); }
+.xdrop-batch { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; min-height: 0; }
+.xdrop-row {
+  --xr: 255, 180, 84;                 /* supporters gold (default) */
+  appearance: none; font-family: inherit; text-align: left; cursor: pointer;
+  display: flex; align-items: center; gap: 12px; padding: 8px;
+  border-radius: 14px; border: 1px solid rgba(var(--xr), 0.32);
+  background: rgba(var(--xr), 0.06); color: var(--text, #e7e9ee);
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+}
+.xdrop-row.is-limited { --xr: 139, 123, 255; }
+.xdrop-row:hover { border-color: rgba(var(--xr), 0.6); background: rgba(var(--xr), 0.1); }
+.xdrop-row:active { transform: scale(0.995); }
+.xdrop-row .xdrop-thumb { width: 92px; height: 52px; flex: none; border-radius: 9px; border: 1px solid rgba(255, 255, 255, 0.08); border-bottom-width: 1px; }
+.xdrop-row-mid { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.xdrop-row-tier { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: rgba(var(--xr), 1); }
+.xdrop-row-name { font-size: 0.95rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xdrop-row-left { font-size: 0.74rem; color: var(--text-dim, #8b91a1); font-variant-numeric: tabular-nums; }
 
 @media (max-width: 460px) {
   .xdrop-card { width: 100%; }

@@ -1,51 +1,44 @@
 'use strict';
-// Search widget — the always-visible doorway to the Spotlight for people who
-// want it on a page. At rest it costs nothing: a static search bar look-alike,
-// quick filter chips (Foto / Documenti / Recenti) and the last searches from
-// the same localStorage list the Spotlight keeps. Every interaction just opens
-// the Spotlight (optionally pre-filled) — the widget itself never fetches.
+// Search widget — a real search surface living on a dashboard page. The tile
+// embeds its own instance of the Spotlight engine (Spotlight.createSearchUI):
+// you type IN the tile, results and the AI mode live IN the tile, nothing
+// jumps to an overlay. At rest it still costs nothing — an idle input plus
+// quick filter chips (Foto / Documenti / Recenti); the first fetch happens on
+// the first keystroke. Past searches are deliberately NOT listed here: the
+// tile sits on a dashboard other people can see, and a search phrase is
+// private by default. (The Spotlight keeps recording them for its own use;
+// nothing displays them.)
 (function () {
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
-  const RECENT_KEY = 'xenon.spotlight.recent';
-
-  function readRecent() {
-    try {
-      const arr = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
-      return Array.isArray(arr) ? arr.filter((s) => typeof s === 'string').slice(0, 5) : [];
-    } catch { return []; }
-  }
-
-  function svgIcon(d, cls) {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('aria-hidden', 'true');
-    if (cls) svg.classList.add(cls);
-    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    p.setAttribute('d', d);
-    svg.appendChild(p);
-    return svg;
-  }
-  const GLASS = 'M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm0 2.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM20.7 22.1l-4.8-4.8 1.4-1.4 4.8 4.8-1.4 1.4Z';
-
-  function openSpot(query) {
-    if (!window.Spotlight) return;
-    if (query) window.Spotlight.openWithQuery(query);
-    else window.Spotlight.open();
-  }
 
   function render(mount) {
+    // Layout rebuilds re-render every mount: stop the previous instance's
+    // pending fetch/debounce before dropping its DOM.
+    if (mount._searchUI) { mount._searchUI.stop(); mount._searchUI = null; }
     mount.textContent = '';
+    if (!window.Spotlight || typeof Spotlight.createSearchUI !== 'function') return;
 
-    const bar = document.createElement('button');
-    bar.type = 'button';
-    bar.className = 'searchw-bar';
-    bar.appendChild(svgIcon(GLASS, 'searchw-glass'));
-    const ph = document.createElement('span');
-    ph.className = 'searchw-ph';
-    ph.textContent = t('spot_placeholder', 'Cerca sul PC…');
-    bar.appendChild(ph);
-    bar.addEventListener('click', () => openSpot());
-    mount.appendChild(bar);
+    // The live surface (bar + chips + status + results) — state classes
+    // (spot-expanded, spot-ai, …) land on this container, so the shared
+    // Spotlight rules apply scoped to the tile.
+    const live = document.createElement('div');
+    live.className = 'searchw-live';
+    // Idle content below the bar, hidden while results are showing.
+    const idle = document.createElement('div');
+    idle.className = 'searchw-idle';
+
+    const ui = Spotlight.createSearchUI({
+      host: live,
+      stateHost: live,
+      keyHost: live,
+      withClose: false,
+      onClose: () => ui.reset(),          // Escape clears the tile search
+      onExpand: (expanded) => { idle.hidden = expanded; },
+      // onOpened deliberately absent: after opening a file the tile keeps its
+      // results — it is a persistent surface, not a transient overlay.
+    });
+    mount._searchUI = ui;
+    mount.append(live, idle);
 
     const chips = document.createElement('div');
     chips.className = 'searchw-chips';
@@ -58,25 +51,10 @@
       b.type = 'button';
       b.className = 'searchw-chip';
       b.textContent = t(labelKey, fb);
-      b.addEventListener('click', () => openSpot(q));
+      b.addEventListener('click', () => { ui.setQuery(q); ui.focus(); });
       chips.appendChild(b);
     }
-    mount.appendChild(chips);
-
-    const recent = readRecent();
-    if (recent.length) {
-      const list = document.createElement('div');
-      list.className = 'searchw-recent';
-      for (const q of recent) {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'searchw-recent-item';
-        b.textContent = q;   // user-typed text → textContent only
-        b.addEventListener('click', () => openSpot(q));
-        list.appendChild(b);
-      }
-      mount.appendChild(list);
-    }
+    idle.appendChild(chips);
   }
 
   function renderWidgets() {

@@ -651,7 +651,7 @@ body.topbar-minimal .edge-rail .topbtn {
 body.topbar-minimal .edge-rail .topbtn:hover { background: rgba(255,255,255,0.07); }
 body.topbar-minimal .edge-rail .topbtn svg { width: 19px; height: 19px; }
 /* Hide labels (keep the settings-update dot, which is also a span) */
-body.topbar-minimal .edge-rail .topbtn span:not(.topbtn-update-dot) { display: none; }
+body.topbar-minimal .edge-rail .topbtn span:not(.topbtn-update-dot):not(.cgal-store-dot) { display: none; }
 /* Xenon keeps its solid accent identity even as a compact tile */
 body.topbar-minimal .edge-rail .topbtn.topbtn-xenon {
   background: var(--accent);

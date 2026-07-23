@@ -430,6 +430,13 @@
   .drop-see { font-size: 14px; font-weight: 600; color: var(--muted); }
   .drop-see:hover { color: var(--text); }
   @media (max-width: 780px) { .drop { grid-template-columns: 1fr; gap: 20px; } }
+  /* Duo: two open drops sit side by side as upright cards instead of two
+     stacked full-width banners. Below 980px they stack back into the banner. */
+  @media (min-width: 981px) {
+    .drops.duo { grid-template-columns: 1fr 1fr; }
+    .drops.duo .drop { grid-template-columns: 1fr; align-items: start; gap: 18px; }
+    .drops.duo .drop-main p { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  }
 
   /* ───────────────── CREATE ───────────────── */
   .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 44px; }
@@ -1811,6 +1818,9 @@ I18N.zh = {
     const open = premium.filter((d) => d.open);
     const show = (open.length ? open : premium).slice(0, 2);
     if (!show.length) return;
+    // Two drops sit side by side as upright cards (.drops.duo) instead of two
+    // stacked full-width banners — a wall of banner before the free content.
+    if (show.length === 2) box.classList.add('duo');
 
     // Rendered in UTC on purpose: activeUntil is authored as an end-of-day UTC
     // stamp ("2026-07-31T23:59:59Z"), so a local-time render turns "31 July"

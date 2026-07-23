@@ -12,6 +12,12 @@
 // Search widget tile. `/spotlight` (the desktop popup the global hotkey opens)
 // reuses this module on its own page.
 //
+// The whole search surface (bar, chips, status, results, AI mode) is built by
+// createSearchUI(), a factory with per-instance state: the overlay holds one
+// instance, and the Search widget tile embeds its own so typing and results
+// live inside the tile (window.Spotlight.createSearchUI). One engine, no
+// duplicated search code.
+//
 // Invariants honored here:
 //  * ambientFreeze token while open — nothing animates under the frosted blur.
 //  * File names/paths are UNTRUSTED text → built with textContent, never
@@ -25,23 +31,6 @@
   const PULL_START_PX = 16;    // vertical movement before the gesture claims the pointer
   const RECENT_KEY = 'xenon.spotlight.recent';
   const RECENT_MAX = 8;
-
-  let root = null;             // overlay element (built lazily)
-  let shell = null;            // the pill/panel that expands while typing
-  let input, chipsEl, listEl, statusEl, aiBtn;
-  let openState = false;
-  let debTimer = null;
-  let inflight = null;         // AbortController of the running fetch
-  let lastResults = [];
-  let selIndex = -1;
-  let disabled = {};           // chip dimensions the user removed this session
-  let onCloseNav = null;       // popup page: close = window.close
-  // AI mode: the phrase goes to the configured Xenon AI provider ON ENTER
-  // (never per keystroke — that would burn quota on every letter) and comes
-  // back as the same structured filter the offline parser produces.
-  let aiMode = false;
-  let aiRanFor = null;         // last phrase the AI searched; Enter re-runs only on change
-  let aiNotice = '';           // one-shot status line shown with the next results
 
   // ── tiny formatters ──────────────────────────────────────────────────────
   function fmtSize(n) {
@@ -119,6 +108,8 @@
   //  * only SUCCESSES are cached. A late response for a stale id (evicted
   //    server-side between renders) must never overwrite a good icon with
   //    "no icon" — on an empty answer we retry once with the freshest id.
+  // Shared across instances (overlay + widget tiles): the cache is per app,
+  // not per surface.
   const appIcons = new Map();     // key → data URL (successes only)
   const appIconWait = new Map();  // key → { host, id } of the latest render
   // `force` is the synchronous cache-hit path: it runs while the row is still
@@ -222,35 +213,6 @@
     return '';
   }
 
-  function renderChips(chips, fixed) {
-    chipsEl.textContent = '';
-    for (const c of chips || []) {
-      const chip = document.createElement('button');
-      chip.type = 'button';
-      chip.className = 'spot-chip spot-chip-' + c.type + (fixed ? ' spot-chip-fixed' : '');
-      const label = document.createElement('span');
-      label.textContent = chipLabel(c);
-      chip.appendChild(label);
-      if (!fixed) {
-        // Offline-parser chips are removable; AI chips only DISPLAY the
-        // interpretation (rephrasing is the correction path there).
-        const x = document.createElement('span');
-        x.className = 'spot-chip-x';
-        x.textContent = '×';
-        chip.appendChild(x);
-        chip.title = t('spot_chip_remove', 'Non è quello che intendevo');
-        chip.addEventListener('click', () => {
-          // Removing a chip = "that reading was wrong": re-parse with the
-          // dimension disabled, so the word searches as a plain term instead.
-          disabled[c.type] = true;
-          runSearch();
-        });
-      }
-      chipsEl.appendChild(chip);
-    }
-    chipsEl.hidden = !chipsEl.childElementCount;
-  }
-
   // ── recent searches (local only) ─────────────────────────────────────────
   function readRecent() {
     try {
@@ -265,263 +227,40 @@
     try { localStorage.setItem(RECENT_KEY, JSON.stringify(arr)); } catch {}
   }
 
-  // Closed state — Apple-style: nothing but the pill. The panel body (chips,
-  // status, results) only exists while there is text; recents live in the
-  // Search widget tile, not here.
-  function renderIdle() {
-    listEl.textContent = '';
-    statusEl.textContent = '';
-    chipsEl.textContent = '';
-    chipsEl.hidden = true;
-    root.classList.remove('spot-expanded');
-    announceExpand(false);
-  }
+  // ── the search surface factory ───────────────────────────────────────────
+  // Builds the bar (glass, input, AI sparkle, optional ×) + body (chips,
+  // status, results) into opts.host and wires the whole engine with
+  // per-instance state. Used twice: the overlay below, and the Search widget
+  // tile (via window.Spotlight.createSearchUI).
+  //   opts.host      element receiving .spot-bar + .spot-body
+  //   opts.stateHost element carrying the state classes (spot-expanded,
+  //                  spot-loading, spot-ai, spot-ai-thinking) — the overlay
+  //                  root or the widget's own container
+  //   opts.keyHost   element the keydown handler attaches to
+  //   opts.withClose build the × button (overlay only)
+  //   opts.onClose   Escape / × (overlay closes; the widget clears)
+  //   opts.onExpand  expanded-state change (the popup resizes its window on it)
+  //   opts.onOpened  a file was successfully opened (overlay closes; widget stays)
+  function createSearchUI(opts) {
+    const stateHost = opts.stateHost;
+    let debTimer = null;
+    let inflight = null;         // AbortController of the running fetch
+    let lastResults = [];
+    let selIndex = -1;
+    let disabled = {};           // chip dimensions the user removed this session
+    // AI mode: the phrase goes to the configured Xenon AI provider ON ENTER
+    // (never per keystroke — that would burn quota on every letter) and comes
+    // back as the same structured filter the offline parser produces.
+    let aiMode = false;
+    let aiRanFor = null;         // last phrase the AI searched; Enter re-runs only on change
+    let aiNotice = '';           // one-shot status line shown with the next results
 
-  // ── results ──────────────────────────────────────────────────────────────
-  function setSelected(i) {
-    const rows = listEl.querySelectorAll('.spot-row');
-    if (!rows.length) { selIndex = -1; return; }
-    selIndex = Math.max(0, Math.min(rows.length - 1, i));
-    rows.forEach((r, idx) => r.classList.toggle('is-selected', idx === selIndex));
-    const sel = rows[selIndex];
-    if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: 'nearest' });
-  }
-
-  async function act(kind, r, row) {
-    try {
-      const res = await fetch('/search/' + kind, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: r.id }),
-      });
-      const out = await res.json().catch(() => ({}));
-      if (out && out.ok) {
-        pushRecent(input.value);
-        if (kind === 'open') close();
-        return;
-      }
-      if (out && out.error === 'blocked_ext' && out.revealable) {
-        // An exe/lnk result never opens from here — offer the safe path inline.
-        row.classList.add('spot-row-blocked');
-        const note = row.querySelector('.spot-row-note') || row.appendChild(Object.assign(document.createElement('span'), { className: 'spot-row-note' }));
-        note.textContent = t('spot_blocked_hint', 'Per sicurezza non si apre da qui: usa “Mostra nella cartella”');
-        return;
-      }
-      statusEl.textContent = out && out.error === 'not_found'
-        ? t('spot_gone', 'Il file non esiste più')
-        : t('spot_open_failed', 'Apertura non riuscita');
-    } catch {
-      statusEl.textContent = t('spot_open_failed', 'Apertura non riuscita');
+    function setExpanded(expanded) {
+      stateHost.classList.toggle('spot-expanded', !!expanded);
+      if (typeof opts.onExpand === 'function') opts.onExpand(!!expanded);
     }
-  }
 
-  function renderResults(out, terms) {
-    root.classList.add('spot-expanded');
-    announceExpand(true);
-    listEl.textContent = '';
-    // Applications first, macOS-style: launchable entries above file matches.
-    const appRows = (out.apps || []).map((a) => ({ id: a.id, name: a.name, app: true }));
-    lastResults = [...appRows, ...(out.results || [])];
-    selIndex = -1;
-    if (out.index === 'building') {
-      // The Living Index is still walking the roots: results flow from Windows
-      // Search meanwhile, and get complete on their own within a minute.
-      statusEl.textContent = t('spot_index_building', 'Sto imparando il disco… i risultati si completano da soli tra poco');
-    } else if (out.wds === 'unavailable' && out.index !== 'ready') {
-      statusEl.textContent = t('spot_wds_off', 'Windows Search è disattivato su questo PC: risultati limitati');
-    } else if (!lastResults.length) {
-      // With the Living Index ready, "no results" is the honest, complete
-      // answer. The Windows-indexing hint explains a possible gap only while
-      // the search runs WITHOUT the index (no helper).
-      statusEl.textContent = out.index === 'ready'
-        ? t('spot_no_results', 'Nessun risultato')
-        : t('spot_no_results', 'Nessun risultato') + '. ' + t('spot_no_results_hint', 'Windows non indicizza tutte le cartelle: aggiungi le tue in Impostazioni → Ricerca e disco');
-    } else {
-      statusEl.textContent = '';
-    }
-    if (aiNotice) {
-      // One-shot notice (e.g. "AI unavailable, standard search") shown WITH
-      // the results it applies to, then cleared.
-      statusEl.textContent = statusEl.textContent ? aiNotice + ' · ' + statusEl.textContent : aiNotice;
-      aiNotice = '';
-    }
-    for (const r of lastResults) {
-      const row = document.createElement('div');
-      row.className = r.app ? 'spot-row spot-row-app' : 'spot-row';
-      row.setAttribute('role', 'button');
-      row.tabIndex = -1;
-
-      let iconEl;
-      if (r.app) {
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('viewBox', '0 0 24 24');
-        svg.setAttribute('aria-hidden', 'true');
-        const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        p.setAttribute('d', ICON_PATHS.app);
-        svg.appendChild(p);
-        svg.classList.add('spot-icon', 'spot-icon-appglyph');
-        iconEl = svg;
-      } else {
-        iconEl = iconFor(r);
-      }
-      row.appendChild(iconEl);
-      upgradeAppIcon(r, iconEl);
-
-      const mid = document.createElement('div');
-      mid.className = 'spot-row-mid';
-      const nameEl = document.createElement('div');
-      nameEl.className = 'spot-row-name';
-      nameEl.appendChild(highlightName(r.name || '', terms));
-      const metaEl = document.createElement('div');
-      metaEl.className = 'spot-row-meta';
-      metaEl.textContent = r.app
-        ? t('spot_app', 'Applicazione')
-        : [shortDir(r.dir), fmtSize(r.size), fmtDate(r.mtime)].filter(Boolean).join('  ·  ');
-      mid.append(nameEl, metaEl);
-      row.appendChild(mid);
-
-      if (r.app) {
-        row.addEventListener('click', () => act('open', r, row));
-        listEl.appendChild(row);
-        continue;
-      }
-
-      const revealBtn = document.createElement('button');
-      revealBtn.type = 'button';
-      revealBtn.className = 'spot-row-reveal';
-      revealBtn.title = t('spot_reveal', 'Mostra nella cartella');
-      const rsvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      rsvg.setAttribute('viewBox', '0 0 24 24');
-      rsvg.setAttribute('aria-hidden', 'true');
-      const rp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      rp.setAttribute('d', ICON_PATHS.folder);
-      rsvg.appendChild(rp);
-      revealBtn.appendChild(rsvg);
-      revealBtn.addEventListener('click', (e) => { e.stopPropagation(); act('reveal', r, row); });
-      row.appendChild(revealBtn);
-
-      row.addEventListener('click', () => act('open', r, row));
-      listEl.appendChild(row);
-    }
-  }
-
-  // ── AI mode ──────────────────────────────────────────────────────────────
-  function setAiMode(on) {
-    aiMode = !!on;
-    aiRanFor = null;
-    root.classList.toggle('spot-ai', aiMode);
-    root.classList.remove('spot-ai-thinking');
-    if (aiBtn) {
-      aiBtn.classList.toggle('is-on', aiMode);
-      aiBtn.setAttribute('aria-pressed', aiMode ? 'true' : 'false');
-    }
-    input.placeholder = aiMode
-      ? t('spot_ai_placeholder', 'Descrivi cosa cerchi…')
-      : t('spot_placeholder', 'Cerca sul PC…');
-    if (aiMode) {
-      // No per-keystroke searches in AI mode: stop whatever is running and
-      // wait for Enter.
-      if (debTimer) { clearTimeout(debTimer); debTimer = null; }
-      if (inflight) { inflight.abort(); inflight = null; }
-      root.classList.remove('spot-loading');
-      if (input.value.trim()) {
-        root.classList.add('spot-expanded');
-        announceExpand(true);
-        statusEl.textContent = t('spot_ai_hint', 'Premi Invio: l’AI interpreta la frase');
-      }
-    } else if (input.value.trim()) {
-      runSearch();
-    } else {
-      renderIdle();
-    }
-    input.focus();
-  }
-
-  // One phrase → one provider round-trip → the same structured filter the
-  // offline parser produces, executed by the same engine. Any failure
-  // degrades to the offline parse with an honest notice, never a dead end.
-  async function runAiSearch() {
-    const q = input.value.trim();
-    if (!q) return;
-    if (debTimer) { clearTimeout(debTimer); debTimer = null; }
-    if (inflight) inflight.abort();
-    const ctrl = new AbortController();
-    inflight = ctrl;
-    aiRanFor = q;
-    root.classList.add('spot-loading', 'spot-ai-thinking', 'spot-expanded');
-    announceExpand(true);
-    statusEl.textContent = t('spot_ai_thinking', 'L’AI sta interpretando…');
-    try {
-      const res = await fetch('/search/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ q: q.slice(0, 300) }),
-        signal: ctrl.signal,
-      });
-      const out = await res.json().catch(() => ({}));
-      if (ctrl !== inflight) return;
-      if (!out || !out.ok) {
-        aiNotice = t('spot_ai_fallback', 'AI non disponibile: uso la ricerca normale');
-        aiRanFor = null;
-        runSearch();
-        return;
-      }
-      renderChips(out.chips, true);
-      renderResults(out, out.terms || []);
-    } catch (e) {
-      if (e && e.name === 'AbortError') return;
-      statusEl.textContent = t('spot_error', 'Ricerca non disponibile');
-    } finally {
-      if (ctrl === inflight) {
-        inflight = null;
-        root.classList.remove('spot-loading', 'spot-ai-thinking');
-      }
-    }
-  }
-
-  // ── search plumbing ──────────────────────────────────────────────────────
-  function runSearch() {
-    if (debTimer) { clearTimeout(debTimer); debTimer = null; }
-    const q = input.value;
-    if (!q.trim()) { disabled = {}; if (inflight) inflight.abort(); renderIdle(); return; }
-    debTimer = setTimeout(async () => {
-      debTimer = null;
-      if (inflight) inflight.abort();
-      const ctrl = new AbortController();
-      inflight = ctrl;
-      root.classList.add('spot-loading');
-      try {
-        let url = '/search?q=' + encodeURIComponent(q.slice(0, 200));
-        if (Object.keys(disabled).length) url += '&disable=' + encodeURIComponent(JSON.stringify(disabled));
-        const res = await fetch(url, { signal: ctrl.signal });
-        const out = await res.json();
-        if (ctrl !== inflight) return;   // a newer keystroke superseded this
-        renderChips(out.chips);
-        const terms = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/\s+/).filter((s) => s.length >= 2);
-        renderResults(out, terms);
-      } catch (e) {
-        if (e && e.name === 'AbortError') return;
-        root.classList.add('spot-expanded');
-        announceExpand(true);
-        statusEl.textContent = t('spot_error', 'Ricerca non disponibile');
-      } finally {
-        if (ctrl === inflight) { inflight = null; root.classList.remove('spot-loading'); }
-      }
-    }, DEBOUNCE_MS);
-  }
-
-  // ── overlay shell ────────────────────────────────────────────────────────
-  function build() {
-    if (root) return root;
-    root = document.createElement('div');
-    root.className = 'spotlight';
-    root.hidden = true;
-
-    // One shell that IS the pill when closed and grows into the results panel
-    // while typing — a single continuous rounded surface, Apple-style.
-    shell = document.createElement('div');
-    shell.className = 'spot-shell';
-
+    // ── DOM ──
     const bar = document.createElement('div');
     bar.className = 'spot-bar';
     const glass = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -531,7 +270,7 @@
     const gp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     gp.setAttribute('d', 'M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm0 2.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM20.7 22.1l-4.8-4.8 1.4-1.4 4.8 4.8-1.4 1.4Z');
     glass.appendChild(gp);
-    input = document.createElement('input');
+    const input = document.createElement('input');
     input.type = 'text';
     input.className = 'spot-input';
     input.autocomplete = 'off';
@@ -544,15 +283,14 @@
         // screen and just remind how to run.
         aiRanFor = null;
         if (!input.value.trim()) { renderIdle(); return; }
-        root.classList.add('spot-expanded');
-        announceExpand(true);
+        setExpanded(true);
         statusEl.textContent = t('spot_ai_hint', 'Premi Invio: l’AI interpreta la frase');
         return;
       }
       runSearch();
     });
     // AI mode toggle: the sparkle. Ctrl+I flips it too.
-    aiBtn = document.createElement('button');
+    const aiBtn = document.createElement('button');
     aiBtn.type = 'button';
     aiBtn.className = 'spot-ai-toggle';
     aiBtn.title = t('spot_ai_toggle', 'Ricerca intelligente (Ctrl+I)');
@@ -567,36 +305,303 @@
     spark.append(sp1, sp2);
     aiBtn.appendChild(spark);
     aiBtn.addEventListener('click', () => setAiMode(!aiMode));
-    const closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.className = 'spot-close';
-    closeBtn.textContent = '×';
-    closeBtn.title = t('spot_close', 'Chiudi');
-    closeBtn.addEventListener('click', () => close());
-    bar.append(glass, input, aiBtn, closeBtn);
+    bar.append(glass, input, aiBtn);
+    if (opts.withClose) {
+      const closeBtn = document.createElement('button');
+      closeBtn.type = 'button';
+      closeBtn.className = 'spot-close';
+      closeBtn.textContent = '×';
+      closeBtn.title = t('spot_close', 'Chiudi');
+      closeBtn.addEventListener('click', () => { if (typeof opts.onClose === 'function') opts.onClose(); });
+      bar.appendChild(closeBtn);
+    }
 
-    chipsEl = document.createElement('div');
+    const chipsEl = document.createElement('div');
     chipsEl.className = 'spot-chips';
     chipsEl.hidden = true;
 
-    statusEl = document.createElement('div');
+    const statusEl = document.createElement('div');
     statusEl.className = 'spot-status';
 
-    listEl = document.createElement('div');
+    const listEl = document.createElement('div');
     listEl.className = 'spot-list';
 
     const body = document.createElement('div');
     body.className = 'spot-body';
     body.append(chipsEl, statusEl, listEl);
 
-    shell.append(bar, body);
-    root.appendChild(shell);
+    opts.host.append(bar, body);
 
-    // A tap on the frosted backdrop (outside the panel) closes.
-    root.addEventListener('pointerdown', (e) => { if (e.target === root) close(); });
+    // ── chips render ──
+    function renderChips(chips, fixed) {
+      chipsEl.textContent = '';
+      for (const c of chips || []) {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'spot-chip spot-chip-' + c.type + (fixed ? ' spot-chip-fixed' : '');
+        const label = document.createElement('span');
+        label.textContent = chipLabel(c);
+        chip.appendChild(label);
+        if (!fixed) {
+          // Offline-parser chips are removable; AI chips only DISPLAY the
+          // interpretation (rephrasing is the correction path there).
+          const x = document.createElement('span');
+          x.className = 'spot-chip-x';
+          x.textContent = '×';
+          chip.appendChild(x);
+          chip.title = t('spot_chip_remove', 'Non è quello che intendevo');
+          chip.addEventListener('click', () => {
+            // Removing a chip = "that reading was wrong": re-parse with the
+            // dimension disabled, so the word searches as a plain term instead.
+            disabled[c.type] = true;
+            runSearch();
+          });
+        }
+        chipsEl.appendChild(chip);
+      }
+      chipsEl.hidden = !chipsEl.childElementCount;
+    }
 
-    root.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+    // Closed state — Apple-style: nothing but the pill. The panel body (chips,
+    // status, results) only exists while there is text.
+    function renderIdle() {
+      listEl.textContent = '';
+      statusEl.textContent = '';
+      chipsEl.textContent = '';
+      chipsEl.hidden = true;
+      setExpanded(false);
+    }
+
+    // ── results ──
+    function setSelected(i) {
+      const rows = listEl.querySelectorAll('.spot-row');
+      if (!rows.length) { selIndex = -1; return; }
+      selIndex = Math.max(0, Math.min(rows.length - 1, i));
+      rows.forEach((r, idx) => r.classList.toggle('is-selected', idx === selIndex));
+      const sel = rows[selIndex];
+      if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: 'nearest' });
+    }
+
+    async function act(kind, r, row) {
+      try {
+        const res = await fetch('/search/' + kind, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: r.id }),
+        });
+        const out = await res.json().catch(() => ({}));
+        if (out && out.ok) {
+          pushRecent(input.value);
+          if (kind === 'open' && typeof opts.onOpened === 'function') opts.onOpened();
+          return;
+        }
+        if (out && out.error === 'blocked_ext' && out.revealable) {
+          // An exe/lnk result never opens from here — offer the safe path inline.
+          row.classList.add('spot-row-blocked');
+          const note = row.querySelector('.spot-row-note') || row.appendChild(Object.assign(document.createElement('span'), { className: 'spot-row-note' }));
+          note.textContent = t('spot_blocked_hint', 'Per sicurezza non si apre da qui: usa “Mostra nella cartella”');
+          return;
+        }
+        statusEl.textContent = out && out.error === 'not_found'
+          ? t('spot_gone', 'Il file non esiste più')
+          : t('spot_open_failed', 'Apertura non riuscita');
+      } catch {
+        statusEl.textContent = t('spot_open_failed', 'Apertura non riuscita');
+      }
+    }
+
+    function renderResults(out, terms) {
+      setExpanded(true);
+      listEl.textContent = '';
+      // Applications first, macOS-style: launchable entries above file matches.
+      const appRows = (out.apps || []).map((a) => ({ id: a.id, name: a.name, app: true }));
+      lastResults = [...appRows, ...(out.results || [])];
+      selIndex = -1;
+      if (out.index === 'building') {
+        // The Living Index is still walking the roots: results flow from Windows
+        // Search meanwhile, and get complete on their own within a minute.
+        statusEl.textContent = t('spot_index_building', 'Sto imparando il disco… i risultati si completano da soli tra poco');
+      } else if (out.wds === 'unavailable' && out.index !== 'ready') {
+        statusEl.textContent = t('spot_wds_off', 'Windows Search è disattivato su questo PC: risultati limitati');
+      } else if (!lastResults.length) {
+        // With the Living Index ready, "no results" is the honest, complete
+        // answer. The Windows-indexing hint explains a possible gap only while
+        // the search runs WITHOUT the index (no helper).
+        statusEl.textContent = out.index === 'ready'
+          ? t('spot_no_results', 'Nessun risultato')
+          : t('spot_no_results', 'Nessun risultato') + '. ' + t('spot_no_results_hint', 'Windows non indicizza tutte le cartelle: aggiungi le tue in Impostazioni → Ricerca e disco');
+      } else {
+        statusEl.textContent = '';
+      }
+      if (aiNotice) {
+        // One-shot notice (e.g. "AI unavailable, standard search") shown WITH
+        // the results it applies to, then cleared.
+        statusEl.textContent = statusEl.textContent ? aiNotice + ' · ' + statusEl.textContent : aiNotice;
+        aiNotice = '';
+      }
+      for (const r of lastResults) {
+        const row = document.createElement('div');
+        row.className = r.app ? 'spot-row spot-row-app' : 'spot-row';
+        row.setAttribute('role', 'button');
+        row.tabIndex = -1;
+
+        let iconEl;
+        if (r.app) {
+          const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          svg.setAttribute('viewBox', '0 0 24 24');
+          svg.setAttribute('aria-hidden', 'true');
+          const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          p.setAttribute('d', ICON_PATHS.app);
+          svg.appendChild(p);
+          svg.classList.add('spot-icon', 'spot-icon-appglyph');
+          iconEl = svg;
+        } else {
+          iconEl = iconFor(r);
+        }
+        row.appendChild(iconEl);
+        upgradeAppIcon(r, iconEl);
+
+        const mid = document.createElement('div');
+        mid.className = 'spot-row-mid';
+        const nameEl = document.createElement('div');
+        nameEl.className = 'spot-row-name';
+        nameEl.appendChild(highlightName(r.name || '', terms));
+        const metaEl = document.createElement('div');
+        metaEl.className = 'spot-row-meta';
+        metaEl.textContent = r.app
+          ? t('spot_app', 'Applicazione')
+          : [shortDir(r.dir), fmtSize(r.size), fmtDate(r.mtime)].filter(Boolean).join('  ·  ');
+        mid.append(nameEl, metaEl);
+        row.appendChild(mid);
+
+        if (r.app) {
+          row.addEventListener('click', () => act('open', r, row));
+          listEl.appendChild(row);
+          continue;
+        }
+
+        const revealBtn = document.createElement('button');
+        revealBtn.type = 'button';
+        revealBtn.className = 'spot-row-reveal';
+        revealBtn.title = t('spot_reveal', 'Mostra nella cartella');
+        const rsvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        rsvg.setAttribute('viewBox', '0 0 24 24');
+        rsvg.setAttribute('aria-hidden', 'true');
+        const rp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        rp.setAttribute('d', ICON_PATHS.folder);
+        rsvg.appendChild(rp);
+        revealBtn.appendChild(rsvg);
+        revealBtn.addEventListener('click', (e) => { e.stopPropagation(); act('reveal', r, row); });
+        row.appendChild(revealBtn);
+
+        row.addEventListener('click', () => act('open', r, row));
+        listEl.appendChild(row);
+      }
+    }
+
+    // ── AI mode ──
+    function setAiMode(on) {
+      aiMode = !!on;
+      aiRanFor = null;
+      stateHost.classList.toggle('spot-ai', aiMode);
+      stateHost.classList.remove('spot-ai-thinking');
+      aiBtn.classList.toggle('is-on', aiMode);
+      aiBtn.setAttribute('aria-pressed', aiMode ? 'true' : 'false');
+      input.placeholder = aiMode
+        ? t('spot_ai_placeholder', 'Descrivi cosa cerchi…')
+        : t('spot_placeholder', 'Cerca sul PC…');
+      if (aiMode) {
+        // No per-keystroke searches in AI mode: stop whatever is running and
+        // wait for Enter.
+        if (debTimer) { clearTimeout(debTimer); debTimer = null; }
+        if (inflight) { inflight.abort(); inflight = null; }
+        stateHost.classList.remove('spot-loading');
+        if (input.value.trim()) {
+          setExpanded(true);
+          statusEl.textContent = t('spot_ai_hint', 'Premi Invio: l’AI interpreta la frase');
+        }
+      } else if (input.value.trim()) {
+        runSearch();
+      } else {
+        renderIdle();
+      }
+      input.focus();
+    }
+
+    // One phrase → one provider round-trip → the same structured filter the
+    // offline parser produces, executed by the same engine. Any failure
+    // degrades to the offline parse with an honest notice, never a dead end.
+    async function runAiSearch() {
+      const q = input.value.trim();
+      if (!q) return;
+      if (debTimer) { clearTimeout(debTimer); debTimer = null; }
+      if (inflight) inflight.abort();
+      const ctrl = new AbortController();
+      inflight = ctrl;
+      aiRanFor = q;
+      stateHost.classList.add('spot-loading', 'spot-ai-thinking');
+      setExpanded(true);
+      statusEl.textContent = t('spot_ai_thinking', 'L’AI sta interpretando…');
+      try {
+        const res = await fetch('/search/ai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ q: q.slice(0, 300) }),
+          signal: ctrl.signal,
+        });
+        const out = await res.json().catch(() => ({}));
+        if (ctrl !== inflight) return;
+        if (!out || !out.ok) {
+          aiNotice = t('spot_ai_fallback', 'AI non disponibile: uso la ricerca normale');
+          aiRanFor = null;
+          runSearch();
+          return;
+        }
+        renderChips(out.chips, true);
+        renderResults(out, out.terms || []);
+      } catch (e) {
+        if (e && e.name === 'AbortError') return;
+        statusEl.textContent = t('spot_error', 'Ricerca non disponibile');
+      } finally {
+        if (ctrl === inflight) {
+          inflight = null;
+          stateHost.classList.remove('spot-loading', 'spot-ai-thinking');
+        }
+      }
+    }
+
+    // ── search plumbing ──
+    function runSearch() {
+      if (debTimer) { clearTimeout(debTimer); debTimer = null; }
+      const q = input.value;
+      if (!q.trim()) { disabled = {}; if (inflight) inflight.abort(); renderIdle(); return; }
+      debTimer = setTimeout(async () => {
+        debTimer = null;
+        if (inflight) inflight.abort();
+        const ctrl = new AbortController();
+        inflight = ctrl;
+        stateHost.classList.add('spot-loading');
+        try {
+          let url = '/search?q=' + encodeURIComponent(q.slice(0, 200));
+          if (Object.keys(disabled).length) url += '&disable=' + encodeURIComponent(JSON.stringify(disabled));
+          const res = await fetch(url, { signal: ctrl.signal });
+          const out = await res.json();
+          if (ctrl !== inflight) return;   // a newer keystroke superseded this
+          renderChips(out.chips);
+          const terms = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/\s+/).filter((s) => s.length >= 2);
+          renderResults(out, terms);
+        } catch (e) {
+          if (e && e.name === 'AbortError') return;
+          setExpanded(true);
+          statusEl.textContent = t('spot_error', 'Ricerca non disponibile');
+        } finally {
+          if (ctrl === inflight) { inflight = null; stateHost.classList.remove('spot-loading'); }
+        }
+      }, DEBOUNCE_MS);
+    }
+
+    opts.keyHost.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); if (typeof opts.onClose === 'function') opts.onClose(); return; }
       if (e.ctrlKey && !e.shiftKey && !e.altKey && (e.key === 'i' || e.key === 'I')) {
         e.preventDefault(); setAiMode(!aiMode); return;
       }
@@ -614,6 +619,65 @@
       }
     });
 
+    return {
+      input,
+      focus() { input.focus(); },
+      // Fresh start (overlay open, widget Escape): clears text and pending
+      // work; the AI mode CHOICE persists, like the overlay always did.
+      reset() {
+        disabled = {};
+        aiRanFor = null;
+        input.value = '';
+        if (debTimer) { clearTimeout(debTimer); debTimer = null; }
+        if (inflight) { inflight.abort(); inflight = null; }
+        stateHost.classList.remove('spot-loading', 'spot-ai-thinking');
+        renderIdle();
+      },
+      setQuery(q) { input.value = q || ''; runSearch(); },
+      // Stop pending work without touching the DOM (overlay close, tile teardown).
+      stop() {
+        if (debTimer) { clearTimeout(debTimer); debTimer = null; }
+        if (inflight) { inflight.abort(); inflight = null; }
+      },
+    };
+  }
+
+  // ── overlay shell (one createSearchUI instance) ──────────────────────────
+  let root = null;             // overlay element (built lazily)
+  let shell = null;            // the pill/panel that expands while typing
+  let ui = null;               // the overlay's search surface
+  let openState = false;
+  let onCloseNav = null;       // popup page: close = window.close
+
+  // The popup page listens to this to grow/shrink its own window.
+  function announceExpand(expanded) {
+    try { window.dispatchEvent(new CustomEvent('spotlight-expand', { detail: { expanded } })); } catch {}
+  }
+
+  function build() {
+    if (root) return root;
+    root = document.createElement('div');
+    root.className = 'spotlight';
+    root.hidden = true;
+
+    // One shell that IS the pill when closed and grows into the results panel
+    // while typing — a single continuous rounded surface, Apple-style.
+    shell = document.createElement('div');
+    shell.className = 'spot-shell';
+    ui = createSearchUI({
+      host: shell,
+      stateHost: root,
+      keyHost: root,
+      withClose: true,
+      onClose: () => close(),
+      onExpand: announceExpand,
+      onOpened: () => close(),
+    });
+    root.appendChild(shell);
+
+    // A tap on the frosted backdrop (outside the panel) closes.
+    root.addEventListener('pointerdown', (e) => { if (e.target === root) close(); });
+
     document.body.appendChild(root);
     return root;
   }
@@ -623,37 +687,27 @@
     try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
   }
 
-  // The popup page listens to this to grow/shrink its own window.
-  function announceExpand(expanded) {
-    try { window.dispatchEvent(new CustomEvent('spotlight-expand', { detail: { expanded } })); } catch {}
-  }
-
   function open() {
     build();
-    if (openState) { input.focus(); return; }
+    if (openState) { ui.focus(); return; }
     openState = true;
-    disabled = {};
-    aiRanFor = null;
     root.hidden = false;
     root.classList.add('spot-open', 'spot-pop');
     setTimeout(() => root.classList.remove('spot-pop'), 350);
     if (window.ambientFreeze) window.ambientFreeze('spotlight', true);
-    renderIdle();
-    announceExpand(false);
-    input.value = '';
-    input.focus();
+    ui.reset();
+    ui.focus();
   }
 
   function openWithQuery(q) {
     open();
-    if (q) { input.value = q; runSearch(); }
+    if (q) ui.setQuery(q);
   }
 
   function close() {
     if (!openState || !root) return;
     openState = false;
-    if (debTimer) { clearTimeout(debTimer); debTimer = null; }
-    if (inflight) { inflight.abort(); inflight = null; }
+    ui.stop();
     root.classList.remove('spot-open', 'spot-pop', 'spot-expanded', 'spot-loading', 'spot-ai-thinking');
     root.hidden = true;
     announceExpand(false);
@@ -852,6 +906,7 @@
     open, openWithQuery, close,
     toggle() { if (openState) close(); else open(); },
     isOpen() { return openState; },
+    createSearchUI,
     _setCloseNav(fn) { onCloseNav = typeof fn === 'function' ? fn : null; },
   };
 })();
