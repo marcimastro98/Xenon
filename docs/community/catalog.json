@@ -715,8 +715,7 @@
         "text": "#fbf3e0"
       },
       "shots": 4,
-      "activeFrom": "2026-07-24",
-      "activeUntil": "2026-08-24",
+      "activeUntil": "2026-08-24T23:59:59+02:00",
       "addedAt": "2026-07-23",
       "codeFile": true,
       "updatedAt": "2026-07-23"
