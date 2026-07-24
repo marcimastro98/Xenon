@@ -660,8 +660,16 @@ pub fn run() {
                 .always_on_top(false)
                 .visible(true)
                 .focused(true)
-                .center()
-                .transparent(false)
+                .center();
+            // `transparent` is not on the macOS builder at all: making a window
+            // transparent there needs a private API, so Tauri hides the method
+            // unless the `macos-private-api` feature is enabled. Opting into a
+            // private API to declare that the window is NOT transparent would be
+            // absurd — and false is the default everywhere — so this states the
+            // intent only on the platforms where stating it is free.
+            #[cfg(not(target_os = "macos"))]
+            let builder = builder.transparent(false);
+            let builder = builder
                 // The kiosk lives on the Edge and is controlled from the system
                 // tray (show/hide/restart/exit), so keep it out of the main
                 // taskbar and Alt-Tab — it runs quietly in the background.
