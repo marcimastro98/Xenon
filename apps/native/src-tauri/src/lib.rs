@@ -333,17 +333,10 @@ static LEGACY_RESCUE_STARTED: std::sync::atomic::AtomicBool = std::sync::atomic:
 /// If the task does not exist (widget never installed) this is a no-op and the
 /// splash's own hint tells the user what to install.
 #[cfg(windows)]
-fn spawn_backend_nudge(port: u16) {
+fn spawn_backend_nudge(_app: &tauri::AppHandle, port: u16) {
     std::thread::spawn(move || {
-        use std::net::{SocketAddr, TcpStream};
-        use std::time::Duration;
-        let addr = SocketAddr::from(([127, 0, 0, 1], port));
-        // ~8–16s of grace so a normally-starting backend is never interfered with.
-        for _ in 0..4 {
-            if TcpStream::connect_timeout(&addr, Duration::from_secs(2)).is_ok() {
-                return; // backend is up — nothing to heal
-            }
-            std::thread::sleep(Duration::from_secs(2));
+        if backend_answers(port) {
+            return; // backend is up — nothing to heal
         }
         if port == 3030 {
             use std::os::windows::process::CommandExt;
@@ -354,6 +347,96 @@ fn spawn_backend_nudge(port: u16) {
                 .status();
         }
     });
+}
+
+/// macOS twin of the nudge above. The two signals differ from Windows because
+/// the install shapes do: the per-user LaunchAgent registered by
+/// `server/install.sh` is the "backend installed" marker (the analogue of the
+/// "Xenon Edge Widget" scheduled task), and a `.dmg` has no install hook at all
+/// — so a first launch that finds NO agent is also the only moment this app can
+/// offer to set the backend up. That is what the bundled bootstrap does, in a
+/// visible Terminal window the user can read and interrupt; it is idempotent and
+/// exits within a second or two when anything is already installed.
+#[cfg(target_os = "macos")]
+fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
+    use tauri::path::BaseDirectory;
+    use tauri::Manager;
+    let script = app
+        .path()
+        .resolve("macos/xenon-bootstrap.sh", BaseDirectory::Resource)
+        .ok();
+    let plist = app.path().home_dir().ok().map(|h| {
+        h.join("Library/LaunchAgents/com.marcimastro98.xenon.backend.plist")
+    });
+    std::thread::spawn(move || {
+        if backend_answers(port) {
+            return;
+        }
+        if port != 3030 {
+            return;
+        }
+        // The agent exists but nothing answers: it crashed or its login start
+        // never fired. `kickstart -k` restarts it in the user's GUI domain (the
+        // only domain it can work in — see the LaunchAgent note in install.sh).
+        if plist.as_ref().map(|p| p.exists()).unwrap_or(false) {
+            if let Some(uid) = current_uid() {
+                let _ = std::process::Command::new("launchctl")
+                    .args([
+                        "kickstart",
+                        "-k",
+                        &format!("gui/{uid}/com.marcimastro98.xenon.backend"),
+                    ])
+                    .status();
+            }
+            return;
+        }
+        // No agent at all → no backend was ever installed here. Open the
+        // bootstrap in Terminal so the install has a UI and an exit.
+        let Some(script) = script else { return };
+        if !script.exists() {
+            return;
+        }
+        // Tauri copies resources without the executable bit, and `open -a
+        // Terminal` on a non-executable file opens it in an editor instead of
+        // running it.
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755));
+        let _ = std::process::Command::new("open")
+            .args(["-a", "Terminal"])
+            .arg(&script)
+            .status();
+    });
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
+fn spawn_backend_nudge(_app: &tauri::AppHandle, _port: u16) {}
+
+/// True once the local backend accepts a connection. Polls for ~8–16s so a
+/// normally-starting backend is never interfered with.
+#[cfg(any(windows, target_os = "macos"))]
+fn backend_answers(port: u16) -> bool {
+    use std::net::{SocketAddr, TcpStream};
+    use std::time::Duration;
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    for _ in 0..4 {
+        if TcpStream::connect_timeout(&addr, Duration::from_secs(2)).is_ok() {
+            return true;
+        }
+        std::thread::sleep(Duration::from_secs(2));
+    }
+    false
+}
+
+/// The current user id, via `id -u` — launchctl addresses its domains by uid and
+/// there is no std API for it (and no libc dependency in this crate).
+#[cfg(target_os = "macos")]
+fn current_uid() -> Option<String> {
+    let out = std::process::Command::new("id").arg("-u").output().ok()?;
+    let uid = String::from_utf8(out.stdout).ok()?.trim().to_string();
+    if uid.is_empty() || !uid.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    Some(uid)
 }
 
 /// Entry point shared by the desktop `main.rs` (and a future mobile target).
@@ -693,9 +776,9 @@ pub fn run() {
                 eprintln!("failed to build tray icon: {err}");
             }
 
-            // If the local backend never comes up, kick its logon task once.
-            #[cfg(windows)]
-            spawn_backend_nudge(port);
+            // If the local backend never comes up, heal it once (Windows: its
+            // logon task; macOS: its LaunchAgent, or the first-run bootstrap).
+            spawn_backend_nudge(app.handle(), port);
 
             // Launch the kiosk automatically at login (idempotent).
             #[cfg(desktop)]

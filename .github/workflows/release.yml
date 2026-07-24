@@ -8,8 +8,16 @@ name: Release (atomic)
 #   Xenon_X.Y.Z_x64-setup.exe.sig  its minisign signature
 #   Xenon-Setup-x64.exe         stable-named copy — the permanent download link
 #                               README/website point at (releases/latest/download/…)
-#   latest.json                 Tauri updater manifest
+#   Xenon_X.Y.Z_universal.app.tar.gz(+.sig)  macOS updater payload (universal)
+#   Xenon_X.Y.Z_universal.dmg   macOS disk image
+#   Xenon-macOS-universal.dmg   stable-named copy — the permanent macOS link
+#   latest.json                 Tauri updater manifest (windows + both darwin arches)
 #   SHA256SUMS / SHA256SUMS.sig Ed25519-signed hashes (self-update + helper verify)
+#
+# latest.json is assembled in `publish`, not in a build job: it carries one entry
+# per platform, so no single builder can write it. Each native job stages a
+# `platforms-<os>.json` fragment and publish merges them — adding a platform
+# means adding a job and a fragment, nothing else.
 #
 # This replaces the old `release: published` fan-out (helper.yml, native-app.yml,
 # release-integrity.yml — now manual recovery tools): those raced the publish,
@@ -134,7 +142,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run build
 
-      - name: Compose latest.json and stage artifacts
+      - name: Stage artifacts and the windows updater fragment
         shell: pwsh
         run: |
           $tag = "${{ inputs.tag || github.event.release.tag_name || github.ref_name }}"
@@ -145,14 +153,17 @@ jobs:
           $version = (Get-Content apps/native/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
           # Guard: the tag must match the stamped version — a mismatched tag once
           # cost a full retag+re-release cycle. Fail here, before anything ships.
+          # Checked in this job only: every other job is gated behind it through
+          # `needs`, so one guard stops the whole pipeline.
           if (($tag -replace '^[vV]', '') -ne $version) {
             throw "Tag $tag does not match tauri.conf.json version $version - retag or run 'npm run version:set'."
           }
           $url = "https://github.com/${{ github.repository }}/releases/download/$tag/$($setup.Name)"
-          $latest = [ordered]@{
+          # Only this platform's slice of latest.json — publish merges the
+          # fragments. `version` rides along so publish can assemble the manifest
+          # without re-reading the config on a different runner.
+          $fragment = [ordered]@{
             version   = $version
-            notes     = "See the release notes on GitHub."
-            pub_date  = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
             platforms = [ordered]@{
               "windows-x86_64" = [ordered]@{
                 signature = (Get-Content $sig.FullName -Raw).Trim()
@@ -161,7 +172,7 @@ jobs:
             }
           }
           New-Item -ItemType Directory -Path stage -Force | Out-Null
-          $latest | ConvertTo-Json -Depth 6 | Set-Content stage/latest.json -Encoding utf8
+          $fragment | ConvertTo-Json -Depth 6 | Set-Content stage/platforms-windows.json -Encoding utf8
           Copy-Item $setup.FullName (Join-Path stage $setup.Name)
           Copy-Item $sig.FullName (Join-Path stage $sig.Name)
           # Stable-named copy: gives README/website a permanent link that always
@@ -174,9 +185,108 @@ jobs:
           name: xenon-native
           path: stage/
 
+  native-macos:
+    runs-on: macos-latest
+    needs: gate
+    if: needs.gate.outputs.proceed == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Both arches, so one universal binary covers Apple Silicon and Intel and
+      # the updater can point BOTH darwin keys at the same payload.
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate app icons
+        working-directory: apps/native
+        run: npm run tauri -- icon ../../docs/images/logo-mark.png
+
+      # Apple signing + notarization are OPT-IN: they need a paid Apple Developer
+      # Program membership, which this project does not have yet. The variables
+      # are exported only when the certificate secret actually exists, because
+      # Tauri treats an EMPTY APPLE_CERTIFICATE as "sign with this" and fails on
+      # the empty .p12 — an unset variable is what makes it skip signing. Until
+      # the certificate lands the build still produces a working .app/.dmg;
+      # macOS Gatekeeper will ask the user to confirm it on first open.
+      - name: Enable Apple signing
+        if: ${{ secrets.APPLE_CERTIFICATE != '' }}
+        run: |
+          {
+            echo "APPLE_CERTIFICATE=${{ secrets.APPLE_CERTIFICATE }}"
+            echo "APPLE_CERTIFICATE_PASSWORD=${{ secrets.APPLE_CERTIFICATE_PASSWORD }}"
+            echo "APPLE_SIGNING_IDENTITY=${{ secrets.APPLE_SIGNING_IDENTITY }}"
+          } >> "$GITHUB_ENV"
+
+      - name: Enable Apple notarization
+        if: ${{ secrets.APPLE_ID != '' }}
+        run: |
+          {
+            echo "APPLE_ID=${{ secrets.APPLE_ID }}"
+            echo "APPLE_PASSWORD=${{ secrets.APPLE_PASSWORD }}"
+            echo "APPLE_TEAM_ID=${{ secrets.APPLE_TEAM_ID }}"
+          } >> "$GITHUB_ENV"
+
+      - name: Build the native app (signed updater artifacts)
+        working-directory: apps/native
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run build:mac
+
+      - name: Stage artifacts and the macos updater fragment
+        run: |
+          set -euo pipefail
+          BUNDLE=apps/native/src-tauri/target/universal-apple-darwin/release/bundle
+          TARBALL=$(ls "$BUNDLE"/macos/*.app.tar.gz 2>/dev/null | head -1)
+          SIG=$(ls "$BUNDLE"/macos/*.app.tar.gz.sig 2>/dev/null | head -1)
+          DMG=$(ls "$BUNDLE"/dmg/*.dmg 2>/dev/null | head -1)
+          [ -n "$TARBALL" ] && [ -n "$SIG" ] || { echo "updater payload or signature missing in $BUNDLE/macos"; exit 1; }
+          [ -n "$DMG" ] || { echo "dmg missing in $BUNDLE/dmg"; exit 1; }
+          TAG="${{ inputs.tag || github.event.release.tag_name || github.ref_name }}"
+          VERSION=$(node -p "require('./apps/native/src-tauri/tauri.conf.json').version")
+          URL="https://github.com/${{ github.repository }}/releases/download/$TAG/$(basename "$TARBALL")"
+          mkdir -p stage
+          # One universal payload serves both arches, so both darwin keys point
+          # at the same URL and signature.
+          node -e '
+            const fs = require("fs");
+            const [sigPath, url, version] = process.argv.slice(1);
+            const signature = fs.readFileSync(sigPath, "utf8").trim();
+            const entry = { signature, url };
+            fs.writeFileSync("stage/platforms-macos.json", JSON.stringify({
+              version,
+              platforms: { "darwin-aarch64": entry, "darwin-x86_64": entry },
+            }, null, 2));
+          ' "$SIG" "$URL" "$VERSION"
+          cp "$TARBALL" "stage/$(basename "$TARBALL")"
+          cp "$SIG" "stage/$(basename "$SIG")"
+          cp "$DMG" "stage/$(basename "$DMG")"
+          # Stable-named copy, the macOS twin of Xenon-Setup-x64.exe: a permanent
+          # link the README and the website can point at.
+          cp "$DMG" stage/Xenon-macOS-universal.dmg
+
+      - name: Upload native macOS artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: xenon-native-macos
+          path: stage/
+
   publish:
     runs-on: ubuntu-latest
-    needs: [gate, helper, native]
+    needs: [gate, helper, native, native-macos]
     if: needs.gate.outputs.proceed == 'true'
     env:
       TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
@@ -187,6 +297,39 @@ jobs:
         with:
           path: assets
           merge-multiple: true
+
+      # Merge every platforms-*.json fragment into the single manifest the app
+      # polls. The fragments themselves are build plumbing, so they are deleted
+      # here and never attached to the release.
+      - name: Compose latest.json
+        run: |
+          node -e '
+            const fs = require("fs");
+            const files = fs.readdirSync("assets").filter((f) => /^platforms-.+\.json$/.test(f));
+            if (!files.length) { console.error("FATAL: no platforms-*.json fragments were staged."); process.exit(1); }
+            const platforms = {};
+            let version = "";
+            for (const f of files) {
+              const frag = JSON.parse(fs.readFileSync("assets/" + f, "utf8"));
+              // Every fragment is built from the same tauri.conf.json; a
+              // disagreement means two jobs built different commits, and
+              // shipping that would hand half the users the wrong payload.
+              if (version && frag.version !== version) {
+                console.error(`FATAL: ${f} reports version ${frag.version}, expected ${version}.`);
+                process.exit(1);
+              }
+              version = frag.version;
+              Object.assign(platforms, frag.platforms);
+            }
+            fs.writeFileSync("assets/latest.json", JSON.stringify({
+              version,
+              notes: "See the release notes on GitHub.",
+              pub_date: new Date().toISOString().replace(/\.\d+Z$/, "Z"),
+              platforms,
+            }, null, 2));
+            for (const f of files) fs.unlinkSync("assets/" + f);
+            console.log("latest.json covers: " + Object.keys(platforms).join(", "));
+          '
 
       - name: Download the tag source zip (same URL the updater uses)
         run: |
@@ -209,6 +352,7 @@ jobs:
               ["source.zip", "source.zip"],
               ["assets/xenon-helper.exe", "xenon-helper.exe"],
               ["assets/Xenon-Setup-x64.exe", "Xenon-Setup-x64.exe"],
+              ["assets/Xenon-macOS-universal.dmg", "Xenon-macOS-universal.dmg"],
             ];
             let sums = "";
             for (const [path, name] of entries) {

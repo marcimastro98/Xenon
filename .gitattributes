@@ -81,3 +81,9 @@ widget/                         export-ignore
 # `sc.exe stop/delete XenonEdgeService`, which does the same job — keep that
 # fallback if you ever touch those scripts.
 service/                        export-ignore
+
+# Shell scripts must stay LF in the working tree on EVERY platform. This repo is
+# developed on Windows with core.autocrlf=true, and a CRLF checkout of a .sh dies
+# on macOS/Linux with "bad interpreter: /bin/bash^M" — before printing anything
+# that would explain why.
+*.sh                            text eol=lf
