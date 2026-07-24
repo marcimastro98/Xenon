@@ -226,7 +226,8 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 | Open apps / app switcher | ✅ | ✅ ¹ | X11 only |
 | Deck: open app, file or site, run a script, lock | ✅ | ✅ | ✅ |
 | Global hotkeys, type text, move windows | ✅ | — | — |
-| Xenon AI (cloud and local), voice input | ✅ | ✅ | ✅ |
+| Xenon AI, chat and actions (cloud and local) | ✅ | ✅ | ✅ |
+| Talking to it: voice input, screen vision | ✅ | ✅ | — |
 | "Hey Xenon" wake word | ✅ | — | — |
 | Network lighting (WLED, Hue, Nanoleaf, OpenRGB) | ✅ | ✅ | ✅ |
 | CORSAIR iCUE lighting | ✅ | — | — |
