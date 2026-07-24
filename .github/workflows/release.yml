@@ -320,8 +320,23 @@ jobs:
         run: |
           set -euo pipefail
           swift build -c release --package-path helper-mac --arch arm64 --arch x86_64
-          BIN=$(find helper-mac/.build -name 'xenon-helper' -type f -perm +111 | head -1)
-          [ -n "$BIN" ] || { echo "xenon-helper not found in the build output"; exit 1; }
+          # A universal build leaves BOTH the per-arch binaries and the merged
+          # one in .build, and `find | head -1` happily returns an arm64-only
+          # slice — which is what the arch check below caught the first time.
+          # Take the merged one by its documented path, and if a future SwiftPM
+          # moves it, pick the candidate lipo says is actually universal rather
+          # than whichever the filesystem lists first.
+          BIN=helper-mac/.build/apple/Products/Release/xenon-helper
+          if [ ! -f "$BIN" ]; then
+            BIN=""
+            find helper-mac/.build -name 'xenon-helper' -type f -perm +111 > "$RUNNER_TEMP/xh.txt" || true
+            while IFS= read -r cand; do
+              archs=$(lipo -archs "$cand" 2>/dev/null || true)
+              case "$archs" in *arm64*) ;; *) continue ;; esac
+              case "$archs" in *x86_64*) BIN="$cand"; break ;; esac
+            done < "$RUNNER_TEMP/xh.txt"
+          fi
+          [ -n "$BIN" ] || { echo "no universal xenon-helper in the build output"; exit 1; }
           ARCHS=$(lipo -archs "$BIN")
           echo "helper archs: $ARCHS"
           case "$ARCHS" in *arm64*) ;; *) echo "arm64 missing"; exit 1 ;; esac

@@ -93,9 +93,13 @@ enum HotkeyHost {
             return
         }
         emit(.obj([("event", .s("ready"))]))
-        // A hotkey is delivered to the run loop, and only an app that is not a
-        // background-only process gets keyboard events at all.
+        // NSApplication.run(), not RunLoop.run(). A Carbon hot key is delivered
+        // through the Carbon event loop that AppKit's run loop pumps; a bare
+        // RunLoop keeps the process alive and never dispatches the event, which
+        // would look exactly like a hotkey nobody is pressing.
+        // .prohibited keeps it out of the Dock and the switcher — a hot key is
+        // delivered to a background process regardless.
         NSApplication.shared.setActivationPolicy(.prohibited)
-        RunLoop.current.run()
+        NSApplication.shared.run()
     }
 }

@@ -29,9 +29,12 @@ enum ForegroundHost {
             report()
         }
         report()
-        // The observer and the timer both need a run loop; without this the
-        // process would exit before emitting anything after the first line.
-        RunLoop.current.run()
+        // Same reason as HotkeyHost: the NSWorkspace notification is an AppKit
+        // one, and AppKit's own run loop is what reliably delivers it. The
+        // timer would fire under a bare RunLoop, the focus-change push would
+        // not — and that push is what makes alt-tabbing into a game instant.
+        NSApplication.shared.setActivationPolicy(.prohibited)
+        NSApplication.shared.run()
     }
 
     static func report() {
