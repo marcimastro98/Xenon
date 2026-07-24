@@ -222,7 +222,7 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 | CPU/GPU temperature and GPU load | ✅ | with `macmon` | NVIDIA only |
 | System volume, microphone mute | ✅ | ✅ | ✅ |
 | Per-app volume mixer | ✅ | — | ✅ |
-| Now playing + media keys | ✅ | ✅ | — |
+| Now playing + media keys | ✅ | ✅ | ✅ ² |
 | Open apps / app switcher | ✅ | ✅ ¹ | X11 only |
 | Deck: open app, file or site, run a script, lock | ✅ | ✅ | ✅ |
 | Global hotkeys, type text, move windows | ✅ | — | — |
@@ -239,6 +239,8 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 | Remote PC control (Sunshine) | ✅ | — | — |
 
 ¹ macOS asks once for the Automation permission; the list stays empty until you grant it.
+
+² Linux reads MPRIS over D-Bus, which needs `playerctl` installed.
 
 macOS and Linux support is **new**. It is written against each platform's documented behaviour and covered by unit tests, but it has had far less real-world use than the Windows build — if something misbehaves, please [open an issue](https://github.com/marcimastro98/Xenon/issues) or say so on [Discord](https://discord.gg/MBVrw9kZyg).
 

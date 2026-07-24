@@ -134,6 +134,7 @@ else
   # the tile showed before Linux support existed.
   have nvidia-smi || miss "nvidia-smi — GPU load, temperature and VRAM (NVIDIA only)"
   have wpctl || miss "wireplumber — the volume mixer and audio devices"
+  have playerctl || miss "playerctl — what is playing, and the media keys"
   have wmctrl || miss "wmctrl + xdotool + x11-utils — the open-applications widget (X11 sessions)"
 fi
 if [ -n "$MISSING" ]; then

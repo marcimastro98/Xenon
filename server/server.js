@@ -1964,10 +1964,10 @@ function _retireMediaHost(reason) {
 
 function _ensureMediaHost() {
   // Both hosts read Windows' SMTC: the helper through WinRT, the fallback
-  // through media.ps1. Neither can run elsewhere — macOS is served by
-  // darwin-media.js (see runMediaRequest), and Linux has no now-playing source
-  // at all, so no host means the media tile stays empty instead of respawning a
-  // doomed child every few seconds.
+  // through media.ps1. Neither can run elsewhere — macOS and Linux are served
+  // by nativeMedia (see runMediaRequest), so off Windows there is no host here
+  // at all and the caller falls through rather than respawning a doomed child
+  // every few seconds.
   if (!POWERSHELL_SUPPORTED) return null;
   if (_mediaHost.proc) return _mediaHost.proc;
   if (Date.now() - _mediaHost.diedAt < MEDIA_HOST_RETRY_MS) return null;
@@ -2104,26 +2104,32 @@ async function _guardHelperMediaBlindSpot(out) {
   return ps;
 }
 
-// macOS has neither SMTC nor PowerShell, so neither host above can run there.
-// darwin-media.js answers the same requests from mediaremote-adapter and pushes
-// the same track-changed event. Created on darwin only; started lazily, so a
-// run that never asks for media never spawns it.
-const darwinMedia = process.platform === 'darwin'
-  ? require('./darwin-media').createDarwinMedia({
-      dir: MEDIAREMOTE_DIR,
-      onChange: () => _onMediaChangedPush(),
-    })
-  : null;
+// Neither host above can run off Windows: there is no SMTC and no PowerShell.
+// Both other platforms have their own now-playing source behind the SAME
+// interface — available/start/stop/info/command — so this is one variable and
+// one branch, the way `nativeCollectors` is. macOS reads mediaremote-adapter,
+// Linux reads MPRIS over D-Bus through playerctl. Started lazily, so a run that
+// never asks for media never spawns anything.
+const nativeMedia =
+  process.platform === 'darwin'
+    ? require('./darwin-media').createDarwinMedia({
+        dir: MEDIAREMOTE_DIR,
+        onChange: () => _onMediaChangedPush(),
+      })
+    : process.platform === 'linux'
+      ? require('./linux-media').createLinuxMedia({ onChange: () => _onMediaChangedPush() })
+      : null;
 
 // Run a media request through the persistent host, falling back to the original
 // one-shot spawn on any host problem. Same parsed-JSON result either way.
 async function runMediaRequest(action, timeout = 8000) {
-  if (darwinMedia) {
-    // No adapter installed → the empty "nothing playing" shape, not an error.
-    // The tile shows its own empty state, and nothing is spawned or retried.
-    if (!darwinMedia.available()) return darwinMedia.info();
-    darwinMedia.start();                       // idempotent
-    return action === 'info' ? darwinMedia.info() : darwinMedia.command(action);
+  if (nativeMedia) {
+    // Nothing installed to read the OS with → the empty "nothing playing"
+    // shape, not an error. The tile shows its own empty state, and nothing is
+    // spawned or retried.
+    if (!nativeMedia.available()) return nativeMedia.info();
+    nativeMedia.start();                       // idempotent
+    return action === 'info' ? nativeMedia.info() : nativeMedia.command(action);
   }
   try {
     const out = parseJsonOutput(await runMediaHostRequest(action, timeout));
@@ -11319,7 +11325,7 @@ const server = http.createServer(async (req, res) => {
       // Media transport is its own capability rather than a PowerShell one: it
       // rides SMTC on Windows and mediaremote-adapter on macOS, and the adapter
       // is optional, so the answer is "is there a media host" — not "which OS".
-      const mediaAvailable = powershellAvailable || !!(darwinMedia && darwinMedia.available());
+      const mediaAvailable = powershellAvailable || !!(nativeMedia && nativeMedia.available());
       json({ catalog: ACTION_CATALOG, capabilities: { powershell: powershellAvailable, media: mediaAvailable, soundVolumeView: audioControlAvailable, appAudio: appAudioAvailable, obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked } });
     } catch (e) { err500(e.message); }
 
@@ -16620,8 +16626,9 @@ function _gracefulShutdown() {
   try { _killWorker('shutdown'); } catch {}
   // Retire the SMTC media host gracefully (stdin close → clean exit → handles released).
   try { _retireMediaHost('shutdown'); } catch {}
-  // …and its macOS counterpart: a detached perl child outlives process.exit.
-  try { if (darwinMedia) darwinMedia.stop(); } catch {}
+  // …and the non-Windows one: a detached perl/playerctl child outlives
+  // process.exit, so it has to be told.
+  try { if (nativeMedia) nativeMedia.stop(); } catch {}
   // Retire the DDC/CI display host (stdin close → releases physical monitor handles).
   try { _retireDdcHost('shutdown'); } catch {}
   // Kill the headless embedded-browser Edge instance (if one is running).

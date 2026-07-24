@@ -115,7 +115,7 @@ if (PLAT === 'win32') {
 
 const TOOLS = PLAT === 'darwin'
   ? [['node', true], ['perl', false], ['ffmpeg', false], ['macmon', false], ['SwitchAudioSource', false], ['unzip', false]]
-  : [['node', true], ['ffmpeg', false], ['nvidia-smi', false], ['wpctl', false], ['wmctrl', false], ['unzip', false]];
+  : [['node', true], ['ffmpeg', false], ['nvidia-smi', false], ['wpctl', false], ['playerctl', false], ['wmctrl', false], ['unzip', false]];
 
 for (const [bin, required] of TOOLS) {
   const at = await which(bin);
@@ -134,20 +134,29 @@ await probe('network', () => collectors.network(), checks.checkNetwork);
 await probe('open applications', () => collectors.windows('list'), checks.checkWindows);
 await probe('audio devices', () => collectors.audioRows(), checks.checkAudioRows);
 
-// ── 3) Now playing (macOS only) ─────────────────────────────────────────────
-if (PLAT === 'darwin') {
+// ── 3) Now playing ──────────────────────────────────────────────────────────
+{
   section('Now playing');
-  const { createDarwinMedia } = require(path.join(ROOT, 'server', 'darwin-media.js'));
-  const host = createDarwinMedia({ dir: path.join(ROOT, 'server', 'mediaremote') });
+  const host = PLAT === 'darwin'
+    ? require(path.join(ROOT, 'server', 'darwin-media.js')).createDarwinMedia({ dir: path.join(ROOT, 'server', 'mediaremote') })
+    : require(path.join(ROOT, 'server', 'linux-media.js')).createLinuxMedia({});
+  const missing = PLAT === 'darwin'
+    ? {
+        name: 'mediaremote-adapter',
+        notes: [
+          'server/mediaremote/ has no adapter, so the media tile stays empty.',
+          'server/install.sh downloads it; it only exists on releases built after this feature shipped.',
+        ],
+      }
+    : {
+        name: 'playerctl',
+        notes: [
+          'Without it nothing reads MPRIS, so the media tile stays empty.',
+          'Install it with your package manager (for example `sudo apt install playerctl`).',
+        ],
+      };
   if (!host.available()) {
-    report('mediaremote-adapter', {
-      level: 'warn',
-      summary: 'not installed',
-      notes: [
-        'server/mediaremote/ has no adapter, so the media tile stays empty.',
-        'server/install.sh downloads it; it only exists on releases built after this feature shipped.',
-      ],
-    });
+    report(missing.name, { level: 'warn', summary: 'not installed', notes: missing.notes });
   } else {
     host.start();
     // The adapter streams on CHANGE, so a first read right after start has
