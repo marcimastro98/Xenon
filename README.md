@@ -125,11 +125,11 @@ Universal build: one download for both Apple Silicon and Intel.
 
 > **"Xenon can't be opened because Apple cannot check it."** Expected for now: the app is not notarized yet (that needs a paid Apple Developer membership, which this project does not have). Right-click the app → **Open** → **Open**, once.
 
-macOS needs **Node.js** and will say so if it is missing. Three optional tools each light up one thing, and Xenon tells you which are absent instead of failing later:
+macOS needs **Node.js** and will say so if it is missing. The optional tools below each light up one thing, and Xenon tells you which are absent instead of failing later:
 
 ```bash
 brew install node                      # required
-brew install vladkens/tap/macmon       # CPU/GPU temperature and GPU load
+brew install vladkens/tap/macmon       # fallback for temperature and GPU load (the companion reads them without it)
 brew install switchaudio-osx           # switching the output device
 brew install ffmpeg                    # voice input and spoken replies
 ```
@@ -219,7 +219,7 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 | Native full-screen app | ✅ | ✅ | ✅ |
 | Starts at login, updates itself | ✅ | ✅ | ✅ |
 | CPU, RAM, disks, network | ✅ | ✅ | ✅ |
-| CPU/GPU temperature and GPU load | ✅ | with `macmon` | ✅ ¹ |
+| CPU/GPU temperature and GPU load | ✅ | ✅ ⁸ | ✅ ¹ |
 | System volume, microphone mute | ✅ | ✅ | ✅ |
 | Per-app volume mixer | ✅ | — | ✅ |
 | Now playing + media keys | ✅ | ✅ | ✅ ² |
@@ -253,6 +253,8 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 ⁶ Linux reads the freedesktop notification bus, which needs `dbus-monitor` (part of the standard dbus package).
 
 ⁷ Needs a Chromium-based browser installed (Edge, Chrome, Chromium or Brave); the tile drives it over the DevTools protocol.
+
+⁸ The Xenon Helper reads the thermal sensors and the graphics load directly, with nothing to install and no administrator password. Without the companion, `macmon` on PATH is the fallback; without either, both read "--".
 
 macOS and Linux support is **new**. It is written against each platform's documented behaviour and covered by unit tests, but it has had far less real-world use than the Windows build — if something misbehaves, please [open an issue](https://github.com/marcimastro98/Xenon/issues) or say so on [Discord](https://discord.gg/MBVrw9kZyg).
 

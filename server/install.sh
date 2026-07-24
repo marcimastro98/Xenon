@@ -127,7 +127,11 @@ miss() { MISSING="$MISSING$1"$'\n'; }
 have unzip || miss "unzip   — needed to install in-app updates"
 have ffmpeg || miss "ffmpeg  — voice input and text-to-speech playback"
 if [ "$XENON_OS" = 'macos' ]; then
-  have macmon || miss "macmon  — CPU/GPU temperature and GPU load:   brew install vladkens/tap/macmon"
+  # Only worth naming when the companion is absent: it reads the sensors
+  # itself, so on a normal install macmon lights up nothing new.
+  if [ ! -x "$SERVER_DIR/helper/xenon-helper" ]; then
+    have macmon || miss "macmon  — CPU/GPU temperature and GPU load without the companion: brew install vladkens/tap/macmon"
+  fi
   have SwitchAudioSource || miss "switchaudio-osx — switching the output device: brew install switchaudio-osx"
 else
   # The tools linux-collectors.js shells out to; each one degrades to the "--"
