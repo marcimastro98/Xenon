@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [unreleased]
 ### ✨ New
-- **In modalità modifica puoi riordinare i tab di un riquadro trascinandoli.** Un riquadro a schede (Chat, Riproduzione, Discord e simili) teneva l'ordine in cui avevi aggiunto le schede, e l'unico modo per cambiarlo era togliere una scheda e rimetterla dopo le altre. Ora, in modalità modifica, tieni premuto su una scheda e trascinala di lato: le altre le fanno posto mentre la muovi e la lasci dove vuoi. L'ordine è salvato con il layout, quindi resta dopo un riavvio e si allinea da solo sulle altre schermate su cui apri la dashboard. Fuori dalla modalità modifica un tocco su una scheda continua a cambiare scheda come prima.
+- **Tabs inside a tile can be reordered by dragging them, in edit mode.** A tab tile — Chat, Riproduzione and Discord sitting in one tile, for instance — kept the tabs in the order you happened to add them, and the only way to change that was to remove a tab and put it back after the others. In edit mode you now drag a tab sideways along its bar: the others make room as you move it and it stays where you drop it. The order is saved with the layout, so it survives a restart and reaches the other screens you open the dashboard on. Outside edit mode a tap on a tab still just switches tab.
 
 
 ## [v4.10.1] - 24-07-2026
