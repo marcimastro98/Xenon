@@ -74,6 +74,20 @@ function extractMember(layout, gid, memberId) {
   return { extracted: true, dissolved };
 }
 
+// Reorder a group's tabs. `order` is the ids in their new order (extra ids are
+// ignored, missing ones keep their relative position at the end) so a partial or
+// stale list can never drop a member. Returns true when the order changed.
+function reorderMembers(layout, gid, order) {
+  const g = ((layout && layout.groups) || {})[gid];
+  if (!g || !Array.isArray(g.members) || !Array.isArray(order)) return false;
+  const prev = g.members;
+  const next = order.filter((id, i) => prev.includes(id) && order.indexOf(id) === i);
+  prev.forEach(id => { if (!next.includes(id)) next.push(id); });
+  if (next.length !== prev.length || next.every((id, i) => id === prev[i])) return false;
+  g.members = next;
+  return true;
+}
+
 // ── Runtime (browser) ─────────────────────────────────────────────
 // Tab icons reuse the palette's canonical per-widget glyphs (via
 // DashboardPalette.iconFor) so EVERY widget's tab shows the same icon it was
@@ -120,6 +134,106 @@ function _refreshGroupLabels() {
   });
 }
 
+// ── Tab reorder (edit mode) ───────────────────────────────────────
+// Drag a tab sideways along its bar to reorder the group's tabs; the resulting
+// order IS `group.members`, so it is saved with the layout and survives reloads
+// and other surfaces. Pointer events, not HTML5 drag-and-drop (which never fires
+// on the touchscreen), with a small movement threshold so a plain tap still
+// switches tab. The button itself is moved in the DOM as it crosses a
+// neighbour's midpoint — what the user sees during the drag is the drop result.
+const TAB_DRAG_THRESHOLD_PX = 6;
+
+function _commitTabOrder(bar) {
+  const tile = bar.closest('.tabgroup');
+  const gid = tile && tile.dataset.groupId;   // read live: a tile can be re-used
+  if (!gid) return;
+  const layout = getDashboardLayout();
+  const order = Array.from(bar.querySelectorAll(':scope > .tabgroup-tab')).map(t => t.dataset.member);
+  if (!reorderMembers(layout, gid, order)) return;
+  saveDashboardLayout(layout, { status: false });
+}
+
+// Bound once per bar (the bar element survives every renderGroupTile pass, which
+// only replaces its children), so tabs need no per-tab listener.
+function _bindTabReorder(bar) {
+  if (bar.dataset.reorderBound === '1') return;
+  bar.dataset.reorderBound = '1';
+  let drag = null;
+  let justDragged = null;   // the tab whose trailing click must not switch tab
+
+  const release = () => {
+    if (!drag) return null;
+    const d = drag;
+    drag = null;
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    document.removeEventListener('pointercancel', onUp);
+    d.tab.style.transform = '';
+    d.tab.classList.remove('is-dragging');
+    bar.classList.remove('is-reordering');
+    return d;
+  };
+
+  const onMove = (e) => {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    // A layout re-render (a save from another surface, a widget added elsewhere)
+    // rebuilds the bar's children mid-drag: the tab we hold is no longer in it,
+    // so abandon the gesture rather than re-inserting a discarded node.
+    if (drag.tab.parentElement !== bar) { release(); return; }
+    if (!drag.active) {
+      if (Math.abs(e.clientX - drag.startX) < TAB_DRAG_THRESHOLD_PX) return;
+      drag.active = true;
+      drag.tab.classList.add('is-dragging');
+      bar.classList.add('is-reordering');
+    }
+    drag.tab.style.transform = '';   // measure the slot, not the offset drawn last move
+    const ref = Array.from(bar.querySelectorAll(':scope > .tabgroup-tab')).find(el => {
+      if (el === drag.tab) return false;
+      const r = el.getBoundingClientRect();
+      return e.clientX < r.left + r.width / 2;
+    }) || null;
+    if (ref !== drag.tab.nextElementSibling) bar.insertBefore(drag.tab, ref);
+    // Follow the finger inside the bar so the pill reads as picked up, not as a
+    // slot that snaps only once a midpoint is crossed.
+    const rect = drag.tab.getBoundingClientRect();
+    drag.tab.style.transform = 'translateX(' + (e.clientX - rect.left - drag.grabOffsetX) + 'px)';
+  };
+
+  const onUp = (e) => {
+    if (!drag || (e && e.pointerId !== drag.pointerId)) return;
+    const d = release();
+    if (!d || !d.active) return;
+    // The pointerup that ends a drag still produces a click on that tab; that
+    // click must not also switch the active tab.
+    justDragged = d.tab;
+    setTimeout(() => { if (justDragged === d.tab) justDragged = null; }, 400);
+    _commitTabOrder(bar);
+  };
+
+  bar.addEventListener('pointerdown', (e) => {
+    if (drag || e.button > 0) return;
+    if (!document.body.classList.contains('layout-editing')) return;
+    const tab = e.target.closest && e.target.closest('.tabgroup-tab');
+    if (!tab || tab.parentElement !== bar) return;
+    if (e.target.closest('.tabgroup-remove')) return;
+    if (bar.querySelectorAll(':scope > .tabgroup-tab').length < 2) return;
+    drag = {
+      tab, pointerId: e.pointerId, startX: e.clientX, active: false,
+      grabOffsetX: e.clientX - tab.getBoundingClientRect().left,
+    };
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
+  });
+
+  bar.addEventListener('click', (e) => {
+    if (!justDragged || !e.target.closest || e.target.closest('.tabgroup-tab') !== justDragged) return;
+    justDragged = null;
+    e.stopPropagation();   // capture phase: beats the tab's own click handler
+    e.preventDefault();
+  }, true);
+}
+
 // Build/refresh a group's tab-group tile inside its grid item: a tab bar + the
 // active member's content. Member atom DOM is relocated into the group body
 // (moved by id → media.js/ai.js bindings survive). `gridItem` = .grid-stack-item.
@@ -135,8 +249,10 @@ function renderGroupTile(gridItem, group) {
     tile.append(bar, body);
     content.appendChild(tile);
   }
+  tile.dataset.groupId = group.id;   // kept live for _commitTabOrder
   const bar = tile.querySelector('.tabgroup-bar');
   const body = tile.querySelector('.tabgroup-body');
+  _bindTabReorder(bar);
   bar.replaceChildren();
   group.members.forEach(mid => {
     const base = (window.DashboardInstances) ? window.DashboardInstances.baseWidgetOf(mid) : mid;
@@ -321,7 +437,7 @@ function mergeOnDrop(draggedWidgetId, targetWidgetId) {
 }
 
 if (typeof window !== 'undefined') {
-  window.DashboardTabGroups = { renderGroupTile, setGroupActive, extractToStandalone, extractMember, mergeOnDrop, addAsTab, rectsOverlapRatio, widgetGroupOf };
+  window.DashboardTabGroups = { renderGroupTile, setGroupActive, extractToStandalone, extractMember, mergeOnDrop, addAsTab, reorderMembers, rectsOverlapRatio, widgetGroupOf };
   // The SDK package list arrives after the first layout pass on a cold reload, so
   // a custom tab first paints with the generic type name — refresh it once names
   // are known (also covers a Rescan swapping which widget a tile hosts).
@@ -329,5 +445,5 @@ if (typeof window !== 'undefined') {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { rectsOverlapRatio, widgetGroupOf, mergeWidgets, extractMember, addAsTab };
+  module.exports = { rectsOverlapRatio, widgetGroupOf, mergeWidgets, extractMember, addAsTab, reorderMembers };
 }

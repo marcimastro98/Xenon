@@ -541,6 +541,18 @@
   background: rgba(var(--accent-rgb), 0.14); color: var(--accent);
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
+/* Edit mode: a tab can be dragged sideways to reorder the group's tabs.
+   touch-action: none is what makes that work on the touchscreen — without it the
+   bar's own horizontal scroll claims the gesture and cancels the pointer. */
+.layout-editing .tabgroup-tab { cursor: grab; touch-action: none; }
+.layout-editing .tabgroup-tab.is-dragging {
+  cursor: grabbing; opacity: 0.92; position: relative; z-index: 2;
+  background: rgba(var(--accent-rgb), 0.2); color: var(--accent);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+/* No colour/position transition while reordering: the tabs are being moved in
+   the DOM on every pointermove, so an animated background would smear. */
+.tabgroup-bar.is-reordering .tabgroup-tab { transition: none; }
 /* Tab glyph reused from the widget palette (svg carries no width/height). */
 .tabgroup-tab-ico { display: inline-flex; flex: 0 0 auto; }
 .tabgroup-tab-ico svg { width: 15px; height: 15px; }

@@ -135,3 +135,24 @@ test('extractMember: removes a member; dissolves group at one remaining', () => 
   assert.equal(layout.widgets.media.page, 'dashboard');
   assert.equal(layout.widgets.chat.visible, true);
 });
+
+test('reorderMembers: applies a new tab order and reports the change', () => {
+  const layout = { groups: { g1: { id: 'g1', members: ['chat', 'media', 'discord'], active: 'discord' } } };
+  assert.equal(tg.reorderMembers(layout, 'g1', ['discord', 'chat', 'media']), true);
+  assert.deepEqual(layout.groups.g1.members, ['discord', 'chat', 'media']);
+  assert.equal(layout.groups.g1.active, 'discord');   // reorder never re-picks the active tab
+});
+
+test('reorderMembers: same order (or unknown group) changes nothing', () => {
+  const layout = { groups: { g1: { id: 'g1', members: ['chat', 'media'] } } };
+  assert.equal(tg.reorderMembers(layout, 'g1', ['chat', 'media']), false);
+  assert.equal(tg.reorderMembers(layout, 'nope', ['chat']), false);
+  assert.equal(tg.reorderMembers(layout, 'g1', 'chat'), false);
+});
+
+test('reorderMembers: a partial/stale order never drops or duplicates a member', () => {
+  const layout = { groups: { g1: { id: 'g1', members: ['chat', 'media', 'discord'] } } };
+  // 'ghost' is not a member, 'media' is listed twice, 'discord' is missing
+  assert.equal(tg.reorderMembers(layout, 'g1', ['media', 'ghost', 'media', 'chat']), true);
+  assert.deepEqual(layout.groups.g1.members, ['media', 'chat', 'discord']);
+});
