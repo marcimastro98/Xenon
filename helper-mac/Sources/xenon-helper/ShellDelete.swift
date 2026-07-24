@@ -70,7 +70,15 @@ enum ShellDelete {
             // 32 is the code diskspace.js already treats as "in use" (it is
             // ERROR_SHARING_VIOLATION on Windows), so reusing it means the
             // descend-and-retry logic needs no per-platform branch.
-            ("rc", .i(failures == 0 ? 0 : (inUse ? 32 : 5))),
+            //
+            // 2 for everything else, and NOT 5: diskspace.js counts 5, 32 and
+            // 120 all as "in use", so answering 5 for a plain refusal (a path
+            // that vanished, a symlink, a relative path) would tell the user
+            // their file is open in another program when it is not, and send
+            // the cleanup down the descend-and-retry path for nothing. 2 is
+            // ERROR_FILE_NOT_FOUND on the Windows side, which is what these
+            // failures usually are.
+            ("rc", .i(failures == 0 ? 0 : (inUse ? 32 : 2))),
             ("aborted", .b(false)),
         ]))
     }
