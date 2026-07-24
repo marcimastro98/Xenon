@@ -2214,6 +2214,7 @@ let _sttDeviceReady = false;
 let _sttUseWasapi   = false;
 let _sttDshowDevice = null;
 let _sttAvfIndex    = null; // macOS avfoundation audio device index, as a string
+let _sttLinuxFormat = null; // 'pulse' | 'alsa' — which one this ffmpeg knows
 let _boundMicLabel  = null; // mic label we last bound to. Drives re-init on device changes.
 const _sttDeviceWaiters = [];
 const _sttPending = new Map(); // id → { ffmpegProc, wavPath, recordingStarted, resolveRecording, recordingSaved, resolveSaved }
@@ -5259,11 +5260,30 @@ async function captureScreenshot(monitor) {
       return shot.toString('base64');
     }
     const ffmpeg = getFfmpegPath();
-    const ffmpegArgs = ['-y', '-f', 'gdigrab', '-framerate', '1'];
-    if (monitor && monitor.width > 0 && monitor.height > 0) {
-      ffmpegArgs.push('-offset_x', String(monitor.x), '-offset_y', String(monitor.y), '-video_size', `${monitor.width}x${monitor.height}`);
+    const ffmpegArgs = ['-y'];
+    if (process.platform === 'linux') {
+      // x11grab addresses a screen as DISPLAY plus an optional +x,y origin, and
+      // takes the whole screen when no size is given. There is deliberately no
+      // Wayland path: capturing there goes through the xdg-desktop-portal
+      // screencast API, which is a permission dialog and a PipeWire stream, not
+      // an ffmpeg input — so under Wayland this fails and says so, rather than
+      // silently returning someone's idea of a screen.
+      const display = process.env.DISPLAY || ':0.0';
+      ffmpegArgs.push('-f', 'x11grab', '-framerate', '1');
+      if (monitor && monitor.width > 0 && monitor.height > 0) {
+        ffmpegArgs.push('-video_size', `${monitor.width}x${monitor.height}`);
+        ffmpegArgs.push('-i', `${display}+${monitor.x || 0},${monitor.y || 0}`);
+      } else {
+        ffmpegArgs.push('-i', display);
+      }
+    } else {
+      ffmpegArgs.push('-f', 'gdigrab', '-framerate', '1');
+      if (monitor && monitor.width > 0 && monitor.height > 0) {
+        ffmpegArgs.push('-offset_x', String(monitor.x), '-offset_y', String(monitor.y), '-video_size', `${monitor.width}x${monitor.height}`);
+      }
+      ffmpegArgs.push('-i', 'desktop');
     }
-    ffmpegArgs.push('-i', 'desktop', '-vframes', '1', '-q:v', '3', '-vf', 'scale=\'min(1920,iw)\':-2', tmpPath);
+    ffmpegArgs.push('-vframes', '1', '-q:v', '3', '-vf', 'scale=\'min(1920,iw)\':-2', tmpPath);
     await execFilePromise(ffmpeg, ffmpegArgs, { timeout: 15000 });
     const imgBuffer = await fs.promises.readFile(tmpPath);
     return imgBuffer.toString('base64');
@@ -8909,16 +8929,19 @@ function _sttInputArgs() {
   // avfoundation addresses inputs as "<video>:<audio>"; the empty video half is
   // what keeps this an audio-only capture.
   if (_sttAvfIndex !== null) return ['-f', 'avfoundation', '-i', `:${_sttAvfIndex}`];
+  if (_sttLinuxFormat) return ['-f', _sttLinuxFormat, '-i', 'default'];
   if (_sttUseWasapi) return ['-f', 'wasapi', '-i', 'default'];
   return _sttDshowDevice ? ['-f', 'dshow', '-i', `audio=${_sttDshowDevice}`] : null;
 }
 // How the mic is being captured, for the logs and the mic-test readout.
 function _sttVia() {
   if (_sttAvfIndex !== null) return 'avfoundation';
+  if (_sttLinuxFormat) return _sttLinuxFormat;
   return _sttUseWasapi ? 'wasapi' : 'dshow';
 }
 function _sttDeviceLabel() {
   if (_sttAvfIndex !== null) return cachedMicLabel || `Input ${_sttAvfIndex}`;
+  if (_sttLinuxFormat) return cachedMicLabel || `Default (${_sttLinuxFormat})`;
   if (_sttUseWasapi) return cachedMicLabel || 'Default (WASAPI)';
   return _sttDshowDevice || 'unknown';
 }
@@ -9941,6 +9964,25 @@ function _parseAvfAudioDevices(stderr) {
   return devices;
 }
 
+// Does this ffmpeg build know an input format? Listing always "fails" (there is
+// no device to open), so the exit code says nothing — the refusal to recognise
+// the format does, and it is the only cheap way to tell a build with pulse
+// support from one without.
+function _ffmpegKnowsFormat(ffmpeg, fmt) {
+  return new Promise((resolve) => {
+    let stderr = '';
+    let p;
+    try {
+      p = spawn(ffmpeg, ['-hide_banner', '-f', fmt, '-list_devices', 'true', '-i', 'dummy'], { windowsHide: true });
+    } catch { resolve(false); return; }
+    p.stderr.setEncoding('utf8');
+    p.stderr.on('data', (d) => { stderr += d; });
+    p.on('exit', () => resolve(!/Unknown input format/i.test(stderr)));
+    p.on('error', () => resolve(false));
+    setTimeout(() => { try { p.kill(); } catch {} resolve(!/Unknown input format/i.test(stderr)); }, 4000);
+  });
+}
+
 async function _initSttDevice() {
   const ffmpeg = getFfmpegPath();
 
@@ -9976,6 +10018,25 @@ async function _initSttDevice() {
     }
     _sttDeviceReady = true;
     _boundMicLabel = cachedMicLabel || (_sttAvfIndex !== null ? `__avf_${_sttAvfIndex}__` : null);
+    _sttDeviceWaiters.splice(0).forEach(cb => cb());
+    return;
+  }
+
+  if (process.platform === 'linux') {
+    // pulse before alsa, deliberately. PipeWire and PulseAudio both expose the
+    // pulse API, `default` follows the input the user actually picked in the
+    // mixer, and it captures while the sound server holds the device — a raw
+    // alsa grab usually cannot, because the card is already open.
+    try {
+      if (await _ffmpegKnowsFormat(ffmpeg, 'pulse')) _sttLinuxFormat = 'pulse';
+      else if (await _ffmpegKnowsFormat(ffmpeg, 'alsa')) _sttLinuxFormat = 'alsa';
+      if (_sttLinuxFormat) process.stdout.write(`[STT] ${_sttLinuxFormat} input "default"\n`);
+      else process.stdout.write('[STT] ffmpeg knows neither pulse nor alsa — voice input is unavailable\n');
+    } catch (e) {
+      process.stdout.write('[STT] Device init error: ' + e.message + '\n');
+    }
+    _sttDeviceReady = true;
+    _boundMicLabel = cachedMicLabel || (_sttLinuxFormat ? `__${_sttLinuxFormat}__` : null);
     _sttDeviceWaiters.splice(0).forEach(cb => cb());
     return;
   }

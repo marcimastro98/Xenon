@@ -227,7 +227,7 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 | Deck: open app, file or site, run a script, lock | ✅ | ✅ | ✅ |
 | Global hotkeys, type text, move windows | ✅ | — | — |
 | Xenon AI, chat and actions (cloud and local) | ✅ | ✅ | ✅ |
-| Talking to it: voice input, screen vision | ✅ | ✅ | — |
+| Talking to it: voice input, screen vision | ✅ | ✅ | X11 only ³ |
 | "Hey Xenon" wake word | ✅ | — | — |
 | Network lighting (WLED, Hue, Nanoleaf, OpenRGB) | ✅ | ✅ | ✅ |
 | CORSAIR iCUE lighting | ✅ | — | — |
@@ -241,6 +241,8 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 ¹ macOS asks once for the Automation permission; the list stays empty until you grant it.
 
 ² Linux reads MPRIS over D-Bus, which needs `playerctl` installed.
+
+³ Voice input needs ffmpeg with PulseAudio or ALSA. Screen vision uses X11 capture; under Wayland it is refused rather than guessed, because capturing there goes through a permission portal rather than an ffmpeg input.
 
 macOS and Linux support is **new**. It is written against each platform's documented behaviour and covered by unit tests, but it has had far less real-world use than the Windows build — if something misbehaves, please [open an issue](https://github.com/marcimastro98/Xenon/issues) or say so on [Discord](https://discord.gg/MBVrw9kZyg).
 
