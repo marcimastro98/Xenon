@@ -308,6 +308,31 @@ jobs:
           tar -czf stage/MediaRemoteAdapter-macos.tar.gz -C "$OUT" .
           echo "staged $(du -h stage/MediaRemoteAdapter-macos.tar.gz | cut -f1) adapter payload"
 
+      # The macOS half of the Xenon Helper (helper-mac/, Swift). Same modes and
+      # the same stdio protocols as the Windows exe, so server.js gained a path
+      # and not a vocabulary. Universal, because the app is.
+      #
+      # continue-on-error while it is new: it is the youngest component here and
+      # a compile break in it must not cost Windows and macOS users a release.
+      # Tighten this once it has shipped once.
+      - name: Build the macOS helper
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          swift build -c release --package-path helper-mac --arch arm64 --arch x86_64
+          BIN=$(find helper-mac/.build -name 'xenon-helper' -type f -perm +111 | head -1)
+          [ -n "$BIN" ] || { echo "xenon-helper not found in the build output"; exit 1; }
+          ARCHS=$(lipo -archs "$BIN")
+          echo "helper archs: $ARCHS"
+          case "$ARCHS" in *arm64*) ;; *) echo "arm64 missing"; exit 1 ;; esac
+          case "$ARCHS" in *x86_64*) ;; *) echo "x86_64 missing"; exit 1 ;; esac
+          echo "helper version: $("$BIN" --version)"
+          mkdir -p stage
+          # tar, not a bare file: it is the only way the executable bit survives
+          # a GitHub release asset download.
+          tar -czf stage/xenon-helper-macos.tar.gz -C "$(dirname "$BIN")" xenon-helper
+          echo "staged $(du -h stage/xenon-helper-macos.tar.gz | cut -f1) helper"
+
       - name: Stage artifacts and the macos updater fragment
         run: |
           set -euo pipefail

@@ -190,6 +190,39 @@ install_media_adapter() {
 }
 install_media_adapter
 
+# ── 3c) macOS helper ─────────────────────────────────────────────────────────
+# The macOS half of the Xenon Helper: the app switcher without a per-app
+# Automation grant, the game probe, the global search hotkey and the Trash. Same
+# optional contract as everything else here — without it those features fall
+# back to osascript or are simply not offered.
+install_mac_helper() {
+  [ "$XENON_OS" = 'macos' ] || return 0
+  local dir="$SERVER_DIR/helper"
+  [ -x "$dir/xenon-helper" ] && return 0
+  have curl || return 0
+  step 'Installing the Xenon Helper…'
+  local url='https://github.com/marcimastro98/Xenon/releases/latest/download/xenon-helper-macos.tar.gz'
+  local tmp
+  tmp="$(mktemp -d)" || return 0
+  if ! curl -fsSL --retry 3 --max-time 180 -o "$tmp/helper.tar.gz" "$url"; then
+    warn 'the Xenon Helper could not be downloaded; the app switcher and the search hotkey will use the fallbacks.'
+    rm -rf "$tmp"; return 0
+  fi
+  mkdir -p "$dir"
+  if ! tar -xzf "$tmp/helper.tar.gz" -C "$dir"; then
+    warn 'the Xenon Helper archive could not be extracted.'
+    rm -rf "$tmp"; return 0
+  fi
+  rm -rf "$tmp"
+  chmod +x "$dir/xenon-helper" 2>/dev/null || true
+  # Downloaded binaries carry com.apple.quarantine, and Gatekeeper refuses to
+  # run a quarantined unsigned one — it would be present and never work.
+  if have xattr; then xattr -dr com.apple.quarantine "$dir/xenon-helper" 2>/dev/null || true; fi
+  printf '%s  ✓ Xenon Helper installed%s
+' "$C_OK" "$C_OFF"
+}
+install_mac_helper
+
 # ── 4) Register the login service ────────────────────────────────────────────
 register_macos() {
   # KeepAlive restarts the backend if it ever exits — the in-session equivalent

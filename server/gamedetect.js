@@ -76,7 +76,8 @@ const PROBE_SCRIPT = path.join(__dirname, 'foreground.ps1');
 // Native helper (optional): same probe, same output lines, but also pushes an
 // extra line the instant the foreground window changes — game mode reacts
 // immediately. When the exe is missing or keeps dying, the PS probe is used.
-const HELPER_PROBE_EXE = path.join(__dirname, 'helper', 'xenon-helper.exe');
+const HELPER_PROBE_EXE = path.join(__dirname, 'helper',
+  process.platform === 'win32' ? 'xenon-helper.exe' : 'xenon-helper');
 
 let _proc = null;
 let _stopped = false;
@@ -158,7 +159,7 @@ function onData(chunk) {
 }
 
 function start() {
-  if (_stopped || process.platform !== 'win32') return;
+  if (_stopped) return;
   if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
   _buffer = '';
   const startedAt = Date.now();
@@ -166,6 +167,10 @@ function start() {
   if (!_helperDisabled) {
     try { useHelper = fs.existsSync(HELPER_PROBE_EXE); } catch { useHelper = false; }
   }
+  // The PowerShell fallback only exists on Windows. Elsewhere the helper is the
+  // only probe there is, so no helper means no game mode — and starting a
+  // doomed powershell.exe every few seconds would be worse than not having it.
+  if (!useHelper && process.platform !== 'win32') return;
   _lastSpawnWasHelper = useHelper;
   try {
     _proc = useHelper

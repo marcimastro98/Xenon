@@ -219,39 +219,40 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 | Native full-screen app | ✅ | ✅ | ✅ |
 | Starts at login, updates itself | ✅ | ✅ | ✅ |
 | CPU, RAM, disks, network | ✅ | ✅ | ✅ |
-| CPU/GPU temperature and GPU load | ✅ | with `macmon` | ✅ ⁴ |
+| CPU/GPU temperature and GPU load | ✅ | with `macmon` | ✅ ¹ |
 | System volume, microphone mute | ✅ | ✅ | ✅ |
 | Per-app volume mixer | ✅ | — | ✅ |
 | Now playing + media keys | ✅ | ✅ | ✅ ² |
-| Open apps / app switcher | ✅ | ✅ ¹ | X11 only |
+| Open apps / app switcher | ✅ | ✅ ³ | X11 only |
 | Deck: open app, file or site, run a script, lock | ✅ | ✅ | ✅ |
-| Global hotkeys, type text, move windows | ✅ | — | — |
+| Global search hotkey | ✅ | ✅ ³ | — |
+| Type text, move windows | ✅ | — | — |
 | Xenon AI, chat and actions (cloud and local) | ✅ | ✅ | ✅ |
-| Talking to it: voice input, screen vision | ✅ | ✅ | X11 only ³ |
+| Talking to it: voice input, screen vision | ✅ | ✅ | X11 only ⁴ |
 | "Hey Xenon" wake word | ✅ | ✅ ⁵ | ✅ ⁵ |
 | Network lighting (WLED, Hue, Nanoleaf, OpenRGB) | ✅ | ✅ | ✅ |
 | CORSAIR iCUE lighting | ✅ | — | — |
 | Streaming, Spotify, Discord, Home Assistant, Claude Code | ✅ | ✅ | ✅ |
 | In-game FPS counter | ✅ | — | — |
-| Mirroring desktop notifications | ✅ | — | ✅ ⁷ |
+| Mirroring desktop notifications | ✅ | — | ✅ ⁶ |
 | Living Index, PC search, disk cleanup | ✅ | — | — |
-| Embedded browser tile | ✅ | ✅ ⁶ | ✅ ⁶ |
+| Embedded browser tile | ✅ | ✅ ⁷ | ✅ ⁷ |
 | Second screen | ✅ | — | — |
 | Remote PC control (Sunshine) | ✅ | — | — |
 
-¹ macOS asks once for the Automation permission; the list stays empty until you grant it.
+¹ NVIDIA needs `nvidia-smi`; AMD is read from the kernel directly and needs nothing; Intel reports temperature only, because its load counters are not readable without elevated access.
 
 ² Linux reads MPRIS over D-Bus, which needs `playerctl` installed.
 
-⁷ Linux reads the freedesktop notification bus, which needs `dbus-monitor` (part of the standard dbus package).
+³ Uses the Xenon Helper, a small companion the installer fetches. Without it the app switcher falls back to scripting, which asks for permission once per application, and the hotkey is not offered.
 
-⁶ Needs a Chromium-based browser installed (Edge, Chrome, Chromium or Brave); the tile drives it over the DevTools protocol.
+⁴ Voice input needs ffmpeg with PulseAudio or ALSA. Screen vision uses X11 capture; under Wayland it is refused rather than guessed, because capturing there goes through a permission portal rather than an ffmpeg input.
 
 ⁵ Needs the free local Whisper installed (Settings → Xenon AI), same as on Windows, and a microphone ffmpeg can open.
 
-⁴ NVIDIA needs `nvidia-smi`; AMD is read from the kernel directly and needs nothing; Intel reports temperature only, because its load counters are not readable without elevated access.
+⁶ Linux reads the freedesktop notification bus, which needs `dbus-monitor` (part of the standard dbus package).
 
-³ Voice input needs ffmpeg with PulseAudio or ALSA. Screen vision uses X11 capture; under Wayland it is refused rather than guessed, because capturing there goes through a permission portal rather than an ffmpeg input.
+⁷ Needs a Chromium-based browser installed (Edge, Chrome, Chromium or Brave); the tile drives it over the DevTools protocol.
 
 macOS and Linux support is **new**. It is written against each platform's documented behaviour and covered by unit tests, but it has had far less real-world use than the Windows build — if something misbehaves, please [open an issue](https://github.com/marcimastro98/Xenon/issues) or say so on [Discord](https://discord.gg/MBVrw9kZyg).
 

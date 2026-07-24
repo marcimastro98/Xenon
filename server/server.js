@@ -620,7 +620,12 @@ const MEDIA_SCRIPT = path.join(__dirname, 'media.ps1');
 // Xenon Helper — optional native companion exe (built from helper/, or shipped
 // with the release). When present it replaces the persistent PowerShell hosts
 // module by module; when absent everything runs on the PS scripts as before.
-const HELPER_EXE = path.join(__dirname, 'helper', 'xenon-helper.exe');
+// The same companion on every platform, built from a different source tree:
+// helper/ (C#) on Windows, helper-mac/ (Swift) on macOS. Both answer the same
+// modes with the same stdio protocols, so a caller needs the path and not a
+// branch. Linux has no helper and never asks for one.
+const HELPER_EXE = path.join(__dirname, 'helper',
+  process.platform === 'win32' ? 'xenon-helper.exe' : 'xenon-helper');
 // mediaremote-adapter — the macOS equivalent of the helper's media-serve, and
 // optional in the same way: downloaded by the installer, gitignored, absent on
 // a source checkout. Without it the media tile stays empty, which is what it
@@ -1720,11 +1725,15 @@ function runHelperOneShot(args, timeout = 8000) {
 // back to windows.ps1 transparently on ANY helper problem (missing, crashed,
 // bad output) — the PowerShell path is the permanent safety net.
 async function runWindowsTool(args, timeout) {
-  if (nativeCollectors) return nativeCollectors.windows(args[0], args[1]);
+  // The helper first, on every platform that has one. On macOS this is not
+  // merely faster than the osascript collector: NSWorkspace needs no permission
+  // at all, while Automation is granted per TARGET APPLICATION, so the
+  // scripted list stays empty until the user has approved each app one by one.
   if (fs.existsSync(HELPER_EXE)) {
     try { return await runHelperOneShot(['windows', ...args], timeout); }
-    catch { /* fall through to the PowerShell path */ }
+    catch { /* fall through to the platform's own path */ }
   }
+  if (nativeCollectors) return nativeCollectors.windows(args[0], args[1]);
   return runPowerShellScript(WINDOWS_SCRIPT, args, timeout);
 }
 
