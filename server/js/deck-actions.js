@@ -12,20 +12,20 @@ const ACTION_CATALOG = [
   { type: 'openApp',  group: 'system', labelKey: 'deck_act_openApp',  params: [{ name: 'path', kind: 'path' }] },
   { type: 'openFile', group: 'system', labelKey: 'deck_act_openFile', params: [{ name: 'path', kind: 'path' }] },
   { type: 'runScript', group: 'system', labelKey: 'deck_act_runScript', params: [{ name: 'path', kind: 'path' }, { name: 'window', kind: 'select', options: ['visible', 'hidden'] }] },
-  { type: 'openStoreApp', group: 'system', labelKey: 'deck_act_openStoreApp', params: [{ name: 'appId', kind: 'storeApp' }] },
+  { type: 'openStoreApp', group: 'system', requires: 'powershell', labelKey: 'deck_act_openStoreApp', params: [{ name: 'appId', kind: 'storeApp' }] },
   // Launch a Steam game by its numeric AppID via the steam://rungameid/<id> deep
   // link (the canonical launcher route — goes through the Steam client/overlay,
   // unlike a raw steam.exe -applaunch, which openApp can't pass args to anyway).
   // The id is validated to digits-only in the server registry before use.
   { type: 'launchSteamGame', group: 'system', labelKey: 'deck_act_launchSteamGame', params: [{ name: 'gameId', kind: 'text' }] },
   { type: 'openUrl',  group: 'system', labelKey: 'deck_act_openUrl',  params: [{ name: 'url',  kind: 'url'  }] },
-  { type: 'hotkey',   group: 'system', labelKey: 'deck_act_hotkey',   params: [{ name: 'keys', kind: 'text' }] },
+  { type: 'hotkey',   group: 'system', requires: 'powershell', labelKey: 'deck_act_hotkey',   params: [{ name: 'keys', kind: 'text' }] },
   // Type a literal snippet into the app the user was last using (same focus
   // machinery as hotkey; KEYEVENTF_UNICODE so any character/emoji works).
-  { type: 'typeText', group: 'system', labelKey: 'deck_act_typeText', params: [{ name: 'text', kind: 'text' }] },
+  { type: 'typeText', group: 'system', requires: 'powershell', labelKey: 'deck_act_typeText', params: [{ name: 'text', kind: 'text' }] },
   { type: 'lockWorkstation', group: 'system', labelKey: 'deck_act_lockWorkstation', params: [] },
   { type: 'webhook',  group: 'system', labelKey: 'deck_act_webhook',  params: [{ name: 'url', kind: 'url' }, { name: 'method', kind: 'select', options: ['GET', 'POST'] }, { name: 'body', kind: 'text' }] },
-  { type: 'media',    group: 'media',  labelKey: 'deck_act_media',    params: [{ name: 'cmd',  kind: 'select', options: ['playpause', 'next', 'previous'] }] },
+  { type: 'media',    group: 'media',  requires: 'powershell', labelKey: 'deck_act_media',    params: [{ name: 'cmd',  kind: 'select', options: ['playpause', 'next', 'previous'] }] },
   // Soundboard: its own picker category since sound packs made it a full
   // feature (v4.5.3). Group is picker taxonomy only — the action TYPE strings
   // are unchanged, so existing keys and shared profiles keep working.
@@ -39,9 +39,9 @@ const ACTION_CATALOG = [
   { type: 'micMute',  group: 'audio',  labelKey: 'deck_act_micMute',  params: [{ name: 'mode', kind: 'select', options: ['toggle', 'mute', 'unmute'] }] },
   // 'set' (+ value 0–100) is appended LAST: options[0] stays the legacy default.
   { type: 'volume',   group: 'audio',  labelKey: 'deck_act_volume',   params: [{ name: 'mode', kind: 'select', options: ['mute', 'up', 'down', 'set'] }, { name: 'value', kind: 'text', optional: true }] },
-  { type: 'appVolume', group: 'audio', labelKey: 'deck_act_appVolume', params: [{ name: 'app', kind: 'audioApp' }, { name: 'mode', kind: 'select', options: ['up', 'down', 'set'] }, { name: 'value', kind: 'text', optional: true }] },
-  { type: 'appMute',   group: 'audio', labelKey: 'deck_act_appMute',   params: [{ name: 'app', kind: 'audioApp' }, { name: 'mode', kind: 'select', options: ['toggle', 'mute', 'unmute'] }] },
-  { type: 'appMixer',  group: 'audio', labelKey: 'deck_act_appMixer',  params: [] },
+  { type: 'appVolume', group: 'audio', requires: 'appAudio', labelKey: 'deck_act_appVolume', params: [{ name: 'app', kind: 'audioApp' }, { name: 'mode', kind: 'select', options: ['up', 'down', 'set'] }, { name: 'value', kind: 'text', optional: true }] },
+  { type: 'appMute',   group: 'audio', requires: 'appAudio', labelKey: 'deck_act_appMute',   params: [{ name: 'app', kind: 'audioApp' }, { name: 'mode', kind: 'select', options: ['toggle', 'mute', 'unmute'] }] },
+  { type: 'appMixer',  group: 'audio', requires: 'appAudio', labelKey: 'deck_act_appMixer',  params: [] },
   { type: 'audioDevice', group: 'audio', labelKey: 'deck_act_audioDevice', params: [{ name: 'device', kind: 'text' }] },
   { type: 'obsScene',  group: 'obs', labelKey: 'deck_act_obsScene',  params: [{ name: 'scene',  kind: 'obsScene' }] },
   { type: 'obsSceneNext', group: 'obs', labelKey: 'deck_act_obsSceneNext', params: [] },
@@ -94,7 +94,7 @@ const ACTION_CATALOG = [
   { type: 'haScript',      group: 'homeassistant', labelKey: 'deck_act_haScript',      params: [{ name: 'entity', kind: 'haEntity', domain: 'script' }] },
   { type: 'haButton',      group: 'homeassistant', labelKey: 'deck_act_haButton',      params: [{ name: 'entity', kind: 'haEntity', domain: 'button' }] },
   { type: 'haCallService', group: 'homeassistant', labelKey: 'deck_act_haCallService', params: [{ name: 'service', kind: 'text' }, { name: 'entity', kind: 'text' }, { name: 'data', kind: 'text' }] },
-  { type: 'windowMove',    group: 'window', labelKey: 'deck_act_windowMove', params: [{ name: 'dir', kind: 'select', options: ['next-monitor', 'prev-monitor', 'left', 'right', 'maximize', 'minimize', 'center'] }] },
+  { type: 'windowMove',    group: 'window', requires: 'powershell', labelKey: 'deck_act_windowMove', params: [{ name: 'dir', kind: 'select', options: ['next-monitor', 'prev-monitor', 'left', 'right', 'maximize', 'minimize', 'center'] }] },
   { type: 'remoteDisconnect',  group: 'remote', labelKey: 'deck_act_remoteDisconnect',  params: [] },
   { type: 'remoteBlock',       group: 'remote', labelKey: 'deck_act_remoteBlock',       params: [{ name: 'mode', kind: 'select', options: ['toggle', 'block', 'unblock'] }] },
   { type: 'remoteScreenCycle', group: 'remote', labelKey: 'deck_act_remoteScreenCycle', params: [] },

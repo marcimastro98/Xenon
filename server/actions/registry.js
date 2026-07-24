@@ -21,8 +21,12 @@ function normalizeUrl(s) {
   return isHttpUrl(withScheme) ? withScheme : '';
 }
 
+// What openApp may launch. macOS applications are `.app` bundles (directories,
+// which fileExists() answers for), so that extension is allowed there and only
+// there — the Windows boundary stays exactly what it was.
+const APP_PATH_EXT = process.platform === 'darwin' ? /\.(exe|lnk|app)$/i : /\.(exe|lnk)$/i;
 function isAllowedAppPath(p) {
-  return typeof p === 'string' && /\.(exe|lnk)$/i.test(p.trim());
+  return typeof p === 'string' && APP_PATH_EXT.test(p.trim());
 }
 
 // Percentage value for the volume/brightness 'set' modes: accepts a decimal

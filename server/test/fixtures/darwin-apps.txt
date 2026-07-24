@@ -1,0 +1,3 @@
+501	Safari	/Applications/Safari.app	true	Xenon on GitHub
+612	Terminal	/System/Applications/Utilities/Terminal.app	false	marce -- -zsh
+88	Finder	/System/Library/CoreServices/Finder.app	false	

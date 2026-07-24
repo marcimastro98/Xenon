@@ -98,7 +98,15 @@ function createSelfUpdate(opts) {
 
   // Auto-update needs the external applier script present and must not run on a
   // dev checkout (git). The helper exe / node version don't matter here.
+  //
+  // The platform test is not redundant with the applierPath one: update-apply.ps1
+  // is a tracked file, so it EXISTS in every checkout including a macOS install —
+  // it just cannot run there, and neither can the Expand-Archive that stages the
+  // download. Reporting unsupported keeps the whole flow fail-closed (the
+  // dashboard offers a download link instead of an in-place update) rather than
+  // letting apply() spawn a PowerShell that isn't on this machine.
   function supported() {
+    if (process.platform !== 'win32') return false;
     try { return !isGitCheckout() && f.existsSync(applierPath); } catch { return false; }
   }
 

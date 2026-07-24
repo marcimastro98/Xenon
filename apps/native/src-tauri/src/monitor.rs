@@ -17,6 +17,38 @@ use tauri::{
 
 use crate::prefs;
 
+// This module is shared by every target, but two of the things it consults —
+// the virtual-display list and the game-mode guard — are implemented with Win32
+// APIs and so live in `#[cfg(windows)]` modules. Referring to them directly
+// made the whole crate fail to resolve on macOS/Linux. These shims keep the
+// logic below platform-agnostic, and the non-Windows values are the behaviour
+// this file had before either feature existed.
+
+/// Names of virtual/phantom displays to avoid when several monitors match the
+/// Edge signature. Only Windows can present one (the second-screen driver, see
+/// gpu.rs), so elsewhere the list is empty and `find_edge` keeps its plain
+/// first-match behaviour.
+#[cfg(windows)]
+fn virtual_display_names() -> Vec<String> {
+    crate::gpu::virtual_display_names()
+}
+#[cfg(not(windows))]
+fn virtual_display_names() -> Vec<String> {
+    Vec::new()
+}
+
+/// Whether a game currently holds the foreground. Tracked by focus_guard, which
+/// is Windows-only; elsewhere the watchdog re-pins unconditionally, exactly as
+/// it did before the guard was added.
+#[cfg(windows)]
+fn game_mode() -> bool {
+    crate::focus_guard::game_mode()
+}
+#[cfg(not(windows))]
+fn game_mode() -> bool {
+    false
+}
+
 /// Native resolution of the CORSAIR Xeneon Edge 14.5" panel.
 const EDGE_WIDTH: u32 = 2560;
 const EDGE_HEIGHT: u32 = 720;
@@ -117,7 +149,7 @@ fn find_edge(window: &WebviewWindow) -> Option<Monitor> {
     if candidates.len() < 2 {
         return candidates.into_iter().next();
     }
-    let virtual_names = crate::gpu::virtual_display_names();
+    let virtual_names = virtual_display_names();
     let is_virtual = |m: &Monitor| {
         matches!(m.name(), Some(name) if virtual_names.iter().any(|v| v == name))
     };
@@ -637,7 +669,7 @@ pub fn start_watchdog(app: AppHandle) {
             // focus_guard keeps the game foreground, and the watchdog re-pins once
             // the game exits. last_topology stays current (updated above), so the
             // resolution reverting on exit is not itself seen as a change to chase.
-            if !crate::focus_guard::game_mode()
+            if !game_mode()
                 && (topology_changed || !window_is_on(&window, &edge))
             {
                 // Re-place, but only re-raise if the kiosk already had the

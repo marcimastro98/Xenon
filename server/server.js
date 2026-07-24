@@ -4558,15 +4558,72 @@ function resolveExecInDir(dir) {
   } catch { return ''; }
 }
 
-// Lock the Windows session. Single source of truth for the LockWorkStation call,
-// shared by the Deck lockWorkstation action, the AI lock_pc tool, the /lock
-// endpoint and the idle auto-lock flow. execFile with an argv array — never a
-// shell string.
+// Lock the session. Single source of truth for the lock call, shared by the
+// Deck lockWorkstation action, the AI lock_pc tool, the /lock endpoint and the
+// idle auto-lock flow. execFile with an argv array — never a shell string.
+const MAC_CGSESSION = '/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/CGSession';
 function lockWorkstation() {
   return new Promise((resolve, reject) => {
-    execFile('rundll32.exe', ['user32.dll,LockWorkStation'], { windowsHide: true }, (err) => {
+    // CGSession -suspend is the documented "lock now" on macOS: it returns to
+    // the login window, which is what LockWorkStation does on Windows.
+    const [cmd, args] = process.platform === 'darwin'
+      ? [MAC_CGSESSION, ['-suspend']]
+      : ['rundll32.exe', ['user32.dll,LockWorkStation']];
+    execFile(cmd, args, { windowsHide: true }, (err) => {
       if (err) reject(err); else resolve();
     });
+  });
+}
+
+// Open a file, folder or URL with the system handler. On Windows this is
+// deck-actions.ps1's `open` verb (Start-Process); on macOS `open` does the same
+// job natively, and taking the argv path means a filename that looks like a
+// flag cannot become one (`--` ends option parsing).
+function openExternalPath(p) {
+  if (process.platform !== 'darwin') {
+    return runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000);
+  }
+  return new Promise((resolve, reject) => {
+    execFile('/usr/bin/open', ['--', String(p)], { timeout: 8000 }, (err) => {
+      if (err) reject(err); else resolve({ ok: true });
+    });
+  });
+}
+
+// The interpreter a user script runs under, by extension. The Windows set lives
+// in deck-actions.ps1; this is its macOS twin. .bat/.cmd/.ps1 have no meaning
+// here and are deliberately absent, so such a key reports a failure rather than
+// appearing to run.
+const MAC_SCRIPT_RUNNERS = {
+  '.sh': ['/bin/sh'],
+  '.command': ['/bin/sh'],
+  '.zsh': ['/bin/zsh'],
+  '.bash': ['/bin/bash'],
+  '.py': ['/usr/bin/env', 'python3'],
+  '.js': ['/usr/bin/env', 'node'],
+  '.scpt': ['/usr/bin/osascript'],
+  '.applescript': ['/usr/bin/osascript'],
+};
+function runUserScript(p, hidden) {
+  if (process.platform !== 'darwin') {
+    return runPowerShellScript(DECK_ACTIONS_SCRIPT, ['runscript', p, hidden ? 'hidden' : 'visible'], 8000);
+  }
+  const ext = path.extname(String(p)).toLowerCase();
+  const runner = MAC_SCRIPT_RUNNERS[ext];
+  if (!runner) return Promise.reject(new Error(`unsupported script type "${ext}"`));
+  return new Promise((resolve, reject) => {
+    // Detached, like the Windows path: a Deck key starts a script, it does not
+    // wait for it. stdio is discarded so a chatty script cannot fill a pipe and
+    // wedge on a full buffer.
+    try {
+      const child = spawn(runner[0], [...runner.slice(1), String(p)], {
+        detached: true,
+        stdio: 'ignore',
+      });
+      child.on('error', reject);
+      child.unref();
+      resolve({ ok: true });
+    } catch (e) { reject(e); }
   });
 }
 
@@ -4587,17 +4644,21 @@ const deckRegistryDeps = {
     }
     return signalrgb.applyEffect(effect);
   },
-  openExternal: (p) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000),
-  // Run a user-configured .bat/.cmd/.ps1/.py (the runScript action), in a visible
-  // or hidden window. The path is validated to a real script in the registry
-  // before it reaches here.
-  runScript: (p, hidden) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['runscript', p, hidden ? 'hidden' : 'visible'], 8000),
+  openExternal: (p) => openExternalPath(p),
+  // Run a user-configured script (the runScript action), in a visible or hidden
+  // window where the platform has the concept. The path is validated to a real
+  // script in the registry before it reaches here.
+  runScript: (p, hidden) => runUserScript(p, hidden),
   // Resolve a folder target (the app's install dir) to its launch executable, so
   // a Deck "open app" key pointed at a folder (e.g. Discord's) still launches.
   resolveAppDir: (p) => resolveExecInDir(p),
   // Launch a Store/UWP app by AppUserModelID (shell:AppsFolder\<aumid>). The AUMID is
-  // validated in the registry before reaching this dep.
-  openStoreApp: (aumid) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['openapp', aumid], 8000),
+  // validated in the registry before reaching this dep. Left undefined off
+  // Windows: there is no UWP anywhere else, and the registry turns a missing
+  // dep into a clean 'unavailable' rather than a failed spawn.
+  openStoreApp: POWERSHELL_SUPPORTED
+    ? (aumid) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['openapp', aumid], 8000)
+    : undefined,
   mediaAction: (cmd) => mediaAction(cmd),
   micMute: async (mode) => {
     if (mode === 'mute') isMuted = true;
@@ -11170,7 +11231,13 @@ const server = http.createServer(async (req, res) => {
       const audioControlAvailable = nativeCollectors
         ? await nativeCollectors.audioAvailable()
         : fs.existsSync(SVV);
-      json({ catalog: ACTION_CATALOG, capabilities: { powershell: powershellAvailable, soundVolumeView: audioControlAvailable, obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked } });
+      // Per-app volume is a narrower capability than "audio works": Windows has
+      // it through SoundVolumeView and Linux through PipeWire's per-stream
+      // nodes, but macOS exposes no per-process mixer to a shell at all (see
+      // docs/MACOS_PORTABILITY.md). The editor hides those keys rather than
+      // offering three that always fail.
+      const appAudioAvailable = audioControlAvailable && process.platform !== 'darwin';
+      json({ catalog: ACTION_CATALOG, capabilities: { powershell: powershellAvailable, soundVolumeView: audioControlAvailable, appAudio: appAudioAvailable, obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked } });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/wavelink/state' && req.method === 'GET') {

@@ -23,9 +23,6 @@
   "engines": {
     "node": ">=18.15.0"
   },
-  "os": [
-    "win32"
-  ],
   "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",
