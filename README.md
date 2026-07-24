@@ -235,12 +235,15 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 | In-game FPS counter | ✅ | — | — |
 | Windows notification mirroring | ✅ | — | — |
 | Living Index, PC search, disk cleanup | ✅ | — | — |
-| Second screen, embedded browser tile | ✅ | — | — |
+| Embedded browser tile | ✅ | ✅ ⁶ | ✅ ⁶ |
+| Second screen | ✅ | — | — |
 | Remote PC control (Sunshine) | ✅ | — | — |
 
 ¹ macOS asks once for the Automation permission; the list stays empty until you grant it.
 
 ² Linux reads MPRIS over D-Bus, which needs `playerctl` installed.
+
+⁶ Needs a Chromium-based browser installed (Edge, Chrome, Chromium or Brave); the tile drives it over the DevTools protocol.
 
 ⁵ Needs the free local Whisper installed (Settings → Xenon AI), same as on Windows, and a microphone ffmpeg can open.
 
