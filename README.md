@@ -4,7 +4,7 @@
 
 # Xenon
 
-A polished, all-in-one dashboard for the **CORSAIR Xeneon Edge 14.5" LCD touchscreen** — and any browser on Windows.
+A polished, all-in-one dashboard for the **CORSAIR Xeneon Edge 14.5" LCD touchscreen** — and any browser on Windows, macOS or Linux.
 Monitor your PC, control media and audio, mute your mic, manage your day, talk to a built-in AI assistant, drive your RGB lighting, and more — all from one glanceable screen.
 
 And it has a personality. Xenon is a companion, not just a control panel: a built-in AI you can actually talk to, and **Bit** — a little pixel guardian who lives in the corner, watches your habits, and roasts you (kindly) into drinking some water and standing up now and then.
@@ -13,7 +13,7 @@ Everything runs **100% locally**: no cloud, no telemetry, no account required. T
 updates at launch, and reaches the network for features you turn on (weather, media artwork, the
 community catalog) — every one of those calls is listed in the [privacy page](https://xenon-app.com/privacy.html).
 
-![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)
+![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6)
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
 ![license](https://img.shields.io/badge/license-non--commercial-blue)
 ![version](https://img.shields.io/badge/version-4.10.1-informational)
@@ -30,6 +30,8 @@ community catalog) — every one of those calls is listed in the [privacy page](
 Xenon is **optimized for the CORSAIR Xeneon Edge** 14.5" touchscreen: dense, glanceable tiles, comfortable touch targets, and a layout tuned for that display.
 
 But it is **just a local web app**, so it works just as well in any Chromium-based browser (Edge, Chrome) on a normal monitor — touchscreen or not. Every control works with a mouse, and the layout reflows to fit landscape, portrait, large desktop windows, and the Xeneon Edge's short screen.
+
+It also runs on **macOS and Linux**, not only Windows. The dashboard, the widgets and the integrations are identical there; the parts that read or drive the machine itself use each platform's own tools, and a few Windows-only ones have no equivalent yet. [What works where](#platform-support) says exactly which.
 
 **One Xenon, four ways to see it.** A single local engine (started automatically at login, running quietly in the background) serves the dashboard, and every surface draws from that same live UI — so a feature added once appears everywhere:
 
@@ -85,6 +87,8 @@ Xenon runs as a small local Node.js server on `http://127.0.0.1:3030/`. On the X
 
 ### Step 1 — Run the installer (once)
 
+#### Windows
+
 **Option A — one-click setup (recommended):**
 
 1. Download **[Xenon-Setup-x64.exe](https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe)** — that link always serves the newest version.
@@ -111,10 +115,49 @@ Either way, the installer automatically:
 
 > The installer **does not** download the free local-AI components (Ollama / Whisper) — that keeps first-time setup fast. You set those up on demand from **Settings → Xenon AI** only if you switch to the local provider. See [FEATURES.md](FEATURES.md#xenon-ai).
 
+#### macOS
+
+Universal build: one download for both Apple Silicon and Intel.
+
+1. Download **[Xenon-macOS-universal.dmg](https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-macOS-universal.dmg)** and drag **Xenon** to Applications.
+2. Open it. The first launch has no dashboard behind it yet, so it offers to set one up in a Terminal window you can read and stop. The download is checked against the project's signing key **before** anything is extracted.
+3. Let it finish. Xenon installs itself under `~/Library/Application Support/Xenon`, registers a login agent so it starts with you, and the app window comes alive.
+
+> **"Xenon can't be opened because Apple cannot check it."** Expected for now: the app is not notarized yet (that needs a paid Apple Developer membership, which this project does not have). Right-click the app → **Open** → **Open**, once.
+
+macOS needs **Node.js** and will say so if it is missing. Three optional tools each light up one thing, and Xenon tells you which are absent instead of failing later:
+
+```bash
+brew install node                      # required
+brew install vladkens/tap/macmon       # CPU/GPU temperature and GPU load
+brew install switchaudio-osx           # switching the output device
+brew install ffmpeg                    # voice input and spoken replies
+```
+
+Prefer no app? `bash server/install.sh` from an extracted source zip does the same thing without the kiosk window.
+
+#### Linux
+
+Two ways, same result.
+
+- **The app:** download **[Xenon-Linux-x86_64.AppImage](https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage)** (`chmod +x` it and run it) or **[Xenon-Linux-x86_64.deb](https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.deb)**. Like macOS, the first launch offers to set the dashboard up in a terminal window, verifying the download before extracting it. The package deliberately does **not** install it for you: everything it would create belongs to one user account, and a package installs as root for the whole machine.
+- **Browser only:** download the **Source code (zip)** from [Releases](https://github.com/marcimastro98/Xenon/releases/latest), extract it, and run `bash server/install.sh`.
+
+The installer registers a `systemd --user` service so Xenon starts when you log in, and falls back to an XDG autostart entry where there is no user manager (saying so, including that the fallback has no crash-restart). It also lists the optional tools you do not have:
+
+```bash
+sudo apt install nodejs npm unzip      # required
+sudo apt install wireplumber           # volume, microphone and the per-app mixer
+sudo apt install wmctrl xdotool x11-utils   # the open-applications widget (X11 sessions)
+sudo apt install ffmpeg                # voice input and spoken replies
+```
+
+> If your desktop has no terminal emulator at all, the app cannot show you the installer. Run `bash server/install.sh` from an extracted source zip instead.
+
 ### Step 2 — Use it
 
 **On the Xeneon Edge — the native Xenon app (recommended):**
-Nothing to configure: the installer already put the **Xenon app** on your PC and set it to open at login. It opens by itself, full-screen and edge-to-edge on the Xeneon Edge — no browser, no iCUE — with **game-safe touch** and a system-tray icon (show / hide / restart / exit). If it isn't on screen right now, launch **Xenon** from the Start menu or the tray icon. No Edge connected? It opens as a normal resizable window instead.
+Nothing to configure: on Windows the installer already put the **Xenon app** on your PC and set it to open at login (on macOS and Linux the app is the thing you installed in Step 1). It opens by itself, full-screen and edge-to-edge on the Xeneon Edge — no browser, no iCUE — with **game-safe touch** and a system-tray icon (show / hide / restart / exit). If it isn't on screen right now, launch **Xenon** from the Start menu or the tray icon. No Edge connected? It opens as a normal resizable window instead.
 
 **In a browser (any monitor, touch or not):**
 Just open **`http://127.0.0.1:3030/`**.
@@ -135,7 +178,7 @@ Just open **`http://127.0.0.1:3030/`**.
 
 > **Nothing.** The engine starts automatically when you log in and the native app reopens itself on the Edge — the dashboard is live before you even settle in. (Using iCUE instead? It remembers your layout too.)
 
-To remove the startup entry, double-click **`UNINSTALL.bat`**.
+To remove the startup entry, double-click **`UNINSTALL.bat`** on Windows, or run `bash server/uninstall.sh` on macOS and Linux (that one keeps your settings, layouts and notes unless you add `--purge-data`).
 
 ### Updating
 
@@ -145,8 +188,10 @@ Xenon updates itself. When a new release is out, the dashboard shows an **update
 
 ## Requirements
 
-- **Windows 10 or 11 (x64)**
+- **Windows 10 or 11 (x64)**, **macOS 11+** (Apple Silicon or Intel) or **Linux (x64)**
 - **[Node.js 18.15+](https://nodejs.org/)** — installed automatically by `INSTALL.bat`
+
+Everything below is the **Windows** list. On macOS and Linux the equivalents are installed with `brew` / your package manager and are all optional except Node.js; the installer names the ones you are missing and what each would light up (see [Installation](#step-1--run-the-installer-once)).
 - **[FFmpeg](https://ffmpeg.org/)** — installed automatically; used for MP4 → WebM background conversion
 - **[LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)** + **[PawnIO](https://github.com/namazso/PawnIO)** — installed automatically; CPU/disk temperatures (degrades gracefully if absent)
 - **[PresentMon](https://github.com/GameTechDev/PresentMon)** — downloaded automatically; real in-game FPS (falls back to a DWM reading if unavailable)
@@ -159,6 +204,42 @@ Xenon updates itself. When a new release is out, the dashboard shows an **update
 - **[Ollama](https://ollama.com)** + **[Whisper.cpp](https://github.com/ggerganov/whisper.cpp)** for the free local AI provider — set up on demand from Settings.
 - **[Sunshine](https://github.com/LizardByte/Sunshine)** + **[Tailscale](https://tailscale.com/)** for Remote Control — installed for you when you opt in; you use **[Moonlight](https://moonlight-stream.org/)** on your phone.
 - `nvidia-smi` is auto-detected for NVIDIA GPU usage/temperature.
+
+---
+
+## Platform support
+
+Windows is where Xenon started and is the most complete. macOS and Linux run the same dashboard, the same widgets, the same Store and the same integrations — what differs is only the part that reads or drives the machine itself, where each platform gets its own tools and a few Windows features have no equivalent yet.
+
+Anything unavailable is **hidden**, not offered and then failed: a Deck key that cannot work on your system does not appear in the editor, and a tile with no data source says so.
+
+| | Windows | macOS | Linux |
+|---|:---:|:---:|:---:|
+| Dashboard, tiles, themes, presets, widget Store & SDK | ✅ | ✅ | ✅ |
+| Native full-screen app | ✅ | ✅ | ✅ |
+| Starts at login, updates itself | ✅ | ✅ | ✅ |
+| CPU, RAM, disks, network | ✅ | ✅ | ✅ |
+| CPU/GPU temperature and GPU load | ✅ | with `macmon` | NVIDIA only |
+| System volume, microphone mute | ✅ | ✅ | ✅ |
+| Per-app volume mixer | ✅ | — | ✅ |
+| Now playing + media keys | ✅ | ✅ | — |
+| Open apps / app switcher | ✅ | ✅ ¹ | X11 only |
+| Deck: open app, file or site, run a script, lock | ✅ | ✅ | ✅ |
+| Global hotkeys, type text, move windows | ✅ | — | — |
+| Xenon AI (cloud and local), voice input | ✅ | ✅ | ✅ |
+| "Hey Xenon" wake word | ✅ | — | — |
+| Network lighting (WLED, Hue, Nanoleaf, OpenRGB) | ✅ | ✅ | ✅ |
+| CORSAIR iCUE lighting | ✅ | — | — |
+| Streaming, Spotify, Discord, Home Assistant, Claude Code | ✅ | ✅ | ✅ |
+| In-game FPS counter | ✅ | — | — |
+| Windows notification mirroring | ✅ | — | — |
+| Living Index, PC search, disk cleanup | ✅ | — | — |
+| Second screen, embedded browser tile | ✅ | — | — |
+| Remote PC control (Sunshine) | ✅ | — | — |
+
+¹ macOS asks once for the Automation permission; the list stays empty until you grant it.
+
+macOS and Linux support is **new**. It is written against each platform's documented behaviour and covered by unit tests, but it has had far less real-world use than the Windows build — if something misbehaves, please [open an issue](https://github.com/marcimastro98/Xenon/issues) or say so on [Discord](https://discord.gg/MBVrw9kZyg).
 
 ---
 
