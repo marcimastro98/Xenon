@@ -7469,11 +7469,6 @@ function applyTopbarClockSettings() {
     delete document.body.dataset.topbarAlign;
     if (window.TopbarMinimal && window.TopbarMinimal.applyIslandLayout) window.TopbarMinimal.applyIslandLayout();
   }
-  // Whether the pager dots are visible depends on the chrome and (in Minimal) on
-  // the island's hide toggles — both settled by now. Re-evaluate the floating
-  // fallback so it appears the moment the real dots go off-screen and vanishes
-  // when they come back. renderDots is idempotent and rebuilds only a few dots.
-  if (window.DashboardPager && typeof window.DashboardPager.renderDots === 'function') window.DashboardPager.renderDots();
 }
 
 const ISLAND_SOURCE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;

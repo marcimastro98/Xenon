@@ -4,6 +4,9 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [unreleased]
+### 🔧 Changes
+- **The floating row of page dots at the bottom of the screen has been removed.** It was added to help when a widget fills the whole page and a swipe cannot start, but it duplicated the page dots that already sit in the top bar, so it was more clutter than help. Page switching stays where it always was: tap the dots in the top bar to move between pages, and if you want to swipe with a finger, leave a little room around a full-page widget so there is background to start the gesture on.
+
 ### ✨ New
 - **Tabs inside a tile can be reordered by dragging them, in edit mode.** A tab tile — Chat, Riproduzione and Discord sitting in one tile, for instance — kept the tabs in the order you happened to add them, and the only way to change that was to remove a tab and put it back after the others. In edit mode you now drag a tab sideways along its bar: the others make room as you move it and it stays where you drop it. The order is saved with the layout, so it survives a restart and reaches the other screens you open the dashboard on. Outside edit mode a tap on a tab still just switches tab.
 
