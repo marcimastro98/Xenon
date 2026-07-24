@@ -114,19 +114,32 @@ function parseMacmon(raw) {
 // every later one reports a reading at most MACMON_TTL_MS old.
 const MACMON_TTL_MS = 2500;
 const MACMON_SAMPLE_MS = 300;
+// Give up only after this many consecutive failures. One is not enough: a cold
+// first spawn can lose the race with the timeout, and marking macmon missing on
+// that would leave temperatures blank until the next restart of a machine that
+// has the tool installed and working.
+const MACMON_MAX_FAILURES = 3;
+// ...and then back off rather than giving up for good. "Not installed" and "the
+// machine was too busy to answer three times" look identical from here, and the
+// second one must not blank the temperature tiles until the next restart. One
+// spawn every few minutes is cheap enough to keep the door open.
+const MACMON_RETRY_MS = 5 * 60 * 1000;
 let macmonCache = { data: { cpuTemp: null, gpu: null, gpuTemp: null }, at: 0 };
 let macmonInFlight = null;
-let macmonMissing = false;
+let macmonFailures = 0;
+let macmonNextTry = 0;
 
 function refreshMacmon() {
-  if (macmonInFlight || macmonMissing) return macmonInFlight;
+  if (macmonInFlight) return macmonInFlight;
+  if (macmonFailures >= MACMON_MAX_FAILURES && Date.now() < macmonNextTry) return null;
   macmonInFlight = runSoft('macmon', ['pipe', '-s', '1', '-i', String(MACMON_SAMPLE_MS)], 8000)
     .then((out) => {
       if (out === null) {
-        // Not installed (or it failed): stop paying for the spawn every poll.
-        macmonMissing = true;
+        macmonFailures++;
+        if (macmonFailures >= MACMON_MAX_FAILURES) macmonNextTry = Date.now() + MACMON_RETRY_MS;
         return;
       }
+      macmonFailures = 0;
       macmonCache = { data: parseMacmon(out), at: Date.now() };
     })
     .finally(() => { macmonInFlight = null; });
@@ -388,6 +401,15 @@ function parseAppList(out) {
 }
 
 const osa = (script, timeoutMs) => runSoft('osascript', ['-e', script], timeoutMs);
+// Writes use this one. A failed osascript resolves null through runSoft, and
+// swallowing that would confirm a volume change that never reached Core Audio —
+// the Deck key would flash success while nothing moved. The Linux twin lets
+// every wpctl write reject for exactly this reason.
+async function osaWrite(script, timeoutMs) {
+  const out = await osa(script, timeoutMs);
+  if (out === null) throw new Error(`osascript failed: ${script}`);
+  return out;
+}
 
 async function listApps() {
   // A denied (or never granted) Automation prompt lands here as null. An empty
@@ -569,20 +591,25 @@ async function audioCommand(args) {
   // A level change must be visible on the very next read, not up to a TTL later.
   audioRowsCache = { rows: null, at: 0 };
 
+  if (action === '/SetVolume') {
+    // The absolute actions need no read-back, and a Deck key held down would
+    // otherwise pay for two osascript spawns per repeat instead of one.
+    const pct = Math.max(0, Math.min(100, parseInt(list[2], 10) || 0));
+    if (capture && pct > 0) lastInputVolume = pct;
+    await osaWrite(`set volume ${scope} ${pct}`, 5000);
+    return;
+  }
+
+  // A failed read here is not fatal on its own: the write below is what must
+  // report failure, and a null read degrades to a 0 baseline.
   const current = parseVolumeSettings(await osa('get volume settings', 5000) || '');
   const level = capture ? current.input : current.output;
 
-  if (action === '/SetVolume') {
-    const pct = Math.max(0, Math.min(100, parseInt(list[2], 10) || 0));
-    if (capture && pct > 0) lastInputVolume = pct;
-    await osa(`set volume ${scope} ${pct}`, 5000);
-    return;
-  }
   if (action === '/ChangeVolume') {
     const step = parseInt(list[2], 10) || 0;
     const next = Math.max(0, Math.min(100, (level || 0) + step));
     if (capture && next > 0) lastInputVolume = next;
-    await osa(`set volume ${scope} ${next}`, 5000);
+    await osaWrite(`set volume ${scope} ${next}`, 5000);
     return;
   }
   if (action === '/Mute' || action === '/Unmute' || action === '/Switch') {
@@ -590,9 +617,9 @@ async function audioCommand(args) {
     const wantMuted = action === '/Switch' ? !muted : action === '/Mute';
     if (capture) {
       if (wantMuted && level > 0) lastInputVolume = level;
-      await osa(`set volume input volume ${wantMuted ? 0 : lastInputVolume}`, 5000);
+      await osaWrite(`set volume input volume ${wantMuted ? 0 : lastInputVolume}`, 5000);
     } else {
-      await osa(`set volume ${wantMuted ? 'with' : 'without'} output muted`, 5000);
+      await osaWrite(`set volume ${wantMuted ? 'with' : 'without'} output muted`, 5000);
     }
     return;
   }
