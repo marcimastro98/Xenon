@@ -363,7 +363,7 @@ fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
     use tauri::Manager;
     let script = app
         .path()
-        .resolve("macos/xenon-bootstrap.sh", BaseDirectory::Resource)
+        .resolve("posix/xenon-bootstrap.sh", BaseDirectory::Resource)
         .ok();
     let plist = app.path().home_dir().ok().map(|h| {
         h.join("Library/LaunchAgents/com.marcimastro98.xenon.backend.plist")
@@ -408,12 +408,118 @@ fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
     });
 }
 
-#[cfg(not(any(windows, target_os = "macos")))]
+/// Linux twin. Same two signals, written by `server/install.sh`: the
+/// `systemd --user` unit, or the XDG autostart entry it falls back to where
+/// there is no user manager.
+///
+/// Neither package can install the backend for us. An AppImage has no install
+/// hook at all, and a .deb's post-install script runs as ROOT — while the login
+/// service, the install root and the data directory all belong to ONE user's
+/// session (the same rule that keeps the Windows backend out of a session-0
+/// service). First launch is the only moment that knows whose Xenon this is.
+#[cfg(target_os = "linux")]
+fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
+    use tauri::path::BaseDirectory;
+    use tauri::Manager;
+    let script = app
+        .path()
+        .resolve("posix/xenon-bootstrap.sh", BaseDirectory::Resource)
+        .ok();
+    let config = app.path().config_dir().ok();
+    std::thread::spawn(move || {
+        if backend_answers(port) {
+            return;
+        }
+        if port != 3030 {
+            return;
+        }
+        let unit = config
+            .as_ref()
+            .map(|c| c.join("systemd/user/xenon-backend.service"));
+        let autostart = config
+            .as_ref()
+            .map(|c| c.join("autostart/xenon-backend.desktop"));
+        // The unit exists but nothing answers: it crashed, or its login start
+        // never fired. `--user restart` is the only correct verb here; a system
+        // `systemctl` would address a unit that does not exist.
+        if unit.map(|p| p.exists()).unwrap_or(false) {
+            let _ = std::process::Command::new("systemctl")
+                .args(["--user", "restart", "xenon-backend.service"])
+                .status();
+            return;
+        }
+        // Installed, but through the autostart fallback: there is no manager to
+        // ask, and that entry only fires at login. Starting a second copy from
+        // here would just fight for the port, so this waits for the next login
+        // exactly as install.sh said it would.
+        if autostart.map(|p| p.exists()).unwrap_or(false) {
+            return;
+        }
+        // Nothing installed → offer to set the backend up, in a terminal the
+        // user can read and interrupt.
+        let Some(script) = script else { return };
+        if !script.exists() {
+            return;
+        }
+        let _ = run_in_terminal(&script);
+    });
+}
+
+/// Open `script` in whatever terminal emulator this desktop has, running it
+/// through `bash` so neither the executable bit (Tauri copies resources without
+/// it) nor the shebang has to be right.
+///
+/// The list is ordered by how likely the emulator is to be the session's own,
+/// and every entry takes the command as SEPARATE argv elements — never a single
+/// string to be re-parsed, which would break the moment a home directory has a
+/// space in it. Returning false is a real outcome: a desktop with no terminal at
+/// all cannot be shown an installer, and the README's manual command is then the
+/// only honest answer.
+#[cfg(target_os = "linux")]
+fn run_in_terminal(script: &std::path::Path) -> bool {
+    const TERMINALS: &[(&str, &[&str])] = &[
+        ("x-terminal-emulator", &["-e"]), // Debian/Ubuntu alternatives symlink
+        ("gnome-terminal", &["--"]),
+        ("konsole", &["-e"]),
+        ("xfce4-terminal", &["-x"]),
+        ("mate-terminal", &["--"]),
+        ("tilix", &["-e"]),
+        ("alacritty", &["-e"]),
+        ("kitty", &[]),
+        ("foot", &[]),
+        ("wezterm", &["start", "--"]),
+        ("xterm", &["-e"]),
+    ];
+    for (bin, prefix) in TERMINALS {
+        let Some(exe) = find_in_path(bin) else { continue };
+        let ok = std::process::Command::new(exe)
+            .args(*prefix)
+            .arg("bash")
+            .arg(script)
+            .spawn()
+            .is_ok();
+        if ok {
+            return true;
+        }
+    }
+    false
+}
+
+/// Locate a binary on PATH. A dependency-free stand-in for `which`.
+#[cfg(target_os = "linux")]
+fn find_in_path(bin: &str) -> Option<std::path::PathBuf> {
+    let path = std::env::var_os("PATH")?;
+    std::env::split_paths(&path)
+        .map(|dir| dir.join(bin))
+        .find(|p| p.is_file())
+}
+
+#[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
 fn spawn_backend_nudge(_app: &tauri::AppHandle, _port: u16) {}
 
 /// True once the local backend accepts a connection. Polls for ~8–16s so a
 /// normally-starting backend is never interfered with.
-#[cfg(any(windows, target_os = "macos"))]
+#[cfg(any(windows, target_os = "macos", target_os = "linux"))]
 fn backend_answers(port: u16) -> bool {
     use std::net::{SocketAddr, TcpStream};
     use std::time::Duration;

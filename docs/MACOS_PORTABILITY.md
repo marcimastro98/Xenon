@@ -137,9 +137,9 @@ Trash-backed deletion. The single biggest lift, and the highest-value one.
 (app+dmg, universal binary), a `native-macos` CI job whose `platforms-macos.json`
 fragment publish merges into a multi-platform `latest.json`,
 `server/install.sh` + `uninstall.sh` (per-user LaunchAgent),
-`apps/native/src-tauri/macos/xenon-bootstrap.sh` (first-launch backend install,
-Ed25519-verified before extraction), `server/update-apply.sh`, and the macOS
-branches of `ai-local.js`. Apple signing is opt-in and currently inert: the
+`apps/native/src-tauri/posix/xenon-bootstrap.sh` (first-launch backend install,
+Ed25519-verified before extraction — now shared with Linux, hence `posix/`),
+`server/update-apply.sh`, and the macOS branches of `ai-local.js`. Apple signing is opt-in and currently inert: the
 workflow exports the variables only when the secrets exist, because Tauri reads
 an EMPTY `APPLE_CERTIFICATE` as "sign with this" and fails on the empty `.p12`.
 

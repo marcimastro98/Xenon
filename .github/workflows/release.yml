@@ -349,9 +349,108 @@ jobs:
           name: xenon-native-macos
           path: stage/
 
+  native-linux:
+    # Pinned to 22.04, not ubuntu-latest: an AppImage links against the glibc of
+    # the machine that built it, so building on the newest image would refuse to
+    # start on every LTS older than it. If this image is ever retired, moving up
+    # is a deliberate choice about the oldest distro still supported, not a
+    # detail — say so in the release notes when it happens.
+    runs-on: ubuntu-22.04
+    needs: gate
+    if: needs.gate.outputs.proceed == 'true'
+    # Linux is the newest and smallest of the three targets, and its collectors
+    # are still labelled experimental. A break here must not hold back a release
+    # for Windows and macOS users: the job reports its failure, `publish` still
+    # runs, and latest.json simply carries no linux key that round.
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # The dependency set Tauri documents for Ubuntu. libwebkit2gtk-4.1 is the
+      # v2 one (v1 used 4.0); libayatana-appindicator3 is what the tray links
+      # against even though this app only builds a tray on Windows.
+      - name: Install the Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate app icons
+        working-directory: apps/native
+        run: npm run tauri -- icon ../../docs/images/logo-mark.png
+
+      - name: Build the native app (signed updater artifacts)
+        working-directory: apps/native
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run build:linux
+
+      - name: Stage artifacts and the linux updater fragment
+        run: |
+          set -euo pipefail
+          BUNDLE=apps/native/src-tauri/target/release/bundle
+          # Which file the updater consumes on Linux has changed between Tauri
+          # versions (a .AppImage.tar.gz, or the .AppImage itself alongside a
+          # .sig). Take whichever this toolchain produced rather than pinning a
+          # shape that would silently stop matching on the next bump.
+          UPD=$(ls "$BUNDLE"/appimage/*.AppImage.tar.gz 2>/dev/null | head -1 || true)
+          SIG=$(ls "$BUNDLE"/appimage/*.AppImage.tar.gz.sig 2>/dev/null | head -1 || true)
+          if [ -z "$UPD" ]; then
+            UPD=$(ls "$BUNDLE"/appimage/*.AppImage 2>/dev/null | head -1 || true)
+            SIG=$(ls "$BUNDLE"/appimage/*.AppImage.sig 2>/dev/null | head -1 || true)
+          fi
+          APPIMAGE=$(ls "$BUNDLE"/appimage/*.AppImage 2>/dev/null | head -1 || true)
+          DEB=$(ls "$BUNDLE"/deb/*.deb 2>/dev/null | head -1 || true)
+          [ -n "$UPD" ] && [ -n "$SIG" ] || { echo "updater payload or signature missing in $BUNDLE/appimage"; exit 1; }
+          [ -n "$APPIMAGE" ] || { echo "AppImage missing in $BUNDLE/appimage"; exit 1; }
+          [ -n "$DEB" ] || { echo "deb missing in $BUNDLE/deb"; exit 1; }
+          TAG="${{ inputs.tag || github.event.release.tag_name || github.ref_name }}"
+          VERSION=$(node -p "require('./apps/native/src-tauri/tauri.conf.json').version")
+          URL="https://github.com/${{ github.repository }}/releases/download/$TAG/$(basename "$UPD")"
+          mkdir -p stage
+          node -e '
+            const fs = require("fs");
+            const [sigPath, url, version] = process.argv.slice(1);
+            const signature = fs.readFileSync(sigPath, "utf8").trim();
+            fs.writeFileSync("stage/platforms-linux.json", JSON.stringify({
+              version,
+              platforms: { "linux-x86_64": { signature, url } },
+            }, null, 2));
+          ' "$SIG" "$URL" "$VERSION"
+          cp "$UPD" "stage/$(basename "$UPD")"
+          cp "$SIG" "stage/$(basename "$SIG")"
+          [ "$UPD" = "$APPIMAGE" ] || cp "$APPIMAGE" "stage/$(basename "$APPIMAGE")"
+          cp "$DEB" "stage/$(basename "$DEB")"
+          # Stable-named copies, the Linux twins of Xenon-Setup-x64.exe and
+          # Xenon-macOS-universal.dmg: permanent links for the README and site.
+          cp "$APPIMAGE" stage/Xenon-Linux-x86_64.AppImage
+          cp "$DEB" stage/Xenon-Linux-x86_64.deb
+
+      - name: Upload native Linux artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: xenon-native-linux
+          path: stage/
+
   publish:
     runs-on: ubuntu-latest
-    needs: [gate, helper, native, native-macos]
+    needs: [gate, helper, native, native-macos, native-linux]
     if: needs.gate.outputs.proceed == 'true'
     env:
       TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
@@ -413,14 +512,31 @@ jobs:
               console.error("Self-update to this release would fail (integrity_missing). Add the secret and re-run.");
               process.exit(1);
             }
+            // Required vs optional is not cosmetic. source.zip, the helper and
+            // the setup exe are what self-update.js and the Windows bootstrap
+            // VERIFY against this file: silently omitting one strands every
+            // updating install on integrity_missing, so a missing required
+            // entry has to fail the release. The platform installers are listed
+            // for anyone who wants to check a download by hand, and their jobs
+            // are allowed to fail without taking the release with them.
             const entries = [
-              ["source.zip", "source.zip"],
-              ["assets/xenon-helper.exe", "xenon-helper.exe"],
-              ["assets/Xenon-Setup-x64.exe", "Xenon-Setup-x64.exe"],
-              ["assets/Xenon-macOS-universal.dmg", "Xenon-macOS-universal.dmg"],
+              ["source.zip", "source.zip", true],
+              ["assets/xenon-helper.exe", "xenon-helper.exe", true],
+              ["assets/Xenon-Setup-x64.exe", "Xenon-Setup-x64.exe", true],
+              ["assets/Xenon-macOS-universal.dmg", "Xenon-macOS-universal.dmg", false],
+              ["assets/Xenon-Linux-x86_64.AppImage", "Xenon-Linux-x86_64.AppImage", false],
+              ["assets/Xenon-Linux-x86_64.deb", "Xenon-Linux-x86_64.deb", false],
             ];
             let sums = "";
-            for (const [path, name] of entries) {
+            for (const [path, name, required] of entries) {
+              if (!fs.existsSync(path)) {
+                if (required) {
+                  console.error(`FATAL: ${name} is missing. Updating installs verify against it.`);
+                  process.exit(1);
+                }
+                console.log(`::warning::${name} is absent - this release ships without it`);
+                continue;
+              }
               sums += crypto.createHash("sha256").update(fs.readFileSync(path)).digest("hex") + "  " + name + "\n";
             }
             fs.writeFileSync("assets/SHA256SUMS", sums);

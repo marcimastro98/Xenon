@@ -1,12 +1,13 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────────────────────
-# xenon-bootstrap.sh — backend bootstrap for the Xenon macOS app.
+# xenon-bootstrap.sh — backend bootstrap for the Xenon app on macOS and Linux.
 #
-# The macOS counterpart of windows/xenon-bootstrap.ps1. On Windows the NSIS
-# post-install hook runs that script at install time; a .dmg has no install
-# hook, so this one is launched by the app itself (see spawn_backend_nudge in
-# src/lib.rs) on the first launch that finds no backend at all. It turns the
-# drag-to-Applications install into a full one:
+# The counterpart of windows/xenon-bootstrap.ps1. On Windows the NSIS
+# post-install hook runs that script at install time; neither a .dmg nor an
+# AppImage has an install hook, so this one is launched by the app itself (see
+# spawn_backend_nudge in src/lib.rs) on the first launch that finds no backend
+# at all. It turns the drag-to-Applications (or double-click-the-AppImage)
+# install into a full one:
 #
 #   1. download the latest release source zip + its signed SHA256SUMS,
 #   2. verify the zip (Ed25519, fail-closed, BEFORE extraction),
@@ -21,7 +22,13 @@
 # local to anchor more trust to. That gap is known and accepted until code
 # signing lands.
 #
-# This Terminal window IS the UI: every failure prints one clear line and waits.
+# A .deb CAN run a post-install script, and this deliberately does not use one:
+# a deb hook runs as root, and everything it would have to create — the login
+# service, the install root, the data directory — belongs to ONE user's session.
+# That is the same rule that keeps the Windows backend out of a session-0
+# service. First launch is the only moment that knows whose Xenon this is.
+#
+# This terminal window IS the UI: every failure prints one clear line and waits.
 # ─────────────────────────────────────────────────────────────────────────────
 
 set -uo pipefail
@@ -30,17 +37,42 @@ REPO='marcimastro98/Xenon'
 PORT=3030
 DASH_URL="http://127.0.0.1:$PORT/"
 LABEL='com.marcimastro98.xenon.backend'
-PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 
-# Canonical fresh-install root: per-user, so self-updates can swap files without
-# sudo, and outside iCloud-synced folders (Desktop/Documents).
-INSTALL_ROOT="$HOME/Library/Application Support/Xenon"
+# Per-platform: where a fresh install goes, and what proves one already
+# happened. Both roots are per-user, so self-updates can swap files without
+# sudo, and both avoid cloud-synced folders (Desktop/Documents, ~/Dropbox).
+# The markers are exactly what server/install.sh writes — the login service is
+# the "backend installed" fact on every platform.
+MARKER_AUTOSTART=''
+case "$(uname -s)" in
+  Darwin)
+    XENON_OS='macos'
+    OS_LABEL='Mac'
+    INSTALL_ROOT="$HOME/Library/Application Support/Xenon"
+    MARKER_SERVICE="$HOME/Library/LaunchAgents/$LABEL.plist"
+    ;;
+  Linux)
+    XENON_OS='linux'
+    OS_LABEL='computer'
+    INSTALL_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/Xenon"
+    MARKER_SERVICE="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/xenon-backend.service"
+    # Either half of the Linux install story counts: the systemd --user unit, or
+    # the XDG autostart entry install.sh falls back to where there is no user
+    # manager. Missing one of them and reinstalling over it would leave two
+    # backends fighting for port 3030.
+    MARKER_AUTOSTART="${XDG_CONFIG_HOME:-$HOME/.config}/autostart/xenon-backend.desktop"
+    ;;
+  *)
+    printf 'This installer supports macOS and Linux only.\n' >&2
+    exit 1
+    ;;
+esac
 
 C_STEP=$'\033[36m'; C_OK=$'\033[32m'; C_WARN=$'\033[33m'; C_ERR=$'\033[31m'; C_DIM=$'\033[90m'; C_OFF=$'\033[0m'
 step() { printf '%s==>%s %s\n' "$C_STEP" "$C_OFF" "$1"; }
 fail() {
   printf '\n%s  %s%s\n' "$C_ERR" "$1" "$C_OFF"
-  printf '%s  Nothing was changed on your Mac beyond the Xenon app itself.%s\n' "$C_DIM" "$C_OFF"
+  printf '%s  Nothing was changed on your %s beyond the Xenon app itself.%s\n' "$C_DIM" "$OS_LABEL" "$C_OFF"
   printf '%s  You can retry by reopening Xenon, or install manually:%s\n' "$C_DIM" "$C_OFF"
   printf '%s  https://github.com/%s#readme%s\n\n' "$C_DIM" "$REPO" "$C_OFF"
   read -r -p 'Press Enter to close this window ' _
@@ -51,18 +83,20 @@ printf '\n  %sXenon — completing your installation%s\n' "$C_STEP" "$C_OFF"
 printf '  %sThe app you just installed is only the screen; this sets up the%s\n' "$C_DIM" "$C_OFF"
 printf '  %sXenon dashboard itself (one time, a few minutes).%s\n\n' "$C_DIM" "$C_OFF"
 
-# Homebrew is not on a non-login shell's PATH, and this runs from a GUI app.
-for p in /opt/homebrew/bin /usr/local/bin; do
+# A GUI app's PATH is not a login shell's. Homebrew on macOS and the usual
+# per-user bin dirs on Linux (nvm, ~/.local/bin) are where node actually is.
+for p in /opt/homebrew/bin /usr/local/bin "$HOME/.local/bin"; do
   case ":$PATH:" in *":$p:"*) ;; *) [ -d "$p" ] && PATH="$p:$PATH" ;; esac
 done
 export PATH
 
 # ── 0) Bail out when a backend already exists ────────────────────────────────
-# Two independent signals, same shape as the Windows bootstrap: the login agent
-# is the "installed" marker, and anything answering on the port means a backend
-# is live (a dev checkout, a manual start) that a second install would only
-# fight for 3030.
-if [ -f "$PLIST" ]; then
+# Two independent signals, same shape as the Windows bootstrap: the login
+# service is the "installed" marker, and anything answering on the port means a
+# backend is live (a dev checkout, a manual start) that a second install would
+# only fight for 3030.
+if { [ -n "$MARKER_SERVICE" ] && [ -f "$MARKER_SERVICE" ]; } \
+|| { [ -n "$MARKER_AUTOSTART" ] && [ -f "$MARKER_AUTOSTART" ]; }; then
   step 'The Xenon backend is already installed — nothing to do.'
   exit 0
 fi
@@ -103,17 +137,22 @@ done
 
 # ── 3) Ensure Node.js (needed to verify the download, and by Xenon itself) ───
 NODE_BIN="$(command -v node || true)"
+if [ -z "$NODE_BIN" ] && [ "$XENON_OS" = 'macos' ] && command -v brew >/dev/null 2>&1; then
+  step 'Installing Node.js with Homebrew (required by Xenon)…'
+  brew install node || true
+  NODE_BIN="$(command -v node || true)"
+fi
+# Deliberately NOT installing a package manager, or using one that needs sudo:
+# on macOS installing Homebrew itself is a large, opinionated change to someone's
+# machine, and on Linux apt/dnf/pacman would ask for a root password inside a
+# window the user did not open for that. Point at the normal install instead.
 if [ -z "$NODE_BIN" ]; then
-  if command -v brew >/dev/null 2>&1; then
-    step 'Installing Node.js with Homebrew (required by Xenon)…'
-    brew install node || true
-    NODE_BIN="$(command -v node || true)"
+  if [ "$XENON_OS" = 'macos' ]; then
+    fail 'Node.js is required. Install it from https://nodejs.org (or run "brew install node"), then reopen Xenon.'
+  else
+    fail 'Node.js is required. Install it with your package manager (for example "sudo apt install nodejs npm") or from https://nodejs.org, then reopen Xenon.'
   fi
 fi
-# Deliberately NOT installing Homebrew itself: that is a large, opinionated
-# change to someone's machine and it wants its own confirmation. Point at the
-# official installer instead, which is a normal signed .pkg.
-[ -n "$NODE_BIN" ] || fail 'Node.js is required. Install it from https://nodejs.org (or run "brew install node"), then reopen Xenon.'
 step "Node.js: $NODE_BIN"
 
 # ── 4) Verify the download (Ed25519 over SHA256SUMS, then hash the zip) ──────
@@ -163,7 +202,15 @@ step 'Signature verified.'
 step "Installing to $INSTALL_ROOT…"
 EXTRACT="$TMP/extract"
 mkdir -p "$EXTRACT"
-unzip -qq "$ZIP" -d "$EXTRACT" || fail 'The downloaded archive could not be extracted.'
+# unzip is standard on macOS and usual but not guaranteed on Linux; bsdtar
+# (libarchive) reads zips too and ships on plenty of distros that skip unzip.
+if command -v unzip >/dev/null 2>&1; then
+  unzip -qq "$ZIP" -d "$EXTRACT" || fail 'The downloaded archive could not be extracted.'
+elif command -v bsdtar >/dev/null 2>&1; then
+  bsdtar -xf "$ZIP" -C "$EXTRACT" || fail 'The downloaded archive could not be extracted.'
+else
+  fail 'Unzipping needs "unzip" (or "bsdtar"). Install it with your package manager and reopen Xenon.'
+fi
 # GitHub wraps a tag archive in exactly one top-level directory.
 SRC_ROOT=''
 for d in "$EXTRACT"/*/; do
@@ -176,9 +223,16 @@ done
 mkdir -p "$INSTALL_ROOT"
 # Merge, never --delete: an existing install's node_modules and any file the
 # archive does not carry must survive. server/data is excluded defensively even
-# though a source zip never contains it.
-rsync -a --exclude 'server/data/' "$SRC_ROOT"/ "$INSTALL_ROOT"/ \
-  || fail "Copying Xenon into $INSTALL_ROOT failed."
+# though a source zip never contains it — which is also why `cp -a` is an
+# acceptable stand-in where rsync is absent (a common minimal-Linux case): there
+# is nothing in the source for the exclude to actually match.
+if command -v rsync >/dev/null 2>&1; then
+  rsync -a --exclude 'server/data/' "$SRC_ROOT"/ "$INSTALL_ROOT"/ \
+    || fail "Copying Xenon into $INSTALL_ROOT failed."
+else
+  cp -a "$SRC_ROOT"/. "$INSTALL_ROOT"/ \
+    || fail "Copying Xenon into $INSTALL_ROOT failed."
+fi
 mkdir -p "$INSTALL_ROOT/server/data"
 
 # Seed the installed-file manifest so the FIRST self-update can already clean up
