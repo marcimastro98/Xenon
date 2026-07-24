@@ -108,6 +108,16 @@ test('isRunnableScriptPath: the POSIX list is its own, in both directions', () =
     assert.equal(reg.isRunnableScriptPath(`/u/s.${ext}`, 'darwin'), true, ext);
     assert.equal(reg.isRunnableScriptPath(`C:/a/b.${ext}`, 'win32'), false, ext);
   }
+  // AppleScript is macOS-only. POSIX_SCRIPT_RUNNERS registers osascript only on
+  // darwin, so accepting .scpt/.applescript on Linux would validate here and
+  // then fail with "no interpreter" — the gate must refuse them there instead.
+  for (const ext of ['scpt', 'applescript']) {
+    assert.equal(reg.isRunnableScriptPath(`/u/s.${ext}`, 'linux'), false, ext);
+  }
+  // ...while the shell types the Linux runner table DOES carry stay runnable.
+  for (const ext of ['command', 'zsh']) {
+    assert.equal(reg.isRunnableScriptPath(`/u/s.${ext}`, 'linux'), true, ext);
+  }
   // Windows-only types are refused HERE rather than reaching a runner table
   // that has no entry for them — a key that validates and then fails is worse
   // than one that never validates.

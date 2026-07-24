@@ -122,14 +122,24 @@ const RUNNABLE_SCRIPT_EXT = /\.(bat|cmd|ps1|py|pyw|js|cjs|mjs|rb|pl|php|lua|r|ja
 // The same list where the interpreters are POSIX ones (server.js's
 // POSIX_SCRIPT_RUNNERS is the other half). It has to be its own list in both
 // directions: .bat/.ps1/.vbs mean nothing here and are better refused at this
-// boundary than spawned and left to fail, while .command/.zsh/.scpt are real
-// script types the Windows list has no reason to carry.
-const RUNNABLE_SCRIPT_EXT_POSIX = /\.(sh|bash|zsh|command|py|pyw|js|cjs|mjs|rb|pl|php|lua|r|jar|scpt|applescript)$/i;
+// boundary than spawned and left to fail, while .command/.zsh are real script
+// types the Windows list has no reason to carry.
+const RUNNABLE_SCRIPT_EXT_POSIX = /\.(sh|bash|zsh|command|py|pyw|js|cjs|mjs|rb|pl|php|lua|r|jar)$/i;
+
+// AppleScript is macOS-only: `.scpt`/`.applescript` run through osascript,
+// which is only in POSIX_SCRIPT_RUNNERS on darwin. Accepting them on Linux
+// would be a key that validates here and then fails at run time with "no
+// interpreter" — the exact gate/runner drift the CLAUDE.md invariant forbids,
+// which is why this is a SEPARATE, platform-gated regex rather than two more
+// alternatives in the list above.
+const RUNNABLE_SCRIPT_EXT_DARWIN = /\.(scpt|applescript)$/i;
 
 function isRunnableScriptPath(p, platform) {
   const v = String(p == null ? '' : p).trim();
   const plat = platform || process.platform;
-  return plat === 'win32' ? RUNNABLE_SCRIPT_EXT.test(v) : RUNNABLE_SCRIPT_EXT_POSIX.test(v);
+  if (plat === 'win32') return RUNNABLE_SCRIPT_EXT.test(v);
+  if (RUNNABLE_SCRIPT_EXT_POSIX.test(v)) return true;
+  return plat === 'darwin' && RUNNABLE_SCRIPT_EXT_DARWIN.test(v);
 }
 
 // deps: { fileExists(path)->bool, openExternal(path)->Promise,

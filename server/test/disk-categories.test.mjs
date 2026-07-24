@@ -184,6 +184,29 @@ test('macOS: a dev folder inside a system root classifies nothing', () => {
   assert.equal(mcat({ path: '/usr/local/lib/node_modules', name: 'node_modules', isDir: true }), null);
 });
 
+test('macOS: the system-root protection folds case — /Applications, /System, /Library', () => {
+  // The real roots are capitalized on APFS, but SYSTEM_PREFIXES are lowercase.
+  // A case-sensitive compare missed them, so a dev folder declared under a
+  // capitalized system root would have shown a Clean button the guard then
+  // refused every time. Declared as a dev folder to force the build classifier
+  // to run: without the case-fold, node_modules under /Applications/MyApp
+  // classifies as buildOutput.
+  const ctx = {
+    platform: 'darwin',
+    userProfile: '/Users/u',
+    systemDirs: DG.SYSTEM_PREFIXES,
+    devFolders: ['/Applications/MyApp', '/System/Dev', '/Library/Dev'],
+    now: NOW,
+  };
+  const c = (p) => {
+    const r = DC.classify({ path: p, name: 'node_modules', isDir: true }, ctx);
+    return r ? r.cat : null;
+  };
+  assert.equal(c('/Applications/MyApp/node_modules'), null);
+  assert.equal(c('/System/Dev/node_modules'), null);
+  assert.equal(c('/Library/Dev/node_modules'), null);
+});
+
 test('macOS: installers in Downloads only, old only', () => {
   const old = NOW - 60 * DAY, fresh = NOW - 5 * DAY;
   assert.equal(mcat({ path: '/Users/u/Downloads/App.dmg', ext: 'dmg', mtime: old }), 'installers');

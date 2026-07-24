@@ -273,7 +273,14 @@
   // One spelling for a root, so a trailing separator or a capital never makes
   // two names for the same volume.
   function rootKeyOf(value) {
-    return String(value || '').replace(/[\\/]+$/, '').toLowerCase();
+    const raw = String(value || '');
+    const key = raw.replace(/[\\/]+$/, '').toLowerCase();
+    // The filesystem root "/" is nothing BUT a trailing separator, so the strip
+    // leaves it empty. Keep it as "/" so it stays a real, matchable key —
+    // otherwise it collapses to the same '' as a garbage/empty path and the
+    // primary macOS volume (Macintosh HD) can never be offered as an index root.
+    if (!key && /[\\/]/.test(raw)) return '/';
+    return key;
   }
 
   function drivePresentation(source) {
@@ -360,6 +367,11 @@
         const key = rootKey(addPath);
         if (!key) return true;
         return roots.some((r) => {
+          // The server already annotated each root with the volume it sits on
+          // (the longest mount prefix). That is the only reliable way to know a
+          // root is on the "/" volume: "/" is a prefix of every absolute path,
+          // so the path test below would either match everything or nothing.
+          if (rootKey(r.drive) === key) return true;
           const rk = rootKey(r.path);
           return rk === key || rk.startsWith(key + '\\') || rk.startsWith(key + '/');
         });

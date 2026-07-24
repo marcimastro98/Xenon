@@ -237,8 +237,18 @@
     for (const t of ctx.tempDirs || []) {
       if (t && under(p, t, platform)) return { cat: 'temp' };
     }
+    // The system-roots check is a PROTECTION (return null = never offer a
+    // delete button), so — unlike every classification rule in this module —
+    // it folds case. disk-guard.js protects these same roots
+    // case-insensitively; matching that here is what keeps "what we refuse to
+    // OFFER" and "what we refuse to DELETE" aligned. It matters on a
+    // case-preserving APFS volume, where the real paths are "/System" and
+    // "/Library" while SYSTEM_PREFIXES are lowercase: a case-sensitive compare
+    // silently never fired and the coupling was dead on the one platform it was
+    // added for. Over-matching a protection is the safe direction.
+    const pFold = p.toLowerCase();
     for (const sys of ctx.systemDirs || []) {
-      if (under(p, sys, platform)) return null;
+      if (under(pFold, sys, platform)) return null;
     }
 
     // The Trash. Reported so the widget can offer "empty" — the one permanent

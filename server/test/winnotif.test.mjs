@@ -128,3 +128,64 @@ test('sync(false) drops the buffered feed (privacy) and resets state', () => {
   assert.equal(wn.getFeed().length, 0);
   assert.equal(wn.getState(), 'off');
 });
+
+// ── the Linux dbus idle-flush ───────────────────────────────────────────────
+// dbus-monitor blocks are only "complete" when the NEXT message's header
+// arrives, but the match rule narrows the stream to Notify calls, so on a quiet
+// desktop the next one can be minutes away. The last block must therefore be
+// flushed on idle, or the most recent notification stays invisible.
+
+function notifyBlock(title) {
+  return 'method call time=1.1 interface=org.freedesktop.Notifications; member=Notify\n'
+    + '   string "App"\n   uint32 0\n   string "icon"\n'
+    + `   string "${title}"\n   string "body"\n`;
+}
+
+test('Linux: a lone notification is delivered by the idle flush, not held forever', () => {
+  wn.init({ isExcluded: () => false, onItem: (it) => items.push(it), onFeed: () => { feedEvents++; } });
+  line({ event: 'seed', items: [] });
+  wn._setProcForTest({});                 // a live child, so the flush proceeds
+  items = [];
+
+  wn._onDbusData(notifyBlock('first'));
+  assert.equal(items.length, 0, 'held: no following header has proven it complete yet');
+
+  wn._flushLinuxTail();                    // what the 250ms idle timer calls
+  assert.equal(items.length, 1, 'delivered without waiting for another notification');
+  assert.equal(items[0].title, 'first');
+
+  // A second, much later, is delivered once — the first is not repeated.
+  wn._onDbusData(notifyBlock('second'));
+  wn._flushLinuxTail();
+  assert.deepEqual(items.map((i) => i.title), ['first', 'second']);
+  wn._setProcForTest(null);
+});
+
+test('Linux: fast back-to-back — the header split delivers all but the last at once', () => {
+  wn.init({ isExcluded: () => false, onItem: (it) => items.push(it), onFeed: () => { feedEvents++; } });
+  line({ event: 'seed', items: [] });
+  wn._setProcForTest({});
+  items = [];
+
+  wn._onDbusData(notifyBlock('a') + notifyBlock('b'));
+  assert.deepEqual(items.map((i) => i.title), ['a'], 'a completed by b\'s header; b still held');
+  wn._flushLinuxTail();
+  assert.deepEqual(items.map((i) => i.title), ['a', 'b'], 'b flushed, a not repeated');
+  wn._setProcForTest(null);
+});
+
+test('Linux: a mid-write block is never emitted, then is emitted once when complete', () => {
+  wn.init({ isExcluded: () => false, onItem: (it) => items.push(it), onFeed: () => { feedEvents++; } });
+  line({ event: 'seed', items: [] });
+  wn._setProcForTest({});
+  items = [];
+
+  wn._onDbusData('method call member=Notify\n   string "App"\n   string "ic');  // cut mid-block
+  wn._flushLinuxTail();
+  assert.equal(items.length, 0, 'a partial block does not parse, so nothing is emitted');
+
+  wn._onDbusData('on"\n   string "third"\n   string "body"\n');                 // completes it
+  wn._flushLinuxTail();
+  assert.deepEqual(items.map((i) => i.title), ['third'], 'emitted once, whole');
+  wn._setProcForTest(null);
+});
