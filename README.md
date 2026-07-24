@@ -241,6 +241,8 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 
 macOS and Linux support is **new**. It is written against each platform's documented behaviour and covered by unit tests, but it has had far less real-world use than the Windows build — if something misbehaves, please [open an issue](https://github.com/marcimastro98/Xenon/issues) or say so on [Discord](https://discord.gg/MBVrw9kZyg).
 
+If a tile is empty and you want to know why, run **`npm run doctor`** from the install folder. It reads your machine the way Xenon does and prints, line by line, what works, what is simply absent (a sensor your hardware does not expose — the tile shows `--` and that is expected), and what is actually broken. It changes nothing: it starts no server, installs nothing and touches no setting. Adding `-- --capture ./caps` also saves the raw output of each tool, which is exactly what to attach to a bug report.
+
 ---
 
 ## Background videos in iCUE
