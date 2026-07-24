@@ -17,13 +17,15 @@
 //
 // KNOWN LIMITS, and why they are limits rather than bugs:
 //
-//   * Temperatures and GPU load need Apple's private IOReport/SMC interfaces.
-//     No first-party CLI exposes them without sudo (powermetrics does, and
-//     asking a dashboard user for a root password every poll is not an option).
-//     If `macmon` is on PATH (brew install vladkens/tap/macmon) we read its
-//     sudoless sample and report real numbers; otherwise those fields stay null
-//     and the tiles render "--", exactly as they did before this module existed.
-//     The real fix is the native mac helper -- see docs/MACOS_PORTABILITY.md.
+//   * Temperatures and GPU load are not on any first-party CLI without sudo
+//     (powermetrics is, and asking a dashboard user for a root password every
+//     poll is not an option). Three sources, tried in that order: the native
+//     helper's `temps` mode, which reads GPU load from IOKit's public
+//     accelerator registry and the temperatures from the HID sensor services
+//     and needs nothing installed; then `macmon` if the user has it on PATH
+//     (brew install vladkens/tap/macmon), which fills in only what the helper
+//     left null; then null, and the tiles render "--" exactly as they did
+//     before this module existed. All three are ordinary answers.
 //
 //   * Per-app audio does not exist here. macOS has no per-process volume API
 //     outside Core Audio process taps (14.4+), which need native code and a
@@ -36,6 +38,7 @@
 'use strict';
 
 const { execFile } = require('child_process');
+const path = require('path');
 
 // Promise wrapper around execFile with a hard timeout; resolves stdout.
 function run(cmd, args, timeoutMs) {
@@ -151,6 +154,93 @@ function macmonSample() {
   return macmonCache.data;
 }
 
+// --- the native helper: the same three numbers, with nothing to install -----
+// `xenon-helper temps` reads GPU load from IOKit's public accelerator registry
+// and the temperatures from the HID sensor services. It is preferred over
+// macmon when it answers, and macmon stays as the fallback for the machines it
+// cannot read (an Intel Mac exposes neither sensor family under those names).
+// Both paths are optional and both degrade to null, which is what the tiles
+// already render as "--".
+const HELPER_EXE = path.join(__dirname, 'helper', 'xenon-helper');
+
+// Pure, so the shape check is testable without a Mac. Returns null when the
+// payload carries no reading at all, which is what makes the caller fall
+// through to macmon instead of caching a row of nulls.
+function parseHelperTemps(raw) {
+  let doc;
+  try { doc = JSON.parse(String(raw || '')); } catch { return null; }
+  if (!doc || typeof doc !== 'object') return null;
+  const temp = (v) => (isFiniteNum(v) && v > 1 && v < 150 ? Math.round(v * 10) / 10 : null);
+  const pct = (v) => (isFiniteNum(v) ? Math.min(100, Math.max(0, Math.round(v))) : null);
+  const bytes = (v) => (isFiniteNum(v) && v >= 0 ? Math.round(v) : null);
+  const out = {
+    cpuTemp: temp(doc.cpuTemp),
+    gpu: pct(doc.gpu),
+    gpuTemp: temp(doc.gpuTemp),
+    vramUsed: bytes(doc.vramUsed),
+  };
+  const readSomething = out.cpuTemp !== null || out.gpu !== null || out.gpuTemp !== null;
+  return readSomething ? out : null;
+}
+
+const HELPER_MAX_FAILURES = 3;
+const HELPER_RETRY_MS = 5 * 60 * 1000;
+let helperFailures = 0;
+let helperNextTry = 0;
+
+async function readHelperTemps() {
+  if (helperFailures >= HELPER_MAX_FAILURES && Date.now() < helperNextTry) return null;
+  // A one-shot read of two registries: fast, and a timeout here means something
+  // is wrong rather than something is slow.
+  const out = await runSoft(HELPER_EXE, ['temps'], 4000);
+  const parsed = out === null ? null : parseHelperTemps(out);
+  if (parsed === null) {
+    helperFailures++;
+    if (helperFailures >= HELPER_MAX_FAILURES) helperNextTry = Date.now() + HELPER_RETRY_MS;
+    return null;
+  }
+  helperFailures = 0;
+  return parsed;
+}
+
+// The live sample the collectors read. The helper answers first; macmon fills
+// in only what the helper left null, so a machine where one source knows the
+// temperatures and the other knows the GPU load reports both instead of
+// whichever happened to run.
+const SENSOR_TTL_MS = 2500;
+const EMPTY_SENSORS = { cpuTemp: null, gpu: null, gpuTemp: null, vramUsed: null };
+let sensorCache = { data: { ...EMPTY_SENSORS }, at: 0 };
+let sensorInFlight = null;
+
+function refreshSensors() {
+  if (sensorInFlight) return sensorInFlight;
+  sensorInFlight = (async () => {
+    const helper = await readHelperTemps();
+    if (helper && helper.cpuTemp !== null && helper.gpu !== null && helper.gpuTemp !== null) {
+      sensorCache = { data: helper, at: Date.now() };
+      return;                       // complete: macmon is not spawned at all
+    }
+    await refreshMacmon();
+    const mac = macmonCache.data;
+    const pick = (a, b) => (a !== null && a !== undefined ? a : (b ?? null));
+    const merged = {
+      cpuTemp: pick(helper && helper.cpuTemp, mac.cpuTemp),
+      gpu: pick(helper && helper.gpu, mac.gpu),
+      gpuTemp: pick(helper && helper.gpuTemp, mac.gpuTemp),
+      vramUsed: pick(helper && helper.vramUsed, null),
+    };
+    sensorCache = { data: merged, at: Date.now() };
+  })().catch(() => { /* keep the previous sample */ })
+    .finally(() => { sensorInFlight = null; });
+  return sensorInFlight;
+}
+
+// Never awaited on the request path: serve the last sample, refresh behind it.
+function liveSensors() {
+  if (Date.now() - sensorCache.at > SENSOR_TTL_MS) refreshSensors();
+  return sensorCache.data;
+}
+
 // --- GPU: name/VRAM from system_profiler, load/temp from macmon -------------
 // system_profiler takes seconds, and the answer never changes while the machine
 // is running, so it is resolved once and memoised for the process lifetime.
@@ -185,12 +275,14 @@ function gpuStatic() {
 
 async function gpu() {
   try {
-    const [{ gpuName, vramTotal }, live] = await Promise.all([gpuStatic(), macmonSample()]);
+    const [{ gpuName, vramTotal }, live] = await Promise.all([gpuStatic(), liveSensors()]);
     return {
       gpu: live.gpu,
       gpuTemp: live.gpuTemp,
       gpuName,
-      vramUsed: null, // no per-process VRAM accounting outside Metal's own tools
+      // What the accelerator currently holds, when the helper could read it.
+      // macmon does not report this, so it stays null on that path.
+      vramUsed: live.vramUsed,
       vramTotal,
     };
   } catch {
@@ -200,7 +292,7 @@ async function gpu() {
 
 // --- CPU temperature --------------------------------------------------------
 async function cpuTemp() {
-  return { cpuTemp: macmonSample().cpuTemp };
+  return { cpuTemp: liveSensors().cpuTemp };
 }
 
 // --- Disks: df + mount, matching getAllDisksInfo()'s drive object shape ------
@@ -669,7 +761,7 @@ async function audioAvailable() {
 module.exports = {
   gpu, disks, cpuTemp, network, windows, audioRows, audioCommand, audioAvailable,
   // exported for unit tests
-  parseMacmon, parseDisplaysJson, parseDisks, parseMountTypes, parsePing,
+  parseMacmon, parseHelperTemps, parseDisplaysJson, parseDisks, parseMountTypes, parsePing,
   parseNetstatIb, parseAppList, parseVolumeSettings, parseAudioDevices,
   buildAudioRows, isCaptureTarget, ratioToPct,
 };

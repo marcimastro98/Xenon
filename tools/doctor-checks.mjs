@@ -86,14 +86,26 @@ export function checkGpu(g) {
     `temp: ${isNum(g.gpuTemp) ? g.gpuTemp + '°C' : '--'}`,
     `vram: ${isNum(g.vramTotal) && g.vramTotal > 0 ? `${bytes(g.vramUsed || 0)}/${bytes(g.vramTotal)}` : '-- (unified memory reports 0, which is correct)'}`,
   ];
-  if (!isNum(g.gpu) && !isNum(g.gpuTemp)) return warn('no load or temperature — install macmon (macOS) or nvidia-smi (Linux)', notes);
+  if (!isNum(g.gpu) && !isNum(g.gpuTemp)) {
+    return warn('no load or temperature', [
+      ...notes,
+      'macOS: the Xenon Helper reads both and needs nothing installed — check server/helper/xenon-helper exists.',
+      'macOS without the helper: macmon on PATH is the fallback (brew install vladkens/tap/macmon).',
+      'Linux: nvidia-smi, or an AMD/Intel card exposing itself under /sys/class/drm.',
+    ]);
+  }
   return ok('reporting', notes);
 }
 
 export function checkCpuTemp(t) {
   if (!t || typeof t !== 'object') return fail(`expected an object, got ${typeof t}`);
   if (!isNumOrNull(t.cpuTemp)) return fail(`cpuTemp is neither a number nor null (${JSON.stringify(t.cpuTemp)})`);
-  if (!isNum(t.cpuTemp)) return warn('no CPU temperature on this machine', ['macOS keeps it behind a private interface: install macmon.', 'On Linux it needs the board to expose it under /sys/class/hwmon.']);
+  if (!isNum(t.cpuTemp)) {
+    return warn('no CPU temperature on this machine', [
+      'macOS: the Xenon Helper reads the sensors directly — check server/helper/xenon-helper exists; macmon on PATH is the fallback.',
+      'Linux: it needs the board to expose it under /sys/class/hwmon.',
+    ]);
+  }
   if (t.cpuTemp <= 0 || t.cpuTemp > 130) return fail(`implausible CPU temperature (${t.cpuTemp}°C)`);
   return ok(`${t.cpuTemp}°C`);
 }

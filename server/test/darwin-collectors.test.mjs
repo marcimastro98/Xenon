@@ -240,3 +240,44 @@ test('parseAppList: rows without a usable process id are dropped', () => {
   const list = dc.parseAppList('\t\t\t\nnotapid\tThing\t/x.app\tfalse\t\n42\tOK\t/ok.app\tfalse\t\n');
   assert.deepEqual(list.map((w) => w.id), ['42']);
 });
+
+// ── the native helper's `temps` mode ────────────────────────────────────────
+// GPU load from IOKit's public accelerator registry, temperatures from the HID
+// sensor services. Preferred over macmon because it needs nothing installed;
+// the parser's job is to make sure a partial answer falls THROUGH to macmon
+// rather than caching a row of nulls that would blank the tiles.
+
+test('parseHelperTemps: a full reading is taken as-is, rounded the way the tiles render it', () => {
+  const s = dc.parseHelperTemps('{"cpuTemp":45.2381,"gpuTemp":41.06,"gpu":23.7,"vramUsed":1234567890}');
+  assert.deepEqual(s, { cpuTemp: 45.2, gpuTemp: 41.1, gpu: 24, vramUsed: 1234567890 });
+});
+
+test('parseHelperTemps: a reading with nothing in it returns null, so macmon still gets a turn', () => {
+  // An Intel Mac exposes neither sensor family under these names and the
+  // accelerator may publish no utilisation key: the helper answers, honestly,
+  // with nothing. Caching that would leave the tiles blank on a machine that
+  // has macmon installed and working.
+  assert.equal(dc.parseHelperTemps('{"cpuTemp":null,"gpuTemp":null,"gpu":null,"vramUsed":null}'), null);
+  assert.equal(dc.parseHelperTemps('{}'), null);
+});
+
+test('parseHelperTemps: a partial reading is kept — one real number is worth reporting', () => {
+  assert.deepEqual(dc.parseHelperTemps('{"gpu":12,"cpuTemp":null,"gpuTemp":null}'),
+    { cpuTemp: null, gpuTemp: null, gpu: 12, vramUsed: null });
+});
+
+test('parseHelperTemps: impossible values are dropped, not clamped into a plausible lie', () => {
+  // 0 is what a present-but-not-reporting sensor answers, and the widget must
+  // not show a CPU at 0 °C as if it were a reading.
+  const s = dc.parseHelperTemps('{"cpuTemp":0,"gpuTemp":900,"gpu":140,"vramUsed":-5}');
+  assert.equal(s.cpuTemp, null);
+  assert.equal(s.gpuTemp, null);
+  assert.equal(s.gpu, 100, 'a percentage is clamped, since 140% is a unit error not a bad sensor');
+  assert.equal(s.vramUsed, null);
+});
+
+test('parseHelperTemps: garbage never throws', () => {
+  for (const raw of ['', 'not json', 'null', '[]', '{"cpuTemp":"hot"}', undefined]) {
+    assert.equal(dc.parseHelperTemps(raw), null, String(raw));
+  }
+});

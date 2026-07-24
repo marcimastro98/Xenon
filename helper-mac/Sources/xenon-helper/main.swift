@@ -38,6 +38,9 @@ case "shell-delete":
 case "index-serve":
     IndexHost.run(rest)
 
+case "temps":
+    TempsTool.run()
+
 case "--version", "-v":
     // The installer and helper-update compare this against what the release
     // shipped, so it is a bare version and nothing else.

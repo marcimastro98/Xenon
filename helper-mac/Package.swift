@@ -31,6 +31,10 @@ let package = Package(
                 .linkedFramework("AppKit"),
                 .linkedFramework("Carbon"),
                 .linkedFramework("CoreGraphics"),
+                // IOKit carries the accelerator registry (public) and, at
+                // runtime, the HID sensor entry points the `temps` mode
+                // resolves by dlsym rather than by linking — see TempsTool.
+                .linkedFramework("IOKit"),
             ]
         )
     ]
