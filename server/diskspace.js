@@ -77,32 +77,80 @@ function createDiskSpace(opts) {
   const getDriveDetails = typeof o.getDriveDetails === 'function' ? o.getDriveDetails : async () => ({});
   const summaryFile = path.join(dataDir, SUMMARY_FILE);
 
+  // Every machine path is resolved ONCE here and passed into the two pure
+  // modules; neither of them touches fs or the environment. The platform is
+  // passed explicitly rather than left to each module's process.platform
+  // default, so the value the rules ran under is always visible at the call
+  // site (and pinnable in tests).
+  const PLATFORM = process.platform;
+  const IS_WIN = PLATFORM === 'win32';
+  const IS_MAC = PLATFORM === 'darwin';
+
   const userProfile = os.homedir();
   const localAppData = process.env.LOCALAPPDATA || path.join(userProfile, 'AppData', 'Local');
-  const windir = process.env.WINDIR || 'C:\\Windows';
-  const programFiles = process.env.ProgramFiles || 'C:\\Program Files';
-  const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+  const windir = IS_WIN ? (process.env.WINDIR || 'C:\\Windows') : '';
+  const programFiles = IS_WIN ? (process.env.ProgramFiles || 'C:\\Program Files') : '';
+  const programFilesX86 = IS_WIN ? (process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)') : '';
   // Only the user's own %TEMP%. C:\Windows\Temp is deliberately absent: the
   // guard protects %WINDIR% outright, so classifying it produced a Clean button
   // that always came back `protected:windir` (same reason the winUpdate
   // category was retired — see disk-categories.js). The filter keeps that true
   // even if %TEMP% itself ever resolves under Windows.
   const tempDirs = [os.tmpdir()].filter((d) => {
+    if (!IS_WIN) return !!d;
     const dl = String(d || '').toLowerCase();
     const wl = windir.toLowerCase().replace(/\\+$/, '');
     return dl !== wl && !dl.startsWith(wl + '\\');
   });
-  const downloads = path.join(userProfile, 'Downloads');
+  // ── the localised user directories (Linux) ────────────────────────────────
+  // xdg-user-dirs writes the REAL directory names into ~/.config/user-dirs.dirs,
+  // and on a non-English desktop they are localised: an Italian install has
+  // ~/Documenti and ~/Scrivania, not ~/Documents and ~/Desktop. Guarding only
+  // the English names would leave the user's actual documents unprotected,
+  // which is the one mistake this module exists to prevent. Read once at
+  // construction (boot, not a request path) and used only to ADD protected
+  // prefixes — the English defaults stay guarded whether or not they exist.
+  function readXdgUserDirs() {
+    if (IS_WIN || IS_MAC) return {};   // macOS keeps English names on disk and localises only the display
+    try {
+      const cfg = path.join(process.env.XDG_CONFIG_HOME || path.join(userProfile, '.config'), 'user-dirs.dirs');
+      return parseXdgUserDirs(fs.readFileSync(cfg, 'utf8'), userProfile);
+    } catch { /* no xdg-user-dirs: the English defaults are all there is */ }
+    return {};
+  }
+  const xdgDirs = readXdgUserDirs();
+
+  const downloads = xdgDirs.download || path.join(userProfile, 'Downloads');
   // Defaults; a relocated Documents (OneDrive) is additionally covered by
   // protecting the OneDrive root itself when the env names one.
   const known = (n) => path.join(userProfile, n);
+  // The user's own Trash, the POSIX counterpart of $Recycle.Bin. macOS keeps
+  // one per volume (`/Volumes/X/.Trashes/<uid>`); only the home one is listed
+  // here because that is the only one the categories offer, and the widget's
+  // "empty" is the helper's job either way.
+  const trashDirs = IS_WIN ? []
+    : IS_MAC ? [path.join(userProfile, '.Trash')]
+      : [path.join(process.env.XDG_DATA_HOME || path.join(userProfile, '.local', 'share'), 'Trash')];
 
   function guardCtx(root) {
     return DiskGuard.buildGuardCtx({
+      platform: PLATFORM,
       windir, programFiles, programFilesX86,
       documents: known('Documents'), pictures: known('Pictures'), desktop: known('Desktop'),
-      music: known('Music'), videos: known('Videos'),
+      music: known('Music'),
+      // macOS calls it Movies; the guard key stays `videos` so the refusal
+      // reason does not change per platform.
+      videos: known(IS_MAC ? 'Movies' : 'Videos'),
       dataDir, appRoot, userProfile, root,
+      // Consulted only to exempt a path from the POSIX system-root list.
+      tempDirs,
+      // The localised names, in addition to the English ones above.
+      extraProtected: [
+        ['documents', xdgDirs.documents], ['pictures', xdgDirs.pictures],
+        ['desktop', xdgDirs.desktop], ['music', xdgDirs.music],
+        ['videos', xdgDirs.videos], ['documents', xdgDirs.templates],
+        ['documents', xdgDirs.publicshare],
+      ].filter(([, p]) => !!p).map(([key, p]) => ({ key, path: p })),
     });
   }
   // ── container directories: the contents are disposable, the folder is not ──
@@ -113,7 +161,12 @@ function createDiskSpace(opts) {
   // same 9.42 GB after every attempt with nothing moved. A container is
   // therefore never an item; its children are, so a locked child refuses on its
   // own and everything else is freed.
-  const containerDirs = new Set(tempDirs.map((d) => String(d).toLowerCase().replace(/[\\/]+$/, '')));
+  // Xcode's DerivedData is the same shape of thing on macOS: the children are
+  // disposable, the folder is one Xcode expects to find.
+  const containerDirs = new Set(
+    [...tempDirs, ...(IS_MAC ? [path.join(userProfile, 'Library', 'Developer', 'Xcode', 'DerivedData')] : [])]
+      .map((d) => String(d).toLowerCase().replace(/[\\/]+$/, '')),
+  );
   function isContainerDir(p) {
     return containerDirs.has(String(p || '').toLowerCase().replace(/[\\/]+$/, ''));
   }
@@ -158,7 +211,7 @@ function createDiskSpace(opts) {
   }
 
   // OneDrive is guarded as an extra protected prefix via a tiny wrapper.
-  const oneDrive = process.env.OneDrive || '';
+  const oneDrive = IS_WIN ? (process.env.OneDrive || '') : '';
   function guardDelete(abs, gctx, flags) {
     // Belt and braces: a stale cached enumeration must not be able to address
     // the container itself even if it once held it as an item.
@@ -174,7 +227,12 @@ function createDiskSpace(opts) {
   async function catCtx() {
     const s = (await Promise.resolve(getSettings()).catch(() => ({}))) || {};
     return {
-      tempDirs, localAppData, userProfile, windir,
+      platform: PLATFORM,
+      tempDirs, localAppData, userProfile, windir, trashDirs,
+      // The guard's own list, so "what the categories refuse to offer" and
+      // "what the guard refuses to delete" can never drift apart. A category
+      // that always comes back `protected:system` is worse than no category.
+      systemDirs: DiskGuard.SYSTEM_PREFIXES,
       devFolders: Array.isArray(s.devFolders) ? s.devFolders.filter((d) => typeof d === 'string') : [],
       downloads,
       installerAgeDays: Number.isFinite(s.installerAgeDays) ? s.installerAgeDays : 30,
@@ -1234,4 +1292,29 @@ function createDiskSpace(opts) {
   };
 }
 
-module.exports = { createDiskSpace };
+// Pure parser for ~/.config/user-dirs.dirs (xdg-user-dirs). Exported so the
+// rule that protects a non-English user's real document folder is unit-tested
+// on every platform, not only where the file exists.
+// Returns { documents, pictures, desktop, ... } with absolute paths.
+function parseXdgUserDirs(text, home) {
+  const out = {};
+  const sep = '/';
+  const homeAbs = String(home || '').replace(/\/+$/, '');
+  for (const line of String(text == null ? '' : text).split(/\r?\n/)) {
+    // Shell assignments, one per line: XDG_DOCUMENTS_DIR="$HOME/Documenti"
+    const m = /^\s*XDG_([A-Z]+)_DIR\s*=\s*"(.*)"\s*$/.exec(line);
+    if (!m) continue;
+    let value = m[2];
+    if (value === '$HOME' || value === '$HOME/') value = homeAbs;
+    else if (value.startsWith('$HOME/')) value = homeAbs + sep + value.slice('$HOME/'.length);
+    value = value.replace(/\/+$/, '');
+    // Absolute only, and never the home directory itself: xdg-user-dirs writes
+    // "$HOME" for a disabled entry, and protecting the whole home would leave
+    // nothing cleanable at all.
+    if (!value.startsWith(sep) || value === homeAbs) continue;
+    out[m[1].toLowerCase()] = value;
+  }
+  return out;
+}
+
+module.exports = { createDiskSpace, parseXdgUserDirs };

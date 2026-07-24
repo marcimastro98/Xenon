@@ -304,3 +304,51 @@ test('cancelling before the job finishes reports the rest as cancelled', async (
   assert.equal(last.phase, 'done');
   assert.equal(last.cancelled, true);
 });
+
+// ── xdg-user-dirs (Linux) ───────────────────────────────────────────────────
+// On a non-English Linux desktop the user's real folders are localised on
+// disk: ~/Documenti, ~/Scrivania. Guarding only the English names would leave
+// the actual documents unprotected, which is the one mistake disk-guard.js
+// exists to prevent, so the file that names them is parsed and every entry is
+// added as a protected prefix.
+const { parseXdgUserDirs } = require('../diskspace.js');
+
+test('xdg-user-dirs: localised folder names are read, $HOME expands', () => {
+  const cfg = [
+    '# This file is written by xdg-user-dirs-update',
+    'XDG_DESKTOP_DIR="$HOME/Scrivania"',
+    'XDG_DOCUMENTS_DIR="$HOME/Documenti"',
+    'XDG_PICTURES_DIR="$HOME/Immagini"',
+    'XDG_MUSIC_DIR="$HOME/Musica"',
+    'XDG_VIDEOS_DIR="$HOME/Video"',
+    'XDG_DOWNLOAD_DIR="$HOME/Scaricati"',
+  ].join('\n');
+  assert.deepEqual(parseXdgUserDirs(cfg, '/home/u'), {
+    desktop: '/home/u/Scrivania',
+    documents: '/home/u/Documenti',
+    pictures: '/home/u/Immagini',
+    music: '/home/u/Musica',
+    videos: '/home/u/Video',
+    download: '/home/u/Scaricati',
+  });
+});
+
+test('xdg-user-dirs: a disabled entry ("$HOME") is dropped, not turned into the home dir', () => {
+  // xdg-user-dirs writes "$HOME" for a directory the user turned off.
+  // Accepting it would protect the ENTIRE home directory and leave nothing
+  // cleanable — the failure is silent and total, so it is refused here.
+  const cfg = 'XDG_DOWNLOAD_DIR="$HOME"\nXDG_DOCUMENTS_DIR="$HOME/"\nXDG_MUSIC_DIR="$HOME/Musica"';
+  assert.deepEqual(parseXdgUserDirs(cfg, '/home/u'), { music: '/home/u/Musica' });
+});
+
+test('xdg-user-dirs: absolute paths outside the home are kept, relative ones refused', () => {
+  const cfg = 'XDG_VIDEOS_DIR="/mnt/media/Video"\nXDG_PICTURES_DIR="Immagini"\nXDG_MUSIC_DIR="$XDG_OTHER/x"';
+  assert.deepEqual(parseXdgUserDirs(cfg, '/home/u'), { videos: '/mnt/media/Video' });
+});
+
+test('xdg-user-dirs: garbage in never throws', () => {
+  assert.deepEqual(parseXdgUserDirs(null, '/home/u'), {});
+  assert.deepEqual(parseXdgUserDirs('', ''), {});
+  assert.deepEqual(parseXdgUserDirs('not a config at all', '/home/u'), {});
+  assert.deepEqual(parseXdgUserDirs('XDG_DOCUMENTS_DIR=$HOME/NoQuotes', '/home/u'), {});
+});
