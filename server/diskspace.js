@@ -75,6 +75,14 @@ function createDiskSpace(opts) {
   // Display-only volume metadata comes from server.js' existing, cached
   // Get-Volume probe. It never participates in root resolution or cleanup.
   const getDriveDetails = typeof o.getDriveDetails === 'function' ? o.getDriveDetails : async () => ({});
+  // Which volumes could become an index root. On Windows that is the
+  // drive-letter probe further down; off Windows there are no letters, and the
+  // collector seam ALREADY enumerates the real mounts in the shape the system
+  // tile consumes (darwin-collectors.disks() / linux-collectors.disks(): `/`
+  // plus /Volumes, pseudo-filesystems filtered, label and fileSystem
+  // included). Reusing it is the seam's whole point — a second enumeration here
+  // would be a second thing to keep in step with what the disks tile shows.
+  const getVolumes = typeof o.getVolumes === 'function' ? o.getVolumes : null;
   const summaryFile = path.join(dataDir, SUMMARY_FILE);
 
   // Every machine path is resolved ONCE here and passed into the two pure
@@ -82,7 +90,13 @@ function createDiskSpace(opts) {
   // passed explicitly rather than left to each module's process.platform
   // default, so the value the rules ran under is always visible at the call
   // site (and pinnable in tests).
-  const PLATFORM = process.platform;
+  // Overridable so the POSIX branches can be exercised from a Windows test run
+  // and vice versa. The two pure modules take the same option for the same
+  // reason: the alternative is a suite that silently skips half of itself and
+  // leaves the user's Mac as the first machine ever to run this code. Only the
+  // BRANCHING follows it — os.homedir()/os.tmpdir() still answer for the real
+  // machine, so a forced platform exercises the decisions, not the layout.
+  const PLATFORM = o.platform || process.platform;
   const IS_WIN = PLATFORM === 'win32';
   const IS_MAC = PLATFORM === 'darwin';
 
@@ -323,9 +337,60 @@ function createDiskSpace(opts) {
     return drivesCache.pending;
   }
   function listDrives() {
-    if (!drivesCache.at) return refreshDrives();          // first call waits
-    if (Date.now() - drivesCache.at >= DRIVES_TTL_MS) refreshDrives();  // in background
-    return Promise.resolve(drivesCache.list);
+    if (IS_WIN) {
+      if (!drivesCache.at) return refreshDrives();          // first call waits
+      if (Date.now() - drivesCache.at >= DRIVES_TTL_MS) refreshDrives();  // in background
+      return Promise.resolve(drivesCache.list);
+    }
+    return Promise.resolve([]);   // no letters here; see addableRoots()
+  }
+
+  // ── volumes offered as one-tap index roots (POSIX) ───────────────────────
+  // Same stale-while-revalidate shape as the letter probe above, for the same
+  // reason: this sits on the /disk/status path the widget polls, and `df`
+  // blocks on a stalled network mount.
+  const volumesCache = { at: 0, list: [], pending: null };
+  function refreshVolumes() {
+    if (volumesCache.pending) return volumesCache.pending;
+    volumesCache.pending = Promise.resolve()
+      .then(() => getVolumes())
+      .then((rows) => {
+        volumesCache.list = (Array.isArray(rows) ? rows : [])
+          .map((d) => ({
+            letter: '',
+            path: String((d && d.drive) || ''),
+            drive: String((d && d.drive) || ''),
+            label: String((d && d.label) || '').trim().slice(0, 80),
+            model: '',
+            fileSystem: String((d && d.fileSystem) || '').trim().slice(0, 24),
+            driveType: String((d && d.driveType) || '').trim().slice(0, 40),
+          }))
+          .filter((d) => d.path.startsWith('/'));
+        volumesCache.at = Date.now();
+        return volumesCache.list;
+      })
+      .catch(() => volumesCache.list)
+      .finally(() => { volumesCache.pending = null; });
+    return volumesCache.pending;
+  }
+
+  // The volumes the widget may offer as "add this to the index". One shape on
+  // both platforms: `path` is what the client sends back, and it is the only
+  // field it needs. `letter` stays populated on Windows because that is what
+  // the existing client falls back to.
+  async function addableRoots(metadata) {
+    if (IS_WIN) {
+      const letters = await listDrives();
+      return letters.map((letter) => ({
+        letter,
+        path: letter + ':\\',
+        ...metadata(letter + ':'),
+      }));
+    }
+    if (!getVolumes) return [];
+    if (!volumesCache.at) return refreshVolumes();
+    if (Date.now() - volumesCache.at >= DRIVES_TTL_MS) refreshVolumes();
+    return volumesCache.list;
   }
 
   function killScan(reason) {
@@ -455,6 +520,11 @@ function createDiskSpace(opts) {
 
   function startScan(rootRaw) {
     if (!helperPresent()) return { ok: false, error: 'helper_missing' };
+    // The mac helper has no `disk-scan` mode, and spawning it would exit
+    // non-zero into a generic "scan failed" the user cannot act on. Refuse with
+    // a reason instead: the Living Index serves the whole map on that platform,
+    // so nothing is actually lost here.
+    if (!IS_WIN) return { ok: false, error: 'scan_unsupported' };
     if (scan.running) return { ok: false, error: 'already_running' };
     // Root: a plain drive letter, strictly validated (default C:).
     const m = /^([A-Za-z]):?\\?$/.exec(String(rootRaw || 'C').trim());
@@ -562,14 +632,39 @@ function createDiskSpace(opts) {
         driveType: String(raw.driveType || '').trim().slice(0, 40),
       };
     };
+    const volumes = await addableRoots(metadata);
+    // Annotating a configured root with its volume's label. On Windows the key
+    // is the drive letter; off Windows it is the longest mount path the root
+    // sits under, which is what makes a root inside /Volumes/Backup read as
+    // that volume rather than as `/`.
+    const annotate = (rootPath) => {
+      if (IS_WIN) {
+        const match = /^([A-Za-z]:)/.exec(rootPath);
+        return metadata(match ? match[1] : '');
+      }
+      let best = null;
+      for (const v of volumes) {
+        if (rootPath === v.path || rootPath.startsWith(v.path.replace(/\/+$/, '') + '/')) {
+          if (!best || v.path.length > best.path.length) best = v;
+        }
+      }
+      return best
+        ? { drive: best.path, label: best.label, model: '', fileSystem: best.fileSystem, driveType: best.driveType }
+        : { drive: '', label: '', model: '', fileSystem: '', driveType: '' };
+    };
     out.roots = ((await getIndexRoots().catch(() => [])) || []).map((p, i) => {
       const rootPath = String(p || '');
-      const match = /^([A-Za-z]:)/.exec(rootPath);
-      return { i, path: rootPath, ...metadata(match ? match[1] : '') };
+      return { i, path: rootPath, ...annotate(rootPath) };
     });
-    const drives = await listDrives();
-    out.driveDetails = drives.map((letter) => ({ letter, ...metadata(letter + ':') }));
-    out.drives = drives;
+    out.driveDetails = volumes;
+    // Legacy field: bare drive letters, which only exist on Windows. The client
+    // falls back to it when driveDetails is absent, so it stays.
+    out.drives = await listDrives();
+    // Whether a full scan is possible at all. The Living Index is the primary
+    // path on every platform; the scan is the fallback for a machine without
+    // it, and it needs the helper's `disk-scan` mode, which only the Windows
+    // helper has. Saying so lets the widget not offer a button that refuses.
+    out.canScan = IS_WIN;
     // A running (or just-finished) cleanup so a reloaded page re-attaches to it
     // instead of showing a spinner that resolves against nothing.
     out.clean = cleanSnapshot();

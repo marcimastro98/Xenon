@@ -270,6 +270,12 @@
 
   // ── Root and header ──────────────────────────────────────────────────────
 
+  // One spelling for a root, so a trailing separator or a capital never makes
+  // two names for the same volume.
+  function rootKeyOf(value) {
+    return String(value || '').replace(/[\\/]+$/, '').toLowerCase();
+  }
+
   function drivePresentation(source) {
     const item = source || {};
     const pathValue = String(item.path || (item.letter ? item.letter + ':\\' : ''));
@@ -278,7 +284,12 @@
     const label = String(item.label || '').trim();
     const model = String(item.model || '').trim();
     const fileSystem = String(item.fileSystem || '').trim();
-    const isDriveRoot = /^[A-Za-z]:\\?$/.test(pathValue);
+    // A whole volume rather than a folder inside one: a bare drive letter on
+    // Windows, and on macOS/Linux the filesystem root or a mount point the
+    // server named as addable. Those get the volume's label ("Macintosh HD")
+    // instead of their last path segment, which for "/" is nothing at all.
+    const isDriveRoot = /^[A-Za-z]:\\?$/.test(pathValue)
+      || (!!item.path && pathValue.startsWith('/') && rootKeyOf(pathValue) === rootKeyOf(item.drive));
     const leaf = pathValue.replace(/[\\/]+$/, '').split(/[\\/]/).filter(Boolean).pop() || pathValue;
     const primary = isDriveRoot
       ? (label || model || tr('disk_local_drive', 'Disco locale'))
@@ -336,16 +347,33 @@
       row.appendChild(chip);
     }
     if (typeof window.addSearchIndexRoot === 'function' || typeof window.updateSearchSettings === 'function') {
-      const have = new Set(roots.map((r) => String(r.path || '').slice(0, 1).toUpperCase()));
+      // The root a chip would add. The server names it (`path`), because only
+      // it knows what a volume is called on this machine: a drive letter on
+      // Windows, a mount point everywhere else. Rebuilding it here from a
+      // letter is what limited this row to Windows.
+      const rootKey = rootKeyOf;
+      // Suppressed when a configured root already sits ON that volume, not only
+      // when it IS that volume. That is what the old letter comparison meant on
+      // Windows (indexing C:\Users hid the "add C:" chip) and it carries over
+      // unchanged; expressing it as a path also makes it true for a mount point.
+      const covered = (addPath) => {
+        const key = rootKey(addPath);
+        if (!key) return true;
+        return roots.some((r) => {
+          const rk = rootKey(r.path);
+          return rk === key || rk.startsWith(key + '\\') || rk.startsWith(key + '/');
+        });
+      };
       const driveDetails = status && Array.isArray(status.driveDetails)
         ? status.driveDetails
         : (status && Array.isArray(status.drives) ? status.drives : []).map((letter) => ({ letter }));
       for (const driveDetail of driveDetails) {
         const letter = String(driveDetail.letter || driveDetail.drive || '').slice(0, 1).toUpperCase();
-        if (!letter) continue;
-        if (have.has(letter)) continue;
-        const info = drivePresentation({ ...driveDetail, path: letter + ':\\' });
-        const chip = btn('diskw-root diskw-root-add', '', () => addRoot(letter + ':\\'),
+        const addPath = String(driveDetail.path || '') || (/^[A-Z]$/.test(letter) ? letter + ':\\' : '');
+        if (!addPath) continue;
+        if (covered(addPath)) continue;
+        const info = drivePresentation({ ...driveDetail, path: addPath });
+        const chip = btn('diskw-root diskw-root-add', '', () => addRoot(addPath),
           tr('disk_add_drive', 'Aggiungi all’indice') + ' · ' + info.title);
         appendRootCopy(chip, info, '+ ');
         chip.disabled = cleaning || addingRoot;

@@ -936,6 +936,11 @@ const diskSpace = createDiskSpace({
   // Reuse the system tile's ten-minute volume cache: the disk widget gets
   // friendly labels/models without adding another recurring PowerShell probe.
   getDriveDetails: () => getDiskDetails(),
+  // Off Windows there are no drive letters to probe, so the volumes the widget
+  // can offer as index roots come from the same collector the disks tile reads
+  // (`/` plus /Volumes on macOS, real mounts on Linux). One enumeration, one
+  // set of labels.
+  getVolumes: nativeCollectors ? () => getAllDisksInfo() : null,
   appRoot: path.join(__dirname, '..'),
   getSettings: async () => {
     const s = await readHubSettings();

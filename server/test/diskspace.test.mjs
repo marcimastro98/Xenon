@@ -352,3 +352,81 @@ test('xdg-user-dirs: garbage in never throws', () => {
   assert.deepEqual(parseXdgUserDirs('not a config at all', '/home/u'), {});
   assert.deepEqual(parseXdgUserDirs('XDG_DOCUMENTS_DIR=$HOME/NoQuotes', '/home/u'), {});
 });
+
+// ── volumes offered as index roots ──────────────────────────────────────────
+// Windows finds them by probing drive letters; there are none off Windows, so
+// the collector seam's disks() is reused instead of a second enumeration. The
+// wire shape is one shape on both: `path` is what the client sends back.
+
+async function statusWith(opts) {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'xenon-disk-roots-'));
+  const dataDir = path.join(dir, 'data');
+  await fs.mkdir(dataDir);
+  const ds = createDiskSpace({
+    dataDir,
+    appRoot: dir,
+    helperExe: path.join(dir, 'no-helper'),
+    getSettings: async () => ({}),
+    ...opts,
+  });
+  return { status: await ds.status(), ds };
+}
+
+test('POSIX volumes become addable roots, carrying the label the disks tile shows', async () => {
+  const { status } = await statusWith({
+    platform: 'darwin',
+    getIndexRoots: async () => ['/Users/u/Progetti'],
+    getVolumes: async () => ([
+      { drive: '/', label: 'System', fileSystem: 'apfs', driveType: 'Fixed', total: 1, used: 0, free: 1, percent: 0 },
+      { drive: '/Volumes/Backup', label: 'Backup', fileSystem: 'hfs', driveType: 'Removable', total: 1, used: 0, free: 1, percent: 0 },
+    ]),
+  });
+  assert.deepEqual(status.driveDetails.map((d) => d.path), ['/', '/Volumes/Backup']);
+  assert.equal(status.driveDetails[1].label, 'Backup');
+  // No drive letters exist here, and the legacy field says so rather than
+  // inventing one.
+  assert.deepEqual(status.drives, []);
+  // The configured root is annotated from the volume it sits on.
+  assert.equal(status.roots[0].path, '/Users/u/Progetti');
+  assert.equal(status.roots[0].drive, '/');
+});
+
+test('a root inside a mounted volume is annotated with THAT volume, not the filesystem root', async () => {
+  const { status } = await statusWith({
+    platform: 'darwin',
+    getIndexRoots: async () => ['/Volumes/Backup/Archivio'],
+    getVolumes: async () => ([
+      { drive: '/', label: 'System', fileSystem: 'apfs', driveType: 'Fixed' },
+      { drive: '/Volumes/Backup', label: 'Backup', fileSystem: 'hfs', driveType: 'Removable' },
+    ]),
+  });
+  // Both match by prefix; the longest one wins, or an external drive would
+  // read as the startup disk.
+  assert.equal(status.roots[0].drive, '/Volumes/Backup');
+  assert.equal(status.roots[0].label, 'Backup');
+});
+
+test('a full scan is refused off Windows with a reason, not a failed spawn', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'xenon-disk-scan-'));
+  const dataDir = path.join(dir, 'data');
+  await fs.mkdir(dataDir);
+  // A helper that exists but has no disk-scan mode: exactly the mac case.
+  const helperExe = path.join(dir, 'xenon-helper');
+  await fs.writeFile(helperExe, '');
+  const ds = createDiskSpace({ dataDir, appRoot: dir, helperExe, platform: 'darwin', getSettings: async () => ({}) });
+  assert.deepEqual(ds.startScan('/'), { ok: false, error: 'scan_unsupported' });
+  const status = await ds.status();
+  assert.equal(status.canScan, false, 'the widget is told, so it need not offer the button');
+  assert.equal(status.helper, true, 'the helper is still there — the index path uses it');
+});
+
+test('Windows keeps probing drive letters and keeps the legacy field', async (t) => {
+  if (process.platform !== 'win32') return t.skip('drive letters only exist on Windows');
+  const { status } = await statusWith({ getIndexRoots: async () => [] });
+  assert.ok(Array.isArray(status.drives));
+  assert.ok(status.drives.includes('C'), 'C: should be present on any Windows machine');
+  const c = status.driveDetails.find((d) => d.letter === 'C');
+  assert.ok(c, 'C: appears in driveDetails');
+  assert.equal(c.path, 'C:' + path.sep, 'the client is given the root to add, not just a letter');
+  assert.equal(status.canScan, true);
+});
