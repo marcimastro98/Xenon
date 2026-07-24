@@ -233,7 +233,7 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 | CORSAIR iCUE lighting | ✅ | — | — |
 | Streaming, Spotify, Discord, Home Assistant, Claude Code | ✅ | ✅ | ✅ |
 | In-game FPS counter | ✅ | — | — |
-| Windows notification mirroring | ✅ | — | — |
+| Mirroring desktop notifications | ✅ | — | ✅ ⁷ |
 | Living Index, PC search, disk cleanup | ✅ | — | — |
 | Embedded browser tile | ✅ | ✅ ⁶ | ✅ ⁶ |
 | Second screen | ✅ | — | — |
@@ -242,6 +242,8 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 ¹ macOS asks once for the Automation permission; the list stays empty until you grant it.
 
 ² Linux reads MPRIS over D-Bus, which needs `playerctl` installed.
+
+⁷ Linux reads the freedesktop notification bus, which needs `dbus-monitor` (part of the standard dbus package).
 
 ⁶ Needs a Chromium-based browser installed (Edge, Chrome, Chromium or Brave); the tile drives it over the DevTools protocol.
 

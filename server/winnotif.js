@@ -121,12 +121,63 @@ function _onData(chunk) {
   }
 }
 
+// Linux speaks a different dialect: dbus-monitor prints message blocks, not
+// JSON lines. Everything AFTER the child — the buffer, the exclusions, the cap,
+// the privacy rules — is shared, so the translation happens here and feeds the
+// same _handleLine the Windows children drive.
+const linuxNotif = process.platform === 'linux' ? require('./linux-notif') : null;
+
+function _onDbusData(chunk) {
+  _buffer += chunk;
+  const blocks = linuxNotif.splitBlocks(_buffer);
+  // The last block may still be arriving, so it is left in the buffer until the
+  // next header proves it complete.
+  const complete = blocks.slice(0, -1);
+  _buffer = blocks.length ? blocks[blocks.length - 1] : '';
+  for (const block of complete) {
+    _consecutiveFastFails = 0;                      // receiving data → healthy
+    if (!linuxNotif.isNotifyCall(block)) continue;
+    const item = linuxNotif.parseNotifyBlock(block);
+    if (item) _handleLine(JSON.stringify({ event: 'notification', item }));
+  }
+}
+
+function _startLinux(startedAt) {
+  const bin = linuxNotif.findDbusMonitor();
+  if (!bin) {
+    // No dbus-monitor: report it and do NOT schedule a retry. Nothing about a
+    // missing package changes on a timer, and the tile says "unavailable"
+    // rather than spinning.
+    _handleLine(JSON.stringify({ event: 'status', status: 'unavailable' }));
+    return;
+  }
+  let child;
+  try {
+    child = spawn(bin, linuxNotif.MONITOR_ARGS);
+  } catch {
+    _proc = null;
+    _scheduleRestart(startedAt);
+    return;
+  }
+  _proc = child;
+  // The session bus is the user's own, so there is no permission gate to wait
+  // for: if the monitor started, it is watching.
+  _handleLine(JSON.stringify({ event: 'status', status: 'allowed' }));
+  child.stdout.on('data', (d) => { if (_proc === child) _onDbusData(d.toString('utf8')); });
+  child.stderr.on('data', () => { /* match-rule warnings; ignore */ });
+  const onGone = () => { if (_proc === child) { _proc = null; _scheduleRestart(startedAt); } };
+  child.on('error', onGone);
+  child.on('close', onGone);
+}
+
 function _start() {
-  if (_stopped || process.platform !== 'win32') return;
+  if (_stopped) return;
+  if (process.platform !== 'win32' && process.platform !== 'linux') return;
   if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
   _buffer = '';
   _state = 'starting';
   const startedAt = Date.now();
+  if (process.platform === 'linux') { _startLinux(startedAt); return; }
   let useHelper = false;
   if (!_helperDisabled) {
     try { useHelper = fs.existsSync(HELPER_EXE); } catch { useHelper = false; }

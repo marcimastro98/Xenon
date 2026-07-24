@@ -135,6 +135,7 @@ else
   have nvidia-smi || miss "nvidia-smi — GPU load, temperature and VRAM on NVIDIA cards (AMD and Intel need nothing)"
   have wpctl || miss "wireplumber — the volume mixer and audio devices"
   have playerctl || miss "playerctl — what is playing, and the media keys"
+  have dbus-monitor || miss "dbus-monitor — mirroring your desktop notifications"
   have wmctrl || miss "wmctrl + xdotool + x11-utils — the open-applications widget (X11 sessions)"
 fi
 if [ -n "$MISSING" ]; then
