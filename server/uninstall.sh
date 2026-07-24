@@ -1,26 +1,34 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────────────────────
-# uninstall.sh — remove the Xenon backend's macOS login agent.
+# uninstall.sh — remove the Xenon backend's login service (macOS and Linux).
 #
 # Counterpart of install.sh (and of uninstall.ps1 on Windows). It stops the
-# backend and unregisters the LaunchAgent. It does NOT delete the install folder
-# and it does NOT delete your settings, notes, events, deck or backgrounds —
-# those live in server/data and are only removed when you explicitly pass
-# --purge-data.
+# backend and unregisters whichever login mechanism install.sh used. It does NOT
+# delete the install folder and it does NOT delete your settings, notes, events,
+# deck or backgrounds — those live in server/data and are only removed when you
+# explicitly pass --purge-data.
 #
 #   ./server/uninstall.sh              stop + unregister, keep everything
 #   ./server/uninstall.sh --purge-data also delete server/data (irreversible)
+#
+# Every removal is attempted regardless of which one was used to install, so a
+# tree that was set up by one mechanism and later re-installed under another
+# does not leave a second copy behind starting a second server on the port.
 # ─────────────────────────────────────────────────────────────────────────────
 
 set -uo pipefail
 
 SERVER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DATA_DIR="$SERVER_DIR/data"
-LABEL="com.marcimastro98.xenon.backend"
-PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
-LOG_DIR="$HOME/Library/Logs/Xenon"
 PORT=3030
 PURGE=0
+
+LABEL="com.marcimastro98.xenon.backend"
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+MAC_LOG_DIR="$HOME/Library/Logs/Xenon"
+UNIT_NAME="xenon-backend.service"
+UNIT="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/$UNIT_NAME"
+AUTOSTART="${XDG_CONFIG_HOME:-$HOME/.config}/autostart/xenon-backend.desktop"
 
 for arg in "$@"; do
   case "$arg" in
@@ -36,39 +44,70 @@ else
 fi
 step() { printf '%s==>%s %s\n' "$C_STEP" "$C_OFF" "$1"; }
 
-printf '\n  %sXenon — removing the backend login agent%s\n\n' "$C_STEP" "$C_OFF"
+printf '\n  %sXenon — removing the backend login service%s\n\n' "$C_STEP" "$C_OFF"
 
-# 1) Unload the agent (both the modern and the legacy launchctl spellings, so an
-#    agent registered by an older install.sh is caught too).
-GUI="gui/$(id -u)"
-step 'Stopping the login agent…'
-launchctl bootout "$GUI/$LABEL" >/dev/null 2>&1
-launchctl unload -w "$PLIST" >/dev/null 2>&1
+FOUND=0
 
-# 2) Remove the plist.
-if [ -f "$PLIST" ]; then
-  rm -f "$PLIST" && step "Removed $PLIST"
-else
-  step 'No login agent was registered.'
-fi
-
-# 3) Anything still holding the port is a manually started server — stop it too,
-#    so "uninstalled" does not leave a dashboard answering on 3030. lsof is part
-#    of the base system; the guard keeps this from ever killing pid 0/empty.
-if command -v lsof >/dev/null 2>&1; then
-  PIDS="$(lsof -ti tcp:"$PORT" -sTCP:LISTEN 2>/dev/null || true)"
-  if [ -n "$PIDS" ]; then
-    step "Stopping the server on port $PORT…"
-    for pid in $PIDS; do [ -n "$pid" ] && kill "$pid" 2>/dev/null; done
-    sleep 1
-    for pid in $PIDS; do [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null; done
+# ── macOS: the LaunchAgent ───────────────────────────────────────────────────
+if command -v launchctl >/dev/null 2>&1; then
+  # Both the modern and the legacy spellings, so an agent registered by an older
+  # install.sh is caught too.
+  launchctl bootout "gui/$(id -u)/$LABEL" >/dev/null 2>&1
+  launchctl unload -w "$PLIST" >/dev/null 2>&1
+  if [ -f "$PLIST" ]; then
+    step 'Stopping the LaunchAgent…'
+    rm -f "$PLIST" && step "Removed $PLIST"
+    FOUND=1
   fi
 fi
 
-# 4) Logs are ours and hold nothing the user needs after this.
-rm -rf "$LOG_DIR" 2>/dev/null
+# ── Linux: the systemd user unit ─────────────────────────────────────────────
+if command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; then
+  if [ -f "$UNIT" ]; then
+    step 'Stopping the systemd user unit…'
+    systemctl --user disable --now "$UNIT_NAME" >/dev/null 2>&1
+    rm -f "$UNIT" && step "Removed $UNIT"
+    systemctl --user daemon-reload >/dev/null 2>&1
+    # Drops the unit from systemd's view; without it `systemctl --user status`
+    # keeps reporting a unit whose file no longer exists.
+    systemctl --user reset-failed "$UNIT_NAME" >/dev/null 2>&1
+    FOUND=1
+  fi
+fi
 
-# 5) User data, only on an explicit request.
+# ── Linux: the XDG autostart fallback ────────────────────────────────────────
+if [ -f "$AUTOSTART" ]; then
+  step 'Removing the autostart entry…'
+  rm -f "$AUTOSTART" && step "Removed $AUTOSTART"
+  FOUND=1
+fi
+
+[ "$FOUND" = "1" ] || step 'No login service was registered.'
+
+# ── Anything still holding the port ──────────────────────────────────────────
+# A manually started server, or one the service manager has not reaped yet.
+# "uninstalled" must not leave a dashboard answering on 3030.
+port_pids() {
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -ti tcp:"$PORT" -sTCP:LISTEN 2>/dev/null
+  elif command -v ss >/dev/null 2>&1; then
+    # ss is what a minimal Linux install has; lsof often is not there.
+    ss -lptnH "sport = :$PORT" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u
+  fi
+}
+PIDS="$(port_pids)"
+if [ -n "$PIDS" ]; then
+  step "Stopping the server on port $PORT…"
+  for pid in $PIDS; do [ -n "$pid" ] && kill "$pid" 2>/dev/null; done
+  sleep 1
+  for pid in $PIDS; do [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null; done
+fi
+
+# Logs are ours and hold nothing the user needs after this (macOS only: the
+# systemd unit's output lives in the journal, which is not ours to prune).
+rm -rf "$MAC_LOG_DIR" 2>/dev/null
+
+# ── User data, only on an explicit request ───────────────────────────────────
 if [ "$PURGE" = "1" ]; then
   if [ -d "$DATA_DIR" ]; then
     step 'Deleting server/data (settings, notes, events, deck, backgrounds)…'
@@ -80,6 +119,12 @@ else
   printf '  %sRe-run with --purge-data to delete them as well.%s\n' "$C_DIM" "$C_OFF"
 fi
 
-printf '\n  %sDone. The Xenon app itself (if installed) is removed by dragging%s\n' "$C_OK" "$C_OFF"
-printf '  %sXenon.app from Applications to the Trash.%s\n\n' "$C_OK" "$C_OFF"
+printf '\n  %sDone.%s' "$C_OK" "$C_OFF"
+if [ "$(uname -s)" = 'Darwin' ]; then
+  printf ' %sThe Xenon app itself (if installed) is removed by%s\n' "$C_OK" "$C_OFF"
+  printf '  %sdragging Xenon.app from Applications to the Trash.%s\n' "$C_OK" "$C_OFF"
+else
+  printf ' %sThe install folder itself was left in place.%s\n' "$C_OK" "$C_OFF"
+fi
+printf '\n'
 exit 0

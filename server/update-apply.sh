@@ -1,8 +1,8 @@
 #!/bin/bash
-# Xenon self-update applier — macOS.
+# Xenon self-update applier — macOS and Linux.
 #
-# The macOS counterpart of update-apply.ps1, with the SAME failure guarantees.
-# Runs OUTSIDE the Node server: the new version has already been downloaded,
+# The counterpart of update-apply.ps1, with the SAME failure guarantees. Runs
+# OUTSIDE the Node server: the new version has already been downloaded,
 # integrity-verified (Ed25519 over SHA256SUMS) and validated into
 # server/data/update/app by the server's prepare step; this script only performs
 # the final swap and restarts the backend.
@@ -18,15 +18,28 @@
 #
 # Two things differ from the Windows applier, both because the platform differs:
 #
-# - No elevation and no self-relaunch. There is no UAC, the install root is
-#   per-user, and `spawn(..., {detached: true})` calls setsid(), so this script
-#   already lives in its own session and survives the server it is about to stop.
-#   (The Windows -Worker dance exists only to escape Node's kill-on-close job.)
-# - The backend is stopped with SIGTERM, never `launchctl bootout`. The server's
-#   _gracefulShutdown always exits 0, and the LaunchAgent's KeepAlive is
-#   SuccessfulExit=false, so a clean stop does NOT trigger a relaunch — while
-#   bootout would kill everything in the job and could take this script with it,
-#   leaving the backend down with nobody left to restart it.
+# - No elevation. There is no UAC and the install root is per-user, so the
+#   Windows -Worker/runas dance has nothing to do here.
+# - The backend is stopped with SIGTERM rather than through the service manager.
+#   _gracefulShutdown always exits 0, and both service definitions restart only
+#   on FAILURE (launchd KeepAlive.SuccessfulExit=false, systemd
+#   Restart=on-failure), so a clean stop leaves the backend down for the swap
+#   and neither manager races to bring it back.
+#
+# Surviving the server we stop is the subtle part, and it differs by platform:
+#
+# - macOS: `spawn(..., {detached: true})` calls setsid(), which is enough — and
+#   `launchctl bootout` is avoided precisely because it kills everything in the
+#   job and could take this script with it, leaving the backend down with nobody
+#   left to restart it.
+# - Linux: setsid does NOT escape a cgroup, so a script spawned by a systemd user
+#   unit is still inside it. self-update.js therefore launches this applier via
+#   `systemd-run --user` when it can, which puts it in a transient unit of its
+#   own. When it could not (no systemd-run), stop_server detects that it is still
+#   inside the backend's cgroup and refuses `systemctl stop`, which would kill
+#   itself. If the process dies during the stop phase anyway, NOTHING has been
+#   modified yet — the backup exists, no file has been copied — so the tree is
+#   left exactly as it was and the user simply retries.
 
 set -uo pipefail
 
@@ -43,6 +56,13 @@ PORT=3030
 DASH_URL="http://127.0.0.1:$PORT/"
 LABEL='com.marcimastro98.xenon.backend'
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+UNIT_NAME='xenon-backend.service'
+UNIT="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/$UNIT_NAME"
+
+case "$(uname -s)" in
+  Darwin) XENON_OS='macos' ;;
+  *)      XENON_OS='linux' ;;
+esac
 
 # Durable side-channel files live directly in DATA_DIR, NOT under update/ —
 # prepare() wipes update/ at the start of every run and these must survive it.
@@ -99,15 +119,38 @@ read_pkg_version() { # $1 = directory holding package.json
 
 # ── Server lifecycle ─────────────────────────────────────────────────────────
 server_pids() {
-  command -v lsof >/dev/null 2>&1 || return 0
-  lsof -ti tcp:"$PORT" -sTCP:LISTEN 2>/dev/null
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -ti tcp:"$PORT" -sTCP:LISTEN 2>/dev/null
+  elif command -v ss >/dev/null 2>&1; then
+    # ss is what a minimal Linux install has; lsof often is not there.
+    ss -lptnH "sport = :$PORT" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u
+  fi
+}
+
+# True when this script is running inside the backend unit's own cgroup, i.e.
+# stopping that unit would also kill us. See the header.
+in_backend_cgroup() {
+  [ "$XENON_OS" = 'linux' ] || return 1
+  grep -q "$UNIT_NAME" /proc/self/cgroup 2>/dev/null
+}
+
+systemd_user_ready() {
+  [ "$XENON_OS" = 'linux' ] || return 1
+  command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1
 }
 
 stop_server() {
+  # Linux + systemd: ask the manager, so the unit is marked inactive rather than
+  # looking like a crash. Skipped when it would kill this script.
+  if [ -f "$UNIT" ] && systemd_user_ready && ! in_backend_cgroup; then
+    systemctl --user stop "$UNIT_NAME" >/dev/null 2>&1
+  elif in_backend_cgroup; then
+    log 'running inside the backend cgroup; stopping by signal instead of systemctl'
+  fi
   local pids; pids="$(server_pids)"
   [ -n "$pids" ] || return 0
-  # SIGTERM → _gracefulShutdown → exit 0. KeepAlive is SuccessfulExit=false, so
-  # launchd leaves it stopped; see the header.
+  # SIGTERM → _gracefulShutdown → exit 0, which both managers treat as a clean
+  # stop and do not restart; see the header.
   for pid in $pids; do [ -n "$pid" ] && kill "$pid" 2>/dev/null; done
   for _ in $(seq 1 20); do
     sleep 0.5
@@ -119,16 +162,33 @@ stop_server() {
 }
 
 start_server() {
-  if [ -f "$PLIST" ]; then
+  if [ "$XENON_OS" = 'macos' ] && [ -f "$PLIST" ]; then
     launchctl kickstart -k "gui/$(id -u)/$LABEL" >/dev/null 2>&1 && return 0
     log 'launchctl kickstart failed; starting node directly'
+  elif [ -f "$UNIT" ] && systemd_user_ready; then
+    # daemon-reload first: the update may have shipped nothing here, but a unit
+    # file the user edited between versions would otherwise start from systemd's
+    # stale copy.
+    systemctl --user daemon-reload >/dev/null 2>&1
+    systemctl --user start "$UNIT_NAME" >/dev/null 2>&1 && return 0
+    log 'systemctl start failed; starting node directly'
   fi
-  # No agent (a manual/dev install): start it the way the user did. setsid via
-  # nohup so it outlives this script.
+  # No service (a manual/dev install, or the XDG autostart fallback): start it
+  # the way the user did. nohup + & so it outlives this script.
   if [ -n "$NODE_BIN" ]; then
     (cd "$ROOT_DIR" && nohup "$NODE_BIN" "$SERVER_DIR/server.js" >/dev/null 2>&1 &) || log 'direct node start failed'
   else
     log 'node not found; cannot restart the server'
+  fi
+}
+
+# Open the dashboard once the update is in. Best effort: a headless or
+# unsupported session simply gets no window, which is not a failure.
+open_dashboard() {
+  if [ "$XENON_OS" = 'macos' ]; then
+    open "$DASH_URL" >/dev/null 2>&1
+  else
+    command -v xdg-open >/dev/null 2>&1 && xdg-open "$DASH_URL" >/dev/null 2>&1
   fi
 }
 
@@ -431,5 +491,5 @@ write_result "$( "$NODE_BIN" -e '
 rm -f "$UPD_DIR/staged.json" "$STAGED_LIST" 2>/dev/null
 rm -rf "$APP_DIR" "$BACKUP_DIR" "$NM_BAK" 2>/dev/null
 log 'apply OK'
-open "$DASH_URL" >/dev/null 2>&1
+open_dashboard
 exit 0
