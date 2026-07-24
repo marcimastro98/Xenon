@@ -417,6 +417,9 @@ jobs:
           fi
           APPIMAGE=$(ls "$BUNDLE"/appimage/*.AppImage 2>/dev/null | head -1 || true)
           DEB=$(ls "$BUNDLE"/deb/*.deb 2>/dev/null | head -1 || true)
+          # rpm is best-effort: the bundler needs rpmbuild on the runner, and a
+          # missing Fedora package must not cost everyone else their release.
+          RPM=$(ls "$BUNDLE"/rpm/*.rpm 2>/dev/null | head -1 || true)
           [ -n "$UPD" ] && [ -n "$SIG" ] || { echo "updater payload or signature missing in $BUNDLE/appimage"; exit 1; }
           [ -n "$APPIMAGE" ] || { echo "AppImage missing in $BUNDLE/appimage"; exit 1; }
           [ -n "$DEB" ] || { echo "deb missing in $BUNDLE/deb"; exit 1; }
@@ -441,6 +444,12 @@ jobs:
           # Xenon-macOS-universal.dmg: permanent links for the README and site.
           cp "$APPIMAGE" stage/Xenon-Linux-x86_64.AppImage
           cp "$DEB" stage/Xenon-Linux-x86_64.deb
+          if [ -n "$RPM" ]; then
+            cp "$RPM" "stage/$(basename "$RPM")"
+            cp "$RPM" stage/Xenon-Linux-x86_64.rpm
+          else
+            echo "::warning::no rpm was built - this release ships without one"
+          fi
 
       - name: Upload native Linux artifacts
         uses: actions/upload-artifact@v5
@@ -526,6 +535,7 @@ jobs:
               ["assets/Xenon-macOS-universal.dmg", "Xenon-macOS-universal.dmg", false],
               ["assets/Xenon-Linux-x86_64.AppImage", "Xenon-Linux-x86_64.AppImage", false],
               ["assets/Xenon-Linux-x86_64.deb", "Xenon-Linux-x86_64.deb", false],
+              ["assets/Xenon-Linux-x86_64.rpm", "Xenon-Linux-x86_64.rpm", false],
             ];
             let sums = "";
             for (const [path, name, required] of entries) {

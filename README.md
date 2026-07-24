@@ -228,7 +228,7 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 | Global hotkeys, type text, move windows | ✅ | — | — |
 | Xenon AI, chat and actions (cloud and local) | ✅ | ✅ | ✅ |
 | Talking to it: voice input, screen vision | ✅ | ✅ | X11 only ³ |
-| "Hey Xenon" wake word | ✅ | — | — |
+| "Hey Xenon" wake word | ✅ | ✅ ⁵ | ✅ ⁵ |
 | Network lighting (WLED, Hue, Nanoleaf, OpenRGB) | ✅ | ✅ | ✅ |
 | CORSAIR iCUE lighting | ✅ | — | — |
 | Streaming, Spotify, Discord, Home Assistant, Claude Code | ✅ | ✅ | ✅ |
@@ -241,6 +241,8 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 ¹ macOS asks once for the Automation permission; the list stays empty until you grant it.
 
 ² Linux reads MPRIS over D-Bus, which needs `playerctl` installed.
+
+⁵ Needs the free local Whisper installed (Settings → Xenon AI), same as on Windows, and a microphone ffmpeg can open.
 
 ⁴ NVIDIA needs `nvidia-smi`; AMD is read from the kernel directly and needs nothing; Intel reports temperature only, because its load counters are not readable without elevated access.
 
