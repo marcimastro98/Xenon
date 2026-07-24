@@ -10,10 +10,22 @@ const https = require('https');
 const os = require('os');
 const crypto = require('crypto');
 const path = require('path');
-// Linux native collectors (GPU/disk/CPU-temp/network). Windows keeps the
-// PowerShell path; on Linux those spawns fail (powershell.exe ENOENT) so the
-// system tiles fall back to these. See linux-collectors.js.
-const linuxCollectors = process.platform === 'linux' ? require('./linux-collectors') : null;
+// Non-Windows native collectors (GPU/disk/CPU-temp/network/windows/audio).
+// Windows keeps the PowerShell path; elsewhere those spawns fail
+// (powershell.exe ENOENT) so the system tiles fall back to these. Each module
+// returns the SAME shapes the Windows collectors produced, so every consumer
+// below is platform-agnostic. See linux-collectors.js / darwin-collectors.js.
+const nativeCollectors =
+  process.platform === 'linux' ? require('./linux-collectors') :
+  process.platform === 'darwin' ? require('./darwin-collectors') : null;
+// Every PowerShell path in this file is gated on this. The collectors above
+// cover the sensors, but dozens of on-demand features (Deck actions, RAM
+// detail, window management, the media host) still shell out to a .ps1, and
+// off Windows those spawns fail with ENOENT several layers below the caller.
+// Rejecting once, here, turns "a stack of ENOENT noise per click" into the
+// clean per-feature "unavailable" the action registry already knows how to
+// render. See runPowerShellScript / runPowerShellCommand.
+const POWERSHELL_SUPPORTED = process.platform === 'win32';
 const fpsMonitor = require('./fpsmon');
 const gameDetect = require('./gamedetect');
 const audioLevels = require('./audio-levels');
@@ -1607,6 +1619,7 @@ function powerShellUtf8Command(command) {
 }
 
 function runPowerShellScript(script, args = [], timeout = 5000) {
+  if (!POWERSHELL_SUPPORTED) return Promise.reject(new Error('unsupported_platform'));
   return new Promise((resolve, reject) => {
     const child = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, ...args], {
       windowsHide: true,
@@ -1702,7 +1715,7 @@ function runHelperOneShot(args, timeout = 8000) {
 // back to windows.ps1 transparently on ANY helper problem (missing, crashed,
 // bad output) — the PowerShell path is the permanent safety net.
 async function runWindowsTool(args, timeout) {
-  if (linuxCollectors) return linuxCollectors.windows(args[0], args[1]);
+  if (nativeCollectors) return nativeCollectors.windows(args[0], args[1]);
   if (fs.existsSync(HELPER_EXE)) {
     try { return await runHelperOneShot(['windows', ...args], timeout); }
     catch { /* fall through to the PowerShell path */ }
@@ -1711,6 +1724,7 @@ async function runWindowsTool(args, timeout) {
 }
 
 function runPowerShellCommand(command, timeout = 5000) {
+  if (!POWERSHELL_SUPPORTED) return Promise.reject(new Error('unsupported_platform'));
   return new Promise((resolve, reject) => {
     execFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', powerShellUtf8Command(command)], {
       timeout,
@@ -1811,6 +1825,7 @@ function _killWorker(reason) {
 }
 
 function _ensureWorker() {
+  if (!POWERSHELL_SUPPORTED) return null;
   if (_worker.proc) return _worker.proc;
   let proc;
   try {
@@ -1943,6 +1958,12 @@ function _retireMediaHost(reason) {
 }
 
 function _ensureMediaHost() {
+  // Both hosts read Windows' SMTC: the helper through WinRT, the fallback
+  // through media.ps1. Neither has an equivalent elsewhere — macOS now-playing
+  // needs MediaRemote, which is entitlement-gated since 15.4 (see
+  // docs/MACOS_PORTABILITY.md). No host means the media tile stays empty
+  // instead of respawning a doomed child every few seconds.
+  if (!POWERSHELL_SUPPORTED) return null;
   if (_mediaHost.proc) return _mediaHost.proc;
   if (Date.now() - _mediaHost.diedAt < MEDIA_HOST_RETRY_MS) return null;
   let useHelper = false;
@@ -2158,10 +2179,12 @@ let gpuPending = null;
 let cpuTempPending = null;
 let mediaPending = null;
 let audioPending = null;
-// STT via ffmpeg — WASAPI preferred (fast init), dshow fallback
+// STT via ffmpeg — WASAPI preferred (fast init), dshow fallback; avfoundation
+// on macOS, where the device is addressed by index rather than by name.
 let _sttDeviceReady = false;
 let _sttUseWasapi   = false;
 let _sttDshowDevice = null;
+let _sttAvfIndex    = null; // macOS avfoundation audio device index, as a string
 let _boundMicLabel  = null; // mic label we last bound to. Drives re-init on device changes.
 const _sttDeviceWaiters = [];
 const _sttPending = new Map(); // id → { ffmpegProc, wavPath, recordingStarted, resolveRecording, recordingSaved, resolveSaved }
@@ -2294,7 +2317,7 @@ function makeCsvPath() {
 }
 
 function readSoundVolumeRows() {
-  if (linuxCollectors) return linuxCollectors.audioRows();
+  if (nativeCollectors) return nativeCollectors.audioRows();
   return new Promise((resolve, reject) => {
     const csv = makeCsvPath();
     execFile(SVV, ['/scomma', csv, '/AvoidPrompts'], { timeout: 6000 }, err => {
@@ -3318,7 +3341,7 @@ async function getCpuTemp() {
 
   cpuTempPending = (async () => {
     try {
-      const data = linuxCollectors ? await linuxCollectors.cpuTemp() : await runCollector(CPU_TEMP_SCRIPT, [], 10000);
+      const data = nativeCollectors ? await nativeCollectors.cpuTemp() : await runCollector(CPU_TEMP_SCRIPT, [], 10000);
       // Windows PowerShell 5.1 can unwrap a single-element array on serialize.
       let fans = data.fans;
       if (fans && !Array.isArray(fans)) fans = [fans];
@@ -3355,7 +3378,7 @@ async function getGpuInfo() {
   if (gpuPending) return gpuPending;
   gpuPending = (async () => {
   try {
-    const data = linuxCollectors ? await linuxCollectors.gpu() : await runCollector(GPU_SCRIPT, [], 12000);
+    const data = nativeCollectors ? await nativeCollectors.gpu() : await runCollector(GPU_SCRIPT, [], 12000);
     gpuCache = {
       gpu: data.gpu === null || data.gpu === undefined ? gpuCache.gpu : data.gpu,
       gpuName: data.gpuName || gpuCache.gpuName || null,
@@ -3444,7 +3467,7 @@ let _diskLettersCache = { letters: null, at: 0 };
 const DISK_LETTERS_TTL = 60 * 1000;
 
 async function getAllDisksInfo() {
-  if (linuxCollectors) return linuxCollectors.disks();
+  if (nativeCollectors) return nativeCollectors.disks();
   const drives = [];
   const details = await getDiskDetails();
   // Probing all 24 letters with statfs every cycle (~7s) is wasteful — valid
@@ -3634,7 +3657,7 @@ async function _getNetworkInfoRaw() {
   // worker, delaying every other queued sensor read.
   let skipFps = false;
   try { skipFps = fpsMonitor.isAvailable(); } catch { skipFps = false; }
-  const data = linuxCollectors ? await linuxCollectors.network() : await runCollector(NETWORK_SCRIPT, skipFps ? ['-SkipFps'] : [], 8000);
+  const data = nativeCollectors ? await nativeCollectors.network() : await runCollector(NETWORK_SCRIPT, skipFps ? ['-SkipFps'] : [], 8000);
   const now = Date.now();
   const rx = Number(data.rxBytes) || 0;
   const tx = Number(data.txBytes) || 0;
@@ -3948,7 +3971,7 @@ function setMicMute(mute) {
 // wpctl. Every SVV call site goes through here, so there is no execFile shadow
 // and no platform check scattered through the audio code.
 function svvExec(args) {
-  if (linuxCollectors) return linuxCollectors.audioCommand(args);
+  if (nativeCollectors) return nativeCollectors.audioCommand(args);
   return new Promise((resolve, reject) => execFile(SVV, args, e => (e ? reject(e) : resolve())));
 }
 
@@ -5077,6 +5100,23 @@ async function listScreens() {
 async function captureScreenshot(monitor) {
   const tmpPath = path.join(os.tmpdir(), `xenon_ss_${Date.now()}.jpg`);
   try {
+    if (process.platform === 'darwin') {
+      // screencapture is built in and needs no ffmpeg: -x silences the shutter,
+      // -t jpg matches what the callers expect. It captures the main display;
+      // -R takes a region in global screen coordinates, which is exactly the
+      // rectangle the monitor picker already hands us.
+      const args = ['-x', '-t', 'jpg'];
+      if (monitor && monitor.width > 0 && monitor.height > 0) {
+        args.push('-R', `${monitor.x},${monitor.y},${monitor.width},${monitor.height}`);
+      }
+      args.push(tmpPath);
+      // Without the Screen Recording grant macOS writes a desktop-picture-only
+      // image rather than failing, so there is nothing to detect here — the
+      // grant is a first-run prompt the user answers once.
+      await execFilePromise('/usr/sbin/screencapture', args, { timeout: 15000 });
+      const shot = await fs.promises.readFile(tmpPath);
+      return shot.toString('base64');
+    }
     const ffmpeg = getFfmpegPath();
     const ffmpegArgs = ['-y', '-f', 'gdigrab', '-framerate', '1'];
     if (monitor && monitor.width > 0 && monitor.height > 0) {
@@ -5202,7 +5242,23 @@ function _geminiOneShot(apiKey, parts, systemText, maxTokens = 512) {
   });
 }
 
-// Play a WAV file via Windows SoundPlayer (synchronous, focus-independent).
+// Spawn a blocking, focus-independent WAV player for the current platform.
+// Windows: SoundPlayer.PlaySync() through PowerShell. Elsewhere: afplay on
+// macOS (built in), aplay on Linux. The Windows one-liner also deletes the file
+// on a clean exit; the others leave that to the caller, which unlinks anyway.
+function _spawnWavPlayer(wavPath) {
+  if (process.platform === 'darwin') {
+    return spawn('/usr/bin/afplay', [wavPath]);
+  }
+  if (process.platform === 'linux') {
+    return spawn('aplay', ['-q', wavPath]);
+  }
+  const ps = `(New-Object System.Media.SoundPlayer -ArgumentList '${wavPath}').PlaySync();` +
+             `try { Remove-Item -LiteralPath '${wavPath}' -Force -EA SilentlyContinue } catch {}`;
+  return spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true });
+}
+
+// Play a WAV file (synchronous playback, focus-independent).
 // Resolves when playback finishes or is cancelled. Honours the cancel token.
 // `duck`/`broadcast`/`restore` let the chunked path duck the media volume and
 // announce speak_start ONCE (first chunk) and restore ONCE (after the last),
@@ -5212,9 +5268,7 @@ function _playWavFile(wavPath, myToken, { duck = true, broadcast = true, restore
     if (_speakGenToken !== myToken) { fs.promises.unlink(wavPath).catch(() => {}); return resolve(); }
     if (duck) _duckSpeakerVolume(); // lower music/media volume while Xenon speaks
     if (broadcast) broadcastSSE('speak_start', {}); // tell the UI the voice is actually starting now
-    const ps = `(New-Object System.Media.SoundPlayer -ArgumentList '${wavPath}').PlaySync();` +
-               `try { Remove-Item -LiteralPath '${wavPath}' -Force -EA SilentlyContinue } catch {}`;
-    const psProc = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true });
+    const psProc = _spawnWavPlayer(wavPath);
     _speakProc = psProc;
     let _settled = false;
     const done = () => {
@@ -6246,8 +6300,7 @@ function playChimeOnServer(kind) {
   }
   const wavPath = path.join(os.tmpdir(), `xenon-chime-${k}.wav`);
   fs.promises.writeFile(wavPath, _chimeCache[k]).then(() => {
-    const ps = "(New-Object System.Media.SoundPlayer -ArgumentList '" + wavPath + "').PlaySync();";
-    const proc = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true });
+    const proc = _spawnWavPlayer(wavPath);
     proc.on('error', () => {});
   }).catch(() => {});
 }
@@ -6268,6 +6321,13 @@ function execFilePromise(file, args, options = {}) {
 
 function getFfmpegPath() {
   if (process.env.XEH_FFMPEG) return process.env.XEH_FFMPEG;
+  if (process.platform !== 'win32') {
+    // Homebrew's two prefixes (Apple Silicon, then Intel) before falling back
+    // to PATH — a LaunchAgent starts with a minimal PATH that often lacks both.
+    const unixCandidates = ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/usr/bin/ffmpeg'];
+    const found = unixCandidates.find(candidate => fs.existsSync(candidate));
+    return found || 'ffmpeg';
+  }
   const localCandidates = [
     path.join(__dirname, 'ffmpeg.exe'),
     path.join(__dirname, 'ffmpeg', 'bin', 'ffmpeg.exe'),
@@ -8700,8 +8760,21 @@ function wakeWordWanted() {
 // Single source of truth for the STT/wake microphone input argv — the wake
 // listener must always open the same device the STT recorder binds.
 function _sttInputArgs() {
+  // avfoundation addresses inputs as "<video>:<audio>"; the empty video half is
+  // what keeps this an audio-only capture.
+  if (_sttAvfIndex !== null) return ['-f', 'avfoundation', '-i', `:${_sttAvfIndex}`];
   if (_sttUseWasapi) return ['-f', 'wasapi', '-i', 'default'];
   return _sttDshowDevice ? ['-f', 'dshow', '-i', `audio=${_sttDshowDevice}`] : null;
+}
+// How the mic is being captured, for the logs and the mic-test readout.
+function _sttVia() {
+  if (_sttAvfIndex !== null) return 'avfoundation';
+  return _sttUseWasapi ? 'wasapi' : 'dshow';
+}
+function _sttDeviceLabel() {
+  if (_sttAvfIndex !== null) return cachedMicLabel || `Input ${_sttAvfIndex}`;
+  if (_sttUseWasapi) return cachedMicLabel || 'Default (WASAPI)';
+  return _sttDshowDevice || 'unknown';
 }
 wakeWord.init({
   getFfmpegPath,
@@ -9705,8 +9778,61 @@ async function _enumSttDevice() {
   return names;
 }
 
+// ffmpeg prints avfoundation's inventory to stderr, video block first:
+//   [AVFoundation indev @ 0x…] AVFoundation audio devices:
+//   [AVFoundation indev @ 0x…] [0] MacBook Pro Microphone
+// Only the audio block is ours — the video one carries its own [0].
+function _parseAvfAudioDevices(stderr) {
+  const devices = [];
+  let inAudio = false;
+  for (const line of String(stderr || '').split(/\r?\n/)) {
+    if (/AVFoundation video devices:/i.test(line)) { inAudio = false; continue; }
+    if (/AVFoundation audio devices:/i.test(line)) { inAudio = true; continue; }
+    if (!inAudio) continue;
+    const m = line.match(/\[(\d+)\]\s+(.+?)\s*$/);
+    if (m) devices.push({ index: m[1], name: m[2] });
+  }
+  return devices;
+}
+
 async function _initSttDevice() {
   const ffmpeg = getFfmpegPath();
+
+  if (process.platform === 'darwin') {
+    try {
+      const stderr = await new Promise(resolve => {
+        let buf = '';
+        // Listing always "fails" (there is no input to open), so the exit code
+        // is meaningless here — the inventory it printed on the way out is not.
+        const p = spawn(ffmpeg, ['-hide_banner', '-f', 'avfoundation', '-list_devices', 'true', '-i', ''], { windowsHide: true });
+        p.stderr.setEncoding('utf8');
+        p.stderr.on('data', d => { buf += d; });
+        p.on('exit', () => resolve(buf));
+        p.on('error', () => resolve(''));
+        setTimeout(() => { try { p.kill(); } catch {} resolve(buf); }, 4000);
+      });
+      const devices = _parseAvfAudioDevices(stderr);
+      if (devices.length) {
+        // Prefer the device the mixer says is the default input, so the wake
+        // word and the recorder follow the mic the user actually picked.
+        let chosen = null;
+        if (cachedMicLabel) {
+          const lbl = cachedMicLabel.toLowerCase();
+          chosen = devices.find(d => d.name.toLowerCase().includes(lbl));
+        }
+        _sttAvfIndex = (chosen || devices[0]).index;
+        process.stdout.write(`[STT] avfoundation input [${_sttAvfIndex}] "${(chosen || devices[0]).name}"\n`);
+      } else {
+        process.stdout.write('[STT] No avfoundation audio input found (ffmpeg missing, or Microphone permission not granted)\n');
+      }
+    } catch (e) {
+      process.stdout.write('[STT] Device init error: ' + e.message + '\n');
+    }
+    _sttDeviceReady = true;
+    _boundMicLabel = cachedMicLabel || (_sttAvfIndex !== null ? `__avf_${_sttAvfIndex}__` : null);
+    _sttDeviceWaiters.splice(0).forEach(cb => cb());
+    return;
+  }
 
   // Probe WASAPI support — if ffmpeg knows the format, use it (fast init ~200ms)
   let wasapiOk = false;
@@ -9762,7 +9888,8 @@ function _sttDeviceWhenReady() {
 // different mic (e.g. plugging in a headset) had no effect and recordings kept
 // reading the old — often silent — device ("detected and active but doesn't hear
 // me"). The WASAPI path uses "default" and already follows the change on its own,
-// so we only rebind for dshow. Debounced and skipped while a recording is live.
+// so we only rebind for the paths that pin a device: dshow by name, avfoundation
+// by index. Debounced and skipped while a recording is live.
 let _sttRebindTimer = null;
 function _maybeRebindSttDevice() {
   if (!_sttDeviceReady || _sttUseWasapi) return;          // wasapi follows "default" already
@@ -11040,8 +11167,8 @@ const server = http.createServer(async (req, res) => {
       // looking at, and a key that starts invisible work is worse than no key.
       const claudeLinked = await claudeLink.status(DATA_DIR, PORT).then(r => !!(r && r.linked)).catch(() => false);
       const powershellAvailable = process.platform === 'win32';
-      const audioControlAvailable = linuxCollectors
-        ? await linuxCollectors.audioAvailable()
+      const audioControlAvailable = nativeCollectors
+        ? await nativeCollectors.audioAvailable()
         : fs.existsSync(SVV);
       json({ catalog: ACTION_CATALOG, capabilities: { powershell: powershellAvailable, soundVolumeView: audioControlAvailable, obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked } });
     } catch (e) { err500(e.message); }
@@ -13326,32 +13453,25 @@ const server = http.createServer(async (req, res) => {
     }
 
   } else if (reqPath === '/api/screenshot' && req.method === 'GET') {
-    const tmpPath = path.join(os.tmpdir(), `xenon_ss_${Date.now()}.jpg`);
     try {
-      const ffmpeg = getFfmpegPath();
-      const px = urlObj.searchParams.get('x');
-      const py = urlObj.searchParams.get('y');
-      const pw = urlObj.searchParams.get('w');
-      const ph = urlObj.searchParams.get('h');
-      const ffmpegArgs = ['-y', '-f', 'gdigrab', '-framerate', '1'];
-      if (px !== null && py !== null && pw !== null && ph !== null) {
-        const w = parseInt(pw), h = parseInt(ph);
-        if (w > 0 && h > 0) {
-          ffmpegArgs.push('-offset_x', px, '-offset_y', py, '-video_size', `${w}x${h}`);
-        }
-      }
-      // gdigrab -vframes 1 takes a single screenshot frame
-      ffmpegArgs.push('-i', 'desktop', '-vframes', '1', '-q:v', '3', '-vf', 'scale=\'min(1920,iw)\':-2', tmpPath);
-      await execFilePromise(ffmpeg, ffmpegArgs, { timeout: 15000 });
-      const imgBuffer = await fs.promises.readFile(tmpPath);
-      const base64 = imgBuffer.toString('base64');
+      // Same capture the AI's vision tool uses — one implementation, so the
+      // per-platform grabber lives in exactly one place.
+      const w = parseInt(urlObj.searchParams.get('w'));
+      const h = parseInt(urlObj.searchParams.get('h'));
+      const monitor = w > 0 && h > 0
+        ? {
+            x: parseInt(urlObj.searchParams.get('x')) || 0,
+            y: parseInt(urlObj.searchParams.get('y')) || 0,
+            width: w,
+            height: h,
+          }
+        : null;
+      const base64 = await captureScreenshot(monitor);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ base64, mimeType: 'image/jpeg' }));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
-    } finally {
-      fs.promises.unlink(tmpPath).catch(() => {});
     }
 
   } else if (reqPath === '/api/stt/start' && req.method === 'POST') {
@@ -13361,7 +13481,7 @@ const server = http.createServer(async (req, res) => {
         _sttDeviceWhenReady(),
         new Promise((_, rej) => setTimeout(() => rej(new Error('STT device timeout')), 10000)),
       ]);
-      if (!_sttUseWasapi && !_sttDshowDevice) throw new Error('No audio device available for recording');
+      if (!_sttInputArgs()) throw new Error('No audio device available for recording');
       // A full-duplex Voce Live session already owns the mic (dshow can't share
       // the device) — refuse a one-shot recorder so it can't starve the live
       // capture's ffmpeg and tear the session down under the user.
@@ -13461,7 +13581,7 @@ const server = http.createServer(async (req, res) => {
         if (_sttPending.size === 0) wakeWord.resumeSoon();
         throw startErr;
       }
-      process.stdout.write(`[STT] Recording id=${id} via=${_sttUseWasapi ? 'wasapi' : 'dshow'} silence=${silenceDb.toFixed(1)}dB gain=${gain}x\n`);
+      process.stdout.write(`[STT] Recording id=${id} via=${_sttVia()} silence=${silenceDb.toFixed(1)}dB gain=${gain}x\n`);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ id }));
     } catch (e) {
@@ -13515,8 +13635,8 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({
           test: true,
           heard,
-          via: _sttUseWasapi ? 'wasapi' : 'dshow',
-          device: _sttUseWasapi ? (cachedMicLabel || 'Default (WASAPI)') : (_sttDshowDevice || 'unknown'),
+          via: _sttVia(),
+          device: _sttDeviceLabel(),
           db: Math.round(_dbFromRms(clipStats.rms)),
           gain: _sttGain(),
         })); return;
@@ -16016,7 +16136,9 @@ function _startListen(host) {
       // OpenRGB was removed from the product. Tear down anything a previous
       // version may have left so it never launches itself again: drop the
       // auto-start scheduled task (one fire-and-forget call, silent if absent).
-      try { execFile('schtasks', ['/Delete', '/TN', 'XenonEdge OpenRGB', '/F'], { windowsHide: true }, () => {}); } catch { /* ignore */ }
+      if (POWERSHELL_SUPPORTED) {
+        try { execFile('schtasks', ['/Delete', '/TN', 'XenonEdge OpenRGB', '/F'], { windowsHide: true }, () => {}); } catch { /* ignore */ }
+      }
       // Spotlight: start the global-hotkey listener if enabled, and rebuild the
       // crawler index for the user's extra search folders (both no-op/cheap
       // when off; delayed so they never compete with boot).
