@@ -215,29 +215,45 @@ jobs:
         run: npm run tauri -- icon ../../docs/images/logo-mark.png
 
       # Apple signing + notarization are OPT-IN: they need a paid Apple Developer
-      # Program membership, which this project does not have yet. The variables
-      # are exported only when the certificate secret actually exists, because
-      # Tauri treats an EMPTY APPLE_CERTIFICATE as "sign with this" and fails on
-      # the empty .p12 — an unset variable is what makes it skip signing. Until
-      # the certificate lands the build still produces a working .app/.dmg;
-      # macOS Gatekeeper will ask the user to confirm it on first open.
-      - name: Enable Apple signing
-        if: ${{ secrets.APPLE_CERTIFICATE != '' }}
+      # Program membership, which this project does not have yet. Each variable
+      # is exported ONLY when its secret actually exists, because Tauri treats an
+      # empty APPLE_CERTIFICATE / APPLE_SIGNING_IDENTITY as "sign with this" and
+      # fails on the empty .p12 — an UNSET variable is what makes it skip signing
+      # cleanly. Until the certificate lands the build still produces a working
+      # .app/.dmg; Gatekeeper asks the user to confirm it on first open.
+      #
+      # The emptiness test has to live in the shell, not in a step `if:`: the
+      # `secrets` context is not available to step conditionals (only to `env:`),
+      # so `if: secrets.X != ''` is an invalid-context error at parse time.
+      # Values are written with the heredoc form so a secret containing newlines
+      # cannot inject arbitrary variables into the environment file.
+      - name: Enable Apple signing and notarization when the secrets exist
+        env:
+          IN_APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          IN_APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          IN_APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          IN_APPLE_ID: ${{ secrets.APPLE_ID }}
+          IN_APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          IN_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          {
-            echo "APPLE_CERTIFICATE=${{ secrets.APPLE_CERTIFICATE }}"
-            echo "APPLE_CERTIFICATE_PASSWORD=${{ secrets.APPLE_CERTIFICATE_PASSWORD }}"
-            echo "APPLE_SIGNING_IDENTITY=${{ secrets.APPLE_SIGNING_IDENTITY }}"
-          } >> "$GITHUB_ENV"
-
-      - name: Enable Apple notarization
-        if: ${{ secrets.APPLE_ID != '' }}
-        run: |
-          {
-            echo "APPLE_ID=${{ secrets.APPLE_ID }}"
-            echo "APPLE_PASSWORD=${{ secrets.APPLE_PASSWORD }}"
-            echo "APPLE_TEAM_ID=${{ secrets.APPLE_TEAM_ID }}"
-          } >> "$GITHUB_ENV"
+          set -eu
+          export_secret() {
+            local name="$1" value="$2"
+            [ -n "$value" ] || return 0
+            {
+              printf '%s<<XENON_SECRET_EOF\n' "$name"
+              printf '%s\n' "$value"
+              printf 'XENON_SECRET_EOF\n'
+            } >> "$GITHUB_ENV"
+            echo "exported $name"
+          }
+          export_secret APPLE_CERTIFICATE          "$IN_APPLE_CERTIFICATE"
+          export_secret APPLE_CERTIFICATE_PASSWORD "$IN_APPLE_CERTIFICATE_PASSWORD"
+          export_secret APPLE_SIGNING_IDENTITY     "$IN_APPLE_SIGNING_IDENTITY"
+          export_secret APPLE_ID                   "$IN_APPLE_ID"
+          export_secret APPLE_PASSWORD             "$IN_APPLE_PASSWORD"
+          export_secret APPLE_TEAM_ID              "$IN_APPLE_TEAM_ID"
+          [ -n "$IN_APPLE_SIGNING_IDENTITY" ] || echo "no Apple certificate configured - building unsigned (Gatekeeper will prompt on first open)"
 
       - name: Build the native app (signed updater artifacts)
         working-directory: apps/native

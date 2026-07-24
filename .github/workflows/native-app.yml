@@ -95,12 +95,30 @@ jobs:
           # means this is the first manifest for the tag.
           $platforms = [ordered]@{}
           if ($env:GH_TOKEN -and "${{ inputs.tag }}") {
-            try {
-              gh release download "$tag" --pattern latest.json --dir prev --clobber 2>$null
-              $prev = Get-Content prev/latest.json -Raw | ConvertFrom-Json
-              foreach ($p in $prev.platforms.PSObject.Properties) { $platforms[$p.Name] = $p.Value }
-              Write-Host "carried over: $($platforms.Keys -join ', ')"
-            } catch { Write-Host 'no previous latest.json on the release; writing a fresh one' }
+            # A release with no latest.json yet is the NORMAL first case, and gh
+            # reports that on stderr. Actions runs pwsh with
+            # $ErrorActionPreference='Stop', under which redirected native stderr
+            # can surface as a terminating NativeCommandError - the same trap
+            # that once killed xenon-bootstrap.ps1 on every fresh install. So the
+            # preference is relaxed around the call and the outcome is decided by
+            # Test-Path, never by an exception.
+            $eap = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            gh release download "$tag" --pattern latest.json --dir prev --clobber 2>&1 | Out-Null
+            $ErrorActionPreference = $eap
+            if (Test-Path prev/latest.json) {
+              try {
+                $prev = Get-Content prev/latest.json -Raw | ConvertFrom-Json
+                foreach ($p in $prev.platforms.PSObject.Properties) { $platforms[$p.Name] = $p.Value }
+                Write-Host "carried over: $($platforms.Keys -join ', ')"
+              } catch {
+                # Present but unparseable: carrying nothing over would quietly
+                # drop macOS from the manifest, so stop instead.
+                throw "the release's existing latest.json could not be parsed: $($_.Exception.Message)"
+              }
+            } else {
+              Write-Host 'no previous latest.json on the release; writing a fresh one'
+            }
           }
           $platforms["windows-x86_64"] = [ordered]@{
             signature = (Get-Content $sig.FullName -Raw).Trim()
