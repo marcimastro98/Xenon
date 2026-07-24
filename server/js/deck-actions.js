@@ -25,7 +25,7 @@ const ACTION_CATALOG = [
   { type: 'typeText', group: 'system', requires: 'powershell', labelKey: 'deck_act_typeText', params: [{ name: 'text', kind: 'text' }] },
   { type: 'lockWorkstation', group: 'system', labelKey: 'deck_act_lockWorkstation', params: [] },
   { type: 'webhook',  group: 'system', labelKey: 'deck_act_webhook',  params: [{ name: 'url', kind: 'url' }, { name: 'method', kind: 'select', options: ['GET', 'POST'] }, { name: 'body', kind: 'text' }] },
-  { type: 'media',    group: 'media',  requires: 'powershell', labelKey: 'deck_act_media',    params: [{ name: 'cmd',  kind: 'select', options: ['playpause', 'next', 'previous'] }] },
+  { type: 'media',    group: 'media',  requires: 'media', labelKey: 'deck_act_media',    params: [{ name: 'cmd',  kind: 'select', options: ['playpause', 'next', 'previous'] }] },
   // Soundboard: its own picker category since sound packs made it a full
   // feature (v4.5.3). Group is picker taxonomy only — the action TYPE strings
   // are unchanged, so existing keys and shared profiles keep working.

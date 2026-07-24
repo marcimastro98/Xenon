@@ -621,6 +621,11 @@ const MEDIA_SCRIPT = path.join(__dirname, 'media.ps1');
 // with the release). When present it replaces the persistent PowerShell hosts
 // module by module; when absent everything runs on the PS scripts as before.
 const HELPER_EXE = path.join(__dirname, 'helper', 'xenon-helper.exe');
+// mediaremote-adapter — the macOS equivalent of the helper's media-serve, and
+// optional in the same way: downloaded by the installer, gitignored, absent on
+// a source checkout. Without it the media tile stays empty, which is what it
+// did before macOS had a media path at all.
+const MEDIAREMOTE_DIR = path.join(__dirname, 'mediaremote');
 const CPU_TEMP_SCRIPT = path.join(__dirname, 'cpu-temp.ps1');
 // Raises the startup task to RunLevel Highest via UAC — the repair for
 // sensorAccess: 'needs_admin'. Elevates itself; never runs on the pwsh worker.
@@ -1959,10 +1964,10 @@ function _retireMediaHost(reason) {
 
 function _ensureMediaHost() {
   // Both hosts read Windows' SMTC: the helper through WinRT, the fallback
-  // through media.ps1. Neither has an equivalent elsewhere — macOS now-playing
-  // needs MediaRemote, which is entitlement-gated since 15.4 (see
-  // docs/MACOS_PORTABILITY.md). No host means the media tile stays empty
-  // instead of respawning a doomed child every few seconds.
+  // through media.ps1. Neither can run elsewhere — macOS is served by
+  // darwin-media.js (see runMediaRequest), and Linux has no now-playing source
+  // at all, so no host means the media tile stays empty instead of respawning a
+  // doomed child every few seconds.
   if (!POWERSHELL_SUPPORTED) return null;
   if (_mediaHost.proc) return _mediaHost.proc;
   if (Date.now() - _mediaHost.diedAt < MEDIA_HOST_RETRY_MS) return null;
@@ -2099,9 +2104,27 @@ async function _guardHelperMediaBlindSpot(out) {
   return ps;
 }
 
+// macOS has neither SMTC nor PowerShell, so neither host above can run there.
+// darwin-media.js answers the same requests from mediaremote-adapter and pushes
+// the same track-changed event. Created on darwin only; started lazily, so a
+// run that never asks for media never spawns it.
+const darwinMedia = process.platform === 'darwin'
+  ? require('./darwin-media').createDarwinMedia({
+      dir: MEDIAREMOTE_DIR,
+      onChange: () => _onMediaChangedPush(),
+    })
+  : null;
+
 // Run a media request through the persistent host, falling back to the original
 // one-shot spawn on any host problem. Same parsed-JSON result either way.
 async function runMediaRequest(action, timeout = 8000) {
+  if (darwinMedia) {
+    // No adapter installed → the empty "nothing playing" shape, not an error.
+    // The tile shows its own empty state, and nothing is spawned or retried.
+    if (!darwinMedia.available()) return darwinMedia.info();
+    darwinMedia.start();                       // idempotent
+    return action === 'info' ? darwinMedia.info() : darwinMedia.command(action);
+  }
   try {
     const out = parseJsonOutput(await runMediaHostRequest(action, timeout));
     // Only 'info' carries sessions, and the guard only applies to the helper.
@@ -11293,7 +11316,11 @@ const server = http.createServer(async (req, res) => {
       // docs/MACOS_PORTABILITY.md). The editor hides those keys rather than
       // offering three that always fail.
       const appAudioAvailable = audioControlAvailable && process.platform !== 'darwin';
-      json({ catalog: ACTION_CATALOG, capabilities: { powershell: powershellAvailable, soundVolumeView: audioControlAvailable, appAudio: appAudioAvailable, obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked } });
+      // Media transport is its own capability rather than a PowerShell one: it
+      // rides SMTC on Windows and mediaremote-adapter on macOS, and the adapter
+      // is optional, so the answer is "is there a media host" — not "which OS".
+      const mediaAvailable = powershellAvailable || !!(darwinMedia && darwinMedia.available());
+      json({ catalog: ACTION_CATALOG, capabilities: { powershell: powershellAvailable, media: mediaAvailable, soundVolumeView: audioControlAvailable, appAudio: appAudioAvailable, obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked } });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/wavelink/state' && req.method === 'GET') {
@@ -16593,6 +16620,8 @@ function _gracefulShutdown() {
   try { _killWorker('shutdown'); } catch {}
   // Retire the SMTC media host gracefully (stdin close → clean exit → handles released).
   try { _retireMediaHost('shutdown'); } catch {}
+  // …and its macOS counterpart: a detached perl child outlives process.exit.
+  try { if (darwinMedia) darwinMedia.stop(); } catch {}
   // Retire the DDC/CI display host (stdin close → releases physical monitor handles).
   try { _retireDdcHost('shutdown'); } catch {}
   // Kill the headless embedded-browser Edge instance (if one is running).

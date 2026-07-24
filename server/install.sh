@@ -144,6 +144,50 @@ if [ -n "$MISSING" ]; then
   printf '\n'
 fi
 
+# ── 3b) macOS now-playing bridge ─────────────────────────────────────────────
+# mediaremote-adapter (BSD-3-Clause) is what lets the media tile read the track
+# on macOS: since 15.4 the private MediaRemote framework refuses to load into
+# anything that is not Apple-signed, so the adapter loads it from inside
+# /usr/bin/perl, which is. The release workflow builds it; we fetch it here.
+#
+# Optional in the strict sense — the server treats its absence as "nothing is
+# playing" and never retries — so every failure below is a warning, never a
+# fail. Fetched over HTTPS from our own release, with the same TLS-only trust a
+# first install has everywhere else (see the first-install integrity note in
+# docs/MACOS_PORTABILITY.md); nothing here weakens the SIGNED path the updater
+# and the app bootstrap use.
+install_media_adapter() {
+  [ "$XENON_OS" = 'macos' ] || return 0
+  local dir="$SERVER_DIR/mediaremote"
+  if [ -d "$dir/MediaRemoteAdapter.framework" ] && [ -f "$dir/mediaremote-adapter.pl" ]; then
+    return 0
+  fi
+  have curl || { warn 'curl is missing; skipping the now-playing bridge.'; return 0; }
+  step 'Installing the macOS now-playing bridge…'
+  local url='https://github.com/marcimastro98/Xenon/releases/latest/download/MediaRemoteAdapter-macos.tar.gz'
+  local tmp
+  tmp="$(mktemp -d)" || { warn 'could not create a temporary directory; skipping.'; return 0; }
+  if ! curl -fsSL --retry 3 --max-time 120 -o "$tmp/adapter.tar.gz" "$url"; then
+    warn 'the now-playing bridge could not be downloaded; the media tile will stay empty.'
+    rm -rf "$tmp"
+    return 0
+  fi
+  mkdir -p "$dir"
+  if ! tar -xzf "$tmp/adapter.tar.gz" -C "$dir"; then
+    warn 'the now-playing bridge archive could not be extracted; the media tile will stay empty.'
+    rm -rf "$tmp" "$dir"
+    return 0
+  fi
+  rm -rf "$tmp"
+  # A downloaded framework carries com.apple.quarantine, and Gatekeeper refuses
+  # to load a quarantined unsigned bundle — the adapter would be present and
+  # silently never work. This clears the flag on the component the user just
+  # asked this installer to fetch from our own release, and nothing else.
+  if have xattr; then xattr -dr com.apple.quarantine "$dir" 2>/dev/null || true; fi
+  printf '%s  ✓ now-playing bridge installed%s\n' "$C_OK" "$C_OFF"
+}
+install_media_adapter
+
 # ── 4) Register the login service ────────────────────────────────────────────
 register_macos() {
   # KeepAlive restarts the backend if it ever exits — the in-session equivalent

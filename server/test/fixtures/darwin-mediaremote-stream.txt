@@ -1,0 +1,5 @@
+mediaremote-adapter: listening
+{"type":"data","diff":false,"payload":{"processIdentifier":8421,"bundleIdentifier":"com.spotify.client","playing":true,"title":"Kiara","artist":"Bonobo","album":"Black Sands","durationMicros":249000000,"elapsedTimeMicros":45000000,"timestampEpochMicros":1784500000000000,"artworkMimeType":"image/jpeg","artworkData":"/9j/4AAQSkZJRgABAQAAAQABAAA="}}
+{"type":"data","diff":true,"payload":{"elapsedTimeMicros":61000000}}
+{"type":"data","diff":false,"payload":{"bundleIdentifier":"com.spotify.client","playing":false,"title":"Kiara","artist":"Bonobo","album":"Black Sands","durationMicros":249000000,"elapsedTimeMicros":61000000}}
+{"type":"data","diff":false,"payload":{}}

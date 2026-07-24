@@ -128,7 +128,7 @@ Trash-backed deletion. The single biggest lift, and the highest-value one.
 | Phase | What | Result | Effort | Status |
 |---|---|---|---|---|
 | **0** | Gate the 3 ungated boot spawns; drop the advisory `os: win32` field; add `capabilities.platform` (real work — see lever 2 caveat); verify `npm install` on mac (koffi ships darwin prebuilds and is lazy-loaded) | ~60% of the app live on mac (dashboard, SDK, all data widgets, cloud AI, network RGB, streaming, Spotify/Wave Link, Claude bridge) | days | **done** |
-| **1** | `darwin-collectors.js` (twin of `linux-collectors.js`) + S/M swaps: audio via the `svvExec` seam, disks `/Volumes`, foreground/idle, lock, priority, Deck dispatch, Discord socket, media via mediaremote-adapter, `_playWavFile` → afplay | "Light" system control | 1–2 weeks | **done** except media (mediaremote-adapter, moved to Phase 3) |
+| **1** | `darwin-collectors.js` (twin of `linux-collectors.js`) + S/M swaps: audio via the `svvExec` seam, disks `/Volumes`, foreground/idle, lock, priority, Deck dispatch, Discord socket, media via mediaremote-adapter, `_playWavFile` → afplay | "Light" system control | 1–2 weeks | **done** |
 | **2** | Tauri macOS target (fix the monitor.rs compile break, add dmg/app bundle, new CI job + Apple signing/notarization + multi-platform latest.json) + LaunchAgent install story + Ollama/Whisper-Metal + STT/wake/vision (avfoundation) + self-update extract/applier port | Installable native mac app, local voice, self-updating | weeks | **done**, except: signing/notarization is wired but OFF (no Apple certificate yet), and the wake word waits on Whisper being installed |
 | **3** | Native Swift helper (one binary, same stdio protocols) | Notifications, second-screen capture, per-app mixer + peaks, global hotkey, app switcher, Living Index, Trash cleanup | XL | open |
 | **deferred / lost** | PresentMon-parity FPS, power plans, SignalRGB/Chroma; virtual display (XL via private CGVirtualDisplay) | — | — | open |
@@ -143,9 +143,26 @@ branches of `ai-local.js`. Apple signing is opt-in and currently inert: the
 workflow exports the variables only when the secrets exist, because Tauri reads
 an EMPTY `APPLE_CERTIFICATE` as "sign with this" and fails on the empty `.p12`.
 
+**Now-playing** closed the last Phase 1 gap. `server/darwin-media.js` holds one
+`mediaremote-adapter` stream child and answers the same `info` / `playpause` /
+`next` / `previous` requests the SMTC hosts do, in the same shape and the same
+units — so `js/media.js` needed no change. The adapter (BSD-3-Clause) is not in
+this repository: the release workflow builds it from a pinned commit and
+`install.sh` downloads it into the gitignored `server/mediaremote/`, exactly the
+arrangement `xenon-helper.exe` already has. Its absence is a supported state —
+the tile shows "nothing playing" and nothing is spawned or retried — which is
+why the workflow step is `continue-on-error` and why the Deck's media keys are
+gated on a `media` capability rather than on the OS.
+
+**First-install integrity applies here too.** The adapter is fetched over HTTPS
+from our own release with TLS-only trust, like the helper exe and for the same
+reason: a fresh install has no pinned key to anchor to. The signed path the
+updater and the app bootstrap use is untouched.
+
 **Not yet verified on real hardware.** Everything above is written against each
 tool's documented behaviour and unit-tested where it is pure; nothing in the
-macOS path has been run on a Mac.
+macOS path has been run on a Mac. The adapter build in CI has never executed
+either — it runs for the first time on the next tag push.
 
 **Bottom line:** ~60% free immediately, ~30% more with Phase 1–3 work, and only
 ~5–8% genuinely lost — the original report's "~15% lost" included per-app audio,

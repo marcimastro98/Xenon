@@ -244,7 +244,7 @@ remove_update_additions() {
 # previous manifest, never a directory mirror.
 is_protected_path() { # $1 = relative path
   case "$1" in
-    server/data/*|node_modules/*|.git/*|server/shared/*|server/helper/*|server/presentmon/*|server/icue-sdk/*|server/whisper/*) return 0 ;;
+    server/data/*|node_modules/*|.git/*|server/shared/*|server/helper/*|server/presentmon/*|server/icue-sdk/*|server/whisper/*|server/mediaremote/*) return 0 ;;
     */node_modules/*) return 0 ;;
   esac
   return 1

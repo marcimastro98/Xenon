@@ -50,6 +50,11 @@ server/icue-sdk/
 # dashboard (Settings → Xenon AI). Large, platform-specific, never committed.
 server/whisper/
 
+# mediaremote-adapter — the macOS now-playing bridge (BSD-3-Clause, built by the
+# release workflow and downloaded by install.sh). A compiled framework for one
+# platform, like the helper exe: never committed, always fetched per machine.
+server/mediaremote/
+
 # User data — all runtime data (settings, notes, calendar, tasks, timers, deck,
 # uploads, streaming tokens/config) lives in server/data/. Never commit it.
 # Includes server-only secrets: stream-tokens.json (OAuth) and stream-config.json

@@ -262,9 +262,58 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run build:mac
 
+      # mediaremote-adapter — the macOS now-playing bridge (BSD-3-Clause,
+      # © 2025 Jonas van den Berg and contributors). Built here rather than
+      # committed, for the same reason as xenon-helper.exe: it is a compiled
+      # artifact for one platform. install.sh downloads it from the release.
+      #
+      # Pinned to a COMMIT, not a tag: a tag can be moved after the fact, and
+      # this ends up on every Mac that installs Xenon. Bump both lines together.
+      #
+      # continue-on-error on purpose: the adapter is OPTIONAL everywhere it is
+      # consumed (no adapter → the media tile is simply empty, which is what
+      # macOS did before it existed). A break in someone else's build must not
+      # be able to block a Xenon release, so a failure here costs one feature on
+      # one platform and the next step notices the tarball is absent.
+      - name: Build the macOS media adapter
+        continue-on-error: true
+        env:
+          ADAPTER_REPO: https://github.com/ungive/mediaremote-adapter.git
+          ADAPTER_COMMIT: 3ac3d4bdf862c7b5399b4fba4df5689f5c38609a  # v0.7.6
+        run: |
+          set -euo pipefail
+          SRC="$RUNNER_TEMP/mediaremote-adapter"
+          git clone --recurse-submodules "$ADAPTER_REPO" "$SRC"
+          git -C "$SRC" checkout --recurse-submodules "$ADAPTER_COMMIT"
+          cmake -S "$SRC" -B "$SRC/build" -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64'
+          cmake --build "$SRC/build" --config Release
+          FRAMEWORK=$(find "$SRC/build" -maxdepth 3 -name 'MediaRemoteAdapter.framework' -type d | head -1)
+          [ -n "$FRAMEWORK" ] || { echo "MediaRemoteAdapter.framework not found in the build output"; exit 1; }
+          # The app is universal, so the adapter has to be too — an arm64-only
+          # framework would install cleanly on an Intel Mac and then fail to
+          # load, which reads as "media just does not work" with no error.
+          BIN="$FRAMEWORK/MediaRemoteAdapter"
+          [ -f "$BIN" ] || BIN="$FRAMEWORK/Versions/A/MediaRemoteAdapter"
+          ARCHS=$(lipo -archs "$BIN")
+          echo "framework archs: $ARCHS"
+          case "$ARCHS" in *arm64*) ;; *) echo "arm64 missing"; exit 1 ;; esac
+          case "$ARCHS" in *x86_64*) ;; *) echo "x86_64 missing"; exit 1 ;; esac
+          OUT="$RUNNER_TEMP/mediaremote-payload"
+          mkdir -p "$OUT"
+          cp -R "$FRAMEWORK" "$OUT/"
+          cp "$SRC/bin/mediaremote-adapter.pl" "$OUT/"
+          # BSD-3-Clause requires the copyright notice to travel with the binary.
+          cp "$SRC/LICENSE" "$OUT/LICENSE-mediaremote-adapter"
+          mkdir -p stage
+          tar -czf stage/MediaRemoteAdapter-macos.tar.gz -C "$OUT" .
+          echo "staged $(du -h stage/MediaRemoteAdapter-macos.tar.gz | cut -f1) adapter payload"
+
       - name: Stage artifacts and the macos updater fragment
         run: |
           set -euo pipefail
+          if [ ! -f stage/MediaRemoteAdapter-macos.tar.gz ]; then
+            echo "::warning::the media adapter did not build - this release ships without macOS now-playing"
+          fi
           BUNDLE=apps/native/src-tauri/target/universal-apple-darwin/release/bundle
           TARBALL=$(ls "$BUNDLE"/macos/*.app.tar.gz 2>/dev/null | head -1)
           SIG=$(ls "$BUNDLE"/macos/*.app.tar.gz.sig 2>/dev/null | head -1)
