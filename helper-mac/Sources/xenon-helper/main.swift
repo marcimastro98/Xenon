@@ -10,8 +10,8 @@ import Foundation
 //
 // STAGED ON PURPOSE. The modes below are the ones whose APIs are public and
 // well-specified. The rest of Phase 3 — per-app audio levels (Core Audio
-// process taps), temperatures (IOReport), the Living Index (FSEvents) and
-// second-screen capture (ScreenCaptureKit) — are not stubbed here: an unknown
+// process taps), temperatures (IOReport) and second-screen capture
+// (ScreenCaptureKit) — are not stubbed here: an unknown
 // mode exits non-zero, which is exactly what every caller already treats as
 // "the helper cannot do this", and is how they degrade to the osascript
 // collectors today. A stub that answered emptily would look like a working
@@ -34,6 +34,9 @@ case "hotkey-serve":
 
 case "shell-delete":
     ShellDelete.run()
+
+case "index-serve":
+    IndexHost.run(rest)
 
 case "--version", "-v":
     // The installer and helper-update compare this against what the release

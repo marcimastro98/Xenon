@@ -4,4 +4,6 @@
 //
 //   0.1.0 = windows (app switcher), foreground-serve (game probe),
 //           hotkey-serve (global Spotlight hotkey), shell-delete (Trash).
-let helperVersion = "0.1.0"
+//   0.2.0 = index-serve (the Living Index: one in-memory index fed by FSEvents,
+//           serving search and the read-only disk map).
+let helperVersion = "0.2.0"
