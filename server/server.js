@@ -744,9 +744,9 @@ async function launchInstalledApp(app) {
     return;
   }
   // Start-Menu shortcut: server-enumerated, so this IS the app's launcher —
-  // opened by the same deck-actions 'open' verb every Deck key uses.
+  // opened by the same system handler every Deck key uses.
   await fs.promises.stat(app.target);
-  await runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', app.target], 8000);
+  await openExternalPath(app.target);
 }
 
 // Local file search (Spotlight). Opens go through deck-actions.ps1's 'open'
@@ -757,7 +757,7 @@ const livingIndex = createLivingIndex({ helperExe: HELPER_EXE });
 const fileSearch = createFileSearch({
   dataDir: DATA_DIR,
   livingIndex,
-  openExternal: (p) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000),
+  openExternal: (p) => openExternalPath(p),
   appsProvider: getInstalledApps,
   launchApp: launchInstalledApp,
 });
@@ -4566,51 +4566,83 @@ function lockWorkstation() {
   return new Promise((resolve, reject) => {
     // CGSession -suspend is the documented "lock now" on macOS: it returns to
     // the login window, which is what LockWorkStation does on Windows.
+    // loginctl is the systemd equivalent and asks the session's own locker, so
+    // it works under both X11 and Wayland where the screensaver calls do not.
     const [cmd, args] = process.platform === 'darwin'
       ? [MAC_CGSESSION, ['-suspend']]
-      : ['rundll32.exe', ['user32.dll,LockWorkStation']];
+      : process.platform === 'linux'
+        ? ['loginctl', ['lock-session']]
+        : ['rundll32.exe', ['user32.dll,LockWorkStation']];
     execFile(cmd, args, { windowsHide: true }, (err) => {
       if (err) reject(err); else resolve();
     });
   });
 }
 
-// Open a file, folder or URL with the system handler. On Windows this is
-// deck-actions.ps1's `open` verb (Start-Process); on macOS `open` does the same
-// job natively, and taking the argv path means a filename that looks like a
-// flag cannot become one (`--` ends option parsing).
+// Open a file, folder or URL with the system handler — the single place that
+// answers "hand this to the desktop". On Windows it is deck-actions.ps1's `open`
+// verb (Start-Process); macOS has `open` and Linux `xdg-open`, which do the same
+// job natively. Every call is an argv array, never a shell string.
+//
+// Every caller that opens something on the user's behalf goes through here: the
+// Deck registry, the Spotlight search results, Performance Mode and the
+// Start-Menu app launcher. Reaching for runPowerShellScript directly is how one
+// of them ends up working on Windows and failing everywhere else.
 function openExternalPath(p) {
-  if (process.platform !== 'darwin') {
+  if (process.platform === 'win32') {
     return runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000);
   }
+  // `--` ends option parsing on macOS, so a file whose name begins with a dash
+  // cannot become a flag. xdg-open has no such separator — it rejects `--` as an
+  // unknown option — so Linux passes the path alone. Everything that reaches
+  // here has already been validated: a path the registry proved exists, or an
+  // http(s) URL. A stored path is absolute in practice, and a leading-dash
+  // relative one degrades to xdg-open's own syntax error rather than anything
+  // being run.
+  const posix = process.platform === 'darwin'
+    ? ['/usr/bin/open', ['--', String(p)]]
+    : ['xdg-open', [String(p)]];
   return new Promise((resolve, reject) => {
-    execFile('/usr/bin/open', ['--', String(p)], { timeout: 8000 }, (err) => {
+    execFile(posix[0], posix[1], { timeout: 8000 }, (err) => {
       if (err) reject(err); else resolve({ ok: true });
     });
   });
 }
 
 // The interpreter a user script runs under, by extension. The Windows set lives
-// in deck-actions.ps1; this is its macOS twin. .bat/.cmd/.ps1 have no meaning
-// here and are deliberately absent, so such a key reports a failure rather than
-// appearing to run.
-const MAC_SCRIPT_RUNNERS = {
+// in deck-actions.ps1; this is its POSIX twin, and it must cover exactly the
+// extensions actions/registry.js accepts off Windows — an extension the gate
+// lets through and this table has no entry for would be a key that validates
+// and then fails, which is the worst of both. AppleScript is the one darwin-only
+// pair: there is no osascript to hand it to anywhere else.
+const POSIX_SCRIPT_RUNNERS = {
   '.sh': ['/bin/sh'],
   '.command': ['/bin/sh'],
   '.zsh': ['/bin/zsh'],
   '.bash': ['/bin/bash'],
   '.py': ['/usr/bin/env', 'python3'],
+  '.pyw': ['/usr/bin/env', 'python3'],
   '.js': ['/usr/bin/env', 'node'],
-  '.scpt': ['/usr/bin/osascript'],
-  '.applescript': ['/usr/bin/osascript'],
+  '.cjs': ['/usr/bin/env', 'node'],
+  '.mjs': ['/usr/bin/env', 'node'],
+  '.rb': ['/usr/bin/env', 'ruby'],
+  '.pl': ['/usr/bin/env', 'perl'],
+  '.php': ['/usr/bin/env', 'php'],
+  '.lua': ['/usr/bin/env', 'lua'],
+  '.r': ['/usr/bin/env', 'Rscript'],
+  '.jar': ['/usr/bin/env', 'java', '-jar'],
+  ...(process.platform === 'darwin' ? {
+    '.scpt': ['/usr/bin/osascript'],
+    '.applescript': ['/usr/bin/osascript'],
+  } : {}),
 };
 function runUserScript(p, hidden) {
-  if (process.platform !== 'darwin') {
+  if (process.platform === 'win32') {
     return runPowerShellScript(DECK_ACTIONS_SCRIPT, ['runscript', p, hidden ? 'hidden' : 'visible'], 8000);
   }
   const ext = path.extname(String(p)).toLowerCase();
-  const runner = MAC_SCRIPT_RUNNERS[ext];
-  if (!runner) return Promise.reject(new Error(`unsupported script type "${ext}"`));
+  const runner = POSIX_SCRIPT_RUNNERS[ext];
+  if (!runner) return Promise.reject(new Error(`no interpreter for "${ext}" on this platform`));
   return new Promise((resolve, reject) => {
     // Detached, like the Windows path: a Deck key starts a script, it does not
     // wait for it. stdio is discarded so a chatty script cannot fill a pipe and
@@ -4930,7 +4962,7 @@ const deckRegistry = createRegistry(deckRegistryDeps);
 // window helper does the graceful close and protected-process refusal.
 const perfRegistry = createPerfRegistry({
   closeWindow: (id) => runWindowsTool(['close', id], 8000),
-  openExternal: (p) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000),
+  openExternal: (p) => openExternalPath(p),
   fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
   setPriority: (name, level) => runPowerShellScript(PERF_PRIORITY_SCRIPT, ['set', name, level === 'high' ? 'high' : 'normal'], 6000),
 });
@@ -5156,6 +5188,24 @@ async function listScreens() {
   }
 }
 
+// Cap a capture's width in place, the way the Windows ffmpeg filter
+// (scale='min(1920,iw)') does. screencapture writes the display's BACKING
+// resolution, so a Retina panel produces a 5K JPEG where the same call on
+// Windows produces a 1920-wide one — several megabytes of base64 on every AI
+// vision request. sips ships with macOS, and reading the width first keeps it
+// from doing the one thing `min()` never does: enlarge a smaller capture.
+async function _capShrinkToWidth(file, maxWidth) {
+  try {
+    const { stdout } = await execFilePromise('/usr/bin/sips', ['-g', 'pixelWidth', file], { timeout: 8000 });
+    const m = String(stdout || '').match(/pixelWidth:\s*(\d+)/);
+    if (!m || Number(m[1]) <= maxWidth) return;
+    await execFilePromise('/usr/bin/sips', ['--resampleWidth', String(maxWidth), file], { timeout: 15000 });
+  } catch {
+    // A capture at full resolution is still a usable capture — never fail the
+    // screenshot over the size of it.
+  }
+}
+
 // Capture a screenshot; `monitor` is an optional {x,y,width,height} region.
 // Returns base64 JPEG.
 async function captureScreenshot(monitor) {
@@ -5175,6 +5225,7 @@ async function captureScreenshot(monitor) {
       // image rather than failing, so there is nothing to detect here — the
       // grant is a first-run prompt the user answers once.
       await execFilePromise('/usr/sbin/screencapture', args, { timeout: 15000 });
+      await _capShrinkToWidth(tmpPath, 1920);
       const shot = await fs.promises.readFile(tmpPath);
       return shot.toString('base64');
     }
@@ -6363,6 +6414,11 @@ function playChimeOnServer(kind) {
   fs.promises.writeFile(wavPath, _chimeCache[k]).then(() => {
     const proc = _spawnWavPlayer(wavPath);
     proc.on('error', () => {});
+    // On Windows the player one-liner removes the file itself; afplay/aplay do
+    // not, and this is the one caller that never unlinks (_playWavFile does).
+    if (process.platform !== 'win32') {
+      proc.on('exit', () => { fs.promises.unlink(wavPath).catch(() => {}); });
+    }
   }).catch(() => {});
 }
 

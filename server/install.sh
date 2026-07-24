@@ -116,23 +116,31 @@ mkdir -p "$DATA_DIR"
 # ── 3) Optional extras ───────────────────────────────────────────────────────
 # None of these is required; each one lights up a specific widget or path. They
 # are reported, never installed behind the user's back.
-MISSING=()
+# A newline-joined string, not an array, on purpose: macOS ships bash 3.2 as
+# /bin/bash, where an empty array under `set -u` is a minefield — the installer
+# would abort here on the machine that needs nothing, before registering the
+# login service. None of the entries contains a newline, so a plain string
+# carries the same information with none of the risk.
+MISSING=''
 have() { command -v "$1" >/dev/null 2>&1; }
-have unzip || MISSING+=("unzip   — needed to install in-app updates")
-have ffmpeg || MISSING+=("ffmpeg  — voice input and text-to-speech playback")
+miss() { MISSING="$MISSING$1"$'\n'; }
+have unzip || miss "unzip   — needed to install in-app updates"
+have ffmpeg || miss "ffmpeg  — voice input and text-to-speech playback"
 if [ "$XENON_OS" = 'macos' ]; then
-  have macmon || MISSING+=("macmon  — CPU/GPU temperature and GPU load:   brew install vladkens/tap/macmon")
-  have SwitchAudioSource || MISSING+=("switchaudio-osx — switching the output device: brew install switchaudio-osx")
+  have macmon || miss "macmon  — CPU/GPU temperature and GPU load:   brew install vladkens/tap/macmon"
+  have SwitchAudioSource || miss "switchaudio-osx — switching the output device: brew install switchaudio-osx"
 else
   # The tools linux-collectors.js shells out to; each one degrades to the "--"
   # the tile showed before Linux support existed.
-  have nvidia-smi || MISSING+=("nvidia-smi — GPU load, temperature and VRAM (NVIDIA only)")
-  have wpctl || MISSING+=("wireplumber — the volume mixer and audio devices")
-  have wmctrl || MISSING+=("wmctrl + xdotool + x11-utils — the open-applications widget (X11 sessions)")
+  have nvidia-smi || miss "nvidia-smi — GPU load, temperature and VRAM (NVIDIA only)"
+  have wpctl || miss "wireplumber — the volume mixer and audio devices"
+  have wmctrl || miss "wmctrl + xdotool + x11-utils — the open-applications widget (X11 sessions)"
 fi
-if [ ${#MISSING[@]} -gt 0 ]; then
+if [ -n "$MISSING" ]; then
   printf '\n%s  Optional, not installed:%s\n' "$C_DIM" "$C_OFF"
-  for m in "${MISSING[@]}"; do printf '%s    %s%s\n' "$C_DIM" "$m" "$C_OFF"; done
+  printf '%s' "$MISSING" | while IFS= read -r m; do
+    [ -n "$m" ] && printf '%s    %s%s\n' "$C_DIM" "$m" "$C_OFF"
+  done
   printf '\n'
 fi
 

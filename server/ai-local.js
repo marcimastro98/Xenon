@@ -585,6 +585,14 @@ const WHISPER_SYSTEM_DIRS = process.platform === 'win32'
   ? []
   : ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin'];
 
+// Only the unambiguous name is looked for in a shared bin directory. `whisper`
+// there is far more likely to be the OpenAI Python CLI, which takes completely
+// different arguments — picking it up would report Whisper as ready, skip the
+// brew install and then fail every transcription. `main` is whisper.cpp's old
+// name and much too generic to claim from /usr/bin. Both stay accepted inside
+// server/whisper/, where the user put the binary on purpose.
+const WHISPER_SYSTEM_BIN_NAMES = ['whisper-cli'];
+
 // Resolve the expected whisper.cpp locations under server/whisper/. The model is
 // always ours: Homebrew ships the binary but no ggml weights, so the download
 // below owns the model on every platform.
@@ -603,7 +611,7 @@ function whisperExe(serverDir) {
     try { if (fs.existsSync(p)) return p; } catch { /* ignore */ }
   }
   for (const sysDir of WHISPER_SYSTEM_DIRS) {
-    for (const name of WHISPER_BIN_NAMES) {
+    for (const name of WHISPER_SYSTEM_BIN_NAMES) {
       const p = path.join(sysDir, name);
       try { if (fs.existsSync(p)) return p; } catch { /* ignore */ }
     }

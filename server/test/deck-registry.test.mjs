@@ -92,18 +92,58 @@ test('run runScript accepts .bat/.cmd/.ps1, rejects other extensions + missing f
 });
 
 test('isRunnableScriptPath', () => {
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.bat'), true);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.CMD'), true);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.ps1'), true);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.py'), true);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.js'), true);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.rb'), true);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.jar'), true);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.vbs'), true);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.sh'), true);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.psm1'), false);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.exe'), false);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.txt'), false);
+  // The platform is passed explicitly so the expectations hold wherever the
+  // suite runs, not only on the machine the feature shipped from.
+  for (const ext of ['bat', 'CMD', 'ps1', 'py', 'js', 'rb', 'jar', 'vbs', 'sh']) {
+    assert.equal(reg.isRunnableScriptPath(`C:/a/b.${ext}`, 'win32'), true, ext);
+  }
+  for (const ext of ['psm1', 'exe', 'txt']) {
+    assert.equal(reg.isRunnableScriptPath(`C:/a/b.${ext}`, 'win32'), false, ext);
+  }
+});
+
+test('isRunnableScriptPath: the POSIX list is its own, in both directions', () => {
+  // Real script types off Windows that the Windows list has no reason to carry.
+  for (const ext of ['command', 'zsh', 'scpt', 'applescript']) {
+    assert.equal(reg.isRunnableScriptPath(`/u/s.${ext}`, 'darwin'), true, ext);
+    assert.equal(reg.isRunnableScriptPath(`C:/a/b.${ext}`, 'win32'), false, ext);
+  }
+  // Windows-only types are refused HERE rather than reaching a runner table
+  // that has no entry for them — a key that validates and then fails is worse
+  // than one that never validates.
+  for (const ext of ['bat', 'cmd', 'ps1', 'vbs', 'vbe', 'wsf']) {
+    assert.equal(reg.isRunnableScriptPath(`/u/s.${ext}`, 'darwin'), false, ext);
+    assert.equal(reg.isRunnableScriptPath(`/u/s.${ext}`, 'linux'), false, ext);
+  }
+  // The shared middle stays runnable everywhere.
+  for (const ext of ['sh', 'bash', 'py', 'js', 'rb', 'jar']) {
+    assert.equal(reg.isRunnableScriptPath(`/u/s.${ext}`, 'linux'), true, ext);
+  }
+});
+
+test('isBlockedOpenPath: openFile blocks one-tap execution on every platform', () => {
+  // The Windows vocabulary, unchanged.
+  for (const ext of ['exe', 'lnk', 'bat', 'ps1', 'js', 'hta', 'desktop']) {
+    assert.equal(reg.isBlockedOpenPath(`C:/x/f.${ext}`, 'win32'), true, ext);
+    assert.equal(reg.isBlockedOpenPath(`/x/f.${ext}`, 'darwin'), true, ext);
+  }
+  // What `open` would execute, launch or install on one tap. None of it means
+  // anything to the Windows handler, which is why it needed its own list.
+  for (const ext of ['command', 'app', 'workflow', 'terminal', 'scpt', 'pkg', 'webloc', 'sh', 'py', 'appimage']) {
+    assert.equal(reg.isBlockedOpenPath(`/x/f.${ext}`, 'darwin'), true, ext);
+    assert.equal(reg.isBlockedOpenPath(`/x/f.${ext}`, 'linux'), true, ext);
+  }
+  // …and none of it tightens the Windows boundary, where those names are
+  // documents that have been openable since the feature shipped.
+  for (const ext of ['command', 'app', 'sh', 'py', 'pkg']) {
+    assert.equal(reg.isBlockedOpenPath(`C:/x/f.${ext}`, 'win32'), false, ext);
+  }
+  // Ordinary documents and folders stay openable everywhere.
+  for (const plat of ['win32', 'darwin', 'linux']) {
+    assert.equal(reg.isBlockedOpenPath('/x/notes.txt', plat), false, plat);
+    assert.equal(reg.isBlockedOpenPath('/x/report.pdf', plat), false, plat);
+    assert.equal(reg.isBlockedOpenPath('/x/some folder', plat), false, plat);
+  }
 });
 
 test('run returns {ok:false} when an injected effect throws (never propagates)', async () => {

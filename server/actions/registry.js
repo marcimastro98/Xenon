@@ -86,8 +86,22 @@ function isSteamAppId(s) {
 // opens with the registered handler). A folder or a document is fine; a .bat or
 // .ps1 would run code on one tap. openApp is the only path that may launch exes.
 const BLOCKED_OPEN_EXT = /\.(exe|lnk|bat|cmd|com|ps1|psm1|vbs|vbe|js|jse|wsf|wsh|hta|scr|pif|reg|msi|msp|cpl|jar|gadget|inf|appref-ms|jnlp|url|website|scf|library-ms|search-ms|desktop)$/i;
-function isBlockedOpenPath(p) {
-  return BLOCKED_OPEN_EXT.test(String(p == null ? '' : p).trim());
+
+// The same rule, restated for the platforms where `open`/`xdg-open` is the
+// handler. The list above is a Windows vocabulary: none of those extensions
+// means anything to LaunchServices, which instead runs a .command in Terminal,
+// launches an .app or an .appex, executes a .workflow, and hands a .py to the
+// Python Launcher — exactly the one-tap code execution the blocklist exists to
+// stop. It is kept separate rather than merged so the Windows boundary stays
+// byte-for-byte what it was; a name like .sh or .py is a document there and has
+// been openable since the feature shipped.
+const BLOCKED_OPEN_EXT_POSIX = /\.(command|app|appex|workflow|terminal|action|definition|osax|prefpane|qlgenerator|saver|mdimporter|plugin|bundle|kext|pkg|mpkg|dmg|webloc|fileloc|inetloc|scpt|scptd|applescript|shortcut|sh|bash|zsh|csh|ksh|fish|py|pyw|rb|pl|php|lua|tcl|awk|run|appimage)$/i;
+
+function isBlockedOpenPath(p, platform) {
+  const v = String(p == null ? '' : p).trim();
+  if (BLOCKED_OPEN_EXT.test(v)) return true;
+  const plat = platform || process.platform;
+  return plat !== 'win32' && BLOCKED_OPEN_EXT_POSIX.test(v);
 }
 
 // The 'runScript' action is the ONE deliberate, user-configured path that may
@@ -104,8 +118,18 @@ function isBlockedOpenPath(p) {
 // console); the key can opt into a hidden window. The interpreter must be on
 // PATH — a missing one degrades to a clean {ok:false} (the key flashes red).
 const RUNNABLE_SCRIPT_EXT = /\.(bat|cmd|ps1|py|pyw|js|cjs|mjs|rb|pl|php|lua|r|jar|vbs|vbe|wsf|sh|bash)$/i;
-function isRunnableScriptPath(p) {
-  return RUNNABLE_SCRIPT_EXT.test(String(p == null ? '' : p).trim());
+
+// The same list where the interpreters are POSIX ones (server.js's
+// POSIX_SCRIPT_RUNNERS is the other half). It has to be its own list in both
+// directions: .bat/.ps1/.vbs mean nothing here and are better refused at this
+// boundary than spawned and left to fail, while .command/.zsh/.scpt are real
+// script types the Windows list has no reason to carry.
+const RUNNABLE_SCRIPT_EXT_POSIX = /\.(sh|bash|zsh|command|py|pyw|js|cjs|mjs|rb|pl|php|lua|r|jar|scpt|applescript)$/i;
+
+function isRunnableScriptPath(p, platform) {
+  const v = String(p == null ? '' : p).trim();
+  const plat = platform || process.platform;
+  return plat === 'win32' ? RUNNABLE_SCRIPT_EXT.test(v) : RUNNABLE_SCRIPT_EXT_POSIX.test(v);
 }
 
 // deps: { fileExists(path)->bool, openExternal(path)->Promise,

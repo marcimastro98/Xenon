@@ -376,7 +376,10 @@ tell application "System Events"
   return out
 end tell`;
 
-function parseAppList(out) {
+// `includeProtected` is for the close path only: a quit aimed at Finder has to
+// be able to say so, and it cannot if the shell was already filtered out — the
+// lookup would miss and report the window as gone instead.
+function parseAppList(out, includeProtected) {
   const windows = [];
   for (const line of splitLines(out)) {
     if (!line.trim()) continue;
@@ -385,7 +388,7 @@ function parseAppList(out) {
     const id = f[0].trim();
     if (!/^\d{1,24}$/.test(id)) continue;
     const app = (f[1] || '').trim();
-    if (!app || PROTECTED_APPS.has(app)) continue;
+    if (!app || (!includeProtected && PROTECTED_APPS.has(app))) continue;
     windows.push({
       id,
       title: (f[4] || '').trim() || app,
@@ -411,12 +414,12 @@ async function osaWrite(script, timeoutMs) {
   return out;
 }
 
-async function listApps() {
+async function listApps(includeProtected) {
   // A denied (or never granted) Automation prompt lands here as null. An empty
   // list is the honest answer -- the widget says "no open windows" rather than
   // claiming a failure the user cannot act on.
   const out = await osa(LIST_APPS_SCRIPT, 10000);
-  return out === null ? [] : parseAppList(out);
+  return out === null ? [] : parseAppList(out, includeProtected);
 }
 
 async function windows(action, id) {
@@ -429,7 +432,7 @@ async function windows(action, id) {
   }
   if (action === 'close') {
     if (!/^\d{1,24}$/.test(String(id || ''))) return { ok: false, error: 'not_found' };
-    const list = await listApps();
+    const list = await listApps(true);
     const hit = list.find((w) => w.id === String(Number(id)));
     if (!hit) return { ok: false, error: 'not_found' };
     if (PROTECTED_APPS.has(hit.app)) return { ok: false, error: 'protected', app: hit.app };
@@ -514,6 +517,22 @@ function audioDevices() {
   return audioDevicesInFlight;
 }
 
+// When system_profiler is unavailable or denied, the enumeration comes back
+// empty and the mixer still has to show the two devices the volume read proves
+// are there. These stand-in names are what the rows carry, so every consumer
+// must resolve a device list through here — a writer that classified a target
+// against the RAW list would not recognise "Microphone" as an input and would
+// send a mic mute to the speakers instead.
+const PLACEHOLDER_OUTPUT = 'Output';
+const PLACEHOLDER_INPUT = 'Microphone';
+function withPlaceholders(devices) {
+  const d = devices || { outputs: [], inputs: [] };
+  return {
+    outputs: d.outputs && d.outputs.length ? d.outputs : [{ name: PLACEHOLDER_OUTPUT, isDefault: true }],
+    inputs: d.inputs && d.inputs.length ? d.inputs : [{ name: PLACEHOLDER_INPUT, isDefault: true }],
+  };
+}
+
 // Build rows matching SoundVolumeView's /scomma layout.
 // Application rows are deliberately absent: see the header note.
 function buildAudioRows(devices, vol) {
@@ -533,8 +552,7 @@ function buildAudioRows(devices, vol) {
     rows.push(r);
   };
 
-  const outs = devices.outputs.length ? devices.outputs : [{ name: 'Output', isDefault: true }];
-  const ins = devices.inputs.length ? devices.inputs : [{ name: 'Microphone', isDefault: true }];
+  const { outputs: outs, inputs: ins } = withPlaceholders(devices);
   // Only the default device's level is knowable from a shell, so the others
   // report an empty volume rather than a number copied from somewhere else.
   outs.forEach((d) => add(d.name, 'Render', d.isDefault, d.isDefault ? vol.output : null, d.isDefault ? vol.muted : false));
@@ -560,11 +578,14 @@ async function audioRows() {
 
 // Is this write aimed at the capture side? Targets arrive as a device name, as
 // SoundVolumeView's default selectors, or as "<binary>.exe" for a per-app write.
+// `devices` must already carry the placeholders, because the name the caller
+// holds came from a row built with them.
 function isCaptureTarget(target, devices) {
   const t = String(target || '').trim();
   if (t === 'DefaultCaptureDevice') return true;
   if (t === 'DefaultRenderDevice') return false;
-  return devices.inputs.some((d) => d.name === t) && !devices.outputs.some((d) => d.name === t);
+  const d = withPlaceholders(devices);
+  return d.inputs.some((x) => x.name === t) && !d.outputs.some((x) => x.name === t);
 }
 
 // macOS has no shell-reachable input mute, so a muted microphone is one held at

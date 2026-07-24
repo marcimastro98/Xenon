@@ -195,6 +195,19 @@ test('isCaptureTarget: routes the default selectors and named devices', () => {
   assert.equal(dc.isCaptureTarget('Studio Display Speakers', devices), false);
 });
 
+test('isCaptureTarget: the stand-in names route the same way the rows do', () => {
+  // system_profiler denied or absent: the rows fall back to two placeholder
+  // devices, and server.js caches THOSE names as the mic/speaker id. Classified
+  // against the raw (empty) enumeration, a mic mute read as an output write and
+  // muted the speakers while leaving the microphone live.
+  const empty = { outputs: [], inputs: [] };
+  const rows = dc.buildAudioRows(empty, { output: 40, input: 60, muted: false });
+  const micId = rows.find((r) => r[F.DIR] === 'Capture')[F.CLI_ID];
+  const spkId = rows.find((r) => r[F.DIR] === 'Render')[F.CLI_ID];
+  assert.equal(dc.isCaptureTarget(micId, empty), true);
+  assert.equal(dc.isCaptureTarget(spkId, empty), false);
+});
+
 // --- app switcher -----------------------------------------------------------
 
 test('parseAppList: builds the /windows contract and hides the shell', () => {
@@ -209,6 +222,13 @@ test('parseAppList: builds the /windows contract and hides the shell', () => {
   assert.equal(safari.active, true);
   assert.equal(safari.minimized, false);
   assert.equal(safari.icon, null);
+});
+
+test('parseAppList: the close path can still see the shell it must refuse', () => {
+  // Filtered out of the list, kept for the lookup: a quit aimed at Finder has
+  // to answer "protected", and it cannot if the row was already dropped.
+  const all = dc.parseAppList(fixture('darwin-apps.txt'), true);
+  assert.ok(all.some((w) => w.app === 'Finder'));
 });
 
 test('parseAppList: an app with no open window falls back to its own name', () => {
