@@ -219,7 +219,7 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 | Native full-screen app | ✅ | ✅ | ✅ |
 | Starts at login, updates itself | ✅ | ✅ | ✅ |
 | CPU, RAM, disks, network | ✅ | ✅ | ✅ |
-| CPU/GPU temperature and GPU load | ✅ | with `macmon` | NVIDIA only |
+| CPU/GPU temperature and GPU load | ✅ | with `macmon` | ✅ ⁴ |
 | System volume, microphone mute | ✅ | ✅ | ✅ |
 | Per-app volume mixer | ✅ | — | ✅ |
 | Now playing + media keys | ✅ | ✅ | ✅ ² |
@@ -241,6 +241,8 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 ¹ macOS asks once for the Automation permission; the list stays empty until you grant it.
 
 ² Linux reads MPRIS over D-Bus, which needs `playerctl` installed.
+
+⁴ NVIDIA needs `nvidia-smi`; AMD is read from the kernel directly and needs nothing; Intel reports temperature only, because its load counters are not readable without elevated access.
 
 ³ Voice input needs ffmpeg with PulseAudio or ALSA. Screen vision uses X11 capture; under Wayland it is refused rather than guessed, because capturing there goes through a permission portal rather than an ffmpeg input.
 

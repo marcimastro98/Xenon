@@ -132,7 +132,7 @@ if [ "$XENON_OS" = 'macos' ]; then
 else
   # The tools linux-collectors.js shells out to; each one degrades to the "--"
   # the tile showed before Linux support existed.
-  have nvidia-smi || miss "nvidia-smi — GPU load, temperature and VRAM (NVIDIA only)"
+  have nvidia-smi || miss "nvidia-smi — GPU load, temperature and VRAM on NVIDIA cards (AMD and Intel need nothing)"
   have wpctl || miss "wireplumber — the volume mixer and audio devices"
   have playerctl || miss "playerctl — what is playing, and the media keys"
   have wmctrl || miss "wmctrl + xdotool + x11-utils — the open-applications widget (X11 sessions)"

@@ -18,8 +18,10 @@
 // synchronous filesystem access anywhere in this file.
 //
 // Requirements on Linux (each degrades to the previous "--" behaviour if the
-// tool is absent): nvidia-smi for GPU, wmctrl + xdotool + x11-utils for the app
-// switcher (X11 sessions), pipewire + wireplumber (pw-dump, wpctl) for audio.
+// tool is absent): nvidia-smi for an NVIDIA GPU (AMD and Intel need nothing —
+// they are read from /sys/class/drm), wmctrl + xdotool + x11-utils for the app
+// switcher (X11 sessions), pipewire + wireplumber (pw-dump, wpctl) for audio,
+// playerctl for now-playing (see linux-media.js).
 
 'use strict';
 
@@ -64,8 +66,8 @@ async function mapLimit(items, limit, fn) {
 // --- GPU: nvidia-smi, matching gpu.ps1's field order and byte units ----------
 // gpu.ps1 queried: utilization.gpu,temperature.gpu,memory.used,memory.total,name
 // and converted MiB -> bytes (value * 1048576). We reproduce that exactly.
-// KNOWN LIMIT: NVIDIA only. AMD (amdgpu) and Intel expose their counters through
-// sysfs rather than a query tool, so those cards still report nulls here.
+// nvidia-smi is the NVIDIA path only; AMD and Intel are read straight from the
+// kernel's DRM sysfs by parseSysfsGpu below, which needs no tool at all.
 const EMPTY_GPU = { gpu: null, gpuTemp: null, gpuName: null, vramUsed: null, vramTotal: null };
 function parseGpu(out) {
   const first = splitLines(String(out || '').trim())[0] || '';
@@ -79,12 +81,106 @@ function parseGpu(out) {
     gpuName: p.slice(4).join(', ').trim() || null,
   };
 }
+// --- GPU without nvidia-smi: the kernel's own DRM sysfs -----------------------
+// AMD (amdgpu) publishes load, VRAM and temperature as plain files, so a machine
+// with a Radeon needs no extra tool at all. Intel publishes far less: `i915`/
+// `xe` expose a temperature on recent kernels and nothing else a shell can read
+// (utilisation needs perf counters or intel_gpu_top as root), and an integrated
+// GPU has no separate VRAM — 0 is the honest answer there, not a missing one.
+//
+// Pure so it can be tested off Linux: the caller reads the files, this decides
+// what they mean.
+const GPU_DRIVER_NAMES = { amdgpu: 'AMD GPU', radeon: 'AMD GPU', i915: 'Intel GPU', xe: 'Intel GPU' };
+
+function parseSysfsGpu(snap) {
+  const s = snap || {};
+  const num = (v) => (isNum(v) ? Number(String(v).trim()) : null);
+  const busy = num(s.busy);
+  const used = num(s.vramUsed);
+  const total = num(s.vramTotal);
+  // hwmon reports millidegrees. A card that lists several sensors labels them
+  // (edge / junction / mem on AMD); `edge` is the one comparable to what every
+  // other platform calls the GPU temperature, so it wins when present.
+  let tempMilli = null;
+  for (const t of Array.isArray(s.temps) ? s.temps : []) {
+    if (!t || !isNum(t.value)) continue;
+    const label = String(t.label || '').trim().toLowerCase();
+    if (tempMilli === null || label === 'edge') tempMilli = Number(t.value);
+    if (label === 'edge') break;
+  }
+  return {
+    gpu: busy === null ? null : Math.max(0, Math.min(100, Math.round(busy))),
+    // Millidegrees only above a plausible ceiling: some drivers already report
+    // degrees, and dividing those by 1000 would silently report 0.
+    gpuTemp: tempMilli === null ? null : Math.round(tempMilli > 200 ? tempMilli / 1000 : tempMilli),
+    vramUsed: used === null ? null : used,
+    vramTotal: total === null ? null : total,
+    gpuName: GPU_DRIVER_NAMES[String(s.driver || '').trim()] || null,
+  };
+}
+
+const SYSFS_DRM = '/sys/class/drm';
+
+async function readOrNull(file) {
+  try { return String(await fsp.readFile(file, 'utf8')).trim(); } catch { return null; }
+}
+
+// Read one card's files into the snapshot parseSysfsGpu expects.
+async function readCardSnapshot(dir) {
+  const uevent = await readOrNull(`${dir}/device/uevent`);
+  const driver = uevent ? (/^DRIVER=(.+)$/m.exec(uevent) || [])[1] : null;
+  const temps = [];
+  try {
+    const hwmonRoot = `${dir}/device/hwmon`;
+    for (const h of await fsp.readdir(hwmonRoot)) {
+      for (let i = 1; i <= 3; i++) {
+        const value = await readOrNull(`${hwmonRoot}/${h}/temp${i}_input`);
+        if (value === null) continue;
+        temps.push({ value, label: await readOrNull(`${hwmonRoot}/${h}/temp${i}_label`) });
+      }
+    }
+  } catch { /* no hwmon for this card */ }
+  return {
+    driver: driver ? driver.trim() : null,
+    busy: await readOrNull(`${dir}/device/gpu_busy_percent`),
+    vramUsed: await readOrNull(`${dir}/device/mem_info_vram_used`),
+    vramTotal: await readOrNull(`${dir}/device/mem_info_vram_total`),
+    temps,
+  };
+}
+
+async function sysfsGpu() {
+  let cards;
+  try {
+    // cardN only: the cardN-HDMI-A-1 entries are connectors, not devices.
+    cards = (await fsp.readdir(SYSFS_DRM)).filter((n) => /^card\d+$/.test(n)).sort();
+  } catch { return null; }
+  let best = null;
+  for (const name of cards) {
+    const snap = await readCardSnapshot(`${SYSFS_DRM}/${name}`);
+    if (!snap.driver) continue;
+    const parsed = parseSysfsGpu(snap);
+    // Prefer the card that actually reports a load: a laptop lists its
+    // integrated GPU first and the discrete one second, and the discrete one is
+    // the interesting one.
+    if (!best || (parsed.gpu !== null && best.gpu === null)) best = parsed;
+    if (best.gpu !== null && best.gpuTemp !== null) break;
+  }
+  return best;
+}
+
 async function gpu() {
   try {
     return parseGpu(await run('nvidia-smi',
       ['--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total,name',
        '--format=csv,noheader,nounits'], 5000));
   } catch {
+    // No NVIDIA driver (or no nvidia-smi): fall through to the kernel's own
+    // files, which is the whole AMD story and half of the Intel one.
+    try {
+      const fromSysfs = await sysfsGpu();
+      if (fromSysfs) return fromSysfs;
+    } catch { /* fall through to empty */ }
     return { ...EMPTY_GPU };
   }
 }
@@ -592,6 +688,6 @@ async function audioAvailable() {
 module.exports = {
   gpu, disks, cpuTemp, network, windows, audioRows, audioCommand, audioAvailable,
   // exported for unit tests
-  parseGpu, parseDisks, parseNetDev, parsePing, parseWmctrl, parseWindowProps,
+  parseGpu, parseSysfsGpu, parseDisks, parseNetDev, parsePing, parseWmctrl, parseWindowProps,
   parsePwDump, buildAudioRows, resolveTargets, cubicToLinear,
 };

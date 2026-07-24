@@ -260,3 +260,55 @@ test('parseGpu: a short or empty row yields nulls, never NaN', () => {
     assert.equal(g.vramTotal, null);
   }
 });
+
+// --- GPU without nvidia-smi -------------------------------------------------
+// The kernel's DRM sysfs is what an AMD or Intel machine has instead. These
+// snapshots are the file CONTENTS the collector reads, so the parser is testable
+// off Linux; capture the real thing with
+//   cat /sys/class/drm/card0/device/{uevent,gpu_busy_percent,mem_info_vram_*}
+//   cat /sys/class/drm/card0/device/hwmon/hwmon*/temp1_{input,label}
+
+test('parseSysfsGpu: an AMD card reports load, VRAM and temperature', () => {
+  const g = lc.parseSysfsGpu({
+    driver: 'amdgpu',
+    busy: '37',
+    vramUsed: '2415919104',
+    vramTotal: '17163091968',
+    temps: [{ value: '54000', label: 'edge' }, { value: '61000', label: 'junction' }],
+  });
+  assert.equal(g.gpu, 37);
+  assert.equal(g.gpuTemp, 54);            // edge wins over junction
+  assert.equal(g.vramUsed, 2415919104);   // bytes, like the nvidia-smi path
+  assert.equal(g.vramTotal, 17163091968);
+  assert.equal(g.gpuName, 'AMD GPU');
+});
+
+test('parseSysfsGpu: an Intel card reports what it has and null for the rest', () => {
+  // i915 exposes no gpu_busy_percent and an integrated GPU has no separate
+  // VRAM. Nulls make the tile show "--", which is the honest answer.
+  const g = lc.parseSysfsGpu({ driver: 'i915', busy: null, vramUsed: null, vramTotal: null, temps: [{ value: '47000', label: null }] });
+  assert.equal(g.gpu, null);
+  assert.equal(g.gpuTemp, 47);
+  assert.equal(g.vramUsed, null);
+  assert.equal(g.gpuName, 'Intel GPU');
+});
+
+test('parseSysfsGpu: a driver already reporting degrees is not divided again', () => {
+  // Dividing 54 by 1000 would report 0°C, which reads as a working sensor.
+  assert.equal(lc.parseSysfsGpu({ driver: 'amdgpu', temps: [{ value: '54' }] }).gpuTemp, 54);
+  assert.equal(lc.parseSysfsGpu({ driver: 'amdgpu', temps: [{ value: '54000' }] }).gpuTemp, 54);
+});
+
+test('parseSysfsGpu: junk and absent files degrade to nulls, never to zeros', () => {
+  for (const snap of [undefined, null, {}, { driver: 'amdgpu', busy: 'n/a', temps: 'x' }]) {
+    const g = lc.parseSysfsGpu(snap);
+    assert.equal(g.gpu, null);
+    assert.equal(g.gpuTemp, null);
+    assert.equal(g.vramTotal, null);
+  }
+  // An unknown driver gets no invented name.
+  assert.equal(lc.parseSysfsGpu({ driver: 'nouveau' }).gpuName, null);
+  // Load is clamped, never passed through out of range.
+  assert.equal(lc.parseSysfsGpu({ driver: 'amdgpu', busy: '140' }).gpu, 100);
+  assert.equal(lc.parseSysfsGpu({ driver: 'amdgpu', busy: '-5' }).gpu, 0);
+});
