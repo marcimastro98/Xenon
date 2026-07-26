@@ -105,9 +105,17 @@
     var setupEl = document.getElementById('setup');
     var setupBodyEl = document.getElementById('setup-body');
     var setupBtn = document.getElementById('setup-btn');
-    var attempts = 0;
     var okStreak = 0;
     var done = false;
+
+    // Everything below is timed off the WALL CLOCK, never off a probe counter.
+    // A refused fetch does not cost a fixed amount: on Windows each failed
+    // attempt takes ~2s, four times the ~500ms retry delay this file used to
+    // assume, so counting attempts made every threshold land four times later
+    // than its own comment claimed — the setup offer at ~80s instead of ~20s,
+    // and the re-arm below at ~3min instead of ~35s (measured, not guessed).
+    var startedAt = Date.now();
+    function elapsed() { return Date.now() - startedAt; }
 
     // First-run setup handover. The installer used to launch the dashboard-engine
     // bootstrap itself, silently, the instant it finished — an unsigned setup
@@ -118,10 +126,10 @@
     // run_backend_bootstrap in lib.rs). The shell sets the flag below only on
     // release Windows builds that actually carry the bootstrap script — never
     // under `tauri dev`, where pressing it would install for real.
-    var SETUP_AFTER_ATTEMPTS = 40;  // ~20s of silence — past the shell's own logon-task nudge
-    var SETUP_REARM_ATTEMPTS = 90;  // ~35s after a click with still no backend
+    var SETUP_AFTER_MS = 20000; // silence past the shell's own logon-task nudge
+    var SETUP_REARM_MS = 30000; // after a click that still produced no backend
     var canSetup = window.__XENON_SETUP_AVAILABLE__ === true;
-    var setupStartedAt = 0; // attempt number of the last click, 0 = never clicked
+    var setupClickedAt = 0; // timestamp of the last click, 0 = never clicked
 
     function offerSetup() {
       if (!canSetup || done || setupEl.classList.contains('show')) return;
@@ -130,7 +138,7 @@
     }
 
     setupBtn.addEventListener('click', function () {
-      setupStartedAt = attempts;
+      setupClickedAt = Date.now();
       setupBtn.disabled = true;
       setupBtn.textContent = 'Setup started';
       setupBodyEl.textContent =
@@ -163,9 +171,12 @@
       window.location.replace(DASHBOARD);
     }
 
+    // One-shot latches for the messages below, so a time-based threshold that
+    // stays true on every later probe still only fires once.
+    var saidWaiting = false, saidSlow = false, saidStuck = false;
+
     function probe() {
       if (done) return;
-      attempts++;
       // A no-cors fetch resolves the moment the server answers (any status),
       // and rejects while it is still refusing connections. Require TWO
       // consecutive answers before navigating: during an install/restart a
@@ -179,30 +190,34 @@
         })
         .catch(function () {
           okStreak = 0;
-          if (attempts === 6) statusEl.textContent = 'Waiting for the Xenon service…';
-          if (attempts === 20) {
+          if (!saidWaiting && elapsed() >= 3000) {
+            saidWaiting = true;
+            statusEl.textContent = 'Waiting for the Xenon service…';
+          }
+          if (!saidSlow && elapsed() >= 10000) {
+            saidSlow = true;
             hintEl.textContent = 'The backend service is taking longer than usual to start. Still trying…';
           }
-          // ~20s with no answer, and this build can install the engine itself:
+          // 20s with no answer, and this build can install the engine itself:
           // offer it. The shell's logon-task nudge (see lib.rs) has had its shot
           // by now, so silence this long means "not installed", not "slow".
-          // `>=`, not `===`: a single probe that answers on exactly this attempt
-          // (without reaching the two-answer streak that navigates away) would
-          // otherwise skip the offer for good. offerSetup() is idempotent.
-          if (attempts >= SETUP_AFTER_ATTEMPTS && canSetup) offerSetup();
+          // offerSetup() is idempotent, so re-entering here costs nothing.
+          if (canSetup && elapsed() >= SETUP_AFTER_MS) offerSetup();
           // Setup was started and the backend still isn't there — hand the
           // button back rather than leave a dead one on screen.
-          if (setupStartedAt && attempts >= setupStartedAt + SETUP_REARM_ATTEMPTS) {
+          if (setupClickedAt && Date.now() - setupClickedAt >= SETUP_REARM_MS) {
             rearmSetup();
           }
-          // ~60s with no answer: the widget backend is probably not installed or
-          // not running at all — the app is only a display for it. The shell has
-          // already tried to start its logon task by now (see lib.rs), so at this
-          // point the user needs to act. Keep retrying regardless: if they install
-          // or start it, this page hands over on its own. This must fire whether
-          // or not the build can offer setup: an engine that is installed but
-          // failing to start reaches here with a button that can't help.
-          if (attempts === 120) {
+          // A minute with no answer: the widget backend is probably not
+          // installed or not running at all — the app is only a display for it.
+          // The shell has already tried to start its logon task by now (see
+          // lib.rs), so at this point the user needs to act. Keep retrying
+          // regardless: if they install or start it, this page hands over on its
+          // own. This must fire whether or not the build can offer setup: an
+          // engine that is installed but failing to start reaches here with a
+          // button that can't help.
+          if (!saidStuck && elapsed() >= 60000) {
+            saidStuck = true;
             hintEl.textContent = 'Still no response from the Xenon widget. This app is the display for the Xenon widget — make sure the widget is installed and running (reinstall it anytime with INSTALL.bat from github.com/marcimastro98/Xenon). This screen will continue on its own once it responds.';
           }
           setTimeout(probe, 500);
