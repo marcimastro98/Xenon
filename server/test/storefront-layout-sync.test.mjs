@@ -127,7 +127,7 @@ test('the page ships a translation for every section heading it renders', () => 
   // One entry per UI language block; each must carry the new headings or a
   // section renders as an empty string on that language.
   const langBlocks = html.match(/'sec\.freehead':/g) || [];
-  for (const key of ['sec.newhead', 'sec.archive', 'sec.archive_sub']) {
+  for (const key of ['sec.newhead', 'sec.archive', 'sec.archive_sub', 'preview.banner']) {
     const found = (html.match(new RegExp("'" + key.replace('.', '\\.') + "':", 'g')) || []).length;
     assert.equal(found, langBlocks.length,
       `${key} is missing from ${langBlocks.length - found} of ${langBlocks.length} language blocks`);
@@ -225,4 +225,29 @@ test('every storefront that walks the layout routes the split through the contra
     assert.match(src, call, `${label} walks the layout but no longer uses the shared split`);
   }
   assert.ok(walkers > 0, 'no storefront walks the layout any more — this test has nothing left to guard');
+});
+
+// ── Preview mode ─────────────────────────────────────────────────────────────
+// The hub admin frames THIS page to show an arrangement, because redrawing an
+// imitation of the storefront is wrong the moment the two diverge. Cheap guards
+// on the plumbing that makes that possible — losing any of it turns the admin's
+// preview into a silently stale picture of the published order.
+test('the catalog page can be told which arrangement to draw', () => {
+  const html = readFileSync(PAGE, 'utf8');
+  assert.match(html, /sf-preview=/, 'the URL hash override is gone');
+  assert.match(html, /'xenon-sf-preview'/, 'the live postMessage channel is gone');
+  assert.match(html, /PREVIEW_BLOCKS \? \{ blocks: PREVIEW_BLOCKS \}/,
+    'the preview arrangement no longer wins over the published one');
+  // A preview must never be mistakable for the live page.
+  assert.match(html, /sf-prevbar/, 'the preview banner is gone');
+  // Only a framed page takes an arrangement from a parent it did not choose.
+  assert.match(html, /window\.parent !== window/, 'the message listener is no longer gated on being framed');
+});
+
+test('the consent dialog stays out of a layout preview', () => {
+  // It covers the very thing being previewed, and a consent decision tapped
+  // through inside somebody's admin panel would store an answer for a choice the
+  // visitor was never really shown.
+  const consent = readFileSync(join(ROOT, 'docs', 'consent.js'), 'utf8');
+  assert.match(consent, /sf-preview=/, 'consent.js no longer skips preview mode');
 });

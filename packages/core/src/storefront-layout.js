@@ -31,21 +31,36 @@
   // is dropped rather than guessed at.
   const BLOCK_TYPES = ['spotlight', 'limited', 'supporters', 'new', 'kinds', 'archive'];
 
-  // Presentation. Not every form suits every block, so each type declares what
-  // it accepts and the first entry is its default.
+  /* What each block draws. This is the RENDERERS' vocabulary, not a menu: a
+   * block has exactly one form until a storefront actually learns to draw a
+   * second one. It shipped as a three-way choice per block and none of the
+   * alternatives did anything — `form` is read in exactly one place
+   * (shouldAutoplay, below), so "big card, full width" rendered the same big
+   * card and "grid" rendered the same scrolling rail with the auto-scroll
+   * switched off. An option that changes nothing is worse than an absent one:
+   * it makes the whole panel untrustworthy, because you cannot tell which of the
+   * other switches are real either.
+   *
+   * The admin builds its controls from these lists, so a single value simply has
+   * no dropdown. To add a real alternative: teach BOTH storefronts to draw it,
+   * then list it here and the control appears on its own.
+   */
   const FORMS = {
-    spotlight: ['hero-column', 'hero', 'grid'],
-    limited: ['carousel', 'grid', 'rail'],
-    supporters: ['rail', 'grid', 'carousel'],
-    new: ['grid', 'rail'],
+    spotlight: ['hero-column'],
+    limited: ['carousel'],
+    supporters: ['rail'],
+    new: ['grid'],
     kinds: ['grid'],
-    archive: ['rail-quiet', 'grid'],
+    archive: ['rail-quiet'],
   };
 
-  // Where a block's entries come from. `manual` means the admin picked them
-  // (spotlight only); everything else fills itself.
+  // Where a block's entries come from. Same rule: one value unless the choice
+  // genuinely changes what is drawn. The spotlight's was a two-way pick nothing
+  // read — it always shows the featured entries and falls back to its automatic
+  // ladder when none is set, whichever value was stored. `limited` is the one
+  // real choice: whether finished drops come back onto the shelf.
   const SOURCES = {
-    spotlight: ['manual', 'auto'],
+    spotlight: ['manual'],
     limited: ['auto-live', 'auto-all'],
     supporters: ['auto'],
     new: ['auto'],

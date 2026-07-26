@@ -217,6 +217,12 @@
 
   function boot() {
     if (stored()) return; // already chosen — the inline block replayed it
+    // Not inside a layout preview (the hub admin frames the catalog page to show
+    // an arrangement). Two reasons, and either alone is enough: the dialog covers
+    // the very thing being previewed, and a consent decision must be made by a
+    // visitor on the real page — not tapped through inside somebody's admin panel,
+    // where it would silently store an answer for a choice never really presented.
+    if (/(?:^|[#&])sf-preview=/.test(location.hash || '')) return;
     render();
   }
 
