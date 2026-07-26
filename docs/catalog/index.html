@@ -232,27 +232,59 @@
   /* The archive is deliberately quiet: it is history, not stock. */
   .arch-strip { margin-top: 34px; opacity: .72; transition: opacity .2s ease; }
   .arch-strip:hover { opacity: 1; }
-  .arch-strip .drops { filter: saturate(.55); }
-  .arch-strip:hover .drops { filter: none; }
-  /* A rail: one row, swipeable, snapping, with the scrollbar out of the way.
+  /* The desaturation sits on the CARDS, not on the row: the row is the element the
+     carousel moves with a transform, and a filter on a moving element is re-run
+     every frame of the slide. */
+  .arch-strip .drops > *, .arch-strip .grid > * { filter: saturate(.55); transition: filter .2s ease; }
+  .arch-strip:hover .drops > *, .arch-strip:hover .grid > * { filter: none; }
+
+  /* A rail: one row of cards moved with a transform, stepped by arrows and by
+     dragging. It is deliberately NOT an `overflow-x: auto` scroller. That was the
+     first shape and the arrows could not drive it: `scrollLeft` on this element
+     refused every assignment (exact offset, clamped maximum, snapping disabled),
+     so the arrows were dead and the auto-advance had never once animated. A
+     transform is set, not requested, so both work by construction — and the ugly
+     system scrollbar the user asked to remove is gone because there is nothing to
+     scroll rather than because it was styled away.
+
      Written as .drops.cat-rail on purpose. `.drops { display: grid }` is declared
      BELOW this block at equal specificity, so a plain `.cat-rail` lost the cascade
      on the only element it is ever applied to — every rail silently stayed a
      single-column grid of full-width hero cards, which is why the supporter and
-     limited sections ate a screenful each and the auto-scroll scrolled an element
-     with no horizontal overflow to scroll. Two classes beat one whatever the order. */
-  .drops.cat-rail { display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
-              scroll-snap-type: x mandatory; scroll-behavior: smooth;
-              gap: 14px; padding-bottom: 10px;
-              /* The standard pair, NOT ::-webkit-scrollbar: once scrollbar-width is
-                 set, Chrome styles the scrollbar the standard way and ignores the
-                 webkit pseudo-elements entirely — which is why this was showing a
-                 fat pale system bar under a dark page. */
-              scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.2) transparent; }
+     limited sections ate a screenful each. Two classes beat one whatever the order. */
+  .rail-wrap { position: relative; }
+  /* overflow: hidden clips at the PADDING box, so this padding is what gives the
+     cards' hover lift and drop shadow somewhere to go; the negative margin puts
+     the section back exactly where it was. */
+  .rail-view { overflow: hidden; padding: 14px 0 18px; margin: -14px 0 -18px; }
+  .drops.cat-rail { display: flex; flex-wrap: nowrap; gap: 14px;
+              /* Horizontal gestures are ours, vertical ones stay the page's. */
+              touch-action: pan-y; will-change: transform;
+              transition: transform .45s var(--ease); }
+  .drops.cat-rail.is-dragging { transition: none; cursor: grabbing; }
   /* A hero card is a 2-column grid with fr tracks: inside a flex row with no width
      it sizes to its content and one card fills the viewport, which is the stack
      again with extra steps. Give the rail a card width and the row reads as a row. */
-  .drops.cat-rail > * { scroll-snap-align: start; flex: 0 0 min(680px, 90vw); }
+  .drops.cat-rail > * { flex: 0 0 min(680px, 90vw); }
+  /* Classic overlaid arrows. They sit inside the viewport edge rather than outside
+     it: the shelf runs to the page gutter on a narrow window and an arrow parked
+     outside would be clipped exactly where it is needed most. */
+  .rail-arw { position: absolute; top: 50%; transform: translateY(-50%); z-index: 3;
+              width: 44px; height: 44px; border-radius: 999px; cursor: pointer;
+              display: grid; place-items: center; padding: 0;
+              border: 1px solid rgba(255,255,255,.22); background: rgba(12,10,22,.72);
+              color: var(--text); backdrop-filter: blur(10px);
+              box-shadow: 0 8px 24px -8px rgba(0,0,0,.8);
+              transition: opacity .2s ease, background .2s ease, transform .2s var(--ease); }
+  .rail-arw:hover { background: rgba(24,20,44,.9); }
+  .rail-arw:focus-visible { outline: 2px solid var(--plasma); outline-offset: 2px; }
+  .rail-arw svg { width: 19px; height: 19px; }
+  .rail-arw.prev { left: 8px; }
+  .rail-arw.next { right: 8px; }
+  /* Disabled means "there is nothing that way", so it fades out rather than
+     staying put looking tappable. It keeps its box so the row never reflows. */
+  .rail-arw[disabled] { opacity: 0; pointer-events: none; }
+  @media (max-width: 620px) { .rail-arw { width: 38px; height: 38px; } }
   /* A hero card is laid out for the full page width. Squeezed into a rail track its
      text column turns narrow and the card grows TALLER than the stack it replaced,
      so the media loses its 260px floor and the description is clamped. The point of
@@ -381,6 +413,15 @@
   .sup-head .sjoin:hover { filter: brightness(1.06); }
   .sup-head .sjoin-alt { color: var(--gold); background: transparent; border: 1px solid rgba(255,190,77,.5); }
   .sup-head .sjoin-alt:hover { filter: none; background: rgba(255,190,77,.1); }
+  /* The frame leads the page, so it has nothing above it to be spaced from — and
+     its perks list is the last thing in the box, so the list's own bottom margin
+     would otherwise read as a gap inside the border. */
+  .sup-frame { margin-top: 0; }
+  .sup-frame .sup-perks { margin-bottom: 0; }
+  /* The shelf's heading is a label, not a second pitch: name and count only. */
+  .sup-head-slim { margin-bottom: 14px; }
+  .sup-head-slim .kcnt { font-family: var(--mono); font-size: 11.5px; color: var(--gold);
+    border: 1px solid rgba(255,190,77,.34); border-radius: 999px; padding: 2px 9px; }
   .sup-perks { margin: 4px 0 18px; }
   .sup-perks-h { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); margin-bottom: 10px; }
   .sup-perks-list { list-style: none; display: grid; gap: 8px; }
@@ -631,7 +672,8 @@ const I18N = {
     'sort.feat': 'Featured', 'sort.new': 'Newest', 'sort.installs': 'Most downloaded', 'sort.rated': 'Top rated', 'sort.name': 'Name A–Z', 'card.new': 'New',
     'sec.tag': 'EXCLUSIVE', 'sec.seeall': 'See all →',
     'sec.limited': 'Limited drops', 'sec.limited_sub': 'A fixed number of copies worldwide, reserved on Discord. When they are gone, they are gone.',
-    'sec.freehead': 'Free, from the community', 'sec.newhead': 'Just added', 'sec.archive': 'Archive', 'sec.archive_sub': 'Drops whose copies are all gone. They stay here so the work remains visible, and searchable.', 'preview.banner': 'Layout preview — this is not the live catalog. Nothing here is published.',
+    'rail.prev': 'Previous', 'rail.next': 'Next',
+    'sec.freehead': 'Free, from the community', 'sec.newhead': 'Just added', 'sec.archive': 'Archive', 'sec.archive_sub': 'Drops whose copies are all gone. They stay here so the work remains visible, and searchable.', 'preview.banner': 'Layout preview. This is not the live catalog. Nothing here is published.',
     'sec.supporters': 'Supporters', 'sec.supporters_sub': 'Themes and packs reserved for people who support Xenon. Become a supporter to get a personal code and unlock them.', 'sec.supporters_join': 'Become a supporter',
     'sup.how': 'What being a supporter gets you',
     'sup.perk1': 'Exclusive themes and packs: a fresh supporter drop every month, and whatever you unlock stays yours to keep for good.',
@@ -668,7 +710,8 @@ const I18N = {
     'sort.feat': 'In evidenza', 'sort.new': 'Più recenti', 'sort.installs': 'Più scaricati', 'sort.rated': 'Più votati', 'sort.name': 'Nome A–Z', 'card.new': 'Novità',
     'sec.tag': 'ESCLUSIVI', 'sec.seeall': 'Vedi tutti →',
     'sec.limited': 'Drop limitati', 'sec.limited_sub': 'Copie contate in tutto il mondo, riservate su Discord. Quando finiscono, finiscono.',
-    'sec.freehead': 'Gratis, dalla community', 'sec.newhead': 'Appena aggiunti', 'sec.archive': 'Archivio', 'sec.archive_sub': 'Drop con tutte le copie esaurite. Restano qui, visibili e cercabili, ma fuori dalla vetrina.', 'preview.banner': 'Anteprima della disposizione — questa non è la vetrina pubblica. Niente di qui è pubblicato.',
+    'rail.prev': 'Precedente', 'rail.next': 'Successivo',
+    'sec.freehead': 'Gratis, dalla community', 'sec.newhead': 'Appena aggiunti', 'sec.archive': 'Archivio', 'sec.archive_sub': 'Drop con tutte le copie esaurite. Restano qui, visibili e cercabili, ma fuori dalla vetrina.', 'preview.banner': 'Anteprima della disposizione. Questa non è la vetrina pubblica. Niente di qui è pubblicato.',
     'sec.supporters': 'Supporters', 'sec.supporters_sub': 'Temi e pacchetti riservati a chi sostiene Xenon. Diventa supporter e ricevi un codice personale per sbloccarli.', 'sec.supporters_join': 'Diventa supporter',
     'sup.how': 'Cosa ottieni diventando supporter',
     'sup.perk1': 'Temi e pacchetti esclusivi: un nuovo drop supporter ogni mese, e ciò che sblocchi resta tuo per sempre.',
@@ -705,7 +748,8 @@ const I18N = {
     'sort.feat': '추천순', 'sort.new': '최신순', 'sort.name': '이름 A–Z',
     'sec.tag': '독점', 'sec.seeall': '모두 보기 →',
     'sec.limited': '한정판 드롭', 'sec.limited_sub': '전 세계 한정 수량, Discord에서 예약합니다. 소진되면 끝입니다.',
-    'sec.freehead': '커뮤니티의 무료 작품', 'sec.newhead': '방금 추가됨', 'sec.archive': '보관함', 'sec.archive_sub': '모든 사본이 소진된 드롭입니다. 기록으로 남아 검색할 수 있습니다.', 'preview.banner': '레이아웃 미리보기 — 실제 카탈로그가 아닙니다. 여기의 내용은 공개되지 않습니다.',
+    'rail.prev': '이전', 'rail.next': '다음',
+    'sec.freehead': '커뮤니티의 무료 작품', 'sec.newhead': '방금 추가됨', 'sec.archive': '보관함', 'sec.archive_sub': '모든 사본이 소진된 드롭입니다. 기록으로 남아 검색할 수 있습니다.', 'preview.banner': '레이아웃 미리보기. 실제 카탈로그가 아닙니다. 여기의 내용은 공개되지 않습니다.',
     'sec.supporters': '서포터', 'sec.supporters_sub': 'Xenon을 후원하는 분을 위한 전용 테마와 패키지. 서포터가 되면 개인 코드를 받아 잠금을 해제할 수 있습니다.', 'sec.supporters_join': '서포터 되기',
     'sup.how': '서포터가 되면 받는 혜택',
     'sup.perk1': '독점 테마와 패키지: 매달 새로운 서포터 드롭, 한 번 잠금 해제한 것은 영원히 당신의 것.',
@@ -742,7 +786,8 @@ const I18N = {
     'sort.feat': 'おすすめ', 'sort.new': '新着', 'sort.name': '名前 A–Z',
     'sec.tag': '限定', 'sec.seeall': 'すべて見る →',
     'sec.limited': '限定ドロップ', 'sec.limited_sub': '世界で数量限定、Discordで予約します。なくなり次第終了です。',
-    'sec.freehead': 'コミュニティの無料作品', 'sec.newhead': '新着', 'sec.archive': 'アーカイブ', 'sec.archive_sub': 'すべての配布が終了したドロップ。記録として残り、検索できます。', 'preview.banner': 'レイアウトのプレビュー — 公開中のカタログではありません。ここの内容は公開されません。',
+    'rail.prev': '前へ', 'rail.next': '次へ',
+    'sec.freehead': 'コミュニティの無料作品', 'sec.newhead': '新着', 'sec.archive': 'アーカイブ', 'sec.archive_sub': 'すべての配布が終了したドロップ。記録として残り、検索できます。', 'preview.banner': 'レイアウトのプレビュー。公開中のカタログではありません。ここの内容は公開されません。',
     'sec.supporters': 'サポーター', 'sec.supporters_sub': 'Xenonを支援する方のための専用テーマとパッケージ。サポーターになると個人コードを受け取り、アンロックできます。', 'sec.supporters_join': 'サポーターになる',
     'sup.how': 'サポーターになると得られるもの',
     'sup.perk1': '限定テーマとパッケージ: 毎月新しいサポータードロップが届き、アンロックしたものはずっとあなたのもの。',
@@ -779,7 +824,8 @@ const I18N = {
     'sort.feat': '精选', 'sort.new': '最新', 'sort.name': '名称 A–Z',
     'sec.tag': '专属', 'sec.seeall': '查看全部 →',
     'sec.limited': '限量发布', 'sec.limited_sub': '全球数量固定，在 Discord 预订。售完即止。',
-    'sec.freehead': '社区免费作品', 'sec.newhead': '最新添加', 'sec.archive': '归档', 'sec.archive_sub': '所有份数均已发完的发行。保留在此，仍可搜索。', 'preview.banner': '布局预览 — 这不是正式目录。此处的内容不会发布。',
+    'rail.prev': '上一个', 'rail.next': '下一个',
+    'sec.freehead': '社区免费作品', 'sec.newhead': '最新添加', 'sec.archive': '归档', 'sec.archive_sub': '所有份数均已发完的发行。保留在此，仍可搜索。', 'preview.banner': '布局预览。这不是正式目录。此处的内容不会发布。',
     'sec.supporters': '支持者', 'sec.supporters_sub': '为支持 Xenon 的人保留的主题和套件。成为支持者即可获得专属代码并解锁。', 'sec.supporters_join': '成为支持者',
     'sup.how': '成为支持者可获得',
     'sup.perk1': '专属主题与套件：每月都有新的支持者内容，解锁后永久归你所有。',
@@ -860,7 +906,7 @@ function applyLang(lang) {
   const COFFEE = 'https://www.buymeacoffee.com/marcimastro98';
   const DISCORD_URL = 'https://discord.gg/MBVrw9kZyg';
   const HUB_BASE = 'https://xenon-supporter-hub.xenonedge.workers.dev';
-  const SUPPORT_EMAIL = 'supportxenon@protonmail.com';
+  const SUPPORT_EMAIL = 'support@xenon-app.com';
 
   // Limited-edition drop (mirrors the app/server): legacy drops reserve through
   // Discord; Hub-backed drops claim automatically. Both may carry no public code.
@@ -1811,8 +1857,16 @@ function applyLang(lang) {
     s.appendChild(head); s.appendChild(compact ? gridOf(sortList(items)) : dropsOf(items, false));
     return s;
   }
-  function supportersStrip(items, compact) {
-    const s = el('div', 'sup-strip');
+  /* The supporter tier comes in two pieces, drawn in two places on purpose.
+
+     This one is the FRAME: what the tier is, what it gets you, how long it lasts
+     and how the code reaches you. It answers "what am I looking at", which is only
+     worth anything before you have scrolled past the whole page — so it sits at the
+     top, above the shelves, and not in the middle among the sections where it used
+     to be. It renders whenever the tier exists at all, including when every entry
+     is up in the spotlight and there are no cards left to show. */
+  function supportersFrame() {
+    const s = el('div', 'sup-strip sup-frame');
     const head = el('div', 'sup-head');
     const h2 = el('h2'); h2.appendChild(cico('star')); h2.appendChild(document.createTextNode(T('sec.supporters'))); head.appendChild(h2);
     head.appendChild(el('span', 'stag', T('sec.tag')));
@@ -1835,9 +1889,18 @@ function applyLang(lang) {
     reg.appendChild(mail);
     perks.appendChild(reg);
     s.appendChild(perks);
-    // Empty when the whole tier is up in the spotlight — the strip is then just
-    // its explainer and its join buttons, which is exactly what should survive.
-    if (items.length) s.appendChild(compact ? gridOf(sortList(items)) : dropsOf(items, true));
+    return s;
+  }
+  /* And this one is the SHELF: the drops themselves, in the admin's chosen slot.
+     It keeps a heading — a row of cards with no title in the middle of a page is a
+     puzzle — but not a second copy of the explainer sitting above it. */
+  function supportersShelf(items, compact) {
+    const s = el('div', 'sup-strip');
+    const head = el('div', 'sup-head sup-head-slim');
+    const h2 = el('h2'); h2.appendChild(cico('star')); h2.appendChild(document.createTextNode(T('sec.supporters'))); head.appendChild(h2);
+    head.appendChild(el('span', 'kcnt', String(items.length)));
+    s.appendChild(head);
+    s.appendChild(compact ? gridOf(sortList(items)) : dropsOf(items, true));
     return s;
   }
   /* Sold-out drops. They used to sit in the Limited strip whenever nothing was
@@ -1865,6 +1928,18 @@ function applyLang(lang) {
      day is a cost, so the threshold comes from the layout (0 = never) and the
      user's reduced-motion setting always wins. Pauses on touch and on hover so
      it can never slide out from under a finger. */
+  const RAIL_GAP = 14;
+  function railArrow(dir) {
+    const b = el('button', 'rail-arw ' + (dir < 0 ? 'prev' : 'next'));
+    b.type = 'button';
+    b.setAttribute('aria-label', T(dir < 0 ? 'rail.prev' : 'rail.next'));
+    // Static, author-written markup — the only kind that may be assigned as HTML.
+    b.innerHTML = dir < 0
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
+    return b;
+  }
+
   function makeRail(strip, block, count) {
     const row = strip.querySelector('.drops');
     if (!row) return strip;
@@ -1875,26 +1950,143 @@ function applyLang(lang) {
     // like it was meant to be there.
     if (row.children.length < 2) return strip;
     row.classList.add('cat-rail');
+
+    const parent = row.parentNode;
+    const wrap = el('div', 'rail-wrap');
+    const view = el('div', 'rail-view');
+    parent.replaceChild(wrap, row);
+    view.appendChild(row);
+    wrap.append(view, railArrow(-1), railArrow(1));
+    const prev = wrap.querySelector('.rail-arw.prev');
+    const next = wrap.querySelector('.rail-arw.next');
+
+    /* The position is a CARD INDEX, not a pixel offset. Snapping a free offset to
+       the nearest multiple of the card width looks equivalent and is not: the last
+       step of a rail is almost always a PARTIAL one (three 680px cards in a 1107px
+       view leave 961px of travel against a 694px stride), so the clamp asks for
+       -961 and the snap rounds it straight back to -694. The rail then refuses to
+       reach its own end, and the arrow at that end never disables — measured. An
+       index cannot disagree with itself: the last index simply means "flush right". */
+    let idx = 0;
+    let at = 0;          // the offset currently painted, in px, always <= 0
+    let drag = null;     // { id, x0, from, moved }
+
+    // Read the geometry every time rather than caching it: the card width is a
+    // clamp against the viewport, and the page is used at 32:9 and on a phone.
+    const stride = () => {
+      const c = row.firstElementChild;
+      return (c ? c.getBoundingClientRect().width : 260) + RAIL_GAP;
+    };
+    // Measured off the children, not off row.scrollWidth: the row does not scroll
+    // any more, and how a non-scrolling flex container reports scrollWidth for
+    // children that overflow it is not something to bet the arrows on twice.
+    const contentW = () => {
+      let w = 0;
+      for (let i = 0; i < row.children.length; i++) {
+        w += row.children[i].getBoundingClientRect().width + (i ? RAIL_GAP : 0);
+      }
+      return w;
+    };
+    const maxShift = () => Math.max(0, Math.round(contentW() - view.clientWidth));
+    const lastIdx = () => { const lim = maxShift(); return lim <= 0 ? 0 : Math.ceil(lim / stride()); };
+    const offsetOf = (i) => -Math.min(Math.max(0, i) * stride(), maxShift());
+
+    const paint = (px, animate) => {
+      at = px;
+      row.classList.toggle('is-dragging', !animate);
+      row.style.transform = 'translateX(' + Math.round(px) + 'px)';
+    };
+    const goto = (i, animate) => {
+      idx = Math.max(0, Math.min(lastIdx(), i));
+      paint(offsetOf(idx), animate);
+      // A disabled arrow is the only honest way to say "this is the end".
+      prev.disabled = idx <= 0;
+      next.disabled = idx >= lastIdx();
+    };
+    // After a drag, land on whichever index is actually closest — not on the one
+    // the raw pixel count rounds to, which is wrong for that same partial last step.
+    const nearest = (px) => {
+      let best = 0, bd = Infinity;
+      for (let i = 0; i <= lastIdx(); i++) {
+        const d = Math.abs(offsetOf(i) - px);
+        if (d < bd) { bd = d; best = i; }
+      }
+      return best;
+    };
+
+    prev.addEventListener('click', () => { pause(); goto(idx - 1, true); });
+    next.addEventListener('click', () => { pause(); goto(idx + 1, true); });
+
+    // Dragging replaces the native swipe the overflow scroller used to give us for
+    // free. Without it the rail would be arrow-only, which on a touchscreen is a
+    // regression however good the arrows look.
+    row.addEventListener('pointerdown', (e) => {
+      if (e.button != null && e.button !== 0) return;
+      drag = { id: e.pointerId, x0: e.clientX, from: at, moved: 0 };
+      row.setPointerCapture && row.setPointerCapture(e.pointerId);
+    });
+    row.addEventListener('pointermove', (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const dx = e.clientX - drag.x0;
+      if (Math.abs(dx) > drag.moved) drag.moved = Math.abs(dx);
+      // Rubber-band a little past the ends rather than stopping dead: a row that
+      // stops moving under the finger reads as broken, not as finished.
+      if (drag.moved > 6) {
+        pause();
+        const raw = drag.from + dx;
+        const lim = maxShift();
+        paint(raw > 0 ? raw / 3 : raw < -lim ? -lim + (raw + lim) / 3 : raw, false);
+      }
+    });
+    const endDrag = (e) => {
+      if (!drag || (e.pointerId != null && e.pointerId !== drag.id)) return;
+      const moved = drag.moved;
+      drag = null;
+      if (moved > 6) goto(nearest(at), true);
+      else row.classList.remove('is-dragging');
+    };
+    row.addEventListener('pointerup', endDrag);
+    row.addEventListener('pointercancel', endDrag);
+    // A drag ends over a card, so the browser fires its click too. Swallow it in
+    // the capture phase, before the card's own handler opens an entry the user was
+    // only sliding past.
+    row.addEventListener('click', (e) => {
+      if (drag && drag.moved > 6) { e.stopPropagation(); e.preventDefault(); }
+    }, true);
+
+    // Keep the offset legal when the window resizes: a wider view can leave the
+    // rail parked past its own end, showing empty space where cards used to be.
+    let rt = null;
+    window.addEventListener('resize', () => {
+      if (rt) clearTimeout(rt);
+      rt = setTimeout(() => { rt = null; goto(idx, true); }, 150);
+    });
+
+    goto(0, true);
+
+    /* Self-advance, only when there are enough cards to be worth it. Motion on a
+       screen that is on all day is a cost, so the threshold comes from the layout
+       (0 = never) and reduced-motion always wins. It pauses on hover, on focus and
+       for good after the first manual move: once someone has driven the rail
+       themselves, taking it back off them is the rude version. */
+    let timer = null, paused = false, given = false;
+    const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+    const start = () => { if (!timer && !given) timer = setInterval(tick, 4200); };
+    function pause() { given = true; stop(); }
+    function tick() {
+      if (paused || given || !row.isConnected) return;
+      // Wrap at the end instead of stalling against it.
+      goto(idx >= lastIdx() ? 0 : idx + 1, true);
+    }
     if (!sfAutoplay(block, count)) return strip;
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return strip;
-    let timer = null, paused = false;
-    const step = () => {
-      if (paused || !row.isConnected) return;
-      const card = row.firstElementChild;
-      const by = card ? card.getBoundingClientRect().width + 14 : 260;
-      // Wrap at the end instead of stalling against the edge.
-      const atEnd = row.scrollLeft + row.clientWidth >= row.scrollWidth - 4;
-      row.scrollTo({ left: atEnd ? 0 : row.scrollLeft + by, behavior: 'smooth' });
-    };
-    const start = () => { if (!timer) timer = setInterval(step, 4200); };
-    const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
-    ['pointerdown', 'pointerenter', 'focusin'].forEach((ev) => row.addEventListener(ev, () => { paused = true; stop(); }));
-    ['pointerleave', 'focusout'].forEach((ev) => row.addEventListener(ev, () => { paused = false; start(); }));
-    // A rail nobody can see must not keep scrolling: the page can sit open for
-    // hours on the same display the dashboard runs on.
+    ['pointerenter', 'focusin'].forEach((ev) => wrap.addEventListener(ev, () => { paused = true; stop(); }));
+    ['pointerleave', 'focusout'].forEach((ev) => wrap.addEventListener(ev, () => { paused = false; start(); }));
+    // A rail nobody can see must not keep moving: the page can sit open for hours
+    // on the same display the dashboard runs on.
     if (typeof IntersectionObserver === 'function') {
       const io = new IntersectionObserver((es) => { es.forEach((e) => { if (e.isIntersecting) start(); else stop(); }); }, { threshold: 0.15 });
-      io.observe(row);
+      io.observe(wrap);
     } else start();
     document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); else if (!paused) start(); });
     return strip;
@@ -2011,6 +2203,15 @@ function applyLang(lang) {
       // ONE pass over the admin's order. Every block is responsible only for
       // whether it has anything to say; the order and the shape are data.
       const cap = (list, b) => (b.max > 0 ? list.slice(0, b.max) : list);
+
+      // The supporter explainer leads the page, ahead of the admin's block order.
+      // Its position is not a layout choice: it is what the tier IS, and a reader
+      // who meets a locked card before meeting this has to guess. The block's own
+      // slot below still decides where the DROPS go, and turning the block off
+      // still removes both halves.
+      const supBlock = LAYOUT.find((b) => b.type === 'supporters');
+      if (supTier.length && supBlock && supBlock.on) frag.appendChild(supportersFrame());
+
       LAYOUT.forEach((b) => {
         if (!b.on) return;
         if (b.type === 'spotlight') {
@@ -2021,10 +2222,12 @@ function applyLang(lang) {
           // a grid is not a rail and must not be auto-scrolled.
           if (items.length) frag.appendChild(makeRail(limitedStrip(items, b.form === 'grid'), b, items.length));
         } else if (b.type === 'supporters') {
-          // Renders whenever the tier exists, even with every entry up in the
-          // spotlight: it carries the perks panel and the join button, which are
-          // the whole point of the tier. Only its cards empty out.
-          if (supTier.length) frag.appendChild(makeRail(supportersStrip(cap(sup, b), b.form === 'grid'), b, sup.length));
+          // Cards only — the explainer already led the page. With the whole tier up
+          // in the spotlight there is nothing left to shelve, and an empty gold box
+          // saying "Supporters only" under a section heading is worse than no
+          // section at all.
+          const items = cap(sup, b);
+          if (items.length) frag.appendChild(makeRail(supportersShelf(items, b.form === 'grid'), b, items.length));
         } else if (b.type === 'new') {
           const items = cap(free.slice().sort((x, y) => (y.addedAt || 0) - (x.addedAt || 0)), b.max ? b : { ...b, max: 8 });
           if (items.length) {
