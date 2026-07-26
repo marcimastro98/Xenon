@@ -2054,12 +2054,22 @@ function applyLang(lang) {
       if (drag && drag.moved > 6) { e.stopPropagation(); e.preventDefault(); }
     }, true);
 
+    /* Two listeners here live on window/document rather than on the rail, and
+       paint() replaces the whole content on every filter change — so each render
+       would leave the previous rails' handlers behind, holding their DOM and
+       measuring layout for rows nobody can see. Neither has a teardown hook to
+       hang off, so each one removes ITSELF the first time it runs detached. */
+    const selfCleaning = (target, ev, fn) => {
+      const h = (e) => { if (!row.isConnected) { target.removeEventListener(ev, h); return; } fn(e); };
+      target.addEventListener(ev, h);
+    };
+
     // Keep the offset legal when the window resizes: a wider view can leave the
     // rail parked past its own end, showing empty space where cards used to be.
     let rt = null;
-    window.addEventListener('resize', () => {
+    selfCleaning(window, 'resize', () => {
       if (rt) clearTimeout(rt);
-      rt = setTimeout(() => { rt = null; goto(idx, true); }, 150);
+      rt = setTimeout(() => { rt = null; if (row.isConnected) goto(idx, true); }, 150);
     });
 
     goto(0, true);
@@ -2074,7 +2084,10 @@ function applyLang(lang) {
     const start = () => { if (!timer && !given) timer = setInterval(tick, 4200); };
     function pause() { given = true; stop(); }
     function tick() {
-      if (paused || given || !row.isConnected) return;
+      // A repaint detaches the rail without telling anyone: end the interval here
+      // rather than letting it wake up forever against an orphaned row.
+      if (!row.isConnected) { stop(); return; }
+      if (paused || given) return;
       // Wrap at the end instead of stalling against it.
       goto(idx >= lastIdx() ? 0 : idx + 1, true);
     }
@@ -2085,10 +2098,15 @@ function applyLang(lang) {
     // A rail nobody can see must not keep moving: the page can sit open for hours
     // on the same display the dashboard runs on.
     if (typeof IntersectionObserver === 'function') {
-      const io = new IntersectionObserver((es) => { es.forEach((e) => { if (e.isIntersecting) start(); else stop(); }); }, { threshold: 0.15 });
+      const io = new IntersectionObserver((es) => {
+        // A detached rail keeps the observer alive through its own callback, so
+        // this is where the observer stops observing.
+        if (!row.isConnected) { io.disconnect(); stop(); return; }
+        es.forEach((e) => { if (e.isIntersecting) start(); else stop(); });
+      }, { threshold: 0.15 });
       io.observe(wrap);
     } else start();
-    document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); else if (!paused) start(); });
+    selfCleaning(document, 'visibilitychange', () => { if (document.hidden) stop(); else if (!paused) start(); });
     return strip;
   }
 
