@@ -30,7 +30,7 @@
   const DISCORD_URL = 'https://discord.gg/MBVrw9kZyg';
   // Where supporters send their email/donation screenshot to be registered and
   // receive their personal access code (rendered only as a mailto: link).
-  const SUPPORT_EMAIL = 'supportxenon@protonmail.com';
+  const SUPPORT_EMAIL = 'support@xenon-app.com';
   // The drop's OWN Discord destination, '' when the entry sets none. The generic
   // server invite is only an acceptable last resort for a Discord-only drop: put
   // next to a working "Claim your copy" it lands you on the welcome channel with
