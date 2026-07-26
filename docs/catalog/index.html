@@ -234,11 +234,20 @@
   .arch-strip:hover { opacity: 1; }
   .arch-strip .drops { filter: saturate(.55); }
   .arch-strip:hover .drops { filter: none; }
-  /* A rail: one row, swipeable, snapping, with the scrollbar out of the way. */
-  .cat-rail { display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+  /* A rail: one row, swipeable, snapping, with the scrollbar out of the way.
+     Written as .drops.cat-rail on purpose. `.drops { display: grid }` is declared
+     BELOW this block at equal specificity, so a plain `.cat-rail` lost the cascade
+     on the only element it is ever applied to — every rail silently stayed a
+     single-column grid of full-width hero cards, which is why the supporter and
+     limited sections ate a screenful each and the auto-scroll scrolled an element
+     with no horizontal overflow to scroll. Two classes beat one whatever the order. */
+  .drops.cat-rail { display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
               scroll-snap-type: x mandatory; scroll-behavior: smooth;
               gap: 14px; padding-bottom: 6px; scrollbar-width: thin; }
-  .cat-rail > * { scroll-snap-align: start; flex: 0 0 auto; }
+  /* A hero card is a 2-column grid with fr tracks: inside a flex row with no width
+     it sizes to its content and one card fills the viewport, which is the stack
+     again with extra steps. Give the rail a card width and the row reads as a row. */
+  .drops.cat-rail > * { scroll-snap-align: start; flex: 0 0 min(620px, 88vw); }
   .cat-rail::-webkit-scrollbar { height: 6px; }
   .cat-rail::-webkit-scrollbar-thumb { background: rgba(255,255,255,.16); border-radius: 3px; }
   @media (prefers-reduced-motion: reduce) { .cat-rail { scroll-behavior: auto; } }
@@ -915,9 +924,9 @@ function applyLang(lang) {
   // shipped as three-way choices and only sfAutoplay ever read the value, so
   // every alternative rendered exactly the same section.
   const SF_FORMS = {
-    spotlight: ['hero-column'], limited: ['carousel'],
-    supporters: ['rail'], new: ['grid'],
-    kinds: ['grid'], archive: ['rail-quiet'],
+    spotlight: ['hero-column'], limited: ['carousel', 'grid'],
+    supporters: ['rail', 'grid'], new: ['grid'],
+    kinds: ['grid'], archive: ['rail-quiet', 'grid'],
   };
   const SF_SOURCES = {
     spotlight: ['manual'], limited: ['auto-live', 'auto-all'],
@@ -1779,16 +1788,20 @@ function applyLang(lang) {
     wrap.appendChild(gridOf(items.slice(0, SECTION_PREVIEW)));
     return wrap;
   }
-  function limitedStrip(items) {
+  /* `compact` swaps the tall hero cards for the small grid the kind sections
+     already use. This is what the form control is FOR: a tier drawn as hero cards
+     costs a screenful even as a rail, which is the "they take too much space"
+     complaint — and it is the one form choice that visibly changes the page. */
+  function limitedStrip(items, compact) {
     const s = el('div', 'lim-strip');
     const head = el('div', 'lim-head');
     head.appendChild(el('h2', null, T('sec.limited')));
     head.appendChild(el('span', 'stag', T('sec.tag')));
     head.appendChild(el('span', 'ssub', T('sec.limited_sub')));
-    s.appendChild(head); s.appendChild(dropsOf(items, false));
+    s.appendChild(head); s.appendChild(compact ? gridOf(sortList(items)) : dropsOf(items, false));
     return s;
   }
-  function supportersStrip(items) {
+  function supportersStrip(items, compact) {
     const s = el('div', 'sup-strip');
     const head = el('div', 'sup-head');
     const h2 = el('h2'); h2.appendChild(cico('star')); h2.appendChild(document.createTextNode(T('sec.supporters'))); head.appendChild(h2);
@@ -1814,7 +1827,7 @@ function applyLang(lang) {
     s.appendChild(perks);
     // Empty when the whole tier is up in the spotlight — the strip is then just
     // its explainer and its join buttons, which is exactly what should survive.
-    if (items.length) s.appendChild(dropsOf(items, true));
+    if (items.length) s.appendChild(compact ? gridOf(sortList(items)) : dropsOf(items, true));
     return s;
   }
   /* Sold-out drops. They used to sit in the Limited strip whenever nothing was
@@ -1827,13 +1840,13 @@ function applyLang(lang) {
      whether it is INSTALLABLE. Showing retired work as history is a different
      feature (list it, refuse the install) and needs its own change on both
      surfaces — do not add "retired" to the copy here until it does. */
-  function archiveStrip(items) {
+  function archiveStrip(items, compact) {
     const s = el('div', 'arch-strip');
     const head = el('div', 'lim-head');
     head.appendChild(el('h2', null, T('sec.archive')));
     head.appendChild(el('span', 'ssub', T('sec.archive_sub')));
     s.appendChild(head);
-    s.appendChild(dropsOf(items, false));
+    s.appendChild(compact ? gridOf(sortList(items)) : dropsOf(items, false));
     return s;
   }
 
@@ -1989,12 +2002,14 @@ function applyLang(lang) {
           if (spot.main) frag.appendChild(spotlightBlock(spot.main, spot.side));
         } else if (b.type === 'limited') {
           const items = cap(limitedShown, b);
-          if (items.length) frag.appendChild(makeRail(limitedStrip(items), b, items.length));
+          // makeRail finds no `.drops` in a compact strip, so it leaves it alone —
+          // a grid is not a rail and must not be auto-scrolled.
+          if (items.length) frag.appendChild(makeRail(limitedStrip(items, b.form === 'grid'), b, items.length));
         } else if (b.type === 'supporters') {
           // Renders whenever the tier exists, even with every entry up in the
           // spotlight: it carries the perks panel and the join button, which are
           // the whole point of the tier. Only its cards empty out.
-          if (supTier.length) frag.appendChild(makeRail(supportersStrip(cap(sup, b)), b, sup.length));
+          if (supTier.length) frag.appendChild(makeRail(supportersStrip(cap(sup, b), b.form === 'grid'), b, sup.length));
         } else if (b.type === 'new') {
           const items = cap(free.slice().sort((x, y) => (y.addedAt || 0) - (x.addedAt || 0)), b.max ? b : { ...b, max: 8 });
           if (items.length) {
@@ -2010,7 +2025,7 @@ function applyLang(lang) {
             frag.appendChild(blk);
           }
         } else if (b.type === 'archive') {
-          if (archive.length) frag.appendChild(makeRail(archiveStrip(cap(archive, b)), b, archive.length));
+          if (archive.length) frag.appendChild(makeRail(archiveStrip(cap(archive, b), b.form === 'grid'), b, archive.length));
         } else if (b.type === 'kinds') {
           // Free entries sit under a deliberately quieter eyebrow, so the tiers
           // above keep the visual priority (mirrors the homepage hierarchy).

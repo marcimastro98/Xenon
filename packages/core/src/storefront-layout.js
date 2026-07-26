@@ -47,11 +47,11 @@
    */
   const FORMS = {
     spotlight: ['hero-column'],
-    limited: ['carousel'],
-    supporters: ['rail'],
+    limited: ['carousel', 'grid'],
+    supporters: ['rail', 'grid'],
     new: ['grid'],
     kinds: ['grid'],
-    archive: ['rail-quiet'],
+    archive: ['rail-quiet', 'grid'],
   };
 
   // Where a block's entries come from. Same rule: one value unless the choice

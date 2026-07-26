@@ -1462,10 +1462,12 @@
     // way the website catalog does. Without it the lone 232px card sat at the
     // left edge of a full-width shelf with the rest of the row empty, and its
     // description stayed clipped to two lines while there was room to spare.
-    function cardGrid(items, limit, noId) {
+    // `dupIds`, when given, decides noId PER CARD — a tier shelf carries entries
+    // that are also up in the spotlight, and only those may skip the DOM id.
+    function cardGrid(items, limit, noId, dupIds) {
       const list = typeof limit === 'number' ? items.slice(0, limit) : items;
       const grid = el('div', 'cgal-grid' + (list.length === 1 ? ' is-solo' : ''));
-      list.forEach((e) => grid.appendChild(renderCard(e, noId)));
+      list.forEach((e) => grid.appendChild(renderCard(e, dupIds ? dupIds.has(e.id) : noId)));
       return grid;
     }
     function section(k, items, iconName, titleText, noId) {
@@ -1546,7 +1548,12 @@
       // More cards than fit the width scroll horizontally with a finger swipe
       // (.cgal-hrail, native overflow-x pan); nothing is cut to a preview count.
       // A single entry keeps the wide solo card instead of a lonely rail.
-      if (opts.items.length === 1) {
+      // `compact` (the layout's form: 'grid') draws the ordinary card grid instead
+      // of the wide shelf. A tier of wide cards costs a screenful, which is the
+      // whole reason the form control exists — same choice as the website catalog.
+      if (opts.compact) {
+        wrap.appendChild(cardGrid(opts.items, null, false, opts.dupIds));
+      } else if (opts.items.length === 1) {
         wrap.appendChild(cardGrid(opts.items, 1, !!(opts.dupIds && opts.dupIds.has(opts.items[0].id))));
       } else if (opts.items.length) {
         const rail = el('div', 'cgal-hrail');
@@ -1657,7 +1664,7 @@
             // on its shelf, not as the 2 left over after the spotlight.
             const items = cap(shelfLimited, b);
             if (items.length) frag.appendChild(featureSection({
-              items, dupIds: spotIds, iconName: 'limited', cls: 'is-limited', seeAllKind: '__limited',
+              items, dupIds: spotIds, compact: b.form === 'grid', iconName: 'limited', cls: 'is-limited', seeAllKind: '__limited',
               title: t('gallery_limited_section', 'Limited edition'),
               lead: t('gallery_limited_lead_short', 'A fixed number of copies worldwide — reserved on Discord.'),
             }));
@@ -1666,7 +1673,7 @@
             // spotlight: it carries the "how it works" panel and the join
             // button, which are the whole conversion path.
             if (supporters.length) frag.appendChild(featureSection({
-              items: cap(sortList(supporters), b), dupIds: spotIds, iconName: 'supporters', cls: 'is-sup', seeAllKind: '__supporters',
+              items: cap(sortList(supporters), b), dupIds: spotIds, compact: b.form === 'grid', iconName: 'supporters', cls: 'is-sup', seeAllKind: '__supporters',
               title: t('gallery_supporters_section', 'Supporters'),
               lead: t('gallery_supporters_lead', 'Themes and packs reserved for Xenon supporters — become one to unlock them.'),
               joinLabel: t('gallery_supporters_join', 'Become a supporter'), joinHref: BMC_URL, joinIcon: 'supporters',
@@ -1683,7 +1690,7 @@
             if (items.length) frag.appendChild(plainBlock(t('gallery_justadded', 'Just added'), 'new', items, true));
           } else if (b.type === 'archive') {
             if (archive.length) frag.appendChild(featureSection({
-              items: cap(archive, b), dupIds: spotIds, iconName: 'archive', cls: 'is-archive', seeAllKind: '__limited',
+              items: cap(archive, b), dupIds: spotIds, compact: b.form === 'grid', iconName: 'archive', cls: 'is-archive', seeAllKind: '__limited',
               title: t('gallery_archive_section', 'Archive'),
               lead: t('gallery_archive_lead', 'Drops whose copies are all gone. They stay here so the work remains visible, and searchable.'),
             }));
