@@ -544,6 +544,10 @@ function normalizeManifest(raw, folderId) {
   const badge = raw.badge === true;
   const clipboard = raw.clipboard === true;
   const accent = raw.accent === true;
+  // Asking to cover the dashboard. Normalized away for an ambient package: an
+  // Ambient scene already owns the whole screen, so the grant would be a
+  // permission line that buys the user nothing.
+  const expand = raw.expand === true && raw.surface !== 'ambient';
   return {
     ok: true,
     manifest: {
@@ -585,6 +589,14 @@ function normalizeManifest(raw, folderId) {
       // "album theme" toggle, and it is released the moment the widget goes away.
       // Enforced host-side in js/custom-widget.js, like clipboard.
       accent,
+      // The widget may ask to paint its tile over the whole dashboard — the same
+      // thing `browserOpen`'s `expand` does for the Browser tile, for a package
+      // whose content genuinely needs the room (a board, a map, a game). Like
+      // clipboard it is widget-INITIATED but never silent: the host requires a
+      // live user gesture, draws its own way out, and collapses on Escape, on a
+      // page change and on teardown. Host-side only, so there is no server
+      // enforcement here — the grant is what this flag feeds.
+      expand,
       entry,
       streams: cleanList(raw.streams, SDK_STREAMS, SDK_STREAMS.length),
       actions,

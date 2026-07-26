@@ -511,6 +511,7 @@
       badge: !!(grant && grant.badge === true),
       clipboard: !!(grant && grant.clipboard === true),
       accent: !!(grant && grant.accent === true),
+      expand: !!(grant && grant.expand === true),
       // Addresses the user typed into the package's userHosts slots, keyed by
       // slot id. Raw — resolvedUserHosts() applies the manifest's rules.
       userHosts: (grant && grant.userHosts && typeof grant.userHosts === 'object' && !Array.isArray(grant.userHosts)) ? grant.userHosts : {},
@@ -978,6 +979,134 @@
       .then((ok) => reply(!!ok, ok ? undefined : 'declined'));
   }
 
+  // ── Fullscreen tile (`expand` capability) ────────────────────────────────
+  // A granted widget may ask to paint its tile over the whole dashboard — the
+  // same thing `browserOpen`'s `expand` already does for the Browser tile, for
+  // packages whose content genuinely needs the room (a board, a map, a game).
+  //
+  // How it is done matters as much as that it is done: the tile is expanded IN
+  // PLACE with a class, never re-parented. Moving an iframe in the DOM reloads
+  // it, which would restart the widget and throw away whatever it held in
+  // memory on the way in AND on the way out. `position: fixed` escapes the
+  // GridStack ancestors (verified on the live dashboard: no transform, filter,
+  // containment or container-type anywhere in the chain), so a class is enough.
+  //
+  // Deliberate limits:
+  //   - It needs a live USER GESTURE. A tap inside the sandboxed frame carries
+  //     user activation to the host for a few seconds, which is the same signal
+  //     the clipboard capability leans on. Without it a widget could take the
+  //     screen while the user was reading something else.
+  //   - ONE at a time, tiles only — never a service frame (nothing to show) and
+  //     never an ambient scene (already fullscreen).
+  //   - The way out is host-drawn and never the widget's to remove: a ✕ the
+  //     host owns, Escape, a page change, layout editing, or the tile going
+  //     away. Collapsing is therefore always allowed and never rate-limited.
+  let expandedEntry = null;
+  let expandEscHandler = null;
+  let expandPageHandler = null;
+
+  function expandWrapOf(entry) {
+    const f = entry && entry.frame;
+    return (f && typeof f.closest === 'function') ? f.closest('.cw-wrap') : null;
+  }
+
+  function postExpandState(entry, expanded) {
+    if (!entry || !entry.frame || !entry.frame.isConnected) return;
+    post(entry, { type: 'expand_state', expanded: !!expanded });
+  }
+
+  function expandWidget(entry) {
+    const wrap = expandWrapOf(entry);
+    if (!wrap) return false;
+    if (expandedEntry && expandedEntry !== entry) collapseExpanded();
+    wrap.classList.add('cw-expanded');
+    document.body.classList.add('cw-has-expanded');
+
+    let close = wrap.querySelector('.cw-expand-close');
+    if (!close) {
+      close = el('button', 'cw-expand-close', '✕');
+      close.type = 'button';
+      close.title = t('cw_collapse', 'Close');
+      close.setAttribute('aria-label', t('cw_collapse', 'Close'));
+      close.addEventListener('click', () => collapseExpanded());
+      wrap.appendChild(close);
+    }
+    close.hidden = false;
+
+    expandedEntry = entry;
+    if (!expandEscHandler) {
+      expandEscHandler = (e) => { if (e.key === 'Escape') collapseExpanded(); };
+      document.addEventListener('keydown', expandEscHandler);
+    }
+    if (!expandPageHandler) {
+      // A parked page gets content-visibility:hidden, which DOES trap a fixed
+      // descendant — so a swipe away from an expanded widget would strand it.
+      expandPageHandler = () => collapseExpanded();
+      window.addEventListener('xenon:page-change', expandPageHandler);
+    }
+    postExpandState(entry, true);
+    return true;
+  }
+
+  function collapseExpanded() {
+    const entry = expandedEntry;
+    if (!entry) return;
+    expandedEntry = null;
+    const wrap = expandWrapOf(entry);
+    if (wrap) {
+      wrap.classList.remove('cw-expanded');
+      const close = wrap.querySelector('.cw-expand-close');
+      if (close) close.remove();
+    }
+    document.body.classList.remove('cw-has-expanded');
+    if (expandEscHandler) { document.removeEventListener('keydown', expandEscHandler); expandEscHandler = null; }
+    if (expandPageHandler) { window.removeEventListener('xenon:page-change', expandPageHandler); expandPageHandler = null; }
+    postExpandState(entry, false);
+  }
+
+  // Called from paint(): the frame can disappear under us (widget swapped,
+  // package uninstalled, safe mode, SDK switched off, layout editing) and every
+  // one of those paths already removes the frame without knowing about this
+  // feature. Without a reconcile the wrap would keep the class and leave an
+  // empty panel covering the dashboard with no way out.
+  function reconcileExpanded() {
+    if (!expandedEntry) return;
+    const entry = expandedEntry;
+    const alive = entry.frame && entry.frame.isConnected && frames.has(instanceIdOfEntry(entry));
+    const stillGranted = grantsFor(entry.pkgId).expand === true;
+    const editing = document.body.classList.contains('layout-editing');
+    if (!alive || !stillGranted || editing || !expandWrapOf(entry)) collapseExpanded();
+  }
+  function instanceIdOfEntry(entry) {
+    for (const [id, e] of frames) if (e === entry) return id;
+    return null;
+  }
+
+  function onBridgeExpand(entry, grant, msg) {
+    const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
+    const reply = (ok, error) => post(entry, { type: 'expand_result', id: reqId, ok, error });
+    // Collapsing is unconditional: a widget must always be able to give the
+    // screen back, whatever state the grant or the page is in.
+    if (msg.on !== true) {
+      if (expandedEntry === entry) collapseExpanded();
+      reply(true);
+      return;
+    }
+    const pkg = packageById(entry.pkgId);
+    if (!pkg || pkg.expand !== true || !grant.expand) { reply(false, 'not_allowed'); return; }
+    if (entry.service || entry.ambient) { reply(false, 'not_allowed'); return; }
+    if (expandedEntry === entry) { reply(true); return; }
+    if (!entryOnScreen(entry)) { reply(false, 'not_visible'); return; }
+    if (document.body.classList.contains('layout-editing')) { reply(false, 'busy'); return; }
+    // `navigator.userActivation` is the only way the host can see a tap that
+    // happened inside an opaque-origin iframe. Where the API is missing there is
+    // nothing to check, so the other gates above carry it.
+    const ua = navigator.userActivation;
+    if (ua && ua.isActive === false) { reply(false, 'no_gesture'); return; }
+    if (!expandWidget(entry)) { reply(false, 'unavailable'); return; }
+    reply(true);
+  }
+
   // ── Dashboard accent tint (`accent` capability) ──────────────────────────
   // A granted widget may push an accent colour to the WHOLE dashboard — the same
   // runtime channel the album-art accent uses. It exists for the sources Windows'
@@ -1108,6 +1237,14 @@
         // Same reason as clipboard: the widget decides whether to drive the
         // dashboard accent at all, so it has to know whether it may.
         accent: grant.accent,
+        // Whether it may ask to cover the dashboard — it has to know so it can
+        // decide whether to draw an "expand" affordance at all.
+        expand: grant.expand && !entry.service && !entry.ambient,
+        // Which frame this is. A `background: true` package runs BOTH a hidden
+        // service frame and any mounted tile, and until now nothing told them
+        // apart — so a package with side effects had to guess which copy of
+        // itself was speaking. Cheap to send, and it closes that guess.
+        service: entry.service === true,
       });
       grant.streams.forEach(stream => {
         if (lastData[stream] !== undefined) post(entry, { type: 'data', stream, data: lastData[stream] });
@@ -1126,6 +1263,10 @@
       // Same reasoning for pop-ups: a widget mounting while a toast is already up
       // must start in the right state, not learn about it at the next transition.
       if (!entry.service) post(entry, { type: 'notice', active: noticeActive });
+      // Same again for expand: a widget that reloads (Rescan, asset bump) while
+      // its tile is the expanded one must come back knowing it is fullscreen,
+      // not draw itself as a small tile inside a full-screen box.
+      if (!entry.service) postExpandState(entry, expandedEntry === entry);
     } else if (d.type === 'action') {
       if (entry.ready) onBridgeAction(entry, grant, d);
     } else if (d.type === 'fetch') {
@@ -1142,6 +1283,8 @@
       if (entry.ready) onBridgeIsland(entry, grant, d);
     } else if (d.type === 'badge') {
       if (entry.ready) onBridgeBadge(entry, grant, d);
+    } else if (d.type === 'expand') {
+      if (entry.ready) onBridgeExpand(entry, grant, d);
     } else if (d.type === 'clipboard') {
       if (entry.ready) onBridgeClipboard(entry, grant, d);
     } else if (d.type === 'accent') {
@@ -1760,6 +1903,7 @@
     const wantsBadge = pkg.badge === true;
     const wantsClipboard = pkg.clipboard === true;
     const wantsAccent = pkg.accent === true;
+    const wantsExpand = pkg.expand === true;
     const storageGroup = typeof pkg.storageGroup === 'string' ? pkg.storageGroup : '';
     if (pkg.streams.length) addSection('cw_perm_streams', 'It can see:', pkg.streams, STREAM_LABELS);
     if (pkg.actions.length) addSection('cw_perm_actions', 'It can do:', pkg.actions, ACTION_LABELS);
@@ -1835,6 +1979,12 @@
     if (wantsAccent) {
       addSection('cw_perm_accent', 'It can tint the dashboard accent colour:', [t('cw_perm_accent_val', 'The accent only, while it runs — your saved theme is never changed')], {});
     }
+    // Expand: the widget can cover the dashboard. Say who ends it, because "it
+    // can take over the screen" without "you close it whenever you like" reads
+    // as something you cannot get out of.
+    if (wantsExpand) {
+      addSection('cw_perm_expand', 'It can fill the screen (when you tap it):', [t('cw_perm_expand_val', 'Only after you touch it, and you close it with Escape or the ✕')], {});
+    }
     // Headless running. The manifest normalizer only keeps `background` when the
     // package has something that outlives a tile (handlers, badge or island), so
     // name whichever it actually is rather than always saying "Deck keys".
@@ -1848,7 +1998,10 @@
           : t('cw_perm_background', 'This widget can keep running hidden in the background so its Deck keys always answer.'));
       panel.appendChild(el('div', 'cw-perm-note', note));
     }
-    if (!pkg.streams.length && !pkg.actions.length && !hosts.length && !userHostSlots.length && !hooks.length && !deckNames.length && !wantsStorage && !wantsSecrets && !wantsIsland && !wantsBadge && !wantsClipboard) {
+    // Every capability that produced a section above must appear here too, or a
+    // widget asking for only that one is announced as "Nothing". `accent` was
+    // already missing; `expand` joins the list in the same breath.
+    if (!pkg.streams.length && !pkg.actions.length && !hosts.length && !userHostSlots.length && !hooks.length && !deckNames.length && !wantsStorage && !wantsSecrets && !wantsIsland && !wantsBadge && !wantsClipboard && !wantsAccent && !wantsExpand) {
       panel.appendChild(el('div', 'cw-perm-sec cw-perm-nothing', t('cw_perm_none', 'Nothing — it only draws its own content')));
     }
     panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_note', 'Widgets run isolated from the dashboard, with no network access, and can only use what you allow here. Only install widgets from people you trust.')));
@@ -1894,7 +2047,7 @@
       if (!uh.ok) { refresh(); return; }
       const cur = sdk();
       const patch = {
-        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, secrets: wantsSecrets, island: wantsIsland, islandDynamic: wantsIslandDynamic, islandFull: wantsIslandFull, badge: wantsBadge, clipboard: wantsClipboard, accent: wantsAccent } },
+        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, secrets: wantsSecrets, island: wantsIsland, islandDynamic: wantsIslandDynamic, islandFull: wantsIslandFull, badge: wantsBadge, clipboard: wantsClipboard, accent: wantsAccent, expand: wantsExpand } },
       };
       if (instId != null) patch.assign = { ...(cur.assign || {}), [instId]: pkg.id };
       persist(patch);
@@ -2199,7 +2352,8 @@
       || (pkg.islandFull === true && !g.islandFull)
       || (pkg.badge === true && !g.badge)
       || (pkg.clipboard === true && !g.clipboard)
-      || (pkg.accent === true && !g.accent);
+      || (pkg.accent === true && !g.accent)
+      || (pkg.expand === true && !g.expand);
   }
   // A declared userHosts slot with no usable address is the same dead end as an
   // ungranted host — the widget would mount and fail every request. But it is
@@ -2237,6 +2391,10 @@
   }
 
   function paint() {
+    // Before anything else: an expanded widget whose frame has gone away (swap,
+    // uninstall, safe mode, SDK off) would otherwise leave a full-screen empty
+    // panel with no way out.
+    reconcileExpanded();
     const seen = new Set();
     tiles().forEach(tile => {
       const mount = tile.querySelector('.custom-widget-mount');

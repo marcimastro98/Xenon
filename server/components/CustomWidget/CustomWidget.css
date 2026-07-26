@@ -46,6 +46,56 @@ body.layout-editing .cw-wrap.cw-mounted .cw-head {
   background: rgba(10, 12, 20, 0.55); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
 }
 
+/* ── Expanded (the `expand` capability) ──────────────────────────────
+   The tile paints over the whole dashboard. Done with a class ON THE WRAP,
+   never by re-parenting it: moving an iframe reloads it, which would restart
+   the widget both entering and leaving. `position: fixed` escapes the
+   GridStack ancestors (nothing in that chain establishes a containing block),
+   so this is all it takes. The tile keeps its slot in the grid underneath. */
+/* Lifting the tile alone is NOT enough, and this is the whole trick: `.shell`
+   is `position: relative; z-index: 1`, so it is a stacking context and every
+   z-index inside it — including the one below — is only ever compared against
+   its siblings IN the shell. Verified live: an expanded tile at z-index 12050
+   still painted under the update overlay (4000), which sits on <body>. So the
+   shell itself is lifted while a widget is expanded.
+
+   70 is chosen, not arbitrary. It clears the edge rails (58) so the fullscreen
+   widget is not fringed by them, and stays below every layer the user
+   deliberately opens: day modal 90, picker 100, game companion 130, tab
+   switcher 180, app switcher 190, settings 220, weather 230, lockscreen and
+   ambient 260, AI 1200, updates 4000. An expanded widget is dashboard content,
+   so anything the user summons must still come over it. */
+body.cw-has-expanded .shell { z-index: 70; }
+
+.cw-wrap.cw-expanded {
+  position: fixed; inset: 0; z-index: 12050;   /* within .shell — see above */
+  width: auto; height: auto; border-radius: 0;
+  padding: 0; gap: 0;
+  background: var(--bg, #070808);
+  animation: cw-expand-in 0.18s ease both;
+}
+@keyframes cw-expand-in { from { opacity: 0; } to { opacity: 1; } }
+.cw-wrap.cw-expanded .cw-frame { border-radius: 0; }
+/* The head would sit over the guest's own top-left while fullscreen. */
+.cw-wrap.cw-expanded .cw-head { display: none !important; }
+
+/* The way out, drawn by the host and not removable by the guest. Matches the
+   Ambient scene's exit: top-right, ~20px inset, comfortable touch target. */
+.cw-expand-close {
+  position: absolute; top: 20px; right: 20px; z-index: 2;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; padding: 0;
+  font-size: 1rem; line-height: 1; cursor: pointer;
+  color: var(--text, #e7e9ee);
+  background: rgba(10, 12, 20, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 50%;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.cw-expand-close:hover { background: rgba(10, 12, 20, 0.78); }
+.cw-expand-close:active { transform: scale(0.94); }
+.cw-wrap:not(.cw-expanded) .cw-expand-close { display: none; }
+
 /* ── Guest iframe ────────────────────────────────────────────────── */
 .cw-body { flex: 1 1 auto; min-height: 0; display: flex; }
 .cw-frame {

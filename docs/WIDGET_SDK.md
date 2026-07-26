@@ -95,6 +95,7 @@ not need to do anything to support it.
 | `badge` | no | `true` → your widget may show a small **always-on** text chip next to the clock, in both topbar chromes. Host-rendered, grant-gated — see *Persistent badge*. |
 | `clipboard` | no | `true` → your widget may **ask** to copy text to the system clipboard. It can never copy silently and can never read the clipboard: each copy shows a Xenon confirmation the user taps. See *Clipboard*. |
 | `accent` | no | `true` → your widget may tint the **dashboard accent colour** while it runs (the same channel the album-art accent uses). Accent only, never saved, released when your widget goes away. See *Dashboard accent*. |
+| `expand` | no | `true` → your widget may **ask to fill the screen**, painting its tile over the whole dashboard, for content that genuinely needs the room (a board, a map, a game). Only in response to the user touching your widget; the way back out is drawn by Xenon. Ignored on an `ambient` package, which is already fullscreen. See *Filling the screen*. |
 
 An invalid entry in any of these (a loopback host, an out-of-catalog macro step,
 a malformed id) rejects the **whole manifest** — the package shows up as invalid
@@ -218,8 +219,15 @@ than the manifest requested):
   streams: ['system', 'media'],       // granted data streams
   actions: ['media'],                 // granted action categories
   // Granted boolean capabilities you have to know about because YOU decide
-  // whether to use them. See "Clipboard" and "Dashboard accent".
-  clipboard: false, accent: true,
+  // whether to use them. See "Clipboard", "Dashboard accent", "Filling the
+  // screen". `expand` is false in a service or ambient frame whatever the grant
+  // says, so you can use it directly to decide whether to draw the affordance.
+  clipboard: false, accent: true, expand: true,
+  // Which frame you are. A package declaring `background: true` runs a hidden
+  // service frame AND any mounted tile — the same code, twice. Use this to keep
+  // side effects (a badge refresh, a scheduled write) in exactly one of them.
+  // See "Background service frames".
+  service: false,
   // Addresses the user typed into your `userHosts` slots, keyed by slot id.
   // Only slots they actually filled appear. See "User-supplied addresses".
   userHosts: {
@@ -611,6 +619,60 @@ and timers always come through, on every setting.
 
 Background **service frames** never receive this message.
 
+### 4e. Filling the screen — `expand` (widget → host) (v4.11)
+
+Declare `"expand": true` and — once granted — your widget may ask to paint its
+tile over the **whole dashboard**. This is for content that a tile genuinely
+cannot hold: a board, a map, a full-size game. It is the same thing the Browser
+tile's `expand` does, for your own package.
+
+```js
+// Inside a click/tap handler on your own button:
+parent.postMessage({ xenonSdk: 1, type: 'expand', id: 1, on: true }, '*');
+// → { xenonSdk: 1, type: 'expand_result', id: 1, ok: true }
+//   { xenonSdk: 1, type: 'expand_result', id: 1, ok: false, error: 'no_gesture' }
+
+// Give the screen back:
+parent.postMessage({ xenonSdk: 1, type: 'expand', on: false }, '*');
+```
+
+And the host tells you the current state — right after `init`, and again every
+time it changes, including when the **user** collapsed you:
+
+```js
+{ xenonSdk: 1, type: 'expand_state', expanded: true }
+```
+
+**Always render from `expand_state`, never from your own request.** You can be
+collapsed by things you never hear about otherwise: Escape, the ✕, a swipe to
+another dashboard page, the user entering layout edit mode. Your tile also
+receives the usual [`size`](#4b-size--host--widget) message when the box
+changes, which is what you re-lay-out against.
+
+Rules the host enforces, and why:
+
+- **A live user gesture is required.** A tap inside your (sandboxed) frame
+  carries user activation to the host for a few seconds, and that is the signal
+  Xenon checks. Without it, `ok: false, error: 'no_gesture'` — so a widget can
+  never take the screen while the user is reading something else. Send the
+  request straight from the tap handler, not after an `await`.
+- **One at a time, tiles only.** A second package asking replaces the first.
+  Service frames are refused (`not_allowed` — there is nothing to show) and so
+  is an `ambient` package, which already owns the screen.
+- **Off-screen widgets are refused** (`not_visible`), and so is any request
+  while the user is arranging the layout (`busy`).
+- **Collapsing always works.** `on: false` is never rate-limited and never
+  refused, whatever state the grant is in.
+- **The way out is Xenon's, not yours.** The host draws a ✕ over your
+  **top-right corner** (~20 px inset, ~38 px) and closes on Escape. Keep that
+  corner clear of anything interactive while expanded, the same rule Ambient
+  scenes follow.
+- **You are not reloaded.** The tile is expanded in place, so your page keeps
+  running with everything it held in memory, both ways.
+
+Errors: `not_allowed` (not granted, or a service/ambient frame), `no_gesture`,
+`not_visible`, `busy`, `unavailable`.
+
 ### 5. `action` — widget → host, and `action_result` — host → widget
 
 ```js
@@ -960,6 +1022,21 @@ Handlers are granted per-id in the permission dialog (like hooks), args are
 re-coerced server-side against your declared params on every press, and
 dispatches are rate-limited (~4/s per handler).
 
+**Know which frame you are.** When a package declares `background: true` and a
+tile is also on the dashboard, **both frames run your code at once**. `init`
+carries `service: true|false` so you can tell them apart — put anything with a
+side effect (a scheduled write, a badge refresh, a webhook) behind it, and let
+the tile frame do nothing but draw:
+
+```js
+if (m.type === 'init') {
+  isService = m.service === true;
+  if (isService) startPolling();   // exactly one frame does the work
+}
+```
+
+Handler dispatch already picks one frame for you; this is for everything else.
+
 **Background service frames** (`"background": true`, top-level): normally your
 code runs only while a tile is mounted. A package that declares handlers, a
 `badge`, or advanced Dynamic Island activities may also ask to run **headless**:
@@ -1283,6 +1360,52 @@ window.parent.postMessage({ xenonSdk: 1, type: 'fetch', id: 7,
 A placeholder for a secret you haven't stored fails the request
 (`error: 'unknown_secret'`) — it's never sent literally. Substitution can never
 move the request to a different host than the one you declared.
+
+## Sound
+
+Your widget **can** make sound, which surprises people who read "no network, no
+storage, sandboxed" and assume otherwise. There is no grant for it and no bridge
+message: it is ordinary web audio inside your frame, and the CSP allows it.
+
+Two ways, both needing nothing from the host:
+
+```js
+// 1. A bundled clip, or a data: URI.  media-src is 'self' data: blob:
+const click = new Audio('click.mp3');   // shipped in your package
+click.volume = 0.4;
+click.play().catch(() => {});           // never let a rejection break your code
+
+// 2. Synthesised — no asset to ship at all.
+const ac = new (window.AudioContext || window.webkitAudioContext)();
+const osc = ac.createOscillator(), gain = ac.createGain();
+osc.frequency.value = 440;
+gain.gain.setValueAtTime(0.05, ac.currentTime);
+gain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.15);
+osc.connect(gain); gain.connect(ac.destination);
+osc.start(); osc.stop(ac.currentTime + 0.2);
+```
+
+What you must respect:
+
+- **A user gesture is required to start.** Autoplay policy applies inside your
+  frame like anywhere else: the first sound has to come from a tap or click, and
+  an `AudioContext` created earlier starts `suspended` (call `ac.resume()` from
+  the tap). Sound that plays before the user has touched your widget will simply
+  not play.
+- **Default to silent, and offer a switch.** This dashboard lives on an
+  always-on second screen next to someone who is usually doing something else.
+  A widget that makes noise on arrival is a widget that gets uninstalled. Ship
+  the toggle off, remember it in `storage`.
+- **Go quiet when nobody is looking.** Stop sound on
+  [`visibility`](#4c-visibility--host--widget) `false`.
+- **Nothing is mixed for you.** Your audio is part of the browser's own output;
+  it does not appear as a separate app in the `audio` stream and the user cannot
+  set its level anywhere but inside your widget.
+
+If instead you want to play the user's **installed sound packs**, that is a
+different thing with a real grant: the `soundboard` action category and
+`playSound` (see the action catalog). Use that for shared clips the user has
+chosen; use the above for a widget's own feedback.
 
 ## Clipboard
 

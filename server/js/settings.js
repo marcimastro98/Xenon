@@ -1965,6 +1965,7 @@ function normalizeSdkWidgets(value) {
         badge: g.badge === true,
         clipboard: g.clipboard === true,
         accent: g.accent === true,
+        expand: g.expand === true,
         userHosts: normalizeSdkUserHosts(g.userHosts),
       };
       n++;
