@@ -824,9 +824,13 @@ function Install-NativeAppIfPresent {
   # (README promises exactly that). The version-aware skip lives in the
   # download branch below, once the latest release version is known — the
   # bootstrap-launched case (fresh shell just installed by the setup) lands
-  # there as "already current" and skips the pointless re-download. Recursion
-  # is broken by /NOBOOTSTRAP on every silent install plus the scheduled-task
-  # marker the setup's post-install hook checks.
+  # there as "already current" and skips the pointless re-download.
+  #
+  # /NOBOOTSTRAP is inert on current installers (the post-install hook that
+  # honoured it is gone — the app now offers the bootstrap from its splash
+  # instead, see run_backend_bootstrap in lib.rs). It is still passed because a
+  # dev machine can have an older locally-built setup.exe in the branch below,
+  # and there the flag is what breaks the install→bootstrap→install recursion.
   $installedExe = Get-NativeAppExe
   $root = Split-Path -Parent $PSScriptRoot
   $dirs = @(

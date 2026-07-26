@@ -1,8 +1,18 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# xenon-bootstrap.ps1 — backend bootstrap for the Xenon setup.exe.
+# xenon-bootstrap.ps1 — installs the Xenon backend for the native app.
 #
-# Launched by the NSIS post-install hook (hooks.nsh) when the setup.exe was run
-# on a machine with no Xenon backend (no "Xenon Edge Widget" scheduled task).
+# Launched by the app itself — the splash's "Complete setup" button, routed
+# through `xenon-setup:run` to run_backend_bootstrap() in lib.rs — when the
+# kiosk has been waiting on a backend that is nowhere to be found.
+#
+# It used to be an NSIS post-install hook that fired this script detached and
+# windowless the instant the setup.exe finished. That made an unsigned installer
+# silently spawn a PowerShell downloader, which (with the Run key and the
+# scheduled task alongside it) is the exact behavioural fingerprint of a trojan
+# dropper: Defender's cloud model quarantined the install as
+# Trojan:Win32/Sonbokli.A!cl. Nothing here changed except WHO starts it and
+# whether the user can see it happening.
+#
 # It turns the one-click shell installer into a one-click FULL installer:
 #   1. downloads the latest release source zip + its signed SHA256SUMS,
 #   2. verifies the zip (Ed25519, fail-closed, BEFORE extraction),
@@ -45,11 +55,13 @@ function Fail($m) {
 
 Write-Host ''
 Write-Host '  Xenon — completing your installation' -ForegroundColor Cyan
-Write-Host '  The app you just installed is only the screen; this sets up the' -ForegroundColor Gray
+Write-Host '  The Xenon app is only the screen; this sets up the' -ForegroundColor Gray
 Write-Host '  Xenon dashboard itself (one time, a few minutes).' -ForegroundColor Gray
 Write-Host ''
 
-# Defensive re-check (the NSIS hook already checks): backend present → done.
+# Backend present → done. The splash only offers the button after ~20s of
+# silence on 3030, but that is a timing heuristic, not proof: this check is what
+# actually makes a stray click harmless.
 # The stderr redirect MUST happen inside cmd, not in PowerShell: under
 # $ErrorActionPreference = 'Stop', PS 5.1 turns redirected native stderr into a
 # terminating NativeCommandError — and schtasks writes to stderr precisely when

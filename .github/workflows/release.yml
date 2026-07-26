@@ -22,6 +22,14 @@ name: Release (atomic)
 #   2. git tag vX.Y.Z && git push origin vX.Y.Z
 #   3. wait for this workflow (~15 min) → a DRAFT release appears with all assets
 #   4. polish the release notes on GitHub and click Publish
+#   5. submit Xenon-Setup-x64.exe / xenon-native.exe / xenon-helper.exe to
+#      microsoft.com/wdsi/filesubmission as "Software developer → Incorrectly
+#      detected as malware". NOT optional while nothing here is Authenticode-
+#      signed: every release ships a brand-new unsigned hash with zero
+#      reputation, and Defender's cloud model has already quarantined one
+#      (Trojan:Win32/Sonbokli.A!cl) and blocked its download. Turnaround is
+#      1-3 days. See "Code signing and antivirus false positives" in
+#      DEVELOPER.md for the standing fix.
 #
 # REQUIRED repo secrets:
 #   TAURI_SIGNING_PRIVATE_KEY / TAURI_SIGNING_PRIVATE_KEY_PASSWORD  (Tauri updater)

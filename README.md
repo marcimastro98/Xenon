@@ -111,6 +111,31 @@ Either way, the installer automatically:
 
 > The installer **does not** download the free local-AI components (Ollama / Whisper) — that keeps first-time setup fast. You set those up on demand from **Settings → Xenon AI** only if you switch to the local provider. See [FEATURES.md](FEATURES.md#xenon-ai).
 
+### If Windows blocks the download, or flags Xenon as a virus
+
+You may see SmartScreen refuse to run the setup, your browser cancel the download as "malicious", or Defender quarantine `xenon-native.exe` with a name like **`Trojan:Win32/Sonbokli.A!cl`**.
+
+**This is a false positive, and the `!cl` suffix says so:** it means the verdict came from Defender's cloud *machine-learning* model, not from a signature matching known malware. Xenon is not yet **code-signed** — a certificate is a paid, identity-verified thing and this is a free one-person project — and an unsigned installer that almost nobody has downloaded yet starts from zero reputation. Every new release resets that counter. Code signing is the real fix and it's on the roadmap; until then the detection can come and go release by release.
+
+**Check for yourself before trusting any of this.** Every release ships a `SHA256SUMS` file signed with the project's Ed25519 key. Compare the hash of what you downloaded:
+
+```powershell
+Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256
+```
+
+If it matches the `Xenon-Setup-x64.exe` line in that release's `SHA256SUMS`, the file is byte-for-byte the one GitHub Actions built from the public source at that tag. You can also paste the file into [VirusTotal](https://www.virustotal.com/) — a handful of engines flagging it while the rest come back clean is the signature of a reputation problem, not of malware.
+
+**To install it anyway:**
+
+1. **Browser blocked the download** — open your downloads list (`Ctrl+J`) and choose **Keep** / **Keep anyway** on the cancelled file.
+2. **Defender already quarantined it** — open **Windows Security → Virus & threat protection → Protection history**, find the Xenon entry, and choose **Actions → Restore**.
+3. **Add an exclusion** so it isn't re-quarantined mid-install — **Virus & threat protection → Manage settings → Exclusions → Add an exclusion → Folder**, and add `%LOCALAPPDATA%\Xenon`.
+4. **SmartScreen warning on launch** — click **More info**, then **Run anyway**.
+
+**Please also report it to Microsoft.** It's a two-minute form at [microsoft.com/wdsi/filesubmission](https://www.microsoft.com/en-us/wdsi/filesubmission) — pick *Home customer* and *Incorrectly detected as malware*. Reports from real users carry weight and get the detection pulled for everyone, usually within a few days.
+
+> Only ever do the above for a file you downloaded from **[this repository's Releases page](https://github.com/marcimastro98/Xenon/releases)** and whose hash you checked. Turning off a warning is exactly what actual malware wants you to do — the hash is what tells the two situations apart.
+
 ### Step 2 — Use it
 
 **On the Xeneon Edge — the native Xenon app (recommended):**
@@ -184,6 +209,7 @@ iCUE's embedded WebView can reject some MP4 files even when they play fine in Ch
 - **Port 3030 already in use** — close any other instance, or change the port in `server/server.js`.
 - **No CPU temperature** — rerun `INSTALL.bat` and accept the admin prompt so it can install LibreHardwareMonitor/PawnIO and register the elevated startup task.
 - **Mic mute does nothing on first launch** — wait a second or two; the device cache populates right after startup.
+- **Defender quarantined Xenon, or the download was blocked** — a false positive from an unsigned build with no reputation yet. See [If Windows blocks the download, or flags Xenon as a virus](#if-windows-blocks-the-download-or-flags-xenon-as-a-virus) for how to verify the file and restore it.
 
 ---
 

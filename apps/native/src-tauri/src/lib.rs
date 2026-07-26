@@ -356,6 +356,82 @@ fn spawn_backend_nudge(port: u16) {
     });
 }
 
+/// Absolute path of the bundled backend bootstrap, when this build actually
+/// carries it (`bundle.resources` in tauri.conf.json — so: installed builds
+/// only, never `tauri dev`). `None` doubles as "don't offer setup here".
+#[cfg(windows)]
+fn bootstrap_script(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+    let path = app
+        .path()
+        .resolve(
+            "windows/xenon-bootstrap.ps1",
+            tauri::path::BaseDirectory::Resource,
+        )
+        .ok()?;
+    path.is_file().then_some(path)
+}
+
+/// Fires once per launch — the splash button can't queue a second install.
+#[cfg(windows)]
+static BOOTSTRAP_STARTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Runs the bundled backend bootstrap on an explicit user click (the splash's
+/// "Complete setup" button, routed through `xenon-setup:run`).
+///
+/// This used to be an NSIS post-install hook: the moment the setup finished it
+/// fired `powershell.exe -ExecutionPolicy Bypass -File …` **detached and
+/// windowless**, which then downloaded a zip and executed it. Functionally
+/// fine, but that is precisely the shape of a trojan dropper — unsigned
+/// installer → silent LOLBin → download → execute, on top of a Run key and a
+/// scheduled task — and with nothing Authenticode-signed to offset it,
+/// Defender's cloud model scored the whole install as
+/// `Trojan:Win32/Sonbokli.A!cl`: quarantined exe, blocked download.
+///
+/// Same outcome, different shape. Nothing runs unattended, the process is
+/// started by a click, and the console is VISIBLE — the user is watching the
+/// install they just asked for. Re-running it is harmless either way: the
+/// script re-checks the scheduled task and port 3030 and exits if a backend is
+/// already there.
+///
+/// `-ExecutionPolicy Bypass` survives only because the bundled `.ps1` is
+/// unsigned. Sign the script and drop the flag once the code-signing
+/// certificate lands (see the release checklist in DEVELOPER.md).
+#[cfg(windows)]
+fn run_backend_bootstrap(app: &tauri::AppHandle) {
+    use std::sync::atomic::Ordering;
+    if BOOTSTRAP_STARTED.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let Some(script) = bootstrap_script(app) else {
+        return;
+    };
+    // Off the WebView UI thread: process creation blocks, and this is called
+    // from the navigation hook, which runs on it.
+    std::thread::spawn(move || {
+        use std::os::windows::process::CommandExt;
+        // Give the console app a console of its own — this GUI process has
+        // none, and the visible window IS the install progress UI.
+        const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
+        // PowerShell by its FULL system path: an unqualified exe name resolves
+        // from the process's own directory first (binary planting, CWE-427).
+        let system_root =
+            std::env::var("SystemRoot").unwrap_or_else(|_| String::from("C:\\Windows"));
+        let powershell = std::path::Path::new(&system_root)
+            .join("System32\\WindowsPowerShell\\v1.0\\powershell.exe");
+        let started = std::process::Command::new(powershell)
+            .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"])
+            .arg(&script)
+            .creation_flags(CREATE_NEW_CONSOLE)
+            .spawn()
+            .is_ok();
+        if !started {
+            // Let the user press it again rather than stranding the splash on
+            // a button that silently does nothing.
+            BOOTSTRAP_STARTED.store(false, Ordering::SeqCst);
+        }
+    });
+}
+
 /// Entry point shared by the desktop `main.rs` (and a future mobile target).
 ///
 /// The window itself — borderless, full-screen kiosk pointed at the bundled
@@ -460,7 +536,19 @@ pub fn run() {
                 })
             );
             let port_js = format!("try{{window.__XENON_PORT__={};}}catch(e){{}}", port);
-            let init_script = format!("{EXTERNAL_LINK_SHIM}\n{caps_js}\n{port_js}");
+            // Whether the splash may offer "Complete setup" at all: only builds
+            // that actually bundle the bootstrap can run it (see
+            // bootstrap_script). Without this the button would appear in
+            // `tauri dev` and on any future non-Windows target and do nothing.
+            #[cfg(windows)]
+            let setup_available = bootstrap_script(app.handle()).is_some();
+            #[cfg(not(windows))]
+            let setup_available = false;
+            let setup_js = format!(
+                "try{{window.__XENON_SETUP_AVAILABLE__={};}}catch(e){{}}",
+                setup_available
+            );
+            let init_script = format!("{EXTERNAL_LINK_SHIM}\n{caps_js}\n{port_js}\n{setup_js}");
             let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("Xenon")
                 .inner_size(2560.0, 720.0)
@@ -512,6 +600,19 @@ pub fn run() {
                                 std::thread::spawn(move || spotlight_window::open(&h));
                             }
                             _ => {}
+                        }
+                        return false;
+                    }
+                    // The splash's "Complete setup" button navigates here (never
+                    // a real page) when no backend answers and this build
+                    // carries the bootstrap: install the dashboard engine, in a
+                    // visible console, because the user asked for it. This
+                    // deliberately replaced the installer's silent post-install
+                    // spawn — see run_backend_bootstrap.
+                    if scheme == "xenon-setup" {
+                        #[cfg(windows)]
+                        if url.path() == "run" {
+                            run_backend_bootstrap(&nav_handle);
                         }
                         return false;
                     }

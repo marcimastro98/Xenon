@@ -374,6 +374,32 @@ Tool binaries are **not** user data and stay in their own folders: `whisper/` (d
 - **Widget SDK isolation** — community widgets get no network and no DOM/data access; every data stream and action goes through the versioned bridge in `sdk-widgets.js`, gated by the user's approved permissions and re-checked server-side per action. See [WIDGET_SDK.md](docs/WIDGET_SDK.md).
 - **Server-only secrets** — `obsPassword`/`streamerbotPassword` (via `stream-creds.js`), the Home Assistant token, and remote-control credentials are preserved on save and redacted on the wire; never send them to the browser or a backup export.
 
+### Code signing and antivirus false positives
+
+**Nothing Xenon ships is Authenticode-signed.** The two signatures in the pipeline are for integrity, not identity: the minisign key (`TAURI_SIGNING_PRIVATE_KEY`) is only read by the Tauri updater, and the Ed25519 `SHA256SUMS.sig` is only read by `self-update.js` / the bootstrap. Windows sees neither. To Defender and SmartScreen, `Xenon-Setup-x64.exe`, `xenon-native.exe` and `xenon-helper.exe` are unsigned binaries with a hash nobody has seen before — and every release resets that reputation to zero.
+
+That is the standing cost. On top of it, **behaviour is scored**, and an install that arrives unsigned has no credit to spend. Defender's cloud model quarantined 4.10.x as `Trojan:Win32/Sonbokli.A!cl` (`!cl` = cloud/ML verdict, not a signature match) and blocked the download outright. The install did all of this at once:
+
+| Signal | Where |
+| --- | --- |
+| unsigned exe dropped in `%LOCALAPPDATA%`, not Program Files | `bundle.windows.nsis.installMode: currentUser` |
+| `HKCU\…\CurrentVersion\Run` autostart | `tauri-plugin-autostart` |
+| a per-logon scheduled task | `server/install.ps1` |
+| **installer spawns a hidden `powershell.exe -ExecutionPolicy Bypass`, detached** | the old `windows/hooks.nsh` |
+| **that script downloads an archive and executes it** | `windows/xenon-bootstrap.ps1` |
+
+The last two are the dropper fingerprint and were the only ones worth paying for, so they went: the NSIS post-install hook is **deleted**, and the bootstrap now runs from `run_backend_bootstrap()` in `lib.rs`, on an explicit click on the splash, in a **visible** console. Keep it that way — if you ever need the installer to run something again, that alone can put the detection back. The three remaining signals are load-bearing (they are what "starts at login" means) and are normal for a signed app.
+
+**Every release, until a certificate lands:** after the assets are staged, submit `Xenon-Setup-x64.exe`, `xenon-native.exe` and `xenon-helper.exe` to [microsoft.com/wdsi/filesubmission](https://www.microsoft.com/en-us/wdsi/filesubmission) as *Software developer → Incorrectly detected as malware*. Turnaround is usually 1–3 days. Skipping it means users hit the block before Microsoft ever hears about it.
+
+**The actual fix** is an Authenticode certificate, which also clears SmartScreen and makes the reputation cumulative instead of per-release:
+
+- **[Azure Trusted Signing](https://learn.microsoft.com/azure/trusted-signing/)** (~$10/month) — the realistic option for a solo maintainer: Microsoft-operated, available to *individual* developers (identity validation requires a few years of verifiable history), no HSM token to buy, and an official GitHub Action.
+- **Certum Open Source Code Signing** (~€30/year) — cheapest, and this repo qualifies, but it is OV: it does not clear SmartScreen on day one, it only starts accumulating reputation.
+- **EV certificate** (SSL.com, DigiCert, Sectigo; €350–600/year) — clears SmartScreen immediately, but normally requires a registered legal entity.
+
+Wiring, when it happens: `bundle.windows.signCommand` in `tauri.conf.json` covers both `xenon-native.exe` and the NSIS setup; `xenon-helper.exe` needs its own signing step; and `windows/xenon-bootstrap.ps1` should be signed too so `run_backend_bootstrap()` can finally drop `-ExecutionPolicy Bypass`. Add the steps to **both** the `native`/`helper` jobs in `release.yml` **and** their copies in `native-app.yml`/`helper.yml` — those are duplicated on purpose.
+
 ---
 
 ## Conventions
