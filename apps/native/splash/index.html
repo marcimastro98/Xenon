@@ -11,6 +11,10 @@
   responds (even with a 403 from the loopback Origin guard — we only need "did it
   answer"), and rejects with a network error while the service is still starting.
   Once the dashboard is loaded, ITS own offline handling covers transient drops.
+
+  It is also the first-run installer: when nothing ever answers, this page offers
+  to install the missing backend (see the setup handover in the script) — the
+  user-driven replacement for the setup.exe's old silent post-install spawn.
 -->
 <html lang="en">
 <head>
@@ -28,7 +32,15 @@
   }
   .wrap {
     height: 100%; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 28px;
+    align-items: center; gap: 28px;
+    /* The setup offer below makes this page tall enough to overflow a small
+       non-Edge window, where the kiosk opens as an ordinary resizable one.
+       `safe center` and not plain `center`: an overflowing centred flex column
+       spills past its START edge, which no scrollbar can reach — the wordmark
+       and the spinner would be cropped away with no way to scroll back up.
+       `safe` falls back to flex-start exactly when that would happen. */
+    justify-content: safe center;
+    padding: 24px; overflow-y: auto;
     background:
       radial-gradient(1200px 480px at 50% -10%, rgba(30,215,96,0.10), transparent 60%),
       radial-gradient(900px 400px at 50% 120%, rgba(30,215,96,0.06), transparent 60%);
@@ -48,6 +60,19 @@
   .status { font-size: 14px; color: rgba(240,243,241,0.62); min-height: 1.2em; }
   .hint { font-size: 12px; color: rgba(240,243,241,0.34); max-width: 44ch; text-align: center; line-height: 1.5; }
   @media (prefers-reduced-motion: reduce) { .ring { animation: none; } }
+  /* The first-run setup offer — hidden until the probe has given up on
+     finding a backend (see the setup handover in the script below). */
+  .setup { display: none; flex-direction: column; align-items: center; gap: 14px; max-width: 52ch; }
+  .setup.show { display: flex; }
+  .setup-title { font-size: 15px; font-weight: 600; color: rgba(240,243,241,0.86); }
+  .setup-body { font-size: 12px; color: rgba(240,243,241,0.42); text-align: center; line-height: 1.6; }
+  .setup-btn {
+    font: inherit; font-size: 14px; font-weight: 600; color: #070808;
+    background: #1ed760; border: 0; border-radius: 999px;
+    padding: 11px 26px; cursor: pointer;
+  }
+  .setup-btn:hover { background: #29e06b; }
+  .setup-btn:disabled { background: rgba(240,243,241,0.16); color: rgba(240,243,241,0.5); cursor: default; }
 </style>
 </head>
 <body>
@@ -56,6 +81,16 @@
     <div class="ring" aria-hidden="true"></div>
     <div class="status" id="status">Starting…</div>
     <div class="hint" id="hint"></div>
+    <div class="setup" id="setup">
+      <div class="setup-title">Xenon isn't finished installing</div>
+      <div class="setup-body" id="setup-body">
+        This app is the screen; the Xenon dashboard engine that draws it isn't on this PC yet.
+        Setting it up takes a few minutes and only happens once — a window will open and show
+        you the progress. Already installed and just booting? Give it a few more seconds; this
+        screen continues on its own.
+      </div>
+      <button class="setup-btn" id="setup-btn" type="button">Complete setup</button>
+    </div>
   </div>
 
   <script>
@@ -67,9 +102,58 @@
 
     var statusEl = document.getElementById('status');
     var hintEl = document.getElementById('hint');
+    var setupEl = document.getElementById('setup');
+    var setupBodyEl = document.getElementById('setup-body');
+    var setupBtn = document.getElementById('setup-btn');
     var attempts = 0;
     var okStreak = 0;
     var done = false;
+
+    // First-run setup handover. The installer used to launch the dashboard-engine
+    // bootstrap itself, silently, the instant it finished — an unsigned setup
+    // spawning a hidden PowerShell downloader, which is what got the whole
+    // install flagged as a trojan and quarantined. Now nothing runs unattended:
+    // if no backend ever answers, WE offer the same install behind a button, and
+    // the shell runs it in a console the user can watch (xenon-setup:run →
+    // run_backend_bootstrap in lib.rs). The shell sets the flag below only on
+    // release Windows builds that actually carry the bootstrap script — never
+    // under `tauri dev`, where pressing it would install for real.
+    var SETUP_AFTER_ATTEMPTS = 40;  // ~20s of silence — past the shell's own logon-task nudge
+    var SETUP_REARM_ATTEMPTS = 90;  // ~35s after a click with still no backend
+    var canSetup = window.__XENON_SETUP_AVAILABLE__ === true;
+    var setupStartedAt = 0; // attempt number of the last click, 0 = never clicked
+
+    function offerSetup() {
+      if (!canSetup || done || setupEl.classList.contains('show')) return;
+      setupEl.classList.add('show');
+      hintEl.textContent = ''; // the panel is the call to action now
+    }
+
+    setupBtn.addEventListener('click', function () {
+      setupStartedAt = attempts;
+      setupBtn.disabled = true;
+      setupBtn.textContent = 'Setup started';
+      setupBodyEl.textContent =
+        'Setup is running in the window that just opened — follow it there. This screen ' +
+        'takes over by itself as soon as the dashboard is up.';
+      // Not a navigation: the shell intercepts this scheme and never loads it.
+      window.location.href = 'xenon-setup:run';
+    });
+
+    // Nothing tells this page whether the console ever opened: the shell may
+    // have failed to spawn it, or the script may have exited in seconds because
+    // it found the engine already registered. Either way a permanently dead
+    // button would be the end of the road, so give it back after a while — the
+    // shell allows a fresh run once its console is gone (see BOOTSTRAP_CHILD).
+    function rearmSetup() {
+      if (setupBtn.disabled === false) return;
+      setupBtn.disabled = false;
+      setupBtn.textContent = 'Try setup again';
+      setupBodyEl.textContent =
+        'Still nothing answering. If the setup window never appeared, or it closed saying ' +
+        'Xenon was already installed, the engine is on this PC but not starting — restarting ' +
+        'the PC usually fixes it. Otherwise you can run the setup again.';
+    }
 
     function go() {
       if (done) return;
@@ -99,11 +183,25 @@
           if (attempts === 20) {
             hintEl.textContent = 'The backend service is taking longer than usual to start. Still trying…';
           }
+          // ~20s with no answer, and this build can install the engine itself:
+          // offer it. The shell's logon-task nudge (see lib.rs) has had its shot
+          // by now, so silence this long means "not installed", not "slow".
+          // `>=`, not `===`: a single probe that answers on exactly this attempt
+          // (without reaching the two-answer streak that navigates away) would
+          // otherwise skip the offer for good. offerSetup() is idempotent.
+          if (attempts >= SETUP_AFTER_ATTEMPTS && canSetup) offerSetup();
+          // Setup was started and the backend still isn't there — hand the
+          // button back rather than leave a dead one on screen.
+          if (setupStartedAt && attempts >= setupStartedAt + SETUP_REARM_ATTEMPTS) {
+            rearmSetup();
+          }
           // ~60s with no answer: the widget backend is probably not installed or
           // not running at all — the app is only a display for it. The shell has
           // already tried to start its logon task by now (see lib.rs), so at this
           // point the user needs to act. Keep retrying regardless: if they install
-          // or start it, this page hands over on its own.
+          // or start it, this page hands over on its own. This must fire whether
+          // or not the build can offer setup: an engine that is installed but
+          // failing to start reaches here with a button that can't help.
           if (attempts === 120) {
             hintEl.textContent = 'Still no response from the Xenon widget. This app is the display for the Xenon widget — make sure the widget is installed and running (reinstall it anytime with INSTALL.bat from github.com/marcimastro98/Xenon). This screen will continue on its own once it responds.';
           }

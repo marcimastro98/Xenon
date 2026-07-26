@@ -1,6 +1,15 @@
 ﻿# -Mode native|icue skips the interactive surface prompt (used by the native
-# setup.exe bootstrap, where env vars don't survive the -Verb RunAs elevation).
-param([ValidateSet('native', 'icue', '')][string]$Mode = '')
+# app's bootstrap, where env vars don't survive the -Verb RunAs elevation).
+#
+# -SkipNativeApp leaves the Tauri shell alone. The bootstrap passes it because
+# the shell it would "install" is the very app that LAUNCHED the bootstrap: an
+# outdated one would be silently reinstalled over itself here, and a silent NSIS
+# install terminates the running exe, killing the kiosk halfway through the
+# setup the user is watching. The shell has its own updater for that.
+param(
+  [ValidateSet('native', 'icue', '')][string]$Mode = '',
+  [switch]$SkipNativeApp
+)
 
 $ErrorActionPreference = 'Stop'
 
@@ -824,9 +833,13 @@ function Install-NativeAppIfPresent {
   # (README promises exactly that). The version-aware skip lives in the
   # download branch below, once the latest release version is known — the
   # bootstrap-launched case (fresh shell just installed by the setup) lands
-  # there as "already current" and skips the pointless re-download. Recursion
-  # is broken by /NOBOOTSTRAP on every silent install plus the scheduled-task
-  # marker the setup's post-install hook checks.
+  # there as "already current" and skips the pointless re-download.
+  #
+  # /NOBOOTSTRAP is inert on current installers (the post-install hook that
+  # honoured it is gone — the app now offers the bootstrap from its splash
+  # instead, see run_backend_bootstrap in lib.rs). It is still passed because a
+  # dev machine can have an older locally-built setup.exe in the branch below,
+  # and there the flag is what breaks the install→bootstrap→install recursion.
   $installedExe = Get-NativeAppExe
   $root = Split-Path -Parent $PSScriptRoot
   $dirs = @(
@@ -1063,7 +1076,13 @@ if ($installMode -eq 'native') {
   # Reserve the touchscreen edge swipe before the kiosk appears, so its
   # swipe-up-to-desktop gesture wins over Windows' Start/taskbar gestures.
   Disable-WindowsEdgeSwipe
-  if (Install-NativeAppIfPresent) {
+  if ($SkipNativeApp) {
+    # The kiosk is already on screen — it is what started this install — so it
+    # needs neither installing nor launching. Its splash is probing 3030 and
+    # takes over on its own the moment the server below comes up.
+    Write-Step 'Native Xenon app is already running - left untouched.'
+    $nativeLaunched = $true
+  } elseif (Install-NativeAppIfPresent) {
     Write-Step 'Native Xenon app installed (full-screen kiosk on the Xeneon Edge).'
     $nativeLaunched = Start-NativeAppIfInstalled
     if (-not $nativeLaunched) {
