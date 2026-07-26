@@ -81,9 +81,16 @@ test('a block offers a choice only where the choice changes what is drawn', () =
   }
   // The one real choice today, and the only one the renderers branch on.
   assert.deepEqual(sf.SOURCES.limited, ['auto-live', 'auto-all']);
-  const single = sf.BLOCK_TYPES.filter((t) => sf.FORMS[t].length > 1);
-  assert.deepEqual(single, [],
-    'a form list grew a second value — make sure both storefronts draw it, then delete this line');
+  // The three tier sections can be drawn as tall hero cards or as the compact
+  // card grid — a real, visible difference, and the reason the control exists at
+  // all. Every other block has one form: a second value may only be listed once
+  // BOTH storefronts actually draw it, or the panel starts lying again.
+  assert.deepEqual(sf.FORMS.limited, ['carousel', 'grid']);
+  assert.deepEqual(sf.FORMS.supporters, ['rail', 'grid']);
+  assert.deepEqual(sf.FORMS.archive, ['rail-quiet', 'grid']);
+  for (const type of ['spotlight', 'new', 'kinds']) {
+    assert.equal(sf.FORMS[type].length, 1, type + ' offers a choice nothing draws');
+  }
 });
 
 test('`on` defaults to shown, and only an explicit false hides a block', () => {
