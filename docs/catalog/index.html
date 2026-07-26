@@ -261,7 +261,6 @@
   .drops.cat-rail .drop-desc { display: -webkit-box; -webkit-box-orient: vertical;
               -webkit-line-clamp: 4; overflow: hidden; }
   .drops.cat-rail .drop-name { font-size: clamp(21px, 2.2vw, 27px); }
-  @media (prefers-reduced-motion: reduce) { .cat-rail { scroll-behavior: auto; } }
   .cat-limcount { font-family: var(--mono); font-size: 11.5px; color: var(--muted); white-space: nowrap; }
   .cat-limcount b { color: var(--text); }
   .cat-hint { font-family: var(--mono); font-size: 11px; line-height: 1.5; color: var(--plasma-2); padding: 0 15px 13px; }
@@ -946,7 +945,7 @@ function applyLang(lang) {
   const SF_DEFAULT = [
     { type: 'spotlight', on: true, form: 'hero-column', source: 'manual', autoplayOver: 0, max: 0 },
     { type: 'limited', on: true, form: 'carousel', source: 'auto-live', autoplayOver: 0, max: 0 },
-    { type: 'supporters', on: true, form: 'rail', source: 'auto', autoplayOver: 4, max: 0 },
+    { type: 'supporters', on: true, form: 'rail', source: 'auto', autoplayOver: 2, max: 0 },
     { type: 'new', on: false, form: 'grid', source: 'auto', autoplayOver: 0, max: 0 },
     { type: 'kinds', on: true, form: 'grid', source: 'auto', autoplayOver: 0, max: 0 },
     { type: 'archive', on: true, form: 'rail-quiet', source: 'auto', autoplayOver: 0, max: 0 },
@@ -965,7 +964,7 @@ function applyLang(lang) {
       type, on: raw.on !== false,
       form: forms.indexOf(raw.form) >= 0 ? raw.form : forms[0],
       source: sources.indexOf(raw.source) >= 0 ? raw.source : sources[0],
-      autoplayOver: sfInt(raw.autoplayOver, 0, 50, type === 'supporters' ? 4 : 0),
+      autoplayOver: sfInt(raw.autoplayOver, 0, 50, type === 'supporters' ? 2 : 0),
       max: sfInt(raw.max, 0, 60, 0),
     };
   }
