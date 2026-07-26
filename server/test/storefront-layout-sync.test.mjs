@@ -33,7 +33,8 @@ function loadMirror() {
     'the catalog page no longer carries the SF_* layout mirror — if it was replaced by a real import, delete this test');
   const sandbox = { globalThis: {} };
   vm.createContext(sandbox);
-  vm.runInContext(main.slice(start, end) + '\n;globalThis.__sf = { sfNormalize, sfAutoplay, sfBlock, SF_DEFAULT, SF_TYPES };', sandbox);
+  vm.runInContext(main.slice(start, end)
+    + '\n;globalThis.__sf = { sfNormalize, sfAutoplay, sfBlock, sfSplitLimited, SF_DEFAULT, SF_TYPES };', sandbox);
   return sandbox.globalThis.__sf;
 }
 
@@ -124,4 +125,85 @@ test('the page ships a translation for every section heading it renders', () => 
     assert.equal(found, langBlocks.length,
       `${key} is missing from ${langBlocks.length - found} of ${langBlocks.length} language blocks`);
   }
+});
+
+// ── The limited/Archive split ────────────────────────────────────────────────
+// This is the one rule where a mistake is not cosmetic: it decides whether a
+// drop appears once, twice, or not at all. It got all three wrong before being
+// shared — 'auto-all' with the Archive on rendered the same entry in BOTH
+// sections, duplicating its DOM anchor and double-counting it.
+const LIM = [
+  { id: 'live1', out: false }, { id: 'live2', out: false },
+  { id: 'gone1', out: true }, { id: 'gone2', out: true },
+];
+const OUT = (e) => e.out;
+const ids = (list) => list.map((e) => e.id);
+
+const SPLIT_CASES = [
+  ['archive on, shelf auto-live', [{ type: 'limited', source: 'auto-live' }, { type: 'archive', on: true }]],
+  ['archive off', [{ type: 'limited', source: 'auto-live' }, { type: 'archive', on: false }]],
+  ['shelf auto-all, archive on', [{ type: 'limited', source: 'auto-all' }, { type: 'archive', on: true }]],
+  ['shelf auto-all, archive off', [{ type: 'limited', source: 'auto-all' }, { type: 'archive', on: false }]],
+  ['defaults', null],
+];
+
+test('an entry is never in both the Limited shelf and the Archive', () => {
+  for (const [label, blocks] of SPLIT_CASES) {
+    const { shelf, archive } = canon.splitLimited(LIM, blocks, OUT);
+    const both = ids(shelf).filter((id) => ids(archive).includes(id));
+    assert.deepEqual(both, [], `${label}: ${both.join(',')} would render twice`);
+    // A drop somebody can still claim must be on the shelf in every arrangement.
+    // (A finished one may be dropped from it — with the Archive off that is the
+    // deliberate old rule, and it stays reachable through search and the Limited
+    // tab.)
+    for (const e of LIM.filter((x) => !OUT(x))) {
+      assert.ok(ids(shelf).includes(e.id), `${label}: ${e.id} is claimable and nowhere on the shelf`);
+    }
+    const layout = canon.normalizeLayout({ blocks });
+    const lim = layout.find((b) => b.type === 'limited');
+    const arch = layout.find((b) => b.type === 'archive');
+    if (lim.source === 'auto-all') {
+      assert.deepEqual(ids(shelf), ids(LIM), `${label}: auto-all asked for every drop`);
+      assert.deepEqual(archive, [], `${label}: the shelf took them, so the Archive holds nothing`);
+    } else if (arch.on) {
+      assert.deepEqual([...ids(shelf), ...ids(archive)].sort(), ids(LIM).sort(),
+        `${label}: every drop has to land somewhere`);
+    }
+  }
+});
+
+test('a tier with nothing claimable keeps its shelf rather than vanishing', () => {
+  const allGone = [{ id: 'a', out: true }, { id: 'b', out: true }];
+  const off = [{ type: 'archive', on: false }];
+  assert.deepEqual(ids(canon.splitLimited(allGone, off, OUT).shelf), ['a', 'b'],
+    'the section explains the tier, so it must not disappear when every drop is finished');
+});
+
+test('the website mirror splits the limited tier exactly like packages/core', () => {
+  const mirror = loadMirror();
+  assert.equal(typeof mirror.sfSplitLimited, 'function',
+    'the catalog page lost its sfSplitLimited mirror');
+  for (const [label, blocks] of SPLIT_CASES) {
+    const a = mirror.sfSplitLimited(LIM, blocks, OUT);
+    const b = canon.splitLimited(LIM, blocks, OUT);
+    // The mirror runs in a vm context, so its arrays carry that realm's
+    // Array.prototype and deepStrictEqual fails on identical contents. Compare the
+    // shapes as plain data, like the other mirror tests above.
+    assert.equal(
+      JSON.stringify([ids(a.shelf), ids(a.archive)]),
+      JSON.stringify([ids(b.shelf), ids(b.archive)]),
+      'mirror drifted for ' + label,
+    );
+  }
+});
+
+test('both storefronts route the limited tier through the shared split', () => {
+  // A renderer that computes it inline is the drift this replaced, so the call
+  // itself is what gets pinned.
+  const site = readFileSync(PAGE, 'utf8');
+  assert.match(site, /sfSplitLimited\(limited,\s*LAYOUT/,
+    'the website catalog no longer uses the shared split');
+  const app = readFileSync(join(ROOT, 'server', 'js', 'community-gallery.js'), 'utf8');
+  assert.match(app, /storefront\.splitLimited\(limited,\s*LAYOUT/,
+    'the in-app Store no longer uses the shared split');
 });

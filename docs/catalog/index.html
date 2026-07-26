@@ -965,6 +965,20 @@ function applyLang(lang) {
     const over = Number(block.autoplayOver) || 0;
     return over > 0 && Number(count) > over;
   }
+  // Which limited drops go on the shelf and which go to the Archive. Getting this
+  // wrong puts ONE entry in TWO sections — a duplicated cat-<id> anchor and a
+  // double count — which is what 'auto-all' plus an on Archive used to do.
+  function sfSplitLimited(items, blocks, soldOut) {
+    const list = Array.isArray(items) ? items : [];
+    const isOut = typeof soldOut === 'function' ? soldOut : () => false;
+    const layout = sfNormalize({ blocks });
+    const lim = layout.find((b) => b.type === 'limited');
+    const arch = layout.find((b) => b.type === 'archive');
+    if (lim && lim.source === 'auto-all') return { shelf: list.slice(), archive: [] };
+    if (arch && arch.on) return { shelf: list.filter((e) => !isOut(e)), archive: list.filter(isOut) };
+    const anyClaimable = list.some((e) => !isOut(e));
+    return { shelf: list.filter((e) => !(anyClaimable && isOut(e))), archive: [] };
+  }
   let LAYOUT = SF_DEFAULT.map((b) => ({ ...b }));
   const sfFind = (type) => LAYOUT.find((b) => b.type === type) || null;
 
@@ -1907,13 +1921,15 @@ function applyLang(lang) {
       setCount(pool.length + limitedTier.length + supTier.length);
       const frag = document.createDocumentFragment();
 
-      // Sold-out drops go to their own archive when that block is on. When it
-      // is off they stay in the Limited strip exactly as before, so turning the
-      // archive off can never make a drop unreachable.
-      const archBlock = sfFind('archive');
-      const archiveOn = !!(archBlock && archBlock.on);
-      const archive = archiveOn ? limitedAll.filter((e) => e.limited.soldOut && !spotIds.has(e.id)) : [];
-      const limitedShown = archiveOn ? limited.filter((e) => !e.limited.soldOut) : limited;
+      // How the limited tier divides between its own strip and the Archive —
+      // shared rule (sfSplitLimited, mirroring packages/core), because doing it
+      // by hand here put the same drop in BOTH sections whenever the strip was
+      // set to 'auto-all' and the Archive was on. Turning the Archive off still
+      // leaves every drop reachable on the strip.
+      const soldOutOf = (e) => !!(e.limited && e.limited.soldOut);
+      const split = sfSplitLimited(limited, LAYOUT, soldOutOf);
+      const limitedShown = split.shelf;
+      const archive = split.archive;
 
       // ONE pass over the admin's order. Every block is responsible only for
       // whether it has anything to say; the order and the shape are data.
@@ -1923,7 +1939,7 @@ function applyLang(lang) {
         if (b.type === 'spotlight') {
           if (spot.main) frag.appendChild(spotlightBlock(spot.main, spot.side));
         } else if (b.type === 'limited') {
-          const items = cap(b.source === 'auto-all' ? limited : limitedShown, b);
+          const items = cap(limitedShown, b);
           if (items.length) frag.appendChild(makeRail(limitedStrip(items), b, items.length));
         } else if (b.type === 'supporters') {
           // Renders whenever the tier exists, even with every entry up in the

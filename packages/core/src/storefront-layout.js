@@ -131,8 +131,36 @@
     return over > 0 && Number(count) > over;
   }
 
+  /* Split the limited tier between its own shelf and the Archive.
+   *
+   * Shared because getting it wrong puts ONE entry in TWO sections, which
+   * duplicates its DOM id, double-counts it, and breaks the deep link to it —
+   * and because the three cases are not obvious enough to be re-derived per
+   * renderer (they already disagreed once). `soldOut` is a predicate so each
+   * caller can decide with the freshest stock it has: the storefronts read the
+   * hub-hydrated count, the hub admin reads D1 directly.
+   */
+  function splitLimited(items, blocks, soldOut) {
+    const list = Array.isArray(items) ? items : [];
+    const isOut = typeof soldOut === 'function' ? soldOut : () => false;
+    const layout = normalizeLayout({ blocks });
+    const lim = layout.find((b) => b.type === 'limited');
+    const arch = layout.find((b) => b.type === 'archive');
+    // 'auto-all' is the shelf asking for the finished drops back. That and the
+    // Archive holding them are the same claim made twice, so the shelf wins and
+    // the Archive has nothing left to hold.
+    if (lim && lim.source === 'auto-all') return { shelf: list.slice(), archive: [] };
+    if (arch && arch.on) return { shelf: list.filter((e) => !isOut(e)), archive: list.filter(isOut) };
+    // Archive off: the rule from before the layout existed. A finished drop keeps
+    // its place on the shelf only when nothing in the tier can still be claimed,
+    // so the section never vanishes and the tier keeps being explained — and a
+    // claimable drop never sits next to one nobody can get.
+    const anyClaimable = list.some((e) => !isOut(e));
+    return { shelf: list.filter((e) => !(anyClaimable && isOut(e))), archive: [] };
+  }
+
   return {
     BLOCK_TYPES, FORMS, SOURCES, DEFAULT_BLOCKS,
-    normalizeBlock, normalizeLayout, layoutOf, shouldAutoplay,
+    normalizeBlock, normalizeLayout, layoutOf, shouldAutoplay, splitLimited,
   };
 });

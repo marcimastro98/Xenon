@@ -1628,19 +1628,18 @@
           .sort((a, b) => String(b.addedAt || '').localeCompare(String(a.addedAt || '')));
         if (freshAll.length) frag.appendChild(section('__new', freshAll, 'new', t('gallery_new_filter', 'Novità'), true));
 
-        // Sold-out drops move to their own archive shelf when that block is on.
-        // With it off they stay on the Limited shelf under the old rule (shown
-        // only when nothing in the tier is claimable, so the section never
-        // vanishes), which is what makes turning the archive off safe: it can
-        // never put a drop out of reach. Same rule as the website catalog.
+        // How the limited tier divides between its own shelf and the Archive.
+        // Shared with the website catalog and the hub admin (splitLimited): the
+        // three cases had already drifted here, and 'auto-all' with the Archive on
+        // rendered the same drop in BOTH sections — one entry, two cards, a
+        // duplicated DOM id. Whatever the split, turning the Archive off can never
+        // put a drop out of reach.
         const soldOut = (e) => !!(e.limited && e.limited.soldOut);
-        const archBlock = LAYOUT.find((b) => b.type === 'archive');
-        const archiveOn = !!(archBlock && archBlock.on);
-        const anyClaimable = limited.some((e) => !soldOut(e));
-        const archive = archiveOn ? sortList(limited.filter(soldOut)) : [];
-        const shelfLimited = archiveOn
-          ? sortList(limited.filter((e) => !soldOut(e)))
-          : sortList(limited).filter((e) => !(anyClaimable && soldOut(e)));
+        const split = (window.Xenon && window.Xenon.storefront)
+          ? window.Xenon.storefront.splitLimited(limited, LAYOUT, soldOut)
+          : { shelf: limited, archive: [] };
+        const shelfLimited = sortList(split.shelf);
+        const archive = sortList(split.archive);
 
         // ── ONE pass over the admin's order ──────────────────────────────────
         // Every block only decides whether it has anything to say; the order and
@@ -1656,9 +1655,7 @@
             // WHOLE tier — including entries up in the spotlight (dupIds makes
             // those cards skip the DOM id): a 4-item tier must read as 4 items
             // on its shelf, not as the 2 left over after the spotlight.
-            // 'auto-all' is the admin asking for the sold-out ones back on the
-            // shelf regardless of the archive.
-            const items = cap(b.source === 'auto-all' ? sortList(limited) : shelfLimited, b);
+            const items = cap(shelfLimited, b);
             if (items.length) frag.appendChild(featureSection({
               items, dupIds: spotIds, iconName: 'limited', cls: 'is-limited', seeAllKind: '__limited',
               title: t('gallery_limited_section', 'Limited edition'),
