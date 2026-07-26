@@ -32,9 +32,14 @@
   }
   .wrap {
     height: 100%; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 28px;
+    align-items: center; gap: 28px;
     /* The setup offer below makes this page tall enough to overflow a small
-       non-Edge window, where the kiosk opens as an ordinary resizable one. */
+       non-Edge window, where the kiosk opens as an ordinary resizable one.
+       `safe center` and not plain `center`: an overflowing centred flex column
+       spills past its START edge, which no scrollbar can reach — the wordmark
+       and the spinner would be cropped away with no way to scroll back up.
+       `safe` falls back to flex-start exactly when that would happen. */
+    justify-content: safe center;
     padding: 24px; overflow-y: auto;
     background:
       radial-gradient(1200px 480px at 50% -10%, rgba(30,215,96,0.10), transparent 60%),
@@ -111,16 +116,21 @@
     // if no backend ever answers, WE offer the same install behind a button, and
     // the shell runs it in a console the user can watch (xenon-setup:run →
     // run_backend_bootstrap in lib.rs). The shell sets the flag below only on
-    // builds that actually bundle the bootstrap script.
-    var SETUP_AFTER_ATTEMPTS = 40; // ~20s of silence — past the shell's own logon-task nudge
+    // release Windows builds that actually carry the bootstrap script — never
+    // under `tauri dev`, where pressing it would install for real.
+    var SETUP_AFTER_ATTEMPTS = 40;  // ~20s of silence — past the shell's own logon-task nudge
+    var SETUP_REARM_ATTEMPTS = 90;  // ~35s after a click with still no backend
     var canSetup = window.__XENON_SETUP_AVAILABLE__ === true;
+    var setupStartedAt = 0; // attempt number of the last click, 0 = never clicked
 
     function offerSetup() {
       if (!canSetup || done || setupEl.classList.contains('show')) return;
       setupEl.classList.add('show');
+      hintEl.textContent = ''; // the panel is the call to action now
     }
 
     setupBtn.addEventListener('click', function () {
+      setupStartedAt = attempts;
       setupBtn.disabled = true;
       setupBtn.textContent = 'Setup started';
       setupBodyEl.textContent =
@@ -129,6 +139,21 @@
       // Not a navigation: the shell intercepts this scheme and never loads it.
       window.location.href = 'xenon-setup:run';
     });
+
+    // Nothing tells this page whether the console ever opened: the shell may
+    // have failed to spawn it, or the script may have exited in seconds because
+    // it found the engine already registered. Either way a permanently dead
+    // button would be the end of the road, so give it back after a while — the
+    // shell allows a fresh run once its console is gone (see BOOTSTRAP_CHILD).
+    function rearmSetup() {
+      if (setupBtn.disabled === false) return;
+      setupBtn.disabled = false;
+      setupBtn.textContent = 'Try setup again';
+      setupBodyEl.textContent =
+        'Still nothing answering. If the setup window never appeared, or it closed saying ' +
+        'Xenon was already installed, the engine is on this PC but not starting — restarting ' +
+        'the PC usually fixes it. Otherwise you can run the setup again.';
+    }
 
     function go() {
       if (done) return;
@@ -161,17 +186,23 @@
           // ~20s with no answer, and this build can install the engine itself:
           // offer it. The shell's logon-task nudge (see lib.rs) has had its shot
           // by now, so silence this long means "not installed", not "slow".
-          if (attempts === SETUP_AFTER_ATTEMPTS && canSetup) {
-            hintEl.textContent = '';
-            offerSetup();
+          // `>=`, not `===`: a single probe that answers on exactly this attempt
+          // (without reaching the two-answer streak that navigates away) would
+          // otherwise skip the offer for good. offerSetup() is idempotent.
+          if (attempts >= SETUP_AFTER_ATTEMPTS && canSetup) offerSetup();
+          // Setup was started and the backend still isn't there — hand the
+          // button back rather than leave a dead one on screen.
+          if (setupStartedAt && attempts >= setupStartedAt + SETUP_REARM_ATTEMPTS) {
+            rearmSetup();
           }
           // ~60s with no answer: the widget backend is probably not installed or
           // not running at all — the app is only a display for it. The shell has
           // already tried to start its logon task by now (see lib.rs), so at this
           // point the user needs to act. Keep retrying regardless: if they install
-          // or start it, this page hands over on its own. When the setup offer is
-          // already on screen it IS the call to action — don't bury it in text.
-          if (attempts === 120 && !canSetup) {
+          // or start it, this page hands over on its own. This must fire whether
+          // or not the build can offer setup: an engine that is installed but
+          // failing to start reaches here with a button that can't help.
+          if (attempts === 120) {
             hintEl.textContent = 'Still no response from the Xenon widget. This app is the display for the Xenon widget — make sure the widget is installed and running (reinstall it anytime with INSTALL.bat from github.com/marcimastro98/Xenon). This screen will continue on its own once it responds.';
           }
           setTimeout(probe, 500);

@@ -88,8 +88,11 @@ Xenon runs as a small local Node.js server on `http://127.0.0.1:3030/`. On the X
 **Option A — one-click setup (recommended):**
 
 1. Download **[Xenon-Setup-x64.exe](https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe)** — that link always serves the newest version.
-2. Double-click it. That's it: it installs the native Xenon app **and** then sets up the whole dashboard engine for you (download is verified against the project's signing key before anything runs).
-3. If Windows asks permission, click **Yes** (admin rights unlock the hardware temperature sensors and the reserved touchscreen gesture).
+2. Double-click it. It installs the native Xenon app, which opens by itself.
+3. The app needs the dashboard engine behind it, so on first launch it waits a few seconds, finds nothing there, and offers a **Complete setup** button. Press it: a window opens and installs the rest, showing you what it's doing (the download is verified against the project's signing key before anything runs). It takes a few minutes and only happens once.
+4. If Windows asks permission, click **Yes** (admin rights unlock the hardware temperature sensors and the reserved touchscreen gesture).
+
+> The setup deliberately installs nothing behind your back — it never starts a hidden install of its own. See [If Windows blocks the download, or flags Xenon as a virus](#if-windows-blocks-the-download-or-flags-xenon-as-a-virus) for why that matters.
 
 **Option B — classic install (advanced, or if you prefer iCUE/browser only):**
 
@@ -97,7 +100,7 @@ Xenon runs as a small local Node.js server on `http://127.0.0.1:3030/`. On the X
 2. Open the extracted folder and double-click **`INSTALL.bat`**.
 3. If Windows asks permission, click **Yes**.
 
-Either way, the installer automatically:
+Either way — the **Complete setup** button in Option A and `INSTALL.bat` in Option B run the same installer — it automatically:
 
 - installs **Node.js LTS** if missing;
 - installs **FFmpeg** if missing (so MP4 backgrounds can be converted for iCUE);
@@ -107,7 +110,7 @@ Either way, the installer automatically:
 - installs the **native app** if it isn't already on the PC (ensuring the WebView2 runtime), and sets it to open at login;
 - starts the engine and opens `http://127.0.0.1:3030/` so you can confirm it works.
 
-> **Gray or empty screen in the app?** That means the dashboard engine isn't installed or running — run the setup (or `INSTALL.bat`) again and it will repair itself.
+> **Gray or empty screen in the app?** That means the dashboard engine isn't installed or running. Leave the app open: after a few seconds it offers the **Complete setup** button, which installs or repairs it. If the button says Xenon is already installed and the screen still doesn't come up, restart your PC — the engine starts on sign-in. Running `INSTALL.bat` again repairs it too. (Re-running `Xenon-Setup-x64.exe` only reinstalls the app itself, not the engine.)
 
 > The installer **does not** download the free local-AI components (Ollama / Whisper) — that keeps first-time setup fast. You set those up on demand from **Settings → Xenon AI** only if you switch to the local provider. See [FEATURES.md](FEATURES.md#xenon-ai).
 

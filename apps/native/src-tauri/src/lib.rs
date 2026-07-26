@@ -357,10 +357,19 @@ fn spawn_backend_nudge(port: u16) {
 }
 
 /// Absolute path of the bundled backend bootstrap, when this build actually
-/// carries it (`bundle.resources` in tauri.conf.json — so: installed builds
-/// only, never `tauri dev`). `None` doubles as "don't offer setup here".
+/// carries it (`bundle.resources` in tauri.conf.json). `None` doubles as
+/// "don't offer setup here".
+///
+/// Debug builds are excluded deliberately, and the exclusion is NOT redundant:
+/// `tauri-build` stages resources next to the debug exe too, so the file really
+/// is resolvable under `tauri dev` — and running it there would perform a full
+/// production install into `%LOCALAPPDATA%\Programs\Xenon` on the developer's
+/// own machine. The bootstrap is a release-install path only.
 #[cfg(windows)]
 fn bootstrap_script(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+    if cfg!(debug_assertions) {
+        return None;
+    }
     let path = app
         .path()
         .resolve(
@@ -371,9 +380,15 @@ fn bootstrap_script(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
     path.is_file().then_some(path)
 }
 
-/// Fires once per launch — the splash button can't queue a second install.
+/// The bootstrap console this app started, kept so a second press of the splash
+/// button can tell "still installing" from "that window is gone".
+///
+/// A plain once-per-launch latch would be wrong: the script exits within
+/// seconds whenever it decides there is nothing to do, and the splash offers
+/// the button again when the backend still hasn't appeared — with a latch, that
+/// retry would be a silent no-op forever.
 #[cfg(windows)]
-static BOOTSTRAP_STARTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static BOOTSTRAP_CHILD: std::sync::Mutex<Option<std::process::Child>> = std::sync::Mutex::new(None);
 
 /// Runs the bundled backend bootstrap on an explicit user click (the splash's
 /// "Complete setup" button, routed through `xenon-setup:run`).
@@ -398,10 +413,6 @@ static BOOTSTRAP_STARTED: std::sync::atomic::AtomicBool = std::sync::atomic::Ato
 /// certificate lands (see the release checklist in DEVELOPER.md).
 #[cfg(windows)]
 fn run_backend_bootstrap(app: &tauri::AppHandle) {
-    use std::sync::atomic::Ordering;
-    if BOOTSTRAP_STARTED.swap(true, Ordering::SeqCst) {
-        return;
-    }
     let Some(script) = bootstrap_script(app) else {
         return;
     };
@@ -409,6 +420,18 @@ fn run_backend_bootstrap(app: &tauri::AppHandle) {
     // from the navigation hook, which runs on it.
     std::thread::spawn(move || {
         use std::os::windows::process::CommandExt;
+        let Ok(mut slot) = BOOTSTRAP_CHILD.lock() else {
+            return;
+        };
+        // A console we started is still open: the user is watching that install
+        // right now, and a second one racing it over the same install root is
+        // the one thing this must never do. try_wait reaps an exited one, so a
+        // closed window frees the slot for a genuine retry.
+        if let Some(child) = slot.as_mut() {
+            if matches!(child.try_wait(), Ok(None)) {
+                return;
+            }
+        }
         // Give the console app a console of its own — this GUI process has
         // none, and the visible window IS the install progress UI.
         const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
@@ -418,17 +441,14 @@ fn run_backend_bootstrap(app: &tauri::AppHandle) {
             std::env::var("SystemRoot").unwrap_or_else(|_| String::from("C:\\Windows"));
         let powershell = std::path::Path::new(&system_root)
             .join("System32\\WindowsPowerShell\\v1.0\\powershell.exe");
-        let started = std::process::Command::new(powershell)
+        // A failed spawn leaves the slot empty on purpose — the splash hands the
+        // button back after a while, and that retry has to be able to work.
+        *slot = std::process::Command::new(powershell)
             .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"])
             .arg(&script)
             .creation_flags(CREATE_NEW_CONSOLE)
             .spawn()
-            .is_ok();
-        if !started {
-            // Let the user press it again rather than stranding the splash on
-            // a button that silently does nothing.
-            BOOTSTRAP_STARTED.store(false, Ordering::SeqCst);
-        }
+            .ok();
     });
 }
 
@@ -536,10 +556,10 @@ pub fn run() {
                 })
             );
             let port_js = format!("try{{window.__XENON_PORT__={};}}catch(e){{}}", port);
-            // Whether the splash may offer "Complete setup" at all: only builds
-            // that actually bundle the bootstrap can run it (see
-            // bootstrap_script). Without this the button would appear in
-            // `tauri dev` and on any future non-Windows target and do nothing.
+            // Whether the splash may offer "Complete setup" at all: release
+            // Windows builds that actually carry the bootstrap, and nothing
+            // else (see bootstrap_script). Without this the button would show
+            // up in `tauri dev` and on any future non-Windows target.
             #[cfg(windows)]
             let setup_available = bootstrap_script(app.handle()).is_some();
             #[cfg(not(windows))]

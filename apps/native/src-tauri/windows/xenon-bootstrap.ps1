@@ -17,7 +17,8 @@
 #   1. downloads the latest release source zip + its signed SHA256SUMS,
 #   2. verifies the zip (Ed25519, fail-closed, BEFORE extraction),
 #   3. extracts it into a canonical per-user install root,
-#   4. runs the normal backend installer (server\install.ps1 -Mode native).
+#   4. runs the normal backend installer
+#      (server\install.ps1 -Mode native -SkipNativeApp).
 #
 # Trust model: the source zip is verified against the pinned Ed25519 public key
 # below — the SAME key server/self-update.js and server/helper-update.js pin
@@ -52,9 +53,25 @@ function Fail($m) {
   Read-Host 'Press Enter to close this window'
   exit 1
 }
+# "Nothing to do" still has to be READ. This window is spawned with its own
+# console by the app, so an exit closes it instantly: bailing out silently would
+# flash a window and vanish, right after the splash told the user to follow the
+# install here. Every exit from this script pauses.
+function Done($m) {
+  Write-Host ''
+  Write-Host "  $m" -ForegroundColor Green
+  Write-Host '  If the dashboard still does not appear, restart your PC - the' -ForegroundColor Gray
+  Write-Host '  Xenon engine starts automatically when you sign in.' -ForegroundColor Gray
+  Write-Host ''
+  Read-Host 'Press Enter to close this window'
+  exit 0
+}
 
 Write-Host ''
-Write-Host '  Xenon — completing your installation' -ForegroundColor Cyan
+# ASCII only in every string that reaches the console: this file has no BOM, so
+# PowerShell 5.1 decodes it as the system ANSI codepage and any non-ASCII
+# literal prints as mojibake. Comments can hold anything; output cannot.
+Write-Host '  Xenon - completing your installation' -ForegroundColor Cyan
 Write-Host '  The Xenon app is only the screen; this sets up the' -ForegroundColor Gray
 Write-Host '  Xenon dashboard itself (one time, a few minutes).' -ForegroundColor Gray
 Write-Host ''
@@ -69,8 +86,7 @@ Write-Host ''
 # (issue #95: the bootstrap console flashed and died right here).
 cmd /c "schtasks /Query /TN `"$TaskName`" >nul 2>&1"
 if ($LASTEXITCODE -eq 0) {
-  Write-Step 'The Xenon backend is already installed - nothing to do.'
-  exit 0
+  Done 'The Xenon backend is already installed - nothing to do.'
 }
 
 # Second signal: the scheduled task is only a proxy for "backend installed" —
@@ -78,16 +94,19 @@ if ($LASTEXITCODE -eq 0) {
 # registered under another Windows account) has a live backend with no task.
 # If anything already answers on the Xenon port, installing a SECOND backend
 # would only fight it for 3030 — bail out.
+# The bail-out is decided OUTSIDE the try on purpose: `catch { }` here swallows
+# everything, so calling Done (which pauses on Read-Host) from inside it would
+# turn a redirected-stdin failure into "carry on and install a second backend".
+$portTaken = $false
 try {
   $tcp = New-Object Net.Sockets.TcpClient
   $probe = $tcp.BeginConnect('127.0.0.1', 3030, $null, $null)
-  $reached = $probe.AsyncWaitHandle.WaitOne(1500) -and $tcp.Connected
+  $portTaken = $probe.AsyncWaitHandle.WaitOne(1500) -and $tcp.Connected
   $tcp.Close()
-  if ($reached) {
-    Write-Step 'A Xenon backend is already running on 127.0.0.1:3030 - nothing to do.'
-    exit 0
-  }
 } catch { }
+if ($portTaken) {
+  Done 'A Xenon backend is already running on 127.0.0.1:3030 - nothing to do.'
+}
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $headers = @{ 'User-Agent' = 'XenonBootstrap'; 'Accept' = 'application/vnd.github+json' }
@@ -262,12 +281,15 @@ Remove-Item -Path $zipPath -Force -ErrorAction SilentlyContinue
 # Elevated when possible (full CPU-temperature sensor support and the reserved
 # edge swipe); a declined UAC falls back to the unelevated path install.ps1
 # already degrades gracefully on. -Mode native skips the surface prompt (the
-# shell app is literally already installed - that's how we got here).
+# shell app is literally already installed - that's how we got here), and
+# -SkipNativeApp stops it reinstalling that shell: this script now runs FROM the
+# running kiosk, and an outdated shell would otherwise be silently replaced
+# under itself, killing the app mid-install.
 $installer = Join-Path $InstallRoot 'server\install.ps1'
 if (-not (Test-Path $installer)) { Fail 'install.ps1 is missing from the downloaded release.' }
 Write-Step 'Running the Xenon installer (a separate window opens)...'
 $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
-$psArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$installer`"", '-Mode', 'native')
+$psArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$installer`"", '-Mode', 'native', '-SkipNativeApp')
 $ranInstaller = $false
 try {
   Start-Process -FilePath $psExe -Verb RunAs -ArgumentList $psArgs -Wait -ErrorAction Stop
