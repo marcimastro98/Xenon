@@ -229,6 +229,19 @@
   .cat-claim:hover, .cat-discord:hover { transform: translateY(-1px); filter: brightness(1.08); }
   .cat-soldout { flex: 1; text-align: center; font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
     color: var(--danger); padding: 11px 16px; border-radius: 11px; border: 1px solid rgba(255,90,99,.42); background: rgba(255,90,99,.08); }
+  /* The archive is deliberately quiet: it is history, not stock. */
+  .arch-strip { margin-top: 34px; opacity: .72; transition: opacity .2s ease; }
+  .arch-strip:hover { opacity: 1; }
+  .arch-strip .drops { filter: saturate(.55); }
+  .arch-strip:hover .drops { filter: none; }
+  /* A rail: one row, swipeable, snapping, with the scrollbar out of the way. */
+  .cat-rail { display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+              scroll-snap-type: x mandatory; scroll-behavior: smooth;
+              gap: 14px; padding-bottom: 6px; scrollbar-width: thin; }
+  .cat-rail > * { scroll-snap-align: start; flex: 0 0 auto; }
+  .cat-rail::-webkit-scrollbar { height: 6px; }
+  .cat-rail::-webkit-scrollbar-thumb { background: rgba(255,255,255,.16); border-radius: 3px; }
+  @media (prefers-reduced-motion: reduce) { .cat-rail { scroll-behavior: auto; } }
   .cat-limcount { font-family: var(--mono); font-size: 11.5px; color: var(--muted); white-space: nowrap; }
   .cat-limcount b { color: var(--text); }
   .cat-hint { font-family: var(--mono); font-size: 11px; line-height: 1.5; color: var(--plasma-2); padding: 0 15px 13px; }
@@ -599,7 +612,7 @@ const I18N = {
     'sort.feat': 'Featured', 'sort.new': 'Newest', 'sort.installs': 'Most downloaded', 'sort.rated': 'Top rated', 'sort.name': 'Name A–Z', 'card.new': 'New',
     'sec.tag': 'EXCLUSIVE', 'sec.seeall': 'See all →',
     'sec.limited': 'Limited drops', 'sec.limited_sub': 'A fixed number of copies worldwide, reserved on Discord. When they are gone, they are gone.',
-    'sec.freehead': 'Free, from the community',
+    'sec.freehead': 'Free, from the community', 'sec.newhead': 'Just added', 'sec.archive': 'Archive', 'sec.archive_sub': 'Sold out and retired drops. They stay here so the work remains visible, and searchable.',
     'sec.supporters': 'Supporters', 'sec.supporters_sub': 'Themes and packs reserved for people who support Xenon. Become a supporter to get a personal code and unlock them.', 'sec.supporters_join': 'Become a supporter',
     'sup.how': 'What being a supporter gets you',
     'sup.perk1': 'Exclusive themes and packs: a fresh supporter drop every month, and whatever you unlock stays yours to keep for good.',
@@ -636,7 +649,7 @@ const I18N = {
     'sort.feat': 'In evidenza', 'sort.new': 'Più recenti', 'sort.installs': 'Più scaricati', 'sort.rated': 'Più votati', 'sort.name': 'Nome A–Z', 'card.new': 'Novità',
     'sec.tag': 'ESCLUSIVI', 'sec.seeall': 'Vedi tutti →',
     'sec.limited': 'Drop limitati', 'sec.limited_sub': 'Copie contate in tutto il mondo, riservate su Discord. Quando finiscono, finiscono.',
-    'sec.freehead': 'Gratis, dalla community',
+    'sec.freehead': 'Gratis, dalla community', 'sec.newhead': 'Appena aggiunti', 'sec.archive': 'Archivio', 'sec.archive_sub': 'Drop esauriti e ritirati. Restano qui, visibili e cercabili, ma fuori dalla vetrina.',
     'sec.supporters': 'Supporters', 'sec.supporters_sub': 'Temi e pacchetti riservati a chi sostiene Xenon. Diventa supporter e ricevi un codice personale per sbloccarli.', 'sec.supporters_join': 'Diventa supporter',
     'sup.how': 'Cosa ottieni diventando supporter',
     'sup.perk1': 'Temi e pacchetti esclusivi: un nuovo drop supporter ogni mese, e ciò che sblocchi resta tuo per sempre.',
@@ -673,7 +686,7 @@ const I18N = {
     'sort.feat': '추천순', 'sort.new': '최신순', 'sort.name': '이름 A–Z',
     'sec.tag': '독점', 'sec.seeall': '모두 보기 →',
     'sec.limited': '한정판 드롭', 'sec.limited_sub': '전 세계 한정 수량, Discord에서 예약합니다. 소진되면 끝입니다.',
-    'sec.freehead': '커뮤니티의 무료 작품',
+    'sec.freehead': '커뮤니티의 무료 작품', 'sec.newhead': '방금 추가됨', 'sec.archive': '보관함', 'sec.archive_sub': '품절되거나 종료된 드롭입니다. 기록으로 남아 검색할 수 있습니다.',
     'sec.supporters': '서포터', 'sec.supporters_sub': 'Xenon을 후원하는 분을 위한 전용 테마와 패키지. 서포터가 되면 개인 코드를 받아 잠금을 해제할 수 있습니다.', 'sec.supporters_join': '서포터 되기',
     'sup.how': '서포터가 되면 받는 혜택',
     'sup.perk1': '독점 테마와 패키지: 매달 새로운 서포터 드롭, 한 번 잠금 해제한 것은 영원히 당신의 것.',
@@ -710,7 +723,7 @@ const I18N = {
     'sort.feat': 'おすすめ', 'sort.new': '新着', 'sort.name': '名前 A–Z',
     'sec.tag': '限定', 'sec.seeall': 'すべて見る →',
     'sec.limited': '限定ドロップ', 'sec.limited_sub': '世界で数量限定、Discordで予約します。なくなり次第終了です。',
-    'sec.freehead': 'コミュニティの無料作品',
+    'sec.freehead': 'コミュニティの無料作品', 'sec.newhead': '新着', 'sec.archive': 'アーカイブ', 'sec.archive_sub': '完売・終了したドロップ。記録として残り、検索できます。',
     'sec.supporters': 'サポーター', 'sec.supporters_sub': 'Xenonを支援する方のための専用テーマとパッケージ。サポーターになると個人コードを受け取り、アンロックできます。', 'sec.supporters_join': 'サポーターになる',
     'sup.how': 'サポーターになると得られるもの',
     'sup.perk1': '限定テーマとパッケージ: 毎月新しいサポータードロップが届き、アンロックしたものはずっとあなたのもの。',
@@ -747,7 +760,7 @@ const I18N = {
     'sort.feat': '精选', 'sort.new': '最新', 'sort.name': '名称 A–Z',
     'sec.tag': '专属', 'sec.seeall': '查看全部 →',
     'sec.limited': '限量发布', 'sec.limited_sub': '全球数量固定，在 Discord 预订。售完即止。',
-    'sec.freehead': '社区免费作品',
+    'sec.freehead': '社区免费作品', 'sec.newhead': '最新添加', 'sec.archive': '归档', 'sec.archive_sub': '已售罄和已下架的发行。保留在此，仍可搜索。',
     'sec.supporters': '支持者', 'sec.supporters_sub': '为支持 Xenon 的人保留的主题和套件。成为支持者即可获得专属代码并解锁。', 'sec.supporters_join': '成为支持者',
     'sup.how': '成为支持者可获得',
     'sup.perk1': '专属主题与套件：每月都有新的支持者内容，解锁后永久归你所有。',
@@ -879,6 +892,90 @@ function applyLang(lang) {
     const lim = entry && entry.limited;
     if (!lim || lim.fulfillment !== 'hub' || lim.channels !== 'both' || !ID_RE.test(lim.dropId || '')) return '';
     return HUB_BASE + '/limited/claim/' + encodeURIComponent(lim.dropId) + '?source=web';
+  }
+
+  /* The copies-remaining count, localized, in ONE place.
+   * Three call sites used to hand-build "<b>5</b> / 50" and never touched the
+   * translation. With 45 of 50 already claimed that reads as "5 sold out of
+   * 50" — the exact opposite of the truth, and it made a nearly sold-out drop
+   * look like a flop. It also broke every language whose phrasing puts the
+   * total first ("{t}개 중 {n}개 남음", "{t} 份仅剩 {n} 份"), because the order
+   * was baked into the markup instead of coming from the string.
+   */
+  /* ── Storefront layout ─────────────────────────────────────────────
+     Mirror of packages/core/src/storefront-layout.js (which carries the
+     comments and the unit tests). This page is deliberately a single
+     self-contained file, so the contract is copied rather than imported —
+     change one, change the other, or the website and the in-app Store drift
+     apart again, which is the bug this replaced.
+     Fail-safe: anything malformed falls back to SF_DEFAULT, which is the
+     order the page used before the layout existed. */
+  const SF_TYPES = ['spotlight', 'limited', 'supporters', 'new', 'kinds', 'archive'];
+  const SF_FORMS = {
+    spotlight: ['hero-column', 'hero', 'grid'], limited: ['carousel', 'grid', 'rail'],
+    supporters: ['rail', 'grid', 'carousel'], new: ['grid', 'rail'],
+    kinds: ['grid'], archive: ['rail-quiet', 'grid'],
+  };
+  const SF_SOURCES = {
+    spotlight: ['manual', 'auto'], limited: ['auto-live', 'auto-all'],
+    supporters: ['auto'], new: ['auto'], kinds: ['auto'], archive: ['auto'],
+  };
+  const SF_DEFAULT = [
+    { type: 'spotlight', on: true, form: 'hero-column', source: 'manual', autoplayOver: 0, max: 0 },
+    { type: 'limited', on: true, form: 'carousel', source: 'auto-live', autoplayOver: 0, max: 0 },
+    { type: 'supporters', on: true, form: 'rail', source: 'auto', autoplayOver: 4, max: 0 },
+    { type: 'new', on: false, form: 'grid', source: 'auto', autoplayOver: 0, max: 0 },
+    { type: 'kinds', on: true, form: 'grid', source: 'auto', autoplayOver: 0, max: 0 },
+    { type: 'archive', on: true, form: 'rail-quiet', source: 'auto', autoplayOver: 0, max: 0 },
+  ];
+  function sfInt(v, lo, hi, dflt) {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return dflt;
+    return Math.max(lo, Math.min(hi, Math.round(n)));
+  }
+  function sfBlock(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    const type = typeof raw.type === 'string' ? raw.type : '';
+    if (SF_TYPES.indexOf(type) < 0) return null;
+    const forms = SF_FORMS[type], sources = SF_SOURCES[type];
+    return {
+      type, on: raw.on !== false,
+      form: forms.indexOf(raw.form) >= 0 ? raw.form : forms[0],
+      source: sources.indexOf(raw.source) >= 0 ? raw.source : sources[0],
+      autoplayOver: sfInt(raw.autoplayOver, 0, 50, type === 'supporters' ? 4 : 0),
+      max: sfInt(raw.max, 0, 60, 0),
+    };
+  }
+  function sfNormalize(raw) {
+    const list = (raw && typeof raw === 'object' && Array.isArray(raw.blocks)) ? raw.blocks : null;
+    if (!list) return SF_DEFAULT.map((b) => ({ ...b }));
+    const out = []; const seen = Object.create(null);
+    for (const item of list.slice(0, 40)) {
+      const b = sfBlock(item);
+      if (!b || seen[b.type]) continue;
+      seen[b.type] = true; out.push(b);
+    }
+    if (!out.length) return SF_DEFAULT.map((b) => ({ ...b }));
+    for (const d of SF_DEFAULT) if (!seen[d.type]) out.push({ ...d, on: false });
+    return out;
+  }
+  function sfAutoplay(block, count) {
+    if (!block || block.on === false) return false;
+    if (block.form !== 'carousel' && block.form !== 'rail') return false;
+    const over = Number(block.autoplayOver) || 0;
+    return over > 0 && Number(count) > over;
+  }
+  let LAYOUT = SF_DEFAULT.map((b) => ({ ...b }));
+  const sfFind = (type) => LAYOUT.find((b) => b.type === type) || null;
+
+  function limCount(lim) {
+    const span = el('span', 'cat-limcount');
+    String(T('card.left')).split(/(\{n\}|\{t\})/).forEach((part) => {
+      if (part === '{n}') span.appendChild(el('b', null, String(lim.left)));
+      else if (part === '{t}') span.appendChild(document.createTextNode(String(lim.total)));
+      else if (part) span.appendChild(document.createTextNode(part));
+    });
+    return span;
   }
 
   function limitedButtons(parent, entry) {
@@ -1169,7 +1266,7 @@ function applyLang(lang) {
       if (lim.soldOut) { cta.appendChild(el('span', 'cat-soldout', T('card.soldout'))); }
       else {
         limitedButtons(cta, entry);
-        const cnt = el('span', 'cat-limcount'); cnt.appendChild(el('b', null, String(lim.left))); cnt.appendChild(document.createTextNode(' / ' + lim.total)); cta.appendChild(cnt);
+        cta.appendChild(limCount(lim));
       }
     } else {
       const btn = el('button', entry.locked ? 'cat-unlock' : 'cat-copy'); btn.type = 'button';
@@ -1403,7 +1500,7 @@ function applyLang(lang) {
       if (lim.soldOut) { foot.appendChild(el('span', 'cat-soldout', T('card.soldout'))); }
       else {
         limitedButtons(foot, entry);
-        const cnt = el('span', 'cat-limcount'); cnt.appendChild(el('b', null, String(lim.left))); cnt.appendChild(document.createTextNode(' / ' + lim.total)); foot.appendChild(cnt);
+        foot.appendChild(limCount(lim));
       }
       foot.appendChild(linkButton(entry, 'cat-link'));
       body.appendChild(foot); card.appendChild(body);
@@ -1463,7 +1560,7 @@ function applyLang(lang) {
       if (lim.soldOut) { foot.appendChild(el('span', 'cat-soldout', T('card.soldout'))); }
       else {
         limitedButtons(foot, entry);
-        const cnt = el('span', 'cat-limcount'); cnt.appendChild(el('b', null, String(lim.left))); cnt.appendChild(document.createTextNode(' / ' + lim.total)); foot.appendChild(cnt);
+        foot.appendChild(limCount(lim));
       }
     } else {
       const { btn, hint } = codeButton(entry);
@@ -1657,6 +1754,54 @@ function applyLang(lang) {
     if (items.length) s.appendChild(dropsOf(items, true));
     return s;
   }
+  /* Sold-out and retired drops. They used to sit in the Limited strip whenever
+     nothing was live, which put a dead end next to things you can still claim.
+     Here they keep telling the story of the project without competing with it,
+     and stay reachable by search and by the Limited tab either way. */
+  function archiveStrip(items) {
+    const s = el('div', 'arch-strip');
+    const head = el('div', 'lim-head');
+    head.appendChild(el('h2', null, T('sec.archive')));
+    head.appendChild(el('span', 'ssub', T('sec.archive_sub')));
+    s.appendChild(head);
+    s.appendChild(dropsOf(items, false));
+    return s;
+  }
+
+  /* Turn a strip's card row into a rail: swipeable, and self-moving only when
+     there are enough cards to be worth it. Motion on a screen that is on all
+     day is a cost, so the threshold comes from the layout (0 = never) and the
+     user's reduced-motion setting always wins. Pauses on touch and on hover so
+     it can never slide out from under a finger. */
+  function makeRail(strip, block, count) {
+    const row = strip.querySelector('.drops');
+    if (!row) return strip;
+    row.classList.add('cat-rail');
+    if (!sfAutoplay(block, count)) return strip;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return strip;
+    let timer = null, paused = false;
+    const step = () => {
+      if (paused || !row.isConnected) return;
+      const card = row.firstElementChild;
+      const by = card ? card.getBoundingClientRect().width + 14 : 260;
+      // Wrap at the end instead of stalling against the edge.
+      const atEnd = row.scrollLeft + row.clientWidth >= row.scrollWidth - 4;
+      row.scrollTo({ left: atEnd ? 0 : row.scrollLeft + by, behavior: 'smooth' });
+    };
+    const start = () => { if (!timer) timer = setInterval(step, 4200); };
+    const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+    ['pointerdown', 'pointerenter', 'focusin'].forEach((ev) => row.addEventListener(ev, () => { paused = true; stop(); }));
+    ['pointerleave', 'focusout'].forEach((ev) => row.addEventListener(ev, () => { paused = false; start(); }));
+    // A rail nobody can see must not keep scrolling: the page can sit open for
+    // hours on the same display the dashboard runs on.
+    if (typeof IntersectionObserver === 'function') {
+      const io = new IntersectionObserver((es) => { es.forEach((e) => { if (e.isIntersecting) start(); else stop(); }); }, { threshold: 0.15 });
+      io.observe(row);
+    } else start();
+    document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); else if (!paused) start(); });
+    return strip;
+  }
+
   function flatView(list) {
     list = sortList(list);
     if (!list.length) { contentEl.replaceChildren(); stateEl.hidden = false; stateEl.textContent = T('state.empty'); return; }
@@ -1755,16 +1900,53 @@ function applyLang(lang) {
       const free = pool.filter((e) => !spotIds.has(e.id));
       setCount(pool.length + limitedTier.length + supTier.length);
       const frag = document.createDocumentFragment();
-      if (spot.main) frag.appendChild(spotlightBlock(spot.main, spot.side));
-      if (limited.length) frag.appendChild(limitedStrip(limited));
-      // The supporters strip renders whenever the tier exists, even with every
-      // entry up in the spotlight: it carries the perks panel and the join
-      // button, which are the whole point of the tier. Only its cards empty out.
-      if (supTier.length) frag.appendChild(supportersStrip(sup));
-      // Free entries sit under a deliberately quieter eyebrow, so the featured
-      // tiers above keep the visual priority (mirrors the homepage hierarchy).
-      if ((spot.main || limited.length || supTier.length) && free.length) frag.appendChild(el('div', 'free-eyebrow', T('sec.freehead')));
-      KINDS.forEach((k) => { const items = sortList(free.filter((e) => e.kind === k)); if (items.length) frag.appendChild(section(k, items)); });
+
+      // Sold-out drops go to their own archive when that block is on. When it
+      // is off they stay in the Limited strip exactly as before, so turning the
+      // archive off can never make a drop unreachable.
+      const archBlock = sfFind('archive');
+      const archiveOn = !!(archBlock && archBlock.on);
+      const archive = archiveOn ? limitedAll.filter((e) => e.limited.soldOut && !spotIds.has(e.id)) : [];
+      const limitedShown = archiveOn ? limited.filter((e) => !e.limited.soldOut) : limited;
+
+      // ONE pass over the admin's order. Every block is responsible only for
+      // whether it has anything to say; the order and the shape are data.
+      const cap = (list, b) => (b.max > 0 ? list.slice(0, b.max) : list);
+      LAYOUT.forEach((b) => {
+        if (!b.on) return;
+        if (b.type === 'spotlight') {
+          if (spot.main) frag.appendChild(spotlightBlock(spot.main, spot.side));
+        } else if (b.type === 'limited') {
+          const items = cap(b.source === 'auto-all' ? limited : limitedShown, b);
+          if (items.length) frag.appendChild(makeRail(limitedStrip(items), b, items.length));
+        } else if (b.type === 'supporters') {
+          // Renders whenever the tier exists, even with every entry up in the
+          // spotlight: it carries the perks panel and the join button, which are
+          // the whole point of the tier. Only its cards empty out.
+          if (supTier.length) frag.appendChild(makeRail(supportersStrip(cap(sup, b)), b, sup.length));
+        } else if (b.type === 'new') {
+          const items = cap(free.slice().sort((x, y) => (y.addedAt || 0) - (x.addedAt || 0)), b.max ? b : { ...b, max: 8 });
+          if (items.length) {
+            // Deliberately not section(): its "See all" sets activeKind, and a
+            // pseudo-kind would filter the grid down to nothing.
+            const blk = el('section', 'kblock');
+            const head = el('div', 'khead');
+            const l = el('div', 'kl');
+            l.appendChild(el('h2', null, T('sec.newhead')));
+            l.appendChild(el('span', 'kcnt', String(items.length)));
+            head.appendChild(l); blk.appendChild(head);
+            blk.appendChild(gridOf(items));
+            frag.appendChild(blk);
+          }
+        } else if (b.type === 'archive') {
+          if (archive.length) frag.appendChild(makeRail(archiveStrip(cap(archive, b)), b, archive.length));
+        } else if (b.type === 'kinds') {
+          // Free entries sit under a deliberately quieter eyebrow, so the tiers
+          // above keep the visual priority (mirrors the homepage hierarchy).
+          if (frag.childNodes.length && free.length) frag.appendChild(el('div', 'free-eyebrow', T('sec.freehead')));
+          KINDS.forEach((k) => { const items = sortList(free.filter((e) => e.kind === k)); if (items.length) frag.appendChild(section(k, items)); });
+        }
+      });
       stateEl.hidden = true;
       contentEl.replaceChildren(frag);
       deepLink(); return;
@@ -1937,6 +2119,9 @@ function applyLang(lang) {
       if (!res.ok) throw new Error('catalog not available');
       const data = await res.json();
       const raw = (data && Array.isArray(data.entries)) ? data.entries : (Array.isArray(data) ? data : []);
+      // The order and shape of the page come from the catalog now, not from
+      // this file. An absent `layout` normalizes to the previous fixed order.
+      LAYOUT = sfNormalize(data && data.layout);
       const seen = new Set();
       entries = raw.map(clean).filter((e) => e && visible(e) && !seen.has(e.id) && seen.add(e.id)).slice(0, 200);
       if (!entries.length) { stateEl.textContent = T('state.none'); return; }
