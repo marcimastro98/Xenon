@@ -96,3 +96,71 @@ test('SWR: a 304 not-modified keeps and re-serves the cached entries', async () 
   const out = await cat.fetchCatalog();
   assert.deepEqual(out.entries.map((e) => e.id), ['a', 'b']);
 });
+
+// ── The storefront layout rides along with the entries ───────────────────────
+// The catalog carries a `layout` key beside `entries` (what the Store shows, in
+// what order, in what shape) and the read boundary used to drop it silently:
+// normalizeCatalog only ever returned an array, so a layout published from the
+// hub admin reached the website and never the app. These pin that it survives
+// every path the entries do — including the ones that answer from the cache,
+// which is where a "thread it through six returns" fix loses it.
+
+const withLayout = (ids, blocks) => ({
+  notModified: false,
+  text: JSON.stringify({
+    entries: ids.map((id) => ({ id, kind: 'theme', name: id.toUpperCase(), code: 'abc' })),
+    layout: { blocks },
+  }),
+  etag: 'W/"' + ids.join('-') + '"',
+});
+const types = (out) => (out.layout && out.layout.blocks || []).map((b) => b.type);
+
+test('layout: an admin order reaches the app, normalized, in { blocks } shape', async () => {
+  cat._setFetcher(fakeFetcher([withLayout(['a'], [{ type: 'supporters' }, { type: 'spotlight' }])]));
+  const out = await cat.fetchVisibleCatalog();
+  assert.equal(out.ok, true);
+  assert.deepEqual(types(out).slice(0, 2), ['supporters', 'spotlight'], 'the declared order wins');
+  // Same wire shape as catalog.json itself, so the client calls the identical
+  // normalizeLayout() the website does instead of a second, app-only spelling.
+  assert.ok(out.layout && Array.isArray(out.layout.blocks));
+  const sup = out.layout.blocks.find((b) => b.type === 'supporters');
+  assert.equal(sup.form, 'rail', 'defaults filled in by the shared contract');
+  assert.equal(sup.autoplayOver, 4);
+});
+
+test('layout: a catalog with no layout still answers with the default order', async () => {
+  cat._setFetcher(fakeFetcher([catalogResp(['a'])]));
+  const out = await cat.fetchVisibleCatalog();
+  assert.deepEqual(types(out), ['spotlight', 'limited', 'supporters', 'new', 'kinds', 'archive']);
+});
+
+test('layout: junk is refused rather than passed on to the renderers', async () => {
+  cat._setFetcher(fakeFetcher([withLayout(['a'], [{ type: 'nope' }, null, { type: 'archive', max: 9999 }])]));
+  const out = await cat.fetchVisibleCatalog();
+  const arch = out.layout.blocks.find((b) => b.type === 'archive');
+  assert.equal(arch.max, 60, 'clamped, not trusted');
+  assert.ok(!types(out).includes('nope'), 'an unknown block type never reaches a renderer');
+});
+
+test('layout: survives the cached, stale and 304 answers too', async () => {
+  const blocks = [{ type: 'archive' }, { type: 'spotlight' }];
+  const f = fakeFetcher([withLayout(['a'], blocks), { notModified: true }]);
+  cat._setFetcher(f);
+  await cat.fetchVisibleCatalog();
+  // fresh cache — no network
+  assert.deepEqual(types(await cat.fetchVisibleCatalog()).slice(0, 2), ['archive', 'spotlight']);
+  // past the TTL: served stale while revalidating
+  cat._expireCache();
+  assert.deepEqual(types(await cat.fetchVisibleCatalog()).slice(0, 2), ['archive', 'spotlight']);
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(types(await cat.fetchVisibleCatalog()).slice(0, 2), ['archive', 'spotlight'], 'and after the 304');
+});
+
+test('layout: a cold network failure carries no layout, and that is a valid answer', async () => {
+  cat._setFetcher(fakeFetcher([{ throw: 'timeout' }]));
+  const out = await cat.fetchVisibleCatalog();
+  assert.equal(out.ok, false);
+  // Nothing to render and nothing to arrange. The client falls back on its own,
+  // so shipping a made-up layout here would be inventing data from a failure.
+  assert.equal(out.layout, undefined);
+});

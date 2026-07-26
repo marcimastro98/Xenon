@@ -123,6 +123,32 @@
   const KIND_ORDER = ['bundle', 'theme', 'bg', 'page', 'widget', 'deck', 'ambient', 'icons', 'sounds'];
   const PAGE = 9;              // load-more page size for flat (filtered) views
   const SECTION_PREVIEW = 4;   // cards per kind before "See all"
+  const JUST_ADDED_MAX = 8;    // default cap for the "Just added" block
+
+  /* ── The storefront layout ────────────────────────────────────────────────
+     Which sections the Store shows, in what order and in what shape. It is
+     DATA, chosen in the hub admin and carried in the catalog next to `entries`,
+     and the contract is the shared module (packages/core, loaded in index.html
+     as shared/src/storefront-layout.js) — the same one the website catalog
+     reads. Sharing it is the point: the two storefronts had already drifted
+     once (spotlightPick was copied into both), and an order that lives in two
+     hand-written lists diverges the first time only one of them is edited.
+
+     Fail-safe twice over. The server normalizes what the catalog carries, and
+     this normalizes again on arrival; either an absent or a malformed layout
+     yields the default order rather than a blank Store. */
+  function storefrontLayout(raw) {
+    const sf = window.Xenon && window.Xenon.storefront;
+    if (sf) return sf.normalizeLayout(raw);
+    // The shared script is missing (the server/shared junction is created by
+    // npm postinstall, so this means a broken install). The server normalizes
+    // the layout too, so prefer what it sent; only when BOTH are unavailable
+    // fall back to bare types, which is order and nothing else.
+    const blocks = raw && Array.isArray(raw.blocks) ? raw.blocks : null;
+    if (blocks && blocks.length) return blocks;
+    return ['spotlight', 'limited', 'supporters', 'kinds', 'archive']
+      .map((type) => ({ type, on: true, form: '', source: '', autoplayOver: 0, max: 0 }));
+  }
   // Browse state (kept while the overlay is open).
   let searchQuery = '';
   let activeKind = '';
@@ -186,6 +212,9 @@
     new: S0 + '<path d="M12 3l1.9 5.2L19 10l-5.1 1.8L12 17l-1.9-5.2L5 10l5.1-1.8z"/></svg>',
     limited: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2.2l1.9 5.6a2 2 0 0 0 1.3 1.3l5.6 1.9-5.6 1.9a2 2 0 0 0-1.3 1.3L12 19.8l-1.9-5.6a2 2 0 0 0-1.3-1.3L3.2 11l5.6-1.9a2 2 0 0 0 1.3-1.3z"/></svg>',
     supporters: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 20.4l-1.5-1.3C5.7 14.9 3 12.4 3 9.3A4.3 4.3 0 0 1 7.3 5c1.5 0 3 .8 3.7 2 .7-1.2 2.2-2 3.7-2A4.3 4.3 0 0 1 21 9.3c0 3.1-2.7 5.6-7.5 9.8z"/></svg>',
+    // Archive: a closed box, deliberately the least eye-catching glyph in here —
+    // the shelf it heads is history, not stock.
+    archive: S0 + '<path d="M3.5 7.5h17v3.2h-17z"/><path d="M5 10.7V19a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8.3"/><path d="M10 14.2h4"/></svg>',
     search: S0 + '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.2-4.2"/></svg>',
     check: S0 + '<path d="M20 6.5L9.2 17.3 4 12.1"/></svg>',
     update: S0 + '<path d="M12 4v10"/><path d="M8 8l4-4 4 4"/><path d="M5 18a7 7 0 0 0 14 0"/></svg>',
@@ -1333,6 +1362,7 @@
       return;
     }
     const all = Array.isArray(out.entries) ? out.entries : [];
+    const LAYOUT = storefrontLayout(out.layout);
     await hydrateLimitedStatus(all);
     if (!overlayEl) return;
     all.forEach((e, i) => { if (e) e._i = i; });
@@ -1456,6 +1486,23 @@
       wrap.appendChild(cardGrid(items, k === '__updates' ? items.length : SECTION_PREVIEW, noId));
       return wrap;
     }
+    // A plain shelf: a head and the cards, all of them. Deliberately NOT
+    // section(): that one previews 4 and its "See all" sets activeKind, which
+    // only works for a real kind or a pseudo-kind paintGrid handles. A block
+    // whose own `max` decides how many cards it shows would then say "See all 8"
+    // and filter the grid down to nothing.
+    function plainBlock(titleText, iconName, items, noId) {
+      const wrap = el('div', 'cgal-kblock');
+      const head = el('div', 'cgal-khead');
+      const l = el('div', 'cgal-khead-l');
+      l.appendChild(icon(iconName, 'cgal-khead-ic'));
+      l.appendChild(el('span', 'cgal-khead-title', titleText));
+      l.appendChild(el('span', 'cgal-khead-cnt', String(items.length)));
+      head.appendChild(l);
+      wrap.appendChild(head);
+      wrap.appendChild(cardGrid(items, null, noId));
+      return wrap;
+    }
     // A premium "shelf" for the two exclusive tiers (Limited and Supporters) —
     // deliberately on par: a tinted bordered container, a lead line, an optional
     // join action in the head, and the tier's own cards. Same footprint so
@@ -1563,44 +1610,90 @@
         const heroEntry = spot.main;
         const spotIds = new Set(spot.side.map((e) => e.id));
         if (heroEntry) spotIds.add(heroEntry.id);
-        if (heroEntry) frag.appendChild(spotlightBlock(heroEntry, spot.side));
-        // Not "for your widgets" any more: the join covers themes, decks, pages
-        // and packs through install receipts, so the heading has to as well.
+
+        // ── Two shelves that are NOT part of the layout ───────────────────────
+        // Both are personal — they describe this machine, not the storefront —
+        // so they render before the layout walk and cannot be reordered or
+        // switched off from the admin. "Updates" especially: a storefront
+        // arrangement must never be able to hide the fact that something the
+        // user already installed has an update waiting for them.
         if (updates.length) frag.appendChild(section('__updates', updates, 'update', t('gallery_updates', 'Aggiornamenti per i tuoi contenuti')));
-        // "Novità" shelf: everything published since the last visit in one
-        // place, newest first, whatever its tier. Cards here duplicate their
+        // "Novità" shelf: everything published since THIS user's last visit in
+        // one place, newest first, whatever its tier. Cards here duplicate their
         // tier/kind section entries by design → noId. "See all" opens the
-        // dedicated __new view the rail chip also reaches.
+        // dedicated __new view the rail chip also reaches. Distinct from the
+        // layout's `new` block below, which is catalog recency and therefore the
+        // same for everyone.
         const freshAll = browse.concat(limited, supporters).filter(isNewEntry)
           .sort((a, b) => String(b.addedAt || '').localeCompare(String(a.addedAt || '')));
         if (freshAll.length) frag.appendChild(section('__new', freshAll, 'new', t('gallery_new_filter', 'Novità'), true));
-        // Two exclusive shelves, on par with each other: Limited then Supporters.
-        // Each carries its WHOLE tier — including entries up in the spotlight
-        // (dupIds makes those cards skip the DOM id): a 4-item tier must read
-        // as 4 items on its shelf, not as the 2 left over after the spotlight.
-        // A sold-out drop holds the Limited shelf only when nothing in the tier
-        // can still be claimed — a claimable hero must never sit next to one
-        // nobody can get. Sold-out drops stay reachable through search and the
-        // Limited tab, where the history is the point. Same rule as the website
-        // catalog's limited strip.
-        const anyClaimable = limited.some((e) => !(e.limited && e.limited.soldOut));
-        const shelfLimited = sortList(limited)
-          .filter((e) => !(anyClaimable && e.limited && e.limited.soldOut));
-        if (shelfLimited.length) frag.appendChild(featureSection({
-          items: shelfLimited, dupIds: spotIds, iconName: 'limited', cls: 'is-limited', seeAllKind: '__limited',
-          title: t('gallery_limited_section', 'Limited edition'),
-          lead: t('gallery_limited_lead_short', 'A fixed number of copies worldwide — reserved on Discord.'),
-        }));
-        // The shelf renders whenever the tier EXISTS: it carries the "how it
-        // works" panel and the join button, which are the whole conversion path.
-        if (supporters.length) frag.appendChild(featureSection({
-          items: sortList(supporters), dupIds: spotIds, iconName: 'supporters', cls: 'is-sup', seeAllKind: '__supporters',
-          title: t('gallery_supporters_section', 'Supporters'),
-          lead: t('gallery_supporters_lead', 'Themes and packs reserved for Xenon supporters — become one to unlock them.'),
-          joinLabel: t('gallery_supporters_join', 'Become a supporter'), joinHref: BMC_URL, joinIcon: 'supporters',
-          onInfo: openSupporterInfo,
-        }));
-        KIND_ORDER.forEach((k) => { const items = sortList(pool.filter((e) => e.kind === k && !spotIds.has(e.id))); if (items.length) frag.appendChild(section(k, items)); });
+
+        // Sold-out drops move to their own archive shelf when that block is on.
+        // With it off they stay on the Limited shelf under the old rule (shown
+        // only when nothing in the tier is claimable, so the section never
+        // vanishes), which is what makes turning the archive off safe: it can
+        // never put a drop out of reach. Same rule as the website catalog.
+        const soldOut = (e) => !!(e.limited && e.limited.soldOut);
+        const archBlock = LAYOUT.find((b) => b.type === 'archive');
+        const archiveOn = !!(archBlock && archBlock.on);
+        const anyClaimable = limited.some((e) => !soldOut(e));
+        const archive = archiveOn ? sortList(limited.filter(soldOut)) : [];
+        const shelfLimited = archiveOn
+          ? sortList(limited.filter((e) => !soldOut(e)))
+          : sortList(limited).filter((e) => !(anyClaimable && soldOut(e)));
+
+        // ── ONE pass over the admin's order ──────────────────────────────────
+        // Every block only decides whether it has anything to say; the order and
+        // the shape are data. A block with an empty list renders nothing, so the
+        // Store never shows an empty shelf just because it is enabled.
+        const cap = (list, b) => (b.max > 0 ? list.slice(0, b.max) : list);
+        LAYOUT.forEach((b) => {
+          if (!b.on) return;
+          if (b.type === 'spotlight') {
+            if (heroEntry) frag.appendChild(spotlightBlock(heroEntry, spot.side));
+          } else if (b.type === 'limited') {
+            // Two exclusive shelves, on par with each other. Each carries its
+            // WHOLE tier — including entries up in the spotlight (dupIds makes
+            // those cards skip the DOM id): a 4-item tier must read as 4 items
+            // on its shelf, not as the 2 left over after the spotlight.
+            // 'auto-all' is the admin asking for the sold-out ones back on the
+            // shelf regardless of the archive.
+            const items = cap(b.source === 'auto-all' ? sortList(limited) : shelfLimited, b);
+            if (items.length) frag.appendChild(featureSection({
+              items, dupIds: spotIds, iconName: 'limited', cls: 'is-limited', seeAllKind: '__limited',
+              title: t('gallery_limited_section', 'Limited edition'),
+              lead: t('gallery_limited_lead_short', 'A fixed number of copies worldwide — reserved on Discord.'),
+            }));
+          } else if (b.type === 'supporters') {
+            // Renders whenever the tier EXISTS, even with every entry up in the
+            // spotlight: it carries the "how it works" panel and the join
+            // button, which are the whole conversion path.
+            if (supporters.length) frag.appendChild(featureSection({
+              items: cap(sortList(supporters), b), dupIds: spotIds, iconName: 'supporters', cls: 'is-sup', seeAllKind: '__supporters',
+              title: t('gallery_supporters_section', 'Supporters'),
+              lead: t('gallery_supporters_lead', 'Themes and packs reserved for Xenon supporters — become one to unlock them.'),
+              joinLabel: t('gallery_supporters_join', 'Become a supporter'), joinHref: BMC_URL, joinIcon: 'supporters',
+              onInfo: openSupporterInfo,
+            }));
+          } else if (b.type === 'new') {
+            // "Just added" — catalog recency, identical on every machine. noId
+            // because these cards also appear in their kind section below.
+            const items = cap(
+              browse.filter((e) => !spotIds.has(e.id))
+                .slice().sort((x, y) => String(y.addedAt || '').localeCompare(String(x.addedAt || ''))),
+              b.max > 0 ? b : { max: JUST_ADDED_MAX },
+            );
+            if (items.length) frag.appendChild(plainBlock(t('gallery_justadded', 'Just added'), 'new', items, true));
+          } else if (b.type === 'archive') {
+            if (archive.length) frag.appendChild(featureSection({
+              items: cap(archive, b), dupIds: spotIds, iconName: 'archive', cls: 'is-archive', seeAllKind: '__limited',
+              title: t('gallery_archive_section', 'Archive'),
+              lead: t('gallery_archive_lead', 'Drops whose copies are all gone. They stay here so the work remains visible, and searchable.'),
+            }));
+          } else if (b.type === 'kinds') {
+            KIND_ORDER.forEach((k) => { const items = sortList(pool.filter((e) => e.kind === k && !spotIds.has(e.id))); if (items.length) frag.appendChild(section(k, items)); });
+          }
+        });
         host.replaceChildren(frag);
         return;
       }

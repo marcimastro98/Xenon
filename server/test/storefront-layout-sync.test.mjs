@@ -87,6 +87,33 @@ test('both copies know the same block types', () => {
   );
 });
 
+// A block type nothing draws is worse than one that does not exist: the admin
+// enables it, saves, and the section simply never appears — with no error
+// anywhere to explain why. Both renderers walk the layout as a chain of
+// `b.type === '<type>'` branches, so the coverage is checkable from the source.
+// The app reads the shared module directly (no mirror to drift), which is why
+// this checks the BRANCHES here and the normalizer only for the website.
+test('both storefronts draw every block type the contract defines', () => {
+  const RENDERERS = [
+    ['docs/catalog/index.html', join(ROOT, 'docs', 'catalog', 'index.html')],
+    ['server/js/community-gallery.js', join(ROOT, 'server', 'js', 'community-gallery.js')],
+  ];
+  for (const [label, file] of RENDERERS) {
+    const src = readFileSync(file, 'utf8');
+    const handled = new Set(
+      [...src.matchAll(/b\.type === '([a-z]+)'/g)].map((m) => m[1]),
+    );
+    for (const type of canon.BLOCK_TYPES) {
+      assert.ok(handled.has(type),
+        `${label} has no branch for the '${type}' block — enabling it in the admin would render nothing`);
+    }
+    for (const type of handled) {
+      assert.ok(canon.BLOCK_TYPES.includes(type),
+        `${label} draws a '${type}' block the contract does not define, so normalizeLayout drops it before it is ever reached`);
+    }
+  }
+});
+
 test('the page ships a translation for every section heading it renders', () => {
   const html = readFileSync(PAGE, 'utf8');
   // One entry per UI language block; each must carry the new headings or a

@@ -21,6 +21,20 @@ const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./atomic-write');
 
+// The storefront layout — which sections the Store shows, in what order and in
+// what shape — travels in the catalog alongside `entries`, and the same contract
+// is read by the website catalog and written by the hub admin. Loaded through the
+// server/shared junction (→ packages/core).
+//
+// Guarded on purpose: a checkout whose `npm install` postinstall has not run yet
+// has no junction, and a bare require would throw at module load and take the
+// whole server down for what is a cosmetic ordering feature. Without it the
+// catalog simply carries no layout and both storefronts fall back to their
+// default order — which is exactly what the contract promises for absent input.
+let storefront = null;
+try { storefront = require('./shared/src/storefront-layout.js'); }
+catch { storefront = null; }
+
 const CATALOG_BASE = 'https://xenon-app.com/community/';
 const CATALOG_URL = CATALOG_BASE + 'catalog.json';
 
@@ -227,6 +241,18 @@ function normalizeCatalog(raw) {
   return out;
 }
 
+// Rebuild the storefront layout the same way: bounded, key-by-key, never spread.
+// All of that already lives in the shared contract (unknown block types dropped,
+// duplicates collapsed, numbers clamped, a hard cap on how many blocks are read),
+// so this is only the boundary that decides whether we have a contract to apply.
+// Returns null when the module is unavailable — the storefronts then use their own
+// default order, which is the same answer they give for an absent layout.
+function normalizeCatalogLayout(raw) {
+  if (!storefront) return null;
+  try { return storefront.normalizeLayout(raw); }
+  catch { return null; }
+}
+
 // Is an entry currently listable? `active` (when present) is a hard override;
 // otherwise the [activeFrom, activeUntil] date window decides. Pure — takes the
 // clock so it stays testable and is evaluated per request (never cached).
@@ -314,6 +340,7 @@ function initCache(opts) {
       // and it is re-validated key-by-key exactly like a fresh network fetch.
       _catalogCache = {
         entries: normalizeCatalog(raw.entries),
+        layout: normalizeCatalogLayout(raw.layout),
         fetchedAt: Number(raw.fetchedAt) || 0,
         etag: typeof raw.etag === 'string' ? raw.etag : '',
       };
@@ -325,6 +352,7 @@ function _persistCatalogCache() {
   if (!_cacheFile || !_catalogCache) return;
   const snapshot = JSON.stringify({
     entries: _catalogCache.entries,
+    layout: _catalogCache.layout,
     fetchedAt: _catalogCache.fetchedAt,
     etag: _catalogCache.etag,
   });
@@ -348,7 +376,8 @@ function _revalidateCatalog(doForce) {
       let parsed;
       try { parsed = JSON.parse(resp.text || ''); } catch { throw new Error('bad catalog JSON'); }
       const entries = normalizeCatalog(parsed);
-      _catalogCache = { entries, fetchedAt: Date.now(), etag: resp.etag || '' };
+      const layout = normalizeCatalogLayout(parsed && parsed.layout);
+      _catalogCache = { entries, layout, fetchedAt: Date.now(), etag: resp.etag || '' };
       _persistCatalogCache();
       return { ok: true, entries, cached: false };
     } catch (e) {
@@ -394,7 +423,22 @@ async function fetchCatalog(force) {
 async function fetchVisibleCatalog(force) {
   const out = await fetchCatalog(force);
   if (out && out.ok && Array.isArray(out.entries)) {
-    return { ...out, entries: filterVisibleEntries(out.entries, Date.now()) };
+    // The layout rides out from HERE and nowhere else. fetchCatalog has six
+    // return paths (fresh, cached, 304, stale-while-revalidate, degraded,
+    // cold-fail) and threading it through each is how one of them ends up
+    // silently dropping it; every consumer goes through this one boundary.
+    // Absent (no shared module, or a cold failure with nothing cached) is a
+    // valid answer — the client's own fallback covers it.
+    // Wire shape is catalog.json's own — `{ blocks: [...] }`, not a bare array —
+    // so the client calls the SAME normalizeLayout(out.layout) the website calls
+    // on the raw file, instead of an app-only spelling that has to be remembered
+    // in two places. Re-normalizing an already-normalized list is a no-op.
+    const layout = _catalogCache && _catalogCache.layout;
+    return {
+      ...out,
+      entries: filterVisibleEntries(out.entries, Date.now()),
+      ...(layout ? { layout: { blocks: layout } } : null),
+    };
   }
   return out;
 }
@@ -447,6 +491,7 @@ module.exports = {
   CATALOG_URL,
   CATALOG_TTL_MS,
   normalizeCatalog,
+  normalizeCatalogLayout,
   normalizeEntry,
   normalizeCodeId,
   isEntryVisible,

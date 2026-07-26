@@ -3530,6 +3530,10 @@
      fallback so the dashboard still works if /shared is briefly unavailable. -->
 <script src="shared/src/constants.js"></script>
 <script src="shared/src/format.js"></script>
+<!-- The storefront layout contract, shared with the website catalog and the hub
+     admin so the two Store fronts cannot disagree about what shows where.
+     community-gallery.js degrades to its own default order if this is absent. -->
+<script src="shared/src/storefront-layout.js"></script>
 <script src="js/custom-select.js"></script>
 <script src="js/color-picker.js"></script>
 <script src="js/utils.js"></script>

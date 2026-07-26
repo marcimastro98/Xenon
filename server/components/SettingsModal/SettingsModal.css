@@ -2710,6 +2710,14 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-feat-block.is-sup { border-color: rgba(255, 180, 84, 0.3); background: radial-gradient(130% 100% at 100% 0, rgba(255, 180, 84, 0.1), transparent 60%), rgba(255, 180, 84, 0.02); }
 .cgal-feat-block.is-sup .cgal-khead-ic { color: var(--warn, #ffb454); }
 .cgal-feat-block.is-sup .cgal-khead-cnt { color: #ffd089; background: rgba(255, 180, 84, 0.16); }
+/* Archive: the deliberate opposite of the two tier shelves above. It gets the
+   same footprint so it still reads as a shelf, but no accent tint and no glow —
+   it is history, not stock, and it must not compete with a drop somebody can
+   still claim. Its cards already carry .dim from renderCard. */
+.cgal-feat-block.is-archive { border-color: var(--glass-border, rgba(255, 255, 255, 0.07)); background: rgba(255, 255, 255, 0.014); }
+.cgal-feat-block.is-archive .cgal-khead-title,
+.cgal-feat-block.is-archive .cgal-khead-ic { color: var(--text-dim, #8b91a1); }
+.cgal-feat-block.is-archive .cgal-khead-cnt { color: var(--text-dim, #8b91a1); background: rgba(255, 255, 255, 0.06); }
 .cgal-khead-actions { display: flex; align-items: center; gap: 14px; flex: none; }
 .cgal-feat-lead { margin: 0 2px 14px; font-size: 0.84rem; line-height: 1.45; color: var(--text-dim, #8b91a1); }
 .cgal-feat-join { flex: none; white-space: nowrap; }
