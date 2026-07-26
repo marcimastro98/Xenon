@@ -197,13 +197,25 @@ test('the website mirror splits the limited tier exactly like packages/core', ()
   }
 });
 
-test('both storefronts route the limited tier through the shared split', () => {
-  // A renderer that computes it inline is the drift this replaced, so the call
-  // itself is what gets pinned.
-  const site = readFileSync(PAGE, 'utf8');
-  assert.match(site, /sfSplitLimited\(limited,\s*LAYOUT/,
-    'the website catalog no longer uses the shared split');
-  const app = readFileSync(join(ROOT, 'server', 'js', 'community-gallery.js'), 'utf8');
-  assert.match(app, /storefront\.splitLimited\(limited,\s*LAYOUT/,
-    'the in-app Store no longer uses the shared split');
+test('every storefront that walks the layout routes the split through the contract', () => {
+  // A renderer that computes the split inline is the drift this replaced, so the
+  // call itself is what gets pinned.
+  //
+  // Checked only for a file that actually WALKS the layout. That precondition is
+  // the point, not a let-off: the two storefronts land on a branch at different
+  // times (the website first, the app after), and asserting how a renderer splits
+  // the limited tier is meaningless in a tree where it does not read the layout at
+  // all. The guard below is what keeps that from becoming a silent skip.
+  const RENDERERS = [
+    ['docs/catalog/index.html', PAGE, /sfSplitLimited\(limited,\s*LAYOUT/],
+    ['server/js/community-gallery.js', join(ROOT, 'server', 'js', 'community-gallery.js'), /storefront\.splitLimited\(limited,\s*LAYOUT/],
+  ];
+  let walkers = 0;
+  for (const [label, file, call] of RENDERERS) {
+    const src = readFileSync(file, 'utf8');
+    if (!/LAYOUT\.forEach/.test(src)) continue;   // does not read the layout here yet
+    walkers++;
+    assert.match(src, call, `${label} walks the layout but no longer uses the shared split`);
+  }
+  assert.ok(walkers > 0, 'no storefront walks the layout any more — this test has nothing left to guard');
 });
