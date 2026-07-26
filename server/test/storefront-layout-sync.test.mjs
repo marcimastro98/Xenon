@@ -33,7 +33,8 @@ function loadMirror() {
     'the catalog page no longer carries the SF_* layout mirror — if it was replaced by a real import, delete this test');
   const sandbox = { globalThis: {} };
   vm.createContext(sandbox);
-  vm.runInContext(main.slice(start, end) + '\n;globalThis.__sf = { sfNormalize, sfAutoplay, sfBlock, SF_DEFAULT, SF_TYPES };', sandbox);
+  vm.runInContext(main.slice(start, end)
+    + '\n;globalThis.__sf = { sfNormalize, sfAutoplay, sfBlock, sfSplitLimited, SF_DEFAULT, SF_TYPES };', sandbox);
   return sandbox.globalThis.__sf;
 }
 
@@ -87,6 +88,40 @@ test('both copies know the same block types', () => {
   );
 });
 
+// A block type nothing draws is worse than one that does not exist: the admin
+// enables it, saves, and the section simply never appears — with no error
+// anywhere to explain why. Both renderers walk the layout as a chain of
+// `b.type === '<type>'` branches, so the coverage is checkable from the source.
+// The app reads the shared module directly (no mirror to drift), which is why
+// this checks the BRANCHES here and the normalizer only for the website.
+test('every storefront that walks the layout draws all of its block types', () => {
+  const RENDERERS = [
+    ['docs/catalog/index.html', join(ROOT, 'docs', 'catalog', 'index.html')],
+    ['server/js/community-gallery.js', join(ROOT, 'server', 'js', 'community-gallery.js')],
+  ];
+  let walkers = 0;
+  for (const [label, file] of RENDERERS) {
+    const src = readFileSync(file, 'utf8');
+    // Same precondition as the split test below: the two storefronts adopt the
+    // layout at different times, and a renderer that does not read it cannot be
+    // missing a branch for a block.
+    if (!/LAYOUT\.forEach/.test(src)) continue;
+    walkers++;
+    const handled = new Set(
+      [...src.matchAll(/b\.type === '([a-z]+)'/g)].map((m) => m[1]),
+    );
+    for (const type of canon.BLOCK_TYPES) {
+      assert.ok(handled.has(type),
+        `${label} has no branch for the '${type}' block — enabling it in the admin would render nothing`);
+    }
+    for (const type of handled) {
+      assert.ok(canon.BLOCK_TYPES.includes(type),
+        `${label} draws a '${type}' block the contract does not define, so normalizeLayout drops it before it is ever reached`);
+    }
+  }
+  assert.ok(walkers > 0, 'no storefront walks the layout any more — this test has nothing left to guard');
+});
+
 test('the page ships a translation for every section heading it renders', () => {
   const html = readFileSync(PAGE, 'utf8');
   // One entry per UI language block; each must carry the new headings or a
@@ -97,4 +132,97 @@ test('the page ships a translation for every section heading it renders', () => 
     assert.equal(found, langBlocks.length,
       `${key} is missing from ${langBlocks.length - found} of ${langBlocks.length} language blocks`);
   }
+});
+
+// ── The limited/Archive split ────────────────────────────────────────────────
+// This is the one rule where a mistake is not cosmetic: it decides whether a
+// drop appears once, twice, or not at all. It got all three wrong before being
+// shared — 'auto-all' with the Archive on rendered the same entry in BOTH
+// sections, duplicating its DOM anchor and double-counting it.
+const LIM = [
+  { id: 'live1', out: false }, { id: 'live2', out: false },
+  { id: 'gone1', out: true }, { id: 'gone2', out: true },
+];
+const OUT = (e) => e.out;
+const ids = (list) => list.map((e) => e.id);
+
+const SPLIT_CASES = [
+  ['archive on, shelf auto-live', [{ type: 'limited', source: 'auto-live' }, { type: 'archive', on: true }]],
+  ['archive off', [{ type: 'limited', source: 'auto-live' }, { type: 'archive', on: false }]],
+  ['shelf auto-all, archive on', [{ type: 'limited', source: 'auto-all' }, { type: 'archive', on: true }]],
+  ['shelf auto-all, archive off', [{ type: 'limited', source: 'auto-all' }, { type: 'archive', on: false }]],
+  ['defaults', null],
+];
+
+test('an entry is never in both the Limited shelf and the Archive', () => {
+  for (const [label, blocks] of SPLIT_CASES) {
+    const { shelf, archive } = canon.splitLimited(LIM, blocks, OUT);
+    const both = ids(shelf).filter((id) => ids(archive).includes(id));
+    assert.deepEqual(both, [], `${label}: ${both.join(',')} would render twice`);
+    // A drop somebody can still claim must be on the shelf in every arrangement.
+    // (A finished one may be dropped from it — with the Archive off that is the
+    // deliberate old rule, and it stays reachable through search and the Limited
+    // tab.)
+    for (const e of LIM.filter((x) => !OUT(x))) {
+      assert.ok(ids(shelf).includes(e.id), `${label}: ${e.id} is claimable and nowhere on the shelf`);
+    }
+    const layout = canon.normalizeLayout({ blocks });
+    const lim = layout.find((b) => b.type === 'limited');
+    const arch = layout.find((b) => b.type === 'archive');
+    if (lim.source === 'auto-all') {
+      assert.deepEqual(ids(shelf), ids(LIM), `${label}: auto-all asked for every drop`);
+      assert.deepEqual(archive, [], `${label}: the shelf took them, so the Archive holds nothing`);
+    } else if (arch.on) {
+      assert.deepEqual([...ids(shelf), ...ids(archive)].sort(), ids(LIM).sort(),
+        `${label}: every drop has to land somewhere`);
+    }
+  }
+});
+
+test('a tier with nothing claimable keeps its shelf rather than vanishing', () => {
+  const allGone = [{ id: 'a', out: true }, { id: 'b', out: true }];
+  const off = [{ type: 'archive', on: false }];
+  assert.deepEqual(ids(canon.splitLimited(allGone, off, OUT).shelf), ['a', 'b'],
+    'the section explains the tier, so it must not disappear when every drop is finished');
+});
+
+test('the website mirror splits the limited tier exactly like packages/core', () => {
+  const mirror = loadMirror();
+  assert.equal(typeof mirror.sfSplitLimited, 'function',
+    'the catalog page lost its sfSplitLimited mirror');
+  for (const [label, blocks] of SPLIT_CASES) {
+    const a = mirror.sfSplitLimited(LIM, blocks, OUT);
+    const b = canon.splitLimited(LIM, blocks, OUT);
+    // The mirror runs in a vm context, so its arrays carry that realm's
+    // Array.prototype and deepStrictEqual fails on identical contents. Compare the
+    // shapes as plain data, like the other mirror tests above.
+    assert.equal(
+      JSON.stringify([ids(a.shelf), ids(a.archive)]),
+      JSON.stringify([ids(b.shelf), ids(b.archive)]),
+      'mirror drifted for ' + label,
+    );
+  }
+});
+
+test('every storefront that walks the layout routes the split through the contract', () => {
+  // A renderer that computes the split inline is the drift this replaced, so the
+  // call itself is what gets pinned.
+  //
+  // Checked only for a file that actually WALKS the layout. That precondition is
+  // the point, not a let-off: the two storefronts land on a branch at different
+  // times (the website first, the app after), and asserting how a renderer splits
+  // the limited tier is meaningless in a tree where it does not read the layout at
+  // all. The guard below is what keeps that from becoming a silent skip.
+  const RENDERERS = [
+    ['docs/catalog/index.html', PAGE, /sfSplitLimited\(limited,\s*LAYOUT/],
+    ['server/js/community-gallery.js', join(ROOT, 'server', 'js', 'community-gallery.js'), /storefront\.splitLimited\(limited,\s*LAYOUT/],
+  ];
+  let walkers = 0;
+  for (const [label, file, call] of RENDERERS) {
+    const src = readFileSync(file, 'utf8');
+    if (!/LAYOUT\.forEach/.test(src)) continue;   // does not read the layout here yet
+    walkers++;
+    assert.match(src, call, `${label} walks the layout but no longer uses the shared split`);
+  }
+  assert.ok(walkers > 0, 'no storefront walks the layout any more — this test has nothing left to guard');
 });
