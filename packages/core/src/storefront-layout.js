@@ -73,7 +73,7 @@
   const DEFAULT_BLOCKS = [
     { type: 'spotlight', on: true, form: 'hero-column', source: 'manual', autoplayOver: 0, max: 0 },
     { type: 'limited', on: true, form: 'carousel', source: 'auto-live', autoplayOver: 0, max: 0 },
-    { type: 'supporters', on: true, form: 'rail', source: 'auto', autoplayOver: 4, max: 0 },
+    { type: 'supporters', on: true, form: 'rail', source: 'auto', autoplayOver: 2, max: 0 },
     { type: 'new', on: false, form: 'grid', source: 'auto', autoplayOver: 0, max: 0 },
     { type: 'kinds', on: true, form: 'grid', source: 'auto', autoplayOver: 0, max: 0 },
     { type: 'archive', on: true, form: 'rail-quiet', source: 'auto', autoplayOver: 0, max: 0 },
@@ -100,7 +100,7 @@
       source: sources.indexOf(raw.source) >= 0 ? raw.source : sources[0],
       // 0 disables autoplay entirely; the storefronts only animate a rail when
       // it holds MORE than this many cards.
-      autoplayOver: clampInt(raw.autoplayOver, 0, 50, type === 'supporters' ? 4 : 0),
+      autoplayOver: clampInt(raw.autoplayOver, 0, 50, type === 'supporters' ? 2 : 0),
       // 0 means "no cap".
       max: clampInt(raw.max, 0, 60, 0),
     };

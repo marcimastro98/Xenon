@@ -1991,7 +1991,18 @@ I18N.zh = {
     const pool = open.length ? open : premium;   // nothing open → the closed ones still show
     const tier = (isLimited) => pool.filter((d) => d.limited === isLimited);
     const supporters = tier(false);
-    const picks = [
+    // `featured` is the hub admin's choice, and it now decides here too. This page
+    // used to ignore it completely and pick by catalog order, so the one control
+    // called "featured in the storefront" governed the catalog page and the in-app
+    // Store but NOT the most visible surface of the three — which is how an entry
+    // marked "not featured" ended up leading the home page and nothing in the
+    // admin could explain why.
+    const starred = pool.filter((d) => d.e.featured === 'main' || d.e.featured === 'on')
+      .sort((a, b) => (a.e.featured === 'main' ? 0 : 1) - (b.e.featured === 'main' ? 0 : 1));
+    const picks = starred.length ? starred.slice(0, 2) : [
+      // Nothing featured → the automatic ladder, unchanged: one card per tier so
+      // the section always shows that both exist, and among supporters a
+      // SCHEDULED one wins because an entry with a real window is this month's.
       tier(true)[0],
       supporters.find((d) => d.e.activeFrom || d.e.activeUntil) || supporters[0],
     ].filter(Boolean);

@@ -125,7 +125,7 @@ test('layout: an admin order reaches the app, normalized, in { blocks } shape', 
   assert.ok(out.layout && Array.isArray(out.layout.blocks));
   const sup = out.layout.blocks.find((b) => b.type === 'supporters');
   assert.equal(sup.form, 'rail', 'defaults filled in by the shared contract');
-  assert.equal(sup.autoplayOver, 4);
+  assert.equal(sup.autoplayOver, 2);
 });
 
 test('layout: a catalog with no layout still answers with the default order', async () => {

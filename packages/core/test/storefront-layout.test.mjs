@@ -102,19 +102,19 @@ test('`on` defaults to shown, and only an explicit false hides a block', () => {
 test('numeric options are clamped, never trusted', () => {
   assert.equal(sf.normalizeBlock({ type: 'supporters', autoplayOver: -5 }).autoplayOver, 0);
   assert.equal(sf.normalizeBlock({ type: 'supporters', autoplayOver: 9999 }).autoplayOver, 50);
-  assert.equal(sf.normalizeBlock({ type: 'supporters', autoplayOver: 'x' }).autoplayOver, 4, 'default');
+  assert.equal(sf.normalizeBlock({ type: 'supporters', autoplayOver: 'x' }).autoplayOver, 2, 'default');
   assert.equal(sf.normalizeBlock({ type: 'supporters', max: 999 }).max, 60);
   assert.equal(sf.normalizeBlock({ type: 'supporters', max: null }).max, 0, '0 means no cap');
 });
 
 test('autoplay is opt-in by size and only for rails', () => {
-  const sup = sf.normalizeBlock({ type: 'supporters', autoplayOver: 4 });
-  assert.equal(sf.shouldAutoplay(sup, 4), false, 'at the threshold it stays still');
-  assert.equal(sf.shouldAutoplay(sup, 5), true, 'above it, it moves');
+  const sup = sf.normalizeBlock({ type: 'supporters', autoplayOver: 2 });
+  assert.equal(sf.shouldAutoplay(sup, 2), false, 'at the threshold it stays still');
+  assert.equal(sf.shouldAutoplay(sup, 3), true, 'above it, it moves');
   // A block whose form is not a scrolling one never animates, whatever the
   // threshold says — 'new', 'kinds' and the Archive are drawn as still sections.
   for (const type of ['new', 'kinds', 'archive']) {
-    const still = sf.normalizeBlock({ type, autoplayOver: 4 });
+    const still = sf.normalizeBlock({ type, autoplayOver: 2 });
     assert.equal(sf.shouldAutoplay(still, 50), false, type + ' is not a scrolling section');
   }
   const off = sf.normalizeBlock({ type: 'supporters', autoplayOver: 0 });
