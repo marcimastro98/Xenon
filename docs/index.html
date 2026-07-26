@@ -2006,6 +2006,15 @@ I18N.zh = {
       tier(true)[0],
       supporters.find((d) => d.e.activeFrom || d.e.activeUntil) || supporters[0],
     ].filter(Boolean);
+    // A limited edition may never be missing from this page while one is live.
+    // Its copies run out, so it is the only thing here that is time-critical, and
+    // honouring `featured` alone dropped it the moment both featured entries were
+    // supporter packs. The lead card keeps whatever was chosen; the second slot
+    // goes to the limited drop.
+    if (!picks.some((d) => d.limited)) {
+      const lim = tier(true)[0];
+      if (lim) picks.splice(1, picks.length - 1, lim);
+    }
     // A tier with nothing to show hands its slot to the other one, so the
     // section is never half empty just because one side is quiet.
     for (const d of pool) { if (picks.length >= 2) break; if (!picks.includes(d)) picks.push(d); }
