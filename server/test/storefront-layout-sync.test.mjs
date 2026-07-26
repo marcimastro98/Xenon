@@ -94,13 +94,19 @@ test('both copies know the same block types', () => {
 // `b.type === '<type>'` branches, so the coverage is checkable from the source.
 // The app reads the shared module directly (no mirror to drift), which is why
 // this checks the BRANCHES here and the normalizer only for the website.
-test('both storefronts draw every block type the contract defines', () => {
+test('every storefront that walks the layout draws all of its block types', () => {
   const RENDERERS = [
     ['docs/catalog/index.html', join(ROOT, 'docs', 'catalog', 'index.html')],
     ['server/js/community-gallery.js', join(ROOT, 'server', 'js', 'community-gallery.js')],
   ];
+  let walkers = 0;
   for (const [label, file] of RENDERERS) {
     const src = readFileSync(file, 'utf8');
+    // Same precondition as the split test below: the two storefronts adopt the
+    // layout at different times, and a renderer that does not read it cannot be
+    // missing a branch for a block.
+    if (!/LAYOUT\.forEach/.test(src)) continue;
+    walkers++;
     const handled = new Set(
       [...src.matchAll(/b\.type === '([a-z]+)'/g)].map((m) => m[1]),
     );
@@ -113,6 +119,7 @@ test('both storefronts draw every block type the contract defines', () => {
         `${label} draws a '${type}' block the contract does not define, so normalizeLayout drops it before it is ever reached`);
     }
   }
+  assert.ok(walkers > 0, 'no storefront walks the layout any more — this test has nothing left to guard');
 });
 
 test('the page ships a translation for every section heading it renders', () => {
