@@ -4,8 +4,8 @@
 
 # Xenon
 
-A polished, all-in-one dashboard for the **CORSAIR Xeneon Edge 14.5" LCD touchscreen** — and any browser on Windows.
-Monitor your PC, control media and audio, mute your mic, manage your day, talk to a built-in AI assistant, drive your RGB lighting, and more — all from one glanceable screen.
+**Turn any second screen into your PC's control center.** A spare monitor, an old tablet, your phone, or the **CORSAIR Xeneon Edge 14.5" LCD touchscreen** it was built for.
+Monitor your PC, control media and audio, mute your mic, manage your day, talk to a built-in AI assistant, drive your RGB lighting, and more, all from one glanceable screen.
 
 And it has a personality. Xenon is a companion, not just a control panel: a built-in AI you can actually talk to, and **Bit** — a little pixel guardian who lives in the corner, watches your habits, and roasts you (kindly) into drinking some water and standing up now and then.
 
@@ -25,11 +25,11 @@ community catalog) — every one of those calls is listed in the [privacy page](
 
 ---
 
-## Built for the Xeneon Edge — great in any browser
+## Any second screen will do
 
-Xenon is **optimized for the CORSAIR Xeneon Edge** 14.5" touchscreen: dense, glanceable tiles, comfortable touch targets, and a layout tuned for that display.
+Xenon is **just a local web app**. If a device can open a Chromium-based browser and reach your PC, it can run the whole dashboard: a spare monitor, a laptop you no longer use, an old tablet propped next to the keyboard, or your phone. Every control works with a mouse, and the layout reflows to fit landscape, portrait, large desktop windows, and short wide screens.
 
-But it is **just a local web app**, so it works just as well in any Chromium-based browser (Edge, Chrome) on a normal monitor — touchscreen or not. Every control works with a mouse, and the layout reflows to fit landscape, portrait, large desktop windows, and the Xeneon Edge's short screen.
+It is also **optimized for the CORSAIR Xeneon Edge** 14.5" touchscreen, the display it was designed around: dense, glanceable tiles, comfortable touch targets, and a layout tuned for that panel. You do not need one, but if you have one, this is what it was waiting for.
 
 **One Xenon, four ways to see it.** A single local engine (started automatically at login, running quietly in the background) serves the dashboard, and every surface draws from that same live UI — so a feature added once appears everywhere:
 
