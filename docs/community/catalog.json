@@ -46,8 +46,7 @@
         "weather",
         "dark"
       ],
-      "version": "2.0.0",
-      "changelog": "Rebuilt on new painted artwork with four full seasons. The landscape now changes with the season as well as the hour, and the sun and moon follow your real sunrise and sunset.",
+      "version": "2.0.1",
       "appVersionMin": "4.6.0",
       "preview": {
         "accent": "#e0a05a",
@@ -55,8 +54,9 @@
         "text": "#e9eff7"
       },
       "shots": 4,
-      "addedAt": "2026-07-23",
-      "codeFile": true
+      "addedAt": "2026-07-26",
+      "codeFile": true,
+      "updatedAt": "2026-07-26"
     },
     {
       "id": "notte-stellata",
