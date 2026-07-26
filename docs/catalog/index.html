@@ -243,13 +243,24 @@
      with no horizontal overflow to scroll. Two classes beat one whatever the order. */
   .drops.cat-rail { display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
               scroll-snap-type: x mandatory; scroll-behavior: smooth;
-              gap: 14px; padding-bottom: 6px; scrollbar-width: thin; }
+              gap: 14px; padding-bottom: 10px;
+              /* The standard pair, NOT ::-webkit-scrollbar: once scrollbar-width is
+                 set, Chrome styles the scrollbar the standard way and ignores the
+                 webkit pseudo-elements entirely — which is why this was showing a
+                 fat pale system bar under a dark page. */
+              scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.2) transparent; }
   /* A hero card is a 2-column grid with fr tracks: inside a flex row with no width
      it sizes to its content and one card fills the viewport, which is the stack
      again with extra steps. Give the rail a card width and the row reads as a row. */
-  .drops.cat-rail > * { scroll-snap-align: start; flex: 0 0 min(620px, 88vw); }
-  .cat-rail::-webkit-scrollbar { height: 6px; }
-  .cat-rail::-webkit-scrollbar-thumb { background: rgba(255,255,255,.16); border-radius: 3px; }
+  .drops.cat-rail > * { scroll-snap-align: start; flex: 0 0 min(680px, 90vw); }
+  /* A hero card is laid out for the full page width. Squeezed into a rail track its
+     text column turns narrow and the card grows TALLER than the stack it replaced,
+     so the media loses its 260px floor and the description is clamped. The point of
+     a rail is a shorter section, not the same height on its side. */
+  .drops.cat-rail .drop-media { min-height: 200px; }
+  .drops.cat-rail .drop-desc { display: -webkit-box; -webkit-box-orient: vertical;
+              -webkit-line-clamp: 4; overflow: hidden; }
+  .drops.cat-rail .drop-name { font-size: clamp(21px, 2.2vw, 27px); }
   @media (prefers-reduced-motion: reduce) { .cat-rail { scroll-behavior: auto; } }
   .cat-limcount { font-family: var(--mono); font-size: 11.5px; color: var(--muted); white-space: nowrap; }
   .cat-limcount b { color: var(--text); }
@@ -1858,6 +1869,12 @@ function applyLang(lang) {
   function makeRail(strip, block, count) {
     const row = strip.querySelector('.drops');
     if (!row) return strip;
+    // One card is not a row. Railing it pins it to a track width and leaves the
+    // rest of the shelf empty next to it, which is what "the limited drop does not
+    // fill the width" was: a single 680px card in a 1100px shelf. Left as a grid it
+    // spans the full width, which is also the only place a lone hero card looks
+    // like it was meant to be there.
+    if (row.children.length < 2) return strip;
     row.classList.add('cat-rail');
     if (!sfAutoplay(block, count)) return strip;
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return strip;
@@ -1956,31 +1973,30 @@ function applyLang(lang) {
       pool = pool.concat(tierPool);
     }
     if (browsingAll) {
+      // The WHOLE limited tier: what happens to a finished drop is decided in one
+      // place, by sfSplitLimited below. There used to be a pre-filter here that
+      // dropped sold-out entries before the split could see them ("keep them only
+      // when nothing is live"), which is the rule the split now owns — and with
+      // both in place the Archive could never receive anything while any drop was
+      // still claimable, so it silently stayed empty. Reads the hub's live count,
+      // because hydrateLimitedStatus() has already run.
       const limitedAll = entries.filter((e) => e.limited);
-      // A sold-out drop is a dead end, so it does not get to sit at the top of
-      // the page next to one that can still be claimed. It stays on the strip
-      // only when nothing is live, so the section never vanishes and the tier
-      // keeps being explained; either way it remains reachable through search
-      // and the Limited tab, where showing history is the point. Runs after
-      // hydrateLimitedStatus(), so it reads the hub's live count, not the
-      // static catalog copy. Mirrors the in-app hero rule: a sold-out limited
-      // never leads.
-      const limitedLive = limitedAll.filter((e) => !e.limited.soldOut);
-      const limitedTier = limitedLive.length ? limitedLive : limitedAll;
       // !e.limited: a dual-flag (limited + supporters) entry belongs to the
       // Limited strip only — both strips rendering it would duplicate its
       // cat-<id> DOM id and double-count it (mirrors the in-app gallery).
       const supTier = entries.filter((e) => e.locked && !e.limited);
       // The spotlight is drawn from everything on the page and takes its entries
       // OUT of the strips and sections below, for the same reason: one card per
-      // entry, or its cat-<id> anchor and its counters exist twice.
-      const spot = spotlightPick(pool.concat(limitedTier, supTier));
+      // entry, or its cat-<id> anchor and its counters exist twice. Safe to hand it
+      // the finished drops too: its automatic ladder already refuses to LEAD with
+      // one, and an explicit `featured: main` is a decision somebody made anyway.
+      const spot = spotlightPick(pool.concat(limitedAll, supTier));
       const spotIds = new Set(spot.side.map((e) => e.id));
       if (spot.main) spotIds.add(spot.main.id);
-      const limited = limitedTier.filter((e) => !spotIds.has(e.id));
+      const limited = limitedAll.filter((e) => !spotIds.has(e.id));
       const sup = supTier.filter((e) => !spotIds.has(e.id));
       const free = pool.filter((e) => !spotIds.has(e.id));
-      setCount(pool.length + limitedTier.length + supTier.length);
+      setCount(pool.length + limitedAll.length + supTier.length);
       const frag = document.createDocumentFragment();
 
       // How the limited tier divides between its own strip and the Archive —
