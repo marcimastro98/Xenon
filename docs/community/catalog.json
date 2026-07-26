@@ -2,6 +2,33 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "codex",
+      "kind": "bundle",
+      "name": "Codex",
+      "author": "xenon",
+      "supportersOnly": true,
+      "locked": true,
+      "description": "A herbarium you tend. Sow a specimen, let it grow in your real local weather, then hold the press and release inside the ink window. Each plate is engraved from its own seed and given a Latin name. Tap to open the codex full screen, and cross two plates to find new species.",
+      "category": "fun",
+      "tags": [
+        "game",
+        "botanical",
+        "weather",
+        "collection",
+        "supporter"
+      ],
+      "version": "1.0.0",
+      "appVersionMin": "4.11.0",
+      "preview": {
+        "accent": "#B03A2E",
+        "bg": "#E8DCC0",
+        "text": "#2A2118"
+      },
+      "shots": 3,
+      "addedAt": "2026-07-26",
+      "codeFile": true
+    },
+    {
       "id": "abisso",
       "kind": "bundle",
       "name": "Abisso",
