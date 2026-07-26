@@ -46,7 +46,7 @@
         "weather",
         "dark"
       ],
-      "version": "2.0.1",
+      "version": "2.0.2",
       "appVersionMin": "4.6.0",
       "preview": {
         "accent": "#e0a05a",
