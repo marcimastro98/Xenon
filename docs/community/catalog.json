@@ -1071,5 +1071,57 @@
       "addedAt": "2026-07-13",
       "codeFile": true
     }
-  ]
+  ],
+  "layout": {
+    "blocks": [
+      {
+        "type": "spotlight",
+        "on": true,
+        "form": "hero-column",
+        "source": "manual",
+        "autoplayOver": 0,
+        "max": 0
+      },
+      {
+        "type": "limited",
+        "on": true,
+        "form": "carousel",
+        "source": "auto-live",
+        "autoplayOver": 0,
+        "max": 0
+      },
+      {
+        "type": "supporters",
+        "on": true,
+        "form": "rail",
+        "source": "auto",
+        "autoplayOver": 4,
+        "max": 0
+      },
+      {
+        "type": "new",
+        "on": true,
+        "form": "grid",
+        "source": "auto",
+        "autoplayOver": 0,
+        "max": 0
+      },
+      {
+        "type": "kinds",
+        "on": true,
+        "form": "grid",
+        "source": "auto",
+        "autoplayOver": 0,
+        "max": 0
+      },
+      {
+        "type": "archive",
+        "on": true,
+        "form": "rail-quiet",
+        "source": "auto",
+        "autoplayOver": 0,
+        "max": 0
+      }
+    ]
+  }
 }
