@@ -20,6 +20,7 @@
   let meta = { refreshedAt: 0 };
   let seeded = false, seedInflight = false;
   let managing = false;     // "following" chip strip open?
+  let managerHost = null;   // Settings-side mount for the same manage UI (see managerView)
 
   // search state
   let searchQuery = '';
@@ -97,7 +98,11 @@
     resultsHost = results;
     renderResults(results);
 
-    input.addEventListener('input', () => { searchQuery = input.value; scheduleSearch(); });
+    // Several add boxes can exist at once (two News tiles, or a tile plus the
+    // Settings mount). The one being typed in owns the results list, otherwise
+    // an async search would land in whichever box was painted last.
+    input.addEventListener('focus', () => { resultsHost = results; });
+    input.addEventListener('input', () => { resultsHost = results; searchQuery = input.value; scheduleSearch(); });
     input.addEventListener('keydown', async (e) => {
       if (e.key === 'Escape') { searchQuery = ''; input.value = ''; searchResults = []; searchResultsFor = ''; searchBusy = false; refreshResults(); return; }
       if (e.key !== 'Enter') return;
@@ -256,11 +261,25 @@
     mount.replaceChildren(wrap);
   }
 
+  // ── settings-side manager ──
+  // The follow list belongs to the widget, but the ticker streams news with no
+  // News tile on the dashboard — and then the widget header holding the manage
+  // button is nowhere to be found, leaving no way at all to change the feeds.
+  // Settings mounts the SAME add box and chip strip, so this stays one UI with
+  // two mounts rather than a second, drifting editor.
+  function managerView(host) {
+    const wrap = el('div', 'nw-manager');
+    wrap.appendChild(addBox());
+    wrap.appendChild(followingStrip());
+    host.replaceChildren(wrap);
+  }
+
   function paint() {
     tiles().forEach(tile => {
       const mount = tile.querySelector('.news-widget-mount');
       if (mount) listView(mount);
     });
+    if (managerHost && managerHost.isConnected) managerView(managerHost);
   }
 
   async function refresh() {
@@ -279,7 +298,7 @@
     return (items || []).slice(0, 20).map(it => ({ label: it.source || '', value: it.title || '', dir: 'flat' })).filter(x => x.value);
   }
   async function seed() {
-    if (!tiles().length || seedInflight) return;
+    if (seedInflight || (!tiles().length && !managerHost)) return;
     seedInflight = true;
     try {
       const d = await api('/api/news');
@@ -304,5 +323,15 @@
     }
   }
 
-  window.NewsWidget = { renderWidgets, onSSE };
+  // Settings calls this with the mount element when its News pane opens, and
+  // with null when it closes — an unmounted host must stop taking repaints.
+  function mountFeedManager(host) {
+    managerHost = (host && host.nodeType === 1) ? host : null;
+    if (!managerHost) return;
+    managerView(managerHost);
+    // The feed list arrives with the seed, which never ran if no tile mounted.
+    if (!seeded || items === null) { seeded = true; seed(); }
+  }
+
+  window.NewsWidget = { renderWidgets, onSSE, mountFeedManager };
 })();

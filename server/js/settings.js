@@ -4265,6 +4265,10 @@ function settingsSetCategory(cat) {
   if (cat === 'slideshow') renderSlideshowSettings();
   if (cat === 'island') renderDynamicIslandSources();
   if (cat === 'search') renderSearchDiskSettings();
+  // News feeds live in the widget, which may not be on the dashboard at all
+  // while the ticker still streams news — mount the same editor here, and let
+  // it go when another pane is showing so it stops taking repaints.
+  if (window.NewsWidget) NewsWidget.mountFeedManager(cat === 'stocks' ? $('settings-news-feeds') : null);
 }
 
 // ── Ricerca e disco (Spotlight + Disk widget knobs) ─────────────────────────
@@ -4373,12 +4377,14 @@ function toggleSettings() {
   if (!overlay) return;
   overlay.hidden = !overlay.hidden;
   if (!overlay.hidden) { renderSettingsModal(); settingsSetCategory(_settingsCat); }
+  else if (window.NewsWidget) NewsWidget.mountFeedManager(null);
   freezeSettingsAmbient(!overlay.hidden);
 }
 
 function closeSettings() {
   const overlay = $('settings-overlay');
   if (overlay) overlay.hidden = true;
+  if (window.NewsWidget) NewsWidget.mountFeedManager(null);
   freezeSettingsAmbient(false);
 }
 

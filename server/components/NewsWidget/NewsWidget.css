@@ -56,6 +56,14 @@
 .nw-chip-rm:hover { opacity: 1; background: rgba(255,255,255,0.14); }
 .nw-chip-rm svg { width: 11px; height: 11px; }
 
+/* Settings-side feed manager — the same add box and chips, mounted in the News
+   settings pane so the feeds stay reachable when no News tile is on the
+   dashboard. .settings-group clips its overflow, so the results list flows
+   inline here instead of floating over the following rows. */
+.nw-manager { display: flex; flex-direction: column; gap: 10px; }
+.nw-manager .nw-results { position: static; margin-top: 6px; max-height: 240px; box-shadow: none; backdrop-filter: none; }
+.nw-manager .nw-follows:empty { display: none; }
+
 /* headline list */
 .nw-list { flex: 1 1 auto; min-height: 0; min-width: 0; overflow: hidden auto; display: flex; flex-direction: column; gap: 4px; }
 .nw-state { opacity: 0.6; font-size: 13px; padding: 22px 4px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }

@@ -2653,7 +2653,13 @@
       <div class="settings-group" data-settings-cat="stocks" hidden>
         <div class="settings-group-head">
           <span data-i18n="set_news_heading">News</span>
-          <span class="settings-hint" data-i18n="set_news_keyhint">Segui testate e argomenti dal widget News. Senza chiave usa i feed RSS e Google News (gratis); una chiave NewsData.io opzionale arricchisce gli argomenti.</span>
+          <span class="settings-hint" data-i18n="set_news_keyhint">Segui testate, argomenti o un tuo feed RSS qui sotto o dal widget News. Senza chiave usa i feed RSS e Google News (gratis); una chiave NewsData.io opzionale arricchisce gli argomenti.</span>
+        </div>
+        <div class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="news_manage">Gestisci feed</span></span>
+          <!-- Mounted by NewsWidget.mountFeedManager() when this pane opens: the
+               same add box and chips as the widget, reachable with no News tile. -->
+          <div id="settings-news-feeds"></div>
         </div>
         <label class="settings-toggle-row">
           <input class="settings-check" id="settings-news-images" type="checkbox" onchange="updateNewsCfg({ tile: { images: this.checked } })">
