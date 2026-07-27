@@ -9,7 +9,7 @@
     "dev": "tauri dev",
     "build": "tauri build",
     "build:mac": "tauri build --target universal-apple-darwin",
-    "build:linux": "tauri build"
+    "build:linux": "NO_STRIP=true tauri build"
   },
   "devDependencies": {
     "@tauri-apps/cli": "2.11.4"

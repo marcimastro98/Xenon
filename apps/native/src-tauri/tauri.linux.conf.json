@@ -2,6 +2,11 @@
   "$schema": "https://schema.tauri.app/config/2",
   "bundle": {
     "targets": ["appimage", "deb", "rpm"],
-    "resources": ["posix/xenon-bootstrap.sh"]
+    "resources": ["posix/xenon-bootstrap.sh"],
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": true
+      }
+    }
   }
 }
