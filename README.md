@@ -4,7 +4,7 @@
 
 # Xenon
 
-**Turn any second screen into your PC's control center.** A spare monitor, an old tablet, your phone, or the **CORSAIR Xeneon Edge 14.5" LCD touchscreen** it was built for.
+**Turn any second screen into your PC's control center.** A spare monitor, an old display you dug out of a drawer, or the **CORSAIR Xeneon Edge 14.5" LCD touchscreen** it was built for.
 Monitor your PC, control media and audio, mute your mic, manage your day, talk to a built-in AI assistant, drive your RGB lighting, and more, all from one glanceable screen.
 
 And it has a personality. Xenon is a companion, not just a control panel: a built-in AI you can actually talk to, and **Bit** — a little pixel guardian who lives in the corner, watches your habits, and roasts you (kindly) into drinking some water and standing up now and then.
@@ -27,7 +27,9 @@ community catalog) — every one of those calls is listed in the [privacy page](
 
 ## Any second screen will do
 
-Xenon is **just a local web app**. If a device can open a Chromium-based browser and reach your PC, it can run the whole dashboard: a spare monitor, a laptop you no longer use, an old tablet propped next to the keyboard, or your phone. Every control works with a mouse, and the layout reflows to fit landscape, portrait, large desktop windows, and short wide screens.
+Xenon is **just a local web app**, so any screen your PC drives can run the whole dashboard: a spare monitor, an old display propped next to the keyboard, or the Edge. Every control works with a mouse, and the layout reflows to fit landscape, portrait, large desktop windows, and short wide screens.
+
+> **On a separate device — a phone or a tablet — not yet.** The local engine only accepts connections from the PC it runs on (loopback, enforced at the socket, the `Host` header and the `Origin`), so another device on your network gets a `403`. Opening that up needs device pairing and an authenticated path, and it is the next thing on the [reach roadmap](docs/ROADMAP-REACH.md). What *does* work on a phone today is **[Remote PC control](FEATURES.md#remote-pc-control)**: Sunshine + Tailscale + Moonlight, streaming the whole PC rather than the dashboard.
 
 It is also **optimized for the CORSAIR Xeneon Edge** 14.5" touchscreen, the display it was designed around: dense, glanceable tiles, comfortable touch targets, and a layout tuned for that panel. You do not need one, but if you have one, this is what it was waiting for.
 

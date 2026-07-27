@@ -5,6 +5,12 @@
 > the retired app-feature `ROADMAP.md` — app features keep living in the
 > changelog and GitHub issues. Phases beyond Phase 1 are direction, not
 > commitment: they ship only when their security story is ready.
+>
+> For the complementary **reach** track — the phone as a second screen, the
+> browser demo, store distribution and macOS, i.e. how many people can run
+> Xenon at all — see [`ROADMAP-REACH.md`](ROADMAP-REACH.md). This roadmap
+> deepens value for people who already run Xenon; that one raises the ceiling
+> on how many can.
 
 Xenon's goal is to become the best place for creators to build, share and — for
 those who want to — sell content for a glanceable touchscreen dashboard:

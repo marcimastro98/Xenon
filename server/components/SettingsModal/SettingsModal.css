@@ -2113,6 +2113,11 @@ input[type="range"] { accent-color: var(--green); }
   color: var(--text-dim, #8b91a1);
 }
 .preset-check-group:first-child { margin-top: 0; }
+/* `display: flex` below beats the UA's `[hidden] { display: none }`, so a row
+   hidden from JS would stay on screen. Same trap `.settings-overlay[hidden]`
+   already guards against — it cost the share card a "use a real screenshot"
+   checkbox that was offered even when capture had been refused. */
+.preset-check-row[hidden] { display: none !important; }
 .preset-check-row {
   display: flex; align-items: center; gap: 11px; cursor: pointer;
   padding: 10px 12px; border-radius: 11px;
@@ -2147,6 +2152,56 @@ input[type="range"] { accent-color: var(--green); }
   background: rgba(var(--accent-rgb, 30, 215, 96), 0.08);
 }
 .preset-modal-note { font-style: italic; }
+
+/* ── Share card — canvas preview modal. Wider than the other preset dialogs
+      because the preview is a 16:9 (or 9:16) card, not a code field. ── */
+.sharecard-modal { width: min(760px, 100%); }
+.sharecard-canvas {
+  width: 100%; height: auto; display: block; margin: 0 0 12px;
+  border-radius: 12px; border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  background: #000;
+}
+/* The composer redraws the canvas outright, so "busy" is a dim, not a spinner —
+   anything animated here would also have to be hidden during a capture. */
+.sharecard-canvas.is-busy { opacity: 0.55; transition: opacity 160ms ease; }
+.sharecard-modal .preset-check-row { margin-bottom: 4px; }
+.sharecard-formats { display: flex; gap: 8px; margin-bottom: 10px; }
+.sharecard-formats .settings-btn.active {
+  border-color: rgba(var(--accent-rgb, 30, 215, 96), 0.55);
+  background: rgba(var(--accent-rgb, 30, 215, 96), 0.14);
+  color: var(--accent, #1ed760);
+}
+.sharecard-note {
+  margin: 6px 0 10px; font-size: 0.78rem; line-height: 1.45;
+  color: var(--text-dim, rgba(231, 233, 238, 0.55));
+}
+/* The link the QR encodes, spelled out — a QR is for a camera, a post needs a
+   URL you can paste. Also the only place the destination is legible. */
+.sharecard-link { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
+.sharecard-link[hidden] { display: none !important; }   /* flex beats [hidden] */
+.sharecard-field-label {
+  margin: 10px 0 2px; font-size: 0.74rem; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--text-dim, rgba(231, 233, 238, 0.5));
+}
+.sharecard-link-field {
+  flex: 1 1 auto; min-width: 0;
+  padding: 9px 11px; font-size: 0.8rem; font-family: var(--mono, ui-monospace, monospace);
+  color: var(--text, #e7e9ee); background: var(--input-bg, rgba(0, 0, 0, 0.28));
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12)); border-radius: 10px;
+  text-overflow: ellipsis;
+}
+.sharecard-link-field:focus {
+  outline: none; border-color: rgba(var(--accent-rgb, 30, 215, 96), 0.5);
+}
+/* The card's own link is an OUTPUT — it must not look like somewhere to type. */
+.sharecard-link-field.is-readonly {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted, rgba(231, 233, 238, 0.72));
+  cursor: default;
+}
+.sharecard-link .settings-btn { flex: none; }
+
 /* The catalog's "may use more resources" note, repeated inside the import dialog. */
 .preset-perf-note {
   font-size: 0.8rem; color: var(--warn, #ffb454);

@@ -214,6 +214,15 @@
   .cat-copy:hover { border-color: var(--plasma); color: var(--plasma); }
   .cat-copy:disabled { opacity: .55; cursor: default; }
   .cat-copy.ok { border-color: var(--plasma); color: var(--plasma); background: rgba(30,215,96,.08); }
+  /* "Try in the browser" — the filled twin of the code button: this is the one
+     action that costs the visitor nothing, so it is allowed to be the loud one. */
+  .cat-try { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    font-family: var(--mono); font-size: 12.5px; letter-spacing: .04em; font-weight: 700;
+    padding: 11px 16px; border-radius: 11px; border: 1px solid transparent;
+    background: var(--plasma); color: #021; text-decoration: none;
+    transition: filter .2s, transform .18s; }
+  .cat-try:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  .cat-try .cico { font-size: 15px; }
   /* Permalink grab: quiet until hovered — the code button stays the loud one. */
   .cat-link { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
     width: 34px; height: 34px; padding: 0; cursor: pointer; color: var(--dim);
@@ -663,7 +672,7 @@ const I18N = {
     'bar.all': 'All',
     'k.theme': 'Theme', 'k.bg': 'Background', 'k.page': 'Page', 'k.deck': 'Deck', 'k.widget': 'Widget', 'k.bundle': 'Package', 'k.ambient': 'Ambient', 'k.icons': 'Icon pack', 'k.sounds': 'Sound pack',
     'c.deck': 'Deck', 'c.streaming': 'Streaming', 'c.media': 'Media', 'c.smart_home': 'Smart home', 'c.system': 'System', 'c.style': 'Style', 'c.fun': 'Fun', 'c.tools': 'Tools',
-    'card.by': 'by', 'card.copy': 'Copy code', 'card.copied': 'Copied. Paste it in Xenon: Settings → Widgets & sharing → Import.', 'card.copyfail': 'Copy failed. Open the entry on GitHub and copy it there.',
+    'card.by': 'by', 'card.try': 'Try in your browser', 'card.copy': 'Copy code', 'card.copied': 'Copied. Paste it in Xenon: Settings → Widgets & sharing → Import.', 'card.copyfail': 'Copy failed. Open the entry on GitHub and copy it there.',
     'card.link': 'Copy link', 'card.linked': 'Link copied', 'card.linkfail': 'Copy failed — the link is in the address bar.',
     'card.until': "Available until {d}", 'card.locked': 'Supporters',
     'k.limited': 'Limited', 'k.limited_ed': 'Limited edition', 'card.left': '{n} of {t} left', 'card.soldout': 'Sold out', 'card.closed': 'Claims closed', 'card.claim': 'Claim your copy', 'card.reserve': 'Open Discord', 'card.reserve_hint': 'Discord verifies your account and sends a personal access code.',
@@ -701,7 +710,7 @@ const I18N = {
     'bar.all': 'Tutti',
     'k.theme': 'Tema', 'k.bg': 'Sfondo', 'k.page': 'Pagina', 'k.deck': 'Deck', 'k.widget': 'Widget', 'k.bundle': 'Pacchetto', 'k.ambient': 'Ambient', 'k.icons': 'Pacchetto icone', 'k.sounds': 'Pacchetto suoni',
     'c.deck': 'Deck', 'c.streaming': 'Streaming', 'c.media': 'Media', 'c.smart_home': 'Casa smart', 'c.system': 'Sistema', 'c.style': 'Stile', 'c.fun': 'Divertimento', 'c.tools': 'Strumenti',
-    'card.by': 'di', 'card.copy': 'Copia codice', 'card.copied': 'Copiato. Incollalo in Xenon: Impostazioni → Widget e condivisione → Importa.', 'card.copyfail': 'Copia non riuscita. Apri la voce su GitHub e copiala da lì.',
+    'card.by': 'di', 'card.try': 'Provalo nel browser', 'card.copy': 'Copia codice', 'card.copied': 'Copiato. Incollalo in Xenon: Impostazioni → Widget e condivisione → Importa.', 'card.copyfail': 'Copia non riuscita. Apri la voce su GitHub e copiala da lì.',
     'card.link': 'Copia link', 'card.linked': 'Link copiato', 'card.linkfail': 'Copia non riuscita — il link è nella barra degli indirizzi.',
     'card.until': "Disponibile fino al {d}", 'card.locked': 'Supporter',
     'k.limited': 'Limited', 'k.limited_ed': 'Edizione limitata', 'card.left': '{n} di {t} disponibili', 'card.soldout': 'Esaurito', 'card.closed': 'Chiusa', 'card.claim': 'Richiedi la tua copia', 'card.reserve': 'Apri Discord', 'card.reserve_hint': 'Discord verifica il tuo account e invia un codice d\'accesso personale.',
@@ -739,7 +748,7 @@ const I18N = {
     'bar.all': '전체',
     'k.theme': '테마', 'k.bg': '배경', 'k.page': '페이지', 'k.deck': 'Deck', 'k.widget': '위젯', 'k.bundle': '패키지', 'k.ambient': '앰비언트', 'k.icons': '아이콘 팩', 'k.sounds': '사운드 팩',
     'c.deck': 'Deck', 'c.streaming': '스트리밍', 'c.media': '미디어', 'c.smart_home': '스마트홈', 'c.system': '시스템', 'c.style': '스타일', 'c.fun': '재미', 'c.tools': '도구',
-    'card.by': '제작:', 'card.copy': '코드 복사', 'card.copied': '복사됨. Xenon에 붙여넣기: 설정 → 위젯 및 공유 → 가져오기.', 'card.copyfail': '복사 실패. GitHub에서 항목을 열어 복사하세요.',
+    'card.by': '제작:', 'card.try': '브라우저에서 체험', 'card.copy': '코드 복사', 'card.copied': '복사됨. Xenon에 붙여넣기: 설정 → 위젯 및 공유 → 가져오기.', 'card.copyfail': '복사 실패. GitHub에서 항목을 열어 복사하세요.',
     'card.link': '링크 복사', 'card.linked': '링크가 복사됨', 'card.linkfail': '복사 실패 — 링크는 주소창에 있습니다.',
     'card.until': "{d}까지 이용 가능", 'card.locked': '서포터',
     'k.limited': '한정판', 'k.limited_ed': '한정판', 'card.left': '{t}개 중 {n}개 남음', 'card.soldout': '품절', 'card.closed': '신청 마감', 'card.reserve': 'Discord에서 예약 →', 'card.reserve_hint': 'Discord에서 예약합니다. 가져오기용 개인 액세스 코드를 받습니다.',
@@ -777,7 +786,7 @@ const I18N = {
     'bar.all': 'すべて',
     'k.theme': 'テーマ', 'k.bg': '背景', 'k.page': 'ページ', 'k.deck': 'Deck', 'k.widget': 'ウィジェット', 'k.bundle': 'パッケージ', 'k.ambient': 'アンビエント', 'k.icons': 'アイコンパック', 'k.sounds': 'サウンドパック',
     'c.deck': 'Deck', 'c.streaming': 'ストリーミング', 'c.media': 'メディア', 'c.smart_home': 'スマートホーム', 'c.system': 'システム', 'c.style': 'スタイル', 'c.fun': '楽しみ', 'c.tools': 'ツール',
-    'card.by': '作者:', 'card.copy': 'コードをコピー', 'card.copied': 'コピーしました。Xenonに貼り付け: 設定 → ウィジェットと共有 → インポート。', 'card.copyfail': 'コピーに失敗しました。GitHubで項目を開いてコピーしてください。',
+    'card.by': '作者:', 'card.try': 'ブラウザで試す', 'card.copy': 'コードをコピー', 'card.copied': 'コピーしました。Xenonに貼り付け: 設定 → ウィジェットと共有 → インポート。', 'card.copyfail': 'コピーに失敗しました。GitHubで項目を開いてコピーしてください。',
     'card.link': 'リンクをコピー', 'card.linked': 'リンクをコピーしました', 'card.linkfail': 'コピーに失敗しました — リンクはアドレスバーにあります。',
     'card.until': "{d}まで入手可能", 'card.locked': 'サポーター',
     'k.limited': '限定', 'k.limited_ed': '限定版', 'card.left': '{t}個中 残り{n}個', 'card.soldout': '完売', 'card.closed': '受付終了', 'card.reserve': 'Discordで予約 →', 'card.reserve_hint': 'Discordで予約します。インポート用の個人アクセスコードが届きます。',
@@ -815,7 +824,7 @@ const I18N = {
     'bar.all': '全部',
     'k.theme': '主题', 'k.bg': '背景', 'k.page': '页面', 'k.deck': 'Deck', 'k.widget': '组件', 'k.bundle': '套件', 'k.ambient': '氛围', 'k.icons': '图标包', 'k.sounds': '音效包',
     'c.deck': 'Deck', 'c.streaming': '直播', 'c.media': '媒体', 'c.smart_home': '智能家居', 'c.system': '系统', 'c.style': '风格', 'c.fun': '趣味', 'c.tools': '工具',
-    'card.by': '作者:', 'card.copy': '复制代码', 'card.copied': '已复制。粘贴到 Xenon：设置 → 组件与分享 → 导入。', 'card.copyfail': '复制失败。请在 GitHub 打开该条目并从那里复制。',
+    'card.by': '作者:', 'card.try': '在浏览器中试用', 'card.copy': '复制代码', 'card.copied': '已复制。粘贴到 Xenon：设置 → 组件与分享 → 导入。', 'card.copyfail': '复制失败。请在 GitHub 打开该条目并从那里复制。',
     'card.link': '复制链接', 'card.linked': '链接已复制', 'card.linkfail': '复制失败 — 链接在地址栏中。',
     'card.until': "开放至 {d}", 'card.locked': '支持者',
     'k.limited': '限量', 'k.limited_ed': '限量版', 'card.left': '{t} 份仅剩 {n} 份', 'card.soldout': '已售罄', 'card.closed': '已停止领取', 'card.reserve': '在 Discord 预订 →', 'card.reserve_hint': '在 Discord 预订。你会收到用于导入的专属访问码。',
@@ -1154,6 +1163,7 @@ function applyLang(lang) {
     spark: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2l1.9 5.6a2 2 0 0 0 1.3 1.3l5.6 1.9-5.6 1.9a2 2 0 0 0-1.3 1.3L12 19.8l-1.9-5.6a2 2 0 0 0-1.3-1.3L3.2 11l5.6-1.9a2 2 0 0 0 1.3-1.3z"/></svg>',
     link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 13.5a4 4 0 0 0 5.7 0l2.6-2.6a4 4 0 1 0-5.7-5.7l-1.3 1.3"/><path d="M13.5 10.5a4 4 0 0 0-5.7 0l-2.6 2.6a4 4 0 1 0 5.7 5.7l1.3-1.3"/></svg>',
     check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>',
   };
   function cico(name, cls) { const s = document.createElement('span'); s.className = 'cico' + (cls ? ' ' + cls : ''); if (ICONS[name]) s.innerHTML = ICONS[name]; return s; }
   function pill(cls, iconName, text) { const s = el('span', cls); s.appendChild(cico(iconName)); s.appendChild(document.createTextNode(text)); return s; }
@@ -1427,6 +1437,29 @@ function applyLang(lang) {
         clearTimeout(hintTimer); hintTimer = setTimeout(() => { hint.textContent = ''; btn.classList.remove('ok'); }, 6000);
       });
       cta.appendChild(btn);
+      // "Try in the browser" — opens the static demo with this entry already
+      // loaded into the app's own import dialog. Only the kinds the demo can
+      // apply WITHOUT a PC: theme/bg/page go through preset-share.js entirely
+      // client-side, while deck/widget/ambient/icons/sounds/bundle each need a
+      // server round-trip (POST /sdk/install, /icon-pack, /sound-pack) and would
+      // land the visitor on a failed import. Locked and limited entries carry no
+      // public code at all, so they would open an empty dialog.
+      const DEMO_KINDS = ['theme', 'bg', 'page'];
+      if (DEMO_KINDS.includes(entry.kind) && !entry.locked && !entry.limited) {
+        const tryBtn = el('a', 'cat-try');
+        tryBtn.appendChild(cico('play'));
+        tryBtn.appendChild(document.createTextNode(T('card.try')));
+        tryBtn.href = '/demo/#try=' + encodeURIComponent(entry.id);
+        tryBtn.target = '_blank';
+        tryBtn.rel = 'noopener';
+        // docs/analytics.js delegates on [data-track] and maps data-track-* into
+        // event params, so no explicit xtrack() call is needed here.
+        tryBtn.setAttribute('data-track', 'demo_try_click');
+        tryBtn.setAttribute('data-track-item-id', entry.id);
+        tryBtn.setAttribute('data-track-item-kind', entry.kind);
+        tryBtn.setAttribute('data-track-location', 'catalog_detail');
+        cta.appendChild(tryBtn);
+      }
       // Supporter-locked entry: offer the way to get a code, right under the
       // unlock button — a warm heart CTA to Buy Me a Coffee.
       if (entry.locked) {

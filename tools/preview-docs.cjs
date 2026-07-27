@@ -10,15 +10,27 @@ const MIME = {
   '.json': 'application/json',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.ico': 'image/x-icon',
   '.svg': 'image/svg+xml',
   '.css': 'text/css',
   '.js': 'text/javascript',
+  '.mjs': 'text/javascript',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.mp4': 'video/mp4',
+  '.txt': 'text/plain; charset=utf-8',
   '.md': 'text/plain; charset=utf-8',
 };
 
 http.createServer((req, res) => {
   const urlPath = decodeURIComponent(req.url.split('?')[0]);
-  const rel = urlPath === '/' ? 'index.html' : urlPath.slice(1);
+  // Any directory URL serves its index.html, not just the site root — GitHub
+  // Pages does this, so without it /demo/ and /catalog/ 404 locally and the exact
+  // links the site hands out are the ones you cannot test.
+  const rel = urlPath.endsWith('/') ? urlPath.slice(1) + 'index.html' : urlPath.slice(1);
   const file = path.normalize(path.join(ROOT, rel));
   if (!file.startsWith(ROOT)) { res.writeHead(403); res.end(); return; }
   fs.readFile(file, (err, data) => {

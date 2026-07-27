@@ -113,3 +113,10 @@ widget/shared
 docs/community/shots/
 .agents/
 packages/design-system
+# The static browser demo (docs/demo/) is GENERATED — tools/build-demo.mjs runs
+# in .github/workflows/pages.yml immediately before the Pages upload. It is ~7 MB
+# of copied client assets rebuilt on every deploy: committing it would bloat git
+# history AND ride the tag source zip that self-update.js robocopies into every
+# user's install root, more than doubling a ~6 MB release. Its sources are
+# tracked, in tools/demo/.
+docs/demo/

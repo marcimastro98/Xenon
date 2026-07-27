@@ -2227,7 +2227,10 @@
       overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
       document.addEventListener('keydown', onKey);
       document.body.appendChild(overlay);
-      return { body, close };
+      // `overlay`/`modal` are handed back so a caller can widen the dialog or —
+      // the share card — hide the whole thing for the duration of a screen
+      // capture without tearing down its state.
+      return { body, close, overlay, modal };
     }
 
     function actionRow() { const r = document.createElement('div'); r.className = 'preset-modal-actions'; return r; }
@@ -2353,6 +2356,17 @@
           openShareDialog('bg', name, encodePreset('bg', name, slim, { exportedAt: stamp(), appVersion: appVersion() }), null, slim);
         });
         row.appendChild(noImg);
+      }
+      // "Share card" — a canvas-composed PNG of the dashboard with theme
+      // swatches and a QR that leads to this creation (public landing/gallery,
+      // never 127.0.0.1). ShareCard degrades to a fully drawn card whenever the
+      // screen cannot be captured, so the button is never a dead end.
+      if (window.ShareCard) {
+        const cardBtn = document.createElement('button');
+        cardBtn.type = 'button'; cardBtn.className = 'settings-btn subtle';
+        cardBtn.textContent = tr('sharecard_open', '🖼 Create share card');
+        cardBtn.addEventListener('click', () => { ShareCard.open({ kind, name, code }); });
+        row.appendChild(cardBtn);
       }
       // "Publish to the community catalog" — copies the code to the clipboard
       // and opens the site's submission portal prefilled (the code itself is
@@ -3853,7 +3867,7 @@
     // receipt engine behind the Store's "Installed" tab (js/installed-manager.js)
     // — ONE removal path, so the two surfaces can never disagree about what a
     // download owns or reference-count it differently.
-    window.PresetShare = { exportTheme, exportPage, exportCurrentPage: exportPage, exportDeck, exportBundle, exportBg, exportIcons, exportSounds, exportWidget, exportAmbient, exportAmbientLayout, exportWidgetPkg, shareDeckProfile, openExport, openImport, uninstallContent, installResourceSummary, legacyImportRecord, encodePreset, decodePreset };
+    window.PresetShare = { exportTheme, exportPage, exportCurrentPage: exportPage, exportDeck, exportBundle, exportBg, exportIcons, exportSounds, exportWidget, exportAmbient, exportAmbientLayout, exportWidgetPkg, shareDeckProfile, openExport, openImport, uninstallContent, installResourceSummary, legacyImportRecord, encodePreset, decodePreset, buildModal, currentTheme, currentThemeImported };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', checkHash, { once: true });
     else checkHash();

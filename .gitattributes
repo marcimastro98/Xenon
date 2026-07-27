@@ -24,6 +24,10 @@ docs/catalog/                   export-ignore
 docs/create/                    export-ignore
 docs/get/                       export-ignore
 docs/submit/                    export-ignore
+# Generated in CI and git-ignored, so it should never reach an archive anyway —
+# this is the belt to that pair of braces: if it is ever force-added, the release
+# zip the self-updater unpacks still stays clean.
+docs/demo/                      export-ignore
 
 # Site root: entry page, analytics, Pages/DNS plumbing, search-console token
 docs/index.html                 export-ignore

@@ -17,6 +17,20 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
+      # docs/demo/ is generated from these at deploy time, so a change here has
+      # to redeploy the site or /demo goes stale against the app. This list IS
+      # the copy allowlist in tools/build-demo.mjs — server/test/demo-build.test.mjs
+      # pins the two together so they cannot drift apart.
+      - 'server/index.html'
+      - 'server/js/**'
+      - 'server/components/**'
+      - 'server/styles/**'
+      - 'server/public/**'
+      - 'server/assets/**'
+      - 'server/vendor/**'
+      - 'packages/core/src/**'
+      - 'tools/build-demo.mjs'
+      - 'tools/demo/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch: {}
 
@@ -41,6 +55,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Generates docs/demo/ from server/ + packages/core/src. Deliberately no
+      # `npm ci`: build-demo.mjs uses only node: builtins, and package.json
+      # declares "os": ["win32"] so an install here would be wrong anyway. The
+      # script reads packages/core/src directly rather than server/shared, which
+      # is a junction on Windows and a symlink elsewhere and would copy as a
+      # dangling link.
+      - name: Build the browser demo
+        run: node tools/build-demo.mjs
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

@@ -5074,7 +5074,15 @@ async function listScreens() {
 
 // Capture a screenshot; `monitor` is an optional {x,y,width,height} region.
 // Returns base64 JPEG.
-async function captureScreenshot(monitor) {
+//
+// `opts.maxWidth` caps the output width (the AI vision path wants a small
+// payload; the share card wants the panel near native — an Edge capture loses a
+// quarter of its width at the 1920 default). `opts.quality` is ffmpeg -q:v,
+// lower is better. Both default to the historic values, so callers that pass no
+// opts produce a byte-identical command line.
+async function captureScreenshot(monitor, opts) {
+  const maxWidth = Math.min(3840, Math.max(640, Math.trunc(Number(opts && opts.maxWidth)) || 1920));
+  const quality = String(Math.min(31, Math.max(1, Math.trunc(Number(opts && opts.quality)) || 3)));
   const tmpPath = path.join(os.tmpdir(), `xenon_ss_${Date.now()}.jpg`);
   try {
     const ffmpeg = getFfmpegPath();
@@ -5082,7 +5090,7 @@ async function captureScreenshot(monitor) {
     if (monitor && monitor.width > 0 && monitor.height > 0) {
       ffmpegArgs.push('-offset_x', String(monitor.x), '-offset_y', String(monitor.y), '-video_size', `${monitor.width}x${monitor.height}`);
     }
-    ffmpegArgs.push('-i', 'desktop', '-vframes', '1', '-q:v', '3', '-vf', 'scale=\'min(1920,iw)\':-2', tmpPath);
+    ffmpegArgs.push('-i', 'desktop', '-vframes', '1', '-q:v', quality, '-vf', `scale='min(${maxWidth},iw)':-2`, tmpPath);
     await execFilePromise(ffmpeg, ffmpegArgs, { timeout: 15000 });
     const imgBuffer = await fs.promises.readFile(tmpPath);
     return imgBuffer.toString('base64');
@@ -9642,6 +9650,14 @@ const CSRF_MUTATION_PATHS = new Set([
   // Suppresses the Edge fallback after the native kiosk opened the Spotlight
   // window — a drive-by must not be able to swallow the user's hotkey.
   '/spotlight/claimed',
+  // Desktop capture. Both are GETs, but each spawns ffmpeg, photographs the
+  // screen and writes a temp file — squarely the "GET that mutates" shape this
+  // list exists for, and the returned image is the user's whole desktop. The
+  // Origin layer cannot see a <script>/<img> drive-by (no Origin header) and
+  // isAllowedRequest() accepts Origin:null from sandboxed iframes, so the
+  // Sec-Fetch-Site reject is the only guard that catches either.
+  '/api/screenshot',
+  '/api/screenshot/monitor',
 ]);
 
 function isAllowedRequest(req) {
@@ -13352,6 +13368,38 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ error: e.message }));
     } finally {
       fs.promises.unlink(tmpPath).catch(() => {});
+    }
+
+  } else if (reqPath === '/api/screenshot/monitor' && req.method === 'GET') {
+    // "Share my setup": capture exactly ONE enumerated display, near native res.
+    //
+    // The client names an INDEX, never a rectangle — the server re-derives the
+    // bounds from its own listScreens(), so this cannot become an arbitrary-
+    // region capture primitive (unlike /api/screenshot, whose x/y/w/h contract
+    // the AI vision flow depends on). The response echoes the screen it used so
+    // the client can verify the display did not change under it mid-capture.
+    if (process.platform !== 'win32') {
+      // gdigrab is Windows-only. Answer immediately instead of burning the 15 s
+      // ffmpeg timeout, so the card falls back to its drawn form fast.
+      res.writeHead(501, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'unsupported' }));
+      return;
+    }
+    try {
+      const idx = Number.parseInt(urlObj.searchParams.get('index'), 10);
+      const screens = await listScreens();
+      const s = (Number.isInteger(idx) && idx >= 0 && idx < screens.length) ? screens[idx] : null;
+      if (!s || !(s.width > 0) || !(s.height > 0)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'unknown monitor' }));
+        return;
+      }
+      const max = Number.parseInt(urlObj.searchParams.get('max'), 10);
+      const base64 = await captureScreenshot(s, { maxWidth: max || 2560, quality: 2 });
+      json({ base64, mimeType: 'image/jpeg', screen: { index: s.index, width: s.width, height: s.height } });
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
     }
 
   } else if (reqPath === '/api/stt/start' && req.method === 'POST') {

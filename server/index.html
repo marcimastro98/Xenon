@@ -2804,6 +2804,9 @@
             <div class="settings-share-buttons">
               <button type="button" class="settings-btn primary" onclick="if(window.PresetShare)PresetShare.openExport()" data-i18n="settings_share_export">Esporta…</button>
               <button type="button" class="settings-btn" onclick="if(window.PresetShare)PresetShare.openImport()" data-i18n="settings_share_import">Importa…</button>
+              <!-- "Share my setup" — the same intent as the two above, minus a
+                   preset: an image of the dashboard to post, not a code to send. -->
+              <button type="button" class="settings-btn" onclick="if(window.ShareCard)ShareCard.open({source:'setup'})" data-i18n="sharecard_setup_btn">📸 Condividi il mio setup</button>
             </div>
             <p class="settings-note settings-safenote" data-i18n="settings_share_note">All'importazione vedi sempre cosa contiene prima di confermare. Tema, pagina e Deck cambiano solo aspetto e disposizione; widget e pacchetti installano widget della community in sandbox, che restano nascosti finché non ne approvi i permessi. Importa solo da persone di cui ti fidi. E puoi esportare solo le tue creazioni: ciò che hai installato da altri non è ridistribuibile.</p>
           </section>
@@ -3644,6 +3647,10 @@
 <script src="js/installed-manager.js"></script>
 <script src="js/community-gallery.js"></script>
 <script src="js/catalog-drop.js"></script>
+<!-- Share card: composes the postable PNG. Loaded after preset-share.js only for
+     readability — openShareDialog() checks window.ShareCard at click time, so the
+     order between the two is not load-bearing. -->
+<script src="js/share-card.js"></script>
 <!-- Announcement feed: hub-match.js is the pure targeting filter (unit tested),
      hub-messages.js the surface that renders what survives it. -->
 <script src="js/hub-match.js"></script>

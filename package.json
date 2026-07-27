@@ -12,6 +12,8 @@
     "start": "node server/server.js",
     "test": "node --test \"server/test/*.test.mjs\" \"packages/core/test/*.test.mjs\"",
     "dev": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"try{$p=(Get-NetTCPConnection -LocalPort 3030 -State Listen -EA SilentlyContinue).OwningProcess;if($p){Stop-Process -Id $p -Force -EA SilentlyContinue;Start-Sleep -Milliseconds 600}}catch{} \" && node server/server.js",
+    "demo": "node tools/build-demo.mjs && node tools/preview-docs.cjs",
+    "demo:build": "node tools/build-demo.mjs",
     "link:shared": "node tools/link-shared.mjs",
     "version:set": "node tools/set-version.mjs",
     "postinstall": "node tools/link-shared.mjs",
