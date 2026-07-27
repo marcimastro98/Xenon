@@ -17,16 +17,17 @@
         "collection",
         "supporter"
       ],
-      "version": "1.0.0",
-      "appVersionMin": "4.11.0",
+      "version": "1.0.1",
+      "appVersionMin": "4.10.1",
       "preview": {
         "accent": "#B03A2E",
         "bg": "#E8DCC0",
         "text": "#2A2118"
       },
       "shots": 3,
-      "addedAt": "2026-07-26",
-      "codeFile": true
+      "addedAt": "2026-07-27",
+      "codeFile": true,
+      "updatedAt": "2026-07-27"
     },
     {
       "id": "abisso",
