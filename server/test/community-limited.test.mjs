@@ -41,3 +41,18 @@ test('fetchStatus rejects malformed hub rows and degrades to network errors', as
   responder = () => ({ ok: false });
   assert.deepEqual(await limited.fetchStatus('signal'), { ok: false, error: 'network' });
 });
+
+test('only an explicit active:false closes a drop', async () => {
+  // The Store hides "Claim your copy" on this flag, so the default decides
+  // whether a hub row that omits `active` shutters a live drop. It must not:
+  // absent = open, and only a deliberate false closes the door.
+  responder = () => ({ ok: true, drops: { signal: { total: 50, claimed: 45 } } });
+  assert.equal((await limited.fetchStatus('signal')).drops.signal.active, true);
+  limited._resetCache();
+  responder = () => ({ ok: true, drops: { signal: { total: 50, claimed: 45, active: false } } });
+  const closed = (await limited.fetchStatus('signal')).drops.signal;
+  assert.equal(closed.active, false);
+  // Closed is not sold out: the copies are still on the counter.
+  assert.equal(closed.left, 5);
+  assert.equal(closed.soldOut, false);
+});

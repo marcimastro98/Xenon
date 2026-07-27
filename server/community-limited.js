@@ -79,7 +79,10 @@ function normalizeDrops(raw, ids) {
       soldOut: claimed >= total,
       numbered: value.numbered === true,
       channels: value.channels === 'both' ? 'both' : 'discord',
-      active: value.active === true,
+      // Only an explicit `false` closes a drop. The client hides the claim CTA
+      // on this flag, so a hub row that simply omits it must not read as
+      // "closed" — that would shutter every live drop in the Store at once.
+      active: value.active !== false,
     };
   }
   return drops;

@@ -18,6 +18,12 @@
 // This module only VALIDATES shape and drops messages outside their date window.
 // It deliberately does not interpret `match`.
 //
+// A message may also carry `media` (one picture or clip from the project's own
+// asset host) and `i18n` (per-language overrides of its strings). Both are
+// validated here and both degrade rather than fail: a rejected media block
+// leaves the message text-only, and a rejected translation leaves the base
+// language, because neither is worth withholding an announcement over.
+//
 // Fetch shape mirrors community-catalog.js / ics-feeds.js (https-only conditional
 // GET, bounded body, redirect cap, timeout, TTL cache + in-flight dedup) — the
 // codebase convention for these fetchers is a documented mirror. If you harden
@@ -62,6 +68,26 @@ const LINK_HOSTS = new Set([
   'github.com', 'www.github.com',
   'discord.gg', 'discord.com', 'www.discord.com',
 ]);
+
+// Where a message may load a picture or a clip from. One host, the project's own
+// R2 asset origin — the same one the gallery already pulls screenshots from. The
+// reasoning is LINK_HOSTS', only stricter: a link asks the user to follow it, a
+// media URL is fetched by the dashboard the moment the card opens, so an open
+// host list would turn the feed into a beacon that reports when each install
+// read its announcements. The console uploads the file here rather than taking a
+// URL, so there is nothing for an author to get wrong.
+const MEDIA_HOSTS = new Set(['assets.xenon-app.com']);
+const MEDIA_IMAGE_EXT = /\.(webp|png|jpe?g|gif)$/i;
+const MEDIA_VIDEO_EXT = /\.(mp4|webm)$/i;
+const MEDIA_TYPES = new Set(['image', 'video']);
+
+// Per-language overrides. The base fields are what everyone gets; a language
+// present here replaces only the strings it carries, so a half-finished
+// translation degrades field by field instead of stranding a user between two
+// languages. 12 rather than the app's 8 locales: the feed should not have to be
+// re-cut the day a ninth ships.
+const MAX_I18N_LANGS = 12;
+const I18N_TEXT_MAX = { title: 120, body: 600, kicker: 24, actionLabel: 40, mediaAlt: 120 };
 
 const MAX_MATCH_ENTRIES = 20;
 const MAX_MATCH_LIST = 8;
@@ -161,6 +187,84 @@ function normalizeAction(raw, entryId) {
   } catch { return null; }
 }
 
+// The picture or clip shown above the text. Returns null on anything it does not
+// like, and the caller keeps the message: an announcement that loses its artwork
+// is still an announcement, unlike a poll that loses its options. The extension
+// is checked against the declared type because that is what decides whether the
+// client builds an <img> or a <video> — a .mp4 arriving as `image` would render
+// as a broken picture rather than play.
+function normalizeMedia(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const type = cleanStr(raw.type, 8);
+  if (!MEDIA_TYPES.has(type)) return null;
+
+  const url = cleanStr(raw.url, 300);
+  let u;
+  try { u = new URL(url); } catch { return null; }
+  if (u.protocol !== 'https:' || !MEDIA_HOSTS.has(u.hostname.toLowerCase())) return null;
+  const ext = type === 'video' ? MEDIA_VIDEO_EXT : MEDIA_IMAGE_EXT;
+  if (!ext.test(u.pathname)) return null;
+
+  const media = { type, url: u.toString() };
+  const alt = cleanStr(raw.alt, I18N_TEXT_MAX.mediaAlt);
+  if (alt) media.alt = alt;
+  // A poster is what fills the frame before a clip decodes, so it follows the
+  // image rules whatever the media type is; on an `image` it means nothing.
+  if (type === 'video') {
+    const poster = cleanStr(raw.poster, 300);
+    try {
+      const p = new URL(poster);
+      if (p.protocol === 'https:' && MEDIA_HOSTS.has(p.hostname.toLowerCase()) && MEDIA_IMAGE_EXT.test(p.pathname)) {
+        media.poster = p.toString();
+      }
+    } catch { /* no poster is fine — the clip paints its own first frame */ }
+  }
+  return media;
+}
+
+// Per-language string overrides, rebuilt key by key like every other remote
+// shape here. Deliberately NOT symmetric with `match`: a broken filter is
+// dangerous, because "no filter" means everyone, so it makes the message
+// unsatisfiable — a broken translation is merely absent, and falling back to the
+// base language is exactly the right answer. It never widens or narrows an
+// audience, so the worst case is a user reading English.
+function normalizeI18n(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const out = {};
+  let langs = 0;
+  for (const key of Object.keys(raw)) {
+    const lang = cleanStr(key, 2).toLowerCase();
+    if (!LANG_RE.test(lang) || out[lang]) continue;
+    const src = raw[key];
+    if (!src || typeof src !== 'object' || Array.isArray(src)) continue;
+
+    const entry = {};
+    for (const field of Object.keys(I18N_TEXT_MAX)) {
+      const value = cleanStr(src[field], I18N_TEXT_MAX[field]);
+      if (value) entry[field] = value;
+    }
+    // Poll answers, keyed by the option id the base message declared. Ids that
+    // match nothing are dropped by the client at render time, not here: this
+    // module never sees the poll and the message it belongs to together.
+    if (src.options && typeof src.options === 'object' && !Array.isArray(src.options)) {
+      const options = {};
+      let n = 0;
+      for (const id of Object.keys(src.options)) {
+        if (!MESSAGE_ID_RE.test(id)) continue;
+        const label = cleanStr(src.options[id], 60);
+        if (!label) continue;
+        options[id] = label;
+        if (++n >= MAX_POLL_OPTIONS) break;
+      }
+      if (n) entry.options = options;
+    }
+    if (!Object.keys(entry).length) continue;
+    out[lang] = entry;
+    if (++langs >= MAX_I18N_LANGS) break;
+  }
+  return langs ? out : null;
+}
+
 // A poll: the message's title/body asks the question, these are the answers.
 // Two to five options — one is not a question, and more than five is a survey
 // that does not belong on a dashboard tile. An option's id is what gets counted,
@@ -220,6 +324,12 @@ function normalizeMessage(raw) {
 
   const action = normalizeAction(raw.action, msg.entryId);
   if (action) msg.action = action;
+
+  const media = normalizeMedia(raw.media);
+  if (media) msg.media = media;
+
+  const i18n = normalizeI18n(raw.i18n);
+  if (i18n) msg.i18n = i18n;
 
   // A poll that failed validation (one option, all ids malformed) must not ship
   // as a plain message: the title is usually a question, and a question with no
@@ -385,10 +495,13 @@ module.exports = {
   normalizeMessages,
   normalizeMatch,
   normalizeAction,
+  normalizeMedia,
+  normalizeI18n,
   filterVisibleMessages,
   cacheIsFresh,
   MESSAGES_URL,
   MAX_MESSAGES,
   LEVELS,
   LINK_HOSTS,
+  MEDIA_HOSTS,
 };

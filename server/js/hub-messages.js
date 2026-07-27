@@ -67,6 +67,74 @@
     } catch { return 'en'; }
   }
 
+  // ── Translation ────────────────────────────────────────────────────────────
+  // A message carries its base strings plus an optional `i18n` map. This returns
+  // a copy with the reader's language applied FIELD BY FIELD, so a translation
+  // that only got as far as the title still shows a translated title over a base
+  // body — better than an all-or-nothing swap that hides finished work because
+  // the rest is missing. The base language is whatever the author typed into the
+  // main fields, and it is what everyone without a translation reads.
+  //
+  // Everything here is presentation. Matching still runs on the ORIGINAL message
+  // (match.lang targets who receives it, which is a different question from what
+  // language they read it in) — do not fold this into the filter.
+  function localize(msg, lang) {
+    const tr = msg && msg.i18n && msg.i18n[lang];
+    if (!tr) return msg;
+    const out = Object.assign({}, msg);
+    for (const field of ['title', 'body', 'kicker']) {
+      if (tr[field]) out[field] = tr[field];
+    }
+    if (tr.mediaAlt && out.media) out.media = Object.assign({}, out.media, { alt: tr.mediaAlt });
+    if (tr.actionLabel && out.action) out.action = Object.assign({}, out.action, { label: tr.actionLabel });
+    if (tr.options && out.poll && Array.isArray(out.poll.options)) {
+      out.poll = {
+        options: out.poll.options.map((o) => (tr.options[o.id] ? { id: o.id, label: tr.options[o.id] } : o)),
+      };
+    }
+    return out;
+  }
+
+  // ── Media ──────────────────────────────────────────────────────────────────
+  // The host allowlist and the type/extension agreement are settled server-side
+  // (community-messages.js); by the time a media block reaches here it is one of
+  // exactly two shapes. What this decides is how it behaves on a dashboard that
+  // may be a 2560x720 touchscreen: a fixed aspect box so the card does not jump
+  // when the file lands, and a clip that plays like a GIF — muted, looping,
+  // inline, no controls — because it is decoration and a control bar invites a
+  // tap that does nothing useful.
+  function mediaNode(media) {
+    if (!media || !media.url) return null;
+    const frame = el('div', 'hubmsg-media');
+    if (media.type === 'video') {
+      const v = document.createElement('video');
+      v.src = media.url;
+      v.muted = true;
+      v.loop = true;
+      v.autoplay = true;
+      v.playsInline = true;
+      v.preload = 'metadata';
+      v.setAttribute('aria-hidden', 'true');
+      if (media.poster) v.poster = media.poster;
+      // Autoplay can still be refused (a user-level policy, not just tab focus).
+      // The poster or the first frame stays on screen, which is a still picture —
+      // the same thing an image message shows — so there is nothing to report.
+      try { const p = v.play(); if (p && p.catch) p.catch(() => {}); } catch { /* ignore */ }
+      frame.appendChild(v);
+    } else {
+      const img = document.createElement('img');
+      img.src = media.url;
+      img.alt = media.alt || '';
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      frame.appendChild(img);
+    }
+    // A file that never arrives must not leave an empty framed box above the
+    // title: the message reads fine without it, so the frame removes itself.
+    frame.firstChild.addEventListener('error', () => { frame.remove(); }, { once: true });
+    return frame;
+  }
+
   // ── Presentation ───────────────────────────────────────────────────────────
   let overlay = null;
   let onKey = null;
@@ -129,6 +197,10 @@
     x.addEventListener('click', () => close());
     card.appendChild(x);
 
+    const media = mediaNode(msg.media);
+    // The frame is full-bleed against the card's top edge, so the card drops its
+    // own top padding rather than the media inheriting an inset it would fight.
+    if (media) { card.classList.add('has-media'); card.appendChild(media); }
     if (msg.kicker) card.appendChild(el('div', 'hubmsg-kicker', msg.kicker));
     card.appendChild(el('h2', 'hubmsg-title', msg.title));
     if (msg.body) card.appendChild(el('p', 'hubmsg-body', msg.body));

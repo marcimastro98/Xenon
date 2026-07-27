@@ -50,9 +50,13 @@
 
   // A drop worth nudging about = an AVAILABLE limited edition, or a
   // supporters-only / locked creation. Free community items never trigger this.
+  // `active:false` from the live status = the hub has closed the drop: copies may
+  // still be on the counter, but nobody can claim one. Announcing that is the
+  // same dead end as announcing a sold-out drop, so it doesn't. Absent (the
+  // hub never answered) means open — the published numbers stand, as before.
   function isPaidDrop(e) {
     if (!e || !e.id) return false;
-    if (e.limited) return !e.limited.soldOut;
+    if (e.limited) return !e.limited.soldOut && e.limited.active !== false;
     return !!(e.locked || e.supportersOnly);
   }
 
