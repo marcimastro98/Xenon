@@ -191,10 +191,32 @@ fn place_on_edge(window: &WebviewWindow, edge: &Monitor, focus: bool) {
     let _ = window.set_decorations(false);
     let _ = window.set_skip_taskbar(true);
     let _ = window.set_position(origin);
-    let _ = window.set_fullscreen(true);
+    enter_borderless_fullscreen(window, edge);
     if focus {
         let _ = window.set_focus();
     }
+}
+
+/// Make a BORDERLESS window own its whole display.
+///
+/// Native fullscreen is the answer on Windows and Linux. It is not one on macOS:
+/// `toggleFullScreen:` requires a titled window, and calling it on a borderless
+/// one segfaults inside AppKit's enter-fullscreen transition (the app died on
+/// every launch until this split existed). Covering the monitor's frame by
+/// geometry gives the same result — the whole display, no chrome — without the
+/// transition, and it keeps the kiosk on the display it was placed on instead of
+/// being moved into a Space of its own.
+#[cfg(target_os = "macos")]
+fn enter_borderless_fullscreen(window: &WebviewWindow, monitor: &Monitor) {
+    let _ = window.set_size(*monitor.size());
+    // Position again AFTER the resize: growing a window near a screen edge can
+    // let AppKit nudge it back inside the previous frame.
+    let _ = window.set_position(*monitor.position());
+}
+
+#[cfg(not(target_os = "macos"))]
+fn enter_borderless_fullscreen(window: &WebviewWindow, _monitor: &Monitor) {
+    let _ = window.set_fullscreen(true);
 }
 
 /// A window size that fits inside the given monitor (never wider or taller than

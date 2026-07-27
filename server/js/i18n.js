@@ -3,6 +3,7 @@
 const i18n = {
   it: {
     spot_index_building: "Sto imparando il disco… i risultati si completano da soli tra poco",
+    spot_index_off: "Aggiungi una cartella in Impostazioni → Ricerca e disco per attivare la ricerca",
     disk_enable_title: "Accendi l’indice vivo",
     disk_enable_text: "Scegli i dischi o le cartelle da tenere indicizzati in tempo reale: la mappa dello spazio e la ricerca file diventano istantanee.",
     disk_index_building: "Sto imparando il disco…",
@@ -2463,6 +2464,7 @@ const i18n = {
   },
   en: {
     spot_index_building: "Learning your disk… results will complete on their own shortly",
+    spot_index_off: "Add a folder in Settings → Search and disk to turn search on",
     disk_enable_title: "Turn on the living index",
     disk_enable_text: "Pick the drives or folders to keep indexed in real time: the space map and file search become instant.",
     disk_index_building: "Learning your disk…",
@@ -4928,6 +4930,7 @@ Object.assign(i18n, {
     ...i18n.en,
     // v4.10.0 Living Index.
     spot_index_building: "디스크를 학습 중… 결과는 곧 자동으로 완성됩니다",
+    spot_index_off: "검색을 켜려면 설정 → 검색 및 디스크에서 폴더를 추가하세요",
     disk_enable_title: "라이브 인덱스 켜기",
     disk_enable_text: "실시간으로 색인할 드라이브나 폴더를 선택하세요. 공간 지도와 파일 검색이 즉시 반응하게 됩니다.",
     disk_index_building: "디스크 학습 중…",
@@ -6969,6 +6972,7 @@ Object.assign(i18n, {
     ...i18n.en,
     // v4.10.0 Living Index.
     spot_index_building: "ディスクを学習中… 結果はまもなく自動で揃います",
+    spot_index_off: "検索を有効にするには、設定 → 検索とディスク でフォルダーを追加してください",
     disk_enable_title: "ライブインデックスをオンにする",
     disk_enable_text: "リアルタイムでインデックスするドライブやフォルダーを選ぶと、容量マップとファイル検索が即時になります。",
     disk_index_building: "ディスクを学習中…",
@@ -9009,6 +9013,7 @@ Object.assign(i18n, {
     ...i18n.en,
     // v4.10.0 Living Index.
     spot_index_building: "正在学习你的磁盘……结果很快会自动补全",
+    spot_index_off: "在 设置 → 搜索与磁盘 中添加文件夹即可启用搜索",
     disk_enable_title: "开启实时索引",
     disk_enable_text: "选择要实时索引的磁盘或文件夹：空间地图和文件搜索将变得即时。",
     disk_index_building: "正在学习磁盘……",
@@ -11050,6 +11055,7 @@ Object.assign(i18n, {
     ...i18n.en,
     // v4.10.0 Living Index.
     spot_index_building: "Aprendiendo tu disco… los resultados se completarán solos en breve",
+    spot_index_off: "Añade una carpeta en Ajustes → Búsqueda y disco para activar la búsqueda",
     disk_enable_title: "Enciende el índice vivo",
     disk_enable_text: "Elige los discos o carpetas a mantener indexados en tiempo real: el mapa de espacio y la búsqueda se vuelven instantáneos.",
     disk_index_building: "Aprendiendo tu disco…",
@@ -12187,6 +12193,7 @@ Object.assign(i18n, {
     ...i18n.en,
     // v4.10.0 Living Index.
     spot_index_building: "J’apprends votre disque… les résultats se complèteront d’eux-mêmes sous peu",
+    spot_index_off: "Ajoutez un dossier dans Réglages → Recherche et disque pour activer la recherche",
     disk_enable_title: "Activer l’index vivant",
     disk_enable_text: "Choisissez les disques ou dossiers à indexer en temps réel : la carte de l’espace et la recherche deviennent instantanées.",
     disk_index_building: "J’apprends votre disque…",
@@ -13324,6 +13331,7 @@ Object.assign(i18n, {
     ...i18n.en,
     // v4.10.0 Living Index.
     spot_index_building: "Lerne deine Festplatte… die Ergebnisse vervollständigen sich gleich von selbst",
+    spot_index_off: "Füge unter Einstellungen → Suche und Datenträger einen Ordner hinzu, um die Suche zu aktivieren",
     disk_enable_title: "Den lebenden Index einschalten",
     disk_enable_text: "Wähle die Laufwerke oder Ordner, die in Echtzeit indiziert bleiben: Speicherkarte und Dateisuche werden sofortig.",
     disk_index_building: "Lerne deine Festplatte…",
@@ -14461,6 +14469,7 @@ Object.assign(i18n, {
     ...i18n.en,
     // v4.10.0 Living Index.
     spot_index_building: "Aprendendo seu disco… os resultados se completam sozinhos em instantes",
+    spot_index_off: "Adicione uma pasta em Configurações → Busca e disco para ativar a busca",
     disk_enable_title: "Ligue o índice vivo",
     disk_enable_text: "Escolha os discos ou pastas a manter indexados em tempo real: o mapa de espaço e a pesquisa ficam instantâneos.",
     disk_index_building: "Aprendendo seu disco…",
@@ -15598,6 +15607,7 @@ Object.assign(i18n, {
     ...i18n.en,
     // v4.10.0 Living Index.
     spot_index_building: "Изучаю ваш диск… результаты скоро дополнятся сами",
+    spot_index_off: "Добавьте папку в Настройки → Поиск и диск, чтобы включить поиск",
     disk_enable_title: "Включите живой индекс",
     disk_enable_text: "Выберите диски или папки для индексации в реальном времени: карта места и поиск файлов станут мгновенными.",
     disk_index_building: "Изучаю диск…",
@@ -16735,6 +16745,7 @@ Object.assign(i18n, {
     ...i18n.en,
     // v4.10.0 Living Index.
     spot_index_building: "Je schijf aan het leren… resultaten vullen zich zo vanzelf aan",
+    spot_index_off: "Voeg een map toe in Instellingen → Zoeken en schijf om zoeken in te schakelen",
     disk_enable_title: "Zet de levende index aan",
     disk_enable_text: "Kies de schijven of mappen die realtime geïndexeerd blijven: de ruimtekaart en het zoeken worden direct.",
     disk_index_building: "Schijf aan het leren…",

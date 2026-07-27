@@ -128,6 +128,14 @@ section('Collectors (what the tiles read)');
 const collectors = require(path.join(ROOT, 'server', PLAT === 'darwin' ? 'darwin-collectors.js' : 'linux-collectors.js'));
 
 await probe('disks', () => collectors.disks(), checks.checkDisks);
+// The sensor collectors never block the request path: they answer from a TTL
+// cache and refresh BEHIND the answer, so the very first call on both platforms
+// returns the empty sample by design. Probing once read that as "no load or
+// temperature" and printed three lines of remediation on a machine where both
+// work — measured on an M2, where the helper reports GPU load the first call
+// could not see. So ask once to prime it, then time the reading that counts.
+await collectors.gpu().catch(() => {});
+await new Promise((r) => setTimeout(r, 1200));
 await probe('gpu', () => collectors.gpu(), checks.checkGpu);
 await probe('cpu temperature', () => collectors.cpuTemp(), checks.checkCpuTemp);
 await probe('network', () => collectors.network(), checks.checkNetwork);

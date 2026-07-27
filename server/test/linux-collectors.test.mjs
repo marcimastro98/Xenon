@@ -19,6 +19,35 @@ const fixture = (name) => readFileSync(join(here, 'fixtures', name), 'utf8');
 
 // --- df ---------------------------------------------------------------------
 
+// --- /proc/meminfo ----------------------------------------------------------
+// The same trap the macOS side hit: os.freemem() is ullAvailPhys on Windows but
+// MemFree here, which excludes the page cache the kernel hands straight back —
+// so `total - free` counts every cached file as used. MemAvailable is the
+// kernel's own answer to the question Windows was already answering.
+
+test('parseMemInfo: used is total minus MemAvailable, not minus MemFree', () => {
+  const mem = lc.parseMemInfo(fixture('linux-meminfo.txt'));
+  assert.equal(mem.total, 16311476 * 1024);
+  assert.equal(mem.used, (16311476 - 11238904) * 1024);
+  // ~31%, against the ~97% the free-page count would have produced on a box
+  // with 10 GB of page cache.
+  assert.equal(Math.round((mem.used / mem.total) * 100), 31);
+});
+
+test('parseMemInfo: a kernel too old for MemAvailable falls back to free+buffers+cached', () => {
+  const out = ['MemTotal:       1000000 kB', 'MemFree:         100000 kB',
+    'Buffers:          50000 kB', 'Cached:         300000 kB'].join('\n');
+  assert.deepEqual(lc.parseMemInfo(out), { used: 550000 * 1024, total: 1000000 * 1024 });
+});
+
+test('parseMemInfo: unusable input returns null so the caller can fall back', () => {
+  for (const raw of ['', 'nothing here', 'MemFree: 100 kB', undefined]) {
+    assert.equal(lc.parseMemInfo(raw), null, String(raw));
+  }
+  // Available above total (a kernel quirk) must not produce a negative usage.
+  assert.equal(lc.parseMemInfo('MemTotal: 100 kB\nMemAvailable: 500 kB').used, 0);
+});
+
 test('parseDisks: keeps real filesystems and drops pseudo/virtual mounts', () => {
   const drives = lc.parseDisks(fixture('linux-df.txt'));
   const mounts = drives.map((d) => d.drive).sort();

@@ -354,6 +354,18 @@ jobs:
           if [ ! -f stage/MediaRemoteAdapter-macos.tar.gz ]; then
             echo "::warning::the media adapter did not build - this release ships without macOS now-playing"
           fi
+          # The helper is continue-on-error like the adapter, so it needs the
+          # same notice. Its absence is far louder than one feature: install.sh
+          # treats a missing helper as an ordinary condition, so a release that
+          # shipped without it degrades EVERY Mac install in silence — no
+          # temperatures, no GPU load, an app switcher that is seconds slower
+          # and demands the Automation grant, no Living Index (so no search and
+          # no disk map), no global hotkey, and deletes that skip the Trash.
+          # Nobody would see an error anywhere; they would just get a lesser
+          # Xenon. Worth knowing before clicking Publish.
+          if [ ! -f stage/xenon-helper-macos.tar.gz ]; then
+            echo "::warning::the macOS helper did not build - every Mac install will fall back to the osascript paths"
+          fi
           BUNDLE=apps/native/src-tauri/target/universal-apple-darwin/release/bundle
           TARBALL=$(ls "$BUNDLE"/macos/*.app.tar.gz 2>/dev/null | head -1)
           SIG=$(ls "$BUNDLE"/macos/*.app.tar.gz.sig 2>/dev/null | head -1)

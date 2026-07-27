@@ -126,9 +126,34 @@
     return Math.max(0, Number(value) || 0).toLocaleString();
   }
 
+  // Paths arrive spelled the way the machine spells them, and this widget
+  // compared them with a hard-coded backslash in five places. Off Windows that
+  // separator appears in no path, so every one of those tests answered "no":
+  // the treemap found no direct children of its own root and rendered the whole
+  // volume as one "unattributed" block, and the breadcrumb could not go up.
+  // The separator is derived from the path itself rather than from a platform
+  // flag — an absolute POSIX path starts with "/", a Windows one with a drive
+  // letter — so there is nothing extra to plumb through and nothing to keep in
+  // step with the server.
+  const sepOf = (value) => (String(value || '').charAt(0) === '/' ? '/' : '\\');
+
+  function pathParent(value) {
+    const raw = String(value || '');
+    const sep = sepOf(raw);
+    const trimmed = sep === '/' && raw !== '/' ? raw.replace(/\/+$/, '') : raw.replace(/\\+$/, '');
+    const cut = trimmed.lastIndexOf(sep);
+    if (cut < 0) return '';
+    // The parent of "/x" is the POSIX root, which IS its separator — slicing at
+    // index 0 would leave the empty string and orphan every top-level folder.
+    if (cut === 0) return sep === '/' ? '/' : '';
+    return trimmed.slice(0, cut);
+  }
+
   function pathLeaf(value) {
-    const parts = String(value || '').replace(/\\+$/, '').split('\\').filter(Boolean);
-    return parts.length ? parts[parts.length - 1] : String(value || '');
+    const raw = String(value || '');
+    const sep = sepOf(raw);
+    const parts = raw.replace(sep === '/' ? /\/+$/ : /\\+$/, '').split(sep).filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : raw;
   }
 
   function el(tag, cls, text) {
@@ -942,17 +967,14 @@
     const kids = [];
     let rootEntry = null;
     for (const dir of tree) {
-      const p = String(dir.p || '').toLowerCase().replace(/\\+$/, '');
+      const raw = String(dir.p || '');
+      const p = (sepOf(raw) === '/' && raw !== '/' ? raw.replace(/\/+$/, '') : raw.replace(/\\+$/, '')).toLowerCase();
       if (p === rootLower) { rootEntry = dir; continue; }
-      const cut = p.lastIndexOf('\\');
-      if (cut >= 0 && p.slice(0, cut) === rootLower) kids.push(dir);
+      if (pathParent(p) === rootLower) kids.push(dir);
     }
     kids.sort((a, b) => b.s - a.s);
     const directFiles = (overview && Array.isArray(overview.topFiles) ? overview.topFiles : [])
-      .filter((file) => {
-        const p = String(file.p || '').toLowerCase();
-        return p.slice(0, p.lastIndexOf('\\')) === rootLower;
-      })
+      .filter((file) => pathParent(String(file.p || '').toLowerCase()) === rootLower)
       .map((file) => ({ ...file, file: true }));
     const covered = kids.reduce((sum, dir) => sum + (dir.s || 0), 0) +
       directFiles.reduce((sum, file) => sum + (file.s || 0), 0);
@@ -1118,8 +1140,10 @@
             treeStack.pop();
             treeRoot = treeStack.length ? treeStack[treeStack.length - 1].path : base;
           } else {
-            const cut = treeRoot.lastIndexOf('\\');
-            treeRoot = cut > 1 ? treeRoot.slice(0, cut) : base;
+            const up = pathParent(treeRoot);
+            // Never climb above the configured root: `base` is the boundary the
+            // ids were minted against.
+            treeRoot = up && up.length >= base.length ? up : base;
           }
           treeError = '';
           renderAll();
@@ -1628,7 +1652,7 @@
     row.appendChild(icon);
     const copy = el('div', 'diskw-path-copy');
     const path = String(item.p || '');
-    copy.appendChild(el('strong', '', kind === 'folder' ? path.split('\\').filter(Boolean).pop() || path : item.n || path.split('\\').pop()));
+    copy.appendChild(el('strong', '', kind === 'folder' ? pathLeaf(path) : item.n || pathLeaf(path)));
     copy.appendChild(el('span', '', ltrPath(path)));
     row.appendChild(copy);
     row.appendChild(el('b', 'diskw-path-size', fmtSize(item.s)));

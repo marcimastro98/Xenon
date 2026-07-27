@@ -199,12 +199,48 @@ install_media_adapter
 # Automation grant, the game probe, the global search hotkey and the Trash. Same
 # optional contract as everything else here — without it those features fall
 # back to osascript or are simply not offered.
+#
+# MIN_MAC_HELPER is the twin of $minVersion in server/helper-update.ps1 and is
+# gated the same way: an installed helper below it is REPLACED, not kept. This
+# used to be a bare "is the file there" test, which meant an existing install
+# stayed on whatever helper it first downloaded forever — a new mode would ship
+# and the only machines that ever saw it were fresh installs. There is no in-app
+# helper update off Windows yet (helper-update.js checks the hash of the exe),
+# so re-running the installer is the whole update path and it has to be able to
+# move the version. Bump this with helper-mac/…/Version.swift whenever a mode
+# is added or its answers change.
+MIN_MAC_HELPER='0.4.0'
+
+# Compare dotted versions without sort -V, which BSD sort does not have.
+mac_helper_outdated() {
+  local have_v="$1" want="$2" i h w
+  local -a hp wp
+  IFS='.' read -r -a hp <<< "$have_v"
+  IFS='.' read -r -a wp <<< "$want"
+  for i in 0 1 2; do
+    h="${hp[$i]:-0}"; w="${wp[$i]:-0}"
+    case "$h" in ''|*[!0-9]*) h=0 ;; esac
+    case "$w" in ''|*[!0-9]*) w=0 ;; esac
+    [ "$h" -lt "$w" ] && return 0
+    [ "$h" -gt "$w" ] && return 1
+  done
+  return 1
+}
+
 install_mac_helper() {
   [ "$XENON_OS" = 'macos' ] || return 0
-  local dir="$SERVER_DIR/helper"
-  [ -x "$dir/xenon-helper" ] && return 0
+  local dir="$SERVER_DIR/helper" cur='' updating=0
+  if [ -x "$dir/xenon-helper" ]; then
+    cur="$("$dir/xenon-helper" --version 2>/dev/null | tr -d '[:space:]')"
+    mac_helper_outdated "${cur:-0.0.0}" "$MIN_MAC_HELPER" || return 0
+    updating=1
+  fi
   have curl || return 0
-  step 'Installing the Xenon Helper…'
+  if [ "$updating" = 1 ]; then
+    step "Updating the Xenon Helper (${cur:-unknown} → $MIN_MAC_HELPER)…"
+  else
+    step 'Installing the Xenon Helper…'
+  fi
   local url='https://github.com/marcimastro98/Xenon/releases/latest/download/xenon-helper-macos.tar.gz'
   local tmp
   tmp="$(mktemp -d)" || return 0
@@ -212,9 +248,22 @@ install_mac_helper() {
     warn 'the Xenon Helper could not be downloaded; the app switcher and the search hotkey will use the fallbacks.'
     rm -rf "$tmp"; return 0
   fi
-  mkdir -p "$dir"
-  if ! tar -xzf "$tmp/helper.tar.gz" -C "$dir"; then
+  # Unpacked into a staging directory, never straight over the installed one: an
+  # archive that turns out to be truncated must not be able to take a working
+  # helper with it, and on an update there IS one to lose.
+  mkdir -p "$tmp/stage" "$dir"
+  if ! tar -xzf "$tmp/helper.tar.gz" -C "$tmp/stage" || [ ! -f "$tmp/stage/xenon-helper" ]; then
     warn 'the Xenon Helper archive could not be extracted.'
+    rm -rf "$tmp"; return 0
+  fi
+  # Remove before moving rather than overwriting in place. A running helper is
+  # still executing from its own inode, so unlinking the name leaves the live
+  # index and game probe alone until they next restart; writing over the file
+  # would change the code signature underneath them, and macOS answers that by
+  # killing the process outright (SIGKILL, observed on this port).
+  rm -f "$dir/xenon-helper"
+  if ! mv "$tmp/stage/xenon-helper" "$dir/xenon-helper"; then
+    warn 'the Xenon Helper could not be installed.'
     rm -rf "$tmp"; return 0
   fi
   rm -rf "$tmp"
@@ -228,7 +277,98 @@ install_mac_helper() {
 install_mac_helper
 
 # ── 4) Register the login service ────────────────────────────────────────────
+# Where the backend lives, written for Xenon.app to read. The app starts the
+# backend itself (see below) and cannot ask launchd where it is once the agent
+# stops naming node, so the install location is recorded here instead. Plain
+# JSON, one key, rewritten on every run — it is a pointer, never state.
+record_backend_location() {
+  local dir="$HOME/Library/Application Support/Xenon"
+  mkdir -p "$dir" || return 0
+  printf '{\n  "entry": "%s",\n  "root": "%s"\n}\n' "$SERVER_DIR/server.js" "$ROOT_DIR" > "$dir/backend.json"
+}
+
+# Is the native app installed? It is what owns the backend on macOS.
+find_xenon_app() {
+  local p
+  for p in "/Applications/Xenon.app" "$HOME/Applications/Xenon.app"; do
+    [ -d "$p" ] && { printf '%s' "$p"; return 0; }
+  done
+  return 1
+}
+
+# The login item that launches XENON.APP, which then starts the backend as its
+# own child.
+#
+# This is not a lifecycle preference, it is the only way the backend can read
+# the user's files. macOS attributes file-access permission to the RESPONSIBLE
+# process, and a child's responsible process is its parent. Started by launchd
+# the backend is responsible for itself, so Full Disk Access would have to be
+# granted to `node` — an interpreter, which would carry that grant into every
+# unrelated script the user ever runs. Started by the app it inherits Xenon's
+# own grant: one entry the user recognises, and one they can revoke.
+#
+# Measured on a real Mac, same machine, same helper: the launchd-run backend saw
+# 253,519 files / 90.5 GB of the home directory; run under the app's grant it
+# saw 410,413 / 105.4 GB. The Trash and most of ~/Library/Caches were invisible,
+# so the cleanup categories came back empty and the disk map under-reported.
+register_macos_app_agent() {
+  local app="$1"
+  mkdir -p "$HOME/Library/LaunchAgents" "$MAC_LOG_DIR"
+  # `open -a` and not the bundle executable: LaunchServices is what gives the
+  # process its bundle identity, which is what the permission is attached to.
+  # It also exits immediately, so there is deliberately no KeepAlive here —
+  # macOS does not restart GUI apps, and a KeepAlive on a command that always
+  # exits cleanly would spin.
+  cat > "$PLIST" <<PLIST_EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>$LABEL</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/open</string>
+    <string>-a</string>
+    <string>$app</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>ProcessType</key>
+  <string>Interactive</string>
+  <key>StandardOutPath</key>
+  <string>$MAC_LOG_DIR/backend.log</string>
+  <key>StandardErrorPath</key>
+  <string>$MAC_LOG_DIR/backend.err.log</string>
+</dict>
+</plist>
+PLIST_EOF
+  local gui="gui/$(id -u)"
+  launchctl bootout "$gui/$LABEL" >/dev/null 2>&1
+  launchctl bootstrap "$gui" "$PLIST" >/dev/null 2>&1 \
+    || launchctl load -w "$PLIST" >/dev/null 2>&1 \
+    || fail "launchctl refused to load $PLIST."
+  open -a "$app" >/dev/null 2>&1 || true
+}
+
+# Set by register_macos so the caller knows which chain it is waiting on: the
+# app path has several more links and needs a longer window.
+MAC_SERVICE_KIND='launchd'
+
 register_macos() {
+  record_backend_location
+  local app
+  if app="$(find_xenon_app)"; then
+    register_macos_app_agent "$app"
+    MAC_SERVICE_KIND='launchd-app'
+    return 0
+  fi
+  # No app: fall back to running node under launchd, which is what this did
+  # before the app existed. It works, and it is honest about what it costs —
+  # the folders macOS protects stay invisible until the app is installed.
+  warn 'Xenon.app is not installed: starting the backend directly.'
+  warn 'The Trash and some caches will not be scanned until you install the app'
+  warn 'from the .dmg and grant it Full Disk Access.'
   # KeepAlive restarts the backend if it ever exits — the in-session equivalent
   # of the crash-restart a Windows service would give, without leaving the GUI
   # session. SuccessfulExit=false means "restart on a crash, respect a clean
@@ -357,7 +497,7 @@ step 'Registering the login service…'
 SERVICE_KIND=''
 if [ "$XENON_OS" = 'macos' ]; then
   register_macos
-  SERVICE_KIND='launchd'
+  SERVICE_KIND="$MAC_SERVICE_KIND"
 else
   # `systemctl --user` can exist as a binary while there is no user manager to
   # talk to (a container, a non-systemd init, an ssh session without a bus), so
@@ -373,8 +513,14 @@ fi
 
 # ── 5) Wait for it to answer ─────────────────────────────────────────────────
 step 'Waiting for the dashboard to answer…'
+# The app path has more links in its chain than the direct one — launchd runs
+# `open`, LaunchServices starts the app, the app polls the port before deciding
+# nothing is there, and only then spawns node, which then boots. Forty seconds
+# was tuned for `launchd → node` and reported a healthy install as a failure.
+WAIT_SECS=40
+[ "$SERVICE_KIND" = 'launchd-app' ] && WAIT_SECS=90
 UP=0
-for _ in $(seq 1 40); do
+for _ in $(seq 1 "$WAIT_SECS"); do
   if curl -fsS --max-time 2 "http://127.0.0.1:$PORT/version" >/dev/null 2>&1; then UP=1; break; fi
   sleep 1
 done
@@ -401,7 +547,12 @@ if [ "$XENON_OS" = 'macos' ]; then
   # macOS asks for these the first time the feature is used, not now — say so, so
   # a prompt weeks later is not a surprise.
   printf '  %smacOS will ask for permission the first time you use:%s\n' "$C_DIM" "$C_OFF"
-  printf '  %s  Automation (System Events) — the app switcher widget%s\n' "$C_DIM" "$C_OFF"
+  # The app switcher only needs Automation on the fallback path. With the helper
+  # in place it reads the window server directly and prompts for nothing, so
+  # naming it here would train the user to expect a prompt that never comes.
+  if [ ! -x "$SERVER_DIR/helper/xenon-helper" ]; then
+    printf '  %s  Automation (System Events) — the app switcher widget%s\n' "$C_DIM" "$C_OFF"
+  fi
   printf '  %s  Microphone                 — voice input%s\n' "$C_DIM" "$C_OFF"
   printf '  %s  Screen Recording           — the screenshot the AI can take%s\n\n' "$C_DIM" "$C_OFF"
 else

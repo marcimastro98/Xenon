@@ -81,6 +81,10 @@ server/openrgb/
 helper/bin/
 helper/obj/
 server/helper/
+# The Swift twin's build output. SwiftPM writes it inside the package, so
+# without this a local `swift build` leaves the whole toolchain's intermediates
+# staged next to the sources.
+helper-mac/.build/
 
 # Xenon backend Windows service (WinSW): the downloaded host exe, the per-machine
 # generated config and the rolling logs. Only the template + scripts are versioned.

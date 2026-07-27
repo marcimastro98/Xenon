@@ -1712,22 +1712,32 @@ function normalizeWakeWord(value) {
 
 // Local search (Spotlight) — mirrors the server's normalizeSearchSettings so
 // both sides rebuild the same shape (settings invariant).
-function normalizeSearchSettings(value) {
+function normalizeSearchSettings(value, defaultRoot) {
   const v = value && typeof value === 'object' ? value : {};
   // indexRoots: the Living Index roots (drives or folders). Migration: older
   // saves carried extraFolders (the retired one-shot crawl) — adopt them.
-  // Never-set → default to the WHOLE system drive (product decision: the
-  // living experience out of the box); an explicitly emptied list means the
-  // user turned the index off and stays empty.
+  // Never-set → the server supplies the default for the machine it is running
+  // on (`defaultRoot`); an explicitly emptied list means the user turned the
+  // index off and stays empty.
   const rawRoots = Array.isArray(v.indexRoots) ? v.indexRoots
     : (Array.isArray(v.extraFolders) && v.extraFolders.length ? v.extraFolders : null);
-  // Separators normalized to backslashes, exactly as the server does — every
-  // consumer downstream compares against backslash paths.
-  const roots = rawRoots == null ? ['C:\\'] : rawRoots
-    .map((f) => String(f || '').trim().slice(0, 260).replace(/\//g, '\\'))
-    .filter((f) => /^[A-Za-z]:\\?$|^[A-Za-z]:\\.+/.test(f))
-    .map((f) => (f.length === 2 ? f + '\\' : f))
-    .slice(0, 8);
+  // Both root shapes are accepted here whatever the machine is, exactly as the
+  // server does. This copy runs in the BROWSER and cannot know what the host
+  // is: a validator that guessed would drop the user's root on the next save.
+  // The backslash rewrite therefore applies to the Windows shape ONLY — off
+  // Windows a backslash is a legal filename character, and rewriting "/" there
+  // turned "/Users/me" into "\Users\me", which no drive-letter test accepts.
+  const cleanRoot = (raw) => {
+    const s = String(raw || '').trim().slice(0, 4096);
+    // One leading slash is POSIX; two is a UNC share and stays rejected.
+    if (/^\/(?!\/)/.test(s)) return s.length > 1 ? s.replace(/\/+$/, '') : s;
+    const w = s.slice(0, 260).replace(/\//g, '\\');
+    if (!/^[A-Za-z]:\\?$|^[A-Za-z]:\\.+/.test(w)) return '';
+    return w.length === 2 ? w + '\\' : w;
+  };
+  const roots = rawRoots == null
+    ? [defaultRoot || 'C:\\']
+    : rawRoots.map(cleanRoot).filter(Boolean).slice(0, 8);
   const combo = String(v.hotkeyCombo || 'alt+space').toLowerCase().trim().slice(0, 40);
   return {
     indexRoots: roots,

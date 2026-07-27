@@ -91,9 +91,20 @@ enum IndexHost {
             // skipsPackageDescendants is deliberately NOT set: an .app bundle is
             // where a lot of a Mac's disk actually goes, and hiding it would
             // make the sizes disagree with Finder's own Get Info.
+            // Hidden entries are INDEXED. `.skipsHiddenFiles` looks like a
+            // sensible default and is the wrong one here: on POSIX almost
+            // everything this index exists to find is dot-prefixed. It hid the
+            // Trash (~/.Trash — so the recycleBin category could never appear),
+            // the whole package-cache vocabulary (~/.npm, ~/.cargo, ~/.gradle,
+            // ~/.m2, ~/.nuget, ~/.yarn, ~/.pnpm-store) and, on Linux, every
+            // browser cache (~/.cache/*) — which is disk-categories.js's entire
+            // POSIX list. The visible symptom was a cleanup plan of 0 B on a
+            // machine with 721 MB sitting in the Trash, plus disk totals quietly
+            // smaller than Finder's. The Windows walker skips ReparsePoint and
+            // nothing else; this now matches it.
             guard let e = fm.enumerator(at: URL(fileURLWithPath: root),
                                         includingPropertiesForKeys: keys,
-                                        options: [.skipsHiddenFiles],
+                                        options: [],
                                         errorHandler: { _, _ in true }) else { continue }
             var since = 0
             while let url = e.nextObject() as? URL {
@@ -121,15 +132,19 @@ enum IndexHost {
     // Bytes per directory, computed once from the file entries by charging every
     // file to each of its ancestors. That is what makes a treemap possible from
     // a flat list, and it is why `dirs` can answer instantly.
-    static func dirBytes(under root: String, entries: [FileIndex.Entry]) -> [String: (bytes: Int64, mtime: Double)] {
-        var totals: [String: (bytes: Int64, mtime: Double)] = [:]
+    // The file COUNT travels with the bytes because `n` on a directory item is
+    // that count (on a file item the same key is the name — an overloaded key,
+    // but it is the protocol the Windows host defines and the disk widget reads
+    // as `rootEntry.n` for "files in here").
+    static func dirBytes(under root: String, entries: [FileIndex.Entry]) -> [String: (bytes: Int64, mtime: Double, files: Int)] {
+        var totals: [String: (bytes: Int64, mtime: Double, files: Int)] = [:]
         let prefix = root.hasSuffix("/") ? root : root + "/"
         for e in entries where !e.isDir {
             guard e.path == root || e.path.hasPrefix(prefix) else { continue }
             var dir = (e.path as NSString).deletingLastPathComponent
             while dir.count >= root.count {
-                let cur = totals[dir] ?? (0, 0)
-                totals[dir] = (cur.bytes + e.size, max(cur.mtime, e.mtime))
+                let cur = totals[dir] ?? (0, 0, 0)
+                totals[dir] = (cur.bytes + e.size, max(cur.mtime, e.mtime), cur.files + 1)
                 if dir == root { break }
                 let parent = (dir as NSString).deletingLastPathComponent
                 if parent == dir { break }
@@ -142,6 +157,19 @@ enum IndexHost {
     static func under(_ root: String, _ entries: [FileIndex.Entry]) -> [FileIndex.Entry] {
         let prefix = root.hasSuffix("/") ? root : root + "/"
         return entries.filter { $0.path == root || $0.path.hasPrefix(prefix) }
+    }
+
+    // ── The wire items ──────────────────────────────────────────────────────
+    // Short keys, matching helper/IndexHost.cs exactly. They are not decorative:
+    // filesearch.js skips any item without a string `p`, and diskspace.js reads
+    // `n`/`s`/`m` positionally by name, so a full-word spelling of any of them
+    // is silently dropped data rather than a compile error on either side.
+    static func dirItem(_ path: String, _ bytes: Int64, _ files: Int, _ mtime: Double) -> J {
+        .obj([("p", .s(path)), ("n", .i(files)), ("s", .n(Double(bytes))), ("m", .n(mtime))])
+    }
+
+    static func fileItem(_ e: FileIndex.Entry) -> J {
+        .obj([("p", .s(e.path)), ("n", .s(e.name)), ("s", .n(Double(e.size))), ("m", .n(e.mtime))])
     }
 
     static func item(_ path: String, _ bytes: Int64, _ mtime: Double) -> J {
@@ -213,12 +241,18 @@ enum IndexHost {
             }
             hits.sort { $0.mtime > $1.mtime }
             let items: [J] = hits.prefix(max).map { e in
+                // The SHORT keys the Windows host emits and filesearch.js reads
+                // (`p`/`n`/`s`/`m`). This one branch spelled them out in full,
+                // which is not a cosmetic difference: the merge skips any item
+                // without a string `p`, so every hit was dropped and search
+                // returned nothing at all — with a fully built index sitting
+                // right there reporting `ready`. `dir` is not sent because the
+                // server derives it; the Windows host does not send it either.
                 .obj([
-                    ("name", .s(e.name)),
-                    ("path", .s(e.path)),
-                    ("dir", .s((e.path as NSString).deletingLastPathComponent)),
-                    ("size", .n(Double(e.size))),
-                    ("mtime", .n(e.mtime)),
+                    ("p", .s(e.path)),
+                    ("n", .s(e.name)),
+                    ("s", .n(Double(e.size))),
+                    ("m", .n(e.mtime)),
                 ])
             }
             answer(id, [("items", .arr(items)), ("building", .b(index.isBuilding))])
@@ -240,7 +274,7 @@ enum IndexHost {
                 .filter { $0.value.bytes >= minBytes }
                 .sorted { $0.value.bytes > $1.value.bytes }
                 .prefix(max)
-                .map { item($0.key, $0.value.bytes, $0.value.mtime) }
+                .map { dirItem($0.key, $0.value.bytes, $0.value.files, $0.value.mtime) }
             answer(id, [("items", .arr(items))])
 
         case "list":
@@ -248,7 +282,7 @@ enum IndexHost {
             let items: [J] = under(path, all).filter { !$0.isDir }
                 .sorted { $0.size > $1.size }
                 .prefix(max)
-                .map { item($0.path, $0.size, $0.mtime) }
+                .map { fileItem($0) }
             answer(id, [("items", .arr(items))])
 
         case "top":
@@ -256,7 +290,7 @@ enum IndexHost {
             let items: [J] = under(path, all).filter { !$0.isDir }
                 .sorted { $0.size > $1.size }
                 .prefix(max)
-                .map { item($0.path, $0.size, $0.mtime) }
+                .map { fileItem($0) }
             answer(id, [("items", .arr(items))])
 
         case "dupes":
@@ -274,11 +308,14 @@ enum IndexHost {
                 .filter { $0.count > 1 }
                 .sorted { ($0[0].size * Int64($0.count)) > ($1[0].size * Int64($1.count)) }
                 .prefix(max)
+                // {s, paths} — the shape verifyDupeCandidates() reads. It skips
+                // any group without a `paths` ARRAY of at least two entries, so
+                // the {s,n,items} spelling this used to send was discarded whole
+                // and no duplicate was ever offered.
                 .map { g in
                     .obj([
                         ("s", .n(Double(g[0].size))),
-                        ("n", .i(g.count)),
-                        ("items", .arr(g.map { item($0.path, $0.size, $0.mtime) })),
+                        ("paths", .arr(g.map { .s($0.path) })),
                     ])
                 }
             answer(id, [("groups", .arr(out))])
@@ -295,40 +332,100 @@ enum IndexHost {
             }
             .sorted { $0.value.bytes > $1.value.bytes }
             .prefix(childMax)
-            .map { item($0.key, $0.value.bytes, $0.value.mtime) }
+            .map { dirItem($0.key, $0.value.bytes, $0.value.files, $0.value.mtime) }
             let files: [J] = all.filter {
                 !$0.isDir && (($0.path as NSString).deletingLastPathComponent == path)
             }
             .sorted { $0.size > $1.size }
             .prefix(fileMax)
-            .map { item($0.path, $0.size, $0.mtime) }
-            answer(id, [("dirs", .arr(children)), ("files", .arr(files))])
+            .map { fileItem($0) }
+            // `children`/`directFiles`, plus the totals the drill-down header
+            // shows — the Windows host's names. Answering `dirs`/`files` here
+            // left diskspace.js with an undefined children list on every
+            // drill-down, and no size at all on the folder it had just opened.
+            let scopedAll = under(path, all)
+            let scopedFiles = scopedAll.filter { !$0.isDir }
+            let directBytes = all
+                .filter { !$0.isDir && ($0.path as NSString).deletingLastPathComponent == path }
+                .reduce(Int64(0)) { $0 + $1.size }
+            answer(id, [
+                ("path", .s(path)),
+                ("total", .n(Double(scopedFiles.reduce(Int64(0)) { $0 + $1.size }))),
+                ("files", .i(scopedFiles.count)),
+                ("directBytes", .n(Double(directBytes))),
+                ("children", .arr(children)),
+                ("directFiles", .arr(files)),
+            ])
 
         case "overview":
             // The combined call, so a drill-down is one round trip instead of
             // four. Composed from the same aggregates rather than a second
             // implementation of them.
+            // The answer keys are the Windows host's, exactly: `dirs` is the
+            // thresholded ARRAY, not a count. Sending the count under that name
+            // and the array as `bigDirs` made diskspace.js spread a NUMBER —
+            // "(list || []) is not iterable" — so the whole disk widget failed
+            // to open. `groups` and `detailFiles` were absent entirely, which
+            // costs the duplicate finder and every cleanup category, since the
+            // categories are built from the detail files.
             let dirMin = Int64((req["dirMinBytes"] as? Int) ?? (10 * 1024 * 1024))
             let dirMax = (req["dirMax"] as? Int) ?? 4000
             let topMax = (req["topMax"] as? Int) ?? 100
+            let dupeMin = Int64((req["dupeMinBytes"] as? Int) ?? (10 * 1024 * 1024))
+            let dupeMax = (req["dupeMax"] as? Int) ?? 50
+            let detailMax = (req["detailMax"] as? Int) ?? 20000
+            let detailRoots = ((req["detailRoots"] as? [String]) ?? []).prefix(8).map {
+                $0.hasSuffix("/") && $0.count > 1 ? String($0.dropLast()) : $0
+            }
             let scoped = under(path, all)
             let files = scoped.filter { !$0.isDir }
             let totals = dirBytes(under: path, entries: all)
             let bigDirs: [J] = totals.filter { $0.value.bytes >= dirMin }
                 .sorted { $0.value.bytes > $1.value.bytes }
                 .prefix(dirMax)
-                .map { item($0.key, $0.value.bytes, $0.value.mtime) }
+                .map { dirItem($0.key, $0.value.bytes, $0.value.files, $0.value.mtime) }
             let topFiles: [J] = files.sorted { $0.size > $1.size }
                 .prefix(topMax)
-                .map { item($0.path, $0.size, $0.mtime) }
+                .map { fileItem($0) }
+
+            // Same-size-and-name candidates. The server hashes them before it
+            // calls anything a duplicate; this only proposes.
+            var dupeBuckets: [String: [FileIndex.Entry]] = [:]
+            for e in files where e.size >= dupeMin {
+                dupeBuckets["\(e.size)|\(e.lowerName)", default: []].append(e)
+            }
+            let groups: [J] = dupeBuckets.values
+                .filter { $0.count > 1 }
+                .sorted { ($0[0].size * Int64($0.count)) > ($1[0].size * Int64($1.count)) }
+                .prefix(dupeMax)
+                .map { g in .obj([("s", .n(Double(g[0].size))), ("paths", .arr(g.map { .s($0.path) }))]) }
+
+            // Per-file rows for the places the cleanup categories are built
+            // from (the temp dirs and Downloads). Everything else is summarised
+            // by directory — this is the one part that has to be per file,
+            // because a category classifies each entry on its own name and age.
+            var detailFiles: [J] = []
+            var detailCapped = false
+            if !detailRoots.isEmpty {
+                outer: for root in detailRoots {
+                    let prefix = root.hasSuffix("/") ? root : root + "/"
+                    for e in files where e.path.hasPrefix(prefix) {
+                        if detailFiles.count >= detailMax { detailCapped = true; break outer }
+                        detailFiles.append(fileItem(e))
+                    }
+                }
+            }
+
             answer(id, [
                 ("total", .n(Double(files.reduce(Int64(0)) { $0 + $1.size }))),
                 ("files", .i(files.count)),
-                ("dirs", .i(scoped.count - files.count)),
-                ("bigDirs", .arr(bigDirs)),
+                ("dirs", .arr(bigDirs)),
                 ("topFiles", .arr(topFiles)),
+                ("groups", .arr(groups)),
+                ("detailFiles", .arr(detailFiles)),
                 ("building", .b(index.isBuilding)),
                 ("capped", .b(index.isCapped)),
+                ("detailCapped", .b(detailCapped)),
             ])
 
         default:

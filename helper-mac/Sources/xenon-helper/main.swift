@@ -41,6 +41,9 @@ case "index-serve":
 case "temps":
     TempsTool.run()
 
+case "lock":
+    LockTool.run()
+
 case "--version", "-v":
     // The installer and helper-update compare this against what the release
     // shipped, so it is a bare version and nothing else.

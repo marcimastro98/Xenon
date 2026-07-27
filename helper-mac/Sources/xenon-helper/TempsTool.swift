@@ -119,6 +119,22 @@ private enum HidSensors {
     private static let cpuFallbackMarkers = ["SOC MTR Temp Sensor"]
     private static let gpuMarkers = ["GPU MTR Temp Sensor"]
 
+    // The "MTR" names above are M1 vocabulary, and they are not merely renamed
+    // on later chips — they are absent. An M2 (macOS 26.5, measured) publishes
+    // 39 temperature sensors and not one of them matches any marker above, so
+    // every tier missed and the helper reported null on the exact hardware it
+    // was written to serve. What it does publish is `PMU tdie1..8` and
+    // `PMU2 tdie1..8` (the SoC die probes) alongside `PMU tdev*` (board, ~8 °C
+    // cooler), `PMU tcal` (a calibration reference), `NAND CH0 temp` (the SSD)
+    // and `gas gauge battery`. Only the die probes are the chip: this last tier
+    // matches those and deliberately nothing else, because a battery or SSD
+    // reading presented as the CPU temperature is worse than no reading at all.
+    private static func isDieSensor(_ name: String) -> Bool {
+        // `hasPrefix("PMU")` covers PMU and PMU2 without admitting a future
+        // unrelated sensor that merely contains "tdie" somewhere in its name.
+        name.hasPrefix("PMU") && name.contains("tdie")
+    }
+
     // kIOHIDEventTypeTemperature. The value field is the type shifted into the
     // field's high half, which is how every IOHIDEvent field id is built.
     private static let eventTypeTemperature: Int64 = 15
@@ -135,7 +151,7 @@ private enum HidSensors {
         guard let servicesRef = fns.copyServices(client) else { return (nil, nil) }
         let services = servicesRef.takeRetainedValue()
 
-        var cpu: [Double] = [], cpuFallback: [Double] = [], gpu: [Double] = []
+        var cpu: [Double] = [], cpuFallback: [Double] = [], gpu: [Double] = [], die: [Double] = []
         for index in 0..<CFArrayGetCount(services) {
             guard let raw = CFArrayGetValueAtIndex(services, index) else { continue }
             let service = UnsafeMutableRawPointer(mutating: raw)
@@ -154,9 +170,16 @@ private enum HidSensors {
             if cpuMarkers.contains(where: { name.contains($0) }) { cpu.append(value) }
             else if cpuFallbackMarkers.contains(where: { name.contains($0) }) { cpuFallback.append(value) }
             else if gpuMarkers.contains(where: { name.contains($0) }) { gpu.append(value) }
+            else if isDieSensor(name) { die.append(value) }
         }
 
-        return (average(cpu.isEmpty ? cpuFallback : cpu), average(gpu))
+        // Most specific tier that produced anything wins. The GPU has no such
+        // fallback on purpose: where the per-cluster sensors are absent there is
+        // no separate GPU probe either, and the die average is the whole SoC —
+        // reporting it as the GPU temperature would be inventing a measurement.
+        // It stays null, which is what the widget already renders as "--".
+        let cpuTier = !cpu.isEmpty ? cpu : (!cpuFallback.isEmpty ? cpuFallback : die)
+        return (average(cpuTier), average(gpu))
     }
 
     private static func average(_ values: [Double]) -> Double? {
