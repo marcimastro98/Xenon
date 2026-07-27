@@ -296,6 +296,14 @@ function createDiskSpace(opts) {
     try { return !!helperExe && fs.existsSync(helperExe); } catch { return false; }
   }
 
+  // Whether a reversible delete can be performed at all. The helper is one way;
+  // an injected runner (Linux, via `gio trash`) is another, and gating cleanup
+  // on the BINARY rather than on the capability meant a platform with a working
+  // trash was still told to install a companion it has no build of.
+  function canRecycle() {
+    return helperPresent() || !!shellDeleteRunner;
+  }
+
   // ── scan state ───────────────────────────────────────────────────────────
   const scan = {
     proc: null, running: false, root: '', startedAt: 0,
@@ -656,7 +664,14 @@ function createDiskSpace(opts) {
     await loadSummary();
     const out = {
       ok: true,
-      helper: helperPresent(),
+      // The question the widget is really asking is "can you analyse my disk?",
+      // and the helper is only one of the two answers. Off Windows the map is
+      // built from the Living Index (see buildOverview, and startScan's own
+      // `scan_unsupported` refusal), so a machine with a working index was
+      // still being told to install a native companion — on Linux, with a
+      // sentence naming INSTALL.bat, a file that platform does not have.
+      // The wire name stays `helper` because the client keys on it.
+      helper: helperPresent() || !!(livingIndex && livingIndex.available()),
       running: scan.running,
       progress: scan.progress,
       last: lastSummary,
@@ -741,7 +756,7 @@ function createDiskSpace(opts) {
   // the actual deletion streams progress over SSE and lands in cleanJob.report.
   // Emptying the Recycle Bin is fast and stays synchronous.
   async function clean(body) {
-    if (!helperPresent()) return { ok: false, error: 'helper_missing' };
+    if (!canRecycle()) return { ok: false, error: 'helper_missing' };
     if (cleanJob.running) return { ok: false, error: 'busy' };
     const cat = String((body && body.category) || '');
 
