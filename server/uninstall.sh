@@ -59,6 +59,15 @@ if command -v launchctl >/dev/null 2>&1; then
     rm -f "$PLIST" && step "Removed $PLIST"
     FOUND=1
   fi
+  # The pointer install.sh leaves for Xenon.app so it knows where the backend
+  # is. Removing it is what stops the app starting a backend that is no longer
+  # installed. User data under server/data is never touched, here or anywhere.
+  LOCATION="$HOME/Library/Application Support/Xenon/backend.json"
+  if [ -f "$LOCATION" ]; then
+    rm -f "$LOCATION" && step "Removed $LOCATION"
+    rmdir "$HOME/Library/Application Support/Xenon" >/dev/null 2>&1 || true
+    FOUND=1
+  fi
 fi
 
 # ── Linux: the systemd user unit ─────────────────────────────────────────────

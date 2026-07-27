@@ -4,9 +4,13 @@
 // Linux suite does: df's drive shape, cumulative interface counters, and the
 // SoundVolumeView column layout the whole audio path is written against.
 //
-// The fixtures are written to each tool's documented output format rather than
-// captured from a machine (this repo is developed on Windows). Re-capture them
-// on a real Mac when one is available — the commands are, in order:
+// The darwin-* fixtures are written to each tool's documented output format
+// rather than captured from a machine (this repo is developed on Windows), and
+// they describe hardware no single Mac has all of — that is why they stay. The
+// darwin-real-* set alongside them IS a verbatim capture (MacBook Air M2,
+// macOS 26.5.2), so the format is pinned by more than a reading of the docs;
+// every parser here was confirmed against it. Re-capture with
+// `npm run doctor -- --capture <dir>`, or by hand, in order:
 //   df -k -P -l                          > darwin-df.txt
 //   mount                                > darwin-mount.txt
 //   netstat -ib                          > darwin-netstat-ib.txt
@@ -25,6 +29,105 @@ const dc = require('../darwin-collectors.js');
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = (name) => readFileSync(join(here, 'fixtures', name), 'utf8');
+
+// --- real machine output ----------------------------------------------------
+// The darwin-* fixtures above are written to each tool's documented format and
+// describe machines this one is not (two audio outputs, a Mac with discrete
+// VRAM), which is why they stay. These are the same commands captured verbatim
+// from a real machine — MacBook Air M2, macOS 26.5.2, `npm run doctor
+// --capture` — so the FORMAT is pinned by something nobody wrote by hand. They
+// carry rows no synthetic fixture had: df's `devfs` and `map auto_home`, which
+// are not filesystems the disks tile should ever show.
+//
+// Asserted by shape and invariant rather than by value: the point is that real
+// output parses, and re-capturing on another Mac must not mean rewriting
+// assertions.
+
+test('real macOS output: df + mount yield only mountable volumes', () => {
+  const drives = dc.parseDisks(fixture('darwin-real-df.txt'), dc.parseMountTypes(fixture('darwin-real-mount.txt')));
+  assert.ok(drives.length >= 1, 'the boot volume at least');
+  assert.equal(drives[0].drive, '/');
+  for (const d of drives) {
+    // Never the APFS role volumes, the automounter, or devfs.
+    assert.ok(!d.drive.startsWith('/System/Volumes/'), `role volume leaked: ${d.drive}`);
+    assert.notEqual(d.drive, '/dev');
+    assert.ok(d.total > 0 && d.used >= 0 && d.free >= 0, `implausible sizes for ${d.drive}`);
+    assert.equal(d.used + d.free, d.total, `used+free must equal total for ${d.drive}`);
+    assert.ok(d.percent >= 0 && d.percent <= 100);
+    assert.ok(d.fileSystem, `no filesystem type for ${d.drive}`);
+  }
+});
+
+test('real macOS output: netstat, displays and audio parse into the shapes server.js reads', () => {
+  const net = dc.parseNetstatIb(fixture('darwin-real-netstat-ib.txt'));
+  assert.ok(net.rx > 0 && net.tx > 0, 'cumulative counters since boot');
+  assert.ok(Number.isInteger(net.rx) && Number.isInteger(net.tx));
+
+  const gpu = dc.parseDisplaysJson(fixture('darwin-real-displays.json'));
+  assert.ok(gpu.gpuName, 'Apple Silicon still names itself');
+  // Unified memory: no discrete VRAM to report, and 0 would read as a reading.
+  assert.equal(gpu.vramTotal, null);
+
+  const audio = dc.parseAudioDevices(fixture('darwin-real-audio.json'));
+  assert.ok(audio.outputs.length >= 1 && audio.inputs.length >= 1);
+  assert.equal(audio.outputs.filter((d) => d.isDefault).length, 1, 'exactly one default output');
+  assert.equal(audio.inputs.filter((d) => d.isDefault).length, 1, 'exactly one default input');
+});
+
+// --- vm_stat ----------------------------------------------------------------
+// os.freemem() is ullAvailPhys on Windows and the Mach free_count here, and
+// macOS keeps the latter near zero on purpose: `total - free` reported 99% used
+// on an idle machine and stayed there. These pin Activity Monitor's own
+// definition — App Memory + Wired + Compressed — so the tile shows a number the
+// user can check against Apple's tool.
+
+test('parseVmStat: used is App Memory + Wired + Compressed, not total minus free', () => {
+  const total = 8 * 1024 ** 3;
+  const mem = dc.parseVmStat(fixture('darwin-vm-stat.txt'), total);
+  assert.equal(mem.total, total);
+  // The captured machine is a genuinely busy 8 GB M2. The precise figure is
+  // whatever the fixture holds; what must hold is that it is a real reading and
+  // not the degenerate "everything is used" the free-page count produces.
+  const pct = Math.round((mem.used / mem.total) * 100);
+  assert.ok(pct > 30 && pct < 95, `implausible usage: ${pct}%`);
+});
+
+test('parseVmStat: the arithmetic is exact, page size included', () => {
+  // 4 KB pages here, deliberately not the 16 KB of Apple Silicon, so a
+  // hard-coded page size cannot pass: anonymous 1000 - purgeable 100 = 900,
+  // plus wired 500 plus compressor 200 = 1600 pages * 4096 = 6553600.
+  const out = [
+    'Mach Virtual Memory Statistics: (page size of 4096 bytes)',
+    'Pages free:                               50.',
+    'Pages wired down:                        500.',
+    'Pages purgeable:                         100.',
+    'Anonymous pages:                        1000.',
+    'Pages occupied by compressor:            200.',
+  ].join('\n');
+  assert.deepEqual(dc.parseVmStat(out, 64 * 1024 * 1024), { used: 6553600, total: 67108864 });
+});
+
+test('parseVmStat: an older vm_stat without the compressor line still reports', () => {
+  // Treating the missing field as zero understates by that much, which beats
+  // refusing to report and blanking the tile.
+  const out = [
+    'Mach Virtual Memory Statistics: (page size of 4096 bytes)',
+    'Pages wired down:                        500.',
+    'Anonymous pages:                        1000.',
+  ].join('\n');
+  assert.deepEqual(dc.parseVmStat(out, 64 * 1024 * 1024), { used: 6144000, total: 67108864 });
+});
+
+test('parseVmStat: unreadable output returns null so the caller can fall back', () => {
+  for (const raw of ['', 'not vm_stat output', undefined]) {
+    assert.equal(dc.parseVmStat(raw, 8 * 1024 ** 3), null, String(raw));
+  }
+  // No total means no percentage worth showing.
+  assert.equal(dc.parseVmStat(fixture('darwin-vm-stat.txt'), 0), null);
+  // Never more than the machine has, whatever the arithmetic says.
+  const huge = 'page size of 4096 bytes\nPages wired down: 99999999.\nAnonymous pages: 99999999.';
+  assert.equal(dc.parseVmStat(huge, 1024).used, 1024);
+});
 
 // --- df + mount -------------------------------------------------------------
 
@@ -280,4 +383,53 @@ test('parseHelperTemps: garbage never throws', () => {
   for (const raw of ['', 'not json', 'null', '[]', '{"cpuTemp":"hot"}', undefined]) {
     assert.equal(dc.parseHelperTemps(raw), null, String(raw));
   }
+});
+
+// The app switcher's helper path. Same JSON the Windows helper answers, so the
+// parser's job is only to hold the wire contract server.js enforces (the id
+// shape, the protected filter, the cap) against a payload that crossed a
+// process line.
+
+test('parseHelperWindows: a well-formed list keeps the shape the /windows contract promises', () => {
+  const raw = JSON.stringify({ windows: [
+    { id: '1302', title: 'Anteprima', app: 'Anteprima', path: '/System/Applications/Preview.app', active: false, minimized: false, icon: null },
+    { id: 88204, title: '', app: 'Code', path: '/Applications/Code.app', active: true, minimized: true, icon: null },
+  ] });
+  assert.deepEqual(dc.parseHelperWindows(raw, false), [
+    { id: '1302', title: 'Anteprima', app: 'Anteprima', path: '/System/Applications/Preview.app', active: false, minimized: false, icon: null },
+    // A numeric id is stringified, and an app with no window title falls back
+    // to its own name rather than rendering an empty row.
+    { id: '88204', title: 'Code', app: 'Code', path: '/Applications/Code.app', active: true, minimized: true, icon: null },
+  ]);
+});
+
+test('parseHelperWindows: the protected filter and the id shape are re-applied host-side', () => {
+  // The helper filters these itself. Re-checking here is the boundary rule: a
+  // payload that crossed a process line is validated where it is consumed, so
+  // an older or swapped binary cannot widen what the list may contain.
+  const raw = JSON.stringify({ windows: [
+    { id: '1', app: 'Finder' },
+    { id: 'not-a-pid', app: 'Safari' },
+    { id: '4', app: '' },
+    { id: '5', app: 'Safari' },
+  ] });
+  assert.deepEqual(dc.parseHelperWindows(raw, false).map((w) => w.app), ['Safari']);
+  // includeProtected is the close path: it has to see Finder to answer
+  // "protected" instead of "not_found".
+  assert.deepEqual(dc.parseHelperWindows(raw, true).map((w) => w.app), ['Finder', 'Safari']);
+});
+
+test('parseHelperWindows: the list is capped the way the osascript path is', () => {
+  const many = { windows: Array.from({ length: 40 }, (_, i) => ({ id: String(i + 1), app: `App${i}` })) };
+  assert.equal(dc.parseHelperWindows(JSON.stringify(many), false).length, 24);
+});
+
+test('parseHelperWindows: garbage returns null, so the osascript path still gets a turn', () => {
+  // null (not []) is what makes listApps fall through. An empty ARRAY is a
+  // legitimate answer — a Mac with nothing open — and must not be confused
+  // with a payload we could not read.
+  for (const raw of ['', 'not json', 'null', '[]', '{}', '{"windows":"nope"}', undefined]) {
+    assert.equal(dc.parseHelperWindows(raw, false), null, String(raw));
+  }
+  assert.deepEqual(dc.parseHelperWindows('{"windows":[]}', false), []);
 });

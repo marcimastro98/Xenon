@@ -208,7 +208,15 @@ function createLivingIndex(opts) {
   function setRoots(roots) {
     const next = (Array.isArray(roots) ? roots : [])
       .map((r) => String(r || '').trim())
-      .filter((r) => /^[A-Za-z]:[\\/]?/.test(r))
+      // A drive letter OR a POSIX absolute path. The drive-letter-only test
+      // this replaces was the last of three gates that each independently
+      // refused a Mac's roots: settings normalization rewrote and rejected
+      // them, this dropped whatever survived, and the search UI then blamed
+      // Windows Search. Any one of the three left the index with no roots,
+      // which is `on: false` — and with no index there is no search and no
+      // disk map, because on this platform the index is the only backend.
+      // A UNC share (two leading slashes) is not a local root and stays out.
+      .filter((r) => /^[A-Za-z]:[\\/]?/.test(r) || /^\/(?!\/)/.test(r))
       .slice(0, 8);
     const changed = JSON.stringify(next) !== JSON.stringify(wantedRoots);
     wantedRoots = next;

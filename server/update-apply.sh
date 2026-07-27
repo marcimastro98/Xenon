@@ -56,6 +56,12 @@ PORT=3030
 DASH_URL="http://127.0.0.1:$PORT/"
 LABEL='com.marcimastro98.xenon.backend'
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+# The native app, when it is what owns the backend (macOS). Both install
+# locations, in the order `open -a` itself would resolve them.
+XENON_APP=''
+for _candidate in "/Applications/Xenon.app" "$HOME/Applications/Xenon.app"; do
+  [ -d "$_candidate" ] && { XENON_APP="$_candidate"; break; }
+done
 UNIT_NAME='xenon-backend.service'
 UNIT="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/$UNIT_NAME"
 
@@ -162,7 +168,23 @@ stop_server() {
 }
 
 start_server() {
-  if [ "$XENON_OS" = 'macos' ] && [ -f "$PLIST" ]; then
+  # macOS, app install: the backend is a CHILD of Xenon.app, so the thing to
+  # restart is the app — kickstarting the agent would only run `open -a` against
+  # an app that is already up, which starts no backend at all. Quitting it first
+  # is what makes the relaunch spawn a fresh one (the app stops its child on
+  # exit), and it is also how the new backend inherits the app's Full Disk
+  # Access, which is the entire reason it is a child in the first place.
+  if [ "$XENON_OS" = 'macos' ] && [ -d "$XENON_APP" ]; then
+    osascript -e 'tell application "Xenon" to quit' >/dev/null 2>&1
+    for _ in $(seq 1 20); do
+      pgrep -f 'Xenon.app/Contents/MacOS' >/dev/null 2>&1 || break
+      sleep 0.5
+    done
+    pkill -f 'Xenon.app/Contents/MacOS' >/dev/null 2>&1
+    sleep 1
+    open -a "$XENON_APP" >/dev/null 2>&1 && return 0
+    log 'relaunching Xenon.app failed; starting node directly'
+  elif [ "$XENON_OS" = 'macos' ] && [ -f "$PLIST" ]; then
     launchctl kickstart -k "gui/$(id -u)/$LABEL" >/dev/null 2>&1 && return 0
     log 'launchctl kickstart failed; starting node directly'
   elif [ -f "$UNIT" ] && systemd_user_ready; then

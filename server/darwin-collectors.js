@@ -32,12 +32,15 @@
 //     permission grant. Device rows are produced; application rows are not, so
 //     the mixer shows devices only.
 //
-//   * The app switcher needs Automation permission (System Events). Denied or
-//     unprompted, it degrades to an empty list rather than an error.
+//   * The app switcher prefers the native helper's `windows` mode, which needs
+//     no permission at all. Without the helper it falls back to System Events,
+//     which needs Automation permission; denied or unprompted, that degrades to
+//     an empty list rather than an error.
 
 'use strict';
 
 const { execFile } = require('child_process');
+const os = require('os');
 const path = require('path');
 
 // Promise wrapper around execFile with a hard timeout; resolves stdout.
@@ -62,6 +65,48 @@ function runSoft(cmd, args, timeoutMs) {
 
 const splitLines = (text) => String(text || '').split(/\r?\n/);
 const isFiniteNum = (v) => typeof v === 'number' && Number.isFinite(v);
+
+// --- Memory: vm_stat, because os.freemem() does not mean the same thing here --
+// On Windows os.freemem() is ullAvailPhys, which already counts the standby
+// pages the OS would hand back on demand. On macOS it is the Mach free_count
+// and nothing else, and this OS deliberately keeps that near zero: measured on
+// an idle 8 GB M2, os.freemem() answered 0.06 GB, so `total - free` reported
+// 99% used and the RAM tile sat there permanently. It is the same figure on
+// every Mac, which makes it useless rather than merely wrong.
+//
+// The replacement is Activity Monitor's own "Memory Used" — App Memory + Wired
+// + Compressed — so the number on the dashboard is the number the user can
+// check against Apple's own tool. Compressed memory is REAL occupancy (this
+// machine had 698k pages compressed into 154k) and counting it as free would
+// understate the pressure exactly when it matters.
+function parseVmStat(out, totalBytes) {
+  const text = String(out || '');
+  const pageSize = Number((/page size of (\d+) bytes/.exec(text) || [])[1]) || 4096;
+  const pages = (label) => {
+    const m = new RegExp(`^${label}:\\s+(\\d+)\\.?\\s*$`, 'm').exec(text);
+    return m ? Number(m[1]) : null;
+  };
+  const anonymous = pages('Anonymous pages');
+  const wired = pages('Pages wired down');
+  const compressor = pages('Pages occupied by compressor');
+  const purgeable = pages('Pages purgeable');
+  const total = isFiniteNum(totalBytes) && totalBytes > 0 ? totalBytes : null;
+  if (anonymous === null || wired === null || total === null) return null;
+  // Purgeable pages are anonymous but reclaimable on demand — Apple excludes
+  // them from App Memory, and so do we. `compressor` is absent on older vm_stat
+  // builds; treating it as zero understates by that much rather than refusing
+  // to report at all.
+  const used = (Math.max(0, anonymous - (purgeable || 0)) + wired + (compressor || 0)) * pageSize;
+  return { used: Math.min(total, used), total };
+}
+
+async function memory() {
+  const out = await runSoft('vm_stat', [], 4000);
+  const parsed = out === null ? null : parseVmStat(out, os.totalmem());
+  // A machine whose vm_stat we cannot read still gets a reading, just the old
+  // pessimistic one — never a blank tile.
+  return parsed || { used: os.totalmem() - os.freemem(), total: os.totalmem() };
+}
 
 // --- macmon: the only sudoless source of Apple Silicon temps / GPU load ------
 // macmon's payload shape has changed across releases (temps moved under a
@@ -188,11 +233,27 @@ const HELPER_RETRY_MS = 5 * 60 * 1000;
 let helperFailures = 0;
 let helperNextTry = 0;
 
+// A spawn that fails is the helper being absent, unsigned or broken, and it
+// will fail identically for every mode — so that pin is SHARED, and one probe
+// every five minutes is what an install without the helper costs. A mode that
+// runs and answers "I cannot read this" is a different thing entirely and must
+// not pin the others out: an Intel Mac reads no HID sensors and still has a
+// perfectly good app switcher, which is why `temps` keeps its own counter for
+// the fall-through to macmon below.
+let helperDownUntil = 0;
+
+async function runHelper(args, timeoutMs) {
+  if (Date.now() < helperDownUntil) return null;
+  const out = await runSoft(HELPER_EXE, args, timeoutMs);
+  if (out === null) { helperDownUntil = Date.now() + HELPER_RETRY_MS; return null; }
+  return out;
+}
+
 async function readHelperTemps() {
   if (helperFailures >= HELPER_MAX_FAILURES && Date.now() < helperNextTry) return null;
   // A one-shot read of two registries: fast, and a timeout here means something
   // is wrong rather than something is slow.
-  const out = await runSoft(HELPER_EXE, ['temps'], 4000);
+  const out = await runHelper(['temps'], 4000);
   const parsed = out === null ? null : parseHelperTemps(out);
   if (parsed === null) {
     helperFailures++;
@@ -500,6 +561,39 @@ function parseAppList(out, includeProtected) {
   return windows;
 }
 
+// The helper reads the same list from NSWorkspace and the window server, which
+// is worth preferring for two reasons the timings make obvious: the osascript
+// path below costs 3-5 SECONDS per call (it scripts every process in turn),
+// against about ten milliseconds here — and, more importantly, it needs the
+// Automation grant. System Events prompts once per app and lists nothing the
+// user has not approved, so a declined prompt leaves the widget permanently
+// empty with no way back from inside Xenon. The helper needs no grant at all.
+// Pure, so the shape check is testable without a Mac.
+function parseHelperWindows(raw, includeProtected) {
+  let doc;
+  try { doc = JSON.parse(String(raw || '')); } catch { return null; }
+  if (!doc || !Array.isArray(doc.windows)) return null;
+  const windows = [];
+  for (const w of doc.windows) {
+    if (!w || typeof w !== 'object') continue;
+    const id = String(w.id == null ? '' : w.id).trim();
+    if (!/^\d{1,24}$/.test(id)) continue;                  // server.js's own id shape
+    const app = String(w.app == null ? '' : w.app).trim();
+    if (!app || (!includeProtected && PROTECTED_APPS.has(app))) continue;
+    windows.push({
+      id,
+      title: String(w.title == null ? '' : w.title).trim() || app,
+      app,
+      path: String(w.path == null ? '' : w.path).trim(),
+      active: w.active === true,
+      minimized: w.minimized === true,
+      icon: null,
+    });
+    if (windows.length >= MAX_WINDOWS) break;
+  }
+  return windows;
+}
+
 const osa = (script, timeoutMs) => runSoft('osascript', ['-e', script], timeoutMs);
 // Writes use this one. A failed osascript resolves null through runSoft, and
 // swallowing that would confirm a volume change that never reached Core Audio —
@@ -512,6 +606,11 @@ async function osaWrite(script, timeoutMs) {
 }
 
 async function listApps(includeProtected) {
+  const helped = await runHelper(['windows', 'list'], 5000);
+  if (helped !== null) {
+    const parsed = parseHelperWindows(helped, includeProtected);
+    if (parsed !== null) return parsed;
+  }
   // A denied (or never granted) Automation prompt lands here as null. An empty
   // list is the honest answer -- the widget says "no open windows" rather than
   // claiming a failure the user cannot act on.
@@ -519,9 +618,21 @@ async function listApps(includeProtected) {
   return out === null ? [] : parseAppList(out, includeProtected);
 }
 
+// A helper that ANSWERED is authoritative, including when it answers "no".
+// Only a helper that could not run at all falls through to osascript: retrying
+// a refused close down the second path would quit an app the first path had
+// already decided to protect, and retrying a successful one is worse.
+function helperVerdict(raw) {
+  let doc;
+  try { doc = JSON.parse(String(raw || '')); } catch { return null; }
+  return doc && typeof doc === 'object' && typeof doc.ok === 'boolean' ? doc : null;
+}
+
 async function windows(action, id) {
   if (action === 'focus') {
     if (!/^\d{1,24}$/.test(String(id || ''))) return { ok: false, error: 'not_found' };
+    const helped = helperVerdict(await runHelper(['windows', 'focus', String(Number(id))], 5000));
+    if (helped) return { ok: helped.ok === true };
     const out = await osa(
       `tell application "System Events" to set frontmost of (first process whose unix id is ${Number(id)}) to true`,
       8000);
@@ -529,6 +640,14 @@ async function windows(action, id) {
   }
   if (action === 'close') {
     if (!/^\d{1,24}$/.test(String(id || ''))) return { ok: false, error: 'not_found' };
+    const helped = helperVerdict(await runHelper(['windows', 'close', String(Number(id))], 8000));
+    if (helped) {
+      if (helped.ok === true) {
+        return { ok: true, app: String(helped.app || ''), path: String(helped.path || '') };
+      }
+      const error = helped.error === 'protected' ? 'protected' : 'not_found';
+      return { ok: false, error, app: String(helped.app || '') };
+    }
     const list = await listApps(true);
     const hit = list.find((w) => w.id === String(Number(id)));
     if (!hit) return { ok: false, error: 'not_found' };
@@ -763,10 +882,33 @@ async function audioAvailable() {
   return _audioProbe;
 }
 
+// Lock the screen now — the Deck's lockWorkstation key, and the one action
+// whose macOS implementation the OS deleted underneath it. `CGSession -suspend`
+// lived under /System/Library/CoreServices/Menu Extras/User.menu and is absent
+// on macOS 26 (verified on 26.5.2: the Menu Extras folder is still there,
+// User.menu is not), so the key answered ENOENT and did nothing at all.
+//
+// The helper's `lock` mode calls what the OS calls for its own Lock Screen menu
+// item, so it locks immediately whatever the user's password settings say.
+// `runSoft` directly rather than runHelper(): an older installed helper exits
+// non-zero on an unknown mode, and pinning the whole helper out for that would
+// cost the app switcher and the temperatures a real capability over a version
+// mismatch in one key.
+//
+// pmset is the fallback, and it is deliberately second: it sleeps the display
+// and locks only where the user asked for a password after sleep. That covers
+// the default configuration and no more, which is why it is not the answer.
+async function lock() {
+  const out = await runSoft(HELPER_EXE, ['lock'], 5000);
+  if (out !== null) return;
+  const slept = await runSoft('/usr/bin/pmset', ['displaysleepnow'], 5000);
+  if (slept === null) throw new Error('lock unavailable: no helper and pmset failed');
+}
+
 module.exports = {
-  gpu, disks, cpuTemp, network, windows, audioRows, audioCommand, audioAvailable,
+  gpu, disks, cpuTemp, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
   // exported for unit tests
   parseMacmon, parseHelperTemps, parseDisplaysJson, parseDisks, parseMountTypes, parsePing,
-  parseNetstatIb, parseAppList, parseVolumeSettings, parseAudioDevices,
+  parseNetstatIb, parseAppList, parseHelperWindows, parseVmStat, parseVolumeSettings, parseAudioDevices,
   buildAudioRows, isCaptureTarget, ratioToPct,
 };

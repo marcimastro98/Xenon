@@ -100,6 +100,35 @@ function createDiskSpace(opts) {
   const IS_WIN = PLATFORM === 'win32';
   const IS_MAC = PLATFORM === 'darwin';
 
+  // ── path comparison ───────────────────────────────────────────────────────
+  // The same doctrine the two pure modules follow, stated once here because
+  // this file compares paths in six places and every one of them was written
+  // with a hard-coded '\\'. Off Windows that separator appears in no path, so
+  // each of those tests silently answered "no" forever: the classified-ancestor
+  // skip stopped skipping (a cache dir and its child both became items and the
+  // category counted the same bytes twice) and browse minted no ids at all.
+  // On Windows separators and case both fold; on POSIX neither does — a
+  // backslash is a legal filename character there.
+  const SEP = IS_WIN ? '\\' : '/';
+  const cmpKey = (p) => {
+    const raw = String(p == null ? '' : p);
+    return IS_WIN ? raw.replace(/\//g, '\\').toLowerCase() : raw;
+  };
+  // Trailing separators go, except a POSIX root, which IS its separator.
+  const trimSep = (p) => {
+    const raw = String(p == null ? '' : p);
+    if (IS_WIN) return raw.replace(/[\\/]+$/, '');
+    return raw === '/' ? raw : raw.replace(/\/+$/, '');
+  };
+  // Strictly below — equality is the caller's business, because the two cases
+  // are not always allowed to be wrong in the same direction. Both arguments
+  // must already have been through cmpKey.
+  const isBelow = (child, ancestor) => {
+    if (!ancestor || !child) return false;
+    if (!IS_WIN && ancestor === '/') return child !== '/' && child.startsWith('/');
+    return child.startsWith(ancestor + SEP);
+  };
+
   const userProfile = os.homedir();
   const localAppData = process.env.LOCALAPPDATA || path.join(userProfile, 'AppData', 'Local');
   const windir = IS_WIN ? (process.env.WINDIR || 'C:\\Windows') : '';
@@ -193,7 +222,16 @@ function createDiskSpace(opts) {
     try {
       const st = await fs.promises.lstat(p);
       flags = { exists: true, isReparse: st.isSymbolicLink(), isDir: st.isDirectory(), size: st.size };
-      if (!flags.isReparse && st.isDirectory()) {
+      // WINDOWS ONLY. This catches a junction or a mounted volume, neither of
+      // which lstat reports as a link there. Off Windows the same comparison is
+      // not a stricter test, it is a broken one: realpath resolves the WHOLE
+      // path, so it differs from the input whenever any ANCESTOR is a symlink —
+      // and on macOS /var is a symlink to /private/var, which is where the
+      // user's temp directory lives. Every directory in the temp category came
+      // back `reparse` and the guard refused it: measured, the largest and most
+      // useful cleanup target on the platform could never be cleaned. The
+      // symlink bit above is the whole answer on POSIX.
+      if (IS_WIN && !flags.isReparse && st.isDirectory()) {
         const real = await fs.promises.realpath(p).catch(() => p);
         if (real.toLowerCase() !== p.toLowerCase()) flags.isReparse = true;
       }
@@ -450,14 +488,14 @@ function createDiskSpace(opts) {
       if (isContainerDir(d.p)) continue;
       // Skip a dir whose classified ANCESTOR is already an item — deleting the
       // ancestor covers it, and double-counting would inflate the category.
-      const lower = d.p.toLowerCase();
-      if (classifiedDirs.some((a) => lower.startsWith(a + '\\'))) continue;
-      classifiedDirs.push(lower);
+      const key = cmpKey(d.p);
+      if (classifiedDirs.some((a) => isBelow(key, a))) continue;
+      classifiedDirs.push(key);
       add(r.cat, d.p, d.s, d.m, 'dir');
     }
     for (const f of scan.detailFiles) {
-      const lower = f.p.toLowerCase();
-      if (classifiedDirs.some((a) => lower.startsWith(a + '\\'))) continue;
+      const key = cmpKey(f.p);
+      if (classifiedDirs.some((a) => isBelow(key, a))) continue;
       const ext = path.extname(f.n).replace(/^\./, '');
       const r = DiskCategories.classify({ path: f.p, name: f.n, isDir: false, size: f.s, mtime: f.m, ext }, ctx);
       if (!r) continue;
@@ -547,7 +585,13 @@ function createDiskSpace(opts) {
     scan.buf = '';
 
     // Detail roots: where per-file listing matters (installers + temp files).
-    const detailRoots = [downloads, ...tempDirs].filter((d) => d.toLowerCase().startsWith(root.toLowerCase()));
+    // Segment-safe, so a sibling that merely shares a prefix (D:\Datax against
+    // D:\Data) is not swept in — the same test buildOverview makes below.
+    const scanRootKey = cmpKey(trimSep(root));
+    const detailRoots = [downloads, ...tempDirs].filter((d) => {
+      const key = cmpKey(trimSep(d));
+      return key === scanRootKey || isBelow(key, scanRootKey);
+    });
     let proc;
     try {
       proc = spawn(helperExe, ['disk-scan', root, ...detailRoots], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
@@ -746,7 +790,7 @@ function createDiskSpace(opts) {
     if (body && body.root != null) {
       const rootPath = await resolveRoot(body.root);
       if (!rootPath) return { ok: false, error: 'bad_root' };
-      overviewKey = rootPath.toLowerCase();
+      overviewKey = cmpKey(rootPath);
       const ov = overviews.get(overviewKey);
       if (!ov) return { ok: false, error: 'no_overview' };
       // A snapshot taken while the index was still walking the drive has
@@ -1064,16 +1108,22 @@ function createDiskSpace(opts) {
   }
 
   function registerBrowsePath(ov, rawPath) {
-    const value = String(rawPath || '').replace(/[\\/]+$/, '');
-    const root = String(ov.root || '').replace(/[\\/]+$/, '');
-    const lower = value.toLowerCase();
-    const rootLower = root.toLowerCase();
-    if (!value || (lower !== rootLower && !lower.startsWith(rootLower + '\\'))) return '';
+    // `trimSep`, not a bare strip: a POSIX root is "/" and stripping it left
+    // the empty string, which failed the guard below and minted no id for the
+    // root itself — the drill-down had nothing to start from.
+    const value = trimSep(rawPath);
+    const root = trimSep(ov.root);
+    const key = cmpKey(value);
+    const rootKey = cmpKey(root);
+    // This test ADMITS a path into the id space, so it is the strict one: an
+    // id minted here is what /disk/browse resolves against, and nothing
+    // outside the root may ever get one.
+    if (!value || (key !== rootKey && !isBelow(key, rootKey))) return '';
     const state = browseIds(ov);
-    const known = state.byPath.get(lower);
+    const known = state.byPath.get(key);
     if (known) return known;
     const id = 'n' + (state.next++).toString(36);
-    state.byPath.set(lower, id);
+    state.byPath.set(key, id);
     state.byId.set(id, value);
     return id;
   }
@@ -1086,10 +1136,14 @@ function createDiskSpace(opts) {
   }
 
   async function buildOverview(root) {
-    const rl = root.toLowerCase().replace(/\\+$/, '');
+    // Which of the detail roots sit inside the root being scanned. Off Windows
+    // this answered "none" unless a temp dir equalled the root exactly, so the
+    // index was asked for no detail files at all and the temp and downloads
+    // categories came back empty on every Mac and every Linux box.
+    const rl = cmpKey(trimSep(root));
     const detailRoots = [downloads, ...tempDirs].filter((dr) => {
-      const drl = dr.toLowerCase();
-      return drl === rl || drl.startsWith(rl + '\\');
+      const drl = cmpKey(trimSep(dr));
+      return drl === rl || isBelow(drl, rl);
     });
 
     let sz, bigDirs, topFiles, dupeGroups, detailFiles, indexMeta;
@@ -1146,17 +1200,17 @@ function createDiskSpace(opts) {
       const r = DiskCategories.classify({ path: d.p, name: path.basename(d.p), isDir: true, size: d.s, mtime: d.m }, ctx);
       if (!r) continue;
       if (isContainerDir(d.p)) continue;   // its children are the items
-      const lower = d.p.toLowerCase();
-      if (classifiedDirs.some((a) => lower.startsWith(a + '\\'))) continue;
-      classifiedDirs.push(lower);
+      const key = cmpKey(d.p);
+      if (classifiedDirs.some((a) => isBelow(key, a))) continue;
+      classifiedDirs.push(key);
       add(r.cat, d.p, d.s, d.m, 'dir');
     }
     // …then per-file detail where files classify individually (installers in
     // Downloads, loose temp files), asked from the index only for the detail
     // roots that live under THIS root.
     for (const f of detailFiles) {
-      const lower = f.p.toLowerCase();
-      if (classifiedDirs.some((a) => lower.startsWith(a + '\\'))) continue;
+      const key = cmpKey(f.p);
+      if (classifiedDirs.some((a) => isBelow(key, a))) continue;
       const ext = path.extname(f.n).replace(/^\./, '');
       const r = DiskCategories.classify({ path: f.p, name: f.n, isDir: false, size: f.s, mtime: f.m, ext }, ctx);
       if (!r) continue;
@@ -1200,7 +1254,7 @@ function createDiskSpace(opts) {
     if (!livingIndex || !livingIndex.available()) return { ok: false, error: 'index_off' };
     const root = await resolveRoot(rawIndex);
     if (!root) return { ok: false, error: 'bad_root' };
-    const key = root.toLowerCase();
+    const key = cmpKey(root);
     const cached = overviews.get(key);
     if (!refresh && cached && Date.now() - cached.at < OVERVIEW_TTL_MS) return toClientOverview(cached);
     let pending = overviewBuilds.get(key);
@@ -1242,7 +1296,7 @@ function createDiskSpace(opts) {
     if (!livingIndex || !livingIndex.available()) return { ok: false, error: 'index_off' };
     const root = await resolveRoot(rawIndex);
     if (!root) return { ok: false, error: 'bad_root' };
-    const ov = overviews.get(root.toLowerCase());
+    const ov = overviews.get(cmpKey(root));
     if (!ov) return { ok: false, error: 'no_overview' };
     const node = String(rawNode || '');
     if (!/^n[a-z0-9]+$/.test(node)) return { ok: false, error: 'bad_node' };
@@ -1253,21 +1307,24 @@ function createDiskSpace(opts) {
       ? await livingIndex.browse(target, { childMax: 64, fileMax: 64 })
       : null;
     if (!snapshot) {
-      const targetLower = target.toLowerCase().replace(/\\+$/, '');
+      const targetKey = cmpKey(trimSep(target));
+      // The parent of "/x" is "/", not "" — slicing at the separator index
+      // loses a POSIX root that the Windows shape ("C:\x" → "C:") never hits.
+      const parentKey = (p) => {
+        const cut = p.lastIndexOf(SEP);
+        if (cut < 0) return '';
+        return cut === 0 && !IS_WIN ? '/' : p.slice(0, cut);
+      };
       const children = ov.tree.filter((dir) => {
-        const p = String(dir.p || '').toLowerCase().replace(/\\+$/, '');
-        const cut = p.lastIndexOf('\\');
-        return cut >= 0 && p.slice(0, cut) === targetLower;
+        const p = cmpKey(trimSep(dir.p));
+        return p.includes(SEP) && parentKey(p) === targetKey;
       }).slice(0, 64);
-      const directFiles = ov.topFiles.filter((file) => {
-        const p = String(file.p || '').toLowerCase();
-        return p.slice(0, p.lastIndexOf('\\')) === targetLower;
-      }).slice(0, 64);
-      const rootEntry = ov.tree.find((dir) =>
-        String(dir.p || '').toLowerCase().replace(/\\+$/, '') === targetLower);
+      const directFiles = ov.topFiles.filter((file) =>
+        parentKey(cmpKey(file.p)) === targetKey).slice(0, 64);
+      const rootEntry = ov.tree.find((dir) => cmpKey(trimSep(dir.p)) === targetKey);
       snapshot = {
         path: target,
-        total: rootEntry ? rootEntry.s : (targetLower === String(ov.root).toLowerCase().replace(/\\+$/, '') ? ov.total : 0),
+        total: rootEntry ? rootEntry.s : (targetKey === cmpKey(trimSep(ov.root)) ? ov.total : 0),
         files: rootEntry ? rootEntry.n : 0,
         directBytes: directFiles.reduce((sum, file) => sum + (Number(file.s) || 0), 0),
         children,

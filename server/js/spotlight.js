@@ -421,15 +421,26 @@
         // The Living Index is still walking the roots: results flow from Windows
         // Search meanwhile, and get complete on their own within a minute.
         statusEl.textContent = t('spot_index_building', 'Sto imparando il disco… i risultati si completano da soli tra poco');
+      } else if (out.wds === 'unsupported' && out.index !== 'ready') {
+        // Not Windows. There is no catalog to have been turned off, so naming
+        // one is both wrong and unactionable — the index IS the backend here,
+        // and the only useful sentence points at the setting that starts it.
+        statusEl.textContent = t('spot_index_off', 'Aggiungi una cartella in Impostazioni → Ricerca e disco per attivare la ricerca');
       } else if (out.wds === 'unavailable' && out.index !== 'ready') {
         statusEl.textContent = t('spot_wds_off', 'Windows Search è disattivato su questo PC: risultati limitati');
       } else if (!lastResults.length) {
         // With the Living Index ready, "no results" is the honest, complete
-        // answer. The Windows-indexing hint explains a possible gap only while
-        // the search runs WITHOUT the index (no helper).
-        statusEl.textContent = out.index === 'ready'
-          ? t('spot_no_results', 'Nessun risultato')
-          : t('spot_no_results', 'Nessun risultato') + '. ' + t('spot_no_results_hint', 'Windows non indicizza tutte le cartelle: aggiungi le tue in Impostazioni → Ricerca e disco');
+        // answer. The gap hint explains a possible omission only while the
+        // search runs WITHOUT the index — and it has to name the right cause:
+        // on Windows the catalog's coverage, elsewhere the index itself, which
+        // is the only backend there.
+        const none = t('spot_no_results', 'Nessun risultato');
+        if (out.index === 'ready') statusEl.textContent = none;
+        else if (out.wds === 'unsupported') {
+          statusEl.textContent = none + '. ' + t('spot_index_off', 'Aggiungi una cartella in Impostazioni → Ricerca e disco per attivare la ricerca');
+        } else {
+          statusEl.textContent = none + '. ' + t('spot_no_results_hint', 'Windows non indicizza tutte le cartelle: aggiungi le tue in Impostazioni → Ricerca e disco');
+        }
       } else {
         statusEl.textContent = '';
       }

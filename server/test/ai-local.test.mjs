@@ -305,7 +305,12 @@ test('_parseDdgHtml returns empty arrays for non-result HTML', () => {
 
 test('whisperPaths returns exe and model under server/whisper', () => {
   const p = ai.whisperPaths('/srv/app/server');
+  // The binary name is chosen from the real platform at require time, so the
+  // expectation has to be too: whisper.cpp ships `whisper-cli.exe` on Windows
+  // and `whisper-cli` everywhere else. The MODEL is ours on every platform —
+  // Homebrew ships the binary but no ggml weights.
+  const exe = process.platform === 'win32' ? 'whisper-cli.exe' : 'whisper-cli';
   assert.equal(p.dir, path.join('/srv/app/server', 'whisper'));
-  assert.equal(p.exe, path.join('/srv/app/server', 'whisper', 'whisper-cli.exe'));
+  assert.equal(p.exe, path.join('/srv/app/server', 'whisper', exe));
   assert.equal(p.model, path.join('/srv/app/server', 'whisper', 'ggml-small.bin'));
 });

@@ -147,9 +147,17 @@ function isRunnableScriptPath(p, platform) {
 //         obs(requestType, requestData)->Promise, obsNext()->Promise,
 //         lighting(action)->Promise<boolean>,
 //         claudeRun({projectId,prompt,model})->Promise<{ok,error}>, claudeStop()->bool,
-//         remote: RemoteControl orchestrator instance (optional, injected after init) }
+//         remote: RemoteControl orchestrator instance (optional, injected after init),
+//         platform: override for the extension gates (tests) }
 function createRegistry(deps) {
   const d = deps || {};
+  // An extension gate is a statement about a HANDLER, so it differs per
+  // platform, and both gates below already take the platform as a parameter.
+  // Threading it through the registry too is what lets the RUN path be
+  // exercised off the OS it targets — without it, `.bat` could only be proven
+  // runnable on Windows and refused on POSIX by running the suite twice, on two
+  // machines. Same option, same reason, as createDiskSpace's.
+  const platform = d.platform || process.platform;
   async function run(rawAction) {
     const action = validateAction(rawAction);
     if (!action) return { ok: false, error: 'unknown_action' };
@@ -177,7 +185,7 @@ function createRegistry(deps) {
           if (!p) return { ok: false, error: 'empty_path' };
           // openFile opens with the registered handler, so executables/scripts
           // are blocked here — only openApp may launch an .exe/.lnk.
-          if (isBlockedOpenPath(p)) return { ok: false, error: 'blocked_ext' };
+          if (isBlockedOpenPath(p, platform)) return { ok: false, error: 'blocked_ext' };
           if (!d.fileExists(p)) return { ok: false, error: 'not_found' };
           await d.openExternal(p);
           return { ok: true };
@@ -189,7 +197,7 @@ function createRegistry(deps) {
           // default) decides whether the console is shown — an installer needs it.
           const p = action.path.trim();
           if (!p) return { ok: false, error: 'empty_path' };
-          if (!isRunnableScriptPath(p)) return { ok: false, error: 'bad_script_ext' };
+          if (!isRunnableScriptPath(p, platform)) return { ok: false, error: 'bad_script_ext' };
           if (!d.fileExists(p)) return { ok: false, error: 'not_found' };
           if (typeof d.runScript !== 'function') return { ok: false, error: 'unavailable' };
           await d.runScript(p, action.window === 'hidden');

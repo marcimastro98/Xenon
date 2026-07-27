@@ -27,6 +27,39 @@
 
 const { execFile } = require('child_process');
 const fsp = require('fs').promises;
+const os = require('os');
+
+// --- Memory: /proc/meminfo, because os.freemem() means something else here ---
+// os.freemem() is MemFree, which excludes the page cache the kernel would hand
+// straight back — so `total - free` counts every cached file as used and the
+// RAM tile reads far higher than anything the user's own tools show. On Windows
+// the same call is ullAvailPhys and already accounts for that, which is why the
+// figure was right there and wrong the moment the port reached a second OS.
+// MemAvailable is the kernel's own answer to "how much could a new workload
+// get", which is exactly the Windows meaning, and it has been in /proc/meminfo
+// since 3.14. Where it is missing the classic approximation stands in.
+function parseMemInfo(out) {
+  const kb = (label) => {
+    const m = new RegExp(`^${label}:\\s+(\\d+)\\s*kB`, 'm').exec(String(out || ''));
+    return m ? Number(m[1]) * 1024 : null;
+  };
+  const total = kb('MemTotal');
+  if (!total) return null;
+  let available = kb('MemAvailable');
+  if (available === null) {
+    const free = kb('MemFree'), buffers = kb('Buffers'), cached = kb('Cached');
+    if (free === null) return null;
+    available = free + (buffers || 0) + (cached || 0);
+  }
+  return { used: Math.max(0, Math.min(total, total - available)), total };
+}
+
+async function memory() {
+  let raw = null;
+  try { raw = await fsp.readFile('/proc/meminfo', 'utf8'); } catch { /* not procfs */ }
+  const parsed = raw === null ? null : parseMemInfo(raw);
+  return parsed || { used: os.totalmem() - os.freemem(), total: os.totalmem() };
+}
 
 // Promise wrapper around execFile with a hard timeout; resolves stdout.
 function run(cmd, args, timeoutMs) {
@@ -685,9 +718,16 @@ async function audioAvailable() {
   return _audioProbe;
 }
 
+// Lock the screen now — the Deck's lockWorkstation key. loginctl asks the
+// session's own locker, which is why it is the one call that works under both
+// X11 and Wayland where the screensaver D-Bus names do not.
+async function lock() {
+  await run('loginctl', ['lock-session'], 5000);
+}
+
 module.exports = {
-  gpu, disks, cpuTemp, network, windows, audioRows, audioCommand, audioAvailable,
+  gpu, disks, cpuTemp, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
   // exported for unit tests
-  parseGpu, parseSysfsGpu, parseDisks, parseNetDev, parsePing, parseWmctrl, parseWindowProps,
+  parseGpu, parseSysfsGpu, parseDisks, parseMemInfo, parseNetDev, parsePing, parseWmctrl, parseWindowProps,
   parsePwDump, buildAudioRows, resolveTargets, cubicToLinear,
 };

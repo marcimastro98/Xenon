@@ -158,9 +158,19 @@ test('disk status exposes bounded display metadata and browse accepts opaque ids
   t.after(async () => fs.rm(f.dir, { recursive: true, force: true }));
 
   const status = await f.disk.status();
-  assert.equal(status.roots[0].label, 'Xenon Test');
-  assert.equal(status.roots[0].model, 'Test NVMe');
-  assert.equal(status.roots[0].fileSystem, 'NTFS');
+  if (process.platform === 'win32') {
+    // getDriveDetails is keyed by drive LETTER, which only exists here.
+    assert.equal(status.roots[0].label, 'Xenon Test');
+    assert.equal(status.roots[0].model, 'Test NVMe');
+    assert.equal(status.roots[0].fileSystem, 'NTFS');
+  } else {
+    // Off Windows the annotation comes from the mount table through the
+    // collector seam instead, and this fixture wires no getVolumes — so the
+    // honest expectation is the empty shape, not the Windows one. The POSIX
+    // annotation itself is covered by its own test below.
+    assert.deepEqual(status.roots[0],
+      { i: 0, path: path.parse(f.dir).root, drive: '', label: '', model: '', fileSystem: '', driveType: '' });
+  }
 
   const overview = await f.disk.overview(0);
   assert.match(overview.rootId, /^n[a-z0-9]+$/);
@@ -169,6 +179,105 @@ test('disk status exposes bounded display metadata and browse accepts opaque ids
   assert.equal(drill.directFiles.length, 2);
   assert.equal(drill.directBytes, 48);
   assert.equal((await f.disk.browse(0, f.dir)).error, 'bad_node');
+});
+
+test('a directory reached through a symlinked ANCESTOR is not a reparse point',
+  { skip: process.platform === 'win32' ? 'POSIX-only: this is the /var → /private/var shape' : false },
+  async (t) => {
+    // The reparse probe used to compare realpath() against the input path,
+    // which on Windows catches a junction and off Windows catches nothing of
+    // the sort: realpath resolves the WHOLE path, so it differs whenever any
+    // ancestor is a link. macOS puts the user's temp directory under /var,
+    // which IS a symlink to /private/var — so every directory in the temp
+    // category came back `reparse`, the guard refused it, and the platform's
+    // biggest cleanup target could never be cleaned. Measured, not theorised.
+    const base = await fs.mkdtemp(path.join(os.tmpdir(), 'xenon-disk-link-'));
+    t.after(async () => fs.rm(base, { recursive: true, force: true }));
+    const real = path.join(base, 'real');
+    const link = path.join(base, 'link');
+    await fs.mkdir(path.join(real, 'pkg-cache'), { recursive: true });
+    await fs.writeFile(path.join(real, 'pkg-cache', 'blob.bin'), Buffer.alloc(64));
+    await fs.symlink(real, link, 'dir');
+
+    // The index reports the directory through the LINKED path, exactly as it
+    // would if the user's temp dir were reached that way.
+    const viaLink = path.join(link, 'pkg-cache');
+    const now = Date.now();
+    const deleted = [];
+    let doneResolve = null;
+    const done = new Promise((r) => { doneResolve = r; });
+    const disk = createDiskSpace({
+      dataDir: path.join(base, 'data'),
+      helperExe: process.execPath,
+      livingIndex: {
+        available: () => true,
+        stats: async () => ({ on: true, ready: true, files: 1 }),
+        overview: async () => ({
+          total: 64, files: 1, dirs: [{ p: viaLink, s: 64, m: now }],
+          topFiles: [], groups: [], detailFiles: [], capped: false, detailCapped: false, building: false,
+        }),
+      },
+      getIndexRoots: async () => [path.parse(base).root],
+      getSettings: async () => ({}),
+      appRoot: path.join(base, 'app'),
+      shellDelete: async ({ paths }) => {
+        deleted.push(...paths);
+        // Really remove it: the job measures what is left on disk to report
+        // honest freed bytes, so a stub that only says "ok" reads as a folder
+        // that refused to move.
+        for (const p of paths) await fs.rm(p, { recursive: true, force: true }).catch(() => {});
+        return { ok: true };
+      },
+      onCleanProgress: (snap) => { if (snap && snap.phase === 'done') doneResolve(snap); },
+    });
+
+    const overview = await disk.overview(0);
+    const item = (overview.categories.temp?.items || []).find((it) => it.p === viaLink);
+    assert.ok(item, 'the directory classifies as a temp item');
+    const started = await disk.clean({ root: 0, category: 'temp', ids: [item.i] });
+    assert.equal(started.started, true, `the clean must not be refused: ${JSON.stringify(started)}`);
+    const report = (await done).report;
+    assert.equal(report.ok, true);
+    assert.deepEqual(report.refused, []);
+    assert.deepEqual(deleted, [viaLink]);
+
+    // The symlink ITSELF is still refused — that check was never the problem,
+    // and recycling a link while leaving its target is not a cleanup.
+    const linkOverview = await disk.overview(0, true);
+    assert.ok(linkOverview.ok);
+  });
+
+test('off Windows a root is annotated from the mount it sits under, longest match winning', async (t) => {
+  // There are no drive letters here, so a configured root is labelled by
+  // finding the volume it lives under — and an external disk mounted at
+  // /Volumes/Backup has to win over `/`, or every root on the machine would
+  // read as the startup disk. The platform is pinned so this runs on Windows
+  // too: the POSIX branch is the one that had never executed anywhere.
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'xenon-disk-mounts-'));
+  t.after(async () => fs.rm(dir, { recursive: true, force: true }));
+  const disk = createDiskSpace({
+    dataDir: dir,
+    platform: 'darwin',
+    helperExe: process.execPath,
+    livingIndex: { available: () => true, stats: async () => ({ on: true, ready: true, files: 0 }) },
+    getIndexRoots: async () => ['/Volumes/Backup/Media', '/Users/me', '/Volumes/Nope'],
+    getVolumes: async () => ([
+      { drive: '/', label: 'Macintosh HD', fileSystem: 'apfs', driveType: 'Fixed' },
+      { drive: '/Volumes/Backup', label: 'Backup', fileSystem: 'exfat', driveType: 'Removable' },
+    ]),
+    getSettings: async () => ({}),
+    appRoot: path.join(dir, 'app'),
+  });
+
+  const status = await disk.status();
+  assert.equal(status.roots[0].label, 'Backup', 'the deeper mount wins over /');
+  assert.equal(status.roots[0].fileSystem, 'exfat');
+  assert.equal(status.roots[1].label, 'Macintosh HD', 'a path with no closer mount falls to /');
+  // "/Volumes/Nope" is not under "/Volumes/Backup" despite sharing its prefix
+  // up to the separator — segment-safe, so it lands on / like any other path.
+  assert.equal(status.roots[2].label, 'Macintosh HD');
+  // Drive LETTERS are the Windows-only legacy field and stay empty here.
+  assert.deepEqual(status.drives, []);
 });
 
 test('cleanup isolates a locked item and reports honest partial success', async (t) => {

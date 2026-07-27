@@ -38,6 +38,14 @@ const USAGE_SAVE_DEBOUNCE_MS = 2000;
 function createFileSearch(opts) {
   const o = opts || {};
   const dataDir = o.dataDir;
+  // Overridable so both branches are reachable from a test run on either OS,
+  // the way createDiskSpace and createRegistry take their platform.
+  const PLATFORM = o.platform || process.platform;
+  // Windows Search has no counterpart the other platforms ship: the Living
+  // Index IS the search backend there, and saying so is not a degradation to
+  // apologise for. (macOS does have Spotlight, and `mdfind` would be the exact
+  // twin of this host — that is a feature, not this gate.)
+  const CATALOG_SUPPORTED = PLATFORM === 'win32';
   const scriptPath = o.scriptPath || path.join(__dirname, 'search.ps1');
   const openExternal = o.openExternal; // async (absPath) — deck-actions 'open' verb
   const usageFile = path.join(dataDir, 'search-usage.json');
@@ -84,6 +92,13 @@ function createFileSearch(opts) {
   }
 
   function ensureHost() {
+    // The catalog host is powershell.exe running search.ps1 against the Windows
+    // SystemIndex. Off Windows there is nothing to spawn, and trying produced an
+    // ENOENT the caller reported as `error` — indistinguishable from a catalog
+    // that broke, which is why the Spotlight popup told a Mac user that
+    // "Windows Search is turned off on this PC". `unsupported` is a different
+    // fact from `unavailable` and the UI is entitled to say so.
+    if (!CATALOG_SUPPORTED) return null;
     if (host.proc) return host.proc;
     if (Date.now() - host.diedAt < HOST_RETRY_MS) return null;
     let proc;
@@ -122,6 +137,7 @@ function createFileSearch(opts) {
 
   function hostRequest(q) {
     if (hostRunner) return hostRunner(q);
+    if (!CATALOG_SUPPORTED) return Promise.reject(new Error('wds_unsupported'));
     return new Promise((resolve, reject) => {
       const proc = ensureHost();
       if (!proc) { reject(new Error('wds_unavailable')); return; }
@@ -303,7 +319,12 @@ function createFileSearch(opts) {
         after: q.after, before: q.before, minBytes: q.minBytes, maxBytes: q.maxBytes,
         content, max: WDS_MAX,
       }).then((items) => ({ items, state: 'ok' }))
-        .catch((e) => ({ items: [], state: /wds_unavailable/.test(String(e && e.message)) ? 'unavailable' : 'error' })),
+        .catch((e) => {
+          const msg = String(e && e.message);
+          const state = /wds_unsupported/.test(msg) ? 'unsupported'
+            : /wds_unavailable/.test(msg) ? 'unavailable' : 'error';
+          return { items: [], state };
+        }),
       livingMatches(q),
       loadUsage(),
       appsPromise,
@@ -389,8 +410,18 @@ function createFileSearch(opts) {
     if (!rec || rec.app) return { ok: false, error: 'unknown_id' };
     try { await fs.promises.stat(rec.path); } catch { return { ok: false, error: 'not_found' }; }
     try {
-      // Argv array: "/select,<path>" is a single argument, never a shell string.
-      const child = spawn('explorer.exe', ['/select,' + rec.path], { detached: true, stdio: 'ignore' });
+      // Argv array everywhere: the path is one argument and never a shell
+      // string. Each platform's file manager has its own "select this item"
+      // verb — `explorer /select,` is not a portable spelling, it is a Windows
+      // one, and off Windows it was an ENOENT that reported as reveal_failed.
+      // Linux has no universal equivalent, so the honest fallback is opening
+      // the containing FOLDER: it answers the same question ("where is this?")
+      // without pretending to a selection nobody can make.
+      const child = PLATFORM === 'win32'
+        ? spawn('explorer.exe', ['/select,' + rec.path], { detached: true, stdio: 'ignore' })
+        : PLATFORM === 'darwin'
+          ? spawn('open', ['-R', rec.path], { detached: true, stdio: 'ignore' })
+          : spawn('xdg-open', [rec.dir || path.dirname(rec.path)], { detached: true, stdio: 'ignore' });
       child.unref();
     } catch { return { ok: false, error: 'reveal_failed' }; }
     const u = await loadUsage();

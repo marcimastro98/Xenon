@@ -3617,10 +3617,17 @@ async function getRamInfo() {
 }
 
 async function getSystemInfo() {
-  const [gpu, disks, ramInfo, cpuTemp] = await Promise.all([getGpuInfo(), getAllDisksInfo(), getRamInfo(), getCpuTemp()]);
-  const totalMem = os.totalmem();
-  const freeMem = os.freemem();
-  const usedMem = totalMem - freeMem;
+  const [gpu, disks, ramInfo, cpuTemp, mem] = await Promise.all([
+    getGpuInfo(), getAllDisksInfo(), getRamInfo(), getCpuTemp(),
+    // os.freemem() is ullAvailPhys on Windows — already "what a new workload
+    // could get" — but only the truly free pages on macOS and Linux, where the
+    // OS keeps that near zero on purpose. Same call, different meaning, so the
+    // seam answers it per platform (see each collector's `memory()`); Windows
+    // keeps the os module it always used.
+    nativeCollectors ? nativeCollectors.memory() : null,
+  ]);
+  const totalMem = (mem && mem.total) || os.totalmem();
+  const usedMem = mem ? mem.used : totalMem - os.freemem();
 
   // Fans: motherboard/CPU headers from the cpu collector (RPM), plus the GPU's
   // own fans — LHM gives RPM, nvidia-smi only a percent, so a fan entry carries
@@ -4605,19 +4612,14 @@ function resolveExecInDir(dir) {
 // Lock the session. Single source of truth for the lock call, shared by the
 // Deck lockWorkstation action, the AI lock_pc tool, the /lock endpoint and the
 // idle auto-lock flow. execFile with an argv array — never a shell string.
-const MAC_CGSESSION = '/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/CGSession';
 function lockWorkstation() {
+  // Locking is per-platform in a way no single command spans, so it goes
+  // through the collector seam like every other such reading — this used to
+  // branch here on process.platform and pointed macOS at a CGSession binary the
+  // OS has since removed, which is exactly the drift the seam exists to stop.
+  if (nativeCollectors) return nativeCollectors.lock();
   return new Promise((resolve, reject) => {
-    // CGSession -suspend is the documented "lock now" on macOS: it returns to
-    // the login window, which is what LockWorkStation does on Windows.
-    // loginctl is the systemd equivalent and asks the session's own locker, so
-    // it works under both X11 and Wayland where the screensaver calls do not.
-    const [cmd, args] = process.platform === 'darwin'
-      ? [MAC_CGSESSION, ['-suspend']]
-      : process.platform === 'linux'
-        ? ['loginctl', ['lock-session']]
-        : ['rundll32.exe', ['user32.dll,LockWorkStation']];
-    execFile(cmd, args, { windowsHide: true }, (err) => {
+    execFile('rundll32.exe', ['user32.dll,LockWorkStation'], { windowsHide: true }, (err) => {
       if (err) reject(err); else resolve();
     });
   });
@@ -5590,7 +5592,17 @@ async function _persistLighting() {
 const PC_ACTION_TTL_MS = 5 * 60 * 1000;
 const PC_ACTION_TIMEOUT_MS = 60 * 1000;
 const _pcActions = new Map(); // nonce -> { command, purpose, ts }
+// PC Control is a PowerShell feature, not merely a Windows-first one: the
+// command the AI writes is PowerShell, the confirmation card shows the user
+// PowerShell, and the runner below spawns it directly rather than through
+// runPowerShellScript — so it is the one place POWERSHELL_SUPPORTED does not
+// already answer for. Off Windows it therefore reports itself disabled at both
+// gates and is never offered to the model, instead of proposing a command,
+// getting the user to approve it, and failing with a spawn ENOENT. Turning it
+// on elsewhere means giving the AI a POSIX shell, which is a product decision
+// about a much larger blast radius, not a translation of this code.
 function _pcControlEnabled() {
+  if (!POWERSHELL_SUPPORTED) return false;
   const f = _serverHubSettings && _serverHubSettings.aiFeatures;
   return !!(f && f.enabled === true && f.pcControl === true);
 }
@@ -6885,7 +6897,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // read locally via ffmpeg + whisper.cpp while a dashboard is open; nothing
   // leaves the PC.
   wakeWord: Object.freeze({ enabled: false }),
-  searchSettings: Object.freeze({ indexRoots: Object.freeze(['C:\\']), hotkeyEnabled: false, hotkeyCombo: 'alt+space', aiFullContext: false }),
+  // indexRoots defaults per platform for the reason spelled out in
+  // normalizeSearchSettings: "C:\" is not a path off Windows, and a default the
+  // validator there would reject leaves the index permanently off.
+  searchSettings: Object.freeze({ indexRoots: Object.freeze([POWERSHELL_SUPPORTED ? 'C:\\' : os.homedir()]), hotkeyEnabled: false, hotkeyCombo: 'alt+space', aiFullContext: false }),
   diskSettings: Object.freeze({ devFolders: Object.freeze([]), installerAgeDays: 30 }),
   bgAurora: Object.freeze({ enabled: true, intensity: 55, speed: 50 }),
   bgGrid: Object.freeze({ enabled: true, color: '#1ed760', intensity: 45, speed: 50 }),
@@ -7595,25 +7610,47 @@ function normalizeWakeWord(value) {
 // server-side and search results address by opaque id, so this list is the
 // only place a path exists. The global hotkey is helper-gated and OFF by
 // default (it registers a system-wide key).
-function normalizeSearchSettings(value) {
+function normalizeSearchSettings(value, defaultRoot) {
   const v = value && typeof value === 'object' ? value : {};
   // indexRoots: the Living Index roots (drives or folders). Migration: older
   // saves carried extraFolders (the retired one-shot crawl) — adopt them.
-  // Never-set → default to the WHOLE system drive (product decision: the
-  // living experience out of the box); an explicitly emptied list means the
-  // user turned the index off and stays empty.
+  // Never-set → default to the whole system drive on Windows, and to the
+  // user's HOME elsewhere (`defaultRoot`): the POSIX analogue of "the system
+  // drive" would walk /System and /Applications, millions of entries the index
+  // caps out on, none of which is a file the user is looking for. An
+  // explicitly emptied list means the user turned the index off and stays empty.
   const rawRoots = Array.isArray(v.indexRoots) ? v.indexRoots
     : (Array.isArray(v.extraFolders) && v.extraFolders.length ? v.extraFolders : null);
-  // Separators are normalized to backslashes here, once: every consumer
-  // downstream (the disk overview's root prefix test, registerBrowsePath, the
-  // guard) compares against backslash paths, so a root saved as "C:/Projects"
-  // passed validation and then matched nothing — an empty treemap with no
-  // explanation.
-  const roots = rawRoots == null ? ['C:\\'] : rawRoots
-    .map((f) => String(f || '').trim().slice(0, 260).replace(/\//g, '\\'))
-    .filter((f) => /^[A-Za-z]:\\?$|^[A-Za-z]:\\.+/.test(f))
-    .map((f) => (f.length === 2 ? f + '\\' : f))
-    .slice(0, 8);
+  // A root is either a Windows drive path or a POSIX absolute one, and BOTH
+  // shapes are accepted on both sides whatever the machine is. That is not
+  // laxity: this same function runs in the BROWSER, which cannot know what the
+  // host is, so a validator that guessed would silently drop the user's root
+  // on the next settings save. The platform decides only the DEFAULT, which
+  // the server passes in.
+  //
+  // The separator rewrite applies to the Windows shape ONLY. Off Windows a
+  // backslash is a legal filename character, and rewriting "/" there turned
+  // "/Users/me" into "\Users\me", which then failed the drive-letter test —
+  // so indexRoots could never hold anything but the default "C:\", which does
+  // not exist on a Mac. The Living Index therefore never started, and search
+  // AND the disk widget (which addresses these same roots by index) were both
+  // dead with nothing the user could type to fix it.
+  const cleanRoot = (raw) => {
+    const s = String(raw || '').trim().slice(0, 4096);
+    // A single leading slash is POSIX; two is a UNC share, which is not a
+    // local root and stays rejected as it always was.
+    if (/^\/(?!\/)/.test(s)) return s.length > 1 ? s.replace(/\/+$/, '') : s;
+    // Every Windows consumer downstream (the disk overview's root prefix test,
+    // registerBrowsePath, the guard) compares backslash paths, so a root saved
+    // as "C:/Projects" passed validation and then matched nothing — an empty
+    // treemap with no explanation.
+    const w = s.slice(0, 260).replace(/\//g, '\\');
+    if (!/^[A-Za-z]:\\?$|^[A-Za-z]:\\.+/.test(w)) return '';
+    return w.length === 2 ? w + '\\' : w;
+  };
+  const roots = rawRoots == null
+    ? [defaultRoot || 'C:\\']
+    : rawRoots.map(cleanRoot).filter(Boolean).slice(0, 8);
   const combo = String(v.hotkeyCombo || 'alt+space').toLowerCase().trim().slice(0, 40);
   return {
     indexRoots: roots,
@@ -7850,7 +7887,10 @@ function normalizeHubSettings(value) {
     discordNotifications: normalizeDiscordNotifications(source.discordNotifications),
     windowsNotifications: normalizeWindowsNotifications(source.windowsNotifications),
     wakeWord: normalizeWakeWord(source.wakeWord),
-    searchSettings: normalizeSearchSettings(source.searchSettings),
+    // The server is the one side that knows the machine, so it supplies the
+    // never-set default; the browser's copy of this normalizer keeps whatever
+    // the server already chose.
+    searchSettings: normalizeSearchSettings(source.searchSettings, POWERSHELL_SUPPORTED ? 'C:\\' : os.homedir()),
     diskSettings: normalizeDiskSettings(source.diskSettings),
     bgAurora: normalizeBgAurora(source.bgAurora),
     bgGrid: normalizeBgGrid(source.bgGrid),
@@ -13243,7 +13283,10 @@ const server = http.createServer(async (req, res) => {
       // default; the tool NEVER runs a command directly — it proposes one that
       // executes only after the user approves a confirmation card.
       let _pcControlText = '';
-      if (_features.pcControl === true) {
+      // POWERSHELL_SUPPORTED, not just the flag: a tool the runner cannot
+      // execute must not reach the model at all. Offering it would produce a
+      // confirmation card the user approves and that then fails to spawn.
+      if (_features.pcControl === true && POWERSHELL_SUPPORTED) {
         AI_FUNCTIONS.push({
           name: 'run_pc_command',
           description: 'PC CONTROL: run a Windows PowerShell command on the user\'s PC to do something the other tools do not cover (system tweaks, file operations, launching things with arguments, queries…). This NEVER runs automatically: the user sees a confirmation card with the exact command and must approve it. Propose the SMALLEST, most targeted command that does the job, and always fill "description" with a short plain-language explanation of what it does and why. Prefer a dedicated tool when one exists (audio, media, apps, lighting…).',
