@@ -1318,6 +1318,35 @@ Ops: `set` (`key`, `value`), `get` (`key` → `value`, `null` if absent), `delet
 server-side): ≤ 16 KB per value, ≤ 128 keys, ≤ 256 KB per store. Errors come back
 as `{ ok: false, error: 'value_too_large' | 'too_many_keys' | 'store_full' | … }`.
 
+**Writes are rate-limited: one `set`/`delete`/`clear` per 100 ms per package.**
+Reads are not limited. A write that arrives inside another one's 100 ms answers
+`{ ok: false, error: 'rate_limited' }` and **stores nothing** — so firing several
+`set`s in the same tick keeps the first and silently loses the rest. If your
+widget saves more than one key when something happens (a game saving progress
+plus its stats, a settings panel saving several fields at once), queue them: one
+write in flight at a time, spaced past the gate, and retry a `rate_limited` reply
+instead of assuming it landed.
+
+```js
+// One write at a time, newest value per key wins, refusals retried.
+const queue = new Map(); let busy = false, timer = 0;
+function save(key, value) { queue.set(key, value); if (!busy && !timer) timer = setTimeout(drain, 0); }
+async function drain() {
+  timer = 0;
+  const key = queue.keys().next().value; if (key === undefined) return;
+  const value = queue.get(key); queue.delete(key);
+  busy = true;
+  const res = await storeSet(key, value);   // your bridge round-trip
+  busy = false;
+  if (!res.ok && !queue.has(key)) queue.set(key, value);   // bound the retries
+  if (queue.size) timer = setTimeout(drain, 140);
+}
+```
+
+**Always check `ok` on a write.** `store_result` is the only place the host can
+tell you a save did not happen; a widget that ignores it will look like it saved
+and come back empty on the next load.
+
 **Sharing across widgets.** Declare the same `"storageGroup": "my-set"` in
 several packages and they read/write **one shared store** — the way a suite of
 sibling widgets (say a Football set: live scores, standings, a club picker) keep

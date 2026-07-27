@@ -280,3 +280,44 @@ test('option labels are bounded', () => {
   const out = M.normalizeMessage(poll([{ id: 'a', label: 'L'.repeat(300) }, { id: 'b', label: 'B' }]));
   assert.equal(out.poll.options[0].label.length, 60);
 });
+
+// ── Media ──────────────────────────────────────────────────────────────────
+// A picture or clip is fetched by the dashboard the moment the card opens, so
+// the host allowlist is stricter than the one for links: one origin, the
+// project's own. Everything rejected here leaves the MESSAGE intact — losing the
+// artwork is not a reason to withhold an announcement.
+const IMG = 'https://assets.xenon-app.com/community/messages/v490.webp';
+const CLIP = 'https://assets.xenon-app.com/community/messages/v490.mp4';
+
+test('media survives whole when it is an allowed file on the asset host', () => {
+  const m = M.normalizeMessage(msg({ media: { type: 'image', url: IMG, alt: 'The Disk widget' } }));
+  assert.deepEqual(m.media, { type: 'image', url: IMG, alt: 'The Disk widget' });
+  assert.deepEqual(M.normalizeMessage(msg({ media: { type: 'video', url: CLIP } })).media,
+    { type: 'video', url: CLIP });
+});
+
+test('media off the asset host is dropped and the message still ships', () => {
+  const m = M.normalizeMessage(msg({ body: 'What changed.', media: { type: 'image', url: 'https://i.imgur.com/x.webp' } }));
+  assert.ok(m, 'the announcement survives losing its picture');
+  assert.equal('media' in m, false);
+  assert.equal(m.body, 'What changed.');
+  for (const bad of [
+    { type: 'image', url: 'http://assets.xenon-app.com/community/messages/x.webp' },
+    { type: 'image', url: 'javascript:alert(1)' },
+    { type: 'audio', url: IMG },
+    { type: 'image', url: CLIP },   // a clip declared as an image would render broken
+    { type: 'video', url: IMG },
+    'not-an-object', [], null,
+  ]) {
+    assert.equal(M.normalizeMedia(bad), null, JSON.stringify(bad));
+  }
+});
+
+test('a poster is taken only when it is an image on the asset host', () => {
+  assert.equal(M.normalizeMedia({ type: 'video', url: CLIP, poster: IMG }).poster, IMG);
+  // A bad poster loses the poster, not the clip: the video paints its own first
+  // frame, so there is nothing broken to withhold the media over.
+  const noPoster = M.normalizeMedia({ type: 'video', url: CLIP, poster: 'https://elsewhere.test/a.png' });
+  assert.equal(noPoster.url, CLIP);
+  assert.equal('poster' in noPoster, false);
+});

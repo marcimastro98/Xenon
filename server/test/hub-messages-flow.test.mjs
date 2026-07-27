@@ -142,3 +142,27 @@ test('with announcements off, nothing is fetched and nothing is shown', async ()
   assert.deepEqual(out.toasts, []);
   assert.deepEqual(out.seen, []);
 });
+
+// ── Media ──────────────────────────────────────────────────────────────────
+const IMG = 'https://assets.xenon-app.com/community/messages/v490.webp';
+const CLIP = 'https://assets.xenon-app.com/community/messages/v490.mp4';
+
+/** Every className in the tree the overlay rendered. */
+const classes = (node) => (node ? [node.className, ...(node.children || []).flatMap(classes)].filter(Boolean) : []);
+
+test('a modal with a picture renders a media frame above the text', async () => {
+  const d = dashboard({ messages: [modal({ media: { type: 'image', url: IMG, alt: 'Il widget Disco' } })] });
+  const out = await d.check();
+  assert.deepEqual(out.opened, ['hubmsg-overlay']);
+  assert.ok(classes(d.opened[0]).includes('hubmsg-media'));
+});
+
+test('a clip renders too, and a message with no media renders no frame', async () => {
+  const withClip = dashboard({ messages: [modal({ media: { type: 'video', url: CLIP } })] });
+  await withClip.check();
+  assert.ok(classes(withClip.opened[0]).includes('hubmsg-media'));
+
+  const plain = dashboard({ messages: [modal()] });
+  await plain.check();
+  assert.ok(!classes(plain.opened[0]).includes('hubmsg-media'), 'no empty frame when there is nothing to show');
+});
