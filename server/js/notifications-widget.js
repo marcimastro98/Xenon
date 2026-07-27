@@ -32,6 +32,11 @@
   // Server-side reader state ('off'|'starting'|'allowed'|'denied'|'unavailable')
   // plus the seeded flags; `items === null` means "seed not loaded yet".
   let srvState = 'off';
+  // Whether this PC can mirror notifications at all. The reader is WinRT-only, so
+  // off Windows the server reports state 'unavailable' with supported=false, and
+  // the tile shows an OS-appropriate note rather than the Windows-version one.
+  // Defaults true so an older server that omits the flag behaves as before.
+  let supported = true;
   let seedFlags = { enabled: false, hide: false, toast: true, excluded: [] };
   let items = null;
   let seeded = false;
@@ -276,7 +281,13 @@
       return;
     }
     if (srvState === 'unavailable') {
-      showState(list, 'wn_unavailable', 'Not available on this Windows version');
+      if (!supported) {
+        // Non-Windows OS: the mirror can never run here, so say so plainly
+        // rather than blaming the "Windows version".
+        showState(list, 'wn_unsupported_os', 'Notification mirroring is only available on Windows');
+      } else {
+        showState(list, 'wn_unavailable', 'Not available on this Windows version');
+      }
       return;
     }
     if (items === null || srvState === 'starting' || srvState === 'off') {
@@ -337,6 +348,7 @@
           excluded: Array.isArray(d.excluded) ? d.excluded : [],
         };
         srvState = typeof d.state === 'string' ? d.state : 'off';
+        if (typeof d.supported === 'boolean') supported = d.supported;
         items = Array.isArray(d.items) ? d.items.slice(0, FEED_MAX) : [];
         // Reconcile a client/server split. The enable flag is client-owned and
         // round-tripped, but a toggle saved against an OLDER server build (one
@@ -363,6 +375,7 @@
   function onState(data) {
     if (!data || typeof data !== 'object') return;
     if (typeof data.state === 'string') srvState = data.state;
+    if (typeof data.supported === 'boolean') supported = data.supported;
     if (Array.isArray(data.items)) items = data.items.slice(0, FEED_MAX);
     seedFlags = { ...seedFlags, enabled: !!data.enabled };
     paint();

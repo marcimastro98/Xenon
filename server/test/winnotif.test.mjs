@@ -128,3 +128,14 @@ test('sync(false) drops the buffered feed (privacy) and resets state', () => {
   assert.equal(wn.getFeed().length, 0);
   assert.equal(wn.getState(), 'off');
 });
+
+test('isSupported and reportedState follow the platform', () => {
+  const onWindows = process.platform === 'win32';
+  assert.equal(wn.isSupported(), onWindows);
+  // Off Windows the reader never runs, so what the dashboard is told is always
+  // 'unavailable' regardless of the raw child state — never the 'off'/'starting'
+  // that the tile would render as a permanent "Connecting…".
+  line({ event: 'status', status: 'allowed' });
+  assert.equal(wn.getState(), 'allowed');
+  assert.equal(wn.reportedState(), onWindows ? 'allowed' : 'unavailable');
+});

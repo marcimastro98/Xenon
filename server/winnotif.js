@@ -205,6 +205,17 @@ function applyExclusions() {
 function getState() { return _state; }
 function getFeed() { return _items; }
 
+// The mirror reads the WinRT UserNotificationListener, so it only exists on
+// Windows. Everywhere else `sync()` no-ops and no child ever spawns.
+function isSupported() { return process.platform === 'win32'; }
+
+// What a dashboard should be told the state is. `getState()` stays the raw
+// child state (the reader's own logic and its unit tests depend on that), but
+// off Windows the reader never runs, so its state sits at 'off' forever — which
+// the tile reads as "Connecting…" and never leaves. Report 'unavailable' there
+// so the tile shows a terminal, honest state instead of hanging.
+function reportedState() { return isSupported() ? _state : 'unavailable'; }
+
 function stop() {
   _stopped = true;
   _wanted = false;
@@ -213,6 +224,7 @@ function stop() {
 
 module.exports = {
   init, sync, applyExclusions, getState, getFeed, stop,
+  isSupported, reportedState,
   // Test hook: the exact line handler the child reader drives, so the
   // seed/push/filter/cap behaviour is testable without spawning a process.
   _handleLine,
