@@ -1750,7 +1750,7 @@
       const hint = el('div', 'diskw-hint');
       hint.appendChild(el('div', 'diskw-hint-mark', '◌'));
       hint.appendChild(el('div', 'diskw-hint-title', tr('disk_helper_title', 'Serve Xenon Helper')));
-      hint.appendChild(el('div', 'diskw-hint-text', tr('disk_helper_text', 'L’analisi del disco usa il componente nativo opzionale, installato da INSTALL.bat.')));
+      hint.appendChild(el('div', 'diskw-hint-text', tr('disk_helper_text', 'L’analisi del disco ha bisogno di un indice: aggiungi una cartella in Impostazioni → Ricerca e disco.')));
       mount.appendChild(hint);
       return;
     }

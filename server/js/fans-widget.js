@@ -25,6 +25,7 @@
   let seeded = false, seedInflight = false;
   let lastSig = '';         // skip repaints when the readings didn't change
   let editingKey = null;    // fan being renamed — repaints hold off so the input survives
+  let platform = null;      // the host OS, from /system — decides which absence to explain
 
   // The one hint that matches reality. LHM is installed by the Xenon installer,
   // so "install it" is the wrong advice for the common case: unelevated, its
@@ -34,6 +35,15 @@
   function hintNode(cls) {
     if (access === 'needs_admin') {
       return SensorAccess.hintNode(t('fans_hint_admin', 'Fan speeds can’t be read: Windows protects your PC’s sensors, and Xenon needs your permission.'), cls);
+    }
+    // Off Windows there is nothing to install and no installer to re-run: the
+    // kernel publishes every tachometer it can see, so an empty list means the
+    // hardware exposes none. Prescribing LibreHardwareMonitor there sent the
+    // user after a Windows-only tool via a file (INSTALL.bat) their machine
+    // does not have — an errand with no end.
+    if (platform && platform !== 'win32') {
+      return el('div', cls, t('fans_hint_none_posix',
+        'This machine exposes no fan sensors that can be read without special privileges.'));
     }
     return el('div', cls, t('fans_hint_lhm', 'Reading fan speeds needs LibreHardwareMonitor, which the Xenon installer sets up. Re-run INSTALL.bat.'));
   }
@@ -311,7 +321,7 @@
     seedInflight = true;
     try {
       const d = await api('/system');
-      if (d) access = d.sensorAccess || null;
+      if (d) { access = d.sensorAccess || null; platform = d.platform || null; }
       if (d && Array.isArray(d.fans)) fans = d.fans;
       else if (fans === null) fans = [];
     } finally { seedInflight = false; }
@@ -333,6 +343,7 @@
     if (sig === lastSig && fans !== null) return;
     lastSig = sig;
     access = d.sensorAccess || null;
+    platform = d.platform || platform;
     fans = d.fans;
     paint();
   }

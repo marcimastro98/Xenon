@@ -13,13 +13,19 @@
 <link rel="apple-touch-icon" href="assets/favicon.png">
 
 <!-- Fonts -->
+<!-- Inter is served from this machine (styles/fonts.css). It is the UI face the
+     whole design is metric-tuned for, so it must not depend on a third party
+     being reachable: offline, behind a filtering resolver, or on a network that
+     blocks Google, the remote link left every layout rendering in a wider
+     fallback. -->
+<link rel="stylesheet" href="styles/fonts.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Display faces for the alternate skins (Press Start 2P / VT323 for Retro,
      Bangers / Comic Neue for Comic) are fetched lazily by the browser only when
      that style actually uses them — zero cost on the default theme, and both
      skins also fall back to Comic Sans MS / system fonts if offline. -->
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Press+Start+2P&family=VT323&family=Bangers&family=Comic+Neue:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Bangers&family=Comic+Neue:wght@400;700&display=swap">
 
 <!-- Global styles & design tokens -->
 <link rel="stylesheet" href="styles/global.css">
@@ -2273,7 +2279,7 @@
             <span data-i18n="settings_fx_enable">Attiva</span>
           </label>
           <div class="settings-row full settings-gamemode-install" id="settings-gamemode-install-row" hidden>
-            <span class="settings-note" data-i18n="settings_gamemode_need_tool">Opzionale: installa PresentMon per mostrare gli FPS reali in gioco nel pannello sistema. Il rilevamento del gioco funziona già senza.</span>
+            <span class="settings-note" id="settings-gamemode-note" data-i18n="settings_gamemode_need_tool">Opzionale: installa PresentMon per mostrare gli FPS reali in gioco nel pannello sistema. Il rilevamento del gioco funziona già senza.</span>
             <button type="button" class="settings-btn" id="settings-gamemode-install" onclick="installPresentMon(this)" data-i18n="settings_gamemode_install">Installa PresentMon</button>
           </div>
         </div>
@@ -2380,7 +2386,7 @@
         </div>
       </div>
 
-      <div class="settings-group" data-settings-cat="secondscreen" hidden>
+      <div class="settings-group" data-settings-cat="secondscreen" data-settings-win-only hidden>
         <div class="settings-group-head">
           <span data-i18n="settings_secondscreen_title">Secondo schermo</span>
           <span class="settings-hint" data-i18n="settings_secondscreen_hint">Fluidità, qualità e risoluzione del monitor virtuale</span>
@@ -2448,7 +2454,7 @@
         <div id="settings-lighting-hub" data-lightf="mount"></div>
       </div>
 
-      <div class="settings-group" data-settings-cat="remote" hidden>
+      <div class="settings-group" data-settings-cat="remote" data-settings-win-only hidden>
         <!-- Remote Control wizard renders here (settings.js → RemoteControl.init()).
              Guides the user through installing Sunshine + Tailscale and pairing Moonlight. -->
         <div id="settings-remote-hub" data-remotef="mount"></div>
