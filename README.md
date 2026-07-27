@@ -55,7 +55,7 @@ A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with 
 - **Notifications hub** — a **Notifications tile** mirrors the whole PC's Windows toasts (WhatsApp, mail, Teams, Discord, launchers…) with real app icons, plus a **Discord DMs & mentions** feed — all read locally, nothing leaves your PC.
 - **Share your setup** — export your **theme**, a **dashboard page**, a full **Deck profile**, a single **community widget**, a **code-defined background**, or a whole **package** (theme + pages + widgets in one code) as a link or `.json`, and import someone else's in one step. Any export can be **protected with access codes** (encrypted locally, installs only for people you hand a code to), and every import is re-validated (widgets never auto-grant — you approve each one) so a shared preset can never run code behind your back. **Installed content** records what each download added and removes its theme, pages, Deck profiles, widgets, Ambient scenes, background and fonts together in one action.
 - **Make it yours, down to the last detail** — a full theme editor (colours, corner roundness, glass blur/saturation, borders, shadows), the same controls per individual widget, Xenon AI that can build a whole theme *or* an animated background from a description, and an **animated background** you can pick from a nine-item gallery, have the AI write, import, or code yourself in JavaScript (with your own bundled images) — running in an isolated sandbox.
-- **System & network monitor** — CPU, GPU, RAM, disks, throughput, ping/jitter, and real in-game FPS (PresentMon).
+- **System & network monitor** — CPU, GPU, RAM, disks, throughput, ping/jitter, and real in-game FPS (PresentMon on Windows, MangoHud on Linux).
 - **Media** — now-playing from any SMTC app, transport controls, album art, per-source volume.
 - **Audio & microphone** — output/input device pickers, master volume, mute, and a per-app mixer with real app icons.
 - **Xenon AI** — a voice + vision + chat assistant that can control the whole dashboard, started hands-free with the local **"Hey Xenon"** wake word. It **remembers facts about you**, stays coherent across long conversations, starts **speaking its reply almost immediately**, and offers **one-tap undo** for changes it makes. Runs on **Google Gemini (cloud)** or a **free local provider (Ollama)**.
@@ -217,8 +217,17 @@ Everything below is the **Windows** list. On macOS and Linux the equivalents are
 
 - A free **[Gemini API key](https://aistudio.google.com)** for Xenon AI (cloud) — everything else works without it.
 - **[Ollama](https://ollama.com)** + **[Whisper.cpp](https://github.com/ggerganov/whisper.cpp)** for the free local AI provider — set up on demand from Settings.
-- **[Sunshine](https://github.com/LizardByte/Sunshine)** + **[Tailscale](https://tailscale.com/)** for Remote Control — installed for you when you opt in; you use **[Moonlight](https://moonlight-stream.org/)** on your phone.
+- **[Sunshine](https://github.com/LizardByte/Sunshine)** + **[Tailscale](https://tailscale.com/)** for Remote Control — installed for you when you opt in; you use **[Moonlight](https://moonlight-stream.org/)** on your phone. *(Windows only — see the [platform table](#platform-support).)*
 - `nvidia-smi` is auto-detected for NVIDIA GPU usage/temperature.
+
+**On Linux, specifically** — everything below is optional, and the dashboard tells you which tile each one lights up. Run `npm run doctor` to see what your machine is missing.
+
+- `x11-utils` (`xprop`) — the app switcher and game-mode detection.
+- **[MangoHud](https://github.com/flightlessmango/MangoHud)** — in-game FPS. Launch the game with it (`mangohud %command%`); Xenon configures the rest.
+- `playerctl` — makes the now-playing tile update instantly instead of once a second. Without it Xenon reads the same data itself over D-Bus.
+- `wmctrl` — lets the app switcher focus and close windows, not just list them.
+- `dbus-monitor` (part of `dbus`) — mirroring desktop notifications.
+- `nvidia-smi` for NVIDIA cards. AMD and Intel need nothing.
 
 ---
 
@@ -235,29 +244,31 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 | Starts at login, updates itself | ✅ | ✅ | ✅ |
 | CPU, RAM, disks, network | ✅ | ✅ | ✅ |
 | CPU/GPU temperature and GPU load | ✅ | ✅ ⁸ | ✅ ¹ |
+| Fan speeds | ✅ | — | ✅ ⁹ |
 | System volume, microphone mute | ✅ | ✅ | ✅ |
 | Per-app volume mixer | ✅ | — | ✅ |
 | Now playing + media keys | ✅ | ✅ | ✅ ² |
-| Open apps / app switcher | ✅ | ✅ ³ | X11 only |
+| Open apps / app switcher | ✅ | ✅ ³ | X11 only ¹¹ |
 | Deck: open app, file or site, run a script, lock | ✅ | ✅ | ✅ |
-| Global search hotkey | ✅ | ✅ ³ | — |
-| Type text, move windows | ✅ | — | — |
+| Global search hotkey | ✅ | ✅ ³ | GNOME ¹² |
+| Type text, move windows | ✅ | — | — ¹⁴ |
 | Xenon AI, chat and actions (cloud and local) | ✅ | ✅ | ✅ |
 | Talking to it: voice input, screen vision | ✅ | ✅ | X11 only ⁴ |
 | "Hey Xenon" wake word | ✅ | ✅ ⁵ | ✅ ⁵ |
 | Network lighting (WLED, Hue, Nanoleaf, OpenRGB) | ✅ | ✅ | ✅ |
 | CORSAIR iCUE lighting | ✅ | — | — |
 | Streaming, Spotify, Discord, Home Assistant, Claude Code | ✅ | ✅ | ✅ |
-| In-game FPS counter | ✅ | — | — |
+| In-game FPS counter | ✅ | — | ✅ ¹³ |
+| Game mode (auto-pauses effects while playing) | ✅ | ✅ ³ | ✅ ¹⁶ |
 | Mirroring desktop notifications | ✅ | — | ✅ ⁶ |
-| Living Index, PC search, disk cleanup | ✅ | — | — |
+| Living Index, PC search, disk cleanup | ✅ | — | ✅ ¹⁰ |
 | Embedded browser tile | ✅ | ✅ ⁷ | ✅ ⁷ |
-| Second screen | ✅ | — | — |
-| Remote PC control (Sunshine) | ✅ | — | — |
+| Second screen | ✅ | — | — ¹⁵ |
+| Remote PC control (Sunshine) | ✅ | — | — ¹⁵ |
 
-¹ NVIDIA needs `nvidia-smi`; AMD is read from the kernel directly and needs nothing; Intel reports temperature only, because its load counters are not readable without elevated access.
+¹ NVIDIA needs `nvidia-smi`; AMD is read from the kernel directly and needs nothing. Intel has no load counter a normal process may read, so the figure comes from how much of each interval the GPU spent out of its deepest sleep state — a real, responsive measurement, but a broader one than execution-unit utilisation, so it reads higher than `nvidia-smi` would for the same work. Intel temperature is reported only by chips that publish a sensor (recent discrete cards do; most integrated ones do not).
 
-² Linux reads MPRIS over D-Bus, which needs `playerctl` installed.
+² Linux reads MPRIS over D-Bus. Nothing to install: it talks to the bus with `busctl`, which ships with systemd — the same systemd Xenon already uses to start at login. If `playerctl` happens to be installed it is preferred, because it pushes changes instead of being polled, so the tile updates the instant a track does.
 
 ³ Uses the Xenon Helper, a small companion the installer fetches. Without it the app switcher falls back to scripting, which asks for permission once per application, and the hotkey is not offered.
 
@@ -270,6 +281,22 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 ⁷ Needs a Chromium-based browser installed (Edge, Chrome, Chromium or Brave); the tile drives it over the DevTools protocol.
 
 ⁸ The Xenon Helper reads the thermal sensors and the graphics load directly, with nothing to install and no administrator password. Without the companion, `macmon` on PATH is the fallback; without either, both read "--".
+
+⁹ Linux reads every tachometer the kernel publishes under `/sys/class/hwmon`, with nothing to install and no elevation. Coverage depends on the chip having a driver: laptops are usually covered, and most desktop boards are once `lm_sensors` has loaded the right module.
+
+¹⁰ Linux indexes the folders you choose in Node itself, with no companion: search, the disk map and its categories all come from that one walk, and cleanup moves files to your desktop's Trash via the freedesktop specification. Content search (the part Windows Search provides) has no equivalent, so results match on file names.
+
+¹¹ Reading the window list needs only `xprop` (the `x11-utils` package) — no `wmctrl`, which is required only to *focus* or *close* a window from the tile. Under a Wayland session the list covers apps running through Xwayland; native Wayland windows are absent because Wayland has no protocol that lets a background app enumerate them, by design.
+
+¹² Global shortcuts belong to the desktop on Linux — X11's key grabs are invisible to a Wayland session, and Wayland deliberately offers no way for a background app to claim a key. So Xenon registers a real GNOME custom shortcut, the same one Settings → Keyboard writes: you can see it, edit it and delete it there, named **Xenon Search**. A combination another shortcut already owns is reported as taken instead of silently overwritten. On other desktops the shortcut is not registered and Settings shows the one-line command to bind by hand.
+
+¹³ Through **[MangoHud](https://github.com/flightlessmango/MangoHud)**, and only for games launched with it (`mangohud %command%` as a Steam launch option, or `mangohud ./game`). This is not a limitation of the port: Linux exposes no per-process frame counter — under Wayland each client presents to the compositor on its own, and the GPU's own counters are per-card, not per-application — so a game's frame rate cannot be read without the game's cooperation. Install MangoHud from your package manager; Xenon configures its logging and reads it from there.
+
+¹⁴ Sending synthetic keystrokes is refused by design under Wayland, which is what most current desktops run. On an X11 session it would be possible via `xdotool`; that path is not shipped because it could not be tested here, and shipping input injection unverified is worse than not offering it.
+
+¹⁵ Both are built on Windows-only foundations rather than merely untested: Second screen needs a Windows Indirect Display Driver to create the virtual monitor, and Remote control installs and supervises Sunshine and Tailscale as Windows services through winget and UAC. Neither panel is shown on macOS or Linux — they are hidden rather than offered and then failed.
+
+¹⁶ Linux reads the focused window from the window manager's own properties with `xprop` — which Xwayland maintains for X11 clients too, and games are almost always X11 clients (Proton and Wine render through Xwayland, and SDL2 still defaults to the X11 driver), so this keeps working on a GNOME or KDE Wayland session for exactly the applications game mode cares about. On sway and Hyprland their IPC is used instead. When the focused window is a native Wayland one, Xenon reports that it cannot see it rather than reusing the last window it could — a stale reading would leave game mode stuck on after you quit.
 
 macOS and Linux support is **new**. It is written against each platform's documented behaviour and covered by unit tests, but it has had far less real-world use than the Windows build — if something misbehaves, please [open an issue](https://github.com/marcimastro98/Xenon/issues) or say so on [Discord](https://discord.gg/MBVrw9kZyg).
 
