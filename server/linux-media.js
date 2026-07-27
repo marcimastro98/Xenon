@@ -18,8 +18,15 @@
 //
 // playerctl is the shim, for the same reason wpctl and wmctrl are: it turns a
 // D-Bus conversation into a line of text, which keeps this module a parser
-// instead of a D-Bus client. It is optional like every other Linux tool here —
-// without it the media tile stays empty, which is what it did before.
+// instead of a D-Bus client. It stays PREFERRED because it pushes: `--follow`
+// emits a line the moment a track changes, so the tile updates instantly and
+// nothing polls.
+//
+// It is also a package almost nobody has installed, and "the tile stays empty"
+// was a poor answer on a desktop that was publishing the data all along. So
+// when playerctl is absent, linux-mpris.js reads the same bus directly through
+// busctl — no install, at the cost of polling. Same record shape, same units,
+// same downstream code; only the transport differs.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const fs = require('fs');
@@ -207,6 +214,13 @@ function createLinuxMedia(options) {
   const onChange = typeof o.onChange === 'function' ? o.onChange : () => {};
   const exeOverride = o.exe || null;
 
+  // The no-install fallback. Constructed either way (it costs a PATH walk) but
+  // only started when playerctl is missing, so a machine with playerctl never
+  // pays for a poll it does not need.
+  const { createLinuxMpris } = require('./linux-mpris');
+  const dbus = o.dbus || createLinuxMpris({ onChange });
+  let usingDbus = false;
+
   let proc = null;
   let buf = '';
   let stopped = false;
@@ -219,8 +233,10 @@ function createLinuxMedia(options) {
     return exeOverride || findPlayerctl();
   }
 
+  // "Can this machine report now-playing at all", which is what the doctor and
+  // the tile's empty state ask. True through either transport.
   function available() {
-    return !!exe();
+    return !!exe() || dbus.available();
   }
 
   function handleLine(line) {
@@ -247,7 +263,13 @@ function createLinuxMedia(options) {
   function start() {
     if (stopped || proc) return;
     const bin = exe();
-    if (!bin) return;
+    if (!bin) {
+      // No playerctl: read D-Bus ourselves. Decided once at start rather than
+      // per call, so the two sources can never both be running and race to
+      // publish a different track.
+      if (dbus.available()) { usingDbus = true; dbus.start(); }
+      return;
+    }
     let child;
     try {
       // --follow streams a line per change and exits when the last player goes
@@ -283,11 +305,17 @@ function createLinuxMedia(options) {
     const dead = proc;
     proc = null;
     if (dead) { try { dead.kill(); } catch { /* already gone */ } }
+    try { dbus.stop(); } catch { /* never started */ }
+  }
+
+  function current() {
+    return usingDbus ? dbus.latest() : latest;
   }
 
   function info() {
-    if (!latest.rec) return shapeNowPlaying(null, 0);
-    return shapeNowPlaying(latest.rec, Date.now() - latest.at);
+    const cur = current();
+    if (!cur.rec) return shapeNowPlaying(null, 0);
+    return shapeNowPlaying(cur.rec, Date.now() - cur.at);
   }
 
   // A control is a one-shot invocation: the --follow child holds the stream, it
@@ -296,6 +324,7 @@ function createLinuxMedia(options) {
   function command(action) {
     const args = commandArgs(action);
     if (!args) return Promise.reject(new Error(`unsupported media action "${action}"`));
+    if (usingDbus) return dbus.command(action).then(() => info());
     const bin = exe();
     if (!bin) return Promise.reject(new Error('playerctl is not installed'));
     return new Promise((resolve, reject) => {
