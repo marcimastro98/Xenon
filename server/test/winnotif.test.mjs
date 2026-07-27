@@ -189,3 +189,55 @@ test('Linux: a mid-write block is never emitted, then is emitted once when compl
   assert.deepEqual(items.map((i) => i.title), ['third'], 'emitted once, whole');
   wn._setProcForTest(null);
 });
+
+// ── which platforms have a reader, and what the dashboard is told ───────────
+// sync() used to gate on win32 alone, which made _wanted permanently false on
+// Linux, so _start() was never called and the whole dbus path was unreachable
+// code. Nothing caught it because every Linux test above drives the parser and
+// the test hooks directly, never sync(). These do.
+
+const PLATFORM = Object.getOwnPropertyDescriptor(process, 'platform');
+function withPlatform(value, fn) {
+  Object.defineProperty(process, 'platform', { ...PLATFORM, value });
+  try { return fn(); } finally { Object.defineProperty(process, 'platform', PLATFORM); }
+}
+
+test('isSupported covers the platforms that actually have a reader', () => {
+  assert.equal(withPlatform('win32', () => wn.isSupported()), true);
+  assert.equal(withPlatform('linux', () => wn.isSupported()), true);
+  assert.equal(withPlatform('darwin', () => wn.isSupported()), false);
+  assert.equal(withPlatform('freebsd', () => wn.isSupported()), false);
+});
+
+test('sync(true) on Linux reaches the reader instead of no-opping', () => {
+  // The regression: state must leave 'off'. Where dbus-monitor is absent that
+  // is 'unavailable'; where it is present the monitor starts and reports
+  // 'allowed'. Either proves _start() ran — the old gate produced neither.
+  const state = withPlatform('linux', () => {
+    wn.sync(true);
+    const s = wn.getState();
+    wn.sync(false);          // stop any child this started before leaving
+    return s;
+  });
+  assert.notEqual(state, 'off');
+  assert.ok(['starting', 'allowed', 'unavailable'].includes(state), `unexpected state ${state}`);
+});
+
+test('where there is no reader the tile is told a terminal state, never "off"', () => {
+  withPlatform('darwin', () => {
+    wn.sync(true);
+    // The raw child state stays what it is — the reader's own logic and the
+    // tests above depend on that — but 'off' is what the tile renders as a
+    // permanent "Connecting…", so that is not what it is told.
+    assert.equal(wn.getState(), 'off');
+    assert.equal(wn.reportedState(), 'unavailable');
+  });
+});
+
+test('where there is a reader, reportedState is the raw state', () => {
+  withPlatform('win32', () => {
+    line({ event: 'status', status: 'denied' });
+    assert.equal(wn.reportedState(), 'denied');
+    assert.equal(wn.reportedState(), wn.getState());
+  });
+});

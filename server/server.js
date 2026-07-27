@@ -8899,7 +8899,8 @@ winNotif.init({
     // whole picture so every open tile repaints without a fetch.
     broadcastSSE('windows_notifications', {
       enabled: winNotifWanted(),
-      state: winNotif.getState(),
+      supported: winNotif.isSupported(),
+      state: winNotif.reportedState(),
       items: winNotif.getFeed(),
     });
   },
@@ -15242,7 +15243,7 @@ const server = http.createServer(async (req, res) => {
     // Notification text is private user data — loopback-only like every route,
     // and NEVER a JSONP candidate.
     const wn = normalizeWindowsNotifications(_serverHubSettings && _serverHubSettings.windowsNotifications);
-    json({ ok: true, enabled: wn.enabled, hide: wn.hide, toast: wn.toast, excluded: wn.excluded, state: winNotif.getState(), items: winNotif.getFeed() });
+    json({ ok: true, enabled: wn.enabled, hide: wn.hide, toast: wn.toast, excluded: wn.excluded, supported: winNotif.isSupported(), state: winNotif.reportedState(), items: winNotif.getFeed() });
 
   } else if (reqPath === '/sdk/widgets' && req.method === 'GET') {
     // Installed third-party widget packages — validated manifests only (see
