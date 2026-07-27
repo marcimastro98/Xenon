@@ -26,7 +26,7 @@ const nativeCollectors =
 // clean per-feature "unavailable" the action registry already knows how to
 // render. See runPowerShellScript / runPowerShellCommand.
 const POWERSHELL_SUPPORTED = process.platform === 'win32';
-const fpsMonitor = require('./fpsmon');
+const fpsMonitor = require('./fps-monitor'); // PresentMon on Windows, MangoHud on Linux
 const gameDetect = require('./gamedetect');
 const audioLevels = require('./audio-levels');
 const winNotif = require('./winnotif');
@@ -49,6 +49,8 @@ const slideshowFolder = require('./slideshow-folder');          // the slideshow
 const { createFileSearch } = require('./filesearch');           // local file search (Spotlight backend)
 const { createDiskSpace } = require('./diskspace');             // disk usage scan + guarded recycle-bin cleanup (helper-gated)
 const { createLivingIndex } = require('./living-index');       // the Living Index: helper-held in-RAM file index + watchers
+const { createLinuxIndex } = require('./linux-index');         // the same surface in plain Node, for the platform with no helper
+const { createLinuxTrash } = require('./linux-trash');         // the recycle-bin delete, via the freedesktop trash spec
 const contentInstalls = require('./js/content-installs'); // validated import receipts shared with Settings
 const themePalette = require('./js/theme-palette.js'); // single owner of the semantic-palette rules (shared with the client + tests)
 const aiLocal = require('./ai-local');
@@ -70,7 +72,7 @@ const { createStreamerbot } = require('./actions/streamerbot');
 const { createHomeAssistant, normalizeHomeAssistant, preserveHaToken, redactHaToken } = require('./actions/home-assistant');
 const { createChroma } = require('./actions/chroma');
 const { createWaveLink } = require('./actions/wavelink');
-const { createEmbeddedBrowser } = require('./embedded-browser');
+const { createEmbeddedBrowser, findEdge } = require('./embedded-browser');
 const browserAdblock = require('./embedded-browser-adblock');
 const { createBrowserSurfaceSync } = require('./browser-surface-sync');
 const { createSecondScreen } = require('./second-screen');
@@ -763,7 +765,14 @@ async function launchInstalledApp(app) {
 // verb — the same launcher every Deck key uses — after the module re-checks
 // the openFile blocklist; the PS search host it manages is retired in
 // _gracefulShutdown.
-const livingIndex = createLivingIndex({ helperExe: HELPER_EXE });
+// Linux gets its own implementation of the same surface. The helper the Living
+// Index drives is built for Windows and macOS only, so on Linux `helperPresent()`
+// was false for ever: search had no backend at all, while Spotlight still told
+// the user to add a folder in Settings to switch one on. linux-index.js does the
+// walk in Node and makes that sentence true.
+const livingIndex = process.platform === 'linux'
+  ? createLinuxIndex()
+  : createLivingIndex({ helperExe: HELPER_EXE });
 const fileSearch = createFileSearch({
   dataDir: DATA_DIR,
   livingIndex,
@@ -784,13 +793,20 @@ function openSpotlightPopupWindow() {
   for (const pid of _spotlightPopupPids) {
     try {
       process.kill(pid, 0); // liveness probe only
-      runPowerShellScript(DECK_POPUP_TOP_SCRIPT, ['-ProcessId', String(pid), '-Title', 'Xenon Search'], 8000).catch(() => {});
+      // Raising a window is a Win32 call. Elsewhere the browser's own
+      // activate-on-reuse is all there is, and a popup that is already open
+      // simply stays where the window manager put it.
+      if (POWERSHELL_SUPPORTED) {
+        runPowerShellScript(DECK_POPUP_TOP_SCRIPT, ['-ProcessId', String(pid), '-Title', 'Xenon Search'], 8000).catch(() => {});
+      }
       return { ok: true };
     } catch { _spotlightPopupPids.delete(pid); }
   }
-  const edge = ['C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe']
-    .find((p) => { try { return fs.existsSync(p); } catch { return false; } });
+  // The same Chromium the embedded-browser tile drives — one detector for both,
+  // so a machine that can show a web tile can also show the Spotlight popup.
+  // The hardcoded Program Files pair only ever existed because this path was
+  // Windows-only; findEdge covers those two and every Linux/macOS install.
+  const edge = findEdge();
   if (!edge) return { ok: false, error: 'edge_not_found' };
   const args = [
     '--app=http://127.0.0.1:' + PORT + '/spotlight',
@@ -806,10 +822,12 @@ function openSpotlightPopupWindow() {
     _spotlightPopupPids.add(child.pid);
     child.on('exit', () => _spotlightPopupPids.delete(child.pid));
   } catch { return { ok: false, error: 'popup_failed' }; }
-  setTimeout(() => {
-    try { runPowerShellScript(DECK_POPUP_TOP_SCRIPT, ['-ProcessId', String(pid), '-Title', 'Xenon Search'], 8000).catch(() => {}); }
-    catch { /* best-effort */ }
-  }, 1500).unref();
+  if (POWERSHELL_SUPPORTED) {
+    setTimeout(() => {
+      try { runPowerShellScript(DECK_POPUP_TOP_SCRIPT, ['-ProcessId', String(pid), '-Title', 'Xenon Search'], 8000).catch(() => {}); }
+      catch { /* best-effort */ }
+    }, 1500).unref();
+  }
   return { ok: true };
 }
 
@@ -857,10 +875,35 @@ function _stopHotkeyListener() {
   p.once('exit', () => clearTimeout(force));
 }
 
+// On Linux the shortcut is not a process we own but an entry in the desktop's
+// own keybinding store, so there is nothing to spawn, supervise or restart —
+// registering is a one-shot write and the state it produces is final until the
+// user changes the combo. Kept out of refreshHotkeyListener's process lifecycle
+// entirely rather than pretended into it.
+const _linuxHotkey = process.platform === 'linux'
+  ? require('./linux-hotkey').createLinuxHotkey({ port: PORT })
+  : null;
+
+function refreshLinuxHotkey(want, combo) {
+  if (!want) {
+    _hotkey.state = 'off';
+    _hotkey.combo = '';
+    _linuxHotkey.unregister().catch(() => { /* nothing registered */ });
+    return;
+  }
+  if (_hotkey.state === 'listening' && _hotkey.combo === combo) return;
+  _hotkey.state = 'starting';
+  _linuxHotkey.register(combo).then((r) => {
+    _hotkey.state = r.state || (r.ok ? 'listening' : 'error');
+    _hotkey.combo = r.ok ? combo : '';
+  }).catch(() => { _hotkey.state = 'error'; _hotkey.combo = ''; });
+}
+
 function refreshHotkeyListener() {
   const cfg = (_serverHubSettings && _serverHubSettings.searchSettings) || {};
   const want = cfg.hotkeyEnabled === true;
   const combo = String(cfg.hotkeyCombo || 'alt+space');
+  if (_linuxHotkey) { refreshLinuxHotkey(want, combo); return; }
   if (!want) { _cancelHotkeyRetry(); _stopHotkeyListener(); _hotkey.state = 'off'; return; }
   if (_hotkey.proc && _hotkey.combo === combo) return;   // already right
   _stopHotkeyListener();
@@ -915,11 +958,42 @@ function refreshHotkeyListener() {
   proc.unref();
 }
 
+// The roots this machine can actually open, from whatever is saved.
+//
+// Roots are stored in whichever shape the machine that saved them uses, and
+// normalizeSearchSettings deliberately keeps BOTH shapes so a config carried
+// between a PC and a Mac is never destroyed. The consequence is that a saved
+// list can be non-empty and still contain nothing this host can open: the
+// dashboard's own browser-side default wrote "C:\" on every Mac and Linux
+// install, and no POSIX walk can start there. Search then ran with zero roots
+// and reported itself off, and the disk widget — which addresses roots BY INDEX
+// into this same list — resolved root 0 to "C:\" and drew an empty 0-byte disk.
+// Both while Settings displayed a configured folder, so there was nothing the
+// user could do about either.
+//
+// Every consumer must therefore resolve through here, or two of them disagree
+// about which disk is being talked about. The saved list is left untouched, so
+// a config shared with a Windows machine still works there.
+//
+// Three distinct states, and collapsing any two of them breaks something:
+//   absent      nobody has chosen yet          → this platform's default
+//   empty       the user switched it off       → stays off
+//   unusable    saved elsewhere, non-empty     → this platform's default
+function usableIndexRoots(saved) {
+  const platformDefault = POWERSHELL_SUPPORTED ? 'C:\\' : os.homedir();
+  if (!Array.isArray(saved)) return [platformDefault];
+  if (!saved.length) return [];
+  const usable = saved.filter((r) => (process.platform === 'win32'
+    ? /^[A-Za-z]:\\/.test(String(r))
+    : String(r).startsWith('/')));
+  return usable.length ? usable : [platformDefault];
+}
+
 // Point the Living Index at the configured roots (idempotent — setRoots
 // restarts the host only when they actually changed).
 function refreshLivingIndex() {
   const cfg = (_serverHubSettings && _serverHubSettings.searchSettings) || {};
-  try { livingIndex.setRoots(cfg.indexRoots || []); } catch { /* helper absent */ }
+  try { livingIndex.setRoots(usableIndexRoots(cfg.indexRoots)); } catch { /* helper absent */ }
 }
 // Disk space (helper-gated, like the Second screen). Scans stream from the
 // helper's disk-scan; deletion is recycle-bin-only through shell-delete after
@@ -929,9 +1003,19 @@ const diskSpace = createDiskSpace({
   dataDir: DATA_DIR,
   helperExe: HELPER_EXE,
   livingIndex,
+  // The recycle-bin delete. Windows and macOS use the helper's `shell-delete`;
+  // Linux has no helper, so cleanup was analysable but not actionable — the
+  // widget could show 700 MB of installers and then refuse to remove one.
+  // `gio trash` is the same promise (reversible, visible in the user's own
+  // Trash) through the freedesktop spec.
+  shellDelete: process.platform === 'linux' ? createLinuxTrash() : undefined,
   getIndexRoots: async () => {
     const s = await readHubSettings();
-    return (s && s.searchSettings && s.searchSettings.indexRoots) || [];
+    // Through the same resolver the index uses. The widget picks a root by its
+    // POSITION in this list, so handing it the raw saved array while the index
+    // walked a different one meant the map was drawn for a disk nobody was
+    // indexing — on this machine, the literal string "C:\".
+    return usableIndexRoots(s && s.searchSettings && s.searchSettings.indexRoots);
   },
   // Reuse the system tile's ten-minute volume cache: the disk widget gets
   // friendly labels/models without adding another recurring PowerShell probe.
@@ -3688,6 +3772,13 @@ async function getSystemInfo() {
     fans,
     power,
     disks,
+    // Which OS is answering. Tiles that have to explain an absence need it:
+    // "no fan sensors" is a different sentence on a PC (install the companion,
+    // re-run the installer) than on a Linux box, where the kernel publishes
+    // every tachometer it can see and there is nothing to install. Sent with
+    // the readings so a tile never has to render its explanation before it
+    // knows which one is true.
+    platform: process.platform,
   };
 }
 
@@ -7648,12 +7739,18 @@ function normalizeSearchSettings(value, defaultRoot) {
     if (!/^[A-Za-z]:\\?$|^[A-Za-z]:\\.+/.test(w)) return '';
     return w.length === 2 ? w + '\\' : w;
   };
+  // No `|| 'C:\\'` fallback. A caller that knows the machine passes
+  // `defaultRoot`; one that does not must get NO root rather than a Windows
+  // drive letter, because the copy of this function that runs in the browser
+  // is exactly such a caller, and its guess was written to settings.json on
+  // every Mac and Linux install — a root nothing could walk, with Settings
+  // showing it as configured the whole time.
   const roots = rawRoots == null
-    ? [defaultRoot || 'C:\\']
+    ? (defaultRoot ? [defaultRoot] : null)
     : rawRoots.map(cleanRoot).filter(Boolean).slice(0, 8);
   const combo = String(v.hotkeyCombo || 'alt+space').toLowerCase().trim().slice(0, 40);
   return {
-    indexRoots: roots,
+    ...(roots ? { indexRoots: roots } : {}),
     hotkeyEnabled: v.hotkeyEnabled === true,
     hotkeyCombo: /^[a-z0-9+ ]{3,40}$/.test(combo) ? combo : 'alt+space',
     // AI full context ("the brain"): enriches explicit AI search / Disk Advisor
@@ -10613,9 +10710,17 @@ const server = http.createServer(async (req, res) => {
     // Game mode runs off foreground full-screen detection (no PresentMon needed).
     // PresentMon is reported only so Settings can offer the optional FPS-readout
     // install button. The foreground field is a live diagnostic for false positives.
+    //
+    // fpsBackend names WHICH reader is behind that flag, because the two are not
+    // interchangeable: PresentMon is a download Xenon can perform, MangoHud is a
+    // package the user installs and then has to launch the game with. Settings
+    // has to offer a button for one and an explanation for the other, and it
+    // cannot tell them apart from an availability boolean alone.
     try {
       json({
         presentMonAvailable: fpsMonitor.isAvailable(),
+        fpsBackend: fpsMonitor.backend || null,
+        fpsAvailable: fpsMonitor.isAvailable(),
         gaming: gameDetect.isGaming(),
         gameRunning: gameDetect.isGameRunning(),
         gameProcess: gameDetect.getGameProcess(),
@@ -10942,7 +11047,11 @@ const server = http.createServer(async (req, res) => {
     // One-click download of the classic single-binary PresentMon CLI (the same
     // v1.10.0 asset install.ps1 fetches), placed in server/presentmon/.
     try {
-      if (fpsMonitor.isAvailable()) { json({ ok: true, alreadyInstalled: true }); }
+      // PresentMon is a Windows ETW tool: there is no build to fetch anywhere
+      // else, and the download itself is written in PowerShell. Refusing by name
+      // beats letting the client discover it through a spawn failure.
+      if (process.platform !== 'win32') { json({ ok: false, error: 'unsupported_platform' }); }
+      else if (fpsMonitor.isAvailable()) { json({ ok: true, alreadyInstalled: true }); }
       else {
         const ps = [
           "$ErrorActionPreference='Stop';",
@@ -11640,7 +11749,12 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/version' && req.method === 'GET') {
-    json({ version: APP_VERSION });
+    // `platform` so the dashboard can stop prescribing Windows remedies to
+    // machines that have no Windows. Several hints named LibreHardwareMonitor
+    // and told the user to "re-run INSTALL.bat" — a file that does not exist on
+    // macOS or Linux, for a dependency those platforms do not use. The value is
+    // Node's own, so the client never has to guess from a user agent.
+    json({ version: APP_VERSION, platform: process.platform });
 
   } else if (reqPath === '/whatsnew' && req.method === 'GET') {
     // Curated highlights for the running version (see loadWhatsNew). Static and
@@ -14871,6 +14985,14 @@ const server = http.createServer(async (req, res) => {
       json({ state: _hotkey.state, combo: _hotkey.combo || ss.hotkeyCombo || 'alt+space' });
     } catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/search/hotkey-press' && req.method === 'POST') {
+    // The Linux shortcut's other end. There is no process pushing key events
+    // here: the desktop runs a command, and that command is a POST to this.
+    // Bound to loopback like the rest of the server, and it carries no payload —
+    // pressing it only ever opens Xenon's own search window.
+    try { routeSpotlightHotkey(); json({ ok: true }); }
+    catch (e) { err500(e.message); }
+
   } else if (reqPath === '/disk/status' && req.method === 'GET') {
     // Disk widget state: helper presence, scan progress, last summary and —
     // after a scan — the treemap tree, categories, top files and verified
@@ -15084,6 +15206,10 @@ const server = http.createServer(async (req, res) => {
       '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
       '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
       '.webp': 'image/webp', '.svg': 'image/svg+xml', '.gif': 'image/gif',
+      // The self-hosted UI face (styles/fonts.css). Served as
+      // application/octet-stream a browser still renders it, but it logs a MIME
+      // complaint and any future font-src CSP would have nothing to allow.
+      '.woff2': 'font/woff2', '.woff': 'font/woff',
     };
     const mime = STATIC_MIME[ext] || 'application/octet-stream';
     if (ext === '.css' || ext === '.js') {
@@ -16347,9 +16473,33 @@ function ensureHelperUpToDate(attempt = 1) {
   } catch { /* best-effort */ }
 }
 
+// Where to bind. Loopback ONLY by default.
+//
+// This used to be '::', chosen for dual-stack loopback — the comment said
+// "accepts both 127.0.0.1 and ::1", which is true but not the whole truth:
+// '::' accepts from every address on the machine, so the dashboard was
+// answering on the LAN. That is a real exposure, not a theoretical one. Xenon
+// serves file search, a disk map, notes, calendar and an AI assistant with
+// system actions behind no authentication at all, because it was designed on
+// the premise that only this machine can reach it. Remote PC control is a
+// separate thing entirely (Sunshine over Tailscale), and the Widget SDK
+// documents "no network access". Nothing in the product needs the wider bind.
+//
+// On Windows the firewall prompt hid this; on Linux it depends on the distro —
+// Fedora's firewalld blocks it, a minimal Arch or Debian desktop does not.
+//
+// Cost of the change: '[::1]:3030' no longer answers. Every caller in the tree
+// uses 127.0.0.1 (the native app, install.sh, the bootstrap, the docs), so this
+// is a URL nobody dials, and IPv6 loopback cannot be added without a second
+// listener that would also have to duplicate the 'upgrade' handling below.
+//
+// XENON_BIND_HOST is the deliberate way back out — set it to '::' to restore
+// the old all-interfaces behaviour, on purpose and in one place.
+const BIND_HOST = process.env.XENON_BIND_HOST || '127.0.0.1';
+
 // The host the last listen() attempt used, so an EADDRINUSE retry re-binds the
 // same stack (see the error handler below).
-let _listenHost = '::';
+let _listenHost = BIND_HOST;
 let _eaddrinuseRetries = 0;
 const EADDRINUSE_MAX_RETRIES = 15;   // ~15 s of retrying before giving up
 const EADDRINUSE_RETRY_MS = 1000;
@@ -16453,9 +16603,10 @@ server.on('error', err => {
   }
 });
 
-// Try IPv6 dual-stack first (accepts both 127.0.0.1 and ::1).
-// Falls back to IPv4 via the error handler if IPv6 is unavailable.
-_startListen('::');
+// IPv4 loopback. Only an explicit XENON_BIND_HOST reaches anything else, and
+// the error handler above still falls back to 127.0.0.1 if that override names
+// a stack this machine does not have.
+_startListen(BIND_HOST);
 
 // ── SSE broadcast timers ──────────────────────────────────────────────────────
 // These replace client-side setInterval polling.  Timers only run work when at
