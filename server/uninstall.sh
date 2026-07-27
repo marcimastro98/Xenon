@@ -116,6 +116,67 @@ fi
 # systemd unit's output lives in the journal, which is not ours to prune).
 rm -rf "$MAC_LOG_DIR" 2>/dev/null
 
+# ── Things Xenon wrote OUTSIDE its own folder ────────────────────────────────
+# These are the only two, and both would otherwise outlive the uninstall in a
+# way the user would notice.
+if [ "$(uname -s)" != 'Darwin' ]; then
+  # The global search shortcut. Xenon registers a real GNOME custom keybinding,
+  # so leaving it behind means a key combination that silently does nothing
+  # forever — the worst kind of leftover, because nothing on the system explains
+  # it. Removed by path, so a shortcut the user made themselves is untouched.
+  HOTKEY_SCHEMA='org.gnome.settings-daemon.plugins.media-keys'
+  HOTKEY_PATH='/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/xenon-spotlight/'
+  if command -v gsettings >/dev/null 2>&1 &&
+     gsettings list-schemas 2>/dev/null | grep -qx "$HOTKEY_SCHEMA"; then
+    CUR="$(gsettings get "$HOTKEY_SCHEMA" custom-keybindings 2>/dev/null)"
+    case "$CUR" in
+      *"$HOTKEY_PATH"*)
+        step 'Removing the global search shortcut…'
+        LEFT="$(printf '%s' "$CUR" | tr ',' '\n' | grep -v "$HOTKEY_PATH" |
+                sed "s/^[[:space:]]*\[*//; s/\]*[[:space:]]*$//" |
+                grep "'" | paste -sd, -)"
+        # "[]" alone is an ambiguous GVariant that gsettings refuses; the empty
+        # array has to be spelled out.
+        [ -n "$LEFT" ] && LEFT="[$LEFT]" || LEFT='@as []'
+        gsettings set "$HOTKEY_SCHEMA" custom-keybindings "$LEFT" 2>/dev/null
+        for k in name command binding; do
+          gsettings reset "${HOTKEY_SCHEMA}.custom-keybinding:${HOTKEY_PATH}" "$k" 2>/dev/null
+        done
+        ;;
+    esac
+  fi
+
+  # MangoHud's FPS logs, which Xenon asked it to write into a folder of ours.
+  rm -rf "${XDG_STATE_HOME:-$HOME/.local/state}/xenon" 2>/dev/null
+  # The four logging lines Xenon added to the user's MangoHud config. Their own
+  # settings in that file are theirs and stay; only our block goes, and only if
+  # the marker comment we wrote is there to identify it.
+  MH_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/MangoHud/MangoHud.conf"
+  if [ -f "$MH_CONF" ] && grep -q '^# Added by Xenon' "$MH_CONF" 2>/dev/null; then
+    step 'Removing the MangoHud logging lines Xenon added…'
+    # `|| true` is load-bearing: grep exits 1 when it selects NO lines, which is
+    # precisely the common case here — a MangoHud.conf that Xenon created and
+    # that therefore contains nothing but Xenon's lines. Chained with && that
+    # exit status skipped the write, so the one config we were surest about
+    # removing was the one always left behind.
+    TMP_MH="$(mktemp)" || TMP_MH=''
+    if [ -n "$TMP_MH" ]; then
+      grep -v -e '^# Added by Xenon' -e '^output_folder=' -e '^autostart_log=' \
+              -e '^log_interval=' -e '^log_duration=' "$MH_CONF" > "$TMP_MH" || true
+      cat "$TMP_MH" > "$MH_CONF"
+      rm -f "$TMP_MH"
+    fi
+    # If our lines were the ONLY thing in there, the file was ours: leaving an
+    # empty MangoHud.conf behind would be litter for a tool the user may not
+    # even have. rmdir only succeeds on an empty directory, so a config folder
+    # holding anything else of theirs survives.
+    if [ ! -s "$MH_CONF" ] || ! grep -q '[^[:space:]]' "$MH_CONF" 2>/dev/null; then
+      rm -f "$MH_CONF"
+      rmdir "$(dirname "$MH_CONF")" 2>/dev/null
+    fi
+  fi
+fi
+
 # ── User data, only on an explicit request ───────────────────────────────────
 if [ "$PURGE" = "1" ]; then
   if [ -d "$DATA_DIR" ]; then

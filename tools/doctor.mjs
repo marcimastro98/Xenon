@@ -115,7 +115,13 @@ if (PLAT === 'win32') {
 
 const TOOLS = PLAT === 'darwin'
   ? [['node', true], ['perl', false], ['ffmpeg', false], ['macmon', false], ['SwitchAudioSource', false], ['unzip', false]]
-  : [['node', true], ['ffmpeg', false], ['nvidia-smi', false], ['wpctl', false], ['playerctl', false], ['wmctrl', false], ['unzip', false]];
+  // busctl and xprop are listed because a whole feature turns on each: busctl
+  // is the no-install MPRIS reader, xprop is the foreground/game probe. Both
+  // are ordinarily present (systemd, x11-utils), which is exactly why their
+  // absence is worth naming rather than leaving as a silently dead tile.
+  : [['node', true], ['ffmpeg', false], ['nvidia-smi', false], ['wpctl', false],
+     ['busctl', false], ['playerctl', false], ['xprop', false], ['wmctrl', false],
+     ['mangohud', false], ['gio', false], ['unzip', false]];
 
 for (const [bin, required] of TOOLS) {
   const at = await which(bin);
@@ -157,10 +163,14 @@ await probe('audio devices', () => collectors.audioRows(), checks.checkAudioRows
         ],
       }
     : {
-        name: 'playerctl',
+        // Reaching this on Linux now means BOTH transports are gone, which is
+        // why the note names busctl: playerctl being absent is ordinary and no
+        // longer costs anything, but a machine without busctl either has no
+        // systemd — and Xenon's own autostart would not work there.
+        name: 'MPRIS reader',
         notes: [
-          'Without it nothing reads MPRIS, so the media tile stays empty.',
-          'Install it with your package manager (for example `sudo apt install playerctl`).',
+          'Neither playerctl nor busctl is available, so nothing can read MPRIS and the media tile stays empty.',
+          'busctl ships with systemd; playerctl is optional (`sudo dnf install playerctl` / `sudo apt install playerctl`) and only makes updates instant instead of polled.',
         ],
       };
   if (!host.available()) {

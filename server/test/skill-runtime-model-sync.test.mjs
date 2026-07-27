@@ -19,16 +19,26 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const require = createRequire(import.meta.url);
 const sdk = require(join(ROOT, 'server', 'sdk-widgets.js'));
 
-const MODEL = readFileSync(
-  join(ROOT, '.claude', 'skills', 'xenon-audit-review', 'reference', 'runtime-model.md'),
-  'utf8',
-);
+// `.claude/` is in .gitignore, so the skill this pins does not exist in a clone,
+// in CI, or in the release source zip. Reading it unconditionally made the file
+// throw at import time and took the whole `npm test` run down with it — a suite
+// that cannot pass anywhere except one maintainer's working copy. Absent means
+// there is no transcription to drift, so the checks that read it skip; the two
+// that assert on the code itself still run everywhere.
+const MODEL_PATH = join(ROOT, '.claude', 'skills', 'xenon-audit-review', 'reference', 'runtime-model.md');
+let MODEL = '';
+let NO_MODEL = '';
+try {
+  MODEL = readFileSync(MODEL_PATH, 'utf8');
+} catch {
+  NO_MODEL = 'the xenon-audit-review skill is not present (.claude/ is gitignored)';
+}
 
 // WIDGET_CSP is exported already joined with '; '. Split it back so each
 // directive can be checked on its own line, which is how the skill lists them.
 const DIRECTIVES = String(sdk.WIDGET_CSP).split(';').map((d) => d.trim()).filter(Boolean);
 
-test('the skill quotes every live widget CSP directive verbatim', () => {
+test('the skill quotes every live widget CSP directive verbatim', { skip: NO_MODEL }, () => {
   for (const directive of DIRECTIVES) {
     assert.ok(
       MODEL.includes(directive),
@@ -41,7 +51,7 @@ test('the skill quotes every live widget CSP directive verbatim', () => {
 // The inverse: a directive the skill claims but the code no longer sets would
 // make it dismiss real findings as blocked. Only the directives actually present
 // may appear in the widget CSP block.
-test('the skill claims no widget CSP directive the code does not set', () => {
+test('the skill claims no widget CSP directive the code does not set', { skip: NO_MODEL }, () => {
   const block = MODEL.split('```')[1] || '';
   const claimed = block.split('\n').map((l) => l.trim()).filter(Boolean);
   assert.ok(claimed.length > 0, 'expected the widget CSP fenced block in runtime-model.md');
@@ -68,7 +78,8 @@ test('the background frame still allows unsafe-eval and the widget CSP still doe
     !DIRECTIVES.some((d) => d.includes('unsafe-eval')),
     'the widget CSP gained unsafe-eval: the skill tells reviewers eval cannot run in a widget',
   );
-  assert.match(MODEL, /unsafe-eval/, 'runtime-model.md no longer explains the background exception');
+  // The code half above always runs; only the transcription check needs the skill.
+  if (!NO_MODEL) assert.match(MODEL, /unsafe-eval/, 'runtime-model.md no longer explains the background exception');
 });
 
 // The sandbox attribute is load-bearing in a different way: `allow-same-origin`
