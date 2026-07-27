@@ -125,6 +125,33 @@ function parseGpu(out) {
 // what they mean.
 const GPU_DRIVER_NAMES = { amdgpu: 'AMD GPU', radeon: 'AMD GPU', i915: 'Intel GPU', xe: 'Intel GPU' };
 
+// --- Intel activity from RC6 residency ---------------------------------------
+// Intel publishes no `gpu_busy_percent`, and the utilisation the PMU can give
+// needs perf permissions this backend deliberately does not have: it runs as the
+// user, with no capabilities, and `perf_event_paranoid` is 2 on a stock Fedora.
+// So the tile showed "--%" on every Intel machine, which is most laptops.
+//
+// `power/rc6_residency_ms` is readable by anyone and counts the milliseconds the
+// render engine spent in its deepest sleep state. The complement of its rate is
+// the share of wall-clock time the GPU was awake. That is NOT execution-unit
+// utilisation — an awake-but-lightly-loaded GPU counts as busy — so it reads
+// higher than nvidia-smi would for the same work. It is a real, responsive
+// measurement of the same underlying thing, and it moves: measured on this
+// port, idle desktop 10-11%, dashboard rendering 14-16%, first paint ~69%.
+//
+// Pure, given two samples, so the arithmetic is testable without a GPU.
+function rc6Busy(prev, cur) {
+  if (!prev || !cur) return null;
+  const dRc6 = cur.rc6Ms - prev.rc6Ms;
+  const dWall = cur.atMs - prev.atMs;
+  // A counter that went backwards means the driver reloaded or the machine
+  // suspended; a window that is too short cannot be divided meaningfully, and
+  // one that is too long spans a sleep during which neither clock was running.
+  if (!(dWall >= 500 && dWall <= 300000)) return null;
+  if (!(dRc6 >= 0)) return null;
+  return Math.max(0, Math.min(100, Math.round(100 - (dRc6 * 100) / dWall)));
+}
+
 function parseSysfsGpu(snap) {
   const s = snap || {};
   const num = (v) => (isNum(v) ? Number(String(v).trim()) : null);
@@ -178,9 +205,20 @@ async function readCardSnapshot(dir) {
     busy: await readOrNull(`${dir}/device/gpu_busy_percent`),
     vramUsed: await readOrNull(`${dir}/device/mem_info_vram_used`),
     vramTotal: await readOrNull(`${dir}/device/mem_info_vram_total`),
+    // Only meaningful while RC6 is actually enabled. With it off the counter
+    // never advances, and a rate computed from a frozen counter reads as a
+    // permanently pegged 100% — the one wrong answer worse than no answer.
+    rc6Enabled: (await readOrNull(`${dir}/power/rc6_enable`)) === '1',
+    rc6Ms: Number(await readOrNull(`${dir}/power/rc6_residency_ms`)),
     temps,
   };
 }
+
+// Last RC6 sample per card, so the next poll can turn two readings into a rate.
+// server.js polls this collector on its own timer; the first call after a boot
+// therefore has nothing to compare against and reports null, exactly as it did
+// before — one poll of "--", then numbers.
+const _rc6Last = new Map();
 
 async function sysfsGpu() {
   let cards;
@@ -193,6 +231,14 @@ async function sysfsGpu() {
     const snap = await readCardSnapshot(`${SYSFS_DRM}/${name}`);
     if (!snap.driver) continue;
     const parsed = parseSysfsGpu(snap);
+    // amdgpu answers `gpu_busy_percent` directly and needs none of this. Intel
+    // has no such file, so the load comes from how much of the interval since
+    // the last poll the GPU spent out of RC6.
+    if (parsed.gpu === null && snap.rc6Enabled && Number.isFinite(snap.rc6Ms)) {
+      const cur = { rc6Ms: snap.rc6Ms, atMs: Date.now() };
+      parsed.gpu = rc6Busy(_rc6Last.get(name), cur);
+      _rc6Last.set(name, cur);
+    }
     // Prefer the card that actually reports a load: a laptop lists its
     // integrated GPU first and the discrete one second, and the discrete one is
     // the interesting one.
@@ -242,8 +288,18 @@ function parseDisks(out) {
     if (c.length < 6) continue;
     const [source, target, fstype] = c;
     const total = Number(c[3]);
-    const used = Number(c[4]);
     const free = Number(c[5]);
+    // Used is computed as total - free, never df's own Used column — the same
+    // rule darwin-collectors.js follows, and the contract doctor-checks.mjs
+    // enforces. On ext4 the two disagree: mke2fs reserves 5% of the filesystem
+    // for root, df counts those blocks in neither Used nor Available, and the
+    // tile then draws a bar whose segments do not add up to the disk. Measured
+    // on /boot (1.9 GB, 1.8 GB accounted for) the gap was 6% — small in
+    // absolute terms, large enough that the label and the bar disagreed.
+    // Counting reserved space as used is also the honest reading: it is space
+    // this user cannot write to, and `free` stays the number that says what
+    // will actually fit.
+    const used = Math.max(0, total - free);
     if (PSEUDO_FS.has(fstype) || fstype.startsWith('fuse.')) continue;
     if (skipMount(target)) continue;
     if (!(total > 0)) continue;
@@ -282,10 +338,67 @@ async function disks() {
   }
 }
 
-// --- CPU temperature: k10temp/coretemp under /sys/class/hwmon ----------------
-// Returns { cpuTemp: number|null } to match the CPU_TEMP_SCRIPT collector.
+// --- CPU temperature and fans: /sys/class/hwmon ------------------------------
+// Returns { cpuTemp: number|null, fans: [{name, rpm, kind}] } to match the shape
+// CPU_TEMP_SCRIPT produces on Windows.
+//
+// Fans need no LibreHardwareMonitor and no elevation here: any chip with a
+// tachometer publishes `fanN_input` in RPM as a world-readable file. That is the
+// whole feature on this platform, which is why the widget's "install the
+// companion / re-run INSTALL.bat" hint was doubly wrong on Linux — it named a
+// Windows dependency and a Windows installer for something the kernel already
+// had. Coverage is per-driver: laptops with `thinkpad`/`dell_smm`/`applesmc`
+// report, most desktops report through `nct6775` and friends once lm_sensors has
+// loaded the right module, and a machine whose chip has no driver reports
+// nothing — which is then genuinely nothing, not a missing tool.
 const readText = async (p) => (await fsp.readFile(p, 'utf8')).trim();
+
+// Pure: given [{chip, index, rpm, label}] decide what the tile shows. Kept
+// separate so the naming and filtering rules are testable without hwmon.
+function parseHwmonFans(rows) {
+  const out = [];
+  for (const r of Array.isArray(rows) ? rows : []) {
+    if (!r) continue;
+    // `isNum` first, not `Number()`: an unreadable sysfs file yields an empty
+    // string, and Number('') is 0 — which would have published a phantom fan,
+    // stopped, for every empty tachometer on the machine.
+    if (!isNum(r.rpm)) continue;
+    const rpm = Number(r.rpm);
+    // 0 itself is real and kept: a card in zero-RPM mode has genuinely stopped
+    // its fans, and the tile is meant to show that rather than hide the fan.
+    if (rpm < 0 || rpm > 30000) continue;
+    const label = String(r.label || '').trim();
+    const chip = String(r.chip || '').trim();
+    // The label when the driver gives one ("CPU Fan"), otherwise the chip plus
+    // its index, which is what lm_sensors shows and what the user can rename.
+    const name = label || (chip ? `${chip} fan ${r.index}` : `Fan ${r.index}`);
+    out.push({ name: name.slice(0, 48), rpm: Math.round(rpm), kind: 'mb' });
+  }
+  return out;
+}
+
+async function readHwmonFans() {
+  const rows = [];
+  try {
+    const base = '/sys/class/hwmon';
+    for (const d of await fsp.readdir(base)) {
+      const dir = `${base}/${d}`;
+      let chip = '';
+      try { chip = await readText(`${dir}/name`); } catch { /* unnamed chip */ }
+      for (let i = 1; i <= 8; i++) {
+        let rpm;
+        try { rpm = await readText(`${dir}/fan${i}_input`); } catch { continue; }
+        let label = '';
+        try { label = await readText(`${dir}/fan${i}_label`); } catch { /* unlabelled */ }
+        rows.push({ chip, index: i, rpm, label });
+      }
+    }
+  } catch { /* no hwmon at all */ }
+  return parseHwmonFans(rows);
+}
+
 async function cpuTemp() {
+  const fans = await readHwmonFans();
   try {
     const base = '/sys/class/hwmon';
     for (const d of await fsp.readdir(base)) {
@@ -300,12 +413,12 @@ async function cpuTemp() {
         try { label = await readText(`${dir}/temp${i}_label`); } catch { /* unlabelled */ }
         if (/Tctl|Tdie|Tccd|Package|Core 0/i.test(label) || i === 1) {
           const milli = Number(raw);
-          if (Number.isFinite(milli)) return { cpuTemp: Math.round((milli / 1000) * 10) / 10 };
+          if (Number.isFinite(milli)) return { cpuTemp: Math.round((milli / 1000) * 10) / 10, fans };
         }
       }
     }
   } catch { /* no hwmon, or unreadable */ }
-  return { cpuTemp: null };
+  return { cpuTemp: null, fans };
 }
 
 // --- Network: ping (1.1.1.1) + /proc/net/dev, matching network.ps1 shape -----
@@ -366,7 +479,17 @@ async function network() {
 // contract; here they are the X11 window id in decimal.
 //
 // KNOWN LIMIT: X11 only. Wayland has no equivalent unprivileged window-listing
-// protocol, so this returns an empty list under a Wayland session.
+// protocol, so this returns an empty list under a Wayland session. (Under a
+// Wayland session with Xwayland, the X11 clients running through it — which
+// includes most games — are still listed; native Wayland windows are not.)
+//
+// LISTING needs nothing but xprop: _NET_CLIENT_LIST and a property read per
+// window are the same data wmctrl prints, and asking the user to install
+// wmctrl for a read-only list was a dependency the widget did not need. wmctrl
+// and xdotool are still used to ACT on a window (focus, close), because that
+// means sending a client message rather than reading a property, and neither
+// is worth hand-rolling. So: the list appears with x11-utils alone, and the
+// buttons that need more say so.
 const MAX_WINDOWS = 24;
 // At most this many xprop processes in flight at once.
 const XPROP_CONCURRENCY = 8;
@@ -429,15 +552,58 @@ async function windowProps(hexId) {
   return parseWindowProps(await runX('xprop', ['-id', hexId, 'WM_CLASS', '_NET_WM_STATE'], 3000));
 }
 
+// `_NET_CLIENT_LIST(WINDOW): window id # 0x1, 0x2, …` — every managed window,
+// which is the same set wmctrl -l prints because that is where wmctrl reads it.
+function parseClientList(raw) {
+  const m = String(raw || '').match(/window id # (.*)$/m);
+  if (!m) return [];
+  return m[1].split(',').map((s) => s.trim())
+    .filter((s) => /^0x[0-9a-fA-F]+$/.test(s));
+}
+
+// A window's title and owning pid, from the properties wmctrl would have read.
+// _NET_WM_NAME (UTF-8) is preferred over WM_NAME (latin-1): a window titled
+// with anything non-ASCII comes out mangled from the older property, which is
+// most of them on a non-English desktop.
+function parseWindowIdentity(raw) {
+  const s = String(raw || '');
+  const pidM = s.match(/_NET_WM_PID\(CARDINAL\)\s*=\s*(\d+)/);
+  const nameM = s.match(/_NET_WM_NAME\(UTF8_STRING\)\s*=\s*"((?:[^"\\]|\\.)*)"/) ||
+                s.match(/WM_NAME\(STRING\)\s*=\s*"((?:[^"\\]|\\.)*)"/);
+  const title = nameM ? nameM[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\').trim() : '';
+  return { pid: pidM ? pidM[1] : '', title };
+}
+
+// The window ids, titles and pids, without wmctrl. One xprop for the list, one
+// per window — capped the same way the wmctrl path is.
+async function listRowsViaXprop() {
+  const ids = parseClientList(await runX('xprop', ['-root', '_NET_CLIENT_LIST'], 5000));
+  if (!ids.length) return [];
+  const infos = await mapLimit(ids.slice(0, MAX_WINDOWS * 2), XPROP_CONCURRENCY, (hexId) =>
+    runX('xprop', ['-id', hexId, '_NET_WM_NAME', 'WM_NAME', '_NET_WM_PID'], 3000));
+  const rows = [];
+  ids.slice(0, MAX_WINDOWS * 2).forEach((hexId, i) => {
+    const { pid, title } = parseWindowIdentity(infos[i]);
+    // Untitled windows are utility/override-redirect surfaces, dropped here for
+    // the same reason the wmctrl path drops them.
+    if (!title) return;
+    rows.push({ hexId, pid, title, dec: parseInt(hexId, 16) });
+  });
+  return rows;
+}
+
 async function listWindows() {
   const [raw, activeRaw] = await Promise.all([
     runX('wmctrl', ['-lp'], 5000),
-    runX('xdotool', ['getactivewindow'], 3000),
+    runX('xprop', ['-root', '_NET_ACTIVE_WINDOW'], 3000),
   ]);
-  if (!raw) return { windows: [] };
-  const activeDec = activeRaw ? Number(String(activeRaw).trim()) : -1;
+  // wmctrl's one-shot listing when it is installed; otherwise the same data
+  // assembled from xprop, so the widget works on a bare x11-utils machine.
+  const rows = raw ? parseWmctrl(raw) : await listRowsViaXprop();
+  if (!rows.length) return { windows: [] };
+  const activeHex = (String(activeRaw || '').match(/window id # (0x[0-9a-fA-F]+)/) || [])[1];
+  const activeDec = activeHex ? parseInt(activeHex, 16) : -1;
 
-  const rows = parseWmctrl(raw);
   // Resolve the executable first: /proc readlink is cheap and needs no process.
   // Sorting and capping on that name means we spawn xprop for at most
   // MAX_WINDOWS windows instead of one per window on the whole desktop.
@@ -475,14 +641,26 @@ async function listWindows() {
   return { windows };
 }
 
+// Raising a window means sending _NET_ACTIVE_WINDOW to the WM, which needs a
+// real X client. Either tool can; wmctrl is tried second because xdotool takes
+// the decimal id this API already carries.
 async function focusWindow(decId) {
-  const ok = await runX('xdotool', ['windowactivate', String(decId)], 5000);
-  return { ok: ok !== null };
+  if (await runX('xdotool', ['windowactivate', String(decId)], 5000) !== null) return { ok: true };
+  const hex = '0x' + Number(decId).toString(16);
+  if (await runX('wmctrl', ['-i', '-a', hex], 5000) !== null) return { ok: true };
+  return { ok: false, error: 'no_window_tool' };
+}
+
+// The owning pid, without needing xdotool: it is a property on the window.
+async function windowPid(hexId) {
+  const raw = await runX('xprop', ['-id', hexId, '_NET_WM_PID'], 3000);
+  const m = String(raw || '').match(/_NET_WM_PID\(CARDINAL\)\s*=\s*(\d+)/);
+  return m ? m[1] : '';
 }
 
 async function closeWindow(decId) {
   const hex = '0x' + Number(decId).toString(16);
-  const pid = (await runX('xdotool', ['getwindowpid', String(decId)], 3000) || '').trim();
+  const pid = await windowPid(hex);
   const exe = pid ? await appFromExe(pid) : { path: '', name: '' };
   const props = await windowProps(hex);
   if (PROTECTED_CLASSES.has(props.cls)) {
@@ -490,8 +668,11 @@ async function closeWindow(decId) {
   }
   // wmctrl -c sends the EWMH _NET_CLOSE_WINDOW request: a graceful close the app
   // can still veto (save prompt), mirroring the Windows CloseMainWindow path.
+  // Deliberately never falls back to killing the pid: the contract here is
+  // "ask the app to close", and a SIGTERM would discard unsaved work.
   const out = await runX('wmctrl', ['-i', '-c', hex], 5000);
-  return { ok: out !== null, app: props.cls || exe.name || '', path: exe.path };
+  if (out === null) return { ok: false, error: 'no_window_tool', app: props.cls || exe.name || '', path: exe.path };
+  return { ok: true, app: props.cls || exe.name || '', path: exe.path };
 }
 
 async function windows(action, id) {
@@ -728,6 +909,7 @@ async function lock() {
 module.exports = {
   gpu, disks, cpuTemp, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
   // exported for unit tests
-  parseGpu, parseSysfsGpu, parseDisks, parseMemInfo, parseNetDev, parsePing, parseWmctrl, parseWindowProps,
+  parseGpu, parseSysfsGpu, rc6Busy, parseHwmonFans, parseDisks, parseMemInfo, parseNetDev, parsePing,
+  parseWmctrl, parseWindowProps, parseClientList, parseWindowIdentity,
   parsePwDump, buildAudioRows, resolveTargets, cubicToLinear,
 };
