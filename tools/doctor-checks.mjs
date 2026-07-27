@@ -149,7 +149,8 @@ export function checkWindows(w) {
   if (!w.windows.length) {
     return warn('no open applications reported', [
       'macOS: expected until you grant the Automation permission (System Settings → Privacy & Security → Automation).',
-      'Linux: the widget needs an X11 session with wmctrl installed.',
+      'Linux: the list is read with xprop (x11-utils) and covers X11 windows only.',
+      'Under a Wayland session only apps running through Xwayland appear — Wayland has no protocol letting a background app enumerate windows.',
     ]);
   }
   return ok(`${w.windows.length} application(s)`, w.windows.slice(0, 6).map((x) => `${x.app}${x.active ? ' (frontmost)' : ''}`));

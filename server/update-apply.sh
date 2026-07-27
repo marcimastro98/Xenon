@@ -225,7 +225,16 @@ wait_server_version() { # $1 = expected version, $2 = timeout in seconds
       v="$(printf '%s' "$body" | sed -n 's/.*"version" *: *"\([^"]*\)".*/\1/p')"
       v="${v#[vV]}"
       if [ -n "$v" ]; then
-        { [ -z "$want" ] || [ "$v" = "$want" ]; } && return 0
+        # An empty $want means staged.json did not name a version, so there is
+        # nothing to compare against and "it answers at all" is the strongest
+        # check left. That is a real weakening of the guarantee in the header —
+        # say so in the log rather than let a success line claim more than was
+        # actually verified.
+        if [ -z "$want" ]; then
+          log "no staged version to compare against; accepting '$v' because the server answers"
+          return 0
+        fi
+        [ "$v" = "$want" ] && return 0
         log "server answered with unexpected version '$v' (wanted '$want')"
         return 1
       fi

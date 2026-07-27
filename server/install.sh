@@ -138,9 +138,18 @@ else
   # the tile showed before Linux support existed.
   have nvidia-smi || miss "nvidia-smi — GPU load, temperature and VRAM on NVIDIA cards (AMD and Intel need nothing)"
   have wpctl || miss "wireplumber — the volume mixer and audio devices"
-  have playerctl || miss "playerctl — what is playing, and the media keys"
   have dbus-monitor || miss "dbus-monitor — mirroring your desktop notifications"
-  have wmctrl || miss "wmctrl + xdotool + x11-utils — the open-applications widget (X11 sessions)"
+  # xprop is what the app switcher and game-mode detection read; wmctrl only
+  # adds the ability to ACT on a window, so the two are named separately rather
+  # than as one lump the user has to install whole.
+  have xprop || miss "x11-utils — the open-applications widget and game-mode detection (X11 and Xwayland)"
+  have wmctrl || miss "wmctrl — focusing and closing windows from the open-applications widget"
+  have mangohud || miss "mangohud — in-game FPS (launch the game with it: mangohud %command%)"
+  # playerctl is no longer required for now-playing: busctl reads the same bus.
+  # Naming it only makes sense when the fallback is unavailable too, or as the
+  # speed note below, so it never reads as a broken tile.
+  have busctl || miss "systemd (busctl) — reading what is playing, over D-Bus"
+  have playerctl || miss "playerctl — optional: makes the now-playing tile update instantly instead of once a second"
 fi
 if [ -n "$MISSING" ]; then
   printf '\n%s  Optional, not installed:%s\n' "$C_DIM" "$C_OFF"
@@ -570,9 +579,10 @@ if [ "$XENON_OS" = 'macos' ]; then
     printf '  %s  toggle it off and on, or remove it and add it again.%s\n\n' "$C_DIM" "$C_OFF"
   fi
 else
-  printf '  %sLinux support is experimental. The app switcher needs an X11%s\n' "$C_DIM" "$C_OFF"
-  printf '  %ssession; on Wayland it stays empty, and CPU temperature comes%s\n' "$C_DIM" "$C_OFF"
-  printf '  %sfrom /sys/class/hwmon, which not every board exposes.%s\n\n' "$C_DIM" "$C_OFF"
+  printf '  %sLinux support is experimental. Under a Wayland session the app%s\n' "$C_DIM" "$C_OFF"
+  printf '  %sswitcher lists only apps running through Xwayland, and CPU%s\n' "$C_DIM" "$C_OFF"
+  printf '  %stemperature comes from /sys/class/hwmon, which not every board%s\n' "$C_DIM" "$C_OFF"
+  printf '  %sexposes. Run `npm run doctor` to see what your machine reads.%s\n\n' "$C_DIM" "$C_OFF"
 fi
 
 [ "$UP" = "1" ] || exit 1
