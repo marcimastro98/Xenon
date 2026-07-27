@@ -279,9 +279,15 @@ function _stopChild() {
 // Reconcile the child with the desired state. server.js computes `want` as
 // (feature enabled && SSE clients > 0) and calls this from every trigger.
 function sync(want) {
-  _wanted = !!want && process.platform === 'win32';
+  // Gate on the reader that exists, not on Windows: the Linux child is spawned
+  // from _start() too, and gating this on win32 left _startLinux unreachable —
+  // the whole dbus path was dead code, since _wanted could never be true there.
+  _wanted = !!want && isSupported();
   if (_wanted && !_proc && !_restartTimer && !_stopped) _start();
-  else if (!_wanted && (_proc || _restartTimer || _items.length || _state !== 'off')) {
+  // 'unavailable' is terminal: no child, no timer, nothing to tear down. Treat
+  // it like 'off' here or every sync() re-runs _stopChild() and re-announces a
+  // state that did not change (sync fires on each SSE connect/close and save).
+  else if (!_wanted && (_proc || _restartTimer || _items.length || (_state !== 'off' && _state !== 'unavailable'))) {
     _stopChild();
     _emitFeed();
   }
@@ -298,6 +304,18 @@ function applyExclusions() {
 function getState() { return _state; }
 function getFeed() { return _items; }
 
+// The mirror has one reader per platform: WinRT's UserNotificationListener on
+// Windows, the Notify method on the session bus on Linux. Anywhere else there
+// is no reader at all, so no child is ever spawned.
+function isSupported() { return process.platform === 'win32' || process.platform === 'linux'; }
+
+// What a dashboard should be told the state is. `getState()` stays the raw child
+// state — the reader's own logic and its tests depend on that — but where there
+// is no reader the child never runs, so that state sits at 'off' forever, which
+// the tile renders as "Connecting…" and never leaves (its self-heal loop then
+// re-seeds against 'off' indefinitely). Report a terminal, honest state instead.
+function reportedState() { return isSupported() ? _state : 'unavailable'; }
+
 function stop() {
   _stopped = true;
   _wanted = false;
@@ -306,6 +324,7 @@ function stop() {
 
 module.exports = {
   init, sync, applyExclusions, getState, getFeed, stop,
+  isSupported, reportedState,
   // Test hook: the exact line handler the child reader drives, so the
   // seed/push/filter/cap behaviour is testable without spawning a process.
   _handleLine,
