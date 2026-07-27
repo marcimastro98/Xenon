@@ -47,9 +47,28 @@
     return '';
   }
 
+  // A drop the hub has CLOSED (`active:false` in the live status) is not sold
+  // out: the copies are still on the counter — freed serials handed back after a
+  // revocation, a drop paused mid-run — but the claim page turns everyone away.
+  // The flag was already fetched and normalized and NOTHING here read it, so a
+  // closed drop advertised "N of 50 left" next to a "Claim your copy" button
+  // that could only ever fail. Unknown (no live status: the catalog fallback
+  // carries no `active`) means OPEN, so a hub that stops sending the field can
+  // never shutter the whole Store.
+  const dropClosed = (entry) => !!(entry && entry.limited && entry.limited.active === false);
+  // "No copy is coming out of this drop right now" — the one question every CTA
+  // site below actually asks. Sold out and closed differ only in what we SAY.
+  const dropUnavailable = (entry) => !!(entry && entry.limited && (entry.limited.soldOut || dropClosed(entry)));
+  function unavailableLabel(entry) {
+    return el('span', 'cgal-soldout', entry.limited && entry.limited.soldOut
+      ? t('gallery_limited_soldout', 'Sold out')
+      : t('gallery_limited_closed', 'Claims closed'));
+  }
+
   function directClaimUrlFor(entry) {
     const limited = entry && entry.limited;
     if (!limited || limited.fulfillment !== 'hub' || limited.channels !== 'both') return '';
+    if (dropClosed(entry)) return '';
     if (typeof limited.dropId !== 'string' || !/^[a-z0-9][a-z0-9_-]{0,60}$/.test(limited.dropId)) return '';
     return HUB_BASE + '/limited/claim/' + encodeURIComponent(limited.dropId) + '?source=web';
   }
@@ -781,7 +800,7 @@
     const cta = el('div', 'cgal-detail-cta');
     if (limited) {
       const lim = entry.limited;
-      if (lim.soldOut) cta.appendChild(el('span', 'cgal-soldout', t('gallery_limited_soldout', 'Sold out')));
+      if (dropUnavailable(entry)) cta.appendChild(unavailableLabel(entry));
       else {
         const total = Math.max(1, Number(lim.total) || 0), left = Math.max(0, Number(lim.left) || 0);
         const meterWrap = el('div', 'cgal-hero-meter');
@@ -906,8 +925,8 @@
     const cta = el('div', 'cgal-hero-cta');
     if (limited) {
       const lim = entry.limited;
-      if (lim.soldOut) {
-        cta.appendChild(el('span', 'cgal-soldout', t('gallery_limited_soldout', 'Sold out')));
+      if (dropUnavailable(entry)) {
+        cta.appendChild(unavailableLabel(entry));
       } else {
         const total = Math.max(1, Number(lim.total) || 0);
         const left = Math.max(0, Number(lim.left) || 0);
@@ -952,7 +971,7 @@
     //   → 3. the featured free creation.
     // A sold-out limited never leads on its own (dead end) — it still shows in
     // its own Limited section below. "Entice, don't frustrate."
-    const availLimited = sortList(limitedList).filter((e) => !(e.limited && e.limited.soldOut));
+    const availLimited = sortList(limitedList).filter((e) => !dropUnavailable(e));
     const main = availLimited[0]
       || sortList(supportersList)[0]
       || (freePool.length ? sortList(freePool)[0] : (limitedList.length ? sortList(limitedList)[0] : null));
@@ -982,7 +1001,7 @@
     const row = el('div', 'cgal-card-actions cgal-spotcard-cta');
     if (limited) {
       const lim = entry.limited;
-      if (lim.soldOut) row.appendChild(el('span', 'cgal-soldout', t('gallery_limited_soldout', 'Sold out')));
+      if (dropUnavailable(entry)) row.appendChild(unavailableLabel(entry));
       else {
         appendLimitedButtons(row, entry);
         row.appendChild(el('span', 'cgal-limcount',
@@ -1055,7 +1074,7 @@
   function renderCard(entry, noId) {
     const locked = !!(entry.locked || entry.supportersOnly);
     const limited = !!entry.limited;
-    const card = el('div', 'cgal-card' + (limited ? ' is-limited' : locked ? ' is-sup' : '') + (limited && entry.limited.soldOut ? ' dim' : ''));
+    const card = el('div', 'cgal-card' + (limited ? ' is-limited' : locked ? ' is-sup' : '') + (dropUnavailable(entry) ? ' dim' : ''));
     if (!noId) card.id = 'cgal-' + entry.id;
     wireCardOpen(card, entry);
 
@@ -1106,8 +1125,8 @@
     const row = el('div', 'cgal-card-actions');
     if (limited) {
       const lim = entry.limited;
-      if (lim.soldOut) {
-        row.appendChild(el('span', 'cgal-soldout', t('gallery_limited_soldout', 'Sold out')));
+      if (dropUnavailable(entry)) {
+        row.appendChild(unavailableLabel(entry));
       } else {
         appendLimitedButtons(row, entry);
         row.appendChild(el('span', 'cgal-limcount',
@@ -1583,9 +1602,9 @@
         // nobody can get. Sold-out drops stay reachable through search and the
         // Limited tab, where the history is the point. Same rule as the website
         // catalog's limited strip.
-        const anyClaimable = limited.some((e) => !(e.limited && e.limited.soldOut));
+        const anyClaimable = limited.some((e) => !dropUnavailable(e));
         const shelfLimited = sortList(limited)
-          .filter((e) => !(anyClaimable && e.limited && e.limited.soldOut));
+          .filter((e) => !(anyClaimable && dropUnavailable(e)));
         if (shelfLimited.length) frag.appendChild(featureSection({
           items: shelfLimited, dupIds: spotIds, iconName: 'limited', cls: 'is-limited', seeAllKind: '__limited',
           title: t('gallery_limited_section', 'Limited edition'),

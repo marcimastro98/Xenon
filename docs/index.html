@@ -1977,7 +1977,13 @@ I18N.zh = {
       .filter(started)   // a drop that has not opened yet is nobody's business yet
       .map((e) => {
         const lim = stock(e.limited);
-        const open = !ended(e) && !(lim && lim.soldOut);
+        // The hub can CLOSE a drop that still has copies on the counter
+        // (`active:false` in the live status — serials freed by a revocation, a
+        // run paused): not sold out, but nobody can claim one, so this page must
+        // stop inviting people to. Absent means open — the published catalog
+        // carries no `active`, and an unreachable hub must change nothing.
+        const closed = !!(e.limited && e.limited.active === false);
+        const open = !ended(e) && !closed && !(lim && lim.soldOut);
         return { e, lim, open, limited: !!lim };
       });
 
@@ -2084,9 +2090,12 @@ I18N.zh = {
       // Stock line: copies left, closing date, or plainly sold out.
       let stockTxt = '';
       if (lim && lim.soldOut) stockTxt = window.XT('drop.soldout');
-      else if (lim) stockTxt = window.XT('drop.left').replace('{n}', lim.left).replace('{t}', lim.total);
-      else if (d.open && e.activeUntil) stockTxt = window.XT('drop.until').replace('{d}', fmtDate(e.activeUntil));
+      // A closed drop says so, whatever the counter still reads — "5 of 50 left"
+      // over a card whose only button points at the next drop is a promise
+      // nobody can keep.
       else if (!d.open) stockTxt = window.XT('drop.closed');
+      else if (lim) stockTxt = window.XT('drop.left').replace('{n}', lim.left).replace('{t}', lim.total);
+      else if (e.activeUntil) stockTxt = window.XT('drop.until').replace('{d}', fmtDate(e.activeUntil));
       if (stockTxt) {
         const s = document.createElement('span');
         s.className = 'drop-stock';
