@@ -81,13 +81,21 @@ for (const [side, src] of [['server', SERVER], ['client', CLIENT]]) {
     assert.deepEqual(N({ indexRoots: [] }, '/Users/me').indexRoots, []);
   });
 
-  test(`${side}: never-set defaults to the system drive, emptied stays empty`, () => {
+  test(`${side}: never-set without a default names no root at all`, () => {
     const N = loadNormalizer(src);
-    assert.deepEqual(N({}).indexRoots, ['C:\\']);
-    assert.deepEqual(N(null).indexRoots, ['C:\\']);
-    // An explicitly emptied list means the user turned the index off.
+    // This used to answer ['C:\\']. It is the one guess neither copy is allowed
+    // to make: the browser cannot know the host, so on every Mac and every
+    // Linux box the first settings save wrote a Windows drive letter as the
+    // search root. No POSIX walk can start there, so the index stayed off while
+    // Settings displayed a configured folder — a dead end with nothing the user
+    // could type to escape it. Absent means absent; the caller that knows the
+    // machine supplies the default (see the test above).
+    assert.equal(N({}).indexRoots, undefined);
+    assert.equal(N(null).indexRoots, undefined);
+    // An explicitly emptied list is a different statement — the user turned the
+    // index off — and must survive as one.
     assert.deepEqual(N({ indexRoots: [] }).indexRoots, []);
-    // Migration from the retired one-shot crawl.
+    // Migration from the retired one-shot crawl is a set value, not a default.
     assert.deepEqual(N({ extraFolders: ['C:/Vecchia'] }).indexRoots, ['C:\\Vecchia']);
   });
 
