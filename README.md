@@ -101,6 +101,8 @@ Xenon runs as a small local Node.js server on `http://127.0.0.1:3030/`. On the X
 2. Open the extracted folder and double-click **`INSTALL.bat`**.
 3. If Windows asks permission, click **Yes**.
 
+> The extracted folder carries one installer per platform, so there is nothing to go hunting for: **`INSTALL.bat`** (Windows), **`INSTALL.command`** (macOS — double-click it in Finder), **`INSTALL.sh`** (Linux — `./INSTALL.sh`). Each has its `UNINSTALL` twin beside it. They all end up in the same place; only the way your system prefers to launch a script differs.
+
 Either way, the installer automatically:
 
 - installs **Node.js LTS** if missing;
@@ -147,14 +149,14 @@ brew install switchaudio-osx           # switching the output device
 brew install ffmpeg                    # voice input and spoken replies
 ```
 
-Prefer no app? `bash server/install.sh` from an extracted source zip does the same thing without the kiosk window.
+Prefer no app? Download the **Source code (zip)** from [Releases](https://github.com/marcimastro98/Xenon/releases/latest), extract it, and double-click **`INSTALL.command`** in the folder — same dashboard, no kiosk window. From a terminal, `./INSTALL.sh` is the same thing.
 
 #### Linux
 
 Two ways, same result.
 
 - **The app:** download **[Xenon-Linux-x86_64.AppImage](https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage)** (`chmod +x` it and run it) or **[Xenon-Linux-x86_64.deb](https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.deb)**. Like macOS, the first launch offers to set the dashboard up in a terminal window, verifying the download before extracting it. The package deliberately does **not** install it for you: everything it would create belongs to one user account, and a package installs as root for the whole machine.
-- **Browser only:** download the **Source code (zip)** from [Releases](https://github.com/marcimastro98/Xenon/releases/latest), extract it, and run `bash server/install.sh`.
+- **Browser only:** download the **Source code (zip)** from [Releases](https://github.com/marcimastro98/Xenon/releases/latest), extract it, and run `./INSTALL.sh` in the folder.
 
 The installer registers a `systemd --user` service so Xenon starts when you log in, and falls back to an XDG autostart entry where there is no user manager (saying so, including that the fallback has no crash-restart). It also lists the optional tools you do not have:
 
@@ -165,7 +167,7 @@ sudo apt install wmctrl xdotool x11-utils   # the open-applications widget (X11 
 sudo apt install ffmpeg                # voice input and spoken replies
 ```
 
-> If your desktop has no terminal emulator at all, the app cannot show you the installer. Run `bash server/install.sh` from an extracted source zip instead.
+> If your desktop has no terminal emulator at all, the app cannot show you the installer. Run `./INSTALL.sh` from an extracted source zip instead.
 
 ### Step 2 — Use it
 
@@ -191,7 +193,7 @@ Just open **`http://127.0.0.1:3030/`**.
 
 > **Nothing.** The engine starts automatically when you log in and the native app reopens itself on the Edge — the dashboard is live before you even settle in. (Using iCUE instead? It remembers your layout too.)
 
-To remove the startup entry, double-click **`UNINSTALL.bat`** on Windows, or run `bash server/uninstall.sh` on macOS and Linux (that one keeps your settings, layouts and notes unless you add `--purge-data`).
+To remove the startup entry, double-click **`UNINSTALL.bat`** on Windows or **`UNINSTALL.command`** on macOS, and run `./UNINSTALL.sh` on Linux. All three keep your settings, layouts and notes unless you add `--purge-data`.
 
 ### Updating
 

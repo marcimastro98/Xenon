@@ -70,6 +70,10 @@ apps/native/                    export-ignore
 # GitHub release into server/helper/, which is a different, gitignored path.
 helper/                         export-ignore
 
+# The same, for the macOS helper (Swift). install.sh downloads the compiled
+# binary from the release; nothing on a user's disk builds it.
+helper-mac/                     export-ignore
+
 # iCUE widget package — a separate distribution, never loaded by the server.
 widget/                         export-ignore
 
@@ -86,4 +90,10 @@ service/                        export-ignore
 # developed on Windows with core.autocrlf=true, and a CRLF checkout of a .sh dies
 # on macOS/Linux with "bad interpreter: /bin/bash^M" — before printing anything
 # that would explain why.
+#
+# .command is the same thing under the extension Finder will double-click
+# (INSTALL.command / UNINSTALL.command at the root), and it is NOT matched by
+# *.sh — which is exactly how it would ship with CRLF and fail on the one
+# platform it exists for.
 *.sh                            text eol=lf
+*.command                       text eol=lf
