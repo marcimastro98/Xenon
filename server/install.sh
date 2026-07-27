@@ -555,6 +555,20 @@ if [ "$XENON_OS" = 'macos' ]; then
   fi
   printf '  %s  Microphone                 — voice input%s\n' "$C_DIM" "$C_OFF"
   printf '  %s  Screen Recording           — the screenshot the AI can take%s\n\n' "$C_DIM" "$C_OFF"
+  # Full Disk Access is the one macOS never PROMPTS for: it has to be granted by
+  # hand, and until the app is signed it lapses at every update because the
+  # permission is tied to a code signature that changes with each build. Saying
+  # nothing here is what makes it invisible — a folder macOS refuses to list
+  # reads as an empty one, so the Disk widget just quietly under-reports.
+  if [ "$SERVICE_KIND" = 'launchd-app' ]; then
+    printf '  %sOne permission macOS will NOT ask for — grant it by hand:%s\n' "$C_DIM" "$C_OFF"
+    printf '  %s  System Settings > Privacy & Security > Full Disk Access%s\n' "$C_DIM" "$C_OFF"
+    printf '  %s  Add Xenon, turn it on, then quit and reopen Xenon.%s\n' "$C_DIM" "$C_OFF"
+    printf '  %s  Without it the Trash and most caches stay out of the Disk%s\n' "$C_DIM" "$C_OFF"
+    printf '  %s  widget and out of search, with no error to tell you so.%s\n' "$C_DIM" "$C_OFF"
+    printf '  %s  Redo it after every Xenon update until the app is signed:%s\n' "$C_DIM" "$C_OFF"
+    printf '  %s  toggle it off and on, or remove it and add it again.%s\n\n' "$C_DIM" "$C_OFF"
+  fi
 else
   printf '  %sLinux support is experimental. The app switcher needs an X11%s\n' "$C_DIM" "$C_OFF"
   printf '  %ssession; on Wayland it stays empty, and CPU temperature comes%s\n' "$C_DIM" "$C_OFF"
