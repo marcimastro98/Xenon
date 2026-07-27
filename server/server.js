@@ -18,6 +18,11 @@ const fpsMonitor = require('./fpsmon');
 const gameDetect = require('./gamedetect');
 const audioLevels = require('./audio-levels');
 const winNotif = require('./winnotif');
+const linuxNotif = require('./linuxnotif');
+// Notification mirroring has a per-OS reader behind one shared interface:
+// WinRT's UserNotificationListener on Windows, the D-Bus Notify method on Linux.
+// Elsewhere the Windows reader stands in and reports 'unavailable'.
+const notif = process.platform === 'linux' ? linuxNotif : winNotif;
 const wakeWord = require('./wakeword');
 const sdkWidgets = require('./sdk-widgets');
 const sdkProxy = require('./sdk-proxy');
@@ -8597,7 +8602,7 @@ function winNotifWanted() {
   const wn = _serverHubSettings && _serverHubSettings.windowsNotifications;
   return !!(wn && wn.enabled);
 }
-winNotif.init({
+notif.init({
   // Per-app mute: match the AUMID when the toast has one, the display name
   // otherwise (some Win32 toasts carry no AUMID). Read live from settings so
   // a just-saved mute applies without restarting the child.
@@ -8619,14 +8624,14 @@ winNotif.init({
     // whole picture so every open tile repaints without a fetch.
     broadcastSSE('windows_notifications', {
       enabled: winNotifWanted(),
-      supported: winNotif.isSupported(),
-      state: winNotif.reportedState(),
-      items: winNotif.getFeed(),
+      supported: notif.isSupported(),
+      state: notif.reportedState(),
+      items: notif.getFeed(),
     });
   },
 });
 function refreshWinNotifWatch() {
-  winNotif.sync(winNotifWanted() && sseClients.size > 0);
+  notif.sync(winNotifWanted() && sseClients.size > 0);
 }
 
 // ── Per-app audio peak meters ───────────────────────────────────────────────
@@ -11633,7 +11638,7 @@ const server = http.createServer(async (req, res) => {
       // (sync() is idempotent) and re-filter the stored feed in case the
       // per-app mute list changed.
       refreshWinNotifWatch();
-      winNotif.applyExclusions();
+      notif.applyExclusions();
       // Wake word toggled → start/stop the mic listener (sync() is idempotent).
       refreshWakeWordWatch();
       // Spotlight: hotkey combo/enable changed → restart the helper listener;
@@ -14849,7 +14854,7 @@ const server = http.createServer(async (req, res) => {
     // Notification text is private user data — loopback-only like every route,
     // and NEVER a JSONP candidate.
     const wn = normalizeWindowsNotifications(_serverHubSettings && _serverHubSettings.windowsNotifications);
-    json({ ok: true, enabled: wn.enabled, hide: wn.hide, toast: wn.toast, excluded: wn.excluded, supported: winNotif.isSupported(), state: winNotif.reportedState(), items: winNotif.getFeed() });
+    json({ ok: true, enabled: wn.enabled, hide: wn.hide, toast: wn.toast, excluded: wn.excluded, supported: notif.isSupported(), state: notif.reportedState(), items: notif.getFeed() });
 
   } else if (reqPath === '/sdk/widgets' && req.method === 'GET') {
     // Installed third-party widget packages — validated manifests only (see
@@ -16361,7 +16366,7 @@ function _gracefulShutdown() {
   try { if (_fpsPauseTimer) { clearTimeout(_fpsPauseTimer); _fpsPauseTimer = null; } } catch {}
   try { fpsMonitor.stopFpsMonitor(); } catch {}
   try { gameDetect.stopGameDetect(); } catch {}
-  try { winNotif.stop(); } catch {}
+  try { notif.stop(); } catch {}
   try { wakeWord.stop(); } catch {}
   try { audioLevels.stop(); } catch {}
   try { guardian.stop(); } catch {}
