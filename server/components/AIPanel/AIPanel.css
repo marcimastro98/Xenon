@@ -339,6 +339,16 @@ body.voice-speaking .ai-siri-ring { animation-duration: 3s; }
 
 .ai-text-input {
   flex: 1;
+  /* A flex item's `min-width` defaults to `auto`, and for an <input> that
+     resolves to the intrinsic width of its `size` attribute — about 20
+     characters — measured in whatever font actually loaded. So `flex: 1` can
+     grow this box but never shrink it below that floor, and when the floor is
+     wider than the row the overflow lands on the LAST sibling: the send button
+     gets clipped by the panel edge. Seen on Linux, where neither Inter nor
+     Segoe UI exists and the stack falls through to Noto Sans, whose wider
+     metrics push the floor past the available width. `min-width: 0` is what
+     makes `flex: 1` mean what it reads like. */
+  min-width: 0;
   height: 42px;
   border-radius: 21px;
   border: 1px solid rgba(255,255,255,.10);
