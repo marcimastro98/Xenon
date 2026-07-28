@@ -27,7 +27,17 @@ function createRemoteControl({ getSettings, saveSettings, deps = {} } = {}) {
   const installer = deps.installer || createInstaller({});
   const tailscale = deps.tailscale || createTailscale({});
   // Factory per un client Sunshine con le credenziali correnti (iniettabile per i test).
-  const makeSunshine = deps.makeSunshine || ((credentials) => createSunshine({ credentials }));
+  //
+  // `restart` is handed down because the client has to bounce Sunshine after
+  // writing credentials, and only the SERVICE module knows what Sunshine is on
+  // this machine — a systemd unit, a brew service, or (on Fedora, which has no
+  // sunshine package at all) a flatpak with no unit whatsoever. `service` is
+  // declared below and read at call time, never at construction.
+  const makeSunshine = deps.makeSunshine
+    || ((credentials) => createSunshine({
+      credentials,
+      restart: async () => { await service.stop(); return service.start(); },
+    }));
   // Tempi di attesa per la verifica post-configurazione (override nei test per velocita').
   const verifyTimeoutMs = Number.isFinite(deps.verifyTimeoutMs) ? deps.verifyTimeoutMs : 15000;
   const verifyIntervalMs = Number.isFinite(deps.verifyIntervalMs) ? deps.verifyIntervalMs : 1000;

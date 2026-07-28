@@ -85,6 +85,9 @@ function createSunshine({
   fetchImpl = httpsFetch,
   platform = process.platform,
   exists = null,
+  // Supplied by the orchestrator, which owns the service module and therefore
+  // knows whether Sunshine here is a systemd unit, a brew service or a flatpak.
+  restart = null,
 } = {}) {
   const fileExists = exists || ((p) => { try { return fs.existsSync(p); } catch { return false; } });
   const isWin = platform === 'win32';
@@ -167,7 +170,21 @@ function createSunshine({
     return true;
   }
 
+  /**
+   * Restart Sunshine so it re-reads the credentials.
+   *
+   * Delegated to the service module when the caller supplies it, because only
+   * that module knows the SHAPE this machine has — and on Fedora, the one
+   * distribution this port was built against, the shape is a flatpak with no
+   * systemd unit at all. `systemctl --user restart sunshine` there restarts
+   * nothing, so the credentials never take effect and the wizard reports a
+   * failure that is really a wrong assumption.
+   *
+   * The fallback below stays for the plain-package case and for callers that
+   * construct a client on its own.
+   */
   async function restartUserService() {
+    if (restart) return restart();
     if (platform === 'darwin') return runner.run('brew', ['services', 'restart', 'sunshine']);
     return runner.run('systemctl', ['--user', 'restart', 'sunshine']);
   }

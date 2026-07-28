@@ -28,6 +28,12 @@ const TAILSCALE_SERVICE = 'Tailscale';
 // managed without a prompt. Stopping the user's VPN because they turned a
 // dashboard switch off would be doing something nobody asked for.
 const POSIX_UNIT = 'sunshine';
+// Sunshine's Flathub build — the only route on a distribution that has no
+// sunshine package, which includes Fedora.
+const FLATPAK_ID = 'dev.lizardbyte.app.Sunshine';
+// The transient unit Xenon starts the flatpak under, so the session manager
+// owns it and it can be queried and stopped by name.
+const TRANSIENT_UNIT = 'xenon-sunshine';
 
 function createService({
   runner = defaultRunner,
@@ -35,8 +41,13 @@ function createService({
   tailscaleName = TAILSCALE_SERVICE,
   platform = process.platform,
   unit = POSIX_UNIT,
+  flatpakId,
+  fsImpl,
+  homeDir,
 } = {}) {
-  if (platform !== 'win32') return createPosixService({ runner, platform, unit });
+  if (platform !== 'win32') {
+    return createPosixService({ runner, platform, unit, flatpakId, fsImpl, homeDir });
+  }
 
   // Servizi gestiti dall'avvio-su-richiesta. Un try/catch per servizio (sotto)
   // fa si' che un servizio assente (es. Tailscale non installato) non blocchi l'altro.
@@ -110,54 +121,154 @@ function createService({
  * Linux and macOS. Same contract as the Windows one, no elevation anywhere:
  * every command here acts on a service the user already owns.
  */
-function createPosixService({ runner, platform, unit }) {
+function createPosixService({
+  runner, platform, unit,
+  flatpakId = FLATPAK_ID,
+  fsImpl = require('node:fs'),
+  homeDir = null,
+} = {}) {
+  flatpakId = flatpakId || FLATPAK_ID;
+  fsImpl = fsImpl || require('node:fs');
   const isMac = platform === 'darwin';
 
-  // `systemctl --user is-active` exits 0 only for "active"; brew prints a table
-  // whose row for the service says `started`.
+  // Which of the three shapes this machine has. Decided once and cached: an
+  // install does not change form underneath us.
+  //
+  // The flatpak shape is not an edge case — it is the ONLY route on Fedora,
+  // which has no sunshine package at all, and the Flathub build ships NO
+  // systemd unit. Assuming `systemctl --user … sunshine` there would report
+  // "not running" forever and every start would fail, on the one distribution
+  // this port was built against.
+  let shapeCache;
+  async function shape() {
+    if (shapeCache) return shapeCache;
+    if (isMac) { shapeCache = 'brew'; return shapeCache; }
+    const u = await runner.run('systemctl', ['--user', 'list-unit-files', `${unit}.service`])
+      .catch(() => null);
+    if (u && u.code === 0 && new RegExp(`\\b${unit}\\.service`).test(u.stdout || '')) {
+      shapeCache = 'systemd';
+      return shapeCache;
+    }
+    const f = await runner.run('flatpak', ['info', flatpakId]).catch(() => null);
+    shapeCache = f && f.code === 0 ? 'flatpak' : 'systemd';
+    return shapeCache;
+  }
+
   async function isRunning() {
-    if (isMac) {
+    const s = await shape();
+    if (s === 'brew') {
       const r = await runner.run('brew', ['services', 'list']).catch(() => null);
       if (!r || r.code !== 0) return false;
       const line = String(r.stdout || '').split('\n').find((l) => l.trim().startsWith(unit));
       return !!line && /\bstarted\b/i.test(line);
     }
+    if (s === 'flatpak') {
+      // A flatpak app is not a service: what exists is a running instance.
+      const r = await runner.run('flatpak', ['ps', '--columns=application']).catch(() => null);
+      return !!r && r.code === 0 && String(r.stdout || '').includes(flatpakId);
+    }
     const r = await runner.run('systemctl', ['--user', 'is-active', unit]).catch(() => null);
     return !!r && r.code === 0;
   }
 
-  function ctl(verb) {
-    return isMac
-      ? runner.run('brew', ['services', verb, unit])
-      : runner.run('systemctl', ['--user', verb, unit]);
+  async function start() {
+    const s = await shape();
+    if (s === 'brew') return ok(await runner.run('brew', ['services', 'start', unit]).catch(() => null));
+    if (s === 'flatpak') {
+      // `flatpak run` blocks for as long as Sunshine lives, so running it
+      // directly would hang the request until a timeout killed the very thing
+      // it just started. systemd-run hands it to the session manager and
+      // returns at once; --collect keeps a failed unit from lingering and
+      // blocking the next attempt.
+      return ok(await runner.run('systemd-run', [
+        '--user', '--collect', `--unit=${TRANSIENT_UNIT}`,
+        'flatpak', 'run', '--command=sunshine', flatpakId,
+      ]).catch(() => null));
+    }
+    return ok(await runner.run('systemctl', ['--user', 'start', unit]).catch(() => null));
   }
 
-  async function stop() { const r = await ctl('stop').catch(() => null); return !!r && r.code === 0; }
-  async function start() { const r = await ctl('start').catch(() => null); return !!r && r.code === 0; }
+  async function stop() {
+    const s = await shape();
+    if (s === 'brew') return ok(await runner.run('brew', ['services', 'stop', unit]).catch(() => null));
+    if (s === 'flatpak') {
+      // Stop the app itself, then the transient unit if we were the one who
+      // started it. Either may legitimately not exist, so neither failing alone
+      // is a failure.
+      const killed = await runner.run('flatpak', ['kill', flatpakId]).catch(() => null);
+      const unitStopped = await runner.run('systemctl', ['--user', 'stop', `${TRANSIENT_UNIT}.service`])
+        .catch(() => null);
+      return ok(killed) || ok(unitStopped);
+    }
+    return ok(await runner.run('systemctl', ['--user', 'stop', unit]).catch(() => null));
+  }
+
+  const ok = (r) => !!r && r.code === 0;
 
   /**
    * On-demand start. Windows flips a service's StartupType; the user-session
-   * equivalent is enable/disable, and it applies to Sunshine only — see the note
-   * at the top of this file about not touching the user's VPN.
+   * equivalent is enable/disable, and it applies to Sunshine only — see the
+   * note at the top of this file about not touching the user's VPN.
    *
    * brew has no enable/disable split: `brew services start` IS the persistent
    * form and `stop` removes it, so the transition is the whole operation there.
+   *
+   * A flatpak has no unit to enable either. Its persistent form is an XDG
+   * autostart entry, which is what the desktop actually reads at login — so
+   * "always on" writes one and "on demand" removes it.
    */
   async function setStartup(onDemand) {
-    if (isMac) return onDemand ? stop() : start();
+    const s = await shape();
+    if (s === 'brew') return onDemand ? stop() : start();
+    if (s === 'flatpak') {
+      if (!writeAutostart(!onDemand)) return false;
+      return onDemand ? stop() : start();
+    }
     const verb = onDemand ? 'disable' : 'enable';
     const r = await runner.run('systemctl', ['--user', verb, unit]).catch(() => null);
-    if (!r || r.code !== 0) return false;
+    if (!ok(r)) return false;
     return onDemand ? stop() : start();
+  }
+
+  // The autostart entry for the flatpak shape. Named for Xenon rather than for
+  // Sunshine so it can never be mistaken for — or clobber — one the user or the
+  // package put there themselves.
+  function autostartPath() {
+    const home = homeDir || process.env.HOME || '';
+    return `${home}/.config/autostart/xenon-sunshine.desktop`;
+  }
+
+  function writeAutostart(enabled) {
+    const file = autostartPath();
+    try {
+      if (!enabled) {
+        try { fsImpl.unlinkSync(file); } catch { /* already absent is the goal */ }
+        return true;
+      }
+      fsImpl.mkdirSync(file.replace(/\/[^/]+$/, ''), { recursive: true });
+      fsImpl.writeFileSync(file, [
+        '[Desktop Entry]',
+        'Type=Application',
+        'Name=Sunshine (Xenon)',
+        'Comment=Started by Xenon remote control',
+        `Exec=flatpak run --command=sunshine ${flatpakId}`,
+        'X-GNOME-Autostart-enabled=true',
+        '',
+      ].join('\n'));
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async function startManaged() { return start(); }
   async function stopManaged() { return stop(); }
 
-  return { isRunning, stop, start, setStartup, startManaged, stopManaged, serviceName: unit };
+  return { isRunning, stop, start, setStartup, startManaged, stopManaged, serviceName: unit, shape };
 }
 
 module.exports = {
   createService, createPosixService,
   SUNSHINE_SERVICE: SERVICE, TAILSCALE_SERVICE, POSIX_UNIT,
+  SUNSHINE_FLATPAK_ID: FLATPAK_ID, TRANSIENT_UNIT,
 };

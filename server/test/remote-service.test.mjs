@@ -115,26 +115,38 @@ test('setStartup ritorna false se l\'operazione elevata fallisce (UAC rifiutato)
 // would; so on-demand deliberately manages Sunshine alone. Stopping somebody's
 // VPN because they flipped a dashboard switch is not what the switch says.
 
+// A machine where Sunshine IS a normal package with its own user unit. Stated,
+// because the default fake answers 0 to everything and would otherwise resolve
+// to the flatpak shape.
+const systemdRunner = (over = {}) => fakeRunner({
+  'list-unit-files': { code: 0, stdout: 'sunshine.service enabled enabled\n' },
+  ...over,
+});
+
 test('linux: start/stop non elevano mai', async () => {
-  const runner = fakeRunner();
+  const runner = systemdRunner();
   const svc = createService({ runner, platform: 'linux' });
 
   assert.equal(await svc.start(), true);
   assert.equal(await svc.stop(), true);
   assert.equal(runner.calls.filter((c) => c.elevated).length, 0, 'a user unit needs no password');
-  const verbs = runner.calls.filter((c) => c.file === 'systemctl').map((c) => c.args.join(' '));
+  // `list-unit-files` is the shape probe, not an action — excluded so this
+  // stays a statement about what start/stop DO.
+  const verbs = runner.calls
+    .filter((c) => c.file === 'systemctl' && !c.args.includes('list-unit-files'))
+    .map((c) => c.args.join(' '));
   assert.deepEqual(verbs, ['--user start sunshine', '--user stop sunshine']);
 });
 
 test('linux: isRunning legge systemctl --user is-active', async () => {
-  const up = createService({ runner: fakeRunner({ 'is-active': { code: 0, stdout: 'active' } }), platform: 'linux' });
+  const up = createService({ runner: systemdRunner({ 'is-active': { code: 0, stdout: 'active' } }), platform: 'linux' });
   assert.equal(await up.isRunning(), true);
-  const down = createService({ runner: fakeRunner({ 'is-active': { code: 3, stdout: 'inactive' } }), platform: 'linux' });
+  const down = createService({ runner: systemdRunner({ 'is-active': { code: 3, stdout: 'inactive' } }), platform: 'linux' });
   assert.equal(await down.isRunning(), false);
 });
 
 test('linux: on-demand tocca Sunshine e NON la VPN dell\'utente', async () => {
-  const runner = fakeRunner();
+  const runner = systemdRunner();
   const svc = createService({ runner, platform: 'linux' });
 
   assert.equal(await svc.setStartup(true), true);
@@ -156,4 +168,106 @@ test('darwin: usa brew services e legge "started" dalla tabella', async () => {
     platform: 'darwin',
   });
   assert.equal(await stopped.isRunning(), false);
+});
+
+// ── The flatpak shape ────────────────────────────────────────────────────────
+// Not an edge case: Fedora has no `sunshine` package at all, so Flathub is the
+// ONLY route there, and that build ships NO systemd unit. Assuming
+// `systemctl --user … sunshine` would report "not running" forever and fail
+// every start, on the one distribution this port was built against.
+
+const FPID = 'dev.lizardbyte.app.Sunshine';
+
+// No unit file, but `flatpak info` succeeds → flatpak.
+const flatpakRunner = (over = {}) => fakeRunner({
+  'list-unit-files': { code: 0, stdout: '0 unit files listed.\n' },
+  'info dev.lizardbyte': { code: 0, stdout: 'Sunshine' },
+  ...over,
+});
+
+test('linux: riconosce il flatpak quando non esiste nessuna unita\'', async () => {
+  const svc = createService({ runner: flatpakRunner(), platform: 'linux' });
+  assert.equal(await svc.shape(), 'flatpak');
+});
+
+test('linux: un\'unita\' systemd vera ha la precedenza sul flatpak', async () => {
+  const svc = createService({
+    runner: fakeRunner({ 'list-unit-files': { code: 0, stdout: 'sunshine.service enabled\n' } }),
+    platform: 'linux',
+  });
+  assert.equal(await svc.shape(), 'systemd');
+});
+
+test('flatpak: start non blocca la richiesta che lo ha chiesto', async () => {
+  // `flatpak run` lives as long as Sunshine does, so running it directly would
+  // hang until a timeout killed the very thing it just started. systemd-run
+  // hands it to the session manager and returns immediately.
+  const runner = flatpakRunner();
+  const svc = createService({ runner, platform: 'linux' });
+
+  assert.equal(await svc.start(), true);
+  const call = runner.calls.find((c) => c.file === 'systemd-run');
+  assert.ok(call, 'started through the session manager, not spawned inline');
+  assert.ok(call.args.includes('--user'));
+  assert.ok(call.args.includes(FPID));
+  assert.ok(!runner.calls.some((c) => c.file === 'flatpak' && c.args[0] === 'run'),
+    'never `flatpak run` directly — that call would not return');
+});
+
+test('flatpak: isRunning guarda le istanze, non le unita\'', async () => {
+  const up = createService({
+    runner: flatpakRunner({ 'ps --columns=application': { code: 0, stdout: `${FPID}\n` } }),
+    platform: 'linux',
+  });
+  assert.equal(await up.isRunning(), true);
+
+  const down = createService({
+    runner: flatpakRunner({ 'ps --columns=application': { code: 0, stdout: '' } }),
+    platform: 'linux',
+  });
+  assert.equal(await down.isRunning(), false);
+});
+
+test('flatpak: stop chiude l\'app e l\'unita\' transiente', async () => {
+  const runner = flatpakRunner();
+  const svc = createService({ runner, platform: 'linux' });
+
+  assert.equal(await svc.stop(), true);
+  const kill = runner.calls.find((c) => c.file === 'flatpak' && c.args[0] === 'kill');
+  assert.ok(kill && kill.args.includes(FPID));
+  const unit = runner.calls.find((c) => c.file === 'systemctl' && c.args.includes('stop'));
+  assert.ok(unit, 'and the transient unit we created, if it is still there');
+  assert.equal(runner.calls.filter((c) => c.elevated).length, 0);
+});
+
+test('flatpak: on-demand scrive/rimuove un autostart, senza toccare quello altrui', async () => {
+  // A flatpak has no unit to enable, so its persistent form is the XDG
+  // autostart entry the desktop reads at login.
+  const files = new Map();
+  const fsImpl = {
+    mkdirSync: () => {},
+    writeFileSync: (p, c) => files.set(p, c),
+    unlinkSync: (p) => { if (!files.delete(p)) throw new Error('ENOENT'); },
+  };
+  const svc = createService({
+    runner: flatpakRunner(), platform: 'linux', fsImpl, homeDir: '/home/tester',
+  });
+
+  assert.equal(await svc.setStartup(false), true);   // always on
+  const [path, body] = [...files.entries()][0];
+  // Named for Xenon: it must never be mistaken for, or clobber, an entry the
+  // user or the package put there.
+  assert.equal(path, '/home/tester/.config/autostart/xenon-sunshine.desktop');
+  assert.ok(body.includes(`Exec=flatpak run --command=sunshine ${FPID}`), body);
+
+  assert.equal(await svc.setStartup(true), true);    // on demand
+  assert.equal(files.size, 0, 'removed again');
+});
+
+test('flatpak: un autostart gia\' assente non e\' un errore', async () => {
+  const svc = createService({
+    runner: flatpakRunner(), platform: 'linux', homeDir: '/home/tester',
+    fsImpl: { mkdirSync: () => {}, writeFileSync: () => {}, unlinkSync: () => { throw new Error('ENOENT'); } },
+  });
+  assert.equal(await svc.setStartup(true), true, 'absent is the goal, not a failure');
 });
