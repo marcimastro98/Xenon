@@ -54,6 +54,11 @@ const RENEW_INTERVAL_MS = 24 * 3600 * 1000;
 function readiness(status) {
   const s = status || {};
   if (!s.installed) return 'not_installed';
+  // Checked before `not_running`, which is what this looks like from the outside
+  // and is the wrong thing to tell someone: the daemon is running fine, it is
+  // this user that may not talk to its socket. Off Windows only, and one command
+  // fixes it.
+  if (s.needsOperator) return 'needs_operator';
   if (!s.running) return 'not_running';
   if (!s.connected) return 'not_logged_in';
   if (!s.dnsName) return 'no_name';

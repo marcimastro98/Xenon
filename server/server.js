@@ -16686,11 +16686,17 @@ const handleRequest = async (req, res) => {
       // flicks itself back off — the panel needs to show it on, and next to it
       // the one reason it did not come up.
       httpsEnabled: !!(_serverHubSettings && _serverHubSettings.remoteAccess && _serverHubSettings.remoteAccess.https === true),
-      // Whether this machine can bring that door up at all. Pairing itself is
-      // plain HTTP and works everywhere, but the secure door is installed and
-      // supervised through winget and elevated PowerShell, so off Windows the
-      // panel hides it instead of offering a switch that can only ever fail.
-      httpsSupported: process.platform === 'win32',
+      // Whether this machine can bring that door up at all. Everything the door
+      // is made of — the Tailscale CLI, its certificate, a TLS listener — exists
+      // identically on all three platforms, so this is true everywhere and the
+      // flag stays only because a future platform may not manage it.
+      httpsSupported: true,
+      // Whether Xenon can INSTALL Tailscale itself, which is a different question
+      // and the only Windows-shaped part left: winget. Where this is false the
+      // panel asks for one manual install instead of offering a button that would
+      // reach for a package manager under sudo — and once Tailscale is there, the
+      // rest of the setup runs exactly as it does on Windows.
+      httpsAutoInstall: process.platform === 'win32',
       https: remoteHttps.status(),
       // The guided setup, when one is running: which step, and whether it is
       // parked on the one thing the user has to do elsewhere.

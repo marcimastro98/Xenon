@@ -131,7 +131,11 @@ test('normalizeDnsName rifiuta tutto ciò che non è un hostname', () => {
 
 test('cert() separa "il tailnet non emette certificati" da un guasto locale', async () => {
   const { createTailscale: make } = require('../remote-control/tailscale.js');
-  const with_ = (res) => make({ runner: { run: () => Promise.resolve(res) }, exists: () => true });
+  // `platform` stated for the same reason `exists` is: this test is about how a
+  // message from the control plane is classified, and it must give the same
+  // answer whoever runs it. Windows, because the operator case below is the one
+  // reading that does NOT exist there.
+  const with_ = (res) => make({ runner: { run: () => Promise.resolve(res) }, exists: () => true, platform: 'win32' });
 
   const ok = await with_({ code: 0, stdout: '', stderr: '' })
     .cert('mypc.tail1234.ts.net', { certFile: 'c', keyFile: 'k' });
@@ -150,8 +154,93 @@ test('cert() separa "il tailnet non emette certificati" da un guasto locale', as
 
   // A name that is not a name never reaches the command line.
   let spawned = 0;
-  const guard = make({ runner: { run: () => { spawned++; return Promise.resolve({ code: 0 }); } }, exists: () => true });
+  const guard = make({ runner: { run: () => { spawned++; return Promise.resolve({ code: 0 }); } }, exists: () => true, platform: 'win32' });
   assert.equal((await guard.cert('../../evil', { certFile: 'c', keyFile: 'k' })).reason, 'bad_name');
   assert.equal((await guard.cert('mypc.tail1234.ts.net', {})).reason, 'bad_args');
   assert.equal(spawned, 0);
+});
+
+// ── The CLI is not only at the Windows path ──────────────────────────────────
+// Everything this module runs — status --json, up, cert — is the same command
+// with the same output on all three platforms. A hardcoded
+// C:\Program Files path was the ONLY thing that made the secure door
+// Windows-only, so the resolution is worth pinning down.
+
+test('exePath trova la CLI ai percorsi di ogni piattaforma', async () => {
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  const at = (present, platform) => make({
+    runner: runnerWith({ BackendState: 'Running', Self: {} }),
+    exists: (p) => p === present,
+    platform,
+  });
+
+  assert.equal(await at('C:\\Program Files\\Tailscale\\tailscale.exe', 'win32').exePath(),
+    'C:\\Program Files\\Tailscale\\tailscale.exe');
+  // The app bundle and Homebrew are both real macOS installs.
+  assert.equal(await at('/Applications/Tailscale.app/Contents/MacOS/Tailscale', 'darwin').exePath(),
+    '/Applications/Tailscale.app/Contents/MacOS/Tailscale');
+  assert.equal(await at('/opt/homebrew/bin/tailscale', 'darwin').exePath(), '/opt/homebrew/bin/tailscale');
+  assert.equal(await at('/usr/bin/tailscale', 'linux').exePath(), '/usr/bin/tailscale');
+  assert.equal(await at('/usr/local/bin/tailscale', 'linux').exePath(), '/usr/local/bin/tailscale');
+  // Nowhere at all is "not installed", not a crash.
+  assert.equal(await at('/nope', 'linux').exePath(), '');
+});
+
+test('un exe esplicito vince sulla ricerca per piattaforma', async () => {
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  const ts = make({ runner: runnerWith({ BackendState: 'Running', Self: {} }), exists: () => true, exe: '/custom/ts', platform: 'linux' });
+  assert.equal(await ts.exePath(), '/custom/ts');
+});
+
+test('getStatus non lancia nulla quando la CLI non c\'è', async () => {
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  let spawned = 0;
+  const ts = make({
+    runner: { run: () => { spawned++; return Promise.resolve({ code: 0, stdout: '' }); } },
+    exists: () => false, platform: 'linux',
+  });
+  const s = await ts.getStatus();
+  assert.equal(s.installed, false);
+  assert.equal(s.running, false);
+  assert.equal(s.needsOperator, false);
+  assert.equal(spawned, 0, 'spawning at a path that does not exist only produces an ENOENT to translate back');
+});
+
+// ── The daemon socket is root's on Linux ─────────────────────────────────────
+// `tailscale up` and `tailscale cert` are refused until the user is made the
+// daemon's operator. That is one command to fix, so it must not arrive as
+// "not running" (restart a service that never stopped) or as a bare failure.
+
+test('needsOperator distingue "permesso negato" da "servizio fermo"', async () => {
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  const withErr = (stderr, platform = 'linux') => make({
+    runner: { run: () => Promise.resolve({ code: 1, stdout: '', stderr }) },
+    exists: () => true, platform,
+  });
+
+  const denied = await withErr('Access denied: this command must be run as root, or set an operator').getStatus();
+  assert.equal(denied.installed, true, 'it is on disk');
+  assert.equal(denied.running, false);
+  assert.equal(denied.needsOperator, true);
+
+  const stopped = await withErr('failed to connect to local tailscaled process').getStatus();
+  assert.equal(stopped.needsOperator, false, 'a stopped daemon is a different problem with a different remedy');
+
+  // Windows has no operator to become: the same words there mean something else.
+  const onWindows = await withErr('access denied', 'win32').getStatus();
+  assert.equal(onWindows.needsOperator, false);
+});
+
+test('cert() riporta needs_operator solo fuori da Windows', async () => {
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  const cert = (platform) => make({
+    runner: { run: () => Promise.resolve({ code: 1, stdout: '', stderr: 'Access denied: this command must be run as root' }) },
+    exists: () => true, platform,
+  }).cert('mypc.tail1234.ts.net', { certFile: 'c', keyFile: 'k' });
+
+  assert.equal((await cert('linux')).reason, 'needs_operator');
+  assert.equal((await cert('darwin')).reason, 'needs_operator');
+  // On Windows the likeliest cause is an unwritable cert path, and telling
+  // somebody to run sudo would be advice for another operating system.
+  assert.equal((await cert('win32')).reason, 'failed');
 });

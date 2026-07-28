@@ -361,6 +361,24 @@ body.low-power-gpu .ra-setup-dot { animation: none; opacity: 1; }
   color: #ffc76b;
 }
 
+/* The one command that fixes the warning above it. Selectable and monospaced,
+   because it exists to be copied; it scrolls on its own rather than wrapping,
+   since a shell line broken across lines is a line that gets pasted wrong. */
+.ra-cmd {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: #e6e6ea;
+  overflow-x: auto;
+  white-space: pre;
+  user-select: all;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ra-toggle-knob,
   .ra-toggle-knob::after,

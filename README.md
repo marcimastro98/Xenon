@@ -293,7 +293,9 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 | Mirroring desktop notifications | ✅ | — | ✅ ⁶ |
 | Living Index, PC search, disk cleanup | ✅ | — | ✅ ¹⁰ |
 | Embedded browser tile | ✅ | ✅ ⁷ | ✅ ⁷ |
-| Phone as a second screen (QR pairing) | ✅ | ✅ ¹⁷ | ✅ ¹⁷ |
+| Phone as a second screen (QR pairing) | ✅ | ✅ | ✅ |
+| Secure access away from home (Tailscale + HTTPS) | ✅ | ✅ ¹⁷ | ✅ ¹⁷ |
+| Push notifications to your phone | ✅ | ✅ ¹⁷ | ✅ ¹⁷ |
 | Second screen (virtual monitor) | ✅ | — | — ¹⁵ |
 | Remote PC control (Sunshine) | ✅ | — | — ¹⁵ |
 
@@ -329,7 +331,7 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 
 ¹⁶ Linux reads the focused window from the window manager's own properties with `xprop` — which Xwayland maintains for X11 clients too, and games are almost always X11 clients (Proton and Wine render through Xwayland, and SDL2 still defaults to the X11 driver), so this keeps working on a GNOME or KDE Wayland session for exactly the applications game mode cares about. On sway and Hyprland their IPC is used instead. When the focused window is a native Wayland one, Xenon reports that it cannot see it rather than reusing the last window it could — a stale reading would leave game mode stuck on after you quit.
 
-¹⁷ Pairing a phone is plain HTTP on your own network plus a QR code, so it works the same on all three. What is Windows-only for now is the encrypted door on top of it — "secure access, also away from home" installs and supervises Tailscale through winget — and, because a phone will not accept push notifications over an unencrypted connection, the notifications that ride on it.
+¹⁷ Works, with one manual step. The door itself is the same everywhere — the same Tailscale CLI, the same certificate, the same TLS listener — but Xenon can only *install* Tailscale for you on Windows, through winget. On macOS and Linux you install it once yourself (`brew install tailscale`, or your package manager) and Xenon does the rest: sign-in, the certificate, and bringing the door up. On Linux, `tailscale` also has to be allowed to take orders from your user account — `sudo tailscale set --operator=$USER`, once — and the panel prints that exact line if it is needed rather than failing.
 
 macOS and Linux support is **new**. It is written against each platform's documented behaviour and covered by unit tests, but it has had far less real-world use than the Windows build — if something misbehaves, please [open an issue](https://github.com/marcimastro98/Xenon/issues) or say so on [Discord](https://discord.gg/MBVrw9kZyg).
 

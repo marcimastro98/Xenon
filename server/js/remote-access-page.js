@@ -121,7 +121,25 @@
     login_timeout: 'ra_https_setup_err_login',
     certs_timeout: 'ra_https_setup_err_certs',
     cancelled: 'ra_https_setup_err_cancelled',
+    // Off Windows only. Neither is a failure: each is one thing the user does
+    // once, somewhere Xenon should not reach on its own — installing a VPN
+    // client, and granting a user the daemon's socket. Both print the exact
+    // command, because "install Tailscale" is not instructions.
+    needs_manual_install: 'ra_https_setup_err_manual_install',
+    needs_operator: 'ra_https_setup_err_operator',
   };
+
+  // The command that fixes each of those, shown verbatim under the message.
+  // Platform comes from /version (see applyPlatformGating); on an unknown one we
+  // show nothing rather than a command for the wrong system.
+  function setupErrCommand(error) {
+    const p = window.XenonPlatform;
+    if (error === 'needs_operator') return p === 'linux' ? 'sudo tailscale set --operator=$USER' : '';
+    if (error !== 'needs_manual_install') return '';
+    if (p === 'darwin') return 'brew install tailscale';
+    if (p === 'linux') return 'curl -fsSL https://tailscale.com/install.sh | sh';
+    return '';
+  }
 
   // The live step. `wait_certs` is the one that needs the user somewhere else,
   // so it is the only step that carries a button — everything else is Xenon
@@ -158,6 +176,10 @@
     certs_disabled: 'ra_https_why_certs_disabled',
     bad_cert: 'ra_https_why_bad_cert',
     port_busy: 'ra_https_why_port_busy',
+    // Reported instead of `not_running` when the daemon is up but will not talk
+    // to this user — otherwise the panel sends someone to restart a service that
+    // was never stopped.
+    needs_operator: 'ra_https_why_operator',
   };
 
   // Draw the QR as a grid of <div>s rather than a canvas: the code is short
@@ -468,7 +490,8 @@
 
     const setup = st.httpsSetup || {};
     if (!httpsUi) {
-      // Nothing here on macOS and Linux — see above.
+      // Reserved for a platform that genuinely cannot run the door. macOS and
+      // Linux can: they have the same Tailscale CLI, so they get the same panel.
     } else if (setup.running) {
       // A setup is under way. Show the step it is on and nothing else: while the
       // job is driving, offering the manual instructions as well would be two
@@ -491,6 +514,21 @@
         const err = el('p', 'ra-warn');
         err.textContent = t(SETUP_ERR[setup.error] || 'ra_https_setup_err_failed');
         page.appendChild(err);
+      }
+      // "Install Tailscale" is not instructions. Where we know the exact line,
+      // it goes on screen to be copied — the whole point of naming the reason is
+      // that the user can act on it without leaving the panel to search.
+      //
+      // Shown from the READINESS too, not only after a failed attempt: where
+      // Xenon cannot install Tailscale itself, pressing the button can only ever
+      // come back asking for it, so making them press it first would be theatre.
+      const cmd = setupErrCommand(setup.error)
+        || (st.httpsAutoInstall === false && tls.reason === 'not_installed' ? setupErrCommand('needs_manual_install') : '')
+        || (tls.reason === 'needs_operator' ? setupErrCommand('needs_operator') : '');
+      if (cmd) {
+        const pre = el('pre', 'ra-cmd');
+        pre.textContent = cmd;
+        page.appendChild(pre);
       }
       // …and the manual procedure underneath, for anyone who would rather do it
       // themselves or whose machine has no winget.
