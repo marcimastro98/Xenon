@@ -47,8 +47,12 @@ function createHttpsSetup({
   let job = null;   // { step, error, startedAt, cancelled }
 
   function status() {
-    if (!job) return { running: false, step: '', error: '' };
-    return { running: !job.done, step: job.step, error: job.error || '' };
+    if (!job) return { running: false, step: '', error: '', authUrl: '' };
+    // `authUrl` is not decoration: on Windows the Tailscale GUI opens the
+    // sign-in page itself, so the panel never had to say where to go. Off
+    // Windows nothing does, and "waiting for you to complete the sign-in" with
+    // no link is an instruction with the instruction missing.
+    return { running: !job.done, step: job.step, error: job.error || '', authUrl: job.authUrl || '' };
   }
 
   /** Poll `probe` until it is true or the budget runs out. */
@@ -130,9 +134,13 @@ function createHttpsSetup({
         if (login && login.needsOperator) { job.error = 'needs_operator'; return; }
       }
       job.step = 'wait_login';
+      if (login && login.authUrl) job.authUrl = login.authUrl;
       const ok = await until(async () => {
         const cur = await st();
         if (cur.needsOperator) { job.error = 'needs_operator'; return true; }
+        // tailscaled may publish the URL a moment after `up` returns, and a
+        // user staring at a link-less "waiting" box has no way to know that.
+        if (!job.authUrl && cur.authUrl) job.authUrl = cur.authUrl;
         return cur.connected === true;
       }, WAIT_LOGIN_MS);
       if (job.error) return;

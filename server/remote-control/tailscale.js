@@ -69,7 +69,7 @@ function parseStatus(stdout) {
   let data = null;
   try { data = JSON.parse(String(stdout || '')); } catch { data = null; }
   if (!data || typeof data !== 'object' || typeof data.BackendState !== 'string') {
-    return { running: false, connected: false, ip: '', dnsName: '', certDomains: [] };
+    return { running: false, connected: false, ip: '', dnsName: '', certDomains: [], authUrl: '' };
   }
   const self = (data.Self && typeof data.Self === 'object') ? data.Self : {};
   const ips = Array.isArray(self.TailscaleIPs) ? self.TailscaleIPs : [];
@@ -84,7 +84,20 @@ function parseStatus(stdout) {
     // admin console — a per-TAILNET switch nothing on this machine can flip, so
     // the UI has to say so precisely instead of reporting a generic failure.
     certDomains: Array.isArray(data.CertDomains) ? data.CertDomains.filter((d) => typeof d === 'string') : [],
+    // Where the user has to go to finish signing in. tailscaled publishes it
+    // here while it waits, and on Windows the GUI client opens it for them —
+    // which is why nothing off Windows did: `tailscale up` only PRINTS the URL,
+    // and the panel sat on "waiting for you to complete sign-in" without ever
+    // saying where. Only trusted over https://login.tailscale.com so a
+    // malformed status can never turn into a link we hand somebody.
+    authUrl: safeAuthUrl(data.AuthURL),
   };
+}
+
+const AUTH_URL_RE = /^https:\/\/login\.tailscale\.com\/[\w./-]*$/;
+function safeAuthUrl(v) {
+  const s = typeof v === 'string' ? v.trim() : '';
+  return AUTH_URL_RE.test(s) ? s : '';
 }
 
 /** Whether this tailnet will actually issue a certificate for `fqdn`. */
@@ -121,7 +134,7 @@ function createTailscale({ runner = defaultRunner, exe = null, exists = null, pl
     if (!path_) {
       return {
         installed: false, running: false, connected: false,
-        ip: '', dnsName: '', certsEnabled: false, needsOperator: false,
+        ip: '', dnsName: '', certsEnabled: false, needsOperator: false, authUrl: '',
       };
     }
     const r = await runner.run(path_, ['status', '--json'])
@@ -148,6 +161,7 @@ function createTailscale({ runner = defaultRunner, exe = null, exists = null, pl
       // operator grant therefore looks perfectly healthy here. startLogin()
       // reports the refusal it actually meets, and the setup acts on that.
       needsOperator: needsOperatorPossible && !s.running && isPermissionError(r.stderr || r.stdout),
+      authUrl: s.authUrl,
     };
   }
 
@@ -204,14 +218,38 @@ function createTailscale({ runner = defaultRunner, exe = null, exists = null, pl
   // of a successful login waiting on the browser.
   async function startLogin() {
     const path_ = await resolveExe();
-    if (!path_) return { code: 1, stdout: '', stderr: 'tailscale not found', needsOperator: false };
+    if (!path_) return { code: 1, stdout: '', stderr: 'tailscale not found', needsOperator: false, authUrl: '' };
     const r = await runner.run(path_, ['up'], { timeoutMs: 5000 })
       .catch(() => ({ code: 1, stdout: '', stderr: '', timedOut: false }));
+
+    // `up` prints the sign-in URL and keeps waiting, so the 5s timeout above is
+    // the NORMAL path and the URL is in the output we just collected. Grab it
+    // there first; tailscaled also publishes it in `status --json`, which is the
+    // fallback for a run that timed out before printing.
+    const printed = safeAuthUrl((/(https:\/\/login\.tailscale\.com\/\S+)/
+      .exec(`${r.stdout || ''}\n${r.stderr || ''}`) || [])[1]);
+    const authUrl = printed || (await getStatus().catch(() => ({}))).authUrl || '';
+
+    // Open it. On Windows the Tailscale GUI client does this itself, which is
+    // exactly why nobody noticed it was missing everywhere else. Best-effort:
+    // if no browser opens, the panel still shows the link.
+    if (authUrl) openUrl(authUrl);
+
     return {
       ...r,
+      authUrl,
       needsOperator: needsOperatorPossible && r.code !== 0 && !r.timedOut
         && isPermissionError(r.stderr || r.stdout),
     };
+  }
+
+  // The desktop's own "open this link" command. Never a shell, and only ever
+  // called with a URL that matched AUTH_URL_RE.
+  function openUrl(url) {
+    const [file, args] = platform === 'darwin' ? ['open', [url]]
+      : platform === 'win32' ? ['cmd', ['/c', 'start', '', url]]
+        : ['xdg-open', [url]];
+    Promise.resolve(runner.run(file, args, { timeoutMs: 10000 })).catch(() => {});
   }
 
   /**
