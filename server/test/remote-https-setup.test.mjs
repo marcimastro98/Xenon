@@ -11,12 +11,24 @@ const { createHttpsSetup } = require('../remote-https-setup.js');
 function harness(seq, opts = {}) {
   // `seq` is the sequence of statuses getStatus() answers with, last one repeats.
   let i = 0;
-  const calls = { install: 0, login: 0, start: 0, settings: [] };
+  const calls = { install: 0, login: 0, start: 0, settings: [], grants: [] };
   let clock = 0;
   const setup = createHttpsSetup({
     tailscale: {
       getStatus: async () => seq[Math.min(i++, seq.length - 1)],
-      startLogin: async () => { calls.login++; return { code: 0 }; },
+      // `loginRefused` models the machine shape found on Fedora: status answers
+      // fine, and the refusal only surfaces when `up` tries to write.
+      startLogin: async () => {
+        calls.login++;
+        // `loginRefused: 'once'` models the grant working: the second `up`,
+        // after the operator has been set, goes through.
+        const refuse = opts.loginRefused === 'once' ? calls.login === 1 : !!opts.loginRefused;
+        return refuse ? { code: 1, needsOperator: true } : { code: 0 };
+      },
+      grantOperator: opts.grantOperator === undefined ? undefined : async (user) => {
+        calls.grants.push(user);
+        return opts.grantOperator;
+      },
     },
     installer: {
       install: async () => { calls.install++; return opts.installResult || { code: 0 }; },
@@ -28,6 +40,8 @@ function harness(seq, opts = {}) {
     https: { start: async () => { calls.start++; return opts.startResult || { ok: true }; } },
     onSettings: async (v) => { calls.settings.push(v); },
     now: () => clock,
+    // Stated, not read from the machine running the suite.
+    operatorUser: () => 'tester',
     // Every sleep advances the clock, which is what makes the budgets expire in
     // finite test time instead of spinning.
     sleep: async () => { clock += 60 * 1000; },
@@ -183,6 +197,74 @@ test('needsOperator ferma subito, invece di aspettare cinque minuti un login imp
   assert.equal(setup.status().error, 'needs_operator');
   assert.equal(calls.login, 0, 'a sign-in that could not have started was not started');
   assert.equal(calls.start, 0);
+});
+
+test('un `up` rifiutato ferma subito, anche se lo stato sembra sanissimo', async () => {
+  // THE case this port got wrong until it was run against a real tailscaled.
+  // Every probe here reports a healthy, reachable daemon — because that is the
+  // truth: reading is allowed, writing is not. If the setup only trusts
+  // getStatus() it polls for five minutes and blames the network.
+  const healthy = { installed: true, running: true, connected: false, needsOperator: false };
+  const { setup, calls } = harness([healthy], { canInstall: false, loginRefused: true });
+  setup.start();
+  await settle();
+  assert.equal(setup.status().error, 'needs_operator');
+  assert.notEqual(setup.status().error, 'login_timeout', 'the message that sends people to their router');
+  assert.equal(calls.login, 1, 'it tried exactly once');
+  assert.equal(calls.start, 0);
+  assert.deepEqual(calls.settings, [], 'nothing was switched on');
+});
+
+test('il rifiuto si risolve da solo: chiede il permesso e riprova', async () => {
+  // One click means one click. Printing `sudo tailscale set --operator=$USER`
+  // at somebody is the thing this port exists to stop doing — the grant is one
+  // elevated command and Xenon can ask for it exactly like it asked to install.
+  const seq = [
+    { installed: true, running: true, connected: false, needsOperator: false },
+    { installed: true, running: true, connected: false, needsOperator: false },
+    { installed: true, running: true, connected: false, needsOperator: false },
+    READY,
+  ];
+  const { setup, calls } = harness(seq, {
+    canInstall: false, loginRefused: 'once', grantOperator: { ok: true },
+  });
+  setup.start();
+  await settle();
+  assert.equal(setup.status().error, '');
+  assert.deepEqual(calls.grants, ['tester'], 'asked once, for the right account');
+  assert.equal(calls.login, 2, 'and retried the sign-in after being granted');
+});
+
+test('permesso negato dall\'utente = decisione, non guasto', async () => {
+  const healthy = { installed: true, running: true, connected: false, needsOperator: false };
+  const { setup, calls } = harness([healthy], {
+    canInstall: false, loginRefused: true, grantOperator: { ok: false, reason: 'cancelled' },
+  });
+  setup.start();
+  await settle();
+  assert.equal(setup.status().error, 'uac_cancelled', 'they closed the password dialog');
+  assert.equal(calls.start, 0);
+  assert.deepEqual(calls.settings, []);
+});
+
+test('se il permesso non si puo\' dare, resta needs_operator e le istruzioni', async () => {
+  const healthy = { installed: true, running: true, connected: false, needsOperator: false };
+  const { setup } = harness([healthy], {
+    canInstall: false, loginRefused: true, grantOperator: { ok: false, reason: 'failed' },
+  });
+  setup.start();
+  await settle();
+  assert.equal(setup.status().error, 'needs_operator');
+});
+
+test('un tailscale senza grantOperator non fa crashare il setup', async () => {
+  // The injected doubles in older tests have no such method, and neither would
+  // an older module left behind by a partial update.
+  const healthy = { installed: true, running: true, connected: false, needsOperator: false };
+  const { setup } = harness([healthy], { canInstall: false, loginRefused: true });
+  setup.start();
+  await settle();
+  assert.equal(setup.status().error, 'needs_operator');
 });
 
 test('needsOperator che compare durante l\'attesa del login non diventa un timeout', async () => {

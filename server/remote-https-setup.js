@@ -32,9 +32,17 @@ const POLL_MS = 2000;
 
 // The steps, in the order they must happen. `wait_certs` is the one the user
 // acts on somewhere else; the panel keys its big link off exactly this value.
-const STEPS = ['installing', 'login', 'wait_login', 'wait_certs', 'starting', 'done'];
+// `operator` only occurs off Windows, and only where Tailscale was installed by
+// somebody other than us.
+const STEPS = ['installing', 'login', 'operator', 'wait_login', 'wait_certs', 'starting', 'done'];
 
-function createHttpsSetup({ tailscale, installer, https, onSettings, now = () => Date.now(), sleep, log = () => {} } = {}) {
+function createHttpsSetup({
+  tailscale, installer, https, onSettings,
+  now = () => Date.now(), sleep, log = () => {},
+  // Injected so the operator grant can be asserted without depending on whoever
+  // happens to run the suite.
+  operatorUser = () => { try { return require('node:os').userInfo().username || ''; } catch { return process.env.USER || ''; } },
+} = {}) {
   const wait = sleep || ((ms) => new Promise((r) => setTimeout(r, ms)));
   let job = null;   // { step, error, startedAt, cancelled }
 
@@ -67,7 +75,7 @@ function createHttpsSetup({ tailscale, installer, https, onSettings, now = () =>
       // something to do behind their back. This is the same shape as step 3 —
       // one thing the user does elsewhere — so it stops and names it rather than
       // reporting a failure they did not cause.
-      if (!(await Promise.resolve(installer.canInstall ? installer.canInstall() : true).catch(() => false))) {
+      if (!(await Promise.resolve(installer.canInstall ? installer.canInstall('tailscale') : true).catch(() => false))) {
         job.error = 'needs_manual_install';
         log('[https-setup] Tailscale is not installed and cannot be installed from here');
         return;
@@ -96,7 +104,31 @@ function createHttpsSetup({ tailscale, installer, https, onSettings, now = () =>
       if (s.needsOperator) { job.error = 'needs_operator'; return; }
       job.step = 'login';
       log('[https-setup] opening the Tailscale sign-in');
-      await tailscale.startLogin().catch(() => {});
+      // The refusal usually lands HERE, not on the status probe above. Measured
+      // on Fedora 43: tailscaled's socket is world-writable, so reading status
+      // succeeds for any user and only `up` — which writes preferences — is
+      // denied. Discarding this result (it used to be `.catch(() => {})`) meant
+      // the one machine shape that actually needs the operator grant was the one
+      // shape that never reported it, and sat out a five-minute timeout instead.
+      let login = await tailscale.startLogin().catch(() => null);
+      if (login && login.needsOperator) {
+        // Ask for the grant instead of printing the command at them. This is the
+        // path for a Tailscale the user installed themselves, so our install —
+        // which folds the grant into its own elevation — never ran here.
+        log('[https-setup] Tailscale refused the sign-in; asking for the operator grant');
+        job.step = 'operator';
+        const granted = tailscale.grantOperator
+          ? await tailscale.grantOperator(operatorUser()).catch(() => null)
+          : null;
+        if (!granted || !granted.ok) {
+          // `cancelled` is the user dismissing the password dialog: a decision,
+          // and not the same thing as a machine that cannot do this at all.
+          job.error = granted && granted.reason === 'cancelled' ? 'uac_cancelled' : 'needs_operator';
+          return;
+        }
+        login = await tailscale.startLogin().catch(() => null);
+        if (login && login.needsOperator) { job.error = 'needs_operator'; return; }
+      }
       job.step = 'wait_login';
       const ok = await until(async () => {
         const cur = await st();

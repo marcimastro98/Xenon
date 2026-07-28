@@ -231,6 +231,114 @@ test('needsOperator distingue "permesso negato" da "servizio fermo"', async () =
   assert.equal(onWindows.needsOperator, false);
 });
 
+// ── The refusal lands on the WRITE, not on the read ──────────────────────────
+// Measured on Fedora 43 against tailscaled 1.94.2, which is what these fakes
+// reproduce: the daemon's socket is srw-rw-rw-, so `status --json` answers for
+// any user and looks entirely healthy, while `up` — which writes preferences —
+// comes back "Access denied: checkprefs access denied".
+//
+// The first version of this port classified only the status probe, so the one
+// machine shape that genuinely needs `sudo tailscale set --operator=$USER` was
+// the one shape that never said so. These tests exist to keep that fixed.
+
+test('startLogin riconosce il rifiuto anche se status risponde benissimo', async () => {
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  const REAL = 'Access denied: checkprefs access denied\n\n'
+    + "Use 'sudo tailscale up'.\n"
+    + "To not require root, use 'sudo tailscale set --operator=$USER' once.\n";
+
+  const ts = make({
+    runner: {
+      run: (_exe, args) => Promise.resolve(
+        args[0] === 'status'
+          // A daemon that is up, reachable and simply not logged in yet.
+          ? { code: 0, stdout: JSON.stringify({ BackendState: 'NeedsLogin' }), stderr: '' }
+          : { code: 1, stdout: '', stderr: REAL },
+      ),
+    },
+    exists: () => true, platform: 'linux',
+  });
+
+  const s = await ts.getStatus();
+  assert.equal(s.running, true, 'the read succeeded — nothing here looks wrong');
+  assert.equal(s.needsOperator, false, 'and that is exactly why the status probe cannot catch it');
+
+  const login = await ts.startLogin();
+  assert.equal(login.needsOperator, true, 'the write is where the truth is');
+});
+
+test('startLogin: un `up` che resta appeso NON e\' un rifiuto', async () => {
+  // `up` blocking is the normal shape of a login waiting on the browser. Calling
+  // that a permission problem would abort every successful sign-in.
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  const ts = make({
+    runner: { run: () => Promise.resolve({ code: 1, stdout: '', stderr: '', timedOut: true }) },
+    exists: () => true, platform: 'linux',
+  });
+  assert.equal((await ts.startLogin()).needsOperator, false);
+});
+
+test('grantOperator: un solo comando elevato, e rifiuta nomi che non sono nomi', async () => {
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  const calls = [];
+  const ts = make({
+    runner: {
+      run: () => Promise.resolve({ code: 0, stdout: '' }),
+      runElevated: (file, args) => { calls.push({ file, args }); return Promise.resolve({ code: 0 }); },
+    },
+    exists: () => true, platform: 'linux', exe: '/usr/bin/tailscale',
+  });
+
+  assert.deepEqual(await ts.grantOperator('marcello'), { ok: true });
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].args, ['set', '--operator=marcello']);
+
+  // This value is interpolated into an ELEVATED command line. Anything that is
+  // not the shape of a username is refused outright rather than escaped, and
+  // must not reach a spawn.
+  for (const bad of ['', 'a b', 'me; rm -rf /', '$(whoami)', 'x`id`']) {
+    const r = await ts.grantOperator(bad);
+    assert.equal(r.ok, false, `refused: ${JSON.stringify(bad)}`);
+    assert.equal(r.reason, 'bad_user');
+  }
+  assert.equal(calls.length, 1, 'and none of them spawned anything');
+});
+
+test('grantOperator: dialogo chiuso = cancelled, non un fallimento', async () => {
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  const ts = make({
+    runner: {
+      run: () => Promise.resolve({ code: 0, stdout: '' }),
+      runElevated: () => Promise.resolve({ code: 1223, stderr: '' }),
+    },
+    exists: () => true, platform: 'linux', exe: '/usr/bin/tailscale',
+  });
+  assert.equal((await ts.grantOperator('marcello')).reason, 'cancelled');
+});
+
+test('grantOperator: su Windows non esiste e non spawna', async () => {
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  let spawned = 0;
+  const ts = make({
+    runner: {
+      run: () => Promise.resolve({ code: 0, stdout: '' }),
+      runElevated: () => { spawned++; return Promise.resolve({ code: 0 }); },
+    },
+    exists: () => true, platform: 'win32', exe: 'C:\\tailscale.exe',
+  });
+  assert.deepEqual(await ts.grantOperator('marcello'), { ok: false, reason: 'not_applicable' });
+  assert.equal(spawned, 0);
+});
+
+test('startLogin: su Windows lo stesso testo non diventa needs_operator', async () => {
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  const ts = make({
+    runner: { run: () => Promise.resolve({ code: 1, stdout: '', stderr: 'Access denied' }) },
+    exists: () => true, platform: 'win32',
+  });
+  assert.equal((await ts.startLogin()).needsOperator, false, 'there is no operator to become');
+});
+
 test('cert() riporta needs_operator solo fuori da Windows', async () => {
   const { createTailscale: make } = require('../remote-control/tailscale.js');
   const cert = (platform) => make({

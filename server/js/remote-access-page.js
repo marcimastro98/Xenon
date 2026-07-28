@@ -110,6 +110,11 @@
   const SETUP_STEP = {
     installing: 'ra_https_step_installing',
     login: 'ra_https_step_login',
+    // Off Windows, and only where Tailscale was installed by somebody other than
+    // us — our own install folds the grant into its elevation. Named as a step
+    // because a password dialog appearing with the panel saying "signing in"
+    // would look like the wrong prompt.
+    operator: 'ra_https_step_operator',
     wait_login: 'ra_https_step_wait_login',
     wait_certs: 'ra_https_step_wait_certs',
     starting: 'ra_https_step_starting',
@@ -132,9 +137,17 @@
   // The command that fixes each of those, shown verbatim under the message.
   // Platform comes from /version (see applyPlatformGating); on an unknown one we
   // show nothing rather than a command for the wrong system.
+  //
+  // These are the FALLBACK now, not the normal path: Xenon installs Tailscale
+  // and asks for the operator grant itself, each behind one password prompt. A
+  // command only surfaces on a machine that cannot be driven that way — no
+  // polkit agent, no Homebrew, no package manager we know — where the
+  // alternative is a button that does nothing.
   function setupErrCommand(error) {
     const p = window.XenonPlatform;
-    if (error === 'needs_operator') return p === 'linux' ? 'sudo tailscale set --operator=$USER' : '';
+    if (error === 'needs_operator') {
+      return p === 'linux' || p === 'darwin' ? 'sudo tailscale set --operator=$USER' : '';
+    }
     if (error !== 'needs_manual_install') return '';
     if (p === 'darwin') return 'brew install tailscale';
     if (p === 'linux') return 'curl -fsSL https://tailscale.com/install.sh | sh';

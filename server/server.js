@@ -10252,9 +10252,15 @@ const remoteHttps = remoteHttpsLib.createRemoteHttps({
 // The guided setup behind the panel's single button. It owns no state on disk —
 // `onSettings` is the one write, and it goes through the same locked writer
 // everything else uses.
+// Named rather than inline because the status route asks it the same question
+// the setup does ("can this machine install Tailscale by itself?"), and the
+// instance caches what it has already probed — a fresh one per poll would
+// re-run `command -v` on every status request.
+const remoteHttpsInstaller = remoteControlInstaller.createInstaller({});
+
 const remoteHttpsSetup = remoteHttpsSetupLib.createHttpsSetup({
   tailscale: remoteControlTailscale.createTailscale({}),
-  installer: remoteControlInstaller.createInstaller({}),
+  installer: remoteHttpsInstaller,
   https: remoteHttps,
   log: (m) => console.log(m),
   onSettings: async (value) => {
@@ -16691,12 +16697,13 @@ const handleRequest = async (req, res) => {
       // identically on all three platforms, so this is true everywhere and the
       // flag stays only because a future platform may not manage it.
       httpsSupported: true,
-      // Whether Xenon can INSTALL Tailscale itself, which is a different question
-      // and the only Windows-shaped part left: winget. Where this is false the
-      // panel asks for one manual install instead of offering a button that would
-      // reach for a package manager under sudo — and once Tailscale is there, the
-      // rest of the setup runs exactly as it does on Windows.
-      httpsAutoInstall: process.platform === 'win32',
+      // Whether Xenon can INSTALL Tailscale itself, which is a different
+      // question — and no longer a Windows-only yes. winget, Homebrew and
+      // pkexec+dnf/apt are the same offer wearing three faces, so this is asked
+      // of the machine rather than assumed from the platform: a Linux box with
+      // no polkit agent and a Mac with no Homebrew both answer false, and there
+      // the panel prints the exact command instead of offering a dead button.
+      httpsAutoInstall: await remoteHttpsInstaller.canInstall('tailscale').catch(() => false),
       https: remoteHttps.status(),
       // The guided setup, when one is running: which step, and whether it is
       // parked on the one thing the user has to do elsewhere.

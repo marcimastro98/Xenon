@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const defaultRunner = require('./runner');
+const { UAC_CANCELLED } = require('./runner');
 
 // Where the CLI lives, per platform, in the order we prefer it. Everything below
 // this list is platform-neutral: `tailscale status --json`, `up` and `cert` are
@@ -138,7 +139,14 @@ function createTailscale({ runner = defaultRunner, exe = null, exists = null, pl
       certsEnabled: certsEnabledFor(s.certDomains, s.dnsName),
       // Installed and present, but this user may not talk to the daemon. Only
       // meaningful when the command did NOT answer — a daemon that replied has
-      // evidently let us in.
+      // evidently let us in for READS.
+      //
+      // Which is not the same as writes, and that gap is why this flag alone is
+      // not enough: measured on Fedora 43, tailscaled's socket is srw-rw-rw-, so
+      // `status --json` answers happily for any user while `up` comes back
+      // "Access denied: checkprefs access denied". A machine that needs the
+      // operator grant therefore looks perfectly healthy here. startLogin()
+      // reports the refusal it actually meets, and the setup acts on that.
       needsOperator: needsOperatorPossible && !s.running && isPermissionError(r.stderr || r.stdout),
     };
   }
@@ -146,13 +154,64 @@ function createTailscale({ runner = defaultRunner, exe = null, exists = null, pl
   /** The resolved CLI path, or '' — exported so callers can name it in a message. */
   async function exePath() { return resolveExe(); }
 
+  /**
+   * Make the current user tailscaled's operator, so `up` and `cert` stop being
+   * refused. One elevated command, the same one Tailscale's own error message
+   * tells people to type.
+   *
+   * This exists for the machine where Tailscale was ALREADY installed — by the
+   * user, by their distribution, by anything that was not us. The install path
+   * folds this into its own elevation, but that path never runs there, and
+   * printing a command at somebody is the thing this port is trying to stop
+   * doing. Windows has no operator concept, so there it is a no-op rather than
+   * a spawn.
+   */
+  async function grantOperator(user) {
+    if (!needsOperatorPossible) return { ok: false, reason: 'not_applicable' };
+    const name = String(user || '');
+    // Interpolated into an elevated command line: anything that is not the
+    // shape of a username is refused rather than escaped.
+    if (!/^[A-Za-z0-9._-]+$/.test(name)) return { ok: false, reason: 'bad_user' };
+    const path_ = await resolveExe();
+    if (!path_) return { ok: false, reason: 'not_installed' };
+
+    const r = await runner.runElevated(path_, ['set', `--operator=${name}`])
+      .catch(() => ({ code: 1, stderr: '' }));
+    if (r.code === 0) return { ok: true };
+    // 1223 is a declined UAC prompt on Windows and a dismissed polkit dialog on
+    // Linux — the user saying no, which is not a failure to report as one.
+    if (r.code === UAC_CANCELLED) return { ok: false, reason: 'cancelled' };
+    return { ok: false, reason: 'failed', error: String(r.stderr || '').slice(0, 400) };
+  }
+
   // Fire-and-observe: `tailscale up` apre il browser per il login OAuth e puo
   // restare in attesa. Timeout breve per non bloccare il server; il login reale
   // prosegue in background e lo stato si rileva poi via getStatus() (polling).
+  //
+  // `needsOperator` is classified HERE and not only in getStatus() because this
+  // is where the refusal actually happens. `up` writes preferences, and writing
+  // is what the daemon guards; reading is not. On the machine this was measured
+  // on, the exact answer is:
+  //
+  //   Access denied: checkprefs access denied
+  //   To not require root, use 'sudo tailscale set --operator=$USER' once.
+  //
+  // Left unclassified, the caller polls a login that can never begin and ends
+  // up reporting a five-minute `login_timeout` — the one message that sends
+  // somebody to look at their network instead of at one `sudo` command.
+  //
+  // A timeout is deliberately NOT a refusal: `up` blocking is the normal shape
+  // of a successful login waiting on the browser.
   async function startLogin() {
     const path_ = await resolveExe();
-    if (!path_) return { code: 1, stdout: '', stderr: 'tailscale not found' };
-    return runner.run(path_, ['up'], { timeoutMs: 5000 });
+    if (!path_) return { code: 1, stdout: '', stderr: 'tailscale not found', needsOperator: false };
+    const r = await runner.run(path_, ['up'], { timeoutMs: 5000 })
+      .catch(() => ({ code: 1, stdout: '', stderr: '', timedOut: false }));
+    return {
+      ...r,
+      needsOperator: needsOperatorPossible && r.code !== 0 && !r.timedOut
+        && isPermissionError(r.stderr || r.stdout),
+    };
   }
 
   /**
@@ -195,7 +254,7 @@ function createTailscale({ runner = defaultRunner, exe = null, exists = null, pl
     return { ok: false, reason: 'failed', error: msg.slice(0, 400) };
   }
 
-  return { getStatus, startLogin, cert, exePath };
+  return { getStatus, startLogin, cert, exePath, grantOperator };
 }
 
 module.exports = {
