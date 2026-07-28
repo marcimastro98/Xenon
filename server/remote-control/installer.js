@@ -71,9 +71,17 @@ const LINUX_PACKAGES = {
 // macOS: Homebrew or nothing. There is no system package manager to fall back
 // on, and `brew` is the user's tool — if they do not have it, Xenon says so
 // rather than installing a package manager behind their back.
+//
+// NOT VERIFIED ON A MAC. Both entries were checked against the upstream
+// sources rather than guessed — `tailscale` is in homebrew-core and ships both
+// the CLI and tailscaled; `sunshine` is NOT in core and needs LizardByte's own
+// tap, which an earlier version of this table got wrong — but no Mac has run
+// them. Every failure here lands on the manual-instructions path.
 const MAC_PACKAGES = {
-  tailscale: { brew: 'tailscale' },
-  sunshine: { brew: 'sunshine' },
+  // `brew services` needs root to install a daemon into /Library/LaunchDaemons,
+  // which is why this one step is elevated while `brew install` is not.
+  tailscale: { brew: 'tailscale', service: 'tailscaled' },
+  sunshine: { brew: 'sunshine', tap: 'LizardByte/homebrew' },
 };
 
 function createInstaller({ runner = defaultRunner, platform = process.platform } = {}) {
@@ -206,9 +214,26 @@ function createInstaller({ runner = defaultRunner, platform = process.platform }
   async function installMac(name) {
     const spec = MAC_PACKAGES[name];
     if (!spec || !(await which('brew'))) return manual('Homebrew is not installed');
+
+    // Sunshine is not in homebrew-core; it lives in LizardByte's own tap, and
+    // `brew install` on an untapped formula fails with "No available formula".
+    // Tapping twice is harmless.
+    if (spec.tap) await runner.run('brew', ['tap', spec.tap], { timeoutMs: 5 * 60 * 1000 });
+
     // Deliberately NOT elevated: brew refuses to run under sudo, and on a Mac
     // it owns its own prefix, so there is nothing to elevate for.
-    return runner.run('brew', ['install', spec.brew], { timeoutMs: 15 * 60 * 1000 });
+    const r = await runner.run('brew', ['install', spec.brew], { timeoutMs: 15 * 60 * 1000 });
+    if (r.code !== 0) return r;
+
+    // The daemon is the exception. Installing a LaunchDaemon writes outside the
+    // brew prefix, so this — and only this — raises the admin dialog. Its
+    // failure is not the install's failure: the package is there either way,
+    // and the setup re-probes.
+    if (spec.service) {
+      await runner.runElevated('brew', ['services', 'start', spec.brew], { timeoutMs: 5 * 60 * 1000 })
+        .catch(() => null);
+    }
+    return r;
   }
 
   async function installLinux(name) {

@@ -155,18 +155,52 @@ test('linux: flatpak senza remote flathub non viene nemmeno tentato', async () =
     'no install against a remote that is not configured');
 });
 
-test('darwin: usa brew e NON eleva', async () => {
+test('darwin: `brew install` non e\' elevato, il demone si', async () => {
   const runner = posixRunner(['brew']);
   const inst = createInstaller({ runner, platform: 'darwin' });
 
   assert.equal(await inst.canInstall('tailscale'), true);
   const r = await inst.install('tailscale');
   assert.equal(r.code, 0);
-  // brew refuses to run under sudo and owns its own prefix: elevating would be
-  // both wrong and rejected.
+
+  // brew refuses to run under sudo and owns its own prefix, so the install
+  // itself must NOT be elevated...
+  const install = runner.calls.find((c) => c.file === 'brew' && c.args[0] === 'install');
+  assert.ok(install && install.args.includes('tailscale'));
+  assert.ok(!install.elevated, 'brew install under sudo is rejected by brew itself');
+
+  // ...but a LaunchDaemon is written outside that prefix, so exactly one step is.
+  const elevated = runner.calls.filter((c) => c.elevated);
+  assert.equal(elevated.length, 1);
+  assert.deepEqual(elevated[0].args, ['services', 'start', 'tailscale']);
+});
+
+test('darwin: Sunshine non e\' in homebrew-core, quindi il tap viene prima', async () => {
+  // Checked against Homebrew's API rather than remembered: there is no
+  // `sunshine` formula in core (404), it lives in LizardByte's tap. Without the
+  // tap, `brew install sunshine` fails with "No available formula".
+  const runner = posixRunner(['brew']);
+  const inst = createInstaller({ runner, platform: 'darwin' });
+
+  await inst.install('sunshine');
+  const brewCalls = runner.calls.filter((c) => c.file === 'brew');
+  assert.equal(brewCalls[0].args[0], 'tap', 'tapped first');
+  assert.equal(brewCalls[0].args[1], 'LizardByte/homebrew');
+  assert.ok(brewCalls.some((c) => c.args[0] === 'install' && c.args.includes('sunshine')));
+  // Sunshine has no daemon of ours to start.
   assert.equal(runner.calls.filter((c) => c.elevated).length, 0);
-  const call = runner.calls.find((c) => c.file === 'brew' && c.args[0] === 'install');
-  assert.ok(call && call.args.includes('tailscale'));
+});
+
+test('darwin: se brew install fallisce non prova ad avviare il demone', async () => {
+  const runner = posixRunner(['brew'], {
+    'install tailscale': { code: 1, stdout: '', stderr: 'Error: formula not found' },
+  });
+  const inst = createInstaller({ runner, platform: 'darwin' });
+
+  const r = await inst.install('tailscale');
+  assert.equal(r.code, 1);
+  assert.equal(runner.calls.filter((c) => c.elevated).length, 0,
+    'no admin dialog for a package that is not there');
 });
 
 test('darwin: senza Homebrew non installa un package manager di nascosto', async () => {

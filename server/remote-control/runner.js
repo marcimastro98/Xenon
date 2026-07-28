@@ -63,7 +63,38 @@ function mapPkexecResult(r) {
   return r;
 }
 
+// macOS has no pkexec. Its equivalent is AppleScript's `with administrator
+// privileges`, which raises the same system dialog (and Touch ID where the Mac
+// has it). Cancelling it is AppleScript error -128.
+const OSA_CANCELLED_RE = /-128|User canceled/i;
+
+/** Escape for embedding inside an AppleScript double-quoted string literal. */
+function osaQuote(s) {
+  return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function runElevatedMac(file, args, timeoutMs) {
+  // Each word is quoted for the shell that AppleScript will spawn, then the
+  // whole thing is quoted again for AppleScript. Nothing here comes from a
+  // request, but the two layers are easy to get wrong and worth being explicit
+  // about.
+  const shellCmd = [file, ...args]
+    .map((a) => `'${String(a).replace(/'/g, `'\\''`)}'`)
+    .join(' ');
+  const script = `do shell script "${osaQuote(shellCmd)}" with administrator privileges`;
+  return run('osascript', ['-e', script], { timeoutMs }).then(mapOsascriptResult);
+}
+
+/** Pure, and exported, so the mapping can be stated without opening a dialog. */
+function mapOsascriptResult(r) {
+  if (r.code !== 0 && OSA_CANCELLED_RE.test(r.stderr || '')) {
+    return { ...r, code: UAC_CANCELLED };
+  }
+  return r;
+}
+
 function runElevated(file, args = [], { timeoutMs = 600000 } = {}) {
+  if (process.platform === 'darwin') return runElevatedMac(file, args, timeoutMs);
   if (process.platform !== 'win32') return runElevatedPosix(file, args, timeoutMs);
   const safeFile = String(file).replace(/'/g, "''");
   const argList = args.map((a) => `'${String(a).replace(/'/g, "''")}'`).join(',');
@@ -83,4 +114,7 @@ function runElevated(file, args = [], { timeoutMs = 600000 } = {}) {
   return run('powershell', ['-NoProfile', '-NonInteractive', '-Command', ps], { timeoutMs });
 }
 
-module.exports = { run, runElevated, mapPkexecResult, UAC_CANCELLED, PKEXEC_DISMISSED };
+module.exports = {
+  run, runElevated, mapPkexecResult, mapOsascriptResult, osaQuote,
+  UAC_CANCELLED, PKEXEC_DISMISSED,
+};
