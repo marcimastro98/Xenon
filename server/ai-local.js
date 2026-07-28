@@ -134,6 +134,11 @@ function modelSupportsVision(model) {
 // registry fallback for cards >4 GB (HardwareInformation.qwMemorySize). Returns
 // 0 when no dedicated GPU info is available — the scan then relies on RAM only.
 function _readGpuVramGB(timeoutMs = 6000) {
+  // Apple Silicon has no dedicated VRAM to report: the GPU addresses system
+  // memory, so 0 here is the honest answer AND the useful one — computeTier then
+  // sizes the model from RAM, which is exactly what the GPU can use. Returning
+  // early also avoids spawning a powershell.exe that cannot exist.
+  if (process.platform !== 'win32') return Promise.resolve(0);
   return new Promise((resolve) => {
     const ps = [
       '$ErrorActionPreference="SilentlyContinue";',
@@ -566,20 +571,50 @@ function resolveModel(model, hardwareScan) {
   return 'qwen2.5:3b';
 }
 
-// Resolve the expected whisper.cpp locations under server/whisper/. The exe name
-// matches the modern whisper.cpp release ("whisper-cli.exe"); a legacy
-// "main.exe"/"whisper.exe" is accepted as a fallback by whisperExe().
+// Binary names for the whisper.cpp CLI, newest naming first. The modern release
+// calls it "whisper-cli"; "main"/"whisper" are the legacy names.
+const WHISPER_BIN_NAMES = process.platform === 'win32'
+  ? ['whisper-cli.exe', 'whisper.exe', 'main.exe']
+  : ['whisper-cli', 'whisper', 'main'];
+
+// Where a system-wide whisper.cpp lives off Windows. Homebrew's `whisper-cpp`
+// formula is the supported macOS install (it is built with Metal, so an Apple
+// Silicon Mac transcribes on the GPU), and neither prefix is on the PATH of the
+// LaunchAgent that runs this server.
+const WHISPER_SYSTEM_DIRS = process.platform === 'win32'
+  ? []
+  : ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin'];
+
+// Only the unambiguous name is looked for in a shared bin directory. `whisper`
+// there is far more likely to be the OpenAI Python CLI, which takes completely
+// different arguments — picking it up would report Whisper as ready, skip the
+// brew install and then fail every transcription. `main` is whisper.cpp's old
+// name and much too generic to claim from /usr/bin. Both stay accepted inside
+// server/whisper/, where the user put the binary on purpose.
+const WHISPER_SYSTEM_BIN_NAMES = ['whisper-cli'];
+
+// Resolve the expected whisper.cpp locations under server/whisper/. The model is
+// always ours: Homebrew ships the binary but no ggml weights, so the download
+// below owns the model on every platform.
 function whisperPaths(serverDir) {
   const dir = path.join(serverDir, 'whisper');
-  return { dir, exe: path.join(dir, 'whisper-cli.exe'), model: path.join(dir, 'ggml-small.bin') };
+  return { dir, exe: path.join(dir, WHISPER_BIN_NAMES[0]), model: path.join(dir, 'ggml-small.bin') };
 }
 
-// Return the first existing whisper executable, or null if none present.
+// Return the first existing whisper executable, or null if none present. The
+// bundled copy wins over a system one, so a user who drops a specific build into
+// server/whisper/ keeps using it.
 function whisperExe(serverDir) {
   const dir = path.join(serverDir, 'whisper');
-  for (const name of ['whisper-cli.exe', 'whisper.exe', 'main.exe']) {
+  for (const name of WHISPER_BIN_NAMES) {
     const p = path.join(dir, name);
     try { if (fs.existsSync(p)) return p; } catch { /* ignore */ }
+  }
+  for (const sysDir of WHISPER_SYSTEM_DIRS) {
+    for (const name of WHISPER_SYSTEM_BIN_NAMES) {
+      const p = path.join(sysDir, name);
+      try { if (fs.existsSync(p)) return p; } catch { /* ignore */ }
+    }
   }
   return null;
 }
@@ -678,12 +713,24 @@ async function localStatus(baseUrl, serverDir) {
   return { ollama: { installed, running }, whisper, edgeTts };
 }
 
-// Locate the Ollama executable on Windows. Checks the default install location
-// and common PATH-derived spots. Returns the full path or null.
+// Locate the Ollama executable. Checks the platform's default install locations.
+// Returns the full path or null.
 function findOllamaExe() {
   const candidates = [];
-  if (process.env.LOCALAPPDATA) candidates.push(path.join(process.env.LOCALAPPDATA, 'Programs', 'Ollama', 'ollama.exe'));
-  if (process.env.ProgramFiles) candidates.push(path.join(process.env.ProgramFiles, 'Ollama', 'ollama.exe'));
+  if (process.platform === 'darwin') {
+    // Both install shapes: the Ollama.app download (which keeps its CLI inside
+    // the bundle and usually symlinks it into /usr/local/bin) and `brew install
+    // ollama`. Absolute paths, because a LaunchAgent's PATH has neither prefix.
+    candidates.push(
+      '/opt/homebrew/bin/ollama',
+      '/usr/local/bin/ollama',
+      '/Applications/Ollama.app/Contents/Resources/ollama',
+      path.join(os.homedir(), 'Applications/Ollama.app/Contents/Resources/ollama'),
+    );
+  } else {
+    if (process.env.LOCALAPPDATA) candidates.push(path.join(process.env.LOCALAPPDATA, 'Programs', 'Ollama', 'ollama.exe'));
+    if (process.env.ProgramFiles) candidates.push(path.join(process.env.ProgramFiles, 'Ollama', 'ollama.exe'));
+  }
   for (const c of candidates) {
     try { if (fs.existsSync(c)) return c; } catch { /* ignore */ }
   }
@@ -716,14 +763,69 @@ async function startOllama(baseUrl, timeoutMs = 12000) {
 const _OLLAMA_RUN_KEY = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run';
 const _OLLAMA_RUN_VALUE = 'XenonEdgeOllama';
 
+// macOS twin of the Run key: a per-user LaunchAgent, deliberately separate from
+// the backend's own (com.marcimastro98.xenon.backend) so that turning this
+// toggle off can never unregister Xenon itself.
+const _OLLAMA_AGENT_LABEL = 'com.marcimastro98.xenon.ollama';
+function _ollamaAgentPlistPath() {
+  return path.join(os.homedir(), 'Library', 'LaunchAgents', `${_OLLAMA_AGENT_LABEL}.plist`);
+}
+
 function getOllamaAutostart() {
+  if (process.platform === 'darwin') {
+    return Promise.resolve(fs.existsSync(_ollamaAgentPlistPath()));
+  }
   return new Promise((resolve) => {
     execFile('reg', ['query', _OLLAMA_RUN_KEY, '/v', _OLLAMA_RUN_VALUE], { windowsHide: true },
       (err, stdout) => resolve(!err && /XenonEdgeOllama/i.test(String(stdout))));
   });
 }
 
+// Write/remove the macOS LaunchAgent that runs `ollama serve` at login. The
+// plist is generated from an absolute exe path we resolved ourselves, so no
+// user-controlled text reaches the XML.
+async function _setOllamaAutostartDarwin(enabled) {
+  const plist = _ollamaAgentPlistPath();
+  const domain = `gui/${process.getuid ? process.getuid() : 0}`;
+  const launchctl = (args) => new Promise((resolve) => {
+    execFile('launchctl', args, { timeout: 10000 }, () => resolve());
+  });
+
+  if (!enabled) {
+    await launchctl(['bootout', `${domain}/${_OLLAMA_AGENT_LABEL}`]);
+    try { await fs.promises.unlink(plist); } catch { /* already gone */ }
+    return { ok: true };
+  }
+
+  const exe = findOllamaExe();
+  if (!exe) return { ok: false, error: 'ollama_not_installed' };
+  const body = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>${_OLLAMA_AGENT_LABEL}</string>
+  <key>ProgramArguments</key>
+  <array><string>${exe}</string><string>serve</string></array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
+</dict>
+</plist>
+`;
+  try {
+    await fs.promises.mkdir(path.dirname(plist), { recursive: true });
+    await fs.promises.writeFile(plist, body, 'utf8');
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+  // bootout first so re-enabling reloads a changed exe path instead of keeping
+  // the definition launchd already has.
+  await launchctl(['bootout', `${domain}/${_OLLAMA_AGENT_LABEL}`]);
+  await launchctl(['bootstrap', domain, plist]);
+  return { ok: true };
+}
+
 function setOllamaAutostart(enabled) {
+  if (process.platform === 'darwin') return _setOllamaAutostartDarwin(enabled);
   return new Promise((resolve) => {
     if (enabled) {
       // Prefer the GUI app (it starts the tray + server); fall back to `serve`.
@@ -1016,6 +1118,32 @@ function _unzipWindows(zipPath, destDir) {
   });
 }
 
+// ── Homebrew (macOS only) ────────────────────────────────────────────────────
+// The server usually runs from a LaunchAgent, whose PATH does not include either
+// Homebrew prefix, so `brew` is located by absolute path rather than by name.
+function _findBrew() {
+  for (const p of ['/opt/homebrew/bin/brew', '/usr/local/bin/brew']) {
+    try { if (fs.existsSync(p)) return p; } catch { /* ignore */ }
+  }
+  return null;
+}
+
+// Run `brew install <formula>`. Rejects with brew's own last words rather than a
+// generic failure — a formula that needs Xcode Command Line Tools says so, and
+// that message is the whole answer for the user. 20 minutes: a source build on a
+// cold machine is genuinely slow, and a timeout mid-build leaves a half state
+// brew itself has to clean up.
+function _runBrewInstall(brewPath, formula) {
+  return new Promise((resolve, reject) => {
+    execFile(brewPath, ['install', formula], { timeout: 20 * 60 * 1000, maxBuffer: 8 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        if (!err) return resolve();
+        const detail = String(stderr || stdout || err.message || '').trim().split('\n').slice(-3).join(' ').slice(0, 300);
+        reject(new Error(`brew install ${formula} failed: ${detail || err.message}`));
+      });
+  });
+}
+
 // Recursively locate a whisper executable under `dir`. Returns the full path or
 // null. Used after unzip to find where the release placed the binary.
 function _findWhisperExeRecursive(dir) {
@@ -1048,7 +1176,24 @@ async function installWhisper(serverDir, onProgress) {
   const { dir, model } = whisperPaths(serverDir);
   await fs.promises.mkdir(dir, { recursive: true });
 
-  if (!whisperExe(serverDir)) {
+  // macOS has no prebuilt whisper.cpp to download: the project's releases carry
+  // Windows binaries only. Homebrew's `whisper-cpp` formula is the supported
+  // path, and it builds with Metal — so on Apple Silicon this is also the FASTER
+  // install, not a workaround. Everything after this branch (the model download)
+  // is shared.
+  if (process.platform === 'darwin') {
+    if (!whisperExe(serverDir)) {
+      const brew = _findBrew();
+      if (!brew) {
+        throw new Error('Whisper needs Homebrew on macOS. Install Homebrew from https://brew.sh, then run: brew install whisper-cpp');
+      }
+      report('Installazione Whisper (Homebrew)…', 5);
+      await _runBrewInstall(brew, 'whisper-cpp');
+      if (!whisperExe(serverDir)) {
+        throw new Error('brew install whisper-cpp completed but whisper-cli was not found. Run it manually to see why.');
+      }
+    }
+  } else if (!whisperExe(serverDir)) {
     report('Download Whisper…', 0);
     const release = await _httpsJson('https://api.github.com/repos/ggerganov/whisper.cpp/releases/latest');
     const assets = Array.isArray(release && release.assets) ? release.assets : [];

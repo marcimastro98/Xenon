@@ -21,8 +21,12 @@ function normalizeUrl(s) {
   return isHttpUrl(withScheme) ? withScheme : '';
 }
 
+// What openApp may launch. macOS applications are `.app` bundles (directories,
+// which fileExists() answers for), so that extension is allowed there and only
+// there — the Windows boundary stays exactly what it was.
+const APP_PATH_EXT = process.platform === 'darwin' ? /\.(exe|lnk|app)$/i : /\.(exe|lnk)$/i;
 function isAllowedAppPath(p) {
-  return typeof p === 'string' && /\.(exe|lnk)$/i.test(p.trim());
+  return typeof p === 'string' && APP_PATH_EXT.test(p.trim());
 }
 
 // Percentage value for the volume/brightness 'set' modes: accepts a decimal
@@ -82,8 +86,22 @@ function isSteamAppId(s) {
 // opens with the registered handler). A folder or a document is fine; a .bat or
 // .ps1 would run code on one tap. openApp is the only path that may launch exes.
 const BLOCKED_OPEN_EXT = /\.(exe|lnk|bat|cmd|com|ps1|psm1|vbs|vbe|js|jse|wsf|wsh|hta|scr|pif|reg|msi|msp|cpl|jar|gadget|inf|appref-ms|jnlp|url|website|scf|library-ms|search-ms|desktop)$/i;
-function isBlockedOpenPath(p) {
-  return BLOCKED_OPEN_EXT.test(String(p == null ? '' : p).trim());
+
+// The same rule, restated for the platforms where `open`/`xdg-open` is the
+// handler. The list above is a Windows vocabulary: none of those extensions
+// means anything to LaunchServices, which instead runs a .command in Terminal,
+// launches an .app or an .appex, executes a .workflow, and hands a .py to the
+// Python Launcher — exactly the one-tap code execution the blocklist exists to
+// stop. It is kept separate rather than merged so the Windows boundary stays
+// byte-for-byte what it was; a name like .sh or .py is a document there and has
+// been openable since the feature shipped.
+const BLOCKED_OPEN_EXT_POSIX = /\.(command|app|appex|workflow|terminal|action|definition|osax|prefpane|qlgenerator|saver|mdimporter|plugin|bundle|kext|pkg|mpkg|dmg|webloc|fileloc|inetloc|scpt|scptd|applescript|shortcut|sh|bash|zsh|csh|ksh|fish|py|pyw|rb|pl|php|lua|tcl|awk|run|appimage)$/i;
+
+function isBlockedOpenPath(p, platform) {
+  const v = String(p == null ? '' : p).trim();
+  if (BLOCKED_OPEN_EXT.test(v)) return true;
+  const plat = platform || process.platform;
+  return plat !== 'win32' && BLOCKED_OPEN_EXT_POSIX.test(v);
 }
 
 // The 'runScript' action is the ONE deliberate, user-configured path that may
@@ -100,8 +118,28 @@ function isBlockedOpenPath(p) {
 // console); the key can opt into a hidden window. The interpreter must be on
 // PATH — a missing one degrades to a clean {ok:false} (the key flashes red).
 const RUNNABLE_SCRIPT_EXT = /\.(bat|cmd|ps1|py|pyw|js|cjs|mjs|rb|pl|php|lua|r|jar|vbs|vbe|wsf|sh|bash)$/i;
-function isRunnableScriptPath(p) {
-  return RUNNABLE_SCRIPT_EXT.test(String(p == null ? '' : p).trim());
+
+// The same list where the interpreters are POSIX ones (server.js's
+// POSIX_SCRIPT_RUNNERS is the other half). It has to be its own list in both
+// directions: .bat/.ps1/.vbs mean nothing here and are better refused at this
+// boundary than spawned and left to fail, while .command/.zsh are real script
+// types the Windows list has no reason to carry.
+const RUNNABLE_SCRIPT_EXT_POSIX = /\.(sh|bash|zsh|command|py|pyw|js|cjs|mjs|rb|pl|php|lua|r|jar)$/i;
+
+// AppleScript is macOS-only: `.scpt`/`.applescript` run through osascript,
+// which is only in POSIX_SCRIPT_RUNNERS on darwin. Accepting them on Linux
+// would be a key that validates here and then fails at run time with "no
+// interpreter" — the exact gate/runner drift the CLAUDE.md invariant forbids,
+// which is why this is a SEPARATE, platform-gated regex rather than two more
+// alternatives in the list above.
+const RUNNABLE_SCRIPT_EXT_DARWIN = /\.(scpt|applescript)$/i;
+
+function isRunnableScriptPath(p, platform) {
+  const v = String(p == null ? '' : p).trim();
+  const plat = platform || process.platform;
+  if (plat === 'win32') return RUNNABLE_SCRIPT_EXT.test(v);
+  if (RUNNABLE_SCRIPT_EXT_POSIX.test(v)) return true;
+  return plat === 'darwin' && RUNNABLE_SCRIPT_EXT_DARWIN.test(v);
 }
 
 // deps: { fileExists(path)->bool, openExternal(path)->Promise,
@@ -109,9 +147,17 @@ function isRunnableScriptPath(p) {
 //         obs(requestType, requestData)->Promise, obsNext()->Promise,
 //         lighting(action)->Promise<boolean>,
 //         claudeRun({projectId,prompt,model})->Promise<{ok,error}>, claudeStop()->bool,
-//         remote: RemoteControl orchestrator instance (optional, injected after init) }
+//         remote: RemoteControl orchestrator instance (optional, injected after init),
+//         platform: override for the extension gates (tests) }
 function createRegistry(deps) {
   const d = deps || {};
+  // An extension gate is a statement about a HANDLER, so it differs per
+  // platform, and both gates below already take the platform as a parameter.
+  // Threading it through the registry too is what lets the RUN path be
+  // exercised off the OS it targets — without it, `.bat` could only be proven
+  // runnable on Windows and refused on POSIX by running the suite twice, on two
+  // machines. Same option, same reason, as createDiskSpace's.
+  const platform = d.platform || process.platform;
   async function run(rawAction) {
     const action = validateAction(rawAction);
     if (!action) return { ok: false, error: 'unknown_action' };
@@ -139,7 +185,7 @@ function createRegistry(deps) {
           if (!p) return { ok: false, error: 'empty_path' };
           // openFile opens with the registered handler, so executables/scripts
           // are blocked here — only openApp may launch an .exe/.lnk.
-          if (isBlockedOpenPath(p)) return { ok: false, error: 'blocked_ext' };
+          if (isBlockedOpenPath(p, platform)) return { ok: false, error: 'blocked_ext' };
           if (!d.fileExists(p)) return { ok: false, error: 'not_found' };
           await d.openExternal(p);
           return { ok: true };
@@ -151,7 +197,7 @@ function createRegistry(deps) {
           // default) decides whether the console is shown — an installer needs it.
           const p = action.path.trim();
           if (!p) return { ok: false, error: 'empty_path' };
-          if (!isRunnableScriptPath(p)) return { ok: false, error: 'bad_script_ext' };
+          if (!isRunnableScriptPath(p, platform)) return { ok: false, error: 'bad_script_ext' };
           if (!d.fileExists(p)) return { ok: false, error: 'not_found' };
           if (typeof d.runScript !== 'function') return { ok: false, error: 'unavailable' };
           await d.runScript(p, action.window === 'hidden');

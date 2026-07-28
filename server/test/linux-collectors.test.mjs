@@ -19,6 +19,35 @@ const fixture = (name) => readFileSync(join(here, 'fixtures', name), 'utf8');
 
 // --- df ---------------------------------------------------------------------
 
+// --- /proc/meminfo ----------------------------------------------------------
+// The same trap the macOS side hit: os.freemem() is ullAvailPhys on Windows but
+// MemFree here, which excludes the page cache the kernel hands straight back —
+// so `total - free` counts every cached file as used. MemAvailable is the
+// kernel's own answer to the question Windows was already answering.
+
+test('parseMemInfo: used is total minus MemAvailable, not minus MemFree', () => {
+  const mem = lc.parseMemInfo(fixture('linux-meminfo.txt'));
+  assert.equal(mem.total, 16311476 * 1024);
+  assert.equal(mem.used, (16311476 - 11238904) * 1024);
+  // ~31%, against the ~97% the free-page count would have produced on a box
+  // with 10 GB of page cache.
+  assert.equal(Math.round((mem.used / mem.total) * 100), 31);
+});
+
+test('parseMemInfo: a kernel too old for MemAvailable falls back to free+buffers+cached', () => {
+  const out = ['MemTotal:       1000000 kB', 'MemFree:         100000 kB',
+    'Buffers:          50000 kB', 'Cached:         300000 kB'].join('\n');
+  assert.deepEqual(lc.parseMemInfo(out), { used: 550000 * 1024, total: 1000000 * 1024 });
+});
+
+test('parseMemInfo: unusable input returns null so the caller can fall back', () => {
+  for (const raw of ['', 'nothing here', 'MemFree: 100 kB', undefined]) {
+    assert.equal(lc.parseMemInfo(raw), null, String(raw));
+  }
+  // Available above total (a kernel quirk) must not produce a negative usage.
+  assert.equal(lc.parseMemInfo('MemTotal: 100 kB\nMemAvailable: 500 kB').used, 0);
+});
+
 test('parseDisks: keeps real filesystems and drops pseudo/virtual mounts', () => {
   const drives = lc.parseDisks(fixture('linux-df.txt'));
   const mounts = drives.map((d) => d.drive).sort();
@@ -31,12 +60,23 @@ test('parseDisks: keeps real filesystems and drops pseudo/virtual mounts', () =>
 test('parseDisks: bytes and percent match the Windows drive shape', () => {
   const root = lc.parseDisks(fixture('linux-df.txt')).find((d) => d.drive === '/');
   assert.equal(root.total, 3935709487104);
-  assert.equal(root.used, 1271786557440);
+  // total - free, NOT df's Used column (1271786557440 in this fixture). The two
+  // differ by ext4's root-reserved blocks, which df counts in neither column.
+  assert.equal(root.used, 1471786176512);
   assert.equal(root.free, 2463923310592);
-  assert.equal(root.percent, 32);
+  assert.equal(root.percent, 37);
   assert.equal(root.label, 'System');
   assert.equal(root.fileSystem, 'ext4');
   assert.equal(root.driveType, 'Fixed');
+});
+
+test('parseDisks: used + free always adds up to total', () => {
+  // The contract tools/doctor-checks.mjs enforces, and the one an ext4 volume
+  // breaks when Used is read straight from df: the tile's bar and its label are
+  // drawn from these three numbers and have to agree with each other.
+  for (const d of lc.parseDisks(fixture('linux-df.txt'))) {
+    assert.equal(d.used + d.free, d.total, `${d.drive}: ${d.used} + ${d.free} !== ${d.total}`);
+  }
 });
 
 test('parseDisks: keeps every subvolume of a shared device', () => {
@@ -137,6 +177,35 @@ test('parseDisks, parseNetDev and parseGpu also tolerate CRLF', () => {
 
 test('parseWmctrl: skips untitled and malformed rows', () => {
   assert.deepEqual(lc.parseWmctrl('0x00000001  0 123  host   \nnot a window row\n'), []);
+});
+
+// The wmctrl-free listing path: the app switcher must work with x11-utils
+// alone, since asking for a wmctrl install to READ a window list was a
+// dependency the widget never needed.
+test('parseClientList: every managed window id, from the root property', () => {
+  const raw = '_NET_CLIENT_LIST(WINDOW): window id # 0xE00003, 0x1400007, 0x2a00005\n';
+  assert.deepEqual(lc.parseClientList(raw), ['0xE00003', '0x1400007', '0x2a00005']);
+  assert.deepEqual(lc.parseClientList('_NET_CLIENT_LIST:  not found.'), []);
+  assert.deepEqual(lc.parseClientList(''), []);
+});
+
+test('parseWindowIdentity: the UTF-8 title wins over the latin-1 one', () => {
+  // WM_NAME is latin-1, so a title with anything non-ASCII comes out mangled.
+  // On a non-English desktop that is most windows.
+  const raw = [
+    '_NET_WM_NAME(UTF8_STRING) = "Città — Impostazioni"',
+    'WM_NAME(STRING) = "Citt? ? Impostazioni"',
+    '_NET_WM_PID(CARDINAL) = 4242',
+  ].join('\n');
+  assert.deepEqual(lc.parseWindowIdentity(raw), { pid: '4242', title: 'Città — Impostazioni' });
+});
+
+test('parseWindowIdentity: falls back to WM_NAME, and escapes come back out', () => {
+  assert.deepEqual(
+    lc.parseWindowIdentity('WM_NAME(STRING) = "He said \\"hi\\""\n_NET_WM_PID(CARDINAL) = 7'),
+    { pid: '7', title: 'He said "hi"' });
+  // A window owning neither property is an override-redirect surface, not an app.
+  assert.deepEqual(lc.parseWindowIdentity('WM_NAME:  not found.'), { pid: '', title: '' });
 });
 
 // --- xprop ------------------------------------------------------------------
@@ -259,4 +328,134 @@ test('parseGpu: a short or empty row yields nulls, never NaN', () => {
     assert.equal(g.gpu, null);
     assert.equal(g.vramTotal, null);
   }
+});
+
+// --- GPU without nvidia-smi -------------------------------------------------
+// The kernel's DRM sysfs is what an AMD or Intel machine has instead. These
+// snapshots are the file CONTENTS the collector reads, so the parser is testable
+// off Linux; capture the real thing with
+//   cat /sys/class/drm/card0/device/{uevent,gpu_busy_percent,mem_info_vram_*}
+//   cat /sys/class/drm/card0/device/hwmon/hwmon*/temp1_{input,label}
+
+test('parseSysfsGpu: an AMD card reports load, VRAM and temperature', () => {
+  const g = lc.parseSysfsGpu({
+    driver: 'amdgpu',
+    busy: '37',
+    vramUsed: '2415919104',
+    vramTotal: '17163091968',
+    temps: [{ value: '54000', label: 'edge' }, { value: '61000', label: 'junction' }],
+  });
+  assert.equal(g.gpu, 37);
+  assert.equal(g.gpuTemp, 54);            // edge wins over junction
+  assert.equal(g.vramUsed, 2415919104);   // bytes, like the nvidia-smi path
+  assert.equal(g.vramTotal, 17163091968);
+  assert.equal(g.gpuName, 'AMD GPU');
+});
+
+test('parseSysfsGpu: an Intel card reports what it has and null for the rest', () => {
+  // i915 exposes no gpu_busy_percent and an integrated GPU has no separate
+  // VRAM. Nulls make the tile show "--", which is the honest answer.
+  const g = lc.parseSysfsGpu({ driver: 'i915', busy: null, vramUsed: null, vramTotal: null, temps: [{ value: '47000', label: null }] });
+  assert.equal(g.gpu, null);
+  assert.equal(g.gpuTemp, 47);
+  assert.equal(g.vramUsed, null);
+  assert.equal(g.gpuName, 'Intel GPU');
+});
+
+test('parseSysfsGpu: a driver already reporting degrees is not divided again', () => {
+  // Dividing 54 by 1000 would report 0°C, which reads as a working sensor.
+  assert.equal(lc.parseSysfsGpu({ driver: 'amdgpu', temps: [{ value: '54' }] }).gpuTemp, 54);
+  assert.equal(lc.parseSysfsGpu({ driver: 'amdgpu', temps: [{ value: '54000' }] }).gpuTemp, 54);
+});
+
+test('parseSysfsGpu: junk and absent files degrade to nulls, never to zeros', () => {
+  for (const snap of [undefined, null, {}, { driver: 'amdgpu', busy: 'n/a', temps: 'x' }]) {
+    const g = lc.parseSysfsGpu(snap);
+    assert.equal(g.gpu, null);
+    assert.equal(g.gpuTemp, null);
+    assert.equal(g.vramTotal, null);
+  }
+  // An unknown driver gets no invented name.
+  assert.equal(lc.parseSysfsGpu({ driver: 'nouveau' }).gpuName, null);
+  // Load is clamped, never passed through out of range.
+  assert.equal(lc.parseSysfsGpu({ driver: 'amdgpu', busy: '140' }).gpu, 100);
+  assert.equal(lc.parseSysfsGpu({ driver: 'amdgpu', busy: '-5' }).gpu, 0);
+});
+
+// ── Intel GPU activity from RC6 residency ───────────────────────────────────
+// Intel exposes no gpu_busy_percent and its PMU needs perf permissions this
+// backend does not have, so the load is derived from how much of the interval
+// the render engine spent OUT of its deepest sleep state.
+test('rc6Busy: the complement of the idle rate is the load', () => {
+  // Half the window asleep → half awake.
+  assert.equal(lc.rc6Busy({ rc6Ms: 1000, atMs: 0 }, { rc6Ms: 3000, atMs: 4000 }), 50);
+  // Never slept → pegged busy. Slept the whole window → idle.
+  assert.equal(lc.rc6Busy({ rc6Ms: 1000, atMs: 0 }, { rc6Ms: 1000, atMs: 4000 }), 100);
+  assert.equal(lc.rc6Busy({ rc6Ms: 1000, atMs: 0 }, { rc6Ms: 5000, atMs: 4000 }), 0);
+});
+
+test('rc6Busy: the first sample has nothing to compare against', () => {
+  assert.equal(lc.rc6Busy(null, { rc6Ms: 1000, atMs: 1000 }), null);
+  assert.equal(lc.rc6Busy(undefined, { rc6Ms: 1, atMs: 1 }), null);
+});
+
+test('rc6Busy: a counter that went backwards is discarded, not reported', () => {
+  // A driver reload or a resume restarts the counter. Treating that as "the GPU
+  // idled negative time" would produce a bogus 100%.
+  assert.equal(lc.rc6Busy({ rc6Ms: 9000, atMs: 0 }, { rc6Ms: 100, atMs: 4000 }), null);
+});
+
+test('rc6Busy: windows that cannot be divided meaningfully report nothing', () => {
+  // Too short to sample.
+  assert.equal(lc.rc6Busy({ rc6Ms: 0, atMs: 0 }, { rc6Ms: 10, atMs: 100 }), null);
+  // Longer than any poll interval — the machine slept in between, and neither
+  // clock ran the way the arithmetic assumes.
+  assert.equal(lc.rc6Busy({ rc6Ms: 0, atMs: 0 }, { rc6Ms: 10, atMs: 600000 }), null);
+});
+
+test('rc6Busy: a residency that outruns the wall clock still clamps to 0..100', () => {
+  // Reported by some drivers across a resume; the reading is nonsense but must
+  // never leave the range the tile can draw.
+  assert.equal(lc.rc6Busy({ rc6Ms: 0, atMs: 0 }, { rc6Ms: 99999, atMs: 4000 }), 0);
+});
+
+// ── Fans from hwmon ─────────────────────────────────────────────────────────
+// No LibreHardwareMonitor and no elevation on this platform: any chip with a
+// tachometer publishes fanN_input in RPM as a world-readable file.
+test('parseHwmonFans: a driver label wins, otherwise the chip names the fan', () => {
+  const fans = lc.parseHwmonFans([
+    { chip: 'nct6798', index: 1, rpm: '1200', label: 'CPU Fan' },
+    { chip: 'thinkpad', index: 1, rpm: '3877', label: '' },
+    { chip: '', index: 2, rpm: '900', label: '' },
+  ]);
+  assert.deepEqual(fans.map((f) => f.name), ['CPU Fan', 'thinkpad fan 1', 'Fan 2']);
+  assert.deepEqual(fans.map((f) => f.rpm), [1200, 3877, 900]);
+  // Windows distinguishes PSU and controller fans; hwmon says nothing about
+  // where a header physically is, so everything is a motherboard fan.
+  assert.ok(fans.every((f) => f.kind === 'mb'));
+});
+
+test('parseHwmonFans: a stopped fan is 0 RPM, not a missing reading', () => {
+  // Zero-RPM mode is a real state the tile is meant to show. Dropping it would
+  // make a silent card look like a card with no sensors.
+  const fans = lc.parseHwmonFans([{ chip: 'amdgpu', index: 1, rpm: '0', label: 'GPU Fan' }]);
+  assert.equal(fans.length, 1);
+  assert.equal(fans[0].rpm, 0);
+});
+
+test('parseHwmonFans: junk and impossible readings are dropped', () => {
+  const fans = lc.parseHwmonFans([
+    { chip: 'x', index: 1, rpm: '', label: '' },
+    { chip: 'x', index: 2, rpm: 'n/a', label: '' },
+    { chip: 'x', index: 3, rpm: '-1', label: '' },
+    { chip: 'x', index: 4, rpm: '999999', label: '' },
+    { chip: 'x', index: 5, rpm: '1500', label: '' },
+  ]);
+  assert.deepEqual(fans.map((f) => f.rpm), [1500]);
+});
+
+test('parseHwmonFans: no hwmon at all is an empty list, never a throw', () => {
+  assert.deepEqual(lc.parseHwmonFans([]), []);
+  assert.deepEqual(lc.parseHwmonFans(null), []);
+  assert.deepEqual(lc.parseHwmonFans([null, undefined]), []);
 });

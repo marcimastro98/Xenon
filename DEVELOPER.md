@@ -85,6 +85,12 @@ The backend runs **in the user's interactive session**, started by a per-logon T
 
 A **Tauri 2** kiosk shell (Rust in `src-tauri/`). The only bundled page is `splash/index.html`, which waits for the backend then navigates the same webview to the loopback dashboard — so it renders the identical UI and keeps SSE/WebSocket open (presence features behave like an open tab). `src-tauri/src/monitor.rs` pins the borderless full-screen window to the Xeneon Edge (matched by its 2560×720 panel) with a watchdog for display reorders/replug/standby; `tray.rs` adds the tray icon (show/hide/restart/exit); the autostart plugin sets login autostart. Built with `npm run native:build` (NSIS installer, WebView2 ensured). Requires the Rust toolchain; icons must exist in `src-tauri/icons/` before the first build.
 
+**Linux/macOS bundles** come from `npm run build:linux` / `npm run build:mac` inside `apps/native/`; Tauri merges `tauri.linux.conf.json` (`appimage`, `deb`, `rpm`) or `tauri.macos.conf.json` automatically. On Fedora the build needs `rust cargo gcc gcc-c++ webkit2gtk4.1-devel openssl-devel librsvg2-devel libappindicator-gtk3-devel patchelf`, plus `fuse-libs` to *run* the AppImage; Debian/Ubuntu equivalents are in the Tauri prerequisites. `patchelf` is not optional once the media framework is bundled — the GStreamer plugin exits 2 without it, and it reports that by printing its usage text, which reads like a bad argument rather than a missing tool. Fedora also needs the plugin directories named explicitly, because the plugin guesses the Debian multiarch layout: `GSTREAMER_PLUGINS_DIR=/usr/lib64/gstreamer-1.0 GSTREAMER_HELPERS_DIR=/usr/libexec/gstreamer-1.0 npm run build:linux`.
+
+`tauri.linux.conf.json` sets `appimage.bundleMediaFramework`. Without it the AppImage ships GStreamer's core libraries but none of its plugin *modules* — those live in `gstreamer-1.0/` and are not in the linked-library set `linuxdeploy` walks. The bundled core then loads and finds no elements: the webview logs `appsink not found` / `autoaudiosink not found`, and every sound the dashboard plays (TTS, sound packs, media previews) is dropped in silence, with no error the user can see. The `.deb` and `.rpm` link against the system GStreamer and never had the problem, so this is AppImage-only.
+
+`build:linux` sets `NO_STRIP=true`, and that is load-bearing on any modern distribution. `linuxdeploy` bundles a 2024 `strip` that does not understand `SHT_RELR` (`.relr.dyn`) sections, which current toolchains emit; without it the AppImage step fails on every system library with `unknown type [0x13]` and takes the whole bundle down. The CI runner is pinned to `ubuntu-22.04`, whose libraries predate that, so the failure is invisible there and shows up only when someone builds on Fedora, Arch or Ubuntu 24.04+. Skipping the strip only makes the bundled libraries slightly larger.
+
 ### Server (`server/`)
 
 `server.js` is the HTTP/API server. It routes requests, runs PowerShell collectors, caches results, persists JSON data files, and broadcasts SSE. Feature areas are split into focused modules:
@@ -99,8 +105,11 @@ A **Tauri 2** kiosk shell (Rust in `src-tauri/`). The only bundled page is `spla
 | `ai-local.js` | Local Xenon AI — Ollama (chat) + Whisper.cpp (STT) + Edge neural TTS |
 | `wakeword.js` | Local "Hey Xenon" wake-word listener — on-device Whisper, off by default, runs only while a dashboard is open; opens a voice session via the `wake_word` SSE event. No audio leaves the PC |
 | `ics-feeds.js` | External calendar `.ics` feed parser/merger |
-| `fpsmon.js` | PresentMon ETW FPS reader (started only while a dashboard is open; stopped shortly after the last one closes, with a grace period) |
+| `fps-monitor.js` | Picks the platform's FPS backend and presents one interface to `server.js` |
+| `fpsmon.js` | PresentMon ETW FPS reader, Windows (started only while a dashboard is open; stopped shortly after the last one closes, with a grace period) |
+| `linux-fps.js` | MangoHud FPS reader, Linux — writes MangoHud's logging config, tails its CSV. Only sees games launched under MangoHud, which is the whole of what Linux offers: there is no per-process frame counter to read |
 | `gamedetect.js` | Foreground-fullscreen game detection (game mode) |
+| `linux-foreground.js` | The probe behind `gamedetect.js` on Linux — `xprop` on X11/Xwayland, compositor IPC on sway and Hyprland. Reports "cannot see it" for native Wayland windows rather than reusing the last known one |
 | `guardian.js` | Sensor-history recorder (CPU/GPU temp+load, RAM) and PC screen-time tracker; atomic append, opt-in `sensorHistory`; also the AI Guardian data source |
 | `briefing.js` | Proactive moments — game-session recap, sustained-heat alerts, morning agenda (all local, no AI) |
 | `sdk-widgets.js` | **Widget SDK** host — validates a community widget package (`manifest.json` + HTML) under `server/data/widgets`, resolves its assets, and gates the versioned message bridge (approved data streams + allowlisted actions). See [WIDGET_SDK.md](docs/WIDGET_SDK.md) |
@@ -114,6 +123,19 @@ A **Tauri 2** kiosk shell (Rust in `src-tauri/`). The only bundled page is `spla
 | `self-update.js` / `semver.js` | Verified in-app self-update — Ed25519-signed `SHA256SUMS` checked against a pinned key **before** extraction (fail-closed); `update-apply.ps1` applies with snapshot/rollback |
 | `actions/registry.js` | The single allowlist gate for every Deck/AI action (`openApp`, `openFile`, hotkeys, URLs/webhooks, Home Assistant, OBS, Streamer.bot…) — `run()` never throws |
 | `deck-actions.ps1` | Allowlisted Deck action runner (open app/file/url, media, mute…) |
+
+**Platform backends.** Windows drives the machine through PowerShell and the helper; macOS and Linux have their own modules implementing the *same* contracts, so nothing above them branches on platform:
+
+| Module | Responsibility |
+|---|---|
+| `linux-collectors.js` / `darwin-collectors.js` | Sensors, disks, network, windows, audio — the shapes the `.ps1` collectors emit |
+| `linux-media.js` | Now-playing via `playerctl` when present |
+| `linux-mpris.js` | Now-playing straight off D-Bus via `busctl` — the no-install fallback. `busctl` is JSON-capable, which is why it is used over `gdbus`: no GVariant text to hand-parse |
+| `linux-index.js` | The living file index in Node (no helper build exists for Linux) — search, disk map, categories, duplicate candidates |
+| `linux-trash.js` | Reversible delete via `gio trash` (the freedesktop trash spec). Deliberately not hand-rolled |
+| `linux-hotkey.js` | The global search shortcut, as a GNOME custom keybinding. Wayland has no key-grab protocol for background clients, so the desktop must own the shortcut |
+| `linux-notif.js` | Desktop-notification mirroring via `dbus-monitor` |
+| `darwin-media.js` | Now-playing via the mediaremote adapter |
 
 **PowerShell collectors** (`server/*.ps1`): `cpu-temp`, `gpu`, `media`, `network`, `windows`, `foreground`, `performance`, `perf-priority`, plus `install.ps1` / `uninstall.ps1`.
 

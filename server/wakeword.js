@@ -14,8 +14,9 @@
 // the toggle is on AND a dashboard is open (server.js calls sync() from the
 // SSE connect/close hooks and the settings save). It suspends itself while a
 // voice-session recording owns the microphone (server.js calls suspend()/
-// resumeSoon() around the STT recorder — required for the dshow fallback,
-// where two ffmpeg captures cannot share a device) and it self-gates on cost:
+// resumeSoon() around the STT recorder — required wherever two ffmpeg captures
+// cannot share a microphone, which is the dshow fallback on Windows, avfoundation
+// on macOS, and a raw alsa capture on Linux) and it self-gates on cost:
 // whisper runs only on short speech bursts, so continuous talk or music never
 // triggers a transcription loop.
 // ─────────────────────────────────────────────────────────────────────────
@@ -291,8 +292,15 @@ function _stopChild() {
 
 // Reconcile with the desired state. server.js computes `want` as
 // (toggle on && whisper installed && SSE clients > 0).
+//
+// There is deliberately no platform test here any more. This listener needs
+// exactly one thing — an ffmpeg capture argv — and `getInputArgs()` is the
+// single source of truth for whether the machine has one: WASAPI or dshow on
+// Windows, avfoundation on macOS, pulse or alsa on Linux, and null where the
+// probe found nothing. Asking the platform instead of the device is what kept
+// this switched off on macOS long after the microphone worked there.
 function sync(want) {
-  _wanted = !!want && process.platform === 'win32';
+  _wanted = !!want;
   if (_wanted && !_suspended) _start();
   else _stopChild();
 }

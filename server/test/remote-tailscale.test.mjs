@@ -23,7 +23,14 @@ function runnerWith(statusJson, { upCode = 0 } = {}) {
 }
 
 test('getStatus riporta connesso e IP quando BackendState=Running', async () => {
-  const ts = createTailscale({ runner: runnerWith({ BackendState: 'Running', Self: { TailscaleIPs: ['100.64.0.5'] } }) });
+  // `exists` va iniettato: senza, il modulo cerca davvero l'eseguibile al suo
+  // percorso Windows, e su una macchina di sviluppo Mac o Linux `installed`
+  // torna false — un fallimento che parla del filesystem sotto il test, non
+  // dello stato che il test sta verificando.
+  const ts = createTailscale({
+    runner: runnerWith({ BackendState: 'Running', Self: { TailscaleIPs: ['100.64.0.5'] } }),
+    exists: () => true,
+  });
   const s = await ts.getStatus();
   assert.equal(s.installed, true);
   assert.equal(s.connected, true);

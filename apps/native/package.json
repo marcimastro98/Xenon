@@ -7,7 +7,9 @@
   "scripts": {
     "tauri": "tauri",
     "dev": "tauri dev",
-    "build": "tauri build"
+    "build": "tauri build",
+    "build:mac": "tauri build --target universal-apple-darwin",
+    "build:linux": "NO_STRIP=true tauri build"
   },
   "devDependencies": {
     "@tauri-apps/cli": "2.11.4"

@@ -333,17 +333,10 @@ static LEGACY_RESCUE_STARTED: std::sync::atomic::AtomicBool = std::sync::atomic:
 /// If the task does not exist (widget never installed) this is a no-op and the
 /// splash's own hint tells the user what to install.
 #[cfg(windows)]
-fn spawn_backend_nudge(port: u16) {
+fn spawn_backend_nudge(_app: &tauri::AppHandle, port: u16) {
     std::thread::spawn(move || {
-        use std::net::{SocketAddr, TcpStream};
-        use std::time::Duration;
-        let addr = SocketAddr::from(([127, 0, 0, 1], port));
-        // ~8–16s of grace so a normally-starting backend is never interfered with.
-        for _ in 0..4 {
-            if TcpStream::connect_timeout(&addr, Duration::from_secs(2)).is_ok() {
-                return; // backend is up — nothing to heal
-            }
-            std::thread::sleep(Duration::from_secs(2));
+        if backend_answers(port) {
+            return; // backend is up — nothing to heal
         }
         if port == 3030 {
             use std::os::windows::process::CommandExt;
@@ -450,6 +443,310 @@ fn run_backend_bootstrap(app: &tauri::AppHandle) {
             .spawn()
             .ok();
     });
+}
+
+/// macOS twin of the Windows nudge above. The two signals differ from Windows
+/// because
+/// the install shapes do: the per-user LaunchAgent registered by
+/// `server/install.sh` is the "backend installed" marker (the analogue of the
+/// "Xenon Edge Widget" scheduled task), and a `.dmg` has no install hook at all
+/// — so a first launch that finds NO agent is also the only moment this app can
+/// offer to set the backend up. That is what the bundled bootstrap does, in a
+/// visible Terminal window the user can read and interrupt; it is idempotent and
+/// exits within a second or two when anything is already installed.
+/// The backend process this app owns on macOS, so it can be stopped on exit
+/// instead of being orphaned (the process invariant: nothing we spawn outlives
+/// us silently).
+#[cfg(target_os = "macos")]
+static BACKEND_CHILD: std::sync::Mutex<Option<std::process::Child>> = std::sync::Mutex::new(None);
+
+/// Stop the backend this app started. Called from the run loop's Exit event.
+#[cfg(target_os = "macos")]
+pub fn stop_owned_backend() {
+    let Ok(mut guard) = BACKEND_CHILD.lock() else { return };
+    let Some(mut child) = guard.take() else { return };
+    // SIGTERM, not kill: server.js's _gracefulShutdown stops the helper hosts,
+    // the index and any running cleanup, and exits 0. Killing it outright would
+    // orphan every one of those children.
+    let _ = std::process::Command::new("kill")
+        .args(["-TERM", &child.id().to_string()])
+        .status();
+    let _ = child.wait();
+}
+
+/// Where the backend lives.
+///
+/// `install.sh` writes `~/Library/Application Support/Xenon/backend.json` for
+/// exactly this question, because the agent it registers now launches THIS APP
+/// rather than node — so the plist no longer names server.js and there is
+/// nothing else to ask. The plist is still read as a fallback: an install made
+/// before that change has no pointer file, and it should keep working rather
+/// than silently start nothing.
+#[cfg(target_os = "macos")]
+fn backend_entry(home: &std::path::Path) -> Option<std::path::PathBuf> {
+    let pointer = home.join("Library/Application Support/Xenon/backend.json");
+    if let Ok(text) = std::fs::read_to_string(&pointer) {
+        // One key, written by us. A hand-rolled read keeps this off serde for a
+        // file that will never grow a second shape.
+        if let Some(rest) = text.split("\"entry\"").nth(1) {
+            if let Some(open) = rest.find('"') {
+                if let Some(close) = rest[open + 1..].find('"') {
+                    let value = &rest[open + 1..open + 1 + close];
+                    let path = std::path::PathBuf::from(value);
+                    if path.exists() {
+                        return Some(path);
+                    }
+                }
+            }
+        }
+    }
+    // Legacy: the agent that ran node named server.js as its second argument.
+    let plist = home.join("Library/LaunchAgents/com.marcimastro98.xenon.backend.plist");
+    let text = std::fs::read_to_string(plist).ok()?;
+    for chunk in text.split("<string>").skip(1) {
+        let value = chunk.split("</string>").next()?.trim();
+        if value.ends_with("server.js") {
+            let path = std::path::PathBuf::from(value);
+            if path.exists() {
+                return Some(path);
+            }
+        }
+    }
+    None
+}
+
+/// The node the installer found. `install.sh` requires it on PATH, but a GUI app
+/// does not inherit the shell's PATH, so the usual locations are tried first.
+#[cfg(target_os = "macos")]
+fn find_node() -> Option<std::path::PathBuf> {
+    for candidate in [
+        "/opt/homebrew/bin/node",
+        "/usr/local/bin/node",
+        "/usr/bin/node",
+    ] {
+        let path = std::path::PathBuf::from(candidate);
+        if path.exists() {
+            return Some(path);
+        }
+    }
+    let out = std::process::Command::new("/usr/bin/which")
+        .arg("node")
+        .output()
+        .ok()?;
+    let found = String::from_utf8(out.stdout).ok()?.trim().to_string();
+    (!found.is_empty()).then(|| std::path::PathBuf::from(found))
+}
+
+#[cfg(target_os = "macos")]
+fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
+    use tauri::path::BaseDirectory;
+    use tauri::Manager;
+    let script = app
+        .path()
+        .resolve("posix/xenon-bootstrap.sh", BaseDirectory::Resource)
+        .ok();
+    let home = app.path().home_dir().ok();
+    std::thread::spawn(move || {
+        if backend_answers(port) {
+            return;
+        }
+        if port != 3030 {
+            return;
+        }
+        // THE BACKEND IS OUR CHILD ON THIS PLATFORM, and that is a privacy
+        // decision, not a lifecycle preference. macOS attributes a process's
+        // file-access permissions to the RESPONSIBLE process — for a child, its
+        // parent. Launched by launchd the backend is responsible for itself, so
+        // Full Disk Access would have to be granted to the `node` binary: an
+        // interpreter, which would then carry that grant into every unrelated
+        // script the user ever runs. Launched by this app it inherits Xenon's
+        // own grant, which the user can see, understand and revoke.
+        //
+        // The measurable difference on a real machine: the launchd-run backend
+        // indexed 253,519 files / 90.5 GB of the same home directory that a
+        // grant-carrying process saw as 403,404 files / 103.4 GB. The Trash and
+        // most of ~/Library/Caches were simply invisible, so the cleanup
+        // categories were empty and the disk map under-reported by 13 GB.
+        if let Some(entry) = home.as_deref().and_then(backend_entry) {
+            // An older install may still have an agent that runs node itself.
+            // Retire it before starting our own copy: two backends would fight
+            // for the port and the winner would be whichever raced faster.
+            if let Some(uid) = current_uid() {
+                let _ = std::process::Command::new("launchctl")
+                    .args([
+                        "bootout",
+                        &format!("gui/{uid}/com.marcimastro98.xenon.backend"),
+                    ])
+                    .status();
+            }
+            if let Some(node) = find_node() {
+                let root = entry.parent().and_then(|p| p.parent());
+                let mut cmd = std::process::Command::new(node);
+                cmd.arg(&entry);
+                if let Some(root) = root {
+                    cmd.current_dir(root);
+                }
+                if let Ok(child) = cmd.spawn() {
+                    if let Ok(mut guard) = BACKEND_CHILD.lock() {
+                        *guard = Some(child);
+                    }
+                }
+            }
+            return;
+        }
+        // Nothing installed here at all. Open the bootstrap in Terminal so the
+        // install has a UI and an exit.
+        let Some(script) = script else { return };
+        if !script.exists() {
+            return;
+        }
+        // Tauri copies resources without the executable bit, and `open -a
+        // Terminal` on a non-executable file opens it in an editor instead of
+        // running it.
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755));
+        let _ = std::process::Command::new("open")
+            .args(["-a", "Terminal"])
+            .arg(&script)
+            .status();
+    });
+}
+
+/// Linux twin. Same two signals, written by `server/install.sh`: the
+/// `systemd --user` unit, or the XDG autostart entry it falls back to where
+/// there is no user manager.
+///
+/// Neither package can install the backend for us. An AppImage has no install
+/// hook at all, and a .deb's post-install script runs as ROOT — while the login
+/// service, the install root and the data directory all belong to ONE user's
+/// session (the same rule that keeps the Windows backend out of a session-0
+/// service). First launch is the only moment that knows whose Xenon this is.
+#[cfg(target_os = "linux")]
+fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
+    use tauri::path::BaseDirectory;
+    use tauri::Manager;
+    let script = app
+        .path()
+        .resolve("posix/xenon-bootstrap.sh", BaseDirectory::Resource)
+        .ok();
+    let config = app.path().config_dir().ok();
+    std::thread::spawn(move || {
+        if backend_answers(port) {
+            return;
+        }
+        if port != 3030 {
+            return;
+        }
+        let unit = config
+            .as_ref()
+            .map(|c| c.join("systemd/user/xenon-backend.service"));
+        let autostart = config
+            .as_ref()
+            .map(|c| c.join("autostart/xenon-backend.desktop"));
+        // The unit exists but nothing answers: it crashed, or its login start
+        // never fired. `--user restart` is the only correct verb here; a system
+        // `systemctl` would address a unit that does not exist.
+        if unit.map(|p| p.exists()).unwrap_or(false) {
+            let _ = std::process::Command::new("systemctl")
+                .args(["--user", "restart", "xenon-backend.service"])
+                .status();
+            return;
+        }
+        // Installed, but through the autostart fallback: there is no manager to
+        // ask, and that entry only fires at login. Starting a second copy from
+        // here would just fight for the port, so this waits for the next login
+        // exactly as install.sh said it would.
+        if autostart.map(|p| p.exists()).unwrap_or(false) {
+            return;
+        }
+        // Nothing installed → offer to set the backend up, in a terminal the
+        // user can read and interrupt.
+        let Some(script) = script else { return };
+        if !script.exists() {
+            return;
+        }
+        let _ = run_in_terminal(&script);
+    });
+}
+
+/// Open `script` in whatever terminal emulator this desktop has, running it
+/// through `bash` so neither the executable bit (Tauri copies resources without
+/// it) nor the shebang has to be right.
+///
+/// The list is ordered by how likely the emulator is to be the session's own,
+/// and every entry takes the command as SEPARATE argv elements — never a single
+/// string to be re-parsed, which would break the moment a home directory has a
+/// space in it. Returning false is a real outcome: a desktop with no terminal at
+/// all cannot be shown an installer, and the README's manual command is then the
+/// only honest answer.
+#[cfg(target_os = "linux")]
+fn run_in_terminal(script: &std::path::Path) -> bool {
+    const TERMINALS: &[(&str, &[&str])] = &[
+        ("x-terminal-emulator", &["-e"]), // Debian/Ubuntu alternatives symlink
+        ("gnome-terminal", &["--"]),
+        ("konsole", &["-e"]),
+        ("xfce4-terminal", &["-x"]),
+        ("mate-terminal", &["--"]),
+        ("tilix", &["-e"]),
+        ("alacritty", &["-e"]),
+        ("kitty", &[]),
+        ("foot", &[]),
+        ("wezterm", &["start", "--"]),
+        ("xterm", &["-e"]),
+    ];
+    for (bin, prefix) in TERMINALS {
+        let Some(exe) = find_in_path(bin) else { continue };
+        let ok = std::process::Command::new(exe)
+            .args(*prefix)
+            .arg("bash")
+            .arg(script)
+            .spawn()
+            .is_ok();
+        if ok {
+            return true;
+        }
+    }
+    false
+}
+
+/// Locate a binary on PATH. A dependency-free stand-in for `which`.
+#[cfg(target_os = "linux")]
+fn find_in_path(bin: &str) -> Option<std::path::PathBuf> {
+    let path = std::env::var_os("PATH")?;
+    std::env::split_paths(&path)
+        .map(|dir| dir.join(bin))
+        .find(|p| p.is_file())
+}
+
+#[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
+fn spawn_backend_nudge(_app: &tauri::AppHandle, _port: u16) {}
+
+/// True once the local backend accepts a connection. Polls for ~8–16s so a
+/// normally-starting backend is never interfered with.
+#[cfg(any(windows, target_os = "macos", target_os = "linux"))]
+fn backend_answers(port: u16) -> bool {
+    use std::net::{SocketAddr, TcpStream};
+    use std::time::Duration;
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    for _ in 0..4 {
+        if TcpStream::connect_timeout(&addr, Duration::from_secs(2)).is_ok() {
+            return true;
+        }
+        std::thread::sleep(Duration::from_secs(2));
+    }
+    false
+}
+
+/// The current user id, via `id -u` — launchctl addresses its domains by uid and
+/// there is no std API for it (and no libc dependency in this crate).
+#[cfg(target_os = "macos")]
+fn current_uid() -> Option<String> {
+    let out = std::process::Command::new("id").arg("-u").output().ok()?;
+    let uid = String::from_utf8(out.stdout).ok()?.trim().to_string();
+    if uid.is_empty() || !uid.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    Some(uid)
 }
 
 /// Entry point shared by the desktop `main.rs` (and a future mobile target).
@@ -575,12 +872,36 @@ pub fn run() {
                 .min_inner_size(640.0, 240.0)
                 .resizable(true)
                 .decorations(false)
-                .fullscreen(true)
                 .always_on_top(false)
                 .visible(true)
                 .focused(true)
-                .center()
-                .transparent(false)
+                .center();
+            // `transparent` is not on the macOS builder at all: making a window
+            // transparent there needs a private API, so Tauri hides the method
+            // unless the `macos-private-api` feature is enabled. Opting into a
+            // private API to declare that the window is NOT transparent would be
+            // absurd — and false is the default everywhere — so this states the
+            // intent only on the platforms where stating it is free.
+            #[cfg(not(target_os = "macos"))]
+            let builder = builder.transparent(false);
+            // Borderless + native fullscreen is a combination macOS does not
+            // have. `toggleFullScreen:` needs NSWindowStyleMaskTitled, and on a
+            // window built with `decorations(false)` the transition dereferences
+            // null and kills the process — measured, not inferred: SIGSEGV in
+            // -[_NSEnterFullScreenTransitionController _performEnterFullScreen]
+            // on every launch, so the app never opened once on that platform.
+            // The kiosk covers its display by geometry there instead (see
+            // monitor::enter_borderless_fullscreen), which is also the better
+            // behaviour: native fullscreen would move the window into a Space of
+            // its own, away from the display it is supposed to own.
+            //
+            // NOTE this is invisible to `npm run check:platform-apis`: the
+            // method exists on every platform and only its RUNTIME meaning
+            // differs. That check answers "does this API exist here", never
+            // "does this combination work here".
+            #[cfg(not(target_os = "macos"))]
+            let builder = builder.fullscreen(true);
+            let builder = builder
                 // The kiosk lives on the Edge and is controlled from the system
                 // tray (show/hide/restart/exit), so keep it out of the main
                 // taskbar and Alt-Tab — it runs quietly in the background.
@@ -814,9 +1135,9 @@ pub fn run() {
                 eprintln!("failed to build tray icon: {err}");
             }
 
-            // If the local backend never comes up, kick its logon task once.
-            #[cfg(windows)]
-            spawn_backend_nudge(port);
+            // If the local backend never comes up, heal it once (Windows: its
+            // logon task; macOS: its LaunchAgent, or the first-run bootstrap).
+            spawn_backend_nudge(app.handle(), port);
 
             // Launch the kiosk automatically at login (idempotent).
             #[cfg(desktop)]
@@ -842,5 +1163,13 @@ pub fn run() {
         })
         .build(tauri::generate_context!())
         .expect("error while building the Xenon native app")
-        .run(|_app, _event| {});
+        .run(|_app, _event| {
+            // Whatever we started, we stop. On macOS the backend is this app's
+            // own child (see spawn_backend_nudge), so quitting must take it with
+            // us rather than leave a headless server holding port 3030.
+            #[cfg(target_os = "macos")]
+            if matches!(_event, tauri::RunEvent::Exit) {
+                stop_owned_backend();
+            }
+        });
 }

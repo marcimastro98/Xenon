@@ -75,34 +75,125 @@ function createDiskSpace(opts) {
   // Display-only volume metadata comes from server.js' existing, cached
   // Get-Volume probe. It never participates in root resolution or cleanup.
   const getDriveDetails = typeof o.getDriveDetails === 'function' ? o.getDriveDetails : async () => ({});
+  // Which volumes could become an index root. On Windows that is the
+  // drive-letter probe further down; off Windows there are no letters, and the
+  // collector seam ALREADY enumerates the real mounts in the shape the system
+  // tile consumes (darwin-collectors.disks() / linux-collectors.disks(): `/`
+  // plus /Volumes, pseudo-filesystems filtered, label and fileSystem
+  // included). Reusing it is the seam's whole point — a second enumeration here
+  // would be a second thing to keep in step with what the disks tile shows.
+  const getVolumes = typeof o.getVolumes === 'function' ? o.getVolumes : null;
   const summaryFile = path.join(dataDir, SUMMARY_FILE);
+
+  // Every machine path is resolved ONCE here and passed into the two pure
+  // modules; neither of them touches fs or the environment. The platform is
+  // passed explicitly rather than left to each module's process.platform
+  // default, so the value the rules ran under is always visible at the call
+  // site (and pinnable in tests).
+  // Overridable so the POSIX branches can be exercised from a Windows test run
+  // and vice versa. The two pure modules take the same option for the same
+  // reason: the alternative is a suite that silently skips half of itself and
+  // leaves the user's Mac as the first machine ever to run this code. Only the
+  // BRANCHING follows it — os.homedir()/os.tmpdir() still answer for the real
+  // machine, so a forced platform exercises the decisions, not the layout.
+  const PLATFORM = o.platform || process.platform;
+  const IS_WIN = PLATFORM === 'win32';
+  const IS_MAC = PLATFORM === 'darwin';
+
+  // ── path comparison ───────────────────────────────────────────────────────
+  // The same doctrine the two pure modules follow, stated once here because
+  // this file compares paths in six places and every one of them was written
+  // with a hard-coded '\\'. Off Windows that separator appears in no path, so
+  // each of those tests silently answered "no" forever: the classified-ancestor
+  // skip stopped skipping (a cache dir and its child both became items and the
+  // category counted the same bytes twice) and browse minted no ids at all.
+  // On Windows separators and case both fold; on POSIX neither does — a
+  // backslash is a legal filename character there.
+  const SEP = IS_WIN ? '\\' : '/';
+  const cmpKey = (p) => {
+    const raw = String(p == null ? '' : p);
+    return IS_WIN ? raw.replace(/\//g, '\\').toLowerCase() : raw;
+  };
+  // Trailing separators go, except a POSIX root, which IS its separator.
+  const trimSep = (p) => {
+    const raw = String(p == null ? '' : p);
+    if (IS_WIN) return raw.replace(/[\\/]+$/, '');
+    return raw === '/' ? raw : raw.replace(/\/+$/, '');
+  };
+  // Strictly below — equality is the caller's business, because the two cases
+  // are not always allowed to be wrong in the same direction. Both arguments
+  // must already have been through cmpKey.
+  const isBelow = (child, ancestor) => {
+    if (!ancestor || !child) return false;
+    if (!IS_WIN && ancestor === '/') return child !== '/' && child.startsWith('/');
+    return child.startsWith(ancestor + SEP);
+  };
 
   const userProfile = os.homedir();
   const localAppData = process.env.LOCALAPPDATA || path.join(userProfile, 'AppData', 'Local');
-  const windir = process.env.WINDIR || 'C:\\Windows';
-  const programFiles = process.env.ProgramFiles || 'C:\\Program Files';
-  const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+  const windir = IS_WIN ? (process.env.WINDIR || 'C:\\Windows') : '';
+  const programFiles = IS_WIN ? (process.env.ProgramFiles || 'C:\\Program Files') : '';
+  const programFilesX86 = IS_WIN ? (process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)') : '';
   // Only the user's own %TEMP%. C:\Windows\Temp is deliberately absent: the
   // guard protects %WINDIR% outright, so classifying it produced a Clean button
   // that always came back `protected:windir` (same reason the winUpdate
   // category was retired — see disk-categories.js). The filter keeps that true
   // even if %TEMP% itself ever resolves under Windows.
   const tempDirs = [os.tmpdir()].filter((d) => {
+    if (!IS_WIN) return !!d;
     const dl = String(d || '').toLowerCase();
     const wl = windir.toLowerCase().replace(/\\+$/, '');
     return dl !== wl && !dl.startsWith(wl + '\\');
   });
-  const downloads = path.join(userProfile, 'Downloads');
+  // ── the localised user directories (Linux) ────────────────────────────────
+  // xdg-user-dirs writes the REAL directory names into ~/.config/user-dirs.dirs,
+  // and on a non-English desktop they are localised: an Italian install has
+  // ~/Documenti and ~/Scrivania, not ~/Documents and ~/Desktop. Guarding only
+  // the English names would leave the user's actual documents unprotected,
+  // which is the one mistake this module exists to prevent. Read once at
+  // construction (boot, not a request path) and used only to ADD protected
+  // prefixes — the English defaults stay guarded whether or not they exist.
+  function readXdgUserDirs() {
+    if (IS_WIN || IS_MAC) return {};   // macOS keeps English names on disk and localises only the display
+    try {
+      const cfg = path.join(process.env.XDG_CONFIG_HOME || path.join(userProfile, '.config'), 'user-dirs.dirs');
+      return parseXdgUserDirs(fs.readFileSync(cfg, 'utf8'), userProfile);
+    } catch { /* no xdg-user-dirs: the English defaults are all there is */ }
+    return {};
+  }
+  const xdgDirs = readXdgUserDirs();
+
+  const downloads = xdgDirs.download || path.join(userProfile, 'Downloads');
   // Defaults; a relocated Documents (OneDrive) is additionally covered by
   // protecting the OneDrive root itself when the env names one.
   const known = (n) => path.join(userProfile, n);
+  // The user's own Trash, the POSIX counterpart of $Recycle.Bin. macOS keeps
+  // one per volume (`/Volumes/X/.Trashes/<uid>`); only the home one is listed
+  // here because that is the only one the categories offer, and the widget's
+  // "empty" is the helper's job either way.
+  const trashDirs = IS_WIN ? []
+    : IS_MAC ? [path.join(userProfile, '.Trash')]
+      : [path.join(process.env.XDG_DATA_HOME || path.join(userProfile, '.local', 'share'), 'Trash')];
 
   function guardCtx(root) {
     return DiskGuard.buildGuardCtx({
+      platform: PLATFORM,
       windir, programFiles, programFilesX86,
       documents: known('Documents'), pictures: known('Pictures'), desktop: known('Desktop'),
-      music: known('Music'), videos: known('Videos'),
+      music: known('Music'),
+      // macOS calls it Movies; the guard key stays `videos` so the refusal
+      // reason does not change per platform.
+      videos: known(IS_MAC ? 'Movies' : 'Videos'),
       dataDir, appRoot, userProfile, root,
+      // Consulted only to exempt a path from the POSIX system-root list.
+      tempDirs,
+      // The localised names, in addition to the English ones above.
+      extraProtected: [
+        ['documents', xdgDirs.documents], ['pictures', xdgDirs.pictures],
+        ['desktop', xdgDirs.desktop], ['music', xdgDirs.music],
+        ['videos', xdgDirs.videos], ['documents', xdgDirs.templates],
+        ['documents', xdgDirs.publicshare],
+      ].filter(([, p]) => !!p).map(([key, p]) => ({ key, path: p })),
     });
   }
   // ── container directories: the contents are disposable, the folder is not ──
@@ -113,7 +204,12 @@ function createDiskSpace(opts) {
   // same 9.42 GB after every attempt with nothing moved. A container is
   // therefore never an item; its children are, so a locked child refuses on its
   // own and everything else is freed.
-  const containerDirs = new Set(tempDirs.map((d) => String(d).toLowerCase().replace(/[\\/]+$/, '')));
+  // Xcode's DerivedData is the same shape of thing on macOS: the children are
+  // disposable, the folder is one Xcode expects to find.
+  const containerDirs = new Set(
+    [...tempDirs, ...(IS_MAC ? [path.join(userProfile, 'Library', 'Developer', 'Xcode', 'DerivedData')] : [])]
+      .map((d) => String(d).toLowerCase().replace(/[\\/]+$/, '')),
+  );
   function isContainerDir(p) {
     return containerDirs.has(String(p || '').toLowerCase().replace(/[\\/]+$/, ''));
   }
@@ -126,7 +222,16 @@ function createDiskSpace(opts) {
     try {
       const st = await fs.promises.lstat(p);
       flags = { exists: true, isReparse: st.isSymbolicLink(), isDir: st.isDirectory(), size: st.size };
-      if (!flags.isReparse && st.isDirectory()) {
+      // WINDOWS ONLY. This catches a junction or a mounted volume, neither of
+      // which lstat reports as a link there. Off Windows the same comparison is
+      // not a stricter test, it is a broken one: realpath resolves the WHOLE
+      // path, so it differs from the input whenever any ANCESTOR is a symlink —
+      // and on macOS /var is a symlink to /private/var, which is where the
+      // user's temp directory lives. Every directory in the temp category came
+      // back `reparse` and the guard refused it: measured, the largest and most
+      // useful cleanup target on the platform could never be cleaned. The
+      // symlink bit above is the whole answer on POSIX.
+      if (IS_WIN && !flags.isReparse && st.isDirectory()) {
         const real = await fs.promises.realpath(p).catch(() => p);
         if (real.toLowerCase() !== p.toLowerCase()) flags.isReparse = true;
       }
@@ -158,7 +263,7 @@ function createDiskSpace(opts) {
   }
 
   // OneDrive is guarded as an extra protected prefix via a tiny wrapper.
-  const oneDrive = process.env.OneDrive || '';
+  const oneDrive = IS_WIN ? (process.env.OneDrive || '') : '';
   function guardDelete(abs, gctx, flags) {
     // Belt and braces: a stale cached enumeration must not be able to address
     // the container itself even if it once held it as an item.
@@ -174,7 +279,12 @@ function createDiskSpace(opts) {
   async function catCtx() {
     const s = (await Promise.resolve(getSettings()).catch(() => ({}))) || {};
     return {
-      tempDirs, localAppData, userProfile, windir,
+      platform: PLATFORM,
+      tempDirs, localAppData, userProfile, windir, trashDirs,
+      // The guard's own list, so "what the categories refuse to offer" and
+      // "what the guard refuses to delete" can never drift apart. A category
+      // that always comes back `protected:system` is worse than no category.
+      systemDirs: DiskGuard.SYSTEM_PREFIXES,
       devFolders: Array.isArray(s.devFolders) ? s.devFolders.filter((d) => typeof d === 'string') : [],
       downloads,
       installerAgeDays: Number.isFinite(s.installerAgeDays) ? s.installerAgeDays : 30,
@@ -184,6 +294,14 @@ function createDiskSpace(opts) {
 
   function helperPresent() {
     try { return !!helperExe && fs.existsSync(helperExe); } catch { return false; }
+  }
+
+  // Whether a reversible delete can be performed at all. The helper is one way;
+  // an injected runner (Linux, via `gio trash`) is another, and gating cleanup
+  // on the BINARY rather than on the capability meant a platform with a working
+  // trash was still told to install a companion it has no build of.
+  function canRecycle() {
+    return helperPresent() || !!shellDeleteRunner;
   }
 
   // ── scan state ───────────────────────────────────────────────────────────
@@ -265,9 +383,60 @@ function createDiskSpace(opts) {
     return drivesCache.pending;
   }
   function listDrives() {
-    if (!drivesCache.at) return refreshDrives();          // first call waits
-    if (Date.now() - drivesCache.at >= DRIVES_TTL_MS) refreshDrives();  // in background
-    return Promise.resolve(drivesCache.list);
+    if (IS_WIN) {
+      if (!drivesCache.at) return refreshDrives();          // first call waits
+      if (Date.now() - drivesCache.at >= DRIVES_TTL_MS) refreshDrives();  // in background
+      return Promise.resolve(drivesCache.list);
+    }
+    return Promise.resolve([]);   // no letters here; see addableRoots()
+  }
+
+  // ── volumes offered as one-tap index roots (POSIX) ───────────────────────
+  // Same stale-while-revalidate shape as the letter probe above, for the same
+  // reason: this sits on the /disk/status path the widget polls, and `df`
+  // blocks on a stalled network mount.
+  const volumesCache = { at: 0, list: [], pending: null };
+  function refreshVolumes() {
+    if (volumesCache.pending) return volumesCache.pending;
+    volumesCache.pending = Promise.resolve()
+      .then(() => getVolumes())
+      .then((rows) => {
+        volumesCache.list = (Array.isArray(rows) ? rows : [])
+          .map((d) => ({
+            letter: '',
+            path: String((d && d.drive) || ''),
+            drive: String((d && d.drive) || ''),
+            label: String((d && d.label) || '').trim().slice(0, 80),
+            model: '',
+            fileSystem: String((d && d.fileSystem) || '').trim().slice(0, 24),
+            driveType: String((d && d.driveType) || '').trim().slice(0, 40),
+          }))
+          .filter((d) => d.path.startsWith('/'));
+        volumesCache.at = Date.now();
+        return volumesCache.list;
+      })
+      .catch(() => volumesCache.list)
+      .finally(() => { volumesCache.pending = null; });
+    return volumesCache.pending;
+  }
+
+  // The volumes the widget may offer as "add this to the index". One shape on
+  // both platforms: `path` is what the client sends back, and it is the only
+  // field it needs. `letter` stays populated on Windows because that is what
+  // the existing client falls back to.
+  async function addableRoots(metadata) {
+    if (IS_WIN) {
+      const letters = await listDrives();
+      return letters.map((letter) => ({
+        letter,
+        path: letter + ':\\',
+        ...metadata(letter + ':'),
+      }));
+    }
+    if (!getVolumes) return [];
+    if (!volumesCache.at) return refreshVolumes();
+    if (Date.now() - volumesCache.at >= DRIVES_TTL_MS) refreshVolumes();
+    return volumesCache.list;
   }
 
   function killScan(reason) {
@@ -327,14 +496,14 @@ function createDiskSpace(opts) {
       if (isContainerDir(d.p)) continue;
       // Skip a dir whose classified ANCESTOR is already an item — deleting the
       // ancestor covers it, and double-counting would inflate the category.
-      const lower = d.p.toLowerCase();
-      if (classifiedDirs.some((a) => lower.startsWith(a + '\\'))) continue;
-      classifiedDirs.push(lower);
+      const key = cmpKey(d.p);
+      if (classifiedDirs.some((a) => isBelow(key, a))) continue;
+      classifiedDirs.push(key);
       add(r.cat, d.p, d.s, d.m, 'dir');
     }
     for (const f of scan.detailFiles) {
-      const lower = f.p.toLowerCase();
-      if (classifiedDirs.some((a) => lower.startsWith(a + '\\'))) continue;
+      const key = cmpKey(f.p);
+      if (classifiedDirs.some((a) => isBelow(key, a))) continue;
       const ext = path.extname(f.n).replace(/^\./, '');
       const r = DiskCategories.classify({ path: f.p, name: f.n, isDir: false, size: f.s, mtime: f.m, ext }, ctx);
       if (!r) continue;
@@ -397,6 +566,11 @@ function createDiskSpace(opts) {
 
   function startScan(rootRaw) {
     if (!helperPresent()) return { ok: false, error: 'helper_missing' };
+    // The mac helper has no `disk-scan` mode, and spawning it would exit
+    // non-zero into a generic "scan failed" the user cannot act on. Refuse with
+    // a reason instead: the Living Index serves the whole map on that platform,
+    // so nothing is actually lost here.
+    if (!IS_WIN) return { ok: false, error: 'scan_unsupported' };
     if (scan.running) return { ok: false, error: 'already_running' };
     // Root: a plain drive letter, strictly validated (default C:).
     const m = /^([A-Za-z]):?\\?$/.exec(String(rootRaw || 'C').trim());
@@ -419,7 +593,13 @@ function createDiskSpace(opts) {
     scan.buf = '';
 
     // Detail roots: where per-file listing matters (installers + temp files).
-    const detailRoots = [downloads, ...tempDirs].filter((d) => d.toLowerCase().startsWith(root.toLowerCase()));
+    // Segment-safe, so a sibling that merely shares a prefix (D:\Datax against
+    // D:\Data) is not swept in — the same test buildOverview makes below.
+    const scanRootKey = cmpKey(trimSep(root));
+    const detailRoots = [downloads, ...tempDirs].filter((d) => {
+      const key = cmpKey(trimSep(d));
+      return key === scanRootKey || isBelow(key, scanRootKey);
+    });
     let proc;
     try {
       proc = spawn(helperExe, ['disk-scan', root, ...detailRoots], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
@@ -484,7 +664,14 @@ function createDiskSpace(opts) {
     await loadSummary();
     const out = {
       ok: true,
-      helper: helperPresent(),
+      // The question the widget is really asking is "can you analyse my disk?",
+      // and the helper is only one of the two answers. Off Windows the map is
+      // built from the Living Index (see buildOverview, and startScan's own
+      // `scan_unsupported` refusal), so a machine with a working index was
+      // still being told to install a native companion — on Linux, with a
+      // sentence naming INSTALL.bat, a file that platform does not have.
+      // The wire name stays `helper` because the client keys on it.
+      helper: helperPresent() || !!(livingIndex && livingIndex.available()),
       running: scan.running,
       progress: scan.progress,
       last: lastSummary,
@@ -504,14 +691,39 @@ function createDiskSpace(opts) {
         driveType: String(raw.driveType || '').trim().slice(0, 40),
       };
     };
+    const volumes = await addableRoots(metadata);
+    // Annotating a configured root with its volume's label. On Windows the key
+    // is the drive letter; off Windows it is the longest mount path the root
+    // sits under, which is what makes a root inside /Volumes/Backup read as
+    // that volume rather than as `/`.
+    const annotate = (rootPath) => {
+      if (IS_WIN) {
+        const match = /^([A-Za-z]:)/.exec(rootPath);
+        return metadata(match ? match[1] : '');
+      }
+      let best = null;
+      for (const v of volumes) {
+        if (rootPath === v.path || rootPath.startsWith(v.path.replace(/\/+$/, '') + '/')) {
+          if (!best || v.path.length > best.path.length) best = v;
+        }
+      }
+      return best
+        ? { drive: best.path, label: best.label, model: '', fileSystem: best.fileSystem, driveType: best.driveType }
+        : { drive: '', label: '', model: '', fileSystem: '', driveType: '' };
+    };
     out.roots = ((await getIndexRoots().catch(() => [])) || []).map((p, i) => {
       const rootPath = String(p || '');
-      const match = /^([A-Za-z]:)/.exec(rootPath);
-      return { i, path: rootPath, ...metadata(match ? match[1] : '') };
+      return { i, path: rootPath, ...annotate(rootPath) };
     });
-    const drives = await listDrives();
-    out.driveDetails = drives.map((letter) => ({ letter, ...metadata(letter + ':') }));
-    out.drives = drives;
+    out.driveDetails = volumes;
+    // Legacy field: bare drive letters, which only exist on Windows. The client
+    // falls back to it when driveDetails is absent, so it stays.
+    out.drives = await listDrives();
+    // Whether a full scan is possible at all. The Living Index is the primary
+    // path on every platform; the scan is the fallback for a machine without
+    // it, and it needs the helper's `disk-scan` mode, which only the Windows
+    // helper has. Saying so lets the widget not offer a button that refuses.
+    out.canScan = IS_WIN;
     // A running (or just-finished) cleanup so a reloaded page re-attaches to it
     // instead of showing a spinner that resolves against nothing.
     out.clean = cleanSnapshot();
@@ -544,7 +756,7 @@ function createDiskSpace(opts) {
   // the actual deletion streams progress over SSE and lands in cleanJob.report.
   // Emptying the Recycle Bin is fast and stays synchronous.
   async function clean(body) {
-    if (!helperPresent()) return { ok: false, error: 'helper_missing' };
+    if (!canRecycle()) return { ok: false, error: 'helper_missing' };
     if (cleanJob.running) return { ok: false, error: 'busy' };
     const cat = String((body && body.category) || '');
 
@@ -593,7 +805,7 @@ function createDiskSpace(opts) {
     if (body && body.root != null) {
       const rootPath = await resolveRoot(body.root);
       if (!rootPath) return { ok: false, error: 'bad_root' };
-      overviewKey = rootPath.toLowerCase();
+      overviewKey = cmpKey(rootPath);
       const ov = overviews.get(overviewKey);
       if (!ov) return { ok: false, error: 'no_overview' };
       // A snapshot taken while the index was still walking the drive has
@@ -911,16 +1123,22 @@ function createDiskSpace(opts) {
   }
 
   function registerBrowsePath(ov, rawPath) {
-    const value = String(rawPath || '').replace(/[\\/]+$/, '');
-    const root = String(ov.root || '').replace(/[\\/]+$/, '');
-    const lower = value.toLowerCase();
-    const rootLower = root.toLowerCase();
-    if (!value || (lower !== rootLower && !lower.startsWith(rootLower + '\\'))) return '';
+    // `trimSep`, not a bare strip: a POSIX root is "/" and stripping it left
+    // the empty string, which failed the guard below and minted no id for the
+    // root itself — the drill-down had nothing to start from.
+    const value = trimSep(rawPath);
+    const root = trimSep(ov.root);
+    const key = cmpKey(value);
+    const rootKey = cmpKey(root);
+    // This test ADMITS a path into the id space, so it is the strict one: an
+    // id minted here is what /disk/browse resolves against, and nothing
+    // outside the root may ever get one.
+    if (!value || (key !== rootKey && !isBelow(key, rootKey))) return '';
     const state = browseIds(ov);
-    const known = state.byPath.get(lower);
+    const known = state.byPath.get(key);
     if (known) return known;
     const id = 'n' + (state.next++).toString(36);
-    state.byPath.set(lower, id);
+    state.byPath.set(key, id);
     state.byId.set(id, value);
     return id;
   }
@@ -933,10 +1151,14 @@ function createDiskSpace(opts) {
   }
 
   async function buildOverview(root) {
-    const rl = root.toLowerCase().replace(/\\+$/, '');
+    // Which of the detail roots sit inside the root being scanned. Off Windows
+    // this answered "none" unless a temp dir equalled the root exactly, so the
+    // index was asked for no detail files at all and the temp and downloads
+    // categories came back empty on every Mac and every Linux box.
+    const rl = cmpKey(trimSep(root));
     const detailRoots = [downloads, ...tempDirs].filter((dr) => {
-      const drl = dr.toLowerCase();
-      return drl === rl || drl.startsWith(rl + '\\');
+      const drl = cmpKey(trimSep(dr));
+      return drl === rl || isBelow(drl, rl);
     });
 
     let sz, bigDirs, topFiles, dupeGroups, detailFiles, indexMeta;
@@ -993,17 +1215,17 @@ function createDiskSpace(opts) {
       const r = DiskCategories.classify({ path: d.p, name: path.basename(d.p), isDir: true, size: d.s, mtime: d.m }, ctx);
       if (!r) continue;
       if (isContainerDir(d.p)) continue;   // its children are the items
-      const lower = d.p.toLowerCase();
-      if (classifiedDirs.some((a) => lower.startsWith(a + '\\'))) continue;
-      classifiedDirs.push(lower);
+      const key = cmpKey(d.p);
+      if (classifiedDirs.some((a) => isBelow(key, a))) continue;
+      classifiedDirs.push(key);
       add(r.cat, d.p, d.s, d.m, 'dir');
     }
     // …then per-file detail where files classify individually (installers in
     // Downloads, loose temp files), asked from the index only for the detail
     // roots that live under THIS root.
     for (const f of detailFiles) {
-      const lower = f.p.toLowerCase();
-      if (classifiedDirs.some((a) => lower.startsWith(a + '\\'))) continue;
+      const key = cmpKey(f.p);
+      if (classifiedDirs.some((a) => isBelow(key, a))) continue;
       const ext = path.extname(f.n).replace(/^\./, '');
       const r = DiskCategories.classify({ path: f.p, name: f.n, isDir: false, size: f.s, mtime: f.m, ext }, ctx);
       if (!r) continue;
@@ -1047,7 +1269,7 @@ function createDiskSpace(opts) {
     if (!livingIndex || !livingIndex.available()) return { ok: false, error: 'index_off' };
     const root = await resolveRoot(rawIndex);
     if (!root) return { ok: false, error: 'bad_root' };
-    const key = root.toLowerCase();
+    const key = cmpKey(root);
     const cached = overviews.get(key);
     if (!refresh && cached && Date.now() - cached.at < OVERVIEW_TTL_MS) return toClientOverview(cached);
     let pending = overviewBuilds.get(key);
@@ -1089,7 +1311,7 @@ function createDiskSpace(opts) {
     if (!livingIndex || !livingIndex.available()) return { ok: false, error: 'index_off' };
     const root = await resolveRoot(rawIndex);
     if (!root) return { ok: false, error: 'bad_root' };
-    const ov = overviews.get(root.toLowerCase());
+    const ov = overviews.get(cmpKey(root));
     if (!ov) return { ok: false, error: 'no_overview' };
     const node = String(rawNode || '');
     if (!/^n[a-z0-9]+$/.test(node)) return { ok: false, error: 'bad_node' };
@@ -1100,21 +1322,24 @@ function createDiskSpace(opts) {
       ? await livingIndex.browse(target, { childMax: 64, fileMax: 64 })
       : null;
     if (!snapshot) {
-      const targetLower = target.toLowerCase().replace(/\\+$/, '');
+      const targetKey = cmpKey(trimSep(target));
+      // The parent of "/x" is "/", not "" — slicing at the separator index
+      // loses a POSIX root that the Windows shape ("C:\x" → "C:") never hits.
+      const parentKey = (p) => {
+        const cut = p.lastIndexOf(SEP);
+        if (cut < 0) return '';
+        return cut === 0 && !IS_WIN ? '/' : p.slice(0, cut);
+      };
       const children = ov.tree.filter((dir) => {
-        const p = String(dir.p || '').toLowerCase().replace(/\\+$/, '');
-        const cut = p.lastIndexOf('\\');
-        return cut >= 0 && p.slice(0, cut) === targetLower;
+        const p = cmpKey(trimSep(dir.p));
+        return p.includes(SEP) && parentKey(p) === targetKey;
       }).slice(0, 64);
-      const directFiles = ov.topFiles.filter((file) => {
-        const p = String(file.p || '').toLowerCase();
-        return p.slice(0, p.lastIndexOf('\\')) === targetLower;
-      }).slice(0, 64);
-      const rootEntry = ov.tree.find((dir) =>
-        String(dir.p || '').toLowerCase().replace(/\\+$/, '') === targetLower);
+      const directFiles = ov.topFiles.filter((file) =>
+        parentKey(cmpKey(file.p)) === targetKey).slice(0, 64);
+      const rootEntry = ov.tree.find((dir) => cmpKey(trimSep(dir.p)) === targetKey);
       snapshot = {
         path: target,
-        total: rootEntry ? rootEntry.s : (targetLower === String(ov.root).toLowerCase().replace(/\\+$/, '') ? ov.total : 0),
+        total: rootEntry ? rootEntry.s : (targetKey === cmpKey(trimSep(ov.root)) ? ov.total : 0),
         files: rootEntry ? rootEntry.n : 0,
         directBytes: directFiles.reduce((sum, file) => sum + (Number(file.s) || 0), 0),
         children,
@@ -1234,4 +1459,29 @@ function createDiskSpace(opts) {
   };
 }
 
-module.exports = { createDiskSpace };
+// Pure parser for ~/.config/user-dirs.dirs (xdg-user-dirs). Exported so the
+// rule that protects a non-English user's real document folder is unit-tested
+// on every platform, not only where the file exists.
+// Returns { documents, pictures, desktop, ... } with absolute paths.
+function parseXdgUserDirs(text, home) {
+  const out = {};
+  const sep = '/';
+  const homeAbs = String(home || '').replace(/\/+$/, '');
+  for (const line of String(text == null ? '' : text).split(/\r?\n/)) {
+    // Shell assignments, one per line: XDG_DOCUMENTS_DIR="$HOME/Documenti"
+    const m = /^\s*XDG_([A-Z]+)_DIR\s*=\s*"(.*)"\s*$/.exec(line);
+    if (!m) continue;
+    let value = m[2];
+    if (value === '$HOME' || value === '$HOME/') value = homeAbs;
+    else if (value.startsWith('$HOME/')) value = homeAbs + sep + value.slice('$HOME/'.length);
+    value = value.replace(/\/+$/, '');
+    // Absolute only, and never the home directory itself: xdg-user-dirs writes
+    // "$HOME" for a disabled entry, and protecting the whole home would leave
+    // nothing cleanable at all.
+    if (!value.startsWith(sep) || value === homeAbs) continue;
+    out[m[1].toLowerCase()] = value;
+  }
+  return out;
+}
+
+module.exports = { createDiskSpace, parseXdgUserDirs };

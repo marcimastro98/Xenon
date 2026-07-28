@@ -128,3 +128,116 @@ test('sync(false) drops the buffered feed (privacy) and resets state', () => {
   assert.equal(wn.getFeed().length, 0);
   assert.equal(wn.getState(), 'off');
 });
+
+// ── the Linux dbus idle-flush ───────────────────────────────────────────────
+// dbus-monitor blocks are only "complete" when the NEXT message's header
+// arrives, but the match rule narrows the stream to Notify calls, so on a quiet
+// desktop the next one can be minutes away. The last block must therefore be
+// flushed on idle, or the most recent notification stays invisible.
+
+function notifyBlock(title) {
+  return 'method call time=1.1 interface=org.freedesktop.Notifications; member=Notify\n'
+    + '   string "App"\n   uint32 0\n   string "icon"\n'
+    + `   string "${title}"\n   string "body"\n`;
+}
+
+test('Linux: a lone notification is delivered by the idle flush, not held forever', () => {
+  wn.init({ isExcluded: () => false, onItem: (it) => items.push(it), onFeed: () => { feedEvents++; } });
+  line({ event: 'seed', items: [] });
+  wn._setProcForTest({});                 // a live child, so the flush proceeds
+  items = [];
+
+  wn._onDbusData(notifyBlock('first'));
+  assert.equal(items.length, 0, 'held: no following header has proven it complete yet');
+
+  wn._flushLinuxTail();                    // what the 250ms idle timer calls
+  assert.equal(items.length, 1, 'delivered without waiting for another notification');
+  assert.equal(items[0].title, 'first');
+
+  // A second, much later, is delivered once — the first is not repeated.
+  wn._onDbusData(notifyBlock('second'));
+  wn._flushLinuxTail();
+  assert.deepEqual(items.map((i) => i.title), ['first', 'second']);
+  wn._setProcForTest(null);
+});
+
+test('Linux: fast back-to-back — the header split delivers all but the last at once', () => {
+  wn.init({ isExcluded: () => false, onItem: (it) => items.push(it), onFeed: () => { feedEvents++; } });
+  line({ event: 'seed', items: [] });
+  wn._setProcForTest({});
+  items = [];
+
+  wn._onDbusData(notifyBlock('a') + notifyBlock('b'));
+  assert.deepEqual(items.map((i) => i.title), ['a'], 'a completed by b\'s header; b still held');
+  wn._flushLinuxTail();
+  assert.deepEqual(items.map((i) => i.title), ['a', 'b'], 'b flushed, a not repeated');
+  wn._setProcForTest(null);
+});
+
+test('Linux: a mid-write block is never emitted, then is emitted once when complete', () => {
+  wn.init({ isExcluded: () => false, onItem: (it) => items.push(it), onFeed: () => { feedEvents++; } });
+  line({ event: 'seed', items: [] });
+  wn._setProcForTest({});
+  items = [];
+
+  wn._onDbusData('method call member=Notify\n   string "App"\n   string "ic');  // cut mid-block
+  wn._flushLinuxTail();
+  assert.equal(items.length, 0, 'a partial block does not parse, so nothing is emitted');
+
+  wn._onDbusData('on"\n   string "third"\n   string "body"\n');                 // completes it
+  wn._flushLinuxTail();
+  assert.deepEqual(items.map((i) => i.title), ['third'], 'emitted once, whole');
+  wn._setProcForTest(null);
+});
+
+// ── which platforms have a reader, and what the dashboard is told ───────────
+// sync() used to gate on win32 alone, which made _wanted permanently false on
+// Linux, so _start() was never called and the whole dbus path was unreachable
+// code. Nothing caught it because every Linux test above drives the parser and
+// the test hooks directly, never sync(). These do.
+
+const PLATFORM = Object.getOwnPropertyDescriptor(process, 'platform');
+function withPlatform(value, fn) {
+  Object.defineProperty(process, 'platform', { ...PLATFORM, value });
+  try { return fn(); } finally { Object.defineProperty(process, 'platform', PLATFORM); }
+}
+
+test('isSupported covers the platforms that actually have a reader', () => {
+  assert.equal(withPlatform('win32', () => wn.isSupported()), true);
+  assert.equal(withPlatform('linux', () => wn.isSupported()), true);
+  assert.equal(withPlatform('darwin', () => wn.isSupported()), false);
+  assert.equal(withPlatform('freebsd', () => wn.isSupported()), false);
+});
+
+test('sync(true) on Linux reaches the reader instead of no-opping', () => {
+  // The regression: state must leave 'off'. Where dbus-monitor is absent that
+  // is 'unavailable'; where it is present the monitor starts and reports
+  // 'allowed'. Either proves _start() ran — the old gate produced neither.
+  const state = withPlatform('linux', () => {
+    wn.sync(true);
+    const s = wn.getState();
+    wn.sync(false);          // stop any child this started before leaving
+    return s;
+  });
+  assert.notEqual(state, 'off');
+  assert.ok(['starting', 'allowed', 'unavailable'].includes(state), `unexpected state ${state}`);
+});
+
+test('where there is no reader the tile is told a terminal state, never "off"', () => {
+  withPlatform('darwin', () => {
+    wn.sync(true);
+    // The raw child state stays what it is — the reader's own logic and the
+    // tests above depend on that — but 'off' is what the tile renders as a
+    // permanent "Connecting…", so that is not what it is told.
+    assert.equal(wn.getState(), 'off');
+    assert.equal(wn.reportedState(), 'unavailable');
+  });
+});
+
+test('where there is a reader, reportedState is the raw state', () => {
+  withPlatform('win32', () => {
+    line({ event: 'status', status: 'denied' });
+    assert.equal(wn.reportedState(), 'denied');
+    assert.equal(wn.reportedState(), wn.getState());
+  });
+});

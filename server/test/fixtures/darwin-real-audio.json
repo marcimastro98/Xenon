@@ -1,0 +1,47 @@
+{
+  "SPAudioDataType" : [
+    {
+      "_items" : [
+        {
+          "_name" : "Microfono di Nadia",
+          "coreaudio_device_input" : 1,
+          "coreaudio_device_manufacturer" : "Apple Inc.",
+          "coreaudio_device_srate" : 48000,
+          "coreaudio_device_transport" : "coreaudio_device_type_unknown",
+          "coreaudio_input_source" : "spaudio_default"
+        },
+        {
+          "_name" : "Microfono MacBook Air",
+          "coreaudio_default_audio_input_device" : "spaudio_yes",
+          "coreaudio_device_input" : 1,
+          "coreaudio_device_manufacturer" : "Apple Inc.",
+          "coreaudio_device_srate" : 48000,
+          "coreaudio_device_transport" : "coreaudio_device_type_builtin",
+          "coreaudio_input_source" : "Microfono MacBook Air"
+        },
+        {
+          "_name" : "Altoparlanti MacBook Air",
+          "_properties" : "coreaudio_default_audio_system_device",
+          "coreaudio_default_audio_output_device" : "spaudio_yes",
+          "coreaudio_default_audio_system_device" : "spaudio_yes",
+          "coreaudio_device_manufacturer" : "Apple Inc.",
+          "coreaudio_device_output" : 2,
+          "coreaudio_device_srate" : 48000,
+          "coreaudio_device_transport" : "coreaudio_device_type_builtin",
+          "coreaudio_output_source" : "Altoparlanti MacBook Air"
+        },
+        {
+          "_name" : "Microsoft Teams Audio",
+          "coreaudio_device_input" : 1,
+          "coreaudio_device_manufacturer" : "Microsoft Corp.",
+          "coreaudio_device_output" : 1,
+          "coreaudio_device_srate" : 48000,
+          "coreaudio_device_transport" : "coreaudio_device_type_virtual",
+          "coreaudio_input_source" : "Microsoft Teams Audio Device",
+          "coreaudio_output_source" : "Microsoft Teams Audio Device"
+        }
+      ],
+      "_name" : "coreaudio_device"
+    }
+  ]
+}

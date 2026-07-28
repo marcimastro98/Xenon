@@ -213,7 +213,15 @@ function createDecoder(onMessage) {
   };
 }
 
-function pipePath(i) { return '\\\\?\\pipe\\discord-ipc-' + i; }
+// Discord's local RPC endpoint: a named pipe on Windows, a Unix socket
+// everywhere else. net.connect({ path }) takes either, so this is the only
+// place that differs. macOS/Linux put the socket in the sandbox/runtime temp
+// dir, which is what TMPDIR points at.
+function pipePath(i) {
+  if (process.platform === 'win32') return '\\\\?\\pipe\\discord-ipc-' + i;
+  const base = process.env.XDG_RUNTIME_DIR || process.env.TMPDIR || '/tmp';
+  return path.join(base, 'discord-ipc-' + i);
+}
 
 // Try discord-ipc-0..9 in turn; resolve the first that connects, else reject.
 // A pipe that EXISTS but refuses us fails in two ways that need OPPOSITE advice,

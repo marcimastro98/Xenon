@@ -1,0 +1,1 @@
+{"timestamp":"2026-07-24T10:00:00Z","temp":{"cpu_temp_avg":48.5,"gpu_temp_avg":42.25},"memory":{"ram_total":17179869184,"ram_usage":9663676416},"ecpu_freq_mhz":1200,"ecpu_usage_ratio":0.21,"pcpu_freq_mhz":3200,"gpu_freq_mhz":700,"gpu_usage_ratio":0.37,"cpu_power":2.5,"gpu_power":1.1,"all_power":5.2}

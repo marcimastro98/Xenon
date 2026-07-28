@@ -1,0 +1,10 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "targets": ["app", "dmg"],
+    "resources": ["posix/xenon-bootstrap.sh"],
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    }
+  }
+}

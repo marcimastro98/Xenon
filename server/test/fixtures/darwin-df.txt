@@ -1,0 +1,10 @@
+Filesystem 1024-blocks      Used Available Capacity  Mounted on
+/dev/disk3s1s1  971350180  10035420 114352188     9%    /
+/dev/disk3s6    971350180        24 114352188     1%    /System/Volumes/VM
+/dev/disk3s2    971350180    344672 114352188     1%    /System/Volumes/Preboot
+/dev/disk3s4    971350180      1524 114352188     1%    /System/Volumes/Update
+/dev/disk1s2       512000      6136    481264     2%    /System/Volumes/xarts
+/dev/disk1s1       512000     26536    481264     6%    /System/Volumes/iSCPreboot
+/dev/disk1s3       512000       420    481264     1%    /System/Volumes/Hardware
+/dev/disk3s5    971350180 838254108 114352188    88%    /System/Volumes/Data
+/dev/disk5s1     15631360   4194304  11437056    27%    /Volumes/Backup Drive

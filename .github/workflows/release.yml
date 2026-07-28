@@ -8,8 +8,16 @@ name: Release (atomic)
 #   Xenon_X.Y.Z_x64-setup.exe.sig  its minisign signature
 #   Xenon-Setup-x64.exe         stable-named copy — the permanent download link
 #                               README/website point at (releases/latest/download/…)
-#   latest.json                 Tauri updater manifest
+#   Xenon_X.Y.Z_universal.app.tar.gz(+.sig)  macOS updater payload (universal)
+#   Xenon_X.Y.Z_universal.dmg   macOS disk image
+#   Xenon-macOS-universal.dmg   stable-named copy — the permanent macOS link
+#   latest.json                 Tauri updater manifest (windows + both darwin arches)
 #   SHA256SUMS / SHA256SUMS.sig Ed25519-signed hashes (self-update + helper verify)
+#
+# latest.json is assembled in `publish`, not in a build job: it carries one entry
+# per platform, so no single builder can write it. Each native job stages a
+# `platforms-<os>.json` fragment and publish merges them — adding a platform
+# means adding a job and a fragment, nothing else.
 #
 # This replaces the old `release: published` fan-out (helper.yml, native-app.yml,
 # release-integrity.yml — now manual recovery tools): those raced the publish,
@@ -142,7 +150,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run build
 
-      - name: Compose latest.json and stage artifacts
+      - name: Stage artifacts and the windows updater fragment
         shell: pwsh
         run: |
           $tag = "${{ inputs.tag || github.event.release.tag_name || github.ref_name }}"
@@ -153,14 +161,17 @@ jobs:
           $version = (Get-Content apps/native/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
           # Guard: the tag must match the stamped version — a mismatched tag once
           # cost a full retag+re-release cycle. Fail here, before anything ships.
+          # Checked in this job only: every other job is gated behind it through
+          # `needs`, so one guard stops the whole pipeline.
           if (($tag -replace '^[vV]', '') -ne $version) {
             throw "Tag $tag does not match tauri.conf.json version $version - retag or run 'npm run version:set'."
           }
           $url = "https://github.com/${{ github.repository }}/releases/download/$tag/$($setup.Name)"
-          $latest = [ordered]@{
+          # Only this platform's slice of latest.json — publish merges the
+          # fragments. `version` rides along so publish can assemble the manifest
+          # without re-reading the config on a different runner.
+          $fragment = [ordered]@{
             version   = $version
-            notes     = "See the release notes on GitHub."
-            pub_date  = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
             platforms = [ordered]@{
               "windows-x86_64" = [ordered]@{
                 signature = (Get-Content $sig.FullName -Raw).Trim()
@@ -169,7 +180,7 @@ jobs:
             }
           }
           New-Item -ItemType Directory -Path stage -Force | Out-Null
-          $latest | ConvertTo-Json -Depth 6 | Set-Content stage/latest.json -Encoding utf8
+          $fragment | ConvertTo-Json -Depth 6 | Set-Content stage/platforms-windows.json -Encoding utf8
           Copy-Item $setup.FullName (Join-Path stage $setup.Name)
           Copy-Item $sig.FullName (Join-Path stage $sig.Name)
           # Stable-named copy: gives README/website a permanent link that always
@@ -182,9 +193,333 @@ jobs:
           name: xenon-native
           path: stage/
 
+  native-macos:
+    runs-on: macos-latest
+    needs: gate
+    if: needs.gate.outputs.proceed == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Both arches, so one universal binary covers Apple Silicon and Intel and
+      # the updater can point BOTH darwin keys at the same payload.
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate app icons
+        working-directory: apps/native
+        run: npm run tauri -- icon ../../docs/images/logo-mark.png
+
+      # Apple signing + notarization are OPT-IN: they need a paid Apple Developer
+      # Program membership, which this project does not have yet. Each variable
+      # is exported ONLY when its secret actually exists, because Tauri treats an
+      # empty APPLE_CERTIFICATE / APPLE_SIGNING_IDENTITY as "sign with this" and
+      # fails on the empty .p12 — an UNSET variable is what makes it skip signing
+      # cleanly. Until the certificate lands the build still produces a working
+      # .app/.dmg; Gatekeeper asks the user to confirm it on first open.
+      #
+      # The emptiness test has to live in the shell, not in a step `if:`: the
+      # `secrets` context is not available to step conditionals (only to `env:`),
+      # so `if: secrets.X != ''` is an invalid-context error at parse time.
+      # Values are written with the heredoc form so a secret containing newlines
+      # cannot inject arbitrary variables into the environment file.
+      - name: Enable Apple signing and notarization when the secrets exist
+        env:
+          IN_APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          IN_APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          IN_APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          IN_APPLE_ID: ${{ secrets.APPLE_ID }}
+          IN_APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          IN_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -eu
+          export_secret() {
+            local name="$1" value="$2"
+            [ -n "$value" ] || return 0
+            {
+              printf '%s<<XENON_SECRET_EOF\n' "$name"
+              printf '%s\n' "$value"
+              printf 'XENON_SECRET_EOF\n'
+            } >> "$GITHUB_ENV"
+            echo "exported $name"
+          }
+          export_secret APPLE_CERTIFICATE          "$IN_APPLE_CERTIFICATE"
+          export_secret APPLE_CERTIFICATE_PASSWORD "$IN_APPLE_CERTIFICATE_PASSWORD"
+          export_secret APPLE_SIGNING_IDENTITY     "$IN_APPLE_SIGNING_IDENTITY"
+          export_secret APPLE_ID                   "$IN_APPLE_ID"
+          export_secret APPLE_PASSWORD             "$IN_APPLE_PASSWORD"
+          export_secret APPLE_TEAM_ID              "$IN_APPLE_TEAM_ID"
+          [ -n "$IN_APPLE_SIGNING_IDENTITY" ] || echo "no Apple certificate configured - building unsigned (Gatekeeper will prompt on first open)"
+
+      - name: Build the native app (signed updater artifacts)
+        working-directory: apps/native
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run build:mac
+
+      # mediaremote-adapter — the macOS now-playing bridge (BSD-3-Clause,
+      # © 2025 Jonas van den Berg and contributors). Built here rather than
+      # committed, for the same reason as xenon-helper.exe: it is a compiled
+      # artifact for one platform. install.sh downloads it from the release.
+      #
+      # Pinned to a COMMIT, not a tag: a tag can be moved after the fact, and
+      # this ends up on every Mac that installs Xenon. Bump both lines together.
+      #
+      # continue-on-error on purpose: the adapter is OPTIONAL everywhere it is
+      # consumed (no adapter → the media tile is simply empty, which is what
+      # macOS did before it existed). A break in someone else's build must not
+      # be able to block a Xenon release, so a failure here costs one feature on
+      # one platform and the next step notices the tarball is absent.
+      - name: Build the macOS media adapter
+        continue-on-error: true
+        env:
+          ADAPTER_REPO: https://github.com/ungive/mediaremote-adapter.git
+          ADAPTER_COMMIT: 3ac3d4bdf862c7b5399b4fba4df5689f5c38609a  # v0.7.6
+        run: |
+          set -euo pipefail
+          SRC="$RUNNER_TEMP/mediaremote-adapter"
+          git clone --recurse-submodules "$ADAPTER_REPO" "$SRC"
+          git -C "$SRC" checkout --recurse-submodules "$ADAPTER_COMMIT"
+          cmake -S "$SRC" -B "$SRC/build" -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64'
+          cmake --build "$SRC/build" --config Release
+          FRAMEWORK=$(find "$SRC/build" -maxdepth 3 -name 'MediaRemoteAdapter.framework' -type d | head -1)
+          [ -n "$FRAMEWORK" ] || { echo "MediaRemoteAdapter.framework not found in the build output"; exit 1; }
+          # The app is universal, so the adapter has to be too — an arm64-only
+          # framework would install cleanly on an Intel Mac and then fail to
+          # load, which reads as "media just does not work" with no error.
+          BIN="$FRAMEWORK/MediaRemoteAdapter"
+          [ -f "$BIN" ] || BIN="$FRAMEWORK/Versions/A/MediaRemoteAdapter"
+          ARCHS=$(lipo -archs "$BIN")
+          echo "framework archs: $ARCHS"
+          case "$ARCHS" in *arm64*) ;; *) echo "arm64 missing"; exit 1 ;; esac
+          case "$ARCHS" in *x86_64*) ;; *) echo "x86_64 missing"; exit 1 ;; esac
+          OUT="$RUNNER_TEMP/mediaremote-payload"
+          mkdir -p "$OUT"
+          cp -R "$FRAMEWORK" "$OUT/"
+          cp "$SRC/bin/mediaremote-adapter.pl" "$OUT/"
+          # BSD-3-Clause requires the copyright notice to travel with the binary.
+          cp "$SRC/LICENSE" "$OUT/LICENSE-mediaremote-adapter"
+          mkdir -p stage
+          tar -czf stage/MediaRemoteAdapter-macos.tar.gz -C "$OUT" .
+          echo "staged $(du -h stage/MediaRemoteAdapter-macos.tar.gz | cut -f1) adapter payload"
+
+      # The macOS half of the Xenon Helper (helper-mac/, Swift). Same modes and
+      # the same stdio protocols as the Windows exe, so server.js gained a path
+      # and not a vocabulary. Universal, because the app is.
+      #
+      # continue-on-error while it is new: it is the youngest component here and
+      # a compile break in it must not cost Windows and macOS users a release.
+      # Tighten this once it has shipped once.
+      - name: Build the macOS helper
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          swift build -c release --package-path helper-mac --arch arm64 --arch x86_64
+          # A universal build leaves BOTH the per-arch binaries and the merged
+          # one in .build, and `find | head -1` happily returns an arm64-only
+          # slice — which is what the arch check below caught the first time.
+          # Take the merged one by its documented path, and if a future SwiftPM
+          # moves it, pick the candidate lipo says is actually universal rather
+          # than whichever the filesystem lists first.
+          BIN=helper-mac/.build/apple/Products/Release/xenon-helper
+          if [ ! -f "$BIN" ]; then
+            BIN=""
+            find helper-mac/.build -name 'xenon-helper' -type f -perm +111 > "$RUNNER_TEMP/xh.txt" || true
+            while IFS= read -r cand; do
+              archs=$(lipo -archs "$cand" 2>/dev/null || true)
+              case "$archs" in *arm64*) ;; *) continue ;; esac
+              case "$archs" in *x86_64*) BIN="$cand"; break ;; esac
+            done < "$RUNNER_TEMP/xh.txt"
+          fi
+          [ -n "$BIN" ] || { echo "no universal xenon-helper in the build output"; exit 1; }
+          ARCHS=$(lipo -archs "$BIN")
+          echo "helper archs: $ARCHS"
+          case "$ARCHS" in *arm64*) ;; *) echo "arm64 missing"; exit 1 ;; esac
+          case "$ARCHS" in *x86_64*) ;; *) echo "x86_64 missing"; exit 1 ;; esac
+          echo "helper version: $("$BIN" --version)"
+          mkdir -p stage
+          # tar, not a bare file: it is the only way the executable bit survives
+          # a GitHub release asset download.
+          tar -czf stage/xenon-helper-macos.tar.gz -C "$(dirname "$BIN")" xenon-helper
+          echo "staged $(du -h stage/xenon-helper-macos.tar.gz | cut -f1) helper"
+
+      - name: Stage artifacts and the macos updater fragment
+        run: |
+          set -euo pipefail
+          if [ ! -f stage/MediaRemoteAdapter-macos.tar.gz ]; then
+            echo "::warning::the media adapter did not build - this release ships without macOS now-playing"
+          fi
+          # The helper is continue-on-error like the adapter, so it needs the
+          # same notice. Its absence is far louder than one feature: install.sh
+          # treats a missing helper as an ordinary condition, so a release that
+          # shipped without it degrades EVERY Mac install in silence — no
+          # temperatures, no GPU load, an app switcher that is seconds slower
+          # and demands the Automation grant, no Living Index (so no search and
+          # no disk map), no global hotkey, and deletes that skip the Trash.
+          # Nobody would see an error anywhere; they would just get a lesser
+          # Xenon. Worth knowing before clicking Publish.
+          if [ ! -f stage/xenon-helper-macos.tar.gz ]; then
+            echo "::warning::the macOS helper did not build - every Mac install will fall back to the osascript paths"
+          fi
+          BUNDLE=apps/native/src-tauri/target/universal-apple-darwin/release/bundle
+          TARBALL=$(ls "$BUNDLE"/macos/*.app.tar.gz 2>/dev/null | head -1)
+          SIG=$(ls "$BUNDLE"/macos/*.app.tar.gz.sig 2>/dev/null | head -1)
+          DMG=$(ls "$BUNDLE"/dmg/*.dmg 2>/dev/null | head -1)
+          [ -n "$TARBALL" ] && [ -n "$SIG" ] || { echo "updater payload or signature missing in $BUNDLE/macos"; exit 1; }
+          [ -n "$DMG" ] || { echo "dmg missing in $BUNDLE/dmg"; exit 1; }
+          TAG="${{ inputs.tag || github.event.release.tag_name || github.ref_name }}"
+          VERSION=$(node -p "require('./apps/native/src-tauri/tauri.conf.json').version")
+          URL="https://github.com/${{ github.repository }}/releases/download/$TAG/$(basename "$TARBALL")"
+          mkdir -p stage
+          # One universal payload serves both arches, so both darwin keys point
+          # at the same URL and signature.
+          node -e '
+            const fs = require("fs");
+            const [sigPath, url, version] = process.argv.slice(1);
+            const signature = fs.readFileSync(sigPath, "utf8").trim();
+            const entry = { signature, url };
+            fs.writeFileSync("stage/platforms-macos.json", JSON.stringify({
+              version,
+              platforms: { "darwin-aarch64": entry, "darwin-x86_64": entry },
+            }, null, 2));
+          ' "$SIG" "$URL" "$VERSION"
+          cp "$TARBALL" "stage/$(basename "$TARBALL")"
+          cp "$SIG" "stage/$(basename "$SIG")"
+          cp "$DMG" "stage/$(basename "$DMG")"
+          # Stable-named copy, the macOS twin of Xenon-Setup-x64.exe: a permanent
+          # link the README and the website can point at.
+          cp "$DMG" stage/Xenon-macOS-universal.dmg
+
+      - name: Upload native macOS artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: xenon-native-macos
+          path: stage/
+
+  native-linux:
+    # Pinned to 22.04, not ubuntu-latest: an AppImage links against the glibc of
+    # the machine that built it, so building on the newest image would refuse to
+    # start on every LTS older than it. If this image is ever retired, moving up
+    # is a deliberate choice about the oldest distro still supported, not a
+    # detail — say so in the release notes when it happens.
+    runs-on: ubuntu-22.04
+    needs: gate
+    if: needs.gate.outputs.proceed == 'true'
+    # Linux is the newest and smallest of the three targets, and its collectors
+    # are still labelled experimental. A break here must not hold back a release
+    # for Windows and macOS users: the job reports its failure, `publish` still
+    # runs, and latest.json simply carries no linux key that round.
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # The dependency set Tauri documents for Ubuntu. libwebkit2gtk-4.1 is the
+      # v2 one (v1 used 4.0); libayatana-appindicator3 is what the tray links
+      # against even though this app only builds a tray on Windows.
+      - name: Install the Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate app icons
+        working-directory: apps/native
+        run: npm run tauri -- icon ../../docs/images/logo-mark.png
+
+      - name: Build the native app (signed updater artifacts)
+        working-directory: apps/native
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run build:linux
+
+      - name: Stage artifacts and the linux updater fragment
+        run: |
+          set -euo pipefail
+          BUNDLE=apps/native/src-tauri/target/release/bundle
+          # Which file the updater consumes on Linux has changed between Tauri
+          # versions (a .AppImage.tar.gz, or the .AppImage itself alongside a
+          # .sig). Take whichever this toolchain produced rather than pinning a
+          # shape that would silently stop matching on the next bump.
+          UPD=$(ls "$BUNDLE"/appimage/*.AppImage.tar.gz 2>/dev/null | head -1 || true)
+          SIG=$(ls "$BUNDLE"/appimage/*.AppImage.tar.gz.sig 2>/dev/null | head -1 || true)
+          if [ -z "$UPD" ]; then
+            UPD=$(ls "$BUNDLE"/appimage/*.AppImage 2>/dev/null | head -1 || true)
+            SIG=$(ls "$BUNDLE"/appimage/*.AppImage.sig 2>/dev/null | head -1 || true)
+          fi
+          APPIMAGE=$(ls "$BUNDLE"/appimage/*.AppImage 2>/dev/null | head -1 || true)
+          DEB=$(ls "$BUNDLE"/deb/*.deb 2>/dev/null | head -1 || true)
+          # rpm is best-effort: the bundler needs rpmbuild on the runner, and a
+          # missing Fedora package must not cost everyone else their release.
+          RPM=$(ls "$BUNDLE"/rpm/*.rpm 2>/dev/null | head -1 || true)
+          [ -n "$UPD" ] && [ -n "$SIG" ] || { echo "updater payload or signature missing in $BUNDLE/appimage"; exit 1; }
+          [ -n "$APPIMAGE" ] || { echo "AppImage missing in $BUNDLE/appimage"; exit 1; }
+          [ -n "$DEB" ] || { echo "deb missing in $BUNDLE/deb"; exit 1; }
+          TAG="${{ inputs.tag || github.event.release.tag_name || github.ref_name }}"
+          VERSION=$(node -p "require('./apps/native/src-tauri/tauri.conf.json').version")
+          URL="https://github.com/${{ github.repository }}/releases/download/$TAG/$(basename "$UPD")"
+          mkdir -p stage
+          node -e '
+            const fs = require("fs");
+            const [sigPath, url, version] = process.argv.slice(1);
+            const signature = fs.readFileSync(sigPath, "utf8").trim();
+            fs.writeFileSync("stage/platforms-linux.json", JSON.stringify({
+              version,
+              platforms: { "linux-x86_64": { signature, url } },
+            }, null, 2));
+          ' "$SIG" "$URL" "$VERSION"
+          cp "$UPD" "stage/$(basename "$UPD")"
+          cp "$SIG" "stage/$(basename "$SIG")"
+          [ "$UPD" = "$APPIMAGE" ] || cp "$APPIMAGE" "stage/$(basename "$APPIMAGE")"
+          cp "$DEB" "stage/$(basename "$DEB")"
+          # Stable-named copies, the Linux twins of Xenon-Setup-x64.exe and
+          # Xenon-macOS-universal.dmg: permanent links for the README and site.
+          cp "$APPIMAGE" stage/Xenon-Linux-x86_64.AppImage
+          cp "$DEB" stage/Xenon-Linux-x86_64.deb
+          if [ -n "$RPM" ]; then
+            cp "$RPM" "stage/$(basename "$RPM")"
+            cp "$RPM" stage/Xenon-Linux-x86_64.rpm
+          else
+            echo "::warning::no rpm was built - this release ships without one"
+          fi
+
+      - name: Upload native Linux artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: xenon-native-linux
+          path: stage/
+
   publish:
     runs-on: ubuntu-latest
-    needs: [gate, helper, native]
+    needs: [gate, helper, native, native-macos, native-linux]
     if: needs.gate.outputs.proceed == 'true'
     env:
       TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
@@ -195,6 +530,39 @@ jobs:
         with:
           path: assets
           merge-multiple: true
+
+      # Merge every platforms-*.json fragment into the single manifest the app
+      # polls. The fragments themselves are build plumbing, so they are deleted
+      # here and never attached to the release.
+      - name: Compose latest.json
+        run: |
+          node -e '
+            const fs = require("fs");
+            const files = fs.readdirSync("assets").filter((f) => /^platforms-.+\.json$/.test(f));
+            if (!files.length) { console.error("FATAL: no platforms-*.json fragments were staged."); process.exit(1); }
+            const platforms = {};
+            let version = "";
+            for (const f of files) {
+              const frag = JSON.parse(fs.readFileSync("assets/" + f, "utf8"));
+              // Every fragment is built from the same tauri.conf.json; a
+              // disagreement means two jobs built different commits, and
+              // shipping that would hand half the users the wrong payload.
+              if (version && frag.version !== version) {
+                console.error(`FATAL: ${f} reports version ${frag.version}, expected ${version}.`);
+                process.exit(1);
+              }
+              version = frag.version;
+              Object.assign(platforms, frag.platforms);
+            }
+            fs.writeFileSync("assets/latest.json", JSON.stringify({
+              version,
+              notes: "See the release notes on GitHub.",
+              pub_date: new Date().toISOString().replace(/\.\d+Z$/, "Z"),
+              platforms,
+            }, null, 2));
+            for (const f of files) fs.unlinkSync("assets/" + f);
+            console.log("latest.json covers: " + Object.keys(platforms).join(", "));
+          '
 
       - name: Download the tag source zip (same URL the updater uses)
         run: |
@@ -213,13 +581,32 @@ jobs:
               console.error("Self-update to this release would fail (integrity_missing). Add the secret and re-run.");
               process.exit(1);
             }
+            // Required vs optional is not cosmetic. source.zip, the helper and
+            // the setup exe are what self-update.js and the Windows bootstrap
+            // VERIFY against this file: silently omitting one strands every
+            // updating install on integrity_missing, so a missing required
+            // entry has to fail the release. The platform installers are listed
+            // for anyone who wants to check a download by hand, and their jobs
+            // are allowed to fail without taking the release with them.
             const entries = [
-              ["source.zip", "source.zip"],
-              ["assets/xenon-helper.exe", "xenon-helper.exe"],
-              ["assets/Xenon-Setup-x64.exe", "Xenon-Setup-x64.exe"],
+              ["source.zip", "source.zip", true],
+              ["assets/xenon-helper.exe", "xenon-helper.exe", true],
+              ["assets/Xenon-Setup-x64.exe", "Xenon-Setup-x64.exe", true],
+              ["assets/Xenon-macOS-universal.dmg", "Xenon-macOS-universal.dmg", false],
+              ["assets/Xenon-Linux-x86_64.AppImage", "Xenon-Linux-x86_64.AppImage", false],
+              ["assets/Xenon-Linux-x86_64.deb", "Xenon-Linux-x86_64.deb", false],
+              ["assets/Xenon-Linux-x86_64.rpm", "Xenon-Linux-x86_64.rpm", false],
             ];
             let sums = "";
-            for (const [path, name] of entries) {
+            for (const [path, name, required] of entries) {
+              if (!fs.existsSync(path)) {
+                if (required) {
+                  console.error(`FATAL: ${name} is missing. Updating installs verify against it.`);
+                  process.exit(1);
+                }
+                console.log(`::warning::${name} is absent - this release ships without it`);
+                continue;
+              }
               sums += crypto.createHash("sha256").update(fs.readFileSync(path)).digest("hex") + "  " + name + "\n";
             }
             fs.writeFileSync("assets/SHA256SUMS", sums);

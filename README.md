@@ -4,7 +4,7 @@
 
 # Xenon
 
-**Turn any second screen into your PC's control center.** A spare monitor, an old display you dug out of a drawer, or the **CORSAIR Xeneon Edge 14.5" LCD touchscreen** it was built for.
+**Turn any second screen into your PC's control center.** A spare monitor, an old display you dug out of a drawer, or the **CORSAIR Xeneon Edge 14.5" LCD touchscreen** it was built for — driven from any browser, on Windows, macOS or Linux.
 Monitor your PC, control media and audio, mute your mic, manage your day, talk to a built-in AI assistant, drive your RGB lighting, and more, all from one glanceable screen.
 
 And it has a personality. Xenon is a companion, not just a control panel: a built-in AI you can actually talk to, and **Bit** — a little pixel guardian who lives in the corner, watches your habits, and roasts you (kindly) into drinking some water and standing up now and then.
@@ -13,7 +13,7 @@ Everything runs **100% locally**: no cloud, no telemetry, no account required. T
 updates at launch, and reaches the network for features you turn on (weather, media artwork, the
 community catalog) — every one of those calls is listed in the [privacy page](https://xenon-app.com/privacy.html).
 
-![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)
+![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6)
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
 ![license](https://img.shields.io/badge/license-non--commercial-blue)
 ![version](https://img.shields.io/badge/version-4.11.0-informational)
@@ -32,6 +32,8 @@ Xenon is **just a local web app**, so any screen your PC drives can run the whol
 > **On a separate device — a phone or a tablet — not yet.** The local engine only accepts connections from the PC it runs on (loopback, enforced at the socket, the `Host` header and the `Origin`), so another device on your network gets a `403`. Opening that up needs device pairing and an authenticated path, and it is the next thing on the [reach roadmap](docs/ROADMAP-REACH.md). What *does* work on a phone today is **[Remote PC control](FEATURES.md#remote-pc-control)**: Sunshine + Tailscale + Moonlight, streaming the whole PC rather than the dashboard.
 
 It is also **optimized for the CORSAIR Xeneon Edge** 14.5" touchscreen, the display it was designed around: dense, glanceable tiles, comfortable touch targets, and a layout tuned for that panel. You do not need one, but if you have one, this is what it was waiting for.
+
+It also runs on **macOS and Linux**, not only Windows. The dashboard, the widgets and the integrations are identical there; the parts that read or drive the machine itself use each platform's own tools, and a few Windows-only ones have no equivalent yet. [What works where](#platform-support) says exactly which.
 
 **One Xenon, four ways to see it.** A single local engine (started automatically at login, running quietly in the background) serves the dashboard, and every surface draws from that same live UI — so a feature added once appears everywhere:
 
@@ -55,7 +57,7 @@ A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with 
 - **Notifications hub** — a **Notifications tile** mirrors the whole PC's Windows toasts (WhatsApp, mail, Teams, Discord, launchers…) with real app icons, plus a **Discord DMs & mentions** feed — all read locally, nothing leaves your PC.
 - **Share your setup** — export your **theme**, a **dashboard page**, a full **Deck profile**, a single **community widget**, a **code-defined background**, or a whole **package** (theme + pages + widgets in one code) as a link or `.json`, and import someone else's in one step. Any export can be **protected with access codes** (encrypted locally, installs only for people you hand a code to), and every import is re-validated (widgets never auto-grant — you approve each one) so a shared preset can never run code behind your back. **Installed content** records what each download added and removes its theme, pages, Deck profiles, widgets, Ambient scenes, background and fonts together in one action.
 - **Make it yours, down to the last detail** — a full theme editor (colours, corner roundness, glass blur/saturation, borders, shadows), the same controls per individual widget, Xenon AI that can build a whole theme *or* an animated background from a description, and an **animated background** you can pick from a nine-item gallery, have the AI write, import, or code yourself in JavaScript (with your own bundled images) — running in an isolated sandbox.
-- **System & network monitor** — CPU, GPU, RAM, disks, throughput, ping/jitter, and real in-game FPS (PresentMon).
+- **System & network monitor** — CPU, GPU, RAM, disks, throughput, ping/jitter, and real in-game FPS (PresentMon on Windows, MangoHud on Linux).
 - **Media** — now-playing from any SMTC app, transport controls, album art, per-source volume.
 - **Audio & microphone** — output/input device pickers, master volume, mute, and a per-app mixer with real app icons.
 - **Xenon AI** — a voice + vision + chat assistant that can control the whole dashboard, started hands-free with the local **"Hey Xenon"** wake word. It **remembers facts about you**, stays coherent across long conversations, starts **speaking its reply almost immediately**, and offers **one-tap undo** for changes it makes. Runs on **Google Gemini (cloud)** or a **free local provider (Ollama)**.
@@ -87,6 +89,8 @@ Xenon runs as a small local Node.js server on `http://127.0.0.1:3030/`. On the X
 
 ### Step 1 — Run the installer (once)
 
+#### Windows
+
 **Option A — one-click setup (recommended):**
 
 1. Download **[Xenon-Setup-x64.exe](https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe)** — that link always serves the newest version.
@@ -102,6 +106,8 @@ Xenon runs as a small local Node.js server on `http://127.0.0.1:3030/`. On the X
 2. Open the extracted folder and double-click **`INSTALL.bat`**.
 3. If Windows asks permission, click **Yes**.
 
+> The extracted folder carries one installer per platform, so there is nothing to go hunting for: **`INSTALL.bat`** (Windows), **`INSTALL.command`** (macOS — double-click it in Finder), **`INSTALL.sh`** (Linux — `./INSTALL.sh`). Each has its `UNINSTALL` twin beside it. They all end up in the same place; only the way your system prefers to launch a script differs.
+
 Either way — the **Complete setup** button in Option A and `INSTALL.bat` in Option B run the same installer — it automatically:
 
 - installs **Node.js LTS** if missing;
@@ -116,7 +122,7 @@ Either way — the **Complete setup** button in Option A and `INSTALL.bat` in Op
 
 > The installer **does not** download the free local-AI components (Ollama / Whisper) — that keeps first-time setup fast. You set those up on demand from **Settings → Xenon AI** only if you switch to the local provider. See [FEATURES.md](FEATURES.md#xenon-ai).
 
-### If Windows blocks the download, or flags Xenon as a virus
+#### If Windows blocks the download, or flags Xenon as a virus
 
 You may see SmartScreen refuse to run the setup, your browser cancel the download as "malicious", or Defender quarantine `xenon-native.exe` with a name like **`Trojan:Win32/Sonbokli.A!cl`**.
 
@@ -141,10 +147,62 @@ If it matches the `Xenon-Setup-x64.exe` line in that release's `SHA256SUMS`, the
 
 > Only ever do the above for a file you downloaded from **[this repository's Releases page](https://github.com/marcimastro98/Xenon/releases)** and whose hash you checked. Turning off a warning is exactly what actual malware wants you to do — the hash is what tells the two situations apart.
 
+#### macOS
+
+Universal build: one download for both Apple Silicon and Intel.
+
+1. Download **[Xenon-macOS-universal.dmg](https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-macOS-universal.dmg)** and drag **Xenon** to Applications.
+2. Open it. The first launch has no dashboard behind it yet, so it offers to set one up in a Terminal window you can read and stop. The download is checked against the project's signing key **before** anything is extracted.
+3. Let it finish. Xenon installs itself under `~/Library/Application Support/Xenon`, registers a login agent so it starts with you, and the app window comes alive.
+
+> **"Xenon can't be opened because Apple cannot check it."** Expected for now: the app is not notarized yet (that needs a paid Apple Developer membership, which this project does not have). On **macOS 15 and later** open **System Settings → Privacy & Security**, scroll to the bottom and click **Open Anyway** next to Xenon — Apple removed the old right-click → Open shortcut. On **macOS 11–14** right-click the app → **Open** → **Open** still works. Either way it is once per version.
+
+<a id="macos-full-disk-access"></a>
+##### Give Xenon Full Disk Access — and again after each update
+
+The Trash and most of `~/Library/Caches` sit behind a permission macOS grants **per app**. Without it the Disk widget and search still work, they just cannot see those folders — and a folder macOS refuses to list looks exactly like an empty one, so nothing reports an error. On the Mac this was measured on, the Trash alone was 2.4 GB the cleanup could not offer and the disk map was under-reporting by 15 GB.
+
+1. **System Settings → Privacy & Security → Full Disk Access**
+2. Click **+**, choose **Xenon** in Applications, and make sure its switch is **on**
+3. Quit Xenon (menu bar or ⌘Q) and open it again — the permission is read at launch
+
+You give it to **Xenon**, not to Node: the app starts the dashboard itself precisely so one grant under a name you recognise covers it, instead of handing the same access to an interpreter that runs every other script on your machine.
+
+> **This has to be redone after every Xenon update, until the app is signed.** macOS ties the permission to the app's code signature, and an unsigned build gets a fresh one at every release — so the grant silently stops applying. If Xenon is already listed, toggle it **off and on**; if that does not take, select it, press **−**, and add it again with **+**. The giveaway that it has lapsed: the Disk widget shows a Trash of 0 B, or the total space it accounts for drops by several GB overnight. A signing certificate is the real fix and is [on the list](#platform-support).
+
+macOS needs **Node.js** and will say so if it is missing. The optional tools below each light up one thing, and Xenon tells you which are absent instead of failing later:
+
+```bash
+brew install node                      # required
+brew install vladkens/tap/macmon       # fallback for temperature and GPU load (the companion reads them without it)
+brew install switchaudio-osx           # switching the output device
+brew install ffmpeg                    # voice input and spoken replies
+```
+
+Prefer no app? Download the **Source code (zip)** from [Releases](https://github.com/marcimastro98/Xenon/releases/latest), extract it, and double-click **`INSTALL.command`** in the folder — same dashboard, no kiosk window. From a terminal, `./INSTALL.sh` is the same thing.
+
+#### Linux
+
+Two ways, same result.
+
+- **The app:** download **[Xenon-Linux-x86_64.AppImage](https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage)** (`chmod +x` it and run it) or **[Xenon-Linux-x86_64.deb](https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.deb)**. Like macOS, the first launch offers to set the dashboard up in a terminal window, verifying the download before extracting it. The package deliberately does **not** install it for you: everything it would create belongs to one user account, and a package installs as root for the whole machine.
+- **Browser only:** download the **Source code (zip)** from [Releases](https://github.com/marcimastro98/Xenon/releases/latest), extract it, and run `./INSTALL.sh` in the folder.
+
+The installer registers a `systemd --user` service so Xenon starts when you log in, and falls back to an XDG autostart entry where there is no user manager (saying so, including that the fallback has no crash-restart). It also lists the optional tools you do not have:
+
+```bash
+sudo apt install nodejs npm unzip      # required
+sudo apt install wireplumber           # volume, microphone and the per-app mixer
+sudo apt install wmctrl xdotool x11-utils   # the open-applications widget (X11 sessions)
+sudo apt install ffmpeg                # voice input and spoken replies
+```
+
+> If your desktop has no terminal emulator at all, the app cannot show you the installer. Run `./INSTALL.sh` from an extracted source zip instead.
+
 ### Step 2 — Use it
 
 **On the Xeneon Edge — the native Xenon app (recommended):**
-Nothing to configure: the installer already put the **Xenon app** on your PC and set it to open at login. It opens by itself, full-screen and edge-to-edge on the Xeneon Edge — no browser, no iCUE — with **game-safe touch** and a system-tray icon (show / hide / restart / exit). If it isn't on screen right now, launch **Xenon** from the Start menu or the tray icon. No Edge connected? It opens as a normal resizable window instead.
+Nothing to configure: on Windows the installer already put the **Xenon app** on your PC and set it to open at login (on macOS and Linux the app is the thing you installed in Step 1). It opens by itself, full-screen and edge-to-edge on the Xeneon Edge — no browser, no iCUE — with **game-safe touch** and a system-tray icon (show / hide / restart / exit). If it isn't on screen right now, launch **Xenon** from the Start menu or the tray icon. No Edge connected? It opens as a normal resizable window instead.
 
 **In a browser (any monitor, touch or not):**
 Just open **`http://127.0.0.1:3030/`**.
@@ -165,7 +223,7 @@ Just open **`http://127.0.0.1:3030/`**.
 
 > **Nothing.** The engine starts automatically when you log in and the native app reopens itself on the Edge — the dashboard is live before you even settle in. (Using iCUE instead? It remembers your layout too.)
 
-To remove the startup entry, double-click **`UNINSTALL.bat`**.
+To remove the startup entry, double-click **`UNINSTALL.bat`** on Windows or **`UNINSTALL.command`** on macOS, and run `./UNINSTALL.sh` on Linux. All three keep your settings, layouts and notes unless you add `--purge-data`.
 
 ### Updating
 
@@ -175,8 +233,10 @@ Xenon updates itself. When a new release is out, the dashboard shows an **update
 
 ## Requirements
 
-- **Windows 10 or 11 (x64)**
+- **Windows 10 or 11 (x64)**, **macOS 11+** (Apple Silicon or Intel) or **Linux (x64)**
 - **[Node.js 18.15+](https://nodejs.org/)** — installed automatically by `INSTALL.bat`
+
+Everything below is the **Windows** list. On macOS and Linux the equivalents are installed with `brew` / your package manager and are all optional except Node.js; the installer names the ones you are missing and what each would light up (see [Installation](#step-1--run-the-installer-once)).
 - **[FFmpeg](https://ffmpeg.org/)** — installed automatically; used for MP4 → WebM background conversion
 - **[LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)** + **[PawnIO](https://github.com/namazso/PawnIO)** — installed automatically; CPU/disk temperatures (degrades gracefully if absent)
 - **[PresentMon](https://github.com/GameTechDev/PresentMon)** — downloaded automatically; real in-game FPS (falls back to a DWM reading if unavailable)
@@ -187,8 +247,93 @@ Xenon updates itself. When a new release is out, the dashboard shows an **update
 
 - A free **[Gemini API key](https://aistudio.google.com)** for Xenon AI (cloud) — everything else works without it.
 - **[Ollama](https://ollama.com)** + **[Whisper.cpp](https://github.com/ggerganov/whisper.cpp)** for the free local AI provider — set up on demand from Settings.
-- **[Sunshine](https://github.com/LizardByte/Sunshine)** + **[Tailscale](https://tailscale.com/)** for Remote Control — installed for you when you opt in; you use **[Moonlight](https://moonlight-stream.org/)** on your phone.
+- **[Sunshine](https://github.com/LizardByte/Sunshine)** + **[Tailscale](https://tailscale.com/)** for Remote Control — installed for you when you opt in; you use **[Moonlight](https://moonlight-stream.org/)** on your phone. *(Windows only — see the [platform table](#platform-support).)*
 - `nvidia-smi` is auto-detected for NVIDIA GPU usage/temperature.
+
+**On Linux, specifically** — everything below is optional, and the dashboard tells you which tile each one lights up. Run `npm run doctor` to see what your machine is missing.
+
+- `x11-utils` (`xprop`) — the app switcher and game-mode detection.
+- **[MangoHud](https://github.com/flightlessmango/MangoHud)** — in-game FPS. Launch the game with it (`mangohud %command%`); Xenon configures the rest.
+- `playerctl` — makes the now-playing tile update instantly instead of once a second. Without it Xenon reads the same data itself over D-Bus.
+- `wmctrl` — lets the app switcher focus and close windows, not just list them.
+- `dbus-monitor` (part of `dbus`) — mirroring desktop notifications.
+- `nvidia-smi` for NVIDIA cards. AMD and Intel need nothing.
+
+---
+
+## Platform support
+
+Windows is where Xenon started and is the most complete. macOS and Linux run the same dashboard, the same widgets, the same Store and the same integrations — what differs is only the part that reads or drives the machine itself, where each platform gets its own tools and a few Windows features have no equivalent yet.
+
+Anything unavailable is **hidden**, not offered and then failed: a Deck key that cannot work on your system does not appear in the editor, and a tile with no data source says so.
+
+| | Windows | macOS | Linux |
+|---|:---:|:---:|:---:|
+| Dashboard, tiles, themes, presets, widget Store & SDK | ✅ | ✅ | ✅ |
+| Native full-screen app | ✅ | ✅ | ✅ |
+| Starts at login, updates itself | ✅ | ✅ | ✅ |
+| CPU, RAM, disks, network | ✅ | ✅ | ✅ |
+| CPU/GPU temperature and GPU load | ✅ | ✅ ⁸ | ✅ ¹ |
+| Fan speeds | ✅ | — | ✅ ⁹ |
+| System volume, microphone mute | ✅ | ✅ | ✅ |
+| Per-app volume mixer | ✅ | — | ✅ |
+| Now playing + media keys | ✅ | ✅ | ✅ ² |
+| Open apps / app switcher | ✅ | ✅ ³ | X11 only ¹¹ |
+| Deck: open app, file or site, run a script, lock | ✅ | ✅ | ✅ |
+| Global search hotkey | ✅ | ✅ ³ | GNOME ¹² |
+| Type text, move windows | ✅ | — | — ¹⁴ |
+| Xenon AI, chat and actions (cloud and local) | ✅ | ✅ | ✅ |
+| Talking to it: voice input, screen vision | ✅ | ✅ | X11 only ⁴ |
+| "Hey Xenon" wake word | ✅ | ✅ ⁵ | ✅ ⁵ |
+| Network lighting (WLED, Hue, Nanoleaf, OpenRGB) | ✅ | ✅ | ✅ |
+| CORSAIR iCUE lighting | ✅ | — | — |
+| Streaming, Spotify, Discord, Home Assistant, Claude Code | ✅ | ✅ | ✅ |
+| In-game FPS counter | ✅ | — | ✅ ¹³ |
+| Game mode (auto-pauses effects while playing) | ✅ | ✅ ³ | ✅ ¹⁶ |
+| Mirroring desktop notifications | ✅ | — | ✅ ⁶ |
+| Living Index, PC search, disk cleanup | ✅ | — | ✅ ¹⁰ |
+| Embedded browser tile | ✅ | ✅ ⁷ | ✅ ⁷ |
+| Phone as a second screen (QR pairing) | ✅ | ✅ ¹⁷ | ✅ ¹⁷ |
+| Second screen (virtual monitor) | ✅ | — | — ¹⁵ |
+| Remote PC control (Sunshine) | ✅ | — | — ¹⁵ |
+
+¹ NVIDIA needs `nvidia-smi`; AMD is read from the kernel directly and needs nothing. Intel has no load counter a normal process may read, so the figure comes from how much of each interval the GPU spent out of its deepest sleep state — a real, responsive measurement, but a broader one than execution-unit utilisation, so it reads higher than `nvidia-smi` would for the same work. Intel temperature is reported only by chips that publish a sensor (recent discrete cards do; most integrated ones do not).
+
+² Linux reads MPRIS over D-Bus. Nothing to install: it talks to the bus with `busctl`, which ships with systemd — the same systemd Xenon already uses to start at login. If `playerctl` happens to be installed it is preferred, because it pushes changes instead of being polled, so the tile updates the instant a track does.
+
+³ Uses the Xenon Helper, a small companion the installer fetches. Without it the app switcher falls back to scripting, which asks for permission once per application, and the hotkey is not offered.
+
+⁴ Voice input needs ffmpeg with PulseAudio or ALSA. Screen vision uses X11 capture; under Wayland it is refused rather than guessed, because capturing there goes through a permission portal rather than an ffmpeg input.
+
+⁵ Needs the free local Whisper installed (Settings → Xenon AI), same as on Windows, and a microphone ffmpeg can open.
+
+⁶ Linux reads the freedesktop notification bus, which needs `dbus-monitor` (part of the standard dbus package).
+
+⁷ Needs a Chromium-based browser installed (Edge, Chrome, Chromium or Brave); the tile drives it over the DevTools protocol.
+
+⁸ The Xenon Helper reads the thermal sensors and the graphics load directly, with nothing to install and no administrator password. Without the companion, `macmon` on PATH is the fallback; without either, both read "--".
+
+⁹ Linux reads every tachometer the kernel publishes under `/sys/class/hwmon`, with nothing to install and no elevation. Coverage depends on the chip having a driver: laptops are usually covered, and most desktop boards are once `lm_sensors` has loaded the right module.
+
+¹⁰ Linux indexes the folders you choose in Node itself, with no companion: search, the disk map and its categories all come from that one walk, and cleanup moves files to your desktop's Trash via the freedesktop specification. Content search (the part Windows Search provides) has no equivalent, so results match on file names.
+
+¹¹ Reading the window list needs only `xprop` (the `x11-utils` package) — no `wmctrl`, which is required only to *focus* or *close* a window from the tile. Under a Wayland session the list covers apps running through Xwayland; native Wayland windows are absent because Wayland has no protocol that lets a background app enumerate them, by design.
+
+¹² Global shortcuts belong to the desktop on Linux — X11's key grabs are invisible to a Wayland session, and Wayland deliberately offers no way for a background app to claim a key. So Xenon registers a real GNOME custom shortcut, the same one Settings → Keyboard writes: you can see it, edit it and delete it there, named **Xenon Search**. A combination another shortcut already owns is reported as taken instead of silently overwritten. On other desktops the shortcut is not registered and Settings shows the one-line command to bind by hand.
+
+¹³ Through **[MangoHud](https://github.com/flightlessmango/MangoHud)**, and only for games launched with it (`mangohud %command%` as a Steam launch option, or `mangohud ./game`). This is not a limitation of the port: Linux exposes no per-process frame counter — under Wayland each client presents to the compositor on its own, and the GPU's own counters are per-card, not per-application — so a game's frame rate cannot be read without the game's cooperation. Install MangoHud from your package manager; Xenon configures its logging and reads it from there.
+
+¹⁴ Sending synthetic keystrokes is refused by design under Wayland, which is what most current desktops run. On an X11 session it would be possible via `xdotool`; that path is not shipped because it could not be tested here, and shipping input injection unverified is worse than not offering it.
+
+¹⁵ Both are built on Windows-only foundations rather than merely untested: Second screen needs a Windows Indirect Display Driver to create the virtual monitor, and Remote control installs and supervises Sunshine and Tailscale as Windows services through winget and UAC. Neither panel is shown on macOS or Linux — they are hidden rather than offered and then failed.
+
+¹⁶ Linux reads the focused window from the window manager's own properties with `xprop` — which Xwayland maintains for X11 clients too, and games are almost always X11 clients (Proton and Wine render through Xwayland, and SDL2 still defaults to the X11 driver), so this keeps working on a GNOME or KDE Wayland session for exactly the applications game mode cares about. On sway and Hyprland their IPC is used instead. When the focused window is a native Wayland one, Xenon reports that it cannot see it rather than reusing the last window it could — a stale reading would leave game mode stuck on after you quit.
+
+¹⁷ Pairing a phone is plain HTTP on your own network plus a QR code, so it works the same on all three. What is Windows-only for now is the encrypted door on top of it — "secure access, also away from home" installs and supervises Tailscale through winget — and, because a phone will not accept push notifications over an unencrypted connection, the notifications that ride on it.
+
+macOS and Linux support is **new**. It is written against each platform's documented behaviour and covered by unit tests, but it has had far less real-world use than the Windows build — if something misbehaves, please [open an issue](https://github.com/marcimastro98/Xenon/issues) or say so on [Discord](https://discord.gg/MBVrw9kZyg).
+
+If a tile is empty and you want to know why, run **`npm run doctor`** from the install folder. It reads your machine the way Xenon does and prints, line by line, what works, what is simply absent (a sensor your hardware does not expose — the tile shows `--` and that is expected), and what is actually broken. It changes nothing: it starts no server, installs nothing and touches no setting. Adding `-- --capture ./caps` also saves the raw output of each tool, which is exactly what to attach to a bug report.
 
 ---
 

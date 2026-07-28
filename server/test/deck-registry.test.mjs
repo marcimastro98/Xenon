@@ -65,7 +65,10 @@ test('run openFile blocks executables/scripts, requires existence, opens documen
 
 test('run runScript accepts .bat/.cmd/.ps1, rejects other extensions + missing files', async () => {
   const calls = [];
-  const okDeps = { fileExists: () => true, runScript: (p, hidden) => { calls.push([p, !!hidden]); return Promise.resolve(); } };
+  // The platform is pinned, like the isRunnableScriptPath test below: .bat and
+  // .ps1 are Windows script types and this asserts the WINDOWS gate, which has
+  // to hold identically when the suite runs on a Mac.
+  const okDeps = { platform: 'win32', fileExists: () => true, runScript: (p, hidden) => { calls.push([p, !!hidden]); return Promise.resolve(); } };
   // A real, existing script runs through the dedicated runScript dep (window
   // defaults to visible → hidden=false).
   for (const good of ['C:/Scripts/test.bat', 'C:/Scripts/test.cmd', 'C:/Scripts/deploy.ps1', 'C:/Scripts/tool.py']) {
@@ -74,7 +77,7 @@ test('run runScript accepts .bat/.cmd/.ps1, rejects other extensions + missing f
   assert.deepEqual(calls, [['C:/Scripts/test.bat', false], ['C:/Scripts/test.cmd', false], ['C:/Scripts/deploy.ps1', false], ['C:/Scripts/tool.py', false]]);
   // window: 'hidden' is passed through to the dep.
   const hidCalls = [];
-  await reg.createRegistry({ fileExists: () => true, runScript: (_p, h) => { hidCalls.push(!!h); return Promise.resolve(); } })
+  await reg.createRegistry({ platform: 'win32', fileExists: () => true, runScript: (_p, h) => { hidCalls.push(!!h); return Promise.resolve(); } })
     .run({ type: 'runScript', path: 'C:/x/s.bat', window: 'hidden' });
   assert.deepEqual(hidCalls, [true]);
   // Non-script extensions are rejected before existence is checked (.exe is an
@@ -83,27 +86,117 @@ test('run runScript accepts .bat/.cmd/.ps1, rejects other extensions + missing f
     assert.deepEqual(await reg.createRegistry(okDeps).run({ type: 'runScript', path: bad }), { ok: false, error: 'bad_script_ext' });
   }
   // A script that doesn't exist → not_found.
-  const missingDeps = { fileExists: () => false, runScript: () => Promise.resolve() };
+  const missingDeps = { platform: 'win32', fileExists: () => false, runScript: () => Promise.resolve() };
   assert.deepEqual(await reg.createRegistry(missingDeps).run({ type: 'runScript', path: 'C:/x/gone.bat' }), { ok: false, error: 'not_found' });
   // Empty path → empty_path.
   assert.deepEqual(await reg.createRegistry(okDeps).run({ type: 'runScript', path: '   ' }), { ok: false, error: 'empty_path' });
   // No runScript dep wired → unavailable (never a silent success).
-  assert.deepEqual(await reg.createRegistry({ fileExists: () => true }).run({ type: 'runScript', path: 'C:/x/y.bat' }), { ok: false, error: 'unavailable' });
+  assert.deepEqual(await reg.createRegistry({ platform: 'win32', fileExists: () => true }).run({ type: 'runScript', path: 'C:/x/y.bat' }), { ok: false, error: 'unavailable' });
+});
+
+test('run runScript off Windows: the POSIX vocabulary runs, the Windows one is refused', async () => {
+  // The gate is a statement about a HANDLER, so the RUN path has to be proven
+  // on both, not only the pure predicate. A .bat reaching a Mac would be
+  // spawned and fail with "no interpreter"; refusing it at the boundary is the
+  // whole point of having one.
+  for (const platform of ['darwin', 'linux']) {
+    const calls = [];
+    const deps = { platform, fileExists: () => true, runScript: (p) => { calls.push(p); return Promise.resolve(); } };
+    for (const good of ['/home/me/deploy.sh', '/home/me/tool.py', '/home/me/task.js']) {
+      assert.deepEqual(await reg.createRegistry(deps).run({ type: 'runScript', path: good }), { ok: true }, `${platform} ${good}`);
+    }
+    for (const bad of ['/home/me/test.bat', '/home/me/test.cmd', '/home/me/deploy.ps1']) {
+      assert.deepEqual(await reg.createRegistry(deps).run({ type: 'runScript', path: bad }),
+        { ok: false, error: 'bad_script_ext' }, `${platform} ${bad}`);
+    }
+    assert.deepEqual(calls, ['/home/me/deploy.sh', '/home/me/tool.py', '/home/me/task.js']);
+  }
+  // AppleScript is macOS-only: accepting it on Linux would validate a key that
+  // then fails at run time for want of osascript.
+  const macDeps = { platform: 'darwin', fileExists: () => true, runScript: () => Promise.resolve() };
+  const linuxDeps = { platform: 'linux', fileExists: () => true, runScript: () => Promise.resolve() };
+  assert.deepEqual(await reg.createRegistry(macDeps).run({ type: 'runScript', path: '/x/a.scpt' }), { ok: true });
+  assert.deepEqual(await reg.createRegistry(linuxDeps).run({ type: 'runScript', path: '/x/a.scpt' }), { ok: false, error: 'bad_script_ext' });
+});
+
+test('run openFile off Windows: the POSIX blocklist applies to the run path too', async () => {
+  // `open` runs a .command in Terminal and launches an .app — one tap of code
+  // execution through the endpoint that is supposed to open documents only.
+  const deps = { platform: 'darwin', fileExists: () => true, openExternal: () => Promise.resolve() };
+  for (const bad of ['/Users/me/evil.command', '/Applications/Thing.app', '/Users/me/x.py', '/Users/me/x.sh']) {
+    assert.deepEqual(await reg.createRegistry(deps).run({ type: 'openFile', path: bad }), { ok: false, error: 'blocked_ext' }, bad);
+  }
+  // A document still opens, and the Windows blocklist stays byte-for-byte what
+  // it was: .sh and .py are documents there and have been openable since the
+  // feature shipped.
+  assert.deepEqual(await reg.createRegistry(deps).run({ type: 'openFile', path: '/Users/me/notes.txt' }), { ok: true });
+  const winDeps = { platform: 'win32', fileExists: () => true, openExternal: () => Promise.resolve() };
+  assert.deepEqual(await reg.createRegistry(winDeps).run({ type: 'openFile', path: 'C:/x/script.py' }), { ok: true });
 });
 
 test('isRunnableScriptPath', () => {
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.bat'), true);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.CMD'), true);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.ps1'), true);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.py'), true);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.js'), true);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.rb'), true);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.jar'), true);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.vbs'), true);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.sh'), true);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.psm1'), false);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.exe'), false);
-  assert.equal(reg.isRunnableScriptPath('C:/a/b.txt'), false);
+  // The platform is passed explicitly so the expectations hold wherever the
+  // suite runs, not only on the machine the feature shipped from.
+  for (const ext of ['bat', 'CMD', 'ps1', 'py', 'js', 'rb', 'jar', 'vbs', 'sh']) {
+    assert.equal(reg.isRunnableScriptPath(`C:/a/b.${ext}`, 'win32'), true, ext);
+  }
+  for (const ext of ['psm1', 'exe', 'txt']) {
+    assert.equal(reg.isRunnableScriptPath(`C:/a/b.${ext}`, 'win32'), false, ext);
+  }
+});
+
+test('isRunnableScriptPath: the POSIX list is its own, in both directions', () => {
+  // Real script types off Windows that the Windows list has no reason to carry.
+  for (const ext of ['command', 'zsh', 'scpt', 'applescript']) {
+    assert.equal(reg.isRunnableScriptPath(`/u/s.${ext}`, 'darwin'), true, ext);
+    assert.equal(reg.isRunnableScriptPath(`C:/a/b.${ext}`, 'win32'), false, ext);
+  }
+  // AppleScript is macOS-only. POSIX_SCRIPT_RUNNERS registers osascript only on
+  // darwin, so accepting .scpt/.applescript on Linux would validate here and
+  // then fail with "no interpreter" — the gate must refuse them there instead.
+  for (const ext of ['scpt', 'applescript']) {
+    assert.equal(reg.isRunnableScriptPath(`/u/s.${ext}`, 'linux'), false, ext);
+  }
+  // ...while the shell types the Linux runner table DOES carry stay runnable.
+  for (const ext of ['command', 'zsh']) {
+    assert.equal(reg.isRunnableScriptPath(`/u/s.${ext}`, 'linux'), true, ext);
+  }
+  // Windows-only types are refused HERE rather than reaching a runner table
+  // that has no entry for them — a key that validates and then fails is worse
+  // than one that never validates.
+  for (const ext of ['bat', 'cmd', 'ps1', 'vbs', 'vbe', 'wsf']) {
+    assert.equal(reg.isRunnableScriptPath(`/u/s.${ext}`, 'darwin'), false, ext);
+    assert.equal(reg.isRunnableScriptPath(`/u/s.${ext}`, 'linux'), false, ext);
+  }
+  // The shared middle stays runnable everywhere.
+  for (const ext of ['sh', 'bash', 'py', 'js', 'rb', 'jar']) {
+    assert.equal(reg.isRunnableScriptPath(`/u/s.${ext}`, 'linux'), true, ext);
+  }
+});
+
+test('isBlockedOpenPath: openFile blocks one-tap execution on every platform', () => {
+  // The Windows vocabulary, unchanged.
+  for (const ext of ['exe', 'lnk', 'bat', 'ps1', 'js', 'hta', 'desktop']) {
+    assert.equal(reg.isBlockedOpenPath(`C:/x/f.${ext}`, 'win32'), true, ext);
+    assert.equal(reg.isBlockedOpenPath(`/x/f.${ext}`, 'darwin'), true, ext);
+  }
+  // What `open` would execute, launch or install on one tap. None of it means
+  // anything to the Windows handler, which is why it needed its own list.
+  for (const ext of ['command', 'app', 'workflow', 'terminal', 'scpt', 'pkg', 'webloc', 'sh', 'py', 'appimage']) {
+    assert.equal(reg.isBlockedOpenPath(`/x/f.${ext}`, 'darwin'), true, ext);
+    assert.equal(reg.isBlockedOpenPath(`/x/f.${ext}`, 'linux'), true, ext);
+  }
+  // …and none of it tightens the Windows boundary, where those names are
+  // documents that have been openable since the feature shipped.
+  for (const ext of ['command', 'app', 'sh', 'py', 'pkg']) {
+    assert.equal(reg.isBlockedOpenPath(`C:/x/f.${ext}`, 'win32'), false, ext);
+  }
+  // Ordinary documents and folders stay openable everywhere.
+  for (const plat of ['win32', 'darwin', 'linux']) {
+    assert.equal(reg.isBlockedOpenPath('/x/notes.txt', plat), false, plat);
+    assert.equal(reg.isBlockedOpenPath('/x/report.pdf', plat), false, plat);
+    assert.equal(reg.isBlockedOpenPath('/x/some folder', plat), false, plat);
+  }
 });
 
 test('run returns {ok:false} when an injected effect throws (never propagates)', async () => {
