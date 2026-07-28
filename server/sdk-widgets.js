@@ -142,6 +142,23 @@ const ASSET_MIME = Object.freeze({
 // to directly; `connect-src 'none'` closes the Origin:null hole described in
 // the header comment. Do not weaken either directive — a widget that "needs"
 // network access is a protocol design change, not a CSP relaxation.
+//
+// `'self'` IS NOT ENOUGH ON ITS OWN, and that is not a detail. A sandboxed
+// document without allow-same-origin has an OPAQUE origin, and `'self'` means
+// "the origin of the protected resource" — when that origin is opaque it
+// matches NOTHING. Chromium resolves it against the response URL instead and
+// lets a widget load its own stylesheet; WebKit follows the letter of the spec
+// and blocks it. So every SDK widget rendered as bare markup on a white
+// background on iPhone and iPad, while looking perfect on every Chromium
+// surface — which is all the others: the Xeneon Edge, the kiosk app, desktop
+// browsers. Nothing about the phone door caused it, which is why it survived
+// the network being measured end to end.
+//
+// The fix is to name the origin as well as `'self'`, so the same header works
+// under both readings — see widgetCspFor(). WIDGET_CSP stays as the
+// origin-less form: it is what the constant has always meant, it is what the
+// tests and the SDK docs pin, and it is the correct answer when there is no
+// request to take an origin from.
 const WIDGET_CSP = [
   "default-src 'none'",
   "script-src 'self'",
@@ -156,6 +173,44 @@ const WIDGET_CSP = [
   "object-src 'none'",
   'sandbox allow-scripts',
 ].join('; ');
+
+// A host we are willing to write into a header. Deliberately strict: letters,
+// digits, dots, dashes, one colon and a port, or an IPv6 literal in brackets.
+// The Host has already been validated twice before a request reaches the asset
+// route (the loopback allowlist, or the paired-device gate's own-address /
+// certificate-name check), so this is the third fence rather than the first —
+// but a value that ends up inside a security header gets checked where it is
+// used, not only where it came from.
+const CSP_HOST_RE = /^(?:\[[0-9a-fA-F:.]{2,45}\]|[A-Za-z0-9.-]{1,253})(?::\d{1,5})?$/;
+
+/**
+ * WIDGET_CSP with the serving origin named explicitly alongside `'self'`.
+ *
+ * Both spellings are sent on purpose. `'self'` is what a Chromium engine
+ * already honours and what the docs describe; the explicit origin is what a
+ * WebKit engine needs, because there `'self'` inside an opaque-origin document
+ * matches nothing at all (see the note above WIDGET_CSP). Naming the origin
+ * does not widen anything: it is the SAME origin `'self'` was meant to be, and
+ * `connect-src 'none'` is untouched, so a widget still has no network.
+ *
+ * Falls back to the plain constant when there is no usable host — a CSP that
+ * is too strict degrades a widget's appearance, one built from a bad host would
+ * be a security header assembled from unvalidated input.
+ *
+ * @param {string} host   the request's Host header
+ * @param {boolean} secure whether it arrived on the TLS listener
+ */
+function widgetCspFor(host, secure) {
+  const h = String(host || '').trim();
+  if (!h || !CSP_HOST_RE.test(h)) return WIDGET_CSP;
+  const origin = (secure === true ? 'https://' : 'http://') + h;
+  return WIDGET_CSP
+    .replace("script-src 'self'", "script-src 'self' " + origin)
+    .replace("style-src 'self' 'unsafe-inline'", "style-src 'self' 'unsafe-inline' " + origin)
+    .replace("img-src 'self' data: blob:", "img-src 'self' " + origin + ' data: blob:')
+    .replace("font-src 'self' data:", "font-src 'self' " + origin + ' data:')
+    .replace("media-src 'self' data: blob:", "media-src 'self' " + origin + ' data: blob:');
+}
 
 const MANIFEST_MAX_BYTES = 32 * 1024;
 const MAX_PACKAGES = 32;
@@ -945,7 +1000,7 @@ module.exports = {
   SDK_ACTION_CATEGORIES,
   SDK_ACTION_TYPES,
   SDK_SOUND_FILE_RE,      // unit-tested (SDK soundboard file boundary)
-  WIDGET_CSP,
+  WIDGET_CSP, widgetCspFor,
   normalizeManifest,
   isPrivateNetworkHost,   // unit-tested (proxy allowlist boundary)
   validateProxyRequest,

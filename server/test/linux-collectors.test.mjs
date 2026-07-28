@@ -105,7 +105,7 @@ test('parseWmctrl: splits the four fixed columns and keeps the rest as title', (
   assert.equal(rows[0].hexId, '0x02600004');
   assert.equal(rows[0].pid, '10106');
   assert.equal(rows[0].dec, 0x02600004);
-  assert.equal(rows[0].title, 'Xenon Edge Control - Google Chrome');
+  assert.equal(rows[0].title, 'Xenon - Google Chrome');
 });
 
 test('parseWmctrl: titles with spaces and RTL text survive intact', () => {

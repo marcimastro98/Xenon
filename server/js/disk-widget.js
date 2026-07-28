@@ -515,7 +515,7 @@
     if (provider === 'ollama') return true;
     if (provider === 'openai') return settings.openaiApiKeySet === true;
     if (provider === 'anthropic') return settings.anthropicApiKeySet === true;
-    return !!settings.geminiApiKey;
+    return geminiKeyReady(settings);
   }
 
   function advisorFullContext() {

@@ -167,7 +167,7 @@ function _aiHasKey() {
   if (p === 'ollama') return true;
   if (p === 'openai') return !!hubSettings.openaiApiKeySet;
   if (p === 'anthropic') return !!hubSettings.anthropicApiKeySet;
-  return !!hubSettings.geminiApiKey;
+  return geminiKeyReady(hubSettings);
 }
 
 // Show the "AI unavailable" notice + hide the chat log/input when no API key is set.

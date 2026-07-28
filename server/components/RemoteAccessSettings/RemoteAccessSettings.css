@@ -1,0 +1,381 @@
+/* ── Paired-device access (R1.1) ─────────────────────────────────────────── */
+/* Mounted inside Settings → Controllo Remoto (#settings-remote-access),      */
+/* above the Sunshine wizard. Same tokens and touch targets as               */
+/* RemoteControlSettings.css — the two sit in one scroll and must not read   */
+/* as two different products.                                                */
+
+.ra-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.ra-head { margin-bottom: 2px; }
+.ra-title {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.ra-sub {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--text-muted, rgba(255, 255, 255, 0.6));
+}
+
+/* The link to the public guide. Inherits .settings-inline-link (colour, weight,
+   hover) and only adds the gap the header needs, so it stays in step with the
+   other outbound links in Settings instead of becoming a second style. */
+.ra-guide { margin-top: 2px; }
+
+/* ── The opt-in ─────────────────────────────────────────────────── */
+.ra-toggle-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  /* The whole row is the target — a 44px pill on a touchscreen, not a 16px box. */
+  min-height: 44px;
+}
+/* Explicit placement for all three children, deliberately. Hiding the checkbox
+   with `position: absolute` alone is not enough here: Settings already styles
+   `input` elements, and one `position` declaration winning would put the
+   checkbox back in flow as a real grid item — which pushes the label text onto
+   a second row (observed). Naming the cells makes the layout independent of
+   whether the input is in flow. Zero-size + opacity keeps it focusable, which
+   `display: none` would not. */
+.ra-toggle-row > input {
+  grid-column: 1;
+  grid-row: 1;
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  appearance: none;
+}
+.ra-toggle-knob {
+  grid-column: 1;
+  grid-row: 1;
+  position: relative;
+  width: 42px;
+  height: 24px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  transition: background 0.18s ease;
+  margin-top: 2px;
+}
+.ra-toggle-knob::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.18s ease;
+}
+.ra-toggle-row input:checked + .ra-toggle-knob { background: rgba(var(--accent-rgb), 0.85); }
+.ra-toggle-row input:checked + .ra-toggle-knob::after { transform: translateX(18px); }
+.ra-toggle-row input:disabled + .ra-toggle-knob { opacity: 0.5; }
+.ra-toggle-text { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; gap: 3px; }
+.ra-toggle-text strong { font-size: 0.9rem; font-weight: 600; }
+.ra-toggle-hint {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text-muted, rgba(255, 255, 255, 0.55));
+}
+
+/* ── Buttons ────────────────────────────────────────────────────── */
+.ra-btn {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text, #f2f4f3);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font: 600 0.88rem/1 inherit;
+  cursor: pointer;
+  min-height: 44px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.ra-btn:hover { background: rgba(255, 255, 255, 0.1); }
+.ra-btn:disabled { opacity: 0.45; cursor: default; }
+.ra-btn.primary {
+  background: rgba(var(--accent-rgb), 0.16);
+  border-color: rgba(var(--accent-rgb), 0.4);
+  color: var(--accent, #1ed760);
+}
+.ra-btn.primary:hover { background: rgba(var(--accent-rgb), 0.24); }
+.ra-btn.ghost { background: transparent; }
+.ra-btn.danger { color: #ff6b6b; border-color: rgba(255, 107, 107, 0.32); }
+.ra-btn.danger:hover { background: rgba(255, 107, 107, 0.12); }
+.ra-btn.small { padding: 8px 12px; min-height: 36px; font-size: 0.8rem; }
+
+/* ── The pairing sheet ──────────────────────────────────────────── */
+.ra-pair {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 14px;
+  border-radius: 14px;
+  background: rgba(var(--accent-rgb), 0.05);
+  border: 1px solid rgba(var(--accent-rgb), 0.16);
+  text-align: center;
+}
+/* White quiet zone around the modules: a QR on a dark panel with no margin is
+   the single most common reason a phone camera refuses to lock on. */
+.ra-qr {
+  width: 210px;
+  height: 210px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #fff;
+  display: grid;
+  place-items: center;
+}
+.ra-qr-grid {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  /* No gap: adjacent dark modules must touch or the pattern stops scanning. */
+  gap: 0;
+}
+.ra-qr-grid i { background: transparent; }
+.ra-qr-grid i.on { background: #000; }
+.ra-qr-fail {
+  font-size: 0.78rem;
+  color: #444;
+  padding: 10px;
+  text-align: center;
+  line-height: 1.4;
+}
+.ra-pair-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted, rgba(255, 255, 255, 0.6));
+}
+.ra-code {
+  font: 800 1.4rem/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  letter-spacing: 0.14em;
+  color: var(--accent, #1ed760);
+}
+.ra-pair-url,
+.ra-pair-left {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--text-dim, rgba(255, 255, 255, 0.45));
+}
+
+.ra-addr { margin: 0; font-size: 0.82rem; color: var(--text-muted, rgba(255, 255, 255, 0.6)); }
+.ra-addr code {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  color: var(--text, #f2f4f3);
+}
+.ra-addr-alt { margin: -6px 0 0; font-size: 0.74rem; color: var(--text-dim, rgba(255, 255, 255, 0.42)); }
+
+/* The guided setup while it runs. A live step line rather than a spinner: a
+   spinner would be a lie about how long this takes — a winget install and a
+   browser sign-in are minutes, and the certificate step waits on a person. */
+.ra-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(var(--accent-rgb, 30, 215, 96), 0.07);
+  border: 1px solid rgba(var(--accent-rgb, 30, 215, 96), 0.22);
+}
+.ra-setup-step {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text, #f2f4f3);
+}
+.ra-setup-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent, #1ed760);
+  animation: ra-setup-pulse 1.6s ease-in-out infinite;
+  will-change: opacity;
+}
+@keyframes ra-setup-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+/* Joins the freeze states: an infinite animation that keeps running under a
+   frosted overlay or in game mode is exactly what the ambient-freeze invariant
+   is about. */
+body.overlay-frozen .ra-setup-dot,
+body.ambient-idle .ra-setup-dot,
+body.game-mode .ra-setup-dot,
+body.low-power-gpu .ra-setup-dot { animation: none; opacity: 1; }
+
+/* The setup guide, shown under the reason the secure door is not up. Numbered
+   because the steps are ordered and two of them happen on other devices. */
+.ra-how { display: flex; flex-direction: column; gap: 4px; }
+.ra-how-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-muted, rgba(255, 255, 255, 0.6));
+}
+.ra-how-list li::marker { color: var(--accent, #1ed760); font-weight: 700; }
+.ra-how-link { color: var(--accent, #1ed760); text-decoration: underline; overflow-wrap: anywhere; }
+
+/* The secure address, when the T2 door is up. Given the accent rather than the
+   muted treatment of .ra-addr on purpose: with HTTPS on this is THE address —
+   the LAN one is no longer offered — and it is what the user reads out or
+   bookmarks on the device. The MagicDNS name is long, so it wraps at any
+   character instead of pushing the panel sideways. */
+.ra-https-on { margin: 0; font-size: 0.82rem; color: var(--text-muted, rgba(255, 255, 255, 0.6)); }
+.ra-https-on code {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  color: var(--accent, #1ed760);
+  overflow-wrap: anywhere;
+}
+
+/* ── Device list ────────────────────────────────────────────────── */
+.ra-devices { display: flex; flex-direction: column; gap: 8px; }
+.ra-devices-title,
+.ra-limits-title {
+  margin: 6px 0 2px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim, rgba(255, 255, 255, 0.45));
+}
+.ra-device {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 'name btn' 'meta btn';
+  align-items: center;
+  gap: 4px 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+.ra-device-name {
+  grid-area: name;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  color: var(--text, #f2f4f3);
+  font: 600 0.9rem/1.2 inherit;
+  min-width: 0;
+}
+.ra-device-name:hover { border-color: rgba(255, 255, 255, 0.12); }
+.ra-device-name:focus {
+  outline: none;
+  border-color: rgba(var(--accent-rgb), 0.5);
+  background: rgba(0, 0, 0, 0.2);
+}
+.ra-device-meta {
+  grid-area: meta;
+  display: flex;
+  gap: 10px;
+  font-size: 0.74rem;
+  color: var(--text-dim, rgba(255, 255, 255, 0.42));
+}
+.ra-device-ip { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; }
+.ra-device .ra-btn { grid-area: btn; }
+.ra-empty {
+  margin: 0;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--text-dim, rgba(255, 255, 255, 0.45));
+}
+
+/* ── What a paired device can and cannot do ─────────────────────── */
+.ra-limits {
+  margin-top: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.ra-limits-list {
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text-muted, rgba(255, 255, 255, 0.6));
+}
+.ra-limits-list li { padding-left: 20px; position: relative; }
+.ra-limits-list li::before {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-weight: 700;
+}
+.ra-limits-list.can li::before { content: '✓'; color: var(--accent, #1ed760); }
+.ra-limits-list.cant li::before { content: '✕'; color: rgba(255, 107, 107, 0.75); }
+.ra-limits-list.cant { margin-bottom: 4px; }
+
+.ra-note {
+  margin: 8px 0 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--text-dim, rgba(255, 255, 255, 0.45));
+}
+.ra-warn {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 176, 32, 0.08);
+  border: 1px solid rgba(255, 176, 32, 0.22);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #ffc76b;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ra-toggle-knob,
+  .ra-toggle-knob::after,
+  .ra-btn { transition: none; }
+}
+
+/* Paired-device view: this panel is closed by design, not broken. Reads as a
+   note, not as an error — same weight as the subtitle above it. */
+.ra-pc-only {
+  margin: 10px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line, rgba(255,255,255,0.10));
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-dim, rgba(255,255,255,0.62));
+  font-size: 13px;
+  line-height: 1.45;
+}

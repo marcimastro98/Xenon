@@ -170,7 +170,7 @@
     if (provider === 'ollama') return true;
     if (provider === 'openai') return !!hubSettings.openaiApiKeySet;
     if (provider === 'anthropic') return !!hubSettings.anthropicApiKeySet;
-    return !!String(hubSettings.geminiApiKey || '').trim();
+    return geminiKeyReady(hubSettings);
   }
 
   async function fetchWindows() {

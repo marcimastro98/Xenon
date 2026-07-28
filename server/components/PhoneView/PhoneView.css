@@ -1,0 +1,221 @@
+/* ── Phone view (R1.3) ───────────────────────────────────────────────────── */
+/* Everything here is scoped to `html.is-phone`, set by js/phone-view.js below  */
+/* 620px. Presentation only — the grid engine's state is never touched, so a    */
+/* mistake in this file can look wrong but cannot damage a saved layout.        */
+
+/* Safe areas: a phone has a notch at the top and a home indicator at the
+   bottom, and the dashboard was designed for a screen with neither. */
+.is-phone,
+.is-phone body {
+  height: 100%;
+  overflow: hidden;
+}
+.is-phone body { padding-top: env(safe-area-inset-top); }
+/* breakpoints.css turns the shell into a document-tall column below 1120px
+   (`height: auto; min-height: 100vh`) and lets the BODY scroll. That predates
+   the pager and is wrong here in a way that is easy to miss: the dock is the
+   shell's last grid row, so an auto-height shell puts it 230px below the fold
+   (measured on a 393x760 viewport) where no thumb will ever find it. The shell
+   is a full-screen frame again; scrolling happens inside the page, which is
+   what the pager expects. */
+.is-phone .shell {
+  height: 100%;
+  min-height: 0;
+  padding: 8px 10px 0;
+  gap: 8px;
+}
+
+/* ── The tiles stack ─────────────────────────────────────────────────────── */
+/* GridStack positions items absolutely from `gs-x`/`gs-y` attribute rules. We
+   neutralise that and let normal flow take over; js/phone-view.js has already
+   put the nodes in reading order. `display` is deliberately NOT touched: a tile
+   hidden because it is the inactive member of a tab group carries
+   data-dashboard-hidden="true" → display:none, and it must stay hidden. */
+.is-phone .dashboard.grid-stack {
+  display: flex !important;
+  flex-direction: column;
+  gap: 10px;
+  /* fitGridHeights() writes an inline pixel height sized for the desktop
+     layout; stacked content is taller than that and would be clipped. */
+  height: auto !important;
+  min-height: 0;
+  padding-bottom: 12px;
+}
+.is-phone .dashboard.grid-stack > .grid-stack-item {
+  position: static !important;
+  inset: auto !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  /* A DEFINITE height, not `height:auto` + `min-height`. This is the whole
+     difference between the tiles working and half of them looking empty, and it
+     is not obvious: a percentage height does not resolve against a parent whose
+     `height` is `auto`, even when `min-height` has stretched it. Every widget
+     inside a tile is built on the chain
+     `.grid-stack-item-content > .panel { height: 100% }`, so with an auto-height
+     item that chain collapses to the content's natural size — measured: the
+     media tile rendered its title and nothing else, no artwork and no transport,
+     inside a 208px box. A definite height makes each tile the same kind of box
+     the desktop grid gives it, so every widget's internal layout works here
+     unchanged rather than needing a phone variant of its own.
+     34px/row keeps a tile close to its desktop proportions (the grid's own
+     cellHeight is 35), so the user's sizing still means what it meant. */
+  /* The upper bound is what a tile may take of the SCROLLING BAND, not of the
+     viewport — those differ by the chrome above and below it (topbar ~51px,
+     thumb dock ~57px, plus the shell's own gaps). 80vh alone is right in
+     portrait and wrong on a phone lying on its side: at 430px of viewport it
+     resolved to 344px against a 298px band, so no widget ever fit on screen
+     whole, which reads as the clipping this view exists to remove. Measured on
+     an iPhone-sized landscape viewport. */
+  height: clamp(180px, calc(var(--ph-rows, 8) * 34px), min(80vh, calc(100vh - 150px))) !important;
+  min-height: 0 !important;
+  transform: none !important;
+}
+.is-phone .grid-stack-item > .grid-stack-item-content {
+  position: static !important;
+  inset: auto !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+/* An expanded widget owns the whole screen and does its own positioning. */
+.is-phone .grid-stack-item.cw-expanded,
+.is-phone .grid-stack-item.cw-expanded > .grid-stack-item-content {
+  position: fixed !important;
+  min-height: 0;
+}
+
+/* The page itself scrolls; the pager still swipes between pages horizontally. */
+.is-phone .pager-page {
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* The dock is a grid row of its own, so nothing has to be reserved here. */
+  padding-bottom: 8px;
+  scrollbar-width: none;
+}
+.is-phone .pager-page::-webkit-scrollbar { width: 0; height: 0; }
+
+/* ── Topbar, compact ─────────────────────────────────────────────────────── */
+/* One shrinking row rather than three stacked ones: nine buttons and a clock do
+   not fit across 390px, and stacking them eats a tenth of the screen before a
+   single widget appears. */
+.is-phone .topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 0;
+  padding: 6px 8px;
+  /* NOT `overflow-x: auto`. A scrolling bar hides its own ends: on a real phone
+     the first version cut the leading digit off the clock and the trailing
+     characters off the status chip, with no sign that anything was scrollable.
+     A flex row that lets its children shrink shows less, but shows all of it. */
+  overflow: hidden;
+}
+/* Grid/flex children refuse to shrink below their content unless told. Without
+   this every rule above is decoration and the bar overflows anyway. */
+.is-phone .topbar > * { min-width: 0; }
+/* Real font sizes, not `transform: scale()`. A transform shrinks the pixels and
+   leaves the LAYOUT box alone, so the bar stayed 105px tall and ate a tenth of
+   the screen while looking small (measured). The clock also folds onto one line
+   here — the phone already shows the time in its own status bar, so this one is
+   context, not the headline it is on a dedicated screen. */
+.is-phone .topbar .clock {
+  justify-self: center;
+  min-width: 0;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.is-phone .topbar .clock-h,
+.is-phone .topbar .clock-m { font-size: 24px; }
+.is-phone .topbar .clock-sep { font-size: 19px; }
+.is-phone .topbar .clock-meta { font-size: 10px; gap: 5px; padding: 0; min-width: 0; }
+.is-phone .topbar .clock-meta > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.is-phone .topbar .clock-weather { padding: 2px 6px; }
+/* Now-playing is one tile away, on a screen with room for it. */
+.is-phone .topbar .clock-media,
+.is-phone .topbar .clock-date { display: none; }
+.is-phone .topbar .quickbar,
+.is-phone .topbar .top-actions { gap: 4px; flex-wrap: nowrap; }
+.is-phone .topbar .topbtn { min-width: 34px; height: 34px; padding: 0 8px; font-size: 12px; }
+/* Free the width these cost: the dock at the bottom carries the same controls
+   within thumb reach, and the app-favourites row needs more room than a phone
+   has. Layout editing is hidden because a 24-column drag is not a thumb
+   gesture, and because the grid is not being drawn at its real geometry here —
+   a drag would move a tile somewhere the user cannot see. */
+.is-phone .topbar .app-favorites,
+.is-phone .topbar .qbtn-layout,
+.is-phone .topbar .qbtn-settings,
+.is-phone .topbar .qbtn-apps,
+.is-phone .topbar .qbtn-search,
+.is-phone .topbar .topbtn-xenon { display: none; }
+/* The page dots move to the dock's counter; keeping both would be two truths. */
+.is-phone .topbar .pager-dots { display: none; }
+
+/* The Dynamic Island is turned OFF in phone view by topbar-minimal.js, which is
+   the right place for it — restyling a pill and two edge rails for a 390px
+   screen is fixing the wrong thing. These rules are the belt to that braces:
+   they cover the frame where the island is being torn down, and the case of a
+   surface that somehow keeps it. The class is `edge-rail`, not `topbar-rail` —
+   the first version guessed the name and hid nothing, which is how the rails
+   ended up sitting over the widgets on a real phone. */
+.is-phone .edge-rail,
+.is-phone .topbar-mini { display: none !important; }
+
+/* ── The thumb dock ──────────────────────────────────────────────────────── */
+.ph-dock {
+  /* A real row in the shell's grid, not a floating bar. See buildDock() in
+     js/phone-view.js for why: nothing can end up underneath a row. */
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 -10px;
+  padding: 6px 12px calc(6px + env(safe-area-inset-bottom));
+  background: rgba(10, 12, 14, 0.86);
+  backdrop-filter: blur(14px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.is-phone .shell { grid-template-rows: auto minmax(0, 1fr) auto; }
+.is-phone .ph-dock { display: flex; }
+.ph-pages {
+  display: none;
+  align-items: center;
+  gap: 2px;
+}
+.ph-dock.has-pages .ph-pages { display: flex; }
+.ph-page-at {
+  min-width: 34px;
+  text-align: center;
+  font: 600 0.76rem/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  color: var(--text-dim, rgba(255, 255, 255, 0.5));
+}
+.ph-acts { display: flex; gap: 6px; margin-left: auto; }
+.ph-btn {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text, #f2f4f3);
+  /* 44px: the smallest target a thumb hits reliably. */
+  min-width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+.ph-btn:active { background: rgba(255, 255, 255, 0.12); }
+.ph-btn:disabled { opacity: 0.3; }
+
+/* ── Things that do not belong on a phone ────────────────────────────────── */
+/* Layout editing: the grid is not being shown at its real geometry here, so a
+   drag would move a tile somewhere the user cannot see. */
+.is-phone .layout-controls,
+.is-phone .gs-edit-overlay,
+.is-phone .pager-page-btn { display: none !important; }
+/* The home bar is a native-kiosk gesture strip; on a phone it overlaps the dock. */
+.is-phone #xenon-home-bar { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ph-btn { transition: none; }
+}

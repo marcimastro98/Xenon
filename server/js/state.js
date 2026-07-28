@@ -6,7 +6,21 @@
 const _xcConst = (typeof window !== 'undefined' && window.Xenon && window.Xenon.constants) || null;
 
 // ── Server ───────────────────────────────────────────────────
-const SERVER = (typeof window !== 'undefined' && window.location && (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost' || window.location.hostname === '::1'))
+// The origin every `SERVER + '/x'` call site targets. It is the origin that
+// SERVED this page whenever the page came over http(s) — which is the same
+// server in every surface we ship: 127.0.0.1 on the PC, the LAN address on a
+// paired phone or tablet (R1.1), and the app's own origin in the native kiosk
+// (it navigates the webview to http://127.0.0.1:3030/, so location.origin is
+// already that). This used to test the HOSTNAME against a loopback list, which
+// silently made a paired device fetch its OWN loopback: ~40 endpoints reached
+// nothing while the shell and the SSE stream — all relative URLs — worked, so
+// the dashboard drew fully and then did nothing. Deck keys, /windows, /network,
+// the performance stats and every transport control were dead exactly this way.
+// The fallback stays for surfaces that are NOT served over http: a file:// page
+// or a custom scheme has no usable origin, and the local backend is the answer
+// there. (The iCUE widget has its own state.js and never reaches this.)
+const SERVER = (typeof window !== 'undefined' && window.location &&
+  (window.location.protocol === 'http:' || window.location.protocol === 'https:'))
   ? window.location.origin
   : ((_xcConst && _xcConst.LOOPBACK_ORIGIN) || 'http://127.0.0.1:3030');
 

@@ -676,3 +676,41 @@ test('probe: PERF_PROBE_SOURCE parses and cannot break out of a script tag', () 
   assert.ok(!sdk.PERF_PROBE_SOURCE.includes('</script'));
   assert.doesNotThrow(() => new Function(sdk.PERF_PROBE_SOURCE));
 });
+
+test('the widget CSP names the serving origin, because "self" is opaque in a sandbox', () => {
+  // The bug this pins, and it is not a detail: a sandboxed document without
+  // allow-same-origin has an OPAQUE origin, and 'self' means "the origin of the
+  // protected resource". When that origin is opaque it matches nothing.
+  // Chromium resolves it against the response URL and a widget loads its own
+  // stylesheet; WebKit follows the spec and blocks it — so every SDK widget
+  // rendered as bare markup on a white background on iPhone and iPad while
+  // looking perfect on the Edge, the kiosk app and every desktop browser.
+  const lan = sdk.widgetCspFor('192.168.1.3:3030', false);
+  assert.match(lan, /script-src 'self' http:\/\/192\.168\.1\.3:3030/);
+  assert.match(lan, /style-src 'self' 'unsafe-inline' http:\/\/192\.168\.1\.3:3030/);
+  assert.match(lan, /img-src 'self' http:\/\/192\.168\.1\.3:3030 data: blob:/);
+  assert.match(lan, /font-src 'self' http:\/\/192\.168\.1\.3:3030 data:/);
+  assert.match(lan, /media-src 'self' http:\/\/192\.168\.1\.3:3030 data: blob:/);
+
+  // Naming the origin must widen NOTHING else. These are the directives the
+  // sandbox rests on, and they are the reason a widget has no network at all.
+  for (const csp of [lan, sdk.widgetCspFor('h.ts.net:3443', true)]) {
+    assert.match(csp, /connect-src 'none'/);
+    assert.match(csp, /default-src 'none'/);
+    assert.match(csp, /sandbox allow-scripts/);
+    assert.doesNotMatch(csp, /allow-same-origin/);
+    assert.doesNotMatch(csp, /\*/);
+  }
+  // The scheme follows the LISTENER, not a header: an https origin named on a
+  // cleartext response would simply never match.
+  assert.match(sdk.widgetCspFor('h.ts.net:3443', true), /script-src 'self' https:\/\/h\.ts\.net:3443/);
+  assert.match(sdk.widgetCspFor('127.0.0.1:3030', false), /script-src 'self' http:\/\/127\.0\.0\.1:3030/);
+  assert.match(sdk.widgetCspFor('[::1]:3030', false), /script-src 'self' http:\/\/\[::1\]:3030/);
+
+  // A host that could not be validated falls back to the plain constant. Too
+  // strict costs a widget its stylesheet; a header built from unvalidated input
+  // costs more than that.
+  for (const bad of ['', null, undefined, 'a b', 'evil.com/;script-src *', 'x"y', '\n', 'a'.repeat(300)]) {
+    assert.equal(sdk.widgetCspFor(bad, false), sdk.WIDGET_CSP, JSON.stringify(bad));
+  }
+});

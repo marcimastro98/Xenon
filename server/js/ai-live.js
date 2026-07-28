@@ -89,7 +89,10 @@ function aiStartLiveSession() {
   const provider = (typeof _aiProviderCfg === 'function') ? _aiProviderCfg().provider : 'gemini';
   if (provider !== 'gemini') return false; // Live is Gemini-only; caller falls back
   const key = (typeof hubSettings === 'object' && hubSettings && hubSettings.geminiApiKey) || '';
-  if (!key) return false;
+  // The key itself is usually empty here (server-only); the socket's `start`
+  // message carries it anyway for the case where one was just typed, and
+  // server.js falls back to the stored key when it is blank.
+  if (!geminiKeyReady(typeof hubSettings === 'object' ? hubSettings : null)) return false;
 
   _liveActiveClient = true;
   _liveGotReady = false;

@@ -280,6 +280,25 @@
   function safeModeOn() {
     return typeof hubSettings === 'object' && hubSettings && hubSettings.safeMode === true;
   }
+
+  // Where a widget's files are loaded from. One helper because BOTH frame kinds
+  // (tile and hidden service frame) must agree: a widget that ran as a service
+  // frame from one base and a tile from another would be two widgets.
+  //
+  // On a paired device the path carries that device's asset capability. The
+  // reason is not preference, it is the sandbox: the frame is `allow-scripts`
+  // with no allow-same-origin, so its document has an opaque origin and the
+  // browser withholds the SameSite=Strict pairing cookie from every subresource
+  // it requests — the HTML would load and its stylesheet and script would be
+  // refused, which is a widget rendered as unstyled markup on a white canvas.
+  // A path prefix is inherited by relative URLs for free, so `widget.css`,
+  // `widget.js` and the perf probe all come along without the widget knowing.
+  function sdkAssetBase(pkgId) {
+    const rk = (typeof window !== 'undefined' && window.__xenonRemote) || null;
+    const key = rk && typeof rk.assetKey === 'string' && /^[a-f0-9]{32}$/.test(rk.assetKey) ? rk.assetKey : '';
+    const prefix = key ? '/sdk/wk/' + key : '/sdk/widget';
+    return prefix + '/' + encodeURIComponent(pkgId) + '/';
+  }
   function sdk() {
     const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings.sdkWidgets : null;
     const cfg = (hs && typeof hs === 'object') ? hs : { enabled: false, assign: {}, grants: {} };
@@ -1620,7 +1639,7 @@
       frame.setAttribute('sandbox', 'allow-scripts');
       frame.setAttribute('referrerpolicy', 'no-referrer');
       frame.title = pkg.name;
-      frame.src = '/sdk/widget/' + encodeURIComponent(pkg.id) + '/' + pkg.entry + '?v=' + assetVersion;
+      frame.src = sdkAssetBase(pkg.id) + pkg.entry + '?v=' + assetVersion;
       frames.set(key, { frame, pkgId: pkg.id, ready: false, lastAction: 0, service: true, assetVersion });
       serviceHost().appendChild(frame);
     }
@@ -2380,7 +2399,7 @@
     frame.setAttribute('sandbox', 'allow-scripts');
     frame.setAttribute('referrerpolicy', 'no-referrer');
     frame.title = pkg.name;
-    frame.src = '/sdk/widget/' + encodeURIComponent(pkg.id) + '/' + pkg.entry + '?v=' + assetVersion;
+    frame.src = sdkAssetBase(pkg.id) + pkg.entry + '?v=' + assetVersion;
     // `tile` is the widget atom (the .dashboard-widget section). Cached because
     // entryOnScreen reads its data-dashboard-hidden on the data hot path; the atom
     // survives reparenting (extract, page move), so the reference stays valid.
@@ -2723,6 +2742,9 @@
   window.CustomWidget = {
     renderWidgets, onData, onDiscordNotification, onHook, onHandler, onStoreChanged, onToastState, refreshTheme, refreshPackages: () => fetchPackages(true), clearAssign,
     registerAmbientFrame, unregisterAmbientFrame, registerCanvasFrame, unregisterCanvasFrames,
+    // Ambient scenes and canvas scenes mount their own frames but must load a
+    // package from the SAME base as a tile does — see sdkAssetBase.
+    assetBase: sdkAssetBase,
     getPackages, cachedPackages, packageGranted, requestGrant, requestGrants,
     getPerfStats, setSuspended, isSuspended,
     // Display name of the package assigned to a custom-widget instance (the tile's

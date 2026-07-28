@@ -60,7 +60,7 @@ const DASHBOARD_CARD_IDS = Object.freeze({
   audio: ['volume', 'speaker', 'microphone'],
   twitch: ['info', 'actions', 'chat'],
   obs: ['preview', 'controls', 'scenes', 'audio'],
-  youtube: ['info', 'actions'],
+  youtube: ['info', 'actions', 'playlists'],
 });
 const DASHBOARD_WIDGET_SIZES = Object.freeze(['compact', 'normal', 'wide', 'tall', 'large', 'full']);
 const DASHBOARD_CARD_SIZES = Object.freeze(['compact', 'normal', 'wide']);
@@ -156,6 +156,11 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     youtube: Object.freeze({
       info: Object.freeze({ order: 0, size: 'normal', visible: true }),
       actions: Object.freeze({ order: 1, size: 'normal', visible: true }),
+      // Mirror of the server default. `playlists` is in DASHBOARD_CARD_IDS
+      // above, and normalizeDashboardLayout reads a default for every id in that
+      // list — so the missing entry threw here on EVERY settings normalization,
+      // which is the first thing the page does with hub settings. See the test.
+      playlists: Object.freeze({ order: 2, size: 'normal', visible: true }),
     }),
   }),
   tabs: Object.freeze({ order: ['main', 'net'], active: 'main' }),
@@ -376,6 +381,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Settings can uninstall the whole download without guessing by display name.
   contentInstalls: Object.freeze([]),
   geminiApiKey: '',
+  geminiApiKeySet: false,
   aiProvider: 'gemini', // 'gemini' | 'ollama' | 'openai' | 'anthropic' — selected AI backend
   ollamaModel: 'auto',  // 'auto' | whitelist key | custom model tag
   ollamaUrl: 'http://localhost:11434',
@@ -945,10 +951,17 @@ function normalizeDashboardGeom(sourceItem, fallbackItem) {
 
 function normalizeDashboardItem(sourceItem, fallbackItem, maxOrder, allowedSizes) {
   const source = sourceItem && typeof sourceItem === 'object' ? sourceItem : {};
+  // A card id with no default entry threw here, and on the CLIENT that is worse
+  // than on the server: normalizeSettings runs inside applyHubSettings, which
+  // runs on every hydrate and every SSE settings event, so the exception landed
+  // before the dashboard had finished setting itself up. Same second fence as
+  // the server copy — a normalizer for persisted data must degrade, never take
+  // the page down with it.
+  const fb = fallbackItem && typeof fallbackItem === 'object' ? fallbackItem : { order: maxOrder, size: null, visible: true };
   return {
-    order: normalizeDashboardOrder(source.order, fallbackItem.order, maxOrder),
-    size: normalizeDashboardSize(source.size, allowedSizes, fallbackItem.size),
-    visible: source.visible === undefined ? fallbackItem.visible : source.visible !== false,
+    order: normalizeDashboardOrder(source.order, fb.order, maxOrder),
+    size: normalizeDashboardSize(source.size, allowedSizes, fb.size),
+    visible: source.visible === undefined ? fb.visible : source.visible !== false,
   };
 }
 
@@ -1388,7 +1401,11 @@ function normalizeSettings(source) {
     contentInstalls: (typeof ContentInstalls !== 'undefined' && ContentInstalls.normalizeContentInstalls)
       ? ContentInstalls.normalizeContentInstalls(value.contentInstalls)
       : (Array.isArray(value.contentInstalls) ? value.contentInstalls.slice(0, 200) : []),
+    // Server-only since v4.11.0, same shape as the OpenAI/Anthropic keys below:
+    // the browser holds one only while the user is typing it, and `*Set` is what
+    // every readiness check reads (see `geminiKeyReady`).
     geminiApiKey: String(value.geminiApiKey || '').trim().slice(0, 200),
+    geminiApiKeySet: value.geminiApiKeySet === true || !!String(value.geminiApiKey || '').trim(),
     aiProvider: ['ollama', 'openai', 'anthropic'].includes(value.aiProvider) ? value.aiProvider : 'gemini',
     ollamaModel: (typeof value.ollamaModel === 'string'
       && /^[a-z0-9._:-]+$/.test(value.ollamaModel)
@@ -2362,17 +2379,17 @@ function loadHubSettings() {
 }
 
 function saveLocalHubSettings() {
-  // Server-only secrets stay OUT of localStorage (unlike geminiApiKey, which the
-  // browser legitimately holds): the OpenAI/Anthropic keys, the UniFi console
+  // Server-only secrets stay OUT of localStorage: all three provider API keys
+  // (geminiApiKey joined them in v4.11.0), the UniFi console
   // password and the Home Assistant token. They stay in memory only long enough
   // for the pending POST to reach the server, which then redacts them back to ''
   // on the next hydrate. The *Set flags are kept so the readiness checks and the
   // "saved" placeholders survive a reload.
   let forLocal = hubSettings;
-  if (hubSettings && (hubSettings.openaiApiKey || hubSettings.anthropicApiKey
+  if (hubSettings && (hubSettings.openaiApiKey || hubSettings.anthropicApiKey || hubSettings.geminiApiKey
       || (hubSettings.unifi && hubSettings.unifi.password)
       || (hubSettings.homeAssistant && hubSettings.homeAssistant.token))) {
-    forLocal = { ...hubSettings, openaiApiKey: '', anthropicApiKey: '' };
+    forLocal = { ...hubSettings, openaiApiKey: '', anthropicApiKey: '', geminiApiKey: '' };
     if (forLocal.unifi && forLocal.unifi.password) forLocal.unifi = { ...forLocal.unifi, password: '' };
     if (forLocal.homeAssistant && forLocal.homeAssistant.token) forLocal.homeAssistant = { ...forLocal.homeAssistant, token: '' };
   }
@@ -2749,9 +2766,11 @@ async function _hydrateHubSettingsImpl() {
       if ((Number(seeded.rev) || 0) > 0) queueHubSettingsServerSave();
       return;
     }
-    const keyBefore = hubSettings && hubSettings.geminiApiKey;
-    // Keep locally-stored sensitive keys (geminiApiKey) even if the server
-    // copy is older and doesn't have them yet.
+    // Readiness, not the value: the key itself is redacted on the wire and is
+    // '' on both sides of this comparison, so comparing values would never fire.
+    const keyBefore = geminiKeyReady(hubSettings);
+    // rawLocal can still carry a real geminiApiKey written by a pre-v4.11.0
+    // build; the merge below pushes it up once and it is never written again.
     let rawLocal = {};
     try { rawLocal = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || '{}') || {}; } catch { rawLocal = {}; }
     const localRaw = normalizeSettings(rawLocal);
@@ -2815,7 +2834,14 @@ async function _hydrateHubSettingsImpl() {
         ? { ...data.settings, ...rawLocal, dashboardLayout: serverLayout, dashboardPresets: data.settings.dashboardPresets }
         : {}),
       rev: Math.max(localRev, serverRev),
-      geminiApiKey: localRaw.geminiApiKey || data.settings.geminiApiKey || '',
+      // The server is authoritative and always answers '' (server-only secret).
+      // The local fallback exists ONLY for the one-time migration of a key a
+      // pre-v4.11.0 build left in localStorage: it is pushed up by the backup
+      // save below and never mirrored locally again. `*Set` is what the UI and
+      // the gates read, and it must be true in BOTH cases — the server's stored
+      // key, or the legacy local one still on its way there.
+      geminiApiKey: data.settings.geminiApiKey || localRaw.geminiApiKey || '',
+      geminiApiKeySet: data.settings.geminiApiKeySet === true || !!String(localRaw.geminiApiKey || '').trim(),
       // Client-owned settings: keep whichever side actually has them so they
       // survive an older server build / a server restart.
       performance: base.performance || data.settings.performance || localRaw.performance,
@@ -2855,7 +2881,11 @@ async function _hydrateHubSettingsImpl() {
     // Back the local copy up to the server when it won the merge, when it holds
     // an API key the server was missing (also triggers wake-word start), or when
     // a save was parked while we were still blind (pre-hydrate user change).
-    if (localNewer || (hubSettings.geminiApiKey && !data.settings.geminiApiKey)
+    // The middle term is the legacy-key migration: this browser still holds a
+    // Gemini key in localStorage and the server has none stored. One save moves
+    // it, after which the local mirror is written without it (see
+    // saveLocalHubSettings) and this can never fire again on this device.
+    if (localNewer || (hubSettings.geminiApiKey && data.settings.geminiApiKeySet !== true)
         || _hubServerSavePending) {
       // Through the queue (not a one-shot POST): a save the server misses here —
       // restarting mid-update, a transient network error — retries until it lands.
@@ -2919,7 +2949,7 @@ async function _hydrateHubSettingsImpl() {
     // If the key appeared or disappeared after hydration, re-sync the AI chat UI.
     // This handles the case where localStorage was empty at startup but the key
     // was found in the server settings file (e.g. after a fresh browser session).
-    if (keyBefore !== hubSettings.geminiApiKey) {
+    if (keyBefore !== geminiKeyReady(hubSettings)) {
       if (typeof onAiKeyUpdated === 'function') onAiKeyUpdated();
     }
     if (typeof updateMediaChatKeyState === 'function') updateMediaChatKeyState();
@@ -4199,6 +4229,8 @@ function syncSettingsControls() {
   refreshGameModeStatus();
   // The whole RGB hub renders dynamically into Settings → Illuminazione.
   if (window.LightingPage) window.LightingPage.init();
+  // Paired-device access (phone as a second screen) renders above the wizard.
+  if (window.RemoteAccessPage) window.RemoteAccessPage.init();
   // Remote Control wizard renders dynamically into Settings → Controllo Remoto.
   if (window.RemoteControl) window.RemoteControl.init();
   // Streaming (Twitch) connect panel renders into Settings → Streaming.
@@ -7833,8 +7865,15 @@ function reloadHubSettingsFromStorage() {
 }
 
 function syncAiSettingsControls() {
+  // The key never comes back from the server, so the field shows a "saved"
+  // placeholder rather than the value — same treatment as the other providers.
   const keyInput = $('settings-gemini-key');
-  if (keyInput) keyInput.value = hubSettings.geminiApiKey || '';
+  if (keyInput) {
+    keyInput.value = hubSettings.geminiApiKey || '';
+    keyInput.placeholder = hubSettings.geminiApiKeySet ? t('settings_key_saved') : t('settings_ai_key_placeholder');
+  }
+  const keyReset = $('settings-gemini-reset');
+  if (keyReset) keyReset.hidden = !hubSettings.geminiApiKeySet;
   const ttsToggle = $('settings-ai-tts');
   if (ttsToggle) ttsToggle.checked = hubSettings.aiTtsEnabled !== false;
   const proToggle = $('settings-ai-pro');
@@ -8507,13 +8546,40 @@ function initAiProviderSettings() {
   if (ollamaInstall) ollamaInstall.addEventListener('click', () => window.open('https://ollama.com/download', '_blank'));
 }
 
+// THE answer to "is a Gemini key configured", for every surface that used to
+// test `hubSettings.geminiApiKey` directly. Since the key is redacted on the
+// wire, that truthiness test is false on a freshly loaded page even when a key
+// has been saved for months — it would have turned every AI surface into
+// "invalid key", which is exactly the failure the old comment in server.js
+// predicted and used as the reason not to redact. The value is still checked
+// first so the gate opens the instant the user finishes typing one, before the
+// save has round-tripped.
+function geminiKeyReady(settingsObj) {
+  const s = settingsObj || (typeof hubSettings === 'object' ? hubSettings : null);
+  return !!(s && (String(s.geminiApiKey || '').trim() || s.geminiApiKeySet === true));
+}
+
 function updateAiKey(value) {
-  hubSettings = normalizeSettings({ ...hubSettings, geminiApiKey: String(value || '').trim().slice(0, 200) });
+  const v = String(value || '').trim().slice(0, 200);
+  // Keep *Set true through the redacted round-trip (the server answers with
+  // key:'' once it has stored it); an explicit removal goes through resetAiKey.
+  hubSettings = normalizeSettings({ ...hubSettings, geminiApiKey: v, geminiApiKeySet: v.length > 0 || hubSettings.geminiApiKeySet === true });
   saveHubSettings();
   // Notify ai.js if wake word state needs to change
   if (typeof onAiKeyUpdated === 'function') onAiKeyUpdated();
   // Refresh the Media-tile chat (show input once a key is present, hide notice)
   if (typeof updateMediaChatKeyState === 'function') updateMediaChatKeyState();
+}
+
+// The only way to actually remove a stored key: a save carrying key:'' WITHOUT
+// the flag, which is what `preserveAiProviderCreds` reads as "the user cleared
+// it" instead of "this is the redacted copy coming back".
+function resetAiKey() {
+  hubSettings = normalizeSettings({ ...hubSettings, geminiApiKey: '', geminiApiKeySet: false });
+  saveHubSettings();
+  if (typeof onAiKeyUpdated === 'function') onAiKeyUpdated();
+  if (typeof updateMediaChatKeyState === 'function') updateMediaChatKeyState();
+  syncAiSettingsControls();
 }
 
 // ChatGPT (OpenAI) + Claude (Anthropic) key/model handlers. The keys are

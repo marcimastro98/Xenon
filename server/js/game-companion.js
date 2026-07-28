@@ -138,7 +138,7 @@
     const btn = document.getElementById('gc-analyze');
     const askBtn = document.getElementById('gc-ask-btn');
     const apiKey = (typeof hubSettings !== 'undefined' && hubSettings && hubSettings.geminiApiKey) || '';
-    if (!apiKey) {
+    if (!geminiKeyReady(typeof hubSettings !== 'undefined' ? hubSettings : null)) {
       if (out) out.textContent = t('gc_need_key');
       return;
     }

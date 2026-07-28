@@ -127,7 +127,7 @@ if (typeof window !== 'undefined') (function () {
     frame.setAttribute('sandbox', 'allow-scripts');
     frame.setAttribute('referrerpolicy', 'no-referrer');
     frame.title = pkg.name;
-    frame.src = '/sdk/widget/' + encodeURIComponent(pkg.id) + '/' + pkg.entry;
+    frame.src = (window.CustomWidget && window.CustomWidget.assetBase ? window.CustomWidget.assetBase(pkg.id) : '/sdk/widget/' + encodeURIComponent(pkg.id) + '/') + pkg.entry;
     CustomWidget.registerAmbientFrame(pkg.id, frame);
     host.replaceChildren(frame);
     overlay.hidden = false;

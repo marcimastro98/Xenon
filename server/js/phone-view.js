@@ -1,0 +1,368 @@
+// Phone view (R1.3) — the dashboard on a screen the user already owns.
+//
+// The dashboard is a 24-column GridStack. On a 390px phone that is a ~16px
+// column: the saved layout renders as a perfect miniature of itself, which is
+// unreadable. `breakpoints.css` does not help — its rules target the pre-v4
+// `.dashboard-widget[data-dashboard-size]` markup, which the grid replaced.
+//
+// So below a threshold the tiles STACK: one column, full width, in reading
+// order, each keeping a height proportional to the one the user gave it.
+//
+// The important design decision is that this is PRESENTATION ONLY. It would be
+// tempting to use GridStack's own one-column mode (`columnOpts.breakpoints`),
+// and that would be a mistake: changing the column count rewrites every tile's
+// coordinates and fires `change`, which `dashboard-grid.js` serializes and
+// SAVES. Opening the dashboard on a phone would silently rewrite the layout the
+// user built on their PC. Nothing here touches the grid engine: it reorders DOM
+// nodes and lets CSS take over positioning, so the worst a bug can do is look
+// wrong until the next reload.
+//
+// Nothing is reparented either. `topbar-minimal.js` already moves the topbar's
+// children into its rails and puts them back exactly; a second mover would have
+// to agree with it about the original slots forever. The dock below is built
+// from NEW nodes that simply forward a tap to the real button, so the two
+// chromes cannot corrupt each other's idea of where anything belongs.
+(function () {
+  'use strict';
+
+  // 'auto' | 'on' | 'off'. Local to the device on purpose: which chrome suits
+  // THIS screen is not a property of the user's configuration, and a paired
+  // phone cannot write settings anyway (see server/remote-access.js).
+  const PREF_KEY = 'xenon.phoneView';
+
+  // 24 columns need roughly 22px each to stay legible, so the grid stops being
+  // usable somewhere below ~530px. 620 covers every phone in portrait with room
+  // to spare while staying clear of the Xeneon Edge mounted vertically (720)
+  // and of tablets, whose owners can still turn it on by hand.
+  const PHONE_MAX_W = 620;
+
+  // The same phone on its side. Rotating was originally left on the grid on the
+  // theory that ~930px is cramped but readable — and it is, horizontally. What
+  // runs out is HEIGHT: ~430px clips every tile mid-content and leaves the
+  // topbar and the edge rails sitting on top of what is left, which is the one
+  // thing this view exists to prevent. A phone is a phone in both orientations.
+  //
+  // Two bounds, because the dimensions are not interchangeable. The height
+  // bound is what identifies the phone; the width bound is what stops this from
+  // claiming a deliberately short, wide DESKTOP window, where the grid is still
+  // the better answer. The Xeneon Edge (2560x720) is clear of both.
+  const PHONE_MAX_H = 500;
+  const PHONE_LANDSCAPE_MAX_W = 1000;
+
+  // Height per grid row when stacked. The user's `gs-h` is respected as a
+  // PROPORTION rather than a pixel size — a tile they made twice as tall stays
+  // twice as tall — but clamped, because a 30-row tile would otherwise be three
+  // phone screens of one widget.
+  const ROW_PX = 26;
+
+  let active = null;         // null = never applied yet
+  let dock = null;
+  let observer = null;
+  let sorting = false;       // guard: reordering nodes re-triggers the observer
+  let pending = 0;
+
+  // ── Policy ────────────────────────────────────────────────────────────────
+
+  // Pure so the thresholds are testable without a browser.
+  function shouldUsePhoneView(input) {
+    const o = input || {};
+    // An embedded surface is narrow for reasons that have nothing to do with a
+    // phone, and it has already been told what to look like. `?panel=…` is the
+    // iCUE widget's single-panel embed (breakpoints.css lays it out), and the
+    // Edge preview scales the whole body into a 2560x720 stage inside whatever
+    // window it was opened in. Restacking either would be answering a question
+    // nobody asked — and it wins over an explicit preference, because the
+    // preference is about THIS device's dashboard, not about an embed.
+    if (o.embedded) return false;
+    if (o.preference === 'on') return true;
+    if (o.preference === 'off') return false;
+    const w = Number(o.width);
+    if (!Number.isFinite(w) || w <= 0) return false;
+    if (w <= PHONE_MAX_W) return true;
+    // Height is optional so a caller that only knows the width still gets the
+    // portrait answer instead of a throw or a wrong `true`.
+    const h = Number(o.height);
+    if (!Number.isFinite(h) || h <= 0) return false;
+    return h <= PHONE_MAX_H && w <= PHONE_LANDSCAPE_MAX_W;
+  }
+
+  function isEmbedded() {
+    if (typeof document === 'undefined') return false;
+    if (document.body && document.body.hasAttribute('data-panel')) return true;
+    return document.documentElement.classList.contains('edge-preview')
+      || (document.body && document.body.classList.contains('edge-preview'));
+  }
+
+  function readPref() {
+    try {
+      const v = localStorage.getItem(PREF_KEY);
+      return (v === 'on' || v === 'off') ? v : 'auto';
+    } catch { return 'auto'; }   // private mode / storage disabled
+  }
+
+  // ── Reading order ─────────────────────────────────────────────────────────
+
+  // Row-major order over grid coordinates. Pure and exported: this is the whole
+  // claim the stacked view makes about matching what the user sees on their PC.
+  // Ties break on x, then on the original DOM position, so the result is stable
+  // (two tiles at the same coordinates can only happen mid-heal, and a stable
+  // sort keeps the view from flickering while dashboard-layout resolves it).
+  function readingOrder(items) {
+    const list = (Array.isArray(items) ? items : []).map((it, i) => ({
+      i,
+      y: Number.isFinite(it && it.y) ? it.y : 0,
+      x: Number.isFinite(it && it.x) ? it.x : 0,
+    }));
+    list.sort((a, b) => (a.y - b.y) || (a.x - b.x) || (a.i - b.i));
+    return list.map((e) => e.i);
+  }
+
+  function tileCoords(el) {
+    return {
+      y: parseInt(el.getAttribute('gs-y'), 10) || 0,
+      x: parseInt(el.getAttribute('gs-x'), 10) || 0,
+      h: parseInt(el.getAttribute('gs-h'), 10) || 8,
+    };
+  }
+
+  function sortGrid(grid) {
+    const items = [...grid.children].filter((n) => n.classList && n.classList.contains('grid-stack-item'));
+    if (items.length < 2) { items.forEach(stampRows); return; }
+    const order = readingOrder(items.map(tileCoords));
+    // Already correct → touch nothing. Without this the observer below would
+    // see its own reorder and loop.
+    let sorted = true;
+    for (let i = 0; i < order.length; i++) { if (order[i] !== i) { sorted = false; break; } }
+    items.forEach(stampRows);
+    if (sorted) return;
+    const frag = document.createDocumentFragment();
+    order.forEach((idx) => frag.appendChild(items[idx]));
+    grid.appendChild(frag);
+  }
+
+  function stampRows(el) {
+    const { h } = tileCoords(el);
+    el.style.setProperty('--ph-rows', String(h));
+  }
+
+  function clearStamps() {
+    document.querySelectorAll('.grid-stack-item').forEach((el) => el.style.removeProperty('--ph-rows'));
+  }
+
+  function sortAll() {
+    if (!active) return;
+    sorting = true;
+    try { document.querySelectorAll('.dashboard.grid-stack').forEach(sortGrid); }
+    finally { sorting = false; }
+  }
+
+  function scheduleSort() {
+    if (!active || sorting || pending) return;
+    pending = requestAnimationFrame(() => { pending = 0; sortAll(); });
+  }
+
+  // ── The thumb dock ────────────────────────────────────────────────────────
+
+  // The topbar's controls sit at the top of a tall screen, which is the one
+  // place a thumb cannot reach. These are FORWARDERS, not copies: each finds the
+  // real button and clicks it, so state, i18n and behaviour stay in exactly one
+  // place, and a chrome that moved that button (the Dynamic Island rails) still
+  // works because the lookup is by class, not by position.
+  const DOCK_BUTTONS = [
+    { sel: '.qbtn-search', glyph: '⌕', key: 'ph_search' },
+    { sel: '.topbtn-xenon', glyph: '✦', key: 'ph_ai' },
+    { sel: '.qbtn-apps', glyph: '▦', key: 'ph_apps' },
+    { sel: '.qbtn-settings', glyph: '⚙', key: 'ph_settings' },
+  ];
+
+  function label(key, fallback) {
+    return (typeof t === 'function' ? t(key) : fallback) || fallback;
+  }
+
+  function pageDots() {
+    return [...document.querySelectorAll('.pager-dots .pager-dot')];
+  }
+
+  function stepPage(dir) {
+    const dots = pageDots();
+    if (dots.length < 2) return;
+    let at = dots.findIndex((d) => d.classList.contains('is-active'));
+    if (at < 0) at = 0;
+    const next = at + dir;
+    if (next < 0 || next >= dots.length) return;
+    dots[next].click();          // the dot owns the navigation; we only aim it
+  }
+
+  function syncDockPages() {
+    if (!dock) return;
+    const dots = pageDots();
+    const many = dots.length > 1;
+    dock.classList.toggle('has-pages', many);
+    if (!many) return;
+    let at = dots.findIndex((d) => d.classList.contains('is-active'));
+    if (at < 0) at = 0;
+    dock.querySelector('.ph-page-at').textContent = (at + 1) + '/' + dots.length;
+    dock.querySelector('.ph-prev').disabled = at === 0;
+    dock.querySelector('.ph-next').disabled = at === dots.length - 1;
+  }
+
+  function buildDock() {
+    if (dock) return dock;
+    dock = document.createElement('nav');
+    dock.className = 'ph-dock';
+    dock.setAttribute('aria-label', label('ph_dock', 'Comandi rapidi'));
+
+    const pages = document.createElement('div');
+    pages.className = 'ph-pages';
+    const prev = document.createElement('button');
+    prev.type = 'button';
+    prev.className = 'ph-btn ph-prev';
+    prev.textContent = '‹';
+    prev.addEventListener('click', () => stepPage(-1));
+    const at = document.createElement('span');
+    at.className = 'ph-page-at';
+    const next = document.createElement('button');
+    next.type = 'button';
+    next.className = 'ph-btn ph-next';
+    next.textContent = '›';
+    next.addEventListener('click', () => stepPage(1));
+    pages.append(prev, at, next);
+    dock.appendChild(pages);
+
+    const acts = document.createElement('div');
+    acts.className = 'ph-acts';
+    for (const spec of DOCK_BUTTONS) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ph-btn';
+      b.textContent = spec.glyph;
+      b.title = label(spec.key, '');
+      b.setAttribute('aria-label', b.title);
+      b.addEventListener('click', () => {
+        const real = document.querySelector(spec.sel);
+        // No silent no-op: a dock button whose target is gone (a chrome that
+        // removed it, a build that renamed it) should say so in the console
+        // rather than feel broken.
+        if (real) real.click();
+        else console.warn('[phone-view] no target for dock button', spec.sel);
+      });
+      acts.appendChild(b);
+    }
+    dock.appendChild(acts);
+    // Inside the shell's grid, as a real third row — NOT floating over the page.
+    // A fixed bar would have to win a z-index argument against every small thing
+    // the dashboard anchors to the bottom of the screen (the Discord invite, the
+    // event toasts, the Game Companion strip, the vitals pet, which walks along
+    // it) while still losing to every modal. Occupying a row means nothing can be
+    // underneath it, and the argument disappears instead of being won.
+    const shell = document.querySelector('.shell');
+    (shell || document.body).appendChild(dock);
+    return dock;
+  }
+
+  // ── Enable / disable ──────────────────────────────────────────────────────
+
+  function enable() {
+    if (active) return;
+    active = true;
+    document.documentElement.classList.add('is-phone');
+    buildDock();
+    sortAll();
+    syncDockPages();
+    // Tiles are added, removed, re-sized and re-grouped by the layout module
+    // long after boot. Watch the coordinates rather than hook applyDashboardLayout:
+    // a wrapper around a core function is one rename away from silently doing
+    // nothing, whereas an observer on the attributes we actually read cannot
+    // drift. Guarded + idempotent, so our own reorder does not re-trigger it.
+    if (!observer) {
+      observer = new MutationObserver(() => { if (!sorting) scheduleSort(); });
+    }
+    document.querySelectorAll('.pager').forEach((p) => observer.observe(p, {
+      childList: true, subtree: true, attributeFilter: ['gs-x', 'gs-y', 'gs-h'],
+    }));
+  }
+
+  function disable() {
+    if (!active) return;
+    active = false;
+    document.documentElement.classList.remove('is-phone');
+    if (observer) observer.disconnect();
+    if (pending) { cancelAnimationFrame(pending); pending = 0; }
+    clearStamps();
+    if (dock) { dock.remove(); dock = null; }
+    // The DOM order stays as we left it. That is deliberate and harmless:
+    // GridStack positions by attribute, not by document order, so the desktop
+    // layout renders identically either way — and reshuffling nodes back would
+    // be a second chance to get it wrong.
+  }
+
+  function sync() {
+    const want = shouldUsePhoneView({
+      width: window.innerWidth,
+      height: window.innerHeight,
+      preference: readPref(),
+      embedded: isEmbedded(),
+    });
+    const was = active;
+    if (want) enable(); else disable();
+    // The Dynamic Island is a chrome for a screen with room beside the tiles;
+    // topbar-minimal.js refuses to enable it while the phone view is on. Tell it
+    // to re-decide whenever we cross the threshold, or a dashboard that was
+    // wearing the island keeps wearing it — pill clipped off both edges, rails
+    // over the content. Only on a CHANGE: apply() is cheap but not free, and
+    // this runs on every resize tick.
+    if (was !== active && window.TopbarMinimal && typeof window.TopbarMinimal.apply === 'function') {
+      try { window.TopbarMinimal.apply(); } catch { /* chrome choice must never break the layout */ }
+    }
+  }
+
+  // ── Wiring ────────────────────────────────────────────────────────────────
+
+  let resizeT = null;
+  function onResize() {
+    clearTimeout(resizeT);
+    resizeT = setTimeout(sync, 150);
+  }
+
+  function init() {
+    sync();
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    window.addEventListener('xenon:page-change', () => { scheduleSort(); syncDockPages(); });
+    // The dots are re-rendered wholesale on page add/remove/rename, so re-read
+    // them rather than caching the list.
+    const dotsHost = document.getElementById('pager-dots');
+    if (dotsHost) new MutationObserver(syncDockPages).observe(dotsHost, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    // Edge preview is toggled at runtime and marks itself with a class on <html>
+    // rather than by resizing anything, so a resize listener would never see it.
+    new MutationObserver(sync).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  // Browser wiring only when there is a browser. The two decisions worth
+  // testing — the threshold policy and the reading order — are pure, and the
+  // node test suite requires this file to reach them.
+  if (typeof document !== 'undefined' && typeof window !== 'undefined') {
+    // Published BEFORE init(): topbar-minimal.js asks `PhoneView.isActive()` to
+    // decide whether to put the Dynamic Island up, and init() can reach it
+    // synchronously. Assigning after would leave that first decision reading an
+    // undefined PhoneView — the island would go up on a phone exactly once, on
+    // the load where it matters.
+    window.PhoneView = {
+      init, sync, enable, disable,
+      isActive: () => !!active,
+      /** 'auto' | 'on' | 'off' — persisted per device, never to the server. */
+      setPreference(v) {
+        try { localStorage.setItem(PREF_KEY, (v === 'on' || v === 'off') ? v : 'auto'); } catch { /* storage off */ }
+        sync();
+      },
+      getPreference: readPref,
+    };
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
+    else init();
+  }
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { shouldUsePhoneView, readingOrder, PHONE_MAX_W, PHONE_MAX_H, PHONE_LANDSCAPE_MAX_W, ROW_PX };
+  }
+})();

@@ -150,3 +150,36 @@ test('terms are capped at 8 and single characters dropped', () => {
   assert.ok(!q.terms.includes('a'));
   assert.ok(!q.terms.includes('b'));
 });
+
+// Reported as "search doesn't work from my phone", measured as the opposite: the
+// query was the two letters "ma", and it returned nothing on the PC too. "ma" is
+// an Italian stopword, so the parser dropped the only token there was and the
+// engine's hasFilter gate answered zero results for a query the user was still
+// typing. Stopword stripping is for sentences; a one-word query is a prefix.
+test('a single word that is only a stopword is searched literally', () => {
+  for (const word of ['ma', 'the', 'my', 'apri', 'in', 'con']) {
+    const q = parse(word);
+    assert.deepEqual(q.terms, [word], word + ' must survive as a term');
+    assert.equal(q.kind, null);
+    assert.equal(q.exts, null);
+  }
+});
+
+test('the stopword fallback stays out of the way of everything else', () => {
+  // A real phrase of stopwords is a phrase, not a prefix — it must not become
+  // a literal search for "trova" or "di".
+  assert.deepEqual(parse('trova i file').terms, []);
+  assert.deepEqual(parse('di del').terms, []);
+  // A single word that IS a filter keeps being that filter.
+  const foto = parse('foto');
+  assert.equal(foto.kind, 'image');
+  assert.deepEqual(foto.terms, []);
+  const pdf = parse('.pdf');
+  assert.deepEqual(pdf.exts, ['pdf']);
+  assert.deepEqual(pdf.terms, []);
+  // One character is still too broad to search for.
+  assert.deepEqual(parse('e').terms, []);
+  assert.deepEqual(parse('a').terms, []);
+  // And a normal one-word query is unaffected (it was never a stopword).
+  assert.deepEqual(parse('marci').terms, ['marci']);
+});

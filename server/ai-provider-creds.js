@@ -1,16 +1,24 @@
 'use strict';
 
-// openaiApiKey / anthropicApiKey are SERVER-ONLY secrets: the OpenAI (ChatGPT)
-// and Anthropic (Claude) providers are called from the server (ai-openai.js /
-// ai-anthropic.js), so — unlike geminiApiKey, which the browser needs — these
-// keys must never reach the browser. Same preserve-on-save + redact-on-wire
-// contract as stream-creds.js (obs/streamerbot passwords).
+// Every AI provider key is a SERVER-ONLY secret. Same preserve-on-save +
+// redact-on-wire contract as stream-creds.js (obs/streamerbot passwords).
+//
+// geminiApiKey joined this list in v4.11.0, and the reason it was outside it was
+// never true: the client "needing" it meant putting it in the body of a request
+// to OUR OWN server, which then called Google. Nothing in server/js/ has ever
+// talked to generativelanguage.googleapis.com — an inventory of every use found
+// eight, all of them either a presence gate or a `key:` field posted back to the
+// endpoint that already had the key on disk. So the secret made a round trip to
+// the browser for nothing, and on the paired-device door (R1.1) that round trip
+// crossed the LAN in cleartext. The server-side half of the swap is
+// `geminiKeyFor()` in server.js: an empty `key` falls back to the stored one, so
+// the client sends nothing and every AI surface behaves exactly as before.
 //
 // Both halves are REQUIRED together. Redact without preserve and the next normal
 // client save (which never carries the real key) wipes it; preserve without
 // redact and the secret keeps leaking to the browser. Do not add just one.
 
-const AI_PROVIDER_SECRET_KEYS = ['openaiApiKey', 'anthropicApiKey'];
+const AI_PROVIDER_SECRET_KEYS = ['openaiApiKey', 'anthropicApiKey', 'geminiApiKey'];
 
 // Carry a persisted key over when an incoming client save omits/empties it, so a
 // routine settings save can never wipe a key the client never received — UNLESS
@@ -37,6 +45,8 @@ function redactAiProviderCreds(settings) {
     openaiApiKeySet: !!settings.openaiApiKey,
     anthropicApiKey: '',
     anthropicApiKeySet: !!settings.anthropicApiKey,
+    geminiApiKey: '',
+    geminiApiKeySet: !!settings.geminiApiKey,
   };
 }
 

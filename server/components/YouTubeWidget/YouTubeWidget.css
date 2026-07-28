@@ -1,7 +1,8 @@
-/* YouTube widget: live status + viewer count + stream health + go-live, styled to
-   match the Twitch widget (logo watermark, card sections, red theme). Two sections
-   (info / actions) carry data-system-card so they hide/reorder like System cards.
-   Rendered into .youtube-widget-mount by youtube-widget.js. */
+/* YouTube widget: live status + viewer count + stream health + go-live, plus the
+   viewer-mode Playlists card, styled to match the Twitch widget (logo watermark,
+   card sections, red theme). Three sections (info / actions / playlists) carry
+   data-system-card so they hide/reorder like System cards. Rendered into
+   .youtube-widget-mount by youtube-widget.js. */
 .youtube-panel { display: flex; }
 .youtube-widget-mount { width: 100%; height: 100%; display: flex; min-height: 0; border-radius: inherit; }
 
@@ -102,3 +103,35 @@ body.overlay-frozen .yt-pill.live .yt-pill-dot::after { animation-play-state: pa
 .yt-btn-ico { display: inline-flex; }
 .yt-btn-ico svg { width: 15px; height: 15px; }
 .yt-err { margin-top: 8px; font-size: 0.76rem; font-weight: 600; color: var(--color-danger); line-height: 1.35; }
+
+/* Playlists (viewer mode) — same row pattern as the Spotify widget, red accent. */
+.yt-card--playlists { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.yt-pl-list { display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow-y: auto; }
+.yt-pl {
+  display: flex; align-items: center; gap: 10px; width: 100%; flex: 0 0 auto;
+  padding: 6px 8px; border-radius: 10px; cursor: pointer; text-align: left; font: inherit;
+  border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.03);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.yt-pl:hover:not(:disabled) { background: rgba(255,0,0,0.10); border-color: rgba(255,0,0,0.35); }
+.yt-pl.ok { border-color: rgba(34,197,94,0.6); }
+.yt-pl.err { border-color: rgba(239,68,68,0.65); }
+.yt-pl-art {
+  width: 40px; height: 40px; flex: 0 0 auto; border-radius: 7px;
+  background: rgba(255,255,255,0.07) center / cover no-repeat;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  display: inline-flex; align-items: center; justify-content: center; color: #ff4d4d;
+}
+.yt-pl-art svg { width: 20px; height: 20px; }
+.yt-pl-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.yt-pl-name { font-size: 0.82rem; font-weight: 700; color: var(--text, #e7e9ee); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yt-pl-count { font-size: 0.68rem; font-weight: 600; color: var(--text-dim, #8b91a1); }
+.yt-pl-play {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%; color: #fff; background: rgba(255,0,0,0.85);
+  opacity: 0; transform: scale(0.8); transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.yt-pl-play svg { width: 15px; height: 15px; margin-left: 1px; }
+.yt-pl:hover .yt-pl-play, .yt-pl:focus-visible .yt-pl-play { opacity: 1; transform: scale(1); }
+.yt-pl-empty { font-size: 0.8rem; opacity: 0.65; padding: 2px; }
+@media (prefers-reduced-motion: reduce) { .yt-pl, .yt-pl-play { transition: none; } }

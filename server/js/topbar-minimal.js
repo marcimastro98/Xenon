@@ -485,7 +485,14 @@
     if (document.body.dataset.panel) return;
     const settings = (typeof hubSettings !== 'undefined' && hubSettings) ? hubSettings : null;
     const barHidden = !!(settings && settings.dashboardLayout && settings.dashboardLayout.topbarHidden === true);
-    const wantRails = !!(settings && (settings.topbarStyle === 'minimal' || barHidden));
+    // Never on a phone. The island puts the clock in a centre pill and the quick
+    // actions in two rails hugging the screen edges — a layout that assumes room
+    // beside the tiles. At 390px the pill is wider than the screen (its left and
+    // right ends are simply cut off) and the rails cover the content they sit
+    // next to. The phone view has its own compact bar and a thumb dock, so the
+    // decision belongs here, where "which chrome" is already decided once.
+    const phone = !!(window.PhoneView && window.PhoneView.isActive());
+    const wantRails = !phone && !!(settings && (settings.topbarStyle === 'minimal' || barHidden));
     document.body.classList.toggle('topbar-noisland', wantRails && barHidden);
     if (wantRails) enable(); else disable();
     applyIslandLayout();

@@ -1,15 +1,19 @@
 'use strict';
 // YouTube dashboard widget: live status + viewer count + stream health, with a
-// Go live / End stream button. Two manageable sections (info / actions) tagged as
-// dashboard cards (hide/reorder like the System panel). Polled (no SSE) and
-// QUOTA-AWARE — only polls while a tile is visible and the tab is foregrounded,
-// at a slow cadence. Actions go through /actions/run (ytBroadcast). Renders into
-// .youtube-widget-mount.
+// Go live / End stream button — plus a viewer-mode Playlists card (your own
+// playlists + Liked videos, tap to play in the Browser tile or the PC browser).
+// Three manageable sections (info / actions / playlists) tagged as dashboard
+// cards (hide/reorder like the System panel). Polled (no SSE) and QUOTA-AWARE —
+// only polls while a tile is visible and the tab is foregrounded, at a slow
+// cadence; playlists load once per connection. Actions go through /actions/run
+// (ytBroadcast, openUrl). Renders into .youtube-widget-mount.
 (function () {
   const ICONS = {
     golive: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4"/></svg>',
     stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
     logo: '<svg viewBox="0 0 90 64" fill="none"><rect width="90" height="64" rx="18" fill="#ff0000"/><path d="M36 46V18l24 14z" fill="#0b0d10"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
+    heart: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>',
   };
   const HEALTH_KEY = { good: 'youtube_health_good', ok: 'youtube_health_ok', bad: 'youtube_health_bad', noData: 'youtube_health_nodata' };
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
@@ -24,11 +28,12 @@
   let poll = null;
   let last = null;          // broadcastStatus result
   let connected = null;     // null=unknown
+  let playlists = null;     // null=not loaded yet (loads once per connection)
   const POLL_MS = 30000;    // slow on purpose (YouTube Data API quota)
 
   const ERR_KEY = { no_broadcast: 'youtube_err_no_broadcast', not_connected: 'youtube_err_not_connected' };
   function showActionErr(btn, reason) {
-    const card = btn.closest('.yt-card--actions');
+    const card = btn.closest('.yt-card');
     if (!card) return;
     let n = card.querySelector('.yt-err');
     if (!n) { n = el('div', 'yt-err'); card.appendChild(n); }
@@ -69,9 +74,66 @@
     go.append(el('span', 'yt-btn-ico'), el('span', 'yt-btn-lbl'));
     go.addEventListener('click', () => runAction(go, { type: 'ytBroadcast', mode: 'toggle' }));
     actions.appendChild(go);
-    cards.append(info, actions);
+    const pls = el('section', 'yt-card yt-card--playlists'); pls.dataset.systemCard = 'playlists'; pls.dataset.systemCardGroup = 'youtube';
+    pls.appendChild(el('div', 'yt-card-label', t('youtube_playlists', 'Playlists')));
+    pls.appendChild(el('div', 'yt-pl-list'));
+    cards.append(info, actions, pls);
     wrap.appendChild(cards);
     mount.replaceChildren(wrap);
+  }
+
+  // Tap a playlist → resolve its watch URL server-side (the id never becomes a
+  // URL client-side), then play it where the user can see it: a visible Browser
+  // tile first, else the PC's default browser via the validated openUrl action.
+  async function openPlaylist(btn, id) {
+    btn.disabled = true; btn.classList.remove('ok', 'err');
+    const r = await api('/stream/youtube/playlist/resolve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    let ok = false;
+    if (r && r.ok && r.url) {
+      const bt = window.BrowserTile;
+      const inTile = (bt && typeof bt.openFromSdk === 'function') ? bt.openFromSdk(r.url) : null;
+      if (inTile && inTile.ok) ok = true;
+      else {
+        const ra = await api('/actions/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'openUrl', url: r.url }) });
+        ok = !!(ra && ra.ok);
+      }
+    }
+    btn.classList.add(ok ? 'ok' : 'err');
+    if (!ok) showActionErr(btn, r && r.error);
+    setTimeout(() => { btn.classList.remove('ok', 'err'); btn.disabled = false; }, 1400);
+  }
+
+  function plRow(p, liked) {
+    const b = el('button', 'yt-pl'); b.type = 'button';
+    const art = el('span', 'yt-pl-art');
+    if (liked) art.innerHTML = ICONS.heart;   // static, trusted SVG
+    else if (p.image) art.style.backgroundImage = 'url("' + encodeURI(p.image) + '")';
+    const meta = el('div', 'yt-pl-meta');
+    meta.append(el('span', 'yt-pl-name', p.title || '—'));
+    if (p.count != null) meta.append(el('span', 'yt-pl-count', p.count + ' ' + t('youtube_videos', 'videos')));
+    const play = el('span', 'yt-pl-play'); play.innerHTML = ICONS.play;   // static, trusted SVG
+    b.append(art, meta, play);
+    b.addEventListener('click', () => openPlaylist(b, p.id));
+    return b;
+  }
+
+  function paintPlaylists(mount) {
+    const card = mount.querySelector('.yt-card--playlists');
+    if (!card) return;
+    const editing = document.body.classList.contains('layout-editing');
+    card.style.display = (connected || editing) ? '' : 'none';
+    const list = card.querySelector('.yt-pl-list');
+    const sig = connected !== true ? 'x' : playlists === null ? 'l'
+      : 'p' + playlists.map(p => p.id + ':' + (p.count != null ? p.count : '')).join('|');
+    if (list.dataset.ytSig === sig) return;
+    list.dataset.ytSig = sig;
+    if (connected !== true) { list.replaceChildren(); return; }
+    if (playlists === null) { list.replaceChildren(el('div', 'yt-pl-empty', t('browser_loading', 'Loading…'))); return; }
+    const frag = document.createDocumentFragment();
+    // "Liked videos" is the LL system playlist — always first, like YouTube's own Library.
+    frag.appendChild(plRow({ id: 'LL', title: t('youtube_liked', 'Liked videos'), count: null, image: '' }, true));
+    playlists.forEach(p => frag.appendChild(plRow(p, false)));
+    list.replaceChildren(frag);
   }
 
   // A title row that turns into an inline editor on click (saves on Enter/blur).
@@ -146,6 +208,7 @@
       go.classList.toggle('is-live', live);
       go.querySelector('.yt-btn-ico').innerHTML = live ? ICONS.stop : ICONS.golive;   // static, trusted SVG
       go.querySelector('.yt-btn-lbl').textContent = live ? t('twitch_endstream', 'End stream') : t('twitch_golive', 'Go live');
+      paintPlaylists(mount);
     });
   }
 
@@ -154,7 +217,17 @@
     if (document.hidden || !tiles().some(onVisiblePage)) return;
     const s = await api('/stream/youtube/status');
     if (s) connected = !!s.connected;
-    if (connected) { const b = await api('/stream/youtube/broadcast'); if (b) last = b; }
+    if (connected) {
+      const b = await api('/stream/youtube/broadcast'); if (b) last = b;
+      // Playlists load once per connection (server caches 5 min); a failed load
+      // stays null so the next poll retries.
+      if (playlists === null) {
+        const p = await api('/stream/youtube/playlists');
+        if (p && p.ok && Array.isArray(p.playlists)) playlists = p.playlists;
+      }
+    } else if (connected === false) {
+      playlists = null;   // reload after a re-login (possibly another account)
+    }
     paint();
   }
   function stop() { if (poll) { clearInterval(poll); poll = null; } }

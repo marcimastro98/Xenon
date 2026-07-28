@@ -1968,6 +1968,8 @@ input[type="range"] { accent-color: var(--green); }
 .streaming-url { font-size: 0.85rem; color: rgb(var(--accent-rgb)); word-break: break-all; }
 /* Credential-entry form (shown until a provider is configured). */
 .streaming-setup { display: flex; flex-direction: column; gap: 9px; }
+.streaming-setup-steps { margin: 0; padding-left: 1.25em; display: flex; flex-direction: column; gap: 5px; }
+.streaming-setup-steps li { margin: 0; }
 .streaming-setup-link { font-size: 0.82rem; font-weight: 700; color: rgb(var(--accent-rgb)); align-self: flex-start; }
 .streaming-field { display: flex; flex-direction: column; gap: 5px; }
 .streaming-field-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim, #8b91a1); }

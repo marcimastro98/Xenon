@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<!--
+  Xenon — Copyright (c) 2026 Marcello Mastroeni (marcimastro98).
+  Custom non-commercial license. Personal use only; no commercial use or
+  redistribution as your own. Attribution required. See LICENSE for terms.
+
+  The pairing page: the ONE document a device can load before it has a token.
+  Deliberately self-contained — no dashboard scripts, no settings fetch, no
+  shared modules — so the pre-auth surface is exactly as small as it looks.
+
+  The pairing code arrives in the URL FRAGMENT (#XXXXXXXX), never the query
+  string: a fragment is not sent to the server, so it stays out of any log or
+  proxy on the way, and this page hands it over once in a POST body.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="dark">
+<title>Xenon</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: #070808;
+    color: #f2f4f3;
+    font: 400 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
+    -webkit-text-size-adjust: 100%;
+  }
+  .card { width: 100%; max-width: 380px; text-align: center; }
+  .mark {
+    width: 56px; height: 56px; margin: 0 auto 20px; border-radius: 16px;
+    background: linear-gradient(150deg, #1ed760, #0f8f3d);
+    display: grid; place-items: center;
+    font-weight: 800; font-size: 26px; color: #041007;
+  }
+  h1 { font-size: 1.45rem; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.01em; }
+  p  { margin: 0 0 22px; color: #9aa3a0; font-size: 0.94rem; }
+  label { display: block; text-align: left; font-size: 0.74rem; font-weight: 600;
+          letter-spacing: 0.05em; text-transform: uppercase; color: #7d8683; margin: 0 0 6px; }
+  input {
+    width: 100%; padding: 14px 16px; border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.05);
+    color: #f2f4f3; font-size: 1rem; font-family: inherit;
+  }
+  input:focus { outline: none; border-color: #1ed760; }
+  input.code { text-align: center; letter-spacing: 0.18em; font-weight: 700; text-transform: uppercase; }
+  .field { margin-bottom: 16px; }
+  button {
+    width: 100%; padding: 15px 18px; border: 0; border-radius: 12px;
+    background: #1ed760; color: #041007; font: 700 1rem/1 inherit;
+    cursor: pointer; margin-top: 6px; font-family: inherit;
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .msg { margin: 18px 0 0; font-size: 0.9rem; min-height: 1.2em; }
+  .msg.bad { color: #ff6b6b; }
+  .msg.good { color: #1ed760; }
+  .note { margin-top: 26px; font-size: 0.78rem; color: #626b68; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="mark">X</div>
+  <h1 id="title">Connect this device</h1>
+  <p id="sub">Enter the code shown on your PC to link this device to Xenon.</p>
+
+  <form id="form" autocomplete="off">
+    <div class="field">
+      <label for="code" id="code-label">Pairing code</label>
+      <input id="code" class="code" name="code" maxlength="9" inputmode="text"
+             autocapitalize="characters" autocorrect="off" spellcheck="false" required>
+    </div>
+    <div class="field">
+      <label for="name" id="name-label">Device name</label>
+      <input id="name" name="name" maxlength="40" autocomplete="off">
+    </div>
+    <button id="go" type="submit">Connect</button>
+  </form>
+
+  <p class="msg" id="msg"></p>
+  <p class="note" id="note"></p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // The strings this page needs, in the languages the app ships. A device sees
+  // this screen once, for a few seconds — but it is the FIRST screen it sees,
+  // and an English-only first screen contradicts an 11-language product.
+  var T = {
+    en: ['Connect this device', 'Enter the code shown on your PC to link this device to Xenon.', 'Pairing code', 'Device name', 'Connect', 'Connecting…', 'Connected. Opening Xenon…', 'That code is not valid or has expired. Generate a new one on your PC.', 'Too many attempts. Wait a minute and try again.', 'Could not reach Xenon. Check that you are on the same network.', 'This device stays connected until you remove it from Settings on your PC.'],
+    it: ['Collega questo dispositivo', 'Inserisci il codice che vedi sul PC per collegare questo dispositivo a Xenon.', 'Codice di abbinamento', 'Nome del dispositivo', 'Collega', 'Collegamento…', 'Collegato. Apro Xenon…', 'Il codice non è valido o è scaduto. Generane uno nuovo dal PC.', 'Troppi tentativi. Aspetta un minuto e riprova.', 'Non riesco a raggiungere Xenon. Controlla di essere sulla stessa rete.', 'Questo dispositivo resta collegato finché non lo rimuovi dalle Impostazioni sul PC.'],
+    de: ['Dieses Gerät verbinden', 'Gib den Code ein, der auf deinem PC angezeigt wird, um dieses Gerät mit Xenon zu verbinden.', 'Kopplungscode', 'Gerätename', 'Verbinden', 'Verbinde…', 'Verbunden. Xenon wird geöffnet…', 'Der Code ist ungültig oder abgelaufen. Erzeuge am PC einen neuen.', 'Zu viele Versuche. Warte eine Minute und versuche es erneut.', 'Xenon ist nicht erreichbar. Prüfe, ob du im selben Netzwerk bist.', 'Dieses Gerät bleibt verbunden, bis du es in den Einstellungen am PC entfernst.'],
+    fr: ['Connecter cet appareil', 'Saisis le code affiché sur ton PC pour relier cet appareil à Xenon.', 'Code d’association', 'Nom de l’appareil', 'Connecter', 'Connexion…', 'Connecté. Ouverture de Xenon…', 'Ce code est invalide ou expiré. Génères-en un nouveau sur le PC.', 'Trop de tentatives. Attends une minute et réessaie.', 'Xenon est injoignable. Vérifie que tu es sur le même réseau.', 'Cet appareil reste connecté jusqu’à ce que tu le retires des Réglages sur le PC.'],
+    es: ['Conectar este dispositivo', 'Introduce el código que ves en tu PC para vincular este dispositivo a Xenon.', 'Código de vinculación', 'Nombre del dispositivo', 'Conectar', 'Conectando…', 'Conectado. Abriendo Xenon…', 'Ese código no es válido o ha caducado. Genera uno nuevo en el PC.', 'Demasiados intentos. Espera un minuto e inténtalo de nuevo.', 'No se puede conectar con Xenon. Comprueba que estás en la misma red.', 'Este dispositivo seguirá conectado hasta que lo elimines desde Ajustes en el PC.'],
+    pt: ['Ligar este dispositivo', 'Introduz o código apresentado no PC para ligar este dispositivo ao Xenon.', 'Código de emparelhamento', 'Nome do dispositivo', 'Ligar', 'A ligar…', 'Ligado. A abrir o Xenon…', 'Esse código não é válido ou expirou. Gera um novo no PC.', 'Demasiadas tentativas. Espera um minuto e tenta de novo.', 'Não foi possível contactar o Xenon. Verifica se estás na mesma rede.', 'Este dispositivo fica ligado até o removeres nas Definições do PC.'],
+    ru: ['Подключить это устройство', 'Введите код с экрана компьютера, чтобы подключить это устройство к Xenon.', 'Код сопряжения', 'Имя устройства', 'Подключить', 'Подключение…', 'Подключено. Открываю Xenon…', 'Код неверен или истёк. Создайте новый на компьютере.', 'Слишком много попыток. Подождите минуту и повторите.', 'Не удалось связаться с Xenon. Проверьте, что вы в той же сети.', 'Устройство останется подключённым, пока вы не удалите его в настройках на компьютере.'],
+    ko: ['이 기기 연결', 'PC에 표시된 코드를 입력해 이 기기를 Xenon에 연결하세요.', '페어링 코드', '기기 이름', '연결', '연결 중…', '연결됨. Xenon을 여는 중…', '코드가 올바르지 않거나 만료되었습니다. PC에서 새로 만드세요.', '시도가 너무 많습니다. 잠시 후 다시 시도하세요.', 'Xenon에 연결할 수 없습니다. 같은 네트워크인지 확인하세요.', 'PC 설정에서 삭제할 때까지 이 기기는 연결된 상태로 유지됩니다.'],
+    ja: ['このデバイスを接続', 'PC に表示されているコードを入力して、このデバイスを Xenon に接続します。', 'ペアリングコード', 'デバイス名', '接続', '接続中…', '接続しました。Xenon を開きます…', 'コードが正しくないか、有効期限が切れています。PC で新しく発行してください。', '試行回数が多すぎます。1 分ほど待って再試行してください。', 'Xenon に接続できません。同じネットワークにいるか確認してください。', 'PC の設定から削除するまで、このデバイスは接続されたままになります。'],
+    zh: ['连接此设备', '输入电脑上显示的代码，把这台设备连接到 Xenon。', '配对码', '设备名称', '连接', '连接中…', '已连接，正在打开 Xenon…', '代码无效或已过期，请在电脑上重新生成。', '尝试次数过多，请等待一分钟后重试。', '无法连接到 Xenon，请确认处于同一网络。', '此设备将保持连接，直到你在电脑的设置中移除它。'],
+    nl: ['Dit apparaat koppelen', 'Voer de code in die op je pc staat om dit apparaat aan Xenon te koppelen.', 'Koppelcode', 'Apparaatnaam', 'Koppelen', 'Verbinden…', 'Verbonden. Xenon wordt geopend…', 'Deze code is ongeldig of verlopen. Maak een nieuwe aan op de pc.', 'Te veel pogingen. Wacht een minuut en probeer opnieuw.', 'Kan Xenon niet bereiken. Controleer of je op hetzelfde netwerk zit.', 'Dit apparaat blijft gekoppeld totdat je het verwijdert bij Instellingen op de pc.'],
+  };
+
+  var lang = String(navigator.language || 'en').slice(0, 2).toLowerCase();
+  var t = T[lang] || T.en;
+  document.documentElement.lang = T[lang] ? lang : 'en';
+
+  var $ = function (id) { return document.getElementById(id); };
+  $('title').textContent = t[0];
+  $('sub').textContent = t[1];
+  $('code-label').textContent = t[2];
+  $('name-label').textContent = t[3];
+  $('go').textContent = t[4];
+  $('note').textContent = t[10];
+
+  // A first guess at what this device is called, so the list on the PC reads
+  // "iPhone" and not "Device 3". Purely cosmetic and fully editable — no
+  // fingerprinting, and the guess never leaves this field unless the user sends it.
+  function guessName() {
+    var ua = navigator.userAgent || '';
+    if (/iPad/i.test(ua)) return 'iPad';
+    if (/iPhone/i.test(ua)) return 'iPhone';
+    if (/Android/i.test(ua)) {
+      var m = ua.match(/Android [\d.]+; ([^;)]+)/);
+      var model = m && m[1] ? m[1].replace(/\bBuild\b.*$/, '').trim() : '';
+      return model || 'Android';
+    }
+    if (/Macintosh/i.test(ua)) return 'Mac';
+    if (/Windows/i.test(ua)) return 'Windows PC';
+    if (/Linux/i.test(ua)) return 'Linux';
+    return 'Device';
+  }
+  $('name').value = guessName();
+
+  // The code comes in the fragment. Take it, then strip it from the address bar
+  // so a screenshot or a shared link cannot carry a live invitation.
+  var fromHash = (location.hash || '').replace(/^#/, '').trim();
+  if (fromHash) {
+    $('code').value = fromHash.toUpperCase();
+    try { history.replaceState(null, '', location.pathname); } catch (e) { /* older browsers */ }
+    $('name').focus();
+  } else {
+    $('code').focus();
+  }
+
+  function say(text, kind) {
+    var el = $('msg');
+    el.textContent = text;
+    el.className = 'msg' + (kind ? ' ' + kind : '');
+  }
+
+  $('form').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var code = $('code').value.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+    if (!code) return;
+    $('go').disabled = true;
+    say(t[5]);
+
+    fetch('/api/remote-access/redeem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code, name: $('name').value }),
+    }).then(function (res) {
+      return res.json().catch(function () { return { ok: false, error: 'http_' + res.status }; });
+    }).then(function (out) {
+      if (out && out.ok) {
+        say(t[6], 'good');
+        // Full navigation, not a router push: the dashboard is a different
+        // document and the cookie has to be presented on its request.
+        location.replace('/');
+        return;
+      }
+      $('go').disabled = false;
+      say(out && out.error === 'rate_limited' ? t[8] : t[7], 'bad');
+    }).catch(function () {
+      $('go').disabled = false;
+      say(t[9], 'bad');
+    });
+  });
+})();
+</script>
+</body>
+</html>

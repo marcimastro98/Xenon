@@ -66,6 +66,7 @@ function createYouTubeProvider(deps) {
       const data = await res.json().catch(() => null);
       if (res.ok && data && data.access_token) {
         await persistToken(data);
+        plCache = { at: 0, data: null };   // a different account may have signed in
         const ch = await fetchChannel(data.access_token);
         if (ch) await patchCreds({ channel: ch.title, channelId: ch.id });
         return { ok: true, connected: true, login: ch ? ch.title : '' };
@@ -130,6 +131,7 @@ function createYouTubeProvider(deps) {
       catch { /* best-effort */ }
     }
     await clearCreds();
+    plCache = { at: 0, data: null };
     return { ok: true };
   }
 
@@ -179,6 +181,57 @@ function createYouTubeProvider(deps) {
     return out;
   }
 
+  // ── Viewer mode: the user's own playlists ─────────────────────────────────
+  // YouTube playlist ids are URL-safe base64 tokens; validated before any
+  // interpolation so a wire-supplied id can never reshape the API path.
+  const PLAYLIST_ID_RE = /^[A-Za-z0-9_-]{2,64}$/;
+  const PLAYLIST_TTL_MS = 5 * 60 * 1000;
+  let plCache = { at: 0, data: null };   // quota-kind: every surface shares one read
+
+  async function listPlaylists() {
+    if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
+    if (plCache.data && Date.now() - plCache.at < PLAYLIST_TTL_MS) return plCache.data;
+    const r = await apiRequest('GET', '/playlists?part=snippet,contentDetails&mine=true&maxResults=50');
+    if (!r.ok || !r.data) return { ok: false, error: apiReason(r) };
+    const items = Array.isArray(r.data.items) ? r.data.items : [];
+    const out = {
+      ok: true,
+      playlists: items.filter(Boolean).map(p => {
+        const th = p.snippet && p.snippet.thumbnails;
+        const raw = (th && ((th.medium && th.medium.url) || (th.default && th.default.url))) || '';
+        // The client paints this as a CSS background-image — https only, like
+        // every URL the dashboard renders (scheme allowlist at the boundary).
+        const img = /^https:\/\//.test(raw) ? raw : '';
+        return {
+          id: p.id || '',
+          title: (p.snippet && p.snippet.title) || '',
+          count: (p.contentDetails && p.contentDetails.itemCount != null) ? p.contentDetails.itemCount : null,
+          image: img,
+        };
+      }).filter(p => p.id),
+    };
+    plCache = { at: Date.now(), data: out };
+    return out;
+  }
+
+  // Playlist id → the URL the client should open. A watch URL on the first video
+  // autoplays the whole playlist; when the first video can't be read (private
+  // video, or the special LL liked-videos id some accounts refuse via the API)
+  // fall back to the playlist page rather than failing — opening a page the
+  // user's browser can render is never worse than an error.
+  async function resolvePlaylistUrl(id) {
+    if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
+    const pid = String(id == null ? '' : id).trim();
+    if (!PLAYLIST_ID_RE.test(pid)) return { ok: false, error: 'bad_id' };
+    const r = await apiRequest('GET', '/playlistItems?part=contentDetails&playlistId=' + encodeURIComponent(pid) + '&maxResults=1');
+    const first = r.ok && r.data && Array.isArray(r.data.items) && r.data.items[0];
+    const vid = first && first.contentDetails && first.contentDetails.videoId;
+    const url = vid
+      ? 'https://www.youtube.com/watch?v=' + encodeURIComponent(vid) + '&list=' + encodeURIComponent(pid)
+      : 'https://www.youtube.com/playlist?list=' + encodeURIComponent(pid);
+    return { ok: true, url };
+  }
+
   // Rename the current/upcoming broadcast (liveBroadcasts.update needs title +
   // scheduledStartTime in the snippet, so we preserve the existing start time).
   async function updateBroadcastTitle(title) {
@@ -208,7 +261,7 @@ function createYouTubeProvider(deps) {
     return r.ok ? { ok: true } : { ok: false, error: apiReason(r) };
   }
 
-  return { startDeviceLogin, pollDeviceToken, getAccessToken, status, logout, apiRequest, configured, broadcastStatus, transitionBroadcast, updateBroadcastTitle };
+  return { startDeviceLogin, pollDeviceToken, getAccessToken, status, logout, apiRequest, configured, broadcastStatus, transitionBroadcast, updateBroadcastTitle, listPlaylists, resolvePlaylistUrl };
 }
 
 module.exports = { createYouTubeProvider, normalizeStreamYouTube };

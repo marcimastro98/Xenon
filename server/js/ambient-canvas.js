@@ -346,7 +346,7 @@
         frame.setAttribute('sandbox', 'allow-scripts');
         frame.setAttribute('referrerpolicy', 'no-referrer');
         frame.title = pkg.name || comp.props.pkgId;
-        frame.src = '/sdk/widget/' + encodeURIComponent(pkg.id) + '/' + (pkg.entry || 'index.html');
+        frame.src = (window.CustomWidget && window.CustomWidget.assetBase ? window.CustomWidget.assetBase(pkg.id) : '/sdk/widget/' + encodeURIComponent(pkg.id) + '/') + (pkg.entry || 'index.html');
         CustomWidget.registerCanvasFrame(comp.id, pkg.id, frame);
         body.appendChild(frame);
       },

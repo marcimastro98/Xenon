@@ -8,9 +8,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Xenon Edge Control</title>
+<title>Xenon</title>
 <link rel="icon" type="image/png" href="assets/favicon.png">
-<link rel="apple-touch-icon" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="public/images/logo/logo-mark.png">
+
+<!-- Installable app (T2). `crossorigin="use-credentials"` is REQUIRED, not
+     decoration: a same-origin manifest is fetched with credentials omitted by
+     default, so on a paired device the request would arrive without the pairing
+     cookie, come back 401, and the browser would silently never offer "install"
+     — no error anywhere, exactly like the widget-asset refusal. The manifest and
+     the service worker only do anything in a secure context, which on the LAN
+     door there is not; both are simply inert there. -->
+<link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
+<meta name="theme-color" content="#070808">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Xenon">
 
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -57,6 +71,7 @@
 <link rel="stylesheet" href="components/TimerPanel/TimerPanel.css">
 <link rel="stylesheet" href="components/DashboardPager/DashboardPager.css">
 <link rel="stylesheet" href="components/LightingPage/LightingPage.css">
+<link rel="stylesheet" href="components/RemoteAccessSettings/RemoteAccessSettings.css">
 <link rel="stylesheet" href="components/RemoteControlSettings/RemoteControlSettings.css">
 <link rel="stylesheet" href="components/UpdateModal/UpdateModal.css">
 <link rel="stylesheet" href="components/Onboarding/Onboarding.css">
@@ -109,6 +124,10 @@
 <link rel="stylesheet" href="styles/breakpoints.css">
 <!-- Xeneon Edge hairline hardening — device-only, gated to the fractional-DPR bar -->
 <link rel="stylesheet" href="styles/edge-density.css">
+<!-- Phone view: the stacked, thumb-reachable chrome below 620px (js/phone-view.js).
+     Loads AFTER breakpoints.css because it is an override layer — several of
+     its rules answer the same properties that file sets at <=720px. -->
+<link rel="stylesheet" href="components/PhoneView/PhoneView.css">
 <!-- Browser-only "preview at Xeneon Edge size" stage (js/edge-preview.js) -->
 <link rel="stylesheet" href="styles/edge-preview.css">
 </head>
@@ -2449,6 +2468,12 @@
       </div>
 
       <div class="settings-group" data-settings-cat="remote" hidden>
+        <!-- Paired-device access renders here (settings.js → RemoteAccessPage.init()).
+             The phone-as-a-second-screen door: opt-in, QR pairing, device list.
+             Sits above the Sunshine wizard because it is the lighter of the two
+             and the one most people want; they are unrelated features that share
+             only this category. -->
+        <div id="settings-remote-access" data-remoteaccessf="mount"></div>
         <!-- Remote Control wizard renders here (settings.js → RemoteControl.init()).
              Guides the user through installing Sunshine + Tailscale and pairing Moonlight. -->
         <div id="settings-remote-hub" data-remotef="mount"></div>
@@ -2982,9 +3007,15 @@
             </details>
           </div>
 
+          <!-- Gemini: the key is server-only like the two below (v4.11.0), so the
+               field shows a "saved" placeholder instead of the value. NO
+               data-i18n-placeholder here on purpose — applyTranslations() would
+               overwrite the "saved" text on every language change and the key
+               would look lost. syncAiSettingsControls() owns both wordings. -->
           <label class="settings-row full" id="settings-gemini-key-row">
             <span class="settings-label-line"><span data-i18n="settings_ai_key">Gemini API Key</span><span class="settings-hint" data-i18n="settings_ai_key_hint">da Google AI Studio</span></span>
-            <input class="settings-text-input" id="settings-gemini-key" type="password" maxlength="200" spellcheck="false" autocomplete="off" data-i18n-placeholder="settings_ai_key_placeholder" placeholder="AIza…" oninput="updateAiKey(this.value)" onchange="updateAiKey(this.value)">
+            <input class="settings-text-input" id="settings-gemini-key" type="password" maxlength="200" spellcheck="false" autocomplete="off" placeholder="AIza…" oninput="updateAiKey(this.value)" onchange="updateAiKey(this.value)">
+            <button type="button" class="settings-btn" id="settings-gemini-reset" onclick="resetAiKey()" data-i18n="settings_key_reset" hidden>Rimuovi chiave</button>
           </label>
 
           <!-- ChatGPT (OpenAI): key + model. The key is server-only (never shown
@@ -3531,6 +3562,7 @@
 <!-- Shared @xenon/core modules (served from the server/shared junction → packages/core).
      Load first so js/state.js and js/utils.js can consume them; each has an inline
      fallback so the dashboard still works if /shared is briefly unavailable. -->
+<script src="js/remote-surface.js"></script>
 <script src="shared/src/constants.js"></script>
 <script src="shared/src/format.js"></script>
 <!-- The storefront layout contract, shared with the website catalog and the hub
@@ -3607,6 +3639,8 @@
 <script src="js/deck.js"></script>
 <script src="js/deck-editor.js"></script>
 <script src="js/lighting-page.js"></script>
+<script src="js/phone-view.js"></script>
+<script src="js/remote-access-page.js"></script>
 <script src="js/remote-control.js"></script>
 <script src="js/streaming-page.js"></script>
 <script src="js/spotify-settings.js"></script>
@@ -3657,6 +3691,10 @@
 <script src="js/hub-messages.js"></script>
 <script src="js/update.js"></script>
 <script src="js/main.js"></script>
+<!-- Installable app: registers the service worker, and only where that means
+     something (secure context, not the native shell, not inside an iframe).
+     Last, and on `load` + a delay, because nothing on screen waits for it. -->
+<script src="js/pwa.js"></script>
 
 <!-- EXPERIMENTAL — Xeneon Edge fractional-DPR zoom compensation.
      The iCUE built-in browser renders at a FRACTIONAL devicePixelRatio (~1.8), which

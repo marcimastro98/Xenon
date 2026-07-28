@@ -37,7 +37,7 @@ function _aiProviderReady() {
   if (p === 'ollama') return true;
   if (p === 'openai') return !!s.openaiApiKeySet;
   if (p === 'anthropic') return !!s.anthropicApiKeySet;
-  return !!s.geminiApiKey;
+  return geminiKeyReady(s);
 }
 
 // Advanced AI feature flags the user explicitly enabled (Settings → Funzioni
@@ -306,8 +306,13 @@ async function aiSendMessage(userText, fromVoice, audioParts) {
   const hasAudio = Array.isArray(audioParts) && audioParts.length > 0;
   if (!text && _aiPendingImages.length === 0 && !hasAudio) return;
 
+  // Blank on every loaded page: the key is server-only and the server swaps the
+  // stored one in. It is still SENT, so a key typed a second ago works before
+  // the save has round-tripped. The gate is `geminiKeyReady`, never the value —
+  // testing the value here is what would turn a perfectly configured tablet into
+  // "invalid key" on every turn.
   const apiKey = (hubSettings && hubSettings.geminiApiKey) || '';
-  if (!apiKey && _aiProviderCfg().provider === 'gemini') {
+  if (!_aiProviderReady() && _aiProviderCfg().provider === 'gemini') {
     _aiAppendBubble('assistant', t('ai_key_invalid'));
     return;
   }
@@ -899,7 +904,7 @@ async function _aiStartMediaRecorder() {
       const blob = new Blob(_aiAudioChunks, { type: recordedMime });
       _aiAudioChunks = [];
       const apiKey = (hubSettings && hubSettings.geminiApiKey) || '';
-      if (!apiKey && _aiProviderCfg().provider === 'gemini') { setAiStatus(''); return; }
+      if (!_aiProviderReady() && _aiProviderCfg().provider === 'gemini') { setAiStatus(''); return; }
 
       setAiStatus('thinking');
       try {
@@ -1008,7 +1013,7 @@ async function _aiStopServerRecorder() {
   const wasVoice = _aiVoiceSessionActive;
   const myGen = _aiVoiceGen;
   const apiKey = (hubSettings && hubSettings.geminiApiKey) || '';
-  if (!apiKey && _aiProviderCfg().provider === 'gemini') { setAiStatus(''); return; }
+  if (!_aiProviderReady() && _aiProviderCfg().provider === 'gemini') { setAiStatus(''); return; }
   setAiStatus('thinking');
   try {
     const uiLangForStt = (typeof lang !== 'undefined' && lang) || 'en';

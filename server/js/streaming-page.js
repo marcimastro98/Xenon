@@ -188,7 +188,16 @@
   // the card immediately re-renders into the Connect state.
   function buildSetupForm(cfg) {
     const box = el('div', 'streaming-setup');
-    box.appendChild(el('p', 'settings-note', t(cfg.setupKey, 'Register an app and paste its credentials below.')));
+    // A setup hint containing newlines is a step list: one <li> per line reads
+    // far better than the same steps squeezed into a paragraph (YouTube).
+    const hint = t(cfg.setupKey, 'Register an app and paste its credentials below.');
+    if (hint.includes('\n')) {
+      const ol = el('ol', 'settings-note streaming-setup-steps');
+      hint.split('\n').forEach(line => { if (line.trim()) ol.appendChild(el('li', null, line.trim())); });
+      box.appendChild(ol);
+    } else {
+      box.appendChild(el('p', 'settings-note', hint));
+    }
     const link = el('a', 'streaming-setup-link', t('streaming_open_console', 'Open developer console'));
     link.href = cfg.consoleUrl; link.target = '_blank'; link.rel = 'noopener';
     box.appendChild(link);

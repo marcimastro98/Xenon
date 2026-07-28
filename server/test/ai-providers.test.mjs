@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const creds = require('../ai-provider-creds.js');
@@ -93,4 +94,83 @@ test('provider model sanitizers accept valid tags and fall back to a default', (
   assert.equal(openai.sanitizeModel('bad tag!'), openai.DEFAULT_CHAT_MODEL);
   assert.equal(anthropic.sanitizeModel('claude-opus-4-8'), 'claude-opus-4-8');
   assert.equal(anthropic.sanitizeModel(''), anthropic.DEFAULT_CHAT_MODEL);
+});
+
+// ── geminiApiKey became server-only in v4.11.0 ───────────────────────────────
+// It was the ONE provider key that travelled to the browser, on a rationale that
+// did not survive being checked: "the client needs it" meant the client put it in
+// the body of a request to our own server. Nothing in server/js/ has ever called
+// Google directly. On the paired-device door that round trip crossed the LAN in
+// cleartext, so the key now stays on the machine and the server swaps it in.
+
+test('the Gemini key is redacted on the wire like every other provider key', () => {
+  const out = creds.redactAiProviderCreds({ geminiApiKey: 'AIza-secret', foo: 1 });
+  assert.equal(out.geminiApiKey, '', 'the key must never reach the browser');
+  assert.equal(out.geminiApiKeySet, true, 'the UI still has to know one is saved');
+  assert.equal(out.foo, 1);
+  const none = creds.redactAiProviderCreds({ geminiApiKey: '' });
+  assert.equal(none.geminiApiKeySet, false, 'no key → the gates must stay closed');
+});
+
+test('the Gemini key survives the redacted round-trip and clears on an explicit reset', () => {
+  const prev = { geminiApiKey: 'AIza-old' };
+  // What EVERY normal save now looks like: key blank, flag still true. Preserving
+  // here is the whole reason redaction is safe — without it the first settings
+  // change from any surface would wipe the key.
+  assert.equal(creds.preserveAiProviderCreds({ geminiApiKey: '', geminiApiKeySet: true }, prev).geminiApiKey, 'AIza-old');
+  // "Rimuovi chiave" in the settings panel.
+  assert.equal(creds.preserveAiProviderCreds({ geminiApiKey: '', geminiApiKeySet: false }, prev).geminiApiKey, '');
+  // A pre-v4.11.0 client sends neither field; that is not a request to clear it.
+  assert.equal(creds.preserveAiProviderCreds({}, prev).geminiApiKey, 'AIza-old');
+  // And a key the user is actually typing wins over the stored one.
+  assert.equal(creds.preserveAiProviderCreds({ geminiApiKey: 'AIza-new' }, prev).geminiApiKey, 'AIza-new');
+});
+
+// The module's own header says both halves are required together. Derive the
+// membership from the redactor instead of restating a list, so a FOURTH provider
+// key added to one half and not the other fails here rather than in production —
+// as either a leak (redact missing) or a wipe (preserve missing).
+test('every key the redactor blanks is also preserved on save', () => {
+  const all = { openaiApiKey: 'a', anthropicApiKey: 'b', geminiApiKey: 'c', ollamaUrl: 'http://x' };
+  const red = creds.redactAiProviderCreds(all);
+  const secretKeys = Object.keys(all).filter((k) => all[k] && red[k] === '');
+  assert.ok(secretKeys.length >= 3, 'expected at least the three provider keys');
+  for (const k of secretKeys) {
+    assert.equal(red[k + 'Set'], true, k + ': a blanked key must expose its *Set flag');
+    const kept = creds.preserveAiProviderCreds({ [k]: '', [k + 'Set']: true }, all);
+    assert.equal(kept[k], all[k], k + ': redacted round-trip must not wipe the stored key');
+  }
+  assert.equal(red.ollamaUrl, 'http://x', 'non-secret settings pass through untouched');
+});
+
+// A refusal here is INVISIBLE: a client that gates on the raw value simply shows
+// "invalid key" forever on a machine that has one. That is the exact failure the
+// old comment in server.js predicted and used as its reason not to redact, so the
+// shape is pinned rather than trusted to review.
+//
+// Scope, stated honestly: this catches the DIRECT form (`!!s.geminiApiKey`,
+// `if (!hubSettings.geminiApiKey)`), which is what all four call sites looked
+// like. It does NOT catch the indirect form — assign to a local, then test the
+// local — which is what the three in-flight guards inside ai.js were. Those read
+// `_aiProviderReady()` now, and there is no textual rule that separates "this
+// local holds the key for the request body" (correct, and still everywhere) from
+// "this local is about to be used as a gate". A grep is the wrong tool for that
+// half; the invariant in AGENTS.md is the one that has to carry it.
+test('no client module decides "is a key configured" from the raw geminiApiKey', () => {
+  const dir = new URL('../js/', import.meta.url);
+  const files = readdirSync(dir).filter((f) => f.endsWith('.js') && f !== 'i18n.js');
+  const offenders = [];
+  for (const f of files) {
+    const src = readFileSync(new URL(f, dir), 'utf8');
+    src.split(/\r?\n/).forEach((line, i) => {
+      if (!line.includes('geminiApiKey')) return;
+      // Boolean coercion or a bare negation of the key VALUE. `geminiKeyReady`
+      // itself is not matched: it tests the trimmed string, then the *Set flag.
+      const boolish = /!!\s*[A-Za-z_$][\w$.]*\.geminiApiKey/.test(line)
+        || /(?:if|return|&&|\|\|)\s*\(?\s*!\s*[A-Za-z_$][\w$.]*\.geminiApiKey/.test(line);
+      if (!boolish) return;
+      offenders.push(f + ':' + (i + 1) + ' → ' + line.trim());
+    });
+  }
+  assert.deepEqual(offenders, [], 'these read the redacted value as a readiness gate:\n' + offenders.join('\n'));
 });

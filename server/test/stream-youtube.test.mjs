@@ -140,6 +140,44 @@ test('registry: ytBroadcast unavailable without dep, forwards mode + surfaces fa
   assert.deepEqual(await okReg.run({ type: 'ytBroadcast', mode: 'toggle' }), { ok: true });
 });
 
+// ---------------------------------------------------------------------------
+// Viewer mode: playlists
+// ---------------------------------------------------------------------------
+
+test('listPlaylists maps id/title/count/thumbnail and serves the second read from cache', async () => {
+  const calls = [];
+  const p = connectedYt([{
+    match: '/playlists?', calls,
+    json: { items: [{ id: 'PL1', snippet: { title: 'Mix', thumbnails: { medium: { url: 'https://i.ytimg.com/x.jpg' } } }, contentDetails: { itemCount: 12 } }, { snippet: { title: 'no id — dropped' } }] },
+  }]);
+  const r = await p.listPlaylists();
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.playlists, [{ id: 'PL1', title: 'Mix', count: 12, image: 'https://i.ytimg.com/x.jpg' }]);
+  await p.listPlaylists();
+  assert.equal(calls.length, 1);   // 5-min cache: one Data API call, not two
+});
+
+test('listPlaylists reports not_connected when logged out', async () => {
+  const p = createYouTubeProvider({ clientId: 'cid', clientSecret: 'sec', tokensFile: tmpTokens(), fetch: async () => { throw new Error('no'); } });
+  assert.deepEqual(await p.listPlaylists(), { ok: false, error: 'not_connected' });
+});
+
+test('resolvePlaylistUrl refuses ids that are not playlist tokens', async () => {
+  const p = connectedYt([]);
+  assert.deepEqual(await p.resolvePlaylistUrl('PL1/../etc'), { ok: false, error: 'bad_id' });
+  assert.deepEqual(await p.resolvePlaylistUrl(''), { ok: false, error: 'bad_id' });
+  assert.deepEqual(await p.resolvePlaylistUrl('a b'), { ok: false, error: 'bad_id' });
+});
+
+test('resolvePlaylistUrl returns the first-video watch URL, playlist page as fallback', async () => {
+  const p = connectedYt([{ match: '/playlistItems', json: { items: [{ contentDetails: { videoId: 'v123' } }] } }]);
+  assert.deepEqual(await p.resolvePlaylistUrl('PL1'), { ok: true, url: 'https://www.youtube.com/watch?v=v123&list=PL1' });
+  // The LL liked-videos id (or a private first video) can refuse via the API —
+  // the playlist page still opens fine in the user's signed-in browser.
+  const empty = connectedYt([{ match: '/playlistItems', status: 404, json: { error: { errors: [{ reason: 'playlistNotFound' }] } } }]);
+  assert.deepEqual(await empty.resolvePlaylistUrl('LL'), { ok: true, url: 'https://www.youtube.com/playlist?list=LL' });
+});
+
 test('logout revokes and clears persisted creds', async () => {
   const file = tmpTokens();
   fs.writeFileSync(file, JSON.stringify({ youtube: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6, channel: 'C', channelId: 'UC' } }));

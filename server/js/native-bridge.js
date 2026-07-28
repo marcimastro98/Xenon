@@ -147,6 +147,12 @@
 
   async function initNativePromo() {
     if (isNative) return; // already running the native app
+    // A paired phone or tablet is not a machine the native Windows app installs
+    // on, and this file's SERVER is deliberately the LOOPBACK origin (everything
+    // else here only runs inside the native shell, where they are the same). So
+    // without this the probe below dials the PHONE's own loopback, fails, and
+    // the promo stays hidden for the right reason by accident. Say it instead.
+    if (window.__xenonRemote) return;
     const chip = document.getElementById('native-promo-chip');
     const card = document.getElementById('native-promo');
     if (!chip || !card) return;

@@ -90,6 +90,15 @@ const soundPacks = require('./sound-packs');
 const communityRatings = require('./community-ratings');
 const communityLimited = require('./community-limited');
 const { createRemoteControl } = require('./remote-control');
+// Paired-device access (R1.1). Named `remoteAccess` throughout to keep it apart
+// from `remoteControl` above, which is the Sunshine/Moonlight streaming feature
+// and shares nothing with it but a word.
+const remoteAccessLib = require('./remote-access');
+const webPushLib = require('./web-push');
+const remoteHttpsLib = require('./remote-https');
+const remoteHttpsSetupLib = require('./remote-https-setup');
+const remoteControlTailscale = require('./remote-control/tailscale');
+const remoteControlInstaller = require('./remote-control/installer');
 const { createSelfUpdate } = require('./self-update');
 const { createHelperUpdate } = require('./helper-update');
 const { createTwitchProvider } = require('./stream-twitch');
@@ -6349,7 +6358,7 @@ const DASHBOARD_CARD_IDS = Object.freeze({
   audio: ['volume', 'speaker', 'microphone'],
   twitch: ['info', 'actions', 'chat'],
   obs: ['preview', 'controls', 'scenes', 'audio'],
-  youtube: ['info', 'actions'],
+  youtube: ['info', 'actions', 'playlists'],
 });
 const DASHBOARD_WIDGET_SIZES = Object.freeze(['compact', 'normal', 'wide', 'tall', 'large', 'full']);
 const DASHBOARD_CARD_SIZES = Object.freeze(['compact', 'normal', 'wide']);
@@ -6445,6 +6454,11 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     youtube: Object.freeze({
       info: Object.freeze({ order: 0, size: 'normal', visible: true }),
       actions: Object.freeze({ order: 1, size: 'normal', visible: true }),
+      // `playlists` is listed in DASHBOARD_CARD_IDS and was missing here, which
+      // is not a cosmetic gap: normalizeDashboardLayout iterates the ID list and
+      // reads the default for each one, so the missing entry threw on EVERY
+      // settings normalization. See the test that now pins the two together.
+      playlists: Object.freeze({ order: 2, size: 'normal', visible: true }),
     }),
   }),
   tabs: Object.freeze({ order: ['main', 'net'], active: 'main' }),
@@ -6714,6 +6728,15 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // the wire, restored on save). Mirror of settings.js.
   unifi: Object.freeze({ host: '', username: '', password: '', cameras: [], columns: 0, fit: 'cover', aspect: '16:9', order: [], refreshMs: 1500, angles: {}, notify: Object.freeze({ enabled: false, types: Object.freeze({ person: true, vehicle: true, package: false, animal: false, motion: false, ring: true }), cooldownSec: 45 }) }),
   remoteControl: Object.freeze({ enabled: false, sunshineInstalled: false, tailscaleInstalled: false, sunshineUser: '', sunshinePass: '', selectedMonitors: [], selectedScreen: '' }),
+  // Paired-device access (the phone as a second screen). OFF by default: while
+  // false, remote-access.js is never consulted and a non-loopback request is
+  // refused by isAllowedRequest() exactly as it always has been.
+  // `https` is the T2 door on top of it: same pairing, same gate, TLS on the
+  // Tailscale address. Separate flag because it can fail for reasons that have
+  // nothing to do with pairing (no Tailscale, not logged in, certificates not
+  // enabled for the tailnet) and because turning it off must not turn off the
+  // LAN door people already rely on.
+  remoteAccess: Object.freeze({ enabled: false, https: false }),
   language: '', // '' = follow the browser; a WEATHER_LANGS code persists the user's chosen UI language across browser-storage resets
 });
 
@@ -6962,9 +6985,20 @@ function normalizeDashboardGeom(sourceItem, fallbackItem) {
 
 function normalizeDashboardItem(sourceItem, fallbackItem, maxOrder, allowedSizes) {
   const source = sourceItem && typeof sourceItem === 'object' ? sourceItem : {};
+  // A card id with no default entry used to throw here, and the blast radius was
+  // far larger than a misplaced card: normalizeHubSettings is how the WHOLE
+  // settings blob is rebuilt, so one missing default made `GET /settings` answer
+  // 500 and left the server's in-memory copy at factory defaults — which
+  // silently switched OFF every server-owned flag, paired-device access
+  // included, while the file on disk still said it was on. A phone that had been
+  // working for hours started getting the plain 403 of a build without the
+  // feature. The data gap is fixed above and pinned by a test; this is the
+  // second fence, because a normalizer for persisted data must degrade, never
+  // take the store down with it.
+  const fb = fallbackItem && typeof fallbackItem === 'object' ? fallbackItem : { order: maxOrder, size: null };
   return {
-    order: normalizeDashboardOrder(source.order, fallbackItem.order, maxOrder),
-    size: normalizeDashboardSize(source.size, allowedSizes, fallbackItem.size),
+    order: normalizeDashboardOrder(source.order, fb.order, maxOrder),
+    size: normalizeDashboardSize(source.size, allowedSizes, fb.size),
     visible: source.visible === undefined ? true : source.visible !== false,
   };
 }
@@ -7646,6 +7680,14 @@ function normalizeHubSettings(value) {
     signalrgb: { enabled: !!(source.signalrgb && source.signalrgb.enabled === true) },
     wavelink: normalizeWaveLinkSettings(source.wavelink),
     remoteControl: normalizeRemoteControl(source.remoteControl),
+    // Paired-device access: one boolean, and nothing else lives here. The
+    // devices and their tokens are in DATA_DIR/remote-devices.json, NOT in
+    // settings — settings.json is mirrored to the browser and to localStorage
+    // on every surface, which is the last place a credential should sit.
+    remoteAccess: {
+      enabled: source.remoteAccess && source.remoteAccess.enabled === true,
+      https: source.remoteAccess && source.remoteAccess.https === true,
+    },
     // Client-managed settings (the client owns their full schema and re-validates
     // on load): round-trip them so they survive a server restart instead of being
     // stripped. A bounded passthrough keeps settings.json safe.
@@ -7961,6 +8003,22 @@ async function readHubSettings() {
   }
 }
 
+// The server-side half of "the Gemini key never leaves this machine" (see
+// ai-provider-creds.js). The client still sends a `key` field — every AI request
+// body has carried one since v2 and other callers (the iCUE widget, a widget's
+// own key one day) may legitimately supply their own — but the dashboard's copy
+// is now always empty, so an empty one means "use the key on disk" rather than
+// "no key". Endpoints that already read settings for other reasons keep their
+// inline `body.key || settings.geminiApiKey`; this exists for the ones that do
+// not, so a settings read is paid only when the fallback is actually needed.
+// Never turn this into a way to READ the key back out over HTTP.
+async function geminiKeyFor(bodyKey) {
+  const given = String(bodyKey || '').trim().slice(0, 200);
+  if (given) return given;
+  const s = await readHubSettings().catch(() => null);
+  return String((s && s.geminiApiKey) || '').trim().slice(0, 200);
+}
+
 async function writeHubSettings(settings) {
   const safe = normalizeHubSettings(settings);
   await writeFileAtomic(SETTINGS_FILE, JSON.stringify(safe, null, 2));
@@ -8199,6 +8257,11 @@ async function _buildBackupWidgetList() {
 
 async function buildBackup() {
   const settings = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+  // The explicit blank is redundant now that redactSettingsSecrets covers the
+  // Gemini key too, and it is kept on purpose: it runs BEFORE the redactor, so
+  // the exported blob carries `geminiApiKeySet: false`. A backup restored on
+  // another machine must not show a "saved" placeholder for a key it does not
+  // contain.
   const safeSettings = redactSettingsSecrets({ ...settings, geminiApiKey: '' });
   const notesState = await readNotes().catch(() => ({ v: 1, activeId: '', notes: [] }));
   return {
@@ -9068,6 +9131,20 @@ function _checkTimers() {
       changed = true;
       broadcastSSE('timer_done', { id: t.id, label: t.label });
       try { lighting.onEvent('timer'); } catch {}
+      // The first push call site, and the one that justifies the feature: a
+      // countdown is the one thing on this dashboard whose whole purpose is to
+      // reach you when you have walked away from the screen. The SSE event
+      // above only reaches a page that is open.
+      //
+      // The label is the user's own text, and it is the only user content this
+      // server ever puts on a lock screen — it is there because "timer
+      // finished" without saying which one is useless when two are running.
+      webPushNotify({
+        title: 'Xenon',
+        body: t.label ? t.label : 'Timer',
+        tag: 'timer-' + t.id,
+        url: '/',
+      }, { urgency: 'high', ttl: 300 });
     }
   }
   if (changed) {
@@ -9658,6 +9735,31 @@ const CSRF_MUTATION_PATHS = new Set([
   // Sec-Fetch-Site reject is the only guard that catches either.
   '/api/screenshot',
   '/api/screenshot/monitor',
+  // Paired-device access. /enable opens a door onto the LAN, /pair mints an
+  // invitation, and the revokes close doors — a cross-site drive-by (or an
+  // Origin:null sandboxed iframe) must be able to do none of them. /redeem is
+  // listed for the same reason as /api/community/redeem: it is the one
+  // pre-auth write on the remote door, and the Sec-Fetch-Site reject is the
+  // layer that catches a shape the Origin check cannot see.
+  '/api/remote-access/enable',
+  '/api/remote-access/https',
+  '/api/remote-access/https/setup',
+  '/api/remote-access/pair',
+  '/api/remote-access/pair/cancel',
+  '/api/remote-access/redeem',
+  '/api/remote-access/rename',
+  '/api/remote-access/revoke',
+  '/api/remote-access/revoke-all',
+  // Web Push. /key mints the VAPID key pair on first call (a write), /subscribe
+  // stores an address the PC will later send encrypted messages to, and /test
+  // makes it send one — so all three are writes, and the last two are outbound.
+  // A drive-by that could reach /subscribe would be registering ITS push
+  // endpoint against the user's dashboard, which is the one shape that turns a
+  // notification feature into a channel out of the machine.
+  '/api/push/key',
+  '/api/push/subscribe',
+  '/api/push/unsubscribe',
+  '/api/push/test',
 ]);
 
 function isAllowedRequest(req) {
@@ -9683,6 +9785,316 @@ function isAllowedRequest(req) {
     } catch { return false; }
   }
   return true;
+}
+
+// ── The second door: paired devices (R1.1) ───────────────────────────────────
+// isAllowedRequest() above is untouched and remains the only judge of LOCAL
+// trust. What follows is a separate, narrower entrance for a phone or tablet the
+// user has explicitly paired, and it is consulted ONLY after the loopback check
+// has already failed. The two never mix: a request that fails one is never
+// retried against the other, and a paired device gains nothing on the loopback
+// path (it cannot produce a loopback source IP).
+//
+// See server/remote-access.js for the model. The short version: off by default,
+// Host must be an IP literal this machine owns (a NAME is always refused, which
+// is the whole anti-rebinding defence), Origin must be exactly ours (`null` is
+// refused here even though loopback accepts it for the iCUE WebView),
+// Sec-Fetch-Site must be same-origin on anything that is not a navigation, the
+// path must be on an allowlist that denies by default, and the token is a
+// per-device secret stored only as a hash.
+// The one list that says which GETs mutate is CSRF_MUTATION_PATHS above; hand
+// it to the paired-device gate rather than let it keep a second copy that can
+// fall behind. (It ships a fallback copy for the unit tests, and a test reads
+// this set out of the source and fails if the two have drifted.)
+remoteAccessLib.useGetMutators(CSRF_MUTATION_PATHS);
+const remoteAccess = remoteAccessLib.createRemoteAccess({ dir: DATA_DIR });
+remoteAccess.load().catch((e) => console.error('[remote-access] load failed:', e.message));
+
+// Web Push (T2c). Loaded eagerly because it is cheap (a JSON file that is
+// usually absent) and because `webPushNotify` below is called from timers that
+// must not await a first-use disk read. It mints NOTHING until the user asks:
+// the key pair appears on disk the first time a device subscribes.
+const webPush = webPushLib.createWebPush({ dir: DATA_DIR, log: (m) => console.log(m) });
+webPush.load().catch((e) => console.error('[web-push] load failed:', e.message));
+
+/**
+ * The one place anything in this server sends a notification to a phone.
+ *
+ * A single funnel on purpose: push is the only thing Xenon does that reaches a
+ * user who is not looking at a screen, so what may do it has to be countable.
+ * Every call site is something the user set up themselves and is waiting for —
+ * never a digest, never a nudge, and never mirrored content (a lock screen is a
+ * public surface, and a notification body is not a place to put someone's
+ * calendar). Failures are logged and swallowed: no feature may break because a
+ * push service is down.
+ */
+function webPushNotify(message, opts) {
+  if (!webPush.hasKeys() || !webPush.count()) return Promise.resolve({ ok: true, sent: 0 });
+  return webPush.send(message, opts).catch((e) => {
+    console.warn('[web-push] notify failed:', e && e.message);
+    return { ok: false, sent: 0 };
+  });
+}
+
+// The T2 door. Built here, started only when the user opts in (see
+// _syncRemoteHttps) — a Tailscale-shaped feature must cost nothing on the very
+// many machines that do not have Tailscale.
+const remoteHttps = remoteHttpsLib.createRemoteHttps({
+  tailscale: remoteControlTailscale.createTailscale({}),
+  dataDir: DATA_DIR,
+  // Deliberately not `server`'s inline handler: the function, so both listeners
+  // run the identical application.
+  handler: (req, res) => handleRequest(req, res),
+  log: (m) => console.log(m),
+});
+
+// The guided setup behind the panel's single button. It owns no state on disk —
+// `onSettings` is the one write, and it goes through the same locked writer
+// everything else uses.
+const remoteHttpsSetup = remoteHttpsSetupLib.createHttpsSetup({
+  tailscale: remoteControlTailscale.createTailscale({}),
+  installer: remoteControlInstaller.createInstaller({}),
+  https: remoteHttps,
+  log: (m) => console.log(m),
+  onSettings: async (value) => {
+    await withHubSettingsLock(async () => {
+      const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+      const saved = await writeHubSettings({
+        ...cur,
+        remoteAccess: { ...(cur.remoteAccess || {}), https: value === true },
+        rev: nextSettingsRev(cur.rev),
+      });
+      _serverHubSettings = saved;
+      broadcastSSE('settings', { rev: saved.rev });
+    });
+  },
+});
+
+/**
+ * Bring the HTTPS door up or down to match the settings. Idempotent, never
+ * throws, and safe to call from a settings save or at boot.
+ *
+ * It is gated on `remoteAccess.enabled` as well as its own flag on purpose: the
+ * HTTPS listener serves the paired-device door and nothing else, so with pairing
+ * switched off it would be a port answering to nobody.
+ */
+async function _syncRemoteHttps() {
+  const ra = (_serverHubSettings && _serverHubSettings.remoteAccess) || {};
+  const want = ra.enabled === true && ra.https === true;
+  try {
+    if (want) {
+      const r = await remoteHttps.start();
+      if (!r.ok) console.log('[https] not started: ' + r.reason);
+    } else {
+      await remoteHttps.stop();
+    }
+  } catch (e) { console.error('[https] sync failed:', e.message); }
+}
+
+// Live sockets per paired device, so revoking one hangs up on it immediately
+// instead of leaving an SSE stream running until the phone gives up.
+const _remoteSockets = new Map();
+
+// Our own addresses change when the user moves between networks or Tailscale
+// comes up. Re-enumerating per request is wasteful and caching forever is wrong,
+// so refresh on a short TTL — a stale entry only ever costs one refused request.
+let _ownAddrCache = { at: 0, list: [] };
+function _ownAddresses() {
+  const now = Date.now();
+  if (now - _ownAddrCache.at > 5000) {
+    _ownAddrCache = { at: now, list: remoteAccessLib.ownAddresses() };
+  }
+  return _ownAddrCache.list;
+}
+
+function remoteAccessEnabled() {
+  const ra = _serverHubSettings && _serverHubSettings.remoteAccess;
+  // The store must be read before a token can resolve. Until it is, report the
+  // feature as OFF rather than let the gate decide "this device is not paired":
+  // in the few ms after boot that would send a perfectly good phone to the
+  // pairing page, which reads as having been silently unpaired.
+  return !!(ra && ra.enabled === true) && remoteAccess.isLoaded();
+}
+
+// The response a non-loopback request has always received. Kept byte-identical
+// so a LAN scanner cannot tell a Xenon with the feature off from one built
+// before the feature existed.
+function _classicForbidden(res) {
+  res.writeHead(403, { 'Content-Type': 'text/plain' });
+  res.end('Forbidden');
+  return null;
+}
+
+// A refusal a HUMAN is looking at must be readable. The phone's first hit is a
+// top-level navigation, so a bare JSON body would put `{"error":...}` on screen
+// with nothing to act on — and the most likely reason to land here is an older
+// browser that does not send Sec-Fetch-Site at all (Safari gained it in 16.4),
+// which is precisely the case where the person needs a sentence, not a code.
+// Anything asking for JSON still gets JSON; only a document request gets a page.
+const _REMOTE_DENY_HTML = [
+  '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">',
+  '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">',
+  '<meta name="robots" content="noindex"><meta name="color-scheme" content="dark">',
+  '<title>Xenon</title><style>',
+  'html,body{margin:0;height:100%}body{background:#070808;color:#f2f4f3;display:flex;align-items:center;',
+  'justify-content:center;padding:32px;text-align:center;',
+  'font:400 16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}',
+  '.m{width:52px;height:52px;margin:0 auto 18px;border-radius:15px;background:linear-gradient(150deg,#1ed760,#0f8f3d);',
+  'display:flex;align-items:center;justify-content:center;font-weight:800;font-size:24px;color:#041007}',
+  'h1{font-size:1.15rem;margin:0 0 10px}p{margin:0;color:#9aa3a0;font-size:0.92rem}',
+  'code{display:block;margin-top:22px;color:#4a5250;font-size:0.72rem}</style></head><body><div>',
+  '<div class="m">X</div><h1 id="h"></h1><p id="p"></p><code>__REASON__</code></div>',
+  '<script>(function(){var R="__REASON__";',
+  'var T={',
+  'en:{unpaired:["This device is not paired","Open Settings on your PC, choose Add device, and scan the code it shows."],bad_origin:["Opened from somewhere else","This page was reached from another site. Type the address shown on your PC directly instead."],bad_fetch_site:["Opened from somewhere else","This page was reached from another site. Type the address shown on your PC directly instead."],remote_denied:["That part stays on the PC","Paired devices can watch the dashboard and control media, audio and the microphone. This is not one of those."],other:["Xenon cannot open this","Go back to the pairing page on your PC and try again."]},',
+  'it:{unpaired:["Questo dispositivo non \\u00e8 abbinato","Apri le Impostazioni sul PC, scegli Aggiungi dispositivo e inquadra il codice che compare."],bad_origin:["Aperta da un altro sito","Questa pagina \\u00e8 stata raggiunta da un altro sito. Digita direttamente l\\u2019indirizzo mostrato sul PC."],bad_fetch_site:["Aperta da un altro sito","Questa pagina \\u00e8 stata raggiunta da un altro sito. Digita direttamente l\\u2019indirizzo mostrato sul PC."],remote_denied:["Questa parte resta sul PC","I dispositivi abbinati possono guardare la dashboard e comandare media, audio e microfono. Questa non \\u00e8 una di quelle."],other:["Xenon non pu\\u00f2 aprire questa pagina","Torna alla pagina di abbinamento sul PC e riprova."]},',
+  'de:{unpaired:["Dieses Ger\\u00e4t ist nicht gekoppelt","\\u00d6ffne die Einstellungen am PC, w\\u00e4hle Ger\\u00e4t hinzuf\\u00fcgen und scanne den angezeigten Code."],bad_origin:["Von woanders ge\\u00f6ffnet","Diese Seite wurde \\u00fcber eine andere Website erreicht. Gib die am PC angezeigte Adresse direkt ein."],bad_fetch_site:["Von woanders ge\\u00f6ffnet","Diese Seite wurde \\u00fcber eine andere Website erreicht. Gib die am PC angezeigte Adresse direkt ein."],remote_denied:["Das bleibt am PC","Gekoppelte Ger\\u00e4te sehen das Dashboard und steuern Medien, Audio und Mikrofon. Dies geh\\u00f6rt nicht dazu."],other:["Xenon kann das hier nicht \\u00f6ffnen","Geh am PC zur\\u00fcck zur Kopplungsseite und versuche es erneut."]},',
+  'fr:{unpaired:["Cet appareil n\\u2019est pas associ\\u00e9","Ouvre les R\\u00e9glages sur le PC, choisis Ajouter un appareil et scanne le code affich\\u00e9."],bad_origin:["Ouverte depuis ailleurs","Cette page a \\u00e9t\\u00e9 atteinte depuis un autre site. Saisis directement l\\u2019adresse affich\\u00e9e sur le PC."],bad_fetch_site:["Ouverte depuis ailleurs","Cette page a \\u00e9t\\u00e9 atteinte depuis un autre site. Saisis directement l\\u2019adresse affich\\u00e9e sur le PC."],remote_denied:["\\u00c7a reste sur le PC","Les appareils associ\\u00e9s voient le tableau de bord et pilotent m\\u00e9dias, audio et micro. Pas ceci."],other:["Xenon ne peut pas ouvrir \\u00e7a","Retourne \\u00e0 la page d\\u2019association sur le PC et r\\u00e9essaie."]},',
+  'es:{unpaired:["Este dispositivo no est\\u00e1 vinculado","Abre Ajustes en el PC, elige A\\u00f1adir dispositivo y escanea el c\\u00f3digo que aparece."],bad_origin:["Abierta desde otro sitio","Se lleg\\u00f3 a esta p\\u00e1gina desde otro sitio. Escribe directamente la direcci\\u00f3n que ves en el PC."],bad_fetch_site:["Abierta desde otro sitio","Se lleg\\u00f3 a esta p\\u00e1gina desde otro sitio. Escribe directamente la direcci\\u00f3n que ves en el PC."],remote_denied:["Esto se queda en el PC","Los dispositivos vinculados ven el panel y controlan medios, audio y micr\\u00f3fono. Esto no es una de esas cosas."],other:["Xenon no puede abrir esto","Vuelve a la p\\u00e1gina de vinculaci\\u00f3n en el PC e int\\u00e9ntalo de nuevo."]},',
+  'pt:{unpaired:["Este dispositivo n\\u00e3o est\\u00e1 emparelhado","Abre as Defini\\u00e7\\u00f5es no PC, escolhe Adicionar dispositivo e l\\u00ea o c\\u00f3digo apresentado."],bad_origin:["Aberta a partir de outro s\\u00edtio","Esta p\\u00e1gina foi alcan\\u00e7ada a partir de outro s\\u00edtio. Escreve diretamente o endere\\u00e7o mostrado no PC."],bad_fetch_site:["Aberta a partir de outro s\\u00edtio","Esta p\\u00e1gina foi alcan\\u00e7ada a partir de outro s\\u00edtio. Escreve diretamente o endere\\u00e7o mostrado no PC."],remote_denied:["Isto fica no PC","Os dispositivos emparelhados veem o painel e controlam multim\\u00e9dia, \\u00e1udio e microfone. Isto n\\u00e3o."],other:["O Xenon n\\u00e3o consegue abrir isto","Volta \\u00e0 p\\u00e1gina de emparelhamento no PC e tenta de novo."]},',
+  'ru:{unpaired:["\\u042d\\u0442\\u043e \\u0443\\u0441\\u0442\\u0440\\u043e\\u0439\\u0441\\u0442\\u0432\\u043e \\u043d\\u0435 \\u043f\\u0440\\u0438\\u0432\\u044f\\u0437\\u0430\\u043d\\u043e","\\u041e\\u0442\\u043a\\u0440\\u043e\\u0439\\u0442\\u0435 \\u043d\\u0430\\u0441\\u0442\\u0440\\u043e\\u0439\\u043a\\u0438 \\u043d\\u0430 \\u041f\\u041a, \\u0432\\u044b\\u0431\\u0435\\u0440\\u0438\\u0442\\u0435 \\u00ab\\u0414\\u043e\\u0431\\u0430\\u0432\\u0438\\u0442\\u044c \\u0443\\u0441\\u0442\\u0440\\u043e\\u0439\\u0441\\u0442\\u0432\\u043e\\u00bb \\u0438 \\u043e\\u0442\\u0441\\u043a\\u0430\\u043d\\u0438\\u0440\\u0443\\u0439\\u0442\\u0435 \\u043f\\u043e\\u043a\\u0430\\u0437\\u0430\\u043d\\u043d\\u044b\\u0439 \\u043a\\u043e\\u0434."],bad_origin:["\\u041e\\u0442\\u043a\\u0440\\u044b\\u0442\\u043e \\u0441 \\u0434\\u0440\\u0443\\u0433\\u043e\\u0433\\u043e \\u0441\\u0430\\u0439\\u0442\\u0430","\\u041d\\u0430 \\u044d\\u0442\\u0443 \\u0441\\u0442\\u0440\\u0430\\u043d\\u0438\\u0446\\u0443 \\u043f\\u0435\\u0440\\u0435\\u0448\\u043b\\u0438 \\u0441 \\u0434\\u0440\\u0443\\u0433\\u043e\\u0433\\u043e \\u0441\\u0430\\u0439\\u0442\\u0430. \\u0412\\u0432\\u0435\\u0434\\u0438\\u0442\\u0435 \\u0430\\u0434\\u0440\\u0435\\u0441, \\u043f\\u043e\\u043a\\u0430\\u0437\\u0430\\u043d\\u043d\\u044b\\u0439 \\u043d\\u0430 \\u041f\\u041a, \\u043d\\u0430\\u043f\\u0440\\u044f\\u043c\\u0443\\u044e."],bad_fetch_site:["\\u041e\\u0442\\u043a\\u0440\\u044b\\u0442\\u043e \\u0441 \\u0434\\u0440\\u0443\\u0433\\u043e\\u0433\\u043e \\u0441\\u0430\\u0439\\u0442\\u0430","\\u041d\\u0430 \\u044d\\u0442\\u0443 \\u0441\\u0442\\u0440\\u0430\\u043d\\u0438\\u0446\\u0443 \\u043f\\u0435\\u0440\\u0435\\u0448\\u043b\\u0438 \\u0441 \\u0434\\u0440\\u0443\\u0433\\u043e\\u0433\\u043e \\u0441\\u0430\\u0439\\u0442\\u0430. \\u0412\\u0432\\u0435\\u0434\\u0438\\u0442\\u0435 \\u0430\\u0434\\u0440\\u0435\\u0441, \\u043f\\u043e\\u043a\\u0430\\u0437\\u0430\\u043d\\u043d\\u044b\\u0439 \\u043d\\u0430 \\u041f\\u041a, \\u043d\\u0430\\u043f\\u0440\\u044f\\u043c\\u0443\\u044e."],remote_denied:["\\u042d\\u0442\\u043e \\u043e\\u0441\\u0442\\u0430\\u0451\\u0442\\u0441\\u044f \\u043d\\u0430 \\u041f\\u041a","\\u041f\\u0440\\u0438\\u0432\\u044f\\u0437\\u0430\\u043d\\u043d\\u044b\\u0435 \\u0443\\u0441\\u0442\\u0440\\u043e\\u0439\\u0441\\u0442\\u0432\\u0430 \\u0432\\u0438\\u0434\\u044f\\u0442 \\u043f\\u0430\\u043d\\u0435\\u043b\\u044c \\u0438 \\u0443\\u043f\\u0440\\u0430\\u0432\\u043b\\u044f\\u044e\\u0442 \\u043c\\u0435\\u0434\\u0438\\u0430, \\u0437\\u0432\\u0443\\u043a\\u043e\\u043c \\u0438 \\u043c\\u0438\\u043a\\u0440\\u043e\\u0444\\u043e\\u043d\\u043e\\u043c. \\u042d\\u0442\\u043e \\u043d\\u0435 \\u0438\\u0437 \\u0438\\u0445 \\u0447\\u0438\\u0441\\u043b\\u0430."],other:["Xenon \\u043d\\u0435 \\u043c\\u043e\\u0436\\u0435\\u0442 \\u044d\\u0442\\u043e \\u043e\\u0442\\u043a\\u0440\\u044b\\u0442\\u044c","\\u0412\\u0435\\u0440\\u043d\\u0438\\u0442\\u0435\\u0441\\u044c \\u043a \\u0441\\u0442\\u0440\\u0430\\u043d\\u0438\\u0446\\u0435 \\u043f\\u0440\\u0438\\u0432\\u044f\\u0437\\u043a\\u0438 \\u043d\\u0430 \\u041f\\u041a \\u0438 \\u043f\\u043e\\u043f\\u0440\\u043e\\u0431\\u0443\\u0439\\u0442\\u0435 \\u0441\\u043d\\u043e\\u0432\\u0430."]},',
+  'ko:{unpaired:["\\uc5f0\\uacb0\\ub418\\uc9c0 \\uc54a\\uc740 \\uae30\\uae30\\uc785\\ub2c8\\ub2e4","PC\\uc5d0\\uc11c \\uc124\\uc815\\uc744 \\uc5f4\\uace0 \\uae30\\uae30 \\ucd94\\uac00\\ub97c \\uc120\\ud0dd\\ud55c \\ub4a4, \\ud45c\\uc2dc\\ub41c \\ucf54\\ub4dc\\ub97c \\uc2a4\\uce94\\ud558\\uc138\\uc694."],bad_origin:["\\ub2e4\\ub978 \\uacf3\\uc5d0\\uc11c \\uc5f4\\ub838\\uc2b5\\ub2c8\\ub2e4","\\ub2e4\\ub978 \\uc0ac\\uc774\\ud2b8\\ub97c \\uac70\\uccd0 \\uc774 \\ud398\\uc774\\uc9c0\\uc5d0 \\uc654\\uc2b5\\ub2c8\\ub2e4. PC\\uc5d0 \\ud45c\\uc2dc\\ub41c \\uc8fc\\uc18c\\ub97c \\uc9c1\\uc811 \\uc785\\ub825\\ud558\\uc138\\uc694."],bad_fetch_site:["\\ub2e4\\ub978 \\uacf3\\uc5d0\\uc11c \\uc5f4\\ub838\\uc2b5\\ub2c8\\ub2e4","\\ub2e4\\ub978 \\uc0ac\\uc774\\ud2b8\\ub97c \\uac70\\uccd0 \\uc774 \\ud398\\uc774\\uc9c0\\uc5d0 \\uc654\\uc2b5\\ub2c8\\ub2e4. PC\\uc5d0 \\ud45c\\uc2dc\\ub41c \\uc8fc\\uc18c\\ub97c \\uc9c1\\uc811 \\uc785\\ub825\\ud558\\uc138\\uc694."],remote_denied:["\\uc774 \\uae30\\ub2a5\\uc740 PC\\uc5d0 \\ub0a8\\uc2b5\\ub2c8\\ub2e4","\\uc5f0\\uacb0\\ub41c \\uae30\\uae30\\ub294 \\ub300\\uc2dc\\ubcf4\\ub4dc\\ub97c \\ubcf4\\uace0 \\ubbf8\\ub514\\uc5b4\\u00b7\\uc624\\ub514\\uc624\\u00b7\\ub9c8\\uc774\\ud06c\\ub97c \\uc81c\\uc5b4\\ud560 \\uc218 \\uc788\\uc2b5\\ub2c8\\ub2e4. \\uc774\\uac83\\uc740 \\ud574\\ub2f9\\ub418\\uc9c0 \\uc54a\\uc2b5\\ub2c8\\ub2e4."],other:["Xenon\\uc744 \\uc5ec\\uae30\\uc11c \\uc5f4 \\uc218 \\uc5c6\\uc2b5\\ub2c8\\ub2e4","PC\\uc758 \\ud398\\uc5b4\\ub9c1 \\ud654\\uba74\\uc73c\\ub85c \\ub3cc\\uc544\\uac00 \\ub2e4\\uc2dc \\uc2dc\\ub3c4\\ud558\\uc138\\uc694."]},',
+  'ja:{unpaired:["\\u3053\\u306e\\u30c7\\u30d0\\u30a4\\u30b9\\u306f\\u30da\\u30a2\\u30ea\\u30f3\\u30b0\\u3055\\u308c\\u3066\\u3044\\u307e\\u305b\\u3093","PC \\u3067\\u8a2d\\u5b9a\\u3092\\u958b\\u304d\\u3001\\u300c\\u30c7\\u30d0\\u30a4\\u30b9\\u3092\\u8ffd\\u52a0\\u300d\\u3092\\u9078\\u3093\\u3067\\u8868\\u793a\\u3055\\u308c\\u305f\\u30b3\\u30fc\\u30c9\\u3092\\u8aad\\u307f\\u53d6\\u3063\\u3066\\u304f\\u3060\\u3055\\u3044\\u3002"],bad_origin:["\\u5225\\u306e\\u5834\\u6240\\u304b\\u3089\\u958b\\u304b\\u308c\\u307e\\u3057\\u305f","\\u5225\\u306e\\u30b5\\u30a4\\u30c8\\u7d4c\\u7531\\u3067\\u3053\\u306e\\u30da\\u30fc\\u30b8\\u306b\\u6765\\u3066\\u3044\\u307e\\u3059\\u3002PC \\u306b\\u8868\\u793a\\u3055\\u308c\\u3066\\u3044\\u308b\\u30a2\\u30c9\\u30ec\\u30b9\\u3092\\u76f4\\u63a5\\u5165\\u529b\\u3057\\u3066\\u304f\\u3060\\u3055\\u3044\\u3002"],bad_fetch_site:["\\u5225\\u306e\\u5834\\u6240\\u304b\\u3089\\u958b\\u304b\\u308c\\u307e\\u3057\\u305f","\\u5225\\u306e\\u30b5\\u30a4\\u30c8\\u7d4c\\u7531\\u3067\\u3053\\u306e\\u30da\\u30fc\\u30b8\\u306b\\u6765\\u3066\\u3044\\u307e\\u3059\\u3002PC \\u306b\\u8868\\u793a\\u3055\\u308c\\u3066\\u3044\\u308b\\u30a2\\u30c9\\u30ec\\u30b9\\u3092\\u76f4\\u63a5\\u5165\\u529b\\u3057\\u3066\\u304f\\u3060\\u3055\\u3044\\u3002"],remote_denied:["\\u3053\\u308c\\u306f PC \\u306b\\u6b8b\\u308a\\u307e\\u3059","\\u30da\\u30a2\\u30ea\\u30f3\\u30b0\\u3057\\u305f\\u30c7\\u30d0\\u30a4\\u30b9\\u306f\\u30c0\\u30c3\\u30b7\\u30e5\\u30dc\\u30fc\\u30c9\\u306e\\u8868\\u793a\\u3068\\u3001\\u30e1\\u30c7\\u30a3\\u30a2\\u30fb\\u97f3\\u58f0\\u30fb\\u30de\\u30a4\\u30af\\u306e\\u64cd\\u4f5c\\u304c\\u3067\\u304d\\u307e\\u3059\\u3002\\u3053\\u308c\\u306f\\u305d\\u306e\\u5bfe\\u8c61\\u5916\\u3067\\u3059\\u3002"],other:["Xenon \\u3092\\u3053\\u3053\\u3067\\u958b\\u3051\\u307e\\u305b\\u3093","PC \\u306e\\u30da\\u30a2\\u30ea\\u30f3\\u30b0\\u753b\\u9762\\u306b\\u623b\\u3063\\u3066\\u3084\\u308a\\u76f4\\u3057\\u3066\\u304f\\u3060\\u3055\\u3044\\u3002"]},',
+  'zh:{unpaired:["\\u6b64\\u8bbe\\u5907\\u5c1a\\u672a\\u914d\\u5bf9","\\u5728\\u7535\\u8111\\u4e0a\\u6253\\u5f00\\u8bbe\\u7f6e\\uff0c\\u9009\\u62e9\\u201c\\u6dfb\\u52a0\\u8bbe\\u5907\\u201d\\uff0c\\u7136\\u540e\\u626b\\u63cf\\u51fa\\u73b0\\u7684\\u4ee3\\u7801\\u3002"],bad_origin:["\\u4ece\\u522b\\u5904\\u6253\\u5f00","\\u8fd9\\u4e2a\\u9875\\u9762\\u662f\\u4ece\\u53e6\\u4e00\\u4e2a\\u7f51\\u7ad9\\u8df3\\u8f6c\\u6765\\u7684\\u3002\\u8bf7\\u76f4\\u63a5\\u8f93\\u5165\\u7535\\u8111\\u4e0a\\u663e\\u793a\\u7684\\u5730\\u5740\\u3002"],bad_fetch_site:["\\u4ece\\u522b\\u5904\\u6253\\u5f00","\\u8fd9\\u4e2a\\u9875\\u9762\\u662f\\u4ece\\u53e6\\u4e00\\u4e2a\\u7f51\\u7ad9\\u8df3\\u8f6c\\u6765\\u7684\\u3002\\u8bf7\\u76f4\\u63a5\\u8f93\\u5165\\u7535\\u8111\\u4e0a\\u663e\\u793a\\u7684\\u5730\\u5740\\u3002"],remote_denied:["\\u8fd9\\u4e00\\u90e8\\u5206\\u7559\\u5728\\u7535\\u8111\\u4e0a","\\u5df2\\u914d\\u5bf9\\u7684\\u8bbe\\u5907\\u53ef\\u4ee5\\u67e5\\u770b\\u4eea\\u8868\\u677f\\u5e76\\u63a7\\u5236\\u5a92\\u4f53\\u3001\\u97f3\\u9891\\u548c\\u9ea6\\u514b\\u98ce\\u3002\\u8fd9\\u4e00\\u9879\\u4e0d\\u5728\\u5176\\u4e2d\\u3002"],other:["Xenon \\u65e0\\u6cd5\\u6253\\u5f00\\u8fd9\\u4e2a\\u9875\\u9762","\\u8bf7\\u56de\\u5230\\u7535\\u8111\\u4e0a\\u7684\\u914d\\u5bf9\\u9875\\u9762\\u91cd\\u8bd5\\u3002"]},',
+  'nl:{unpaired:["Dit apparaat is niet gekoppeld","Open Instellingen op de pc, kies Apparaat toevoegen en scan de code die verschijnt."],bad_origin:["Vanaf ergens anders geopend","Deze pagina is via een andere site bereikt. Typ het adres dat je op de pc ziet rechtstreeks in."],bad_fetch_site:["Vanaf ergens anders geopend","Deze pagina is via een andere site bereikt. Typ het adres dat je op de pc ziet rechtstreeks in."],remote_denied:["Dit blijft op de pc","Gekoppelde apparaten bekijken het dashboard en bedienen media, audio en microfoon. Dit hoort daar niet bij."],other:["Xenon kan dit hier niet openen","Ga op de pc terug naar de koppelpagina en probeer het opnieuw."]},',
+  '};',
+  'var l=String(navigator.language||"en").slice(0,2).toLowerCase();var D=T[l]||T.en;',
+  'var s=D[R]||D.other;',
+  'document.documentElement.lang=T[l]?l:"en";',
+  'document.getElementById("h").textContent=s[0];document.getElementById("p").textContent=s[1];})();',
+  '<\/script></body></html>',
+].join('');
+
+function _wantsHtml(req) {
+  return /\btext\/html\b/i.test(String(req.headers.accept || ''));
+}
+
+function _remoteJsonDeny(res, status, error, req) {
+  if (req && _wantsHtml(req)) {
+    res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    // The reason is one of our own fixed verdict strings, never user input —
+    // but it lands inside both an HTML text node and a JS string literal, so
+    // keep it constrained to the shape those two contexts agree on.
+    res.end(_REMOTE_DENY_HTML.replace(/__REASON__/g, String(error).replace(/[^a-z_]/gi, '')));
+    return null;
+  }
+  res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+  res.end(JSON.stringify({ ok: false, error }));
+  return null;
+}
+
+function _peerIp(req) {
+  return String(req.socket.remoteAddress || '').replace(/^::ffff:/, '');
+}
+
+function _noteRemoteSocket(deviceId, socket) {
+  let set = _remoteSockets.get(deviceId);
+  if (!set) { set = new Set(); _remoteSockets.set(deviceId, set); }
+  if (set.has(socket)) return;
+  set.add(socket);
+  socket.once('close', () => {
+    const s = _remoteSockets.get(deviceId);
+    if (!s) return;
+    s.delete(socket);
+    if (s.size === 0) _remoteSockets.delete(deviceId);
+  });
+}
+
+// Hang up on a device (or on everyone) the instant its token stops being valid.
+// Without this, revoking a device leaves its open SSE stream feeding it live
+// system data for as long as the socket survives — the revoke would look
+// instant and not be.
+function _dropRemoteSockets(deviceId) {
+  const ids = deviceId ? [deviceId] : [..._remoteSockets.keys()];
+  for (const id of ids) {
+    const set = _remoteSockets.get(id);
+    if (!set) continue;
+    for (const socket of set) { try { socket.destroy(); } catch { /* already gone */ } }
+    _remoteSockets.delete(id);
+  }
+}
+
+/**
+ * Decide what a non-loopback request may do.
+ * @returns {{device: object|null}|null} a context to continue with, or null
+ *   after this function has already answered — callers MUST return on null.
+ */
+function _remoteGate(req, res, secure) {
+  // Short-circuit before any parsing or hashing. gateDecision() checks this
+  // first too and would reach the same answer — but this is the default state
+  // for every install, and anything scanning the LAN would otherwise make us
+  // parse a URL and run a SHA-256 per packet for a feature nobody turned on.
+  if (!remoteAccessEnabled()) return _classicForbidden(res);
+
+  let pathname = '';
+  try { pathname = new URL(req.url, 'http://localhost').pathname; } catch { return _classicForbidden(res); }
+
+  // The token lookup is stateful, so it happens here; everything else is the
+  // pure decision in remote-access.js, where the ORDER of the checks — which is
+  // itself part of the security property — is unit-tested.
+  const token = remoteAccessLib.readCookie(req.headers.cookie, remoteAccessLib.COOKIE_NAME);
+  // A sandboxed SDK widget has an opaque origin, so its stylesheet and script
+  // requests carry NO cookie however the cookie is spelled (measured — see the
+  // widget-asset section in remote-access.js). Those requests present the
+  // device's asset capability in the PATH instead. It is only ever consulted
+  // for that path shape, so it cannot become a second way to hold a token: the
+  // key lives nowhere else, and `/sdk/wk/...` serves nothing but static files
+  // of installed packages.
+  const device = remoteAccess.authenticate(token)
+    || (() => {
+      const parsed = remoteAccessLib.parseWidgetAssetPath(pathname);
+      return parsed ? remoteAccess.authenticateAssetKey(parsed.key) : null;
+    })();
+
+  const verdict = remoteAccessLib.gateDecision({
+    enabled: remoteAccessEnabled(),
+    host: req.headers.host || '',
+    origin: req.headers.origin,
+    fetchSite: req.headers['sec-fetch-site'],
+    fetchMode: req.headers['sec-fetch-mode'],
+    method: req.method,
+    pathname,
+    hasDevice: !!device,
+    addresses: _ownAddresses(),
+    // The port THIS listener answers on, read from the socket rather than from
+    // the PORT constant: with the T2 door up there are two, and the Host check
+    // compares against the one the request actually arrived on.
+    port: (req.socket && req.socket.localPort) || PORT,
+    secure: secure === true,
+    // The single certificate name the TLS listener accepts as a Host, learned
+    // from the local tailscaled. '' whenever that door is down, which is what
+    // keeps the exception from existing at all on a plain install.
+    tlsHost: (secure === true && remoteHttps) ? remoteHttps.status().host : '',
+  });
+
+  switch (verdict) {
+    case 'forbidden':
+      return _classicForbidden(res);
+    case 'bad_origin':
+    case 'bad_fetch_site':
+    case 'remote_denied':
+      return _remoteJsonDeny(res, 403, verdict, req);
+    case 'unpaired':
+      return _remoteJsonDeny(res, 401, 'unpaired', req);
+    case 'redirect_pair':
+      res.writeHead(302, { Location: '/pair', 'Cache-Control': 'no-store' });
+      res.end();
+      return null;
+    case 'pre_auth':
+      // The pairing page and the redeem POST. Rate-limited by source address so
+      // the one door without a token cannot be hammered; redeem() limits again
+      // and burns the code after a handful of wrong guesses.
+      if (!remoteAccess.withinPreAuthRate(_peerIp(req), Date.now())) return _remoteJsonDeny(res, 429, 'rate_limited');
+      return { device: null };
+    case 'ok':
+      if (!remoteAccess.withinRate(device.id, Date.now())) return _remoteJsonDeny(res, 429, 'rate_limited');
+      remoteAccess.touch(device, _peerIp(req));
+      _noteRemoteSocket(device.id, req.socket);
+      return { device };
+    default:
+      // An unknown verdict is a bug, and the safe reading of a bug is "no".
+      return _classicForbidden(res);
+  }
 }
 
 // Enumerate DirectShow audio devices via ffmpeg. Returns an array of friendly device name strings.
@@ -10058,20 +10470,56 @@ async function _aiPerformancePlan({ activity, appNames, opts, provider, key, mod
   } catch { return null; }
 }
 
-const server = http.createServer(async (req, res) => {
-  if (!isAllowedRequest(req)) {
-    res.writeHead(403, { 'Content-Type': 'text/plain' });
-    res.end('Forbidden');
-    return;
+// Named, not inline, because a SECOND listener shares it: the T2 HTTPS door in
+// remote-https.js serves the identical application — same routes, same handlers,
+// same gate — over TLS on the Tailscale address. One handler, so the two
+// transports can never drift into two behaviours.
+const handleRequest = async (req, res) => {
+  // Which listener this arrived on. Read from the SOCKET, never from a header:
+  // it decides whether a certificate name is an acceptable Host and which scheme
+  // an Origin must carry, and a request must not be able to describe itself.
+  const secureListener = !!(req.socket && req.socket.encrypted);
+
+  // Two doors, never mixed. The loopback boundary is unchanged and is tried
+  // first; only a request it refuses is offered the paired-device door, which
+  // is off by default and far narrower (see _remoteGate).
+  //
+  // The TLS listener skips the loopback door entirely — it IS the paired-device
+  // door. Its Host is a MagicDNS name, which the loopback boundary refuses by
+  // design, so consulting it could only ever produce a 403 on the very URL we
+  // handed the user. Opening the HTTPS address on the PC itself therefore asks
+  // for pairing like any other device, which is the honest answer: that address
+  // is the tailnet's, not this machine's private one.
+  let remote = null;
+  if (secureListener || !isAllowedRequest(req)) {
+    remote = _remoteGate(req, res, secureListener);
+    if (!remote) return;              // _remoteGate has already answered
   }
+  // True for anything that arrived through the paired-device door. Handlers use
+  // it to withhold what a phone must not see (see /settings) — it is never used
+  // to GRANT anything: authorization is the allowlist's job, not a handler's.
+  const isRemote = remote !== null;
 
   // CORS headers required for the iCUE widget WebView (opaque origin, qrc:// or file://).
   // Access-Control-Allow-Private-Network is required by Chrome 104+ (Private Network
   // Access spec) when a non-secure context (file://) fetches a private-network address.
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Access-Control-Allow-Private-Network', 'true');
+  //
+  // NOT sent on the paired-device door, and withholding them turns out to be
+  // the FIRST line of defence there rather than a tidy-up. A phone's own page
+  // is same-origin and needs none of them, whereas Allow-Private-Network is
+  // precisely the header a public website needs before Chrome will let it
+  // reach a private address at all. Measured: from a page on another origin, a
+  // credentialed cross-origin POST, a no-cors POST and an <img> drive-by
+  // against the LAN address all failed to produce a single request at the
+  // server — Private Network Access stopped them in the browser. Behind that
+  // sit SameSite=Strict (no cookie on a cross-site-initiated request) and the
+  // exact-Origin check; see remote-access.js.
+  if (!isRemote) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Private-Network', 'true');
+  }
 
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
@@ -10137,13 +10585,85 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (reqPath === '/' && req.method === 'GET') {
-    const html = await fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8');
+    let html = await fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8');
+    // A paired device is told so SYNCHRONOUSLY, in the document itself, before
+    // any script runs — a flag arriving later over /status would be too late for
+    // anything that decides at load time. It carries no privileges: the client
+    // reads it only to know which chrome it is wearing and to explain a refusal.
+    // `assetKey` rides along because it is needed at the same moment and by the
+    // same reasoning: custom-widget.js builds an SDK iframe's src at mount time
+    // and the sandboxed document it loads cannot present a cookie for its own
+    // stylesheet and script (see remote-access.js). It is a capability for the
+    // widget asset tree and nothing else.
+    if (isRemote) {
+      html = html.replace('<meta charset="UTF-8">',
+        '<meta charset="UTF-8">\n<script>window.__xenonRemote = { device: ' +
+        JSON.stringify((remote.device && remote.device.name) || '') + ', assetKey: ' +
+        JSON.stringify((remote.device && remote.device.assetKey) || '') + ' };</script>');
+    }
     // Never let the WebView serve a stale entry document: index.html carries the
     // early boot-scale recovery script, so a cached copy would pin an old fix.
     // The doc is tiny and loopback-served, so no-store costs nothing. (CSS/JS
     // already revalidate via no-cache + ETag below.)
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(html);
+
+  } else if (reqPath === '/pair' && req.method === 'GET') {
+    // The pairing page — the ONE document reachable before a device has a
+    // token. Deliberately self-contained (no dashboard scripts, no settings, no
+    // state) so the pre-auth surface stays as small as it reads.
+    const html = await fs.promises.readFile(path.join(__dirname, 'pair.html'), 'utf8');
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(html);
+
+  } else if (reqPath === '/sw.js' && req.method === 'GET') {
+    // The service worker, served from the ROOT on purpose: a worker's default
+    // scope is its own directory, so one under /public/ could only control
+    // /public/. The version is stamped in here rather than read by the worker,
+    // which is what makes a Xenon update drop the previous shell cache whole.
+    try {
+      const src = await fs.promises.readFile(path.join(__dirname, 'sw.js'), 'utf8');
+      res.writeHead(200, {
+        'Content-Type': 'text/javascript; charset=utf-8',
+        // Never cached by the browser: this file decides what everything else
+        // caches, so a stale copy of it is the one that cannot be recovered from.
+        'Cache-Control': 'no-store',
+        'Service-Worker-Allowed': '/',
+      });
+      res.end(src.replace('__XENON_VERSION__', APP_VERSION));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/manifest.webmanifest' && req.method === 'GET') {
+    // The web app manifest. Built here rather than kept as a static file so the
+    // version travels with it and the icon paths cannot drift from the assets.
+    //
+    // NOTE for whoever changes the <link> tag: a same-origin manifest is fetched
+    // with credentials OMITTED unless the tag says `crossorigin="use-credentials"`.
+    // Without that the pairing cookie is withheld, the fetch comes back 401, and
+    // the only symptom is that the browser silently refuses to offer "install" —
+    // the same shape as the widget-asset bug, and just as invisible.
+    const icon = '/public/images/logo/logo-mark.png';
+    res.writeHead(200, { 'Content-Type': 'application/manifest+json; charset=utf-8', 'Cache-Control': 'no-cache' });
+    res.end(JSON.stringify({
+      name: 'Xenon',
+      short_name: 'Xenon',
+      description: 'Your PC, on the screen next to it.',
+      start_url: '/',
+      scope: '/',
+      display: 'standalone',
+      orientation: 'any',
+      background_color: '#070808',
+      theme_color: '#070808',
+      version: APP_VERSION,
+      icons: [
+        // One square mark is what exists as a shipped asset; its size is declared
+        // honestly rather than claimed at 512. Installability needs >=192, which
+        // this meets — a dedicated 512 maskable icon would buy a better splash
+        // screen and is a design asset, not a code change.
+        { src: icon, sizes: '256x256', type: 'image/png', purpose: 'any' },
+        { src: icon, sizes: '256x256', type: 'image/png', purpose: 'maskable' },
+      ],
+    }));
 
   } else if (reqPath === '/deck-popup' && req.method === 'GET') {
     // Virtual Deck popup document (main-PC window). Same loopback trust as '/';
@@ -11437,8 +11957,16 @@ const server = http.createServer(async (req, res) => {
 
   } else if (reqPath === '/settings' && req.method === 'GET') {
     // Redact ALL server-only secrets (remote-control creds, Home Assistant token,
-    // OBS/Streamer.bot passwords, provider API keys, lighting pairing tokens)
-    // before sending to the browser.
+    // OBS/Streamer.bot passwords, EVERY provider API key, lighting pairing
+    // tokens) before sending to the browser.
+    //
+    // geminiApiKey used to be excluded here, on the reasoning that the client
+    // needed it. It did not: every use was a presence gate or a `key:` field
+    // posted back to an endpoint that already had the key on disk. The gates now
+    // read `geminiApiKeySet` and the server swaps the real key in
+    // (`geminiKeyFor`), so nothing about the AI changed except that the secret
+    // stays on this machine — which matters most on the paired-device door,
+    // where the wire is a cleartext LAN.
     try { json({ settings: redactSettingsSecrets(await readHubSettings()) }); }
     catch (e) { err500(e.message); }
 
@@ -11544,6 +12072,23 @@ const server = http.createServer(async (req, res) => {
       if (prev && prev.lighting && typeof prev.lighting === 'object') {
         incoming.lighting = prev.lighting;
       }
+      // Paired-device access is server-owned, and this is the only thing that
+      // kept it working. Its sole legitimate writer is POST /api/remote-access/
+      // enable (loopback-only, so a phone can never switch itself on). The
+      // browser settings model does not carry the key AT ALL — normalizeSettings
+      // in js/settings.js has no `remoteAccess` — so every generic save arrived
+      // without it and `normalizeHubSettings` rebuilt it as `{enabled:false}`.
+      // The result: remote access switched ITSELF off the first time the user
+      // changed any setting anywhere, live sockets were dropped, and from then
+      // on every request from the paired phone got the plain 403 that a build
+      // without the feature returns — the Deck, the lock key, Ambient and the
+      // history all doing nothing, with no way to tell why. Measured on the real
+      // install: `remoteAccess: {}` on disk with a device still paired.
+      // Keep the persisted value. An absent key means "the browser does not know
+      // about this", never "the user turned it off".
+      if (prev && prev.remoteAccess && typeof prev.remoteAccess === 'object') {
+        incoming.remoteAccess = prev.remoteAccess;
+      }
       // Vitals state is widget-owned and monotonic: a refill stamps "now", XP
       // only grows, the daily counter resets on a new day. A stale settings
       // mirror from another surface must never rewind a refill the user just
@@ -11614,6 +12159,12 @@ const server = http.createServer(async (req, res) => {
       if (!!(prev && prev.browserAdblock) !== !!settings.browserAdblock) {
         try { embeddedBrowser.shutdown(); } catch (e) { /* next open self-heals */ }
       }
+      // (Paired-device access cannot change here: it is kept from `prev` above,
+      // and POST /api/remote-access/enable — which hangs up on every connected
+      // device itself — is its only writer. This used to hang up when a save
+      // "turned it off", which read as defensive and was in fact the mechanism
+      // that broke the feature: no browser surface has ever carried the flag,
+      // so every save looked like a turn-off.)
       // The save itself succeeded; a lighting apply failure must not fail the
       // request, but it must be visible (log + flag) instead of a silent no-op.
       let lightingApplied = true;
@@ -12598,7 +13149,7 @@ const server = http.createServer(async (req, res) => {
     // or manual refresh) — never on a background timer while hidden.
     try {
       const body = JSON.parse(await readBody(req) || '{}');
-      const apiKey = String(body.key || '').trim().slice(0, 200);
+      const apiKey = await geminiKeyFor(body.key);
       if (!apiKey) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'missing_key' })); return;
@@ -12629,7 +13180,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const aiRaw = await readBodyBuffer(req, 10 * 1024 * 1024); // 10 MB — accommodate base64 images
       const aiBody = JSON.parse(aiRaw.toString('utf8') || '{}');
-      const apiKey = String(aiBody.key || '').trim().slice(0, 200);
+      const apiKey = await geminiKeyFor(aiBody.key);
       const messages = Array.isArray(aiBody.messages) ? aiBody.messages.slice(0, 50) : [];
       const isVoice = aiBody.voice === true;
       // Rolling summary of earlier turns the client folded out of its window
@@ -13189,7 +13740,7 @@ const server = http.createServer(async (req, res) => {
       const raw = await readBodyBuffer(req, 256 * 1024);
       const body = JSON.parse(raw.toString('utf8') || '{}');
       const provider = aiLocal.sanitizeProvider(body.provider);
-      const apiKey = String(body.key || '').trim().slice(0, 200);
+      const apiKey = await geminiKeyFor(body.key);
       const prev = String(body.prevSummary || '').replace(/\s+/g, ' ').trim().slice(0, 2000);
       const turns = Array.isArray(body.messages) ? body.messages.slice(0, 60) : [];
       const uiLang = String(body.lang || '').toLowerCase().slice(0, 2);
@@ -13251,7 +13802,7 @@ const server = http.createServer(async (req, res) => {
       const raw = await readBodyBuffer(req, 32 * 1024);
       const body = JSON.parse(raw.toString('utf8') || '{}');
       const provider = aiLocal.sanitizeProvider(body.provider);
-      const apiKey = String(body.key || '').trim().slice(0, 200);
+      const apiKey = await geminiKeyFor(body.key);
       // Every context string is length-bounded and stripped of control chars
       // before it goes anywhere near a prompt.
       const clean = (s, n) => String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, n);
@@ -13521,7 +14072,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const stopBody = JSON.parse(await readBody(req) || '{}');
       const id = String(stopBody.id || '').trim();
-      const apiKey = String(stopBody.key || '').trim().slice(0, 200);
+      const apiKey = await geminiKeyFor(stopBody.key);
       const sttLang = String(stopBody.lang || 'en').toLowerCase().slice(0, 2);
       const sttProvider = aiLocal.sanitizeProvider(stopBody.provider);
       // mode 'audio' → return the raw recording so the caller can send it straight
@@ -13631,7 +14182,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const tRaw = await readBodyBuffer(req, 30 * 1024 * 1024);
       const tBody = JSON.parse(tRaw.toString('utf8') || '{}');
-      const apiKey = String(tBody.key || '').trim().slice(0, 200);
+      const apiKey = await geminiKeyFor(tBody.key);
       const tProvider = aiLocal.sanitizeProvider(tBody.provider);
       const audioB64 = typeof tBody.audio === 'string' ? tBody.audio.slice(0, 20 * 1024 * 1024) : '';
       const rawMime = typeof tBody.mimeType === 'string' ? tBody.mimeType : 'audio/webm';
@@ -13818,7 +14369,7 @@ const server = http.createServer(async (req, res) => {
       const b = JSON.parse(await readBody(req) || '{}');
       const text = String(b.text || '').slice(0, 2000);
       const langp = String(b.lang || 'en').slice(0, 5);
-      const key = String(b.key || '').trim().slice(0, 200);
+      const key = await geminiKeyFor(b.key);
       if (!text) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'missing_text' })); return; }
       const speakProvider = aiLocal.sanitizeProvider(b.provider);
       await speakOnServer(text, langp, key, speakProvider);
@@ -14818,6 +15369,21 @@ const server = http.createServer(async (req, res) => {
       json(await streamYouTube.updateBroadcastTitle(body.title));
     } catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/stream/youtube/playlists' && req.method === 'GET') {
+    // Viewer mode: the signed-in user's own playlists for the widget. Quota-kind:
+    // the provider caches the list for 5 minutes and the client loads it once.
+    try { json(await streamYouTube.listPlaylists()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/playlist/resolve' && req.method === 'POST') {
+    // Playlist id → watch URL of its first video. The id is strictly validated in
+    // the provider; the client opens the returned URL (Browser tile or openUrl
+    // action) — a wire-supplied URL is never opened directly.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await streamYouTube.resolvePlaylistUrl(body.id));
+    } catch (e) { err500(e.message); }
+
   } else if (reqPath === '/stream/config' && req.method === 'POST') {
     // Save the streaming app credentials pasted in Settings → Streaming (so the
     // user never edits stream-config.json by hand) and re-create the providers.
@@ -15261,7 +15827,7 @@ const server = http.createServer(async (req, res) => {
       json({ ok: true });
     } catch (e) { err500(e.message); }
 
-  } else if (req.method === 'GET' && reqPath.startsWith('/sdk/widget/')) {
+  } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/widget/') || reqPath.startsWith(remoteAccessLib.WIDGET_ASSET_PREFIX))) {
     // Sandboxed widget assets. resolveAsset() is the trust boundary (package id
     // + per-segment validation + extension allowlist + prefix check), and EVERY
     // response carries WIDGET_CSP: `sandbox allow-scripts` keeps the document
@@ -15269,7 +15835,27 @@ const server = http.createServer(async (req, res) => {
     // blocks all network from widget code — a sandboxed iframe fetches with
     // Origin:null, which isAllowedRequest() accepts for the iCUE WebView, so
     // this CSP is the layer that keeps widget code away from the local API.
-    const m = /^\/sdk\/widget\/([^/]+)\/(.+)$/.exec(reqPath);
+    //
+    // Two spellings, ONE body below. `/sdk/wk/<key>/<pkg>/<file>` is the same
+    // tree addressed with the paired device's asset capability in the path,
+    // which exists because a sandboxed document's opaque origin withholds the
+    // cookie from exactly these requests (remote-access.js says why, with the
+    // measurement). The key was already resolved by _remoteGate — a request
+    // reaching here has passed the same door as every other remote request — so
+    // all that is left is to look past it at the package and the file. Serving
+    // the two from one place is the point: a divergence would mean a widget
+    // behaves differently depending on which screen it is on.
+    const keyed = remoteAccessLib.parseWidgetAssetPath(reqPath);
+    // The CSP for THIS response, with the serving origin named alongside
+    // 'self'. A sandboxed document's origin is opaque, and on a WebKit engine
+    // 'self' then matches nothing — which blocked every widget's own stylesheet
+    // and script on iPhone and iPad while Chromium was fine. The Host has
+    // already passed the loopback allowlist or the paired-device gate before it
+    // gets here, and widgetCspFor validates it again before writing it into a
+    // header. Secure is read from the socket, never from a header.
+    const widgetCsp = sdkWidgets.widgetCspFor(req.headers.host, !!(req.socket && req.socket.encrypted));
+    const assetPath = keyed ? '/sdk/widget/' + keyed.rest : reqPath;
+    const m = /^\/sdk\/widget\/([^/]+)\/(.+)$/.exec(assetPath);
     // Reserved probe asset: served from server memory, BEFORE resolveAsset (which
     // refuses the name so a package file can never shadow it from disk). Same
     // headers as every widget asset — the probe runs under the identical sandbox.
@@ -15281,7 +15867,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, {
         'Content-Type': 'text/javascript; charset=utf-8',
         'Cache-Control': 'no-cache',
-        'Content-Security-Policy': sdkWidgets.WIDGET_CSP,
+        'Content-Security-Policy': widgetCsp,
         'X-Content-Type-Options': 'nosniff',
       });
       res.end(sdkWidgets.PERF_PROBE_SOURCE);
@@ -15298,7 +15884,7 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(200, {
           'Content-Type': mime,
           'Cache-Control': 'no-cache',
-          'Content-Security-Policy': sdkWidgets.WIDGET_CSP,
+          'Content-Security-Policy': widgetCsp,
           'X-Content-Type-Options': 'nosniff',
         });
         res.end(payload);
@@ -15526,6 +16112,253 @@ const server = http.createServer(async (req, res) => {
     try { await readBody(req); const ok = await remoteControl.unblockAccess(); json({ ok }); }
     catch (e) { err500(e.message); }
 
+  // ── Paired-device access (R1.1) ────────────────────────────────────────────
+  // Everything below except /redeem and /whoami is LOOPBACK-ONLY, and not
+  // because a handler says so: none of these paths is on the remote allowlist
+  // in remote-access.js, so a paired device is refused before reaching them.
+  // That is the intended shape — a phone can never enrol another phone, revoke
+  // the device that would kick it off, or turn the feature off from outside.
+
+  } else if (reqPath === '/api/remote-access/status' && req.method === 'GET') {
+    // Everything the Settings panel needs to render itself, in one read.
+    const addresses = remoteAccessLib.pairingAddresses();
+    json({
+      enabled: remoteAccessEnabled(),
+      port: PORT,
+      addresses,
+      devices: remoteAccess.list(),
+      maxDevices: remoteAccessLib.MAX_DEVICES,
+      pairing: remoteAccess.pairingState(),
+      // The T2 door, as two separate facts: what the user ASKED for, and what
+      // actually happened. Collapsing them would make a switch that silently
+      // flicks itself back off — the panel needs to show it on, and next to it
+      // the one reason it did not come up.
+      httpsEnabled: !!(_serverHubSettings && _serverHubSettings.remoteAccess && _serverHubSettings.remoteAccess.https === true),
+      https: remoteHttps.status(),
+      // The guided setup, when one is running: which step, and whether it is
+      // parked on the one thing the user has to do elsewhere.
+      httpsSetup: remoteHttpsSetup.status(),
+    });
+
+  } else if (reqPath === '/api/remote-access/enable' && req.method === 'POST') {
+    // The opt-in. Turning it OFF also hangs up on every connected device: a
+    // switch that leaves live streams running is a switch that lies.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const value = body.value === true;
+      await withHubSettingsLock(async () => {
+        const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+        // Spread the stored block rather than replacing it: this endpoint owns
+        // ONE field of it. Writing `{ enabled: value }` wholesale is how the
+        // sibling flag gets silently reset by an unrelated toggle — the same
+        // shape as the bug that switched paired access off on every save.
+        const saved = await writeHubSettings({
+          ...cur,
+          remoteAccess: { ...(cur.remoteAccess || {}), enabled: value },
+          rev: nextSettingsRev(cur.rev, body.rev),
+        });
+        _serverHubSettings = saved;
+        broadcastSSE('settings', { rev: saved.rev });
+      });
+      if (!value) { remoteAccess.cancelPairing(); _dropRemoteSockets(null); }
+      // The HTTPS door serves the paired-device door and nothing else, so it
+      // follows it down — and back up, if it was on before.
+      _syncRemoteHttps();
+      json({ ok: true, enabled: value });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/remote-access/https' && req.method === 'POST') {
+    // The T2 opt-in. Answers with the REASON when it cannot come up, because
+    // every failure here is fixable and each one somewhere different: install
+    // Tailscale, start it, log in, or — the one that is not on this machine at
+    // all — switch HTTPS Certificates on for the tailnet in the admin console.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const value = body.value === true;
+      await withHubSettingsLock(async () => {
+        const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+        const saved = await writeHubSettings({
+          ...cur,
+          remoteAccess: { ...(cur.remoteAccess || {}), https: value },
+          rev: nextSettingsRev(cur.rev, body.rev),
+        });
+        _serverHubSettings = saved;
+        broadcastSSE('settings', { rev: saved.rev });
+      });
+      await _syncRemoteHttps();
+      json({ ok: true, https: value, state: remoteHttps.status() });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/remote-access/https/setup' && req.method === 'POST') {
+    // The one button. Installs Tailscale if it is missing, opens the sign-in if
+    // it is not signed in, then waits — politely and for a long time — for the
+    // certificate switch that lives in Tailscale's own admin console and cannot
+    // be flipped from here. Returns immediately; the panel polls /status.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      if (body.cancel === true) { json(remoteHttpsSetup.cancel()); return; }
+      json(remoteHttpsSetup.start());
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/remote-access/pair' && req.method === 'POST') {
+    // Open a pairing window. The code is returned to the LOCAL dashboard only,
+    // which renders it as a QR; it never travels anywhere else.
+    try {
+      await readBody(req);
+      if (!remoteAccessEnabled()) { json({ ok: false, error: 'disabled' }); return; }
+      const addresses = remoteAccessLib.pairingAddresses();
+      if (!addresses.length) { json({ ok: false, error: 'no_network' }); return; }
+      const p = remoteAccess.startPairing();
+      // When the HTTPS door is up, its URL is the one to hand out — and the only
+      // one. It reaches the PC both at home and away, it is a secure context (so
+      // the phone can install it as an app and use its microphone), and its name
+      // does not change when the router hands out a different lease. Cookies are
+      // scoped per host, so a phone paired on the LAN IP is NOT paired on the
+      // MagicDNS name: offering both would mean pairing the same phone twice.
+      const tls = remoteHttps.status();
+      json({
+        ok: true, code: p.code, display: p.display, expiresAt: p.expiresAt,
+        addresses, port: PORT,
+        secureUrl: tls.running ? tls.url : '',
+      });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/remote-access/pair/cancel' && req.method === 'POST') {
+    try { await readBody(req); remoteAccess.cancelPairing(); json({ ok: true }); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/remote-access/redeem' && req.method === 'POST') {
+    // The one pre-auth write on the paired-device door. Reached ONLY through
+    // _remoteGate, which has already checked Host/Origin/Sec-Fetch-Site and
+    // rate-limited the source address; redeem() rate-limits again per address
+    // and burns the code after a handful of wrong guesses.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const r = await remoteAccess.redeem(body.code, { name: body.name, ip: _peerIp(req) });
+      if (!r.ok) {
+        // A refusal never says which part was wrong.
+        res.writeHead(r.error === 'rate_limited' ? 429 : 403, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ ok: false, error: r.error }));
+        return;
+      }
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
+        // `Secure` follows the door the pairing happened on: over plain HTTP the
+        // browser would discard a Secure cookie entirely and pairing would look
+        // like it silently did nothing.
+        'Set-Cookie': remoteAccessLib.cookieHeader(r.token, { secure: !!(req.socket && req.socket.encrypted) }),
+      });
+      res.end(JSON.stringify({ ok: true, device: { id: r.device.id, name: r.device.name } }));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/remote-access/whoami' && req.method === 'GET') {
+    // Lets the phone show which device it is registered as. Loopback callers
+    // get `null` — they are not a paired device and never will be.
+    json({ device: isRemote && remote.device ? { id: remote.device.id, name: remote.device.name } : null });
+
+  } else if (reqPath === '/api/remote-access/rename' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await remoteAccess.rename(String(body.id || ''), body.name));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/remote-access/revoke' && req.method === 'POST') {
+    // Revocation must be instant, so drop the device's live sockets too — its
+    // SSE stream would otherwise keep feeding it system data until the phone
+    // gave up on its own.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const id = String(body.id || '');
+      const r = await remoteAccess.revoke(id);
+      if (r.ok) {
+        _dropRemoteSockets(id);
+        // A revoked device cannot unsubscribe itself — its token is already
+        // dead — so a push subscription would outlive the access it was made
+        // under, and the phone would keep being woken by a dashboard it can no
+        // longer open. Dropping it here is the only place that can.
+        await webPush.dropDevice(id).catch((e) => console.warn('[web-push] drop failed:', e.message));
+      }
+      json(r);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/remote-access/revoke-all' && req.method === 'POST') {
+    // The kill switch. Mirrors the Remote-Control panel's one-tap revoke.
+    try {
+      await readBody(req);
+      const r = await remoteAccess.revokeAll();
+      _dropRemoteSockets(null);
+      // Same reasoning as the single revoke, for every device at once. The
+      // loopback surface's own subscription (deviceId '') is deliberately kept:
+      // it was never a paired device and the kill switch is about those.
+      for (const s of await webPush.list()) {
+        if (s.deviceId) await webPush.dropDevice(s.deviceId).catch(() => {});
+      }
+      json(r);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/push/key' && req.method === 'POST') {
+    // POST rather than GET because the FIRST call mints the VAPID key pair and
+    // writes it to disk. A GET that creates a keypair is exactly the shape the
+    // CSRF invariant exists to catch, and calling it a POST costs the client one
+    // character and removes the argument entirely.
+    try {
+      await readBody(req);
+      json({ ok: true, key: await webPush.publicKey() });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/push/subscribe' && req.method === 'POST') {
+    // The browser has just been given an address by its push service and is
+    // handing it over. It is tied to the DEVICE that presented it, so a revoke
+    // can take it away again; on the PC itself there is no device, and the
+    // empty id is a real value meaning "this machine".
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const deviceId = (remote && remote.device && remote.device.id) || '';
+      json(await webPush.subscribe(body.subscription || body, { deviceId }));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/push/unsubscribe' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await webPush.unsubscribe(String(body.endpoint || '')));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/push/status' && req.method === 'GET') {
+    // Read-only, and deliberately says nothing an attacker could use: whether a
+    // key exists, how many devices are subscribed, and whether THIS one is —
+    // never an endpoint, which is the bearer address of someone's phone.
+    try {
+      const body = req.headers['x-xenon-endpoint'];
+      json({
+        ok: true,
+        hasKeys: webPush.hasKeys(),
+        count: webPush.count(),
+        subscribed: body ? await webPush.hasSubscription(String(body)) : null,
+        devices: await webPush.list(),
+      });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/push/test' && req.method === 'POST') {
+    // The "did that actually work" button. It is the only way a user can tell:
+    // everything else about push is invisible until something happens at three
+    // in the morning.
+    //
+    // The text comes from the CLIENT because the client is the only side of
+    // this that has all eleven languages; the server holds no UI strings. It is
+    // clamped by webPush.send() like any other message, and this endpoint sends
+    // nothing but what the person pressing the button just wrote on their own
+    // dashboard — reaching it at all already requires being a paired device.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const r = await webPushNotify({
+        title: String(body.title || 'Xenon'),
+        body: String(body.body || 'Notifications are working.'),
+        tag: 'xenon-test',
+      }, { urgency: 'high', ttl: 60 });
+      json(r);
+    } catch (e) { err500(e.message); }
+
   } else if (reqPath === '/sse' && req.method === 'GET') {
     // Server-Sent Events stream — replaces client-side polling for status, media,
     // system and audio data. Keepalive pings prevent proxy connection timeouts.
@@ -15614,7 +16447,9 @@ const server = http.createServer(async (req, res) => {
   } else {
     res.writeHead(404); res.end();
   }
-});
+};
+
+const server = http.createServer(handleRequest);
 
 // ── Embedded-browser relay WebSocket ──────────────────────────────────────────
 // The Browser widget streams CDP screencast frames over this loopback-only socket
@@ -16021,6 +16856,10 @@ function _startListen(host) {
       console.log('Mic muted:   ', isMuted);
     }).catch(e => console.error('Audio init failed:', e.message));
     _initSttDevice(); // Enumerate DirectShow audio devices in background
+    // The T2 HTTPS door, when the user asked for it. Deferred and fire-and-forget:
+    // it shells out to tailscale and may fetch a certificate, neither of which
+    // belongs in front of the dashboard coming up.
+    setTimeout(() => { _syncRemoteHttps().catch(() => {}); }, 3000);
     _initTimers().catch(() => {}); // Load persisted timers + start 1-second check loop
     // PresentMon (real in-game FPS) is NOT started here: it holds an admin ETW
     // tracing session, so it stays paused until the first dashboard connects and
@@ -16390,6 +17229,15 @@ function _gracefulShutdown() {
   // Terminate all open SSE streams (the main long-lived handles).
   for (const res of sseClients) { try { res.end(); } catch {} }
   sseClients.clear();
+  // Flush the paired-device store's debounced "last seen" bookkeeping, and let
+  // go of the socket bookkeeping. Nothing here is security-critical — the
+  // tokens are already on disk — but a shutdown should not lose the last hour
+  // of "when did my phone last connect".
+  try { shutdownFlush = shutdownFlush.then(() => remoteAccess.flush()).catch(() => {}); } catch {}
+  // The T2 listener holds its own sockets — including SSE streams, which never
+  // end on their own — and the process would not exit with them open.
+  try { shutdownFlush = shutdownFlush.then(() => remoteHttps.stop()).catch(() => {}); } catch {}
+  try { _remoteSockets.clear(); } catch {}
   // Release RGB bridge so iCUE reclaims device control immediately.
   try { lighting.releaseAll(); lighting.disconnect(); } catch {}
   // Stop the persistent PowerShell collector host (safe to kill: no SMTC handles).

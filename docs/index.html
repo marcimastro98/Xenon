@@ -251,6 +251,26 @@
     .proof-item { padding: 18px 22px; }
   }
 
+  /* ───────────────── SECOND SCREEN ───────────────── */
+  /* Answers the objection this page loses the most people to. Deliberately a
+     band and not a pillar: the pillars are what Xenon DOES, and this is about
+     whether the visitor can run it at all. */
+  .sscreen {
+    display: grid; grid-template-columns: 1.15fr 1fr; gap: 44px; align-items: center;
+    padding: 40px; border: 1px solid var(--line); border-radius: 20px; background: var(--ink-2);
+  }
+  .sscreen h2 { margin: 8px 0 14px; font-size: clamp(26px, 3.4vw, 38px); line-height: 1.08; letter-spacing: -0.02em; }
+  .sscreen p { margin: 0; color: var(--muted); line-height: 1.6; }
+  .sscreen .hero-cta { justify-content: flex-start; margin-top: 26px; }
+  .sscreen-facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+  .sscreen-facts li { padding: 15px 17px; border: 1px solid var(--line); border-radius: 13px; }
+  .sscreen-facts b { display: block; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+  .sscreen-facts span { display: block; margin-top: 3px; font-size: 13.5px; color: var(--muted); line-height: 1.5; }
+  @media (max-width: 860px) {
+    .sscreen { grid-template-columns: 1fr; gap: 30px; padding: 28px 22px; }
+    .sscreen .hero-cta { justify-content: center; }
+  }
+
   /* ───────────────── SOCIAL PROOF ───────────────── */
   /* Downloads, stars and Discord members, live, under the hero where the install
      decision is made.
@@ -672,6 +692,7 @@
       <a class="link" href="#features" data-i18n="nav.features">Features</a>
       <a class="link" href="catalog/" data-i18n="nav.catalog">Catalog</a>
       <a class="link" href="demo/" data-i18n="nav.demo" data-track="demo_try_click" data-track-location="nav">Demo</a>
+      <a class="link" href="phone.html" data-i18n="nav.phone" data-track="phone_guide_click" data-track-location="nav">Phone</a>
       <a class="link" href="create/" data-i18n="nav.create">Create</a>
       <a class="link" href="#install" data-i18n="nav.install">Install</a>
       <a class="link" href="#supporters" id="nav-thanks" hidden data-i18n="nav.thanks">Thanks</a>
@@ -778,6 +799,35 @@
       <div class="proof-item"><b data-i18n="proof.3t">Free forever</b><span data-i18n="proof.3s">Open source, funded by coffee</span></div>
     </div>
   </div>
+
+  <!-- ───── SECOND SCREEN ───── -->
+  <!-- The objection that costs this page the most visitors is "I do not have a
+       spare monitor", and it is answered by a feature almost nobody knows is
+       there. It sits here on purpose: the proof strip above has just settled
+       whether Xenon can be trusted, and this settles whether it is usable at
+       all. Everything past this point assumes the answer is yes. -->
+  <section id="second-screen" style="padding-top:0">
+    <div class="wrap">
+      <div class="sscreen reveal">
+        <div class="sscreen-text">
+          <span class="kicker" data-i18n="ss.k">No spare monitor?</span>
+          <h2 data-i18n-html="ss.h">You already have one <em>in your pocket.</em></h2>
+          <p data-i18n="ss.p">Open Xenon on your phone or tablet and that is your dashboard, not a remote for it: the same layout, the same widgets, the same theme. Deck keys really run on the PC. On your own Wi-Fi it takes about thirty seconds and there is nothing to install.</p>
+          <div class="hero-cta">
+            <a class="btn btn-fill" href="phone.html" data-track="phone_guide_click" data-track-location="band">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg>
+              <span data-i18n="ss.cta">How to set it up</span>
+            </a>
+          </div>
+        </div>
+        <ul class="sscreen-facts">
+          <li><b data-i18n="ss.f1t">About thirty seconds</b><span data-i18n="ss.f1s">Turn it on, scan a QR code. No account, nothing to install.</span></li>
+          <li><b data-i18n="ss.f2t">It stays on your network</b><span data-i18n="ss.f2s">Nothing in the middle, and no port opened on your router.</span></li>
+          <li><b data-i18n="ss.f3t">Phone or tablet</b><span data-i18n="ss.f3s">A phone stacks the tiles into one column. A tablet keeps the full grid.</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
 
   <!-- ───── PILLARS ───── -->
   <section id="features">
@@ -1183,11 +1233,17 @@ I18N.en = {
   'hero.h1': 'Any second screen becomes <em>your control center.</em>',
   'hero.sub': 'System stats, media, RGB, a voice AI and a programmable Deck, on a display you already own. A spare monitor, an old display, or the CORSAIR Xeneon Edge. Free and open source, and <b>everything runs on your machine</b>. No cloud, no account, no telemetry.',
   'num.dl': 'downloads', 'num.stars': 'stars on GitHub', 'num.discord': 'in the Discord',
-  'cta.download': 'Download for Windows', 'cta.demo': 'Try it in your browser', 'nav.demo': 'Demo', 'cta.discord': 'Join the Discord',
+  'cta.download': 'Download for Windows', 'cta.demo': 'Try it in your browser', 'nav.demo': 'Demo', 'nav.phone': 'Phone', 'cta.discord': 'Join the Discord',
   'hero.free1': 'Free', 'hero.free2': 'Open source', 'hero.free3': 'Windows 10/11',
   'proof.1t': '100% local', 'proof.1s': 'Your data never leaves your PC',
   'proof.2t': 'Zero telemetry', 'proof.2s': 'No ads, no accounts, no tracking in the app',
   'proof.3t': 'Free forever', 'proof.3s': 'Open source, funded by coffee',
+  'ss.k': 'No spare monitor?', 'ss.cta': 'How to set it up',
+  'ss.h': 'You already have one <em>in your pocket.</em>',
+  'ss.p': 'Open Xenon on your phone or tablet and that is your dashboard, not a remote for it: the same layout, the same widgets, the same theme. Deck keys really run on the PC. On your own Wi-Fi it takes about thirty seconds and there is nothing to install.',
+  'ss.f1t': 'About thirty seconds', 'ss.f1s': 'Turn it on, scan a QR code. No account, nothing to install.',
+  'ss.f2t': 'It stays on your network', 'ss.f2s': 'Nothing in the middle, and no port opened on your router.',
+  'ss.f3t': 'Phone or tablet', 'ss.f3s': 'A phone stacks the tiles into one column. A tablet keeps the full grid.',
   'feat.kicker': 'The essentials', 'feat.h2': 'Start with<br>these four.',
   'feat.p': 'Xenon has more than 30 widgets. These are the four that people actually use every day.',
   'p1.k': 'Xenon AI', 'p1.h': 'Ask it out loud',
@@ -1277,11 +1333,17 @@ I18N.it = {
   'hero.h1': 'Qualsiasi secondo schermo diventa <em>il tuo centro di controllo.</em>',
   'hero.sub': 'Statistiche di sistema, media, RGB, un\'AI vocale e un Deck programmabile, su uno schermo che hai già. Un monitor di scorta, un vecchio schermo, o il CORSAIR Xeneon Edge. Gratis e open source, e <b>gira tutto sulla tua macchina</b>. Niente cloud, niente account, niente telemetria.',
   'num.dl': 'download', 'num.stars': 'stelle su GitHub', 'num.discord': 'nel Discord',
-  'cta.download': 'Scarica per Windows', 'cta.demo': 'Provalo nel browser', 'nav.demo': 'Demo', 'cta.discord': 'Entra nel Discord',
+  'cta.download': 'Scarica per Windows', 'cta.demo': 'Provalo nel browser', 'nav.demo': 'Demo', 'nav.phone': 'Telefono', 'cta.discord': 'Entra nel Discord',
   'hero.free1': 'Gratis', 'hero.free2': 'Open source', 'hero.free3': 'Windows 10/11',
   'proof.1t': '100% locale', 'proof.1s': 'I tuoi dati non lasciano mai il tuo PC',
   'proof.2t': 'Zero telemetria', 'proof.2s': "Nessuna pubblicità, account o tracciamento nell'app",
   'proof.3t': 'Gratis per sempre', 'proof.3s': 'Open source, va avanti a caffè',
+  'ss.k': 'Non hai un monitor di scorta?', 'ss.cta': 'Come si fa',
+  'ss.h': 'Ne hai già uno <em>in tasca.</em>',
+  'ss.p': 'Apri Xenon sul telefono o sul tablet e quella è la tua dashboard, non un telecomando: stesso layout, stessi widget, stesso tema. I tasti del Deck partono davvero sul PC. Sul tuo Wi-Fi ci vogliono circa trenta secondi e non c\'è niente da installare.',
+  'ss.f1t': 'Circa trenta secondi', 'ss.f1s': 'Accendi, inquadri un QR. Niente account, niente da installare.',
+  'ss.f2t': 'Resta sulla tua rete', 'ss.f2s': 'Niente in mezzo, e nessuna porta aperta sul router.',
+  'ss.f3t': 'Telefono o tablet', 'ss.f3s': 'Sul telefono le tile si impilano in una colonna. Sul tablet resta la griglia intera.',
   'feat.kicker': 'L\'essenziale', 'feat.h2': 'Parti da<br>questi quattro.',
   'feat.p': 'Xenon ha più di 30 widget. Questi sono i quattro che la gente usa davvero tutti i giorni.',
   'p1.k': 'Xenon AI', 'p1.h': 'Chiediglielo a voce',
@@ -1371,11 +1433,17 @@ I18N.ko = {
   'hero.h1': '어떤 세컨드 스크린이든 <em>당신의 컨트롤 센터가 됩니다.</em>',
   'hero.sub': '시스템 상태, 미디어, RGB, 음성 AI, 프로그래머블 Deck을 이미 가지고 있는 화면 위에. 남는 모니터, 오래된 디스플레이, 또는 CORSAIR Xeneon Edge. 무료 오픈소스이며 <b>모든 것이 당신의 PC에서 실행됩니다</b>. 클라우드도, 계정도, 텔레메트리도 없습니다.',
   'num.dl': '다운로드', 'num.stars': 'GitHub 스타', 'num.discord': '디스코드 멤버',
-  'cta.download': 'Windows용 다운로드', 'cta.demo': '브라우저에서 체험', 'nav.demo': '데모', 'cta.discord': 'Discord 참여',
+  'cta.download': 'Windows용 다운로드', 'cta.demo': '브라우저에서 체험', 'nav.demo': '데모', 'nav.phone': '휴대폰', 'cta.discord': 'Discord 참여',
   'hero.free1': '무료', 'hero.free2': '오픈소스', 'hero.free3': 'Windows 10/11',
   'proof.1t': '100% 로컬', 'proof.1s': '데이터가 PC를 떠나지 않습니다',
   'proof.2t': '텔레메트리 제로', 'proof.2s': '앱에는 광고, 계정, 추적이 없습니다',
   'proof.3t': '영원히 무료', 'proof.3s': '오픈소스, 커피로 굴러갑니다',
+  'ss.k': '남는 모니터가 없나요?', 'ss.cta': '설정하는 방법',
+  'ss.h': '이미 <em>주머니 안에</em> 하나 있습니다.',
+  'ss.p': '휴대폰이나 태블릿에서 Xenon을 열면 그것이 리모컨이 아니라 대시보드 그 자체입니다. 레이아웃도 위젯도 테마도 똑같고, 덱 키는 실제로 PC에서 실행됩니다. 내 Wi-Fi에서는 30초 정도면 되고, 설치할 것도 없습니다.',
+  'ss.f1t': '30초 정도', 'ss.f1s': '켜고 QR을 찍으면 끝. 계정도, 설치할 앱도 없습니다.',
+  'ss.f2t': '내 네트워크 안에 머뭅니다', 'ss.f2s': '중간에 끼는 것도 없고, 공유기 포트도 열지 않습니다.',
+  'ss.f3t': '휴대폰이든 태블릿이든', 'ss.f3s': '휴대폰에서는 타일이 한 줄로 쌓이고, 태블릿에서는 전체 그리드가 그대로 유지됩니다.',
   'feat.kicker': '핵심 기능', 'feat.h2': '이 네 가지부터<br>시작하세요.',
   'feat.p': 'Xenon에는 위젯이 30개 넘게 있습니다. 그중 사람들이 매일 실제로 쓰는 건 이 네 가지입니다.',
   'p1.k': 'Xenon AI', 'p1.h': '소리 내어 물어보세요',
@@ -1465,11 +1533,17 @@ I18N.ja = {
   'hero.h1': 'どんなセカンドスクリーンも<em>あなたのコントロールセンターに。</em>',
   'hero.sub': 'システム情報、メディア、RGB、音声 AI、プログラマブルな Deck を、すでに持っている画面の上に。余っているモニター、古いディスプレイ、あるいは CORSAIR Xeneon Edge。無料のオープンソースで、<b>すべてがあなたのマシン上で動きます</b>。クラウドなし、アカウントなし、テレメトリなし。',
   'num.dl': 'ダウンロード', 'num.stars': 'GitHub スター', 'num.discord': 'Discord メンバー',
-  'cta.download': 'Windows 版をダウンロード', 'cta.demo': 'ブラウザで試す', 'nav.demo': 'デモ', 'cta.discord': 'Discord に参加',
+  'cta.download': 'Windows 版をダウンロード', 'cta.demo': 'ブラウザで試す', 'nav.demo': 'デモ', 'nav.phone': 'スマホ', 'cta.discord': 'Discord に参加',
   'hero.free1': '無料', 'hero.free2': 'オープンソース', 'hero.free3': 'Windows 10/11',
   'proof.1t': '100% ローカル', 'proof.1s': 'データが PC の外に出ることはありません',
   'proof.2t': 'テレメトリゼロ', 'proof.2s': 'アプリに広告・アカウント・トラッキングはありません',
   'proof.3t': 'ずっと無料', 'proof.3s': 'オープンソース、コーヒーで回っています',
+  'ss.k': '余っているモニターがない?', 'ss.cta': '設定のしかた',
+  'ss.h': 'もう<em>ポケットの中に</em>あります。',
+  'ss.p': 'スマホやタブレットで Xenon を開けば、それはリモコンではなくダッシュボードそのものです。レイアウトもウィジェットもテーマも同じで、デッキのキーは本当に PC 側で動きます。自宅の Wi-Fi なら30秒ほど、インストールするものもありません。',
+  'ss.f1t': '30秒ほど', 'ss.f1s': 'オンにして QR を読むだけ。アカウントも、入れるアプリも不要です。',
+  'ss.f2t': '自分のネットワークの中だけ', 'ss.f2s': '間に入るものはなく、ルーターのポートも開きません。',
+  'ss.f3t': 'スマホでもタブレットでも', 'ss.f3s': 'スマホではタイルが1列に積まれ、タブレットではグリッドがそのまま残ります。',
   'feat.kicker': 'まずはここから', 'feat.h2': 'まずは<br>この4つから。',
   'feat.p': 'Xenon にはウィジェットが 30 個以上あります。そのうち、みんなが毎日実際に使うのはこの4つです。',
   'p1.k': 'Xenon AI', 'p1.h': '声で頼んでみてください',
@@ -1559,11 +1633,17 @@ I18N.zh = {
   'hero.h1': '任何一块副屏，都能变成<em>你的控制中心。</em>',
   'hero.sub': '系统状态、媒体、RGB、语音 AI 和可编程 Deck，全都放在你已经有的那块屏上。一台闲置显示器、一块旧屏幕，或者 CORSAIR Xeneon Edge。免费开源，<b>一切都在你的机器上运行</b>。无云端、无账号、无遥测。',
   'num.dl': '次下载', 'num.stars': 'GitHub 星标', 'num.discord': 'Discord 成员',
-  'cta.download': '下载 Windows 版', 'cta.demo': '在浏览器中试用', 'nav.demo': '演示', 'cta.discord': '加入 Discord',
+  'cta.download': '下载 Windows 版', 'cta.demo': '在浏览器中试用', 'nav.demo': '演示', 'nav.phone': '手机', 'cta.discord': '加入 Discord',
   'hero.free1': '免费', 'hero.free2': '开源', 'hero.free3': 'Windows 10/11',
   'proof.1t': '100% 本地', 'proof.1s': '你的数据永不离开你的 PC',
   'proof.2t': '零遥测', 'proof.2s': '应用内无广告、无账号、无跟踪',
   'proof.3t': '永久免费', 'proof.3s': '开源项目，靠咖啡运转',
+  'ss.k': '没有多余的显示器？', 'ss.cta': '怎么设置',
+  'ss.h': '你<em>口袋里</em>就已经有一块了。',
+  'ss.p': '在手机或平板上打开 Xenon，那就是你的仪表盘，不是它的遥控器：布局、组件、主题都一模一样，Deck 按键真的在电脑上执行。在自家 Wi-Fi 下大约三十秒，而且不用装任何东西。',
+  'ss.f1t': '大约三十秒', 'ss.f1s': '打开开关，扫个二维码。不需要账号，也不用装任何东西。',
+  'ss.f2t': '始终留在你的网络里', 'ss.f2s': '中间没有任何东西，也不用在路由器上开端口。',
+  'ss.f3t': '手机或平板都行', 'ss.f3s': '手机上磁贴会叠成一列，平板上完整的网格原样保留。',
   'feat.kicker': '核心功能', 'feat.h2': '先从<br>这四样开始。',
   'feat.p': 'Xenon 有 30 多个小组件。这四个,是大家每天真正会用的。',
   'p1.k': 'Xenon AI', 'p1.h': '开口问它就行',

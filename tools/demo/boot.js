@@ -296,6 +296,12 @@
       case '/api/gamemode/status': return ok({ gaming: false });
       case '/api/native/status': case '/api/native/install-status': return ok({ installed: false });
       case '/remote/status': return ok({ ready: false, installed: false, blocked: false, connectedClients: [] });
+      // Paired-device access, honestly off: the demo IS a browser tab on the
+      // public site, so there is no PC to pair with and no LAN address to show.
+      // Mocked rather than left to the Tier C default so the panel renders its
+      // real off-state instead of an error nobody can act on.
+      case '/api/remote-access/status':
+        return ok({ enabled: false, port: 3030, addresses: [], devices: [], maxDevices: 16, pairing: null });
       case '/sdk/widgets': return ok({ packages: [] });
       // An empty Deck store is a real, valid store: the widget renders its own
       // "add a key" empty state rather than an error, and the editor works.

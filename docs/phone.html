@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xenon: use your phone as the second screen</title>
+<meta name="description" content="To use Xenon you need a screen you can leave on all day. You already have one in your pocket. How to open your dashboard on a phone or tablet: thirty seconds at home, or five minutes to have it work from anywhere as an app.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="images/favicon.png">
+<meta property="og:title" content="Use your phone as the second screen | Xenon">
+<meta property="og:description" content="Open your Xenon dashboard on a phone or tablet. Deck keys really run on the PC. No account, no cloud, nothing to install.">
+<meta property="og:type" content="article">
+<link rel="canonical" href="https://xenon-app.com/phone.html">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+
+  :root {
+    --ink:   #070808;
+    --panel: rgba(240,243,241,0.03);
+    --line:  rgba(240,243,241,0.08);
+    --line-2:rgba(240,243,241,0.16);
+    --green: #1ed760;
+    --text:  #f0f3f1;
+    --muted: #9aa8a1;
+    --dim:   #66736c;
+    --sans:  'Inter', system-ui, -apple-system, sans-serif;
+    --mono:  'JetBrains Mono', ui-monospace, monospace;
+    --maxw:  820px;
+    --radius:14px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--ink); color: var(--text);
+    font-family: var(--sans); font-size: 16px; line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  header.top {
+    border-bottom: 1px solid var(--line);
+    padding: 20px 0; position: sticky; top: 0; z-index: 10;
+    background: rgba(7,8,8,0.82); backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .logo {
+    display: inline-flex; align-items: center; gap: 10px;
+    color: var(--text); text-decoration: none;
+    font-weight: 700; letter-spacing: 0.16em; font-size: 14px;
+  }
+  .logo img { width: 34px; height: 23px; }
+  .back { color: var(--dim); text-decoration: none; font-size: 13.5px; }
+  .back:hover { color: var(--green); }
+
+  main { padding: 56px 0 96px; }
+  h1 { font-size: clamp(30px, 5.4vw, 46px); line-height: 1.12; letter-spacing: -0.025em; margin: 0 0 18px; }
+  .lede { font-size: 18.5px; color: var(--muted); margin: 0 0 12px; }
+  .lede strong { color: var(--text); font-weight: 600; }
+
+  h2 {
+    font-size: 23px; letter-spacing: -0.01em; margin: 64px 0 6px;
+    padding-top: 30px; border-top: 1px solid var(--line);
+  }
+  h3 { font-size: 16.5px; margin: 34px 0 8px; }
+  p { margin: 0 0 16px; color: var(--muted); }
+  p strong, li strong { color: var(--text); font-weight: 600; }
+  a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; color: var(--muted); }
+  li { margin-bottom: 10px; }
+  code {
+    font-family: var(--mono); font-size: 13px;
+    background: rgba(240,243,241,0.06); padding: 2px 6px; border-radius: 6px;
+    color: var(--text); overflow-wrap: anywhere;
+  }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 22px 24px; margin: 24px 0;
+  }
+  .card.accent { border-color: rgba(30,215,96,0.28); background: rgba(30,215,96,0.045); }
+  .card p:last-child, .card ul:last-child, .card ol:last-child { margin-bottom: 0; }
+  .card h3 { margin-top: 0; }
+
+  /* ── The two routes, side by side ─────────────────────────────── */
+  .routes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin: 28px 0 8px; }
+  .route { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 22px 20px; }
+  .route.pick { border-color: rgba(30,215,96,0.3); }
+  .route .tag {
+    display: inline-block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--green); border: 1px solid rgba(30,215,96,0.35);
+    border-radius: 999px; padding: 3px 10px; margin-bottom: 12px;
+  }
+  .route h3 { margin: 0 0 6px; font-size: 18px; color: var(--text); }
+  .route .time { font-family: var(--mono); font-size: 12.5px; color: var(--dim); margin: 0 0 12px; }
+  .route ul { margin: 0; padding-left: 18px; font-size: 15px; }
+
+  /* ── Numbered steps ───────────────────────────────────────────── */
+  .steps { counter-reset: s; list-style: none; padding: 0; margin: 22px 0 8px; }
+  .steps > li {
+    counter-increment: s; position: relative;
+    padding: 0 0 22px 46px; margin: 0;
+    border-left: 1px solid var(--line); margin-left: 15px;
+  }
+  .steps > li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  .steps > li::before {
+    content: counter(s);
+    position: absolute; left: -15px; top: -2px;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--ink); border: 1px solid rgba(30,215,96,0.35);
+    color: var(--green); font-family: var(--mono); font-size: 13px; font-weight: 500;
+    display: grid; place-items: center;
+  }
+  .steps h3 { margin: 0 0 6px; font-size: 16.5px; color: var(--text); }
+  .steps p { margin: 0 0 10px; font-size: 15.5px; }
+  .steps p:last-child { margin-bottom: 0; }
+
+  /* ── Device mockups ───────────────────────────────────────────────
+     Drawn in CSS, not photographed. They are an illustration of the
+     LAYOUT — a real screenshot of a dashboard shows its owner's calendar,
+     notes and file paths, and this page is public. */
+  .shots { display: flex; gap: 34px; align-items: flex-end; justify-content: center; flex-wrap: wrap; margin: 34px 0 10px; }
+  /* figure carries a browser default of `margin: 1em 40px`. Left alone it added
+     160px across the pair and pushed the row 9px past the column, which wraps —
+     the two devices are meant to be read side by side. */
+  .shot { text-align: center; margin: 0; max-width: 100%; }
+  .shot figcaption { font-family: var(--mono); font-size: 11.5px; color: var(--dim); margin-top: 12px; letter-spacing: 0.04em; }
+
+  .dev { background: #121614; border: 2px solid rgba(240,243,241,0.14); box-shadow: 0 18px 44px rgba(0,0,0,0.5); }
+  .dev-phone { width: 176px; height: 360px; border-radius: 24px; padding: 7px 5px; }
+  .dev-tab   { width: 300px; height: 226px; border-radius: 16px; padding: 7px; }
+  .screen { width: 100%; height: 100%; border-radius: 16px; overflow: hidden;
+            background: linear-gradient(160deg, #0b1512, #101a17 60%, #0a1210);
+            display: flex; flex-direction: column; }
+  .dev-tab .screen { border-radius: 9px; }
+
+  .bar { height: 15px; margin: 5px 5px 6px; border-radius: 6px; background: rgba(240,243,241,0.07);
+         display: flex; align-items: center; gap: 4px; padding: 0 5px; }
+  .bar i { display: block; height: 5px; border-radius: 3px; background: rgba(240,243,241,0.22); }
+  .bar i.a { width: 16px; background: rgba(30,215,96,0.55); }
+  .bar i.b { width: 26px; }
+  .bar i.c { width: 12px; margin-left: auto; }
+
+  /* phone: one column, tiles of different heights, thumb dock at the bottom */
+  .stack { flex: 1; display: flex; flex-direction: column; gap: 5px; padding: 0 5px; overflow: hidden; }
+  .stack > div { border-radius: 7px; background: rgba(240,243,241,0.055); border: 1px solid rgba(240,243,241,0.06); }
+  .stack > div.t1 { height: 46px; }
+  .stack > div.t2 { height: 72px; }
+  .stack > div.t3 { height: 38px; }
+  .stack > div.t4 { height: 58px; }
+  .stack > div.hl { background: rgba(30,215,96,0.13); border-color: rgba(30,215,96,0.3); }
+  .dock { height: 26px; margin: 6px 5px 5px; border-radius: 9px; background: rgba(240,243,241,0.09);
+          display: flex; align-items: center; justify-content: space-around; padding: 0 6px; }
+  .dock i { display: block; width: 13px; height: 13px; border-radius: 5px; background: rgba(240,243,241,0.22); }
+  .dock i:first-child { background: rgba(30,215,96,0.5); }
+
+  /* tablet: the real 24-column grid, kept */
+  .grid { flex: 1; display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: 30px; gap: 5px; padding: 0 5px 5px; }
+  .grid > div { border-radius: 6px; background: rgba(240,243,241,0.055); border: 1px solid rgba(240,243,241,0.06); }
+  .grid > div.w2 { grid-column: span 2; }
+  .grid > div.w3 { grid-column: span 3; }
+  .grid > div.w4 { grid-column: span 4; }
+  .grid > div.h2 { grid-row: span 2; }
+  .grid > div.hl { background: rgba(30,215,96,0.13); border-color: rgba(30,215,96,0.3); }
+
+  /* ── A reproduction of the settings rows ──────────────────────── */
+  .ui { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin: 20px 0; background: rgba(240,243,241,0.02); }
+  .ui-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .ui-row:last-child { border-bottom: none; }
+  .sw { width: 34px; height: 20px; border-radius: 999px; background: rgba(240,243,241,0.14); flex: none; position: relative; margin-top: 2px; }
+  .sw.on { background: rgba(30,215,96,0.75); }
+  .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #0b0d0c; }
+  .sw.on::after { left: auto; right: 3px; background: #08110c; }
+  .ui-txt strong { display: block; color: var(--text); font-size: 14.5px; font-weight: 600; }
+  .ui-txt span { display: block; color: var(--dim); font-size: 13px; line-height: 1.5; }
+  .ui-btn { display: inline-block; background: rgba(30,215,96,0.14); border: 1px solid rgba(30,215,96,0.35);
+            color: var(--green); border-radius: 9px; padding: 8px 16px; font-size: 14px; font-weight: 600; }
+
+  .yn { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; margin: 22px 0; }
+  .yn ul { list-style: none; padding: 0; margin: 0; }
+  .yn li { display: flex; gap: 9px; font-size: 15px; margin-bottom: 9px; align-items: flex-start; }
+  .yn .k { flex: none; font-weight: 700; line-height: 1.5; }
+  .can .k { color: var(--green); }
+  .cant .k { color: #e26d5c; }
+
+  .note { font-size: 14px; color: var(--dim); border-left: 2px solid var(--line-2); padding-left: 14px; margin: 18px 0; }
+
+  details { border: 1px solid var(--line); border-radius: 12px; padding: 0; margin: 12px 0; background: var(--panel); }
+  details > summary {
+    cursor: pointer; padding: 15px 18px; font-weight: 600; color: var(--text); font-size: 15.5px;
+    list-style: none; display: flex; align-items: center; gap: 10px;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before { content: '+'; color: var(--green); font-family: var(--mono); font-size: 17px; line-height: 1; }
+  details[open] > summary::before { content: '–'; }
+  details .body { padding: 0 18px 16px 40px; }
+  details .body p:last-child { margin-bottom: 0; }
+
+  footer { border-top: 1px solid var(--line); padding: 30px 0 60px; color: var(--dim); font-size: 13.5px; }
+  footer a { color: var(--dim); }
+  footer a:hover { color: var(--green); }
+
+  @media (max-width: 560px) {
+    .shots { gap: 22px; }
+    .steps > li { padding-left: 38px; }
+  }
+
+  /* Header right cluster + language picker, same markup and behaviour as the
+     home page so the choice carries across the site. */
+  .head-right { display: flex; align-items: center; gap: 14px; }
+  .navbtn {
+    font-size: 13px; font-weight: 600; padding: 8px 13px;
+    border: 1px solid var(--line-2); border-radius: 9px; color: var(--text);
+    display: inline-flex; align-items: center; gap: 8px; background: none; cursor: pointer;
+    font-family: var(--sans); transition: border-color .2s, color .2s;
+  }
+  .navbtn svg { width: 16px; height: 16px; flex: none; }
+  .navbtn:hover { border-color: var(--green); }
+  .lang { position: relative; }
+  .lang-menu {
+    position: absolute; top: calc(100% + 10px); right: 0; min-width: 168px; z-index: 60;
+    background: rgba(11,13,12,0.96); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--line-2); border-radius: 12px; padding: 6px;
+    opacity: 0; transform: translateY(-6px); pointer-events: none;
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  .lang.open .lang-menu { opacity: 1; transform: none; pointer-events: auto; }
+  .lang-menu button {
+    display: flex; width: 100%; align-items: center; gap: 10px; padding: 9px 12px;
+    background: none; border: 0; border-radius: 8px; color: var(--muted);
+    font-family: var(--sans); font-size: 13.5px; cursor: pointer; text-align: left;
+  }
+  .lang-menu button:hover { background: rgba(240,243,241,0.06); color: var(--text); }
+  .lang-menu button.on { color: var(--green); }
+  .lang-menu .nat { margin-left: auto; font-size: 11px; color: var(--dim); letter-spacing: .08em; }
+  @media (max-width: 480px) { .back { display: none; } }
+
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="/"><img src="images/logo.png" alt="" width="34" height="23"> XENON</a>
+    <div class="head-right">
+      <a class="back" href="/" data-i18n="nav.back">← Back to the site</a>
+      <div class="lang" id="lang">
+        <button class="navbtn" id="lang-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Language">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3Z"/></svg>
+          <span id="lang-cur">EN</span>
+        </button>
+        <div class="lang-menu" id="lang-menu" role="listbox">
+          <button type="button" data-lang="en" role="option">English<span class="nat">EN</span></button>
+          <button type="button" data-lang="it" role="option">Italiano<span class="nat">IT</span></button>
+          <button type="button" data-lang="ko" role="option">한국어<span class="nat">KO</span></button>
+          <button type="button" data-lang="ja" role="option">日本語<span class="nat">JA</span></button>
+          <button type="button" data-lang="zh" role="option">中文<span class="nat">ZH</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <h1 data-i18n="ph.title">Use your phone as the second screen</h1>
+    <p class="lede" data-i18n="ph.lede">To use Xenon you need a screen you can leave on all day. A Xeneon Edge, a spare monitor, an old tablet. That is what stops most people, not the features. But you already have a screen in your pocket. This page shows you how to use it.</p>
+    <p data-i18n-html="ph.intro">What you get on the phone is not a remote and not a preview. It is <strong>your dashboard</strong>, with the same layout, the same widgets and the same theme. Deck keys really run on the PC. If you pause the music, the music stops. If you change a setting, it changes on the PC a second later. There is no account, no cloud and no app to install, and nothing leaves your home network.</p>
+
+    <div class="shots">
+      <figure class="shot">
+        <div class="dev dev-phone">
+          <div class="screen">
+            <div class="bar"><i class="a"></i><i class="b"></i><i class="c"></i></div>
+            <div class="stack"><div class="t1 hl"></div><div class="t2"></div><div class="t3"></div><div class="t4"></div></div>
+            <div class="dock"><i></i><i></i><i></i><i></i></div>
+          </div>
+        </div>
+        <figcaption data-i18n="ph.cap.phone">PHONE: TILES STACKED, DOCK AT THE BOTTOM</figcaption>
+      </figure>
+      <figure class="shot">
+        <div class="dev dev-tab">
+          <div class="screen">
+            <div class="bar"><i class="a"></i><i class="b"></i><i class="c"></i></div>
+            <div class="grid">
+              <div class="w2 h2 hl"></div><div class="w2"></div><div class="w2"></div>
+              <div class="w2"></div><div class="w2"></div><div class="w3"></div><div class="w3"></div>
+            </div>
+          </div>
+        </div>
+        <figcaption data-i18n="ph.cap.tab">TABLET: THE FULL GRID, JUST AS YOU BUILT IT</figcaption>
+      </figure>
+    </div>
+    <p class="note" data-i18n="ph.cap.note">These are drawings of the layout, not real screenshots. A real dashboard shows its owner's calendar, notes and file paths, and this page is public.</p>
+
+    <h2 data-i18n="ph.h.what">What works, and what does not</h2>
+    <p data-i18n="ph.what.p">Once you pair a device, it becomes one of your own. It can do everything the dashboard on the PC does, apart from a short list. Everything on that list has the same reason: it needs a person sitting at that computer.</p>
+    <div class="yn">
+      <div class="can">
+        <ul>
+          <li><span class="k">✓</span><span data-i18n="ph.can.1">The whole dashboard: sensors, widgets, pages and themes</span></li>
+          <li><span class="k">✓</span><span data-i18n="ph.can.2">Deck keys. They run on the PC, not on the phone</span></li>
+          <li><span class="k">✓</span><span data-i18n="ph.can.3">Media, volume, mic mute and the app switcher</span></li>
+          <li><span class="k">✓</span><span data-i18n="ph.can.4">The Store: widgets, icon packs, sound packs and themes</span></li>
+          <li><span class="k">✓</span><span data-i18n="ph.can.5">Xenon AI, and settings that save to the PC</span></li>
+        </ul>
+      </div>
+      <div class="cant">
+        <ul>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.1">The Windows permission prompt. Windows draws it on the PC screen and nowhere else, so only the PC can answer it</span></li>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.2">Updating Xenon. The update restarts the server the phone is talking to</span></li>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.3">System installers (the helper, PresentMon, drivers). Each one puts a program on your disk</span></li>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.4">Adding or removing paired devices. This way a phone can never add another one, or remove the device that would lock it out</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="card"><p data-i18n-html="ph.trade"><strong>One thing to know before you start.</strong> A paired device stays a way into your PC until you remove it. So if you lose the phone or give it away, remove it. That is what the device list is for: you can remove one device, or all of them with a single tap. A device you remove loses the connection straight away.</p></div>
+
+    <h2 data-i18n="ph.h.two">Two ways in. Pick one.</h2>
+    <div class="routes">
+      <div class="route pick">
+        <span class="tag" data-i18n="ph.r1.tag">At home</span>
+        <h3 data-i18n="ph.r1.h">On your own Wi-Fi</h3>
+        <p class="time" data-i18n="ph.r1.time">About 30 seconds, nothing to install</p>
+        <ul>
+      <li data-i18n="ph.r1.1">Turn it on, scan a QR code, done</li>
+      <li data-i18n="ph.r1.2">Works while you are on the same Wi-Fi</li>
+      <li data-i18n="ph.r1.3">Plain HTTP, so no installable app, no microphone and no notifications</li>
+        </ul>
+      </div>
+      <div class="route">
+        <span class="tag" data-i18n="ph.r2.tag">Anywhere</span>
+        <h3 data-i18n="ph.r2.h">Secure, at home and away</h3>
+        <p class="time" data-i18n="ph.r2.time">About 5 minutes, one button plus one switch on a web page</p>
+        <ul>
+      <li data-i18n="ph.r2.1">Encrypted, and it works from anywhere without opening a port on your router</li>
+      <li data-i18n="ph.r2.2">Installs on the phone like an app, with its own icon</li>
+      <li data-i18n="ph.r2.3">Gives Xenon AI the microphone</li>
+      <li data-i18n="ph.r2.4">The address stays the same, even when your router changes it</li>
+        </ul>
+      </div>
+    </div>
+    <p data-i18n="ph.two.after">You do not have to choose forever. The second way adds a door next to the first one, it does not replace it. If you only use Xenon at home, start with the first.</p>
+
+    <h2 data-i18n="ph.h.home">At home, in thirty seconds</h2>
+    <ol class="steps">
+      <li>
+        <h3 data-i18n="ph.s1.h">Open Settings, then Remote Control, on the PC</h3>
+        <p data-i18n-html="ph.s1.p">Everything you need is in one panel, under <strong>Phone access</strong>.</p>
+      </li>
+      <li>
+        <h3 data-i18n="ph.s2.h">Turn on “Allow access from other devices”</h3>
+        <p data-i18n="ph.s2.p">It is off until you turn it on. While it is off, Xenon replies to this PC and to nothing else. If something scans your network, it gets the same reply a version of Xenon without this feature would give, so there is no way to tell the feature is there.</p>
+        <div class="ui">
+          <div class="ui-row">
+            <span class="sw on"></span>
+            <span class="ui-txt"><strong data-i18n="ph.s2.sw">Allow access from other devices</strong><span data-i18n="ph.s2.swsub">While this is off, Xenon replies only to this PC.</span></span>
+          </div>
+        </div>
+      </li>
+      <li>
+        <h3 data-i18n="ph.s3.h">Press “Add device”</h3>
+        <p data-i18n="ph.s3.p">The PC shows a QR code with an eight character code under it. It is an invitation, not a password. It lasts three minutes, and it stops working after a few wrong tries.</p>
+      </li>
+      <li>
+        <h3 data-i18n="ph.s4.h">Point the phone camera at it</h3>
+        <p data-i18n="ph.s4.p">The dashboard opens in the phone browser. That is the whole setup. Nothing was installed, and the code never reached a server, because it travels in the part of the address that browsers keep to themselves.</p>
+      </li>
+    </ol>
+    <p class="note" data-i18n="ph.home.note">Both devices have to be on the same Wi-Fi. If your router has client isolation turned on, or you are on the guest network, they can be on the same Wi-Fi and still not see each other.</p>
+
+    <h2 data-i18n="ph.h.away">Anywhere, and as an app</h2>
+    <p data-i18n="ph.away.1">On plain HTTP, browsers hold back a whole group of features, and there is no way to design around it. The page cannot install itself as an app, it cannot use the microphone, and it cannot receive notifications. That is the real reason for the second way in. It is not about distance.</p>
+    <p data-i18n-html="ph.away.2">Xenon uses <a href="https://tailscale.com" rel="noopener">Tailscale</a> for this. Your PC and your phone join a small private network of your own, your dashboard gets a real certificate and an address that never changes, and <strong>no port on your router is opened</strong>. The address does not exist in public DNS, so there is nothing out there for anyone to find.</p>
+
+    <div class="card accent">
+      <h3 data-i18n="ph.card.h">Press one button and Xenon does the rest</h3>
+      <p data-i18n-html="ph.card.1">In the same panel, under <strong>Secure access, also away from home</strong>, there is a button that installs Tailscale, opens the sign in page, waits for you to finish, and then starts the secure connection on its own.</p>
+      <div class="ui">
+        <div class="ui-row">
+          <span class="sw on"></span>
+          <span class="ui-txt"><strong data-i18n="ph.card.sw">Secure access, also away from home</strong><span data-i18n="ph.card.swsub">Uses Tailscale with HTTPS. Turns on the installable app, the microphone and notifications.</span></span>
+        </div>
+        <div class="ui-row"><span class="ui-btn" data-i18n="ph.card.btn">Set it up for me</span></div>
+      </div>
+      <p data-i18n-html="ph.card.2"><strong>It stops once, and that is on purpose.</strong> Certificates are a setting for your whole private network, and you change them on the Tailscale website. Xenon could do it for you, but only with a key you would have to create on that same website, which is more work rather than less. So Xenon stops there, gives you the link, and then notices on its own when you are done. You can leave the window open.</p>
+    </div>
+
+    <ol class="steps">
+      <li>
+        <h3 data-i18n="ph.t1.h">Press “Set it up for me”</h3>
+        <p data-i18n="ph.t1.p">Windows will ask for permission to install Tailscale. Then a browser tab opens for the sign in. Any Google, Microsoft or GitHub account works, and you are not creating an account with Xenon.</p>
+      </li>
+      <li>
+        <h3 data-i18n="ph.t2.h">Turn on HTTPS certificates</h3>
+        <p data-i18n-html="ph.t2.p">This is the one step Xenon cannot do for you. When it asks, press the button it shows. It opens <code>login.tailscale.com/admin/dns</code>. Scroll down to <strong>HTTPS Certificates</strong> and press <strong>Enable</strong>. It is free on every plan. Then go back to Xenon, which has already carried on.</p>
+      </li>
+      <li>
+        <h3 data-i18n="ph.t3.h">Install Tailscale on the phone with the same account</h3>
+        <p data-i18n-html="ph.t3.p">Get it from the App Store or Google Play, sign in with <strong>the same account you just used</strong>, and turn its switch on. This is the step people forget, and it is easy to spot: the phone says it cannot open the address at all. Nothing is broken. That address only exists inside your own network, which is also why nobody on the internet can reach it.</p>
+      </li>
+      <li>
+        <h3 data-i18n="ph.t4.h">Pair the phone again on the new address</h3>
+        <p data-i18n-html="ph.t4.p">Press <strong>Add device</strong> and scan again. The browser ties a pairing to the address it was made on, so a phone paired on the home address is not paired on the secure one. After this you only need the new address. It works at home and away.</p>
+      </li>
+      <li>
+        <h3 data-i18n="ph.t5.h">Add it to the home screen</h3>
+        <p data-i18n-html="ph.t5.p">In Safari, press Share and then <strong>Add to Home Screen</strong>. On Android, Chrome offers to install it. Xenon then opens with its own icon, full screen, with no address bar. The microphone works here, so Xenon AI can listen through the phone instead of the PC. Notifications work too: in Settings, then Remote Control, turn them on for this device and a timer that runs out will reach you with the app closed.</p>
+      </li>
+    </ol>
+
+    <h2 data-i18n="ph.h.trouble">If something does not work</h2>
+    <details>
+      <summary data-i18n="ph.q1">The phone says it cannot open the address</summary>
+      <div class="body"><p data-i18n-html="ph.a1">Almost always the phone is not on your private network yet. Open Tailscale on the phone and check the switch is really <strong>on</strong>. Installing the app is not enough. On an iPhone you can tell because <strong>VPN</strong> appears in the status bar. Also check you signed in with the same account as the PC, because two accounts mean two separate networks that cannot see each other.</p></div>
+    </details>
+    <details>
+      <summary data-i18n="ph.q2">A widget looks like a white box with plain text</summary>
+      <div class="body"><p data-i18n="ph.a2">On an iPhone or an iPad, up to version 4.11, this happened every time: a security rule stopped widgets from loading their own design, and only on Safari, so the same widget looked right on a PC. Update Xenon and it is gone. If it still happens after updating, the page is running older code than the PC: usually a tab left open since before an update, brought back from memory instead of reloaded. Pulling down to refresh is often not enough, so close the tab completely and open the address again.</p></div>
+    </details>
+    <details>
+      <summary data-i18n="ph.q3">It worked before, and now the phone looks unpaired</summary>
+      <div class="body"><p data-i18n="ph.a3">Your router probably gave the PC a different address. A pairing belongs to the address it was made on, so when the address changes the phone looks unpaired and you have to add it again. Two ways out: reserve a fixed address for the PC in your router settings, or use the secure way above, where the address never changes.</p></div>
+    </details>
+    <details>
+      <summary data-i18n="ph.q4">The installed app asks me to pair again</summary>
+      <div class="body"><p data-i18n="ph.a4">On an iPhone, an app added to the home screen keeps its own storage, separate from Safari, so the pairing you made in the browser does not come with it. Create a second code and pair from inside the installed app. It shows up as its own entry in the device list, and you can rename both to tell them apart.</p></div>
+    </details>
+    <details>
+      <summary data-i18n="ph.q5">Xenon says HTTPS certificates are not enabled</summary>
+      <div class="body"><p data-i18n-html="ph.a5">That is a setting for your whole private network, not for this PC. Open <a href="https://login.tailscale.com/admin/dns" rel="noopener">login.tailscale.com/admin/dns</a>, find <strong>HTTPS Certificates</strong> and press <strong>Enable</strong>. Xenon notices within a few seconds.</p></div>
+    </details>
+    <details>
+      <summary data-i18n="ph.q6">My tablet shows the desktop layout and I wanted the stacked one</summary>
+      <div class="body"><p data-i18n-html="ph.a6">That is on purpose. A tablet is big enough for the real grid, which is rather the point of a tablet, and an iPad is well above the size where Xenon switches. If you prefer the stacked layout on a particular device, you can choose it, and Xenon remembers it <em>on that device only</em>. It never travels to the PC and your saved layout is never overwritten.</p></div>
+    </details>
+
+    <h2 data-i18n="ph.h.not">What this does not do</h2>
+    <p data-i18n="ph.not.1">There is no Xenon account, no server of ours in the middle, and nothing about your dashboard is uploaded anywhere. On your own Wi-Fi the connection is not encrypted, which is why the panel tells you to use it on a network you trust. The secure way exists to solve exactly that. Tailscale is a company you would be adding by choice, so its own privacy terms apply to it, and Xenon takes nothing from it except the address and the certificate for your own machine.</p>
+    <p data-i18n-html="ph.not.2">Everything else Xenon does and does not send is on the <a href="privacy.html">privacy page</a>.</p>
+
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="/">xenon-app.com</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/marcimastro98/Xenon" rel="noopener">GitHub</a>
+  </div>
+</footer>
+
+<script>
+const I18N = {
+ "en": {
+  "nav.back": "← Back to the site",
+  "ph.title": "Use your phone as the second screen",
+  "ph.lede": "To use Xenon you need a screen you can leave on all day. A Xeneon Edge, a spare monitor, an old tablet. That is what stops most people, not the features. But you already have a screen in your pocket. This page shows you how to use it.",
+  "ph.intro": "What you get on the phone is not a remote and not a preview. It is <strong>your dashboard</strong>, with the same layout, the same widgets and the same theme. Deck keys really run on the PC. If you pause the music, the music stops. If you change a setting, it changes on the PC a second later. There is no account, no cloud and no app to install, and nothing leaves your home network.",
+  "ph.cap.phone": "PHONE: TILES STACKED, DOCK AT THE BOTTOM",
+  "ph.cap.tab": "TABLET: THE FULL GRID, JUST AS YOU BUILT IT",
+  "ph.cap.note": "These are drawings of the layout, not real screenshots. A real dashboard shows its owner's calendar, notes and file paths, and this page is public.",
+  "ph.h.what": "What works, and what does not",
+  "ph.what.p": "Once you pair a device, it becomes one of your own. It can do everything the dashboard on the PC does, apart from a short list. Everything on that list has the same reason: it needs a person sitting at that computer.",
+  "ph.can.1": "The whole dashboard: sensors, widgets, pages and themes",
+  "ph.can.2": "Deck keys. They run on the PC, not on the phone",
+  "ph.can.3": "Media, volume, mic mute and the app switcher",
+  "ph.can.4": "The Store: widgets, icon packs, sound packs and themes",
+  "ph.can.5": "Xenon AI, and settings that save to the PC",
+  "ph.cant.1": "The Windows permission prompt. Windows draws it on the PC screen and nowhere else, so only the PC can answer it",
+  "ph.cant.2": "Updating Xenon. The update restarts the server the phone is talking to",
+  "ph.cant.3": "System installers (the helper, PresentMon, drivers). Each one puts a program on your disk",
+  "ph.cant.4": "Adding or removing paired devices. This way a phone can never add another one, or remove the device that would lock it out",
+  "ph.trade": "<strong>One thing to know before you start.</strong> A paired device stays a way into your PC until you remove it. So if you lose the phone or give it away, remove it. That is what the device list is for: you can remove one device, or all of them with a single tap. A device you remove loses the connection straight away.",
+  "ph.h.two": "Two ways in. Pick one.",
+  "ph.r1.tag": "At home",
+  "ph.r1.h": "On your own Wi-Fi",
+  "ph.r1.time": "About 30 seconds, nothing to install",
+  "ph.r1.1": "Turn it on, scan a QR code, done",
+  "ph.r1.2": "Works while you are on the same Wi-Fi",
+  "ph.r1.3": "Plain HTTP, so no installable app, no microphone and no notifications",
+  "ph.r2.tag": "Anywhere",
+  "ph.r2.h": "Secure, at home and away",
+  "ph.r2.time": "About 5 minutes, one button plus one switch on a web page",
+  "ph.r2.1": "Encrypted, and it works from anywhere without opening a port on your router",
+  "ph.r2.2": "Installs on the phone like an app, with its own icon",
+  "ph.r2.3": "Gives Xenon AI the microphone",
+  "ph.r2.4": "The address stays the same, even when your router changes it",
+  "ph.two.after": "You do not have to choose forever. The second way adds a door next to the first one, it does not replace it. If you only use Xenon at home, start with the first.",
+  "ph.h.home": "At home, in thirty seconds",
+  "ph.s1.h": "Open Settings, then Remote Control, on the PC",
+  "ph.s1.p": "Everything you need is in one panel, under <strong>Phone access</strong>.",
+  "ph.s2.h": "Turn on “Allow access from other devices”",
+  "ph.s2.p": "It is off until you turn it on. While it is off, Xenon replies to this PC and to nothing else. If something scans your network, it gets the same reply a version of Xenon without this feature would give, so there is no way to tell the feature is there.",
+  "ph.s2.sw": "Allow access from other devices",
+  "ph.s2.swsub": "While this is off, Xenon replies only to this PC.",
+  "ph.s3.h": "Press “Add device”",
+  "ph.s3.p": "The PC shows a QR code with an eight character code under it. It is an invitation, not a password. It lasts three minutes, and it stops working after a few wrong tries.",
+  "ph.s4.h": "Point the phone camera at it",
+  "ph.s4.p": "The dashboard opens in the phone browser. That is the whole setup. Nothing was installed, and the code never reached a server, because it travels in the part of the address that browsers keep to themselves.",
+  "ph.home.note": "Both devices have to be on the same Wi-Fi. If your router has client isolation turned on, or you are on the guest network, they can be on the same Wi-Fi and still not see each other.",
+  "ph.h.away": "Anywhere, and as an app",
+  "ph.away.1": "On plain HTTP, browsers hold back a whole group of features, and there is no way to design around it. The page cannot install itself as an app, it cannot use the microphone, and it cannot receive notifications. That is the real reason for the second way in. It is not about distance.",
+  "ph.away.2": "Xenon uses <a href=\"https://tailscale.com\" rel=\"noopener\">Tailscale</a> for this. Your PC and your phone join a small private network of your own, your dashboard gets a real certificate and an address that never changes, and <strong>no port on your router is opened</strong>. The address does not exist in public DNS, so there is nothing out there for anyone to find.",
+  "ph.card.h": "Press one button and Xenon does the rest",
+  "ph.card.1": "In the same panel, under <strong>Secure access, also away from home</strong>, there is a button that installs Tailscale, opens the sign in page, waits for you to finish, and then starts the secure connection on its own.",
+  "ph.card.sw": "Secure access, also away from home",
+  "ph.card.swsub": "Uses Tailscale with HTTPS. Turns on the installable app, the microphone and notifications.",
+  "ph.card.btn": "Set it up for me",
+  "ph.card.2": "<strong>It stops once, and that is on purpose.</strong> Certificates are a setting for your whole private network, and you change them on the Tailscale website. Xenon could do it for you, but only with a key you would have to create on that same website, which is more work rather than less. So Xenon stops there, gives you the link, and then notices on its own when you are done. You can leave the window open.",
+  "ph.t1.h": "Press “Set it up for me”",
+  "ph.t1.p": "Windows will ask for permission to install Tailscale. Then a browser tab opens for the sign in. Any Google, Microsoft or GitHub account works, and you are not creating an account with Xenon.",
+  "ph.t2.h": "Turn on HTTPS certificates",
+  "ph.t2.p": "This is the one step Xenon cannot do for you. When it asks, press the button it shows. It opens <code>login.tailscale.com/admin/dns</code>. Scroll down to <strong>HTTPS Certificates</strong> and press <strong>Enable</strong>. It is free on every plan. Then go back to Xenon, which has already carried on.",
+  "ph.t3.h": "Install Tailscale on the phone with the same account",
+  "ph.t3.p": "Get it from the App Store or Google Play, sign in with <strong>the same account you just used</strong>, and turn its switch on. This is the step people forget, and it is easy to spot: the phone says it cannot open the address at all. Nothing is broken. That address only exists inside your own network, which is also why nobody on the internet can reach it.",
+  "ph.t4.h": "Pair the phone again on the new address",
+  "ph.t4.p": "Press <strong>Add device</strong> and scan again. The browser ties a pairing to the address it was made on, so a phone paired on the home address is not paired on the secure one. After this you only need the new address. It works at home and away.",
+  "ph.t5.h": "Add it to the home screen",
+  "ph.t5.p": "In Safari, press Share and then <strong>Add to Home Screen</strong>. On Android, Chrome offers to install it. Xenon then opens with its own icon, full screen, with no address bar. The microphone works here, so Xenon AI can listen through the phone instead of the PC. Notifications work too: in Settings, then Remote Control, turn them on for this device and a timer that runs out will reach you with the app closed.",
+  "ph.h.trouble": "If something does not work",
+  "ph.q1": "The phone says it cannot open the address",
+  "ph.a1": "Almost always the phone is not on your private network yet. Open Tailscale on the phone and check the switch is really <strong>on</strong>. Installing the app is not enough. On an iPhone you can tell because <strong>VPN</strong> appears in the status bar. Also check you signed in with the same account as the PC, because two accounts mean two separate networks that cannot see each other.",
+  "ph.q2": "A widget looks like a white box with plain text",
+  "ph.a2": "On an iPhone or an iPad, up to version 4.11, this happened every time: a security rule stopped widgets from loading their own design, and only on Safari, so the same widget looked right on a PC. Update Xenon and it is gone. If it still happens after updating, the page is running older code than the PC: usually a tab left open since before an update, brought back from memory instead of reloaded. Pulling down to refresh is often not enough, so close the tab completely and open the address again.",
+  "ph.q3": "It worked before, and now the phone looks unpaired",
+  "ph.a3": "Your router probably gave the PC a different address. A pairing belongs to the address it was made on, so when the address changes the phone looks unpaired and you have to add it again. Two ways out: reserve a fixed address for the PC in your router settings, or use the secure way above, where the address never changes.",
+  "ph.q4": "The installed app asks me to pair again",
+  "ph.a4": "On an iPhone, an app added to the home screen keeps its own storage, separate from Safari, so the pairing you made in the browser does not come with it. Create a second code and pair from inside the installed app. It shows up as its own entry in the device list, and you can rename both to tell them apart.",
+  "ph.q5": "Xenon says HTTPS certificates are not enabled",
+  "ph.a5": "That is a setting for your whole private network, not for this PC. Open <a href=\"https://login.tailscale.com/admin/dns\" rel=\"noopener\">login.tailscale.com/admin/dns</a>, find <strong>HTTPS Certificates</strong> and press <strong>Enable</strong>. Xenon notices within a few seconds.",
+  "ph.q6": "My tablet shows the desktop layout and I wanted the stacked one",
+  "ph.a6": "That is on purpose. A tablet is big enough for the real grid, which is rather the point of a tablet, and an iPad is well above the size where Xenon switches. If you prefer the stacked layout on a particular device, you can choose it, and Xenon remembers it <em>on that device only</em>. It never travels to the PC and your saved layout is never overwritten.",
+  "ph.h.not": "What this does not do",
+  "ph.not.1": "There is no Xenon account, no server of ours in the middle, and nothing about your dashboard is uploaded anywhere. On your own Wi-Fi the connection is not encrypted, which is why the panel tells you to use it on a network you trust. The secure way exists to solve exactly that. Tailscale is a company you would be adding by choice, so its own privacy terms apply to it, and Xenon takes nothing from it except the address and the certificate for your own machine.",
+  "ph.not.2": "Everything else Xenon does and does not send is on the <a href=\"privacy.html\">privacy page</a>."
+ },
+ "it": {
+  "nav.back": "← Torna al sito",
+  "ph.title": "Usa il telefono come secondo schermo",
+  "ph.lede": "Per usare Xenon serve uno schermo da lasciare acceso tutto il giorno: uno Xeneon Edge, un monitor di scorta, un vecchio tablet. È questo che ferma quasi tutti, non le funzioni. Ma uno schermo ce l'hai già in tasca. Qui c'è come usarlo.",
+  "ph.intro": "Quello che arriva sul telefono non è un telecomando e non è un'anteprima. È <strong>la tua dashboard</strong>, con lo stesso layout, gli stessi widget e lo stesso tema. I tasti del Deck partono davvero sul PC. Se metti in pausa la musica, la musica si ferma. Se cambi un'impostazione, un secondo dopo è cambiata anche sul PC. Non serve un account, non c'è nessun cloud, non c'è niente da installare e niente esce dalla rete di casa.",
+  "ph.cap.phone": "TELEFONO: TILE IMPILATE, DOCK IN BASSO",
+  "ph.cap.tab": "TABLET: LA GRIGLIA COMPLETA, COME L'HAI COSTRUITA",
+  "ph.cap.note": "Questi sono disegni del layout, non screenshot veri. Una dashboard vera mostra il calendario, le note e i percorsi dei file di chi la usa, e questa pagina è pubblica.",
+  "ph.h.what": "Cosa funziona e cosa no",
+  "ph.what.p": "Quando abbini un dispositivo, quel dispositivo diventa uno dei tuoi. Può fare tutto quello che fa la dashboard sul PC, tranne poche cose. Quelle poche cose hanno tutte lo stesso motivo: serve una persona seduta davanti a quel computer.",
+  "ph.can.1": "Tutta la dashboard: sensori, widget, pagine e temi",
+  "ph.can.2": "I tasti del Deck. Partono sul PC, non sul telefono",
+  "ph.can.3": "Media, volume, muto del microfono e cambio app",
+  "ph.can.4": "Lo Store: widget, pacchetti di icone, pacchetti di suoni e temi",
+  "ph.can.5": "Xenon AI e le impostazioni, che si salvano sul PC",
+  "ph.cant.1": "La finestra di conferma di Windows. La disegna Windows sullo schermo del PC e da nessun'altra parte, quindi può rispondere solo il PC",
+  "ph.cant.2": "Aggiornare Xenon. L'aggiornamento riavvia il server con cui sta parlando il telefono",
+  "ph.cant.3": "Gli installer di sistema (l'helper, PresentMon, i driver). Ognuno mette un programma sul disco",
+  "ph.cant.4": "Aggiungere o togliere dispositivi abbinati. Così un telefono non può mai aggiungerne un altro, né togliere il dispositivo che lo caccerebbe fuori",
+  "ph.trade": "<strong>Una cosa da sapere prima di iniziare.</strong> Un dispositivo abbinato resta una via d'ingresso nel tuo PC finché non lo togli. Quindi se perdi il telefono o lo dai a qualcuno, toglilo. L'elenco dei dispositivi serve a questo: puoi toglierne uno solo, oppure tutti con un tocco. Un dispositivo che togli perde il collegamento subito.",
+  "ph.h.two": "Due strade. Scegline una.",
+  "ph.r1.tag": "In casa",
+  "ph.r1.h": "Sul tuo Wi-Fi",
+  "ph.r1.time": "Circa 30 secondi, niente da installare",
+  "ph.r1.1": "Accendi, inquadri un QR, fatto",
+  "ph.r1.2": "Funziona finché siete sullo stesso Wi-Fi",
+  "ph.r1.3": "HTTP in chiaro, quindi niente app installabile, niente microfono e niente notifiche",
+  "ph.r2.tag": "Ovunque",
+  "ph.r2.h": "Sicuro, in casa e fuori",
+  "ph.r2.time": "Circa 5 minuti, un bottone più un interruttore su una pagina web",
+  "ph.r2.1": "Cifrato, e funziona da ovunque senza aprire nessuna porta sul router",
+  "ph.r2.2": "Si installa sul telefono come un'app, con la sua icona",
+  "ph.r2.3": "Dà il microfono a Xenon AI",
+  "ph.r2.4": "L'indirizzo resta lo stesso, anche quando il router lo cambia",
+  "ph.two.after": "Non devi scegliere per sempre. La seconda strada aggiunge una porta accanto alla prima, non la sostituisce. Se usi Xenon solo in casa, parti dalla prima.",
+  "ph.h.home": "In casa, in trenta secondi",
+  "ph.s1.h": "Apri Impostazioni, poi Controllo Remoto, sul PC",
+  "ph.s1.p": "Tutto quello che serve sta in un pannello solo, sotto <strong>Accesso dal telefono</strong>.",
+  "ph.s2.h": "Accendi “Consenti l'accesso da altri dispositivi”",
+  "ph.s2.p": "Resta spento finché non lo accendi tu. Finché è spento, Xenon risponde a questo PC e a nient'altro. Se qualcuno scandaglia la rete, riceve la stessa risposta che darebbe una versione di Xenon senza questa funzione, quindi non c'è modo di capire che esiste.",
+  "ph.s2.sw": "Consenti l'accesso da altri dispositivi",
+  "ph.s2.swsub": "Finché è spento, Xenon risponde solo a questo PC.",
+  "ph.s3.h": "Premi “Aggiungi dispositivo”",
+  "ph.s3.p": "Il PC mostra un QR con sotto un codice di otto caratteri. È un invito, non una password. Dura tre minuti e smette di funzionare dopo pochi tentativi sbagliati.",
+  "ph.s4.h": "Inquadralo con la fotocamera del telefono",
+  "ph.s4.p": "La dashboard si apre nel browser del telefono. La configurazione è tutta qui. Non hai installato niente, e il codice non è mai arrivato a un server, perché viaggia nella parte dell'indirizzo che i browser si tengono per sé.",
+  "ph.home.note": "I due dispositivi devono stare sullo stesso Wi-Fi. Se il router ha l'isolamento client attivo, o se sei sulla rete ospiti, possono essere sullo stesso Wi-Fi e comunque non vedersi.",
+  "ph.h.away": "Ovunque, e come app",
+  "ph.away.1": "Su HTTP in chiaro i browser tengono per sé un intero gruppo di funzioni, e non c'è design che le riporti indietro. La pagina non può installarsi come app, non può usare il microfono e non può ricevere notifiche. È questo il vero motivo della seconda strada. Non è una questione di distanza.",
+  "ph.away.2": "Per farlo Xenon usa <a href=\"https://tailscale.com\" rel=\"noopener\">Tailscale</a>. Il PC e il telefono entrano in una piccola rete privata tutta tua, la dashboard ottiene un certificato vero e un indirizzo che non cambia mai, e <strong>non viene aperta nessuna porta sul router</strong>. L'indirizzo non esiste nel DNS pubblico, quindi là fuori non c'è niente da trovare.",
+  "ph.card.h": "Premi un bottone e al resto pensa Xenon",
+  "ph.card.1": "Nello stesso pannello, sotto <strong>Accesso sicuro, anche fuori casa</strong>, c'è un bottone che installa Tailscale, apre la pagina di accesso, aspetta che tu finisca e poi avvia da solo il collegamento sicuro.",
+  "ph.card.sw": "Accesso sicuro, anche fuori casa",
+  "ph.card.swsub": "Usa Tailscale con HTTPS. Attiva l'app installabile, il microfono e le notifiche.",
+  "ph.card.btn": "Fallo per me",
+  "ph.card.2": "<strong>Si ferma una volta sola, ed è voluto.</strong> I certificati sono un'impostazione di tutta la tua rete privata e si cambiano sul sito di Tailscale. Xenon potrebbe farlo al posto tuo, ma solo con una chiave che dovresti creare tu su quello stesso sito, e sarebbe più lavoro invece che meno. Quindi Xenon si ferma lì, ti dà il link, e poi si accorge da solo quando hai finito. Puoi lasciare la finestra aperta.",
+  "ph.t1.h": "Premi “Fallo per me”",
+  "ph.t1.p": "Windows ti chiede il permesso di installare Tailscale. Poi si apre una scheda del browser per l'accesso. Va bene un account Google, Microsoft o GitHub, e non stai creando nessun account con Xenon.",
+  "ph.t2.h": "Attiva i certificati HTTPS",
+  "ph.t2.p": "Questo è l'unico passaggio che Xenon non può fare al posto tuo. Quando te lo chiede, premi il bottone che ti mostra: apre <code>login.tailscale.com/admin/dns</code>. Scendi fino a <strong>HTTPS Certificates</strong> e premi <strong>Enable</strong>. È gratis con qualsiasi piano. Poi torna su Xenon, che è già andato avanti.",
+  "ph.t3.h": "Installa Tailscale sul telefono con lo stesso account",
+  "ph.t3.p": "Scaricalo dall'App Store o da Google Play, accedi con <strong>lo stesso account che hai appena usato</strong> e accendi il suo interruttore. È il passaggio che tutti dimenticano, e si riconosce subito: il telefono dice che non riesce proprio ad aprire l'indirizzo. Non è rotto niente. Quell'indirizzo esiste solo dentro la tua rete, ed è anche il motivo per cui nessuno su internet può raggiungerlo.",
+  "ph.t4.h": "Abbina di nuovo il telefono sul nuovo indirizzo",
+  "ph.t4.p": "Premi <strong>Aggiungi dispositivo</strong> e inquadra di nuovo. Il browser lega l'abbinamento all'indirizzo su cui l'hai fatto, quindi un telefono abbinato sull'indirizzo di casa non è abbinato su quello sicuro. Da qui in poi ti serve solo il nuovo indirizzo. Funziona in casa e fuori.",
+  "ph.t5.h": "Aggiungilo alla schermata home",
+  "ph.t5.p": "Su Safari premi Condividi e poi <strong>Aggiungi a Home</strong>. Su Android è Chrome a proporti di installarlo. Da lì Xenon si apre con la sua icona, a tutto schermo e senza barra degli indirizzi. Qui il microfono funziona, quindi Xenon AI può ascoltare dal telefono invece che dal PC. Funzionano anche le notifiche: in Impostazioni, poi Controllo Remoto, accendile per questo dispositivo e un timer che scade ti raggiunge con l'app chiusa.",
+  "ph.h.trouble": "Se qualcosa non funziona",
+  "ph.q1": "Il telefono dice che non riesce ad aprire l'indirizzo",
+  "ph.a1": "Quasi sempre il telefono non è ancora entrato nella tua rete privata. Apri Tailscale sul telefono e controlla che l'interruttore sia davvero <strong>acceso</strong>: installare l'app non basta. Su iPhone lo capisci perché compare <strong>VPN</strong> nella barra di stato. Controlla anche di aver usato lo stesso account del PC, perché due account sono due reti separate che non si vedono.",
+  "ph.q2": "Un widget si vede come un riquadro bianco con del testo",
+  "ph.a2": "Su iPhone e iPad, fino alla versione 4.11, succedeva sempre: una regola di sicurezza impediva ai widget di caricare il proprio aspetto, e solo su Safari, per questo lo stesso widget sul PC si vedeva bene. Aggiorna Xenon e sparisce. Se capita anche dopo l'aggiornamento, la pagina sta usando codice più vecchio di quello sul PC: di solito una scheda rimasta aperta da prima di un aggiornamento e ripresa dalla memoria invece che ricaricata. Tirare giù per aggiornare spesso non basta, quindi chiudi del tutto la scheda e riapri l'indirizzo.",
+  "ph.q3": "Prima funzionava e adesso il telefono risulta non abbinato",
+  "ph.a3": "Probabilmente il router ha dato al PC un indirizzo diverso. L'abbinamento appartiene all'indirizzo su cui l'hai fatto, quindi quando l'indirizzo cambia il telefono risulta non abbinato e va aggiunto di nuovo. Due modi per uscirne: riservare un indirizzo fisso al PC nelle impostazioni del router, oppure usare la strada sicura qui sopra, dove l'indirizzo non cambia mai.",
+  "ph.q4": "L'app installata mi chiede di abbinare un'altra volta",
+  "ph.a4": "Su iPhone un'app aggiunta alla schermata home ha una memoria tutta sua, separata da quella di Safari, quindi l'abbinamento fatto nel browser non la segue. Genera un secondo codice e abbina da dentro l'app installata. Comparirà come voce a sé nell'elenco dei dispositivi, e puoi rinominarle entrambe per distinguerle.",
+  "ph.q5": "Xenon dice che i certificati HTTPS non sono attivi",
+  "ph.a5": "È un'impostazione di tutta la tua rete privata, non di questo PC. Apri <a href=\"https://login.tailscale.com/admin/dns\" rel=\"noopener\">login.tailscale.com/admin/dns</a>, cerca <strong>HTTPS Certificates</strong> e premi <strong>Enable</strong>. Xenon se ne accorge in pochi secondi.",
+  "ph.q6": "Sul tablet vedo il layout da desktop e volevo quello impilato",
+  "ph.a6": "È voluto. Un tablet è abbastanza grande per la griglia vera, che poi è il senso di avere un tablet, e un iPad sta ben sopra la misura in cui Xenon cambia layout. Se su un certo dispositivo preferisci quello impilato puoi sceglierlo, e Xenon se lo ricorda <em>solo su quel dispositivo</em>. Non arriva mai al PC e il layout che hai salvato non viene mai sovrascritto.",
+  "ph.h.not": "Cosa non fa",
+  "ph.not.1": "Non c'è nessun account Xenon, nessun nostro server in mezzo e niente della tua dashboard viene caricato da qualche parte. Sul tuo Wi-Fi il collegamento non è cifrato, ed è per questo che il pannello ti dice di usarlo su una rete di cui ti fidi. La strada sicura serve proprio a risolvere questo. Tailscale è un'azienda esterna che aggiungi tu se vuoi, quindi valgono le sue condizioni sulla privacy, e Xenon non prende da lei nient'altro che l'indirizzo e il certificato della tua macchina.",
+  "ph.not.2": "Tutto il resto di quello che Xenon manda e non manda è sulla <a href=\"privacy.html\">pagina della privacy</a>."
+ },
+ "ko": {
+  "nav.back": "← 사이트로 돌아가기",
+  "ph.title": "휴대폰을 두 번째 화면으로 쓰세요",
+  "ph.lede": "Xenon을 쓰려면 하루 종일 켜 둘 수 있는 화면이 하나 필요합니다. Xeneon Edge, 남는 모니터, 오래된 태블릿 같은 것들이죠. 대부분의 사람이 막히는 지점은 기능이 아니라 여기입니다. 그런데 화면은 이미 주머니 안에 있습니다. 이 페이지는 그 화면을 쓰는 방법입니다.",
+  "ph.intro": "휴대폰에 나타나는 것은 리모컨도 미리보기도 아닙니다. 레이아웃도 위젯도 테마도 똑같은 <strong>당신의 대시보드</strong>입니다. 덱 키는 실제로 PC에서 실행됩니다. 음악을 멈추면 음악이 멈춥니다. 설정을 바꾸면 1초 뒤 PC에서도 바뀝니다. 계정도 클라우드도 필요 없고 설치할 앱도 없으며, 어떤 것도 집 네트워크 밖으로 나가지 않습니다.",
+  "ph.cap.phone": "휴대폰: 타일이 세로로 쌓이고 아래에 독",
+  "ph.cap.tab": "태블릿: 직접 만든 그대로의 전체 그리드",
+  "ph.cap.note": "이건 실제 스크린샷이 아니라 레이아웃을 그린 그림입니다. 진짜 대시보드에는 쓰는 사람의 캘린더와 메모와 파일 경로가 그대로 보이는데, 이 페이지는 공개되어 있으니까요.",
+  "ph.h.what": "되는 것과 안 되는 것",
+  "ph.what.p": "기기를 연결하면 그 기기는 내 기기가 됩니다. 몇 가지를 빼면 PC의 대시보드가 하는 일을 전부 할 수 있습니다. 그 몇 가지는 이유가 모두 같습니다. 그 컴퓨터 앞에 사람이 앉아 있어야 하는 일들입니다.",
+  "ph.can.1": "대시보드 전체: 센서, 위젯, 페이지, 테마",
+  "ph.can.2": "덱 키. 휴대폰이 아니라 PC에서 실행됩니다",
+  "ph.can.3": "미디어, 볼륨, 마이크 음소거, 앱 전환",
+  "ph.can.4": "스토어: 위젯, 아이콘 팩, 사운드 팩, 테마",
+  "ph.can.5": "Xenon AI, 그리고 PC에 저장되는 설정",
+  "ph.cant.1": "Windows 권한 확인 창. Windows가 PC 화면에만 그리기 때문에 PC에서만 답할 수 있습니다",
+  "ph.cant.2": "Xenon 업데이트. 업데이트는 휴대폰이 연결해 둔 서버를 다시 시작합니다",
+  "ph.cant.3": "시스템 설치 프로그램(헬퍼, PresentMon, 드라이버). 모두 디스크에 프로그램을 설치합니다",
+  "ph.cant.4": "연결된 기기 추가와 삭제. 그래서 휴대폰이 다른 기기를 등록하거나, 자기를 내보낼 수 있는 기기를 지울 수 없습니다",
+  "ph.trade": "<strong>시작하기 전에 알아 둘 것이 하나 있습니다.</strong> 연결된 기기는 삭제하기 전까지 계속 PC로 들어오는 통로입니다. 휴대폰을 잃어버렸거나 남에게 넘겼다면 목록에서 지우세요. 기기 목록이 그래서 있습니다. 하나만 지울 수도 있고, 한 번에 전부 지울 수도 있습니다. 지운 기기는 그 자리에서 연결이 끊깁니다.",
+  "ph.h.two": "들어가는 길은 두 가지입니다. 하나를 고르세요.",
+  "ph.r1.tag": "집에서",
+  "ph.r1.h": "내 Wi-Fi에서",
+  "ph.r1.time": "약 30초, 설치할 것 없음",
+  "ph.r1.1": "켜고, QR을 찍으면 끝",
+  "ph.r1.2": "같은 Wi-Fi에 있는 동안 동작합니다",
+  "ph.r1.3": "일반 HTTP라서 앱 설치, 마이크, 알림은 쓸 수 없습니다",
+  "ph.r2.tag": "어디서나",
+  "ph.r2.h": "안전하게, 집에서도 밖에서도",
+  "ph.r2.time": "약 5분, 버튼 하나와 웹페이지의 스위치 하나",
+  "ph.r2.1": "암호화되고, 공유기 포트를 하나도 열지 않고 어디서나 쓸 수 있습니다",
+  "ph.r2.2": "휴대폰에 앱처럼 설치되고 아이콘도 생깁니다",
+  "ph.r2.3": "Xenon AI가 마이크를 쓸 수 있게 됩니다",
+  "ph.r2.4": "공유기가 주소를 바꿔도 주소가 그대로입니다",
+  "ph.two.after": "한 번 고르면 끝인 것은 아닙니다. 두 번째 길은 첫 번째 옆에 문을 하나 더 내는 것이지 대신하는 것이 아닙니다. 집에서만 쓴다면 첫 번째로 시작하세요.",
+  "ph.h.home": "집에서, 30초 만에",
+  "ph.s1.h": "PC에서 설정, 그리고 원격 제어를 엽니다",
+  "ph.s1.p": "필요한 건 전부 <strong>휴대폰 접속</strong> 아래 한 패널에 있습니다.",
+  "ph.s2.h": "“다른 기기에서 접속 허용”을 켭니다",
+  "ph.s2.p": "직접 켜기 전까지는 꺼져 있습니다. 꺼져 있는 동안 Xenon은 이 PC 외에는 아무에게도 답하지 않습니다. 누가 네트워크를 훑어봐도 이 기능이 아예 없는 버전과 똑같은 응답을 받기 때문에, 기능이 있는지조차 알 수 없습니다.",
+  "ph.s2.sw": "다른 기기에서 접속 허용",
+  "ph.s2.swsub": "꺼져 있는 동안 Xenon은 이 PC에만 응답합니다.",
+  "ph.s3.h": "“기기 추가”를 누릅니다",
+  "ph.s3.p": "PC에 QR 코드와 그 아래 여덟 자리 코드가 나옵니다. 비밀번호가 아니라 초대장입니다. 3분 동안만 살아 있고, 몇 번 틀리면 바로 폐기됩니다.",
+  "ph.s4.h": "휴대폰 카메라로 비춥니다",
+  "ph.s4.p": "휴대폰 브라우저에서 대시보드가 열립니다. 설정은 이게 전부입니다. 설치한 것도 없고, 코드가 서버로 간 적도 없습니다. 브라우저가 밖으로 보내지 않는 주소 부분에 담겨 있기 때문입니다.",
+  "ph.home.note": "두 기기가 같은 Wi-Fi에 있어야 합니다. 공유기에 클라이언트 격리가 켜져 있거나 게스트 네트워크를 쓰고 있으면, 같은 Wi-Fi에 있어도 서로 보이지 않습니다.",
+  "ph.h.away": "어디서나, 그리고 앱으로",
+  "ph.away.1": "일반 HTTP에서는 브라우저가 여러 기능을 아예 내주지 않고, 디자인으로 되돌릴 방법이 없습니다. 앱으로 설치할 수 없고, 마이크를 쓸 수 없고, 알림도 받을 수 없습니다. 두 번째 길이 있는 진짜 이유가 이것입니다. 거리 때문이 아닙니다.",
+  "ph.away.2": "이를 위해 Xenon은 <a href=\"https://tailscale.com\" rel=\"noopener\">Tailscale</a>을 씁니다. PC와 휴대폰이 나만의 작은 사설 네트워크에 들어가고, 대시보드는 진짜 인증서와 바뀌지 않는 주소를 받습니다. 그리고 <strong>공유기 포트는 하나도 열리지 않습니다</strong>. 이 주소는 공개 DNS에 없어서 밖에서는 찾을 것 자체가 없습니다.",
+  "ph.card.h": "버튼 하나만 누르면 나머지는 Xenon이 합니다",
+  "ph.card.1": "같은 패널의 <strong>안전한 접속, 집 밖에서도</strong> 아래에 버튼이 하나 있습니다. Tailscale을 설치하고, 로그인 페이지를 열고, 당신이 끝낼 때까지 기다렸다가, 안전한 연결을 알아서 올립니다.",
+  "ph.card.sw": "안전한 접속, 집 밖에서도",
+  "ph.card.swsub": "Tailscale과 HTTPS를 씁니다. 설치형 앱, 마이크, 알림이 켜집니다.",
+  "ph.card.btn": "대신 설정해 주세요",
+  "ph.card.2": "<strong>한 번 멈추는데, 일부러 그렇습니다.</strong> 인증서는 사설 네트워크 전체에 걸리는 설정이고 Tailscale 웹사이트에서 바꿉니다. Xenon이 대신 할 수도 있지만 그러려면 당신이 그 사이트에서 키를 따로 만들어야 해서, 일이 줄기는커녕 늘어납니다. 그래서 Xenon은 거기서 멈추고 링크를 주고, 당신이 끝내면 알아서 알아챕니다. 창은 열어 둬도 됩니다.",
+  "ph.t1.h": "“대신 설정해 주세요”를 누릅니다",
+  "ph.t1.p": "Windows가 Tailscale 설치 권한을 물어봅니다. 그다음 로그인용 브라우저 탭이 열립니다. Google, Microsoft, GitHub 계정 아무거나 쓰면 되고, Xenon 계정을 만드는 것이 아닙니다.",
+  "ph.t2.h": "HTTPS 인증서를 켭니다",
+  "ph.t2.p": "Xenon이 대신 해 줄 수 없는 유일한 단계입니다. 물어보면 화면에 나온 버튼을 누르세요. <code>login.tailscale.com/admin/dns</code>가 열립니다. 아래로 내려 <strong>HTTPS Certificates</strong>에서 <strong>Enable</strong>을 누르세요. 모든 요금제에서 무료입니다. 그리고 Xenon으로 돌아오면 이미 다음 단계로 넘어가 있습니다.",
+  "ph.t3.h": "같은 계정으로 휴대폰에 Tailscale을 설치합니다",
+  "ph.t3.p": "App Store나 Google Play에서 받아 <strong>방금 쓴 것과 같은 계정</strong>으로 로그인하고 스위치를 켜세요. 다들 빠뜨리는 단계인데 증상은 분명합니다. 휴대폰이 주소를 아예 열지 못한다고 합니다. 고장이 아닙니다. 그 주소는 내 네트워크 안에만 있고, 그래서 인터넷의 누구도 접근할 수 없는 것입니다.",
+  "ph.t4.h": "새 주소에서 휴대폰을 다시 연결합니다",
+  "ph.t4.p": "<strong>기기 추가</strong>를 누르고 다시 찍으세요. 브라우저는 연결을 그때 쓴 주소에 묶어 두기 때문에, 집 주소에서 연결한 휴대폰은 안전한 주소에서는 연결되어 있지 않습니다. 이후로는 새 주소만 있으면 됩니다. 집에서도 밖에서도 됩니다.",
+  "ph.t5.h": "홈 화면에 추가합니다",
+  "ph.t5.p": "Safari에서는 공유를 누르고 <strong>홈 화면에 추가</strong>를 고르세요. Android에서는 Chrome이 설치를 제안합니다. 그러면 Xenon이 자체 아이콘으로, 주소창 없이 전체 화면으로 열립니다. 여기서는 마이크가 되므로 Xenon AI가 PC 대신 휴대폰으로 들을 수 있습니다. 알림도 됩니다. 설정에서 원격 제어로 들어가 이 기기의 알림을 켜 두면, 앱을 닫아 두어도 타이머가 끝날 때 알려 줍니다.",
+  "ph.h.trouble": "잘 안 될 때",
+  "ph.q1": "휴대폰이 주소를 열지 못한다고 합니다",
+  "ph.a1": "거의 항상 휴대폰이 아직 사설 네트워크에 들어오지 않은 경우입니다. 휴대폰에서 Tailscale을 열고 스위치가 정말 <strong>켜져</strong> 있는지 확인하세요. 앱을 설치한 것만으로는 부족합니다. iPhone은 켜져 있으면 상태 표시줄에 <strong>VPN</strong>이 나옵니다. PC와 같은 계정으로 로그인했는지도 확인하세요. 계정이 다르면 네트워크가 둘이라 서로 보이지 않습니다.",
+  "ph.q2": "위젯이 흰 상자에 글자만 있는 모습으로 보입니다",
+  "ph.a2": "iPhone과 iPad에서는 4.11 버전까지 늘 이랬습니다. 보안 규칙 하나 때문에 위젯이 자기 디자인을 불러오지 못했고, Safari에서만 그랬기 때문에 같은 위젯이 PC에서는 멀쩡해 보였습니다. Xenon을 업데이트하면 사라집니다. 업데이트한 뒤에도 그렇다면 페이지가 PC보다 오래된 코드로 돌고 있는 경우입니다. 업데이트 전부터 열려 있던 탭이 새로 불러오지 않고 메모리에서 되살아났을 때 주로 생깁니다. 당겨서 새로 고침만으로는 부족할 때가 많으니, 탭을 완전히 닫고 주소를 다시 여세요.",
+  "ph.q3": "되던 게 갑자기 연결이 풀린 것처럼 보입니다",
+  "ph.a3": "공유기가 PC에 다른 주소를 줬을 가능성이 큽니다. 연결은 그때 쓴 주소에 묶여 있어서, 주소가 바뀌면 연결이 풀린 것처럼 보이고 다시 추가해야 합니다. 방법은 두 가지입니다. 공유기 설정에서 PC에 고정 주소를 지정하거나, 주소가 절대 바뀌지 않는 위의 안전한 길을 쓰는 것입니다.",
+  "ph.q4": "설치한 앱이 다시 연결하라고 합니다",
+  "ph.a4": "iPhone에서는 홈 화면에 추가한 앱이 Safari와 별도의 저장 공간을 씁니다. 그래서 브라우저에서 한 연결이 따라 들어가지 않습니다. 코드를 하나 더 만들어 설치한 앱 안에서 연결하세요. 기기 목록에 별개 항목으로 생기고, 둘 다 이름을 바꿔 구분할 수 있습니다.",
+  "ph.q5": "Xenon이 HTTPS 인증서가 꺼져 있다고 합니다",
+  "ph.a5": "이 PC가 아니라 사설 네트워크 전체의 설정입니다. <a href=\"https://login.tailscale.com/admin/dns\" rel=\"noopener\">login.tailscale.com/admin/dns</a>를 열고 <strong>HTTPS Certificates</strong>를 찾아 <strong>Enable</strong>을 누르세요. Xenon이 몇 초 안에 알아챕니다.",
+  "ph.q6": "태블릿에 데스크톱 레이아웃이 나오는데 저는 쌓인 쪽을 원했습니다",
+  "ph.a6": "일부러 그렇게 했습니다. 태블릿은 원래 그리드를 그대로 띄울 만큼 크고, 그게 태블릿을 쓰는 이유이기도 합니다. iPad는 Xenon이 레이아웃을 바꾸는 기준보다 훨씬 큽니다. 특정 기기에서 쌓인 레이아웃이 더 좋다면 직접 고를 수 있고, Xenon은 그 선택을 <em>그 기기에서만</em> 기억합니다. PC로는 전달되지 않고, 저장해 둔 레이아웃도 덮어쓰지 않습니다.",
+  "ph.h.not": "이것이 하지 않는 일",
+  "ph.not.1": "Xenon 계정도 없고, 중간에 낀 우리 서버도 없으며, 대시보드의 어떤 것도 어디로 올라가지 않습니다. 내 Wi-Fi에서 쓰는 연결은 암호화되지 않습니다. 패널이 믿을 수 있는 네트워크에서 쓰라고 하는 이유이고, 안전한 길은 바로 그 점을 해결하려고 있습니다. Tailscale은 당신이 선택해서 추가하는 외부 회사이므로 그쪽의 개인정보 약관이 적용되고, Xenon은 거기서 내 컴퓨터의 주소와 인증서 외에는 아무것도 가져오지 않습니다.",
+  "ph.not.2": "Xenon이 무엇을 보내고 무엇을 보내지 않는지, 나머지는 <a href=\"privacy.html\">개인정보 페이지</a>에 있습니다."
+ },
+ "ja": {
+  "nav.back": "← サイトに戻る",
+  "ph.title": "スマホを2枚目の画面にする",
+  "ph.lede": "Xenon を使うには、一日中つけっぱなしにできる画面が1枚必要です。Xeneon Edge、余っているモニター、古いタブレットなど。多くの人がつまずくのは機能ではなくここです。でも画面ならもうポケットの中にあります。このページはその使い方です。",
+  "ph.intro": "スマホに出るのはリモコンでもプレビューでもありません。レイアウトもウィジェットもテーマも同じ、<strong>あなたのダッシュボードそのもの</strong>です。デッキのキーは本当に PC 側で動きます。音楽を止めれば音楽が止まります。設定を変えれば1秒後には PC でも変わっています。アカウントもクラウドも要らず、インストールするアプリもなく、家のネットワークの外へは何も出ません。",
+  "ph.cap.phone": "スマホ: タイルは縦に積まれ、下にドック",
+  "ph.cap.tab": "タブレット: 作ったままのグリッド全体",
+  "ph.cap.note": "これは実際のスクリーンショットではなく、レイアウトの図です。本物のダッシュボードには持ち主のカレンダーやメモやファイルのパスが写りますし、このページは公開されています。",
+  "ph.h.what": "できること、できないこと",
+  "ph.what.p": "ペアリングした端末は、あなたの端末になります。少しの例外を除いて、PC のダッシュボードにできることは全部できます。その例外はどれも理由が同じで、その PC の前に人がいないと成り立たないことです。",
+  "ph.can.1": "ダッシュボード全部: センサー、ウィジェット、ページ、テーマ",
+  "ph.can.2": "デッキのキー。スマホではなく PC で実行されます",
+  "ph.can.3": "メディア、音量、マイクのミュート、アプリの切り替え",
+  "ph.can.4": "ストア: ウィジェット、アイコンパック、サウンドパック、テーマ",
+  "ph.can.5": "Xenon AI と、PC に保存される設定",
+  "ph.cant.1": "Windows の許可ダイアログ。Windows が PC の画面にだけ描くので、答えられるのは PC だけです",
+  "ph.cant.2": "Xenon の更新。更新はスマホがつないでいるサーバー自体を再起動します",
+  "ph.cant.3": "システムのインストーラー(ヘルパー、PresentMon、ドライバー)。どれもディスクにプログラムを置きます",
+  "ph.cant.4": "ペアリング済み端末の追加と削除。おかげでスマホが別の端末を登録したり、自分を締め出せる端末を消したりはできません",
+  "ph.trade": "<strong>始める前に一つ知っておいてください。</strong> ペアリングした端末は、消すまでずっと PC への入り口のままです。スマホをなくしたり人に渡したりしたら、一覧から消してください。端末一覧はそのためにあります。1台だけ消すことも、ワンタップで全部消すこともできます。消した端末はその場で接続が切れます。",
+  "ph.h.two": "入り方は2つ。どちらかを選んでください。",
+  "ph.r1.tag": "家で",
+  "ph.r1.h": "自宅の Wi-Fi で",
+  "ph.r1.time": "約30秒、インストール不要",
+  "ph.r1.1": "オンにして QR を読むだけ",
+  "ph.r1.2": "同じ Wi-Fi にいる間だけ使えます",
+  "ph.r1.3": "暗号化なしの HTTP なので、アプリ化もマイクも通知も使えません",
+  "ph.r2.tag": "どこでも",
+  "ph.r2.h": "安全に、家でも外でも",
+  "ph.r2.time": "約5分、ボタン1つとウェブページのスイッチ1つ",
+  "ph.r2.1": "暗号化され、ルーターのポートを1つも開けずにどこからでも使えます",
+  "ph.r2.2": "スマホにアプリのようにインストールされ、アイコンも付きます",
+  "ph.r2.3": "Xenon AI がマイクを使えるようになります",
+  "ph.r2.4": "ルーターがアドレスを変えても、アドレスは変わりません",
+  "ph.two.after": "一度決めたら終わりではありません。2つ目は1つ目の隣に扉を増やすもので、置き換えるものではありません。家でしか使わないなら1つ目から始めてください。",
+  "ph.h.home": "家なら30秒",
+  "ph.s1.h": "PC で 設定、そしてリモート操作 を開きます",
+  "ph.s1.p": "必要なものは <strong>スマホからのアクセス</strong> の下、1つのパネルにまとまっています。",
+  "ph.s2.h": "「他の端末からのアクセスを許可」をオンにします",
+  "ph.s2.p": "自分でオンにするまではオフです。オフの間、Xenon はこの PC 以外には一切応答しません。ネットワークを調べられても、この機能が無いバージョンとまったく同じ返事をするので、機能があること自体わかりません。",
+  "ph.s2.sw": "他の端末からのアクセスを許可",
+  "ph.s2.swsub": "オフの間、Xenon はこの PC にしか応答しません。",
+  "ph.s3.h": "「端末を追加」を押します",
+  "ph.s3.p": "PC に QR コードと、その下に8文字のコードが出ます。パスワードではなく招待状です。3分で切れ、何度か間違えるとその場で無効になります。",
+  "ph.s4.h": "スマホのカメラで読み取ります",
+  "ph.s4.p": "スマホのブラウザでダッシュボードが開きます。設定はこれで終わりです。何もインストールしていませんし、コードがサーバーに届いたこともありません。ブラウザが外に送らない部分に入っているからです。",
+  "ph.home.note": "2台が同じ Wi-Fi にいる必要があります。ルーターのクライアント分離が有効だったり、ゲスト用ネットワークにいたりすると、同じ Wi-Fi でもお互いが見えません。",
+  "ph.h.away": "どこでも、そしてアプリとして",
+  "ph.away.1": "暗号化なしの HTTP では、ブラウザがまとまった機能を最初から渡してくれません。設計でどうにかできるものではありません。アプリとしてインストールできず、マイクも使えず、通知も届きません。2つ目の入り方がある本当の理由はこれで、距離の話ではありません。",
+  "ph.away.2": "そのために Xenon は <a href=\"https://tailscale.com\" rel=\"noopener\">Tailscale</a> を使います。PC とスマホが自分だけの小さなプライベートネットワークに入り、ダッシュボードに本物の証明書と変わらないアドレスが付きます。そして <strong>ルーターのポートは1つも開きません</strong>。このアドレスは公開 DNS に存在しないので、外から見つけられるものが何もありません。",
+  "ph.card.h": "ボタンを1つ押せば、あとは Xenon がやります",
+  "ph.card.1": "同じパネルの <strong>安全なアクセス(外出先でも)</strong> の下にボタンがあります。Tailscale を入れ、サインインの画面を開き、終わるのを待ってから、安全な接続を自分で立ち上げます。",
+  "ph.card.sw": "安全なアクセス(外出先でも)",
+  "ph.card.swsub": "Tailscale と HTTPS を使います。アプリ化、マイク、通知が使えるようになります。",
+  "ph.card.btn": "自動で設定する",
+  "ph.card.2": "<strong>一度だけ止まりますが、わざとです。</strong> 証明書はプライベートネットワーク全体の設定で、Tailscale のサイトで切り替えます。Xenon が代わりにやることもできますが、そのためには同じサイトで鍵を作ってもらう必要があり、手間はむしろ増えます。だから Xenon はそこで止まってリンクを出し、あなたが終えたら自分で気づきます。ウィンドウは開いたままで構いません。",
+  "ph.t1.h": "「自動で設定する」を押します",
+  "ph.t1.p": "Windows が Tailscale のインストール許可を聞いてきます。そのあとサインイン用のタブが開きます。Google でも Microsoft でも GitHub でも構いませんし、Xenon のアカウントを作るわけではありません。",
+  "ph.t2.h": "HTTPS 証明書をオンにします",
+  "ph.t2.p": "ここだけは Xenon が代われません。聞かれたら表示されたボタンを押してください。<code>login.tailscale.com/admin/dns</code> が開きます。下へスクロールして <strong>HTTPS Certificates</strong> の <strong>Enable</strong> を押します。どのプランでも無料です。Xenon に戻ると、もう次へ進んでいます。",
+  "ph.t3.h": "同じアカウントでスマホにも Tailscale を入れます",
+  "ph.t3.p": "App Store か Google Play から入れて、<strong>さっきと同じアカウント</strong>でサインインし、スイッチをオンにします。ここを忘れる人が一番多く、症状ははっきりしています。スマホがアドレスを開けないと言います。壊れてはいません。そのアドレスは自分のネットワークの中にしかなく、だからこそインターネット側の誰にも届かないのです。",
+  "ph.t4.h": "新しいアドレスでもう一度ペアリングします",
+  "ph.t4.p": "<strong>端末を追加</strong> を押してもう一度読み取ってください。ブラウザはペアリングをその時のアドレスに結び付けるので、家のアドレスでペアリングしたスマホは、安全なアドレスではペアリングされていません。これ以降は新しいアドレスだけで足ります。家でも外でも使えます。",
+  "ph.t5.h": "ホーム画面に追加します",
+  "ph.t5.p": "Safari では共有から <strong>ホーム画面に追加</strong> を選びます。Android では Chrome がインストールを提案します。以降 Xenon は専用アイコンで、アドレスバーなしの全画面で開きます。ここではマイクが使えるので、Xenon AI が PC ではなくスマホで聞き取れます。通知も使えます。設定からリモート操作へ進んでこの端末の通知をオンにしておくと、アプリを閉じていてもタイマーが終わったときに知らせてくれます。",
+  "ph.h.trouble": "うまくいかないとき",
+  "ph.q1": "スマホがアドレスを開けないと言う",
+  "ph.a1": "ほとんどの場合、スマホがまだプライベートネットワークに入っていません。スマホで Tailscale を開き、スイッチが本当に <strong>オン</strong> か確かめてください。入れただけでは足りません。iPhone ならオンのときステータスバーに <strong>VPN</strong> と出ます。PC と同じアカウントでサインインしているかも確認してください。アカウントが違うとネットワークも別になり、互いに見えません。",
+  "ph.q2": "ウィジェットが白い箱に文字だけの状態で出る",
+  "ph.a2": "iPhone と iPad では、バージョン 4.11 まで必ずこうなっていました。セキュリティの決まりのせいでウィジェットが自分の見た目を読み込めず、しかも Safari だけで起きるので、同じウィジェットが PC では正しく見えていました。Xenon を更新すれば直ります。更新してもまだ起きるなら、ページが PC より古いコードで動いています。更新前から開きっぱなしだったタブが、読み込み直さずにメモリから復帰したときによく起きます。引っ張って更新だけでは足りないことが多いので、タブを完全に閉じてアドレスを開き直してください。",
+  "ph.q3": "前は使えたのに、ペアリングが外れたように見える",
+  "ph.a3": "ルーターが PC に別のアドレスを割り当てた可能性が高いです。ペアリングはその時のアドレスに結び付いているので、アドレスが変わると外れたように見え、もう一度追加が必要になります。対処は2つあります。ルーターの設定で PC に固定アドレスを割り当てるか、アドレスが決して変わらない上の安全な方法を使うかです。",
+  "ph.q4": "インストールしたアプリがまたペアリングを求める",
+  "ph.a4": "iPhone ではホーム画面に追加したアプリが Safari とは別の保存領域を持つため、ブラウザでのペアリングは引き継がれません。コードをもう1つ作って、インストールしたアプリの中からペアリングしてください。端末一覧には別の項目として並ぶので、両方に名前を付けて区別できます。",
+  "ph.q5": "Xenon が HTTPS 証明書は無効だと言う",
+  "ph.a5": "この PC ではなく、プライベートネットワーク全体の設定です。<a href=\"https://login.tailscale.com/admin/dns\" rel=\"noopener\">login.tailscale.com/admin/dns</a> を開き、<strong>HTTPS Certificates</strong> の <strong>Enable</strong> を押してください。数秒で Xenon が気づきます。",
+  "ph.q6": "タブレットにデスクトップ版のレイアウトが出るが、積み重ね版がよかった",
+  "ph.a6": "これは意図した動きです。タブレットは本来のグリッドを出せる大きさがあり、それがタブレットを使う理由でもあります。iPad は Xenon が切り替える基準よりずっと大きい画面です。特定の端末で積み重ね版がよければ自分で選べますし、Xenon はその選択を <em>その端末だけ</em> で覚えます。PC には伝わりませんし、保存したレイアウトが上書きされることもありません。",
+  "ph.h.not": "これがやらないこと",
+  "ph.not.1": "Xenon のアカウントはなく、間に入る自社サーバーもなく、ダッシュボードの中身がどこかにアップロードされることもありません。自宅の Wi-Fi で使う接続は暗号化されていません。パネルが信頼できるネットワークで使うようにと書いているのはそのためで、安全な方法はまさにそこを解決するためにあります。Tailscale はあなたが選んで足す外部の会社なので、そちらのプライバシー規約が適用されます。Xenon がそこから受け取るのは、自分のパソコンのアドレスと証明書だけです。",
+  "ph.not.2": "Xenon が何を送り、何を送らないかは、残りも <a href=\"privacy.html\">プライバシーのページ</a> にあります。"
+ },
+ "zh": {
+  "nav.back": "← 返回网站",
+  "ph.title": "把手机当作第二块屏幕",
+  "ph.lede": "想用 Xenon，你需要一块可以整天开着的屏幕：一台 Xeneon Edge、一台闲置显示器，或者一台旧平板。真正把大多数人挡在门外的是这一点，不是功能。可你口袋里已经有一块屏幕了。这篇文章就是教你怎么用它。",
+  "ph.intro": "手机上出现的不是遥控器，也不是预览。它就是<strong>你的仪表盘</strong>，布局、组件、主题都一模一样。Deck 按键真的在电脑上执行。你按暂停，音乐就停。你改一个设置，一秒后电脑上也改好了。不需要账号，没有云端，没有要装的应用，也没有任何东西离开你家的网络。",
+  "ph.cap.phone": "手机：磁贴纵向堆叠，底部是快捷栏",
+  "ph.cap.tab": "平板：你亲手搭好的完整网格",
+  "ph.cap.note": "这些是布局示意图，不是真实截图。真实的仪表盘上会有主人的日历、笔记和文件路径，而这个页面是公开的。",
+  "ph.h.what": "能做什么，不能做什么",
+  "ph.what.p": "配对过的设备就算是你自己的设备。除了少数几件事，电脑上仪表盘能做的它都能做。那几件事的原因是同一个：必须有人坐在那台电脑前面。",
+  "ph.can.1": "整个仪表盘：传感器、组件、页面和主题",
+  "ph.can.2": "Deck 按键。它们在电脑上执行，不在手机上",
+  "ph.can.3": "媒体、音量、麦克风静音和应用切换",
+  "ph.can.4": "商店：组件、图标包、音效包和主题",
+  "ph.can.5": "Xenon AI，以及会保存到电脑的设置",
+  "ph.cant.1": "Windows 的授权弹窗。它只画在电脑自己的屏幕上，所以只能在电脑上回应",
+  "ph.cant.2": "更新 Xenon。更新会重启手机正连着的那个服务",
+  "ph.cant.3": "系统安装程序（helper、PresentMon、驱动）。每一个都会往硬盘里装东西",
+  "ph.cant.4": "添加或删除已配对的设备。这样一部手机既不能拉别的设备进来，也不能删掉那台能把它踢出去的设备",
+  "ph.trade": "<strong>开始之前有一件事要知道。</strong> 配对过的设备在你删掉它之前，一直是通向你电脑的一条路。所以手机丢了或者转手了，记得把它删掉。设备列表就是干这个用的：可以只删一台，也可以一键删除全部。被删掉的设备当场就断开。",
+  "ph.h.two": "两条路，选一条。",
+  "ph.r1.tag": "在家",
+  "ph.r1.h": "用自家 Wi-Fi",
+  "ph.r1.time": "大约 30 秒，不用装任何东西",
+  "ph.r1.1": "打开开关，扫个码，就好了",
+  "ph.r1.2": "只要在同一个 Wi-Fi 下就能用",
+  "ph.r1.3": "走普通 HTTP，所以装不了应用、用不了麦克风、收不到通知",
+  "ph.r2.tag": "任何地方",
+  "ph.r2.h": "安全连接，在家在外都行",
+  "ph.r2.time": "大约 5 分钟，一个按钮加网页上的一个开关",
+  "ph.r2.1": "全程加密，而且不用在路由器上开任何端口",
+  "ph.r2.2": "能像应用一样装到手机上，有自己的图标",
+  "ph.r2.3": "让 Xenon AI 可以用麦克风",
+  "ph.r2.4": "就算路由器换了地址，访问地址也不会变",
+  "ph.two.after": "这不是二选一。第二条路是在第一条旁边多开一扇门，不是替掉它。如果你只在家里用 Xenon，先用第一条就行。",
+  "ph.h.home": "在家，三十秒搞定",
+  "ph.s1.h": "在电脑上打开 设置，然后 远程控制",
+  "ph.s1.p": "需要的全部都在 <strong>手机访问</strong> 这一个面板里。",
+  "ph.s2.h": "打开“允许其他设备访问”",
+  "ph.s2.p": "你不打开它就一直关着。关着的时候，Xenon 只回应这台电脑，别的一概不理。就算有人扫描你的网络，得到的回应和一个根本没有这个功能的版本完全一样，看不出这个功能存在。",
+  "ph.s2.sw": "允许其他设备访问",
+  "ph.s2.swsub": "关着的时候，Xenon 只回应这台电脑。",
+  "ph.s3.h": "按“添加设备”",
+  "ph.s3.p": "电脑上会出现一个二维码，下面还有八位字符的验证码。它是一张邀请函，不是密码。三分钟就过期，错几次就直接作废。",
+  "ph.s4.h": "用手机摄像头扫一下",
+  "ph.s4.p": "仪表盘就在手机浏览器里打开了。设置到此结束。你没装任何东西，验证码也从没到过任何服务器，因为它藏在浏览器不会往外发的那一段地址里。",
+  "ph.home.note": "两台设备必须在同一个 Wi-Fi 下。如果路由器开了客户端隔离，或者你连的是访客网络，那么即使在同一个 Wi-Fi 下也互相看不见。",
+  "ph.h.away": "在任何地方，还能当应用用",
+  "ph.away.1": "在普通 HTTP 下，浏览器会扣住一整批能力，怎么设计都拿不回来：页面装不成应用，用不了麦克风，也收不到通知。这才是第二条路存在的真正原因，跟距离无关。",
+  "ph.away.2": "为此 Xenon 用了 <a href=\"https://tailscale.com\" rel=\"noopener\">Tailscale</a>。你的电脑和手机加入一个只属于你的小型专用网络，仪表盘拿到一张真证书和一个永远不变的地址，而且<strong>路由器上一个端口都不用开</strong>。这个地址在公共 DNS 里根本不存在，外面没有任何东西可以被找到。",
+  "ph.card.h": "按一个按钮，剩下的交给 Xenon",
+  "ph.card.1": "在同一个面板里，<strong>安全访问，在外也能用</strong> 下面有一个按钮。它会装好 Tailscale，打开登录页面，等你登录完，然后自己把安全连接建起来。",
+  "ph.card.sw": "安全访问，在外也能用",
+  "ph.card.swsub": "走 Tailscale 加 HTTPS。可以装成应用，还能用麦克风和通知。",
+  "ph.card.btn": "帮我设置",
+  "ph.card.2": "<strong>中间会停一次，这是故意的。</strong> 证书是整个专用网络的设置，要在 Tailscale 自己的网站上改。Xenon 也可以替你改，但那需要你先在同一个网站上生成一把密钥，步骤反而更多。所以 Xenon 就停在那里，把链接给你，等你弄完它自己会发现。窗口开着不用管。",
+  "ph.t1.h": "按“帮我设置”",
+  "ph.t1.p": "Windows 会问你要不要允许安装 Tailscale。然后会打开一个浏览器标签让你登录。Google、Microsoft 或 GitHub 账号都行，你并不是在注册 Xenon 账号。",
+  "ph.t2.h": "打开 HTTPS 证书",
+  "ph.t2.p": "这是唯一一步 Xenon 替不了你。它提示的时候，按它给出的按钮，会打开 <code>login.tailscale.com/admin/dns</code>。往下找到 <strong>HTTPS Certificates</strong>，按 <strong>Enable</strong>。任何套餐都免费。然后回到 Xenon，它已经自己往下走了。",
+  "ph.t3.h": "用同一个账号在手机上装 Tailscale",
+  "ph.t3.p": "从 App Store 或 Google Play 装好，用<strong>刚才那个账号</strong>登录，再把开关打开。这一步最容易被漏掉，症状也很好认：手机会说根本打不开这个地址。这不是坏了。那个地址只存在于你自己的网络里，这也正是互联网上没人能碰到它的原因。",
+  "ph.t4.h": "在新地址上重新配对手机",
+  "ph.t4.p": "按 <strong>添加设备</strong> 再扫一次。浏览器会把配对绑在当时那个地址上，所以在家里地址配过的手机，在安全地址上并没有配过。之后你只需要新地址：在家在外都能用。",
+  "ph.t5.h": "把它加到主屏幕",
+  "ph.t5.p": "在 Safari 里点分享，选 <strong>添加到主屏幕</strong>。Android 上 Chrome 会主动提示安装。之后 Xenon 会用自己的图标全屏打开，没有地址栏。这里麦克风可以用，所以 Xenon AI 能通过手机听，而不是通过电脑。通知也可以用：在设置里进入远程控制，为这台设备打开通知，倒计时结束时就算应用关着也能通知到你。",
+  "ph.h.trouble": "遇到问题的时候",
+  "ph.q1": "手机说打不开这个地址",
+  "ph.a1": "几乎都是手机还没进到你的专用网络里。在手机上打开 Tailscale，确认开关真的是<strong>开着</strong>的，光装上应用不算。iPhone 上开着的时候状态栏会显示 <strong>VPN</strong>。再确认一下你用的是和电脑同一个账号，两个账号就是两个网络，互相看不见。",
+  "ph.q2": "组件显示成一个白框加一堆纯文字",
+  "ph.a2": "在 iPhone 和 iPad 上，4.11 之前每次都会这样：一条安全规则让组件加载不了自己的样式，而且只在 Safari 上发生，所以同一个组件在电脑上看着好好的。更新 Xenon 就没有了。如果更新后还有，说明页面跑的代码比电脑上的旧：通常是更新前就开着的标签页，被系统从内存里恢复出来而没有重新加载。下拉刷新往往不够，把标签页整个关掉，再重新打开地址。",
+  "ph.q3": "之前好好的，现在手机变成没配对了",
+  "ph.a3": "多半是路由器给电脑换了地址。配对是跟着当时那个地址走的，地址一变，手机看上去就成了没配对，得重新添加。两个办法：在路由器设置里给电脑固定一个地址，或者用上面那条安全的路，它的地址永远不变。",
+  "ph.q4": "装好的应用又让我配对一次",
+  "ph.a4": "在 iPhone 上，加到主屏幕的应用有自己独立的存储，和 Safari 分开，所以你在浏览器里做的配对不会跟过去。再生成一个码，从装好的应用里配一次。它会在设备列表里单独占一行，你可以给两个都改名以便区分。",
+  "ph.q5": "Xenon 说 HTTPS 证书没有启用",
+  "ph.a5": "这是整个专用网络的设置，不是这台电脑的。打开 <a href=\"https://login.tailscale.com/admin/dns\" rel=\"noopener\">login.tailscale.com/admin/dns</a>，找到 <strong>HTTPS Certificates</strong>，按 <strong>Enable</strong>。几秒钟内 Xenon 就会发现。",
+  "ph.q6": "平板上显示的是桌面版布局，我想要堆叠的那种",
+  "ph.a6": "这是故意的。平板足够大，放得下真正的网格，而这本来就是用平板的意义；iPad 无论怎么拿都远超过切换的尺寸线。如果你在某台设备上更喜欢堆叠布局，可以自己选，Xenon 会<em>只在那台设备上</em>记住这个选择。它不会传到电脑上，也不会覆盖你保存好的布局。",
+  "ph.h.not": "它不做什么",
+  "ph.not.1": "没有 Xenon 账号，中间没有我们的服务器，仪表盘上的任何内容都不会被上传到任何地方。在自家 Wi-Fi 下这条连接是不加密的，所以面板里会提醒你在信任的网络里使用，而那条安全的路存在的意义就是解决这一点。Tailscale 是你自己选择加进来的第三方公司，适用它自己的隐私条款，而 Xenon 从它那里只取你自己这台机器的地址和证书。",
+  "ph.not.2": "Xenon 还会发送什么、不会发送什么，都写在<a href=\"privacy.html\">隐私页面</a>上。"
+ }
+};
+</script>
+<script>
+  // Same engine and same storage key as the home page, so a visitor's language
+  // choice carries across the site instead of resetting on every page.
+  (function () {
+    const LANGS = ['en', 'it', 'ko', 'ja', 'zh'];
+    const KEY = 'xenon.site.lang';
+    let cur = 'en';
+    const XT = (k) => {
+      const d = I18N[cur] || I18N.en;
+      return d[k] != null ? d[k] : (I18N.en[k] != null ? I18N.en[k] : '');
+    };
+    function apply(lang) {
+      cur = LANGS.includes(lang) ? lang : 'en';
+      document.documentElement.lang = cur;
+      document.querySelectorAll('[data-i18n]').forEach((el) => {
+        const v = XT(el.dataset.i18n); if (v) el.textContent = v;
+      });
+      document.querySelectorAll('[data-i18n-html]').forEach((el) => {
+        const v = XT(el.dataset.i18nHtml); if (v) el.innerHTML = v; // static, trusted markup
+      });
+      const c = document.getElementById('lang-cur'); if (c) c.textContent = cur.toUpperCase();
+      document.querySelectorAll('#lang-menu button').forEach((b) => b.classList.toggle('on', b.dataset.lang === cur));
+      try { localStorage.setItem(KEY, cur); } catch (e) { /* private mode */ }
+    }
+    const box = document.getElementById('lang');
+    const btn = document.getElementById('lang-btn');
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = box.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.addEventListener('click', () => { box.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); });
+    document.querySelectorAll('#lang-menu button').forEach((b) => {
+      b.addEventListener('click', () => { apply(b.dataset.lang); box.classList.remove('open'); });
+    });
+    let saved = null;
+    try { saved = localStorage.getItem(KEY); } catch (e) { /* private mode */ }
+    apply(saved || (navigator.language || 'en').slice(0, 2));
+  })();
+</script>
+
+</body>
+</html>

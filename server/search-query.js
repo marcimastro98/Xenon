@@ -214,6 +214,21 @@
       if (clean.length < 2) continue;
       if (q.terms.length < 8) q.terms.push(clean);
     }
+    // A SINGLE word that is nothing but a stopword is a prefix being typed, not
+    // a phrase. "ma", "e", "in", "the", "my" all parsed to zero terms and zero
+    // filters, and the search then answered "no results" — on every surface, for
+    // a query the user was still in the middle of writing. Stopword stripping
+    // exists to make a whole sentence work ("trovami i file di marci"); applying
+    // it to a one-word query throws away the only thing the user typed.
+    // Deliberately narrow: only when the query is one token AND nothing at all
+    // was extracted from it, so a real phrase of stopwords stays a phrase and a
+    // kind/extension word ("foto", ".pdf") keeps being the filter it is.
+    if (!q.terms.length && !extSet.size && q.kind == null
+        && q.after == null && q.before == null && q.minBytes == null && q.maxBytes == null
+        && tokens.length === 1) {
+      const only = tokens[0].replace(/^["'()\[\]]+|["'()\[\].,!?]+$/g, '');
+      if (only.length >= 2) q.terms.push(only);
+    }
     if (extSet.size) {
       q.exts = [...extSet];
       q.chips.push({ type: 'ext', exts: q.exts.slice() });
