@@ -382,6 +382,18 @@
     const status = document.createElement('div'); status.className = 'ss-setup-status'; status.hidden = true;
     card.append(icon, title, msg);
 
+    // Checked BEFORE the helper, because off Windows the helper is legitimately
+    // absent too and its message ("re-run INSTALL.bat") names a file that does
+    // not exist there — a remedy for a problem the user does not have. This is
+    // not a missing prerequisite: the virtual monitor is a signed Windows display
+    // driver, so there is nothing to install and nothing to retry.
+    if (req && req.supported === false) {
+      msg.textContent = t('second_screen_unsupported_platform', 'The virtual second screen needs a Windows display driver, so it is Windows-only. You can still use a phone or tablet as an extra Xenon panel from Settings → Remote.');
+      wrap.append(card);
+      tile.mount.replaceChildren(wrap);
+      return;
+    }
+
     if (!req || req.captureAvailable === false) {
       msg.textContent = t('second_screen_unavailable_helper', 'The Xenon Helper (native companion) is required. Re-run INSTALL.bat to add it.');
       wrap.append(card);
