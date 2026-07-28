@@ -138,6 +138,12 @@
     const layout = getDashboardLayout();
     const tabTarget = opts && opts.tabTargetMember;
     const remoteConfigured = () => !!(window.RemoteControl && window.RemoteControl.isConfigured());
+    // The second screen is a Windows Indirect Display Driver; there is no
+    // equivalent on macOS or Linux, so offering the widget there promises a tile
+    // that can only ever explain itself. Undefined means /version has not landed
+    // yet — offer it, because guessing wrong on Windows hides a working feature.
+    const secondScreenSupported = () =>
+      !window.XenonPlatform || window.XenonPlatform === 'win32';
 
     // Centered modal (backdrop + card) rather than a popover anchored to the "+":
     // it never depends on where the button sits, so nothing (the floating layout
@@ -201,6 +207,7 @@
       // group can hold several custom widgets (Thermal Card + Keyring + …).
       let addIds = DASHBOARD_WIDGET_IDS.filter(id => layout.widgets[id] && (id === 'custom' || !members.includes(id)));
       if (!remoteConfigured()) addIds = addIds.filter(id => id !== 'remote');
+      if (!secondScreenSupported()) addIds = addIds.filter(id => id !== 'secondscreen');
       const addEntries = addIds.map(id => ({ id, base: id }));
 
       if (!moveEntries.length && !addEntries.length) {
@@ -232,6 +239,7 @@
         const RC = window.RemoteControl;
         if (RC && typeof RC.refreshStatus === 'function' && !RC.getStatus()) RC.refreshStatus();
       }
+      if (!secondScreenSupported()) ids = ids.filter(id => id !== 'secondscreen');
       if (!ids.length) {
         const empty = document.createElement('div');
         empty.className = 'widget-palette-empty';

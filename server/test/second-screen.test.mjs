@@ -41,6 +41,12 @@ const deps = (over = {}) => ({
   findPackageDir: () => over.dir ?? 'C:\\pkg\\vdd',
   writeConfig: over.writeConfig || (() => {}),
   probeDisplayActive: over.probe || (async () => over.displayActive === true),
+  // Everything below this line is Windows behaviour — a signed display driver
+  // bound with devcon — so the platform is stated rather than inherited from
+  // whatever machine runs the suite. Left implicit, every one of these tests
+  // short-circuits on `unsupported_platform` when the developer is on macOS or
+  // Linux, and reports the checkout as broken when it is only elsewhere.
+  platform: over.platform || 'win32',
 });
 
 test('requirements: winget missing → manual guided step, not ready', async () => {
@@ -191,4 +197,41 @@ test('buildConfigXml: full schema advertising every preset (so resolution change
     assert.match(xml, new RegExp(`<width>${w}</width>\\s*<height>${h}</height>`));
   }
   assert.match(xml, /<count>1<\/count>/); // still exactly one monitor
+});
+
+// ── Off Windows the feature does not exist, and that is a different answer ────
+// than "a prerequisite is missing". The probe used to fall straight through to
+// the winget check, so a Linux machine was told to install the Windows App
+// Installer from the Microsoft Store — a remedy naming a store it has no access
+// to, for a driver it could not load anyway. The tile keys its explanation off
+// `supported`, so this is the field that has to be right.
+for (const platform of ['linux', 'darwin']) {
+  test(`requirements: su ${platform} è "non supportato", non "winget mancante"`, async () => {
+    const d = deps({ platform, inst: { winget: true, vdd: true }, displayActive: true });
+    const r = await createSecondScreen(d).requirements();
+    assert.equal(r.supported, false);
+    assert.equal(r.ready, false);
+    assert.deepEqual(r.steps, [{ id: 'platform', ok: false, action: 'manual', code: 'unsupported_platform' }]);
+    // Even with winget "available" and the driver "installed" in the fakes: the
+    // platform decides before anything is probed.
+    assert.equal(d.installer.calls.length, 0, 'nothing was probed');
+  });
+
+  test(`le azioni elevate non partono su ${platform}`, async () => {
+    const d = deps({ platform });
+    const ss = createSecondScreen(d);
+    for (const r of [await ss.installDriver(), await ss.createDisplay({ width: 1920, height: 1080 }), await ss.removeDisplay()]) {
+      assert.equal(r.ok, false);
+      assert.equal(r.code, 'unsupported_platform');
+    }
+    // The point of the guard: no devcon, no winget, no UAC.
+    assert.equal(d.runner.calls.length, 0, 'nothing was spawned');
+    assert.equal(d.installer.calls.length, 0);
+  });
+}
+
+test('requirements: su Windows il comportamento è invariato', async () => {
+  const r = await createSecondScreen(deps({ inst: { vdd: true }, displayActive: true })).requirements();
+  assert.equal(r.supported, true);
+  assert.equal(r.ready, true);
 });

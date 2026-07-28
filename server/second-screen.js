@@ -115,8 +115,16 @@ function createSecondScreen({
   findPackageDir = defaultFindPackageDir,
   writeConfig,
   probeDisplayActive,
+  platform = process.platform,
 } = {}) {
   const inst = installer || createInstaller({ runner });
+  // The whole feature is an indirect display driver: a signed Windows .inf bound
+  // with devcon, captured through GDI. There is no equivalent to fall back to on
+  // macOS or Linux, so this is not "a prerequisite is missing" — it is a feature
+  // that does not exist here, and saying so is the only honest answer. Without
+  // this the probe went on to ask for `winget`, and a Linux machine was told to
+  // install it from the Microsoft Store.
+  const supported = platform === 'win32';
 
   const doWriteConfig = writeConfig || ((xml) => {
     fs.mkdirSync(CONFIG_DIR, { recursive: true });
@@ -135,9 +143,18 @@ function createSecondScreen({
   });
 
   async function requirements() {
+    if (!supported) {
+      return {
+        supported: false, ready: false,
+        wingetAvailable: false, vddInstalled: false, displayActive: false,
+        steps: [{ id: 'platform', ok: false, action: 'manual', code: 'unsupported_platform' }],
+      };
+    }
+
     const wingetAvailable = await inst.isWingetAvailable();
     if (!wingetAvailable) {
       return {
+        supported: true,
         ready: false, wingetAvailable: false, vddInstalled: false, displayActive: false,
         steps: [{ id: 'winget', ok: false, action: 'manual', code: 'winget_missing' }],
       };
@@ -146,6 +163,7 @@ function createSecondScreen({
     const vddInstalled = await inst.isInstalled('vdd');
     if (!vddInstalled) {
       return {
+        supported: true,
         ready: false, wingetAvailable: true, vddInstalled: false, displayActive: false,
         steps: [
           { id: 'winget', ok: true, action: 'none' },
@@ -157,6 +175,7 @@ function createSecondScreen({
 
     const displayActive = await isDisplayActive();
     return {
+      supported: true,
       ready: displayActive,
       wingetAvailable: true,
       vddInstalled: true,
@@ -174,6 +193,7 @@ function createSecondScreen({
   // One-click install of the virtual display driver files. Returns a structured
   // result (never throws on the expected "can't automate" path).
   async function installDriver() {
+    if (!supported) return { ok: false, action: 'manual', code: 'unsupported_platform' };
     if (!(await inst.isWingetAvailable())) {
       return { ok: false, action: 'manual', code: 'winget_missing' };
     }
@@ -201,6 +221,7 @@ function createSecondScreen({
   // instance that reads the config we just wrote. Re-applying a resolution goes
   // through the same path, guaranteeing the count can never grow.
   async function createDisplay(mode) {
+    if (!supported) return { ok: false, action: 'manual', code: 'unsupported_platform' };
     const dir = findPackageDir();
     if (!dir) return { ok: false, action: 'retry', code: 'vdd_files_missing' };
     const devcon = path.join(dir, 'Dependencies', 'devcon.exe');
@@ -226,6 +247,7 @@ function createSecondScreen({
 
   // Remove the virtual display (used when disabling the feature / cleanup).
   async function removeDisplay() {
+    if (!supported) return { ok: false, code: 'unsupported_platform' };
     const dir = findPackageDir();
     if (!dir) return { ok: false, code: 'vdd_files_missing' };
     const devcon = path.join(dir, 'Dependencies', 'devcon.exe');

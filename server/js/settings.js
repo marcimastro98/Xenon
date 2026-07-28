@@ -8012,6 +8012,12 @@ function syncAiFeaturesControls() {
 // the panels themselves, and applied to the nav button and the pane together —
 // hiding only one leaves either a dead button or an unreachable pane.
 function applyPlatformGating(platform) {
+  // Published for the parts of the dashboard that are NOT settings panes and so
+  // cannot be gated by markup — the widget palette is the one that matters, since
+  // a widget offered there is a promise the tile then has to break. Anything
+  // reading it must treat undefined as "not known yet" and offer the widget: a
+  // late answer is better than one wrong on Windows.
+  window.XenonPlatform = platform || '';
   if (platform === 'win32') return;
   document.querySelectorAll('[data-settings-win-only]').forEach((el) => {
     const cat = el.dataset.settingsCat || el.dataset.settingsWinOnly;
