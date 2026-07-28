@@ -315,7 +315,13 @@
   function friendlyError(code) {
     const c = String(code || '');
     if (c === 'blocked_scheme') return t('browser_blocked_scheme', 'Only http:// and https:// addresses are allowed.');
-    if (c === 'edge_not_found') return t('browser_unavailable', 'Microsoft Edge isn’t installed — it’s required for the Browser widget.');
+    if (c === 'edge_not_found') {
+      // The error code keeps its name (every log line and call site says
+      // "edge"), but the sentence must match the machine reading it.
+      return window.XenonPlatform && window.XenonPlatform !== 'win32'
+        ? t('browser_unavailable_chromium', 'The Browser widget needs a Chromium-based browser (Chromium, Chrome, Brave or Edge). None was found.')
+        : t('browser_unavailable', 'Microsoft Edge isn’t installed — it’s required for the Browser widget.');
+    }
     if (isLaunchError(c)) return t('browser_err_launch', 'Couldn’t open this page right now. Please try again in a moment.');
     return '';   // no_tile / bad_url / empty_url / unknown → stay quiet
   }
@@ -882,12 +888,48 @@
     evalPerfPause();
   }
 
+  // Whether the server said it can install a browser for us. Undefined until
+  // /embedded-browser/available answers.
+  let canInstallBrowser = false;
+
   function showUnavailable() {
     document.querySelectorAll('[data-dashboard-widget="browser"] .browser-widget-mount').forEach((mount) => {
       if (mount.querySelector('.browser-unavailable')) return;
       const div = document.createElement('div');
       div.className = 'browser-unavailable';
-      div.textContent = t('browser_unavailable', 'Microsoft Edge isn’t installed — it’s required for the Browser widget.');
+
+      const p = document.createElement('p');
+      // Naming Edge off Windows was telling a Linux user to install a browser
+      // this widget does not need: it drives ANY Chromium over the DevTools
+      // protocol. The message now says what is actually required.
+      p.textContent = window.XenonPlatform && window.XenonPlatform !== 'win32'
+        ? t('browser_unavailable_chromium', 'The Browser widget needs a Chromium-based browser (Chromium, Chrome, Brave or Edge). None was found.')
+        : t('browser_unavailable', 'Microsoft Edge isn’t installed — it’s required for the Browser widget.');
+      div.appendChild(p);
+
+      if (canInstallBrowser) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'browser-unavailable-install';
+        btn.textContent = t('browser_install_chromium', 'Install Chromium');
+        btn.addEventListener('click', () => {
+          btn.disabled = true;
+          btn.textContent = t('browser_installing', 'Installing…');
+          fetch('/embedded-browser/install', { method: 'POST' })
+            .then((r) => r.json())
+            .then((d) => {
+              if (d && d.ok) { probeAvailability(); return; }
+              btn.disabled = false;
+              btn.textContent = t('browser_install_failed', 'Installation did not finish — try again');
+            })
+            .catch(() => {
+              btn.disabled = false;
+              btn.textContent = t('browser_install_failed', 'Installation did not finish — try again');
+            });
+        });
+        div.appendChild(btn);
+      }
+
       mount.replaceChildren(div);
     });
   }
@@ -895,6 +937,11 @@
   function probeAvailability() {
     fetch('/embedded-browser/available').then((r) => r.json()).then((d) => {
       available = !!(d && d.available);
+      canInstallBrowser = !!(d && d.canInstall);
+      // The previous answer may still be painted, and it may now be wrong —
+      // drop it so an install that just succeeded is not hidden behind the
+      // "no browser found" card it replaced.
+      document.querySelectorAll('.browser-unavailable').forEach((el) => el.remove());
       scan();
     }).catch(() => { available = true; scan(); });
   }
