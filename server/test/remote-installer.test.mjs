@@ -234,3 +234,59 @@ test('su Windows canInstall segue winget', async () => {
   const noWinget = fakeRunner({ '--version': { code: 1, stdout: '', stderr: 'not found' } });
   assert.equal(await winInstaller({ runner: noWinget }).canInstall(), false);
 });
+
+// ── Chromium: the one package that must NOT come from Flathub ────────────────
+// Measured, not assumed. The Flathub Chromium launches and even prints
+// "DevTools listening on ws://127.0.0.1:PORT" — but the sandbox remaps the
+// filesystem, so `--user-data-dir` lands somewhere the host cannot see and
+// DevToolsActivePort never appears at the path embedded-browser.js reads. The
+// ad-blocker fails the same way: it passes --load-extension pointing into
+// DATA_DIR. This widget hands Chromium paths OUTSIDE any sandbox, so a
+// sandboxed Chromium cannot serve it — even though installing one succeeds and
+// makes `available()` answer true, which is exactly the trap.
+
+test('linux: Chromium viene dal pacchetto della distro, non da Flathub', async () => {
+  const runner = posixRunner(['pkexec', 'dnf', 'flatpak'], {
+    'remotes --columns=name': { code: 0, stdout: 'flathub\n' },
+  });
+  const inst = createInstaller({ runner, platform: 'linux' });
+
+  await inst.install('chromium');
+  assert.equal(runner.calls.filter((c) => c.file === 'flatpak' && c.args[0] === 'install').length, 0,
+    'a sandboxed Chromium cannot see the profile dir this widget gives it');
+  const elevated = runner.calls.filter((c) => c.elevated);
+  assert.equal(elevated.length, 1);
+  assert.ok(elevated[0].args[1].includes('dnf install -y chromium'), elevated[0].args[1]);
+});
+
+test('linux: senza package manager, Chromium non ripiega sul flatpak', async () => {
+  // The fallback would "work" and leave the user with a browser that cannot
+  // drive the widget — worse than saying so.
+  const runner = posixRunner(['flatpak'], {
+    'remotes --columns=name': { code: 0, stdout: 'flathub\n' },
+  });
+  const inst = createInstaller({ runner, platform: 'linux' });
+
+  assert.equal(await inst.canInstall('chromium'), false);
+  assert.equal((await inst.install('chromium')).reason, 'manual_install_required');
+  assert.equal(runner.calls.filter((c) => c.file === 'flatpak' && c.args[0] === 'install').length, 0);
+});
+
+test('linux: Sunshine invece il flatpak lo usa eccome', async () => {
+  // Guards the exception from spreading: preferNative is about one package.
+  const runner = posixRunner(['pkexec', 'dnf', 'flatpak'], {
+    'remotes --columns=name': { code: 0, stdout: 'flathub\n' },
+  });
+  const inst = createInstaller({ runner, platform: 'linux' });
+  await inst.install('sunshine');
+  assert.ok(runner.calls.some((c) => c.file === 'flatpak' && c.args[0] === 'install'));
+});
+
+test('darwin: Chromium e\' un cask, non una formula', async () => {
+  const runner = posixRunner(['brew']);
+  const inst = createInstaller({ runner, platform: 'darwin' });
+  await inst.install('chromium');
+  const call = runner.calls.find((c) => c.file === 'brew' && c.args[0] === 'install');
+  assert.ok(call.args.includes('--cask'), 'without this it installs nothing into /Applications');
+  assert.ok(call.args.includes('chromium'));
+});

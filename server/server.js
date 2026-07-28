@@ -12156,9 +12156,33 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/embedded-browser/available' && req.method === 'GET') {
-    // Lets the Browser widget render a friendly "Edge not found" state instead of
-    // silently failing when Microsoft Edge isn't installed.
-    json({ available: embeddedBrowser.available() });
+    // Lets the Browser widget render a friendly "no browser found" state instead
+    // of silently failing.
+    //
+    // `canInstall` is the difference between a dead end and a button. The widget
+    // drives ANY Chromium over the DevTools protocol, and off Windows Chromium
+    // is one flatpak away — so a machine without one is not a machine that
+    // cannot have one. On Windows this stays false: Edge ships with the OS, so
+    // if it is missing something is wrong that installing will not fix.
+    json({
+      available: embeddedBrowser.available(),
+      canInstall: process.platform === 'win32'
+        ? false
+        : await remoteHttpsInstaller.canInstall('chromium').catch(() => false),
+    });
+
+  } else if (reqPath === '/embedded-browser/install' && req.method === 'POST') {
+    // One click, same machinery as everything else: flatpak where it can (no
+    // password at all), the distribution's package manager behind one
+    // authorisation prompt otherwise.
+    try {
+      await readBody(req);
+      if (process.platform === 'win32') { json({ ok: false, error: 'unsupported' }); return; }
+      const r = await remoteHttpsInstaller.install('chromium');
+      // `available()` re-probes the filesystem, so this is the real answer
+      // rather than the installer's opinion of itself.
+      json({ ok: r.code === 0 && embeddedBrowser.available(), reason: r.reason || '' });
+    } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/embedded-browser/adblock' && req.method === 'GET') {
     // Ad-blocker status for Settings → Browser: whether the extension is installed,
