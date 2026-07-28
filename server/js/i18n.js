@@ -19913,6 +19913,9 @@ Object.assign(i18n.it, {
   ra_https_setup_err_login: 'Nessun accesso completato. Ripremi il bottone quando sei pronto.',
   ra_https_setup_err_certs: 'Sto ancora aspettando che i certificati HTTPS vengano attivati sul tuo tailnet.',
   ra_https_setup_err_cancelled: 'Configurazione annullata.',
+  ra_https_setup_err_manual_install: 'Tailscale non è installato, e Xenon non può installarlo su questo sistema. Installalo tu, poi premi di nuovo il pulsante.',
+  ra_https_setup_err_operator: 'Tailscale è installato ma non accetta comandi da questo utente. Esegui questa riga una volta nel terminale, poi premi di nuovo il pulsante.',
+  ra_https_why_operator: 'Tailscale è in funzione ma non accetta comandi da questo utente.',
   ra_https_setup_err_failed: 'Configurazione non riuscita.',
 });
 Object.assign(i18n.en, {
@@ -19996,6 +19999,9 @@ Object.assign(i18n.en, {
   ra_https_setup_err_login: 'No sign-in was completed. Press the button again when you are ready.',
   ra_https_setup_err_certs: 'Still waiting for HTTPS certificates to be enabled on your tailnet.',
   ra_https_setup_err_cancelled: 'Setup cancelled.',
+  ra_https_setup_err_manual_install: 'Tailscale is not installed, and Xenon cannot install it on this system. Install it yourself, then press the button again.',
+  ra_https_setup_err_operator: 'Tailscale is installed but will not take commands from this user. Run this line once in a terminal, then press the button again.',
+  ra_https_why_operator: 'Tailscale is running but will not take commands from this user account.',
   ra_https_setup_err_failed: 'Setup did not complete.',
 });
 Object.assign(i18n.de, {
@@ -20079,6 +20085,9 @@ Object.assign(i18n.de, {
   ra_https_setup_err_login: 'Es wurde keine Anmeldung abgeschlossen. Klicke erneut, wenn du bereit bist.',
   ra_https_setup_err_certs: 'Warte weiter darauf, dass HTTPS-Zertifikate in deinem Tailnet aktiviert werden.',
   ra_https_setup_err_cancelled: 'Einrichtung abgebrochen.',
+  ra_https_setup_err_manual_install: 'Tailscale ist nicht installiert, und Xenon kann es auf diesem System nicht installieren. Installiere es selbst und drücke dann erneut die Schaltfläche.',
+  ra_https_setup_err_operator: 'Tailscale ist installiert, nimmt aber von diesem Benutzer keine Befehle an. Führe diese Zeile einmal im Terminal aus und drücke dann erneut die Schaltfläche.',
+  ra_https_why_operator: 'Tailscale läuft, nimmt aber von diesem Benutzerkonto keine Befehle an.',
   ra_https_setup_err_failed: 'Die Einrichtung wurde nicht abgeschlossen.',
 });
 Object.assign(i18n.fr, {
@@ -20162,6 +20171,9 @@ Object.assign(i18n.fr, {
   ra_https_setup_err_login: 'Aucune connexion terminée. Reclique quand tu es prêt.',
   ra_https_setup_err_certs: 'J’attends toujours que les certificats HTTPS soient activés sur ton tailnet.',
   ra_https_setup_err_cancelled: 'Configuration annulée.',
+  ra_https_setup_err_manual_install: 'Tailscale n\'est pas installé, et Xenon ne peut pas l\'installer sur ce système. Installe-le toi-même, puis appuie de nouveau sur le bouton.',
+  ra_https_setup_err_operator: 'Tailscale est installé mais n\'accepte pas les commandes de cet utilisateur. Exécute cette ligne une fois dans un terminal, puis appuie de nouveau sur le bouton.',
+  ra_https_why_operator: 'Tailscale fonctionne mais n\'accepte pas les commandes de ce compte utilisateur.',
   ra_https_setup_err_failed: 'La configuration n’a pas abouti.',
 });
 Object.assign(i18n.es, {
@@ -20245,6 +20257,9 @@ Object.assign(i18n.es, {
   ra_https_setup_err_login: 'No se ha completado ningún inicio de sesión. Vuelve a pulsar cuando estés listo.',
   ra_https_setup_err_certs: 'Sigo esperando a que se activen los certificados HTTPS en tu tailnet.',
   ra_https_setup_err_cancelled: 'Configuración cancelada.',
+  ra_https_setup_err_manual_install: 'Tailscale no está instalado, y Xenon no puede instalarlo en este sistema. Instálalo tú y luego pulsa de nuevo el botón.',
+  ra_https_setup_err_operator: 'Tailscale está instalado pero no acepta órdenes de este usuario. Ejecuta esta línea una vez en un terminal y luego pulsa de nuevo el botón.',
+  ra_https_why_operator: 'Tailscale está funcionando pero no acepta órdenes de esta cuenta de usuario.',
   ra_https_setup_err_failed: 'La configuración no se ha completado.',
 });
 Object.assign(i18n.pt, {
@@ -20328,6 +20343,9 @@ Object.assign(i18n.pt, {
   ra_https_setup_err_login: 'Nenhum início de sessão concluído. Carrega outra vez quando estiveres pronto.',
   ra_https_setup_err_certs: 'Continuo à espera que os certificados HTTPS sejam ativados no teu tailnet.',
   ra_https_setup_err_cancelled: 'Configuração cancelada.',
+  ra_https_setup_err_manual_install: 'O Tailscale não está instalado, e o Xenon não o consegue instalar neste sistema. Instala-o tu e depois carrega novamente no botão.',
+  ra_https_setup_err_operator: 'O Tailscale está instalado mas não aceita comandos deste utilizador. Executa esta linha uma vez no terminal e depois carrega novamente no botão.',
+  ra_https_why_operator: 'O Tailscale está a funcionar mas não aceita comandos desta conta de utilizador.',
   ra_https_setup_err_failed: 'A configuração não foi concluída.',
 });
 Object.assign(i18n.ru, {
@@ -20411,6 +20429,9 @@ Object.assign(i18n.ru, {
   ra_https_setup_err_login: 'Вход не был завершён. Нажмите кнопку снова, когда будете готовы.',
   ra_https_setup_err_certs: 'Всё ещё жду, когда в вашем tailnet включат HTTPS-сертификаты.',
   ra_https_setup_err_cancelled: 'Настройка отменена.',
+  ra_https_setup_err_manual_install: 'Tailscale не установлен, и Xenon не может установить его в этой системе. Установите его сами, затем нажмите кнопку ещё раз.',
+  ra_https_setup_err_operator: 'Tailscale установлен, но не принимает команды от этого пользователя. Выполните эту строку один раз в терминале, затем нажмите кнопку ещё раз.',
+  ra_https_why_operator: 'Tailscale работает, но не принимает команды от этой учётной записи.',
   ra_https_setup_err_failed: 'Настройка не завершена.',
 });
 Object.assign(i18n.ko, {
@@ -20494,6 +20515,9 @@ Object.assign(i18n.ko, {
   ra_https_setup_err_login: '완료된 로그인이 없습니다. 준비되면 버튼을 다시 누르세요.',
   ra_https_setup_err_certs: 'tailnet에서 HTTPS 인증서가 켜지기를 계속 기다리고 있습니다.',
   ra_https_setup_err_cancelled: '설정을 취소했습니다.',
+  ra_https_setup_err_manual_install: 'Tailscale가 설치되어 있지 않으며, Xenon이 이 시스템에서는 설치할 수 없습니다. 직접 설치한 뒤 버튼을 다시 누르세요.',
+  ra_https_setup_err_operator: 'Tailscale은 설치되어 있지만 이 사용자의 명령을 받지 않습니다. 터미널에서 아래 줄을 한 번 실행한 뒤 버튼을 다시 누르세요.',
+  ra_https_why_operator: 'Tailscale은 실행 중이지만 이 사용자 계정의 명령을 받지 않습니다.',
   ra_https_setup_err_failed: '설정을 마치지 못했습니다.',
 });
 Object.assign(i18n.ja, {
@@ -20577,6 +20601,9 @@ Object.assign(i18n.ja, {
   ra_https_setup_err_login: 'サインインが完了しませんでした。準備ができたらもう一度押してください。',
   ra_https_setup_err_certs: 'tailnet で HTTPS 証明書が有効になるのをまだ待っています。',
   ra_https_setup_err_cancelled: '設定を中止しました。',
+  ra_https_setup_err_manual_install: 'Tailscale がインストールされていません。Xenon はこのシステムではインストールできないため、ご自身でインストールしてからもう一度ボタンを押してください。',
+  ra_https_setup_err_operator: 'Tailscale はインストールされていますが、このユーザーからのコマンドを受け付けません。ターミナルで次の行を一度実行してから、もう一度ボタンを押してください。',
+  ra_https_why_operator: 'Tailscale は動作していますが、このユーザーアカウントからのコマンドを受け付けません。',
   ra_https_setup_err_failed: '設定を完了できませんでした。',
 });
 Object.assign(i18n.zh, {
@@ -20660,6 +20687,9 @@ Object.assign(i18n.zh, {
   ra_https_setup_err_login: '没有完成登录。准备好后再点一次按钮。',
   ra_https_setup_err_certs: '仍在等待你的 tailnet 开启 HTTPS 证书。',
   ra_https_setup_err_cancelled: '已取消配置。',
+  ra_https_setup_err_manual_install: '未安装 Tailscale，且 Xenon 无法在本系统上安装它。请自行安装后再次点击按钮。',
+  ra_https_setup_err_operator: 'Tailscale 已安装，但不接受当前用户的命令。请在终端中执行下面这行命令一次，然后再次点击按钮。',
+  ra_https_why_operator: 'Tailscale 正在运行，但不接受当前用户账户的命令。',
   ra_https_setup_err_failed: '配置没有完成。',
 });
 Object.assign(i18n.nl, {
@@ -20743,6 +20773,9 @@ Object.assign(i18n.nl, {
   ra_https_setup_err_login: 'Er is geen inlog afgerond. Klik opnieuw wanneer je zover bent.',
   ra_https_setup_err_certs: 'Nog steeds aan het wachten tot HTTPS-certificaten aanstaan op je tailnet.',
   ra_https_setup_err_cancelled: 'Instellen geannuleerd.',
+  ra_https_setup_err_manual_install: 'Tailscale is niet geïnstalleerd en Xenon kan het op dit systeem niet installeren. Installeer het zelf en druk daarna opnieuw op de knop.',
+  ra_https_setup_err_operator: 'Tailscale is geïnstalleerd maar accepteert geen opdrachten van deze gebruiker. Voer deze regel één keer uit in een terminal en druk daarna opnieuw op de knop.',
+  ra_https_why_operator: 'Tailscale draait, maar accepteert geen opdrachten van dit gebruikersaccount.',
   ra_https_setup_err_failed: 'Het instellen is niet voltooid.',
 });
 

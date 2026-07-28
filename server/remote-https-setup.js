@@ -62,6 +62,16 @@ function createHttpsSetup({ tailscale, installer, https, onSettings, now = () =>
     //    faster proxy that cannot see a pending PATH.
     let s = await st();
     if (!s.installed) {
+      // Off Windows Xenon cannot install it: there is no winget, and driving the
+      // user's own package manager under sudo from a dashboard toggle is not
+      // something to do behind their back. This is the same shape as step 3 —
+      // one thing the user does elsewhere — so it stops and names it rather than
+      // reporting a failure they did not cause.
+      if (!(await Promise.resolve(installer.canInstall ? installer.canInstall() : true).catch(() => false))) {
+        job.error = 'needs_manual_install';
+        log('[https-setup] Tailscale is not installed and cannot be installed from here');
+        return;
+      }
       job.step = 'installing';
       log('[https-setup] installing Tailscale');
       const r = await installer.install('tailscale').catch((e) => ({ code: 1, stderr: e.message }));
@@ -78,11 +88,22 @@ function createHttpsSetup({ tailscale, installer, https, onSettings, now = () =>
     //    has finished, so the wait is a poll rather than the command's exit.
     s = await st();
     if (!s.connected) {
+      // On Linux the daemon's socket is root-owned, so `up` is refused until the
+      // user is made its operator. Caught here rather than left to the poll,
+      // which would spend five minutes waiting for a sign-in that was never
+      // going to start and then report a timeout — the one message that would
+      // send someone looking at their network.
+      if (s.needsOperator) { job.error = 'needs_operator'; return; }
       job.step = 'login';
       log('[https-setup] opening the Tailscale sign-in');
       await tailscale.startLogin().catch(() => {});
       job.step = 'wait_login';
-      const ok = await until(async () => (await st()).connected === true, WAIT_LOGIN_MS);
+      const ok = await until(async () => {
+        const cur = await st();
+        if (cur.needsOperator) { job.error = 'needs_operator'; return true; }
+        return cur.connected === true;
+      }, WAIT_LOGIN_MS);
+      if (job.error) return;
       if (!ok) { job.error = job.cancelled ? 'cancelled' : 'login_timeout'; return; }
     }
 

@@ -131,3 +131,17 @@ test('the default port is not 443, and renewal is far inside the certificate lif
   assert.ok(rh.RENEW_INTERVAL_MS <= 7 * 24 * 3600 * 1000);
   assert.ok(rh.RENEW_INTERVAL_MS >= 3600 * 1000);
 });
+
+// `needs_operator` outranks `not_running`, which is what it looks like from the
+// outside: the daemon is up and healthy, it is this user that may not talk to
+// its socket. Telling somebody to start a service that never stopped sends them
+// looking in the wrong place, and the actual remedy is one command.
+test('readiness: needsOperator batte not_running', () => {
+  const { readiness } = require('../remote-https.js');
+  assert.equal(readiness({ installed: true, running: false, needsOperator: true }), 'needs_operator');
+  assert.equal(readiness({ installed: true, running: false }), 'not_running');
+  // Not installed is still first: there is no socket to be refused by.
+  assert.equal(readiness({ installed: false, needsOperator: true }), 'not_installed');
+  // And it never displaces a door that is actually working.
+  assert.equal(readiness({ installed: true, running: true, connected: true, dnsName: 'a.b.ts.net', certsEnabled: true }), 'ready');
+});
