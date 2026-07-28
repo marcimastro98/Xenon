@@ -11,7 +11,7 @@
   "scripts": {
     "start": "node server/server.js",
     "test": "node --test \"server/test/*.test.mjs\" \"packages/core/test/*.test.mjs\"",
-    "dev": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"try{$p=(Get-NetTCPConnection -LocalPort 3030 -State Listen -EA SilentlyContinue).OwningProcess;if($p){Stop-Process -Id $p -Force -EA SilentlyContinue;Start-Sleep -Milliseconds 600}}catch{} \" && node server/server.js",
+    "dev": "node tools/dev.mjs",
     "demo": "node tools/build-demo.mjs && node tools/preview-docs.cjs",
     "demo:build": "node tools/build-demo.mjs",
     "link:shared": "node tools/link-shared.mjs",
@@ -19,7 +19,7 @@
     "doctor": "node tools/doctor.mjs",
     "version:set": "node tools/set-version.mjs",
     "postinstall": "node tools/link-shared.mjs",
-    "native:dev": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Stop-Process -Name xenon-native -Force -ErrorAction SilentlyContinue\" && npm run dev --workspace @xenon/native",
+    "native:dev": "node tools/dev.mjs --native",
     "native:build": "npm run build --workspace @xenon/native",
     "icue:validate": "icuewidget validate widget",
     "icue:package": "node tools/package-icue-widget.mjs"
