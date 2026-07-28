@@ -17,7 +17,27 @@ const TAILSCALE_SERVICE = 'Tailscale';
  * "avvio su richiesta": di default i loro installer si registrano ad avvio
  * Automatico e restano sempre attivi anche quando il remoto non si usa.
  */
-function createService({ runner = defaultRunner, name = SERVICE, tailscaleName = TAILSCALE_SERVICE } = {}) {
+// Off Windows the same two services are a different SHAPE, and the difference
+// is the whole reason this file needed porting rather than translating.
+//
+// Sunshine is the USER's service there — `systemctl --user`, or `brew services`
+// on a Mac — so starting, stopping and enabling it needs no password at all.
+// Tailscale is the SYSTEM's (tailscaled), and touching it would. So the
+// on-demand mode manages only Sunshine off Windows: it is the service this
+// feature installed, the one the toggle is about, and the only one that can be
+// managed without a prompt. Stopping the user's VPN because they turned a
+// dashboard switch off would be doing something nobody asked for.
+const POSIX_UNIT = 'sunshine';
+
+function createService({
+  runner = defaultRunner,
+  name = SERVICE,
+  tailscaleName = TAILSCALE_SERVICE,
+  platform = process.platform,
+  unit = POSIX_UNIT,
+} = {}) {
+  if (platform !== 'win32') return createPosixService({ runner, platform, unit });
+
   // Servizi gestiti dall'avvio-su-richiesta. Un try/catch per servizio (sotto)
   // fa si' che un servizio assente (es. Tailscale non installato) non blocchi l'altro.
   const managed = [name, tailscaleName];
@@ -86,4 +106,58 @@ function createService({ runner = defaultRunner, name = SERVICE, tailscaleName =
   return { isRunning, stop, start, setStartup, startManaged, stopManaged, serviceName: name };
 }
 
-module.exports = { createService, SUNSHINE_SERVICE: SERVICE, TAILSCALE_SERVICE };
+/**
+ * Linux and macOS. Same contract as the Windows one, no elevation anywhere:
+ * every command here acts on a service the user already owns.
+ */
+function createPosixService({ runner, platform, unit }) {
+  const isMac = platform === 'darwin';
+
+  // `systemctl --user is-active` exits 0 only for "active"; brew prints a table
+  // whose row for the service says `started`.
+  async function isRunning() {
+    if (isMac) {
+      const r = await runner.run('brew', ['services', 'list']).catch(() => null);
+      if (!r || r.code !== 0) return false;
+      const line = String(r.stdout || '').split('\n').find((l) => l.trim().startsWith(unit));
+      return !!line && /\bstarted\b/i.test(line);
+    }
+    const r = await runner.run('systemctl', ['--user', 'is-active', unit]).catch(() => null);
+    return !!r && r.code === 0;
+  }
+
+  function ctl(verb) {
+    return isMac
+      ? runner.run('brew', ['services', verb, unit])
+      : runner.run('systemctl', ['--user', verb, unit]);
+  }
+
+  async function stop() { const r = await ctl('stop').catch(() => null); return !!r && r.code === 0; }
+  async function start() { const r = await ctl('start').catch(() => null); return !!r && r.code === 0; }
+
+  /**
+   * On-demand start. Windows flips a service's StartupType; the user-session
+   * equivalent is enable/disable, and it applies to Sunshine only — see the note
+   * at the top of this file about not touching the user's VPN.
+   *
+   * brew has no enable/disable split: `brew services start` IS the persistent
+   * form and `stop` removes it, so the transition is the whole operation there.
+   */
+  async function setStartup(onDemand) {
+    if (isMac) return onDemand ? stop() : start();
+    const verb = onDemand ? 'disable' : 'enable';
+    const r = await runner.run('systemctl', ['--user', verb, unit]).catch(() => null);
+    if (!r || r.code !== 0) return false;
+    return onDemand ? stop() : start();
+  }
+
+  async function startManaged() { return start(); }
+  async function stopManaged() { return stop(); }
+
+  return { isRunning, stop, start, setStartup, startManaged, stopManaged, serviceName: unit };
+}
+
+module.exports = {
+  createService, createPosixService,
+  SUNSHINE_SERVICE: SERVICE, TAILSCALE_SERVICE, POSIX_UNIT,
+};

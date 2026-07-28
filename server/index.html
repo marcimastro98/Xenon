@@ -2484,11 +2484,13 @@
         <div id="settings-remote-access" data-remoteaccessf="mount"></div>
         <!-- Remote Control wizard renders here (settings.js → RemoteControl.init()).
              Guides the user through installing Sunshine + Tailscale and pairing Moonlight.
-             Windows-only, and gated on the panel rather than on the category: its
-             installer is winget + elevated PowerShell + sc.exe, so off Windows every
-             button in it dead-ends. The category itself stays visible for the
-             paired-device panel above. -->
-        <div id="settings-remote-hub" data-remotef="mount" data-settings-win-only></div>
+             NO LONGER Windows-only: Sunshine ships for Linux (Flathub) and macOS
+             (LizardByte's Homebrew tap), the installs go through pkexec/brew the
+             way they go through winget, and off Windows Sunshine is a USER
+             service so starting it needs no password at all. The panel names the
+             right package manager per platform, and says on macOS that upstream
+             calls that build experimental. -->
+        <div id="settings-remote-hub" data-remotef="mount"></div>
       </div>
 
       <div class="settings-group" data-settings-cat="streaming" hidden>

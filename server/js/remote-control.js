@@ -9,6 +9,23 @@
 
   let _mounted = false;
 
+  // ── Platform ──────────────────────────────────────────────────────────────
+  // Published by settings.js once /version answers (see applyPlatformGating).
+  // This panel is no longer hidden off Windows, so the words in it have to be
+  // right on three systems instead of one.
+  function platform() { return window.XenonPlatform || ''; }
+
+  // Suffix a key with the platform, falling back to the bare key. Undefined —
+  // /version has not landed yet — deliberately yields the bare key, which is
+  // the Windows wording: it is what shipped, and a flash of the wrong package
+  // manager beats a flash of a missing string.
+  function platformKey(key) {
+    const p = platform();
+    if (p === 'linux') return `${key}_linux`;
+    if (p === 'darwin') return `${key}_mac`;
+    return key;
+  }
+
   // ── API helper ────────────────────────────────────────────────────────────
   async function api(path, method = 'GET', body) {
     const res = await fetch(path, {
@@ -441,7 +458,11 @@
 
     const lines = [
       { key: 'remote.intro_p1', text: 'Permette di accedere al desktop del PC da smartphone o tablet tramite la rete privata Tailscale (VPN peer-to-peer). Lo streaming video è gestito da Sunshine, il ricevitore gratuito Moonlight gira sul telefono.' },
-      { key: 'remote.intro_p2', text: 'Sunshine e Tailscale vengono installati con winget (gestore pacchetti ufficiale Microsoft) direttamente dai repository ufficiali.' },
+      // Where the software comes from, named honestly per platform. Telling a
+      // Linux user their packages arrive "via winget, Microsoft's official
+      // package manager" is worse than saying nothing: it describes a machine
+      // they are not sitting at.
+      { key: platformKey('remote.intro_p2'), text: 'Sunshine e Tailscale vengono installati con winget (gestore pacchetti ufficiale Microsoft) direttamente dai repository ufficiali.' },
       { key: 'remote.intro_p3', text: 'Il server del dashboard NON viene mai esposto a internet. La connessione passa interamente dentro la tua rete Tailscale.' },
     ];
     lines.forEach(({ key, text }) => {
@@ -468,11 +489,20 @@
 
     const ul = document.createElement('ul');
     const items = [
-      { key: 'remote.warn_uac', text: 'Windows chiederà una conferma UAC durante l\'installazione.' },
+      // "Windows will ask for a UAC confirmation" is true on one platform out of
+      // three. The prompt itself is universal — pkexec on Linux, the admin
+      // dialog on macOS — so the sentence names the moment, not the vendor.
+      { key: 'remote.warn_elevate', text: 'Ti verrà chiesta un\'autorizzazione (la password del PC) durante l\'installazione.' },
       { key: 'remote.warn_tailscale', text: 'Dovrai accedere con il tuo account Tailscale (gratuito per uso personale).' },
       { key: 'remote.warn_pin', text: 'Moonlight mostrerà un PIN di abbinamento da inserire qui.' },
       { key: 'remote.warn_controllable', text: 'Una volta configurato, il PC potrà essere controllato remotamente.' },
     ];
+    // macOS only, and stated up front rather than discovered later: upstream
+    // marks its own macOS build experimental, and gamepads do not work there.
+    // Someone setting this up to play with a controller should learn that here.
+    if (platform() === 'darwin') {
+      items.push({ key: 'remote.warn_macos_experimental', text: 'Su macOS Sunshine è dichiarato sperimentale dai suoi autori e i gamepad non funzionano.' });
+    }
     items.forEach(({ key, text }) => {
       const li = document.createElement('li');
       li.setAttribute('data-i18n', key);
@@ -536,7 +566,7 @@
       const hint = document.createElement('div');
       hint.className = 'remote-hint';
       hint.setAttribute('data-i18n', 'remote.step1_hint');
-      hint.textContent = 'Potrebbe aprirsi una finestra UAC — confermala per procedere.';
+      hint.textContent = 'Potrebbe comparire una richiesta di autorizzazione — confermala per procedere.';
       body.appendChild(hint);
     }
 
@@ -905,7 +935,10 @@
 
     const odHint = document.createElement('div');
     odHint.className = 'remote-ondemand-hint';
-    odHint.setAttribute('data-i18n', 'remote.ondemand_hint');
+    // Off Windows this manages Sunshine ALONE, as a user service — no password,
+    // and deliberately not the user's VPN (see remote-control/service.js). Two
+    // different promises, so two different sentences.
+    odHint.setAttribute('data-i18n', platformKey('remote.ondemand_hint'));
     odHint.textContent = 'Se attivo, Sunshine e Tailscale non si avviano con Windows e partono solo quando abiliti il controllo remoto. Richiede un’autorizzazione amministratore (UAC).';
     frag.appendChild(odHint);
 

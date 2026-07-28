@@ -17,7 +17,7 @@ test('configureElevated lancia powershell elevato con --creds e Restart-Service 
     run: () => Promise.resolve({ code: 0, stdout: '', stderr: '' }),
     runElevated: (file, args) => { seen = { file, args }; return Promise.resolve({ code: 0 }); },
   };
-  const s = createSunshine({ runner, exe: 'C:/Sunshine/sunshine.exe' });
+  const s = createSunshine({ runner, exe: 'C:/Sunshine/sunshine.exe', platform: 'win32' });
   const ok = await s.configureElevated('xenonedge', 'secretpass');
   assert.equal(ok, true);
   assert.equal(seen.file, 'powershell');
@@ -36,7 +36,7 @@ test('configureElevated ritorna false se il lancio elevato fallisce (UAC rifiuta
     run: () => Promise.resolve({ code: 0 }),
     runElevated: () => Promise.resolve({ code: 1 }),
   };
-  const s = createSunshine({ runner });
+  const s = createSunshine({ runner, platform: 'win32' });
   assert.equal(await s.configureElevated('a', 'b'), false);
 });
 
@@ -130,4 +130,82 @@ test('getConfig ritorna il JSON di /api/config', async () => {
   const s = createSunshine({ fetchImpl, credentials: { user: 'a', pass: 'b' } });
   const cfg = await s.getConfig();
   assert.equal(cfg.output_name, 'D1');
+});
+
+// ── Off Windows, configuring Sunshine needs no password ──────────────────────
+// That is the substantive difference, not a detail. On Windows Sunshine is a
+// system service whose config lives under Program Files, so `--creds` must run
+// elevated or it exits 0 without persisting. On Linux and macOS Sunshine is the
+// USER's: config under ~/.config, unit under `systemctl --user`. Asking for a
+// password there would be theatre.
+
+test('linux: --creds NON e\' elevato, e riavvia l\'unita\' utente', async () => {
+  const calls = [];
+  const runner = {
+    run: (file, args) => { calls.push({ file, args }); return Promise.resolve({ code: 0, stdout: '' }); },
+    runElevated: (file, args) => { calls.push({ file, args, elevated: true }); return Promise.resolve({ code: 0 }); },
+  };
+  const s = createSunshine({ runner, platform: 'linux', exists: (p) => p === '/usr/bin/sunshine' });
+
+  assert.equal(await s.configureElevated('xenonedge', 'segreto'), true);
+  assert.equal(calls.filter((c) => c.elevated).length, 0, 'no password for the user\'s own service');
+
+  const creds = calls.find((c) => c.args.includes('--creds'));
+  assert.equal(creds.file, '/usr/bin/sunshine');
+  assert.deepEqual(creds.args, ['--creds', 'xenonedge', 'segreto']);
+
+  // Credentials are read at startup: without the restart the API keeps
+  // rejecting them and the wizard reports a failure that is not one.
+  const restart = calls.find((c) => c.file === 'systemctl');
+  assert.deepEqual(restart.args, ['--user', 'restart', 'sunshine']);
+});
+
+test('linux: il build Flathub non sta su PATH, quindi passa da flatpak', async () => {
+  const calls = [];
+  const runner = {
+    run: (file, args) => {
+      calls.push({ file, args });
+      // `flatpak info` succeeding is how the app is found when no binary is.
+      return Promise.resolve({ code: 0, stdout: '' });
+    },
+    runElevated: async () => ({ code: 0 }),
+  };
+  const s = createSunshine({ runner, platform: 'linux', exists: () => false });
+
+  const l = await s.launcher();
+  assert.equal(l.file, 'flatpak');
+  assert.ok(l.args.includes('dev.lizardbyte.app.Sunshine'));
+
+  await s.configureElevated('u', 'p');
+  const creds = calls.find((c) => c.args.includes('--creds'));
+  assert.equal(creds.file, 'flatpak', 'the CLI is reached through flatpak, not spawned directly');
+});
+
+test('linux: senza Sunshine da nessuna parte non spawna --creds', async () => {
+  const calls = [];
+  const runner = {
+    run: (file, args) => {
+      calls.push({ file, args });
+      return Promise.resolve({ code: 1, stdout: '', stderr: 'not installed' });
+    },
+    runElevated: async () => ({ code: 0 }),
+  };
+  const s = createSunshine({ runner, platform: 'linux', exists: () => false });
+
+  assert.equal(await s.configureElevated('u', 'p'), false);
+  assert.equal(calls.filter((c) => c.args.includes('--creds')).length, 0);
+});
+
+test('darwin: riavvia via brew services, non systemctl', async () => {
+  const calls = [];
+  const runner = {
+    run: (file, args) => { calls.push({ file, args }); return Promise.resolve({ code: 0, stdout: '' }); },
+    runElevated: async () => ({ code: 0 }),
+  };
+  const s = createSunshine({ runner, platform: 'darwin', exists: (p) => p === '/opt/homebrew/bin/sunshine' });
+
+  assert.equal(await s.configureElevated('u', 'p'), true);
+  assert.ok(!calls.some((c) => c.file === 'systemctl'), 'there is no systemd on a Mac');
+  const restart = calls.find((c) => c.file === 'brew');
+  assert.deepEqual(restart.args, ['services', 'restart', 'sunshine']);
 });
