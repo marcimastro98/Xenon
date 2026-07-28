@@ -126,9 +126,34 @@
     return Math.max(0, Number(value) || 0).toLocaleString();
   }
 
+  // Paths arrive spelled the way the machine spells them, and this widget
+  // compared them with a hard-coded backslash in five places. Off Windows that
+  // separator appears in no path, so every one of those tests answered "no":
+  // the treemap found no direct children of its own root and rendered the whole
+  // volume as one "unattributed" block, and the breadcrumb could not go up.
+  // The separator is derived from the path itself rather than from a platform
+  // flag — an absolute POSIX path starts with "/", a Windows one with a drive
+  // letter — so there is nothing extra to plumb through and nothing to keep in
+  // step with the server.
+  const sepOf = (value) => (String(value || '').charAt(0) === '/' ? '/' : '\\');
+
+  function pathParent(value) {
+    const raw = String(value || '');
+    const sep = sepOf(raw);
+    const trimmed = sep === '/' && raw !== '/' ? raw.replace(/\/+$/, '') : raw.replace(/\\+$/, '');
+    const cut = trimmed.lastIndexOf(sep);
+    if (cut < 0) return '';
+    // The parent of "/x" is the POSIX root, which IS its separator — slicing at
+    // index 0 would leave the empty string and orphan every top-level folder.
+    if (cut === 0) return sep === '/' ? '/' : '';
+    return trimmed.slice(0, cut);
+  }
+
   function pathLeaf(value) {
-    const parts = String(value || '').replace(/\\+$/, '').split('\\').filter(Boolean);
-    return parts.length ? parts[parts.length - 1] : String(value || '');
+    const raw = String(value || '');
+    const sep = sepOf(raw);
+    const parts = raw.replace(sep === '/' ? /\/+$/ : /\\+$/, '').split(sep).filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : raw;
   }
 
   function el(tag, cls, text) {
@@ -270,6 +295,19 @@
 
   // ── Root and header ──────────────────────────────────────────────────────
 
+  // One spelling for a root, so a trailing separator or a capital never makes
+  // two names for the same volume.
+  function rootKeyOf(value) {
+    const raw = String(value || '');
+    const key = raw.replace(/[\\/]+$/, '').toLowerCase();
+    // The filesystem root "/" is nothing BUT a trailing separator, so the strip
+    // leaves it empty. Keep it as "/" so it stays a real, matchable key —
+    // otherwise it collapses to the same '' as a garbage/empty path and the
+    // primary macOS volume (Macintosh HD) can never be offered as an index root.
+    if (!key && /[\\/]/.test(raw)) return '/';
+    return key;
+  }
+
   function drivePresentation(source) {
     const item = source || {};
     const pathValue = String(item.path || (item.letter ? item.letter + ':\\' : ''));
@@ -278,7 +316,12 @@
     const label = String(item.label || '').trim();
     const model = String(item.model || '').trim();
     const fileSystem = String(item.fileSystem || '').trim();
-    const isDriveRoot = /^[A-Za-z]:\\?$/.test(pathValue);
+    // A whole volume rather than a folder inside one: a bare drive letter on
+    // Windows, and on macOS/Linux the filesystem root or a mount point the
+    // server named as addable. Those get the volume's label ("Macintosh HD")
+    // instead of their last path segment, which for "/" is nothing at all.
+    const isDriveRoot = /^[A-Za-z]:\\?$/.test(pathValue)
+      || (!!item.path && pathValue.startsWith('/') && rootKeyOf(pathValue) === rootKeyOf(item.drive));
     const leaf = pathValue.replace(/[\\/]+$/, '').split(/[\\/]/).filter(Boolean).pop() || pathValue;
     const primary = isDriveRoot
       ? (label || model || tr('disk_local_drive', 'Disco locale'))
@@ -336,16 +379,38 @@
       row.appendChild(chip);
     }
     if (typeof window.addSearchIndexRoot === 'function' || typeof window.updateSearchSettings === 'function') {
-      const have = new Set(roots.map((r) => String(r.path || '').slice(0, 1).toUpperCase()));
+      // The root a chip would add. The server names it (`path`), because only
+      // it knows what a volume is called on this machine: a drive letter on
+      // Windows, a mount point everywhere else. Rebuilding it here from a
+      // letter is what limited this row to Windows.
+      const rootKey = rootKeyOf;
+      // Suppressed when a configured root already sits ON that volume, not only
+      // when it IS that volume. That is what the old letter comparison meant on
+      // Windows (indexing C:\Users hid the "add C:" chip) and it carries over
+      // unchanged; expressing it as a path also makes it true for a mount point.
+      const covered = (addPath) => {
+        const key = rootKey(addPath);
+        if (!key) return true;
+        return roots.some((r) => {
+          // The server already annotated each root with the volume it sits on
+          // (the longest mount prefix). That is the only reliable way to know a
+          // root is on the "/" volume: "/" is a prefix of every absolute path,
+          // so the path test below would either match everything or nothing.
+          if (rootKey(r.drive) === key) return true;
+          const rk = rootKey(r.path);
+          return rk === key || rk.startsWith(key + '\\') || rk.startsWith(key + '/');
+        });
+      };
       const driveDetails = status && Array.isArray(status.driveDetails)
         ? status.driveDetails
         : (status && Array.isArray(status.drives) ? status.drives : []).map((letter) => ({ letter }));
       for (const driveDetail of driveDetails) {
         const letter = String(driveDetail.letter || driveDetail.drive || '').slice(0, 1).toUpperCase();
-        if (!letter) continue;
-        if (have.has(letter)) continue;
-        const info = drivePresentation({ ...driveDetail, path: letter + ':\\' });
-        const chip = btn('diskw-root diskw-root-add', '', () => addRoot(letter + ':\\'),
+        const addPath = String(driveDetail.path || '') || (/^[A-Z]$/.test(letter) ? letter + ':\\' : '');
+        if (!addPath) continue;
+        if (covered(addPath)) continue;
+        const info = drivePresentation({ ...driveDetail, path: addPath });
+        const chip = btn('diskw-root diskw-root-add', '', () => addRoot(addPath),
           tr('disk_add_drive', 'Aggiungi all’indice') + ' · ' + info.title);
         appendRootCopy(chip, info, '+ ');
         chip.disabled = cleaning || addingRoot;
@@ -902,17 +967,14 @@
     const kids = [];
     let rootEntry = null;
     for (const dir of tree) {
-      const p = String(dir.p || '').toLowerCase().replace(/\\+$/, '');
+      const raw = String(dir.p || '');
+      const p = (sepOf(raw) === '/' && raw !== '/' ? raw.replace(/\/+$/, '') : raw.replace(/\\+$/, '')).toLowerCase();
       if (p === rootLower) { rootEntry = dir; continue; }
-      const cut = p.lastIndexOf('\\');
-      if (cut >= 0 && p.slice(0, cut) === rootLower) kids.push(dir);
+      if (pathParent(p) === rootLower) kids.push(dir);
     }
     kids.sort((a, b) => b.s - a.s);
     const directFiles = (overview && Array.isArray(overview.topFiles) ? overview.topFiles : [])
-      .filter((file) => {
-        const p = String(file.p || '').toLowerCase();
-        return p.slice(0, p.lastIndexOf('\\')) === rootLower;
-      })
+      .filter((file) => pathParent(String(file.p || '').toLowerCase()) === rootLower)
       .map((file) => ({ ...file, file: true }));
     const covered = kids.reduce((sum, dir) => sum + (dir.s || 0), 0) +
       directFiles.reduce((sum, file) => sum + (file.s || 0), 0);
@@ -1078,8 +1140,10 @@
             treeStack.pop();
             treeRoot = treeStack.length ? treeStack[treeStack.length - 1].path : base;
           } else {
-            const cut = treeRoot.lastIndexOf('\\');
-            treeRoot = cut > 1 ? treeRoot.slice(0, cut) : base;
+            const up = pathParent(treeRoot);
+            // Never climb above the configured root: `base` is the boundary the
+            // ids were minted against.
+            treeRoot = up && up.length >= base.length ? up : base;
           }
           treeError = '';
           renderAll();
@@ -1588,7 +1652,7 @@
     row.appendChild(icon);
     const copy = el('div', 'diskw-path-copy');
     const path = String(item.p || '');
-    copy.appendChild(el('strong', '', kind === 'folder' ? path.split('\\').filter(Boolean).pop() || path : item.n || path.split('\\').pop()));
+    copy.appendChild(el('strong', '', kind === 'folder' ? pathLeaf(path) : item.n || pathLeaf(path)));
     copy.appendChild(el('span', '', ltrPath(path)));
     row.appendChild(copy);
     row.appendChild(el('b', 'diskw-path-size', fmtSize(item.s)));
@@ -1686,7 +1750,7 @@
       const hint = el('div', 'diskw-hint');
       hint.appendChild(el('div', 'diskw-hint-mark', '◌'));
       hint.appendChild(el('div', 'diskw-hint-title', tr('disk_helper_title', 'Serve Xenon Helper')));
-      hint.appendChild(el('div', 'diskw-hint-text', tr('disk_helper_text', 'L’analisi del disco usa il componente nativo opzionale, installato da INSTALL.bat.')));
+      hint.appendChild(el('div', 'diskw-hint-text', tr('disk_helper_text', 'L’analisi del disco ha bisogno di un indice: aggiungi una cartella in Impostazioni → Ricerca e disco.')));
       mount.appendChild(hint);
       return;
     }

@@ -121,6 +121,9 @@
   let signalrgbEnabled = null;
   let lightingConfigured = null;
   let claudeLinked = null;        // Claude Code hooks installed (gates the claude group)
+  // The whole capabilities block, kept raw so an action can name the one it
+  // needs via `requires` (see actionGateOk). null until the first fetch lands.
+  let serverCaps = null;
   let claudeProjectsPromise = null;   // the projects a run may be started in
   let signalRgbEffectsPromise = null;   // SignalRGB effect list ({value,label})
   let scenesPromise = null;
@@ -154,6 +157,7 @@
       const nextSignalRgb = !!(d && d.capabilities && d.capabilities.signalrgbEnabled);
       const nextLighting = !!(d && d.capabilities && d.capabilities.lightingConfigured);
       const nextClaude = !!(d && d.capabilities && d.capabilities.claudeLinked);
+      serverCaps = (d && d.capabilities) || null;
       const changed = nextObs !== obsConfigured || nextRemote !== remoteConfigured || nextTwitch !== twitchConnected || nextYouTube !== youtubeConnected || nextSb !== streamerbotConfigured || nextDiscord !== discordConnected || nextSpotify !== spotifyConnected || nextHa !== homeAssistantConfigured || nextChroma !== chromaEnabled || nextWl !== wavelinkEnabled || nextSignalRgb !== signalrgbEnabled || nextLighting !== lightingConfigured || nextClaude !== claudeLinked;
       obsConfigured = nextObs;
       remoteConfigured = nextRemote;
@@ -1692,6 +1696,12 @@
     // unconfigured OBS/remote/stream services are filtered out of the picker).
     function actionGateOk(a) {
       if (a.hidden) return false;
+      // Platform gate: an action names the server capability it depends on
+      // (`requires`) and disappears when the server reports that capability
+      // false — a hotkey key on macOS, a per-app volume key where the OS has no
+      // per-process mixer. Unknown (before the first fetch) hides nothing, so
+      // the picker never flashes a reduced list on Windows.
+      if (a.requires && serverCaps && serverCaps[a.requires] === false) return false;
       if (a.group === 'obs' && obsConfigured === false) return false;
       if (a.group === 'remote' && remoteConfigured === false) return false;
       if (a.group === 'stream') {                       // mixes Twitch + YouTube

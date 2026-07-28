@@ -444,6 +444,11 @@
     // A second switch rather than a replacement: it can fail for reasons that
     // have nothing to do with pairing, and turning it off must never take the
     // LAN door down with it.
+    // Off Windows there is no door to open: bringing it up installs and
+    // supervises Tailscale through winget and elevated PowerShell. The whole
+    // block is skipped rather than rendered and refused — the plain-HTTP door
+    // above is untouched and is what those platforms pair on.
+    const httpsUi = st.httpsSupported !== false;
     const tls = st.https || {};
     const httpsRow = el('label', 'ra-toggle-row');
     const httpsToggle = document.createElement('input');
@@ -459,10 +464,12 @@
     httpsRow.appendChild(httpsToggle);
     httpsRow.appendChild(el('span', 'ra-toggle-knob'));
     httpsRow.appendChild(httpsText);
-    page.appendChild(httpsRow);
+    if (httpsUi) page.appendChild(httpsRow);
 
     const setup = st.httpsSetup || {};
-    if (setup.running) {
+    if (!httpsUi) {
+      // Nothing here on macOS and Linux — see above.
+    } else if (setup.running) {
       // A setup is under way. Show the step it is on and nothing else: while the
       // job is driving, offering the manual instructions as well would be two
       // sets of directions at once.

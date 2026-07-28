@@ -1,0 +1,94 @@
+name: Helper (macOS) compile check
+
+# The mac helper is the one component in this repo that CANNOT be compiled on
+# the machine it is written on: it is Swift against AppKit, Carbon, IOKit and
+# FSEvents, and everything here is developed on Windows. Until now the only
+# thing that built it was the `native-macos` job in release.yml, which takes
+# about fifteen minutes and carries `continue-on-error: true` so that a break in
+# the youngest component cannot cost everyone else a release. Both of those are
+# right for a release pipeline and wrong for a feedback loop: a compile error
+# showed up as a skipped step inside a long green run.
+#
+# This is the feedback loop. It builds the helper and nothing else, it fails
+# loudly, and it runs on a branch push so the answer arrives in minutes.
+#
+# It NEVER touches a release: no tag trigger, no `release:` trigger, read-only
+# permissions, and it uploads nothing anywhere. release.yml stays the only thing
+# that produces the shipped binary.
+on:
+  push:
+    branches: ['ci-test/**']
+    paths:
+      - 'helper-mac/**'
+      - '.github/workflows/helper-mac.yml'
+  pull_request:
+    paths:
+      - 'helper-mac/**'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build universal
+        run: |
+          set -euo pipefail
+          swift build -c release --package-path helper-mac --arch arm64 --arch x86_64
+          # Same selection as release.yml: a universal build leaves BOTH the
+          # per-arch slices and the merged binary in .build, and picking the
+          # first one `find` lists gets you an arm64-only file.
+          BIN=helper-mac/.build/apple/Products/Release/xenon-helper
+          if [ ! -f "$BIN" ]; then
+            BIN=""
+            find helper-mac/.build -name 'xenon-helper' -type f -perm +111 > "$RUNNER_TEMP/xh.txt" || true
+            while IFS= read -r cand; do
+              archs=$(lipo -archs "$cand" 2>/dev/null || true)
+              case "$archs" in *arm64*) ;; *) continue ;; esac
+              case "$archs" in *x86_64*) BIN="$cand"; break ;; esac
+            done < "$RUNNER_TEMP/xh.txt"
+          fi
+          [ -n "$BIN" ] || { echo "no universal xenon-helper in the build output"; exit 1; }
+          echo "BIN=$BIN" >> "$GITHUB_ENV"
+          echo "archs: $(lipo -archs "$BIN")"
+          echo "version: $("$BIN" --version)"
+
+      # A CI runner is a VM with no GPU service, no thermal sensors, no audio
+      # and no logged-in desktop session, so this cannot check that the readings
+      # are RIGHT. What it can check is the contract every caller depends on:
+      # a mode that cannot read its source still exits 0 and still prints one
+      # parseable JSON line, because the readers treat a dead process and an
+      # empty answer very differently. "No sensors here" is the same code path
+      # as "this Mac has no sensors", which is the case the fallback exists for.
+      - name: A mode with nothing to read still answers
+        run: |
+          set -euo pipefail
+          OUT=$("$BIN" temps)
+          echo "temps: $OUT"
+          echo "$OUT" | node -e '
+            const raw = require("fs").readFileSync(0, "utf8").trim();
+            const doc = JSON.parse(raw);
+            for (const k of ["cpuTemp", "gpuTemp", "gpu", "vramUsed"]) {
+              if (!(k in doc)) throw new Error("missing key: " + k);
+              const v = doc[k];
+              if (v !== null && typeof v !== "number") throw new Error(k + " is neither a number nor null");
+            }
+            console.log("temps contract ok");
+          '
+
+      - name: An unknown mode fails loudly, never emptily
+        run: |
+          set -euo pipefail
+          # Every caller treats a non-zero exit as "the helper cannot do this"
+          # and falls back. A stub that exited 0 with no output would look like
+          # a working feature reporting nothing.
+          if "$BIN" definitely-not-a-mode; then
+            echo "an unknown mode exited 0 — callers would take that as success"
+            exit 1
+          fi
+          echo "unknown mode refused, as it must"

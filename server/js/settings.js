@@ -469,7 +469,14 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Local search (Spotlight) + Disk widget knobs. Hotkey OFF by default (it
   // registers a system-wide key); dev folders empty (build dirs stay
   // non-cleanable until the user names their project roots).
-  searchSettings: Object.freeze({ indexRoots: Object.freeze(['C:\\']), hotkeyEnabled: false, hotkeyCombo: 'alt+space', aiFullContext: false }),
+  // No indexRoots here on purpose. This file runs in the BROWSER, which cannot
+  // know whether the host is Windows, macOS or Linux, and a default of "C:\"
+  // was written into settings.json on every non-Windows machine the moment the
+  // dashboard saved anything — a root no POSIX walk can start from, which left
+  // search dead while Settings displayed a configured folder. Leaving the key
+  // absent is what lets the SERVER supply the platform's default, which is
+  // where that decision already belongs (see normalizeSearchSettings).
+  searchSettings: Object.freeze({ hotkeyEnabled: false, hotkeyCombo: 'alt+space', aiFullContext: false }),
   diskSettings: Object.freeze({ devFolders: Object.freeze([]), installerAgeDays: 30 }),
   // Third-party widget SDK (the Custom widget tile). OFF by default — community
   // packages run in a sandboxed, network-less iframe and each one gets an
@@ -1732,25 +1739,43 @@ function normalizeWakeWord(value) {
 
 // Local search (Spotlight) — mirrors the server's normalizeSearchSettings so
 // both sides rebuild the same shape (settings invariant).
-function normalizeSearchSettings(value) {
+function normalizeSearchSettings(value, defaultRoot) {
   const v = value && typeof value === 'object' ? value : {};
   // indexRoots: the Living Index roots (drives or folders). Migration: older
   // saves carried extraFolders (the retired one-shot crawl) — adopt them.
-  // Never-set → default to the WHOLE system drive (product decision: the
-  // living experience out of the box); an explicitly emptied list means the
-  // user turned the index off and stays empty.
+  // Never-set → the server supplies the default for the machine it is running
+  // on (`defaultRoot`); an explicitly emptied list means the user turned the
+  // index off and stays empty.
   const rawRoots = Array.isArray(v.indexRoots) ? v.indexRoots
     : (Array.isArray(v.extraFolders) && v.extraFolders.length ? v.extraFolders : null);
-  // Separators normalized to backslashes, exactly as the server does — every
-  // consumer downstream compares against backslash paths.
-  const roots = rawRoots == null ? ['C:\\'] : rawRoots
-    .map((f) => String(f || '').trim().slice(0, 260).replace(/\//g, '\\'))
-    .filter((f) => /^[A-Za-z]:\\?$|^[A-Za-z]:\\.+/.test(f))
-    .map((f) => (f.length === 2 ? f + '\\' : f))
-    .slice(0, 8);
+  // Both root shapes are accepted here whatever the machine is, exactly as the
+  // server does. This copy runs in the BROWSER and cannot know what the host
+  // is: a validator that guessed would drop the user's root on the next save.
+  // The backslash rewrite therefore applies to the Windows shape ONLY — off
+  // Windows a backslash is a legal filename character, and rewriting "/" there
+  // turned "/Users/me" into "\Users\me", which no drive-letter test accepts.
+  const cleanRoot = (raw) => {
+    const s = String(raw || '').trim().slice(0, 4096);
+    // One leading slash is POSIX; two is a UNC share and stays rejected.
+    if (/^\/(?!\/)/.test(s)) return s.length > 1 ? s.replace(/\/+$/, '') : s;
+    const w = s.slice(0, 260).replace(/\//g, '\\');
+    if (!/^[A-Za-z]:\\?$|^[A-Za-z]:\\.+/.test(w)) return '';
+    return w.length === 2 ? w + '\\' : w;
+  };
+  // A caller that knows the machine passes `defaultRoot` and gets it back. A
+  // caller that does not gets NO indexRoots at all — never-set stays never-set.
+  // The old fallback invented "C:\" for that second case, and since this copy
+  // runs in the browser, which has no way to know that is wrong, a Mac or a
+  // Linux box saved a Windows drive letter as its search root the first time
+  // the dashboard wrote anything. The index could then never start, and
+  // Settings showed a configured folder the whole time, so there was nothing
+  // the user could do about it.
+  const roots = rawRoots == null
+    ? (defaultRoot ? [defaultRoot] : null)
+    : rawRoots.map(cleanRoot).filter(Boolean).slice(0, 8);
   const combo = String(v.hotkeyCombo || 'alt+space').toLowerCase().trim().slice(0, 40);
   return {
-    indexRoots: roots,
+    ...(roots ? { indexRoots: roots } : {}),
     hotkeyEnabled: v.hotkeyEnabled === true,
     hotkeyCombo: /^[a-z0-9+ ]{3,40}$/.test(combo) ? combo : 'alt+space',
     // AI full context for explicit Search + Disk Advisor calls —
@@ -4370,7 +4395,7 @@ function renderSearchDiskSettings() {
       fetch('/index/status').then((r) => r.json()).then((st) => {
         if (_settingsCat !== 'search' || !st) return;
         idxStatus.textContent = !st.on || !st.helper
-          ? t('settings_search_idx_helper', 'L’indice vivo richiede Xenon Helper (installato da INSTALL.bat).')
+          ? t('settings_search_idx_helper', 'L’indice vivo non è disponibile: aggiungi una cartella qui sopra, oppure rilancia l’installer di Xenon.')
           : st.building
             ? t('settings_search_idx_building', 'Sto imparando il disco…') + ' ' + ((st.progress && st.progress.files) || st.files || 0).toLocaleString() + ' file'
             : t('settings_search_idx_on', 'Indice vivo attivo:') + ' ' + (st.files || 0).toLocaleString() + ' file · ~' + (st.ramMB || 0) + ' MB RAM';
@@ -4387,7 +4412,11 @@ function renderSearchDiskSettings() {
     const map = {
       listening: t('settings_search_hk_on', 'Scorciatoia attiva.'),
       taken: t('settings_search_hk_taken', 'La combinazione è già usata da un’altra app: scegline una diversa.'),
-      helper_missing: t('settings_search_hk_helper', 'Serve Xenon Helper (installato da INSTALL.bat).'),
+      helper_missing: t('settings_search_hk_helper', 'La scorciatoia globale non è disponibile su questo sistema.'),
+      // Linux: the desktop owns global shortcuts, and only GNOME's store can be
+      // written safely. Everywhere else the user has to add the binding
+      // themselves, so the message has to say what to bind it TO.
+      unsupported_de: t('settings_search_hk_de', 'Il tuo desktop gestisce le scorciatoie globali a modo suo. Aggiungila a mano nelle sue impostazioni, con questo comando: curl -X POST http://127.0.0.1:3030/search/hotkey-press'),
       error: t('settings_search_hk_err', 'La scorciatoia non è partita. Riprova salvando di nuovo.'),
       starting: t('settings_search_hk_starting', 'Attivazione…'),
       retrying: t('settings_search_hk_retry', 'Non è partita. Xenon riprova tra poco.'),
@@ -6499,14 +6528,35 @@ function syncDynamicAlbumControls() {
 // via lighting-page.js into #settings-lighting-hub and persists through
 // /api/lighting/*. syncSettingsControls() calls window.LightingPage.init().
 
-// Reveal the install button only when PresentMon (the game-detection tool) is missing.
+// What this row says depends on which FPS reader the platform has.
+//
+// Windows: PresentMon is a download Xenon performs itself, so the row is purely
+// a "missing → here is the button" prompt and disappears once installed.
+//
+// Linux: MangoHud is a package from the distro AND a per-launch decision
+// (`mangohud %command%`), so there is no button to offer and the row stays
+// visible even when it is installed — because installing it is only half of
+// what the user has to do, and a row that vanishes on install would imply FPS
+// now appear on their own. Saying nothing here is how someone concludes the
+// FPS tile is broken.
 async function refreshGameModeStatus() {
   const row = $('settings-gamemode-install-row');
   if (!row) return;
+  const note = $('settings-gamemode-note');
+  const btn = $('settings-gamemode-install');
   try {
     const res = await fetch(SERVER + '/api/gamemode/status');
     if (!res.ok) throw new Error('status unavailable');
     const data = await res.json();
+    if (data.fpsBackend === 'mangohud') {
+      const key = data.fpsAvailable ? 'settings_gamemode_mangohud_ready' : 'settings_gamemode_mangohud_missing';
+      if (note) { note.setAttribute('data-i18n', key); note.textContent = t(key); }
+      if (btn) btn.hidden = true;
+      row.hidden = false;
+      return;
+    }
+    if (note) { note.setAttribute('data-i18n', 'settings_gamemode_need_tool'); note.textContent = t('settings_gamemode_need_tool'); }
+    if (btn) btn.hidden = false;
     row.hidden = !!data.presentMonAvailable;
   } catch {
     // If we can't tell, hide the button rather than nag — the server may be old.
@@ -7948,6 +7998,31 @@ function syncAiFeaturesControls() {
   });
 }
 
+// Settings sections that cannot exist on this platform, removed rather than
+// left to fail when tapped.
+//
+// The README's promise is that anything unavailable is HIDDEN, not offered and
+// then failed — and these two were the exceptions. Remote Control installs
+// Sunshine and Tailscale through winget and drives them as Windows services;
+// Second screen needs a Windows Indirect Display Driver. On Linux and macOS
+// both panels rendered in full and every button led to a spawn failure, which
+// reads as a broken feature rather than an absent one.
+//
+// Marked in the markup with data-settings-win-only so the list lives next to
+// the panels themselves, and applied to the nav button and the pane together —
+// hiding only one leaves either a dead button or an unreachable pane.
+function applyPlatformGating(platform) {
+  if (platform === 'win32') return;
+  document.querySelectorAll('[data-settings-win-only]').forEach((el) => {
+    const cat = el.dataset.settingsCat || el.dataset.settingsWinOnly;
+    el.hidden = true;
+    if (cat) {
+      document.querySelectorAll(`.settings-nav-btn[data-settings-cat="${cat}"]`)
+        .forEach((b) => { b.hidden = true; });
+    }
+  });
+}
+
 // Show the running build version at the bottom of the Settings sidebar. Read
 // from the server (which sources it from package.json) so it always matches the
 // shipped build; stays empty and unobtrusive if the request fails.
@@ -7955,8 +8030,9 @@ async function initSettingsVersion() {
   const out = document.getElementById('settings-version');
   if (!out) return;
   try {
-    const { version } = await (await fetch('/version')).json();
+    const { version, platform } = await (await fetch('/version')).json();
     if (version) out.textContent = `Xenon v${version}`;
+    if (platform) applyPlatformGating(platform);
   } catch { /* leave blank — no version indicator is better than a broken one */ }
   // The update pill, the red notification dots and the "Check for updates"
   // button visibility are all driven by js/update.js (XenonUpdate.refresh()),

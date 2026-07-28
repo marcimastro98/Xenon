@@ -625,7 +625,11 @@ const MEDIA_APP_PROC_TOKENS = {
 // session's window title (Twitch/YouTube/SoundCloud all set it), falling back to
 // the SMTC title/album, and finally to naming the browser itself (shown with its
 // own icon) rather than guessing "YouTube" for everything.
-const BROWSER_SOURCE_RE = /chrome|msedge|edge|firefox|brave|opera|vivaldi/i;
+// `chromium` is listed separately on purpose: it does NOT contain "chrome"
+// (chromi-um), so the alternative above never matched it. It reaches this test
+// as an MPRIS bus name on Linux, and as a process name on any platform where
+// someone runs Chromium rather than Chrome.
+const BROWSER_SOURCE_RE = /chrome|chromium|msedge|edge|firefox|brave|opera|vivaldi/i;
 const MEDIA_SITE_PATTERNS = [
   { re: /\byoutube\b/i, app: 'YouTube' },
   { re: /\btwitch\b/i, app: 'Twitch' },

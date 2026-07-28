@@ -4,10 +4,14 @@
 // The "safer variant": preparing an update is fully NON-destructive — we download
 // the new release zip and extract+validate it into DATA_DIR/update/app while the
 // live install is never touched. Only when the user explicitly clicks "Apply &
-// restart" do we hand off to an EXTERNAL PowerShell applier (update-apply.ps1)
-// that swaps the staged files in, runs npm install and restarts — outside this
-// Node process, with backup + rollback. If prepare fails (offline, bad zip), the
-// running install is untouched and the user simply keeps the current version.
+// restart" do we hand off to an EXTERNAL applier — update-apply.ps1 on Windows,
+// update-apply.sh on macOS — that swaps the staged files in, runs npm install
+// and restarts, outside this Node process, with backup + rollback. Both appliers
+// carry the SAME three guarantees (rename-snapshot of node_modules, rollback
+// that also removes what the update added, success only after the new server
+// answers /version); a change to one belongs in the other. If prepare fails
+// (offline, bad zip), the running install is untouched and the user simply keeps
+// the current version.
 //
 // Auto-update is disabled on a git checkout (a developer should `git pull`).
 
@@ -68,7 +72,7 @@ function pickSingleDir(entries) {
 }
 
 // opts (all injectable for tests): root, dataDir, repo, fetchImpl, spawn,
-// fsImpl, publicKeyPem.
+// fsImpl, publicKeyPem, platform.
 function createSelfUpdate(opts) {
   const o = opts || {};
   const root = o.root;
@@ -78,13 +82,19 @@ function createSelfUpdate(opts) {
   const spawn = o.spawn || defaultSpawn;
   const f = o.fsImpl || fs;
   const publicKeyPem = o.publicKeyPem || UPDATE_PUBKEY_PEM;
+  const platform = o.platform || process.platform;
+  // macOS and Linux share one applier (update-apply.sh) and one extractor; only
+  // how the applier is LAUNCHED differs between them (see apply()).
+  const isPosix = platform === 'darwin' || platform === 'linux';
 
   const updDir = path.join(dataDir, 'update');
   const extractDir = path.join(updDir, '_extract');
   const appDir = path.join(updDir, 'app');          // unwrapped staged tree (applier reads this)
   const zipPath = path.join(updDir, 'download.zip');
   const markerPath = path.join(updDir, 'staged.json');
-  const applierPath = path.join(root, 'server', 'update-apply.ps1');
+  // Both appliers are tracked files, so BOTH exist in every checkout; which one
+  // can actually run is what the platform decides.
+  const applierPath = path.join(root, 'server', isPosix ? 'update-apply.sh' : 'update-apply.ps1');
   // Full explicit path to Windows PowerShell, so launching the applier can never
   // be misread as "open this .ps1 with its file association" (which pops the
   // Windows "select an app for this .ps1" picker on machines where the bare
@@ -98,7 +108,15 @@ function createSelfUpdate(opts) {
 
   // Auto-update needs the external applier script present and must not run on a
   // dev checkout (git). The helper exe / node version don't matter here.
+  //
+  // The platform test is not redundant with the applierPath one: BOTH appliers
+  // are tracked files, so both exist in every checkout — including on a platform
+  // where neither the applier nor the archive extractor could run. Reporting
+  // unsupported on anything else keeps the flow fail-closed (the dashboard
+  // offers a download link instead of an in-place update) rather than letting
+  // apply() spawn an interpreter that isn't on this machine.
   function supported() {
+    if (platform !== 'win32' && !isPosix) return false;
     try { return !isGitCheckout() && f.existsSync(applierPath); } catch { return false; }
   }
 
@@ -135,13 +153,20 @@ function createSelfUpdate(opts) {
 
   function _expandArchive() {
     return new Promise((resolve, reject) => {
-      const args = ['-NoProfile', '-NonInteractive', '-Command',
-        `Expand-Archive -LiteralPath '${zipPath.replace(/'/g, "''")}' -DestinationPath '${extractDir.replace(/'/g, "''")}' -Force`];
-      const p = spawn('powershell', args, { windowsHide: true });
+      // macOS/Linux: `unzip` is part of the base system on macOS and a package
+      // install.sh reports as missing on Linux, and the argv array keeps both
+      // paths as discrete arguments (no shell, nothing to quote). Windows keeps
+      // the PowerShell path it has always used, where the single quotes inside
+      // the -Command string are doubled for the same reason.
+      const [file, args] = isPosix
+        ? ['unzip', ['-qq', '-o', zipPath, '-d', extractDir]]
+        : ['powershell', ['-NoProfile', '-NonInteractive', '-Command',
+          `Expand-Archive -LiteralPath '${zipPath.replace(/'/g, "''")}' -DestinationPath '${extractDir.replace(/'/g, "''")}' -Force`]];
+      const p = spawn(file, args, { windowsHide: true });
       let err = '';
       if (p.stderr) p.stderr.on('data', (d) => { err += d; });
       p.on('error', reject);
-      p.on('exit', (code) => (code === 0 ? resolve() : reject(new Error('Expand-Archive failed: ' + err.slice(0, 300)))));
+      p.on('exit', (code) => (code === 0 ? resolve() : reject(new Error('archive extraction failed: ' + err.slice(0, 300)))));
     });
   }
 
@@ -253,6 +278,36 @@ function createSelfUpdate(opts) {
       return { ok: false, error: 'apply_in_flight' };
     }
     applyStartedAt = Date.now();
+    // macOS/Linux need none of the Windows launch dance below. There is no UAC
+    // and the install root is per-user. (On Windows, detaching is exactly what
+    // must NOT happen: a console-less powershell silently exits without running
+    // the script.) What they do need is for the applier to OUTLIVE the server it
+    // is about to stop, and that differs between them:
+    //
+    // - macOS: `detached: true` calls setsid(), which is enough.
+    // - Linux: setsid does NOT escape a cgroup, so an applier spawned by a
+    //   systemd user unit stays inside it and `systemctl stop` would kill it
+    //   mid-swap. `systemd-run --user` puts it in a transient unit of its own,
+    //   which is the only real escape. `--collect` reaps that unit when it ends.
+    //   Where systemd-run does not exist the backend is almost certainly not
+    //   under systemd either, so the plain detached spawn is the right fallback;
+    //   the applier re-checks its own cgroup before touching systemctl.
+    if (isPosix) {
+      let file = '/bin/bash';
+      let args = [applierPath];
+      if (platform === 'linux') {
+        const systemdRun = ['/usr/bin/systemd-run', '/bin/systemd-run']
+          .find((p) => { try { return f.existsSync(p); } catch { return false; } });
+        if (systemdRun) {
+          file = systemdRun;
+          args = ['--user', '--collect', '--quiet', '--unit=xenon-update',
+            '--description=Xenon self-update applier', '/bin/bash', applierPath];
+        }
+      }
+      const child = spawn(file, args, { detached: true, stdio: 'ignore' });
+      child.unref();
+      return { ok: true, started: true };
+    }
     // The applier always re-launches itself as an independent -Worker child, which
     // breaks out of Node's kill-on-close job (Windows "silent breakaway") and so
     // survives this server being stopped mid-swap. We only choose HOW it relaunches:

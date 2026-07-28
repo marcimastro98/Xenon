@@ -61,7 +61,13 @@ const FAIL_BACKOFF_MS = 60000;   // back off after repeated instant failures
 // pill until the next restart. Both shapes appear depending on which side did
 // the rename, so `.exe` may sit before the tail.
 // Matched against the bare process name (no ".exe") reported by the probe.
-const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplore|icue|corsair|explorer|searchhost|shellexperiencehost|lockapp|logonui|windowsterminal|openconsole|conhost|powershell|pwsh|alacritty|wezterm|mintty|putty|tabby|discord|slack|spotify|obs64|obs32|streamlabs|xsplit|vmix|steamwebhelper|docker|rancher|podman|^(?:code(?:[ -]+insiders)?|cursor|devenv|cmd|wt|hyper|steam|xenon(?:-native|-helper)?(?:\.exe)?(?:\.old-[\w.-]*)?)$/i;
+// The Linux additions play the same role the Windows shell names do: the
+// desktop shell (gnome-shell, plasmashell, the compositors), the file manager
+// and the terminals all own full-screen-capable windows, and under X11 the
+// probe reads them exactly as it reads a game. `foot`, `kitty` and `konsole`
+// are matched exactly for the same reason `cmd` and `wt` are — they are short
+// enough to swallow a real game's name as a substring.
+const IGNORE_PROC_RE = /msedge|chrome|firefox|brave|opera|vivaldi|webview|iexplore|icue|corsair|explorer|searchhost|shellexperiencehost|lockapp|logonui|windowsterminal|openconsole|conhost|powershell|pwsh|alacritty|wezterm|mintty|putty|tabby|discord|slack|spotify|obs64|obs32|streamlabs|xsplit|vmix|steamwebhelper|docker|rancher|podman|gnome-shell|plasmashell|kwin_|xfdesktop|nautilus|gnome-terminal|gnome-console|ptyxis|xdg-desktop-portal|^(?:code(?:[ -]+insiders)?|cursor|devenv|cmd|wt|hyper|steam|mutter|konsole|kitty|foot|xterm|dolphin|thunar|xenon(?:-native|-helper)?(?:\.exe)?(?:\.old-[\w.-]*)?)$/i;
 
 // Stricter ignore list for the WINDOWED hint path: media players and creative
 // editors also present flip-model frames continuously, so a focused windowed
@@ -76,7 +82,8 @@ const PROBE_SCRIPT = path.join(__dirname, 'foreground.ps1');
 // Native helper (optional): same probe, same output lines, but also pushes an
 // extra line the instant the foreground window changes — game mode reacts
 // immediately. When the exe is missing or keeps dying, the PS probe is used.
-const HELPER_PROBE_EXE = path.join(__dirname, 'helper', 'xenon-helper.exe');
+const HELPER_PROBE_EXE = path.join(__dirname, 'helper',
+  process.platform === 'win32' ? 'xenon-helper.exe' : 'xenon-helper');
 
 let _proc = null;
 let _stopped = false;
@@ -84,6 +91,7 @@ let _buffer = '';
 let _restartTimer = null;
 let _consecutiveFastFails = 0;
 let _helperDisabled = false;     // helper exe died young repeatedly → pin the PS probe
+let _linuxProbe = null;          // in-process foreground probe (Linux; see start())
 let _lastSpawnWasHelper = false; // what the most recent start() actually launched
 let _last = null;            // { fullscreen, process, pid, at }
 let _lastGamingAt = 0;       // last moment we considered a game active (grace window)
@@ -128,6 +136,14 @@ function onGamingChange(fn) {
 function handleLine(line) {
   let data;
   try { data = JSON.parse(line); } catch { return; }
+  applySample(data);
+}
+
+// One probe reading, whatever produced it. Split out of handleLine because the
+// Linux probe is an in-process module rather than a child emitting JSON lines —
+// there is no script to spawn there, only three xprop reads — and both sources
+// must land in exactly the same state and fire the same change notification.
+function applySample(data) {
   if (!data || typeof data !== 'object') return;
   _last = {
     fullscreen: data.fullscreen === true,
@@ -158,7 +174,7 @@ function onData(chunk) {
 }
 
 function start() {
-  if (_stopped || process.platform !== 'win32') return;
+  if (_stopped) return;
   if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
   _buffer = '';
   const startedAt = Date.now();
@@ -166,6 +182,24 @@ function start() {
   if (!_helperDisabled) {
     try { useHelper = fs.existsSync(HELPER_PROBE_EXE); } catch { useHelper = false; }
   }
+  // Linux has neither the PowerShell script nor a helper build, but it does have
+  // the window manager's own properties: an in-process probe reads the focused
+  // window through xprop (X11 and Xwayland alike) or the compositor's IPC on
+  // wlroots. Without it every consumer of this module — game mode, Performance
+  // Mode's activity, the Game Companion, screen time — is permanently inert on
+  // Linux, which is what it was.
+  if (!useHelper && process.platform === 'linux') {
+    if (!_linuxProbe) {
+      const { createLinuxForeground } = require('./linux-foreground');
+      _linuxProbe = createLinuxForeground({ intervalMs: PROBE_INTERVAL_MS, onSample: applySample });
+    }
+    _linuxProbe.start();
+    return;
+  }
+  // The PowerShell fallback only exists on Windows. Elsewhere the helper is the
+  // only probe there is, so no helper means no game mode — and starting a
+  // doomed powershell.exe every few seconds would be worse than not having it.
+  if (!useHelper && process.platform !== 'win32') return;
   _lastSpawnWasHelper = useHelper;
   try {
     _proc = useHelper
@@ -314,7 +348,7 @@ function getGamingWindow() {
 }
 
 function startGameDetect() {
-  if (_proc) return;
+  if (_proc || _linuxProbe) return;
   start();
 }
 
@@ -322,6 +356,7 @@ function stopGameDetect() {
   _stopped = true;
   if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
   if (_proc) { try { _proc.kill(); } catch { /* ignore */ } _proc = null; }
+  if (_linuxProbe) { try { _linuxProbe.stop(); } catch { /* ignore */ } _linuxProbe = null; }
 }
 
 module.exports = { startGameDetect, stopGameDetect, isGaming, isGameRunning, getActivity, getForegroundProcess, getGameProcess, getGameDiag, classifyActivity, getGamingWindow, setGameHint, onGamingChange, isIgnoredProc };

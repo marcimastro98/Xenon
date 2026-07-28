@@ -1,0 +1,6 @@
+No players found
+spotify	Playing	Kiara	Bonobo	Black Sands	249000000	45000000	https://i.scdn.co/image/ab67616d0000b273
+spotify	Paused	Kiara	Bonobo	Black Sands	249000000	61000000	https://i.scdn.co/image/ab67616d0000b273
+chromium.instance2317	Playing	Rick Astley - Never Gonna Give You Up			212000000	12000000	https://i.ytimg.com/vi/abc/maxresdefault.jpg
+vlc	Playing	holiday-2019.mp4				0	
+mpv	Playing	local track	Someone	An Album	180000000	7000000	file:///home/me/.cache/art/cover.png

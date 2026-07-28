@@ -15,9 +15,15 @@ name: Build Xenon Native App
 #   • latest.json        — the manifest the app polls (plugins.updater.endpoints)
 #   • Xenon-Setup-x64.exe — stable-named copy for the permanent download link
 #
-# KEEP IN SYNC with the `native` job in release.yml — the build steps and the
-# latest.json composition are duplicated there on purpose (a recovery tool must
-# not depend on the pipeline it recovers); a fix to either copy belongs in both.
+# KEEP IN SYNC with the `native` job in release.yml — the build steps are
+# duplicated there on purpose (a recovery tool must not depend on the pipeline
+# it recovers); a fix to either copy belongs in both.
+#
+# WINDOWS ONLY. It rebuilds the windows-x86_64 half of a release, so its
+# latest.json step MERGES into the manifest already on the release instead of
+# replacing it — writing a Windows-only latest.json over a release that also
+# carries macOS would silently strand every Mac on "no update available".
+# To rebuild the macOS half, run release.yml with workflow_dispatch and the tag.
 #
 # REQUIRED repo secrets (generate once with `npm run tauri -- signer generate`):
 #   TAURI_SIGNING_PRIVATE_KEY           — the private key file's contents
@@ -73,6 +79,8 @@ jobs:
 
       - name: Compose latest.json and stage artifacts
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}   # only to read the tag's existing latest.json
         run: |
           $nsisDir = "apps/native/src-tauri/target/release/bundle/nsis"
           $setup = Get-ChildItem $nsisDir -Filter *-setup.exe | Select-Object -First 1
@@ -82,16 +90,45 @@ jobs:
           $tag = "${{ inputs.tag }}"
           if (-not $tag) { $tag = "v$version" }
           $url = "https://github.com/${{ github.repository }}/releases/download/$tag/$($setup.Name)"
+          # Start from the manifest already published for this tag, so a Windows
+          # rebuild keeps the macOS entries intact. A missing/unreadable one just
+          # means this is the first manifest for the tag.
+          $platforms = [ordered]@{}
+          if ($env:GH_TOKEN -and "${{ inputs.tag }}") {
+            # A release with no latest.json yet is the NORMAL first case, and gh
+            # reports that on stderr. Actions runs pwsh with
+            # $ErrorActionPreference='Stop', under which redirected native stderr
+            # can surface as a terminating NativeCommandError - the same trap
+            # that once killed xenon-bootstrap.ps1 on every fresh install. So the
+            # preference is relaxed around the call and the outcome is decided by
+            # Test-Path, never by an exception.
+            $eap = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            gh release download "$tag" --pattern latest.json --dir prev --clobber 2>&1 | Out-Null
+            $ErrorActionPreference = $eap
+            if (Test-Path prev/latest.json) {
+              try {
+                $prev = Get-Content prev/latest.json -Raw | ConvertFrom-Json
+                foreach ($p in $prev.platforms.PSObject.Properties) { $platforms[$p.Name] = $p.Value }
+                Write-Host "carried over: $($platforms.Keys -join ', ')"
+              } catch {
+                # Present but unparseable: carrying nothing over would quietly
+                # drop macOS from the manifest, so stop instead.
+                throw "the release's existing latest.json could not be parsed: $($_.Exception.Message)"
+              }
+            } else {
+              Write-Host 'no previous latest.json on the release; writing a fresh one'
+            }
+          }
+          $platforms["windows-x86_64"] = [ordered]@{
+            signature = (Get-Content $sig.FullName -Raw).Trim()
+            url       = $url
+          }
           $latest = [ordered]@{
             version   = $version
             notes     = "See the release notes on GitHub."
             pub_date  = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-            platforms = [ordered]@{
-              "windows-x86_64" = [ordered]@{
-                signature = (Get-Content $sig.FullName -Raw).Trim()
-                url       = $url
-              }
-            }
+            platforms = $platforms
           }
           New-Item -ItemType Directory -Path stage -Force | Out-Null
           $latest | ConvertTo-Json -Depth 6 | Set-Content stage/latest.json -Encoding utf8

@@ -42,7 +42,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Xenon: turn any second screen into your PC's control center</title>
-<meta name="description" content="Xenon turns a spare monitor or the CORSAIR Xeneon Edge into one touch dashboard: system monitor, media, voice AI, RGB and a programmable Deck. Free, open source, and it runs on your machine.">
+<meta name="description" content="Xenon turns a spare monitor or the CORSAIR Xeneon Edge into one touch dashboard: system monitor, media, voice AI, RGB and a programmable Deck. Free, open source, and it runs on Windows, macOS and Linux.">
 <link rel="icon" type="image/png" href="images/favicon.png">
 
 <meta property="og:type" content="website">
@@ -212,6 +212,16 @@
   .hero-cta { display: flex; gap: 13px; flex-wrap: wrap; justify-content: center; margin-top: 34px; }
   .hero-free { margin-top: 18px; font-size: 13px; color: var(--dim); letter-spacing: 0.02em; }
   .hero-free span + span::before { content: "·"; margin: 0 9px; color: var(--dim); }
+
+  /* The other two platforms, always visible. The main button auto-targets the
+     visitor's OS, but a download page that only names one is how a Mac user
+     concludes there is no Mac build — so all three stay on the page, and they
+     work with JavaScript off. */
+  .dl-alt { margin-top: 14px; font-size: 13px; color: var(--dim); letter-spacing: 0.02em; }
+  .dl-alt i { font-style: normal; margin: 0 9px; }
+  .dl-alt a { color: var(--dim); text-decoration: none; border-bottom: 1px solid transparent; }
+  .dl-alt a:hover { color: var(--text); border-bottom-color: var(--line-2); }
+  .dl-alt a[data-current] { color: var(--text); }
 
   /* The Edge frame — every product shot lives in the real display's 32:9 body */
   .edge-frame { position: relative; margin-top: 64px; }
@@ -746,7 +756,7 @@
       <div class="hero-cta hr hd3">
         <a class="btn btn-fill" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" target="_blank" rel="noopener" data-track="download_click" data-track-location="hero">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
-          <span data-i18n="cta.download">Download for Windows</span>
+          <span data-i18n="cta.download">Download Xenon</span>
         </a>
         <!-- The demo is the cheapest thing on this page for a visitor to say yes
              to: no download, no install, no decision. It belongs next to the
@@ -760,7 +770,10 @@
           <span data-i18n="cta.discord">Join the Discord</span>
         </a>
       </div>
-      <p class="hero-free hr hd3"><span data-i18n="hero.free1">Free</span><span data-i18n="hero.free2">Open source</span><span data-i18n="hero.free3">Windows 10/11</span></p>
+      <p class="dl-alt hr hd3" data-dl-alt>
+        <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-os="windows" target="_blank" rel="noopener" data-track="download_click" data-track-location="hero_alt">Windows</a><i>·</i><a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-macOS-universal.dmg" data-os="macos" target="_blank" rel="noopener" data-track="download_click" data-track-location="hero_alt">macOS</a><i>·</i><a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage" data-os="linux" target="_blank" rel="noopener" data-track="download_click" data-track-location="hero_alt">Linux</a>
+      </p>
+      <p class="hero-free hr hd3"><span data-i18n="hero.free1">Free</span><span data-i18n="hero.free2">Open source</span><span data-i18n="hero.free3">Windows · macOS · Linux</span></p>
 
       <div class="edge-frame hr hd4">
         <div class="edge-body">
@@ -1124,7 +1137,7 @@
       <div class="term reveal" id="term">
         <div class="term-bar"><i></i><i></i><i></i><span>xenon setup</span></div>
         <div class="term-body">
-          <div><span class="step-n">01</span> <span class="o" data-i18n="inst.l1"># download</span> <span class="p">Xenon-Setup-x64.exe</span></div>
+          <div><span class="step-n">01</span> <span class="o" data-i18n="inst.l1"># download</span> <span class="p" data-dl-file>Xenon-Setup-x64.exe</span></div>
           <div><span class="step-n">02</span> <span class="c">»</span> <span class="o" data-i18n="inst.l2">double-click it, then click "Yes"</span></div>
           <div><span class="step-n">03</span> <span class="c">»</span> <span class="o" data-i18n="inst.l3">Xenon opens full-screen on the Edge, or in any browser at</span> <span class="p">127.0.0.1:3030</span></div>
           <div style="margin-top:10px"><span class="c">✓</span> <span style="color:var(--green)" data-i18n="inst.l4a">ready.</span> <span class="o" data-i18n="inst.l4b">runs 100% locally.</span><span class="caret">&nbsp;▋</span></div>
@@ -1142,6 +1155,9 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
           <span data-i18n="inst.btn">Download Xenon</span>
         </a>
+        <p class="dl-alt" data-dl-alt>
+          <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-os="windows" target="_blank" rel="noopener" data-track="download_click" data-track-location="install_alt">Windows</a><i>·</i><a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-macOS-universal.dmg" data-os="macos" target="_blank" rel="noopener" data-track="download_click" data-track-location="install_alt">macOS</a><i>·</i><a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage" data-os="linux" target="_blank" rel="noopener" data-track="download_click" data-track-location="install_alt">Linux</a><i>·</i><a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.deb" target="_blank" rel="noopener" data-track="download_click" data-track-location="install_alt">.deb</a>
+        </p>
       </div>
     </div>
   </section>
@@ -1183,12 +1199,15 @@
       <h2 data-i18n-html="fin.h2">Put it on<br><em>your desk.</em></h2>
       <p data-i18n="fin.p">Free, open source, and it runs on your machine. About a minute to install.</p>
       <div class="hero-cta">
-        <a class="btn btn-fill" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" target="_blank" rel="noopener" data-i18n="cta.download" data-track="download_click" data-track-location="footer">Download for Windows</a>
+        <a class="btn btn-fill" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" target="_blank" rel="noopener" data-i18n="cta.download" data-track="download_click" data-track-location="footer">Download Xenon</a>
         <a class="btn btn-discord" data-discord href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.291.074.074 0 0 1 .077-.01c3.927 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.331c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.332-.946 2.418-2.157 2.418z"/></svg>
           <span data-i18n="cta.discord">Join the Discord</span>
         </a>
       </div>
+      <p class="dl-alt" data-dl-alt>
+        <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-os="windows" target="_blank" rel="noopener" data-track="download_click" data-track-location="footer_alt">Windows</a><i>·</i><a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-macOS-universal.dmg" data-os="macos" target="_blank" rel="noopener" data-track="download_click" data-track-location="footer_alt">macOS</a><i>·</i><a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage" data-os="linux" target="_blank" rel="noopener" data-track="download_click" data-track-location="footer_alt">Linux</a>
+      </p>
     </div>
   </section>
 
@@ -1197,7 +1216,7 @@
     <div class="wrap foot">
       <div class="note">
         <a href="#top" class="logo"><img class="logo-mark" src="images/logo.png" alt="" width="42" height="28"> XENON</a>
-        <span data-i18n="foot.note">A local-first dashboard for the CORSAIR Xeneon Edge and any Windows browser.
+        <span data-i18n="foot.note">A local-first dashboard for the CORSAIR Xeneon Edge and any browser on Windows, macOS or Linux.
         Custom non-commercial license. Not affiliated with CORSAIR.</span>
       </div>
       <div class="foot-cols">
@@ -1233,8 +1252,8 @@ I18N.en = {
   'hero.h1': 'Any second screen becomes <em>your control center.</em>',
   'hero.sub': 'System stats, media, RGB, a voice AI and a programmable Deck, on a display you already own. A spare monitor, an old display, or the CORSAIR Xeneon Edge. Free and open source, and <b>everything runs on your machine</b>. No cloud, no account, no telemetry.',
   'num.dl': 'downloads', 'num.stars': 'stars on GitHub', 'num.discord': 'in the Discord',
-  'cta.download': 'Download for Windows', 'cta.demo': 'Try it in your browser', 'nav.demo': 'Demo', 'nav.phone': 'Phone', 'cta.discord': 'Join the Discord',
-  'hero.free1': 'Free', 'hero.free2': 'Open source', 'hero.free3': 'Windows 10/11',
+  'cta.download': 'Download Xenon', 'cta.demo': 'Try it in your browser', 'nav.demo': 'Demo', 'nav.phone': 'Phone', 'cta.discord': 'Join the Discord',
+  'hero.free1': 'Free', 'hero.free2': 'Open source', 'hero.free3': 'Windows · macOS · Linux',
   'proof.1t': '100% local', 'proof.1s': 'Your data never leaves your PC',
   'proof.2t': 'Zero telemetry', 'proof.2s': 'No ads, no accounts, no tracking in the app',
   'proof.3t': 'Free forever', 'proof.3s': 'Open source, funded by coffee',
@@ -1322,7 +1341,7 @@ I18N.en = {
   'sup.p': 'Xenon is free and stays free. Everyone here bought at least one coffee. Thank you.',
   'fin.h2': 'Put it on<br><em>your desk.</em>',
   'fin.p': 'Free, open source, and it runs on your machine. About a minute to install.',
-  'foot.note': 'A local-first dashboard for any second screen, built for the CORSAIR Xeneon Edge and running in any Windows browser. Custom non-commercial license. Not affiliated with CORSAIR.',
+  'foot.note': 'A local-first dashboard for any second screen, built for the CORSAIR Xeneon Edge and running in any browser on Windows, macOS or Linux. Custom non-commercial license. Not affiliated with CORSAIR.',
   'foot.project': 'Project', 'foot.releases': 'Releases', 'foot.bug': 'Report a bug', 'foot.privacy': 'Privacy',
   'foot.community': 'Community', 'foot.catalog': 'Catalog', 'foot.create': 'Creator guide',
   'foot.support': 'Support', 'foot.coffee': 'Buy me a coffee'
@@ -1333,8 +1352,8 @@ I18N.it = {
   'hero.h1': 'Qualsiasi secondo schermo diventa <em>il tuo centro di controllo.</em>',
   'hero.sub': 'Statistiche di sistema, media, RGB, un\'AI vocale e un Deck programmabile, su uno schermo che hai già. Un monitor di scorta, un vecchio schermo, o il CORSAIR Xeneon Edge. Gratis e open source, e <b>gira tutto sulla tua macchina</b>. Niente cloud, niente account, niente telemetria.',
   'num.dl': 'download', 'num.stars': 'stelle su GitHub', 'num.discord': 'nel Discord',
-  'cta.download': 'Scarica per Windows', 'cta.demo': 'Provalo nel browser', 'nav.demo': 'Demo', 'nav.phone': 'Telefono', 'cta.discord': 'Entra nel Discord',
-  'hero.free1': 'Gratis', 'hero.free2': 'Open source', 'hero.free3': 'Windows 10/11',
+  'cta.download': 'Scarica Xenon', 'cta.demo': 'Provalo nel browser', 'nav.demo': 'Demo', 'nav.phone': 'Telefono', 'cta.discord': 'Entra nel Discord',
+  'hero.free1': 'Gratis', 'hero.free2': 'Open source', 'hero.free3': 'Windows · macOS · Linux',
   'proof.1t': '100% locale', 'proof.1s': 'I tuoi dati non lasciano mai il tuo PC',
   'proof.2t': 'Zero telemetria', 'proof.2s': "Nessuna pubblicità, account o tracciamento nell'app",
   'proof.3t': 'Gratis per sempre', 'proof.3s': 'Open source, va avanti a caffè',
@@ -1422,7 +1441,7 @@ I18N.it = {
   'sup.p': 'Xenon è gratuito e resta gratuito. Chi è qui ha offerto almeno un caffè. Grazie.',
   'fin.h2': 'Mettilo sulla<br><em>tua scrivania.</em>',
   'fin.p': 'Gratuito, open source, e gira sulla tua macchina. Ci vuole circa un minuto.',
-  'foot.note': 'Una dashboard local-first per qualsiasi secondo schermo, nata per il CORSAIR Xeneon Edge e in esecuzione su qualsiasi browser Windows. Licenza custom non commerciale. Non affiliato a CORSAIR.',
+  'foot.note': 'Una dashboard local-first per qualsiasi secondo schermo, nata per il CORSAIR Xeneon Edge e in esecuzione su qualsiasi browser Windows, macOS o Linux. Licenza custom non commerciale. Non affiliato a CORSAIR.',
   'foot.project': 'Progetto', 'foot.releases': 'Release', 'foot.bug': 'Segnala un bug', 'foot.privacy': 'Privacy',
   'foot.community': 'Community', 'foot.catalog': 'Catalogo', 'foot.create': 'Guida per creator',
   'foot.support': 'Sostieni', 'foot.coffee': 'Offrimi un caffè'
@@ -1433,8 +1452,8 @@ I18N.ko = {
   'hero.h1': '어떤 세컨드 스크린이든 <em>당신의 컨트롤 센터가 됩니다.</em>',
   'hero.sub': '시스템 상태, 미디어, RGB, 음성 AI, 프로그래머블 Deck을 이미 가지고 있는 화면 위에. 남는 모니터, 오래된 디스플레이, 또는 CORSAIR Xeneon Edge. 무료 오픈소스이며 <b>모든 것이 당신의 PC에서 실행됩니다</b>. 클라우드도, 계정도, 텔레메트리도 없습니다.',
   'num.dl': '다운로드', 'num.stars': 'GitHub 스타', 'num.discord': '디스코드 멤버',
-  'cta.download': 'Windows용 다운로드', 'cta.demo': '브라우저에서 체험', 'nav.demo': '데모', 'nav.phone': '휴대폰', 'cta.discord': 'Discord 참여',
-  'hero.free1': '무료', 'hero.free2': '오픈소스', 'hero.free3': 'Windows 10/11',
+  'cta.download': 'Xenon 다운로드', 'cta.demo': '브라우저에서 체험', 'nav.demo': '데모', 'nav.phone': '휴대폰', 'cta.discord': 'Discord 참여',
+  'hero.free1': '무료', 'hero.free2': '오픈소스', 'hero.free3': 'Windows · macOS · Linux',
   'proof.1t': '100% 로컬', 'proof.1s': '데이터가 PC를 떠나지 않습니다',
   'proof.2t': '텔레메트리 제로', 'proof.2s': '앱에는 광고, 계정, 추적이 없습니다',
   'proof.3t': '영원히 무료', 'proof.3s': '오픈소스, 커피로 굴러갑니다',
@@ -1522,7 +1541,7 @@ I18N.ko = {
   'sup.p': 'Xenon은 무료이고 앞으로도 무료입니다. 여기 있는 분들은 모두 최소 커피 한 잔을 사줬습니다. 감사합니다.',
   'fin.h2': '당신의 책상에<br><em>올려두세요.</em>',
   'fin.p': '무료, 오픈소스, 당신의 PC에서 실행됩니다. 설치는 1분 정도.',
-  'foot.note': '모든 세컨드 스크린을 위한 로컬 우선 대시보드. CORSAIR Xeneon Edge를 위해 만들었고 모든 Windows 브라우저에서 실행됩니다. 커스텀 비상업 라이선스. CORSAIR와 무관합니다.',
+  'foot.note': '모든 세컨드 스크린을 위한 로컬 우선 대시보드. CORSAIR Xeneon Edge를 위해 만들었고 Windows·macOS·Linux의 모든 브라우저에서 실행됩니다. 커스텀 비상업 라이선스. CORSAIR와 무관합니다.',
   'foot.project': '프로젝트', 'foot.releases': '릴리스', 'foot.bug': '버그 신고', 'foot.privacy': '개인정보',
   'foot.community': '커뮤니티', 'foot.catalog': '카탈로그', 'foot.create': '크리에이터 가이드',
   'foot.support': '후원', 'foot.coffee': '커피 사주기'
@@ -1533,8 +1552,8 @@ I18N.ja = {
   'hero.h1': 'どんなセカンドスクリーンも<em>あなたのコントロールセンターに。</em>',
   'hero.sub': 'システム情報、メディア、RGB、音声 AI、プログラマブルな Deck を、すでに持っている画面の上に。余っているモニター、古いディスプレイ、あるいは CORSAIR Xeneon Edge。無料のオープンソースで、<b>すべてがあなたのマシン上で動きます</b>。クラウドなし、アカウントなし、テレメトリなし。',
   'num.dl': 'ダウンロード', 'num.stars': 'GitHub スター', 'num.discord': 'Discord メンバー',
-  'cta.download': 'Windows 版をダウンロード', 'cta.demo': 'ブラウザで試す', 'nav.demo': 'デモ', 'nav.phone': 'スマホ', 'cta.discord': 'Discord に参加',
-  'hero.free1': '無料', 'hero.free2': 'オープンソース', 'hero.free3': 'Windows 10/11',
+  'cta.download': 'Xenon をダウンロード', 'cta.demo': 'ブラウザで試す', 'nav.demo': 'デモ', 'nav.phone': 'スマホ', 'cta.discord': 'Discord に参加',
+  'hero.free1': '無料', 'hero.free2': 'オープンソース', 'hero.free3': 'Windows · macOS · Linux',
   'proof.1t': '100% ローカル', 'proof.1s': 'データが PC の外に出ることはありません',
   'proof.2t': 'テレメトリゼロ', 'proof.2s': 'アプリに広告・アカウント・トラッキングはありません',
   'proof.3t': 'ずっと無料', 'proof.3s': 'オープンソース、コーヒーで回っています',
@@ -1622,7 +1641,7 @@ I18N.ja = {
   'sup.p': 'Xenon は無料で、これからも無料です。ここにいる方はみんな、少なくとも1杯のコーヒーをおごってくれました。ありがとう。',
   'fin.h2': 'あなたの机に<br><em>置いてみてください。</em>',
   'fin.p': '無料、オープンソース、あなたのマシンで動きます。インストールは1分ほど。',
-  'foot.note': 'あらゆるセカンドスクリーンのためのローカルファーストなダッシュボード。CORSAIR Xeneon Edge のために作られ、あらゆる Windows ブラウザで動きます。カスタム非商用ライセンス。CORSAIR とは無関係です。',
+  'foot.note': 'あらゆるセカンドスクリーンのためのローカルファーストなダッシュボード。CORSAIR Xeneon Edge のために作られ、Windows・macOS・Linux のあらゆるブラウザで動きます。カスタム非商用ライセンス。CORSAIR とは無関係です。',
   'foot.project': 'プロジェクト', 'foot.releases': 'リリース', 'foot.bug': 'バグを報告', 'foot.privacy': 'プライバシー',
   'foot.community': 'コミュニティ', 'foot.catalog': 'カタログ', 'foot.create': 'クリエイターガイド',
   'foot.support': '応援する', 'foot.coffee': 'コーヒーをおごる'
@@ -1633,8 +1652,8 @@ I18N.zh = {
   'hero.h1': '任何一块副屏，都能变成<em>你的控制中心。</em>',
   'hero.sub': '系统状态、媒体、RGB、语音 AI 和可编程 Deck，全都放在你已经有的那块屏上。一台闲置显示器、一块旧屏幕，或者 CORSAIR Xeneon Edge。免费开源，<b>一切都在你的机器上运行</b>。无云端、无账号、无遥测。',
   'num.dl': '次下载', 'num.stars': 'GitHub 星标', 'num.discord': 'Discord 成员',
-  'cta.download': '下载 Windows 版', 'cta.demo': '在浏览器中试用', 'nav.demo': '演示', 'nav.phone': '手机', 'cta.discord': '加入 Discord',
-  'hero.free1': '免费', 'hero.free2': '开源', 'hero.free3': 'Windows 10/11',
+  'cta.download': '下载 Xenon', 'cta.demo': '在浏览器中试用', 'nav.demo': '演示', 'nav.phone': '手机', 'cta.discord': '加入 Discord',
+  'hero.free1': '免费', 'hero.free2': '开源', 'hero.free3': 'Windows · macOS · Linux',
   'proof.1t': '100% 本地', 'proof.1s': '你的数据永不离开你的 PC',
   'proof.2t': '零遥测', 'proof.2s': '应用内无广告、无账号、无跟踪',
   'proof.3t': '永久免费', 'proof.3s': '开源项目，靠咖啡运转',
@@ -1722,13 +1741,49 @@ I18N.zh = {
   'sup.p': 'Xenon 免费,而且会一直免费。这里的每个人都至少请过一杯咖啡。谢谢你们。',
   'fin.h2': '把它放到<br><em>你的桌上。</em>',
   'fin.p': '免费、开源,在你自己的机器上运行。装好大约一分钟。',
-  'foot.note': '面向任何副屏的本地优先仪表盘，为 CORSAIR Xeneon Edge 打造，在任何 Windows 浏览器中运行。自定义非商业许可。与 CORSAIR 无关联。',
+  'foot.note': '面向任何副屏的本地优先仪表盘，为 CORSAIR Xeneon Edge 打造，在 Windows、macOS、Linux 上的任何浏览器中运行。自定义非商业许可。与 CORSAIR 无关联。',
   'foot.project': '项目', 'foot.releases': '版本发布', 'foot.bug': '报告问题', 'foot.privacy': '隐私',
   'foot.community': '社区', 'foot.catalog': '目录', 'foot.create': '创作者指南',
   'foot.support': '支持', 'foot.coffee': '请我喝咖啡'
 };
 </script>
 <script>
+  // Download targeting. The three installers have permanent asset names, so
+  // pointing the main button at the visitor's platform is a client-side swap
+  // with no API call. Detection is a CONVENIENCE only: every platform is also
+  // listed as a plain link that works with this script disabled, because a page
+  // that names one OS is how a Mac visitor concludes there is no Mac build.
+  (function () {
+    const ASSET = {
+      windows: 'Xenon-Setup-x64.exe',
+      macos: 'Xenon-macOS-universal.dmg',
+      linux: 'Xenon-Linux-x86_64.AppImage',
+    };
+    const BASE = 'https://github.com/marcimastro98/Xenon/releases/latest/download/';
+    function detect() {
+      const uad = navigator.userAgentData;
+      const p = String((uad && uad.platform) || navigator.platform || '') + ' ' + navigator.userAgent;
+      // Phones and tablets first: Android reports "Linux" and iPadOS reports
+      // "Mac", and there is no build for either. Unknown beats wrong.
+      if (/Android|iPhone|iPad|iPod/i.test(p)) return null;
+      if (/Mac/i.test(p)) return 'macos';
+      if (/CrOS/i.test(p)) return null;   // ChromeOS runs none of these
+      if (/Linux|X11/i.test(p)) return 'linux';
+      if (/Win/i.test(p)) return 'windows';
+      return null;
+    }
+    const os = detect();
+    if (!os) return;                      // unknown → the page keeps its default
+    const url = BASE + ASSET[os];
+    document.querySelectorAll('a[data-track="download_click"]').forEach((a) => {
+      if (a.closest('[data-dl-alt]')) return;  // the per-platform links keep their own target
+      a.href = url;
+    });
+    document.querySelectorAll('[data-dl-file]').forEach((el) => { el.textContent = ASSET[os]; });
+    document.querySelectorAll('[data-dl-alt] a[data-os="' + os + '"]')
+      .forEach((a) => a.setAttribute('data-current', ''));
+  })();
+
   // I18N engine — translates [data-i18n] / [data-i18n-html], persists choice,
   // auto-detects the browser language on first visit.
   (function () {

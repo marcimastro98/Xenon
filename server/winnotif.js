@@ -44,6 +44,7 @@ let _wanted = false;             // desired state from the last sync()
 let _stopped = false;            // process shutdown — never restart after
 let _buffer = '';
 let _restartTimer = null;
+let _linuxFlushTimer = null;     // idle flush for the last dbus-monitor block
 let _consecutiveFastFails = 0;
 let _helperDisabled = false;
 let _lastSpawnWasHelper = false;
@@ -121,12 +122,103 @@ function _onData(chunk) {
   }
 }
 
+// Linux speaks a different dialect: dbus-monitor prints message blocks, not
+// JSON lines. Everything AFTER the child — the buffer, the exclusions, the cap,
+// the privacy rules — is shared, so the translation happens here and feeds the
+// same _handleLine the Windows children drive.
+// Required unconditionally: it is a pure parser module with no side effects on
+// load, and the dbus translation below is only ever DRIVEN on Linux (by the
+// child's stdout), so loading it elsewhere costs nothing and lets the flush
+// logic be tested off-platform.
+const linuxNotif = require('./linux-notif');
+
+// A parsed dbus-monitor block only becomes "complete" when the NEXT message's
+// header arrives — but the match rule narrows the stream to Notify calls only,
+// so on a quiet desktop the next message can be minutes away or never come.
+// Holding the last block until then meant the most recent notification was
+// invisible until another one fired. So the header-based split still handles
+// the definitely-complete blocks, and an idle timer flushes the trailing one
+// once it stops growing.
+const LINUX_FLUSH_MS = 250;
+
+function _emitNotifyBlock(block) {
+  if (!linuxNotif.isNotifyCall(block)) return false;
+  const item = linuxNotif.parseNotifyBlock(block);
+  if (!item) return false;
+  _handleLine(JSON.stringify({ event: 'notification', item }));
+  return true;
+}
+
+// The buffer stopped growing: treat what is left as a whole block. Emit it only
+// if it parses as a complete Notify — a genuinely mid-write tail returns null
+// from the parser and is left for the next chunk to finish, so this never
+// emits a partial. On success the buffer is cleared: the block is one whole
+// message and the next notification opens with its own header, so clearing
+// cannot drop or double anything.
+function _flushLinuxTail() {
+  _linuxFlushTimer = null;
+  if (!_buffer || _proc === null) return;
+  if (_emitNotifyBlock(_buffer)) _buffer = '';
+}
+
+function _armLinuxFlush() {
+  if (_linuxFlushTimer) clearTimeout(_linuxFlushTimer);
+  _linuxFlushTimer = setTimeout(_flushLinuxTail, LINUX_FLUSH_MS);
+  if (typeof _linuxFlushTimer.unref === 'function') _linuxFlushTimer.unref();
+}
+
+function _onDbusData(chunk) {
+  _buffer += chunk;
+  const blocks = linuxNotif.splitBlocks(_buffer);
+  // The last block may still be arriving, so it is left in the buffer until the
+  // next header proves it complete — or the idle flush below does.
+  const complete = blocks.slice(0, -1);
+  _buffer = blocks.length ? blocks[blocks.length - 1] : '';
+  for (const block of complete) {
+    _consecutiveFastFails = 0;                      // receiving data → healthy
+    _emitNotifyBlock(block);
+  }
+  // Re-arm on every chunk: while data keeps arriving the tail is still growing,
+  // and only the last chunk's timer actually fires.
+  if (_buffer) _armLinuxFlush();
+}
+
+function _startLinux(startedAt) {
+  const bin = linuxNotif.findDbusMonitor();
+  if (!bin) {
+    // No dbus-monitor: report it and do NOT schedule a retry. Nothing about a
+    // missing package changes on a timer, and the tile says "unavailable"
+    // rather than spinning.
+    _handleLine(JSON.stringify({ event: 'status', status: 'unavailable' }));
+    return;
+  }
+  let child;
+  try {
+    child = spawn(bin, linuxNotif.MONITOR_ARGS);
+  } catch {
+    _proc = null;
+    _scheduleRestart(startedAt);
+    return;
+  }
+  _proc = child;
+  // The session bus is the user's own, so there is no permission gate to wait
+  // for: if the monitor started, it is watching.
+  _handleLine(JSON.stringify({ event: 'status', status: 'allowed' }));
+  child.stdout.on('data', (d) => { if (_proc === child) _onDbusData(d.toString('utf8')); });
+  child.stderr.on('data', () => { /* match-rule warnings; ignore */ });
+  const onGone = () => { if (_proc === child) { _proc = null; _scheduleRestart(startedAt); } };
+  child.on('error', onGone);
+  child.on('close', onGone);
+}
+
 function _start() {
-  if (_stopped || process.platform !== 'win32') return;
+  if (_stopped) return;
+  if (process.platform !== 'win32' && process.platform !== 'linux') return;
   if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
   _buffer = '';
   _state = 'starting';
   const startedAt = Date.now();
+  if (process.platform === 'linux') { _startLinux(startedAt); return; }
   let useHelper = false;
   if (!_helperDisabled) {
     try { useHelper = fs.existsSync(HELPER_EXE); } catch { useHelper = false; }
@@ -171,6 +263,7 @@ function _scheduleRestart(startedAt) {
 
 function _stopChild() {
   if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
+  if (_linuxFlushTimer) { clearTimeout(_linuxFlushTimer); _linuxFlushTimer = null; }
   if (_proc) {
     const p = _proc;
     _proc = null;                     // detach first so 'close' won't restart
@@ -186,9 +279,15 @@ function _stopChild() {
 // Reconcile the child with the desired state. server.js computes `want` as
 // (feature enabled && SSE clients > 0) and calls this from every trigger.
 function sync(want) {
-  _wanted = !!want && process.platform === 'win32';
+  // Gate on the reader that exists, not on Windows: the Linux child is spawned
+  // from _start() too, and gating this on win32 left _startLinux unreachable —
+  // the whole dbus path was dead code, since _wanted could never be true there.
+  _wanted = !!want && isSupported();
   if (_wanted && !_proc && !_restartTimer && !_stopped) _start();
-  else if (!_wanted && (_proc || _restartTimer || _items.length || _state !== 'off')) {
+  // 'unavailable' is terminal: no child, no timer, nothing to tear down. Treat
+  // it like 'off' here or every sync() re-runs _stopChild() and re-announces a
+  // state that did not change (sync fires on each SSE connect/close and save).
+  else if (!_wanted && (_proc || _restartTimer || _items.length || (_state !== 'off' && _state !== 'unavailable'))) {
     _stopChild();
     _emitFeed();
   }
@@ -205,6 +304,18 @@ function applyExclusions() {
 function getState() { return _state; }
 function getFeed() { return _items; }
 
+// The mirror has one reader per platform: WinRT's UserNotificationListener on
+// Windows, the Notify method on the session bus on Linux. Anywhere else there
+// is no reader at all, so no child is ever spawned.
+function isSupported() { return process.platform === 'win32' || process.platform === 'linux'; }
+
+// What a dashboard should be told the state is. `getState()` stays the raw child
+// state — the reader's own logic and its tests depend on that — but where there
+// is no reader the child never runs, so that state sits at 'off' forever, which
+// the tile renders as "Connecting…" and never leaves (its self-heal loop then
+// re-seeds against 'off' indefinitely). Report a terminal, honest state instead.
+function reportedState() { return isSupported() ? _state : 'unavailable'; }
+
 function stop() {
   _stopped = true;
   _wanted = false;
@@ -213,7 +324,14 @@ function stop() {
 
 module.exports = {
   init, sync, applyExclusions, getState, getFeed, stop,
+  isSupported, reportedState,
   // Test hook: the exact line handler the child reader drives, so the
   // seed/push/filter/cap behaviour is testable without spawning a process.
   _handleLine,
+  // Test hooks for the Linux dbus path: drive raw dbus-monitor output through
+  // the same split/hold/flush the child's stdout feeds, and trigger the idle
+  // flush directly so the "last block delivered without waiting for the next"
+  // fix is testable without real timers or a live bus.
+  _onDbusData, _flushLinuxTail,
+  _setProcForTest: (v) => { _proc = v; },
 };

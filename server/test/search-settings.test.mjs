@@ -20,7 +20,11 @@ const CLIENT = readFileSync(join(ROOT, 'js', 'settings.js'), 'utf8');
 
 // Run the real source rather than asserting on its text.
 function loadNormalizer(src) {
-  const m = src.match(/function normalizeSearchSettings\(value\) \{[\s\S]*?\n\}/);
+  // Signature-agnostic: the function grew a `defaultRoot` parameter (the
+  // never-set default differs per platform and only the server knows which),
+  // and pinning the old argument list here would have failed as "not found"
+  // rather than as a behaviour change.
+  const m = src.match(/function normalizeSearchSettings\([^)]*\) \{[\s\S]*?\n\}/);
   assert.ok(m, 'normalizeSearchSettings not found');
   // eslint-disable-next-line no-new-func
   return new Function(m[0] + '; return normalizeSearchSettings;')();
@@ -45,13 +49,53 @@ for (const [side, src] of [['server', SERVER], ['client', CLIENT]]) {
     assert.equal(N({ indexRoots: many }).indexRoots.length, 8);
   });
 
-  test(`${side}: never-set defaults to the system drive, emptied stays empty`, () => {
+  test(`${side}: a POSIX root survives, on both sides and whatever the machine is`, () => {
+    // The gap this closes: separators were rewritten unconditionally and then
+    // a drive letter was required, so "/Users/me" became "\Users\me" and was
+    // dropped. indexRoots could hold nothing but the Windows default, the
+    // Living Index never started, and search and the disk widget were both
+    // dead on macOS and Linux with no value the user could type to fix it.
     const N = loadNormalizer(src);
-    assert.deepEqual(N({}).indexRoots, ['C:\\']);
-    assert.deepEqual(N(null).indexRoots, ['C:\\']);
-    // An explicitly emptied list means the user turned the index off.
+    assert.deepEqual(N({ indexRoots: ['/Users/me'] }).indexRoots, ['/Users/me']);
+    assert.deepEqual(N({ indexRoots: ['/home/me/Progetti'] }).indexRoots, ['/home/me/Progetti']);
+    // A trailing separator goes; the root itself IS its separator and stays.
+    assert.deepEqual(N({ indexRoots: ['/Volumes/Backup/'] }).indexRoots, ['/Volumes/Backup']);
+    assert.deepEqual(N({ indexRoots: ['/'] }).indexRoots, ['/']);
+    // A backslash is a legal filename character off Windows: a path holding
+    // one must arrive intact, not be read as a directory separator.
+    assert.deepEqual(N({ indexRoots: ['/home/me/we\\ird'] }).indexRoots, ['/home/me/we\\ird']);
+    // The tests run on one machine but both branches must hold, so the two
+    // shapes are asserted side by side.
+    assert.deepEqual(N({ indexRoots: ['/Users/me', 'C:/Progetti'] }).indexRoots, ['/Users/me', 'C:\\Progetti']);
+    // A UNC share has two leading slashes and is not a local root.
+    assert.deepEqual(N({ indexRoots: ['//server/share'] }).indexRoots, []);
+  });
+
+  test(`${side}: the never-set default is supplied by the caller`, () => {
+    // Only the server knows the machine, so it passes the default in. The
+    // browser copy cannot compute a home directory and must not invent one.
+    const N = loadNormalizer(src);
+    assert.deepEqual(N({}, '/Users/me').indexRoots, ['/Users/me']);
+    assert.deepEqual(N(null, '/Users/me').indexRoots, ['/Users/me']);
+    // An emptied list still means "off" — the default applies to never-set only.
+    assert.deepEqual(N({ indexRoots: [] }, '/Users/me').indexRoots, []);
+  });
+
+  test(`${side}: never-set without a default names no root at all`, () => {
+    const N = loadNormalizer(src);
+    // This used to answer ['C:\\']. It is the one guess neither copy is allowed
+    // to make: the browser cannot know the host, so on every Mac and every
+    // Linux box the first settings save wrote a Windows drive letter as the
+    // search root. No POSIX walk can start there, so the index stayed off while
+    // Settings displayed a configured folder — a dead end with nothing the user
+    // could type to escape it. Absent means absent; the caller that knows the
+    // machine supplies the default (see the test above).
+    assert.equal(N({}).indexRoots, undefined);
+    assert.equal(N(null).indexRoots, undefined);
+    // An explicitly emptied list is a different statement — the user turned the
+    // index off — and must survive as one.
     assert.deepEqual(N({ indexRoots: [] }).indexRoots, []);
-    // Migration from the retired one-shot crawl.
+    // Migration from the retired one-shot crawl is a set value, not a default.
     assert.deepEqual(N({ extraFolders: ['C:/Vecchia'] }).indexRoots, ['C:\\Vecchia']);
   });
 

@@ -28,17 +28,52 @@ const DEFAULT_WS = (() => {
 
 // ── Pure helpers (exported for tests) ────────────────────────────────────────
 
-// Locate msedge.exe across the usual machine-wide and per-user install roots.
-function findEdge() {
-  const roots = [
+// Where a Chromium that speaks CDP lives, per platform. The tile needs any
+// Chromium — it drives it over the DevTools protocol and nothing here is
+// Edge-specific — so the list is ordered by what is most likely to be present
+// and best behaved, not by preference. Absolute paths only: resolving through
+// PATH would accept whatever a shell profile happens to point at.
+const BROWSER_CANDIDATES = {
+  win32: () => [
     process.env['ProgramFiles(x86)'],
     process.env.ProgramFiles,
     process.env.LOCALAPPDATA,
-  ];
-  for (const root of roots) {
-    if (!root) continue;
-    const exe = path.join(root, 'Microsoft', 'Edge', 'Application', 'msedge.exe');
-    try { if (fs.existsSync(exe)) return exe; } catch (e) { /* ignore */ }
+  ].filter(Boolean).map((root) => path.join(root, 'Microsoft', 'Edge', 'Application', 'msedge.exe')),
+
+  darwin: () => [
+    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+    // The same bundles installed for one user only.
+    ...(process.env.HOME
+      ? [
+          `${process.env.HOME}/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge`,
+          `${process.env.HOME}/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`,
+        ]
+      : []),
+  ],
+
+  linux: () => [
+    '/usr/bin/microsoft-edge', '/usr/bin/microsoft-edge-stable',
+    '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium', '/usr/bin/chromium-browser',
+    '/usr/bin/brave-browser',
+    // Flatpak and snap ship their own launchers rather than a plain binary.
+    '/var/lib/flatpak/exports/bin/com.google.Chrome',
+    '/var/lib/flatpak/exports/bin/org.chromium.Chromium',
+    '/snap/bin/chromium',
+  ],
+};
+
+// Locate a Chromium to drive. Kept under the original name: every call site and
+// every log line already says "edge", and renaming them would be a bigger diff
+// than the feature.
+function findEdge() {
+  const list = BROWSER_CANDIDATES[process.platform];
+  if (!list) return null;
+  for (const exe of list()) {
+    try { if (fs.existsSync(exe)) return exe; } catch (e) { /* unreadable path */ }
   }
   return null;
 }
@@ -947,6 +982,34 @@ function pidFilePath(profileDir) { return path.join(profileDir, 'edge.pid'); }
 // which then blocks — and silently fails — every future launch. We record each
 // launched Edge's PID in a file inside the profile dir and, before spawning a
 // fresh one, tree-kill exactly that PID.
+// The POSIX half of the reaper. Same job, same caution, far less machinery:
+// signal the pid we ourselves recorded, but ONLY after `ps` confirms that pid is
+// still a process whose command line carries our own profile directory. A pid
+// file outlives the process it names, and pids are recycled — without that check
+// this would eventually signal an unrelated program of the user's.
+function reapStaleProfilePosix(profileDir) {
+  let pid = 0;
+  try { pid = parseInt(fs.readFileSync(pidFilePath(profileDir), 'utf8'), 10); } catch (e) { pid = 0; }
+  if (!Number.isInteger(pid) || pid <= 0) return Promise.resolve();
+  const leaf = path.basename(profileDir);
+  return new Promise((resolve) => {
+    let out = '';
+    let p;
+    try {
+      // -o args= prints the command line alone, with no header to skip.
+      p = spawn('ps', ['-p', String(pid), '-o', 'args='], { windowsHide: true });
+    } catch (e) { resolve(); return; }
+    p.stdout.on('data', (d) => { out += String(d); });
+    p.on('error', () => resolve());
+    p.on('close', () => {
+      if (!out.includes(leaf)) { resolve(); return; }   // gone, or somebody else's
+      try { process.kill(pid, 'SIGTERM'); } catch (e) { /* already exited */ }
+      resolve();
+    });
+    setTimeout(() => { try { p.kill(); } catch (e) { /* ignore */ } resolve(); }, 4000).unref();
+  });
+}
+
 //
 // This deliberately uses `taskkill` with a PID+image-name filter rather than a
 // WMI/CIM process scan: the filter kills the process ONLY if that PID is still an
@@ -955,7 +1018,7 @@ function pidFilePath(profileDir) { return path.join(profileDir, 'edge.pid'); }
 // and it avoids the "enumerate processes + kill by command line" pattern that
 // antivirus ML heuristics (Defender's Wacatac.B!ml) flag as suspicious.
 function reapStaleProfileEdge(profileDir) {
-  if (process.platform !== 'win32') return Promise.resolve();
+  if (process.platform !== 'win32') return reapStaleProfilePosix(profileDir);
   let pid = 0;
   try { pid = parseInt(fs.readFileSync(pidFilePath(profileDir), 'utf8'), 10); } catch (e) { pid = 0; }
   if (!Number.isInteger(pid) || pid <= 0) return Promise.resolve();

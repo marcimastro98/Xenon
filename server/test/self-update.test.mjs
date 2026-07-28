@@ -8,12 +8,15 @@ const { Writable } = require('node:stream');
 const ROOT = 'C:\\X';
 const DATA = 'C:\\X\\server\\data';
 
-function makeFs({ git = false, applier = true, app = false, marker = null, writable = false } = {}) {
+function makeFs({ git = false, applier = true, app = false, marker = null, writable = false, systemdRun = false } = {}) {
   return {
     existsSync: (p) => {
       const s = String(p);
       if (s.endsWith('.git')) return git;
-      if (s.endsWith('update-apply.ps1')) return applier;
+      // Both appliers are tracked files, so both exist in a real checkout on
+      // either platform; `applier: false` models one being absent.
+      if (s.endsWith('update-apply.ps1') || s.endsWith('update-apply.sh')) return applier;
+      if (s.endsWith('systemd-run')) return systemdRun;
       // path.join picks the separator from the host OS, so match either — the
       // Windows target yields \app\server\, a POSIX CI /app/server/.
       if (/[\\/]app[\\/]server[\\/]server\.js$/.test(s)) return app;
@@ -35,7 +38,8 @@ function makeFs({ git = false, applier = true, app = false, marker = null, writa
 function make(opts) {
   const calls = [];
   const spawn = (file, args, sopts) => { calls.push({ file, args, opts: sopts }); return { unref() {} }; };
-  const su = createSelfUpdate({ root: ROOT, dataDir: DATA, fsImpl: makeFs(opts), spawn });
+  const { platform, ...fsOpts } = opts || {};
+  const su = createSelfUpdate({ root: ROOT, dataDir: DATA, fsImpl: makeFs(fsOpts), spawn, platform: platform || 'win32' });
   return { su, calls };
 }
 
@@ -92,6 +96,59 @@ test('apply(): read-only install → elevated path (no -NoElevate, applier self-
   const c = ro.calls[0];
   assert.ok(!c.args.includes('-NoElevate'), 'no -NoElevate: the applier relaunches elevated (UAC)');
   assert.notEqual(c.opts.detached, true, 'not detached: a console-less powershell would silently not run');
+});
+
+test('supported(): true on macOS and Linux, false on any other non-Windows platform', () => {
+  assert.equal(make({ platform: 'darwin' }).su.supported(), true);
+  assert.equal(make({ platform: 'linux' }).su.supported(), true);
+  // Both applier files exist in the checkout, so only the platform test can keep
+  // apply() from spawning an interpreter that would either not run the script or
+  // not be there at all.
+  assert.equal(make({ platform: 'freebsd' }).su.supported(), false);
+  assert.equal(make({ platform: 'sunos' }).su.supported(), false);
+});
+
+test('apply(): macOS launches the shell applier DETACHED (setsid), never PowerShell', () => {
+  const mac = make({ platform: 'darwin', applier: true, app: true, marker: { version: '3.3.0' } });
+  assert.deepEqual(mac.su.apply(), { ok: true, started: true });
+  assert.equal(mac.calls.length, 1, 'spawns once');
+  const c = mac.calls[0];
+  assert.equal(c.file, '/bin/bash');
+  assert.ok(c.args.join(' ').includes('update-apply.sh'), 'runs the shell applier');
+  assert.ok(!c.args.join(' ').includes('.ps1'), 'never the PowerShell applier');
+  // Detachment is the whole reason the applier survives stopping the server it
+  // was spawned by; without it the swap dies half-done.
+  assert.equal(c.opts.detached, true);
+  assert.equal(c.opts.stdio, 'ignore');
+  // No elevation flags: there is no UAC to work around on macOS.
+  assert.ok(!c.args.includes('-NoElevate'));
+  // systemd-run is a Linux escape hatch and must never appear here.
+  assert.ok(!c.file.includes('systemd-run'));
+});
+
+test('apply(): Linux with systemd escapes the backend cgroup via systemd-run', () => {
+  const lin = make({ platform: 'linux', applier: true, app: true, marker: { version: '3.3.0' }, systemdRun: true });
+  assert.deepEqual(lin.su.apply(), { ok: true, started: true });
+  const c = lin.calls[0];
+  assert.ok(c.file.endsWith('systemd-run'), 'launches through systemd-run');
+  // --user: the backend is a user unit, so the transient one must be too.
+  // --collect: reap the transient unit when the applier exits, instead of
+  // leaving a failed/inactive unit behind that blocks the next update's name.
+  assert.ok(c.args.includes('--user'));
+  assert.ok(c.args.includes('--collect'));
+  assert.ok(c.args.join(' ').includes('/bin/bash'), 'still runs bash on the applier');
+  assert.ok(c.args.join(' ').includes('update-apply.sh'));
+});
+
+test('apply(): Linux without systemd-run falls back to a plain detached spawn', () => {
+  // No systemd-run means the backend is almost certainly not under systemd
+  // either, so there is no cgroup to escape and setsid is enough.
+  const lin = make({ platform: 'linux', applier: true, app: true, marker: { version: '3.3.0' }, systemdRun: false });
+  assert.deepEqual(lin.su.apply(), { ok: true, started: true });
+  const c = lin.calls[0];
+  assert.equal(c.file, '/bin/bash');
+  assert.deepEqual(c.args.length, 1, 'just the applier path');
+  assert.equal(c.opts.detached, true);
 });
 
 test('apply(): writable install → -NoElevate path (applier relaunches plain, no UAC)', () => {

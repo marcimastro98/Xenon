@@ -10,11 +10,23 @@ const https = require('https');
 const os = require('os');
 const crypto = require('crypto');
 const path = require('path');
-// Linux native collectors (GPU/disk/CPU-temp/network). Windows keeps the
-// PowerShell path; on Linux those spawns fail (powershell.exe ENOENT) so the
-// system tiles fall back to these. See linux-collectors.js.
-const linuxCollectors = process.platform === 'linux' ? require('./linux-collectors') : null;
-const fpsMonitor = require('./fpsmon');
+// Non-Windows native collectors (GPU/disk/CPU-temp/network/windows/audio).
+// Windows keeps the PowerShell path; elsewhere those spawns fail
+// (powershell.exe ENOENT) so the system tiles fall back to these. Each module
+// returns the SAME shapes the Windows collectors produced, so every consumer
+// below is platform-agnostic. See linux-collectors.js / darwin-collectors.js.
+const nativeCollectors =
+  process.platform === 'linux' ? require('./linux-collectors') :
+  process.platform === 'darwin' ? require('./darwin-collectors') : null;
+// Every PowerShell path in this file is gated on this. The collectors above
+// cover the sensors, but dozens of on-demand features (Deck actions, RAM
+// detail, window management, the media host) still shell out to a .ps1, and
+// off Windows those spawns fail with ENOENT several layers below the caller.
+// Rejecting once, here, turns "a stack of ENOENT noise per click" into the
+// clean per-feature "unavailable" the action registry already knows how to
+// render. See runPowerShellScript / runPowerShellCommand.
+const POWERSHELL_SUPPORTED = process.platform === 'win32';
+const fpsMonitor = require('./fps-monitor'); // PresentMon on Windows, MangoHud on Linux
 const gameDetect = require('./gamedetect');
 const audioLevels = require('./audio-levels');
 const winNotif = require('./winnotif');
@@ -37,6 +49,8 @@ const slideshowFolder = require('./slideshow-folder');          // the slideshow
 const { createFileSearch } = require('./filesearch');           // local file search (Spotlight backend)
 const { createDiskSpace } = require('./diskspace');             // disk usage scan + guarded recycle-bin cleanup (helper-gated)
 const { createLivingIndex } = require('./living-index');       // the Living Index: helper-held in-RAM file index + watchers
+const { createLinuxIndex } = require('./linux-index');         // the same surface in plain Node, for the platform with no helper
+const { createLinuxTrash } = require('./linux-trash');         // the recycle-bin delete, via the freedesktop trash spec
 const contentInstalls = require('./js/content-installs'); // validated import receipts shared with Settings
 const themePalette = require('./js/theme-palette.js'); // single owner of the semantic-palette rules (shared with the client + tests)
 const aiLocal = require('./ai-local');
@@ -58,7 +72,7 @@ const { createStreamerbot } = require('./actions/streamerbot');
 const { createHomeAssistant, normalizeHomeAssistant, preserveHaToken, redactHaToken } = require('./actions/home-assistant');
 const { createChroma } = require('./actions/chroma');
 const { createWaveLink } = require('./actions/wavelink');
-const { createEmbeddedBrowser } = require('./embedded-browser');
+const { createEmbeddedBrowser, findEdge } = require('./embedded-browser');
 const browserAdblock = require('./embedded-browser-adblock');
 const { createBrowserSurfaceSync } = require('./browser-surface-sync');
 const { createSecondScreen } = require('./second-screen');
@@ -617,7 +631,17 @@ const MEDIA_SCRIPT = path.join(__dirname, 'media.ps1');
 // Xenon Helper — optional native companion exe (built from helper/, or shipped
 // with the release). When present it replaces the persistent PowerShell hosts
 // module by module; when absent everything runs on the PS scripts as before.
-const HELPER_EXE = path.join(__dirname, 'helper', 'xenon-helper.exe');
+// The same companion on every platform, built from a different source tree:
+// helper/ (C#) on Windows, helper-mac/ (Swift) on macOS. Both answer the same
+// modes with the same stdio protocols, so a caller needs the path and not a
+// branch. Linux has no helper and never asks for one.
+const HELPER_EXE = path.join(__dirname, 'helper',
+  process.platform === 'win32' ? 'xenon-helper.exe' : 'xenon-helper');
+// mediaremote-adapter — the macOS equivalent of the helper's media-serve, and
+// optional in the same way: downloaded by the installer, gitignored, absent on
+// a source checkout. Without it the media tile stays empty, which is what it
+// did before macOS had a media path at all.
+const MEDIAREMOTE_DIR = path.join(__dirname, 'mediaremote');
 const CPU_TEMP_SCRIPT = path.join(__dirname, 'cpu-temp.ps1');
 // Raises the startup task to RunLevel Highest via UAC — the repair for
 // sensorAccess: 'needs_admin'. Elevates itself; never runs on the pwsh worker.
@@ -741,20 +765,27 @@ async function launchInstalledApp(app) {
     return;
   }
   // Start-Menu shortcut: server-enumerated, so this IS the app's launcher —
-  // opened by the same deck-actions 'open' verb every Deck key uses.
+  // opened by the same system handler every Deck key uses.
   await fs.promises.stat(app.target);
-  await runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', app.target], 8000);
+  await openExternalPath(app.target);
 }
 
 // Local file search (Spotlight). Opens go through deck-actions.ps1's 'open'
 // verb — the same launcher every Deck key uses — after the module re-checks
 // the openFile blocklist; the PS search host it manages is retired in
 // _gracefulShutdown.
-const livingIndex = createLivingIndex({ helperExe: HELPER_EXE });
+// Linux gets its own implementation of the same surface. The helper the Living
+// Index drives is built for Windows and macOS only, so on Linux `helperPresent()`
+// was false for ever: search had no backend at all, while Spotlight still told
+// the user to add a folder in Settings to switch one on. linux-index.js does the
+// walk in Node and makes that sentence true.
+const livingIndex = process.platform === 'linux'
+  ? createLinuxIndex()
+  : createLivingIndex({ helperExe: HELPER_EXE });
 const fileSearch = createFileSearch({
   dataDir: DATA_DIR,
   livingIndex,
-  openExternal: (p) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000),
+  openExternal: (p) => openExternalPath(p),
   appsProvider: getInstalledApps,
   launchApp: launchInstalledApp,
 });
@@ -771,13 +802,20 @@ function openSpotlightPopupWindow() {
   for (const pid of _spotlightPopupPids) {
     try {
       process.kill(pid, 0); // liveness probe only
-      runPowerShellScript(DECK_POPUP_TOP_SCRIPT, ['-ProcessId', String(pid), '-Title', 'Xenon Search'], 8000).catch(() => {});
+      // Raising a window is a Win32 call. Elsewhere the browser's own
+      // activate-on-reuse is all there is, and a popup that is already open
+      // simply stays where the window manager put it.
+      if (POWERSHELL_SUPPORTED) {
+        runPowerShellScript(DECK_POPUP_TOP_SCRIPT, ['-ProcessId', String(pid), '-Title', 'Xenon Search'], 8000).catch(() => {});
+      }
       return { ok: true };
     } catch { _spotlightPopupPids.delete(pid); }
   }
-  const edge = ['C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe']
-    .find((p) => { try { return fs.existsSync(p); } catch { return false; } });
+  // The same Chromium the embedded-browser tile drives — one detector for both,
+  // so a machine that can show a web tile can also show the Spotlight popup.
+  // The hardcoded Program Files pair only ever existed because this path was
+  // Windows-only; findEdge covers those two and every Linux/macOS install.
+  const edge = findEdge();
   if (!edge) return { ok: false, error: 'edge_not_found' };
   const args = [
     '--app=http://127.0.0.1:' + PORT + '/spotlight',
@@ -793,10 +831,12 @@ function openSpotlightPopupWindow() {
     _spotlightPopupPids.add(child.pid);
     child.on('exit', () => _spotlightPopupPids.delete(child.pid));
   } catch { return { ok: false, error: 'popup_failed' }; }
-  setTimeout(() => {
-    try { runPowerShellScript(DECK_POPUP_TOP_SCRIPT, ['-ProcessId', String(pid), '-Title', 'Xenon Search'], 8000).catch(() => {}); }
-    catch { /* best-effort */ }
-  }, 1500).unref();
+  if (POWERSHELL_SUPPORTED) {
+    setTimeout(() => {
+      try { runPowerShellScript(DECK_POPUP_TOP_SCRIPT, ['-ProcessId', String(pid), '-Title', 'Xenon Search'], 8000).catch(() => {}); }
+      catch { /* best-effort */ }
+    }, 1500).unref();
+  }
   return { ok: true };
 }
 
@@ -844,10 +884,35 @@ function _stopHotkeyListener() {
   p.once('exit', () => clearTimeout(force));
 }
 
+// On Linux the shortcut is not a process we own but an entry in the desktop's
+// own keybinding store, so there is nothing to spawn, supervise or restart —
+// registering is a one-shot write and the state it produces is final until the
+// user changes the combo. Kept out of refreshHotkeyListener's process lifecycle
+// entirely rather than pretended into it.
+const _linuxHotkey = process.platform === 'linux'
+  ? require('./linux-hotkey').createLinuxHotkey({ port: PORT })
+  : null;
+
+function refreshLinuxHotkey(want, combo) {
+  if (!want) {
+    _hotkey.state = 'off';
+    _hotkey.combo = '';
+    _linuxHotkey.unregister().catch(() => { /* nothing registered */ });
+    return;
+  }
+  if (_hotkey.state === 'listening' && _hotkey.combo === combo) return;
+  _hotkey.state = 'starting';
+  _linuxHotkey.register(combo).then((r) => {
+    _hotkey.state = r.state || (r.ok ? 'listening' : 'error');
+    _hotkey.combo = r.ok ? combo : '';
+  }).catch(() => { _hotkey.state = 'error'; _hotkey.combo = ''; });
+}
+
 function refreshHotkeyListener() {
   const cfg = (_serverHubSettings && _serverHubSettings.searchSettings) || {};
   const want = cfg.hotkeyEnabled === true;
   const combo = String(cfg.hotkeyCombo || 'alt+space');
+  if (_linuxHotkey) { refreshLinuxHotkey(want, combo); return; }
   if (!want) { _cancelHotkeyRetry(); _stopHotkeyListener(); _hotkey.state = 'off'; return; }
   if (_hotkey.proc && _hotkey.combo === combo) return;   // already right
   _stopHotkeyListener();
@@ -902,11 +967,42 @@ function refreshHotkeyListener() {
   proc.unref();
 }
 
+// The roots this machine can actually open, from whatever is saved.
+//
+// Roots are stored in whichever shape the machine that saved them uses, and
+// normalizeSearchSettings deliberately keeps BOTH shapes so a config carried
+// between a PC and a Mac is never destroyed. The consequence is that a saved
+// list can be non-empty and still contain nothing this host can open: the
+// dashboard's own browser-side default wrote "C:\" on every Mac and Linux
+// install, and no POSIX walk can start there. Search then ran with zero roots
+// and reported itself off, and the disk widget — which addresses roots BY INDEX
+// into this same list — resolved root 0 to "C:\" and drew an empty 0-byte disk.
+// Both while Settings displayed a configured folder, so there was nothing the
+// user could do about either.
+//
+// Every consumer must therefore resolve through here, or two of them disagree
+// about which disk is being talked about. The saved list is left untouched, so
+// a config shared with a Windows machine still works there.
+//
+// Three distinct states, and collapsing any two of them breaks something:
+//   absent      nobody has chosen yet          → this platform's default
+//   empty       the user switched it off       → stays off
+//   unusable    saved elsewhere, non-empty     → this platform's default
+function usableIndexRoots(saved) {
+  const platformDefault = POWERSHELL_SUPPORTED ? 'C:\\' : os.homedir();
+  if (!Array.isArray(saved)) return [platformDefault];
+  if (!saved.length) return [];
+  const usable = saved.filter((r) => (process.platform === 'win32'
+    ? /^[A-Za-z]:\\/.test(String(r))
+    : String(r).startsWith('/')));
+  return usable.length ? usable : [platformDefault];
+}
+
 // Point the Living Index at the configured roots (idempotent — setRoots
 // restarts the host only when they actually changed).
 function refreshLivingIndex() {
   const cfg = (_serverHubSettings && _serverHubSettings.searchSettings) || {};
-  try { livingIndex.setRoots(cfg.indexRoots || []); } catch { /* helper absent */ }
+  try { livingIndex.setRoots(usableIndexRoots(cfg.indexRoots)); } catch { /* helper absent */ }
 }
 // Disk space (helper-gated, like the Second screen). Scans stream from the
 // helper's disk-scan; deletion is recycle-bin-only through shell-delete after
@@ -916,13 +1012,28 @@ const diskSpace = createDiskSpace({
   dataDir: DATA_DIR,
   helperExe: HELPER_EXE,
   livingIndex,
+  // The recycle-bin delete. Windows and macOS use the helper's `shell-delete`;
+  // Linux has no helper, so cleanup was analysable but not actionable — the
+  // widget could show 700 MB of installers and then refuse to remove one.
+  // `gio trash` is the same promise (reversible, visible in the user's own
+  // Trash) through the freedesktop spec.
+  shellDelete: process.platform === 'linux' ? createLinuxTrash() : undefined,
   getIndexRoots: async () => {
     const s = await readHubSettings();
-    return (s && s.searchSettings && s.searchSettings.indexRoots) || [];
+    // Through the same resolver the index uses. The widget picks a root by its
+    // POSITION in this list, so handing it the raw saved array while the index
+    // walked a different one meant the map was drawn for a disk nobody was
+    // indexing — on this machine, the literal string "C:\".
+    return usableIndexRoots(s && s.searchSettings && s.searchSettings.indexRoots);
   },
   // Reuse the system tile's ten-minute volume cache: the disk widget gets
   // friendly labels/models without adding another recurring PowerShell probe.
   getDriveDetails: () => getDiskDetails(),
+  // Off Windows there are no drive letters to probe, so the volumes the widget
+  // can offer as index roots come from the same collector the disks tile reads
+  // (`/` plus /Volumes on macOS, real mounts on Linux). One enumeration, one
+  // set of labels.
+  getVolumes: nativeCollectors ? () => getAllDisksInfo() : null,
   appRoot: path.join(__dirname, '..'),
   getSettings: async () => {
     const s = await readHubSettings();
@@ -1616,6 +1727,7 @@ function powerShellUtf8Command(command) {
 }
 
 function runPowerShellScript(script, args = [], timeout = 5000) {
+  if (!POWERSHELL_SUPPORTED) return Promise.reject(new Error('unsupported_platform'));
   return new Promise((resolve, reject) => {
     const child = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, ...args], {
       windowsHide: true,
@@ -1711,15 +1823,20 @@ function runHelperOneShot(args, timeout = 8000) {
 // back to windows.ps1 transparently on ANY helper problem (missing, crashed,
 // bad output) — the PowerShell path is the permanent safety net.
 async function runWindowsTool(args, timeout) {
-  if (linuxCollectors) return linuxCollectors.windows(args[0], args[1]);
+  // The helper first, on every platform that has one. On macOS this is not
+  // merely faster than the osascript collector: NSWorkspace needs no permission
+  // at all, while Automation is granted per TARGET APPLICATION, so the
+  // scripted list stays empty until the user has approved each app one by one.
   if (fs.existsSync(HELPER_EXE)) {
     try { return await runHelperOneShot(['windows', ...args], timeout); }
-    catch { /* fall through to the PowerShell path */ }
+    catch { /* fall through to the platform's own path */ }
   }
+  if (nativeCollectors) return nativeCollectors.windows(args[0], args[1]);
   return runPowerShellScript(WINDOWS_SCRIPT, args, timeout);
 }
 
 function runPowerShellCommand(command, timeout = 5000) {
+  if (!POWERSHELL_SUPPORTED) return Promise.reject(new Error('unsupported_platform'));
   return new Promise((resolve, reject) => {
     execFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', powerShellUtf8Command(command)], {
       timeout,
@@ -1820,6 +1937,7 @@ function _killWorker(reason) {
 }
 
 function _ensureWorker() {
+  if (!POWERSHELL_SUPPORTED) return null;
   if (_worker.proc) return _worker.proc;
   let proc;
   try {
@@ -1952,6 +2070,12 @@ function _retireMediaHost(reason) {
 }
 
 function _ensureMediaHost() {
+  // Both hosts read Windows' SMTC: the helper through WinRT, the fallback
+  // through media.ps1. Neither can run elsewhere — macOS and Linux are served
+  // by nativeMedia (see runMediaRequest), so off Windows there is no host here
+  // at all and the caller falls through rather than respawning a doomed child
+  // every few seconds.
+  if (!POWERSHELL_SUPPORTED) return null;
   if (_mediaHost.proc) return _mediaHost.proc;
   if (Date.now() - _mediaHost.diedAt < MEDIA_HOST_RETRY_MS) return null;
   let useHelper = false;
@@ -2087,9 +2211,33 @@ async function _guardHelperMediaBlindSpot(out) {
   return ps;
 }
 
+// Neither host above can run off Windows: there is no SMTC and no PowerShell.
+// Both other platforms have their own now-playing source behind the SAME
+// interface — available/start/stop/info/command — so this is one variable and
+// one branch, the way `nativeCollectors` is. macOS reads mediaremote-adapter,
+// Linux reads MPRIS over D-Bus through playerctl. Started lazily, so a run that
+// never asks for media never spawns anything.
+const nativeMedia =
+  process.platform === 'darwin'
+    ? require('./darwin-media').createDarwinMedia({
+        dir: MEDIAREMOTE_DIR,
+        onChange: () => _onMediaChangedPush(),
+      })
+    : process.platform === 'linux'
+      ? require('./linux-media').createLinuxMedia({ onChange: () => _onMediaChangedPush() })
+      : null;
+
 // Run a media request through the persistent host, falling back to the original
 // one-shot spawn on any host problem. Same parsed-JSON result either way.
 async function runMediaRequest(action, timeout = 8000) {
+  if (nativeMedia) {
+    // Nothing installed to read the OS with → the empty "nothing playing"
+    // shape, not an error. The tile shows its own empty state, and nothing is
+    // spawned or retried.
+    if (!nativeMedia.available()) return nativeMedia.info();
+    nativeMedia.start();                       // idempotent
+    return action === 'info' ? nativeMedia.info() : nativeMedia.command(action);
+  }
   try {
     const out = parseJsonOutput(await runMediaHostRequest(action, timeout));
     // Only 'info' carries sessions, and the guard only applies to the helper.
@@ -2167,10 +2315,13 @@ let gpuPending = null;
 let cpuTempPending = null;
 let mediaPending = null;
 let audioPending = null;
-// STT via ffmpeg — WASAPI preferred (fast init), dshow fallback
+// STT via ffmpeg — WASAPI preferred (fast init), dshow fallback; avfoundation
+// on macOS, where the device is addressed by index rather than by name.
 let _sttDeviceReady = false;
 let _sttUseWasapi   = false;
 let _sttDshowDevice = null;
+let _sttAvfIndex    = null; // macOS avfoundation audio device index, as a string
+let _sttLinuxFormat = null; // 'pulse' | 'alsa' — which one this ffmpeg knows
 let _boundMicLabel  = null; // mic label we last bound to. Drives re-init on device changes.
 const _sttDeviceWaiters = [];
 const _sttPending = new Map(); // id → { ffmpegProc, wavPath, recordingStarted, resolveRecording, recordingSaved, resolveSaved }
@@ -2303,7 +2454,7 @@ function makeCsvPath() {
 }
 
 function readSoundVolumeRows() {
-  if (linuxCollectors) return linuxCollectors.audioRows();
+  if (nativeCollectors) return nativeCollectors.audioRows();
   return new Promise((resolve, reject) => {
     const csv = makeCsvPath();
     execFile(SVV, ['/scomma', csv, '/AvoidPrompts'], { timeout: 6000 }, err => {
@@ -3327,7 +3478,7 @@ async function getCpuTemp() {
 
   cpuTempPending = (async () => {
     try {
-      const data = linuxCollectors ? await linuxCollectors.cpuTemp() : await runCollector(CPU_TEMP_SCRIPT, [], 10000);
+      const data = nativeCollectors ? await nativeCollectors.cpuTemp() : await runCollector(CPU_TEMP_SCRIPT, [], 10000);
       // Windows PowerShell 5.1 can unwrap a single-element array on serialize.
       let fans = data.fans;
       if (fans && !Array.isArray(fans)) fans = [fans];
@@ -3364,7 +3515,7 @@ async function getGpuInfo() {
   if (gpuPending) return gpuPending;
   gpuPending = (async () => {
   try {
-    const data = linuxCollectors ? await linuxCollectors.gpu() : await runCollector(GPU_SCRIPT, [], 12000);
+    const data = nativeCollectors ? await nativeCollectors.gpu() : await runCollector(GPU_SCRIPT, [], 12000);
     gpuCache = {
       gpu: data.gpu === null || data.gpu === undefined ? gpuCache.gpu : data.gpu,
       gpuName: data.gpuName || gpuCache.gpuName || null,
@@ -3453,7 +3604,7 @@ let _diskLettersCache = { letters: null, at: 0 };
 const DISK_LETTERS_TTL = 60 * 1000;
 
 async function getAllDisksInfo() {
-  if (linuxCollectors) return linuxCollectors.disks();
+  if (nativeCollectors) return nativeCollectors.disks();
   const drives = [];
   const details = await getDiskDetails();
   // Probing all 24 letters with statfs every cycle (~7s) is wasteful — valid
@@ -3559,10 +3710,17 @@ async function getRamInfo() {
 }
 
 async function getSystemInfo() {
-  const [gpu, disks, ramInfo, cpuTemp] = await Promise.all([getGpuInfo(), getAllDisksInfo(), getRamInfo(), getCpuTemp()]);
-  const totalMem = os.totalmem();
-  const freeMem = os.freemem();
-  const usedMem = totalMem - freeMem;
+  const [gpu, disks, ramInfo, cpuTemp, mem] = await Promise.all([
+    getGpuInfo(), getAllDisksInfo(), getRamInfo(), getCpuTemp(),
+    // os.freemem() is ullAvailPhys on Windows — already "what a new workload
+    // could get" — but only the truly free pages on macOS and Linux, where the
+    // OS keeps that near zero on purpose. Same call, different meaning, so the
+    // seam answers it per platform (see each collector's `memory()`); Windows
+    // keeps the os module it always used.
+    nativeCollectors ? nativeCollectors.memory() : null,
+  ]);
+  const totalMem = (mem && mem.total) || os.totalmem();
+  const usedMem = mem ? mem.used : totalMem - os.freemem();
 
   // Fans: motherboard/CPU headers from the cpu collector (RPM), plus the GPU's
   // own fans — LHM gives RPM, nvidia-smi only a percent, so a fan entry carries
@@ -3623,6 +3781,13 @@ async function getSystemInfo() {
     fans,
     power,
     disks,
+    // Which OS is answering. Tiles that have to explain an absence need it:
+    // "no fan sensors" is a different sentence on a PC (install the companion,
+    // re-run the installer) than on a Linux box, where the kernel publishes
+    // every tachometer it can see and there is nothing to install. Sent with
+    // the readings so a tile never has to render its explanation before it
+    // knows which one is true.
+    platform: process.platform,
   };
 }
 
@@ -3643,7 +3808,7 @@ async function _getNetworkInfoRaw() {
   // worker, delaying every other queued sensor read.
   let skipFps = false;
   try { skipFps = fpsMonitor.isAvailable(); } catch { skipFps = false; }
-  const data = linuxCollectors ? await linuxCollectors.network() : await runCollector(NETWORK_SCRIPT, skipFps ? ['-SkipFps'] : [], 8000);
+  const data = nativeCollectors ? await nativeCollectors.network() : await runCollector(NETWORK_SCRIPT, skipFps ? ['-SkipFps'] : [], 8000);
   const now = Date.now();
   const rx = Number(data.rxBytes) || 0;
   const tx = Number(data.txBytes) || 0;
@@ -3957,7 +4122,7 @@ function setMicMute(mute) {
 // wpctl. Every SVV call site goes through here, so there is no execFile shadow
 // and no platform check scattered through the audio code.
 function svvExec(args) {
-  if (linuxCollectors) return linuxCollectors.audioCommand(args);
+  if (nativeCollectors) return nativeCollectors.audioCommand(args);
   return new Promise((resolve, reject) => execFile(SVV, args, e => (e ? reject(e) : resolve())));
 }
 
@@ -4544,15 +4709,99 @@ function resolveExecInDir(dir) {
   } catch { return ''; }
 }
 
-// Lock the Windows session. Single source of truth for the LockWorkStation call,
-// shared by the Deck lockWorkstation action, the AI lock_pc tool, the /lock
-// endpoint and the idle auto-lock flow. execFile with an argv array — never a
-// shell string.
+// Lock the session. Single source of truth for the lock call, shared by the
+// Deck lockWorkstation action, the AI lock_pc tool, the /lock endpoint and the
+// idle auto-lock flow. execFile with an argv array — never a shell string.
 function lockWorkstation() {
+  // Locking is per-platform in a way no single command spans, so it goes
+  // through the collector seam like every other such reading — this used to
+  // branch here on process.platform and pointed macOS at a CGSession binary the
+  // OS has since removed, which is exactly the drift the seam exists to stop.
+  if (nativeCollectors) return nativeCollectors.lock();
   return new Promise((resolve, reject) => {
     execFile('rundll32.exe', ['user32.dll,LockWorkStation'], { windowsHide: true }, (err) => {
       if (err) reject(err); else resolve();
     });
+  });
+}
+
+// Open a file, folder or URL with the system handler — the single place that
+// answers "hand this to the desktop". On Windows it is deck-actions.ps1's `open`
+// verb (Start-Process); macOS has `open` and Linux `xdg-open`, which do the same
+// job natively. Every call is an argv array, never a shell string.
+//
+// Every caller that opens something on the user's behalf goes through here: the
+// Deck registry, the Spotlight search results, Performance Mode and the
+// Start-Menu app launcher. Reaching for runPowerShellScript directly is how one
+// of them ends up working on Windows and failing everywhere else.
+function openExternalPath(p) {
+  if (process.platform === 'win32') {
+    return runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000);
+  }
+  // `--` ends option parsing on macOS, so a file whose name begins with a dash
+  // cannot become a flag. xdg-open has no such separator — it rejects `--` as an
+  // unknown option — so Linux passes the path alone. Everything that reaches
+  // here has already been validated: a path the registry proved exists, or an
+  // http(s) URL. A stored path is absolute in practice, and a leading-dash
+  // relative one degrades to xdg-open's own syntax error rather than anything
+  // being run.
+  const posix = process.platform === 'darwin'
+    ? ['/usr/bin/open', ['--', String(p)]]
+    : ['xdg-open', [String(p)]];
+  return new Promise((resolve, reject) => {
+    execFile(posix[0], posix[1], { timeout: 8000 }, (err) => {
+      if (err) reject(err); else resolve({ ok: true });
+    });
+  });
+}
+
+// The interpreter a user script runs under, by extension. The Windows set lives
+// in deck-actions.ps1; this is its POSIX twin, and it must cover exactly the
+// extensions actions/registry.js accepts off Windows — an extension the gate
+// lets through and this table has no entry for would be a key that validates
+// and then fails, which is the worst of both. AppleScript is the one darwin-only
+// pair: there is no osascript to hand it to anywhere else.
+const POSIX_SCRIPT_RUNNERS = {
+  '.sh': ['/bin/sh'],
+  '.command': ['/bin/sh'],
+  '.zsh': ['/bin/zsh'],
+  '.bash': ['/bin/bash'],
+  '.py': ['/usr/bin/env', 'python3'],
+  '.pyw': ['/usr/bin/env', 'python3'],
+  '.js': ['/usr/bin/env', 'node'],
+  '.cjs': ['/usr/bin/env', 'node'],
+  '.mjs': ['/usr/bin/env', 'node'],
+  '.rb': ['/usr/bin/env', 'ruby'],
+  '.pl': ['/usr/bin/env', 'perl'],
+  '.php': ['/usr/bin/env', 'php'],
+  '.lua': ['/usr/bin/env', 'lua'],
+  '.r': ['/usr/bin/env', 'Rscript'],
+  '.jar': ['/usr/bin/env', 'java', '-jar'],
+  ...(process.platform === 'darwin' ? {
+    '.scpt': ['/usr/bin/osascript'],
+    '.applescript': ['/usr/bin/osascript'],
+  } : {}),
+};
+function runUserScript(p, hidden) {
+  if (process.platform === 'win32') {
+    return runPowerShellScript(DECK_ACTIONS_SCRIPT, ['runscript', p, hidden ? 'hidden' : 'visible'], 8000);
+  }
+  const ext = path.extname(String(p)).toLowerCase();
+  const runner = POSIX_SCRIPT_RUNNERS[ext];
+  if (!runner) return Promise.reject(new Error(`no interpreter for "${ext}" on this platform`));
+  return new Promise((resolve, reject) => {
+    // Detached, like the Windows path: a Deck key starts a script, it does not
+    // wait for it. stdio is discarded so a chatty script cannot fill a pipe and
+    // wedge on a full buffer.
+    try {
+      const child = spawn(runner[0], [...runner.slice(1), String(p)], {
+        detached: true,
+        stdio: 'ignore',
+      });
+      child.on('error', reject);
+      child.unref();
+      resolve({ ok: true });
+    } catch (e) { reject(e); }
   });
 }
 
@@ -4573,17 +4822,21 @@ const deckRegistryDeps = {
     }
     return signalrgb.applyEffect(effect);
   },
-  openExternal: (p) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000),
-  // Run a user-configured .bat/.cmd/.ps1/.py (the runScript action), in a visible
-  // or hidden window. The path is validated to a real script in the registry
-  // before it reaches here.
-  runScript: (p, hidden) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['runscript', p, hidden ? 'hidden' : 'visible'], 8000),
+  openExternal: (p) => openExternalPath(p),
+  // Run a user-configured script (the runScript action), in a visible or hidden
+  // window where the platform has the concept. The path is validated to a real
+  // script in the registry before it reaches here.
+  runScript: (p, hidden) => runUserScript(p, hidden),
   // Resolve a folder target (the app's install dir) to its launch executable, so
   // a Deck "open app" key pointed at a folder (e.g. Discord's) still launches.
   resolveAppDir: (p) => resolveExecInDir(p),
   // Launch a Store/UWP app by AppUserModelID (shell:AppsFolder\<aumid>). The AUMID is
-  // validated in the registry before reaching this dep.
-  openStoreApp: (aumid) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['openapp', aumid], 8000),
+  // validated in the registry before reaching this dep. Left undefined off
+  // Windows: there is no UWP anywhere else, and the registry turns a missing
+  // dep into a clean 'unavailable' rather than a failed spawn.
+  openStoreApp: POWERSHELL_SUPPORTED
+    ? (aumid) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['openapp', aumid], 8000)
+    : undefined,
   mediaAction: (cmd) => mediaAction(cmd),
   micMute: async (mode) => {
     if (mode === 'mute') isMuted = true;
@@ -4855,7 +5108,7 @@ const deckRegistry = createRegistry(deckRegistryDeps);
 // window helper does the graceful close and protected-process refusal.
 const perfRegistry = createPerfRegistry({
   closeWindow: (id) => runWindowsTool(['close', id], 8000),
-  openExternal: (p) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['open', p], 8000),
+  openExternal: (p) => openExternalPath(p),
   fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
   setPriority: (name, level) => runPowerShellScript(PERF_PRIORITY_SCRIPT, ['set', name, level === 'high' ? 'high' : 'normal'], 6000),
 });
@@ -5081,6 +5334,24 @@ async function listScreens() {
   }
 }
 
+// Cap a capture's width in place, the way the ffmpeg filter
+// (scale='min(maxWidth,iw)') does elsewhere. screencapture writes the display's
+// BACKING resolution, so a Retina panel produces a 5K JPEG where the same call
+// on Windows produces a 1920-wide one — several megabytes of base64 on every AI
+// vision request. sips ships with macOS, and reading the width first keeps it
+// from doing the one thing `min()` never does: enlarge a smaller capture.
+async function _capShrinkToWidth(file, maxWidth) {
+  try {
+    const { stdout } = await execFilePromise('/usr/bin/sips', ['-g', 'pixelWidth', file], { timeout: 8000 });
+    const m = String(stdout || '').match(/pixelWidth:\s*(\d+)/);
+    if (!m || Number(m[1]) <= maxWidth) return;
+    await execFilePromise('/usr/bin/sips', ['--resampleWidth', String(maxWidth), file], { timeout: 15000 });
+  } catch {
+    // A capture at full resolution is still a usable capture — never fail the
+    // screenshot over the size of it.
+  }
+}
+
 // Capture a screenshot; `monitor` is an optional {x,y,width,height} region.
 // Returns base64 JPEG.
 //
@@ -5094,12 +5365,49 @@ async function captureScreenshot(monitor, opts) {
   const quality = String(Math.min(31, Math.max(1, Math.trunc(Number(opts && opts.quality)) || 3)));
   const tmpPath = path.join(os.tmpdir(), `xenon_ss_${Date.now()}.jpg`);
   try {
-    const ffmpeg = getFfmpegPath();
-    const ffmpegArgs = ['-y', '-f', 'gdigrab', '-framerate', '1'];
-    if (monitor && monitor.width > 0 && monitor.height > 0) {
-      ffmpegArgs.push('-offset_x', String(monitor.x), '-offset_y', String(monitor.y), '-video_size', `${monitor.width}x${monitor.height}`);
+    if (process.platform === 'darwin') {
+      // screencapture is built in and needs no ffmpeg: -x silences the shutter,
+      // -t jpg matches what the callers expect. It captures the main display;
+      // -R takes a region in global screen coordinates, which is exactly the
+      // rectangle the monitor picker already hands us.
+      const args = ['-x', '-t', 'jpg'];
+      if (monitor && monitor.width > 0 && monitor.height > 0) {
+        args.push('-R', `${monitor.x},${monitor.y},${monitor.width},${monitor.height}`);
+      }
+      args.push(tmpPath);
+      // Without the Screen Recording grant macOS writes a desktop-picture-only
+      // image rather than failing, so there is nothing to detect here — the
+      // grant is a first-run prompt the user answers once.
+      await execFilePromise('/usr/sbin/screencapture', args, { timeout: 15000 });
+      await _capShrinkToWidth(tmpPath, maxWidth);
+      const shot = await fs.promises.readFile(tmpPath);
+      return shot.toString('base64');
     }
-    ffmpegArgs.push('-i', 'desktop', '-vframes', '1', '-q:v', quality, '-vf', `scale='min(${maxWidth},iw)':-2`, tmpPath);
+    const ffmpeg = getFfmpegPath();
+    const ffmpegArgs = ['-y'];
+    if (process.platform === 'linux') {
+      // x11grab addresses a screen as DISPLAY plus an optional +x,y origin, and
+      // takes the whole screen when no size is given. There is deliberately no
+      // Wayland path: capturing there goes through the xdg-desktop-portal
+      // screencast API, which is a permission dialog and a PipeWire stream, not
+      // an ffmpeg input — so under Wayland this fails and says so, rather than
+      // silently returning someone's idea of a screen.
+      const display = process.env.DISPLAY || ':0.0';
+      ffmpegArgs.push('-f', 'x11grab', '-framerate', '1');
+      if (monitor && monitor.width > 0 && monitor.height > 0) {
+        ffmpegArgs.push('-video_size', `${monitor.width}x${monitor.height}`);
+        ffmpegArgs.push('-i', `${display}+${monitor.x || 0},${monitor.y || 0}`);
+      } else {
+        ffmpegArgs.push('-i', display);
+      }
+    } else {
+      ffmpegArgs.push('-f', 'gdigrab', '-framerate', '1');
+      if (monitor && monitor.width > 0 && monitor.height > 0) {
+        ffmpegArgs.push('-offset_x', String(monitor.x), '-offset_y', String(monitor.y), '-video_size', `${monitor.width}x${monitor.height}`);
+      }
+      ffmpegArgs.push('-i', 'desktop');
+    }
+    ffmpegArgs.push('-vframes', '1', '-q:v', quality, '-vf', `scale='min(${maxWidth},iw)':-2`, tmpPath);
     await execFilePromise(ffmpeg, ffmpegArgs, { timeout: 15000 });
     const imgBuffer = await fs.promises.readFile(tmpPath);
     return imgBuffer.toString('base64');
@@ -5219,7 +5527,23 @@ function _geminiOneShot(apiKey, parts, systemText, maxTokens = 512) {
   });
 }
 
-// Play a WAV file via Windows SoundPlayer (synchronous, focus-independent).
+// Spawn a blocking, focus-independent WAV player for the current platform.
+// Windows: SoundPlayer.PlaySync() through PowerShell. Elsewhere: afplay on
+// macOS (built in), aplay on Linux. The Windows one-liner also deletes the file
+// on a clean exit; the others leave that to the caller, which unlinks anyway.
+function _spawnWavPlayer(wavPath) {
+  if (process.platform === 'darwin') {
+    return spawn('/usr/bin/afplay', [wavPath]);
+  }
+  if (process.platform === 'linux') {
+    return spawn('aplay', ['-q', wavPath]);
+  }
+  const ps = `(New-Object System.Media.SoundPlayer -ArgumentList '${wavPath}').PlaySync();` +
+             `try { Remove-Item -LiteralPath '${wavPath}' -Force -EA SilentlyContinue } catch {}`;
+  return spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true });
+}
+
+// Play a WAV file (synchronous playback, focus-independent).
 // Resolves when playback finishes or is cancelled. Honours the cancel token.
 // `duck`/`broadcast`/`restore` let the chunked path duck the media volume and
 // announce speak_start ONCE (first chunk) and restore ONCE (after the last),
@@ -5229,9 +5553,7 @@ function _playWavFile(wavPath, myToken, { duck = true, broadcast = true, restore
     if (_speakGenToken !== myToken) { fs.promises.unlink(wavPath).catch(() => {}); return resolve(); }
     if (duck) _duckSpeakerVolume(); // lower music/media volume while Xenon speaks
     if (broadcast) broadcastSSE('speak_start', {}); // tell the UI the voice is actually starting now
-    const ps = `(New-Object System.Media.SoundPlayer -ArgumentList '${wavPath}').PlaySync();` +
-               `try { Remove-Item -LiteralPath '${wavPath}' -Force -EA SilentlyContinue } catch {}`;
-    const psProc = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true });
+    const psProc = _spawnWavPlayer(wavPath);
     _speakProc = psProc;
     let _settled = false;
     const done = () => {
@@ -5378,7 +5700,17 @@ async function _persistLighting() {
 const PC_ACTION_TTL_MS = 5 * 60 * 1000;
 const PC_ACTION_TIMEOUT_MS = 60 * 1000;
 const _pcActions = new Map(); // nonce -> { command, purpose, ts }
+// PC Control is a PowerShell feature, not merely a Windows-first one: the
+// command the AI writes is PowerShell, the confirmation card shows the user
+// PowerShell, and the runner below spawns it directly rather than through
+// runPowerShellScript — so it is the one place POWERSHELL_SUPPORTED does not
+// already answer for. Off Windows it therefore reports itself disabled at both
+// gates and is never offered to the model, instead of proposing a command,
+// getting the user to approve it, and failing with a spawn ENOENT. Turning it
+// on elsewhere means giving the AI a POSIX shell, which is a product decision
+// about a much larger blast radius, not a translation of this code.
 function _pcControlEnabled() {
+  if (!POWERSHELL_SUPPORTED) return false;
   const f = _serverHubSettings && _serverHubSettings.aiFeatures;
   return !!(f && f.enabled === true && f.pcControl === true);
 }
@@ -6263,9 +6595,13 @@ function playChimeOnServer(kind) {
   }
   const wavPath = path.join(os.tmpdir(), `xenon-chime-${k}.wav`);
   fs.promises.writeFile(wavPath, _chimeCache[k]).then(() => {
-    const ps = "(New-Object System.Media.SoundPlayer -ArgumentList '" + wavPath + "').PlaySync();";
-    const proc = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true });
+    const proc = _spawnWavPlayer(wavPath);
     proc.on('error', () => {});
+    // On Windows the player one-liner removes the file itself; afplay/aplay do
+    // not, and this is the one caller that never unlinks (_playWavFile does).
+    if (process.platform !== 'win32') {
+      proc.on('exit', () => { fs.promises.unlink(wavPath).catch(() => {}); });
+    }
   }).catch(() => {});
 }
 
@@ -6285,6 +6621,13 @@ function execFilePromise(file, args, options = {}) {
 
 function getFfmpegPath() {
   if (process.env.XEH_FFMPEG) return process.env.XEH_FFMPEG;
+  if (process.platform !== 'win32') {
+    // Homebrew's two prefixes (Apple Silicon, then Intel) before falling back
+    // to PATH — a LaunchAgent starts with a minimal PATH that often lacks both.
+    const unixCandidates = ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/usr/bin/ffmpeg'];
+    const found = unixCandidates.find(candidate => fs.existsSync(candidate));
+    return found || 'ffmpeg';
+  }
   const localCandidates = [
     path.join(__dirname, 'ffmpeg.exe'),
     path.join(__dirname, 'ffmpeg', 'bin', 'ffmpeg.exe'),
@@ -6670,7 +7013,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // read locally via ffmpeg + whisper.cpp while a dashboard is open; nothing
   // leaves the PC.
   wakeWord: Object.freeze({ enabled: false }),
-  searchSettings: Object.freeze({ indexRoots: Object.freeze(['C:\\']), hotkeyEnabled: false, hotkeyCombo: 'alt+space', aiFullContext: false }),
+  // indexRoots defaults per platform for the reason spelled out in
+  // normalizeSearchSettings: "C:\" is not a path off Windows, and a default the
+  // validator there would reject leaves the index permanently off.
+  searchSettings: Object.freeze({ indexRoots: Object.freeze([POWERSHELL_SUPPORTED ? 'C:\\' : os.homedir()]), hotkeyEnabled: false, hotkeyCombo: 'alt+space', aiFullContext: false }),
   diskSettings: Object.freeze({ devFolders: Object.freeze([]), installerAgeDays: 30 }),
   bgAurora: Object.freeze({ enabled: true, intensity: 55, speed: 50 }),
   bgGrid: Object.freeze({ enabled: true, color: '#1ed760', intensity: 45, speed: 50 }),
@@ -7400,28 +7746,56 @@ function normalizeWakeWord(value) {
 // server-side and search results address by opaque id, so this list is the
 // only place a path exists. The global hotkey is helper-gated and OFF by
 // default (it registers a system-wide key).
-function normalizeSearchSettings(value) {
+function normalizeSearchSettings(value, defaultRoot) {
   const v = value && typeof value === 'object' ? value : {};
   // indexRoots: the Living Index roots (drives or folders). Migration: older
   // saves carried extraFolders (the retired one-shot crawl) — adopt them.
-  // Never-set → default to the WHOLE system drive (product decision: the
-  // living experience out of the box); an explicitly emptied list means the
-  // user turned the index off and stays empty.
+  // Never-set → default to the whole system drive on Windows, and to the
+  // user's HOME elsewhere (`defaultRoot`): the POSIX analogue of "the system
+  // drive" would walk /System and /Applications, millions of entries the index
+  // caps out on, none of which is a file the user is looking for. An
+  // explicitly emptied list means the user turned the index off and stays empty.
   const rawRoots = Array.isArray(v.indexRoots) ? v.indexRoots
     : (Array.isArray(v.extraFolders) && v.extraFolders.length ? v.extraFolders : null);
-  // Separators are normalized to backslashes here, once: every consumer
-  // downstream (the disk overview's root prefix test, registerBrowsePath, the
-  // guard) compares against backslash paths, so a root saved as "C:/Projects"
-  // passed validation and then matched nothing — an empty treemap with no
-  // explanation.
-  const roots = rawRoots == null ? ['C:\\'] : rawRoots
-    .map((f) => String(f || '').trim().slice(0, 260).replace(/\//g, '\\'))
-    .filter((f) => /^[A-Za-z]:\\?$|^[A-Za-z]:\\.+/.test(f))
-    .map((f) => (f.length === 2 ? f + '\\' : f))
-    .slice(0, 8);
+  // A root is either a Windows drive path or a POSIX absolute one, and BOTH
+  // shapes are accepted on both sides whatever the machine is. That is not
+  // laxity: this same function runs in the BROWSER, which cannot know what the
+  // host is, so a validator that guessed would silently drop the user's root
+  // on the next settings save. The platform decides only the DEFAULT, which
+  // the server passes in.
+  //
+  // The separator rewrite applies to the Windows shape ONLY. Off Windows a
+  // backslash is a legal filename character, and rewriting "/" there turned
+  // "/Users/me" into "\Users\me", which then failed the drive-letter test —
+  // so indexRoots could never hold anything but the default "C:\", which does
+  // not exist on a Mac. The Living Index therefore never started, and search
+  // AND the disk widget (which addresses these same roots by index) were both
+  // dead with nothing the user could type to fix it.
+  const cleanRoot = (raw) => {
+    const s = String(raw || '').trim().slice(0, 4096);
+    // A single leading slash is POSIX; two is a UNC share, which is not a
+    // local root and stays rejected as it always was.
+    if (/^\/(?!\/)/.test(s)) return s.length > 1 ? s.replace(/\/+$/, '') : s;
+    // Every Windows consumer downstream (the disk overview's root prefix test,
+    // registerBrowsePath, the guard) compares backslash paths, so a root saved
+    // as "C:/Projects" passed validation and then matched nothing — an empty
+    // treemap with no explanation.
+    const w = s.slice(0, 260).replace(/\//g, '\\');
+    if (!/^[A-Za-z]:\\?$|^[A-Za-z]:\\.+/.test(w)) return '';
+    return w.length === 2 ? w + '\\' : w;
+  };
+  // No `|| 'C:\\'` fallback. A caller that knows the machine passes
+  // `defaultRoot`; one that does not must get NO root rather than a Windows
+  // drive letter, because the copy of this function that runs in the browser
+  // is exactly such a caller, and its guess was written to settings.json on
+  // every Mac and Linux install — a root nothing could walk, with Settings
+  // showing it as configured the whole time.
+  const roots = rawRoots == null
+    ? (defaultRoot ? [defaultRoot] : null)
+    : rawRoots.map(cleanRoot).filter(Boolean).slice(0, 8);
   const combo = String(v.hotkeyCombo || 'alt+space').toLowerCase().trim().slice(0, 40);
   return {
-    indexRoots: roots,
+    ...(roots ? { indexRoots: roots } : {}),
     hotkeyEnabled: v.hotkeyEnabled === true,
     hotkeyCombo: /^[a-z0-9+ ]{3,40}$/.test(combo) ? combo : 'alt+space',
     // AI full context ("the brain"): enriches explicit AI search / Disk Advisor
@@ -7655,7 +8029,10 @@ function normalizeHubSettings(value) {
     discordNotifications: normalizeDiscordNotifications(source.discordNotifications),
     windowsNotifications: normalizeWindowsNotifications(source.windowsNotifications),
     wakeWord: normalizeWakeWord(source.wakeWord),
-    searchSettings: normalizeSearchSettings(source.searchSettings),
+    // The server is the one side that knows the machine, so it supplies the
+    // never-set default; the browser's copy of this normalizer keeps whatever
+    // the server already chose.
+    searchSettings: normalizeSearchSettings(source.searchSettings, POWERSHELL_SUPPORTED ? 'C:\\' : os.homedir()),
     diskSettings: normalizeDiskSettings(source.diskSettings),
     bgAurora: normalizeBgAurora(source.bgAurora),
     bgGrid: normalizeBgGrid(source.bgGrid),
@@ -8693,7 +9070,8 @@ winNotif.init({
     // whole picture so every open tile repaints without a fetch.
     broadcastSSE('windows_notifications', {
       enabled: winNotifWanted(),
-      state: winNotif.getState(),
+      supported: winNotif.isSupported(),
+      state: winNotif.reportedState(),
       items: winNotif.getFeed(),
     });
   },
@@ -8774,8 +9152,24 @@ function wakeWordWanted() {
 // Single source of truth for the STT/wake microphone input argv — the wake
 // listener must always open the same device the STT recorder binds.
 function _sttInputArgs() {
+  // avfoundation addresses inputs as "<video>:<audio>"; the empty video half is
+  // what keeps this an audio-only capture.
+  if (_sttAvfIndex !== null) return ['-f', 'avfoundation', '-i', `:${_sttAvfIndex}`];
+  if (_sttLinuxFormat) return ['-f', _sttLinuxFormat, '-i', 'default'];
   if (_sttUseWasapi) return ['-f', 'wasapi', '-i', 'default'];
   return _sttDshowDevice ? ['-f', 'dshow', '-i', `audio=${_sttDshowDevice}`] : null;
+}
+// How the mic is being captured, for the logs and the mic-test readout.
+function _sttVia() {
+  if (_sttAvfIndex !== null) return 'avfoundation';
+  if (_sttLinuxFormat) return _sttLinuxFormat;
+  return _sttUseWasapi ? 'wasapi' : 'dshow';
+}
+function _sttDeviceLabel() {
+  if (_sttAvfIndex !== null) return cachedMicLabel || `Input ${_sttAvfIndex}`;
+  if (_sttLinuxFormat) return cachedMicLabel || `Default (${_sttLinuxFormat})`;
+  if (_sttUseWasapi) return cachedMicLabel || 'Default (WASAPI)';
+  return _sttDshowDevice || 'unknown';
 }
 wakeWord.init({
   getFfmpegPath,
@@ -10140,8 +10534,99 @@ async function _enumSttDevice() {
   return names;
 }
 
+// ffmpeg prints avfoundation's inventory to stderr, video block first:
+//   [AVFoundation indev @ 0x…] AVFoundation audio devices:
+//   [AVFoundation indev @ 0x…] [0] MacBook Pro Microphone
+// Only the audio block is ours — the video one carries its own [0].
+function _parseAvfAudioDevices(stderr) {
+  const devices = [];
+  let inAudio = false;
+  for (const line of String(stderr || '').split(/\r?\n/)) {
+    if (/AVFoundation video devices:/i.test(line)) { inAudio = false; continue; }
+    if (/AVFoundation audio devices:/i.test(line)) { inAudio = true; continue; }
+    if (!inAudio) continue;
+    const m = line.match(/\[(\d+)\]\s+(.+?)\s*$/);
+    if (m) devices.push({ index: m[1], name: m[2] });
+  }
+  return devices;
+}
+
+// Does this ffmpeg build know an input format? Listing always "fails" (there is
+// no device to open), so the exit code says nothing — the refusal to recognise
+// the format does, and it is the only cheap way to tell a build with pulse
+// support from one without.
+function _ffmpegKnowsFormat(ffmpeg, fmt) {
+  return new Promise((resolve) => {
+    let stderr = '';
+    let p;
+    try {
+      p = spawn(ffmpeg, ['-hide_banner', '-f', fmt, '-list_devices', 'true', '-i', 'dummy'], { windowsHide: true });
+    } catch { resolve(false); return; }
+    p.stderr.setEncoding('utf8');
+    p.stderr.on('data', (d) => { stderr += d; });
+    p.on('exit', () => resolve(!/Unknown input format/i.test(stderr)));
+    p.on('error', () => resolve(false));
+    setTimeout(() => { try { p.kill(); } catch {} resolve(!/Unknown input format/i.test(stderr)); }, 4000);
+  });
+}
+
 async function _initSttDevice() {
   const ffmpeg = getFfmpegPath();
+
+  if (process.platform === 'darwin') {
+    try {
+      const stderr = await new Promise(resolve => {
+        let buf = '';
+        // Listing always "fails" (there is no input to open), so the exit code
+        // is meaningless here — the inventory it printed on the way out is not.
+        const p = spawn(ffmpeg, ['-hide_banner', '-f', 'avfoundation', '-list_devices', 'true', '-i', ''], { windowsHide: true });
+        p.stderr.setEncoding('utf8');
+        p.stderr.on('data', d => { buf += d; });
+        p.on('exit', () => resolve(buf));
+        p.on('error', () => resolve(''));
+        setTimeout(() => { try { p.kill(); } catch {} resolve(buf); }, 4000);
+      });
+      const devices = _parseAvfAudioDevices(stderr);
+      if (devices.length) {
+        // Prefer the device the mixer says is the default input, so the wake
+        // word and the recorder follow the mic the user actually picked.
+        let chosen = null;
+        if (cachedMicLabel) {
+          const lbl = cachedMicLabel.toLowerCase();
+          chosen = devices.find(d => d.name.toLowerCase().includes(lbl));
+        }
+        _sttAvfIndex = (chosen || devices[0]).index;
+        process.stdout.write(`[STT] avfoundation input [${_sttAvfIndex}] "${(chosen || devices[0]).name}"\n`);
+      } else {
+        process.stdout.write('[STT] No avfoundation audio input found (ffmpeg missing, or Microphone permission not granted)\n');
+      }
+    } catch (e) {
+      process.stdout.write('[STT] Device init error: ' + e.message + '\n');
+    }
+    _sttDeviceReady = true;
+    _boundMicLabel = cachedMicLabel || (_sttAvfIndex !== null ? `__avf_${_sttAvfIndex}__` : null);
+    _sttDeviceWaiters.splice(0).forEach(cb => cb());
+    return;
+  }
+
+  if (process.platform === 'linux') {
+    // pulse before alsa, deliberately. PipeWire and PulseAudio both expose the
+    // pulse API, `default` follows the input the user actually picked in the
+    // mixer, and it captures while the sound server holds the device — a raw
+    // alsa grab usually cannot, because the card is already open.
+    try {
+      if (await _ffmpegKnowsFormat(ffmpeg, 'pulse')) _sttLinuxFormat = 'pulse';
+      else if (await _ffmpegKnowsFormat(ffmpeg, 'alsa')) _sttLinuxFormat = 'alsa';
+      if (_sttLinuxFormat) process.stdout.write(`[STT] ${_sttLinuxFormat} input "default"\n`);
+      else process.stdout.write('[STT] ffmpeg knows neither pulse nor alsa — voice input is unavailable\n');
+    } catch (e) {
+      process.stdout.write('[STT] Device init error: ' + e.message + '\n');
+    }
+    _sttDeviceReady = true;
+    _boundMicLabel = cachedMicLabel || (_sttLinuxFormat ? `__${_sttLinuxFormat}__` : null);
+    _sttDeviceWaiters.splice(0).forEach(cb => cb());
+    return;
+  }
 
   // Probe WASAPI support — if ffmpeg knows the format, use it (fast init ~200ms)
   let wasapiOk = false;
@@ -10197,7 +10682,8 @@ function _sttDeviceWhenReady() {
 // different mic (e.g. plugging in a headset) had no effect and recordings kept
 // reading the old — often silent — device ("detected and active but doesn't hear
 // me"). The WASAPI path uses "default" and already follows the change on its own,
-// so we only rebind for dshow. Debounced and skipped while a recording is live.
+// so we only rebind for the paths that pin a device: dshow by name, avfoundation
+// by index. Debounced and skipped while a recording is live.
 let _sttRebindTimer = null;
 function _maybeRebindSttDevice() {
   if (!_sttDeviceReady || _sttUseWasapi) return;          // wasapi follows "default" already
@@ -10767,9 +11253,17 @@ const handleRequest = async (req, res) => {
     // Game mode runs off foreground full-screen detection (no PresentMon needed).
     // PresentMon is reported only so Settings can offer the optional FPS-readout
     // install button. The foreground field is a live diagnostic for false positives.
+    //
+    // fpsBackend names WHICH reader is behind that flag, because the two are not
+    // interchangeable: PresentMon is a download Xenon can perform, MangoHud is a
+    // package the user installs and then has to launch the game with. Settings
+    // has to offer a button for one and an explanation for the other, and it
+    // cannot tell them apart from an availability boolean alone.
     try {
       json({
         presentMonAvailable: fpsMonitor.isAvailable(),
+        fpsBackend: fpsMonitor.backend || null,
+        fpsAvailable: fpsMonitor.isAvailable(),
         gaming: gameDetect.isGaming(),
         gameRunning: gameDetect.isGameRunning(),
         gameProcess: gameDetect.getGameProcess(),
@@ -11096,7 +11590,11 @@ const handleRequest = async (req, res) => {
     // One-click download of the classic single-binary PresentMon CLI (the same
     // v1.10.0 asset install.ps1 fetches), placed in server/presentmon/.
     try {
-      if (fpsMonitor.isAvailable()) { json({ ok: true, alreadyInstalled: true }); }
+      // PresentMon is a Windows ETW tool: there is no build to fetch anywhere
+      // else, and the download itself is written in PowerShell. Refusing by name
+      // beats letting the client discover it through a spawn failure.
+      if (process.platform !== 'win32') { json({ ok: false, error: 'unsupported_platform' }); }
+      else if (fpsMonitor.isAvailable()) { json({ ok: true, alreadyInstalled: true }); }
       else {
         const ps = [
           "$ErrorActionPreference='Stop';",
@@ -11583,10 +12081,20 @@ const handleRequest = async (req, res) => {
       // looking at, and a key that starts invisible work is worse than no key.
       const claudeLinked = await claudeLink.status(DATA_DIR, PORT).then(r => !!(r && r.linked)).catch(() => false);
       const powershellAvailable = process.platform === 'win32';
-      const audioControlAvailable = linuxCollectors
-        ? await linuxCollectors.audioAvailable()
+      const audioControlAvailable = nativeCollectors
+        ? await nativeCollectors.audioAvailable()
         : fs.existsSync(SVV);
-      json({ catalog: ACTION_CATALOG, capabilities: { powershell: powershellAvailable, soundVolumeView: audioControlAvailable, obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked } });
+      // Per-app volume is a narrower capability than "audio works": Windows has
+      // it through SoundVolumeView and Linux through PipeWire's per-stream
+      // nodes, but macOS exposes no per-process mixer to a shell at all (see
+      // docs/MACOS_PORTABILITY.md). The editor hides those keys rather than
+      // offering three that always fail.
+      const appAudioAvailable = audioControlAvailable && process.platform !== 'darwin';
+      // Media transport is its own capability rather than a PowerShell one: it
+      // rides SMTC on Windows and mediaremote-adapter on macOS, and the adapter
+      // is optional, so the answer is "is there a media host" — not "which OS".
+      const mediaAvailable = powershellAvailable || !!(nativeMedia && nativeMedia.available());
+      json({ catalog: ACTION_CATALOG, capabilities: { powershell: powershellAvailable, media: mediaAvailable, soundVolumeView: audioControlAvailable, appAudio: appAudioAvailable, obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked } });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/wavelink/state' && req.method === 'GET') {
@@ -11784,7 +12292,12 @@ const handleRequest = async (req, res) => {
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/version' && req.method === 'GET') {
-    json({ version: APP_VERSION });
+    // `platform` so the dashboard can stop prescribing Windows remedies to
+    // machines that have no Windows. Several hints named LibreHardwareMonitor
+    // and told the user to "re-run INSTALL.bat" — a file that does not exist on
+    // macOS or Linux, for a dependency those platforms do not use. The value is
+    // Node's own, so the client never has to guess from a user agent.
+    json({ version: APP_VERSION, platform: process.platform });
 
   } else if (reqPath === '/whatsnew' && req.method === 'GET') {
     // Curated highlights for the running version (see loadWhatsNew). Static and
@@ -13459,7 +13972,10 @@ const handleRequest = async (req, res) => {
       // default; the tool NEVER runs a command directly — it proposes one that
       // executes only after the user approves a confirmation card.
       let _pcControlText = '';
-      if (_features.pcControl === true) {
+      // POWERSHELL_SUPPORTED, not just the flag: a tool the runner cannot
+      // execute must not reach the model at all. Offering it would produce a
+      // confirmation card the user approves and that then fails to spawn.
+      if (_features.pcControl === true && POWERSHELL_SUPPORTED) {
         AI_FUNCTIONS.push({
           name: 'run_pc_command',
           description: 'PC CONTROL: run a Windows PowerShell command on the user\'s PC to do something the other tools do not cover (system tweaks, file operations, launching things with arguments, queries…). This NEVER runs automatically: the user sees a confirmation card with the exact command and must approve it. Propose the SMALLEST, most targeted command that does the job, and always fill "description" with a short plain-language explanation of what it does and why. Prefer a dedicated tool when one exists (audio, media, apps, lighting…).',
@@ -13900,32 +14416,25 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/api/screenshot' && req.method === 'GET') {
-    const tmpPath = path.join(os.tmpdir(), `xenon_ss_${Date.now()}.jpg`);
     try {
-      const ffmpeg = getFfmpegPath();
-      const px = urlObj.searchParams.get('x');
-      const py = urlObj.searchParams.get('y');
-      const pw = urlObj.searchParams.get('w');
-      const ph = urlObj.searchParams.get('h');
-      const ffmpegArgs = ['-y', '-f', 'gdigrab', '-framerate', '1'];
-      if (px !== null && py !== null && pw !== null && ph !== null) {
-        const w = parseInt(pw), h = parseInt(ph);
-        if (w > 0 && h > 0) {
-          ffmpegArgs.push('-offset_x', px, '-offset_y', py, '-video_size', `${w}x${h}`);
-        }
-      }
-      // gdigrab -vframes 1 takes a single screenshot frame
-      ffmpegArgs.push('-i', 'desktop', '-vframes', '1', '-q:v', '3', '-vf', 'scale=\'min(1920,iw)\':-2', tmpPath);
-      await execFilePromise(ffmpeg, ffmpegArgs, { timeout: 15000 });
-      const imgBuffer = await fs.promises.readFile(tmpPath);
-      const base64 = imgBuffer.toString('base64');
+      // Same capture the AI's vision tool uses — one implementation, so the
+      // per-platform grabber lives in exactly one place.
+      const w = parseInt(urlObj.searchParams.get('w'));
+      const h = parseInt(urlObj.searchParams.get('h'));
+      const monitor = w > 0 && h > 0
+        ? {
+            x: parseInt(urlObj.searchParams.get('x')) || 0,
+            y: parseInt(urlObj.searchParams.get('y')) || 0,
+            width: w,
+            height: h,
+          }
+        : null;
+      const base64 = await captureScreenshot(monitor);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ base64, mimeType: 'image/jpeg' }));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
-    } finally {
-      fs.promises.unlink(tmpPath).catch(() => {});
     }
 
   } else if (reqPath === '/api/screenshot/monitor' && req.method === 'GET') {
@@ -13967,7 +14476,7 @@ const handleRequest = async (req, res) => {
         _sttDeviceWhenReady(),
         new Promise((_, rej) => setTimeout(() => rej(new Error('STT device timeout')), 10000)),
       ]);
-      if (!_sttUseWasapi && !_sttDshowDevice) throw new Error('No audio device available for recording');
+      if (!_sttInputArgs()) throw new Error('No audio device available for recording');
       // A full-duplex Voce Live session already owns the mic (dshow can't share
       // the device) — refuse a one-shot recorder so it can't starve the live
       // capture's ffmpeg and tear the session down under the user.
@@ -14067,7 +14576,7 @@ const handleRequest = async (req, res) => {
         if (_sttPending.size === 0) wakeWord.resumeSoon();
         throw startErr;
       }
-      process.stdout.write(`[STT] Recording id=${id} via=${_sttUseWasapi ? 'wasapi' : 'dshow'} silence=${silenceDb.toFixed(1)}dB gain=${gain}x\n`);
+      process.stdout.write(`[STT] Recording id=${id} via=${_sttVia()} silence=${silenceDb.toFixed(1)}dB gain=${gain}x\n`);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ id }));
     } catch (e) {
@@ -14121,8 +14630,8 @@ const handleRequest = async (req, res) => {
         res.end(JSON.stringify({
           test: true,
           heard,
-          via: _sttUseWasapi ? 'wasapi' : 'dshow',
-          device: _sttUseWasapi ? (cachedMicLabel || 'Default (WASAPI)') : (_sttDshowDevice || 'unknown'),
+          via: _sttVia(),
+          device: _sttDeviceLabel(),
           db: Math.round(_dbFromRms(clipStats.rms)),
           gain: _sttGain(),
         })); return;
@@ -15082,6 +15591,14 @@ const handleRequest = async (req, res) => {
       json({ state: _hotkey.state, combo: _hotkey.combo || ss.hotkeyCombo || 'alt+space' });
     } catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/search/hotkey-press' && req.method === 'POST') {
+    // The Linux shortcut's other end. There is no process pushing key events
+    // here: the desktop runs a command, and that command is a POST to this.
+    // Bound to loopback like the rest of the server, and it carries no payload —
+    // pressing it only ever opens Xenon's own search window.
+    try { routeSpotlightHotkey(); json({ ok: true }); }
+    catch (e) { err500(e.message); }
+
   } else if (reqPath === '/disk/status' && req.method === 'GET') {
     // Disk widget state: helper presence, scan progress, last summary and —
     // after a scan — the treemap tree, categories, top files and verified
@@ -15295,6 +15812,10 @@ const handleRequest = async (req, res) => {
       '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
       '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
       '.webp': 'image/webp', '.svg': 'image/svg+xml', '.gif': 'image/gif',
+      // The self-hosted UI face (styles/fonts.css). Served as
+      // application/octet-stream a browser still renders it, but it logs a MIME
+      // complaint and any future font-src CSP would have nothing to allow.
+      '.woff2': 'font/woff2', '.woff': 'font/woff',
     };
     const mime = STATIC_MIME[ext] || 'application/octet-stream';
     if (ext === '.css' || ext === '.js') {
@@ -15493,7 +16014,7 @@ const handleRequest = async (req, res) => {
     // Notification text is private user data — loopback-only like every route,
     // and NEVER a JSONP candidate.
     const wn = normalizeWindowsNotifications(_serverHubSettings && _serverHubSettings.windowsNotifications);
-    json({ ok: true, enabled: wn.enabled, hide: wn.hide, toast: wn.toast, excluded: wn.excluded, state: winNotif.getState(), items: winNotif.getFeed() });
+    json({ ok: true, enabled: wn.enabled, hide: wn.hide, toast: wn.toast, excluded: wn.excluded, supported: winNotif.isSupported(), state: winNotif.reportedState(), items: winNotif.getFeed() });
 
   } else if (reqPath === '/sdk/widgets' && req.method === 'GET') {
     // Installed third-party widget packages — validated manifests only (see
@@ -16165,6 +16686,11 @@ const handleRequest = async (req, res) => {
       // flicks itself back off — the panel needs to show it on, and next to it
       // the one reason it did not come up.
       httpsEnabled: !!(_serverHubSettings && _serverHubSettings.remoteAccess && _serverHubSettings.remoteAccess.https === true),
+      // Whether this machine can bring that door up at all. Pairing itself is
+      // plain HTTP and works everywhere, but the secure door is installed and
+      // supervised through winget and elevated PowerShell, so off Windows the
+      // panel hides it instead of offering a switch that can only ever fail.
+      httpsSupported: process.platform === 'win32',
       https: remoteHttps.status(),
       // The guided setup, when one is running: which step, and whether it is
       // parked on the one thing the user has to do elsewhere.
@@ -16866,9 +17392,33 @@ function ensureHelperUpToDate(attempt = 1) {
   } catch { /* best-effort */ }
 }
 
+// Where to bind. Loopback ONLY by default.
+//
+// This used to be '::', chosen for dual-stack loopback — the comment said
+// "accepts both 127.0.0.1 and ::1", which is true but not the whole truth:
+// '::' accepts from every address on the machine, so the dashboard was
+// answering on the LAN. That is a real exposure, not a theoretical one. Xenon
+// serves file search, a disk map, notes, calendar and an AI assistant with
+// system actions behind no authentication at all, because it was designed on
+// the premise that only this machine can reach it. Remote PC control is a
+// separate thing entirely (Sunshine over Tailscale), and the Widget SDK
+// documents "no network access". Nothing in the product needs the wider bind.
+//
+// On Windows the firewall prompt hid this; on Linux it depends on the distro —
+// Fedora's firewalld blocks it, a minimal Arch or Debian desktop does not.
+//
+// Cost of the change: '[::1]:3030' no longer answers. Every caller in the tree
+// uses 127.0.0.1 (the native app, install.sh, the bootstrap, the docs), so this
+// is a URL nobody dials, and IPv6 loopback cannot be added without a second
+// listener that would also have to duplicate the 'upgrade' handling below.
+//
+// XENON_BIND_HOST is the deliberate way back out — set it to '::' to restore
+// the old all-interfaces behaviour, on purpose and in one place.
+const BIND_HOST = process.env.XENON_BIND_HOST || '127.0.0.1';
+
 // The host the last listen() attempt used, so an EADDRINUSE retry re-binds the
 // same stack (see the error handler below).
-let _listenHost = '::';
+let _listenHost = BIND_HOST;
 let _eaddrinuseRetries = 0;
 const EADDRINUSE_MAX_RETRIES = 15;   // ~15 s of retrying before giving up
 const EADDRINUSE_RETRY_MS = 1000;
@@ -16934,7 +17484,9 @@ function _startListen(host) {
       // OpenRGB was removed from the product. Tear down anything a previous
       // version may have left so it never launches itself again: drop the
       // auto-start scheduled task (one fire-and-forget call, silent if absent).
-      try { execFile('schtasks', ['/Delete', '/TN', 'XenonEdge OpenRGB', '/F'], { windowsHide: true }, () => {}); } catch { /* ignore */ }
+      if (POWERSHELL_SUPPORTED) {
+        try { execFile('schtasks', ['/Delete', '/TN', 'XenonEdge OpenRGB', '/F'], { windowsHide: true }, () => {}); } catch { /* ignore */ }
+      }
       // Spotlight: start the global-hotkey listener if enabled, and rebuild the
       // crawler index for the user's extra search folders (both no-op/cheap
       // when off; delayed so they never compete with boot).
@@ -16974,9 +17526,10 @@ server.on('error', err => {
   }
 });
 
-// Try IPv6 dual-stack first (accepts both 127.0.0.1 and ::1).
-// Falls back to IPv4 via the error handler if IPv6 is unavailable.
-_startListen('::');
+// IPv4 loopback. Only an explicit XENON_BIND_HOST reaches anything else, and
+// the error handler above still falls back to 127.0.0.1 if that override names
+// a stack this machine does not have.
+_startListen(BIND_HOST);
 
 // ── SSE broadcast timers ──────────────────────────────────────────────────────
 // These replace client-side setInterval polling.  Timers only run work when at
@@ -17275,6 +17828,9 @@ function _gracefulShutdown() {
   try { _killWorker('shutdown'); } catch {}
   // Retire the SMTC media host gracefully (stdin close → clean exit → handles released).
   try { _retireMediaHost('shutdown'); } catch {}
+  // …and the non-Windows one: a detached perl/playerctl child outlives
+  // process.exit, so it has to be told.
+  try { if (nativeMedia) nativeMedia.stop(); } catch {}
   // Retire the DDC/CI display host (stdin close → releases physical monitor handles).
   try { _retireDdcHost('shutdown'); } catch {}
   // Kill the headless embedded-browser Edge instance (if one is running).
