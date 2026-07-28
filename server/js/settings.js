@@ -60,7 +60,7 @@ const DASHBOARD_CARD_IDS = Object.freeze({
   audio: ['volume', 'speaker', 'microphone'],
   twitch: ['info', 'actions', 'chat'],
   obs: ['preview', 'controls', 'scenes', 'audio'],
-  youtube: ['info', 'actions', 'playlists'],
+  youtube: ['player', 'library', 'info', 'actions'],
 });
 const DASHBOARD_WIDGET_SIZES = Object.freeze(['compact', 'normal', 'wide', 'tall', 'large', 'full']);
 const DASHBOARD_CARD_SIZES = Object.freeze(['compact', 'normal', 'wide']);
@@ -93,7 +93,9 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     remote:   Object.freeze({ x: 8, y: 12, w: 8, h: 6, visible: false, page: 'dashboard' }),
     twitch:   Object.freeze({ x: 16, y: 12, w: 8, h: 4, visible: false, page: 'dashboard' }),
     obs:      Object.freeze({ x: 16, y: 16, w: 8, h: 6, visible: false, page: 'dashboard' }),
-    youtube:  Object.freeze({ x: 16, y: 22, w: 8, h: 4, visible: false, page: 'dashboard' }),
+    // Taller than the other stream tiles on purpose: this one holds a 16:9 video
+    // player above its list, and at h:4 the player had no room to be a player.
+    youtube:  Object.freeze({ x: 16, y: 22, w: 8, h: 10, visible: false, page: 'dashboard' }),
     discord:  Object.freeze({ x: 16, y: 26, w: 8, h: 8, visible: false, page: 'dashboard' }),
     spotify:  Object.freeze({ x: 16, y: 34, w: 8, h: 16, visible: false, page: 'dashboard' }),
     browser:  Object.freeze({ x: 0, y: 18, w: 12, h: 10, visible: false, page: 'dashboard' }),
@@ -153,14 +155,15 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
       scenes: Object.freeze({ order: 2, size: 'normal', visible: true }),
       audio: Object.freeze({ order: 3, size: 'normal', visible: true }),
     }),
+    // Mirror of the server default. Every id in DASHBOARD_CARD_IDS.youtube above
+    // needs an entry: normalizeDashboardLayout reads a default for every id in
+    // that list, so a missing one threw here on EVERY settings normalization,
+    // which is the first thing the page does with hub settings. See the test.
     youtube: Object.freeze({
-      info: Object.freeze({ order: 0, size: 'normal', visible: true }),
-      actions: Object.freeze({ order: 1, size: 'normal', visible: true }),
-      // Mirror of the server default. `playlists` is in DASHBOARD_CARD_IDS
-      // above, and normalizeDashboardLayout reads a default for every id in that
-      // list — so the missing entry threw here on EVERY settings normalization,
-      // which is the first thing the page does with hub settings. See the test.
-      playlists: Object.freeze({ order: 2, size: 'normal', visible: true }),
+      player: Object.freeze({ order: 0, size: 'normal', visible: true }),
+      library: Object.freeze({ order: 1, size: 'normal', visible: true }),
+      info: Object.freeze({ order: 2, size: 'normal', visible: true }),
+      actions: Object.freeze({ order: 3, size: 'normal', visible: true }),
     }),
   }),
   tabs: Object.freeze({ order: ['main', 'net'], active: 'main' }),

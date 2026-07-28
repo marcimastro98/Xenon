@@ -159,6 +159,10 @@ const DEFAULT_GET_MUTATORS = new Set([
   // the shape the Origin check cannot see. /api/push/status is deliberately
   // absent: it is a read, and it answers with no endpoint in it.
   '/api/push/key', '/api/push/subscribe', '/api/push/unsubscribe', '/api/push/test',
+  // A YouTube search costs 100 of the account's 10,000 daily quota units. It is
+  // POST-only for that reason; listing it here is what refuses the top-level GET
+  // navigation, the one shape the Origin check cannot see.
+  '/stream/youtube/search',
 ]);
 let _getMutators = DEFAULT_GET_MUTATORS;
 

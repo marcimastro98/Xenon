@@ -6358,7 +6358,7 @@ const DASHBOARD_CARD_IDS = Object.freeze({
   audio: ['volume', 'speaker', 'microphone'],
   twitch: ['info', 'actions', 'chat'],
   obs: ['preview', 'controls', 'scenes', 'audio'],
-  youtube: ['info', 'actions', 'playlists'],
+  youtube: ['player', 'library', 'info', 'actions'],
 });
 const DASHBOARD_WIDGET_SIZES = Object.freeze(['compact', 'normal', 'wide', 'tall', 'large', 'full']);
 const DASHBOARD_CARD_SIZES = Object.freeze(['compact', 'normal', 'wide']);
@@ -6391,7 +6391,9 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     remote:   Object.freeze({ x: 8, y: 12, w: 8, h: 6, visible: false, page: 'dashboard' }),
     twitch:   Object.freeze({ x: 16, y: 12, w: 8, h: 4, visible: false, page: 'dashboard' }),
     obs:      Object.freeze({ x: 16, y: 16, w: 8, h: 6, visible: false, page: 'dashboard' }),
-    youtube:  Object.freeze({ x: 16, y: 22, w: 8, h: 4, visible: false, page: 'dashboard' }),
+    // Taller than the other stream tiles on purpose: this one holds a 16:9 video
+    // player above its list, and at h:4 the player had no room to be a player.
+    youtube:  Object.freeze({ x: 16, y: 22, w: 8, h: 10, visible: false, page: 'dashboard' }),
     discord:  Object.freeze({ x: 16, y: 26, w: 8, h: 8, visible: false, page: 'dashboard' }),
     spotify:  Object.freeze({ x: 16, y: 34, w: 8, h: 16, visible: false, page: 'dashboard' }),
     browser:  Object.freeze({ x: 0, y: 18, w: 12, h: 10, visible: false, page: 'dashboard' }),
@@ -6451,14 +6453,15 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
       scenes: Object.freeze({ order: 2, size: 'normal', visible: true }),
       audio: Object.freeze({ order: 3, size: 'normal', visible: true }),
     }),
+    // Every id in DASHBOARD_CARD_IDS.youtube needs an entry here, and not as a
+    // cosmetic default: normalizeDashboardLayout iterates that ID list and reads
+    // the default for each one, so a missing entry threw on EVERY settings
+    // normalization. See the test that pins the two together.
     youtube: Object.freeze({
-      info: Object.freeze({ order: 0, size: 'normal', visible: true }),
-      actions: Object.freeze({ order: 1, size: 'normal', visible: true }),
-      // `playlists` is listed in DASHBOARD_CARD_IDS and was missing here, which
-      // is not a cosmetic gap: normalizeDashboardLayout iterates the ID list and
-      // reads the default for each one, so the missing entry threw on EVERY
-      // settings normalization. See the test that now pins the two together.
-      playlists: Object.freeze({ order: 2, size: 'normal', visible: true }),
+      player: Object.freeze({ order: 0, size: 'normal', visible: true }),
+      library: Object.freeze({ order: 1, size: 'normal', visible: true }),
+      info: Object.freeze({ order: 2, size: 'normal', visible: true }),
+      actions: Object.freeze({ order: 3, size: 'normal', visible: true }),
     }),
   }),
   tabs: Object.freeze({ order: ['main', 'net'], active: 'main' }),
@@ -9675,6 +9678,10 @@ const CSRF_MUTATION_PATHS = new Set([
   '/api/community/redeem',
   // Automatic limited stock is a read, but a cache miss reaches the Hub.
   '/api/community/limited-status',
+  // A YouTube search is 100 of the account's 10,000 daily quota units, so the
+  // cost is the attack: a couple of hundred drive-by requests would leave the
+  // user's own YouTube integration dead for the rest of the day.
+  '/stream/youtube/search',
   // Ratings: the GET's cache miss triggers an outbound hub fetch (same rationale
   // as /api/community/catalog); the POST casts a vote under THIS install's id —
   // a drive-by must be able to do neither.
@@ -15382,6 +15389,30 @@ const handleRequest = async (req, res) => {
     try {
       const body = JSON.parse(await readBody(req) || '{}');
       json(await streamYouTube.resolvePlaylistUrl(body.id));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/liked' && req.method === 'GET') {
+    // Viewer mode video lists. All three are cheap (1-2 quota units) and cached
+    // in the provider, so a GET is right: they read, they never mutate.
+    try { json(await streamYouTube.likedVideos()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/playlist/items' && req.method === 'GET') {
+    try { json(await streamYouTube.playlistVideos(urlObj.searchParams.get('id') || '')); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/subscriptions' && req.method === 'GET') {
+    try { json(await streamYouTube.subscriptionsFeed()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/search' && req.method === 'POST') {
+    // POST, and in CSRF_MUTATION_PATHS, because of what it costs rather than what
+    // it changes: one search is 100 of the account's 10,000 daily quota units, so
+    // a cross-site drive-by could burn a user's whole day of YouTube access in a
+    // couple of hundred requests. The cheap reads above don't need this.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await streamYouTube.searchVideos(body.q));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/stream/config' && req.method === 'POST') {

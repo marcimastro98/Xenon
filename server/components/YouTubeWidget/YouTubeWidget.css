@@ -1,7 +1,7 @@
-/* YouTube widget: live status + viewer count + stream health + go-live, plus the
-   viewer-mode Playlists card, styled to match the Twitch widget (logo watermark,
-   card sections, red theme). Three sections (info / actions / playlists) carry
-   data-system-card so they hide/reorder like System cards. Rendered into
+/* YouTube widget: the viewer-mode player and library, plus the creator-mode live
+   status and go-live button, styled to match the Twitch widget (logo watermark,
+   card sections, red theme). Four sections (player / library / info / actions)
+   carry data-system-card so they hide/reorder like System cards. Rendered into
    .youtube-widget-mount by youtube-widget.js. */
 .youtube-panel { display: flex; }
 .youtube-widget-mount { width: 100%; height: 100%; display: flex; min-height: 0; border-radius: inherit; }
@@ -104,34 +104,155 @@ body.overlay-frozen .yt-pill.live .yt-pill-dot::after { animation-play-state: pa
 .yt-btn-ico svg { width: 15px; height: 15px; }
 .yt-err { margin-top: 8px; font-size: 0.76rem; font-weight: 600; color: var(--color-danger); line-height: 1.35; }
 
-/* Playlists (viewer mode) — same row pattern as the Spotify widget, red accent. */
-.yt-card--playlists { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-.yt-pl-list { display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow-y: auto; }
-.yt-pl {
+/* ── Player (viewer mode) ─────────────────────────────────────────────────── */
+.yt-card--player { flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px; padding: 10px; }
+.yt-player-stage {
+  position: relative; width: 100%; aspect-ratio: 16 / 9; min-height: 0;
+  border-radius: 10px; overflow: hidden; background: #000;
+  display: flex; align-items: center; justify-content: center;
+}
+.yt-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.yt-player-empty { font-size: 0.78rem; font-weight: 600; opacity: 0.55; padding: 8px 12px; text-align: center; }
+
+.yt-now { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.yt-now-title { font-size: 0.82rem; font-weight: 700; color: var(--text, #e7e9ee); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yt-now-sub { font-size: 0.68rem; font-weight: 600; color: var(--text-dim, #8b91a1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.yt-seek-row { display: flex; align-items: center; gap: 8px; }
+.yt-time { font-size: 0.64rem; font-weight: 700; color: var(--text-dim, #8b91a1); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+.yt-seek {
+  flex: 1 1 auto; min-width: 0; height: 18px; margin: 0; cursor: pointer;
+  -webkit-appearance: none; appearance: none; background: transparent;
+}
+.yt-seek::-webkit-slider-runnable-track { height: 4px; border-radius: 999px; background: rgba(255,255,255,0.16); }
+.yt-seek::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; margin-top: -5px;
+  width: 14px; height: 14px; border-radius: 50%; background: #ff2d2d; border: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+.yt-seek:disabled { opacity: 0.4; cursor: default; }
+
+.yt-transport { display: flex; align-items: center; gap: 6px; }
+.yt-transport-gap { flex: 1 1 auto; }
+.yt-ib {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 9px; cursor: pointer; padding: 0;
+  color: var(--text, #e7e9ee); background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.09);
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+.yt-ib svg { width: 17px; height: 17px; }
+.yt-ib:hover:not(:disabled) { background: rgba(255,0,0,0.16); border-color: rgba(255,0,0,0.4); }
+.yt-ib:disabled { opacity: 0.35; cursor: default; }
+.yt-ib.is-on { color: #ff4d4d; border-color: rgba(255,0,0,0.4); }
+.yt-playpause { width: 40px; height: 40px; background: rgba(255,0,0,0.85); border-color: transparent; color: #fff; }
+.yt-playpause:hover:not(:disabled) { background: rgba(255,0,0,1); }
+.yt-playpause svg { width: 20px; height: 20px; }
+
+.yt-blocked {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 0.74rem; font-weight: 600; color: var(--text-dim, #8b91a1);
+}
+.yt-blocked-btn {
+  font: inherit; font-size: 0.72rem; font-weight: 800; cursor: pointer;
+  padding: 4px 10px; border-radius: 8px; color: #fff;
+  background: rgba(255,0,0,0.8); border: 0;
+}
+
+/* Full-screen player. The card is only re-positioned, never re-parented — moving
+   the iframe in the DOM reloads it and would restart the video. */
+.yt-card--player.is-expanded {
+  position: fixed; inset: 0; z-index: 5000; border-radius: 0; border: 0;
+  background: #05070a; padding: 18px; gap: 12px;
+  justify-content: center;
+}
+.yt-card--player.is-expanded .yt-player-stage { flex: 0 1 auto; max-height: calc(100vh - 190px); margin: 0 auto; width: auto; height: 100%; aspect-ratio: 16 / 9; }
+.yt-card--player.is-expanded .yt-now-title { font-size: 1.05rem; }
+.yt-card--player.is-expanded .yt-transport { justify-content: center; gap: 10px; }
+.yt-card--player.is-expanded .yt-transport-gap { flex: 0 0 22px; }
+
+/* ── Library (tabs + rows) ────────────────────────────────────────────────── */
+.yt-card--library { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+.yt-tabs { display: flex; gap: 5px; flex: 0 0 auto; overflow-x: auto; scrollbar-width: none; }
+.yt-tabs::-webkit-scrollbar { display: none; }
+.yt-tab {
+  display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
+  min-height: 30px; padding: 0 10px; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 0.7rem; font-weight: 800;
+  color: var(--text-dim, #8b91a1); background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.yt-tab-ico { display: inline-flex; }
+.yt-tab-ico svg { width: 13px; height: 13px; }
+.yt-tab:hover { color: var(--text, #e7e9ee); }
+.yt-tab.is-on { color: #fff; background: rgba(255,0,0,0.8); border-color: transparent; }
+
+.yt-search-row { display: flex; gap: 6px; flex: 0 0 auto; }
+.yt-search-input {
+  flex: 1 1 auto; min-width: 0; box-sizing: border-box; font: inherit; font-size: 0.78rem;
+  padding: 6px 10px; border-radius: 9px; color: var(--text, #e7e9ee);
+  border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.28); outline: none;
+}
+.yt-search-input:focus { border-color: rgba(255,0,0,0.5); }
+.yt-search-go {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; border-radius: 9px; cursor: pointer; padding: 0; color: #fff;
+  background: rgba(255,0,0,0.8); border: 0;
+}
+.yt-search-go svg { width: 16px; height: 16px; }
+
+.yt-crumb {
+  display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; align-self: flex-start;
+  padding: 4px 10px 4px 6px; border-radius: 999px; cursor: pointer; font: inherit;
+  font-size: 0.72rem; font-weight: 800; max-width: 100%;
+  color: var(--text, #e7e9ee); background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.09);
+}
+.yt-crumb-ico { display: inline-flex; }
+.yt-crumb-ico svg { width: 14px; height: 14px; }
+.yt-crumb-txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.yt-list { display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow-y: auto; }
+.yt-row {
   display: flex; align-items: center; gap: 10px; width: 100%; flex: 0 0 auto;
   padding: 6px 8px; border-radius: 10px; cursor: pointer; text-align: left; font: inherit;
   border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.03);
   transition: background 0.15s ease, border-color 0.15s ease;
 }
-.yt-pl:hover:not(:disabled) { background: rgba(255,0,0,0.10); border-color: rgba(255,0,0,0.35); }
-.yt-pl.ok { border-color: rgba(34,197,94,0.6); }
-.yt-pl.err { border-color: rgba(239,68,68,0.65); }
-.yt-pl-art {
-  width: 40px; height: 40px; flex: 0 0 auto; border-radius: 7px;
+.yt-row:hover { background: rgba(255,0,0,0.10); border-color: rgba(255,0,0,0.35); }
+.yt-row-art {
+  position: relative; width: 64px; height: 36px; flex: 0 0 auto; border-radius: 6px;
   background: rgba(255,255,255,0.07) center / cover no-repeat;
   box-shadow: 0 2px 6px rgba(0,0,0,0.35);
   display: inline-flex; align-items: center; justify-content: center; color: #ff4d4d;
 }
-.yt-pl-art svg { width: 20px; height: 20px; }
-.yt-pl-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
-.yt-pl-name { font-size: 0.82rem; font-weight: 700; color: var(--text, #e7e9ee); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.yt-pl-count { font-size: 0.68rem; font-weight: 600; color: var(--text-dim, #8b91a1); }
-.yt-pl-play {
+.yt-row--pl .yt-row-art { width: 44px; height: 44px; border-radius: 8px; }
+.yt-row-dur {
+  position: absolute; right: 3px; bottom: 3px; padding: 0 4px; border-radius: 4px;
+  font-size: 0.58rem; font-weight: 800; color: #fff; background: rgba(0,0,0,0.78);
+  font-variant-numeric: tabular-nums;
+}
+.yt-row-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.yt-row-name {
+  font-size: 0.8rem; font-weight: 700; color: var(--text, #e7e9ee);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.yt-row-sub { font-size: 0.67rem; font-weight: 600; color: var(--text-dim, #8b91a1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yt-row-play {
   flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; border-radius: 50%; color: #fff; background: rgba(255,0,0,0.85);
   opacity: 0; transform: scale(0.8); transition: opacity 0.15s ease, transform 0.15s ease;
 }
-.yt-pl-play svg { width: 15px; height: 15px; margin-left: 1px; }
-.yt-pl:hover .yt-pl-play, .yt-pl:focus-visible .yt-pl-play { opacity: 1; transform: scale(1); }
-.yt-pl-empty { font-size: 0.8rem; opacity: 0.65; padding: 2px; }
-@media (prefers-reduced-motion: reduce) { .yt-pl, .yt-pl-play { transition: none; } }
+.yt-row-play svg { width: 15px; height: 15px; margin-left: 1px; }
+.yt-row:hover .yt-row-play, .yt-row:focus-visible .yt-row-play { opacity: 1; transform: scale(1); }
+.yt-list-note { font-size: 0.78rem; opacity: 0.65; padding: 4px 2px; line-height: 1.4; }
+.yt-list-err { color: var(--color-danger); opacity: 0.9; }
+
+/* Touch surfaces have no hover, so the play affordance must always be visible. */
+@media (hover: none) {
+  .yt-row-play { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .yt-row, .yt-row-play, .yt-tab, .yt-ib { transition: none; }
+}

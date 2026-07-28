@@ -66,7 +66,7 @@ function createYouTubeProvider(deps) {
       const data = await res.json().catch(() => null);
       if (res.ok && data && data.access_token) {
         await persistToken(data);
-        plCache = { at: 0, data: null };   // a different account may have signed in
+        dropCaches();   // a different account may have signed in
         const ch = await fetchChannel(data.access_token);
         if (ch) await patchCreds({ channel: ch.title, channelId: ch.id });
         return { ok: true, connected: true, login: ch ? ch.title : '' };
@@ -131,7 +131,7 @@ function createYouTubeProvider(deps) {
       catch { /* best-effort */ }
     }
     await clearCreds();
-    plCache = { at: 0, data: null };
+    dropCaches();
     return { ok: true };
   }
 
@@ -181,12 +181,69 @@ function createYouTubeProvider(deps) {
     return out;
   }
 
-  // ── Viewer mode: the user's own playlists ─────────────────────────────────
+  // ── Viewer mode: playlists, liked videos, subscriptions, search ───────────
   // YouTube playlist ids are URL-safe base64 tokens; validated before any
   // interpolation so a wire-supplied id can never reshape the API path.
   const PLAYLIST_ID_RE = /^[A-Za-z0-9_-]{2,64}$/;
   const PLAYLIST_TTL_MS = 5 * 60 * 1000;
+  const LIST_TTL_MS = 5 * 60 * 1000;         // liked videos, playlist contents
+  const FEED_TTL_MS = 15 * 60 * 1000;        // subscriptions feed (costs ~18 units)
+  const SEARCH_TTL_MS = 30 * 60 * 1000;      // a search costs 100 units — cache hard
+  const FEED_CHANNELS = 15;                  // channels polled per feed build
+  const FEED_PER_CHANNEL = 3;
   let plCache = { at: 0, data: null };   // quota-kind: every surface shares one read
+  // Bounded TTL cache for the video lists. The whole map is dropped on login and
+  // logout so a second account never sees the first one's library.
+  const listCache = new Map();
+  function cacheGet(key, ttl) {
+    const e = listCache.get(key);
+    return (e && Date.now() - e.at < ttl) ? e.data : null;
+  }
+  function cacheSet(key, data) {
+    if (listCache.size >= 40) listCache.clear();
+    listCache.set(key, { at: Date.now(), data });
+    return data;
+  }
+  function dropCaches() { plCache = { at: 0, data: null }; listCache.clear(); }
+
+  // Thumbnails are painted as CSS background-images by the client, so the scheme
+  // is allowlisted here at the boundary rather than trusted from the API.
+  function thumb(th) {
+    const raw = (th && ((th.medium && th.medium.url) || (th.default && th.default.url) || (th.high && th.high.url))) || '';
+    return /^https:\/\//.test(raw) ? raw : '';
+  }
+  // "PT1H2M3S" → 3723. Anything unparseable stays null and the client just omits
+  // the duration chip rather than showing a wrong one.
+  function isoSeconds(s) {
+    const m = /^P(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(String(s == null ? '' : s));
+    if (!m) return null;
+    return (+(m[1] || 0)) * 86400 + (+(m[2] || 0)) * 3600 + (+(m[3] || 0)) * 60 + (+(m[4] || 0));
+  }
+  const VIDEO_ID_RE = /^[A-Za-z0-9_-]{6,24}$/;
+
+  // One batched videos.list for the durations of a whole page (1 quota unit).
+  async function durationsFor(ids) {
+    const clean = ids.filter(id => VIDEO_ID_RE.test(id)).slice(0, 50);
+    const out = new Map();
+    if (!clean.length) return out;
+    const r = await apiRequest('GET', '/videos?part=contentDetails&id=' + encodeURIComponent(clean.join(',')));
+    const items = (r.ok && r.data && Array.isArray(r.data.items)) ? r.data.items : [];
+    items.forEach(v => {
+      if (v && v.id) out.set(v.id, isoSeconds(v.contentDetails && v.contentDetails.duration));
+    });
+    return out;
+  }
+
+  function mapVideo(id, snippet, seconds) {
+    return {
+      id,
+      title: (snippet && snippet.title) || '',
+      channel: (snippet && (snippet.videoOwnerChannelTitle || snippet.channelTitle)) || '',
+      image: thumb(snippet && snippet.thumbnails),
+      seconds: (seconds == null ? null : seconds),
+      published: (snippet && snippet.publishedAt) || '',
+    };
+  }
 
   async function listPlaylists() {
     if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
@@ -196,22 +253,109 @@ function createYouTubeProvider(deps) {
     const items = Array.isArray(r.data.items) ? r.data.items : [];
     const out = {
       ok: true,
-      playlists: items.filter(Boolean).map(p => {
-        const th = p.snippet && p.snippet.thumbnails;
-        const raw = (th && ((th.medium && th.medium.url) || (th.default && th.default.url))) || '';
-        // The client paints this as a CSS background-image — https only, like
-        // every URL the dashboard renders (scheme allowlist at the boundary).
-        const img = /^https:\/\//.test(raw) ? raw : '';
-        return {
-          id: p.id || '',
-          title: (p.snippet && p.snippet.title) || '',
-          count: (p.contentDetails && p.contentDetails.itemCount != null) ? p.contentDetails.itemCount : null,
-          image: img,
-        };
-      }).filter(p => p.id),
+      playlists: items.filter(Boolean).map(p => ({
+        id: p.id || '',
+        title: (p.snippet && p.snippet.title) || '',
+        count: (p.contentDetails && p.contentDetails.itemCount != null) ? p.contentDetails.itemCount : null,
+        image: thumb(p.snippet && p.snippet.thumbnails),
+      })).filter(p => p.id),
     };
     plCache = { at: Date.now(), data: out };
     return out;
+  }
+
+  // The videos the user liked. videos.list?myRating=like returns snippet AND
+  // contentDetails in one request, so this is a single quota unit — and it works
+  // where the "LL" playlist doesn't (that playlist is private and several
+  // accounts refuse it through playlistItems).
+  async function likedVideos() {
+    if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
+    const hit = cacheGet('liked', LIST_TTL_MS);
+    if (hit) return hit;
+    const r = await apiRequest('GET', '/videos?part=snippet,contentDetails&myRating=like&maxResults=25');
+    if (!r.ok || !r.data) return { ok: false, error: apiReason(r) };
+    const items = Array.isArray(r.data.items) ? r.data.items : [];
+    const videos = items.filter(v => v && v.id).map(v => mapVideo(v.id, v.snippet, isoSeconds(v.contentDetails && v.contentDetails.duration)));
+    return cacheSet('liked', { ok: true, videos });
+  }
+
+  // The videos inside one playlist. Durations need a second (batched) call —
+  // playlistItems doesn't carry them.
+  async function playlistVideos(id) {
+    if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
+    const pid = String(id == null ? '' : id).trim();
+    if (!PLAYLIST_ID_RE.test(pid)) return { ok: false, error: 'bad_id' };
+    const hit = cacheGet('pl:' + pid, LIST_TTL_MS);
+    if (hit) return hit;
+    const r = await apiRequest('GET', '/playlistItems?part=snippet,contentDetails&playlistId=' + encodeURIComponent(pid) + '&maxResults=50');
+    if (!r.ok || !r.data) return { ok: false, error: apiReason(r) };
+    const items = Array.isArray(r.data.items) ? r.data.items : [];
+    const rows = items.map(it => {
+      const vid = (it && it.contentDetails && it.contentDetails.videoId)
+        || (it && it.snippet && it.snippet.resourceId && it.snippet.resourceId.videoId) || '';
+      return VIDEO_ID_RE.test(vid) ? { vid, snippet: it.snippet } : null;
+    }).filter(Boolean);
+    const dur = await durationsFor(rows.map(r2 => r2.vid));
+    const videos = rows.map(r2 => mapVideo(r2.vid, r2.snippet, dur.has(r2.vid) ? dur.get(r2.vid) : null));
+    return cacheSet('pl:' + pid, { ok: true, videos });
+  }
+
+  // Latest uploads from the channels the user is subscribed to. There is no
+  // "home feed" in the Data API, so it is rebuilt: subscriptions (1 unit) →
+  // their uploads playlist ids in one batch (1 unit) → the newest few of each
+  // (1 unit per channel). Capped at FEED_CHANNELS and cached for 15 minutes so
+  // a whole day of use stays well inside the default 10,000-unit quota.
+  async function subscriptionsFeed() {
+    if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
+    const hit = cacheGet('subs', FEED_TTL_MS);
+    if (hit) return hit;
+    const s = await apiRequest('GET', '/subscriptions?part=snippet&mine=true&order=relevance&maxResults=50');
+    if (!s.ok || !s.data) return { ok: false, error: apiReason(s) };
+    const chIds = (Array.isArray(s.data.items) ? s.data.items : [])
+      .map(it => it && it.snippet && it.snippet.resourceId && it.snippet.resourceId.channelId)
+      .filter(id => PLAYLIST_ID_RE.test(String(id || '')))
+      .slice(0, FEED_CHANNELS);
+    if (!chIds.length) return cacheSet('subs', { ok: true, videos: [] });
+    const c = await apiRequest('GET', '/channels?part=contentDetails&id=' + encodeURIComponent(chIds.join(',')) + '&maxResults=50');
+    const uploads = ((c.ok && c.data && Array.isArray(c.data.items)) ? c.data.items : [])
+      .map(ch => ch && ch.contentDetails && ch.contentDetails.relatedPlaylists && ch.contentDetails.relatedPlaylists.uploads)
+      .filter(pid => PLAYLIST_ID_RE.test(String(pid || '')));
+    const pages = await Promise.all(uploads.map(pid =>
+      apiRequest('GET', '/playlistItems?part=snippet,contentDetails&playlistId=' + encodeURIComponent(pid) + '&maxResults=' + FEED_PER_CHANNEL)));
+    const rows = [];
+    pages.forEach(p => {
+      const items = (p.ok && p.data && Array.isArray(p.data.items)) ? p.data.items : [];
+      items.forEach(it => {
+        const vid = (it && it.contentDetails && it.contentDetails.videoId) || '';
+        if (VIDEO_ID_RE.test(vid)) rows.push({ vid, snippet: it.snippet });
+      });
+    });
+    rows.sort((a, b) => String((b.snippet && b.snippet.publishedAt) || '').localeCompare(String((a.snippet && a.snippet.publishedAt) || '')));
+    const top = rows.slice(0, 30);
+    const dur = await durationsFor(top.map(r2 => r2.vid));
+    const videos = top.map(r2 => mapVideo(r2.vid, r2.snippet, dur.has(r2.vid) ? dur.get(r2.vid) : null));
+    return cacheSet('subs', { ok: true, videos });
+  }
+
+  // Search. This is the one expensive call in the widget (100 quota units of a
+  // 10,000/day default), so it only ever runs on an explicit search and the
+  // result is cached for half an hour per query.
+  async function searchVideos(q) {
+    if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
+    const query = String(q == null ? '' : q).trim().slice(0, 100);
+    if (query.length < 2) return { ok: false, error: 'empty' };
+    const key = 'q:' + query.toLowerCase();
+    const hit = cacheGet(key, SEARCH_TTL_MS);
+    if (hit) return hit;
+    const r = await apiRequest('GET', '/search?part=snippet&type=video&maxResults=25&q=' + encodeURIComponent(query));
+    if (!r.ok || !r.data) return { ok: false, error: apiReason(r) };
+    const rows = (Array.isArray(r.data.items) ? r.data.items : []).map(it => {
+      const vid = it && it.id && it.id.videoId;
+      return VIDEO_ID_RE.test(String(vid || '')) ? { vid, snippet: it.snippet } : null;
+    }).filter(Boolean);
+    const dur = await durationsFor(rows.map(r2 => r2.vid));
+    const videos = rows.map(r2 => mapVideo(r2.vid, r2.snippet, dur.has(r2.vid) ? dur.get(r2.vid) : null));
+    return cacheSet(key, { ok: true, videos });
   }
 
   // Playlist id → the URL the client should open. A watch URL on the first video
@@ -261,7 +405,11 @@ function createYouTubeProvider(deps) {
     return r.ok ? { ok: true } : { ok: false, error: apiReason(r) };
   }
 
-  return { startDeviceLogin, pollDeviceToken, getAccessToken, status, logout, apiRequest, configured, broadcastStatus, transitionBroadcast, updateBroadcastTitle, listPlaylists, resolvePlaylistUrl };
+  return {
+    startDeviceLogin, pollDeviceToken, getAccessToken, status, logout, apiRequest, configured,
+    broadcastStatus, transitionBroadcast, updateBroadcastTitle,
+    listPlaylists, resolvePlaylistUrl, likedVideos, playlistVideos, subscriptionsFeed, searchVideos,
+  };
 }
 
 module.exports = { createYouTubeProvider, normalizeStreamYouTube };

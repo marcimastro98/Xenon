@@ -178,6 +178,147 @@ test('resolvePlaylistUrl returns the first-video watch URL, playlist page as fal
   assert.deepEqual(await empty.resolvePlaylistUrl('LL'), { ok: true, url: 'https://www.youtube.com/playlist?list=LL' });
 });
 
+// ---------------------------------------------------------------------------
+// Viewer mode: video lists (liked / playlist contents / subscriptions / search)
+// ---------------------------------------------------------------------------
+
+test('likedVideos maps the list in one call and caches it', async () => {
+  const calls = [];
+  const p = connectedYt([{
+    match: 'myRating=like', calls,
+    json: { items: [
+      { id: 'vid00001', snippet: { title: 'A song', channelTitle: 'Band', thumbnails: { medium: { url: 'https://i.ytimg.com/a.jpg' } } }, contentDetails: { duration: 'PT3M42S' } },
+      { snippet: { title: 'no id — dropped' } },
+    ] },
+  }]);
+  const r = await p.likedVideos();
+  assert.equal(r.ok, true);
+  assert.equal(r.videos.length, 1);
+  assert.equal(r.videos[0].id, 'vid00001');
+  assert.equal(r.videos[0].channel, 'Band');
+  assert.equal(r.videos[0].seconds, 222);
+  await p.likedVideos();
+  assert.equal(calls.length, 1);   // cached, not re-fetched
+});
+
+test('durations parse hours and survive a value the API never sends', async () => {
+  const p = connectedYt([
+    { match: 'myRating=like', json: { items: [
+      { id: 'vid00001', snippet: { title: 'Long' }, contentDetails: { duration: 'PT1H2M3S' } },
+      { id: 'vid00002', snippet: { title: 'Odd' }, contentDetails: { duration: 'nonsense' } },
+    ] } },
+  ]);
+  const r = await p.likedVideos();
+  assert.equal(r.videos[0].seconds, 3723);
+  assert.equal(r.videos[1].seconds, null);   // never a wrong number
+});
+
+test('thumbnails that are not https are dropped, never painted', async () => {
+  const p = connectedYt([{ match: 'myRating=like', json: { items: [
+    { id: 'vid00001', snippet: { title: 'X', thumbnails: { medium: { url: 'javascript:alert(1)' } } } },
+  ] } }]);
+  const r = await p.likedVideos();
+  assert.equal(r.videos[0].image, '');
+});
+
+test('playlistVideos refuses a bad id before any request, then maps + adds durations', async () => {
+  const none = connectedYt([]);
+  assert.deepEqual(await none.playlistVideos('PL1/../etc'), { ok: false, error: 'bad_id' });
+  assert.deepEqual(await none.playlistVideos(''), { ok: false, error: 'bad_id' });
+
+  const p = connectedYt([
+    { match: '/playlistItems', json: { items: [
+      { contentDetails: { videoId: 'vid00001' }, snippet: { title: 'One', videoOwnerChannelTitle: 'Chan' } },
+      { contentDetails: { videoId: 'bad id' }, snippet: { title: 'dropped' } },
+    ] } },
+    { match: '/videos?part=contentDetails', json: { items: [{ id: 'vid00001', contentDetails: { duration: 'PT10S' } }] } },
+  ]);
+  const r = await p.playlistVideos('PL1');
+  assert.equal(r.videos.length, 1);
+  assert.deepEqual(
+    { id: r.videos[0].id, channel: r.videos[0].channel, seconds: r.videos[0].seconds },
+    { id: 'vid00001', channel: 'Chan', seconds: 10 });
+});
+
+test('subscriptionsFeed merges the channels newest-first and stays within its cap', async () => {
+  const plCalls = [];
+  const p = connectedYt([
+    { match: '/subscriptions', json: { items: Array.from({ length: 30 }, (_, i) => ({ snippet: { resourceId: { channelId: 'UCchannel' + String(i).padStart(2, '0') } } })) } },
+    { match: '/channels', json: { items: Array.from({ length: 15 }, (_, i) => ({ contentDetails: { relatedPlaylists: { uploads: 'UUchannel' + String(i).padStart(2, '0') } } })) } },
+    { match: '/videos?part=contentDetails', json: { items: [] } },
+    { match: '/playlistItems', calls: plCalls, json: { items: [
+      { contentDetails: { videoId: 'old00001' }, snippet: { title: 'Old', publishedAt: '2026-01-01T00:00:00Z' } },
+      { contentDetails: { videoId: 'new00001' }, snippet: { title: 'New', publishedAt: '2026-07-01T00:00:00Z' } },
+    ] } },
+  ]);
+  const r = await p.subscriptionsFeed();
+  assert.equal(r.ok, true);
+  assert.equal(plCalls.length, 15, 'the 30 subscriptions are capped at 15 channel reads');
+  assert.equal(r.videos[0].title, 'New', 'newest upload first');
+  assert.ok(r.videos.length <= 30);
+});
+
+test('subscriptionsFeed answers an empty feed rather than failing when nothing is subscribed', async () => {
+  const p = connectedYt([{ match: '/subscriptions', json: { items: [] } }]);
+  assert.deepEqual(await p.subscriptionsFeed(), { ok: true, videos: [] });
+});
+
+test('searchVideos needs a real query, keeps only video results, and caches per query', async () => {
+  const calls = [];
+  const p = connectedYt([
+    { match: '/search?', calls, json: { items: [
+      { id: { videoId: 'vid00001' }, snippet: { title: 'Hit', channelTitle: 'Chan' } },
+      { id: { channelId: 'UCnope' }, snippet: { title: 'a channel, not a video' } },
+    ] } },
+    { match: '/videos?part=contentDetails', json: { items: [] } },
+  ]);
+  assert.deepEqual(await p.searchVideos(' a '), { ok: false, error: 'empty' });
+  assert.equal(calls.length, 0, 'a one-character query must never cost 100 quota units');
+  const r = await p.searchVideos('lofi');
+  assert.equal(r.videos.length, 1);
+  assert.equal(r.videos[0].id, 'vid00001');
+  await p.searchVideos('LOFI');
+  assert.equal(calls.length, 1, 'the same query, any case, is served from cache');
+});
+
+test('the viewer lists all report not_connected when logged out', async () => {
+  const p = createYouTubeProvider({ clientId: 'cid', clientSecret: 'sec', tokensFile: tmpTokens(), fetch: async () => { throw new Error('no'); } });
+  for (const call of [p.likedVideos(), p.playlistVideos('PL1'), p.subscriptionsFeed(), p.searchVideos('lofi')]) {
+    assert.deepEqual(await call, { ok: false, error: 'not_connected' });
+  }
+});
+
+test('signing a different account in drops the cached library instead of inheriting it', async () => {
+  const file = tmpTokens();
+  fs.writeFileSync(file, JSON.stringify({ youtube: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6, channel: 'C', channelId: 'UC' } }));
+  const calls = [];
+  const p = createYouTubeProvider({ clientId: 'cid', clientSecret: 'sec', tokensFile: file,
+    fetch: stubFetch([
+      { match: 'myRating=like', calls, json: { items: [{ id: 'vid00001', snippet: { title: 'Private taste' } }] } },
+      { match: '/token', json: { access_token: 'AT2', refresh_token: 'RT2', expires_in: 3600 } },
+      { match: '/channels', json: { items: [{ id: 'UC999', snippet: { title: 'Someone else' } }] } },
+    ]) });
+  assert.equal((await p.likedVideos()).videos.length, 1);
+  await p.likedVideos();
+  assert.equal(calls.length, 1, 'same account, still cached');
+  assert.equal((await p.pollDeviceToken('DEV')).login, 'Someone else');
+  await p.likedVideos();
+  assert.equal(calls.length, 2, 'the new account re-reads rather than seeing the previous one library');
+});
+
+test('logging out leaves the lists refusing rather than serving a cached copy', async () => {
+  const file = tmpTokens();
+  fs.writeFileSync(file, JSON.stringify({ youtube: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6, channel: 'C', channelId: 'UC' } }));
+  const p = createYouTubeProvider({ clientId: 'cid', clientSecret: 'sec', tokensFile: file,
+    fetch: stubFetch([
+      { match: 'myRating=like', json: { items: [{ id: 'vid00001', snippet: { title: 'Private taste' } }] } },
+      { match: '/revoke', json: {} },
+    ]) });
+  assert.equal((await p.likedVideos()).videos.length, 1);
+  await p.logout();
+  assert.deepEqual(await p.likedVideos(), { ok: false, error: 'not_connected' });
+});
+
 test('logout revokes and clears persisted creds', async () => {
   const file = tmpTokens();
   fs.writeFileSync(file, JSON.stringify({ youtube: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6, channel: 'C', channelId: 'UC' } }));
