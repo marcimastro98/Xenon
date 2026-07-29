@@ -443,7 +443,7 @@
       "name": "DGM weather radar",
       "author": "DanielGarciaMorato",
       "perfWarning": true,
-      "description": "Explore the latest available precipitation radar frame on an interactive map centred on the location selected in DGM Current Weather.\n\nThe widget uses Leaflet, CARTO map tiles and RainViewer radar data through Xenon's official tile proxy. It includes pan, zoom, recenter and refresh controls together",
+      "description": "DGM Weather Radar displays the latest available RainViewer precipitation layer for the city configured in DGM Current Weather. It supports panning, zooming, recentering and refresh controls, uses Leaflet and CARTO maps, and pauses activity when the widget is not visible.",
       "category": "system",
       "tags": [
         "weather-radar",
@@ -452,18 +452,18 @@
         "rainviewer",
         "leaflet"
       ],
-      "version": "0.1.7",
-      "changelog": "Added Xenon 4.6.0 compatibility metadata, aligned the package with the published 0.1.6 release and improved package consistency.",
+      "version": "0.1.10",
+      "changelog": "Improved Xenon visibility handling and radar lifecycle, including safer pause and resume behavior and refined regional zoom support.",
       "pkgId": "dgm-weather-radar-sdk",
       "preview": {
         "accent": "#1ed760",
         "bg": "#0b0d12",
         "text": "#e9edf6"
       },
-      "shots": 3,
-      "addedAt": "2026-07-21",
+      "shots": 4,
+      "addedAt": "2026-07-29",
       "codeFile": true,
-      "updatedAt": "2026-07-21"
+      "updatedAt": "2026-07-29"
     },
     {
       "id": "keyring",
