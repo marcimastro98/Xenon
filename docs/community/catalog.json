@@ -2,6 +2,33 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "dgm-telemetry",
+      "kind": "widget",
+      "name": "DGM Telemetry",
+      "author": "DanielGarciaMorato",
+      "perfWarning": true,
+      "description": "DGM Telemetry is a responsive system-monitoring widget for Xenon. Standard Mode shows CPU, GPU, memory and storage through the official system stream. An optional external bridge adds compatible FPS, frametime, precise sensors, coolant, pump RPM and drive health.",
+      "category": "system",
+      "tags": [
+        "telemetry",
+        "monitoring",
+        "cpu",
+        "gpu",
+        "hardware"
+      ],
+      "version": "0.1.6",
+      "pkgId": "dgm-telemetry",
+      "preview": {
+        "accent": "#1ed760",
+        "bg": "#0b0d12",
+        "text": "#e9edf6"
+      },
+      "shots": 3,
+      "active": false,
+      "addedAt": "2026-07-29",
+      "codeFile": true
+    },
+    {
       "id": "dgm-personal-training",
       "kind": "widget",
       "name": "DGM Personal Training",
