@@ -2,6 +2,32 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "dgm-marcas-personales",
+      "kind": "widget",
+      "name": "DGM Personal Exercise",
+      "author": "DanielGarciaMorato",
+      "description": "DGM Personal Records is an editable strength-tracking widget for Xenon. Record exercise names and personal bests in kilograms, update or remove entries and keep the data locally through Xenon’s official storage. It supports Spanish and English and makes no network requests.",
+      "category": "fun",
+      "tags": [
+        "training",
+        "fitness",
+        "records",
+        "strength",
+        "progress"
+      ],
+      "version": "0.1.0",
+      "pkgId": "dgm-training-personal-records",
+      "preview": {
+        "accent": "#1ed760",
+        "bg": "#0b0d12",
+        "text": "#e9edf6"
+      },
+      "shots": 3,
+      "active": false,
+      "addedAt": "2026-07-29",
+      "codeFile": true
+    },
+    {
       "id": "codex",
       "kind": "bundle",
       "name": "Codex",
