@@ -2,6 +2,33 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "dgm-personal-training",
+      "kind": "widget",
+      "name": "DGM Personal Training",
+      "author": "DanielGarciaMorato",
+      "perfWarning": true,
+      "description": "DGM Personal Training is a responsive monthly workout calendar for Xenon. Create, edit and delete training sessions by day, navigate between months and keep the plan locally through Xenon’s official storage. It supports Spanish and English and requires no network connection.",
+      "category": "fun",
+      "tags": [
+        "training",
+        "fitness",
+        "calendar",
+        "workouts",
+        "planner"
+      ],
+      "version": "0.1.0",
+      "pkgId": "dgm-training-monthly",
+      "preview": {
+        "accent": "#1ed760",
+        "bg": "#0b0d12",
+        "text": "#e9edf6"
+      },
+      "shots": 3,
+      "active": false,
+      "addedAt": "2026-07-29",
+      "codeFile": true
+    },
+    {
       "id": "dgm-marcas-personales",
       "kind": "widget",
       "name": "DGM Personal Exercise",
