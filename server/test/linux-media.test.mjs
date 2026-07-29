@@ -141,10 +141,16 @@ test('shapeNowPlaying: an unknown status is Unknown, never passed through', () =
   assert.equal(lm.shapeNowPlaying({ ...rec, status: 'Stopped' }, 0).playbackStatus, 'Stopped');
 });
 
-test('commandArgs: only the three transport verbs map', () => {
+test('commandArgs: transport verbs and absolute seek map to exact playerctl argv', () => {
   assert.deepEqual(lm.commandArgs('playpause'), ['play-pause']);
   assert.deepEqual(lm.commandArgs('next'), ['next']);
   assert.deepEqual(lm.commandArgs('previous'), ['previous']);
+  assert.deepEqual(lm.commandArgs('seek', 12.345678, 'spotify'),
+    ['--player', 'spotify', 'position', '12.345678']);
+  assert.deepEqual(lm.commandArgs('seek', 0), ['position', '0']);
+  for (const bad of [-1, NaN, Infinity, 'nope', undefined]) {
+    assert.equal(lm.commandArgs('seek', bad, 'spotify'), null, String(bad));
+  }
   for (const bad of ['info', 'stop', 'open', '', null, undefined, 'toString', '__proto__']) {
     assert.equal(lm.commandArgs(bad), null, String(bad));
   }
@@ -163,6 +169,8 @@ test('createLinuxMedia: no playerctl is a supported state, not an error', () => 
 test('createLinuxMedia: a command with no playerctl rejects cleanly', async () => {
   const host = lm.createLinuxMedia({ exe: '' });
   if (!host.available()) await assert.rejects(() => host.command('playpause'), /not installed/);
+  assert.deepEqual(await host.command('seek', -1),
+    { ok: false, error: 'bad_position', seekProtocol: 1 });
   await assert.rejects(() => host.command('nope'), /unsupported media action/);
 });
 

@@ -439,6 +439,29 @@ See **[AGENTS.md](AGENTS.md)** and `.claude/CLAUDE.md` for the full project rule
 
 ---
 
+## Debug flags
+
+Both are read from the environment at startup, both are **off by default**, and
+neither adds any surface to a normal install. They exist because the features
+they cover cannot be exercised on demand: one needs another person to phone you,
+the other needs a live account plus a real incoming call.
+
+| Variable | What it does |
+|---|---|
+| `XENON_CALLS_TEST=1` | Enables `POST /api/calls/test`, which rings a **fake** incoming call. Without the flag the route 404s like any unknown path. It synthesises a notification and feeds it to the real classifier, so it exercises matching, the ring-phrase check, the capability computation, the SSE broadcast and the phone push — not a hand-made card. Body: `{"app":"teams","caller":"Marco Rossi","video":false}`; `app` is one of the ids in `call-detect.js` `DEFAULT_APPS` (`teams`, `zoom`, `discord`, `phonelink`, `whatsapp`, `slack`, `meet`). |
+| `XENON_DISCORD_RPC_DEBUG=1` | Logs every Discord RPC dispatch with its event name, channel id and `message.type` — and **no message content**. This is how to confirm whether a ringing DM raises `NOTIFICATION_CREATE` with a type-3 (CALL) message, which is the one assumption in the incoming-call feature that cannot be verified without a live account. |
+
+```powershell
+# Windows
+$env:XENON_CALLS_TEST = '1'; node server/server.js
+```
+```bash
+# macOS / Linux
+XENON_CALLS_TEST=1 node server/server.js
+```
+
+---
+
 ## Native iCUE widget (`widget/`)
 
 A separate, in-development native widget package. Consult the offline SDK mirror before relying on web docs: `WidgetBuilder/docs/`, `WidgetBuilder/references/`, `WidgetBuilder/skill.md`. Many features (mic mute, audio, network, app switcher) require the companion server and aren't available via native SDK plugins alone. Keep the widget identity stable; package with `npm run icue:package`.

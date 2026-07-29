@@ -100,7 +100,9 @@ body.cw-has-expanded .shell { z-index: 70; }
 .cw-body { flex: 1 1 auto; min-height: 0; display: flex; }
 .cw-frame {
   flex: 1 1 auto; width: 100%; height: 100%; min-height: 0;
-  border: 0; border-radius: 10px; background: transparent;
+  /* Follows the tile's radius rather than a literal: a widget whose tile was
+     given square or heavily rounded corners kept a 10px frame inside it. */
+  border: 0; border-radius: var(--radius-tile, 16px); background: transparent;
 }
 
 /* While arranging the layout the guest iframe must be inert: a sandboxed frame

@@ -6,9 +6,9 @@
 // The fourth implementation of the contract server.js already had three times
 // (xenon-helper's media-serve, media.ps1 -Serve, darwin-media.js): one
 // long-lived child holding the OS's idea of what is playing, answering `info` /
-// `playpause` / `next` / `previous`, and pushing when the track changes. Same
-// keys, same units (seconds), same playbackStatus vocabulary — nothing above
-// this file knows which platform produced it.
+// `playpause` / `next` / `previous` / `seek`, and pushing when the track
+// changes. Same keys, same units (seconds), same playbackStatus vocabulary —
+// nothing above this file knows which platform produced it.
 //
 // Linux is the easy one of the three. Where macOS keeps now-playing behind a
 // private framework that refuses to load into anything Apple did not sign, the
@@ -59,7 +59,19 @@ const STATUS = { Playing: 'Playing', Paused: 'Paused', Stopped: 'Stopped' };
 
 const COMMANDS = { playpause: 'play-pause', next: 'next', previous: 'previous' };
 
-function commandArgs(action) {
+function commandArgs(action, position, player) {
+  if (action === 'seek') {
+    const seconds = Number(position);
+    if (!Number.isFinite(seconds) || seconds < 0) return null;
+    const micros = Math.round(seconds * 1e6);
+    if (!Number.isSafeInteger(micros)) return null;
+    const selected = String(player || '').trim();
+    return [
+      ...(selected ? ['--player', selected] : []),
+      'position',
+      String(micros / 1e6),
+    ];
+  }
   return Object.prototype.hasOwnProperty.call(COMMANDS, action) ? [COMMANDS[action]] : null;
 }
 
@@ -213,6 +225,7 @@ function createLinuxMedia(options) {
   const o = options || {};
   const onChange = typeof o.onChange === 'function' ? o.onChange : () => {};
   const exeOverride = o.exe || null;
+  const runFile = typeof o.execFile === 'function' ? o.execFile : execFile;
 
   // The no-install fallback. Constructed either way (it costs a PATH walk) but
   // only started when playerctl is missing, so a machine with playerctl never
@@ -321,16 +334,55 @@ function createLinuxMedia(options) {
   // A control is a one-shot invocation: the --follow child holds the stream, it
   // takes no input. The answer is the pre-command snapshot; the stream pushes
   // the real change a moment later, and that push refreshes the widget.
-  function command(action) {
-    const args = commandArgs(action);
-    if (!args) return Promise.reject(new Error(`unsupported media action "${action}"`));
-    if (usingDbus) return dbus.command(action).then(() => info());
+  function command(action, position) {
+    let target = position;
+    const cur = current();
+    if (action === 'seek') {
+      const requested = Number(position);
+      if (!Number.isFinite(requested) || requested < 0) {
+        return Promise.resolve({ ok: false, error: 'bad_position', seekProtocol: 1 });
+      }
+      const duration = cur.rec ? seconds(cur.rec.length, unitDivisor(cur.rec.length)) : 0;
+      target = duration > 0 ? Math.min(requested, duration) : requested;
+    }
+    const args = commandArgs(action, target, cur.rec && cur.rec.player);
+    if (!args) {
+      if (action === 'seek') {
+        return Promise.resolve({ ok: false, error: 'bad_position', seekProtocol: 1 });
+      }
+      return Promise.reject(new Error(`unsupported media action "${action}"`));
+    }
+    if (usingDbus) {
+      return dbus.command(action, target).then((result) => action === 'seek' ? result : info());
+    }
     const bin = exe();
     if (!bin) return Promise.reject(new Error('playerctl is not installed'));
     return new Promise((resolve, reject) => {
-      execFile(bin, args, { timeout: COMMAND_TIMEOUT_MS }, (err) => {
-        if (err) reject(new Error(`playerctl ${args[0]} failed: ${err.message}`));
-        else resolve(info());
+      runFile(bin, args, { timeout: COMMAND_TIMEOUT_MS }, (err) => {
+        if (err && action === 'seek') {
+          resolve({ ok: false, error: 'not_seekable', seekProtocol: 1 });
+        } else if (err) {
+          reject(new Error(`playerctl ${args.join(' ')} failed: ${err.message}`));
+        } else if (action === 'seek') {
+          if (latest.rec) {
+            const divisor = unitDivisor(latest.rec.length);
+            latest = {
+              rec: { ...latest.rec, position: String(target * divisor) },
+              at: Date.now(),
+            };
+            try { onChange(); } catch { /* never let a listener kill the host */ }
+          }
+          const snapshot = info();
+          resolve({
+            ok: true,
+            seekProtocol: 1,
+            source: snapshot.source || '',
+            app: snapshot.app || '',
+            position: target,
+          });
+        } else {
+          resolve(info());
+        }
       });
     });
   }

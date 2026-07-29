@@ -213,6 +213,7 @@ function createLinuxIndex(o = {}) {
   let capped = false;
   let stats_ = { files: 0, dirs: 0, bytes: 0 };
   let scanToken = 0;       // invalidates a walk whose roots changed under it
+  let scanning = false;    // a walk is in flight — distinct from `building`, which is what a query reports
   let rescanTimer = null;
   let stopped = false;
 
@@ -254,26 +255,35 @@ function createLinuxIndex(o = {}) {
 
   async function rebuild() {
     const token = ++scanToken;
+    scanning = true;
     building = true;
     capped = false;
     stats_ = { files: 0, dirs: 0, bytes: 0 };
     const acc = [];
-    for (const r of roots) {
+    try {
+      for (const r of roots) {
+        if (token !== scanToken || stopped) return;
+        try {
+          const st = await fsp.stat(r);
+          if (!st.isDirectory()) continue;
+        } catch { continue; }
+        await walkRoot(r, token, acc);
+      }
       if (token !== scanToken || stopped) return;
-      try {
-        const st = await fsp.stat(r);
-        if (!st.isDirectory()) continue;
-      } catch { continue; }
-      await walkRoot(r, token, acc);
+      // Swapped in one assignment, never mutated in place: a query that runs
+      // during a rescan sees the previous complete index or the new one, never a
+      // half-built list that would silently return "no results" for a file that
+      // is there.
+      entries = acc;
+      building = false;
+      ready = true;
+    } finally {
+      // Only the walk that is still current clears the flag — a superseded one
+      // must not hand the newcomer's in-flight mark away. `finally` rather than
+      // the tail, so a throw cannot leave the mark set forever (which would
+      // stop every future rescan).
+      if (token === scanToken) scanning = false;
     }
-    if (token !== scanToken || stopped) return;
-    // Swapped in one assignment, never mutated in place: a query that runs
-    // during a rescan sees the previous complete index or the new one, never a
-    // half-built list that would silently return "no results" for a file that
-    // is there.
-    entries = acc;
-    building = false;
-    ready = true;
   }
 
   function scheduleRescan() {
@@ -285,7 +295,18 @@ function createLinuxIndex(o = {}) {
     // the large home directories this is for, and failing that limit is silent.
     // A rewalk costs a burst of I/O every few minutes and cannot be defeated by
     // a sysctl.
-    rescanTimer = setInterval(() => { rebuild().catch(() => {}); }, rescanMs);
+    rescanTimer = setInterval(() => {
+      // Never pre-empt the walk already running. rebuild() bumps scanToken and
+      // walkRoot aborts the instant the token moves, so on any machine where a
+      // full walk takes longer than rescanMs — a large or network-backed home, a
+      // cold cache — every tick threw the walk away and started from zero: the
+      // index never reached `ready`, query() answered {items:[], building:true}
+      // forever, overview() stayed null, and the disk was walked continuously.
+      // Skipping the tick is right rather than queueing one: the walk in flight
+      // is already producing exactly the fresh index this tick wanted.
+      if (scanning) return;
+      rebuild().catch(() => {});
+    }, rescanMs);
     if (rescanTimer.unref) rescanTimer.unref();
   }
 

@@ -242,6 +242,40 @@ test('run media/micMute/volume delegate to deps', async () => {
   assert.deepEqual(log, ['media:next', 'mic:toggle', 'vol:up']);
 });
 
+test('run mediaSeek validates, caps and cleanly delegates absolute seconds', async () => {
+  const calls = [];
+  const registry = reg.createRegistry({
+    mediaSeek: (position) => { calls.push(position); return Promise.resolve({ ok: true }); },
+  });
+  assert.deepEqual(await registry.run({ type: 'mediaSeek', position: 12.6, extra: 'dropped' }), { ok: true });
+  assert.deepEqual(await registry.run({ type: 'mediaSeek', position: '90001' }), { ok: true });
+  assert.deepEqual(calls, [13, 86400]);
+
+  for (const position of ['', '   ', '-1', 'NaN', 'Infinity']) {
+    assert.deepEqual(
+      await registry.run({ type: 'mediaSeek', position }),
+      { ok: false, error: 'bad_position' },
+      position,
+    );
+  }
+  assert.deepEqual(calls, [13, 86400], 'invalid positions must never reach the host');
+
+  assert.deepEqual(
+    await reg.createRegistry({}).run({ type: 'mediaSeek', position: 10 }),
+    { ok: false, error: 'unavailable' },
+  );
+  assert.deepEqual(
+    await reg.createRegistry({ mediaSeek: () => Promise.resolve({ ok: false, error: 'not_seekable' }) })
+      .run({ type: 'mediaSeek', position: 10 }),
+    { ok: false, error: 'not_seekable' },
+  );
+  assert.deepEqual(
+    await reg.createRegistry({ mediaSeek: () => Promise.resolve({ ok: false }) })
+      .run({ type: 'mediaSeek', position: 10 }),
+    { ok: false, error: 'seek_failed' },
+  );
+});
+
 test('run obs actions map + delegate to deps.obs', async () => {
   const calls = [];
   const deps = { obs: (rt, rd) => { calls.push([rt, rd]); return Promise.resolve(); } };

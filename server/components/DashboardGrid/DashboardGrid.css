@@ -61,6 +61,46 @@
 .grid-stack-item-content > .dashboard-widget,
 .grid-stack-item-content > .panel { flex: 1 1 auto; width: 100%; height: 100%; min-width: 0; min-height: 0; }
 
+/* ── Tile drop shadow ───────────────────────────────────────────────────────
+   Painted by the WRAPPER, not by .panel. GridStack's vendor rule gives
+   .grid-stack-item-content `overflow-x: hidden; overflow-y: auto` at a
+   specificity a single class here cannot beat, and .panel fills that node
+   exactly — so .panel's outer shadow has always been clipped away, on every
+   theme. Dashboard tiles have never had a drop shadow, which is also why the
+   per-tile "shadow" slider read as doing nothing.
+   The wrapper is the same box and is clipped by nobody. .panel keeps its own
+   box-shadow untouched (its inset highlight still paints; its outer half stays
+   clipped and invisible), so every skin's highlight survives.
+   --panel-drop is derived from --panel-shadow-alpha by applyTheme() in
+   settings.js, and per tile inline on this wrapper by applyTileStyle(). */
+.grid-stack-item { border-radius: var(--radius-tile, 16px); box-shadow: var(--panel-drop); }
+
+/* A tile asked to be fully transparent loses the panel MATERIAL — the top-lit
+   wash and the hairline highlight are part of the fill, and a "transparent"
+   card that still carried them read as a faint white sheet over the wallpaper.
+   The border and the shadow are separate controls and are deliberately NOT
+   touched here: an outline with nothing inside it is a legitimate look. */
+.grid-stack-item[data-tile-plain] > .grid-stack-item-content > :is(.panel, .dashboard-widget) {
+  background-image: none;
+  --panel-topline: transparent;
+}
+
+/* ── Per-tile glass (opt-in) ────────────────────────────────────────────────
+   backdrop-filter is a per-frame GPU cost and the Edge composites on the
+   integrated adapter, so this is NEVER on by default: applyTileStyle() sets
+   data-tile-glass only when the tile actually asks for a blur. It is also
+   dropped on the hybrid-GPU freeze, where every frame is already being paid
+   for twice. Blur behind an opaque panel is invisible — the editor says so
+   rather than quietly lowering the opacity. */
+.grid-stack-item[data-tile-glass] > .grid-stack-item-content > :is(.panel, .dashboard-widget) {
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+body.low-power-gpu .grid-stack-item[data-tile-glass] > .grid-stack-item-content > :is(.panel, .dashboard-widget) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
 /* Per-tile custom font (Settings → tile style). Only styled tiles get the rule,
    so an unstyled tile keeps inheriting the dashboard font. --tile-font is set
    inline on the .grid-stack-item wrapper by applyTileStyle(). */
@@ -316,6 +356,33 @@
 .tile-style-tabs button.active { background: rgba(var(--accent-rgb), 0.22); color: var(--accent); opacity: 1; }
 .tile-style-body[hidden] { display: none; }
 .tile-style-subhead { font-size: 12px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; opacity: 0.7; margin-top: 4px; }
+/* A one-line explanation under a control, for the cases where a setting is
+   inert for a reason the user can fix (blur behind an opaque panel). */
+.tile-style-hint { font-size: 11.5px; line-height: 1.45; opacity: 0.72; }
+.tile-style-hint[hidden] { display: none; }
+.tile-style-hint-err { color: var(--color-danger); opacity: 1; }
+.tile-style-row-col { flex-direction: column; align-items: stretch; gap: 6px; }
+/* Shape picker: the silhouette itself is the thumbnail, drawn from the same
+   path the tile will be clipped with — no asset to ship or keep in step. */
+.tile-shape-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+}
+.tile-shape-chip {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 7px 4px 5px; cursor: pointer; border: 1px solid var(--panel-border);
+  border-radius: 9px; background: rgba(255, 255, 255, 0.04); color: var(--text);
+  font: inherit; font-size: 10px; font-weight: 700;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.tile-shape-chip svg { width: 100%; height: 34px; opacity: 0.85; }
+.tile-shape-chip span { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; }
+.tile-shape-chip:hover { background: rgba(255, 255, 255, 0.08); }
+.tile-shape-chip.active { border-color: var(--accent); background: rgba(var(--accent-rgb), 0.16); color: var(--accent); }
+.tile-shape-path {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--panel-border);
+  border-radius: 8px; background: var(--input-bg); color: var(--text);
+  font: inherit; font-size: 11.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
 .decor-btnrow { display: flex; gap: 8px; }
 .decor-btnrow .tile-style-btn { flex: 1 1 auto; }
 .decor-preview {
@@ -387,7 +454,7 @@
    content flex row and squash the widget while editing. Excluding them (and the
    decor layers) keeps them absolute. */
 .grid-stack-item[data-tile-decor] > .grid-stack-item-content
-  > :not(.tile-decor-bg):not(.tile-decor-frame):not(.tile-decor-overlays):not(.gs-edit-overlay):not(.gs-size-cycle):not(.gs-add-tab):not(.gs-save-preset):not(.gs-tile-style):not(.gs-remove) {
+  > :not(.tile-decor-bg):not(.tile-decor-frame):not(.tile-decor-overlays):not(.tile-shape-outline):not(.gs-edit-overlay):not(.gs-size-cycle):not(.gs-add-tab):not(.gs-save-preset):not(.gs-tile-style):not(.gs-remove) {
   position: relative; z-index: 1;
 }
 .tile-decor-bg {
@@ -411,6 +478,45 @@
 .tile-decor-overlay {
   position: absolute; height: auto; max-width: 100%;
   object-fit: contain; user-select: none;
+}
+
+/* ── Per-tile SHAPE (the silhouette) ────────────────────────────────────────
+   The clip goes on the PAINTED layers, never on .grid-stack-item-content: the
+   edit-mode buttons live in that node, in the corners — exactly what a shape
+   cuts away — so clipping there would put them out of reach on every shaped
+   tile. --tile-clip points at a <clipPath clipPathUnits="objectBoundingBox">
+   in the shared #tile-shape-defs sprite; both are written by applyTileStyle(). */
+.grid-stack-item[data-tile-shape] > .grid-stack-item-content
+  > :is(.panel, .dashboard-widget, .tile-decor-bg, .tile-decor-overlays) {
+  clip-path: var(--tile-clip);
+  border-radius: 0;
+}
+/* Keep content clear of the cut edges. This is a transparent BORDER rather than
+   padding on purpose: padding here would beat (and erase) the padding every
+   widget root declares for itself, while the border is the one .panel already
+   owns — and on a shaped tile the rectangular border is replaced by the stroked
+   outline below anyway. --tile-shape-pad is a four-value width. */
+.grid-stack-item[data-tile-shape] > .grid-stack-item-content > :is(.panel, .dashboard-widget) {
+  border-style: solid;
+  border-color: transparent;
+  border-width: var(--tile-shape-pad, 0px);
+}
+/* A box-shadow follows the border box, not the clip: on a shaped tile it would
+   draw a rectangle floating behind the silhouette. */
+.grid-stack-item[data-tile-shape] { box-shadow: none; }
+/* The ornamental frame is a 9-slice border, rectangular by construction. */
+.grid-stack-item[data-tile-shape] > .grid-stack-item-content > .tile-decor-frame { display: none; }
+/* The outline — the same path, stroked. z 6, above the decorative overlays, so
+   the edge of the tile is never covered by a corner image. */
+.tile-shape-outline {
+  position: absolute; inset: 0; z-index: 6; pointer-events: none;
+  width: 100%; height: 100%; overflow: visible;
+}
+.tile-shape-outline path {
+  fill: none;
+  stroke: var(--panel-border);
+  stroke-width: var(--tile-shape-stroke, 1);
+  vector-effect: non-scaling-stroke;
 }
 
 /* "My presets" dock chips: an insert chip with a small inline delete. */

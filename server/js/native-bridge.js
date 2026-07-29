@@ -228,14 +228,14 @@
         else if (state === 'done') {
           // Terminal success. Make the button read as finished (it looked "stuck"
           // sitting disabled on the last progress line) and, crucially, tell the
-          // user what to do next — the app opened on the Edge, so the guidance
-          // differs by surface: inside iCUE they can close iCUE (the kiosk is
-          // independent); in a browser it's simply now on the Edge display.
+          // user what to do next — the app opened on its own display, so the
+          // guidance differs by surface: inside iCUE they can close iCUE (the
+          // kiosk is independent); in a browser it is simply full-screen now.
           btn.textContent = tr('native_promo_done_btn', 'Installed ✓');
-          const done = tr('native_promo_st_done', 'Installed! The app is now on your Xeneon Edge.');
+          const done = tr('native_promo_st_done', 'Installed! The app is now open full-screen.');
           const guide = inIcueFrame
-            ? tr('native_promo_done_icue', 'It runs on the Edge on its own, independently of iCUE — you can close iCUE whenever you like. Reopen iCUE any time to come back to this widget.')
-            : tr('native_promo_done_browser', 'It is now full-screen on your Edge display. This browser tab stays available too.');
+            ? tr('native_promo_done_icue', 'It runs on its own, independently of iCUE — you can close iCUE whenever you like. Reopen iCUE any time to come back to this widget.')
+            : tr('native_promo_done_browser', 'It is now full-screen on the display you gave it. This browser tab stays available too.');
           if (statusEl) statusEl.textContent = done + ' ' + guide;
           return;
         }
@@ -915,8 +915,92 @@
     });
   }
 
+  // ── Which screen the kiosk lives on ──────────────────────────────────
+  // The shell owns the monitor list and the placement; the dashboard only shows
+  // them and asks for changes. Two one-way channels, both of which already
+  // existed: the shell ASSIGNS the state into __XENON_NATIVE_CAPS__ (and calls
+  // onDisplaysChanged when the page is listening), and the page asks for a
+  // change by navigating to a `xenon-display:` URL the shell intercepts.
+  //
+  // There is deliberately no request/response path. One would mean giving the
+  // dashboard origin Tauri IPC — the same document that renders sandboxed
+  // third-party widgets and that a paired phone loads over the LAN.
+  let displayListener = null;
+
+  function displayState() {
+    const caps = window.__XENON_NATIVE_CAPS__ || {};
+    const d = caps.display || {};
+    return {
+      supported: isNative && caps.displayPicker === true,
+      displays: Array.isArray(caps.displays) ? caps.displays : [],
+      mode: typeof d.mode === 'string' ? d.mode : 'auto',
+      monitor: d.monitor || '',
+      fullscreen: d.fullscreen === true,
+      active: d.active || '',
+      missing: d.missing === true,
+    };
+  }
+
+  function onDisplaysChanged() {
+    if (typeof displayListener === 'function') {
+      try { displayListener(displayState()); } catch (e) { /* a listener must not break the shell */ }
+    }
+  }
+
+  function setDisplayListener(fn) {
+    displayListener = typeof fn === 'function' ? fn : null;
+  }
+
+  // One user action, one navigation. Assigning location.href during the initial
+  // load aborts the page load in WebView2 (see the home-gesture note above), and
+  // two assignments in the same tick can supersede each other before the shell's
+  // hook sees the first — which is why the fullscreen flag rides along with the
+  // screen id instead of being a second signal.
+  let displaySignalTimer = null;
+  let pendingDisplayUrl = '';
+  function sendDisplaySignal(url) {
+    const caps = window.__XENON_NATIVE_CAPS__;
+    // An older shell does not know this scheme, and an unknown scheme falls
+    // through to the OS opener — on Windows, a "how do you want to open this?"
+    // dialog on the kiosk. The capability flag is the gate.
+    if (!isNative || !caps || caps.displayPicker !== true) return false;
+    pendingDisplayUrl = url;
+    if (displaySignalTimer) return true;
+    const fire = () => {
+      displaySignalTimer = setTimeout(() => {
+        displaySignalTimer = null;
+        const next = pendingDisplayUrl;
+        pendingDisplayUrl = '';
+        if (!next) return;
+        try { window.location.href = next; } catch (e) { /* not native */ }
+      }, 200);
+    };
+    if (document.readyState === 'complete') fire();
+    else window.addEventListener('load', fire, { once: true });
+    return true;
+  }
+
+  function chooseScreen(id, fullscreen) {
+    if (!id) return false;
+    return sendDisplaySignal(
+      'xenon-display:screen?id=' + encodeURIComponent(id) + '&fullscreen=' + (fullscreen ? '1' : '0')
+    );
+  }
+  function chooseAutoScreen() { return sendDisplaySignal('xenon-display:auto'); }
+  function choosePhoneScreen() { return sendDisplaySignal('xenon-display:phone'); }
+  function setScreenFullscreen(on) {
+    return sendDisplaySignal('xenon-display:fullscreen?on=' + (on ? '1' : '0'));
+  }
+
   window.XenonNative = {
     isNative: isNative,
+    displayState: displayState,
+    onDisplaysChanged: onDisplaysChanged,
+    setDisplayListener: setDisplayListener,
+    chooseScreen: chooseScreen,
+    chooseAutoScreen: chooseAutoScreen,
+    choosePhoneScreen: choosePhoneScreen,
+    setScreenFullscreen: setScreenFullscreen,
     showUpdatePrompt: showUpdatePrompt,
     onShellUpdateEvent: onShellUpdateEvent,
     setShellUpdateListener: setShellUpdateListener,

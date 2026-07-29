@@ -320,6 +320,43 @@ input[type="range"] { accent-color: var(--green); }
 .settings-bg-covered-note { color: var(--color-warn); margin-top: 2px; }
 .settings-bg-covered-note[hidden] { display: none; }
 
+/* ── Incoming calls: which apps may ring ────────────────────────────────────
+   A row of on/off chips rather than a stack of toggle rows: there are seven of
+   them plus anything the user added, they are a single question ("may this app
+   ring?"), and seven full-width rows would push the rest of the Notifiche
+   section off a 720px-tall panel. */
+.settings-calls-apps-row { flex-direction: column; align-items: stretch; gap: 9px; }
+.settings-calls-apps-row[hidden] { display: none; }
+.settings-calls-apps { display: flex; flex-wrap: wrap; gap: 7px; }
+.settings-chip {
+  display: inline-flex; align-items: center;
+  min-height: 34px; padding: 0 13px;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  background: var(--control-bg);
+  color: var(--muted-text);
+  font: inherit; font-size: 12px; font-weight: 750;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+}
+.settings-chip:hover:not(:disabled) { background: var(--hover-bg); color: var(--text); }
+.settings-chip.is-on {
+  background: rgba(var(--accent-rgb), 0.15);
+  border-color: rgba(var(--accent-rgb), 0.36);
+  color: var(--accent);
+}
+.settings-chip:disabled { opacity: 0.45; cursor: default; }
+/* 34px is comfortable with a mouse and under the touch floor on a phone, where
+   these chips are the only thing in the panel you tap repeatedly. */
+@media (max-width: 560px) {
+  .settings-chip { min-height: 44px; padding: 0 15px; font-size: 12.5px; }
+  .settings-calls-apps { gap: 8px; }
+}
+/* The "why is there no Answer button on this machine" line. It is a reason, not
+   a warning: the feature still rings and can still open the app. */
+.settings-calls-cap { color: var(--color-warn); }
+.settings-calls-cap[hidden] { display: none; }
+
 /* ── Body inset for sections that DON'T use .settings-grid ──────────────
    Only .settings-grid (and a few other bodies) carry the 16px card inset, so
    sections that drop rows/toggles straight into the group had their controls
@@ -1471,6 +1508,12 @@ input[type="range"] { accent-color: var(--green); }
   transition: background .15s ease, color .15s ease;
 }
 .settings-nav-btn svg { width: 18px; height: 18px; flex: 0 0 auto; }
+/* A category the platform doesn't have is hidden by settingsHideWindowsOnly()
+   setting `hidden` on its button — which the UA's `[hidden] { display: none }`
+   cannot deliver here, because the author `display: flex` above outranks it.
+   Without this line every Windows-only category still listed itself on macOS
+   and Linux and opened an empty pane. */
+.settings-nav-btn[hidden] { display: none; }
 .settings-nav-btn:hover { background: rgba(255,255,255,0.05); color: var(--text); }
 .settings-nav-btn.active { background: rgba(var(--accent-rgb),0.14); color: var(--accent); }
 /* Bit's own category — his pixel face in brand green so the mascot reads at a
@@ -1648,6 +1691,45 @@ input[type="range"] { accent-color: var(--green); }
   border-color: rgba(88,101,242,0.28);
 }
 .settings-nav-support-btn.is-featured.is-discord:hover { background: rgba(88,101,242,0.24); }
+/* "macOS / Linux is beta", above the version stamp. Amber and not the accent:
+   the accent means a feature is on, and a caveat that borrows it stops reading
+   as a caveat. Built only where it is true (see renderPlatformBeta). */
+.settings-platform-beta {
+  margin: 0 8px 8px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: rgba(255, 196, 77, 0.09);
+  border: 1px solid rgba(255, 196, 77, 0.22);
+}
+.settings-platform-beta[hidden] { display: none; }
+.settings-platform-beta-head { display: flex; align-items: center; gap: 7px; }
+.settings-platform-beta-chip {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #ffc44d;
+  background: rgba(255, 196, 77, 0.16);
+}
+.settings-platform-beta-os { font-size: 11.5px; font-weight: 700; color: var(--text); }
+.settings-platform-beta-note {
+  margin: 5px 0 0;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--muted-text);
+}
+.settings-platform-beta-link {
+  display: inline-block;
+  margin-top: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #ffc44d;
+  text-decoration: none;
+}
+.settings-platform-beta-link:hover { text-decoration: underline; }
+
 .settings-nav-version {
   margin-top: 0;
   padding: 4px 12px 8px;
@@ -1756,10 +1838,93 @@ input[type="range"] { accent-color: var(--green); }
 :root[data-appearance="light"] .settings-content::-webkit-scrollbar-thumb,
 :root[data-appearance="light"] .settings-nav-scroll::-webkit-scrollbar-thumb { background: rgba(15, 25, 30, 0.22); background-clip: padding-box; }
 
+/* A flex item's automatic minimum size is its CONTENT, so any row inside the
+   panel that cannot fit pushes the panel's own children wider than the panel —
+   which has `overflow: hidden`, so the excess is not scrollable, it is gone.
+   Measured at 390px: the panel was 369px and its head and body were 516px, with
+   the close button sitting at x479, off the screen entirely and unreachable.
+   These four are the panel's structure; none of them has anything to gain from
+   being wider than the panel it is inside. */
+.settings-panel > .settings-head,
+.settings-panel > .settings-body,
+.settings-panel > .settings-foot,
+.settings-body > .settings-nav { min-width: 0; }
+
 @media (max-width: 720px) {
   .settings-body { flex-direction: column !important; }
-  .settings-nav { width: 100%; flex-direction: row; flex-wrap: wrap; }
-  .settings-nav-btn { width: auto; flex: 1 1 auto; justify-content: center; }
+  .settings-nav { width: 100%; min-width: 0; flex-direction: column; min-height: 0; }
+
+  /* On a phone the sidebar is a PICKER, not a list. Wrapping every category
+     into rows of chips filled the whole screen before a single setting was
+     visible, put the section dividers (WIDGET, INTEGRAZIONI, SISTEMA) inline
+     between two chips wherever the wrap happened to land, and squeezed
+     .settings-content to zero height — the panel showed nothing but its own
+     navigation. Collapsed, the nav is one row saying where you are; tapping it
+     opens the grouped list, and picking a category closes it again. */
+  .settings-nav-scroll {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    /* No shrinking: the nav is the scroller here, and a shrunk list with
+       overflow:visible doesn't scroll, it draws the footer on top of the last
+       three rows of categories. */
+    flex: 0 0 auto;
+    overflow: visible;
+    max-height: none;
+  }
+  .settings-nav-btn {
+    width: auto;
+    min-width: 0;
+    justify-content: flex-start;
+    gap: 9px;
+    padding: 11px 12px;
+    /* Each category needs to read as its own tappable object: side by side with
+       no fill they ran together as one block of text. */
+    background: rgba(255,255,255,0.05);
+    /* Half a phone's width is not enough for "Ambient / Screensaver" on one
+       line. The grid equalises the row, so the second line costs nothing and a
+       name is worth more than an ellipsis. */
+    white-space: normal;
+    line-height: 1.22;
+    font-size: 13px;
+  }
+  .settings-nav-btn > span { min-width: 0; overflow-wrap: anywhere; }
+  /* A divider belongs to the rows under it, so it takes the full width instead
+     of sitting in a chip slot. */
+  .settings-nav-label { grid-column: 1 / -1; padding: 9px 4px 1px; }
+
+  .settings-nav:not(.is-open) .settings-nav-btn,
+  .settings-nav:not(.is-open) .settings-nav-label,
+  .settings-nav:not(.is-open) .settings-nav-footer { display: none; }
+  .settings-nav:not(.is-open) .settings-nav-btn.active { display: flex; grid-column: 1 / -1; }
+  .settings-nav:not(.is-open) .settings-nav-btn.active::after {
+    content: '';
+    flex: 0 0 auto;
+    margin-left: auto;
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: translateY(-2px) rotate(45deg);
+    opacity: .75;
+  }
+
+  /* Open, the list carries its own scroll. .settings-body is overflow:hidden,
+     so an unbounded nav doesn't push the last categories out of view — it has
+     them CLIPPED, with no way to reach them. The cap is a % of the body rather
+     than vh: the Edge renders with CSS zoom, which vh ignores. */
+  .settings-nav.is-open {
+    max-height: 62%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+  /* The scroll is on the NAV, not on the list inside it, so the support links
+     and the version scroll past at the end of the categories instead of taking
+     a fixed 186px off a 342px picker and leaving room for two rows. */
+  .settings-nav.is-open .settings-nav-scroll { overflow: visible; }
+  .settings-nav-footer { margin-top: 8px; }
   .settings-content,
   #settings-content[data-cat="general"],
   #settings-content[data-cat="appearance"] { grid-template-columns: 1fr; }
@@ -2280,7 +2445,14 @@ input[type="range"] { accent-color: var(--green); }
 .cgal-tab.active { color: var(--accent, #35e08e); border-bottom-color: var(--accent, #35e08e); }
 
 /* ── Scroll body ── */
-.cgal-scroll { flex: 1; overflow-y: auto; padding: 18px; min-height: 220px; }
+/* overflow-x is pinned rather than left to compute: `overflow-y: auto` alone
+   turns the x axis into `auto` too, so ONE child that refuses to shrink pans
+   the entire storefront sideways — headers, shelves and cards together, cut off
+   at both edges with the cause nowhere near where it looks wrong. That is what
+   a phone was getting. Anything genuinely wider than the panel (the card shelf,
+   a card's screenshots) carries its own horizontal scroller, so clipping here
+   costs nothing and keeps a future too-wide element a local defect. */
+.cgal-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 18px; min-height: 220px; }
 
 /* ── Installed tab (js/installed-manager.js) ── */
 /* Deliberately NOT a second gallery: this is an operational list, so rows are
@@ -2783,7 +2955,16 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .cgal-feat-how { color: var(--warn, #ffb454) !important; }
 @media (max-width: 680px) {
   .cgal-feat-block { padding: 14px 14px 2px; }
-  .cgal-khead-actions { gap: 8px; }
+  /* A shelf header is a title on one side and up to three controls on the
+     other, and none of them could shrink: on a 390px phone the row measured
+     385px of actions next to the title, which made the whole Store 585px wide
+     inside a 355px panel. Everything then sat at whatever the sideways scroll
+     position happened to be. The controls take their own line here, and the
+     supporter button takes the width it needs. */
+  .cgal-khead { flex-wrap: wrap; row-gap: 8px; }
+  .cgal-khead-l { flex: 1 1 auto; min-width: 0; }
+  .cgal-khead-actions { flex: 1 1 100%; flex-wrap: wrap; min-width: 0; gap: 8px 12px; }
+  .cgal-feat-join { flex: 1 1 auto; white-space: normal; }
 }
 
 /* ── "How it works" supporter perks panel (stacked over the Store) ── */

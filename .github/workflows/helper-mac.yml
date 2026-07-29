@@ -81,6 +81,42 @@ jobs:
             console.log("temps contract ok");
           '
 
+      # `keys --check` is the probe server.js calls to decide whether to draw an
+      # Answer button on the incoming-call card, so what matters is not that the
+      # mode compiles but that it ANSWERS, in the shape the caller parses.
+      #
+      # The assertion is on the TYPE, not the value, and that is deliberate: a
+      # first version of this comment claimed a runner necessarily reports
+      # Accessibility denied, and the first run disproved it by reporting
+      # `true`. What the probe has to guarantee is the same either way — exit 0
+      # and a boolean — because "not granted" and "this helper is too old to
+      # know the mode" have to stay distinguishable. The latter is a non-zero
+      # exit, and it is what the button-hiding logic keys on. Pinning the value
+      # would only pin whatever GitHub's image happens to do this month.
+      #
+      # It must also post NOTHING. That is the whole reason --check exists: the
+      # server asks this question on a machine where the user is working, and a
+      # probe that typed into their frontmost window to find out whether it could
+      # type would be worse than no probe at all.
+      - name: The keys probe answers without pressing anything
+        run: |
+          set -euo pipefail
+          OUT=$("$BIN" keys --check)
+          echo "keys --check: $OUT"
+          echo "$OUT" | node -e '
+            const doc = JSON.parse(require("fs").readFileSync(0, "utf8").trim());
+            if (doc.ok !== true) throw new Error("the probe must answer ok:true when the mode exists");
+            if (typeof doc.accessibility !== "boolean") throw new Error("accessibility must be a boolean");
+            console.log("keys probe contract ok (accessibility=" + doc.accessibility + ")");
+          '
+          # A malformed combo is refused rather than half-sent: a modifier that
+          # goes down with no key to release it is stuck system-wide.
+          if "$BIN" keys 'ctrl+'; then
+            echo "a modifier-only combo exited 0 — that is a stuck modifier waiting to happen"
+            exit 1
+          fi
+          echo "malformed combo refused, as it must"
+
       - name: An unknown mode fails loudly, never emptily
         run: |
           set -euo pipefail

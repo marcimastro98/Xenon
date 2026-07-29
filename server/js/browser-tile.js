@@ -74,6 +74,35 @@
   let perfPaused = false;      // true → suspend streaming (game/performance mode, if opted in)
   const CLOSE_DELAY_MS = 30000;
 
+  // ── Verified resize ───────────────────────────────────────────────────────────
+  // A tile's size reaches the page as a fire-and-forget 'resize', and two things can
+  // leave the page rendering at a viewport the tile no longer has, with nothing to
+  // correct it: the message is dropped (relaySend just returns false while the relay
+  // reconnects), or the single repaint the server forces afterwards is captured while
+  // the page is still relaying out. The screencast is CHANGE-DRIVEN, so on a page that
+  // then sits still no further frame ever arrives and the tile keeps that frame
+  // forever — the "Hide toolbar leaves the page filling a quarter of the tile, Show
+  // toolbar puts it right" report (GitHub #116); showing the toolbar only helped
+  // because it resized the stage again.
+  //
+  // So a resize is VERIFIED rather than assumed. Every frame carries the viewport it
+  // was rendered at (CDP screencast metadata, CSS px), we compare it with the size we
+  // last asked for, and re-ask when they disagree. A watchdog covers the other half —
+  // a resize that produces no frame at all, where there is nothing to compare.
+  const RESIZE_TOLERANCE_PX = 2;
+  const RESIZE_RETRY_MS = 900;
+  const RESIZE_MAX_RETRIES = 4;
+
+  // Pure: does a frame's own viewport match the size we asked the page to render at?
+  // A frame without usable metadata (older server) can't be judged, so it passes.
+  function frameMatchesSize(meta, w, h) {
+    if (!meta || !(w > 0) || !(h > 0)) return true;
+    const dw = Number(meta.deviceWidth);
+    const dh = Number(meta.deviceHeight);
+    if (!(dw > 0) || !(dh > 0)) return true;
+    return Math.abs(dw - w) <= RESIZE_TOLERANCE_PX && Math.abs(dh - h) <= RESIZE_TOLERANCE_PX;
+  }
+
   // A group streams only while it's on screen AND not suspended by game/performance
   // mode. Re-evaluated whenever either input changes.
   function applyGroupState(group) {
@@ -157,6 +186,50 @@
     return { w: Math.max(64, Math.round(rect.width)), h: Math.max(64, Math.round(rect.height)), dpr };
   }
 
+  // Push the group's current stage size to its active tab and arm the watchdog.
+  // `retry` marks a self-healing re-ask so a fresh user-driven resize (which is
+  // always a new intent) restarts the retry budget instead of exhausting it.
+  function pushResize(group, retry) {
+    const tab = activeTab(group);
+    if (!tab || !tab.opened) return;
+    const m = groupMetrics(group);
+    tab.lastW = m.w; tab.lastH = m.h;
+    // A dropped send needs no watchdog: the relay's own reconnect handler re-opens
+    // the active tab, which measures the stage again.
+    if (!relaySend({ type: 'resize', tile: tab.tileId, w: m.w, h: m.h, dpr: m.dpr })) return;
+    if (!retry) tab.resizeTries = 0;
+    clearResizeWatchdog(tab);
+    tab.resizeTimer = setTimeout(() => {
+      tab.resizeTimer = null;
+      const g = tab.group;
+      if (!g || !g.visible || !tab.opened || activeTab(g) !== tab) return;
+      if (frameMatchesSize(tab.meta, tab.lastW, tab.lastH)) return;
+      if (tab.resizeTries >= RESIZE_MAX_RETRIES) return;   // give up quietly rather than loop
+      tab.resizeTries++;
+      pushResize(g, true);
+    }, RESIZE_RETRY_MS);
+  }
+
+  function clearResizeWatchdog(tab) {
+    if (tab && tab.resizeTimer) { clearTimeout(tab.resizeTimer); tab.resizeTimer = null; }
+  }
+
+  // Called for every decoded frame of the active tab. Deliberately compares against
+  // the CACHED last-requested size rather than measuring the stage: this sits on the
+  // per-frame path, where a getBoundingClientRect() would force a layout read at the
+  // stream's frame rate.
+  function verifyFrameSize(group, tab) {
+    if (frameMatchesSize(tab.meta, tab.lastW, tab.lastH)) {
+      tab.resizeTries = 0;
+      clearResizeWatchdog(tab);
+      return;
+    }
+    if (tab.resizeTimer) return;                          // a re-ask is already in flight
+    if (tab.resizeTries >= RESIZE_MAX_RETRIES) return;
+    tab.resizeTries++;
+    pushResize(group, true);
+  }
+
   // ── Tab lifecycle ──────────────────────────────────────────────────────────────
   function activeTab(group) { return group.tabs[group.active] || null; }
 
@@ -165,6 +238,8 @@
     const mtr = groupMetrics(group);
     if (relaySend({ type: 'open', tile: tab.tileId, url: tab.url, w: mtr.w, h: mtr.h, dpr: mtr.dpr, binary: true })) {
       tab.opened = true; tab.streaming = true;
+      // The size this page was opened at is what its frames are checked against.
+      tab.lastW = mtr.w; tab.lastH = mtr.h; tab.resizeTries = 0;
       showLoading(group);   // spinner until the first frame lands (also covers a stale reopened frame)
     }
   }
@@ -211,6 +286,7 @@
     group.visible = false;
     group.tabs.forEach((tab) => {
       if (tab.retryTimer) { clearTimeout(tab.retryTimer); tab.retryTimer = null; }
+      clearResizeWatchdog(tab);   // a hidden tile emits no frames to verify against
       if (tab.streaming) { relaySend({ type: 'screencast', tile: tab.tileId, on: false }); tab.streaming = false; }
     });
     // Grace period for quick page flips before freeing the headless pages.
@@ -277,6 +353,9 @@
       if (group && activeTab(group) === tab && group.loadingEl && !group.loadingEl.hidden) {
         group.loadingEl.hidden = true; group.loadingEl.classList.remove('is-error');
       }
+      // Every frame states the viewport it was rendered at, so a resize that was
+      // lost or raced the repaint is visible here and re-asked for (#116).
+      if (group && activeTab(group) === tab) verifyFrameSize(group, tab);
     }).catch(() => {}).then(() => {
       tab._decoding = false;
       const next = tab._pendingFrame;
@@ -589,7 +668,7 @@
     const canvas = document.createElement('canvas');
     canvas.className = 'browser-canvas'; canvas.tabIndex = 0; canvas.hidden = true;
     group.stage.appendChild(canvas);
-    const tab = { tileId, group, canvas, ctx: null, meta: null, url: url || '', opened: false, streaming: false, loaded: false, launchRetries: 0, retryTimer: null, lastW: 0, lastH: 0, _touchId: null, _decoding: false, _pendingFrame: null };
+    const tab = { tileId, group, canvas, ctx: null, meta: null, url: url || '', opened: false, streaming: false, loaded: false, launchRetries: 0, retryTimer: null, lastW: 0, lastH: 0, resizeTimer: null, resizeTries: 0, _touchId: null, _decoding: false, _pendingFrame: null };
     tabsById.set(tileId, tab);
     group.tabs.push(tab);
     wireInput(group, tab);
@@ -616,6 +695,7 @@
     const idx = group.tabs.indexOf(tab);
     if (idx < 0) return;
     if (tab.retryTimer) { clearTimeout(tab.retryTimer); tab.retryTimer = null; }
+    clearResizeWatchdog(tab);
     if (tab.opened) relaySend({ type: 'close', tile: tab.tileId });
     tabsById.delete(tab.tileId);
     if (tab.canvas && tab.canvas.parentNode) tab.canvas.parentNode.removeChild(tab.canvas);
@@ -645,8 +725,7 @@
     if (group.visible) {
       openActive(group);
       // Re-assert size for the tab we're switching to (it may have been resized while inactive).
-      const m = groupMetrics(group);
-      if (next && next.opened) relaySend({ type: 'resize', tile: next.tileId, w: m.w, h: m.h, dpr: m.dpr });
+      pushResize(group, false);
     } else if (next && !next.url) {
       showEmpty(group);
     }
@@ -760,10 +839,7 @@
       if (roQueued) return; roQueued = true;
       requestAnimationFrame(() => {
         roQueued = false;
-        const m = groupMetrics(group);
-        const tab = activeTab(group);
-        if (tab) { tab.lastW = m.w; tab.lastH = m.h; }
-        if (tab && tab.opened) relaySend({ type: 'resize', tile: tab.tileId, w: m.w, h: m.h, dpr: m.dpr });
+        pushResize(group, false);
       });
     });
     ro.observe(group.stage);
@@ -814,6 +890,13 @@
     if (!group) return;
     group.chromeHidden = !!hidden;
     applyChromeHidden(group);
+    // Push the new stage size ourselves instead of waiting on the ResizeObserver.
+    // Its callback runs inside a requestAnimationFrame, which does not run while the
+    // document is hidden — and this is the exact change that leaves a tile stuck at
+    // the wrong size when the frame it produces is missed (#116). Measuring here
+    // costs one synchronous layout on a button tap, and the observer's own push a
+    // frame later is a harmless no-op.
+    pushResize(group, false);
     saveTabs(group);
   }
 
@@ -875,7 +958,12 @@
         if (group._ro) { group._ro.disconnect(); group._ro = null; }
         if (group._io) { group._io.disconnect(); group._io = null; }
         if (group._mo) { group._mo.disconnect(); group._mo = null; }
-        group.tabs.forEach((tab) => { if (tab.opened) relaySend({ type: 'close', tile: tab.tileId }); tabsById.delete(tab.tileId); });
+        group.tabs.forEach((tab) => {
+          if (tab.retryTimer) { clearTimeout(tab.retryTimer); tab.retryTimer = null; }
+          clearResizeWatchdog(tab);
+          if (tab.opened) relaySend({ type: 'close', tile: tab.tileId });
+          tabsById.delete(tab.tileId);
+        });
         groups.delete(id);
       }
     });
@@ -946,6 +1034,7 @@
       if (!!cfg.chromeHidden !== !!group.chromeHidden) {
         group.chromeHidden = !!cfg.chromeHidden;
         applyChromeHidden(group);
+        pushResize(group, false);   // same stage change as a local toggle (#116)
       }
       let adopted = false;
       for (let i = 0; i < group.tabs.length; i++) {

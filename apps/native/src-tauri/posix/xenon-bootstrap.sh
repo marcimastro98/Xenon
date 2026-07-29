@@ -95,10 +95,40 @@ export PATH
 # service is the "installed" marker, and anything answering on the port means a
 # backend is live (a dev checkout, a manual start) that a second install would
 # only fight for 3030.
+#
+# The marker's EXISTENCE is not the fact, though — it is a file in the user's own
+# config, and the install tree it points at can be moved or deleted while it
+# stays behind. lib.rs's backend_entry() then finds nothing and opens this window
+# on every single launch, where this check printed "already installed — nothing
+# to do" and exited: the only diagnostic the user ever saw, asserting the exact
+# opposite of the truth. So resolve what the marker POINTS AT and require it to
+# still be there. When nothing can be resolved (an older install, a format we do
+# not recognise) the marker is trusted exactly as before.
+installed_entry() {
+  if [ "$XENON_OS" = 'macos' ]; then
+    # install.sh records the backend location for the app to read; it is the one
+    # pointer that survives the agent switching from `node` to `open -a Xenon`.
+    local j="$HOME/Library/Application Support/Xenon/backend.json"
+    [ -f "$j" ] && sed -n 's/.*"entry" *: *"\([^"]*\)".*/\1/p' "$j" | head -1
+  else
+    local m
+    for m in "$MARKER_SERVICE" "$MARKER_AUTOSTART"; do
+      [ -n "$m" ] && [ -f "$m" ] || continue
+      # Quoted (current) and bare (written before the quoting fix) alike.
+      sed -n -e 's/^Exec[A-Za-z]*=.*"\(\/[^"]*server\.js\)".*/\1/p' \
+             -e 's/^Exec[A-Za-z]*=[^ ]* \(\/.*server\.js\)$/\1/p' "$m"
+    done | head -1
+  fi
+}
+
 if { [ -n "$MARKER_SERVICE" ] && [ -f "$MARKER_SERVICE" ]; } \
 || { [ -n "$MARKER_AUTOSTART" ] && [ -f "$MARKER_AUTOSTART" ]; }; then
-  step 'The Xenon backend is already installed — nothing to do.'
-  exit 0
+  ENTRY="$(installed_entry 2>/dev/null)"
+  if [ -z "$ENTRY" ] || [ -f "$ENTRY" ]; then
+    step 'The Xenon backend is already installed — nothing to do.'
+    exit 0
+  fi
+  step 'A login service is registered but its Xenon install is gone — reinstalling.'
 fi
 if curl -fsS --max-time 2 "http://127.0.0.1:$PORT/version" >/dev/null 2>&1; then
   step "A Xenon backend is already running on 127.0.0.1:$PORT — nothing to do."

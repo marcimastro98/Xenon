@@ -218,7 +218,7 @@ install_media_adapter
 # so re-running the installer is the whole update path and it has to be able to
 # move the version. Bump this with helper-mac/…/Version.swift whenever a mode
 # is added or its answers change.
-MIN_MAC_HELPER='0.4.0'
+MIN_MAC_HELPER='0.5.0'
 
 # Compare dotted versions without sort -V, which BSD sort does not have.
 mac_helper_outdated() {
@@ -305,6 +305,16 @@ find_xenon_app() {
   return 1
 }
 
+# Undo a half-made macOS registration. The plist is written BEFORE launchctl is
+# asked to load it, so a refusal used to leave it on disk while `fail` told the
+# user nothing had been changed — untrue, and worse than untrue: that leftover is
+# the "backend installed" marker, so the app's first-launch bootstrap would find
+# it, believe the install had happened and refuse to try again.
+drop_mac_agent() {
+  launchctl bootout "gui/$(id -u)/$LABEL" >/dev/null 2>&1
+  rm -f "$PLIST"
+}
+
 # The login item that launches XENON.APP, which then starts the backend as its
 # own child.
 #
@@ -354,9 +364,11 @@ register_macos_app_agent() {
 PLIST_EOF
   local gui="gui/$(id -u)"
   launchctl bootout "$gui/$LABEL" >/dev/null 2>&1
-  launchctl bootstrap "$gui" "$PLIST" >/dev/null 2>&1 \
-    || launchctl load -w "$PLIST" >/dev/null 2>&1 \
-    || fail "launchctl refused to load $PLIST."
+  if ! launchctl bootstrap "$gui" "$PLIST" >/dev/null 2>&1 \
+    && ! launchctl load -w "$PLIST" >/dev/null 2>&1; then
+    drop_mac_agent
+    fail "launchctl refused to load $PLIST."
+  fi
   open -a "$app" >/dev/null 2>&1 || true
 }
 
@@ -425,10 +437,23 @@ PLIST_EOF
   # is loaded, which is the normal first-install case.
   local gui="gui/$(id -u)"
   launchctl bootout "$gui/$LABEL" >/dev/null 2>&1
-  launchctl bootstrap "$gui" "$PLIST" >/dev/null 2>&1 \
-    || launchctl load -w "$PLIST" >/dev/null 2>&1 \
-    || fail "launchctl refused to load $PLIST."
+  if ! launchctl bootstrap "$gui" "$PLIST" >/dev/null 2>&1 \
+    && ! launchctl load -w "$PLIST" >/dev/null 2>&1; then
+    drop_mac_agent
+    fail "launchctl refused to load $PLIST."
+  fi
   launchctl kickstart "$gui/$LABEL" >/dev/null 2>&1
+}
+
+# Undo a systemd registration completely. Falling through to the autostart
+# fallback while leaving a disabled unit behind would give the next
+# update-apply.sh two plausible ways to start the server and let it pick the one
+# that was never enabled.
+drop_linux_unit() {
+  systemctl --user stop "$UNIT_NAME" >/dev/null 2>&1
+  systemctl --user disable "$UNIT_NAME" >/dev/null 2>&1
+  rm -f "$UNIT"
+  systemctl --user daemon-reload >/dev/null 2>&1
 }
 
 register_linux_systemd() {
@@ -441,6 +466,11 @@ register_linux_systemd() {
   # managers never reach that target, and a unit wanted by it would then never
   # autostart at all. WantedBy=default.target always fires; the After= just
   # orders it behind the session when there IS one.
+  #
+  # ExecStart is QUOTED. It is a command line, so systemd splits it on
+  # whitespace: an install under "/home/u/My Apps/xenon" became `node /home/u/My`
+  # and the backend never started again after the first reboot. WorkingDirectory
+  # takes the rest of the line as one path and needs no quotes.
   mkdir -p "$UNIT_DIR"
   cat > "$UNIT" <<UNIT_EOF
 [Unit]
@@ -450,7 +480,7 @@ After=graphical-session.target network.target
 
 [Service]
 Type=simple
-ExecStart=$NODE_BIN $SERVER_DIR/server.js
+ExecStart="$NODE_BIN" "$SERVER_DIR/server.js"
 WorkingDirectory=$ROOT_DIR
 Restart=on-failure
 RestartSec=3
@@ -466,15 +496,26 @@ UNIT_EOF
   systemctl --user import-environment DISPLAY WAYLAND_DISPLAY XAUTHORITY XDG_RUNTIME_DIR >/dev/null 2>&1
 
   systemctl --user daemon-reload >/dev/null 2>&1
-  # On failure the unit file is removed again: falling through to the autostart
-  # fallback while leaving a disabled unit behind would give the next
-  # update-apply.sh two plausible ways to start the server and let it pick the
-  # one that was never enabled.
+  # Every failure below unwinds the registration completely — see drop_linux_unit.
   if ! systemctl --user enable "$UNIT_NAME" >/dev/null 2>&1 \
     || ! systemctl --user restart "$UNIT_NAME" >/dev/null 2>&1; then
-    systemctl --user disable "$UNIT_NAME" >/dev/null 2>&1
-    rm -f "$UNIT"
-    systemctl --user daemon-reload >/dev/null 2>&1
+    drop_linux_unit
+    return 1
+  fi
+
+  # `restart` on a Type=simple unit returns 0 as soon as the process is forked,
+  # so its exit code says nothing about whether the server survived being
+  # started — which is why this function used to be incapable of returning 1 and
+  # the XDG fallback below was unreachable. Give it a moment and ask systemd
+  # what actually happened. `auto-restart` is the tell: at two seconds it means
+  # the process has ALREADY exited once and RestartSec is counting, which a
+  # healthy server never does.
+  sleep 2
+  case "$(systemctl --user is-active "$UNIT_NAME" 2>/dev/null)" in
+    failed|inactive) drop_linux_unit; return 1 ;;
+  esac
+  if [ "$(systemctl --user show -p SubState --value "$UNIT_NAME" 2>/dev/null)" = 'auto-restart' ]; then
+    drop_linux_unit
     return 1
   fi
   return 0
@@ -484,13 +525,19 @@ register_linux_autostart() {
   # Fallback for a desktop without a systemd user manager (Devuan, Void, some
   # Alpine setups). An XDG autostart entry is the portable equivalent; it has no
   # crash-restart, which is stated rather than hidden.
+  #
+  # Exec is QUOTED for the same reason the unit's ExecStart is: it is a command
+  # line the desktop splits on whitespace. This one was the worse of the two,
+  # because the immediate `nohup` below IS quoted — so an install under a path
+  # with a space came up fine and then silently never started again at the next
+  # login. Path= takes the whole value and needs no quotes.
   mkdir -p "$AUTOSTART_DIR"
   cat > "$AUTOSTART" <<DESKTOP_EOF
 [Desktop Entry]
 Type=Application
 Name=Xenon dashboard backend
 Comment=Starts the local Xenon server on port $PORT
-Exec=$NODE_BIN $SERVER_DIR/server.js
+Exec="$NODE_BIN" "$SERVER_DIR/server.js"
 Path=$ROOT_DIR
 Terminal=false
 X-GNOME-Autostart-enabled=true

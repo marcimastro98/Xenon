@@ -32,6 +32,9 @@ case "foreground-serve":
 case "hotkey-serve":
     HotkeyHost.run(rest)
 
+case "keys":
+    KeySendTool.run(rest)
+
 case "shell-delete":
     ShellDelete.run()
 

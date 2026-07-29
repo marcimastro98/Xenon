@@ -1,15 +1,20 @@
 param(
-  [ValidateSet('info', 'playpause', 'next', 'previous')]
+  [ValidateSet('info', 'playpause', 'next', 'previous', 'seek')]
   [string]$Action = 'info',
 
   [string]$PreferredSource = '',
+
+  # Absolute position in Xenon's shared media unit (seconds). The WinRT call
+  # below converts it to TimeSpan ticks only after selecting the same session
+  # `info` exposes.
+  [double]$Position = 0,
 
   # Persistent host mode: keep ONE process alive holding the SMTC session
   # manager and answer requests over stdin/stdout instead of paying the
   # ~150-300ms CLR + WinRT startup on every poll (the dashboard polls media
   # every 2s — one-shot spawning was the server's dominant CPU/temp cost).
   # Protocol (one message per line, both directions):
-  #   stdin  : {"id":N,"action":"info","preferredSource":"..."}
+  #   stdin  : {"id":N,"action":"info","preferredSource":"...","position":0}
   #   stdout : "XEMED " + base64( UTF8( {"id":N,"ok":bool,"out":"<json>","err":"..."} ) )
   # Base64-framing keeps any payload (newlines, braces) from breaking the line
   # protocol. On stdin EOF the loop ends and the process exits cleanly, which is
@@ -217,7 +222,7 @@ function Read-Thumbnail($Selected) {
 # One full request: session enumeration, scoring/selection, then either the
 # control action or the info payload. Always returns a hashtable (never exits,
 # never throws), so the serve loop survives any per-request failure.
-function Invoke-MediaRequest([string]$ReqAction, [string]$ReqPreferredSource) {
+function Invoke-MediaRequest([string]$ReqAction, [string]$ReqPreferredSource, [double]$ReqPosition = 0) {
   $preferredSourceSafe = [string]$ReqPreferredSource
   if ($script:bootstrapError) {
     return @{ active = $false; app = ''; source = ''; title = ''; artist = ''; album = ''; playbackStatus = 'Unavailable'; thumbnail = $null; position = 0; duration = 0; sessions = @(); preferredSource = $preferredSourceSafe; selectionMode = 'auto'; error = $script:bootstrapError }
@@ -265,6 +270,9 @@ function Invoke-MediaRequest([string]$ReqAction, [string]$ReqPreferredSource) {
     $sessionSummaries = @($candidates | Sort-Object score -Descending | ForEach-Object { New-SessionSummary $_ $selected.source })
 
     if ($null -eq $session) {
+      if ($ReqAction -eq 'seek') {
+        return @{ ok = $false; error = 'not_seekable'; seekProtocol = 1; source = ''; app = '' }
+      }
       return @{ active = $false; app = ''; source = ''; title = ''; artist = ''; album = ''; playbackStatus = 'Closed'; thumbnail = $null; position = 0; duration = 0; sessions = @(); preferredSource = $preferredSourceSafe; selectionMode = 'auto' }
     }
 
@@ -274,6 +282,44 @@ function Invoke-MediaRequest([string]$ReqAction, [string]$ReqPreferredSource) {
         'playpause' { $ok = Await ($session.TryTogglePlayPauseAsync()) ([bool]) }
         'next'      { $ok = Await ($session.TrySkipNextAsync())       ([bool]) }
         'previous'  { $ok = Await ($session.TrySkipPreviousAsync())   ([bool]) }
+        'seek' {
+          # TryChangePlaybackPositionAsync takes an ABSOLUTE timeline timestamp
+          # in 100 ns TimeSpan ticks, while Xenon exposes seconds relative to
+          # StartTime. Preserve that shared shape by adding StartTime back here
+          # and clamp to the session's real seek window.
+          if ([double]::IsNaN($ReqPosition) -or [double]::IsInfinity($ReqPosition) -or $ReqPosition -lt 0) {
+            return @{ ok = $false; error = 'bad_position'; seekProtocol = 1; source = $selected.source; app = $selected.app }
+          }
+          $playback = $session.GetPlaybackInfo()
+          if (-not $playback.Controls.IsPlaybackPositionEnabled) {
+            return @{ ok = $false; error = 'not_seekable'; seekProtocol = 1; source = $selected.source; app = $selected.app }
+          }
+          $timeline = $session.GetTimelineProperties()
+          [long]$startTicks = $timeline.StartTime.Ticks
+          [long]$minTicks = $timeline.MinSeekTime.Ticks
+          [long]$maxTicks = $timeline.MaxSeekTime.Ticks
+          if ($maxTicks -le $minTicks) {
+            $minTicks = $startTicks
+            $maxTicks = $timeline.EndTime.Ticks
+          }
+          if ($maxTicks -lt $minTicks) {
+            return @{ ok = $false; error = 'not_seekable'; seekProtocol = 1; source = $selected.source; app = $selected.app }
+          }
+          [long]$relativeTicks = [Math]::Round($ReqPosition * [TimeSpan]::TicksPerSecond)
+          [long]$targetTicks = $startTicks + $relativeTicks
+          if ($targetTicks -lt $minTicks) { $targetTicks = $minTicks }
+          if ($targetTicks -gt $maxTicks) { $targetTicks = $maxTicks }
+          $ok = Await ($session.TryChangePlaybackPositionAsync($targetTicks)) ([bool])
+          $positionOut = [Math]::Max(0, [Math]::Round(($targetTicks - $startTicks) / [double][TimeSpan]::TicksPerSecond, 3))
+          return @{
+            ok = [bool]$ok
+            error = $(if ($ok) { '' } else { 'not_seekable' })
+            seekProtocol = 1
+            source = $selected.source
+            app = $selected.app
+            position = $positionOut
+          }
+        }
       }
       return @{ ok = [bool]$ok; source = $selected.source; app = $selected.app }
     }
@@ -307,7 +353,7 @@ function Invoke-MediaRequest([string]$ReqAction, [string]$ReqPreferredSource) {
 if (-not $Serve) {
   # One-shot mode (unchanged contract): emit a single JSON object and exit.
   # Kept as the transparent fallback path when the persistent host is down.
-  Invoke-MediaRequest $Action $PreferredSource | ConvertTo-Json -Depth 8 -Compress
+  Invoke-MediaRequest $Action $PreferredSource $Position | ConvertTo-Json -Depth 8 -Compress
   [Console]::Out.Flush()
   [Environment]::Exit(0)
 }
@@ -332,7 +378,8 @@ while ($true) {
   try {
     $req = $line | ConvertFrom-Json
     $id  = $req.id
-    $result = Invoke-MediaRequest ([string]$req.action) ([string]$req.preferredSource)
+    $reqPosition = if ($null -ne $req.position) { [double]$req.position } else { 0 }
+    $result = Invoke-MediaRequest ([string]$req.action) ([string]$req.preferredSource) $reqPosition
     Write-Frame ([pscustomobject]@{ id = $id; ok = $true; out = (ConvertTo-Json $result -Depth 8 -Compress); err = '' })
   } catch {
     Write-Frame ([pscustomobject]@{ id = $id; ok = $false; out = ''; err = $_.Exception.Message })

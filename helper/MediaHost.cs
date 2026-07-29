@@ -77,7 +77,10 @@ internal sealed class MediaHost
     // One full request: session enumeration, scoring/selection, then either the
     // control action or the info payload. Never throws, so the serve loop
     // survives any per-request failure.
-    public async Task<Dictionary<string, object?>> HandleRequestAsync(string action, string preferredSource)
+    public async Task<Dictionary<string, object?>> HandleRequestAsync(
+        string action,
+        string preferredSource,
+        double positionSeconds = double.NaN)
     {
         preferredSource ??= "";
         try
@@ -132,6 +135,17 @@ internal sealed class MediaHost
             var session2 = selected != null ? selected.Session : currentSession;
             if (session2 == null || selected == null)
             {
+                if (action == "seek")
+                {
+                    return new Dictionary<string, object?>
+                    {
+                        ["ok"] = false,
+                        ["error"] = "not_seekable",
+                        ["seekProtocol"] = 1,
+                        ["source"] = "",
+                        ["app"] = "",
+                    };
+                }
                 return EmptyPayload(preferredSource, "Closed", null);
             }
 
@@ -143,6 +157,9 @@ internal sealed class MediaHost
 
             if (action != "info")
             {
+                if (action == "seek")
+                    return await SeekAsync(session2, selected, positionSeconds);
+
                 var ok = false;
                 switch (action)
                 {
@@ -183,8 +200,93 @@ internal sealed class MediaHost
             // Drop the cached manager: if the media broker RPC went away the
             // next request must re-acquire instead of failing forever.
             DropManager();
+            if (action == "seek")
+            {
+                return new Dictionary<string, object?>
+                {
+                    ["ok"] = false,
+                    ["error"] = "unavailable",
+                    ["seekProtocol"] = 1,
+                    ["source"] = "",
+                    ["app"] = "",
+                };
+            }
             return EmptyPayload(preferredSource, "Unavailable", ex.Message);
         }
+    }
+
+    private static async Task<Dictionary<string, object?>> SeekAsync(
+        GlobalSystemMediaTransportControlsSession session,
+        SessionInfo selected,
+        double positionSeconds)
+    {
+        var result = new Dictionary<string, object?>
+        {
+            ["ok"] = false,
+            // server.js uses this marker to distinguish a seek-aware helper
+            // from a still-running pre-0.11.4 process during an in-app update.
+            ["seekProtocol"] = 1,
+            ["source"] = selected.Source,
+            ["app"] = selected.App,
+        };
+
+        if (!double.IsFinite(positionSeconds) || positionSeconds < 0 ||
+            positionSeconds > TimeSpan.MaxValue.TotalSeconds)
+        {
+            result["error"] = "bad_position";
+            return result;
+        }
+
+        var playback = session.GetPlaybackInfo();
+        if (!playback.Controls.IsPlaybackPositionEnabled)
+        {
+            result["error"] = "not_seekable";
+            return result;
+        }
+
+        var timeline = session.GetTimelineProperties();
+        var startTicks = timeline.StartTime.Ticks;
+        var minTicks = timeline.MinSeekTime.Ticks;
+        var maxTicks = timeline.MaxSeekTime.Ticks;
+        if (maxTicks <= minTicks)
+        {
+            minTicks = startTicks;
+            maxTicks = timeline.EndTime.Ticks;
+        }
+        if (maxTicks < minTicks)
+        {
+            result["error"] = "not_seekable";
+            return result;
+        }
+
+        long relativeTicks;
+        try
+        {
+            relativeTicks = checked((long)Math.Round(positionSeconds * TimeSpan.TicksPerSecond));
+        }
+        catch (OverflowException)
+        {
+            result["error"] = "bad_position";
+            return result;
+        }
+
+        // Xenon positions are relative to the media timeline; WinRT wants the
+        // absolute timeline timestamp. Saturate before clamping so a very long
+        // (but finite) request can never overflow the addition.
+        long targetTicks;
+        if (relativeTicks > 0 && startTicks > long.MaxValue - relativeTicks)
+            targetTicks = long.MaxValue;
+        else
+            targetTicks = startTicks + relativeTicks;
+        targetTicks = Math.Clamp(targetTicks, minTicks, maxTicks);
+
+        var ok = await Await(session.TryChangePlaybackPositionAsync(targetTicks));
+        result["ok"] = ok;
+        result["position"] = Math.Max(
+            0,
+            Math.Round(((double)targetTicks - startTicks) / TimeSpan.TicksPerSecond, 3));
+        if (!ok) result["error"] = "not_seekable";
+        return result;
     }
 
     private async Task<GlobalSystemMediaTransportControlsSessionManager> GetManagerAsync()

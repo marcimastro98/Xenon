@@ -422,6 +422,17 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       } catch {}
     });
     es.addEventListener('agenda', e => { try { if (window.CustomWidget) window.CustomWidget.onData('agenda', JSON.parse(e.data)); } catch {} });
+    es.addEventListener('transfer', e => {
+      // The whole transfer list, not a delta: a surface that reconnects is then
+      // correct with no replay, and a file that arrives while this tile is
+      // hidden still shows up the moment it is looked at.
+      try { if (window.TransferWidget && window.TransferWidget.onState) window.TransferWidget.onState(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('transfer_progress', e => {
+      // Progress for an upload happening on ANOTHER surface. The sender uses
+      // its own XHR progress, which is ahead of the network.
+      try { if (window.TransferWidget && window.TransferWidget.onProgress) window.TransferWidget.onProgress(JSON.parse(e.data)); } catch {}
+    });
     es.addEventListener('disk_clean', e => {
       // Live progress for a background disk cleanup — real advancement, and a
       // page reloaded mid-cleanup re-attaches to it (the widget also re-reads
@@ -502,6 +513,17 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // A widget's persistent store was written on another surface — re-mount this
       // surface's frames of that package so they re-read it (GitHub #109).
       try { if (window.CustomWidget && typeof window.CustomWidget.onStoreChanged === 'function') window.CustomWidget.onStoreChanged(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('calls', e => {
+      // Incoming calls: the whole ringing list, replaced wholesale, so a call
+      // answered on another surface closes the card here too.
+      try { if (window.CallModal && typeof window.CallModal.onCalls === 'function') window.CallModal.onCalls(JSON.parse(e.data)); } catch {}
+    });
+    es.addEventListener('phone', e => {
+      // The paired phone's live call state. The ringing CARD comes over the
+      // 'calls' event above; this one is what lets the widget say "in call"
+      // and refresh its log once a call is over.
+      try { if (window.PhoneWidget && typeof window.PhoneWidget.onSSE === 'function') window.PhoneWidget.onSSE(JSON.parse(e.data)); } catch {}
     });
     es.addEventListener('windows_notifications', e => {
       // Windows notification mirror: reader state change / full feed replacement.

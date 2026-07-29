@@ -1,6 +1,41 @@
 'use strict';
 
-const { execFile } = require('node:child_process');
+const { execFile, spawn } = require('node:child_process');
+
+/**
+ * Start something and deliberately do NOT wait for it.
+ *
+ * `run` is the wrong tool for a program that is meant to stay up: it waits, and
+ * at its timeout it KILLS the child — so using it to launch a tray application
+ * would start the thing and then shoot it a few seconds later. This resolves as
+ * soon as the process exists, and leaves it running past our own lifetime.
+ *
+ * `ok` therefore means "it started", never "it worked". The caller checks the
+ * world afterwards, which is the only thing that can answer the second question.
+ *
+ * A deliberate exception to "stop what you start": what this launches is the
+ * USER's application, not a child of ours. It was theirs to run before Xenon
+ * existed and must outlive the dashboard, so it is `unref`'d and never entered
+ * into `_gracefulShutdown` — killing it on our way out would take the user's
+ * network down because a widget host restarted. Do not use this for anything we
+ * own; those still belong in the shutdown path.
+ */
+function spawnDetached(file, args = []) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (v) => { if (!settled) { settled = true; resolve(v); } };
+    try {
+      const child = spawn(String(file), args.map(String), {
+        detached: true, stdio: 'ignore', windowsHide: true,
+      });
+      // Exactly one of these fires, so the promise settles once either way.
+      child.once('spawn', () => { child.unref(); done({ ok: true }); });
+      child.once('error', (e) => done({ ok: false, error: String((e && e.message) || e) }));
+    } catch (e) {
+      done({ ok: false, error: String((e && e.message) || e) });
+    }
+  });
+}
 
 /**
  * Esegue un comando e risolve con { code, stdout, stderr, timedOut }.
@@ -115,6 +150,6 @@ function runElevated(file, args = [], { timeoutMs = 600000 } = {}) {
 }
 
 module.exports = {
-  run, runElevated, mapPkexecResult, mapOsascriptResult, osaQuote,
+  run, runElevated, spawnDetached, mapPkexecResult, mapOsascriptResult, osaQuote,
   UAC_CANCELLED, PKEXEC_DISMISSED,
 };

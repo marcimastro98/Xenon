@@ -1,0 +1,216 @@
+/* YouTube Live widget: the creator half — live status, the controls that start
+   and end a stream, and the live chat. Same visual language as the YouTube
+   widget it was split out of (logo watermark, red accent, card sections); three
+   sections (info / actions / chat) carry data-system-card so they hide and
+   reorder like System cards. Rendered into .youtubelive-widget-mount by
+   js/youtubelive-widget.js. */
+.youtubelive-panel { display: flex; }
+.youtubelive-widget-mount { width: 100%; height: 100%; display: flex; min-height: 0; border-radius: inherit; }
+
+.ytl-wrap {
+  position: relative; box-sizing: border-box;
+  width: 100%; height: 100%; min-height: 0;
+  padding: 16px 18px; display: flex; flex-direction: column; gap: 11px;
+  border-radius: inherit; overflow: hidden;
+  background:
+    radial-gradient(125% 95% at 100% -12%, rgba(255,0,0,0.16), transparent 55%),
+    radial-gradient(100% 70% at 0% 112%, rgba(255,0,0,0.07), transparent 60%);
+}
+.ytl-watermark {
+  position: absolute; inset: 0; margin: auto; width: 46%; max-width: 230px;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0.08; pointer-events: none; z-index: 0;
+}
+.ytl-watermark svg { width: 100%; height: auto; }
+.ytl-head, .ytl-cards { position: relative; z-index: 1; }
+
+/* Header */
+.ytl-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: 0 0 auto; min-width: 0; }
+.ytl-brand { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.ytl-logo { font-size: 0.92rem; font-weight: 900; letter-spacing: 0.02em; color: #ff4d4d; }
+.ytl-logo-sub { font-size: 0.6rem; font-weight: 900; letter-spacing: 0.14em; color: var(--text-dim, #8b91a1); }
+.ytl-pill {
+  display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
+  padding: 3px 10px; border-radius: 999px;
+  font-size: 0.62rem; font-weight: 900; letter-spacing: 0.07em; text-transform: uppercase;
+  color: #9aa3a0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
+}
+.ytl-pill-dot { position: relative; width: 7px; height: 7px; border-radius: 50%; background: #6b7280; flex: 0 0 auto; }
+.ytl-pill.live { color: var(--color-danger); background: var(--danger-bg); border-color: rgba(var(--danger-rgb),0.4); }
+.ytl-pill.live .ytl-pill-dot { background: #ff0000; }
+/* Compositor-only ripple — shared `live-ripple` keyframe in styles/global.css. */
+.ytl-pill.live .ytl-pill-dot::after {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  background: rgba(255,0,0,0.5);
+  animation: live-ripple 2s ease-in-out infinite;
+  will-change: transform, opacity; pointer-events: none;
+}
+body.overlay-frozen .ytl-pill.live .ytl-pill-dot::after { animation-play-state: paused; }
+
+/* Cards. The column scrolls as a whole: with all three on and a short tile the
+   minimums add up to more than the tile has, and a card nobody can reach is a
+   card that does not exist. */
+.ytl-cards {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px;
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.ytl-cards::-webkit-scrollbar { width: 6px; }
+.ytl-cards::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255,255,255,0.16); }
+.ytl-card {
+  position: relative; min-width: 0; border-radius: 14px; padding: 12px 14px;
+  background: rgba(255,255,255,0.028); border: 1px solid rgba(255,255,255,0.07);
+}
+.ytl-card--info, .ytl-card--actions { flex: 0 0 auto; }
+.ytl-card-label {
+  font-size: 0.62rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--text-dim, #8b91a1); margin-bottom: 9px;
+}
+
+/* Info */
+.ytl-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; width: 100%; }
+.ytl-viewers { display: flex; align-items: baseline; gap: 7px; }
+.ytl-viewers-num { font-size: 2.1rem; font-weight: 900; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
+.ytl-viewers-label { font-size: 0.8rem; font-weight: 700; color: var(--text-dim, #8b91a1); }
+.ytl-notice { font-size: 0.85rem; opacity: 0.7; }
+.ytl-stats { font-size: 0.78rem; font-weight: 700; color: var(--text-dim, #8b91a1); }
+.ytl-title { font-size: 0.8rem; min-width: 0; }
+.ytl-title-text {
+  display: inline-block; max-width: 100%; cursor: text; opacity: 0.7;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border-bottom: 1px dashed transparent;
+}
+.ytl-title-text:hover { opacity: 1; border-bottom-color: rgba(255,255,255,0.25); }
+.ytl-health { display: flex; align-items: center; gap: 7px; font-size: 0.76rem; font-weight: 700; opacity: 0.85; margin-top: 2px; }
+.ytl-health-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; background: #6b7280; }
+.ytl-health-good .ytl-health-dot { background: #22c55e; }
+.ytl-health-ok .ytl-health-dot { background: #eab308; }
+.ytl-health-bad .ytl-health-dot { background: #ef4444; }
+.ytl-health-noData .ytl-health-dot { background: #6b7280; }
+
+/* Inputs */
+.ytl-input {
+  width: 100%; box-sizing: border-box; font: inherit; font-size: 0.82rem;
+  padding: 6px 10px; border-radius: 9px; color: var(--text, #e7e9ee);
+  border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.28); outline: none;
+}
+.ytl-input:focus { border-color: rgba(255,0,0,0.5); }
+.ytl-input:disabled { opacity: 0.45; }
+
+/* Actions */
+.ytl-make { display: flex; flex-direction: column; gap: 8px; }
+.ytl-privacy { display: flex; flex-wrap: wrap; gap: 5px; }
+.ytl-priv {
+  flex: 0 0 auto; min-height: 28px; padding: 0 10px; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 0.68rem; font-weight: 800;
+  color: var(--text-dim, #8b91a1); background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.ytl-priv:hover { color: var(--text, #e7e9ee); }
+.ytl-priv.is-on { color: #fff; background: rgba(255,0,0,0.8); border-color: transparent; }
+
+.ytl-row { display: flex; align-items: center; gap: 6px; }
+.ytl-row-gap { flex: 1 1 auto; }
+.ytl-btn {
+  display: inline-flex; align-items: center; gap: 7px; align-self: flex-start;
+  min-height: 36px; padding: 0 14px; border-radius: 10px; cursor: pointer;
+  font-size: 12px; font-weight: 800; color: var(--text, #e7e9ee);
+  border: 1px solid rgba(34,197,94,0.5); background: rgba(34,197,94,0.16);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.06s ease;
+}
+.ytl-btn:hover:not(:disabled) { background: rgba(34,197,94,0.27); }
+.ytl-btn:active:not(:disabled) { transform: translateY(1px); }
+.ytl-btn:disabled { opacity: 0.45; cursor: default; }
+.ytl-btn.is-live { border-color: rgba(var(--danger-rgb),0.5); background: var(--danger-bg); color: var(--color-danger); }
+.ytl-btn.is-live:hover:not(:disabled) { background: rgba(255,0,0,0.26); }
+.ytl-btn-ico { display: inline-flex; }
+.ytl-btn-ico svg { width: 15px; height: 15px; }
+
+.ytl-ib {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 9px; cursor: pointer; padding: 0;
+  color: var(--text, #e7e9ee); background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.09);
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+.ytl-ib svg { width: 16px; height: 16px; }
+.ytl-ib:hover:not(:disabled) { background: rgba(255,0,0,0.16); border-color: rgba(255,0,0,0.4); }
+.ytl-ib:disabled { opacity: 0.35; cursor: default; }
+
+.ytl-hint { font-size: 0.7rem; font-weight: 600; line-height: 1.35; color: var(--text-dim, #8b91a1); opacity: 0.85; margin-top: 6px; }
+.ytl-err { margin-top: 8px; font-size: 0.76rem; font-weight: 600; color: var(--color-danger); line-height: 1.35; }
+
+/* Stream key */
+.ytl-keyrow { display: flex; align-items: center; gap: 7px; margin-top: 10px; min-width: 0; }
+.ytl-key-ico { display: inline-flex; flex: 0 0 auto; color: var(--text-dim, #8b91a1); }
+.ytl-key-ico svg { width: 15px; height: 15px; }
+.ytl-key-val {
+  flex: 1 1 auto; min-width: 0; font-size: 0.72rem; letter-spacing: 0.02em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--text, #e7e9ee); opacity: 0.85;
+}
+.ytl-mini {
+  flex: 0 0 auto; font: inherit; font-size: 0.68rem; font-weight: 800; cursor: pointer;
+  min-height: 26px; padding: 0 9px; border-radius: 8px; color: var(--text, #e7e9ee);
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
+}
+.ytl-mini:hover:not(:disabled) { background: rgba(255,0,0,0.16); border-color: rgba(255,0,0,0.4); }
+.ytl-mini:disabled { opacity: 0.35; cursor: default; }
+
+/* Chat. Tall enough to be a chat: below this it reads as a strip with one line
+   in it, which is worse than not showing it. */
+.ytl-card--chat { flex: 1 1 200px; min-height: 200px; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+.ytl-chat-list {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 7px;
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.ytl-chat-list::-webkit-scrollbar { width: 6px; }
+.ytl-chat-list::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255,255,255,0.16); }
+.ytl-chat-note { font-size: 0.78rem; opacity: 0.65; padding: 4px 2px; line-height: 1.4; }
+.ytl-msg { display: flex; align-items: flex-start; gap: 8px; min-width: 0; flex: 0 0 auto; }
+.ytl-msg-av {
+  width: 22px; height: 22px; flex: 0 0 auto; border-radius: 50%; margin-top: 1px;
+  background: rgba(255,255,255,0.09) center / cover no-repeat;
+}
+.ytl-msg-body { min-width: 0; font-size: 0.78rem; line-height: 1.35; }
+.ytl-msg-who { font-weight: 800; margin-right: 6px; color: var(--text-dim, #8b91a1); }
+.ytl-msg-who.is-owner { color: #ff4d4d; }
+.ytl-msg-who.is-mod { color: #5b9cff; }
+.ytl-msg-who.is-sponsor { color: #22c55e; }
+.ytl-msg-text { color: var(--text, #e7e9ee); overflow-wrap: anywhere; }
+
+.ytl-chat-row { display: flex; gap: 6px; flex: 0 0 auto; }
+.ytl-chat-send {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; border-radius: 9px; cursor: pointer; padding: 0; color: #fff;
+  background: rgba(255,0,0,0.8); border: 0;
+}
+.ytl-chat-send svg { width: 16px; height: 16px; }
+.ytl-chat-send:disabled { opacity: 0.35; cursor: default; }
+
+/* Wide layout: the chat moves beside the controls instead of under them, for the
+   same reason the YouTube widget does it — on a wide short tile a stacked chat
+   gets a couple of lines and the controls get the rest. Height is what decides,
+   not the aspect: stacking pays a fixed cost that only hurts a short tile. */
+.ytl-wrap { container: ytlw / size; }
+@container ytlw (min-width: 620px) and (max-height: 760px) {
+  .ytl-cards {
+    display: grid; gap: 10px;
+    grid-template-columns: minmax(0, 1fr) minmax(220px, min(42%, 420px));
+    /* Two content-sized rows for the controls and a third that absorbs whatever
+       is left, so the chat spanning all three gets the full height while a
+       one-line status card stays one line tall instead of stretching to fill. */
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+  /* Column named, row left to auto-placement: with one of the two switched off
+     the other moves up instead of leaving a hole where it used to be. */
+  .ytl-card--info, .ytl-card--actions { grid-column: 1; }
+  .ytl-card--chat { grid-column: 2; grid-row: 1 / -1; min-height: 0; }
+  /* Chat switched off in the layout editor: the rest takes the whole width. */
+  .ytl-cards:has(> .ytl-card--chat[data-system-card-hidden="true"]) .ytl-card--info,
+  .ytl-cards:has(> .ytl-card--chat[data-system-card-hidden="true"]) .ytl-card--actions { grid-column: 1 / -1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ytl-btn, .ytl-ib, .ytl-priv { transition: none; }
+}

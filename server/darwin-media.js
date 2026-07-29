@@ -6,7 +6,7 @@
 // The third implementation of the same contract server.js already had twice
 // (xenon-helper's media-serve and media.ps1 -Serve): one long-lived child that
 // holds the OS's now-playing session and answers `info` / `playpause` / `next` /
-// `previous`, plus a push when the track changes. The shape it returns is the
+// `previous` / `seek`, plus a push when the track changes. The shape it returns is the
 // one media.ps1 defines and js/media.js consumes — same keys, same units
 // (seconds), same playbackStatus vocabulary. Nothing above this file knows
 // which platform produced it.
@@ -34,15 +34,33 @@ const PERL = '/usr/bin/perl';
 const SCRIPT_NAME = 'mediaremote-adapter.pl';
 const FRAMEWORK_NAME = 'MediaRemoteAdapter.framework';
 
-// MediaRemote command ids, from the adapter's own table. Only the three the
-// Deck and the media widget can trigger are mapped: this is the whole reach of
-// the action surface, and an unknown verb must not fall through to a number.
+// MediaRemote command ids, from the adapter's own table. The three legacy
+// transport actions use numeric `send` codes; seek uses the adapter's named
+// verb below. An unknown action must never fall through to a number.
 const COMMAND_CODES = { playpause: '2', next: '4', previous: '5' };
 
 function commandCode(action) {
   return Object.prototype.hasOwnProperty.call(COMMAND_CODES, action)
     ? COMMAND_CODES[action]
     : null;
+}
+
+// The adapter's seek verb takes an absolute position in MICROSECONDS. Keep the
+// conversion in one pure helper: it is unit-tested off macOS, and malformed
+// values never reach an adapter command with surprising arguments.
+function commandArgs(action, position) {
+  if (action === 'seek') {
+    const seconds = Number(position);
+    if (!Number.isFinite(seconds) || seconds < 0) return null;
+    // The adapter documents POSITION as a positive integer. Use one
+    // microsecond for Xenon's logical zero so "back to start" remains valid;
+    // the response still reports the requested/clamped logical position.
+    const micros = Math.max(1, Math.round(seconds * 1e6));
+    if (!Number.isSafeInteger(micros)) return null;
+    return ['seek', String(micros)];
+  }
+  const code = commandCode(action);
+  return code ? ['send', code] : null;
 }
 
 // The bundle identifier is macOS's answer to Windows' AUMID — a stable id we
@@ -196,6 +214,9 @@ function createDarwinMedia(options) {
   const o = options || {};
   const dir = o.dir || '';
   const onChange = typeof o.onChange === 'function' ? o.onChange : () => {};
+  const spawnChild = typeof o.spawn === 'function' ? o.spawn : spawn;
+  const exists = typeof o.exists === 'function' ? o.exists : fs.existsSync;
+  const perlPath = typeof o.perl === 'string' && o.perl ? o.perl : PERL;
   const scriptPath = path.join(dir, SCRIPT_NAME);
   const frameworkPath = path.join(dir, FRAMEWORK_NAME);
 
@@ -209,7 +230,7 @@ function createDarwinMedia(options) {
 
   function available() {
     try {
-      return fs.existsSync(PERL) && fs.existsSync(scriptPath) && fs.existsSync(frameworkPath);
+      return exists(perlPath) && exists(scriptPath) && exists(frameworkPath);
     } catch { return false; }
   }
 
@@ -252,7 +273,7 @@ function createDarwinMedia(options) {
       // --no-diff: every frame is a complete payload (see handleLine).
       // --debounce: MediaRemote fires several events per track change; one
       // coalesced frame per change is all the widget can use.
-      child = spawn(PERL, [scriptPath, frameworkPath, 'stream', '--no-diff', '--micros', '--debounce=250'], {
+      child = spawnChild(perlPath, [scriptPath, frameworkPath, 'stream', '--no-diff', '--micros', '--debounce=250'], {
         stdio: ['ignore', 'pipe', 'pipe'],
       });
     } catch { return; }
@@ -293,19 +314,34 @@ function createDarwinMedia(options) {
     return shapeNowPlaying(latest.payload, Date.now() - latest.at);
   }
 
-  // A control is a one-shot `send <code>`: the streaming child holds the
-  // session, it does not take input. The result is the fresh info the caller
-  // expects back from a media action, which will still be the pre-command
-  // snapshot — the stream pushes the real change a moment later, and that push
-  // is what refreshes the widget.
-  function command(action) {
-    const code = commandCode(action);
-    if (!code) return Promise.reject(new Error(`unsupported media action "${action}"`));
+  // A control is a one-shot `send <code>` or `seek <microseconds>`: the
+  // streaming child holds the session and does not take input. The result is
+  // the fresh info the caller expects back from a media action, which will
+  // still be the pre-command snapshot — the stream pushes the real change a
+  // moment later, and that push is what refreshes the widget.
+  function command(action, position) {
+    let target = position;
+    if (action === 'seek') {
+      const requested = Number(position);
+      if (!Number.isFinite(requested) || requested < 0) {
+        return Promise.reject(new Error('bad media position'));
+      }
+      // Clamp against the unrounded adapter duration when it is known. A live
+      // stream legitimately has no duration and remains seekable at the value
+      // its player accepts or rejects.
+      const duration = latest.payload ? seconds(latest.payload, 'duration') : 0;
+      target = duration > 0 ? Math.min(requested, duration) : requested;
+    }
+    const args = commandArgs(action, target);
+    if (!args) {
+      const reason = action === 'seek' ? 'bad media position' : `unsupported media action "${action}"`;
+      return Promise.reject(new Error(reason));
+    }
     if (!available()) return Promise.reject(new Error('media adapter unavailable'));
     return new Promise((resolve, reject) => {
       let child;
       try {
-        child = spawn(PERL, [scriptPath, frameworkPath, 'send', code], { stdio: 'ignore' });
+        child = spawnChild(perlPath, [scriptPath, frameworkPath, ...args], { stdio: 'ignore' });
       } catch (e) { reject(e); return; }
       const timer = setTimeout(() => {
         try { child.kill(); } catch { /* already gone */ }
@@ -315,7 +351,19 @@ function createDarwinMedia(options) {
       child.on('error', (e) => { clearTimeout(timer); reject(e); });
       child.on('exit', (code2) => {
         clearTimeout(timer);
-        if (code2 === 0) resolve(info());
+        if (code2 === 0 && action === 'seek') {
+          const snapshot = info();
+          resolve({
+            ok: true,
+            seekProtocol: 1,
+            source: snapshot.source || '',
+            app: snapshot.app || '',
+            position: target,
+          });
+        } else if (code2 === 0) resolve(info());
+        // The adapter uses exit 1 for an unavailable/incompatible framework as
+        // well as command failures, so it cannot honestly prove
+        // `not_seekable`. Reject and let server.js expose `unavailable`.
         else reject(new Error(`media command failed (exit ${code2})`));
       });
     });
@@ -327,5 +375,5 @@ function createDarwinMedia(options) {
 module.exports = {
   createDarwinMedia,
   // exported for unit tests
-  parseStreamLine, shapeNowPlaying, appNameFor, commandCode, artworkUri,
+  parseStreamLine, shapeNowPlaying, appNameFor, commandCode, commandArgs, artworkUri,
 };

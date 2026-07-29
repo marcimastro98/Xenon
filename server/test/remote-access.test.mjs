@@ -72,12 +72,29 @@ test('only what needs a person at the PC is refused', () => {
     ['/api/remote-access/pair', 'POST'],
     ['/api/remote-access/revoke', 'POST'],
     ['/api/remote-access/revoke-all', 'POST'],
+    // …and the transfer settings, which name a folder on the PC.
+    ['/api/transfer/settings', 'POST'],
+    ['/api/transfer/settings', 'GET'],
     // …and every GET that writes (see the dedicated test below).
     ['/toggle', 'GET'], ['/media/next', 'GET'], ['/notes', 'GET'],
   ];
   for (const [p, m] of denied) {
     assert.equal(ra.remotePathAllowed(p, m), false, m + ' ' + p + ' must be refused');
   }
+  // Sending and receiving files IS the feature, so everything except the
+  // folder-naming endpoint stays reachable from a paired device.
+  for (const [p, m] of [['/api/transfer/upload', 'POST'], ['/api/transfer/open', 'POST'],
+    ['/api/transfer/reveal', 'POST'], ['/api/transfer/delete', 'POST'],
+    ['/api/transfer/list', 'GET'], ['/api/transfer/file', 'GET'],
+    ['/api/transfer/file', 'HEAD'], ['/api/transfer/thumb', 'GET']]) {
+    assert.equal(ra.remotePathAllowed(p, m), true,
+      m + ' ' + p + ' must stay reachable — a phone that cannot send files has no feature');
+  }
+  // …and the download must NOT be a GET mutator, or tapping Download on the
+  // phone refuses the very request it exists to serve.
+  assert.equal(ra.remotePathAllowed('/api/transfer/upload', 'GET'), false,
+    'the upload must be POST-only: a GET is what a top-level navigation looks like');
+
   // Redeem stays reachable — it is how a device becomes paired at all.
   assert.equal(ra.remotePathAllowed('/api/remote-access/redeem', 'POST'), true);
   assert.equal(ra.remotePathAllowed('/api/remote-access/whoami', 'GET'), true);
@@ -113,9 +130,23 @@ test('the refused surface matches an explicit, reviewed list', () => {
     // Pairing admin — loopback-only so a phone cannot enrol another phone or
     // revoke the device that would kick it off.
     'GET /api/remote-access/status',
+    // File transfer settings, both methods. Everything ELSE about transfers is
+    // open to a paired device on purpose — sending a photo from the phone in
+    // your hand to the PC in the next room is the entire feature — but this
+    // endpoint names the FOLDER on that PC where every future arrival lands,
+    // and its GET answers with that path. A device that could set it could aim
+    // arrivals at the app's own directory or at the user's Documents; a device
+    // that could read it learns a path it has no use for. The folder is chosen
+    // at the PC with the picker, the Slideshow folder-source shape. (The POST
+    // is further down: this list is sorted.)
+    'GET /api/transfer/settings',
     // The GET that SAVES the whole notes store (the iCUE ?save= shape). Reading
     // notes goes through /notes/list, which is allowed.
     'GET /notes',
+    // The channel's RTMP stream key. It is the one credential the dashboard is
+    // asked to put on screen, and whoever reads it can broadcast to the user's
+    // channel — so it stays on the PC rather than crossing the LAN in the clear.
+    'GET /stream/youtube/streamkey',
     // Installers: each downloads something and puts it where it will be run.
     'POST /api/ai-local/whisper-install',
     // Claude Code's own ingest, posted by the `claude` process against a token
@@ -125,6 +156,17 @@ test('the refused surface matches an explicit, reviewed list', () => {
     'POST /api/gamemode/install-presentmon',
     'POST /api/lighting/sdk-install',
     'POST /api/native/install',
+    // Dialling. The phonebook, the call log and the live call state stay open
+    // to a paired device — that is the dashboard being the dashboard — but the
+    // call itself is placed where its audio comes out, which is the PC. A dial
+    // button on a tablet in another room would start a call the user can
+    // neither hear nor hang up, and it is the one action here that costs money
+    // per use.
+    'POST /api/phone/dial',
+    // Sending a message. Reading them stays open to a paired device; sending
+    // one goes out under the user's number to somebody else and cannot be
+    // recalled, which is the same class as dialling.
+    'POST /api/phone/send',
     'POST /api/remote-access/enable',
     // The T2 opt-in belongs to the pairing admin for the same reason as the
     // rest of it: a paired device must not be able to change the doors. Turning
@@ -139,6 +181,9 @@ test('the refused surface matches an explicit, reviewed list', () => {
     'POST /api/remote-access/rename',
     'POST /api/remote-access/revoke',
     'POST /api/remote-access/revoke-all',
+    // The other half of the transfer settings pair above: the only writer of
+    // the folder arrivals land in.
+    'POST /api/transfer/settings',
     'POST /embedded-browser/adblock/install',
     'POST /remote/install',
     'POST /second-screen/create-display',

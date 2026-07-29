@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('node:fs');
+const nodePath = require('node:path');
 const defaultRunner = require('./runner');
 const { UAC_CANCELLED } = require('./runner');
 
@@ -47,6 +48,13 @@ function isPermissionError(msg) {
 // will gate requests is exactly that kind of boundary.
 const DNS_NAME_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
 
+// tailscaled's word for "no client has ever started this backend". It is the
+// state a Windows service sits in with no GUI attached, and the reason it needs
+// its own name is that it is indistinguishable from a healthy daemon through
+// every other field: `status --json` answers, the tunnel adapter is up, the
+// preferences are on disk with WantRunning true, and nothing is logged.
+const NO_BACKEND = 'NoState';
+
 /** Trailing-dot-stripped, lowercased, validated — or '' when it is not a name. */
 function normalizeDnsName(raw) {
   const s = String(raw || '').trim().toLowerCase().replace(/\.$/, '');
@@ -69,13 +77,19 @@ function parseStatus(stdout) {
   let data = null;
   try { data = JSON.parse(String(stdout || '')); } catch { data = null; }
   if (!data || typeof data !== 'object' || typeof data.BackendState !== 'string') {
-    return { running: false, connected: false, ip: '', dnsName: '', certDomains: [] };
+    return { running: false, connected: false, backendState: '', ip: '', dnsName: '', certDomains: [] };
   }
   const self = (data.Self && typeof data.Self === 'object') ? data.Self : {};
   const ips = Array.isArray(self.TailscaleIPs) ? self.TailscaleIPs : [];
   return {
     running: true,
     connected: data.BackendState === 'Running',
+    // Kept raw, because `connected` collapses every not-Running value into one
+    // and they do not mean the same thing. `NeedsLogin` is a browser sign-in
+    // waiting to happen; NO_BACKEND is a daemon that has not been started by any
+    // client and never will be on its own. Treating the second as the first is
+    // what made this feature sit for five minutes and then blame the sign-in.
+    backendState: data.BackendState,
     // The v4 address. The v6 one is equally real, but every URL we hand a person
     // has to be typeable and QR-scannable, and a bracketed v6 literal is neither.
     ip: ips.find((v) => typeof v === 'string' && /^\d+\.\d+\.\d+\.\d+$/.test(v)) || '',
@@ -120,7 +134,7 @@ function createTailscale({ runner = defaultRunner, exe = null, exists = null, pl
     // ENOENT to translate back into the same answer.
     if (!path_) {
       return {
-        installed: false, running: false, connected: false,
+        installed: false, running: false, connected: false, backendState: '',
         ip: '', dnsName: '', certsEnabled: false, needsOperator: false,
       };
     }
@@ -134,6 +148,7 @@ function createTailscale({ runner = defaultRunner, exe = null, exists = null, pl
       installed: true,
       running: s.running,
       connected: s.connected,
+      backendState: s.backendState,
       ip: s.ip,
       dnsName: s.dnsName,
       certsEnabled: certsEnabledFor(s.certDomains, s.dnsName),
@@ -182,6 +197,91 @@ function createTailscale({ runner = defaultRunner, exe = null, exists = null, pl
     // Linux — the user saying no, which is not a failure to report as one.
     if (r.code === UAC_CANCELLED) return { ok: false, reason: 'cancelled' };
     return { ok: false, reason: 'failed', error: String(r.stderr || '').slice(0, 400) };
+  }
+
+  /**
+   * Start the daemon when it is installed and simply not running.
+   *
+   * This is the Windows twin of `grantOperator`: one elevated command that fixes
+   * a machine which is otherwise fine. It is a real state, not a theoretical one
+   * — measured on a Windows 11 box where the service sat `Manual` and `Stopped`
+   * after an install, so `status --json` could not answer at all and every
+   * question above it came back "not connected" for a reason that had nothing to
+   * do with signing in.
+   *
+   * `sc start` returns as soon as the service reports START_PENDING, so `ok`
+   * here means "the request was accepted", not "the daemon is up"; the caller
+   * polls `getStatus().running` for the second half. The startup TYPE is left
+   * alone on purpose — a service set to Manual may well have been set that way
+   * by the user, and changing it is a decision they did not ask us to make.
+   *
+   * macOS is deliberately absent. There the daemon belongs to the app bundle or
+   * to Homebrew and those two shapes need different commands, so guessing would
+   * be worse than saying so: `not_applicable` is what the panel turns into "open
+   * the Tailscale app".
+   */
+  const SERVICE_START = {
+    win32: ['sc.exe', ['start', 'Tailscale']],
+    linux: ['systemctl', ['start', 'tailscaled']],
+  };
+
+  async function startService() {
+    const spec = SERVICE_START[platform];
+    if (!spec) return { ok: false, reason: 'not_applicable' };
+    const r = await runner.runElevated(spec[0], spec[1], { timeoutMs: 120000 })
+      .catch(() => ({ code: 1, stderr: '' }));
+    if (r.code === 0) return { ok: true };
+    // 1056 is ERROR_SERVICE_ALREADY_RUNNING. Somebody else won the race — which
+    // is the outcome we wanted, so it is not a failure to report as one.
+    if (r.code === 1056) return { ok: true };
+    if (r.code === UAC_CANCELLED) return { ok: false, reason: 'cancelled' };
+    return { ok: false, reason: 'failed', error: String(r.stderr || '').slice(0, 400) };
+  }
+
+  /**
+   * Start the GUI client, for the daemon that is up and has no backend.
+   *
+   * The one that actually bites on Windows, and the one nothing else can see.
+   * Measured on Windows 11: with the service Running and no `tailscale-ipn.exe`,
+   * `status --json` answers normally and reports NO_BACKEND indefinitely, the
+   * Tailscale Tunnel adapter is Up, `debug prefs` shows a real profile with
+   * `WantRunning: true`, `debug daemon-logs` prints nothing at all, and
+   * `tailscale up` cannot move any of it. Starting the tray app took the same
+   * machine to `Running` in under three seconds, already signed in — no browser,
+   * no account prompt. So this is not a sign-in problem wearing a disguise; the
+   * backend simply had no client to start it.
+   *
+   * Deliberately NOT elevated: the tray app belongs to the user's session, and
+   * an elevated one would be a different session with a different profile. That
+   * is also why it cannot go through `runElevated` for convenience.
+   *
+   * Linux is absent because tailscaled needs no client there — the systemd unit
+   * starts the backend itself, so a NO_BACKEND that persists means something
+   * else and starting a GUI would be a guess.
+   */
+  const GUI_EXE = 'tailscale-ipn.exe';
+
+  async function startClient() {
+    const path_ = await resolveExe();
+    if (!path_) return { ok: false, reason: 'not_installed' };
+    if (platform === 'darwin') {
+      // There the app IS the daemon, so `open` is both the install shape and
+      // the remedy. It returns as soon as it has launched, so `run` is right.
+      const r = await runner.run('open', ['-a', 'Tailscale'], { timeoutMs: 15000 })
+        .catch(() => ({ code: 1 }));
+      return r.code === 0 ? { ok: true } : { ok: false, reason: 'failed' };
+    }
+    if (platform !== 'win32') return { ok: false, reason: 'not_applicable' };
+    // Derived from the CLI we already resolved rather than from a second
+    // hardcoded path: the two ship in the same directory, and an install that
+    // moved would otherwise be half-found.
+    const gui = nodePath.join(nodePath.dirname(path_), GUI_EXE);
+    if (!(await Promise.resolve(fileExists(gui)).catch(() => false))) {
+      return { ok: false, reason: 'not_installed' };
+    }
+    if (!runner.spawnDetached) return { ok: false, reason: 'not_applicable' };
+    const r = await runner.spawnDetached(gui, []).catch(() => ({ ok: false }));
+    return r && r.ok ? { ok: true } : { ok: false, reason: 'failed', error: (r && r.error) || '' };
   }
 
   // Fire-and-observe: `tailscale up` apre il browser per il login OAuth e puo
@@ -254,7 +354,7 @@ function createTailscale({ runner = defaultRunner, exe = null, exists = null, pl
     return { ok: false, reason: 'failed', error: msg.slice(0, 400) };
   }
 
-  return { getStatus, startLogin, cert, exePath, grantOperator };
+  return { getStatus, startLogin, cert, exePath, grantOperator, startService, startClient };
 }
 
 module.exports = {
@@ -264,6 +364,7 @@ module.exports = {
   exeCandidates,
   isPermissionError,
   parseStatus,
+  NO_BACKEND,
   normalizeDnsName,
   certsEnabledFor,
 };

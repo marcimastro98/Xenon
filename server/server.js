@@ -30,6 +30,8 @@ const fpsMonitor = require('./fps-monitor'); // PresentMon on Windows, MangoHud 
 const gameDetect = require('./gamedetect');
 const audioLevels = require('./audio-levels');
 const winNotif = require('./winnotif');
+const calls = require('./calls');
+const callDetect = require('./call-detect');
 const wakeWord = require('./wakeword');
 const sdkWidgets = require('./sdk-widgets');
 const sdkProxy = require('./sdk-proxy');
@@ -48,7 +50,9 @@ const { sanitizeSlideshow } = require('./js/slideshow-widget'); // single owner 
 const slideshowFolder = require('./slideshow-folder');          // the slideshow's "folder on this PC" source
 const { createFileSearch } = require('./filesearch');           // local file search (Spotlight backend)
 const { createDiskSpace } = require('./diskspace');             // disk usage scan + guarded recycle-bin cleanup (helper-gated)
+const fileTransferLib = require('./file-transfer');             // phone ↔ PC file transfer: the store, the naming rules, the delivery copy
 const { createLivingIndex } = require('./living-index');       // the Living Index: helper-held in-RAM file index + watchers
+const { createPhone } = require('./phone');                    // the paired phone: phonebook + call log over Bluetooth, call state, dial
 const { createLinuxIndex } = require('./linux-index');         // the same surface in plain Node, for the platform with no helper
 const { createLinuxTrash } = require('./linux-trash');         // the recycle-bin delete, via the freedesktop trash spec
 const contentInstalls = require('./js/content-installs'); // validated import receipts shared with Settings
@@ -65,7 +69,10 @@ const aiLive = require('./ai-live');
 const { splitSentences } = require('./tts-chunks');
 const { createBriefingEngine } = require('./briefing');
 const icsFeeds = require('./ics-feeds.js');
-const { createRegistry, resolveOutputDevice } = require('./actions/registry');
+// isBlockedOpenPath is the Deck's openFile gate. It is re-applied by every
+// surface that opens a file the user did not type the path of: the Spotlight
+// results, and the transfer widget's received files.
+const { createRegistry, resolveOutputDevice, isBlockedOpenPath } = require('./actions/registry');
 const { createPerfRegistry } = require('./actions/perf-registry');
 const { createObs, scenePreviewRequest } = require('./actions/obs');
 const { createStreamerbot } = require('./actions/streamerbot');
@@ -119,6 +126,7 @@ const { createTwitchProvider } = require('./stream-twitch');
 const { createDiscordProvider } = require('./discord-rpc');
 const { createYouTubeProvider } = require('./stream-youtube');
 const { createSpotifyProvider } = require('./stream-spotify');
+const { normalizeMediaSeekResult } = require('./media-seek-result');
 
 // App version — read once from package.json so the in-app indicator always
 // matches the shipped build. Falls back gracefully if the file is unreadable.
@@ -460,6 +468,17 @@ function buildCoreAiFunctions() {
           id: { type: 'STRING', description: 'The result id from search_files' },
           reveal: { type: 'BOOLEAN', description: 'true to reveal the file in Explorer instead of opening it' },
         }, required: ['id'] } },
+        { name: 'phone_lookup', description: 'Look somebody up in the phonebook of the phone paired to this PC over Bluetooth, and read the recent call log. READ-ONLY. Use it before phone_call or phone_message so the number comes from the user\'s own contacts instead of being guessed. Also answers "who called me?", "chi mi ha chiamato ieri", "che numero ha mio padre".', parameters: { type: 'OBJECT', properties: {
+          name: { type: 'STRING', description: 'Part of a contact name to search for. Omit to get the recent call log instead.' },
+        }, required: [] } },
+        { name: 'phone_call', description: 'Place a real phone call through the paired phone. Use for "chiama Marco", "call mum". Prefer a name and let this resolve it against the phonebook; pass a raw number only when the user dictated one. The call is real and costs the user money, so never call somebody the user did not name.', parameters: { type: 'OBJECT', properties: {
+          name: { type: 'STRING', description: 'The contact to call, as the user said it. Resolved against the phonebook.' },
+          number: { type: 'STRING', description: 'A literal number, only when the user dictated one rather than a name.' },
+        }, required: [] } },
+        { name: 'phone_message', description: 'Send a text message through the paired phone. Use for "manda un messaggio a Marco", "text mum that I am late". The recipient MUST be a contact in the phonebook — a raw number is refused, because a text cannot be recalled and a wrong number reaches a stranger permanently. Read the message back to the user in your reply so they can see what was sent.', parameters: { type: 'OBJECT', properties: {
+          name: { type: 'STRING', description: 'The contact to write to. Must match somebody in the phonebook.' },
+          text: { type: 'STRING', description: 'The message, in the user\'s own words.' },
+        }, required: ['name', 'text'] } },
         { name: 'disk_insights', description: 'Read a live, local disk-space analysis: volume capacity/free space, indexed usage, safe-to-clean categories (temp, browser/package caches, build output, old installers, Recycle Bin), the biggest folders/files, verified duplicate waste, and Xenon\'s risk-ranked cleanup plan with a why/effect/action explanation. READ-ONLY: you can explain and recommend, but deletion happens only when the user taps the confirmation in the disk widget — you have no delete capability. Use for "what is eating my disk", "cosa occupa spazio", "posso liberare spazio?".', parameters: { type: 'OBJECT', properties: {
           rootIndex: { type: 'INTEGER', description: 'Optional index of the configured disk/folder root to analyze. Omit for the first root.' },
         } } },
@@ -584,7 +603,7 @@ function buildCoreAiFunctions() {
           }, required: ['title'] } },
           autoSwitch: { type: 'OBJECT', description: 'Optional Smart Profiles: auto-show a profile when an app is focused. {"enabled":true,"revert":"default"|"stay","rules":[{"exe":"obs64","profile":"Streaming"}]} (exe = process name, lowercase, no .exe)', properties: { enabled: { type: 'BOOLEAN' }, revert: { type: 'STRING' }, rules: { type: 'ARRAY', items: { type: 'OBJECT', properties: { exe: { type: 'STRING' }, profile: { type: 'STRING' } }, required: ['exe', 'profile'] } } } },
         } } },
-        { name: 'create_widget', description: 'Create and install a COMMUNITY WIDGET from code you write: a sandboxed HTML/CSS/JS package rendered in a dashboard tile. Use when the user asks for a widget that does not exist ("make me a widget that shows X"). Write self-contained files (no external URLs in markup — the sandbox has NO direct network). files MUST include manifest.json ({"api":1,"name":...,"streams":[...],"actions":[...]}) and index.html. Data arrives via postMessage: send {"xenonSdk":1,"type":"hello"} to window.parent, then listen for {"type":"data","stream",...} messages. Optional manifest capabilities, each opt-in and user-approved: "hosts":[...] to call up to 8 external APIs via the fetch proxy (type:"fetch"); "storage":true for a persistent key/value store that survives updates (type:"store" with op get/set/delete/keys/clear) — use it to remember the user\'s settings; "storageGroup":"id" to share that store across sibling widgets; "secrets":true for a write-only API-key vault (type:"secret" op set/delete/names/has) used via {{secret:NAME}} placeholders inside a fetch (never hardcode a key). Map/radar tiles load as <img>/Leaflet layers from "/sdk/tile/<id>?u=<encoded tile url>" (host must be in "hosts"). Call sdk_reference FIRST when you are unsure of a stream name, an action category, a manifest field or a protocol message — it returns the exact allowlists and the full SDK docs by section. The user still approves every permission before the widget can see or do anything.', parameters: { type: 'OBJECT', properties: {
+        { name: 'create_widget', description: 'Create and install a COMMUNITY WIDGET from code you write: a sandboxed HTML/CSS/JS package rendered in a dashboard tile. Use when the user asks for a widget that does not exist ("make me a widget that shows X"). Write self-contained files (no external URLs in markup — the sandbox has NO direct network). files MUST include manifest.json ({"api":1,"name":...,"streams":[...],"actions":[...]}) and index.html. Data arrives via postMessage: send {"xenonSdk":1,"type":"hello"} to window.parent, then listen for {"type":"data","stream",...} messages. Optional manifest capabilities, each opt-in and user-approved: "hosts":[...] to call up to 8 external APIs via the fetch proxy (type:"fetch"); "storage":true for a persistent key/value store that survives updates (type:"store" with op get/set/delete/keys/clear) — use it to remember the user\'s settings; "storageGroup":"id" to share that store across sibling widgets; "secrets":true for a write-only API-key vault (type:"secret" op set/delete/names/has) used via {{secret:NAME}} placeholders inside a fetch (never hardcode a key); "shape" to give the widget\'s OWN tile a silhouette instead of a rectangle ({"preset":"hexagon"} — also squircle, circle, diamond, cut-corner, parallelogram, ticket, arch, shield, wave, blob — or your own closed SVG path in a 0-to-1 square, {"path":"M .5 0 L 1 .5 L .5 1 L 0 .5 Z"}), which needs no permission and sends the widget {type:"shape",safe:{t,r,b,l}} so it can keep its content clear of the cut edges. Map/radar tiles load as <img>/Leaflet layers from "/sdk/tile/<id>?u=<encoded tile url>" (host must be in "hosts"). Call sdk_reference FIRST when you are unsure of a stream name, an action category, a manifest field or a protocol message — it returns the exact allowlists and the full SDK docs by section. The user still approves every permission before the widget can see or do anything.', parameters: { type: 'OBJECT', properties: {
           id: { type: 'STRING', description: 'Package id: lowercase letters/digits/dashes, 2-40 chars, e.g. "cpu-ring"' },
           files: { type: 'ARRAY', description: 'The package files as plain text (manifest.json + index.html + any .js/.css)', items: { type: 'OBJECT', properties: {
             path: { type: 'STRING', description: 'Relative path, e.g. "manifest.json", "index.html", "widget.js"' },
@@ -786,6 +805,10 @@ const fileSearch = createFileSearch({
   dataDir: DATA_DIR,
   livingIndex,
   openExternal: (p) => openExternalPath(p),
+  // Injected rather than kept as a second copy of the platform switch: the
+  // transfer widget's "show in folder" is the same verb, and two copies of a
+  // three-way platform branch drift into one of them working off Windows.
+  revealExternal: (p, dir) => revealInFileManager(p, dir),
   appsProvider: getInstalledApps,
   launchApp: launchInstalledApp,
 });
@@ -1662,6 +1685,19 @@ async function installWidgetPayload(payload, origin, catalogVersion) {
 // temp+rename copies that can race each other.
 const { writeFileAtomic } = require('./atomic-write');
 
+
+// The single Range-aware file responder. /uploads/, /deck/sound and the
+// transfer download all answer through it, so seeking cannot work in one place
+// and quietly not in another.
+const { serveFileRange } = require('./http-range');
+
+// Never let a transfer be the thing that fills the system drive: refuse an
+// upload that would leave less than this free, before it starts.
+const TRANSFER_DISK_HEADROOM = 1024 * 1024 * 1024;
+// A list preview is read whole into memory, so it is only offered for files
+// small enough that doing so is free. Bigger images show an extension chip.
+const TRANSFER_THUMB_MAX = 12 * 1024 * 1024;
+
 const BACKGROUND_MAX_BYTES = 200 * 1024 * 1024;
 const BACKGROUND_TRANSCODE_TIMEOUT_MS = 10 * 60 * 1000;
 const SETTINGS_MIN_PANEL_ALPHA = 0.18;
@@ -1833,6 +1869,85 @@ async function runWindowsTool(args, timeout) {
   }
   if (nativeCollectors) return nativeCollectors.windows(args[0], args[1]);
   return runPowerShellScript(WINDOWS_SCRIPT, args, timeout);
+}
+
+// ── Sending a key combination ───────────────────────────────────────────────
+// One seam, three deliveries, and the SAME shape out — the pattern the
+// collectors follow, for the same reason: the two callers (the Deck's `hotkey`
+// action and answering an incoming Teams/Zoom call) should learn a path, never
+// a platform branch.
+//
+//   Windows  deck-hotkey.ps1, unchanged since the Deck shipped.
+//   macOS    the helper's `keys` mode (CGEvent). Gated by macOS behind the
+//            Accessibility grant, which is checked rather than assumed.
+//   Linux    xdotool on X11, ydotool on Wayland, neither guaranteed — so here
+//            the capability genuinely may not exist, and says so.
+//
+// `keySendAvailable()` is what decides whether an Answer button is drawn at
+// all. It is cached because it is read on a render path, and because none of
+// the three answers changes while the server is up.
+// Seeded synchronously on Windows, where the answer is known without asking
+// anything: deck-hotkey.ps1 has shipped since the Deck did. Leaving it null
+// until the async probe resolved would mean a /actions/catalog request in those
+// first milliseconds reported `keys: false`, and the Deck editor would hide a
+// key that has worked for years — a regression introduced by making the
+// capability measurable.
+let _keySendProbe = POWERSHELL_SUPPORTED ? { ok: true, reason: '' } : null;
+async function _probeKeySend() {
+  if (POWERSHELL_SUPPORTED) return { ok: true, reason: '' };
+  if (process.platform === 'darwin') {
+    if (!fs.existsSync(HELPER_EXE)) return { ok: false, reason: 'helper_missing' };
+    try {
+      // `keys --check` posts nothing — it only reports whether this helper
+      // knows the mode and whether macOS has granted Accessibility. An older
+      // helper exits non-zero on an unknown mode, which lands in the catch and
+      // is reported as "cannot", exactly like every other staged mac feature.
+      const r = await runHelperOneShot(['keys', '--check'], 4000);
+      if (!r || r.ok !== true) return { ok: false, reason: 'helper_old' };
+      return r.accessibility ? { ok: true, reason: '' } : { ok: false, reason: 'accessibility' };
+    } catch { return { ok: false, reason: 'helper_old' }; }
+  }
+  if (nativeCollectors && typeof nativeCollectors.keysAvailable === 'function') {
+    try { return (await nativeCollectors.keysAvailable()) ? { ok: true, reason: '' } : { ok: false, reason: 'no_key_tool' }; }
+    catch { return { ok: false, reason: 'no_key_tool' }; }
+  }
+  return { ok: false, reason: 'unsupported' };
+}
+function refreshKeySendProbe() {
+  _probeKeySend().then((r) => { _keySendProbe = r; }).catch(() => { _keySendProbe = { ok: false, reason: 'unsupported' }; });
+}
+// Synchronous read for the render/capability path. Before the first probe
+// resolves it reports "not available", which is the safe direction: a button
+// that appears a second late is fine, one that appears and fails is not.
+function keySendAvailable() { return !!(_keySendProbe && _keySendProbe.ok); }
+function keySendProblem() { return (_keySendProbe && !_keySendProbe.ok) ? _keySendProbe.reason : ''; }
+refreshKeySendProbe();
+
+async function sendHotkeyCombo(keys) {
+  if (POWERSHELL_SUPPORTED) {
+    try {
+      const r = await runPowerShellScript(DECK_HOTKEY_SCRIPT, ['-Keys', keys], 6000);
+      return (r && r.ok === false) ? { ok: false, error: r.error || 'hotkey_failed' } : { ok: true };
+    } catch { return { ok: false, error: 'hotkey_failed' }; }
+  }
+  if (process.platform === 'darwin') {
+    try {
+      const r = await runHelperOneShot(['keys', String(keys)], 6000);
+      if (r && r.ok === false) {
+        // A denied grant is worth re-probing: the user can grant it in System
+        // Settings without restarting anything, and the capability flag should
+        // follow rather than stay stale until the next boot.
+        if (r.error === 'accessibility_denied') refreshKeySendProbe();
+        return { ok: false, error: r.error || 'hotkey_failed' };
+      }
+      return { ok: true };
+    } catch { return { ok: false, error: 'hotkey_unavailable' }; }
+  }
+  if (nativeCollectors && typeof nativeCollectors.sendKeys === 'function') {
+    try { return await nativeCollectors.sendKeys(String(keys)); }
+    catch { return { ok: false, error: 'hotkey_failed' }; }
+  }
+  return { ok: false, error: 'hotkey_unavailable' };
 }
 
 function runPowerShellCommand(command, timeout = 5000) {
@@ -2130,7 +2245,7 @@ function _ensureMediaHost() {
   return proc;
 }
 
-function runMediaHostRequest(action, timeout = 8000) {
+function runMediaHostRequest(action, timeout = 8000, position) {
   return new Promise((resolve, reject) => {
     const proc = _ensureMediaHost();
     if (!proc) { reject(new Error('media host unavailable')); return; }
@@ -2141,7 +2256,9 @@ function runMediaHostRequest(action, timeout = 8000) {
     }, timeout);
     _mediaHost.pending.set(id, { resolve, reject, timer });
     try {
-      proc.stdin.write(JSON.stringify({ id, action, preferredSource: mediaPreferredSource || '' }) + '\n');
+      const request = { id, action, preferredSource: mediaPreferredSource || '' };
+      if (position !== undefined) request.position = position;
+      proc.stdin.write(JSON.stringify(request) + '\n');
     } catch (e) {
       clearTimeout(timer);
       _mediaHost.pending.delete(id);
@@ -2229,21 +2346,34 @@ const nativeMedia =
 
 // Run a media request through the persistent host, falling back to the original
 // one-shot spawn on any host problem. Same parsed-JSON result either way.
-async function runMediaRequest(action, timeout = 8000) {
+async function runMediaRequest(action, timeout = 8000, position) {
   if (nativeMedia) {
     // Nothing installed to read the OS with → the empty "nothing playing"
     // shape, not an error. The tile shows its own empty state, and nothing is
     // spawned or retried.
-    if (!nativeMedia.available()) return nativeMedia.info();
+    if (!nativeMedia.available()) {
+      return action === 'seek'
+        ? { ok: false, error: 'unavailable', seekProtocol: 1 }
+        : nativeMedia.info();
+    }
     nativeMedia.start();                       // idempotent
-    return action === 'info' ? nativeMedia.info() : nativeMedia.command(action);
+    return action === 'info' ? nativeMedia.info() : nativeMedia.command(action, position);
   }
   try {
-    const out = parseJsonOutput(await runMediaHostRequest(action, timeout));
+    const out = parseJsonOutput(await runMediaHostRequest(action, timeout, position));
+    // An in-app helper refresh cannot replace the executable while its old
+    // media-serve process is still alive. A pre-0.11.4 helper therefore answers
+    // an unknown seek with {ok:false} but no marker: retire it, pin it out, and
+    // complete this request through the permanent PowerShell fallback.
+    if (action === 'seek' && _mediaHost.isHelper && out?.seekProtocol !== 1) {
+      _mediaHost.helperBadUntil = Date.now() + MEDIA_HELPER_BAD_MS;
+      _retireMediaHost('media helper lacks seek protocol');
+      return runPowerShellScript(MEDIA_SCRIPT, mediaScriptArgs(action, position), timeout);
+    }
     // Only 'info' carries sessions, and the guard only applies to the helper.
     return (action === 'info' && _mediaHost.isHelper) ? _guardHelperMediaBlindSpot(out) : out;
   } catch {
-    return runPowerShellScript(MEDIA_SCRIPT, mediaScriptArgs(action), timeout);
+    return runPowerShellScript(MEDIA_SCRIPT, mediaScriptArgs(action, position), timeout);
   }
 }
 
@@ -2442,9 +2572,10 @@ function setMediaPreferredSource(value) {
   return mediaPreferredSource;
 }
 
-function mediaScriptArgs(action) {
+function mediaScriptArgs(action, position) {
   const args = [action];
-  if (mediaPreferredSource) args.push(mediaPreferredSource);
+  if (mediaPreferredSource || action === 'seek') args.push(mediaPreferredSource || '');
+  if (action === 'seek') args.push(String(position));
   return args;
 }
 
@@ -3991,6 +4122,21 @@ async function mediaAction(action) {
   return data;
 }
 
+async function mediaSeek(position) {
+  const seconds = Number(position);
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return { ok: false, error: 'bad_position' };
+  }
+  try {
+    const data = await runMediaRequest('seek', 5000, seconds);
+    mediaCache.updatedAt = 0;
+    return normalizeMediaSeekResult(data, seconds);
+  } catch {
+    mediaCache.updatedAt = 0;
+    return { ok: false, error: 'unavailable' };
+  }
+}
+
 function parseCsvLine(line) {
   const fields = [];
   let cur = '', inQuote = false;
@@ -4130,6 +4276,10 @@ function svvExec(args) {
 // a .exe suffix (the durable identifier the Deck stores, vs. the volatile CLI id).
 function appAudioTarget(app) {
   const base = String(app || '').split(/[\\/]/).pop().trim();
+  // A blank app name yields a blank target, never the bare ".exe" — which the
+  // Linux matcher reads as "every stream on the machine" once the suffix is
+  // stripped. Callers refuse an empty target instead of aiming at everything.
+  if (!base) return '';
   return /\.exe$/i.test(base) ? base : base + '.exe';
 }
 
@@ -4755,6 +4905,30 @@ function openExternalPath(p) {
   });
 }
 
+// "Show me where this is" — the one path an executable result may take, because
+// revealing something runs nothing. Companion to openExternalPath, and shared
+// for the same reason: each platform's file manager has its own verb, and
+// `explorer /select,` is a Windows spelling rather than a portable one. Linux
+// has no universal equivalent, so the honest fallback is opening the containing
+// FOLDER — it answers the same question without pretending to a selection
+// nobody can make. Argv array everywhere; the path is one argument.
+function revealInFileManager(p, dir) {
+  const target = String(p);
+  const folder = dir || path.dirname(target);
+  const child = process.platform === 'win32'
+    ? spawn('explorer.exe', ['/select,' + target], { detached: true, stdio: 'ignore' })
+    : process.platform === 'darwin'
+      ? spawn('open', ['-R', target], { detached: true, stdio: 'ignore' })
+      : spawn('xdg-open', [folder], { detached: true, stdio: 'ignore' });
+  // A missing file manager raises an ASYNC 'error' on the child, which the
+  // caller's try/catch cannot see — unhandled, it takes the whole server down.
+  // That is not hypothetical: xdg-utils is genuinely absent on minimal Linux
+  // installs, and POST /api/transfer/reveal is reachable from a paired phone,
+  // so one tap could end the backend. Revealing is best-effort by nature.
+  child.on('error', (e) => console.warn('[reveal] no file manager:', e && e.message));
+  child.unref();
+}
+
 // The interpreter a user script runs under, by extension. The Windows set lives
 // in deck-actions.ps1; this is its POSIX twin, and it must cover exactly the
 // extensions actions/registry.js accepts off Windows — an extension the gate
@@ -4838,6 +5012,7 @@ const deckRegistryDeps = {
     ? (aumid) => runPowerShellScript(DECK_ACTIONS_SCRIPT, ['openapp', aumid], 8000)
     : undefined,
   mediaAction: (cmd) => mediaAction(cmd),
+  mediaSeek: (position) => mediaSeek(position),
   micMute: async (mode) => {
     if (mode === 'mute') isMuted = true;
     else if (mode === 'unmute') isMuted = false;
@@ -4855,11 +5030,13 @@ const deckRegistryDeps = {
   },
   appVolume: async (app, mode, value) => {
     const target = appAudioTarget(app);
+    if (!target) throw new Error('no app named');
     if (mode === 'set') return svvExec(['/SetVolume', target, String(value)]);
     return svvExec(['/ChangeVolume', target, mode === 'down' ? '-5' : '5']);
   },
   appMute: async (app, mode) => {
     const target = appAudioTarget(app);
+    if (!target) throw new Error('no app named');
     const verb = mode === 'mute' ? '/Mute' : mode === 'unmute' ? '/Unmute' : '/Switch';
     return svvExec([verb, target]);
   },
@@ -4957,12 +5134,11 @@ const deckRegistryDeps = {
   // touchscreen gives focus to the dashboard, so the runner finds the window
   // beneath it in the Z-order and targets that (covers Zoom, Meet, Slack, …).
   // `keys` is already normalised by the registry to a safe token set.
-  sendHotkey: async (keys) => {
-    try {
-      const r = await runPowerShellScript(DECK_HOTKEY_SCRIPT, ['-Keys', keys], 6000);
-      return (r && r.ok === false) ? { ok: false, error: r.error || 'hotkey_failed' } : { ok: true };
-    } catch { return { ok: false, error: 'hotkey_failed' }; }
-  },
+  // Cross-platform since v4.11.0 — see sendHotkeyCombo. The Deck key that used
+  // to be Windows-only now works on macOS (helper `keys`) and on a Linux
+  // session that has xdotool or ydotool; where it cannot, `requires: 'keys'`
+  // hides it in the editor instead of offering a key that always fails.
+  sendHotkey: (keys) => sendHotkeyCombo(keys),
   // Type a literal snippet into that same target app (KEYEVENTF_UNICODE). The
   // text travels BASE64-encoded in a discrete argv value: PowerShell -File
   // binding treats a value that starts with '-' as a new parameter name, so a
@@ -5099,6 +5275,11 @@ const deckRegistryDeps = {
     if (!running.length) return false;
     return _claudeRunner.stop(running[running.length - 1].id);
   },
+  // The paired phone. Both go through phone.js rather than the helper directly,
+  // so a Deck key and the widget hit exactly the same validation, the same
+  // number normalisation and the same refusal reasons.
+  phoneDial: (number) => phone.dial(number),
+  phoneSend: (number, text) => phone.sendMessage(number, text),
   // remote: injected below once remoteControl is created (see createRemoteControl call)
 };
 const deckRegistry = createRegistry(deckRegistryDeps);
@@ -6317,6 +6498,8 @@ async function executeAiTool(fnName, fnArgs, deps) {
         if (out.ok) fnResult = { ok: true };
         else fnResult = { error: out.error, revealable: out.revealable === true };
       }
+    } else if (fnName === 'phone_lookup' || fnName === 'phone_call' || fnName === 'phone_message') {
+      fnResult = await aiPhoneTool(fnName, fnArgs);
     } else if (fnName === 'disk_insights') {
       // Read-only by construction: there is no deleteFile action type anywhere
       // (registry, Deck, SDK, AI) — a human tap on the disk widget is the only
@@ -6690,7 +6873,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'transfer', 'custom']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -6700,8 +6883,10 @@ const DASHBOARD_CARD_IDS = Object.freeze({
   net: ['ping', 'fps', 'latency', 'bandwidth'],
   audio: ['volume', 'speaker', 'microphone'],
   twitch: ['info', 'actions', 'chat'],
+  twitchwatch: ['player', 'library', 'chat'],
   obs: ['preview', 'controls', 'scenes', 'audio'],
-  youtube: ['player', 'library', 'info', 'actions'],
+  youtube: ['player', 'library'],
+  youtubelive: ['info', 'actions', 'chat'],
 });
 const DASHBOARD_WIDGET_SIZES = Object.freeze(['compact', 'normal', 'wide', 'tall', 'large', 'full']);
 const DASHBOARD_CARD_SIZES = Object.freeze(['compact', 'normal', 'wide']);
@@ -6737,6 +6922,8 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     // Taller than the other stream tiles on purpose: this one holds a 16:9 video
     // player above its list, and at h:4 the player had no room to be a player.
     youtube:  Object.freeze({ x: 16, y: 22, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    twitchwatch: Object.freeze({ x: 0, y: 64, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    youtubelive: Object.freeze({ x: 16, y: 32, w: 8, h: 10, visible: false, page: 'dashboard' }),
     discord:  Object.freeze({ x: 16, y: 26, w: 8, h: 8, visible: false, page: 'dashboard' }),
     spotify:  Object.freeze({ x: 16, y: 34, w: 8, h: 16, visible: false, page: 'dashboard' }),
     browser:  Object.freeze({ x: 0, y: 18, w: 12, h: 10, visible: false, page: 'dashboard' }),
@@ -6759,6 +6946,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     battery:  Object.freeze({ x: 0, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
     search:   Object.freeze({ x: 8, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
     disk:     Object.freeze({ x: 16, y: 54, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    transfer: Object.freeze({ x: 8, y: 64, w: 8, h: 10, visible: false, page: 'dashboard' }),
     custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
@@ -6803,8 +6991,18 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     youtube: Object.freeze({
       player: Object.freeze({ order: 0, size: 'normal', visible: true }),
       library: Object.freeze({ order: 1, size: 'normal', visible: true }),
-      info: Object.freeze({ order: 2, size: 'normal', visible: true }),
-      actions: Object.freeze({ order: 3, size: 'normal', visible: true }),
+    }),
+    youtubelive: Object.freeze({
+      info: Object.freeze({ order: 0, size: 'normal', visible: true }),
+      actions: Object.freeze({ order: 1, size: 'normal', visible: true }),
+      chat: Object.freeze({ order: 2, size: 'normal', visible: true }),
+    }),
+    // Twitch chat starts hidden: it is a second embedded page from Twitch, and a
+    // tile that only ever watches does not need it. The card control turns it on.
+    twitchwatch: Object.freeze({
+      player: Object.freeze({ order: 0, size: 'normal', visible: true }),
+      library: Object.freeze({ order: 1, size: 'normal', visible: true }),
+      chat: Object.freeze({ order: 2, size: 'normal', visible: false }),
     }),
   }),
   tabs: Object.freeze({ order: ['main', 'net'], active: 'main' }),
@@ -7009,6 +7207,13 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // Notifications are read from the local desktop client and never leave the PC.
   discordNotifications: Object.freeze({ enabled: false, hide: false }),
   windowsNotifications: Object.freeze({ enabled: false, hide: false, toast: true, excluded: Object.freeze([]) }),
+  calls: Object.freeze({ enabled: false, push: true, sound: true, disabledApps: Object.freeze([]), apps: Object.freeze([]) }),
+  // The paired phone. OFF by default (privacy) — switching it on reads the
+  // user's whole address book off their phone over Bluetooth and keeps it in
+  // this process. `ring` is separate because wanting the phonebook on a second
+  // screen is not the same as wanting that screen to take itself over on every
+  // incoming call.
+  phone: Object.freeze({ enabled: false, ring: true, hide: true }),
   // Local "Hey Xenon" wake word. OFF by default (privacy) — when on, the mic is
   // read locally via ffmpeg + whisper.cpp while a dashboard is open; nothing
   // leaves the PC.
@@ -7086,6 +7291,33 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // enabled for the tailnet) and because turning it off must not turn off the
   // LAN door people already rely on.
   remoteAccess: Object.freeze({ enabled: false, https: false }),
+  // Phone ↔ PC file transfer. Server-owned for the same reason remoteAccess is,
+  // plus a sharper one: `inboxDir` is a real folder on THIS PC, and the settings
+  // blob is mirrored to every browser surface and into the localStorage of every
+  // paired phone. A path that only this machine needs must not travel — the
+  // geminiApiKey lesson, applied before the fact rather than after. The only
+  // writer is POST /api/transfer/settings, which is loopback-only.
+  fileTransfer: Object.freeze({
+    enabled: true,
+    inboxDir: '',        // '' = resolved from the OS on first read (Downloads/Xenon)
+    autoDeliver: true,
+    maxFileMb: 2048,
+    quotaMb: 8192,
+    keepDays: 14,
+    notifyPhone: false,  // push when the PC puts a file there; never the other way
+  }),
+  // Which screen the user chose for Xenon (asked once at first run): 'auto',
+  // 'screen' (named in `monitor`), or 'phone'. Client-owned and client-sent —
+  // see normalizeSurface in js/settings.js, which must stay in step with the
+  // normalizer below or the settings-server-owned-keys test fails.
+  //
+  // This is NOT the authority for where the native window opens: the shell keeps
+  // that in its own display.json, because it has to read it at launch, before
+  // the backend is necessarily running. This copy exists so Settings can show
+  // the choice on every surface, and so a paired phone — which has no way to
+  // speak to the shell — can still ask for it.
+  // NOT `surface`: that key is the theme's panel colour. See surfaceChoiceFrom().
+  surfaceChoice: Object.freeze({ kind: 'auto', asked: false, monitor: '', label: '' }),
   language: '', // '' = follow the browser; a WEATHER_LANGS code persists the user's chosen UI language across browser-storage resets
 });
 
@@ -7734,6 +7966,72 @@ function normalizeWindowsNotifications(value) {
   return { enabled: v.enabled === true, hide: v.hide === true, toast: v.toast !== false, excluded };
 }
 
+// Incoming calls. Strict opt-in, and for two reasons rather than one: it takes
+// over the screen when it fires, and for every source except Discord it reads
+// the notification mirror, which is itself opt-in.
+//
+// `disabledApps` rather than an allowlist on purpose — a stored allowlist would
+// freeze the app table at the version the user first enabled it, so an app
+// added in a later release would silently never ring for them.
+function normalizeCalls(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const disabledApps = [];
+  if (Array.isArray(v.disabledApps)) {
+    for (const id of v.disabledApps.slice(0, 40)) {
+      const s = String(id || '').trim().slice(0, 40);
+      if (s && !disabledApps.includes(s)) disabledApps.push(s);
+    }
+  }
+  // The user's own entries. `match` is what a notification's app name/AUMID is
+  // substring-tested against, so it is cleaned but never interpreted — it never
+  // becomes a path, a command or a regex.
+  const apps = [];
+  if (Array.isArray(v.apps)) {
+    for (const raw of v.apps.slice(0, 20)) {
+      const a = raw && typeof raw === 'object' ? raw : {};
+      const id = String(a.id || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
+      if (!id) continue;
+      const match = [];
+      if (Array.isArray(a.match)) {
+        for (const m of a.match.slice(0, 10)) {
+          const s = String(m || '').trim().slice(0, 80);
+          if (s) match.push(s);
+        }
+      }
+      if (!match.length) continue;          // an entry that matches nothing is noise
+      if (apps.some(e => e.id === id)) continue;
+      apps.push({ id, name: String(a.name || id).slice(0, 60), match });
+    }
+  }
+  return {
+    enabled: v.enabled === true,
+    push: v.push !== false,
+    sound: v.sound !== false,
+    disabledApps,
+    apps,
+  };
+}
+
+// The paired phone (phonebook, call log, dialler, live call state). Strict
+// opt-in, and the reason is privacy rather than cost: switching it on reads the
+// user's entire address book off their phone and keeps it in this process. That
+// is not something to inherit from a default.
+//
+// `ring` is separate from `enabled` because the two are different asks. Someone
+// may well want the phonebook and the dialler on a second screen without that
+// screen taking itself over every time the phone rings.
+function normalizePhone(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return {
+    enabled: v.enabled === true,
+    ring: v.ring !== false,
+    // Message text masked until tapped. ON by default, unlike the notification
+    // mirror's equivalent, and for a specific reason: an SMS inbox is where
+    // one-time login codes live, and this widget sits on a screen in the open.
+    hide: v.hide !== false,
+  };
+}
+
 // Local "Hey Xenon" wake word — strict opt-in (privacy: enabling means the
 // server keeps the microphone open while a dashboard is on screen).
 function normalizeWakeWord(value) {
@@ -7899,6 +8197,65 @@ function normalizeWaveLinkSettings(v) {
   return { enabled: s.enabled === true, port: (port >= 1 && port <= 65535) ? port : 0 };
 }
 
+// The screen the user chose for Xenon. Mirrors normalizeSurface in
+// js/settings.js key for key — the client owns this one, and a drift between the
+// two halves is what silently resets a key on every save.
+const SURFACE_KINDS = ['auto', 'screen', 'phone'];
+function normalizeSurfaceChoice(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return {
+    kind: SURFACE_KINDS.includes(v.kind) ? v.kind : 'auto',
+    asked: v.asked === true,
+    monitor: typeof v.monitor === 'string' ? v.monitor.slice(0, 256) : '',
+    label: typeof v.label === 'string' ? v.label.slice(0, 120) : '',
+  };
+}
+
+// The screen choice used to be stored as `surface`, which is ALSO the name of
+// the theme's main panel colour — and both were assigned in the same object
+// literal of normalizeHubSettings, so the later one won and every save replaced
+// the colour with `{kind, asked, monitor, label}`. Two features, one key, no
+// error: the theme role was silently destroyed, and Settings then threw
+// `val.toUpperCase is not a function` and stopped rendering, taking with it
+// every panel mounted after that line (paired devices, file transfer, the
+// Sunshine wizard, Streaming, Spotify, Smart Home, Cameras, external calendars).
+//
+// The choice moved to `surfaceChoice` rather than the colour moving, because the
+// colour is the entrenched one: it is a theme-code field, a preset-sharing field
+// and a CSS variable mapping, and renaming it would break every shared theme in
+// existence. This reads the old spelling once so a machine that already stored
+// the object keeps its screen, and the corrupted colour goes back to auto.
+function surfaceChoiceFrom(source) {
+  const s = source && typeof source === 'object' ? source : {};
+  if (s.surfaceChoice && typeof s.surfaceChoice === 'object') return s.surfaceChoice;
+  // A legacy value is an OBJECT under `surface`; a real colour there is a string
+  // and must never be read as a screen choice.
+  if (s.surface && typeof s.surface === 'object') return s.surface;
+  return null;
+}
+
+// Phone ↔ PC file transfer. Server-owned: there is no twin in
+// js/settings.js normalizeSettings, on purpose, because `inboxDir` names a
+// folder on this machine and the settings blob reaches every paired phone. The
+// keep-prev guard in POST /settings is what stops a generic save from wiping
+// it, and settings-server-owned-keys.test.mjs fails until both exist.
+function normalizeFileTransfer(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const d = DEFAULT_HUB_SETTINGS.fileTransfer;
+  return {
+    enabled: v.enabled !== false,
+    // Kept verbatim; it is validated against the filesystem where it is SET
+    // (POST /api/transfer/settings) and again at delivery time, because a
+    // folder that was fine yesterday can be renamed or unmounted today.
+    inboxDir: typeof v.inboxDir === 'string' ? v.inboxDir.slice(0, 512) : d.inboxDir,
+    autoDeliver: v.autoDeliver !== false,
+    maxFileMb: clampNumber(v.maxFileMb, 1, 65536, d.maxFileMb),
+    quotaMb: clampNumber(v.quotaMb, 256, 262144, d.quotaMb),
+    keepDays: clampNumber(v.keepDays, 1, 365, d.keepDays),
+    notifyPhone: v.notifyPhone === true,
+  };
+}
+
 function normalizeHubSettings(value) {
   const source = value && typeof value === 'object' ? value : {};
   // One-time migration: saved layouts older than the current version are
@@ -8028,6 +8385,8 @@ function normalizeHubSettings(value) {
     vitals: normalizeVitals(source.vitals),
     discordNotifications: normalizeDiscordNotifications(source.discordNotifications),
     windowsNotifications: normalizeWindowsNotifications(source.windowsNotifications),
+    calls: normalizeCalls(source.calls),
+    phone: normalizePhone(source.phone),
     wakeWord: normalizeWakeWord(source.wakeWord),
     // The server is the one side that knows the machine, so it supplies the
     // never-set default; the browser's copy of this normalizer keeps whatever
@@ -8068,6 +8427,8 @@ function normalizeHubSettings(value) {
       enabled: source.remoteAccess && source.remoteAccess.enabled === true,
       https: source.remoteAccess && source.remoteAccess.https === true,
     },
+    fileTransfer: normalizeFileTransfer(source.fileTransfer),
+    surfaceChoice: normalizeSurfaceChoice(surfaceChoiceFrom(source)),
     // Client-managed settings (the client owns their full schema and re-validates
     // on load): round-trip them so they survive a server restart instead of being
     // stripped. A bounded passthrough keeps settings.json safe.
@@ -8496,10 +8857,46 @@ async function writeDeckStore(store) {
 // news keys were once wiped on import precisely because one hand-built chain
 // missed them.
 function redactSettingsSecrets(settings) {
-  return redactAiProviderCreds(redactLightingTokens(redactUnifiCreds(redactNewsCreds(redactFootballCreds(redactStockCreds(redactStreamCreds(redactHaToken(redactRemoteCreds(settings)))))))));
+  return redactTransferPaths(redactAiProviderCreds(redactLightingTokens(redactUnifiCreds(redactNewsCreds(redactFootballCreds(redactStockCreds(redactStreamCreds(redactHaToken(redactRemoteCreds(settings))))))))));
 }
 function preserveSettingsSecrets(incoming, prev) {
-  return preserveAiProviderCreds(preserveUnifiCreds(preserveNewsCreds(preserveFootballCreds(preserveStockCreds(preserveStreamCreds(preserveHaToken(preserveRemoteCreds(incoming, prev), prev), prev), prev), prev), prev), prev), prev);
+  return preserveTransferPaths(preserveAiProviderCreds(preserveUnifiCreds(preserveNewsCreds(preserveFootballCreds(preserveStockCreds(preserveStreamCreds(preserveHaToken(preserveRemoteCreds(incoming, prev), prev), prev), prev), prev), prev), prev), prev), prev);
+}
+
+// The transfer inbox is a folder on THIS PC. It is not a secret, but it is a
+// fact about this machine that no browser needs and that every paired phone
+// would otherwise receive and mirror into its own localStorage — so it travels
+// exactly like one does not. The PC's own Settings pane reads the real value
+// back from GET /api/transfer/settings, which is loopback-only; the wire
+// carries a boolean instead, the `xKeySet` shape the credentials already use.
+//
+// Redacted unconditionally rather than only when `isRemote`, because a
+// conditional has to be remembered at every exit point and this does not.
+function redactTransferPaths(settings) {
+  if (!settings || !settings.fileTransfer || typeof settings.fileTransfer !== 'object') return settings;
+  const ft = settings.fileTransfer;
+  return { ...settings, fileTransfer: { ...ft, inboxDir: '', inboxDirSet: !!ft.inboxDir } };
+}
+// …and the other half, or the round trip wipes the folder the user chose. The
+// keep-prev guard in POST /settings covers the normal save; this covers the
+// wholesale writers that deliberately bypass it (the backup import).
+//
+// THIS MACHINE's folder always wins, and an incoming one is dropped rather than
+// preferred. It used to be `incoming || prev`, which made the sentence "its only
+// writer is POST /api/transfer/settings" false: a backup bundle carries the key,
+// /backup/import is reachable from a paired device, and that route performs none
+// of the validation the settings route does — so the one door deliberately left
+// in REMOTE_DENY had a second one beside it. It is also wrong on its own terms,
+// with nothing to do with security: a backup taken on another PC names a folder
+// that need not exist here, and importing it pointed every future arrival at a
+// path on someone else's disk.
+function preserveTransferPaths(incoming, prev) {
+  if (!incoming || !incoming.fileTransfer || typeof incoming.fileTransfer !== 'object') return incoming;
+  const prevDir = (prev && prev.fileTransfer && prev.fileTransfer.inboxDir) || '';
+  return {
+    ...incoming,
+    fileTransfer: { ...incoming.fileTransfer, inboxDir: prevDir },
+  };
 }
 
 // Hue/Nanoleaf pairing tokens live inside lighting.providers[].devices[].token.
@@ -8815,6 +9212,10 @@ async function applyBackup(bundle) {
       // Same post-save hooks as POST /settings; none of them may fail the import.
       try { lighting.applyConfig(settings.lighting); }
       catch (e) { console.error('Backup lighting apply failed:', e.message); }
+      // An import carries fileTransfer too, and the caps are held in the module,
+      // not read per request — without this they stay at the pre-import values.
+      try { _applyTransferLimits(); }
+      catch (e) { console.error('Backup transfer limits apply failed:', e.message); }
       refreshExternalFeeds().catch(() => {});
       refreshObsWatch();
       refreshHaWatch();
@@ -8998,11 +9399,22 @@ function discordNotifWanted() {
   const dn = _serverHubSettings && _serverHubSettings.discordNotifications;
   return notificationsEnabled() && !!(dn && dn.enabled);
 }
+// Whether the RPC token needs the notifications SCOPE, which is a different
+// question from whether the notification FEED is on. A ringing Discord call
+// arrives as NOTIFICATION_CREATE and there is no other event for it, so Calls
+// needs the subscription even when the widget's message feed is switched off.
+// Both still go through the same one-time re-link, and pushDiscordNotification
+// keeps the feed itself gated on its own switch.
+function discordNotifScopeWanted() {
+  if (discordNotifWanted()) return true;
+  const c = _serverHubSettings && _serverHubSettings.calls;
+  return !!(c && c.enabled);
+}
 let discordRpc = createDiscordProvider({
   clientId: readStreamClientId('discordClientId', 'DISCORD_CLIENT_ID'),
   clientSecret: readStreamClientId('discordClientSecret', 'DISCORD_CLIENT_SECRET'),
   tokensFile: STREAM_TOKENS_FILE,
-  wantNotifications: discordNotifWanted,
+  wantNotifications: discordNotifScopeWanted,
 });
 // All Discord Deck actions funnel through the provider (it owns the RPC socket and
 // the current-state reads). Reads `discordRpc` at call time so a re-created
@@ -9030,6 +9442,12 @@ let discordNotifs = [];
 let discordNotifSeq = 0;
 function pushDiscordNotification(n) {
   if (!n || typeof n !== 'object') return;
+  // Calls read this BEFORE the feed's own opt-in. The Discord notification feed
+  // (the widget's Notifications tab) and the ring are two different features
+  // with two different switches, and a user who wants the call card should not
+  // have to turn on a message feed to get it. Both still need the RPC scope,
+  // which is what actually delivers the event.
+  try { calls.onDiscordNotification(n); } catch { /* a ring never breaks the feed */ }
   if (!discordNotifWanted()) return;   // toggled off mid-watch → drop until re-arm
   const item = Object.assign({ id: ++discordNotifSeq, at: Date.now() }, n);
   discordNotifs.push(item);
@@ -9046,7 +9464,14 @@ function pushDiscordNotification(n) {
 function winNotifWanted() {
   if (!notificationsEnabled()) return false;   // master switch off → no mirror child
   const wn = _serverHubSettings && _serverHubSettings.windowsNotifications;
-  return !!(wn && wn.enabled);
+  if (wn && wn.enabled) return true;
+  // Calls read the same child: outside Discord, an OS notification is the only
+  // thing that can tell us a call is ringing (Windows exposes no toast XML and
+  // no "incoming call" flag — measured). So enabling Calls starts the reader
+  // even with the Notifications tile switched off, and the Settings copy says
+  // so rather than leaving the user to discover that one switch moved another.
+  const c = _serverHubSettings && _serverHubSettings.calls;
+  return !!(c && c.enabled);
 }
 winNotif.init({
   // Per-app mute: match the AUMID when the toast has one, the display name
@@ -9061,9 +9486,20 @@ winNotif.init({
   },
   onItem(item) {
     broadcastSSE('windows_notification', item);
+    // The same toast is also the ring sensor for the Calls feature (Teams, Zoom,
+    // Phone Link and anything else the user listed). calls.onNotification is a
+    // no-op unless that feature is on, and it classifies rather than forwards —
+    // nothing about the notification feed changes here.
+    try { calls.onNotification(item); } catch { /* a ring must never break the feed */ }
     // A mirrored Windows toast counts as a "notification" for the RGB event effect
     // (no-op unless enabled in Settings → Illuminazione → Effetti evento).
     try { lighting.onEvent('notification'); } catch { /* lighting optional */ }
+  },
+  onPresent(ids) {
+    // Which toasts are still in Action Center. Only the call card uses this: a
+    // ringing toast vanishes when the caller hangs up, and that disappearance is
+    // the only thing that says so.
+    try { calls.onNotificationsPresent(ids); } catch { /* never breaks the reader */ }
   },
   onFeed() {
     // State change or feed replacement (seed / stop / exclusion prune): push the
@@ -9079,6 +9515,157 @@ winNotif.init({
 function refreshWinNotifWatch() {
   winNotif.sync(winNotifWanted() && sseClients.size > 0);
 }
+
+// ── Incoming calls ──────────────────────────────────────────────────────────
+// calls.js owns the ring state and performs the answer; everything platform- or
+// integration-shaped is injected here so that module stays testable without a
+// server. The two sensors are wired at their sources: winNotif.onItem above and
+// pushDiscordNotification below.
+function callsSettings() {
+  const c = (_serverHubSettings && _serverHubSettings.calls) || {};
+  const off = Array.isArray(c.disabledApps) ? c.disabledApps : [];
+  const userApps = Array.isArray(c.apps) ? c.apps : [];
+  // Stored as "which apps did the user switch OFF", handed to the classifier as
+  // an explicit allowlist — the friendlier shape to persist, the safer shape to
+  // reason about at the boundary. `null` means "no app was switched off".
+  let allowed = null;
+  if (off.length) {
+    allowed = callDetect.DEFAULT_APPS.map(a => a.id)
+      .concat(userApps.map(a => a && a.id).filter(Boolean))
+      .filter(id => !off.includes(id));
+  }
+  return { enabled: c.enabled === true, push: c.push !== false, sound: c.sound !== false, apps: userApps, allowed };
+}
+// Whether Discord can actually answer. Kept as a flag rather than an async
+// status() call because capabilities are computed while a call is ringing, and
+// a card that takes a round trip to decide whether to draw its main button is a
+// card that draws it late. refreshDiscordWatch keeps it current.
+let _discordLinkedForCalls = false;
+calls.init({
+  platform: process.platform,
+  broadcast: broadcastSSE,
+  push: (message) => webPushNotify(message, { urgency: 'high', ttl: 60 }),
+  getSettings: callsSettings,
+  getLanguage: () => (_serverHubSettings && _serverHubSettings.language) || 'en',
+  hotkeyAvailable: keySendAvailable,
+  listWindows: () => runWindowsTool(['list'], 8000),
+  focusWindow: (id) => runWindowsTool(['focus', String(id)], 5000),
+  sendHotkey: sendHotkeyCombo,
+  discordLinked: () => _discordLinkedForCalls,
+  discordJoin: (channelId) => discordRpc.runAction({ type: 'discordJoin', channel: String(channelId) }),
+  // Read from the helper's own report, never assumed. Both are false on every
+  // platform today (the HFP channel belongs to the OS), and the card draws its
+  // buttons from them — so this is the single place that has to change if one
+  // of the three ever hands the channel back.
+  phoneCanAnswer: () => phone.canAnswer(),
+  phoneCanHangUp: () => phone.canHangUp(),
+  onEvent: (name) => { try { lighting.onEvent(name); } catch { /* lighting optional */ } },
+});
+
+// ── The paired phone ────────────────────────────────────────────────────────
+// Phonebook and call log over Bluetooth, plus the OS's own "a call is ringing"
+// signal. That signal is why this is wired into calls.js rather than living
+// beside it: for a phone call it REPLACES the notification-text heuristic with
+// a fact, and the mirrored toast is demoted to what it is actually good at,
+// which is naming the caller.
+function phoneSettings() {
+  return (_serverHubSettings && _serverHubSettings.phone) || {};
+}
+// Whether a Deck key that dials or texts can actually do anything on this
+// machine. Read from the last status the helper gave rather than probed here:
+// the catalog is fetched while the editor is open, and a Bluetooth round trip
+// on that path would stall the whole key list. Off, unsupported or no dialable
+// line all answer false, which is what hides the key instead of offering one
+// that fails when pressed.
+// The AI's three phone tools, in one place because they share one rule: the
+// recipient comes from the user's own phonebook, never from the model.
+//
+// The two write tools are NOT equally guarded, and the difference is what each
+// mistake costs. A wrong call is hung up in two seconds, so a dictated number
+// is allowed there. A wrong TEXT reaches a stranger permanently and cannot be
+// recalled, so `phone_message` refuses anything but a resolved contact — the
+// blast radius of a misheard name becomes "texted the wrong person in your
+// contacts" instead of "texted a number nobody has ever seen".
+async function aiPhoneTool(fnName, args) {
+  const a = args && typeof args === 'object' ? args : {};
+  if (phoneSettings().enabled !== true) return { error: 'phone_disabled' };
+
+  // Resolve a spoken name against the phonebook. Substring, case- and
+  // accent-insensitive, so "papa" finds "Papà" — the fold the call classifier
+  // already uses for the same job.
+  const findByName = async (name) => {
+    const needle = callDetect.foldText(name || '');
+    if (!needle) return [];
+    const book = await phone.contacts();
+    return (book.list || []).filter(c => callDetect.foldText(c.name).includes(needle));
+  };
+
+  if (fnName === 'phone_lookup') {
+    if (!a.name) {
+      const log = await phone.calls();
+      if (!log.ok && !log.list.length) return { error: log.reason || 'phone_unavailable' };
+      return { calls: log.list.slice(0, 15).map(c => ({ name: c.name, number: c.number, direction: c.direction, at: c.at })) };
+    }
+    const hits = await findByName(a.name);
+    if (!hits.length) return { matches: [], note: 'nobody in the phonebook matches that name' };
+    return { matches: hits.slice(0, 8).map(c => ({ name: c.name, numbers: c.numbers.map(n => n.value) })) };
+  }
+
+  if (fnName === 'phone_call') {
+    let number = String(a.number || '').trim();
+    let who = '';
+    if (a.name) {
+      const hits = await findByName(a.name);
+      // Ambiguity is handed back rather than resolved by picking the first:
+      // "chiama Marco" with two Marcos is a question, not a call.
+      if (hits.length > 1) return { error: 'ambiguous', matches: hits.slice(0, 8).map(c => c.name) };
+      if (!hits.length && !number) return { error: 'no_such_contact' };
+      if (hits.length === 1 && hits[0].numbers.length) {
+        number = hits[0].numbers[0].value;
+        who = hits[0].name;
+      }
+    }
+    if (!number) return { error: 'no_number' };
+    const r = await phone.dial(number);
+    return r.ok ? { ok: true, calling: who || number } : { error: r.error || 'dial_failed' };
+  }
+
+  // phone_message
+  const text = String(a.text || '').trim();
+  if (!text) return { error: 'empty_message' };
+  const hits = await findByName(a.name);
+  if (!hits.length) return { error: 'no_such_contact', note: 'a text can only be sent to somebody already in the phonebook' };
+  if (hits.length > 1) return { error: 'ambiguous', matches: hits.slice(0, 8).map(c => c.name) };
+  const to = hits[0].numbers[0];
+  if (!to) return { error: 'contact_has_no_number' };
+  const r = await phone.sendMessage(to.value, text);
+  return r.ok ? { ok: true, sentTo: hits[0].name, text } : { error: r.error || 'send_failed' };
+}
+
+function phoneKeysAvailable() {
+  try { return phoneSettings().enabled === true && phone.canDial(); }
+  catch { return false; }
+}
+const phone = createPhone({
+  helperExe: HELPER_EXE,
+  broadcast: broadcastSSE,
+  getSettings: phoneSettings,
+  onCallState: (s) => {
+    // Taking over the screen is opt-out on its own: the phonebook and the
+    // dialler are useful on a second screen that should never interrupt.
+    if (phoneSettings().ring === false) return;
+    try {
+      calls.onPhoneState({
+        incoming: s.incoming,
+        active: s.active,
+        device: phone.deviceName(),
+        // The number is not in the signal — the OS reports that a call exists,
+        // not who is calling — so the card starts nameless and a mirrored toast
+        // fills it in. See calls.onNotification.
+      });
+    } catch { /* the ring must never break the phone feed */ }
+  },
+});
 
 // ── Per-app audio peak meters ───────────────────────────────────────────────
 // Demand-driven, with NO setting of its own. This is a ~12/s broadcast, so it
@@ -9201,6 +9788,9 @@ async function refreshDiscordWatch() {
     do {
       discordWatchDirty = false;
       const st = await discordRpc.status().catch(() => null);
+      // The call card's Answer button is only real while the account is linked,
+      // so the flag it reads follows the same status this watch is armed on.
+      _discordLinkedForCalls = !!(st && st.configured && st.connected);
       const want = !!(st && st.configured && st.connected) && sseClients.size > 0;
       if (want && !discordStopWatch) {
         discordLogin = (st && st.login) || '';
@@ -9277,7 +9867,7 @@ async function saveStreamConfig(patch) {
     clientId: readStreamClientId('discordClientId', 'DISCORD_CLIENT_ID'),
     clientSecret: readStreamClientId('discordClientSecret', 'DISCORD_CLIENT_SECRET'),
     tokensFile: STREAM_TOKENS_FILE,
-    wantNotifications: discordNotifWanted,
+    wantNotifications: discordNotifScopeWanted,
   });
   refreshDiscordWatch();   // re-arm the watch if the new creds are linked and a dashboard is open
 }
@@ -10043,6 +10633,26 @@ const CSRF_MUTATION_PATHS = new Set([
   // guarded here too: a cross-site drive-by must not be able to make the local
   // server throw an administrator prompt at the user.
   '/system/enable-sensors',
+  // Answering a call focuses another application and presses keys into it, or
+  // joins a Discord voice channel. POST-only, but listed for the same reason
+  // /api/claude/decide is: a sandboxed SDK widget posts with Origin: null, and
+  // the Sec-Fetch-Site reject is the only thing that stops one from answering
+  // (or declining) a call on the user's behalf while they watch it happen.
+  '/api/calls/act',
+  // The debug ring. It only answers under XENON_CALLS_TEST=1, but a path that
+  // can take over the screen belongs here whenever it is reachable at all.
+  '/api/calls/test',
+  // Places a real call on a real network. It is the only path in the product
+  // that costs the user money per use and reaches a third party, so a drive-by
+  // must not be able to reach it — nor a sandboxed SDK widget, which posts with
+  // Origin: null and would otherwise be one fetch away from dialling.
+  '/api/phone/dial',
+  // Sends a real SMS, under the number this phone owns. Same class as
+  // dialling: it reaches a third party, it is metered, it cannot be recalled.
+  // (No apostrophes in this block: a test extracts these entries with a quote
+  // regex over the raw source, and a lone apostrophe in a comment shifts the
+  // pairing for every entry after it.)
+  '/api/phone/send',
   '/toggle', '/mic/volume', '/volume/set', '/speaker/mute',
   '/audio/app/volume', '/audio/app/mute',
   // The iCUE widget saves notes via GET (?save=1&data=) over JSONP <script>. That
@@ -10076,6 +10686,28 @@ const CSRF_MUTATION_PATHS = new Set([
   // cost is the attack: a couple of hundred drive-by requests would leave the
   // user's own YouTube integration dead for the rest of the day.
   '/stream/youtube/search',
+  // The live-chat read spends quota too, and its cache cannot protect it from a
+  // drive-by: the answer is held per PAGE TOKEN, so a loop over distinct ?page=
+  // values misses every time, and with no broadcast on air the miss also costs
+  // two liveBroadcasts.list calls before the cache is even consulted. Roughly
+  // 5,000 <img> loads would exhaust the same 10,000-unit day /search is listed
+  // here to protect. (Named back in as a remote read below: it changes nothing
+  // on the PC and a paired phone genuinely shows the chat.)
+  '/stream/youtube/chat',
+  // Creator-side writes on the user's own channel. Creating a broadcast also
+  // creates an ingestion endpoint on the account, cancelling throws one away, and
+  // privacy decides who can watch — none of that may happen from a page the user
+  // merely visited. The chat POST speaks publicly under the user's name.
+  '/stream/youtube/broadcast/create',
+  '/stream/youtube/broadcast/cancel',
+  '/stream/youtube/privacy',
+  '/stream/youtube/chat/send',
+  // A Twitch channel search sends text the caller chose to Twitch under the
+  // user's own token. No daily budget to burn here, but it is still an outbound
+  // request a page the user merely visited has no business making. The chat send
+  // is the stronger case of the same thing: it speaks publicly as the user.
+  '/stream/twitch/search',
+  '/stream/twitch/chat/send',
   // Ratings: the GET's cache miss triggers an outbound hub fetch (same rationale
   // as /api/community/catalog); the POST casts a vote under THIS install's id —
   // a drive-by must be able to do neither.
@@ -10161,6 +10793,21 @@ const CSRF_MUTATION_PATHS = new Set([
   '/api/push/subscribe',
   '/api/push/unsubscribe',
   '/api/push/test',
+  // File transfer. /upload writes a file to this PC, /open launches one with
+  // its registered handler, /reveal opens a file-manager window, /delete
+  // removes one, and /settings names the folder future arrivals land in — none
+  // may be reachable from a drive-by or an Origin:null sandboxed iframe.
+  //
+  // /api/transfer/file, /thumb and /list are deliberately ABSENT. They are
+  // pure reads, and listing a read here is not free: this set is handed to the
+  // paired-device gate, which refuses every GET in it, and /file is fetched by
+  // a top-level navigation the moment the user taps Download — so listing it
+  // would refuse the very download that was just asked for.
+  '/api/transfer/upload',
+  '/api/transfer/open',
+  '/api/transfer/reveal',
+  '/api/transfer/delete',
+  '/api/transfer/settings',
 ]);
 
 function isAllowedRequest(req) {
@@ -10235,6 +10882,153 @@ function webPushNotify(message, opts) {
     console.warn('[web-push] notify failed:', e && e.message);
     return { ok: false, sent: 0 };
   });
+}
+
+// ── Phone ↔ PC file transfer ────────────────────────────────────────────────
+// The store lives under DATA_DIR and is never HTTP-reachable except through the
+// dedicated routes below, which address files by an opaque id this server
+// minted. See file-transfer.js for why the client's filename is a label, why
+// delivery into the user's folder is a copy made afterwards rather than the
+// upload's destination, and why retention can only ever remove our own
+// duplicate.
+const fileTransfer = fileTransferLib.createFileTransfer({
+  dir: path.join(DATA_DIR, 'transfer'),
+  dataDir: DATA_DIR,
+  appRoot: path.join(__dirname, '..'),
+});
+// init() only reconciles the store against its own directory; the LIMITS come
+// from the settings, so they are applied where those are read (the listen
+// callback below, POST /api/transfer/settings, and the backup import) and never
+// from here. Chaining them onto init() looked equivalent and was not: this runs
+// at module evaluation, `_serverHubSettings` is populated inside the listen
+// callback, and init() won that race on every boot — so the user's maxFileMb,
+// quotaMb and keepDays were silently replaced by the defaults on every restart,
+// until they happened to re-save that one settings pane.
+fileTransfer.init().catch((e) => console.error('[transfer] init failed:', e.message));
+
+// Belt for the braces: every failure path in the upload route aborts its own
+// write handle, so this only ever finds an upload whose socket died in a way
+// `pipeline` never reported. Unref'd, so it cannot hold the process open.
+const _transferSweepTimer = setInterval(() => {
+  fileTransfer.sweepInflight().catch(() => {});
+}, 5 * 60 * 1000);
+_transferSweepTimer.unref();
+
+function transferSettings() {
+  const s = (_serverHubSettings && _serverHubSettings.fileTransfer) || DEFAULT_HUB_SETTINGS.fileTransfer;
+  return s;
+}
+
+// The one push this feature can send, in the user's own language. Short, and
+// deliberately carrying NO file name: a lock screen is a public surface, and
+// the push funnel's rule is that a notification body never mirrors content.
+const TRANSFER_PUSH_BODY = Object.freeze({
+  it: 'Un file ti aspetta su Xenon',
+  en: 'A file is waiting for you on Xenon',
+  es: 'Un archivo te espera en Xenon',
+  fr: 'Un fichier vous attend sur Xenon',
+  de: 'Eine Datei wartet auf dich in Xenon',
+  pt: 'Um ficheiro está à tua espera no Xenon',
+  nl: 'Er staat een bestand voor je klaar in Xenon',
+  ru: 'В Xenon вас ждёт файл',
+  ja: 'Xenon にファイルが届いています',
+  ko: 'Xenon에 파일이 도착했습니다',
+  zh: 'Xenon 上有一个文件在等你',
+});
+function transferPushBody() {
+  const lang = String((_serverHubSettings && _serverHubSettings.language) || '').slice(0, 2).toLowerCase();
+  return TRANSFER_PUSH_BODY[lang] || TRANSFER_PUSH_BODY.en;
+}
+
+function transferEnabled() {
+  return transferSettings().enabled !== false && fileTransfer.isLoaded();
+}
+
+/**
+ * Where arrivals are copied. An empty setting means "wherever this OS keeps
+ * Downloads" rather than "nowhere", so the feature works on first run without
+ * the user having to choose a folder before their first photo.
+ */
+function transferInboxDir() {
+  const s = transferSettings();
+  if (s.inboxDir) return s.inboxDir;
+  return fileTransferLib.defaultInboxDir({});
+}
+
+function _applyTransferLimits() {
+  const s = transferSettings();
+  fileTransfer.limits({
+    maxBytes: Math.round(s.maxFileMb * 1024 * 1024),
+    quotaBytes: Math.round(s.quotaMb * 1024 * 1024),
+    keepMs: Math.round(s.keepDays * 24 * 60 * 60 * 1000),
+  });
+}
+
+/**
+ * The whole list, not a delta — the `status` convention, so a surface that
+ * reconnects is correct with no replay to reason about. In-flight uploads ride
+ * along so a phone that opens the dashboard mid-transfer sees them at once.
+ */
+function transferState(includePaths) {
+  const st = fileTransfer.stats();
+  return {
+    enabled: transferEnabled(),
+    items: fileTransfer.list({ includePaths: includePaths === true }),
+    pending: fileTransfer.inflightList(),
+    count: st.count,
+    bytes: st.bytes,
+    quotaBytes: st.quotaBytes,
+    maxBytes: st.maxBytes,
+  };
+}
+
+// Deliberately NOT gated behind a `transferWanted()` / `refreshTransferWatch()`
+// pair. That idiom exists to stop a background poller or a child process from
+// running when nobody can see its output; there is neither here, the events are
+// emitted by the request that caused them, and broadcastSSE already returns
+// immediately with no clients. Gating it would mean a file arriving while the
+// widget happens to be hidden is never announced anywhere — the "looks alive,
+// does nothing" failure this codebase avoids everywhere else.
+function broadcastTransfer() {
+  broadcastSSE('transfer', transferState(false));
+}
+
+/**
+ * Copy a stored arrival into the user's folder, then tell every surface.
+ *
+ * Runs off the request path: the file is already safe by the time this starts,
+ * so a folder that was renamed, unmounted or filled up degrades to "kept in
+ * Xenon's inbox" with a reason, and never fails the transfer that succeeded.
+ */
+async function deliverTransfer(rec) {
+  const s = transferSettings();
+  if (!s.autoDeliver) return null;
+  const inbox = transferInboxDir();
+  if (!inbox) return null;
+  // Validated BEFORE anything is created. `not_found` is the one refusal mkdir
+  // is allowed to answer — the default <Downloads>/Xenon does not exist on a
+  // fresh install — and it is reached only after the containment rules have
+  // passed, because validInboxDir tests "absolute", "inside DATA_DIR" and
+  // "inside the app root" before it ever stats. Creating first and checking
+  // afterwards meant a folder the check was about to refuse got brought into
+  // existence anyway.
+  const inboxOpts = { dataDir: DATA_DIR, appRoot: path.join(__dirname, '..') };
+  let check = await fileTransferLib.validInboxDir(inbox, inboxOpts);
+  if (!check.ok && check.error === 'not_found') {
+    try { await fs.promises.mkdir(inbox, { recursive: true }); } catch { /* re-checked below */ }
+    check = await fileTransferLib.validInboxDir(inbox, inboxOpts);
+  }
+  if (!check.ok) {
+    console.warn('[transfer] inbox refused:', check.error, inbox);
+    return null;
+  }
+  const out = await fileTransfer.deliver(rec, inbox);
+  if (!out.ok) {
+    console.warn('[transfer] delivery failed:', out.error, inbox);
+    return null;
+  }
+  await fileTransfer.markDelivered(rec.id, out.path);
+  return out.path;
 }
 
 // The T2 door. Built here, started only when the user opts in (see
@@ -11094,11 +11888,25 @@ const handleRequest = async (req, res) => {
     // and the sandboxed document it loads cannot present a cookie for its own
     // stylesheet and script (see remote-access.js). It is a capability for the
     // widget asset tree and nothing else.
+    //
+    // `inlineJson`, not bare JSON.stringify: inside a <script> element the
+    // parser looks for `</script` before it looks for anything JavaScript, and
+    // JSON.stringify escapes neither `<` nor `/`. The device name is chosen by
+    // whoever redeems the pairing code and is only length-clamped, so a name of
+    // `</script>…` closes the element early. Today that is self-inflicted — this
+    // document is served only to the device whose token produced the name — but
+    // "the sink is currently harmless" is not a property that survives someone
+    // adding a third field or reusing the marker somewhere else. Escaped at the
+    // sink, which is the only place that stays true. U+2028/2029 go too: they
+    // are line terminators to a JS parser and not to JSON.
     if (isRemote) {
+      const inlineJson = (v) => JSON.stringify(v == null ? '' : v)
+        .replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
+        .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
       html = html.replace('<meta charset="UTF-8">',
         '<meta charset="UTF-8">\n<script>window.__xenonRemote = { device: ' +
-        JSON.stringify((remote.device && remote.device.name) || '') + ', assetKey: ' +
-        JSON.stringify((remote.device && remote.device.assetKey) || '') + ' };</script>');
+        inlineJson(remote.device && remote.device.name) + ', assetKey: ' +
+        inlineJson(remote.device && remote.device.assetKey) + ' };</script>');
     }
     // Never let the WebView serve a stale entry document: index.html carries the
     // early boot-scale recovery script, so a cached copy would pin an old fix.
@@ -11762,10 +12570,13 @@ const handleRequest = async (req, res) => {
       } else {
         ({ id, level, proc } = JSON.parse(await readBody(req)));
       }
-      if (!id && !proc) { err500('Missing id'); return; }
       // Prefer the durable process-name target over the session CLI id, which
       // SoundVolumeView rotates across app restarts (a stale id is a silent miss).
-      const target = proc ? appAudioTarget(proc) : id;
+      const target = proc ? appAudioTarget(proc) : String(id || '').trim();
+      // Checked AFTER normalisation, never on the raw fields: proc="   " (or
+      // ".exe") passed the old `!id && !proc` test and reduced to a target the
+      // Linux matcher read as "every audio stream on this machine".
+      if (!target) { err500('Missing id'); return; }
       const vol = Math.max(0, Math.min(100, parseInt(level)));
       // Natural behaviour: 0 = silent (muted) for that app, >0 = audible.
       svvExec(['/SetVolume', target, String(vol)])
@@ -11783,9 +12594,10 @@ const handleRequest = async (req, res) => {
       } else {
         ({ id, muted, proc } = JSON.parse(await readBody(req)));
       }
-      if (!id && !proc) { err500('Missing id'); return; }
       // Prefer the durable process-name target over the volatile session CLI id.
-      const target = proc ? appAudioTarget(proc) : id;
+      const target = proc ? appAudioTarget(proc) : String(id || '').trim();
+      // See /audio/app/volume: an empty target used to select every stream.
+      if (!target) { err500('Missing id'); return; }
       // Explicit state (deterministic) when the client tells us; else toggle.
       const action = muted === undefined || muted === null
         ? '/Switch'
@@ -11858,23 +12670,9 @@ const handleRequest = async (req, res) => {
       const stat = await fs.promises.stat(abs);
       if (!stat.isFile()) { res.writeHead(404); res.end(); return; }
 
-      const baseHeaders = { 'Content-Type': mime, 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store' };
-      const range = req.headers.range;
-      if (range) {
-        const match = String(range).match(/^bytes=(\d*)-(\d*)$/);
-        if (!match) { res.writeHead(416, { ...baseHeaders, 'Content-Range': `bytes */${stat.size}` }); res.end(); return; }
-        const suffixLength = match[1] === '' ? Number(match[2]) : null;
-        const start = suffixLength !== null ? Math.max(0, stat.size - suffixLength) : Number(match[1]);
-        const end = match[2] === '' || suffixLength !== null ? stat.size - 1 : Number(match[2]);
-        if (!Number.isFinite(start) || !Number.isFinite(end) || start > end || start < 0 || end >= stat.size) {
-          res.writeHead(416, { ...baseHeaders, 'Content-Range': `bytes */${stat.size}` }); res.end(); return;
-        }
-        res.writeHead(206, { ...baseHeaders, 'Content-Range': `bytes ${start}-${end}/${stat.size}`, 'Content-Length': String(end - start + 1) });
-        fs.createReadStream(abs, { start, end }).pipe(res);
-        return;
-      }
-      res.writeHead(200, { ...baseHeaders, 'Content-Length': String(stat.size) });
-      fs.createReadStream(abs).pipe(res);
+      serveFileRange(req, res, abs, stat, {
+        'Content-Type': mime, 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store',
+      });
     } catch (e) {
       if (e.code === 'ENOENT' || e.code === 'ENOTDIR') { res.writeHead(404); res.end(); }
       else err500(e.message);
@@ -12100,7 +12898,7 @@ const handleRequest = async (req, res) => {
       // rides SMTC on Windows and mediaremote-adapter on macOS, and the adapter
       // is optional, so the answer is "is there a media host" — not "which OS".
       const mediaAvailable = powershellAvailable || !!(nativeMedia && nativeMedia.available());
-      json({ catalog: ACTION_CATALOG, capabilities: { powershell: powershellAvailable, media: mediaAvailable, soundVolumeView: audioControlAvailable, appAudio: appAudioAvailable, obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked } });
+      json({ catalog: ACTION_CATALOG, capabilities: { powershell: powershellAvailable, keys: keySendAvailable(), media: mediaAvailable, soundVolumeView: audioControlAvailable, appAudio: appAudioAvailable, obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked, phone: phoneKeysAvailable() } });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/wavelink/state' && req.method === 'GET') {
@@ -12615,6 +13413,15 @@ const handleRequest = async (req, res) => {
       if (prev && prev.remoteAccess && typeof prev.remoteAccess === 'object') {
         incoming.remoteAccess = prev.remoteAccess;
       }
+      // File transfer, for the same reason and one more: `inboxDir` is a path on
+      // this PC that is deliberately never sent to a browser, so a generic save
+      // could not carry it back even if the client modelled the rest. Without
+      // this the user's chosen folder would reset to the default on every save
+      // from any surface, and arrivals would quietly start landing somewhere
+      // else. Its only writer is POST /api/transfer/settings.
+      if (prev && prev.fileTransfer && typeof prev.fileTransfer === 'object') {
+        incoming.fileTransfer = prev.fileTransfer;
+      }
       // Vitals state is widget-owned and monotonic: a refill stamps "now", XP
       // only grows, the daily counter resets on a new day. A stale settings
       // mirror from another surface must never rewind a refill the user just
@@ -12726,6 +13533,16 @@ const handleRequest = async (req, res) => {
       // per-app mute list changed.
       refreshWinNotifWatch();
       winNotif.applyExclusions();
+      // Calls switched off → clear any card still ringing (nobody could answer
+      // it any more). Also re-arm the Discord watch: turning Calls on widens the
+      // RPC scope this install asks for, and the subscription that carries a
+      // ringing call is only made when that scope is present.
+      calls.applySettings();
+      // Phone switched off → retire the helper host. It holds an OS call-state
+      // subscription, so leaving it up would keep pushing rings for a feature
+      // the user just turned off.
+      phone.applySettings();
+      refreshDiscordWatch();
       // Wake word toggled → start/stop the mic listener (sync() is idempotent).
       refreshWakeWordWatch();
       // Spotlight: hotkey combo/enable changed → restart the helper listener;
@@ -13997,7 +14814,10 @@ const handleRequest = async (req, res) => {
         ? ` CONVERSATION MEMORY — a summary of earlier parts of THIS conversation that scrolled out of the recent window (treat it as accurate context; the recent turns follow after it): ${convSummary}`
         : '';
       const SYS_BASE = `Current date and time: ${_nowDate}, ${_nowTime} (${_tz}). ` +
-        'You are Xenon, a capable, helpful AI assistant embedded in Xenon — a real-time dashboard for the CORSAIR Xeneon Edge 14.5" display.' +
+        // The screen matters to the assistant only as a shape (short, wide, touch-first),
+        // never as a brand: naming one display here made the AI answer "I run on a CORSAIR
+        // Xeneon Edge" to a user on a Mac with a spare monitor, or on a phone.
+        'You are Xenon, a capable, helpful AI assistant embedded in Xenon — a real-time dashboard the user runs on whatever screen they can spare: a second monitor, a touchscreen, a paired phone or tablet, or a small wide panel next to their main display.' +
         ' Answer ANY question the user asks, drawing on your broad general knowledge (technology, science, history, everyday topics, etc.).' +
         ' For anything recent, live, or that you are not certain about (news, prices, sports results, weather elsewhere, release dates, "what is X today"…), call web_search instead of guessing — then answer using the results.' +
         ' YOU CAN DIRECTLY CONTROL THE WHOLE DASHBOARD — this is a core part of your job, not an afterthought. Whenever the user asks for something a tool covers, DO IT with the tool instead of only describing it. Your controls, by area:' +
@@ -15750,6 +16570,290 @@ const handleRequest = async (req, res) => {
     // CSRF_MUTATION_PATHS.
     try { json(diskSpace.cancelClean()); } catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/api/transfer/upload' && req.method === 'POST') {
+    // The ONLY route in this server that streams a request body to disk.
+    // readBody/readBodyBuffer would make a 2 GB video 2 GB of RSS, and every
+    // other upload here does exactly that — this is the one that cannot.
+    //
+    // `req` is untouched at this point: nothing in handleRequest reads a body
+    // before the dispatch chain, so the stream still holds every byte. If that
+    // ever changes, this route breaks silently — file-transfer-routes.test.mjs
+    // pins it.
+    //
+    // Not multipart: parseMultipartBackground works on an already-buffered
+    // Buffer, and a streaming multipart parser is a state machine over chunk
+    // boundaries that this repo should not grow. The filename rides in the
+    // query as a LABEL, the /api/claude/attach shape.
+    if (!transferEnabled()) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: 'disabled' }));
+      return;
+    }
+    const declaredLength = Number(req.headers['content-length']) || 0;
+    // Cap one: answered before a byte is read. This is the common case and it
+    // costs nothing. Cap two lives inside receiveStream and counts the bytes as
+    // they arrive, because a Content-Length is a claim and chunked encoding
+    // carries none at all. Cap three is the quota, inside begin().
+    const began = fileTransfer.begin({
+      name: urlObj.searchParams.get('name') || '',
+      // Derived from which door this arrived at, never from the request: a
+      // phone must not be able to claim it is the PC, and has no reason to.
+      direction: isRemote ? 'in' : 'out',
+      from: isRemote ? ((remote.device && remote.device.name) || 'device') : 'PC',
+      declaredLength,
+    });
+    if (began.error) {
+      res.writeHead(began.status || 400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: began.error, max: began.max }));
+      return;
+    }
+    // Cap four: never let a transfer be the thing that fills the system drive.
+    // statfs is best-effort — an older runtime or an exotic filesystem answers
+    // with a throw, and "unknown" must mean "carry on", not "refuse".
+    try {
+      const vfs = await fs.promises.statfs(DATA_DIR);
+      const free = Number(vfs.bavail) * Number(vfs.bsize);
+      if (Number.isFinite(free) && declaredLength && (free - declaredLength) < TRANSFER_DISK_HEADROOM) {
+        fileTransfer.abort(began.id);
+        res.writeHead(507, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'no_space' }));
+        return;
+      }
+    } catch { /* the filesystem cannot say; proceed and let ENOSPC speak */ }
+
+    let received = 0;
+    try {
+      // The row appears on every other surface the moment the upload starts,
+      // so a phone sending from the sofa shows up on the PC as it happens.
+      broadcastTransfer();
+
+      // The streaming core lives in file-transfer.js (receiveStream): bounded
+      // during the stream rather than from Content-Length, request kept alive
+      // so an over-size body can still be answered, temp removed on any
+      // failure. It is there rather than here so it can be exercised against a
+      // real socket in the tests.
+      const out = await fileTransferLib.receiveStream(req, began.target, {
+        limit: began.limit,
+        onProgress: (n) => {
+          received = n;
+          if (fileTransfer.noteProgress(began.id, n)) {
+            broadcastSSE('transfer_progress', { id: began.id, received: n, total: declaredLength, done: false });
+          }
+        },
+      });
+      received = out.bytes;
+      const rec = await fileTransfer.commit(began.id, received);
+      broadcastSSE('transfer_progress', { id: began.id, received, total: received, done: true });
+      // Delivery is a copy made AFTER the file is safely stored, so a folder
+      // that was renamed or filled up degrades to "kept in Xenon's inbox" and
+      // never fails a transfer that already succeeded.
+      const delivered = await deliverTransfer(rec).catch(() => null);
+      fileTransfer.prune().catch(() => {});
+      broadcastTransfer();
+      // Push is PC → phone only, opt-in, and never carries the file name: a
+      // lock screen is a public surface. A file the user just sent FROM the
+      // phone in their hand is not something to wake them for.
+      if (rec.direction === 'out' && transferSettings().notifyPhone) {
+        webPushNotify({
+          title: 'Xenon',
+          body: transferPushBody(),
+          tag: 'transfer',
+          url: '/',
+        }, { urgency: 'normal', ttl: 3600 }).catch(() => {});
+      }
+      json({ ok: true, id: rec.id, name: rec.name, size: rec.size, delivered: !!delivered });
+    } catch (e) {
+      // receiveStream has already removed the temp file and left `req` alive.
+      fileTransfer.abort(began.id);
+      if (Number.isFinite(e && e.received)) received = e.received;
+      broadcastSSE('transfer_progress', { id: began.id, received, total: declaredLength, done: true, failed: true });
+      broadcastTransfer();
+      if (res.headersSent) { try { res.end(); } catch { /* already gone */ } return; }
+      const code = e && e.code;
+      if (code === 'XFER_ABORTED' || code === 'ECONNRESET' || code === 'ERR_STREAM_PREMATURE_CLOSE') {
+        // The phone slept or the wifi went. There is nobody left to answer.
+        try { res.end(); } catch { /* socket already closed */ }
+        return;
+      }
+      const status = code === 'XFER_TOO_BIG' ? 413 : (code === 'ENOSPC' ? 507 : 500);
+      const error = code === 'XFER_TOO_BIG' ? 'too_big' : (code === 'ENOSPC' ? 'no_space' : 'write_failed');
+      res.writeHead(status, { 'Content-Type': 'application/json', 'Connection': 'close' });
+      res.end(JSON.stringify({ ok: false, error, max: began.limit }));
+      // Only once the refusal has actually flushed. Destroying the socket any
+      // earlier is what turns a clear 413 into "network error".
+      res.on('finish', () => { try { req.destroy(); } catch { /* already gone */ } });
+    }
+
+  } else if (reqPath === '/api/transfer/list' && req.method === 'GET') {
+    // A read. Deliberately NOT in CSRF_MUTATION_PATHS: listing changes nothing,
+    // and a GET listed there is refused on the paired-device door, which would
+    // leave the phone with a widget that can send but never show anything.
+    try { json({ ok: true, ...transferState(!isRemote) }); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/transfer/file' && (req.method === 'GET' || req.method === 'HEAD')) {
+    // Serving a file the user received, to a phone that wants it.
+    //
+    // This is not an arbitrary-file-read primitive, and the reason is
+    // structural rather than a check: the wire carries an OPAQUE ID, resolved
+    // against a manifest this server minted, whose `file` field was generated
+    // here and is re-asserted against its shape before path.join sees it.
+    // There is no caller-supplied path component to contain — strictly
+    // stronger than /deck/sound, from which it borrows the cross-site reject.
+    //
+    // NOT in CSRF_MUTATION_PATHS on purpose: it is a pure read AND the user
+    // taps Download, which is a top-level navigation — the isTopLevelNav reject
+    // above would refuse the very download that was just asked for.
+    if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
+      res.writeHead(403); res.end(); return;
+    }
+    try {
+      const rec = fileTransfer.get(urlObj.searchParams.get('id') || '');
+      if (!rec) { res.writeHead(404); res.end(); return; }
+      const abs = fileTransfer.absOf(rec);
+      const stat = await fs.promises.stat(abs);
+      if (!stat.isFile()) { res.writeHead(404); res.end(); return; }
+      serveFileRange(req, res, abs, stat, {
+        // From a closed server-side map keyed on the extension WE stored, never
+        // the client's declared type. A phone needs the real media MIME or it
+        // cannot offer "Save to Photos" at all; the types where a real MIME
+        // could become script in our origin are forced to octet-stream there.
+        'Content-Type': fileTransferLib.downloadMimeFor(rec.ext),
+        // The primary guarantee that a received file never renders inline here.
+        'Content-Disposition': fileTransferLib.contentDisposition(rec.name),
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'; sandbox",
+        'Cache-Control': 'no-store',
+        'Accept-Ranges': 'bytes',
+      });
+    } catch (e) {
+      if (e.code === 'ENOENT') { res.writeHead(404); res.end(); }
+      else err500(e.message);
+    }
+
+  } else if (reqPath === '/api/transfer/thumb' && req.method === 'GET') {
+    // Preview for the list. Only the raster types a browser really decodes —
+    // nothing is generated or transcoded here, because that would be a
+    // dependency. A HEIC straight off an iPhone answers 404, and the client
+    // turns that into an extension chip rather than a broken image.
+    if (String(req.headers['sec-fetch-site'] || '').toLowerCase() === 'cross-site') {
+      res.writeHead(403); res.end(); return;
+    }
+    try {
+      const rec = fileTransfer.get(urlObj.searchParams.get('id') || '');
+      if (!rec || !fileTransferLib.isThumbable(rec.ext)) { res.writeHead(404); res.end(); return; }
+      const abs = fileTransfer.absOf(rec);
+      const stat = await fs.promises.stat(abs);
+      if (!stat.isFile() || stat.size > TRANSFER_THUMB_MAX) { res.writeHead(404); res.end(); return; }
+      const body = await fs.promises.readFile(abs);
+      res.writeHead(200, {
+        'Content-Type': fileTransferLib.downloadMimeFor(rec.ext),
+        'Content-Length': String(body.length),
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'; sandbox",
+        'Cache-Control': 'private, max-age=300',
+      });
+      res.end(body);
+    } catch (e) {
+      if (e.code === 'ENOENT') { res.writeHead(404); res.end(); }
+      else err500(e.message);
+    }
+
+  } else if (reqPath === '/api/transfer/open' && req.method === 'POST') {
+    // Open a received file on the PC. Same contract as /search/open: an opaque
+    // id in, the Deck registry's blocklist re-applied, and an executable
+    // refused with revealable:true so the UI can offer the one action that
+    // runs nothing. In CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req, 4096) || '{}');
+      const rec = fileTransfer.get(body.id);
+      if (!rec) { json({ ok: false, error: 'unknown_id' }); return; }
+      // Prefer the copy in the user's own folder: it carries the real filename,
+      // which is what their apps and their recent-files lists will show.
+      const target = rec.delivered || fileTransfer.absOf(rec);
+      if (isBlockedOpenPath(target)) { json({ ok: false, error: 'blocked_ext', revealable: true }); return; }
+      try { await fs.promises.stat(target); } catch { json({ ok: false, error: 'not_found' }); return; }
+      await openExternalPath(target);
+      json({ ok: true });
+    } catch (e) { json({ ok: false, error: 'open_failed', detail: e.message }); }
+
+  } else if (reqPath === '/api/transfer/reveal' && req.method === 'POST') {
+    // Show it in the file manager. The one path an executable may take, since
+    // revealing something runs nothing. In CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req, 4096) || '{}');
+      const rec = fileTransfer.get(body.id);
+      if (!rec) { json({ ok: false, error: 'unknown_id' }); return; }
+      const target = rec.delivered || fileTransfer.absOf(rec);
+      try { await fs.promises.stat(target); } catch { json({ ok: false, error: 'not_found' }); return; }
+      revealInFileManager(target);
+      json({ ok: true });
+    } catch (e) { json({ ok: false, error: 'reveal_failed', detail: e.message }); }
+
+  } else if (reqPath === '/api/transfer/delete' && req.method === 'POST') {
+    // Removes XENON's copy. The file already delivered into the user's own
+    // folder is deliberately left alone — this list is ours, that folder is
+    // theirs, and a "clear the list" that reached into Downloads would be the
+    // last surprise this feature ever gave anyone. In CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req, 4096) || '{}');
+      const ok = await fileTransfer.remove(body.id);
+      broadcastTransfer();
+      json({ ok });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/transfer/settings' && req.method === 'GET') {
+    // Loopback-only (REMOTE_DENY), because the answer contains a real folder on
+    // this PC. The phone gets what it actually needs — the size limit — from
+    // /api/transfer/list, which every surface can read.
+    try {
+      const s = transferSettings();
+      json({
+        ok: true,
+        ...s,
+        inboxDir: transferInboxDir(),
+        inboxDefault: fileTransferLib.defaultInboxDir({}),
+        stats: fileTransfer.stats(),
+      });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/transfer/settings' && req.method === 'POST') {
+    // The ONLY writer of the fileTransfer settings block. Loopback-only, so a
+    // paired phone can never aim future arrivals at a folder of its choosing.
+    // In CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req, 8192) || '{}');
+      if (typeof body.inboxDir === 'string' && body.inboxDir.trim()) {
+        const check = await fileTransferLib.validInboxDir(body.inboxDir.trim(), {
+          dataDir: DATA_DIR, appRoot: path.join(__dirname, '..'),
+        });
+        if (!check.ok) { json({ ok: false, error: check.error }); return; }
+      }
+      await withHubSettingsLock(async () => {
+        // `prev` is read INSIDE the lock: one captured before acquiring it is
+        // already stale by the time the write lands.
+        const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+        const merged = { ...(cur.fileTransfer || {}) };
+        for (const key of ['enabled', 'autoDeliver', 'notifyPhone']) {
+          if (typeof body[key] === 'boolean') merged[key] = body[key];
+        }
+        for (const key of ['maxFileMb', 'quotaMb', 'keepDays']) {
+          if (Number.isFinite(Number(body[key]))) merged[key] = Number(body[key]);
+        }
+        if (typeof body.inboxDir === 'string') merged.inboxDir = body.inboxDir.trim();
+        const saved = await writeHubSettings({
+          ...cur,
+          fileTransfer: merged,
+          rev: nextSettingsRev(cur.rev, body.rev),
+        });
+        _serverHubSettings = saved;
+        broadcastSSE('settings', { rev: saved.rev });
+      });
+      _applyTransferLimits();
+      broadcastTransfer();
+      const s = transferSettings();
+      json({ ok: true, ...s, inboxDir: transferInboxDir() });
+    } catch (e) { err500(e.message); }
+
   } else if (req.method === 'GET' && reqPath.startsWith('/uploads/')) {
     try {
       const name = decodeURIComponent(reqPath.slice('/uploads/'.length));
@@ -15761,42 +16865,11 @@ const handleRequest = async (req, res) => {
       const stat = await fs.promises.stat(abs);
       if (!stat.isFile()) { res.writeHead(404); res.end(); return; }
 
-      const baseHeaders = {
+      serveFileRange(req, res, abs, stat, {
         'Content-Type': mime,
         'Accept-Ranges': 'bytes',
         'Cache-Control': 'public, max-age=31536000, immutable',
-      };
-      const range = req.headers.range;
-
-      if (range) {
-        const match = String(range).match(/^bytes=(\d*)-(\d*)$/);
-        if (!match) {
-          res.writeHead(416, { ...baseHeaders, 'Content-Range': `bytes */${stat.size}` });
-          res.end();
-          return;
-        }
-
-        const suffixLength = match[1] === '' ? Number(match[2]) : null;
-        const start = suffixLength !== null ? Math.max(0, stat.size - suffixLength) : Number(match[1]);
-        const end = match[2] === '' || suffixLength !== null ? stat.size - 1 : Number(match[2]);
-
-        if (!Number.isFinite(start) || !Number.isFinite(end) || start > end || start < 0 || end >= stat.size) {
-          res.writeHead(416, { ...baseHeaders, 'Content-Range': `bytes */${stat.size}` });
-          res.end();
-          return;
-        }
-
-        res.writeHead(206, {
-          ...baseHeaders,
-          'Content-Range': `bytes ${start}-${end}/${stat.size}`,
-          'Content-Length': String(end - start + 1),
-        });
-        fs.createReadStream(abs, { start, end }).pipe(res);
-        return;
-      }
-
-      res.writeHead(200, { ...baseHeaders, 'Content-Length': String(stat.size) });
-      fs.createReadStream(abs).pipe(res);
+      });
     } catch (e) {
       if (e.code === 'ENOENT') { res.writeHead(404); res.end(); }
       else err500(e.message);
@@ -15872,6 +16945,41 @@ const handleRequest = async (req, res) => {
     try { json(await streamTwitch.streamStatus()); }
     catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/stream/twitch/followed' && req.method === 'GET') {
+    // Watching-side channel lists. Reads, cached in the provider, and cheap on
+    // Twitch's rate limit, so a GET is right and none of the three belongs in
+    // CSRF_MUTATION_PATHS the way a YouTube search does — there is no daily
+    // budget here for a drive-by to burn.
+    try { json(await streamTwitch.followedChannels()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/twitch/top' && req.method === 'GET') {
+    try { json(await streamTwitch.topChannels()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/twitch/emotes' && req.method === 'GET') {
+    // The emotes usable in a channel's chat, for the picker. A read, cached in
+    // the provider for ten minutes, needing no scope.
+    try { json(await streamTwitch.channelEmotes(urlObj.searchParams.get('channel') || '')); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/twitch/search' && req.method === 'POST') {
+    // POST because it is the one of the three the user triggers by hand and the
+    // one that sends arbitrary text outbound. Listed in CSRF_MUTATION_PATHS for
+    // the same reason the YouTube search is.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await streamTwitch.searchChannels(body.q));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/twitch/chat/send' && req.method === 'POST') {
+    // Speaks publicly under the user's name in someone else's chat, so it is
+    // POST-only and in CSRF_MUTATION_PATHS, exactly like the YouTube chat send.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await streamTwitch.sendChatTo(body.channel, body.message));
+    } catch (e) { err500(e.message); }
+
   // ── YouTube live integration (Google OAuth device flow) ──────────────────
   } else if (reqPath === '/stream/youtube/status' && req.method === 'GET') {
     try { json(await streamYouTube.status()); }
@@ -15940,6 +17048,46 @@ const handleRequest = async (req, res) => {
     try {
       const body = JSON.parse(await readBody(req) || '{}');
       json(await streamYouTube.searchVideos(body.q));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/broadcast/create' && req.method === 'POST') {
+    // Creates the broadcast AND the channel's ingestion endpoint if it has none,
+    // so a stream can start without a trip to YouTube Studio. Writes, so it is in
+    // CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await streamYouTube.createBroadcast(body.title, body.privacy));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/broadcast/cancel' && req.method === 'POST') {
+    try { json(await streamYouTube.cancelBroadcast()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/privacy' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await streamYouTube.setPrivacy(body.privacy));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/streamkey' && req.method === 'GET') {
+    // The RTMP address and stream key for OBS. A real credential — whoever holds
+    // it can broadcast to the channel — so this one is in REMOTE_DENY: a paired
+    // phone cannot ask for it, only the dashboard on this PC can.
+    try { json(await streamYouTube.streamKey()); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/chat' && req.method === 'GET') {
+    // Live chat page. A plain GET like the other viewer reads, but it IS in
+    // CSRF_MUTATION_PATHS: the provider's throttle is keyed on the page token, so
+    // "it cannot be hammered" was only true of a caller that asks the same
+    // question twice. A drive-by varying ?page= misses the cache every time.
+    try { json(await streamYouTube.chatMessages(urlObj.searchParams.get('page') || '')); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/chat/send' && req.method === 'POST') {
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await streamYouTube.sendChat(body.text));
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/stream/config' && req.method === 'POST') {
@@ -16021,6 +17169,126 @@ const handleRequest = async (req, res) => {
     // and NEVER a JSONP candidate.
     const wn = normalizeWindowsNotifications(_serverHubSettings && _serverHubSettings.windowsNotifications);
     json({ ok: true, enabled: wn.enabled, hide: wn.hide, toast: wn.toast, excluded: wn.excluded, supported: winNotif.isSupported(), state: winNotif.reportedState(), items: winNotif.getFeed() });
+
+  } else if (reqPath === '/api/calls' && req.method === 'GET') {
+    // Seed + capability report for the call card. `keys`/`keysProblem` are what
+    // the Settings panel uses to explain why an Answer button is missing on this
+    // machine (no Accessibility grant on macOS, no xdotool/ydotool on Linux)
+    // instead of leaving the user to guess. A ringing call carries the caller's
+    // name, so this is loopback-or-paired-device like the rest and NEVER JSONP.
+    const c = callsSettings();
+    json({
+      ok: true,
+      enabled: c.enabled,
+      sound: c.sound,
+      push: c.push,
+      calls: calls.current(),
+      capabilities: {
+        keys: keySendAvailable(),
+        keysProblem: keySendProblem(),
+        notifications: winNotif.isSupported(),
+        discord: _discordLinkedForCalls,
+      },
+    });
+
+  } else if (reqPath === '/api/calls/test' && req.method === 'POST') {
+    // Ring a fake call, so the feature can be exercised without arranging for
+    // somebody to phone you. OFF unless XENON_CALLS_TEST=1 is in the
+    // environment — same shape as the Discord RPC debug flag, and for the same
+    // reason: a normal install must not carry an endpoint that can take over
+    // the screen. Absent the flag it 404s like any unknown route, so nothing
+    // about a production install even hints it exists.
+    //
+    // It synthesises a NOTIFICATION and feeds it to the real classifier rather
+    // than injecting a finished card. That is the point: it tests the path the
+    // product actually uses — matching, the ring-phrase check, the capability
+    // computation, the broadcast and the push — instead of proving that a
+    // hand-made object can be displayed.
+    if (process.env.XENON_CALLS_TEST !== '1') { res.writeHead(404); res.end(); return; }
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const appId = String(body.app || 'teams');
+      const caller = String(body.caller || 'Marco Rossi').slice(0, 80);
+      const video = body.video === true;
+      const entry = callDetect.DEFAULT_APPS.find(a => a.id === appId);
+      if (!entry) { json({ ok: false, error: 'unknown_app', known: callDetect.DEFAULT_APPS.map(a => a.id) }); return; }
+      const wording = video ? 'Incoming video call' : 'Incoming call';
+      const rec = appId === 'discord'
+        ? calls.onDiscordNotification({ title: caller, body: wording, channelId: '199737254929760257', messageType: 3 })
+        : calls.onNotification({ app: entry.name, aumid: entry.match[0], title: caller, body: wording, at: Date.now() });
+      // A null means the classifier refused it — feature off, app switched off,
+      // or the same ring already counted. Say which rather than a bare false.
+      json(rec
+        ? { ok: true, ringing: calls.current() }
+        : { ok: false, error: calls.enabled() ? 'refused_or_duplicate' : 'calls_disabled' });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/calls/act' && req.method === 'POST') {
+    // The one place a call button does anything. Every action is re-checked
+    // against the capabilities the server itself computed — the card is not
+    // trusted to have drawn only the buttons it was allowed to.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const id = String(body.id || '').slice(0, 64);
+      const action = String(body.action || '').slice(0, 16);
+      json(await calls.act(id, action));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/phone' && req.method === 'GET') {
+    // What this machine and this phone can actually do, plus the live call
+    // state. The widget renders its buttons from `canDial` / `canAnswer`, so a
+    // capability that is false here is a control the user never sees rather
+    // than one that fails when tapped.
+    try { json(await phone.status(urlObj.searchParams.get('refresh') === '1')); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/phone/contacts' && req.method === 'GET') {
+    // The user's own address book, read off their own phone. Never JSONP —
+    // a <script> tag would hand every contact to any page that asked.
+    try { json(await phone.contacts(urlObj.searchParams.get('refresh') === '1')); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/phone/calls' && req.method === 'GET') {
+    try { json(await phone.calls(urlObj.searchParams.get('refresh') === '1')); }
+    catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/phone/messages' && req.method === 'GET') {
+    // The message list. Reachable from a paired device for the same reason the
+    // Windows notification mirror is: it is the user's own dashboard, and that
+    // mirror already shows the text of the very same messages.
+    try {
+      json(await phone.messages(
+        urlObj.searchParams.get('folder') || 'inbox',
+        urlObj.searchParams.get('refresh') === '1',
+      ));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/phone/message' && req.method === 'GET') {
+    try {
+      json(await phone.message(
+        urlObj.searchParams.get('folder') || 'inbox',
+        urlObj.searchParams.get('handle') || '',
+      ));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/phone/send' && req.method === 'POST') {
+    // Sends a real SMS, from the user's number, to somebody else. Same class as
+    // /dial: outward-facing, metered, and impossible to take back — so POST
+    // only, CSRF-guarded, and refused from a paired device.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await phone.sendMessage(String(body.number || '').slice(0, 40), String(body.text || '').slice(0, 2000)));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/phone/dial' && req.method === 'POST') {
+    // The only outbound action in the feature: it places a real call, on a real
+    // network, that costs the user money. POST-only, CSRF-guarded, and refused
+    // outright from a paired device (see REMOTE_DENY — the audio comes out of
+    // the PC, so dialling from a tablet starts a call nobody can hear).
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await phone.dial(String(body.number || '').slice(0, 40)));
+    } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/sdk/widgets' && req.method === 'GET') {
     // Installed third-party widget packages — validated manifests only (see
@@ -16968,6 +18236,25 @@ const handleRequest = async (req, res) => {
       else res.write('event: audio\ndata: {"unavailable":true}\n\n');
       res.write(now);
     }).catch(() => {});
+    // Seed a ringing call. A dashboard that opens (or a phone that unlocks)
+    // mid-ring must show the card immediately: the whole point of the feature is
+    // the ~40 seconds a call lasts, and waiting for the next broadcast would
+    // spend most of them. Empty is the normal case and costs one line.
+    try {
+      const ringing = calls.current();
+      if (ringing.length) res.write(`event: calls\ndata: ${JSON.stringify({ calls: ringing })}\n\n`);
+    } catch (e) { /* ignore */ }
+    // Seed the phone's live state for the same reason, one level down: the
+    // widget shows "in chiamata" while a call is up, and a dashboard opened
+    // during one would otherwise look idle until the call ended.
+    try {
+      if (phone.enabled()) res.write(`event: phone\ndata: ${JSON.stringify(phone.state())}\n\n`);
+    } catch (e) { /* ignore */ }
+    // Seed the transfer list. A phone that opens the dashboard while a file is
+    // still going up must see both the list and the upload in progress at once,
+    // rather than an empty widget until something next changes. The path to the
+    // delivered copy is included only for the PC — see transferState.
+    try { res.write(`event: transfer\ndata: ${JSON.stringify(transferState(!isRemote))}\n\n`); } catch (e) { /* ignore */ }
     // Seed the just-connected client with the current OBS state (if watching).
     if (obsStopWatch) { try { res.write(`event: obs\ndata: ${JSON.stringify(obsState)}\n\n`); } catch (e) { /* ignore */ } }
     if (obsStopWatch && obsPreview.image) { try { res.write(`event: obs_preview\ndata: ${JSON.stringify(obsPreview)}\n\n`); } catch (e) { /* ignore */ } }
@@ -17214,7 +18501,7 @@ function _buildLiveSystemInstruction({ langName, summary }) {
     ? ' ' + aiMemory.formatForPrompt() : '';
   const sumText = summary ? ` Earlier in this conversation: ${summary}` : '';
   const langText = langName ? ` Always reply in ${langName}.` : '';
-  return `Current date and time: ${nowDate}, ${nowTime} (${tz}). You are Xenon, the voice assistant for a CORSAIR Xeneon Edge dashboard. This is a spoken conversation: keep answers short and natural — 1-2 sentences, no markdown, no lists. Use the provided tools to control the dashboard when the user asks, and confirm briefly what you did. For questions about how Xenon itself works (setup, features, sensors, updates, marketplace, troubleshooting), call xenon_knowledge first and answer from its card.` + memText + sumText + langText;
+  return `Current date and time: ${nowDate}, ${nowTime} (${tz}). You are Xenon, the voice assistant for a dashboard the user runs on a second screen of their own. This is a spoken conversation: keep answers short and natural — 1-2 sentences, no markdown, no lists. Use the provided tools to control the dashboard when the user asks, and confirm briefly what you did. For questions about how Xenon itself works (setup, features, sensors, updates, marketplace, troubleshooting), call xenon_knowledge first and answer from its card.` + memText + sumText + langText;
 }
 
 async function _teardownLiveSession(reason) {
@@ -17492,6 +18779,9 @@ function _startListen(host) {
     } catch (e) { console.error('Lighting Chroma runtime init failed:', e.message); }
     readHubSettings().then(s => {
       if (s) _serverHubSettings = s;
+      // The settings are in memory now, so the transfer caps can finally come
+      // from them rather than from DEFAULT_HUB_SETTINGS (see fileTransfer.init).
+      try { _applyTransferLimits(); } catch (e) { console.error('Transfer limits init failed:', e.message); }
       // Apply persisted lighting config (no-op/zero-cost while master is OFF).
       try { lighting.applyConfig((s || _serverHubSettings).lighting); } catch (e) { console.error('Lighting init failed:', e.message); }
       // OpenRGB was removed from the product. Tear down anything a previous
@@ -17834,6 +19124,12 @@ function _gracefulShutdown() {
   // The T2 listener holds its own sockets — including SSE streams, which never
   // end on their own — and the process would not exit with them open.
   try { shutdownFlush = shutdownFlush.then(() => remoteHttps.stop()).catch(() => {}); } catch {}
+  // An upload in flight dies with its socket, and its `.part` is left behind.
+  // Sweep them here rather than only at the next boot, so a restart during a
+  // transfer does not leave half a video occupying disk until then. Age 0: at
+  // shutdown every in-flight upload is over, whatever its clock says.
+  try { clearInterval(_transferSweepTimer); } catch {}
+  try { shutdownFlush = shutdownFlush.then(() => fileTransfer.sweepInflight(0)).catch(() => {}); } catch {}
   try { _remoteSockets.clear(); } catch {}
   // Release RGB bridge so iCUE reclaims device control immediately.
   try { lighting.releaseAll(); lighting.disconnect(); } catch {}
@@ -17857,6 +19153,8 @@ function _gracefulShutdown() {
   try { fpsMonitor.stopFpsMonitor(); } catch {}
   try { gameDetect.stopGameDetect(); } catch {}
   try { winNotif.stop(); } catch {}
+  try { calls.stop(); } catch {}
+  try { phone.stop(); } catch {}
   try { wakeWord.stop(); } catch {}
   try { audioLevels.stop(); } catch {}
   try { guardian.stop(); } catch {}

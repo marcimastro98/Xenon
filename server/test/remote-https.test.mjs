@@ -20,6 +20,22 @@ test('readiness names the ONE thing standing in the way, in order', () => {
   assert.equal(rh.readiness({ ...ready, certsEnabled: false }), 'certs_disabled');
   assert.equal(rh.readiness({ ...ready, dnsName: '' }), 'no_name');
   assert.equal(rh.readiness({ ...ready, connected: false }), 'not_logged_in');
+  // The two that both read `connected: false` and mean opposite things. A
+  // daemon with no client attached is not a user who has not signed in — on the
+  // machine this was measured on, the account WAS signed in and the panel said
+  // it was not, which is the sentence that sends somebody hunting for a login.
+  assert.equal(
+    rh.readiness({ ...ready, connected: false, backendState: 'NoState' }),
+    'no_backend',
+  );
+  assert.equal(
+    rh.readiness({ ...ready, connected: false, backendState: 'NeedsLogin' }),
+    'not_logged_in',
+    'and a real sign-in still says so',
+  );
+  // It must not outrank a daemon that is not answering at all: there is no
+  // client to start when there is no daemon to attach to.
+  assert.equal(rh.readiness({ ...ready, running: false, backendState: 'NoState' }), 'not_running');
   assert.equal(rh.readiness({ ...ready, running: false }), 'not_running');
   assert.equal(rh.readiness({ ...ready, installed: false }), 'not_installed');
   // The order matters as much as the values: a machine with nothing installed

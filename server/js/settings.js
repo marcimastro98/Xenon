@@ -14,7 +14,7 @@ const SETTINGS_FONT_EXTENSIONS = Object.freeze(new Set(['woff2', 'woff', 'ttf', 
 // comes from the @font-face src, so the family label never needs to match the file.
 const USER_FONT_FAMILY = 'XenonUserFont';
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'obs', 'youtube', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'transfer', 'custom']);
 // Selectable stock-data providers + chart ranges (mirrors server/stocks.js).
 const STOCK_PROVIDER_IDS = Object.freeze(['auto', 'yahoo', 'twelvedata', 'finnhub']);
 const STOCK_RANGE_IDS = Object.freeze(['1d', '1w', '1m', '1y']);
@@ -59,8 +59,10 @@ const DASHBOARD_CARD_IDS = Object.freeze({
   net: ['ping', 'fps', 'latency', 'bandwidth'],
   audio: ['volume', 'speaker', 'microphone'],
   twitch: ['info', 'actions', 'chat'],
+  twitchwatch: ['player', 'library', 'chat'],
   obs: ['preview', 'controls', 'scenes', 'audio'],
-  youtube: ['player', 'library', 'info', 'actions'],
+  youtube: ['player', 'library'],
+  youtubelive: ['info', 'actions', 'chat'],
 });
 const DASHBOARD_WIDGET_SIZES = Object.freeze(['compact', 'normal', 'wide', 'tall', 'large', 'full']);
 const DASHBOARD_CARD_SIZES = Object.freeze(['compact', 'normal', 'wide']);
@@ -96,6 +98,8 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     // Taller than the other stream tiles on purpose: this one holds a 16:9 video
     // player above its list, and at h:4 the player had no room to be a player.
     youtube:  Object.freeze({ x: 16, y: 22, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    twitchwatch: Object.freeze({ x: 0, y: 64, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    youtubelive: Object.freeze({ x: 16, y: 32, w: 8, h: 10, visible: false, page: 'dashboard' }),
     discord:  Object.freeze({ x: 16, y: 26, w: 8, h: 8, visible: false, page: 'dashboard' }),
     spotify:  Object.freeze({ x: 16, y: 34, w: 8, h: 16, visible: false, page: 'dashboard' }),
     browser:  Object.freeze({ x: 0, y: 18, w: 12, h: 10, visible: false, page: 'dashboard' }),
@@ -118,6 +122,7 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     battery:  Object.freeze({ x: 0, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
     search:   Object.freeze({ x: 8, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
     disk:     Object.freeze({ x: 16, y: 54, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    transfer: Object.freeze({ x: 8, y: 64, w: 8, h: 10, visible: false, page: 'dashboard' }),
     custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
@@ -162,8 +167,17 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     youtube: Object.freeze({
       player: Object.freeze({ order: 0, size: 'normal', visible: true }),
       library: Object.freeze({ order: 1, size: 'normal', visible: true }),
-      info: Object.freeze({ order: 2, size: 'normal', visible: true }),
-      actions: Object.freeze({ order: 3, size: 'normal', visible: true }),
+    }),
+    youtubelive: Object.freeze({
+      info: Object.freeze({ order: 0, size: 'normal', visible: true }),
+      actions: Object.freeze({ order: 1, size: 'normal', visible: true }),
+      chat: Object.freeze({ order: 2, size: 'normal', visible: true }),
+    }),
+    // Mirror of the server default: the chat card starts hidden.
+    twitchwatch: Object.freeze({
+      player: Object.freeze({ order: 0, size: 'normal', visible: true }),
+      library: Object.freeze({ order: 1, size: 'normal', visible: true }),
+      chat: Object.freeze({ order: 2, size: 'normal', visible: false }),
     }),
   }),
   tabs: Object.freeze({ order: ['main', 'net'], active: 'main' }),
@@ -462,6 +476,12 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // nothing leaves the PC. `hide` masks each notification's text until tapped;
   // `excluded` is the per-app mute list ({id: AUMID-or-name, name: display}).
   windowsNotifications: Object.freeze({ enabled: false, hide: false, toast: true, excluded: Object.freeze([]) }),
+  calls: Object.freeze({ enabled: false, push: true, sound: true, disabledApps: Object.freeze([]), apps: Object.freeze([]) }),
+  // The paired phone (phonebook, call log, dialler, live call state). OFF by
+  // default — enabling it reads the whole address book off the phone. `ring`
+  // decides whether the structural incoming-call signal raises the fullscreen
+  // card; the phonebook is useful without that.
+  phone: Object.freeze({ enabled: false, ring: true, hide: true }),
   // Local "Hey Xenon" wake word. OFF by default (privacy) — when on, the server
   // listens to the microphone locally (ffmpeg + whisper.cpp) while a dashboard
   // is open; audio never leaves the PC and candidate clips are never stored.
@@ -616,6 +636,20 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // settings (not just localStorage) so a Xeneon Edge WebView storage wipe can't
   // make the tutorial reappear on every boot.
   onboarding: Object.freeze({ seenVersion: 0 }),
+  // Which screen the user chose for Xenon, asked once at first run.
+  //   kind:  'auto'   — whatever the machine offers (the historical behaviour)
+  //          'screen' — a display on this PC, named in `monitor`
+  //          'phone'  — a paired phone or tablet; this PC shows nothing
+  //   asked: false until the first-run picker has been answered or dismissed.
+  //   monitor/label: the chosen display, for Settings to show. The AUTHORITY for
+  //     placement is the native shell's own display.json, which it must be able
+  //     to read at launch, before the backend is necessarily up — this copy is
+  //     what the dashboard renders and what a paired phone is able to write.
+  // NOT `surface`: that key is the theme's main panel colour, and both used to
+  // be written into the same object literal in normalizeSettings — the choice
+  // won, the colour was destroyed, and Settings then threw on it. See
+  // surfaceChoiceFrom() and its twin in server.js.
+  surfaceChoice: Object.freeze({ kind: 'auto', asked: false, monitor: '', label: '' }),
   language: '', // '' means "use browser language or 'en'"; set to a SUPPORTED_LANGS code to persist across browser resets
   // Second-screen capture preferences (client-owned). fps/quality tune the live
   // stream; width/height is the virtual display mode applied via create-display.
@@ -694,6 +728,15 @@ const AMBIENT_SCENE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // scene; genuinely heavy raster art belongs in bgCustom.assets, not the source.
 // Keep in step with CODE_MAX in js/custom-bg.js (the sandbox second-guard).
 const BG_CUSTOM_CODE_MAX = 60000;
+// normalizeSurface() runs during that same init. It lived beside its function
+// further down, which reads fine and cannot work: a function DECLARATION is
+// hoisted and a `const` is not, so the call below reached the function while
+// this array was still in its temporal dead zone. The throw took
+// loadHubSettings() with it, `hubSettings` was never assigned, and every module
+// that reads it failed in turn — the dashboard booted with zero tiles and a
+// console full of "hubSettings is not defined". Anything the initial normalize
+// touches belongs above this line.
+const SURFACE_KINDS = ['auto', 'screen', 'phone'];
 
 let hubSettings = loadHubSettings();
 let settingsStatusTimer = null;
@@ -1452,6 +1495,8 @@ function normalizeSettings(source) {
     vitals: normalizeVitals(value.vitals),
     discordNotifications: normalizeDiscordNotifications(value.discordNotifications),
     windowsNotifications: normalizeWindowsNotifications(value.windowsNotifications),
+    calls: normalizeCallsClient(value.calls),
+    phone: normalizePhoneClient(value.phone),
     wakeWord: normalizeWakeWord(value.wakeWord),
     searchSettings: normalizeSearchSettings(value.searchSettings),
     diskSettings: normalizeDiskSettings(value.diskSettings),
@@ -1509,6 +1554,7 @@ function normalizeSettings(source) {
     // never clobber a more recent local one (see hydrateHubSettingsFromServer).
     rev: Number.isFinite(value.rev) && value.rev > 0 ? Math.floor(value.rev) : 0,
     onboarding: normalizeOnboarding(value.onboarding),
+    surfaceChoice: normalizeSurface(surfaceChoiceFrom(value)),
     language: SUPPORTED_LANGS.includes(value.language) ? value.language : '',
   };
 }
@@ -1713,6 +1759,33 @@ function normalizeOnboarding(value) {
   const v = value && typeof value === 'object' ? value : {};
   const seen = Number(v.seenVersion);
   return { seenVersion: Number.isFinite(seen) && seen > 0 ? Math.floor(seen) : 0 };
+}
+
+// The chosen screen. Bounded on both strings: `monitor` is an OS display name
+// that round-trips to the native shell, and `label` is shown as text.
+// SURFACE_KINDS is declared with the other init-time constants near the top —
+// see the note there; it cannot live here.
+// Read the screen choice out of a settings blob, accepting the key it used to
+// live under. `surface` is the theme's panel COLOUR — a string — so an object
+// there can only be the legacy choice, and a string there is never one. The
+// twin lives in server.js; see the note on surfaceChoiceFrom there for what the
+// collision actually broke.
+function surfaceChoiceFrom(source) {
+  const s = source && typeof source === 'object' ? source : {};
+  if (s.surfaceChoice && typeof s.surfaceChoice === 'object') return s.surfaceChoice;
+  if (s.surface && typeof s.surface === 'object') return s.surface;
+  return null;
+}
+
+function normalizeSurface(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const kind = SURFACE_KINDS.includes(v.kind) ? v.kind : 'auto';
+  return {
+    kind,
+    asked: v.asked === true,
+    monitor: typeof v.monitor === 'string' ? v.monitor.slice(0, 256) : '',
+    label: typeof v.label === 'string' ? v.label.slice(0, 120) : '',
+  };
 }
 
 // Advanced AI features (Genesis, Game Companion, Guardian, ambient presence).
@@ -1934,8 +2007,8 @@ function normalizeDiscordNotifications(value) {
 // silently stripped on save, so the widget is granted a capability it can never
 // use (the exact bug where a to-do widget's `tasks` stream+action were dropped,
 // leaving it empty and un-writable). server/test/sdk-grant-cats-sync guards this.
-const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'audioLevels', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'tasks', 'notes', 'agenda', 'weather', 'battery']);
-const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'audioDevice', 'mic', 'lighting', 'chroma', 'wavelink', 'spotify', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'streamerbot', 'url', 'tasks', 'soundboard', 'browser']);
+const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'audioLevels', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'tasks', 'notes', 'agenda', 'weather', 'battery']);
+const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'audioDevice', 'mic', 'lighting', 'chroma', 'wavelink', 'spotify', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'streamerbot', 'url', 'tasks', 'soundboard', 'browser', 'watch']);
 const SDK_PACKAGE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // Grant-side mirrors of the server manifest rules (sdk-widgets.js is the
 // authority; a grant can never widen what the manifest declared, so a loose
@@ -2040,6 +2113,48 @@ function normalizeWindowsNotifications(value) {
   // incoming notification unless the user turns pop-ups off (purely presentational
   // — the reader runs regardless, so this doesn't change background cost).
   return { enabled: v.enabled === true, hide: v.hide === true, toast: v.toast !== false, excluded };
+}
+
+// Incoming calls — mirrors normalizeCalls in server.js, key for key. Both sides
+// persist this, so both sides rebuild it from known keys with the same defaults;
+// a key only one side models is a key that gets wiped on the next save.
+function normalizeCallsClient(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  const disabledApps = [];
+  if (Array.isArray(v.disabledApps)) {
+    for (const id of v.disabledApps.slice(0, 40)) {
+      const s = String(id || '').trim().slice(0, 40);
+      if (s && !disabledApps.includes(s)) disabledApps.push(s);
+    }
+  }
+  const apps = [];
+  if (Array.isArray(v.apps)) {
+    for (const raw of v.apps.slice(0, 20)) {
+      const a = raw && typeof raw === 'object' ? raw : {};
+      const id = String(a.id || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
+      if (!id) continue;
+      const match = [];
+      if (Array.isArray(a.match)) {
+        for (const m of a.match.slice(0, 10)) {
+          const s = String(m || '').trim().slice(0, 80);
+          if (s) match.push(s);
+        }
+      }
+      if (!match.length) continue;
+      if (apps.some(e => e.id === id)) continue;
+      apps.push({ id, name: String(a.name || id).slice(0, 60), match });
+    }
+  }
+  return { enabled: v.enabled === true, push: v.push !== false, sound: v.sound !== false, disabledApps, apps };
+}
+
+// The paired phone — mirrors normalizePhone in server.js, key for key, for the
+// reason spelled out above normalizeCallsClient: POST /settings rebuilds the
+// whole blob from what the browser sent, so a key modelled on only one side is
+// a key that switches itself off the next time the user changes anything else.
+function normalizePhoneClient(value) {
+  const v = value && typeof value === 'object' ? value : {};
+  return { enabled: v.enabled === true, ring: v.ring !== false, hide: v.hide !== false };
 }
 
 // Stock (Borsa) config — mirrors server/stocks.js normalizeStocks. Watchlist
@@ -2673,6 +2788,29 @@ function setOnboardingSeen(version) {
 }
 window.setOnboardingSeen = setOnboardingSeen;
 
+// The chosen screen. Read by surface-picker.js to decide whether to ask, and by
+// the Settings → Schermo panel to render the current choice. Server-backed on
+// purpose: the answer must reach every surface, and a paired phone — which has
+// no channel to the native shell — writes it here and lets the shell's own
+// dashboard page relay it (see js/surface-picker.js).
+function getSurfaceChoice() {
+  const s = surfaceChoiceFrom(hubSettings) || {};
+  return { kind: s.kind || 'auto', asked: s.asked === true, monitor: s.monitor || '', label: s.label || '' };
+}
+window.getSurfaceChoice = getSurfaceChoice;
+
+function setSurfaceChoice(patch) {
+  const next = { ...getSurfaceChoice(), ...(patch && typeof patch === 'object' ? patch : {}) };
+  // An object left under the old `surface` key is cleared to null, which is the
+  // theme's "derive this colour automatically". Leaving it would keep feeding
+  // the colour reader something that is not a colour.
+  const legacy = (hubSettings && typeof hubSettings.surface === 'object' && hubSettings.surface) ? { surface: null } : {};
+  hubSettings = normalizeSettings({ ...hubSettings, ...legacy, surfaceChoice: next });
+  saveHubSettings();
+  return getSurfaceChoice();
+}
+window.setSurfaceChoice = setSurfaceChoice;
+
 // Fans-widget rename bridge. An empty/blank label deletes the key — that's the
 // reset path back to the sensor's own name.
 window.getFanLabels = () => ({ ...((hubSettings && hubSettings.fanLabels) || {}) });
@@ -2984,10 +3122,28 @@ async function _hydrateHubSettingsImpl() {
     // Bring the logon "open in browser" task in line with the saved intent —
     // a no-op inside the Edge iframe, so pure-Edge installs never get a tab.
     reconcileAutoOpenBrowser();
-    // First-run tutorial: now that the persisted seenVersion is authoritative,
-    // offer the tour once (it self-defers past any greeting splash and no-ops
-    // inside the embedded host).
-    if (window.Onboarding && typeof window.Onboarding.maybeStart === 'function') window.Onboarding.maybeStart();
+    // The two first-run surfaces, now that the persisted state is authoritative:
+    // first "where do you want Xenon" (asked once), then the tutorial — in that
+    // order, so the tour is about a dashboard already sitting where the user
+    // wants it. When the picker takes the screen the tour waits for the next
+    // load rather than stacking two overlays on top of each other.
+    //
+    // DEFERRED TO `load`, and that is not cosmetic. This function is started at
+    // the bottom of settings.js — a script tag ~80 tags EARLIER in the document
+    // than surface-picker.js and onboarding.js — and it resumes from a fetch to
+    // loopback that can answer in single-digit milliseconds. Whoever wins that
+    // race decided whether the two globals existed yet: when the fetch won,
+    // `window.Onboarding` was still undefined here and the tutorial silently
+    // never ran. Measured, not theorised — it is why a first run sometimes got
+    // no tour at all. By `load` every script tag has executed, so the outcome no
+    // longer depends on who was faster.
+    const runFirstRunSurfaces = () => {
+      const askedSurface = window.SurfacePicker && typeof window.SurfacePicker.maybeStart === 'function'
+        && window.SurfacePicker.maybeStart();
+      if (!askedSurface && window.Onboarding && typeof window.Onboarding.maybeStart === 'function') window.Onboarding.maybeStart();
+    };
+    if (document.readyState === 'complete') runFirstRunSurfaces();
+    else window.addEventListener('load', runFirstRunSurfaces, { once: true });
   } catch {
     // Network error (server restarting, offline boot): stay in the parked state
     // and try again — never fall through to pushing blind local state.
@@ -3425,6 +3581,19 @@ function deriveEffectiveThemePalette() {
   return ThemePalette.derive(source, hint);
 }
 
+// The tile drop shadow, expressed in terms of --panel-shadow-alpha so the theme
+// editor's "panel shadow" slider and the per-tile one finally reach a rule: the
+// token they both write had no consumer anywhere in the CSS, so neither control
+// changed a pixel. Kept as a shared constant because applyTileStyle() has to
+// re-declare the SAME expression on a tile wrapper — a custom property holding
+// var() is resolved where it is declared, so a tile that set only the alpha
+// would keep inheriting the value :root had already computed.
+const PANEL_DROP_CSS = {
+  dark: '0 1px 1px rgba(0,0,0, calc(var(--panel-shadow-alpha) * 0.73)), 0 10px 30px -14px rgba(0,0,0, calc(var(--panel-shadow-alpha) * 2.05))',
+  light: '0 1px 2px rgba(20,30,40, calc(var(--panel-shadow-alpha) * 0.5)), 0 10px 30px -16px rgba(20,30,40, calc(var(--panel-shadow-alpha) * 1.4))',
+};
+if (typeof window !== 'undefined') window.PANEL_DROP_CSS = PANEL_DROP_CSS;
+
 function applyThemePaletteTokens(root, palette) {
   Object.entries(ThemePalette.cssTokens(palette)).forEach(([key, value]) => root.style.setProperty(key, value));
   root.dataset.appearance = palette.tone;
@@ -3470,7 +3639,7 @@ function applyThemePaletteTokens(root, palette) {
   root.style.setProperty('--shadow-lg', light ? '0 2px 4px rgba(20,30,40,0.05), 0 18px 44px -12px rgba(20,30,40,0.14)' : '0 2px 4px rgba(0,0,0,0.24), 0 18px 44px -12px rgba(0,0,0,0.50)');
   root.style.setProperty('--shadow-xl', light ? '0 3px 6px rgba(20,30,40,0.06), 0 30px 70px -18px rgba(20,30,40,0.18)' : '0 3px 6px rgba(0,0,0,0.26), 0 30px 70px -18px rgba(0,0,0,0.60)');
   root.style.setProperty('--panel-topline', light ? 'color-mix(in srgb, var(--surface), white 72%)' : 'rgba(255,255,255,0.055)');
-  root.style.setProperty('--panel-drop', light ? '0 1px 2px rgba(20,30,40,0.05), 0 10px 30px -16px rgba(20,30,40,0.14)' : '0 1px 1px rgba(0,0,0,0.16), 0 10px 30px -14px rgba(0,0,0,0.45)');
+  root.style.setProperty('--panel-drop', PANEL_DROP_CSS[light ? 'light' : 'dark']);
   _effectiveThemePalette = palette;
   return palette;
 }
@@ -3701,6 +3870,14 @@ function applyHubSettings() {
   // Same reason: the Claude widget's approval cards and topbar marker are
   // settings-gated, and the switch can be flipped on another surface.
   if (window.ClaudeWidget && typeof ClaudeWidget.onSettingsChanged === 'function') ClaudeWidget.onSettingsChanged();
+  // The screen choice can arrive from a surface that CANNOT act on it: a paired
+  // phone has no channel to the native shell (the only one is a custom-scheme
+  // navigation, which exists solely inside the shell's own webview). So the
+  // shell's dashboard page watches for the change and relays it — which is the
+  // whole reason the choice is stored server-side as well as in display.json.
+  if (window.SurfacePicker && typeof window.SurfacePicker.reconcileShell === 'function') {
+    window.SurfacePicker.reconcileShell();
+  }
   // Same reason again: the System tile's Storico tab is revealed by the sensor-
   // history opt-in or the AI Guardian, and until now only the local toggle
   // (sensor-history-changed) and a Settings render re-evaluated it. A surface that
@@ -4257,9 +4434,11 @@ function syncSettingsControls() {
   refreshGameModeStatus();
   // The whole RGB hub renders dynamically into Settings → Illuminazione.
   if (window.LightingPage) window.LightingPage.init();
-  // Paired-device access (phone as a second screen) renders above the wizard.
+  // Settings → Telefono, in order: the door, then what comes through it.
   if (window.RemoteAccessPage) window.RemoteAccessPage.init();
-  // Remote Control wizard renders dynamically into Settings → Controllo Remoto.
+  if (window.TransferWidget && window.TransferWidget.initSettings) window.TransferWidget.initSettings();
+  // Remote Control wizard renders dynamically into Settings → Controllo Remoto,
+  // which is now that wizard alone: streaming and driving the DESKTOP.
   if (window.RemoteControl) window.RemoteControl.init();
   // Streaming (Twitch) connect panel renders into Settings → Streaming.
   if (window.StreamingPage) window.StreamingPage.init();
@@ -4308,6 +4487,187 @@ function syncLangButtons() {
   }
 }
 
+// ── Settings → Schermo ───────────────────────────────────────────────────
+// Where Xenon lives. The same question the first-run picker asks, kept somewhere
+// the user can change their mind — and the only place the answer is visible at
+// all on a surface that cannot act on it (a paired phone shows the choice and
+// can change it; the shell's own page relays it, see surface-picker.js).
+function renderSurfaceSection() {
+  const host = document.getElementById('settings-surface-body');
+  if (!host) return;
+  const native = window.XenonNative;
+  const state = (native && typeof native.displayState === 'function')
+    ? native.displayState()
+    : { supported: false, displays: [], mode: 'auto', monitor: '', fullscreen: false, active: '', missing: false };
+  const choice = getSurfaceChoice();
+  host.textContent = '';
+
+  const row = (labelKey, labelText, hintKey, hintText) => {
+    const wrap = document.createElement('span');
+    wrap.className = 'settings-label-line';
+    const b = document.createElement('span');
+    b.dataset.i18n = labelKey;
+    b.textContent = labelText;
+    wrap.appendChild(b);
+    if (hintKey) {
+      const h = document.createElement('span');
+      h.className = 'settings-hint';
+      h.dataset.i18n = hintKey;
+      h.textContent = hintText;
+      wrap.appendChild(h);
+    }
+    return wrap;
+  };
+
+  // The three answers, as radio rows.
+  const modes = [
+    ['auto', 'surface_mode_auto', 'Automatico', 'surface_mode_auto_hint', 'Xenon sceglie da sé: la Xeneon Edge se c’è, altrimenti una finestra sullo schermo principale.'],
+    ['screen', 'surface_mode_screen', 'Uno schermo di questo PC', 'surface_mode_screen_hint', 'Scegli tu quale. Vale anche se hai una Xeneon Edge collegata.'],
+    ['phone', 'surface_mode_phone', 'Il mio telefono o tablet', 'surface_mode_phone_hint', 'Su questo PC non compare niente, nemmeno all’avvio. La dashboard si apre sul telefono, una volta accoppiato.'],
+  ];
+  const list = document.createElement('div');
+  list.className = 'settings-radio-list';
+  modes.forEach(([kind, lk, lt, hk, ht]) => {
+    const label = document.createElement('label');
+    label.className = 'settings-toggle-row full';
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = 'surface-kind';
+    input.className = 'settings-check';
+    input.checked = choice.kind === kind;
+    input.addEventListener('change', () => {
+      if (!input.checked) return;
+      applySurfaceKind(kind, state);
+    });
+    label.appendChild(input);
+    label.appendChild(row(lk, lt, hk, ht));
+    list.appendChild(label);
+  });
+  host.appendChild(list);
+
+  // The monitor list, when there is one to show.
+  if (state.supported && state.displays.length) {
+    const screens = document.createElement('div');
+    screens.className = 'sp-screens settings-surface-screens';
+    state.displays.forEach((d) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'sp-screen' + (d.id && d.id === choice.monitor ? ' is-on' : '');
+      btn.disabled = !d.id;
+      const name = document.createElement('span');
+      name.className = 'sp-screen-name';
+      name.textContent = d.label;
+      btn.appendChild(name);
+      if (d.edge || d.primary || (d.id && d.id === state.active)) {
+        const tag = document.createElement('span');
+        tag.className = 'sp-screen-tag';
+        tag.textContent = d.edge ? 'Xeneon Edge'
+          : (d.id === state.active ? t('surface_in_use') : t('surface_primary'));
+        btn.appendChild(tag);
+      }
+      btn.addEventListener('click', () => {
+        if (!d.id) return;
+        if (native && typeof native.chooseScreen === 'function') native.chooseScreen(d.id, state.fullscreen);
+        setSurfaceChoice({ kind: 'screen', asked: true, monitor: d.id, label: d.label });
+        renderSurfaceSection();
+      });
+      screens.appendChild(btn);
+    });
+    host.appendChild(screens);
+
+    // Full-screen. Meaningless on the Edge panel (always borderless-fullscreen)
+    // and in phone mode, so it is hidden rather than shown doing nothing.
+    const chosen = state.displays.find((d) => d.id && d.id === choice.monitor);
+    const onEdgePanel = choice.kind === 'screen' ? !!(chosen && chosen.edge)
+      : state.displays.some((d) => d.edge);
+    if (choice.kind !== 'phone' && !onEdgePanel) {
+      const label = document.createElement('label');
+      label.className = 'settings-toggle-row full';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.className = 'settings-check';
+      input.checked = state.fullscreen;
+      input.addEventListener('change', () => {
+        if (native && typeof native.setScreenFullscreen === 'function') native.setScreenFullscreen(input.checked);
+      });
+      label.appendChild(input);
+      label.appendChild(row('surface_fullscreen', 'A schermo intero',
+        'surface_fullscreen_hint', 'Occupa tutto lo schermo scelto invece di stare in una finestra.'));
+      host.appendChild(label);
+    }
+  } else {
+    // A browser cannot move its own window to another display, and saying so is
+    // better than showing a picker that would do nothing.
+    const note = document.createElement('p');
+    note.className = 'settings-hint';
+    note.dataset.i18n = 'surface_browser_note';
+    note.textContent = t('surface_browser_note');
+    host.appendChild(note);
+  }
+
+  // The chosen screen is unplugged: the window is hidden on purpose, and saying
+  // so is the difference between a deliberate state and a broken one.
+  if (state.missing) {
+    const warn = document.createElement('p');
+    warn.className = 'settings-hint settings-hint-warn';
+    warn.dataset.i18n = 'surface_missing';
+    warn.textContent = t('surface_missing');
+    host.appendChild(warn);
+  }
+
+  // Phone mode: the pairing panel is where the actual work happens.
+  if (choice.kind === 'phone') {
+    // Until a device is paired the PC deliberately keeps showing the dashboard.
+    // Saying so is the difference between "waiting for you" and "did nothing".
+    const pending = document.createElement('p');
+    pending.className = 'settings-hint';
+    pending.dataset.i18n = 'surface_phone_pending';
+    pending.textContent = t('surface_phone_pending');
+    host.appendChild(pending);
+    if (typeof window.__surfaceHasPairedDevice === 'function') {
+      window.__surfaceHasPairedDevice().then((paired) => {
+        if (paired && pending.isConnected) pending.remove();
+      });
+    }
+    const go = document.createElement('button');
+    go.type = 'button';
+    go.className = 'settings-btn settings-surface-pair';
+    go.dataset.i18n = 'surface_open_pairing';
+    go.textContent = t('surface_open_pairing');
+    // 'phone', not 'remote': pairing moved out of the Remote Control wizard's
+    // category when the two were separated. A button that opens the wrong pane
+    // is the one failure mode here — it looks like it worked.
+    go.addEventListener('click', () => settingsSetCategory('phone'));
+    host.appendChild(go);
+  }
+}
+window.renderSurfaceSection = renderSurfaceSection;
+
+// Applying a mode that names no screen. Picking 'screen' without having chosen
+// one yet selects the display already in use, so the radio never leaves the user
+// in a state that means nothing.
+function applySurfaceKind(kind, state) {
+  const native = window.XenonNative;
+  if (kind === 'phone') {
+    // Intent only — the shell is told by SurfacePicker.reconcileShell, and only
+    // once a device is actually paired. Applying it here would hide the window
+    // the user is about to pair from. See the note in surface-picker.js.
+    setSurfaceChoice({ kind: 'phone', asked: true, monitor: '', label: '' });
+  } else if (kind === 'auto') {
+    if (native && typeof native.chooseAutoScreen === 'function') native.chooseAutoScreen();
+    setSurfaceChoice({ kind: 'auto', asked: true, monitor: '', label: '' });
+  } else {
+    const cur = getSurfaceChoice();
+    const pick = state.displays.find((d) => d.id && d.id === cur.monitor)
+      || state.displays.find((d) => d.id && d.id === state.active)
+      || state.displays.find((d) => d.id && d.edge)
+      || state.displays.find((d) => d.id);
+    if (pick && native && typeof native.chooseScreen === 'function') native.chooseScreen(pick.id, state.fullscreen);
+    setSurfaceChoice({ kind: 'screen', asked: true, monitor: pick ? pick.id : '', label: pick ? pick.label : '' });
+  }
+  renderSurfaceSection();
+}
+
 let _settingsCat = 'appearance';
 function settingsSetCategory(cat) {
   _settingsCat = cat;
@@ -4326,11 +4686,27 @@ function settingsSetCategory(cat) {
   if (cat === 'slideshow') renderSlideshowSettings();
   if (cat === 'island') renderDynamicIslandSources();
   if (cat === 'search') renderSearchDiskSettings();
+  // The monitor list is live: rendered on open, and re-rendered by the shell's
+  // push when a display is plugged in or out while the panel is on screen.
+  if (cat === 'display') renderSurfaceSection();
   // News feeds live in the widget, which may not be on the dashboard at all
   // while the ticker still streams news — mount the same editor here, and let
   // it go when another pane is showing so it stops taking repaints.
   if (window.NewsWidget) NewsWidget.mountFeedManager(cat === 'stocks' ? $('settings-news-feeds') : null);
 }
+
+// On a narrow screen the category sidebar collapses to the current category
+// alone (see the max-width:720px block in SettingsModal.css). The rule is one
+// line and needs to know nothing about which button was hit: collapsed, the
+// only button on screen is the active one, so a tap means "show me the list";
+// open, a tap on any of them means the choice is made. Delegated from the
+// document so the categories added at runtime (calendar) are covered too, and
+// it runs after the button's own onclick, which is what settles the highlight.
+document.addEventListener('click', (e) => {
+  const btn = e.target && e.target.closest && e.target.closest('.settings-nav-btn');
+  const nav = btn && btn.closest('.settings-nav');
+  if (nav) nav.classList.toggle('is-open');
+});
 
 // ── Ricerca e disco (Spotlight + Disk widget knobs) ─────────────────────────
 function updateSearchSettings(patch) {
@@ -4390,7 +4766,26 @@ function renderSearchDiskSettings() {
   // Living Index state (files, RAM, building) — asked while the pane is open.
   const idxStatus = document.getElementById('settings-search-index-status');
   if (idxStatus) {
-    if (!(s.indexRoots || []).length) { idxStatus.hidden = true; }
+    // An empty list is the OFF state, and it says so. Hiding the line here left
+    // the one question the hint raises unanswered on screen: the default is the
+    // whole system drive, so "did clearing it stick, or does C:\ come back?"
+    // had no answer anywhere in the app. It sticks — normalizeSearchSettings
+    // defaults only when the key was never set, and usableIndexRoots returns []
+    // for an explicitly emptied list — so the note states it, plus the part the
+    // user does not expect (the Disk space map reads these same roots).
+    if (!(s.indexRoots || []).length) {
+      // The second sentence is Windows-only and is the one users actually ask
+      // for: the search box keeps working with the index off, because
+      // filesearch.js also queries the Windows Search catalog, which Microsoft
+      // maintains whether Xenon exists or not. Off Windows there is no such
+      // catalog, so the sentence would be false. XenonPlatform can be '' before
+      // /status answers — unknown omits the clause rather than guessing.
+      const wds = window.XenonPlatform === 'win32'
+        ? ' ' + t('settings_search_idx_off_wds', 'La ricerca continua a trovare file tramite l’indice di Windows, che è di Microsoft e non nostro: Xenon lo interroga soltanto.')
+        : '';
+      idxStatus.textContent = t('settings_search_idx_off', 'Indice vivo spento: la lista è vuota e resta vuota. Xenon non indicizza nulla, e anche la mappa del widget Spazio disco resta vuota.') + wds;
+      idxStatus.hidden = false;
+    }
     else {
       fetch('/index/status').then((r) => r.json()).then((st) => {
         if (_settingsCat !== 'search' || !st) return;
@@ -4441,10 +4836,28 @@ function toggleSettings() {
   const overlay = $('settings-overlay');
   if (!overlay) return;
   overlay.hidden = !overlay.hidden;
-  if (!overlay.hidden) { renderSettingsModal(); settingsSetCategory(_settingsCat); }
+  if (!overlay.hidden) {
+    // Every open starts on the settings themselves, not on the category list.
+    const nav = $('settings-nav');
+    if (nav) nav.classList.remove('is-open');
+    renderSettingsModal();
+    settingsSetCategory(_settingsCat);
+  }
   else if (window.NewsWidget) NewsWidget.mountFeedManager(null);
   freezeSettingsAmbient(!overlay.hidden);
 }
+
+// Open Settings, idempotently. `toggleSettings` is a TOGGLE, so calling it to
+// "go to Settings" closes the panel whenever it happened to be open already —
+// which reads as the whole screen vanishing, and is exactly what happened when
+// the screen picker sent the user to the pairing panel.
+function openSettings(category) {
+  const overlay = $('settings-overlay');
+  if (!overlay) return;
+  if (overlay.hidden) toggleSettings();
+  if (category) settingsSetCategory(category);
+}
+window.openSettings = openSettings;
 
 function closeSettings() {
   const overlay = $('settings-overlay');
@@ -5832,6 +6245,201 @@ function syncNotificationsControls() {
   if (winHide) { winHide.checked = wn.hide === true; winHide.disabled = !enabled || !wnOn; }
   const winHideRow = $('settings-winnotif-hide-row');
   if (winHideRow) winHideRow.classList.toggle('is-disabled', !enabled || !wnOn);
+  syncCallsControls(enabled);
+  // The phone is NOT gated on the notification master switch: it reads the
+  // phonebook over Bluetooth and gets its ring from the OS, so neither half
+  // depends on notification mirroring being on.
+  syncPhoneControls();
+}
+
+// ── Incoming calls (Settings → Notifiche) ─────────────────────────────────
+// Every app the classifier knows about, in the order they are offered. Kept
+// here rather than fetched: the list is the same closed table the server ships
+// (call-detect.js DEFAULT_APPS), and a Settings panel that cannot draw its own
+// switches until a request lands is a panel that flickers on every open.
+const CALL_APP_IDS = ['discord', 'teams', 'zoom', 'phonelink', 'whatsapp', 'slack', 'meet'];
+const CALL_APP_NAMES = {
+  discord: 'Discord', teams: 'Microsoft Teams', zoom: 'Zoom',
+  phonelink: 'Phone Link', whatsapp: 'WhatsApp', slack: 'Slack', meet: 'Google Meet',
+};
+// What the server last said this machine can do. Filled by the /api/calls read
+// below; until then the note stays hidden rather than guessing.
+let _callsCaps = null;
+
+function syncCallsControls(notificationsOn) {
+  const c = hubSettings.calls || {};
+  const on = c.enabled === true;
+  const master = notificationsOn !== false;
+  const box = $('settings-calls');
+  if (box) { box.checked = on; box.disabled = !master; }
+  const row = $('settings-calls-row');
+  if (row) row.classList.toggle('is-disabled', !master);
+  const snd = $('settings-calls-sound');
+  if (snd) { snd.checked = c.sound !== false; snd.disabled = !master || !on; }
+  const sndRow = $('settings-calls-sound-row');
+  if (sndRow) sndRow.classList.toggle('is-disabled', !master || !on);
+  const push = $('settings-calls-push');
+  if (push) { push.checked = c.push !== false; push.disabled = !master || !on; }
+  const pushRow = $('settings-calls-push-row');
+  if (pushRow) pushRow.classList.toggle('is-disabled', !master || !on);
+
+  const appsRow = $('settings-calls-apps-row');
+  if (appsRow) {
+    appsRow.hidden = !on;
+    appsRow.classList.toggle('is-disabled', !master);
+  }
+  const apps = $('settings-calls-apps');
+  if (apps && on) {
+    const off = Array.isArray(c.disabledApps) ? c.disabledApps : [];
+    const frag = document.createDocumentFragment();
+    for (const id of CALL_APP_IDS) {
+      const chip = makeEl('button', 'settings-chip' + (off.includes(id) ? '' : ' is-on'));
+      chip.type = 'button';
+      chip.textContent = CALL_APP_NAMES[id] || id;
+      chip.disabled = !master;
+      chip.addEventListener('click', () => toggleCallApp(id));
+      frag.appendChild(chip);
+    }
+    // The user's own entries, if any — same switch, so one place turns anything
+    // off. They are added by hand in settings.json today; the chips are what
+    // makes them visible at all.
+    for (const a of (Array.isArray(c.apps) ? c.apps : [])) {
+      if (!a || !a.id || CALL_APP_IDS.includes(a.id)) continue;
+      const chip = makeEl('button', 'settings-chip' + (off.includes(a.id) ? '' : ' is-on'));
+      chip.type = 'button';
+      chip.textContent = a.name || a.id;
+      chip.disabled = !master;
+      chip.addEventListener('click', () => toggleCallApp(a.id));
+      frag.appendChild(chip);
+    }
+    apps.replaceChildren(frag);
+  }
+
+  // The honest line about THIS machine. Answering Teams or Zoom means focusing
+  // their window and pressing the shortcut they document, and that is a
+  // capability a platform can simply not have — saying which, here, is what
+  // stops the missing Answer button on the call card from reading as a bug.
+  const note = $('settings-calls-cap');
+  if (note) {
+    let text = '';
+    if (on && _callsCaps && !_callsCaps.keys) {
+      const map = {
+        accessibility: 'settings_calls_cap_access',
+        helper_old: 'settings_calls_cap_helper',
+        helper_missing: 'settings_calls_cap_helper',
+        no_key_tool: 'settings_calls_cap_keys',
+      };
+      text = t(map[_callsCaps.keysProblem] || 'settings_calls_cap_none');
+    }
+    note.textContent = text;
+    note.hidden = !text;
+  }
+}
+
+function toggleCallApp(id) {
+  const c = hubSettings.calls || {};
+  const off = Array.isArray(c.disabledApps) ? c.disabledApps.slice() : [];
+  const at = off.indexOf(id);
+  if (at >= 0) off.splice(at, 1); else off.push(id);
+  updateCallsSetting('disabledApps', off);
+}
+
+// The single write path for the Calls settings. `value` is a boolean for the
+// three switches and the whole id array for disabledApps — normalizeCalls
+// bounds both, on this side and again on the server's.
+function updateCallsSetting(field, value) {
+  if (!['enabled', 'sound', 'push', 'disabledApps'].includes(field)) return;
+  const cur = hubSettings.calls || {};
+  hubSettings = normalizeSettings({ ...hubSettings, calls: { ...cur, [field]: value } });
+  saveHubSettings();
+  syncCallsControls();
+  if (field === 'enabled' && value) refreshCallsCapabilities();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// Ask the server what this machine can actually do. Only when the feature is on
+// — there is nothing to explain otherwise, and this must not cost a request on
+// every Settings open for the majority who never enable it.
+async function refreshCallsCapabilities() {
+  try {
+    const d = await apiJson('/api/calls');
+    _callsCaps = (d && d.capabilities) ? d.capabilities : null;
+  } catch { _callsCaps = null; }
+  syncCallsControls();
+}
+
+// ── The paired phone (Settings → Notifiche, under Chiamate) ──
+// What the last /api/phone read said this machine can do. The note below is the
+// one place a user finds out WHY a control is missing, so it reports what was
+// measured rather than what the feature is supposed to support.
+let _phoneCaps = null;
+let _phoneCapsInflight = false;
+
+function syncPhoneControls() {
+  const p = hubSettings.phone || {};
+  const on = p.enabled === true;
+  const box = $('settings-phone');
+  if (box) box.checked = on;
+  const ring = $('settings-phone-ring');
+  if (ring) { ring.checked = p.ring !== false; ring.disabled = !on; }
+  const ringRow = $('settings-phone-ring-row');
+  if (ringRow) ringRow.classList.toggle('is-disabled', !on);
+  const hide = $('settings-phone-hide');
+  if (hide) { hide.checked = p.hide !== false; hide.disabled = !on; }
+  const hideRow = $('settings-phone-hide-row');
+  if (hideRow) hideRow.classList.toggle('is-disabled', !on);
+
+  const note = $('settings-phone-cap');
+  if (!note) return;
+  // Opening Settings with the feature already on has to explain itself too, not
+  // only the moment it is switched on. Guarded so the sync/refresh pair cannot
+  // chase each other.
+  if (on && !_phoneCaps && !_phoneCapsInflight) refreshPhoneCapabilities();
+  if (!on || !_phoneCaps) { note.hidden = true; note.textContent = ''; return; }
+  const lines = [];
+  if (_phoneCaps.ok === false) {
+    // The two the user can actually fix come first and by name; everything else
+    // is one honest sentence rather than an error code.
+    const r = String(_phoneCaps.reason || '');
+    if (r === 'platform_unsupported') lines.push(t('settings_phone_platform'));
+    else if (r === 'helper_missing') lines.push(t('settings_phone_no_helper'));
+    else if (/forbidden|unauthorized/.test(r)) lines.push(t('settings_phone_not_allowed'));
+    else lines.push(t('settings_phone_unreachable'));
+  } else {
+    if (!_phoneCaps.pbap) lines.push(t('settings_phone_no_pbap'));
+    if (!_phoneCaps.canDial) lines.push(t('settings_phone_no_dial'));
+    // Stated plainly, because it is the first thing anyone tries: the OS keeps
+    // the channel that would answer a call, so the button is absent by design
+    // and not because something is broken.
+    if (!_phoneCaps.canAnswer) lines.push(t('settings_phone_no_answer'));
+  }
+  note.textContent = lines.join(' ');
+  note.hidden = lines.length === 0;
+}
+
+// The single write path for the Phone settings, mirroring updateCallsSetting.
+function updatePhoneSetting(field, value) {
+  if (!['enabled', 'ring', 'hide'].includes(field)) return;
+  const cur = hubSettings.phone || {};
+  hubSettings = normalizeSettings({ ...hubSettings, phone: { ...cur, [field]: value } });
+  saveHubSettings();
+  syncPhoneControls();
+  if (field === 'enabled') {
+    if (value) refreshPhoneCapabilities();
+    else { _phoneCaps = null; syncPhoneControls(); }
+  }
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+// Only when the feature is on: this costs a Bluetooth status round trip, and
+// there is nothing to explain to the majority who never enable it.
+async function refreshPhoneCapabilities() {
+  if (_phoneCapsInflight) return;
+  _phoneCapsInflight = true;
+  try { _phoneCaps = await apiJson('/api/phone'); }
+  catch { _phoneCaps = null; }
+  finally { _phoneCapsInflight = false; }
+  syncPhoneControls();
 }
 
 // ── Vitals (Settings → Notifiche, Vitals card) ──
@@ -8018,6 +8626,7 @@ function applyPlatformGating(platform) {
   // reading it must treat undefined as "not known yet" and offer the widget: a
   // late answer is better than one wrong on Windows.
   window.XenonPlatform = platform || '';
+  renderPlatformBeta(platform);
   if (platform === 'win32') return;
   document.querySelectorAll('[data-settings-win-only]').forEach((el) => {
     const cat = el.dataset.settingsCat || el.dataset.settingsWinOnly;
@@ -8027,6 +8636,51 @@ function applyPlatformGating(platform) {
         .forEach((b) => { b.hidden = true; });
     }
   });
+}
+
+// macOS and Linux are beta, and the honest place to say so is where the build
+// already names itself: next to the version, at the bottom of the Settings
+// sidebar. It states what beta means here — the dashboard is the same, the part
+// that reads the machine is what differs — and links to the table that says
+// exactly what works where, so nobody has to discover a gap by hitting it.
+// Windows renders nothing: a badge on the platform Xenon started on would be
+// noise, and the box is only built when it has something true to say.
+const PLATFORM_BETA_NAME = { darwin: 'macOS', linux: 'Linux' };
+const PLATFORM_BETA_DOC = {
+  darwin: 'https://github.com/marcimastro98/Xenon#macos',
+  linux: 'https://github.com/marcimastro98/Xenon#linux',
+};
+function renderPlatformBeta(platform) {
+  const box = document.getElementById('settings-platform-beta');
+  if (!box) return;
+  const name = PLATFORM_BETA_NAME[platform];
+  box.textContent = '';
+  box.hidden = !name;
+  if (!name) return;
+
+  const head = document.createElement('div');
+  head.className = 'settings-platform-beta-head';
+  const chip = document.createElement('span');
+  chip.className = 'settings-platform-beta-chip';
+  chip.textContent = (typeof t === 'function' ? t('settings_platform_beta') : 'Beta');
+  const os = document.createElement('span');
+  os.className = 'settings-platform-beta-os';
+  os.textContent = name;
+  head.append(chip, os);
+
+  const note = document.createElement('p');
+  note.className = 'settings-platform-beta-note';
+  const tpl = (typeof t === 'function' ? t('settings_platform_beta_note') : '');
+  note.textContent = (tpl || '{os} support is in beta.').replace('{os}', name);
+
+  const link = document.createElement('a');
+  link.className = 'settings-platform-beta-link';
+  link.href = PLATFORM_BETA_DOC[platform];
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.textContent = (typeof t === 'function' ? t('settings_platform_beta_link') : 'What works where →');
+
+  box.append(head, note, link);
 }
 
 // Show the running build version at the bottom of the Settings sidebar. Read

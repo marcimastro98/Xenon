@@ -11,7 +11,7 @@ const { createHttpsSetup } = require('../remote-https-setup.js');
 function harness(seq, opts = {}) {
   // `seq` is the sequence of statuses getStatus() answers with, last one repeats.
   let i = 0;
-  const calls = { install: 0, login: 0, start: 0, settings: [], grants: [] };
+  const calls = { install: 0, login: 0, start: 0, service: 0, client: 0, settings: [], grants: [] };
   let clock = 0;
   const setup = createHttpsSetup({
     tailscale: {
@@ -28,6 +28,16 @@ function harness(seq, opts = {}) {
       grantOperator: opts.grantOperator === undefined ? undefined : async (user) => {
         calls.grants.push(user);
         return opts.grantOperator;
+      },
+      // Absent by default, like grantOperator: an older module left behind by a
+      // partial update has no such method, and neither does macOS.
+      startService: opts.startService === undefined ? undefined : async () => {
+        calls.service++;
+        return opts.startService;
+      },
+      startClient: opts.startClient === undefined ? undefined : async () => {
+        calls.client++;
+        return opts.startClient;
       },
     },
     installer: {
@@ -265,6 +275,225 @@ test('un tailscale senza grantOperator non fa crashare il setup', async () => {
   setup.start();
   await settle();
   assert.equal(setup.status().error, 'needs_operator');
+});
+
+// ── The daemon that is installed and simply not running ─────────────────────
+// Windows' counterpart of the operator grant, and the state this whole block
+// exists for: measured on Windows 11 with the Tailscale service left Manual and
+// Stopped. `status --json` cannot answer at all there, so `connected` is false
+// for a reason that has nothing to do with signing in — and the chain used to
+// fire `up` (which fails identically), poll for five minutes, and report
+// `login_timeout`: "you took too long signing in", with no browser ever opened.
+
+test('servizio fermo: lo avvia e prosegue, invece di aspettare un login che non parte', async () => {
+  const { setup, calls } = harness([
+    { installed: true, running: false, connected: false },   // 1st probe: daemon down
+    { installed: true, running: true, connected: false },    // the service came up
+    { installed: true, running: true, connected: false },    // re-read after the start
+    { installed: true, running: true, connected: false },    // step 2: not signed in
+    { installed: true, running: true, connected: true, dnsName: 'a.b.ts.net', certsEnabled: false },
+    { installed: true, running: true, connected: true, dnsName: 'a.b.ts.net', certsEnabled: false },
+    READY,
+  ], { canInstall: false, startService: { ok: true } });
+  setup.start();
+  await settle();
+  assert.equal(setup.status().step, 'done');
+  assert.equal(setup.status().error, '');
+  assert.equal(calls.service, 1, 'asked once, not on a loop');
+  assert.equal(calls.install, 0, 'it was installed all along');
+  assert.equal(calls.login, 1, 'and the sign-in happened AFTER the daemon was up');
+  assert.deepEqual(calls.settings, [true]);
+});
+
+test('servizio che non riparte lo dice, e NON e\' un login_timeout', async () => {
+  const down = { installed: true, running: false, connected: false };
+  const { setup, calls } = harness([down], { canInstall: false, startService: { ok: false, reason: 'failed' } });
+  setup.start();
+  await settle();
+  assert.equal(setup.status().error, 'service_stopped');
+  assert.notEqual(setup.status().error, 'login_timeout', 'the message that blames the sign-in');
+  assert.equal(calls.login, 0, 'a sign-in that could not have started was not started');
+  assert.equal(calls.start, 0);
+  assert.deepEqual(calls.settings, [], 'and nothing was switched on');
+});
+
+test('servizio avviato che non risale entro il budget resta service_stopped', async () => {
+  // `sc start` returns on START_PENDING, so `ok` is not "the daemon is up". A
+  // daemon that accepts the request and then never answers is still a stopped
+  // service, and must not be reported as a login that took too long.
+  const down = { installed: true, running: false, connected: false };
+  const { setup, calls } = harness([down], { canInstall: false, startService: { ok: true } });
+  setup.start();
+  await settle();
+  assert.equal(setup.status().error, 'service_stopped');
+  assert.equal(calls.login, 0);
+});
+
+test('elevazione rifiutata per il servizio = decisione, non guasto', async () => {
+  const down = { installed: true, running: false, connected: false };
+  const { setup, calls } = harness([down], {
+    canInstall: false, startService: { ok: false, reason: 'cancelled' },
+  });
+  setup.start();
+  await settle();
+  assert.equal(setup.status().error, 'uac_cancelled', 'they closed the prompt');
+  assert.equal(calls.start, 0);
+  assert.deepEqual(calls.settings, []);
+});
+
+test('un tailscale senza startService lo dice invece di crashare o di aspettare', async () => {
+  // macOS, where the daemon belongs to the app and there is no single command
+  // that is right — and any older module left behind by a partial update.
+  const down = { installed: true, running: false, connected: false };
+  const { setup, calls } = harness([down], { canInstall: false });
+  setup.start();
+  await settle();
+  assert.equal(setup.status().error, 'service_stopped');
+  assert.equal(calls.login, 0);
+});
+
+test('macOS: "nessun servizio da avviare" porta al client, non a service_stopped', async () => {
+  // On a Mac the Tailscale app IS the daemon, so there is no service to start
+  // and startService says exactly that. Treating `not_applicable` as a failure
+  // ended the chain here with `service_stopped` and made step 1c — which opens
+  // the app, the one thing that works there — unreachable on every Mac.
+  const { setup, calls } = harness([
+    { installed: true, running: false, connected: false },   // nothing running
+    { installed: true, running: true, connected: false },    // the app came up
+    { installed: true, running: true, connected: false },    // step 2: not signed in
+    { installed: true, running: true, connected: true, dnsName: 'a.b.ts.net', certsEnabled: false },
+    { installed: true, running: true, connected: true, dnsName: 'a.b.ts.net', certsEnabled: false },
+    READY,
+  ], {
+    canInstall: false,
+    startService: { ok: false, reason: 'not_applicable' },
+    startClient: { ok: true },
+  });
+  setup.start();
+  await settle();
+  assert.equal(setup.status().error, '', 'not a failure — a platform with no service');
+  assert.equal(calls.client, 1, 'the Tailscale app was opened');
+  assert.equal(setup.status().step, 'done');
+});
+
+test('un servizio che rifiuta davvero resta service_stopped, non passa al client', async () => {
+  // The fall-through above is for `not_applicable` ONLY. A Windows or Linux
+  // service that genuinely refused to start is still a stopped service.
+  const down = { installed: true, running: false, connected: false };
+  const { setup, calls } = harness([down], {
+    canInstall: false,
+    startService: { ok: false, reason: 'failed' },
+    startClient: { ok: true },
+  });
+  setup.start();
+  await settle();
+  assert.equal(setup.status().error, 'service_stopped');
+  assert.equal(calls.client, 0, 'and the client was never asked');
+});
+
+// ── The daemon that is up and has no client ─────────────────────────────────
+// The one that actually bit, and the one nothing else can see. Measured on
+// Windows 11: service Running, no `tailscale-ipn.exe`. `status --json` answers
+// perfectly and says NoState indefinitely, the tunnel adapter is Up, the
+// profile is on disk with WantRunning true, the daemon logs NOTHING, and
+// `tailscale up` cannot move any of it. Starting the tray app took the same
+// machine to Running in under three seconds, already signed in — no browser and
+// no account prompt, which is the proof it was never a sign-in problem.
+
+test('demone senza client: avvia l\'app e arriva in fondo senza chiedere nessun login', async () => {
+  const attached = {
+    installed: true, running: true, connected: true, backendState: 'Running',
+    dnsName: 'a.b.ts.net', certsEnabled: true, ip: '100.64.0.1',
+  };
+  const { setup, calls } = harness([
+    { installed: true, running: true, connected: false, backendState: 'NoState' },
+    attached,   // the client attached
+    attached,   // step 2: already signed in, so there is nothing to sign in to
+    attached,   // step 3: certificates already enabled
+  ], { canInstall: false, startClient: { ok: true } });
+  setup.start();
+  await settle();
+  assert.equal(setup.status().step, 'done');
+  assert.equal(setup.status().error, '');
+  assert.equal(calls.client, 1, 'asked once, not on a loop');
+  assert.equal(calls.service, 0, 'the service was up — nothing to elevate for');
+  assert.equal(calls.login, 0, 'and no browser was opened, because none was needed');
+  assert.deepEqual(calls.settings, [true]);
+});
+
+test('NoState non viene scambiato per "devi accedere"', async () => {
+  // The discrimination the whole thing turns on. `connected` is false for both,
+  // and only one of them is a sign-in waiting to happen. Getting this backwards
+  // is what produced five minutes of "waiting for you to finish signing in".
+  const needsLogin = { installed: true, running: true, connected: false, backendState: 'NeedsLogin' };
+  const { setup, calls } = harness([needsLogin], { canInstall: false, startClient: { ok: true } });
+  setup.start();
+  await settle();
+  assert.equal(calls.client, 0, 'a real sign-in must not be answered by restarting an app');
+  assert.equal(calls.login, 1, 'it opened the browser, which is the right move here');
+  assert.equal(setup.status().error, 'login_timeout', 'and this time the message is the true one');
+});
+
+test('client che non si attacca lo dice, e NON e\' un login_timeout', async () => {
+  const stuck = { installed: true, running: true, connected: false, backendState: 'NoState' };
+  const { setup, calls } = harness([stuck], { canInstall: false, startClient: { ok: true } });
+  setup.start();
+  await settle();
+  assert.equal(setup.status().error, 'client_not_running');
+  assert.notEqual(setup.status().error, 'login_timeout', 'the message that blames the sign-in');
+  assert.equal(calls.login, 0, 'a sign-in that could not have started was not started');
+  assert.deepEqual(calls.settings, []);
+});
+
+test('senza startClient lo dice invece di aspettare un login impossibile', async () => {
+  // Linux, where tailscaled starts its own backend and a persistent NoState
+  // means something else — and any older module left by a partial update.
+  const stuck = { installed: true, running: true, connected: false, backendState: 'NoState' };
+  const { setup, calls } = harness([stuck], { canInstall: false });
+  setup.start();
+  await settle();
+  assert.equal(setup.status().error, 'client_not_running');
+  assert.equal(calls.login, 0);
+});
+
+test('servizio fermo E client mancante: li sistema in ordine, in una passata', async () => {
+  // The full Windows-after-install shape. Two elevations' worth of difference
+  // between them, and the user presses one button.
+  const attached = {
+    installed: true, running: true, connected: true, backendState: 'Running',
+    dnsName: 'a.b.ts.net', certsEnabled: true, ip: '100.64.0.1',
+  };
+  const { setup, calls } = harness([
+    { installed: true, running: false, connected: false },                          // daemon down
+    { installed: true, running: true, connected: false, backendState: 'NoState' },  // service up, no client
+    { installed: true, running: true, connected: false, backendState: 'NoState' },  // re-read
+    attached,   // the client attached
+    attached,   // step 2
+    attached,   // step 3
+  ], { canInstall: false, startService: { ok: true }, startClient: { ok: true } });
+  setup.start();
+  await settle();
+  assert.equal(setup.status().step, 'done');
+  assert.equal(calls.service, 1);
+  assert.equal(calls.client, 1);
+  assert.equal(calls.login, 0);
+  assert.deepEqual(calls.settings, [true]);
+});
+
+test('needsOperator vince sul servizio fermo: stessa apparenza, rimedio opposto', async () => {
+  // Off Windows a daemon whose socket refuses this user ALSO reports
+  // `running: false`. Starting a service that is already running would fix
+  // nothing and the panel would print the wrong instructions, so the operator
+  // grant is checked first and keeps the case.
+  const { setup, calls } = harness([
+    { installed: true, running: false, connected: false, needsOperator: true },
+  ], { canInstall: false, startService: { ok: true }, startClient: { ok: true } });
+  setup.start();
+  await settle();
+  assert.equal(setup.status().error, 'needs_operator');
+  assert.equal(calls.service, 0, 'nothing was started');
+  assert.equal(calls.client, 0);
+  assert.equal(calls.login, 0);
 });
 
 test('needsOperator che compare durante l\'attesa del login non diventa un timeout', async () => {

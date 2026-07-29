@@ -32,6 +32,20 @@ test('validateAction keeps only spec params and coerces select to a valid option
   assert.equal(b.cmd, 'playpause');
 });
 
+test('mediaSeek is hidden from the Deck editor but validates SDK payloads', () => {
+  const spec = da.actionSpec('mediaSeek');
+  assert.equal(spec.hidden, true);
+  assert.equal(spec.requires, 'media');
+  assert.deepEqual(
+    da.validateAction({ type: 'mediaSeek', position: 42.4, extra: 'drop me' }),
+    { type: 'mediaSeek', position: '42.4' },
+  );
+  assert.equal(
+    da.validateAction({ type: 'mediaSeek', position: '1'.repeat(100) }).position.length,
+    32,
+  );
+});
+
 test('validateAction stringifies and length-caps text/url/path params', () => {
   const a = da.validateAction({ type: 'openUrl', url: 123 });
   assert.equal(a.url, '123');

@@ -101,6 +101,40 @@ function toAccelerator(combo) {
   return mods.join('') + name;
 }
 
+// GNOME writes accelerators in one canonical order, but it ACCEPTS several
+// spellings and other applications use them freely: `<Primary>` for Control,
+// `<Ctrl>`, `<Mod1>`/`<Mod4>`, and the modifiers in any order at all. Comparing
+// the raw strings therefore missed every clash not spelled exactly the way
+// toAccelerator spells it — which is most two-modifier ones — and a duplicate
+// binding is precisely the case GNOME resolves by firing NEITHER shortcut. The
+// registration reported `listening` and the hotkey silently never worked.
+const MOD_ALIASES = new Map([
+  ['primary', '<Control>'], ['control', '<Control>'], ['ctrl', '<Control>'], ['ctl', '<Control>'],
+  ['alt', '<Alt>'], ['mod1', '<Alt>'],
+  ['shift', '<Shift>'],
+  ['super', '<Super>'], ['mod4', '<Super>'], ['meta', '<Super>'], ['hyper', '<Super>'], ['win', '<Super>'],
+]);
+const MOD_ORDER = ['<Control>', '<Alt>', '<Shift>', '<Super>'];
+
+// One comparable form for an accelerator from anywhere. Returns '' for anything
+// unparseable, which never matches a real binding — an unknown modifier is not
+// ours to guess at.
+function normalizeAccel(accel) {
+  let rest = String(accel || '').trim();
+  const mods = [];
+  let m;
+  while ((m = rest.match(/^<([^>]+)>/))) {
+    const alias = MOD_ALIASES.get(m[1].toLowerCase());
+    if (!alias) return '';
+    if (!mods.includes(alias)) mods.push(alias);
+    rest = rest.slice(m[0].length);
+  }
+  const key = rest.trim().toLowerCase();
+  if (!key || !mods.length) return '';
+  mods.sort((a, b) => MOD_ORDER.indexOf(a) - MOD_ORDER.indexOf(b));
+  return mods.join('') + key;
+}
+
 // `gsettings list-recursively <schema>` prints "schema key value" per line, and
 // keybinding values are GVariant arrays of strings: ['<Super>s', '<Alt>F1'].
 function bindingsFrom(raw) {
@@ -207,8 +241,13 @@ function createLinuxHotkey(o = {}) {
     const accel = toAccelerator(combo);
     if (!accel) return { ok: false, state: 'error' };
 
+    // Compared in normalised form, never as raw strings: the desktop is full of
+    // equivalent spellings (see normalizeAccel).
+    const wanted = normalizeAccel(accel);
     const taken = await existingBindings();
-    if (taken.includes(accel)) return { ok: false, state: 'taken', accelerator: accel };
+    if (taken.some((b) => normalizeAccel(b) === wanted)) {
+      return { ok: false, state: 'taken', accelerator: accel };
+    }
 
     const command = commandFor(port, { curl: lookup('curl'), wget: lookup('wget') });
     const entry = `${CUSTOM_SCHEMA}:${KEY_PATH}`;
@@ -234,6 +273,6 @@ function createLinuxHotkey(o = {}) {
 }
 
 module.exports = {
-  createLinuxHotkey, toAccelerator, bindingsFrom, parsePathArray, commandFor,
+  createLinuxHotkey, toAccelerator, normalizeAccel, bindingsFrom, parsePathArray, commandFor,
   KEY_PATH, SCHEMA, CUSTOM_SCHEMA,
 };

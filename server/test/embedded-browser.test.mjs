@@ -374,6 +374,65 @@ test('the headless browser is killed after the last tile closes (idle)', async (
   assert.equal(host._tiles.size, 0);
 });
 
+// ── Resize repaint (GitHub #116) ─────────────────────────────────────────────
+
+// Collect the width of every Emulation.setDeviceMetricsOverride the host issues.
+// forceFrame's repaint nudge is a width+1 wiggle immediately restored, so a forced
+// frame shows up here as a [w+1, w] pair.
+function trackMetrics(widths) {
+  return class MetricsWS extends makeFakeWS(true) {
+    send(raw) {
+      const m = JSON.parse(raw);
+      if (m.method === 'Emulation.setDeviceMetricsOverride') widths.push(m.params.width);
+      return super.send(raw);
+    }
+  };
+}
+
+test('a resize forces a second repaint once the page has settled (#116)', async () => {
+  const widths = [];
+  const proc = { on() {}, kill() {}, unref() {} };
+  const host = eb.createEmbeddedBrowser({ WebSocketImpl: trackMetrics(widths), launch: async () => ({ proc, wsUrl: 'ws://x' }), idleMs: 10000 });
+
+  await host.open('browser', 'example.com', 400, 300, 1, () => {});
+  await host.startScreencast('browser');
+  await delay(30);
+
+  widths.length = 0;
+  await host.setSize('browser', 600, 400, 1);
+  await delay(30);
+  // The immediate half: the new viewport, then startScreencast's own forced frame.
+  assert.deepEqual(widths, [600, 601, 600], 'resize applies the size and forces one frame');
+
+  // The page may still have been relaying out when that frame was captured, and a
+  // change-driven screencast would never emit another one — so a second repaint is
+  // forced after the settle delay.
+  await delay(450);
+  assert.deepEqual(widths, [600, 601, 600, 601, 600], 'a second frame is forced once the page settles');
+
+  // …and it does not keep firing.
+  await delay(450);
+  assert.equal(widths.length, 5, 'the follow-up repaint happens once per resize');
+  host.shutdown();
+});
+
+test('the settle repaint is dropped when the tile closes first (#116)', async () => {
+  const widths = [];
+  const proc = { on() {}, kill() {}, unref() {} };
+  const host = eb.createEmbeddedBrowser({ WebSocketImpl: trackMetrics(widths), launch: async () => ({ proc, wsUrl: 'ws://x' }), idleMs: 10000 });
+
+  await host.open('browser', 'example.com', 400, 300, 1, () => {});
+  await host.startScreencast('browser');
+  await delay(30);
+  await host.setSize('browser', 600, 400, 1);
+  widths.length = 0;
+  await host.closeTile('browser');
+
+  await delay(500);
+  assert.deepEqual(widths, [], 'nothing is driven at a page that is already gone');
+  host.shutdown();
+});
+
 // ── One-time reset of a pre-fingerprint-fix ("poisoned") profile ─────────────
 
 test('resetPoisonedProfile wipes an unmarked existing profile once, spares fresh and current ones', async () => {

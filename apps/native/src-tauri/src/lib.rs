@@ -147,6 +147,123 @@ fn report_update_event(app: &tauri::AppHandle, event: serde_json::Value) {
     }
 }
 
+/// Build the JS that hands the dashboard the current monitor list and placement.
+///
+/// Deliberately NOT the retry loop the update helpers use: that carries an
+/// EVENT, which must arrive, while this carries STATE, and re-firing a snapshot
+/// that a later push has already superseded would be wrong. The assignment works
+/// whether or not the page's scripts have run yet, and the callback is a
+/// best-effort nudge for a page that is already listening.
+///
+/// This is also why the shell needs no Tauri command for the screen picker. A
+/// `#[tauri::command]` would mean granting IPC to the `127.0.0.1:3030` origin —
+/// the same document that hosts sandboxed third-party widgets and that is served
+/// to paired phones — and `capabilities/default.json` says in as many words that
+/// the dashboard needs no IPC. One-way state in, one-way intent out.
+pub(crate) fn display_state_js(state: &serde_json::Value) -> String {
+    format!(
+        "(function(s){{try{{window.__XENON_NATIVE_CAPS__=Object.assign(window.__XENON_NATIVE_CAPS__||{{}},s);}}catch(e){{}}\
+         try{{if(window.XenonNative&&window.XenonNative.onDisplaysChanged)window.XenonNative.onDisplaysChanged(s);}}catch(e){{}}}})({state});"
+    )
+}
+
+/// Register or remove the kiosk's own login entry to match the user's choice.
+///
+/// Called at startup and again whenever the placement changes, because the choice
+/// is only honoured if the autostart entry follows it. Note this touches ONLY the
+/// app's entry (`Xenon`); the backend has its own login mechanism on every
+/// platform — the "Xenon Edge Widget" scheduled task, the
+/// `com.marcimastro98.xenon.backend` LaunchAgent, `xenon-backend.service` — and
+/// none of them is affected. In phone mode the backend keeps starting, hidden,
+/// which is the whole point.
+#[cfg(desktop)]
+pub(crate) fn sync_autostart(app: &tauri::AppHandle) {
+    use tauri_plugin_autostart::ManagerExt;
+    // macOS is the exception and not a compromise: there the login item starts
+    // the APP, and the app is what spawns the backend so it inherits Full Disk
+    // Access (see spawn_backend_nudge). Not launching it would either leave the
+    // backend down or hand it a far smaller view of the disk.
+    let want = prefs::load(app).shows_on_this_pc() || cfg!(target_os = "macos");
+    let manager = app.autolaunch();
+    if want {
+        // Idempotent, and it REWRITES the entry — which is what migrates an
+        // existing registration onto the new `--autostart` argument.
+        let _ = manager.enable();
+    } else if manager.is_enabled().unwrap_or(false) {
+        // Gated on is_enabled: the underlying crate's Windows `disable()` deletes
+        // a registry value and returns an error when it is already absent.
+        let _ = manager.disable();
+    }
+}
+
+#[cfg(not(desktop))]
+pub(crate) fn sync_autostart(_app: &tauri::AppHandle) {}
+
+/// Handle one `xenon-display:` signal. Runs on a spawned thread — never on the
+/// WebView UI thread the navigation hook is called from.
+fn apply_display_signal(app: &tauri::AppHandle, path: &str, query: Option<&str>) {
+    // Tiny query reader: the dashboard sends at most two params and encodes the
+    // monitor id with encodeURIComponent.
+    let param = |key: &str| -> Option<String> {
+        let q = query?;
+        q.split('&').find_map(|pair| {
+            let (k, v) = pair.split_once('=')?;
+            if k != key {
+                return None;
+            }
+            Some(percent_decode(v))
+        })
+    };
+    match path {
+        "auto" => monitor::set_placement(app, prefs::Placement::Auto),
+        "phone" => monitor::set_placement(app, prefs::Placement::Phone),
+        "screen" => {
+            // Bounded before the lookup so a hostile page cannot make us allocate
+            // on an id that was never going to resolve.
+            let Some(id) = param("id").filter(|s| !s.is_empty() && s.len() <= 256) else { return };
+            if let Some(on) = param("fullscreen") {
+                let want = on == "1";
+                let mut snapshot = prefs::DisplayPrefs::default();
+                prefs::update(app, |p| {
+                    p.fullscreen = want;
+                    snapshot = p.clone();
+                });
+                monitor::set_placement_cache(&snapshot);
+            }
+            // Validation lives here: an id that does not resolve against the live
+            // monitor list is never written. It reconciles autostart itself, so
+            // every caller — this one and the tray — gets it.
+            monitor::move_to_named_monitor(app, &id);
+        }
+        "fullscreen" => {
+            let Some(on) = param("on") else { return };
+            monitor::set_fullscreen_pref(app, on == "1");
+        }
+        _ => {}
+    }
+}
+
+/// Percent-decode a query value. `tauri::Url` hands us the raw query, and the
+/// monitor ids we round-trip are Windows device names full of backslashes.
+fn percent_decode(raw: &str) -> String {
+    let bytes = raw.replace('+', " ").into_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            let hex = std::str::from_utf8(&bytes[i + 1..i + 3]).ok();
+            if let Some(byte) = hex.and_then(|h| u8::from_str_radix(h, 16).ok()) {
+                out.push(byte);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
 /// First ~200 chars of an updater error, safe to embed via serde. Full errors
 /// can carry URLs/paths the toast has no room for.
 #[cfg(desktop)]
@@ -232,6 +349,9 @@ fn spawn_update_install(app: tauri::AppHandle) {
         match result {
             Ok(()) => {
                 report_update_event(&app, json!({ "phase": "restarting" }));
+                // restart() execs: the run loop's Exit arm may never run, so the
+                // backend we own is stopped here rather than orphaned.
+                stop_owned_backend();
                 app.restart();
             }
             Err(e) => {
@@ -460,7 +580,21 @@ fn run_backend_bootstrap(app: &tauri::AppHandle) {
 #[cfg(target_os = "macos")]
 static BACKEND_CHILD: std::sync::Mutex<Option<std::process::Child>> = std::sync::Mutex::new(None);
 
-/// Stop the backend this app started. Called from the run loop's Exit event.
+/// No-op twin so every caller can say "stop what we own" without a `cfg`. Only
+/// macOS ever owns the backend process.
+#[cfg(not(target_os = "macos"))]
+pub fn stop_owned_backend() {}
+
+/// Stop the backend this app started.
+///
+/// Called from the run loop's Exit event AND before every `restart()`. The
+/// second is not belt-and-braces: `AppHandle::restart()` skips the run loop's
+/// events entirely when it is called on the main thread (which the tray item and
+/// the dashboard's `xenon-app:restart` both are), so the Exit arm never fires and
+/// the `node` child was exec'd away from — reparented to launchd, still holding
+/// port 3030. The relaunched app then found a backend answering, left
+/// BACKEND_CHILD empty, and quitting later left that server running forever.
+/// Idempotent: the child is taken out of the mutex, so a later Exit finds None.
 #[cfg(target_os = "macos")]
 pub fn stop_owned_backend() {
     let Ok(mut guard) = BACKEND_CHILD.lock() else { return };
@@ -779,9 +913,12 @@ pub fn run() {
     #[cfg(desktop)]
     {
         builder = builder
+            // The argument is what lets the app tell a login launch from the
+            // user double-clicking Xenon. In phone mode the first must stay
+            // invisible and the second must not.
             .plugin(tauri_plugin_autostart::init(
                 tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-                None,
+                Some(vec!["--autostart"]),
             ))
             .plugin(tauri_plugin_updater::Builder::new().build());
     }
@@ -799,6 +936,11 @@ pub fn run() {
                 );
                 if is_dashboard && !UPDATE_CHECK_STARTED.swap(true, Ordering::SeqCst) {
                     spawn_update_check(_webview.app_handle().clone());
+                }
+                // First accurate display state: the init-script snapshot is built
+                // before the window exists, so it carries no `active` screen.
+                if is_dashboard {
+                    monitor::push_display_state(_webview.app_handle());
                 }
                 // Old dashboards can't update their own backend — offer it from
                 // here (no-op on new dashboards; see legacy_rescue_js). Delayed
@@ -844,12 +986,43 @@ pub fn run() {
             // real presented frame rate into single digits (measured via
             // PresentMon — see the "native-app-hybrid-gpu-idle-burn" note).
             // serde-encoding keeps the injection a safe JS literal.
+            // The saved screen choice, read once here: it decides the initial
+            // window visibility AND seeds the watchdog's in-memory mirror, both
+            // of which happen before the backend is necessarily up.
+            let display_prefs = prefs::load(app.handle());
+            monitor::set_placement_cache(&display_prefs);
+            // `--autostart` is appended to the login entry (see the plugin init
+            // above), so its presence tells a login launch from a deliberate one.
+            // A user who double-clicks Xenon must always SEE it, even in phone
+            // mode: an app that opens and shows nothing reads as broken.
+            let autostarted = std::env::args().any(|a| a == "--autostart");
+            let start_hidden = !display_prefs.shows_on_this_pc() && autostarted;
+            // A deliberate launch in phone mode must SHOW the window: nothing is
+            // written, so the next login is hidden again as chosen. Without this
+            // the window is built visible and then hidden a moment later by
+            // `place_now`, which is the same "opens and shows nothing" it is
+            // meant to avoid.
+            if !display_prefs.shows_on_this_pc() && !autostarted {
+                monitor::allow_show_this_session();
+            }
+            // `displayPicker` is the hard gate for the dashboard: `xenon-display:`
+            // is a NEW scheme, and on an older shell an unknown scheme falls
+            // through to the OS opener, which on Windows raises a "how do you
+            // want to open this?" dialog on the kiosk. The page must check this
+            // before ever assigning such a URL — exactly as it already does for
+            // homeGestureToggle and rdpToggle.
+            //
+            // `displays` is a snapshot: the window does not exist yet at this
+            // point, so `display.active` is deliberately absent here and arrives
+            // with the first push (on page load, on placement, on replug).
             let caps_js = format!(
                 "try{{window.__XENON_NATIVE_CAPS__=Object.assign(window.__XENON_NATIVE_CAPS__||{{}},{});}}catch(e){{}}",
                 serde_json::json!({
                     "shellVersion": app.package_info().version.to_string(),
                     "updateEvents": true,
                     "lowPowerGpu": matches!(gpu_flag, Some("--force_low_power_gpu")),
+                    "displayPicker": true,
+                    "phoneMode": !display_prefs.shows_on_this_pc(),
                 })
             );
             let port_js = format!("try{{window.__XENON_PORT__={};}}catch(e){{}}", port);
@@ -873,8 +1046,11 @@ pub fn run() {
                 .resizable(true)
                 .decorations(false)
                 .always_on_top(false)
-                .visible(true)
-                .focused(true)
+                // Built invisible rather than hidden right after: a post-build
+                // `hide()` is a visible flash on macOS, which is the one platform
+                // where phone mode still launches the app.
+                .visible(!start_hidden)
+                .focused(!start_hidden)
                 .center();
             // `transparent` is not on the macOS builder at all: making a window
             // transparent there needs a private API, so Tauri hides the method
@@ -925,7 +1101,14 @@ pub fn run() {
                     #[cfg(desktop)]
                     if scheme == "xenon-app" {
                         match url.path() {
-                            "restart" => nav_handle.restart(),
+                            // stop_owned_backend() first: this hook runs ON the
+                            // event-loop thread, and restart() skips RunEvent::Exit
+                            // when called from there — so nothing else would stop
+                            // the backend child before the process is exec'd away.
+                            "restart" => {
+                                stop_owned_backend();
+                                nav_handle.restart()
+                            }
                             // The dashboard (this webview) relays the server's
                             // global-hotkey broadcast: open the native Spotlight
                             // window on the PRIMARY monitor. Close/expand/
@@ -1011,6 +1194,30 @@ pub fn run() {
                                 }
                             }
                         }
+                        return false;
+                    }
+                    // Settings → Schermo, and the first-run screen picker:
+                    //   xenon-display:auto                    → the historical rule
+                    //   xenon-display:screen?id=…&fullscreen= → this display, deliberately
+                    //   xenon-display:phone                   → nothing on this PC
+                    //   xenon-display:fullscreen?on=0|1       → assert (not toggle)
+                    //
+                    // Each verb touches disk and enumerates monitors, so each runs
+                    // off the WebView UI thread this hook is called on — same
+                    // reason as the two xenon-home writers above. The query is
+                    // parsed inside the thread so the hook returns immediately.
+                    //
+                    // Unknown paths do NOTHING. That is deliberate and unlike the
+                    // xenon-home catch-all above, where an unknown path collapses
+                    // the kiosk: a fallback that acts is what makes an unknown
+                    // path dangerous.
+                    if scheme == "xenon-display" {
+                        let handle = nav_handle.clone();
+                        let path = url.path().to_string();
+                        let query = url.query().map(|q| q.to_string());
+                        std::thread::spawn(move || {
+                            apply_display_signal(&handle, &path, query.as_deref());
+                        });
                         return false;
                     }
                     // Touch interactions on the dashboard end here (never a real
@@ -1139,12 +1346,11 @@ pub fn run() {
             // logon task; macOS: its LaunchAgent, or the first-run bootstrap).
             spawn_backend_nudge(app.handle(), port);
 
-            // Launch the kiosk automatically at login (idempotent).
-            #[cfg(desktop)]
-            {
-                use tauri_plugin_autostart::ManagerExt;
-                let _ = app.autolaunch().enable();
-            }
+            // Register — or REMOVE — the kiosk's own login entry, to match the
+            // screen the user chose. This used to enable unconditionally on every
+            // launch, so someone who had chosen their phone and then opened Xenon
+            // once from the Start menu silently got the window back at every login.
+            sync_autostart(app.handle());
 
             // Stop Windows from stealing edge touch swipes (taskbar/Start reveal)
             // so the "swipe up to the desktop" gesture reaches the dashboard —

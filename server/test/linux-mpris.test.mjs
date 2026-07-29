@@ -16,7 +16,7 @@ const {
 } = require(join(ROOT, 'linux-mpris.js'));
 const { shapeNowPlaying } = require(join(ROOT, 'linux-media.js'));
 
-const GETALL = '{"type":"a{sv}","data":[{"PlaybackStatus":{"type":"s","data":"Playing"},"Metadata":{"type":"a{sv}","data":{"mpris:trackid":{"type":"o","data":"/org/xenon/track/1"},"mpris:length":{"type":"x","data":213000000},"mpris:artUrl":{"type":"s","data":"https://example.invalid/cover.jpg"},"xesam:title":{"type":"s","data":"Un titolo con \'apice, virgola, e — trattino"},"xesam:artist":{"type":"as","data":["Primo Artista","Secondo Artista"]},"xesam:album":{"type":"s","data":"Album di prova"}}},"Position":{"type":"x","data":42000000},"CanGoNext":{"type":"b","data":true}}]}';
+const GETALL = '{"type":"a{sv}","data":[{"PlaybackStatus":{"type":"s","data":"Playing"},"Metadata":{"type":"a{sv}","data":{"mpris:trackid":{"type":"o","data":"/org/xenon/track/1"},"mpris:length":{"type":"x","data":213000000},"mpris:artUrl":{"type":"s","data":"https://example.invalid/cover.jpg"},"xesam:title":{"type":"s","data":"Un titolo con \'apice, virgola, e — trattino"},"xesam:artist":{"type":"as","data":["Primo Artista","Secondo Artista"]},"xesam:album":{"type":"s","data":"Album di prova"}}},"Position":{"type":"x","data":42000000},"CanGoNext":{"type":"b","data":true},"CanSeek":{"type":"b","data":true}}]}';
 
 const LISTNAMES = JSON.stringify({
   type: 'as',
@@ -54,6 +54,8 @@ test('the record keeps playerctl\'s shape, so shapeNowPlaying is unchanged', () 
     length: '213000000',
     position: '42000000',
     art: 'https://example.invalid/cover.jpg',
+    trackId: '/org/xenon/track/1',
+    canSeek: true,
   });
   const info = shapeNowPlaying(rec, 0);
   assert.equal(info.duration, 213);
@@ -151,6 +153,47 @@ test('the transport command targets the player the tile is showing', async () =>
   // while Spotify plays — is the bug this pins down.
   assert.match(played[0], /org\.mpris\.MediaPlayer2\.(firefox|xenontest)/);
   assert.ok(played[0].includes(m.latest().rec.player));
+});
+
+test('seek targets the shown track id with absolute microseconds', async () => {
+  const f = fakeBusctl({
+    listNames: JSON.stringify({ type: 'as', data: [['org.mpris.MediaPlayer2.xenontest']] }),
+  });
+  const m = createLinuxMpris({ runner: f.runner, findBusctl: () => '/usr/bin/busctl', pollMs: 20 });
+  m.start();
+  await new Promise((r) => setTimeout(r, 50));
+  const result = await m.command('seek', 12.345678);
+  m.stop();
+  assert.equal(result.ok, true);
+  assert.equal(result.position, 12.345678);
+  const seeks = f.calls.filter((c) => c.includes('SetPosition'));
+  assert.equal(seeks.length, 1);
+  assert.match(seeks[0], /SetPosition ox \/org\/xenon\/track\/1 12345678$/);
+});
+
+test('seek fails cleanly when the current player has no MPRIS track id', async () => {
+  const noTrack = GETALL.replace(
+    '"mpris:trackid":{"type":"o","data":"/org/xenon/track/1"},',
+    '');
+  const f = fakeBusctl({
+    listNames: JSON.stringify({ type: 'as', data: [['org.mpris.MediaPlayer2.xenontest']] }),
+    getAll: noTrack,
+  });
+  const m = createLinuxMpris({ runner: f.runner, findBusctl: () => '/usr/bin/busctl', pollMs: 20 });
+  m.start();
+  await new Promise((r) => setTimeout(r, 50));
+  assert.deepEqual(await m.command('seek', 4),
+    { ok: false, error: 'not_seekable', seekProtocol: 1 });
+  m.stop();
+  assert.equal(f.calls.some((c) => c.includes('SetPosition')), false);
+});
+
+test('invalid seek is refused before busctl is called', async () => {
+  const f = fakeBusctl();
+  const m = createLinuxMpris({ runner: f.runner, findBusctl: () => '/usr/bin/busctl' });
+  assert.deepEqual(await m.command('seek', -1),
+    { ok: false, error: 'bad_position', seekProtocol: 1 });
+  assert.equal(f.calls.length, 0);
 });
 
 test('an unknown action is refused before anything is sent', async () => {

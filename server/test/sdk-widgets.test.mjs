@@ -16,7 +16,7 @@ test('manifest: valid minimal manifest normalizes', () => {
   assert.deepEqual(r.manifest, {
     id: 'clock', api: 1, name: 'Clock', version: '0.0.0', author: '',
     description: '', surface: 'tile', background: false, island: false, islandDynamic: false, islandFull: false, badge: false,
-    clipboard: false, accent: false, expand: false, storage: false, storageGroup: '', secrets: false,
+    clipboard: false, accent: false, expand: false, shape: null, storage: false, storageGroup: '', secrets: false,
     entry: 'index.html', streams: [], actions: [],
     hosts: [], userHosts: [], hooks: [], deck: { actions: [], states: [], handlers: [] },
   });
@@ -224,6 +224,29 @@ test('action categories only expose the intended low-risk deck actions', () => {
   for (const type of forbidden) {
     assert.equal(allTypes.includes(type), false, `${type} must not be reachable from SDK widgets`);
   }
+});
+
+test('media category grants transport and hidden absolute seek, including manifest macros', () => {
+  assert.deepEqual([...sdk.SDK_ACTION_CATEGORIES.media], ['media', 'mediaSeek']);
+  const r = sdk.normalizeManifest({
+    api: 1,
+    name: 'Needle Drop',
+    actions: ['media'],
+    deck: {
+      actions: [{
+        id: 'middle',
+        name: 'Middle',
+        steps: [{ action: { type: 'mediaSeek', position: 42.5, extra: 'dropped' } }],
+      }],
+    },
+  }, 'needle-drop');
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.manifest.actions, ['media']);
+  assert.deepEqual(
+    r.manifest.deck.actions[0].steps[0].action,
+    { type: 'mediaSeek', position: '42.5' },
+  );
+  assert.deepEqual(sdk.macroCategories(r.manifest.deck.actions[0]), ['media']);
 });
 
 // The `browser` category (v4.8) is dispatched in the browser, like `soundboard`:

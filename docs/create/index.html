@@ -381,7 +381,7 @@
       <h2><span class="step">STEP 0</span>Set up &amp; find the two buttons that matter</h2>
       <p>You only need Xenon installed and two places in the app. Learn these once and everything else clicks into place.</p>
       <ol class="steps">
-        <li><b>Install Xenon</b> if you haven't. <a href="https://xenon-app.com/#install" class="inline">Download the setup</a>, double-click, done. Open the dashboard (it lives at <em>http://127.0.0.1:3030</em> in any browser, and full-screen on a Xeneon Edge).</li>
+        <li><b>Install Xenon</b> if you haven't. <a href="https://xenon-app.com/#install" class="inline">Download the setup</a>, double-click, done. Open the dashboard (it lives at <em>http://127.0.0.1:3030</em> in any browser, and full-screen in the Xenon app).</li>
         <li><b>Find "Import".</b> Open <b>Settings</b> (the gear), choose the <b>Widgets &amp; sharing</b> tab, and look for the <b>Share &amp; Import</b> card. The <em>Import (link or file)…</em> button is how you install anything — a code you copied, a link, or a <em>.json</em> file.</li>
         <li><b>Find "Layout".</b> Back on the dashboard, the <b>Layout</b> button in the top bar turns on edit mode — drag tiles around, resize them, add new ones from the <b>+</b> palette, add pages. This is where pages and widgets come to life.</li>
       </ol>
@@ -841,7 +841,7 @@
             <tr><td><code>youtube</code></td><td><code>ytBroadcast</code> &mdash; start / stop your broadcast. Needs YouTube connected.</td></tr>
             <tr><td><code>streamerbot</code></td><td><code>sbDoAction</code>, <code>sbSendMessage</code>, <code>sbCodeTrigger</code>. Needs Streamer.bot connected.</td></tr>
             <tr><td><code>url</code></td><td><code>{ type:'openUrl', url:'https://…' }</code> (http / https only) &mdash; opens in the default browser, on whichever monitor Windows chooses.</td></tr>
-            <tr><td><code>browser</code></td><td><code>{ type:'browserOpen', url:'https://…', expand:true }</code> &mdash; show the page in the Browser tile on the dashboard, so it stays on the Xeneon Edge with touch working. Needs a Browser tile visible.</td></tr>
+            <tr><td><code>browser</code></td><td><code>{ type:'browserOpen', url:'https://…', expand:true }</code> &mdash; show the page in the Browser tile on the dashboard, so it stays on the dashboard screen with touch working. Needs a Browser tile visible.</td></tr>
             <tr><td><code>tasks</code></td><td><code>{ type:'taskAdd', text }</code>, <code>taskToggle</code>, <code>taskDelete</code> &mdash; edit the same to-do list the Tasks tile shows (pair with the <code>tasks</code> stream to read ids).</td></tr>
           </tbody>
         </table>

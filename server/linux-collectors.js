@@ -273,10 +273,19 @@ const PSEUDO_FS = new Set([
   'configfs', 'securityfs', 'pstore', 'bpf', 'autofs', 'binfmt_misc', 'ramfs',
   'nsfs', 'fuse.portal', 'fuse.gvfsd-fuse',
 ]);
+// Prefixes are matched WITH their separator (or as the whole mount point), so a
+// real volume at /devdata, /mntbackup or /system-backup is not mistaken for the
+// pseudo-tree it happens to share a few letters with.
+const SKIP_PREFIXES = ['/snap', '/var/lib/docker', '/proc', '/sys', '/dev', '/run'];
 function skipMount(target) {
-  return target.startsWith('/snap/') || target.startsWith('/var/lib/docker') ||
-         target.startsWith('/proc') || target.startsWith('/sys') ||
-         target.startsWith('/dev') || target.startsWith('/run');
+  const t = String(target || '');
+  // The one real exception under /run: udisks2 auto-mounts every USB stick, SD
+  // card and external drive at /run/media/<user>/<label> on Fedora, RHEL, Arch,
+  // Manjaro and openSUSE. Skipping the whole of /run hid removable media on all
+  // of them (Ubuntu and Debian escaped only because they use /media/<user>/…),
+  // and left the `removable` test below unreachable.
+  if (t.startsWith('/run/media/')) return false;
+  return SKIP_PREFIXES.some((p) => t === p || t.startsWith(p + '/'));
 }
 // Split out so the parsing is unit-testable against a captured `df` fixture.
 function parseDisks(out) {
@@ -286,9 +295,20 @@ function parseDisks(out) {
   for (const line of lines) {
     const c = line.trim().split(/\s+/);
     if (c.length < 6) continue;
-    const [source, target, fstype] = c;
-    const total = Number(c[3]);
-    const free = Number(c[5]);
+    // Parse from BOTH ends, never by fixed index. `df` prints the mount point
+    // with its literal spaces, so a drive at /media/marci/My Passport shifted
+    // every column after it: Number(c[3]) was NaN and `!(total > 0)` discarded
+    // the row without a word. Source is first, the size/used/avail trio and the
+    // fstype are last, and whatever sits between them IS the mount point. (A
+    // source with spaces — a CIFS share — stays unparseable either way; it now
+    // fails the absolute-path test below instead of failing as a NaN.)
+    const source = c[0];
+    const fstype = c[c.length - 4];
+    const target = c.slice(1, c.length - 4).join(' ');
+    const total = Number(c[c.length - 3]);
+    const free = Number(c[c.length - 1]);
+    if (!target.startsWith('/')) continue;
+    if (!Number.isFinite(total) || !Number.isFinite(free)) continue;
     // Used is computed as total - free, never df's own Used column — the same
     // rule darwin-collectors.js follows, and the contract doctor-checks.mjs
     // enforces. On ext4 the two disagree: mke2fs reserves 5% of the filesystem
@@ -313,8 +333,9 @@ function parseDisks(out) {
     const key = source + '\0' + target;
     if (seen.has(key)) continue;
     seen.add(key);
-    const removable = target.startsWith('/media') || target.startsWith('/mnt') ||
-                      target.includes('/run/media');
+    // Same separator rule as skipMount: /mediaserver is not removable media.
+    const removable = ['/media', '/mnt', '/run/media']
+      .some((p) => target === p || target.startsWith(p + '/'));
     drives.push({
       drive: target,
       total,
@@ -849,6 +870,13 @@ function resolveTargets(n, target) {
   }
   // App target: "<binary>.exe" or a bare name -> every matching stream node.
   const name = t.replace(/\.exe$/i, '').toLowerCase();
+  // An empty name must match NOTHING. The substring fallback below ends in
+  // `.includes(name)`, and `''.includes('')` is true, so a blank target used to
+  // select every stream on the machine — a `/audio/app/mute` with proc="   " or
+  // any svvExec fired before cachedSpeakerId was resolved would have muted the
+  // whole system. The caller turns an empty list into a reported failure, which
+  // is what the two sibling collectors do with the same input.
+  if (!name) return [];
   return [...n.outStreams, ...n.inStreams]
     .filter((s) => (s.binary || '').toLowerCase() === name ||
                    (s.appName || '').toLowerCase().replace(/\s+/g, '') === name ||
@@ -906,10 +934,107 @@ async function lock() {
   await run('loginctl', ['lock-session'], 5000);
 }
 
+// --- Sending a key combination ----------------------------------------------
+// The Linux half of server.js's sendHotkey: the Deck's `hotkey` action, and
+// answering a Teams/Zoom call (both are in-app shortcuts, so the caller focuses
+// the window first and this only delivers the keys).
+//
+// Two tools, and which one is available is a property of the SESSION, not of
+// the distro. xdotool speaks a combo directly and is already an optional
+// dependency here for the app switcher — but it goes through the X server, so
+// under Wayland it reaches nothing. Wayland deliberately forbids one client
+// from synthesising input into another, so the only route left is ydotool,
+// which writes to /dev/uinput underneath the compositor and needs its daemon
+// (or uinput permissions) set up by the user first.
+//
+// That is why this capability is optional on Linux and declared rather than
+// assumed: on a Wayland desktop with no ydotool there is no way to press a key
+// in another application, and the call card must not offer a button for it.
+
+// evdev keycodes (linux/input-event-codes.h). ydotool's `key` takes
+// `CODE:STATE` pairs only — it has no name parser — so the table is written
+// out. Only the tokens the action registry already accepts are here; anything
+// else has been rejected long before it reaches this function.
+const YDOTOOL_CODES = {
+  ctrl: 29, control: 29, shift: 42, alt: 56, win: 125, cmd: 125, meta: 125, super: 125,
+  a: 30, b: 48, c: 46, d: 32, e: 18, f: 33, g: 34, h: 35, i: 23, j: 36, k: 37, l: 38, m: 50,
+  n: 49, o: 24, p: 25, q: 16, r: 19, s: 31, t: 20, u: 22, v: 47, w: 17, x: 45, y: 21, z: 44,
+  1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9, 9: 10, 0: 11,
+  enter: 28, return: 28, esc: 1, escape: 1, tab: 15, space: 57, backspace: 14,
+  delete: 111, del: 111, home: 102, end: 107, pageup: 104, pagedown: 109,
+  up: 103, down: 108, left: 105, right: 106, insert: 110,
+  f1: 59, f2: 60, f3: 61, f4: 62, f5: 63, f6: 64, f7: 65, f8: 66, f9: 67, f10: 68,
+  f11: 87, f12: 88,
+};
+
+// "ctrl+shift+s" → the press/release sequence ydotool wants, modifiers held
+// around the key and released in reverse order. Returns '' when any token has
+// no code, so a combo is either sent whole or not at all.
+const YDOTOOL_MODIFIERS = new Set(['ctrl', 'control', 'shift', 'alt', 'win', 'cmd', 'meta', 'super']);
+
+function ydotoolArgs(combo) {
+  const parts = String(combo || '').toLowerCase().split('+').map(p => p.trim()).filter(Boolean);
+  if (!parts.length) return null;
+  // Exactly one non-modifier, like the action registry's own normalizeKeys.
+  // Without this "ctrl+" produced a press/release of Ctrl alone: harmless by
+  // luck here because the release is emitted too, but it is a combo that was
+  // asked for and not delivered, reported as success. A combo is sent whole or
+  // refused.
+  const mainKeys = parts.filter(p => !YDOTOOL_MODIFIERS.has(p));
+  if (mainKeys.length !== 1) return null;
+  const codes = [];
+  for (const p of parts) {
+    const code = YDOTOOL_CODES[p];
+    if (code === undefined) return null;
+    codes.push(code);
+  }
+  const down = codes.map(c => `${c}:1`);
+  const up = codes.slice().reverse().map(c => `${c}:0`);
+  return down.concat(up);
+}
+
+let _keysProbe = null;
+// Which sender this session has, if any. Cached: it is read on the path that
+// decides whether to draw an Answer button, and neither tool appears or
+// disappears while the server runs.
+async function keysTool() {
+  if (_keysProbe !== null) return _keysProbe;
+  const wayland = !!(process.env.WAYLAND_DISPLAY || String(process.env.XDG_SESSION_TYPE || '').toLowerCase() === 'wayland');
+  const probe = async (bin, args) => {
+    try { await run(bin, args, 3000); return true; } catch { return false; }
+  };
+  // Under Wayland xdotool may well be installed and still deliver nothing, so
+  // it is not even tried there — offering a button that silently fails is the
+  // failure this whole feature is written to avoid.
+  if (!wayland && await probe('xdotool', ['--version'])) _keysProbe = 'xdotool';
+  else if (await probe('ydotool', ['--help'])) _keysProbe = 'ydotool';
+  else _keysProbe = '';
+  return _keysProbe;
+}
+
+async function keysAvailable() { return !!(await keysTool()); }
+
+async function sendKeys(combo) {
+  const tool = await keysTool();
+  if (!tool) return { ok: false, error: 'no_key_tool' };
+  if (tool === 'xdotool') {
+    // --clearmodifiers so a modifier the user is physically holding does not
+    // combine into a different shortcut than the one requested.
+    try { await run('xdotool', ['key', '--clearmodifiers', String(combo)], 5000); return { ok: true }; }
+    catch { return { ok: false, error: 'xdotool_failed' }; }
+  }
+  const args = ydotoolArgs(combo);
+  if (!args) return { ok: false, error: 'bad_combo' };
+  try { await run('ydotool', ['key', ...args], 5000); return { ok: true }; }
+  catch { return { ok: false, error: 'ydotool_failed' }; }
+}
+
 module.exports = {
   gpu, disks, cpuTemp, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
+  sendKeys, keysAvailable,
   // exported for unit tests
   parseGpu, parseSysfsGpu, rc6Busy, parseHwmonFans, parseDisks, parseMemInfo, parseNetDev, parsePing,
   parseWmctrl, parseWindowProps, parseClientList, parseWindowIdentity,
   parsePwDump, buildAudioRows, resolveTargets, cubicToLinear,
+  ydotoolArgs,
 };

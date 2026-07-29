@@ -11,6 +11,8 @@ namespace XenonHelper;
 //   {"event":"status","status":"allowed"|"denied"|"unavailable"}
 //   {"event":"seed","items":[item,...]}          // newest first, once at start
 //   {"event":"notification","item":{...}}        // each new toast afterwards
+//   {"event":"present","ids":[id,...]}           // every id still in Action Center,
+//                                                // emitted only when the set changes
 //
 // item = {id, app, aumid, title, body, at, icon} — lengths capped here so the
 // server never has to defend against a runaway payload (projection invariant).
@@ -57,6 +59,7 @@ internal static class NotificationHost
         if (status == "unavailable") return 1;   // identity-gated build: nothing will ever work
 
         long maxSeen = -1;                        // -1 = seed not sent yet
+        string lastPresent = "";                  // last emitted id set, to emit only on change
         while (!ExitRequested.IsSet)
         {
             try
@@ -88,6 +91,23 @@ internal static class NotificationHost
                         Emit(new Dictionary<string, object?> { ["event"] = "notification", ["item"] = await ProjectAsync(it) });
                         maxSeen = it.Id;
                     }
+                }
+
+                // Which toasts are still in Action Center. The incoming-call card
+                // is the caller: a ringing toast is TRANSIENT — measured on a real
+                // phone call, it is present while ringing and gone the instant you
+                // hang up, with no "missed" or "ended" notification after it. Its
+                // disappearance is therefore the only end-of-ring signal there is.
+                //
+                // Emitted after any new item on the same pass, so a toast is never
+                // reported present before it was reported at all, and only when the
+                // set changes, so a quiet desktop stays silent.
+                var ids = current.Select(i => i.Id).OrderBy(i => i).ToList();
+                var key = string.Join(",", ids);
+                if (key != lastPresent)
+                {
+                    lastPresent = key;
+                    Emit(new Dictionary<string, object?> { ["event"] = "present", ["ids"] = ids.Cast<object?>().ToList() });
                 }
             }
             catch

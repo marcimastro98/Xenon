@@ -117,6 +117,11 @@ function recordFrom(busName, player) {
     length: num(meta['mpris:length']),
     position: num(player.Position),
     art: typeof meta['mpris:artUrl'] === 'string' ? meta['mpris:artUrl'] : '',
+    // Kept internally for SetPosition. MPRIS requires the exact object path
+    // of the track currently shown; substituting the player bus name is invalid
+    // and can seek a newly-loaded track after a race.
+    trackId: typeof meta['mpris:trackid'] === 'string' ? meta['mpris:trackid'] : '',
+    canSeek: typeof player.CanSeek === 'boolean' ? player.CanSeek : null,
   };
 }
 
@@ -240,7 +245,50 @@ function createLinuxMpris(o = {}) {
       if (timer) { clearInterval(timer); timer = null; }
     },
     latest: () => latest,
-    async command(action) {
+    async command(action, position) {
+      if (action === 'seek') {
+        const seconds = Number(position);
+        if (!Number.isFinite(seconds) || seconds < 0) {
+          return { ok: false, error: 'bad_position', seekProtocol: 1 };
+        }
+        if (!exe()) throw new Error('busctl is not available');
+        const rec = latest.rec;
+        if (!rec || !rec.trackId || !rec.trackId.startsWith('/') || rec.canSeek === false) {
+          return { ok: false, error: 'not_seekable', seekProtocol: 1 };
+        }
+        const target = MPRIS_PREFIX + rec.player;
+        const durationMicros = Number(rec.length);
+        const requestedMicros = Math.round(seconds * 1e6);
+        if (!Number.isSafeInteger(requestedMicros)) {
+          return { ok: false, error: 'bad_position', seekProtocol: 1 };
+        }
+        const micros = Number.isFinite(durationMicros) && durationMicros > 0
+          ? Math.min(requestedMicros, Math.round(durationMicros))
+          : requestedMicros;
+        const out = await call(
+          target,
+          PLAYER_IFACE,
+          'SetPosition',
+          'ox',
+          rec.trackId,
+          String(micros));
+        if (out === null) {
+          return { ok: false, error: 'not_seekable', seekProtocol: 1 };
+        }
+        latest = {
+          rec: { ...rec, position: String(micros) },
+          at: Date.now(),
+        };
+        try { onChange(); } catch { /* never let a listener kill the poll */ }
+        return {
+          ok: true,
+          seekProtocol: 1,
+          source: rec.player,
+          app: '',
+          position: micros / 1e6,
+        };
+      }
+
       const method = COMMAND_METHODS[action];
       if (!method) throw new Error(`unsupported media action "${action}"`);
       if (!exe()) throw new Error('busctl is not available');

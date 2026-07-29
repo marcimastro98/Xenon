@@ -1,0 +1,161 @@
+/* "Where do you want Xenon?" — the first-run screen choice (surface-picker.js).
+   Two cards, one question, shown once. Sits above the tour so the tour that
+   follows is about a dashboard the user has already placed.
+
+   Sized for the Xeneon Edge first: at 2560×720 the whole dialog has to fit in a
+   720px-tall viewport with room to breathe, which is why the cards are side by
+   side and the copy is short. Below 760px it stacks. */
+
+.sp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4100; /* above the tour, which must not start on top of this */
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(4, 6, 7, 0.74);
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  animation: sp-fade 0.22s ease both;
+  overscroll-behavior: contain;
+}
+@keyframes sp-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.sp-box {
+  width: min(880px, 100%);
+  /* Never taller than the viewport, and scroll inside rather than pushing the
+     buttons off a 720px panel. */
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  padding: clamp(20px, 3vw, 30px);
+  border-radius: 20px;
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  background: var(--panel-bg, rgba(18, 20, 22, 0.94));
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.sp-box h2 {
+  margin: 0;
+  font-size: clamp(20px, 2.4vw, 27px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text, #f0f3f1);
+}
+.sp-sub {
+  margin: 8px auto 0;
+  max-width: 54ch;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-dim, #9aa8a1);
+}
+
+.sp-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: clamp(16px, 2.4vw, 24px);
+  text-align: left;
+}
+@media (max-width: 760px) {
+  .sp-cards { grid-template-columns: 1fr; }
+}
+
+.sp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 18px 16px;
+  border-radius: 15px;
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+  background: rgba(255, 255, 255, 0.03);
+}
+.sp-card-head { display: flex; align-items: center; gap: 10px; }
+.sp-card-head svg { width: 20px; height: 20px; flex: none; color: var(--accent, #1ed760); }
+.sp-card-head b { font-size: 16px; font-weight: 650; letter-spacing: -0.01em; color: var(--text, #f0f3f1); }
+.sp-card p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--text-dim, #9aa8a1); }
+.sp-note { font-size: 12px; line-height: 1.5; color: var(--text-faint, #66736c); }
+
+/* The monitor list. Rows, not a dropdown: on a touchscreen a native select is a
+   fiddly target, and there are rarely more than four displays. */
+.sp-screens { display: flex; flex-direction: column; gap: 6px; }
+.sp-screen {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  /* 44px is the comfortable finger target this dashboard uses everywhere. */
+  min-height: 44px;
+  padding: 9px 12px;
+  border-radius: 11px;
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text, #f0f3f1);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s;
+}
+.sp-screen:hover:not(:disabled) { border-color: rgba(var(--accent-rgb), 0.5); }
+.sp-screen.is-on {
+  border-color: rgba(var(--accent-rgb), 0.75);
+  background: rgba(var(--accent-rgb), 0.1);
+}
+/* A display the OS named nothing: it could never be persisted, so it is shown
+   and refused rather than quietly offered. */
+.sp-screen:disabled { opacity: 0.45; cursor: not-allowed; }
+.sp-screen-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-screen-tag {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent, #1ed760);
+  background: rgba(var(--accent-rgb), 0.14);
+}
+
+.sp-go { margin-top: auto; align-self: stretch; justify-content: center; min-height: 42px; }
+
+/* The same rows inside Settings → Schermo, where the panel spans the full width.
+   A 1400px-wide row for "Display 2 — 2560×720" reads as a banner, not a choice. */
+.settings-surface-screens {
+  max-width: 520px;
+  margin-top: 12px;
+}
+.settings-surface-pair { margin-top: 14px; align-self: flex-start; }
+
+.sp-later {
+  margin-top: 16px;
+  padding: 8px 14px;
+  border: 0;
+  background: none;
+  color: var(--text-faint, #66736c);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 9px;
+  transition: color 0.18s;
+}
+.sp-later:hover { color: var(--text, #f0f3f1); }
+
+/* Where the phone answer lands. A brief ring so the panel the user was sent to
+   is obviously the one they were sent to. */
+.ra-highlight {
+  animation: sp-point 2.4s ease both;
+  border-radius: 14px;
+}
+@keyframes sp-point {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0); }
+  12%, 70% { box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.55); }
+}
+
+/* Nothing here animates forever, so there is no infinite loop to pause — but the
+   entrance still respects a user who asked for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .sp-overlay { animation: none; }
+  .ra-highlight { animation: none; box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.5); }
+}

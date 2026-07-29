@@ -149,12 +149,21 @@ dark, and both its worlds (Liquid Glass + Pixel Retro) are dark-first.
 | Face | Job |
 |---|---|
 | **Inter** | The interface, the everyday voice (Liquid Glass). |
+| **JetBrains Mono** | Labels and figures. Code, and on the public site every eyebrow, rank, counter and column heading. |
 | **VT323** | The terminal — Bit and the CRT world. |
 | **Press Start 2P** | Pixel micro-labels only, never running text. |
 
 Loaded in `server/index.html`; skin definitions in
 `server/styles/global.css` and `server/styles/themes-retro.css`. Never use a
 system font as the wordmark.
+
+**On the site, mono is the label voice** (2026-07 rework). Section eyebrows,
+live counters, the supporters' ranks and the footer headings are all JetBrains
+Mono at 11px with `.18em` tracking; Inter carries every sentence. The reason is
+diagnostic rather than decorative: with one face doing both jobs the page read
+as generated, and the labels are exactly the places where an engineered product
+is allowed to sound like one. The accent green is spent on the movement NUMBER
+alone — when every eyebrow was solid green the accent meant nothing.
 
 ---
 
@@ -198,5 +207,5 @@ Product truth over spectacle on the site; the Orb moves in video.
 | Resonance Orb | colours (`--xn-cyan`, `--xn-violet`) in `server/components/AIPanel/AIPanel.css` — video/press asset only; no longer rendered on the site |
 | Colour presets | `server/js/settings.js` — `SETTINGS_PRESETS`, `BUILTIN_THEMES` |
 | Reusable Bit mark | `docs/images/bit.svg` (scalable, derived from the sprite) |
-| Public site | `docs/index.html` (Edge-frame hero, `p4` Bit pillar with the VT323 line, 5-language i18n dict); `docs/catalog/` and `docs/create/` share the same tokens |
+| Public site | `docs/index.html` — nine numbered movements, three scales (`--s-*`, `--t-*`, `--r-*`) in `:root`, `.eyebrow` as the label voice, the Edge-frame hero, the sticky feature stage, the Bit movement with the VT323 line, and the 5-language i18n dict; `docs/catalog/` and `docs/create/` share the same tokens |
 | Reusable copy | `README.md`, `FEATURES.md` |

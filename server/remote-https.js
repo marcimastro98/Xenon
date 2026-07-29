@@ -38,6 +38,9 @@ const DEFAULT_PORT = 3443;
 // schedule when asked; asking daily is cheap, rate-limit-free (it reuses a fresh
 // cert) and leaves 89 days of slack for a machine that was off for a while.
 const RENEW_INTERVAL_MS = 24 * 3600 * 1000;
+// Imported rather than spelled again, so this module and the setup cannot
+// disagree about what tailscaled's "no client has started me" state is called.
+const { NO_BACKEND } = require('./remote-control/tailscale');
 
 /**
  * Why the HTTPS door is not up, as one of a small set of reasons the UI can turn
@@ -60,6 +63,14 @@ function readiness(status) {
   // fixes it.
   if (s.needsOperator) return 'needs_operator';
   if (!s.running) return 'not_running';
+  // Checked before `not_logged_in`, for the same reason `needs_operator` is
+  // checked before `not_running`: it is what this looks like from the outside
+  // and it is the wrong thing to say. A daemon with no client attached reports
+  // itself as neither signed out nor connected — measured on Windows with the
+  // service up and no tray app, on an account that WAS signed in. Telling that
+  // user to sign in sends them looking for a login screen that will not appear,
+  // and hides the one thing they can do about it.
+  if (s.backendState === NO_BACKEND) return 'no_backend';
   if (!s.connected) return 'not_logged_in';
   if (!s.dnsName) return 'no_name';
   if (!s.certsEnabled) return 'certs_disabled';

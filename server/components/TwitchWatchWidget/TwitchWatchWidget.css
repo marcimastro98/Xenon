@@ -1,0 +1,397 @@
+/* Twitch watching widget: the player, the list you pick a channel from, and an
+   optional chat, in the house style (logo watermark, card sections, purple
+   accent). The three sections carry data-system-card so they hide and reorder
+   like System cards. Rendered into .twitchwatch-widget-mount by
+   js/twitchwatch-widget.js.
+   The streamer's Twitch tile is a different widget with a different stylesheet —
+   see components/TwitchPanel. */
+.twitchwatch-panel { display: flex; }
+.twitchwatch-widget-mount { width: 100%; height: 100%; display: flex; min-height: 0; border-radius: inherit; }
+
+/* A size container, so the cards can answer "is this tile wide and short" rather
+   than "is the WINDOW wide" — the same widget is a 32:9 strip on the Xeneon Edge
+   and a tall column in a browser. Containment is dropped while the player is
+   expanded: it would otherwise become the containing block for the fullscreen
+   card and the overlay would cover the tile instead of the screen. */
+.tww-wrap {
+  position: relative; box-sizing: border-box;
+  container: tww / size;
+  width: 100%; height: 100%; min-height: 0;
+  padding: 16px 18px; display: flex; flex-direction: column; gap: 11px;
+  border-radius: inherit; overflow: hidden;
+  background:
+    radial-gradient(125% 95% at 100% -12%, rgba(145,70,255,0.18), transparent 55%),
+    radial-gradient(100% 70% at 0% 112%, rgba(145,70,255,0.08), transparent 60%);
+}
+.tww-watermark {
+  position: absolute; inset: 0; margin: auto; width: 34%; max-width: 170px;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0.09; pointer-events: none; z-index: 0;
+}
+.tww-watermark svg { width: 100%; height: auto; }
+.tww-head, .tww-cards { position: relative; z-index: 1; }
+
+.tww-head { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; min-width: 0; }
+.tww-logo { font-size: 0.92rem; font-weight: 900; letter-spacing: 0.02em; color: #a970ff; }
+
+/* The column scrolls as a whole: on a short tile the minimum heights below can
+   add up to more than the tile has, and a card the user cannot reach is a card
+   that does not exist. */
+.tww-cards {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px;
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.tww-cards::-webkit-scrollbar { width: 6px; }
+.tww-cards::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255,255,255,0.16); }
+/* No frame around a card, on purpose. Each section used to carry a border and a
+   pale fill, which is fine when a section is full of content and terrible when it
+   is not: on a photo background the widget read as four empty rectangles with a
+   little text scattered between them, and there was no way to tell an empty box
+   from a broken one. The content carries its own shape instead — the picture is
+   black, the rows and the chat have their own surface — so what you see is what
+   is actually there. */
+.tww-card { position: relative; min-width: 0; }
+
+/* ── Player ───────────────────────────────────────────────────────────────── */
+/* Grows three times faster than the list: extra tile height should go to the
+   picture. No `min-height: 0` on purpose — that let the card shrink under its own
+   controls on a short tile and the buttons ended up drawn over the list. */
+.tww-card--player { flex: 3 1 auto; display: flex; flex-direction: column; gap: 8px; }
+/* Fitting a 16:9 box inside a box of any shape takes two steps, because neither
+   half does it alone in Chromium: a width-driven ratio with a max-height keeps
+   the right height but not the right width, and a height-driven ratio with a
+   max-width does the opposite. So .tww-stage-fit bounds the height and
+   .tww-player-stage takes the correct width from it.
+   Basis 0, not auto: with `auto` the wrapper's height came from the ratio box it
+   contains, so the cap was measured against the very thing it was capping. */
+.tww-stage-wrap {
+  flex: 1 1 0; min-height: 92px; min-width: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.tww-stage-fit {
+  width: 100%; min-width: 0; aspect-ratio: 16 / 9; max-height: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+.tww-player-stage {
+  position: relative; height: 100%; width: auto; max-width: 100%; aspect-ratio: 16 / 9;
+  border-radius: 10px; overflow: hidden; background: #000;
+  display: flex; align-items: center; justify-content: center;
+}
+.tww-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.tww-player-empty { font-size: 0.78rem; font-weight: 600; opacity: 0.55; padding: 8px 12px; text-align: center; }
+
+.tww-now { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.tww-now-title { font-size: 0.82rem; font-weight: 700; color: var(--text, #e7e9ee); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tww-now-sub { font-size: 0.68rem; font-weight: 600; color: var(--text-dim, #8b91a1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.tww-transport { display: flex; align-items: center; gap: 6px; }
+.tww-transport-gap { flex: 1 1 auto; }
+.tww-ib {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 9px; cursor: pointer; padding: 0;
+  color: var(--text, #e7e9ee); background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.09);
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+.tww-ib svg { width: 17px; height: 17px; }
+.tww-ib:hover:not(:disabled) { background: rgba(145,70,255,0.2); border-color: rgba(145,70,255,0.5); }
+.tww-ib:disabled { opacity: 0.35; cursor: default; }
+
+.tww-blocked {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 0.74rem; font-weight: 600; color: var(--text-dim, #8b91a1);
+}
+.tww-blocked-btn {
+  font: inherit; font-size: 0.72rem; font-weight: 800; cursor: pointer;
+  padding: 4px 10px; border-radius: 8px; color: #fff;
+  background: rgba(145,70,255,0.9); border: 0;
+}
+
+/* Full-screen player. The card is only re-positioned, never re-parented: moving
+   the iframe in the DOM reloads it and would drop the stream.
+   Two extra classes on purpose — the global panel theme styles .tww-card with a
+   translucent background at the same specificity and later in the cascade, so the
+   plain selector loses and the dashboard shows through the fullscreen player. */
+.tww-card.tww-card--player.is-expanded {
+  position: fixed; inset: 0; z-index: 5000; border-radius: 0; border: 0;
+  background: #05070a; padding: 0; gap: 0;
+  justify-content: flex-end;
+}
+/* Two stacking contexts sit between the card and the screen, and a z-index only
+   ever competes inside its own: the card column (z-index 1, for the watermark)
+   holds the overlay under the top bar, and the shell (z-index 1) holds it under
+   the edge rails, which are fixed at 58 on the body. Both are lifted for as long
+   as the player is expanded. This is the WHOLE mechanism: the Fullscreen API
+   would settle it in one line, and on the kiosk leaving fullscreen leaves the
+   Windows taskbar over the dashboard until the app is restarted. */
+body.tww-expanded .tww-cards { z-index: auto; }
+body.tww-expanded .shell { z-index: 60; }
+body.tww-expanded .tww-wrap { container-type: normal; }
+
+/* Full screen means the picture gets the screen: the controls float over it the
+   way every video player does, instead of stacking under it and spending a
+   quarter of the height on chrome that a 16:9 picture cannot use anyway. */
+.tww-card--player.is-expanded .tww-stage-wrap { position: absolute; inset: 0; min-height: 0; }
+.tww-card--player.is-expanded .tww-player-stage { border-radius: 0; }
+.tww-card--player.is-expanded::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 190px; z-index: 1;
+  background: linear-gradient(to top, rgba(0,0,0,0.88), rgba(0,0,0,0.55) 42%, transparent);
+  pointer-events: none;
+}
+.tww-card--player.is-expanded .tww-now,
+.tww-card--player.is-expanded .tww-transport,
+.tww-card--player.is-expanded .tww-blocked { position: relative; z-index: 2; padding-left: 20px; padding-right: 20px; }
+.tww-card--player.is-expanded .tww-transport { padding-bottom: 16px; justify-content: center; gap: 10px; }
+.tww-card--player.is-expanded .tww-now-title { font-size: 1.05rem; }
+.tww-card--player.is-expanded .tww-transport-gap { flex: 0 0 22px; }
+/* No close button at full screen: it sits one button away from shrink and it
+   unloads the stream, so the two were a trap. Shrink and Escape both leave. */
+.tww-card--player.is-expanded .tww-stop { display: none; }
+
+/* The controls fade out a few seconds in and come back on a touch. */
+.tww-idlecatch { display: none; }
+.tww-card--player.is-expanded .tww-idlecatch { display: block; position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+/* Takes input ONLY while the controls are hidden: the embed is cross-origin, so a
+   finger moving over the picture raises nothing this page can hear, and without a
+   catcher there would be no way to bring the controls back. While they are up it
+   is inert again, so Twitch's own player controls stay reachable. */
+.tww-card--player.is-expanded.is-idle .tww-idlecatch { pointer-events: auto; cursor: none; }
+.tww-card--player.is-expanded .tww-now,
+.tww-card--player.is-expanded .tww-transport,
+.tww-card--player.is-expanded::after { transition: opacity 0.35s ease; }
+.tww-card--player.is-expanded.is-idle .tww-now,
+.tww-card--player.is-expanded.is-idle .tww-transport,
+.tww-card--player.is-expanded.is-idle::after { opacity: 0; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .tww-card--player.is-expanded .tww-now,
+  .tww-card--player.is-expanded .tww-transport,
+  .tww-card--player.is-expanded::after { transition: none; }
+}
+
+/* ── Library (tabs + rows) ────────────────────────────────────────────────── */
+.tww-card--library { flex: 1 1 176px; min-height: 176px; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+/* Wrap rather than scroll sideways: in the side-by-side layout the column is
+   narrow, and a tab that falls off the end of a row whose scrollbar is hidden is
+   a tab that is there and invisible. */
+.tww-tabs { display: flex; flex-wrap: wrap; gap: 5px; flex: 0 0 auto; }
+.tww-tab {
+  display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
+  min-height: 30px; padding: 0 10px; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 0.7rem; font-weight: 800;
+  color: var(--text-dim, #8b91a1); background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.tww-tab-ico { display: inline-flex; }
+.tww-tab-ico svg { width: 13px; height: 13px; }
+.tww-tab:hover { color: var(--text, #e7e9ee); }
+.tww-tab.is-on { color: #fff; background: rgba(145,70,255,0.9); border-color: transparent; }
+
+.tww-search-row { display: flex; gap: 6px; flex: 0 0 auto; }
+.tww-search-input {
+  flex: 1 1 auto; min-width: 0; box-sizing: border-box; font: inherit; font-size: 0.78rem;
+  padding: 6px 10px; border-radius: 9px; color: var(--text, #e7e9ee);
+  border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.28); outline: none;
+}
+.tww-search-input:focus { border-color: rgba(145,70,255,0.6); }
+.tww-search-go {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; border-radius: 9px; cursor: pointer; padding: 0; color: #fff;
+  background: rgba(145,70,255,0.9); border: 0;
+}
+.tww-search-go svg { width: 16px; height: 16px; }
+
+.tww-list { flex: 1 1 auto; display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.tww-list::-webkit-scrollbar { width: 6px; }
+.tww-list::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255,255,255,0.16); }
+/* The rows keep a surface of their own, and a darker one than the cards had: they
+   are the thing you tap, and they have to stay readable over whatever background
+   the theme or a photo puts behind the tile. */
+.tww-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; flex: 0 0 auto;
+  padding: 6px 8px; border-radius: 10px; cursor: pointer; text-align: left; font: inherit;
+  border: 1px solid rgba(255,255,255,0.07); background: rgba(0,0,0,0.32);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.tww-row:hover { background: rgba(145,70,255,0.14); border-color: rgba(145,70,255,0.45); }
+.tww-row-art {
+  position: relative; width: 64px; height: 36px; flex: 0 0 auto; border-radius: 6px;
+  background: rgba(255,255,255,0.07) center / cover no-repeat;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+}
+.tww-row-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.tww-row-name { font-size: 0.8rem; font-weight: 700; color: var(--text, #e7e9ee); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tww-row-sub {
+  font-size: 0.67rem; font-weight: 600; color: var(--text-dim, #8b91a1);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* The live viewer count, where there is one. Search results carry no count, so
+   those rows show the play affordance instead of a number that would be a
+   guess. */
+.tww-row-viewers {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.66rem; font-weight: 800; color: #ff5c5c; font-variant-numeric: tabular-nums;
+}
+.tww-row-dot { display: inline-flex; }
+.tww-row-dot svg { width: 7px; height: 7px; }
+.tww-row-play {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%; color: #fff; background: rgba(145,70,255,0.9);
+  opacity: 0; transform: scale(0.8); transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.tww-row-play svg { width: 15px; height: 15px; margin-left: 1px; }
+.tww-row:hover .tww-row-play, .tww-row:focus-visible .tww-row-play { opacity: 1; transform: scale(1); }
+/* A note sits on its own plate rather than straight on the tile: red text on a
+   bright photo was close to unreadable, which is the worst place for it since a
+   note is exactly what you get when there is nothing else to look at. */
+.tww-list-note {
+  font-size: 0.78rem; line-height: 1.4; padding: 8px 10px; border-radius: 10px;
+  color: var(--text, #e7e9ee); background: rgba(0,0,0,0.34);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+.tww-list-err { border-color: rgba(255,90,90,0.32); }
+.tww-note-btn {
+  margin-top: 8px; font: inherit; font-size: 0.72rem; font-weight: 800; cursor: pointer;
+  padding: 5px 12px; border-radius: 8px; color: #fff;
+  background: rgba(145,70,255,0.9); border: 0;
+}
+
+/* ── Chat ─────────────────────────────────────────────────────────────────── */
+/* Off by default (see the layout defaults): it is a second embedded page from
+   Twitch, and a tile that only watches does not need one. */
+.tww-card--chat { flex: 1 1 200px; min-height: 200px; display: flex; flex-direction: column; overflow: hidden; }
+/* With nothing playing there is no chat to show, so the card shrinks to the one
+   line that says so instead of holding open a 300px void. */
+.tww-card--chat.is-empty { flex: 0 0 auto; min-height: 0; }
+.tww-chat-note {
+  font-size: 0.76rem; line-height: 1.4; padding: 8px 10px; border-radius: 10px;
+  color: var(--text, #e7e9ee); background: rgba(0,0,0,0.34);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+/* The messages, drawn by us. Every pixel of the card is chat, which is the whole
+   reason this is not Twitch's iframe: that page spends its height on a header, an
+   event banner, a message box and a footer, and in a tile it left about two lines
+   for the conversation. */
+.tww-chat-log {
+  flex: 1 1 auto; width: 100%; min-height: 0;
+  overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: 3px; padding-right: 4px;
+  font-size: 0.8rem; line-height: 1.4; scrollbar-width: thin;
+}
+.tww-chat-log::-webkit-scrollbar { width: 6px; }
+.tww-chat-log::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255,255,255,0.16); }
+.tww-chat-line { word-break: break-word; flex: 0 0 auto; }
+.tww-chat-user { font-weight: 800; color: #a970ff; }
+.tww-chat-text { color: var(--text, #e7e9ee); opacity: 0.92; }
+
+/* Writing. The reader above is an anonymous socket and cannot speak, so this
+   goes through our own server with the user's token. */
+.tww-chat-send { display: flex; gap: 6px; flex: 0 0 auto; margin-top: 8px; }
+.tww-chat-input {
+  flex: 1 1 auto; min-width: 0; box-sizing: border-box; font: inherit; font-size: 0.78rem;
+  padding: 6px 10px; border-radius: 9px; color: var(--text, #e7e9ee);
+  border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.34); outline: none;
+}
+.tww-chat-input:focus { border-color: rgba(145,70,255,0.6); }
+.tww-chat-input:disabled { opacity: 0.5; }
+.tww-chat-go {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; border-radius: 9px; cursor: pointer; padding: 0; color: #fff;
+  background: rgba(145,70,255,0.9); border: 0;
+}
+.tww-chat-go svg { width: 15px; height: 15px; }
+.tww-chat-out { width: 34px; height: 34px; }
+.tww-chat-err {
+  display: none; margin-top: 6px; font-size: 0.72rem; font-weight: 600; line-height: 1.35;
+  color: var(--color-danger);
+}
+
+/* ── Wide layout: the list moves beside the picture ───────────────────────── */
+/* Stacked, a wide short tile gives the picture only the height left over after
+   the list, and a 16:9 box that short is tiny however wide the tile is. Beside
+   each other, the same tile gives it the full height and about two thirds of the
+   width. HEIGHT picks between them, not the aspect ratio: stacking pays a fixed
+   cost (the controls plus the list) that only hurts a short tile. */
+@container tww (min-width: 620px) and (max-height: 760px) {
+  .tww-cards {
+    display: grid; gap: 10px;
+    /* The list is a column of rows, so past a point extra width does nothing for
+       it and everything for the picture: capped, not a plain percentage. */
+    grid-template-columns: minmax(0, 1fr) minmax(200px, min(32%, 360px));
+    /* BOTH rows are explicit, and that is load-bearing. With only the first one
+       declared, the chat landed in an IMPLICIT row and `grid-row: 1 / -1` on the
+       player stopped at the end of the EXPLICIT grid — negative line numbers do
+       not reach implicit tracks. So the picture spanned the top half and the
+       bottom left of the tile was a large empty rectangle with nothing in it,
+       which is most of what made the widget unreadable. A second explicit row
+       with no items in it collapses to nothing, so the layout with the chat off
+       is unchanged. */
+    grid-template-rows: minmax(190px, 1fr) auto;
+  }
+  /* With a chat that has something in it, the two right-hand cards SHARE the
+     height. With `auto` alone the list took every spare pixel and the chat was
+     pushed against the bottom edge, so a three-channel list left a tall hole in
+     the middle of the column and the two cards read as unrelated things stranded
+     at opposite ends. The `auto` row above is still what the empty case wants,
+     which is why this is a separate rule rather than a change to that one. */
+  .tww-cards:has(> .tww-card--chat:not([data-system-card-hidden="true"]):not(.is-empty)) {
+    grid-template-rows: minmax(150px, 1fr) minmax(150px, 1.05fr);
+  }
+  .tww-card--player { grid-column: 1; grid-row: 1 / -1; }
+  .tww-card--library { grid-column: 2; grid-row: 1; min-height: 0; }
+  .tww-card--chat { grid-column: 2; grid-row: 2; min-height: 190px; }
+  .tww-card--chat.is-empty { min-height: 0; }
+  /* The list switched off in the layout editor: the picture takes the whole
+     width instead of leaving an empty column beside it. */
+  .tww-cards:has(> .tww-card--library[data-system-card-hidden="true"]):has(> .tww-card--chat[data-system-card-hidden="true"]) .tww-card--player { grid-column: 1 / -1; }
+  .tww-cards:has(> .tww-card--player[data-system-card-hidden="true"]) .tww-card--library,
+  .tww-cards:has(> .tww-card--player[data-system-card-hidden="true"]) .tww-card--chat { grid-column: 1 / -1; }
+  /* Chat on, list off: the chat takes the whole right column instead of sitting
+     in the second row with an empty box above it. */
+  .tww-cards:has(> .tww-card--library[data-system-card-hidden="true"]) .tww-card--chat { grid-row: 1 / -1; }
+}
+
+/* On a very wide strip the picture cannot use the width it is given: a 16:9 box
+   in a 640px-tall column tops out around 1130px across, so on the Xeneon Edge the
+   player column was about 1270 wide with 420 of that permanently blank either
+   side of the video, while the list next to it wrapped every channel title onto
+   two lines in 360px. The width has to go somewhere, so past 1400px it goes to
+   the list, where it turns into readable titles instead of empty tile. */
+@container tww (min-width: 1400px) and (max-height: 760px) {
+  .tww-cards { grid-template-columns: minmax(0, 1fr) minmax(320px, min(42%, 620px)); }
+}
+
+@media (hover: none) {
+  .tww-row-play { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tww-row, .tww-row-play, .tww-tab, .tww-ib { transition: none; }
+}
+
+/* Emotes, drawn inline where their code was. Sized to the line rather than to
+   their own pixels: Twitch serves them at several scales and a 1.0 image next to
+   0.8rem text is otherwise a head taller than the line it sits in. */
+.tww-emote { height: 1.6em; width: auto; vertical-align: middle; margin: -0.2em 1px 0; }
+
+/* The emote picker, opening upward from the message box. Absolute rather than in
+   the flow: it must not push the chat log around every time it opens. */
+.tww-chat-emo { width: 34px; height: 34px; }
+.tww-emopick { display: none; }
+.tww-emopick.is-open {
+  display: flex; flex-wrap: wrap; gap: 2px; align-content: flex-start;
+  position: absolute; left: 0; right: 0; bottom: 74px; z-index: 3;
+  max-height: 190px; overflow-y: auto; overscroll-behavior: contain;
+  padding: 8px; border-radius: 12px;
+  background: rgba(10,10,14,0.96); border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.tww-emopick::-webkit-scrollbar { width: 6px; }
+.tww-emopick::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255,255,255,0.16); }
+.tww-emopick-item {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; padding: 0; cursor: pointer;
+  background: none; border: 0; border-radius: 8px;
+}
+.tww-emopick-item:hover { background: rgba(145,70,255,0.25); }
+.tww-emopick-item img { max-width: 28px; max-height: 28px; }
+.tww-emopick-note { padding: 6px 4px; font-size: 0.76rem; opacity: 0.7; }

@@ -1,0 +1,535 @@
+/* File transfer — the tile, and the full-screen sheet the phone dock opens.
+   Container queries rather than viewport media queries: this tile is 8 columns
+   on a desktop, the full width on a phone, and a narrow column inside a tab
+   group, and only the container knows which. */
+
+.transfer-panel .transfer-widget-mount {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 8px;
+}
+
+.xfer-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+/* The product's widget-header convention, not a style of this tile's own: the
+   News, Stock, Football and Claude widgets all set 15px/700 at -0.01em in full
+   text colour, with a small pill beside it for the number. A dim uppercase
+   label was out of step with every other tile on the same dashboard. */
+.xfer-title {
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  color: var(--text, #f0f3f1);
+}
+
+.xfer-usage {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: .7;
+  background: rgba(255, 255, 255, .07);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.xfer-usage[hidden] { display: none; }
+
+/* The whole body is the drop target, and it is a SURFACE rather than a
+   transparent region: the tile used to be two rows of text floating on the
+   wallpaper with nothing underneath, which reads as unfinished. A faint inset
+   panel gives the list a floor and gives the drop zone an edge to light up. */
+.xfer-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  transition: border-color .15s ease, background-color .15s ease;
+}
+
+.xfer-zone.is-hot {
+  border-color: rgba(var(--accent-rgb), .65);
+  background: rgba(var(--accent-rgb), .09);
+}
+
+/* Dragging over the tile lights the panel that is about to catch the file, so
+   the feedback lands where the eye already is. */
+.xfer-zone.is-hot .xfer-drop {
+  border-color: rgba(var(--accent-rgb), .8);
+  background: rgba(var(--accent-rgb), .1);
+}
+
+/* ── The drop panel: where files come in, by dragging or by picking ───────── */
+
+/* Always on screen, and it takes whatever height the list does not need — so a
+   tall tile has no dead region under the last row, and a tile with files in it
+   still says you can drop. The dashed edge is the one shape every desktop user
+   reads as a target without being told. */
+.xfer-drop {
+  flex: 1 1 auto;
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 255, 255, .15);
+  background: rgba(255, 255, 255, .015);
+  transition: border-color .15s ease, background-color .15s ease;
+}
+
+/* Capped so the pair of buttons stays a considered block instead of stretching
+   across an 800px tile. */
+.xfer-drop-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+}
+
+.xfer-drop-glyph {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, .05);
+  color: var(--text-dim, rgba(255, 255, 255, .45));
+}
+
+.xfer-drop-glyph svg { width: 16px; height: 16px; }
+
+.xfer-drop-text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted, rgba(255, 255, 255, .55));
+}
+
+/* With a list above it the panel is an invitation, not an announcement: the
+   glyph goes and the hint shrinks to one quiet line, leaving the buttons. */
+.xfer-drop.is-compact { min-height: 0; }
+.xfer-drop.is-compact .xfer-drop-glyph { display: none; }
+.xfer-drop.is-compact .xfer-drop-inner { gap: 8px; }
+.xfer-drop.is-compact .xfer-drop-text { font-size: 11.5px; opacity: .85; }
+
+.xfer-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.xfer-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  /* 40px keeps a comfortable thumb target while letting the list, which is what
+     the tile is for, keep the room. The 44px version was taller than a row. */
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  background: rgba(255, 255, 255, .045);
+  color: inherit;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+
+.xfer-btn-ic { flex: 0 0 auto; line-height: 0; }
+.xfer-btn-ic svg { width: 15px; height: 15px; }
+.xfer-btn-label { overflow: hidden; text-overflow: ellipsis; }
+
+.xfer-btn:hover {
+  background: rgba(255, 255, 255, .08);
+  border-color: rgba(255, 255, 255, .18);
+}
+
+/* One of the two carries the accent, and it is the one people came for. Both
+   tinted the same made the pair read as a segmented control with no default. */
+.xfer-btn-primary {
+  background: rgba(var(--accent-rgb), .14);
+  border-color: rgba(var(--accent-rgb), .38);
+  color: var(--accent, #1ed760);
+}
+
+.xfer-btn-primary:hover {
+  background: rgba(var(--accent-rgb), .22);
+  border-color: rgba(var(--accent-rgb), .55);
+}
+
+/* The file inputs are driven by the two buttons above and must never be seen,
+   but must stay focusable-by-click — display:none would stop .click() firing
+   in some engines. */
+.xfer-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Any class here that sets `display` must restate the browser's own
+   `[hidden] { display: none }`: that rule lives in the UA stylesheet, so ANY
+   author rule beats it. It has already cost one bug in this file — an empty
+   state that stayed on screen above a list full of files, at flex:1, eating
+   most of the tile, while the code that hid it was correct. */
+
+/* The list takes the height it needs and gives the rest to the drop panel,
+   rather than claiming everything and leaving a blank region under the last
+   row. Past the available height it shrinks and scrolls, so a long list wins
+   the space back. */
+.xfer-list {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;      /* the page body must never scroll sideways */
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.xfer-list:empty { display: none; }
+
+.xfer-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 6px 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .035);
+  border: 1px solid transparent;
+  min-width: 0;
+  transition: background-color .14s ease, border-color .14s ease;
+}
+
+.xfer-row:hover {
+  background: rgba(255, 255, 255, .07);
+  border-color: rgba(255, 255, 255, .09);
+}
+
+.xfer-row.is-pending {
+  background: rgba(var(--accent-rgb), .09);
+  border-color: rgba(var(--accent-rgb), .2);
+}
+
+/* The thumbnail and the direction mark are one object: the badge is positioned
+   against this, so it cannot be clipped by the thumbnail's own overflow. */
+.xfer-shot {
+  position: relative;
+  flex: 0 0 auto;
+  line-height: 0;
+}
+
+.xfer-thumb {
+  /* Also used bare by a pending row, which has no .xfer-shot wrapper to hold
+     its size, so it carries its own flex basis. */
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border-radius: 9px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, .28);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .07);
+}
+
+.xfer-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.xfer-thumb svg { width: 18px; height: 18px; opacity: .55; }
+
+.xfer-ext {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  color: var(--text-dim, rgba(255, 255, 255, .5));
+}
+
+/* Which way this file went. An arrow the eye catches while scanning, instead of
+   "da iPhone" arriving last in the dimmest text of the row. */
+.xfer-dir {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  /* The ring is the panel colour, so the badge reads as sitting ON the
+     thumbnail rather than overlapping it. */
+  box-shadow: 0 0 0 2px var(--panel, #14161a);
+}
+
+.xfer-dir svg { width: 9px; height: 9px; stroke-width: 3; }
+.xfer-dir.is-in { background: rgba(var(--accent-rgb), .9); color: #06120b; }
+.xfer-dir.is-out { background: rgba(255, 255, 255, .82); color: #10141a; }
+
+.xfer-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Filenames come off the network and off other people's devices. One line,
+   never wrapping the row into two, full text in the title attribute. */
+.xfer-name {
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xfer-meta {
+  font-size: 10.5px;
+  color: var(--text-dim, rgba(255, 255, 255, .42));
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xfer-bad { color: var(--danger, #ff6b6b); opacity: .95; }
+
+.xfer-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, .1);
+  overflow: hidden;
+  margin-top: 3px;
+}
+
+.xfer-bar-fill {
+  height: 100%;
+  background: rgb(var(--accent-rgb));
+  /* Width only, and short: this element is repainted several times a second
+     during an upload, so anything expensive here runs the whole time. */
+  transition: width .2s linear;
+}
+
+.xfer-row-acts {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 1px;
+}
+
+.xfer-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: .5;
+  text-decoration: none;
+  transition: opacity .14s ease, background-color .14s ease;
+}
+
+.xfer-icon:hover { opacity: 1; background: rgba(255, 255, 255, .09); }
+.xfer-icon:focus-visible { opacity: 1; outline: 2px solid rgba(var(--accent-rgb), .6); outline-offset: -2px; }
+.xfer-icon svg { width: 15px; height: 15px; }
+.xfer-icon-primary { opacity: .95; color: rgb(var(--accent-rgb)); }
+
+/* Three icons at full strength on every row pulled the eye to the controls
+   instead of to the files, so they are dimmed. They are NOT hidden until hover,
+   and that is a decision about this product rather than a matter of taste: the
+   Xeneon Edge is a touchscreen attached to a PC that also has a mouse, so
+   `@media (hover: hover)` is TRUE there — the primary pointer is the mouse —
+   while the finger on the panel can never produce a hover. Gating them that way
+   would have left the Edge, the surface Xenon was built for, with three
+   invisible buttons. Dim plus a hover lift gets the same calm row and costs
+   nothing on a screen that cannot hover. */
+.xfer-row:hover .xfer-icon { opacity: .75; }
+.xfer-row:hover .xfer-icon:hover { opacity: 1; }
+
+.xfer-btn-retry {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 11.5px;
+}
+
+/* A refusal, appended into the zone (a dropped folder) or into a row. It is a
+   real line in a column now, not a wrapped item in the old actions row, so the
+   `flex-basis: 100%` it used to carry is gone rather than left as decoration. */
+.xfer-note {
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 4px 2px 0;
+  color: var(--text-muted, rgba(255, 255, 255, .6));
+}
+
+/* Narrow tile: the two pickers stack rather than becoming two half-words, and
+   the hint gives up a point so it stays one or two lines. */
+@container (max-width: 320px) {
+  .xfer-actions { flex-direction: column; }
+  .xfer-drop-text { font-size: 11px; }
+  .xfer-meta { font-size: 10px; }
+}
+
+/* ── the phone sheet ─────────────────────────────────────────────────────── */
+
+.xfer-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(0, 0, 0, .55);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.xfer-sheet {
+  width: min(560px, 100%);
+  max-height: min(88vh, 720px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px calc(14px + env(safe-area-inset-bottom, 0px));
+  border-radius: 18px 18px 0 0;
+  background: var(--panel, #14161a);
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, .12));
+  border-bottom: 0;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, .45);
+}
+
+.xfer-sheet .transfer-widget-mount {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* The sheet already has its own title bar. */
+.xfer-sheet .xfer-head { display: none; }
+
+.xfer-sheet-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.xfer-sheet-title { font-size: 15px; font-weight: 600; }
+
+.xfer-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 2px;
+  border-top: 1px solid var(--panel-border, rgba(255, 255, 255, .08));
+}
+
+/* Each of these is a boundary stated where it would otherwise be discovered,
+   so they are readable rather than fine print. */
+.xfer-note-line {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  opacity: .7;
+}
+
+@media (min-width: 700px) {
+  .xfer-sheet-backdrop { align-items: center; }
+  .xfer-sheet { border-radius: 18px; border-bottom: 1px solid var(--panel-border, rgba(255, 255, 255, .12)); }
+}
+
+/* Nothing paints under a frosted overlay. */
+body.overlay-frozen .xfer-bar-fill { transition: none; }
+
+/* ── Settings → Controllo Remoto ─────────────────────────────────────────── */
+/* This block mounts directly under the paired-device list and borrows its
+   markup: .ra-page for the column, .ra-toggle-row for every switch, .ra-btn
+   for every button. Only what has no counterpart there is styled here (the
+   folder field and its status line), so the two panels cannot drift into
+   looking like two different products in one scroll.
+
+   The separator sits on the wrapper, but the padding does NOT: .ra-page brings
+   its own, plus the 560px column that keeps the text from running the full
+   width of a 4K settings pane. */
+
+#settings-transfer {
+  margin-top: 18px;
+  padding-top: 4px;
+  border-top: 1px solid var(--panel-border, rgba(255, 255, 255, .08));
+}
+
+.xfer-page { gap: 10px; }
+
+.xfer-set-group { display: flex; flex-direction: column; gap: 8px; }
+
+.xfer-set-field { display: flex; flex-direction: column; gap: 8px; padding: 0 2px; }
+
+/* A real path: monospace because the difference between two of them is often
+   one character, and full-width because it can be long and must never push the
+   panel sideways. */
+.xfer-set-input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 11px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  font: 0.78rem/1.4 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+.xfer-set-input:focus {
+  outline: none;
+  border-color: rgba(var(--accent-rgb), 0.55);
+}
+
+.xfer-set-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Reserves its line whether or not there is a message, so confirming a save
+   does not nudge everything below it down. */
+.xfer-set-status {
+  font-size: 0.76rem;
+  line-height: 1.4;
+  min-height: 1.1em;
+  color: var(--text-muted, rgba(255, 255, 255, 0.55));
+}
+.xfer-set-status.is-ok { color: var(--accent, #1ed760); }
+.xfer-set-status.is-bad { color: #ff6b6b; }
+
+.xfer-set-foot { margin-top: 2px; }

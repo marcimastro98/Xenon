@@ -27,8 +27,8 @@
     "resources": ["windows/xenon-bootstrap.ps1"],
     "publisher": "Marcello Mastroeni (marcimastro98)",
     "category": "Utility",
-    "shortDescription": "Xenon kiosk for the CORSAIR Xeneon Edge",
-    "longDescription": "Native full-screen Xenon dashboard for the CORSAIR Xeneon Edge display. Renders the same UI as the browser and the iCUE iframe, served by the local Xenon backend service on 127.0.0.1:3030.",
+    "shortDescription": "Xenon dashboard, full-screen on a second screen",
+    "longDescription": "Native full-screen Xenon dashboard for whichever screen you give it: a second monitor, a touchscreen, or a CORSAIR Xeneon Edge. Renders the same UI as the browser and the iCUE iframe, served by the local Xenon backend service on 127.0.0.1:3030.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

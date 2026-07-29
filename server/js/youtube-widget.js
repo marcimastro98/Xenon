@@ -1,27 +1,26 @@
 'use strict';
-// YouTube dashboard widget. Two halves in one tile:
-//   • viewer mode — a real player (official YouTube embed) plus a library you can
-//     browse: liked videos, your playlists, the latest uploads from the channels
-//     you follow, and search. Tap a video and it plays in the tile; the rest of
-//     the list becomes the queue, so it advances on its own.
-//   • creator mode — the live status card (viewers, health, editable title) and
-//     the Go live / End stream button.
-// Four sections (player / library / info / actions) tagged as dashboard cards, so
-// each one hides and reorders like a System card: a streamer can switch the
-// player off, a viewer can switch the broadcast cards off.
+// YouTube dashboard widget — watching. A real player (the official YouTube embed)
+// plus a library to browse: liked videos, your playlists, the latest uploads from
+// the channels you follow, and search. Tap a video and it plays in the tile; the
+// rest of the list becomes the queue, so it advances on its own. Two sections
+// (player / library) tagged as dashboard cards, so each hides and reorders like a
+// System card.
+//
+// Broadcasting lives in its own widget now (js/youtubelive-widget.js): going live,
+// the viewer count and the live chat have nothing to do with watching, and half a
+// tile of streaming controls on a viewer's dashboard was the complaint that split
+// them. Both read the same connected account, so nothing extra is set up.
 //
 // PLAYBACK: the embed is driven with its own postMessage protocol rather than by
 // loading YouTube's iframe_api script into the dashboard's origin — the commands
 // are identical and no third-party code runs on our page. Messages are accepted
 // only from the embed origin and only from our own frame.
 //
-// QUOTA: status polls slowly and only while a tile is on the visible page; the
-// library lists load on demand (the server caches them) and search runs only when
-// the user presses it.
+// QUOTA: the connection check is free (it reads our own token store); the library
+// lists load on demand and the server caches them, and search runs only when the
+// user presses it.
 (function () {
   const ICONS = {
-    golive: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4"/></svg>',
-    stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
     logo: '<svg viewBox="0 0 90 64" fill="none"><rect width="90" height="64" rx="18" fill="#ff0000"/><path d="M36 46V18l24 14z" fill="#0b0d10"/></svg>',
     play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
     pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>',
@@ -39,7 +38,6 @@
     subs: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M6 3h12"/><path d="M11 11l4 2.5-4 2.5z" fill="currentColor" stroke="none"/></svg>',
     list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h11M4 12h11M4 17h7"/><path d="M18 11v8"/><path d="M18 11l3-1v8" fill="none"/></svg>',
   };
-  const HEALTH_KEY = { good: 'youtube_health_good', ok: 'youtube_health_ok', bad: 'youtube_health_bad', noData: 'youtube_health_nodata' };
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
   const el = makeEl; // shared DOM factory from utils.js
   // Only tiles actually placed on a dashboard page count. A hidden / never-added
@@ -50,7 +48,6 @@
   const api = apiJson; // shared fetch-JSON helper from utils.js
 
   let poll = null;
-  let last = null;          // broadcastStatus result
   let connected = null;     // null=unknown
   const POLL_MS = 30000;    // slow on purpose (YouTube Data API quota)
 
@@ -87,27 +84,18 @@
     expanded: false,
     blocked: false,     // the uploader refuses embedding — offer the browser instead
     hello: null,
+    idle: false, idleT: null,   // full-screen controls faded out (see armIdle)
   };
   const cur = () => (player.qi >= 0 ? player.queue[player.qi] : null) || null;
 
-  const ERR_KEY = { no_broadcast: 'youtube_err_no_broadcast', not_connected: 'youtube_err_not_connected' };
   function showActionErr(btn, reason) {
     const card = btn.closest('.yt-card');
     if (!card) return;
     let n = card.querySelector('.yt-err');
     if (!n) { n = el('div', 'yt-err'); card.appendChild(n); }
-    n.textContent = t(ERR_KEY[reason] || 'youtube_err_generic', 'Action failed');
+    n.textContent = t(reason === 'not_connected' ? 'youtube_err_not_connected' : 'youtube_err_generic', 'Action failed');
     n.style.display = '';
     clearTimeout(n._tm); n._tm = setTimeout(() => { n.style.display = 'none'; }, 6000);
-  }
-
-  async function runAction(btn, action) {
-    btn.disabled = true; btn.classList.remove('ok', 'err');
-    const r = await api('/actions/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(action) });
-    const ok = !!(r && r.ok);
-    btn.classList.add(ok ? 'ok' : 'err');
-    if (!ok) showActionErr(btn, r && r.error);
-    setTimeout(() => { btn.classList.remove('ok', 'err'); btn.disabled = false; }, 1400);
   }
 
   function fmtTime(sec) {
@@ -166,10 +154,7 @@
     if (player.hello) { clearInterval(player.hello); player.hello = null; }
     const info = d.info;
     if (d.event === 'onStateChange') {
-      player.state = Number(info);
-      if (player.state === 1) player.blocked = false;
-      if (player.state === 0) { playNext(); return; }
-      paintPlayer();
+      applyState(Number(info));
     } else if (d.event === 'onError') {
       // 101 / 150 = the uploader disabled embedding. Nothing to retry: offer the
       // browser instead of leaving a dead black rectangle.
@@ -180,11 +165,37 @@
         if (typeof info.currentTime === 'number') player.time = info.currentTime;
         if (typeof info.duration === 'number' && info.duration > 0) player.duration = info.duration;
         if (typeof info.muted === 'boolean') player.muted = info.muted;
-        if (typeof info.playerState === 'number') player.state = info.playerState;
-        paintPlayer();
+        if (typeof info.playerState === 'number') applyState(info.playerState);
+        else paintPlayer();
       }
     }
   });
+
+  // The embed reports its state inside infoDelivery, not as a separate
+  // onStateChange event: measured against a real video, playing through to the
+  // end produced thirty infoDelivery messages and zero onStateChange, so an
+  // auto-advance that waited for the event name never fired once. Both routes
+  // land here instead, and what matters is the TRANSITION — infoDelivery repeats
+  // several times a second, so acting on the value would run the whole queue out
+  // in a moment.
+  let lastAdvance = 0;
+  function applyState(next) {
+    if (!Number.isFinite(next)) return;
+    const prev = player.state;
+    if (next === prev) return;
+    player.state = next;
+    if (next === 1) player.blocked = false;
+    // Pausing brings the controls back and keeps them; starting to play begins
+    // the countdown to hiding them again.
+    if (player.expanded) wakeControls();
+    if (next === 0) {
+      // A video that has just been swapped in can still report the previous one's
+      // ended state for a moment; without this the queue would skip a video.
+      const now = Date.now();
+      if (now - lastAdvance > 1500) { lastAdvance = now; playNext(); return; }
+    }
+    paintPlayer();
+  }
 
   function destroyFrame() {
     clearInterval(player.hello); player.hello = null;
@@ -197,8 +208,13 @@
     const f = document.createElement('iframe');
     f.className = 'yt-frame';
     f.title = 'YouTube';
-    f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
-    f.setAttribute('allowfullscreen', '');
+    // No fullscreen permission, deliberately. The embed has a fullscreen button of
+    // its own, and on the kiosk the browser's fullscreen is the thing that breaks:
+    // leaving it tears the video down and hands back a window the Windows taskbar
+    // then sits on top of, until Xenon is restarted. Withholding the permission is
+    // what makes YouTube hide that button, so there is one way to enlarge the
+    // player and it is ours — an overlay that never touches the app's window.
+    f.allow = 'autoplay; encrypted-media; picture-in-picture';
     f.referrerPolicy = 'strict-origin-when-cross-origin';
     const p = new URLSearchParams({
       enablejsapi: '1', autoplay: '1', rel: '0', playsinline: '1',
@@ -267,10 +283,51 @@
     player.expanded = !!on;
     document.body.classList.toggle('yt-expanded', player.expanded);
     tiles().forEach(tile => tile.classList.toggle('yt-tile-expanded', player.expanded));
+    // Deliberately NOT the Fullscreen API. Asking the browser for real fullscreen
+    // did solve the paint order in one line, and on the kiosk it cost far more
+    // than it bought: leaving fullscreen tore the video down and handed the
+    // window back in a state where the Windows taskbar sat on top of the
+    // dashboard until Xenon was restarted. The overlay below covers the whole
+    // viewport by itself — the stacking contexts that were painting over it are
+    // lifted in CSS for as long as this class is on the body — and it never takes
+    // the app's own window out of the state the kiosk put it in.
+    if (player.expanded) wakeControls(); else clearIdle();
     paintPlayer();
   }
   // Escape leaves the big player without hunting for the button on a touchscreen.
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && player.expanded) setExpanded(false); });
+
+  // ── Idle controls at full screen ──────────────────────────────────────────
+  // The controls fade out while a video plays and come back on the first touch.
+  // The catcher is what makes "the first touch" possible at all: the embed is a
+  // cross-origin iframe, so a finger moving over the picture raises no event this
+  // document can see. It sits over the video ONLY while the controls are hidden —
+  // the tap that wakes them is swallowed, and once they are up it stops taking
+  // input, so YouTube's own captions and quality menus stay reachable.
+  const IDLE_MS = 3500;
+  function clearIdle() {
+    clearTimeout(player.idleT); player.idleT = null;
+    player.idle = false;
+    document.querySelectorAll('.yt-card--player').forEach(c => c.classList.remove('is-idle'));
+  }
+  function armIdle() {
+    clearTimeout(player.idleT);
+    // Only while something is actually playing: hiding the controls over a paused
+    // or stopped picture leaves a screen with nothing on it and no hint that a
+    // touch brings anything back.
+    if (!player.expanded || player.state !== 1) return;
+    player.idleT = setTimeout(() => {
+      player.idleT = null; player.idle = true;
+      document.querySelectorAll('.yt-card--player.is-expanded').forEach(c => c.classList.add('is-idle'));
+    }, IDLE_MS);
+  }
+  function wakeControls() {
+    if (player.idle) {
+      player.idle = false;
+      document.querySelectorAll('.yt-card--player').forEach(c => c.classList.remove('is-idle'));
+    }
+    armIdle();
+  }
 
   // ── Library loading ───────────────────────────────────────────────────────
   const LIB_PATH = { liked: '/stream/youtube/liked', playlists: '/stream/youtube/playlists', subs: '/stream/youtube/subscriptions' };
@@ -321,12 +378,11 @@
     const head = el('div', 'yt-head');
     const brand = el('div', 'yt-brand');
     brand.append(el('span', 'yt-logo', 'YouTube'));
-    const pill = el('span', 'yt-pill'); pill.append(el('span', 'yt-pill-dot'), el('span', 'yt-pill-txt'));
-    head.append(brand, pill);
+    head.append(brand);
     wrap.appendChild(head);
 
     const cards = el('div', 'yt-cards');
-    cards.append(buildPlayerCard(), buildLibraryCard(), buildInfoCard(), buildActionsCard());
+    cards.append(buildPlayerCard(), buildLibraryCard());
     wrap.appendChild(cards);
     mount.replaceChildren(wrap);
   }
@@ -342,9 +398,23 @@
   function buildPlayerCard() {
     const card = el('section', 'yt-card yt-card--player');
     card.dataset.systemCard = 'player'; card.dataset.systemCardGroup = 'youtube';
+    // The stage sits inside a wrapper that owns the available height: sizing the
+    // video off the tile's WIDTH alone made a 16:9 box tall enough to push the
+    // library (the only way to pick a video) past the bottom of the tile.
+    const stageWrap = el('div', 'yt-stage-wrap');
+    const fit = el('div', 'yt-stage-fit');
     const stage = el('div', 'yt-player-stage');
-    stage.appendChild(el('div', 'yt-player-empty', t('youtube_player_empty', 'Pick a video to start')));
-    card.appendChild(stage);
+    stage.appendChild(el('div', 'yt-player-empty', t('youtube_player_empty', 'Pick a video from the list below')));
+    fit.appendChild(stage); stageWrap.appendChild(fit);
+    card.appendChild(stageWrap);
+    // Above the video, below the controls. Only takes input while the controls
+    // are hidden — see armIdle for why it has to exist at all.
+    const catcher = el('div', 'yt-idlecatch');
+    catcher.addEventListener('pointerdown', (e) => { e.stopPropagation(); wakeControls(); });
+    card.appendChild(catcher);
+    // Anywhere else on the card — the control strip, the bands beside a 16:9
+    // picture — a move or a tap is enough.
+    ['pointermove', 'pointerdown'].forEach(ev => card.addEventListener(ev, () => { if (player.expanded) wakeControls(); }));
 
     const now = el('div', 'yt-now');
     now.append(el('div', 'yt-now-title'), el('div', 'yt-now-sub'));
@@ -434,23 +504,6 @@
     return card;
   }
 
-  function buildInfoCard() {
-    const info = el('section', 'yt-card yt-card--info');
-    info.dataset.systemCard = 'info'; info.dataset.systemCardGroup = 'youtube';
-    return info;
-  }
-
-  function buildActionsCard() {
-    const actions = el('section', 'yt-card yt-card--actions');
-    actions.dataset.systemCard = 'actions'; actions.dataset.systemCardGroup = 'youtube';
-    actions.appendChild(el('div', 'yt-card-label', t('layout_card_actions', 'Actions')));
-    const go = el('button', 'yt-btn yt-golive');
-    go.append(el('span', 'yt-btn-ico'), el('span', 'yt-btn-lbl'));
-    go.addEventListener('click', () => runAction(go, { type: 'ytBroadcast', mode: 'toggle' }));
-    actions.appendChild(go);
-    return actions;
-  }
-
   // ── Rows ──────────────────────────────────────────────────────────────────
   function videoRow(v, index, list) {
     const b = el('button', 'yt-row'); b.type = 'button';
@@ -513,7 +566,10 @@
       const card = mount.querySelector('.yt-card--player');
       if (!card) return;
       const editing = document.body.classList.contains('layout-editing');
-      card.style.display = (connected || editing) ? '' : 'none';
+      // Unknown is not the same as disconnected: hiding on both is what made the
+      // tile render as an empty box before the first answer came back. Only a
+      // definite "no account" takes the player away.
+      card.style.display = (connected !== false || editing) ? '' : 'none';
       const stage = card.querySelector('.yt-player-stage');
       const owns = !!(player.frame && player.stage === stage);
       const empty = stage.querySelector('.yt-player-empty');
@@ -555,7 +611,7 @@
       const card = mount.querySelector('.yt-card--library');
       if (!card) return;
       const editing = document.body.classList.contains('layout-editing');
-      card.style.display = (connected || editing) ? '' : 'none';
+      card.style.display = (connected !== false || editing) ? '' : 'none';
       card.querySelectorAll('.yt-tab').forEach(b => b.classList.toggle('is-on', b.dataset.ytTab === lib.tab));
       card.querySelector('.yt-search-row').style.display = (lib.tab === 'search' && !lib.openPl) ? '' : 'none';
       const crumb = card.querySelector('.yt-crumb');
@@ -570,7 +626,9 @@
         rows === null || rows === undefined ? 'n' : rows.map(r => r.id).join(',')].join('|');
       if (list.dataset.ytSig === sig) return;
       list.dataset.ytSig = sig;
-      if (connected !== true) { list.replaceChildren(); return; }
+      // Still waiting on the connection check: say so instead of leaving a blank
+      // panel that reads as a broken widget.
+      if (connected !== true) { list.replaceChildren(el('div', 'yt-list-note', t('browser_loading', 'Loading…'))); return; }
       if (lib.loading) { list.replaceChildren(el('div', 'yt-list-note', t('browser_loading', 'Loading…'))); return; }
       if (lib.error) { list.replaceChildren(el('div', 'yt-list-note yt-list-err', t('youtube_list_failed', 'Could not load this list.'))); return; }
 
@@ -596,55 +654,6 @@
     });
   }
 
-  // A title row that turns into an inline editor on click (saves on Enter/blur).
-  function buildTitle(text) {
-    const row = el('div', 'yt-title');
-    const span = el('span', 'yt-title-text', text);
-    span.title = t('youtube_edit_title', 'Click to edit the title');
-    span.addEventListener('click', () => {
-      const inp = document.createElement('input');
-      inp.type = 'text'; inp.className = 'yt-title-input'; inp.value = text; inp.maxLength = 100;
-      let done = false;
-      const commit = async (save) => {
-        if (done) return; done = true;
-        if (save && inp.value.trim() && inp.value.trim() !== text) {
-          await api('/stream/youtube/title', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: inp.value.trim() }) });
-          last = null;            // force a fresh status next poll
-        }
-        refresh();
-      };
-      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') commit(true); else if (e.key === 'Escape') commit(false); });
-      inp.addEventListener('blur', () => commit(true));
-      row.replaceChildren(inp); inp.focus(); inp.select();
-    });
-    row.appendChild(span);
-    return row;
-  }
-
-  function buildInfo(conn, live, st) {
-    const box = el('div', 'yt-info');
-    if (conn === false) { box.appendChild(el('div', 'yt-notice', t('youtube_not_connected', 'Connect in Settings'))); return box; }
-    if (live) {
-      const v = el('div', 'yt-viewers');
-      v.append(el('span', 'yt-viewers-num', String(st && st.viewers != null ? st.viewers : '—')), el('span', 'yt-viewers-label', t('twitch_viewers', 'viewers')));
-      box.appendChild(v);
-      // Total views · likes line.
-      const bits = [];
-      if (st && st.totalViews != null) bits.push(st.totalViews.toLocaleString() + ' ' + t('youtube_views', 'views'));
-      if (st && st.likes != null) bits.push(st.likes.toLocaleString() + ' ' + t('youtube_likes', 'likes'));
-      if (bits.length) box.appendChild(el('div', 'yt-stats', bits.join(' · ')));
-    }
-    // Title (editable) — shown whenever a broadcast exists. No big "Offline" text:
-    // the OFFLINE pill in the header already conveys the state.
-    if (st && st.title) box.appendChild(buildTitle(st.title));
-    if (st && st.health && HEALTH_KEY[st.health]) {
-      const h = el('div', 'yt-health yt-health-' + st.health);
-      h.append(el('span', 'yt-health-dot'), el('span', null, t('youtube_health', 'Stream') + ': ' + t(HEALTH_KEY[st.health], st.health)));
-      box.appendChild(h);
-    }
-    return box;
-  }
-
   // Labels are written into the DOM once at build time, but the language can
   // change under a widget that is mid-playback — and rebuilding to re-translate
   // would reload the iframe and restart the video. So the fixed labels are
@@ -657,47 +666,32 @@
     });
     const inp = mount.querySelector('.yt-search-input');
     if (inp) inp.placeholder = t('youtube_search_ph', 'Search on YouTube');
-    const lbl = mount.querySelector('.yt-card--actions .yt-card-label');
-    if (lbl) lbl.textContent = t('layout_card_actions', 'Actions');
   }
 
   function paint() {
-    const st = last, conn = connected;
-    const live = !!(st && st.ok && st.live);
-    eachMount(mount => {
-      relabel(mount);
-      const pill = mount.querySelector('.yt-pill');
-      pill.classList.toggle('live', live);
-      mount.querySelector('.yt-pill-txt').textContent = live ? 'LIVE' : t('youtube_offline', 'Offline');
-      // Info card: when offline with no broadcast there's nothing to show, so hide
-      // the whole card (no empty box) — except in layout-edit mode, where it stays
-      // visible so you can still hide/reorder it.
-      const info = mount.querySelector('.yt-card--info');
-      const body = buildInfo(conn, live, st);
-      const editing = document.body.classList.contains('layout-editing');
-      info.style.display = (body.childNodes.length || editing) ? '' : 'none';
-      info.replaceChildren(body);
-      // Actions: nothing to press until an account is connected.
-      const actions = mount.querySelector('.yt-card--actions');
-      actions.style.display = (conn === false && !editing) ? 'none' : '';
-      const go = mount.querySelector('.yt-golive');
-      go.classList.toggle('is-live', live);
-      go.querySelector('.yt-btn-ico').innerHTML = live ? ICONS.stop : ICONS.golive;   // static, trusted SVG
-      go.querySelector('.yt-btn-lbl').textContent = live ? t('twitch_endstream', 'End stream') : t('twitch_golive', 'Go live');
-    });
+    eachMount(mount => relabel(mount));
     paintPlayer();
     paintLibrary();
   }
 
   async function refresh() {
     if (!tiles().length) { stop(); return; }
-    if (document.hidden || !tiles().some(onVisiblePage)) return;
+    // "Is an account connected" reads our own token store and costs no YouTube
+    // quota, so it runs even when nobody is looking at the tile. It used to sit
+    // behind the visibility gate with everything else, and that gate is what left
+    // the widget with no idea what to draw: an empty box with a logo in it, for as
+    // long as the page stayed unseen. Everything below here does cost quota and
+    // stays gated.
     const s = await api('/stream/youtube/status');
     const was = connected;
     if (s) connected = !!s.connected;
+    const seen = !document.hidden && tiles().some(onVisiblePage);
     if (connected) {
-      const b = await api('/stream/youtube/broadcast'); if (b) last = b;
-      if (was !== true) loadTab(lib.tab);          // first connection: fill the open tab
+      // The open list loads ONCE and is what the tile is for, so it does not wait
+      // for the page to be judged visible. Keyed on the list being empty rather
+      // than on the connection having just come up, so a tab opened later fills
+      // too — and on `loading` so a slow read is not fired twice.
+      if (lib.tab !== 'search' && lib.data[lib.tab] === null && !lib.loading) loadTab(lib.tab);
     } else if (connected === false && was !== false) {
       // Signed out (possibly to sign a different account in): drop everything the
       // previous account put on screen.
@@ -707,7 +701,14 @@
     }
     paint();
   }
-  function stop() { if (poll) { clearInterval(poll); poll = null; } }
+  function stop() {
+    if (poll) { clearInterval(poll); poll = null; }
+    // Same reason as the Twitch watching widget: the tile's DOM is MOVED to the
+    // hidden widget pool rather than destroyed, and a display:none iframe keeps
+    // playing — so removing the widget mid-video left the audio running with
+    // nothing on screen left to stop it.
+    if (player.frame) stopPlayer();
+  }
 
   function renderWidgets() {
     if (!tiles().length) { stop(); return; }
@@ -715,5 +716,22 @@
     if (!poll) { refresh(); poll = setInterval(refresh, POLL_MS); }
   }
 
-  window.YouTubeWidget = { renderWidgets };
+  // ── SDK bridge ────────────────────────────────────────────────────────────
+  // Play a video in this tile on behalf of a widget the user granted `watch`.
+  // The id is re-validated against the same pattern the library rows use, because
+  // this is where it becomes part of an embed URL. It plays as a queue of one:
+  // the widget names a video, it does not get to load a playlist into the tile.
+  function playFromSdk(raw) {
+    const id = String(raw == null ? '' : raw).trim();
+    if (!VIDEO_ID_RE.test(id)) return { ok: false, error: 'bad_video' };
+    if (!tiles().length) return { ok: false, error: 'unavailable' };
+    const stage = document.querySelector('.yt-player-stage');
+    if (!stage) return { ok: false, error: 'unavailable' };
+    // Title left empty on purpose: nothing here knows it, and asking YouTube
+    // would spend quota on a caption the embed itself already draws.
+    playList([{ id, title: '', channel: '', seconds: 0 }], 0, stage);
+    return { ok: true };
+  }
+
+  window.YouTubeWidget = { renderWidgets, playFromSdk };
 })();

@@ -17,4 +17,8 @@
 //           widget is for.
 //   0.4.0 = lock (immediate screen lock). The CGSession binary server.js called
 //           no longer exists on macOS 26, so the Deck's lock key did nothing.
-let helperVersion = "0.4.0"
+//   0.5.0 = keys (send a key combination to the frontmost app, the macOS half of
+//           sendHotkey). `keys --check` is the capability probe and posts
+//           nothing, so the server can ask whether Accessibility is granted
+//           without typing into whatever the user has open.
+let helperVersion = "0.5.0"

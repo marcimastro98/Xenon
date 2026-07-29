@@ -19,13 +19,26 @@ const ACTION_CATALOG = [
   // The id is validated to digits-only in the server registry before use.
   { type: 'launchSteamGame', group: 'system', labelKey: 'deck_act_launchSteamGame', params: [{ name: 'gameId', kind: 'text' }] },
   { type: 'openUrl',  group: 'system', labelKey: 'deck_act_openUrl',  params: [{ name: 'url',  kind: 'url'  }] },
-  { type: 'hotkey',   group: 'system', requires: 'powershell', labelKey: 'deck_act_hotkey',   params: [{ name: 'keys', kind: 'text' }] },
+  // `keys`, not `powershell`: sending a combo is a CAPABILITY, and since v4.11.0
+  // it exists on macOS (helper `keys`) and on X11/ydotool Linux too. Spelling it
+  // `powershell` hid a working key on two platforms — the exact trap the
+  // collector-seam rule warns about.
+  { type: 'hotkey',   group: 'system', requires: 'keys', labelKey: 'deck_act_hotkey',   params: [{ name: 'keys', kind: 'text' }] },
   // Type a literal snippet into the app the user was last using (same focus
   // machinery as hotkey; KEYEVENTF_UNICODE so any character/emoji works).
   { type: 'typeText', group: 'system', requires: 'powershell', labelKey: 'deck_act_typeText', params: [{ name: 'text', kind: 'text' }] },
+  // The paired phone. `requires: 'phone'` names a CAPABILITY — "is there a
+  // phone this machine can dial through" — rather than an OS by proxy, so the
+  // key disappears where the answer is no instead of failing when pressed.
+  { type: 'phoneCall', group: 'system', requires: 'phone', labelKey: 'deck_act_phoneCall', params: [{ name: 'number', kind: 'text', maxLen: 40 }] },
+  { type: 'phoneMessage', group: 'system', requires: 'phone', labelKey: 'deck_act_phoneMessage', params: [{ name: 'number', kind: 'text', maxLen: 40 }, { name: 'text', kind: 'text', maxLen: 1000 }] },
   { type: 'lockWorkstation', group: 'system', labelKey: 'deck_act_lockWorkstation', params: [] },
   { type: 'webhook',  group: 'system', labelKey: 'deck_act_webhook',  params: [{ name: 'url', kind: 'url' }, { name: 'method', kind: 'select', options: ['GET', 'POST'] }, { name: 'body', kind: 'text' }] },
   { type: 'media',    group: 'media',  requires: 'media', labelKey: 'deck_act_media',    params: [{ name: 'cmd',  kind: 'select', options: ['playpause', 'next', 'previous'] }] },
+  // SDK-only absolute timeline seek. A separate hidden type keeps the Deck
+  // editor's ordinary transport control free of a position field while still
+  // routing widget actions and manifest macros through this shared validator.
+  { type: 'mediaSeek', group: 'media', requires: 'media', hidden: true, labelKey: 'deck_act_mediaSeek', params: [{ name: 'position', kind: 'text', maxLen: 32 }] },
   // Soundboard: its own picker category since sound packs made it a full
   // feature (v4.5.3). Group is picker taxonomy only — the action TYPE strings
   // are unchanged, so existing keys and shared profiles keep working.
@@ -131,7 +144,7 @@ const ACTION_CATALOG = [
   // approve — a Deck key starts work, it grants nothing. There is deliberately
   // no "approve the pending request" action: a fixed key that answers a prompt
   // without showing it removes the one step the approval flow exists for.
-  { type: 'claudeAsk',  group: 'claude', labelKey: 'deck_act_claudeAsk',  params: [{ name: 'projectId', kind: 'claudeProject' }, { name: 'prompt', kind: 'text', maxLen: 2000 }, { name: 'model', kind: 'text', optional: true, maxLen: 40 }] },
+  { type: 'claudeAsk',  group: 'claude', labelKey: 'deck_act_claudeAsk',  params: [{ name: 'projectId', kind: 'claudeProject' }, { name: 'prompt', kind: 'text', maxLen: 2000, labelKey: 'deck_param_claude_prompt' }, { name: 'model', kind: 'text', optional: true, maxLen: 40 }] },
   { type: 'claudeStop', group: 'claude', labelKey: 'deck_act_claudeStop', params: [] },
   { type: 'sdkMacro', group: 'sdk', labelKey: 'deck_act_sdkMacro', params: [{ name: 'macro', kind: 'sdkMacro' }] },
   // A handler action answered by the widget package's own code: `handler` is the

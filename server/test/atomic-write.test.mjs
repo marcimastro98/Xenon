@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 // serialized concurrent writers, temp-file cleanup, and the read-modify-write
 // path that fixed the OAuth token-store lost-update race.
 const require = createRequire(import.meta.url);
-const { writeFileAtomic, updateFileAtomic } = require(join(dirname(fileURLToPath(import.meta.url)), '..', 'atomic-write.js'));
+const { writeFileAtomic, updateFileAtomic, openAtomicWriteStream } = require(join(dirname(fileURLToPath(import.meta.url)), '..', 'atomic-write.js'));
 
 function freshDir() {
   return mkdtempSync(join(tmpdir(), 'xenon-atomic-'));
@@ -150,4 +150,74 @@ test('concurrent read-modify-write updates never lose each other (token-store ra
     assert.deepEqual(Object.keys(all).sort(), ['discord', 'spotify', 'twitch', 'youtube']);
     for (const k of Object.keys(all)) assert.equal(all[k].refreshToken, `rt-${k}`);
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+// ── openAtomicWriteStream ────────────────────────────────────────────────────
+// The streaming twin, added for the file-transfer upload: a 2 GB video cannot
+// be held in memory, but it still needs the guarantee the buffer version gives.
+// The failure it prevents is a half-received file that looks complete — the
+// list shows it, the phone offers it for download, and it is truncated.
+
+test('a streamed write is invisible until it is committed', async () => {
+  const dir = freshDir();
+  const dest = join(dir, 'video.bin');
+  const handle = await openAtomicWriteStream(dest);
+
+  handle.stream.write(Buffer.alloc(1024, 7));
+
+  assert.equal(fs.existsSync(dest), false,
+    'a partly written file must not exist under its real name — anything listing the '
+    + 'directory would offer a truncated file as a finished one');
+  assert.ok(readdirSync(dir).some((n) => n.endsWith('.part')),
+    'the temp must be recognisable as an in-flight upload without knowing which process wrote it');
+
+  await new Promise((r) => handle.stream.end(r));
+  await handle.commit();
+
+  assert.equal(readFileSync(dest).length, 1024);
+  assert.deepEqual(readdirSync(dir), ['video.bin'], 'the .part must be gone after a commit');
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('an aborted stream leaves neither the file nor its temp behind', async () => {
+  const dir = freshDir();
+  const dest = join(dir, 'dropped.bin');
+  const handle = await openAtomicWriteStream(dest);
+  handle.stream.write(Buffer.alloc(512, 3));
+
+  await handle.abort();
+
+  assert.equal(fs.existsSync(dest), false);
+  assert.deepEqual(readdirSync(dir), [],
+    'a phone that slept mid-upload must not leave half a video occupying disk');
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('commit and abort are each once, and never both', async () => {
+  const dir = freshDir();
+  const dest = join(dir, 'once.bin');
+  const handle = await openAtomicWriteStream(dest);
+  await new Promise((r) => handle.stream.end(Buffer.from('done'), r));
+  await handle.commit();
+  // The upload route aborts on every failure path, including one that can fire
+  // after a successful commit (a broadcast throwing). That must not delete the
+  // file that was just committed.
+  await handle.abort();
+  assert.equal(readFileSync(dest, 'utf8'), 'done',
+    'an abort after a successful commit deleted the committed file');
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('two streamed writes to different names do not serialize behind each other', async () => {
+  // Deliberately NOT on the per-path chain: a 2 GB upload holding the queue
+  // would stall settings, notes and deck saves for the whole transfer.
+  const dir = freshDir();
+  const a = await openAtomicWriteStream(join(dir, 'a.bin'));
+  const b = await openAtomicWriteStream(join(dir, 'b.bin'));
+  await new Promise((r) => a.stream.end(Buffer.from('aaa'), r));
+  await new Promise((r) => b.stream.end(Buffer.from('bbb'), r));
+  await Promise.all([a.commit(), b.commit()]);
+  assert.equal(readFileSync(join(dir, 'a.bin'), 'utf8'), 'aaa');
+  assert.equal(readFileSync(join(dir, 'b.bin'), 'utf8'), 'bbb');
+  rmSync(dir, { recursive: true, force: true });
 });

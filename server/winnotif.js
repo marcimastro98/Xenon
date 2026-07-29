@@ -38,6 +38,7 @@ const HELPER_EXE = path.join(__dirname, 'helper', 'xenon-helper.exe');
 let _isExcluded = () => false;
 let _onItem = null;
 let _onFeed = null;
+let _onPresent = null;
 
 let _proc = null;
 let _wanted = false;             // desired state from the last sync()
@@ -57,6 +58,7 @@ function init(deps) {
   if (deps && typeof deps.isExcluded === 'function') _isExcluded = deps.isExcluded;
   if (deps && typeof deps.onItem === 'function') _onItem = deps.onItem;
   if (deps && typeof deps.onFeed === 'function') _onFeed = deps.onFeed;
+  if (deps && typeof deps.onPresent === 'function') _onPresent = deps.onPresent;
 }
 
 // Server-side re-projection at the trust boundary: known keys only, length
@@ -68,6 +70,12 @@ function _project(raw) {
     ? r.icon : null;
   return {
     id: ++_seq,
+    // The CHILD's own id, kept alongside ours. Ours is the feed key (child ids
+    // reset every session, so they are unusable for that); this one is what the
+    // `present` event speaks, and it is the only way to tell that a particular
+    // toast has been removed from Action Center. Absent when the child is an
+    // older helper that does not report ids.
+    srcId: Number.isFinite(r.id) ? Math.floor(r.id) : null,
     app: String(r.app || '').slice(0, TEXT_MAX),
     aumid: String(r.aumid || '').slice(0, TEXT_MAX),
     title: String(r.title || '').slice(0, TEXT_MAX),
@@ -100,6 +108,15 @@ function _handleLine(line) {
     const items = Array.isArray(msg.items) ? msg.items : [];
     _items = items.map(_project).filter(it => !_excluded(it)).slice(0, FEED_MAX);
     _emitFeed();
+  } else if (msg.event === 'present') {
+    // Which toasts are still in Action Center. Only the incoming-call card cares:
+    // a ringing toast is transient, so its disappearance is the end of the ring.
+    // The feed itself is deliberately NOT pruned by this — the Notifications tile
+    // is a history of what arrived, not a mirror of what is still pending, and
+    // making rows vanish as Windows expires them would be a different feature.
+    if (!_onPresent) return;
+    const ids = Array.isArray(msg.ids) ? msg.ids.filter(n => Number.isFinite(n)) : [];
+    try { _onPresent(ids); } catch { /* listener errors never kill the watch */ }
   } else if (msg.event === 'notification') {
     const item = _project(msg.item);
     if (!item.app && !item.title && !item.body) return;   // no usable text → drop

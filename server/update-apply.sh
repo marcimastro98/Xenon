@@ -130,6 +130,16 @@ server_pids() {
   elif command -v ss >/dev/null 2>&1; then
     # ss is what a minimal Linux install has; lsof often is not there.
     ss -lptnH "sport = :$PORT" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u
+  else
+    # Neither tool present. This branch is not a nicety: an `if` with no matching
+    # branch exits 0 with no output, so without it stop_server killed nothing and
+    # the `[ -z "$(server_pids)" ] || die` guard passed vacuously — the swap ran
+    # over a LIVE server, wait_server_version then read the OLD version back from
+    # that same untouched process, and the update rolled back and verified the
+    # rollback against it. Every update failed with verify_failed, permanently.
+    # Matching the script path is what install.sh already does; our own pid and
+    # our parent's are excluded so the applier can never be told to kill itself.
+    pgrep -f "$SERVER_DIR/server.js" 2>/dev/null | grep -v -e "^$$\$" -e "^$PPID\$"
   fi
 }
 

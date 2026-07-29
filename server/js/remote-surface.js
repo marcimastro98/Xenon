@@ -81,5 +81,14 @@
   window.RemoteSurface = {
     isRemote: () => true,
     deviceName: () => String(info.device || ''),
+    /**
+     * The same explanation, for a caller the fetch wrapper cannot see.
+     * XMLHttpRequest is the only one today — the file upload uses it because
+     * fetch() has no upload-progress event — and without this its 403 would be
+     * the one refusal on this surface that goes unexplained. Exported rather
+     * than reimplemented so there is still exactly one copy of the message and
+     * one once-per-endpoint rule.
+     */
+    explainDenied,
   };
 })();

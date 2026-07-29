@@ -101,6 +101,53 @@ test('parseDisks: still collapses a genuinely repeated row', () => {
   assert.equal(lc.parseDisks(df).length, 1);
 });
 
+test('parseDisks: keeps udisks2 removable media under /run/media', () => {
+  // Fedora, RHEL, Arch, Manjaro and openSUSE auto-mount every USB stick, SD card
+  // and external drive there. Skipping the whole of /run dropped all of them —
+  // and made the `removable` test below unreachable dead code. Ubuntu and Debian
+  // never showed it because they use /media/<user>/… instead.
+  const df = [
+    'Filesystem Mounted-on Type 1B-blocks Used Avail',
+    '/dev/sda1 / ext4 100 40 60',
+    '/dev/sdb1 /run/media/marci/KINGSTON vfat 200 50 150',
+    'tmpfs /run/user/1000 tmpfs 100 0 100',
+  ].join('\n');
+  const drives = lc.parseDisks(df);
+  assert.deepEqual(drives.map((d) => d.drive), ['/', '/run/media/marci/KINGSTON']);
+  assert.equal(drives[1].driveType, 'Removable');
+  assert.equal(drives[1].label, 'KINGSTON');
+});
+
+test('parseDisks: a skip prefix only matches on a separator', () => {
+  // /devdata is a real volume, not part of /dev; likewise /mntbackup and /run…
+  const df = [
+    'Filesystem Mounted-on Type 1B-blocks Used Avail',
+    '/dev/sdc1 /devdata ext4 100 40 60',
+    '/dev/sdd1 /mntbackup ext4 100 40 60',
+    '/dev/sde1 /runner ext4 100 40 60',
+    '/dev/sdf1 /dev/shmx ext4 100 40 60',
+  ].join('\n');
+  assert.deepEqual(lc.parseDisks(df).map((d) => d.drive),
+    ['/devdata', '/mntbackup', '/runner']);
+});
+
+test('parseDisks: a mount point with spaces keeps its columns', () => {
+  // GNU df prints the mount point with its literal spaces, which shifted every
+  // column after it: Number(c[3]) was NaN and the row was dropped in silence.
+  const df = [
+    'Filesystem Mounted-on Type 1B-blocks Used Avail',
+    '/dev/sdb1 /media/marci/My Passport ext4 1000 400 600',
+  ].join('\n');
+  const [d] = lc.parseDisks(df);
+  assert.equal(d.drive, '/media/marci/My Passport');
+  assert.equal(d.total, 1000);
+  assert.equal(d.free, 600);
+  assert.equal(d.used, 400);
+  assert.equal(d.fileSystem, 'ext4');
+  assert.equal(d.driveType, 'Removable');
+  assert.equal(d.label, 'My Passport');
+});
+
 test('parseDisks: tolerates empty or header-only input', () => {
   assert.deepEqual(lc.parseDisks(''), []);
   assert.deepEqual(lc.parseDisks('Filesystem Mounted on Type 1B-blocks Used Avail'), []);
@@ -311,6 +358,17 @@ test('resolveTargets: no match returns empty so the caller can report failure', 
   assert.deepEqual(lc.resolveTargets(NODES, 'notrunning.exe'), []);
 });
 
+test('resolveTargets: an empty target matches NOTHING, never everything', () => {
+  // The app fallback ends in `.includes(name)`, and `''.includes('')` is true —
+  // so a blank target used to select every stream on the machine. Reachable via
+  // /audio/app/mute with proc="   " (or ".exe"), and via any svvExec fired
+  // before cachedSpeakerId was resolved. audioCommand turns [] into a thrown
+  // failure, which is the honest answer.
+  for (const blank of ['', '   ', '.exe', '.EXE', null, undefined]) {
+    assert.deepEqual(lc.resolveTargets(NODES, blank), [], JSON.stringify(blank));
+  }
+});
+
 // --- GPU --------------------------------------------------------------------
 
 test('parseGpu: converts MiB to bytes and keeps commas in the model name', () => {
@@ -458,4 +516,51 @@ test('parseHwmonFans: no hwmon at all is an empty list, never a throw', () => {
   assert.deepEqual(lc.parseHwmonFans([]), []);
   assert.deepEqual(lc.parseHwmonFans(null), []);
   assert.deepEqual(lc.parseHwmonFans([null, undefined]), []);
+});
+
+// ── Sending a key combination (the Linux half of sendHotkey) ───────────────
+// ydotool has no key-name parser: `key` takes CODE:STATE pairs and nothing
+// else, so the evdev table and the press/release ordering are the whole
+// correctness of that path. It cannot be exercised on any other platform, and
+// getting the release order wrong leaves a modifier stuck DOWN system-wide,
+// which is a far worse failure than the shortcut simply not arriving.
+
+test('ydotoolArgs presses in order and releases in reverse', () => {
+  assert.deepEqual(lc.ydotoolArgs('ctrl+shift+s'),
+    ['29:1', '42:1', '31:1', '31:0', '42:0', '29:0']);
+});
+
+test('ydotoolArgs maps every modifier spelling the action registry accepts', () => {
+  // The registry canonicalises to these tokens, and macOS combos reach a Linux
+  // box through a shared settings blob, so `cmd` has to mean something here.
+  assert.deepEqual(lc.ydotoolArgs('cmd+shift+d'), ['125:1', '42:1', '32:1', '32:0', '42:0', '125:0']);
+  assert.deepEqual(lc.ydotoolArgs('control+a'), ['29:1', '30:1', '30:0', '29:0']);
+  assert.deepEqual(lc.ydotoolArgs('alt+f4'), ['56:1', '62:1', '62:0', '56:0']);
+  assert.deepEqual(lc.ydotoolArgs('win+enter'), ['125:1', '28:1', '28:0', '125:0']);
+});
+
+test('ydotoolArgs is case-insensitive and tolerates spacing', () => {
+  assert.deepEqual(lc.ydotoolArgs('Ctrl + Shift + S'), lc.ydotoolArgs('ctrl+shift+s'));
+});
+
+test('ydotoolArgs refuses a combo whole rather than sending part of it', () => {
+  // A partial press is the dangerous outcome: the modifier goes down and the
+  // key it was meant for never arrives, so nothing releases it.
+  for (const bad of ['ctrl+nope', 'ctrl+', '', null, undefined, 'ctrl+shift+«']) {
+    assert.equal(lc.ydotoolArgs(bad), null, JSON.stringify(bad) + ' must be refused');
+  }
+});
+
+test('every ydotool code is a plausible evdev keycode', () => {
+  // A typo in the table produces a valid-looking arg list that presses the
+  // wrong key, which no other assertion here would catch.
+  const seen = new Map();
+  for (const combo of ['ctrl+a', 'shift+b', 'alt+c', 'win+d', 'ctrl+f1', 'ctrl+f12', 'ctrl+0', 'ctrl+9']) {
+    for (const arg of lc.ydotoolArgs(combo)) {
+      const code = Number(arg.split(':')[0]);
+      assert.ok(Number.isInteger(code) && code > 0 && code < 256, combo + ' → ' + arg);
+      seen.set(code, true);
+    }
+  }
+  assert.ok(seen.size >= 8);
 });

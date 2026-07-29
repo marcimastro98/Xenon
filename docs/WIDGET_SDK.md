@@ -20,7 +20,7 @@ permissions before it renders.
 After editing a widget's files, use the tile's **Reload** button (↻ in the tile
 header) — or **Rescan** — to reload the changed files. Each reload cache-busts the
 widget's assets, so the edit shows up even on a surface you can't hard-refresh
-(e.g. the Xeneon Edge panel); reload on each surface you want updated.
+(e.g. a touchscreen you cannot reach a keyboard on); reload on each surface you want updated.
 
 A package folder looks like:
 
@@ -60,6 +60,7 @@ not need to do anything to support it.
   "storage": true,
   "storageGroup": "my-widget-set",
   "secrets": true,
+  "shape": { "preset": "hexagon" },
   "deck": {
     "actions": [
       { "id": "quiet", "name": "Quiet mode",
@@ -80,9 +81,9 @@ not need to do anything to support it.
 | `name` | yes | ≤ 60 chars. |
 | `version`, `author`, `description` | no | Shown to the user (description ≤ 200 chars). |
 | `entry` | no | HTML entry document, defaults to `index.html`. Must live in the package root. |
-| `streams` | no | Data streams you request: `status`, `system`, `media`, `audio`, `audioLevels`, `wavelink`, `stocks`, `football`, `news`, `claude`, `obs`, `discord`, `discordChannels`, `discordSoundboard`, `discordNotifications`, `streamerbot`, `homeassistant`, `tasks`, `notes`, `agenda`, `weather`, `battery`. See *Hardware sensors* for fans/power/battery. |
+| `streams` | no | Data streams you request: `status`, `system`, `media`, `audio`, `audioLevels`, `wavelink`, `stocks`, `football`, `news`, `claude`, `obs`, `discord`, `discordChannels`, `discordSoundboard`, `discordNotifications`, `streamerbot`, `homeassistant`, `twitchWatch`, `twitchChat`, `youtubeLive`, `tasks`, `notes`, `agenda`, `weather`, `battery`. *Capability reference* below is generated from the code and is the list that cannot go stale. See *Hardware sensors* for fans/power/battery. |
 | `surface` | no | `"tile"` (default) or `"ambient"` — an ambient package renders fullscreen as an Ambient/screensaver scene instead of a dashboard tile (see *Ambient scenes*). |
-| `actions` | no | Action categories you request: `media`, `volume`, `mic`, `lighting`, `chroma`, `wavelink`, `spotify`, `obs`, `discord`, `homeassistant`, `twitch`, `youtube`, `streamerbot`, `url`, `tasks`, `soundboard`. |
+| `actions` | no | Action categories you request: `media`, `volume`, `audioDevice`, `mic`, `lighting`, `chroma`, `wavelink`, `spotify`, `obs`, `discord`, `homeassistant`, `twitch`, `youtube`, `streamerbot`, `url`, `browser`, `watch`, `tasks`, `soundboard`. *Capability reference* below is generated from the code and is the list that cannot go stale. |
 | `hosts` | no | Up to 8 exact hostnames the widget may reach **through the host-mediated fetch proxy** (see *Network*). Loopback/link-local names are rejected at install time. |
 | `userHosts` | no | Up to 4 addresses **the user types in**, for servers you can't know in advance (a NAS, Docker, a printer). Each is `{ id, label, scope }` — `id` (`^[a-z0-9][a-z0-9-]{0,40}$`) is what you read the value back under, `label` (≤ 60 chars) is the text above the field, `scope` is `"private"` (default — LAN only) or `"any"`. See *User-supplied addresses*. |
 | `hooks` | no | Up to 8 hook ids (`^[a-z0-9][a-z0-9-]{0,40}$`) the widget may receive local webhook events on (see *Local webhooks*). |
@@ -96,6 +97,7 @@ not need to do anything to support it.
 | `clipboard` | no | `true` → your widget may **ask** to copy text to the system clipboard. It can never copy silently and can never read the clipboard: each copy shows a Xenon confirmation the user taps. See *Clipboard*. |
 | `accent` | no | `true` → your widget may tint the **dashboard accent colour** while it runs (the same channel the album-art accent uses). Accent only, never saved, released when your widget goes away. See *Dashboard accent*. |
 | `expand` | no | `true` → your widget may **ask to fill the screen**, painting its tile over the whole dashboard, for content that genuinely needs the room (a board, a map, a game). Only in response to the user touching your widget; the way back out is drawn by Xenon. Ignored on an `ambient` package, which is already fullscreen. See *Filling the screen*. |
+| `shape` | no | The **silhouette of your own tile**: `{ "preset": "hexagon" }` or your own closed SVG path, `{ "path": "M .5 0 L 1 .5 L .5 1 L 0 .5 Z" }`. Optional `"fit": "fit"` keeps the proportions instead of stretching, and `"inset"` (0–25) is extra safe margin in percent. Not a permission — it cannot reach past your tile — and the user's own shape for that tile always wins. Ignored on an `ambient` package. See *Tile shape*. |
 
 An invalid entry in any of these (a loopback host, an out-of-catalog macro step,
 a malformed id) rejects the **whole manifest** — the package shows up as invalid
@@ -251,7 +253,7 @@ The payloads are the dashboard's own SSE events, unmodified:
 
 - `status` — mic mute, game mode/activity, foreground process
 - `system` — `cpu` (%), `gpu` (%|null), `memory.percent`, temperatures, uptime…
-- `media` — `title`, `artist`, `album`, playback state, source…
+- `media` — `title`, `artist`, `album`, playback state, source, plus `position` and `duration` in seconds. A zero/absent `duration` means the current source has no seekable timeline
 - `audio` — volume, mute, output device, and `speakerApps[]` / `micApps[]`: the per-application mixer (one entry per active session, with `proc`, `volume`, `muted` and a resolved `icon`). Polled, so it updates about every 8 seconds
 - `audioLevels` — **how loud each app actually is right now**: `{ "discord": 0.42, "spotify": 0.81 }`, peak per process in `0..1`, roughly 12 times a second. See *Real audio levels* below — this one has conditions
 - `stocks` — the quotes/indices the user follows (same payload the Stocks tile gets)
@@ -264,6 +266,9 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `discordSoundboard` — `{ ok, sounds:[{ id, guildId, name, guild }] }`; the soundboard catalog available to the connected Discord account
 - `discordNotifications` — `{ ok, enabled, hide, state, items:[...] }`; private DM/mention notifications, with the user's privacy setting preserved. Request this grant only when the widget genuinely displays notification content
 - `streamerbot` — Streamer.bot connection state, globals, and activity events
+- `twitchWatch` — `{ ok, connected, error, live:[…], playing:{…}|null }`; the channels the user follows that are on air, and the one playing in the Twitch tile. See *Watching Twitch and YouTube* below
+- `twitchChat` — `{ ok, channel, connected, messages:[…] }`; the chat of the channel being watched, already split into text and emotes. Push-only, see below
+- `youtubeLive` — `{ ok, error, live, title, health, privacy, viewers, totalViews, likes }`; the user's own YouTube broadcast
 - `homeassistant` — Home Assistant device/entity states (privacy note: this exposes your smart-home state — grant it deliberately)
 - `tasks` — `{ tasks: [...] }`, the user's to-do list; pushed on every change
 - `notes` — `{ v, activeId, notes: [...] }`, the user's notes (privacy note: this is your private scratchpad text — grant it deliberately); pushed on save
@@ -330,14 +335,84 @@ window.parent.postMessage({
 
 The host replies with the usual `data` message and then a
 `{ type:'refresh_result', id:7, stream:'discordChannels', ok:true }` result.
-Only the three fixed stream names above are accepted: a widget cannot provide a
+Only fixed stream names are accepted: a widget cannot provide a
 URL or endpoint. Refreshes require the matching user grant, are rate-limited,
 and are rejected for hidden tiles and background service frames. The channel
 and notification snapshots are cached for 5 seconds; Soundboard is cached for
-60 seconds.
+60 seconds. `twitchWatch` and `youtubeLive` (below) refresh the same way, at 60
+seconds.
 
 Treat every string in them as untrusted display text: render with
 `textContent`, never `innerHTML`.
+
+### 3a. Watching Twitch and YouTube (v4.11)
+
+Three streams and one action category cover the Twitch and YouTube tiles. The
+rule behind all of them: **the SDK never gets its own connection to Twitch or
+YouTube, it gets a copy of the one the builtin tile already has.** When that tile
+is on the dashboard your widget costs nothing at all; when it is not, the two
+snapshot streams fall back to a same-origin read, and the chat simply has nothing
+to give you.
+
+**`twitchWatch`** — who is live and what is playing:
+
+```js
+{
+  ok: true, connected: true, error: '',
+  live: [ { login, name, title, game, viewers, image, live } ],  // channels the user follows
+  playing: { login, name, title, game, viewers, image } | null   // in the Twitch tile right now
+}
+```
+
+`live` is only ever the **Followed** list, and it is empty until the user's Twitch
+account has been connected with the follows permission — `connected: false` is a
+normal state to draw, not an error. Refreshable (60 s).
+
+**`twitchChat`** — the chat of the channel being watched:
+
+```js
+{
+  ok: true, channel: 'somechannel', connected: true,
+  messages: [ { seq, name, text, color, parts: [ … ] } ]
+}
+```
+
+`parts` is the message already split for you: `{ type:'text', text }` and
+`{ type:'emote', id, name, url }` in reading order, so you can draw emotes without
+parsing Twitch's index format (which counts code points, not characters, and is a
+reliable way to be off by one). `url` points at Twitch's emote CDN, which the
+sandbox will not let you load directly — declare `static-cdn.jtvnw.net` in your
+manifest `hosts` and fetch it through the proxy (§6), which hands binary back as
+base64 for a `data:` URI. Or just draw `name`.
+
+Four things about this stream specifically:
+
+- It is **push-only**. There is no loader behind it: a `refresh` answers
+  `not_refreshable`, on purpose. A widget must not be able to make Xenon hold a
+  socket open to Twitch on a dashboard nobody is watching.
+- It arrives **only while the Twitch tile is playing a channel and its chat card
+  is switched on**. No tile, no chat.
+- It is a **snapshot, not events**: up to 40 messages, coalesced to about two
+  payloads a second. Use `seq`, which only ever increases, to tell what you have
+  already drawn. This is deliberate — the host stops feeding off-screen frames
+  (§4c), and a snapshot lets you come back to the current conversation instead of
+  a hole.
+- `connected: false` with messages still in the list means the feed stopped (a
+  reconnect, the card switched off). Keep drawing them, do not clear.
+
+Every name, message and colour here was typed by a stranger in a public chat.
+`textContent`, always.
+
+**`youtubeLive`** — the user's own broadcast: `live`, `title`, `health`,
+`privacy`, `viewers`, `totalViews`, `likes`. Refreshable (60 s), and this one has
+a real cost: reading it spends YouTube API quota, so the fallback path is slower
+than the tile's own poll and you should not hammer it. The live chat of that
+broadcast is deliberately not exposed.
+
+Nothing here lets a widget write: no sending a chat message, no starting or
+configuring a broadcast, no stream key. Writing in someone's chat publishes text
+in public under the user's name, and that needs a human tap in the tile that owns
+it.
 
 ### 3b. Hardware sensors — fans, power draw, device battery (v4.5.3)
 
@@ -487,7 +562,7 @@ and again on every resize (dragging the tile, or a different surface):
 ```
 
 Why it matters: a widget always fills its tile (`width/height: 100%`), and it
-**does not auto-scale its content**. The desktop browser and the Xeneon Edge give
+**does not auto-scale its content**. A desktop browser, a short wide touchscreen and a phone give
 the same tile a *different* pixel size and DPR, and `vw/vh` inside the sandboxed
 iframe resolve against the iframe's own box — so a layout built from viewport
 units **reflows** and looks different on each surface (this is the usual "it's not
@@ -581,6 +656,53 @@ When you come back, the host replays the current value of every stream you were
 granted, so you do not need to re-request anything — just render what arrives.
 Background **service frames** never receive this message: they exist precisely to
 keep running out of sight.
+
+### 4c-bis. Tile shape — `shape` (host → widget) (v4.11)
+
+A tile does not have to be a rectangle. Either the user gives one a silhouette
+from the style editor, or your package declares one for its own tile in the
+manifest:
+
+```json
+{ "shape": { "preset": "hexagon" } }
+{ "shape": { "path": "M .5 0 L 1 .5 L .5 1 L 0 .5 Z", "fit": "fit", "inset": 4 } }
+```
+
+The curated presets are `squircle`, `circle`, `hexagon`, `diamond`, `cut-corner`,
+`parallelogram`, `ticket`, `arch`, `shield`, `wave` and `blob`. A `path` is your
+own outline **drawn in a unit square**: x and y both run 0 → 1, so the same path
+fits a 2×2 tile and a 12×4 one. It must start with `M`, be closed with `Z`, and
+contain nothing but path commands and numbers — anything else is dropped, and
+your package still installs. `"fit": "fit"` keeps the outline's proportions
+instead of stretching it with the tile.
+
+This is **not a permission**. It changes your own tile and nothing else, so there
+is no dialog and no grant. Two things follow from that: a shape the *user* picked
+for that tile always wins over yours, and you cannot shape anybody else's tile.
+
+**Your content is clipped by the silhouette, so the host tells you where the
+inside is.** You cannot measure this yourself — introspection stops at the iframe
+boundary — so right after `init`, and whenever the shape changes, you receive:
+
+```js
+{ xenonSdk: 1, type: 'shape', path: 'M .12 0 L .88 0 …Z', fit: 'stretch',
+  safe: { t: 2, r: 13, b: 2, l: 13 } }
+```
+
+`safe` is the margin to keep clear, in **percent of the tile**, per side. A tile
+with no shape reports an empty `path` and zeros. Xenon already insets your frame
+by that much, so a widget that ignores the message is simply laid out inside the
+safe box; read it when you want to place something against the real edge (a
+background, a full-bleed image) or to change layout inside a narrow silhouette:
+
+```js
+addEventListener('message', (e) => {
+  const m = e.data;
+  if (!m || m.xenonSdk !== 1 || m.type !== 'shape') return;
+  document.body.classList.toggle('shaped', !!m.path);
+  document.body.style.setProperty('--safe-x', m.safe.l + '%');
+});
+```
 
 ### 4d. `notice` — host → widget (v4.10)
 
@@ -691,7 +813,7 @@ the same gate Deck keys go through):
 
 | Category | Actions |
 |----------|---------|
-| `media` | `{ type: 'media', cmd: 'playpause' \| 'next' \| 'previous' }` |
+| `media` | `{ type: 'media', cmd: 'playpause' \| 'next' \| 'previous' }`, `{ type: 'mediaSeek', position }` — seek to an absolute position in seconds. `position` must be finite and non-negative; fractional values are rounded to the nearest whole second and the registry caps them at 24 hours before the active player may clamp them to the track. A live/non-seekable source returns `not_seekable` or `unavailable`. While dragging a timeline, preview locally and send one action on pointer release instead of fighting the bridge's 250 ms action rate limit. |
 | `volume` | `{ type: 'volume', mode: 'mute' \| 'up' \| 'down' \| 'set', value }`, `{ type: 'appVolume', app, mode, value }`, `{ type: 'appMute', app, mode }` — `app` is the `proc` field from the `audio` stream. Note `appVolume` with `mode:'set'` does **not** unmute: raise a muted app and send `appMute` too, or nothing comes out. |
 | `audioDevice` | `{ type: 'audioDevice', device }` — make an output device the default, i.e. move your sound to another set of speakers or headphones. `device` is the `id` of an entry in the `audio` stream's `speakers[]`; nothing else works. A **separate grant from `volume`** on purpose: approving "change the volume" is not approving "choose my speakers", and folding the two together would have widened every existing grant with no prompt. The server resolves the id against the live output enumeration before acting, so an id that is merely well-formed — or that names a microphone — is refused. There is no action to change the *input* device. |
 | `mic` | `{ type: 'micMute', mode: 'toggle' \| 'mute' \| 'unmute' }` |
@@ -705,8 +827,9 @@ the same gate Deck keys go through):
 | `twitch` | `twitchClip`, `twitchMarker`, `twitchAd`, `twitchTitle`, `twitchGame`, `twitchChat`, `twitchShoutout`, `twitchChatMode` — control your Twitch channel. Requires Twitch connected. |
 | `youtube` | `ytBroadcast` — start/stop your YouTube broadcast. Requires YouTube connected. |
 | `streamerbot` | `sbDoAction`, `sbSendMessage`, `sbCodeTrigger` — trigger Streamer.bot actions, send chat, fire code triggers. Requires Streamer.bot connected. |
-| `url` | `{ type: 'openUrl', url: 'https://…' }` (http/https only). Opens in the user's **default browser**, on whichever monitor Windows puts it. Use `browser` below when the page should stay on the Xeneon Edge. |
+| `url` | `{ type: 'openUrl', url: 'https://…' }` (http/https only). Opens in the user's **default browser**, on whichever monitor Windows puts it. Use `browser` below when the page should stay on the dashboard screen. |
 | `browser` | `{ type: 'browserOpen', url: 'https://…', expand?: true }` (http/https only). Shows the page in the **Browser tile** already on the dashboard. See [Opening a page on the dashboard](#opening-a-page-on-the-dashboard-browser) below. |
+| `watch` | `{ type: 'twitchWatchPlay', channel }` and `{ type: 'ytWatchPlay', video }` — play a channel or a video in the **Twitch** and **YouTube** tiles already on the dashboard. Pair with the `twitchWatch` stream to know what is live. See [Playing in the Twitch and YouTube tiles](#playing-in-the-twitch-and-youtube-tiles-watch) below. |
 | `tasks` | `{ type: 'taskAdd', text }`, `{ type: 'taskToggle', id }`, `{ type: 'taskDelete', id }` — add / complete-toggle / delete a to-do in the same list the Tasks tile shows (pair with the `tasks` **stream** to read the list and each task's `id`). `text` is capped at 200 chars server-side; a new task is created with default (medium) priority. No external service required. |
 | `soundboard` | `{ type: 'playSound', file, mode?: 'play' \| 'toggle' \| 'stop', volume? }`, `{ type: 'soundStopAll' }` — play clips from an **installed sound pack** (the `sounds` preset kind). `file` MUST be a pack-relative reference of the exact shape `packs/<packId>/<clipId>.<mp3\|ogg\|wav>` — arbitrary local paths are rejected for widgets (that stays a Deck-key-only, user-configured privilege). Same rule applies to `playSound` steps inside manifest `deck.actions` macros (validated at install). Playback happens on the surface where your widget runs. Ship your clips as a companion sound pack, or document which pack the widget expects. |
 
@@ -750,7 +873,7 @@ origin; that is the core of the security model and it is not negotiable.
 
 `openUrl` was the only way out, and it hands the address to Windows: the page opens
 in the default browser, on the primary monitor. For a widget whose whole point is to
-put something **on** the Xeneon Edge, that is the wrong screen.
+put something **on** the dashboard screen, that is the wrong screen.
 
 The `browser` category fixes that without touching the sandbox. It has exactly the
 shape of `openUrl` (you name an address, you never see the page) but the
@@ -769,7 +892,7 @@ window.parent.postMessage({
 | Field | |
 |---|---|
 | `url` | Required, `http:`/`https:` only. Anything else fails with `bad_url`. Public addresses only: loopback, LAN and intranet names fail with `blocked_host`. |
-| `expand` | Optional. `true` paints the tile over the whole dashboard; on the Xeneon Edge, the whole screen. The user leaves with Escape or the collapse button. |
+| `expand` | Optional. `true` paints the tile over the whole dashboard; in the kiosk app, the whole screen. The user leaves with Escape or the collapse button. |
 
 Declare it in your manifest like any other category:
 
@@ -805,6 +928,45 @@ Rules worth knowing before you build on it:
 The user grants this at install time like every other category, listed as "Open web
 pages in the Browser tile on your dashboard".
 
+### 5c. Playing in the Twitch and YouTube tiles: `watch` (v4.11)
+
+The same idea as `browser`, one step narrower. Your widget names a Twitch channel
+or a YouTube video and the tile that already exists on the dashboard plays it.
+
+```js
+// Twitch
+action: { type: 'twitchWatchPlay', channel: 'somechannel' }
+// YouTube
+action: { type: 'ytWatchPlay', video: 'dQw4w9WgXcQ' }
+// { ok: true } — or { ok: false, error: 'unavailable' | 'bad_channel' | 'bad_video' }
+```
+
+```json
+{ "actions": ["watch"] }
+```
+
+- `channel` is a Twitch login: lowercase letters, digits and underscore, up to 25.
+  It does not have to be in the user's Followed list.
+- `video` is a YouTube video id. It plays as a queue of one; you cannot load a
+  playlist into someone's tile.
+- `unavailable` means there is no such tile on any dashboard page. Say so rather
+  than failing quietly.
+- There is **no confirm dialog**, unlike `browserOpen`, and the reason is the
+  shape of what travels: a channel login or a video id, re-validated by the tile
+  against the same pattern its own rows use, landing in a player Xenon owns. No
+  address, no cookies, no arbitrary destination.
+- **It can start playing on a dashboard page the user is not looking at**, if that
+  is where their Twitch tile lives. That is the point (a launcher widget on page 1,
+  the player on page 2), but it does mean sound can start from a tap on a different
+  page. Do not fire it on a timer.
+- **You have no read access to the player.** What is playing comes back through the
+  `twitchWatch` stream, if the user granted it, and never as an answer to this.
+- **Not available in manifest Deck macros**, for the same reason as `browserOpen`:
+  the Deck action validator does not know these types, so a macro declaring one
+  fails at install instead of shipping a dead key.
+
+Listed to the user as "Play a channel or a video in the Twitch and YouTube tiles".
+
 <!-- SDK-REFERENCE:START (auto-generated by tools/gen-sdk-reference.mjs — do not edit by hand) -->
 ### Capability reference (auto-generated)
 
@@ -812,7 +974,7 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `wavelink`, `weather`
+**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `wavelink`, `weather`, `youtubeLive`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 
@@ -824,7 +986,7 @@ the user granted, and every action is re-validated server-side.
 | `discord` | `discordMute`, `discordDeafen`, `discordPtt`, `discordJoin`, `discordLeave`, `discordInputVol`, `discordOutputVol`, `discordAudioToggle`, `discordSoundboard` |
 | `homeassistant` | `haToggle`, `haLight`, `haMedia`, `haCover`, `haClimate`, `haFan`, `haVacuum`, `haLock`, `haAlarm`, `haScene`, `haScript`, `haButton` |
 | `lighting` | `lighting`, `lightPower`, `lightColor`, `lightAuto`, `lightEffect`, `lightDevice` |
-| `media` | `media` |
+| `media` | `media`, `mediaSeek` |
 | `mic` | `micMute` |
 | `obs` | `obsScene`, `obsSceneNext`, `obsRecord`, `obsStream`, `obsMute`, `obsInputVolume` |
 | `soundboard` | `playSound`, `soundStopAll` |
@@ -834,6 +996,7 @@ the user granted, and every action is re-validated server-side.
 | `twitch` | `twitchClip`, `twitchMarker`, `twitchAd`, `twitchTitle`, `twitchGame`, `twitchChat`, `twitchShoutout`, `twitchChatMode` |
 | `url` | `openUrl` |
 | `volume` | `volume`, `appVolume`, `appMute` |
+| `watch` | `twitchWatchPlay`, `ytWatchPlay` |
 | `wavelink` | `wlInputVolume`, `wlInputMute`, `wlOutputVolume`, `wlOutputMute`, `wlSwitchMonitoring`, `wlSetMonitorMix` |
 | `youtube` | `ytBroadcast` |
 <!-- SDK-REFERENCE:END -->
@@ -1091,7 +1254,7 @@ Rules the host enforces (send whatever you like — this is what survives):
 - An empty `text` on `show` counts as `clear`. There is no reply message.
 - In a regular browser tab that's hidden, your frame's timers are throttled by
   the browser — island updates from a background tab will stall. Irrelevant on
-  the always-visible Xeneon Edge kiosk.
+  the always-visible kiosk app.
 
 #### Structured Live Activities (`"island": { "dynamic": true }`)
 

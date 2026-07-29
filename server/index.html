@@ -81,6 +81,7 @@
 <link rel="stylesheet" href="components/RemoteControlSettings/RemoteControlSettings.css">
 <link rel="stylesheet" href="components/UpdateModal/UpdateModal.css">
 <link rel="stylesheet" href="components/Onboarding/Onboarding.css">
+<link rel="stylesheet" href="components/SurfacePicker/SurfacePicker.css">
 <link rel="stylesheet" href="components/GuardianHistory/GuardianHistory.css">
 <link rel="stylesheet" href="vendor/gridstack/gridstack.min.css">
 <link rel="stylesheet" href="components/DashboardGrid/DashboardGrid.css">
@@ -91,9 +92,12 @@
 <link rel="stylesheet" href="components/WaveLinkWidget/WaveLinkWidget.css">
 <link rel="stylesheet" href="components/LightingWidget/LightingWidget.css">
 <link rel="stylesheet" href="components/YouTubeWidget/YouTubeWidget.css">
+<link rel="stylesheet" href="components/YouTubeLiveWidget/YouTubeLiveWidget.css">
+<link rel="stylesheet" href="components/TwitchWatchWidget/TwitchWatchWidget.css">
 <link rel="stylesheet" href="components/DiscordWidget/DiscordWidget.css">
 <link rel="stylesheet" href="components/StreamerbotWidget/StreamerbotWidget.css">
 <link rel="stylesheet" href="components/NotificationsWidget/NotificationsWidget.css">
+<link rel="stylesheet" href="components/CallModal/CallModal.css">
 <link rel="stylesheet" href="components/StockWidget/StockWidget.css">
 <link rel="stylesheet" href="components/FootballWidget/FootballWidget.css">
 <link rel="stylesheet" href="components/ClaudeWidget/ClaudeWidget.css">
@@ -115,6 +119,8 @@
 <link rel="stylesheet" href="components/Spotlight/Spotlight.css">
 <link rel="stylesheet" href="components/SearchWidget/SearchWidget.css">
 <link rel="stylesheet" href="components/DiskWidget/DiskWidget.css">
+<link rel="stylesheet" href="components/TransferWidget/TransferWidget.css">
+<link rel="stylesheet" href="components/PhoneWidget/PhoneWidget.css">
 <!-- App-wide control styling: scrollbars, selects, checkboxes -->
 <link rel="stylesheet" href="styles/controls.css">
 <!-- Light-theme component fixups (keyed off :root[data-appearance="light"]) -->
@@ -138,6 +144,11 @@
 <link rel="stylesheet" href="styles/edge-preview.css">
 </head>
 <body>
+<!-- Tile silhouettes. One sprite for the whole dashboard: identical shapes share
+     a <clipPath>, so twenty hexagon tiles cost one def. Written and swept by
+     applyTileStyle() in js/dashboard-layout.js; empty until a tile asks. -->
+<svg id="tile-shape-defs" width="0" height="0" aria-hidden="true"
+     style="position:absolute;width:0;height:0;overflow:hidden"></svg>
 <div class="user-bg-layer" id="user-bg-layer" aria-hidden="true">
   <img id="user-bg-image" alt="" hidden>
   <video id="user-bg-video" muted loop playsinline hidden></video>
@@ -473,6 +484,12 @@
       <section class="panel youtube-panel dashboard-widget" data-dashboard-widget="youtube" data-dashboard-size="normal" data-dashboard-order="13" data-dashboard-hidden="true">
         <div class="youtube-widget-mount"></div>
       </section>
+      <section class="panel youtubelive-panel dashboard-widget" data-dashboard-widget="youtubelive" data-dashboard-size="normal" data-dashboard-order="14" data-dashboard-hidden="true">
+        <div class="youtubelive-widget-mount"></div>
+      </section>
+      <section class="panel twitchwatch-panel dashboard-widget" data-dashboard-widget="twitchwatch" data-dashboard-size="normal" data-dashboard-order="15" data-dashboard-hidden="true">
+        <div class="twitchwatch-widget-mount"></div>
+      </section>
       <section class="panel discord-panel dashboard-widget" data-dashboard-widget="discord" data-dashboard-size="normal" data-dashboard-order="17" data-dashboard-hidden="true">
         <div class="discord-widget-mount"></div>
       </section>
@@ -567,6 +584,17 @@
            while one runs. Hidden by default. -->
       <section class="panel disk-panel dashboard-widget" data-dashboard-widget="disk" data-dashboard-size="normal" data-dashboard-order="35" data-dashboard-hidden="true">
         <div class="disk-widget-mount"></div>
+      </section>
+
+      <section class="panel transfer-panel dashboard-widget" data-dashboard-widget="transfer" data-dashboard-size="normal" data-dashboard-order="36" data-dashboard-hidden="true">
+        <div class="transfer-widget-mount"></div>
+      </section>
+
+      <!-- Phone — the paired phone's call log, phonebook and keypad, read over
+           Bluetooth. Hidden by default like every opt-in widget: it does
+           nothing until Settings → Telefono is switched on. -->
+      <section class="panel phone-panel dashboard-widget" data-dashboard-widget="phone" data-dashboard-size="normal" data-dashboard-order="37" data-dashboard-hidden="true">
+        <div class="phone-widget-mount"></div>
       </section>
 
       <!-- Battery — wireless peripheral battery (Corsair via iCUE + Bluetooth).
@@ -899,7 +927,7 @@
           <span id="native-promo-title" data-i18n="native_promo_title">Prova l'app nativa</span>
           <span class="native-promo-beta" data-i18n="native_promo_beta">Beta</span>
         </div>
-        <p class="native-promo-desc" data-i18n="native_promo_desc">Un'app a schermo intero dedicata alla Xeneon Edge, migliore che passare da iCUE.</p>
+        <p class="native-promo-desc" data-i18n="native_promo_desc">Un'app a schermo intero tutta sua, sullo schermo che scegli: meglio che passare da iCUE.</p>
         <ul class="native-promo-benefits">
           <li data-i18n="native_promo_benefit_fullscreen">Schermo intero da bordo a bordo, senza la cornice di iCUE</li>
           <li data-i18n="native_promo_benefit_independent">Parte all'avvio e funziona anche se iCUE è chiuso o si blocca</li>
@@ -918,6 +946,7 @@
         <button type="button" class="settings-nav-btn active" data-settings-cat="appearance" onclick="settingsSetCategory('appearance')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="6.5" cy="11.5" r="2.5"/><circle cx="17" cy="14" r="2.5"/><circle cx="9.5" cy="18" r="2.5"/></svg><span data-i18n="settings_cat_appearance">Aspetto</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="island" onclick="settingsSetCategory('island')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="10" rx="5"/><path d="M8 12h3M15 12h1"/></svg><span data-i18n="settings_cat_island">Dynamic Island</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="background" onclick="settingsSetCategory('background')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m4 18 5-4 4 3 3-2 4 3"/></svg><span data-i18n="settings_background_media">Sfondo</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="display" onclick="settingsSetCategory('display')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span data-i18n="settings_display_title">Schermo</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="notifications" onclick="settingsSetCategory('notifications')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span data-i18n="settings_cat_notifications">Notifiche</span></button>
         <button type="button" class="settings-nav-btn settings-nav-btn-bit" data-settings-cat="bit" onclick="settingsSetCategory('bit')"><svg class="bit-nav-sprite" viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true"><rect x="6" y="0" width="1" height="1" fill="#6ee787"/><rect x="6" y="1" width="1" height="1" fill="#6ee787"/><rect x="3" y="2" width="6" height="1" fill="#6ee787"/><rect x="2" y="3" width="8" height="6" fill="#6ee787"/><rect x="3" y="9" width="6" height="1" fill="#6ee787"/><rect x="3" y="10" width="2" height="1" fill="#6ee787"/><rect x="7" y="10" width="2" height="1" fill="#6ee787"/><rect x="4" y="4" width="1" height="2" fill="#0d1117"/><rect x="7" y="4" width="1" height="2" fill="#0d1117"/><rect x="4" y="7" width="1" height="1" fill="#0d1117"/><rect x="5" y="8" width="2" height="1" fill="#0d1117"/><rect x="7" y="7" width="1" height="1" fill="#0d1117"/></svg><span data-i18n="settings_cat_bit">Bit</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="lock" onclick="settingsSetCategory('lock')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg><span data-i18n="settings_ambient">Ambient</span></button>
@@ -936,6 +965,7 @@
         <button type="button" class="settings-nav-btn" data-settings-cat="browser" onclick="settingsSetCategory('browser')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></svg><span data-i18n="settings_cat_browser">Browser</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="search" onclick="settingsSetCategory('search')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg><span data-i18n="settings_cat_search">Ricerca e disco</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="secondscreen" onclick="settingsSetCategory('secondscreen')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4M14 8l3 2.5-3 2.5"/></svg><span data-i18n="settings_cat_secondscreen">Secondo schermo</span></button>
+        <button type="button" class="settings-nav-btn" data-settings-cat="phone" onclick="settingsSetCategory('phone')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M10.5 18.5h3"/></svg><span data-i18n="settings_cat_phone">Telefono</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="remote" onclick="settingsSetCategory('remote')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><circle cx="12" cy="10" r="3"/><path d="M12 7v0M12 13v0"/></svg><span data-i18n="settings_cat_remote">Controllo Remoto</span></button>
         <div class="settings-nav-label" data-i18n="settings_nav_system" aria-hidden="true">Sistema</div>
         <button type="button" class="settings-nav-btn" data-settings-cat="performance" onclick="settingsSetCategory('performance')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19a9 9 0 1 1 14 0"/><path d="m12 13 4-4"/><circle cx="12" cy="13" r="1.2" fill="currentColor"/></svg><span data-i18n="settings_cat_performance">Performance</span></button>
@@ -958,6 +988,9 @@
           </a>
         </div>
         <button type="button" class="settings-update-check" id="settings-update-check" onclick="checkForUpdatesNow(this)" data-i18n="update_check_btn">Controlla aggiornamenti</button>
+        <!-- Filled by renderPlatformBeta() in js/settings.js, and only on the two
+             platforms where it is true. Empty and hidden everywhere else. -->
+        <div class="settings-platform-beta" id="settings-platform-beta" hidden></div>
         <div class="settings-nav-version" id="settings-version" aria-label="Versione"></div>
         </div>
       </nav>
@@ -1509,6 +1542,57 @@
             <span class="settings-hint" data-i18n="settings_winnotif_hide_hint">nel widget e nei pop-up mostra solo l'app: il testo appare quando tocchi</span>
           </span>
         </label>
+        <label class="settings-toggle-row full" id="settings-calls-row">
+          <input class="settings-check" id="settings-calls" type="checkbox" onchange="updateCallsSetting('enabled', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_calls">Chiamate in arrivo</span>
+            <span class="settings-hint" data-i18n="settings_calls_hint">quando squilla Discord, Teams, Zoom o il telefono, la dashboard apre una scheda a tutto schermo con Rispondi, Rifiuta e Silenzia. Accendendola parte anche la lettura delle notifiche del PC, che è come Xenon si accorge dello squillo.</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-calls-sound-row">
+          <input class="settings-check" id="settings-calls-sound" type="checkbox" onchange="updateCallsSetting('sound', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_calls_sound">Suoneria</span>
+            <span class="settings-hint" data-i18n="settings_calls_sound_hint">suona finché non rispondi o silenzi</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-calls-push-row">
+          <input class="settings-check" id="settings-calls-push" type="checkbox" onchange="updateCallsSetting('push', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_calls_push">Avvisa il telefono associato</span>
+            <span class="settings-hint" data-i18n="settings_calls_push_hint">manda una notifica push al telefono associato, così la vedi anche a schermo spento</span>
+          </span>
+        </label>
+        <div class="settings-row full settings-calls-apps-row" id="settings-calls-apps-row">
+          <span class="settings-label-line">
+            <span data-i18n="settings_calls_apps">App che possono squillare</span>
+            <span class="settings-hint" data-i18n="settings_calls_apps_hint">fuori da Discord il riconoscimento legge il testo della notifica, quindi può sbagliare: spegni qui quelle che non ti servono</span>
+          </span>
+          <div class="settings-calls-apps" id="settings-calls-apps"></div>
+        </div>
+        <div class="settings-note settings-calls-cap" id="settings-calls-cap" hidden></div>
+        <label class="settings-toggle-row full" id="settings-phone-row">
+          <input class="settings-check" id="settings-phone" type="checkbox" onchange="updatePhoneSetting('enabled', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_phone">Telefono associato</span>
+            <span class="settings-hint" data-i18n="settings_phone_hint">legge rubrica e registro chiamate dal telefono accoppiato via Bluetooth, e ti fa chiamare dal PC. I dati restano sul PC. Serve il Xenon Helper.</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-phone-ring-row">
+          <input class="settings-check" id="settings-phone-ring" type="checkbox" onchange="updatePhoneSetting('ring', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_phone_ring">Scheda a tutto schermo quando squilla</span>
+            <span class="settings-hint" data-i18n="settings_phone_ring_hint">usa il segnale del sistema invece del testo della notifica, così lo squillo non può sfuggire</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-phone-hide-row">
+          <input class="settings-check" id="settings-phone-hide" type="checkbox" onchange="updatePhoneSetting('hide', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_phone_hide">Nascondi il testo dei messaggi</span>
+            <span class="settings-hint" data-i18n="settings_phone_hide_hint">nella lista mostra solo il mittente: il testo appare quando tocchi. Gli SMS contengono i codici di accesso usa e getta, e la dashboard sta su una scrivania.</span>
+          </span>
+        </label>
+        <div class="settings-note settings-phone-cap" id="settings-phone-cap" hidden></div>
       </div>
 
       <div class="settings-group settings-behavior-group" data-settings-cat="bit">
@@ -2164,6 +2248,22 @@
         <p class="settings-note" data-i18n="settings_slideshow_note">Le immagini sono salvate come file su questo PC. Tocca l'immagine nel widget per mettere in pausa; usa le frecce per scorrere a mano.</p>
       </div>
 
+      <!-- Schermo. The question the first-run picker asks, kept somewhere the
+           user can change their mind. The category id and its title key are the
+           ones the DDC/CI panel used before v4.8.0 removed it; the slot and the
+           11 translations of "Schermo" were still there, unused.
+
+           The body is rendered by js/settings.js (renderSurfaceSection): the
+           monitor list only exists inside the native shell, so what belongs here
+           depends on where the dashboard is being read. -->
+      <div class="settings-group settings-span-all" data-settings-cat="display">
+        <div class="settings-group-head">
+          <span data-i18n="settings_display_title">Schermo</span>
+          <span class="settings-hint" data-i18n="surface_settings_hint">Dove vive Xenon: uno schermo di questo PC, oppure il tuo telefono o tablet.</span>
+        </div>
+        <div id="settings-surface-body"></div>
+      </div>
+
       <!-- Claude Code widget. Only the two things it can show while you are
            looking elsewhere: the approval cards and the topbar marker. The rest
            of the widget (quota, sessioni, collegamento) is configured inside the
@@ -2473,15 +2573,33 @@
         <div id="settings-lighting-hub" data-lightf="mount"></div>
       </div>
 
-      <div class="settings-group" data-settings-cat="remote" hidden>
+      <!-- ── Telefono ────────────────────────────────────────────────────────
+           Everything the user's phone does WITH Xenon: it becomes the dashboard,
+           and it exchanges files with this PC. Both run on the home network and
+           neither touches the desktop.
+
+           Deliberately NOT in "Controllo Remoto", which is the Sunshine/Moonlight
+           wizard: that one streams and drives the DESKTOP from anywhere. The two
+           shared a category through v4.11.0's development and it read as one
+           confused panel, because the name promised desktop control and the first
+           two blocks did something else entirely. Three unrelated products in one
+           scroll is not a category, it is a leftover. -->
+      <div class="settings-group" data-settings-cat="phone" hidden>
         <!-- Paired-device access renders here (settings.js → RemoteAccessPage.init()).
-             The phone-as-a-second-screen door: opt-in, QR pairing, device list.
-             Sits above the Sunshine wizard because it is the lighter of the two
-             and the one most people want; they are unrelated features that share
-             only this category.
-             NOT gated to Windows: pairing is HTTP and a QR code, so it is the one
-             half of this category that works everywhere. -->
+             The phone-as-a-dashboard door: opt-in, QR pairing, device list. First,
+             because nothing else in this category works until a device is paired.
+             NOT gated to Windows: pairing is HTTP and a QR code, so it works
+             everywhere. -->
         <div id="settings-remote-access" data-remoteaccessf="mount"></div>
+        <!-- File transfer renders here (settings.js → TransferWidget.initSettings()).
+             It sits directly under the device list because that is where somebody
+             who just paired a phone will look for "and now what can it do". The
+             folder it names is read from and written to a loopback-only endpoint:
+             the settings blob a phone receives never carries a path on this PC. -->
+        <div id="settings-transfer" data-transferf="mount"></div>
+      </div>
+
+      <div class="settings-group" data-settings-cat="remote" hidden>
         <!-- Remote Control wizard renders here (settings.js → RemoteControl.init()).
              Guides the user through installing Sunshine + Tailscale and pairing Moonlight.
              NO LONGER Windows-only: Sunshine ships for Linux (Flathub) and macOS
@@ -2751,7 +2869,7 @@
         <label class="settings-row full">
           <span class="settings-label-line">
             <span data-i18n="settings_search_folders">Indice vivo: dischi e cartelle</span>
-            <span class="settings-hint" data-i18n="settings_search_folders_hint">uno per riga (es. C:\ oppure D:\Archivio). Tenuto aggiornato in tempo reale; svuota la lista per spegnerlo (richiede Xenon Helper)</span>
+            <span class="settings-hint" data-i18n="settings_search_folders_hint">uno per riga (es. C:\ oppure D:\Archivio), tenuto aggiornato in tempo reale. Finché non la tocchi contiene C:\; se la svuoti resta vuota e l'indice si spegne (richiede Xenon Helper)</span>
           </span>
           <textarea class="settings-text-input settings-textarea" id="settings-search-folders" rows="3" spellcheck="false" placeholder="C:\" onchange="updateSearchSettings({ indexRoots: this.value.split('\n') })"></textarea>
         </label>
@@ -3620,6 +3738,7 @@
 <script src="js/settings.js"></script>
 <script src="js/performance.js"></script>
 <script src="js/tile-decor-presets.js"></script>
+<script src="js/tile-shape-presets.js"></script>
 <script src="js/dashboard-layout.js"></script>
 <script src="js/topbar-minimal.js"></script>
 <script src="js/topbar-media.js"></script>
@@ -3656,15 +3775,19 @@
 <script src="js/phone-view.js"></script>
 <script src="js/remote-access-page.js"></script>
 <script src="js/remote-control.js"></script>
+<script src="js/twitch-chat.js"></script>
 <script src="js/streaming-page.js"></script>
 <script src="js/spotify-settings.js"></script>
 <script src="js/obs-widget.js"></script>
 <script src="js/youtube-widget.js"></script>
+<script src="js/youtubelive-widget.js"></script>
+<script src="js/twitchwatch-widget.js"></script>
 <script src="js/discord-widget.js"></script>
 <script src="js/streamerbot-widget.js"></script>
 <script src="js/wavelink-widget.js"></script>
 <script src="js/lighting-widget.js"></script>
 <script src="js/notifications-widget.js"></script>
+<script src="js/call-modal.js"></script>
 <script src="js/stock-widget.js"></script>
 <script src="js/football-widget.js"></script>
 <script src="js/claude-widget.js"></script>
@@ -3675,6 +3798,8 @@
 <script src="js/search-widget.js"></script>
 <script src="js/disk-intelligence.js"></script>
 <script src="js/disk-widget.js"></script>
+<script src="js/transfer-widget.js"></script>
+<script src="js/phone-widget.js"></script>
 <script src="js/power-widget.js"></script>
 <script src="js/battery-widget.js"></script>
 <script src="js/vitals.js"></script>
@@ -3688,6 +3813,7 @@
 <script src="js/second-screen-tile.js"></script>
 <script src="js/smart-home.js"></script>
 <script src="js/unifi-widget.js"></script>
+<script src="js/surface-picker.js"></script>
 <script src="js/onboarding.js"></script>
 <script src="js/guardian-history.js"></script>
 <script src="js/context-profiles.js"></script>
