@@ -205,12 +205,16 @@
   font-size: 0.76rem;
   color: var(--text-dim, rgba(255, 255, 255, 0.45));
 }
+/* A Tailscale name with its port is long and has no spaces in it, so it does not
+   wrap on its own — the same reason .ra-https-on code below carries this. */
+.ra-pair-url { overflow-wrap: anywhere; }
 
 .ra-addr { margin: 0; font-size: 0.82rem; color: var(--text-muted, rgba(255, 255, 255, 0.6)); }
 .ra-addr code {
   font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   font-size: 0.82rem;
   color: var(--text, #f2f4f3);
+  overflow-wrap: anywhere;
 }
 .ra-addr-alt { margin: -6px 0 0; font-size: 0.74rem; color: var(--text-dim, rgba(255, 255, 255, 0.42)); }
 
@@ -422,4 +426,128 @@ body.low-power-gpu .ra-setup-dot { animation: none; opacity: 1; }
   color: var(--text-dim, rgba(255,255,255,0.62));
   font-size: 13px;
   line-height: 1.45;
+}
+
+/* ─── The step-by-step guide (js/remote-access-guide.js) ────────────────────
+   Same shape as the Sunshine wizard's steps in RemoteControlSettings.css, and
+   deliberately a separate set of class names rather than a shared one: the two
+   panels are different features that happen to look alike, and sharing the
+   selectors would mean a tweak to one silently restyling the other. */
+.ra-guide { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+
+.ra-guide-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ra-guide-title { margin: 0; font-size: 15px; font-weight: 700; }
+.ra-guide-close {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-dim, rgba(255,255,255,0.55));
+  text-decoration: underline;
+  cursor: pointer;
+}
+.ra-guide-close:hover { color: var(--text, #fff); }
+.ra-guide-sub {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-dim, rgba(255,255,255,0.6));
+}
+/* The button that reopens the guide, in the panel head. */
+.ra-guide-open { align-self: flex-start; margin-top: 8px; }
+
+.ra-guide-group {
+  margin: 10px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim, rgba(255,255,255,0.45));
+}
+.ra-steps { display: flex; flex-direction: column; gap: 8px; }
+
+.ra-step {
+  border-radius: 12px;
+  background: rgba(var(--accent-rgb), 0.05);
+  border: 1px solid rgba(var(--accent-rgb), 0.10);
+  overflow: hidden;
+}
+/* The step the eye should land on. A ring rather than a fill, so a long guide
+   does not become a wall of highlighted boxes as steps complete. */
+.ra-step.current { border-color: rgba(var(--accent-rgb), 0.45); }
+.ra-step.done { background: rgba(255, 255, 255, 0.02); }
+
+.ra-step-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  font-weight: 600;
+  font-size: 0.92em;
+}
+.ra-step-title { min-width: 0; }
+.ra-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(var(--accent-rgb), 0.18);
+  font-weight: 700;
+  font-size: 0.82em;
+  flex: 0 0 auto;
+}
+.ra-step-head.done .ra-step-num {
+  background: rgba(76, 175, 120, 0.3);
+  color: #4caf78;
+}
+.ra-step-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 0 14px 12px;
+}
+.ra-step-body > * { max-width: 100%; }
+.ra-step.done .ra-step-body { opacity: 0.72; }
+
+/* The pairing sheet and the address block sit inside a step like anywhere else,
+   but they are full-width blocks, not inline controls. */
+.ra-step-body .ra-pair,
+.ra-step-body .ra-pair-idle,
+.ra-step-body .ra-https-down,
+.ra-step-body .ra-setup,
+.ra-step-body .ra-toggle-row { width: 100%; }
+
+.ra-pair-idle { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+
+/* The end of the guide: the one question left is what happens to this PC. */
+.ra-guide-done {
+  margin-top: 4px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(var(--accent-rgb), 0.28);
+  background: rgba(var(--accent-rgb), 0.07);
+}
+.ra-guide-done-title { margin: 0 0 6px; font-size: 14px; font-weight: 700; }
+.ra-guide-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 2px;
+}
+
+/* A phone is 390px wide and the guide has to be readable there: the panel is
+   reached from the PC, but the same stylesheet is loaded on every surface. */
+@media (max-width: 460px) {
+  .ra-guide-head { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .ra-guide-actions > .ra-btn { flex: 1 1 100%; }
 }

@@ -68,21 +68,34 @@
   }
 
   function choosePhone() {
-    // Record the INTENT only. The shell is deliberately NOT told yet.
+    // Recorded as 'both', NOT 'phone', and nothing on this PC changes.
     //
     // "This PC shows nothing" is only safe once the phone can show something,
     // and at this instant nothing is paired: applying it here hid the very
     // window carrying the QR code the user is about to scan, and took the app
     // out of the login entry at the same time — so a restart brought back
-    // nothing either. `reconcileShell` applies it once a device is actually
-    // paired; until then the dashboard stays exactly where it is.
+    // nothing either. It is also not what everyone wants: plenty of people want
+    // the dashboard on the phone AND on the PC. So the hiding is not part of
+    // this answer at all — the guide asks for it at the end, once there is a
+    // paired device to hand the dashboard over to, and Settings → Screen moves
+    // between the two afterwards.
     //
     // The network door also stays SHUT: choosing "my phone" says where the user
     // wants the dashboard, not that they authorise a LAN listener. That switch
     // has its own panel, and flipping it as a side effect of a wizard is what
-    // the paired-device rules forbid. So we land them on it, one tap away.
-    finish({ kind: 'phone', monitor: '', label: '' });
-    if (typeof window.openSettings === 'function') window.openSettings('remote');
+    // the paired-device rules forbid. So we land them on it, one tap away, with
+    // the step-by-step guide open on the switch itself.
+    finish({ kind: 'both', monitor: '', label: '' });
+    if (window.RemoteAccessGuide && typeof window.RemoteAccessGuide.open === 'function') {
+      window.RemoteAccessGuide.open();
+    }
+    // 'phone', NOT 'remote'. 'remote' is the Sunshine/Moonlight wizard, which
+    // pairing moved out of when the two were separated — so this landed the user
+    // on a desktop-streaming panel while the highlight below aimed at a node in
+    // a category that was hidden, and therefore did nothing at all. Measured on
+    // the real dashboard. The same fix already lives on the Settings → Screen
+    // button (settingsSetCategory('phone')).
+    if (typeof window.openSettings === 'function') window.openSettings('phone');
     // Let the panel render before pointing at it.
     setTimeout(() => {
       const panel = document.getElementById('settings-remote-access');
@@ -106,10 +119,21 @@
     card.appendChild(head);
 
     const body = document.createElement('p');
-    body.textContent = state.supported && state.displays.length
+    body.textContent = state.supported
       ? tr('surface_pc_body', 'Pick the screen Xenon should open on. You can change it any time.')
       : tr('surface_pc_body_browser', 'Xenon stays on this screen, in this window. To have it open full-screen on a display of its own, use the Xenon app.');
     card.appendChild(body);
+
+    // Inside the shell but the monitor list has not been pushed yet — it arrives
+    // a moment after the page loads. Say so, rather than fall through to the
+    // browser text, which would tell someone running the app that their screens
+    // cannot be chosen. The listener at the bottom of this file repaints.
+    if (state.supported && !state.displays.length) {
+      const wait = document.createElement('span');
+      wait.className = 'sp-note';
+      wait.textContent = tr('surface_reading', 'Reading the screens on this PC…');
+      card.appendChild(wait);
+    }
 
     if (state.supported && state.displays.length) {
       const list = document.createElement('div');
@@ -162,12 +186,12 @@
     card.appendChild(head);
 
     const body = document.createElement('p');
-    body.textContent = tr('surface_phone_body', 'The dashboard opens in your phone’s browser over your own Wi-Fi, and this PC shows nothing at all. Nothing to install on the phone.');
+    body.textContent = tr('surface_phone_body', 'The dashboard opens in your phone’s browser over your own Wi-Fi. Nothing to install on the phone.');
     card.appendChild(body);
 
     const note = document.createElement('span');
     note.className = 'sp-note';
-    note.textContent = tr('surface_phone_note', 'We will take you to the pairing panel. Nothing is switched on until you do it there.');
+    note.textContent = tr('surface_phone_note', 'A step-by-step guide opens on this PC. Nothing is switched on until you do it there, and Xenon keeps opening here unless you ask it not to.');
     card.appendChild(note);
 
     const go = document.createElement('button');
@@ -179,8 +203,23 @@
     return card;
   }
 
+  // The screen already in use — the Edge when there is one, because that is what
+  // the shell would have chosen on its own.
+  function preferredId(state) {
+    const pick = state.displays.find((d) => d.edge)
+      || state.displays.find((d) => d.id && d.id === state.active)
+      || state.displays.find((d) => d.primary)
+      || state.displays[0];
+    return (pick && pick.id) || '';
+  }
+
   function render() {
     const state = displays();
+    // The list can arrive AFTER the dialog opened (the shell pushes it once the
+    // page has loaded), so the preselection is made here too — otherwise the
+    // monitors would appear with none of them chosen and "Use this PC" would
+    // quietly mean "automatic".
+    if (!selectedId) selectedId = preferredId(state);
     // `isConnected`, not just non-null: anything that removes the node without
     // going through close() would otherwise leave us re-rendering into a
     // detached element — a dialog that exists and is on nobody's screen.
@@ -223,14 +262,7 @@
   }
 
   function start() {
-    const state = displays();
-    // Preselect the screen that is already in use — the Edge when there is one,
-    // because that is what the shell would have chosen on its own.
-    const preferred = state.displays.find((d) => d.edge)
-      || state.displays.find((d) => d.id && d.id === state.active)
-      || state.displays.find((d) => d.primary)
-      || state.displays[0];
-    selectedId = (preferred && preferred.id) || '';
+    selectedId = preferredId(displays());
     render();
   }
 
@@ -249,9 +281,16 @@
   // Called after settings hydrate, like the tour, and BEFORE it: answering
   // "where" first means the tour that follows is about a dashboard the user has
   // already put where they want it.
+  //
+  // Opens immediately. It used to wait 600ms for the shell's first
+  // `push_display_state` to land (the caps injected before the page loads carry
+  // `displayPicker` but no monitor list), which on a first run is 600ms of a
+  // finished-looking dashboard with no question on it. The list is not needed to
+  // draw the dialog: `screenCard` says it is reading the screens until the push
+  // arrives, and the display listener below repaints when it does.
   function maybeStart() {
     if (!shouldAsk()) return false;
-    setTimeout(() => { if (shouldAsk()) start(); }, 600);
+    start();
     return true;
   }
 
@@ -309,7 +348,11 @@
       if (native.chooseScreen(want.monitor, state.fullscreen)) lastRelayed = key;
       return;
     }
-    if (want.kind === 'auto') {
+    // 'both' is 'auto' as far as the shell is concerned: the phone is paired and
+    // this PC keeps its window. The distinction lives in the settings, so the
+    // Screen panel and the phone guide can tell "I chose both" from "I never
+    // said" — the shell has no third placement to be told about.
+    if (want.kind === 'auto' || want.kind === 'both') {
       if (state.mode === 'auto') { lastRelayed = key; return; }
       if (native.chooseAutoScreen()) lastRelayed = key;
     }

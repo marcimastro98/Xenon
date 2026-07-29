@@ -60,7 +60,16 @@
   // security prompt the user is being asked to approve is the one stacking order
   // that must never happen, and the old selector list did not cover it.
   const DEFAULT_OVERLAYS = [
-    '.upd-overlay',            // What's New / update available (top precedence)
+    // The two first-run surfaces. They are the FIRST thing a new user sees and
+    // the last thing anything may cover: the screen question is a question, and
+    // a promo modal landing on top of it leaves someone unable to answer the one
+    // thing the app asked them. Measured on a real first run: the catalog drop
+    // fires ~20s after load and the hub message ~35s, both found the screen
+    // "idle" because neither selector was here, and both drew straight over the
+    // dialog. They are listed above everything else because they outrank it.
+    '.sp-overlay',             // "Where do you want Xenon?" (first run)
+    '.onb-overlay',            // the guided tour that follows it
+    '.upd-overlay',            // What's New / update available
     '.preset-modal-overlay',   // preset import/export
     '.cgal-overlay',           // Store / community gallery
     '.xdrop-overlay',          // paid catalog drop nudge
@@ -72,7 +81,13 @@
   // Priority ladder, named so channels don't hardcode magic numbers. Limited
   // editions outrank everything below the update modal: copies run out, so it is
   // the only offer that genuinely cannot wait for tomorrow.
-  const PRIORITY = { limited: 30, drop: 20, message: 10, tip: 0 };
+  //
+  // `update` sits on top because What's New explains the version the user is
+  // already running, and reading a promo before being told what changed is the
+  // wrong order. It still opens with no delay when the screen is clear —
+  // whenIdle() runs immediately in that case — so its long-standing "answers to
+  // no one" behaviour only changes when something is genuinely in the way.
+  const PRIORITY = { update: 40, limited: 30, drop: 20, message: 10, tip: 0 };
 
   function create(deps) {
     const d = deps || {};

@@ -492,6 +492,19 @@ async function act(id, action) {
 
   if (what === 'answer') {
     if (!call.caps.answer) return { ok: false, error: 'unavailable' };
+    // The paired phone. Nothing is focused and no key is sent: the platform
+    // that allows this owns the call, so answering is one call into it. The
+    // card is only dropped once that came back ok — a failed answer must leave
+    // the ring on screen, because the phone is still ringing.
+    if (call.source === 'phone') {
+      if (typeof _deps.phoneAnswer !== 'function') return { ok: false, error: 'unavailable' };
+      let r;
+      try { r = await _deps.phoneAnswer(); }
+      catch { return { ok: false, error: 'phone_failed' }; }
+      if (!r || r.ok === false) return { ok: false, error: (r && r.error) || 'phone_failed' };
+      _drop(call.id);
+      return { ok: true };
+    }
     if (call.source === 'discord') {
       if (typeof _deps.discordJoin !== 'function') return { ok: false, error: 'discord_unavailable' };
       let r;
@@ -508,6 +521,15 @@ async function act(id, action) {
 
   if (what === 'decline') {
     if (!call.caps.decline) return { ok: false, error: 'unavailable' };
+    if (call.source === 'phone') {
+      if (typeof _deps.phoneHangUp !== 'function') return { ok: false, error: 'unavailable' };
+      let r;
+      try { r = await _deps.phoneHangUp(); }
+      catch { return { ok: false, error: 'phone_failed' }; }
+      if (!r || r.ok === false) return { ok: false, error: (r && r.error) || 'phone_failed' };
+      _drop(call.id);
+      return { ok: true };
+    }
     const r = await _sendToApp(call, 'decline');
     if (r.ok) _drop(call.id);
     return r;

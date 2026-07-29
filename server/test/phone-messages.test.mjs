@@ -128,3 +128,79 @@ test('the listing cap holds', () => {
   const one = '<msg handle="AB12" subject="x" datetime="20260101T101010" />';
   assert.equal(msgs.parseListing(one.repeat(msgs.MAX_MESSAGES + 40)).length, msgs.MAX_MESSAGES);
 });
+
+// ── obexd's container ──────────────────────────────────────────────────────
+// On Linux, BlueZ has already parsed the listing above and hands back D-Bus
+// property dictionaries. Same messages, different container, so the widget must
+// receive the identical shape either way.
+
+const OBEX_ROWS = [
+  ['/org/bluez/obex/client/session0/message0', {
+    Subject: { type: 's', data: 'NON CONDIVIDERE. Codice attivazione: 395721' },
+    Timestamp: { type: 's', data: '20260728T192938' },
+    Sender: { type: 's', data: 'Trade Rep' },
+    SenderAddress: { type: 's', data: '87233737' },
+    Read: { type: 'b', data: true },
+    Sent: { type: 'b', data: false },
+    Type: { type: 's', data: 'sms-gsm' },
+  }],
+  ['/org/bluez/obex/client/session0/message1', {
+    Subject: { type: 's', data: 'Con Agospay gestisci le spese come vuoi tu!' },
+    Timestamp: { type: 's', data: '20260717T163837' },
+    Sender: { type: 's', data: 'AGOS' },
+    Read: { type: 'b', data: false },
+    Sent: { type: 'b', data: false },
+  }],
+];
+
+test('obexd rows produce the same shape the XML listing does', () => {
+  const list = msgs.parseObexMessages(OBEX_ROWS);
+  const fromXml = msgs.parseListing(LISTING);
+  assert.deepEqual(Object.keys(list[0]).sort(), Object.keys(fromXml[0]).sort(),
+    'the widget renders one shape; the transport it came from must not show');
+  assert.equal(list[0].name, 'Trade Rep');
+  assert.equal(list[0].number, '87233737');
+  assert.equal(list[0].read, true);
+  assert.equal(list[0].at, new Date(2026, 6, 28, 19, 29, 38).getTime());
+  assert.equal(list[1].read, false);
+  // Newest first, like the other one.
+  assert.ok(list[0].at > list[1].at);
+});
+
+test('the obexd handle is the object path, which is what identifies it there', () => {
+  assert.equal(msgs.parseObexMessages(OBEX_ROWS)[0].handle, '/org/bluez/obex/client/session0/message0');
+});
+
+test('obexd rows that are not rows are skipped, never thrown on', () => {
+  assert.deepEqual(msgs.parseObexMessages(null), []);
+  assert.deepEqual(msgs.parseObexMessages([null, 'x', [], [42, {}], ['not-a-path', {}]]), []);
+  // A row with nothing in it at all carries no message.
+  assert.deepEqual(msgs.parseObexMessages([['/m0', {}]]), []);
+});
+
+test('a composed bMessage round-trips through our own reader', () => {
+  // The envelope is the one thing here with no phone to check it, so the test
+  // is that the format we WRITE is the format we can READ.
+  const text = 'Ciao, arrivo tra 10 minuti. Perché è così?';
+  const built = msgs.buildBMessage('+393463331166', text);
+  const out = msgs.parseMessage(built);
+  assert.equal(out.body, text);
+  assert.equal(out.folder, 'telecom/msg/outbox');
+  assert.equal(out.read, false, 'a message being sent is not a read one');
+
+  // And the asymmetry that is easy to read as a bug and is not: a message we
+  // COMPOSED has no sender, it has a recipient, and the recipient lives inside
+  // BENV. senderFrom deliberately refuses to look there — doing otherwise is
+  // what would put the user's own details on every message in their inbox.
+  assert.equal(out.number, '', 'an outgoing message has no sender to read');
+  assert.match(built, /BEGIN:BENV[\s\S]*TEL:\+393463331166/, 'the recipient is in the envelope');
+});
+
+test('a composed bMessage counts LENGTH in bytes, not characters', () => {
+  const text = 'àèìòù 👋';
+  const built = msgs.buildBMessage('+390612345678', text);
+  const declared = Number(/^LENGTH:(\d+)$/m.exec(built)[1]);
+  const block = 'BEGIN:MSG\r\n' + text + '\r\nEND:MSG\r\n';
+  assert.equal(declared, Buffer.byteLength(block, 'utf8'));
+  assert.equal(msgs.parseMessage(built).body, text);
+});

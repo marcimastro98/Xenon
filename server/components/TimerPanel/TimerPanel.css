@@ -203,6 +203,13 @@
   background: rgba(var(--accent-rgb), .25);
   border-color: rgba(var(--accent-rgb), .5);
 }
+/* Stop deliberately keeps the neutral .timer-btn look rather than joining the
+   accented group above: the accent marks the button that MOVES the timer
+   (pause/resume/restart), and stop is the one that puts it away. Three visual
+   weights across the row — accent for the primary action, neutral for stop,
+   danger-on-hover for delete — so a four-button row still reads at a glance. */
+.timer-stop-btn:hover { background: var(--hover-bg); color: var(--text); }
+
 .timer-delete-btn { color: var(--dim-text); }
 .timer-delete-btn:hover { background: color-mix(in srgb, var(--color-danger), transparent 82%); color: var(--color-danger); border-color: color-mix(in srgb, var(--color-danger), transparent 70%); }
 

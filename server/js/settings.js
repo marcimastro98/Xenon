@@ -736,7 +736,13 @@ const BG_CUSTOM_CODE_MAX = 60000;
 // that reads it failed in turn — the dashboard booted with zero tiles and a
 // console full of "hubSettings is not defined". Anything the initial normalize
 // touches belongs above this line.
-const SURFACE_KINDS = ['auto', 'screen', 'phone'];
+// 'both' = the dashboard lives on a paired phone AND keeps opening on this PC.
+// It behaves exactly like 'auto' for the shell; what it carries is the user's
+// answer, so Settings can show it and the phone guide knows it was chosen.
+// 'phone' keeps its narrower meaning: nothing on this PC, not even at login.
+// An older build normalizes an unknown kind to 'auto', which is the safe
+// direction — the window stays visible rather than disappearing.
+const SURFACE_KINDS = ['auto', 'screen', 'phone', 'both'];
 
 let hubSettings = loadHubSettings();
 let settingsStatusTimer = null;
@@ -3128,22 +3134,36 @@ async function _hydrateHubSettingsImpl() {
     // wants it. When the picker takes the screen the tour waits for the next
     // load rather than stacking two overlays on top of each other.
     //
-    // DEFERRED TO `load`, and that is not cosmetic. This function is started at
-    // the bottom of settings.js — a script tag ~80 tags EARLIER in the document
-    // than surface-picker.js and onboarding.js — and it resumes from a fetch to
-    // loopback that can answer in single-digit milliseconds. Whoever wins that
-    // race decided whether the two globals existed yet: when the fetch won,
-    // `window.Onboarding` was still undefined here and the tutorial silently
-    // never ran. Measured, not theorised — it is why a first run sometimes got
-    // no tour at all. By `load` every script tag has executed, so the outcome no
-    // longer depends on who was faster.
+    // DEFERRED, and what it waits for is the SCRIPT TAGS, not the page. This
+    // function is started at the bottom of settings.js — a script tag ~80 tags
+    // EARLIER in the document than surface-picker.js and onboarding.js — and it
+    // resumes from a fetch to loopback that can answer in single-digit
+    // milliseconds. Whoever wins that race decided whether the two globals
+    // existed yet: when the fetch won, `window.Onboarding` was still undefined
+    // here and the tutorial silently never ran. Measured, not theorised.
+    //
+    // `DOMContentLoaded`, NOT `load`. Every classic script in the document has
+    // executed by then, so the race above is closed just as completely — while
+    // `load` also waits for the images, fonts, backdrop media and widget iframes
+    // of a whole dashboard, which is why the first-run question used to arrive
+    // long after the dashboard was on screen and looking finished. There is
+    // nothing in either surface that needs a decoded image.
     const runFirstRunSurfaces = () => {
+      // A machine that has never answered the screen question is a fresh
+      // install, and a fresh install has no "what's new" to be told about: there
+      // is no version it is coming from. Said here because this is the one place
+      // that knows it, and before the picker opens so the modal cannot slip in
+      // between (update.js also re-reads the flag after its own network wait).
+      if (!getSurfaceChoice().asked && window.XenonWhatsNew
+        && typeof window.XenonWhatsNew.suppressForFreshInstall === 'function') {
+        window.XenonWhatsNew.suppressForFreshInstall();
+      }
       const askedSurface = window.SurfacePicker && typeof window.SurfacePicker.maybeStart === 'function'
         && window.SurfacePicker.maybeStart();
       if (!askedSurface && window.Onboarding && typeof window.Onboarding.maybeStart === 'function') window.Onboarding.maybeStart();
     };
-    if (document.readyState === 'complete') runFirstRunSurfaces();
-    else window.addEventListener('load', runFirstRunSurfaces, { once: true });
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', runFirstRunSurfaces, { once: true });
+    else runFirstRunSurfaces();
   } catch {
     // Network error (server restarting, offline boot): stay in the parked state
     // and try again — never fall through to pushing blind local state.
@@ -4519,11 +4539,12 @@ function renderSurfaceSection() {
     return wrap;
   };
 
-  // The three answers, as radio rows.
+  // The four answers, as radio rows.
   const modes = [
     ['auto', 'surface_mode_auto', 'Automatico', 'surface_mode_auto_hint', 'Xenon sceglie da sé: la Xeneon Edge se c’è, altrimenti una finestra sullo schermo principale.'],
     ['screen', 'surface_mode_screen', 'Uno schermo di questo PC', 'surface_mode_screen_hint', 'Scegli tu quale. Vale anche se hai una Xeneon Edge collegata.'],
-    ['phone', 'surface_mode_phone', 'Il mio telefono o tablet', 'surface_mode_phone_hint', 'Su questo PC non compare niente, nemmeno all’avvio. La dashboard si apre sul telefono, una volta accoppiato.'],
+    ['both', 'surface_mode_both', 'Sul telefono e anche su questo PC', 'surface_mode_both_hint', 'La dashboard si apre sul telefono accoppiato e continua ad aprirsi anche qui.'],
+    ['phone', 'surface_mode_phone', 'Solo sul telefono o tablet', 'surface_mode_phone_hint', 'Su questo PC non compare niente, nemmeno all’avvio. La dashboard si apre sul telefono, una volta accoppiato.'],
   ];
   const list = document.createElement('div');
   list.className = 'settings-radio-list';
@@ -4615,19 +4636,23 @@ function renderSurfaceSection() {
     host.appendChild(warn);
   }
 
-  // Phone mode: the pairing panel is where the actual work happens.
-  if (choice.kind === 'phone') {
+  // Phone modes: the pairing panel is where the actual work happens.
+  if (choice.kind === 'phone' || choice.kind === 'both') {
     // Until a device is paired the PC deliberately keeps showing the dashboard.
     // Saying so is the difference between "waiting for you" and "did nothing".
-    const pending = document.createElement('p');
-    pending.className = 'settings-hint';
-    pending.dataset.i18n = 'surface_phone_pending';
-    pending.textContent = t('surface_phone_pending');
-    host.appendChild(pending);
-    if (typeof window.__surfaceHasPairedDevice === 'function') {
-      window.__surfaceHasPairedDevice().then((paired) => {
-        if (paired && pending.isConnected) pending.remove();
-      });
+    // Only for 'phone': under 'both' the PC showing the dashboard IS the choice,
+    // so there is nothing pending to explain.
+    if (choice.kind === 'phone') {
+      const pending = document.createElement('p');
+      pending.className = 'settings-hint';
+      pending.dataset.i18n = 'surface_phone_pending';
+      pending.textContent = t('surface_phone_pending');
+      host.appendChild(pending);
+      if (typeof window.__surfaceHasPairedDevice === 'function') {
+        window.__surfaceHasPairedDevice().then((paired) => {
+          if (paired && pending.isConnected) pending.remove();
+        });
+      }
     }
     const go = document.createElement('button');
     go.type = 'button';
@@ -4653,6 +4678,13 @@ function applySurfaceKind(kind, state) {
     // once a device is actually paired. Applying it here would hide the window
     // the user is about to pair from. See the note in surface-picker.js.
     setSurfaceChoice({ kind: 'phone', asked: true, monitor: '', label: '' });
+  } else if (kind === 'both') {
+    // Phone AND this PC. The shell is told 'auto' because that is what it does
+    // here — the difference from 'auto' is the answer we remember, not the
+    // placement. Told immediately, so leaving 'phone' brings the window back now
+    // instead of at the next login.
+    if (native && typeof native.chooseAutoScreen === 'function') native.chooseAutoScreen();
+    setSurfaceChoice({ kind: 'both', asked: true, monitor: '', label: '' });
   } else if (kind === 'auto') {
     if (native && typeof native.chooseAutoScreen === 'function') native.chooseAutoScreen();
     setSurfaceChoice({ kind: 'auto', asked: true, monitor: '', label: '' });

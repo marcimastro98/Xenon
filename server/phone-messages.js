@@ -160,9 +160,68 @@ function parseMessage(bmsg) {
   };
 }
 
+// ── obexd's own listing ─────────────────────────────────────────────────────
+// On Linux, BlueZ's obexd has already parsed the MAP listing and hands back
+// D-Bus property dictionaries instead of the XML above. Same messages, same
+// fields, different container — so it gets a mapper rather than a second
+// parser, and the shape it produces is byte-for-byte the one the widget
+// already renders.
+//
+// The IDENTITY differs, and deliberately so: obexd hides the MAP handle and
+// gives an object path instead. That path is what travels as the handle here,
+// and the Linux transport re-resolves it against a fresh listing before using
+// it — the same "address by what we enumerated, never by what the wire said"
+// idiom the search results and the file transfer use.
+function parseObexMessages(rows) {
+  const out = [];
+  const list = Array.isArray(rows) ? rows : [];
+  for (const row of list) {
+    const objPath = Array.isArray(row) ? row[0] : (row && row.path);
+    const props = (Array.isArray(row) ? row[1] : (row && row.properties)) || {};
+    if (typeof objPath !== 'string' || !objPath.startsWith('/')) continue;
+    const val = (k) => (props[k] && typeof props[k] === 'object' && 'data' in props[k] ? props[k].data : props[k]);
+    const name = String(val('Sender') || '').trim();
+    const number = String(val('SenderAddress') || '').trim();
+    if (!name && !number && !val('Subject')) continue;
+    out.push({
+      handle: objPath,
+      name,
+      number,
+      preview: String(val('Subject') || '').trim(),
+      at: parseStamp(val('Timestamp')),
+      read: val('Read') === true,
+      sent: val('Sent') === true,
+      type: String(val('Type') || '').trim(),
+    });
+    if (out.length >= MAX_MESSAGES) break;
+  }
+  out.sort((a, b) => b.at - a.at);
+  return out;
+}
+
+// ── Composing ───────────────────────────────────────────────────────────────
+// The envelope a message is pushed inside. CRLF throughout is not a style
+// choice: LENGTH counts the bytes of the MSG block, and a lone LF makes the
+// phone reject the whole push. Written here rather than only in the helper so
+// the format has a test — the C# copy has none and cannot easily get one.
+function buildBMessage(number, text) {
+  const body = String(text == null ? '' : text);
+  const block = 'BEGIN:MSG\r\n' + body + '\r\nEND:MSG\r\n';
+  const length = Buffer.byteLength(block, 'utf8');
+  return 'BEGIN:BMSG\r\nVERSION:1.0\r\nSTATUS:UNREAD\r\nTYPE:SMS_GSM\r\n'
+    + 'FOLDER:telecom/msg/outbox\r\n'
+    + 'BEGIN:BENV\r\n'
+    + 'BEGIN:VCARD\r\nVERSION:2.1\r\nN:\r\nTEL:' + String(number == null ? '' : number) + '\r\nEND:VCARD\r\n'
+    + 'BEGIN:BBODY\r\nCHARSET:UTF-8\r\nLENGTH:' + length + '\r\n'
+    + block
+    + 'END:BBODY\r\nEND:BENV\r\nEND:BMSG\r\n';
+}
+
 module.exports = {
   parseListing,
   parseMessage,
+  parseObexMessages,
+  buildBMessage,
   // exported for the tests
   decodeEntities,
   validHandle,

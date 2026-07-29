@@ -816,6 +816,21 @@
     } catch { return null; }
   }
 
+  // A first install has nothing to be told about: there is no earlier version it
+  // is coming from, and "here is what changed" is a strange first sentence for
+  // something the user has never seen. Called by settings.js the moment it knows
+  // this machine has never answered the screen question — which is the only
+  // signal in the product that says "brand new install" rather than "new build".
+  //
+  // Marks the current release as already seen instead of adding a second gate:
+  // one flag, one meaning, and the modal comes back on its own at the NEXT
+  // release, which is when it starts being true.
+  async function suppressForFreshInstall() {
+    if (dismissedWhatsNew()) return;
+    const wn = await loadWhatsNew();
+    if (wn && wn.id && !dismissedWhatsNew()) rememberWhatsNew(wn.id);
+  }
+
   function openWhatsNew(wn) {
     if (!wn || !wn.id || !Array.isArray(wn.highlights) || !wn.highlights.length) return;
     closeModal();
@@ -974,19 +989,41 @@
     }
   }
 
+  // This modal arrives on its own clock: `boot()` awaits `/update/check`, which
+  // on a fresh install is a live GitHub call plus the media probes, so it can
+  // land seconds after the first-run screen question opened. It used to render
+  // into that regardless, and at z-index 4000 against the picker's 4100 it
+  // landed BEHIND the dialog — a modal nobody could see, over a question nobody
+  // could answer past.
+  //
+  // The arbiter is the one that knows what is on screen (js/interrupt-queue.js),
+  // so this asks it rather than keeping a poller of its own. It still opens with
+  // no delay on a clear dashboard: whenIdle() runs synchronously when nothing is
+  // queued and nothing is up. Without the module — a stripped page, a load
+  // order that went wrong — open anyway: an update notice that silently never
+  // appears is worse than one that appears at a bad moment.
+  function whenNothingElseIsUp(fn) {
+    const I = window.XenonInterrupts;
+    if (!I || typeof I.whenIdle !== 'function') { fn(); return; }
+    I.whenIdle(fn, { priority: I.PRIORITY.update });
+  }
+
   async function boot() {
     const [info, wn] = await Promise.all([check(false), loadWhatsNew()]);
     refreshIndicators(info);
     surfacePendingUpdateNotices(info); // fire-and-forget; only ever shows toasts
+    // Re-read the dismissed flag HERE, after the awaits: on a first run
+    // settings.js marks this release as seen while those fetches are still in
+    // flight, and reading it before them would show the modal it just suppressed.
     const wnPending = !!(wn && wn.id && dismissedWhatsNew() !== wn.id
       && Array.isArray(wn.highlights) && wn.highlights.length);
     const updatePending = !!(info && info.updateAvailable && !isVersionSkipped(info.latest));
-    if (wnPending) openWhatsNew(wn);
+    if (wnPending) whenNothingElseIsUp(() => { if (dismissedWhatsNew() !== wn.id) openWhatsNew(wn); });
     // On the native app, don't auto-pop this web modal: the shell shows its own
     // in-app "update available — tap to install" toast (native-bridge.js), and
     // two competing popups is exactly how a user ended up on the GitHub page.
     // The Settings pill still opens this modal on demand (now native-aware).
-    else if (updatePending && !isNativeShell()) openModal(info);
+    else if (updatePending && !isNativeShell()) whenNothingElseIsUp(() => openModal(info));
   }
 
   // Manual "Check for updates" button (forces a fresh probe).
@@ -1022,7 +1059,7 @@
     isVersionSkipped,
     skipVersion: rememberDismissed,
   };
-  window.XenonWhatsNew = { load: loadWhatsNew, open: openWhatsNew };
+  window.XenonWhatsNew = { load: loadWhatsNew, open: openWhatsNew, suppressForFreshInstall };
 
   document.addEventListener('DOMContentLoaded', boot, { once: true });
 })();

@@ -28,9 +28,13 @@ function lift(source, name) {
   const end = source.indexOf('\n}', at);
   assert.notEqual(end, -1, `${name} has no end`);
   const body = source.slice(at, end + 2);
-  const kinds = "const SURFACE_KINDS = ['auto', 'screen', 'phone'];\n";
+  // The REAL declaration, lifted from the same file — not a copy written here.
+  // A copy would keep passing while the two halves drifted apart, which is the
+  // one failure this file exists to catch.
+  const kinds = /^const SURFACE_KINDS = \[[^\]]*\];$/m.exec(source);
+  assert.ok(kinds, 'SURFACE_KINDS not found');
   // eslint-disable-next-line no-new-func
-  return new Function(`${kinds}${body}\nreturn ${name};`)();
+  return new Function(`${kinds[0]}\n${body}\nreturn ${name};`)();
 }
 
 const client = lift(CLIENT, 'normalizeSurface');
@@ -73,12 +77,35 @@ test('an unknown kind degrades to auto rather than being carried through', () =>
   }
 });
 
-test('the three real kinds survive', () => {
+test('the four real kinds survive', () => {
   for (const [who, fn] of BOTH) {
-    for (const kind of ['auto', 'screen', 'phone']) {
+    for (const kind of ['auto', 'screen', 'phone', 'both']) {
       assert.equal(fn({ kind }).kind, kind, who);
     }
   }
+});
+
+test("'both' is a settings answer, not a shell placement", () => {
+  // 'both' means "the phone AND this PC", and the PC half of that is exactly
+  // what 'auto' already does — so the shell is told 'auto' and has no third
+  // branch to grow. A `xenon-display:both` verb would be a scheme the shell does
+  // not know, which on Windows raises the OS "how do you want to open this?"
+  // dialog on the kiosk.
+  const LIB = fs.readFileSync(
+    path.join(HERE, '..', '..', 'apps', 'native', 'src-tauri', 'src', 'lib.rs'),
+    'utf8'
+  );
+  assert.ok(!/"both" =>/.test(LIB), 'lib.rs grew a "both" display signal');
+  assert.ok(!/xenon-display:both/.test(
+    fs.readFileSync(path.join(HERE, '..', 'js', 'native-bridge.js'), 'utf8')
+  ), 'native-bridge.js sends a "both" display signal');
+  // And the client must place it, not leave the window wherever it was: the way
+  // OUT of "nothing on this PC" is choosing 'both', so it has to tell the shell.
+  const apply = /function applySurfaceKind\([\s\S]*?\n}/.exec(CLIENT);
+  assert.ok(apply, 'applySurfaceKind not found');
+  const branch = /kind === 'both'\)\s*\{([\s\S]*?)\}\s*else/.exec(apply[0]);
+  assert.ok(branch, "applySurfaceKind has no 'both' branch");
+  assert.match(branch[1], /chooseAutoScreen/, "the 'both' branch does not place the window");
 });
 
 test('`asked` is true only when it is literally true', () => {

@@ -274,6 +274,138 @@
     return Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
   }
 
+  // ── Pieces shared with the step-by-step guide ─────────────────────────────
+  // Built here and handed to js/remote-access-guide.js rather than reimplemented
+  // there: the guide walks the user across the same switches this panel owns, so
+  // a second copy of the QR sheet or of the Tailscale error ladder would be two
+  // things to keep in step and one of them would eventually be wrong.
+
+  /** The live invitation, or the button that asks for one, plus the address. */
+  function pairingSheet(st) {
+    if (st.pairing) {
+      const left = secsLeft(st.pairing.expiresAt);
+      const sheet = el('div', 'ra-pair');
+      const qrBox = el('div', 'ra-qr');
+      renderQr(qrBox, pairUrl(st, st.pairing.code));
+      sheet.appendChild(qrBox);
+
+      sheet.appendChild(el('p', 'ra-pair-hint', t('ra_scan_hint')));
+      sheet.appendChild(el('div', 'ra-code', st.pairing.display));
+      sheet.appendChild(el('p', 'ra-pair-url', baseUrl(st) + '/pair'));
+      sheet.appendChild(el('p', 'ra-pair-left', t('ra_expires_in') + ' ' + left + 's'));
+
+      const cancel = el('button', 'ra-btn ghost', t('ra_cancel'));
+      cancel.type = 'button';
+      cancel.addEventListener('click', () => act('/api/remote-access/pair/cancel'));
+      sheet.appendChild(cancel);
+      return sheet;
+    }
+    const box = el('div', 'ra-pair-idle');
+    const add = el('button', 'ra-btn primary', t('ra_add_device'));
+    add.type = 'button';
+    add.disabled = (st.devices || []).length >= (st.maxDevices || 16);
+    add.addEventListener('click', () => act('/api/remote-access/pair'));
+    box.appendChild(add);
+    // The address is worth showing even without a live code: it is what the
+    // user types when a camera cannot read the QR.
+    const addr = el('p', 'ra-addr');
+    addr.appendChild(el('span', null, t('ra_address') + ' '));
+    addr.appendChild(el('code', null, baseUrl(st)));
+    box.appendChild(addr);
+    // The other LAN addresses are only worth listing while the secure door is
+    // down — with it up, that one name is the answer everywhere.
+    if (!(st.https && st.https.running) && st.addresses.length > 1) {
+      box.appendChild(el('p', 'ra-addr-alt', t('ra_address_alt') + ' ' + st.addresses.slice(1).join(', ')));
+    }
+    return box;
+  }
+
+  /** Asked for and not up: the reason, the button, the command, the procedure. */
+  function httpsFailure(st) {
+    const tls = st.https || {};
+    const setup = st.httpsSetup || {};
+    const box = el('div', 'ra-https-down');
+    // Name the one thing in the way — never a bare "failed", because each of
+    // these is a different action by the user and one of them is not on this
+    // machine at all.
+    const why = el('p', 'ra-warn');
+    why.textContent = t(HTTPS_WHY[tls.reason] || 'ra_https_why_failed');
+    box.appendChild(why);
+    // The button that does everything it can: installs Tailscale, opens the
+    // sign-in, then waits for the one switch that is not on this machine.
+    const go = el('button', 'ra-btn primary', t('ra_https_setup'));
+    go.type = 'button';
+    go.addEventListener('click', () => act('/api/remote-access/https/setup'));
+    box.appendChild(go);
+    if (setup.error) {
+      const err = el('p', 'ra-warn');
+      err.textContent = t(SETUP_ERR[setup.error] || 'ra_https_setup_err_failed');
+      box.appendChild(err);
+    }
+    // "Install Tailscale" is not instructions. Where we know the exact line,
+    // it goes on screen to be copied — the whole point of naming the reason is
+    // that the user can act on it without leaving the panel to search.
+    //
+    // Shown from the READINESS too, not only after a failed attempt: where
+    // Xenon cannot install Tailscale itself, pressing the button can only ever
+    // come back asking for it, so making them press it first would be theatre.
+    const cmd = setupErrCommand(setup.error)
+      || (st.httpsAutoInstall === false && tls.reason === 'not_installed' ? setupErrCommand('needs_manual_install') : '')
+      || (tls.reason === 'needs_operator' ? setupErrCommand('needs_operator') : '');
+    if (cmd) {
+      const pre = el('pre', 'ra-cmd');
+      pre.textContent = cmd;
+      box.appendChild(pre);
+    }
+    // …and the manual procedure underneath, for anyone who would rather do it
+    // themselves or whose machine has no winget.
+    box.appendChild(howToSetUp());
+    return box;
+  }
+
+  /** The paired devices, with rename and revoke. */
+  function appendDevices(page, st) {
+    const devices = Array.isArray(st.devices) ? st.devices : [];
+    const listBox = el('div', 'ra-devices');
+    listBox.appendChild(el('h4', 'ra-devices-title', t('ra_devices') + ' (' + devices.length + '/' + (st.maxDevices || 16) + ')'));
+
+    if (!devices.length) {
+      listBox.appendChild(el('p', 'ra-empty', t('ra_no_devices')));
+    } else {
+      for (const d of devices) {
+        const item = el('div', 'ra-device');
+
+        const name = document.createElement('input');
+        name.className = 'ra-device-name';
+        name.value = d.name;
+        name.maxLength = 40;
+        name.addEventListener('change', () => {
+          const next = name.value.trim();
+          if (!next || next === d.name) { name.value = d.name; return; }
+          act('/api/remote-access/rename', { id: d.id, name: next });
+        });
+        item.appendChild(name);
+
+        const meta = el('div', 'ra-device-meta');
+        meta.appendChild(el('span', null, t('ra_last_seen') + ' ' + fmtSeen(d.lastSeenAt)));
+        if (d.lastIp) meta.appendChild(el('span', 'ra-device-ip', d.lastIp));
+        item.appendChild(meta);
+
+        const kill = el('button', 'ra-btn danger small', t('ra_revoke'));
+        kill.type = 'button';
+        kill.addEventListener('click', () => act('/api/remote-access/revoke', { id: d.id }));
+        item.appendChild(kill);
+
+        listBox.appendChild(item);
+      }
+      const killAll = el('button', 'ra-btn ghost danger', t('ra_revoke_all'));
+      killAll.type = 'button';
+      killAll.addEventListener('click', () => act('/api/remote-access/revoke-all'));
+      listBox.appendChild(killAll);
+    }
+    page.appendChild(listBox);
+  }
+
   function fmtSeen(ts) {
     if (!ts) return t('ra_never');
     const diff = Date.now() - ts;
@@ -475,6 +607,16 @@
     head.appendChild(guide);
     page.appendChild(head);
 
+    // The step-by-step guide, reachable at any time and not only from the
+    // first-run picker. Placed in the head so it is the first thing offered to
+    // somebody who opened this panel and does not know where to start.
+    if (!st.remote && window.RemoteAccessGuide && !window.RemoteAccessGuide.isOpen()) {
+      const openGuide = el('button', 'ra-btn ghost small ra-guide-open', t('ra_guide_open'));
+      openGuide.type = 'button';
+      openGuide.addEventListener('click', () => window.RemoteAccessGuide.open());
+      head.appendChild(openGuide);
+    }
+
     // On a paired device this whole panel is out of reach, and deliberately so:
     // a phone must not be able to enrol another phone or revoke the device that
     // would kick it off. Say that, here, as a designed state. Calling the
@@ -490,6 +632,27 @@
       appendNotifications(page);
       mount.appendChild(page);
       stopTick();
+      return;
+    }
+
+    // ── The step-by-step guide ──
+    // While it is open it replaces the panel's loose switches and its pairing
+    // sheet, because it contains both: two QR codes on one page, or two copies
+    // of the same toggle, is a page arguing with itself. The device list stays —
+    // it is the answer to "did it work", which the guide asks the user to check.
+    if (window.RemoteAccessGuide && window.RemoteAccessGuide.isOpen()) {
+      page.appendChild(window.RemoteAccessGuide.render({
+        st,
+        act,
+        pairingSheet,
+        httpsFailure,
+        setupProgress,
+        tailnetAdmin: TAILNET_ADMIN,
+      }));
+      appendDevices(page, st);
+      appendNotifications(page);
+      mount.appendChild(page);
+      syncTick();
       return;
     }
 
@@ -565,41 +728,7 @@
       // sets of directions at once.
       page.appendChild(setupProgress(setup));
     } else if (st.httpsEnabled === true && !tls.running) {
-      // Asked for and not up. Name the one thing in the way — never a bare
-      // "failed", because each of these is a different action by the user and
-      // one of them is not on this machine at all.
-      const why = el('p', 'ra-warn');
-      why.textContent = t(HTTPS_WHY[tls.reason] || 'ra_https_why_failed');
-      page.appendChild(why);
-      // The button that does everything it can: installs Tailscale, opens the
-      // sign-in, then waits for the one switch that is not on this machine.
-      const go = el('button', 'ra-btn primary', t('ra_https_setup'));
-      go.type = 'button';
-      go.addEventListener('click', () => act('/api/remote-access/https/setup'));
-      page.appendChild(go);
-      if (setup.error) {
-        const err = el('p', 'ra-warn');
-        err.textContent = t(SETUP_ERR[setup.error] || 'ra_https_setup_err_failed');
-        page.appendChild(err);
-      }
-      // "Install Tailscale" is not instructions. Where we know the exact line,
-      // it goes on screen to be copied — the whole point of naming the reason is
-      // that the user can act on it without leaving the panel to search.
-      //
-      // Shown from the READINESS too, not only after a failed attempt: where
-      // Xenon cannot install Tailscale itself, pressing the button can only ever
-      // come back asking for it, so making them press it first would be theatre.
-      const cmd = setupErrCommand(setup.error)
-        || (st.httpsAutoInstall === false && tls.reason === 'not_installed' ? setupErrCommand('needs_manual_install') : '')
-        || (tls.reason === 'needs_operator' ? setupErrCommand('needs_operator') : '');
-      if (cmd) {
-        const pre = el('pre', 'ra-cmd');
-        pre.textContent = cmd;
-        page.appendChild(pre);
-      }
-      // …and the manual procedure underneath, for anyone who would rather do it
-      // themselves or whose machine has no winget.
-      page.appendChild(howToSetUp());
+      page.appendChild(httpsFailure(st));
     } else if (tls.running) {
       const on = el('p', 'ra-https-on');
       on.appendChild(el('span', null, t('ra_https_url') + ' '));
@@ -620,82 +749,10 @@
     appendNotifications(page);
 
     // ── The live pairing invitation ──
-    if (st.pairing) {
-      const left = secsLeft(st.pairing.expiresAt);
-      const sheet = el('div', 'ra-pair');
-      const qrBox = el('div', 'ra-qr');
-      renderQr(qrBox, pairUrl(st, st.pairing.code));
-      sheet.appendChild(qrBox);
-
-      sheet.appendChild(el('p', 'ra-pair-hint', t('ra_scan_hint')));
-      sheet.appendChild(el('div', 'ra-code', st.pairing.display));
-      sheet.appendChild(el('p', 'ra-pair-url', baseUrl(st) + '/pair'));
-      sheet.appendChild(el('p', 'ra-pair-left', t('ra_expires_in') + ' ' + left + 's'));
-
-      const cancel = el('button', 'ra-btn ghost', t('ra_cancel'));
-      cancel.type = 'button';
-      cancel.addEventListener('click', () => act('/api/remote-access/pair/cancel'));
-      sheet.appendChild(cancel);
-      page.appendChild(sheet);
-    } else {
-      const add = el('button', 'ra-btn primary', t('ra_add_device'));
-      add.type = 'button';
-      add.disabled = (st.devices || []).length >= (st.maxDevices || 16);
-      add.addEventListener('click', () => act('/api/remote-access/pair'));
-      page.appendChild(add);
-      // The address is worth showing even without a live code: it is what the
-      // user types when a camera cannot read the QR.
-      const addr = el('p', 'ra-addr');
-      addr.appendChild(el('span', null, t('ra_address') + ' '));
-      addr.appendChild(el('code', null, baseUrl(st)));
-      page.appendChild(addr);
-      // The other LAN addresses are only worth listing while the secure door is
-      // down — with it up, that one name is the answer everywhere.
-      if (!(st.https && st.https.running) && st.addresses.length > 1) {
-        page.appendChild(el('p', 'ra-addr-alt', t('ra_address_alt') + ' ' + st.addresses.slice(1).join(', ')));
-      }
-    }
+    page.appendChild(pairingSheet(st));
 
     // ── Paired devices ──
-    const devices = Array.isArray(st.devices) ? st.devices : [];
-    const listBox = el('div', 'ra-devices');
-    listBox.appendChild(el('h4', 'ra-devices-title', t('ra_devices') + ' (' + devices.length + '/' + (st.maxDevices || 16) + ')'));
-
-    if (!devices.length) {
-      listBox.appendChild(el('p', 'ra-empty', t('ra_no_devices')));
-    } else {
-      for (const d of devices) {
-        const item = el('div', 'ra-device');
-
-        const name = document.createElement('input');
-        name.className = 'ra-device-name';
-        name.value = d.name;
-        name.maxLength = 40;
-        name.addEventListener('change', () => {
-          const next = name.value.trim();
-          if (!next || next === d.name) { name.value = d.name; return; }
-          act('/api/remote-access/rename', { id: d.id, name: next });
-        });
-        item.appendChild(name);
-
-        const meta = el('div', 'ra-device-meta');
-        meta.appendChild(el('span', null, t('ra_last_seen') + ' ' + fmtSeen(d.lastSeenAt)));
-        if (d.lastIp) meta.appendChild(el('span', 'ra-device-ip', d.lastIp));
-        item.appendChild(meta);
-
-        const kill = el('button', 'ra-btn danger small', t('ra_revoke'));
-        kill.type = 'button';
-        kill.addEventListener('click', () => act('/api/remote-access/revoke', { id: d.id }));
-        item.appendChild(kill);
-
-        listBox.appendChild(item);
-      }
-      const killAll = el('button', 'ra-btn ghost danger', t('ra_revoke_all'));
-      killAll.type = 'button';
-      killAll.addEventListener('click', () => act('/api/remote-access/revoke-all'));
-      listBox.appendChild(killAll);
-    }
-    page.appendChild(listBox);
+    appendDevices(page, st);
 
     // ── What a paired device can and cannot do ──
     // Stated in the UI, not only in the code: the boundary is the feature's

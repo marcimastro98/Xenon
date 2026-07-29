@@ -8200,7 +8200,7 @@ function normalizeWaveLinkSettings(v) {
 // The screen the user chose for Xenon. Mirrors normalizeSurface in
 // js/settings.js key for key — the client owns this one, and a drift between the
 // two halves is what silently resets a key on every save.
-const SURFACE_KINDS = ['auto', 'screen', 'phone'];
+const SURFACE_KINDS = ['auto', 'screen', 'phone', 'both'];
 function normalizeSurfaceChoice(value) {
   const v = value && typeof value === 'object' ? value : {};
   return {
@@ -9559,6 +9559,8 @@ calls.init({
   // of the three ever hands the channel back.
   phoneCanAnswer: () => phone.canAnswer(),
   phoneCanHangUp: () => phone.canHangUp(),
+  phoneAnswer: () => phone.answer(),
+  phoneHangUp: () => phone.hangUp(),
   onEvent: (name) => { try { lighting.onEvent(name); } catch { /* lighting optional */ } },
 });
 
@@ -9659,9 +9661,11 @@ const phone = createPhone({
         incoming: s.incoming,
         active: s.active,
         device: phone.deviceName(),
-        // The number is not in the signal — the OS reports that a call exists,
-        // not who is calling — so the card starts nameless and a mirrored toast
-        // fills it in. See calls.onNotification.
+        // Windows reports only THAT a call exists, so the card starts nameless
+        // and a mirrored toast fills it in (see calls.onNotification). Linux
+        // reads the caller off the same D-Bus object as the state, so when it
+        // is there the card is right on its own.
+        caller: s.caller || '',
       });
     } catch { /* the ring must never break the phone feed */ }
   },
@@ -14490,6 +14494,16 @@ const handleRequest = async (req, res) => {
         t.startedAt = Date.now();
         t.pausedElapsed = 0;
         t.status = 'running';
+      } else if (action === 'stop') {
+        // Back to its full time and HELD there. The difference from `reset` is
+        // one word — `paused` instead of `running` — and it is the whole point:
+        // until now the only way to keep a timer for later was to leave it
+        // paused part-way through, so a 20-minute timer you had used once sat
+        // there reading 7:41 forever. `reset` cannot double as this, because a
+        // timer that starts counting the moment you put it away is not put away.
+        t.startedAt = Date.now();
+        t.pausedElapsed = 0;
+        t.status = 'paused';
       }
       _timers[idx] = t;
       await _saveTimers();
@@ -19080,6 +19094,15 @@ async function broadcastMediaNow() {
 
 setInterval(() => { broadcastMediaNow().catch(() => {}); }, 2000).unref();
 
+// 5s, matched to the caches underneath rather than picked as a feel. getCpuTemp
+// and getGpuInfo each hold their reading for 5s, so this is the fastest cadence
+// that costs nothing extra: every tick now lands on a fresh read instead of
+// re-sending a value up to two seconds old, which is where the "sensors feel
+// slow" impression came from. Going BELOW 5s would mean lowering those caches
+// too, and that is the expensive half — on Windows they are LibreHardwareMonitor
+// round-trips through the persistent worker, paid continuously on a machine that
+// is often also running a game. If a faster rate is ever offered it belongs in
+// Settings, saying what it costs, not as a new default for everyone.
 setInterval(async () => {
   if (sseClients.size === 0) return;
   try {
@@ -19088,7 +19111,7 @@ setInterval(async () => {
     lighting.onSystem(sys);
     try { briefing.onSystemSample(sys); } catch {}
   } catch {}
-}, 7000).unref();
+}, 5000).unref();
 
 // Peripheral battery moves on a minutes scale and its sources are relatively
 // expensive (iCUE SDK round-trips + a Bluetooth PnP scan), so it gets its own
