@@ -330,7 +330,7 @@
       "kind": "widget",
       "name": "DGM league table",
       "author": "DanielGarciaMorato",
-      "description": "DGM Standings displays football league tables for major domestic and international competitions in a compact Xenon widget.\n\nFootball-Data.org and API-Football are the primary sources for competitive standings, including position, matches played, goal difference and points. TheSportsDB Free V1 is use",
+      "description": "DGM Clasificación is a responsive football standings widget for Xenon. It displays league tables with position, matches played, goal difference and points across supported competitions, with Spanish and English interfaces, multi-provider fallback and clear unavailable-data states.",
       "category": "media",
       "tags": [
         "football",
@@ -339,17 +339,18 @@
         "tables",
         "sports"
       ],
-      "version": "0.6.5",
+      "version": "0.6.7",
+      "changelog": "Improved initial loading and Xenon 4.9 compatibility, with safer credential restoration, visibility-aware fetching and a single coordinated startup load.",
       "pkgId": "dgm-football-standings",
       "preview": {
         "accent": "#1ed760",
         "bg": "#0b0d12",
         "text": "#e9edf6"
       },
-      "shots": 3,
-      "addedAt": "2026-07-21",
+      "shots": 4,
+      "addedAt": "2026-07-29",
       "codeFile": true,
-      "updatedAt": "2026-07-21"
+      "updatedAt": "2026-07-29"
     },
     {
       "id": "dgm-resultados",
