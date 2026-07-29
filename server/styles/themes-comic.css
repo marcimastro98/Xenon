@@ -913,8 +913,13 @@
     inset 2px 2px 0 color-mix(in srgb, white 70%, transparent),
     inset -2px -2px 0 color-mix(in srgb, var(--comic-pencil) 48%, transparent) !important;
 }
+/* The comic board repaints .deck-device itself, so the base chassis layer would
+   cover it. Dropping the layer also drops the transparency knob here, which is
+   correct: this theme draws its own object, not a moulded plastic body. */
+.deck-root[data-capstyle="vivid"] .deck-device::after { display: none; }
 .deck-root[data-capstyle="vivid"] .deck-device::before {
   inset: 4px;
+  opacity: 1;
   background: none;
   border: 1px solid color-mix(in srgb, var(--comic-pencil) 72%, transparent);
   border-radius: 11px 17px 10px 15px / 15px 10px 17px 11px;

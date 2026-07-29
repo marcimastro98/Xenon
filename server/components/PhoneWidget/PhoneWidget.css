@@ -129,6 +129,17 @@
    still reads as a message rather than as an empty row. */
 .phw-sub.is-masked { font-style: italic; opacity: 0.42; }
 
+.phw-newmsg { display: flex; }
+.phw-newmsg .phw-btn { flex: 1 1 auto; min-height: 34px; }
+
+/* The second action on a row. Not a <button>: it lives inside one, and nesting
+   buttons is invalid markup that browsers resolve by dropping the inner one. */
+.phw-row-act { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 8px; cursor: pointer; opacity: 0.55;
+  transition: background 0.15s ease, opacity 0.15s ease; }
+.phw-row-act svg { width: 15px; height: 15px; }
+.phw-row-act:hover, .phw-row-act:focus-visible { background: rgba(255,255,255,0.1); opacity: 1; }
+
 .phw-thread { gap: 8px; }
 .phw-thread-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .phw-thread-head .phw-name { font-size: 13.5px; }

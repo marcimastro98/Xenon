@@ -1571,28 +1571,6 @@
           <div class="settings-calls-apps" id="settings-calls-apps"></div>
         </div>
         <div class="settings-note settings-calls-cap" id="settings-calls-cap" hidden></div>
-        <label class="settings-toggle-row full" id="settings-phone-row">
-          <input class="settings-check" id="settings-phone" type="checkbox" onchange="updatePhoneSetting('enabled', this.checked)">
-          <span class="settings-label-line">
-            <span data-i18n="settings_phone">Telefono associato</span>
-            <span class="settings-hint" data-i18n="settings_phone_hint">legge rubrica e registro chiamate dal telefono accoppiato via Bluetooth, e ti fa chiamare dal PC. I dati restano sul PC. Serve il Xenon Helper.</span>
-          </span>
-        </label>
-        <label class="settings-toggle-row full" id="settings-phone-ring-row">
-          <input class="settings-check" id="settings-phone-ring" type="checkbox" onchange="updatePhoneSetting('ring', this.checked)">
-          <span class="settings-label-line">
-            <span data-i18n="settings_phone_ring">Scheda a tutto schermo quando squilla</span>
-            <span class="settings-hint" data-i18n="settings_phone_ring_hint">usa il segnale del sistema invece del testo della notifica, così lo squillo non può sfuggire</span>
-          </span>
-        </label>
-        <label class="settings-toggle-row full" id="settings-phone-hide-row">
-          <input class="settings-check" id="settings-phone-hide" type="checkbox" onchange="updatePhoneSetting('hide', this.checked)">
-          <span class="settings-label-line">
-            <span data-i18n="settings_phone_hide">Nascondi il testo dei messaggi</span>
-            <span class="settings-hint" data-i18n="settings_phone_hide_hint">nella lista mostra solo il mittente: il testo appare quando tocchi. Gli SMS contengono i codici di accesso usa e getta, e la dashboard sta su una scrivania.</span>
-          </span>
-        </label>
-        <div class="settings-note settings-phone-cap" id="settings-phone-cap" hidden></div>
       </div>
 
       <div class="settings-group settings-behavior-group" data-settings-cat="bit">
@@ -2585,6 +2563,36 @@
            two blocks did something else entirely. Three unrelated products in one
            scroll is not a category, it is a leftover. -->
       <div class="settings-group" data-settings-cat="phone" hidden>
+        <!-- Reading the phone over Bluetooth. FIRST in this category, and the
+             only thing in it that needs no Xenon pairing at all: it uses the
+             pairing the operating system already has, so it works before
+             anything else here is set up. The two below need a paired device;
+             this one needs a Bluetooth phone, which is a different thing, and
+             putting it anywhere else (it lived under Notifiche, next to the
+             call card) made people look for it in the wrong place. -->
+        <label class="settings-toggle-row full" id="settings-phone-row">
+          <input class="settings-check" id="settings-phone" type="checkbox" onchange="updatePhoneSetting('enabled', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_phone">Telefono associato</span>
+            <span class="settings-hint" data-i18n="settings_phone_hint">legge rubrica e registro chiamate dal telefono accoppiato via Bluetooth, e ti fa chiamare dal PC. I dati restano sul PC. Serve il Xenon Helper.</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-phone-ring-row">
+          <input class="settings-check" id="settings-phone-ring" type="checkbox" onchange="updatePhoneSetting('ring', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_phone_ring">Scheda a tutto schermo quando squilla</span>
+            <span class="settings-hint" data-i18n="settings_phone_ring_hint">usa il segnale del sistema invece del testo della notifica, così lo squillo non può sfuggire</span>
+          </span>
+        </label>
+        <label class="settings-toggle-row full" id="settings-phone-hide-row">
+          <input class="settings-check" id="settings-phone-hide" type="checkbox" onchange="updatePhoneSetting('hide', this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_phone_hide">Nascondi il testo dei messaggi</span>
+            <span class="settings-hint" data-i18n="settings_phone_hide_hint">nella lista mostra solo il mittente: il testo appare quando tocchi. Gli SMS contengono i codici di accesso usa e getta, e la dashboard sta su una scrivania.</span>
+          </span>
+        </label>
+        <div class="settings-note settings-phone-cap" id="settings-phone-cap" hidden></div>
+
         <!-- Paired-device access renders here (settings.js → RemoteAccessPage.init()).
              The phone-as-a-dashboard door: opt-in, QR pairing, device list. First,
              because nothing else in this category works until a device is paired.
