@@ -412,7 +412,7 @@
       "name": "DGM Current weather",
       "author": "DanielGarciaMorato",
       "perfWarning": true,
-      "description": "View current weather conditions for a manually selected city, including temperature, feels-like temperature, humidity, wind and precipitation.\n\nDGM Current Weather supports metric and imperial units, English and Spanish, and shares its selected location with the other DGM Weather widgets through Xen",
+      "description": "DGM Current Weather shows temperature, feels-like temperature, humidity, wind and precipitation for a manually selected city. It supports metric and imperial units, Spanish and English, shares its location with other DGM Weather widgets and uses Open-Meteo.",
       "category": "system",
       "tags": [
         "weather",
@@ -421,8 +421,8 @@
         "precipitation",
         "open-meteo"
       ],
-      "version": "0.1.8",
-      "changelog": "Added Xenon 4.6.0 compatibility metadata for reliable shared storage and improved package consistency.",
+      "version": "0.1.10",
+      "changelog": "Improved Xenon visibility handling, pausing weather requests while the widget is off-page or hidden and retaining compatibility with older hosts.",
       "pkgId": "dgm-weather-current-sdk",
       "appVersionMin": "4.6.0",
       "preview": {
@@ -431,9 +431,9 @@
         "text": "#e9edf6"
       },
       "shots": 2,
-      "addedAt": "2026-07-21",
+      "addedAt": "2026-07-29",
       "codeFile": true,
-      "updatedAt": "2026-07-21"
+      "updatedAt": "2026-07-29"
     },
     {
       "id": "dgm-previsi-n-7-d-as",
