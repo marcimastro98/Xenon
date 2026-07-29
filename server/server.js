@@ -12954,9 +12954,33 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/embedded-browser/available' && req.method === 'GET') {
-    // Lets the Browser widget render a friendly "Edge not found" state instead of
-    // silently failing when Microsoft Edge isn't installed.
-    json({ available: embeddedBrowser.available() });
+    // Lets the Browser widget render a friendly "no browser found" state instead
+    // of silently failing.
+    //
+    // `canInstall` is the difference between a dead end and a button. The widget
+    // drives ANY Chromium over the DevTools protocol, and off Windows Chromium
+    // is one flatpak away — so a machine without one is not a machine that
+    // cannot have one. On Windows this stays false: Edge ships with the OS, so
+    // if it is missing something is wrong that installing will not fix.
+    json({
+      available: embeddedBrowser.available(),
+      canInstall: process.platform === 'win32'
+        ? false
+        : await remoteHttpsInstaller.canInstall('chromium').catch(() => false),
+    });
+
+  } else if (reqPath === '/embedded-browser/install' && req.method === 'POST') {
+    // One click, same machinery as everything else: flatpak where it can (no
+    // password at all), the distribution's package manager behind one
+    // authorisation prompt otherwise.
+    try {
+      await readBody(req);
+      if (process.platform === 'win32') { json({ ok: false, error: 'unsupported' }); return; }
+      const r = await remoteHttpsInstaller.install('chromium');
+      // `available()` re-probes the filesystem, so this is the real answer
+      // rather than the installer's opinion of itself.
+      json({ ok: r.code === 0 && embeddedBrowser.available(), reason: r.reason || '' });
+    } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/embedded-browser/adblock' && req.method === 'GET') {
     // Ad-blocker status for Settings → Browser: whether the extension is installed,
@@ -17999,6 +18023,11 @@ const handleRequest = async (req, res) => {
         broadcastSSE('settings', { rev: saved.rev });
       });
       if (!value) { remoteAccess.cancelPairing(); _dropRemoteSockets(null); }
+      // Open the listener to the LAN, or close it back to loopback. Without
+      // this the switch changed a flag and nothing else: the QR advertised
+      // http://<lan-ip>:PORT/pair while the socket stayed on 127.0.0.1, and the
+      // phone got a connection error with no explanation anywhere.
+      applyBindHost();
       // The HTTPS door serves the paired-device door and nothing else, so it
       // follows it down — and back up, if it was on before.
       _syncRemoteHttps();
@@ -18714,7 +18743,30 @@ function ensureHelperUpToDate(attempt = 1) {
 //
 // XENON_BIND_HOST is the deliberate way back out — set it to '::' to restore
 // the old all-interfaces behaviour, on purpose and in one place.
-const BIND_HOST = process.env.XENON_BIND_HOST || '127.0.0.1';
+//
+// CORRECTION, and the reason this is no longer a constant. Binding loopback
+// unconditionally was an over-correction that silently killed the paired-device
+// feature: the QR code advertises http://<lan-ip>:3030/pair, and nothing was
+// listening there, so a phone on the same Wi-Fi got "Safari cannot connect".
+// The reasoning above missed that the exposure it describes already HAS a
+// guard — the paired-device door (see isAllowedRequest and the note beside it):
+// off by default, deny-by-default allowlist, Host must be an IP literal this
+// machine owns, per-device hashed token. That door is the thing the wider bind
+// exists for, and it is the user's explicit opt-in.
+//
+// So: loopback while paired access is OFF, all interfaces while it is ON, and
+// the switch rebinds. The default state of a fresh install is unchanged.
+const BIND_HOST_ENV = process.env.XENON_BIND_HOST || '';
+const BIND_LOOPBACK = '127.0.0.1';
+const BIND_SHARED = '0.0.0.0';
+
+function desiredBindHost() {
+  if (BIND_HOST_ENV) return BIND_HOST_ENV;
+  const ra = _serverHubSettings && _serverHubSettings.remoteAccess;
+  return ra && ra.enabled === true ? BIND_SHARED : BIND_LOOPBACK;
+}
+
+const BIND_HOST = BIND_HOST_ENV || BIND_LOOPBACK;
 
 // The host the last listen() attempt used, so an EADDRINUSE retry re-binds the
 // same stack (see the error handler below).
@@ -18782,6 +18834,11 @@ function _startListen(host) {
       // The settings are in memory now, so the transfer caps can finally come
       // from them rather than from DEFAULT_HUB_SETTINGS (see fileTransfer.init).
       try { _applyTransferLimits(); } catch (e) { console.error('Transfer limits init failed:', e.message); }
+      // The listener started on loopback because these settings had not been
+      // read yet. If paired access was already on from a previous run, this is
+      // where it opens — otherwise the phone that worked yesterday would find
+      // nothing today until the user toggled the switch off and on again.
+      try { applyBindHost(); } catch { /* the listener stays where it is */ }
       // Apply persisted lighting config (no-op/zero-cost while master is OFF).
       try { lighting.applyConfig((s || _serverHubSettings).lighting); } catch (e) { console.error('Lighting init failed:', e.message); }
       // OpenRGB was removed from the product. Tear down anything a previous
@@ -18832,7 +18889,39 @@ server.on('error', err => {
 // IPv4 loopback. Only an explicit XENON_BIND_HOST reaches anything else, and
 // the error handler above still falls back to 127.0.0.1 if that override names
 // a stack this machine does not have.
+//
+// Deliberately the NARROW host even when paired access is on: the stored
+// settings have not been read yet at this point, so widening here would mean
+// guessing. applyBindHost() below runs once they load and opens it then — a
+// listener that starts closed and opens a moment later is the safe order.
 _startListen(BIND_HOST);
+
+/**
+ * Re-bind when paired access is switched on or off. No-op when the wanted host
+ * is already the one in use, so it is safe to call on every settings write.
+ *
+ * `closeAllConnections` is what makes this finish: close() alone waits for
+ * every open connection to end, and the dashboard holds an SSE stream open
+ * forever — so without it the rebind would never complete and the phone would
+ * still find nothing listening. The dashboard reconnects its own stream.
+ */
+let _rebinding = false;
+function applyBindHost() {
+  const want = desiredBindHost();
+  if (_rebinding || want === _listenHost) return;
+  _rebinding = true;
+  console.log(`[bind] paired access changed — moving listener to ${want}:${PORT}`);
+  try {
+    server.close(() => {
+      _eaddrinuseRetries = 0;
+      try { _startListen(want); } catch { /* the 'error' handler above owns retries */ }
+      _rebinding = false;
+    });
+    if (typeof server.closeAllConnections === 'function') server.closeAllConnections();
+  } catch {
+    _rebinding = false;
+  }
+}
 
 // ── SSE broadcast timers ──────────────────────────────────────────────────────
 // These replace client-side setInterval polling.  Timers only run work when at

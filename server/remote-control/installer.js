@@ -23,6 +23,9 @@ const PACKAGES = {
   // display API at all, and on Linux it needs the evdi kernel module AND a
   // compositor willing to add an output — which GNOME's Wayland session is not.
   vdd: 'VirtualDrivers.Virtual-Display-Driver',
+  // Only ever installed off Windows: on Windows the Browser widget uses Edge,
+  // which ships with the OS. Listed here so resolveId() accepts the name.
+  chromium: 'Hibbiki.Chromium',
 };
 
 // Linux: the same two packages, per package manager. The subcommand differs
@@ -66,6 +69,22 @@ const LINUX_PACKAGES = {
   // reason, and because it is the only route here that can install without
   // touching the system at all.
   sunshine: { pkg: 'sunshine', flatpak: 'dev.lizardbyte.app.Sunshine' },
+  // The Browser widget drives any Chromium over the DevTools protocol — nothing
+  // in it is Edge-specific. Chromium is the honest pick off Windows: it is in
+  // every distribution's own repositories, and unlike Chrome or Edge it needs
+  // no third-party repo and carries no extra terms to accept on somebody's
+  // behalf.
+  //
+  // `preferNative` is the deliberate exception to flatpak-first, and it was
+  // measured rather than assumed. The Flathub build launches fine and DevTools
+  // even reports "listening on ws://127.0.0.1:PORT" — but the sandbox remaps
+  // the filesystem, so `--user-data-dir` lands somewhere the host cannot see
+  // and DevToolsActivePort never appears at the path the module reads. The
+  // ad-blocker has the same problem: it passes --load-extension pointing into
+  // DATA_DIR, which the sandbox cannot reach either. This widget has to hand
+  // Chromium paths OUTSIDE its sandbox, so a sandboxed Chromium cannot serve
+  // it. Costs one authorisation prompt and actually works.
+  chromium: { pkg: 'chromium', flatpak: 'org.chromium.Chromium', preferNative: true },
 };
 
 // macOS: Homebrew or nothing. There is no system package manager to fall back
@@ -82,6 +101,9 @@ const MAC_PACKAGES = {
   // which is why this one step is elevated while `brew install` is not.
   tailscale: { brew: 'tailscale', service: 'tailscaled' },
   sunshine: { brew: 'sunshine', tap: 'LizardByte/homebrew' },
+  // A cask, not a formula: it installs Chromium.app into /Applications, which
+  // is exactly where BROWSER_CANDIDATES.darwin looks for it.
+  chromium: { brew: 'chromium', cask: true },
 };
 
 function createInstaller({ runner = defaultRunner, platform = process.platform } = {}) {
@@ -141,8 +163,9 @@ function createInstaller({ runner = defaultRunner, platform = process.platform }
   async function canInstall(name) {
     if (isWin) return isWingetAvailable();
     if (isMac) return !!(await which('brew')) && !!(MAC_PACKAGES[name] || !name);
-    if (name && await flatpakReady(name)) return true;
-    if (name && !LINUX_PACKAGES[name]) return false;
+    const spec = name ? LINUX_PACKAGES[name] : null;
+    if (name && !spec) return false;
+    if (spec && !spec.preferNative && await flatpakReady(name)) return true;
     return !!(await which('pkexec')) && !!(await linuxPm());
   }
 
@@ -222,7 +245,9 @@ function createInstaller({ runner = defaultRunner, platform = process.platform }
 
     // Deliberately NOT elevated: brew refuses to run under sudo, and on a Mac
     // it owns its own prefix, so there is nothing to elevate for.
-    const r = await runner.run('brew', ['install', spec.brew], { timeoutMs: 15 * 60 * 1000 });
+    const r = await runner.run('brew',
+      ['install', ...(spec.cask ? ['--cask'] : []), spec.brew],
+      { timeoutMs: 15 * 60 * 1000 });
     if (r.code !== 0) return r;
 
     // The daemon is the exception. Installing a LaunchDaemon writes outside the
@@ -241,8 +266,9 @@ function createInstaller({ runner = defaultRunner, platform = process.platform }
     if (!spec) return manual('no Linux recipe for this package');
 
     // Flatpak first where it exists: it is the project's own build and the only
-    // route that does not modify the system.
-    if (await flatpakReady(name)) {
+    // route that does not modify the system. Unless the caller needs a package
+    // that can see the host filesystem — see `preferNative` above.
+    if (!spec.preferNative && await flatpakReady(name)) {
       const r = await runner.run('flatpak',
         ['install', '-y', '--noninteractive', 'flathub', spec.flatpak],
         { timeoutMs: 15 * 60 * 1000 });

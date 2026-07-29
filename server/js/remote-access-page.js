@@ -200,6 +200,19 @@
       box.appendChild(a);
       box.appendChild(el('p', 'ra-note', t('ra_https_wait_certs_note')));
     }
+    // The sign-in link, while we are waiting for it to be used. Xenon already
+    // tried to open it in a browser; this is what makes the step actionable when
+    // that did not work — on a machine with no default browser, or a dashboard
+    // being driven from a phone, where the page opened on the wrong screen.
+    // Only ever a https://login.tailscale.com URL (validated server-side).
+    if (setup.step === 'wait_login' && setup.authUrl) {
+      const a = el('a', 'ra-btn primary', t('ra_https_open_login'));
+      a.href = setup.authUrl;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      box.appendChild(a);
+      box.appendChild(el('p', 'ra-note', t('ra_https_wait_login_note')));
+    }
     const stop = el('button', 'ra-btn ghost small', t('ra_cancel'));
     stop.type = 'button';
     stop.addEventListener('click', () => act('/api/remote-access/https/setup', { cancel: true }));
