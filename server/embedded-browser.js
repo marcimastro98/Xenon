@@ -62,6 +62,20 @@ const BROWSER_CANDIDATES = {
     // Flatpak and snap ship their own launchers rather than a plain binary.
     '/var/lib/flatpak/exports/bin/com.google.Chrome',
     '/var/lib/flatpak/exports/bin/org.chromium.Chromium',
+    '/var/lib/flatpak/exports/bin/com.brave.Browser',
+    '/var/lib/flatpak/exports/bin/com.microsoft.Edge',
+    // …and the SAME apps installed for this user only, which the list missed:
+    // `flatpak install --user` is the one route that needs no password at all,
+    // so it is the likeliest way a browser got here, and it exports to $HOME
+    // rather than /var/lib.
+    ...(process.env.HOME
+      ? [
+          `${process.env.HOME}/.local/share/flatpak/exports/bin/org.chromium.Chromium`,
+          `${process.env.HOME}/.local/share/flatpak/exports/bin/com.google.Chrome`,
+          `${process.env.HOME}/.local/share/flatpak/exports/bin/com.brave.Browser`,
+          `${process.env.HOME}/.local/share/flatpak/exports/bin/com.microsoft.Edge`,
+        ]
+      : []),
     '/snap/bin/chromium',
   ],
 };

@@ -68,11 +68,30 @@ const MAX_MESSAGE_CHARS = 1000;
 // line that changes.
 const SUPPORTED_PLATFORMS = new Set(['win32']);
 
+// The escape hatch for bringing a platform up. Writing a transport and
+// DECLARING the platform supported are two different acts, and the second one
+// has to come after somebody has watched the first one work: a release that
+// flips the declaration early gives every Mac user a widget that promises and
+// does not deliver, which is the failure this file exists to avoid.
+//
+//   XENON_PHONE_PLATFORMS=darwin,linux
+//
+// So the transport can be exercised on the machine it targets while the shipped
+// answer for everyone else stays "not on this system yet". When a platform is
+// verified, it moves into SUPPORTED_PLATFORMS above and this stops being needed
+// for it.
+function platformAllowed(platform) {
+  if (SUPPORTED_PLATFORMS.has(platform)) return true;
+  const raw = String(process.env.XENON_PHONE_PLATFORMS || '');
+  if (!raw) return false;
+  return raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean).includes(platform);
+}
+
 function createPhone(opts) {
   const o = opts || {};
   const helperExe = o.helperExe;
   const platform = o.platform || process.platform;
-  const supported = SUPPORTED_PLATFORMS.has(platform);
+  const supported = platformAllowed(platform);
   const broadcast = typeof o.broadcast === 'function' ? o.broadcast : () => {};
   const getSettings = typeof o.getSettings === 'function' ? o.getSettings : () => ({});
   const onCallState = typeof o.onCallState === 'function' ? o.onCallState : () => {};
@@ -493,6 +512,7 @@ function createPhone(opts) {
 module.exports = {
   createPhone,
   SUPPORTED_PLATFORMS,
+  platformAllowed,
   CONTACTS_TTL_MS, CALLS_TTL_MS, MESSAGES_TTL_MS,
   MAX_CONTACTS, MAX_CALLS, MAX_MESSAGES, MAX_MESSAGE_CHARS,
 };

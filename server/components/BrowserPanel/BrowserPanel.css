@@ -278,16 +278,35 @@
   background: rgba(0, 0, 0, 0.35);
 }
 
+/* Was a single centred line. It now carries an action button under the text
+   where Xenon can install a browser itself, so it stacks. */
 .browser-unavailable {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 12px;
   height: 100%;
   padding: 16px;
   text-align: center;
   color: rgba(255, 255, 255, 0.6);
   font-size: 13px;
 }
+
+.browser-unavailable p { margin: 0; max-width: 46ch; }
+
+.browser-unavailable-install {
+  padding: 7px 16px;
+  border: 1px solid rgba(110, 231, 135, 0.45);
+  border-radius: 8px;
+  background: rgba(110, 231, 135, 0.12);
+  color: #6ee787;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.browser-unavailable-install:hover:not(:disabled) { background: rgba(110, 231, 135, 0.2); }
+.browser-unavailable-install:disabled { opacity: 0.6; cursor: default; }
 
 /* Expanded: the wrap is portaled to <body> and pinned to fill the viewport. Use
    bare `inset: 0` (not 100vw/100vh) so it stays correct under the Xeneon Edge's

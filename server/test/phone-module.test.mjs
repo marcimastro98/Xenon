@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { createPhone, SUPPORTED_PLATFORMS } = require('../phone.js');
+const { createPhone, SUPPORTED_PLATFORMS, platformAllowed } = require('../phone.js');
 
 // The module's contract, exercised without a helper or a phone. The weight is
 // on the answers it gives when it CANNOT do something, because those are the
@@ -47,6 +47,29 @@ test('the platform is declared, not discovered', () => {
     assert.ok(!SUPPORTED_PLATFORMS.has(platform), platform);
   }
   assert.ok(SUPPORTED_PLATFORMS.has('win32'));
+});
+
+test('a platform can be opened for testing without being declared shipped', () => {
+  // Writing a transport and saying the platform is supported are two acts, and
+  // the second belongs after somebody has watched the first work. The override
+  // is what lets a Mac or a Linux box exercise the code while the shipped
+  // answer everywhere else stays "not on this system yet".
+  const before = process.env.XENON_PHONE_PLATFORMS;
+  try {
+    delete process.env.XENON_PHONE_PLATFORMS;
+    assert.equal(platformAllowed('darwin'), false);
+    process.env.XENON_PHONE_PLATFORMS = ' Darwin , linux ';
+    assert.equal(platformAllowed('darwin'), true, 'case and spacing must not matter');
+    assert.equal(platformAllowed('linux'), true);
+    assert.equal(platformAllowed('freebsd'), false, 'only what was named is opened');
+    process.env.XENON_PHONE_PLATFORMS = '';
+    assert.equal(platformAllowed('darwin'), false);
+    // Windows never depends on the override.
+    assert.equal(platformAllowed('win32'), true);
+  } finally {
+    if (before === undefined) delete process.env.XENON_PHONE_PLATFORMS;
+    else process.env.XENON_PHONE_PLATFORMS = before;
+  }
 });
 
 test('off Windows it says the platform is missing, not the phone', async () => {

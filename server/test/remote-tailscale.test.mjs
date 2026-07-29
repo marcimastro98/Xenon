@@ -522,3 +522,89 @@ test('startService: UAC annullato = cancelled, non un guasto', async () => {
   });
   assert.equal((await ts.startService()).reason, 'cancelled');
 });
+
+// ── The sign-in URL had nowhere to go ────────────────────────────────────────
+// Found by a user staring at "waiting for you to complete the sign-in" while
+// nothing opened. On Windows the Tailscale GUI client opens the page itself,
+// which is exactly why this was invisible: off Windows `tailscale up` only
+// PRINTS the URL, and startLogin threw its output away.
+
+const REAL_UP = 'To authenticate, visit:\n\n\thttps://login.tailscale.com/a/1797446401336b\n\n';
+
+test('startLogin recupera l\'URL stampato da `up` e prova ad aprirlo', async () => {
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  const calls = [];
+  const ts = make({
+    runner: {
+      run: (file, args) => {
+        calls.push({ file, args });
+        if (args[0] === 'up') return Promise.resolve({ code: 1, stdout: REAL_UP, stderr: '', timedOut: true });
+        return Promise.resolve({ code: 0, stdout: '{"BackendState":"NeedsLogin"}' });
+      },
+    },
+    exists: () => true, platform: 'linux', exe: '/usr/bin/tailscale',
+  });
+
+  const r = await ts.startLogin();
+  assert.equal(r.authUrl, 'https://login.tailscale.com/a/1797446401336b');
+  // A blocking `up` is the normal successful shape, not a permission problem.
+  assert.equal(r.needsOperator, false);
+  const opened = calls.find((c) => c.file === 'xdg-open');
+  assert.ok(opened, 'the desktop is asked to open it');
+  assert.equal(opened.args[0], r.authUrl);
+});
+
+test('startLogin ripiega su AuthURL dello stato se `up` non ha stampato nulla', async () => {
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  const ts = make({
+    runner: {
+      run: (_f, args) => Promise.resolve(args[0] === 'up'
+        ? { code: 1, stdout: '', stderr: '', timedOut: true }
+        : { code: 0, stdout: JSON.stringify({ BackendState: 'NeedsLogin', AuthURL: 'https://login.tailscale.com/a/deadbeef' }) }),
+    },
+    exists: () => true, platform: 'linux', exe: '/usr/bin/tailscale',
+  });
+  assert.equal((await ts.startLogin()).authUrl, 'https://login.tailscale.com/a/deadbeef');
+});
+
+test('un AuthURL che non e\' di Tailscale non diventa mai un link', async () => {
+  // This value ends up as an href in the panel and as an argument to the
+  // desktop's URL opener. Anything that is not a login.tailscale.com URL is
+  // dropped rather than escaped — including a javascript: payload smuggled
+  // through a malformed status.
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  for (const bad of [
+    'javascript:alert(1)',
+    'https://login.tailscale.com.evil.test/a/x',
+    'http://login.tailscale.com/a/x',
+    'file:///etc/passwd',
+    '',
+  ]) {
+    const ts = make({
+      runner: { run: () => Promise.resolve({ code: 0, stdout: JSON.stringify({ BackendState: 'NeedsLogin', AuthURL: bad }) }) },
+      exists: () => true, platform: 'linux', exe: '/usr/bin/tailscale',
+    });
+    assert.equal((await ts.getStatus()).authUrl, '', `rifiutato: ${bad}`);
+  }
+});
+
+test('platform: apre con lo strumento giusto del sistema', async () => {
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  const seen = {};
+  for (const [platform, expected] of [['darwin', 'open'], ['win32', 'cmd'], ['linux', 'xdg-open']]) {
+    const calls = [];
+    const ts = make({
+      runner: {
+        run: (file, args) => {
+          calls.push(file);
+          if (args[0] === 'up') return Promise.resolve({ code: 1, stdout: REAL_UP, timedOut: true, stderr: '' });
+          return Promise.resolve({ code: 0, stdout: '{"BackendState":"NeedsLogin"}' });
+        },
+      },
+      exists: () => true, platform, exe: '/x/tailscale',
+    });
+    await ts.startLogin();
+    seen[platform] = calls.includes(expected);
+  }
+  assert.deepEqual(seen, { darwin: true, win32: true, linux: true });
+});
