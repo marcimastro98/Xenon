@@ -116,6 +116,10 @@ function normalizeDeckLook(raw) {
   if (CAP_STYLES.includes(raw.capStyle)) { out.capStyle = raw.capStyle; seen = true; }
   if (KEY_SHAPES.includes(raw.keyShape)) { out.keyShape = raw.keyShape; seen = true; }
   if (PLATE_STYLES.includes(raw.plate)) { out.plate = raw.plate; seen = true; }
+  if (Object.prototype.hasOwnProperty.call(raw, 'transparency') && Number.isFinite(Number(raw.transparency))) {
+    out.transparency = clampInt(raw.transparency, 0, 100, 0);
+    seen = true;
+  }
   if (Object.prototype.hasOwnProperty.call(raw, 'wellImage')) {
     const value = normalizeDeckWellImage(raw.wellImage);
     if (value || raw.wellImage === null) { out.wellImage = value; seen = true; }
@@ -391,6 +395,11 @@ function normalizeDeckConfig(raw) {
   const capStyle = CAP_STYLES.includes(src.capStyle) ? src.capStyle : 'lcd';
   const keyShape = KEY_SHAPES.includes(src.keyShape) ? src.keyShape : 'rounded';
   const plate = PLATE_STYLES.includes(src.plate) ? src.plate : 'graphite';
+  //  transparency — how much of the dashboard shows through the chassis and the
+  //  key well, 0 (solid device, the look every existing deck has) to 100 (only
+  //  the caps remain). The caps themselves are deliberately never faded: a
+  //  translucent cap loses its label against a bright wallpaper.
+  const transparency = clampInt(src.transparency, 0, 100, 0);
   // Smart Profiles: auto-switch the DISPLAYED profile to match the app in the
   // foreground. Rules pair a process exe name (lowercased, no ".exe" — the exact
   // shape gamedetect's foreground probe reports) with a profile NAME (names
@@ -426,7 +435,7 @@ function normalizeDeckConfig(raw) {
   // shapes, never delete keys. New code reads shapes via gridOf(), never these.
   const maxCols = profiles.reduce((m, p) => Math.max(m, p.cols), DECK_MIN);
   const maxRows = profiles.reduce((m, p) => Math.max(m, p.rows), DECK_MIN);
-  return { version: 1, cols: maxCols, rows: maxRows, keySize, autoFit, showMedia, capStyle, keyShape, plate, wellImage, mediaStyle, profiles, activeProfile, autoSwitch };
+  return { version: 1, cols: maxCols, rows: maxRows, keySize, autoFit, showMedia, capStyle, keyShape, plate, transparency, wellImage, mediaStyle, profiles, activeProfile, autoSwitch };
 }
 
 function effectiveDeckLook(config, profileId) {
@@ -438,6 +447,7 @@ function effectiveDeckLook(config, profileId) {
     capStyle: own('capStyle') ? look.capStyle : cfg.capStyle,
     keyShape: own('keyShape') ? look.keyShape : cfg.keyShape,
     plate: own('plate') ? look.plate : cfg.plate,
+    transparency: own('transparency') ? look.transparency : cfg.transparency,
     wellImage: own('wellImage') ? look.wellImage : cfg.wellImage,
     mediaStyle: own('mediaStyle') ? look.mediaStyle : cfg.mediaStyle,
   };

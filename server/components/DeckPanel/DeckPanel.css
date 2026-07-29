@@ -17,13 +17,26 @@
    renderGroupTile() (dashboard-tabgroups.js) whenever the active member
    changes — a plain class, deliberately not :has(), so the constant
    data-dashboard-hidden flips never pay :has() invalidation walks. */
+/* The mount is a SECOND body the user reads as part of the device, so it fades
+   with it — without this the transparency slider looked broken for anyone whose
+   Deck lives in a tab group: the chassis went and this took its place. It also
+   overrides the tile's own opacity control, so this slider is the only way to see
+   through it. --deck-mount-alpha is stamped here by JS (deck.js on render,
+   dashboard-tabgroups.js when the shown member changes): the value belongs to the
+   .deck-root INSIDE this tile, and a custom property does not flow upward. It is
+   its own property rather than --deck-plate-alpha because the "Nessuna" faceplate
+   drops the mount outright, whatever the slider says. */
 .panel.tabgroup.deck-tab-active {
+  --mount-mix: calc(var(--deck-mount-alpha, 1) * 100%);
   background:
-    repeating-linear-gradient(90deg, rgba(255,255,255,.012) 0 1px, transparent 1px 3px),
-    linear-gradient(180deg, #202329, #131519 55%, #0b0d10);
-  border-color: rgba(0, 0, 0, 0.55);
+    repeating-linear-gradient(90deg, color-mix(in srgb, rgba(255,255,255,.012) var(--mount-mix), transparent) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg,
+      color-mix(in srgb, #202329 var(--mount-mix), transparent),
+      color-mix(in srgb, #131519 var(--mount-mix), transparent) 55%,
+      color-mix(in srgb, #0b0d10 var(--mount-mix), transparent));
+  border-color: color-mix(in srgb, rgba(0, 0, 0, 0.55) var(--mount-mix), transparent);
   box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.07),
+    inset 0 1.5px 0 color-mix(in srgb, rgba(255, 255, 255, 0.07) var(--mount-mix), transparent),
     var(--panel-drop);
 }
 .panel.tabgroup.deck-tab-active .tabgroup-bar {
@@ -43,7 +56,7 @@
    and a shorter drop shadow so nothing gets clipped by the tab body's
    overflow:hidden. */
 .tabgroup-body > .deck-panel { padding: 4px 10px 10px !important; }
-.tabgroup-body > .deck-panel .deck-device {
+.tabgroup-body > .deck-panel .deck-device::after {
   box-shadow:
     0 6px 16px rgba(0, 0, 0, 0.5),
     inset 0 1.5px 0 rgba(255, 255, 255, 0.09),
@@ -75,16 +88,29 @@
 /* ── The device chassis: a matte body holding faceplate + key well + screen ── */
 .deck-device {
   position: relative; flex: 1; min-height: 0;
+  /* Own stacking context so the chassis layer below (z-index:-1) stays INSIDE the
+     device instead of falling behind the dashboard tile that hosts it. */
+  isolation: isolate;
   display: flex; flex-direction: column; gap: 10px;
   padding: clamp(10px, calc(var(--deck-key-min, 76px) * .15), 18px);
   border-radius: clamp(18px, calc(var(--deck-radius) + 8px), 26px);
+  --plate-edge: rgba(0, 0, 0, .6);
+}
+/* The chassis paint lives on its own layer rather than on .deck-device itself, so
+   ONE opacity can fade the body without fading the bar and the keys it holds —
+   which is what `opacity` on the element would do. Every faceplate finish further
+   down therefore repaints THIS layer, never the element. */
+.deck-device::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  border-radius: inherit;
+  opacity: var(--deck-plate-alpha, 1);
   /* Matte moulded plastic body: warm-neutral graphite, top-lit, with a fine
      vertical brushed texture and a darker base for a tangible thickness. */
   background:
     linear-gradient(180deg, rgba(255,255,255,.06), transparent 14%),
     repeating-linear-gradient(90deg, rgba(255,255,255,.014) 0 1px, transparent 1px 3px),
     linear-gradient(180deg, #2a2d34, #1a1c22 52%, #0e1014);
-  border: 1px solid rgba(0, 0, 0, .6);
+  border: 1px solid var(--plate-edge);
   box-shadow:
     0 24px 50px rgba(0, 0, 0, .6),
     0 4px 14px rgba(0, 0, 0, .45),               /* contact shadow: the body sits ON the dashboard */
@@ -94,9 +120,11 @@
     inset -2px 0 3px -2px rgba(0, 0, 0, .5),        /* right edge falls into shade */
     inset 0 -2px 2px rgba(0, 0, 0, .6);
 }
-/* Static top-edge sheen so the body reads as a moulded object (no animation). */
+/* Static top-edge sheen so the body reads as a moulded object (no animation).
+   Part of the body, so it fades with it. */
 .deck-device::before {
   content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  opacity: var(--deck-plate-alpha, 1);
   background: radial-gradient(130% 70% at 50% -12%, rgba(255, 255, 255, .07), transparent 50%);
 }
 
@@ -246,11 +274,20 @@
   position: relative; flex: 1; min-height: 0; z-index: 1;
   container-type: size;
   border-radius: clamp(12px, var(--deck-radius), 18px); padding: var(--deck-gap);
-  background: linear-gradient(180deg, #070810, #0a0c12);
+  /* The recess fades IN PLACE instead of on its own layer, unlike the chassis
+     above: both pseudo-elements of .deck-well are already taken by the comic
+     theme's animated panel, and adding a real element would put a node between
+     the well and .deck-well-bg for nothing. color-mix(<c> 100%, transparent) is
+     exactly <c>, so with the knob untouched this is byte-identical to the paint
+     it replaces. */
+  --well-mix: calc(var(--deck-well-alpha, 1) * 100%);
+  background: linear-gradient(180deg,
+    color-mix(in srgb, #070810 var(--well-mix), transparent),
+    color-mix(in srgb, #0a0c12 var(--well-mix), transparent));
   box-shadow:
-    inset 0 3px 12px rgba(0, 0, 0, .85),   /* deep recess */
-    inset 0 -1px 0 rgba(255, 255, 255, .04), /* lit lower lip of the groove */
-    0 1px 0 rgba(255, 255, 255, .05);        /* highlight where the body meets the recess */
+    inset 0 3px 12px color-mix(in srgb, rgba(0, 0, 0, .85) var(--well-mix), transparent),   /* deep recess */
+    inset 0 -1px 0 color-mix(in srgb, rgba(255, 255, 255, .04) var(--well-mix), transparent), /* lit lower lip of the groove */
+    0 1px 0 color-mix(in srgb, rgba(255, 255, 255, .05) var(--well-mix), transparent);        /* highlight where the body meets the recess */
 }
 /* Optional free-form picture behind the key grid (below the caps, z 0). */
 .deck-well-bg {
@@ -743,7 +780,7 @@ body.low-power-gpu .deck-key.anim-shift .deck-key-anim::before { animation: none
 
 /* ── Faceplate finish (data-plate on .deck-root → the device chassis) ── */
 /* Carbon: diagonal twill weave under the same top light as graphite. */
-.deck-root[data-plate="carbon"] .deck-device {
+.deck-root[data-plate="carbon"] .deck-device::after {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, .05), transparent 16%),
     repeating-linear-gradient(45deg, rgba(255, 255, 255, .05) 0 2px, transparent 2px 5px),
@@ -751,22 +788,22 @@ body.low-power-gpu .deck-key.anim-shift .deck-key-anim::before { animation: none
     linear-gradient(180deg, #17191e, #0d0f13);
 }
 /* Steel: brushed metal — fine horizontal grain with a cooler, lighter body. */
-.deck-root[data-plate="steel"] .deck-device {
+.deck-root[data-plate="steel"] .deck-device { --plate-edge: rgba(0, 0, 0, .5); }
+.deck-root[data-plate="steel"] .deck-device::after {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, .1), transparent 20%),
     repeating-linear-gradient(0deg, rgba(255, 255, 255, .028) 0 1px, transparent 1px 3px),
     linear-gradient(180deg, #383c45, #24272e 55%, #17191f);
-  border-color: rgba(0, 0, 0, .5);
 }
 /* Midnight: pure stealth slab — no texture, near-black. */
-.deck-root[data-plate="midnight"] .deck-device {
+.deck-root[data-plate="midnight"] .deck-device::after {
   background: linear-gradient(180deg, #0c0e13, #08090d);
   box-shadow: 0 24px 50px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .05);
 }
-/* None: the chassis disappears — bare keys floating on the dashboard. */
-.deck-root[data-plate="none"] .deck-device {
-  background: none; border: 0; box-shadow: none; padding: 2px;
-}
+/* None: the chassis disappears — bare keys floating on the dashboard. It is the
+   end point of the transparency slider, reached by dropping the whole layer. */
+.deck-root[data-plate="none"] .deck-device { padding: 2px; }
+.deck-root[data-plate="none"] .deck-device::after { display: none; }
 .deck-root[data-plate="none"] .deck-device::before { display: none; }
 .deck-root[data-plate="none"] .deck-well { background: transparent; box-shadow: none; }
 
@@ -980,6 +1017,7 @@ body.low-power-gpu .deck-key.anim-shift .deck-key-anim::before { animation: none
   font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em;
   opacity: .72; margin-top: 4px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, .07);
 }
+.deck-style-range { flex: 1 1 120px; min-width: 110px; accent-color: var(--accent, #7aa2ff); }
 .deck-step-val {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 11px; min-width: 30px; text-align: center; color: var(--text, #e7e9ee);

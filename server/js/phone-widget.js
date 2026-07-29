@@ -30,10 +30,16 @@
   let msgList = null;       // null = never pulled (lazy, like contacts)
   let openMsg = null;       // { handle, name, number, body } — the open message
   let draft = '';           // the reply being typed
+  let picking = false;      // choosing who a new message goes to
   let pending = null;       // { kind:'call'|'send', name, number, text } — the confirm sheet
   let busy = false;
   let seeded = false;
   let notice = '';          // one line about the last action, cleared on the next
+  // Why a pane is empty, per pane. Without this the empty state says "No
+  // messages", which is a statement of FACT and a false one: the phone was
+  // simply not readable. An error has to replace the empty state, not sit under
+  // it — the user reads the big centred line, not the note below it.
+  const failed = { calls: '', contacts: '', messages: '' };
 
   function tiles() {
     return Array.from(document.querySelectorAll('[data-dashboard-widget="phone"]')).filter(n => n.closest('.pager-page'));
@@ -82,7 +88,10 @@
 
   // ── Rows ─────────────────────────────────────────────────────────────────
 
-  function personRow(name, sub, direction, number, at) {
+  // `onPick` overrides what tapping the row does. The default is to call, which
+  // is what a call log and a phonebook are mostly for; the recipient picker
+  // passes its own so the same row can start a message instead.
+  function personRow(name, sub, direction, number, at, onPick) {
     const row = el('button', 'phw-row');
     row.type = 'button';
 
@@ -100,14 +109,40 @@
 
     if (at) row.appendChild(el('span', 'phw-when', when(at)));
 
-    if (canDial() && number) {
+    if (onPick && number) {
+      row.classList.add('is-callable');
+      row.addEventListener('click', () => onPick(name, number));
+    } else if (canDial() && number) {
       row.classList.add('is-callable');
       row.addEventListener('click', () => askCall(name, number));
       row.title = t('phone_call', 'Call');
+      // A second action on the same row, so writing to somebody does not mean
+      // hunting for an old message from them first. Only when the phone
+      // actually has a message server — otherwise it would be a button that
+      // can only ever explain itself.
+      if (hasMessages()) row.appendChild(messageButton(name, number));
     } else {
       row.disabled = true;
     }
     return row;
+  }
+
+  // The little "write to this person" affordance on a row. A nested button
+  // inside a button is invalid, so it is a span with a role and its own key
+  // handling — and it stops the row's own click, or tapping it would place a
+  // call instead of opening a message.
+  function messageButton(name, number) {
+    const btn = el('span', 'phw-row-act');
+    btn.setAttribute('role', 'button');
+    btn.setAttribute('tabindex', '0');
+    btn.title = t('phone_write', 'Message');
+    btn.setAttribute('aria-label', btn.title);
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+      + 'stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.3 9 9 0 0 1-3.9-.9L3 20l1.3-3.9A8.3 8.3 0 0 1 3 11.5 8.4 8.4 0 0 1 12 3.2a8.4 8.4 0 0 1 9 8.3Z"/></svg>';
+    const start = (e) => { e.stopPropagation(); e.preventDefault(); startCompose(name, number); };
+    btn.addEventListener('click', start);
+    btn.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') start(e); });
+    return btn;
   }
 
   // ── Views ────────────────────────────────────────────────────────────────
@@ -118,6 +153,13 @@
 
   function emptyNote(text) {
     return el('div', 'phw-empty', text);
+  }
+
+  // The empty state, or the reason there is nothing to show. A list that failed
+  // to load and a list that is genuinely empty look identical from here, so the
+  // pane has to be told which it is rather than guessing from the length.
+  function emptyOrError(which, emptyText) {
+    return emptyNote(failed[which] ? problemFor(failed[which]) : emptyText);
   }
 
   // What is wrong, in one sentence, in the user's language — and only ever
@@ -190,29 +232,64 @@
   function recentsView() {
     const list = el('div', 'phw-list');
     if (recents === null) return emptyNote(t('phone_loading', 'Reading the phone…'));
-    if (!recents.length) return emptyNote(t('phone_no_calls', 'No recent calls.'));
+    if (!recents.length) return emptyOrError('calls', t('phone_no_calls', 'No recent calls.'));
     for (const c of recents.slice(0, 40)) {
       list.appendChild(personRow(c.name, c.number, c.direction, c.number, c.at));
     }
     return list;
   }
 
-  function contactsView() {
+  // The "write to somebody new" entry point, plus the recipient picker it
+  // opens. The picker is the phonebook with a different action on the row, not
+  // a second list — one place decides what a contact row looks like.
+  function newMessageBar() {
+    const bar = el('div', 'phw-newmsg');
+    const b = el('button', 'phw-btn is-primary', t('phone_new_message', 'New message'));
+    b.type = 'button';
+    b.addEventListener('click', () => {
+      picking = true;
+      if (contacts === null) loadContacts();
+      paint();
+    });
+    bar.appendChild(b);
+    return bar;
+  }
+
+  function pickerView() {
     const wrap = el('div', 'phw-pane');
+    const bar = el('div', 'phw-thread-head');
+    const back = el('button', 'phw-icon-btn', '‹');
+    back.type = 'button';
+    back.title = t('phone_back', 'Back');
+    back.addEventListener('click', () => { picking = false; paint(); });
+    bar.appendChild(back);
+    bar.appendChild(el('span', 'phw-name', t('phone_pick_recipient', 'Write to')));
+    wrap.appendChild(bar);
+    wrap.appendChild(contactsSearch(wrap));
+    wrap.appendChild(contactList(startCompose));
+    return wrap;
+  }
+
+  function contactsSearch(wrap) {
     const search = el('input', 'phw-search');
     search.type = 'search';
     search.placeholder = t('phone_search', 'Search contacts');
     search.value = query;
     search.addEventListener('input', () => {
       query = search.value;
-      repaintList(wrap, contactList());
+      repaintList(wrap, contactList(picking ? startCompose : null));
     });
-    wrap.appendChild(search);
-    wrap.appendChild(contactList());
+    return search;
+  }
+
+  function contactsView() {
+    const wrap = el('div', 'phw-pane');
+    wrap.appendChild(contactsSearch(wrap));
+    wrap.appendChild(contactList(null));
     return wrap;
   }
 
-  function contactList() {
+  function contactList(onPick) {
     if (contacts === null) return emptyNote(t('phone_loading', 'Reading the phone…'));
     const q = query.trim().toLowerCase();
     const matches = contacts.filter((c) => {
@@ -220,11 +297,14 @@
       if (String(c.name || '').toLowerCase().includes(q)) return true;
       return (c.numbers || []).some(n => String(n.value || '').replace(/\s/g, '').includes(q.replace(/\s/g, '')));
     });
-    if (!matches.length) return emptyNote(q ? t('phone_no_match', 'Nobody matches that.') : t('phone_no_contacts', 'No contacts.'));
+    if (!matches.length) {
+      return q ? emptyNote(t('phone_no_match', 'Nobody matches that.'))
+        : emptyOrError('contacts', t('phone_no_contacts', 'No contacts.'));
+    }
     const list = el('div', 'phw-list');
     for (const c of matches.slice(0, 300)) {
       const first = (c.numbers && c.numbers[0]) || null;
-      list.appendChild(personRow(c.name, first ? first.value : '', '', first ? first.value : '', 0));
+      list.appendChild(personRow(c.name, first ? first.value : '', '', first ? first.value : '', 0, onPick));
     }
     return list;
   }
@@ -248,8 +328,13 @@
   function messagesView() {
     const wrap = el('div', 'phw-pane');
     if (openMsg) return messageDetail();
-    if (msgList === null) return emptyNote(t('phone_loading', 'Reading the phone…'));
-    if (!msgList.length) return emptyNote(t('phone_no_messages', 'No messages.'));
+    if (picking) return pickerView();
+    // Composing sits above the list, not behind a tap on it: writing to
+    // somebody you have never texted must not require finding a message from
+    // them first, which is what "reply only" quietly demanded.
+    wrap.appendChild(newMessageBar());
+    if (msgList === null) { wrap.appendChild(emptyNote(t('phone_loading', 'Reading the phone…'))); return wrap; }
+    if (!msgList.length) { wrap.appendChild(emptyOrError('messages', t('phone_no_messages', 'No messages.'))); return wrap; }
 
     const list = el('div', 'phw-list');
     for (const m of msgList.slice(0, 40)) {
@@ -284,15 +369,20 @@
     const back = el('button', 'phw-icon-btn', '‹');
     back.type = 'button';
     back.title = t('phone_back', 'Back');
-    back.addEventListener('click', () => { openMsg = null; draft = ''; paint(); });
+    back.addEventListener('click', () => { openMsg = null; draft = ''; picking = false; paint(); });
     bar.appendChild(back);
     bar.appendChild(el('span', 'phw-name', openMsg.name || openMsg.number || t('phone_unknown', 'Unknown')));
+    if (openMsg.isNew && openMsg.name) bar.appendChild(el('span', 'phw-sub', openMsg.number));
     wrap.appendChild(bar);
 
-    const body = el('div', 'phw-thread-body');
-    body.appendChild(el('p', 'phw-msg-text',
-      openMsg.body === null ? t('phone_loading', 'Reading the phone…') : (openMsg.body || '')));
-    wrap.appendChild(body);
+    // A new message has nothing to read yet, so it gets the compose box and no
+    // empty panel above it.
+    if (!openMsg.isNew) {
+      const body = el('div', 'phw-thread-body');
+      body.appendChild(el('p', 'phw-msg-text',
+        openMsg.body === null ? t('phone_loading', 'Reading the phone…') : (openMsg.body || '')));
+      wrap.appendChild(body);
+    }
 
     // Replying needs a number. A message from an alphanumeric sender (a bank,
     // a delivery service) has none, and those cannot be replied to at all — so
@@ -428,14 +518,14 @@
     // A failed refresh still carries the last good list, so the tile keeps
     // showing what it had instead of blanking.
     recents = (d && Array.isArray(d.list)) ? d.list : (recents || []);
-    if (d && d.ok === false) notice = problemFor(d.reason);
+    failed.calls = (d && d.ok === false) ? String(d.reason || 'phone_error') : '';
   }
 
   async function loadContacts(force) {
     if (contacts === null) contacts = [];   // stop a second tab switch re-firing
     const d = await api('/api/phone/contacts' + (force ? '?refresh=1' : ''));
     contacts = (d && Array.isArray(d.list)) ? d.list : (contacts || []);
-    if (d && d.ok === false) notice = problemFor(d.reason);
+    failed.contacts = (d && d.ok === false) ? String(d.reason || 'phone_error') : '';
     paint();
   }
 
@@ -459,7 +549,7 @@
     if (msgList === null) msgList = [];   // a second tab switch must not re-fire
     const d = await api('/api/phone/messages?folder=inbox' + (force ? '&refresh=1' : ''));
     msgList = (d && Array.isArray(d.list)) ? d.list : (msgList || []);
-    if (d && d.ok === false) notice = problemFor(d.reason);
+    failed.messages = (d && d.ok === false) ? String(d.reason || 'phone_error') : '';
     paint();
   }
 
@@ -480,6 +570,18 @@
       openMsg.body = '';
       notice = problemFor(d && d.reason);
     }
+    paint();
+  }
+
+  // Start writing to somebody, from anywhere: the picker, a contact row, or a
+  // call-log row. Lands in the same thread view a reply uses, so there is one
+  // compose box in the widget rather than two that can drift apart.
+  function startCompose(name, number) {
+    tab = 'messages';
+    picking = false;
+    openMsg = { handle: '', name: String(name || ''), number: String(number || ''), body: '', isNew: true };
+    draft = '';
+    notice = '';
     paint();
   }
 
@@ -512,6 +614,10 @@
       if (out && out.ok) {
         notice = t('phone_sent', 'Message sent.');
         draft = '';
+        // A message written from scratch has no thread to go back to, so it
+        // closes onto the list. A reply stays where it was, next to what it
+        // was replying to.
+        if (openMsg && openMsg.isNew) openMsg = null;
       } else {
         notice = problemFor(out && out.error);
       }

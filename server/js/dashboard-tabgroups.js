@@ -292,8 +292,16 @@ function renderGroupTile(gridItem, group) {
   // The Deck-in-tab chassis mount (DeckPanel.css / themes-retro.css) keys off
   // this class — a plain class toggled here instead of a :has() selector, so
   // tab switches and layout applies never pay :has() invalidation walks.
-  tile.classList.toggle('deck-tab-active',
-    !!body.querySelector(':scope > .deck-panel:not([data-dashboard-hidden="true"])'));
+  const shownDeck = body.querySelector(':scope > .deck-panel:not([data-dashboard-hidden="true"])');
+  tile.classList.toggle('deck-tab-active', !!shownDeck);
+  // The mount fades with the Deck it is hosting, and the value lives on that
+  // member's own .deck-root — a custom property does not flow upward, so it is
+  // copied here. deck.js stamps it too, on its own render; this call is what covers
+  // a group tile built fresh around a member whose DOM was MOVED in (relocated by
+  // id above) and therefore never re-rendered.
+  const shownRoot = shownDeck && shownDeck.querySelector('.deck-root');
+  tile.style.setProperty('--deck-mount-alpha',
+    (shownRoot && shownRoot.style.getPropertyValue('--deck-mount-alpha')) || '1');
   if (typeof applyTranslations === 'function') applyTranslations();
   return tile;
 }

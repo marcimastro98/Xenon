@@ -72,7 +72,37 @@
   function deckLookFor(cfg, profileId) {
     const M = window.DeckModel;
     if (M && typeof M.effectiveDeckLook === 'function') return M.effectiveDeckLook(cfg, profileId);
-    return { capStyle: cfg.capStyle, keyShape: cfg.keyShape, plate: cfg.plate, wellImage: cfg.wellImage, mediaStyle: cfg.mediaStyle };
+    return { capStyle: cfg.capStyle, keyShape: cfg.keyShape, plate: cfg.plate, transparency: cfg.transparency, wellImage: cfg.wellImage, mediaStyle: cfg.mediaStyle };
+  }
+  // The single place that turns the stored 0-100 transparency into the custom
+  // properties DeckPanel.css fades on, so the style preview and the real deck can
+  // never disagree about what a value means. Both surfaces are painted on their
+  // own layer precisely so this can stay one number: an `opacity` on .deck-device
+  // would take the keys with it.
+  function stampDeckAlpha(root, look) {
+    const t = Math.max(0, Math.min(100, Number(look && look.transparency) || 0));
+    const alpha = String((100 - t) / 100);
+    root.style.setProperty('--deck-plate-alpha', alpha);
+    root.style.setProperty('--deck-well-alpha', alpha);
+    // The mount a tab-group tile paints IS the chassis, so it follows the chassis
+    // rather than only the slider: the "Nessuna" faceplate removes the body
+    // outright, and leaving the mount behind reproduced exactly the box that
+    // finish exists to get rid of.
+    root.style.setProperty('--deck-mount-alpha', (look && look.plate === 'none') ? '0' : alpha);
+  }
+  // A Deck inside a tab-group repaints the HOSTING tile as its chassis mount
+  // (.panel.tabgroup.deck-tab-active), so that tile has to fade with the device or
+  // the slider looks broken: the chassis goes and the mount takes its place. The
+  // tile is an ANCESTOR of the .deck-root carrying the value, and a custom property
+  // only inherits downward, so it is stamped directly. dashboard-tabgroups.js does
+  // the same when it rebuilds the bar, which covers the case this call cannot see:
+  // a group tile built fresh around a member that was MOVED into it rather than
+  // re-rendered.
+  function stampDeckMount(tile) {
+    const mount = (tile && tile.closest) ? tile.closest('.panel.tabgroup') : null;
+    if (!mount) return;
+    const root = tile.querySelector('.deck-root');
+    mount.style.setProperty('--deck-mount-alpha', (root && root.style.getPropertyValue('--deck-mount-alpha')) || '1');
   }
   // True while the dashboard Layout editor is open. The deck must NOT auto-fit its
   // key grid then: the tile is mid-resize (GridStack hasn't applied its final cell
@@ -1501,6 +1531,7 @@
     root.dataset.capstyle = look.capStyle;
     root.dataset.shape = look.keyShape;
     root.dataset.plate = look.plate;
+    stampDeckAlpha(root, look);
     root.style.setProperty('--deck-cols', shape.cols);
     root.style.setProperty('--deck-rows', shape.rows);
     root.style.setProperty('--deck-key-min', keyMinFor(cfg) + 'px');
@@ -1569,6 +1600,29 @@
         s.appendChild(b);
       });
       grp.appendChild(s);
+      return grp;
+    };
+    // Continuous 0-100 slider. Unlike the colour pickers this does NOT rebuild the
+    // preview on every tick: the value is a single custom property, so a live drag
+    // re-stamps it on the root already on screen. The preview holds real key caps,
+    // and rebuilding all of them sixty times a second to move one number is waste.
+    // Persist happens on release ('change'), with livePending as the safety net.
+    const rangePick = (capKey, capFb, field, live) => {
+      const grp = el('div', 'deck-style-grp');
+      grp.appendChild(el('span', 'deck-style-cap', tr(capKey, capFb)));
+      const rng = el('input');
+      rng.type = 'range'; rng.min = '0'; rng.max = '100'; rng.step = '5';
+      rng.className = 'deck-style-range';
+      rng.value = String(getLook()[field] || 0);
+      const out = el('span', 'deck-step-val', rng.value + '%');
+      const commit = () => { livePending = null; saveRender({ [field]: Number(rng.value) }); };
+      rng.addEventListener('input', () => {
+        out.textContent = rng.value + '%';
+        live(Number(rng.value));
+        livePending = commit;
+      });
+      rng.addEventListener('change', commit);
+      grp.append(rng, out);
       return grp;
     };
     // Two-colour gradient toggle — manages its own disabled state, no rebuild.
@@ -1653,6 +1707,13 @@
       (b, v) => { b.innerHTML = SHAPE_SVG[v] || ''; b.title = tr('deck_shape_' + v, v); }));
     body.appendChild(seg('deck_plate', 'Base', 'plate', M.PLATE_STYLES || ['graphite', 'carbon', 'steel', 'midnight', 'none'],
       (b, v) => { b.textContent = tr('deck_plate_' + v, v); }));
+    // Lets the dashboard show through the body and the key well, so the caps can
+    // read as floating. The caps stay opaque on purpose — a translucent cap loses
+    // its label over a bright wallpaper.
+    body.appendChild(rangePick('deck_transparency', 'Trasparenza', 'transparency', (v) => {
+      const root = previewHost.querySelector('.deck-root');
+      if (root) stampDeckAlpha(root, Object.assign({}, getLook(), { transparency: v }));
+    }));
     // Background section
     body.appendChild(el('div', 'deck-style-subhead', tr('deck_decor_well', 'Sfondo')));
     body.appendChild(imagePick('deck_decor_well', 'Sfondo', () => !!(getLook().wellImage || {}).src,
@@ -2116,6 +2177,7 @@
     root.dataset.capstyle = look.capStyle;
     root.dataset.shape = look.keyShape;
     root.dataset.plate = look.plate;
+    stampDeckAlpha(root, look);
     const shownGrid = window.DeckModel.gridOf(cfg, shownProfile);
     root.style.setProperty('--deck-cols', shownGrid.cols);
     root.style.setProperty('--deck-rows', shownGrid.rows);
@@ -2250,6 +2312,7 @@
 
     root.appendChild(device);
     tile.appendChild(root);
+    stampDeckMount(tile);
 
     // First-paint auto-fit: if the stored grid doesn't match the tile size, reshape
     // once and re-render at the fitted grid (converges — the fitted grid is stable).

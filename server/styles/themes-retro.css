@@ -219,6 +219,9 @@
   box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.5);
 }
 :root[data-style="retro"] .deck-device::before { display: none; }
+/* The shell above is painted on the element, so the base chassis layer has to go
+   with it (same reason as the comic board): it would sit on top of this one. */
+:root[data-style="retro"] .deck-device::after { display: none; }
 :root[data-style="retro"] .deck-well {
   background: #07081a;
   box-shadow: inset 3px 3px 0 rgba(0, 0, 0, 0.6);

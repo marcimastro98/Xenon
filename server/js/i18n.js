@@ -2001,6 +2001,7 @@ const i18n = {
     deck_shape_square: 'Quadrata',
     deck_shape_circle: 'Cerchio',
     deck_plate: 'Base',
+    deck_transparency: 'Trasparenza',
     deck_plate_graphite: 'Grafite',
     deck_plate_carbon: 'Carbonio',
     deck_plate_steel: 'Acciaio',
@@ -4629,6 +4630,7 @@ const i18n = {
     deck_shape_square: 'Square',
     deck_shape_circle: 'Circle',
     deck_plate: 'Plate',
+    deck_transparency: 'Transparency',
     deck_plate_graphite: 'Graphite',
     deck_plate_carbon: 'Carbon',
     deck_plate_steel: 'Steel',
@@ -6854,6 +6856,7 @@ Object.assign(i18n, {
     deck_shape_square: '사각형',
     deck_shape_circle: '원형',
     deck_plate: '베이스',
+    deck_transparency: '투명도',
     deck_plate_graphite: '그래파이트',
     deck_plate_carbon: '카본',
     deck_plate_steel: '스틸',
@@ -9058,6 +9061,7 @@ Object.assign(i18n, {
     deck_shape_square: '四角',
     deck_shape_circle: '円形',
     deck_plate: 'ベース',
+    deck_transparency: '透明度',
     deck_plate_graphite: 'グラファイト',
     deck_plate_carbon: 'カーボン',
     deck_plate_steel: 'スチール',
@@ -11262,6 +11266,7 @@ Object.assign(i18n, {
     deck_shape_square: '方形',
     deck_shape_circle: '圆形',
     deck_plate: '底座',
+    deck_transparency: '透明度',
     deck_plate_graphite: '石墨',
     deck_plate_carbon: '碳纤维',
     deck_plate_steel: '钢',
@@ -22994,6 +22999,9 @@ Object.assign(i18n.it, {
   mic: 'Microfono',
 });
 Object.assign(i18n.en, {
+  phone_write: "Message",
+  phone_new_message: "New message",
+  phone_pick_recipient: "Write to",
   lock_no_events: 'No upcoming events',
   ambient_sdk_off: 'Community widgets are turned off',
   ambient_sdk_widget_unavailable: 'Widget unavailable',
@@ -25977,6 +25985,9 @@ Object.assign(i18n.it, {
   cw_act_audiodevice: 'Scegliere da quali altoparlanti esce il tuo audio',
 });
 Object.assign(i18n.ko, {
+  phone_write: "메시지",
+  phone_new_message: "새 메시지",
+  phone_pick_recipient: "받는 사람",
   sharecard_title: '공유 카드',
   event_note_expand: '탭하면 메모 전체를 볼 수 있습니다', event_note_copy: '메모 복사', event_note_copied: '메모를 복사했습니다',
   battery_loading: '장치를 찾는 중…', battery_empty: '무선 장치를 찾지 못했습니다',
@@ -25992,6 +26003,9 @@ Object.assign(i18n.ko, {
   guardian_m_cpu_watts: 'CPU 전력', guardian_m_gpu_watts: 'GPU 전력',
 });
 Object.assign(i18n.ja, {
+  phone_write: "メッセージ",
+  phone_new_message: "新規メッセージ",
+  phone_pick_recipient: "宛先",
   sharecard_title: '共有カード',
   event_note_expand: 'タップしてメモ全体を読む', event_note_copy: 'メモをコピー', event_note_copied: 'メモをコピーしました',
   battery_loading: 'デバイスを探しています…', battery_empty: 'ワイヤレス デバイスは見つかりませんでした',
@@ -26007,6 +26021,9 @@ Object.assign(i18n.ja, {
   guardian_m_cpu_watts: 'CPU 電力', guardian_m_gpu_watts: 'GPU 電力',
 });
 Object.assign(i18n.zh, {
+  phone_write: "写短信",
+  phone_new_message: "新短信",
+  phone_pick_recipient: "发给",
   sharecard_title: '分享卡片',
   event_note_expand: '点击查看完整备注', event_note_copy: '复制备注', event_note_copied: '备注已复制',
   battery_loading: '正在查找设备…', battery_empty: '未找到无线设备',
@@ -26022,6 +26039,9 @@ Object.assign(i18n.zh, {
   guardian_m_cpu_watts: 'CPU 功耗', guardian_m_gpu_watts: 'GPU 功耗',
 });
 Object.assign(i18n.es, {
+  phone_write: "Escribir",
+  phone_new_message: "Mensaje nuevo",
+  phone_pick_recipient: "Escribir a",
   sharecard_title: 'Tarjeta para compartir',
   event_note_expand: 'Toca para leer la nota entera', event_note_copy: 'Copiar la nota', event_note_copied: 'Nota copiada',
   battery_loading: 'Buscando dispositivos…', battery_empty: 'No se encontraron dispositivos inalámbricos',
@@ -26037,6 +26057,9 @@ Object.assign(i18n.es, {
   guardian_m_cpu_watts: 'Consumo de CPU', guardian_m_gpu_watts: 'Consumo de GPU',
 });
 Object.assign(i18n.fr, {
+  phone_write: "Ecrire",
+  phone_new_message: "Nouveau message",
+  phone_pick_recipient: "Ecrire a",
   sharecard_title: 'Carte à partager',
   event_note_expand: 'Touchez pour lire toute la note', event_note_copy: 'Copier la note', event_note_copied: 'Note copiée',
   battery_loading: 'Recherche des appareils…', battery_empty: 'Aucun appareil sans fil trouvé',
@@ -26052,6 +26075,9 @@ Object.assign(i18n.fr, {
   guardian_m_cpu_watts: 'Consommation CPU', guardian_m_gpu_watts: 'Consommation GPU',
 });
 Object.assign(i18n.de, {
+  phone_write: "Schreiben",
+  phone_new_message: "Neue Nachricht",
+  phone_pick_recipient: "Schreiben an",
   sharecard_title: 'Teilen-Karte',
   event_note_expand: 'Tippen, um die ganze Notiz zu lesen', event_note_copy: 'Notiz kopieren', event_note_copied: 'Notiz kopiert',
   battery_loading: 'Geräte werden gesucht…', battery_empty: 'Keine kabellosen Geräte gefunden',
@@ -26067,6 +26093,9 @@ Object.assign(i18n.de, {
   guardian_m_cpu_watts: 'CPU-Leistung', guardian_m_gpu_watts: 'GPU-Leistung',
 });
 Object.assign(i18n.pt, {
+  phone_write: "Escrever",
+  phone_new_message: "Nova mensagem",
+  phone_pick_recipient: "Escrever a",
   sharecard_title: 'Cartão para partilhar',
   event_note_expand: 'Toca para ler a nota inteira', event_note_copy: 'Copiar a nota', event_note_copied: 'Nota copiada',
   battery_loading: 'A procurar dispositivos…', battery_empty: 'Não foram encontrados dispositivos sem fios',
@@ -26082,6 +26111,9 @@ Object.assign(i18n.pt, {
   guardian_m_cpu_watts: 'Consumo do CPU', guardian_m_gpu_watts: 'Consumo da GPU',
 });
 Object.assign(i18n.ru, {
+  phone_write: "Написать",
+  phone_new_message: "Новое сообщение",
+  phone_pick_recipient: "Написать кому",
   sharecard_title: 'Карточка для публикации',
   event_note_expand: 'Коснитесь, чтобы прочитать заметку целиком', event_note_copy: 'Скопировать заметку', event_note_copied: 'Заметка скопирована',
   battery_loading: 'Поиск устройств…', battery_empty: 'Беспроводные устройства не найдены',
@@ -26097,6 +26129,9 @@ Object.assign(i18n.ru, {
   guardian_m_cpu_watts: 'Потребление CPU', guardian_m_gpu_watts: 'Потребление GPU',
 });
 Object.assign(i18n.nl, {
+  phone_write: "Schrijven",
+  phone_new_message: "Nieuw bericht",
+  phone_pick_recipient: "Schrijven aan",
   sharecard_title: 'Deelkaart',
   event_note_expand: 'Tik om de hele notitie te lezen', event_note_copy: 'Notitie kopiëren', event_note_copied: 'Notitie gekopieerd',
   battery_loading: 'Apparaten zoeken…', battery_empty: 'Geen draadloze apparaten gevonden',
@@ -26119,6 +26154,9 @@ Object.assign(i18n.nl, {
 // it; a user who is not files a bug about a feature that was never possible.
 
 Object.assign(i18n.it, {
+  phone_write: "Scrivi",
+  phone_new_message: "Nuovo messaggio",
+  phone_pick_recipient: "Scrivi a",
   deck_act_phoneCall: "Chiama un numero",
   deck_act_phoneMessage: "Manda un messaggio",
   phone_platform: "Non ancora disponibile su questo sistema.",

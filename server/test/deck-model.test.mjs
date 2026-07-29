@@ -795,7 +795,7 @@ test('profile looks are independent and inherit only missing fields', () => {
     activeProfile: 'comic',
   });
   assert.deepEqual(dm.effectiveDeckLook(cfg, 'comic'), {
-    capStyle: 'vivid', keyShape: 'square', plate: 'carbon', wellImage: null, mediaStyle: null,
+    capStyle: 'vivid', keyShape: 'square', plate: 'carbon', transparency: 0, wellImage: null, mediaStyle: null,
   });
   assert.equal(dm.effectiveDeckLook(cfg, 'plain').capStyle, 'neon');
   assert.equal(dm.effectiveDeckLook(cfg, 'plain').wellImage.src, png);
@@ -804,6 +804,27 @@ test('profile looks are independent and inherit only missing fields', () => {
   assert.equal(dm.effectiveDeckLook(changed, 'plain').capStyle, 'flat');
   assert.equal(dm.effectiveDeckLook(changed, 'plain').plate, 'steel');
   assert.equal(dm.effectiveDeckLook(changed, 'comic').capStyle, 'vivid');
+});
+
+// Transparency is the one deck-level look field that is a NUMBER, so it takes a
+// different path through normalizeDeckLook than the enums beside it: absent has
+// to keep meaning "solid", which is what every deck saved before this existed
+// looks like, and a value from a shared preset has to be clamped rather than
+// dropped — a deck that imports as invisible cannot be recovered by looking at it.
+test('deck transparency defaults to solid, clamps, and overrides per profile', () => {
+  const withT = (transparency) => dm.normalizeDeckConfig({
+    transparency, profiles: [{ id: 'p', name: 'P', root: { pages: [{ keys: [] }] } }],
+  });
+  const base = withT(undefined);
+  assert.equal(base.transparency, 0);
+  assert.equal(dm.effectiveDeckLook(base, 'p').transparency, 0);
+  assert.equal(withT(250).transparency, 100);
+  assert.equal(withT(-40).transparency, 0);
+  assert.equal(withT('ghost').transparency, 0);
+  assert.equal(dm.effectiveDeckLook(dm.setProfileLook(base, 'p', { transparency: 60 }), 'p').transparency, 60);
+  // The import gate a shared profile passes through.
+  assert.equal(dm.normalizeDeckLook({ transparency: 999 }).transparency, 100);
+  assert.equal(dm.normalizeDeckLook({ transparency: 'x' }), null);
 });
 
 test('profile templates preserve their own vivid look', () => {

@@ -6873,7 +6873,7 @@ async function transcodeMp4BackgroundToWebm(sourcePath, targetPath) {
 
 const DashboardInstances = require('./js/dashboard-instances.js');
 
-const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'transfer', 'custom']);
+const DASHBOARD_WIDGET_IDS = Object.freeze(['media', 'agenda', 'mic', 'audio', 'system', 'notes', 'tasks', 'calendar', 'timer', 'chat', 'deck', 'remote', 'twitch', 'twitchwatch', 'obs', 'youtube', 'youtubelive', 'discord', 'spotify', 'browser', 'secondscreen', 'weather', 'smarthome', 'streamerbot', 'wavelink', 'lighting', 'notifications', 'stocks', 'football', 'news', 'claude', 'vitals', 'unifi', 'slideshow', 'fans', 'power', 'battery', 'search', 'disk', 'transfer', 'phone', 'custom']);
 const DASHBOARD_PAGE_IDS = Object.freeze(['dashboard']);
 const DASHBOARD_TAB_IDS = Object.freeze(['main', 'net']);
 const CALENDAR_TAB_IDS = Object.freeze(['calendar', 'tasks', 'timer']);
@@ -6947,6 +6947,9 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
     search:   Object.freeze({ x: 8, y: 56, w: 8, h: 8, visible: false, page: 'dashboard' }),
     disk:     Object.freeze({ x: 16, y: 54, w: 8, h: 10, visible: false, page: 'dashboard' }),
     transfer: Object.freeze({ x: 8, y: 64, w: 8, h: 10, visible: false, page: 'dashboard' }),
+    // Tall rather than wide: it is a list of people, and the keypad wants the
+    // height. Hidden until the user adds it, like every opt-in widget.
+    phone: Object.freeze({ x: 16, y: 64, w: 8, h: 12, visible: false, page: 'dashboard' }),
     custom:   Object.freeze({ x: 0, y: 28, w: 8, h: 8, visible: false, page: 'dashboard' }),
   }),
   groups: Object.freeze({
