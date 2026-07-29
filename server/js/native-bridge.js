@@ -987,7 +987,13 @@
     );
   }
   function chooseAutoScreen() { return sendDisplaySignal('xenon-display:auto'); }
-  function choosePhoneScreen() { return sendDisplaySignal('xenon-display:phone'); }
+  // `now` = hide the window in this session too, not only from the next login.
+  // Off by default because the usual caller is reconciling a stored choice, and
+  // taking the screen away while somebody is reading it is the failure this
+  // whole feature is built to avoid. It is true exactly once: the button at the
+  // end of the phone guide, pressed by a user who has a paired device in front
+  // of them. An older shell ignores the parameter and behaves as before.
+  function choosePhoneScreen(now) { return sendDisplaySignal('xenon-display:phone' + (now ? '?now=1' : '')); }
   function setScreenFullscreen(on) {
     return sendDisplaySignal('xenon-display:fullscreen?on=' + (on ? '1' : '0'));
   }

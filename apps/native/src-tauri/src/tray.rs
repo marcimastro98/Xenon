@@ -149,8 +149,11 @@ pub fn build(app: &App) -> tauri::Result<()> {
                     crate::focus_guard::set_enabled(app, next);
                     let _ = focus_guard_toggle.set_checked(next);
                 }
-                "place-auto" => monitor::set_placement(app, Placement::Auto),
-                "place-phone" => monitor::set_placement(app, Placement::Phone),
+                "place-auto" => monitor::set_placement(app, Placement::Auto, false),
+                // Not applied now: the tray item is reached FROM the window, so
+                // hiding it under the menu that was just used reads as a crash.
+                // It takes effect at the next launch, as it always has.
+                "place-phone" => monitor::set_placement(app, Placement::Phone, false),
                 // The backend is stopped first: this handler runs on the main
                 // thread, where restart() execs WITHOUT emitting RunEvent::Exit,
                 // so the run loop's own teardown never gets to run.

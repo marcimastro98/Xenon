@@ -123,7 +123,14 @@
           // as a broken widget rather than a missing part. Most PSUs have no chip
           // to ask: only USB-connected models (Corsair HXi/RMi, some Seasonic and
           // Thermaltake) measure their own output. Say so once, quietly.
-          wrap.appendChild(el('div', 'pw-note', t('power_note_psu', 'Total wall draw needs a PSU that connects over USB (Corsair HXi/RMi and similar). Yours doesn’t report it, so only CPU and GPU are shown.')));
+          // `--setup`: shown only while the layout is being edited (see
+          // PowerWidget.css). It explains a card that is missing for a reason
+          // nobody can act on without buying a different power supply, so it is
+          // the one note here that earns its place at arrange time and not on a
+          // dashboard somebody is just looking at. Done in CSS rather than by
+          // testing `layout-editing` here, so it appears the instant the mode is
+          // entered instead of at the next sensor tick.
+          wrap.appendChild(el('div', 'pw-note pw-note--setup', t('power_note_psu', 'Total wall draw needs a PSU that connects over USB (Corsair HXi/RMi and similar). Yours doesn’t report it, so only CPU and GPU are shown.')));
         }
       }
       if (hasHa) {

@@ -97,6 +97,7 @@ function _buildTimerCard(timer) {
   const pauseTip  = (typeof t === 'function' ? t('timer_pause')  : null) || 'Pause';
   const resumeTip = (typeof t === 'function' ? t('timer_resume') : null) || 'Resume';
   const resetTip  = (typeof t === 'function' ? t('timer_reset')  : null) || 'Restart';
+  const stopTip   = (typeof t === 'function' ? t('timer_stop')   : null) || 'Stop and keep';
   const delTip    = (typeof t === 'function' ? t('timer_delete') : null) || 'Delete';
 
   const card = document.createElement('div');
@@ -112,6 +113,7 @@ function _buildTimerCard(timer) {
   const SVG_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
   const SVG_RESTART = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.6-6.3"/><path d="M3 4v5h5"/></svg>';
   const SVG_DELETE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+  const SVG_STOP = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2.2"/></svg>';
 
   let actionBtn = '';
   if (!isDone) {
@@ -121,6 +123,14 @@ function _buildTimerCard(timer) {
       actionBtn = `<button class="timer-btn timer-resume-btn" onclick="timerResume('${tid}')" title="${resumeTip}">${SVG_PLAY}</button>`;
     }
   }
+  // Stop is offered only where it would change something: never on a finished
+  // timer, and never on one already sitting at its full time, where it would be
+  // a fourth button that does nothing. A running timer always qualifies, whatever
+  // its elapsed reads, because stopping it is the point.
+  const atFull = timer.status !== 'running' && (timer.pausedElapsed || 0) < 1;
+  const stopBtn = (!isDone && !atFull)
+    ? `<button class="timer-btn timer-stop-btn" onclick="timerStop('${tid}')" title="${stopTip}">${SVG_STOP}</button>`
+    : '';
   const resetBtn  = `<button class="timer-btn timer-restart-btn" onclick="timerRestart('${tid}')" title="${resetTip}">${SVG_RESTART}</button>`;
   const deleteBtn = `<button class="timer-btn timer-delete-btn" onclick="timerDelete('${tid}')" title="${delTip}">${SVG_DELETE}</button>`;
 
@@ -142,6 +152,7 @@ function _buildTimerCard(timer) {
     </div>
     <div class="timer-actions">
       ${actionBtn}
+      ${stopBtn}
       ${resetBtn}
       ${deleteBtn}
     </div>`;
@@ -228,6 +239,11 @@ function timerResume(id) {
 }
 function timerRestart(id) {
   _patchTimer(id, 'reset');
+}
+// Back to full time and held there, so the timer is kept for later instead of
+// being parked half-spent. See the 'stop' action in server.js.
+function timerStop(id) {
+  _patchTimer(id, 'stop');
 }
 function timerDelete(id) {
   fetch(`/api/timers/${encodeURIComponent(id)}`, { method: 'DELETE' })

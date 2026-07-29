@@ -902,7 +902,10 @@ pub fn move_to_named_monitor(app: &AppHandle, name: &str) {
 }
 
 /// Set the placement mode without naming a screen: "automatic" or "my phone".
-pub fn set_placement(app: &AppHandle, mode: Placement) {
+///
+/// `apply_now` only means anything for `Phone`, and it is the difference between
+/// recording the choice and acting on it in this session. See the note below.
+pub fn set_placement(app: &AppHandle, mode: Placement, apply_now: bool) {
     let Some(window) = app.get_webview_window("main") else { return };
     let mut snapshot = prefs::DisplayPrefs::default();
     prefs::update(app, |p| {
@@ -913,7 +916,8 @@ pub fn set_placement(app: &AppHandle, mode: Placement) {
     // A deliberate mode change ends any "show it anyway" the tray granted.
     SHOW_OVERRIDE.store(false, Ordering::SeqCst);
     if mode == Placement::Phone {
-        // Recorded, NOT applied to the window that is open right now.
+        // Recorded, NOT applied to the window that is open right now — unless the
+        // caller says otherwise.
         //
         // "Nothing on this PC" is about STARTUP: it is what stops the kiosk
         // reappearing at every login once the dashboard lives on a phone. Doing
@@ -922,7 +926,17 @@ pub fn set_placement(app: &AppHandle, mode: Placement) {
         // Settings panel and the confirmation all vanish at once. So the current
         // session keeps its window, the login entry goes (see sync_autostart
         // below in the caller), and the next launch opens hidden.
+        //
+        // `apply_now` is the one place that is not true: the last step of the
+        // phone guide, pressed with a paired device already showing the
+        // dashboard, where "hide it from this PC" is the whole of what the
+        // button says it does. `place_now` hides it (see apply_target's
+        // Target::Nothing(NoScreen::Phone) arm); SHOW_OVERRIDE was cleared above,
+        // so the tray's "Show Xenon" is still the way back.
         NO_SCREEN.store(false, Ordering::SeqCst);
+        if apply_now {
+            place_now(&window);
+        }
     } else {
         place_now(&window);
     }

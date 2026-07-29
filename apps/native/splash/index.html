@@ -131,11 +131,28 @@
     var canSetup = window.__XENON_SETUP_AVAILABLE__ === true;
     var setupClickedAt = 0; // timestamp of the last click, 0 = never clicked
 
+    // The shell sets this when it has ESTABLISHED that the backend was never
+    // installed here: no "Xenon Edge Widget" logon task registered and nothing
+    // listening (see spawn_backend_nudge in lib.rs). That is the state every
+    // fresh setup.exe install is in, and the 20 s above is the wrong answer to
+    // it — twenty seconds of a spinner that was never going to resolve, right
+    // after an installer said it had finished. The wait still applies when
+    // something might genuinely still be starting; this flag says nothing is.
+    function backendAbsent() { return window.__XENON_BACKEND_ABSENT__ === true; }
+
     function offerSetup() {
       if (!canSetup || done || setupEl.classList.contains('show')) return;
       setupEl.classList.add('show');
       hintEl.textContent = ''; // the panel is the call to action now
+      // "Waiting for the Xenon service…" over a panel that says the service is
+      // not installed is the page arguing with itself. The panel owns the
+      // message from here; the probe keeps running underneath and still takes
+      // over on its own if the backend turns up.
+      statusEl.textContent = 'One more step';
     }
+
+    /** True once the panel owns the copy — the timed messages stand down. */
+    function setupShowing() { return setupEl.classList.contains('show'); }
 
     setupBtn.addEventListener('click', function () {
       setupClickedAt = Date.now();
@@ -190,11 +207,14 @@
         })
         .catch(function () {
           okStreak = 0;
-          if (!saidWaiting && elapsed() >= 3000) {
+          // The setup offer can now arrive before any of these (the shell knows
+          // within a couple of seconds when nothing is installed), so each one
+          // stands down while the panel is up rather than overwriting it.
+          if (!saidWaiting && elapsed() >= 3000 && !setupShowing()) {
             saidWaiting = true;
             statusEl.textContent = 'Waiting for the Xenon service…';
           }
-          if (!saidSlow && elapsed() >= 10000) {
+          if (!saidSlow && elapsed() >= 10000 && !setupShowing()) {
             saidSlow = true;
             hintEl.textContent = 'The backend service is taking longer than usual to start. Still trying…';
           }
@@ -202,7 +222,7 @@
           // offer it. The shell's logon-task nudge (see lib.rs) has had its shot
           // by now, so silence this long means "not installed", not "slow".
           // offerSetup() is idempotent, so re-entering here costs nothing.
-          if (canSetup && elapsed() >= SETUP_AFTER_MS) offerSetup();
+          if (canSetup && (backendAbsent() || elapsed() >= SETUP_AFTER_MS)) offerSetup();
           // Setup was started and the backend still isn't there — hand the
           // button back rather than leave a dead one on screen.
           if (setupClickedAt && Date.now() - setupClickedAt >= SETUP_REARM_MS) {
@@ -216,7 +236,7 @@
           // own. This must fire whether or not the build can offer setup: an
           // engine that is installed but failing to start reaches here with a
           // button that can't help.
-          if (!saidStuck && elapsed() >= 60000) {
+          if (!saidStuck && elapsed() >= 60000 && !setupShowing()) {
             saidStuck = true;
             hintEl.textContent = 'Still no response from the Xenon widget. This app is the display for the Xenon widget — make sure the widget is installed and running (reinstall it anytime with INSTALL.bat from github.com/marcimastro98/Xenon). This screen will continue on its own once it responds.';
           }

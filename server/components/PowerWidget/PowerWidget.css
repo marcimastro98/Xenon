@@ -17,6 +17,18 @@
 .pw-note { flex: 0 0 auto; font-size: 10.5px; line-height: 1.35; opacity: 0.45;
   padding: 2px 4px 0; text-wrap: pretty; }
 
+/* Setup notes are for the person ARRANGING the dashboard, not the person
+   reading it. The PSU aside explains a card that is absent for a reason no
+   setting can change — the supply has no chip to ask — so on a finished
+   dashboard it is a permanent line of text about hardware you do not own. It
+   stays available where it is useful: while the layout is being edited.
+   Gated here rather than in JS so entering edit mode reveals it immediately,
+   without waiting for the next sensor tick to rebuild the widget. Notes that
+   ARE actionable (the sensor-permission hint, "turn on sensor history") keep
+   the plain .pw-note class and stay visible everywhere. */
+.pw-note--setup { display: none; }
+body.layout-editing .pw-note--setup { display: block; }
+
 /* PC draw — instrument cards */
 .pw-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px; flex: 0 0 auto; }
 .pw-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 10px 8px;

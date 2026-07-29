@@ -215,8 +215,16 @@ fn apply_display_signal(app: &tauri::AppHandle, path: &str, query: Option<&str>)
         })
     };
     match path {
-        "auto" => monitor::set_placement(app, prefs::Placement::Auto),
-        "phone" => monitor::set_placement(app, prefs::Placement::Phone),
+        "auto" => monitor::set_placement(app, prefs::Placement::Auto, false),
+        // `now=1` is the phone guide's closing button: a paired device exists and
+        // the user asked for this PC to stop showing the dashboard right away.
+        // Without it the choice is recorded and applied at the next launch, which
+        // is what every other caller wants.
+        "phone" => monitor::set_placement(
+            app,
+            prefs::Placement::Phone,
+            param("now").as_deref() == Some("1"),
+        ),
         "screen" => {
             // Bounded before the lookup so a hostile page cannot make us allocate
             // on an id that was never going to resolve.
@@ -450,22 +458,55 @@ static LEGACY_RESCUE_STARTED: std::sync::atomic::AtomicBool = std::sync::atomic:
 /// backend that crashed or whose logon start never fired. The probe MUST come
 /// first: the task's start-hidden.vbs kills whatever listens on 3030 before
 /// starting node, so nudging while a healthy server runs would restart it.
-/// If the task does not exist (widget never installed) this is a no-op and the
-/// splash's own hint tells the user what to install.
+/// If the task does not exist the backend was never installed, and that is a
+/// different situation from a slow start: it is the one every fresh setup.exe
+/// install is in. The task is therefore QUERIED before it is run, and its
+/// absence is told to the splash, which offers its setup button immediately
+/// instead of spinning in silence for twenty seconds first (SETUP_AFTER_MS in
+/// splash/index.html). The wait is not wrong when something might still be
+/// starting; it is wrong when nothing is going to.
 #[cfg(windows)]
-fn spawn_backend_nudge(_app: &tauri::AppHandle, port: u16) {
+fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
+    let handle = app.clone();
     std::thread::spawn(move || {
+        if port != 3030 {
+            return;
+        }
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        // The QUERY runs first, and only the query: it reads, it costs
+        // milliseconds, and its answer decides which of the two situations we
+        // are in. The /Run below still waits for the full probe, because that is
+        // the one that must not fire at a healthy server.
+        let installed = std::process::Command::new("schtasks")
+            .args(["/Query", "/TN", "Xenon Edge Widget"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        if !installed {
+            // Nothing registered to start, and nothing listening: the backend was
+            // never installed on this machine. One short probe rather than the
+            // full ladder — there is nothing here that could still be starting,
+            // and the whole point is to reach the splash before its own timer.
+            // Someone running `node server/server.js` by hand answers it and is
+            // left alone.
+            if !backend_answers_once(port) {
+                // Best-effort, like every other push into the page: the splash
+                // may still be loading, in which case its own timer covers us.
+                if let Some(win) = handle.get_webview_window("main") {
+                    let _ = win.eval("try{window.__XENON_BACKEND_ABSENT__=true;}catch(e){}");
+                }
+            }
+            return; // no task to nudge
+        }
         if backend_answers(port) {
             return; // backend is up — nothing to heal
         }
-        if port == 3030 {
-            use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-            let _ = std::process::Command::new("schtasks")
-                .args(["/Run", "/TN", "Xenon Edge Widget"])
-                .creation_flags(CREATE_NO_WINDOW)
-                .status();
-        }
+        let _ = std::process::Command::new("schtasks")
+            .args(["/Run", "/TN", "Xenon Edge Widget"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .status();
     });
 }
 
@@ -855,15 +896,24 @@ fn find_in_path(bin: &str) -> Option<std::path::PathBuf> {
 #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
 fn spawn_backend_nudge(_app: &tauri::AppHandle, _port: u16) {}
 
+/// One connection attempt, ~2s. Enough to tell "installed and starting" from
+/// "not there at all" when something else has already answered that question —
+/// see the task query in the Windows nudge.
+#[cfg(any(windows, target_os = "macos", target_os = "linux"))]
+fn backend_answers_once(port: u16) -> bool {
+    use std::net::{SocketAddr, TcpStream};
+    use std::time::Duration;
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    TcpStream::connect_timeout(&addr, Duration::from_secs(2)).is_ok()
+}
+
 /// True once the local backend accepts a connection. Polls for ~8–16s so a
 /// normally-starting backend is never interfered with.
 #[cfg(any(windows, target_os = "macos", target_os = "linux"))]
 fn backend_answers(port: u16) -> bool {
-    use std::net::{SocketAddr, TcpStream};
     use std::time::Duration;
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
     for _ in 0..4 {
-        if TcpStream::connect_timeout(&addr, Duration::from_secs(2)).is_ok() {
+        if backend_answers_once(port) {
             return true;
         }
         std::thread::sleep(Duration::from_secs(2));

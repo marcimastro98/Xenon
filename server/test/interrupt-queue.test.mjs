@@ -67,6 +67,29 @@ test('busy() covers the SDK security dialogs the old selector list missed', () =
   }
 });
 
+test('busy() covers the two first-run surfaces, which nothing may cover', () => {
+  // The screen question is a QUESTION. A promo modal drawn over it leaves a new
+  // user unable to answer the one thing the app asked them, and at z-index 4000
+  // against the picker's 4100 it can land behind the dialog as well. Measured on
+  // a real first run before these two selectors were here: the catalog drop
+  // fires ~20s after load and the hub message ~35s, and both found the screen
+  // idle while "Dove vuoi Xenon?" was on it.
+  const { iq, state } = harness();
+  for (const sel of ['.sp-overlay', '.onb-overlay']) {
+    state.overlays = [sel];
+    assert.equal(iq.busy(), true, sel + ' must block an interruption');
+  }
+});
+
+test('the priority ladder puts What\'s New above every promo channel', () => {
+  // Reading a promo before being told what changed in the version you are
+  // already running is the wrong order, and it is the order that happens when
+  // both are waiting for the same gap.
+  const P = IQ.PRIORITY;
+  assert.ok(P.update > P.limited, 'update must outrank a limited drop');
+  assert.ok(P.limited > P.drop && P.drop > P.message && P.message > P.tip);
+});
+
 test('registerOverlay extends the busy set and ignores junk', () => {
   const { iq, state } = harness();
   state.overlays = ['.my-overlay'];

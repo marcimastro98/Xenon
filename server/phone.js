@@ -100,6 +100,22 @@ function createPhone(opts) {
   let stopped = false;
   let testRunner = null;   // test seam: replaces the whole round trip
 
+  // Where the ops actually go. Windows and macOS reach a helper child over
+  // stdio; Linux has no helper by design and drives BlueZ and ofono over D-Bus
+  // instead. Both answer the SAME op names with the SAME shapes, so everything
+  // below this line is one code path rather than a platform branch — the same
+  // seam the collectors use, for the same reason.
+  let native = null;
+  function nativeTransport() {
+    if (platform !== 'linux') return null;
+    if (!native && !stopped) {
+      native = require('./linux-phone').createLinuxPhone({
+        onEvent: (env) => { if (env && env.event === 'callstate') applyCallState(env); },
+      });
+    }
+    return native;
+  }
+
   // Last good data. Kept across failures on purpose — see decision 2 above.
   const cache = {
     contacts: { at: 0, list: [], index: new Map(), total: -1, error: '' },
@@ -121,6 +137,10 @@ function createPhone(opts) {
     // as well: without this, every path here would answer `helper_missing` in a
     // test and none of the logic above it would ever be reached.
     if (testRunner) return true;
+    // Linux answers over D-Bus and has no helper to look for; asking whether
+    // one is on disk would report a missing download for a platform that never
+    // wanted one.
+    if (platform === 'linux') return true;
     try { return !!helperExe && fs.existsSync(helperExe); } catch { return false; }
   }
 
@@ -152,7 +172,8 @@ function createPhone(opts) {
     // Never spawn where the mode does not exist: the process would exit
     // non-zero, back off, and retry forever for a capability that is absent by
     // construction rather than by accident.
-    if (stopped || !supported || !enabled() || !helperPresent()) return null;
+    // Linux never spawns a child: its transport is D-Bus, not a helper.
+    if (stopped || !supported || platform === 'linux' || !enabled() || !helperPresent()) return null;
     if (Date.now() - host.diedAt < RETRY_MS) return null;
 
     let proc;
@@ -193,6 +214,9 @@ function createPhone(opts) {
 
   function request(op, extra, timeout) {
     if (testRunner) return testRunner(op, extra || {});
+    if (!supported) return Promise.reject(new Error('platform_unsupported'));
+    const direct = nativeTransport();
+    if (direct) return direct.request(op, extra || {});
     return new Promise((resolve, reject) => {
       const proc = ensure();
       if (!proc) { reject(new Error(helperPresent() ? 'phone_unavailable' : 'helper_missing')); return; }
@@ -343,9 +367,16 @@ function createPhone(opts) {
     }
     try {
       const out = await request('messages', { folder: key, max: MAX_MESSAGES });
+      // Two containers, one shape. Windows returns the MAP listing XML; on
+      // Linux obexd has already parsed it and returns D-Bus rows. Which one
+      // arrived is the transport's business, so it says so rather than being
+      // guessed at from the payload.
+      const parsed = (out && out.obex)
+        ? messages.parseObexMessages(out.rows)
+        : messages.parseListing(out && out.xml);
       // The phone often knows the sender's name already; when it does not, the
       // phonebook fills it in exactly as it does for the call log.
-      const list = messages.parseListing(out && out.xml).map(withName);
+      const list = parsed.map(withName);
       slot.at = Date.now();
       slot.list = list;
       slot.error = '';
@@ -365,8 +396,14 @@ function createPhone(opts) {
   async function messageBody(folder, handle) {
     if (!enabled()) return { ok: false, reason: 'disabled' };
     const key = FOLDERS.includes(String(folder)) ? String(folder) : 'inbox';
-    const id = messages.validHandle(handle);
-    if (!id) return { ok: false, reason: 'bad_handle' };
+    // A bounded, generic check here; the SHAPE is the transport's business.
+    // Windows handles are MAP hex ids and the helper re-asserts that; on Linux
+    // they are obexd object paths, which that transport re-resolves against a
+    // fresh listing before using. Hard-coding one shape at this level would
+    // refuse the other, and loosening the transport's own check to compensate
+    // is exactly the wrong direction.
+    const id = String(handle == null ? '' : handle).trim();
+    if (!id || id.length > 256 || /[\s"'`\\]|\.\./.test(id)) return { ok: false, reason: 'bad_handle' };
     try {
       const out = await request('message', { folder: key, handle: id });
       const parsed = messages.parseMessage(out && out.bmsg);
@@ -455,6 +492,25 @@ function createPhone(opts) {
 
   // ── Actions ──────────────────────────────────────────────────────────────
 
+  // Answering and hanging up. Both exist for exactly one platform today, which
+  // is why they are ops rather than assumptions: `canAnswer` comes back from
+  // the transport, the card renders from it, and here the capability is checked
+  // again before anything is attempted — a button the client should not have
+  // drawn must still be refused by the server.
+  async function answer() {
+    if (!enabled()) return { ok: false, error: 'disabled' };
+    if (!canAnswer()) return { ok: false, error: 'unavailable' };
+    try { await request('answer', {}, 15000); return { ok: true }; }
+    catch (e) { return { ok: false, error: String((e && e.message) || 'phone_error') }; }
+  }
+
+  async function hangUp() {
+    if (!enabled()) return { ok: false, error: 'disabled' };
+    if (!canHangUp()) return { ok: false, error: 'unavailable' };
+    try { await request('hangup', {}, 15000); return { ok: true }; }
+    catch (e) { return { ok: false, error: String((e && e.message) || 'phone_error') }; }
+  }
+
   async function dial(rawNumber) {
     if (!enabled()) return { ok: false, error: 'disabled' };
     // Validated here as well as at the boundary: this is the one call in the
@@ -483,6 +539,9 @@ function createPhone(opts) {
     cache.status.at = 0;
     if (!enabled()) {
       retire('disabled');
+      // The D-Bus transport polls call state while it is alive, so switching
+      // the feature off has to end it too, not only the helper child.
+      if (native) { try { native.stop(); } catch { /* already down */ } native = null; }
       if (state.incoming || state.active) {
         state.incoming = false;
         state.active = false;
@@ -496,10 +555,12 @@ function createPhone(opts) {
   function stop() {
     stopped = true;
     retire('shutdown');
+    if (native) { try { native.stop(); } catch { /* already down */ } native = null; }
   }
 
   return {
-    status, contacts, calls, dial, resolve, deviceName, canAnswer, canHangUp, canDial,
+    status, contacts, calls, dial, answer, hangUp,
+    resolve, deviceName, canAnswer, canHangUp, canDial,
     messages: messageList, message: messageBody, sendMessage,
     applySettings, stop, enabled,
     state: publicState,
