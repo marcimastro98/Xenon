@@ -40,6 +40,19 @@ function pctValue(raw) {
   return Number.isFinite(n) ? Math.min(100, Math.max(0, Math.round(n))) : null;
 }
 
+// Absolute media positions are whole seconds. Bound the value before it reaches
+// any platform adapter: the current media stream is second-resolution, and no
+// widget should be able to turn an accidental exponential value into an
+// oversized native timestamp. The host may clamp further to the active track.
+const MAX_MEDIA_SEEK_SECONDS = 24 * 60 * 60;
+function mediaSeekPosition(raw) {
+  const s = String(raw == null ? '' : raw).trim();
+  if (!s) return null;
+  const n = Number(s);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.min(MAX_MEDIA_SEEK_SECONDS, Math.round(n));
+}
+
 // Allowed hotkey tokens: the five modifiers, a set of named keys, single
 // letters/digits, and F1–F24. Anything else makes the whole combo invalid.
 const HOTKEY_MODS = new Set(['ctrl', 'control', 'alt', 'shift', 'win']);
@@ -259,12 +272,40 @@ function createRegistry(deps) {
           const r = await d.typeText(text);
           return r && r.ok === false ? { ok: false, error: r.error || 'type_failed' } : { ok: true };
         }
+        // The paired phone. Both reach the outside world and cost the user
+        // money, so the number is re-validated here even though the deck editor
+        // already bounded it: this is the single gate every action passes, and
+        // a Deck profile can arrive from a shared preset rather than from the
+        // editor. `phoneDial`/`phoneSend` do the dialable() check again.
+        case 'phoneCall': {
+          if (typeof d.phoneDial !== 'function') return { ok: false, error: 'unavailable' };
+          const number = String(action.number || '').trim();
+          if (!number) return { ok: false, error: 'bad_number' };
+          const r = await d.phoneDial(number);
+          return (r && r.ok) ? { ok: true } : { ok: false, error: (r && r.error) || 'dial_failed' };
+        }
+        case 'phoneMessage': {
+          if (typeof d.phoneSend !== 'function') return { ok: false, error: 'unavailable' };
+          const number = String(action.number || '').trim();
+          const text = String(action.text || '').trim();
+          if (!number) return { ok: false, error: 'bad_number' };
+          if (!text) return { ok: false, error: 'empty_message' };
+          const r = await d.phoneSend(number, text);
+          return (r && r.ok) ? { ok: true } : { ok: false, error: (r && r.error) || 'send_failed' };
+        }
         case 'lockWorkstation': {
           if (typeof d.lockWorkstation !== 'function') return { ok: false, error: 'unavailable' };
           const r = await d.lockWorkstation();
           return r && r.ok === false ? { ok: false, error: r.error || 'failed' } : { ok: true };
         }
         case 'media': await d.mediaAction(action.cmd); return { ok: true };
+        case 'mediaSeek': {
+          const position = mediaSeekPosition(action.position);
+          if (position == null) return { ok: false, error: 'bad_position' };
+          if (typeof d.mediaSeek !== 'function') return { ok: false, error: 'unavailable' };
+          const r = await d.mediaSeek(position);
+          return r && r.ok === false ? { ok: false, error: r.error || 'seek_failed' } : { ok: true };
+        }
         case 'micMute': return Object.assign({ ok: true }, (await d.micMute(action.mode)) || {});
         case 'volume': {
           if (action.mode === 'set') {

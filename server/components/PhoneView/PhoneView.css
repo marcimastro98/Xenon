@@ -1,16 +1,25 @@
-/* ── Phone view (R1.3) ───────────────────────────────────────────────────── */
-/* Everything here is scoped to `html.is-phone`, set by js/phone-view.js below  */
-/* 620px. Presentation only — the grid engine's state is never touched, so a    */
-/* mistake in this file can look wrong but cannot damage a saved layout.        */
+/* ── Stacked views (R1.3) ────────────────────────────────────────────────── */
+/* Three classes, set by js/phone-view.js, and the split is the whole design:   */
+/*   .is-stacked  the tiles leave the grid and flow — SHARED by both sizes      */
+/*   .is-phone    + one column, compact chrome, the thumb dock   (≤620px)       */
+/*   .is-tablet   + two columns, the ordinary topbar             (≤1120px)      */
+/* Presentation only — the grid engine's state is never touched, so a mistake   */
+/* in this file can look wrong but cannot damage a saved layout.                */
+/*                                                                             */
+/* The tablet band exists because it measured WORSE than the phone: at 768x1024 */
+/* against a real dashboard, 30 elements were clipped by an ancestor with       */
+/* `overflow: hidden`, against 9 at 390px. Nothing adapted between the phone    */
+/* threshold and the desktop one, so a 32px grid column just squeezed every     */
+/* widget until its contents were cut.                                          */
 
 /* Safe areas: a phone has a notch at the top and a home indicator at the
    bottom, and the dashboard was designed for a screen with neither. */
-.is-phone,
-.is-phone body {
+.is-stacked,
+.is-stacked body {
   height: 100%;
   overflow: hidden;
 }
-.is-phone body { padding-top: env(safe-area-inset-top); }
+.is-stacked body { padding-top: env(safe-area-inset-top); }
 /* breakpoints.css turns the shell into a document-tall column below 1120px
    (`height: auto; min-height: 100vh`) and lets the BODY scroll. That predates
    the pager and is wrong here in a way that is easy to miss: the dock is the
@@ -18,12 +27,13 @@
    (measured on a 393x760 viewport) where no thumb will ever find it. The shell
    is a full-screen frame again; scrolling happens inside the page, which is
    what the pager expects. */
-.is-phone .shell {
+.is-stacked .shell {
   height: 100%;
   min-height: 0;
   padding: 8px 10px 0;
   gap: 8px;
 }
+.is-tablet .shell { padding: 10px 14px 0; gap: 10px; }
 
 /* ── The tiles stack ─────────────────────────────────────────────────────── */
 /* GridStack positions items absolutely from `gs-x`/`gs-y` attribute rules. We
@@ -31,9 +41,14 @@
    put the nodes in reading order. `display` is deliberately NOT touched: a tile
    hidden because it is the inactive member of a tab group carries
    data-dashboard-hidden="true" → display:none, and it must stay hidden. */
-.is-phone .dashboard.grid-stack {
-  display: flex !important;
-  flex-direction: column;
+/* CSS Grid rather than a flex column, so the same rule serves one column and
+   two. `align-items: start` keeps every tile at its own height instead of
+   stretching the short one in a pair to match its neighbour — a 4-row clock
+   blown up to the height of a 16-row media tile is empty space, not balance. */
+.is-stacked .dashboard.grid-stack {
+  display: grid !important;
+  grid-template-columns: repeat(var(--ph-cols, 1), minmax(0, 1fr));
+  align-items: start;
   gap: 10px;
   /* fitGridHeights() writes an inline pixel height sized for the desktop
      layout; stacked content is taller than that and would be clipped. */
@@ -41,7 +56,8 @@
   min-height: 0;
   padding-bottom: 12px;
 }
-.is-phone .dashboard.grid-stack > .grid-stack-item {
+.is-tablet .dashboard.grid-stack { --ph-cols: 2; gap: 12px; }
+.is-stacked .dashboard.grid-stack > .grid-stack-item {
   position: static !important;
   inset: auto !important;
   width: 100% !important;
@@ -66,25 +82,30 @@
      resolved to 344px against a 298px band, so no widget ever fit on screen
      whole, which reads as the clipping this view exists to remove. Measured on
      an iPhone-sized landscape viewport. */
-  height: clamp(180px, calc(var(--ph-rows, 8) * 34px), min(80vh, calc(100vh - 150px))) !important;
+  height: clamp(180px, calc(var(--ph-rows, 8) * 34px), min(80vh, calc(100vh - var(--ph-chrome, 150px)))) !important;
   min-height: 0 !important;
   transform: none !important;
 }
-.is-phone .grid-stack-item > .grid-stack-item-content {
+/* A tablet has no thumb dock and a roomier topbar, so the band a tile may fill
+   is taller — the number is the chrome above and below it, not a guess. */
+.is-tablet { --ph-chrome: 108px; }
+.is-stacked .grid-stack-item > .grid-stack-item-content {
   position: static !important;
   inset: auto !important;
   height: 100% !important;
   min-height: 0 !important;
 }
 /* An expanded widget owns the whole screen and does its own positioning. */
-.is-phone .grid-stack-item.cw-expanded,
-.is-phone .grid-stack-item.cw-expanded > .grid-stack-item-content {
+.is-stacked .grid-stack-item.cw-expanded,
+.is-stacked .grid-stack-item.cw-expanded > .grid-stack-item-content {
   position: fixed !important;
   min-height: 0;
 }
+/* An expanded tile must not keep a column slot it is no longer standing in. */
+.is-stacked .dashboard.grid-stack > .grid-stack-item.cw-expanded { grid-column: 1 / -1; }
 
 /* The page itself scrolls; the pager still swipes between pages horizontally. */
-.is-phone .pager-page {
+.is-stacked .pager-page {
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -92,7 +113,7 @@
   padding-bottom: 8px;
   scrollbar-width: none;
 }
-.is-phone .pager-page::-webkit-scrollbar { width: 0; height: 0; }
+.is-stacked .pager-page::-webkit-scrollbar { width: 0; height: 0; }
 
 /* ── Topbar, compact ─────────────────────────────────────────────────────── */
 /* One shrinking row rather than three stacked ones: nine buttons and a clock do
@@ -111,9 +132,19 @@
      A flex row that lets its children shrink shows less, but shows all of it. */
   overflow: hidden;
 }
-/* Grid/flex children refuse to shrink below their content unless told. Without
-   this every rule above is decoration and the bar overflows anyway. */
-.is-phone .topbar > * { min-width: 0; }
+/* Only the FLEXIBLE part may shrink. `min-width: 0` on every child was the
+   previous rule and it produced the failure it was meant to prevent: with
+   nothing allowed to overflow and everything allowed to shrink, the bar shares
+   its shortfall out among all of them and clips each one a little. Measured at
+   390px: the two quick buttons had 47px for 76px of content, so the second one
+   was sliced down its middle, and the SDK and Claude chips were squeezed to
+   23px of a 104px chip — a sliver of a letter each. The clock's leading digit
+   went with them, because a squashed neighbour still paints over where it sat.
+   A control is either legible or absent; there is no useful 22% of a button. */
+.is-phone .topbar > * { min-width: auto; flex: 0 0 auto; }
+.is-phone .topbar .clock { flex: 0 1 auto; min-width: 0; }
+.is-phone .topbar .quickbar > *,
+.is-phone .topbar .top-actions > * { flex: 0 0 auto; }
 /* Real font sizes, not `transform: scale()`. A transform shrinks the pixels and
    leaves the LAYOUT box alone, so the bar stayed 105px tall and ate a tenth of
    the screen while looking small (measured). The clock also folds onto one line
@@ -130,10 +161,23 @@
 .is-phone .topbar .clock-m { font-size: 24px; }
 .is-phone .topbar .clock-sep { font-size: 19px; }
 .is-phone .topbar .clock-meta { font-size: 10px; gap: 5px; padding: 0; min-width: 0; }
-.is-phone .topbar .clock-meta > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.is-phone .topbar .clock-weather { padding: 2px 6px; }
-/* Now-playing is one tile away, on a screen with room for it. */
+/* The weather is the one meta item that stays, so it is the one that may
+   ellipsis — a shortened city name still reads as a city name. */
+.is-phone .topbar .clock-weather {
+  padding: 2px 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Now-playing is one tile away, on a screen with room for it. The SDK badges
+   and the Claude chip join it for the same reason and a stronger one: both are
+   ~105px of chip, and after two quick buttons, the clock and the weather a
+   390px bar has about 100px left for the pair of them. Each has its own widget
+   on a screen that can show it whole. */
 .is-phone .topbar .clock-media,
+.is-phone .topbar .clock-sdkbadges,
+.is-phone .topbar .clock-claude,
 .is-phone .topbar .clock-date { display: none; }
 .is-phone .topbar .quickbar,
 .is-phone .topbar .top-actions { gap: 4px; flex-wrap: nowrap; }
@@ -152,6 +196,37 @@
 /* The page dots move to the dock's counter; keeping both would be two truths. */
 .is-phone .topbar .pager-dots { display: none; }
 
+/* ── Topbar, tablet ──────────────────────────────────────────────────────── */
+/* The bar is a three-column grid (quick actions | clock | actions) and it has
+   no answer for a width the three cannot share. Measured at 768px: the middle
+   column took 683 of 740px and the outer two were computed to ZERO, so the four
+   quick buttons wrapped into a vertical stack and the bar grew to 176px tall —
+   a quarter of an iPad's height, before a single widget. The date lost its
+   first letters to the clipped column and the media strip's title was 22px
+   wide. One flex row instead, where the controls keep their size and only the
+   clock gives ground. */
+.is-tablet .topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 0;
+  padding: 6px 10px;
+  overflow: hidden;
+}
+.is-tablet .topbar > * { min-width: 0; flex: 0 0 auto; }
+.is-tablet .topbar .clock { flex: 1 1 auto; min-width: 0; justify-self: start; }
+.is-tablet .topbar .quickbar,
+.is-tablet .topbar .top-actions { flex-wrap: nowrap; }
+.is-tablet .topbar .quickbar > *,
+.is-tablet .topbar .top-actions > * { flex: 0 0 auto; }
+/* The two widest passengers, and the two with a better home on this screen: the
+   favourites row wants a desktop's worth of width, and the now-playing strip is
+   a tile away. Dropping them is what buys the rest of the bar its natural size
+   instead of a share of a shortfall. */
+.is-tablet .topbar .app-favorites,
+.is-tablet .topbar .clock-media { display: none; }
+.is-tablet .topbar .clock-meta > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* The Dynamic Island is turned OFF in phone view by topbar-minimal.js, which is
    the right place for it — restyling a pill and two edge rails for a 390px
    screen is fixing the wrong thing. These rules are the belt to that braces:
@@ -159,8 +234,29 @@
    surface that somehow keeps it. The class is `edge-rail`, not `topbar-rail` —
    the first version guessed the name and hid nothing, which is how the rails
    ended up sitting over the widgets on a real phone. */
-.is-phone .edge-rail,
-.is-phone .topbar-mini { display: none !important; }
+.is-stacked .edge-rail,
+.is-stacked .topbar-mini { display: none !important; }
+
+/* ── Widget internals that assume a desktop tile ─────────────────────────── */
+
+/* System stat cards. `.system-grid` distributes its height with
+   `grid-auto-rows: minmax(0, 1fr)` and `overflow: hidden`, so on a short tile
+   every card shrinks equally — by design, and the design says a card gives up
+   its CHART, not its text (`.stat-track.has-spark` shrinks to 6px). That holds
+   until the text alone is taller than the share: measured at 390px, the cards
+   were 52px against 73px of content, so RAM's "DDR5 6000 MHz — 2x16 GB" and
+   DISCO's "NTFS - Fixed" were cut through the middle of the line — the reported
+   bug. Here the tile is one of a scrolling column and there is no reason to
+   distribute a fixed height at all: the rows take what their content needs and
+   `.side-panel`, which is already `overflow: auto`, carries the remainder.
+   Left alone on the Edge, which is the short screen the 1fr rule was written
+   for. */
+.is-stacked .system-grid {
+  grid-auto-rows: minmax(min-content, auto);
+  overflow: visible;
+}
+.is-stacked .system-block { flex: 0 0 auto; min-height: min-content; }
+.is-stacked .stat-box { min-height: min-content; }
 
 /* ── The thumb dock ──────────────────────────────────────────────────────── */
 .ph-dock {
@@ -206,13 +302,32 @@
 }
 .ph-btn:active { background: rgba(255, 255, 255, 0.12); }
 .ph-btn:disabled { opacity: 0.3; }
+/* A registered action (currently: send files) is the primary thing on the dock,
+   so it is the one that reads as a button rather than as chrome. */
+.ph-btn-action {
+  border-color: rgba(var(--accent-rgb), 0.45);
+  background: rgba(var(--accent-rgb), 0.16);
+}
+
+/* A fifth button does not fit an iPhone SE. Measured at 375px with the pager
+   showing: 44+34+44 for the pages group, plus five 44px buttons, plus gaps and
+   padding, overflows. The forwarders narrow on ONE axis only — the height stays
+   44px, which is the dimension a thumb actually misses — and the registered
+   action keeps its full width because it is now the primary target. */
+@media (max-width: 420px) {
+  .ph-dock { gap: 6px; padding-left: 8px; padding-right: 8px; }
+  .ph-acts { gap: 4px; }
+  .ph-btn { min-width: 40px; }
+  .ph-btn-action { min-width: 44px; }
+  .ph-page-at { min-width: 26px; }
+}
 
 /* ── Things that do not belong on a phone ────────────────────────────────── */
 /* Layout editing: the grid is not being shown at its real geometry here, so a
    drag would move a tile somewhere the user cannot see. */
-.is-phone .layout-controls,
-.is-phone .gs-edit-overlay,
-.is-phone .pager-page-btn { display: none !important; }
+.is-stacked .layout-controls,
+.is-stacked .gs-edit-overlay,
+.is-stacked .pager-page-btn { display: none !important; }
 /* The home bar is a native-kiosk gesture strip; on a phone it overlaps the dock. */
 .is-phone #xenon-home-bar { display: none; }
 

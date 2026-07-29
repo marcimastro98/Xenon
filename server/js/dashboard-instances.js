@@ -96,6 +96,42 @@ function _tileGrad(raw) {
   if (ang != null) g.angle = Math.round(ang);
   return g;
 }
+// ── Per-tile SHAPE (the silhouette) ─────────────────────────────────────────
+// A tile is a rectangle unless it says otherwise. A shape is either a curated
+// preset id (carries no bytes) or an author's own SVG path in a unit square.
+// The path is NEVER interpolated into CSS or markup: the renderer puts it in
+// setAttribute('d', …) on an SVG <path>, which is inert. It is still validated
+// hard here, because this is the boundary an imported preset arrives through:
+// an allowlisted character set (no '<', no '"', no '(' — so no url(), no
+// element, no comment), a length cap and a command-count cap.
+const _TSP = (typeof window !== 'undefined' && window.TileShapePresets)
+  || (() => { try { return require('./tile-shape-presets.js'); } catch { return null; } })();
+const TILE_SHAPE_PRESETS = _TSP ? _TSP.TILE_SHAPES.map(s => s.id) : [];
+const TILE_SHAPE_FITS = ['stretch', 'fit'];
+const TILE_SHAPE_PATH_MAX = 1024;
+const TILE_SHAPE_CMD_MAX = 200;
+const TILE_SHAPE_PATH_RE = /^[MmLlHhVvCcSsQqTtAaZz0-9eE+\-.,\s]+$/;
+function normalizeTileShape(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const out = {};
+  const preset = typeof raw.preset === 'string' ? raw.preset.trim() : '';
+  // A curated preset wins over a hand-written path: an entry carrying both is
+  // ambiguous, and the curated one is the reviewed geometry.
+  if (preset && TILE_SHAPE_PRESETS.includes(preset)) out.preset = preset;
+  if (!out.preset) {
+    const d = typeof raw.path === 'string' ? raw.path.trim() : '';
+    const cmds = d ? (d.match(/[A-Za-z]/g) || []).length : 0;
+    if (d && d.length <= TILE_SHAPE_PATH_MAX && cmds <= TILE_SHAPE_CMD_MAX
+      && TILE_SHAPE_PATH_RE.test(d) && /^[Mm]/.test(d) && /[Zz]/.test(d)) out.path = d;
+  }
+  if (!out.preset && !out.path) return null;
+  // 'stretch' is the default and is not stored, like every other no-op field.
+  if (TILE_SHAPE_FITS.includes(raw.fit) && raw.fit !== 'stretch') out.fit = raw.fit;
+  const inset = _tileNum(raw.inset, 0, 25);
+  if (inset != null) out.inset = Math.round(inset);
+  return out;
+}
+
 function normalizeTileDecor(src) {
   if (!src || typeof src !== 'object') return null;
   const out = {};
@@ -193,8 +229,11 @@ function normalizeTileStyle(src) {
     if (value) out[key] = value;
   }
   if (typeof src.contrastGuard === 'boolean') out.contrastGuard = src.contrastGuard;
+  // 0 is allowed and means exactly that: no panel at all, only the widget's
+  // content over the dashboard background. The old 0.05 floor made a fully
+  // transparent card impossible to ask for.
   const pa = Number(src.panelAlpha);
-  if (Number.isFinite(pa) && pa >= 0.05 && pa <= 1) out.panelAlpha = Math.round(pa * 100) / 100;
+  if (Number.isFinite(pa) && pa >= 0 && pa <= 1) out.panelAlpha = Math.round(pa * 100) / 100;
   const rr = Number(src.radius);
   if (Number.isFinite(rr) && rr >= 0 && rr <= 2) out.radius = Math.round(rr * 100) / 100;
   const gb = Number(src.glassBlur);
@@ -206,6 +245,11 @@ function normalizeTileStyle(src) {
   const ss = Number(src.shadowStrength);
   if (Number.isFinite(ss) && ss >= 0 && ss <= 2) out.shadowStrength = Math.round(ss * 100) / 100;
   if (TILE_FONTS.includes(src.font) && src.font !== 'inherit') out.font = src.font;
+  // Shape, like decor, is orthogonal to the colour-token override: a tile can be
+  // a hexagon while still following the global theme. Added before the "empty"
+  // check below so a shape-only style counts as information.
+  const shape = normalizeTileShape(src.shape);
+  if (shape) out.shape = shape;
   // Decor (images + effects) is orthogonal to the colour-token override: it can
   // ride an otherwise-'inherit' tile, so a user can drop a dragon on a tile
   // without recolouring it. Added before the "empty" check so it counts.
@@ -274,6 +318,10 @@ const _tileDecorExports = {
   // safeTileImageSrc) re-invokes the SAME validator at the DOM edge instead of
   // keeping a hand-copied regex pair that could drift.
   tileImageSrc: (v) => _tileImageSrc(v),
+  // The shape validator, exported so the SDK manifest door (sdk-widgets.js) and
+  // the render path use the SAME boundary a shared preset goes through.
+  normalizeTileShape,
+  TILE_SHAPE_PRESETS, TILE_SHAPE_FITS,
 };
 if (typeof window !== 'undefined') {
   window.DashboardInstances = { baseWidgetOf, makeCopyId, normalizeCopies, normalizeTileStyle, TILE_FONTS, placementsForPage, isDuplicable, DUPLICABLE_WIDGETS, isMirrorWidget, MIRROR_WIDGETS, ..._tileDecorExports };

@@ -648,7 +648,7 @@
     catch { chatSock = null; return; }
     chatSock.onopen = () => {
       ircSend('CAP REQ :twitch.tv/tags');
-      ircSend('NICK justinfan' + (10000 + Math.floor(Math.random() * 89999)));
+      ircSend('NICK ' + window.TwitchChat.anonNick());
       ircSend('JOIN #' + channel);
     };
     chatSock.onmessage = (e) => handleIrc(String(e.data || ''));
@@ -670,28 +670,15 @@
 
   function ircSend(line) { try { if (chatSock && chatSock.readyState === 1) chatSock.send(line + '\r\n'); } catch {} }
 
+  // The parsing lives in js/twitch-chat.js, shared with the watching widget and
+  // unit-tested there — an IRC tag parser written twice is a bug written twice.
   function handleIrc(raw) {
-    raw.split('\r\n').forEach(line => {
-      if (!line) return;
-      if (line.startsWith('PING')) { ircSend('PONG :tmi.twitch.tv'); return; }
-      let rest = line; const tags = {};
-      if (line[0] === '@') {
-        const sp = line.indexOf(' ');
-        line.slice(1, sp).split(';').forEach(kv => { const i = kv.indexOf('='); if (i > 0) tags[kv.slice(0, i)] = kv.slice(i + 1); });
-        rest = line.slice(sp + 1);
-      }
-      const pm = rest.indexOf(' PRIVMSG ');
-      if (pm === -1) return;
-      const nick = (rest.slice(0, pm).match(/:?([^!]+)!/) || [])[1] || tags['display-name'] || '?';
-      const after = rest.slice(pm + 9);                 // ' PRIVMSG '.length === 9
-      const mi = after.indexOf(' :');
-      if (mi === -1) return;
-      pushChat(tags['display-name'] || nick, after.slice(mi + 2), tags.color || '');
-    });
+    const r = window.TwitchChat.parseIrcLines(raw);
+    if (r.ping) ircSend('PONG :tmi.twitch.tv');
+    r.messages.forEach(pushChat);
   }
 
-  function pushChat(name, text, color) {
-    const entry = { name: String(name).slice(0, 40), text: String(text).slice(0, 500), color: /^#[0-9a-fA-F]{6}$/.test(color) ? color : '' };
+  function pushChat(entry) {
     chatBuffer.push(entry);
     if (chatBuffer.length > CHAT_MAX) chatBuffer.shift();
     document.querySelectorAll('.twitch-chat-log').forEach(log => appendChatLine(log, entry));
@@ -712,7 +699,18 @@
     const u = el('span', 'twitch-chat-user', entry.name + ':');
     if (entry.color) u.style.color = entry.color;
     line.append(u, document.createTextNode(' '));
-    line.appendChild(el('span', 'twitch-chat-text', entry.text));
+    // Emote codes are drawn as the emote, same as the watching widget: the parser
+    // hands back the message already split into text and image parts.
+    const body = el('span', 'twitch-chat-text');
+    (entry.parts || [{ type: 'text', text: entry.text }]).forEach(p => {
+      if (p.type === 'emote') {
+        const img = document.createElement('img');
+        img.className = 'twitch-emote';
+        img.src = p.url; img.alt = p.name; img.title = p.name; img.loading = 'lazy';
+        body.appendChild(img);
+      } else body.appendChild(document.createTextNode(p.text));
+    });
+    line.appendChild(body);
     log.appendChild(line);
     while (log.childElementCount > CHAT_MAX) log.removeChild(log.firstChild);
     if (near) log.scrollTop = log.scrollHeight;

@@ -1,5 +1,6 @@
 // Remote Control settings page — guided setup wizard for Sunshine + Tailscale.
-// Renders into #settings-remote-hub (Settings → Controllo Remoto).
+// Renders into #settings-remote-hub (Settings → Controllo Remoto, which since
+// v4.11.0 is this wizard alone — the phone door moved to Settings → Telefono).
 // Mirrors lighting-page.js module structure: IIFE, window.RemoteControl exposed.
 (function () {
   'use strict';

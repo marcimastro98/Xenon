@@ -1,13 +1,21 @@
-/* YouTube widget: the viewer-mode player and library, plus the creator-mode live
-   status and go-live button, styled to match the Twitch widget (logo watermark,
-   card sections, red theme). Four sections (player / library / info / actions)
+/* YouTube widget: the player and the library you pick from, in the house style
+   (logo watermark, card sections, red accent). Two sections (player / library)
    carry data-system-card so they hide/reorder like System cards. Rendered into
-   .youtube-widget-mount by youtube-widget.js. */
+   .youtube-widget-mount by youtube-widget.js.
+   Broadcasting has its own widget and its own stylesheet now — see
+   components/YouTubeLiveWidget. */
 .youtube-panel { display: flex; }
 .youtube-widget-mount { width: 100%; height: 100%; display: flex; min-height: 0; border-radius: inherit; }
 
+/* A size container, so the cards below can answer "is this tile wide and short"
+   rather than "is the WINDOW wide" — the same widget is a 32:9 strip on the
+   Xeneon Edge and a tall column in a browser, and the right arrangement is not
+   the same one. Containment is dropped while the player is expanded: it would
+   otherwise become the containing block for the fullscreen card and the overlay
+   would cover the tile instead of the screen. */
 .yt-wrap {
   position: relative; box-sizing: border-box;
+  container: ytw / size;
   width: 100%; height: 100%; min-height: 0;
   padding: 16px 18px; display: flex; flex-direction: column; gap: 11px;
   border-radius: inherit; overflow: hidden;
@@ -25,89 +33,55 @@
 .yt-head, .yt-cards { position: relative; z-index: 1; }
 
 /* Header */
-.yt-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: 0 0 auto; min-width: 0; }
+.yt-head { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; min-width: 0; }
 .yt-brand { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .yt-logo { font-size: 0.92rem; font-weight: 900; letter-spacing: 0.02em; color: #ff4d4d; }
-.yt-pill {
-  display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
-  padding: 3px 10px; border-radius: 999px;
-  font-size: 0.62rem; font-weight: 900; letter-spacing: 0.07em; text-transform: uppercase;
-  color: #9aa3a0; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09);
+/* Cards. The column scrolls as a whole: on a short tile the minimum heights below
+   can add up to more than the tile has, and a card the user cannot reach is a card
+   that does not exist. */
+.yt-cards {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px;
+  overflow-y: auto; overscroll-behavior: contain;
 }
-.yt-pill-dot { position: relative; width: 7px; height: 7px; border-radius: 50%; background: #6b7280; flex: 0 0 auto; }
-.yt-pill.live { color: var(--color-danger); background: var(--danger-bg); border-color: rgba(var(--danger-rgb),0.4); }
-.yt-pill.live .yt-pill-dot { background: #ff0000; }
-/* Compositor-only ripple — shared `live-ripple` keyframe in styles/global.css
-   (an animated box-shadow would tick the main thread every frame, GitHub #99). */
-.yt-pill.live .yt-pill-dot::after {
-  content: ''; position: absolute; inset: 0; border-radius: 50%;
-  background: rgba(255,0,0,0.5);
-  animation: live-ripple 2s ease-in-out infinite;
-  will-change: transform, opacity; pointer-events: none;
-}
-/* Paused while a frosted overlay covers the dashboard (see backgroundfx.css overlay-frozen). */
-body.overlay-frozen .yt-pill.live .yt-pill-dot::after { animation-play-state: paused; }
-
-/* Cards */
-.yt-cards { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.yt-cards::-webkit-scrollbar { width: 6px; }
+.yt-cards::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255,255,255,0.16); }
 .yt-card {
   position: relative; min-width: 0; border-radius: 14px; padding: 12px 14px;
   background: rgba(255,255,255,0.028); border: 1px solid rgba(255,255,255,0.07);
 }
-.yt-card--info { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; }
 .yt-card-label {
   font-size: 0.62rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase;
   color: var(--text-dim, #8b91a1); margin-bottom: 9px;
 }
-
-/* Info */
-.yt-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; width: 100%; }
-.yt-viewers { display: flex; align-items: baseline; gap: 7px; }
-.yt-viewers-num { font-size: 2.1rem; font-weight: 900; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
-.yt-viewers-label { font-size: 0.8rem; font-weight: 700; color: var(--text-dim, #8b91a1); }
-.yt-notice { font-size: 0.85rem; opacity: 0.7; }
-.yt-stats { font-size: 0.78rem; font-weight: 700; color: var(--text-dim, #8b91a1); }
-.yt-title { font-size: 0.8rem; min-width: 0; }
-.yt-title-text {
-  display: inline-block; max-width: 100%; cursor: text; opacity: 0.7;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  border-bottom: 1px dashed transparent;
-}
-.yt-title-text:hover { opacity: 1; border-bottom-color: rgba(255,255,255,0.25); }
-.yt-title-input {
-  width: 100%; box-sizing: border-box; font: inherit; font-size: 0.82rem;
-  padding: 4px 8px; border-radius: 8px; color: var(--text, #e7e9ee);
-  border: 1px solid rgba(255,0,0,0.5); background: rgba(0,0,0,0.3); outline: none;
-}
-.yt-health { display: flex; align-items: center; gap: 7px; font-size: 0.76rem; font-weight: 700; opacity: 0.85; margin-top: 2px; }
-.yt-health-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; background: #6b7280; }
-.yt-health-good .yt-health-dot { background: #22c55e; }
-.yt-health-ok .yt-health-dot { background: #eab308; }
-.yt-health-bad .yt-health-dot { background: #ef4444; }
-.yt-health-noData .yt-health-dot { background: #6b7280; }
-
-/* Actions */
-.yt-btn {
-  display: inline-flex; align-items: center; gap: 7px;
-  min-height: 36px; padding: 0 14px; border-radius: 10px; cursor: pointer;
-  font-size: 12px; font-weight: 800; color: var(--text, #e7e9ee);
-  border: 1px solid rgba(34,197,94,0.5); background: rgba(34,197,94,0.16);
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.06s ease;
-}
-.yt-btn:hover:not(:disabled) { background: rgba(34,197,94,0.27); }
-.yt-btn:active:not(:disabled) { transform: translateY(1px); }
-.yt-btn.is-live { border-color: rgba(var(--danger-rgb),0.5); background: var(--danger-bg); color: var(--color-danger); }
-.yt-btn.is-live:hover:not(:disabled) { background: rgba(255,0,0,0.26); }
-.yt-btn.ok { border-color: rgba(34,197,94,0.6); }
-.yt-btn.err { border-color: rgba(239,68,68,0.6); background: rgba(239,68,68,0.2); }
-.yt-btn-ico { display: inline-flex; }
-.yt-btn-ico svg { width: 15px; height: 15px; }
+/* Inline failure text, used by the open-in-browser fallback. */
 .yt-err { margin-top: 8px; font-size: 0.76rem; font-weight: 600; color: var(--color-danger); line-height: 1.35; }
 
 /* ── Player (viewer mode) ─────────────────────────────────────────────────── */
-.yt-card--player { flex: 0 0 auto; display: flex; flex-direction: column; gap: 8px; padding: 10px; }
+/* Grows three times faster than the list: extra tile height should go to the
+   video. No `min-height: 0` on purpose — that let the card shrink under its own
+   controls on a short tile, and the transport ended up drawn over the list.
+   Leaving the automatic minimum makes the column above scroll instead. */
+.yt-card--player { flex: 3 1 auto; display: flex; flex-direction: column; gap: 8px; padding: 10px; }
+/* Fitting a 16:9 box inside a box of any shape takes two steps, because neither
+   half does it alone (measured in Chromium): a width-driven ratio with a
+   max-height keeps the right height but not the right width, and a height-driven
+   ratio with a max-width does the opposite. So .yt-stage-fit bounds the height
+   and .yt-player-stage takes the correct width from it. Sizing the stage off the
+   tile width alone let one video eat the whole tile and pushed the list, the only
+   way to pick a video, off the bottom edge. */
+/* Basis 0, not auto: with `auto` the wrapper's height came from the ratio box it
+   contains, so the height cap below was measured against the very thing it was
+   supposed to be capping and the video pushed the list out of the tile again. */
+.yt-stage-wrap {
+  flex: 1 1 0; min-height: 92px; min-width: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.yt-stage-fit {
+  width: 100%; min-width: 0; aspect-ratio: 16 / 9; max-height: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
 .yt-player-stage {
-  position: relative; width: 100%; aspect-ratio: 16 / 9; min-height: 0;
+  position: relative; height: 100%; width: auto; max-width: 100%; aspect-ratio: 16 / 9;
   border-radius: 10px; overflow: hidden; background: #000;
   display: flex; align-items: center; justify-content: center;
 }
@@ -159,22 +133,121 @@ body.overlay-frozen .yt-pill.live .yt-pill-dot::after { animation-play-state: pa
   background: rgba(255,0,0,0.8); border: 0;
 }
 
-/* Full-screen player. The card is only re-positioned, never re-parented — moving
-   the iframe in the DOM reloads it and would restart the video. */
-.yt-card--player.is-expanded {
+/* Full-screen player. The card is only re-positioned, never re-parented: moving
+   the iframe in the DOM reloads it and would restart the video.
+   Two extra classes on purpose. The global panel theme styles .yt-card with a
+   translucent background at the same specificity and later in the cascade, so the
+   plain selector lost and the dashboard showed through the fullscreen player. */
+.yt-card.yt-card--player.is-expanded {
   position: fixed; inset: 0; z-index: 5000; border-radius: 0; border: 0;
-  background: #05070a; padding: 18px; gap: 12px;
-  justify-content: center;
+  background: #05070a; padding: 0; gap: 0;
+  justify-content: flex-end;
 }
-.yt-card--player.is-expanded .yt-player-stage { flex: 0 1 auto; max-height: calc(100vh - 190px); margin: 0 auto; width: auto; height: 100%; aspect-ratio: 16 / 9; }
+/* Two stacking contexts sit between the card and the screen, and a z-index only
+   ever competes inside its own: the card column (z-index 1, for the watermark)
+   held the overlay under the top bar, and the shell (z-index 1) held it under the
+   edge rails, which are fixed at 58 on the body. Both are lifted for as long as
+   the player is expanded and put back the moment it is not. This is the WHOLE
+   mechanism: the Fullscreen API would have settled it in one line, but on the
+   kiosk leaving fullscreen tore the video down and left the Windows taskbar over
+   the dashboard until the app was restarted, so the overlay does the job without
+   ever touching the app's own window. */
+body.yt-expanded .yt-cards { z-index: auto; }
+body.yt-expanded .shell { z-index: 60; }
+body.yt-expanded .yt-wrap { container-type: normal; }
+
+/* ── Wide layout: the list moves beside the video ──────────────────────────── */
+/* Stacked, a wide short tile gives the video only the height left over after the
+   list, and a 16:9 box that short is tiny however wide the tile is: on the Edge's
+   32:9 strip it came out around 230px across with empty space either side. Beside
+   each other, the same tile gives the video the full height and roughly two
+   thirds of the width.
+   HEIGHT is what picks between them, not the aspect ratio. Stacking always pays a
+   fixed cost — the transport plus the list, about 300px — so it is the short tile
+   that suffers, and two tiles of the SAME shape want opposite answers: 841x625
+   gains (131px tall stacked against 331 beside), 1562x1173 loses (858 against
+   590). Above the cutoff stacking gives both a bigger video and the full width,
+   so it stays the default. */
+@container ytw (min-width: 620px) and (max-height: 760px) {
+  .yt-cards {
+    display: grid; gap: 10px;
+    /* The list is a column of rows, so past a point extra width does nothing for
+       it and everything for the video: capped, not a plain percentage. */
+    grid-template-columns: minmax(0, 1fr) minmax(200px, min(32%, 360px));
+    grid-template-rows: minmax(190px, 1fr);
+    grid-auto-rows: auto;
+  }
+  .yt-card--player { grid-column: 1; grid-row: 1; }
+  .yt-card--library { grid-column: 2; grid-row: 1; min-height: 0; }
+  /* One of the pair switched off in the layout editor: the other takes the whole
+     width instead of leaving an empty column beside it. */
+  .yt-cards:has(> .yt-card--library[data-system-card-hidden="true"]) .yt-card--player,
+  .yt-cards:has(> .yt-card--player[data-system-card-hidden="true"]) .yt-card--library { grid-column: 1 / -1; }
+}
+/* Full screen means the video gets the screen. Stacking the title, the seek bar
+   and the transport UNDER it spent about a quarter of the height on chrome, and a
+   16:9 video can only ever fill the shorter axis — on the Edge's 32:9 panel that
+   left a modest rectangle in the middle of a lot of black. The controls float over
+   the picture instead, the way every video player does at full screen, and the
+   video gets the whole height: on a 2560x720 screen that is 720 tall instead of
+   about 390, so a bit under twice as wide. */
+.yt-card--player.is-expanded .yt-stage-wrap { position: absolute; inset: 0; min-height: 0; }
+.yt-card--player.is-expanded .yt-player-stage { border-radius: 0; }
+/* Legible over whatever frame the video happens to be on. */
+.yt-card--player.is-expanded::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 210px; z-index: 1;
+  background: linear-gradient(to top, rgba(0,0,0,0.88), rgba(0,0,0,0.55) 42%, transparent);
+  pointer-events: none;
+}
+.yt-card--player.is-expanded .yt-now,
+.yt-card--player.is-expanded .yt-seek-row,
+.yt-card--player.is-expanded .yt-transport,
+.yt-card--player.is-expanded .yt-blocked { position: relative; z-index: 2; padding-left: 20px; padding-right: 20px; }
+.yt-card--player.is-expanded .yt-transport { padding-bottom: 16px; justify-content: center; gap: 10px; }
+.yt-card--player.is-expanded .yt-seek-row { margin-bottom: 8px; }
 .yt-card--player.is-expanded .yt-now-title { font-size: 1.05rem; }
-.yt-card--player.is-expanded .yt-transport { justify-content: center; gap: 10px; }
 .yt-card--player.is-expanded .yt-transport-gap { flex: 0 0 22px; }
 
+/* The controls fade out a few seconds into a video and come back on a touch.
+   Visibility, not display: a control that stops existing changes the layout of
+   the row it was in, and the row would jump when it came back. */
+.yt-idlecatch { display: none; }
+.yt-card--player.is-expanded .yt-idlecatch { display: block; position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+/* Takes input ONLY while the controls are hidden: the embed is cross-origin, so a
+   finger moving over the picture raises nothing this page can hear, and without a
+   catcher there would be no way to bring the controls back. While they are up it
+   is inert again, so YouTube's own captions and quality menus stay reachable. */
+.yt-card--player.is-expanded.is-idle .yt-idlecatch { pointer-events: auto; cursor: none; }
+.yt-card--player.is-expanded .yt-now,
+.yt-card--player.is-expanded .yt-seek-row,
+.yt-card--player.is-expanded .yt-transport,
+.yt-card--player.is-expanded::after { transition: opacity 0.35s ease; }
+.yt-card--player.is-expanded.is-idle .yt-now,
+.yt-card--player.is-expanded.is-idle .yt-seek-row,
+.yt-card--player.is-expanded.is-idle .yt-transport,
+.yt-card--player.is-expanded.is-idle::after { opacity: 0; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .yt-card--player.is-expanded .yt-now,
+  .yt-card--player.is-expanded .yt-seek-row,
+  .yt-card--player.is-expanded .yt-transport,
+  .yt-card--player.is-expanded::after { transition: none; }
+}
+/* No close button at full screen. It sits one button away from shrink and it does
+   something else entirely — it unloads the video — so the two were a trap: press
+   the wrong one and what you were watching is gone with no way back to it. Shrink
+   and Escape both leave; closing is still there once the player is back in its
+   tile. */
+.yt-card--player.is-expanded .yt-stop { display: none; }
+
 /* ── Library (tabs + rows) ────────────────────────────────────────────────── */
-.yt-card--library { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
-.yt-tabs { display: flex; gap: 5px; flex: 0 0 auto; overflow-x: auto; scrollbar-width: none; }
-.yt-tabs::-webkit-scrollbar { display: none; }
+/* Tall enough to show the tabs plus a couple of videos: below that the list reads
+   as an empty strip and there is nothing to tap. */
+.yt-card--library { flex: 1 1 176px; min-height: 176px; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+/* Wrap rather than scroll sideways. In the side-by-side layout the list column is
+   narrow enough that the fourth tab fell off the end of a row whose scrollbar is
+   hidden, so Search was there and invisible. A second row of pills costs 34px and
+   nothing is hidden. */
+.yt-tabs { display: flex; flex-wrap: wrap; gap: 5px; flex: 0 0 auto; }
 .yt-tab {
   display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
   min-height: 30px; padding: 0 10px; border-radius: 999px; cursor: pointer;
@@ -213,7 +286,9 @@ body.overlay-frozen .yt-pill.live .yt-pill-dot::after { animation-play-state: pa
 .yt-crumb-ico svg { width: 14px; height: 14px; }
 .yt-crumb-txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.yt-list { display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow-y: auto; }
+.yt-list { flex: 1 1 auto; display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.yt-list::-webkit-scrollbar { width: 6px; }
+.yt-list::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255,255,255,0.16); }
 .yt-row {
   display: flex; align-items: center; gap: 10px; width: 100%; flex: 0 0 auto;
   padding: 6px 8px; border-radius: 10px; cursor: pointer; text-align: left; font: inherit;

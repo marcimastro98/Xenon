@@ -2440,7 +2440,11 @@
       if (step.type === 'ai') { aiParams(host, step); return; }
       if (step.type === 'sdkHandler') { sdkHandlerParams(host, step); return; }   // handler + declared-params form
       spec.params.forEach((p) => {
-        const f = field('deck_param_' + p.name);
+        // Two actions can share a param NAME and still need different labels:
+        // claudeAsk's `prompt` is a request to Claude, the ai action's is a
+        // prompt. Renaming the param would orphan every stored key, so the spec
+        // may override the derived label key instead.
+        const f = field(p.labelKey || ('deck_param_' + p.name));
         if (step.type === 'hotkey' && p.name === 'keys') {
           if (step.params[p.name] == null) step.params[p.name] = '';
           f.appendChild(hotkeyCaptureControl(step, p.name));

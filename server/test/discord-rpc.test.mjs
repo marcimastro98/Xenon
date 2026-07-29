@@ -70,7 +70,32 @@ test('normNotification projects a NOTIFICATION_CREATE payload to the client-safe
   }), {
     title: 'marci (#general, Xenon)', body: 'ciao!',
     icon: 'https://cdn.discordapp.com/avatars/1/a.png', channelId: '199737254929760257',
+    // A plain message notification carries no message object, so there is no
+    // type to report. null, not absent: the Calls classifier reads this field
+    // and "Discord did not say" has to be distinguishable from "type 0".
+    messageType: null,
   });
+});
+
+test('normNotification carries the message TYPE, which is how a ringing call is known', () => {
+  // Type 3 is CALL. It is the only language-independent "this is a call" signal
+  // anywhere in the product — everything else reads notification wording — so
+  // the projection must keep it, and must keep nothing else of the message.
+  const n = dc.normNotification({
+    title: 'marci', body: '', channel_id: '199737254929760257',
+    message: { type: 3, id: '9', content: 'private', author: { id: '1', username: 'marci' } },
+  });
+  assert.equal(n.messageType, 3);
+  assert.equal(n.channelId, '199737254929760257', 'the channel is what answering needs');
+  assert.deepEqual(Object.keys(n).sort(), ['body', 'channelId', 'icon', 'messageType', 'title'],
+    'no part of the message object other than its type may travel');
+});
+
+test('normNotification refuses a message type that is not a number', () => {
+  for (const type of ['3', null, {}, NaN, undefined]) {
+    const n = dc.normNotification({ title: 't', body: 'b', message: { type } });
+    assert.equal(n.messageType, null, JSON.stringify(type) + ' must not become a type');
+  }
 });
 
 test('normNotification caps lengths and drops payloads with no usable text', () => {
@@ -563,7 +588,7 @@ test('watchVoice subscribes NOTIFICATION_CREATE when wanted and delivers project
     title: 'marci', body: 'hey', icon_url: 'https://cdn.discordapp.com/a.png', channel_id: '199737254929760257',
   } }));
   await new Promise((r) => setTimeout(r, 10));
-  assert.deepEqual(got, [{ title: 'marci', body: 'hey', icon: 'https://cdn.discordapp.com/a.png', channelId: '199737254929760257' }]);
+  assert.deepEqual(got, [{ title: 'marci', body: 'hey', icon: 'https://cdn.discordapp.com/a.png', channelId: '199737254929760257', messageType: null }]);
   stop();
   p.close();
 });

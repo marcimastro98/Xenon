@@ -33,13 +33,20 @@
     return Math.max(min, Math.min(max, n));
   }
 
-  // Rich byte formatter used by the dashboard: TB / GB / MB / B.
+  // Rich byte formatter used by the dashboard: TB / GB / MB / KB / B.
   // (from server/js/utils.js formatBytes)
+  //
+  // The KB step is not decoration. Without it this jumped from MB straight to
+  // raw bytes, so anything under a megabyte printed as `584625 B` — which the
+  // System widget never showed (RAM and disks are always megabytes and up) and
+  // the file-transfer list showed on its very first row. A size a person cannot
+  // read at a glance is not a size.
   function formatBytes(bytes) {
     const b = Number(bytes) || 0;
     if (b >= 1024 ** 4) return (b / 1024 ** 4).toFixed(1) + ' TB';
     if (b >= 1024 ** 3) return (b / 1024 ** 3).toFixed(1) + ' GB';
     if (b >= 1024 ** 2) return (b / 1024 ** 2).toFixed(0) + ' MB';
+    if (b >= 1024) return (b / 1024).toFixed(0) + ' KB';
     return b + ' B';
   }
 

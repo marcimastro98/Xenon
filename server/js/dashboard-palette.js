@@ -6,10 +6,10 @@
   // Widgets grouped into scannable categories (instead of one long flat list).
   // An id not in any category falls into a trailing "misc" grid so nothing is lost.
   const WIDGET_CATEGORIES = [
-    { labelKey: 'palette_cat_productivity', ids: ['agenda', 'calendar', 'tasks', 'timer', 'notes', 'weather', 'search', 'stocks', 'football', 'news', 'notifications', 'vitals'] },
+    { labelKey: 'palette_cat_productivity', ids: ['agenda', 'calendar', 'tasks', 'timer', 'notes', 'weather', 'search', 'transfer', 'stocks', 'football', 'news', 'notifications', 'vitals', 'phone'] },
     { labelKey: 'palette_cat_media', ids: ['media', 'chat', 'browser', 'slideshow'] },
     { labelKey: 'palette_cat_system', ids: ['system', 'fans', 'power', 'battery', 'disk', 'audio', 'mic', 'secondscreen', 'remote', 'smarthome', 'unifi', 'lighting', 'claude'] },
-    { labelKey: 'palette_cat_streaming', ids: ['twitch', 'youtube', 'obs', 'discord', 'spotify', 'streamerbot', 'wavelink', 'deck'] },
+    { labelKey: 'palette_cat_streaming', ids: ['twitch', 'twitchwatch', 'youtube', 'youtubelive', 'obs', 'discord', 'spotify', 'streamerbot', 'wavelink', 'deck'] },
   ];
   // Inline icons (currentColor) — one per widget id.
   const I = (p) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
@@ -27,8 +27,10 @@
     deck: I('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'),
     remote: I('<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>'),
     twitch: I('<path d="M5 3h14v10l-4 4h-3l-3 3v-3H5z"/><path d="M11 8v3M15 8v3"/>'),
+    twitchwatch: I('<path d="M5 3h14v10l-4 4h-3l-3 3v-3H5z"/><path d="M10 7.5l4 2.5-4 2.5z"/>'),
     obs: I('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.4"/>'),
     youtube: I('<rect x="2" y="5" width="20" height="14" rx="4"/><path d="M10 9l5 3-5 3z"/>'),
+    youtubelive: I('<rect x="2" y="9" width="20" height="12" rx="4"/><path d="M10 12l5 3-5 3z"/><path d="M6.5 6.5a6 6 0 0 1 11 0"/>'),
     discord: I('<path d="M8 4h8l3 4 1.5 8-4 2-1.5-2.5M8 4 5 8l-1.5 8 4 2L9 15.5"/><circle cx="9.2" cy="12" r="1.1"/><circle cx="14.8" cy="12" r="1.1"/>'),
     spotify: I('<circle cx="12" cy="12" r="9"/><path d="M7.5 10c3-.8 6-.5 8.5 1M8 13c2.3-.6 4.6-.4 6.5.9M8.5 15.6c1.7-.4 3.4-.3 4.9.7"/>'),
     browser: I('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 8h18M7 5.5h.01M10 5.5h.01"/>'),
@@ -50,6 +52,8 @@
     power: I('<path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/>'),
     search: I('<circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/>'),
     disk: I('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3a9 9 0 0 1 9 9h-6.5"/>'),
+    transfer: I('<path d="M7 20V8"/><path d="m3 12 4-4 4 4"/><path d="M17 4v12"/><path d="m13 12 4 4 4-4"/>'),
+    phone: I('<path d="M6.5 3h3l1.5 4-2 1.4a12 12 0 0 0 5.6 5.6l1.4-2 4 1.5v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4.5 5.2 2 2 0 0 1 6.5 3Z"/>'),
     battery: I('<rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 10v4M5.5 10.5v3M9 10.5v3"/>'),
     custom: I('<path d="M14 7h4a1 1 0 0 1 1 1v3.5a1.5 1.5 0 0 0 0 3V18a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 1-3 0H8a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 1 0-3V8a1 1 0 0 1 1-1h3.5a1.5 1.5 0 0 1 3 0Z"/>'),
   };

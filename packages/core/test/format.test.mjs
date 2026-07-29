@@ -31,9 +31,13 @@ test('clampRange clamps with a default for non-finite input', () => {
   assert.equal(fmt.clampRange('x', 0, 10, 7), 7);
 });
 
-test('formatBytes uses TB/GB/MB/B (dashboard semantics)', () => {
+test('formatBytes uses TB/GB/MB/KB/B (dashboard semantics)', () => {
   assert.equal(fmt.formatBytes(0), '0 B');
-  assert.equal(fmt.formatBytes(1536), '1536 B');
+  assert.equal(fmt.formatBytes(999), '999 B');
+  // The KB step: without it a 571 KB photo read as `584625 B` in the transfer
+  // list. Bytes stay bytes only below 1 KB, where they are still readable.
+  assert.equal(fmt.formatBytes(1536), '2 KB');
+  assert.equal(fmt.formatBytes(584625), '571 KB');
   assert.equal(fmt.formatBytes(5 * 1024 ** 2), '5 MB');
   assert.equal(fmt.formatBytes(2 * 1024 ** 3), '2.0 GB');
   assert.equal(fmt.formatBytes(3 * 1024 ** 4), '3.0 TB');

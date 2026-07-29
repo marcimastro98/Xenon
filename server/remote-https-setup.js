@@ -28,13 +28,25 @@
 // that the user comes back to a failure they did not cause.
 const WAIT_LOGIN_MS = 5 * 60 * 1000;
 const WAIT_CERTS_MS = 10 * 60 * 1000;
+// Neither of these is a human step: `sc start` returns on START_PENDING, and a
+// tray app either attaches to the daemon or does not. Short, because waiting
+// longer only delays a message the user can act on. (The measured client attach
+// took under three seconds.)
+const WAIT_SERVICE_MS = 30 * 1000;
+const WAIT_CLIENT_MS = 30 * 1000;
 const POLL_MS = 2000;
+
+// tailscaled's word for "no client has ever started this backend" — imported
+// rather than spelled again here, so the two modules cannot disagree about it.
+const { NO_BACKEND } = require('./remote-control/tailscale');
 
 // The steps, in the order they must happen. `wait_certs` is the one the user
 // acts on somewhere else; the panel keys its big link off exactly this value.
 // `operator` only occurs off Windows, and only where Tailscale was installed by
-// somebody other than us.
-const STEPS = ['installing', 'login', 'operator', 'wait_login', 'wait_certs', 'starting', 'done'];
+// somebody other than us. `service` and `client` are its Windows counterparts,
+// and they are two steps rather than one because the remedies differ: starting
+// a service needs elevation, starting the tray app must NOT have it.
+const STEPS = ['installing', 'service', 'client', 'login', 'operator', 'wait_login', 'wait_certs', 'starting', 'done'];
 
 function createHttpsSetup({
   tailscale, installer, https, onSettings,
@@ -90,6 +102,90 @@ function createHttpsSetup({
       if (r && r.code !== 0) { job.error = 'install_failed'; return; }
       s = await st();
       if (!s.installed) { job.error = 'install_failed'; return; }
+    }
+
+    // 1b/1c. Installed, and Tailscale is not UP on this machine. Two different
+    //     situations wear that face, they need opposite remedies, and BOTH used
+    //     to end the same wrong way: `up` was fired, changed nothing, and the
+    //     chain polled `wait_login` for five minutes before reporting
+    //     `login_timeout` — "you took too long signing in", with no browser ever
+    //     opened. That is the message that sends somebody to their router.
+    //
+    //     Deliberately reads the `s` step 1 already fetched rather than probing
+    //     again: a state machine that re-asks between every step is one a test
+    //     cannot describe.
+    //
+    //     `needsOperator` is checked first throughout, because off Windows it
+    //     produces the same `running: false` for a third reason with a third
+    //     remedy; step 2 owns that one and must keep it.
+
+    // 1b. The service is not running at all, so `status --json` cannot answer
+    //     and prints plain text instead. Measured on Windows 11 with the
+    //     Tailscale service left Manual/Stopped after an install.
+    if (!s.running && !s.needsOperator) {
+      job.step = 'service';
+      log('[https-setup] Tailscale is installed but its service is not running');
+      const started = tailscale.startService
+        ? await tailscale.startService().catch(() => null)
+        : null;
+      // `ok` means the request was accepted, not that the daemon is up — hence
+      // the poll. Anything else is final: there is nothing to wait for.
+      const up = started && started.ok
+        ? await until(async () => (await st()).running === true, WAIT_SERVICE_MS)
+        : false;
+      if (!up) {
+        if (job.cancelled) { job.error = 'cancelled'; return; }
+        // `not_applicable` is not a failure — it means this platform has no
+        // service to start, which on macOS is literally true: the app IS the
+        // daemon, so the remedy is step 1c's `open -a Tailscale`. Ending here
+        // with `service_stopped` made that step unreachable on every Mac, which
+        // is the whole of the feature there.
+        if (!started || started.reason !== 'not_applicable') {
+          // A declined prompt is the user saying no, and it gets their word for
+          // it rather than being reported as a machine that could not do it.
+          job.error = started && started.reason === 'cancelled' ? 'uac_cancelled' : 'service_stopped';
+          return;
+        }
+        log('[https-setup] no service to start on this platform; trying the client');
+      } else {
+        s = await st();
+      }
+    }
+
+    // 1c. The daemon answers and has no backend. The one that actually bites,
+    //     and the one nothing above can see: every field reads healthy, the
+    //     tunnel adapter is up, the profile is on disk, and the daemon logs
+    //     nothing. It is not a sign-in waiting to happen — starting the client
+    //     took the measured machine to Running in under three seconds, already
+    //     signed in. Only reached when the daemon answered, so it cannot be
+    //     confused with the service being down.
+    //
+    //     `!s.running` is accepted here as well, and only ever arrives via 1b's
+    //     `not_applicable` fall-through: on macOS "the daemon is not running"
+    //     and "the daemon has no client" are the same fact with the same cure.
+    if (!s.needsOperator && (s.backendState === NO_BACKEND || !s.running)) {
+      job.step = 'client';
+      log('[https-setup] the Tailscale daemon has no client attached; starting it');
+      const started = tailscale.startClient
+        ? await tailscale.startClient().catch(() => null)
+        : null;
+      // `running` is part of the test, not only the backend state: coming from
+      // the 1b fall-through the daemon may be fully down, and a status call that
+      // cannot answer reports no backendState at all — which would satisfy a
+      // bare `!== NO_BACKEND` and declare success over a daemon that never came
+      // up. It changes nothing on the Windows path, where running was already
+      // true before this step and startClient does not stop it.
+      const up = started && started.ok
+        ? await until(async () => {
+          const now = await st();
+          return now.running === true && now.backendState !== NO_BACKEND;
+        }, WAIT_CLIENT_MS)
+        : false;
+      if (!up) {
+        if (job.cancelled) { job.error = 'cancelled'; return; }
+        job.error = 'client_not_running';
+        return;
+      }
     }
 
     // 2. Sign in. `tailscale up` opens the browser and returns before the user
@@ -180,4 +276,7 @@ function createHttpsSetup({
   return { start, cancel, status, STEPS };
 }
 
-module.exports = { createHttpsSetup, STEPS, WAIT_LOGIN_MS, WAIT_CERTS_MS, POLL_MS };
+module.exports = {
+  createHttpsSetup, STEPS,
+  WAIT_LOGIN_MS, WAIT_CERTS_MS, WAIT_SERVICE_MS, WAIT_CLIENT_MS, POLL_MS,
+};

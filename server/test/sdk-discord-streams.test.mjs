@@ -25,7 +25,12 @@ test('Discord snapshot loaders use only fixed local routes', () => {
 });
 
 test('Discord refresh requires the exact grant and a visible non-service frame', () => {
-  assert.match(customWidget, /grant\.streams\.includes\(stream\)\s*\|\|\s*!LOCAL_STREAM_LOADERS\[stream\]/);
+  // Two separate refusals since v4.11 (a granted push-only stream answers
+  // 'not_refreshable' rather than 'not_allowed'), but the pair of conditions is
+  // the boundary and both halves must still be there: the grant, and a loader
+  // that the HOST names — never a target the message carries.
+  assert.match(customWidget, /if \(!grant\.streams\.includes\(stream\)\) \{/);
+  assert.match(customWidget, /if \(!LOCAL_STREAM_LOADERS\[stream\]\) \{/);
   assert.match(customWidget, /entry\.service\s*\|\|\s*document\.hidden/);
   assert.match(customWidget, /d\.type === 'refresh'/);
   assert.match(customWidget, /REFRESH_MIN_INTERVAL_MS/);

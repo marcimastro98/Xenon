@@ -215,3 +215,6 @@ body.overlay-frozen .twitch-status-pill.live .twitch-status-dot::after { animati
   padding: 12px; text-align: center; opacity: 0.38; font-size: 0.8rem; font-weight: 600;
 }
 .twitch-chat-empty-ico svg { width: 26px; height: 26px; }
+
+/* Emotes in the chat log, same treatment as the watching widget's. */
+.twitch-emote { height: 1.6em; width: auto; vertical-align: middle; margin: -0.2em 1px 0; }

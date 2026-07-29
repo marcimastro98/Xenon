@@ -102,6 +102,12 @@ port_pids() {
   elif command -v ss >/dev/null 2>&1; then
     # ss is what a minimal Linux install has; lsof often is not there.
     ss -lptnH "sport = :$PORT" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u
+  else
+    # Neither tool present: an `if` with no matching branch exits 0 with no
+    # output, which would leave "uninstalled" with a dashboard still answering on
+    # the port. Same fallback update-apply.sh uses, and the one install.sh
+    # already had; our own pid and our parent's are excluded.
+    pgrep -f "$SERVER_DIR/server.js" 2>/dev/null | grep -v -e "^$$\$" -e "^$PPID\$"
   fi
 }
 PIDS="$(port_pids)"

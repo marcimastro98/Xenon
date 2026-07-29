@@ -4,7 +4,7 @@
 
 # Xenon
 
-**Turn any second screen into your PC's control center.** A spare monitor, an old display you dug out of a drawer, or the **CORSAIR Xeneon Edge 14.5" LCD touchscreen** it was built for — driven from any browser, on Windows, macOS or Linux.
+**Turn any second screen into your PC's control center.** A spare monitor, an old display you dug out of a drawer, a tablet, the phone already in your pocket, or a **CORSAIR Xeneon Edge 14.5" LCD touchscreen** — driven from any browser, on Windows, macOS or Linux.
 Monitor your PC, control media and audio, mute your mic, manage your day, talk to a built-in AI assistant, drive your RGB lighting, and more, all from one glanceable screen.
 
 And it has a personality. Xenon is a companion, not just a control panel: a built-in AI you can actually talk to, and **Bit** — a little pixel guardian who lives in the corner, watches your habits, and roasts you (kindly) into drinking some water and standing up now and then.
@@ -27,19 +27,20 @@ community catalog) — every one of those calls is listed in the [privacy page](
 
 ## Any second screen will do
 
-Xenon is **just a local web app**, so any screen your PC drives can run the whole dashboard: a spare monitor, an old display propped next to the keyboard, or the Edge. Every control works with a mouse, and the layout reflows to fit landscape, portrait, large desktop windows, and short wide screens.
+Xenon is **just a local web app**, so any screen your PC drives can run the whole dashboard: a spare monitor, an old display propped next to the keyboard, a touchscreen. Every control works with a mouse, and the layout reflows to fit landscape, portrait, large desktop windows, and short wide screens.
 
-> **On a separate device — a phone or a tablet — not yet.** The local engine only accepts connections from the PC it runs on (loopback, enforced at the socket, the `Host` header and the `Origin`), so another device on your network gets a `403`. Opening that up needs device pairing and an authenticated path, and it is the next thing on the [reach roadmap](docs/ROADMAP-REACH.md). What *does* work on a phone today is **[Remote PC control](FEATURES.md#remote-pc-control)**: Sunshine + Tailscale + Moonlight, streaming the whole PC rather than the dashboard.
+> **On a separate device — a phone or a tablet — yes, since v4.11.0** *(beta)*. Settings → **Remote control** → **Phone access** opens a second, opt-in door: your PC shows a QR code, you point your phone's camera at it, and the dashboard opens in the phone's browser on the same Wi-Fi. No account, no cloud, no app to install, and nothing leaves your network. Each paired device is listed and can be removed on its own. See **[the phone guide](https://xenon-app.com/phone.html)**. If instead you want the whole PC rather than the dashboard, **[Remote PC control](FEATURES.md#remote-pc-control)** (Sunshine + Tailscale + Moonlight) is still there.
 
-It is also **optimized for the CORSAIR Xeneon Edge** 14.5" touchscreen, the display it was designed around: dense, glanceable tiles, comfortable touch targets, and a layout tuned for that panel. You do not need one, but if you have one, this is what it was waiting for.
+It is also **tuned for the CORSAIR Xeneon Edge** 14.5" touchscreen, the display it was first designed around: dense, glanceable tiles, comfortable touch targets, and a layout that fits a short, very wide panel. You do not need one, and nothing here is gated on having one.
 
-It also runs on **macOS and Linux**, not only Windows. The dashboard, the widgets and the integrations are identical there; the parts that read or drive the machine itself use each platform's own tools, and a few Windows-only ones have no equivalent yet. [What works where](#platform-support) says exactly which.
+It also runs on **macOS and Linux**, not only Windows, and both are **beta** in this release. The dashboard, the widgets and the integrations are identical there; the parts that read or drive the machine itself use each platform's own tools, and a few Windows-only ones have no equivalent yet. [What works where](#platform-support) says exactly which.
 
-**One Xenon, four ways to see it.** A single local engine (started automatically at login, running quietly in the background) serves the dashboard, and every surface draws from that same live UI — so a feature added once appears everywhere:
+**One Xenon, five ways to see it.** A single local engine (started automatically at login, running quietly in the background) serves the dashboard, and every surface draws from that same live UI — so a feature added once appears everywhere:
 
-- the new **native app** — a full-screen, borderless kiosk that opens itself on the Xeneon Edge, no browser or iCUE required — with **game-safe touch**: taps never move your mouse away or steal your game's focus;
+- the **native app** — a full-screen, borderless kiosk that opens itself on the screen you pick, no browser or iCUE required — with **game-safe touch**: taps never move your mouse away or steal your game's focus;
 - a **browser tab** on any monitor (`http://127.0.0.1:3030/`);
-- an **iCUE iFrame** panel embedded in your Xeneon Edge dashboard;
+- your **phone or tablet** over your own Wi-Fi, once paired *(beta)*;
+- an **iCUE iFrame** panel, if you would rather keep the dashboard inside iCUE;
 - the **native iCUE widget** *(in development)*.
 
 > **Note:** the browser/iFrame surface is **not** a native iCUE widget — it runs as a tiny local Node.js service displayed inside iCUE via an **iFrame**. The separate native iCUE widget is in development.
@@ -50,11 +51,13 @@ It also runs on **macOS and Linux**, not only Windows. The dashboard, the widget
 
 A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with screenshots.
 
-- **Native full-screen app** — a borderless kiosk that opens itself on the Xeneon Edge (no browser or iCUE), finds the Edge among your monitors and stays pinned to it through display changes and standby, with a system-tray icon (show/hide/restart/exit). Runs the same dashboard as every other surface. **Swipe up for the desktop, iPhone-style**: a quick flick up from the bottom of the screen tucks the dashboard away into a small floating button and reveals the Windows desktop on the Edge — tap the button to bring Xenon back (toggleable in Settings → General).
-- **Game-safe touch** *(native app)* — touch the Edge mid-game and nothing breaks: the cursor snaps straight back to the monitor it came from, and while a game is running taps never steal its focus — no more full-screen games minimizing because you muted the mic or skipped a track. Typing (AI chat, notes, search) still works exactly as before. This is something only the native app can offer — on the stock iCUE dashboard, in a browser tab or in the iCUE iFrame a touch still teleports your cursor and takes the game's focus, because only a real native window can tell Windows how to treat it. Both protections are on by default and toggleable from the tray.
+- **Native full-screen app** — a borderless kiosk that opens itself on the screen you pick (no browser or iCUE), finds that display among your monitors and stays pinned to it through display changes and standby. **Xenon asks which screen the first time it opens**, and Settings → Schermo changes the answer later; pick your phone instead and this PC shows nothing at all, not even at login, with a system-tray icon (show/hide/restart/exit). Runs the same dashboard as every other surface. **Swipe up for the desktop, iPhone-style**: a quick flick up from the bottom of the screen tucks the dashboard away into a small floating button and reveals the desktop underneath — tap the button to bring Xenon back (toggleable in Settings → General).
+- **Game-safe touch** *(native app)* — touch the dashboard mid-game and nothing breaks: the cursor snaps straight back to the monitor it came from, and while a game is running taps never steal its focus — no more full-screen games minimizing because you muted the mic or skipped a track. Typing (AI chat, notes, search) still works exactly as before. This is something only the native app can offer — on the stock iCUE dashboard, in a browser tab or in the iCUE iFrame a touch still teleports your cursor and takes the game's focus, because only a real native window can tell Windows how to treat it. Both protections are on by default and toggleable from the tray.
 - **Customizable, multi-page dashboard** — modular Bento grid with drag-and-drop layout, resizable tiles, tab-grouping, widget duplication, savable layout presets, and up to 8 pages.
 - **Widget SDK** *(beta)* — the dashboard is now a platform: anyone can build a widget (a `manifest.json` + an HTML page) and run it in a sandboxed **Custom widget** tile. No network access, no reach into your data — only the sensor streams and low-risk actions you explicitly approve. Widgets can also request host-rendered **Dynamic Island Live Activities**: persistent music/status layouts, animated goal-style takeovers and safe action buttons, all individually switchable by the user. See **[docs/WIDGET_SDK.md](docs/WIDGET_SDK.md)**.
 - **Notifications hub** — a **Notifications tile** mirrors the whole PC's Windows toasts (WhatsApp, mail, Teams, Discord, launchers…) with real app icons, plus a **Discord DMs & mentions** feed — all read locally, nothing leaves your PC.
+- **Incoming calls** — when Discord, Teams, Zoom or your phone rings, the dashboard opens a full-screen card with **Answer, Decline and Silence**, on every screen at once, and pushes it to a paired phone. Discord calls are answered outright; Teams and Zoom are answered by bringing their window forward and pressing the shortcut they document. Where a call cannot be picked up the card says so and offers to open the app instead of showing a button that does nothing.
+- **Your phone on the dashboard** *(Windows, beta)* — contacts, call history, a keypad that places real calls, and text messages you can read and reply to, from the phone paired to the PC over Bluetooth. It reads the phone the way a car does, over the standard Bluetooth profiles, so the same thing works with an iPhone and with an Android with nothing installed on the phone. Nothing is stored and nothing is uploaded. Answering a call is deliberately absent and the app says why: that channel belongs to the operating system. Also reachable by voice through Xenon AI and from a Deck key.
 - **Share your setup** — export your **theme**, a **dashboard page**, a full **Deck profile**, a single **community widget**, a **code-defined background**, or a whole **package** (theme + pages + widgets in one code) as a link or `.json`, and import someone else's in one step. Any export can be **protected with access codes** (encrypted locally, installs only for people you hand a code to), and every import is re-validated (widgets never auto-grant — you approve each one) so a shared preset can never run code behind your back. **Installed content** records what each download added and removes its theme, pages, Deck profiles, widgets, Ambient scenes, background and fonts together in one action.
 - **Make it yours, down to the last detail** — a full theme editor (colours, corner roundness, glass blur/saturation, borders, shadows), the same controls per individual widget, Xenon AI that can build a whole theme *or* an animated background from a description, and an **animated background** you can pick from a nine-item gallery, have the AI write, import, or code yourself in JavaScript (with your own bundled images) — running in an isolated sandbox.
 - **System & network monitor** — CPU, GPU, RAM, disks, throughput, ping/jitter, and real in-game FPS (PresentMon on Windows, MangoHud on Linux).
@@ -85,7 +88,7 @@ A quick tour — see **[FEATURES.md](FEATURES.md)** for the full breakdown with 
 
 ## Installation
 
-Xenon runs as a small local Node.js server on `http://127.0.0.1:3030/`. On the Xeneon Edge the **native Xenon app** shows it full-screen automatically — no browser, no iCUE. It also works in any browser, and can alternatively be embedded in iCUE as an **iFrame**.
+Xenon runs as a small local Node.js server on `http://127.0.0.1:3030/`. The **native Xenon app** shows it full-screen on whichever display you pick — no browser, no iCUE. It also works in any browser, on your phone once paired, and can alternatively be embedded in iCUE as an **iFrame**.
 
 ### Step 1 — Run the installer (once)
 
@@ -149,6 +152,8 @@ If it matches the `Xenon-Setup-x64.exe` line in that release's `SHA256SUMS`, the
 
 #### macOS
 
+> **Beta.** The dashboard, the widgets, the Store and the integrations are the same as on Windows. What still differs is the part that reads the machine itself, and the [table below](#platform-support) says exactly what works where. If something misbehaves, the [Discord](https://discord.gg/MBVrw9kZyg) is where it gets fixed fastest.
+
 Universal build: one download for both Apple Silicon and Intel.
 
 1. Download **[Xenon-macOS-universal.dmg](https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-macOS-universal.dmg)** and drag **Xenon** to Applications.
@@ -183,6 +188,8 @@ Prefer no app? Download the **Source code (zip)** from [Releases](https://github
 
 #### Linux
 
+> **Beta.** Same as macOS above: the dashboard and everything on it is identical, and what differs is the part that reads the machine. The [table below](#platform-support) is the exact list.
+
 Two ways, same result.
 
 - **The app:** download **[Xenon-Linux-x86_64.AppImage](https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage)** (`chmod +x` it and run it) or **[Xenon-Linux-x86_64.deb](https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.deb)**. Like macOS, the first launch offers to set the dashboard up in a terminal window, verifying the download before extracting it. The package deliberately does **not** install it for you: everything it would create belongs to one user account, and a package installs as root for the whole machine.
@@ -201,16 +208,16 @@ sudo apt install ffmpeg                # voice input and spoken replies
 
 ### Step 2 — Use it
 
-**On the Xeneon Edge — the native Xenon app (recommended):**
-Nothing to configure: on Windows the installer already put the **Xenon app** on your PC and set it to open at login (on macOS and Linux the app is the thing you installed in Step 1). It opens by itself, full-screen and edge-to-edge on the Xeneon Edge — no browser, no iCUE — with **game-safe touch** and a system-tray icon (show / hide / restart / exit). If it isn't on screen right now, launch **Xenon** from the Start menu or the tray icon. No Edge connected? It opens as a normal resizable window instead.
+**The native Xenon app (recommended):**
+Nothing to configure: on Windows the installer already put the **Xenon app** on your PC and set it to open at login (on macOS and Linux the app is the thing you installed in Step 1). It opens by itself — no browser, no iCUE — with **game-safe touch** and a system-tray icon (show / hide / restart / exit). If it isn't on screen right now, launch **Xenon** from the Start menu or the tray icon. Where it opens: **the first time Xenon runs it asks you**, and lists the screens it can see. Pick one and it stays there, even if you have a Xeneon Edge attached; leave it on Automatic and it takes the Edge when one is connected and opens a window on your main screen otherwise. Pick your phone or tablet and nothing opens on this PC at all — only the background service starts at login, and the dashboard lives on the phone. Settings → **Schermo** changes any of that at any time.
 
 **In a browser (any monitor, touch or not):**
 Just open **`http://127.0.0.1:3030/`**.
 
-**Via iCUE (alternative, if you prefer keeping the Edge inside iCUE):**
+**Via iCUE (alternative, if you would rather keep the dashboard inside iCUE):**
 
 1. Open **CORSAIR iCUE**.
-2. On your Xeneon Edge dashboard, add an **iFrame** widget.
+2. On your iCUE dashboard, add an **iFrame** widget.
 3. Paste this tag and save:
 
    ```html
@@ -221,7 +228,7 @@ Just open **`http://127.0.0.1:3030/`**.
 
 ### Every time you start your PC after that
 
-> **Nothing.** The engine starts automatically when you log in and the native app reopens itself on the Edge — the dashboard is live before you even settle in. (Using iCUE instead? It remembers your layout too.)
+> **Nothing.** The engine starts automatically when you log in and the native app reopens itself on its display — the dashboard is live before you even settle in. (Using iCUE instead? It remembers your layout too.)
 
 To remove the startup entry, double-click **`UNINSTALL.bat`** on Windows or **`UNINSTALL.command`** on macOS, and run `./UNINSTALL.sh` on Linux. All three keep your settings, layouts and notes unless you add `--purge-data`.
 
@@ -263,7 +270,7 @@ Everything below is the **Windows** list. On macOS and Linux the equivalents are
 
 ## Platform support
 
-Windows is where Xenon started and is the most complete. macOS and Linux run the same dashboard, the same widgets, the same Store and the same integrations — what differs is only the part that reads or drives the machine itself, where each platform gets its own tools and a few Windows features have no equivalent yet.
+Windows is where Xenon started and is the most complete. macOS and Linux are **beta**, and they run the same dashboard, the same widgets, the same Store and the same integrations — what differs is only the part that reads or drives the machine itself, where each platform gets its own tools and a few Windows features have no equivalent yet.
 
 Anything unavailable is **hidden**, not offered and then failed: a Deck key that cannot work on your system does not appear in the editor, and a tile with no data source says so.
 
@@ -291,6 +298,8 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 | In-game FPS counter | ✅ | — | ✅ ¹³ |
 | Game mode (auto-pauses effects while playing) | ✅ | ✅ ³ | ✅ ¹⁶ |
 | Mirroring desktop notifications | ✅ | — | ✅ ⁶ |
+| Incoming-call card (ring + silence + open the app) | ✅ | Discord only ¹⁸ | ✅ ⁶ |
+| Answering a call from the dashboard | ✅ | ✅ ¹⁹ | ✅ ²⁰ |
 | Living Index, PC search, disk cleanup | ✅ | — | ✅ ¹⁰ |
 | Embedded browser tile | ✅ | ✅ ⁷ | ✅ ⁷ |
 | Phone as a second screen (QR pairing) | ✅ | ✅ | ✅ |
@@ -332,6 +341,12 @@ Anything unavailable is **hidden**, not offered and then failed: a Deck key that
 ¹⁶ Linux reads the focused window from the window manager's own properties with `xprop` — which Xwayland maintains for X11 clients too, and games are almost always X11 clients (Proton and Wine render through Xwayland, and SDL2 still defaults to the X11 driver), so this keeps working on a GNOME or KDE Wayland session for exactly the applications game mode cares about. On sway and Hyprland their IPC is used instead. When the focused window is a native Wayland one, Xenon reports that it cannot see it rather than reusing the last window it could — a stale reading would leave game mode stuck on after you quit.
 
 ¹⁷ Works, with one manual step. The door itself is the same everywhere — the same Tailscale CLI, the same certificate, the same TLS listener — but Xenon can only *install* Tailscale for you on Windows, through winget. On macOS and Linux you install it once yourself (`brew install tailscale`, or your package manager) and Xenon does the rest: sign-in, the certificate, and bringing the door up. On Linux, `tailscale` also has to be allowed to take orders from your user account — `sudo tailscale set --operator=$USER`, once — and the panel prints that exact line if it is needed rather than failing.
+
+¹⁸ macOS gives no application a way to read another app's notifications, so the ring can only come from an app that reports it directly. Discord does, over its local RPC connection, so Discord calls ring on a Mac exactly as they do everywhere else. Teams, Zoom and mirrored phone calls do not raise a card there.
+
+¹⁹ Discord is answered outright over its RPC connection, on all three systems. Teams and Zoom are answered the way you would by hand — Xenon brings their window to the front and presses the shortcut each app documents — which on macOS needs Xenon Helper allowed under System Settings → Privacy & Security → Accessibility. Until you allow it, the card still rings, silences and opens the app, and Settings says which permission is missing.
+
+²⁰ Same two routes as macOS. Pressing a shortcut into another window needs `xdotool` on an X11 session, or `ydotool` on Wayland, which forbids one application from typing into another by design. Without either, Discord calls are still answered (that path is a network call, not a keystroke) and everything else rings and offers to open the app.
 
 macOS and Linux support is **new**. It is written against each platform's documented behaviour and covered by unit tests, but it has had far less real-world use than the Windows build — if something misbehaves, please [open an issue](https://github.com/marcimastro98/Xenon/issues) or say so on [Discord](https://discord.gg/MBVrw9kZyg).
 

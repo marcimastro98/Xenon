@@ -35,6 +35,13 @@ let package = Package(
                 // runtime, the HID sensor entry points the `temps` mode
                 // resolves by dlsym rather than by linking — see TempsTool.
                 .linkedFramework("IOKit"),
+                // ApplicationServices carries AXIsProcessTrusted, which the
+                // `keys` mode calls before synthesising a keystroke. Listed
+                // explicitly like every other framework here rather than left
+                // to autolinking: every other import in this target is named,
+                // and an unresolved symbol at link time is a far more confusing
+                // failure than a missing line in this list.
+                .linkedFramework("ApplicationServices"),
             ]
         )
     ]

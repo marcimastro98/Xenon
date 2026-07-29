@@ -7,6 +7,18 @@
 #   {"event":"status","status":"allowed"|"denied"|"unavailable"}
 #   {"event":"seed","items":[item,...]}          # newest first, once at start
 #   {"event":"notification","item":{...}}        # each new toast afterwards
+#   {"event":"present","ids":[id,...]}           # every id still in Action Center,
+#                                                # emitted only when the set changes
+#
+# `present` exists for one caller: the incoming-call card. An app's ringing
+# toast is TRANSIENT — measured on a real phone call through Phone Link, the
+# toast is in Action Center while it rings and gone the moment you hang up, and
+# no "missed"/"ended" notification follows it. So its DISAPPEARANCE is the only
+# signal that the ring is over, and without it the card sat on screen until its
+# timeout after the caller had already gone.
+#
+# Purely additive: a server that does not know this event ignores it, and a
+# server that does simply never gets one from an older helper.
 #
 # item = {id, app, aumid, title, body, at, icon} — icon is always null here
 # (app-logo decoding stays a helper nicety); lengths are capped at this
@@ -111,6 +123,7 @@ Emit @{ event = 'status'; status = $state }
 if ($state -eq 'unavailable') { exit 1 }
 
 $maxSeen = -1
+$lastPresent = ''
 while ($true) {
   try {
     if ($state -ne 'allowed') {
@@ -134,6 +147,17 @@ while ($true) {
         Emit @{ event = 'notification'; item = (Project $n) }
         $maxSeen = [long]$n.Id
       }
+    }
+
+    # What is still there. Emitted after any new item on the same pass, so the
+    # server never sees a toast reported present before it was reported at all.
+    # Only on change: on a quiet desktop this stays silent instead of repeating
+    # the same list every two seconds.
+    $ids = @($current | ForEach-Object { [long]$_.Id } | Sort-Object)
+    $key = ($ids -join ',')
+    if ($key -ne $lastPresent) {
+      $lastPresent = $key
+      Emit @{ event = 'present'; ids = $ids }
     }
   } catch {
     # Transient WinRT hiccup: keep the loop alive, next tick retries. If access

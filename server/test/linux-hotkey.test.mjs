@@ -11,7 +11,8 @@ import { dirname, join } from 'node:path';
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const {
-  createLinuxHotkey, toAccelerator, bindingsFrom, parsePathArray, commandFor, KEY_PATH, SCHEMA,
+  createLinuxHotkey, toAccelerator, normalizeAccel, bindingsFrom, parsePathArray, commandFor,
+  KEY_PATH, SCHEMA,
 } = require(join(ROOT, 'linux-hotkey.js'));
 
 test('a combo becomes a GNOME accelerator', () => {
@@ -119,6 +120,42 @@ test('a combo another shortcut already owns is reported as taken, and nothing is
   // Silently overwriting is what GNOME itself does, and the result is a
   // shortcut that never fires with no explanation anywhere.
   assert.equal(g.calls.some((c) => c.startsWith('set ')), false);
+});
+
+test('normalizeAccel: equivalent spellings collapse, unknown modifiers do not', () => {
+  const want = normalizeAccel('<Control><Alt>s');
+  for (const spelling of ['<Alt><Control>s', '<Primary><Alt>s', '<Ctrl><Alt>S', '<Alt><Primary>S', '<Mod1><Control>s']) {
+    assert.equal(normalizeAccel(spelling), want, spelling);
+  }
+  assert.notEqual(normalizeAccel('<Control><Shift>s'), want);
+  // Unparseable input normalises to '' and can therefore never collide with a
+  // real binding — an unknown modifier is not ours to guess at.
+  assert.equal(normalizeAccel('<Level3>s'), '');
+  assert.equal(normalizeAccel('s'), '');           // no modifier
+  assert.equal(normalizeAccel('<Control>'), '');   // no key
+  assert.equal(normalizeAccel(''), '');
+});
+
+test('a conflict spelled differently is still a conflict', async () => {
+  // GNOME accepts <Primary>, <Ctrl>, <Mod1>/<Mod4> and any modifier ORDER, and
+  // resolves a duplicate binding by firing NEITHER shortcut. Comparing raw
+  // strings missed most two-modifier clashes, so registration reported
+  // 'listening' and the hotkey silently never worked.
+  for (const existing of ['<Alt><Control>s', '<Primary><Alt>s', '<Ctrl><Alt>S']) {
+    const g = fakeGsettings({
+      recursive: { 'org.gnome.desktop.wm.keybindings': `org.gnome.desktop.wm.keybindings cycle ['${existing}']` },
+    });
+    const hk = createLinuxHotkey({ port: 3030, runner: g.runner, which: lookup });
+    const r = await hk.register('ctrl+alt+s');
+    assert.equal(r.state, 'taken', existing);
+    assert.equal(g.calls.some((c) => c.startsWith('set ')), false, existing);
+  }
+  // A genuinely different combo still registers.
+  const g = fakeGsettings({
+    recursive: { 'org.gnome.desktop.wm.keybindings': "org.gnome.desktop.wm.keybindings cycle ['<Alt><Control>s']" },
+  });
+  const hk = createLinuxHotkey({ port: 3030, runner: g.runner, which: lookup });
+  assert.equal((await hk.register('ctrl+shift+s')).ok, true);
 });
 
 test('our own previous registration is not a conflict with itself', async () => {

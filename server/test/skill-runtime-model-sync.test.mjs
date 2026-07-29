@@ -25,9 +25,16 @@ const sdk = require(join(ROOT, 'server', 'sdk-widgets.js'));
 // that cannot pass anywhere except one maintainer's working copy. Absent means
 // there is no transcription to drift, so the checks that read it skip; the two
 // that assert on the code itself still run everywhere.
+//
+// `NO_MODEL` starts as `false`, NOT as `''`. node:test treats an empty string
+// as "skip, with no reason given" — verified on v24.11.0, where `{skip: ''}`
+// skips and `{skip: false}` runs, whatever the docs' "if truthy" says. So the
+// present-and-readable case was skipping too, and this pin had never once
+// executed on any machine: the guard against silent drift was itself silently
+// disabled, which is the exact shape of failure the note above describes.
 const MODEL_PATH = join(ROOT, '.claude', 'skills', 'xenon-audit-review', 'reference', 'runtime-model.md');
 let MODEL = '';
-let NO_MODEL = '';
+let NO_MODEL = false;
 try {
   MODEL = readFileSync(MODEL_PATH, 'utf8');
 } catch {

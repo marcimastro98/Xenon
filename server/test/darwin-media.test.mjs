@@ -17,6 +17,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { EventEmitter } from 'node:events';
 
 const require = createRequire(import.meta.url);
 const dm = require('../darwin-media.js');
@@ -140,9 +141,20 @@ test('commandCode: only the three transport verbs map, and nothing else does', (
   assert.equal(dm.commandCode('next'), '4');
   assert.equal(dm.commandCode('previous'), '5');
   // An unknown verb must not fall through to a number — every id in the
-  // adapter's table does something, including stop and seek.
+  // adapter's table does something. Seek has its own named command below.
   for (const bad of ['info', 'stop', 'seek', '', null, undefined, 'toString', '__proto__']) {
     assert.equal(dm.commandCode(bad), null, String(bad));
+  }
+});
+
+test('commandArgs: seek converts shared seconds to exact adapter microseconds', () => {
+  assert.deepEqual(dm.commandArgs('playpause'), ['send', '2']);
+  assert.deepEqual(dm.commandArgs('seek', 12.345678), ['seek', '12345678']);
+  // The adapter requires a positive integer; 1 µs is the physical equivalent
+  // of Xenon's logical zero and makes "back to start" reliable.
+  assert.deepEqual(dm.commandArgs('seek', 0), ['seek', '1']);
+  for (const bad of [-1, NaN, Infinity, 'nope', undefined]) {
+    assert.equal(dm.commandArgs('seek', bad), null, String(bad));
   }
 });
 
@@ -160,5 +172,29 @@ test('createDarwinMedia: an absent adapter is a supported state, not an error', 
 test('createDarwinMedia: a command against an absent adapter rejects cleanly', async () => {
   const host = dm.createDarwinMedia({ dir: join(here, 'fixtures', 'no-such-adapter') });
   await assert.rejects(() => host.command('playpause'), /unavailable/);
+  await assert.rejects(() => host.command('seek', 12), /unavailable/);
+  await assert.rejects(() => host.command('seek', -1), /bad media position/);
   await assert.rejects(() => host.command('nope'), /unsupported media action/);
+});
+
+test('createDarwinMedia: a non-zero seek child is unavailable, never guessed not_seekable', async () => {
+  const calls = [];
+  const host = dm.createDarwinMedia({
+    dir: '/test/mediaremote',
+    perl: '/test/perl',
+    exists: () => true,
+    spawn: (exe, args) => {
+      calls.push([exe, args]);
+      const child = new EventEmitter();
+      child.kill = () => {};
+      queueMicrotask(() => child.emit('exit', 1));
+      return child;
+    },
+  });
+  await assert.rejects(() => host.command('seek', 12), /failed \(exit 1\)/);
+  assert.deepEqual(calls, [[
+    '/test/perl',
+    [join('/test/mediaremote', 'mediaremote-adapter.pl'),
+      join('/test/mediaremote', 'MediaRemoteAdapter.framework'), 'seek', '12000000'],
+  ]]);
 });

@@ -1,6 +1,6 @@
 # @xenon/native — Xenon kiosk app (Tauri)
 
-A borderless, full-screen (kiosk) native window for the CORSAIR Xeneon Edge that
+A borderless, full-screen (kiosk) native window for whichever screen you give it that
 loads the Xenon dashboard from the local backend service on
 `http://127.0.0.1:3030`. It is **not** a fourth copy of the UI — it renders the
 exact same `server/` dashboard as the browser and the iCUE iframe. No iCUE, no

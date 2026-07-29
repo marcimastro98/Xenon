@@ -329,3 +329,157 @@ test('logout revokes and clears persisted creds', async () => {
   assert.equal(calls.length, 1);
   assert.equal((await p.status()).connected, false);
 });
+
+// ---------------------------------------------------------------------------
+// Creator mode: starting a stream from nothing, chat, privacy, the stream key
+// ---------------------------------------------------------------------------
+
+test('createBroadcast makes the broadcast and binds it to the channel stream', async () => {
+  const calls = [];
+  const p = connectedYt([
+    // The stub matches on a substring, and every creator call lands on
+    // /liveBroadcasts — so the more specific tails come first.
+    { match: '/liveBroadcasts/bind', json: { id: 'BC1' }, calls },
+    { match: '/liveStreams', json: { items: [{ id: 'ST1', cdn: {} }] }, calls },
+    { match: '/liveBroadcasts', json: { items: [], id: 'BC1' }, calls },
+  ]);
+  const r = await p.createBroadcast('Stasera si gioca', 'public');
+  assert.equal(r.ok, true);
+  assert.equal(r.id, 'BC1');
+  assert.equal(r.privacy, 'public');
+  // The bind is what makes the broadcast usable: without it OBS pushes to an
+  // endpoint no broadcast is listening on.
+  assert.ok(calls.some(u => u.includes('/liveBroadcasts/bind') && u.includes('streamId=ST1')));
+});
+
+test('createBroadcast refuses a second one rather than making a duplicate', async () => {
+  const p = connectedYt([
+    { match: '/liveBroadcasts', json: { items: [{ id: 'OLD', status: { lifeCycleStatus: 'ready' }, snippet: { title: 'T' } }] } },
+  ]);
+  assert.deepEqual(await p.createBroadcast('x', 'public'), { ok: false, error: 'already_exists' });
+});
+
+test('createBroadcast creates an ingestion endpoint for a channel that has none', async () => {
+  const calls = [];
+  let streamListed = false;
+  const file = tmpTokens();
+  fs.writeFileSync(file, JSON.stringify({ youtube: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6, channel: 'C', channelId: 'UC' } }));
+  const p = createYouTubeProvider({
+    clientId: 'cid', clientSecret: 'sec', tokensFile: file,
+    fetch: async (url, init) => {
+      const u = String(url);
+      calls.push(((init && init.method) || 'GET') + ' ' + u);
+      if (u.includes('/liveBroadcasts/bind')) return { ok: true, status: 200, json: async () => ({}) };
+      if (u.includes('/liveStreams')) {
+        // First read: this channel has never streamed. The POST then makes one.
+        if (!streamListed) { streamListed = true; return { ok: true, status: 200, json: async () => ({ items: [] }) }; }
+        return { ok: true, status: 200, json: async () => ({ id: 'NEW' }) };
+      }
+      if (u.includes('/liveBroadcasts')) return { ok: true, status: 200, json: async () => ({ items: [], id: 'BC9' }) };
+      throw new Error('unexpected ' + u);
+    },
+  });
+  const r = await p.createBroadcast('First', 'unlisted');
+  assert.equal(r.ok, true);
+  assert.ok(calls.some(c => c.startsWith('POST') && c.includes('/liveStreams')), 'no stream was created');
+  assert.ok(calls.some(c => c.includes('streamId=NEW')), 'bound to the wrong stream');
+});
+
+test('cancelBroadcast refuses to delete one that is already live', async () => {
+  const p = connectedYt([
+    { match: '/liveBroadcasts', json: { items: [{ id: 'B', status: { lifeCycleStatus: 'live' }, snippet: { title: 'T' } }] } },
+  ]);
+  assert.deepEqual(await p.cancelBroadcast(), { ok: false, error: 'is_live' });
+});
+
+test('setPrivacy only accepts the three YouTube knows', async () => {
+  const p = connectedYt([{ match: '/liveBroadcasts', json: { items: [{ id: 'B', status: {}, snippet: { title: 'T' } }] } }]);
+  assert.deepEqual(await p.setPrivacy('everyone'), { ok: false, error: 'bad_privacy' });
+  assert.equal((await p.setPrivacy('unlisted')).ok, true);
+});
+
+test('streamKey returns the ingest address and key, and says so when there is none', async () => {
+  const p = connectedYt([{ match: '/liveStreams', json: { items: [{ cdn: { ingestionInfo: { ingestionAddress: 'rtmp://a/live2', streamName: 'abcd-1234' } } }] } }]);
+  assert.deepEqual(await p.streamKey(), { ok: true, url: 'rtmp://a/live2', key: 'abcd-1234' });
+  const none = connectedYt([{ match: '/liveStreams', json: { items: [] } }]);
+  assert.deepEqual(await none.streamKey(), { ok: false, error: 'no_stream' });
+});
+
+test('chatMessages maps the page and reports the poll interval YouTube asked for', async () => {
+  const p = connectedYt([
+    { match: '/liveChat/messages', json: {
+      nextPageToken: 'PAGE2', pollingIntervalMillis: 7000,
+      items: [
+        { id: 'm1', snippet: { displayMessage: 'ciao' }, authorDetails: { displayName: 'Ann', profileImageUrl: 'https://i/x.jpg', isChatOwner: true } },
+        { id: 'm2', snippet: { textMessageDetails: { messageText: 'yo' } }, authorDetails: { displayName: 'Bob', profileImageUrl: 'http://insecure/x.jpg' } },
+        { id: 'm3', snippet: {}, authorDetails: { displayName: 'Empty' } },
+      ] } },
+    { match: '/liveBroadcasts', json: { items: [{ id: 'B', status: { lifeCycleStatus: 'live' }, snippet: { title: 'T', liveChatId: 'CHAT1' } }] } },
+  ]);
+  const r = await p.chatMessages('');
+  assert.equal(r.ok, true);
+  assert.equal(r.pageToken, 'PAGE2');
+  assert.equal(r.pollMs, 7000);
+  // A message with no text is not a message; a non-https avatar is dropped
+  // because the client paints it as a CSS background-image.
+  assert.deepEqual(r.messages.map(m => m.id), ['m1', 'm2']);
+  assert.equal(r.messages[0].owner, true);
+  assert.equal(r.messages[0].avatar, 'https://i/x.jpg');
+  assert.equal(r.messages[1].avatar, '');
+});
+
+test('chatMessages holds its answer for the interval, so asking harder costs nothing', async () => {
+  const calls = [];
+  const p = connectedYt([
+    { match: '/liveChat/messages', json: { nextPageToken: 'P', pollingIntervalMillis: 5000, items: [] }, calls },
+    { match: '/liveBroadcasts', json: { items: [{ id: 'B', status: { lifeCycleStatus: 'live' }, snippet: { title: 'T', liveChatId: 'CHAT1' } }] }, calls },
+  ]);
+  await p.chatMessages('');
+  const after = calls.filter(u => u.includes('/liveChat/messages')).length;
+  for (let i = 0; i < 20; i++) await p.chatMessages('');
+  assert.equal(calls.filter(u => u.includes('/liveChat/messages')).length, after,
+    'the throttle is what lets this route stay a plain GET');
+});
+
+test('chatMessages refuses a page token that is not one', async () => {
+  const p = connectedYt([
+    { match: '/liveChat/messages', json: { items: [] } },
+    { match: '/liveBroadcasts', json: { items: [{ id: 'B', status: { lifeCycleStatus: 'live' }, snippet: { title: 'T', liveChatId: 'CHAT1' } }] } },
+  ]);
+  assert.deepEqual(await p.chatMessages('../../evil?x=1'), { ok: false, error: 'bad_token' });
+});
+
+test('the chat says so when there is no broadcast to have one', async () => {
+  const p = connectedYt([{ match: '/liveBroadcasts', json: { items: [] } }]);
+  assert.deepEqual(await p.chatMessages(''), { ok: false, error: 'no_chat' });
+  assert.deepEqual(await p.sendChat('hello'), { ok: false, error: 'no_chat' });
+});
+
+test('sendChat refuses an empty message before spending anything', async () => {
+  const calls = [];
+  const p = connectedYt([{ match: '/liveBroadcasts', json: { items: [] }, calls }]);
+  assert.deepEqual(await p.sendChat('   '), { ok: false, error: 'empty' });
+  assert.equal(calls.length, 0);
+});
+
+test('every creator call answers not_connected when signed out', async () => {
+  const p = createYouTubeProvider({ clientId: 'cid', clientSecret: 'sec', tokensFile: tmpTokens(), fetch: stubFetch([]) });
+  const results = [
+    await p.createBroadcast('x'), await p.cancelBroadcast(), await p.setPrivacy('public'),
+    await p.streamKey(), await p.chatMessages(''), await p.sendChat('x'),
+  ];
+  for (const r of results) assert.deepEqual(r, { ok: false, error: 'not_connected' });
+});
+
+test('broadcastStatus carries what the live widget needs to act on', async () => {
+  const p = connectedYt([
+    { match: '/liveStreams', json: { items: [{ status: { healthStatus: { status: 'good' } } }] } },
+    { match: '/videos', json: { items: [{ liveStreamingDetails: { concurrentViewers: '12' }, statistics: { viewCount: '99', likeCount: '5' } }] } },
+    { match: '/liveBroadcasts', json: { items: [{ id: 'BID', status: { lifeCycleStatus: 'live', privacyStatus: 'unlisted' }, snippet: { title: 'T', liveChatId: 'CH' } }] } },
+  ]);
+  const r = await p.broadcastStatus();
+  assert.equal(r.id, 'BID');
+  assert.equal(r.privacy, 'unlisted');
+  assert.equal(r.chat, true);
+  assert.equal(r.viewers, 12);
+});

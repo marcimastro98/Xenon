@@ -21,6 +21,10 @@
 const fs = require('fs');
 const path = require('path');
 const { validateAction, clampDelay } = require('./js/deck-actions.js');
+// A package may declare the SILHOUETTE of its own tile. It goes through the very
+// same validator a shared preset does (js/dashboard-instances.js) rather than a
+// second copy of the rules here — one boundary, two doors.
+const { normalizeTileShape } = require('./js/dashboard-instances.js');
 
 // Version of the host↔widget postMessage protocol (see docs/WIDGET_SDK.md).
 const SDK_API_VERSION = 1;
@@ -36,13 +40,20 @@ const SDK_API_VERSION = 1;
 // It carries nothing `audio` does not already expose about WHICH apps exist — only
 // how loud each one currently is — so it is no wider a permission, but a widget
 // that takes it should expect to be re-rendered continuously.
-const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'audioLevels', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'tasks', 'notes', 'agenda', 'weather', 'battery']);
+// `twitchWatch` / `twitchChat` / `youtubeLive` are the watching and broadcasting
+// sides of the two builtin tiles. None of them opens a connection of its own:
+// each is fed by the tile that was already reading it (see publishStream in
+// js/custom-widget.js), with a same-origin loader as the fallback for a
+// dashboard where that tile is absent. That is the whole reason `twitchChat` has
+// no loader at all — a widget must never be able to make Xenon hold a socket
+// open to Twitch on an idle dashboard just by asking for a refresh.
+const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'audioLevels', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'tasks', 'notes', 'agenda', 'weather', 'battery']);
 
 // Action categories a package may request → the deck-action types each grants.
 // Deliberately a small, low-blast-radius subset of the action registry; every
 // dispatched action is still fully re-validated by server/actions/registry.js.
 const SDK_ACTION_CATEGORIES = Object.freeze({
-  media: Object.freeze(['media']),
+  media: Object.freeze(['media', 'mediaSeek']),
   volume: Object.freeze(['volume', 'appVolume', 'appMute']),
   // Deliberately separate from `volume`: packages already granted `volume` were
   // approved for "raise and lower", and folding device switching in would widen
@@ -85,6 +96,17 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // pack-relative clip (packs/<pack>/<clip>.<ext>, see SDK_SOUND_FILE_RE) —
   // arbitrary machine-local paths stay a Deck-key-only privilege.
   soundboard: Object.freeze(['playSound', 'soundStopAll']),
+  // Play something in the Twitch / YouTube tiles already on the dashboard.
+  // Browser-dispatched like `browser` and `soundboard` (no registry case — the
+  // host hands it to the tile), and deliberately NOT usable from a manifest Deck
+  // macro: validateAction does not know the type, so declaring one fails at
+  // install instead of shipping a key that does nothing.
+  //
+  // Narrower than `browserOpen`, which is why it does not need its confirm
+  // dialog: the widget names a Twitch channel or a YouTube video id, never an
+  // address, the id is re-validated against the tile's own pattern, and the
+  // destination is a surface Xenon owns and the user is looking at.
+  watch: Object.freeze(['twitchWatchPlay', 'ytWatchPlay']),
 });
 
 // The only playSound.file shape SDK code (bridge actions AND manifest macros)
@@ -603,6 +625,12 @@ function normalizeManifest(raw, folderId) {
   // Ambient scene already owns the whole screen, so the grant would be a
   // permission line that buys the user nothing.
   const expand = raw.expand === true && raw.surface !== 'ambient';
+  // The tile's silhouette. Cosmetic and confined to the package's OWN tile, so
+  // unlike `accent` (which tints the whole dashboard) it carries no grant — and
+  // like every other cosmetic field a malformed one is dropped rather than
+  // rejecting the package. An ambient scene already owns the screen, so a shape
+  // there would clip nothing meaningful.
+  const shape = raw.surface === 'ambient' ? null : normalizeTileShape(raw.shape);
   return {
     ok: true,
     manifest: {
@@ -652,6 +680,10 @@ function normalizeManifest(raw, folderId) {
       // page change and on teardown. Host-side only, so there is no server
       // enforcement here — the grant is what this flag feeds.
       expand,
+      // The tile's silhouette (a curated preset id or the package's own path in
+      // a unit square). The user's per-tile choice always wins over it: the
+      // package proposes, the dashboard's own style editor disposes.
+      shape,
       entry,
       streams: cleanList(raw.streams, SDK_STREAMS, SDK_STREAMS.length),
       actions,

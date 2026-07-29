@@ -141,7 +141,14 @@ test('an existing logging key is replaced in place, so the file does not grow', 
   assert.equal(mergeConfig(merged, '/new/path'), merged);
 });
 
-test('mangohud is located on PATH and nowhere else', async () => {
+// Not runnable on Windows, and that is the module being right rather than the
+// test being weak: findMangoHud splits PATH on ':', which is the separator on
+// the only platform it runs on. A Windows temp dir starts with a drive letter
+// and a colon, so the very first split cuts it in half. There is no PATH string
+// on Windows that would exercise the Linux rule.
+test('mangohud is located on PATH and nowhere else', {
+  skip: process.platform === 'win32' && 'PATH is :-separated on Linux; a Windows path contains :',
+}, async () => {
   const dir = await mkdtemp(join(tmpdir(), 'xenon-mh-'));
   await writeFile(join(dir, 'mangohud'), '#!/bin/sh\n', { mode: 0o755 });
   assert.equal(findMangoHud(`${dir}:/nonexistent`), join(dir, 'mangohud'));
@@ -170,8 +177,12 @@ test('a live log is read end to end and reports the game and its FPS', async () 
   mon.stop();
 
   // start() must have written the config for the game to be logged at all.
+  // Compared as a line rather than through a RegExp built from a path: a path
+  // can contain regex metacharacters (every Windows separator is one), and the
+  // pattern then silently fails to match a config that is perfectly correct.
   const conf = await readFile(join(dir, 'MangoHud.conf'), 'utf8');
-  assert.match(conf, new RegExp(`^output_folder=${logDir}$`, 'm'));
+  assert.ok(conf.split('\n').includes(`output_folder=${logDir}`),
+    `MangoHud.conf must name the log dir. Got:\n${conf}`);
 });
 
 test('a log nobody has written to for a while stops counting as a running game', async () => {

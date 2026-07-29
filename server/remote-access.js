@@ -117,6 +117,32 @@ const REMOTE_DENY = new Set([
   // device asking for them is not a feature, it is a forged session.
   '/api/claude/event',
   '/api/claude/permission',
+  // The channel's RTMP stream key. Whoever holds it can broadcast to the user's
+  // channel, and it is the one credential the dashboard is asked to show on
+  // screen. It stays on the PC the user is standing at.
+  '/stream/youtube/streamkey',
+  // File transfer settings. Everything else about transfers is open to a paired
+  // device on purpose — sending a photo from the phone in your hand to the PC
+  // in the next room IS the feature — but this one endpoint names the FOLDER on
+  // that PC where every future arrival lands. A device that could set it could
+  // aim them at the app's own directory or at the user's Documents. The folder
+  // is chosen at the PC, with the picker, which is the same shape the Slideshow
+  // folder source has: the path lives only in settings and never on the wire.
+  '/api/transfer/settings',
+  // Dialling a number. The phonebook, the call log and the live call state ARE
+  // reachable from a paired device — that is the dashboard being the dashboard
+  // — but placing the call is not, and the reason is what happens next rather
+  // than a worry about trust: the call's audio comes out of the PC (or the
+  // phone itself), never the tablet that started it. A dial button on a screen
+  // in another room begins a call the user cannot hear or end, which is the
+  // "looks alive, does nothing" failure this codebase refuses everywhere else.
+  // It is also the one action in the product that costs money per use.
+  '/api/phone/dial',
+  // Sending a message. Reading them IS allowed from a paired device — that is
+  // the dashboard being the dashboard, and the notification mirror already
+  // shows the text of the same messages — but sending one goes out under the
+  // user's own number to somebody else, cannot be recalled, and is metered.
+  '/api/phone/send',
 ]);
 
 // Prefix denials, for routes that carry an id tail.
@@ -138,6 +164,13 @@ const REMOTE_DENY_PREFIXES = [];
 // set out of server.js and fails if this one has drifted behind it.
 const DEFAULT_GET_MUTATORS = new Set([
   '/system/enable-sensors', '/toggle', '/mic/volume', '/volume/set', '/speaker/mute',
+  // Answering a call IS reachable from a paired device — a phone showing the
+  // ringing card is the whole point — but only by POST. Answering focuses
+  // another app and presses keys into it, so a top-level GET navigation to this
+  // path (the one shape carrying neither an Origin nor a cross-site marker) has
+  // to refuse.
+  '/api/calls/act',
+  '/api/calls/test',
   '/audio/app/volume', '/audio/app/mute', '/notes',
   '/media/source', '/media/playpause', '/media/next', '/media/previous',
   '/api/community/catalog', '/api/community/code', '/api/community/messages',
@@ -163,6 +196,33 @@ const DEFAULT_GET_MUTATORS = new Set([
   // POST-only for that reason; listing it here is what refuses the top-level GET
   // navigation, the one shape the Origin check cannot see.
   '/stream/youtube/search',
+  // Creator-side writes on the user's own YouTube channel: they create or throw
+  // away a broadcast, change who can watch it, or speak in the chat under the
+  // user's name. All POST-only for that reason.
+  '/stream/youtube/broadcast/create',
+  '/stream/youtube/broadcast/cancel',
+  '/stream/youtube/privacy',
+  '/stream/youtube/chat/send',
+  // The Twitch channel search, and the chat send that speaks under the user's
+  // name in someone else's channel. Both POST-only, same shape as the YouTube
+  // pair above.
+  '/stream/twitch/search',
+  '/stream/twitch/chat/send',
+  // File transfer. The first four ARE reachable from a paired device — sending
+  // and managing files is the feature — but only by POST, because /upload
+  // writes a file to the PC and /open launches one with its registered handler.
+  // /settings is refused outright above (REMOTE_DENY), and is listed here as
+  // well so the loopback door refuses a top-level navigation to it too.
+  // /api/transfer/file, /thumb and /list are deliberately absent: they are
+  // reads, and /file is fetched BY a top-level navigation when the user taps
+  // Download — listing it would refuse the download it exists to serve.
+  '/api/transfer/upload', '/api/transfer/open', '/api/transfer/reveal',
+  '/api/transfer/delete', '/api/transfer/settings',
+  // Dialling. Refused outright above; listed here as well, for the same reason
+  // /api/transfer/settings is, so the loopback door also refuses a top-level
+  // navigation to it. /api/phone, /contacts, /calls, /messages and /message are
+  // deliberately absent: they are reads a paired device is meant to make.
+  '/api/phone/dial', '/api/phone/send',
 ]);
 let _getMutators = DEFAULT_GET_MUTATORS;
 
@@ -184,6 +244,7 @@ const GET_READ_EXCEPTIONS = new Set([
   '/api/community/installs',
   '/api/community/ratings',
   '/api/community/limited-status',
+  '/stream/youtube/chat',
   '/api/screenshot',
   '/api/screenshot/monitor',
   '/api/claude/link',

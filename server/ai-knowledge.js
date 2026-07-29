@@ -81,8 +81,8 @@ const TOPICS = [
   {
     id: 'appearance',
     title: 'Themes, skins, colors, backgrounds',
-    keywords: ['theme', 'tema', 'skin', 'aspetto', 'appearance', 'colore', 'colors', 'dark', 'light', 'scuro', 'chiaro', 'background', 'sfondo', 'wallpaper', 'retro', 'comic', 'glass', 'contrast'],
-    body: 'Appearance layers: named theme presets (xenon, ocean, ember, violet, mono), Light/Dark/Auto mode, and a base skin — glass (the default Liquid Glass look), retro (Pixel Retro) or comic. Beyond presets, every semantic color (canvas, panels, controls, text, borders, accent, state colors) can be set to an exact hex value, with automatic contrast repair so text never becomes unreadable. Custom background images can be uploaded, and themes can also be installed from the marketplace. The AI applies any of this on request, live.',
+    keywords: ['theme', 'tema', 'skin', 'aspetto', 'appearance', 'colore', 'colors', 'dark', 'light', 'scuro', 'chiaro', 'background', 'sfondo', 'wallpaper', 'retro', 'comic', 'glass', 'contrast', 'shape', 'forma', 'trasparente', 'transparent', 'blur', 'sfocatura', 'ombra', 'shadow', 'esagono', 'hexagon'],
+    body: 'Appearance layers: named theme presets (xenon, ocean, ember, violet, mono), Light/Dark/Auto mode, and a base skin — glass (the default Liquid Glass look), retro (Pixel Retro) or comic. Beyond presets, every semantic color (canvas, panels, controls, text, borders, accent, state colors) can be set to an exact hex value, with automatic contrast repair so text never becomes unreadable. Custom background images can be uploaded, and themes can also be installed from the marketplace. The AI applies any of this on request, live. A SINGLE TILE is dressed separately and the AI cannot do it for the user, only explain it: in layout edit mode press the tile\'s 🎨 button. Colours gives that tile its own palette; Effects (v4.11) holds panel opacity down to 0 (no card at all, just the widget over the background), corner radius, glass blur and saturation, border, shadow, and the tile SHAPE — a tile need not be a rectangle: eleven silhouettes (squircle, circle, hexagon, diamond, cut-corner, parallelogram, ticket, arch, shield, wave, blob) or a custom closed SVG path in a 0-to-1 square, with the content kept clear of the cut edges automatically. Blur is only visible through a translucent panel, so lower the opacity too. A community widget can ship a shape for its own tile; the user\'s choice wins. Background pictures, frames and overlays are the other two tabs. All of it saves with the layout and travels in a shared page or preset code.',
   },
   {
     id: 'lighting',
@@ -121,10 +121,15 @@ const TOPICS = [
     body: 'Frequent fixes: (1) Settings/theme reverting after a refresh usually means TWO backend processes are running and the stale one is holding the settings file — close Xenon fully (or end the duplicate node process) and start it once from its startup task. (2) Fans/watts empty → the hardware-sensors permission flow (see the sensors topic). (3) Now-playing tile empty → the playing app may not report media to Windows (SMTC); most players and browsers do. (4) "Port 3030 in use" → another Xenon instance is already running; the dashboard is at http://127.0.0.1:3030. (5) After an update something looks off → check the What\'s New/CHANGELOG first; the updater restores the previous version automatically if the update itself failed.',
   },
   {
-    id: 'xeneon-edge',
-    title: 'Showing Xenon on the CORSAIR Xeneon Edge (and other screens)',
-    keywords: ['xeneon', 'edge', 'corsair', 'display', 'schermo', 'touchscreen', 'touch', 'monitor', 'second screen', 'secondo schermo', 'kiosk', 'native app', 'browser'],
-    body: 'The dashboard is a local web app, so any surface can render it: open http://127.0.0.1:3030 in a browser placed on the Xeneon Edge (14.5", 2560×720, touch — the UI is designed touch-first for it), use the native Xenon app (a fullscreen kiosk shell of the same dashboard, bundled with the full installer), or the iCUE widget package. The same instance can be open on several screens at once — pages, settings and the Deck stay in sync live across all of them, and the Deck can also pop out as the Virtual Deck window on the main monitor.',
+    // The id and the keywords keep the hardware terms — someone WITH an Edge asks
+    // about it by name, and the card has to be findable. What changed is the answer:
+    // it used to describe the Edge as the place Xenon goes and everything else as an
+    // afterthought, which is what the assistant then repeated back to people who
+    // have never owned one.
+    id: 'screens',
+    title: 'Which screens Xenon can run on',
+    keywords: ['xeneon', 'edge', 'corsair', 'display', 'schermo', 'touchscreen', 'touch', 'monitor', 'second screen', 'secondo schermo', 'phone', 'telefono', 'tablet', 'kiosk', 'native app', 'browser'],
+    body: 'The dashboard is a local web app, so any screen can render it: the native Xenon app (a fullscreen kiosk shell of the same dashboard, bundled with the installer) on whichever display you point it at, http://127.0.0.1:3030 in any browser, your phone or tablet over your own Wi-Fi once paired in Settings → Remote control (beta), or the iCUE widget package. A CORSAIR Xeneon Edge (14.5", 2560×720, touch) is one of those screens and the UI is tuned for its proportions, but nothing requires one. The same instance can be open on several screens at once — pages, settings and the Deck stay in sync live across all of them, and the Deck can also pop out as the Virtual Deck window on the main monitor.',
   },
 ];
 

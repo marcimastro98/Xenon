@@ -158,15 +158,26 @@ function createYouTubeProvider(deps) {
     return typeof h === 'string' ? h : '';
   }
 
+  // The broadcast currently on screen, remembered between calls. The chat reads
+  // below need its liveChatId, and re-finding the broadcast on every poll would
+  // double what the chat costs in quota for an answer that changes once a stream.
+  let liveCtx = { id: '', chatId: '' };
+
   // Live status for the widget: { ok, live, viewers, title, health }. Quota note:
   // stream health is only queried when a broadcast exists (live or upcoming) — an
   // idle account skips it.
   async function broadcastStatus() {
     if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
     const b = await findBroadcast();
-    if (!b) return { ok: true, live: false, health: '' };
+    if (!b) { liveCtx = { id: '', chatId: '' }; return { ok: true, live: false, health: '' }; }
+    liveCtx = { id: b.id, chatId: (b.snippet && b.snippet.liveChatId) || '' };
     const live = !!(b.status && b.status.lifeCycleStatus === 'live');
-    const out = { ok: true, live, title: (b.snippet && b.snippet.title) || '', health: await streamHealth() };
+    const out = {
+      ok: true, live, title: (b.snippet && b.snippet.title) || '', health: await streamHealth(),
+      id: b.id,
+      privacy: (b.status && b.status.privacyStatus) || '',
+      chat: !!liveCtx.chatId,
+    };
     if (live) {
       // One call gets concurrent viewers (liveStreamingDetails) + total views/likes
       // (statistics) — cheaper than two requests.
@@ -204,7 +215,14 @@ function createYouTubeProvider(deps) {
     listCache.set(key, { at: Date.now(), data });
     return data;
   }
-  function dropCaches() { plCache = { at: 0, data: null }; listCache.clear(); }
+  // Also forgets which broadcast is on air: a different account's chat is not
+  // this account's chat.
+  function dropCaches() {
+    plCache = { at: 0, data: null }; listCache.clear();
+    liveCtx = { id: '', chatId: '' };
+    chatCache = { at: 0, token: null, data: null, wait: 5000 };
+    chatIdMissAt = 0;   // a different account may well be live
+  }
 
   // Thumbnails are painted as CSS background-images by the client, so the scheme
   // is allowlisted here at the boundary rather than trusted from the API.
@@ -405,9 +423,170 @@ function createYouTubeProvider(deps) {
     return r.ok ? { ok: true } : { ok: false, error: apiReason(r) };
   }
 
+  // ── Creator mode: start a stream from nothing, chat, privacy, ingest ───────
+  const PRIVACY = ['public', 'unlisted', 'private'];
+  // YouTube's chat page tokens are opaque; the shape is checked before one goes
+  // into a URL, because this is the one creator value that arrives from the wire.
+  const PAGE_TOKEN_RE = /^[A-Za-z0-9_.\-=]{4,400}$/;
+
+  // The channel's reusable ingestion endpoint — its RTMP address and stream key.
+  // Every channel that has ever streamed has one; a channel that has not gets one
+  // made here, which is what lets a stream start without a trip to YouTube Studio.
+  async function ensureStream(title) {
+    const r = await apiRequest('GET', '/liveStreams?part=id,cdn,status&mine=true&maxResults=5');
+    const items = (r.ok && r.data && Array.isArray(r.data.items)) ? r.data.items : [];
+    if (items[0]) return { ok: true, stream: items[0] };
+    if (!r.ok) return { ok: false, error: apiReason(r) };
+    const c = await apiRequest('POST', '/liveStreams?part=snippet,cdn,contentDetails', {
+      snippet: { title: title || 'Xenon' },
+      cdn: { frameRate: 'variable', ingestionType: 'rtmp', resolution: 'variable' },
+      contentDetails: { isReusable: true },
+    });
+    if (!c.ok || !c.data || !c.data.id) return { ok: false, error: apiReason(c) };
+    return { ok: true, stream: c.data };
+  }
+
+  // Create a broadcast and bind it to that endpoint. `enableAutoStart` is the
+  // important part: YouTube takes the broadcast live by itself the moment the
+  // encoder starts pushing, so nothing here has to guess when OBS is ready. The
+  // old Go live button could not — it could only transition a broadcast somebody
+  // had already made in Studio, and it failed until the encoder was up.
+  async function createBroadcast(title, privacy) {
+    if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
+    const ttl = String(title == null ? '' : title).trim().slice(0, 100) || 'Live';
+    const priv = PRIVACY.includes(privacy) ? privacy : 'unlisted';
+    if (await findBroadcast()) return { ok: false, error: 'already_exists' };
+    const st = await ensureStream(ttl);
+    if (!st.ok) return st;
+    const b = await apiRequest('POST', '/liveBroadcasts?part=snippet,status,contentDetails', {
+      // A minute out: YouTube rejects a start time in the past, and clocks drift.
+      snippet: { title: ttl, scheduledStartTime: new Date(Date.now() + 60000).toISOString() },
+      status: { privacyStatus: priv, selfDeclaredMadeForKids: false },
+      contentDetails: { enableAutoStart: true, enableAutoStop: true },
+    });
+    if (!b.ok || !b.data || !b.data.id) return { ok: false, error: apiReason(b) };
+    const bind = await apiRequest('POST', '/liveBroadcasts/bind?part=id,contentDetails&id=' +
+      encodeURIComponent(b.data.id) + '&streamId=' + encodeURIComponent(st.stream.id));
+    if (!bind.ok) return { ok: false, error: apiReason(bind) };
+    liveCtx = { id: b.data.id, chatId: '' };
+    return { ok: true, id: b.data.id, title: ttl, privacy: priv };
+  }
+
+  // Throw away a broadcast that has not started. Refused once it is live: ending
+  // a stream is `transitionBroadcast('stop')`, and deleting one mid-air would
+  // lose the recording.
+  async function cancelBroadcast() {
+    if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
+    const b = await findBroadcast();
+    if (!b) return { ok: false, error: 'no_broadcast' };
+    if (b.status && b.status.lifeCycleStatus === 'live') return { ok: false, error: 'is_live' };
+    const r = await apiRequest('DELETE', '/liveBroadcasts?id=' + encodeURIComponent(b.id));
+    if (!r.ok) return { ok: false, error: apiReason(r) };
+    liveCtx = { id: '', chatId: '' };
+    return { ok: true };
+  }
+
+  async function setPrivacy(privacy) {
+    if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
+    if (!PRIVACY.includes(privacy)) return { ok: false, error: 'bad_privacy' };
+    const b = await findBroadcast();
+    if (!b) return { ok: false, error: 'no_broadcast' };
+    const r = await apiRequest('PUT', '/liveBroadcasts?part=status', { id: b.id, status: { privacyStatus: privacy } });
+    return r.ok ? { ok: true, privacy } : { ok: false, error: apiReason(r) };
+  }
+
+  // The RTMP address and stream key to paste into OBS. This is a real credential:
+  // anyone holding it can broadcast to the channel, so it never rides along with
+  // the status poll — it is a separate read, made only when the user asks, and
+  // server.js keeps the route off the paired-device door.
+  async function streamKey() {
+    if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
+    const r = await apiRequest('GET', '/liveStreams?part=cdn&mine=true&maxResults=1');
+    if (!r.ok) return { ok: false, error: apiReason(r) };
+    const item = r.data && Array.isArray(r.data.items) && r.data.items[0];
+    const info = item && item.cdn && item.cdn.ingestionInfo;
+    if (!info) return { ok: false, error: 'no_stream' };
+    return { ok: true, url: String(info.ingestionAddress || ''), key: String(info.streamName || '') };
+  }
+
+  // A MISS is remembered too, and that is the half that was missing. liveCtx
+  // only ever caches a chat that exists, so with no broadcast on air every chat
+  // poll re-ran findBroadcast() — two uncached liveBroadcasts.list calls, on the
+  // one read that repeats for as long as the widget is open. Being idle was the
+  // expensive case, which is backwards. Short enough that going live is picked
+  // up promptly, and the status poll sets liveCtx directly anyway.
+  const CHAT_ID_MISS_MS = 30000;
+  let chatIdMissAt = 0;
+  async function chatId() {
+    if (liveCtx.chatId) return liveCtx.chatId;
+    if (chatIdMissAt && Date.now() - chatIdMissAt < CHAT_ID_MISS_MS) return '';
+    const b = await findBroadcast();
+    liveCtx = { id: (b && b.id) || '', chatId: (b && b.snippet && b.snippet.liveChatId) || '' };
+    chatIdMissAt = liveCtx.chatId ? 0 : Date.now();
+    return liveCtx.chatId;
+  }
+
+  // Live chat, page by page. YouTube states its own polling interval and we never
+  // go below 5s: this is the one repeating creator read, so it is what decides
+  // whether a long stream eats the day's quota. The same answer is handed back
+  // until that interval is up, which is what lets the route stay a plain GET —
+  // asking twenty times a second costs exactly as much as asking once.
+  let chatCache = { at: 0, token: null, data: null, wait: 5000 };
+  async function chatMessages(pageToken) {
+    if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
+    const id = await chatId();
+    if (!id) return { ok: false, error: 'no_chat' };
+    const tok = String(pageToken == null ? '' : pageToken).trim();
+    if (tok && !PAGE_TOKEN_RE.test(tok)) return { ok: false, error: 'bad_token' };
+    if (chatCache.data && chatCache.token === tok && Date.now() - chatCache.at < chatCache.wait) return chatCache.data;
+    let q = '/liveChat/messages?part=snippet,authorDetails&maxResults=50&liveChatId=' + encodeURIComponent(id);
+    if (tok) q += '&pageToken=' + encodeURIComponent(tok);
+    const r = await apiRequest('GET', q);
+    if (!r.ok) {
+      // The chat is gone the moment the broadcast ends; forget it so the next
+      // status poll can pick up a new one instead of retrying a dead id.
+      if (r.status === 403 || r.status === 404) liveCtx = { id: liveCtx.id, chatId: '' };
+      return { ok: false, error: apiReason(r) };
+    }
+    const items = (r.data && Array.isArray(r.data.items)) ? r.data.items : [];
+    const out = {
+      ok: true,
+      pageToken: String((r.data && r.data.nextPageToken) || ''),
+      pollMs: Math.max(5000, Number(r.data && r.data.pollingIntervalMillis) || 0),
+      messages: items.map(m => ({
+        id: String((m && m.id) || ''),
+        text: String((m.snippet && (m.snippet.displayMessage ||
+          (m.snippet.textMessageDetails && m.snippet.textMessageDetails.messageText))) || ''),
+        author: String((m.authorDetails && m.authorDetails.displayName) || ''),
+        avatar: thumb({ default: { url: (m.authorDetails && m.authorDetails.profileImageUrl) || '' } }),
+        owner: !!(m.authorDetails && m.authorDetails.isChatOwner),
+        moderator: !!(m.authorDetails && m.authorDetails.isChatModerator),
+        sponsor: !!(m.authorDetails && m.authorDetails.isChatSponsor),
+      })).filter(m => m.text),
+    };
+    // Hold the answer for the interval YouTube asked for, keyed on the page that
+    // produced it: the next page is a different question and must not be served
+    // this one's messages.
+    chatCache = { at: Date.now(), token: tok, data: out, wait: out.pollMs };
+    return out;
+  }
+
+  async function sendChat(text) {
+    if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
+    const msg = String(text == null ? '' : text).trim().slice(0, 200);
+    if (!msg) return { ok: false, error: 'empty' };
+    const id = await chatId();
+    if (!id) return { ok: false, error: 'no_chat' };
+    const r = await apiRequest('POST', '/liveChat/messages?part=snippet', {
+      snippet: { liveChatId: id, type: 'textMessageEvent', textMessageDetails: { messageText: msg } },
+    });
+    return r.ok ? { ok: true } : { ok: false, error: apiReason(r) };
+  }
+
   return {
     startDeviceLogin, pollDeviceToken, getAccessToken, status, logout, apiRequest, configured,
     broadcastStatus, transitionBroadcast, updateBroadcastTitle,
+    createBroadcast, cancelBroadcast, setPrivacy, streamKey, chatMessages, sendChat,
     listPlaylists, resolvePlaylistUrl, likedVideos, playlistVideos, subscriptionsFeed, searchVideos,
   };
 }

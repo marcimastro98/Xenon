@@ -135,4 +135,59 @@ function playNotifyCue(type) {
   });
 }
 
-window.XenonSound = { play: playNotifyCue };
+// ── The ring ────────────────────────────────────────────────────────────────
+// An incoming call is the one thing here that repeats until it is dealt with,
+// so it gets its own start/stop rather than joining the one-shot cues. Two
+// rising notes, a beat, then silence until the next cycle — close enough to a
+// phone to be read instantly, quiet enough not to be hostile on a desk.
+//
+// It is synthesised like every other sound in this file instead of shipping an
+// audio file: the ring has to work on a machine that never fetched an asset,
+// and a WebAudio pattern costs nothing on disk or in the release payload.
+//
+// The autoplay policy applies as everywhere else — a page that has never been
+// touched has a suspended AudioContext, so the FIRST ring after a cold load can
+// be silent. The card itself never depends on it.
+const RING_PATTERN = [[0, 660], [0.18, 880]];
+const RING_CYCLE_MS = 2600;
+let ringTimer = null;
+
+function ringOnce() {
+  if (!audioCtx) return;
+  unlockAudio();
+  const start = audioCtx.currentTime + 0.02;
+  for (const [offset, freq] of RING_PATTERN) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+    const at = start + offset;
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, at);
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(2600, at);
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(0.2, at + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.34);
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(at);
+    osc.stop(at + 0.38);
+  }
+}
+
+// Idempotent on purpose: the card repaints on every state push, and each paint
+// asks for the ring it wants rather than tracking transitions itself.
+function setRinging(on) {
+  if (on && !notifSoundsOn()) return;
+  if (on) {
+    if (ringTimer) return;
+    ringOnce();
+    ringTimer = setInterval(ringOnce, RING_CYCLE_MS);
+  } else if (ringTimer) {
+    clearInterval(ringTimer);
+    ringTimer = null;
+  }
+}
+
+window.XenonSound = { play: playNotifyCue, ring: setRinging };

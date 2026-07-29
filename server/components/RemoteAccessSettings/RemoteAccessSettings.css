@@ -14,11 +14,37 @@
 }
 
 .ra-head { margin-bottom: 2px; }
+.ra-title-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 4px;
+}
 .ra-title {
-  margin: 0 0 4px;
+  margin: 0;
   font-size: 1rem;
   font-weight: 700;
   letter-spacing: -0.01em;
+}
+/* Amber, never the accent: the accent means "this is on and working", and a
+   caveat that borrows it stops reading as a caveat. */
+.ra-beta {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #ffc44d;
+  background: rgba(255, 196, 77, 0.12);
+  border: 1px solid rgba(255, 196, 77, 0.3);
+}
+.ra-beta-note {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-muted, rgba(255, 255, 255, 0.6));
 }
 .ra-sub {
   margin: 0;

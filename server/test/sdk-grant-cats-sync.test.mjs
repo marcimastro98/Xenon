@@ -58,6 +58,41 @@ test('settings.js normalizeSdkWidgets keeps the boolean capability grants', () =
   }
 });
 
+// settings.js is not the only client copy: custom-widget.js carries the whole
+// category → action-type map, and IT is what decides whether a bridge action is
+// dispatched at all. A category present server-side and missing here is granted
+// in the dialog, kept on save, and then answers `not_allowed` forever — the same
+// silent-strip failure as above, one layer down. Types matter too, not just the
+// category names: a type in one list and not the other is an action that
+// validates on one side and is refused on the other.
+test('custom-widget.js ACTION_CATEGORIES mirrors sdk-widgets.js SDK_ACTION_CATEGORIES', () => {
+  const src = readFileSync(join(ROOT, 'server', 'js', 'custom-widget.js'), 'utf8');
+  const block = src.match(/const ACTION_CATEGORIES = \{([\s\S]*?)\n {2}\};/);
+  assert.ok(block, 'ACTION_CATEGORIES not found in custom-widget.js');
+  const client = {};
+  for (const m of block[1].matchAll(/^\s{4}([A-Za-z]+):\s*\[([^\]]*)\]/gm)) {
+    client[m[1]] = (m[2].match(/'([^']+)'/g) || []).map(s => s.slice(1, -1));
+  }
+  assert.deepEqual(Object.keys(client).sort(), Object.keys(sdk.SDK_ACTION_CATEGORIES).sort());
+  for (const cat of Object.keys(client)) {
+    assert.deepEqual(client[cat], [...sdk.SDK_ACTION_CATEGORIES[cat]], 'action types drifted in category ' + cat);
+  }
+});
+
+// A stream the SDK exposes with no permission label is shown to the user as its
+// own id ("twitchChat") in the install dialog — the one moment where they decide
+// whether to hand a widget their chat. `battery` predates the label map and is
+// listed rather than fixed, so the check could go in without renaming anything.
+test('custom-widget.js STREAM_LABELS covers every SDK stream', () => {
+  const src = readFileSync(join(ROOT, 'server', 'js', 'custom-widget.js'), 'utf8');
+  const block = src.match(/const STREAM_LABELS = \{([\s\S]*?)\n {2}\};/);
+  assert.ok(block, 'STREAM_LABELS not found in custom-widget.js');
+  const labelled = new Set([...block[1].matchAll(/^\s{4}([A-Za-z]+):/gm)].map(m => m[1]));
+  const KNOWN_GAPS = new Set(['battery']);
+  const missing = [...sdk.SDK_STREAMS].filter(s => !labelled.has(s) && !KNOWN_GAPS.has(s));
+  assert.deepEqual(missing, [], 'these streams would be shown to the user as their own id');
+});
+
 // The OTHER half of the same lockstep, and the half that was missed when `badge`
 // was added: grantNeedsReview must re-prompt when the manifest declares a
 // boolean capability the stored grant lacks. Omit a capability here and a widget

@@ -14,6 +14,17 @@ const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const li = require(join(ROOT, 'linux-index.js'));
 
+// The tests that walk a REAL tree cannot run on Windows, and that is a property
+// of the module rather than a gap in them: setRoots() only accepts POSIX
+// absolute paths (`startsWith('/')`), so a Windows temp dir is rejected before
+// any walk begins and every assertion downstream reads a null index. Faking a
+// POSIX-looking root would only prove the fake. The pure query/overview tests
+// below carry no such assumption and run everywhere, which is the part of a
+// Linux collector that is testable off Linux at all.
+const NEEDS_POSIX = process.platform === 'win32'
+  ? 'walks a real tree; setRoots() takes POSIX absolute paths only'
+  : false;
+
 const entry = (p, over = {}) => {
   const n = p.split('/').pop();
   return { p, n, nl: n.toLowerCase(), s: 100, m: 1000, d: false, ...over };
@@ -82,7 +93,7 @@ test('no roots means no backend, and query answers null rather than empty', asyn
   idx.stop();
 });
 
-test('the walk indexes a real tree, skips caches, and does not follow symlinks', async () => {
+test('the walk indexes a real tree, skips caches, and does not follow symlinks', { skip: NEEDS_POSIX }, async () => {
   const tmp = fs.mkdtempSync(join(os.tmpdir(), 'xenon-idx-'));
   try {
     fs.mkdirSync(join(tmp, 'keep'), { recursive: true });
@@ -111,7 +122,7 @@ test('the walk indexes a real tree, skips caches, and does not follow symlinks',
   }
 });
 
-test('the entry cap stops the walk and is reported', async () => {
+test('the entry cap stops the walk and is reported', { skip: NEEDS_POSIX }, async () => {
   const tmp = fs.mkdtempSync(join(os.tmpdir(), 'xenon-cap-'));
   try {
     for (let i = 0; i < 40; i++) fs.writeFileSync(join(tmp, `f${i}.txt`), 'x');
@@ -210,7 +221,7 @@ test('overviewFrom: a trailing slash on the root does not lose the tree', () => 
   assert.equal(li.overviewFrom(TREE, '/r/', {}).total, 1000);
 });
 
-test('list: only the files directly inside the directory, no descent', async () => {
+test('list: only the files directly inside the directory, no descent', { skip: NEEDS_POSIX }, async () => {
   const tmp = fs.mkdtempSync(join(os.tmpdir(), 'xenon-list-'));
   try {
     fs.mkdirSync(join(tmp, 'a', 'deep'), { recursive: true });

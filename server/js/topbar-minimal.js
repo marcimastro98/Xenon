@@ -130,7 +130,16 @@
     // masks in js/custom-widget.js). A media segment the user hid stays hidden
     // and never takes anything over.
     const mediaItem = items.find((it) => it && it.id === 'media');
-    const musicOnly = !!(mediaItem && mediaItem.hidden !== true
+    // …except on a phone, where the media segment is not on screen to receive
+    // it: the compact bar hides it because a now-playing strip does not fit
+    // beside a clock at 390px, and the same track is one tile away. Left
+    // unguarded the mask still ran, so a phone with music playing showed a
+    // topbar with EVERY segment masked for a beneficiary that was display:none
+    // — measured at 390px, the whole clock area collapsed to the 6px status dot
+    // and the time, the weather and the date simply vanished while a song was
+    // on. A mask with no beneficiary is not a takeover, it is an empty bar.
+    const phone = !!(window.PhoneView && typeof PhoneView.mode === 'function' && PhoneView.mode() === 'phone');
+    const musicOnly = !!(mediaItem && mediaItem.hidden !== true && !phone
       && window.TopbarMedia && typeof TopbarMedia.takingOver === 'function' && TopbarMedia.takingOver());
     let leadDone = false;
     items.forEach((it, index) => {

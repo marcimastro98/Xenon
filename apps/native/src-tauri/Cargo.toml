@@ -1,7 +1,7 @@
 [package]
 name = "xenon-native"
 version = "4.11.0"
-description = "Xenon native kiosk shell for the CORSAIR Xeneon Edge"
+description = "Xenon native kiosk shell for any second screen"
 authors = ["Marcello Mastroeni (marcimastro98)"]
 edition = "2021"
 rust-version = "1.77"

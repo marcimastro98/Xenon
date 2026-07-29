@@ -1,0 +1,273 @@
+/* ── Call modal ──────────────────────────────────────────────────────────────
+   The ringing card. It takes the whole display on purpose: a call is the one
+   event in this dashboard with a deadline measured in seconds, and a corner
+   toast for it would be read after the caller gave up.
+
+   Two things are load-bearing rather than decorative.
+
+   1. The pulse keeps running while everything behind it is frozen. Every other
+      infinite animation in this app opts INTO the freeze states (see the
+      overlay-freeze invariant) because it sits on a dashboard nobody is looking
+      at. This one is the reason the freeze was taken — stopping it would leave a
+      still picture of a phone call.
+
+   2. The buttons are laid out so the destructive one is never where the thumb
+      lands by reflex. Answer is the wide one, Decline sits apart from it, and on
+      a 390px phone they stack rather than shrinking below the touch floor.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.call-overlay {
+  position: fixed; inset: 0; z-index: 9600;   /* above the Claude approval overlay */
+  display: flex; align-items: center; justify-content: center;
+  padding: clamp(12px, 4vh, 28px); box-sizing: border-box;
+  background: rgba(4, 6, 8, 0.86);
+  backdrop-filter: blur(14px);
+  animation: call-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.call-card {
+  position: relative;
+  width: min(520px, 100%);
+  max-height: 100%;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 18px;
+  padding: 30px 28px 24px;
+  box-sizing: border-box;
+  border-radius: 26px;
+  overflow: hidden;
+  text-align: center;
+  color: var(--text);
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(var(--accent-rgb), 0.20), transparent 62%),
+    rgba(18, 21, 24, 0.97);
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, 0.62),
+    0 0 0 1px rgba(255, 255, 255, 0.09) inset;
+  animation: call-rise 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* The remaining-ring bar. The card closes by itself when a real ring would have
+   stopped, and saying so beats a card that vanishes for no visible reason. */
+.call-life {
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: rgba(255, 255, 255, 0.07);
+}
+.call-life-fill {
+  height: 100%; width: 100%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 45%, #ffffff));
+  animation: call-drain linear forwards;
+}
+
+/* ── who is calling ─────────────────────────────────────────────────────── */
+
+.call-app {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 13px 6px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px; font-weight: 650; letter-spacing: 0.02em;
+  color: var(--muted-text);
+}
+.call-app-ico {
+  width: 20px; height: 20px; flex: none;
+  border-radius: 6px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.09);
+}
+.call-app-ico svg { width: 13px; height: 13px; }
+/* The size has to be on the IMAGE. `object-fit` on the span above did nothing —
+   it only applies to replaced elements — and with no width on the img itself a
+   real app icon rendered at its natural size: Phone Link's 256px logo burst out
+   of the pill and sat across the middle of the card. `min-width: 0` because a
+   flex item will not shrink below its intrinsic size without it. */
+.call-app-ico img {
+  display: block;
+  width: 100%; height: 100%; min-width: 0;
+  object-fit: cover;
+}
+
+.call-avatar {
+  position: relative;
+  width: 116px; height: 116px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 34%, transparent), rgba(255, 255, 255, 0.06));
+  color: var(--text);
+  font-size: 42px; font-weight: 700; letter-spacing: -0.02em;
+  will-change: transform;
+}
+.call-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+/* Two expanding rings, offset in time, so the card reads as ringing at a
+   glance. Pure transform + opacity, so it composites on its own layer and costs
+   the GPU nothing measurable even on the kiosk's integrated adapter. */
+.call-avatar::before,
+.call-avatar::after {
+  content: ''; position: absolute; inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(var(--accent-rgb), 0.55);
+  animation: call-pulse 2s ease-out infinite;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+.call-avatar::after { animation-delay: 1s; }
+
+.call-who {
+  display: flex; flex-direction: column; gap: 5px; min-width: 0; width: 100%;
+}
+
+/* Holds both action rows so the landscape variant can move the whole group
+   beside the caller instead of re-parenting anything. */
+.call-stack { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.call-name {
+  font-size: clamp(22px, 5vw, 28px); font-weight: 700; line-height: 1.2;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+.call-detail {
+  font-size: 14px; font-weight: 500; color: var(--muted-text);
+  overflow-wrap: anywhere;
+}
+
+/* ── the buttons ────────────────────────────────────────────────────────── */
+
+/* Two rows, not one, and the split is the hierarchy. Answer and Decline are the
+   decision; Silence and Open app are what you do INSTEAD of deciding. Four
+   equal buttons in a row made all four look like the same kind of choice and
+   left each of them too narrow to read at a glance — which on a card with a
+   40-second life is the only kind of reading that happens. */
+.call-actions {
+  display: flex; align-items: stretch; gap: 10px;
+  width: 100%; margin-top: 2px;
+}
+.call-actions--minor { gap: 8px; margin-top: -4px; }
+.call-actions--minor .call-btn {
+  flex-direction: row; gap: 8px;
+  min-height: 46px; padding: 0 14px;
+  background: transparent; border-color: rgba(255, 255, 255, 0.09);
+  color: var(--muted-text); font-size: 12.5px; font-weight: 600;
+}
+.call-actions--minor .call-btn svg { width: 17px; height: 17px; }
+.call-actions--minor .call-btn:hover { background: rgba(255, 255, 255, 0.07); color: var(--text); }
+.call-btn {
+  flex: 1 1 0; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  min-height: 66px; padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font: inherit; font-size: 13px; font-weight: 650;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease, transform 0.1s ease;
+}
+.call-btn svg { width: 21px; height: 21px; }
+.call-btn:hover { background: rgba(255, 255, 255, 0.11); }
+.call-btn:active { transform: scale(0.97); }
+.call-btn[disabled] { opacity: 0.4; cursor: default; }
+.call-btn[disabled]:active { transform: none; }
+
+.call-btn--answer {
+  flex: 1.5 1 0;
+  background: var(--accent); border-color: transparent; color: var(--on-accent);
+}
+.call-btn--answer:hover { background: color-mix(in srgb, var(--accent) 86%, #ffffff); }
+
+.call-btn--decline {
+  background: rgba(237, 66, 69, 0.16);
+  border-color: rgba(237, 66, 69, 0.30);
+  color: #ff8a8c;
+}
+.call-btn--decline:hover { background: rgba(237, 66, 69, 0.26); }
+
+.call-btn.is-on {
+  background: rgba(var(--accent-rgb), 0.16);
+  border-color: rgba(var(--accent-rgb), 0.34);
+  color: var(--accent);
+}
+
+/* The honest fallback line: what this machine can do when it cannot answer. */
+.call-note {
+  font-size: 12px; font-weight: 500; line-height: 1.45;
+  color: var(--dim-text);
+  max-width: 40ch;
+}
+
+.call-dismiss {
+  border: 0; background: none; padding: 6px 10px;
+  color: var(--dim-text); font: inherit; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; border-radius: 9px;
+}
+.call-dismiss:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+
+/* Silenced: the ring stops and the card says so, but it stays on screen — the
+   call is still coming in and the buttons still work. */
+.call-card.is-silenced .call-avatar::before,
+.call-card.is-silenced .call-avatar::after { animation: none; opacity: 0; }
+
+/* A second call while one is ringing. Rare, and stacked rather than hidden. */
+.call-more {
+  font-size: 12px; font-weight: 600; color: var(--dim-text);
+}
+
+/* ── phone ──────────────────────────────────────────────────────────────── */
+
+@media (max-width: 460px) {
+  .call-card { padding: 24px 18px 18px; gap: 15px; border-radius: 22px; }
+  .call-avatar { width: 92px; height: 92px; font-size: 34px; }
+  /* Stacking beats shrinking: this is the worst possible screen to mis-tap on,
+     and a decision button squeezed under the 44px touch floor is exactly how
+     that happens. Answer and Decline each take the full width; the two minor
+     actions stay side by side, where a mis-tap costs nothing. */
+  .call-actions { flex-wrap: wrap; }
+  .call-actions .call-btn { flex: 1 0 100%; flex-direction: row; gap: 9px; min-height: 54px; }
+  .call-actions--minor .call-btn { flex: 1 1 0; min-height: 46px; justify-content: center; }
+}
+
+/* Genuinely short windows: a phone held sideways, a small browser window on a
+   laptop. NOT the Xeneon Edge — measured, the vertical card is about 440px tall
+   and the Edge is 720, so it fits there with room and keeps the bigger avatar.
+   Below ~460px of height it does not, and the card lies down instead. */
+@media (max-height: 460px) and (min-width: 700px) {
+  /* A grid, not a row of flex items. The first version absolutely positioned
+     the app chip in the top-right corner, which is exactly where the action
+     stack lands in this layout — the chip sat on top of the Decline button.
+     Named areas make the placement deterministic instead of hoping two
+     independently positioned things never meet. */
+  .call-card {
+    width: min(780px, 100%);
+    display: grid; align-items: center; text-align: left;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "avatar who stack"
+      "avatar app stack";
+    column-gap: 22px; row-gap: 6px;
+    padding: 20px 24px;
+  }
+  .call-avatar { grid-area: avatar; width: 88px; height: 88px; font-size: 32px; }
+  .call-who { grid-area: who; width: auto; align-self: end; }
+  .call-app { grid-area: app; justify-self: start; align-self: start; }
+  .call-stack { grid-area: stack; width: auto; gap: 8px; }
+  .call-actions { width: auto; }
+  .call-btn { flex: 1 1 auto; flex-direction: row; gap: 9px; min-height: 46px; min-width: 150px; justify-content: flex-start; padding-left: 16px; }
+  .call-note, .call-dismiss { display: none; }
+}
+
+@keyframes call-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes call-rise {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes call-pulse {
+  from { transform: scale(1); opacity: 0.7; }
+  to { transform: scale(1.42); opacity: 0; }
+}
+@keyframes call-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .call-overlay, .call-card { animation: none; }
+  .call-avatar::before, .call-avatar::after { animation: none; opacity: 0; }
+  .call-life-fill { animation: none; }
+}

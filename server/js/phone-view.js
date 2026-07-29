@@ -49,6 +49,26 @@
   const PHONE_MAX_H = 500;
   const PHONE_LANDSCAPE_MAX_W = 1000;
 
+  // ── The tablet band ───────────────────────────────────────────────────────
+  // Between the phone threshold and here, the 24-column grid is squeezed
+  // without anything adapting, and that band is WORSE than the phone: measured
+  // at 768x1024 against a real dashboard, 30 elements were clipped by an
+  // ancestor with `overflow: hidden` against 9 at 390px. A 768px viewport gives
+  // a 32px column, so an 8-column tile is 256px of chrome-heavy widget.
+  //
+  // 1120 is where `breakpoints.css` already considered the dashboard cramped,
+  // so the two agree instead of introducing a second opinion about the same
+  // question.
+  const TABLET_MAX_W = 1120;
+
+  // A DISPLAY MOUNTED VERTICALLY is not a tablet held in portrait, and the
+  // difference matters: a Xeneon Edge stood on its end is 720x2560, inside the
+  // width band above, and its owner built a layout for exactly that shape.
+  // Restacking it into two columns would throw that away. The two are
+  // distinguishable by how extreme the ratio is — 2560/720 is 3.6, while every
+  // tablet in portrait sits near 1.4 — so anything this tall keeps the grid.
+  const TALL_DISPLAY_RATIO = 2.5;
+
   // Height per grid row when stacked. The user's `gs-h` is respected as a
   // PROPORTION rather than a pixel size — a tile they made twice as tall stays
   // twice as tall — but clamped, because a 30-row tile would otherwise be three
@@ -63,8 +83,16 @@
 
   // ── Policy ────────────────────────────────────────────────────────────────
 
-  // Pure so the thresholds are testable without a browser.
-  function shouldUsePhoneView(input) {
+  /**
+   * Which layout this viewport wants: 'off' (the grid), 'phone' (one column
+   * plus the compact chrome and the thumb dock) or 'tablet' (two columns,
+   * ordinary chrome). Pure, so every threshold is testable without a browser.
+   *
+   * One function rather than two booleans because the three answers are
+   * mutually exclusive and their ORDER is the policy — a phone in landscape is
+   * inside the tablet width band and must never be answered with 'tablet'.
+   */
+  function stackMode(input) {
     const o = input || {};
     // An embedded surface is narrow for reasons that have nothing to do with a
     // phone, and it has already been told what to look like. `?panel=…` is the
@@ -73,17 +101,27 @@
     // window it was opened in. Restacking either would be answering a question
     // nobody asked — and it wins over an explicit preference, because the
     // preference is about THIS device's dashboard, not about an embed.
-    if (o.embedded) return false;
-    if (o.preference === 'on') return true;
-    if (o.preference === 'off') return false;
+    if (o.embedded) return 'off';
+    if (o.preference === 'on') return 'phone';
+    if (o.preference === 'off') return 'off';
     const w = Number(o.width);
-    if (!Number.isFinite(w) || w <= 0) return false;
-    if (w <= PHONE_MAX_W) return true;
-    // Height is optional so a caller that only knows the width still gets the
-    // portrait answer instead of a throw or a wrong `true`.
+    if (!Number.isFinite(w) || w <= 0) return 'off';
+    if (w <= PHONE_MAX_W) return 'phone';
     const h = Number(o.height);
-    if (!Number.isFinite(h) || h <= 0) return false;
-    return h <= PHONE_MAX_H && w <= PHONE_LANDSCAPE_MAX_W;
+    // Height is optional so a caller that only knows the width still gets an
+    // answer instead of a throw or a wrong one. Without it a phone on its side
+    // is indistinguishable from a small tablet, and the safe reading of a bare
+    // width in this band is the roomier layout.
+    const hasH = Number.isFinite(h) && h > 0;
+    if (hasH && h <= PHONE_MAX_H && w <= PHONE_LANDSCAPE_MAX_W) return 'phone';
+    if (w > TABLET_MAX_W) return 'off';
+    if (hasH && h / w >= TALL_DISPLAY_RATIO) return 'off';
+    return 'tablet';
+  }
+
+  /** Kept as its own name: several callers only ever cared about the phone. */
+  function shouldUsePhoneView(input) {
+    return stackMode(input) === 'phone';
   }
 
   function isEmbedded() {
@@ -102,19 +140,58 @@
 
   // ── Reading order ─────────────────────────────────────────────────────────
 
-  // Row-major order over grid coordinates. Pure and exported: this is the whole
+  // Reading order over grid coordinates. Pure and exported: this is the whole
   // claim the stacked view makes about matching what the user sees on their PC.
-  // Ties break on x, then on the original DOM position, so the result is stable
-  // (two tiles at the same coordinates can only happen mid-heal, and a stable
-  // sort keeps the view from flickering while dashboard-layout resolves it).
+  //
+  // NOT a plain sort by (y, x), which is what this was and what made it wrong.
+  // `y` is a grid row, so two tiles that sit visibly SIDE BY SIDE can differ in
+  // it: measured on a real dashboard, three tiles filling one band were at
+  // (x0,y0), (x8,y2) and (x16,y0), and a 2-row nudge — 70px, invisible as a
+  // "row" to anybody looking at the screen — sorted the MIDDLE column last. The
+  // user reads left, middle, right and gets left, right, middle.
+  //
+  // So tiles are grouped into visual BANDS first and ordered by x inside each.
+  // A tile joins the open band when its top falls in the upper half of the
+  // band's first tile: near-aligned tops are one row, and a tile that starts
+  // halfway down a tall neighbour is genuinely below it, not beside it. The
+  // half is relative to that first tile rather than a fixed number of rows, so
+  // the rule means the same thing for a band of short tiles and a band of tall
+  // ones; the floor of 2 keeps it from collapsing to "exactly equal" when the
+  // anchor is only a few rows high.
+  //
+  // Ties break on the original DOM position, so the result is stable (two tiles
+  // at the same coordinates can only happen mid-heal, and a stable sort keeps
+  // the view from flickering while dashboard-layout resolves it).
   function readingOrder(items) {
     const list = (Array.isArray(items) ? items : []).map((it, i) => ({
       i,
       y: Number.isFinite(it && it.y) ? it.y : 0,
       x: Number.isFinite(it && it.x) ? it.x : 0,
+      h: Number.isFinite(it && it.h) && it.h > 0 ? it.h : 8,
     }));
+    // By y first so the anchor of every band is its topmost tile; x and the DOM
+    // index only decide ties here, the real ordering happens per band below.
     list.sort((a, b) => (a.y - b.y) || (a.x - b.x) || (a.i - b.i));
-    return list.map((e) => e.i);
+
+    const out = [];
+    let band = [];
+    let anchor = null;
+    const flush = () => {
+      if (!band.length) return;
+      band.sort((a, b) => (a.x - b.x) || (a.y - b.y) || (a.i - b.i));
+      band.forEach((e) => out.push(e.i));
+      band = [];
+    };
+    for (const e of list) {
+      if (anchor && e.y > anchor.y + Math.max(2, Math.floor(anchor.h / 2))) {
+        flush();
+        anchor = null;
+      }
+      if (!anchor) anchor = e;
+      band.push(e);
+    }
+    flush();
+    return out;
   }
 
   function tileCoords(el) {
@@ -168,12 +245,21 @@
   // real button and clicks it, so state, i18n and behaviour stay in exactly one
   // place, and a chrome that moved that button (the Dynamic Island rails) still
   // works because the lookup is by class, not by position.
+  // Forwarders: each aims at a real topbar button that always exists, so this
+  // module never learns what any of them do.
   const DOCK_BUTTONS = [
     { sel: '.qbtn-search', glyph: '⌕', key: 'ph_search' },
     { sel: '.topbtn-xenon', glyph: '✦', key: 'ph_ai' },
     { sel: '.qbtn-apps', glyph: '▦', key: 'ph_apps' },
     { sel: '.qbtn-settings', glyph: '⚙', key: 'ph_settings' },
   ];
+
+  // Actions registered by a feature that has no topbar button to forward to.
+  // A widget TILE cannot be the target — it is only on screen if the user put
+  // it on their PC layout, and the phone's primary action cannot depend on
+  // that. Registration carries a `run` instead of a `sel`, and this module
+  // still learns nothing about the feature: it calls the function.
+  const dockActions = [];
 
   function label(key, fallback) {
     return (typeof t === 'function' ? t(key) : fallback) || fallback;
@@ -231,14 +317,16 @@
 
     const acts = document.createElement('div');
     acts.className = 'ph-acts';
-    for (const spec of DOCK_BUTTONS) {
+    for (const spec of [...dockActions, ...DOCK_BUTTONS]) {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'ph-btn';
+      b.className = 'ph-btn' + (spec.run ? ' ph-btn-action' : '');
       b.textContent = spec.glyph;
       b.title = label(spec.key, '');
       b.setAttribute('aria-label', b.title);
+      if (spec.id) b.dataset.phAction = spec.id;
       b.addEventListener('click', () => {
+        if (spec.run) { try { spec.run(); } catch (e) { console.warn('[phone-view] dock action failed', spec.id, e); } return; }
         const real = document.querySelector(spec.sel);
         // No silent no-op: a dock button whose target is gone (a chrome that
         // removed it, a build that renamed it) should say so in the console
@@ -262,11 +350,21 @@
 
   // ── Enable / disable ──────────────────────────────────────────────────────
 
-  function enable() {
-    if (active) return;
-    active = true;
-    document.documentElement.classList.add('is-phone');
-    buildDock();
+  function enable(mode) {
+    // A mode CHANGE (phone ⇄ tablet) has to re-apply even though the view is
+    // already on: the classes and the dock differ, and an early return keyed
+    // only on `active` would leave a rotated tablet wearing the phone's chrome.
+    if (active === mode) return;
+    active = mode;
+    const cl = document.documentElement.classList;
+    cl.add('is-stacked');
+    cl.toggle('is-phone', mode === 'phone');
+    cl.toggle('is-tablet', mode === 'tablet');
+    // The dock exists because the topbar sits where a thumb cannot reach on a
+    // tall phone. A tablet keeps the real topbar, so a second copy of the same
+    // four buttons would be clutter, not reach.
+    if (mode === 'phone') buildDock();
+    else if (dock) { dock.remove(); dock = null; }
     sortAll();
     syncDockPages();
     // Tiles are added, removed, re-sized and re-grouped by the layout module
@@ -284,8 +382,8 @@
 
   function disable() {
     if (!active) return;
-    active = false;
-    document.documentElement.classList.remove('is-phone');
+    active = null;
+    document.documentElement.classList.remove('is-stacked', 'is-phone', 'is-tablet');
     if (observer) observer.disconnect();
     if (pending) { cancelAnimationFrame(pending); pending = 0; }
     clearStamps();
@@ -297,20 +395,23 @@
   }
 
   function sync() {
-    const want = shouldUsePhoneView({
+    const want = stackMode({
       width: window.innerWidth,
       height: window.innerHeight,
       preference: readPref(),
       embedded: isEmbedded(),
     });
     const was = active;
-    if (want) enable(); else disable();
+    if (want === 'off') disable(); else enable(want);
     // The Dynamic Island is a chrome for a screen with room beside the tiles;
     // topbar-minimal.js refuses to enable it while the phone view is on. Tell it
     // to re-decide whenever we cross the threshold, or a dashboard that was
     // wearing the island keeps wearing it — pill clipped off both edges, rails
     // over the content. Only on a CHANGE: apply() is cheap but not free, and
     // this runs on every resize tick.
+    // Compared as the MODE, not as a boolean: phone → tablet keeps the view on
+    // while changing whether the island may come back, and a boolean would miss
+    // exactly that transition.
     if (was !== active && window.TopbarMinimal && typeof window.TopbarMinimal.apply === 'function') {
       try { window.TopbarMinimal.apply(); } catch { /* chrome choice must never break the layout */ }
     }
@@ -349,7 +450,34 @@
     // the load where it matters.
     window.PhoneView = {
       init, sync, enable, disable,
+      /** True for BOTH stacked modes — topbar-minimal.js asks this to decide
+       *  whether the Dynamic Island may go up, and the answer is no in either:
+       *  the island's pill and edge rails need room BESIDE the tiles, which is
+       *  the one thing neither of these layouts has. */
       isActive: () => !!active,
+      /** 'phone' | 'tablet' | null — for anything that needs to tell them apart. */
+      mode: () => active,
+      /**
+       * Register a dock button for a feature with no topbar button to forward
+       * to. Idempotent by id, and safe to call before or after the dock exists:
+       * a later call rebuilds it. `remove: true` takes one away again, which is
+       * what a feature switched off in Settings must do — a dock button that
+       * does nothing is worse than no button.
+       *
+       * @param {{id:string, glyph:string, key:string, run:Function, remove?:boolean}} spec
+       */
+      addDockAction(spec) {
+        if (!spec || !spec.id) return;
+        const at = dockActions.findIndex((a) => a.id === spec.id);
+        if (spec.remove) { if (at >= 0) dockActions.splice(at, 1); }
+        else if (at >= 0) dockActions[at] = spec;
+        else dockActions.push(spec);
+        if (active === 'phone') {
+          if (dock) { dock.remove(); dock = null; }
+          buildDock();
+          syncDockPages();
+        }
+      },
       /** 'auto' | 'on' | 'off' — persisted per device, never to the server. */
       setPreference(v) {
         try { localStorage.setItem(PREF_KEY, (v === 'on' || v === 'off') ? v : 'auto'); } catch { /* storage off */ }
@@ -363,6 +491,10 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { shouldUsePhoneView, readingOrder, PHONE_MAX_W, PHONE_MAX_H, PHONE_LANDSCAPE_MAX_W, ROW_PX };
+    module.exports = {
+      stackMode, shouldUsePhoneView, readingOrder,
+      PHONE_MAX_W, PHONE_MAX_H, PHONE_LANDSCAPE_MAX_W, ROW_PX,
+      TABLET_MAX_W, TALL_DISPLAY_RATIO,
+    };
   }
 })();

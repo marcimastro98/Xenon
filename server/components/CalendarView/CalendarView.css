@@ -5,6 +5,15 @@
   height: 100%;
   overflow: hidden;
   grid-template-rows: auto auto minmax(0, 1fr);
+  /* The rows were written as minmax(0, 1fr) and the column was left implicit,
+     which is not the same default: an implicit track is `auto`, whose minimum
+     is MIN-CONTENT, so the single column grows past the element whenever the
+     content cannot fit — and `overflow: hidden` above then cuts the excess
+     rather than scrolling it. Measured on a phone: a 343px view with a 349px
+     column, so 6px of every row was gone. Stating the column the same way the
+     rows are stated is the fix at every width; where there is room it behaves
+     exactly as before. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
 

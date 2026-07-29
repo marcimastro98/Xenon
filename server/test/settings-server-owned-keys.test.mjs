@@ -54,6 +54,14 @@ const SERVER_OWNED = {
   // Server-owned security flag; POST /api/remote-access/enable is the only
   // writer, and it is loopback-only so a phone cannot switch itself on.
   remoteAccess: 'incoming.remoteAccess = prev.remoteAccess;',
+  // File transfer. Server-owned for the same reason remoteAccess is, plus a
+  // sharper one: `inboxDir` names a folder on THIS PC, and the settings blob is
+  // mirrored to every browser surface and into the localStorage of every paired
+  // phone. It is redacted on the wire like a credential, so the browser could
+  // not send it back even if it modelled the rest — without the guard the
+  // user's chosen folder would reset on every save from any surface and
+  // arrivals would quietly start landing somewhere else.
+  fileTransfer: 'incoming.fileTransfer = prev.fileTransfer;',
 };
 
 test('every settings key the browser does not send is kept from the persisted copy', () => {

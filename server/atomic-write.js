@@ -104,4 +104,97 @@ function updateFileAtomic(file, update, encoding = 'utf8') {
   });
 }
 
-module.exports = { writeFileAtomic, updateFileAtomic };
+// Streaming twin of writeFileAtomic, for a payload too large to hold in memory
+// (a phone sending a 2 GB video: buffering it would be 2 GB of RSS). Same first
+// two guarantees — visibility via rename, durability via fsync BEFORE the
+// rename — and the same _renameWithRetry, because the Windows contention that
+// helper exists for does not care how the bytes got there.
+//
+// Deliberately NOT enqueued on the per-path chain, which is the third
+// guarantee and the one that does not apply: the destination name is unique per
+// call (the caller mints an id), so there is no concurrent writer to serialize,
+// and holding the chain for the minutes a large upload takes would stall every
+// other store writing through this module.
+//
+// The temp name is `<file>.part` rather than the `.<pid>.tmp` above, and that
+// is load-bearing: a `.part` left by a crash has to be recognisable to a
+// sweeper that does not know which process wrote it. `wx` (create-exclusive) so
+// a duplicated id can never silently append to someone else's temp file.
+//
+// The caller MUST end with commit() or abort(); neither is implicit, because
+// the stream finishing is not the same as the write being good (a truncated
+// upload also ends the stream).
+async function openAtomicWriteStream(file) {
+  const tmp = `${file}.part`;
+  // A PATH-based stream that owns and closes its own descriptor, rather than
+  // FileHandle.createWriteStream({autoClose:false}). The handle-based shape is
+  // the obvious one — hold the handle, fsync it after the stream ends — and it
+  // deadlocks: with autoClose:false, `fh.close()` never resolves once the
+  // stream has attached to it, so commit() hung forever and every upload would
+  // have stalled at 100%. Verified in isolation; the tests below pin it.
+  //
+  // So the fsync reopens the temp file instead. One extra open per transfer,
+  // and the guarantee is unchanged: the data is on the platter before the
+  // rename makes it visible.
+  const stream = fs.createWriteStream(tmp, { flags: 'wx' });
+  let settled = false;
+
+  // createWriteStream opens lazily, so without this the temp file does not
+  // exist yet when we hand the stream back — and, worse, a refusal from the
+  // exclusive 'wx' open would arrive as an async stream error in the middle of
+  // the caller's pipeline instead of as a rejection from this function, where
+  // it can still be answered with a clean status.
+  await new Promise((resolve, reject) => {
+    const ok = () => { stream.off('error', bad); resolve(); };
+    const bad = (e) => { stream.off('ready', ok); reject(e); };
+    stream.once('ready', ok);
+    stream.once('error', bad);
+  });
+
+  // Wait for the descriptor to actually be gone, not merely for the stream to
+  // be marked destroyed. Windows refuses to unlink a file that still has an
+  // open handle, so an abort that raced the close left the `.part` behind for
+  // the boot sweep to find — which is exactly the litter this helper exists to
+  // prevent. `closed` is set only after the 'close' event.
+  function onceClosed() {
+    if (stream.closed) return Promise.resolve();
+    return new Promise((resolve) => stream.once('close', resolve));
+  }
+
+  async function commit() {
+    if (settled) return;
+    settled = true;
+    let fh = null;
+    try {
+      if (!stream.writableEnded) stream.end();
+      await onceClosed();
+      fh = await fs.promises.open(tmp, 'r+');
+      await fh.sync();
+      await fh.close();
+      fh = null;
+      await _renameWithRetry(tmp, file);
+    } catch (e) {
+      if (fh) { try { await fh.close(); } catch { /* already closing */ } }
+      try { await fs.promises.unlink(tmp); } catch { /* nothing to clean up */ }
+      throw e;
+    }
+  }
+
+  async function abort() {
+    if (settled) return;
+    settled = true;
+    // Destroying a stream with writes still in flight makes those writes fail
+    // with ERR_STREAM_DESTROYED. That is the ordinary shape of an interrupted
+    // upload, and an unhandled 'error' on a stream takes the whole process
+    // down, so it is absorbed here rather than left to whoever happens to be
+    // listening at the time.
+    stream.on('error', () => {});
+    try { stream.destroy(); } catch { /* already torn down by pipeline */ }
+    await onceClosed();
+    try { await fs.promises.unlink(tmp); } catch { /* never created, or already gone */ }
+  }
+
+  return { stream, tmp, commit, abort };
+}
+
+module.exports = { writeFileAtomic, updateFileAtomic, openAtomicWriteStream };

@@ -131,6 +131,14 @@
     text-transform: uppercase; color: var(--green); border: 1px solid rgba(30,215,96,0.35);
     border-radius: 999px; padding: 3px 10px; margin-bottom: 12px;
   }
+  /* Beta mark for the feature this whole page is about. Gold, not green: green
+     is what this page uses for "yes, this works", and a caveat must not borrow it. */
+  .beta-pill {
+    display: inline-block; vertical-align: middle; margin-left: 12px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase;
+    color: #ffc44d; background: rgba(255,196,77,0.12);
+    border: 1px solid rgba(255,196,77,0.3); border-radius: 999px; padding: 3px 10px;
+  }
   .route h3 { margin: 0 0 6px; font-size: 18px; color: var(--text); }
   .route .time { font-family: var(--mono); font-size: 12.5px; color: var(--dim); margin: 0 0 12px; }
   .route ul { margin: 0; padding-left: 18px; font-size: 15px; }
@@ -304,8 +312,8 @@
 <main>
   <div class="wrap">
 
-    <h1 data-i18n="ph.title">Use your phone as the second screen</h1>
-    <p class="lede" data-i18n="ph.lede">To use Xenon you need a screen you can leave on all day. A Xeneon Edge, a spare monitor, an old tablet. That is what stops most people, not the features. But you already have a screen in your pocket. This page shows you how to use it.</p>
+    <h1><span data-i18n="ph.title">Use your phone as the second screen</span><span class="beta-pill" data-i18n="ph.beta">Beta</span></h1>
+    <p class="lede" data-i18n="ph.lede">To use Xenon you need a screen you can leave on all day. A spare monitor, an old tablet, a Xeneon Edge. That is what stops most people, not the features. But you already have a screen in your pocket. This page shows you how to use it.</p>
     <p data-i18n-html="ph.intro">What you get on the phone is not a remote and not a preview. It is <strong>your dashboard</strong>, with the same layout, the same widgets and the same theme. Deck keys really run on the PC. If you pause the music, the music stops. If you change a setting, it changes on the PC a second later. There is no account, no cloud and no app to install, and nothing leaves your home network.</p>
 
     <div class="shots">
@@ -344,11 +352,12 @@
           <li><span class="k">✓</span><span data-i18n="ph.can.3">Media, volume, mic mute and the app switcher</span></li>
           <li><span class="k">✓</span><span data-i18n="ph.can.4">The Store: widgets, icon packs, sound packs and themes</span></li>
           <li><span class="k">✓</span><span data-i18n="ph.can.5">Xenon AI, and settings that save to the PC</span></li>
+          <li><span class="k">✓</span><span data-i18n="ph.can.6">Sending photos and files, both ways</span></li>
         </ul>
       </div>
       <div class="cant">
         <ul>
-          <li><span class="k">✗</span><span data-i18n="ph.cant.1">The Windows permission prompt. Windows draws it on the PC screen and nowhere else, so only the PC can answer it</span></li>
+          <li><span class="k">✗</span><span data-i18n="ph.cant.1">The system permission prompt. Windows, macOS and Linux all draw it on the PC screen and nowhere else, so only the PC can answer it</span></li>
           <li><span class="k">✗</span><span data-i18n="ph.cant.2">Updating Xenon. The update restarts the server the phone is talking to</span></li>
           <li><span class="k">✗</span><span data-i18n="ph.cant.3">System installers (the helper, PresentMon, drivers). Each one puts a program on your disk</span></li>
           <li><span class="k">✗</span><span data-i18n="ph.cant.4">Adding or removing paired devices. This way a phone can never add another one, or remove the device that would lock it out</span></li>
@@ -356,6 +365,10 @@
       </div>
     </div>
     <div class="card"><p data-i18n-html="ph.trade"><strong>One thing to know before you start.</strong> A paired device stays a way into your PC until you remove it. So if you lose the phone or give it away, remove it. That is what the device list is for: you can remove one device, or all of them with a single tap. A device you remove loses the connection straight away.</p></div>
+
+    <h2 data-i18n="ph.h.xfer">Getting photos and files across</h2>
+    <p data-i18n="ph.xfer.p">Once a phone is paired it can send files to the PC, and take files from it. Open Xenon on the phone, tap Photos and videos or Other files, pick what you want, and they land in Download/Xenon on the computer with their own names. It works the other way too: drop a file on the tile from Explorer or Finder and download it on the phone. Nothing goes through anyone else's server.</p>
+    <div class="card"><p data-i18n-html="ph.xfer.ios"><strong>On an iPhone, you have to open Xenon to send something.</strong> iOS does not let any website appear in its Share button, and there is no way around that from a web page. A file you download on an iPhone also goes to the Files app rather than the camera roll: press and hold a photo and choose Add to Photos.</p></div>
 
     <h2 data-i18n="ph.h.two">Two ways in. Pick one.</h2>
     <div class="routes">
@@ -386,8 +399,8 @@
     <h2 data-i18n="ph.h.home">At home, in thirty seconds</h2>
     <ol class="steps">
       <li>
-        <h3 data-i18n="ph.s1.h">Open Settings, then Remote Control, on the PC</h3>
-        <p data-i18n-html="ph.s1.p">Everything you need is in one panel, under <strong>Phone access</strong>.</p>
+        <h3 data-i18n="ph.s1.h">Open Settings, then Phone, on the PC</h3>
+        <p data-i18n-html="ph.s1.p">Everything you need is in one panel, under <strong>Phone access</strong>. Shortcut: the first time Xenon opens it asks which screen you want it on — pick <strong>my phone or tablet</strong> there and it brings you straight to this panel.</p>
       </li>
       <li>
         <h3 data-i18n="ph.s2.h">Turn on “Allow access from other devices”</h3>
@@ -430,7 +443,7 @@
     <ol class="steps">
       <li>
         <h3 data-i18n="ph.t1.h">Press “Set it up for me”</h3>
-        <p data-i18n="ph.t1.p">Windows will ask for permission to install Tailscale. Then a browser tab opens for the sign in. Any Google, Microsoft or GitHub account works, and you are not creating an account with Xenon.</p>
+        <p data-i18n="ph.t1.p">Your system will ask for permission to install Tailscale. Then a browser tab opens for the sign in. Any Google, Microsoft or GitHub account works, and you are not creating an account with Xenon.</p>
       </li>
       <li>
         <h3 data-i18n="ph.t2.h">Turn on HTTPS certificates</h3>
@@ -446,7 +459,7 @@
       </li>
       <li>
         <h3 data-i18n="ph.t5.h">Add it to the home screen</h3>
-        <p data-i18n-html="ph.t5.p">In Safari, press Share and then <strong>Add to Home Screen</strong>. On Android, Chrome offers to install it. Xenon then opens with its own icon, full screen, with no address bar. The microphone works here, so Xenon AI can listen through the phone instead of the PC. Notifications work too: in Settings, then Remote Control, turn them on for this device and a timer that runs out will reach you with the app closed.</p>
+        <p data-i18n-html="ph.t5.p">In Safari, press Share and then <strong>Add to Home Screen</strong>. On Android, Chrome offers to install it. Xenon then opens with its own icon, full screen, with no address bar. The microphone works here, so Xenon AI can listen through the phone instead of the PC. Notifications work too: in Settings, then Phone, turn them on for this device and a timer that runs out will reach you with the app closed.</p>
       </li>
     </ol>
 
@@ -494,7 +507,8 @@ const I18N = {
  "en": {
   "nav.back": "← Back to the site",
   "ph.title": "Use your phone as the second screen",
-  "ph.lede": "To use Xenon you need a screen you can leave on all day. A Xeneon Edge, a spare monitor, an old tablet. That is what stops most people, not the features. But you already have a screen in your pocket. This page shows you how to use it.",
+  "ph.beta": "Beta",
+  "ph.lede": "To use Xenon you need a screen you can leave on all day. A spare monitor, an old tablet, a Xeneon Edge. That is what stops most people, not the features. But you already have a screen in your pocket. This page shows you how to use it.",
   "ph.intro": "What you get on the phone is not a remote and not a preview. It is <strong>your dashboard</strong>, with the same layout, the same widgets and the same theme. Deck keys really run on the PC. If you pause the music, the music stops. If you change a setting, it changes on the PC a second later. There is no account, no cloud and no app to install, and nothing leaves your home network.",
   "ph.cap.phone": "PHONE: TILES STACKED, DOCK AT THE BOTTOM",
   "ph.cap.tab": "TABLET: THE FULL GRID, JUST AS YOU BUILT IT",
@@ -506,6 +520,10 @@ const I18N = {
   "ph.can.3": "Media, volume, mic mute and the app switcher",
   "ph.can.4": "The Store: widgets, icon packs, sound packs and themes",
   "ph.can.5": "Xenon AI, and settings that save to the PC",
+  "ph.can.6": "Sending photos and files, both ways",
+  "ph.h.xfer": "Getting photos and files across",
+  "ph.xfer.p": "Once a phone is paired it can send files to the PC, and take files from it. Open Xenon on the phone, tap Photos and videos or Other files, pick what you want, and they land in Download/Xenon on the computer with their own names. It works the other way too: drop a file on the tile from Explorer or Finder and download it on the phone. Nothing goes through anyone else's server.",
+  "ph.xfer.ios": "<strong>On an iPhone, you have to open Xenon to send something.</strong> iOS does not let any website appear in its Share button, and there is no way around that from a web page. A file you download on an iPhone also goes to the Files app rather than the camera roll: press and hold a photo and choose Add to Photos.",
   "ph.cant.1": "The Windows permission prompt. Windows draws it on the PC screen and nowhere else, so only the PC can answer it",
   "ph.cant.2": "Updating Xenon. The update restarts the server the phone is talking to",
   "ph.cant.3": "System installers (the helper, PresentMon, drivers). Each one puts a program on your disk",
@@ -527,8 +545,8 @@ const I18N = {
   "ph.r2.4": "The address stays the same, even when your router changes it",
   "ph.two.after": "You do not have to choose forever. The second way adds a door next to the first one, it does not replace it. If you only use Xenon at home, start with the first.",
   "ph.h.home": "At home, in thirty seconds",
-  "ph.s1.h": "Open Settings, then Remote Control, on the PC",
-  "ph.s1.p": "Everything you need is in one panel, under <strong>Phone access</strong>.",
+  "ph.s1.h": "Open Settings, then Phone, on the PC",
+  "ph.s1.p": "Everything you need is in one panel, under <strong>Phone access</strong>. Shortcut: the first time Xenon opens it asks which screen you want it on — pick <strong>my phone or tablet</strong> there and it brings you straight to this panel.",
   "ph.s2.h": "Turn on “Allow access from other devices”",
   "ph.s2.p": "It is off until you turn it on. While it is off, Xenon replies to this PC and to nothing else. If something scans your network, it gets the same reply a version of Xenon without this feature would give, so there is no way to tell the feature is there.",
   "ph.s2.sw": "Allow access from other devices",
@@ -556,7 +574,7 @@ const I18N = {
   "ph.t4.h": "Pair the phone again on the new address",
   "ph.t4.p": "Press <strong>Add device</strong> and scan again. The browser ties a pairing to the address it was made on, so a phone paired on the home address is not paired on the secure one. After this you only need the new address. It works at home and away.",
   "ph.t5.h": "Add it to the home screen",
-  "ph.t5.p": "In Safari, press Share and then <strong>Add to Home Screen</strong>. On Android, Chrome offers to install it. Xenon then opens with its own icon, full screen, with no address bar. The microphone works here, so Xenon AI can listen through the phone instead of the PC. Notifications work too: in Settings, then Remote Control, turn them on for this device and a timer that runs out will reach you with the app closed.",
+  "ph.t5.p": "In Safari, press Share and then <strong>Add to Home Screen</strong>. On Android, Chrome offers to install it. Xenon then opens with its own icon, full screen, with no address bar. The microphone works here, so Xenon AI can listen through the phone instead of the PC. Notifications work too: in Settings, then Phone, turn them on for this device and a timer that runs out will reach you with the app closed.",
   "ph.h.trouble": "If something does not work",
   "ph.q1": "The phone says it cannot open the address",
   "ph.a1": "Almost always the phone is not on your private network yet. Open Tailscale on the phone and check the switch is really <strong>on</strong>. Installing the app is not enough. On an iPhone you can tell because <strong>VPN</strong> appears in the status bar. Also check you signed in with the same account as the PC, because two accounts mean two separate networks that cannot see each other.",
@@ -577,7 +595,8 @@ const I18N = {
  "it": {
   "nav.back": "← Torna al sito",
   "ph.title": "Usa il telefono come secondo schermo",
-  "ph.lede": "Per usare Xenon serve uno schermo da lasciare acceso tutto il giorno: uno Xeneon Edge, un monitor di scorta, un vecchio tablet. È questo che ferma quasi tutti, non le funzioni. Ma uno schermo ce l'hai già in tasca. Qui c'è come usarlo.",
+  "ph.beta": "Beta",
+  "ph.lede": "Per usare Xenon serve uno schermo da lasciare acceso tutto il giorno: un monitor di scorta, un vecchio tablet, uno Xeneon Edge. È questo che ferma quasi tutti, non le funzioni. Ma uno schermo ce l'hai già in tasca. Qui c'è come usarlo.",
   "ph.intro": "Quello che arriva sul telefono non è un telecomando e non è un'anteprima. È <strong>la tua dashboard</strong>, con lo stesso layout, gli stessi widget e lo stesso tema. I tasti del Deck partono davvero sul PC. Se metti in pausa la musica, la musica si ferma. Se cambi un'impostazione, un secondo dopo è cambiata anche sul PC. Non serve un account, non c'è nessun cloud, non c'è niente da installare e niente esce dalla rete di casa.",
   "ph.cap.phone": "TELEFONO: TILE IMPILATE, DOCK IN BASSO",
   "ph.cap.tab": "TABLET: LA GRIGLIA COMPLETA, COME L'HAI COSTRUITA",
@@ -589,7 +608,11 @@ const I18N = {
   "ph.can.3": "Media, volume, muto del microfono e cambio app",
   "ph.can.4": "Lo Store: widget, pacchetti di icone, pacchetti di suoni e temi",
   "ph.can.5": "Xenon AI e le impostazioni, che si salvano sul PC",
-  "ph.cant.1": "La finestra di conferma di Windows. La disegna Windows sullo schermo del PC e da nessun'altra parte, quindi può rispondere solo il PC",
+  "ph.can.6": "Mandare foto e file, nelle due direzioni",
+  "ph.h.xfer": "Portare foto e file da una parte all’altra",
+  "ph.xfer.p": "Un telefono associato può mandare file al PC e prenderne. Apri Xenon sul telefono, tocca Foto e video o Altri file, scegli cosa ti serve, e i file arrivano in Download/Xenon sul computer con il loro nome. Funziona anche al contrario: trascini un file sul riquadro da Esplora risorse o dal Finder e lo scarichi dal telefono. Non passa dal server di nessun altro.",
+  "ph.xfer.ios": "<strong>Su iPhone devi aprire Xenon per mandare qualcosa.</strong> iOS non permette a nessun sito di comparire nel tasto Condividi, e da una pagina web non c’è modo di aggirarlo. Un file che scarichi su iPhone va poi in File, non nel rullino: tieni premuta una foto e scegli Aggiungi a Foto.",
+  "ph.cant.1": "La finestra di conferma del sistema. Windows, macOS e Linux la disegnano sullo schermo del PC e da nessun'altra parte, quindi può rispondere solo il PC",
   "ph.cant.2": "Aggiornare Xenon. L'aggiornamento riavvia il server con cui sta parlando il telefono",
   "ph.cant.3": "Gli installer di sistema (l'helper, PresentMon, i driver). Ognuno mette un programma sul disco",
   "ph.cant.4": "Aggiungere o togliere dispositivi abbinati. Così un telefono non può mai aggiungerne un altro, né togliere il dispositivo che lo caccerebbe fuori",
@@ -610,8 +633,8 @@ const I18N = {
   "ph.r2.4": "L'indirizzo resta lo stesso, anche quando il router lo cambia",
   "ph.two.after": "Non devi scegliere per sempre. La seconda strada aggiunge una porta accanto alla prima, non la sostituisce. Se usi Xenon solo in casa, parti dalla prima.",
   "ph.h.home": "In casa, in trenta secondi",
-  "ph.s1.h": "Apri Impostazioni, poi Controllo Remoto, sul PC",
-  "ph.s1.p": "Tutto quello che serve sta in un pannello solo, sotto <strong>Accesso dal telefono</strong>.",
+  "ph.s1.h": "Apri Impostazioni, poi Telefono, sul PC",
+  "ph.s1.p": "Tutto quello che serve sta in un pannello solo, sotto <strong>Accesso dal telefono</strong>. Scorciatoia: la prima volta che apri Xenon ti chiede su quale schermo lo vuoi — scegli <strong>il mio telefono o tablet</strong> e ti porta dritto a questo pannello.",
   "ph.s2.h": "Accendi “Consenti l'accesso da altri dispositivi”",
   "ph.s2.p": "Resta spento finché non lo accendi tu. Finché è spento, Xenon risponde a questo PC e a nient'altro. Se qualcuno scandaglia la rete, riceve la stessa risposta che darebbe una versione di Xenon senza questa funzione, quindi non c'è modo di capire che esiste.",
   "ph.s2.sw": "Consenti l'accesso da altri dispositivi",
@@ -631,7 +654,7 @@ const I18N = {
   "ph.card.btn": "Fallo per me",
   "ph.card.2": "<strong>Si ferma una volta sola, ed è voluto.</strong> I certificati sono un'impostazione di tutta la tua rete privata e si cambiano sul sito di Tailscale. Xenon potrebbe farlo al posto tuo, ma solo con una chiave che dovresti creare tu su quello stesso sito, e sarebbe più lavoro invece che meno. Quindi Xenon si ferma lì, ti dà il link, e poi si accorge da solo quando hai finito. Puoi lasciare la finestra aperta.",
   "ph.t1.h": "Premi “Fallo per me”",
-  "ph.t1.p": "Windows ti chiede il permesso di installare Tailscale. Poi si apre una scheda del browser per l'accesso. Va bene un account Google, Microsoft o GitHub, e non stai creando nessun account con Xenon.",
+  "ph.t1.p": "Il sistema ti chiede il permesso di installare Tailscale. Poi si apre una scheda del browser per l'accesso. Va bene un account Google, Microsoft o GitHub, e non stai creando nessun account con Xenon.",
   "ph.t2.h": "Attiva i certificati HTTPS",
   "ph.t2.p": "Questo è l'unico passaggio che Xenon non può fare al posto tuo. Quando te lo chiede, premi il bottone che ti mostra: apre <code>login.tailscale.com/admin/dns</code>. Scendi fino a <strong>HTTPS Certificates</strong> e premi <strong>Enable</strong>. È gratis con qualsiasi piano. Poi torna su Xenon, che è già andato avanti.",
   "ph.t3.h": "Installa Tailscale sul telefono con lo stesso account",
@@ -639,7 +662,7 @@ const I18N = {
   "ph.t4.h": "Abbina di nuovo il telefono sul nuovo indirizzo",
   "ph.t4.p": "Premi <strong>Aggiungi dispositivo</strong> e inquadra di nuovo. Il browser lega l'abbinamento all'indirizzo su cui l'hai fatto, quindi un telefono abbinato sull'indirizzo di casa non è abbinato su quello sicuro. Da qui in poi ti serve solo il nuovo indirizzo. Funziona in casa e fuori.",
   "ph.t5.h": "Aggiungilo alla schermata home",
-  "ph.t5.p": "Su Safari premi Condividi e poi <strong>Aggiungi a Home</strong>. Su Android è Chrome a proporti di installarlo. Da lì Xenon si apre con la sua icona, a tutto schermo e senza barra degli indirizzi. Qui il microfono funziona, quindi Xenon AI può ascoltare dal telefono invece che dal PC. Funzionano anche le notifiche: in Impostazioni, poi Controllo Remoto, accendile per questo dispositivo e un timer che scade ti raggiunge con l'app chiusa.",
+  "ph.t5.p": "Su Safari premi Condividi e poi <strong>Aggiungi a Home</strong>. Su Android è Chrome a proporti di installarlo. Da lì Xenon si apre con la sua icona, a tutto schermo e senza barra degli indirizzi. Qui il microfono funziona, quindi Xenon AI può ascoltare dal telefono invece che dal PC. Funzionano anche le notifiche: in Impostazioni, poi Telefono, accendile per questo dispositivo e un timer che scade ti raggiunge con l'app chiusa.",
   "ph.h.trouble": "Se qualcosa non funziona",
   "ph.q1": "Il telefono dice che non riesce ad aprire l'indirizzo",
   "ph.a1": "Quasi sempre il telefono non è ancora entrato nella tua rete privata. Apri Tailscale sul telefono e controlla che l'interruttore sia davvero <strong>acceso</strong>: installare l'app non basta. Su iPhone lo capisci perché compare <strong>VPN</strong> nella barra di stato. Controlla anche di aver usato lo stesso account del PC, perché due account sono due reti separate che non si vedono.",
@@ -660,7 +683,8 @@ const I18N = {
  "ko": {
   "nav.back": "← 사이트로 돌아가기",
   "ph.title": "휴대폰을 두 번째 화면으로 쓰세요",
-  "ph.lede": "Xenon을 쓰려면 하루 종일 켜 둘 수 있는 화면이 하나 필요합니다. Xeneon Edge, 남는 모니터, 오래된 태블릿 같은 것들이죠. 대부분의 사람이 막히는 지점은 기능이 아니라 여기입니다. 그런데 화면은 이미 주머니 안에 있습니다. 이 페이지는 그 화면을 쓰는 방법입니다.",
+  "ph.beta": "베타",
+  "ph.lede": "Xenon을 쓰려면 하루 종일 켜 둘 수 있는 화면이 하나 필요합니다. 남는 모니터, 오래된 태블릿, Xeneon Edge 같은 것들이죠. 대부분의 사람이 막히는 지점은 기능이 아니라 여기입니다. 그런데 화면은 이미 주머니 안에 있습니다. 이 페이지는 그 화면을 쓰는 방법입니다.",
   "ph.intro": "휴대폰에 나타나는 것은 리모컨도 미리보기도 아닙니다. 레이아웃도 위젯도 테마도 똑같은 <strong>당신의 대시보드</strong>입니다. 덱 키는 실제로 PC에서 실행됩니다. 음악을 멈추면 음악이 멈춥니다. 설정을 바꾸면 1초 뒤 PC에서도 바뀝니다. 계정도 클라우드도 필요 없고 설치할 앱도 없으며, 어떤 것도 집 네트워크 밖으로 나가지 않습니다.",
   "ph.cap.phone": "휴대폰: 타일이 세로로 쌓이고 아래에 독",
   "ph.cap.tab": "태블릿: 직접 만든 그대로의 전체 그리드",
@@ -672,7 +696,11 @@ const I18N = {
   "ph.can.3": "미디어, 볼륨, 마이크 음소거, 앱 전환",
   "ph.can.4": "스토어: 위젯, 아이콘 팩, 사운드 팩, 테마",
   "ph.can.5": "Xenon AI, 그리고 PC에 저장되는 설정",
-  "ph.cant.1": "Windows 권한 확인 창. Windows가 PC 화면에만 그리기 때문에 PC에서만 답할 수 있습니다",
+  "ph.can.6": "사진과 파일을 양방향으로 보내기",
+  "ph.h.xfer": "사진과 파일 주고받기",
+  "ph.xfer.p": "휴대폰을 연결하면 PC로 파일을 보내고 PC에서 파일을 가져올 수 있습니다. 휴대폰에서 Xenon을 열고 사진 및 동영상 또는 다른 파일을 누른 뒤 원하는 것을 고르면, 컴퓨터의 Download/Xenon에 원래 이름 그대로 도착합니다. 반대 방향도 됩니다. 탐색기나 Finder에서 타일로 파일을 끌어다 놓고 휴대폰에서 내려받으면 됩니다. 다른 누군가의 서버를 거치지 않습니다.",
+  "ph.xfer.ios": "<strong>iPhone에서는 보내려면 Xenon을 열어야 합니다.</strong> iOS는 어떤 웹사이트도 공유 버튼에 나타나게 하지 않으며, 웹 페이지에서 우회할 방법은 없습니다. iPhone에서 내려받은 파일은 카메라 롤이 아니라 파일 앱으로 갑니다. 사진은 길게 눌러 사진에 추가를 선택하세요.",
+  "ph.cant.1": "시스템 권한 확인 창. Windows·macOS·Linux 모두 PC 화면에만 그리기 때문에 PC에서만 답할 수 있습니다",
   "ph.cant.2": "Xenon 업데이트. 업데이트는 휴대폰이 연결해 둔 서버를 다시 시작합니다",
   "ph.cant.3": "시스템 설치 프로그램(헬퍼, PresentMon, 드라이버). 모두 디스크에 프로그램을 설치합니다",
   "ph.cant.4": "연결된 기기 추가와 삭제. 그래서 휴대폰이 다른 기기를 등록하거나, 자기를 내보낼 수 있는 기기를 지울 수 없습니다",
@@ -693,8 +721,8 @@ const I18N = {
   "ph.r2.4": "공유기가 주소를 바꿔도 주소가 그대로입니다",
   "ph.two.after": "한 번 고르면 끝인 것은 아닙니다. 두 번째 길은 첫 번째 옆에 문을 하나 더 내는 것이지 대신하는 것이 아닙니다. 집에서만 쓴다면 첫 번째로 시작하세요.",
   "ph.h.home": "집에서, 30초 만에",
-  "ph.s1.h": "PC에서 설정, 그리고 원격 제어를 엽니다",
-  "ph.s1.p": "필요한 건 전부 <strong>휴대폰 접속</strong> 아래 한 패널에 있습니다.",
+  "ph.s1.h": "PC에서 설정, 그리고 휴대폰을 엽니다",
+  "ph.s1.p": "필요한 건 전부 <strong>휴대폰 접속</strong> 아래 한 패널에 있습니다. 지름길: Xenon을 처음 열면 어느 화면에 둘지 물어봅니다. 거기서 <strong>내 휴대폰이나 태블릿</strong>을 고르면 바로 이 패널로 데려다줍니다.",
   "ph.s2.h": "“다른 기기에서 접속 허용”을 켭니다",
   "ph.s2.p": "직접 켜기 전까지는 꺼져 있습니다. 꺼져 있는 동안 Xenon은 이 PC 외에는 아무에게도 답하지 않습니다. 누가 네트워크를 훑어봐도 이 기능이 아예 없는 버전과 똑같은 응답을 받기 때문에, 기능이 있는지조차 알 수 없습니다.",
   "ph.s2.sw": "다른 기기에서 접속 허용",
@@ -714,7 +742,7 @@ const I18N = {
   "ph.card.btn": "대신 설정해 주세요",
   "ph.card.2": "<strong>한 번 멈추는데, 일부러 그렇습니다.</strong> 인증서는 사설 네트워크 전체에 걸리는 설정이고 Tailscale 웹사이트에서 바꿉니다. Xenon이 대신 할 수도 있지만 그러려면 당신이 그 사이트에서 키를 따로 만들어야 해서, 일이 줄기는커녕 늘어납니다. 그래서 Xenon은 거기서 멈추고 링크를 주고, 당신이 끝내면 알아서 알아챕니다. 창은 열어 둬도 됩니다.",
   "ph.t1.h": "“대신 설정해 주세요”를 누릅니다",
-  "ph.t1.p": "Windows가 Tailscale 설치 권한을 물어봅니다. 그다음 로그인용 브라우저 탭이 열립니다. Google, Microsoft, GitHub 계정 아무거나 쓰면 되고, Xenon 계정을 만드는 것이 아닙니다.",
+  "ph.t1.p": "시스템이 Tailscale 설치 권한을 물어봅니다. 그다음 로그인용 브라우저 탭이 열립니다. Google, Microsoft, GitHub 계정 아무거나 쓰면 되고, Xenon 계정을 만드는 것이 아닙니다.",
   "ph.t2.h": "HTTPS 인증서를 켭니다",
   "ph.t2.p": "Xenon이 대신 해 줄 수 없는 유일한 단계입니다. 물어보면 화면에 나온 버튼을 누르세요. <code>login.tailscale.com/admin/dns</code>가 열립니다. 아래로 내려 <strong>HTTPS Certificates</strong>에서 <strong>Enable</strong>을 누르세요. 모든 요금제에서 무료입니다. 그리고 Xenon으로 돌아오면 이미 다음 단계로 넘어가 있습니다.",
   "ph.t3.h": "같은 계정으로 휴대폰에 Tailscale을 설치합니다",
@@ -722,7 +750,7 @@ const I18N = {
   "ph.t4.h": "새 주소에서 휴대폰을 다시 연결합니다",
   "ph.t4.p": "<strong>기기 추가</strong>를 누르고 다시 찍으세요. 브라우저는 연결을 그때 쓴 주소에 묶어 두기 때문에, 집 주소에서 연결한 휴대폰은 안전한 주소에서는 연결되어 있지 않습니다. 이후로는 새 주소만 있으면 됩니다. 집에서도 밖에서도 됩니다.",
   "ph.t5.h": "홈 화면에 추가합니다",
-  "ph.t5.p": "Safari에서는 공유를 누르고 <strong>홈 화면에 추가</strong>를 고르세요. Android에서는 Chrome이 설치를 제안합니다. 그러면 Xenon이 자체 아이콘으로, 주소창 없이 전체 화면으로 열립니다. 여기서는 마이크가 되므로 Xenon AI가 PC 대신 휴대폰으로 들을 수 있습니다. 알림도 됩니다. 설정에서 원격 제어로 들어가 이 기기의 알림을 켜 두면, 앱을 닫아 두어도 타이머가 끝날 때 알려 줍니다.",
+  "ph.t5.p": "Safari에서는 공유를 누르고 <strong>홈 화면에 추가</strong>를 고르세요. Android에서는 Chrome이 설치를 제안합니다. 그러면 Xenon이 자체 아이콘으로, 주소창 없이 전체 화면으로 열립니다. 여기서는 마이크가 되므로 Xenon AI가 PC 대신 휴대폰으로 들을 수 있습니다. 알림도 됩니다. 설정에서 휴대폰으로 들어가 이 기기의 알림을 켜 두면, 앱을 닫아 두어도 타이머가 끝날 때 알려 줍니다.",
   "ph.h.trouble": "잘 안 될 때",
   "ph.q1": "휴대폰이 주소를 열지 못한다고 합니다",
   "ph.a1": "거의 항상 휴대폰이 아직 사설 네트워크에 들어오지 않은 경우입니다. 휴대폰에서 Tailscale을 열고 스위치가 정말 <strong>켜져</strong> 있는지 확인하세요. 앱을 설치한 것만으로는 부족합니다. iPhone은 켜져 있으면 상태 표시줄에 <strong>VPN</strong>이 나옵니다. PC와 같은 계정으로 로그인했는지도 확인하세요. 계정이 다르면 네트워크가 둘이라 서로 보이지 않습니다.",
@@ -743,7 +771,8 @@ const I18N = {
  "ja": {
   "nav.back": "← サイトに戻る",
   "ph.title": "スマホを2枚目の画面にする",
-  "ph.lede": "Xenon を使うには、一日中つけっぱなしにできる画面が1枚必要です。Xeneon Edge、余っているモニター、古いタブレットなど。多くの人がつまずくのは機能ではなくここです。でも画面ならもうポケットの中にあります。このページはその使い方です。",
+  "ph.beta": "ベータ",
+  "ph.lede": "Xenon を使うには、一日中つけっぱなしにできる画面が1枚必要です。余っているモニター、古いタブレット、Xeneon Edge など。多くの人がつまずくのは機能ではなくここです。でも画面ならもうポケットの中にあります。このページはその使い方です。",
   "ph.intro": "スマホに出るのはリモコンでもプレビューでもありません。レイアウトもウィジェットもテーマも同じ、<strong>あなたのダッシュボードそのもの</strong>です。デッキのキーは本当に PC 側で動きます。音楽を止めれば音楽が止まります。設定を変えれば1秒後には PC でも変わっています。アカウントもクラウドも要らず、インストールするアプリもなく、家のネットワークの外へは何も出ません。",
   "ph.cap.phone": "スマホ: タイルは縦に積まれ、下にドック",
   "ph.cap.tab": "タブレット: 作ったままのグリッド全体",
@@ -755,7 +784,11 @@ const I18N = {
   "ph.can.3": "メディア、音量、マイクのミュート、アプリの切り替え",
   "ph.can.4": "ストア: ウィジェット、アイコンパック、サウンドパック、テーマ",
   "ph.can.5": "Xenon AI と、PC に保存される設定",
-  "ph.cant.1": "Windows の許可ダイアログ。Windows が PC の画面にだけ描くので、答えられるのは PC だけです",
+  "ph.can.6": "写真やファイルを双方向で送る",
+  "ph.h.xfer": "写真やファイルをやり取りする",
+  "ph.xfer.p": "スマホを紐づけると、PC にファイルを送ったり PC から受け取ったりできます。スマホで Xenon を開き、「写真とビデオ」か「ほかのファイル」をタップして選ぶと、PC の Download/Xenon に元の名前のまま届きます。逆方向も同じで、エクスプローラーや Finder からタイルにファイルをドロップして、スマホでダウンロードできます。ほかの誰かのサーバーは経由しません。",
+  "ph.xfer.ios": "<strong>iPhone では送るときに Xenon を開く必要があります。</strong>iOS はどのウェブサイトも共有ボタンに表示させないため、ウェブページ側で回避する方法はありません。iPhone でダウンロードしたファイルはカメラロールではなく「ファイル」に入ります。写真は長押しして「写真に追加」を選んでください。",
+  "ph.cant.1": "システムの許可ダイアログ。Windows も macOS も Linux も PC の画面にだけ描くので、答えられるのは PC だけです",
   "ph.cant.2": "Xenon の更新。更新はスマホがつないでいるサーバー自体を再起動します",
   "ph.cant.3": "システムのインストーラー(ヘルパー、PresentMon、ドライバー)。どれもディスクにプログラムを置きます",
   "ph.cant.4": "ペアリング済み端末の追加と削除。おかげでスマホが別の端末を登録したり、自分を締め出せる端末を消したりはできません",
@@ -776,8 +809,8 @@ const I18N = {
   "ph.r2.4": "ルーターがアドレスを変えても、アドレスは変わりません",
   "ph.two.after": "一度決めたら終わりではありません。2つ目は1つ目の隣に扉を増やすもので、置き換えるものではありません。家でしか使わないなら1つ目から始めてください。",
   "ph.h.home": "家なら30秒",
-  "ph.s1.h": "PC で 設定、そしてリモート操作 を開きます",
-  "ph.s1.p": "必要なものは <strong>スマホからのアクセス</strong> の下、1つのパネルにまとまっています。",
+  "ph.s1.h": "PC で 設定、そしてスマートフォン を開きます",
+  "ph.s1.p": "必要なものは <strong>スマホからのアクセス</strong> の下、1つのパネルにまとまっています。近道: Xenon を初めて開くとどの画面に置くか聞かれます。そこで <strong>スマートフォンかタブレット</strong> を選ぶと、このパネルまで直接案内します。",
   "ph.s2.h": "「他の端末からのアクセスを許可」をオンにします",
   "ph.s2.p": "自分でオンにするまではオフです。オフの間、Xenon はこの PC 以外には一切応答しません。ネットワークを調べられても、この機能が無いバージョンとまったく同じ返事をするので、機能があること自体わかりません。",
   "ph.s2.sw": "他の端末からのアクセスを許可",
@@ -797,7 +830,7 @@ const I18N = {
   "ph.card.btn": "自動で設定する",
   "ph.card.2": "<strong>一度だけ止まりますが、わざとです。</strong> 証明書はプライベートネットワーク全体の設定で、Tailscale のサイトで切り替えます。Xenon が代わりにやることもできますが、そのためには同じサイトで鍵を作ってもらう必要があり、手間はむしろ増えます。だから Xenon はそこで止まってリンクを出し、あなたが終えたら自分で気づきます。ウィンドウは開いたままで構いません。",
   "ph.t1.h": "「自動で設定する」を押します",
-  "ph.t1.p": "Windows が Tailscale のインストール許可を聞いてきます。そのあとサインイン用のタブが開きます。Google でも Microsoft でも GitHub でも構いませんし、Xenon のアカウントを作るわけではありません。",
+  "ph.t1.p": "システムが Tailscale のインストール許可を聞いてきます。そのあとサインイン用のタブが開きます。Google でも Microsoft でも GitHub でも構いませんし、Xenon のアカウントを作るわけではありません。",
   "ph.t2.h": "HTTPS 証明書をオンにします",
   "ph.t2.p": "ここだけは Xenon が代われません。聞かれたら表示されたボタンを押してください。<code>login.tailscale.com/admin/dns</code> が開きます。下へスクロールして <strong>HTTPS Certificates</strong> の <strong>Enable</strong> を押します。どのプランでも無料です。Xenon に戻ると、もう次へ進んでいます。",
   "ph.t3.h": "同じアカウントでスマホにも Tailscale を入れます",
@@ -805,7 +838,7 @@ const I18N = {
   "ph.t4.h": "新しいアドレスでもう一度ペアリングします",
   "ph.t4.p": "<strong>端末を追加</strong> を押してもう一度読み取ってください。ブラウザはペアリングをその時のアドレスに結び付けるので、家のアドレスでペアリングしたスマホは、安全なアドレスではペアリングされていません。これ以降は新しいアドレスだけで足ります。家でも外でも使えます。",
   "ph.t5.h": "ホーム画面に追加します",
-  "ph.t5.p": "Safari では共有から <strong>ホーム画面に追加</strong> を選びます。Android では Chrome がインストールを提案します。以降 Xenon は専用アイコンで、アドレスバーなしの全画面で開きます。ここではマイクが使えるので、Xenon AI が PC ではなくスマホで聞き取れます。通知も使えます。設定からリモート操作へ進んでこの端末の通知をオンにしておくと、アプリを閉じていてもタイマーが終わったときに知らせてくれます。",
+  "ph.t5.p": "Safari では共有から <strong>ホーム画面に追加</strong> を選びます。Android では Chrome がインストールを提案します。以降 Xenon は専用アイコンで、アドレスバーなしの全画面で開きます。ここではマイクが使えるので、Xenon AI が PC ではなくスマホで聞き取れます。通知も使えます。設定からスマートフォンへ進んでこの端末の通知をオンにしておくと、アプリを閉じていてもタイマーが終わったときに知らせてくれます。",
   "ph.h.trouble": "うまくいかないとき",
   "ph.q1": "スマホがアドレスを開けないと言う",
   "ph.a1": "ほとんどの場合、スマホがまだプライベートネットワークに入っていません。スマホで Tailscale を開き、スイッチが本当に <strong>オン</strong> か確かめてください。入れただけでは足りません。iPhone ならオンのときステータスバーに <strong>VPN</strong> と出ます。PC と同じアカウントでサインインしているかも確認してください。アカウントが違うとネットワークも別になり、互いに見えません。",
@@ -826,7 +859,8 @@ const I18N = {
  "zh": {
   "nav.back": "← 返回网站",
   "ph.title": "把手机当作第二块屏幕",
-  "ph.lede": "想用 Xenon，你需要一块可以整天开着的屏幕：一台 Xeneon Edge、一台闲置显示器，或者一台旧平板。真正把大多数人挡在门外的是这一点，不是功能。可你口袋里已经有一块屏幕了。这篇文章就是教你怎么用它。",
+  "ph.beta": "测试版",
+  "ph.lede": "想用 Xenon，你需要一块可以整天开着的屏幕：一台闲置显示器、一台旧平板，或者一台 Xeneon Edge。真正把大多数人挡在门外的是这一点，不是功能。可你口袋里已经有一块屏幕了。这篇文章就是教你怎么用它。",
   "ph.intro": "手机上出现的不是遥控器，也不是预览。它就是<strong>你的仪表盘</strong>，布局、组件、主题都一模一样。Deck 按键真的在电脑上执行。你按暂停，音乐就停。你改一个设置，一秒后电脑上也改好了。不需要账号，没有云端，没有要装的应用，也没有任何东西离开你家的网络。",
   "ph.cap.phone": "手机：磁贴纵向堆叠，底部是快捷栏",
   "ph.cap.tab": "平板：你亲手搭好的完整网格",
@@ -838,7 +872,11 @@ const I18N = {
   "ph.can.3": "媒体、音量、麦克风静音和应用切换",
   "ph.can.4": "商店：组件、图标包、音效包和主题",
   "ph.can.5": "Xenon AI，以及会保存到电脑的设置",
-  "ph.cant.1": "Windows 的授权弹窗。它只画在电脑自己的屏幕上，所以只能在电脑上回应",
+  "ph.can.6": "双向发送照片和文件",
+  "ph.h.xfer": "把照片和文件传过去",
+  "ph.xfer.p": "手机配对后，就可以往电脑发文件，也可以从电脑取文件。在手机上打开 Xenon，点“照片和视频”或“其他文件”，选好要发的内容，它们就会以原来的名字落在电脑的 Download/Xenon 里。反方向也一样：从资源管理器或访达把文件拖到磁贴上，再用手机下载。不经过任何别人的服务器。",
+  "ph.xfer.ios": "<strong>在 iPhone 上，发送内容需要先打开 Xenon。</strong>iOS 不允许任何网站出现在它的分享按钮里，网页这边也没有绕过的办法。在 iPhone 上下载的文件会进入“文件”，而不是相册：长按照片，选择“添加到照片”。",
+  "ph.cant.1": "系统的授权弹窗。Windows、macOS 和 Linux 都只把它画在电脑自己的屏幕上，所以只能在电脑上回应",
   "ph.cant.2": "更新 Xenon。更新会重启手机正连着的那个服务",
   "ph.cant.3": "系统安装程序（helper、PresentMon、驱动）。每一个都会往硬盘里装东西",
   "ph.cant.4": "添加或删除已配对的设备。这样一部手机既不能拉别的设备进来，也不能删掉那台能把它踢出去的设备",
@@ -859,8 +897,8 @@ const I18N = {
   "ph.r2.4": "就算路由器换了地址，访问地址也不会变",
   "ph.two.after": "这不是二选一。第二条路是在第一条旁边多开一扇门，不是替掉它。如果你只在家里用 Xenon，先用第一条就行。",
   "ph.h.home": "在家，三十秒搞定",
-  "ph.s1.h": "在电脑上打开 设置，然后 远程控制",
-  "ph.s1.p": "需要的全部都在 <strong>手机访问</strong> 这一个面板里。",
+  "ph.s1.h": "在电脑上打开 设置，然后 手机",
+  "ph.s1.p": "需要的全部都在 <strong>手机访问</strong> 这一个面板里。捷径：第一次打开 Xenon 时它会问你想把它放在哪块屏幕上，在那里选 <strong>我的手机或平板</strong>，就会直接带你到这个面板。",
   "ph.s2.h": "打开“允许其他设备访问”",
   "ph.s2.p": "你不打开它就一直关着。关着的时候，Xenon 只回应这台电脑，别的一概不理。就算有人扫描你的网络，得到的回应和一个根本没有这个功能的版本完全一样，看不出这个功能存在。",
   "ph.s2.sw": "允许其他设备访问",
@@ -880,7 +918,7 @@ const I18N = {
   "ph.card.btn": "帮我设置",
   "ph.card.2": "<strong>中间会停一次，这是故意的。</strong> 证书是整个专用网络的设置，要在 Tailscale 自己的网站上改。Xenon 也可以替你改，但那需要你先在同一个网站上生成一把密钥，步骤反而更多。所以 Xenon 就停在那里，把链接给你，等你弄完它自己会发现。窗口开着不用管。",
   "ph.t1.h": "按“帮我设置”",
-  "ph.t1.p": "Windows 会问你要不要允许安装 Tailscale。然后会打开一个浏览器标签让你登录。Google、Microsoft 或 GitHub 账号都行，你并不是在注册 Xenon 账号。",
+  "ph.t1.p": "系统会问你要不要允许安装 Tailscale。然后会打开一个浏览器标签让你登录。Google、Microsoft 或 GitHub 账号都行，你并不是在注册 Xenon 账号。",
   "ph.t2.h": "打开 HTTPS 证书",
   "ph.t2.p": "这是唯一一步 Xenon 替不了你。它提示的时候，按它给出的按钮，会打开 <code>login.tailscale.com/admin/dns</code>。往下找到 <strong>HTTPS Certificates</strong>，按 <strong>Enable</strong>。任何套餐都免费。然后回到 Xenon，它已经自己往下走了。",
   "ph.t3.h": "用同一个账号在手机上装 Tailscale",
@@ -888,7 +926,7 @@ const I18N = {
   "ph.t4.h": "在新地址上重新配对手机",
   "ph.t4.p": "按 <strong>添加设备</strong> 再扫一次。浏览器会把配对绑在当时那个地址上，所以在家里地址配过的手机，在安全地址上并没有配过。之后你只需要新地址：在家在外都能用。",
   "ph.t5.h": "把它加到主屏幕",
-  "ph.t5.p": "在 Safari 里点分享，选 <strong>添加到主屏幕</strong>。Android 上 Chrome 会主动提示安装。之后 Xenon 会用自己的图标全屏打开，没有地址栏。这里麦克风可以用，所以 Xenon AI 能通过手机听，而不是通过电脑。通知也可以用：在设置里进入远程控制，为这台设备打开通知，倒计时结束时就算应用关着也能通知到你。",
+  "ph.t5.p": "在 Safari 里点分享，选 <strong>添加到主屏幕</strong>。Android 上 Chrome 会主动提示安装。之后 Xenon 会用自己的图标全屏打开，没有地址栏。这里麦克风可以用，所以 Xenon AI 能通过手机听，而不是通过电脑。通知也可以用：在设置里进入手机，为这台设备打开通知，倒计时结束时就算应用关着也能通知到你。",
   "ph.h.trouble": "遇到问题的时候",
   "ph.q1": "手机说打不开这个地址",
   "ph.a1": "几乎都是手机还没进到你的专用网络里。在手机上打开 Tailscale，确认开关真的是<strong>开着</strong>的，光装上应用不算。iPhone 上开着的时候状态栏会显示 <strong>VPN</strong>。再确认一下你用的是和电脑同一个账号，两个账号就是两个网络，互相看不见。",

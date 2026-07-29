@@ -60,8 +60,15 @@
                  the first real audio LEVEL source in the product; SoundVolumeView
                  exports volume and mute but no meter column);
          0.10.0 = one-pass Living Index overview for multi-million-file disks;
-         0.11.0 = opaque-id disk drill-down with direct files + child folders. -->
-    <Version>0.11.3</Version>
+         0.11.0 = opaque-id disk drill-down with direct files + child folders;
+         0.11.4 = media-serve absolute seek (seconds → SMTC timeline ticks);
+         0.12.0 = phone-serve (paired-phone phonebook + call log over PBAP/OBEX,
+                  call state pushed from PhoneCallManager, dial via PhoneLine).
+                  NOTE: answering a call is deliberately absent — the HFP RFCOMM
+                  channel is held by the system driver and the public API has no
+                  accept method, so `status` reports canAnswer:false rather than
+                  the dashboard guessing. -->
+    <Version>0.12.0</Version>
     <Description>Xenon Helper — native companion process for the Xenon dashboard server</Description>
   </PropertyGroup>
 

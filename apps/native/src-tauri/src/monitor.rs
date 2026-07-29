@@ -1,14 +1,23 @@
-//! Xeneon Edge monitor targeting + kiosk watchdog.
+//! Screen targeting + kiosk watchdog.
 //!
-//! The Edge reports its native panel resolution of 2560×720. We find the monitor
-//! with that physical size and pin the borderless kiosk window to it, then keep a
-//! lightweight watchdog running so the window returns to the Edge after Windows
-//! reorders displays, the panel is unplugged/replugged, or the PC resumes from
-//! standby. If the Edge is not present, we degrade gracefully to an ordinary
-//! resizable desktop window (usable on any laptop or monitor) and upgrade it to
-//! the full kiosk the moment the Edge appears.
+//! Where the window goes is decided in ONE place — `resolve()` — from the user's
+//! saved `placement` and the live monitor list. Three outcomes:
+//!
+//!   * `Auto` (default): the Xeneon Edge if one is attached (it reports its
+//!     native 2560×720, which is how we find it), otherwise an ordinary window
+//!     on the preferred/primary display. A watchdog upgrades to the kiosk the
+//!     moment an Edge appears, and re-pins after display reorders, replug or
+//!     resume from standby.
+//!   * `Screen`: the user NAMED a display and it wins, Edge attached or not. If
+//!     that display is gone the window HIDES rather than reappearing somewhere
+//!     the user did not ask for; the watchdog restores it when the screen is back.
+//!   * `Phone`: nothing on this PC at all.
+//!
+//! Before v4.11 the Edge always won and the choice did not exist, which is why
+//! the tray's monitor picker was greyed out on every machine that had one.
 
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 use tauri::{
@@ -16,6 +25,7 @@ use tauri::{
 };
 
 use crate::prefs;
+use crate::prefs::Placement;
 
 // This module is shared by every target, but two of the things it consults —
 // the virtual-display list and the game-mode guard — are implemented with Win32
@@ -78,6 +88,85 @@ pub static HIDE_ON_RDP: AtomicBool = AtomicBool::new(false);
 /// active, so we hide/show only on the transition (and restore placement once the
 /// session ends) instead of every 3-second tick.
 static RDP_HIDDEN: AtomicBool = AtomicBool::new(false);
+
+/// True while the window is hidden because the screen the user CHOSE is not
+/// connected. Same transition-only shape as `RDP_HIDDEN`.
+static NO_SCREEN: AtomicBool = AtomicBool::new(false);
+
+/// True while the tray's "Show Xenon" has deliberately overridden a hidden state
+/// for this session. The user asked to see it now; that is not a change of mind
+/// about where it lives, so nothing is written to prefs and the next topology
+/// change re-evaluates from scratch.
+static SHOW_OVERRIDE: AtomicBool = AtomicBool::new(false);
+
+/// Mirror of the placement triple, so the watchdog can read the user's choice on
+/// every 3-second tick without touching disk — the same reason `HIDE_ON_RDP`
+/// exists. Seeded at startup (see lib.rs) and updated by every writer.
+///
+/// Copy the value out before calling any window API: holding this across a call
+/// that can re-enter (a tray handler, a signal thread) would deadlock.
+static PLACEMENT: Mutex<PlacementCache> = Mutex::new(PlacementCache {
+    mode: Placement::Auto,
+    monitor: None,
+    fingerprint: None,
+    fullscreen: false,
+});
+
+#[derive(Clone)]
+struct PlacementCache {
+    mode: Placement,
+    monitor: Option<String>,
+    fingerprint: Option<String>,
+    fullscreen: bool,
+}
+
+fn placement_cache() -> PlacementCache {
+    PLACEMENT
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone()
+}
+
+/// Mark this session as a deliberate, user-initiated launch, so phone mode does
+/// not hide a window the user just asked for by double-clicking the app. Set at
+/// startup when the process was NOT started by the login entry. Session-only:
+/// nothing is written, and the next login is hidden again as chosen.
+pub fn allow_show_this_session() {
+    SHOW_OVERRIDE.store(true, Ordering::SeqCst);
+}
+
+/// Refresh the in-memory mirror. Every writer of the placement triple calls this
+/// in the same breath as `prefs::update`, or the watchdog keeps acting on the
+/// previous choice until the next launch.
+pub fn set_placement_cache(prefs: &prefs::DisplayPrefs) {
+    let mut guard = PLACEMENT.lock().unwrap_or_else(|e| e.into_inner());
+    guard.mode = prefs.placement;
+    guard.monitor = prefs.monitor.clone();
+    guard.fingerprint = prefs.monitor_fingerprint.clone();
+    guard.fullscreen = prefs.fullscreen;
+}
+
+/// Whether the window is allowed to be visible right now.
+///
+/// Three independent reasons can hide it, and before this predicate existed the
+/// RDP branch called `window.show()` unconditionally — so ending a remote session
+/// would reveal a window that phone mode, or a missing screen, still wanted
+/// hidden. Every `show()` outside the deliberate tray override goes through here.
+fn may_show() -> bool {
+    if SHOW_OVERRIDE.load(Ordering::SeqCst) {
+        return true;
+    }
+    !RDP_HIDDEN.load(Ordering::SeqCst)
+        && !NO_SCREEN.load(Ordering::SeqCst)
+        && placement_cache().mode != Placement::Phone
+}
+
+/// Show the window only if nothing else wants it hidden.
+fn show_if_allowed(window: &WebviewWindow) {
+    if may_show() {
+        let _ = window.show();
+    }
+}
 
 /// Whether this process is running inside a Windows Remote Desktop / Terminal
 /// Services session. `SM_REMOTESESSION` is true ONLY for a genuine `mstsc`/RDP
@@ -282,6 +371,8 @@ fn monitor_by_name(window: &WebviewWindow, name: &str) -> Option<Monitor> {
 }
 
 /// The monitor a saved preference points at, falling back to the primary display.
+/// Used in `Auto` only, where the saved name is a *preference*; an explicit
+/// choice must never silently land somewhere else (see `chosen_monitor`).
 fn preferred_monitor(window: &WebviewWindow, prefs: &prefs::DisplayPrefs) -> Option<Monitor> {
     prefs
         .monitor
@@ -290,35 +381,155 @@ fn preferred_monitor(window: &WebviewWindow, prefs: &prefs::DisplayPrefs) -> Opt
         .or_else(|| primary_or_first(window))
 }
 
+/// A shape-based key for a monitor, used to recover an explicit choice when the
+/// OS name has shifted under it (see `DisplayPrefs::monitor_fingerprint`). Two
+/// identical panels produce identical fingerprints; that is accepted, because the
+/// alternative — landing on a monitor the user did not choose — is worse than
+/// landing on the wrong one of two screens that look the same.
+fn fingerprint(monitor: &Monitor) -> String {
+    let s = monitor.size();
+    format!("{}x{}@{}", s.width, s.height, monitor.scale_factor())
+}
+
+fn monitor_by_fingerprint(window: &WebviewWindow, fp: &str) -> Option<Monitor> {
+    window
+        .available_monitors()
+        .ok()?
+        .into_iter()
+        .find(|m| fingerprint(m) == fp)
+}
+
+/// Resolve the screen the user explicitly chose: by name first, then by shape.
+/// `None` means it is genuinely not connected right now.
+fn chosen_monitor(window: &WebviewWindow, cache: &PlacementCache) -> Option<Monitor> {
+    if let Some(found) = cache.monitor.as_deref().and_then(|n| monitor_by_name(window, n)) {
+        return Some(found);
+    }
+    cache.fingerprint.as_deref().and_then(|fp| monitor_by_fingerprint(window, fp))
+}
+
+/// True when this monitor IS the Edge panel, judged on size alone.
+///
+/// Deliberately not `is_edge`: that one also matches any display whose OS name
+/// merely contains "edge" or "xeneon", which is a fine hint for the auto-pin and
+/// a trap here. Under "an explicit choice wins", a false positive would drop the
+/// user's chosen monitor into a borderless, undecorated, taskbar-hidden window
+/// with no title bar and no way out.
+fn is_edge_panel(monitor: &Monitor) -> bool {
+    let size = monitor.size();
+    size.width == EDGE_WIDTH && size.height == EDGE_HEIGHT
+}
+
 /// True when a Xeneon Edge is connected right now.
 pub fn edge_present(window: &WebviewWindow) -> bool {
     find_edge(window).is_some()
 }
 
-/// No Edge connected: open per the user's saved display preference (windowed by
-/// default, or full-screen on their chosen monitor), fitted to whatever screen
-/// this PC has. The watchdog still upgrades to the Edge kiosk if one appears.
-pub fn apply_prefs(window: &WebviewWindow) {
-    let prefs = prefs::load(window.app_handle());
-    match preferred_monitor(window, &prefs) {
-        Some(monitor) if prefs.fullscreen => place_fullscreen_on(window, &monitor),
-        Some(monitor) => place_windowed_on(window, &monitor),
-        None => {
-            // No monitor info at all — fall back to a plain windowed state.
-            let _ = window.set_fullscreen(false);
-            let _ = window.set_decorations(true);
-            let _ = window.set_skip_taskbar(false);
+/// What the shell should do right now, given the saved choice and the live
+/// monitor list. The single source of the placement rule.
+pub enum Target {
+    /// Borderless kiosk owning the whole panel (the Edge treatment).
+    Kiosk(Monitor),
+    /// Ordinary window, or reachable full-screen, on this monitor.
+    Windowed(Monitor, bool),
+    /// Nothing on this PC: phone mode, or the chosen screen is unplugged.
+    Nothing(NoScreen),
+}
+
+pub enum NoScreen {
+    Phone,
+    ChosenMissing,
+}
+
+fn resolve(window: &WebviewWindow, cache: &PlacementCache) -> Target {
+    match cache.mode {
+        Placement::Phone => Target::Nothing(NoScreen::Phone),
+        Placement::Screen => match chosen_monitor(window, cache) {
+            // Choosing the Edge is legal and means "the Edge, deliberately" —
+            // and there is no windowed Edge: that panel IS the kiosk.
+            Some(m) if is_edge_panel(&m) => Target::Kiosk(m),
+            Some(m) => Target::Windowed(m, cache.fullscreen),
+            // No fallback to primary on purpose. Putting the kiosk on a screen
+            // the user did not pick, because the one they did pick is switched
+            // off, is the "Xenon is covering my desktop" complaint.
+            None => Target::Nothing(NoScreen::ChosenMissing),
+        },
+        Placement::Auto => match find_edge(window) {
+            Some(edge) => Target::Kiosk(edge),
+            None => {
+                let prefs = prefs::DisplayPrefs {
+                    monitor: cache.monitor.clone(),
+                    ..Default::default()
+                };
+                match preferred_monitor(window, &prefs) {
+                    Some(m) => Target::Windowed(m, cache.fullscreen),
+                    None => Target::Nothing(NoScreen::ChosenMissing),
+                }
+            }
+        },
+    }
+}
+
+/// Apply a resolved target to the window.
+fn apply_target(window: &WebviewWindow, target: Target, focus: bool) {
+    match target {
+        Target::Kiosk(m) => {
+            NO_SCREEN.store(false, Ordering::SeqCst);
+            show_if_allowed(window);
+            place_on_edge(window, &m, focus);
+        }
+        Target::Windowed(m, true) => {
+            NO_SCREEN.store(false, Ordering::SeqCst);
+            show_if_allowed(window);
+            place_fullscreen_on(window, &m);
+        }
+        Target::Windowed(m, false) => {
+            NO_SCREEN.store(false, Ordering::SeqCst);
+            show_if_allowed(window);
+            place_windowed_on(window, &m);
+        }
+        Target::Nothing(NoScreen::Phone) => {
+            // SHOW_OVERRIDE is what a DELIBERATE launch sets: the user chose
+            // their phone, then double-clicked Xenon anyway, and an app that
+            // opens and shows nothing reads as broken.
+            if !SHOW_OVERRIDE.load(Ordering::SeqCst) {
+                let _ = window.hide();
+            }
+        }
+        Target::Nothing(NoScreen::ChosenMissing) => {
+            if !NO_SCREEN.swap(true, Ordering::SeqCst) && !SHOW_OVERRIDE.load(Ordering::SeqCst) {
+                let _ = window.hide();
+            }
         }
     }
 }
 
-/// Place the window on the Edge now if it is connected; otherwise present it per
-/// the saved display preference. Called once at startup.
+/// Place the window where the user's choice says it belongs. Called at startup,
+/// after every choice, and whenever the watchdog decides a repair is due.
 pub fn place_now(window: &WebviewWindow) {
-    match find_edge(window) {
-        Some(edge) => place_on_edge(window, &edge, true),
-        None => apply_prefs(window),
+    let cache = placement_cache();
+    apply_target(window, resolve(window, &cache), true);
+}
+
+/// Tray "Show Xenon": reveal the window now even when a rule wants it hidden
+/// (phone mode, or the chosen screen unplugged). Writes nothing — the user asked
+/// to see it, not to move house — so the next topology change re-evaluates.
+pub fn show_now(app: &AppHandle) {
+    let Some(window) = app.get_webview_window("main") else { return };
+    SHOW_OVERRIDE.store(true, Ordering::SeqCst);
+    let cache = placement_cache();
+    match resolve(&window, &cache) {
+        Target::Nothing(_) => {
+            // Nowhere legitimate to put it: land on the primary, this session only.
+            let _ = window.show();
+            if let Some(m) = primary_or_first(&window) {
+                place_windowed_on(&window, &m);
+            }
+        }
+        target => apply_target(&window, target, true),
     }
+    let _ = window.unminimize();
+    let _ = window.set_focus();
 }
 
 /// Clip the OS window to a circle (or clear the clip). The kiosk window is a
@@ -463,8 +674,17 @@ fn clear_stuck_topmost(window: &WebviewWindow) {
 /// watchdog is paused via `HOME_MODE` so it will not yank the window back to
 /// full-screen while the user is on the desktop.
 pub fn enter_home(window: &WebviewWindow) {
+    let cache = placement_cache();
+    // Nothing to collapse when this PC shows nothing.
+    if cache.mode == Placement::Phone {
+        return;
+    }
     HOME_MODE.store(true, Ordering::SeqCst);
-    let target = find_edge(window)
+    // The chosen screen comes first: with a monitor picked AND an Edge attached,
+    // asking find_edge first would drop the round return button on the Edge —
+    // a different screen from the one the dashboard was just filling.
+    let target = chosen_monitor(window, &cache)
+        .or_else(|| find_edge(window))
         .or_else(|| window.current_monitor().ok().flatten())
         .or_else(|| primary_or_first(window));
     // The kiosk carries a 640×240 minimum; drop it so the button can be this small.
@@ -500,6 +720,14 @@ pub fn enter_home(window: &WebviewWindow) {
 /// clear the circular clip, re-arm the minimum size, drop always-on-top, and let
 /// the watchdog run again.
 pub fn exit_home(window: &WebviewWindow) {
+    // The undo runs for EVERY placement. It used to return early on `Phone`,
+    // leaving the window as the 84px always-on-top circle with HOME_MODE still
+    // set — and that is reachable from shipping UI, not a corner: swipe home,
+    // then tray → "On my phone/tablet", which records the mode and deliberately
+    // keeps the window this session already has. From there the round button did
+    // nothing, "Show Xenon" could not rescue it (place_windowed_on never clears
+    // the clip), the watchdog skips `Phone`, and the only way out was killing
+    // the app.
     HOME_MODE.store(false, Ordering::SeqCst);
     #[cfg(windows)]
     clip_round(window, false, 0);
@@ -508,13 +736,60 @@ pub fn exit_home(window: &WebviewWindow) {
     // fullscreen on the Edge; keeps a normal shadow if we fall back to windowed).
     let _ = window.set_shadow(true);
     let _ = window.set_min_size(Some(LogicalSize::new(640.0, 240.0)));
-    place_now(window);
+    // Only the RE-PLACEMENT depends on the mode. Under `Phone`, place_now means
+    // "this PC shows nothing", which would take away the window set_placement
+    // just promised the current session it could keep — so give it back as an
+    // ordinary desktop window on the screen it is already on.
+    if placement_cache().mode == Placement::Phone {
+        if let Some(monitor) = window.current_monitor().ok().flatten() {
+            place_windowed_on(window, &monitor);
+        }
+    } else {
+        place_now(window);
+    }
     let _ = window.set_focus();
 }
 
-/// Human-readable labels for each connected monitor, in enumeration order — used
-/// to build the tray's "show on which display" picker.
-pub fn monitor_labels(window: &WebviewWindow) -> Vec<String> {
+/// One entry per connected monitor, shared by the tray picker and the dashboard's
+/// Settings → Screen list so the two can never disagree about what is attached.
+pub struct DisplayInfo {
+    pub id: Option<String>,
+    pub label: String,
+    pub width: u32,
+    pub height: u32,
+    pub scale: f64,
+    pub primary: bool,
+    pub edge: bool,
+}
+
+impl DisplayInfo {
+    /// The label for a plain text menu, where "which one is the Edge" has to be
+    /// spelled out because there is nowhere to put a chip.
+    pub fn tray_label(&self) -> String {
+        if self.edge {
+            format!("{} (Xeneon Edge)", self.label)
+        } else if self.primary {
+            format!("{} (primary)", self.label)
+        } else {
+            self.label.clone()
+        }
+    }
+}
+
+/// Every connected monitor, in enumeration order.
+///
+/// The index in `Display N` is only a human hint: on Windows the OS name is
+/// `\\.\DISPLAYn`, assigned by ORDER, so both the number and the name shift when
+/// screens are replugged. With two identical panels the resolution alone tells
+/// you nothing either, which is why `primary` and `edge` are reported as flags —
+/// the dashboard renders them as chips, and the tray, which has no chips, spells
+/// them into the label itself (see `tray_label`).
+pub fn displays(window: &WebviewWindow) -> Vec<DisplayInfo> {
+    let primary_name = window
+        .primary_monitor()
+        .ok()
+        .flatten()
+        .and_then(|m| m.name().cloned());
     window
         .available_monitors()
         .ok()
@@ -523,16 +798,68 @@ pub fn monitor_labels(window: &WebviewWindow) -> Vec<String> {
         .enumerate()
         .map(|(i, m)| {
             let s = m.size();
-            format!("Display {} — {}×{}", i + 1, s.width, s.height)
+            let id = m.name().cloned();
+            let edge = is_edge_panel(&m);
+            let primary = id.is_some() && id == primary_name;
+            DisplayInfo {
+                id,
+                label: format!("Display {} — {}×{}", i + 1, s.width, s.height),
+                width: s.width,
+                height: s.height,
+                scale: m.scale_factor(),
+                primary,
+                edge,
+            }
         })
         .collect()
 }
 
-/// Tray action: switch the (non-Edge) window between full-screen and windowed and
-/// remember the choice. A no-op while the Edge kiosk owns the panel.
+/// The whole display state, as the dashboard consumes it. `active` is the screen
+/// the window is really on — the page shows the truth, not the intent.
+pub fn display_state(window: &WebviewWindow) -> serde_json::Value {
+    let cache = placement_cache();
+    let list: Vec<serde_json::Value> = displays(window)
+        .into_iter()
+        .map(|d| {
+            serde_json::json!({
+                "id": d.id, "label": d.label, "width": d.width, "height": d.height,
+                "scale": d.scale, "primary": d.primary, "edge": d.edge,
+            })
+        })
+        .collect();
+    let active = window
+        .current_monitor()
+        .ok()
+        .flatten()
+        .and_then(|m| m.name().cloned());
+    let missing = cache.mode == Placement::Screen && chosen_monitor(window, &cache).is_none();
+    serde_json::json!({
+        "displays": list,
+        "display": {
+            "mode": match cache.mode {
+                Placement::Auto => "auto",
+                Placement::Screen => "screen",
+                Placement::Phone => "phone",
+            },
+            "monitor": cache.monitor,
+            "fullscreen": cache.fullscreen,
+            "active": active,
+            "missing": missing,
+        }
+    })
+}
+
+/// Tray/Settings action: switch between full-screen and windowed, and remember it.
+///
+/// A no-op only when the effective target is the Edge PANEL — that one is always
+/// borderless-fullscreen, so the toggle has nothing to say. It used to bail
+/// whenever an Edge existed anywhere, which meant F11 and the tray checkbox did
+/// nothing on a PC that had an Edge attached but whose owner had chosen another
+/// screen.
 pub fn set_fullscreen_pref(app: &AppHandle, on: bool) {
     let Some(window) = app.get_webview_window("main") else { return };
-    if edge_present(&window) {
+    let cache = placement_cache();
+    if matches!(resolve(&window, &cache), Target::Kiosk(_) | Target::Nothing(_)) {
         return;
     }
     let mut snapshot = prefs::DisplayPrefs::default();
@@ -540,41 +867,75 @@ pub fn set_fullscreen_pref(app: &AppHandle, on: bool) {
         p.fullscreen = on;
         snapshot = p.clone();
     });
-    if let Some(monitor) = preferred_monitor(&window, &snapshot) {
-        if on {
-            place_fullscreen_on(&window, &monitor);
-        } else {
-            place_windowed_on(&window, &monitor);
-        }
-    }
+    set_placement_cache(&snapshot);
+    place_now(&window);
+    push_display_state(app);
 }
 
-/// Tray action: move the (non-Edge) window onto the monitor at `index` (matching
-/// `monitor_labels`), preserving the current full-screen/windowed choice, and
-/// remember it. A no-op while the Edge kiosk owns the panel.
-pub fn move_to_monitor(app: &AppHandle, index: usize) {
+/// Tray/Settings action: put the window on this monitor, by OS name.
+///
+/// Picking a display IS the explicit choice, so it also switches the mode to
+/// `Screen` — and there is no longer an "a Xeneon Edge is attached, so no"
+/// early-return: refusing the pick was exactly the behaviour this replaces.
+pub fn move_to_named_monitor(app: &AppHandle, name: &str) {
     let Some(window) = app.get_webview_window("main") else { return };
-    if edge_present(&window) {
-        return;
-    }
-    let Some(monitor) = window
-        .available_monitors()
-        .ok()
-        .and_then(|list| list.into_iter().nth(index))
-    else {
-        return;
-    };
-    let name = monitor.name().map(|n| n.to_string());
-    let mut fullscreen = false;
+    // A name we did not just read from the OS is not a name. Resolving before
+    // writing is what stops any caller from putting an arbitrary string into
+    // display.json and leaving the window unplaceable at the next launch.
+    let Some(monitor) = monitor_by_name(&window, name) else { return };
+    let mut snapshot = prefs::DisplayPrefs::default();
     prefs::update(app, |p| {
-        p.monitor = name;
-        fullscreen = p.fullscreen;
+        p.monitor = monitor.name().cloned();
+        p.monitor_fingerprint = Some(fingerprint(&monitor));
+        p.placement = Placement::Screen;
+        snapshot = p.clone();
     });
-    if fullscreen {
-        place_fullscreen_on(&window, &monitor);
+    set_placement_cache(&snapshot);
+    SHOW_OVERRIDE.store(false, Ordering::SeqCst);
+    place_now(&window);
+    // Picking a screen can be the way OUT of phone mode — most obviously from
+    // the tray, where it is the only control that does it. Without this the
+    // window would come back now and be gone again at the next login, which is
+    // the kind of half-applied setting this whole feature exists to remove.
+    crate::sync_autostart(app);
+    push_display_state(app);
+}
+
+/// Set the placement mode without naming a screen: "automatic" or "my phone".
+pub fn set_placement(app: &AppHandle, mode: Placement) {
+    let Some(window) = app.get_webview_window("main") else { return };
+    let mut snapshot = prefs::DisplayPrefs::default();
+    prefs::update(app, |p| {
+        p.placement = mode;
+        snapshot = p.clone();
+    });
+    set_placement_cache(&snapshot);
+    // A deliberate mode change ends any "show it anyway" the tray granted.
+    SHOW_OVERRIDE.store(false, Ordering::SeqCst);
+    if mode == Placement::Phone {
+        // Recorded, NOT applied to the window that is open right now.
+        //
+        // "Nothing on this PC" is about STARTUP: it is what stops the kiosk
+        // reappearing at every login once the dashboard lives on a phone. Doing
+        // it the instant the choice is made takes the screen away mid-sentence —
+        // the user picks "my phone", and the window carrying the pairing QR, the
+        // Settings panel and the confirmation all vanish at once. So the current
+        // session keeps its window, the login entry goes (see sync_autostart
+        // below in the caller), and the next launch opens hidden.
+        NO_SCREEN.store(false, Ordering::SeqCst);
     } else {
-        place_windowed_on(&window, &monitor);
+        place_now(&window);
     }
+    crate::sync_autostart(app);
+    push_display_state(app);
+}
+
+/// Push the current display state into the dashboard page. Best-effort: the page
+/// may not be loaded yet, and the next push will carry the same state anyway.
+pub fn push_display_state(app: &AppHandle) {
+    let Some(window) = app.get_webview_window("main") else { return };
+    let state = display_state(&window);
+    let _ = window.eval(&crate::display_state_js(&state));
 }
 
 /// A signature of the current display layout — each monitor's origin and size,
@@ -631,6 +992,17 @@ pub fn start_watchdog(app: AppHandle) {
             None => break, // window destroyed → stop the watchdog
         };
 
+        // Read the user's choice from memory, not disk — the same reason
+        // HIDE_ON_RDP is mirrored. This runs every 3 seconds, forever.
+        let cache = placement_cache();
+
+        // Phone mode: this PC shows nothing, so there is nothing to re-pin and
+        // nothing to reveal. Checked BEFORE the RDP branch, whose show() would
+        // otherwise put a hidden window back on screen when a remote session ends.
+        if cache.mode == Placement::Phone {
+            continue;
+        }
+
         // Remote-Desktop hide (opt-in): while the user is RDP'd into this PC, keep
         // the borderless kiosk out of the way so it doesn't cover the desktop they
         // came in to use; bring it back when the session ends. Checked before the
@@ -644,12 +1016,12 @@ pub fn start_watchdog(app: AppHandle) {
                 }
                 continue; // stay hidden — don't re-pin while the session is remote
             } else if RDP_HIDDEN.swap(false, Ordering::SeqCst) {
-                let _ = window.show();
+                // Back at the console. `place_now` shows the window itself, and
+                // only if no OTHER rule still wants it hidden.
                 place_now(&window); // back at the console — restore the kiosk
             }
         } else if RDP_HIDDEN.swap(false, Ordering::SeqCst) {
             // Toggled off while hidden (rare) — reveal it again.
-            let _ = window.show();
             place_now(&window);
         }
 
@@ -663,6 +1035,62 @@ pub fn start_watchdog(app: AppHandle) {
         #[cfg(windows)]
         clear_stuck_topmost(&window);
 
+        // Computed once per tick, for whichever branch runs. The ASSIGNMENT stays
+        // below the HOME_MODE and RDP `continue`s on purpose: while either holds
+        // the window, the baseline is deliberately left stale so that returning
+        // re-pins exactly once.
+        let topology = topology_signature(&window);
+        // An empty signature means monitors couldn't be read this tick — treat it
+        // as "unknown", not a change, and keep the previous baseline so the next
+        // valid read still compares against real data.
+        let topology_changed =
+            !last_topology.is_empty() && !topology.is_empty() && topology != last_topology;
+        if !topology.is_empty() {
+            last_topology = topology.clone();
+        }
+        if topology_changed {
+            // The list the dashboard's screen picker is showing just went stale.
+            push_display_state(&app);
+        }
+
+        // The screen the user NAMED. Structurally the Edge branch below, with the
+        // target swapped — including both of its guards, which have nothing to do
+        // with the Edge and everything to do with re-placing at a bad moment.
+        if cache.mode == Placement::Screen {
+            match chosen_monitor(&window, &cache) {
+                None => {
+                    if !NO_SCREEN.swap(true, Ordering::SeqCst)
+                        && !SHOW_OVERRIDE.load(Ordering::SeqCst)
+                    {
+                        let _ = window.hide();
+                        push_display_state(&app);
+                    }
+                }
+                Some(target) => {
+                    if NO_SCREEN.swap(false, Ordering::SeqCst) {
+                        // The chosen screen is back. Reveal and re-place once.
+                        place_now(&window);
+                        push_display_state(&app);
+                        continue;
+                    }
+                    if !game_mode() && (topology_changed || !window_is_on(&window, &target)) {
+                        let focus = kiosk_has_foreground(&window);
+                        if is_edge_panel(&target) {
+                            place_on_edge(&window, &target, focus);
+                        } else if cache.fullscreen {
+                            place_fullscreen_on(&window, &target);
+                        } else if topology_changed {
+                            // Windowed: only re-place on a real topology change.
+                            // Chasing `window_is_on` here would drag the window
+                            // back every time the user moved it themselves.
+                            place_windowed_on(&window, &target);
+                        }
+                    }
+                }
+            }
+            continue;
+        }
+
         if let Some(edge) = find_edge(&window) {
             // Re-pin when the window drifted off the Edge OR the display topology
             // changed. The latter covers "monitor turned off": the window itself
@@ -670,15 +1098,7 @@ pub fn start_watchdog(app: AppHandle) {
             // the kiosk — re-asserting fullscreen (place_on_edge drops and re-enters
             // it) puts the borderless window back over the taskbar. Only fires on a
             // real change (not the first tick), so there's no idle-time flicker.
-            let topology = topology_signature(&window);
-            // An empty signature means monitors couldn't be read this tick — treat it
-            // as "unknown", not a change, and keep the previous baseline so the next
-            // valid read still compares against real data.
-            let topology_changed =
-                !last_topology.is_empty() && !topology.is_empty() && topology != last_topology;
-            if !topology.is_empty() {
-                last_topology = topology;
-            }
+            //
             // While a game is running, a topology change is almost always the game
             // itself switching the desktop resolution for exclusive full-screen.
             // Re-pinning here calls set_focus() (see place_on_edge), which yanks the

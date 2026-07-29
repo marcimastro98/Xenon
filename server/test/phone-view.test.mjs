@@ -21,7 +21,7 @@ test('every phone in portrait gets the stacked view', () => {
 // The threshold exists because a 24-column grid needs ~22px per column to stay
 // legible. Raising it past a Xeneon Edge mounted vertically (720) would restack
 // the layout somebody built for that screen.
-test('the Edge, tablets and desktops keep the grid', () => {
+test('the Edge, tablets and desktops keep the PHONE chrome off', () => {
   // Real viewports, both orientations. The Xeneon Edge is the one that matters
   // most: 2560x720 is short and very wide, which is exactly the shape the
   // landscape rule below must not claim.
@@ -37,7 +37,7 @@ test('the Edge, tablets and desktops keep the grid', () => {
   ];
   for (const v of KEEP) {
     assert.equal(pv.shouldUsePhoneView({ ...v, preference: 'auto' }), false,
-      v.width + 'x' + v.height + ' should keep the grid');
+      v.width + 'x' + v.height + ' should not get the phone chrome');
   }
   assert.ok(pv.PHONE_MAX_W < 720, 'the threshold must stay clear of a vertical Xeneon Edge');
   assert.ok(pv.PHONE_MAX_W >= 430, 'the threshold must cover the widest phone in portrait');
@@ -101,6 +101,71 @@ test('an unmeasurable viewport never silently restacks the dashboard', () => {
   }
 });
 
+// ── The tablet band ──────────────────────────────────────────────────────────
+// It exists because it measured WORSE than the phone: at 768x1024 against a
+// real dashboard, 30 elements were clipped by an ancestor with `overflow:
+// hidden`, against 9 at 390px. Nothing adapted between the phone threshold and
+// the desktop one, so a 32px grid column just squeezed every widget.
+
+test('tablets stack in two columns instead of being squeezed', () => {
+  const TABLETS = [
+    { width: 768, height: 1024 },   // iPad
+    { width: 820, height: 1180 },   // iPad Air portrait
+    { width: 834, height: 1112 },   // iPad Pro 10.5
+    { width: 1024, height: 768 },   // iPad landscape
+    { width: 1080, height: 810 },
+  ];
+  for (const v of TABLETS) {
+    assert.equal(pv.stackMode({ ...v, preference: 'auto' }), 'tablet',
+      v.width + 'x' + v.height + ' should stack in two columns');
+  }
+  assert.ok(pv.TABLET_MAX_W > pv.PHONE_MAX_W, 'the two bands must not overlap or invert');
+});
+
+test('a DISPLAY mounted vertically is not a tablet held in portrait', () => {
+  // A Xeneon Edge stood on its end is 720x2560 — inside the tablet width band,
+  // and its owner built a layout for exactly that shape. Restacking it into two
+  // columns would throw that away. The ratio is what separates them: 3.6
+  // against about 1.4 for every real tablet.
+  assert.equal(pv.stackMode({ width: 720, height: 2560, preference: 'auto' }), 'off');
+  assert.equal(pv.stackMode({ width: 1080, height: 3840, preference: 'auto' }), 'off');
+  // …and a tablet in portrait is nowhere near that, so it still stacks.
+  assert.equal(pv.stackMode({ width: 820, height: 1180, preference: 'auto' }), 'tablet');
+  assert.ok(pv.TALL_DISPLAY_RATIO > 1180 / 820, 'must not claim an iPad in portrait');
+  assert.ok(pv.TALL_DISPLAY_RATIO < 2560 / 720, 'must claim a vertical Edge');
+});
+
+test('a phone on its side is answered phone, never tablet', () => {
+  // Every one of these is inside the tablet WIDTH band, and the order of the
+  // checks is the only thing that keeps them out of it.
+  for (const v of [{ width: 932, height: 430 }, { width: 844, height: 390 }, { width: 915, height: 412 }]) {
+    assert.equal(pv.stackMode({ ...v, preference: 'auto' }), 'phone',
+      v.width + 'x' + v.height + ' is a phone lying down');
+  }
+});
+
+test('desktops are left alone entirely', () => {
+  for (const v of [{ width: 1280, height: 800 }, { width: 1920, height: 1080 }, { width: 2560, height: 720 }]) {
+    assert.equal(pv.stackMode({ ...v, preference: 'auto' }), 'off', v.width + 'x' + v.height);
+  }
+});
+
+test('the preference and the embed rule still beat every measurement', () => {
+  assert.equal(pv.stackMode({ width: 768, height: 1024, preference: 'off' }), 'off');
+  assert.equal(pv.stackMode({ width: 2560, height: 1440, preference: 'on' }), 'phone');
+  for (const pref of ['auto', 'on', 'off']) {
+    assert.equal(pv.stackMode({ width: 768, height: 1024, preference: pref, embedded: true }), 'off', pref);
+  }
+});
+
+test('a width with no height in the tablet band takes the roomier answer', () => {
+  // Without a height a phone on its side and a small tablet are the same
+  // number, and the safe reading of a bare width there is two columns, never
+  // the phone's compact chrome and thumb dock on an iPad.
+  assert.equal(pv.stackMode({ width: 900, preference: 'auto' }), 'tablet');
+  assert.equal(pv.stackMode({ width: 390, preference: 'auto' }), 'phone', 'the phone width is unambiguous');
+});
+
 // ── Reading order ────────────────────────────────────────────────────────────
 
 // The stacked view's whole claim is "the same order you see on your PC", so the
@@ -127,6 +192,43 @@ test('a taller tile beside shorter ones does not jump the queue', () => {
     { x: 12, y: 6 },   // bottom right
   ];
   assert.deepEqual(pv.readingOrder(tiles), [0, 1, 2]);
+});
+
+// THE bug this was reported for. `y` is a grid ROW, so tiles that sit visibly
+// side by side can differ in it — and a plain sort by (y, x) then reads a
+// two-row nudge as a new line. Measured on a real dashboard: three tiles filled
+// one band at (x0,y0,h24), (x8,y2,h22) and (x16,y0,h24), 70px of offset that
+// nobody looking at the screen would call a row, and the MIDDLE column sorted
+// last. The user reads left, middle, right and got left, right, middle.
+test('tiles that share a band read left to right, whatever their row', () => {
+  const tiles = [
+    { x: 0, y: 0, h: 24 },    // left
+    { x: 16, y: 0, h: 24 },   // right
+    { x: 8, y: 2, h: 22 },    // middle, nudged down two rows
+  ];
+  assert.deepEqual(pv.readingOrder(tiles), [0, 2, 1], 'left, middle, right');
+});
+
+test('a tile that starts halfway down a tall neighbour is below it, not beside it', () => {
+  // The other half of the rule: banding must not swallow a whole column just
+  // because one tile is tall. A short tile near the BOTTOM of a tall one is a
+  // new band, and comes after everything in the first.
+  const tiles = [
+    { x: 0, y: 0, h: 30 },    // tall left column
+    { x: 12, y: 0, h: 10 },   // beside its top
+    { x: 12, y: 24, h: 6 },   // far down its side
+  ];
+  assert.deepEqual(pv.readingOrder(tiles), [0, 1, 2]);
+});
+
+test('banding is relative to the band, so short and tall rows read the same', () => {
+  // Two rows of short tiles. A fixed row tolerance would merge them; a
+  // tolerance taken from the band's own first tile does not.
+  const tiles = [
+    { x: 0, y: 0, h: 6 }, { x: 12, y: 0, h: 6 },
+    { x: 0, y: 6, h: 6 }, { x: 12, y: 6, h: 6 },
+  ];
+  assert.deepEqual(pv.readingOrder(tiles), [0, 1, 2, 3]);
 });
 
 test('ties keep their original order, so the view cannot flicker', () => {
@@ -178,7 +280,12 @@ test('the stacking rules leave `display` on tiles alone', () => {
   // Strip comments first: they explain the rules by quoting CSS, braces and all,
   // so a naive "up to the next }" lands inside a comment.
   const bare = css.replace(/\/\*[\s\S]*?\*\//g, '');
-  const itemRule = bare.slice(bare.indexOf('.is-phone .dashboard.grid-stack > .grid-stack-item'));
+  // `.is-stacked`, not `.is-phone`: the tiles leave the grid the same way in
+  // both sizes, and only the column count and the chrome differ.
+  const SEL = '.is-stacked .dashboard.grid-stack > .grid-stack-item';
+  const at = bare.indexOf(SEL);
+  assert.notEqual(at, -1, 'the item rule was not located — did the scope class change?');
+  const itemRule = bare.slice(at);
   const block = itemRule.slice(0, itemRule.indexOf('}'));
   assert.ok(block.includes('position: static'), 'the item rule was not located');
   assert.equal(/(^|[;{\s])display\s*:/.test(block), false,

@@ -22,6 +22,40 @@ function runnerWith(statusJson, { upCode = 0 } = {}) {
   };
 }
 
+test('parseStatus tiene il BackendState grezzo, non solo "connesso o no"', async () => {
+  // `connected` collapses every not-Running value into one, and they do not mean
+  // the same thing: NeedsLogin is a browser sign-in waiting to happen, NoState
+  // is a daemon no client has ever started. Both read `connected: false`.
+  const { parseStatus: parse, NO_BACKEND } = require('../remote-control/tailscale.js');
+  assert.equal(NO_BACKEND, 'NoState');
+
+  const noState = parse(JSON.stringify({ BackendState: 'NoState', Self: {} }));
+  assert.equal(noState.running, true, 'the daemon answered — nothing here looks wrong');
+  assert.equal(noState.connected, false);
+  assert.equal(noState.backendState, NO_BACKEND, 'and only this field can tell the two apart');
+
+  const needsLogin = parse(JSON.stringify({ BackendState: 'NeedsLogin', Self: {} }));
+  assert.equal(needsLogin.connected, false);
+  assert.equal(needsLogin.backendState, 'NeedsLogin');
+
+  // With the daemon down there is no state to report, and '' is not NO_BACKEND —
+  // otherwise a stopped service would be answered by starting a tray app.
+  assert.equal(parse('failed to connect to local tailscaled process').backendState, '');
+});
+
+test('spawnDetached non aspetta e non uccide quello che avvia', async () => {
+  // `run` is the wrong tool for a program meant to stay up: it waits, and at its
+  // timeout it KILLS the child — so using it for a tray app would start the
+  // thing and shoot it seconds later.
+  const { spawnDetached } = require('../remote-control/runner.js');
+
+  const ok = await spawnDetached(process.execPath, ['-e', 'setTimeout(()=>{}, 60000)']);
+  assert.deepEqual(ok, { ok: true }, 'resolved without waiting for a process that is still running');
+
+  const bad = await spawnDetached('definitely-not-a-real-binary-xenon-test', []);
+  assert.equal(bad.ok, false, 'and a spawn that cannot happen is reported, not thrown');
+});
+
 test('getStatus riporta connesso e IP quando BackendState=Running', async () => {
   // `exists` va iniettato: senza, il modulo cerca davvero l'eseguibile al suo
   // percorso Windows, e su una macchina di sviluppo Mac o Linux `installed`
@@ -351,4 +385,140 @@ test('cert() riporta needs_operator solo fuori da Windows', async () => {
   // On Windows the likeliest cause is an unwritable cert path, and telling
   // somebody to run sudo would be advice for another operating system.
   assert.equal((await cert('win32')).reason, 'failed');
+});
+
+// ── startService: the installed-but-stopped daemon ──────────────────────────
+// The state that produced the bug this exists for: Tailscale present at its
+// normal path, its Windows service Manual and Stopped, so `status --json` could
+// not answer and every question above it read as "not signed in".
+
+test('startService: un solo comando elevato, e il comando giusto per la piattaforma', async () => {
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  const spy = (platform) => {
+    const calls = [];
+    const ts = make({
+      runner: {
+        run: () => Promise.resolve({ code: 0, stdout: '' }),
+        runElevated: (file, args) => { calls.push({ file, args }); return Promise.resolve({ code: 0 }); },
+      },
+      exists: () => true, platform, exe: 'x',
+    });
+    return { ts, calls };
+  };
+
+  const win = spy('win32');
+  assert.deepEqual(await win.ts.startService(), { ok: true });
+  assert.equal(win.calls.length, 1, 'once, not on a loop');
+  assert.equal(win.calls[0].file, 'sc.exe');
+  assert.deepEqual(win.calls[0].args, ['start', 'Tailscale']);
+
+  const lin = spy('linux');
+  assert.deepEqual(await lin.ts.startService(), { ok: true });
+  assert.equal(lin.calls[0].file, 'systemctl');
+  assert.deepEqual(lin.calls[0].args, ['start', 'tailscaled']);
+});
+
+test('startService: su macOS non indovina, e non spawna niente', async () => {
+  // There the daemon belongs to the app bundle or to Homebrew, and those two
+  // shapes want different commands. Saying so is better than picking one.
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  let spawned = 0;
+  const ts = make({
+    runner: {
+      run: () => Promise.resolve({ code: 0, stdout: '' }),
+      runElevated: () => { spawned++; return Promise.resolve({ code: 0 }); },
+    },
+    exists: () => true, platform: 'darwin', exe: '/x',
+  });
+  assert.deepEqual(await ts.startService(), { ok: false, reason: 'not_applicable' });
+  assert.equal(spawned, 0);
+});
+
+test('startService: "gia\' in esecuzione" e\' il risultato voluto, non un errore', async () => {
+  // 1056 is ERROR_SERVICE_ALREADY_RUNNING: somebody else started it between our
+  // probe and our command. Reporting that as a failure would send the user to
+  // fix a service that is already up.
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  const ts = make({
+    runner: {
+      run: () => Promise.resolve({ code: 0, stdout: '' }),
+      runElevated: () => Promise.resolve({ code: 1056, stderr: '' }),
+    },
+    exists: () => true, platform: 'win32', exe: 'x',
+  });
+  assert.deepEqual(await ts.startService(), { ok: true });
+});
+
+// ── startClient: the daemon that is up and has no backend ───────────────────
+
+test('startClient: su Windows lancia la GUI accanto alla CLI, e NON elevata', async () => {
+  // Elevation would be wrong, not merely unnecessary: the tray app belongs to
+  // the user's session, and an elevated one is a different session with a
+  // different profile.
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  const spawned = [];
+  let elevated = 0;
+  const ts = make({
+    runner: {
+      run: () => Promise.resolve({ code: 0, stdout: '' }),
+      runElevated: () => { elevated++; return Promise.resolve({ code: 0 }); },
+      spawnDetached: (file, args) => { spawned.push({ file, args }); return Promise.resolve({ ok: true }); },
+    },
+    exists: () => true, platform: 'win32', exe: 'C:\\Program Files\\Tailscale\\tailscale.exe',
+  });
+  assert.deepEqual(await ts.startClient(), { ok: true });
+  assert.equal(spawned.length, 1);
+  // Derived from the CLI we resolved, not a second hardcoded path.
+  assert.match(spawned[0].file, /tailscale-ipn\.exe$/);
+  assert.match(spawned[0].file, /^C:\\Program Files\\Tailscale\\/);
+  assert.equal(elevated, 0, 'never elevated');
+});
+
+test('startClient: senza la GUI sul disco non spawna niente', async () => {
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  let spawns = 0;
+  const ts = make({
+    runner: {
+      run: () => Promise.resolve({ code: 0, stdout: '' }),
+      spawnDetached: () => { spawns++; return Promise.resolve({ ok: true }); },
+    },
+    // Only the CLI exists; the tray app does not.
+    exists: (p) => Promise.resolve(!/tailscale-ipn\.exe$/.test(p)),
+    platform: 'win32', exe: 'C:\\Program Files\\Tailscale\\tailscale.exe',
+  });
+  assert.deepEqual(await ts.startClient(), { ok: false, reason: 'not_installed' });
+  assert.equal(spawns, 0);
+});
+
+test('startClient: su macOS apre l\'app, su Linux non esiste', async () => {
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  const calls = [];
+  const mk = (platform) => make({
+    runner: {
+      run: (file, args) => { calls.push({ file, args }); return Promise.resolve({ code: 0, stdout: '' }); },
+      spawnDetached: () => Promise.resolve({ ok: true }),
+    },
+    exists: () => true, platform, exe: '/x/tailscale',
+  });
+
+  assert.deepEqual(await mk('darwin').startClient(), { ok: true });
+  const opened = calls.find((c) => c.file === 'open');
+  assert.ok(opened, 'the app IS the daemon there');
+  assert.deepEqual(opened.args, ['-a', 'Tailscale']);
+
+  // tailscaled starts its own backend under systemd, so a persistent NoState
+  // there means something else and launching a GUI would be a guess.
+  assert.deepEqual(await mk('linux').startClient(), { ok: false, reason: 'not_applicable' });
+});
+
+test('startService: UAC annullato = cancelled, non un guasto', async () => {
+  const { createTailscale: make } = require('../remote-control/tailscale.js');
+  const ts = make({
+    runner: {
+      run: () => Promise.resolve({ code: 0, stdout: '' }),
+      runElevated: () => Promise.resolve({ code: 1223, stderr: '' }),
+    },
+    exists: () => true, platform: 'win32', exe: 'x',
+  });
+  assert.equal((await ts.startService()).reason, 'cancelled');
 });

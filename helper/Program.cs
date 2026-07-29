@@ -18,9 +18,10 @@ namespace XenonHelper;
 //   shell-delete           — recycle-bin delete / empty bin (ShellDelete)
 //   hotkey-serve <combo>   — global hotkey → Spotlight popup (HotkeyHost)
 //   index-serve <root> ... — the Living Index: in-RAM file index + watchers (IndexHost)
+//   phone-serve            — the paired phone: phonebook/call log over PBAP, call state + dial (PhoneHost)
 //
 // media-serve protocol (one message per line, both directions):
-//   stdin  : {"id":N,"action":"info","preferredSource":"..."}
+//   stdin  : {"id":N,"action":"info","preferredSource":"...","position":0}
 //   stdout : "XEMED " + base64( UTF8( {"id":N,"ok":bool,"out":"<json>","err":"..."} ) )
 // Base64-framing keeps any payload (newlines, braces) from breaking the line
 // protocol. On stdin EOF the loop ends and the process exits cleanly — that
@@ -72,8 +73,10 @@ internal static class Program
                 return HotkeyHost.Run(args);
             case "index-serve":
                 return IndexHost.Run(args);
+            case "phone-serve":
+                return await PhoneHost.RunAsync();
             default:
-                Console.Error.WriteLine("usage: xenon-helper media-serve | foreground-serve [intervalMs] | windows list|focus|close [hwnd] | screen-serve | notifications-serve [intervalMs] | audio-serve [intervalMs] | disk-scan <root> [detailRoot ...] | crawl <dir> [dir ...] | shell-delete | hotkey-serve <combo> | index-serve <root> [root ...]");
+                Console.Error.WriteLine("usage: xenon-helper media-serve | foreground-serve [intervalMs] | windows list|focus|close [hwnd] | screen-serve | notifications-serve [intervalMs] | audio-serve [intervalMs] | disk-scan <root> [detailRoot ...] | crawl <dir> [dir ...] | shell-delete | hotkey-serve <combo> | index-serve <root> [root ...] | phone-serve");
                 return 2;
         }
     }
@@ -98,11 +101,12 @@ internal static class Program
                 id = ReadId(root);
                 var action = ReadString(root, "action");
                 var preferredSource = ReadString(root, "preferredSource");
+                var position = ReadDouble(root, "position");
                 // SMTC misbehaves when called from this (console main) thread:
                 // with the manager already cached, a synchronous call from here
                 // returns zero sessions. Threadpool threads work reliably, so
                 // every request is pushed onto one.
-                var result = await Task.Run(() => media.HandleRequestAsync(action, preferredSource));
+                var result = await Task.Run(() => media.HandleRequestAsync(action, preferredSource, position));
                 WriteFrame(new Dictionary<string, object?>
                 {
                     ["id"] = id,
@@ -155,5 +159,14 @@ internal static class Program
         if (root.TryGetProperty(name, out var el) && el.ValueKind == JsonValueKind.String)
             return el.GetString() ?? "";
         return "";
+    }
+
+    private static double ReadDouble(JsonElement root, string name)
+    {
+        if (root.TryGetProperty(name, out var el) &&
+            el.ValueKind == JsonValueKind.Number &&
+            el.TryGetDouble(out var value))
+            return value;
+        return double.NaN;
     }
 }

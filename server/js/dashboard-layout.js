@@ -811,32 +811,24 @@ function refreshDashboardLayoutEditor() {
   });
   if (hiddenAudioIds.length) appendDashboardDockSection(dockBody, 'layout_hidden_audio', hiddenAudio);
 
-  // Twitch widget sections (info / actions / chat) hidden via their card controls.
-  const hiddenTwitch = document.createElement('div');
-  hiddenTwitch.className = 'layout-chip-list';
-  const hiddenTwitchIds = (DASHBOARD_CARD_IDS.twitch || []).filter(cardId => layout.cards.twitch && layout.cards.twitch[cardId] && !layout.cards.twitch[cardId].visible);
-  hiddenTwitchIds.forEach(cardId => {
-    hiddenTwitch.appendChild(createDashboardChip(dashboardLabelKey('card', cardId), 'layout_restore', DASHBOARD_LAYOUT_ICONS.restore, () => restoreDashboardLayoutItem('card', 'twitch', cardId)));
+  // The per-widget card sections (Twitch info/actions/chat, OBS preview/controls,
+  // the two YouTube widgets, Twitch watching) hidden via their own card controls.
+  // One section each, because a chip only says which CARD it restores and two
+  // widgets share the ids "chat" and "actions" — a single merged list would show
+  // two chips reading "Chat" with no way to tell them apart.
+  // Every group with cards belongs here: a hidden card whose group is missing
+  // from this list has no way back at all.
+  ['twitch', 'obs', 'youtube', 'youtubelive', 'twitchwatch'].forEach(groupId => {
+    const stored = layout.cards[groupId];
+    const hiddenIds = (DASHBOARD_CARD_IDS[groupId] || []).filter(cardId => stored && stored[cardId] && !stored[cardId].visible);
+    if (!hiddenIds.length) return;
+    const chips = document.createElement('div');
+    chips.className = 'layout-chip-list';
+    hiddenIds.forEach(cardId => {
+      chips.appendChild(createDashboardChip(dashboardLabelKey('card', cardId), 'layout_restore', DASHBOARD_LAYOUT_ICONS.restore, () => restoreDashboardLayoutItem('card', groupId, cardId)));
+    });
+    appendDashboardDockSection(dockBody, `layout_hidden_${groupId}`, chips);
   });
-  if (hiddenTwitchIds.length) appendDashboardDockSection(dockBody, 'layout_hidden_twitch', hiddenTwitch);
-
-  // OBS widget sections (preview / controls / scenes) hidden via their card controls.
-  const hiddenObs = document.createElement('div');
-  hiddenObs.className = 'layout-chip-list';
-  const hiddenObsIds = (DASHBOARD_CARD_IDS.obs || []).filter(cardId => layout.cards.obs && layout.cards.obs[cardId] && !layout.cards.obs[cardId].visible);
-  hiddenObsIds.forEach(cardId => {
-    hiddenObs.appendChild(createDashboardChip(dashboardLabelKey('card', cardId), 'layout_restore', DASHBOARD_LAYOUT_ICONS.restore, () => restoreDashboardLayoutItem('card', 'obs', cardId)));
-  });
-  if (hiddenObsIds.length) appendDashboardDockSection(dockBody, 'layout_hidden_obs', hiddenObs);
-
-  // YouTube widget sections (status / actions) hidden via their card controls.
-  const hiddenYt = document.createElement('div');
-  hiddenYt.className = 'layout-chip-list';
-  const hiddenYtIds = (DASHBOARD_CARD_IDS.youtube || []).filter(cardId => layout.cards.youtube && layout.cards.youtube[cardId] && !layout.cards.youtube[cardId].visible);
-  hiddenYtIds.forEach(cardId => {
-    hiddenYt.appendChild(createDashboardChip(dashboardLabelKey('card', cardId), 'layout_restore', DASHBOARD_LAYOUT_ICONS.restore, () => restoreDashboardLayoutItem('card', 'youtube', cardId)));
-  });
-  if (hiddenYtIds.length) appendDashboardDockSection(dockBody, 'layout_hidden_youtube', hiddenYt);
 
   // Page add/remove now lives next to the pager dots in the topbar (see
   // dashboard-pager.js renderDots), so the dock only carries hidden-item
@@ -1043,6 +1035,173 @@ function buildTileDecor(el, content, decor) {
   }
 }
 
+// ── Per-tile SHAPE (the silhouette) ─────────────────────────────────────────
+// A shape is ONE SVG path drawn in a unit square, and it reaches the tile twice:
+// as a <clipPath clipPathUnits="objectBoundingBox"> in a shared sprite, which is
+// what actually cuts the tile, and as an inline <svg> that strokes the same path
+// to redraw the border the clip just removed.
+//
+// clipPath rather than the CSS shape() function on purpose: shape() does not
+// exist in Safari, and a paired phone IS Safari — a shape that silently stayed
+// rectangular on one engine is exactly the "looks alive, does nothing" failure
+// this codebase spends its effort avoiding. objectBoundingBox units also mean
+// one string clips a 2×2 tile and a 12×4 one, so a resize can't break it.
+const TILE_SHAPE_DEFAULT_INSET = 6;    // % for a hand-written path with no `inset`
+const TILE_SHAPE_DEFS_MAX = 48;        // sprite entries before unreferenced ones are swept
+
+// Resolve a normalized shape to what the renderer needs: the path, the safe
+// inset in percent, and whether it stretches with the tile or keeps its ratio.
+// `inset` ADDS to a curated preset's own safe rectangle (extra breathing room)
+// and IS the safe rectangle for a hand-written path, where nothing else knows.
+function tileShapeGeometry(shape) {
+  if (!shape) return null;
+  const TSP = (typeof window !== 'undefined' && window.TileShapePresets) || null;
+  const d = shape.preset ? (TSP ? TSP.tileShapePath(shape.preset) : '') : (shape.path || '');
+  if (!d) return null;
+  const base = (shape.preset && TSP && TSP.tileShapeSafe(shape.preset))
+    || { t: 0, r: 0, b: 0, l: 0 };
+  const extra = (typeof shape.inset === 'number')
+    ? shape.inset
+    : (shape.preset ? 0 : TILE_SHAPE_DEFAULT_INSET);
+  const safe = { t: base.t + extra, r: base.r + extra, b: base.b + extra, l: base.l + extra };
+  return { d, safe, fit: shape.fit === 'fit' ? 'fit' : 'stretch' };
+}
+
+function tileShapeDefs() {
+  return document.getElementById('tile-shape-defs');
+}
+function tileShapeMakeClip(id) {
+  const defs = tileShapeDefs();
+  if (!defs) return null;
+  const NS = 'http://www.w3.org/2000/svg';
+  const cp = document.createElementNS(NS, 'clipPath');
+  cp.setAttribute('id', id);
+  cp.setAttribute('clipPathUnits', 'objectBoundingBox');
+  cp.appendChild(document.createElementNS(NS, 'path'));
+  defs.appendChild(cp);
+  return cp;
+}
+// Identical shapes share one def, so twenty hexagon tiles cost one clipPath.
+// The map is the key, not a hash of the path: a hash collision would hand a tile
+// somebody else's silhouette.
+const _tileShapeClipIds = new Map();
+let _tileShapeSeq = 0;
+function tileShapeSharedClip(d) {
+  let id = _tileShapeClipIds.get(d);
+  if (id && document.getElementById(id)) return id;
+  const defs = tileShapeDefs();
+  if (!defs) return '';
+  if (defs.childElementCount >= TILE_SHAPE_DEFS_MAX) sweepTileShapeDefs();
+  id = `tileshape-${++_tileShapeSeq}`;
+  const cp = tileShapeMakeClip(id);
+  if (!cp) return '';
+  cp.firstChild.setAttribute('d', d);
+  _tileShapeClipIds.set(d, id);
+  return id;
+}
+// Editing a path in the style editor mints a def per keystroke, so the sprite is
+// swept of anything no tile points at any more. The reference is the inline
+// `--tile-clip` value, which is why the closing paren is part of the match.
+function sweepTileShapeDefs() {
+  const defs = tileShapeDefs();
+  if (!defs) return;
+  Array.from(defs.children).forEach((cp) => {
+    const id = cp.id;
+    if (!id) return;
+    if (!document.querySelector(`[style*="#${id})"]`)) {
+      cp.remove();
+      for (const [k, v] of _tileShapeClipIds) if (v === id) _tileShapeClipIds.delete(k);
+    }
+  });
+}
+
+// The safe inset is a PERCENTAGE of the tile, and it is applied as a transparent
+// border-width — the one property here that does not erase the padding every
+// widget root declares for itself — which takes lengths, not percentages. So the
+// two have to be reconciled against a measured box. ONE observer for the whole
+// dashboard; tiles join and leave it as they gain and lose a shape.
+let _tileShapeRO = null;
+function tileShapeObserver() {
+  if (!_tileShapeRO && typeof ResizeObserver === 'function') {
+    _tileShapeRO = new ResizeObserver((entries) => entries.forEach(e => measureTileShape(e.target)));
+  }
+  return _tileShapeRO;
+}
+function measureTileShape(el) {
+  const geo = el && el._xenonShapeGeo;
+  if (!geo) return;
+  const w = el.clientWidth || 0;
+  const h = el.clientHeight || 0;
+  const px = (v, base) => `${Math.max(0, Math.round(base * v / 100))}px`;
+  el.style.setProperty('--tile-shape-pad',
+    `${px(geo.safe.t, h)} ${px(geo.safe.r, w)} ${px(geo.safe.b, h)} ${px(geo.safe.l, w)}`);
+  // 'fit' keeps the silhouette's proportions instead of stretching it, which
+  // objectBoundingBox units cannot do on their own: the path is scaled into a
+  // centred square. Such a tile owns its clipPath (the transform is per-tile),
+  // so it is updated in place rather than deduplicated.
+  const node = el._xenonShapeClipPath;
+  if (!node) return;
+  if (w <= 0 || h <= 0) return;
+  const sx = w >= h ? h / w : 1;
+  const sy = h > w ? w / h : 1;
+  node.setAttribute('transform',
+    `translate(${((1 - sx) / 2).toFixed(4)} ${((1 - sy) / 2).toFixed(4)}) scale(${sx.toFixed(4)} ${sy.toFixed(4)})`);
+}
+
+// Strip any previously-built shape DOM, tokens and observer registration.
+function clearTileShape(el, content) {
+  el.removeAttribute('data-tile-shape');
+  el.style.removeProperty('--tile-clip');
+  el.style.removeProperty('--tile-shape-pad');
+  el.style.removeProperty('--tile-shape-stroke');
+  if (_tileShapeRO) _tileShapeRO.unobserve(el);
+  if (el._xenonShapeOwnClip) { el._xenonShapeOwnClip.remove(); delete el._xenonShapeOwnClip; }
+  delete el._xenonShapeGeo;
+  delete el._xenonShapeClipPath;
+  if (content) content.querySelectorAll(':scope > .tile-shape-outline').forEach(n => n.remove());
+}
+
+// Build the clip + outline for one tile from its (already-normalized) shape.
+function buildTileShape(el, content, shape, borderStrength) {
+  const geo = tileShapeGeometry(shape);
+  if (!geo || !content) return;
+  let clipId = '';
+  if (geo.fit === 'fit') {
+    const own = tileShapeMakeClip(`tileshape-fit-${++_tileShapeSeq}`);
+    if (!own) return;
+    own.firstChild.setAttribute('d', geo.d);
+    el._xenonShapeOwnClip = own;
+    el._xenonShapeClipPath = own.firstChild;
+    clipId = own.id;
+  } else {
+    clipId = tileShapeSharedClip(geo.d);
+  }
+  if (!clipId) return;
+  el.setAttribute('data-tile-shape', geo.fit);
+  el.style.setProperty('--tile-clip', `url(#${clipId})`);
+  el.style.setProperty('--tile-shape-stroke',
+    String(typeof borderStrength === 'number' ? Math.max(0, borderStrength) : 1));
+
+  // The outline: the same path, stroked, above the decorative overlays so the
+  // edge of the tile is never covered by a corner image. preserveAspectRatio
+  // mirrors the clip — 'none' stretches, 'meet' keeps the ratio.
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('class', 'tile-shape-outline');
+  svg.setAttribute('viewBox', '0 0 1 1');
+  svg.setAttribute('preserveAspectRatio', geo.fit === 'fit' ? 'xMidYMid meet' : 'none');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS(NS, 'path');
+  path.setAttribute('d', geo.d);
+  svg.appendChild(path);
+  content.appendChild(svg);
+
+  el._xenonShapeGeo = geo;
+  const ro = tileShapeObserver();
+  if (ro) ro.observe(el);
+  measureTileShape(el);
+}
+
 // `opts.colorsOnly` repaints the colour tokens WITHOUT tearing down and
 // rebuilding the decor layers. Used by the per-track album accent, which fires on
 // every song change: rebuilding decor there would re-create image layers and
@@ -1064,11 +1223,12 @@ function applyTileStyle(el, style, opts) {
     '--panel', '--panel-soft', '--panel-border', '--glass-bg', '--glass-border',
     '--oled-bg-rgb', '--oled-border', '--slider-fill', '--slider-track',
     '--tile-font', '--radius', '--radius-control', '--radius-tile', '--radius-modal',
-    '--glass-blur', '--glass-saturate', '--panel-border-alpha', '--panel-shadow-alpha']
+    '--glass-blur', '--glass-saturate', '--panel-border-alpha', '--panel-shadow-alpha',
+    '--panel-drop']
     .forEach(p => el.style.removeProperty(p));
   const content = el.querySelector(':scope > .grid-stack-item-content');
-  // Decor layers are managed DOM, torn down and rebuilt every repaint.
-  if (!colorsOnly) clearTileDecor(el, content);
+  // Decor and shape layers are managed DOM, torn down and rebuilt every repaint.
+  if (!colorsOnly) { clearTileDecor(el, content); clearTileShape(el, content); }
   // Some tile content roots re-declare --text locally under the Light theme (the
   // "dark island" readability fix on .media-panel / .deck-root), which would
   // defeat a value merely inherited from the wrapper. Mirror ONLY --text onto
@@ -1076,7 +1236,9 @@ function applyTileStyle(el, style, opts) {
   // panel stay on the wrapper so per-track album-art accent isn't disturbed.
   // Decor layers are excluded — they never carry widget text.
   const contentRoots = content
-    ? Array.from(content.children).filter(c => !/^tile-decor/.test(c.className || ''))
+    ? Array.from(content.children).filter(c => !(c.classList
+      && (c.classList.contains('tile-decor-bg') || c.classList.contains('tile-decor-frame')
+        || c.classList.contains('tile-decor-overlays') || c.classList.contains('tile-shape-outline'))))
     : [];
   // The widget's own root (panel/dashboard-widget) — where a panel gradient paints.
   const panelRoots = contentRoots.filter(c => /(?:^|\s)(?:panel|dashboard-widget)(?:\s|$)/.test(c.className || ''));
@@ -1086,8 +1248,15 @@ function applyTileStyle(el, style, opts) {
   // Decor (images + effects) applies independently of the colour-token mode, so a
   // tile can carry a dragon overlay while still following the global theme colours.
   if (style && style.decor && !colorsOnly) buildTileDecor(el, content, style.decor);
+  // The non-colour half — opacity, radius, glass, border, shadow, shape — is
+  // orthogonal to the colour-token override, exactly like decor: a tile can be a
+  // transparent hexagon while still following the global theme's colours. These
+  // used to sit BELOW the mode gate, so a style carrying them without
+  // mode:'custom' (a shared code, a generated pack) stored values that were
+  // never applied to anything.
+  const hasEffects = applyTileEffects(el, content, style, colorsOnly);
   if (!style || style.mode !== 'custom') {
-    if (style && style.decor) { el.setAttribute('data-tile-style', 'custom'); return; }
+    if (hasEffects || (style && style.decor)) { el.setAttribute('data-tile-style', 'custom'); return; }
     el.removeAttribute('data-tile-style');
     return;
   }
@@ -1147,7 +1316,6 @@ function applyTileStyle(el, style, opts) {
   // its own background-image when no gradient is chosen.
   const pg = tileGradCss(style.panelGrad);
   if (pg) panelRoots.forEach(r => r.style.setProperty('background-image', pg));
-  if (typeof style.panelAlpha === 'number') el.style.setProperty('--panel-alpha', style.panelAlpha.toFixed(2));
   if (style.text) {
     const effectiveText = el.style.getPropertyValue('--text') || style.text;
     contentRoots.forEach(r => r.style.setProperty('--text', effectiveText));
@@ -1163,17 +1331,90 @@ function applyTileStyle(el, style, opts) {
     const effectiveOnAccent = el.style.getPropertyValue('--on-accent') || style.accentText;
     contentRoots.forEach(r => r.style.setProperty('--on-accent', effectiveOnAccent));
   }
+}
+
+// The non-colour half of a tile's style: opacity, corner radius, glass, border,
+// shadow and shape. Returns true when the tile carries any of it, which is what
+// lets a tile that follows the theme's colours still count as styled.
+//
+// Several of these have to RE-DECLARE the token that consumes them, not only the
+// input: a custom property whose value contains var() is resolved on the element
+// that declares it, so a tile setting --panel-alpha alone keeps inheriting the
+// --panel string :root already computed. That is why panel opacity, the border
+// and the drop shadow each write their derived token here too.
+function applyTileEffects(el, content, style, colorsOnly) {
+  el.removeAttribute('data-tile-glass');
+  el.removeAttribute('data-tile-plain');
+  let any = false;
+  if (style) any = applyTileTokens(el, style);
+  // A widget PACKAGE may declare the silhouette of its own tile. It is consulted
+  // only when the tile carries no shape of its own: the package proposes, the
+  // user's style editor disposes. It deliberately does NOT make the tile count
+  // as styled — a tile is not styled by the user because the widget in it has a
+  // shape.
+  const shape = (style && style.shape) || packageShapeFor(el);
+  if (shape && !colorsOnly) buildTileShape(el, content, shape, style && style.borderStrength);
+  if (style && style.shape) any = true;
+  return any;
+}
+// The RESOLVED silhouette of the tile a node sits in (the user's per-tile shape
+// first, a package's proposal second), or null. Exposed on window so
+// custom-widget.js can hand a guest its safe area without keeping a second copy
+// of the resolution rules.
+function tileShapeInfoOf(node) {
+  const wrap = (node && node.closest) ? node.closest('.grid-stack-item') : null;
+  const geo = wrap && wrap._xenonShapeGeo;
+  return geo ? { d: geo.d, fit: geo.fit, safe: { ...geo.safe } } : null;
+}
+function packageShapeFor(el) {
+  const id = (el && el.getAttribute) ? el.getAttribute('gs-id') : '';
+  if (!id || !window.CustomWidget || typeof window.CustomWidget.shapeFor !== 'function') return null;
+  try { return window.CustomWidget.shapeFor(id) || null; } catch { return null; }
+}
+// The material tokens themselves. Returns true when the tile carries any.
+function applyTileTokens(el, style) {
+  let any = false;
+  if (typeof style.panelAlpha === 'number') {
+    el.style.setProperty('--panel-alpha', style.panelAlpha.toFixed(2));
+    el.style.setProperty('--panel', 'rgba(var(--panel-rgb), var(--panel-alpha))');
+    // At this point there is no panel left, so the top-lit wash and the hairline
+    // highlight have to go with it: they are part of the fill, and a card asked
+    // to be transparent that kept them read as a faint white sheet.
+    if (style.panelAlpha <= 0.02) el.setAttribute('data-tile-plain', '');
+    any = true;
+  }
   if (typeof style.radius === 'number') {
     [['--radius', 8], ['--radius-control', 10], ['--radius-tile', 16], ['--radius-modal', 20]]
       .forEach(([prop, base]) => el.style.setProperty(prop, `${+(base * style.radius).toFixed(2)}px`));
+    any = true;
   }
-  if (typeof style.glassBlur === 'number') el.style.setProperty('--glass-blur', `${Math.round(style.glassBlur)}px`);
-  if (typeof style.glassSaturate === 'number') el.style.setProperty('--glass-saturate', `${Math.round(style.glassSaturate)}%`);
+  if (typeof style.glassBlur === 'number') {
+    el.style.setProperty('--glass-blur', `${Math.round(style.glassBlur)}px`);
+    // Opt-in, and only when there is a blur to apply: backdrop-filter is a
+    // per-frame GPU cost and the Edge composites on the integrated adapter.
+    if (style.glassBlur > 0) el.setAttribute('data-tile-glass', '');
+    any = true;
+  }
+  if (typeof style.glassSaturate === 'number') {
+    el.style.setProperty('--glass-saturate', `${Math.round(style.glassSaturate)}%`);
+    any = true;
+  }
   // Border/shadow use the same derivation the theme does, seeded from this tile's
   // own panel opacity (or the stock 0.94) so the strength reads consistently.
   const tp = (typeof style.panelAlpha === 'number') ? style.panelAlpha : 0.94;
-  if (typeof style.borderStrength === 'number') el.style.setProperty('--panel-border-alpha', Math.min(0.4, (0.045 + tp * 0.08) * style.borderStrength).toFixed(3));
-  if (typeof style.shadowStrength === 'number') el.style.setProperty('--panel-shadow-alpha', Math.min(0.6, (0.05 + tp * 0.18) * style.shadowStrength).toFixed(3));
+  if (typeof style.borderStrength === 'number') {
+    el.style.setProperty('--panel-border-alpha', Math.min(0.4, (0.045 + tp * 0.08) * style.borderStrength).toFixed(3));
+    el.style.setProperty('--panel-border', 'rgba(255, 255, 255, var(--panel-border-alpha))');
+    any = true;
+  }
+  if (typeof style.shadowStrength === 'number') {
+    el.style.setProperty('--panel-shadow-alpha', Math.min(0.6, (0.05 + tp * 0.18) * style.shadowStrength).toFixed(3));
+    const palette = (typeof window.getEffectiveThemePalette === 'function') ? window.getEffectiveThemePalette() : null;
+    const drop = (window.PANEL_DROP_CSS || {})[palette && palette.tone === 'light' ? 'light' : 'dark'];
+    if (drop) el.style.setProperty('--panel-drop', drop);
+    any = true;
+  }
+  return any;
 }
 function applyAllTileStyles(layout, opts) {
   const lay = layout || getDashboardLayout();
@@ -1269,6 +1510,12 @@ function openTileStyleEditor(id, anchor) {
     borderStrength: typeof cur.borderStrength === 'number' ? cur.borderStrength : null,
     shadowStrength: typeof cur.shadowStrength === 'number' ? cur.shadowStrength : null,
     font: cur.font || 'inherit',
+    shape: {
+      preset: (cur.shape && cur.shape.preset) || '',
+      path: (cur.shape && cur.shape.path) || '',
+      fit: (cur.shape && cur.shape.fit === 'fit') ? 'fit' : 'stretch',
+      inset: (cur.shape && typeof cur.shape.inset === 'number') ? cur.shape.inset : null,
+    },
     decor: {
       bg: {
         src: (cd.bg && cd.bg.src) || '', fit: (cd.bg && cd.bg.fit) || 'cover',
@@ -1309,6 +1556,12 @@ function openTileStyleEditor(id, anchor) {
     if (work.borderStrength != null) raw.borderStrength = work.borderStrength;
     if (work.shadowStrength != null) raw.shadowStrength = work.shadowStrength;
     if (work.font && work.font !== 'inherit') raw.font = work.font;
+    if (work.shape && (work.shape.preset || work.shape.path)) {
+      const s = work.shape.preset ? { preset: work.shape.preset } : { path: work.shape.path };
+      if (work.shape.fit === 'fit') s.fit = 'fit';
+      if (work.shape.inset != null) s.inset = work.shape.inset;
+      raw.shape = s;
+    }
     raw.decor = work.decor;  // normalizeTileStyle cleans/clamps and drops empties
     return DI.normalizeTileStyle ? DI.normalizeTileStyle(raw) : raw;
   };
@@ -1467,35 +1720,6 @@ function openTileStyleEditor(id, anchor) {
     colorRow('tile_style_danger', 'Danger', 'dangerColor', hs.dangerColor || '#ff6268'),
     colorRow('tile_style_info', 'Information', 'infoColor', hs.infoColor || '#62cbea'),
   );
-  const opRow = mk('label', 'tile-style-row');
-  const opChk = mk('input'); opChk.type = 'checkbox'; opChk.checked = work.panelAlpha != null;
-  const opSpan = mk('span', 'tile-style-label'); opSpan.textContent = tt('tile_style_opacity', 'Panel opacity');
-  const opRange = mk('input'); opRange.type = 'range'; opRange.min = '0.05'; opRange.max = '1'; opRange.step = '0.01';
-  opRange.value = String(work.panelAlpha != null ? work.panelAlpha : (typeof hs.panelAlpha === 'number' ? hs.panelAlpha : 0.94));
-  opRange.disabled = work.panelAlpha == null;
-  opChk.addEventListener('change', () => { work.panelAlpha = opChk.checked ? Number(opRange.value) : null; opRange.disabled = !opChk.checked; commit(); });
-  opRange.addEventListener('input', () => { work.panelAlpha = Number(opRange.value); commit(); });
-  opRow.append(opChk, opSpan, opRange);
-  custom.appendChild(opRow);
-
-  const rangeRow = (labelKey, fb, field, min, max, step, fallback) => {
-    const row = mk('label', 'tile-style-row');
-    const chk = mk('input'); chk.type = 'checkbox'; chk.checked = work[field] != null;
-    const span = mk('span', 'tile-style-label'); span.textContent = tt(labelKey, fb);
-    const range = mk('input'); range.type = 'range'; range.min = String(min); range.max = String(max); range.step = String(step);
-    range.value = String(work[field] != null ? work[field] : fallback); range.disabled = work[field] == null;
-    chk.addEventListener('change', () => { work[field] = chk.checked ? Number(range.value) : null; range.disabled = !chk.checked; commit(); });
-    range.addEventListener('input', () => { work[field] = Number(range.value); commit(); });
-    row.append(chk, span, range);
-    return row;
-  };
-  custom.append(
-    rangeRow('tile_style_radius', 'Corner radius', 'radius', 0, 2, 0.05, 1),
-    rangeRow('tile_style_glass_blur', 'Glass blur', 'glassBlur', 0, 40, 1, 22),
-    rangeRow('tile_style_glass_saturate', 'Glass saturation', 'glassSaturate', 100, 220, 5, 160),
-    rangeRow('tile_style_border', 'Panel border', 'borderStrength', 0, 2, 0.05, 1),
-    rangeRow('tile_style_shadow', 'Panel shadow', 'shadowStrength', 0, 2, 0.05, 1),
-  );
   const fontRow = mk('label', 'tile-style-row');
   const fontSpan = mk('span', 'tile-style-label'); fontSpan.textContent = tt('tile_style_font', 'Font');
   const fontSel = mk('select', 'tile-style-font');
@@ -1505,6 +1729,146 @@ function openTileStyleEditor(id, anchor) {
   fontRow.append(fontSpan, fontSel);
   custom.appendChild(fontRow);
   paneColors.appendChild(custom);
+
+  // ═══ Pane: EFFECTS (material + silhouette) ═══
+  // Deliberately OUTSIDE the "Customize" block the colour tokens live in: these
+  // apply whether or not the tile has its own palette, so wanting a transparent
+  // card no longer means having to recolour the tile first.
+  const paneFx = mk('div', 'tile-style-body');
+  const opRow = mk('label', 'tile-style-row');
+  const opChk = mk('input'); opChk.type = 'checkbox'; opChk.checked = work.panelAlpha != null;
+  const opSpan = mk('span', 'tile-style-label'); opSpan.textContent = tt('tile_style_opacity', 'Panel opacity');
+  // Down to 0: a card asked to disappear should disappear. The old 0.05 floor
+  // left a panel that was nearly, but never, transparent.
+  const opRange = mk('input'); opRange.type = 'range'; opRange.min = '0'; opRange.max = '1'; opRange.step = '0.01';
+  opRange.value = String(work.panelAlpha != null ? work.panelAlpha : (typeof hs.panelAlpha === 'number' ? hs.panelAlpha : 0.94));
+  opRange.disabled = work.panelAlpha == null;
+  opRow.append(opChk, opSpan, opRange);
+  paneFx.appendChild(opRow);
+
+  const rangeRow = (labelKey, fb, field, min, max, step, fallback) => {
+    const row = mk('label', 'tile-style-row');
+    const chk = mk('input'); chk.type = 'checkbox'; chk.checked = work[field] != null;
+    const span = mk('span', 'tile-style-label'); span.textContent = tt(labelKey, fb);
+    const range = mk('input'); range.type = 'range'; range.min = String(min); range.max = String(max); range.step = String(step);
+    range.value = String(work[field] != null ? work[field] : fallback); range.disabled = work[field] == null;
+    chk.addEventListener('change', () => { work[field] = chk.checked ? Number(range.value) : null; range.disabled = !chk.checked; syncFxHints(); commit(); });
+    range.addEventListener('input', () => { work[field] = Number(range.value); syncFxHints(); commit(); });
+    row.append(chk, span, range);
+    return row;
+  };
+  paneFx.append(
+    rangeRow('tile_style_radius', 'Corner radius', 'radius', 0, 2, 0.05, 1),
+    rangeRow('tile_style_glass_blur', 'Glass blur', 'glassBlur', 0, 40, 1, 22),
+    rangeRow('tile_style_glass_saturate', 'Glass saturation', 'glassSaturate', 100, 220, 5, 160),
+    rangeRow('tile_style_border', 'Panel border', 'borderStrength', 0, 2, 0.05, 1),
+    rangeRow('tile_style_shadow', 'Panel shadow', 'shadowStrength', 0, 2, 0.05, 1),
+  );
+  // Blur is what shows THROUGH the panel, so behind an opaque one there is
+  // nothing to see. Say it instead of quietly lowering the opacity behind the
+  // user's back — and instead of leaving a slider that looks broken.
+  const glassHint = mk('div', 'tile-style-hint');
+  glassHint.textContent = tt('tile_style_glass_hint', 'Blur only shows through a translucent panel — lower the panel opacity to see it.');
+  paneFx.appendChild(glassHint);
+  const syncFxHints = () => {
+    const opaque = work.panelAlpha == null ? true : work.panelAlpha >= 0.99;
+    glassHint.hidden = !(work.glassBlur != null && work.glassBlur > 0 && opaque);
+  };
+  opChk.addEventListener('change', () => { work.panelAlpha = opChk.checked ? Number(opRange.value) : null; opRange.disabled = !opChk.checked; syncFxHints(); commit(); });
+  opRange.addEventListener('input', () => { work.panelAlpha = Number(opRange.value); syncFxHints(); commit(); });
+
+  // ── Shape ──
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const shapeThumb = (d) => {
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 1 1');
+    // The thumbnail keeps the shape's own proportions even though a tile
+    // stretches it: squashed into a wide, short chip a circle, a blob and an
+    // arch all read as the same ellipse, which makes the picker useless.
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    const p = document.createElementNS(SVG_NS, 'path');
+    p.setAttribute('d', d || 'M 0 0 L 1 0 L 1 1 L 0 1 Z');
+    p.setAttribute('fill', 'currentColor');
+    svg.appendChild(p);
+    return svg;
+  };
+  const shapeHead = mk('div', 'tile-style-subhead');
+  shapeHead.textContent = tt('tile_style_shape', 'Shape');
+  paneFx.appendChild(shapeHead);
+  const shapeGrid = mk('div', 'tile-shape-grid');
+  const shapeBtns = [];
+  const syncShapeSel = () => {
+    shapeBtns.forEach(({ btn, presetId }) => {
+      const active = work.shape.preset === presetId && (presetId || !work.shape.path);
+      btn.classList.toggle('active', !!active);
+    });
+  };
+  const addShapeBtn = (presetId, label, d) => {
+    const btn = mk('button', 'tile-shape-chip'); btn.type = 'button';
+    btn.title = label;
+    btn.appendChild(shapeThumb(d));
+    const cap = mk('span'); cap.textContent = label; btn.appendChild(cap);
+    btn.addEventListener('click', () => {
+      work.shape.preset = presetId;
+      if (presetId) work.shape.path = '';
+      pathInput.value = work.shape.path;
+      syncShapeSel(); syncShapeControls(); commit();
+    });
+    shapeGrid.appendChild(btn);
+    shapeBtns.push({ btn, presetId });
+  };
+  addShapeBtn('', tt('tile_shape_none', 'Rectangle'), '');
+  ((window.TileShapePresets && window.TileShapePresets.TILE_SHAPES) || [])
+    .forEach(s => addShapeBtn(s.id, tt(s.labelKey, s.label), s.d));
+  paneFx.appendChild(shapeGrid);
+
+  // The code door: any closed SVG path drawn in a 0..1 square. Rejected input is
+  // named rather than swallowed — a silently ignored path is indistinguishable
+  // from a shape that does not render.
+  const pathRow = mk('div', 'tile-style-row tile-style-row-col');
+  const pathSpan = mk('span', 'tile-style-label'); pathSpan.textContent = tt('tile_shape_path', 'Custom path (SVG, 0–1 square)');
+  const pathInput = mk('input', 'tile-shape-path'); pathInput.type = 'text';
+  pathInput.placeholder = 'M 0.5 0 L 1 0.5 L 0.5 1 L 0 0.5 Z';
+  pathInput.value = work.shape.path || '';
+  const pathErr = mk('div', 'tile-style-hint tile-style-hint-err'); pathErr.hidden = true;
+  pathErr.textContent = tt('tile_shape_path_bad', 'That is not a usable path: it must start with M, end closed with Z, and contain only path commands and numbers.');
+  pathInput.addEventListener('input', () => {
+    const v = pathInput.value.trim();
+    work.shape.path = v;
+    if (v) work.shape.preset = '';
+    const ok = !v || !!(DI.normalizeTileShape && DI.normalizeTileShape({ path: v }));
+    pathErr.hidden = ok;
+    if (!ok) return;               // never paint an invalid path
+    syncShapeSel(); syncShapeControls(); commit();
+  });
+  pathRow.append(pathSpan, pathInput, pathErr);
+  paneFx.appendChild(pathRow);
+
+  const insetRow = mk('label', 'tile-style-row');
+  const insetChk = mk('input'); insetChk.type = 'checkbox'; insetChk.checked = work.shape.inset != null;
+  const insetSpan = mk('span', 'tile-style-label'); insetSpan.textContent = tt('tile_shape_inset', 'Safe margin');
+  const insetRange = mk('input'); insetRange.type = 'range'; insetRange.min = '0'; insetRange.max = '25'; insetRange.step = '1';
+  insetRange.value = String(work.shape.inset != null ? work.shape.inset : 6);
+  insetRange.disabled = work.shape.inset == null;
+  insetChk.addEventListener('change', () => { work.shape.inset = insetChk.checked ? Number(insetRange.value) : null; insetRange.disabled = !insetChk.checked; commit(); });
+  insetRange.addEventListener('input', () => { work.shape.inset = Number(insetRange.value); commit(); });
+  insetRow.append(insetChk, insetSpan, insetRange);
+  paneFx.appendChild(insetRow);
+
+  const fitRow = mk('label', 'tile-style-row');
+  const fitChk = mk('input'); fitChk.type = 'checkbox'; fitChk.checked = work.shape.fit === 'fit';
+  const fitSpan = mk('span', 'tile-style-label'); fitSpan.textContent = tt('tile_shape_fit', 'Keep proportions');
+  fitChk.addEventListener('change', () => { work.shape.fit = fitChk.checked ? 'fit' : 'stretch'; commit(); });
+  fitRow.append(fitChk, fitSpan);
+  paneFx.appendChild(fitRow);
+
+  // Safe margin and "keep proportions" only mean anything once there IS a shape.
+  const syncShapeControls = () => {
+    const on = !!(work.shape.preset || work.shape.path);
+    insetChk.disabled = fitChk.disabled = !on;
+    insetRange.disabled = !on || work.shape.inset == null;
+  };
+  syncShapeSel(); syncShapeControls(); syncFxHints();
 
   // Small labelled range helper for decor panes (value always active).
   const decorRange = (labelKey, fb, get, set, min, max, step) => {
@@ -1702,9 +2066,10 @@ function openTileStyleEditor(id, anchor) {
 
   // Register panes/tabs.
   mkTab('tile_style_tab_colors', 'Colours', paneColors, true);
+  mkTab('tile_style_tab_fx', 'Effects', paneFx, false);
   mkTab('tile_style_tab_bg', 'Background', paneBg, false);
   mkTab('tile_style_tab_decor', 'Decor', paneDecor, false);
-  pop.append(paneColors, paneBg, paneDecor);
+  pop.append(paneColors, paneFx, paneBg, paneDecor);
 
   // Footer: reset (back to global) + done.
   const foot = mk('div', 'tile-style-foot');
@@ -1739,6 +2104,11 @@ function openTileStyleEditor(id, anchor) {
 }
 if (typeof window !== 'undefined') {
   window.openTileStyleEditor = openTileStyleEditor;
+  // custom-widget.js repaints tile styles when a package's declared silhouette
+  // changes (assignment, install, uninstall) — applyTileStyle stays the single
+  // owner of the shape DOM.
+  window.applyAllTileStyles = applyAllTileStyles;
+  window.tileShapeInfoOf = tileShapeInfoOf;
 }
 
 function applyDashboardWidgets(layout) {
@@ -2035,6 +2405,8 @@ function applyDashboardLayout() {
   step('streamRender', () => { if (window.StreamingPage && typeof window.StreamingPage.renderWidgets === 'function') window.StreamingPage.renderWidgets(); });
   step('obsRender', () => { if (window.ObsWidget && typeof window.ObsWidget.renderWidgets === 'function') window.ObsWidget.renderWidgets(); });
   step('ytRender', () => { if (window.YouTubeWidget && typeof window.YouTubeWidget.renderWidgets === 'function') window.YouTubeWidget.renderWidgets(); });
+  step('ytlRender', () => { if (window.YouTubeLiveWidget && typeof window.YouTubeLiveWidget.renderWidgets === 'function') window.YouTubeLiveWidget.renderWidgets(); });
+  step('twwRender', () => { if (window.TwitchWatchWidget && typeof window.TwitchWatchWidget.renderWidgets === 'function') window.TwitchWatchWidget.renderWidgets(); });
   step('discordRender', () => { if (window.DiscordWidget && typeof window.DiscordWidget.renderWidgets === 'function') window.DiscordWidget.renderWidgets(); });
   step('spotifyRender', () => { if (window.SpotifyWidget && typeof window.SpotifyWidget.renderWidgets === 'function') window.SpotifyWidget.renderWidgets(); });
   step('sbRender', () => { if (window.StreamerbotWidget && typeof window.StreamerbotWidget.renderWidgets === 'function') window.StreamerbotWidget.renderWidgets(); });
@@ -2048,6 +2420,8 @@ function applyDashboardLayout() {
   step('fansRender', () => { if (window.FansWidget && typeof window.FansWidget.renderWidgets === 'function') window.FansWidget.renderWidgets(); });
   step('searchRender', () => { if (window.SearchWidget && typeof window.SearchWidget.renderWidgets === 'function') window.SearchWidget.renderWidgets(); });
   step('diskRender', () => { if (window.DiskWidget && typeof window.DiskWidget.renderWidgets === 'function') window.DiskWidget.renderWidgets(); });
+  step('transferRender', () => { if (window.TransferWidget && typeof window.TransferWidget.renderWidgets === 'function') window.TransferWidget.renderWidgets(); });
+  step('phoneRender', () => { if (window.PhoneWidget && typeof window.PhoneWidget.renderWidgets === 'function') window.PhoneWidget.renderWidgets(); });
   step('powerRender', () => { if (window.PowerWidget && typeof window.PowerWidget.renderWidgets === 'function') window.PowerWidget.renderWidgets(); });
   step('batteryRender', () => { if (window.BatteryWidget && typeof window.BatteryWidget.renderWidgets === 'function') window.BatteryWidget.renderWidgets(); });
   step('vitalsRender', () => { if (window.VitalsWidget && typeof window.VitalsWidget.renderWidgets === 'function') window.VitalsWidget.renderWidgets(); });

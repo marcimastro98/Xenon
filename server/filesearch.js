@@ -48,6 +48,7 @@ function createFileSearch(opts) {
   const CATALOG_SUPPORTED = PLATFORM === 'win32';
   const scriptPath = o.scriptPath || path.join(__dirname, 'search.ps1');
   const openExternal = o.openExternal; // async (absPath) — deck-actions 'open' verb
+  const revealExternal = o.revealExternal; // (absPath, dir) — the file manager's "show me where"
   const usageFile = path.join(dataDir, 'search-usage.json');
   const livingIndex = o.livingIndex || null; // living-index.js instance (optional)
   // Applications tier (macOS-style): appsProvider returns the server's cached
@@ -410,19 +411,12 @@ function createFileSearch(opts) {
     if (!rec || rec.app) return { ok: false, error: 'unknown_id' };
     try { await fs.promises.stat(rec.path); } catch { return { ok: false, error: 'not_found' }; }
     try {
-      // Argv array everywhere: the path is one argument and never a shell
-      // string. Each platform's file manager has its own "select this item"
-      // verb — `explorer /select,` is not a portable spelling, it is a Windows
-      // one, and off Windows it was an ENOENT that reported as reveal_failed.
-      // Linux has no universal equivalent, so the honest fallback is opening
-      // the containing FOLDER: it answers the same question ("where is this?")
-      // without pretending to a selection nobody can make.
-      const child = PLATFORM === 'win32'
-        ? spawn('explorer.exe', ['/select,' + rec.path], { detached: true, stdio: 'ignore' })
-        : PLATFORM === 'darwin'
-          ? spawn('open', ['-R', rec.path], { detached: true, stdio: 'ignore' })
-          : spawn('xdg-open', [rec.dir || path.dirname(rec.path)], { detached: true, stdio: 'ignore' });
-      child.unref();
+      // The platform switch lives in server.js next to openExternalPath and is
+      // injected, because the transfer widget's "show in folder" is the same
+      // verb — and two copies of a three-way platform branch drift into one of
+      // them quietly not working off Windows.
+      if (typeof revealExternal !== 'function') return { ok: false, error: 'unavailable' };
+      revealExternal(rec.path, rec.dir || path.dirname(rec.path));
     } catch { return { ok: false, error: 'reveal_failed' }; }
     const u = await loadUsage();
     usage = SearchRank.foldOpen(u, rec.path, rec.dir, Date.now());

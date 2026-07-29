@@ -82,9 +82,18 @@ self.addEventListener('fetch', (e) => {
     e.respondWith((async () => {
       try {
         const fresh = await fetch(req);
-        // Only a real 200 is worth keeping. A 401/302 to /pair is a moment in
-        // time, and caching it would strand the app on the pairing page.
-        if (fresh && fresh.ok && fresh.type === 'basic') {
+        // Only a real 200 for the dashboard root itself. `ok` and `type` do not
+        // say that: a navigation FOLLOWS the 302 an unpaired or revoked device
+        // gets, so the pairing page arrives here as a 200 `basic` response and
+        // was stored as the offline shell — the exact strand this check was
+        // written to prevent. `redirected` distinguishes the two, and pinning
+        // the final pathname also stops any other page (spotlight, /pair opened
+        // directly) from being cached under the shell's key.
+        // The URL parse is its own try: a throw here must never fall into the
+        // offline branch below and serve a cached page over a live response.
+        let landed = '';
+        try { landed = new URL(fresh.url || req.url).pathname; } catch { landed = ''; }
+        if (fresh && fresh.ok && fresh.type === 'basic' && !fresh.redirected && landed === '/') {
           const c = await caches.open(CACHE);
           c.put('/', fresh.clone()).catch(() => {});
         }

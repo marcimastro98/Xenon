@@ -1,0 +1,161 @@
+/* Phone widget — the paired phone's call log, phonebook and keypad.
+
+   Two constraints shaped this. It runs on a touchscreen, so every tappable
+   thing is at least 40px tall and the keypad keys are square and generous. And
+   it has to survive a 390px phone viewport, where the tile is the whole screen:
+   the rows stay one line with the name ellipsised, and the keypad reflows
+   instead of overflowing. */
+
+.phone-widget-mount { height: 100%; display: flex; min-height: 0; padding: 14px 16px; box-sizing: border-box; }
+.phw-wrap { position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; gap: 10px; }
+
+/* ── Head ─────────────────────────────────────────────────────────────── */
+
+.phw-head { display: flex; align-items: center; gap: 8px; padding: 2px 2px 0; }
+.phw-title { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; }
+.phw-device { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; color: var(--text, #f0f3f1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.phw-badge { flex: 0 0 auto; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 2px 7px; border-radius: 999px; }
+.phw-badge.is-active { background: rgba(74, 222, 128, 0.16); color: rgb(120, 235, 165); }
+/* A ringing phone is the one state worth a moving element: it is the state the
+   user has seconds to act on. It stops in every freeze state (see below). */
+.phw-badge.is-ring { background: rgba(var(--accent-rgb, 30, 215, 96), 0.18); color: var(--accent, #1ed760);
+  animation: phw-pulse 1.1s ease-in-out infinite; will-change: opacity; }
+@keyframes phw-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+.phw-icon-btn { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.04); color: var(--text, #f0f3f1); cursor: pointer; font-size: 13px;
+  transition: background 0.15s ease, opacity 0.15s ease; }
+.phw-icon-btn svg { width: 15px; height: 15px; }
+.phw-icon-btn:hover:not(:disabled) { background: rgba(255,255,255,0.09); }
+.phw-icon-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* ── Tabs ─────────────────────────────────────────────────────────────── */
+
+.phw-tabs { display: flex; gap: 4px; padding: 3px; border-radius: 11px; background: rgba(255,255,255,0.04); }
+.phw-tab { flex: 1 1 0; min-width: 0; padding: 7px 6px; border: 0; border-radius: 8px; background: transparent;
+  color: var(--text, #f0f3f1); opacity: 0.6; font-size: 12px; font-weight: 600; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: background 0.15s ease, opacity 0.15s ease; }
+.phw-tab:hover { opacity: 0.85; }
+.phw-tab.is-on { background: rgba(255,255,255,0.09); opacity: 1; }
+
+/* ── Lists ────────────────────────────────────────────────────────────── */
+
+.phw-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.phw-list { flex: 1 1 auto; min-height: 0; min-width: 0; overflow: hidden auto; display: flex; flex-direction: column; gap: 5px; }
+.phw-empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; text-align: center;
+  opacity: 0.6; font-size: 12.5px; line-height: 1.45; padding: 18px 10px; }
+
+.phw-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 7px 10px;
+  border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.03);
+  color: var(--text, #f0f3f1); text-align: left; cursor: default; transition: background 0.15s ease; }
+.phw-row.is-callable { cursor: pointer; }
+.phw-row.is-callable:hover { background: rgba(255,255,255,0.07); }
+.phw-row:disabled { opacity: 0.75; }
+
+.phw-avatar { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; display: inline-flex;
+  align-items: center; justify-content: center; background: rgba(var(--accent-rgb, 30, 215, 96), 0.14); }
+.phw-initials { font-size: 11.5px; font-weight: 700; color: var(--accent, #1ed760); }
+
+.phw-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.phw-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.phw-name { font-weight: 600; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.phw-sub { font-size: 10.5px; opacity: 0.55; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-variant-numeric: tabular-nums; }
+.phw-when { flex: 0 0 auto; font-size: 10.5px; opacity: 0.5; font-variant-numeric: tabular-nums; }
+
+.phw-dir { flex: 0 0 auto; display: inline-flex; opacity: 0.6; }
+.phw-dir svg { width: 12px; height: 12px; }
+/* Missed is the only direction with colour: it is the only one that might
+   still need something from the user. */
+.phw-dir.is-missed { color: rgb(248, 113, 113); opacity: 1; }
+
+.phw-search { width: 100%; box-sizing: border-box; padding: 8px 11px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04);
+  color: var(--text, #f0f3f1); font-size: 12.5px; font-family: inherit; }
+.phw-search::placeholder { opacity: 0.45; }
+.phw-search:focus { outline: none; border-color: rgba(var(--accent-rgb, 30, 215, 96), 0.5); }
+
+/* ── Keypad ───────────────────────────────────────────────────────────── */
+
+.phw-dial { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.phw-dial-value { min-height: 30px; display: flex; align-items: center; justify-content: center;
+  font-size: 19px; font-weight: 600; letter-spacing: 0.02em; font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.phw-pad { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 6px; align-content: center; }
+.phw-key { min-height: 40px; border-radius: 11px; border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.04); color: var(--text, #f0f3f1); font-size: 16px; font-weight: 600;
+  cursor: pointer; transition: background 0.12s ease; }
+.phw-key:hover { background: rgba(255,255,255,0.09); }
+.phw-key:active { background: rgba(255,255,255,0.14); }
+
+.phw-dial-actions { display: flex; align-items: center; gap: 8px; }
+.phw-call-btn { flex: 1 1 auto; min-height: 40px; border-radius: 11px; border: 0;
+  background: var(--accent, #1ed760); color: #06210f; font-size: 13.5px; font-weight: 700; cursor: pointer; }
+.phw-call-btn:hover { filter: brightness(1.07); }
+
+/* ── Confirm sheet ────────────────────────────────────────────────────── */
+/* Placing a call costs money and rings a person, so it is never one tap. The
+   number is shown in full: a name alone would hide what is about to be dialled. */
+
+.phw-confirm { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center;
+  padding: 12px; background: rgba(0,0,0,0.55); border-radius: 12px; }
+.phw-confirm-card { width: 100%; max-width: 260px; display: flex; flex-direction: column; gap: 6px;
+  padding: 14px; border-radius: 14px; text-align: center;
+  background: var(--panel, rgba(22,26,24,0.96)); border: 1px solid rgba(255,255,255,0.1); }
+.phw-confirm-q { font-size: 12px; opacity: 0.7; }
+.phw-confirm-name { font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.phw-confirm-num { font-size: 12.5px; opacity: 0.75; font-variant-numeric: tabular-nums; word-break: break-all; }
+.phw-confirm-actions { display: flex; gap: 8px; margin-top: 6px; }
+.phw-btn { flex: 1 1 0; min-height: 38px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05); color: var(--text, #f0f3f1); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.phw-btn.is-primary { border-color: transparent; background: var(--accent, #1ed760); color: #06210f; }
+.phw-btn:disabled { opacity: 0.5; cursor: default; }
+
+.phw-confirm-text { font-size: 12px; opacity: 0.85; line-height: 1.4; text-align: left; margin-top: 4px;
+  padding: 8px 10px; border-radius: 9px; background: rgba(255,255,255,0.05); max-height: 96px; overflow: auto;
+  overflow-wrap: anywhere; }
+
+.phw-notice { font-size: 11.5px; opacity: 0.7; text-align: center; padding: 2px 4px; line-height: 1.4; }
+
+/* ── Messages ─────────────────────────────────────────────────────────── */
+
+.phw-row.is-unread .phw-name { font-weight: 700; }
+.phw-unread-dot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: var(--accent, #1ed760); }
+/* Masked preview: the shape of a line of text without the text, so the row
+   still reads as a message rather than as an empty row. */
+.phw-sub.is-masked { font-style: italic; opacity: 0.42; }
+
+.phw-thread { gap: 8px; }
+.phw-thread-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.phw-thread-head .phw-name { font-size: 13.5px; }
+.phw-thread-body { flex: 1 1 auto; min-height: 0; overflow: hidden auto; padding: 10px 12px; border-radius: 12px;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); }
+.phw-msg-text { margin: 0; font-size: 12.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.phw-compose { display: flex; align-items: flex-end; gap: 8px; }
+.phw-input { flex: 1 1 auto; min-width: 0; resize: none; box-sizing: border-box; padding: 8px 11px;
+  border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04);
+  color: var(--text, #f0f3f1); font-size: 12.5px; font-family: inherit; line-height: 1.4; }
+.phw-input::placeholder { opacity: 0.45; }
+.phw-input:focus { outline: none; border-color: rgba(var(--accent-rgb, 30, 215, 96), 0.5); }
+.phw-compose .phw-call-btn { flex: 0 0 auto; min-width: 84px; }
+.phw-call-btn:disabled { opacity: 0.45; cursor: default; filter: none; }
+
+/* Nothing animates under a frosted overlay, in the ambient idle state, in game
+   mode or on a low-power GPU. A running animation beats a static declaration in
+   the cascade, so the animation is switched off rather than the opacity forced. */
+body.overlay-frozen .phw-badge.is-ring,
+body.ambient-idle .phw-badge.is-ring,
+body.game-mode .phw-badge.is-ring,
+body.low-power-gpu .phw-badge.is-ring { animation: none; opacity: 1; }
+
+/* The phone viewport: the tile is the whole screen, so it can afford to breathe. */
+@media (max-width: 520px) {
+  .phone-widget-mount { padding: 12px; }
+  .phw-key { min-height: 46px; font-size: 17px; }
+  .phw-row { min-height: 48px; }
+}

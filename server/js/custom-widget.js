@@ -26,7 +26,7 @@
   // Client copy of the category → deck-action-type map (server/sdk-widgets.js
   // is the authority; keep in sync). Used to gate bridge action dispatch.
   const ACTION_CATEGORIES = {
-    media: ['media'],
+    media: ['media', 'mediaSeek'],
     volume: ['volume', 'appVolume', 'appMute'],
     audioDevice: ['audioDevice'],
     mic: ['micMute'],
@@ -44,6 +44,7 @@
     tasks: ['taskAdd', 'taskToggle', 'taskDelete'],
     soundboard: ['playSound', 'soundStopAll'],
     browser: ['browserOpen'],
+    watch: ['twitchWatchPlay', 'ytWatchPlay'],
   };
   // The only playSound.file shape an SDK widget may use — an installed sound
   // pack's clip, never an arbitrary local path (that stays a Deck-key-only
@@ -138,6 +139,9 @@
     discordSoundboard: ['cw_stream_discord_soundboard', 'Discord soundboard catalog'],
     discordNotifications: ['cw_stream_discord_notifications', 'Discord notification content (DMs and mentions)'],
     streamerbot: ['cw_stream_streamerbot', 'Streamer.bot status & events'],
+    twitchWatch: ['cw_stream_twitchwatch', 'Which channels you follow are live, and what you are watching'],
+    twitchChat: ['cw_stream_twitchchat', 'The chat of the Twitch channel you are watching'],
+    youtubeLive: ['cw_stream_youtubelive', 'Your YouTube broadcast (live, viewers, likes)'],
     homeassistant: ['cw_stream_homeassistant', 'Home Assistant device states'],
     tasks: ['cw_stream_tasks', 'Your task list'],
     notes: ['cw_stream_notes', 'Your notes'],
@@ -163,6 +167,7 @@
     tasks: ['cw_act_tasks', 'Add and complete your to-do tasks'],
     soundboard: ['cw_act_soundboard', 'Play clips from your installed sound packs'],
     browser: ['cw_act_browser', 'Open web pages in the Browser tile on your dashboard'],
+    watch: ['cw_act_watch', 'Play a channel or a video in the Twitch and YouTube tiles'],
   };
   const ACTION_MIN_INTERVAL_MS = 250;   // per-instance action rate limit
   const FETCH_MIN_INTERVAL_MS = 1000;   // per-instance proxied-fetch rate limit
@@ -217,7 +222,55 @@
         ? data
         : { ok: false, enabled: false, hide: true, state: 'offline', items: [] };
     } }),
+    // Who you follow is live right now. `playing` is host state, not part of the
+    // answer, so it is read here rather than cached with the list: the list is
+    // worth a minute, the channel on screen changes the instant the user taps
+    // one. The Twitch tile also publishes both halves as it refreshes (see
+    // publishStream), so on a dashboard that HAS the tile this loader normally
+    // never runs.
+    twitchWatch: Object.freeze({ ttl: 60000, load: async () => {
+      const data = await api('/stream/twitch/followed');
+      const live = (data && Array.isArray(data.channels)) ? data.channels : [];
+      return { ok: !!(data && data.ok), error: (data && data.error) || '', live, playing: currentWatchPlaying() };
+    } }),
+    // The broadcast you are running. Every call costs YouTube quota (the server
+    // holds no cached answer for this one), which is why the TTL is twice the
+    // widget's own poll and why the YouTube Live tile publishes what it already
+    // read. A widget on a dashboard without that tile still works, it just pays.
+    youtubeLive: Object.freeze({ ttl: 60000, load: async () => {
+      const data = await api('/stream/youtube/broadcast');
+      return sanitizeYoutubeLive(data);
+    } }),
   });
+  // The broadcast payload, cut down to what a widget has any business seeing.
+  // Rebuilt key by key rather than forwarded: /stream/youtube/broadcast is the
+  // endpoint the builtin tile uses, and a field added to it later (an id, a URL,
+  // anything about the account) must not reach sandboxed code because nobody
+  // remembered this list existed.
+  function sanitizeYoutubeLive(d) {
+    const num = (v) => (v == null || !Number.isFinite(Number(v)) ? null : Number(v));
+    if (!d || typeof d !== 'object') return { ok: false, error: 'offline', live: false };
+    return {
+      ok: !!d.ok,
+      error: d.error ? String(d.error) : '',
+      live: !!d.live,
+      title: typeof d.title === 'string' ? d.title : '',
+      health: typeof d.health === 'string' ? d.health : '',
+      privacy: typeof d.privacy === 'string' ? d.privacy : '',
+      viewers: num(d.viewers),
+      totalViews: num(d.totalViews),
+      likes: num(d.likes),
+    };
+  }
+  // What the Twitch tile is playing, in the shape the twitchWatch stream carries.
+  // Read through the tile so there is one answer, not a copy that can go stale.
+  function currentWatchPlaying() {
+    try {
+      const p = window.TwitchWatchWidget && typeof TwitchWatchWidget.playingForSdk === 'function'
+        ? TwitchWatchWidget.playingForSdk() : null;
+      return (p && typeof p === 'object') ? p : null;
+    } catch { return null; }
+  }
   const localStreamLoadedAt = Object.create(null);
   const localStreamInflight = Object.create(null);
 
@@ -505,6 +558,22 @@
     entry.szW = width; entry.szH = height; entry.szDpr = dpr;
     post(entry, { type: 'size', width, height, dpr });
   }
+  // A silhouette cuts the corners off the tile, and a guest cannot see what the
+  // host did to its frame: introspection stops at the iframe boundary. So the
+  // host hands it the safe rectangle to lay out inside, in percent, the same way
+  // it hands over size and visibility. A widget that ignores the message is
+  // simply clipped, which is what happens today. Change-detected; sent on the
+  // handshake and whenever the resolved shape changes.
+  function postShape(entry) {
+    if (!entry || !entry.ready || !entry.frame) return;
+    const info = (typeof window.tileShapeInfoOf === 'function') ? window.tileShapeInfoOf(entry.frame) : null;
+    const key = info ? JSON.stringify(info) : '';
+    if (entry.shapeKey === key) return;
+    entry.shapeKey = key;
+    post(entry, info
+      ? { type: 'shape', path: info.d, fit: info.fit, safe: info.safe }
+      : { type: 'shape', path: '', fit: 'stretch', safe: { t: 0, r: 0, b: 0, l: 0 } });
+  }
   // Attach a ResizeObserver that lives ONLY on the entry (no shared registry), so
   // when the entry is dropped from `frames` and its frame from the DOM the whole
   // graph is unreferenced and GC'd — no leak, no explicit teardown at the ~13
@@ -513,6 +582,44 @@
     if (typeof ResizeObserver === 'undefined' || entry.ro) return;
     try { entry.ro = new ResizeObserver(() => postSize(entry)); entry.ro.observe(entry.frame); } catch { /* ignore */ }
   }
+  // ── The silhouette a package declares for its own tile ──────────────────────
+  // A proposal, not a capability: it cannot reach past the package's own tile,
+  // so unlike `accent` (which tints the whole dashboard) it carries no grant.
+  // The USER's per-tile shape always wins — dashboard-layout consults this only
+  // when the tile carries none of its own — and applyTileStyle() stays the one
+  // owner of the shape DOM, so the two can never fight over the same layer.
+  const tileShapes = new Map();     // instance id → normalized shape from the manifest
+  let shapeSyncQueued = false;
+  const shapeKey = (s) => (s ? JSON.stringify(s) : '');
+  // Reconciled ONCE per paint against what the pass decided, rather than written
+  // per tile: a per-tile write would have to be undone in every early return,
+  // and missing one leaves a tile wearing the silhouette of a widget that is no
+  // longer in it.
+  function syncTileShapes(want) {
+    let changed = false;
+    for (const [instId, shape] of want) {
+      if (shapeKey(tileShapes.get(instId)) === shapeKey(shape)) continue;
+      if (shape) tileShapes.set(instId, shape); else tileShapes.delete(instId);
+      changed = true;
+    }
+    for (const instId of [...tileShapes.keys()]) {
+      if (!want.has(instId)) { tileShapes.delete(instId); changed = true; }
+    }
+    if (!changed || shapeSyncQueued) return;
+    shapeSyncQueued = true;
+    // After the paint pass settles, not during it: one repaint for however many
+    // tiles changed, and no re-entering paint() from inside itself.
+    setTimeout(() => {
+      shapeSyncQueued = false;
+      if (typeof window.applyAllTileStyles === 'function') window.applyAllTileStyles();
+      // Only now is the silhouette actually on the tile, so this is when a guest
+      // can be told what it has to lay out inside. Change-detected, so the frames
+      // whose shape did not move are not written to.
+      for (const [, entry] of frames) postShape(entry);
+    }, 0);
+  }
+  function shapeFor(instId) { return tileShapes.get(instId) || null; }
+
   function grantsFor(pkgId) {
     const g = sdk().grants;
     const grant = (g && typeof g === 'object') ? g[pkgId] : null;
@@ -625,11 +732,38 @@
     return localStreamInflight[stream];
   }
 
+  // Streams a builtin tile feeds instead of a loader (see publishStream). Asking
+  // to refresh one is not a permission problem, so it must not answer like one —
+  // 'not_refreshable' tells the author to wait for the data rather than send them
+  // hunting through their manifest for a grant they already have.
+  const PUSH_ONLY_STREAMS = Object.freeze(['twitchChat']);
+
+  // A builtin tile handing the SDK host data it has already read. This is the
+  // cheap path for the three tile-backed streams: no second request, no second
+  // socket, and the loader's TTL is stamped so a widget asking for a refresh
+  // right after does not turn the saving back into a cost. Callers are dashboard
+  // modules on this page, but the allowlist keeps the reach obvious and small.
+  const PUBLISHABLE_STREAMS = Object.freeze(['twitchWatch', 'twitchChat', 'youtubeLive']);
+  function publishStream(stream, payload) {
+    if (!PUBLISHABLE_STREAMS.includes(stream)) return;
+    // The broadcast payload is an endpoint answer either way it arrives, so it is
+    // cut down HERE rather than in the tile: one place decides what a widget sees,
+    // and the pull path and the push path cannot end up carrying different fields.
+    const shaped = stream === 'youtubeLive' ? sanitizeYoutubeLive(payload) : payload;
+    localStreamLoadedAt[stream] = Date.now();
+    onData(stream, shaped);
+  }
+
   async function onBridgeRefresh(entry, grant, msg) {
     const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
     const stream = typeof msg.stream === 'string' ? msg.stream : '';
-    if (!grant.streams.includes(stream) || !LOCAL_STREAM_LOADERS[stream]) {
+    if (!grant.streams.includes(stream)) {
       post(entry, { type: 'refresh_result', id: reqId, stream, ok: false, error: 'not_allowed' });
+      return;
+    }
+    if (!LOCAL_STREAM_LOADERS[stream]) {
+      const err = PUSH_ONLY_STREAMS.includes(stream) ? 'not_refreshable' : 'not_allowed';
+      post(entry, { type: 'refresh_result', id: reqId, stream, ok: false, error: err });
       return;
     }
     if (!entryCanRefreshLocalStream(entry)) {
@@ -712,6 +846,24 @@
         return;
       }
       const res = BrowserTile.openFromSdk(msg.action.url, { expand: msg.action.expand === true });
+      post(entry, { type: 'action_result', id: reqId, ok: !!(res && res.ok), error: (res && res.ok) ? undefined : ((res && res.error) || 'failed') });
+      return;
+    }
+    // Play something in a builtin tile. Same dispatch shape as browserOpen, and
+    // deliberately without its confirm dialog: what travels is a channel login or
+    // a video id, re-validated by the tile against the same pattern it uses for
+    // its own rows, and the destination is a player on the dashboard the user is
+    // looking at — not a cookie-bearing browser aimed at an address the widget
+    // chose. A tile that is not on the dashboard answers 'unavailable', never a
+    // silent success.
+    if (msg.action.type === 'twitchWatchPlay' || msg.action.type === 'ytWatchPlay') {
+      const tw = msg.action.type === 'twitchWatchPlay';
+      const host = tw ? window.TwitchWatchWidget : window.YouTubeWidget;
+      if (!host || typeof host.playFromSdk !== 'function') {
+        post(entry, { type: 'action_result', id: reqId, ok: false, error: 'unavailable' });
+        return;
+      }
+      const res = host.playFromSdk(tw ? msg.action.channel : msg.action.video);
       post(entry, { type: 'action_result', id: reqId, ok: !!(res && res.ok), error: (res && res.ok) ? undefined : ((res && res.error) || 'failed') });
       return;
     }
@@ -1273,6 +1425,8 @@
       if (grant.streams.includes('discord') && lastData.discord === undefined) seedDiscordStream();
       entry.szW = entry.szH = entry.szDpr = undefined;   // force the first size to send
       postSize(entry);   // initial tile size, now that the widget is listening
+      entry.shapeKey = undefined;
+      postShape(entry);  // and the silhouette its content has to stay inside
       // A widget must know where it stands the moment it starts, not at the first
       // transition — one mounted into an inactive tab has never been on screen.
       // Posted directly rather than through postVisibility: the seed above already
@@ -1649,6 +1803,11 @@
   function refreshTheme() {
     for (const [, entry] of frames) {
       if (entry.ready) post(entry, { type: 'theme', theme: themePayload(entry) });
+      // applyAllTileStyles() ends here, and it is also what draws a tile's
+      // silhouette — so this is the one place that sees a shape the USER changed
+      // in the style editor. Change-detected, so an ordinary theme repaint costs
+      // nothing extra.
+      postShape(entry);
     }
   }
 
@@ -2156,7 +2315,7 @@
   const PICK_CATS = [
     { id: 'system', key: 'cw_cat_system', fb: 'System', streams: ['status', 'system', 'battery'] },
     { id: 'media', key: 'cw_cat_media', fb: 'Media', streams: ['media', 'audio', 'audioLevels', 'wavelink'] },
-    { id: 'stream', key: 'cw_cat_stream', fb: 'Streaming', streams: ['obs', 'streamerbot', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications'] },
+    { id: 'stream', key: 'cw_cat_stream', fb: 'Streaming', streams: ['obs', 'streamerbot', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'twitchWatch', 'twitchChat', 'youtubeLive'] },
     { id: 'info', key: 'cw_cat_info', fb: 'Info', streams: ['weather', 'stocks', 'football', 'news'] },
     { id: 'work', key: 'cw_cat_work', fb: 'Productivity', streams: ['tasks', 'notes', 'agenda', 'claude'] },
     { id: 'home', key: 'cw_cat_home', fb: 'Smart home', streams: ['homeassistant'] },
@@ -2415,6 +2574,7 @@
     // panel with no way out.
     reconcileExpanded();
     const seen = new Set();
+    const wantShapes = new Map();   // what this pass decided each tile's silhouette is
     tiles().forEach(tile => {
       const mount = tile.querySelector('.custom-widget-mount');
       if (!mount) return;
@@ -2568,7 +2728,11 @@
       }
       if (wrap) wrap.classList.add('cw-mounted');
       mountFrame(body, instId, pkg, tile);
+      if (pkg.shape) wantShapes.set(instId, pkg.shape);
+      const mounted = frames.get(instId);
+      if (mounted) postShape(mounted);
     });
+    syncTileShapes(wantShapes);
     // Drop bridge entries whose tile no longer exists (widget removed / page
     // deleted) so a dead iframe can't keep receiving data. Ambient entries are
     // not tiles — AmbientMode registers/deregisters them itself.
@@ -2741,7 +2905,13 @@
 
   window.CustomWidget = {
     renderWidgets, onData, onDiscordNotification, onHook, onHandler, onStoreChanged, onToastState, refreshTheme, refreshPackages: () => fetchPackages(true), clearAssign,
+    // How a builtin tile feeds a stream it is already reading (Twitch watch,
+    // Twitch chat, YouTube Live) instead of every widget paying for its own copy.
+    publishStream,
     registerAmbientFrame, unregisterAmbientFrame, registerCanvasFrame, unregisterCanvasFrames,
+    // The silhouette the package assigned to this tile declares for itself, or
+    // null. Read by applyTileStyle() ONLY when the tile has no shape of its own.
+    shapeFor,
     // Ambient scenes and canvas scenes mount their own frames but must load a
     // package from the SAME base as a tile does — see sdkAssetBase.
     assetBase: sdkAssetBase,

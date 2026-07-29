@@ -315,6 +315,7 @@ function createEmbeddedBrowser(opts) {
     if (sweepTimer) { clearTimeout(sweepTimer); sweepTimer = null; }
     pending.forEach((p) => p.reject(new Error(reason || 'browser_closed')));
     pending.clear();
+    tiles.forEach(clearResizeSettle);
     tiles.clear();
     bySession.clear();
     initialTargetId = null;
@@ -727,7 +728,7 @@ function createEmbeddedBrowser(opts) {
       const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
       // A tile owns a STACK of pages: the base page plus any popups layered on top.
       // The last entry is the active page (streamed + driven); see activeSession().
-      tile = { pages: [{ targetId, sessionId }], onFrame, onNav, w: width, h: height, dpr: scale, reqDpr, streaming: false, audible: false, nextAckAt: 0 };
+      tile = { pages: [{ targetId, sessionId }], onFrame, onNav, w: width, h: height, dpr: scale, reqDpr, streaming: false, audible: false, nextAckAt: 0, settleTimer: null };
       tiles.set(tileId, tile);
       bySession.set(sessionId, tileId);
     } finally { pendingAdoption.delete(targetId); }
@@ -765,7 +766,33 @@ function createEmbeddedBrowser(opts) {
     // backgrounded opener is left at a stale viewport and streams misfit once the
     // popup on top of it closes.
     for (const p of tile.pages) await send('Emulation.setDeviceMetricsOverride', metrics, p.sessionId).catch(() => {});
-    if (tile.streaming) await startScreencast(tileId); // re-issue with new caps
+    if (tile.streaming) {
+      await startScreencast(tileId);   // re-issue with new caps (this also forces one frame)
+      scheduleResizeSettle(tileId, tile);
+    }
+  }
+
+  // A resize is one CDP call, but the repaint it needs is not instantaneous. The
+  // single frame startScreencast forces can be captured while the page is still
+  // relaying out at the previous size, and because the screencast is change-driven
+  // that frame is then the LAST one a page which goes still ever emits: the tile
+  // keeps showing the old viewport indefinitely (GitHub #116 — the Browser tile left
+  // filling a fraction of its box after "Hide toolbar"). Force one more frame once
+  // the page has had time to settle. Replaces any pending follow-up for the same
+  // tile, and is dropped when the tile goes away.
+  const RESIZE_SETTLE_MS = 350;
+  function scheduleResizeSettle(tileId, tile) {
+    clearResizeSettle(tile);
+    tile.settleTimer = setTimeout(() => {
+      tile.settleTimer = null;
+      if (tiles.get(tileId) !== tile || !tile.streaming) return;
+      forceFrame(tile).catch(() => {});
+    }, RESIZE_SETTLE_MS);
+    tile.settleTimer.unref && tile.settleTimer.unref();
+  }
+
+  function clearResizeSettle(tile) {
+    if (tile && tile.settleTimer) { clearTimeout(tile.settleTimer); tile.settleTimer = null; }
   }
 
   async function startScreencast(tileId) {
@@ -908,6 +935,7 @@ function createEmbeddedBrowser(opts) {
     const tile = tiles.get(tileId);
     if (!tile) return;
     tiles.delete(tileId);
+    clearResizeSettle(tile);
     // Close every page in the stack (base + any lingering popups).
     for (const p of tile.pages) {
       bySession.delete(p.sessionId);
