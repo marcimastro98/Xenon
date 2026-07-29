@@ -357,7 +357,7 @@
       "kind": "widget",
       "name": "DGM Results",
       "author": "DanielGarciaMorato",
-      "description": "DGM Results provides upcoming and recent football matches across major competitions in a compact Xenon widget.\n\nFootball-Data.org and API-Football are used as the primary sources for competitive information, including fixtures, schedules, match status and scores. TheSportsDB Free V1 is used only for",
+      "description": "DGM Resultados is a responsive football results widget for Xenon. It displays live and recent scores, fixtures, competition details and match status in a clean bilingual interface, with clear loading, empty and unavailable-data states.",
       "category": "media",
       "tags": [
         "football",
@@ -366,16 +366,18 @@
         "matches",
         "sports"
       ],
-      "version": "0.5.3",
+      "version": "0.5.4",
+      "changelog": "Finalized the stable 0.5.4 release candidate and completed live QA, stability and export validation.",
       "pkgId": "dgm-football-results",
       "preview": {
         "accent": "#1ed760",
         "bg": "#0b0d12",
         "text": "#e9edf6"
       },
-      "shots": 3,
-      "addedAt": "2026-07-21",
-      "codeFile": true
+      "shots": 4,
+      "addedAt": "2026-07-29",
+      "codeFile": true,
+      "updatedAt": "2026-07-29"
     },
     {
       "id": "mixer",
