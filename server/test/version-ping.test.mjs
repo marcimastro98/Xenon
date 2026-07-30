@@ -39,21 +39,32 @@ test('a missing or non-true flag is treated as off', async () => {
   assert.equal(calls.length, 0);
 });
 
-test('an enabled ping sends version + os to the hub and nothing else', async () => {
+// The payload is the privacy promise, so it is pinned as a CLOSED allowlist. It
+// used to be an exact set of two; protocol 2 made several fields conditional, and
+// the purpose of the assertion is unchanged — adding a field, an install id above
+// all, still fails loudly right here.
+const ALLOWED_PING_KEYS = ['age', 'cohort', 'from', 'lang', 'newMonth', 'newWeek', 'os', 'pv', 'version'];
+
+test('an enabled ping sends only fields from the allowlist', async () => {
   const out = await versionPing.maybePing(base({ os: 'win32' }));
   assert.deepEqual(out, { ok: true });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, HUB_BASE + '/version/ping');
-  // The exact payload shape is the privacy promise — assert it exhaustively so
-  // adding a field (an install id above all) fails loudly here.
-  assert.deepEqual(Object.keys(calls[0].body).sort(), ['os', 'version']);
-  assert.deepEqual(calls[0].body, { version: '4.6.1', os: 'win32' });
+  for (const key of Object.keys(calls[0].body)) {
+    assert.ok(ALLOWED_PING_KEYS.includes(key), 'unexpected field in the ping payload: ' + key);
+  }
+  assert.equal(calls[0].body.version, '4.6.1');
+  assert.equal(calls[0].body.os, 'win32');
+  assert.equal(calls[0].body.pv, 2);
 });
 
 test('the install id is never part of the payload', async () => {
-  await versionPing.maybePing(base());
+  await versionPing.maybePing(base({ fresh: true, lang: 'it' }));
   const serialized = JSON.stringify(calls[0].body);
   assert.equal(/install/i.test(serialized), false, 'payload must carry no install identifier');
+  assert.equal(/uuid/i.test(serialized), false);
+  // Nothing shaped like the install UUID's first groups, however it got there.
+  assert.equal(/[0-9a-f]{8}-[0-9a-f]{4}/i.test(serialized), false);
 });
 
 test('at most one ping per UTC day, across repeated calls', async () => {

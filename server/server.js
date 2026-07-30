@@ -7328,6 +7328,13 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
 // must not hit the disk that often. Populated at startup and on every POST.
 let _serverHubSettings = { ...DEFAULT_HUB_SETTINGS };
 
+// True when settings.json did NOT exist as this process started: the only honest
+// way to tell a brand-new install from an old one that just enabled the version
+// ping. Read once at boot (see readHubSettings().then below) because the answer
+// stops being available a moment later. Defaults to false, so anything that goes
+// wrong reads as "not new" — under-counting births is the recoverable direction.
+let _settingsFileMissingAtBoot = false;
+
 function clampNumber(value, min, max, fallback) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return fallback;
@@ -13162,6 +13169,11 @@ const handleRequest = async (req, res) => {
         dataDir: DATA_DIR,
         version: APP_VERSION,
         enabled: !!(_serverHubSettings && _serverHubSettings.versionPing === true),
+        // Only a birth observed at boot may produce a cohort — see version-ping.js.
+        fresh: _settingsFileMissingAtBoot,
+        // Already normalized on both sides (WEATHER_LANGS here, SUPPORTED_LANGS in
+        // js/settings.js), so reading it costs nothing and adds no new key.
+        lang: (_serverHubSettings && _serverHubSettings.language) || '',
       }).catch(() => { /* best-effort: a failed ping is never user-visible */ });
     } catch (e) { err500(e.message); }
 
@@ -18847,6 +18859,13 @@ function _startListen(host) {
       });
     } catch (e) { console.error('Lighting Chroma runtime init failed:', e.message); }
     readHubSettings().then(s => {
+      // readHubSettings() answers null on ENOENT, and that is the ONE honest
+      // signal that this is a genuinely fresh install rather than an existing one
+      // whose owner just switched the version ping on. It has to be captured HERE,
+      // at boot: by the time the first ping fires, an old install always has the
+      // file, so asking then would call every late opt-in a new install and
+      // corrupt the retention curve permanently. See version-ping.js.
+      _settingsFileMissingAtBoot = (s === null);
       if (s) _serverHubSettings = s;
       // The settings are in memory now, so the transfer caps can finally come
       // from them rather than from DEFAULT_HUB_SETTINGS (see fileTransfer.init).
