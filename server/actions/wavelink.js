@@ -23,10 +23,16 @@ const DEFAULT_WS = (() => {
 })();
 
 // Wave Link scans a small port range starting at 1824 (the app picks the first
-// free one). appName gates a false match against some other :182x listener.
-const WL_HOST = '127.0.0.1';
+// free one), so the sweep carries headroom rather than stopping where the app
+// usually lands. appName gates a false match against some other :182x listener.
+// The loopback address is swept as IPv4 first (what Elgato's own client dials)
+// and IPv6 only after that fails — a socket refused there costs nothing, and a
+// user whose Wave Link binds ::1 otherwise sees "not running" forever.
+const WL_HOSTS = Object.freeze(['127.0.0.1', '::1']);
 const WL_START_PORT = 1824;
-const WL_PORT_SPAN = 10;
+const WL_PORT_SPAN = 12;
+// The canonical name Wave Link has reported for years. Kept as the reference
+// isWaveLinkApp() is pinned against, NOT as an equality test — see that helper.
 const WL_APP_NAME = 'Elgato Wave Link';
 
 const IDLE_MS = 60000;
@@ -41,6 +47,17 @@ const PROBE_TIMEOUT_MS = 1500;
 function normSlider(mix) {
   const m = String(mix == null ? 'stream' : mix).trim().toLowerCase();
   return (m === 'local' || m === 'stream' || m === 'all') ? m : 'stream';
+}
+
+// Is this getApplicationInfo answer Wave Link? The gate exists to reject some
+// OTHER listener that happens to sit on :182x, so it must not also reject Wave
+// Link itself under a name Elgato changed: an exact === on 'Elgato Wave Link'
+// makes a rename indistinguishable from "the app is not running", and the user
+// can do nothing about either. Match the product name, ignoring spacing, case
+// and any vendor prefix or version suffix around it.
+function isWaveLinkApp(appName) {
+  if (typeof appName !== 'string') return false;
+  return appName.toLowerCase().replace(/[^a-z0-9]+/g, '').includes('wavelink');
 }
 
 function clampVolume(v) {
@@ -86,10 +103,19 @@ function createWaveLink(getConfig, opts) {
   let reqId = 0;
   const pending = new Map();   // id -> { resolve, reject, timer }
   let goodPort = 0;            // last port that answered as Wave Link (tried first)
+  let goodHost = '';           // and the loopback address it answered on
   let watching = false;
   let onChange = null;
 
   // Live state cache (kept fresh from seeds + pushed notifications).
+  // `seeded` is what "do we know the mixer" means — NOT `inputs.size`. Wave Link
+  // may push a partial inputMixerChanged the moment the socket opens, which
+  // fills one entry with one field: inferring seededness from the map size then
+  // skips the seed, so the test button reports one channel out of six and a
+  // Deck key echoes undefined volumes back for the rest of the object. It also
+  // resets on close, so a reconnect re-reads the mixer instead of serving the
+  // previous session's cache.
+  let seeded = false;
   const inputs = new Map();    // mixId -> raw channel object
   let output = null;           // { localVolumeOut, streamVolumeOut, isLocalOutMuted, isStreamOutMuted }
   let monitorMix = '';
@@ -104,7 +130,7 @@ function createWaveLink(getConfig, opts) {
     if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
     clearPing();
     if (ws) { try { ws.close(); } catch (e) { /* ignore */ } }
-    ws = null; ready = null;
+    ws = null; ready = null; seeded = false;
     pending.forEach((p) => { clearTimeout(p.timer); p.reject(new Error('wl_closed')); });
     pending.clear();
   }
@@ -181,11 +207,12 @@ function createWaveLink(getConfig, opts) {
 
   // Open a single port and verify it's Wave Link (getApplicationInfo → appName).
   // Resolves the live socket, or rejects (caller tries the next port).
-  function probePort(port) {
+  function probePort(host, port) {
     return new Promise((resolve, reject) => {
       let sock, settled = false;
       const fail = (e) => { if (settled) return; settled = true; try { sock && sock.close(); } catch (x) {} reject(e || new Error('wl_probe_failed')); };
-      try { sock = new WebSocketImpl('ws://' + WL_HOST + ':' + port); } catch (e) { reject(e); return; }
+      const authority = host.includes(':') ? '[' + host + ']' : host;
+      try { sock = new WebSocketImpl('ws://' + authority + ':' + port); } catch (e) { reject(e); return; }
       const timer = setTimeout(() => fail(new Error('wl_probe_timeout')), PROBE_TIMEOUT_MS);
       sock.addEventListener('error', () => { clearTimeout(timer); fail(new Error('wl_connect_failed')); });
       sock.addEventListener('message', (ev) => handleMessage(ev.data));
@@ -193,29 +220,42 @@ function createWaveLink(getConfig, opts) {
         rawSend(sock, 'getApplicationInfo').then((info) => {
           clearTimeout(timer);
           if (settled) return;
-          if (info && info.appName === WL_APP_NAME) { settled = true; resolve(sock); }
+          if (info && isWaveLinkApp(info.appName)) { settled = true; resolve(sock); }
           else fail(new Error('wl_wrong_app'));
         }, () => { clearTimeout(timer); fail(new Error('wl_no_appinfo')); });
       });
     });
   }
 
-  // Try the last good port first, then sweep the range. First valid socket wins.
+  // Which failure is worth reporting: a port that ANSWERED and was rejected
+  // says far more than the 20 refused connections around it, and "could not
+  // reach Wave Link" is the same sentence for both. Highest rank wins.
+  const FAIL_RANK = { wl_connect_failed: 1, wl_probe_timeout: 2, wl_no_appinfo: 3, wl_wrong_app: 4 };
+
+  // Try the last good address first, then sweep the range on IPv4 and, only if
+  // that finds nothing, on IPv6. First valid socket wins.
   async function findSocket(preferredPort) {
     const ports = [];
     const first = Number(preferredPort) || goodPort;
     if (first) ports.push(first);
     for (let i = 0; i < WL_PORT_SPAN; i++) { const p = WL_START_PORT + i; if (!ports.includes(p)) ports.push(p); }
-    let lastErr = new Error('wl_not_found');
-    for (const port of ports) {
-      try {
-        // eslint-disable-next-line no-await-in-loop -- sequential by design: stop at the first live port
-        const sock = await probePort(port);
-        goodPort = port;
-        return sock;
-      } catch (e) { lastErr = e; }
+    const hosts = goodHost ? [goodHost].concat(WL_HOSTS.filter((h) => h !== goodHost)) : WL_HOSTS.slice();
+    let bestErr = new Error('wl_not_found');
+    let bestRank = 0;
+    for (const host of hosts) {
+      for (const port of ports) {
+        try {
+          // eslint-disable-next-line no-await-in-loop -- sequential by design: stop at the first live port
+          const sock = await probePort(host, port);
+          goodPort = port; goodHost = host;
+          return sock;
+        } catch (e) {
+          const rank = FAIL_RANK[(e && e.message) || ''] || 0;
+          if (rank >= bestRank) { bestRank = rank; bestErr = e; }
+        }
+      }
     }
-    throw lastErr;
+    throw bestErr;
   }
 
   function connect() {
@@ -268,6 +308,7 @@ function createWaveLink(getConfig, opts) {
     if (sw && sw.switchState != null) switchState = String(sw.switchState);
     if (mm && mm.monitorMix != null) monitorMix = String(mm.monitorMix);
     if (mic) micConnected = !!mic.isMicrophoneConnected;
+    seeded = true;
   }
 
   // Watch path: seed, then hold the socket open with a keepalive. Wave Link
@@ -379,8 +420,8 @@ function createWaveLink(getConfig, opts) {
     }
   }
 
-  async function ensureInputs() { if (!inputs.size || !ws) { await connect(); if (!inputs.size) await seedState(); } }
-  async function ensureOutput() { if (!output || !ws) { await connect(); if (!output) await seedState(); } }
+  async function ensureInputs() { if (!seeded || !ws) { await connect(); if (!seeded) await seedState(); } }
+  async function ensureOutput() { if (!seeded || !ws) { await connect(); if (!seeded) await seedState(); } }
 
   // Channel list for the editor's mixer picker: [{ value: mixId, label: name }].
   async function listChannels() {
@@ -413,7 +454,7 @@ function createWaveLink(getConfig, opts) {
   function isConnected() { return !!ws; }
 
   async function test() {
-    try { await connect(); if (!inputs.size) await seedState(); return { ok: true, count: inputs.size }; }
+    try { await connect(); if (!seeded) await seedState(); return { ok: true, count: inputs.size }; }
     catch (e) { return { ok: false, error: (e && e.message) || 'wl_connect_failed' }; }
   }
 
@@ -436,7 +477,9 @@ module.exports = {
   normSlider,
   clampVolume,
   compactChannel,
+  isWaveLinkApp,
   WL_START_PORT,
   WL_PORT_SPAN,
+  WL_HOSTS,
   WL_APP_NAME,
 };
