@@ -13,7 +13,9 @@
 // back. It never changes a mixer, a volume or a setting.
 
 import net from 'node:net';
+import { execFile } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
 
 const require = createRequire(import.meta.url);
 
@@ -116,6 +118,108 @@ function rpcProbe(host, port, method, params) {
 
 function line(s) { process.stdout.write(s + '\n'); }
 
+// ---- "then where IS it?" ----------------------------------------------------
+//
+// A sweep that finds nothing answers only half the question, and the other half
+// is the one that decides what we fix: is Wave Link opening a local port at all,
+// and if so which one? Asking the user to paste a shell one-liner for that does
+// not survive the trip — the last one arrived with its `$_` eaten by Discord's
+// italics and produced nothing but parser errors. So the script asks.
+//
+// Read-only: it lists processes and listening sockets, nothing else. Every call
+// is an argv array, never a shell string.
+
+const WL_PROC_RE = /wave|elgato/i;
+
+function run(cmd, args) {
+  return new Promise((resolve) => {
+    execFile(cmd, args, { maxBuffer: 16 * 1024 * 1024, windowsHide: true, timeout: 15000 },
+      (err, out) => resolve(err ? '' : String(out)));
+  });
+}
+
+// `tasklist /fo csv /nh` → "Image Name","PID","Session Name","Session#","Mem"
+export function parseTasklist(text) {
+  const byPid = new Map();
+  for (const raw of String(text).split(/\r?\n/)) {
+    const m = /^"([^"]*)","(\d+)"/.exec(raw.trim());
+    if (m) byPid.set(m[2], m[1]);
+  }
+  return byPid;
+}
+
+// `netstat -ano` listening rows, IPv4 and IPv6 alike:
+//   TCP    0.0.0.0:3030    0.0.0.0:0    LISTENING    22468
+//   TCP    [::]:135        [::]:0       LISTENING    1452
+export function parseNetstatListening(text) {
+  const rows = [];
+  for (const raw of String(text).split(/\r?\n/)) {
+    const m = /^\s*TCP\s+(\S+)\s+\S+\s+LISTENING\s+(\d+)\s*$/i.exec(raw);
+    if (m) rows.push({ addr: m[1], pid: m[2] });
+  }
+  return rows;
+}
+
+// `lsof -nP -iTCP -sTCP:LISTEN` → COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME
+export function parseLsofListening(text) {
+  const rows = [];
+  for (const raw of String(text).split(/\r?\n/).slice(1)) {
+    const f = raw.trim().split(/\s+/);
+    if (f.length < 9 || !/^\d+$/.test(f[1])) continue;
+    rows.push({ name: f[0], pid: f[1], addr: f[8] });
+  }
+  return rows;
+}
+
+// Which Wave Link processes exist, and what each one is listening on.
+// Returns null where we have no read-only way to ask.
+async function waveLinkSockets() {
+  if (process.platform === 'win32') {
+    const [tasks, netstat] = await Promise.all([
+      run('tasklist', ['/fo', 'csv', '/nh']),
+      run('netstat', ['-ano']),
+    ]);
+    const byPid = parseTasklist(tasks);
+    const procs = [];
+    for (const [pid, name] of byPid) if (WL_PROC_RE.test(name)) procs.push({ pid, name });
+    const pids = new Set(procs.map((p) => p.pid));
+    const ports = parseNetstatListening(netstat)
+      .filter((r) => pids.has(r.pid))
+      .map((r) => ({ ...r, name: byPid.get(r.pid) || '' }));
+    return { procs, ports };
+  }
+  if (process.platform === 'darwin') {
+    const rows = parseLsofListening(await run('/usr/sbin/lsof', ['-nP', '-iTCP', '-sTCP:LISTEN']));
+    const ports = rows.filter((r) => WL_PROC_RE.test(r.name));
+    const procs = [];
+    const seen = new Set();
+    for (const r of ports) if (!seen.has(r.pid)) { seen.add(r.pid); procs.push({ pid: r.pid, name: r.name }); }
+    return { procs, ports };
+  }
+  return null;
+}
+
+async function reportWaveLinkSockets() {
+  let info = null;
+  try { info = await waveLinkSockets(); } catch { info = null; }
+  line('');
+  line('--- what Wave Link is actually listening on ---');
+  if (!info) { line('(not available on ' + process.platform + ')'); return; }
+  if (!info.procs.length) {
+    line('No Wave Link process is running. Open Wave Link and run this again:');
+    line('everything above was measured against an app that was not there.');
+    return;
+  }
+  for (const p of info.procs) line('process ' + p.name + ' (pid ' + p.pid + ')');
+  if (!info.ports.length) {
+    line('None of them is listening on ANY TCP port. Wave Link is running and is');
+    line('not opening a local API, so no port number would have helped.');
+    return;
+  }
+  for (const r of info.ports) line('  listening ' + r.addr + '  (' + r.name + ')');
+  line('If a port here is outside 1824-1839, that is the one Xenon is missing.');
+}
+
 async function main() {
   line('Xenon — Wave Link connection diagnostic');
   line('node ' + process.version + ' on ' + process.platform + ' | websocket via ' + WS_IMPL.name);
@@ -177,6 +281,7 @@ async function main() {
     line('No Wave Link API found on ports ' + PORT_FROM + '-' + PORT_TO + '.');
     line('With Wave Link open, that means the app is not exposing its local API');
     line('on this range (or is exposing it under a different transport).');
+    await reportWaveLinkSockets();
     process.exitCode = 2;
     return;
   }
@@ -192,4 +297,9 @@ async function main() {
   }
 }
 
-main().catch((e) => { line('diagnostic crashed: ' + ((e && e.stack) || e)); process.exitCode = 1; });
+// Run only when invoked directly, so the parsers above can be imported by the
+// unit test without the whole diagnostic firing.
+const invokedDirectly = !!process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (invokedDirectly) {
+  main().catch((e) => { line('diagnostic crashed: ' + ((e && e.stack) || e)); process.exitCode = 1; });
+}
