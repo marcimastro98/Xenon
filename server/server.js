@@ -4915,8 +4915,25 @@ function openExternalPath(p) {
 function revealInFileManager(p, dir) {
   const target = String(p);
   const folder = dir || path.dirname(target);
+  // explorer.exe does NOT parse its command line with CommandLineToArgvW: it
+  // wants the quotes around the PATH, not around the whole `/select,` token.
+  // Node quotes any argument containing a space, so `'/select,' + target`
+  // reached it as "/select,C:\Users\...\Marci Progetti\..." — which explorer
+  // gives up on and answers by opening the DEFAULT folder (Documents), with no
+  // error anywhere. That is not the edge case: almost every real path has a
+  // space in it, so "show in folder" opened an unrelated window for most users,
+  // in Spotlight and in the transfer widget alike. windowsVerbatimArguments
+  // hands the line over unquoted so the quotes can go where explorer expects.
+  // It is NOT a shell (no cmd.exe, so &, | and > stay inert) — but since Node
+  // is no longer escaping, refuse the one character that could re-cut the
+  // arguments. A double quote is illegal in a Windows path, so this can only
+  // ever fire on something that was never a real file.
+  if (process.platform === 'win32' && target.includes('"')) {
+    console.warn('[reveal] refusing a path containing a quote');
+    return;
+  }
   const child = process.platform === 'win32'
-    ? spawn('explorer.exe', ['/select,' + target], { detached: true, stdio: 'ignore' })
+    ? spawn('explorer.exe', ['/select,"' + target + '"'], { detached: true, stdio: 'ignore', windowsVerbatimArguments: true })
     : process.platform === 'darwin'
       ? spawn('open', ['-R', target], { detached: true, stdio: 'ignore' })
       : spawn('xdg-open', [folder], { detached: true, stdio: 'ignore' });

@@ -4531,13 +4531,18 @@ function renderSurfaceSection() {
     wrap.className = 'settings-label-line';
     const b = document.createElement('span');
     b.dataset.i18n = labelKey;
-    b.textContent = labelText;
+    // Translate HERE, like every other row in this panel does. data-i18n alone
+    // is not enough: applyTranslations() sweeps the document when the language
+    // changes, so a node built afterwards keeps whatever text it was created
+    // with — and the literals below are Italian. That is why these four rows
+    // were the only Italian thing on an English dashboard.
+    b.textContent = t(labelKey, labelText);
     wrap.appendChild(b);
     if (hintKey) {
       const h = document.createElement('span');
       h.className = 'settings-hint';
       h.dataset.i18n = hintKey;
-      h.textContent = hintText;
+      h.textContent = t(hintKey, hintText);
       wrap.appendChild(h);
     }
     return wrap;
