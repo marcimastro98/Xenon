@@ -2780,6 +2780,16 @@
 
   function renderWidgets() {
     pruneOrphanAssigns();
+    // A custom tile inside a tab group is labelled with its ASSIGNED package's
+    // name, and assigning one repaints the tile without rebuilding the tab bar —
+    // so the tab kept saying "Custom widget" until the next reload, and after an
+    // unassign it kept naming a widget that was no longer there. The package-list
+    // event cannot cover this: the list did not change, the assignment did. Runs
+    // before the early return below so removing the last custom tile relabels too.
+    // Cheap: it only rewrites the text of tabs already in the DOM.
+    if (window.DashboardTabGroups && typeof window.DashboardTabGroups.refreshLabels === 'function') {
+      window.DashboardTabGroups.refreshLabels();
+    }
     // Reconcile service frames on EVERY render pass, not only on package
     // (re)scans: a safe-mode or suspend flip repaints tiles through here (local
     // toggle and cross-surface hydrate alike), and without this the hidden

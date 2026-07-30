@@ -150,6 +150,16 @@ If it matches the `Xenon-Setup-x64.exe` line in that release's `SHA256SUMS`, the
 
 > Only ever do the above for a file you downloaded from **[this repository's Releases page](https://github.com/marcimastro98/Xenon/releases)** and whose hash you checked. Turning off a warning is exactly what actual malware wants you to do — the hash is what tells the two situations apart.
 
+#### If Xenon simply will not start: Smart App Control
+
+Smart App Control is a different gatekeeper from the one above, and **none of the steps in the previous section affect it.** If Xenon refuses to run and you never saw a Defender detection at all, open **Windows Security → App & browser control → Smart App Control** and check whether it is on.
+
+Smart App Control blocks any app it does not already trust, and it decides that before your antivirus is ever consulted. So a Defender exclusion does not make it allow the file, and there is no way to permit one app while leaving it on. It only ever switches itself on during a clean installation of Windows 11, which is why you can meet it on a freshly rebuilt PC and never on an upgraded one.
+
+That leaves two settings: **Evaluation**, where Windows watches how you use the PC and decides for itself whether to keep it on, and **Off**.
+
+> **Read this before you change it: turning Smart App Control off is a one-way door.** Windows will not let you switch it back on afterwards without resetting or reinstalling the PC. That is Microsoft's design and not something Xenon can work around. If you would rather keep it on, the honest answer today is that Xenon cannot run on that machine. Code signing is what will change that, and it is the same missing piece behind the Defender false positive above.
+
 #### macOS
 
 > **Beta.** The dashboard, the widgets, the Store and the integrations are the same as on Windows. What still differs is the part that reads the machine itself, and the [table below](#platform-support) says exactly what works where. If something misbehaves, the [Discord](https://discord.gg/MBVrw9kZyg) is where it gets fixed fastest.
@@ -377,6 +387,7 @@ iCUE's embedded WebView can reject some MP4 files even when they play fine in Ch
 - **No CPU temperature** — rerun `INSTALL.bat` and accept the admin prompt so it can install LibreHardwareMonitor/PawnIO and register the elevated startup task.
 - **Mic mute does nothing on first launch** — wait a second or two; the device cache populates right after startup.
 - **Defender quarantined Xenon, or the download was blocked** — a false positive from an unsigned build with no reputation yet. See [If Windows blocks the download, or flags Xenon as a virus](#if-windows-blocks-the-download-or-flags-xenon-as-a-virus) for how to verify the file and restore it.
+- **Nothing happens when you launch Xenon, and Defender never said anything** — on Windows 11 this is usually Smart App Control, which is separate from your antivirus and is not affected by an exclusion. See [If Xenon simply will not start: Smart App Control](#if-xenon-simply-will-not-start-smart-app-control).
 
 ---
 

@@ -1,6 +1,11 @@
-/* Elgato Wave Link mixer widget: per-channel faders + output + monitor switch.
+/* Elgato Wave Link mixer widget: per-channel faders, the user's own mixes as
+   tabs, live stereo meters, the effect chain and the output device.
    Rendered into .wavelink-widget-mount by wavelink-widget.js. Shares the glass /
-   accent language of the OBS and Discord tiles. */
+   accent language of the OBS and Discord tiles.
+
+   The tabs are the mixes Wave Link 3 lets people name and create, so there can
+   be one or five of them and the header has to survive both — hence the
+   scrollable strip rather than a two-up segmented control. */
 .wavelink-panel { display: flex; }
 .wavelink-widget-mount { width: 100%; height: 100%; display: flex; min-height: 0; border-radius: inherit; }
 
@@ -12,17 +17,31 @@
 }
 .wl-wrap.wl-disconnected { opacity: 0.95; }
 
+/* Every part of this tile that can be absent sets its own `display`, and an
+   explicit display beats the user agent's `[hidden] { display: none }`. Without
+   this rule the monitor switch stayed on screen against Wave Link 3, which has
+   no such control — a button that can only ever answer "unsupported". The same
+   trap was waiting for the meters, the effect pills and the output row. */
+.wl-wrap [hidden] { display: none !important; }
+
 /* Header: title + Stream|Local segmented selector */
 .wl-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: 0 0 auto; }
 .wl-logo { font-size: 0.92rem; font-weight: 900; letter-spacing: 0.03em; color: var(--text, #e7e9ee); }
+/* A user can have any number of mixes and name them anything, so the strip
+   scrolls instead of assuming two will fit. min-width:0 on the flex child is
+   what lets it shrink rather than pushing the title off the tile. */
 .wl-seg {
   display: inline-flex; padding: 2px; border-radius: 999px; gap: 2px;
   background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+  min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: none;
 }
+.wl-seg::-webkit-scrollbar { display: none; }
 .wl-seg-btn {
   border: 0; cursor: pointer; padding: 4px 12px; border-radius: 999px;
   font-size: 11px; font-weight: 800; letter-spacing: 0.02em;
   color: var(--text-dim, #8b91a1); background: transparent;
+  white-space: nowrap; flex: 0 0 auto; max-width: 8.5rem;
+  overflow: hidden; text-overflow: ellipsis;
   transition: color 0.15s ease, background 0.15s ease;
 }
 .wl-seg-btn.is-active {
@@ -33,8 +52,12 @@
 .wl-empty { font-size: 0.82rem; opacity: 0.45; font-weight: 600; text-align: center; padding: 22px 10px; }
 
 .wl-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+/* The strip list may shrink and scroll but must NOT grow: a rig with one or two
+   channels would otherwise stretch to fill the tile and leave the master fader
+   stranded at the bottom behind a wall of empty space. Content sits at the top,
+   spare room stays at the bottom where it reads as room rather than as a gap. */
 .wl-list {
-  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  flex: 0 1 auto; min-height: 0; overflow-y: auto;
   display: flex; flex-direction: column; gap: 10px; padding-right: 4px; scrollbar-width: thin;
 }
 
@@ -98,3 +121,105 @@
 .wl-monitor svg { width: 15px; height: 15px; flex: 0 0 auto; }
 .wl-monitor:hover { background: rgba(255,255,255,0.08); color: var(--text, #e7e9ee); }
 .wl-monitor:active { transform: translateY(1px); }
+
+/* Which Wave Link answered. Two protocols wear this name and offer different
+   controls, so the tile says which one rather than leaving "why is there no
+   meter" as a mystery. */
+.wl-badge {
+  font-size: 9.5px; font-weight: 900; line-height: 1;
+  padding: 3px 6px; border-radius: 5px; margin-left: -4px;
+  color: var(--text-dim, #8b91a1);
+  border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05);
+}
+
+/* Channel artwork (Wave Link 3 ships a PNG per channel). */
+.wl-name-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.wl-icon { width: 15px; height: 15px; border-radius: 4px; flex: 0 0 auto; object-fit: cover; }
+
+/* A channel that is not routed into the selected mix has nothing to move, so
+   the strip dims and the fader stops taking input — a live-looking slider that
+   writes nowhere is the failure this codebase avoids everywhere else. */
+.wl-row.is-unrouted { opacity: 0.38; }
+.wl-row.is-unrouted .wl-slider,
+.wl-row.is-unrouted .wl-mute { pointer-events: none; }
+
+/* Stereo level meter (Wave Link 3). Two bars rather than one average, so a dead
+   side is visible. The width is a transform on a scaled child: transform and
+   opacity are the two properties that do not force layout on every frame. */
+.wl-meter {
+  --l: 0%; --r: 0%;
+  display: flex; flex-direction: column; gap: 2px; margin-top: -2px;
+}
+.wl-meter i {
+  display: block; height: 2px; border-radius: 999px; transform-origin: left center;
+  background: linear-gradient(90deg,
+    rgba(var(--accent-rgb, 43,108,255), 0.9) 0%,
+    rgba(var(--accent-rgb, 43,108,255), 0.9) 70%,
+    #ffb454 88%, #ff6b6b 100%);
+  transition: transform 0.12s linear;
+}
+.wl-meter-l { width: var(--l); }
+.wl-meter-r { width: var(--r); opacity: 0.7; }
+.wl-row.is-muted .wl-meter i { filter: grayscale(1); opacity: 0.35; }
+
+/* A data-driven transition is invisible to the one-shot animation freeze: a new
+   sample retriggers it forever. Meters must therefore be gated off in EVERY
+   quiet state, or the tile keeps repainting under a frosted overlay, on the
+   ambient screen, in game mode and on the low-power GPU path. */
+body.overlay-frozen .wl-meter i,
+body.ambient-idle .wl-meter i,
+body.game-mode .wl-meter i,
+body.low-power-gpu .wl-meter i { transition: none; }
+
+/* Effect chain: one pill per effect, lit when the effect is on. */
+.wl-fx { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 1px; }
+.wl-fx-pill {
+  border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03);
+  color: var(--text-dim, #8b91a1); cursor: pointer;
+  font-size: 9.5px; font-weight: 800; letter-spacing: 0.01em;
+  padding: 2px 7px; border-radius: 999px; max-width: 9rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.wl-fx-pill:hover { background: rgba(255,255,255,0.08); color: var(--text, #e7e9ee); }
+.wl-fx-pill.is-on {
+  color: #fff; border-color: rgba(var(--accent-rgb, 43,108,255), 0.55);
+  background: rgba(var(--accent-rgb, 43,108,255), 0.28);
+}
+
+/* Where the main mix physically comes out (Wave Link 3). */
+.wl-outdev {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 5px;
+  border-top: 1px solid rgba(255,255,255,0.08); padding-top: 9px;
+}
+.wl-outdev-lbl {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.02em;
+  color: var(--text-dim, #8b91a1); margin-right: 2px;
+}
+.wl-outdev-lbl svg { width: 13px; height: 13px; }
+.wl-outdev-pill {
+  border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03);
+  color: var(--text-dim, #8b91a1); cursor: pointer;
+  font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 999px;
+  max-width: 11rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.wl-outdev-pill:hover { background: rgba(255,255,255,0.08); color: var(--text, #e7e9ee); }
+.wl-outdev-pill.is-on {
+  color: #fff; border-color: rgba(var(--accent-rgb, 43,108,255), 0.55);
+  background: rgba(var(--accent-rgb, 43,108,255), 0.28);
+}
+/* Wave Link can route the main mix to something it does not list here, in which
+   case none of the pills is the current one. Dimming the label says "the
+   selection is elsewhere" instead of leaving a row that looks unresponsive. */
+.wl-outdev--unknown .wl-outdev-lbl { opacity: 0.5; }
+
+/* Phone viewport: the tile is one column wide at 390px, so the strip has to
+   give up its fixed gutters before the fader loses its travel. */
+@media (max-width: 520px) {
+  .wl-wrap { padding: 13px 13px; gap: 10px; }
+  .wl-row { grid-template-columns: 30px 1fr auto; gap: 9px; }
+  .wl-mute { width: 30px; height: 30px; }
+  .wl-fx-pill, .wl-outdev-pill { max-width: 7rem; }
+}

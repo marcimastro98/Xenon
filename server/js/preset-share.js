@@ -530,6 +530,19 @@
     return /function\s+draw\s*\(|\bdraw\s*=\s*(?:function|\()|\bctx\s*\.\s*(?:fillRect|createLinearGradient|beginPath|drawImage|arc|stroke|fill|clearRect)\b|\brequestAnimationFrame\s*\(/.test(s);
   }
 
+  // The mirror mix-up, and the more expensive one: pasting an UNLOCK code where
+  // the preset goes. A limited drop is delivered as a personal file plus a
+  // personal code, and "I have a code" opens this dialog empty — so the one
+  // thing the user is holding is the code, and it is the one thing that cannot
+  // go in this box (the redeem needs the entry id, which lives inside the
+  // bundle). Left as a generic "not a valid preset code" it is a dead end with
+  // no next step. Matches every code shape we issue after canonCode strips the
+  // dashes: XN (offline access code), XS (supporter pass), XL (per-drop code).
+  // No real preset code is 14 characters long, so this can never shadow one.
+  function looksLikeUnlockCode(input) {
+    return /^X[NSL][A-Z0-9]{12}$/.test(canonCode(input));
+  }
+
   function randBytes(n) {
     const b = new Uint8Array(n);
     if (typeof crypto !== 'undefined' && crypto.getRandomValues) { crypto.getRandomValues(b); return b; }
@@ -2742,6 +2755,10 @@
           // the "Code" editor instead of a bare "not a valid code" dead end.
           if (!locked && looksLikeBgCode(field.value)) {
             toast(tr('preset_import_looks_like_code', 'That looks like animated-background code — paste it into the "Code" box under Animated background, not here. Import only accepts a shared preset code, link, or .json file.'), '', 'info');
+            return;
+          }
+          if (!locked && looksLikeUnlockCode(field.value)) {
+            toast(tr('preset_import_looks_like_unlock', 'That is your unlock code, not the drop itself. Open the download link you were sent, choose the .json file here, and the unlock field will appear — your code goes there.'), '', 'info');
             return;
           }
           toast(tr('preset_import_bad', 'Not a valid preset code.'), '', 'error'); return;

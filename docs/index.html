@@ -1103,6 +1103,7 @@
           <a role="menuitem" href="#install" data-i18n="nav.install">Install</a>
           <a role="menuitem" href="#support" id="nav-thanks" hidden data-i18n="nav.thanks">Thanks</a>
           <i class="sep" aria-hidden="true"></i>
+          <a role="menuitem" href="faq.html" data-i18n="nav.faq">FAQ</a>
           <a role="menuitem" href="privacy.html" data-i18n="foot.privacy">Privacy</a>
         </div>
       </div>
@@ -1649,6 +1650,11 @@
            parts are what differ, and the table in the README says exactly which. -->
       <p class="dl-req dl-betaline reveal d1" data-i18n="dl.betaline">macOS and Linux are in beta. The dashboard, the widgets, the Store and the integrations are the same everywhere; what still differs is the part that reads your machine, and the README table says exactly what works where.</p>
 
+      <!-- The one thing a blocked visitor needs, at the moment it happens: they
+           just pressed a download button and something refused it. Sending them
+           to the FAQ here beats them searching, or giving up. -->
+      <p class="dl-req dl-betaline reveal d1" data-i18n-html="dl.blocked">Windows blocked the download, or called it a virus? That is a false positive: the build is not code-signed yet, so it starts from zero reputation. The <a href="faq.html#warnings">FAQ</a> explains how to check the file's hash yourself, and how to get it back.</p>
+
       <!-- Only the visitor who is ALREADY on a phone gets a band here. The
            generic "your phone is a screen" strip that used to sit beside it said
            what movement 05 spends a whole scene saying, one screen further down
@@ -1741,6 +1747,7 @@
           <a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a>
           <a href="https://github.com/marcimastro98/Xenon/releases/latest" target="_blank" rel="noopener" data-i18n="foot.releases">Releases</a>
           <a href="https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md" target="_blank" rel="noopener" data-i18n="foot.bug">Report a bug</a>
+          <a href="/faq.html" data-i18n="nav.faq">FAQ</a>
           <a href="/privacy.html" data-i18n="foot.privacy">Privacy</a>
         </div>
         <div class="foot-col">
@@ -1763,7 +1770,7 @@
 <script>
 const I18N = {};
 I18N.en = {
-  'nav.features': 'Features', 'nav.catalog': 'Catalog', 'nav.install': 'Install', 'nav.thanks': 'Thanks', 'nav.coffee': 'Coffee', 'nav.get': 'Download', 'nav.more': 'More', 'nav.phonelong': 'Your phone as the screen', 'nav.createlong': 'Make your own widgets',
+  'nav.features': 'Features', 'nav.catalog': 'Catalog', 'nav.install': 'Install', 'nav.thanks': 'Thanks', 'nav.coffee': 'Coffee', 'nav.get': 'Download', 'nav.more': 'More', 'nav.phonelong': 'Your phone as the screen', 'nav.createlong': 'Make your own widgets', 'nav.faq': 'FAQ',
   'hero.kicker': 'For Windows, macOS and Linux',
   'hero.h1': 'Your PC, <em>on any screen.</em>',
   'hero.sub': 'The control center for your PC: system stats, media, search, a voice AI and a programmable Deck. <b>Everything runs on your machine.</b>',
@@ -1775,6 +1782,7 @@ I18N.en = {
   'dl.mac.btn': 'Mac Universal', 'dl.mac.req': 'macOS 11 or later. Apple Silicon and Intel in one file.', 'dl.mac.note': 'What beta means here →',
   'dl.linux.btn': 'AppImage (x86_64)', 'dl.linux.req': 'Any x86_64 desktop. GNOME and KDE are the two it is tested on.', 'dl.linux.note': 'What beta means here →',
   'dl.betaline': 'macOS and Linux are in beta. The dashboard, the widgets, the Store and the integrations are the same everywhere; what still differs is the part that reads your machine, and the README table says exactly what works where.',
+  'dl.blocked': 'Windows blocked the download, or called it a virus? That is a false positive: the build is not code-signed yet, so it starts from zero reputation. The <a href="faq.html#warnings">FAQ</a> explains how to check the file\'s hash yourself, and how to get it back.',
 
   'dl.phone.a': 'See how →',
   'dl.onphone.t': 'You are on a phone right now.',
@@ -1904,7 +1912,7 @@ I18N.en = {
   'ix.deck': 'Deck',
 };
 I18N.it = {
-  'nav.features': 'Funzioni', 'nav.catalog': 'Catalogo', 'nav.install': 'Installa', 'nav.thanks': 'Grazie', 'nav.coffee': 'Caffè', 'nav.get': 'Scarica', 'nav.more': 'Altro', 'nav.phonelong': 'Il telefono come schermo', 'nav.createlong': 'Crea i tuoi widget',
+  'nav.features': 'Funzioni', 'nav.catalog': 'Catalogo', 'nav.install': 'Installa', 'nav.thanks': 'Grazie', 'nav.coffee': 'Caffè', 'nav.get': 'Scarica', 'nav.more': 'Altro', 'nav.phonelong': 'Il telefono come schermo', 'nav.createlong': 'Crea i tuoi widget', 'nav.faq': 'FAQ',
   'hero.kicker': 'Per Windows, macOS e Linux',
   'hero.h1': 'Il tuo PC, <em>su qualsiasi schermo.</em>',
   'hero.sub': 'Il centro di controllo del PC: statistiche, media, ricerca, un\'AI vocale e un Deck programmabile. <b>Gira tutto sulla tua macchina.</b>',
@@ -1916,6 +1924,7 @@ I18N.it = {
   'dl.mac.btn': 'Mac Universal', 'dl.mac.req': 'macOS 11 o successivo. Apple Silicon e Intel in un solo file.', 'dl.mac.note': 'Cosa vuol dire beta qui →',
   'dl.linux.btn': 'AppImage (x86_64)', 'dl.linux.req': 'Qualsiasi desktop x86_64. GNOME e KDE sono i due su cui è testato.', 'dl.linux.note': 'Cosa vuol dire beta qui →',
   'dl.betaline': 'macOS e Linux sono in beta. La dashboard, i widget, lo Store e le integrazioni sono gli stessi ovunque; a cambiare è la parte che legge la tua macchina, e la tabella nel README dice esattamente cosa funziona dove.',
+  'dl.blocked': 'Windows ha bloccato il download, o lo ha chiamato virus? È un falso positivo: la build non ha ancora una firma digitale, quindi parte da reputazione zero. Le <a href="faq.html#warnings">FAQ</a> spiegano come verificare da solo l\'hash del file e come recuperarlo.',
 
   'dl.phone.a': 'Guarda come →',
   'dl.onphone.t': 'Adesso sei su un telefono.',
@@ -2045,7 +2054,7 @@ I18N.it = {
   'ix.deck': 'Deck',
 };
 I18N.ko = {
-  'nav.features': '기능', 'nav.catalog': '카탈로그', 'nav.install': '설치', 'nav.thanks': '감사', 'nav.coffee': '커피', 'nav.get': '다운로드', 'nav.more': '더보기', 'nav.phonelong': '휴대폰을 화면으로', 'nav.createlong': '나만의 위젯 만들기',
+  'nav.features': '기능', 'nav.catalog': '카탈로그', 'nav.install': '설치', 'nav.thanks': '감사', 'nav.coffee': '커피', 'nav.get': '다운로드', 'nav.more': '더보기', 'nav.phonelong': '휴대폰을 화면으로', 'nav.createlong': '나만의 위젯 만들기', 'nav.faq': '자주 묻는 질문',
   'hero.kicker': 'Windows·macOS·Linux 용',
   'hero.h1': '당신의 PC를, <em>어떤 화면에서든.</em>',
   'hero.sub': 'PC의 컨트롤 센터입니다. 시스템 상태, 미디어, 검색, 음성 AI, 프로그래밍 가능한 Deck. <b>모든 것이 내 컴퓨터에서 돌아갑니다.</b>',
@@ -2057,6 +2066,7 @@ I18N.ko = {
   'dl.mac.btn': 'Mac Universal', 'dl.mac.req': 'macOS 11 이상. Apple Silicon과 Intel을 한 파일에 담았습니다.', 'dl.mac.note': '여기서 베타란 →',
   'dl.linux.btn': 'AppImage (x86_64)', 'dl.linux.req': '모든 x86_64 데스크톱. 테스트는 GNOME과 KDE에서 합니다.', 'dl.linux.note': '여기서 베타란 →',
   'dl.betaline': 'macOS와 Linux는 베타입니다. 대시보드, 위젯, 스토어, 연동은 어디서나 같습니다. 다른 것은 기기 자체를 읽는 부분뿐이며, README 표에 무엇이 어디서 되는지 정확히 적혀 있습니다.',
+  'dl.blocked': 'Windows가 다운로드를 막거나 바이러스라고 했나요? 오탐입니다. 아직 코드 서명이 없어서 신뢰도가 0에서 시작하기 때문입니다. <a href="faq.html#warnings">FAQ</a>에 파일 해시를 직접 확인하는 방법과 되살리는 방법이 있습니다.',
 
   'dl.phone.a': '방법 보기 →',
   'dl.onphone.t': '지금 휴대폰으로 보고 계시네요.',
@@ -2186,7 +2196,7 @@ I18N.ko = {
   'ix.deck': '데크',
 };
 I18N.ja = {
-  'nav.features': '機能', 'nav.catalog': 'カタログ', 'nav.install': 'インストール', 'nav.thanks': '感謝', 'nav.coffee': 'コーヒー', 'nav.get': 'ダウンロード', 'nav.more': 'その他', 'nav.phonelong': 'スマホを画面に', 'nav.createlong': '自分でウィジェットを作る',
+  'nav.features': '機能', 'nav.catalog': 'カタログ', 'nav.install': 'インストール', 'nav.thanks': '感謝', 'nav.coffee': 'コーヒー', 'nav.get': 'ダウンロード', 'nav.more': 'その他', 'nav.phonelong': 'スマホを画面に', 'nav.createlong': '自分でウィジェットを作る', 'nav.faq': 'よくある質問',
   'hero.kicker': 'Windows・macOS・Linux 対応',
   'hero.h1': 'あなたの PC を、<em>どの画面でも。</em>',
   'hero.sub': 'PC のコントロールセンター。システム情報、メディア、検索、音声 AI、プログラム可能な Deck。<b>すべて自分のマシンで動きます。</b>',
@@ -2198,6 +2208,7 @@ I18N.ja = {
   'dl.mac.btn': 'Mac Universal', 'dl.mac.req': 'macOS 11 以降。Apple Silicon と Intel を 1 ファイルで。', 'dl.mac.note': 'ここでのベータの意味 →',
   'dl.linux.btn': 'AppImage (x86_64)', 'dl.linux.req': 'x86_64 のデスクトップなら。テストしているのは GNOME と KDE です。', 'dl.linux.note': 'ここでのベータの意味 →',
   'dl.betaline': 'macOS と Linux はベータです。ダッシュボード、ウィジェット、ストア、連携はどこでも同じ。違うのはマシン自体を読む部分だけで、README の表に何がどこで動くか正確に書いてあります。',
+  'dl.blocked': 'Windows がダウンロードをブロックした、あるいはウイルスだと言いましたか。誤検出です。まだコード署名がなく、評価がゼロから始まるためです。<a href="faq.html#warnings">FAQ</a> に、ファイルのハッシュを自分で確かめる方法と、元に戻す方法があります。',
 
   'dl.phone.a': 'やり方を見る →',
   'dl.onphone.t': 'いまスマホでご覧ですね。',
@@ -2327,7 +2338,7 @@ I18N.ja = {
   'ix.deck': 'デッキ',
 };
 I18N.zh = {
-  'nav.features': '功能', 'nav.catalog': '目录', 'nav.install': '安装', 'nav.thanks': '致谢', 'nav.coffee': '咖啡', 'nav.get': '下载', 'nav.more': '更多', 'nav.phonelong': '把手机当屏幕', 'nav.createlong': '做你自己的组件',
+  'nav.features': '功能', 'nav.catalog': '目录', 'nav.install': '安装', 'nav.thanks': '致谢', 'nav.coffee': '咖啡', 'nav.get': '下载', 'nav.more': '更多', 'nav.phonelong': '把手机当屏幕', 'nav.createlong': '做你自己的组件', 'nav.faq': '常见问题',
   'hero.kicker': '支持 Windows、macOS、Linux',
   'hero.h1': '你的电脑，<em>在任何一块屏幕上。</em>',
   'hero.sub': '你的电脑控制中心：系统状态、媒体、搜索、语音 AI 和可自定义的 Deck。<b>一切都在你自己的电脑上运行。</b>',
@@ -2339,6 +2350,7 @@ I18N.zh = {
   'dl.mac.btn': 'Mac Universal', 'dl.mac.req': 'macOS 11 及以上。Apple Silicon 与 Intel 合并为一个文件。', 'dl.mac.note': '这里的测试版是什么意思 →',
   'dl.linux.btn': 'AppImage (x86_64)', 'dl.linux.req': '任意 x86_64 桌面。测试环境是 GNOME 和 KDE。', 'dl.linux.note': '这里的测试版是什么意思 →',
   'dl.betaline': 'macOS 和 Linux 处于测试阶段。仪表盘、组件、商店和各类集成在哪儿都一样；不同的只是读取机器本身的那部分，README 里的表格写清楚了什么在哪儿可用。',
+  'dl.blocked': 'Windows 拦下了下载，或者说它是病毒？这是误报：这个版本还没有代码签名，信誉从零开始。<a href="faq.html#warnings">常见问题</a>里写了怎么自己核对文件哈希，以及怎么把它找回来。',
 
   'dl.phone.a': '看看怎么做 →',
   'dl.onphone.t': '你现在正用手机浏览。',

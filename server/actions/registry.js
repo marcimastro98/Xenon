@@ -535,11 +535,24 @@ function createRegistry(deps) {
         case 'wlInputMute':
         case 'wlOutputVolume':
         case 'wlOutputMute':
+        case 'wlMixVolume':
+        case 'wlMixMute':
+        case 'wlEffect':
+        case 'wlOutputDevice':
         case 'wlSwitchMonitoring':
         case 'wlSetMonitorMix': {
           // Elgato Wave Link mixer control. One dep fronts the local Wave Link
-          // JSON-RPC client, which keeps a fresh channel cache and echoes the
-          // whole mixer object back with only the targeted field changed.
+          // client, which speaks whichever dialect answered (2.x echoes the whole
+          // mixer object back; 3.x takes a partial patch) and presents one model.
+          //
+          // The ids here are Wave Link's own — channel, mix, effect and output
+          // device — so there is no allowlist to check them against: they are
+          // resolved against the live mixer the client just read, and anything
+          // it does not recognise comes back as {ok:false} naming which of the
+          // four was not found. That is the same shape as the Spotlight result
+          // ids: the client validates against state it minted, never against a
+          // pattern. A Deck key pointing at a channel or mix the user deleted
+          // must fail where they can see it rather than move the nearest fader.
           if (typeof d.waveLink !== 'function') return { ok: false, error: 'wavelink_unavailable' };
           const r = await d.waveLink(action);
           return r && r.ok === false ? { ok: false, error: r.error || 'wavelink_failed' } : { ok: true };
