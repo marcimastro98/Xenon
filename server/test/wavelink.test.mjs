@@ -62,8 +62,30 @@ test('compactChannel returns null without a mixId, and defaults missing fields',
   assert.equal(c.isAvailable, true);
 });
 
-test('port scan constants match the Wave Link range', () => {
+test('port scan constants cover the Wave Link range with headroom', () => {
   assert.equal(wl.WL_START_PORT, 1824);
-  assert.equal(wl.WL_PORT_SPAN, 10);
+  assert.equal(wl.WL_PORT_SPAN, 12);           // 1824..1835
   assert.equal(wl.WL_APP_NAME, 'Elgato Wave Link');
+  // IPv4 first: it is what Elgato's own client dials, so the common case must
+  // never pay for the IPv6 fallback.
+  assert.deepEqual([...wl.WL_HOSTS], ['127.0.0.1', '::1']);
+});
+
+// ── isWaveLinkApp: identify the app without pinning its exact product name ──
+
+test('isWaveLinkApp accepts the canonical name and its plausible variants', () => {
+  assert.equal(wl.isWaveLinkApp(wl.WL_APP_NAME), true);
+  for (const name of ['Elgato Wave Link', 'Wave Link', 'WaveLink', 'Wave Link 3',
+    'Elgato Wave Link 3.0', 'elgato wavelink']) {
+    assert.equal(wl.isWaveLinkApp(name), true, name);
+  }
+});
+
+test('isWaveLinkApp still rejects some other listener on the same ports', () => {
+  for (const name of ['Elgato Stream Deck', 'Wave', 'Link', 'Camera Hub', '', 'wave_lynk']) {
+    assert.equal(wl.isWaveLinkApp(name), false, JSON.stringify(name));
+  }
+  for (const bad of [null, undefined, 42, {}, ['Wave Link']]) {
+    assert.equal(wl.isWaveLinkApp(bad), false, JSON.stringify(bad));
+  }
 });

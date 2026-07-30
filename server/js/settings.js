@@ -9555,7 +9555,13 @@ async function testWavelinkConnection(btn) {
     await flushHubSettingsToServer().catch(() => {});
     const r = await fetch('/api/wavelink/test', { method: 'POST' }).then((res) => res.json()).catch(() => null);
     if (r && r.ok) setStatus('is-ok', t('settings_wl_ok', 'Connected') + ' — ' + (r.count || 0) + ' ' + t('settings_wl_channels', 'channels'));
-    else setStatus('is-err', t('settings_wl_fail', 'Could not reach Wave Link — is the app running?'));
+    else {
+      // Name the reason like the Streamer.bot test does: "is the app running?"
+      // is wrong advice when the app IS running and answered under a name or on
+      // a port we did not accept, and that is exactly what gets reported to us.
+      const base = t('settings_wl_fail', 'Could not reach Wave Link — is the app running?');
+      setStatus('is-err', (r && r.error) ? base + ' (' + r.error + ')' : base);
+    }
   } catch (e) {
     setStatus('is-err', t('settings_wl_fail', 'Could not reach Wave Link — is the app running?'));
   } finally {
