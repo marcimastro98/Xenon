@@ -119,10 +119,22 @@ const ACTION_CATALOG = [
   { type: 'chromaOff',   group: 'chroma', labelKey: 'deck_act_chromaOff',   params: [{ name: 'device', kind: 'select', options: ['all', 'keyboard', 'mouse', 'mousepad', 'headset', 'keypad', 'chromalink'] }] },
   // Elgato Wave Link — mixer volume/mute + monitoring, through the local Wave
   // Link JSON-RPC (host-mediated; see actions/wavelink.js). `value` is 0–100.
-  { type: 'wlInputVolume',  group: 'wavelink', labelKey: 'deck_act_wlInputVolume',  params: [{ name: 'mixId', kind: 'wlChannel' }, { name: 'mix', kind: 'select', options: ['stream', 'local'] }, { name: 'value', kind: 'text' }] },
-  { type: 'wlInputMute',    group: 'wavelink', labelKey: 'deck_act_wlInputMute',    params: [{ name: 'mixId', kind: 'wlChannel' }, { name: 'mix', kind: 'select', options: ['stream', 'local', 'all'] }] },
-  { type: 'wlOutputVolume', group: 'wavelink', labelKey: 'deck_act_wlOutputVolume', params: [{ name: 'mix', kind: 'select', options: ['stream', 'local'] }, { name: 'value', kind: 'text' }] },
-  { type: 'wlOutputMute',   group: 'wavelink', labelKey: 'deck_act_wlOutputMute',   params: [{ name: 'mix', kind: 'select', options: ['stream', 'local', 'all'] }] },
+  // `mix` is a wlMix picker rather than a fixed select because Wave Link 3 lets
+  // the user name their own mixes and have any number of them. The picker still
+  // OFFERS local/stream/all, so a key configured under Wave Link 2 keeps its
+  // stored value and keeps working — those three resolve by position (see
+  // resolveMixTargets in actions/wavelink.js).
+  { type: 'wlInputVolume',  group: 'wavelink', labelKey: 'deck_act_wlInputVolume',  params: [{ name: 'mixId', kind: 'wlChannel' }, { name: 'mix', kind: 'wlMix' }, { name: 'value', kind: 'text' }] },
+  { type: 'wlInputMute',    group: 'wavelink', labelKey: 'deck_act_wlInputMute',    params: [{ name: 'mixId', kind: 'wlChannel' }, { name: 'mix', kind: 'wlMix' }] },
+  { type: 'wlOutputVolume', group: 'wavelink', labelKey: 'deck_act_wlOutputVolume', params: [{ name: 'mix', kind: 'wlMix' }, { name: 'value', kind: 'text' }] },
+  { type: 'wlOutputMute',   group: 'wavelink', labelKey: 'deck_act_wlOutputMute',   params: [{ name: 'mix', kind: 'wlMix' }] },
+  // Wave Link 3 only: the mix master, the per-channel effect chain and the
+  // physical output the main mix goes to. On Wave Link 2 these come back
+  // {ok:false, error:'wl_unsupported'} rather than doing something approximate.
+  { type: 'wlMixVolume',    group: 'wavelink', labelKey: 'deck_act_wlMixVolume',    params: [{ name: 'mixId', kind: 'wlMix' }, { name: 'value', kind: 'text' }] },
+  { type: 'wlMixMute',      group: 'wavelink', labelKey: 'deck_act_wlMixMute',      params: [{ name: 'mixId', kind: 'wlMix' }] },
+  { type: 'wlEffect',       group: 'wavelink', labelKey: 'deck_act_wlEffect',       params: [{ name: 'mixId', kind: 'wlChannel' }, { name: 'effectId', kind: 'wlEffect' }, { name: 'mode', kind: 'select', options: ['toggle', 'on', 'off'] }] },
+  { type: 'wlOutputDevice', group: 'wavelink', labelKey: 'deck_act_wlOutputDevice', params: [{ name: 'deviceId', kind: 'wlOutput' }] },
   { type: 'wlSwitchMonitoring', group: 'wavelink', labelKey: 'deck_act_wlSwitchMonitoring', params: [] },
   { type: 'wlSetMonitorMix',    group: 'wavelink', labelKey: 'deck_act_wlSetMonitorMix',    params: [{ name: 'monitorMix', kind: 'text' }] },
   // Personal task list — add / toggle / delete a to-do (the `tasks` category).

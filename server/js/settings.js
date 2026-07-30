@@ -9559,7 +9559,13 @@ async function testWavelinkConnection(btn) {
   try {
     await flushHubSettingsToServer().catch(() => {});
     const r = await fetch('/api/wavelink/test', { method: 'POST' }).then((res) => res.json()).catch(() => null);
-    if (r && r.ok) setStatus('is-ok', t('settings_wl_ok', 'Connected') + ' — ' + (r.count || 0) + ' ' + t('settings_wl_channels', 'channels'));
+    if (r && r.ok) {
+      // Name which Wave Link answered. Two protocols wear this name, they offer
+      // different controls, and "Connected" alone left a user with no meters and
+      // no way to tell whether that was a bug or their version.
+      const which = r.version ? ' (Wave Link ' + r.version + ')' : (r.dialect ? ' (Wave Link ' + r.dialect + ')' : '');
+      setStatus('is-ok', t('settings_wl_ok', 'Connected') + which + ' — ' + (r.count || 0) + ' ' + t('settings_wl_channels', 'channels'));
+    }
     else {
       // Name the reason like the Streamer.bot test does: "is the app running?"
       // is wrong advice when the app IS running and answered under a name or on

@@ -138,6 +138,7 @@
   let haEntitiesPromise = null;
   let haDomains = null;   // Set of HA device domains the user actually has (null = unknown)
   let wlChannelsPromise = null;   // Wave Link mixer channel list ({value,label})
+  let wlStatePromise = null;      // one live mixer read, shared by the mix/effect/output pickers
   let lightDevicesPromise = null;   // lighting hub device list ({value:id,label})
   let sdkWidgetsPromise = null;
   let sdkMacroItemsCache = null;   // resolved macro list; the sync gate reads it (null = unknown → hidden)
@@ -172,7 +173,7 @@
       signalrgbEnabled = nextSignalRgb;
       lightingConfigured = nextLighting;
       claudeLinked = nextClaude;
-      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; haDomains = null; wlChannelsPromise = null; lightDevicesPromise = null; signalRgbEffectsPromise = null; claudeProjectsPromise = null; }   // config changed → re-fetch the lists
+      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; haDomains = null; wlChannelsPromise = null; wlStatePromise = null; lightDevicesPromise = null; signalRgbEffectsPromise = null; claudeProjectsPromise = null; }   // config changed → re-fetch the lists
       // Compute the set of HA device domains the user actually HAS, so the action
       // picker offers only the actions relevant to their devices (generic, not
       // hardcoded). This runs after the fast capability check; the caller does a
@@ -285,6 +286,45 @@
       .then((d) => ((d && Array.isArray(d.channels)) ? d.channels : []))
       .catch(() => []);
     return wlChannelsPromise;
+  }
+  // One read of the live mixer feeds the mix, effect and output-device pickers.
+  function wlState() {
+    if (!wlStatePromise) wlStatePromise = fetch('/api/wavelink/state').then((r) => r.json()).catch(() => null);
+    return wlStatePromise;
+  }
+  // Mixes, with the three words the action contract has always accepted listed
+  // first: a key configured under Wave Link 2 stores 'stream' and must keep
+  // meaning "the stream mix" against a Wave Link 3 mixer, where the mixes carry
+  // the names their owner gave them. On 2.x the named list IS local/stream, so
+  // appending it would show the same two controls twice.
+  function wlMixOptions() {
+    return wlState().then((s) => {
+      const generic = [
+        { value: 'stream', label: t('deck_wl_mix_stream', 'Stream mix') },
+        { value: 'local', label: t('deck_wl_mix_local', 'Personal / local mix') },
+        { value: 'all', label: t('deck_wl_mix_all', 'Every mix') },
+      ];
+      const named = (s && s.capabilities && s.capabilities.namedMixes && Array.isArray(s.mixes))
+        ? s.mixes.map((m) => ({ value: m.id, label: m.name })) : [];
+      return generic.concat(named);
+    });
+  }
+  // Effects are per channel, but their ids are unique across the mixer, so the
+  // picker lists them all and qualifies each with the channel it belongs to.
+  function wlEffectOptions() {
+    return wlState().then((s) => {
+      const out = [];
+      for (const c of (s && Array.isArray(s.channels)) ? s.channels : []) {
+        for (const e of Array.isArray(c.effects) ? c.effects : []) out.push({ value: e.id, label: c.name + ' — ' + e.name });
+      }
+      return out;
+    });
+  }
+  function wlOutputOptions() {
+    return wlState().then((s) => {
+      const devs = (s && s.outputs && Array.isArray(s.outputs.devices)) ? s.outputs.devices : [];
+      return devs.map((d) => ({ value: d.id, label: d.name }));
+    });
   }
   // Lighting hub device list ({value:id, label:name}) for the lightDevice picker.
   // Falls back to [] (→ typed id field) when no lighting is configured/reachable.
@@ -727,7 +767,7 @@
     // Re-fetch OBS scene/source lists and the running-app list on each open so
     // scenes/sources just created in OBS — and apps just launched — show up
     // without a page reload.
-    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; wlChannelsPromise = null; lightDevicesPromise = null; sdkWidgetsPromise = null; signalRgbEffectsPromise = null;
+    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; wlChannelsPromise = null; wlStatePromise = null; lightDevicesPromise = null; sdkWidgetsPromise = null; signalRgbEffectsPromise = null;
     const DA = window.DeckActions;
     const DM = window.DeckModel;
     // Hard dependencies: bail cleanly (rather than throwing mid-build and leaving
@@ -2182,14 +2222,23 @@
     // the fallback while Wave Link is unreachable, so an assigned channel survives
     // offline (mirrors haEntityPickControl).
     function wlChannelPickControl(step, name) {
+      return wlPickControl(step, name, wlChannels, t('deck_param_mixId'));
+    }
+
+    // The shape all four Wave Link pickers share. `load` resolves to
+    // [{value,label}]; an empty list leaves the typed field in place so a key
+    // configured earlier keeps its id while Wave Link is closed. A stored value
+    // the live list does not contain is PREPENDED rather than dropped, for the
+    // same reason: opening the editor must never silently retarget a key.
+    function wlPickControl(step, name, load, placeholder) {
       const wrap = document.createElement('div');
       const txt = input('text', step.params[name] || '');
-      txt.placeholder = t('deck_param_mixId');
+      txt.placeholder = placeholder || '';
       const writeTxt = () => { step.params[name] = txt.value; };
       txt.addEventListener('input', writeTxt); txt.addEventListener('change', writeTxt);
       wrap.appendChild(txt);
-      wlChannels().then((items) => {
-        if (!items || !items.length) return;   // offline / none → typed mixId field only
+      load().then((items) => {
+        if (!items || !items.length) return;   // offline / none → typed field only
         const sel = document.createElement('select'); sel.className = 'deck-ed-input';
         const cur = step.params[name] || '';
         if (cur && !items.some((it) => it.value === cur)) items = [{ value: cur, label: cur }, ...items];
@@ -2509,6 +2558,24 @@
         if (p.kind === 'haEntity') {
           if (step.params[p.name] == null) step.params[p.name] = '';
           f.appendChild(haEntityPickControl(step, p.name, p.domain));
+          host.appendChild(f);
+          return;
+        }
+        if (p.kind === 'wlMix') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(wlPickControl(step, p.name, wlMixOptions, t('deck_param_mix')));
+          host.appendChild(f);
+          return;
+        }
+        if (p.kind === 'wlEffect') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(wlPickControl(step, p.name, wlEffectOptions, t('deck_param_effectId')));
+          host.appendChild(f);
+          return;
+        }
+        if (p.kind === 'wlOutput') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(wlPickControl(step, p.name, wlOutputOptions, t('deck_param_deviceId')));
           host.appendChild(f);
           return;
         }

@@ -4652,28 +4652,43 @@ async function refreshSbWatch() {
 let wlStopWatch = null;
 let wlNotifyTimer = null;
 
+// The disabled shape must carry the same KEYS as the live one, or the widget
+// reads `channels` as undefined the moment the integration is switched off and
+// renders an error instead of the "turn it on in Settings" line it has.
+const WL_OFF_STATE = Object.freeze({
+  enabled: false, connected: false, dialect: 0, version: '',
+  channels: [], mixes: [], outputs: { mainId: '', mainOutputId: '', mainListed: false, devices: [] }, monitor: null,
+  capabilities: { meters: false, effects: false, outputDevices: false, monitorSwitch: false, namedMixes: false },
+});
+
 async function buildWlState() {
   const s = (await readHubSettings().catch(() => null)) || {};
   const enabled = !!(s.wavelink && s.wavelink.enabled === true);
-  if (!enabled) return { enabled: false, connected: false, inputs: [], output: {}, monitorMix: '', switchState: '', micConnected: false };
+  if (!enabled) return Object.assign({}, WL_OFF_STATE);
   return Object.assign({ enabled: true }, deckWaveLink.snapshot());
 }
 
-// Coalesce bursts of mixer changes (a single fader move fires several
-// inputMixerChanged pushes) into at most one broadcast per ~200ms.
+// Coalesce bursts of mixer changes (a single fader move fires several pushes,
+// and on 3.x the level meters add ~2 frames a second) into at most one
+// broadcast per ~150ms. The state is small by construction — channel artwork is
+// served by URL and never enters this frame.
 function scheduleWlBroadcast() {
   if (wlNotifyTimer) return;
   wlNotifyTimer = setTimeout(async () => {
     wlNotifyTimer = null;
     try { broadcastSSE('wavelink', await buildWlState()); } catch (e) { /* ignore */ }
-  }, 200);
+  }, 150);
 }
 
 async function refreshWlWatch() {
   const s = (await readHubSettings().catch(() => null)) || {};
   const want = !!(s.wavelink && s.wavelink.enabled === true) && sseClients.size > 0;
   if (want && !wlStopWatch) {
-    wlStopWatch = deckWaveLink.watch(scheduleWlBroadcast);
+    // Level meters are asked for only while a dashboard is actually connected,
+    // and switched off again on teardown: subscribing leaves Wave Link pushing
+    // at ~2Hz forever otherwise, which is the "periodic work with no listener"
+    // this codebase gates everywhere else. 2.x has no meters and ignores it.
+    wlStopWatch = deckWaveLink.watch(scheduleWlBroadcast, { meters: true });
   } else if (!want && wlStopWatch) {
     wlStopWatch(); wlStopWatch = null;
     if (wlNotifyTimer) { clearTimeout(wlNotifyTimer); wlNotifyTimer = null; }
@@ -12940,6 +12955,29 @@ const handleRequest = async (req, res) => {
     // Channel list for the Deck editor's mixer picker: [{ value: mixId, label }].
     try { json({ channels: await deckWaveLink.listChannels() }); } catch (e) { json({ channels: [] }); }
 
+  } else if (reqPath === '/api/wavelink/mixes' && req.method === 'GET') {
+    // Mix list for the editor's mix picker. On Wave Link 2 these are the two
+    // synthetic mixes (Local/Stream); on 3.x they are the user's own, named.
+    // Either way the picker shows words rather than PCM_IN_01_V_00_SD1.
+    try { json({ mixes: await deckWaveLink.listMixes() }); } catch (e) { json({ mixes: [] }); }
+
+  } else if (reqPath === '/api/wavelink/icon' && req.method === 'GET') {
+    // Wave Link 3 ships a PNG per channel as base64. It is served here, by id,
+    // rather than carried in the SSE frame that fires on every fader move.
+    // The id is resolved against the client's own cache — no path, no lookup by
+    // anything the caller supplies beyond a key we minted.
+    try {
+      const buf = deckWaveLink.iconFor(urlObj.searchParams.get('id') || '');
+      if (!buf) { res.writeHead(404).end(); return; }
+      res.writeHead(200, {
+        'Content-Type': 'image/png',
+        'Content-Length': buf.length,
+        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'no-store',
+      });
+      res.end(buf);
+    } catch (e) { res.writeHead(404).end(); }
+
   } else if (reqPath === '/api/wavelink/test' && req.method === 'POST') {
     // Settings "Test connection": open the socket once and report reachability.
     try { json(await deckWaveLink.test()); } catch (e) { json({ ok: false, error: 'wl_failed' }); }
@@ -19291,8 +19329,6 @@ function _gracefulShutdown() {
   // …and the non-Windows one: a detached perl/playerctl child outlives
   // process.exit, so it has to be told.
   try { if (nativeMedia) nativeMedia.stop(); } catch {}
-  // Retire the DDC/CI display host (stdin close → releases physical monitor handles).
-  try { _retireDdcHost('shutdown'); } catch {}
   // Kill the headless embedded-browser Edge instance (if one is running).
   try { embeddedBrowser.shutdown(); } catch {}
   // Stop the second-screen capture host (if one is running).

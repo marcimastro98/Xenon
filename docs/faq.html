@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xenon — Frequently asked questions</title>
+<meta name="description" content="Why Windows sometimes calls Xenon a virus and how to check the file yourself, what Smart App Control is, how to install on macOS and Linux, updating, privacy, and where to get help.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="images/favicon.png">
+<meta property="og:title" content="Frequently asked questions | Xenon">
+<meta property="og:description" content="Windows flagged it as a virus, Smart App Control blocks it, macOS says it cannot be checked. The honest answers, and how to verify the download yourself.">
+<meta property="og:type" content="article">
+<link rel="canonical" href="https://xenon-app.com/faq.html">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --ink:   #070808;
+    --panel: rgba(240,243,241,0.03);
+    --line:  rgba(240,243,241,0.08);
+    --line-2:rgba(240,243,241,0.16);
+    --green: #1ed760;
+    --text:  #f0f3f1;
+    --muted: #9aa8a1;
+    --dim:   #66736c;
+    --sans:  'Inter', system-ui, -apple-system, sans-serif;
+    --mono:  'JetBrains Mono', ui-monospace, monospace;
+    --maxw:  820px;
+    --radius:14px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--ink); color: var(--text);
+    font-family: var(--sans); font-size: 16px; line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  header.top {
+    border-bottom: 1px solid var(--line);
+    padding: 20px 0; position: sticky; top: 0; z-index: 10;
+    background: rgba(7,8,8,0.82); backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .logo {
+    display: inline-flex; align-items: center; gap: 10px;
+    color: var(--text); text-decoration: none;
+    font-weight: 700; letter-spacing: 0.16em; font-size: 14px;
+  }
+  .logo img { width: 34px; height: 23px; }
+  .back { color: var(--dim); text-decoration: none; font-size: 13.5px; }
+  .back:hover { color: var(--green); }
+
+  main { padding: 56px 0 96px; }
+  h1 { font-size: clamp(30px, 5.4vw, 46px); line-height: 1.12; letter-spacing: -0.025em; margin: 0 0 18px; }
+  .lede { font-size: 18.5px; color: var(--muted); margin: 0 0 12px; }
+  .lede strong { color: var(--text); font-weight: 600; }
+  .updated { font-family: var(--mono); font-size: 12.5px; color: var(--dim); margin: 0 0 34px; }
+
+  h2 {
+    font-size: 23px; letter-spacing: -0.01em; margin: 62px 0 10px;
+    padding-top: 30px; border-top: 1px solid var(--line);
+    scroll-margin-top: 88px;
+  }
+  h2 .h2n {
+    display: block; font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.14em;
+    color: var(--green); margin-bottom: 8px; font-weight: 500;
+  }
+  p { margin: 0 0 16px; color: var(--muted); }
+  p strong, li strong { color: var(--text); font-weight: 600; }
+  a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; color: var(--muted); }
+  li { margin-bottom: 8px; }
+  code {
+    font-family: var(--mono); font-size: 13px;
+    background: rgba(240,243,241,0.06); padding: 2px 6px; border-radius: 6px;
+    color: var(--text); overflow-wrap: anywhere;
+  }
+
+  /* ── Section jump chips ───────────────────────────────────────── */
+  .jump { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+  .jump a {
+    text-decoration: none; font-size: 13.5px; color: var(--muted);
+    border: 1px solid var(--line-2); border-radius: 999px; padding: 7px 14px;
+    transition: border-color .2s, color .2s;
+  }
+  .jump a:hover { border-color: var(--green); color: var(--green); }
+
+  /* ── The question cards ───────────────────────────────────────── */
+  details { border: 1px solid var(--line); border-radius: 12px; padding: 0; margin: 10px 0; background: var(--panel); }
+  details[open] { border-color: var(--line-2); }
+  details > summary {
+    cursor: pointer; padding: 15px 18px; font-weight: 600; color: var(--text); font-size: 15.5px;
+    list-style: none; display: flex; align-items: flex-start; gap: 12px;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before {
+    content: '+'; color: var(--green); font-family: var(--mono); font-size: 17px;
+    line-height: 1.45; flex: none;
+  }
+  details[open] > summary::before { content: '–'; }
+  details .body { padding: 0 18px 16px 42px; }
+  details .body p:last-child, details .body ul:last-child, details .body ol:last-child { margin-bottom: 0; }
+  details .body ol { padding-left: 20px; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 22px 24px; margin: 26px 0;
+  }
+  .card.accent { border-color: rgba(30,215,96,0.28); background: rgba(30,215,96,0.045); }
+  .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+  .card h3 { margin: 0 0 10px; font-size: 16.5px; }
+
+  .note { font-size: 14px; color: var(--dim); border-left: 2px solid var(--line-2); padding-left: 14px; margin: 18px 0; }
+
+  footer { border-top: 1px solid var(--line); padding: 30px 0 60px; color: var(--dim); font-size: 13.5px; }
+  footer a { color: var(--dim); }
+  footer a:hover { color: var(--green); }
+
+  /* Header right cluster + language picker, same markup and behaviour as the
+     home page so the choice carries across the site. */
+  .head-right { display: flex; align-items: center; gap: 14px; }
+  .navbtn {
+    font-size: 13px; font-weight: 600; padding: 8px 13px;
+    border: 1px solid var(--line-2); border-radius: 9px; color: var(--text);
+    display: inline-flex; align-items: center; gap: 8px; background: none; cursor: pointer;
+    font-family: var(--sans); transition: border-color .2s, color .2s;
+  }
+  .navbtn svg { width: 16px; height: 16px; flex: none; }
+  .navbtn:hover { border-color: var(--green); }
+  .lang { position: relative; }
+  .lang-menu {
+    position: absolute; top: calc(100% + 10px); right: 0; min-width: 168px; z-index: 60;
+    background: rgba(11,13,12,0.96); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--line-2); border-radius: 12px; padding: 6px;
+    opacity: 0; transform: translateY(-6px); pointer-events: none;
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  .lang.open .lang-menu { opacity: 1; transform: none; pointer-events: auto; }
+  .lang-menu button {
+    display: flex; width: 100%; align-items: center; gap: 10px; padding: 9px 12px;
+    background: none; border: 0; border-radius: 8px; color: var(--muted);
+    font-family: var(--sans); font-size: 13.5px; cursor: pointer; text-align: left;
+  }
+  .lang-menu button:hover { background: rgba(240,243,241,0.06); color: var(--text); }
+  .lang-menu button.on { color: var(--green); }
+  .lang-menu .nat { margin-left: auto; font-size: 11px; color: var(--dim); letter-spacing: .08em; }
+  @media (max-width: 480px) { .back { display: none; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="/"><img src="images/logo.png" alt="" width="34" height="23"> XENON</a>
+    <div class="head-right">
+      <a class="back" href="/" data-i18n="f.nav.back">← Back to the site</a>
+      <div class="lang" id="lang">
+        <button class="navbtn" id="lang-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Language">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3Z"/></svg>
+          <span id="lang-cur">EN</span>
+        </button>
+        <div class="lang-menu" id="lang-menu" role="listbox">
+          <button type="button" data-lang="en" role="option">English<span class="nat">EN</span></button>
+          <button type="button" data-lang="it" role="option">Italiano<span class="nat">IT</span></button>
+          <button type="button" data-lang="ko" role="option">한국어<span class="nat">KO</span></button>
+          <button type="button" data-lang="ja" role="option">日本語<span class="nat">JA</span></button>
+          <button type="button" data-lang="zh" role="option">中文<span class="nat">ZH</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <h1 data-i18n="f.h1">Frequently asked questions</h1>
+    <p class="lede" data-i18n="f.lede">The things people actually write to me about, with the honest answers. If yours is not here, the Discord is the fastest place to ask.</p>
+    <p class="updated" data-i18n="f.updated">Last updated: 30 July 2026</p>
+
+    <nav class="jump">
+      <a href="#start" data-i18n="f.s1">Before you install</a>
+      <a href="#warnings" data-i18n="f.s2">When Windows calls it a virus</a>
+      <a href="#mac-linux" data-i18n="f.s3">macOS and Linux</a>
+      <a href="#install" data-i18n="f.s4">Installing, starting, updating</a>
+      <a href="#using" data-i18n="f.s5">Using Xenon</a>
+      <a href="#privacy" data-i18n="f.s6">Privacy and trust</a>
+      <a href="#help" data-i18n="f.s7">Licence, cost and help</a>
+    </nav>
+
+    <!-- ── 1 ─────────────────────────────────────────────────────── -->
+    <h2 id="start"><span class="h2n">01</span><span data-i18n="f.s1">Before you install</span></h2>
+
+    <details>
+      <summary data-i18n="f.q.edge">Do I need a CORSAIR Xeneon Edge?</summary>
+      <div class="body" data-i18n-html="f.a.edge">
+        <p>No. Xenon was designed around that screen, but the Edge is one of the screens it runs on, not the product. A spare monitor, an old tablet propped up on the desk, a touchscreen, a window on your main display, or the phone in your pocket all work the same way. If you have no spare screen at all, <a href='phone.html'>use your phone</a>: about thirty seconds on your own Wi-Fi, and what you get is the real dashboard, not a remote.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.free">Is it really free?</summary>
+      <div class="body" data-i18n-html="f.a.free">
+        <p>Yes. No paid version, no trial, no account, no ads, and no feature held back for a tier that does not exist. The licence is custom and non-commercial: free for personal use, and you can read, run and modify the source. What needs written permission is selling it, shipping it inside a commercial product, redistributing it as your own work, or using the Xenon name for something else.</p>
+        <p>There is a <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener'>coffee button</a> if you want to say thanks, and that is genuinely all it is.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.os">Which systems does it run on?</summary>
+      <div class="body" data-i18n-html="f.a.os">
+        <p>Windows 10 and 11 (64-bit), macOS 11 or later (one universal download for both Apple Silicon and Intel), and Linux (64-bit).</p>
+        <p><strong>macOS and Linux are in beta.</strong> The dashboard, the widgets, the Store and the integrations are identical on all three; what still differs is the layer that reads the machine itself. The <a href='https://github.com/marcimastro98/Xenon#platform-support' target='_blank' rel='noopener'>platform table</a> says exactly what works where, feature by feature.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.corsair">Do I need a CORSAIR PC, or iCUE?</summary>
+      <div class="body" data-i18n-html="f.a.corsair">
+        <p>No. Xenon runs on any PC and needs no CORSAIR hardware or software. iCUE matters for two optional things only: keeping the dashboard inside an iCUE iFrame widget if you prefer it there, and driving CORSAIR RGB devices. Everything else is independent of it.</p>
+      </div>
+    </details>
+
+    <!-- ── 2 ─────────────────────────────────────────────────────── -->
+    <h2 id="warnings"><span class="h2n">02</span><span data-i18n="f.s2">When Windows calls it a virus</span></h2>
+
+    <div class="card accent">
+      <h3 data-i18n="f.warn.t">The short version</h3>
+      <p data-i18n-html="f.warn.p">Xenon is not code-signed yet, and Windows treats an unsigned installer that few people have downloaded as an unknown. That produces three different warnings from three different systems, and they need three different answers. None of them is a real detection of malware, and you do not have to take my word for that: every release ships hashes you can check yourself.</p>
+    </div>
+
+    <details>
+      <summary data-i18n="f.q.defender">Windows Defender flagged Xenon, and now it is gone</summary>
+      <div class="body" data-i18n-html="f.a.defender">
+        <p>This is a false positive, and it is the single most common thing people write to me about. The detection name usually ends in <code>!cl</code>, which means the verdict came from Defender's cloud machine-learning model rather than from a signature matching known malware. Every new release resets the reputation counter, so the detection can appear and disappear from one version to the next.</p>
+        <p>To get your install back:</p>
+        <ol>
+          <li>Open <strong>Windows Security → Virus &amp; threat protection → Protection history</strong>, find the Xenon entry, and choose <strong>Actions → Restore</strong>.</li>
+          <li>Add an exclusion so it does not happen again: <strong>Manage settings → Exclusions → Add an exclusion → Folder</strong>, and add <code>%LOCALAPPDATA%\Xenon</code>.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.download">My browser refuses to download it, or says it found a virus</summary>
+      <div class="body" data-i18n-html="f.a.download">
+        <p>Same cause, different gatekeeper: that is your browser's own reputation check, Google Safe Browsing in Chrome and SmartScreen in Edge. Open your downloads list with <code>Ctrl+J</code> and choose <strong>Keep</strong>, or <strong>Keep anyway</strong>, on the cancelled file. If SmartScreen then warns you when the setup runs, click <strong>More info</strong>, then <strong>Run anyway</strong>.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.verify">How do I know it is safe, instead of just trusting you?</summary>
+      <div class="body" data-i18n-html="f.a.verify">
+        <p>Check it yourself, and please do. Every release ships a <code>SHA256SUMS</code> file signed with the project's key. In PowerShell:</p>
+        <p><code>Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256</code></p>
+        <p>Compare the result with the <code>Xenon-Setup-x64.exe</code> line in that release's <code>SHA256SUMS</code>. If they match, the file you have is byte for byte the one GitHub Actions built from the public source at that tag, and every line of that source is readable on <a href='https://github.com/marcimastro98/Xenon' target='_blank' rel='noopener'>GitHub</a>. You can also upload it to <a href='https://www.virustotal.com/' target='_blank' rel='noopener'>VirusTotal</a>: a couple of engines flagging it while the rest come back clean is what a reputation problem looks like, not what malware looks like.</p>
+        <p><strong>Only ever bypass a warning for a file you downloaded from the official <a href='https://github.com/marcimastro98/Xenon/releases/latest' target='_blank' rel='noopener'>Releases page</a> and whose hash you checked.</strong> Talking someone into ignoring a warning is exactly what real malware does, and the hash is what tells the two situations apart.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.sac">Xenon will not start at all, and Defender never said anything</summary>
+      <div class="body" data-i18n-html="f.a.sac">
+        <p>On Windows 11 this is usually <strong>Smart App Control</strong>, which is a different system from your antivirus. Check <strong>Windows Security → App &amp; browser control → Smart App Control</strong>.</p>
+        <p>It blocks any app it does not already trust, and it decides that before your antivirus is ever consulted. So the exclusion above does not affect it, and there is no way to allow one app while leaving it on. It only ever switches itself on during a clean installation of Windows 11, which is why it shows up on a freshly rebuilt PC and never on an upgraded one. That leaves two settings: <strong>Evaluation</strong>, where Windows watches how you use the PC and decides for itself whether to keep it on, and <strong>Off</strong>.</p>
+        <p><strong>Read this before you change it: turning Smart App Control off is a one-way door.</strong> Windows will not let you switch it back on afterwards without resetting or reinstalling the PC. That is Microsoft's design and not something Xenon can work around. If you would rather keep it on, the honest answer today is that Xenon cannot run on that machine.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.sign">Why is it not signed, then?</summary>
+      <div class="body" data-i18n-html="f.a.sign">
+        <p>A code-signing certificate is a paid, identity-verified product with a yearly renewal, and Xenon is a free project made by one person. It is the real fix for every warning on this page and it is on the list.</p>
+        <p>Until then, one thing helps more than anything else. If Defender flags your download, report it as a false positive at <a href='https://www.microsoft.com/en-us/wdsi/filesubmission' target='_blank' rel='noopener'>microsoft.com/wdsi/filesubmission</a>, choosing <em>Home customer</em> and then <em>Incorrectly detected as malware</em>. It takes two minutes, reports from real users carry weight, and the detection usually gets pulled for everyone within a few days.</p>
+      </div>
+    </details>
+
+    <!-- ── 3 ─────────────────────────────────────────────────────── -->
+    <h2 id="mac-linux"><span class="h2n">03</span><span data-i18n="f.s3">macOS and Linux</span></h2>
+
+    <details>
+      <summary data-i18n="f.q.gatekeeper">macOS says Xenon cannot be opened because Apple cannot check it</summary>
+      <div class="body" data-i18n-html="f.a.gatekeeper">
+        <p>Expected for now: the app is not notarized, which needs a paid Apple Developer membership this project does not have.</p>
+        <p>On <strong>macOS 15 and later</strong>, open <strong>System Settings → Privacy &amp; Security</strong>, scroll to the bottom and click <strong>Open Anyway</strong> next to Xenon. Apple removed the old right-click shortcut there. On <strong>macOS 11 to 14</strong>, right-click the app, choose <strong>Open</strong>, then <strong>Open</strong> again. Either way it is once per version.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.fda">On macOS the Disk widget shows a Trash of 0 B</summary>
+      <div class="body" data-i18n-html="f.a.fda">
+        <p>The Trash and most of <code>~/Library/Caches</code> sit behind <strong>Full Disk Access</strong>, a permission macOS grants per app. Without it those folders look empty rather than refused, so nothing reports an error and the disk map quietly under-reports.</p>
+        <p>Open <strong>System Settings → Privacy &amp; Security → Full Disk Access</strong>, press <strong>+</strong>, choose <strong>Xenon</strong> in Applications, make sure its switch is on, then quit Xenon and open it again.</p>
+        <p><strong>This has to be redone after every update, until the app is signed.</strong> macOS ties the permission to the code signature, and an unsigned build gets a fresh one at every release, so the grant silently stops applying. If Xenon is already in the list, toggle it off and on; if that does not take, remove it with <strong>−</strong> and add it again.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.brew">What do I need to install on macOS?</summary>
+      <div class="body" data-i18n-html="f.a.brew">
+        <p><strong>Node.js</strong> is the only requirement, and Xenon says so if it is missing: <code>brew install node</code>. The rest are optional and each one lights up a single thing:</p>
+        <ul>
+          <li><code>vladkens/tap/macmon</code> for temperature and GPU load</li>
+          <li><code>switchaudio-osx</code> for switching the output device</li>
+          <li><code>ffmpeg</code> for voice input and spoken replies</li>
+        </ul>
+        <p>Xenon names the ones you do not have instead of failing later.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.linux">How do I install it on Linux?</summary>
+      <div class="body" data-i18n-html="f.a.linux">
+        <p>Download the <strong>AppImage</strong> (make it executable and run it) or the <strong>.deb</strong>. The first launch offers to set the dashboard up in a terminal window you can read and stop, verifying the download against the project's key before extracting anything.</p>
+        <p>The package deliberately does not do that for you: everything the install creates belongs to one user account, and a package installs as root for the whole machine. If you would rather skip the app entirely, download the source zip from <a href='https://github.com/marcimastro98/Xenon/releases/latest' target='_blank' rel='noopener'>Releases</a> and run <code>./INSTALL.sh</code>.</p>
+        <p>You need <code>nodejs npm unzip</code>. Optional, each for one feature: <code>wireplumber</code> (volume, mic, per-app mixer), <code>wmctrl</code> and <code>x11-utils</code> (the app switcher), <code>playerctl</code> (instant now-playing), <code>ffmpeg</code> (voice). Run <code>npm run doctor</code> and it tells you what is missing and what each one would light up.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.beta">What does beta actually mean for macOS and Linux?</summary>
+      <div class="body" data-i18n-html="f.a.beta">
+        <p>The dashboard is the same product: same widgets, same Store, same themes, same integrations, same phone access. What differs is the layer that reads the machine, so some sensors and system actions are not there yet or work differently.</p>
+        <p>Nothing pretends to work, which is the part that matters. A tile with no data source on your platform says so in one line instead of loading forever, and a Deck key the platform cannot perform is hidden rather than offered and then failed.</p>
+      </div>
+    </details>
+
+    <!-- ── 4 ─────────────────────────────────────────────────────── -->
+    <h2 id="install"><span class="h2n">04</span><span data-i18n="f.s4">Installing, starting, updating</span></h2>
+
+    <details>
+      <summary data-i18n="f.q.installer">What does the installer actually do?</summary>
+      <div class="body" data-i18n-html="f.a.installer">
+        <p>On Windows it installs the app, installs the dashboard engine under <code>%LOCALAPPDATA%\Xenon</code>, installs Node.js if you do not already have it, and registers a task so the dashboard starts when you log in. It also fetches the optional pieces: FFmpeg, LibreHardwareMonitor and PawnIO for temperatures, PresentMon for real in-game FPS.</p>
+        <p><strong>Nothing runs hidden.</strong> The setup itself only installs the app and opens it; the dashboard half is offered by the app afterwards and runs in a console window you can watch and interrupt. An earlier version did that silently in the background, and that is precisely the shape that gets an unsigned installer quarantined, so it was removed.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.autostart">Does it start with my PC, and can I stop that?</summary>
+      <div class="body" data-i18n-html="f.a.autostart">
+        <p>Yes, it starts when you log in, so the dashboard is already live when you sit down. It runs inside your own session rather than as a system service, and that is deliberate: outside your session there is no audio device list, no window list, no microphone and no way to open an app, so half the features would silently stop working.</p>
+        <p>To remove the startup entry, run <code>UNINSTALL.bat</code> on Windows, <code>UNINSTALL.command</code> on macOS, or <code>./UNINSTALL.sh</code> on Linux.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.update">How do I update?</summary>
+      <div class="body" data-i18n-html="f.a.update">
+        <p>Xenon updates itself. When a release is out the dashboard shows a prompt; one tap downloads it, checks its signature <em>before</em> extracting anything, installs the engine and then the app, and puts the previous version back automatically if anything fails. Your settings, layouts and notes are always kept, and files left over from older versions are cleaned up.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.uninstall">How do I uninstall it?</summary>
+      <div class="body" data-i18n-html="f.a.uninstall">
+        <p>Run <code>UNINSTALL.bat</code> on Windows, <code>UNINSTALL.command</code> on macOS, or <code>./UNINSTALL.sh</code> on Linux. All three leave your settings, layouts and notes alone unless you add <code>--purge-data</code>. Deleting the data folder removes everything Xenon ever stored, including the random id used so a store rating counts once.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.admin">Why does it ask for administrator rights?</summary>
+      <div class="body" data-i18n-html="f.a.admin">
+        <p>Once, during install, and for two things: setting up CPU and disk temperature reading (LibreHardwareMonitor and PawnIO, which need a driver-level component), and registering the startup task. Decline it and everything else still works, you simply get no temperatures. Xenon does not run elevated afterwards.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.port">It says port 3030 is already in use</summary>
+      <div class="body" data-i18n-html="f.a.port">
+        <p>Almost always another copy of the dashboard already running, which is what you want anyway: open <code>http://127.0.0.1:3030/</code> and it is there. If something else on your PC owns that port, change it in <code>server/server.js</code>.</p>
+      </div>
+    </details>
+
+    <!-- ── 5 ─────────────────────────────────────────────────────── -->
+    <h2 id="using"><span class="h2n">05</span><span data-i18n="f.s5">Using Xenon</span></h2>
+
+    <details>
+      <summary data-i18n="f.q.phone">Can I really use my phone as the screen?</summary>
+      <div class="body" data-i18n-html="f.a.phone">
+        <p>Yes, and it is your dashboard rather than a remote: same layout, same widgets, same theme, and Deck keys really run on the PC. No account, no cloud, nothing to install, and on your own Wi-Fi nothing leaves your home network. It takes about thirty seconds. The <a href='phone.html'>phone guide</a> covers both routes, at home and from anywhere.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.browser">Do I have to use the app?</summary>
+      <div class="body" data-i18n-html="f.a.browser">
+        <p>No. The app is a window around the dashboard, and the dashboard is a local web page: open <code>http://127.0.0.1:3030/</code> in any browser, on any monitor. The app is worth having on a touchscreen because it adds game-safe touch and a tray icon. Inside iCUE, an iFrame widget pointing at the same address works too.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.ai">Do I need an API key for the AI?</summary>
+      <div class="body" data-i18n-html="f.a.ai">
+        <p>Only if you want a cloud provider, and a Gemini key is free to create. Everything else in Xenon works without one.</p>
+        <p>There is also a fully local option: Ollama for the chat and Whisper for speech, set up on demand from Settings, with nothing leaving your PC. If you do choose a cloud provider, your prompts go to that provider under their terms, and Xenon never sends anything to a model you did not pick.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.temp">There is no CPU temperature</summary>
+      <div class="body" data-i18n-html="f.a.temp">
+        <p>Run the installer again and accept the administrator prompt, so it can install LibreHardwareMonitor and PawnIO and register the elevated startup task. Some laptops and boards expose no sensor at all, and in that case the tile says so rather than showing an invented number.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.make">Can I make my own widgets and themes?</summary>
+      <div class="body" data-i18n-html="f.a.make">
+        <p>Yes, and most of it needs no code. Themes, layouts, ambient scenes and Deck profiles are built in the app itself and shared as a code anyone can import. Widgets are small HTML, CSS and JavaScript packages that run in a sandbox, with a documented bridge for sensors and actions.</p>
+        <p>The <a href='create/'>creator guide</a> is the place to start, and the <a href='catalog/'>catalog</a> is what other people have already made.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.rgb">Does it control RGB lighting?</summary>
+      <div class="body" data-i18n-html="f.a.rgb">
+        <p>Yes: CORSAIR devices through iCUE, plus WLED, OpenRGB, Philips Hue and Nanoleaf directly over your network. It can react to temperatures or to what is playing, or just hold a colour you picked. It is optional and stays off until you set it up.</p>
+      </div>
+    </details>
+
+    <!-- ── 6 ─────────────────────────────────────────────────────── -->
+    <h2 id="privacy"><span class="h2n">06</span><span data-i18n="f.s6">Privacy and trust</span></h2>
+
+    <details>
+      <summary data-i18n="f.q.data">Does Xenon send my data anywhere?</summary>
+      <div class="body" data-i18n-html="f.a.data">
+        <p>Your settings, notes, tasks, events, decks, search phrases and file index stay on your PC. There is no analytics SDK, no crash reporter and no behavioural tracking in the app.</p>
+        <p>It is not fully offline either, and claiming otherwise would be the dishonest version: it checks for updates, and it contacts a service for weather or a music API when you turn those features on. The <a href='privacy.html'>privacy page</a> lists every call the app can make, what triggers it and exactly what it sends, with nothing left out.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.account">Do I need an account?</summary>
+      <div class="body" data-i18n-html="f.a.account">
+        <p>No. There is no Xenon account, no login, and no server of mine sitting between you and your own dashboard. Integrations you set up yourself, like Spotify or Twitch, use their own credentials and stay dormant until you configure them.</p>
+      </div>
+    </details>
+
+    <!-- ── 7 ─────────────────────────────────────────────────────── -->
+    <h2 id="help"><span class="h2n">07</span><span data-i18n="f.s7">Licence, cost and help</span></h2>
+
+    <details>
+      <summary data-i18n="f.q.commercial">Can I use it at work, or inside my own product?</summary>
+      <div class="body" data-i18n-html="f.a.commercial">
+        <p>Personal use is free, including on the PC you happen to work on. Selling it, bundling it into a commercial product, redistributing it as your own work, or using the Xenon name for something else needs written permission first.</p>
+        <p>If you have a case in mind, ask: <a href='mailto:marcellomastroeni4@gmail.com'>email me</a> or bring it up on the Discord. The answer is often yes, with conditions.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.help">Where do I get help?</summary>
+      <div class="body" data-i18n-html="f.a.help">
+        <p>The <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> is the fastest, and it is where most problems actually get diagnosed. For something reproducible, a <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>GitHub issue</a> with your system, what you did and what happened is the most useful thing you can send. Both are read by the same one person.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary data-i18n="f.q.support">How can I support the project?</summary>
+      <div class="body" data-i18n-html="f.a.support">
+        <p>A <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener'>coffee</a>, if you want to. Supporters get a role on the Discord and a place in the Hall of Supporters.</p>
+        <p>The free things help just as much: a star on <a href='https://github.com/marcimastro98/Xenon' target='_blank' rel='noopener'>GitHub</a>, a bug report with real detail, a widget or theme shared in the <a href='catalog/'>catalog</a>, or telling someone with a spare screen that this exists.</p>
+      </div>
+    </details>
+
+    <div class="card">
+      <h3 data-i18n="f.stuck.t">Still stuck?</h3>
+      <p data-i18n-html="f.stuck.p">Ask on the <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>. Questions that keep coming back end up on this page, so asking one is genuinely useful.</p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="/">xenon-app.com</a> · <a href="privacy.html">Privacy</a> · <a href="phone.html">Phone</a> · <a href="https://github.com/marcimastro98/Xenon" rel="noopener">GitHub</a> · <a href="https://discord.gg/MBVrw9kZyg" rel="noopener">Discord</a>
+  </div>
+</footer>
+
+<script>
+const I18N = {
+ "en": {
+  "f.nav.back": "← Back to the site",
+  "f.h1": "Frequently asked questions",
+  "f.lede": "The things people actually write to me about, with the honest answers. If yours is not here, the Discord is the fastest place to ask.",
+  "f.updated": "Last updated: 30 July 2026",
+  "f.s1": "Before you install",
+  "f.s2": "When Windows calls it a virus",
+  "f.s3": "macOS and Linux",
+  "f.s4": "Installing, starting, updating",
+  "f.s5": "Using Xenon",
+  "f.s6": "Privacy and trust",
+  "f.s7": "Licence, cost and help",
+  "f.warn.t": "The short version",
+  "f.warn.p": "Xenon is not code-signed yet, and Windows treats an unsigned installer that few people have downloaded as an unknown. That produces three different warnings from three different systems, and they need three different answers. None of them is a real detection of malware, and you do not have to take my word for that: every release ships hashes you can check yourself.",
+  "f.stuck.t": "Still stuck?",
+  "f.stuck.p": "Ask on the <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>. Questions that keep coming back end up on this page, so asking one is genuinely useful.",
+
+  "f.q.edge": "Do I need a CORSAIR Xeneon Edge?",
+  "f.a.edge": "<p>No. Xenon was designed around that screen, but the Edge is one of the screens it runs on, not the product. A spare monitor, an old tablet propped up on the desk, a touchscreen, a window on your main display, or the phone in your pocket all work the same way. If you have no spare screen at all, <a href='phone.html'>use your phone</a>: about thirty seconds on your own Wi-Fi, and what you get is the real dashboard, not a remote.</p>",
+  "f.q.free": "Is it really free?",
+  "f.a.free": "<p>Yes. No paid version, no trial, no account, no ads, and no feature held back for a tier that does not exist. The licence is custom and non-commercial: free for personal use, and you can read, run and modify the source. What needs written permission is selling it, shipping it inside a commercial product, redistributing it as your own work, or using the Xenon name for something else.</p><p>There is a <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener'>coffee button</a> if you want to say thanks, and that is genuinely all it is.</p>",
+  "f.q.os": "Which systems does it run on?",
+  "f.a.os": "<p>Windows 10 and 11 (64-bit), macOS 11 or later (one universal download for both Apple Silicon and Intel), and Linux (64-bit).</p><p><strong>macOS and Linux are in beta.</strong> The dashboard, the widgets, the Store and the integrations are identical on all three; what still differs is the layer that reads the machine itself. The <a href='https://github.com/marcimastro98/Xenon#platform-support' target='_blank' rel='noopener'>platform table</a> says exactly what works where, feature by feature.</p>",
+  "f.q.corsair": "Do I need a CORSAIR PC, or iCUE?",
+  "f.a.corsair": "<p>No. Xenon runs on any PC and needs no CORSAIR hardware or software. iCUE matters for two optional things only: keeping the dashboard inside an iCUE iFrame widget if you prefer it there, and driving CORSAIR RGB devices. Everything else is independent of it.</p>",
+
+  "f.q.defender": "Windows Defender flagged Xenon, and now it is gone",
+  "f.a.defender": "<p>This is a false positive, and it is the single most common thing people write to me about. The detection name usually ends in <code>!cl</code>, which means the verdict came from Defender's cloud machine-learning model rather than from a signature matching known malware. Every new release resets the reputation counter, so the detection can appear and disappear from one version to the next.</p><p>To get your install back:</p><ol><li>Open <strong>Windows Security &rarr; Virus &amp; threat protection &rarr; Protection history</strong>, find the Xenon entry, and choose <strong>Actions &rarr; Restore</strong>.</li><li>Add an exclusion so it does not happen again: <strong>Manage settings &rarr; Exclusions &rarr; Add an exclusion &rarr; Folder</strong>, and add <code>%LOCALAPPDATA%\\Xenon</code>.</li></ol>",
+  "f.q.download": "My browser refuses to download it, or says it found a virus",
+  "f.a.download": "<p>Same cause, different gatekeeper: that is your browser's own reputation check, Google Safe Browsing in Chrome and SmartScreen in Edge. Open your downloads list with <code>Ctrl+J</code> and choose <strong>Keep</strong>, or <strong>Keep anyway</strong>, on the cancelled file. If SmartScreen then warns you when the setup runs, click <strong>More info</strong>, then <strong>Run anyway</strong>.</p>",
+  "f.q.verify": "How do I know it is safe, instead of just trusting you?",
+  "f.a.verify": "<p>Check it yourself, and please do. Every release ships a <code>SHA256SUMS</code> file signed with the project's key. In PowerShell:</p><p><code>Get-FileHash .\\Xenon-Setup-x64.exe -Algorithm SHA256</code></p><p>Compare the result with the <code>Xenon-Setup-x64.exe</code> line in that release's <code>SHA256SUMS</code>. If they match, the file you have is byte for byte the one GitHub Actions built from the public source at that tag, and every line of that source is readable on <a href='https://github.com/marcimastro98/Xenon' target='_blank' rel='noopener'>GitHub</a>. You can also upload it to <a href='https://www.virustotal.com/' target='_blank' rel='noopener'>VirusTotal</a>: a couple of engines flagging it while the rest come back clean is what a reputation problem looks like, not what malware looks like.</p><p><strong>Only ever bypass a warning for a file you downloaded from the official <a href='https://github.com/marcimastro98/Xenon/releases/latest' target='_blank' rel='noopener'>Releases page</a> and whose hash you checked.</strong> Talking someone into ignoring a warning is exactly what real malware does, and the hash is what tells the two situations apart.</p>",
+  "f.q.sac": "Xenon will not start at all, and Defender never said anything",
+  "f.a.sac": "<p>On Windows 11 this is usually <strong>Smart App Control</strong>, which is a different system from your antivirus. Check <strong>Windows Security &rarr; App &amp; browser control &rarr; Smart App Control</strong>.</p><p>It blocks any app it does not already trust, and it decides that before your antivirus is ever consulted. So the exclusion above does not affect it, and there is no way to allow one app while leaving it on. It only ever switches itself on during a clean installation of Windows 11, which is why it shows up on a freshly rebuilt PC and never on an upgraded one. That leaves two settings: <strong>Evaluation</strong>, where Windows watches how you use the PC and decides for itself whether to keep it on, and <strong>Off</strong>.</p><p><strong>Read this before you change it: turning Smart App Control off is a one-way door.</strong> Windows will not let you switch it back on afterwards without resetting or reinstalling the PC. That is Microsoft's design and not something Xenon can work around. If you would rather keep it on, the honest answer today is that Xenon cannot run on that machine.</p>",
+  "f.q.sign": "Why is it not signed, then?",
+  "f.a.sign": "<p>A code-signing certificate is a paid, identity-verified product with a yearly renewal, and Xenon is a free project made by one person. It is the real fix for every warning on this page and it is on the list.</p><p>Until then, one thing helps more than anything else. If Defender flags your download, report it as a false positive at <a href='https://www.microsoft.com/en-us/wdsi/filesubmission' target='_blank' rel='noopener'>microsoft.com/wdsi/filesubmission</a>, choosing <em>Home customer</em> and then <em>Incorrectly detected as malware</em>. It takes two minutes, reports from real users carry weight, and the detection usually gets pulled for everyone within a few days.</p>",
+
+  "f.q.gatekeeper": "macOS says Xenon cannot be opened because Apple cannot check it",
+  "f.a.gatekeeper": "<p>Expected for now: the app is not notarized, which needs a paid Apple Developer membership this project does not have.</p><p>On <strong>macOS 15 and later</strong>, open <strong>System Settings &rarr; Privacy &amp; Security</strong>, scroll to the bottom and click <strong>Open Anyway</strong> next to Xenon. Apple removed the old right-click shortcut there. On <strong>macOS 11 to 14</strong>, right-click the app, choose <strong>Open</strong>, then <strong>Open</strong> again. Either way it is once per version.</p>",
+  "f.q.fda": "On macOS the Disk widget shows a Trash of 0 B",
+  "f.a.fda": "<p>The Trash and most of <code>~/Library/Caches</code> sit behind <strong>Full Disk Access</strong>, a permission macOS grants per app. Without it those folders look empty rather than refused, so nothing reports an error and the disk map quietly under-reports.</p><p>Open <strong>System Settings &rarr; Privacy &amp; Security &rarr; Full Disk Access</strong>, press <strong>+</strong>, choose <strong>Xenon</strong> in Applications, make sure its switch is on, then quit Xenon and open it again.</p><p><strong>This has to be redone after every update, until the app is signed.</strong> macOS ties the permission to the code signature, and an unsigned build gets a fresh one at every release, so the grant silently stops applying. If Xenon is already in the list, toggle it off and on; if that does not take, remove it with <strong>&minus;</strong> and add it again.</p>",
+  "f.q.brew": "What do I need to install on macOS?",
+  "f.a.brew": "<p><strong>Node.js</strong> is the only requirement, and Xenon says so if it is missing: <code>brew install node</code>. The rest are optional and each one lights up a single thing:</p><ul><li><code>vladkens/tap/macmon</code> for temperature and GPU load</li><li><code>switchaudio-osx</code> for switching the output device</li><li><code>ffmpeg</code> for voice input and spoken replies</li></ul><p>Xenon names the ones you do not have instead of failing later.</p>",
+  "f.q.linux": "How do I install it on Linux?",
+  "f.a.linux": "<p>Download the <strong>AppImage</strong> (make it executable and run it) or the <strong>.deb</strong>. The first launch offers to set the dashboard up in a terminal window you can read and stop, verifying the download against the project's key before extracting anything.</p><p>The package deliberately does not do that for you: everything the install creates belongs to one user account, and a package installs as root for the whole machine. If you would rather skip the app entirely, download the source zip from <a href='https://github.com/marcimastro98/Xenon/releases/latest' target='_blank' rel='noopener'>Releases</a> and run <code>./INSTALL.sh</code>.</p><p>You need <code>nodejs npm unzip</code>. Optional, each for one feature: <code>wireplumber</code> (volume, mic, per-app mixer), <code>wmctrl</code> and <code>x11-utils</code> (the app switcher), <code>playerctl</code> (instant now-playing), <code>ffmpeg</code> (voice). Run <code>npm run doctor</code> and it tells you what is missing and what each one would light up.</p>",
+  "f.q.beta": "What does beta actually mean for macOS and Linux?",
+  "f.a.beta": "<p>The dashboard is the same product: same widgets, same Store, same themes, same integrations, same phone access. What differs is the layer that reads the machine, so some sensors and system actions are not there yet or work differently.</p><p>Nothing pretends to work, which is the part that matters. A tile with no data source on your platform says so in one line instead of loading forever, and a Deck key the platform cannot perform is hidden rather than offered and then failed.</p>",
+
+  "f.q.installer": "What does the installer actually do?",
+  "f.a.installer": "<p>On Windows it installs the app, installs the dashboard engine under <code>%LOCALAPPDATA%\\Xenon</code>, installs Node.js if you do not already have it, and registers a task so the dashboard starts when you log in. It also fetches the optional pieces: FFmpeg, LibreHardwareMonitor and PawnIO for temperatures, PresentMon for real in-game FPS.</p><p><strong>Nothing runs hidden.</strong> The setup itself only installs the app and opens it; the dashboard half is offered by the app afterwards and runs in a console window you can watch and interrupt. An earlier version did that silently in the background, and that is precisely the shape that gets an unsigned installer quarantined, so it was removed.</p>",
+  "f.q.autostart": "Does it start with my PC, and can I stop that?",
+  "f.a.autostart": "<p>Yes, it starts when you log in, so the dashboard is already live when you sit down. It runs inside your own session rather than as a system service, and that is deliberate: outside your session there is no audio device list, no window list, no microphone and no way to open an app, so half the features would silently stop working.</p><p>To remove the startup entry, run <code>UNINSTALL.bat</code> on Windows, <code>UNINSTALL.command</code> on macOS, or <code>./UNINSTALL.sh</code> on Linux.</p>",
+  "f.q.update": "How do I update?",
+  "f.a.update": "<p>Xenon updates itself. When a release is out the dashboard shows a prompt; one tap downloads it, checks its signature <em>before</em> extracting anything, installs the engine and then the app, and puts the previous version back automatically if anything fails. Your settings, layouts and notes are always kept, and files left over from older versions are cleaned up.</p>",
+  "f.q.uninstall": "How do I uninstall it?",
+  "f.a.uninstall": "<p>Run <code>UNINSTALL.bat</code> on Windows, <code>UNINSTALL.command</code> on macOS, or <code>./UNINSTALL.sh</code> on Linux. All three leave your settings, layouts and notes alone unless you add <code>--purge-data</code>. Deleting the data folder removes everything Xenon ever stored, including the random id used so a store rating counts once.</p>",
+  "f.q.admin": "Why does it ask for administrator rights?",
+  "f.a.admin": "<p>Once, during install, and for two things: setting up CPU and disk temperature reading (LibreHardwareMonitor and PawnIO, which need a driver-level component), and registering the startup task. Decline it and everything else still works, you simply get no temperatures. Xenon does not run elevated afterwards.</p>",
+  "f.q.port": "It says port 3030 is already in use",
+  "f.a.port": "<p>Almost always another copy of the dashboard already running, which is what you want anyway: open <code>http://127.0.0.1:3030/</code> and it is there. If something else on your PC owns that port, change it in <code>server/server.js</code>.</p>",
+
+  "f.q.phone": "Can I really use my phone as the screen?",
+  "f.a.phone": "<p>Yes, and it is your dashboard rather than a remote: same layout, same widgets, same theme, and Deck keys really run on the PC. No account, no cloud, nothing to install, and on your own Wi-Fi nothing leaves your home network. It takes about thirty seconds. The <a href='phone.html'>phone guide</a> covers both routes, at home and from anywhere.</p>",
+  "f.q.browser": "Do I have to use the app?",
+  "f.a.browser": "<p>No. The app is a window around the dashboard, and the dashboard is a local web page: open <code>http://127.0.0.1:3030/</code> in any browser, on any monitor. The app is worth having on a touchscreen because it adds game-safe touch and a tray icon. Inside iCUE, an iFrame widget pointing at the same address works too.</p>",
+  "f.q.ai": "Do I need an API key for the AI?",
+  "f.a.ai": "<p>Only if you want a cloud provider, and a Gemini key is free to create. Everything else in Xenon works without one.</p><p>There is also a fully local option: Ollama for the chat and Whisper for speech, set up on demand from Settings, with nothing leaving your PC. If you do choose a cloud provider, your prompts go to that provider under their terms, and Xenon never sends anything to a model you did not pick.</p>",
+  "f.q.temp": "There is no CPU temperature",
+  "f.a.temp": "<p>Run the installer again and accept the administrator prompt, so it can install LibreHardwareMonitor and PawnIO and register the elevated startup task. Some laptops and boards expose no sensor at all, and in that case the tile says so rather than showing an invented number.</p>",
+  "f.q.make": "Can I make my own widgets and themes?",
+  "f.a.make": "<p>Yes, and most of it needs no code. Themes, layouts, ambient scenes and Deck profiles are built in the app itself and shared as a code anyone can import. Widgets are small HTML, CSS and JavaScript packages that run in a sandbox, with a documented bridge for sensors and actions.</p><p>The <a href='create/'>creator guide</a> is the place to start, and the <a href='catalog/'>catalog</a> is what other people have already made.</p>",
+  "f.q.rgb": "Does it control RGB lighting?",
+  "f.a.rgb": "<p>Yes: CORSAIR devices through iCUE, plus WLED, OpenRGB, Philips Hue and Nanoleaf directly over your network. It can react to temperatures or to what is playing, or just hold a colour you picked. It is optional and stays off until you set it up.</p>",
+
+  "f.q.data": "Does Xenon send my data anywhere?",
+  "f.a.data": "<p>Your settings, notes, tasks, events, decks, search phrases and file index stay on your PC. There is no analytics SDK, no crash reporter and no behavioural tracking in the app.</p><p>It is not fully offline either, and claiming otherwise would be the dishonest version: it checks for updates, and it contacts a service for weather or a music API when you turn those features on. The <a href='privacy.html'>privacy page</a> lists every call the app can make, what triggers it and exactly what it sends, with nothing left out.</p>",
+  "f.q.account": "Do I need an account?",
+  "f.a.account": "<p>No. There is no Xenon account, no login, and no server of mine sitting between you and your own dashboard. Integrations you set up yourself, like Spotify or Twitch, use their own credentials and stay dormant until you configure them.</p>",
+
+  "f.q.commercial": "Can I use it at work, or inside my own product?",
+  "f.a.commercial": "<p>Personal use is free, including on the PC you happen to work on. Selling it, bundling it into a commercial product, redistributing it as your own work, or using the Xenon name for something else needs written permission first.</p><p>If you have a case in mind, ask: <a href='mailto:marcellomastroeni4@gmail.com'>email me</a> or bring it up on the Discord. The answer is often yes, with conditions.</p>",
+  "f.q.help": "Where do I get help?",
+  "f.a.help": "<p>The <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> is the fastest, and it is where most problems actually get diagnosed. For something reproducible, a <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>GitHub issue</a> with your system, what you did and what happened is the most useful thing you can send. Both are read by the same one person.</p>",
+  "f.q.support": "How can I support the project?",
+  "f.a.support": "<p>A <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener'>coffee</a>, if you want to. Supporters get a role on the Discord and a place in the Hall of Supporters.</p><p>The free things help just as much: a star on <a href='https://github.com/marcimastro98/Xenon' target='_blank' rel='noopener'>GitHub</a>, a bug report with real detail, a widget or theme shared in the <a href='catalog/'>catalog</a>, or telling someone with a spare screen that this exists.</p>"
+ },
+
+ "it": {
+  "f.nav.back": "← Torna al sito",
+  "f.h1": "Domande frequenti",
+  "f.lede": "Le cose per cui la gente mi scrive davvero, con le risposte oneste. Se la tua non è qui, il Discord è il posto più veloce per chiedere.",
+  "f.updated": "Ultimo aggiornamento: 30 luglio 2026",
+  "f.s1": "Prima di installare",
+  "f.s2": "Quando Windows lo chiama virus",
+  "f.s3": "macOS e Linux",
+  "f.s4": "Installare, avviare, aggiornare",
+  "f.s5": "Usare Xenon",
+  "f.s6": "Privacy e fiducia",
+  "f.s7": "Licenza, costi e aiuto",
+  "f.warn.t": "In breve",
+  "f.warn.p": "Xenon non ha ancora una firma digitale, e Windows tratta un installer non firmato che poche persone hanno scaricato come uno sconosciuto. Da lì nascono tre avvisi diversi, da tre sistemi diversi, e servono tre risposte diverse. Nessuno dei tre è il rilevamento di un vero malware, e non devi credermi sulla parola: ogni release pubblica gli hash che puoi verificare da solo.",
+  "f.stuck.t": "Ancora bloccato?",
+  "f.stuck.p": "Chiedi sul <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>. Le domande che tornano spesso finiscono su questa pagina, quindi farne una serve davvero.",
+
+  "f.q.edge": "Serve un CORSAIR Xeneon Edge?",
+  "f.a.edge": "<p>No. Xenon è nato attorno a quello schermo, ma l'Edge è uno degli schermi su cui gira, non il prodotto. Un monitor in più, un vecchio tablet appoggiato sulla scrivania, un touchscreen, una finestra sullo schermo principale o il telefono che hai in tasca funzionano allo stesso modo. Se non hai proprio uno schermo libero, <a href='phone.html'>usa il telefono</a>: circa trenta secondi sulla tua Wi-Fi, e quello che ottieni è la dashboard vera, non un telecomando.</p>",
+  "f.q.free": "È davvero gratis?",
+  "f.a.free": "<p>Sì. Nessuna versione a pagamento, nessuna prova, nessun account, nessuna pubblicità, e nessuna funzione tenuta da parte per un piano che non esiste. La licenza è custom e non commerciale: libera per uso personale, e puoi leggere, eseguire e modificare il sorgente. Serve un permesso scritto per venderlo, includerlo in un prodotto commerciale, ridistribuirlo come lavoro tuo o usare il nome Xenon per altro.</p><p>C'è un <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener'>pulsante per il caffè</a> se vuoi dire grazie, e non è nient'altro che quello.</p>",
+  "f.q.os": "Su quali sistemi gira?",
+  "f.a.os": "<p>Windows 10 e 11 (64 bit), macOS 11 o successivo (un solo download universale per Apple Silicon e Intel) e Linux (64 bit).</p><p><strong>macOS e Linux sono in beta.</strong> La dashboard, i widget, lo Store e le integrazioni sono identici su tutti e tre; quello che ancora cambia è lo strato che legge la macchina. La <a href='https://github.com/marcimastro98/Xenon#platform-support' target='_blank' rel='noopener'>tabella delle piattaforme</a> dice esattamente cosa funziona dove, funzione per funzione.</p>",
+  "f.q.corsair": "Serve un PC CORSAIR, o iCUE?",
+  "f.a.corsair": "<p>No. Xenon gira su qualsiasi PC e non richiede hardware o software CORSAIR. iCUE serve solo per due cose opzionali: tenere la dashboard dentro un widget iFrame di iCUE se la preferisci lì, e comandare i dispositivi RGB CORSAIR. Tutto il resto è indipendente.</p>",
+
+  "f.q.defender": "Windows Defender ha segnalato Xenon, e ora è sparito",
+  "f.a.defender": "<p>È un falso positivo, ed è la cosa singola per cui mi scrivono più spesso. Il nome del rilevamento di solito finisce con <code>!cl</code>, che vuol dire che il verdetto arriva dal modello di machine learning in cloud di Defender e non da una firma che corrisponde a malware noto. Ogni nuova release azzera il contatore della reputazione, quindi il rilevamento può comparire e sparire da una versione all'altra.</p><p>Per recuperare l'installazione:</p><ol><li>Apri <strong>Sicurezza di Windows &rarr; Protezione da virus e minacce &rarr; Cronologia protezione</strong>, trova la voce Xenon e scegli <strong>Azioni &rarr; Ripristina</strong>.</li><li>Aggiungi un'esclusione così non succede più: <strong>Gestisci impostazioni &rarr; Esclusioni &rarr; Aggiungi un'esclusione &rarr; Cartella</strong>, e aggiungi <code>%LOCALAPPDATA%\\Xenon</code>.</li></ol>",
+  "f.q.download": "Il browser non me lo fa scaricare, o dice che ha trovato un virus",
+  "f.a.download": "<p>Stessa causa, guardiano diverso: è il controllo di reputazione del browser, Google Safe Browsing su Chrome e SmartScreen su Edge. Apri l'elenco dei download con <code>Ctrl+J</code> e scegli <strong>Mantieni</strong>, o <strong>Mantieni comunque</strong>, sul file annullato. Se poi SmartScreen ti avvisa quando avvii il setup, clicca <strong>Ulteriori informazioni</strong> e poi <strong>Esegui comunque</strong>.</p>",
+  "f.q.verify": "Come faccio a sapere che è sicuro, invece di fidarmi e basta?",
+  "f.a.verify": "<p>Verificalo tu, e fallo davvero. Ogni release pubblica un file <code>SHA256SUMS</code> firmato con la chiave del progetto. In PowerShell:</p><p><code>Get-FileHash .\\Xenon-Setup-x64.exe -Algorithm SHA256</code></p><p>Confronta il risultato con la riga <code>Xenon-Setup-x64.exe</code> dentro <code>SHA256SUMS</code> di quella release. Se corrispondono, il file che hai è byte per byte quello che GitHub Actions ha compilato dal sorgente pubblico a quel tag, e ogni riga di quel sorgente è leggibile su <a href='https://github.com/marcimastro98/Xenon' target='_blank' rel='noopener'>GitHub</a>. Puoi anche caricarlo su <a href='https://www.virustotal.com/' target='_blank' rel='noopener'>VirusTotal</a>: un paio di motori che segnalano mentre tutti gli altri risultano puliti è l'aspetto di un problema di reputazione, non quello di un malware.</p><p><strong>Salta un avviso solo per un file scaricato dalla <a href='https://github.com/marcimastro98/Xenon/releases/latest' target='_blank' rel='noopener'>pagina Releases</a> ufficiale e di cui hai controllato l'hash.</strong> Convincere qualcuno a ignorare un avviso è esattamente quello che fa il malware vero, e l'hash è la cosa che distingue le due situazioni.</p>",
+  "f.q.sac": "Xenon non parte proprio, e Defender non ha detto niente",
+  "f.a.sac": "<p>Su Windows 11 di solito è <strong>Smart App Control</strong>, che è un sistema diverso dall'antivirus. Controlla in <strong>Sicurezza di Windows &rarr; Controllo app e browser &rarr; Smart App Control</strong>.</p><p>Blocca qualsiasi app di cui non si fida già, e lo decide prima ancora che l'antivirus venga interpellato. Quindi l'esclusione qui sopra non lo tocca, e non esiste un modo per permettere una singola app lasciandolo acceso. Si accende da solo soltanto durante un'installazione pulita di Windows 11, ed è per questo che compare su un PC rifatto da poco e mai su uno aggiornato. Restano due impostazioni: <strong>Valutazione</strong>, dove Windows osserva come usi il PC e decide da sé se tenerlo acceso, e <strong>Disattivato</strong>.</p><p><strong>Leggi questo prima di cambiarlo: disattivare Smart App Control è una porta a senso unico.</strong> Windows non ti farà riaccenderlo senza reimpostare o reinstallare il PC. È una scelta di Microsoft e non è qualcosa che Xenon possa aggirare. Se preferisci tenerlo acceso, la risposta onesta oggi è che su quella macchina Xenon non può girare.</p>",
+  "f.q.sign": "E allora perché non è firmato?",
+  "f.a.sign": "<p>Un certificato di firma del codice è un prodotto a pagamento, con verifica dell'identità e rinnovo annuale, e Xenon è un progetto gratuito fatto da una persona sola. È la soluzione vera per tutti gli avvisi di questa pagina, ed è in lista.</p><p>Nel frattempo una cosa aiuta più di ogni altra. Se Defender segnala il tuo download, segnalalo come falso positivo su <a href='https://www.microsoft.com/en-us/wdsi/filesubmission' target='_blank' rel='noopener'>microsoft.com/wdsi/filesubmission</a>, scegliendo <em>Home customer</em> e poi <em>Incorrectly detected as malware</em>. Ci vogliono due minuti, le segnalazioni degli utenti reali contano, e di solito il rilevamento viene tolto per tutti nel giro di pochi giorni.</p>",
+
+  "f.q.gatekeeper": "macOS dice che Xenon non può essere aperto perché Apple non può verificarlo",
+  "f.a.gatekeeper": "<p>Per ora è previsto: l'app non è notarizzata, e per farlo serve un abbonamento Apple Developer a pagamento che il progetto non ha.</p><p>Su <strong>macOS 15 e successivi</strong> apri <strong>Impostazioni di Sistema &rarr; Privacy e sicurezza</strong>, scorri fino in fondo e premi <strong>Apri comunque</strong> accanto a Xenon. Apple ha tolto la vecchia scorciatoia col tasto destro. Su <strong>macOS da 11 a 14</strong>, tasto destro sull'app, <strong>Apri</strong>, e poi ancora <strong>Apri</strong>. In entrambi i casi è una volta per versione.</p>",
+  "f.q.fda": "Su macOS il widget Disco mostra il Cestino a 0 B",
+  "f.a.fda": "<p>Il Cestino e gran parte di <code>~/Library/Caches</code> stanno dietro <strong>Accesso completo al disco</strong>, un permesso che macOS concede per singola app. Senza, quelle cartelle sembrano vuote invece che negate, quindi nessuno segnala un errore e la mappa del disco conta meno di quello che c'è.</p><p>Apri <strong>Impostazioni di Sistema &rarr; Privacy e sicurezza &rarr; Accesso completo al disco</strong>, premi <strong>+</strong>, scegli <strong>Xenon</strong> in Applicazioni, assicurati che l'interruttore sia attivo, poi chiudi Xenon e riaprilo.</p><p><strong>Va rifatto dopo ogni aggiornamento, finché l'app non sarà firmata.</strong> macOS lega il permesso alla firma del codice, e una build non firmata ne prende una nuova a ogni release, quindi il permesso smette di valere in silenzio. Se Xenon è già in elenco, spegni e riaccendi l'interruttore; se non basta, toglilo con <strong>&minus;</strong> e riaggiungilo.</p>",
+  "f.q.brew": "Cosa devo installare su macOS?",
+  "f.a.brew": "<p><strong>Node.js</strong> è l'unico requisito, e Xenon te lo dice se manca: <code>brew install node</code>. Il resto è opzionale e ognuno accende una cosa sola:</p><ul><li><code>vladkens/tap/macmon</code> per temperature e carico GPU</li><li><code>switchaudio-osx</code> per cambiare il dispositivo di uscita</li><li><code>ffmpeg</code> per l'input vocale e le risposte parlate</li></ul><p>Xenon ti dice quali mancano invece di fallire più avanti.</p>",
+  "f.q.linux": "Come lo installo su Linux?",
+  "f.a.linux": "<p>Scarica l'<strong>AppImage</strong> (rendila eseguibile e avviala) oppure il <strong>.deb</strong>. Al primo avvio ti propone di installare la dashboard in una finestra di terminale che puoi leggere e fermare, verificando il download con la chiave del progetto prima di estrarre qualsiasi cosa.</p><p>Il pacchetto di proposito non lo fa al posto tuo: tutto quello che l'installazione crea appartiene a un solo account utente, e un pacchetto si installa come root per l'intera macchina. Se preferisci saltare l'app, scarica lo zip dei sorgenti dalle <a href='https://github.com/marcimastro98/Xenon/releases/latest' target='_blank' rel='noopener'>Releases</a> ed esegui <code>./INSTALL.sh</code>.</p><p>Servono <code>nodejs npm unzip</code>. Opzionali, uno per funzione: <code>wireplumber</code> (volume, microfono, mixer per app), <code>wmctrl</code> e <code>x11-utils</code> (il cambio applicazioni), <code>playerctl</code> (now playing istantaneo), <code>ffmpeg</code> (voce). Esegui <code>npm run doctor</code> e ti dice cosa manca e cosa accenderebbe.</p>",
+  "f.q.beta": "Cosa vuol dire beta, in concreto, su macOS e Linux?",
+  "f.a.beta": "<p>La dashboard è lo stesso prodotto: stessi widget, stesso Store, stessi temi, stesse integrazioni, stesso accesso dal telefono. Quello che cambia è lo strato che legge la macchina, quindi alcuni sensori e alcune azioni di sistema non ci sono ancora o funzionano in modo diverso.</p><p>Niente finge di funzionare, ed è la parte che conta. Un riquadro senza una fonte dati sulla tua piattaforma lo dice in una riga invece di caricare all'infinito, e un tasto del Deck che la piattaforma non può eseguire viene nascosto invece che offerto e poi fallito.</p>",
+
+  "f.q.installer": "Cosa fa davvero l'installer?",
+  "f.a.installer": "<p>Su Windows installa l'app, installa il motore della dashboard sotto <code>%LOCALAPPDATA%\\Xenon</code>, installa Node.js se non ce l'hai già, e registra un'attività perché la dashboard parta quando accedi. Scarica anche i pezzi opzionali: FFmpeg, LibreHardwareMonitor e PawnIO per le temperature, PresentMon per gli FPS reali in gioco.</p><p><strong>Niente gira di nascosto.</strong> Il setup installa solo l'app e la apre; la metà dashboard te la propone l'app dopo, e gira in una finestra di console che puoi guardare e interrompere. Una versione precedente lo faceva in silenzio in background, ed è esattamente la forma che fa mettere in quarantena un installer non firmato, quindi è stata rimossa.</p>",
+  "f.q.autostart": "Parte da solo con il PC, e posso evitarlo?",
+  "f.a.autostart": "<p>Sì, parte quando accedi, così la dashboard è già viva quando ti siedi. Gira dentro la tua sessione e non come servizio di sistema, ed è voluto: fuori dalla tua sessione non esistono l'elenco dei dispositivi audio, l'elenco delle finestre, il microfono né un modo per aprire un'app, quindi metà delle funzioni smetterebbe di funzionare in silenzio.</p><p>Per togliere l'avvio automatico esegui <code>UNINSTALL.bat</code> su Windows, <code>UNINSTALL.command</code> su macOS o <code>./UNINSTALL.sh</code> su Linux.</p>",
+  "f.q.update": "Come si aggiorna?",
+  "f.a.update": "<p>Xenon si aggiorna da solo. Quando esce una release la dashboard mostra un avviso; un tocco la scarica, ne verifica la firma <em>prima</em> di estrarre qualsiasi cosa, installa il motore e poi l'app, e rimette automaticamente la versione precedente se qualcosa va storto. Impostazioni, layout e note restano sempre al loro posto, e i file rimasti da versioni vecchie vengono ripuliti.</p>",
+  "f.q.uninstall": "Come lo disinstallo?",
+  "f.a.uninstall": "<p>Esegui <code>UNINSTALL.bat</code> su Windows, <code>UNINSTALL.command</code> su macOS o <code>./UNINSTALL.sh</code> su Linux. Tutti e tre lasciano stare impostazioni, layout e note a meno che non aggiunga <code>--purge-data</code>. Cancellare la cartella dei dati rimuove tutto quello che Xenon ha salvato, incluso l'id casuale che serve a far contare una volta sola una valutazione nello Store.</p>",
+  "f.q.admin": "Perché chiede i permessi di amministratore?",
+  "f.a.admin": "<p>Una volta sola, durante l'installazione, e per due cose: preparare la lettura delle temperature di CPU e dischi (LibreHardwareMonitor e PawnIO, che richiedono un componente a livello di driver) e registrare l'avvio automatico. Se lo rifiuti tutto il resto funziona lo stesso, semplicemente non avrai le temperature. Dopo, Xenon non gira con privilegi elevati.</p>",
+  "f.q.port": "Dice che la porta 3030 è già in uso",
+  "f.a.port": "<p>Quasi sempre è un'altra copia della dashboard già in esecuzione, che poi è quello che vuoi: apri <code>http://127.0.0.1:3030/</code> ed è lì. Se invece quella porta è occupata da altro sul tuo PC, cambiala in <code>server/server.js</code>.</p>",
+
+  "f.q.phone": "Posso davvero usare il telefono come schermo?",
+  "f.a.phone": "<p>Sì, ed è la tua dashboard, non un telecomando: stesso layout, stessi widget, stesso tema, e i tasti del Deck girano davvero sul PC. Nessun account, nessun cloud, niente da installare, e sulla tua Wi-Fi niente esce dalla rete di casa. Ci vogliono circa trenta secondi. La <a href='phone.html'>guida per il telefono</a> copre entrambe le strade, a casa e da fuori.</p>",
+  "f.q.browser": "Devo per forza usare l'app?",
+  "f.a.browser": "<p>No. L'app è una finestra attorno alla dashboard, e la dashboard è una pagina web locale: apri <code>http://127.0.0.1:3030/</code> in qualsiasi browser, su qualsiasi monitor. L'app conviene su un touchscreen perché aggiunge il tocco sicuro in gioco e l'icona nella tray. Dentro iCUE funziona anche un widget iFrame puntato allo stesso indirizzo.</p>",
+  "f.q.ai": "Serve una chiave API per l'AI?",
+  "f.a.ai": "<p>Solo se vuoi un provider cloud, e una chiave Gemini si crea gratis. Tutto il resto di Xenon funziona senza.</p><p>C'è anche l'opzione completamente locale: Ollama per la chat e Whisper per il parlato, installati su richiesta dalle Impostazioni, con niente che esce dal tuo PC. Se scegli un provider cloud, i tuoi prompt vanno a quel provider secondo le sue condizioni, e Xenon non manda mai niente a un modello che non hai scelto.</p>",
+  "f.q.temp": "Non vedo la temperatura della CPU",
+  "f.a.temp": "<p>Riesegui l'installer e accetta la richiesta di amministratore, così può installare LibreHardwareMonitor e PawnIO e registrare l'attività di avvio con privilegi. Alcuni portatili e alcune schede non espongono proprio nessun sensore, e in quel caso il riquadro lo dice invece di mostrare un numero inventato.</p>",
+  "f.q.make": "Posso creare widget e temi miei?",
+  "f.a.make": "<p>Sì, e per la maggior parte non serve scrivere codice. Temi, layout, scene ambient e profili Deck si costruiscono dentro l'app e si condividono come un codice che chiunque può importare. I widget sono piccoli pacchetti HTML, CSS e JavaScript che girano in una sandbox, con un ponte documentato per sensori e azioni.</p><p>La <a href='create/'>guida per creator</a> è il punto di partenza, e il <a href='catalog/'>catalogo</a> è quello che gli altri hanno già fatto.</p>",
+  "f.q.rgb": "Controlla l'illuminazione RGB?",
+  "f.a.rgb": "<p>Sì: i dispositivi CORSAIR tramite iCUE, più WLED, OpenRGB, Philips Hue e Nanoleaf direttamente in rete. Può reagire alle temperature o a quello che sta suonando, oppure restare su un colore scelto da te. È opzionale e resta spento finché non lo configuri.</p>",
+
+  "f.q.data": "Xenon manda i miei dati da qualche parte?",
+  "f.a.data": "<p>Impostazioni, note, attività, eventi, deck, frasi cercate e indice dei file restano sul tuo PC. Non c'è nessun SDK di analytics, nessun crash reporter e nessun tracciamento del comportamento dentro l'app.</p><p>Non è nemmeno completamente offline, e dire il contrario sarebbe la versione disonesta: controlla gli aggiornamenti, e contatta un servizio per il meteo o un'API musicale quando accendi quelle funzioni. La <a href='privacy.html'>pagina privacy</a> elenca ogni chiamata che l'app può fare, cosa la scatena e cosa manda esattamente, senza omettere niente.</p>",
+  "f.q.account": "Serve un account?",
+  "f.a.account": "<p>No. Non esiste un account Xenon, non c'è un login, e non c'è nessun mio server in mezzo tra te e la tua dashboard. Le integrazioni che configuri tu, tipo Spotify o Twitch, usano le loro credenziali e restano ferme finché non le imposti.</p>",
+
+  "f.q.commercial": "Posso usarlo al lavoro, o dentro un mio prodotto?",
+  "f.a.commercial": "<p>L'uso personale è libero, anche sul PC su cui ti capita di lavorare. Venderlo, includerlo in un prodotto commerciale, ridistribuirlo come lavoro tuo o usare il nome Xenon per altro richiede prima un permesso scritto.</p><p>Se hai un caso in mente, chiedi: <a href='mailto:marcellomastroeni4@gmail.com'>scrivimi</a> o parlane sul Discord. La risposta spesso è sì, con delle condizioni.</p>",
+  "f.q.help": "Dove chiedo aiuto?",
+  "f.a.help": "<p>Il <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> è la via più veloce, ed è dove la maggior parte dei problemi viene davvero diagnosticata. Per qualcosa di riproducibile, una <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>issue su GitHub</a> con il tuo sistema, cosa hai fatto e cosa è successo è la cosa più utile che puoi mandare. Li legge la stessa singola persona.</p>",
+  "f.q.support": "Come posso sostenere il progetto?",
+  "f.a.support": "<p>Un <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener'>caffè</a>, se ti va. Chi sostiene il progetto riceve un ruolo sul Discord e un posto nella Hall of Supporters.</p><p>Le cose gratuite aiutano allo stesso modo: una stella su <a href='https://github.com/marcimastro98/Xenon' target='_blank' rel='noopener'>GitHub</a>, una segnalazione di bug con dettagli veri, un widget o un tema condivisi nel <a href='catalog/'>catalogo</a>, oppure dire a qualcuno che ha uno schermo libero che questa cosa esiste.</p>"
+ },
+
+ "ko": {
+  "f.nav.back": "← 사이트로 돌아가기",
+  "f.h1": "자주 묻는 질문",
+  "f.lede": "실제로 가장 많이 받는 질문들과 솔직한 답변입니다. 여기에 없다면 Discord에서 물어보는 것이 가장 빠릅니다.",
+  "f.updated": "최종 수정: 2026년 7월 30일",
+  "f.s1": "설치하기 전에",
+  "f.s2": "Windows가 바이러스라고 할 때",
+  "f.s3": "macOS와 Linux",
+  "f.s4": "설치, 시작, 업데이트",
+  "f.s5": "Xenon 사용하기",
+  "f.s6": "개인정보와 신뢰",
+  "f.s7": "라이선스, 비용, 도움",
+  "f.warn.t": "요약",
+  "f.warn.p": "Xenon에는 아직 코드 서명이 없고, Windows는 다운로드 수가 적은 서명되지 않은 설치 파일을 '모르는 것'으로 취급합니다. 그래서 서로 다른 세 시스템에서 서로 다른 세 가지 경고가 나오고, 해결 방법도 각각 다릅니다. 어느 것도 실제 악성코드를 찾아낸 것이 아니며, 제 말을 믿을 필요도 없습니다. 모든 릴리스에는 직접 확인할 수 있는 해시가 함께 올라갑니다.",
+  "f.stuck.t": "아직 해결되지 않았나요?",
+  "f.stuck.p": "<a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>에서 물어보세요. 반복해서 나오는 질문은 이 페이지에 추가되니, 질문 자체가 도움이 됩니다.",
+
+  "f.q.edge": "CORSAIR Xeneon Edge가 꼭 필요한가요?",
+  "f.a.edge": "<p>아닙니다. Xenon은 그 화면을 염두에 두고 만들어졌지만, Edge는 실행되는 여러 화면 중 하나일 뿐 제품 자체가 아닙니다. 남는 모니터, 책상에 세워 둔 오래된 태블릿, 터치스크린, 메인 화면의 창 하나, 주머니 속 휴대폰 모두 똑같이 동작합니다. 남는 화면이 전혀 없다면 <a href='phone.html'>휴대폰을 쓰세요</a>. 집 Wi-Fi에서 30초 정도면 되고, 얻는 것은 원격 조종기가 아니라 진짜 대시보드입니다.</p>",
+  "f.q.free": "정말 무료인가요?",
+  "f.a.free": "<p>네. 유료 버전도, 체험판도, 계정도, 광고도 없고, 존재하지도 않는 상위 요금제를 위해 빼놓은 기능도 없습니다. 라이선스는 자체 비상업 라이선스입니다. 개인적인 사용은 무료이고 소스를 읽고 실행하고 수정할 수 있습니다. 판매하거나, 상업용 제품에 넣거나, 자기 작업물로 재배포하거나, Xenon이라는 이름을 다른 제품에 쓰려면 서면 허가가 필요합니다.</p><p>고맙다는 뜻을 전하고 싶다면 <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener'>커피 버튼</a>이 있고, 정말 그게 전부입니다.</p>",
+  "f.q.os": "어떤 운영체제에서 돌아가나요?",
+  "f.a.os": "<p>Windows 10과 11(64비트), macOS 11 이상(Apple Silicon과 Intel 모두 하나의 유니버설 다운로드), Linux(64비트)입니다.</p><p><strong>macOS와 Linux는 베타입니다.</strong> 대시보드, 위젯, 스토어, 연동은 세 곳 모두 동일하고, 아직 다른 것은 기기 자체를 읽어 오는 계층입니다. <a href='https://github.com/marcimastro98/Xenon#platform-support' target='_blank' rel='noopener'>플랫폼 표</a>에 어떤 기능이 어디서 되는지 정확히 적혀 있습니다.</p>",
+  "f.q.corsair": "CORSAIR PC나 iCUE가 필요한가요?",
+  "f.a.corsair": "<p>아닙니다. Xenon은 어떤 PC에서도 실행되며 CORSAIR 하드웨어나 소프트웨어가 필요 없습니다. iCUE는 선택적인 두 가지에만 관련됩니다. 대시보드를 iCUE의 iFrame 위젯 안에 두고 싶을 때, 그리고 CORSAIR RGB 장치를 제어할 때입니다. 나머지는 전부 무관합니다.</p>",
+
+  "f.q.defender": "Windows Defender가 Xenon을 잡아갔고 지금은 사라졌어요",
+  "f.a.defender": "<p>오탐입니다. 그리고 사람들이 저에게 가장 많이 보내는 문의이기도 합니다. 탐지 이름은 보통 <code>!cl</code>로 끝나는데, 이는 알려진 악성코드와 시그니처가 일치해서가 아니라 Defender의 클라우드 머신러닝 모델이 내린 판정이라는 뜻입니다. 새 릴리스가 나올 때마다 평판 카운터가 초기화되므로, 버전에 따라 탐지가 생겼다 사라졌다 합니다.</p><p>설치를 되살리려면:</p><ol><li><strong>Windows 보안 &rarr; 바이러스 및 위협 방지 &rarr; 보호 기록</strong>에서 Xenon 항목을 찾아 <strong>작업 &rarr; 복원</strong>을 선택합니다.</li><li>다시 발생하지 않도록 제외를 추가합니다. <strong>설정 관리 &rarr; 제외 &rarr; 제외 추가 &rarr; 폴더</strong>에서 <code>%LOCALAPPDATA%\\Xenon</code>을 추가하세요.</li></ol>",
+  "f.q.download": "브라우저가 다운로드를 막거나 바이러스가 있다고 합니다",
+  "f.a.download": "<p>원인은 같고 막는 주체가 다릅니다. 브라우저 자체의 평판 검사로, Chrome은 Google 세이프 브라우징, Edge는 SmartScreen입니다. <code>Ctrl+J</code>로 다운로드 목록을 열고 취소된 파일에서 <strong>유지</strong> 또는 <strong>계속 유지</strong>를 선택하세요. 설치 파일을 실행할 때 SmartScreen이 경고하면 <strong>추가 정보</strong>를 누른 뒤 <strong>실행</strong>을 선택하면 됩니다.</p>",
+  "f.q.verify": "그냥 믿는 대신 안전한지 어떻게 확인하나요?",
+  "f.a.verify": "<p>직접 확인하세요. 꼭 그렇게 하시길 권합니다. 모든 릴리스에는 프로젝트 키로 서명된 <code>SHA256SUMS</code> 파일이 함께 올라갑니다. PowerShell에서:</p><p><code>Get-FileHash .\\Xenon-Setup-x64.exe -Algorithm SHA256</code></p><p>결과를 해당 릴리스의 <code>SHA256SUMS</code> 안에 있는 <code>Xenon-Setup-x64.exe</code> 줄과 비교하세요. 일치한다면 그 파일은 GitHub Actions가 해당 태그의 공개 소스로 빌드한 것과 바이트 단위로 동일하며, 그 소스의 모든 줄은 <a href='https://github.com/marcimastro98/Xenon' target='_blank' rel='noopener'>GitHub</a>에서 읽을 수 있습니다. <a href='https://www.virustotal.com/' target='_blank' rel='noopener'>VirusTotal</a>에 올려 봐도 됩니다. 엔진 두어 개만 경고하고 나머지는 깨끗하다면, 그것은 악성코드의 모습이 아니라 평판 문제의 모습입니다.</p><p><strong>경고를 무시하는 것은 공식 <a href='https://github.com/marcimastro98/Xenon/releases/latest' target='_blank' rel='noopener'>Releases 페이지</a>에서 받았고 해시까지 확인한 파일에 대해서만 하세요.</strong> 경고를 무시하라고 설득하는 것이야말로 진짜 악성코드가 하는 일이고, 그 둘을 구분해 주는 것이 해시입니다.</p>",
+  "f.q.sac": "Xenon이 아예 실행되지 않는데 Defender는 아무 말도 없었어요",
+  "f.a.sac": "<p>Windows 11에서는 보통 <strong>스마트 앱 제어</strong>입니다. 백신과는 다른 시스템입니다. <strong>Windows 보안 &rarr; 앱 및 브라우저 컨트롤 &rarr; 스마트 앱 제어</strong>를 확인하세요.</p><p>이미 신뢰하지 않는 앱은 모두 차단하며, 그 판단은 백신이 개입하기도 전에 이루어집니다. 그래서 위의 제외 설정은 아무 영향이 없고, 켜 둔 채로 앱 하나만 허용하는 방법도 없습니다. Windows 11을 새로 클린 설치할 때만 스스로 켜지기 때문에, 막 새로 설치한 PC에서는 나타나고 업그레이드한 PC에서는 나타나지 않습니다. 남는 선택지는 두 가지입니다. Windows가 사용 방식을 지켜보고 계속 켜 둘지 스스로 정하는 <strong>평가</strong> 모드, 그리고 <strong>끄기</strong>입니다.</p><p><strong>바꾸기 전에 알아 두세요. 스마트 앱 제어를 끄면 되돌릴 수 없습니다.</strong> PC를 초기화하거나 다시 설치하지 않으면 Windows가 다시 켜 주지 않습니다. 이는 Microsoft의 설계이며 Xenon이 우회할 수 있는 부분이 아닙니다. 켜 두는 쪽을 택한다면, 오늘 기준 솔직한 답은 그 PC에서는 Xenon을 실행할 수 없다는 것입니다.</p>",
+  "f.q.sign": "그러면 왜 서명을 하지 않나요?",
+  "f.a.sign": "<p>코드 서명 인증서는 신원 확인을 거치는 유료 상품이고 매년 갱신해야 합니다. Xenon은 한 사람이 만드는 무료 프로젝트입니다. 이 페이지의 모든 경고에 대한 진짜 해결책이고, 계획에 들어 있습니다.</p><p>그때까지 가장 도움이 되는 일이 하나 있습니다. Defender가 다운로드를 잡으면 <a href='https://www.microsoft.com/en-us/wdsi/filesubmission' target='_blank' rel='noopener'>microsoft.com/wdsi/filesubmission</a>에서 오탐으로 신고해 주세요. <em>Home customer</em>를 고르고 <em>Incorrectly detected as malware</em>를 선택하면 됩니다. 2분이면 되고, 실제 사용자의 신고는 무게가 있어서 보통 며칠 안에 모두에게서 탐지가 사라집니다.</p>",
+
+  "f.q.gatekeeper": "macOS가 Apple이 확인할 수 없어 Xenon을 열 수 없다고 합니다",
+  "f.a.gatekeeper": "<p>지금은 정상입니다. 앱이 공증(notarize)되지 않았고, 공증에는 이 프로젝트에 없는 유료 Apple Developer 멤버십이 필요합니다.</p><p><strong>macOS 15 이상</strong>에서는 <strong>시스템 설정 &rarr; 개인정보 보호 및 보안</strong>을 열고 맨 아래로 내려가 Xenon 옆의 <strong>그래도 열기</strong>를 누르세요. Apple이 예전의 오른쪽 클릭 방식을 없앴습니다. <strong>macOS 11~14</strong>에서는 앱을 오른쪽 클릭하고 <strong>열기</strong>, 다시 <strong>열기</strong>를 누르면 됩니다. 어느 쪽이든 버전마다 한 번만 하면 됩니다.</p>",
+  "f.q.fda": "macOS에서 디스크 위젯의 휴지통이 0 B로 나옵니다",
+  "f.a.fda": "<p>휴지통과 <code>~/Library/Caches</code> 대부분은 <strong>전체 디스크 접근 권한</strong> 뒤에 있고, macOS는 이 권한을 앱마다 따로 부여합니다. 권한이 없으면 그 폴더들은 거부된 것이 아니라 비어 있는 것처럼 보이기 때문에 아무 오류도 나지 않고 디스크 지도가 조용히 적게 집계됩니다.</p><p><strong>시스템 설정 &rarr; 개인정보 보호 및 보안 &rarr; 전체 디스크 접근 권한</strong>을 열고 <strong>+</strong>를 눌러 응용 프로그램에서 <strong>Xenon</strong>을 선택한 뒤 스위치가 켜져 있는지 확인하고, Xenon을 완전히 종료했다가 다시 여세요.</p><p><strong>앱에 서명이 붙기 전까지는 업데이트할 때마다 다시 해 줘야 합니다.</strong> macOS는 이 권한을 코드 서명에 묶는데, 서명되지 않은 빌드는 릴리스마다 새 서명을 받으므로 권한이 조용히 적용되지 않게 됩니다. 목록에 Xenon이 이미 있다면 스위치를 껐다 켜고, 그래도 안 되면 <strong>&minus;</strong>로 지운 뒤 다시 추가하세요.</p>",
+  "f.q.brew": "macOS에는 무엇을 설치해야 하나요?",
+  "f.a.brew": "<p><strong>Node.js</strong>만 필수이고, 없으면 Xenon이 알려 줍니다: <code>brew install node</code>. 나머지는 선택 사항이고 각각 한 가지 기능을 켭니다.</p><ul><li><code>vladkens/tap/macmon</code> — 온도와 GPU 사용률</li><li><code>switchaudio-osx</code> — 출력 장치 전환</li><li><code>ffmpeg</code> — 음성 입력과 음성 답변</li></ul><p>Xenon은 나중에 실패하는 대신 없는 것을 먼저 알려 줍니다.</p>",
+  "f.q.linux": "Linux에는 어떻게 설치하나요?",
+  "f.a.linux": "<p><strong>AppImage</strong>를 받아 실행 권한을 주고 실행하거나 <strong>.deb</strong>를 설치하세요. 처음 실행하면 직접 보고 중단할 수 있는 터미널 창에서 대시보드 설치를 제안하며, 무엇을 풀기 전에 프로젝트 키로 다운로드를 먼저 검증합니다.</p><p>패키지가 이 과정을 대신하지 않는 것은 의도적입니다. 설치가 만드는 모든 것은 한 사용자 계정에 속하는데, 패키지는 머신 전체를 대상으로 root 권한으로 설치되기 때문입니다. 앱을 아예 쓰지 않겠다면 <a href='https://github.com/marcimastro98/Xenon/releases/latest' target='_blank' rel='noopener'>Releases</a>에서 소스 zip을 받아 <code>./INSTALL.sh</code>를 실행하세요.</p><p><code>nodejs npm unzip</code>이 필요합니다. 선택 사항은 기능별로 <code>wireplumber</code>(볼륨, 마이크, 앱별 믹서), <code>wmctrl</code>과 <code>x11-utils</code>(앱 전환기), <code>playerctl</code>(즉각적인 재생 정보), <code>ffmpeg</code>(음성)입니다. <code>npm run doctor</code>를 실행하면 무엇이 없고 각각 무엇을 켜 주는지 알려 줍니다.</p>",
+  "f.q.beta": "macOS와 Linux에서 베타는 실제로 무슨 뜻인가요?",
+  "f.a.beta": "<p>대시보드는 같은 제품입니다. 위젯도, 스토어도, 테마도, 연동도, 휴대폰 접속도 같습니다. 다른 것은 기기를 읽어 오는 계층이라 일부 센서와 시스템 동작이 아직 없거나 다르게 동작합니다.</p><p>중요한 것은 아무것도 되는 척하지 않는다는 점입니다. 해당 플랫폼에 데이터 소스가 없는 타일은 영원히 로딩하는 대신 한 줄로 그렇다고 말하고, 플랫폼이 수행할 수 없는 Deck 키는 제공했다가 실패하는 대신 아예 숨깁니다.</p>",
+
+  "f.q.installer": "설치 프로그램은 실제로 무엇을 하나요?",
+  "f.a.installer": "<p>Windows에서는 앱을 설치하고, 대시보드 엔진을 <code>%LOCALAPPDATA%\\Xenon</code> 아래에 설치하고, Node.js가 없으면 설치하고, 로그인할 때 대시보드가 시작되도록 작업을 등록합니다. 선택적인 구성 요소도 받아 옵니다. 온도를 위한 FFmpeg, LibreHardwareMonitor, PawnIO와 실제 게임 내 FPS를 위한 PresentMon입니다.</p><p><strong>숨어서 도는 것은 없습니다.</strong> 설치 프로그램 자체는 앱을 설치하고 여는 일만 하며, 대시보드 쪽은 그 뒤에 앱이 제안하고 사용자가 지켜보고 중단할 수 있는 콘솔 창에서 실행됩니다. 예전 버전은 이 작업을 백그라운드에서 조용히 했는데, 그것이 바로 서명되지 않은 설치 파일을 격리시키는 전형적인 형태라서 없앴습니다.</p>",
+  "f.q.autostart": "PC를 켜면 같이 시작되나요? 끌 수 있나요?",
+  "f.a.autostart": "<p>네, 로그인할 때 시작하므로 자리에 앉았을 때 대시보드가 이미 살아 있습니다. 시스템 서비스가 아니라 사용자 세션 안에서 도는데, 이는 의도적입니다. 세션 밖에서는 오디오 장치 목록도, 창 목록도, 마이크도 없고 앱을 열 방법도 없어서 기능의 절반이 조용히 멈춥니다.</p><p>시작 항목을 없애려면 Windows에서는 <code>UNINSTALL.bat</code>, macOS에서는 <code>UNINSTALL.command</code>, Linux에서는 <code>./UNINSTALL.sh</code>를 실행하세요.</p>",
+  "f.q.update": "어떻게 업데이트하나요?",
+  "f.a.update": "<p>Xenon은 스스로 업데이트합니다. 새 릴리스가 나오면 대시보드에 알림이 뜨고, 한 번 누르면 내려받아 무엇을 풀기 <em>전에</em> 서명을 확인한 뒤 엔진을 먼저, 그다음 앱을 설치합니다. 문제가 생기면 이전 버전을 자동으로 되돌립니다. 설정, 레이아웃, 메모는 항상 유지되고 옛 버전이 남긴 파일은 정리됩니다.</p>",
+  "f.q.uninstall": "어떻게 제거하나요?",
+  "f.a.uninstall": "<p>Windows에서는 <code>UNINSTALL.bat</code>, macOS에서는 <code>UNINSTALL.command</code>, Linux에서는 <code>./UNINSTALL.sh</code>를 실행하세요. 세 가지 모두 <code>--purge-data</code>를 붙이지 않는 한 설정, 레이아웃, 메모는 그대로 둡니다. 데이터 폴더를 지우면 스토어 평가가 한 번만 반영되도록 쓰는 임의의 id를 포함해 Xenon이 저장한 모든 것이 사라집니다.</p>",
+  "f.q.admin": "왜 관리자 권한을 요구하나요?",
+  "f.a.admin": "<p>설치할 때 한 번, 두 가지 때문입니다. CPU와 디스크 온도 읽기 설정(드라이버 수준 구성 요소가 필요한 LibreHardwareMonitor와 PawnIO), 그리고 시작 작업 등록입니다. 거부해도 나머지는 그대로 동작하고 온도만 나오지 않습니다. 이후 Xenon은 관리자 권한으로 실행되지 않습니다.</p>",
+  "f.q.port": "포트 3030이 이미 사용 중이라고 나옵니다",
+  "f.a.port": "<p>거의 항상 대시보드가 이미 실행 중이라는 뜻이고, 사실 그게 원하던 상태입니다. <code>http://127.0.0.1:3030/</code>을 열면 거기 있습니다. 다른 프로그램이 그 포트를 쓰고 있다면 <code>server/server.js</code>에서 바꾸세요.</p>",
+
+  "f.q.phone": "정말 휴대폰을 화면으로 쓸 수 있나요?",
+  "f.a.phone": "<p>네, 그리고 원격 조종기가 아니라 여러분의 대시보드입니다. 레이아웃도, 위젯도, 테마도 같고 Deck 키는 실제로 PC에서 실행됩니다. 계정도, 클라우드도, 설치할 것도 없고, 집 Wi-Fi에서는 아무것도 홈 네트워크를 벗어나지 않습니다. 30초 정도면 됩니다. <a href='phone.html'>휴대폰 가이드</a>에 집에서 쓰는 방법과 밖에서 쓰는 방법이 모두 있습니다.</p>",
+  "f.q.browser": "꼭 앱을 써야 하나요?",
+  "f.a.browser": "<p>아닙니다. 앱은 대시보드를 감싼 창일 뿐이고, 대시보드는 로컬 웹 페이지입니다. 어떤 브라우저에서든, 어떤 모니터에서든 <code>http://127.0.0.1:3030/</code>을 열면 됩니다. 터치스크린에서는 게임 중에도 안전한 터치와 트레이 아이콘이 있어 앱이 낫습니다. iCUE 안에서는 같은 주소를 가리키는 iFrame 위젯도 동작합니다.</p>",
+  "f.q.ai": "AI를 쓰려면 API 키가 필요한가요?",
+  "f.a.ai": "<p>클라우드 제공자를 쓸 때만 필요하고, Gemini 키는 무료로 만들 수 있습니다. Xenon의 나머지 기능은 키 없이 동작합니다.</p><p>완전히 로컬로 쓰는 방법도 있습니다. 대화는 Ollama, 음성은 Whisper를 설정에서 필요할 때 설치하면 되고, 아무것도 PC를 떠나지 않습니다. 클라우드 제공자를 고르면 프롬프트는 그 제공자의 약관에 따라 전송되며, Xenon은 사용자가 고르지 않은 모델에 무언가를 보내는 일이 절대 없습니다.</p>",
+  "f.q.temp": "CPU 온도가 나오지 않습니다",
+  "f.a.temp": "<p>설치 프로그램을 다시 실행하고 관리자 권한 요청을 수락하세요. 그래야 LibreHardwareMonitor와 PawnIO를 설치하고 권한이 필요한 시작 작업을 등록할 수 있습니다. 일부 노트북과 메인보드는 센서를 전혀 노출하지 않는데, 그럴 때는 지어낸 숫자를 보여 주는 대신 타일이 그렇다고 알려 줍니다.</p>",
+  "f.q.make": "위젯이나 테마를 직접 만들 수 있나요?",
+  "f.a.make": "<p>네, 그리고 대부분은 코드가 필요 없습니다. 테마, 레이아웃, 앰비언트 장면, Deck 프로필은 앱 안에서 만들고 누구나 가져올 수 있는 코드로 공유합니다. 위젯은 샌드박스에서 실행되는 작은 HTML, CSS, JavaScript 패키지이며 센서와 동작을 위한 브리지가 문서화되어 있습니다.</p><p><a href='create/'>크리에이터 가이드</a>부터 보시고, <a href='catalog/'>카탈로그</a>에서 다른 사람들이 만든 것을 볼 수 있습니다.</p>",
+  "f.q.rgb": "RGB 조명도 제어하나요?",
+  "f.a.rgb": "<p>네. CORSAIR 장치는 iCUE를 통해, 그리고 WLED, OpenRGB, Philips Hue, Nanoleaf는 네트워크로 직접 제어합니다. 온도나 재생 중인 음악에 반응하게 할 수도 있고, 고른 색 하나를 그대로 유지할 수도 있습니다. 선택 사항이며 설정하기 전까지는 꺼져 있습니다.</p>",
+
+  "f.q.data": "Xenon이 제 데이터를 어딘가로 보내나요?",
+  "f.a.data": "<p>설정, 메모, 할 일, 일정, 덱, 검색어, 파일 인덱스는 PC에 남습니다. 앱 안에는 분석 SDK도, 크래시 리포터도, 행동 추적도 없습니다.</p><p>그렇다고 완전한 오프라인도 아니며, 그렇다고 말하는 쪽이 오히려 정직하지 않은 설명입니다. 업데이트를 확인하고, 날씨나 음악 API 같은 기능을 켜면 해당 서비스에 연결합니다. <a href='privacy.html'>개인정보 페이지</a>에 앱이 할 수 있는 모든 통신과 그 계기, 정확히 무엇을 보내는지가 빠짐없이 적혀 있습니다.</p>",
+  "f.q.account": "계정이 필요한가요?",
+  "f.a.account": "<p>아닙니다. Xenon 계정도, 로그인도 없고, 사용자와 대시보드 사이에 제 서버가 끼어들지도 않습니다. Spotify나 Twitch처럼 직접 설정하는 연동은 각자의 자격 증명을 쓰며 설정하기 전까지는 아무 동작도 하지 않습니다.</p>",
+
+  "f.q.commercial": "회사에서, 또는 제 제품 안에서 쓸 수 있나요?",
+  "f.a.commercial": "<p>개인적인 사용은 무료이며, 일하는 데 쓰는 PC에서 써도 됩니다. 판매하거나, 상업용 제품에 넣거나, 자기 작업물로 재배포하거나, Xenon이라는 이름을 다른 곳에 쓰려면 먼저 서면 허가가 필요합니다.</p><p>생각하고 있는 사례가 있다면 물어보세요. <a href='mailto:marcellomastroeni4@gmail.com'>메일</a>이나 Discord로 이야기하면 됩니다. 조건을 붙여 허락되는 경우가 많습니다.</p>",
+  "f.q.help": "어디서 도움을 받나요?",
+  "f.a.help": "<p><a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a>가 가장 빠르고, 실제로 대부분의 문제가 거기서 진단됩니다. 재현되는 문제라면 사용 환경과 무엇을 했고 무엇이 일어났는지 적은 <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>GitHub 이슈</a>가 가장 도움이 됩니다. 둘 다 같은 한 사람이 읽습니다.</p>",
+  "f.q.support": "프로젝트를 어떻게 응원할 수 있나요?",
+  "f.a.support": "<p>마음이 있다면 <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener'>커피</a> 한 잔이요. 후원자에게는 Discord 역할과 Hall of Supporters의 자리가 주어집니다.</p><p>무료인 것들도 그만큼 도움이 됩니다. <a href='https://github.com/marcimastro98/Xenon' target='_blank' rel='noopener'>GitHub</a> 별 하나, 자세한 버그 리포트, <a href='catalog/'>카탈로그</a>에 공유한 위젯이나 테마, 또는 남는 화면이 있는 사람에게 이런 게 있다고 알려 주는 일 같은 것들입니다.</p>"
+ },
+
+ "ja": {
+  "f.nav.back": "← サイトに戻る",
+  "f.h1": "よくある質問",
+  "f.lede": "実際によく届く質問と、その正直な答えです。ここにないことは Discord で聞くのがいちばん早いです。",
+  "f.updated": "最終更新: 2026年7月30日",
+  "f.s1": "インストールの前に",
+  "f.s2": "Windows がウイルスだと言うとき",
+  "f.s3": "macOS と Linux",
+  "f.s4": "インストール、起動、更新",
+  "f.s5": "Xenon を使う",
+  "f.s6": "プライバシーと信頼",
+  "f.s7": "ライセンス、費用、サポート",
+  "f.warn.t": "要点",
+  "f.warn.p": "Xenon にはまだコード署名がなく、Windows はダウンロード数の少ない未署名のインストーラーを「未知のもの」として扱います。そのため三つの別々のシステムから三つの別々の警告が出て、対処もそれぞれ違います。どれも本物のマルウェアを検出したわけではありませんし、私の言葉を信じる必要もありません。すべてのリリースには自分で確認できるハッシュが付いています。",
+  "f.stuck.t": "まだ解決しませんか",
+  "f.stuck.p": "<a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> で聞いてください。繰り返し出てくる質問はこのページに追加されるので、質問すること自体が役に立ちます。",
+
+  "f.q.edge": "CORSAIR Xeneon Edge は必要ですか",
+  "f.a.edge": "<p>いいえ。Xenon はあの画面を念頭に作られましたが、Edge は動作する画面のひとつであって製品そのものではありません。余っているモニター、机に立てかけた古いタブレット、タッチスクリーン、メイン画面のウィンドウ、ポケットのスマホでも同じように動きます。空いている画面がまったくないなら <a href='phone.html'>スマホを使ってください</a>。自宅の Wi-Fi で30秒ほど、しかも得られるのはリモコンではなく本物のダッシュボードです。</p>",
+  "f.q.free": "本当に無料ですか",
+  "f.a.free": "<p>はい。有料版も、体験版も、アカウントも、広告もなく、存在しない上位プランのために機能を出し惜しみすることもありません。ライセンスは独自の非商用ライセンスです。個人利用は無料で、ソースを読み、実行し、改変できます。書面での許可が必要なのは、販売すること、商用製品に組み込むこと、自分の作品として再配布すること、Xenon の名前を別の製品に使うことです。</p><p>お礼を伝えたいなら <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener'>コーヒーのボタン</a> があります。本当にそれだけです。</p>",
+  "f.q.os": "どの OS で動きますか",
+  "f.a.os": "<p>Windows 10 と 11（64ビット）、macOS 11 以降（Apple Silicon と Intel 共通のユニバーサル版がひとつ）、Linux（64ビット）です。</p><p><strong>macOS と Linux はベータです。</strong> ダッシュボード、ウィジェット、ストア、各種連携は三つとも同じで、まだ違うのはマシン自体を読み取る層です。<a href='https://github.com/marcimastro98/Xenon#platform-support' target='_blank' rel='noopener'>プラットフォーム表</a>に、どの機能がどこで動くかが正確に書いてあります。</p>",
+  "f.q.corsair": "CORSAIR の PC や iCUE は必要ですか",
+  "f.a.corsair": "<p>いいえ。Xenon はどの PC でも動き、CORSAIR のハードもソフトも必要ありません。iCUE が関係するのは任意の二つだけです。ダッシュボードを iCUE の iFrame ウィジェットの中に置きたい場合と、CORSAIR の RGB 機器を制御する場合です。それ以外はすべて無関係です。</p>",
+
+  "f.q.defender": "Windows Defender が Xenon を検出して、消えてしまいました",
+  "f.a.defender": "<p>誤検出です。そして私のところに届く相談で最も多いものでもあります。検出名はたいてい <code>!cl</code> で終わります。これは既知のマルウェアと定義ファイルが一致したのではなく、Defender のクラウド機械学習モデルが下した判定だという意味です。新しいリリースのたびに評価がリセットされるので、バージョンによって出たり出なかったりします。</p><p>インストールを元に戻すには:</p><ol><li><strong>Windows セキュリティ &rarr; ウイルスと脅威の防止 &rarr; 保護の履歴</strong> を開き、Xenon の項目を探して <strong>操作 &rarr; 復元</strong> を選びます。</li><li>再発しないように除外を追加します。<strong>設定の管理 &rarr; 除外 &rarr; 除外の追加 &rarr; フォルダー</strong> で <code>%LOCALAPPDATA%\\Xenon</code> を追加してください。</li></ol>",
+  "f.q.download": "ブラウザーがダウンロードを拒否する、またはウイルスがあると言います",
+  "f.a.download": "<p>原因は同じで、止めている相手が違います。ブラウザー自身の評価チェックで、Chrome なら Google セーフ ブラウジング、Edge なら SmartScreen です。<code>Ctrl+J</code> でダウンロード一覧を開き、中止されたファイルで <strong>保持する</strong> を選んでください。その後インストーラーの実行時に SmartScreen が警告したら、<strong>詳細情報</strong> をクリックして <strong>実行</strong> を選びます。</p>",
+  "f.q.verify": "ただ信じるのではなく、安全だとどう確かめますか",
+  "f.a.verify": "<p>ご自身で確かめてください。ぜひそうしてほしいです。すべてのリリースには、プロジェクトの鍵で署名された <code>SHA256SUMS</code> ファイルが付いています。PowerShell で:</p><p><code>Get-FileHash .\\Xenon-Setup-x64.exe -Algorithm SHA256</code></p><p>結果を、そのリリースの <code>SHA256SUMS</code> にある <code>Xenon-Setup-x64.exe</code> の行と比べてください。一致すれば、そのファイルは GitHub Actions がそのタグの公開ソースからビルドしたものとバイト単位で同一で、そのソースは1行残らず <a href='https://github.com/marcimastro98/Xenon' target='_blank' rel='noopener'>GitHub</a> で読めます。<a href='https://www.virustotal.com/' target='_blank' rel='noopener'>VirusTotal</a> にアップロードしても構いません。数個のエンジンだけが反応して残りがクリーンなら、それはマルウェアの姿ではなく評価不足の姿です。</p><p><strong>警告を無視してよいのは、公式の <a href='https://github.com/marcimastro98/Xenon/releases/latest' target='_blank' rel='noopener'>Releases ページ</a> から入手し、ハッシュを確認したファイルだけです。</strong> 警告を無視させようとするのは本物のマルウェアがすることであり、その二つを見分けてくれるのがハッシュです。</p>",
+  "f.q.sac": "Xenon がまったく起動せず、Defender は何も言っていません",
+  "f.a.sac": "<p>Windows 11 ではたいてい <strong>スマート アプリ コントロール</strong> です。ウイルス対策とは別の仕組みです。<strong>Windows セキュリティ &rarr; アプリとブラウザーの制御 &rarr; スマート アプリ コントロール</strong> を確認してください。</p><p>まだ信頼していないアプリはすべてブロックし、その判断はウイルス対策が関与する前に行われます。ですから上の除外設定は効きませんし、オンのままアプリを1つだけ許可する方法もありません。Windows 11 をクリーンインストールしたときだけ自動で有効になるため、入れ直したばかりの PC には現れ、アップグレードした PC には現れません。選べるのは、Windows が使い方を見て有効のままにするか自分で判断する <strong>評価</strong> モードと、<strong>オフ</strong> の二つです。</p><p><strong>変更する前に知っておいてください。スマート アプリ コントロールをオフにすると元に戻せません。</strong> PC をリセットまたは再インストールしない限り、Windows は再び有効にさせてくれません。これは Microsoft の設計であり、Xenon 側で回避できるものではありません。オンのままにしたい場合、今日の正直な答えは、その PC では Xenon を動かせない、です。</p>",
+  "f.q.sign": "では、なぜ署名しないのですか",
+  "f.a.sign": "<p>コード署名証明書は身元確認を伴う有料の商品で、毎年更新が必要です。Xenon は一人で作っている無料のプロジェクトです。このページのすべての警告に対する本当の解決策であり、予定には入っています。</p><p>それまでの間、何よりも効くことが一つあります。Defender がダウンロードを検出したら、<a href='https://www.microsoft.com/en-us/wdsi/filesubmission' target='_blank' rel='noopener'>microsoft.com/wdsi/filesubmission</a> で誤検出として報告してください。<em>Home customer</em> を選び、<em>Incorrectly detected as malware</em> を選ぶだけです。2分で終わり、実ユーザーからの報告は重みがあり、たいてい数日で全員から検出が取り下げられます。</p>",
+
+  "f.q.gatekeeper": "macOS が「Apple が確認できないため開けません」と言います",
+  "f.a.gatekeeper": "<p>今は想定どおりです。アプリは公証（notarize）されておらず、公証にはこのプロジェクトにはない有料の Apple Developer メンバーシップが必要です。</p><p><strong>macOS 15 以降</strong> では <strong>システム設定 &rarr; プライバシーとセキュリティ</strong> を開き、いちばん下までスクロールして Xenon の横の <strong>このまま開く</strong> を押してください。Apple は以前の右クリックの方法を廃止しました。<strong>macOS 11〜14</strong> では、アプリを右クリックして <strong>開く</strong>、もう一度 <strong>開く</strong> で大丈夫です。どちらもバージョンごとに1回だけです。</p>",
+  "f.q.fda": "macOS でディスクウィジェットのゴミ箱が 0 B と表示されます",
+  "f.a.fda": "<p>ゴミ箱と <code>~/Library/Caches</code> の大半は <strong>フルディスクアクセス</strong> の内側にあり、macOS はこの権限をアプリごとに与えます。権限がないと、それらのフォルダーは拒否されたのではなく空に見えるため、エラーも出ないままディスクの内訳が少なく集計されます。</p><p><strong>システム設定 &rarr; プライバシーとセキュリティ &rarr; フルディスクアクセス</strong> を開き、<strong>+</strong> を押してアプリケーションから <strong>Xenon</strong> を選び、スイッチがオンになっていることを確認してから、Xenon を終了して開き直してください。</p><p><strong>アプリに署名が付くまでは、更新のたびにやり直す必要があります。</strong> macOS はこの権限をコード署名に結び付けますが、未署名のビルドはリリースごとに新しい署名になるため、許可が静かに効かなくなります。すでに一覧にある場合はスイッチをオフにしてオンに戻し、それでだめなら <strong>&minus;</strong> で削除して追加し直してください。</p>",
+  "f.q.brew": "macOS には何をインストールすればいいですか",
+  "f.a.brew": "<p>必須は <strong>Node.js</strong> だけで、なければ Xenon が教えてくれます: <code>brew install node</code>。あとは任意で、それぞれ一つの機能を有効にします。</p><ul><li><code>vladkens/tap/macmon</code> — 温度と GPU 使用率</li><li><code>switchaudio-osx</code> — 出力デバイスの切り替え</li><li><code>ffmpeg</code> — 音声入力と読み上げ</li></ul><p>Xenon は後で失敗する代わりに、足りないものを先に伝えます。</p>",
+  "f.q.linux": "Linux ではどうインストールしますか",
+  "f.a.linux": "<p><strong>AppImage</strong> をダウンロードして実行権限を付けて起動するか、<strong>.deb</strong> を使ってください。初回起動時に、自分で読んで中断できるターミナルウィンドウでダッシュボードのセットアップを提案し、何かを展開する前にプロジェクトの鍵でダウンロードを検証します。</p><p>パッケージがそれを代わりにやらないのは意図的です。インストールが作るものはすべて一人のユーザーアカウントに属しますが、パッケージはマシン全体に対して root として入るからです。アプリ自体が不要なら、<a href='https://github.com/marcimastro98/Xenon/releases/latest' target='_blank' rel='noopener'>Releases</a> からソースの zip を取得して <code>./INSTALL.sh</code> を実行してください。</p><p>必要なのは <code>nodejs npm unzip</code> です。任意のものは機能ごとに <code>wireplumber</code>（音量、マイク、アプリ別ミキサー）、<code>wmctrl</code> と <code>x11-utils</code>（アプリスイッチャー）、<code>playerctl</code>（再生情報の即時更新）、<code>ffmpeg</code>（音声）です。<code>npm run doctor</code> を実行すると、何が足りず、それぞれ何を有効にするかを教えてくれます。</p>",
+  "f.q.beta": "macOS と Linux のベータとは実際どういう意味ですか",
+  "f.a.beta": "<p>ダッシュボードは同じ製品です。ウィジェットもストアもテーマも連携もスマホからのアクセスも同じです。違うのはマシンを読み取る層で、一部のセンサーやシステム操作がまだない、あるいは挙動が異なります。</p><p>大事なのは、動くふりをするものが何もないことです。そのプラットフォームにデータ源がないタイルは、いつまでも読み込むのではなく一行でそう伝え、そのプラットフォームで実行できない Deck キーは、提示してから失敗するのではなく最初から隠されます。</p>",
+
+  "f.q.installer": "インストーラーは実際に何をしますか",
+  "f.a.installer": "<p>Windows では、アプリをインストールし、ダッシュボードのエンジンを <code>%LOCALAPPDATA%\\Xenon</code> の下に入れ、Node.js がなければ入れ、ログイン時にダッシュボードが起動するタスクを登録します。任意の部品も取得します。温度用の FFmpeg、LibreHardwareMonitor、PawnIO と、ゲーム中の実 FPS 用の PresentMon です。</p><p><strong>隠れて動くものはありません。</strong> セットアップ自体はアプリを入れて開くだけで、ダッシュボード側はその後アプリが提案し、見て中断できるコンソールウィンドウで実行されます。以前のバージョンはこれをバックグラウンドで黙って行っていましたが、それこそ未署名のインストーラーが隔離される典型的な形なので廃止しました。</p>",
+  "f.q.autostart": "PC の起動と一緒に立ち上がりますか。止められますか",
+  "f.a.autostart": "<p>はい、ログイン時に起動するので、席に着いたときにはダッシュボードがもう動いています。システムサービスではなくユーザーのセッション内で動くのは意図的で、セッションの外にはオーディオデバイス一覧もウィンドウ一覧もマイクもなく、アプリを開く手段もないため、機能の半分が静かに動かなくなるからです。</p><p>自動起動を外すには、Windows なら <code>UNINSTALL.bat</code>、macOS なら <code>UNINSTALL.command</code>、Linux なら <code>./UNINSTALL.sh</code> を実行してください。</p>",
+  "f.q.update": "どうやって更新しますか",
+  "f.a.update": "<p>Xenon は自分で更新します。新しいリリースが出るとダッシュボードに通知が出て、一度タップすればダウンロードし、何かを展開する<em>前に</em>署名を検証し、エンジン、続いてアプリの順に入れます。途中で失敗したら自動的に前のバージョンに戻します。設定、レイアウト、メモは常に保持され、古いバージョンの残骸は片付けられます。</p>",
+  "f.q.uninstall": "アンインストールはどうしますか",
+  "f.a.uninstall": "<p>Windows では <code>UNINSTALL.bat</code>、macOS では <code>UNINSTALL.command</code>、Linux では <code>./UNINSTALL.sh</code> を実行します。<code>--purge-data</code> を付けない限り、三つとも設定、レイアウト、メモには手を触れません。データフォルダーを削除すると、ストアの評価が一度だけ数えられるように使うランダムな id を含め、Xenon が保存したものはすべて消えます。</p>",
+  "f.q.admin": "なぜ管理者権限を求めるのですか",
+  "f.a.admin": "<p>インストール時に一度だけ、二つの理由でです。CPU とディスクの温度読み取りの準備（ドライバーレベルの部品が必要な LibreHardwareMonitor と PawnIO）と、起動タスクの登録です。断っても他はすべて動き、温度が出ないだけです。その後 Xenon が管理者権限で動くことはありません。</p>",
+  "f.q.port": "ポート 3030 はすでに使用中と表示されます",
+  "f.a.port": "<p>ほとんどの場合、ダッシュボードがすでに動いているというだけで、実はそれが望んでいた状態です。<code>http://127.0.0.1:3030/</code> を開けばそこにあります。別のソフトがそのポートを使っているなら、<code>server/server.js</code> で変更してください。</p>",
+
+  "f.q.phone": "本当にスマホを画面として使えますか",
+  "f.a.phone": "<p>はい。しかもリモコンではなくあなたのダッシュボードです。レイアウトもウィジェットもテーマも同じで、Deck キーは実際に PC 上で実行されます。アカウントもクラウドもインストールも不要で、自宅の Wi-Fi なら何も家庭内ネットワークの外に出ません。30秒ほどで終わります。<a href='phone.html'>スマホ向けガイド</a> に、自宅で使う方法と外から使う方法の両方があります。</p>",
+  "f.q.browser": "アプリを使わないとだめですか",
+  "f.a.browser": "<p>いいえ。アプリはダッシュボードを包むウィンドウで、ダッシュボード自体はローカルの Web ページです。どのブラウザーでも、どのモニターでも <code>http://127.0.0.1:3030/</code> を開けば使えます。タッチスクリーンではゲーム中も安全なタッチとトレイアイコンが付くのでアプリが便利です。iCUE の中なら、同じアドレスを指す iFrame ウィジェットでも動きます。</p>",
+  "f.q.ai": "AI を使うのに API キーは必要ですか",
+  "f.a.ai": "<p>クラウドのプロバイダーを使う場合だけで、Gemini のキーは無料で作れます。Xenon の他の機能はキーなしで動きます。</p><p>完全にローカルで動かす選択肢もあります。会話は Ollama、音声は Whisper を設定から必要に応じて導入でき、何も PC の外に出ません。クラウドのプロバイダーを選んだ場合、プロンプトはそのプロバイダーの規約のもとで送られ、Xenon が自分で選んでいないモデルに何かを送ることは決してありません。</p>",
+  "f.q.temp": "CPU の温度が表示されません",
+  "f.a.temp": "<p>インストーラーをもう一度実行し、管理者の確認を承認してください。そうすれば LibreHardwareMonitor と PawnIO を入れ、権限付きの起動タスクを登録できます。ノート PC やマザーボードによってはセンサーがまったく公開されておらず、その場合は作り話の数値を出す代わりに、タイルがそう表示します。</p>",
+  "f.q.make": "自分でウィジェットやテーマを作れますか",
+  "f.a.make": "<p>はい、しかも大半はコードなしでできます。テーマ、レイアウト、アンビエントシーン、Deck プロファイルはアプリの中で作り、誰でも取り込めるコードとして共有します。ウィジェットはサンドボックスで動く小さな HTML・CSS・JavaScript のパッケージで、センサーや操作のためのブリッジが文書化されています。</p><p><a href='create/'>クリエイターガイド</a> が出発点で、<a href='catalog/'>カタログ</a> には他の人が作ったものがあります。</p>",
+  "f.q.rgb": "RGB ライティングも制御しますか",
+  "f.a.rgb": "<p>はい。CORSAIR 機器は iCUE 経由で、さらに WLED、OpenRGB、Philips Hue、Nanoleaf はネットワーク越しに直接制御します。温度や再生中の曲に反応させることも、選んだ色のまま留めることもできます。任意の機能で、設定するまではオフのままです。</p>",
+
+  "f.q.data": "Xenon は私のデータをどこかに送りますか",
+  "f.a.data": "<p>設定、メモ、タスク、予定、デッキ、検索した語句、ファイルの索引は PC に残ります。アプリの中に分析 SDK もクラッシュレポーターも行動追跡もありません。</p><p>とはいえ完全なオフラインでもなく、そう言い切るほうが不誠実です。更新を確認しますし、天気や音楽 API といった機能をオンにすればそのサービスに接続します。<a href='privacy.html'>プライバシーのページ</a> に、アプリが行いうる通信、そのきっかけ、送る内容が漏れなく書いてあります。</p>",
+  "f.q.account": "アカウントは必要ですか",
+  "f.a.account": "<p>いいえ。Xenon のアカウントもログインもなく、あなたと自分のダッシュボードの間に私のサーバーが入ることもありません。Spotify や Twitch のように自分で設定する連携は、それぞれの資格情報を使い、設定するまでは何もしません。</p>",
+
+  "f.q.commercial": "仕事で、あるいは自分の製品の中で使えますか",
+  "f.a.commercial": "<p>個人利用は無料で、たまたま仕事に使っている PC でも構いません。販売すること、商用製品に組み込むこと、自分の作品として再配布すること、Xenon の名前を別のものに使うことには、事前の書面での許可が必要です。</p><p>考えている用途があれば聞いてください。<a href='mailto:marcellomastroeni4@gmail.com'>メール</a> でも Discord でも構いません。条件付きで「はい」になることは多いです。</p>",
+  "f.q.help": "どこで助けを求められますか",
+  "f.a.help": "<p><a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> がいちばん早く、実際に多くの問題はそこで切り分けられています。再現するものなら、環境と、何をして何が起きたかを書いた <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>GitHub の issue</a> がいちばん助かります。どちらも同じ一人が読んでいます。</p>",
+  "f.q.support": "プロジェクトを応援するには",
+  "f.a.support": "<p>気が向いたら <a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener'>コーヒー</a> を。支援してくれた方には Discord のロールと Hall of Supporters の席があります。</p><p>無料でできることも同じくらい助かります。<a href='https://github.com/marcimastro98/Xenon' target='_blank' rel='noopener'>GitHub</a> のスター、具体的なバグ報告、<a href='catalog/'>カタログ</a> で共有したウィジェットやテーマ、あるいは画面が余っている人にこれを教えてあげることなどです。</p>"
+ },
+
+ "zh": {
+  "f.nav.back": "← 返回网站",
+  "f.h1": "常见问题",
+  "f.lede": "这些是大家真正会来问的问题，以及诚实的回答。如果这里没有你的问题，去 Discord 问是最快的。",
+  "f.updated": "最后更新：2026年7月30日",
+  "f.s1": "安装之前",
+  "f.s2": "当 Windows 说它是病毒",
+  "f.s3": "macOS 和 Linux",
+  "f.s4": "安装、启动、更新",
+  "f.s5": "使用 Xenon",
+  "f.s6": "隐私与信任",
+  "f.s7": "许可、费用与帮助",
+  "f.warn.t": "简短版本",
+  "f.warn.p": "Xenon 还没有代码签名，而 Windows 会把一个没人下载过的未签名安装程序当成未知来源。于是三个不同的系统会给出三种不同的警告，处理办法也各不相同。它们都不是真的检测到恶意软件，你也不必只听我说：每个版本都会附带你可以自己核对的哈希值。",
+  "f.stuck.t": "还是卡住了？",
+  "f.stuck.p": "去 <a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> 问。反复出现的问题会被加进这一页，所以提问本身就很有用。",
+
+  "f.q.edge": "一定要有 CORSAIR Xeneon Edge 吗？",
+  "f.a.edge": "<p>不需要。Xenon 最初是围绕那块屏幕设计的，但 Edge 只是它能运行的其中一块屏幕，而不是产品本身。多余的显示器、放在桌上的旧平板、触摸屏、主屏上的一个窗口，或者你口袋里的手机，效果都一样。如果你完全没有多余的屏幕，就<a href='phone.html'>用手机</a>：在自家 Wi-Fi 下大约三十秒，而且你得到的是真正的仪表盘，不是遥控器。</p>",
+  "f.q.free": "真的免费吗？",
+  "f.a.free": "<p>是的。没有付费版，没有试用期，没有账号，没有广告，也没有为某个并不存在的档位留着不给的功能。许可是自定义的非商业许可：个人使用免费，你可以阅读、运行和修改源码。需要书面许可的是：出售它、把它放进商业产品、以自己的作品名义再分发，或把 Xenon 这个名字用在别的东西上。</p><p>如果你想表达感谢，有一个<a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener'>请我喝咖啡的按钮</a>，真的就只是这样。</p>",
+  "f.q.os": "支持哪些系统？",
+  "f.a.os": "<p>Windows 10 和 11（64 位）、macOS 11 或更高（Apple Silicon 与 Intel 共用一个通用版下载）、以及 Linux（64 位）。</p><p><strong>macOS 和 Linux 处于 Beta 阶段。</strong> 仪表盘、组件、商店和各种集成在三个平台上完全一致；仍有差别的是读取机器本身的那一层。<a href='https://github.com/marcimastro98/Xenon#platform-support' target='_blank' rel='noopener'>平台对照表</a>逐项写明了哪项功能在哪里可用。</p>",
+  "f.q.corsair": "需要 CORSAIR 的电脑或 iCUE 吗？",
+  "f.a.corsair": "<p>不需要。Xenon 在任何电脑上都能运行，不需要 CORSAIR 的硬件或软件。iCUE 只和两件可选的事有关：如果你更喜欢把仪表盘放在 iCUE 的 iFrame 组件里，以及控制 CORSAIR 的 RGB 设备。其余部分与它无关。</p>",
+
+  "f.q.defender": "Windows Defender 报了 Xenon，现在它不见了",
+  "f.a.defender": "<p>这是误报，也是大家写信给我最多的一件事。检测名通常以 <code>!cl</code> 结尾，意思是这个判断来自 Defender 的云端机器学习模型，而不是与已知恶意软件的特征匹配。每发布一个新版本，信誉计数就会归零，所以这个报警会随版本出现又消失。</p><p>把安装找回来：</p><ol><li>打开 <strong>Windows 安全中心 &rarr; 病毒和威胁防护 &rarr; 保护历史记录</strong>，找到 Xenon 那一条，选择 <strong>操作 &rarr; 还原</strong>。</li><li>加一个排除项，避免再次发生：<strong>管理设置 &rarr; 排除项 &rarr; 添加排除项 &rarr; 文件夹</strong>，添加 <code>%LOCALAPPDATA%\\Xenon</code>。</li></ol>",
+  "f.q.download": "浏览器不让我下载，或者说发现了病毒",
+  "f.a.download": "<p>原因相同，拦你的角色不同：这是浏览器自己的信誉检查，Chrome 用 Google 安全浏览，Edge 用 SmartScreen。用 <code>Ctrl+J</code> 打开下载列表，在被取消的文件上选择<strong>保留</strong>或<strong>仍然保留</strong>。之后运行安装程序时如果 SmartScreen 再次提示，点击<strong>更多信息</strong>，再点<strong>仍要运行</strong>。</p>",
+  "f.q.verify": "我怎么确认它安全，而不是只能选择相信你？",
+  "f.a.verify": "<p>自己核对，也希望你真的去核对。每个版本都附带一个用项目密钥签名的 <code>SHA256SUMS</code> 文件。在 PowerShell 里：</p><p><code>Get-FileHash .\\Xenon-Setup-x64.exe -Algorithm SHA256</code></p><p>把结果和该版本 <code>SHA256SUMS</code> 里 <code>Xenon-Setup-x64.exe</code> 那一行对比。如果一致，你手上的文件就与 GitHub Actions 在那个 tag 上从公开源码构建出来的完全逐字节相同，而那份源码的每一行都能在 <a href='https://github.com/marcimastro98/Xenon' target='_blank' rel='noopener'>GitHub</a> 上读到。你也可以把它传到 <a href='https://www.virustotal.com/' target='_blank' rel='noopener'>VirusTotal</a>：只有两三个引擎报警而其余都干净，这是信誉问题的样子，不是恶意软件的样子。</p><p><strong>只有对从官方 <a href='https://github.com/marcimastro98/Xenon/releases/latest' target='_blank' rel='noopener'>Releases 页面</a>下载、并且核对过哈希的文件，才可以绕过警告。</strong> 劝人忽略警告正是真正的恶意软件会做的事，而哈希就是区分这两种情况的东西。</p>",
+  "f.q.sac": "Xenon 根本打不开，而 Defender 什么都没说",
+  "f.a.sac": "<p>在 Windows 11 上，这通常是<strong>智能应用控制</strong>，它和杀毒软件是两套系统。请查看 <strong>Windows 安全中心 &rarr; 应用和浏览器控制 &rarr; 智能应用控制</strong>。</p><p>它会拦下任何它尚未信任的应用，而且这个判断发生在杀毒软件介入之前。所以上面的排除项对它没有作用，也没有办法在保持开启的同时只放行一个应用。它只会在全新安装 Windows 11 时自动开启，因此它出现在刚重装过的电脑上，而不会出现在升级上来的电脑上。剩下两个选项：<strong>评估</strong>模式，由 Windows 观察你的使用方式并自行决定是否继续开启；以及<strong>关闭</strong>。</p><p><strong>改之前请先知道：关闭智能应用控制是一条单行道。</strong> 除非重置或重装电脑，Windows 不会让你再把它打开。这是微软的设计，不是 Xenon 能绕开的。如果你更想保持开启，今天诚实的答案是：那台电脑上没法运行 Xenon。</p>",
+  "f.q.sign": "那为什么不签名？",
+  "f.a.sign": "<p>代码签名证书是需要身份验证的付费产品，每年还要续期，而 Xenon 是一个人做的免费项目。它是本页所有警告的真正解法，也在计划之内。</p><p>在那之前，有一件事最有帮助。如果 Defender 报了你的下载，请到 <a href='https://www.microsoft.com/en-us/wdsi/filesubmission' target='_blank' rel='noopener'>microsoft.com/wdsi/filesubmission</a> 提交误报，选择 <em>Home customer</em>，再选 <em>Incorrectly detected as malware</em>。两分钟就能填完，真实用户的反馈是有分量的，通常几天之内这个报警就会对所有人撤销。</p>",
+
+  "f.q.gatekeeper": "macOS 说无法打开 Xenon，因为 Apple 无法验证它",
+  "f.a.gatekeeper": "<p>目前是预期之内：这个应用没有经过公证（notarize），而公证需要付费的 Apple Developer 会员资格，这个项目没有。</p><p>在 <strong>macOS 15 及更高版本</strong>上，打开<strong>系统设置 &rarr; 隐私与安全性</strong>，滚动到底部，点击 Xenon 旁边的<strong>仍要打开</strong>。Apple 已经取消了以前右键的那种方式。在 <strong>macOS 11 到 14</strong> 上，右键点击应用，选<strong>打开</strong>，再点一次<strong>打开</strong>即可。两种方式都是每个版本只需一次。</p>",
+  "f.q.fda": "在 macOS 上磁盘组件显示废纸篓是 0 B",
+  "f.a.fda": "<p>废纸篓和 <code>~/Library/Caches</code> 的大部分内容在<strong>完全磁盘访问权限</strong>之后，而 macOS 是按应用逐个授予这个权限的。没有它，这些文件夹看起来是空的而不是被拒绝，所以不会报任何错误，磁盘占用统计就悄悄少算了。</p><p>打开<strong>系统设置 &rarr; 隐私与安全性 &rarr; 完全磁盘访问权限</strong>，点 <strong>+</strong>，在“应用程序”里选择 <strong>Xenon</strong>，确认开关是打开的，然后退出 Xenon 再重新打开。</p><p><strong>在应用完成签名之前，每次更新后都要重做一遍。</strong> macOS 把这个权限绑定在代码签名上，而未签名的构建每个版本都会得到新的签名，于是授权会悄无声息地失效。如果列表里已经有 Xenon，把开关关掉再打开；还不行就用 <strong>&minus;</strong> 移除后重新添加。</p>",
+  "f.q.brew": "macOS 上需要装什么？",
+  "f.a.brew": "<p>唯一必需的是 <strong>Node.js</strong>，缺了 Xenon 会告诉你：<code>brew install node</code>。其余都是可选的，每一个只点亮一件事：</p><ul><li><code>vladkens/tap/macmon</code> — 温度和 GPU 占用</li><li><code>switchaudio-osx</code> — 切换输出设备</li><li><code>ffmpeg</code> — 语音输入和语音回复</li></ul><p>Xenon 会先说出你缺哪些，而不是之后才失败。</p>",
+  "f.q.linux": "Linux 上怎么安装？",
+  "f.a.linux": "<p>下载 <strong>AppImage</strong>（加上可执行权限后运行）或者 <strong>.deb</strong>。首次启动时它会在一个你能看见也能中断的终端窗口里提出安装仪表盘，并且在解压任何东西之前先用项目密钥验证下载。</p><p>安装包故意不替你做这件事：安装过程创建的一切都属于某一个用户账号，而软件包是以 root 身份、面向整台机器安装的。如果你根本不想用这个应用，可以从 <a href='https://github.com/marcimastro98/Xenon/releases/latest' target='_blank' rel='noopener'>Releases</a> 下载源码 zip，运行 <code>./INSTALL.sh</code>。</p><p>需要 <code>nodejs npm unzip</code>。可选项各对应一个功能：<code>wireplumber</code>（音量、麦克风、分应用混音）、<code>wmctrl</code> 和 <code>x11-utils</code>（应用切换器）、<code>playerctl</code>（即时的正在播放）、<code>ffmpeg</code>（语音）。运行 <code>npm run doctor</code>，它会告诉你缺了什么、每一项又会点亮什么。</p>",
+  "f.q.beta": "对 macOS 和 Linux 来说，Beta 到底意味着什么？",
+  "f.a.beta": "<p>仪表盘是同一个产品：一样的组件、一样的商店、一样的主题、一样的集成、一样能用手机访问。不同的是读取机器的那一层，所以有些传感器和系统操作还没有，或者行为不同。</p><p>关键在于：没有任何东西假装它在工作。在你的平台上没有数据来源的磁贴会用一句话说明，而不是永远转圈；平台无法执行的 Deck 按键会直接隐藏，而不是先给你、再失败。</p>",
+
+  "f.q.installer": "安装程序到底做了什么？",
+  "f.a.installer": "<p>在 Windows 上，它安装应用，把仪表盘引擎装到 <code>%LOCALAPPDATA%\\Xenon</code> 下，如果你没有 Node.js 就装上，并注册一个任务，让仪表盘在你登录时启动。它还会取回可选组件：用于温度的 FFmpeg、LibreHardwareMonitor 和 PawnIO，以及用于游戏内真实 FPS 的 PresentMon。</p><p><strong>没有任何东西在暗中运行。</strong> 安装程序本身只负责装好应用并打开它；仪表盘那一半由应用随后提出，并在一个你可以看着、也可以中断的控制台窗口里执行。早先的版本是在后台悄悄做这件事的，而这恰恰是让未签名安装程序被隔离的典型形态，所以已经去掉了。</p>",
+  "f.q.autostart": "它会随电脑启动吗？可以关掉吗？",
+  "f.a.autostart": "<p>会，登录时就启动，所以你坐下时仪表盘已经在运行了。它跑在你自己的会话里而不是系统服务里，这是有意为之：会话之外没有音频设备列表、没有窗口列表、没有麦克风，也没有办法打开应用，一半功能会悄悄失效。</p><p>要去掉开机启动项，Windows 上运行 <code>UNINSTALL.bat</code>，macOS 上运行 <code>UNINSTALL.command</code>，Linux 上运行 <code>./UNINSTALL.sh</code>。</p>",
+  "f.q.update": "怎么更新？",
+  "f.a.update": "<p>Xenon 会自己更新。有新版本时仪表盘会提示，点一下就会下载，在解压任何东西<em>之前</em>先验证签名，先装引擎再装应用，中途出问题会自动回退到上一个版本。你的设置、布局和笔记始终保留，旧版本残留的文件也会被清理。</p>",
+  "f.q.uninstall": "怎么卸载？",
+  "f.a.uninstall": "<p>Windows 上运行 <code>UNINSTALL.bat</code>，macOS 上运行 <code>UNINSTALL.command</code>，Linux 上运行 <code>./UNINSTALL.sh</code>。除非加上 <code>--purge-data</code>，这三者都不会动你的设置、布局和笔记。删除数据文件夹会清除 Xenon 保存过的一切，包括用于让商店评分只计一次的那个随机 id。</p>",
+  "f.q.admin": "为什么要管理员权限？",
+  "f.a.admin": "<p>只在安装时要一次，为了两件事：配置 CPU 和硬盘温度读取（LibreHardwareMonitor 和 PawnIO，需要一个驱动级组件），以及注册开机启动任务。拒绝的话其他功能照常，只是没有温度。之后 Xenon 不会以管理员身份运行。</p>",
+  "f.q.port": "提示端口 3030 已被占用",
+  "f.a.port": "<p>几乎总是因为仪表盘已经在运行了，而这本来就是你想要的：打开 <code>http://127.0.0.1:3030/</code> 就在那里。如果是电脑上别的程序占用了这个端口，可以在 <code>server/server.js</code> 里改。</p>",
+
+  "f.q.phone": "真的可以把手机当屏幕用吗？",
+  "f.a.phone": "<p>可以，而且它是你的仪表盘，不是遥控器：一样的布局、一样的组件、一样的主题，Deck 按键真的运行在电脑上。没有账号、没有云、不用装任何东西，在自家 Wi-Fi 下也没有任何数据离开家里的网络。大约三十秒就好。<a href='phone.html'>手机指南</a>里写了两条路线，在家用的和在外面用的。</p>",
+  "f.q.browser": "一定要用那个应用吗？",
+  "f.a.browser": "<p>不用。应用只是包住仪表盘的一个窗口，而仪表盘本身是一个本地网页：在任何浏览器、任何显示器上打开 <code>http://127.0.0.1:3030/</code> 就行。在触摸屏上应用值得装，因为它带来了游戏中也安全的触控和托盘图标。在 iCUE 里，一个指向同一地址的 iFrame 组件同样可用。</p>",
+  "f.q.ai": "用 AI 需要 API 密钥吗？",
+  "f.a.ai": "<p>只有想用云端服务商时才需要，而 Gemini 的密钥可以免费创建。Xenon 的其他功能不需要它也能用。</p><p>还有完全本地的选项：对话用 Ollama，语音用 Whisper，在设置里按需安装，任何东西都不会离开你的电脑。如果你选择了云端服务商，你的提示词会按该服务商的条款发送给它，而 Xenon 绝不会把内容发给你没有选择的模型。</p>",
+  "f.q.temp": "看不到 CPU 温度",
+  "f.a.temp": "<p>重新运行安装程序，并接受管理员提示，这样它才能安装 LibreHardwareMonitor 和 PawnIO 并注册需要权限的启动任务。有些笔记本和主板根本不提供传感器，这种情况下磁贴会直接说明，而不是编一个数字出来。</p>",
+  "f.q.make": "我可以自己做组件和主题吗？",
+  "f.a.make": "<p>可以，而且大部分都不需要写代码。主题、布局、氛围场景和 Deck 配置都在应用里做好，然后以一段任何人都能导入的代码分享出去。组件是运行在沙箱里的小型 HTML、CSS 和 JavaScript 包，读取传感器和执行操作的通道都有文档。</p><p>从<a href='create/'>创作者指南</a>开始，<a href='catalog/'>目录</a>里是别人已经做出来的东西。</p>",
+  "f.q.rgb": "它能控制 RGB 灯光吗？",
+  "f.a.rgb": "<p>可以：CORSAIR 设备通过 iCUE，另外 WLED、OpenRGB、Philips Hue 和 Nanoleaf 直接通过你的网络控制。它可以跟着温度或正在播放的音乐变化，也可以就停在你挑的一个颜色上。这是可选功能，在你配置之前一直是关闭的。</p>",
+
+  "f.q.data": "Xenon 会把我的数据发到什么地方吗？",
+  "f.a.data": "<p>你的设置、笔记、任务、日程、Deck、搜索词和文件索引都留在你的电脑上。应用里没有分析 SDK，没有崩溃上报，也没有行为追踪。</p><p>但它也不是完全离线的，说成完全离线才是不诚实的版本：它会检查更新，也会在你打开天气或音乐 API 这类功能时联系对应的服务。<a href='privacy.html'>隐私页面</a>列出了应用可能发起的每一次请求、触发它的条件以及具体发送的内容，没有省略。</p>",
+  "f.q.account": "需要账号吗？",
+  "f.a.account": "<p>不需要。没有 Xenon 账号，没有登录，你和自己的仪表盘之间也没有我的服务器。像 Spotify 或 Twitch 这些你自己配置的集成，使用它们自己的凭据，在你设置之前一直处于休眠状态。</p>",
+
+  "f.q.commercial": "可以在公司用，或者放进我自己的产品里吗？",
+  "f.a.commercial": "<p>个人使用是免费的，包括你恰好用来工作的那台电脑。出售它、把它打包进商业产品、以自己的作品名义再分发，或者把 Xenon 这个名字用在别处，都需要事先获得书面许可。</p><p>如果你心里有具体的用法，可以来问：<a href='mailto:marcellomastroeni4@gmail.com'>发邮件</a>或者在 Discord 上说一声。答案常常是可以，附带一些条件。</p>",
+  "f.q.help": "去哪里求助？",
+  "f.a.help": "<p><a href='https://discord.gg/MBVrw9kZyg' target='_blank' rel='noopener'>Discord</a> 最快，大部分问题实际上也是在那里被定位的。如果问题可以复现，一个写明系统、你做了什么、发生了什么的 <a href='https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md' target='_blank' rel='noopener'>GitHub issue</a> 是最有用的。两边都是同一个人在看。</p>",
+  "f.q.support": "怎么支持这个项目？",
+  "f.a.support": "<p>如果你愿意，可以<a href='https://www.buymeacoffee.com/marcimastro98' target='_blank' rel='noopener'>请我喝杯咖啡</a>。支持者会得到 Discord 的身份组和 Hall of Supporters 里的一个位置。</p><p>不花钱的事同样有用：在 <a href='https://github.com/marcimastro98/Xenon' target='_blank' rel='noopener'>GitHub</a> 上点个星、写一份有细节的 bug 报告、在<a href='catalog/'>目录</a>里分享一个组件或主题，或者告诉某个有多余屏幕的人这东西存在。</p>"
+ }
+};
+</script>
+<script>
+  // Same engine and same storage key as the home page, so a visitor's language
+  // choice carries across the site instead of resetting on every page.
+  (function () {
+    const LANGS = ['en', 'it', 'ko', 'ja', 'zh'];
+    const KEY = 'xenon.site.lang';
+    let cur = 'en';
+    const XT = (k) => {
+      const d = I18N[cur] || I18N.en;
+      return d[k] != null ? d[k] : (I18N.en[k] != null ? I18N.en[k] : '');
+    };
+    function apply(lang) {
+      cur = LANGS.includes(lang) ? lang : 'en';
+      document.documentElement.lang = cur;
+      document.querySelectorAll('[data-i18n]').forEach((el) => {
+        const v = XT(el.dataset.i18n); if (v) el.textContent = v;
+      });
+      document.querySelectorAll('[data-i18n-html]').forEach((el) => {
+        const v = XT(el.dataset.i18nHtml); if (v) el.innerHTML = v; // static, trusted markup
+      });
+      const c = document.getElementById('lang-cur'); if (c) c.textContent = cur.toUpperCase();
+      document.querySelectorAll('#lang-menu button').forEach((b) => b.classList.toggle('on', b.dataset.lang === cur));
+      try { localStorage.setItem(KEY, cur); } catch (e) { /* private mode */ }
+    }
+    const box = document.getElementById('lang');
+    const btn = document.getElementById('lang-btn');
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = box.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.addEventListener('click', () => { box.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); });
+    document.querySelectorAll('#lang-menu button').forEach((b) => {
+      b.addEventListener('click', () => { apply(b.dataset.lang); box.classList.remove('open'); });
+    });
+    let saved = null;
+    try { saved = localStorage.getItem(KEY); } catch (e) { /* private mode */ }
+    apply(saved || (navigator.language || 'en').slice(0, 2));
+  })();
+</script>
+
+</body>
+</html>

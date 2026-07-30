@@ -445,7 +445,11 @@ function mergeOnDrop(draggedWidgetId, targetWidgetId) {
 }
 
 if (typeof window !== 'undefined') {
-  window.DashboardTabGroups = { renderGroupTile, setGroupActive, extractToStandalone, extractMember, mergeOnDrop, addAsTab, reorderMembers, rectsOverlapRatio, widgetGroupOf };
+  // refreshLabels is called by CustomWidget.renderWidgets(): the package LIST is
+  // only half of what a custom tab's label depends on — the other half is which
+  // package that tile is ASSIGNED, and assigning one repaints the tile without
+  // rebuilding the bar, so the tab kept the generic type name until a reload.
+  window.DashboardTabGroups = { renderGroupTile, setGroupActive, extractToStandalone, extractMember, mergeOnDrop, addAsTab, reorderMembers, rectsOverlapRatio, widgetGroupOf, refreshLabels: _refreshGroupLabels };
   // The SDK package list arrives after the first layout pass on a cold reload, so
   // a custom tab first paints with the generic type name — refresh it once names
   // are known (also covers a Rescan swapping which widget a tile hosts).
