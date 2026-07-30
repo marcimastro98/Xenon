@@ -65,6 +65,37 @@
       : t('gallery_limited_closed', 'Claims closed'));
   }
 
+  // "I have a code" opens the import dialog. It answers a question the drop's
+  // own state cannot: whether YOU hold a code, which stays true after the last
+  // copy is gone. The hub agrees — an item code is perpetual and gated only by
+  // its 3-install cap, and a supporter code is grandfathered onto an entry it
+  // has already unlocked — so a user who changes machine is still entitled and
+  // needs somewhere to type it. This used to sit inside the claim buttons, so
+  // it vanished at exactly the moment it became the only thing that helps.
+  function haveCodeButton() {
+    const have = el('button', 'cgal-btn cgal-havecode');
+    have.type = 'button';
+    have.appendChild(icon('lock'));
+    have.appendChild(el('span', null, t('gallery_have_code', 'I have a code')));
+    // Deliberately the EMPTY import dialog, not importButton's fetch-the-bundle
+    // path: a limited copy is a personal, numbered file delivered by DM or on
+    // the claim page and is never in the catalog, so there is nothing for us to
+    // prefill. The user pastes their own copy and their own code.
+    have.addEventListener('click', () => {
+      if (window.PresetShare && window.PresetShare.openImport) window.PresetShare.openImport();
+    });
+    return have;
+  }
+
+  // The CTA of a limited drop nobody can claim any more: say so, and keep the
+  // way back in for whoever already owns a copy.
+  function appendUnavailable(parent, entry) {
+    const group = el('div', 'cgal-limited-buttons');
+    group.appendChild(unavailableLabel(entry));
+    group.appendChild(haveCodeButton(entry));
+    parent.appendChild(group);
+  }
+
   function directClaimUrlFor(entry) {
     const limited = entry && entry.limited;
     if (!limited || limited.fulfillment !== 'hub' || limited.channels !== 'both') return '';
@@ -100,15 +131,11 @@
     // only from Settings, and only if you knew it was the right one. This opens it
     // directly. It stays visible after claiming (the card cannot know you claimed)
     // and that is the point — it is the way back in.
-    if (claimUrl) {
-      const have = el('button', 'cgal-btn cgal-havecode'); have.type = 'button';
-      have.appendChild(icon('lock'));
-      have.appendChild(el('span', null, t('gallery_have_code', 'I have a code')));
-      have.addEventListener('click', () => {
-        if (window.PresetShare && window.PresetShare.openImport) window.PresetShare.openImport();
-      });
-      group.appendChild(have);
-    }
+    // Shown for every limited drop, not only the ones with a claim page: a copy
+    // handed over on Discord comes with the same personal code, so gating this
+    // on `claimUrl` hid the way back in from exactly the drops that are
+    // fulfilled by hand.
+    group.appendChild(haveCodeButton(entry));
     parent.appendChild(group);
   }
 
@@ -829,7 +856,7 @@
     const cta = el('div', 'cgal-detail-cta');
     if (limited) {
       const lim = entry.limited;
-      if (dropUnavailable(entry)) cta.appendChild(unavailableLabel(entry));
+      if (dropUnavailable(entry)) appendUnavailable(cta, entry);
       else {
         const total = Math.max(1, Number(lim.total) || 0), left = Math.max(0, Number(lim.left) || 0);
         const meterWrap = el('div', 'cgal-hero-meter');
@@ -955,7 +982,7 @@
     if (limited) {
       const lim = entry.limited;
       if (dropUnavailable(entry)) {
-        cta.appendChild(unavailableLabel(entry));
+        appendUnavailable(cta, entry);
       } else {
         const total = Math.max(1, Number(lim.total) || 0);
         const left = Math.max(0, Number(lim.left) || 0);
@@ -1030,7 +1057,7 @@
     const row = el('div', 'cgal-card-actions cgal-spotcard-cta');
     if (limited) {
       const lim = entry.limited;
-      if (dropUnavailable(entry)) row.appendChild(unavailableLabel(entry));
+      if (dropUnavailable(entry)) appendUnavailable(row, entry);
       else {
         appendLimitedButtons(row, entry);
         row.appendChild(el('span', 'cgal-limcount',
@@ -1155,7 +1182,7 @@
     if (limited) {
       const lim = entry.limited;
       if (dropUnavailable(entry)) {
-        row.appendChild(unavailableLabel(entry));
+        appendUnavailable(row, entry);
       } else {
         appendLimitedButtons(row, entry);
         row.appendChild(el('span', 'cgal-limcount',

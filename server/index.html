@@ -1339,9 +1339,16 @@
           <input class="settings-check" id="settings-version-ping" type="checkbox" onchange="updateVersionPing(this.checked)">
           <span class="settings-label-line">
             <span data-i18n="settings_version_ping">Conta questa installazione, in forma anonima</span>
-            <span class="settings-hint" data-i18n="settings_version_ping_hint">aggiunge solo versione e sistema operativo al controllo aggiornamenti già in corso: niente identificatori, nessuna richiesta in più</span>
+            <span class="settings-hint" data-i18n="settings_version_ping_hint">aggiunge pochi campi anonimi al controllo aggiornamenti già in corso — versione, sistema, da quanto esiste questa installazione e se è la prima accensione della settimana: nessun identificatore, nessuna richiesta in più, niente su cosa usi</span>
           </span>
         </label>
+        <!-- Deliberately OUTSIDE the label above: a link nested in a <label> makes
+             several browsers toggle the checkbox when it is clicked, so reading
+             what gets sent would switch the thing on. -->
+        <div class="settings-hint settings-sublink">
+          <a href="https://xenon-app.com/privacy.html#version-ping" target="_blank" rel="noopener"
+             data-i18n="settings_version_ping_link">cosa viene inviato esattamente</a>
+        </div>
         <label class="settings-toggle-row full">
           <input class="settings-check" id="settings-hub-messages" type="checkbox" onchange="updateHubMessages(this.checked)">
           <span class="settings-label-line">

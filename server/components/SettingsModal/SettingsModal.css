@@ -385,6 +385,19 @@ input[type="range"] { accent-color: var(--green); }
   margin-left: 16px;
   margin-right: 16px;
 }
+/* A link that belongs to the toggle above it but must not live INSIDE its
+   <label>: several browsers toggle the checkbox when a nested link is clicked,
+   so reading what a setting sends would switch it on. Pulled up tight against
+   the row so it still reads as part of it. */
+.settings-group > .settings-sublink {
+  margin: -6px 16px 10px;
+  padding-left: 2px;
+}
+.settings-sublink a {
+  color: rgb(var(--accent-rgb));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 /* Integration sub-panels render their card into a bare mount div with no inset
    (Smart Home, Cameras/UniFi, Spotify, Twitch). The Illuminazione and Controllo
    remoto hubs already pad themselves, so they are deliberately left out. */
