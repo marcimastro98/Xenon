@@ -530,7 +530,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // even when the widget is on another page or not added at all: the permission
   // / question cards (with their fullscreen escalation) and the topbar marker.
   // Both on by default; see js/claude-widget.js.
-  claudeWidget: Object.freeze({ approvals: true, topbar: true }),
+  claudeWidget: Object.freeze({ approvals: true, questions: true, topbar: true }),
   gameMode: true, // auto-pause ambient FX while a game / intensive app is running
   // Performance Mode (opt-in, off by default). Broader than gameMode: a
   // user-triggered / suggested profile that pauses dashboard animations and
@@ -1023,7 +1023,9 @@ function normalizeSlideshow(value) {
 // keeps the behaviour it has. Mirrored by normalizeClaudeWidget on the server.
 function normalizeClaudeWidget(value) {
   const v = value && typeof value === 'object' ? value : {};
-  return { approvals: v.approvals !== false, topbar: v.topbar !== false };
+  // `questions` is separate from `approvals` on purpose: one decides whether
+  // something runs on this PC, the other only picks how Claude proceeds.
+  return { approvals: v.approvals !== false, questions: v.questions !== false, topbar: v.topbar !== false };
 }
 
 function cloneDashboardLayout(value) {
@@ -4423,6 +4425,8 @@ function syncSettingsControls() {
   const claudeCfg = hubSettings.claudeWidget || {};
   const claudeAppr = $('settings-claude-approvals');
   if (claudeAppr) claudeAppr.checked = claudeCfg.approvals !== false;
+  const claudeQ = $('settings-claude-questions');
+  if (claudeQ) claudeQ.checked = claudeCfg.questions !== false;
 
   const hybridGpuPause = $('settings-hybrid-gpu-pause');
   if (hybridGpuPause) hybridGpuPause.checked = hubSettings.hybridGpuAnimationPause !== false;

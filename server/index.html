@@ -2262,6 +2262,10 @@
           <input class="settings-check" id="settings-claude-approvals" type="checkbox" onchange="updateClaudeWidgetCfg({ approvals: this.checked })">
           <span class="settings-label-line"><span data-i18n="settings_claude_approvals">Chiedi i permessi su questo schermo</span><span class="settings-hint" data-i18n="settings_claude_approvals_hint">quando Claude Code chiede di eseguire un comando o di scrivere un file, la richiesta compare qui da approvare. Se disattivi, la domanda resta nel terminale come prima</span></span>
         </label>
+        <label class="settings-toggle-row full">
+          <input class="settings-check" id="settings-claude-questions" type="checkbox" onchange="updateClaudeWidgetCfg({ questions: this.checked })">
+          <span class="settings-label-line"><span data-i18n="settings_claude_questions">Rispondi alle domande su questo schermo</span><span class="settings-hint" data-i18n="settings_claude_questions_hint">quando Claude ti fa una domanda a scelta multipla, le opzioni compaiono qui e la tua scelta arriva davvero alla sessione. È una cosa diversa dai permessi: qui non viene eseguito niente, si decide solo come Claude prosegue. Se disattivi, la domanda resta nel terminale</span></span>
+        </label>
       </div>
 
       <div class="settings-group" data-settings-cat="performance">
@@ -3718,6 +3722,9 @@
 <script src="shared/src/storefront-layout.js"></script>
 <script src="js/custom-select.js"></script>
 <script src="js/color-picker.js"></script>
+<!-- Monotone-cubic path builder shared by the stat sparklines (utils.js) and the
+     sensor-history charts (guardian-history.js). Must load before both. -->
+<script src="js/spark-path.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/toast.js"></script>
 <!-- Interrupt arbiter: owns busy()/whenIdle()/the daily budget for every modal

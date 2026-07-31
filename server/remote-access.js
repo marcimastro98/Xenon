@@ -117,6 +117,8 @@ const REMOTE_DENY = new Set([
   // device asking for them is not a feature, it is a forged session.
   '/api/claude/event',
   '/api/claude/permission',
+  '/api/claude/question',
+  '/api/claude/turn-end',
   // The channel's RTMP stream key. Whoever holds it can broadcast to the user's
   // channel, and it is the one credential the dashboard is asked to show on
   // screen. It stays on the PC the user is standing at.
@@ -177,7 +179,8 @@ const DEFAULT_GET_MUTATORS = new Set([
   '/api/community/installed', '/api/community/installs', '/api/community/poll',
   '/api/community/redeem', '/api/community/limited-status', '/api/community/ratings',
   '/api/community/rate', '/icon-pack', '/sound-pack', '/api/lighting/sdk-install',
-  '/api/claude/event', '/api/claude/permission', '/api/claude/decide', '/api/claude/link',
+  '/api/claude/event', '/api/claude/permission', '/api/claude/question', '/api/claude/turn-end',
+  '/api/claude/decide', '/api/claude/answer', '/api/claude/reply', '/api/claude/link',
   '/api/claude/unlink', '/api/claude/run', '/api/claude/run/stop', '/api/claude/attach',
   '/search/open', '/search/reveal', '/search/ai',
   '/disk/scan', '/disk/scan/cancel', '/disk/clean', '/disk/clean/cancel', '/api/disk/advisor',

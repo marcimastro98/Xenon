@@ -97,6 +97,7 @@ const news = require('./news');
 const { preserveNewsCreds, redactNewsCreds } = require('./news-creds');
 const claudeUsage = require('./claude-usage');
 const claudeBridge = require('./claude-bridge');
+const claudeSessions = require('./claude-sessions');
 const claudeLink = require('./claude-link');
 const claudeRun = require('./claude-run');
 const claudeTranscript = require('./claude-transcript');
@@ -7181,7 +7182,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // and the topbar marker. Both on — they are what the Claude Code link is for —
   // and both switchable, because they are the two things this widget can put on
   // screen while you are looking at something else.
-  claudeWidget: { approvals: true, topbar: true },
+  claudeWidget: { approvals: true, questions: true, topbar: true },
   dashboardLayout: DEFAULT_DASHBOARD_LAYOUT,
   dashboardLayoutVersion: DASHBOARD_LAYOUT_VERSION,
   geminiApiKey: '',
@@ -7557,7 +7558,15 @@ function normalizeSlideshow(value) {
 // terminal when it is off. Twin of normalizeClaudeWidget in js/settings.js.
 function normalizeClaudeWidget(value) {
   const source = value && typeof value === 'object' ? value : {};
-  return { approvals: source.approvals !== false, topbar: source.topbar !== false };
+  return {
+    approvals: source.approvals !== false,
+    // Separate from `approvals` because they are different bargains. A
+    // permission decides whether something RUNS on this PC; a question only
+    // picks how Claude proceeds. Someone can reasonably want the second on the
+    // touchscreen and the first only at the keyboard.
+    questions: source.questions !== false,
+    topbar: source.topbar !== false,
+  };
 }
 
 function normalizeBgGrid(value) {
@@ -10393,15 +10402,84 @@ let _footballRefreshing = false;
 let _footballLastFetch = 0;
 let _footballSig = null;
 
+// The identity map is part of the signature: it lands after the fixtures on a
+// cold start, and without it in the dedup the crests would only reach an already
+// connected dashboard on the next score change.
+function _footballPayload() {
+  return { teams: _footballCache.teams, live: _footballCache.live, refreshedAt: _footballCache.refreshedAt, info: _footballInfo };
+}
 function _pushFootball() {
-  const sig = JSON.stringify(_footballCache.teams) + '|' + _footballCache.live;
+  const sig = JSON.stringify(_footballCache.teams) + '|' + _footballCache.live + '|' + JSON.stringify(_footballInfo);
   if (sig === _footballSig) return;
   _footballSig = sig;
-  broadcastSSE('football', _footballCache);
+  broadcastSSE('football', _footballPayload());
 }
 const _footballAlerts = football.createAlertTracker();
 const _footballStandingsCache = new Map(); // bounded LRU: `${leagueId}|${season}` → { at, data }
 const _footballSearchCache = new Map();    // bounded LRU: `query` → { at, results }
+const _footballNewsCache = { at: 0, key: '', items: [], inflight: null };
+const FOOTBALL_NEWS_TTL_MS = 15 * 60 * 1000;
+
+// ── team identity (crest, colours, stadium) ──────────────────────────────────
+// Identity barely changes, so it is fetched once per followed club and kept for
+// a day — and persisted, because a restart that starts without crests is exactly
+// the empty-looking widget this cache exists to prevent. `{ [teamId]: info }`
+// plus a fetch stamp; the map rides along on /api/football and the SSE payload
+// as an ADDED field (the teams[] shape is a public SDK stream, see WIDGET_SDK).
+const FOOTBALL_INFO_FILE = path.join(DATA_DIR, 'football-info.json');
+const FOOTBALL_INFO_TTL_MS = 24 * 60 * 60 * 1000;
+let _footballInfo = {};        // id → info
+let _footballInfoAt = {};      // id → ms stamp of the fetch
+let _footballInfoLoaded = false;
+let _footballInfoWarming = false;
+
+async function _loadFootballInfo() {
+  if (_footballInfoLoaded) return;
+  _footballInfoLoaded = true;
+  try {
+    const raw = JSON.parse(await fs.promises.readFile(FOOTBALL_INFO_FILE, 'utf8'));
+    if (raw && typeof raw.info === 'object' && raw.info) _footballInfo = raw.info;
+    if (raw && typeof raw.at === 'object' && raw.at) _footballInfoAt = raw.at;
+  } catch { /* first run, or an unreadable cache → refetch on the next warm */ }
+}
+// Fetch identity only for followed clubs that have none or whose copy is a day
+// old. At rest this is zero requests; a newly added club costs exactly one.
+async function _warmFootballInfo(favorites) {
+  if (_footballInfoWarming) return;
+  await _loadFootballInfo();
+  const list = Array.isArray(favorites) ? favorites : [];
+  const now = Date.now();
+  let changed = false;
+
+  // Prune first, and unconditionally: an identity is only kept for a club still
+  // being followed. Doing it inside the fetch path meant unfollowing everything
+  // left the file exactly as it was, forever, because there was then nothing
+  // stale to go and fetch.
+  const keep = new Set(list.filter(f => f && f.type !== 'league').map(f => football.cleanId(f.id)).filter(Boolean));
+  for (const id of Object.keys(_footballInfo)) {
+    if (!keep.has(id)) { delete _footballInfo[id]; delete _footballInfoAt[id]; changed = true; }
+  }
+
+  const stale = Array.from(keep).filter(id => !(_footballInfo[id] && now - (_footballInfoAt[id] || 0) < FOOTBALL_INFO_TTL_MS));
+  if (stale.length) {
+    _footballInfoWarming = true;
+    try {
+      const fetched = await football.fetchTeamInfo(stale, {
+        ..._footballOpts(),
+        lang: (_serverHubSettings && _serverHubSettings.language) || 'en',
+      });
+      for (const [id, teamInfo] of Object.entries(fetched || {})) {
+        _footballInfo[id] = teamInfo;
+        _footballInfoAt[id] = now;
+        changed = true;
+      }
+    } catch { /* identity is a nicety; fixtures must not fail with it */ }
+    finally { _footballInfoWarming = false; }
+  }
+  if (changed) {
+    await writeFileAtomic(FOOTBALL_INFO_FILE, JSON.stringify({ info: _footballInfo, at: _footballInfoAt })).catch(() => {});
+  }
+}
 
 function _footballSettings() {
   const s = _serverHubSettings && _serverHubSettings.football;
@@ -10417,6 +10495,8 @@ async function refreshFootball() {
   const cfg = _footballSettings();
   if (!Array.isArray(cfg.teams) || !cfg.teams.length) {
     _footballCache = { teams: [], live: false, refreshedAt: Date.now() };
+    // Following nothing means holding no identities either.
+    _warmFootballInfo([]).then(_pushFootball).catch(() => {});
     _pushFootball();
     return _footballCache;
   }
@@ -10434,6 +10514,9 @@ async function refreshFootball() {
     _pushFootball();
   } catch { /* keep last good cache */ }
   finally { _footballRefreshing = false; }
+  // Identity second, and never blocking the fixtures: the scores are what the
+  // user is waiting for, and a crest arriving a beat later pushes on its own.
+  _warmFootballInfo(cfg.teams).then(_pushFootball).catch(() => {});
   return _footballCache;
 }
 
@@ -10550,6 +10633,27 @@ function _claudeBridgeChanged() {
   }, 300);
   if (typeof _claudeBridgePushTimer.unref === 'function') _claudeBridgePushTimer.unref();
 }
+
+// Claude Code's own live session registry (<configDir>/sessions/<pid>.json),
+// read on a slow cadence and merged as CORROBORATION only — see the rule at the
+// top of claude-sessions.js. It answers the two questions no hook can: a session
+// that started before Xenon did is listed, and a session killed with Ctrl-C
+// (which fires no SessionEnd) is retired now instead of an hour from now.
+//
+// Client-gated like every other periodic read: with nobody watching, a stale
+// list costs nothing, and the first thing a connecting client gets is a fresh
+// one. Deliberately not fast — the hook feed is what makes the tile live; this
+// only keeps it honest.
+let _claudeRegistryTimer = null;
+async function _claudeSyncRegistry() {
+  try { _claudeBridge.mergeRegistry(await claudeSessions.readRegistry()); }
+  catch { /* no registry is simply no corroboration */ }
+}
+_claudeRegistryTimer = setInterval(() => {
+  if (sseClients.size === 0) return;
+  _claudeSyncRegistry();
+}, 7000);
+if (typeof _claudeRegistryTimer.unref === 'function') _claudeRegistryTimer.unref();
 
 // Constant-time compare so the token can't be probed byte-by-byte.
 function _claudeBridgeAuth(req) {
@@ -10781,7 +10885,21 @@ const CSRF_MUTATION_PATHS = new Set([
   // Origin:null sandboxed iframe.
   '/api/claude/event',
   '/api/claude/permission',
+  // Same class as /permission and /event, and for the sharper version of the
+  // same reason: /question is token-gated ingest whose response text is put in
+  // front of the model, and /turn-end is the one ingest endpoint that can tell
+  // a session to keep going. A page must be able to forge neither.
+  '/api/claude/question',
+  '/api/claude/turn-end',
   '/api/claude/decide',
+  // Browser-originated like /decide, and guarded for the same reason. /answer
+  // resolves a question Claude is blocked on and /reply puts words into a live
+  // session under the name of whoever owns it — an Origin:null sandboxed widget
+  // must not be one fetch away from either. (No apostrophes in this block: see
+  // the note above /api/phone/send. A lone one shifts the pairing for every
+  // entry after it, and the failure lands on an unrelated route.)
+  '/api/claude/answer',
+  '/api/claude/reply',
   '/api/claude/link',
   '/api/claude/unlink',
   '/api/claude/run',
@@ -13960,23 +14078,19 @@ const handleRequest = async (req, res) => {
     }
     try {
       const data = JSON.parse(await readBody(req));
-      // A question is never held open. Approving it could not answer it and
-      // denying it threw it away unread, so it is answered "no decision" at
-      // once — the path that hands the prompt to the terminal, where it can
-      // actually be answered — and left on the tile only as a heads-up.
-      // See postQuestion() in claude-bridge.js.
-      if (data && data.tool_name === 'AskUserQuestion') {
-        _claudeBridge.postQuestion(data);
-        json({});
-        return;
-      }
+      // AskUserQuestion no longer arrives here: it is intercepted earlier, on
+      // PreToolUse, by /api/claude/question — which is the only point at which
+      // an answer from the touchscreen can still spare the user the terminal.
+      // If one reaches this route anyway (an older link, a hand-edited config),
+      // it gets no decision, which is the tool proceeding to ask normally.
+      if (data && data.tool_name === 'AskUserQuestion') { json({}); return; }
       const pendingReq = _claudeBridge.requestPermission(data);
       if (!pendingReq) { json({}); return; }        // too many already waiting
       // Claude Code gave up (Ctrl-C, or its own hook timeout): stop showing a
       // card nobody can answer any more.
       const onGone = () => _claudeBridge.cancel(pendingReq.id);
       res.on('close', onGone);
-      const verdict = await pendingReq.promise;
+      const { verdict } = await pendingReq.promise;
       res.off('close', onGone);
       // The wait can end because the caller vanished (Ctrl-C), in which case the
       // socket is already gone and writing would throw from inside the catch.
@@ -13987,6 +14101,94 @@ const handleRequest = async (req, res) => {
         json({});                                    // timed out → ask in the terminal
       }
     } catch { try { if (!res.writableEnded && !res.destroyed) json({}); } catch { /* caller already gone */ } }
+
+  } else if (reqPath === '/api/claude/question' && req.method === 'POST') {
+    // A question from Claude, answered on the touchscreen.
+    //
+    // This is a PreToolUse hook scoped to AskUserQuestion, and it blocks the
+    // same way the permission route does. The answer cannot be returned as the
+    // tool's result — no hook can do that — so it is returned as a DENY whose
+    // reason carries the user's choice, which Claude reads and acts on. That
+    // mechanism was measured before this route existed; see the header of
+    // claude-bridge.js, note 2, and answerReason() for the wording that makes
+    // Claude treat it as an answer rather than a refusal.
+    //
+    // Every non-answer path is an empty object: the tool then runs and asks in
+    // the terminal, exactly as it would if Xenon were not installed. Nothing
+    // here can invent a choice the user did not make.
+    if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
+    if (_serverHubSettings && _serverHubSettings.claudeWidget
+      && _serverHubSettings.claudeWidget.questions === false) {
+      req.resume();
+      json({});
+      return;
+    }
+    try {
+      const data = JSON.parse(await readBody(req));
+      const ask = _claudeBridge.askQuestion(data);
+      if (!ask) { json({}); return; }               // unreadable, or too many waiting
+      const onGone = () => _claudeBridge.cancel(ask.id);
+      res.on('close', onGone);
+      const out = await ask.promise;
+      res.off('close', onGone);
+      if (res.writableEnded || res.destroyed) return;
+      if (out.verdict === 'answer' && out.reason) {
+        json({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: out.reason } });
+      } else {
+        json({});                                    // skipped or timed out → the terminal asks
+      }
+    } catch { try { if (!res.writableEnded && !res.destroyed) json({}); } catch { /* caller already gone */ } }
+
+  } else if (reqPath === '/api/claude/turn-end' && req.method === 'POST') {
+    // The Stop hook, and the ONE ingest endpoint allowed to answer with a
+    // decision. /api/claude/event stays inert (204, no body) precisely so that
+    // the ability to influence a session lives in one named place instead of
+    // being a property any lifecycle event might quietly acquire.
+    //
+    // What it does: records the end of the turn like any other event, then, if
+    // the user typed a follow-up on the dashboard while Claude was working,
+    // hands it over as { decision: 'block', reason }. Claude does not stop — the
+    // text arrives as a new instruction in the SAME session. With nothing
+    // queued it answers {} and the turn ends normally, which is also the loop
+    // guard: takeFollowUp() clears the queue, so a second Stop finds it empty.
+    if (!_claudeBridgeAuth(req)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); res.end('Forbidden'); return; }
+    try {
+      const data = JSON.parse(await readBody(req));
+      _claudeBridge.applyHook(data);
+      const reason = _claudeBridge.takeFollowUp(String(data && data.session_id || ''));
+      json(reason ? { decision: 'block', reason } : {});
+    } catch { try { if (!res.writableEnded && !res.destroyed) json({}); } catch { /* caller already gone */ } }
+
+  } else if (reqPath === '/api/claude/answer' && req.method === 'POST') {
+    // The touchscreen answering a question. Browser-originated, so CSRF-guarded
+    // rather than token-gated, like /decide. `selections` is one array of option
+    // labels per question; the bridge matches them against the options Claude
+    // itself published and refuses anything else, so the text that reaches the
+    // model is never text the page made up.
+    try {
+      const body = JSON.parse(await readBody(req));
+      const id = String(body && body.id || '');
+      const ok = body && body.skip === true
+        ? _claudeBridge.skipQuestion(id)
+        : _claudeBridge.answer(id, Array.isArray(body && body.selections) ? body.selections : []);
+      json({ ok });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/claude/reply' && req.method === 'POST') {
+    // A follow-up typed on the dashboard for a session that is working. It is
+    // QUEUED, not sent: delivery happens at the end of the current turn, via
+    // /api/claude/turn-end. The tile shows that state, because "sent" would be a
+    // lie for however long the turn still has to run.
+    //
+    // A session that is idle will never fire Stop again, so nothing here could
+    // deliver it. The client asks replyModeFor() first and offers a resume run
+    // instead — the same conversation, continued the only way it can be.
+    try {
+      const body = JSON.parse(await readBody(req));
+      const sessionId = String(body && body.sessionId || '');
+      if (body && body.cancel === true) { json({ ok: _claudeBridge.cancelFollowUp(sessionId) }); return; }
+      json(_claudeBridge.queueFollowUp(sessionId, String(body && body.text || '')));
+    } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/claude/decide' && req.method === 'POST') {
     // The touchscreen answering a pending request. Browser-originated, so it is
@@ -14089,7 +14291,10 @@ const handleRequest = async (req, res) => {
     try {
       if (urlObj.searchParams.has('refresh')) await refreshFootball();
       const cfg = _footballSettings();
-      json({ teams: _footballCache.teams, live: _footballCache.live, refreshedAt: _footballCache.refreshedAt, favorites: cfg.teams, tile: cfg.tile });
+      // A cold seed has no identity on disk yet; load it (cheap, no network) so
+      // the very first paint already has crests instead of letter initials.
+      await _loadFootballInfo();
+      json({ ..._footballPayload(), favorites: cfg.teams, tile: cfg.tile });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/football/standings' && req.method === 'GET') {
@@ -14107,6 +14312,41 @@ const handleRequest = async (req, res) => {
       if (_footballStandingsCache.size > 40) _footballStandingsCache.delete(_footballStandingsCache.keys().next().value);
       _footballStandingsCache.set(key, { at: now, data });
       json(data);
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/football/news' && req.method === 'GET') {
+    // Headlines about the followed teams/competitions. TheSportsDB has no news
+    // feed, so each favorite becomes a Google News topic and news.js does the
+    // fetching, merging and deduping it already does for the News widget.
+    // Deliberately OFF the SSE cycle: the network is only touched when the user
+    // opens the tab, and the answer is reused for 15 minutes.
+    try {
+      const cfg = _footballSettings();
+      const lang = (_serverHubSettings && _serverHubSettings.language) || 'en';
+      const feeds = football.newsQueries(cfg.teams, lang);
+      if (!feeds.length) { json({ items: [] }); return; }
+      const key = lang + '|' + feeds.map(f => f.query).join('|');
+      const now = Date.now();
+      if (_footballNewsCache.key === key && now - _footballNewsCache.at < FOOTBALL_NEWS_TTL_MS) {
+        json({ items: _footballNewsCache.items, refreshedAt: _footballNewsCache.at });
+        return;
+      }
+      // In-flight dedup: three tiles (Edge, browser, phone) opening the tab at
+      // once must not each fire four Google News requests.
+      if (!_footballNewsCache.inflight || _footballNewsCache.key !== key) {
+        _footballNewsCache.key = key;
+        _footballNewsCache.inflight = news.fetchHeadlines(feeds, { lang })
+          .then(d => {
+            const items = (d && Array.isArray(d.items) ? d.items : []).slice(0, 20);
+            _footballNewsCache.at = Date.now();
+            _footballNewsCache.items = items;
+            return items;
+          })
+          .catch(() => [])
+          .finally(() => { _footballNewsCache.inflight = null; });
+      }
+      const items = await _footballNewsCache.inflight;
+      json({ items, refreshedAt: _footballNewsCache.at });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/football/search' && req.method === 'GET') {
@@ -18324,6 +18564,10 @@ const handleRequest = async (req, res) => {
     res.write(':connected\n\n');
 
     sseClients.add(res);
+    // The registry poll is client-gated, so a dashboard opening after a while
+    // would otherwise seed itself from a list up to one interval old — long
+    // enough to draw a session that has already been closed.
+    _claudeSyncRegistry();
     _syncFpsMonitor(); // a dashboard is watching → run PresentMon (if installed)
     refreshObsWatch();
     refreshDiscordWatch();
@@ -18389,7 +18633,7 @@ const handleRequest = async (req, res) => {
     try { if (_stocksCache.quotes.length) res.write(`event: stocks\ndata: ${JSON.stringify(_stocksCache)}\n\n`); } catch (e) { /* ignore */ }
     if (!_stocksCache.quotes.length || Date.now() - _stocksCache.refreshedAt > 5 * 60 * 1000) refreshStocks().catch(() => {});
     // Seed the current football fixtures/results, then kick a refresh if stale.
-    try { if (_footballCache.teams.length) res.write(`event: football\ndata: ${JSON.stringify(_footballCache)}\n\n`); } catch (e) { /* ignore */ }
+    try { if (_footballCache.teams.length) res.write(`event: football\ndata: ${JSON.stringify(_footballPayload())}\n\n`); } catch (e) { /* ignore */ }
     if (!_footballCache.teams.length || Date.now() - _footballCache.refreshedAt > 5 * 60 * 1000) refreshFootball().catch(() => {});
     // Seed the current news headlines, then kick a refresh if empty/stale
     // (display-only feed: only when the widget/ticker actually uses it).
@@ -19351,6 +19595,7 @@ function _gracefulShutdown() {
   // the `claude` process is actively blocked on — exiting without answering would
   // leave each of them hanging until their own 600s hook timeout expires.
   try { _claudeBridge.stop(); } catch {}
+  try { if (_claudeRegistryTimer) { clearInterval(_claudeRegistryTimer); _claudeRegistryTimer = null; } } catch {}
   // Runs the dashboard started are children with no job object: exiting without
   // this orphans a `claude` process (and the tool processes it spawned) with no
   // terminal attached to stop it.

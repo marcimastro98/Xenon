@@ -76,6 +76,12 @@
     '.cw-perm-backdrop',       // SDK grant request
     '.cw-clip-backdrop',       // SDK clipboard confirmation
     '.cw-ext-backdrop',        // SDK open-external confirmation
+    // Claude Code is BLOCKED behind this one: a tool call on the user's machine
+    // is waiting on the tap. The three above are SDK dialogs and were mistaken
+    // for it more than once because of the shared prefix — this is the widget's
+    // own fullscreen approval, and it outranks anything promotional by the same
+    // argument as the first-run surfaces above.
+    '.cw-overlay',
   ];
 
   // Priority ladder, named so channels don't hardcode magic numbers. Limited

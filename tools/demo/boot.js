@@ -292,7 +292,15 @@
       case '/api/battery': return ok(D.battery);
       case '/api/stocks': return ok({ quotes: D.stocks });
       case '/api/news': return ok({ items: D.news });
-      case '/api/football': return ok({ matches: D.football });
+      // The Calcio tile: fixtures + the identity map on the seed, the table and
+      // the headlines on their own tabs (the app fetches those on demand too).
+      case '/api/football': return ok({
+        teams: D.football.teams, favorites: D.football.favorites, info: D.football.info,
+        live: D.football.live, tile: D.football.tile, refreshedAt: Date.now(),
+      });
+      case '/api/football/standings': return ok(D.football.standings);
+      case '/api/football/news': return ok({ items: D.football.news, refreshedAt: Date.now() });
+      case '/api/football/search': return ok({ results: [] });
       case '/api/gamemode/status': return ok({ gaming: false });
       case '/api/native/status': case '/api/native/install-status': return ok({ installed: false });
       case '/remote/status': return ok({ ready: false, installed: false, blocked: false, connectedClients: [] });
@@ -422,7 +430,7 @@
     s._emit('battery', D.battery);
     s._emit('stocks', { quotes: D.stocks });
     s._emit('news', { items: D.news });
-    s._emit('football', { matches: D.football });
+    s._emit('football', { teams: D.football.teams, info: D.football.info, live: D.football.live, refreshedAt: Date.now() });
     s._emit('discord', D.discord);
     s._emit('homeassistant', D.homeassistant);
     s._emit('wavelink', D.wavelink);

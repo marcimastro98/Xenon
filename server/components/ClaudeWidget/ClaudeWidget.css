@@ -134,6 +134,107 @@ body.low-power-gpu .cw-sess .cw-sess-dot::after { animation: none; opacity: 0; }
 .cw-sess-tool { color: var(--accent, #1ed760); font-weight: 650; opacity: 0.85; }
 .cw-sess-state { opacity: 0.55; font-weight: 600; }
 .cw-sess.is-waiting .cw-sess-state { color: var(--xe-warn, #f5a524); opacity: 1; }
+/* The argument, next to the tool name. "Bash" for six minutes says nothing;
+   "Bash · npm test · 6m" says everything, so the detail gets the room and the
+   tool name stays the small label in front of it. */
+.cw-sess-tooldetail {
+  margin-left: 6px; opacity: 0.6; font-size: 11.5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.cw-sess-toolage { margin-left: 6px; opacity: 0.4; font-size: 11px; font-variant-numeric: tabular-nums; }
+
+/* Sub-agents. Several at once look like one stuck session without this. */
+.cw-sess-agents { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.cw-agent-chip {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.03em; padding: 2px 6px; border-radius: 999px;
+  color: var(--text, #f0f3f1); background: rgba(255,255,255,0.07); opacity: 0.75; white-space: nowrap;
+}
+.cw-agent-chip.is-more { opacity: 0.45; }
+
+/* ── why a session is waiting ──
+   The row could say "waiting for you" and never what for, which from across the
+   room is indistinguishable from a hang. */
+.cw-wait {
+  display: flex; flex-direction: column; gap: 1px; margin-top: 5px;
+  padding: 6px 9px; border-radius: 8px;
+  background: color-mix(in srgb, var(--xe-warn, #f5a524) 12%, transparent);
+  border-left: 2px solid var(--xe-warn, #f5a524);
+}
+.cw-wait.is-error {
+  background: color-mix(in srgb, var(--xe-danger, #f26d6d) 12%, transparent);
+  border-left-color: var(--xe-danger, #f26d6d);
+}
+.cw-wait-label { font-size: 10.5px; font-weight: 750; color: var(--xe-warn, #f5a524); }
+.cw-wait.is-error .cw-wait-label { color: var(--xe-danger, #f26d6d); }
+.cw-wait-text {
+  font-size: 11px; line-height: 1.35; opacity: 0.7; color: var(--text, #f0f3f1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── the plan lane ──
+   Claude's own TodoWrite list. This is the lane the widget was rebuilt around:
+   "it is busy" is what every other tool tells you; where it has got to is the
+   thing worth putting on a dashboard. */
+.cw-plan { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.cw-plan-head { display: flex; align-items: baseline; gap: 6px; }
+.cw-plan-title {
+  font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.09em; opacity: 0.45;
+  color: var(--text, #f0f3f1);
+}
+.cw-plan-count { font-size: 10px; opacity: 0.5; font-variant-numeric: tabular-nums; margin-left: auto; }
+.cw-plan-track { height: 3px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.cw-plan-fill { height: 100%; border-radius: 999px; background: var(--accent, #1ed760); transition: width 0.3s ease; }
+/* A data-driven TRANSITION, which the freeze sweep cannot see — it looks for
+   animations. This one is retriggered by a todo changing rather than by a sensor
+   sample, so it is nowhere near the sparkline's cost, but it joins the same four
+   states on principle: the point of those states is that nothing repaints. */
+body.overlay-frozen .cw-plan-fill,
+body.ambient-idle .cw-plan-fill,
+body.game-mode .cw-plan-fill,
+body.low-power-gpu .cw-plan-fill { transition: none; }
+.cw-plan-steps { display: flex; flex-direction: column; gap: 2px; }
+.cw-plan-step { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.cw-plan-bullet {
+  flex: 0 0 auto; width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(255,255,255,0.22);
+}
+.cw-plan-step.is-doing .cw-plan-bullet { background: var(--accent, #1ed760); }
+.cw-plan-step.is-done .cw-plan-bullet { background: rgba(255,255,255,0.12); }
+.cw-plan-text {
+  font-size: 11px; line-height: 1.35; color: var(--text, #f0f3f1); opacity: 0.55;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cw-plan-step.is-doing .cw-plan-text { opacity: 1; font-weight: 650; }
+.cw-plan-step.is-done .cw-plan-text { opacity: 0.32; text-decoration: line-through; }
+
+/* ── a follow-up already on its way ──
+   "Sent" would be a lie until the turn ends, so the row says what is true and
+   keeps the way back out next to it. */
+.cw-queued {
+  display: flex; align-items: center; gap: 7px; margin-top: 5px;
+  padding: 6px 9px; border-radius: 8px; min-width: 0;
+  background: color-mix(in srgb, var(--accent, #1ed760) 10%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--accent, #1ed760) 70%, transparent);
+}
+.cw-queued-label { font-size: 10px; font-weight: 750; color: var(--accent, #1ed760); white-space: nowrap; }
+.cw-queued-text {
+  font-size: 11px; opacity: 0.65; color: var(--text, #f0f3f1); flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cw-queued-undo {
+  flex: 0 0 auto; font-size: 10.5px; font-weight: 700; padding: 4px 9px; border-radius: 7px;
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text, #f0f3f1); cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.cw-queued-undo:hover { background: rgba(255,255,255,0.13); }
+
+/* Says where the text in the composer is about to go. The two destinations look
+   identical from the box and behave differently. */
+.cw-ask-note { font-size: 10.5px; line-height: 1.4; opacity: 0.5; color: var(--text, #f0f3f1); margin-top: 5px; }
+.cw-ask-note.is-warn { color: var(--xe-warn, #f5a524); opacity: 0.9; }
+
+/* "1 need you" is the half of the header worth seeing from across the room. */
+.cw-band-hint.is-waiting { color: var(--xe-warn, #f5a524); opacity: 0.95; font-weight: 700; }
 
 .cw-sess-meta { flex: 0 0 auto; display: flex; align-items: center; gap: 7px; }
 .cw-sess-ctx { font-size: 11px; opacity: 0.45; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -247,17 +348,38 @@ body.low-power-gpu .cw-sess .cw-sess-dot::after { animation: none; opacity: 0; }
   font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.09em; opacity: 0.5;
 }
 .cw-appr-qtext { font-size: 12.5px; line-height: 1.45; color: var(--text, #f0f3f1); opacity: 0.9; }
-.cw-appr-qopts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.cw-appr-qmulti {
+  font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.09em;
+  opacity: 0.45; color: var(--text, #f0f3f1);
+}
+.cw-appr-qopts { margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+/* These are real buttons now. They used to be list items that looked exactly
+   like this and did nothing, which is the whole reason the card read as broken:
+   everything about it said "choose" and none of it was a choice. */
 .cw-appr-qopt {
-  display: flex; flex-direction: column; gap: 1px;
-  padding: 7px 10px; border-radius: 9px;
+  display: flex; flex-direction: column; gap: 1px; text-align: left; width: 100%;
+  padding: 9px 11px; border-radius: 9px; min-height: 44px; justify-content: center;
   background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.07);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+.cw-appr-qopt:hover:not(:disabled) { background: rgba(255,255,255,0.075); }
+.cw-appr-qopt:disabled { cursor: default; opacity: 0.5; }
+.cw-appr-qopt.is-picked {
+  background: color-mix(in srgb, var(--accent, #1ed760) 18%, transparent);
+  border-color: color-mix(in srgb, var(--accent, #1ed760) 55%, transparent);
 }
 .cw-appr-qopt-label { font-size: 11.5px; font-weight: 700; color: var(--text, #f0f3f1); }
+.cw-appr-qopt.is-picked .cw-appr-qopt-label { color: var(--accent, #1ed760); }
 .cw-appr-qopt-desc { font-size: 10.5px; line-height: 1.4; opacity: 0.55; color: var(--text, #f0f3f1); }
-/* Says where the answer is actually given. Without it the listed options look
-   tappable and the card promises something it cannot do. */
-.cw-appr-qnote { font-size: 10.5px; line-height: 1.4; opacity: 0.5; color: var(--text, #f0f3f1); }
+/* The plan being approved by an ExitPlanMode call. Monospaced and scrollable
+   inside the card body, because agreeing to a plan means reading it. */
+.cw-appr-plan {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+  padding: 9px 11px; border-radius: 9px; background: rgba(0,0,0,0.28);
+  color: var(--text, #f0f3f1); opacity: 0.92;
+}
 
 .cw-appr-acts { flex: 0 0 auto; display: flex; gap: 8px; margin-top: 1px; }
 .cw-appr-allow, .cw-appr-deny, .cw-appr-ok {
@@ -580,10 +702,10 @@ body.overlay-frozen .cw-typing-dot { animation: none; opacity: 0.6; }
    command here: you are being asked to approve it, you get to read all of it. */
 .cw-appr--big .cw-appr-detail { font-size: 13px; padding: 11px 13px; display: block; -webkit-line-clamp: none; }
 .cw-appr--big .cw-appr-qtext { font-size: 15px; }
-.cw-appr--big .cw-appr-qopt { padding: 10px 13px; }
+.cw-appr--big .cw-appr-qopt { padding: 12px 14px; min-height: 52px; }
 .cw-appr--big .cw-appr-qopt-label { font-size: 13px; }
 .cw-appr--big .cw-appr-qopt-desc { font-size: 11.5px; }
-.cw-appr--big .cw-appr-qnote { font-size: 12px; }
+.cw-appr--big .cw-appr-plan { font-size: 12px; }
 .cw-appr--big .cw-appr-allow, .cw-appr--big .cw-appr-deny,
 .cw-appr--big .cw-appr-ok { min-height: 54px; font-size: 15px; }
 /* Under ~560px of height the generous version stops fitting: give the padding

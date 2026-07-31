@@ -204,6 +204,7 @@
   .sbw-pill, .sbw-tabs, .sbw-evt, .sbw-global,
   .wn-item, .wn-muted-row, .sw-row, .sw-stat, .sw-ranges, .sw-add-field,
   .fw-row, .fw-hero, .fw-mini, .fw-tr, .fw-add-field,
+  .fw-match, .fw-idcard, .fw-news, .fw-chip, .fw-lchip, .fw-tabs, .fw-ident,
   .nw-item, .nw-chip, .nw-add-field, .cw-stat, .cw-live, .cw-plan, .cw-custom-input,
   .wl-seg, .wl-monitor, .wl-row--out, .lgt-chip, .lgt-pick, .lgt-auto,
   .sh-item, .sh-inline, .sh-seg, .sh-chip, .sh-abtn, .sh-icobtn, .sh-thermo, .sh-now,
@@ -258,7 +259,8 @@
   .ss-btn, .ss-tune-opt, .dc-btn, .dc-vol-btn, .dc-chip, .dc-chan, .dc-sound,
   .obs-btn, .obs-scene, .twitch-act-btn, .twitch-chat-toggle, .yt-btn,
   .wn-hbtn, .wn-back, .wn-item, .sw-back, .sw-detail-rm, .sw-row,
-  .fw-back, .fw-detail-rm, .fw-row, .nw-manage, .nw-item, .cw-budget-back,
+  .fw-back, .fw-detail-rm, .fw-row, .fw-match, .fw-idcard, .fw-news, .fw-tab, .fw-lchip,
+  .nw-manage, .nw-item, .cw-budget-back,
   .wl-monitor, .lgt-auto, .sh-chip, .sh-abtn, .sh-icobtn, .sh-step,
   .sp-ctl, .sp-like, .vt-btn, .remote-btn, .remote-btn-secondary,
   .up-seg-btn, .up-move-btn
@@ -277,7 +279,8 @@
   .sh-item-name, .sh-item-value, .sh-now-title,
   .sw-title, .sw-row-name, .sw-row-price, .sw-detail-name, .sw-detail-big, .sw-stat-value,
   .fw-title, .fw-result-name, .fw-row-name, .fw-cell-res, .fw-detail-name,
-  .fw-hero-team, .fw-hero-score, .fw-mini-opp, .fw-td-team, .fw-pts, .nw-item-title
+  .fw-hero-team, .fw-hero-score, .fw-mini-opp, .fw-td-team, .fw-pts,
+  .fw-match-team, .fw-match-score, .fw-idcard-name, .fw-news-title, .fw-fact-v, .nw-item-title
 ) { color: var(--text); }
 
 .panel :is(

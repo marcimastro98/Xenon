@@ -19,6 +19,9 @@
     { key: 'gpuWatts', labelKey: 'guardian_m_gpu_watts', fallback: 'Consumo GPU', unit: 'W', pct: false, cls: 'gpu', optional: true },
   ];
 
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  let fadeSeq = 0;        // unique <defs> ids for the area fade, one per chart
+
   let cache = null;       // last fetched { hours, days, ... }
   let range = '24h';      // '24h' | '7d' | '30d'
   let loading = false;
@@ -59,6 +62,13 @@
   }
 
   // Points for the active range: hourly buckets for 24h, daily for 7d/30d.
+  //
+  // These are the last N RECORDED buckets, laid out side by side — deliberately
+  // not positioned on a clock. A real time axis was tried and reverted: on a PC
+  // that is switched off overnight it is correct and unreadable, because the
+  // hours the machine was off are dead space and on a 380px card they eat most
+  // of the chart. The trade this makes is stated rather than hidden: the axis
+  // shows the readings that exist, in order, and is not a proportional timeline.
   function pointsForRange() {
     if (!cache) return [];
     if (range === '24h') return (cache.hours || []).slice(-24);
@@ -67,10 +77,23 @@
   }
 
   // Short x-axis tick label for a bucket key ('YYYY-MM-DDTHH' | 'YYYY-MM-DD').
+  // Keyed off the KEY's shape, not the active range: the Power widget draws
+  // hourly buckets through this same builder whatever the History tab was last
+  // left on, and reading `range` there labelled its hours as dates.
   function tickLabel(t) {
-    if (!t) return '';
-    if (range === '24h') { const h = t.split('T')[1]; return h ? h + 'h' : ''; }
-    const parts = t.split('-'); return parts.length === 3 ? `${parts[2]}/${parts[1]}` : t;
+    const [day, hour] = String(t || '').split('T');
+    if (hour) return hour + 'h';
+    const parts = day.split('-');
+    return parts.length === 3 ? `${parts[2]}/${parts[1]}` : (day || '');
+  }
+
+  // Same tick with the date in front, for a chart whose hours span more than one
+  // day. Then the hour ALONE lies: 13h on the left and 16h on the right is 27
+  // hours apart, not 3, and it reads as running backwards.
+  function tickLabelDated(t) {
+    const [day, hour] = String(t || '').split('T');
+    const parts = day.split('-');
+    return (hour && parts.length === 3) ? `${parts[2]}/${parts[1]} ${hour}h` : tickLabel(t);
   }
 
   // Build one metric chart (or a "no data" note when the series is empty).
@@ -78,11 +101,18 @@
     const card = document.createElement('div');
     card.className = 'guardian-chart';
 
+    // Only buckets that actually carry a reading for THIS metric. A bucket the
+    // sensor said nothing in is dropped rather than kept as a hole: the axis is
+    // already "the readings that exist, in order" (see pointsForRange), so
+    // reserving width for a missing one bought nothing and cost a lot — the CPU
+    // temperature is unavailable for whole hours whenever LibreHardwareMonitor
+    // is not up, which left that card as a short line adrift in a third of its
+    // own width, with a break in the middle, on a machine that was never off.
     const series = points.map(p => {
       const m = p && p[metric.key];
       return { t: p ? p.t : '', avg: m ? m.avg : null, max: m ? m.max : null };
-    });
-    const vals = series.map(s => s.avg).filter(v => typeof v === 'number');
+    }).filter(s => typeof s.avg === 'number');
+    const vals = series.map(s => s.avg);
 
     const head = document.createElement('div');
     head.className = 'guardian-chart-head';
@@ -113,14 +143,21 @@
     return card;
   }
 
-  // SVG line chart. Avg as the line, max as a faint band above it. Y auto-scales
-  // (percentages clamp to 0–100); nulls break the line into segments (real gaps).
+  // SVG line chart: the average as a curve, with a fade under it. Y auto-scales
+  // to the CURVE (percentages clamp to 0–100) — it used to leave headroom up to
+  // the peak, which was right while the peak was drawn as a band and squashes
+  // the line into the bottom of the card now that it is not. The peak is still
+  // reported as the number beside the title.
+  //
+  // The curve is a monotone cubic (js/spark-path.js) so an hourly series reads
+  // as a curve instead of a saw; monotone means a smoothed peak never rises
+  // above the sample it came from, which matters on a chart printing its own
+  // "picco" next to it.
   function buildSvg(series, metric) {
     const W = 300, H = 84, padX = 4, padTop = 6, padBot = 14;
     const n = series.length;
-    const numericMax = series.map(s => (typeof s.max === 'number' ? s.max : s.avg)).filter(v => typeof v === 'number');
-    const numericAvg = series.map(s => s.avg).filter(v => typeof v === 'number');
-    let lo = Math.min(...numericAvg), hi = Math.max(...numericMax);
+    const numericAvg = series.map(s => s.avg);
+    let lo = Math.min(...numericAvg), hi = Math.max(...numericAvg);
     if (metric.pct) { lo = 0; hi = Math.max(100, hi); }
     else { const span = hi - lo || 1; lo = Math.max(0, lo - span * 0.15); hi = hi + span * 0.15; }
     if (hi <= lo) hi = lo + 1;
@@ -128,53 +165,75 @@
     const x = (i) => padX + (n <= 1 ? 0 : (i / (n - 1)) * (W - padX * 2));
     const y = (v) => padTop + (1 - (v - lo) / (hi - lo)) * (H - padTop - padBot);
 
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const svg = document.createElementNS(SVG_NS, 'svg');
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     svg.setAttribute('preserveAspectRatio', 'none');
     svg.setAttribute('class', 'guardian-svg guardian-svg-' + metric.cls);
 
-    // Max band (area between avg and max) — only when max differs from avg.
-    const bandPts = [];
-    series.forEach((s, i) => { if (typeof s.max === 'number') bandPts.push([x(i), y(s.max)]); });
-    if (bandPts.length > 1) {
-      const avgPtsRev = [];
-      series.forEach((s, i) => { if (typeof s.avg === 'number') avgPtsRev.push([x(i), y(s.avg)]); });
-      avgPtsRev.reverse();
-      const d = 'M' + bandPts.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' L')
-        + ' L' + avgPtsRev.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' L') + ' Z';
-      const band = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      band.setAttribute('d', d);
-      band.setAttribute('class', 'guardian-band');
-      svg.appendChild(band);
+    // The fade takes its hue from the chart's own `color` (set per metric in
+    // GuardianHistory.css), because a gradient stop cannot be given a colour
+    // from CSS the way a stroke can. Each chart needs its own <defs> id: several
+    // are on screen at once and a repeated id would make them all use the first.
+    const BASE = (H - padBot).toFixed(1);
+    const gradientId = 'guardian-fade-' + (++fadeSeq);
+    const defs = document.createElementNS(SVG_NS, 'defs');
+    const grad = document.createElementNS(SVG_NS, 'linearGradient');
+    grad.setAttribute('id', gradientId);
+    grad.setAttribute('x1', '0'); grad.setAttribute('y1', '0');
+    grad.setAttribute('x2', '0'); grad.setAttribute('y2', '1');
+    [['0', '0.3'], ['1', '0']].forEach(([offset, opacity]) => {
+      const stop = document.createElementNS(SVG_NS, 'stop');
+      stop.setAttribute('offset', offset);
+      stop.setAttribute('stop-color', 'currentColor');
+      stop.setAttribute('stop-opacity', opacity);
+      grad.appendChild(stop);
+    });
+    defs.appendChild(grad);
+    svg.appendChild(defs);
+
+    // The series carries no holes (chartFor drops the buckets with no reading),
+    // so this is one continuous line.
+    const avgPts = series.map((s, i) => [x(i), y(s.avg)]);
+
+    if (avgPts.length > 1) {
+      const line = SparkPath.smoothLineD(avgPts, 1);
+      // Area under the line. This replaced a band drawn between the average and
+      // the peak, which sat ABOVE the stroke and read as a smudge behind it
+      // rather than as data. The fade is decoration and is shaped like one: it
+      // falls away downward and never crosses the line it belongs to. The peak
+      // itself is still reported, as the number beside the title.
+      const area = document.createElementNS(SVG_NS, 'path');
+      area.setAttribute('d', `${line} L${avgPts[avgPts.length - 1][0].toFixed(1)},${BASE}`
+        + ` L${avgPts[0][0].toFixed(1)},${BASE} Z`);
+      area.setAttribute('class', 'guardian-area');
+      area.setAttribute('fill', `url(#${gradientId})`);
+      svg.appendChild(area);
+
+      const path = document.createElementNS(SVG_NS, 'path');
+      path.setAttribute('d', line);
+      path.setAttribute('class', 'guardian-line');
+      svg.appendChild(path);
+    } else {
+      const dot = document.createElementNS(SVG_NS, 'circle');
+      dot.setAttribute('cx', avgPts[0][0].toFixed(1)); dot.setAttribute('cy', avgPts[0][1].toFixed(1));
+      dot.setAttribute('r', '1.6'); dot.setAttribute('class', 'guardian-line');
+      svg.appendChild(dot);
     }
 
-    // Avg line, broken at nulls.
-    let seg = [];
-    const flush = () => {
-      if (seg.length > 1) {
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        path.setAttribute('d', 'M' + seg.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' L'));
-        path.setAttribute('class', 'guardian-line');
-        svg.appendChild(path);
-      } else if (seg.length === 1) {
-        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        dot.setAttribute('cx', seg[0][0].toFixed(1)); dot.setAttribute('cy', seg[0][1].toFixed(1));
-        dot.setAttribute('r', '1.6'); dot.setAttribute('class', 'guardian-line');
-        svg.appendChild(dot);
-      }
-      seg = [];
-    };
-    series.forEach((s, i) => { if (typeof s.avg === 'number') seg.push([x(i), y(s.avg)]); else flush(); });
-    flush();
-
-    // Sparse x-axis ticks (first, middle, last) to keep it readable.
-    [0, Math.floor((n - 1) / 2), n - 1].filter((v, i, a) => a.indexOf(v) === i && v >= 0).forEach(i => {
-      const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    // Sparse x-axis ticks (first, middle, last) to keep it readable. When hourly
+    // readings cross midnight the ends carry their date and the middle tick is
+    // dropped: a third bare hour between two days reads as going backwards, and
+    // three dated labels do not fit an 8px axis on a 380px card.
+    const dayOf = (t) => String(t || '').slice(0, 10);
+    const dated = String(series[0].t).includes('T') && dayOf(series[0].t) !== dayOf(series[n - 1].t);
+    const marks = dated ? [0, n - 1] : [0, Math.floor((n - 1) / 2), n - 1];
+    marks.filter((v, i, a) => a.indexOf(v) === i && v >= 0).forEach(i => {
+      const txt = document.createElementNS(SVG_NS, 'text');
       txt.setAttribute('x', x(i).toFixed(1));
       txt.setAttribute('y', H - 3);
       txt.setAttribute('class', 'guardian-tick');
       txt.setAttribute('text-anchor', i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle'));
-      txt.textContent = tickLabel(series[i].t);
+      txt.textContent = dated ? tickLabelDated(series[i].t) : tickLabel(series[i].t);
       svg.appendChild(txt);
     });
     return svg;

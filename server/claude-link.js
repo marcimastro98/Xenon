@@ -36,13 +36,49 @@ const BACKUP_SUFFIX = '.xenon-backup';
 // Non-blocking lifecycle events. Kept to a short timeout: these must never slow
 // a tool call down, and Claude Code treats a timeout as a non-blocking error and
 // carries on regardless.
-const EVENT_HOOKS = Object.freeze(['SessionStart', 'SessionEnd', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Notification', 'Stop']);
+//
+// THE RULE FOR ADDING ONE: every entry here is a synchronous HTTP POST inside
+// the user's turn, so it is paid for in latency on somebody's machine, forever.
+// An event earns its place only when the widget SHOWS something it could not
+// show without it. That is why `FileChanged` and `MessageDisplay` are not here
+// despite being useful-sounding: during a build they would be hundreds of posts
+// per second in exchange for one line of UI.
+//
+// What each of these is for, so the next person can judge a removal:
+//   SessionStart/SessionEnd  a session appearing and going, with its reason
+//   UserPromptSubmit         the headline ("what did I ask it to do")
+//   Pre/PostToolUse          the current action, and the activity history
+//   PostToolUseFailure       a step that failed, told apart from one that worked
+//   Notification             WHY a session is waiting, instead of a bare "waiting"
+//   SubagentStart/Stop       fan-out, which otherwise looks like one stuck session
+//   Pre/PostCompact          explains the context gauge collapsing
+//   StopFailure              a turn that ended on an API error, not on an answer
+const EVENT_HOOKS = Object.freeze([
+  'SessionStart', 'SessionEnd', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse',
+  'PostToolUseFailure', 'Notification', 'SubagentStart', 'SubagentStop',
+  'PreCompact', 'PostCompact', 'StopFailure',
+]);
 const EVENT_TIMEOUT_SEC = 5;
 // The blocking one. Claude Code waits for our answer here, so the timeout is
 // generous — the bridge resolves well before it (APPROVAL_TTL_MS) and hands the
 // decision back to the terminal rather than letting this expire.
 const PERMISSION_EVENT = 'PermissionRequest';
 const PERMISSION_TIMEOUT_SEC = 600;
+// Stop is a lifecycle event AND the delivery point for a follow-up typed on the
+// dashboard, so it goes to its own endpoint: /api/claude/event answers 204 with
+// no body on purpose, and the ability to influence a session must live in one
+// named place rather than becoming a property of the generic ingest. Nobody is
+// waited on here — the queued text is already in hand — so the timeout only has
+// to cover a local round trip.
+const TURN_END_EVENT = 'Stop';
+const TURN_END_TIMEOUT_SEC = 10;
+// AskUserQuestion, intercepted on PreToolUse so the user can answer it from the
+// touchscreen before the terminal prompt is even drawn. Scoped with a matcher so
+// it is the ONLY tool that can block on this path — every other PreToolUse keeps
+// the 5-second lifecycle hook above and is never slowed down by it.
+const QUESTION_EVENT = 'PreToolUse';
+const QUESTION_MATCHER = 'AskUserQuestion';
+const QUESTION_TIMEOUT_SEC = 600;
 
 function configDir() {
   return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
@@ -142,7 +178,10 @@ async function status(dataDir, port) {
     settingsPath: file,
     settingsExists: !!settings,
     hookCount: ourHookCount,
-    expectedHooks: EVENT_HOOKS.length + 1,
+    // The lifecycle set, plus PermissionRequest, Stop and the AskUserQuestion
+    // interceptor. Kept derived rather than written as a number so adding an
+    // event cannot leave the widget reporting a partial link forever.
+    expectedHooks: EVENT_HOOKS.length + 3,
     statusLine: ours ? 'ours' : (sl ? 'foreign' : 'none'),
     // A statusline of the user's own that we would chain (or already chained).
     chained: state.chained ? String(state.chained.command || '') : (sl && !ours ? String(sl.command || '') : ''),
@@ -181,6 +220,18 @@ async function link(dataDir, port) {
   const permGroups = Array.isArray(hooks[PERMISSION_EVENT]) ? hooks[PERMISSION_EVENT].slice() : [];
   permGroups.push({ hooks: [ourHandler(`${base}/permission`, PERMISSION_TIMEOUT_SEC, token)] });
   hooks[PERMISSION_EVENT] = permGroups;
+  // Stop: its own endpoint, because this is the one that may answer with a
+  // decision (it delivers a follow-up typed on the dashboard).
+  const stopGroups = Array.isArray(hooks[TURN_END_EVENT]) ? hooks[TURN_END_EVENT].slice() : [];
+  stopGroups.push({ hooks: [ourHandler(`${base}/turn-end`, TURN_END_TIMEOUT_SEC, token)] });
+  hooks[TURN_END_EVENT] = stopGroups;
+  // A SECOND PreToolUse group, matched to AskUserQuestion alone. Both groups
+  // fire for that tool — the unmatched one records it in 5 seconds like any
+  // other, this one is allowed to block while the user picks an option — and no
+  // other tool call ever touches the slow path.
+  const qGroups = Array.isArray(hooks[QUESTION_EVENT]) ? hooks[QUESTION_EVENT].slice() : [];
+  qGroups.push({ matcher: QUESTION_MATCHER, hooks: [ourHandler(`${base}/question`, QUESTION_TIMEOUT_SEC, token)] });
+  hooks[QUESTION_EVENT] = qGroups;
   settings.hooks = hooks;
 
   // Statusline: preserve whatever the user had. Only capture it when it isn't

@@ -21,7 +21,9 @@
   background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); transition: border-color 0.15s, background 0.15s; }
 .nw-add-field:focus-within { border-color: var(--accent, #1ed760); background: rgba(255,255,255,0.07); }
 .nw-add-ic { width: 17px; height: 17px; flex: 0 0 auto; opacity: 0.55; }
-.nw-add-input { flex: 1 1 auto; min-width: 0; height: 100%; border: 0; background: transparent; color: var(--text, #f0f3f1); font-size: 13.5px; }
+/* Wrapper-scoped: theme-contract.css's `:is(input[type="text"], …)` outranks a
+   bare class, so the unscoped version lost and the field drew in two colours. */
+.nw-add-field .nw-add-input { flex: 1 1 auto; min-width: 0; height: 100%; border: 0; background: transparent; color: var(--text, #f0f3f1); font-size: 13.5px; }
 .nw-add-input:focus { outline: none; }
 .nw-add-input::placeholder { color: var(--text, #f0f3f1); opacity: 0.4; }
 

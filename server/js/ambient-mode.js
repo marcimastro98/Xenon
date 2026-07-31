@@ -69,7 +69,10 @@ if (typeof window !== 'undefined') (function () {
   const BUSY_BODY_CLASSES = ['game-mode', 'perf-mode', 'layout-editing', 'ai-open', 'ai-active', 'ai-voice-mode', 'ai-listening', 'ai-picker-open'];
   // Visible overlays/dialogs that suppress the idle auto-start.
   const OVERLAY_IDS = ['ai-overlay', 'settings-overlay', 'weather-overlay', 'app-switcher', 'tab-switcher', 'day-modal'];
-  const OVERLAY_SELECTOR = '.preset-modal-overlay, .cw-perm-backdrop, .deck-mix-backdrop, .wc-overlay, dialog[open]';
+  // `.cw-overlay` is the Claude Code approval: a tool call is blocked on a tap,
+  // so starting a screensaver over it would hide the one thing on screen that
+  // someone is waiting for.
+  const OVERLAY_SELECTOR = '.preset-modal-overlay, .cw-perm-backdrop, .cw-overlay, .deck-mix-backdrop, .wc-overlay, dialog[open]';
 
   let idleTimer = null;
   let lastRearm = 0;

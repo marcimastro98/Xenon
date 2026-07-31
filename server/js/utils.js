@@ -405,13 +405,16 @@ function renderStatSpark(fillEl, value) {
   let min = Infinity, max = -Infinity;
   for (const val of hist) { if (val < min) min = val; if (val > max) max = val; }
   const range = (max - min) || 1;
-  let d = '';
+  const pts = [];
   for (let i = 0; i < n; i++) {
-    const x = (i * stepX).toFixed(2);
     const norm = max === min ? 0.5 : (hist[i] - min) / range;
-    const y = (3 + (1 - norm) * 24).toFixed(2);
-    d += (i === 0 ? 'M' : 'L') + x + ' ' + y + ' ';
+    pts.push([i * stepX, 3 + (1 - norm) * 24]);
   }
-  const path = d.trim();
+  // Monotone cubic, not a polyline: the series is spiky by nature (a ping that
+  // flips between two values, a GPU that idles then jumps) and straight joins
+  // read as a saw. SparkPath never overshoots, so a smoothed peak still sits on
+  // the sample it came from — and it emits the same command COUNT the polyline
+  // did, which is what `transition: d` needs to keep interpolating.
+  const path = SparkPath.smoothLineD(pts, 2);
   svg.querySelectorAll('.stat-spark-line, .stat-spark-glow').forEach(p => p.setAttribute('d', path));
 }
