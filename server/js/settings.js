@@ -380,10 +380,13 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // News widget + ticker. The NewsData.io key is server-only (redacted); the
   // client keeps only the `*Set` placeholder flag.
   news: Object.freeze({
+    // The shape only. The list a fresh install actually gets is built in the
+    // user's language by defaultNewsFeedsClient(); this is its 'en' answer, and
+    // matches server/news.js DEFAULT_NEWS.
     feeds: Object.freeze([
-      Object.freeze({ id: 'ansa', type: 'source', name: 'ANSA' }),
       Object.freeze({ id: 'bbc', type: 'source', name: 'BBC News' }),
-      Object.freeze({ id: 'tech', type: 'topic', name: 'Tecnologia', query: 'tecnologia' }),
+      Object.freeze({ id: 'guardian', type: 'source', name: 'The Guardian' }),
+      Object.freeze({ id: 'tech', type: 'topic', name: 'Technology', query: 'technology' }),
     ]),
     refreshSec: 600,
     tile: Object.freeze({ images: true }),
@@ -747,6 +750,58 @@ const BG_CUSTOM_CODE_MAX = 60000;
 // An older build normalizes an unknown kind to 'auto', which is the safe
 // direction — the window stays visible rather than disappearing.
 const SURFACE_KINDS = ['auto', 'screen', 'phone', 'both'];
+// normalizeNewsClient() runs during that same init too, and reaches this table
+// through defaultNewsFeedsClient() when there is no saved feed list — a fresh
+// install, or a settings blob that predates the key. It sat beside that function
+// further down and threw "Cannot access 'NEWS_DEFAULT_TOPIC' before
+// initialization" on load, exactly as AMBIENT_IDLE_MINUTES and SURFACE_KINDS did
+// before it: the function is hoisted, the const is not, so the call arrives
+// while the table is still in its temporal dead zone. It took loadHubSettings()
+// with it and the dashboard booted empty.
+//
+// The word for "technology" per UI language. A MIRROR of DEFAULT_TOPIC in
+// server/news.js, for the same reason normalizeNewsClient mirrors normalizeNews,
+// and pinned in step with it by test/news-default-feeds.test.mjs — the two
+// drifting would put one language in the chip and another in the query.
+const NEWS_DEFAULT_TOPIC = Object.freeze({
+  it: 'Tecnologia', en: 'Technology', de: 'Technologie', fr: 'Technologie',
+  es: 'Tecnología', pt: 'Tecnologia', ru: 'Технологии', nl: 'Technologie',
+  ko: '기술', ja: 'テクノロジー', zh: '科技',
+});
+
+// The same rule, and the same three consts that broke it. normalizeSdkWidgets(),
+// normalizeSdkUserHosts() and normalizeLightingDeviceModes() all run during that
+// initial normalize, and all three read a table that used to sit beside them
+// further down the file.
+//
+// It was invisible because loadHubSettings() wraps the whole normalize in a
+// `try { … } catch { return normalizeSettings(null); }` — so the TDZ
+// ReferenceError was swallowed and the user's ENTIRE saved settings blob was
+// silently replaced by defaults on load. It only fired once there was data on
+// the branch that reads the table: measured by running settings.js against a
+// stored blob with one SDK widget assigned, which is every user who has put a
+// community widget on a tile. The server copy arriving a moment later is what
+// hid it. Nothing about the catch changes here — it is the right shape for a
+// corrupt blob — which is exactly why the ordering has to be checked instead
+// (test/settings-load-order.test.mjs).
+// MUST mirror sdk-widgets.js SDK_STREAMS and Object.keys(SDK_ACTION_CATEGORIES)
+// — a grant carrying a stream/action the server allows but this list omits gets
+// silently stripped on save, so the widget is granted a capability it can never
+// use. server/test/sdk-grant-cats-sync guards that half.
+const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'audioLevels', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'tasks', 'notes', 'agenda', 'weather', 'battery']);
+const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'audioDevice', 'mic', 'lighting', 'chroma', 'wavelink', 'spotify', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'streamerbot', 'url', 'tasks', 'soundboard', 'browser', 'watch']);
+const SDK_PACKAGE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
+// Grant-side mirrors of the server manifest rules (sdk-widgets.js is the
+// authority; a grant can never widen what the manifest declared, so a loose
+// hostname check here is safe — the server re-validates every proxied fetch).
+const SDK_HOST_RE = /^[a-z0-9][a-z0-9.-]{0,252}$/;
+const SDK_SUB_ID_RE = /^[a-z0-9][a-z0-9-]{0,40}$/;
+const LIGHTING_DEVICE_MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'off'];
+// sanitizeBackgroundMedia() runs during that normalize too. A pasted-SVG
+// wallpaper is stored as a base64 data:image/svg+xml URI (not a served
+// /uploads file); bounded so it cannot bloat the persisted settings blob.
+const BG_SVG_DATA_RE = /^data:image\/svg\+xml;base64,[A-Za-z0-9+/]+={0,2}$/;
+const BG_SVG_MAX_CHARS = 512 * 1024;
 
 let hubSettings = loadHubSettings();
 let settingsStatusTimer = null;
@@ -774,10 +829,6 @@ function hexToRgb(hex) {
   return [0, 2, 4].map(index => parseInt(safe.slice(index, index + 2), 16));
 }
 
-// A pasted-SVG wallpaper is stored as a base64 data:image/svg+xml URI (not a
-// served /uploads file). Bounded so it can't bloat the persisted settings blob.
-const BG_SVG_DATA_RE = /^data:image\/svg\+xml;base64,[A-Za-z0-9+/]+={0,2}$/;
-const BG_SVG_MAX_CHARS = 512 * 1024;
 function sanitizeBackgroundMedia(value) {
   if (!value || typeof value !== 'object') return null;
   const url = String(value.url || '').trim();
@@ -1530,7 +1581,7 @@ function normalizeSettings(source) {
     football: normalizeFootballClient(value.football),
     sportsDbKey: String(value.sportsDbKey || '').trim().slice(0, 60),
     sportsDbKeySet: value.sportsDbKeySet === true || (typeof value.sportsDbKey === 'string' && value.sportsDbKey.length > 0),
-    news: normalizeNewsClient(value.news),
+    news: normalizeNewsClient(value.news, value.language),
     newsDataKey: String(value.newsDataKey || '').trim().slice(0, 120),
     newsDataKeySet: value.newsDataKeySet === true || (typeof value.newsDataKey === 'string' && value.newsDataKey.length > 0),
     ticker: normalizeTickerClient(value.ticker),
@@ -2017,14 +2068,6 @@ function normalizeDiscordNotifications(value) {
 // silently stripped on save, so the widget is granted a capability it can never
 // use (the exact bug where a to-do widget's `tasks` stream+action were dropped,
 // leaving it empty and un-writable). server/test/sdk-grant-cats-sync guards this.
-const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'audioLevels', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'tasks', 'notes', 'agenda', 'weather', 'battery']);
-const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'audioDevice', 'mic', 'lighting', 'chroma', 'wavelink', 'spotify', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'streamerbot', 'url', 'tasks', 'soundboard', 'browser', 'watch']);
-const SDK_PACKAGE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
-// Grant-side mirrors of the server manifest rules (sdk-widgets.js is the
-// authority; a grant can never widen what the manifest declared, so a loose
-// hostname check here is safe — the server re-validates every proxied fetch).
-const SDK_HOST_RE = /^[a-z0-9][a-z0-9.-]{0,252}$/;
-const SDK_SUB_ID_RE = /^[a-z0-9][a-z0-9-]{0,40}$/;
 // Addresses the user typed into a manifest's userHosts slots, keyed by slot id.
 // Same reasoning as SDK_HOST_RE: keep the shape, let sdk-widgets.js
 // resolveUserHosts be the authority — it re-validates host and scope on every
@@ -2233,10 +2276,27 @@ function normalizeFootballClient(value) {
   return { teams, refreshSec, alerts: src.alerts !== false, tile: { results: tile.results !== false, standings: tile.standings !== false } };
 }
 
+// The feed set a fresh install starts with, in the user's language. Its table
+// (NEWS_DEFAULT_TOPIC) lives up beside SURFACE_KINDS and not here — see the note
+// there; the initial normalize reaches this function before this point in the
+// file has been evaluated.
+function defaultNewsFeedsClient(langCode) {
+  const raw = String(langCode || '').toLowerCase().slice(0, 2);
+  const l = Object.prototype.hasOwnProperty.call(NEWS_DEFAULT_TOPIC, raw) ? raw : 'en';
+  const sources = l === 'it'
+    ? [{ id: 'ansa', type: 'source', name: 'ANSA' }, { id: 'bbc', type: 'source', name: 'BBC News' }]
+    : [{ id: 'bbc', type: 'source', name: 'BBC News' }, { id: 'guardian', type: 'source', name: 'The Guardian' }];
+  const topic = NEWS_DEFAULT_TOPIC[l];
+  return [...sources, { id: 'tech', type: 'topic', name: topic, query: topic.toLowerCase() }];
+}
+
 // News config — mirrors server/news.js normalizeNews. Feeds are followed sources
 // (curated ids) or free-text topics; the NewsData.io key is handled separately
 // (server-only, redacted). Known-key rebuild, bounded.
-function normalizeNewsClient(value) {
+//
+// `langCode` is read ONLY to build a first feed set. A saved list is the user's
+// and is never rewritten, whatever language they later switch to.
+function normalizeNewsClient(value, langCode) {
   const src = value && typeof value === 'object' ? value : {};
   const refreshSec = clampNumber(src.refreshSec, 120, 3600, 600);
   const tile = src.tile && typeof src.tile === 'object' ? src.tile : {};
@@ -2270,7 +2330,10 @@ function normalizeNewsClient(value) {
       if (feeds.length >= 12) break;
     }
   } else {
-    feeds = DEFAULT_HUB_SETTINGS.news.feeds.map(f => ({ ...f }));
+    // `lang` (i18n.js) is the language actually on screen; the stored setting is
+    // '' until the user picks one explicitly, and seeding from '' would hand
+    // every browser-locale install the English default.
+    feeds = defaultNewsFeedsClient(langCode || (typeof lang === 'string' ? lang : ''));
   }
   return { feeds, refreshSec, tile: { images: tile.images !== false } };
 }
@@ -2460,7 +2523,6 @@ function normalizeLighting(value) {
   };
 }
 
-const LIGHTING_DEVICE_MODES = ['follow', 'color', 'animation', 'temperature', 'album', 'off'];
 function normalizeLightingDeviceModes(value) {
   const out = {};
   if (!value || typeof value !== 'object') return out;

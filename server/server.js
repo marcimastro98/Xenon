@@ -8448,7 +8448,9 @@ function normalizeHubSettings(value) {
     finnhubKey: String(source.finnhubKey || '').trim().slice(0, 120),
     football: football.normalizeFootball(source.football),
     sportsDbKey: String(source.sportsDbKey || '').trim().slice(0, 60),
-    news: news.normalizeNews(source.news),
+    // The language goes in so a FIRST feed set is built in it. Nothing else in
+    // here reads it: an existing list is the user's and is never rewritten.
+    news: news.normalizeNews(source.news, source.language),
     newsDataKey: String(source.newsDataKey || '').trim().slice(0, 120),
     claude: claudeUsage.normalizeClaude(source.claude),
     ticker: normalizeTicker(source.ticker),

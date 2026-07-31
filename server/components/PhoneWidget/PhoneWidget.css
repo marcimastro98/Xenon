@@ -102,10 +102,22 @@
    number is shown in full: a name alone would hide what is about to be dialled. */
 
 .phw-confirm { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center;
-  padding: 12px; background: rgba(0,0,0,0.55); border-radius: 12px; }
+  padding: 12px; background: rgba(0,0,0,0.62); border-radius: 12px; }
+/* OPAQUE, and it is not a style preference. `--panel` is the tile token and it
+   carries `--panel-alpha`: a card painted with it is a translucent card, which
+   is right for a tile floating over the wallpaper and wrong for a dialog
+   floating over a LIST. Reported from a phone on a low-alpha theme: the call
+   log showed straight through the sheet, so "Place this call?", the contact's
+   name and the number were interleaved with the rows behind them and the whole
+   decision was unreadable — on the one dialog in the product that spends money
+   and rings a person. `rgb(var(--panel-rgb))` is the same colour with the alpha
+   dropped, which is what the widget-permission and clipboard dialogs already
+   use (CustomWidget.css), light-mode override included. */
 .phw-confirm-card { width: 100%; max-width: 260px; display: flex; flex-direction: column; gap: 6px;
   padding: 14px; border-radius: 14px; text-align: center;
-  background: var(--panel, rgba(22,26,24,0.96)); border: 1px solid rgba(255,255,255,0.1); }
+  background: rgb(var(--panel-rgb, 22, 26, 24)); border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: 0 16px 44px rgba(0,0,0,0.55); }
+:root[data-appearance="light"] .phw-confirm-card { background: #f4f6f8; border-color: rgba(0,0,0,0.12); }
 .phw-confirm-q { font-size: 12px; opacity: 0.7; }
 .phw-confirm-name { font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .phw-confirm-num { font-size: 12.5px; opacity: 0.75; font-variant-numeric: tabular-nums; word-break: break-all; }
@@ -120,6 +132,18 @@
   overflow-wrap: anywhere; }
 
 .phw-notice { font-size: 11.5px; opacity: 0.7; text-align: center; padding: 2px 4px; line-height: 1.4; }
+
+/* Why the rows below are inert on a paired phone or tablet. It sits above the
+   list rather than inside a confirm sheet, because that is where the user is
+   before they tap, not after. */
+.phw-remote-note {
+  flex: 0 0 auto;
+  font-size: 11px; line-height: 1.35; text-align: center;
+  padding: 5px 8px; border-radius: 8px;
+  color: var(--muted-text, rgba(255,255,255,0.7));
+  background: rgba(255,255,255,0.045);
+  border: 1px solid rgba(255,255,255,0.07);
+}
 
 /* ── Messages ─────────────────────────────────────────────────────────── */
 

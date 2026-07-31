@@ -458,7 +458,43 @@
     // underneath it, and the argument disappears instead of being won.
     const shell = document.querySelector('.shell');
     (shell || document.body).appendChild(dock);
+    measureDock();
     return dock;
+  }
+
+  // ── How tall the dock is, for everything that floats over it ──────────────
+  //
+  // The paragraph above is true of anything the dashboard lays OUT: a grid row
+  // cannot be sat on. It is not true of the things the dashboard FIXES to the
+  // viewport, and there are eight of them (the Discord invite, the Game
+  // Companion pill, the layout button, the event/deck/performance toasts, the
+  // vitals pet). Those float over the dock's controls, in the corner, and the
+  // reported case was the Game Companion pill sitting on top of the bar while a
+  // game was running. Occupying a row won the argument with the LAYOUT and none
+  // of them was ever in it.
+  //
+  // The height is measured rather than assumed because the dock wraps to a
+  // second line on a narrow screen and grows with the safe-area inset, so any
+  // constant is wrong on some phone. CSS reads it as --ph-dock-h.
+  let dockSize = null;
+  function measureDock() {
+    if (!dock) return;
+    if (!dockSize && typeof ResizeObserver === 'function') {
+      dockSize = new ResizeObserver(() => writeDockHeight());
+      dockSize.observe(dock);
+    }
+    writeDockHeight();
+  }
+
+  function writeDockHeight() {
+    if (!dock) return;
+    const h = Math.round(dock.getBoundingClientRect().height);
+    if (h > 0) document.documentElement.style.setProperty('--ph-dock-h', h + 'px');
+  }
+
+  function stopDockMeasure() {
+    if (dockSize) { dockSize.disconnect(); dockSize = null; }
+    document.documentElement.style.removeProperty('--ph-dock-h');
   }
 
   /**
@@ -469,6 +505,7 @@
    */
   function destroyDock() {
     stopDotWatchers();
+    stopDockMeasure();
     if (dock) { dock.remove(); dock = null; }
   }
 
