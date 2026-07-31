@@ -114,6 +114,7 @@
     return (typeof hubSettings === 'object' && hubSettings && hubSettings.claudeWidget) || null;
   }
   function approvalsOn() { const c = cfg(); return !c || c.approvals !== false; }
+  function questionsOn() { const c = cfg(); return !c || c.questions !== false; }
   function topbarOn() {
     const c = cfg();
     try {
@@ -124,14 +125,20 @@
     return !c || c.topbar !== false;
   }
 
-  // With approvals off there is nothing to show, nothing to escalate and nothing
-  // for the topbar to call urgent — one gate covers all three. The server also
-  // answers the hook immediately in that case, so the prompt is already back in
-  // the terminal by the time this runs.
+  // With a surface switched off there is nothing to show, nothing to escalate
+  // and nothing for the topbar to call urgent. The server also answers the hook
+  // immediately in that case, so the prompt is already back in the terminal by
+  // the time this runs — the two halves have to agree or the tile would draw a
+  // card for something nobody is waiting on any more.
+  //
+  // The two switches are separate because the bargains are: a permission decides
+  // whether something RUNS on this PC, a question only picks how Claude
+  // proceeds. Filtering both on the permission switch would have hidden every
+  // question from anyone who only wanted approvals at the keyboard.
   function approvals() {
-    if (!approvalsOn()) return [];
     const l = live();
-    return (l && l.approvals) || [];
+    const all = (l && l.approvals) || [];
+    return all.filter((a) => (a.kind === 'question' ? questionsOn() : approvalsOn()));
   }
 
   // Bridge sessions when Claude Code is linked (exact state), transcript-derived
@@ -231,6 +238,16 @@
     idle: () => t('claude_state_idle', 'idle'),
   };
 
+  // "Did it finish, or did I kill it?" is the question the user asks about a
+  // session that is no longer there, and the old widget answered neither: the
+  // record was deleted the moment it ended.
+  function endedLabel(s) {
+    if (s.endedReason === 'gone') return t('claude_ended_gone', 'closed');
+    if (s.endedReason === 'clear') return t('claude_ended_clear', 'cleared');
+    if (s.endedReason === 'logout') return t('claude_ended_logout', 'signed out');
+    return t('claude_ended', 'finished');
+  }
+
   async function decide(id, behavior) {
     if (deciding.has(id)) return;
     deciding.add(id);
@@ -249,6 +266,73 @@
     // the card can't be tapped twice.
     const l = live();
     if (l && l.approvals) l.approvals = l.approvals.filter(a => a.id !== id);
+    paint();
+  }
+
+  // ── answering a question ───────────────────────────────────────────────────
+  // What the user has picked so far, per card: approvalId → array (one entry per
+  // question) of arrays of option labels. Held here rather than in the DOM
+  // because every SSE push rebuilds the tile, and a half-made choice must
+  // survive Claude finishing a tool call in the middle of it.
+  const qsel = new Map();
+
+  function pickOption(a, qi, label, multi) {
+    const cur = qsel.get(a.id) || a.questions.map(() => []);
+    const row = cur[qi] || [];
+    if (multi) {
+      const at = row.indexOf(label);
+      cur[qi] = at === -1 ? row.concat(label) : row.filter((x) => x !== label);
+    } else {
+      cur[qi] = row.length === 1 && row[0] === label ? [] : [label];
+    }
+    qsel.set(a.id, cur);
+    paint();
+  }
+
+  function answerReady(a) {
+    const cur = qsel.get(a.id);
+    return !!(cur && cur.some((row) => row && row.length));
+  }
+
+  async function sendAnswer(a, skip) {
+    if (deciding.has(a.id)) return;
+    deciding.add(a.id);
+    paint();
+    const body = skip ? { id: a.id, skip: true } : { id: a.id, selections: qsel.get(a.id) || [] };
+    const d = await api('/api/claude/answer', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    deciding.delete(a.id);
+    qsel.delete(a.id);
+    if (!d || !d.ok) {
+      // Claude stopped waiting, or it was answered in the terminal. Saying so
+      // beats a button that appears to do nothing.
+      if (window.XenonToast) window.XenonToast.show({ type: 'warn', title: t('claude_decide_late', 'That request is no longer waiting') });
+    }
+    const l = live();
+    if (l && l.approvals) l.approvals = l.approvals.filter((x) => x.id !== a.id);
+    paint();
+  }
+
+  // ── a follow-up into a live session ────────────────────────────────────────
+  // Only offered while a turn is running, because the delivery point is the end
+  // of that turn. An idle session takes the resume path instead (submitAsk), and
+  // the composer says which of the two is about to happen before you press send.
+  async function queueReply(sessionId, text) {
+    const d = await api('/api/claude/reply', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, text }),
+    });
+    return d && d.ok ? { ok: true } : { ok: false, error: (d && d.error) || 'failed' };
+  }
+  async function cancelReply(sessionId) {
+    await api('/api/claude/reply', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, cancel: true }),
+    });
+    const s = sessions().find((x) => x.id === sessionId);
+    if (s) s.queued = null;
     paint();
   }
 
@@ -275,36 +359,46 @@
     return f ? f() : (tool || 'tool');
   }
 
-  // AskUserQuestion is not a permission and is no longer treated as one: the
-  // server answers it immediately so Claude's own prompt reaches the terminal,
-  // and this card is only a heads-up that you are being asked something. It
-  // shows the question and the options for real, and says where to answer —
-  // here it cannot be answered, because a hook cannot supply a tool's result.
+  // A question from Claude, answered here. The options used to be a list you
+  // could read and not touch, over a card whose only button meant "seen" — which
+  // is why it read as broken: everything about it looked like a choice, and
+  // nothing about it was one. They are buttons now, and the answer really does
+  // reach the session (see the header of server/claude-bridge.js for how).
   function questionBody(a) {
     const wrap = el('div', 'cw-appr-qs');
-    a.questions.forEach((q) => {
+    const cur = qsel.get(a.id) || a.questions.map(() => []);
+    a.questions.forEach((q, qi) => {
       const box = el('div', 'cw-appr-q');
       if (q.header) box.appendChild(el('div', 'cw-appr-qhead', q.header));
       box.appendChild(el('div', 'cw-appr-qtext', q.question));
       if (q.options && q.options.length) {
-        const list = el('ul', 'cw-appr-qopts');
+        const list = el('div', 'cw-appr-qopts');
+        // Multi-select is Claude's own flag, so the control has to match it or
+        // the card would promise a choice the tool will not accept.
+        if (q.multiSelect) box.appendChild(el('div', 'cw-appr-qmulti', t('claude_q_multi', 'Pick one or more')));
         q.options.forEach((o) => {
-          const li = el('li', 'cw-appr-qopt');
-          li.appendChild(el('span', 'cw-appr-qopt-label', o.label));
-          if (o.description) li.appendChild(el('span', 'cw-appr-qopt-desc', o.description));
-          list.appendChild(li);
+          const picked = (cur[qi] || []).indexOf(o.label) !== -1;
+          const btn = el('button', 'cw-appr-qopt' + (picked ? ' is-picked' : ''));
+          btn.type = 'button';
+          btn.setAttribute('aria-pressed', picked ? 'true' : 'false');
+          btn.disabled = deciding.has(a.id);
+          btn.appendChild(el('span', 'cw-appr-qopt-label', o.label));
+          if (o.description) btn.appendChild(el('span', 'cw-appr-qopt-desc', o.description));
+          btn.addEventListener('click', () => pickOption(a, qi, o.label, !!q.multiSelect));
+          list.appendChild(btn);
         });
         box.appendChild(list);
       }
       wrap.appendChild(box);
     });
-    wrap.appendChild(el('div', 'cw-appr-qnote',
-      t('claude_ask_answer_where', 'Answer in the terminal — Claude is waiting for you there.')));
     return wrap;
   }
 
   function approvalCard(a, big) {
-    const isAsk = !!(a.questions && a.questions.length);
+    // The kind comes from the server, never from the tool name: a permission
+    // decides whether something RUNS, a question only decides how Claude
+    // proceeds, and they are answered through different mechanisms.
+    const isAsk = a.kind === 'question';
     const card = el('div', 'cw-appr'
       + (big ? ' cw-appr--big' : '')
       + (a.urgent ? ' is-urgent' : '')
@@ -332,20 +426,30 @@
     body.appendChild(intent);
 
     if (isAsk) body.appendChild(questionBody(a));
+    // ExitPlanMode: the plan IS the thing being approved. Showing the tool name
+    // and an Allow button over it asked the user to approve something they could
+    // not read.
+    else if (a.plan) body.appendChild(el('div', 'cw-appr-plan', a.plan));
     else if (a.detail) body.appendChild(el('div', 'cw-appr-detail', a.detail));
     card.appendChild(body);
 
     const busy = deciding.has(a.id);
     const acts = el('div', 'cw-appr-acts');
-    // A notice settles nothing, so it gets one button that means "seen" and no
-    // Allow/Deny pair — offering a choice over something already decided is how
-    // the old card got read as "tap to answer the question", which it never was.
-    if (a.notice) {
-      const ok = el('button', 'cw-appr-ok'); ok.type = 'button';
-      ok.textContent = t('claude_ask_dismiss', 'Got it');
-      ok.disabled = busy;
-      ok.addEventListener('click', () => decide(a.id, 'allow'));
-      acts.appendChild(ok);
+    if (isAsk) {
+      // Send is disabled until something is chosen, so the primary button can
+      // never be the no-op the old "Got it" was. The secondary is an honest way
+      // out that says where the question goes instead.
+      const send = el('button', 'cw-appr-allow'); send.type = 'button';
+      send.textContent = t('claude_q_send', 'Answer');
+      send.disabled = busy || !answerReady(a);
+      send.addEventListener('click', () => sendAnswer(a, false));
+      const term = el('button', 'cw-appr-deny'); term.type = 'button';
+      term.textContent = t('claude_q_terminal', 'In the terminal');
+      term.title = t('claude_q_terminal_hint', 'Leave it to the terminal, where Claude is also asking');
+      term.disabled = busy;
+      term.addEventListener('click', () => sendAnswer(a, true));
+      acts.appendChild(send);
+      acts.appendChild(term);
     } else {
       const allow = el('button', 'cw-appr-allow'); allow.type = 'button';
       allow.textContent = t('claude_allow', 'Allow');
@@ -370,6 +474,13 @@
     if (!overlay) {
       overlay = el('div', 'cw-overlay');
       document.body.appendChild(overlay);
+      // This is a full-screen backdrop-filter, and it was in none of the three
+      // registries every other one joins. Two real consequences: a Store promo
+      // card could draw itself over an unanswered permission prompt (the worst
+      // possible moment to be asked to dismiss something), and the blur kept
+      // every dashboard animation running underneath it, which is exactly the
+      // per-frame cost ambientFreeze exists to remove.
+      if (typeof window.ambientFreeze === 'function') window.ambientFreeze('claude-approval', true);
     }
     overlay.replaceChildren(approvalCard(urgent, true));
   }
@@ -377,6 +488,7 @@
     if (!overlay) return;
     overlay.remove();
     overlay = null;
+    if (typeof window.ambientFreeze === 'function') window.ambientFreeze('claude-approval', false);
   }
 
   // ── live sessions ──────────────────────────────────────────────────────────
@@ -388,6 +500,57 @@
   function sessionTag(s) {
     const same = sessions().filter(x => (x.project || '') === (s.project || ''));
     return (same.length > 1 && s.id) ? s.id.slice(0, 4) : '';
+  }
+
+  // Claude's own plan, ticking over. This is the lane the widget was rebuilt
+  // around: "it is busy" is what every other tool tells you, and where it has
+  // got to is what you actually want to know from across the room. Read off
+  // TodoWrite, so it is Claude's list rather than our guess at one.
+  function planLane(s) {
+    const todos = Array.isArray(s.todos) ? s.todos : [];
+    if (!todos.length) return null;
+    const done = todos.filter((x) => x.status === 'done').length;
+    const lane = el('div', 'cw-plan');
+
+    const head = el('div', 'cw-plan-head');
+    head.appendChild(el('span', 'cw-plan-title', t('claude_plan', 'Plan')));
+    head.appendChild(el('span', 'cw-plan-count', done + '/' + todos.length));
+    lane.appendChild(head);
+
+    const track = el('div', 'cw-plan-track');
+    const fill = el('div', 'cw-plan-fill');
+    fill.style.width = Math.round((done / todos.length) * 100) + '%';
+    track.appendChild(fill);
+    lane.appendChild(track);
+
+    // Only the step in flight and what is still ahead of it. A finished list is
+    // history and pushes the live line off a short tile.
+    const doing = todos.findIndex((x) => x.status === 'doing');
+    const from = doing === -1 ? done : doing;
+    const list = el('div', 'cw-plan-steps');
+    todos.slice(from, from + 3).forEach((x) => {
+      const step = el('div', 'cw-plan-step is-' + x.status);
+      step.appendChild(el('span', 'cw-plan-bullet'));
+      step.appendChild(el('span', 'cw-plan-text', x.text));
+      list.appendChild(step);
+    });
+    lane.appendChild(list);
+    return lane;
+  }
+
+  // Why a session is waiting. The old row could say "waiting for you" and never
+  // what for, which is indistinguishable from a hang.
+  function waitLine(s) {
+    const w = s.waitFor;
+    if (!w) return null;
+    const line = el('div', 'cw-wait is-' + w.kind);
+    const label = w.kind === 'permission' ? t('claude_wait_perm', 'Waiting for your approval')
+      : w.kind === 'question' ? t('claude_wait_q', 'Waiting for your answer')
+        : w.kind === 'error' ? t('claude_wait_err', 'The turn ended on an error')
+          : t('claude_state_waiting', 'waiting for you');
+    line.appendChild(el('span', 'cw-wait-label', label));
+    if (w.text) line.appendChild(el('span', 'cw-wait-text', w.text));
+    return line;
   }
 
   function sessionRow(s) {
@@ -417,14 +580,56 @@
     if (s.branch) top.appendChild(el('span', 'cw-sess-branch', s.branch));
     main.appendChild(top);
 
-    // Second line: what it's actually doing. A running tool name beats the
-    // prompt text — it's the more current fact.
+    // Second line: what it is actually doing, now. The tool NAME on its own was
+    // the old answer and it is barely an answer — "Bash" for six minutes tells
+    // you nothing, "Bash · npm test · 6m" tells you everything.
     const sub = el('div', 'cw-sess-sub');
-    if (state === 'waiting') sub.appendChild(el('span', 'cw-sess-state', STATE_LABEL.waiting()));
-    else if (s.tool) sub.appendChild(el('span', 'cw-sess-tool', s.tool));
-    else if (s.task) sub.appendChild(el('span', 'cw-sess-task', s.task));
-    else sub.appendChild(el('span', 'cw-sess-state', (STATE_LABEL[state] || STATE_LABEL.idle)()));
+    if (s.ended) {
+      sub.appendChild(el('span', 'cw-sess-state', endedLabel(s)));
+    } else if (s.compacting) {
+      sub.appendChild(el('span', 'cw-sess-state', t('claude_compacting', 'compacting the conversation')));
+    } else if (state === 'waiting') {
+      sub.appendChild(el('span', 'cw-sess-state', STATE_LABEL.waiting()));
+    } else if (s.tool) {
+      sub.appendChild(el('span', 'cw-sess-tool', s.tool));
+      if (s.toolDetail) sub.appendChild(el('span', 'cw-sess-tooldetail', s.toolDetail));
+      // How long it has been on this one step. A build and a hang look identical
+      // without it.
+      if (s.toolForMs > 4000) sub.appendChild(el('span', 'cw-sess-toolage', ago(s.toolForMs)));
+    } else if (s.task) {
+      sub.appendChild(el('span', 'cw-sess-task', s.task));
+    } else {
+      sub.appendChild(el('span', 'cw-sess-state', (STATE_LABEL[state] || STATE_LABEL.idle)()));
+    }
     main.appendChild(sub);
+
+    // Fan-out. Several subagents look like one stuck session without this.
+    if (s.subagents && s.subagents.length) {
+      const fan = el('div', 'cw-sess-agents');
+      s.subagents.slice(0, 4).forEach((agent) => {
+        fan.appendChild(el('span', 'cw-agent-chip', agent.type || t('claude_agent', 'agent')));
+      });
+      if (s.subagents.length > 4) fan.appendChild(el('span', 'cw-agent-chip is-more', '+' + (s.subagents.length - 4)));
+      main.appendChild(fan);
+    }
+
+    const wait = waitLine(s);
+    if (wait) main.appendChild(wait);
+    const plan = planLane(s);
+    if (plan) main.appendChild(plan);
+
+    // A follow-up already on its way. "Sent" would be a lie until the turn ends,
+    // so the tile says what is true and offers the way back out.
+    if (s.queued) {
+      const q = el('div', 'cw-queued');
+      q.appendChild(el('span', 'cw-queued-label', t('claude_queued', 'Queued for the end of this turn')));
+      q.appendChild(el('span', 'cw-queued-text', s.queued.text));
+      const undo = el('button', 'cw-queued-undo'); undo.type = 'button';
+      undo.textContent = t('claude_queued_cancel', 'Cancel');
+      undo.addEventListener('click', (ev) => { ev.stopPropagation(); cancelReply(s.id); });
+      q.appendChild(undo);
+      main.appendChild(q);
+    }
     row.appendChild(main);
 
     const meta = el('div', 'cw-sess-meta');
@@ -452,7 +657,17 @@
 
     const head = el('div', 'cw-band-head');
     head.appendChild(el('span', 'cw-band-title', t('claude_sessions', 'Sessions')));
-    if (active.length) head.appendChild(el('span', 'cw-band-hint', active.length + ' ' + t('claude_running', 'running')));
+    // One true sentence about everything at once, so the tile answers "is
+    // anything waiting on me" without being read line by line.
+    const working = active.filter((s) => s.state === 'running' && !s.ended).length;
+    const needs = active.filter((s) => s.waitFor).length;
+    const parts = [];
+    if (working) parts.push(working + ' ' + t('claude_running', 'running'));
+    if (needs) parts.push(needs + ' ' + t('claude_needs_you', 'need you'));
+    if (parts.length) {
+      const hint = el('span', 'cw-band-hint' + (needs ? ' is-waiting' : ''), parts.join(' · '));
+      head.appendChild(hint);
+    }
     // Start work from here. Only offered once Claude Code is linked: without the
     // hooks a run's permission prompts would land in a terminal the user is not
     // looking at, which is the opposite of the point.
@@ -894,9 +1109,36 @@
     return text + '\n\nAttached files on this PC (read them):\n' + lines.join('\n');
   }
 
+  // Which of the two things writing here will do. A session mid-turn takes the
+  // follow-up path — the text lands in THAT conversation when the turn ends. An
+  // idle one has no turn left to end, so nothing could deliver it, and it is
+  // continued as a resumed run instead. Same conversation either way; the
+  // composer says which before you press send, rather than one box that quietly
+  // behaves as either.
+  function replyMode() {
+    if (!askResumeId) return 'new';
+    const s = sessions().find((x) => x.id === askResumeId);
+    if (!s || s.ended) return 'none';
+    if (s.queued) return 'queued';
+    return (s.state === 'running' || s.state === 'waiting') ? 'followup' : 'resume';
+  }
+
   async function submitAsk() {
     const prompt = askText.trim();
     if (!prompt || askBusy) return;
+
+    // Follow-up into a turn that is still running: queue it, do not start a
+    // second process against the same conversation.
+    if (replyMode() === 'followup') {
+      askBusy = true; askError = ''; paint();
+      const q = await queueReply(askResumeId, prompt);
+      askBusy = false;
+      if (q.ok) { askText = ''; askAttach = []; }
+      else askError = replyErrorText(q.error);
+      paint();
+      return;
+    }
+
     askBusy = true; askError = ''; paint();
     const d = await api('/api/claude/run', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -924,6 +1166,13 @@
       }
     }
     else { askError = runErrorText(d && d.error); paint(); }
+  }
+
+  function replyErrorText(code) {
+    if (code === 'already_queued') return t('claude_reply_e_queued', 'There is already a message waiting to be delivered');
+    if (code === 'session_ended') return t('claude_reply_e_ended', 'That session has closed');
+    if (code === 'unknown_session') return t('claude_reply_e_unknown', 'Xenon has lost track of that session');
+    return t('claude_reply_e_failed', 'Could not queue that message');
   }
 
   async function stopRun(id) {
@@ -1208,15 +1457,25 @@
 
     bar.appendChild(el('div', 'cw-composer-gap'));
 
+    const mode = replyMode();
     const send = el('button', 'cw-ask-send'); send.type = 'button';
     send.textContent = askBusy
-      ? t('claude_ask_sending', 'Starting…')
+      ? (mode === 'followup' ? t('claude_reply_sending', 'Queueing…') : t('claude_ask_sending', 'Starting…'))
       : (askResumeId ? t('claude_ask_send_more', 'Send') : t('claude_ask_send', 'Start'));
-    send.disabled = askBusy || (askProjects !== null && !askProjects.length);
+    send.disabled = askBusy || mode === 'none' || (askProjects !== null && !askProjects.length);
     send.addEventListener('click', () => { askText = ta.value; submitAsk(); });
     bar.appendChild(send);
 
     box.appendChild(bar);
+    // Say where the text is going BEFORE it is sent. The two destinations look
+    // identical from here and behave differently, and the old composer only ever
+    // did one of them whatever it looked like it was doing.
+    const note = mode === 'followup' ? t('claude_reply_note', 'Goes into this session when the current turn ends')
+      : mode === 'resume' ? t('claude_resume_note', 'Continues this conversation in the background')
+        : mode === 'queued' ? t('claude_queued_note', 'A message is already waiting to be delivered')
+          : mode === 'none' ? t('claude_reply_e_ended', 'That session has closed')
+            : '';
+    if (note) box.appendChild(el('div', 'cw-ask-note' + (mode === 'none' ? ' is-warn' : ''), note));
     if (askError) box.appendChild(el('div', 'cw-ask-error', askError));
     return box;
   }
@@ -1411,14 +1670,20 @@
     }
 
     const u = payload && payload.usage;
-    if (!u) {
+    // The live bridge is the fast half and the transcript aggregate is the slow
+    // one. When there are sessions on screen, waiting for the second to arrive
+    // before drawing the first would blank the tile for no reason.
+    if (!u && !sessions().length) {
       wrap.appendChild(el('div', 'cw-state', t('claude_reading', 'Reading local Claude Code sessions…')));
       return wrap;
     }
 
-    wrap.appendChild(quotaBand());
+    // Sessions come FIRST now. The bands used to open on quota, which is the one
+    // thing on this tile that does not change while you watch it — what is
+    // happening right now belongs at the top.
     wrap.appendChild(liveBand());
-    wrap.appendChild(totalsBand(u));
+    wrap.appendChild(quotaBand());
+    if (u) wrap.appendChild(totalsBand(u));
 
     // Offer the connection only when it would actually add something.
     if (!linkState || !linkState.linked) {
@@ -1427,6 +1692,7 @@
       cta.appendChild(linkButton());
       wrap.appendChild(cta);
     }
+    if (!u) return wrap;
 
     const more = el('div', 'cw-more');
     more.appendChild(sparks(u));
@@ -1459,6 +1725,14 @@
   }
 
   function paint() {
+    // Half-made choices belong to cards that still exist. Approval ids are
+    // unique per request, so without this the map keeps one entry per question
+    // ever asked, for as long as the page is open — the unbounded Map the
+    // codebase rules out everywhere else.
+    if (qsel.size) {
+      const alive = new Set(approvals().map(a => a.id));
+      for (const id of qsel.keys()) if (!alive.has(id)) qsel.delete(id);
+    }
     tiles().forEach(tile => {
       const mount = tile.querySelector('.claude-widget-mount');
       if (!mount) return;
@@ -1541,7 +1815,16 @@
       next.set(s.id, s.state);
       // Only a real transition counts. Seeding (was === undefined) must not
       // announce every session that happens to be idle when the page loads.
-      if (was === 'running' && s.state !== 'running') {
+      //
+      // And only a real FINISH. "Not running" used to be enough, which meant a
+      // session that stopped to ask for a permission was announced as having
+      // finished answering — the opposite of what had happened, at the one
+      // moment the user most needed to know the difference. A session that was
+      // killed is not an announcement either: it has nothing to show and
+      // nothing to continue.
+      const finished = was === 'running' && s.state === 'idle' && !s.waitFor
+        && !(s.ended && s.endedReason === 'gone');
+      if (finished) {
         doneNotices = doneNotices.filter(n => n.id !== s.id);
         doneNotices.push({ id: s.id, project: s.project || '', at: now });
       }
@@ -1605,9 +1888,13 @@
       return;
     }
     const list = sessions();
-    const working = list.filter(s => s.state === 'running').length;
+    const working = list.filter(s => s.state === 'running' && !s.ended).length;
     const done = otherNotices().length ? doneNotices.length : 0;
-    const pending = approvals().length;
+    // A card the user can answer, or a session blocked with no card to answer —
+    // Claude Code raising a notification and waiting is the same "it needs you"
+    // from across the room, and it used to show as nothing at all.
+    const pending = approvals().length
+      || list.filter(s => s.waitFor && !s.ended).length;
 
     // Rebuilding on every payload would restart the breathing animation several
     // times a second while a session is busy — exactly when it must look calm.

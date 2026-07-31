@@ -626,15 +626,19 @@ Track stocks, indices, crypto and currencies right on the dashboard. Add the **B
 
 Follow your football clubs right on the dashboard. Add the **Calcio** tile from the **"+" → Productivity** palette.
 
-- **Favorite teams at a glance** — each row shows the club **crest**, its latest result (win/draw/loss colour-coded) and its next fixture. Tap a team for the detail view.
-- **Follow competitions too** — search **Champions League, Serie A, World Cup, Europa League, Premier League** (and the other top leagues and cups) and follow the *competition* itself: its row shows the next match and latest result across the whole tournament, and its detail gives recent results, upcoming fixtures and the full standings.
-- **Detail view** — a match **hero** (the live or upcoming game with both crests and the score), the last handful of **results**, the **upcoming fixtures**, and the **live league table** with your team highlighted.
-- **Add by searching** — type a club or competition name ("Napoli", "Arsenal", "Champions League") and pick it from a live dropdown that shows whether it's a club or a competition.
+- **The match that matters, up top** — the tile leads with one match chosen across everything you follow: the game in play, else the next kickoff, else the most recent result. Both crests, the score or the kickoff time, the competition, the matchday and the ground, tinted with the home club's own colours.
+- **Partite** — every followed team's and competition's fixtures merged into one list grouped by day (Oggi, Domani, then by date, with results underneath). A match between two clubs you follow appears once, not once per club, and the club that is yours is highlighted in the row.
+- **Classifica** — the league table as a tab of its own, with a chip per followed competition, your clubs highlighted, and each side's last five results as W/D/L.
+- **Notizie** — headlines about the clubs and competitions you follow, in your interface language, through the same RSS reader the News tile uses. Fetched only when you open the tab and reused for 15 minutes.
+- **Follow competitions too** — search **Champions League, Serie A, World Cup, Europa League, Premier League** (and the other top leagues and cups) and follow the *competition* itself: its matches join the same feed and its table joins the Classifica tab.
+- **Club identity, fetched once** — crest, club colours, ground, capacity and year founded are fetched per club and kept for a day, so a crest no longer depends on there being a fixture. With nothing scheduled (off-season, an international break) the tile shows your clubs as cards instead of an empty list.
+- **Team detail** — that identity, then the match **hero**, the last handful of **results**, the **upcoming fixtures**, and the **live league table** with your team highlighted.
+- **Add by searching** — the **+** next to the tabs opens the search: type a club or competition name ("Napoli", "Arsenal", "Champions League") and pick it from a live dropdown that shows whether it's a club or a competition. The same panel lists what you follow, for removing or opening.
 - **Goal & full-time alerts** — when a followed team scores or a match ends, Xenon pops a toast and can **flash your RGB lighting** — gated by the master **Notifiche** switch, never repeating and never spamming on startup.
 - **Scrolling ticker** — turn on the football source (Settings → Borsa & Ticker) and your teams' scores and next fixtures scroll across the ticker, with live matches highlighted.
 - **Data source** — works **keyless** with **TheSportsDB** by default (fixtures, results, crests, standings for Serie A and every major league). An optional **TheSportsDB Premium** key (Settings → Calcio) unlocks **live scores** during matches; without it everything else still works.
 - **Ask Xenon** — "how did Napoli do", "when does Inter play next", "read me the Serie A table", by voice or text.
-- Deliberately light: no new dependencies, crests loaded lazily with an initials fallback, data fetched only while a dashboard is open and streamed over the live channel. Fully localised (EN/IT/KO/JA/ZH).
+- Deliberately light: no new dependencies, crests loaded lazily with an initials fallback, data fetched only while a dashboard is open and streamed over the live channel. The tile adapts to its own size (the hero steps aside on a short layout, the form column on a narrow one), so it works on a phone and on the Edge. Fully localised (EN/IT/KO/JA/ZH/NL).
 
 ## Claude Code usage
 

@@ -153,6 +153,14 @@ test('the refused surface matches an explicit, reviewed list', () => {
     // minted on the PC. Nothing in the dashboard calls these.
     'POST /api/claude/event',
     'POST /api/claude/permission',
+    // Same family, and the sharper case for refusing them: /question returns
+    // text that is put in front of the model, and /turn-end can tell a session
+    // to keep going. Both are answered by the hub itself against the bridge
+    // token — a paired device asking for them is a forged session, not a
+    // feature. What the phone DOES get is /api/claude/answer and /reply, which
+    // are the same actions taken by a person the hub has already authenticated.
+    'POST /api/claude/question',
+    'POST /api/claude/turn-end',
     'POST /api/gamemode/install-presentmon',
     'POST /api/lighting/sdk-install',
     'POST /api/native/install',

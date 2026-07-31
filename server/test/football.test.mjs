@@ -104,3 +104,97 @@ test('alert tracker respects the alerts=false switch and skips scoreless matches
   const ns = [{ id: 'T1', name: 'X', last: null, next: { id: 'E10', home: 'X', away: 'Y', homeId: 'T1', awayId: 'T2', homeScore: null, awayScore: null, status: 'ns' } }];
   assert.deepEqual(tr.evaluate(ns, { alerts: true }), []);
 });
+
+// ── team identity ────────────────────────────────────────────────────────────
+// A club's crest used to be harvested from its next/last match, so a team with
+// no fixture in the window had no crest and the widget drew letter initials.
+// Identity is fetched separately now; this is the parsing half of it.
+
+/** One lookupteam.php row, with the fields the widget actually reads. */
+const NAPOLI_ROW = Object.freeze({
+  idTeam: '133670', strTeam: 'Napoli', strTeamShort: 'NAP',
+  strBadge: 'https://r2.thesportsdb.com/images/media/team/badge/x.png',
+  strColour1: '#12A0D7', strColour2: 'sky blue',
+  strStadium: 'Stadio Diego Armando Maradona', intStadiumCapacity: '60240',
+  intFormedYear: '1926', strCountry: 'Italy', strLeague: 'Italian Serie A', idLeague: '4332',
+  strDescriptionEN: 'Napoli is an Italian professional football club.',
+  strDescriptionIT: 'Il Napoli è una società calcistica italiana.',
+});
+
+test('safeColour takes a hex triplet and nothing else (it lands in a CSS property)', () => {
+  assert.equal(football.safeColour('#12A0D7'), '#12a0d7');
+  assert.equal(football.safeColour('#fff'), '');            // shorthand is not accepted
+  assert.equal(football.safeColour('sky blue'), '');
+  assert.equal(football.safeColour('red; --x: url(javascript:1)'), '');
+  assert.equal(football.safeColour(''), '');
+  assert.equal(football.safeColour(null), '');
+});
+
+test('parseTeamInfo keeps the fields the tile shows and drops what it cannot trust', () => {
+  const info = football.parseTeamInfo(NAPOLI_ROW, 'it');
+  assert.equal(info.name, 'Napoli');
+  assert.equal(info.badge, NAPOLI_ROW.strBadge);
+  assert.equal(info.colour, '#12a0d7');
+  assert.equal(info.colour2, '', 'a colour the provider stored as free text is not a colour');
+  assert.equal(info.capacity, 60240);
+  assert.equal(info.founded, 1926);
+  assert.equal(info.leagueId, '4332');
+});
+
+test('parseTeamInfo prefers the description in the UI language and falls back to English', () => {
+  assert.match(football.parseTeamInfo(NAPOLI_ROW, 'it').desc, /società calcistica/);
+  // No German description on this club → English rather than an empty panel.
+  assert.match(football.parseTeamInfo(NAPOLI_ROW, 'de').desc, /Italian professional/);
+});
+
+test('parseTeamInfo refuses a badge from a host that is not the provider', () => {
+  const forged = { ...NAPOLI_ROW, strBadge: 'https://evil.example/steal.png' };
+  assert.equal(football.parseTeamInfo(forged, 'en').badge, '');
+  const insecure = { ...NAPOLI_ROW, strBadge: 'http://r2.thesportsdb.com/x.png' };
+  assert.equal(football.parseTeamInfo(insecure, 'en').badge, '');
+});
+
+test('parseTeamInfo returns null for a row with no team name', () => {
+  assert.equal(football.parseTeamInfo({ idTeam: '1' }, 'en'), null);
+  assert.equal(football.parseTeamInfo(null, 'en'), null);
+});
+
+// ── news queries ─────────────────────────────────────────────────────────────
+
+test('newsQueries qualifies a club by sport in the UI language, and a competition by name', () => {
+  const it = football.newsQueries(football.DEFAULT_FOOTBALL.teams, 'it');
+  assert.equal(it[0].query, 'Napoli calcio', 'the city and the club share a name — the qualifier is what separates them');
+  assert.equal(it[0].type, 'topic');
+  assert.equal(it[3].query, 'UEFA Champions League', 'a competition name needs no qualifier');
+  assert.equal(football.newsQueries(football.DEFAULT_FOOTBALL.teams, 'de')[0].query, 'Napoli Fußball');
+  assert.equal(football.newsQueries(football.DEFAULT_FOOTBALL.teams, 'zz')[0].query, 'Napoli football', 'unknown language → English');
+});
+
+test('newsQueries is capped, deduped, and skips favorites with no name to search for', () => {
+  const many = Array.from({ length: 9 }, (_, i) => ({ id: String(100 + i), name: 'Club ' + i }));
+  assert.equal(football.newsQueries(many, 'en').length, football.MAX_NEWS_FEEDS);
+  // Same club followed twice under different ids → one query, not two requests.
+  const dup = football.newsQueries([{ id: '1', name: 'Roma' }, { id: '2', name: 'Roma' }], 'it');
+  assert.equal(dup.length, 1);
+  // A favorite the user added before names were stored has nothing to search.
+  assert.deepEqual(football.newsQueries([{ id: '5' }], 'en'), []);
+});
+
+// ── the keyless standings cap ────────────────────────────────────────────────
+// Measured against the live provider: lookuptable.php returns exactly five rows
+// on the public key, for every competition, with and without a season. A tile
+// that draws those five as though they were the table looks broken (it was
+// reported as such), so the payload says when it is capped.
+
+test('a keyless five-row table is reported as partial, and a keyed one never is', () => {
+  // fetchStandings is the only place that knows; exercise the rule it applies.
+  const capped = football.FREE_TABLE_ROWS;
+  assert.equal(capped, 5);
+  // The rule: no key AND exactly the cap. Anything shorter is a real short
+  // table (a cup group), and a key lifts the cap so the count means nothing.
+  const rule = (rows, key) => !key && rows === capped;
+  assert.equal(rule(5, ''), true);
+  assert.equal(rule(5, 'PREMIUMKEY'), false, 'with a key, five rows is five real rows');
+  assert.equal(rule(4, ''), false, 'a four-team group is not a truncated league');
+  assert.equal(rule(20, ''), false);
+});

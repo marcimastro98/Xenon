@@ -20,6 +20,7 @@ const FETCH_TIMEOUT_MS = 8000;
 const MAX_BODY_BYTES = 3 * 1024 * 1024;
 const FETCH_CONCURRENCY = 4;       // TheSportsDB is per-team; keep the burst polite
 const FREE_KEY = '123';            // public keyless test key
+const FREE_TABLE_ROWS = 5;         // rows lookuptable.php returns without a Premium key
 
 // ── small helpers ─────────────────────────────────────────────────────────────
 
@@ -52,6 +53,13 @@ function safeImg(value) {
     const u = new URL(s);
     return /(^|\.)thesportsdb\.com$/i.test(u.hostname) ? s : '';
   } catch { return ''; }
+}
+// A club colour is written into a CSS custom property, so it is validated as a
+// literal hex triplet rather than trusted: anything else returns '' and the UI
+// falls back to the theme accent. (TheSportsDB stores these free-form.)
+function safeColour(value) {
+  const s = String(value || '').trim();
+  return /^#[0-9a-f]{6}$/i.test(s) ? s.toLowerCase() : '';
 }
 function cleanSeason(value) {
   const s = String(value || '').trim();
@@ -158,15 +166,19 @@ function fetchJson(url, headers) {
         res.resume();
         return finish(reject, new Error('HTTP ' + res.statusCode));
       }
-      let body = '';
+      // Buffers are collected and decoded ONCE at the end, not concatenated as
+      // strings per chunk: a multi-byte character (an accented club name, a team
+      // description) that straddles a chunk boundary is corrupted by per-chunk
+      // toString(), and the split point moves with the network.
+      const chunks = [];
       let size = 0;
       res.on('data', chunk => {
         size += chunk.length;
         if (size > MAX_BODY_BYTES) { req.destroy(new Error('body too large')); return; }
-        body += chunk;
+        chunks.push(chunk);
       });
       res.on('end', () => {
-        try { finish(resolve, JSON.parse(body)); }
+        try { finish(resolve, JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
         catch (e) { finish(reject, e); }
       });
     });
@@ -290,8 +302,11 @@ async function fetchFixtures(teams, opts) {
       league: (last && last.league) || (next && next.league) || fav.league || '',
       season: (last && last.season) || (next && next.season) || '',
       next, last,
-      nextList: nextEv.slice(0, 5),
-      lastList: lastEv.slice(0, 5),
+      // The widget merges every followed team's fixtures into one chronological
+      // feed, so it wants the whole window the provider returns rather than the
+      // single next/last it used to render. Same two requests either way.
+      nextList: nextEv.slice(0, 8),
+      lastList: lastEv.slice(0, 8),
     };
   }, FETCH_CONCURRENCY);
   const out = results.filter(Boolean);
@@ -324,8 +339,8 @@ async function fetchLeagueEntry(base, fav, applyLive) {
     league: (known && known.name) || (next && next.league) || (last && last.league) || '',
     season: (last && last.season) || (next && next.season) || '',
     next, last,
-    nextList: nextEv.slice(0, 6),
-    lastList: lastEv.slice(0, 6),
+    nextList: nextEv.slice(0, 10),
+    lastList: lastEv.slice(0, 10),
   };
 }
 
@@ -395,7 +410,15 @@ async function fetchStandings(leagueId, season, opts) {
     form: str(r.strForm, 10),
   })).filter(r => r.team);
   if (!rows.length) return null;
-  return { leagueId: lid, league: str(table[0] && table[0].strLeague, 60), season: s, rows };
+  // The keyless tier caps lookuptable.php at FREE_TABLE_ROWS rows for every
+  // competition (measured: Serie A and the Premier League both come back with
+  // five, with and without a season, on both public keys). That is a provider
+  // limit and not something the widget can work around, so it is REPORTED
+  // rather than silently drawn as if it were the whole table — a five-row
+  // "Classifica" with no explanation reads as a bug, and it is also useless to
+  // anyone whose club sits below fifth. A Premium key lifts the cap.
+  const partial = !key && rows.length === FREE_TABLE_ROWS;
+  return { leagueId: lid, league: str(table[0] && table[0].strLeague, 60), season: s, rows, partial };
 }
 
 // Resolve free text ("napoli", "arsenal") to real teams so the widget's add box
@@ -428,6 +451,108 @@ async function searchTeams(query, opts) {
       country: str(tm.strCountry, 40),
     });
     if (out.length >= 10) break;
+  }
+  return out;
+}
+
+// ── team identity ─────────────────────────────────────────────────────────────
+// A club's crest used to be harvested from its next/last MATCH, which meant a
+// team with no fixture in the window (off-season, an international break, a
+// freshly seeded favorite) had no crest either — the widget fell back to letter
+// initials and had nothing else to show. Identity is its own thing and barely
+// changes, so it is fetched once per team and cached by the caller for a day:
+// crest, club colours, stadium, capacity, year founded and a description in the
+// user's language. This is the content that survives an empty fixture list.
+
+// Pure: parse one lookupteam.php row. Exported for tests.
+function parseTeamInfo(tm, lang) {
+  if (!tm || typeof tm !== 'object') return null;
+  const name = str(tm.strTeam, 60);
+  if (!name) return null;
+  const l = String(lang || 'en').trim().slice(0, 2).toUpperCase();
+  // TheSportsDB carries per-language descriptions (strDescriptionIT, …) but not
+  // for every club; English is the fallback that always exists.
+  const desc = str(tm['strDescription' + l], 400) || str(tm.strDescriptionEN, 400);
+  return {
+    name,
+    short: str(tm.strTeamShort, 6),
+    badge: safeImg(tm.strBadge || tm.strTeamBadge),
+    colour: safeColour(tm.strColour1),
+    colour2: safeColour(tm.strColour2),
+    stadium: str(tm.strStadium, 60),
+    capacity: intOrNull(tm.intStadiumCapacity),
+    founded: intOrNull(tm.intFormedYear),
+    country: str(tm.strCountry, 40),
+    league: str(tm.strLeague, 60),
+    leagueId: cleanId(tm.idLeague),
+    desc,
+  };
+}
+
+// Fetch identity for a list of TEAM ids → { [id]: info }. League favorites have
+// no equivalent endpoint on the free key; their badge already rides along on
+// every event as strLeagueBadge. Never throws.
+async function fetchTeamInfo(ids, opts) {
+  const list = [];
+  const seen = new Set();
+  for (const raw of (Array.isArray(ids) ? ids : [])) {
+    const id = cleanId(raw);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    list.push(id);
+    if (list.length >= MAX_TEAMS) break;
+  }
+  if (!list.length) return {};
+  const base = apiBase((opts && opts.sportsDbKey) || '');
+  const lang = (opts && opts.lang) || 'en';
+  const rows = await pool(list, async (id) => {
+    const j = await fetchJson(base + 'lookupteam.php?id=' + id).catch(() => null);
+    const tm = j && Array.isArray(j.teams) ? j.teams[0] : null;
+    const info = parseTeamInfo(tm, lang);
+    return info ? { id, info } : null;
+  }, FETCH_CONCURRENCY);
+  const out = {};
+  for (const r of rows) if (r) out[r.id] = r.info;
+  return out;
+}
+
+// ── news queries ──────────────────────────────────────────────────────────────
+// TheSportsDB has no news feed, so headlines come from the RSS machinery news.js
+// already owns: each followed team/competition becomes a Google News TOPIC in the
+// user's language. This module only builds the queries (pure, testable); the
+// caller hands them to news.fetchHeadlines, which does the fetching, merging and
+// deduping it already does for the News widget.
+
+// The word that keeps "Napoli" about football and not about the city. One per UI
+// language, because the query is sent to the user's own Google News locale.
+const NEWS_QUALIFIER = Object.freeze({
+  it: 'calcio', en: 'football', es: 'fútbol', fr: 'football', de: 'Fußball',
+  pt: 'futebol', nl: 'voetbal', ru: 'футбол', ko: '축구', ja: 'サッカー', zh: '足球',
+});
+const MAX_NEWS_FEEDS = 4;   // polite: one Google News request each, on demand only
+
+function newsQualifier(lang) {
+  const l = String(lang || 'en').trim().toLowerCase().slice(0, 2);
+  return NEWS_QUALIFIER[l] || NEWS_QUALIFIER.en;
+}
+
+// Favorites → news.js topic feeds. A competition is searched by its own name; a
+// club gets the football qualifier appended so "Roma" and "Napoli" (both cities)
+// return match reports rather than local news.
+function newsQueries(favorites, lang) {
+  const qualifier = newsQualifier(lang);
+  const out = [];
+  const seen = new Set();
+  for (const fav of normalizeTeams(favorites)) {
+    const known = fav.type === 'league' ? COMPETITION_BY_ID.get(fav.id) : null;
+    const name = fav.name || (known && known.name) || '';
+    if (!name) continue;
+    const query = fav.type === 'league' ? name : name + ' ' + qualifier;
+    const key = query.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ type: 'topic', name, query });
+    if (out.length >= MAX_NEWS_FEEDS) break;
   }
   return out;
 }
@@ -473,13 +598,20 @@ function createAlertTracker() {
 
 module.exports = {
   MAX_TEAMS,
+  MAX_NEWS_FEEDS,
+  FREE_TABLE_ROWS,
   DEFAULT_FOOTBALL,
   FREE_KEY,
   normalizeFootball,
   normalizeTeams,
   cleanId,
+  safeColour,
   fetchFixtures,
   fetchStandings,
+  fetchTeamInfo,
+  parseTeamInfo,
+  newsQueries,
+  newsQualifier,
   searchTeams,
   searchLeagues,
   createAlertTracker,

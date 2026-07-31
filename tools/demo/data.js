@@ -130,10 +130,76 @@ window.__XD__ = (function () {
       { title: 'How much of your desk should be a screen?', source: 'Tom’s Hardware', url: '', publishedAt: iso(now - 9 * HOUR) },
     ],
 
-    football: [
-      { home: 'Inter', away: 'Milan', homeScore: 1, awayScore: 1, minute: 67, status: 'live', competition: 'Serie A' },
-      { home: 'Napoli', away: 'Roma', homeScore: 0, awayScore: 0, minute: 0, status: 'scheduled', competition: 'Serie A' },
-    ],
+    // The Calcio tile's real payload shape — one entry per followed team or
+    // competition, each carrying its own fixtures and results, plus the identity
+    // map the crests, colours and grounds come from.
+    //
+    // No club badges: a crest is a trademark, and this file ships to a public
+    // site. The tile's own fallback (initials on the club's colour) is a state
+    // it really renders, so the demo shows something true rather than borrowed
+    // artwork. Names, grounds, capacities and founding years are facts.
+    football: (() => {
+      const ev = (id, home, homeId, away, awayId, ms, over) => ({
+        id, home, away, homeId, awayId, homeBadge: '', awayBadge: '',
+        homeScore: null, awayScore: null, ts: iso(ms), date: '', time: '',
+        league: 'Italian Serie A', leagueId: '4332', leagueBadge: '', round: '3',
+        venue: '', status: 'ns', statusRaw: 'NS', season: '2026-2027', ...over,
+      });
+      const derby = ev('d1', 'Inter', '133681', 'Milan', '133670x', now - 67 * 60 * 1000,
+        { homeScore: 1, awayScore: 1, status: 'live', progress: "67'", venue: 'San Siro' });
+      const napoliNext = ev('n1', 'Napoli', '133670', 'Roma', '133682', dayAt(0, 20, 45),
+        { venue: 'Stadio Diego Armando Maradona' });
+      const romaNext = ev('r1', 'Lazio', '133683', 'Roma', '133682', dayAt(1, 18, 0), { venue: 'Stadio Olimpico' });
+      const napoliLast = ev('n0', 'Napoli', '133670', 'Como', '133684', dayAt(-4, 18, 30),
+        { homeScore: 2, awayScore: 0, status: 'ft', statusRaw: 'FT', round: '2', venue: 'Stadio Diego Armando Maradona' });
+      const interLast = ev('i0', 'Udinese', '133685', 'Inter', '133681', dayAt(-5, 20, 45),
+        { homeScore: 1, awayScore: 3, status: 'ft', statusRaw: 'FT', round: '2' });
+
+      const team = (id, name, next, last, extraNext) => ({
+        id, type: 'team', name, badge: '', leagueId: '4332', league: 'Italian Serie A',
+        season: '2026-2027', next, last,
+        nextList: [next].concat(extraNext || []).filter(Boolean), lastList: last ? [last] : [],
+      });
+
+      return {
+        live: true,
+        tile: { results: true, standings: true },
+        teams: [
+          team('133670', 'Napoli', napoliNext, napoliLast),
+          team('133681', 'Inter', derby, interLast),
+          team('133682', 'Roma', romaNext, null),
+          { id: '4332', type: 'league', name: 'Italian Serie A', badge: '', leagueId: '4332',
+            league: 'Italian Serie A', season: '2026-2027', next: napoliNext, last: napoliLast,
+            nextList: [derby, napoliNext, romaNext], lastList: [napoliLast, interLast] },
+        ],
+        favorites: [
+          { id: '133670', name: 'Napoli', league: 'Italian Serie A', leagueId: '4332' },
+          { id: '133681', name: 'Inter', league: 'Italian Serie A', leagueId: '4332' },
+          { id: '133682', name: 'Roma', league: 'Italian Serie A', leagueId: '4332' },
+          { id: '4332', type: 'league', name: 'Italian Serie A' },
+        ],
+        info: {
+          133670: { name: 'Napoli', colour: '#12a0d7', stadium: 'Stadio Diego Armando Maradona', capacity: 60240, founded: 1926, league: 'Italian Serie A', leagueId: '4332', desc: '' },
+          133681: { name: 'Inter', colour: '#0069aa', stadium: 'San Siro', capacity: 80018, founded: 1908, league: 'Italian Serie A', leagueId: '4332', desc: '' },
+          133682: { name: 'Roma', colour: '#8e1f2f', stadium: 'Stadio Olimpico', capacity: 70634, founded: 1927, league: 'Italian Serie A', leagueId: '4332', desc: '' },
+        },
+        standings: {
+          leagueId: '4332', league: 'Italian Serie A', season: '2026-2027',
+          rows: [
+            { rank: 1, teamId: '133681', team: 'Inter', badge: '', played: 3, win: 2, draw: 1, loss: 0, gf: 7, ga: 3, gd: 4, points: 7, form: 'WWD' },
+            { rank: 2, teamId: '133670', team: 'Napoli', badge: '', played: 3, win: 2, draw: 0, loss: 1, gf: 5, ga: 2, gd: 3, points: 6, form: 'WLW' },
+            { rank: 3, teamId: '133682', team: 'Roma', badge: '', played: 3, win: 1, draw: 2, loss: 0, gf: 4, ga: 2, gd: 2, points: 5, form: 'DWD' },
+            { rank: 4, teamId: '133683', team: 'Lazio', badge: '', played: 3, win: 1, draw: 1, loss: 1, gf: 3, ga: 3, gd: 0, points: 4, form: 'LWD' },
+            { rank: 5, teamId: '133685', team: 'Udinese', badge: '', played: 3, win: 1, draw: 0, loss: 2, gf: 3, ga: 6, gd: -3, points: 3, form: 'LLW' },
+          ],
+        },
+        news: [
+          { id: 'f1', title: 'Serie A returns: what changed over the summer', url: '', source: 'Sky Sport', published: now - 40 * 60 * 1000, image: '' },
+          { id: 'f2', title: 'Derby ends level after a second-half turnaround', url: '', source: 'Gazzetta', published: now - 3 * HOUR, image: '' },
+          { id: 'f3', title: 'Napoli confirm the squad for the opening fixtures', url: '', source: 'Corriere dello Sport', published: now - 7 * HOUR, image: '' },
+        ],
+      };
+    })(),
 
     battery: {
       devices: [

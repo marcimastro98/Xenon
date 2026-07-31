@@ -1,28 +1,46 @@
 'use strict';
-// Football (Calcio) widget — a list of the user's favorite teams, each showing
-// its latest result and next fixture with club crests, plus a detail view with
-// recent results, upcoming fixtures and the live league table.
+// Football (Calcio) widget — a match-centric view of everything the user
+// follows: a hero band with the most relevant match (in play > kicking off soon
+// > last result), then one of three tabs — every followed team's and
+// competition's fixtures merged into a single day-by-day feed, the league table,
+// or headlines about the teams being followed.
+//
+// It used to be a list of SUBSCRIPTIONS: one row per followed team, that team's
+// whole existence squeezed into a two-line cell, and a permanent search box on
+// top. When the provider had no fixture in the window (off-season, an
+// international break, a freshly seeded favorite) a row had nothing at all —
+// not even a crest, because the crest was harvested from the match. The server
+// now holds club identity separately (`info`: crest, colours, stadium,
+// capacity, year founded), so a team is something to look at even with no game
+// scheduled.
 //
 // Data is pushed over SSE ('football' → onSSE) and seeded once on mount
 // (GET /api/football, which also returns the favorites list so every followed
-// team shows — even before its fixtures resolve). Teams are added through a real
-// SEARCH (GET /api/football/search): the user types a club name and picks it, so
-// "napoli" resolves to the right team id. Favorites are persisted via
-// POST /api/football/teams; standings are fetched on-demand
-// (GET /api/football/standings). All external strings render through textContent;
-// crest URLs are used as <img src> only when https (server already host-checks).
+// team shows even before its fixtures resolve). Teams are added through a real
+// SEARCH (GET /api/football/search); favorites are persisted via
+// POST /api/football/teams; the league table (GET /api/football/standings) and
+// the headlines (GET /api/football/news) are fetched on demand, when their tab
+// is opened. All external strings render through textContent; crest URLs are
+// used as <img src> only when https (the server already host-checks them).
 (function () {
   const el = makeEl;        // shared DOM factory (utils.js)
   const api = apiJson;      // fetch → JSON, null on failure (utils.js)
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
 
   let teamsData = null;     // null = not seeded yet; [] once seeded. Server payload (one per favorite)
-  let favorites = [];       // [{id,name,badge,league,leagueId}] from the server — persists across SSE
+  let favorites = [];       // [{id,type,name,badge,league,leagueId}] from the server — persists across SSE
+  let info = {};            // teamId → { badge, colour, stadium, capacity, founded, desc, … }
   let tileCfg = { results: true, standings: true };
   let meta = { live: false, refreshedAt: 0 };
   let seeded = false, seedInflight = false;
-  let view = { mode: 'list', teamId: '', favType: 'team' };
+  let view = { mode: 'list', tab: 'matches', teamId: '', favType: 'team' };
+  let managing = false;     // the add/manage panel, opened from the + in the tab bar
+  let tableLeague = '';     // league id selected in the Classifica tab
   const standingsCache = new Map(); // `${leagueId}|${season}` → data
+
+  // News is per-tab and cheap to keep: fetched on the first open, then reused
+  // (the server caches it for 15 minutes anyway).
+  let newsItems = null, newsLoading = false;
 
   // A favorite is a team or a league/competition; key/dedup by type+id.
   function favKey(f) { return (f && f.type === 'league' ? 'L:' : 'T:') + (f && f.id); }
@@ -30,6 +48,7 @@
   // Match perspective: a team entry is shown opponent-centric; a league entry has
   // no "my team", so matches show both sides plainly.
   function perspId(td) { return isLeague(td) ? '' : (td && td.id); }
+  function infoFor(id) { return (id && info && info[id]) || null; }
 
   // ── search (add box) state ──
   let searchQuery = '';
@@ -62,12 +81,26 @@
     }
     return wrap;
   }
+  // A crest for one SIDE of a match: the event carries its own badges, and the
+  // identity cache fills in the followed club's when the event's is missing.
+  function sideCrest(ev, side, cls) {
+    const id = side === 'home' ? ev.homeId : ev.awayId;
+    const nm = side === 'home' ? ev.home : ev.away;
+    const inf = infoFor(id);
+    return crest((side === 'home' ? ev.homeBadge : ev.awayBadge) || (inf && inf.badge) || '', nm, cls);
+  }
   function matchDate(ev) {
     if (!ev) return null;
     const iso = ev.ts || (ev.date ? ev.date + 'T' + (ev.time || '00:00:00') : '');
     if (!iso) return null;
     const d = new Date(iso);
     return isNaN(d.getTime()) ? null : d;
+  }
+  function matchMs(ev) { const d = matchDate(ev); return d ? d.getTime() : 0; }
+  function timeText(ev) {
+    const d = matchDate(ev);
+    if (!d) return '';
+    try { return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
   }
   function whenShort(ev) {
     const d = matchDate(ev);
@@ -84,6 +117,17 @@
     if (!d) return '';
     try { return d.toLocaleDateString([], { weekday: 'short', day: '2-digit', month: 'short' }) + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
     catch { return ''; }
+  }
+  function relTime(ts) {
+    const n = Number(ts);
+    if (!Number.isFinite(n) || n <= 0) return '';
+    const s = Math.max(0, (Date.now() - n) / 1000);
+    if (s < 60) return t('news_now', 'now');
+    if (s < 3600) return Math.floor(s / 60) + t('news_min', 'm');
+    if (s < 86400) return Math.floor(s / 3600) + t('news_hour', 'h');
+    const d = Math.floor(s / 86400);
+    if (d < 7) return d + t('news_day', 'd');
+    try { return new Date(n).toLocaleDateString([], { day: '2-digit', month: 'short' }); } catch { return ''; }
   }
   function isHome(ev, teamId) { return ev && ev.homeId === teamId; }
   function oppName(ev, teamId) { return ev ? (isHome(ev, teamId) ? ev.away : ev.home) : ''; }
@@ -107,84 +151,430 @@
     if (ev.status === 'pp') return el('span', 'fw-badge fw-badge--pp', t('football_pp', 'Postp.'));
     return null;
   }
+  // Club colour → a CSS custom property. The server validated it as a hex
+  // triplet; anything it rejected arrives as '' and the theme accent stands.
+  function applyClubColour(node, id) {
+    const inf = infoFor(id);
+    if (node && inf && inf.colour) node.style.setProperty('--fw-club', inf.colour);
+  }
 
-  // ── list ──
-  function displayRows() {
-    const byKey = new Map((teamsData || []).map(td => [favKey(td), td]));
+  // ── the merged match feed ────────────────────────────────────────────────
+  // Every followed team and competition contributes its fixtures and results to
+  // ONE chronological feed. Dedup is by event id and is not optional: a derby
+  // between two followed teams appears in both of their lists, and a followed
+  // competition repeats every match its clubs also carry.
+  function mergeMatches() {
+    const byId = new Map();
+    for (const td of (teamsData || [])) {
+      const owner = { id: td.id, type: td.type || 'team', name: td.name };
+      for (const ev of [].concat(td.lastList || [], td.nextList || [])) {
+        if (!ev || !ev.id) continue;
+        const prev = byId.get(ev.id);
+        if (prev) {
+          // A team owner wins over a competition owner: "my team" is what the
+          // row should highlight, and the league entry knows no side.
+          if (!prev.mine && owner.type === 'team') prev.mine = owner.id;
+          continue;
+        }
+        byId.set(ev.id, { ev, mine: owner.type === 'team' ? owner.id : '', from: owner });
+      }
+    }
+    return Array.from(byId.values());
+  }
+
+  // Buckets a merged feed into display groups. Anything finished goes to
+  // RISULTATI however recent it is; anything still to play is grouped by its own
+  // day, so "OGGI" never contains a match that has already been decided.
+  function groupByDay(rows, now) {
+    const startOf = (ms) => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
+    const today = startOf(now);
+    const upcoming = [];
+    const past = [];
+    for (const r of rows) {
+      const ms = matchMs(r.ev);
+      const done = r.ev.status === 'ft' || (r.ev.status !== 'live' && ms && ms < now - 3 * 3600 * 1000);
+      (done ? past : upcoming).push({ ...r, ms });
+    }
+    upcoming.sort((a, b) => (a.ms || 0) - (b.ms || 0));
+    past.sort((a, b) => (b.ms || 0) - (a.ms || 0));
+
+    const groups = [];
+    let lastKey = null;
+    for (const r of upcoming) {
+      const day = r.ms ? startOf(r.ms) : 0;
+      const key = 'd' + day;
+      if (key !== lastKey) {
+        lastKey = key;
+        groups.push({ key, label: dayLabel(day, today), rows: [] });
+      }
+      groups[groups.length - 1].rows.push(r);
+    }
+    if (past.length) groups.push({ key: 'past', label: t('football_results', 'Results'), rows: past.slice(0, 8) });
+    return groups;
+  }
+  function dayLabel(dayMs, todayMs) {
+    if (!dayMs) return '';
+    const diff = Math.round((dayMs - todayMs) / 86400000);
+    if (diff === 0) return t('football_today', 'Today');
+    if (diff === 1) return t('football_tomorrow', 'Tomorrow');
+    try { return new Date(dayMs).toLocaleDateString([], { weekday: 'short', day: '2-digit', month: 'short' }); }
+    catch { return ''; }
+  }
+
+  // The one match the tile leads with: in play, else the next one to kick off,
+  // else the most recent result. Never an arbitrary favorite's fixture.
+  function heroPick(rows, now) {
+    let live = null, next = null, last = null;
+    for (const r of rows) {
+      const ms = matchMs(r.ev);
+      if (r.ev.status === 'live') { if (!live || ms < matchMs(live.ev)) live = r; continue; }
+      if (r.ev.status === 'ft' || (ms && ms < now - 3 * 3600 * 1000)) {
+        if (!last || ms > matchMs(last.ev)) last = r;
+      } else if (ms >= now - 3 * 3600 * 1000) {
+        if (!next || ms < matchMs(next.ev)) next = r;
+      }
+    }
+    return live || next || last || null;
+  }
+
+  // ── hero band ──
+  function heroBand(pick) {
+    const ev = pick.ev;
+    const mine = pick.mine || '';
+    const band = el('div', 'fw-hero' + (ev.status === 'live' ? ' is-live' : ''));
+    applyClubColour(band, mine || ev.homeId);
+
+    const top = el('div', 'fw-hero-top');
+    const lb = statusBadge(ev);
+    if (lb) top.appendChild(lb);
+    else if (ev.status === 'ft') top.appendChild(el('span', 'fw-badge', t('football_ft', 'Full time')));
+    else { const w = whenLong(ev); if (w) top.appendChild(el('span', 'fw-hero-when', w)); }
+    if (ev.league) top.appendChild(el('span', 'fw-hero-league', ev.round && ev.round !== '0' ? ev.league + ' · ' + t('football_round', 'MD') + ' ' + ev.round : ev.league));
+    band.appendChild(top);
+
+    const mid = el('div', 'fw-hero-mid');
+    const side = (name, node, isMine) => {
+      const s = el('div', 'fw-hero-side' + (isMine ? ' is-mine' : ''));
+      s.appendChild(node);
+      s.appendChild(el('div', 'fw-hero-team', name));
+      return s;
+    };
+    mid.appendChild(side(ev.home, sideCrest(ev, 'home', 'fw-crest--lg'), !!mine && ev.homeId === mine));
+    const centre = el('div', 'fw-hero-centre');
+    if (ev.homeScore != null && ev.awayScore != null) centre.appendChild(el('div', 'fw-hero-score', ev.homeScore + ' – ' + ev.awayScore));
+    else centre.appendChild(el('div', 'fw-hero-kick', timeText(ev) || t('football_vs', 'vs')));
+    mid.appendChild(centre);
+    mid.appendChild(side(ev.away, sideCrest(ev, 'away', 'fw-crest--lg'), !!mine && ev.awayId === mine));
+    band.appendChild(mid);
+
+    if (ev.venue) band.appendChild(el('div', 'fw-hero-venue', ev.venue));
+    band.addEventListener('click', () => openMatchOwner(pick));
+    return band;
+  }
+
+  // Tapping a match opens the followed entity it belongs to — the team when one
+  // of ours is playing, otherwise the competition it came from.
+  function openMatchOwner(r) {
+    const id = r.mine || (r.from && r.from.id) || '';
+    if (!id) return;
+    const type = r.mine ? 'team' : ((r.from && r.from.type) || 'team');
+    openDetail(id, type);
+  }
+  function openDetail(id, type) {
+    view = { mode: 'detail', tab: view.tab, teamId: id, favType: type || 'team' };
+    paint();
+    const td = (teamsData || []).find(x => x.id === id && isLeague(x) === (type === 'league'));
+    if (td) loadStandingsFor(td);
+  }
+
+  // ── tab bar ──
+  function tabsBar() {
+    const bar = el('div', 'fw-tabs');
+    const tab = (id, label) => {
+      const b = el('button', 'fw-tab' + (view.tab === id ? ' is-on' : '')); b.type = 'button';
+      b.textContent = label;
+      // Each tab fetches from its own render, so switching to one is only ever
+      // a state change here — there is no second place that has to remember to
+      // kick a load off.
+      b.addEventListener('click', () => { view.tab = id; paint(); });
+      return b;
+    };
+    bar.append(
+      tab('matches', t('football_tab_matches', 'Matches')),
+      tab('table', t('football_tab_table', 'Table')),
+      tab('news', t('football_tab_news', 'News')),
+    );
+    if (meta.live) { const live = el('span', 'fw-src fw-src--live'); live.append(el('span', 'fw-live-dot'), el('span', null, t('football_live', 'LIVE'))); bar.appendChild(live); }
+    const add = el('button', 'fw-manage' + (managing ? ' is-on' : '')); add.type = 'button';
+    add.setAttribute('aria-label', t('football_add', 'Follow a team'));
+    add.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+    add.addEventListener('click', () => { managing = !managing; if (!managing) { searchQuery = ''; searchResults = []; } paint(); });
+    bar.appendChild(add);
+    return bar;
+  }
+
+  // ── manage panel (search + the followed list) ──
+  function managePanel() {
+    const panel = el('div', 'fw-manage-panel');
+    panel.appendChild(addBox());
     const list = favorites.length ? favorites : (teamsData || []);
-    return list.map(f => byKey.get(favKey(f)) || { id: f.id, type: f.type, name: f.name || f.id, badge: f.badge, league: f.league, unresolved: true });
+    if (list.length) {
+      const chips = el('div', 'fw-chips');
+      list.forEach(f => {
+        const chip = el('div', 'fw-chip' + (f.type === 'league' ? ' fw-chip--league' : ''));
+        const open = el('button', 'fw-chip-open'); open.type = 'button';
+        const inf = infoFor(f.id);
+        open.appendChild(crest(f.badge || (inf && inf.badge) || '', f.name, 'fw-crest--sm' + (f.type === 'league' ? ' fw-crest--league' : '')));
+        open.appendChild(el('span', 'fw-chip-name', f.name || f.id));
+        open.addEventListener('click', () => { managing = false; openDetail(f.id, f.type || 'team'); });
+        chip.appendChild(open);
+        const rm = el('button', 'fw-chip-rm'); rm.type = 'button';
+        rm.setAttribute('aria-label', t('football_remove', 'Remove'));
+        rm.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+        rm.addEventListener('click', () => removeTeam(f.id, f.type));
+        chip.appendChild(rm);
+        chips.appendChild(chip);
+      });
+      panel.appendChild(chips);
+    }
+    return panel;
   }
 
-  // A team row is opponent-centric ("vs Roma"); a league row shows both sides
-  // ("Napoli–Roma") since there's no followed team.
-  function sideLabel(ev, td) {
-    const pid = perspId(td);
-    if (pid && (ev.homeId === pid || ev.awayId === pid)) return oppName(ev, pid);
-    return (ev.home || '') + ' – ' + (ev.away || '');
+  // ── matches tab ──
+  function matchesTab(rows) {
+    const host = el('div', 'fw-feed');
+    if (!rows.length) return identityFallback(host);
+    // The competition is only worth a line per row when there is more than one
+    // in the feed. Following a single league, it printed "Italian Serie A" under
+    // every match, which is noise dressed as information.
+    const leagues = new Set(rows.map(r => r.ev.leagueId || r.ev.league).filter(Boolean));
+    const showLeague = leagues.size > 1;
+    const groups = groupByDay(rows, Date.now());
+    groups.forEach(g => {
+      host.appendChild(el('div', 'fw-daysep', g.label));
+      const box = el('div', 'fw-day');
+      g.rows.forEach(r => box.appendChild(matchRow(r, showLeague)));
+      host.appendChild(box);
+    });
+    return host;
   }
-  function matchCell(td) {
-    const cell = el('div', 'fw-cell');
-    const pid = perspId(td);
-    const live = [td.last, td.next].find(e => e && e.status === 'live');
-    const featured = live || td.last;
-    if (featured) {
-      const res = pid ? resultOf(featured, pid) : '';
-      const line = el('div', 'fw-cell-res' + (res ? ' fw-res--' + res : ''));
-      const lb = statusBadge(featured);
-      if (lb) line.appendChild(lb);
-      line.appendChild(el('span', 'fw-cell-opp', sideLabel(featured, td)));
-      const sc = el('span', 'fw-score' + (featured.status === 'live' ? ' is-live' : ''), scoreText(featured) || '—');
-      line.appendChild(sc);
-      cell.appendChild(line);
+
+  function matchRow(r, showLeague) {
+    const ev = r.ev;
+    const mine = r.mine || '';
+    const row = el('button', 'fw-match' + (ev.status === 'live' ? ' is-live' : '')); row.type = 'button';
+    const res = mine ? resultOf(ev, mine) : '';
+
+    // Crests sit on the OUTER edges of the row, so they line up down both sides
+    // of the feed and are the first thing the eye lands on — which is the whole
+    // point of having them.
+    const home = el('div', 'fw-match-side fw-match-home' + (mine && ev.homeId === mine ? ' is-mine' : ''));
+    home.appendChild(sideCrest(ev, 'home', 'fw-crest--sm'));
+    home.appendChild(el('span', 'fw-match-team', ev.home || ''));
+    row.appendChild(home);
+
+    const mid = el('div', 'fw-match-mid' + (res ? ' fw-res--' + res : ''));
+    const sc = scoreText(ev);
+    if (ev.status === 'live') {
+      mid.appendChild(el('span', 'fw-match-score is-live', sc || '–'));
+      mid.appendChild(el('span', 'fw-match-min', ev.progress || t('football_live', 'LIVE')));
+    } else if (sc) {
+      mid.appendChild(el('span', 'fw-match-score', sc));
+    } else if (ev.status === 'pp') {
+      mid.appendChild(el('span', 'fw-badge fw-badge--pp', t('football_pp', 'Postp.')));
+    } else {
+      mid.appendChild(el('span', 'fw-match-time', timeText(ev) || '—'));
     }
-    const nx = td.next;
-    if (nx && nx.status !== 'live' && nx.status !== 'ft' && nx !== featured) {
-      const line = el('div', 'fw-cell-next');
-      line.appendChild(el('span', 'fw-next-opp', '→ ' + sideLabel(nx, td)));
-      const w = whenShort(nx);
-      if (w) line.appendChild(el('span', 'fw-next-when', w));
-      cell.appendChild(line);
+    row.appendChild(mid);
+
+    const away = el('div', 'fw-match-side fw-match-away' + (mine && ev.awayId === mine ? ' is-mine' : ''));
+    away.appendChild(el('span', 'fw-match-team', ev.away || ''));
+    away.appendChild(sideCrest(ev, 'away', 'fw-crest--sm'));
+    row.appendChild(away);
+
+    if (showLeague && ev.league) row.appendChild(el('div', 'fw-match-league', ev.league));
+    row.addEventListener('click', () => openMatchOwner(r));
+    return row;
+  }
+
+  // With nothing scheduled anywhere, the followed clubs are still worth
+  // drawing: crest, ground, capacity, year founded. A blank list would say the
+  // widget is broken; this says the calendar is empty, which is the truth.
+  function identityFallback(host) {
+    const list = favorites.length ? favorites : (teamsData || []);
+    if (!list.length) {
+      host.appendChild(el('div', 'fw-state', t('football_empty', 'Nothing yet — search a team or competition above')));
+      return host;
     }
-    if (!cell.childNodes.length) cell.appendChild(el('div', 'fw-cell-none', t('football_no_matches', 'No matches')));
+    host.appendChild(el('div', 'fw-daysep', t('football_no_fixtures', 'No matches scheduled')));
+    const box = el('div', 'fw-idcards');
+    list.forEach(f => box.appendChild(identityCard(f)));
+    host.appendChild(box);
+    return host;
+  }
+
+  function identityCard(f) {
+    const inf = infoFor(f.id);
+    const card = el('button', 'fw-idcard'); card.type = 'button';
+    applyClubColour(card, f.id);
+    card.appendChild(crest(f.badge || (inf && inf.badge) || '', f.name, 'fw-crest--lg' + (f.type === 'league' ? ' fw-crest--league' : '')));
+    const body = el('div', 'fw-idcard-body');
+    body.appendChild(el('div', 'fw-idcard-name', f.name || f.id));
+    const bits = [];
+    if (f.type === 'league') bits.push(t('football_competition', 'Competition'));
+    else {
+      if (inf && inf.stadium) bits.push(inf.stadium);
+      else if (f.league) bits.push(f.league);
+      if (inf && inf.founded) bits.push(String(inf.founded));
+    }
+    if (bits.length) body.appendChild(el('div', 'fw-idcard-sub', bits.join(' · ')));
+    card.appendChild(body);
+    card.addEventListener('click', () => openDetail(f.id, f.type || 'team'));
+    return card;
+  }
+
+  // ── table tab ──
+  // The leagues worth offering: every followed competition, plus the league each
+  // followed club actually plays in (which the fixtures tell us, so a club that
+  // moved division is right without anyone editing a setting).
+  function tableLeagues() {
+    const out = [];
+    const seen = new Set();
+    const push = (id, name, season) => {
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      out.push({ id, name: name || id, season: season || '' });
+    };
+    for (const td of (teamsData || [])) {
+      if (isLeague(td)) push(td.id, td.name, td.season);
+    }
+    for (const td of (teamsData || [])) {
+      if (!isLeague(td) && td.leagueId) push(td.leagueId, td.league, td.season);
+    }
+    for (const f of favorites) {
+      if (f.type === 'league') push(f.id, f.name, '');
+      else if (f.leagueId) push(f.leagueId, f.league, '');
+    }
+    return out;
+  }
+
+  function tableTab() {
+    const host = el('div', 'fw-feed');
+    const leagues = tableLeagues();
+    if (!leagues.length) { host.appendChild(el('div', 'fw-state', t('football_empty', 'Nothing yet — search a team or competition above'))); return host; }
+    const current = leagues.find(l => l.id === tableLeague) || leagues[0];
+    if (leagues.length > 1) {
+      const chips = el('div', 'fw-lchips');
+      leagues.forEach(l => {
+        const b = el('button', 'fw-lchip' + (l.id === current.id ? ' is-on' : '')); b.type = 'button';
+        b.textContent = l.name;
+        b.addEventListener('click', () => { tableLeague = l.id; paint(); loadStandings(l); });
+        chips.appendChild(b);
+      });
+      host.appendChild(chips);
+    }
+    const key = current.id + '|' + (current.season || '');
+    const table = standingsCache.get(key);
+    if (table === undefined) { host.appendChild(el('div', 'fw-mini-loading', t('football_loading', 'Loading…'))); loadStandings(current); }
+    else if (table === null) host.appendChild(el('div', 'fw-state', t('football_no_table', 'No table for this competition')));
+    else host.appendChild(standingsTable(table, myIdsIn(current.id)));
+    return host;
+  }
+  // Every followed club that plays in this league, so the table can highlight
+  // more than one row (following Napoli and Inter is the normal case).
+  function myIdsIn(leagueId) {
+    const ids = new Set();
+    for (const td of (teamsData || [])) if (!isLeague(td) && td.leagueId === leagueId) ids.add(td.id);
+    for (const f of favorites) if (f.type !== 'league' && f.leagueId === leagueId) ids.add(f.id);
+    return ids;
+  }
+
+  function standingsTable(table, mineIds) {
+    const mine = mineIds instanceof Set ? mineIds : new Set(mineIds ? [mineIds] : []);
+    const box = el('div', 'fw-table');
+    const head = el('div', 'fw-tr fw-tr--head');
+    [['0', '#'], ['1', ''], ['2', t('football_col_played', 'P')], ['3', t('football_col_gd', 'GD')],
+     ['4', t('football_col_points', 'Pts')], ['5', t('football_form', 'Form')]].forEach(([i, label]) => {
+      head.appendChild(el('span', 'fw-th fw-col-' + i, label));
+    });
+    box.appendChild(head);
+    table.rows.slice(0, 24).forEach(r => {
+      const tr = el('div', 'fw-tr' + (mine.has(r.teamId) ? ' is-mine' : ''));
+      tr.appendChild(el('span', 'fw-td fw-col-0', r.rank != null ? String(r.rank) : ''));
+      const teamCell = el('span', 'fw-td fw-col-1');
+      teamCell.appendChild(crest(r.badge || ((infoFor(r.teamId) || {}).badge) || '', r.team, 'fw-crest--xs'));
+      teamCell.appendChild(el('span', 'fw-td-team', r.team));
+      tr.appendChild(teamCell);
+      tr.appendChild(el('span', 'fw-td fw-col-2', r.played != null ? String(r.played) : ''));
+      tr.appendChild(el('span', 'fw-td fw-col-3', r.gd != null ? (r.gd > 0 ? '+' + r.gd : String(r.gd)) : ''));
+      tr.appendChild(el('span', 'fw-td fw-col-4 fw-pts', r.points != null ? String(r.points) : ''));
+      tr.appendChild(formStrip(r.form));
+      box.appendChild(tr);
+    });
+    // A five-row table with nothing said about it reads as a broken table. The
+    // provider caps it without a Premium key, so the tile says so once, under
+    // the rows, instead of leaving the user to count them.
+    if (table.partial) box.appendChild(el('div', 'fw-table-note', t('football_table_partial', 'The free data source only returns the top 5. A TheSportsDB Premium key shows the full table.')));
+    return box;
+  }
+  // The last five, as letters rather than colour alone (the same colour-blind
+  // safe rule the W/D/L chips follow). Already in the standings payload.
+  function formStrip(form) {
+    const cell = el('span', 'fw-td fw-col-5 fw-form');
+    String(form || '').toUpperCase().replace(/[^WDL]/g, '').slice(-5).split('').forEach(ch => {
+      cell.appendChild(el('span', 'fw-fdot fw-fdot--' + ch.toLowerCase(), ch));
+    });
     return cell;
   }
 
-  function rowLeagueSub(td) { return isLeague(td) ? (t('football_competition', 'Competition') + (td.league && td.league !== td.name ? ' · ' + td.league : '')) : td.league; }
-  function row(td) {
-    if (td.unresolved) return unresolvedRow(td);
-    const r = el('button', 'fw-row' + (isLeague(td) ? ' fw-row--league' : '')); r.type = 'button';
-    r.appendChild(crest(td.badge, td.name, isLeague(td) ? 'fw-crest--league' : ''));
-    const main = el('div', 'fw-row-main');
-    main.appendChild(el('div', 'fw-row-name', td.name || td.id));
-    const sub = rowLeagueSub(td);
-    if (sub) main.appendChild(el('div', 'fw-row-league', sub));
-    r.appendChild(main);
-    r.appendChild(matchCell(td));
-    r.appendChild(removeBtn(td));
-    r.addEventListener('click', () => { view = { mode: 'detail', teamId: td.id, favType: td.type || 'team' }; paint(); loadStandingsFor(td); });
-    return r;
+  // ── news tab ──
+  function newsTab() {
+    const host = el('div', 'fw-feed');
+    if (newsItems === null) {
+      // The tab loads whatever put it in this state, not only a tap on it.
+      // Adding or removing a team drops the cached headlines (they are about
+      // the teams being followed), and while the tab was already open nothing
+      // asked for them again — so the panel sat on "Loading…" forever. Same
+      // shape as the table tab, which fetches from its own render.
+      loadNews();
+      host.appendChild(el('div', 'fw-mini-loading', t('football_loading', 'Loading…')));
+      return host;
+    }
+    if (!newsItems.length) {
+      host.appendChild(el('div', 'fw-state', t('football_news_empty', 'No headlines right now')));
+      return host;
+    }
+    const list = el('div', 'fw-news-list');
+    newsItems.forEach(it => list.appendChild(newsRow(it)));
+    host.appendChild(list);
+    return host;
   }
-  function unresolvedRow(td) {
-    const r = el('div', 'fw-row fw-row--dead');
-    r.appendChild(crest(td.badge, td.name, isLeague(td) ? 'fw-crest--league' : ''));
-    const main = el('div', 'fw-row-main');
-    main.appendChild(el('div', 'fw-row-name', td.name || td.id));
-    const sub = rowLeagueSub(td);
-    if (sub) main.appendChild(el('div', 'fw-row-league', sub));
-    r.appendChild(main);
-    r.appendChild(el('div', 'fw-cell-none', t('football_no_data', 'No data')));
-    r.appendChild(removeBtn(td, true));
-    return r;
+  function newsRow(it) {
+    // Scheme allowlist before the href is written: escaping does not stop
+    // javascript:/data: (see the URL invariant in CLAUDE.md).
+    const href = /^https?:\/\//i.test(String(it.url || '')) ? String(it.url) : '';
+    const row = el(href ? 'a' : 'div', 'fw-news');
+    if (href) { row.href = href; row.target = '_blank'; row.rel = 'noopener noreferrer'; }
+    row.appendChild(el('div', 'fw-news-title', it.title || ''));
+    const m = el('div', 'fw-news-meta');
+    if (it.source) m.appendChild(el('span', 'fw-news-src', it.source));
+    const rt = relTime(it.published);
+    if (rt) m.appendChild(el('span', 'fw-news-time', rt));
+    row.appendChild(m);
+    return row;
   }
-  function removeBtn(td, always) {
-    const b = el('button', 'fw-row-rm' + (always ? ' is-shown' : '')); b.type = 'button';
-    b.setAttribute('aria-label', t('football_remove', 'Remove'));
-    b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
-    b.addEventListener('click', (e) => { e.stopPropagation(); removeTeam(td.id, td.type); });
-    return b;
+  async function loadNews(force) {
+    if (newsLoading) return;
+    if (newsItems !== null && !force) return;
+    newsLoading = true;
+    try {
+      const d = await api('/api/football/news');
+      newsItems = (d && Array.isArray(d.items)) ? d.items : [];
+    } finally { newsLoading = false; }
+    if (view.tab === 'news') paint();
   }
 
-  // ── search add box (mirrors the Borsa widget) ──
+  // ── search add box ──
   function addBox() {
     const box = el('div', 'fw-add');
     const field = el('div', 'fw-add-field');
@@ -236,13 +626,13 @@
       const league = r.type === 'league';
       const item = el('button', 'fw-result'); item.type = 'button';
       item.appendChild(crest(r.badge, r.name, 'fw-crest--sm' + (league ? ' fw-crest--league' : '')));
-      const info = el('div', 'fw-result-info');
-      info.appendChild(el('div', 'fw-result-name', r.name || r.id));
+      const rinfo = el('div', 'fw-result-info');
+      rinfo.appendChild(el('div', 'fw-result-name', r.name || r.id));
       const sub = el('div', 'fw-result-sub');
       if (r.league) sub.appendChild(el('span', 'fw-result-league', r.league));
       if (r.country) sub.appendChild(el('span', 'fw-result-country', r.country));
-      info.appendChild(sub);
-      item.appendChild(info);
+      rinfo.appendChild(sub);
+      item.appendChild(rinfo);
       item.appendChild(el('span', 'fw-result-type', league ? t('football_competition', 'Competition') : t('football_club', 'Club')));
       if (already.has(favKey(r))) { item.classList.add('is-added'); item.appendChild(el('span', 'fw-result-added', '✓')); }
       item.addEventListener('click', () => addTeam(r));
@@ -270,13 +660,14 @@
   async function addTeam(r) {
     if (!r || !r.id) return;
     const ok = await postTeams('add', { id: r.id, type: r.type || 'team', name: r.name, badge: r.badge, league: r.league, leagueId: r.leagueId });
-    if (ok) { searchQuery = ''; searchResults = []; searchSeq++; await refresh(); }
+    if (ok) { searchQuery = ''; searchResults = []; searchSeq++; newsItems = null; await refresh(); }
     else if (window.XenonToast) window.XenonToast.show({ type: 'error', title: t('football_add_fail', 'Could not add'), message: r.name || r.id });
   }
   async function removeTeam(id, type) {
     const ok = await postTeams('remove', { id, type: type || 'team' });
     if (ok) {
-      if (view.mode === 'detail' && view.teamId === id) view = { mode: 'list', teamId: '', favType: 'team' };
+      if (view.mode === 'detail' && view.teamId === id) view = { mode: 'list', tab: view.tab, teamId: '', favType: 'team' };
+      newsItems = null;
       await refresh();
     } else if (window.XenonToast) {
       window.XenonToast.show({ type: 'error', title: t('football_add_fail', 'Could not update'), message: id });
@@ -297,17 +688,19 @@
     const match = (x) => x && x.id === view.teamId && isLeague(x) === wantLeague;
     const td = (teamsData || []).find(match) || favorites.find(match) || { id: view.teamId, type: view.favType, name: view.teamId };
     const pid = perspId(td);
+    const inf = infoFor(td.id);
     const wrap = el('div', 'fw-detail');
+    applyClubColour(wrap, td.id);
 
     const head = el('div', 'fw-detail-head');
     const back = el('button', 'fw-back'); back.type = 'button'; back.setAttribute('aria-label', t('back', 'Back'));
     back.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>';
-    back.addEventListener('click', () => { view = { mode: 'list', teamId: '', favType: 'team' }; paint(); });
+    back.addEventListener('click', () => { view = { mode: 'list', tab: view.tab, teamId: '', favType: 'team' }; paint(); });
     head.appendChild(back);
-    head.appendChild(crest(td.badge, td.name, 'fw-crest--lg' + (isLeague(td) ? ' fw-crest--league' : '')));
+    head.appendChild(crest(td.badge || (inf && inf.badge) || '', td.name, 'fw-crest--lg' + (isLeague(td) ? ' fw-crest--league' : '')));
     const titleBox = el('div', 'fw-detail-title');
     titleBox.append(el('div', 'fw-detail-name', td.name || td.id));
-    const dsub = isLeague(td) ? t('football_competition', 'Competition') : td.league;
+    const dsub = isLeague(td) ? t('football_competition', 'Competition') : (td.league || (inf && inf.league) || '');
     if (dsub) titleBox.append(el('div', 'fw-detail-league', dsub));
     head.appendChild(titleBox);
     const rm = el('button', 'fw-detail-rm'); rm.type = 'button'; rm.setAttribute('aria-label', t('football_remove', 'Remove'));
@@ -316,17 +709,15 @@
     head.appendChild(rm);
     wrap.appendChild(head);
 
-    const body = el('div', 'fw-detail-body');
+    const body = el('div', 'fw-detail-body fw-body');
 
-    // Hero: the most relevant match (live > next upcoming > last result). It
-    // lives INSIDE the scroll body (not as a fixed sibling of it) so that on a
-    // shortened tile the hero scrolls together with the results/fixtures/table.
-    // As a fixed sibling it never shrank and, with the head, ate the whole tile
-    // height — collapsing the scroll area to 0 and hiding everything below it.
+    // Identity first: this is the part that is there whether or not anything is
+    // scheduled, and it is why the detail view is never empty.
+    if (inf) body.appendChild(identityStrip(inf));
+
     const hero = heroMatch(td);
     if (hero) body.appendChild(matchHero(hero, pid));
 
-    // Recent results
     const last = (td.lastList || []).slice(0, 5);
     if (tileCfg.results !== false && last.length) {
       body.appendChild(sectionTitle(t('football_recent', 'Recent results')));
@@ -334,7 +725,6 @@
       last.forEach(ev => listWrap.appendChild(miniResult(ev, pid)));
       body.appendChild(listWrap);
     }
-    // Upcoming fixtures
     const upcoming = (td.nextList || []).filter(e => e.status !== 'ft').slice(0, 5);
     if (upcoming.length) {
       body.appendChild(sectionTitle(t('football_upcoming', 'Upcoming')));
@@ -342,17 +732,36 @@
       upcoming.forEach(ev => listWrap.appendChild(miniFixture(ev, pid)));
       body.appendChild(listWrap);
     }
-    // Standings
     if (tileCfg.standings !== false && td.leagueId) {
       const key = td.leagueId + '|' + (td.season || '');
       const table = standingsCache.get(key);
-      body.appendChild(sectionTitle(table ? table.league || t('football_standings', 'Standings') : t('football_standings', 'Standings')));
-      if (table) body.appendChild(standingsTable(table, pid));
+      body.appendChild(sectionTitle((table && table.league) || t('football_standings', 'Standings')));
+      if (table) body.appendChild(standingsTable(table, new Set([pid])));
+      else if (table === null) body.appendChild(el('div', 'fw-mini-loading', t('football_no_table', 'No table for this competition')));
       else body.appendChild(el('div', 'fw-mini-loading', t('football_loading', 'Loading…')));
     }
     wrap.appendChild(body);
     mount.replaceChildren(wrap);
   }
+
+  function identityStrip(inf) {
+    const box = el('div', 'fw-ident');
+    const facts = el('div', 'fw-ident-facts');
+    const fact = (label, value) => {
+      if (!value) return;
+      const f = el('div', 'fw-fact');
+      f.appendChild(el('div', 'fw-fact-v', String(value)));
+      f.appendChild(el('div', 'fw-fact-k', label));
+      facts.appendChild(f);
+    };
+    fact(t('football_stadium', 'Ground'), inf.stadium);
+    fact(t('football_capacity', 'Capacity'), inf.capacity ? formatNum(inf.capacity) : '');
+    fact(t('football_founded', 'Founded'), inf.founded || '');
+    if (facts.childNodes.length) box.appendChild(facts);
+    if (inf.desc) box.appendChild(el('div', 'fw-ident-desc', inf.desc));
+    return box;
+  }
+  function formatNum(n) { try { return Number(n).toLocaleString(); } catch { return String(n); } }
 
   function heroMatch(td) {
     const live = [td.next, td.last].find(e => e && e.status === 'live');
@@ -367,17 +776,17 @@
     if (lb) top.appendChild(lb);
     else if (ev.status === 'ft') top.appendChild(el('span', 'fw-badge', t('football_ft', 'Full time')));
     else { const w = whenLong(ev); if (w) top.appendChild(el('span', 'fw-hero-when', w)); }
-    if (ev.league) top.appendChild(el('span', 'fw-hero-league', ev.round ? ev.league + ' · ' + t('football_round', 'MD') + ' ' + ev.round : ev.league));
+    if (ev.league) top.appendChild(el('span', 'fw-hero-league', ev.round && ev.round !== '0' ? ev.league + ' · ' + t('football_round', 'MD') + ' ' + ev.round : ev.league));
     hero.appendChild(top);
 
     const mid = el('div', 'fw-hero-mid');
-    const side = (name, badge, mine) => { const s = el('div', 'fw-hero-side' + (mine ? ' is-mine' : '')); s.appendChild(crest(badge, name, 'fw-crest--lg')); s.appendChild(el('div', 'fw-hero-team', name)); return s; };
-    mid.appendChild(side(ev.home, ev.homeBadge, ev.homeId === teamId));
+    const side = (name, node, mine) => { const s = el('div', 'fw-hero-side' + (mine ? ' is-mine' : '')); s.appendChild(node); s.appendChild(el('div', 'fw-hero-team', name)); return s; };
+    mid.appendChild(side(ev.home, sideCrest(ev, 'home', 'fw-crest--lg'), ev.homeId === teamId));
     const centre = el('div', 'fw-hero-centre');
     if (ev.homeScore != null && ev.awayScore != null) centre.appendChild(el('div', 'fw-hero-score', ev.homeScore + ' – ' + ev.awayScore));
-    else centre.appendChild(el('div', 'fw-hero-vs', t('football_vs', 'vs')));
+    else centre.appendChild(el('div', 'fw-hero-kick', timeText(ev) || t('football_vs', 'vs')));
     mid.appendChild(centre);
-    mid.appendChild(side(ev.away, ev.awayBadge, ev.awayId === teamId));
+    mid.appendChild(side(ev.away, sideCrest(ev, 'away', 'fw-crest--lg'), ev.awayId === teamId));
     hero.appendChild(mid);
 
     if (ev.venue) hero.appendChild(el('div', 'fw-hero-venue', ev.venue));
@@ -399,64 +808,47 @@
   }
   function miniFixture(ev, teamId) {
     const row = el('div', 'fw-mini');
-    const oppCrest = teamId ? (isHome(ev, teamId) ? ev.awayBadge : ev.homeBadge) : ev.homeBadge;
-    row.appendChild(crest(oppCrest, miniLabel(ev, teamId), 'fw-crest--sm'));
+    const oppSide = teamId ? (isHome(ev, teamId) ? 'away' : 'home') : 'home';
+    row.appendChild(sideCrest(ev, oppSide, 'fw-crest--sm'));
     row.appendChild(el('span', 'fw-mini-opp', miniLabel(ev, teamId)));
     const w = whenShort(ev);
     row.appendChild(el('span', 'fw-mini-when', w || (teamId && isHome(ev, teamId) ? t('football_home', 'H') : t('football_away', 'A'))));
     return row;
   }
-  function standingsTable(table, teamId) {
-    const box = el('div', 'fw-table');
-    const head = el('div', 'fw-tr fw-tr--head');
-    ['#', '', 'PG', 'DR', 'Pt'].forEach((h, i) => head.appendChild(el('span', 'fw-th fw-col-' + i, h)));
-    box.appendChild(head);
-    table.rows.slice(0, 24).forEach(r => {
-      const tr = el('div', 'fw-tr' + (r.teamId === teamId ? ' is-mine' : ''));
-      tr.appendChild(el('span', 'fw-td fw-col-0', r.rank != null ? String(r.rank) : ''));
-      const teamCell = el('span', 'fw-td fw-col-1');
-      teamCell.appendChild(crest(r.badge, r.team, 'fw-crest--xs'));
-      teamCell.appendChild(el('span', 'fw-td-team', r.team));
-      tr.appendChild(teamCell);
-      tr.appendChild(el('span', 'fw-td fw-col-2', r.played != null ? String(r.played) : ''));
-      tr.appendChild(el('span', 'fw-td fw-col-3', r.gd != null ? (r.gd > 0 ? '+' + r.gd : String(r.gd)) : ''));
-      tr.appendChild(el('span', 'fw-td fw-col-4 fw-pts', r.points != null ? String(r.points) : ''));
-      box.appendChild(tr);
-    });
-    return box;
-  }
 
-  async function loadStandingsFor(td) {
-    if (!td || !td.leagueId || tileCfg.standings === false) return;
-    const key = td.leagueId + '|' + (td.season || '');
+  async function loadStandings(league) {
+    if (!league || !league.id || tileCfg.standings === false) return;
+    const key = league.id + '|' + (league.season || '');
     if (standingsCache.has(key)) return;
-    const d = await api('/api/football/standings?league=' + encodeURIComponent(td.leagueId) + '&season=' + encodeURIComponent(td.season || ''));
-    if (d && Array.isArray(d.rows)) {
-      if (standingsCache.size > 16) standingsCache.delete(standingsCache.keys().next().value);
-      standingsCache.set(key, d);
-      if (view.mode === 'detail' && view.teamId === td.id) paint();
-    }
+    const d = await api('/api/football/standings?league=' + encodeURIComponent(league.id) + '&season=' + encodeURIComponent(league.season || ''));
+    if (standingsCache.size > 16) standingsCache.delete(standingsCache.keys().next().value);
+    // A miss is CACHED as null: a competition with no table (a cup, a season the
+    // provider has not filled in) must say so once instead of refetching on
+    // every repaint — which, with an SSE tick every couple of minutes, would be
+    // a request loop nobody asked for.
+    standingsCache.set(key, (d && Array.isArray(d.rows)) ? d : null);
+    paint();
+  }
+  function loadStandingsFor(td) {
+    if (!td || !td.leagueId) return;
+    loadStandings({ id: td.leagueId, season: td.season || '' });
   }
 
   // ── list view ──
   function listView(mount) {
     const wrap = el('div', 'fw-wrap');
-    const head = el('div', 'fw-head');
-    const titleWrap = el('div', 'fw-head-title');
-    titleWrap.append(el('span', 'fw-title', t('layout_widget_football', 'Calcio')));
-    const rows = displayRows();
-    if (rows.length) titleWrap.appendChild(el('span', 'fw-count', String(rows.length)));
-    head.appendChild(titleWrap);
-    if (meta.live) { const live = el('span', 'fw-src fw-src--live'); live.append(el('span', 'fw-live-dot'), el('span', null, t('football_live', 'LIVE'))); head.appendChild(live); }
-    wrap.appendChild(head);
+    const rows = mergeMatches();
+    const pick = heroPick(rows, Date.now());
+    if (pick) wrap.appendChild(heroBand(pick));
+    wrap.appendChild(tabsBar());
+    if (managing) wrap.appendChild(managePanel());
 
-    wrap.appendChild(addBox());
-
-    const list = el('div', 'fw-list');
-    if (teamsData === null && !favorites.length) list.appendChild(el('div', 'fw-state', t('football_loading', 'Loading…')));
-    else if (!rows.length) list.appendChild(el('div', 'fw-state', t('football_empty', 'Nothing yet — search a team or competition above')));
-    else rows.forEach(td => list.appendChild(row(td)));
-    wrap.appendChild(list);
+    const body = el('div', 'fw-body');
+    if (teamsData === null && !favorites.length) body.appendChild(el('div', 'fw-state', t('football_loading', 'Loading…')));
+    else if (view.tab === 'table') body.appendChild(tableTab());
+    else if (view.tab === 'news') body.appendChild(newsTab());
+    else body.appendChild(matchesTab(rows));
+    wrap.appendChild(body);
     mount.replaceChildren(wrap);
   }
 
@@ -464,8 +856,14 @@
     tiles().forEach(tile => {
       const mount = tile.querySelector('.football-widget-mount');
       if (!mount) return;
+      // The whole mount is rebuilt on every SSE tick, so the scroll position of
+      // the feed has to be carried across or a match list scrolls itself back to
+      // the top every couple of minutes while the user is reading it.
+      const prevBody = mount.querySelector('.fw-body');
+      const top = prevBody ? prevBody.scrollTop : 0;
       if (view.mode === 'detail') detailView(mount);
       else listView(mount);
+      if (top) { const next = mount.querySelector('.fw-body'); if (next) next.scrollTop = top; }
     });
   }
 
@@ -477,6 +875,7 @@
   function applySeed(d) {
     if (Array.isArray(d.teams)) teamsData = d.teams;
     if (Array.isArray(d.favorites)) favorites = d.favorites;
+    if (d.info && typeof d.info === 'object') info = d.info;
     if (d.tile && typeof d.tile === 'object') tileCfg = d.tile;
     if (typeof d.live === 'boolean') meta.live = d.live;
     if (d.refreshedAt) meta.refreshedAt = d.refreshedAt;
@@ -493,7 +892,7 @@
       const res = pid ? resultOf(ev, pid) : '';
       const dir = live ? 'live' : (res === 'w' ? 'up' : res === 'l' ? 'down' : 'flat');
       const sc = scoreText(ev);
-      const value = sc ? (ev.home + ' ' + sc + ' ' + ev.away) : ('→ ' + sideLabel(ev, td) + ' ' + (whenShort(ev) || ''));
+      const value = sc ? (ev.home + ' ' + sc + ' ' + ev.away) : ('→ ' + (pid ? oppName(ev, pid) : (ev.home + ' – ' + ev.away)) + ' ' + (whenShort(ev) || ''));
       return { label: td.name, value: value.trim(), dir };
     }).filter(Boolean);
   }
@@ -517,6 +916,7 @@
   function onSSE(cache) {
     if (cache && Array.isArray(cache.teams)) {
       teamsData = cache.teams;
+      if (cache.info && typeof cache.info === 'object') info = cache.info;
       if (typeof cache.live === 'boolean') meta.live = cache.live;
       if (cache.refreshedAt) meta.refreshedAt = cache.refreshedAt;
       if (window.Ticker) window.Ticker.setSource('football', tickerItems());

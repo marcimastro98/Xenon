@@ -56,7 +56,19 @@ export function makeDom() {
       maxLength: 0,
       placeholder: '',
       disabled: false,
+      // No scroller here, but modules carry a scroll position across a repaint,
+      // which is a real behaviour worth being able to assert on.
+      scrollTop: 0,
     };
+    // Reachability from the document root: modules use it to decide whether a
+    // node they are holding is still the one on screen.
+    Object.defineProperty(node, 'isConnected', {
+      get() {
+        let n = node;
+        while (n.parentNode) n = n.parentNode;
+        return n === documentElement;
+      },
+    });
     Object.defineProperty(node, 'hidden', {
       get() { return node._hidden; },
       set(v) { node._hidden = !!v; notify(node); },
@@ -95,6 +107,11 @@ export function makeDom() {
       return child;
     };
     node.append = (...kids) => kids.forEach(node.appendChild);
+    node.replaceChildren = (...kids) => {
+      node.children.slice().forEach((c) => c.remove());
+      node._text = '';
+      kids.forEach(node.appendChild);
+    };
     node.remove = () => {
       if (!node.parentNode) return;
       const at = node.parentNode.children.indexOf(node);
@@ -176,6 +193,9 @@ export function makeDom() {
     documentElement,
     body,
     readyState: 'complete',
+    // Nothing takes focus on its own here; a module that preserves the caret
+    // across a repaint reads this and must cope with "nothing is focused".
+    activeElement: null,
     createElement: (t) => mkEl(t),
     createElementNS: (ns, t) => mkEl(t, ns),
     createDocumentFragment: () => {
