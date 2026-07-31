@@ -44,7 +44,6 @@ $ErrorActionPreference = 'SilentlyContinue'
 $appName     = 'Xenon Edge Widget'
 $root        = Split-Path -Parent $PSScriptRoot          # repo/install root (parent of server\)
 $serverDir   = Join-Path $root 'server'
-$serverPath  = Join-Path $serverDir 'server.js'
 $dataDir     = Join-Path $serverDir 'data'
 $localAppData = [Environment]::GetFolderPath('LocalApplicationData')
 $appData      = [Environment]::GetFolderPath('ApplicationData')
@@ -132,15 +131,123 @@ if (-not $DryRun -and -not $Yes) {
 
 # -- 1) stop running processes ------------------------------------------------
 Step 'Stopping Xenon processes'
-if (Test-Path -LiteralPath $serverPath) {
-  $resolved = (Resolve-Path -LiteralPath $serverPath).Path
-  Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" -ErrorAction SilentlyContinue |
-    Where-Object { $_.CommandLine -and $_.CommandLine -like "*$resolved*" } |
-    ForEach-Object {
-      if ($DryRun) { Info "$tag would stop server (PID $($_.ProcessId))" }
-      else { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue; Ok "stopped server (PID $($_.ProcessId))" }
-    }
+
+# Hunt by what a process IS, not by where this script happens to sit.
+#
+# This used to kill only the node.exe whose command line contained THIS folder's
+# server\server.js, which left two ways to end up with a copy that will not
+# delete ("The action can't be completed because the folder or a file in it is
+# open in another program"):
+#
+#   1. Update by downloading a fresh zip - the natural move when the old folder's
+#      uninstall is the one that is broken - and the OLD copy's backend is still
+#      running. The new folder's uninstaller never matched it.
+#   2. Even from the right folder: the backend spawns two PERSISTENT PowerShell
+#      hosts whose scripts live inside server\, and Windows does not cascade a
+#      kill to child processes. Both outlived the node.exe that started them and
+#      kept the folder open on their own.
+#
+# So: match any process that runs a Xenon script, wherever it lives, plus anything
+# whose own executable sits inside one of the installs those processes reveal.
+#
+#   node.exe        ...\server\server.js
+#   powershell.exe  -File ...\server\pwsh-worker.ps1   (shared script worker)
+#   powershell.exe  -File ...\server\media.ps1 -Serve  (SMTC host)
+#   PresentMon / xenon-helper / SoundVolumeView / whisper-cli - all run FROM the
+#   install folder and hold it open exactly the same way
+#
+# Every hit is confirmed against the filesystem before anything is killed, so an
+# unrelated `node server.js` from someone else's project is never touched.
+
+$xenonMarkers = @('pwsh-worker.ps1', 'media.ps1')
+
+# True when $dir really is the server\ of a Xenon install. server.js alone is far
+# too common; next to one of our PowerShell hosts it is unmistakable.
+function Test-XenonServerDir($dir) {
+  if (-not $dir) { return $false }
+  if (-not (Test-Path -LiteralPath (Join-Path $dir 'server.js') -PathType Leaf)) { return $false }
+  foreach ($m in $xenonMarkers) {
+    if (Test-Path -LiteralPath (Join-Path $dir $m) -PathType Leaf) { return $true }
+  }
+  return $false
 }
+
+# The server\ directory a command line runs Xenon out of, or $null for anything
+# else. Plain string work on purpose: -like would read the [ and ] of a perfectly
+# legal path (C:\Users\D[x]\...) as wildcards, and this input is arbitrary.
+function Get-XenonServerDir($commandLine) {
+  if (-not $commandLine) { return $null }
+  foreach ($script in @('server.js') + $xenonMarkers) {
+    $needle = "\server\$script"
+    $at = $commandLine.IndexOf($needle, [System.StringComparison]::OrdinalIgnoreCase)
+    while ($at -ge 0) {
+      $upTo = $commandLine.Substring(0, $at + $needle.Length)
+      # An unquoted command line can run several paths together, so try every
+      # drive-letter start and let the filesystem say which one is real.
+      foreach ($start in [regex]::Matches($upTo, '[A-Za-z]:\\')) {
+        $path = $upTo.Substring($start.Index)
+        if (Test-Path -LiteralPath $path -PathType Leaf) {
+          $dir = Split-Path -Parent $path
+          if (Test-XenonServerDir $dir) { return $dir }
+        }
+      }
+      $at = $commandLine.IndexOf($needle, $at + 1, [System.StringComparison]::OrdinalIgnoreCase)
+    }
+  }
+  return $null
+}
+
+$allProcs = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+  Where-Object { $_.ProcessId -ne $PID })
+$targets      = @{}      # PID -> @{ name; label; isServer }
+$installRoots = @($root) # folders to sweep for in-folder binaries; ours always counts
+$foreignRoots = @()      # installs found running somewhere other than $root
+
+foreach ($proc in $allProcs) {
+  $dir = Get-XenonServerDir $proc.CommandLine
+  if (-not $dir) { continue }
+  $installRoot = Split-Path -Parent $dir
+  if ($installRoots -notcontains $installRoot) { $installRoots += $installRoot }
+  if ($installRoot -ne $root -and $foreignRoots -notcontains $installRoot) { $foreignRoots += $installRoot }
+  $targets[[int]$proc.ProcessId] = @{
+    name     = $proc.Name
+    label    = "$($proc.Name) running Xenon from $installRoot"
+    isServer = ($proc.Name -eq 'node.exe')
+  }
+}
+
+foreach ($proc in $allProcs) {
+  if (-not $proc.ExecutablePath) { continue }
+  if ($targets.ContainsKey([int]$proc.ProcessId)) { continue }
+  foreach ($r in $installRoots) {
+    if ($proc.ExecutablePath.StartsWith("$r\", [System.StringComparison]::OrdinalIgnoreCase)) {
+      $targets[[int]$proc.ProcessId] = @{
+        name     = $proc.Name
+        label    = "$($proc.Name) (running from $r)"
+        isServer = $false
+      }
+      break
+    }
+  }
+}
+
+# Servers first: kill a host while its parent backend still lives and the backend
+# simply spawns a replacement.
+$ordered = @($targets.Keys) | Sort-Object { if ($targets[$_].isServer) { 0 } else { 1 } }
+foreach ($id in $ordered) {
+  $label = $targets[$id].label
+  if ($DryRun) { Info "$tag would stop $label (PID $id)" }
+  else { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue; Ok "stopped $label (PID $id)" }
+}
+if (-not $targets.Count) { Info 'no running Xenon backend found' }
+# Stopping someone else's folder is surprising, so never do it silently.
+if ($foreignRoots.Count) {
+  Warn "also stopped Xenon running from another folder: $($foreignRoots -join ', ')"
+}
+
+# The kiosk shell lives in %LOCALAPPDATA%, outside any install folder, so it is
+# still matched by name. xenon-helper/PresentMon repeat the sweep above for an
+# install too old or too broken to have been mapped.
 foreach ($p in @('xenon-native', 'Xenon', 'xenon-helper', 'PresentMon')) {
   Get-Process -Name $p -ErrorAction SilentlyContinue | ForEach-Object {
     if ($DryRun) { Info "$tag would stop process: $p (PID $($_.Id))" }
