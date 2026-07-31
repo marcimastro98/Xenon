@@ -164,22 +164,66 @@ const SOURCES = Object.freeze([
 ]);
 const SOURCE_BY_ID = new Map(SOURCES.map(s => [s.id, s]));
 
+// Google News locale per UI language. It used to name five of the app's ELEVEN
+// languages, and the other six fell through to en-US — so a German, French,
+// Spanish, Portuguese, Russian or Dutch user asking for a topic got American
+// news in English, silently, with the topic they typed in their own language.
+// Google News serves all of these; there was no reason for the short list.
+const NEWS_LOCALES = Object.freeze({
+  it: 'IT', en: 'US', de: 'DE', fr: 'FR', es: 'ES', pt: 'PT',
+  ru: 'RU', nl: 'NL', ko: 'KR', ja: 'JP', zh: 'CN',
+});
+
+/** The UI language reduced to one this module can actually serve. */
+function newsLang(lang) {
+  const l = String(lang || '').toLowerCase().slice(0, 2);
+  return Object.prototype.hasOwnProperty.call(NEWS_LOCALES, l) ? l : 'en';
+}
+
 // Google News RSS search for a free-text topic, in the requested UI language.
 function googleNewsUrl(query, lang) {
-  const l = /^(it|en|ko|ja|zh)$/.test(String(lang)) ? String(lang) : 'en';
-  const region = { it: 'IT', en: 'US', ko: 'KR', ja: 'JP', zh: 'CN' }[l] || 'US';
+  const l = newsLang(lang);
+  const region = NEWS_LOCALES[l];
   const hl = l === 'en' ? 'en-US' : l;
   return `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=${hl}&gl=${region}&ceid=${region}:${l}`;
 }
 
 // ── config normalization ──────────────────────────────────────────────────────
 
+// The word for "technology" in each UI language. The default feed set carried
+// the Italian one for everybody, so an English install showed a chip reading
+// "Tecnologia" among otherwise English settings and asked Google News for an
+// Italian word (reported from a phone). It is the topic's NAME and its QUERY at
+// once, which is what a topic is: free text sent to the search.
+const DEFAULT_TOPIC = Object.freeze({
+  it: 'Tecnologia', en: 'Technology', de: 'Technologie', fr: 'Technologie',
+  es: 'Tecnología', pt: 'Tecnologia', ru: 'Технологии', nl: 'Technologie',
+  ko: '기술', ja: 'テクノロジー', zh: '科技',
+});
+
+/**
+ * The feed set a fresh install starts with, in the user's language.
+ *
+ * SOURCES stays a two-language list (Italian and English outlets are the ones
+ * with feeds we have checked), so the rule is: an Italian install keeps ANSA,
+ * and every other language gets the two international English outlets rather
+ * than an Italian wire service it cannot read. The TOPIC is what carries the
+ * language for everyone else, and Google News serves it in their locale.
+ *
+ * Only ever used when there is no saved list. A list the user has already
+ * edited is theirs and is never rewritten.
+ */
+function defaultNewsFeeds(lang) {
+  const l = newsLang(lang);
+  const sources = l === 'it'
+    ? [{ id: 'ansa', type: 'source', name: 'ANSA' }, { id: 'bbc', type: 'source', name: 'BBC News' }]
+    : [{ id: 'bbc', type: 'source', name: 'BBC News' }, { id: 'guardian', type: 'source', name: 'The Guardian' }];
+  const topic = DEFAULT_TOPIC[l] || DEFAULT_TOPIC.en;
+  return [...sources, { id: 'tech', type: 'topic', name: topic, query: topic.toLowerCase() }];
+}
+
 const DEFAULT_NEWS = Object.freeze({
-  feeds: Object.freeze([
-    Object.freeze({ id: 'ansa', type: 'source', name: 'ANSA' }),
-    Object.freeze({ id: 'bbc', type: 'source', name: 'BBC News' }),
-    Object.freeze({ id: 'tech', type: 'topic', name: 'Tecnologia', query: 'tecnologia' }),
-  ]),
+  feeds: Object.freeze(defaultNewsFeeds('en').map(Object.freeze)),
   refreshSec: 600,
   tile: Object.freeze({ images: true }),
 });
@@ -214,10 +258,14 @@ function normalizeFeeds(value) {
   return out;
 }
 
-function normalizeNews(value) {
+// `lang` is only ever read to build the FIRST feed set, when there is none
+// saved. It is passed rather than read from a module global so this stays pure,
+// and so the caller (normalizeHubSettings) hands over the same language it is
+// normalising in the same pass.
+function normalizeNews(value, lang) {
   const src = value && typeof value === 'object' ? value : {};
   const refreshSec = clampInt(src.refreshSec, 120, 3600, DEFAULT_NEWS.refreshSec);
-  const feeds = src.feeds !== undefined ? normalizeFeeds(src.feeds) : DEFAULT_NEWS.feeds.map(f => ({ ...f }));
+  const feeds = src.feeds !== undefined ? normalizeFeeds(src.feeds) : defaultNewsFeeds(lang);
   const tile = src.tile && typeof src.tile === 'object' ? src.tile : {};
   return { feeds, refreshSec, tile: { images: tile.images !== false } };
 }
@@ -294,7 +342,9 @@ function feedUrl(feed, opts) {
 // Optional NewsData.io enrichment for a topic (richer results + images). JSON,
 // not RSS. Falls back to null on any error so the caller uses Google News RSS.
 async function fetchNewsData(query, key, lang) {
-  const l = /^(it|en|ko|ja|zh)$/.test(String(lang)) ? String(lang) : 'en';
+  // NewsData.io takes the same two-letter codes, so the widened list above
+  // serves both paths rather than one being quietly narrower than the other.
+  const l = newsLang(lang);
   const url = `https://newsdata.io/api/1/latest?apikey=${encodeURIComponent(key)}&q=${encodeURIComponent(query)}&language=${l}`;
   let raw;
   try { raw = await fetchText(url); } catch { return null; }
@@ -365,6 +415,9 @@ module.exports = {
   MAX_FEEDS,
   MAX_ITEMS,
   DEFAULT_NEWS,
+  DEFAULT_TOPIC,
+  defaultNewsFeeds,
+  newsLang,
   SOURCES,
   normalizeNews,
   normalizeFeeds,

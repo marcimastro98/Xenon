@@ -267,6 +267,21 @@
   grid-auto-rows: minmax(min-content, auto);
   overflow: visible;
 }
+/* And the tile has to be able to SCROLL that remainder, which it could not.
+   `.side-panel` is `overflow: auto` in SystemPanel.css, but DashboardLayout.css
+   overrides it to `hidden` for the dashboard, on the reasoning that a desktop
+   tile is sized so all four stats fit with no scrollbar. That reasoning does
+   not survive the stacked view: the rows take their natural height here and the
+   tile's height is capped, so everything past the cap was simply cut off with
+   no way to reach it. Reported from a phone: "the System tile doesn't have a
+   scroll on mobile (weather etc. does)".
+   The selector carries `body:not([data-panel])` on purpose — the rule it has to
+   beat has it, and `.is-stacked .side-panel` alone is one point short, so it
+   would lose and the fix would look right in the file and do nothing. */
+.is-stacked body:not([data-panel]) .side-panel {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
 .is-stacked .system-block { flex: 0 0 auto; min-height: min-content; }
 .is-stacked .stat-box { min-height: min-content; }
 
@@ -445,10 +460,40 @@
   .ph-page-at { min-width: 26px; }
 }
 
+/* ── Nothing floats over the dock ────────────────────────────────────────── */
+/* The dock is a grid ROW, which settles every argument with things the
+   dashboard lays out and none at all with the things it FIXES to the viewport.
+   There are eight of those, and three of them (the Discord invite, the Game
+   Companion pill, the layout button) sit in the bottom-RIGHT corner — the exact
+   corner this file spends its longest comment conceding to the browser. On a
+   desktop they float over a wide empty margin; on a 390px phone they land on
+   the bar. Reported while a game was running, which is when the Game Companion
+   pill appears.
+   `--ph-dock-h` is written by measureDock() in js/phone-view.js from the real
+   element: the dock wraps to a second line on a narrow screen and grows with
+   the safe-area inset, so a constant here would be wrong on some phone. The
+   fallback is only for the frame before the first measurement.
+   When you add something fixed to the bottom of the viewport, add it here —
+   test/phone-dock-render.test.mjs scans the component CSS and fails if a
+   bottom-anchored floater is missing from this list. */
+.is-phone .discord-invite,
+.is-phone .gc-pill,
+.is-phone .event-toast,
+.is-phone .deck-toast,
+.is-phone .perf-banner,
+.is-phone .perf-toast,
+.is-phone .vpet {
+  bottom: calc(var(--ph-dock-h, 64px) + 12px);
+}
+
 /* ── Things that do not belong on a phone ────────────────────────────────── */
 /* Layout editing: the grid is not being shown at its real geometry here, so a
-   drag would move a tile somewhere the user cannot see. */
+   drag would move a tile somewhere the user cannot see. `.layout-fab` is the
+   button that OPENS it and lives outside `.layout-controls`, so hiding the
+   controls left the button floating in the corner offering an editor this view
+   refuses to show. */
 .is-stacked .layout-controls,
+.is-stacked .layout-fab,
 .is-stacked .gs-edit-overlay,
 .is-stacked .pager-page-btn { display: none !important; }
 /* The home bar is a native-kiosk gesture strip; on a phone it overlaps the dock. */

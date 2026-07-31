@@ -15,6 +15,8 @@
 //  2. PLACING A CALL ASKS FIRST. This runs on a touchscreen that lives on a
 //     desk, and a call is the one action in the product that costs money and
 //     rings another human being. A single stray tap must not be able to do it.
+//
+//  3. A PAIRED PHONE OR TABLET READS, IT DOES NOT DIAL. See `isRemote` below.
 (function () {
   const el = makeEl;        // shared DOM factory (utils.js)
   const api = apiJson;      // fetch → JSON, null on failure (utils.js)
@@ -120,7 +122,7 @@
       // hunting for an old message from them first. Only when the phone
       // actually has a message server — otherwise it would be a button that
       // can only ever explain itself.
-      if (hasMessages()) row.appendChild(messageButton(name, number));
+      if (canSend()) row.appendChild(messageButton(name, number));
     } else {
       row.disabled = true;
     }
@@ -147,8 +149,27 @@
 
   // ── Views ────────────────────────────────────────────────────────────────
 
+  // Calling and texting from a paired device are refused by
+  // server/remote-access.js, and deliberately: a call's audio comes out of the
+  // PC, so one placed from another room would be a call nobody could hear, and
+  // a message leaves under the user's own number from a device they might lose.
+  //
+  // Knowing that HERE is the difference between a boundary and a dead end. It
+  // was reported from a phone: every row invited a tap, the confirm sheet came
+  // up naming the contact and the number, and the Call button answered with a
+  // "this is done on the PC" toast. The decision was right and the moment it
+  // was made was wrong, which is the failure this codebase avoids everywhere
+  // else — a control offered and then refused. Reading is untouched: the call
+  // log, the phonebook and the messages all work exactly as they do on the PC.
+  const isRemote = !!(typeof window !== 'undefined' && window.__xenonRemote);
+
   function canDial() {
-    return !!(status && status.ok && status.canDial);
+    return !!(status && status.ok && status.canDial) && !isRemote;
+  }
+
+  /** Whether this surface may WRITE a message, as opposed to read one. */
+  function canSend() {
+    return hasMessages() && !isRemote;
   }
 
   function emptyNote(text) {
@@ -332,7 +353,7 @@
     // Composing sits above the list, not behind a tap on it: writing to
     // somebody you have never texted must not require finding a message from
     // them first, which is what "reply only" quietly demanded.
-    wrap.appendChild(newMessageBar());
+    if (canSend()) wrap.appendChild(newMessageBar());
     if (msgList === null) { wrap.appendChild(emptyNote(t('phone_loading', 'Reading the phone…'))); return wrap; }
     if (!msgList.length) { wrap.appendChild(emptyOrError('messages', t('phone_no_messages', 'No messages.'))); return wrap; }
 
@@ -388,7 +409,7 @@
     // a delivery service) has none, and those cannot be replied to at all — so
     // the box is absent rather than present and refusing.
     const to = openMsg.number || '';
-    if (to && /\d/.test(to)) {
+    if (to && /\d/.test(to) && canSend()) {
       const compose = el('div', 'phw-compose');
       const input = el('textarea', 'phw-input');
       input.rows = 2;
@@ -487,6 +508,13 @@
     }
 
     wrap.appendChild(tabsBar());
+    // Said once, above the list, rather than at the end of a confirm sheet.
+    // The rows below are dimmed and inert on this surface, and a control that
+    // is inert without a reason is indistinguishable from a broken one.
+    if (isRemote) {
+      wrap.appendChild(el('div', 'phw-remote-note',
+        t('phone_remote_note', 'Calls and messages are placed from the PC.')));
+    }
     if (tab === 'contacts') wrap.appendChild(contactsView());
     else if (tab === 'messages' && hasMessages()) wrap.appendChild(messagesView());
     else if (tab === 'dial') wrap.appendChild(dialView());

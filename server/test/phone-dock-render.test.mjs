@@ -1,9 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { readFileSync, readdirSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
+import { makeDom, SVG_NS } from './mini-dom.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SRC = readFileSync(join(HERE, '..', 'js', 'phone-view.js'), 'utf8');
@@ -29,155 +30,6 @@ const SRC = readFileSync(join(HERE, '..', 'js', 'phone-view.js'), 'utf8');
 // Plus the arrangement itself: a mobile browser floats its own control over the
 // bottom-right corner (the reported bug), so the pager takes that corner and the
 // actions anchor left.
-
-// ── A DOM small enough to read, big enough to run this module ────────────────
-
-const SVG_NS = 'http://www.w3.org/2000/svg';
-
-function makeDom() {
-  const observersFor = new Map();   // node -> [callback]
-
-  function notify(node) {
-    const cbs = observersFor.get(node);
-    if (cbs) cbs.forEach((cb) => cb());
-  }
-
-  function mkEl(tag, ns) {
-    const node = {
-      tag,
-      tagName: String(tag).toUpperCase(),
-      namespaceURI: ns || null,
-      id: '',
-      className: '',
-      attrs: Object.create(null),
-      children: [],
-      parentNode: null,
-      _text: '',
-      _hidden: false,
-      _handlers: Object.create(null),
-      style: { setProperty() {}, removeProperty() {} },
-      dataset: Object.create(null),
-      type: '',
-      title: '',
-      disabled: false,
-    };
-    Object.defineProperty(node, 'hidden', {
-      get() { return node._hidden; },
-      set(v) { node._hidden = !!v; notify(node); },
-    });
-    Object.defineProperty(node, 'textContent', {
-      get() { return node._text + node.children.map((c) => c.textContent).join(''); },
-      set(v) { node._text = String(v); node.children = []; },
-    });
-    node.classList = {
-      add: (...c) => { node.className = [...new Set(node.className.split(/\s+/).filter(Boolean).concat(c))].join(' '); },
-      remove: (...c) => { node.className = node.className.split(/\s+/).filter((x) => x && !c.includes(x)).join(' '); },
-      contains: (c) => node.className.split(/\s+/).includes(c),
-      toggle: (c, on) => (on ? node.classList.add(c) : node.classList.remove(c)),
-    };
-    node.setAttribute = (k, v) => {
-      node.attrs[k] = String(v);
-      if (k === 'class') node.className = String(v);
-      if (k === 'id') node.id = String(v);
-      notify(node);
-    };
-    node.getAttribute = (k) => (k in node.attrs ? node.attrs[k] : null);
-    node.removeAttribute = (k) => { delete node.attrs[k]; if (k === 'id') node.id = ''; };
-    node.hasAttribute = (k) => k in node.attrs;
-    node.appendChild = (child) => {
-      if (child && child._isFragment) { child.children.forEach(node.appendChild); return child; }
-      if (child.parentNode) child.remove();
-      child.parentNode = node;
-      node.children.push(child);
-      return child;
-    };
-    node.append = (...kids) => kids.forEach(node.appendChild);
-    node.remove = () => {
-      if (!node.parentNode) return;
-      const at = node.parentNode.children.indexOf(node);
-      if (at >= 0) node.parentNode.children.splice(at, 1);
-      node.parentNode = null;
-    };
-    node.addEventListener = (type, fn) => { (node._handlers[type] ||= []).push(fn); };
-    node.click = () => (node._handlers.click || []).forEach((fn) => fn({}));
-    node.cloneNode = () => {
-      const copy = mkEl(node.tag, node.namespaceURI);
-      copy.className = node.className;
-      copy.id = node.id;
-      Object.assign(copy.attrs, node.attrs);
-      copy._text = node._text;
-      node.children.forEach((c) => copy.appendChild(c.cloneNode(true)));
-      return copy;
-    };
-    node.querySelector = (sel) => find(node, sel)[0] || null;
-    node.querySelectorAll = (sel) => find(node, sel);
-    return node;
-  }
-
-  // Descendant selectors of class/tag/#id tokens. Enough for every selector
-  // phone-view.js uses, and small enough that the test is readable.
-  function matches(node, part) {
-    const tokens = part.match(/[.#]?[\w-]+/g) || [];
-    return tokens.every((tk) => {
-      if (tk[0] === '.') return node.classList.contains(tk.slice(1));
-      if (tk[0] === '#') return node.id === tk.slice(1);
-      return node.tagName === tk.toUpperCase();
-    });
-  }
-  function descendants(node, out = []) {
-    node.children.forEach((c) => { out.push(c); descendants(c, out); });
-    return out;
-  }
-  function find(root, sel) {
-    const parts = sel.trim().split(/\s+(?![^[]*\])/);
-    let scope = [root];
-    for (const part of parts) {
-      const next = [];
-      scope.forEach((n) => descendants(n).forEach((d) => { if (matches(d, part) && !next.includes(d)) next.push(d); }));
-      scope = next;
-    }
-    return scope;
-  }
-
-  const documentElement = mkEl('html');
-  const body = mkEl('body');
-  documentElement.appendChild(body);
-
-  const document = {
-    documentElement,
-    body,
-    readyState: 'complete',
-    createElement: (t) => mkEl(t),
-    createElementNS: (ns, t) => mkEl(t, ns),
-    createDocumentFragment: () => {
-      const f = mkEl('#fragment');
-      f._isFragment = true;
-      return f;
-    },
-    querySelector: (s) => find(documentElement, s)[0] || null,
-    querySelectorAll: (s) => find(documentElement, s),
-    getElementById: (id) => descendants(documentElement).find((n) => n.id === id) || null,
-    addEventListener() {},
-  };
-
-  class MutationObserver {
-    constructor(cb) { this.cb = cb; this.targets = []; }
-    observe(target) {
-      this.targets.push(target);
-      (observersFor.get(target) || observersFor.set(target, []).get(target)).push(this.cb);
-    }
-    disconnect() {
-      this.targets.forEach((tgt) => {
-        const cbs = observersFor.get(tgt) || [];
-        const at = cbs.indexOf(this.cb);
-        if (at >= 0) cbs.splice(at, 1);
-      });
-      this.targets = [];
-    }
-  }
-
-  return { document, mkEl, MutationObserver, observersFor };
-}
 
 /** A topbar button as index.html really writes it: an inline SVG plus a label. */
 function topButton(mkEl, cls, pathD) {
@@ -247,6 +99,7 @@ function mountPhone({ pages = 3, width = 390, height = 844 } = {}) {
     document,
     window: null,
     MutationObserver: dom.MutationObserver,
+    ResizeObserver: dom.ResizeObserver,
     requestAnimationFrame: () => 1,
     cancelAnimationFrame: () => {},
     setTimeout: () => 1,
@@ -408,4 +261,116 @@ test('a single-page dashboard leaves the corner a browser steals completely empt
   assert.equal(dock.classList.contains('has-pages'), false,
     'with one page the pager is hidden, so nothing at all sits in the bottom-right corner');
   assert.equal(dock.querySelectorAll('.ph-act').length, 4, 'the actions are unaffected');
+});
+
+// ── Nothing may float over the dock ──────────────────────────────────────────
+//
+// The dock is a grid ROW, and buildDock()'s comment explains at length that this
+// settles every argument about what can end up underneath it. That is true of
+// things the dashboard LAYS OUT and false of the things it FIXES to the
+// viewport, which was never checked: eight elements are `position: fixed` with a
+// bottom offset, and three of them (the Discord invite, the Game Companion pill,
+// the layout button) sit in the bottom-RIGHT corner — the same corner this file
+// spends its longest comment conceding to the browser.
+//
+// On a desktop they float over a wide empty margin. On a 390px phone they land
+// on the bar. Reported while a game was running, which is when the Game
+// Companion pill appears: it covered the controls it was sitting on.
+//
+// So the list in PhoneView.css is checked against the CSS itself rather than
+// kept by hand. A new floater is a normal thing to add, and its author has no
+// reason to know this view exists.
+
+const COMPONENT_DIRS = [join(HERE, '..', 'components'), join(HERE, '..', 'styles')];
+
+/** Every rule that pins something to the bottom of the VIEWPORT. */
+function bottomFixedSelectors() {
+  const found = new Map();                    // selector -> file
+  const files = [];
+  for (const dir of COMPONENT_DIRS) {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        for (const f of readdirSync(join(dir, entry.name))) {
+          if (f.endsWith('.css')) files.push(join(dir, entry.name, f));
+        }
+      } else if (entry.name.endsWith('.css')) {
+        files.push(join(dir, entry.name));
+      }
+    }
+  }
+  for (const file of files) {
+    const css = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const body = m[2];
+      if (!/position:\s*fixed/.test(body)) continue;
+      // A full-screen overlay is not a floater; it is the screen.
+      if (/inset:\s*0/.test(body)) continue;
+      const bottom = body.match(/(?:^|;|\s)bottom:\s*([^;]+)/);
+      if (!bottom || bottom[1].trim() === 'auto') continue;
+      if (/(?:^|;|\s)top:\s*0/.test(body) && bottom[1].trim() === '0') continue;
+      for (const sel of m[1].split(',')) {
+        const s = sel.trim().replace(/\s+/g, ' ');
+        // Only ever the element's own class, so a state variant does not need
+        // its own entry in the phone-view list.
+        const cls = s.match(/\.[a-z][\w-]*/i);
+        if (cls && !found.has(cls[0])) found.set(cls[0], basename(file));
+      }
+    }
+  }
+  return found;
+}
+
+test('everything the dashboard pins to the bottom of the screen clears the dock', () => {
+  const css = readFileSync(join(HERE, '..', 'components', 'PhoneView', 'PhoneView.css'), 'utf8');
+  const bare = css.replace(/\/\*[\s\S]*?\*\//g, '');
+
+  // Two ways to be safe on a phone: get lifted above the dock, or not be there.
+  const lifted = new Set();
+  for (const m of bare.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const body = m[2];
+    const liftsOrHides = /bottom:\s*calc\(\s*var\(--ph-dock-h/.test(body) || /display:\s*none/.test(body);
+    if (!liftsOrHides) continue;
+    for (const sel of m[1].split(',')) {
+      const cls = sel.trim().match(/\.[a-z][\w-]*$/i);
+      if (cls) lifted.add(cls[0]);
+    }
+  }
+
+  const floaters = bottomFixedSelectors();
+  assert.ok(floaters.size >= 6, 'the CSS scan found almost nothing — did the component layout move?');
+  // The ones that made the report: a game pill and an invite card, in the corner.
+  assert.ok(floaters.has('.gc-pill'), 'the Game Companion pill should have been found by the scan');
+  assert.ok(floaters.has('.discord-invite'), 'the Discord invite should have been found by the scan');
+
+  const missed = [...floaters].filter(([sel]) => !lifted.has(sel));
+  assert.deepEqual(missed.map(([sel, file]) => sel + ' (' + file + ')'), [],
+    'these are fixed to the bottom of the viewport and would land on the thumb dock. '
+    + 'Add them to the clearance list in PhoneView.css (bottom: calc(var(--ph-dock-h) + 12px)) '
+    + 'or hide them in the stacked view');
+});
+
+test('the dock publishes its own height, measured rather than assumed', () => {
+  const { shell, document, resizeTargets, fireResize, PhoneView } = mountPhone();
+  const dock = shell.querySelector('.ph-dock');
+  const html = document.documentElement;
+  assert.ok(dock, 'no dock to measure');
+
+  // The dock wraps to a second line on a narrow screen and grows with the
+  // safe-area inset, so the clearance cannot be a constant. It has to be
+  // OBSERVED, not read once.
+  assert.ok(resizeTargets().includes(dock),
+    'the dock must be observed, or --ph-dock-h goes stale the first time it wraps');
+
+  dock._rect.height = 64;
+  fireResize();
+  assert.equal(html.style.getPropertyValue('--ph-dock-h'), '64px');
+
+  dock._rect.height = 108;                 // wrapped onto a second line
+  fireResize();
+  assert.equal(html.style.getPropertyValue('--ph-dock-h'), '108px',
+    'a toast pinned to a one-line dock would sit on the second line');
+
+  PhoneView.disable();
+  assert.equal(html.style.getPropertyValue('--ph-dock-h'), '',
+    'a stale height left on <html> keeps every toast floating for nothing');
 });
