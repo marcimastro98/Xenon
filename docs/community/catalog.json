@@ -894,7 +894,7 @@
       "author": "xenon",
       "authorSupporter": true,
       "perfWarning": true,
-      "description": "A limited cyberpunk drop: a neon duotone theme, the animated Megacity Drift background with a holographic whale, the Orbitron display font, three bespoke widgets (Vitals rings, Now Playing, Skynode weather), an Ambient scene and a Deck profile. Reserved on Discord: each buyer gets a personal access ",
+      "description": "A limited cyberpunk drop: a neon duotone theme, the animated Megacity Drift background with a holographic whale, the Orbitron display font, three bespoke widgets (Vitals rings, Now Playing, Skynode weather), an Ambient scene and a Deck profile. Reserved on Discord: each buyer gets a personal access",
       "category": "style",
       "tags": [
         "cyberpunk",
@@ -909,13 +909,13 @@
         "text": "#eafcff"
       },
       "limited": {
-        "total": 5,
+        "total": 6,
         "claimed": 5,
         "reserveUrl": "https://discord.gg/MBVrw9kZyg"
       },
       "shots": 4,
-      "addedAt": "2026-07-19",
-      "updatedAt": "2026-07-19"
+      "addedAt": "2026-07-31",
+      "updatedAt": "2026-07-31"
     },
     {
       "id": "ember-nights",
