@@ -247,11 +247,16 @@
   // works because the lookup is by class, not by position.
   // Forwarders: each aims at a real topbar button that always exists, so this
   // module never learns what any of them do.
+  //
+  // `dot` names an indicator that lives on the real button and would otherwise
+  // be invisible here: the topbar copy is hidden on a phone, so whatever it was
+  // telling the user was being told to nobody. It is MIRRORED rather than moved,
+  // so the code that owns it keeps writing to exactly one element.
   const DOCK_BUTTONS = [
     { sel: '.qbtn-search', glyph: '⌕', key: 'ph_search' },
     { sel: '.topbtn-xenon', glyph: '✦', key: 'ph_ai' },
     { sel: '.qbtn-apps', glyph: '▦', key: 'ph_apps' },
-    { sel: '.qbtn-settings', glyph: '⚙', key: 'ph_settings' },
+    { sel: '.qbtn-settings', glyph: '⚙', key: 'ph_settings', dot: 'settings-update-dot' },
   ];
 
   // Actions registered by a feature that has no topbar button to forward to.
@@ -263,6 +268,75 @@
 
   function label(key, fallback) {
     return (typeof t === 'function' ? t(key) : fallback) || fallback;
+  }
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  /**
+   * The icon a dock button wears. CLONED from the button it forwards to, for
+   * the same reason the click is forwarded: the dock stays whatever the topbar
+   * is, and this module still never learns what any of them mean.
+   *
+   * It also fixes something that was wrong on the reporter's screen. The dock
+   * used bare Unicode (⌕ ✦ ▦ ⚙) while every other control in the app is an
+   * inline SVG — and those code points are whatever the device's font decides:
+   * on Android ⚙ commonly resolves to the COLOUR emoji, and ⌕ and ▦ resolve to
+   * a missing-glyph box in fonts that do not carry them. So a bar of five
+   * controls could render as a mix of a coloured cog, two boxes and a star, on
+   * the one surface where the user has nothing else to go on.
+   *
+   * A registered action has no button to copy, so it supplies `icon`: a path
+   * in the same 24x24 box. It is written with setAttribute onto an inert
+   * <path>, never as markup — same rule as the tile-shape picker.
+   */
+  function dockIcon(spec) {
+    const src = spec.sel ? document.querySelector(spec.sel + ' svg') : null;
+    if (src) {
+      const svg = src.cloneNode(true);
+      // The clone must not answer to anything that addressed the original.
+      svg.removeAttribute('id');
+      svg.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));
+      svg.setAttribute('aria-hidden', 'true');
+      return svg;
+    }
+    if (spec.icon) {
+      const svg = document.createElementNS(SVG_NS, 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('fill', 'currentColor');
+      svg.setAttribute('aria-hidden', 'true');
+      const p = document.createElementNS(SVG_NS, 'path');
+      p.setAttribute('d', String(spec.icon));
+      svg.appendChild(p);
+      return svg;
+    }
+    // Last resort, and it stays a resort: better a glyph than an empty button.
+    const g = document.createElement('span');
+    g.className = 'ph-glyph';
+    g.textContent = spec.glyph || '•';
+    return g;
+  }
+
+  // One observer per mirrored indicator, torn down with the dock. Watching the
+  // real element's `hidden` attribute rather than hooking whatever sets it: a
+  // wrapper around a function is one rename away from silently doing nothing,
+  // and this cannot drift from what is actually on screen.
+  const dotWatchers = [];
+  function stopDotWatchers() {
+    while (dotWatchers.length) dotWatchers.pop().disconnect();
+  }
+
+  function mirrorDot(btn, id) {
+    const real = document.getElementById(id);
+    if (!real) return;
+    const copy = document.createElement('span');
+    copy.className = 'ph-dot';
+    copy.setAttribute('aria-hidden', 'true');
+    btn.appendChild(copy);
+    const sync = () => { copy.hidden = !!real.hidden; };
+    sync();
+    const mo = new MutationObserver(sync);
+    mo.observe(real, { attributes: true, attributeFilter: ['hidden'] });
+    dotWatchers.push(mo);
   }
 
   function pageDots() {
@@ -302,28 +376,47 @@
     pages.className = 'ph-pages';
     const prev = document.createElement('button');
     prev.type = 'button';
-    prev.className = 'ph-btn ph-prev';
+    prev.className = 'ph-btn ph-step ph-prev';
     prev.textContent = '‹';
+    // A bare chevron is not a name. Without these the two most-tapped controls
+    // on the bar announce themselves as "‹" and "›" to a screen reader, and
+    // read as nothing at all under a magnifier.
+    prev.title = label('ph_prev', 'Pagina precedente');
+    prev.setAttribute('aria-label', prev.title);
     prev.addEventListener('click', () => stepPage(-1));
     const at = document.createElement('span');
     at.className = 'ph-page-at';
     const next = document.createElement('button');
     next.type = 'button';
-    next.className = 'ph-btn ph-next';
+    next.className = 'ph-btn ph-step ph-next';
     next.textContent = '›';
+    next.title = label('ph_next', 'Pagina successiva');
+    next.setAttribute('aria-label', next.title);
     next.addEventListener('click', () => stepPage(1));
     pages.append(prev, at, next);
-    dock.appendChild(pages);
 
     const acts = document.createElement('div');
     acts.className = 'ph-acts';
     for (const spec of [...dockActions, ...DOCK_BUTTONS]) {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'ph-btn' + (spec.run ? ' ph-btn-action' : '');
-      b.textContent = spec.glyph;
-      b.title = label(spec.key, '');
-      b.setAttribute('aria-label', b.title);
+      b.className = 'ph-btn ph-act' + (spec.run ? ' ph-btn-action' : '');
+      const name = label(spec.key, '');
+      const ico = document.createElement('span');
+      ico.className = 'ph-ico';
+      ico.appendChild(dockIcon(spec));
+      // The caption is what makes this a bar of controls rather than a row of
+      // symbols. It can be clipped on a narrow screen in a long language, so
+      // the accessible name stays on the BUTTON and never depends on it —
+      // and a spec whose full name is a sentence ("An den PC senden") may name
+      // a shorter key for the caption alone.
+      const lab = document.createElement('span');
+      lab.className = 'ph-lab';
+      lab.textContent = spec.short ? label(spec.short, name) : name;
+      b.append(ico, lab);
+      b.title = name;
+      b.setAttribute('aria-label', name);
+      if (spec.dot) mirrorDot(b, spec.dot);
       if (spec.id) b.dataset.phAction = spec.id;
       b.addEventListener('click', () => {
         if (spec.run) { try { spec.run(); } catch (e) { console.warn('[phone-view] dock action failed', spec.id, e); } return; }
@@ -336,7 +429,27 @@
       });
       acts.appendChild(b);
     }
-    dock.appendChild(acts);
+    // ── Why the actions come FIRST and the pager last ────────────────────────
+    // Occupying a row protects the dock from anything the DASHBOARD anchors to
+    // the bottom of the screen (see below), but it cannot protect it from the
+    // BROWSER: a mobile browser floats its own control over the page, and the
+    // corner it picks is the bottom-right one. Reported on Android 16 (a
+    // Firefox-based browser over Tailscale): its floating button sat exactly on
+    // top of the dock's tail, which was the Settings forwarder — and phone view
+    // hides the topbar's own Settings button, so that was the ONLY route to the
+    // panel. The user's workaround was to ask the AI to open it.
+    //
+    // No page-level fix can win that argument, so the corner is CONCEDED rather
+    // than contested: the pager goes there because it is the one dock control
+    // with a second route (the pager swipes, and its dots are still live), while
+    // the forwarders — none of which have another route on this chrome — anchor
+    // to the left and put Settings nearer the middle of the bar than either
+    // edge. On a single-page dashboard the pager is hidden, so the corner a
+    // browser is most likely to steal is simply empty.
+    //
+    // The rule for anything added here: whatever ends up flush against an edge
+    // must be reachable some other way.
+    dock.append(acts, pages);
     // Inside the shell's grid, as a real third row — NOT floating over the page.
     // A fixed bar would have to win a z-index argument against every small thing
     // the dashboard anchors to the bottom of the screen (the Discord invite, the
@@ -346,6 +459,17 @@
     const shell = document.querySelector('.shell');
     (shell || document.body).appendChild(dock);
     return dock;
+  }
+
+  /**
+   * The one way the dock goes away. It owns MutationObservers now (the mirrored
+   * indicators), and the three places that used to drop the node inline would
+   * each have had to remember them — which is exactly how an observer survives
+   * its element.
+   */
+  function destroyDock() {
+    stopDotWatchers();
+    if (dock) { dock.remove(); dock = null; }
   }
 
   // ── Enable / disable ──────────────────────────────────────────────────────
@@ -364,7 +488,7 @@
     // tall phone. A tablet keeps the real topbar, so a second copy of the same
     // four buttons would be clutter, not reach.
     if (mode === 'phone') buildDock();
-    else if (dock) { dock.remove(); dock = null; }
+    else destroyDock();
     sortAll();
     syncDockPages();
     // Tiles are added, removed, re-sized and re-grouped by the layout module
@@ -387,7 +511,7 @@
     if (observer) observer.disconnect();
     if (pending) { cancelAnimationFrame(pending); pending = 0; }
     clearStamps();
-    if (dock) { dock.remove(); dock = null; }
+    destroyDock();
     // The DOM order stays as we left it. That is deliberate and harmless:
     // GridStack positions by attribute, not by document order, so the desktop
     // layout renders identically either way — and reshuffling nodes back would
@@ -464,7 +588,13 @@
        * what a feature switched off in Settings must do — a dock button that
        * does nothing is worse than no button.
        *
-       * @param {{id:string, glyph:string, key:string, run:Function, remove?:boolean}} spec
+       * `icon` is an SVG path in a 24x24 box — the dock has no button of ours to
+       * copy one from for a registered action. `short` names a second i18n key
+       * for the CAPTION only, for a feature whose real name is a sentence; the
+       * accessible name stays `key`.
+       *
+       * @param {{id:string, glyph:string, key:string, run:Function,
+       *          icon?:string, short?:string, remove?:boolean}} spec
        */
       addDockAction(spec) {
         if (!spec || !spec.id) return;
@@ -473,7 +603,7 @@
         else if (at >= 0) dockActions[at] = spec;
         else dockActions.push(spec);
         if (active === 'phone') {
-          if (dock) { dock.remove(); dock = null; }
+          destroyDock();
           buildDock();
           syncDockPages();
         }

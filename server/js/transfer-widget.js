@@ -634,8 +634,13 @@
     const on = state.enabled !== false && settings().enabled !== false;
     window.PhoneView.addDockAction({
       id: 'transfer',
+      // The dock has no button of ours to copy an icon from, so it gets a path
+      // in the same 24x24 box the topbar icons use. `glyph` stays as the
+      // fallback for a surface where the SVG cannot be built.
+      icon: 'M12 2.6 18 8.6 16.2 10.4 13.3 7.5 13.3 16 10.7 16 10.7 7.5 7.8 10.4 6 8.6 12 2.6ZM5 18 19 18 19 20.4 5 20.4Z',
       glyph: '⇪',
       key: 'xfer_dock',
+      short: 'ph_send',
       run: openSheet,
       remove: !on,
     });

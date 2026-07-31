@@ -14,9 +14,18 @@
 
 /* Safe areas: a phone has a notch at the top and a home indicator at the
    bottom, and the dashboard was designed for a screen with neither. */
+/* `dvh`, not `100%` and not `100vh`. On a phone the browser's own toolbars are
+   part of the viewport story: `100vh` is the LARGE viewport (the height the page
+   would have with every toolbar retracted) and a percentage height resolves
+   against an initial containing block the engines size differently. Either way
+   the shell can end up taller than what is on screen, and the shell's last row
+   is the dock — so the bar of controls sits just below the fold, on a page that
+   does not scroll at the body level, with no way to reach it. `dvh` is the
+   height that is actually visible. It does not thrash here: this view scrolls
+   inside the page rather than at the root, so the toolbars do not retract. */
 .is-stacked,
 .is-stacked body {
-  height: 100%;
+  height: 100dvh;
   overflow: hidden;
 }
 .is-stacked body { padding-top: env(safe-area-inset-top); }
@@ -82,7 +91,10 @@
      resolved to 344px against a 298px band, so no widget ever fit on screen
      whole, which reads as the clipping this view exists to remove. Measured on
      an iPhone-sized landscape viewport. */
-  height: clamp(180px, calc(var(--ph-rows, 8) * 34px), min(80vh, calc(100vh - var(--ph-chrome, 150px)))) !important;
+  /* `dvh` for the same reason the shell uses it: this bound is the SCROLLING
+     BAND, and a band measured against a viewport height the phone is not
+     actually showing lets a tile grow past the bottom of the screen. */
+  height: clamp(180px, calc(var(--ph-rows, 8) * 34px), min(80dvh, calc(100dvh - var(--ph-chrome, 158px)))) !important;
   min-height: 0 !important;
   transform: none !important;
 }
@@ -264,8 +276,14 @@
      js/phone-view.js for why: nothing can end up underneath a row. */
   display: none;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
+  /* The bar takes a VARIABLE number of buttons (a feature registers one, and
+     the transfer widget does), so any fixed width budget is a guess that the
+     next feature breaks. Wrapping is the belt to `.ph-acts`'s braces below,
+     which is where the real guarantee lives; between them, an overflow costs
+     one more row of height instead of quietly pushing a control off screen. */
+  flex-wrap: wrap;
+  row-gap: 6px;
   margin: 0 -10px;
   padding: 6px 12px calc(6px + env(safe-area-inset-bottom));
   background: rgba(10, 12, 14, 0.86);
@@ -274,19 +292,49 @@
 }
 .is-phone .shell { grid-template-rows: auto minmax(0, 1fr) auto; }
 .is-phone .ph-dock { display: flex; }
+/* Right-anchored, and that is a safety decision rather than a cosmetic one: a
+   mobile browser floats its own control over the bottom-RIGHT corner of the
+   page (reported on Android 16 — it covered the dock's tail, which used to be
+   the Settings forwarder, the only route to the panel on this chrome). The
+   pager is the one control here with a second route — the pages still swipe —
+   so it is the one that can afford to be covered. See buildDock(). */
 .ph-pages {
   display: none;
   align-items: center;
   gap: 2px;
+  margin-left: auto;
+  flex: 0 0 auto;
 }
 .ph-dock.has-pages .ph-pages { display: flex; }
 .ph-page-at {
-  min-width: 34px;
+  min-width: 30px;
   text-align: center;
   font: 600 0.76rem/1 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   color: var(--text-dim, rgba(255, 255, 255, 0.5));
 }
-.ph-acts { display: flex; gap: 6px; margin-left: auto; }
+/* Left-anchored, so the forwarders keep the same slots whether or not the pager
+   is showing, and Settings lands nearer the middle of the bar than either edge.
+   `flex: 1` with `min-width: 0` is what lets the buttons give ground before the
+   bar ever overflows — the group has to be allowed to shrink for its children's
+   own shrinking to mean anything. */
+.ph-acts {
+  display: flex;
+  gap: 4px;
+  /* `flex: 1 1 0`, and the ZERO is the part that matters. With an `auto` basis
+     the group's hypothetical width is the sum of its buttons at their natural
+     size, which is what a browser decides wrapping on — so five labelled
+     buttons would push the pager onto a second line on an ordinary 390px phone
+     before anything had a chance to shrink. A zero basis makes the group take
+     what is left after the pager and share it out. */
+  flex: 1 1 0;
+  min-width: 0;
+  /* The actual no-overflow guarantee. Below roughly 330px the five buttons
+     cannot all keep their 44px minimum on one line, and a flex row that cannot
+     wrap resolves that by sliding its tail out of view, silently. Here it takes
+     a second line. Nothing in this bar may ever be off screen. */
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
 .ph-btn {
   appearance: none;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -302,23 +350,98 @@
 }
 .ph-btn:active { background: rgba(255, 255, 255, 0.12); }
 .ph-btn:disabled { opacity: 0.3; }
+
+/* ── An action button: the app's own icon, and a word under it ────────────── */
+/* The icon is CLONED from the control this forwards to (see dockIcon()), so the
+   bar wears the same marks as the topbar instead of Unicode the device font
+   decides how to draw. The caption is the other half of the same fix: five
+   symbols in a row is a puzzle, five labelled controls is a bar. */
+.ph-btn.ph-act {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  position: relative;         /* the mirrored indicator anchors to this */
+  /* Share the row evenly and shrink together, so one long caption cannot make
+     its own button wider than its neighbours. The max keeps a dock with only
+     two buttons from stretching them across half the screen. */
+  flex: 1 1 0;
+  min-width: 44px;
+  max-width: 84px;
+  height: 52px;
+  padding: 5px 3px 4px;
+}
+.ph-ico {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  height: 19px;
+}
+.ph-ico svg {
+  width: 19px;
+  height: 19px;
+  display: block;
+  fill: currentColor;
+}
+/* The glyph fallback, for a surface where the target button (and therefore its
+   icon) is not in the document. It is deliberately the exception now. */
+.ph-glyph { font-size: 17px; line-height: 19px; }
+.ph-lab {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  color: var(--text-dim, rgba(255, 255, 255, 0.62));
+}
+.ph-btn.ph-act:active .ph-lab { color: var(--text, #f2f4f3); }
 /* A registered action (currently: send files) is the primary thing on the dock,
    so it is the one that reads as a button rather than as chrome. */
 .ph-btn-action {
   border-color: rgba(var(--accent-rgb), 0.45);
   background: rgba(var(--accent-rgb), 0.16);
 }
+.ph-btn-action .ph-lab { color: var(--text, #f2f4f3); }
 
-/* A fifth button does not fit an iPhone SE. Measured at 375px with the pager
-   showing: 44+34+44 for the pages group, plus five 44px buttons, plus gaps and
-   padding, overflows. The forwarders narrow on ONE axis only — the height stays
-   44px, which is the dimension a thumb actually misses — and the registered
-   action keeps its full width because it is now the primary target. */
+/* The mirrored indicator. Same look as the topbar's own dot (UpdateModal.css),
+   because it means the same thing: it is the SAME state, shown on the copy of
+   the button the user can actually see on a phone. */
+.ph-dot {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff4d4d;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35), 0 0 9px rgba(255, 77, 77, 0.85);
+  animation: upd-dot-pulse 2s ease-in-out infinite;
+}
+.ph-dot[hidden] { display: none; }
+
+/* The pager's steps stay square: a chevron needs no caption, and the two of
+   them are what buys the actions their width. */
+.ph-btn.ph-step {
+  min-width: 38px;
+  width: 38px;
+  height: 52px;
+  font-size: 20px;
+  padding: 0;
+}
+
+/* Narrow phones (iPhone SE and most Androids at 360px). Only the paddings and
+   the gaps give ground — never the 44px minimum, which is the dimension a thumb
+   actually misses, and never the caption, which is what the bar is for. If it
+   still does not fit, the dock wraps rather than hiding its tail. */
 @media (max-width: 420px) {
   .ph-dock { gap: 6px; padding-left: 8px; padding-right: 8px; }
-  .ph-acts { gap: 4px; }
-  .ph-btn { min-width: 40px; }
-  .ph-btn-action { min-width: 44px; }
+  .ph-acts { gap: 3px; }
+  .ph-btn.ph-step { min-width: 34px; width: 34px; }
   .ph-page-at { min-width: 26px; }
 }
 
@@ -333,4 +456,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .ph-btn { transition: none; }
+  /* The mirrored update dot pulses; it still has to be VISIBLE, so the
+     animation stops rather than the element being hidden with it. */
+  .ph-dot { animation: none; }
 }
