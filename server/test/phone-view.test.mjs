@@ -263,10 +263,11 @@ test('empty and non-array input yield an empty order', () => {
 test('the phone view never touches the grid engine', () => {
   const raw = fs.readFileSync(path.join(HERE, '..', 'js', 'phone-view.js'), 'utf8');
   // Comments explain WHY the grid engine is off limits and name it repeatedly,
-  // so strip them before looking for calls. Safe here because the file contains
-  // no `://`, which is the one thing a naive `//` strip would mangle.
-  assert.equal(raw.includes('://'), false, 'a URL in this file would break the comment strip below');
-  const code = raw.replace(/\/\/.*$/gm, '');
+  // so strip them before looking for calls. The `[^:]` guard is what keeps the
+  // strip from eating the rest of a line at the `//` of a URL — the file holds
+  // the SVG namespace, and without the guard everything after it disappeared
+  // and this test passed for the wrong reason.
+  const code = raw.replace(/(^|[^:])\/\/.*$/gm, '$1');
   for (const forbidden of ['GridStack', '.column(', 'saveDashboardLayout', 'serialize(', 'batchUpdate']) {
     assert.equal(code.includes(forbidden), false,
       'phone-view.js must not call ' + forbidden + ' — presentation only');
@@ -305,4 +306,38 @@ test('the stacking rules leave `display` on tiles alone', () => {
   // And the dock must clear the home-indicator area, or the last control sits
   // under the system gesture bar on every modern phone.
   assert.ok(css.includes('env(safe-area-inset-bottom)'), 'the dock must respect the safe area');
+});
+
+// A mobile browser floats its own control over the bottom-RIGHT corner of the
+// page, and no page-level rule can win that argument. Reported on Android 16
+// over Tailscale: the floating button covered the dock's tail, which was the
+// Settings forwarder — and phone view hides the topbar's Settings button, so
+// there was no second route to the panel at all.
+//
+// So the corner is conceded to the pager, which is the one dock control the
+// user can reach another way (the pages swipe). Pinned in both files because
+// right-aligning the buttons is the natural-looking thing to "tidy" this into,
+// and the damage is invisible on every screen that has no floating chrome.
+test('the dock concedes the bottom-right corner to the pager, not to the actions', () => {
+  const js = fs.readFileSync(path.join(HERE, '..', 'js', 'phone-view.js'), 'utf8');
+  const appendAt = js.indexOf('dock.append(acts, pages)');
+  assert.notEqual(appendAt, -1,
+    'the actions must be appended before the pager, so the pager takes the right edge');
+
+  const css = fs.readFileSync(path.join(HERE, '..', 'components', 'PhoneView', 'PhoneView.css'), 'utf8');
+  const bare = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const ruleFor = (sel) => {
+    const at = bare.indexOf(sel + ' {');
+    assert.notEqual(at, -1, sel + ' rule was not located — did the class change?');
+    const rest = bare.slice(at);
+    return rest.slice(0, rest.indexOf('}'));
+  };
+  // The pager, not the actions, is what auto-margin pushes against the right
+  // edge — and the actions stay anchored left whether or not the pager shows,
+  // so a single-page dashboard leaves that corner empty rather than moving
+  // Settings into it.
+  assert.match(ruleFor('.ph-pages'), /margin-left:\s*auto/,
+    'the pager must be the control anchored to the right edge');
+  assert.equal(/margin-left:\s*auto/.test(ruleFor('.ph-acts')), false,
+    'the dock actions must not be pushed into the corner a browser floats over');
 });
