@@ -1,5 +1,5 @@
-# ─────────────────────────────────────────────────────────────────────────
-# Windows notification mirror — PowerShell fallback for the native helper's
+# -------------------------------------------------------------------------
+# Windows notification mirror - PowerShell fallback for the native helper's
 # notifications-serve mode (used transparently when xenon-helper.exe is
 # absent). Reads the toasts currently in Action Center via the WinRT
 # UserNotificationListener and prints the same bare JSON lines:
@@ -11,7 +11,7 @@
 #                                                # emitted only when the set changes
 #
 # `present` exists for one caller: the incoming-call card. An app's ringing
-# toast is TRANSIENT — measured on a real phone call through Phone Link, the
+# toast is TRANSIENT - measured on a real phone call through Phone Link, the
 # toast is in Action Center while it rings and gone the moment you hang up, and
 # no "missed"/"ended" notification follows it. So its DISAPPEARANCE is the only
 # signal that the ring is over, and without it the card sat on screen until its
@@ -20,14 +20,14 @@
 # Purely additive: a server that does not know this event ignores it, and a
 # server that does simply never gets one from an older helper.
 #
-# item = {id, app, aumid, title, body, at, icon} — icon is always null here
+# item = {id, app, aumid, title, body, at, icon} - icon is always null here
 # (app-logo decoding stays a helper nicety); lengths are capped at this
 # boundary so the server never receives a runaway payload.
 #
 # Polling, not events: NotificationChanged is documented-broken without
 # package identity; ids are session-monotonic so "new" is id > maxSeen.
-# Long-lived loop like foreground.ps1 — the server owns the child lifetime.
-# ─────────────────────────────────────────────────────────────────────────
+# Long-lived loop like foreground.ps1 - the server owns the child lifetime.
+# -------------------------------------------------------------------------
 param([int]$IntervalMs = 2000)
 
 $ErrorActionPreference = 'Stop'
@@ -127,7 +127,7 @@ $lastPresent = ''
 while ($true) {
   try {
     if ($state -ne 'allowed') {
-      # Denied: the user can grant access in Windows Settings at any time —
+      # Denied: the user can grant access in Windows Settings at any time -
       # keep re-checking cheaply so the feed self-heals.
       $s = Get-AccessState
       if ($s -ne $state) { $state = $s; Emit @{ event = 'status'; status = $s } }

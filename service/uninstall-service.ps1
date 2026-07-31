@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 <#
-  uninstall-service.ps1 — stop and remove the Xenon backend Windows service.
+  uninstall-service.ps1 - stop and remove the Xenon backend Windows service.
 
   Removes ONLY the service and its generated artifacts (xenon-service.xml, logs,
   and the WinSW exe). It never touches server/ code or server/data/ user data, so
@@ -40,11 +40,11 @@ if ($svc -and (Test-Path $ExePath)) {
   Start-Sleep -Milliseconds 800
 } elseif ($svc) {
   # Fallback if the WinSW exe is gone but the service registration lingers.
-  Write-Step 'WinSW exe missing — removing the service registration with sc.exe.'
+  Write-Step 'WinSW exe missing - removing the service registration with sc.exe.'
   & sc.exe stop $ServiceId 2>$null | Out-Null
   & sc.exe delete $ServiceId 2>$null | Out-Null
 } else {
-  Write-Step 'Service is not installed — nothing to stop.'
+  Write-Step 'Service is not installed - nothing to stop.'
 }
 
 foreach ($p in @($XmlPath, $ExePath)) {

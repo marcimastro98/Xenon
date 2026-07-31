@@ -1,17 +1,17 @@
 #Requires -Version 5.1
 <#
-  install-service.ps1 — RETIRED. Register the Xenon backend as an auto-start
+  install-service.ps1 - RETIRED. Register the Xenon backend as an auto-start
   Windows service via WinSW v2.
 
-  ⚠ Do not use. A Windows service runs in session 0, isolated from the user's
+  WARNING: Do not use. A Windows service runs in session 0, isolated from the user's
   interactive desktop, which silently breaks most of Xenon: Deck open app/site/
   file keys, SMTC media detection, hotkeys, window actions, screen capture and
-  TTS audio. The backend must run in the user's session — install.ps1 registers
+  TTS audio. The backend must run in the user's session - install.ps1 registers
   the per-logon scheduled task and actively REMOVES this service if present.
   This script is kept only for reference; it refuses to run without -Force.
 
   What it does:
-    1. Resolves node.exe (absolute path — services don't inherit the user PATH).
+    1. Resolves node.exe (absolute path - services don't inherit the user PATH).
     2. Ensures WinSW v2.12.0 is present as service/xenon-service.exe, downloading
        it from the pinned GitHub release and verifying its SHA-256.
     3. Writes service/xenon-service.xml from the committed template with the
@@ -41,14 +41,14 @@ if (-not $Force) {
   throw 'RETIRED: the backend must run in the user session (session-0 services break Deck launches, SMTC media, hotkeys and capture). Use the per-logon task registered by server\install.ps1. Pass -Force only if you really know what you are doing.'
 }
 
-# ── Pinned WinSW release (self-contained x64 build — no .NET prerequisite) ──────
+# -- Pinned WinSW release (self-contained x64 build - no .NET prerequisite) ------
 $WinswVersion = 'v2.12.0'
 $WinswUrl     = "https://github.com/winsw/winsw/releases/download/$WinswVersion/WinSW-x64.exe"
 $WinswSha256  = '05B82D46AD331CC16BDC00DE5C6332C1EF818DF8CEEFCD49C726553209B3A0DA'
 
 $ServiceId = 'XenonEdgeService'
 
-# ── Paths ───────────────────────────────────────────────────────────────────
+# -- Paths -------------------------------------------------------------------
 $ServiceDir = $PSScriptRoot
 $RepoRoot   = Split-Path -Parent $ServiceDir
 $ServerDir  = Join-Path $RepoRoot 'server'
@@ -118,7 +118,7 @@ function Write-ServiceXml {
   New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 }
 
-# ── Run ─────────────────────────────────────────────────────────────────────
+# -- Run ---------------------------------------------------------------------
 Assert-Admin
 Ensure-Winsw
 Write-ServiceXml
@@ -126,11 +126,11 @@ Write-ServiceXml
 # Reconfigure cleanly if the service already exists.
 $existingSvc = Get-Service -Name $ServiceId -ErrorAction SilentlyContinue
 if ($existingSvc) {
-  Write-Step 'Service exists — stopping and removing before reinstall.'
+  Write-Step 'Service exists - stopping and removing before reinstall.'
   & $ExePath stop  2>$null | Out-Null
   & $ExePath uninstall 2>$null | Out-Null
   # The SCM keeps the registration alive ("delete pending") until the service
-  # process fully exits — and the node backend shuts down gracefully over
+  # process fully exits - and the node backend shuts down gracefully over
   # several seconds. Reinstalling in that window fails with "already exists"
   # and leaves the machine with NO service at all, so wait it out.
   $deadline = (Get-Date).AddSeconds(45)
@@ -145,7 +145,7 @@ if ($existingSvc) {
 # Port 3030 must be free before the service starts, or its node child dies on
 # EADDRINUSE. Two holders are possible: the old service's node still shutting
 # down, and a manually-started backend (npm start / the per-logon task runner).
-# Stop the latter ourselves — it never exits on its own — then wait the port out.
+# Stop the latter ourselves - it never exits on its own - then wait the port out.
 foreach ($conn in @(Get-NetTCPConnection -LocalPort 3030 -State Listen -ErrorAction SilentlyContinue)) {
   $proc = Get-CimInstance Win32_Process -Filter "ProcessId = $($conn.OwningProcess)" -ErrorAction SilentlyContinue
   if ($proc -and $proc.Name -eq 'node.exe' -and $proc.CommandLine -like "*$ServerJs*") {

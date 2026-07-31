@@ -32,7 +32,7 @@ function Add-CpuTempCandidate {
 
 # LibreHardwareMonitor reads CPU power/temperature over the MSR and fan RPM over
 # the SuperIO chip; both go through a kernel driver it can only load with admin
-# rights. Unelevated it still opens and still exposes the sensor nodes — they
+# rights. Unelevated it still opens and still exposes the sensor nodes - they
 # just read 0/null forever. So elevation, not the DLL's presence, is what decides
 # whether these sensors can work, and the dashboard must be able to say which of
 # the two is missing instead of telling a user with LHM installed to install LHM.
@@ -107,8 +107,8 @@ function Add-HardwareTemperatureSensors {
 }
 
 # Fan RPM and power (watts) live on the same LHM trees the temps come from:
-# Cpu (package power), Motherboard→SubHardware/SuperIO (chassis/CPU fan headers)
-# and Psu (digital PSUs like Corsair HXi/RMi). 0 RPM is kept — a stopped fan is
+# Cpu (package power), Motherboard->SubHardware/SuperIO (chassis/CPU fan headers)
+# and Psu (digital PSUs like Corsair HXi/RMi). 0 RPM is kept - a stopped fan is
 # real data, not a missing sensor.
 function Add-HardwareFanPowerSensors {
   param($Hardware, [string]$Context, [string]$NamePrefix)
@@ -121,7 +121,7 @@ function Add-HardwareFanPowerSensors {
       if ($stype -eq 'Fan') {
         $name = ([string]$sensor.Name).Trim()
         if (-not $name) { $name = 'Fan' }
-        # Controllers name their sensors "Fan 1"/"Pump" — with two of them (an
+        # Controllers name their sensors "Fan 1"/"Pump" - with two of them (an
         # Octo + a Kraken) those collide, and alone they identify nothing. The
         # device name disambiguates and tells the user what it belongs to.
         if ($NamePrefix) { $name = "$NamePrefix $name" }
@@ -137,7 +137,7 @@ function Add-HardwareFanPowerSensors {
         $watts = [Math]::Round([double]$sensor.Value, 1)
         # Exactly 0 W is never a real reading from a powered rail: LHM keeps the
         # sensor node but reports 0 when it cannot reach the MSR/SuperIO (no
-        # admin rights → no kernel driver). Emitting it would render a confident
+        # admin rights -> no kernel driver). Emitting it would render a confident
         # "0 W" card where the truth is "no data".
         if ($watts -le 0 -or $watts -gt 5000) { continue }
         $name = [string]$sensor.Name
@@ -162,7 +162,7 @@ function Add-HardwareFanPowerSensors {
 # Persistent LHM session. Inside pwsh-worker this script runs every few seconds
 # in the SAME process, and rebuilding the Computer each time (DLL discovery on
 # disk, hardware enumeration, kernel-driver open/close) cost ~10x the read
-# itself — it was the worker's dominant CPU draw. $global: survives the
+# itself - it was the worker's dominant CPU draw. $global: survives the
 # worker's per-call child scope ($script: resets by design). Not Close()-ing is
 # safe in both modes: the OS reclaims the driver handles on process exit.
 function Get-CpuLhmComputer {
@@ -187,10 +187,10 @@ function Get-CpuLhmComputer {
     $computer.IsPsuEnabled = $true
     # Fan/pump controllers and AIOs (HardwareType.Cooler): NZXT Kraken/Grid,
     # Aquacomputer Octo/Quadro/D5 Next, MSI CoreLiquid, Razer, Arctic, AeroCool.
-    # These carry the fans that bypass the motherboard headers entirely — the
+    # These carry the fans that bypass the motherboard headers entirely - the
     # very ones users count in their case and don't find in the widget.
     # Own try: on a DLL old enough to lack the property, the set must cost only
-    # the controller fans — not (via the outer catch) the whole LHM session.
+    # the controller fans - not (via the outer catch) the whole LHM session.
     try { $computer.IsControllerEnabled = $true } catch { }
     $computer.Open()
     $global:XenonCpuLhm = $computer
@@ -209,10 +209,10 @@ function Get-CpuLhmComputer {
 # hard-coded product-id allowlist (0x1c03-0x1c0d, 0x1c1e, 0x1c1f) which has not
 # kept up with the hardware: an HX1200i (2023) reports 0x1c27 and is dropped, so
 # no Psu tree ever appears and wall watts silently never work. The driver class
-# itself handles it perfectly — only the doorman is out of date.
+# itself handles it perfectly - only the doorman is out of date.
 #
 # So when no Psu tree turned up, we walk past the doorman: find Corsair HIDs
-# whose USB product string says "Power Supply" (generic — no product id is
+# whose USB product string says "Power Supply" (generic - no product id is
 # hard-coded here either, so future models work untouched) and drive LHM's own
 # CorsairPsu against them. Read-only, and verified to coexist with iCUE polling
 # the same PSU. Reflection over an internal ctor is fragile by nature, so every
@@ -273,7 +273,7 @@ function Get-CorsairPsuDirect {
 # How long a PSU reading may stand in for a contended one. Each watt/fan value
 # is a multi-step request/response exchange with the PSU controller, so when
 # iCUE (which polls the same PSU constantly) is mid-exchange, ours comes back
-# with voltages and temperatures but no power — empirically ~1 read in 3, purely
+# with voltages and temperatures but no power - empirically ~1 read in 3, purely
 # transient, and never the same sensor twice in a row. Without this the wall-draw
 # card would blink in and out of existence every few seconds. 30s = 6 read cycles:
 # long enough to bridge the gaps, short enough that a PSU which genuinely stopped
@@ -282,7 +282,7 @@ $script:PsuGraceSeconds = 30
 
 # One sensor's last good reading, and how long it may stand in for a contended
 # one. Watts and the fan fail INDEPENDENTLY, so each gets its own slot and its
-# own clock — a read where only one answered must never blank the other's cached
+# own clock - a read where only one answered must never blank the other's cached
 # value. A cached value is returned but never re-stamped: the window ages from
 # the last real reading, so a PSU that genuinely stopped answering goes quiet
 # after PsuGraceSeconds instead of echoing its own output forever.
@@ -312,13 +312,13 @@ function Add-CorsairPsuDirectSensors {
         if ($null -eq $sensor.Value) { continue }
         $stype = $sensor.SensorType.ToString()
         $sname = ([string]$sensor.Name).Trim()
-        # "Total watts" is the PSU's OUTPUT power — measured, not the wall draw:
+        # "Total watts" is the PSU's OUTPUT power - measured, not the wall draw:
         # over 27 clean samples it tracked LHM's "Total Output" (the rail sum) at
         # a mean ratio of 1.005, where the input would sit ~1.10x higher at this
         # PSU's 91% efficiency. So it is what the whole PC pulls from the supply.
         # Picked by exact name: a sort tie-break against "Total Output" would
         # silently swap meaning between reads. "Total Output" is deliberately NOT
-        # used even though it means the same — it is a SUM LHM computes from the
+        # used even though it means the same - it is a SUM LHM computes from the
         # rails, so a read where one rail is contended yields a plausible, wrong,
         # lower number, while "Total watts" is one atomic register.
         if ($stype -eq 'Power' -and $sname -eq 'Total watts') {
@@ -330,7 +330,7 @@ function Add-CorsairPsuDirectSensors {
             $fanRpm = $rpm
             # NOT $sensor.Name: LHM names this fan "Case", which lands in the
             # widget as a phantom chassis fan permanently at 0. The model is what
-            # the user recognizes ("HX1200i"), and 0 RPM then reads correctly —
+            # the user recognizes ("HX1200i"), and 0 RPM then reads correctly -
             # an i-series PSU stops its fan below ~40% load.
             $fanName = if ($global:XenonCorsairPsuModel) { [string]$global:XenonCorsairPsuModel } else { 'PSU' }
             if ($fanName.Length -gt 48) { $fanName = $fanName.Substring(0, 48) }
@@ -339,7 +339,7 @@ function Add-CorsairPsuDirectSensors {
       } catch { }
     }
   } catch {
-    # Broken session (sleep/resume, USB reset): drop it and rebuild next read —
+    # Broken session (sleep/resume, USB reset): drop it and rebuild next read -
     # but behind the same cooldown as every other failure here, so a device stuck
     # in a bad state can't turn this into a rebuild-the-HID-handle-every-5s loop
     # that fights iCUE for the PSU instead of backing off from it.
@@ -388,7 +388,7 @@ function Add-SensorsFromLibreHardwareMonitorLibrary {
     try { $computer.Close() } catch { }
     $global:XenonCpuLhm = $null
   }
-  # Only when LHM produced nothing itself — never open the same PSU twice.
+  # Only when LHM produced nothing itself - never open the same PSU twice.
   if (-not $sawPsu) { Add-CorsairPsuDirectSensors }
 }
 
@@ -430,7 +430,7 @@ function Add-TempsFromWindowsThermalZones {
 Add-SensorsFromLibreHardwareMonitorLibrary
 # WMI fallbacks only when the library gave nothing: each is a WMI roundtrip
 # that used to run on EVERY read even with a perfectly good LHM result.
-# (They provide temperatures only — fans/power are LHM-only by design.)
+# (They provide temperatures only - fans/power are LHM-only by design.)
 if ($script:tempCandidates.Count -eq 0) {
   Add-TempsFromHardwareMonitorWmi -Namespace 'root/LibreHardwareMonitor' -UseCim
   Add-TempsFromHardwareMonitorWmi -Namespace 'root/OpenHardwareMonitor'

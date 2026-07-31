@@ -4,7 +4,7 @@ title Xenon - Uninstall
 cd /d "%~dp0"
 
 rem A complete uninstall touches admin-only things (edge-swipe policy, the legacy
-rem service, shared winget packages), so elevate first — mirroring INSTALL.bat.
+rem service, shared winget packages), so elevate first - mirroring INSTALL.bat.
 net session >nul 2>nul
 if errorlevel 1 (
   echo Requesting administrator privileges for a complete uninstall...
@@ -13,7 +13,7 @@ if errorlevel 1 (
   ) else (
     powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "try { Start-Process -FilePath '%~f0' -ArgumentList '%*' -Verb RunAs -ErrorAction Stop } catch { exit 1 }"
   )
-  rem If the UAC prompt was declined, don't just give up — run non-elevated here.
+  rem If the UAC prompt was declined, don't just give up - run non-elevated here.
   rem uninstall.ps1 handles this gracefully and skips the admin-only steps.
   if errorlevel 1 (
     echo.

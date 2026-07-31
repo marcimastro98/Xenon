@@ -1,8 +1,8 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# xenon-bootstrap.ps1 — installs the Xenon backend for the native app.
+# -----------------------------------------------------------------------------
+# xenon-bootstrap.ps1 - installs the Xenon backend for the native app.
 #
-# Launched by the app itself — the splash's "Complete setup" button, routed
-# through `xenon-setup:run` to run_backend_bootstrap() in lib.rs — when the
+# Launched by the app itself - the splash's "Complete setup" button, routed
+# through `xenon-setup:run` to run_backend_bootstrap() in lib.rs - when the
 # kiosk has been waiting on a backend that is nowhere to be found.
 #
 # It used to be an NSIS post-install hook that fired this script detached and
@@ -21,15 +21,15 @@
 #      (server\install.ps1 -Mode native -SkipNativeApp).
 #
 # Trust model: the source zip is verified against the pinned Ed25519 public key
-# below — the SAME key server/self-update.js and server/helper-update.js pin
+# below - the SAME key server/self-update.js and server/helper-update.js pin
 # (rotating the signing key means updating ALL THREE copies; see the rotation
 # checklist in self-update.js). Node.js itself is fetched over TLS only: on a
 # first install there is nothing local to anchor more trust to. That gap is
-# known and accepted until the Authenticode code-signing certificate lands —
+# known and accepted until the Authenticode code-signing certificate lands -
 # identical to the INSTALL.bat path users have always used.
 #
 # This console IS the UI: every failure prints one clear line and pauses.
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -76,12 +76,12 @@ Write-Host '  The Xenon app is only the screen; this sets up the' -ForegroundCol
 Write-Host '  Xenon dashboard itself (one time, a few minutes).' -ForegroundColor Gray
 Write-Host ''
 
-# Backend present → done. The splash only offers the button after ~20s of
+# Backend present -> done. The splash only offers the button after ~20s of
 # silence on 3030, but that is a timing heuristic, not proof: this check is what
 # actually makes a stray click harmless.
 # The stderr redirect MUST happen inside cmd, not in PowerShell: under
 # $ErrorActionPreference = 'Stop', PS 5.1 turns redirected native stderr into a
-# terminating NativeCommandError — and schtasks writes to stderr precisely when
+# terminating NativeCommandError - and schtasks writes to stderr precisely when
 # the task is absent, i.e. on every fresh install this script exists for
 # (issue #95: the bootstrap console flashed and died right here).
 cmd /c "schtasks /Query /TN `"$TaskName`" >nul 2>&1"
@@ -89,11 +89,11 @@ if ($LASTEXITCODE -eq 0) {
   Done 'The Xenon backend is already installed - nothing to do.'
 }
 
-# Second signal: the scheduled task is only a proxy for "backend installed" —
+# Second signal: the scheduled task is only a proxy for "backend installed" -
 # a user who starts the server manually (task removed, dev checkout, task
 # registered under another Windows account) has a live backend with no task.
 # If anything already answers on the Xenon port, installing a SECOND backend
-# would only fight it for 3030 — bail out.
+# would only fight it for 3030 - bail out.
 # The bail-out is decided OUTSIDE the try on purpose: `catch { }` here swallows
 # everything, so calling Done (which pauses on Read-Host) from inside it would
 # turn a redirected-stdin failure into "carry on and install a second backend".
@@ -113,7 +113,7 @@ $headers = @{ 'User-Agent' = 'XenonBootstrap'; 'Accept' = 'application/vnd.githu
 $tmp = Join-Path $env:TEMP 'xenon-bootstrap'
 New-Item -ItemType Directory -Path $tmp -Force | Out-Null
 
-# ── 1) Locate the latest release ─────────────────────────────────────────────
+# -- 1) Locate the latest release ---------------------------------------------
 Write-Step 'Looking up the latest Xenon release...'
 try {
   $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -Headers $headers -TimeoutSec 25
@@ -124,7 +124,7 @@ $tag = [string]$release.tag_name
 if (-not $tag) { Fail 'The latest release has no tag - please retry later.' }
 Write-Step "Latest release: $tag"
 
-# ── 2) Download the source zip + its signed checksums ────────────────────────
+# -- 2) Download the source zip + its signed checksums ------------------------
 $zipPath  = Join-Path $tmp 'source.zip'
 $sumsPath = Join-Path $tmp 'SHA256SUMS'
 $sigPath  = Join-Path $tmp 'SHA256SUMS.sig'
@@ -151,7 +151,7 @@ for ($attempt = 1; $attempt -le 3; $attempt++) {
 }
 if (-not $downloaded) { Fail 'The download failed.' }
 
-# ── 3) Ensure Node.js (needed to verify the download, and by Xenon itself) ───
+# -- 3) Ensure Node.js (needed to verify the download, and by Xenon itself) ---
 function Get-NodePath {
   $cmd = Get-Command node.exe -ErrorAction SilentlyContinue
   if ($cmd) { return $cmd.Source }
@@ -186,7 +186,7 @@ if (-not $nodePath) {
       if (-not $lts) { throw 'no LTS entry in the Node.js release index' }
       $msi = Join-Path $tmp "node-$($lts.version)-x64.msi"
       Invoke-WebRequest -Uri "https://nodejs.org/dist/$($lts.version)/node-$($lts.version)-x64.msi" -OutFile $msi -TimeoutSec 300 -UseBasicParsing
-      # Per-machine MSI → one UAC prompt.
+      # Per-machine MSI -> one UAC prompt.
       Start-Process -FilePath (Join-Path $env:WINDIR 'System32\msiexec.exe') -ArgumentList '/i', "`"$msi`"", '/qn', '/norestart' -Verb RunAs -Wait
       $nodePath = Get-NodePath
     } catch {
@@ -197,8 +197,8 @@ if (-not $nodePath) {
 }
 Write-Step "Node.js: $nodePath"
 
-# ── 4) Verify the download (Ed25519 over SHA256SUMS, then hash the zip) ──────
-# Windows PowerShell 5.1 has no Ed25519, so the check runs in Node — the same
+# -- 4) Verify the download (Ed25519 over SHA256SUMS, then hash the zip) ------
+# Windows PowerShell 5.1 has no Ed25519, so the check runs in Node - the same
 # primitive self-update.js uses. Fail-closed: no valid signature, no install.
 Write-Step 'Verifying the download signature...'
 $verifier = Join-Path $tmp 'verify.js'
@@ -208,7 +208,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const [zip, sums, sig] = process.argv.slice(2);
 // Pinned Xenon release-signing public key (copy of UPDATE_PUBKEY_PEM in
-// server/self-update.js — keep all copies in lockstep on rotation).
+// server/self-update.js - keep all copies in lockstep on rotation).
 const PUB = `-----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEAlH0Ju7LRPoy6sJlBwPHAhTCv1ck9RmPz9C2V1AzvOBk=
 -----END PUBLIC KEY-----`;
@@ -237,7 +237,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Step 'Signature verified.'
 
-# ── 5) Extract into the install root (merge, never a directory mirror) ───────
+# -- 5) Extract into the install root (merge, never a directory mirror) -------
 Write-Step "Installing to $InstallRoot..."
 $extract = Join-Path $tmp 'extract'
 if (Test-Path $extract) { Remove-Item $extract -Recurse -Force }
@@ -250,7 +250,7 @@ New-Item -ItemType Directory -Path $InstallRoot -Force | Out-Null
 robocopy $srcRoot $InstallRoot /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
 if ($LASTEXITCODE -ge 8) { Fail "Copying Xenon into $InstallRoot failed (robocopy $LASTEXITCODE)." }
 
-# server\data is the user-data dir — create it if missing, never touch an
+# server\data is the user-data dir - create it if missing, never touch an
 # existing one (an interrupted earlier bootstrap may have left real data).
 $dataDir = Join-Path $InstallRoot 'server\data'
 if (-not (Test-Path $dataDir)) { New-Item -ItemType Directory -Path $dataDir -Force | Out-Null }
@@ -277,7 +277,7 @@ try {
 Remove-Item -Path $extract -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -Path $zipPath -Force -ErrorAction SilentlyContinue
 
-# ── 6) Run the normal backend installer ──────────────────────────────────────
+# -- 6) Run the normal backend installer --------------------------------------
 # Elevated when possible (full CPU-temperature sensor support and the reserved
 # edge swipe); a declined UAC falls back to the unelevated path install.ps1
 # already degrades gracefully on. -Mode native skips the surface prompt (the

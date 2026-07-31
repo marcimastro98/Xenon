@@ -1,5 +1,5 @@
-# ─────────────────────────────────────────────────────────────────────────
-# install-native.ps1 — one-click install of the native Xenon kiosk app,
+# -------------------------------------------------------------------------
+# install-native.ps1 - one-click install of the native Xenon kiosk app,
 # triggered from the dashboard (POST /api/native/install).
 #
 # Downloads the latest signed NSIS installer (*-setup.exe) from the GitHub
@@ -11,7 +11,7 @@
 # Best-effort and fail-soft: every step is wrapped so a failure just leaves the
 # user on iCUE/browser (they can retry). On success it records install-mode.json
 # = native so the dashboard stops offering the install.
-# ─────────────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------------
 
 $ErrorActionPreference = 'Stop'
 $Repo = 'marcimastro98/Xenon'
@@ -26,7 +26,7 @@ function Write-InstallStatus([string]$State, [string]$Err) {
     if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
     $obj = [ordered]@{ state = $State; error = $Err; at = (Get-Date).ToString('o') }
     # WriteAllText = UTF-8 WITHOUT a BOM. Windows PowerShell's `-Encoding UTF8`
-    # prepends one, and JSON.parse on the Node side rejects a BOM'd payload —
+    # prepends one, and JSON.parse on the Node side rejects a BOM'd payload -
     # which froze the dashboard's progress feedback on the first message forever.
     [System.IO.File]::WriteAllText((Join-Path $dir 'native-install-status.json'), ($obj | ConvertTo-Json -Compress))
   } catch { }
@@ -77,7 +77,7 @@ try {
     schtasks /Run /TN $taskName | Out-Null
     # The task self-cleans on the next run of this script; leaving it is harmless.
     # We handed off to the interactive task and can't observe its result from here,
-    # so leave the marker on 'installing' — the dashboard's poll times out gently.
+    # so leave the marker on 'installing' - the dashboard's poll times out gently.
     Write-InstallStatus 'installing' ''
   }
   else {

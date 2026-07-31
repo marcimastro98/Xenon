@@ -1,7 +1,7 @@
-# Bit's PC-side nag — a small pixel-art popup in the corner of the real
+# Bit's PC-side nag - a small pixel-art popup in the corner of the real
 # monitor(s), spawned by POST /api/vitals/nag (strict opt-in, enforced
 # server-side). One-shot and self-terminating: the form slides in, sits for
-# -Duration seconds, and the process exits — nothing long-lived to clean up at
+# -Duration seconds, and the process exits - nothing long-lived to clean up at
 # server shutdown.
 #
 #   -Text        the roast to display (server caps length + strips newlines)
@@ -11,7 +11,7 @@
 #   -Minimize    minimize every window first, then show the popup as receipt
 #
 # The window is WS_EX_NOACTIVATE + non-focusable TopMost: it must NEVER steal
-# focus from what the user is doing — it appears, it judges, it leaves.
+# focus from what the user is doing - it appears, it judges, it leaves.
 
 param(
   [string]$Text = '',
@@ -38,12 +38,12 @@ public class XenonNagForm : Form {
   protected override CreateParams CreateParams {
     get {
       CreateParams cp = base.CreateParams;
-      cp.ExStyle |= 0x08000000; // WS_EX_NOACTIVATE — never steal focus
+      cp.ExStyle |= 0x08000000; // WS_EX_NOACTIVATE - never steal focus
       return cp;
     }
   }
   // The server spawns powershell with windowsHide (STARTUPINFO wShowWindow =
-  // SW_HIDE), which Windows applies to the process's FIRST ShowWindow call —
+  // SW_HIDE), which Windows applies to the process's FIRST ShowWindow call -
   // silently hiding the popup. Bypass it with an explicit no-activate show.
   [DllImport("user32.dll")] private static extern bool ShowWindow(IntPtr h, int cmd);
   public void ForceShowNoActivate() { ShowWindow(this.Handle, 4); } // SW_SHOWNOACTIVATE
@@ -62,7 +62,7 @@ if ($Text -eq '') { $Text = 'BIT SAYS: TAKE CARE OF YOURSELF.' }
 if ($Duration -lt 3) { $Duration = 3 }
 if ($Duration -gt 30) { $Duration = 30 }
 
-# ── 12x12 pixel sprite (mirrors the dashboard pet) ──
+# -- 12x12 pixel sprite (mirrors the dashboard pet) --
 $angryRows = @(
   '......B.....',
   'W.....B.....',
@@ -112,7 +112,7 @@ for ($y = 0; $y -lt 12; $y++) {
   }
 }
 
-# ── one popup per target screen ──
+# -- one popup per target screen --
 $screens = @([System.Windows.Forms.Screen]::PrimaryScreen)
 if ($AllScreens) { $screens = [System.Windows.Forms.Screen]::AllScreens }
 
@@ -123,11 +123,11 @@ $textW = $formW - $spriteSize - (3 * $pad)
 
 $measure = New-Object System.Drawing.Bitmap(1, 1)
 $mg = [System.Drawing.Graphics]::FromImage($measure)
-# Body font honours -Font (CJK scripts need Malgun Gothic / Yu Gothic UI / YaHei —
+# Body font honours -Font (CJK scripts need Malgun Gothic / Yu Gothic UI / YaHei -
 # Consolas has no CJK glyphs). Fall back to Consolas if the named font is missing;
 # GDI+ silently substitutes anyway, but this keeps the intent explicit. The header
 # is ASCII ("BIT // XENON VITALS"), so it stays on Consolas.
-# NB: do NOT name this `$font` — PowerShell variables are case-insensitive, so it
+# NB: do NOT name this `$font` - PowerShell variables are case-insensitive, so it
 # would collide with the [string]-typed `$Font` parameter and get coerced back to a
 # string, silently breaking every MeasureString/DrawString (header shows, body blank).
 try { $bodyFont = New-Object System.Drawing.Font($Font, 11, [System.Drawing.FontStyle]::Bold) }

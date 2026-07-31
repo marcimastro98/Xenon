@@ -3,7 +3,7 @@ param([string]$verb, [string]$name, [string]$level)
 #   set <name> high   -> raise the named process to AboveNormal (a gentle boost)
 #   set <name> normal -> restore it to Normal (the reversal)
 # Only user-owned, non-critical processes are touched: OS-critical names are
-# refused. We never use Realtime/High (which can starve the system) — AboveNormal
+# refused. We never use Realtime/High (which can starve the system) - AboveNormal
 # is the strongest level offered, and it's fully reversible.
 $ErrorActionPreference = 'Stop'
 

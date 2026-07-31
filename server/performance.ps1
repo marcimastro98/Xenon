@@ -5,7 +5,7 @@ param([string]$verb, [string]$value)
 #   set <guid>        -> { ok, guid }   restore a previously-saved plan by GUID
 #   stats             -> { ok, totalMB, freeMB, apps }  per-process RAM + CPU%
 # Only these verbs/values are accepted; everything else is rejected. Switching
-# power plans is fully reversible — the caller saves the prior GUID and restores
+# power plans is fully reversible - the caller saves the prior GUID and restores
 # it on exit. We never create, delete, or tweak individual plan settings here.
 # `stats` is read-only: it feeds the optimization sheet and the AI planner with
 # real memory/CPU numbers instead of guesses.

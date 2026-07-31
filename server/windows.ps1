@@ -223,7 +223,7 @@ public static class XenonWindows {
     return SetForegroundWindow(hWnd);
   }
 
-  // OS-critical processes that must never be closed, even on explicit request —
+  // OS-critical processes that must never be closed, even on explicit request -
   // closing them would destabilise the desktop session.
   private static readonly HashSet<string> ProtectedNames = new HashSet<string>(
     StringComparer.OrdinalIgnoreCase) {
@@ -233,7 +233,7 @@ public static class XenonWindows {
     "textinputhost", "runtimebroker", "applicationframehost"
   };
 
-  // Gracefully close a window by HWND (sends WM_CLOSE via CloseMainWindow — the
+  // Gracefully close a window by HWND (sends WM_CLOSE via CloseMainWindow - the
   // app can still prompt to save; we never Kill). Captures the executable path
   // first so the caller can offer to reopen it later. Refuses protected OS
   // processes. Returns null if the window/process can't be resolved.
@@ -370,7 +370,7 @@ foreach ($window in $windows) {
     id = [string]$window.Hwnd
     title = [string]$window.Title
     app = [string]$window.ProcessName
-    # Executable path — lets a favorite for a CLOSED app be re-launched (the server
+    # Executable path - lets a favorite for a CLOSED app be re-launched (the server
     # re-validates it through the allowlisted openApp runner before spawning).
     path = [string]$window.Path
     processId = [int]$window.ProcessId

@@ -1,10 +1,10 @@
-# ─────────────────────────────────────────────────────────────────────────
-# Window mover — acts on the FOREGROUND window (the app the user was last in;
+# -------------------------------------------------------------------------
+# Window mover - acts on the FOREGROUND window (the app the user was last in;
 # tapping the touchscreen gives focus to the dashboard, so the target is the
-# window beneath it in the Z-order — same model as deck-hotkey.ps1).
+# window beneath it in the Z-order - same model as deck-hotkey.ps1).
 #
 # Verbs (a fixed allowlist; the Node registry only ever passes one of these as a
-# single argv element — never a shell string):
+# single argv element - never a shell string):
 #   next-monitor / prev-monitor  move to the adjacent display (re-maximises if the
 #                                 window was maximised)
 #   left / right                 snap to the left/right half of the current monitor
@@ -12,7 +12,7 @@
 #   center                       centre on the current monitor, keeping its size
 #
 # Prints ONE compact JSON line: {"ok":true} or {"ok":false,"error":"..."}.
-# ─────────────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------------
 param([string]$verb)
 
 $ErrorActionPreference = 'Stop'
@@ -64,7 +64,7 @@ public static class XenonWindow {
 
   // The app the user was last using = the first real, visible, on-screen top-level
   // window BELOW the foreground (the dashboard, which the touch just focused).
-  // Same Z-order walk deck-hotkey.ps1 uses — so a moved window is the one they
+  // Same Z-order walk deck-hotkey.ps1 uses - so a moved window is the one they
   // meant, not the dashboard itself. Skips invisible/minimised/cloaked/tool/title-less.
   private static IntPtr FindTarget() {
     IntPtr fg = GetForegroundWindow();
@@ -101,7 +101,7 @@ public static class XenonWindow {
     if (Array.IndexOf(VERBS, verb) < 0) return "bad_verb";  // validate before ANY window mutation
     try { SetProcessDPIAware(); } catch {}
     // Act on the window BEHIND the dashboard (the app the user was last in), not
-    // the dashboard the touch just focused — otherwise "move window" moves the
+    // the dashboard the touch just focused - otherwise "move window" moves the
     // dashboard itself.
     IntPtr h = FindTarget();
     if (h == IntPtr.Zero) return "no_target";

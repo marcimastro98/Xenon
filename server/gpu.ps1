@@ -12,7 +12,7 @@ $gpuWatts = $null
 $gpuFanRpm = $null
 $gpuFans = @()
 
-# GPU temperature via LibreHardwareMonitor — works for AMD, Intel, and NVIDIA without nvidia-smi.
+# GPU temperature via LibreHardwareMonitor - works for AMD, Intel, and NVIDIA without nvidia-smi.
 # LHM is already installed by INSTALL.bat for CPU temps, so no new dependency is introduced.
 function Get-LibreHardwareMonitorDll {
   $candidates = @()
@@ -65,7 +65,7 @@ function Get-GpuLhmComputer {
 }
 
 # Per-fan RPM straight from each card's tachometer. Cards with the fans stopped
-# (idle zero-RPM mode) legitimately report 0 — that is a reading, not a gap, so
+# (idle zero-RPM mode) legitimately report 0 - that is a reading, not a gap, so
 # it is kept. A GPU with no fan sensors at all (integrated graphics, a passive
 # card) contributes nothing and the caller falls back to whatever it has.
 function Get-LhmGpuFans {
@@ -144,7 +144,7 @@ try {
   }
 } catch { }
 
-# No nvidia-smi — GPU name from WMI (cached: the GPU does not change at runtime)
+# No nvidia-smi - GPU name from WMI (cached: the GPU does not change at runtime)
 try {
   if (-not $global:XenonGpuWmiName) {
     $global:XenonGpuWmiName = (Get-CimInstance Win32_VideoController |
@@ -176,7 +176,7 @@ try {
                 if ($sname -match 'Memory Total' -and $null -eq $vramTotal) { $vramTotal = [int64]([double]$sensor.Value * 1048576) }
               }
             } elseif ($stype -eq 'Power') {
-              # Board/package power draw in watts (AMD/Intel path — NVIDIA returns
+              # Board/package power draw in watts (AMD/Intel path - NVIDIA returns
               # early above with nvidia-smi's power.draw).
               if ($null -ne $sensor.Value -and $null -eq $gpuWatts) { $gpuWatts = [Math]::Round([double]$sensor.Value, 1) }
             } elseif ($stype -eq 'Fan') {
@@ -206,7 +206,7 @@ try {
   }
 } catch { }
 
-# GPU utilization via Windows Performance Counters — vendor-agnostic, no external tool required
+# GPU utilization via Windows Performance Counters - vendor-agnostic, no external tool required
 try {
   $samples = Get-Counter '\GPU Engine(*)\Utilization Percentage' -ErrorAction Stop
   $sum = 0

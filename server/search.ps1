@@ -1,8 +1,8 @@
-# ─────────────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------------
 # Windows Search catalog host for the local file search (Spotlight).
 #
 # Queries the SystemIndex catalog over the Search.CollatorDSO OLE DB provider
-# via ADODB COM — no admin rights, no extra install, and the index already
+# via ADODB COM - no admin rights, no extra install, and the index already
 # covers file names AND document contents for everything Windows indexes.
 # ADODB via COM is why this lives in PowerShell and not the C# helper: the
 # helper is trimmed self-contained and System.Data.OleDb would drag trimming
@@ -20,12 +20,12 @@
 #   stdout : "XESRCH " + base64( UTF8( {"id":N,"ok":bool,"out":[...],"err":"..."} ) )
 # out is an ARRAY of {p,n,s,m}: full path, file name, size, mtime (ms epoch).
 #
-# SECURITY: this script accepts a STRUCTURED query and builds the SQL itself —
+# SECURITY: this script accepts a STRUCTURED query and builds the SQL itself -
 # never SQL from the wire. Terms are single-quote-escaped and stripped of LIKE
 # wildcards; extensions are charset-checked; numbers are cast. A caller that
 # somehow injected here would still only be querying an index it already owns,
 # but the boundary is kept clean anyway.
-# ─────────────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------------
 param([switch]$Serve)
 
 $ErrorActionPreference = 'Stop'
@@ -38,14 +38,14 @@ $script:conn = $null
 function Get-Connection {
   if ($script:conn) { return $script:conn }
   $c = New-Object -ComObject ADODB.Connection
-  # Throws when the Windows Search service is disabled — surfaced to Node as
+  # Throws when the Windows Search service is disabled - surfaced to Node as
   # 'wds_unavailable' so the UI can say exactly that.
   $c.Open("Provider=Search.CollatorDSO;Extended Properties='Application=Windows';")
   $script:conn = $c
   return $c
 }
 
-# Term → safe SQL fragment: drop LIKE wildcards and brackets, double the quotes.
+# Term -> safe SQL fragment: drop LIKE wildcards and brackets, double the quotes.
 function Sanitize-Term([string]$t) {
   $s = $t -replace '[%_\[\]\^"]', ''
   return ($s -replace "'", "''")
@@ -71,7 +71,7 @@ function Build-Sql($q) {
     }
   }
 
-  # WDS SQL has no IN — an OR chain of equals is the supported form.
+  # WDS SQL has no IN - an OR chain of equals is the supported form.
   $exts = New-Object System.Collections.Generic.List[string]
   foreach ($raw in @($q.exts)) {
     if ($null -eq $raw) { continue }
@@ -80,7 +80,7 @@ function Build-Sql($q) {
   }
   if ($exts.Count -gt 0) { $conds.Add('(' + ($exts -join ' OR ') + ')') }
 
-  # Epoch ms → UTC literal; the provider compares datetime literals in UTC.
+  # Epoch ms -> UTC literal; the provider compares datetime literals in UTC.
   if ($q.after -is [long] -or $q.after -is [int] -or $q.after -is [double]) {
     $dt = [DateTimeOffset]::FromUnixTimeMilliseconds([long]$q.after).UtcDateTime
     $conds.Add("System.DateModified >= '" + $dt.ToString('yyyy-MM-dd HH:mm:ss') + "'")
@@ -98,7 +98,7 @@ function Build-Sql($q) {
 
   # System.ItemUrl, NOT System.ItemPathDisplay: the display path is LOCALIZED
   # ("C:\Utenti\...\Download" on an Italian Windows) and does not exist on the
-  # filesystem — opening it would fail. ItemUrl carries the real path.
+  # filesystem - opening it would fail. ItemUrl carries the real path.
   return "SELECT TOP $max System.ItemUrl, System.FileName, System.Size, System.DateModified " +
          'FROM SystemIndex WHERE ' + ($conds -join ' AND ') +
          ' ORDER BY System.DateModified DESC'
@@ -115,7 +115,7 @@ function Run-Query($q) {
       $n = $rs.Fields.Item('System.FileName').Value
       $s = $rs.Fields.Item('System.Size').Value
       $m = $rs.Fields.Item('System.DateModified').Value
-      # ItemUrl → real filesystem path: "file:C:/Users/x/y.txt" (sometimes
+      # ItemUrl -> real filesystem path: "file:C:/Users/x/y.txt" (sometimes
       # "file://C:/..."), URL-escaped. Non-file URLs (mapi:, etc.) are skipped.
       $p = $null
       if ($u -is [string] -and $u.StartsWith('file:')) {
@@ -127,7 +127,7 @@ function Run-Query($q) {
         # The provider hands the datetime back in UTC.
         $ms = ([DateTimeOffset][DateTime]::SpecifyKind($m, [DateTimeKind]::Utc)).ToUnixTimeMilliseconds()
       }
-      # Folders report a DBNull size — treat as 0 rather than crash the frame.
+      # Folders report a DBNull size - treat as 0 rather than crash the frame.
       $size = 0L
       if ($s -ne $null -and $s -isnot [DBNull]) { try { $size = [long]$s } catch { $size = 0L } }
       if ($p -is [string] -and $p.Length -gt 0) {

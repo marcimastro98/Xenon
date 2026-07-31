@@ -30,15 +30,15 @@ $runner    = Join-Path $server 'start-hidden.vbs'
 $dashUrl   = 'http://127.0.0.1:3030/'
 $nm        = Join-Path $root 'node_modules'
 $nmBak     = Join-Path $root 'node_modules.xenon-rollback'
-# Durable side-channel files live directly in DATA_DIR, NOT under update\ —
+# Durable side-channel files live directly in DATA_DIR, NOT under update\ -
 # prepare() wipes update\ at the start of every run, and these must survive it:
 # - update-result.json  : machine-readable outcome of the last apply, read by the
-#   server (GET /update/self-status → lastResult) so the dashboard can explain a
+#   server (GET /update/self-status -> lastResult) so the dashboard can explain a
 #   rollback instead of spinning blind.
 # - update-manifest.json: the file list this updater installed, used by the NEXT
 #   update to delete files the new version no longer ships (see
 #   Remove-StaleAppFiles). Only files from the updater's own manifest are ever
-#   deleted — never a directory mirror.
+#   deleted - never a directory mirror.
 $resultPath   = Join-Path $dataDir 'update-result.json'
 $manifestPath = Join-Path $dataDir 'update-manifest.json'
 
@@ -49,11 +49,11 @@ function Log($m) {
   } catch {}
 }
 
-# Atomic JSON write (temp + rename) — a crash mid-write must never leave a
+# Atomic JSON write (temp + rename) - a crash mid-write must never leave a
 # truncated file for the server to choke on. Same shape as writeFileAtomic in
 # server.js; best effort, a result we cannot write only degrades the UI message.
 # BOM-less UTF-8 on purpose (WriteAllText, not Out-File): PS5.1's -Encoding utf8
-# prepends a BOM that JSON.parse rejects — the server strips it defensively,
+# prepends a BOM that JSON.parse rejects - the server strips it defensively,
 # but no new consumer should have to re-learn that trap.
 function Write-JsonAtomic($path, $obj) {
   try {
@@ -67,18 +67,18 @@ function Write-ApplyResult($obj) { Write-JsonAtomic $resultPath $obj }
 
 # Re-launch as an INDEPENDENT -Worker before doing anything. This first instance is
 # spawned by the Node server, so it lives inside Node's job object (kill-on-close):
-# when step 2 stops the server, the job would kill US too — which left an update
-# dying right after "backup done", server down, page stuck on "Updating…". The
+# when step 2 stops the server, the job would kill US too - which left an update
+# dying right after "backup done", server down, page stuck on "Updating...". The
 # relaunched -Worker is a grandchild of Node, which breaks out of the job (Windows
 # "silent breakaway"), so it survives the restart. -Worker marks it so we can't
 # recurse. The FULL powershell.exe path as FilePath keeps the launch from being
 # misread as "open this .ps1 file" (the app picker).
 #
 # How we relaunch depends on whether admin is needed:
-# - $NoElevate (install dir is user-writable): a PLAIN Start-Process — no 'runas',
+# - $NoElevate (install dir is user-writable): a PLAIN Start-Process - no 'runas',
 #   so NO UAC prompt. This is what lets the update run on multi-monitor / touchscreen
 #   setups (e.g. the Xeneon Edge) where the UAC secure-desktop prompt is unreachable.
-# - otherwise: ShellExecute 'runas' — one UAC prompt — so the swap can write a
+# - otherwise: ShellExecute 'runas' - one UAC prompt - so the swap can write a
 #   protected install location.
 $id = [Security.Principal.WindowsIdentity]::GetCurrent()
 $pr = New-Object Security.Principal.WindowsPrincipal($id)
@@ -159,12 +159,12 @@ function Remove-UpdateAdditions {
   Log "removed $removed file(s) the update had added"
 }
 
-# ── Manifest-based stale-file cleanup ────────────────────────────────────────
+# -- Manifest-based stale-file cleanup ----------------------------------------
 # The staged tree is exactly what the source zip ships, so runtime files
 # (server\data, downloaded helper/presentmon exes, node_modules) can never enter
-# the manifest — that is the primary safety guarantee. The prefix denylist below
+# the manifest - that is the primary safety guarantee. The prefix denylist below
 # is defense-in-depth on top of it. This deliberately deletes ONE known file at
-# a time from the updater's own previous manifest — never a directory mirror
+# a time from the updater's own previous manifest - never a directory mirror
 # (the /MIR class of data loss stays impossible).
 $protectedPrefixes = @('server\data\', 'node_modules\', '.git\', 'server\shared\', 'server\helper\', 'server\presentmon\', 'server\icue-sdk\')
 function Test-ProtectedPath($rel) {
@@ -190,7 +190,7 @@ function Get-StagedFileList {
 # ships. Skips entirely when there is no trustworthy manifest: absent (first run
 # after this feature ships, or a fresh install), unreadable, or written for a
 # version other than the one currently on disk (a manual reinstall happened in
-# between — the manifest no longer describes reality).
+# between - the manifest no longer describes reality).
 function Remove-StaleAppFiles($stagedFiles, $oldVer) {
   $mf = $null
   try { $mf = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json } catch {}
@@ -211,7 +211,7 @@ function Remove-StaleAppFiles($stagedFiles, $oldVer) {
     $tgt = Join-Path $root $rel
     try {
       $item = Get-Item -LiteralPath $tgt -Force -ErrorAction SilentlyContinue
-      # Plain files only — never follow into directories or reparse points
+      # Plain files only - never follow into directories or reparse points
       # (junctions like server\shared reach real sources outside the install).
       if (-not $item -or $item.PSIsContainer) { continue }
       if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { continue }
@@ -248,15 +248,15 @@ function Invoke-Npm {
   return $proc.ExitCode
 }
 
-$script:depsTouched = $false   # npm ran (in either mode) — node_modules may be mixed
+$script:depsTouched = $false   # npm ran (in either mode) - node_modules may be mixed
 $script:nmBakActive = $false   # the rename-aside snapshot exists for THIS run
-$script:phase = 'start'        # last stage entered — maps to a reason code on failure
+$script:phase = 'start'        # last stage entered - maps to a reason code on failure
 
 try {
   Log '=== apply start ==='
   if (-not (Test-Path (Join-Path $appDir 'server\server.js'))) { Log 'no staged build; abort'; exit 1 }
 
-  # Versions for the post-swap / post-rollback health checks. Best effort — an
+  # Versions for the post-swap / post-rollback health checks. Best effort - an
   # empty value degrades the check to "any version answered".
   $newVer = ''
   try { $newVer = ('' + (Get-Content (Join-Path $updDir 'staged.json') -Raw | ConvertFrom-Json).version).Trim() } catch {}
@@ -266,7 +266,7 @@ try {
 
   # Recover a node_modules snapshot left by a previous interrupted run. Only the
   # "snapshot exists, live dir gone" case is unambiguous (died mid-restore; the
-  # snapshot is the only copy). Snapshot alongside a live dir is stale — this run
+  # snapshot is the only copy). Snapshot alongside a live dir is stale - this run
   # is about to take a fresh one.
   if (Test-Path $nmBak) {
     if (Test-Path $nm) {
@@ -308,7 +308,7 @@ try {
   Remove-StaleAppFiles $stagedFiles $oldVer
 
   # 4) Reconcile dependencies (the release zip has no node_modules; deps may have
-  #    changed). The old tree is snapshotted by RENAME first — instant, and a
+  #    changed). The old tree is snapshotted by RENAME first - instant, and a
   #    failed install is undone exactly by renaming back, with no dependence on
   #    npm or the network to recover. npm then rebuilds node_modules fresh
   #    (mostly links from the local npm cache). If the rename is blocked (e.g. a
@@ -335,7 +335,7 @@ try {
 
   # 5) Verify the update actually boots before declaring success: the new server
   #    must answer /version with the staged version. Until it does, the backup
-  #    stays — a build that cannot start is rolled back instead of stranding the
+  #    stays - a build that cannot start is rolled back instead of stranding the
   #    user with no working install and no backup.
   $script:phase = 'verify'
   Start-Server
@@ -361,7 +361,7 @@ try {
 catch {
   Log "ERROR: $($_.Exception.Message)"
   # Map the stage that blew up to a stable reason code the dashboard can
-  # translate ("dependency installation failed", …). Unknown stages fall
+  # translate ("dependency installation failed", ...). Unknown stages fall
   # through as-is so they stay diagnosable from a screenshot.
   $reason = switch ($script:phase) {
     'backup'      { 'backup_failed' }
@@ -372,11 +372,11 @@ catch {
     'verify'      { 'verify_failed' }
     default       { 'unknown' }
   }
-  # Failures before the copy never modified the install — there is nothing to
+  # Failures before the copy never modified the install - there is nothing to
   # roll back, the tree is already in its pre-update state.
   $restoredOk = ($script:phase -in @('start', 'backup', 'stop_server'))
   # Return the install to EXACTLY the pre-update state. The (possibly broken)
-  # new server may be up after step 5 and holding files — stop it first.
+  # new server may be up after step 5 and holding files - stop it first.
   Stop-Server
   try {
     if (Test-Path (Join-Path $backupDir 'server\server.js')) {

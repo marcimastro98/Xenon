@@ -1,8 +1,8 @@
-# ─────────────────────────────────────────────────────────────────────────
-# Virtual Deck popup — one-shot always-on-top pass.
+# -------------------------------------------------------------------------
+# Virtual Deck popup - one-shot always-on-top pass.
 #
 # Pins the popup with SetWindowPos(HWND_TOPMOST). The window is identified by
-# the Edge PROCESS ID server.js spawned (-ProcessId, primary match) — never by
+# the Edge PROCESS ID server.js spawned (-ProcessId, primary match) - never by
 # title alone, or any unrelated window whose title merely contains the needle
 # (a browser tab, an editor) would be pinned. -Title is the fallback for the
 # rare Edge process-singleton handoff, and it must match the popup's document
@@ -10,7 +10,7 @@
 # loop, no timer, no lingering process (performance invariant). Inputs are
 # fixed constants from server.js (argv-bound, never a shell string).
 # Prints a single JSON line.
-# ─────────────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------------
 param(
   [int]$ProcessId = 0,
   [string]$Title = ''
