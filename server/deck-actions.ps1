@@ -31,7 +31,7 @@ try {
       # .ps1 via powershell -File (not the Notepad edit-handler); .vbs/.vbe/.wsf
       # via cscript; .jar via java -jar; and .py/.js/.rb/.pl/.php/.lua/.r/.sh via
       # the matching interpreter on PATH. The window is VISIBLE by default (an
-      # installer / interactive script needs its console) — the key opts into a
+      # installer / interactive script needs its console) - the key opts into a
       # hidden window via $opt='hidden'. WorkingDirectory is the script's own
       # folder so relative paths resolve. A missing interpreter throws and is
       # reported as a clean error by the catch below.
@@ -42,7 +42,7 @@ try {
       $ws = if ($hidden) { 'Hidden' } else { 'Normal' }
       # A file path can't contain a double-quote, so quoting is injection-safe.
       $quoted = '"' + $value + '"'
-      # Extension → interpreter for the "run <interp> <script>" script types.
+      # Extension -> interpreter for the "run <interp> <script>" script types.
       $interp = @{
         '.py'='python'; '.pyw'='pythonw';
         '.js'='node'; '.cjs'='node'; '.mjs'='node';

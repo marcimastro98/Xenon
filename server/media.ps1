@@ -12,7 +12,7 @@ param(
   # Persistent host mode: keep ONE process alive holding the SMTC session
   # manager and answer requests over stdin/stdout instead of paying the
   # ~150-300ms CLR + WinRT startup on every poll (the dashboard polls media
-  # every 2s — one-shot spawning was the server's dominant CPU/temp cost).
+  # every 2s - one-shot spawning was the server's dominant CPU/temp cost).
   # Protocol (one message per line, both directions):
   #   stdin  : {"id":N,"action":"info","preferredSource":"...","position":0}
   #   stdout : "XEMED " + base64( UTF8( {"id":N,"ok":bool,"out":"<json>","err":"..."} ) )
@@ -57,7 +57,7 @@ $script:manager = $null
 
 # Self-heal a wedged media broker (parity with the native helper's MediaHost.cs,
 # issue #80). After the PC has been idle a while the SMTC broker can go stale so
-# GetSessions() returns an EMPTY list WITHOUT throwing — the catch-block drop
+# GetSessions() returns an EMPTY list WITHOUT throwing - the catch-block drop
 # below never fires and the cached manager stays blind to any track started
 # afterwards ("Nothing playing" forever, the reported bug). A streak of empty
 # enumerations drops the manager so the next request re-acquires a fresh one,
@@ -82,7 +82,7 @@ function Get-AppName($Source, $Title, $Album) {
   if ($Source -match 'ZuneMusic|ZuneVideo|MicrosoftMediaPlayer|WindowsMediaPlayer') { return 'Lettore Multimediale' }
   if ($Source -match 'Music') { return 'Music' }
   if ([string]::IsNullOrWhiteSpace($Source)) { return 'Media' }
-  # Strip Windows package format: Publisher.Name_hash!AppId → Name
+  # Strip Windows package format: Publisher.Name_hash!AppId -> Name
   if ($Source -match '^(?:[^.]+\.)+([^._!]+)[_!]') { return $matches[1] }
   return $Source
 }
@@ -358,7 +358,7 @@ if (-not $Serve) {
   [Environment]::Exit(0)
 }
 
-# ── Serve mode ────────────────────────────────────────────────────────────────
+# -- Serve mode ----------------------------------------------------------------
 if ($script:bootstrapError) { [Environment]::Exit(1) }   # Node falls back to one-shot
 
 function Write-Frame($obj) {

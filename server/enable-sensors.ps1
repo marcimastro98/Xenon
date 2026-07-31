@@ -4,7 +4,7 @@
 # Why this exists: install.ps1 registers the per-logon task with
 # RunLevel = Highest ONLY when INSTALL.bat itself was run as administrator.
 # Double-clicking the .bat (the common case) registers it Limited, and NOTHING
-# repairs that afterwards — update-apply.ps1 never touches the task, so the level
+# repairs that afterwards - update-apply.ps1 never touches the task, so the level
 # stays frozen for the life of the install and those users silently never get CPU
 # temperature. Re-running the installer as admin fixes it; this is the one-tap
 # equivalent, launched from the dashboard (POST /system/enable-sensors).
@@ -12,7 +12,7 @@
 # The script relaunches ITSELF through UAC when it isn't already elevated: the
 # backend deliberately runs unelevated in the user's session (see the process
 # invariant in .claude/CLAUDE.md), so the prompt is the only way up. Everything it
-# runs is a fixed command — no value from the request reaches a command line.
+# runs is a fixed command - no value from the request reaches a command line.
 
 param(
   [string]$TaskName = 'Xenon Edge Widget',
@@ -47,15 +47,15 @@ if (-not $task) {
 
 if (-not $Elevated) {
   if (Test-Elevated) {
-    # Already admin (rare: the whole hub was started elevated) — do the work here.
+    # Already admin (rare: the whole hub was started elevated) - do the work here.
   } else {
     $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
-    # NOT $args — that is an automatic variable; shadowing it is a trap for the
+    # NOT $args - that is an automatic variable; shadowing it is a trap for the
     # next reader even where it happens to work.
     $psArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ("`"$PSCommandPath`""), '-Elevated')
     try {
       # -Verb RunAs raises the UAC prompt; a decline throws, and is reported as
-      # such rather than swallowed — the dashboard must tell "declined" from
+      # such rather than swallowed - the dashboard must tell "declined" from
       # "failed".
       #
       # Do NOT wait on the child. An unelevated process cannot get SYNCHRONIZE
@@ -73,7 +73,7 @@ if (-not $Elevated) {
 
     # The child writes its result to its own hidden console, which we cannot read,
     # so never report its word for it. The task's run level IS the outcome, and
-    # reading it needs no elevation — so poll that, and return the moment it lands.
+    # reading it needs no elevation - so poll that, and return the moment it lands.
     $deadline = (Get-Date).AddSeconds(20)
     do {
       $after = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
@@ -88,7 +88,7 @@ if (-not $Elevated) {
   }
 }
 
-# ── Elevated from here ────────────────────────────────────────────────────────
+# -- Elevated from here --------------------------------------------------------
 if (-not (Test-Elevated)) {
   Out-Result $false 'not_elevated' 'This step needs administrator rights.'
   return
@@ -104,7 +104,7 @@ try {
     return
   }
 
-  # Raising the task does nothing for the backend that is ALREADY running — it
+  # Raising the task does nothing for the backend that is ALREADY running - it
   # keeps the unelevated token it was born with, so the sensors stay dark and the
   # user is told to "restart Xenon" with no way to know which restart counts:
   # closing the native app doesn't restart the backend (the task does, at logon),

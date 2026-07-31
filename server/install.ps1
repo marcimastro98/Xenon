@@ -14,7 +14,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $appName = 'Xenon Edge Widget'
-# Required npm runtime deps — the server won't even boot without them. Single
+# Required npm runtime deps - the server won't even boot without them. Single
 # source of truth for the install step AND the final component check.
 $requiredNodeDeps = @('ws', 'koffi', 'msedge-tts')
 $hardwareMonitorPackageId = 'LibreHardwareMonitor.LibreHardwareMonitor'
@@ -40,7 +40,7 @@ function Get-AppVersion {
 }
 
 # Compose the "XENON" wordmark from fixed-width (7x6) ASCII glyphs. Building it
-# programmatically — rather than as one hand-typed here-string — guarantees the
+# programmatically - rather than as one hand-typed here-string - guarantees the
 # columns line up perfectly: every glyph row is exactly 7 chars, joined by a
 # single space, so all five letters stay in register. Plain ASCII only (no
 # box-drawing) so it renders identically under Windows PowerShell 5.1 regardless
@@ -212,7 +212,7 @@ function Invoke-DownloadWithSpinner {
 }
 
 # Cosmetic-only intro: the animated "XENON" wordmark, the version being installed,
-# and a short summary of what the installer sets up. Pure console output — it
+# and a short summary of what the installer sets up. Pure console output - it
 # changes nothing about the install and is fully suppressed to a static render
 # for unattended installs (XENON_INSTALL_MODE set) so logs stay clean.
 function Show-Banner {
@@ -269,7 +269,7 @@ function Get-NodePath {
 }
 
 # Silent winget install with automatic retries. winget failures are very often
-# transient (source sync, network hiccup) — and a component that failed on the
+# transient (source sync, network hiccup) - and a component that failed on the
 # first pass used to just scroll away as a yellow line, leaving the user to
 # notice and re-run INSTALL.bat by hand (issue #87). Returns $true on success;
 # $false when winget is missing or every attempt failed.
@@ -395,7 +395,7 @@ function Install-FfmpegIfNeeded {
 function Install-NpmDependenciesIfNeeded {
   # The widget needs all three runtime dependencies: ws (the server's WebSocket relay,
   # required to even start), koffi (RGB bridge) and msedge-tts (local AI voice). Only
-  # skip the install when every one is present — a partial node_modules must not pass,
+  # skip the install when every one is present - a partial node_modules must not pass,
   # or the server crashes on require('ws').
   $deps = $requiredNodeDeps
   $missing = @($deps | Where-Object { -not (Test-Path (Join-Path $root "node_modules\$_")) })
@@ -410,7 +410,7 @@ function Install-NpmDependenciesIfNeeded {
   # Run npm by invoking node.exe directly on npm-cli.js. Do NOT resolve npm via
   # Get-Command: PowerShell returns npm.ps1 ahead of npm.cmd, and handing a .ps1 path to
   # cmd.exe makes Windows "open" it with its file association (Notepad) instead of running
-  # it — npm never executes, returns exit code 0, node_modules stays empty, and the server
+  # it - npm never executes, returns exit code 0, node_modules stays empty, and the server
   # then crashes on require('ws'). node.exe is a real executable, so Start-Process
   # -NoNewWindow launches it reliably regardless of PATHEXT ordering.
   $nodePath = Get-NodePath
@@ -427,7 +427,7 @@ function Install-NpmDependenciesIfNeeded {
   }
 
   # Registry/network hiccups make npm fail transiently, and a single failed pass
-  # used to just tell the user to do it by hand (issue #87) — retry it instead.
+  # used to just tell the user to do it by hand (issue #87) - retry it instead.
   $maxAttempts = 3
   for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
     if ($attempt -gt 1) {
@@ -453,7 +453,7 @@ function Install-NpmDependenciesIfNeeded {
       continue
     }
 
-    # A zero exit code alone is not proof of success — the old npm.ps1/Notepad failure
+    # A zero exit code alone is not proof of success - the old npm.ps1/Notepad failure
     # returned 0 while installing nothing. Verify the modules actually landed.
     $stillMissing = @($deps | Where-Object { -not (Test-Path (Join-Path $root "node_modules\$_")) })
     if ($stillMissing.Count -eq 0) {
@@ -746,7 +746,7 @@ function Start-WidgetServer {
   Write-Host 'The server may still be starting. If the browser page is blank, wait a few seconds and refresh.' -ForegroundColor Yellow
 }
 
-# The backend must run in the USER'S interactive session — never as a session-0
+# The backend must run in the USER'S interactive session - never as a session-0
 # Windows service. An early v4 beta registered it as a WinSW service; Windows
 # isolates services from the interactive desktop, which silently broke every
 # desktop integration: Deck open app/site/file, SMTC media detection, hotkeys,
@@ -770,7 +770,7 @@ function Remove-BackendServiceIfPresent {
       & sc.exe delete 'XenonEdgeService' 2>$null | Out-Null
     }
     # The SCM keeps the registration alive ("delete pending") until the service
-    # process fully exits — and the node backend shuts down gracefully over a few
+    # process fully exits - and the node backend shuts down gracefully over a few
     # seconds. Wait it out so the fresh backend doesn't race the dying one for
     # port 3030 (Start-WidgetServer additionally waits for the listener to clear).
     $deadline = (Get-Date).AddSeconds(45)
@@ -789,17 +789,17 @@ function Remove-BackendServiceIfPresent {
 # "swipe up to the desktop" gesture loses the race on the touchscreen. The only
 # switch Windows honours is the MACHINE policy AllowEdgeSwipe=0 under HKLM (the
 # HKCU twin is silently ignored), which needs elevation, and the shell only
-# re-reads it when Explorer restarts or the user signs in — so this applies it
+# re-reads it when Explorer restarts or the user signs in - so this applies it
 # and restarts Explorer once. Native installs only; UNINSTALL.bat removes it.
-# Mouse/keyboard and the taskbar itself are unaffected — only the touch
+# Mouse/keyboard and the taskbar itself are unaffected - only the touch
 # edge-swipe gesture is reserved for Xenon.
 function Disable-WindowsEdgeSwipe {
   $key = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\EdgeUI'
-  # Clean up the value older builds wrote under HKCU — Windows ignores it there.
+  # Clean up the value older builds wrote under HKCU - Windows ignores it there.
   try { Remove-ItemProperty -Path 'HKCU:\SOFTWARE\Policies\Microsoft\Windows\EdgeUI' -Name 'AllowEdgeSwipe' -ErrorAction Stop } catch { }
   try {
     $current = (Get-ItemProperty -Path $key -Name 'AllowEdgeSwipe' -ErrorAction SilentlyContinue).AllowEdgeSwipe
-    if ($current -eq 0) { return } # already applied — never restart Explorer on a re-run
+    if ($current -eq 0) { return } # already applied - never restart Explorer on a re-run
     if (-not (Test-IsElevated)) {
       Write-Host 'Note: Windows may intercept the touchscreen swipe-up gesture (it opens Start/taskbar instead of Xenon).' -ForegroundColor Yellow
       Write-Host 'Rerun INSTALL.bat once as Administrator to reserve the edge swipe for Xenon.' -ForegroundColor Yellow
@@ -831,22 +831,22 @@ function Install-NativeAppIfPresent {
   # An exe already on disk does NOT short-circuit outright: re-running the
   # installer over an old or broken shell must keep repairing/upgrading it
   # (README promises exactly that). The version-aware skip lives in the
-  # download branch below, once the latest release version is known — the
+  # download branch below, once the latest release version is known - the
   # bootstrap-launched case (fresh shell just installed by the setup) lands
   # there as "already current" and skips the pointless re-download.
   #
   # /NOBOOTSTRAP is inert on current installers (the post-install hook that
-  # honoured it is gone — the app now offers the bootstrap from its splash
+  # honoured it is gone - the app now offers the bootstrap from its splash
   # instead, see run_backend_bootstrap in lib.rs). It is still passed because a
   # dev machine can have an older locally-built setup.exe in the branch below,
-  # and there the flag is what breaks the install→bootstrap→install recursion.
+  # and there the flag is what breaks the install->bootstrap->install recursion.
   $installedExe = Get-NativeAppExe
   $root = Split-Path -Parent $PSScriptRoot
   $dirs = @(
     (Join-Path $root 'installers'),
     (Join-Path $root 'apps\native\src-tauri\target\release\bundle\nsis')
   )
-  # 1) A locally-built bundle — only present on a dev machine that ran
+  # 1) A locally-built bundle - only present on a dev machine that ran
   # `npm run native:build`. A downloaded release source zip has neither dir.
   foreach ($dir in $dirs) {
     if (-not (Test-Path $dir)) { continue }
@@ -863,7 +863,7 @@ function Install-NativeAppIfPresent {
     }
   }
   # 2) The normal case: no local bundle. Download the signed *-setup.exe from the
-  # latest GitHub release — the SAME asset the dashboard's install button uses
+  # latest GitHub release - the SAME asset the dashboard's install button uses
   # (install-native.ps1). Without this, a normal user who picked "Native app"
   # got no app and the installer fell back to opening the browser.
   $maxAttempts = 2
@@ -879,12 +879,12 @@ function Install-NativeAppIfPresent {
       $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/marcimastro98/Xenon/releases/latest' -Headers $headers -TimeoutSec 25
       $asset = $release.assets | Where-Object { $_.name -like '*-setup.exe' } | Select-Object -First 1
       if (-not $asset) {
-        Write-Host 'The native app installer is not attached to the latest release yet — you can install it later from the dashboard: Settings -> General.' -ForegroundColor Gray
+        Write-Host 'The native app installer is not attached to the latest release yet - you can install it later from the dashboard: Settings -> General.' -ForegroundColor Gray
         return $false
       }
       # Version-aware skip: an installed shell that already matches the latest
       # release needs no re-download (the setup.exe bootstrap path always lands
-      # here — the shell it just installed IS the latest). An unreadable version
+      # here - the shell it just installed IS the latest). An unreadable version
       # falls through to a reinstall, which doubles as the repair path.
       if ($installedExe) {
         $installedVer = ''
@@ -916,7 +916,7 @@ function Install-NativeAppIfPresent {
 # Resolve the installed native app exe. The Tauri NSIS bundle installs per-user
 # (installMode currentUser) into %LOCALAPPDATA%\Xenon; the binary keeps the
 # cargo name (xenon-native.exe), not the product name. Fall back to the NSIS
-# uninstall registry key in case a future bundle changes the location — note
+# uninstall registry key in case a future bundle changes the location - note
 # its InstallLocation value is stored WITH literal quotes.
 function Get-NativeAppExe {
   $dirs = @((Join-Path $env:LOCALAPPDATA 'Xenon'))
@@ -934,7 +934,7 @@ function Get-NativeAppExe {
 }
 
 # Launch the freshly installed kiosk. The silent NSIS install never starts the
-# app, and the app registers its own login autostart only on first run — so
+# app, and the app registers its own login autostart only on first run - so
 # without this the user ends the install with nothing on screen. Safe to call
 # when already running: the app is single-instance and just refocuses.
 function Start-NativeAppIfInstalled {
@@ -951,7 +951,7 @@ function Start-NativeAppIfInstalled {
 
 # Ask which surface to set up. BOTH modes set up the shared backend (per-logon
 # task); only Native additionally installs the Tauri kiosk app. iCUE mode installs
-# nothing Tauri-related — the user imports the iCUE widget into iCUE themselves,
+# nothing Tauri-related - the user imports the iCUE widget into iCUE themselves,
 # and can switch to the native app later from the dashboard Settings. Set
 # XENON_INSTALL_MODE=native|icue to run unattended.
 function Read-InstallMode {
@@ -991,7 +991,7 @@ function Write-InstallModeMarker {
 
 # Snapshot of what is actually on disk after the install steps ran. Used for
 # the automatic second pass on anything that failed (issue #87) and for the
-# clear OK/MISSING summary at the end — a failed component must never again be
+# clear OK/MISSING summary at the end - a failed component must never again be
 # just a yellow line that scrolled away.
 function Get-ComponentStatus {
   return [ordered]@{
@@ -1035,7 +1035,7 @@ function Write-ComponentSummary {
   }
   if (-not $status['Dashboard libraries']) {
     Write-Host ''
-    Write-Host '   The dashboard libraries are REQUIRED — check your connection and run INSTALL.bat again.' -ForegroundColor Red
+    Write-Host '   The dashboard libraries are REQUIRED - check your connection and run INSTALL.bat again.' -ForegroundColor Red
   }
 }
 
@@ -1060,7 +1060,7 @@ Invoke-ComponentRetryPass
 # Xenon AI to the local provider, the dashboard (Settings -> Xenon AI) downloads
 # Whisper on demand and links to the Ollama installer.
 # The backend starts via the per-logon scheduled task and runs IN the user's
-# session — the only place SMTC media, Deck app/site launching, hotkeys, window
+# session - the only place SMTC media, Deck app/site launching, hotkeys, window
 # actions and screen capture can work. (A session-0 service cannot touch the
 # interactive desktop; see Remove-BackendServiceIfPresent.) Migrate old beta
 # installs off the service first, then register the task and start the backend.
@@ -1077,7 +1077,7 @@ if ($installMode -eq 'native') {
   # swipe-up-to-desktop gesture wins over Windows' Start/taskbar gestures.
   Disable-WindowsEdgeSwipe
   if ($SkipNativeApp) {
-    # The kiosk is already on screen — it is what started this install — so it
+    # The kiosk is already on screen - it is what started this install - so it
     # needs neither installing nor launching. Its splash is probing 3030 and
     # takes over on its own the moment the server below comes up.
     Write-Step 'Native Xenon app is already running - left untouched.'
@@ -1086,7 +1086,7 @@ if ($installMode -eq 'native') {
     Write-Step 'Native Xenon app installed (full-screen kiosk on the Xeneon Edge).'
     $nativeLaunched = Start-NativeAppIfInstalled
     if (-not $nativeLaunched) {
-      Write-Host 'Could not launch the native app automatically — start "Xenon" from the Start menu.' -ForegroundColor Yellow
+      Write-Host 'Could not launch the native app automatically - start "Xenon" from the Start menu.' -ForegroundColor Yellow
     }
   } else {
     Write-Host 'The native app could not be installed automatically (offline, or not yet attached to the release). You can install it anytime from the dashboard: Settings -> General.' -ForegroundColor Gray
@@ -1097,7 +1097,7 @@ if ($installMode -eq 'native') {
   Write-Host 'You can switch to the native app anytime from the dashboard: Settings -> General.' -ForegroundColor Gray
 }
 
-# Native launched → the kiosk IS the dashboard; opening a browser tab on top of
+# Native launched -> the kiosk IS the dashboard; opening a browser tab on top of
 # it would be confusing. Every other outcome still gets the browser.
 if ($nativeLaunched) {
   Write-Step 'Native Xenon app started - it will also launch automatically at login.'

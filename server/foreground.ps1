@@ -1,5 +1,5 @@
-# ─────────────────────────────────────────────────────────────────────────
-# Foreground full-screen probe — the reliable "is a game running" signal.
+# -------------------------------------------------------------------------
+# Foreground full-screen probe - the reliable "is a game running" signal.
 #
 # A real game owns the foreground window and covers its entire monitor
 # (exclusive or borderless full-screen) WITHOUT a title bar. We compare the
@@ -14,7 +14,7 @@
 #
 # Runs as a long-lived loop, printing one compact JSON line per interval to
 # stdout; the Node side (gamedetect.js) reads the latest line.
-# ─────────────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------------
 param([int]$IntervalMs = 2000)
 
 $ErrorActionPreference = 'Stop'

@@ -1,8 +1,8 @@
-# ── CORSAIR iCUE SDK client component ────────────────────────────────────────
+# -- CORSAIR iCUE SDK client component ----------------------------------------
 # Downloads the iCUE SDK client DLL that server/lighting.js talks to for CORSAIR
 # RGB. Single source of truth for the pinned version and hash, shared by the
 # installer (install.ps1 -> Install-ICueSdkIfNeeded) and the in-app fetch button
-# on the lighting page (server/icue-sdk-install.js) — same shape as
+# on the lighting page (server/icue-sdk-install.js) - same shape as
 # helper-update.ps1. Neither caller holds a version of its own.
 #
 # WHY IT IS DOWNLOADED AND NOT SHIPPED WITH XENON

@@ -1,4 +1,4 @@
-# System idle probe — seconds since the last keyboard/mouse input, session-wide.
+# System idle probe - seconds since the last keyboard/mouse input, session-wide.
 #
 # Used by Bit (the vitals pet) as PRESENCE: the Xeneon touchscreen alone can't
 # prove the user is at the PC (they may never tap that monitor), so the
@@ -7,7 +7,7 @@
 # the Add-Type compilation cost is paid once per worker lifetime; the type-load
 # guard makes repeat calls in the same AppDomain instant.
 #
-# Output: {"ok":true,"idleSec":N} — always JSON, errors trapped (exit-free, as
+# Output: {"ok":true,"idleSec":N} - always JSON, errors trapped (exit-free, as
 # the worker requires).
 
 try {

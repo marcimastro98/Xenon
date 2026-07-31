@@ -1,17 +1,17 @@
-# icue-sharpen.ps1 — fix for the blurry dashboard in iCUE widget mode (GitHub issue #53).
+# icue-sharpen.ps1 - fix for the blurry dashboard in iCUE widget mode (GitHub issue #53).
 #
 # Root cause (verified on-device): iCUE hosts its Xeneon Edge surface in a Qt window,
 # and QtWebEngine derives the widget's devicePixelRatio from that window's QScreen
-# association. When the association goes stale — the boot race where the renderer is
+# association. When the association goes stale - the boot race where the renderer is
 # created before Windows finishes bringing up the USB display, or a DPI change on
-# another monitor — Qt hands the renderer the PRIMARY monitor's scale (e.g. 1.5).
+# another monitor - Qt hands the renderer the PRIMARY monitor's scale (e.g. 1.5).
 # The page then rasterises ~1.5x too large and iCUE resamples it down onto the panel,
 # smearing text and hairlines. A page reload does not help (same window, same scale);
 # removing and re-adding the widget does (new window).
 #
 # The fix: nudge the window by 1px and move it straight back. The WM_WINDOWPOSCHANGED
 # round-trip makes Qt re-check which screen the window is on, re-associate it with the
-# Edge (100% scale), and push the corrected device scale to the renderer — the widget
+# Edge (100% scale), and push the corrected device scale to the renderer - the widget
 # re-rasterises at the panel's native size. Verified: DPR 1.8 -> 1.2, raster
 # 3807px -> 2538px (native slot size), repeatably, with no iCUE restart.
 #
@@ -41,7 +41,7 @@ public static class XenonIcueSharpen {
   [StructLayout(LayoutKind.Sequential)] struct RECT { public int L, T, R, B; }
 
   // SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER: position only,
-  // never steal focus or reorder — the move must be invisible to the user.
+  // never steal focus or reorder - the move must be invisible to the user.
   const uint SWP_FLAGS = 0x0001 | 0x0004 | 0x0010 | 0x0200;
 
   public static int Run(uint[] pids) {

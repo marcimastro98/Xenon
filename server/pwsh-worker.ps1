@@ -16,7 +16,7 @@
 # broker handles that must be released by a clean process exit, so Node retires
 # it gracefully (stdin close), whereas these collectors only touch
 # LibreHardwareMonitor / perf counters, whose handles the OS reclaims on
-# process death — which is why the Node side can safely kill a wedged worker.
+# process death - which is why the Node side can safely kill a wedged worker.
 
 $ErrorActionPreference = 'Continue'
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false

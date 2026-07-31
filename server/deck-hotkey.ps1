@@ -1,32 +1,32 @@
-# ─────────────────────────────────────────────────────────────────────────
-# Deck Hotkey runner — send a keyboard shortcut to the app the user was using.
+# -------------------------------------------------------------------------
+# Deck Hotkey runner - send a keyboard shortcut to the app the user was using.
 #
 # The problem: tapping the Xeneon touchscreen gives foreground to the dashboard
 # window, so a naive SendInput lands on the widget, not the target app. The fix:
 # at action time we walk the window Z-ORDER from the current foreground (the
-# dashboard) and pick the first eligible window BELOW it — the app the user was
+# dashboard) and pick the first eligible window BELOW it - the app the user was
 # last looking at (works for native apps AND browser tabs). We then FORCE that
 # window to the foreground (the AttachThreadInput dance + an ALT-tap to lift the
 # SetForegroundWindow lock, with a retry), let it settle, and send the combo via
 # SendInput (more reliable than keybd_event, e.g. Ctrl+C/Ctrl+V are honoured).
 #
-# Exception: global shell shortcuts that carry the Win key (Win+D, Win+E, Win+L, …)
-# are handled by the OS/Explorer no matter what is focused — for those we skip the
+# Exception: global shell shortcuts that carry the Win key (Win+D, Win+E, Win+L, ...)
+# are handled by the OS/Explorer no matter what is focused - for those we skip the
 # find-target/focus-steal path and inject directly, so the Win+D toggle isn't broken.
 #
 # Input is pre-validated by the server (registry.normalizeKeys): only known
 # modifiers/keys joined by '+'. Prints a single JSON line.
-# ─────────────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------------
 # Two modes: -Keys sends a validated shortcut combo; -TypeTextB64 types a literal
 # string into the target app via KEYEVENTF_UNICODE (any character, emoji included
-# — surrogate pairs pass through as their UTF-16 units, which is exactly what the
+# - surrogate pairs pass through as their UTF-16 units, which is exactly what the
 # OS expects). The text arrives BASE64-encoded because a raw value starting with
 # '-' would be parsed by PowerShell -File binding as another parameter name.
 # Exactly one of the two modes must be given.
 param(
   [string]$Keys,
   [string]$TypeTextB64,
-  [switch]$DryRun   # report the detected target window only — no focus steal, no keystroke
+  [switch]$DryRun   # report the detected target window only - no focus steal, no keystroke
 )
 
 $ErrorActionPreference = 'Stop'
@@ -65,7 +65,7 @@ public static class XenonHotkey {
 
   // NOTE: the union MUST carry MOUSEINPUT too. Without it the struct is smaller than
   // the OS INPUT (40 bytes on x64), cbSize mismatches, and SendInput silently sends
-  // nothing — which is exactly why keystrokes never landed.
+  // nothing - which is exactly why keystrokes never landed.
   [StructLayout(LayoutKind.Sequential)] public struct MOUSEINPUT { public int dx; public int dy; public uint mouseData; public uint dwFlags; public uint time; public IntPtr dwExtraInfo; }
   [StructLayout(LayoutKind.Sequential)] public struct KEYBDINPUT { public ushort wVk; public ushort wScan; public uint dwFlags; public uint time; public IntPtr dwExtraInfo; }
   [StructLayout(LayoutKind.Explicit)] public struct InputUnion { [FieldOffset(0)] public MOUSEINPUT mi; [FieldOffset(0)] public KEYBDINPUT ki; }
@@ -112,7 +112,7 @@ public static class XenonHotkey {
   }
 
   // Every modifier virtual-key (generic + left/right). We force these UP defensively
-  // so a half-completed combo or focus change can never leave a modifier stuck down —
+  // so a half-completed combo or focus change can never leave a modifier stuck down -
   // a stuck Ctrl/Alt turns every later keypress into a shortcut and looks like a crash.
   static readonly byte[] MOD_VKS = new byte[] { 0x11, 0x12, 0x10, 0x5B, 0x5C, 0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5 };
   public static void ClearMods() {
@@ -124,9 +124,9 @@ public static class XenonHotkey {
 
   // Virtual-keys whose scan code MUST carry the extended (E0) flag, or the OS reads
   // a different key. Crucially this includes Win (0x5B/0x5C): sent without the flag,
-  // scancode 0x5B is NOT seen as Win, so every "win+…" combo did nothing. The list
+  // scancode 0x5B is NOT seen as Win, so every "win+..." combo did nothing. The list
   // also covers nav/edit keys and right-hand modifiers. Applies to modifiers AND the
-  // main key — the extended-ness is a property of the key, not of its role.
+  // main key - the extended-ness is a property of the key, not of its role.
   static readonly byte[] EXT_VKS = new byte[] { 0x2E, 0x24, 0x23, 0x21, 0x22, 0x26, 0x28, 0x25, 0x27, 0x2D, 0x5B, 0x5C, 0xA3, 0xA5 };
   static bool IsExt(byte vk) { for (int i = 0; i < EXT_VKS.Length; i++) if (EXT_VKS[i] == vk) return true; return false; }
 
@@ -145,13 +145,13 @@ public static class XenonHotkey {
   }
 
   // Claim the foreground WITHOUT any keyboard trick. We neither AttachThreadInput
-  // (which can freeze the target's input queue → "crash") nor inject an ALT tap
+  // (which can freeze the target's input queue -> "crash") nor inject an ALT tap
   // (which leaves the target stuck in menu mode / ALT held). Instead we momentarily
   // zero the system foreground-lock timeout so SetForegroundWindow is honoured, then
-  // restore the original value — the standard, side-effect-free technique.
+  // restore the original value - the standard, side-effect-free technique.
   static bool TryForeground(IntPtr target) {
     // fWinIni = 0 (NOT SPIF_SENDCHANGE): change the timeout for our SetForegroundWindow
-    // without broadcasting WM_SETTINGCHANGE to every window — that broadcast can upset
+    // without broadcasting WM_SETTINGCHANGE to every window - that broadcast can upset
     // packaged apps (e.g. Win11 Notepad closing/reopening).
     uint orig = 0;
     SpiGet(SPI_GETFOREGROUNDLOCKTIMEOUT, 0, ref orig, 0);
@@ -193,13 +193,13 @@ public static class XenonHotkey {
       if (c == '\r') continue;
       if (c == '\n') { Send1(Vk(0x0D, false)); Thread.Sleep(8); Send1(Vk(0x0D, true)); Thread.Sleep(8); continue; }
       Send1(Uni(c, false)); Send1(Uni(c, true));
-      Thread.Sleep(2);   // tiny pacing — zero-gap unicode bursts get dropped by some apps
+      Thread.Sleep(2);   // tiny pacing - zero-gap unicode bursts get dropped by some apps
     }
   }
 
   // Press the modifiers, let their key-state settle, THEN tap the key, then release.
   // Sending it all in one zero-gap batch makes apps translate the key to a plain
-  // character before the modifier registers — so Ctrl+A typed a literal "a".
+  // character before the modifier registers - so Ctrl+A typed a literal "a".
   public static void SendCombo(byte[] mods, byte main) {
     for (int i = 0; i < mods.Length; i++) Send1(Vk(mods[i], false));
     if (mods.Length > 0) Thread.Sleep(20);
@@ -228,12 +228,12 @@ foreach ($d in 0..9) { $VK["$d"] = 0x30 + $d }                     # 0..9
 foreach ($i in 97..122) { $VK[[string][char]$i] = $i - 32 }        # a..z -> uppercase ASCII VK
 
 # NB: PowerShell variable names are case-insensitive, so this MUST NOT be named
-# $MODS — that would be the same variable as the $mods output list built below,
+# $MODS - that would be the same variable as the $mods output list built below,
 # silently emptying the modifier set so Ctrl/Alt/Shift were never recognised.
 $MOD_NAMES = @('ctrl', 'control', 'alt', 'shift', 'win')
 
-# ── Type-text mode: focus the app below the dashboard and type the string. The
-# battle-tested $Keys path below is untouched — this branch always exits first. ──
+# -- Type-text mode: focus the app below the dashboard and type the string. The
+# battle-tested $Keys path below is untouched - this branch always exits first. --
 if ($TypeTextB64) {
   $TypeText = ''
   try { $TypeText = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($TypeTextB64)) }
@@ -242,7 +242,7 @@ if ($TypeTextB64) {
   $ttTarget = [XenonHotkey]::FindTarget()
   if ($ttTarget -eq [IntPtr]::Zero) { Fail 'no_target' }
   $ttTitle = [XenonHotkey]::Title($ttTarget)
-  # -DryRun promises "no focus steal, no keystroke" in EVERY mode — report the
+  # -DryRun promises "no focus steal, no keystroke" in EVERY mode - report the
   # detected target and stop before ClearMods/Focus/SendText can touch anything.
   if ($DryRun) {
     Emit (@{ ok = $true; dryRun = $true; target = $ttTitle } | ConvertTo-Json -Compress)
@@ -271,10 +271,10 @@ foreach ($p in $parts) {
 if ($null -eq $main) { Fail 'no_key' }
 
 # Global shell shortcuts (Win+D show-desktop, Win+E, Win+L, Win+R, Win+A, Win+Tab,
-# Win+<number>, …) are dispatched by the OS/Explorer regardless of which window has
+# Win+<number>, ...) are dispatched by the OS/Explorer regardless of which window has
 # focus. Running the find-target/focus-steal dance for them is not just needless, it
 # BREAKS them: Win+D is a toggle whose "show desktop" latch is cancelled the instant
-# any minimised window is restored — exactly what the focus-steal does — so the second
+# any minimised window is restored - exactly what the focus-steal does - so the second
 # tap minimised again instead of restoring, and when the desktop was already shown
 # FindTarget found nothing and the key reported a hard failure (the on-screen "shake").
 # For these we inject the combo directly. Win+Arrow (snap/move) is excluded: it acts on
@@ -306,7 +306,7 @@ if ($isGlobal) {
 }
 
 # Clear any modifier that an earlier run (or focus change) may have left stuck down,
-# BEFORE we touch focus — otherwise the very first combo inherits the bad state.
+# BEFORE we touch focus - otherwise the very first combo inherits the bad state.
 [XenonHotkey]::ClearMods()
 
 $target = [XenonHotkey]::FindTarget()
@@ -316,14 +316,14 @@ if (-not [XenonHotkey]::Focus($target)) {
   Emit (@{ ok = $false; error = 'focus_failed'; target = $title } | ConvertTo-Json -Compress)
 }
 Start-Sleep -Milliseconds 160      # let the target settle as the active window before
-                                   # we inject — enough after stealing focus from the
+                                   # we inject - enough after stealing focus from the
                                    # dashboard, without making the key feel sluggish.
 
 try {
   [XenonHotkey]::SendCombo($mods.ToArray(), $main)
 }
 finally {
-  # Always release modifiers — a key-up that landed on the wrong window mid-combo
+  # Always release modifiers - a key-up that landed on the wrong window mid-combo
   # must never leave Ctrl/Alt/Shift logically held.
   [XenonHotkey]::ClearMods()
 }

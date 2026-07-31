@@ -1,4 +1,4 @@
-# DDC/CI feasibility probe — throwaway diagnostic (NOT part of the app, not committed).
+# DDC/CI feasibility probe - throwaway diagnostic (NOT part of the app, not committed).
 # Enumerates every physical monitor and asks each one, over DDC/CI, whether it
 # exposes brightness / contrast / RGB-gain controls. Run it once on the machine
 # driving the Xeneon Edge to confirm the panel actually answers DDC/CI before we
@@ -80,7 +80,7 @@ $cb = [Ddc+MonitorEnumProc] {
 [void][Ddc]::EnumDisplayMonitors([IntPtr]::Zero, [IntPtr]::Zero, $cb, [IntPtr]::Zero)
 
 Write-Host ""
-Write-Host "=== DDC/CI probe — $($hmonitors.Count) display(s) found ===" -ForegroundColor Cyan
+Write-Host "=== DDC/CI probe - $($hmonitors.Count) display(s) found ===" -ForegroundColor Cyan
 Write-Host ""
 
 $idx = 0
@@ -97,7 +97,7 @@ foreach ($hm in $hmonitors) {
         continue
     }
 
-    # Identify this HMONITOR: GDI device name (\\.\DISPLAYn — matches Windows
+    # Identify this HMONITOR: GDI device name (\\.\DISPLAYn - matches Windows
     # "Display N") + logical resolution/position, so the Edge can be pinpointed.
     $mi = New-Object 'Ddc+MONITORINFOEX'
     $mi.cbSize = [Runtime.InteropServices.Marshal]::SizeOf($mi)

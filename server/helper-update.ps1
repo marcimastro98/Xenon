@@ -1,4 +1,4 @@
-# Xenon Helper updater — the single source of truth for the helper's minimum
+# Xenon Helper updater - the single source of truth for the helper's minimum
 # version and its download. Invoked as a CHILD process (never dot-sourced) by:
 #   - install.ps1 (first install / reinstall): with -InstallIfMissing, so a fresh
 #     machine always gets the helper.
@@ -6,7 +6,7 @@
 #     only refreshes an EXISTING but outdated exe.
 #
 # Why this exists: the in-app updater applies only the GitHub SOURCE zip, and
-# xenon-helper.exe is NOT in that zip — it is gitignored and attached to each
+# xenon-helper.exe is NOT in that zip - it is gitignored and attached to each
 # release by CI (.github/workflows/helper.yml). Without this, "Update now" would
 # leave users on a stale helper until they re-ran INSTALL.bat. The running server
 # heals it here instead, so one click updates everything, exe included.
@@ -46,7 +46,7 @@ if (Test-Path $exe) {
   if ($have -and $have -ge $minVersion) { Write-HU "up to date (v$have)"; exit 0 }
 } elseif (-not $InstallIfMissing) {
   # No exe and not asked to install one: this machine is on the PowerShell fallback
-  # path by choice. Nothing to do — never a surprise download at boot.
+  # path by choice. Nothing to do - never a surprise download at boot.
   Write-HU 'no helper present; nothing to refresh'
   exit 0
 }
