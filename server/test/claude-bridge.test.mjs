@@ -108,6 +108,7 @@ test('a tool finishing does not un-wait a session that is blocked on the user', 
   // The empirically wrong behaviour: PostToolUse used to force state:'running',
   // so a session genuinely waiting on a permission went back to claiming it was
   // working the moment any other tool completed.
+  bridge.applyHook({ hook_event_name: 'UserPromptSubmit', session_id: 's1', prompt: 'go' });
   bridge.applyHook({ hook_event_name: 'Notification', session_id: 's1', message: 'Claude needs your permission' });
   assert.equal(bridge.snapshot().sessions[0].state, 'waiting');
 
@@ -116,6 +117,57 @@ test('a tool finishing does not un-wait a session that is blocked on the user', 
   const s = bridge.snapshot().sessions[0];
   assert.equal(s.state, 'waiting');
   assert.equal(s.waitFor.kind, 'permission');
+});
+
+test('the idle nudge after a finished turn is not a session waiting on you', () => {
+  const { bridge, advance } = makeBridge();
+  // The real sequence, seen on a session that had been finished for 47 minutes:
+  // the turn ends, and a minute later Claude Code says "Claude is waiting for
+  // your input". That is not a block, it is an empty prompt. Reading it as one
+  // put the session in the waiting state, drew it as "waiting for you" under
+  // the Finished heading, and turned the top bar red while two other sessions
+  // were actually working.
+  bridge.applyHook({ hook_event_name: 'UserPromptSubmit', session_id: 's1', prompt: 'do the thing' });
+  bridge.applyHook({ hook_event_name: 'Stop', session_id: 's1', last_assistant_message: 'Done.' });
+  advance(60_000);
+  bridge.applyHook({ hook_event_name: 'Notification', session_id: 's1', message: 'Claude is waiting for your input' });
+
+  const s = bridge.snapshot().sessions[0];
+  assert.equal(s.state, 'idle');
+  assert.equal(s.waitFor, null);
+});
+
+test('a notification DURING a turn is still a real block', () => {
+  const { bridge } = makeBridge();
+  // Same event, opposite meaning, told apart by when it arrives rather than by
+  // reading its text — which is a different string in every language and every
+  // version. Here there is a tool running, so nothing has ended.
+  bridge.applyHook({ hook_event_name: 'UserPromptSubmit', session_id: 's1', prompt: 'go' });
+  bridge.applyHook({ hook_event_name: 'PreToolUse', session_id: 's1', tool_name: 'Bash', tool_input: { command: 'rm x' } });
+  bridge.applyHook({ hook_event_name: 'Notification', session_id: 's1', message: 'Claude needs your permission to use Bash' });
+
+  const s = bridge.snapshot().sessions[0];
+  assert.equal(s.state, 'waiting');
+  assert.equal(s.waitFor.kind, 'notification');
+});
+
+test('a session we meet for the first time while idle is not waiting either', () => {
+  const { bridge } = makeBridge();
+  // Xenon started after Claude Code did, so the first thing it ever hears about
+  // this session is the idle nudge. With no turn ever seen, the safe reading is
+  // "no turn is running".
+  bridge.applyHook({ hook_event_name: 'Notification', session_id: 's1', cwd: '/a/b', message: 'Claude is waiting for your input' });
+  assert.equal(bridge.snapshot().sessions[0].waitFor, null);
+});
+
+test('a new prompt reopens the turn, so the next notification counts again', () => {
+  const { bridge } = makeBridge();
+  bridge.applyHook({ hook_event_name: 'Stop', session_id: 's1' });
+  bridge.applyHook({ hook_event_name: 'Notification', session_id: 's1', message: 'idle' });
+  assert.equal(bridge.snapshot().sessions[0].waitFor, null);
+  bridge.applyHook({ hook_event_name: 'UserPromptSubmit', session_id: 's1', prompt: 'again' });
+  bridge.applyHook({ hook_event_name: 'Notification', session_id: 's1', message: 'Claude needs your permission' });
+  assert.equal(bridge.snapshot().sessions[0].state, 'waiting');
 });
 
 test('a failed tool is recorded as failed, not as a success', () => {

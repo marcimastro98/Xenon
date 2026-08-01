@@ -445,10 +445,14 @@
   }
 
   function syncTick() {
-    // Two reasons to tick: a live pairing code (a countdown that has to move)
-    // and a running setup job (steps that change on the server, not here).
+    // Three reasons to tick: a live pairing code (a countdown that has to move),
+    // a running setup job (steps that change on the server, not here) — and a
+    // secure door that is asked for and down, because the server keeps retrying
+    // it on its own. Without that last one the panel prints the reason it was
+    // given when it opened, and goes on printing it after the door came up.
     const running = () => !!(_state && _state.httpsSetup && _state.httpsSetup.running);
-    const wantTick = !!(_state && (_state.pairing || running()));
+    const httpsDown = () => !!(_state && _state.httpsEnabled && !(_state.https && _state.https.running));
+    const wantTick = !!(_state && (_state.pairing || running() || httpsDown()));
     if (wantTick && !_tick) {
       let n = 0;
       _tick = setInterval(() => {
@@ -458,7 +462,12 @@
         // every third second, because a job parked on the certificate switch
         // waits up to ten minutes and that must not be 600 requests.
         if (running()) { if (n % 3 === 0) refresh(); return; }
-        if (!_state.pairing) { stopTick(); return; }
+        if (!_state.pairing) {
+          // Every five seconds, not every one: each read probes Tailscale on the
+          // server, and nothing here is a countdown.
+          if (httpsDown()) { if (n % 5 === 0) refresh(); return; }
+          stopTick(); return;
+        }
         // The code expired on the server too — re-read rather than guess, so a
         // phone that paired in the last second shows up in the list.
         if (secsLeft(_state.pairing.expiresAt) <= 0) { refresh(); return; }

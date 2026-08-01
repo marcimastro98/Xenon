@@ -45,6 +45,14 @@ const CMD_TIMEOUT_MS = 8000;
 const AUTHORIZE_TIMEOUT_MS = 120000;   // the user has to click "Authorize" in Discord
 const GUILD_VOICE = 2;          // channel.type for a normal voice channel
 const AUDIO_FEATURES = new Set(['noise_suppression', 'echo_cancellation', 'automatic_gain_control', 'qos']);
+// Per-user LOCAL playback volume (SET_USER_VOICE_SETTINGS): Discord's own
+// per-user slider spans 0-200% and sits at 100 by default.
+const USER_VOL_MAX = 200;
+const DEFAULT_USER_VOL = 100;
+// How many per-user overrides we track for the socket hold below. Naturally
+// bounded by a voice channel's size; capped anyway so nothing here can grow
+// without limit.
+const MAX_USER_OVERRIDES = 200;
 
 const normalizeDiscordCreds = makeCredsNormalizer({ userId: 40, username: 100 });
 
@@ -76,11 +84,40 @@ function nudgedVolume(current, dir, max) {
   return Math.max(0, Math.min(max, Math.round(next)));
 }
 
+// Parse an absolute per-user volume percentage. Discord's own per-user slider
+// spans 0-200, so unlike setVolumeAbs (which caps the MASTER output at 100 by
+// choice) this keeps the full native range: a widget replacing that slider has
+// to be able to reach the same values. Empty/whitespace rejects loud —
+// Number('') is 0 and would silence the person instead of failing.
+function userVolumeAbs(value) {
+  const raw = String(value == null ? '' : value).trim();
+  if (!raw) return null;
+  const pct = Number(raw.replace(',', '.'));
+  if (!Number.isFinite(pct)) return null;
+  return Math.min(USER_VOL_MAX, Math.max(0, Math.round(pct)));
+}
+
+// The next per-user volume for a mode against the member's current one.
+// `current` is what Discord reports for that member (null = unreported, treated
+// as the 100 default). Returns null when a 'set' carries no usable value.
+function userVolumeFor(mode, current, value) {
+  const now = Number.isFinite(current) ? current : DEFAULT_USER_VOL;
+  if (mode === 'set') return userVolumeAbs(value);
+  return nudgedVolume(now, mode, USER_VOL_MAX);
+}
+
 // Map a GET_SELECTED_VOICE_CHANNEL response to a client-safe member list for the
 // widget: display name (server nick > global name > username), muted/deafened
-// flags (server- or self-imposed), and a speaking placeholder the live watch
-// fills in. No avatars/tokens/emails — text only, capped so a huge channel can't
-// bloat the SSE payload.
+// flags (server- or self-imposed), what THIS machine hears them at, and a
+// speaking placeholder the live watch fills in. No avatars/tokens/emails — text
+// only, capped so a huge channel can't bloat the SSE payload.
+//
+// Two different mutes live in one RPC entry and they are not interchangeable:
+// `voice_state.mute`/`self_mute` is the member's OWN microphone state (everyone
+// in the channel sees the same value), while the top-level `mute`/`volume`/`pan`
+// are the local playback settings of THIS client — the ones the per-user volume
+// action writes. Keeping them apart is what lets a widget show "they muted
+// themselves" and "I turned them down" as the different things they are.
 function channelMembers(ch, cap = 50) {
   const states = ch && Array.isArray(ch.voice_states) ? ch.voice_states : [];
   const out = [];
@@ -93,6 +130,10 @@ function channelMembers(ch, cap = 50) {
       name: vs.nick || u.global_name || u.username || '',
       mute: !!(st.mute || st.self_mute),
       deaf: !!(st.deaf || st.self_deaf),
+      // null (not 100) when Discord doesn't report it: a slider that opens at a
+      // guessed value would show a setting the machine isn't actually in.
+      volume: Number.isFinite(vs.volume) ? Math.round(vs.volume) : null,
+      localMute: !!vs.mute,
       speaking: false,
     });
     if (out.length >= cap) break;
@@ -327,6 +368,15 @@ function createDiscordProvider(deps) {
   let idleTimer = null;
   let onReady = null;          // fired once when the IPC READY dispatch arrives
   const pending = new Map();   // nonce -> { resolve, reject }
+  // Per-user local voice settings this session moved off their defaults, as
+  // id -> { volume, mute }. Discord documents that voice settings changed over
+  // RPC are restored "to their state before any modifications" when the app that
+  // changed them disconnects — so an idle-close a minute after the user turned
+  // somebody down would quietly put the volume back while the widget still drew
+  // the new value. While this map is non-empty the socket is held open (see
+  // bumpIdle); an override returned to its default drops out of it and the idle
+  // close resumes.
+  const userOverrides = new Map();
 
   // ── Live voice watch (event subscription; see watchVoice) ──────────────────
   // When a consumer (the dashboard widget, via the server's SSE) is watching, we
@@ -355,6 +405,10 @@ function createDiscordProvider(deps) {
   function close() {
     if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
     if (sock) { try { sock.destroy(); } catch { /* ignore */ } sock = null; }
+    // The socket is gone, so Discord has already restored whatever per-user
+    // settings we had applied — holding the next socket open for them would
+    // guard values that no longer exist.
+    userOverrides.clear();
     ready = null; onReady = null;
     pending.forEach((p) => p.reject(new Error('discord_closed')));
     pending.clear();
@@ -368,8 +422,9 @@ function createDiscordProvider(deps) {
   }
 
   function bumpIdle() {
-    // A live watcher keeps the socket up on purpose — never idle-close it.
-    if (watching) { if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; } return; }
+    // A live watcher — or a per-user override we're holding for Discord — keeps
+    // the socket up on purpose; never idle-close it.
+    if (watching || userOverrides.size) { if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; } return; }
     if (idleTimer) clearTimeout(idleTimer);
     idleTimer = setTimeout(close, IDLE_MS);
   }
@@ -672,6 +727,89 @@ function createDiscordProvider(deps) {
     return { ok: true };
   }
 
+  // ── Per-user local playback (SET_USER_VOICE_SETTINGS) ─────────────────────
+  // Turn ONE person in your voice channel up, down or off, exactly like dragging
+  // their slider in Discord's own UI. This never leaves the machine: it changes
+  // what this client plays, not what anyone else hears, and it is not a moderation
+  // action — a member with no permissions can do it to anybody.
+
+  // Remember (or forget) that a user is sitting on a non-default local setting.
+  // Only the socket hold in bumpIdle() reads this; it is not a cache of Discord's
+  // state, so a missed entry costs an earlier idle-close, never a wrong value.
+  function noteOverride(id, patch) {
+    const prev = userOverrides.get(id) || { volume: DEFAULT_USER_VOL, mute: false };
+    const next = { volume: patch.volume != null ? patch.volume : prev.volume, mute: patch.mute != null ? patch.mute : prev.mute };
+    if (next.volume === DEFAULT_USER_VOL && !next.mute) { userOverrides.delete(id); bumpIdle(); return; }
+    if (!userOverrides.has(id) && userOverrides.size >= MAX_USER_OVERRIDES) return;   // apply anyway, just don't track
+    userOverrides.set(id, next);
+  }
+
+  // Our own account id, for the self check below. Reads the persisted creds
+  // (identify wrote it at link time); '' when unknown, which fails open — the
+  // refusal is a UX nicety, not a security boundary.
+  async function selfUserId() {
+    try { const c = await creds(); return c && c.userId ? String(c.userId) : ''; }
+    catch { return ''; }
+  }
+
+  // The member's current local settings, read live from the channel the user is
+  // in. Needed for up/down and for a mute toggle, and it doubles as the "is this
+  // person actually here" check — Discord silently accepts settings for a user
+  // who isn't in the channel, which would look like a control that did nothing.
+  async function memberVoice(userId) {
+    const chId = await currentChannelId();
+    if (!chId) return { ok: false, error: 'not_in_channel' };
+    let ch;
+    try { ch = await command('GET_CHANNEL', { channel_id: chId }); }
+    catch { return { ok: false, error: 'not_in_channel' }; }
+    // A generous cap for the LOOKUP (the SSE roster stays capped at 50): a
+    // person past the display cap is still someone you can turn down.
+    const member = channelMembers(ch, 500).find((m) => m.id === userId);
+    return member ? { ok: true, member } : { ok: false, error: 'user_not_here' };
+  }
+
+  // Shared front half of both per-user actions: validate the id and refuse our
+  // own account. Discord has no per-user setting for yourself — your own levels
+  // are discordInputVol/discordOutputVol — so a widget that puts a slider on
+  // every row gets a named error instead of a call that reports success and
+  // changes nothing.
+  async function userTarget(userId) {
+    const id = String(userId == null ? '' : userId).trim();
+    if (!isSnowflake(id)) return { ok: false, error: 'bad_user' };
+    if (id === await selfUserId()) return { ok: false, error: 'self_not_supported' };
+    return { ok: true, id };
+  }
+
+  // Both actions read the channel first, even when the value is known up front
+  // and no read is needed to compute it. That read is the ONLY thing that tells
+  // "you are not in a call" and "that person just left" apart from success:
+  // Discord accepts settings for a user who isn't there and answers OK, which
+  // would give the widget a control that reports success and changes nothing.
+  // It costs one local IPC round trip, and widget actions are already capped at
+  // one per 250ms, so even a dragged slider pays nothing that matters.
+  async function setUserVolume(userId, mode, value) {
+    const target = await userTarget(userId);
+    if (!target.ok) return target;
+    const cur = await memberVoice(target.id);
+    if (!cur.ok) return cur;
+    const volume = userVolumeFor(mode, cur.member.volume, value);
+    if (volume == null) return { ok: false, error: 'bad_value' };
+    await command('SET_USER_VOICE_SETTINGS', { user_id: target.id, volume });
+    noteOverride(target.id, { volume });
+    return { ok: true };
+  }
+
+  async function setUserMute(userId, mode) {
+    const target = await userTarget(userId);
+    if (!target.ok) return target;
+    const cur = await memberVoice(target.id);
+    if (!cur.ok) return cur;
+    const mute = mode === 'mute' ? true : (mode === 'unmute' ? false : !cur.member.localMute);
+    await command('SET_USER_VOICE_SETTINGS', { user_id: target.id, mute });
+    noteOverride(target.id, { mute });
+    return { ok: true };
+  }
+
   async function toggleAudioFeature(feature) {
     if (!AUDIO_FEATURES.has(feature)) return { ok: false, error: 'bad_feature' };
     const cur = await command('GET_VOICE_SETTINGS');
@@ -692,6 +830,8 @@ function createDiscordProvider(deps) {
         case 'discordLeave':  return await leaveVoice();
         case 'discordInputVol':  return a.mode === 'set' ? await setVolumeAbs('input', a.value) : await nudgeVolume('input', 100, a.mode);
         case 'discordOutputVol': return a.mode === 'set' ? await setVolumeAbs('output', a.value) : await nudgeVolume('output', 200, a.mode);
+        case 'discordUserVol':  return await setUserVolume(a.user, a.mode, a.value);
+        case 'discordUserMute': return await setUserMute(a.user, a.mode);
         case 'discordAudioToggle': return await toggleAudioFeature(a.feature);
         case 'discordSoundboard':  return await playSoundboard(a.sound);
         default: return { ok: false, error: 'unsupported' };
@@ -1036,9 +1176,14 @@ function createDiscordProvider(deps) {
   // Notification-feed health for the widget: 'off' | 'ok' | 'scope_missing'.
   function notifStatus() { return notifState; }
 
+  // Is the socket currently being held open for a per-user override? Diagnostic
+  // only — nothing in the app branches on it, and the tests use it to pin the
+  // hold/release behaviour that keeps Discord from reverting what the user set.
+  function holdingUserOverrides() { return userOverrides.size > 0; }
+
   // NB: getAccessToken stays a private closure — never exposed on the provider, so
   // no consumer (or generic forwarding layer) can pull a live token off it.
-  return { configured, status, login, logout, runAction, listVoiceChannels, listSoundboardSounds, voiceRoster, voiceState, watchVoice, notifStatus, close };
+  return { configured, status, login, logout, runAction, listVoiceChannels, listSoundboardSounds, voiceRoster, voiceState, watchVoice, notifStatus, holdingUserOverrides, close };
 }
 
 module.exports = {
@@ -1053,6 +1198,8 @@ module.exports = {
   toggleValue,
   nextPttType,
   nudgedVolume,
+  userVolumeAbs,
+  userVolumeFor,
   channelMembers,
   encodeFrame,
   createDecoder,

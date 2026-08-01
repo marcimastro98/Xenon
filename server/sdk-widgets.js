@@ -71,7 +71,11 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // untrusted widget code; the typed device actions cover normal control.
   spotify: Object.freeze(['spotifyPlay', 'spotifyNext', 'spotifyPrev', 'spotifySave', 'spotifyLike', 'spotifyShuffle', 'spotifyRepeat', 'spotifyVolume', 'spotifySeek', 'spotifyPlaylist', 'spotifyDevice']),
   obs: Object.freeze(['obsScene', 'obsSceneNext', 'obsRecord', 'obsStream', 'obsMute', 'obsInputVolume']),
-  discord: Object.freeze(['discordMute', 'discordDeafen', 'discordPtt', 'discordJoin', 'discordLeave', 'discordInputVol', 'discordOutputVol', 'discordAudioToggle', 'discordSoundboard']),
+  // discordUserVol/discordUserMute change what THIS machine hears from one
+  // person in the user's own voice channel — local playback, not moderation and
+  // not anything the rest of the channel can observe. Same grant as the other
+  // voice controls: a widget the user handed the `discord` category to.
+  discord: Object.freeze(['discordMute', 'discordDeafen', 'discordPtt', 'discordJoin', 'discordLeave', 'discordInputVol', 'discordOutputVol', 'discordUserVol', 'discordUserMute', 'discordAudioToggle', 'discordSoundboard']),
   homeassistant: Object.freeze(['haToggle', 'haLight', 'haMedia', 'haCover', 'haClimate', 'haFan', 'haVacuum', 'haLock', 'haAlarm', 'haScene', 'haScript', 'haButton']),
   twitch: Object.freeze(['twitchClip', 'twitchMarker', 'twitchAd', 'twitchTitle', 'twitchGame', 'twitchChat', 'twitchShoutout', 'twitchChatMode']),
   youtube: Object.freeze(['ytBroadcast']),

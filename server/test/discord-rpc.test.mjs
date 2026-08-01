@@ -8,7 +8,7 @@ import fs from 'node:fs';
 const require = createRequire(import.meta.url);
 const dc = require('../discord-rpc.js');
 const reg = require('../actions/registry.js');
-const { validateAction } = require('../js/deck-actions.js');
+const { validateAction, actionSpec } = require('../js/deck-actions.js');
 
 async function waitFor(predicate, timeoutMs = 1000) {
   const deadline = Date.now() + timeoutMs;
@@ -137,6 +137,32 @@ test('nudgedVolume steps by 10 and clamps to range', () => {
   assert.equal(dc.nudgedVolume(NaN, 'up', 100), 10);      // undefined current → 0-based
 });
 
+test('userVolumeAbs keeps Discord\'s full per-user range and rejects loud', () => {
+  assert.equal(dc.userVolumeAbs('60'), 60);
+  assert.equal(dc.userVolumeAbs('60,5'), 61);       // decimal comma, rounded
+  assert.equal(dc.userVolumeAbs('200'), 200);       // the per-user slider really does reach 200
+  assert.equal(dc.userVolumeAbs('400'), 200);       // clamped, not refused
+  assert.equal(dc.userVolumeAbs('-5'), 0);
+  // Empty must NOT become 0: a blank value silencing someone is the loud failure.
+  assert.equal(dc.userVolumeAbs(''), null);
+  assert.equal(dc.userVolumeAbs('   '), null);
+  assert.equal(dc.userVolumeAbs(null), null);
+  assert.equal(dc.userVolumeAbs('loud'), null);
+});
+
+test('userVolumeFor nudges from the member\'s current volume and defaults to 100', () => {
+  assert.equal(dc.userVolumeFor('up', 60), 70);
+  assert.equal(dc.userVolumeFor('down', 60), 50);
+  assert.equal(dc.userVolumeFor('up', 195), 200);           // clamp to the per-user max
+  assert.equal(dc.userVolumeFor('down', 5), 0);
+  // Discord didn't report a volume → treat it as the documented 100 default, so
+  // a first nudge moves from where the person actually is, not from silence.
+  assert.equal(dc.userVolumeFor('up', null), 110);
+  assert.equal(dc.userVolumeFor('down', null), 90);
+  assert.equal(dc.userVolumeFor('set', 60, '35'), 35);
+  assert.equal(dc.userVolumeFor('set', 60, ''), null);
+});
+
 test('encodeFrame / createDecoder round-trip, incl. split across chunks', () => {
   const a = dc.encodeFrame(0, { v: 1, client_id: 'x' });
   const b = dc.encodeFrame(1, { cmd: 'AUTHENTICATE', nonce: 'n1' });
@@ -188,6 +214,31 @@ test('registry degrades cleanly when discord dep is missing or fails', async () 
   assert.deepEqual(await reg.createRegistry({}).run({ type: 'discordMute', mode: 'mute' }), { ok: false, error: 'discord_unavailable' });
   const failing = { discord: () => Promise.resolve({ ok: false, error: 'not_connected' }) };
   assert.deepEqual(await reg.createRegistry(failing).run({ type: 'discordJoin', channel: '1' }), { ok: false, error: 'not_connected' });
+});
+
+test('registry routes the per-user voice actions through deps.discord', async () => {
+  const seen = [];
+  const deps = { discord: (action) => { seen.push(action); return Promise.resolve({ ok: true }); } };
+  const r = reg.createRegistry(deps);
+  assert.deepEqual(await r.run({ type: 'discordUserVol', user: '900', mode: 'set', value: '60' }), { ok: true });
+  assert.deepEqual(await r.run({ type: 'discordUserMute', user: '900', mode: 'toggle' }), { ok: true });
+  assert.deepEqual(seen[0], { type: 'discordUserVol', user: '900', mode: 'set', value: '60' });
+  assert.deepEqual(seen[1], { type: 'discordUserMute', user: '900', mode: 'toggle' });
+});
+
+// SDK-only, like mediaSeek: the Deck editor must not offer a key whose target is
+// a user id that only means anything while that person is in the channel.
+test('the per-user voice actions are hidden from the Deck editor but validate', () => {
+  for (const type of ['discordUserVol', 'discordUserMute']) {
+    assert.equal(actionSpec(type).hidden, true, type + ' must be hidden from the picker');
+  }
+  // Unknown mode → first option; an unknown extra field is dropped; value is optional.
+  assert.deepEqual(validateAction({ type: 'discordUserVol', user: '900', mode: 'bogus', junk: 1 }),
+    { type: 'discordUserVol', user: '900', mode: 'up' });
+  assert.deepEqual(validateAction({ type: 'discordUserMute', user: '900', mode: 'mute' }),
+    { type: 'discordUserMute', user: '900', mode: 'mute' });
+  // The id is free text here and re-validated as a snowflake in the provider.
+  assert.equal(validateAction({ type: 'discordUserVol', user: '9'.repeat(80) }).user.length, 25);
 });
 
 test('validateAction coerces discord params to the catalog', () => {
@@ -346,17 +397,30 @@ test('channelMembers maps voice_states to a client-safe member list', () => {
   const ch = {
     id: '1', name: 'General',
     voice_states: [
-      { user: { id: '10', username: 'bob', global_name: 'Bob' }, nick: 'Bobby', voice_state: { self_mute: true } },
+      { user: { id: '10', username: 'bob', global_name: 'Bob' }, nick: 'Bobby', voice_state: { self_mute: true }, volume: 60.4, mute: false },
       { user: { id: '11', username: 'ann' }, voice_state: { deaf: true } },
       { nick: 'ghost' },                    // no user → skipped
     ],
   };
   const m = dc.channelMembers(ch);
   assert.equal(m.length, 2);
-  assert.deepEqual(m[0], { id: '10', name: 'Bobby', mute: true, deaf: false, speaking: false });  // nick wins, self_mute → mute
-  assert.deepEqual(m[1], { id: '11', name: 'ann', mute: false, deaf: true, speaking: false });
+  assert.deepEqual(m[0], { id: '10', name: 'Bobby', mute: true, deaf: false, volume: 60, localMute: false, speaking: false });  // nick wins, self_mute → mute
+  // Discord reported no local settings for ann: volume stays null rather than a
+  // guessed 100, so a widget slider can't open at a value the machine isn't at.
+  assert.deepEqual(m[1], { id: '11', name: 'ann', mute: false, deaf: true, volume: null, localMute: false, speaking: false });
   assert.deepEqual(dc.channelMembers(null), []);
   assert.equal(dc.channelMembers({ voice_states: Array.from({ length: 80 }, (_, i) => ({ user: { id: String(i), username: 'u' + i } })) }).length, 50);  // capped
+});
+
+// The two mutes in one entry are different facts and must not be merged: the
+// member's own mic (everyone sees it) vs what THIS client plays (nobody else does).
+test('channelMembers keeps the member mic mute and the local mute apart', () => {
+  const [m] = dc.channelMembers({ voice_states: [
+    { user: { id: '10', username: 'bob' }, voice_state: { self_mute: false }, mute: true, volume: 0 },
+  ] });
+  assert.equal(m.mute, false, 'their microphone is live');
+  assert.equal(m.localMute, true, 'we are the ones not listening');
+  assert.equal(m.volume, 0);
 });
 
 test('provider.voiceState includes the current channel members', async () => {
@@ -378,6 +442,126 @@ test('provider.voiceState includes the current channel members', async () => {
   assert.equal(vs.members.length, 1);
   assert.equal(vs.members[0].name, 'Alice');
   assert.equal(vs.members[0].speaking, false);
+  p.close();
+});
+
+// ── Per-user local playback (SET_USER_VOICE_SETTINGS) ────────────────────────
+
+// A tokens file with our own account id, so the "that's you" check has something
+// to compare against.
+function userVoiceTokens() {
+  const tokensFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'xdc-')), 'tokens.json');
+  fs.writeFileSync(tokensFile, JSON.stringify({ discord: { accessToken: 'tok', refreshToken: 'r', expiresAt: Date.now() + 3600_000, username: 'me', userId: '500000000000000000' } }));
+  return tokensFile;
+}
+
+// A provider in a voice channel holding alice (900, turned down to 60) and bob
+// (901, locally muted). `sent` records every command that reached the pipe.
+function userVoiceProvider(sent) {
+  return dc.createDiscordProvider({
+    clientId: 'id', clientSecret: 'secret', tokensFile: userVoiceTokens(),
+    connect: () => Promise.resolve(fakePipe((cmd, args) => {
+      sent.push([cmd, args]);
+      if (cmd === 'GET_SELECTED_VOICE_CHANNEL') return { id: '199737254929760257', name: 'General', type: 2 };
+      if (cmd === 'GET_CHANNEL') return { id: '199737254929760257', name: 'General', voice_states: [
+        { user: { id: '900000000000000001', username: 'alice' }, voice_state: {}, volume: 60, mute: false },
+        { user: { id: '900000000000000002', username: 'bob' }, voice_state: {}, volume: 100, mute: true },
+      ] };
+      return {};
+    })),
+  });
+}
+
+test('setUserVolume sets an absolute volume, having checked the person is there', async () => {
+  const sent = [];
+  const p = userVoiceProvider(sent);
+  assert.deepEqual(await p.runAction({ type: 'discordUserVol', user: '900000000000000001', mode: 'set', value: '45' }), { ok: true });
+  assert.deepEqual(sent.find((s) => s[0] === 'SET_USER_VOICE_SETTINGS')[1], { user_id: '900000000000000001', volume: 45 });
+  // Even a value that needs no computing is preceded by the read: it is the only
+  // thing that can tell a success from a setting applied to an empty chair.
+  assert.ok(sent.some((s) => s[0] === 'GET_CHANNEL'));
+  p.close();
+});
+
+test('setUserVolume nudges from what Discord currently reports for that member', async () => {
+  const sent = [];
+  const p = userVoiceProvider(sent);
+  assert.deepEqual(await p.runAction({ type: 'discordUserVol', user: '900000000000000001', mode: 'up' }), { ok: true });
+  assert.ok(sent.some((s) => s[0] === 'GET_CHANNEL'));
+  assert.deepEqual(sent.find((s) => s[0] === 'SET_USER_VOICE_SETTINGS')[1], { user_id: '900000000000000001', volume: 70 });   // 60 → 70
+  p.close();
+});
+
+test('setUserMute flips the LOCAL mute, not the member\'s microphone', async () => {
+  const sent = [];
+  const p = userVoiceProvider(sent);
+  // bob is locally muted → a toggle unmutes him for us.
+  assert.deepEqual(await p.runAction({ type: 'discordUserMute', user: '900000000000000002', mode: 'toggle' }), { ok: true });
+  assert.deepEqual(sent.find((s) => s[0] === 'SET_USER_VOICE_SETTINGS')[1], { user_id: '900000000000000002', mute: false });
+  sent.length = 0;
+  assert.deepEqual(await p.runAction({ type: 'discordUserMute', user: '900000000000000001', mode: 'mute' }), { ok: true });
+  assert.deepEqual(sent.find((s) => s[0] === 'SET_USER_VOICE_SETTINGS')[1], { user_id: '900000000000000001', mute: true });
+  p.close();
+});
+
+// Discord has no per-user setting for yourself — it would report success and
+// change nothing, which is exactly the failure this codebase refuses to ship.
+test('the per-user actions refuse the user\'s own account', async () => {
+  const sent = [];
+  const p = userVoiceProvider(sent);
+  assert.deepEqual(await p.runAction({ type: 'discordUserVol', user: '500000000000000000', mode: 'set', value: '50' }),
+    { ok: false, error: 'self_not_supported' });
+  assert.deepEqual(await p.runAction({ type: 'discordUserMute', user: '500000000000000000', mode: 'mute' }),
+    { ok: false, error: 'self_not_supported' });
+  assert.equal(sent.some((s) => s[0] === 'SET_USER_VOICE_SETTINGS'), false);
+  p.close();
+});
+
+test('the per-user actions name why they could not act', async () => {
+  const sent = [];
+  const p = userVoiceProvider(sent);
+  // Not a snowflake: refused before anything is sent.
+  assert.deepEqual(await p.runAction({ type: 'discordUserVol', user: 'not-an-id', mode: 'set', value: '50' }),
+    { ok: false, error: 'bad_user' });
+  // A blank 'set' value must fail loud rather than silence the person.
+  assert.deepEqual(await p.runAction({ type: 'discordUserVol', user: '900000000000000001', mode: 'set', value: '' }),
+    { ok: false, error: 'bad_value' });
+  // Someone who isn't in this channel: Discord would accept it silently, so both
+  // the nudging and the absolute path have to catch it.
+  assert.deepEqual(await p.runAction({ type: 'discordUserVol', user: '999000000000000000', mode: 'up' }),
+    { ok: false, error: 'user_not_here' });
+  assert.deepEqual(await p.runAction({ type: 'discordUserVol', user: '999000000000000000', mode: 'set', value: '50' }),
+    { ok: false, error: 'user_not_here' });
+  assert.deepEqual(await p.runAction({ type: 'discordUserMute', user: '999000000000000000', mode: 'mute' }),
+    { ok: false, error: 'user_not_here' });
+  assert.equal(sent.some((s) => s[0] === 'SET_USER_VOICE_SETTINGS'), false);
+  p.close();
+});
+
+test('the per-user actions report not_in_channel when the user is not in a call', async () => {
+  const p = dc.createDiscordProvider({
+    clientId: 'id', clientSecret: 'secret', tokensFile: userVoiceTokens(),
+    connect: () => Promise.resolve(fakePipe(() => ({}))),    // no selected voice channel
+  });
+  assert.deepEqual(await p.runAction({ type: 'discordUserMute', user: '900000000000000001', mode: 'toggle' }),
+    { ok: false, error: 'not_in_channel' });
+  p.close();
+});
+
+// Discord restores per-user settings when the app that changed them disconnects,
+// so an idle close would silently undo what the user just did. The socket is held
+// while an override is live and released once it returns to its default.
+test('an active per-user override holds the socket open, and giving it back releases it', async () => {
+  const sent = [];
+  const p = userVoiceProvider(sent);
+  await p.runAction({ type: 'discordUserVol', user: '900000000000000001', mode: 'set', value: '45' });
+  assert.equal(p.holdingUserOverrides(), true);
+  await p.runAction({ type: 'discordUserMute', user: '900000000000000002', mode: 'mute' });
+  assert.equal(p.holdingUserOverrides(), true);
+  await p.runAction({ type: 'discordUserVol', user: '900000000000000001', mode: 'set', value: '100' });
+  assert.equal(p.holdingUserOverrides(), true, '901 is still muted');
+  await p.runAction({ type: 'discordUserMute', user: '900000000000000002', mode: 'unmute' });
+  assert.equal(p.holdingUserOverrides(), false, 'everything back to default → let the socket idle out');
   p.close();
 });
 
@@ -409,7 +593,7 @@ test('provider.voiceRoster lists each voice channel with its current members', a
   assert.equal(general.name, 'General');
   assert.equal(general.guild, 'Server One');
   assert.equal(general.members.length, 1);
-  assert.deepEqual(general.members[0], { id: '900', name: 'Alice', mute: true, deaf: false, speaking: false });
+  assert.deepEqual(general.members[0], { id: '900', name: 'Alice', mute: true, deaf: false, volume: null, localMute: false, speaking: false });
   assert.deepEqual(r.channels.find((c) => c.id === '102').members, []);   // nobody inside
   p.close();
 });
