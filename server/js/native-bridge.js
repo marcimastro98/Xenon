@@ -938,6 +938,10 @@
       fullscreen: d.fullscreen === true,
       active: d.active || '',
       missing: d.missing === true,
+      // The shell pinned its render GPU at launch and the screens have moved
+      // since, so it is now drawing on one adapter and presenting on another
+      // (see apps/native/src-tauri/src/gpu.rs). Only a restart can change it.
+      gpuMismatch: d.gpuMismatch === true,
     };
   }
 

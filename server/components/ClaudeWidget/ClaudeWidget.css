@@ -880,55 +880,127 @@ body.overlay-frozen .cw-typing-dot { animation: none; opacity: 0.6; }
 }
 .cw-tb:hover { background: rgba(255,255,255,0.09); }
 /* Claude's orange, not the dashboard accent. The mark is here to say WHOSE
-   session this is, and a mark repainted in whatever accent the user picked says
-   that much less clearly. Same value the widget already uses for the Opus model
-   chip, so the two agree. */
+   session this is, and repainting it in whatever accent the user picked says
+   that much less clearly.
+   This is the value the codebase already carries in two other places — the Opus
+   model chip in claude-widget.js and the provider glyph in index.html — so all
+   three agree. The sprite itself measures #D77757, one step off in red and
+   invisible at any size; using the established one is worth more than matching
+   a difference nobody can see. */
 .cw-tb { color: #D97757; }
-.cw-tb-mark { width: 15px; height: 15px; display: block; flex: 0 0 auto; }
+/* 4:3, because the sprite is 16x12, and both axes scale by the same 1.5 so the
+   pixels stay square. Chosen by looking at 16, 20, 24 and 28 side by side: below
+   this the eye holes and the gaps between the legs close up and Clawd turns into
+   an orange blob, above it he is too big to sit next to a clock.
+   `shape-rendering: crispEdges` on the sprite keeps the edges on device pixels. */
+.cw-tb-mark { width: 24px; height: 18px; display: block; flex: 0 0 auto; }
+.cw-cl-shell rect, .cw-cl-leg rect, .cw-cl-eyes rect { fill: currentColor; }
+/* The eyes are holes in the sprite, so "closed" means painted over. Kept at
+   zero until a blink asks for them. */
+.cw-cl-eyes { opacity: 0; }
 .cw-tb-n { font-size: 10px; font-weight: 800; opacity: 0.65; font-variant-numeric: tabular-nums; color: var(--text, #f0f3f1); }
-/* The badge for "blocked on you", riding on the corner of the mark. */
+/* The badge, riding on Clawd's shoulder. Amber means blocked on you; the accent
+   means finished and unread. It carries the state on its own, because the walk
+   and the blink are switched off whenever the dashboard goes quiet and a state
+   told only by motion is no state at all then. */
 .cw-tb-alert {
   width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto;
-  background: var(--xe-warn, #f5a524); margin-left: -4px; align-self: flex-start; margin-top: 2px;
+  background: var(--xe-warn, #f5a524); margin-left: -4px; align-self: flex-start; margin-top: 1px;
 }
+.cw-tb-alert.is-done { background: var(--accent, #1ed760); }
 
-/* Working: one slow turn. A rotation is a transform, so it composites on its
-   own layer and costs nothing per frame beyond that — and unlike a blinking dot
-   it reads as ongoing rather than as an alert. */
-.cw-tb.is-working .cw-tb-mark {
-  animation: cw-tb-turn 6s linear infinite; will-change: transform;
+/* Everything below animates in WHOLE SPRITE UNITS on steps() timing. A pixel
+   character that eases between positions stops being a pixel character: it
+   smears across a subpixel and looks like a JPEG of itself. One unit is 1.5px
+   at the size above, so the transforms are written in those pixels. */
+
+/* Working: Clawd walks. The shell bobs a unit as the legs alternate, which is
+   the whole trick — four static legs plus a bob reads as walking, and nothing
+   here needs more than two frames. */
+.cw-tb.is-working .cw-cl-shell {
+  animation: cw-cl-bob 0.5s steps(1, end) infinite; will-change: transform;
 }
-@keyframes cw-tb-turn { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.cw-tb.is-working .cw-cl-legl { animation: cw-cl-stepa 0.5s steps(1, end) infinite; }
+.cw-tb.is-working .cw-cl-legr { animation: cw-cl-stepb 0.5s steps(1, end) infinite; }
+@keyframes cw-cl-bob   { 0% { transform: translateY(0); }      50% { transform: translateY(1.5px); } }
+@keyframes cw-cl-stepa { 0% { transform: translateY(0); }      50% { transform: translateY(1.5px); } }
+@keyframes cw-cl-stepb { 0% { transform: translateY(1.5px); } 50% { transform: translateY(0); } }
 
-/* Finished, and you have not looked yet: solid, still, slightly larger. It is a
-   result waiting to be read, not something still happening. */
-.cw-tb.is-done .cw-tb-mark { transform: scale(1.08); }
+/* Finished, and you have not looked yet: Clawd stands still and blinks. Still
+   is the point — it is a result waiting to be read, not something happening —
+   and the blink is what keeps "still" from reading as "broken". */
+.cw-tb.is-done .cw-cl-eyes {
+  animation: cw-cl-blink 4.5s steps(1, end) infinite;
+}
+@keyframes cw-cl-blink { 0%, 94% { opacity: 0; } 96%, 99% { opacity: 1; } 100% { opacity: 0; } }
 
-/* Blocked on you. The one state that is allowed to pull the eye: a double knock
-   rather than a steady blink, because two beats and a pause reads as somebody
-   asking and then waiting, which is exactly what is happening. */
+/* Blocked on you: two hops and a pause. Two beats and a wait reads as somebody
+   knocking and then standing there, which is exactly what is happening — and it
+   is the one state allowed to pull the eye away from the dashboard. */
 .cw-tb.is-waiting .cw-tb-mark {
-  animation: cw-tb-knock 2.6s ease-in-out infinite; will-change: transform, opacity;
+  animation: cw-cl-hop 1.9s steps(1, end) infinite; will-change: transform;
 }
-@keyframes cw-tb-knock {
-  0%, 62%, 100% { transform: scale(1); opacity: 0.85; }
-  8%  { transform: scale(1.22); opacity: 1; }
-  16% { transform: scale(1); opacity: 0.85; }
-  24% { transform: scale(1.22); opacity: 1; }
-  32% { transform: scale(1); opacity: 0.85; }
+@keyframes cw-cl-hop {
+  0%, 100% { transform: translateY(0); }
+  6%  { transform: translateY(-3px); }
+  12% { transform: translateY(0); }
+  20% { transform: translateY(-3px); }
+  26% { transform: translateY(0); }
 }
 
-/* Both infinite animations join the four freeze states. The selectors repeat
-   the same class count the rules above use (0,2,0), so neither can lose the
-   cascade the way the session-dot ripple silently did — and `animation: none`
-   is paired with a resting transform, because a running animation beats a
-   static declaration and would otherwise keep the last keyframe. */
-body.overlay-frozen .cw-tb .cw-tb-mark,
-body.ambient-idle .cw-tb .cw-tb-mark,
-body.game-mode .cw-tb .cw-tb-mark,
-body.low-power-gpu .cw-tb .cw-tb-mark { animation: none; transform: none; opacity: 1; }
+/* Every infinite animation above joins the four freeze states. The selectors
+   carry the same class count as the rules they have to beat, so none can lose
+   the cascade the way the session-dot ripple silently did — and `animation:
+   none` is paired with a resting transform, because a running animation beats a
+   static declaration and would otherwise leave the sprite stuck mid-hop. */
+body.overlay-frozen .cw-tb .cw-tb-mark, body.overlay-frozen .cw-tb .cw-cl-shell,
+body.overlay-frozen .cw-tb .cw-cl-leg,  body.overlay-frozen .cw-tb .cw-cl-eyes,
+body.ambient-idle .cw-tb .cw-tb-mark,   body.ambient-idle .cw-tb .cw-cl-shell,
+body.ambient-idle .cw-tb .cw-cl-leg,    body.ambient-idle .cw-tb .cw-cl-eyes,
+body.game-mode .cw-tb .cw-tb-mark,      body.game-mode .cw-tb .cw-cl-shell,
+body.game-mode .cw-tb .cw-cl-leg,       body.game-mode .cw-tb .cw-cl-eyes,
+body.low-power-gpu .cw-tb .cw-tb-mark,  body.low-power-gpu .cw-tb .cw-cl-shell,
+body.low-power-gpu .cw-tb .cw-cl-leg,   body.low-power-gpu .cw-tb .cw-cl-eyes {
+  animation: none; transform: none;
+}
+body.overlay-frozen .cw-tb .cw-cl-eyes, body.ambient-idle .cw-tb .cw-cl-eyes,
+body.game-mode .cw-tb .cw-cl-eyes,      body.low-power-gpu .cw-tb .cw-cl-eyes { opacity: 0; }
+
+/* …with ONE exemption, and it is the whole point of the thing.
+
+   The quiet-screen states exist to stop DECORATION: a dashboard alone in a room
+   burning GPU for nobody. The hop is not decoration. It is the only element on
+   the top bar that means a person is required — Claude Code is blocked, on this
+   machine, right now, and will stay blocked until somebody answers. Freezing it
+   makes the one thing that needs attention the one thing that stops moving,
+   which is backwards, and it was measured that way: three of these were on at
+   once (a dialog open, a minute without touches, Performance Mode) over a
+   session that had been waiting three and a half minutes, and Clawd stood
+   perfectly still under a tooltip saying it wanted an answer.
+   It is the same call already made for the fullscreen approval, which ambient
+   mode is not allowed to start over.
+   `perf-mode` needs !important because its rule is a global `*` with
+   !important; this selector is (0,4,1) against its (0,1,0), so it wins on
+   specificity rather than by shouting louder. The cost being bought back is
+   four discrete transform steps every 1.9 seconds on a 24x18 sprite, only while
+   something is actually blocked, and it stops the moment you answer.
+   Reduced motion is NOT overridden: the exemption lives inside a
+   no-preference query, so for anyone who asked for less movement it simply does
+   not exist rather than having to be beaten. */
+@media (prefers-reduced-motion: no-preference) {
+  body.overlay-frozen .cw-tb.is-waiting .cw-tb-mark,
+  body.ambient-idle .cw-tb.is-waiting .cw-tb-mark,
+  body.game-mode .cw-tb.is-waiting .cw-tb-mark,
+  body.low-power-gpu .cw-tb.is-waiting .cw-tb-mark,
+  body.perf-mode .cw-tb.is-waiting .cw-tb-mark {
+    animation: cw-cl-hop 1.9s steps(1, end) infinite !important;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .cw-tb .cw-tb-mark { animation: none !important; transform: none; }
+  .cw-tb .cw-tb-mark, .cw-tb .cw-cl-shell, .cw-tb .cw-cl-leg, .cw-tb .cw-cl-eyes {
+    animation: none !important; transform: none;
+  }
+  .cw-tb .cw-cl-eyes { opacity: 0; }
 }
 
 /* ── "another session answered" ─────────────────────────────────────────────

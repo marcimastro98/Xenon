@@ -24,8 +24,10 @@ mod tray;
 ///
 /// The switches: wry's default `--disable-features` set (replaced wholesale by
 /// this override, so it is re-included), the three anti-throttling switches
-/// that keep the unfocused kiosk renderer alive, and the hybrid-GPU pin from
-/// `gpu::webview_gpu_flag()`.
+/// that keep the unfocused kiosk renderer alive, and the hybrid-GPU pin, which
+/// MUST come from `gpu::applied()` — the flag this process launched with — and
+/// never from a fresh decision. Re-deciding is how the blank Spotlight bar came
+/// back: the answer changes the moment a display is plugged in or out.
 #[cfg(windows)]
 pub(crate) fn browser_args(gpu_flag: Option<&str>) -> String {
     let mut args = String::from(
@@ -1018,11 +1020,21 @@ pub fn run() {
             // webview itself never leaves the splash/dashboard. Props mirror the
             // former config window (borderless, full-screen, 2560×720 Edge size).
             let nav_handle = app.handle().clone();
-            // Computed once, up front, so both the WebView2 launch flag below
-            // (`additional_browser_args`) and the JS-facing cap just below it
-            // read the SAME decision instead of enumerating displays twice.
+            // The saved screen choice, read once here: it decides the initial
+            // window visibility, seeds the watchdog's in-memory mirror, and
+            // carries the GPU-pin preference read just below — all of which
+            // happen before the backend is necessarily up.
+            let display_prefs = prefs::load(app.handle());
+            monitor::set_placement_cache(&display_prefs);
+            // Decide the WebView2 render GPU ONCE, before any webview exists, and
+            // record it: `additional_browser_args` is an environment option fixed
+            // for the whole process, so every later builder must read back the
+            // SAME value (`gpu::applied`) rather than re-deciding. Recomputing per
+            // window was a live bug — see the note at the top of gpu.rs. The
+            // JS-facing `lowPowerGpu` cap below reads this decision too, instead of
+            // enumerating displays a second time.
             #[cfg(windows)]
-            let gpu_flag = gpu::webview_gpu_flag();
+            let gpu_flag = gpu::arm(display_prefs.gpu_pin);
             #[cfg(not(windows))]
             let gpu_flag: Option<&'static str> = None;
             // Runtime-only capabilities merged over the shim's literal caps: the
@@ -1036,11 +1048,6 @@ pub fn run() {
             // real presented frame rate into single digits (measured via
             // PresentMon — see the "native-app-hybrid-gpu-idle-burn" note).
             // serde-encoding keeps the injection a safe JS literal.
-            // The saved screen choice, read once here: it decides the initial
-            // window visibility AND seeds the watchdog's in-memory mirror, both
-            // of which happen before the backend is necessarily up.
-            let display_prefs = prefs::load(app.handle());
-            monitor::set_placement_cache(&display_prefs);
             // `--autostart` is appended to the login entry (see the plugin init
             // above), so its presence tells a login launch from a deliberate one.
             // A user who double-clicks Xenon must always SEE it, even in phone
@@ -1347,7 +1354,8 @@ pub fn run() {
             //    (the Edge, typically an iGPU over USB-C). Rendering on a different
             //    GPU than the one scanning out the window makes Chromium copy every
             //    composited frame across adapters on the CPU — ~1.5 idle cores on a
-            //    hybrid-GPU machine. See gpu::webview_gpu_flag (no-op off hybrids);
+            //    hybrid-GPU machine. See gpu::arm (no-op off hybrids, and off when
+            //    the user turned the pin off in the tray);
             //    `gpu_flag` was already computed above, alongside the JS-facing
             //    `lowPowerGpu` cap.
             #[cfg(windows)]

@@ -2268,14 +2268,19 @@
         </label>
       </div>
 
-      <div class="settings-group" data-settings-cat="performance">
-        <div class="settings-group-head">
-          <span data-i18n="sensors_admin_title">Sensori hardware</span>
-        </div>
-        <!-- Enable-sensors card renders here (js/sensor-access.js → initSettings()):
-             visible only when LibreHardwareMonitor is present but unelevated. -->
-        <div id="settings-sensors-hub"></div>
-      </div>
+      <!-- Hardware sensors. The WHOLE section is built by js/sensor-access.js →
+           initSettings(), heading included, and only when there is something to
+           repair. It used to be a static .settings-group with the heading in
+           here, which meant the box existed even with nothing in it: on macOS
+           and Linux, where LibreHardwareMonitor does not exist at all, it drew a
+           titled panel containing absolutely nothing, and on a healthy Windows
+           box it sat at the top of the Performance page saying only "already
+           on". While empty this host is hidden by `#settings-sensors-hub:empty`
+           in styles/controls.css — an empty div still occupies a row of
+           .settings-content's grid and the row-gap above the next section, so
+           leaving it in the flow trades a titled empty box for an untitled
+           empty one. -->
+      <div id="settings-sensors-hub" data-settings-cat="performance"></div>
 
       <div class="settings-group" data-settings-cat="performance">
         <div class="settings-group-head">

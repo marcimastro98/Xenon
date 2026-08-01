@@ -289,3 +289,42 @@ module.exports = {
   EVENT_HOOKS,
   PERMISSION_EVENT,
 };
+
+// ── CLI: `node server/claude-link.js unlink` ─────────────────────────────────
+// Used by the uninstallers. This is the one place Xenon writes into ANOTHER
+// application's configuration, so an uninstall that skips it leaves Claude Code
+// running a statusline script that no longer exists and posting every hook at a
+// port with nothing behind it - on every session, forever, with nothing to
+// explain where it came from. The logic stays here, next to link()/unlink(),
+// rather than being written a second time in PowerShell and a third in bash.
+if (require.main === module) {
+  if (process.argv[2] !== 'unlink') {
+    console.error('usage: node claude-link.js unlink');
+    process.exit(2);
+  }
+  const dataDir = path.join(__dirname, 'data');
+  // Same rule server.js uses, so a hub moved off 3030 unlinks the hooks it
+  // actually wrote (they carry the port in their URL).
+  const rawPort = parseInt(process.env.XENON_PORT, 10);
+  const port = Number.isInteger(rawPort) && rawPort > 0 && rawPort <= 65535 ? rawPort : 3030;
+
+  (async () => {
+    const before = await status(dataDir, port);
+    // Nothing of ours in there. Saying so and stopping matters: unlink() ends in
+    // a write, so calling it anyway would reformat a settings.json we never
+    // touched.
+    if (!(before.hookCount > 0 || before.statusLine === 'ours')) {
+      console.log('not-linked');
+      return;
+    }
+    await unlink(dataDir, port);
+    // The backup is ours: taken before our first write, named after us, and
+    // sitting in someone else's config folder. Our changes have just been
+    // reverted, so keeping it would be litter.
+    try { fs.unlinkSync(before.settingsPath + BACKUP_SUFFIX); } catch { /* never existed */ }
+    console.log('unlinked');
+  })().catch((e) => {
+    console.error(String((e && e.message) || e));
+    process.exit(1);
+  });
+}

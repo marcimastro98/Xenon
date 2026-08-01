@@ -115,6 +115,14 @@ input[type="checkbox"]:disabled { opacity: 0.45; cursor: default; }
    it renders the same wherever the user meets the problem. */
 .sa-hint { display: flex; flex-direction: column; align-items: center; gap: 7px; text-align: center; }
 .sa-hint-text { font-size: 11.5px; opacity: 0.7; line-height: 1.4; max-width: 320px; }
+/* The hardware-sensors section builds itself (js/sensor-access.js) and stays
+   empty unless there is something to repair — which is every macOS and Linux
+   install, and every healthy Windows one. An empty div is still a GRID ITEM of
+   .settings-content, so it holds a row and the 12px row-gap above the next
+   section: no box, but a gap at the top of the page for nothing. `hidden` is not
+   an option here, because settingsSetCategory() rewrites it on every element
+   with data-settings-cat each time a category is opened. */
+#settings-sensors-hub:empty { display: none; }
 .sa-btn {
   flex: 0 0 auto; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 600;
   color: var(--text, #f0f3f1); padding: 5px 13px; border-radius: 999px;

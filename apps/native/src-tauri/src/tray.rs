@@ -91,6 +91,24 @@ pub fn build(app: &App) -> tauri::Result<()> {
         None::<&str>,
     )?;
 
+    // Render the dashboard on the GPU that drives its screen (see gpu.rs). Offered
+    // ONLY on a machine that actually has an integrated and a discrete adapter,
+    // because anywhere else it is inert and a control that does nothing is worse
+    // than no control. The check is on the HARDWARE, never on what we pinned, so
+    // switching it off cannot make the switch vanish. The label says "next launch"
+    // because it is a WebView2 environment option and genuinely cannot apply sooner.
+    #[cfg(windows)]
+    let hybrid_gpu = crate::gpu::is_hybrid();
+    #[cfg(windows)]
+    let gpu_pin = CheckMenuItem::with_id(
+        app,
+        "gpu-pin",
+        "Match render GPU to screen (next launch)",
+        true,
+        saved.gpu_pin,
+        None::<&str>,
+    )?;
+
     let menu = Menu::new(app)?;
     menu.append(&show)?;
     menu.append(&hide)?;
@@ -105,6 +123,10 @@ pub fn build(app: &App) -> tauri::Result<()> {
     menu.append(&cursor_guard)?;
     #[cfg(windows)]
     menu.append(&focus_guard)?;
+    #[cfg(windows)]
+    if hybrid_gpu {
+        menu.append(&gpu_pin)?;
+    }
     menu.append(&PredefinedMenuItem::separator(app)?)?;
     menu.append(&restart)?;
     menu.append(&quit)?;
@@ -116,6 +138,8 @@ pub fn build(app: &App) -> tauri::Result<()> {
     let cursor_guard_toggle = cursor_guard.clone();
     #[cfg(windows)]
     let focus_guard_toggle = focus_guard.clone();
+    #[cfg(windows)]
+    let gpu_pin_toggle = gpu_pin.clone();
 
     let mut builder = TrayIconBuilder::new()
         .menu(&menu)
@@ -148,6 +172,16 @@ pub fn build(app: &App) -> tauri::Result<()> {
                     let next = !focus_guard_toggle.is_checked().unwrap_or(true);
                     crate::focus_guard::set_enabled(app, next);
                     let _ = focus_guard_toggle.set_checked(next);
+                }
+                // Recorded only: the GPU pin is a WebView2 environment option fixed
+                // when this process created its first webview, so there is nothing
+                // to apply now and nothing here pretends otherwise. `gpu::arm` reads
+                // it at the next launch.
+                #[cfg(windows)]
+                "gpu-pin" => {
+                    let next = !gpu_pin_toggle.is_checked().unwrap_or(true);
+                    prefs::update(app, |p| p.gpu_pin = next);
+                    let _ = gpu_pin_toggle.set_checked(next);
                 }
                 "place-auto" => monitor::set_placement(app, Placement::Auto, false),
                 // Not applied now: the tray item is reached FROM the window, so

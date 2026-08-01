@@ -91,8 +91,13 @@ pub fn open(app: &AppHandle) {
     // asynchronously) a second webview whose environment options differ from
     // the ones the shared user-data folder was opened with. See
     // `crate::browser_args`.
+    // `applied()`, never a fresh decision: the flag is read back from the one the
+    // process launched with. Recomputing it here meant that plugging the Edge in
+    // after launch changed the answer, so these options no longer matched the ones
+    // the shared user-data folder was opened with — and WebView2's refusal is
+    // silent, so Spotlight simply stopped opening with nothing in any log.
     #[cfg(windows)]
-    let builder = builder.additional_browser_args(&crate::browser_args(crate::gpu::webview_gpu_flag()));
+    let builder = builder.additional_browser_args(&crate::browser_args(crate::gpu::applied()));
     let built = builder.build();
     match built {
         Ok(win) => {

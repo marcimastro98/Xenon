@@ -59,6 +59,18 @@ fn game_mode() -> bool {
     false
 }
 
+/// Whether the GPU this process pinned WebView2 to at launch is still the one
+/// driving the screen the kiosk is on. Only Windows pins anything (see gpu.rs), so
+/// elsewhere the answer is always "no disagreement".
+#[cfg(windows)]
+fn gpu_mismatch() -> bool {
+    crate::gpu::mismatch()
+}
+#[cfg(not(windows))]
+fn gpu_mismatch() -> bool {
+    false
+}
+
 /// Native resolution of the CORSAIR Xeneon Edge 14.5" panel.
 const EDGE_WIDTH: u32 = 2560;
 const EDGE_HEIGHT: u32 = 720;
@@ -206,6 +218,20 @@ const WINDOW_ASPECT: f64 = EDGE_WIDTH as f64 / EDGE_HEIGHT as f64;
 
 /// How often the watchdog re-checks the window is on the Edge.
 const WATCHDOG_INTERVAL: Duration = Duration::from_secs(3);
+
+/// How many consecutive ticks may try to move a window that will not land, before
+/// the watchdog stops and waits for something to actually change.
+///
+/// A re-pin is a repair, not a loop. `place_on_edge` drops fullscreen, moves the
+/// window and re-enters fullscreen — a real mode change for the compositor — and the
+/// chase condition is "the window is not on the target", which a display that is
+/// flapping (being turned off and on, a link renegotiating, a driver recovering)
+/// never stops satisfying. Uncapped, that is a fullscreen transition every three
+/// seconds forever, aimed at a display stack at the exact moment it is least able to
+/// take it. Five attempts is fifteen seconds: far longer than a re-pin that is going
+/// to work needs, and it re-arms on the next genuine topology change, so nothing that
+/// legitimately needs repairing is left unrepaired.
+const MAX_REPIN_ATTEMPTS: u32 = 5;
 
 /// True when a monitor's physical size matches the Edge panel. Some hubs also let
 /// us confirm via the device name, but the exact 2560×720 size is the reliable
@@ -845,6 +871,12 @@ pub fn display_state(window: &WebviewWindow) -> serde_json::Value {
             "fullscreen": cache.fullscreen,
             "active": active,
             "missing": missing,
+            // A display change after launch can leave the webview rendering on one
+            // GPU while the kiosk is presented by another, which costs real CPU for
+            // as long as the app stays up and can only be fixed by restarting it
+            // (see gpu.rs). Reported here because Settings → Screen is both where
+            // this becomes true and where the user is standing when it does.
+            "gpuMismatch": gpu_mismatch(),
         }
     })
 }
@@ -998,6 +1030,9 @@ pub fn start_watchdog(app: AppHandle) {
         // Baseline the layout on the first tick so a genuine change is detectable
         // without re-pinning once at startup for no reason.
         let mut last_topology = String::new();
+        // Consecutive ticks spent chasing a window that has not landed. Reset the
+        // moment it lands or the layout changes; see MAX_REPIN_ATTEMPTS.
+        let mut repin_attempts: u32 = 0;
         loop {
         thread::sleep(WATCHDOG_INTERVAL);
 
@@ -1085,9 +1120,23 @@ pub fn start_watchdog(app: AppHandle) {
                         // The chosen screen is back. Reveal and re-place once.
                         place_now(&window);
                         push_display_state(&app);
+                        repin_attempts = 0;
                         continue;
                     }
-                    if !game_mode() && (topology_changed || !window_is_on(&window, &target)) {
+                    // Only the kiosk and full-screen targets chase a window that has
+                    // drifted; the windowed one re-places on a topology change only
+                    // (see below). So only those two feed the attempt counter.
+                    let chases = is_edge_panel(&target) || cache.fullscreen;
+                    let drifted = chases && !window_is_on(&window, &target);
+                    if !drifted || topology_changed {
+                        repin_attempts = 0;
+                    }
+                    if !game_mode()
+                        && (topology_changed || (drifted && repin_attempts < MAX_REPIN_ATTEMPTS))
+                    {
+                        if drifted {
+                            repin_attempts += 1;
+                        }
                         let focus = kiosk_has_foreground(&window);
                         if is_edge_panel(&target) {
                             place_on_edge(&window, &target, focus);
@@ -1125,9 +1174,16 @@ pub fn start_watchdog(app: AppHandle) {
             // focus_guard keeps the game foreground, and the watchdog re-pins once
             // the game exits. last_topology stays current (updated above), so the
             // resolution reverting on exit is not itself seen as a change to chase.
+            let drifted = !window_is_on(&window, &edge);
+            if !drifted || topology_changed {
+                repin_attempts = 0;
+            }
             if !game_mode()
-                && (topology_changed || !window_is_on(&window, &edge))
+                && (topology_changed || (drifted && repin_attempts < MAX_REPIN_ATTEMPTS))
             {
+                if drifted {
+                    repin_attempts += 1;
+                }
                 // Re-place, but only re-raise if the kiosk already had the
                 // foreground — see `place_on_edge`. A window the user moved onto
                 // the Edge must stay in front of the dashboard.
