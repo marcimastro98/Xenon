@@ -86,6 +86,16 @@ pub struct DisplayPrefs {
     /// (false) keeps prefs files written before this field valid.
     #[serde(default)]
     pub hide_on_rdp: bool,
+    /// Pin the WebView2 render GPU to the adapter driving the kiosk's screen, on
+    /// hybrid iGPU+dGPU machines only (see `gpu.rs`). Default on, because leaving it
+    /// off costs ~1.5 CPU cores on exactly the machines the Edge is usually wired
+    /// to. It exists as a switch because the pin is the one thing Xenon does that a
+    /// user cannot otherwise take out of the picture while diagnosing a display
+    /// problem — short of not running the app at all, which is not a test anybody
+    /// should have to perform. Read once at launch: the flag is a WebView2
+    /// environment option and cannot change without restarting (see `gpu::arm`).
+    #[serde(default = "default_true")]
+    pub gpu_pin: bool,
 }
 
 fn default_true() -> bool {
@@ -98,7 +108,7 @@ fn default_true() -> bool {
 /// right for a missing file and dangerous for one bad field: a plain derived
 /// enum rejects any string it does not know, so a `display.json` written by a
 /// NEWER build (a future `"placement": "tv"`, say) would wipe `cursor_guard`,
-/// `focus_guard`, `swipe_home`, `hide_on_rdp` and the monitor choice all at once
+/// `focus_guard`, `swipe_home`, `hide_on_rdp`, `gpu_pin` and the monitor choice
 /// on a downgrade — and re-enable autostart for someone who chose their phone.
 /// Going through `Value` accepts any JSON shape and degrades to `Auto`.
 fn placement_or_auto<'de, D>(d: D) -> Result<Placement, D::Error>
@@ -124,6 +134,7 @@ impl Default for DisplayPrefs {
             focus_guard: true,
             swipe_home: true,
             hide_on_rdp: false,
+            gpu_pin: true,
         }
     }
 }

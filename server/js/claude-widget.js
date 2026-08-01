@@ -1876,27 +1876,67 @@
   // yet. Tapping it opens that session.
   let topbarSig = '';
 
-  // Claude's own mark: the eleven-ray sunburst, drawn in this codebase's style
-  // the same way the Twitch, Discord and Spotify glyphs are (dashboard-palette.js)
-  // rather than shipping anybody's logo file. It replaced a four-point sparkle,
-  // which is the generic "AI" glyph every product uses and identified nothing.
+  // ── Clawd ───────────────────────────────────────────────────────────────────
+  // Claude Code's own pixel mascot, in the top bar, animated by what the session
+  // is doing. It replaced a text pill and then a generic four-point sparkle:
+  // neither said whose session this was, and the pill spent six characters
+  // saying what a shape says instantly.
   //
-  // Eleven rays, tapered, meeting at the centre, symmetric about (12,12) so the
-  // working state can rotate it without wobble. Generated rather than eyeballed,
-  // and compared against the alternatives at both 92px and the 15px it is
-  // actually used at before this one was picked — at that size a thinner ray
-  // disappears and a blunter one turns into a blob.
-  const MARK_PATH = 'M12.6 2.2L13.8 12L10.2 12L11.4 2.2ZM17.8 4.08L13.51 12.97L10.49 11.03L16.79 3.43ZM21.16 8.47L12.75 13.64L11.25 10.36L20.67 7.38ZM21.61 13.99L11.74 13.78L12.26 10.22L21.79 12.8ZM19.01 18.87L10.82 13.36L13.18 10.64L19.8 17.96ZM14.19 21.57L10.27 12.51L13.73 11.49L15.34 21.23ZM8.66 21.23L10.27 11.49L13.73 12.51L9.81 21.57ZM4.2 17.96L10.82 10.64L13.18 13.36L4.99 18.87ZM2.21 12.8L11.74 10.22L12.26 13.78L2.39 13.99ZM3.33 7.38L12.75 10.36L11.25 13.64L2.84 8.47ZM7.21 3.43L13.51 11.03L10.49 12.97L6.2 4.08Z';
-  function claudeMark() {
-    const NS = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(NS, 'svg');
-    svg.setAttribute('viewBox', '0 0 24 24');
+  // The geometry is not a drawing from memory. It was read back out of the
+  // sprite: the PNG was decoded, the body colour measured (#D77757, which is the
+  // orange this codebase already carries as #D97757 — one step off in red, and
+  // the established value is what ships; see the note in ClaudeWidget.css), the
+  // cell edges found from the pixel runs, and the whole thing resampled onto its
+  // real 16x12 grid:
+  //
+  //     ..############..      rows 0-1   head
+  //     ..############..
+  //     ..##.######.##..      rows 2-4   eyes, as HOLES at cols 4 and 11
+  //     ..##.######.##..
+  //     ..##.######.##..
+  //     ################      rows 5-6   arms, two cells proud on each side
+  //     ################
+  //     ..############..      rows 7-9   body
+  //     ..############..
+  //     ..############..
+  //     ...#.#....#.#...      rows 10-11 four legs, at cols 3, 5, 10, 12
+  //     ...#.#....#.#...
+  //
+  // Drawn as merged runs rather than 150 one-unit rects, split into the groups
+  // the animation needs to move independently: the shell, each pair of legs, and
+  // two eye covers that are painted in the body colour to blink.
+  const CLAWD = Object.freeze({
+    shell: [[2, 0, 12, 2], [2, 2, 2, 3], [5, 2, 6, 3], [12, 2, 2, 3], [0, 5, 16, 2], [2, 7, 12, 3]],
+    legL: [[3, 10, 1, 2], [5, 10, 1, 2]],
+    legR: [[10, 10, 1, 2], [12, 10, 1, 2]],
+    eyes: [[4, 2, 1, 3], [11, 2, 1, 3]],
+  });
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  function rects(parent, list, cls) {
+    const g = document.createElementNS(SVG_NS, 'g');
+    if (cls) g.setAttribute('class', cls);
+    for (const [x, y, w, h] of list) {
+      const r = document.createElementNS(SVG_NS, 'rect');
+      r.setAttribute('x', x); r.setAttribute('y', y);
+      r.setAttribute('width', w); r.setAttribute('height', h);
+      g.appendChild(r);
+    }
+    parent.appendChild(g);
+    return g;
+  }
+  function clawd() {
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 16 12');
     svg.setAttribute('class', 'cw-tb-mark');
     svg.setAttribute('aria-hidden', 'true');
-    const p = document.createElementNS(NS, 'path');
-    p.setAttribute('d', MARK_PATH);
-    p.setAttribute('fill', 'currentColor');
-    svg.appendChild(p);
+    // Square pixels, whatever the device ratio: the whole point of the thing.
+    svg.setAttribute('shape-rendering', 'crispEdges');
+    rects(svg, CLAWD.shell, 'cw-cl-shell');
+    rects(svg, CLAWD.legL, 'cw-cl-leg cw-cl-legl');
+    rects(svg, CLAWD.legR, 'cw-cl-leg cw-cl-legr');
+    // Same colour as the shell, revealed only for a blink. An eye is a hole in
+    // this sprite, so closing one means filling it back in.
+    rects(svg, CLAWD.eyes, 'cw-cl-eyes');
     return svg;
   }
 
@@ -1933,7 +1973,18 @@
     if (!working && !done && !pending) { host.hidden = true; host.replaceChildren(); return; }
 
     host.hidden = false;
-    const chip = el('button', 'cw-tb' + (pending ? ' is-waiting' : (done ? ' is-done' : ' is-working')));
+    // These are not alternatives, and writing them as a ladder is what made the
+    // bar read "finished" while the widget next to it said "1 running": one
+    // session ending outranked another that was still working, and the two
+    // surfaces contradicted each other on screen at the same time.
+    //
+    // They are two different questions, so they get two different channels.
+    // MOTION says what is happening — walking, hopping, still. The DOT says
+    // whether something is for you — amber blocked, accent a result you have not
+    // read. A session finishing while another works is Clawd walking with an
+    // accent dot, which is both facts at once instead of the louder one winning.
+    const state = pending ? 'is-waiting' : (working ? 'is-working' : 'is-done');
+    const chip = el('button', 'cw-tb ' + state);
     chip.type = 'button';
     // The mark, not a word. A pill reading "wants your OK" spent the width of
     // six characters saying something the colour says instantly, and it said it
@@ -1941,15 +1992,28 @@
     // and by how the mark moves: it turns slowly while Claude works, holds still
     // when there is an answer to read, and knocks when it is blocked on you.
     // The words stay in the tooltip, which is where a word belongs here.
-    chip.appendChild(claudeMark());
-    const label = pending
-      ? t('claude_bar_waiting', 'wants your OK')
-      : (done ? t('claude_bar_done', 'finished') : t('claude_bar_working', 'working'));
-    // Blocked on you gets a badge rather than a recolour: at 15px, repainting
-    // the mark amber costs the one thing it is there for, which is being
-    // recognisably Claude. A dot in the corner is unmistakable and leaves the
-    // mark alone.
+    chip.appendChild(clawd());
+    // The tooltip lists everything that is true, for the same reason: it is read
+    // right next to a widget that lists it all, and the two must not disagree.
+    const parts = [];
+    if (pending) parts.push(t('claude_bar_waiting', 'wants your OK'));
+    if (working) parts.push(t('claude_bar_working', 'working'));
+    if (done) parts.push(t('claude_bar_done', 'finished'));
+    const label = parts.join(' · ');
+    // A dot rather than a recolour: at this size, repainting Clawd costs the one
+    // thing he is there for, which is being recognisably Claude.
+    //
+    // And the dot is what makes the state legible WITHOUT MOTION, which matters
+    // more than it looks. Four dashboard states pause every animation — a dialog
+    // open, a minute without touches, game mode, Performance Mode — and on a
+    // machine with any of them on, a design that says "working" only by walking
+    // says nothing at all: standing still, working and finished were the same
+    // picture. Motion is the enhancement here; the dot is the signal.
+    //   nothing   Clawd alone, quiet
+    //   accent    finished, and you have not looked
+    //   amber     blocked on you
     if (pending) chip.appendChild(el('span', 'cw-tb-alert'));
+    else if (done) chip.appendChild(el('span', 'cw-tb-alert is-done'));
     if (working > 1 && !pending) chip.appendChild(el('span', 'cw-tb-n', String(working)));
     chip.title = label;
     chip.setAttribute('aria-label', label);

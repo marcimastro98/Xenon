@@ -114,19 +114,39 @@
   // the Fans/Energy widgets and only knows their CPU temperature is missing.
   // Reads /system rather than taking a param: Settings opens independently of the
   // widgets, so it must resolve sensorAccess itself.
+  // Settings → Performance. This section exists ONLY when there is something to
+  // repair, and it brings its own heading with it.
+  //
+  // It used to be a permanent panel in index.html with the heading baked in, so
+  // the box was there whatever the answer was. Two bad outcomes, both reported:
+  // on a machine where the sensors work it sat at the very top of the page —
+  // above Performance Mode, which is what anyone opens that page for — saying
+  // only "already on", which is a heading with nothing under it; and where
+  // LibreHardwareMonitor does not exist at all, which is every macOS and Linux
+  // install, it drew a titled panel that was completely empty. A section that
+  // announces a subject and then has nothing to say about it reads as something
+  // that failed to load.
+  //
+  // Note it cannot simply be hidden: settingsSetCategory() writes `hidden` on
+  // every [data-settings-cat] element each time a category is opened, so any
+  // hiding done here would be undone on the next visit. Building the section
+  // instead of hiding it is what makes this stick.
   async function initSettings() {
     const host = document.getElementById('settings-sensors-hub');
     if (!host) return;
     const sys = await apiJson('/system');
-    const access = sys && sys.sensorAccess;
-    if (access === 'needs_admin') {
-      host.replaceChildren(hintNode(t('sensors_admin_desc', 'CPU temperature, fan speeds and watts come from your PC’s sensors, which Windows protects: without your permission they stay empty forever. One click and one confirmation.'), 'sa-hint--settings'));
-    } else if (access === 'ok') {
-      host.replaceChildren(el('div', 'sa-hint-text', t('sensors_admin_ok', 'Hardware sensors are already on.')));
-    } else {
-      // 'missing' (no LHM) or unknown: this button cannot help, so don't offer it.
-      host.replaceChildren();
-    }
+    // 'ok' — nothing to fix, and the Fans and Energy widgets showing real
+    // numbers is a better confirmation than a line of text here.
+    // 'missing' or unknown — no LibreHardwareMonitor, so this repair cannot help
+    // whatever is wrong; offering it would be a button that always fails.
+    if ((sys && sys.sensorAccess) !== 'needs_admin') { host.replaceChildren(); return; }
+
+    const group = el('div', 'settings-group');
+    const head = el('div', 'settings-group-head');
+    head.appendChild(el('span', '', t('sensors_admin_title', 'Hardware sensors')));
+    group.appendChild(head);
+    group.appendChild(hintNode(t('sensors_admin_desc', 'CPU temperature, fan speeds and watts come from your PC’s sensors, which Windows protects: without your permission they stay empty forever. One click and one confirmation.'), 'sa-hint--settings'));
+    host.replaceChildren(group);
   }
 
   window.SensorAccess = { hintNode, initSettings };

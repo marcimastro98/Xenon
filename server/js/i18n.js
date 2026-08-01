@@ -907,7 +907,6 @@ const i18n = {
     sensors_enable_failed: 'Non ha funzionato. Prova a rilanciare INSTALL.bat con clic destro → “Esegui come amministratore”.',
     sensors_admin_title: 'Sensori hardware',
     sensors_admin_desc: 'Temperatura della CPU, velocità delle ventole e watt vengono letti dai sensori del PC, che Windows protegge: senza il tuo permesso restano vuoti per sempre. Bastano un clic e una conferma.',
-    sensors_admin_ok: 'Sensori hardware già attivi.',
     power_loading: 'Lettura sensori…',
     power_empty: 'Nessuna lettura di consumo disponibile',
     power_empty_hint: 'I watt di CPU/GPU richiedono LibreHardwareMonitor; le letture di casa arrivano da Home Assistant (Impostazioni → Smart Home).',
@@ -1295,6 +1294,7 @@ const i18n = {
     'surface_fullscreen_hint': 'Occupa tutto lo schermo scelto invece di stare in una finestra.',
     'surface_browser_note': 'L’elenco degli schermi c’è solo nell’app Xenon: un browser non può spostarsi da solo su un altro monitor.',
     'surface_missing': 'Lo schermo che hai scelto non è collegato, quindi la finestra resta nascosta invece di comparire altrove. Torna appena lo ricolleghi.',
+    'surface_gpu_mismatch': 'Hai cambiato gli schermi mentre Xenon era aperto, quindi la dashboard sta ancora disegnando sulla scheda video da cui è partita. Costa CPU per niente. Un riavvio la rimette a posto.',
     'surface_phone_pending': 'Xenon resta su questo PC finché non accoppi un telefono o un tablet: il QR sta qui, e sparire adesso ti lascerebbe senza schermo su cui inquadrarlo. Appena il primo dispositivo è collegato, questo PC smette di mostrarlo.',
     'surface_open_pairing': 'Apri l’accesso dal telefono',
     settings_display_title: 'Schermo',
@@ -3583,7 +3583,6 @@ const i18n = {
     sensors_enable_failed: 'That didn’t work. Try re-running INSTALL.bat with right-click → “Run as administrator”.',
     sensors_admin_title: 'Hardware sensors',
     sensors_admin_desc: 'CPU temperature, fan speeds and watts come from your PC’s sensors, which Windows protects: without your permission they stay empty forever. One click and one confirmation.',
-    sensors_admin_ok: 'Hardware sensors are already on.',
     power_loading: 'Reading sensors…',
     power_empty: 'No power readings available',
     power_empty_hint: 'CPU/GPU watts need LibreHardwareMonitor; home readings come from Home Assistant (Settings → Smart Home).',
@@ -3982,6 +3981,7 @@ const i18n = {
     'surface_fullscreen_hint': 'Fill the chosen screen instead of sitting in a window.',
     'surface_browser_note': 'The screen list only exists in the Xenon app: a browser cannot move itself to another monitor.',
     'surface_missing': 'The screen you chose is not connected, so the window stays hidden rather than appearing somewhere else. It comes back when you plug it in.',
+    'surface_gpu_mismatch': 'The screens changed while Xenon was open, so the dashboard is still drawing on the graphics card it started on. That costs CPU for nothing. A restart puts it right.',
     'surface_phone_pending': 'Xenon stays on this PC until you pair a phone or tablet: the QR code is here, and disappearing now would leave you with no screen to scan it from. As soon as the first device is connected, this PC stops showing it.',
     'surface_open_pairing': 'Open phone access',
     settings_display_title: 'Display',
@@ -6276,6 +6276,7 @@ Object.assign(i18n, {
     'surface_fullscreen_hint': '창 대신 선택한 화면을 가득 채웁니다.',
     'surface_browser_note': '화면 목록은 Xenon 앱에만 있습니다. 브라우저는 스스로 다른 모니터로 옮겨 갈 수 없습니다.',
     'surface_missing': '선택한 화면이 연결돼 있지 않아 창을 다른 곳에 띄우지 않고 숨겨 둡니다. 다시 연결하면 돌아옵니다.',
+    'surface_gpu_mismatch': 'Xenon이 켜져 있는 동안 화면 구성이 바뀌어서, 대시보드가 아직 처음 시작한 그래픽 카드에서 그리고 있습니다. 그만큼 CPU를 헛되이 씁니다. 다시 시작하면 제자리로 돌아옵니다.',
     'surface_phone_pending': '휴대폰이나 태블릿을 연결할 때까지 Xenon은 이 PC에 남아 있습니다. QR 코드가 여기 있으니, 지금 사라지면 스캔할 화면이 없어집니다. 첫 기기가 연결되면 이 PC에서는 더 이상 표시하지 않습니다.',
     'surface_open_pairing': '휴대폰 접속 열기',
     settings_display_title: '디스플레이',
@@ -8515,6 +8516,7 @@ Object.assign(i18n, {
     'surface_fullscreen_hint': 'ウィンドウではなく、選んだ画面いっぱいに表示します。',
     'surface_browser_note': '画面の一覧は Xenon アプリにしかありません。ブラウザは自分で別のモニターへ移れないからです。',
     'surface_missing': '選んだ画面がつながっていないので、別の場所に出すのではなく非表示のままにしています。つなぎ直せば戻ります。',
+    'surface_gpu_mismatch': 'Xenon を開いたまま画面構成が変わったため、ダッシュボードは起動時のグラフィックスカードで描画したままです。その分 CPU を無駄に使います。再起動すれば元に戻ります。',
     'surface_phone_pending': 'スマートフォンかタブレットをペアリングするまで、Xenon はこの PC に残ります。QR コードはここにあるので、今消えると読み取る画面がなくなってしまいます。最初の端末がつながれば、この PC には表示されなくなります。',
     'surface_open_pairing': 'スマートフォンからのアクセスを開く',
     settings_display_title: 'ディスプレイ',
@@ -10753,6 +10755,7 @@ Object.assign(i18n, {
     'surface_fullscreen_hint': '铺满所选的屏幕，而不是待在窗口里。',
     'surface_browser_note': '屏幕列表只有 Xenon 应用里才有：浏览器没法把自己挪到另一台显示器上。',
     'surface_missing': '你选的屏幕没有连接，所以窗口保持隐藏，而不是跑到别的地方去。接回来它就回来了。',
+    'surface_gpu_mismatch': 'Xenon 开着的时候你改动了显示器，所以仪表盘还在用启动时那块显卡绘制，白白占用 CPU。重启一次就能恢复。',
     'surface_phone_pending': '在你配对手机或平板之前，Xenon 会留在这台电脑上：二维码就在这里，现在消失你就没有屏幕可扫了。第一台设备连上之后，这台电脑就不再显示了。',
     'surface_open_pairing': '打开手机访问',
     settings_display_title: '显示器',
@@ -12517,6 +12520,7 @@ Object.assign(i18n, {
     'surface_fullscreen_hint': 'Ocupa toda la pantalla elegida en lugar de estar en una ventana.',
     'surface_browser_note': 'La lista de pantallas solo existe en la app de Xenon: un navegador no puede moverse solo a otro monitor.',
     'surface_missing': 'La pantalla que elegiste no está conectada, así que la ventana sigue oculta en vez de aparecer en otro sitio. Vuelve en cuanto la conectes.',
+    'surface_gpu_mismatch': 'Cambiaste las pantallas con Xenon abierto, así que el panel sigue dibujando en la tarjeta gráfica con la que arrancó. Eso gasta CPU para nada. Un reinicio lo devuelve a su sitio.',
     'surface_phone_pending': 'Xenon se queda en este PC hasta que emparejes un móvil o una tablet: el código QR está aquí, y desaparecer ahora te dejaría sin pantalla para escanearlo. En cuanto el primer dispositivo esté conectado, este PC deja de mostrarlo.',
     'surface_open_pairing': 'Abrir el acceso desde el móvil',
     settings_display_title: 'Pantalla',
@@ -13747,6 +13751,7 @@ Object.assign(i18n, {
     'surface_fullscreen_hint': 'Occupe tout l’écran choisi au lieu de rester dans une fenêtre.',
     'surface_browser_note': 'La liste des écrans n’existe que dans l’application Xenon : un navigateur ne peut pas se déplacer tout seul vers un autre moniteur.',
     'surface_missing': 'L’écran choisi n’est pas branché, la fenêtre reste donc masquée plutôt que d’apparaître ailleurs. Elle revient dès que vous le rebranchez.',
+    'surface_gpu_mismatch': 'Les écrans ont changé pendant que Xenon était ouvert, le tableau de bord dessine donc toujours sur la carte graphique de départ. Cela consomme du processeur pour rien. Un redémarrage remet tout en ordre.',
     'surface_phone_pending': 'Xenon reste sur ce PC jusqu’à ce que vous appairiez un téléphone ou une tablette : le QR code est ici, et disparaître maintenant vous laisserait sans écran pour le scanner. Dès que le premier appareil est connecté, ce PC cesse de l’afficher.',
     'surface_open_pairing': 'Ouvrir l’accès depuis le téléphone',
     settings_display_title: 'Écran',
@@ -14977,6 +14982,7 @@ Object.assign(i18n, {
     'surface_fullscreen_hint': 'Füllt den gewählten Bildschirm aus, statt in einem Fenster zu sitzen.',
     'surface_browser_note': 'Die Bildschirmliste gibt es nur in der Xenon-App: ein Browser kann sich nicht selbst auf einen anderen Monitor bewegen.',
     'surface_missing': 'Der gewählte Bildschirm ist nicht angeschlossen, deshalb bleibt das Fenster verborgen, statt woanders aufzutauchen. Es kommt zurück, sobald du ihn wieder ansteckst.',
+    'surface_gpu_mismatch': 'Die Bildschirme haben sich geändert, während Xenon offen war, deshalb zeichnet das Dashboard noch auf der Grafikkarte, mit der es gestartet ist. Das kostet CPU für nichts. Ein Neustart bringt es wieder in Ordnung.',
     'surface_phone_pending': 'Xenon bleibt auf diesem PC, bis du ein Handy oder Tablet koppelst: der QR-Code ist hier, und jetzt zu verschwinden ließe dich ohne Bildschirm zum Scannen zurück. Sobald das erste Gerät verbunden ist, zeigt dieser PC es nicht mehr an.',
     'surface_open_pairing': 'Handy-Zugriff öffnen',
     settings_display_title: 'Bildschirm',
@@ -16207,6 +16213,7 @@ Object.assign(i18n, {
     'surface_fullscreen_hint': 'Ocupa todo o ecrã escolhido em vez de estar numa janela.',
     'surface_browser_note': 'A lista de ecrãs só existe na app Xenon: um browser não se consegue mover sozinho para outro monitor.',
     'surface_missing': 'O ecrã que escolheste não está ligado, por isso a janela fica escondida em vez de aparecer noutro sítio. Volta assim que o ligares.',
+    'surface_gpu_mismatch': 'Mudaste os ecrãs com o Xenon aberto, por isso o painel continua a desenhar na placa gráfica com que arrancou. Isso gasta CPU à toa. Um reinício põe tudo certo.',
     'surface_phone_pending': 'O Xenon fica neste PC até emparelhares um telemóvel ou tablet: o código QR está aqui, e desaparecer agora deixava-te sem ecrã para o ler. Assim que o primeiro dispositivo estiver ligado, este PC deixa de o mostrar.',
     'surface_open_pairing': 'Abrir o acesso pelo telemóvel',
     settings_display_title: 'Ecrã',
@@ -17437,6 +17444,7 @@ Object.assign(i18n, {
     'surface_fullscreen_hint': 'Занимает выбранный экран целиком, а не остаётся окном.',
     'surface_browser_note': 'Список экранов есть только в приложении Xenon: браузер не может сам перейти на другой монитор.',
     'surface_missing': 'Выбранный экран не подключён, поэтому окно остаётся скрытым, а не появляется где-то ещё. Оно вернётся, как только вы его подключите.',
+    'surface_gpu_mismatch': 'Экраны изменились, пока Xenon был открыт, поэтому панель всё ещё рисует на той видеокарте, с которой запустилась. Это тратит процессор впустую. Перезапуск возвращает всё на место.',
     'surface_phone_pending': 'Xenon остаётся на этом ПК, пока вы не подключите телефон или планшет: QR-код находится здесь, и исчезнуть сейчас значило бы оставить вас без экрана для сканирования. Как только первое устройство подключится, этот ПК перестанет его показывать.',
     'surface_open_pairing': 'Открыть доступ с телефона',
     settings_display_title: 'Экран',
@@ -19432,6 +19440,7 @@ Object.assign(i18n, {
     "surface_fullscreen_hint": "Vult het gekozen scherm in plaats van in een venster te staan.",
     "surface_browser_note": "De schermenlijst bestaat alleen in de Xenon-app: een browser kan zichzelf niet naar een andere monitor verplaatsen.",
     "surface_missing": "Het gekozen scherm is niet aangesloten, dus het venster blijft verborgen in plaats van ergens anders op te duiken. Het komt terug zodra je het weer aansluit.",
+    "surface_gpu_mismatch": "De schermen zijn veranderd terwijl Xenon openstond, dus het dashboard tekent nog op de videokaart waarmee het startte. Dat kost processorkracht voor niets. Een herstart zet het weer goed.",
     "surface_phone_pending": "Xenon blijft op deze pc tot je een telefoon of tablet koppelt: de QR-code staat hier, en nu verdwijnen zou je zonder scherm laten om hem te scannen. Zodra het eerste apparaat verbonden is, toont deze pc het niet meer.",
     "surface_open_pairing": "Telefoontoegang openen",
     "settings_display_title": "Beeldscherm",
@@ -26256,7 +26265,6 @@ Object.assign(i18n.ko, {
   sensors_enable_failed: '동작하지 않았습니다. INSTALL.bat을 마우스 오른쪽 버튼 → 「관리자 권한으로 실행」으로 다시 실행해 보세요.',
   sensors_admin_title: '하드웨어 센서',
   sensors_admin_desc: 'CPU 온도, 팬 속도, 전력은 PC의 센서에서 옵니다. Windows가 이를 보호하므로 권한이 없으면 계속 비어 있습니다. 클릭 한 번과 확인 한 번이면 됩니다.',
-  sensors_admin_ok: '하드웨어 센서가 이미 켜져 있습니다.',
 });
 Object.assign(i18n.ja, {
   layout_widget_slideshow: 'スライドショー', layout_widget_fans: 'ファン', layout_widget_power: 'エネルギー', layout_widget_battery: 'バッテリー',
@@ -26293,7 +26301,6 @@ Object.assign(i18n.ja, {
   sensors_enable_failed: 'うまくいきませんでした。INSTALL.bat を右クリック →「管理者として実行」で実行し直してみてください。',
   sensors_admin_title: 'ハードウェア センサー',
   sensors_admin_desc: 'CPU 温度、ファン回転数、消費電力は PC のセンサーから得られます。Windows がそれらを保護しているため、許可がないと空のままです。クリック 1 回と確認 1 回で済みます。',
-  sensors_admin_ok: 'ハードウェア センサーはすでに有効です。',
 });
 Object.assign(i18n.zh, {
   layout_widget_slideshow: '幻灯片', layout_widget_fans: '风扇', layout_widget_power: '能耗', layout_widget_battery: '电池',
@@ -26330,7 +26337,6 @@ Object.assign(i18n.zh, {
   sensors_enable_failed: '没有成功。请试着右键点击 INSTALL.bat →「以管理员身份运行」重新运行。',
   sensors_admin_title: '硬件传感器',
   sensors_admin_desc: 'CPU 温度、风扇转速和功耗来自这台电脑的传感器，而 Windows 会保护它们：没有你的授权，它们会一直是空的。一次点击，一次确认即可。',
-  sensors_admin_ok: '硬件传感器已经开启。',
 });
 
 Object.assign(i18n.es, {
@@ -26368,7 +26374,6 @@ Object.assign(i18n.es, {
   sensors_enable_failed: 'No funcionó. Prueba a ejecutar INSTALL.bat con clic derecho → «Ejecutar como administrador».',
   sensors_admin_title: 'Sensores de hardware',
   sensors_admin_desc: 'La temperatura de la CPU, la velocidad de los ventiladores y los vatios vienen de los sensores de tu PC, que Windows protege: sin tu permiso se quedan vacíos para siempre. Un clic y una confirmación.',
-  sensors_admin_ok: 'Los sensores de hardware ya están activos.',
 });
 Object.assign(i18n.fr, {
   layout_widget_slideshow: 'Diaporama', layout_widget_fans: 'Ventilateurs', layout_widget_power: 'Énergie', layout_widget_battery: 'Batteries',
@@ -26405,7 +26410,6 @@ Object.assign(i18n.fr, {
   sensors_enable_failed: 'Ça n’a pas marché. Essayez de relancer INSTALL.bat avec clic droit → « Exécuter en tant qu’administrateur ».',
   sensors_admin_title: 'Capteurs matériels',
   sensors_admin_desc: 'La température du CPU, la vitesse des ventilateurs et les watts viennent des capteurs de votre PC, que Windows protège : sans votre autorisation, ils restent vides pour toujours. Un clic et une confirmation.',
-  sensors_admin_ok: 'Les capteurs matériels sont déjà actifs.',
 });
 Object.assign(i18n.de, {
   layout_widget_slideshow: 'Diashow', layout_widget_fans: 'Lüfter', layout_widget_power: 'Energie', layout_widget_battery: 'Akkus',
@@ -26442,7 +26446,6 @@ Object.assign(i18n.de, {
   sensors_enable_failed: 'Das hat nicht funktioniert. Versuche, INSTALL.bat per Rechtsklick → „Als Administrator ausführen“ erneut auszuführen.',
   sensors_admin_title: 'Hardware-Sensoren',
   sensors_admin_desc: 'CPU-Temperatur, Lüfterdrehzahlen und Watt kommen von den Sensoren deines PCs, die Windows schützt: ohne deine Erlaubnis bleiben sie für immer leer. Ein Klick und eine Bestätigung.',
-  sensors_admin_ok: 'Die Hardware-Sensoren sind bereits aktiv.',
 });
 
 Object.assign(i18n.pt, {
@@ -26480,7 +26483,6 @@ Object.assign(i18n.pt, {
   sensors_enable_failed: 'Não resultou. Tenta executar o INSTALL.bat com clique direito → «Executar como administrador».',
   sensors_admin_title: 'Sensores de hardware',
   sensors_admin_desc: 'A temperatura do CPU, a velocidade das ventoinhas e os watts vêm dos sensores do teu PC, que o Windows protege: sem a tua permissão ficam vazios para sempre. Um clique e uma confirmação.',
-  sensors_admin_ok: 'Os sensores de hardware já estão ligados.',
 });
 Object.assign(i18n.ru, {
   layout_widget_slideshow: 'Слайд-шоу', layout_widget_fans: 'Вентиляторы', layout_widget_power: 'Энергия', layout_widget_battery: 'Батареи',
@@ -26517,7 +26519,6 @@ Object.assign(i18n.ru, {
   sensors_enable_failed: 'Не получилось. Попробуйте запустить INSTALL.bat правой кнопкой → «Запуск от имени администратора».',
   sensors_admin_title: 'Аппаратные датчики',
   sensors_admin_desc: 'Температура CPU, скорость вентиляторов и ватты берутся с датчиков вашего ПК, которые защищает Windows: без вашего разрешения они навсегда останутся пустыми. Один клик и одно подтверждение.',
-  sensors_admin_ok: 'Аппаратные датчики уже включены.',
 });
 Object.assign(i18n.nl, {
   layout_widget_slideshow: 'Diavoorstelling', layout_widget_fans: 'Ventilatoren', layout_widget_power: 'Energie', layout_widget_battery: 'Accu’s',
@@ -26554,7 +26555,6 @@ Object.assign(i18n.nl, {
   sensors_enable_failed: 'Dat werkte niet. Probeer INSTALL.bat opnieuw uit te voeren met rechtsklik → “Als administrator uitvoeren”.',
   sensors_admin_title: 'Hardwaresensoren',
   sensors_admin_desc: 'CPU-temperatuur, ventilatortoerentallen en watts komen van de sensoren van je pc, die Windows beschermt: zonder jouw toestemming blijven ze voorgoed leeg. Eén klik en één bevestiging.',
-  sensors_admin_ok: 'De hardwaresensoren staan al aan.',
 });
 
 // v4.11 i18n gap fill — the last of the strings that were English everywhere:

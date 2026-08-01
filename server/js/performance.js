@@ -142,6 +142,7 @@
     // Second screen) read this so "pause heavy tiles while … optimizing" works even
     // when the session didn't also pause animations.
     document.body.classList.toggle('perf-active', !!p.active);
+    _syncStaleWatch();
   }
 
   // ── Server helpers ────────────────────────────────────────────────
@@ -400,6 +401,94 @@
 
   function _cancelAutoRestore() {
     if (_autoRestoreTimer) { clearTimeout(_autoRestoreTimer); _autoRestoreTimer = null; }
+  }
+
+  // ── a session must not outlive the app it was started for ─────────
+  // An AUTO session already ends itself: _react() schedules a restore as soon as
+  // the activity stops being one the user opted into. A MANUAL one had no end
+  // condition at all. You press the button for a game, the game exits, and
+  // Performance Mode is still on hours later — animations paused across the
+  // whole dashboard, power plan swapped, and nothing on screen saying why.
+  //
+  // Found on a real install: a session started for `planetcoaster2`, still
+  // active with the game long gone. What it looked like from the outside was a
+  // broken dashboard, because the only visible symptom is that everything
+  // stopped moving. Nobody goes looking in Performance settings for that.
+  //
+  // The end condition is the one the session itself wrote down: `boostedProc` is
+  // the app it was started for. When that app is gone, the reason is gone —
+  // whoever started it.
+  const STALE_POLL_MS = 5 * 60 * 1000;   // the slow sweep, for a session already stale at load
+  const STALE_FIRST_MS = 15000;          // …but ask soon after the dashboard settles
+  const STALE_RECHECK_MS = 30000;        // an app that is merely restarting gets a second chance
+  let _stalePoll = null;
+  let _staleRecheck = null;
+
+  // Is the app the session was started for still running?
+  //
+  // NOT /api/performance/stats. That is a top-40-by-RAM ranking built for the
+  // "close these apps" sheet, and absent from it does not mean gone: Windows
+  // trims a minimised process's working set hard, so a minimised game drops off
+  // the list while still running — and ending the session then would revert the
+  // power plan and drop the priority boost UNDER A LIVE GAME, announcing that it
+  // had finished. A ranking is not a process list.
+  //
+  // perf-priority.ps1 already looks a process up with Get-Process and answers
+  // `not_found` when it is not there, which is an exact answer. Re-asserting the
+  // SAME level the session applied ('high' → AboveNormal) is a no-op on a live
+  // process, so the action the session already used stands in as the query
+  // without a new endpoint and without changing anything.
+  //
+  // Three-valued on purpose. `null` is NOBODY ANSWERED — off Windows the script
+  // cannot run at all — and must never be read as the app being gone.
+  async function _boostedAlive(name) {
+    let r = null;
+    try { r = await perfAction({ type: 'setPriority', name, level: 'high' }); } catch { return null; }
+    if (r && r.ok) return true;
+    if (r && r.error === 'not_found') return false;
+    return null;
+  }
+
+  async function _checkStale(isRecheck) {
+    const p = currentPerf();
+    const proc = (p.active && p.applied) ? _procKey(p.applied.boostedProc) : '';
+    if (!proc) return;
+    const alive = await _boostedAlive(proc);
+    if (alive !== false) return;                    // running, or no answer at all
+    if (!isRecheck) {
+      // Ask once more in a moment: an app that is restarting is briefly absent,
+      // and ending somebody's session by mistake is worse than ending it late.
+      if (_staleRecheck) return;
+      _staleRecheck = setTimeout(() => { _staleRecheck = null; _checkStale(true); }, STALE_RECHECK_MS);
+      return;
+    }
+    // The session may have been ended, or re-pointed at another app, while we
+    // were waiting out the recheck.
+    const now = currentPerf();
+    if (!now.active || _procKey(now.applied && now.applied.boostedProc) !== proc) return;
+    await restore({ auto: true });      // toasts, so it is never a silent change
+  }
+
+  // Started and stopped from applyState(), which already runs on every settings
+  // change and after restore() — so the watch exists only while there is a
+  // session with an app to outlive, and stops the moment there is not. Slow on
+  // purpose: each probe is a PowerShell spawn, the game-death signal in
+  // onStatus() catches the common case immediately, and this only has to catch
+  // a session that was already stale when the dashboard opened.
+  function _syncStaleWatch() {
+    const p = currentPerf();
+    const want = !!(p.active && p.applied && p.applied.boostedProc);
+    if (want && !_stalePoll) {
+      // Gated on the tab being visible, like every other periodic client work:
+      // with nobody looking, a session ending a few minutes later costs nothing.
+      const tick = () => { if (!document.hidden) _checkStale(false); };
+      setTimeout(tick, STALE_FIRST_MS);
+      _stalePoll = setInterval(tick, STALE_POLL_MS);
+    } else if (!want && _stalePoll) {
+      clearInterval(_stalePoll);
+      _stalePoll = null;
+      if (_staleRecheck) { clearTimeout(_staleRecheck); _staleRecheck = null; }
+    }
   }
 
   // ── Confirmation sheet ───────────────────────────────────────────
@@ -772,8 +861,10 @@
     if (a !== 'other' && p) _lastActivityProcess = p; // remember the app to boost
     _react(a);
     // Game process died (as opposed to just losing focus): any pending
-    // auto-restore can stop waiting out the Alt-Tab grace.
-    if (wasGameRunning && !_gameRunning) _expediteAutoRestore();
+    // auto-restore can stop waiting out the Alt-Tab grace, and a session that
+    // was started FOR that app — including a manual one, which has no other way
+    // to end — starts counting its way out.
+    if (wasGameRunning && !_gameRunning) { _expediteAutoRestore(); _checkStale(false); }
   }
 
   // Live OBS state (obs SSE event): going on-air counts as a streaming session

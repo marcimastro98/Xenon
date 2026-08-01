@@ -4588,7 +4588,7 @@ function renderSurfaceSection() {
   const native = window.XenonNative;
   const state = (native && typeof native.displayState === 'function')
     ? native.displayState()
-    : { supported: false, displays: [], mode: 'auto', monitor: '', fullscreen: false, active: '', missing: false };
+    : { supported: false, displays: [], mode: 'auto', monitor: '', fullscreen: false, active: '', missing: false, gpuMismatch: false };
   const choice = getSurfaceChoice();
   host.textContent = '';
 
@@ -4709,6 +4709,33 @@ function renderSurfaceSection() {
     warn.dataset.i18n = 'surface_missing';
     warn.textContent = t('surface_missing');
     host.appendChild(warn);
+  }
+
+  // The screens moved after the shell picked which GPU to render on, and that
+  // choice is fixed for the life of the process (see apps/native/src-tauri/src/gpu.rs).
+  // Said here because this panel is where the user is standing when it becomes
+  // true — they have just replugged a screen — and because a cost only a restart
+  // can remove is worse when nothing names it: the dashboard simply feels heavier
+  // than it did an hour ago, with nothing to blame.
+  //
+  // The button is the footer's own restart, reused rather than reimplemented: it
+  // confirms first, it already explains that nothing is lost, and it is already
+  // translated. Telling the user to use the tray icon instead would be bad advice
+  // on the surface this matters most on — in kiosk mode on the Edge the tray is
+  // behind the swipe-up gesture, so the fix would be further away than the problem.
+  if (state.gpuMismatch) {
+    const warn = document.createElement('p');
+    warn.className = 'settings-hint settings-hint-warn';
+    warn.dataset.i18n = 'surface_gpu_mismatch';
+    warn.textContent = t('surface_gpu_mismatch');
+    host.appendChild(warn);
+    const fix = document.createElement('button');
+    fix.type = 'button';
+    fix.className = 'settings-btn';
+    fix.dataset.i18n = 'settings_restart_app';
+    fix.textContent = t('settings_restart_app', 'Riavvia Xenon');
+    fix.addEventListener('click', () => restartXenon());
+    host.appendChild(fix);
   }
 
   // Phone modes: the pairing panel is where the actual work happens.

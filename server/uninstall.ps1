@@ -5,7 +5,10 @@
   starts clean. What it touches (see the inventory printed with -DryRun):
 
     Xenon-owned (removed by default, after one confirmation):
-      * the local server (stopped), scheduled tasks, the legacy Windows service
+      * the local server (stopped), the browser windows it opened (Deck popup,
+        Spotlight, browser tile), scheduled tasks, the legacy Windows service
+      * what Xenon set up inside other programs: its hooks and status line in
+        Claude Code, and the "start Ollama at login" entry (Ollama itself stays)
       * the native kiosk app (%LOCALAPPDATA%\Xenon), its autostart + uninstall
         registry entries, and its config (%APPDATA%/%LOCALAPPDATA%\com.marcimastro98.xenon)
       * bundled/downloaded extras inside the folder: node_modules, PresentMon,
@@ -231,6 +234,43 @@ foreach ($proc in $allProcs) {
   }
 }
 
+# The Edge windows WE opened escape both sweeps above: msedge.exe lives in
+# Program Files, and its command line names no Xenon script. They are ours all
+# the same - the Deck popup, the Spotlight popup and the browser tile each run
+# Edge against a --user-data-dir inside server\data - and leaving one behind
+# costs twice:
+#
+#   1. the profile holds server\data open, so the data folder (and with it the
+#      install folder) refuses to delete;
+#   2. an app-mode window still on screen at shutdown is relaunched by Windows'
+#      "restart my apps when I sign back in" at the NEXT login, long after Xenon
+#      is gone: a bare Edge window on http://127.0.0.1:3030, with nothing in the
+#      startup list to explain it. Reported by a user after uninstalling, and
+#      not fixable from our side once Windows has recorded the window - the only
+#      moment we can stop it is here, while the window still exists.
+#
+# Matched on the data folder of an install already identified above, so another
+# browser is never touched, and only the parent process (no --type= child) is
+# listed: Chromium keeps its renderers in a job object that dies with it.
+# IndexOf rather than -like for the reason given above - a real path may contain
+# [ and ], which -like would read as wildcards.
+foreach ($proc in $allProcs) {
+  if (-not $proc.CommandLine) { continue }
+  if ($targets.ContainsKey([int]$proc.ProcessId)) { continue }
+  if ($proc.CommandLine.IndexOf('--type=', [System.StringComparison]::OrdinalIgnoreCase) -ge 0) { continue }
+  foreach ($r in $installRoots) {
+    $dataMarker = Join-Path $r 'server\data'
+    if ($proc.CommandLine.IndexOf($dataMarker, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+      $targets[[int]$proc.ProcessId] = @{
+        name     = $proc.Name
+        label    = "$($proc.Name) (browser window opened by Xenon from $r)"
+        isServer = $false
+      }
+      break
+    }
+  }
+}
+
 # Servers first: kill a host while its parent backend still lives and the backend
 # simply spawns a replacement.
 $ordered = @($targets.Keys) | Sort-Object { if ($targets[$_].isServer) { 0 } else { 1 } }
@@ -275,6 +315,44 @@ if ((Get-Service -Name 'XenonEdgeService' -ErrorAction SilentlyContinue) -or (Te
 $startup = [Environment]::GetFolderPath('Startup')
 Remove-PathSafe (Join-Path $startup "$appName.lnk") "legacy startup shortcut"
 
+# -- 2b) what Xenon wrote into OTHER programs ---------------------------------
+# Two entries that live outside every folder this script deletes, and that a
+# user would never connect back to Xenon once Xenon is gone. Both are the
+# "silently does nothing forever" kind of leftover.
+Step 'Undoing what Xenon set up in other programs'
+
+# Claude Code. Xenon adds hooks and a status line to the user's Claude Code
+# settings.json; left behind, every session runs a status-line script that no
+# longer exists and posts each hook at a port with nothing listening.
+$claudeLink = Join-Path $serverDir 'claude-link.js'
+if (-not (Test-Path -LiteralPath $claudeLink)) {
+  Info 'Claude Code: nothing to undo'
+} elseif ($DryRun) {
+  Info "$tag would remove Xenon's hooks and status line from the Claude Code settings"
+} else {
+  # node.exe may not be on PATH in an elevated shell even when it is installed.
+  $nodeExe = (Get-Command node.exe -ErrorAction SilentlyContinue).Source
+  if (-not $nodeExe) {
+    foreach ($p in @("$env:ProgramFiles\nodejs\node.exe", "${env:ProgramFiles(x86)}\nodejs\node.exe", "$localAppData\Programs\nodejs\node.exe")) {
+      if (Test-Path -LiteralPath $p) { $nodeExe = $p; break }
+    }
+  }
+  if (-not $nodeExe) {
+    Warn 'Node.js not found - if you use Claude Code, run "node server\claude-link.js unlink" before deleting the folder'
+  } else {
+    $out = & $nodeExe $claudeLink unlink 2>&1
+    if ($LASTEXITCODE -ne 0) { Warn "could not unlink Claude Code ($out)" }
+    elseif ($out -match 'unlinked')  { Ok "removed Xenon's hooks and status line from Claude Code" }
+    else { Info 'Claude Code was not linked' }
+  }
+}
+
+# The "start Ollama at login" entry. Ollama itself is the user's own install and
+# is deliberately left alone (models are gigabytes and may be used by other
+# tools), but this entry is ours: Xenon wrote it, it is named after Xenon, and
+# on its own it would keep starting Ollama at every login for good.
+Remove-RegValue 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' 'XenonEdgeOllama' 'start Ollama at login (HKCU\...\Run\XenonEdgeOllama)'
+
 # -- 3) native kiosk app ------------------------------------------------------
 Step 'Removing the native app'
 $nativeUninstaller = Join-Path (Join-Path $localAppData 'Xenon') 'uninstall.exe'
@@ -296,10 +374,15 @@ Remove-RegValue 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' 'Xenon' 'n
 Remove-PathSafe (Join-Path $appData 'Microsoft\Windows\Start Menu\Programs\Xenon\Xenon.lnk') 'native app Start Menu shortcut'
 
 # -- 4) bundled / downloaded extras inside the folder -------------------------
-Step 'Removing bundled extras (PresentMon, Helper, Whisper, adblock, node_modules)'
+Step 'Removing bundled extras (PresentMon, Helper, Whisper, SDKs, adblock, node_modules)'
 Remove-PathSafe (Join-Path $serverDir 'presentmon') 'PresentMon (in-game FPS)'
 Remove-PathSafe (Join-Path $serverDir 'helper')     'Xenon Helper (native companion)'
 Remove-PathSafe (Join-Path $serverDir 'whisper')    'Whisper.cpp (local speech-to-text)'
+# Downloaded on demand like the three above, and just as much ours. They only
+# survive a -KeepFiles/-KeepData run, which is exactly when this list is what
+# decides whether the folder is left clean.
+Remove-PathSafe (Join-Path $serverDir 'icue-sdk')   'CORSAIR iCUE SDK component (RGB)'
+Remove-PathSafe (Join-Path $serverDir 'openrgb')    'OpenRGB (external lighting)'
 Remove-PathSafe (Join-Path $dataDir   'embedded-browser-adblock') 'embedded-browser adblock'
 Remove-PathSafe (Join-Path $dataDir   'native-installer') 'native app installer cache'
 if (-not $removeFolder) {   # if the whole folder is going, node_modules goes with it
