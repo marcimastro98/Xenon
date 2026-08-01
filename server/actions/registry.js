@@ -474,6 +474,8 @@ function createRegistry(deps) {
         case 'discordLeave':
         case 'discordInputVol':
         case 'discordOutputVol':
+        case 'discordUserVol':
+        case 'discordUserMute':
         case 'discordAudioToggle':
         case 'discordSoundboard': {
           // One dep for all Discord voice actions; the provider (which owns the

@@ -287,6 +287,10 @@ function createBridge(opts) {
         waitFor: null,
         todos: [], plan: '', subagents: [], activity: [],
         compacting: false, permissionMode: '', effort: '',
+        // Is there a turn running? Starts true-for-over, because a session we
+        // have only just heard of is not mid-answer. See the Notification case
+        // in applyHook for the one thing this exists to decide.
+        turnOver: true,
         lastSaid: '', linesAdded: null, linesRemoved: null,
         startedAt: now(), lastAt: now(), cost: null, contextPct: null,
         endedAt: 0, endedReason: '',
@@ -409,7 +413,7 @@ function createBridge(opts) {
       case 'SessionStart':
         touchSession(id, {
           project: projectName(d.cwd), state: 'idle', tool: '', toolDetail: '',
-          startedAt: now(), endedAt: 0, endedReason: '', waitFor: null,
+          startedAt: now(), endedAt: 0, endedReason: '', waitFor: null, turnOver: true,
           // `source` tells resume/compact apart from a genuinely new session, so
           // a resumed one does not present itself as starting from nothing.
           startSource: str(d.source, 30),
@@ -420,7 +424,7 @@ function createBridge(opts) {
         // notifications, system reminders, skill preambles — and one of those
         // as the session's headline reads like the user asked for it. Keep the
         // last REAL prompt instead of overwriting it with plumbing.
-        const patch = { state: 'running', tool: '', toolDetail: '', waitFor: null };
+        const patch = { state: 'running', tool: '', toolDetail: '', waitFor: null, turnOver: false };
         const prompt = str(d.prompt, MAX_STR);
         if (prompt && !isInjectedPrompt(prompt)) patch.task = prompt;
         touchSession(id, patch);
@@ -436,6 +440,7 @@ function createBridge(opts) {
           toolDetail: describeTool(tool, d.tool_input),
           toolAt: now(),
           state: 'running',
+          turnOver: false,
         });
         // A tool starting means Claude is moving again, so whatever notification
         // it raised is over. A permission or a question is NOT over — those are
@@ -470,9 +475,26 @@ function createBridge(opts) {
         if (s.state !== 'waiting') s.state = 'running';
         break;
       }
-      case 'Notification':
-        setWait(touchSession(id, {}), 'notification', d.message);
+      case 'Notification': {
+        // Claude Code sends Notification for two things that could not be more
+        // different, and the message text is the only thing separating them —
+        // in whatever language and wording that version happens to use:
+        //
+        //   "Claude needs your permission to use Bash"   → genuinely blocked
+        //   "Claude is waiting for your input"           → the turn is over,
+        //                                                  type when you like
+        //
+        // Reading the text is a guess. WHEN it arrives is a fact: the second
+        // one only ever follows a Stop, with no prompt and no tool since. So
+        // that is what decides it. Measured on a real session that had been
+        // finished for 47 minutes: it was drawn as "waiting for you", it put
+        // the top bar into its blocked state, and it did so while two other
+        // sessions were actually working. An idle session is idle.
+        const s = touchSession(id, {});
+        if (s && s.turnOver) break;
+        setWait(s, 'notification', d.message);
         break;
+      }
       case 'SubagentStart': {
         const s = touchSession(id, {});
         const agentId = str(d.agent_id, 60);
@@ -498,7 +520,7 @@ function createBridge(opts) {
         break;
       case 'Stop': {
         const s = touchSession(id, {
-          state: 'idle', tool: '', toolDetail: '', compacting: false,
+          state: 'idle', tool: '', toolDetail: '', compacting: false, turnOver: true,
           // What Claude actually said, straight off the hook — the transcript
           // reader exists for history, and this is the live line.
           lastSaid: str(d.last_assistant_message, MAX_STR),
@@ -509,14 +531,14 @@ function createBridge(opts) {
       case 'StopFailure':
         // The turn ended on an API error rather than an answer. Distinct from
         // idle: nothing is coming, and the user is the one who has to notice.
-        setWait(touchSession(id, { tool: '', toolDetail: '' }), 'error', d.error || d.reason);
+        setWait(touchSession(id, { tool: '', toolDetail: '', turnOver: true }), 'error', d.error || d.reason);
         break;
       case 'SessionEnd': {
         // Not a delete. A session that has just ended is exactly the one the
         // user looks at next ("did it finish, or did I kill it?"), and dropping
         // the record answered neither. It is filed as ended and pruned normally.
         const s = touchSession(id, {
-          state: 'idle', tool: '', toolDetail: '', waitFor: null, subagents: [],
+          state: 'idle', tool: '', toolDetail: '', waitFor: null, subagents: [], turnOver: true,
           endedAt: now(), endedReason: str(d.reason, 40) || 'other',
         });
         if (s) s.queued = null;   // nothing will ever deliver it now

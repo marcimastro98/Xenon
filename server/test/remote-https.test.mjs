@@ -136,6 +136,93 @@ test('stop() and renew() are safe on a door that never came up', async () => {
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function waitFor(probe, what) {
+  for (let i = 0; i < 200; i++) {
+    if (probe()) return;
+    await delay(5);
+  }
+  assert.fail('timed out waiting for ' + what);
+}
+
+// The bug this exists for, in one sentence: after a reboot the door asked
+// Tailscale one question, three seconds in, and took the answer as final. On
+// Windows the service starts with the MACHINE and the tray app with the
+// SESSION, so that answer is NO_BACKEND — and the door then stayed down, and
+// the panel went on printing "its app is not running" long after it was, until
+// somebody pressed the setup button that does nothing this could not do itself.
+test('the door retries itself: a boot-time NoState is not a permanent verdict', async () => {
+  const dir = tmpDir();
+  try {
+    const certDir = path.join(dir, 'tls');
+    fs.mkdirSync(certDir, { recursive: true });
+    fs.writeFileSync(path.join(certDir, 'mypc.tail1.ts.net.crt'), 'not-a-real-cert');
+    fs.writeFileSync(path.join(certDir, 'mypc.tail1.ts.net.key'), 'not-a-real-key');
+
+    let status = { installed: true, running: true, connected: false, backendState: 'NoState' };
+    let calls = 0;
+    const h = rh.createRemoteHttps({
+      tailscale: {
+        getStatus: () => { calls++; return Promise.resolve(status); },
+        cert: () => Promise.resolve({ ok: true }),
+      },
+      dataDir: dir, handler: () => {}, retryDelays: [5],
+    });
+    const first = await h.start();
+    assert.equal(first.ok, false);
+    assert.equal(first.reason, 'no_backend');
+
+    // Tailscale finishes coming up a moment later, with nobody watching.
+    status = {
+      installed: true, running: true, connected: true,
+      dnsName: 'mypc.tail1.ts.net', certsEnabled: true, ip: '127.0.0.1',
+    };
+    // `bad_cert` is the proof: it re-probed, got past readiness on the new
+    // answer and reached the (deliberately invalid) PEM on disk. Nothing but a
+    // second attempt can produce it.
+    await waitFor(() => h.status().reason === 'bad_cert', 'the door to try again');
+
+    // And stopping means stopping — a retry that fired after `stop()` would
+    // reopen a door the user just closed.
+    await h.stop();
+    const seen = calls;
+    await delay(40);
+    assert.equal(calls, seen, 'no probing after stop()');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+// `status()` is the last attempt's verdict, which is stale for a door that is
+// down — and that staleness is what told a user with Tailscale running and
+// connected that its app was not.
+test('refreshReason answers with NOW, and not once per tick', async () => {
+  const dir = tmpDir();
+  try {
+    let status = { installed: true, running: true, connected: false, backendState: 'NoState' };
+    let calls = 0;
+    const h = rh.createRemoteHttps({
+      tailscale: {
+        getStatus: () => { calls++; return Promise.resolve(status); },
+        cert: () => Promise.resolve({ ok: true }),
+      },
+      // Long enough that the retry timer cannot be what refreshed the reason.
+      dataDir: dir, handler: () => {}, retryDelays: [60000],
+    });
+    assert.equal((await h.start()).reason, 'no_backend');
+    assert.equal(h.status().reason, 'no_backend');
+
+    status = { installed: true, running: true, connected: true, dnsName: 'mypc.tail1.ts.net', certsEnabled: false };
+    assert.equal((await h.refreshReason()).reason, 'certs_disabled');
+    assert.equal(h.status().reason, 'certs_disabled', 'and the panel reads it from status() afterwards');
+
+    // A panel polling every few seconds must not spawn the CLI per tick.
+    const seen = calls;
+    await h.refreshReason();
+    assert.equal(calls, seen, 'a second read inside the TTL reuses the answer');
+    await h.stop();
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('the default port is not 443, and renewal is far inside the certificate lifetime', () => {
   // 443 would mean fighting for a privileged port that other software takes,
   // for a URL nobody types — it is delivered as a QR code.

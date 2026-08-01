@@ -42,6 +42,26 @@ const RENEW_INTERVAL_MS = 24 * 3600 * 1000;
 // disagree about what tailscaled's "no client has started me" state is called.
 const { NO_BACKEND } = require('./remote-control/tailscale');
 
+// The door comes up in a RACE, and one attempt is not enough to win it. On
+// Windows the Tailscale SERVICE starts with the machine while its tray app
+// starts with the SESSION, and until that app attaches, the daemon answers
+// NO_BACKEND — so the single attempt a few seconds after boot asks the one
+// question whose answer is still "not yet". Reported from a user's Windows 11
+// machine and reproducible by construction: after every reboot the door stayed
+// down, the panel went on printing `no_backend` long after Tailscale had come
+// up (the reason was the boot attempt's, frozen), and the only way out was the
+// setup button — which does nothing the door could not have done by itself.
+//
+// So: keep asking. A retry costs one `tailscale status --json`, backs off to
+// five minutes, and stops the moment the door is up or the user turns it off.
+// It also covers everything else that is merely EARLY at boot rather than
+// wrong — a daemon still signing in, a `tailscale cert` that met no network yet.
+const RETRY_DELAYS_MS = [5000, 10000, 20000, 45000, 90000, 180000, 300000];
+// A panel refresh may probe for a live reason; two in the same breath (the
+// status route is polled every few seconds while a setup job runs) would spawn
+// the CLI for an answer we just had.
+const PROBE_TTL_MS = 2000;
+
 /**
  * Why the HTTPS door is not up, as one of a small set of reasons the UI can turn
  * into a sentence. Kept as a pure function so the wording lives in the client and
@@ -77,11 +97,23 @@ function readiness(status) {
   return 'ready';
 }
 
-function createRemoteHttps({ tailscale, dataDir, handler, port = DEFAULT_PORT, log = () => {} } = {}) {
+// `retryDelays` is injected only by the tests: waiting out the real backoff to
+// assert that the door retries is a five-second unit test.
+function createRemoteHttps({
+  tailscale, dataDir, handler, port = DEFAULT_PORT, log = () => {},
+  retryDelays = RETRY_DELAYS_MS,
+} = {}) {
   const certDir = path.join(dataDir, 'tls');
   let server = null;
   let renewTimer = null;
   let state = { running: false, reason: 'idle', host: '', ip: '', url: '', since: 0 };
+  // Whether the user asked for the door. Only that grants the module the right
+  // to keep retrying in the background; `stop()` withdraws it.
+  let wanted = false;
+  let retryTimer = null;
+  let retryStep = 0;
+  let starting = null;      // the in-flight attempt, so two callers make one
+  let probedAt = 0;
 
   const paths = (host) => ({
     certFile: path.join(certDir, host + '.crt'),
@@ -112,7 +144,14 @@ function createRemoteHttps({ tailscale, dataDir, handler, port = DEFAULT_PORT, l
     }
   }
 
-  async function start() {
+  /** One try. Never schedules anything; `start()` owns the retrying. */
+  async function attempt() {
+    if (starting) return starting;
+    starting = _attempt().finally(() => { starting = null; });
+    return starting;
+  }
+
+  async function _attempt() {
     if (server) return { ok: true, ...state };
     const status = await tailscale.getStatus().catch(() => ({}));
     const reason = readiness(status);
@@ -168,9 +207,72 @@ function createRemoteHttps({ tailscale, dataDir, handler, port = DEFAULT_PORT, l
       url: 'https://' + host + ':' + port, since: Date.now(),
     };
     log('[https] paired-device door up on ' + state.url);
+    clearRetry();
     renewTimer = setInterval(() => { renew().catch(() => {}); }, RENEW_INTERVAL_MS);
     if (renewTimer.unref) renewTimer.unref();
     return { ok: true, ...state };
+  }
+
+  function clearRetry() {
+    if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+    retryStep = 0;
+  }
+
+  /** Ask again later, further away each time, until the door is up. */
+  function scheduleRetry() {
+    if (!wanted || server || retryTimer) return;
+    const ms = retryDelays[Math.min(retryStep, retryDelays.length - 1)];
+    retryStep++;
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
+      attempt()
+        .then((r) => { if (!r || !r.ok) scheduleRetry(); })
+        .catch(() => scheduleRetry());
+    }, ms);
+    if (retryTimer.unref) retryTimer.unref();
+  }
+
+  /**
+   * Bring the door up, and keep trying if it cannot come up yet.
+   *
+   * The retry is the whole point (see RETRY_DELAYS_MS): every reason short of
+   * `not_installed` is one that fixes itself within a minute of a reboot, and
+   * before this the door simply stayed down until somebody pressed a button.
+   */
+  async function start() {
+    wanted = true;
+    // An explicit call is the user in front of the panel, so the backoff starts
+    // over: what they change is exactly what the next attempt should see.
+    clearRetry();
+    const r = await attempt();
+    if (!r.ok) scheduleRetry();
+    return r;
+  }
+
+  /**
+   * The reason as it is RIGHT NOW, for a panel somebody is looking at.
+   *
+   * `status()` returns the last attempt's verdict, which is correct for a door
+   * that is up and stale for one that is down — and a stale reason is not a
+   * small thing here: it told a user whose Tailscale was running and connected
+   * that its app was not, minutes after it had attached. One `status --json`,
+   * cached briefly so a polling panel does not spawn the CLI per tick.
+   */
+  async function refreshReason() {
+    if (server) return { ...state, port };
+    const now = Date.now();
+    if (now - probedAt < PROBE_TTL_MS) return { ...state, port };
+    probedAt = now;
+    const reason = readiness(await tailscale.getStatus().catch(() => ({})));
+    state = { ...state, reason };
+    // Ready and down means the retry timer simply has not fired yet, and the
+    // person waiting for it is on the other side of this call. Fire-and-forget:
+    // a first certificate can take a minute, which is not something to hold a
+    // status request open for.
+    if (reason === 'ready' && wanted) {
+      attempt().then((r) => { if (!r || !r.ok) scheduleRetry(); }).catch(() => {});
+    }
+    return { ...state, port };
   }
 
   /**
@@ -192,6 +294,10 @@ function createRemoteHttps({ tailscale, dataDir, handler, port = DEFAULT_PORT, l
   }
 
   async function stop() {
+    // Withdrawn first: a retry that fires after this would bring back a door the
+    // user just closed, and at shutdown it would resurrect one mid-teardown.
+    wanted = false;
+    clearRetry();
     if (renewTimer) { clearInterval(renewTimer); renewTimer = null; }
     const s = server;
     server = null;
@@ -208,7 +314,10 @@ function createRemoteHttps({ tailscale, dataDir, handler, port = DEFAULT_PORT, l
 
   function status() { return { ...state, port }; }
 
-  return { start, stop, renew, status, readiness: () => state.reason };
+  return { start, stop, renew, status, refreshReason, readiness: () => state.reason };
 }
 
-module.exports = { createRemoteHttps, readiness, DEFAULT_PORT, RENEW_INTERVAL_MS };
+module.exports = {
+  createRemoteHttps, readiness, DEFAULT_PORT, RENEW_INTERVAL_MS,
+  RETRY_DELAYS_MS, PROBE_TTL_MS,
+};

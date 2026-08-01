@@ -11258,6 +11258,20 @@ async function _syncRemoteHttps() {
   } catch (e) { console.error('[https] sync failed:', e.message); }
 }
 
+/**
+ * The door's state for the Settings panel: the cached one while it is up, a
+ * freshly probed reason while it is down and the user has asked for it.
+ *
+ * Only asked when the switch is ON, so a machine that never wanted the door
+ * never spawns the CLI for it.
+ */
+async function _remoteHttpsState() {
+  const ra = (_serverHubSettings && _serverHubSettings.remoteAccess) || {};
+  const st = remoteHttps.status();
+  if (st.running || ra.enabled !== true || ra.https !== true) return st;
+  return await remoteHttps.refreshReason().catch(() => st);
+}
+
 // Live sockets per paired device, so revoking one hangs up on it immediately
 // instead of leaving an SSE stream running until the phone gives up.
 const _remoteSockets = new Map();
@@ -18322,7 +18336,12 @@ const handleRequest = async (req, res) => {
       // no polkit agent and a Mac with no Homebrew both answer false, and there
       // the panel prints the exact command instead of offering a dead button.
       httpsAutoInstall: await remoteHttpsInstaller.canInstall('tailscale').catch(() => false),
-      https: remoteHttps.status(),
+      // Probed live while the door is down (see refreshReason): the cached
+      // reason belongs to whenever the last attempt ran, which at boot is
+      // before Tailscale's own client has attached — and printing THAT at
+      // somebody staring at a connected Tailscale is how this reads as Xenon
+      // being unable to see it.
+      https: await _remoteHttpsState(),
       // The guided setup, when one is running: which step, and whether it is
       // parked on the one thing the user has to do elsewhere.
       httpsSetup: remoteHttpsSetup.status(),

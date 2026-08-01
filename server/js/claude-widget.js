@@ -1876,6 +1876,30 @@
   // yet. Tapping it opens that session.
   let topbarSig = '';
 
+  // Claude's own mark: the eleven-ray sunburst, drawn in this codebase's style
+  // the same way the Twitch, Discord and Spotify glyphs are (dashboard-palette.js)
+  // rather than shipping anybody's logo file. It replaced a four-point sparkle,
+  // which is the generic "AI" glyph every product uses and identified nothing.
+  //
+  // Eleven rays, tapered, meeting at the centre, symmetric about (12,12) so the
+  // working state can rotate it without wobble. Generated rather than eyeballed,
+  // and compared against the alternatives at both 92px and the 15px it is
+  // actually used at before this one was picked — at that size a thinner ray
+  // disappears and a blunter one turns into a blob.
+  const MARK_PATH = 'M12.6 2.2L13.8 12L10.2 12L11.4 2.2ZM17.8 4.08L13.51 12.97L10.49 11.03L16.79 3.43ZM21.16 8.47L12.75 13.64L11.25 10.36L20.67 7.38ZM21.61 13.99L11.74 13.78L12.26 10.22L21.79 12.8ZM19.01 18.87L10.82 13.36L13.18 10.64L19.8 17.96ZM14.19 21.57L10.27 12.51L13.73 11.49L15.34 21.23ZM8.66 21.23L10.27 11.49L13.73 12.51L9.81 21.57ZM4.2 17.96L10.82 10.64L13.18 13.36L4.99 18.87ZM2.21 12.8L11.74 10.22L12.26 13.78L2.39 13.99ZM3.33 7.38L12.75 10.36L11.25 13.64L2.84 8.47ZM7.21 3.43L13.51 11.03L10.49 12.97L6.2 4.08Z';
+  function claudeMark() {
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('class', 'cw-tb-mark');
+    svg.setAttribute('aria-hidden', 'true');
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', MARK_PATH);
+    p.setAttribute('fill', 'currentColor');
+    svg.appendChild(p);
+    return svg;
+  }
+
   function syncTopbar() {
     const host = document.getElementById('clock-claude');
     if (!host) return;
@@ -1887,18 +1911,19 @@
       topbarSig = '';
       return;
     }
-    const list = sessions();
-    const working = list.filter(s => s.state === 'running' && !s.ended).length;
+    // A session filed under Finished contributes nothing to any of these. It is
+    // not working, it is not blocked, and it cannot become either without an
+    // event that would move it back out — a 47-minute-old session was putting
+    // the bar into its loudest state while two others were actually running.
+    const list = sessions().filter(s => !s.ended && !s.resting);
+    const working = list.filter(s => s.state === 'running').length;
     const done = otherNotices().length ? doneNotices.length : 0;
-    // A card the user can answer, or a session blocked with no card to answer —
-    // Claude Code raising a notification and waiting is the same "it needs you"
-    // from across the room, and it used to show as nothing at all.
-    const pending = approvals().length
-      || list.filter(s => s.waitFor && !s.ended).length;
+    // A card the user can answer, or a session blocked with no card to answer.
+    const pending = approvals().length || list.filter(s => s.waitFor).length;
 
-    // Rebuilding on every payload would restart the breathing animation several
-    // times a second while a session is busy — exactly when it must look calm.
-    // Only redraw when what the chip SAYS changes.
+    // Rebuilding on every payload would restart the animation several times a
+    // second while a session is busy — exactly when it must look calm. Only
+    // redraw when what the chip MEANS changes.
     const sig = `${working}|${done}|${pending}`;
     if (sig === topbarSig) return;
     topbarSig = sig;
@@ -1910,13 +1935,24 @@
     host.hidden = false;
     const chip = el('button', 'cw-tb' + (pending ? ' is-waiting' : (done ? ' is-done' : ' is-working')));
     chip.type = 'button';
-    chip.appendChild(el('span', 'cw-tb-dot'));
+    // The mark, not a word. A pill reading "wants your OK" spent the width of
+    // six characters saying something the colour says instantly, and it said it
+    // next to a clock, where nobody reads sentences. State is carried by colour
+    // and by how the mark moves: it turns slowly while Claude works, holds still
+    // when there is an answer to read, and knocks when it is blocked on you.
+    // The words stay in the tooltip, which is where a word belongs here.
+    chip.appendChild(claudeMark());
     const label = pending
       ? t('claude_bar_waiting', 'wants your OK')
       : (done ? t('claude_bar_done', 'finished') : t('claude_bar_working', 'working'));
-    chip.appendChild(el('span', 'cw-tb-t', label));
+    // Blocked on you gets a badge rather than a recolour: at 15px, repainting
+    // the mark amber costs the one thing it is there for, which is being
+    // recognisably Claude. A dot in the corner is unmistakable and leaves the
+    // mark alone.
+    if (pending) chip.appendChild(el('span', 'cw-tb-alert'));
     if (working > 1 && !pending) chip.appendChild(el('span', 'cw-tb-n', String(working)));
     chip.title = label;
+    chip.setAttribute('aria-label', label);
     chip.addEventListener('click', () => {
       const n = doneNotices[doneNotices.length - 1];
       if (!n) return;

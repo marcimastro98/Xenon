@@ -81,6 +81,13 @@ const ACTION_CATALOG = [
   { type: 'discordLeave',       group: 'discord', labelKey: 'deck_act_discordLeave',       params: [] },
   { type: 'discordInputVol',    group: 'discord', labelKey: 'deck_act_discordInputVol',    params: [{ name: 'mode', kind: 'select', options: ['up', 'down', 'set'] }, { name: 'value', kind: 'text', optional: true }] },
   { type: 'discordOutputVol',   group: 'discord', labelKey: 'deck_act_discordOutputVol',   params: [{ name: 'mode', kind: 'select', options: ['up', 'down', 'set'] }, { name: 'value', kind: 'text', optional: true }] },
+  // Per-user LOCAL playback for someone in your voice channel — Discord's own
+  // right-click volume slider and local mute, reachable without alt-tabbing.
+  // SDK-only (hidden) like mediaSeek: the target is a user id that only means
+  // anything while that person is in your channel, which the widget's live
+  // roster carries and a Deck key saved days earlier does not.
+  { type: 'discordUserVol',  group: 'discord', hidden: true, labelKey: 'deck_act_discordUserVol',  params: [{ name: 'user', kind: 'text', maxLen: 25 }, { name: 'mode', kind: 'select', options: ['up', 'down', 'set'] }, { name: 'value', kind: 'text', optional: true }] },
+  { type: 'discordUserMute', group: 'discord', hidden: true, labelKey: 'deck_act_discordUserMute', params: [{ name: 'user', kind: 'text', maxLen: 25 }, { name: 'mode', kind: 'select', options: ['toggle', 'mute', 'unmute'] }] },
   { type: 'discordAudioToggle', group: 'discord', labelKey: 'deck_act_discordAudioToggle', params: [{ name: 'feature', kind: 'select', options: ['noise_suppression', 'echo_cancellation', 'automatic_gain_control', 'qos'] }] },
   { type: 'discordSoundboard',  group: 'discord', labelKey: 'deck_act_discordSoundboard',  params: [{ name: 'sound', kind: 'discordSound' }] },
   { type: 'spotifyPlay',     group: 'spotify', labelKey: 'deck_act_spotifyPlay',     params: [{ name: 'mode', kind: 'select', options: ['toggle', 'play', 'pause'] }] },

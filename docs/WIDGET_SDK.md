@@ -261,8 +261,8 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `news` — merged headlines from the user's news sources
 - `claude` — local Claude Code usage aggregate (the "Xenon Pulse" data)
 - `obs` — OBS state (current scene, recording/streaming flags, audio sources)
-- `discord` — Discord voice state (connected, mute/deafen, current channel, speaking)
-- `discordChannels` — `{ ok, channels:[{ id, name, guild, members:[] }] }`; Discord voice-channel catalog merged with the live roster
+- `discord` — Discord voice state (connected, mute/deafen, current channel, speaking) plus `members[]` for the channel the user is in: `{ id, name, mute, deaf, speaking, volume, localMute }`. `mute`/`deaf` are that person's own mic state; `volume` (0-200, `null` if unreported) and `localMute` are what THIS machine hears — the pair `discordUserVol` writes
+- `discordChannels` — `{ ok, channels:[{ id, name, guild, members:[] }] }`; Discord voice-channel catalog merged with the live roster (same `members[]` shape)
 - `discordSoundboard` — `{ ok, sounds:[{ id, guildId, name, guild }] }`; the soundboard catalog available to the connected Discord account
 - `discordNotifications` — `{ ok, enabled, hide, state, items:[...] }`; private DM/mention notifications, with the user's privacy setting preserved. Request this grant only when the widget genuinely displays notification content
 - `streamerbot` — Streamer.bot connection state, globals, and activity events
@@ -822,7 +822,7 @@ the same gate Deck keys go through):
 | `wavelink` | `{ type: 'wlInputVolume', mixId, mix, value }`, `{ type: 'wlInputMute', mixId, mix }`, `{ type: 'wlOutputVolume', mix, value }`, `{ type: 'wlOutputMute', mix }`, `{ type: 'wlSwitchMonitoring' }`, `{ type: 'wlSetMonitorMix', monitorMix }` — Elgato Wave Link mixer (`mix`: `stream` \| `local` \| `all`; `value`: 0–100; `mixId` from the `wavelink` stream). Requires the user to enable Wave Link in Settings. |
 | `spotify` | `spotifyPlay`, `spotifyNext`, `spotifyPrev`, `spotifySave`, `spotifyLike`, `spotifyShuffle`, `spotifyRepeat`, `spotifyVolume`, `spotifySeek`, `spotifyPlaylist`, `spotifyDevice` — control Spotify playback (params match the Deck Spotify actions; playback control needs Spotify Premium). Requires the user to connect Spotify in Settings. |
 | `obs` | `obsScene`, `obsSceneNext`, `obsRecord`, `obsStream`, `obsMute`, `obsInputVolume` — OBS scenes, recording/streaming and audio. Requires OBS connected (WebSocket) in Settings. |
-| `discord` | `discordMute`, `discordDeafen`, `discordPtt`, `discordJoin`, `discordLeave`, `discordInputVol`, `discordOutputVol`, `discordAudioToggle`, `discordSoundboard` — Discord voice via the local RPC. Requires Discord running and connected. |
+| `discord` | `discordMute`, `discordDeafen`, `discordPtt`, `discordJoin`, `discordLeave`, `discordInputVol`, `discordOutputVol`, `discordUserVol`, `discordUserMute`, `discordAudioToggle`, `discordSoundboard` — Discord voice via the local RPC. Requires Discord running and connected. See [Turning one person up or down](#5d-turning-one-person-up-or-down-discorduservol-v411) for the per-user pair. |
 | `homeassistant` | `haToggle`, `haLight`, `haMedia`, `haCover`, `haClimate`, `haFan`, `haVacuum`, `haLock`, `haAlarm`, `haScene`, `haScript`, `haButton` — control your Home Assistant devices (params/entity ids match the Deck HA actions). `haCallService` (arbitrary service calls) is deliberately **not** exposed to widgets. Requires HA configured. |
 | `twitch` | `twitchClip`, `twitchMarker`, `twitchAd`, `twitchTitle`, `twitchGame`, `twitchChat`, `twitchShoutout`, `twitchChatMode` — control your Twitch channel. Requires Twitch connected. |
 | `youtube` | `ytBroadcast` — start/stop your YouTube broadcast. Requires YouTube connected. |
@@ -967,6 +967,55 @@ action: { type: 'ytWatchPlay', video: 'dQw4w9WgXcQ' }
 
 Listed to the user as "Play a channel or a video in the Twitch and YouTube tiles".
 
+### 5d. Turning one person up or down: `discordUserVol` (v4.11)
+
+Two actions in the `discord` category act on ONE member of the voice channel the
+user is in, exactly like dragging that person's slider in Discord's own
+right-click menu. Both are **local playback**: they change what this machine
+hears, they are invisible to everyone else in the channel, and they are not
+moderation — no server permissions are involved.
+
+```js
+// Absolute volume, 0-200 (Discord's own per-user range; 100 is normal)
+action: { type: 'discordUserVol', user: '123456789012345678', mode: 'set', value: '60' }
+// Or nudge by 10
+action: { type: 'discordUserVol', user: '123456789012345678', mode: 'up' }
+// Local mute — you stop hearing them, their mic keeps working for everyone else
+action: { type: 'discordUserMute', user: '123456789012345678', mode: 'toggle' }
+```
+
+```json
+{ "streams": ["discord"], "actions": ["discord"] }
+```
+
+- `user` is the `id` of an entry in the `discord` stream's `members[]`. There is
+  no name lookup: ask for the `discord` stream, draw the roster it gives you, and
+  send back the id of the row the user touched.
+- The same `members[]` entries carry **`volume`** (0-200, or `null` when Discord
+  did not report it) and **`localMute`**, so a slider can open where the machine
+  actually is instead of at a guessed 100. Do not confuse `localMute` with
+  `mute`: `mute`/`deaf` are that person's OWN microphone state, which everyone in
+  the channel sees, while `volume`/`localMute` are what YOU hear.
+- Errors are named, and each one means something different to your UI:
+  `not_in_channel` (the user is not in a voice call), `user_not_here` (that id is
+  not in the current channel), `self_not_supported` (the user's own row, whose
+  levels are `discordInputVol` / `discordOutputVol` instead), `bad_user`,
+  `bad_value`. Hide the control on the user's own row rather than letting them
+  discover it.
+- Every call reads the channel before it writes, including an absolute `set`.
+  Discord accepts settings for somebody who is not there and answers OK, so
+  without that read a control on a stale row would report success and change
+  nothing. It is one local round trip, and host-side rate limiting already caps
+  a widget at four actions a second.
+- **Discord restores per-user settings when the app that changed them
+  disconnects.** Xenon holds its RPC connection open while any override is
+  active, so a value the user set stays set — but it also means the whole thing
+  resets if Discord is closed or the account is unlinked. Treat the stream as
+  the truth and re-read it rather than caching what you last sent.
+
+Requires Discord running and connected in Settings, like every other action in
+the category.
+
 <!-- SDK-REFERENCE:START (auto-generated by tools/gen-sdk-reference.mjs — do not edit by hand) -->
 ### Capability reference (auto-generated)
 
@@ -983,7 +1032,7 @@ the user granted, and every action is re-validated server-side.
 | `audioDevice` | `audioDevice` |
 | `browser` | `browserOpen` |
 | `chroma` | `chromaColor`, `chromaOff` |
-| `discord` | `discordMute`, `discordDeafen`, `discordPtt`, `discordJoin`, `discordLeave`, `discordInputVol`, `discordOutputVol`, `discordAudioToggle`, `discordSoundboard` |
+| `discord` | `discordMute`, `discordDeafen`, `discordPtt`, `discordJoin`, `discordLeave`, `discordInputVol`, `discordOutputVol`, `discordUserVol`, `discordUserMute`, `discordAudioToggle`, `discordSoundboard` |
 | `homeassistant` | `haToggle`, `haLight`, `haMedia`, `haCover`, `haClimate`, `haFan`, `haVacuum`, `haLock`, `haAlarm`, `haScene`, `haScript`, `haButton` |
 | `lighting` | `lighting`, `lightPower`, `lightColor`, `lightAuto`, `lightEffect`, `lightDevice` |
 | `media` | `media`, `mediaSeek` |
