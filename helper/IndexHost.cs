@@ -12,8 +12,25 @@ namespace XenonHelper;
 //
 // Life cycle: initial walk streams progress and flips `ready`; watchers apply
 // created/deleted/renamed/changed live; a watcher buffer overflow marks that
-// root dirty and a background rescan rebuilds just that root — the index may
+// root dirty and a background REPAIR re-walks just that root — the index may
 // briefly lag, it must never stay wrong. stdin EOF = clean exit.
+//
+// Three rules make that repair safe, and all three were learned from one bug
+// (measured on a live install: the index rebuilding C:\ end to end every ~20s,
+// for hours, at 98% of a core, its file count swinging 1.8M → 418k → 1.3M).
+//   1. The watcher callbacks NEVER take the index lock and never touch the
+//      disk. They record the path and return. The old handlers did a stat plus
+//      a lock per event, so while a re-walk held that lock a couple of million
+//      times the callbacks were starved, the watcher's 64 KB kernel buffer
+//      overflowed, that overflow marked the root dirty, and the repair it
+//      triggered starved the callbacks again. The recovery WAS the cause.
+//   2. A repair upserts under a fresh generation stamp and then sweeps only
+//      what it did not touch. It never empties the root first: search and the
+//      disk widget read this index continuously, and a "kept current" index
+//      that periodically drops three quarters of its content is not lagging,
+//      it is wrong.
+//   3. A repair is debounced (the storm must pass) and rate-limited per root,
+//      so no amount of filesystem noise can turn into a permanent re-walk.
 //
 // Protocol: stdin one JSON per line {id, op, ...}; stdout "XEIDX " + base64:
 //   query {terms[],exts[],after,before,minBytes,maxBytes,max}
@@ -43,6 +60,7 @@ internal static class IndexHost
         public string Name;        // display name
         public string? NameLower;  // ordinal-lowercase for matching; null = Name is already lowercase
         public int Dir;            // index into Dirs; -1 = tombstone
+        public int Gen;            // walk that last confirmed this entry (see the repair rules)
         public long Size;
         public long Mtime;
     }
@@ -69,7 +87,34 @@ internal static class IndexHost
 
     private static readonly object OutLock = new();
     private static readonly List<FileSystemWatcher> Watchers = new();
-    private static readonly HashSet<string> DirtyRoots = new(StringComparer.OrdinalIgnoreCase);
+
+    // ── repair scheduling ─────────────────────────────────────────────────────
+    // A dirty root carries WHEN it was first marked and when it was last marked:
+    // the repair waits for the storm to stop (quiet) but never waits forever
+    // (max), and never repairs the same root more often than the interval.
+    private readonly record struct Dirt(long First, long Last);
+    private static readonly Dictionary<string, Dirt> DirtyRoots = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, long> LastRepair = new(StringComparer.OrdinalIgnoreCase);
+    private const int RepairQuietMs = 30_000;        // no new overflow for this long
+    private const int RepairMaxWaitMs = 300_000;     // ...but repair anyway after this
+    private const int RepairMinIntervalMs = 600_000; // at most one re-walk per root per 10 min
+    private static volatile bool Repairing;
+    private static int Repairs;
+
+    // ── coalesced watcher events ──────────────────────────────────────────────
+    // Path → "a create event was seen for it". Statting happens on the drain
+    // thread, so the same file written a thousand times a second costs one stat
+    // per drain instead of a thousand stats under the index lock.
+    private static readonly object PendingGate = new();
+    private static readonly Dictionary<string, bool> Pending = new(StringComparer.OrdinalIgnoreCase);
+    private const int PendingMax = 200_000;          // beyond this the root is repaired instead
+    private const int DrainIntervalMs = 300;
+
+    // Entries are written under the newest generation issued. An entry the
+    // drain thread adds while a repair walk is running therefore carries that
+    // walk's generation and survives its sweep.
+    private static int WalkGen;
+    private static int CurrentGen => Volatile.Read(ref WalkGen);
 
     public static int Run(string[] args)
     {
@@ -101,16 +146,19 @@ internal static class IndexHost
             GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
             Ready = true;
             Emit(new Dictionary<string, object?> { ["event"] = "ready" });
-            // Dirty-root repair loop: a watcher overflow re-walks that root.
+            // Dirty-root repair loop: a watcher overflow re-walks that root,
+            // debounced and rate-limited, and sweeps instead of emptying.
             while (!Cancelled)
             {
-                string? dirty = null;
-                lock (Gate) { foreach (var d in DirtyRoots) { dirty = d; break; } if (dirty != null) DirtyRoots.Remove(dirty); }
-                if (dirty != null) { RemoveSubtree(dirty); WalkRoot(dirty); }
+                var due = TakeDueRoot();
+                if (due != null) RepairRoot(due);
                 else Thread.Sleep(1000);
             }
         })
         { IsBackground = true, Name = "index-build" }.Start();
+
+        // Watcher events are applied here, off the watcher callbacks.
+        new Thread(DrainLoop) { IsBackground = true, Name = "index-drain" }.Start();
 
         string? line;
         while ((line = Console.In.ReadLine()) != null)
@@ -669,6 +717,10 @@ internal static class IndexHost
 
     private static Dictionary<string, object?> OpStats()
     {
+        // Read the queue BEFORE the index lock: this is the only place that
+        // would want both, and taking them in one fixed order is cheaper to
+        // keep true than a rule about which nests inside which.
+        var pending = PendingCount();
         lock (Gate)
         {
             return new Dictionary<string, object?>
@@ -681,6 +733,12 @@ internal static class IndexHost
                 ["ramMB"] = GC.GetTotalMemory(false) / (1024 * 1024),
                 ["roots"] = Roots.ToList(),
                 ["watchers"] = Watchers.Count,
+                // What the host is doing beyond the initial build. Without
+                // these three, a host re-walking a root forever is
+                // indistinguishable from an idle one that merely uses a core.
+                ["repairing"] = Repairing,
+                ["repairs"] = Repairs,
+                ["pending"] = pending,
                 // True when MaxEntries stopped the walk: the index is still
                 // useful but not complete — consumers can say so honestly.
                 ["capped"] = Capped,
@@ -688,9 +746,19 @@ internal static class IndexHost
         }
     }
 
+    private static int PendingCount() { lock (PendingGate) return Pending.Count; }
+
     // ── build + live updates ──────────────────────────────────────────────────
 
-    private static void WalkRoot(string root)
+    private static void WalkRoot(string root) => WalkRoot(root, CurrentGen);
+
+    // Entries are added in batches under ONE lock acquisition instead of one
+    // per file. On a 2M-entry root the per-file version held the index lock
+    // roughly two million times in a row, which starved the watcher callbacks
+    // for the whole walk — see rule 1 in the header.
+    private const int LockBatch = 512;
+
+    private static void WalkRoot(string root, int gen)
     {
         var opts = new EnumerationOptions
         {
@@ -700,6 +768,7 @@ internal static class IndexHost
         };
         long emitted = 0;
         var lastProgress = Environment.TickCount64;
+        var batch = new List<(string dir, string name, long size, long mtime)>(LockBatch);
         IEnumerable<FileInfo> files;
         try { files = new DirectoryInfo(root).EnumerateFiles("*", opts); }
         catch { return; }
@@ -711,22 +780,44 @@ internal static class IndexHost
             try { len = fi.Length; mt = new DateTimeOffset(fi.LastWriteTimeUtc).ToUnixTimeMilliseconds(); dir = fi.DirectoryName; }
             catch { continue; }
             if (dir == null) continue;
-            lock (Gate)
-            {
-                if (Entries.Count - Tombstones >= MaxEntries) { Capped = true; return; }
-                AddEntryLocked(dir, fi.Name, len, mt);
-            }
+            batch.Add((dir, fi.Name, len, mt));
+            if (batch.Count >= LockBatch && !FlushWalkBatch(batch, gen)) return;
             emitted++;
             var now = Environment.TickCount64;
-            if (now - lastProgress > 1000)
+            // Progress is a BUILD signal only: emitting it during a repair
+            // overwrites the server's build progress with a rescan's count, and
+            // "1.5M files, root C:\" sitting next to "ready" is exactly the
+            // reading that made this bug hard to see from outside.
+            if (!Ready && now - lastProgress > 1000)
             {
                 lastProgress = now;
                 Emit(new Dictionary<string, object?> { ["event"] = "progress", ["files"] = emitted, ["root"] = root });
             }
         }
+        FlushWalkBatch(batch, gen);
+    }
+
+    // false = the entry cap stopped the walk.
+    private static bool FlushWalkBatch(List<(string dir, string name, long size, long mtime)> batch, int gen)
+    {
+        if (batch.Count == 0) return true;
+        var ok = true;
+        lock (Gate)
+        {
+            foreach (var b in batch)
+            {
+                if (Entries.Count - Tombstones >= MaxEntries) { Capped = true; ok = false; break; }
+                AddEntryLocked(b.dir, b.name, b.size, b.mtime, gen);
+            }
+        }
+        batch.Clear();
+        return ok;
     }
 
     private static void AddEntryLocked(string dir, string name, long size, long mtime)
+        => AddEntryLocked(dir, name, size, mtime, CurrentGen);
+
+    private static void AddEntryLocked(string dir, string name, long size, long mtime, int gen)
     {
         if (!DirIds.TryGetValue(dir, out var dirId))
         {
@@ -743,11 +834,11 @@ internal static class IndexHost
         {
             var en = Entries[existing];
             TotalBytes += size - en.Size;
-            en.Size = size; en.Mtime = mtime;
+            en.Size = size; en.Mtime = mtime; en.Gen = gen;
             Entries[existing] = en;
             return;
         }
-        Entries.Add(new Entry { Name = name, NameLower = ReferenceEquals(lower, name) ? null : lower, Dir = dirId, Size = size, Mtime = mtime });
+        Entries.Add(new Entry { Name = name, NameLower = ReferenceEquals(lower, name) ? null : lower, Dir = dirId, Gen = gen, Size = size, Mtime = mtime });
         ByPath[key] = Entries.Count - 1;
         TotalBytes += size;
     }
@@ -790,7 +881,42 @@ internal static class IndexHost
                 Entries[i] = en;
                 Tombstones++;
             }
-            CompactLocked();
+            // Same threshold as RemoveEntryLocked. Compacting unconditionally
+            // rebuilt the whole ByPath dictionary (millions of entries) on
+            // EVERY deleted directory — and a build tool deletes directories by
+            // the hundred.
+            if (Tombstones > 50000 && Tombstones > Entries.Count / 5) CompactLocked();
+        }
+    }
+
+    // The other half of a repair: whatever the walk did not confirm under this
+    // root is gone. Entries the drain thread added while the walk ran carry the
+    // walk's own generation, so they are never swept.
+    private static void SweepStaleUnder(string root, int gen)
+    {
+        var prefixLower = root.TrimEnd('\\').ToLowerInvariant();
+        lock (Gate)
+        {
+            var under = new Dictionary<int, bool>();
+            for (int i = 0; i < Entries.Count; i++)
+            {
+                var en = Entries[i];
+                if (en.Dir < 0 || en.Gen == gen) continue;
+                if (!under.TryGetValue(en.Dir, out var ok))
+                {
+                    var dl = Dirs[en.Dir].TrimEnd('\\').ToLowerInvariant();
+                    ok = dl.StartsWith(prefixLower, StringComparison.Ordinal)
+                         && (dl.Length == prefixLower.Length || dl[prefixLower.Length] == '\\');
+                    under[en.Dir] = ok;
+                }
+                if (!ok) continue;
+                ByPath.Remove(new PathKey(en.Dir, LowerOf(en)));
+                TotalBytes -= en.Size;
+                en.Dir = -1; en.Name = ""; en.NameLower = null;
+                Entries[i] = en;
+                Tombstones++;
+            }
+            if (Tombstones > 50000 && Tombstones > Entries.Count / 5) CompactLocked();
         }
     }
 
@@ -815,55 +941,182 @@ internal static class IndexHost
                 InternalBufferSize = 64 * 1024,   // max Windows allows
                 NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.Size | NotifyFilters.LastWrite,
             };
-            w.Created += (_, e) => OnFsEvent(e.FullPath, created: true);
-            w.Changed += (_, e) => OnFsEvent(e.FullPath, created: false);
-            w.Deleted += (_, e) => OnFsDeleted(e.FullPath);
-            w.Renamed += (_, e) => { OnFsDeleted(e.OldFullPath); OnFsEvent(e.FullPath, created: true); };
-            w.Error += (_, _) => { lock (Gate) DirtyRoots.Add(root); };
+            // These four callbacks run on the watcher's own threads and must
+            // return immediately: no disk, no index lock. Everything they do is
+            // record the path (see rule 1 in the header).
+            w.Created += (_, e) => OnFsTouch(e.FullPath, created: true);
+            w.Changed += (_, e) => OnFsTouch(e.FullPath, created: false);
+            w.Deleted += (_, e) => OnFsTouch(e.FullPath, created: false);
+            w.Renamed += (_, e) => { OnFsTouch(e.OldFullPath, created: false); OnFsTouch(e.FullPath, created: true); };
+            w.Error += (_, _) =>
+            {
+                MarkDirty(root);
+                // A buffer overflow leaves the watcher alive, but other errors
+                // leave it permanently deaf with no way to tell from here.
+                // Re-arming costs nothing and a silently dead watcher is the one
+                // failure this host cannot otherwise detect.
+                try { w.EnableRaisingEvents = false; w.EnableRaisingEvents = true; } catch { }
+            };
             w.EnableRaisingEvents = true;
             Watchers.Add(w);
         }
         catch { /* an unwatchable root degrades to build-time snapshot */ }
     }
 
-    private static void OnFsEvent(string fullPath, bool created)
+    private static void OnFsTouch(string fullPath, bool created)
     {
-        try
+        if (string.IsNullOrEmpty(fullPath)) return;
+        var overflow = false;
+        lock (PendingGate)
         {
-            var fi = new FileInfo(fullPath);
-            if (fi.Exists)
-            {
-                if ((fi.Attributes & FileAttributes.ReparsePoint) != 0) return;
-                lock (Gate)
-                {
-                    if (Entries.Count - Tombstones >= MaxEntries) { Capped = true; return; }
-                    AddEntryLocked(fi.DirectoryName ?? "", fi.Name, fi.Length, new DateTimeOffset(fi.LastWriteTimeUtc).ToUnixTimeMilliseconds());
-                }
-                return;
-            }
-            if (created && Directory.Exists(fullPath))
-            {
-                // A moved-in directory arrives as ONE created event: walk it.
-                new Thread(() => WalkRoot(fullPath)) { IsBackground = true }.Start();
-            }
+            if (Pending.Count >= PendingMax) overflow = true;
+            else if (created) Pending[fullPath] = true;
+            else if (!Pending.ContainsKey(fullPath)) Pending[fullPath] = false;
         }
-        catch { /* transient fs races are the watcher's daily bread */ }
+        // The queue is as bounded as the kernel's own buffer, and it answers an
+        // overflow the same way: repair the root rather than grow without limit.
+        if (overflow) MarkDirty(fullPath);
     }
 
-    private static void OnFsDeleted(string fullPath)
+    // Applies coalesced watcher events: one stat per touched path per pass,
+    // whatever happened to it in between, and one index lock per pass.
+    private static void DrainLoop()
     {
+        var touched = new List<KeyValuePair<string, bool>>(4096);
+        var adds = new List<(string dir, string name, long size, long mtime)>(4096);
+        var fileDeletes = new List<(string dir, string name)>();
+        var subtreeDeletes = new List<string>();
+        var dirWalks = new List<string>();
+
+        while (!Cancelled)
+        {
+            touched.Clear(); adds.Clear(); fileDeletes.Clear(); subtreeDeletes.Clear(); dirWalks.Clear();
+            lock (PendingGate)
+            {
+                if (Pending.Count > 0) { touched.AddRange(Pending); Pending.Clear(); }
+            }
+            if (touched.Count == 0) { Thread.Sleep(DrainIntervalMs); continue; }
+
+            foreach (var kv in touched)
+            {
+                if (Cancelled) return;
+                var full = kv.Key;
+                try
+                {
+                    // Statting NOW is what makes coalescing correct: created,
+                    // written and deleted between two passes reads as deleted,
+                    // which is the truth.
+                    var fi = new FileInfo(full);
+                    if (fi.Exists)
+                    {
+                        if ((fi.Attributes & FileAttributes.ReparsePoint) != 0) continue;
+                        var dir = fi.DirectoryName;
+                        if (dir == null) continue;
+                        adds.Add((dir, fi.Name, fi.Length, new DateTimeOffset(fi.LastWriteTimeUtc).ToUnixTimeMilliseconds()));
+                        continue;
+                    }
+                    if (Directory.Exists(full))
+                    {
+                        // A directory moved in arrives as ONE created event, so
+                        // its contents are only ever seen by walking it.
+                        if (kv.Value) dirWalks.Add(full);
+                        continue;
+                    }
+                    bool isDirectory;
+                    lock (Gate) isDirectory = DirIds.ContainsKey(full);
+                    if (isDirectory) { subtreeDeletes.Add(full); continue; }
+                    var cut = full.LastIndexOf('\\');
+                    if (cut > 0) fileDeletes.Add((full.Substring(0, cut), full.Substring(cut + 1)));
+                }
+                catch { /* transient fs races are the watcher's daily bread */ }
+            }
+
+            if (adds.Count > 0 || fileDeletes.Count > 0)
+            {
+                lock (Gate)
+                {
+                    foreach (var a in adds)
+                    {
+                        if (Entries.Count - Tombstones >= MaxEntries) { Capped = true; break; }
+                        AddEntryLocked(a.dir, a.name, a.size, a.mtime);
+                    }
+                    foreach (var d in fileDeletes) RemoveEntryLocked(d.dir, d.name);
+                }
+            }
+            foreach (var p in subtreeDeletes) { if (Cancelled) return; RemoveSubtree(p); }
+            foreach (var d in dirWalks) { if (Cancelled) return; WalkRoot(d); }
+            Thread.Sleep(DrainIntervalMs);
+        }
+    }
+
+    // ── repair scheduling ─────────────────────────────────────────────────────
+
+    private static void MarkDirty(string pathOrRoot)
+    {
+        var root = RootOf(pathOrRoot);
+        if (root == null) return;
+        var now = Environment.TickCount64;
+        lock (Gate)
+        {
+            DirtyRoots[root] = DirtyRoots.TryGetValue(root, out var d) ? new Dirt(d.First, now) : new Dirt(now, now);
+        }
+    }
+
+    private static string? RootOf(string path)
+    {
+        var pl = path.ToLowerInvariant();
+        string? best = null;
+        var bestLen = -1;
+        foreach (var r in Roots)
+        {
+            var rl = r.TrimEnd('\\').ToLowerInvariant();
+            if (rl.Length == 0) continue;
+            if (!pl.StartsWith(rl, StringComparison.Ordinal)) continue;
+            if (pl.Length != rl.Length && pl[rl.Length] != '\\') continue;
+            if (rl.Length > bestLen) { best = r; bestLen = rl.Length; }
+        }
+        return best;
+    }
+
+    // A root is due once the storm has stopped (or has gone on long enough to
+    // stop waiting for it), and never more often than the interval. Without
+    // both, one busy filesystem turns into a permanent re-walk.
+    private static string? TakeDueRoot()
+    {
+        var now = Environment.TickCount64;
+        string? due = null;
+        lock (Gate)
+        {
+            foreach (var kv in DirtyRoots)
+            {
+                var quiet = now - kv.Value.Last >= RepairQuietMs;
+                var waitedLongEnough = now - kv.Value.First >= RepairMaxWaitMs;
+                if (!quiet && !waitedLongEnough) continue;
+                if (LastRepair.TryGetValue(kv.Key, out var last) && now - last < RepairMinIntervalMs) continue;
+                due = kv.Key;
+                break;
+            }
+            if (due != null) { DirtyRoots.Remove(due); LastRepair[due] = now; }
+        }
+        return due;
+    }
+
+    private static void RepairRoot(string root)
+    {
+        var gen = Interlocked.Increment(ref WalkGen);
+        Repairing = true;
         try
         {
-            var cut = fullPath.LastIndexOf('\\');
-            if (cut <= 0) return;
-            var dir = fullPath.Substring(0, cut);
-            var name = fullPath.Substring(cut + 1);
-            bool isDirectory;
-            lock (Gate) isDirectory = DirIds.ContainsKey(fullPath);
-            if (isDirectory) RemoveSubtree(fullPath);
-            else lock (Gate) RemoveEntryLocked(dir, name);
+            WalkRoot(root, gen);
+            // A walk that stopped early saw only part of the root, so "not
+            // touched" is not evidence that anything is gone.
+            if (!Cancelled && !Capped) SweepStaleUnder(root, gen);
         }
-        catch { }
+        finally
+        {
+            Repairing = false;
+            Interlocked.Increment(ref Repairs);
+        }
     }
 
     private static string NormalizeDir(string p)
