@@ -196,6 +196,13 @@ function createLivingIndex(opts) {
         files: s.files || 0, dirs: s.dirs || 0, bytes: s.bytes || 0,
         ramMB: s.ramMB || 0, roots: host.roots.slice(),
         capped: s.capped === true,
+        // What the host is doing BEYOND the initial build. Without these, a
+        // host stuck re-walking a root reads exactly like an idle one that
+        // happens to be using a core, which is how a permanent rebuild loop
+        // went unnoticed until it showed up in Task Manager.
+        repairing: s.repairing === true,
+        repairs: s.repairs || 0,
+        pending: s.pending || 0,
         progress: host.progress,
       };
     } catch {

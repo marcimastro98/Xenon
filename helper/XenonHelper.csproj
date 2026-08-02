@@ -67,8 +67,17 @@
                   NOTE: answering a call is deliberately absent — the HFP RFCOMM
                   channel is held by the system driver and the public API has no
                   accept method, so `status` reports canAnswer:false rather than
-                  the dashboard guessing. -->
-    <Version>0.12.0</Version>
+                  the dashboard guessing;
+         0.12.1 = index-serve watcher callbacks are non-blocking (coalesced queue
+                  drained off the watcher threads) and a dirty root is repaired
+                  by a generation-stamped upsert + sweep, debounced and
+                  rate-limited. The old handlers stat'ed and took the index lock
+                  per event, so a re-walk starved them, the kernel buffer
+                  overflowed, and the overflow triggered another re-walk: a
+                  permanent rebuild loop at ~1 core, with the index dropping to a
+                  quarter of its content on every pass. Version-gated because an
+                  existing install would otherwise keep the looping exe. -->
+    <Version>0.12.1</Version>
     <Description>Xenon Helper — native companion process for the Xenon dashboard server</Description>
   </PropertyGroup>
 
