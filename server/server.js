@@ -3676,9 +3676,39 @@ async function getGpuInfo() {
 // cycle. Volumes change only on plug/unplug, so 10 minutes is plenty: at 60s
 // this was the last recurring powershell.exe spawn left on an idle server.
 const DISK_DETAILS_TTL_MS = 10 * 60 * 1000;
-let diskDetailsCache = { data: null, updatedAt: 0 };
+// A read that answered nothing is not an answer, so it gets its own short TTL:
+// caching a failure for the full ten minutes is what turned one slow query into
+// "Detail unavailable" for ten minutes at a time (reported on Discord, where a
+// restart never helped — the first read after boot is the slowest one there is,
+// so every restart landed on the same timeout and pinned the same empty result).
+const DISK_DETAILS_RETRY_MS = 60 * 1000;
+// The FIRST read blocks the /system response, so it keeps the short budget the
+// panel's first paint has always had. Every later one refreshes in the
+// background off the last known-good details, where the query can have the time
+// it actually needs: Get-Disk/Get-Partition/Get-Volume go through the Windows
+// storage WMI provider, which is routinely slower than five seconds cold.
+const DISK_DETAILS_TIMEOUT_MS = 5000;
+const DISK_DETAILS_BG_TIMEOUT_MS = 15000;
+let diskDetailsCache = { data: null, updatedAt: 0, ok: false };
+let diskDetailsPending = null;
+
+function diskDetailsFresh() {
+  if (!diskDetailsCache.data) return false;
+  const ttl = diskDetailsCache.ok ? DISK_DETAILS_TTL_MS : DISK_DETAILS_RETRY_MS;
+  return Date.now() - diskDetailsCache.updatedAt < ttl;
+}
+
 async function getDiskDetails() {
-  if (diskDetailsCache.data && Date.now() - diskDetailsCache.updatedAt < DISK_DETAILS_TTL_MS) return diskDetailsCache.data;
+  if (diskDetailsFresh()) return diskDetailsCache.data;
+  // Nothing cached at all: this is the first read of the process, so wait for it
+  // rather than paint the disk card with no detail line and fill it in later.
+  if (!diskDetailsCache.data) return refreshDiskDetails(DISK_DETAILS_TIMEOUT_MS);
+  refreshDiskDetails(DISK_DETAILS_BG_TIMEOUT_MS);   // lands on the next cycle
+  return diskDetailsCache.data;
+}
+
+function refreshDiskDetails(timeout) {
+  if (diskDetailsPending) return diskDetailsPending;
   const command = `
     $ErrorActionPreference = 'Stop'
     $models = @{}
@@ -3704,32 +3734,47 @@ async function getDiskDetails() {
         }
       })
     } catch {
-      $volumes = @(Get-CimInstance Win32_LogicalDisk -ErrorAction Stop | Where-Object { $_.DeviceID } | ForEach-Object {
-        [pscustomobject]@{
-          drive = ([string]$_.DeviceID).Trim()
-          label = ([string]$_.VolumeName).Trim()
-          model = ''
-          fileSystem = ([string]$_.FileSystem).Trim()
-          driveType = ([string]$_.Description).Trim()
-        }
-      })
+      # Guarded on its own: an unguarded fallback that throws takes the whole
+      # script down with it, losing the disk models already collected above.
+      try {
+        $volumes = @(Get-CimInstance Win32_LogicalDisk -ErrorAction Stop | Where-Object { $_.DeviceID } | ForEach-Object {
+          [pscustomobject]@{
+            drive = ([string]$_.DeviceID).Trim()
+            label = ([string]$_.VolumeName).Trim()
+            model = ''
+            fileSystem = ([string]$_.FileSystem).Trim()
+            driveType = ([string]$_.Description).Trim()
+          }
+        })
+      } catch { $volumes = @() }
     }
     [pscustomobject]@{ volumes = $volumes } | ConvertTo-Json -Depth 4 -Compress
   `;
 
-  try {
-    const data = await runPowerShellCommand(command, 5000);
-    const map = {};
-    const volumes = Array.isArray(data.volumes) ? data.volumes : (data.volumes ? [data.volumes] : []);
-    volumes.forEach(volume => {
-      if (volume && volume.drive) map[String(volume.drive).toUpperCase()] = volume;
-    });
-    diskDetailsCache = { data: map, updatedAt: Date.now() };
-    return map;
-  } catch {
-    diskDetailsCache = { data: {}, updatedAt: Date.now() };
-    return {};
-  }
+  diskDetailsPending = (async () => {
+    try {
+      const data = await runPowerShellCommand(command, timeout);
+      const map = {};
+      const volumes = Array.isArray(data.volumes) ? data.volumes : (data.volumes ? [data.volumes] : []);
+      volumes.forEach(volume => {
+        if (volume && volume.drive) map[String(volume.drive).toUpperCase()] = volume;
+      });
+      // Volumes change on plug/unplug and nothing else, so details we already
+      // have are always better than none: an empty read is recorded as a failed
+      // one (short TTL, retried) and never replaces a map that had drives in it.
+      const ok = Object.keys(map).length > 0;
+      const keep = (ok || !diskDetailsCache.ok) ? map : diskDetailsCache.data;
+      diskDetailsCache = { data: keep, updatedAt: Date.now(), ok };
+      return keep;
+    } catch {
+      const keep = diskDetailsCache.ok ? diskDetailsCache.data : {};
+      diskDetailsCache = { data: keep, updatedAt: Date.now(), ok: false };
+      return keep;
+    } finally {
+      diskDetailsPending = null;
+    }
+  })();
+  return diskDetailsPending;
 }
 
 let _diskLettersCache = { letters: null, at: 0 };

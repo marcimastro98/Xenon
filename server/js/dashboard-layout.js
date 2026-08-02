@@ -1064,7 +1064,27 @@ function tileShapeGeometry(shape) {
     ? shape.inset
     : (shape.preset ? 0 : TILE_SHAPE_DEFAULT_INSET);
   const safe = { t: base.t + extra, r: base.r + extra, b: base.b + extra, l: base.l + extra };
-  return { d, safe, fit: shape.fit === 'fit' ? 'fit' : 'stretch' };
+  const fit = shape.fit === 'fit' ? 'fit' : 'stretch';
+  // A CIRCLE asked to keep its proportions is the one silhouette CSS can express
+  // exactly, and it should never go through the measured transform below.
+  // `circle(closest-side)` is resolved by the engine against the CLIPPED box on
+  // every frame: it cannot be computed from a stale geometry, cannot be measured
+  // at the wrong moment, cannot be left behind when a tile resizes, and needs no
+  // JavaScript at all. Everything that went wrong with round widgets went wrong
+  // in the measurement, not in the shape — a tile carried `scale(0.2308 1)` for a
+  // box that wanted `scale(1 0.0747)` and stayed an oval for good.
+  // Supported everywhere the dashboard runs, Safari included, unlike shape().
+  const css = (fit === 'fit' && isCirclePath(d)) ? 'circle(closest-side at 50% 50%)' : '';
+  return { d, safe, fit, css };
+}
+// The circle, however it arrived: the curated preset and the hand-written path a
+// package uses when it wants the circle WITHOUT the preset's 15% safe border.
+// Compared on normalized whitespace so formatting cannot defeat it.
+const TILE_CIRCLE_D =
+  'M 0.5 0 C 0.776 0 1 0.224 1 0.5 C 1 0.776 0.776 1 0.5 1 C 0.224 1 0 0.776 0 0.5 C 0 0.224 0.224 0 0.5 0 Z';
+function isCirclePath(d) {
+  const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+  return norm(d) === norm(TILE_CIRCLE_D);
 }
 
 function tileShapeDefs() {
@@ -1120,16 +1140,72 @@ function sweepTileShapeDefs() {
 // widget root declares for itself — which takes lengths, not percentages. So the
 // two have to be reconciled against a measured box. ONE observer for the whole
 // dashboard; tiles join and leave it as they gain and lose a shape.
+// OBSERVE THE BOX THAT IS MEASURED, not only the grid item around it.
+// objectBoundingBox resolves the clip against the CLIPPED element
+// (.panel/.dashboard-widget), and GridStack sizes the item first and lets the
+// panel settle after, so a measurement taken on the item's resize can land on a
+// geometry that is still moving — and then never be revisited, because the item
+// does not resize again. That is how a silhouette ended up with
+// `scale(0.2308 1)` on a tile whose panel wanted `scale(1 0.0747)`: an oval, off
+// by a factor of four, permanent. Watching the panel as well means the last word
+// always belongs to the box the clip is actually resolved against.
 let _tileShapeRO = null;
 function tileShapeObserver() {
   if (!_tileShapeRO && typeof ResizeObserver === 'function') {
-    _tileShapeRO = new ResizeObserver((entries) => entries.forEach(e => measureTileShape(e.target)));
+    _tileShapeRO = new ResizeObserver((entries) => {
+      const items = new Set();
+      entries.forEach((e) => {
+        const item = e.target.closest ? e.target.closest('.grid-stack-item') : null;
+        if (item) items.add(item);
+      });
+      items.forEach(measureTileShape);
+    });
   }
   return _tileShapeRO;
 }
+// The clipped box for a grid item: the element --tile-clip is applied to.
+function tileShapeClipped(el) {
+  return el.querySelector(
+    ':scope > .grid-stack-item-content > .panel, :scope > .grid-stack-item-content > .dashboard-widget');
+}
+// A tile on a PARKED pager page has `content-visibility: hidden` over it, so its
+// descendants skip layout and the box it reports is whatever the collapsed
+// column happens to be — not the box it will have when its page is shown. The
+// clipPath transform below is written from that box, and once written it is
+// never revisited: the observer only fires on a size CHANGE, and a page coming
+// back does not always produce one. So a shape measured while parked keeps a
+// silhouette scaled for a box that never existed. Measured on a real install: a
+// circle on a 3-instrument page carried `scale(0.3333 1)` — squashed to a third
+// of its width — so every round widget on that page rendered as an OVAL, with
+// the tile's own card filling the difference. That is the ring people kept
+// reporting: white while the card was light, black once the widgets started
+// painting their own background.
+// Refusing to measure is always right here, because the geometry is corrected
+// the moment the page is shown (see the page-change hook below) and a stale
+// transform is strictly worse than none.
+function tileShapeLaidOut(el) {
+  const page = el.closest ? el.closest('.pager-page') : null;
+  if (page && page.classList.contains('is-parked')) return false;
+  return el.clientWidth > 0 && el.clientHeight > 0;
+}
+// Refusing to measure has to come with retrying, or the tile is left with NO
+// transform — and objectBoundingBox units then stretch the silhouette to the
+// tile's aspect ratio, which is the same oval by another route. Bounded, per
+// element, and cleared the moment one measurement lands.
+const TILE_SHAPE_RETRY_FRAMES = 180;   // ~3s at 60fps
+const _tileShapeTries = new WeakMap();
 function measureTileShape(el) {
   const geo = el && el._xenonShapeGeo;
   if (!geo) return;
+  if (!tileShapeLaidOut(el)) {
+    const tries = (_tileShapeTries.get(el) || 0) + 1;
+    if (tries <= TILE_SHAPE_RETRY_FRAMES) {
+      _tileShapeTries.set(el, tries);
+      requestAnimationFrame(() => measureTileShape(el));
+    }
+    return;
+  }
+  _tileShapeTries.delete(el);
   const w = el.clientWidth || 0;
   const h = el.clientHeight || 0;
   const px = (v, base) => `${Math.max(0, Math.round(base * v / 100))}px`;
@@ -1141,11 +1217,42 @@ function measureTileShape(el) {
   // so it is updated in place rather than deduplicated.
   const node = el._xenonShapeClipPath;
   if (!node) return;
-  if (w <= 0 || h <= 0) return;
-  const sx = w >= h ? h / w : 1;
-  const sy = h > w ? w / h : 1;
+  // MEASURE THE ELEMENT THE CLIP IS ON, not the grid item around it.
+  // objectBoundingBox resolves against the box of the CLIPPED element, and the
+  // clip is applied to .panel/.dashboard-widget, which is inset from the grid
+  // item by the tile gap. Measured on a real install: item 105x1232, panel
+  // 91x1174 — two different aspect ratios, so a transform computed from the item
+  // squeezed the silhouette by the wrong factor and left an OVAL a few percent
+  // out. That is small enough to look like a rendering artefact and big enough
+  // to show a band all the way round, which is exactly how it was reported.
+  const clipped = tileShapeClipped(el);
+  const cw = (clipped && clipped.clientWidth) || w;
+  const ch = (clipped && clipped.clientHeight) || h;
+  const sx = cw >= ch ? ch / cw : 1;
+  const sy = ch > cw ? cw / ch : 1;
   node.setAttribute('transform',
     `translate(${((1 - sx) / 2).toFixed(4)} ${((1 - sy) / 2).toFixed(4)}) scale(${sx.toFixed(4)} ${sy.toFixed(4)})`);
+}
+// The other half of the rule above: whatever could not be measured while its
+// page was parked is measured when the page is shown. Cheap — it walks only the
+// tiles that carry a shape, and each one writes at most two attributes.
+function remeasureTileShapes() {
+  document.querySelectorAll('.grid-stack-item[data-tile-shape]').forEach((el) => {
+    // A fresh retry window per page change: the event fires while the arriving
+    // page is still parked, so the first attempt always fails and the retries
+    // are what actually catch it once the pager unparks.
+    _tileShapeTries.delete(el);
+    measureTileShape(el);
+  });
+}
+if (typeof window !== 'undefined') {
+  // After the browser has laid the newly-shown page out, not during the event.
+  // On WINDOW: dashboard-pager.js dispatches xenon:page-change there, and an
+  // event dispatched on window never reaches document, so the same line written
+  // against document would have listened forever and heard nothing.
+  const onPageShown = () => requestAnimationFrame(remeasureTileShapes);
+  window.addEventListener('xenon:page-change', onPageShown);
+  window.addEventListener('resize', onPageShown);
 }
 
 // Strip any previously-built shape DOM, tokens and observer registration.
@@ -1154,7 +1261,11 @@ function clearTileShape(el, content) {
   el.style.removeProperty('--tile-clip');
   el.style.removeProperty('--tile-shape-pad');
   el.style.removeProperty('--tile-shape-stroke');
-  if (_tileShapeRO) _tileShapeRO.unobserve(el);
+  if (_tileShapeRO) {
+    _tileShapeRO.unobserve(el);
+    const wasClipped = tileShapeClipped(el);
+    if (wasClipped) _tileShapeRO.unobserve(wasClipped);
+  }
   if (el._xenonShapeOwnClip) { el._xenonShapeOwnClip.remove(); delete el._xenonShapeOwnClip; }
   delete el._xenonShapeGeo;
   delete el._xenonShapeClipPath;
@@ -1166,19 +1277,26 @@ function buildTileShape(el, content, shape, borderStrength) {
   const geo = tileShapeGeometry(shape);
   if (!geo || !content) return;
   let clipId = '';
-  if (geo.fit === 'fit') {
-    const own = tileShapeMakeClip(`tileshape-fit-${++_tileShapeSeq}`);
-    if (!own) return;
-    own.firstChild.setAttribute('d', geo.d);
-    el._xenonShapeOwnClip = own;
-    el._xenonShapeClipPath = own.firstChild;
-    clipId = own.id;
+  if (geo.css) {
+    // A shape CSS can resolve itself: no clipPath, no per-tile transform, and
+    // therefore nothing that can be measured wrong or go stale.
+    el.setAttribute('data-tile-shape', geo.fit);
+    el.style.setProperty('--tile-clip', geo.css);
   } else {
-    clipId = tileShapeSharedClip(geo.d);
+    if (geo.fit === 'fit') {
+      const own = tileShapeMakeClip(`tileshape-fit-${++_tileShapeSeq}`);
+      if (!own) return;
+      own.firstChild.setAttribute('d', geo.d);
+      el._xenonShapeOwnClip = own;
+      el._xenonShapeClipPath = own.firstChild;
+      clipId = own.id;
+    } else {
+      clipId = tileShapeSharedClip(geo.d);
+    }
+    if (!clipId) return;
+    el.setAttribute('data-tile-shape', geo.fit);
+    el.style.setProperty('--tile-clip', `url(#${clipId})`);
   }
-  if (!clipId) return;
-  el.setAttribute('data-tile-shape', geo.fit);
-  el.style.setProperty('--tile-clip', `url(#${clipId})`);
   el.style.setProperty('--tile-shape-stroke',
     String(typeof borderStrength === 'number' ? Math.max(0, borderStrength) : 1));
 
@@ -1198,7 +1316,13 @@ function buildTileShape(el, content, shape, borderStrength) {
 
   el._xenonShapeGeo = geo;
   const ro = tileShapeObserver();
-  if (ro) ro.observe(el);
+  if (ro) {
+    ro.observe(el);
+    // The panel settles after the item, so this is the observation that gets the
+    // final geometry rather than one taken mid-layout.
+    const clipped = tileShapeClipped(el);
+    if (clipped) ro.observe(clipped);
+  }
   measureTileShape(el);
 }
 

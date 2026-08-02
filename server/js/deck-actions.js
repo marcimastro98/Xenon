@@ -193,6 +193,23 @@ function actionSpec(type) {
   return ACTION_CATALOG.find(a => a.type === type) || null;
 }
 
+// Explorer's "Copy as path" (Shift+right-click, and the Windows 11 context menu)
+// puts the path on the clipboard WRAPPED IN DOUBLE QUOTES, and pasting that into
+// a key's path field is the most common way an openApp key gets made. The quotes
+// are not part of the name: `"…\game.exe"` misses the .exe/.lnk extension test,
+// then misses again as a folder, and the key answers bad_app_path forever while
+// the field looks exactly right — reported by a user whose Deck app keys never
+// launched. A double quote is not a legal character in a Windows filename, so
+// dropping a surrounding pair can never take a real path apart there; on POSIX it
+// IS legal, so a name carrying any other quote is left untouched rather than
+// guessed at. Only double quotes — a single quote is legal everywhere.
+function unquotePath(value) {
+  const v = String(value == null ? '' : value).trim();
+  if (v.length < 2 || v[0] !== '"' || v[v.length - 1] !== '"') return v;
+  const inner = v.slice(1, -1).trim();
+  return (!inner || inner.includes('"')) ? v : inner;
+}
+
 // Return a clean action with ONLY the params its spec allows, or null if the
 // type is unknown. select → coerced to a valid option; text/url/path → string,
 // capped. This is the single source of truth the server registry will reuse.
@@ -206,7 +223,9 @@ function validateAction(raw) {
     if (p.kind === 'select') {
       v = (typeof v === 'string' && p.options.includes(v)) ? v : p.options[0];
     } else {
-      v = String(v == null ? '' : v).slice(0, p.maxLen || 1024);
+      v = String(v == null ? '' : v);
+      if (p.kind === 'path') v = unquotePath(v);
+      v = v.slice(0, p.maxLen || 1024);
       // An `optional` param is omitted when empty, so actions that predate it
       // validate to their exact original shape (no stored-config churn).
       if (p.optional && !v) continue;
@@ -254,8 +273,8 @@ function compactTrigger(steps) {
 }
 
 if (typeof window !== 'undefined') {
-  window.DeckActions = { ACTION_CATALOG, actionSpec, validateAction, triggerSteps, clampDelay, compactTrigger };
+  window.DeckActions = { ACTION_CATALOG, actionSpec, validateAction, triggerSteps, clampDelay, compactTrigger, unquotePath };
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { ACTION_CATALOG, actionSpec, validateAction, triggerSteps, clampDelay, compactTrigger };
+  module.exports = { ACTION_CATALOG, actionSpec, validateAction, triggerSteps, clampDelay, compactTrigger, unquotePath };
 }
