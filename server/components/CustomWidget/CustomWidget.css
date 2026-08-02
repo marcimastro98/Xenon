@@ -13,6 +13,21 @@
   overflow: hidden; border-radius: inherit;
 }
 
+/* On a SHAPED tile the guest fills the silhouette. The stock padding above is
+   there to hold a guest off a rectangular card's edges; on a shaped tile the
+   card is clipped to the silhouette and the guest is inset INSIDE it, so what
+   the padding actually produces is a band of the card itself between the cut
+   edge and the guest — a ring, concentric and unmistakable, and pure white on a
+   light palette. It is the reason a round widget could never sit flush in its
+   own tile, and it was reported as "why is there a white circle behind it".
+   Keeping content clear of a cut edge is what the shape's own safe rectangle is
+   for (`inset`, applied by DashboardGrid.css as a transparent border on the
+   panel), so a package that wants breathing room asks for it there and one that
+   wants full bleed declares inset 0 and gets it. The head keeps an inset of its
+   own: a title jammed against a curve is the thing this padding DOES solve. */
+.grid-stack-item[data-tile-shape] .cw-wrap { padding: 0; }
+.grid-stack-item[data-tile-shape] .cw-wrap > .cw-head { padding: 11px 15px 0; }
+
 /* ── Head: title + swap control ─────────────────────────────────── */
 .cw-head { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .cw-brand { display: flex; align-items: center; gap: 7px; min-width: 0; }

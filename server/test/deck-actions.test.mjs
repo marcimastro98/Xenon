@@ -54,6 +54,26 @@ test('validateAction stringifies and length-caps text/url/path params', () => {
   assert.ok(b.path.length <= 1024);
 });
 
+test('validateAction: a path pasted from "Copy as path" keeps its quotes off the value', () => {
+  // Explorer copies the path wrapped in double quotes; with them the extension
+  // test sees `exe"` and the key answers bad_app_path with nothing visibly wrong.
+  const win = da.validateAction({ type: 'openApp', path: '"C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crimson Desert\\bin64\\CrimsonDesert.exe"' });
+  assert.equal(win.path, 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Crimson Desert\\bin64\\CrimsonDesert.exe');
+  // Trailing whitespace around the pasted value, and inside it, is absorbed too.
+  assert.equal(da.validateAction({ type: 'openFile', path: '  " C:\\docs\\a b.pdf "  ' }).path, 'C:\\docs\\a b.pdf');
+  assert.equal(da.validateAction({ type: 'runScript', path: '"/home/u/build.sh"', window: 'hidden' }).path, '/home/u/build.sh');
+});
+
+test('validateAction: an unquoted path is untouched, and so is one with real quotes in it', () => {
+  const plain = 'C:\\Program Files\\App\\app.exe';
+  assert.equal(da.validateAction({ type: 'openApp', path: plain }).path, plain);
+  // POSIX allows a double quote in a filename: only a clean outer pair is
+  // dropped, so an oddly-named file stays reachable rather than being guessed at.
+  for (const odd of ['/home/u/"weird".sh', '"/home/u/a"b"/x.sh"', '"', '""', 'C:\\a"b\\x.exe']) {
+    assert.equal(da.validateAction({ type: 'openFile', path: odd }).path, odd.trim());
+  }
+});
+
 test('validateAction: sdkHandler args carries JSON and gets the wider per-param cap', () => {
   // 4 params × 200-char values whose JSON escaping doubles them exceeds the
   // default 1024 cap; a mid-string truncation would make the stored JSON
