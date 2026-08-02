@@ -362,6 +362,109 @@ function Get-CurrentTaskUserId {
   return $env:USERNAME
 }
 
+# ---------------------------------------------------------------------------
+# The install root must be a REAL folder the user chose - never a temporary one.
+#
+# Double-clicking Xenon-x.y.z.zip in Explorer opens the zip VIEWER, and running
+# INSTALL.bat from inside it makes Windows extract to
+# %TEMP%\<guid>_Xenon-x.y.z.zip.<3 chars>\Xenon-x.y.z\. Everything installs and
+# works from there, so nothing looks wrong - until Windows clears TEMP weeks
+# later and the per-logon task points at a start-hidden.vbs that no longer
+# exists ("Can not find script file ..."), taking the user's server\data with
+# it. Detect that BEFORE installing anything and move the tree to the same
+# canonical per-user root the native bootstrap uses.
+# ---------------------------------------------------------------------------
+function Get-VolatileRootReason([string]$Path) {
+  if (-not $Path) { return $null }
+  try { $full = [System.IO.Path]::GetFullPath($Path) } catch { $full = $Path }
+  $full = $full.TrimEnd('\')
+
+  foreach ($segment in $full.Split('\')) {
+    # "Xenon-4.7.1.zip.0ed" - the zip viewer's extraction folder.
+    if ($segment -match '\.zip($|\.)') {
+      return 'inside a zip archive that Windows only opened temporarily'
+    }
+  }
+
+  $tempRoots = @($env:TEMP, $env:TMP)
+  if ($env:LOCALAPPDATA) { $tempRoots += (Join-Path $env:LOCALAPPDATA 'Temp') }
+  if ($env:WINDIR) { $tempRoots += (Join-Path $env:WINDIR 'Temp') }
+  foreach ($tempRoot in $tempRoots) {
+    if (-not $tempRoot) { continue }
+    try { $resolved = [System.IO.Path]::GetFullPath($tempRoot).TrimEnd('\') } catch { continue }
+    if ([string]::Equals($full, $resolved, [StringComparison]::OrdinalIgnoreCase) -or
+        $full.StartsWith("$resolved\", [StringComparison]::OrdinalIgnoreCase)) {
+      return 'in the Windows temporary folder, which Windows empties on its own'
+    }
+  }
+
+  return $null
+}
+
+# Copies the tree to %LOCALAPPDATA%\Programs\Xenon and re-runs the installer
+# from there, then exits with the child's code. Never returns on success.
+function Invoke-RelocateFromVolatileRoot([string]$Reason) {
+  $dest = Join-Path $env:LOCALAPPDATA 'Programs\Xenon'
+
+  Write-Host ''
+  Write-Host "  Xenon is being installed from a temporary location - it is $Reason." -ForegroundColor Yellow
+  Write-Host '  Installing from there works today and breaks in a few weeks, when' -ForegroundColor Yellow
+  Write-Host '  Windows deletes that folder along with your Xenon settings.' -ForegroundColor Yellow
+  Write-Host ''
+  Write-Step "Moving Xenon to a permanent folder: $dest"
+
+  try {
+    New-Item -ItemType Directory -Path $dest -Force | Out-Null
+
+    # node_modules is rebuilt at the destination by Install-NpmDependenciesIfNeeded.
+    # server\data is only excluded when the destination ALREADY has one: a user
+    # who has been running from the temp copy for weeks keeps their settings,
+    # and a real install at the destination never has them overwritten.
+    $robocopy = Join-Path $env:WINDIR 'System32\robocopy.exe'
+    $copied = $false
+    if (Test-Path $robocopy) {
+      $roboArgs = @($root, $dest, '/E', '/NFL', '/NDL', '/NJH', '/NJS', '/NP', '/R:1', '/W:1',
+                    '/XD', (Join-Path $root 'node_modules'))
+      if (Test-Path (Join-Path $dest 'server\data')) {
+        $roboArgs += @('/XD', (Join-Path $root 'server\data'))
+      }
+      & $robocopy @roboArgs | Out-Null
+      # robocopy: 0-7 are success codes, 8+ are real failures.
+      $copied = ($LASTEXITCODE -lt 8)
+      $global:LASTEXITCODE = 0
+    }
+    if (-not $copied) {
+      Get-ChildItem -Path $root -Force | Where-Object { $_.Name -ne 'node_modules' } | ForEach-Object {
+        Copy-Item -Path $_.FullName -Destination $dest -Recurse -Force -ErrorAction Stop
+      }
+    }
+  } catch {
+    Write-Host ''
+    Write-Host "  Xenon could not copy itself to $dest ($($_.Exception.Message))." -ForegroundColor Red
+    Write-Host '  Extract the Xenon zip to a normal folder yourself (for example' -ForegroundColor Gray
+    Write-Host '  C:\Xenon or your Documents folder) and run INSTALL.bat from there.' -ForegroundColor Gray
+    Write-Host ''
+    exit 1
+  }
+
+  $relocatedInstaller = Join-Path $dest 'server\install.ps1'
+  if (-not (Test-Path $relocatedInstaller)) {
+    Write-Host ''
+    Write-Host "  The copy to $dest is incomplete - install.ps1 is missing." -ForegroundColor Red
+    Write-Host '  Extract the Xenon zip to a normal folder yourself and run INSTALL.bat from there.' -ForegroundColor Gray
+    Write-Host ''
+    exit 1
+  }
+
+  Write-Step 'Continuing the installation from the permanent folder...'
+  $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+  $childArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $relocatedInstaller)
+  if ($Mode) { $childArgs += @('-Mode', $Mode) }
+  if ($SkipNativeApp) { $childArgs += '-SkipNativeApp' }
+  & $psExe @childArgs
+  exit $LASTEXITCODE
+}
+
 function Install-FfmpegIfNeeded {
   $ffmpegPath = Get-FfmpegPath
   if ($ffmpegPath) {
@@ -1041,6 +1144,11 @@ function Write-ComponentSummary {
 
 $appVersion = Get-AppVersion
 Show-Banner -Version $appVersion
+
+# Before ANY component is installed or any task is registered: refuse to make a
+# temporary folder the permanent home of the backend (never returns if it fires).
+$volatileReason = Get-VolatileRootReason $root
+if ($volatileReason) { Invoke-RelocateFromVolatileRoot $volatileReason }
 
 $installMode = Read-InstallMode
 $installerElevated = Test-IsElevated
