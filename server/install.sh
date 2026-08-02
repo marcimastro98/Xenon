@@ -69,6 +69,68 @@ esac
 printf '\n  %sXenon — installing the dashboard backend%s\n' "$C_STEP" "$C_OFF"
 printf '  %s%s (%s)%s\n\n' "$C_DIM" "$ROOT_DIR" "$XENON_OS" "$C_OFF"
 
+# ── 0b) The install root must be a folder the user chose ─────────────────────
+# The login service, node_modules and server/data all end up anchored to
+# ROOT_DIR, so installing from a temporary directory produces an install that
+# works perfectly until the system cleans that directory out — after which the
+# service points at a start.sh that no longer exists and the user's settings are
+# gone with it. That is exactly what happened on Windows (running INSTALL.bat
+# from inside Explorer's zip viewer, see install.ps1); the archive managers here
+# unpack to /tmp or a .fr-* cache the same way, so the guard is the same.
+volatile_root_reason() {
+  case "$1" in
+    */.fr-*|*/.ark*|*/xarchiver*|*/file-roller*)
+      printf 'inside an archive your file manager only opened temporarily'; return 0 ;;
+  esac
+  _tmp_roots="/tmp
+/private/tmp
+/var/tmp"
+  [ -n "${TMPDIR:-}" ] && _tmp_roots="$_tmp_roots
+${TMPDIR%/}"
+  [ -n "${XDG_RUNTIME_DIR:-}" ] && _tmp_roots="$_tmp_roots
+${XDG_RUNTIME_DIR%/}"
+  printf '%s\n' "$_tmp_roots" | while IFS= read -r _t; do
+    [ -n "$_t" ] || continue
+    case "$1" in
+      "$_t"|"$_t"/*)
+        printf 'in a temporary folder, which your system empties on its own'; exit 0 ;;
+    esac
+  done
+  return 1
+}
+
+VOLATILE_REASON="$(volatile_root_reason "$ROOT_DIR")"
+if [ -n "$VOLATILE_REASON" ]; then
+  if [ "$XENON_OS" = 'macos' ]; then
+    PERM_ROOT="$HOME/Library/Application Support/Xenon"
+  else
+    PERM_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/Xenon"
+  fi
+  warn "Xenon is being installed from a temporary location — it is $VOLATILE_REASON."
+  warn 'Installing from there works today and breaks later, when the system'
+  warn 'deletes that folder along with your Xenon settings.'
+  step "Moving Xenon to a permanent folder: $PERM_ROOT"
+  mkdir -p "$PERM_ROOT" || fail "Could not create $PERM_ROOT. Unpack the Xenon archive into a folder of your own and run install.sh from there."
+  # node_modules is rebuilt at the destination below. server/data is only
+  # excluded when the destination already has one: a temp install that has been
+  # running keeps its settings, a real install never has its own overwritten.
+  RSYNC_EXCLUDES="--exclude=node_modules/"
+  [ -d "$PERM_ROOT/server/data" ] && RSYNC_EXCLUDES="$RSYNC_EXCLUDES --exclude=server/data/"
+  if command -v rsync >/dev/null 2>&1; then
+    # shellcheck disable=SC2086
+    rsync -a $RSYNC_EXCLUDES "$ROOT_DIR"/ "$PERM_ROOT"/ \
+      || fail "Copying Xenon into $PERM_ROOT failed. Unpack the archive into a folder of your own and run install.sh from there."
+  else
+    cp -R "$ROOT_DIR"/. "$PERM_ROOT"/ \
+      || fail "Copying Xenon into $PERM_ROOT failed. Unpack the archive into a folder of your own and run install.sh from there."
+  fi
+  [ -f "$PERM_ROOT/server/install.sh" ] || fail "The copy to $PERM_ROOT is incomplete. Unpack the archive into a folder of your own and run install.sh from there."
+  step 'Continuing the installation from the permanent folder…'
+  # No "$@": install.sh takes no arguments, and bash 3.2 (macOS /bin/bash)
+  # errors on "$@" under `set -u` when there are none.
+  exec bash "$PERM_ROOT/server/install.sh"
+fi
+
 # ── 1) Node.js ───────────────────────────────────────────────────────────────
 # Homebrew is not on the PATH of a non-login shell (and never is under the macOS
 # app bootstrap), so both prefixes are probed explicitly before giving up.

@@ -105,7 +105,7 @@ Xenon runs as a small local Node.js server on `http://127.0.0.1:3030/`. The **na
 
 **Option B — classic install (advanced, or if you prefer iCUE/browser only):**
 
-1. Download the **Source code (zip)** from **[Releases](https://github.com/marcimastro98/Xenon/releases/latest)** and extract it anywhere.
+1. Download the **Source code (zip)** from **[Releases](https://github.com/marcimastro98/Xenon/releases/latest)** and **extract it** (right-click → **Extract All**) into a folder you keep, such as `C:\Xenon`. Double-clicking the zip only shows you the contents; running the installer from that window installs into a Windows temporary folder that gets deleted later. The installer detects this and moves itself to a permanent folder, but extracting first is the clean way.
 2. Open the extracted folder and double-click **`INSTALL.bat`**.
 3. If Windows asks permission, click **Yes**.
 
