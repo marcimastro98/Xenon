@@ -43,6 +43,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Xenon — get this preset</title>
 <meta name="description" content="A Xenon share code — a theme, page, Deck profile, widget or package made by the community. Copy it and import it in your local Xenon dashboard.">
+<!-- Kept out of the index on purpose. The page has no content of its own: it
+     renders whatever share code arrives in the URL fragment, so every code
+     shared from a QR card would otherwise be another near-identical URL
+     competing with /catalog/ for the same words. It stays crawlable for its
+     links (follow), and robots.txt keeps the crawl off it as well. -->
+<meta name="robots" content="noindex, follow">
+<link rel="canonical" href="https://xenon-app.com/get/">
+<meta name="theme-color" content="#070808">
 <link rel="icon" type="image/png" href="../images/favicon.png">
 <style>
   /* Small, self-contained QR landing — same palette as the main site, but system

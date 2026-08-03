@@ -21,10 +21,26 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const canon = require(join(ROOT, 'packages', 'core', 'src', 'storefront-layout.js'));
 const PAGE = join(ROOT, 'docs', 'catalog', 'index.html');
 
+// Inline <script> blocks, split by what they actually contain. The page carries
+// both now: the renderer, and application/ld+json holding the catalog's
+// structured data (one entry per item, so it outgrew the renderer). Feeding JSON
+// to the JS parser fails in a way that reads like the mirror went missing, so
+// the two are kept apart and each is checked against its own grammar.
+function inlineScripts() {
+  const html = readFileSync(PAGE, 'utf8');
+  const js = [], json = [];
+  for (const m of html.matchAll(/<script(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/g)) {
+    const type = /\btype=["']([^"']+)["']/.exec(m[1]);
+    const t = type ? type[1].trim().toLowerCase() : '';
+    if (!t || /^(text|application)\/(java|ecma)script$|^module$/.test(t)) js.push(m[2]);
+    else if (t === 'application/ld+json') json.push(m[2]);
+  }
+  return { js, json };
+}
+
 // Lift the mirrored normalizer out of the page and run it in isolation.
 function loadMirror() {
-  const html = readFileSync(PAGE, 'utf8');
-  const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  const scripts = inlineScripts().js;
   assert.ok(scripts.length, 'no inline script found in the catalog page');
   const main = scripts.reduce((a, b) => (a.length > b.length ? a : b));
   const start = main.indexOf('const SF_TYPES');
@@ -49,11 +65,31 @@ const CASES = [
 ];
 
 test('the catalog page parses as JavaScript', () => {
-  const html = readFileSync(PAGE, 'utf8');
-  const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
-  for (const src of scripts) {
+  for (const src of inlineScripts().js) {
     assert.doesNotThrow(() => new vm.Script(src), 'an inline script in the live catalog page does not parse');
   }
+});
+
+// The structured data is generated into the page by tools/build-seo.mjs, so a
+// broken entry lands here rather than in a search console weeks later. Invalid
+// JSON-LD is not a soft failure: the block is discarded whole, taking every
+// item's markup with it.
+test('the catalog page carries valid JSON-LD listing every item it links', () => {
+  const { json } = inlineScripts();
+  assert.equal(json.length, 1, 'expected exactly one ld+json block in the catalog page');
+  const graph = JSON.parse(json[0])['@graph'];
+  const list = graph.find((n) => n['@type'] === 'ItemList');
+  assert.ok(list, 'the catalog page lost its ItemList');
+  assert.equal(list.numberOfItems, list.itemListElement.length,
+    'numberOfItems disagrees with the entries actually listed');
+
+  // The visible link index and the markup describe the same catalog, or one of
+  // the two is stale — which is the failure mode generated markup always has.
+  const html = readFileSync(PAGE, 'utf8');
+  const linked = new Set([...html.matchAll(/href="\/catalog\/([^/"]+)\/"/g)].map((m) => m[1]));
+  const listed = new Set(list.itemListElement.map((i) => i.url.split('/').filter(Boolean).pop()));
+  assert.deepEqual([...listed].sort(), [...linked].sort(),
+    'the ItemList and the on-page link index are out of step — re-run tools/build-seo.mjs');
 });
 
 test('the website mirror normalizes every layout exactly like packages/core', () => {

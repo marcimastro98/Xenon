@@ -1,0 +1,50 @@
+# xenon-app.com — https://github.com/marcimastro98/Xenon
+#
+# The site is a static marketing surface with nothing private on it, so the
+# policy is simple: everything is open to read, and the two routes that hold no
+# content of their own are kept out of the index.
+#
+# /get/       renders whatever share code is handed to it — no content of its
+#             own, and a thousand codes would be a thousand near-identical URLs.
+# /community/ is a redirect stub that forwards old Discord links to /catalog/.
+#
+# Both also carry <meta name="robots" content="noindex">, which is the directive
+# that actually removes a URL from an index — a Disallow only stops the crawl,
+# and a page that is never crawled can still be listed from inbound links. The
+# Disallow below is the crawl-budget half; the meta tag is the index half.
+#
+# The AI answer engines are named alongside the wildcard rather than left to it.
+# They read this site to answer "what turns a second screen into a PC
+# dashboard?" — the question Xenon exists to answer — and they are welcome to
+# it; /llms.txt gives them the short version. Naming them keeps the intent on
+# the record, so a future tightening is a deliberate edit here and not a silent
+# default. They share the wildcard's group on purpose: a named agent with its
+# own group ignores every other group, which would quietly hand them the two
+# routes above.
+
+User-agent: *
+User-agent: GPTBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: ClaudeBot
+User-agent: Claude-User
+User-agent: Claude-SearchBot
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: Google-Extended
+User-agent: Googlebot
+User-agent: Bingbot
+User-agent: Applebot
+User-agent: Applebot-Extended
+User-agent: DuckAssistBot
+User-agent: Amazonbot
+User-agent: meta-externalagent
+User-agent: CCBot
+User-agent: cohere-ai
+User-agent: MistralAI-User
+User-agent: YouBot
+Allow: /
+Disallow: /get/
+Disallow: /community/
+
+Sitemap: https://xenon-app.com/sitemap.xml
