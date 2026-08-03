@@ -46,7 +46,12 @@ $STALE_MS = 30000
 $PRIME_MS = 250
 # Engines a person means by "GPU usage". Copy/video-processing engines are
 # excluded deliberately: a file copy to a GPU-attached surface is not load.
-$ENGINE_RE = '^pid_(\d+)_.*engtype_(3d|compute|videoencode|videodecode)$'
+# The LUID is captured because a machine can have several adapters and a process
+# is busy on ONE of them: summing across adapters produces a figure that belongs
+# to no piece of hardware and contradicts every per-card readout on the
+# dashboard. Measured on a hybrid desktop: msedgewebview2 at 14.6% on the
+# integrated Radeon while the discrete RTX genuinely sat at 0%.
+$ENGINE_RE = '^pid_(\d+)_luid_(0x[0-9a-f]{8}_0x[0-9a-f]{8})_.*engtype_(3d|compute|videoencode|videodecode)$'
 
 # -- Counter categories: constructed once, kept for the life of the worker -----
 # The first ReadCategory() on a category costs ~330ms (PDH builds its instance
@@ -74,6 +79,46 @@ function Read-GpuRaw {
     foreach ($k in $col.Keys) { $h[$k] = [double]$col[$k].RawValue }
     return $h
   } catch { return $null }
+}
+
+# -- LUID -> adapter name ------------------------------------------------------
+# The GPU Engine counters identify an adapter by LUID and never name it. Windows
+# publishes DEVPKEY_Gpu_Luid on the display device, which is the only mapping
+# available without DXGI interop, and it is exact: verified on a hybrid desktop
+# where it resolved 0x00018be9 to the RTX 5080 and 0x0001b644 to the integrated
+# Radeon, matching the counter instances byte for byte.
+#
+# Cached for the life of the worker because the PnP query is the slowest thing in
+# this script, and re-read when a LUID turns up that the map does not know --
+# which is what happens when a driver restarts or an eGPU is plugged in. Naming
+# an adapter is worth one CIM call; naming it wrong is worse than not naming it.
+function Read-GpuNames {
+  $map = @{}
+  try {
+    foreach ($d in (Get-PnpDevice -Class Display -Status OK -ErrorAction Stop)) {
+      $p = Get-PnpDeviceProperty -InstanceId $d.InstanceId -KeyName '{60b193cb-5276-4d0f-96fc-f173abad3ec6} 2' -ErrorAction SilentlyContinue
+      if (-not $p -or $null -eq $p.Data) { continue }
+      $u = [uint64]$p.Data
+      $low = [uint32]($u -band 0xFFFFFFFF)
+      $high = [int32]($u -shr 32)
+      $map[("0x{0:x8}_0x{1:x8}" -f $high, $low)] = [string]$d.FriendlyName
+    }
+  } catch { }
+  return $map
+}
+
+function Get-GpuName([string]$luid) {
+  if ($null -eq $global:XenonGpuNames) { $global:XenonGpuNames = Read-GpuNames }
+  if ($global:XenonGpuNames.ContainsKey($luid)) { return $global:XenonGpuNames[$luid] }
+  # Unknown LUID: refresh once, then give up until the next unknown one. Windows
+  # exposes render-only devices (the Basic Render Driver) that carry counters and
+  # no display device, so a miss is ordinary and must not re-query every poll.
+  if (-not $global:XenonGpuNamesStale) {
+    $global:XenonGpuNamesStale = $true
+    $global:XenonGpuNames = Read-GpuNames
+    if ($global:XenonGpuNames.ContainsKey($luid)) { return $global:XenonGpuNames[$luid] }
+  }
+  return ''
 }
 
 function Get-ProcSnapshot {
@@ -122,7 +167,9 @@ try {
   # A process rendering and decoding at the same time is not using 180% of the
   # GPU, and the max is also what Task Manager's GPU column shows -- so the two
   # agree instead of quietly disagreeing at the user.
+  # Keyed "<pid>|<luid>": a process busy on two adapters is two facts, not one.
   $gpuByPid = $null
+  $adapterTotals = @{}
   if ($null -ne $currGpu -and $null -ne $prevGpu) {
     $gpuByPid = @{}
     $scale = $windowMs * 10000.0        # ms -> 100ns ticks, the raw counter's unit
@@ -132,8 +179,31 @@ try {
       $d = $currGpu[$k] - $prevGpu[$k]
       if ($d -le 0) { continue }
       $u = ($d / $scale) * 100.0
-      $procId = [int]$Matches[1]
-      if (-not $gpuByPid.ContainsKey($procId) -or $u -gt $gpuByPid[$procId]) { $gpuByPid[$procId] = $u }
+      $key = "$($Matches[1])|$($Matches[2])"
+      if (-not $gpuByPid.ContainsKey($key) -or $u -gt $gpuByPid[$key]) { $gpuByPid[$key] = $u }
+    }
+    # Per-adapter total = the sum of its per-process maxima, which is the same
+    # shape the per-app column shows and therefore adds up against it.
+    foreach ($key in $gpuByPid.Keys) {
+      $luid = $key.Split('|')[1]
+      if (-not $adapterTotals.ContainsKey($luid)) { $adapterTotals[$luid] = [double]0 }
+      $adapterTotals[$luid] += $gpuByPid[$key]
+    }
+  }
+
+  # Stable order: busiest adapter first, then by LUID so a tie never makes the
+  # widget's selector jump between polls.
+  $gpus = @()
+  $luidIndex = @{}
+  $ordered = @($adapterTotals.Keys | Sort-Object @{ Expression = { $adapterTotals[$_] }; Descending = $true }, @{ Expression = { $_ } })
+  for ($gi = 0; $gi -lt $ordered.Count; $gi++) {
+    $luid = $ordered[$gi]
+    $luidIndex[$luid] = $gi
+    $gpus += New-Object psobject -Property @{
+      i = $gi
+      id = $luid
+      name = (Get-GpuName $luid)
+      t = [math]::Round([math]::Min(100.0, [math]::Max(0.0, $adapterTotals[$luid])), 1)
     }
   }
 
@@ -143,7 +213,7 @@ try {
     $c = $curr[$procId]
     $name = $c.Name
     if (-not $rows.ContainsKey($name)) {
-      $rows[$name] = New-Object psobject -Property @{ n = $name; cpuMs = [double]0; mem = [long]0; gpu = [double]0 }
+      $rows[$name] = New-Object psobject -Property @{ n = $name; cpuMs = [double]0; mem = [long]0; gpu = [double]0; gs = @{} }
     }
     $r = $rows[$name]
     $r.mem += $c.Mem
@@ -151,7 +221,18 @@ try {
       $d = $c.Cpu - $prev[$procId].Cpu
       if ($d -gt 0) { $r.cpuMs += $d }
     }
-    if ($null -ne $gpuByPid -and $gpuByPid.ContainsKey($procId)) { $r.gpu += $gpuByPid[$procId] }
+    if ($null -ne $gpuByPid) {
+      foreach ($luid in $ordered) {
+        $key = "$procId|$luid"
+        if (-not $gpuByPid.ContainsKey($key)) { continue }
+        $gi = $luidIndex[$luid]
+        if (-not $r.gs.ContainsKey($gi)) { $r.gs[$gi] = [double]0 }
+        $r.gs[$gi] += $gpuByPid[$key]
+        # `gpu` stays the single "how busy is this app on the GPU" answer, which
+        # is its BUSIEST adapter -- never the sum, which would describe no chip.
+        if ($r.gs[$gi] -gt $r.gpu) { $r.gpu = $r.gs[$gi] }
+      }
+    }
   }
 
   $global:XenonProcPrev = $curr
@@ -181,6 +262,17 @@ try {
       c = [math]::Round([math]::Min(100.0, [math]::Max(0.0, $cpuPct)), 1)
       m = [int][math]::Round($r.mem / 1MB)
       g = [math]::Round([math]::Min(100.0, [math]::Max(0.0, $r.gpu)), 1)
+      # Per adapter, keyed by its index in `gpus`. Only the adapters this app is
+      # actually busy on appear, so on the common single-GPU machine this is one
+      # entry and on an idle app it is absent entirely.
+      gs = $(
+        $o = @{}
+        foreach ($gi in $r.gs.Keys) {
+          $v = [math]::Round([math]::Min(100.0, [math]::Max(0.0, $r.gs[$gi])), 1)
+          if ($v -gt 0) { $o["$gi"] = $v }
+        }
+        $o
+      )
     }
   }
 
@@ -218,6 +310,7 @@ try {
   @{
     ok       = $true
     cpu      = $cpuAll
+    gpus     = @($gpus)
     cores    = $cores
     totalMB  = $totalMB
     usedMB   = $usedMB

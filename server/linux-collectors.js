@@ -1167,6 +1167,9 @@ async function processes(top = 8) {
   return {
     ok: true,
     cpu: procStats.totalCpu(all),
+    // No per-adapter breakdown here: per-process GPU does not exist on Linux
+    // without vendor-specific plumbing, so there is nothing to attribute.
+    gpus: [],
     cores,
     totalMB: Math.round((mem.total || 0) / (1024 * 1024)),
     usedMB: Math.round((mem.used || 0) / (1024 * 1024)),

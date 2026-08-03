@@ -1015,6 +1015,9 @@ async function processes(top = 8) {
   return {
     ok: true,
     cpu: procStats.totalCpu(all),
+    // No per-adapter breakdown here: per-process GPU is not available on macOS
+    // outside private IOKit accounting, so there is nothing to attribute.
+    gpus: [],
     cores,
     totalMB: Math.round((mem.total || 0) / (1024 * 1024)),
     usedMB: Math.round((mem.used || 0) / (1024 * 1024)),
