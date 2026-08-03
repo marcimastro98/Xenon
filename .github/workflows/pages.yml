@@ -55,6 +55,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Full history: build-seo.mjs reads each page's last commit date for the
+          # sitemap's <lastmod>. A shallow clone has no such date, and the script
+          # then ships the entry without one rather than inventing today's.
+          fetch-depth: 0
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -72,6 +77,14 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
+
+      # Regenerates sitemap.xml, the per-entry pages under /catalog/, and the
+      # catalog's link index + ItemList from catalog.json. Running it here means a
+      # bot commit that only touches the catalog still republishes with the
+      # crawlable surface in step — the committed output is the same, so this is
+      # a safety net, not the only path.
+      - name: Build SEO surface
+        run: node tools/build-seo.mjs
 
       - name: Upload docs/ artifact
         uses: actions/upload-pages-artifact@v3

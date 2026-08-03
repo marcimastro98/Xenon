@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docker Container Stats Display — Widget for Xenon</title>
+<meta name="description" content="Displays Memory and CPU Usage by individal Docker Containers via Glances API found here - github.com/nicolargo/glances glances: image…">
+<link rel="canonical" href="https://xenon-app.com/catalog/docker-container-stats-display/">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta name="theme-color" content="#070808">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+
+<meta property="og:type" content="product">
+<meta property="og:site_name" content="Xenon">
+<meta property="og:locale" content="en_US">
+<meta property="og:url" content="https://xenon-app.com/catalog/docker-container-stats-display/">
+<meta property="og:title" content="Docker Container Stats Display — Widget for Xenon">
+<meta property="og:description" content="Displays Memory and CPU Usage by individal Docker Containers via Glances API found here - github.com/nicolargo/glances glances: image…">
+<meta property="og:image" content="https://assets.xenon-app.com/community/shots/docker-container-stats-display.webp">
+<meta property="og:image:alt" content="Docker Container Stats Display running in the Xenon dashboard">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Docker Container Stats Display — Widget for Xenon">
+<meta name="twitter:description" content="Displays Memory and CPU Usage by individal Docker Containers via Glances API found here - github.com/nicolargo/glances glances: image…">
+<meta name="twitter:image" content="https://assets.xenon-app.com/community/shots/docker-container-stats-display.webp">
+
+<link rel="preconnect" href="https://assets.xenon-app.com" crossorigin>
+<style>*{box-sizing:border-box;margin:0;padding:0}
+:root{--ink:#070808;--panel:rgba(240,243,241,.04);--line:rgba(240,243,241,.10);
+--green:#1ed760;--gold:#ffc44d;--iris:#8b7bff;--text:#f0f3f1;--muted:#9aa8a1;--dim:#66736c;
+--sans:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--sans);background:var(--ink);color:var(--text);line-height:1.6;font-size:16px;
+-webkit-font-smoothing:antialiased}
+a{color:inherit}
+img{max-width:100%;display:block}
+:focus-visible{outline:2px solid var(--green);outline-offset:3px;border-radius:4px}
+.wrap{width:100%;max-width:880px;margin-inline:auto;padding:0 24px}
+header.top{border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;align-items:center;gap:14px;height:64px}
+.logo{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:.10em;font-size:17px;text-decoration:none}
+.logo img{height:28px;width:auto;mix-blend-mode:screen}
+.top-cta{margin-left:auto;font-size:14px;color:var(--muted);text-decoration:none}
+.top-cta:hover{color:var(--text)}
+nav.crumb{font-size:13px;color:var(--dim);padding:22px 0 0}
+nav.crumb a{color:var(--muted);text-decoration:none}
+nav.crumb a:hover{color:var(--green)}
+main{padding-bottom:72px}
+.tier{display:inline-block;font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+color:var(--green);margin:26px 0 10px}
+.tier.locked{color:var(--gold)}
+.tier.limited{color:var(--iris)}
+h1{font-size:clamp(30px,5vw,44px);line-height:1.12;letter-spacing:-.02em;font-weight:800}
+.by{color:var(--muted);margin-top:10px;font-size:15px}
+.by b{color:var(--text);font-weight:600}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 12px;
+font-size:13px;color:var(--muted)}
+.desc{margin-top:22px;font-size:17px;color:#d4dcd7;max-width:66ch}
+.shots{margin-top:28px;display:grid;gap:14px}
+.shots img{border:1px solid var(--line);border-radius:12px;width:100%;background:var(--panel)}
+.sec{margin-top:34px}
+.sec h2{font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+.sec p{color:#c6cfca;max-width:66ch}
+.sw{display:flex;flex-wrap:wrap;gap:14px}
+.sw span{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.sw i{width:15px;height:15px;border-radius:4px;border:1px solid var(--line);display:block}
+.tags{display:flex;flex-wrap:wrap;gap:8px}
+.tags span{font-size:13px;color:var(--dim)}
+.cta{margin-top:36px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:9px;border-radius:11px;padding:13px 20px;font-weight:600;
+font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(--panel);color:var(--text)}
+.btn.fill{background:var(--green);border-color:var(--green);color:#052012}
+.btn:hover{border-color:rgba(240,243,241,.24)}
+.note{margin-top:14px;font-size:14px;color:var(--dim);max-width:62ch}
+footer{border-top:1px solid var(--line);padding:26px 0;color:var(--dim);font-size:14px}
+footer a{color:var(--muted);text-decoration:none}
+footer a:hover{color:var(--green)}
+@media(min-width:720px){.shots{grid-template-columns:1fr 1fr}.shots img:first-child{grid-column:1/-1}}</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://xenon-app.com/catalog/docker-container-stats-display/#item",
+      "name": "Docker Container Stats Display",
+      "url": "https://xenon-app.com/catalog/docker-container-stats-display/",
+      "description": "Displays Memory and CPU Usage by individal Docker Containers via Glances API found here - github.com/nicolargo/glances glances: image: nicolargo/glances:latest-full container_name: glances restart: unless-stopped pids_limit: 200 ports: - \"61208:61208\" volumes: -",
+      "inLanguage": "en",
+      "author": {
+        "@type": "Person",
+        "name": "Swiv"
+      },
+      "isPartOf": {
+        "@id": "https://xenon-app.com/catalog/#catalog"
+      },
+      "image": "https://assets.xenon-app.com/community/shots/docker-container-stats-display.webp",
+      "applicationCategory": "DesktopApplication",
+      "operatingSystem": "Windows 10, Windows 11",
+      "softwareRequirements": "Xenon",
+      "version": "2.0.0",
+      "datePublished": "2026-07-23",
+      "dateModified": "2026-07-23",
+      "keywords": "stats, docker, nas, container",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock",
+        "url": "https://xenon-app.com/catalog/docker-container-stats-display/"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Xenon",
+          "item": "https://xenon-app.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Community catalog",
+          "item": "https://xenon-app.com/catalog/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Docker Container Stats Display",
+          "item": "https://xenon-app.com/catalog/docker-container-stats-display/"
+        }
+      ]
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="/"><img src="/images/logo.png" alt="" width="42" height="28"> XENON</a>
+    <a class="top-cta" href="/catalog/">All community items →</a>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Xenon</a> / <a href="/catalog/">Community catalog</a> / Docker Container Stats Display
+  </nav>
+
+  <main>
+    <p class="tier">Widget</p>
+    <h1>Docker Container Stats Display</h1>
+    <p class="by">Widget for the Xenon dashboard, by <b>Swiv</b></p>
+    <div class="meta"><span class="chip">v2.0.0</span><span class="chip">System</span><span class="chip">Added 2026-07-23</span></div>
+    <p class="desc">Displays Memory and CPU Usage by individal Docker Containers via Glances API found here - github.com/nicolargo/glances
+  glances:
+    image: nicolargo/glances:latest-full
+    container_name: glances
+    restart: unless-stopped
+    pids_limit: 200
+    ports:
+      - &quot;61208:61208&quot;
+    volumes:
+      -</p>
+    <div class="shots"><img src="https://assets.xenon-app.com/community/shots/docker-container-stats-display.webp" alt="Docker Container Stats Display — screenshot 1 of 2" loading="eager" decoding="async" onerror="this.onerror=function(){this.remove()};this.src='https://assets.xenon-app.com/community/shots/docker-container-stats-display.png'"><img src="https://assets.xenon-app.com/community/shots/docker-container-stats-display-2.webp" alt="Docker Container Stats Display — screenshot 2 of 2" loading="lazy" decoding="async" onerror="this.onerror=function(){this.remove()};this.src='https://assets.xenon-app.com/community/shots/docker-container-stats-display-2.png'"></div>
+    
+    <section class="sec"><h2>Palette</h2><div class="sw"><span><i style="background:#1ed760"></i>#1ed760</span><span><i style="background:#0b0d12"></i>#0b0d12</span><span><i style="background:#e9edf6"></i>#e9edf6</span></div></section>
+    <section class="sec"><h2>Tags</h2><div class="tags"><span>#stats</span><span>#docker</span><span>#nas</span><span>#container</span></div></section>
+    
+    <div class="cta"><a class="btn fill" href="/catalog/#docker-container-stats-display">Copy the code in the catalog</a><a class="btn" href="/">Get Xenon</a></div>
+    <p class="note">Free. Copy the share code, then paste it into Xenon under Settings → Widgets &amp; sharing → Import. Everything stays on your machine.</p>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <a href="/">Xenon</a> · <a href="/catalog/">Catalog</a> · <a href="/create/">Make your own</a> ·
+    <a href="/submit/">Publish yours</a> · <a href="https://github.com/marcimastro98/Xenon" rel="noopener">GitHub</a>
+    <span> · Updated 2026-07-23</span>
+  </div>
+</footer>
+
+</body>
+</html>

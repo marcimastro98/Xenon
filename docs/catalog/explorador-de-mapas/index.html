@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Map Explorer — Widget for Xenon</title>
+<meta name="description" content="DGM Map Explorer is a responsive visual catalogue for opening external video game maps from Xenon. It includes built-in games, persistent custom entries…">
+<link rel="canonical" href="https://xenon-app.com/catalog/explorador-de-mapas/">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta name="theme-color" content="#070808">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+
+<meta property="og:type" content="product">
+<meta property="og:site_name" content="Xenon">
+<meta property="og:locale" content="en_US">
+<meta property="og:url" content="https://xenon-app.com/catalog/explorador-de-mapas/">
+<meta property="og:title" content="Map Explorer — Widget for Xenon">
+<meta property="og:description" content="DGM Map Explorer is a responsive visual catalogue for opening external video game maps from Xenon. It includes built-in games, persistent custom entries…">
+<meta property="og:image" content="https://assets.xenon-app.com/community/shots/explorador-de-mapas.webp">
+<meta property="og:image:alt" content="Map Explorer running in the Xenon dashboard">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Map Explorer — Widget for Xenon">
+<meta name="twitter:description" content="DGM Map Explorer is a responsive visual catalogue for opening external video game maps from Xenon. It includes built-in games, persistent custom entries…">
+<meta name="twitter:image" content="https://assets.xenon-app.com/community/shots/explorador-de-mapas.webp">
+
+<link rel="preconnect" href="https://assets.xenon-app.com" crossorigin>
+<style>*{box-sizing:border-box;margin:0;padding:0}
+:root{--ink:#070808;--panel:rgba(240,243,241,.04);--line:rgba(240,243,241,.10);
+--green:#1ed760;--gold:#ffc44d;--iris:#8b7bff;--text:#f0f3f1;--muted:#9aa8a1;--dim:#66736c;
+--sans:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--sans);background:var(--ink);color:var(--text);line-height:1.6;font-size:16px;
+-webkit-font-smoothing:antialiased}
+a{color:inherit}
+img{max-width:100%;display:block}
+:focus-visible{outline:2px solid var(--green);outline-offset:3px;border-radius:4px}
+.wrap{width:100%;max-width:880px;margin-inline:auto;padding:0 24px}
+header.top{border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;align-items:center;gap:14px;height:64px}
+.logo{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:.10em;font-size:17px;text-decoration:none}
+.logo img{height:28px;width:auto;mix-blend-mode:screen}
+.top-cta{margin-left:auto;font-size:14px;color:var(--muted);text-decoration:none}
+.top-cta:hover{color:var(--text)}
+nav.crumb{font-size:13px;color:var(--dim);padding:22px 0 0}
+nav.crumb a{color:var(--muted);text-decoration:none}
+nav.crumb a:hover{color:var(--green)}
+main{padding-bottom:72px}
+.tier{display:inline-block;font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+color:var(--green);margin:26px 0 10px}
+.tier.locked{color:var(--gold)}
+.tier.limited{color:var(--iris)}
+h1{font-size:clamp(30px,5vw,44px);line-height:1.12;letter-spacing:-.02em;font-weight:800}
+.by{color:var(--muted);margin-top:10px;font-size:15px}
+.by b{color:var(--text);font-weight:600}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 12px;
+font-size:13px;color:var(--muted)}
+.desc{margin-top:22px;font-size:17px;color:#d4dcd7;max-width:66ch}
+.shots{margin-top:28px;display:grid;gap:14px}
+.shots img{border:1px solid var(--line);border-radius:12px;width:100%;background:var(--panel)}
+.sec{margin-top:34px}
+.sec h2{font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+.sec p{color:#c6cfca;max-width:66ch}
+.sw{display:flex;flex-wrap:wrap;gap:14px}
+.sw span{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.sw i{width:15px;height:15px;border-radius:4px;border:1px solid var(--line);display:block}
+.tags{display:flex;flex-wrap:wrap;gap:8px}
+.tags span{font-size:13px;color:var(--dim)}
+.cta{margin-top:36px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:9px;border-radius:11px;padding:13px 20px;font-weight:600;
+font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(--panel);color:var(--text)}
+.btn.fill{background:var(--green);border-color:var(--green);color:#052012}
+.btn:hover{border-color:rgba(240,243,241,.24)}
+.note{margin-top:14px;font-size:14px;color:var(--dim);max-width:62ch}
+footer{border-top:1px solid var(--line);padding:26px 0;color:var(--dim);font-size:14px}
+footer a{color:var(--muted);text-decoration:none}
+footer a:hover{color:var(--green)}
+@media(min-width:720px){.shots{grid-template-columns:1fr 1fr}.shots img:first-child{grid-column:1/-1}}</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://xenon-app.com/catalog/explorador-de-mapas/#item",
+      "name": "Map Explorer",
+      "url": "https://xenon-app.com/catalog/explorador-de-mapas/",
+      "description": "DGM Map Explorer is a responsive visual catalogue for opening external video game maps from Xenon. It includes built-in games, persistent custom entries, favorites and recent items, optional session-only images, and safe opening through Xenon Browser with a controlled system-browser fallback.",
+      "inLanguage": "en",
+      "author": {
+        "@type": "Person",
+        "name": "DanielGarciaMorato"
+      },
+      "isPartOf": {
+        "@id": "https://xenon-app.com/catalog/#catalog"
+      },
+      "image": "https://assets.xenon-app.com/community/shots/explorador-de-mapas.webp",
+      "applicationCategory": "DesktopApplication",
+      "operatingSystem": "Windows 10, Windows 11",
+      "softwareRequirements": "Xenon 4.6.0 or later",
+      "version": "0.8.1",
+      "datePublished": "2026-07-29",
+      "dateModified": "2026-07-29",
+      "keywords": "gaming, maps, catalog, external-links, spanish",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock",
+        "url": "https://xenon-app.com/catalog/explorador-de-mapas/"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Xenon",
+          "item": "https://xenon-app.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Community catalog",
+          "item": "https://xenon-app.com/catalog/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Map Explorer",
+          "item": "https://xenon-app.com/catalog/explorador-de-mapas/"
+        }
+      ]
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="/"><img src="/images/logo.png" alt="" width="42" height="28"> XENON</a>
+    <a class="top-cta" href="/catalog/">All community items →</a>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Xenon</a> / <a href="/catalog/">Community catalog</a> / Map Explorer
+  </nav>
+
+  <main>
+    <p class="tier">Widget</p>
+    <h1>Map Explorer</h1>
+    <p class="by">Widget for the Xenon dashboard, by <b>DanielGarciaMorato</b></p>
+    <div class="meta"><span class="chip">v0.8.1</span><span class="chip">Media</span><span class="chip">Xenon 4.6.0+</span><span class="chip">Added 2026-07-29</span></div>
+    <p class="desc">DGM Map Explorer is a responsive visual catalogue for opening external video game maps from Xenon. It includes built-in games, persistent custom entries, favorites and recent items, optional session-only images, and safe opening through Xenon Browser with a controlled system-browser fallback.</p>
+    <div class="shots"><img src="https://assets.xenon-app.com/community/shots/explorador-de-mapas.webp" alt="Map Explorer — screenshot 1 of 4" loading="eager" decoding="async" onerror="this.onerror=function(){this.remove()};this.src='https://assets.xenon-app.com/community/shots/explorador-de-mapas.png'"><img src="https://assets.xenon-app.com/community/shots/explorador-de-mapas-2.webp" alt="Map Explorer — screenshot 2 of 4" loading="lazy" decoding="async" onerror="this.onerror=function(){this.remove()};this.src='https://assets.xenon-app.com/community/shots/explorador-de-mapas-2.png'"><img src="https://assets.xenon-app.com/community/shots/explorador-de-mapas-3.webp" alt="Map Explorer — screenshot 3 of 4" loading="lazy" decoding="async" onerror="this.onerror=function(){this.remove()};this.src='https://assets.xenon-app.com/community/shots/explorador-de-mapas-3.png'"><img src="https://assets.xenon-app.com/community/shots/explorador-de-mapas-4.webp" alt="Map Explorer — screenshot 4 of 4" loading="lazy" decoding="async" onerror="this.onerror=function(){this.remove()};this.src='https://assets.xenon-app.com/community/shots/explorador-de-mapas-4.png'"></div>
+    <section class="sec"><h2>What's in it</h2><p>Added persistent custom map entries, optional session-only images, Xenon Browser opening, improved visibility handling and a responsive custom-card layout.</p></section>
+    <section class="sec"><h2>Palette</h2><div class="sw"><span><i style="background:#1ed760"></i>#1ed760</span><span><i style="background:#0b0d12"></i>#0b0d12</span><span><i style="background:#e9edf6"></i>#e9edf6</span></div></section>
+    <section class="sec"><h2>Tags</h2><div class="tags"><span>#gaming</span><span>#maps</span><span>#catalog</span><span>#external-links</span><span>#spanish</span></div></section>
+    <p class="note">This one asks a little more of the machine than most — it is worth knowing before you load it onto a small screen.</p>
+    <div class="cta"><a class="btn fill" href="/catalog/#explorador-de-mapas">Copy the code in the catalog</a><a class="btn" href="/">Get Xenon</a></div>
+    <p class="note">Free. Copy the share code, then paste it into Xenon under Settings → Widgets &amp; sharing → Import. Everything stays on your machine.</p>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <a href="/">Xenon</a> · <a href="/catalog/">Catalog</a> · <a href="/create/">Make your own</a> ·
+    <a href="/submit/">Publish yours</a> · <a href="https://github.com/marcimastro98/Xenon" rel="noopener">GitHub</a>
+    <span> · Updated 2026-07-29</span>
+  </div>
+</footer>
+
+</body>
+</html>

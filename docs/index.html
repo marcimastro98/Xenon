@@ -43,20 +43,47 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Xenon: turn any second screen into your PC's control center</title>
 <meta name="description" content="Xenon turns a spare monitor, a tablet, your phone or a CORSAIR Xeneon Edge into one touch dashboard: system monitor, media, voice AI, file transfer and a programmable Deck. Free, open source, and it runs on Windows, macOS and Linux.">
+<link rel="canonical" href="https://xenon-app.com/">
+<!-- max-image-preview:large is what lets the dashboard shot run full width in a
+     result or an AI answer; without it Google caps previews at a thumbnail. -->
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta name="theme-color" content="#070808">
 <link rel="icon" type="image/png" href="images/favicon.png">
 
+<!-- og:image must be an absolute URL — the spec says so and most scrapers do not
+     resolve a relative one, which is why the card used to come through blank. -->
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="Xenon">
+<meta property="og:locale" content="en_US">
+<meta property="og:url" content="https://xenon-app.com/">
 <meta property="og:title" content="Xenon: turn any second screen into your PC's control center">
 <meta property="og:description" content="A spare monitor, a tablet or the phone in your pocket becomes one touch dashboard: monitor, media, voice AI, file transfer, Deck. Free, open source, and it runs on your PC. No cloud, no account, no telemetry.">
-<meta property="og:image" content="images/overview.png">
+<meta property="og:image" content="https://xenon-app.com/images/overview.png">
+<meta property="og:image:width" content="2560">
+<meta property="og:image:height" content="720">
+<meta property="og:image:alt" content="The Xenon dashboard running at 2560×720 on a 32:9 touchscreen">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Xenon: turn any second screen into your PC's control center">
+<meta name="twitter:description" content="A spare monitor, a tablet or the phone in your pocket becomes one touch dashboard: monitor, media, voice AI, file transfer, Deck. Free, and it runs on Windows, macOS and Linux.">
+<meta name="twitter:image" content="https://xenon-app.com/images/overview.png">
+
+<!-- The page is one file, so the CSS below sits between the parser and the hero
+     shot. This hands the LCP image to the preload scanner before any of it. -->
+<link rel="preload" as="image" href="images/overview.png" fetchpriority="high">
 
 <script>document.documentElement.classList.add('js');</script>
 
 <!-- Brand type: Inter is the product's voice; VT323 belongs to Bit; mono is for code only -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=VT323&display=swap" rel="stylesheet">
+<!-- Loaded print-first, then promoted to all: a stylesheet from another origin is
+     render-blocking, and this one sat in front of the hero for a DNS + TLS +
+     fetch round trip. The families already ship display=swap, so the fallback
+     shows for the same beat it always did — it just no longer holds the page.
+     The noscript copy keeps the blocking behaviour where JS is off. -->
+<link rel="stylesheet" media="print" onload="this.media='all';this.onload=null"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=VT323&display=swap">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=VT323&display=swap"></noscript>
 
 <style>
   :root {
@@ -1057,6 +1084,105 @@
     html { scroll-behavior: auto; }
   }
 </style>
+
+<!-- Structured data. One @graph rather than four separate blocks so the nodes can
+     reference each other by @id — that is what tells a parser the app, the site
+     and the publisher are one entity and not three unrelated things.
+     Deliberately absent: aggregateRating (nothing on this site collects ratings,
+     and inventing one is the fastest way to lose rich results altogether) and
+     softwareVersion (it would go stale on every release; the download link
+     always resolves to the current one). -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://xenon-app.com/#org",
+      "name": "Xenon",
+      "url": "https://xenon-app.com/",
+      "logo": "https://xenon-app.com/images/logo-mark.png",
+      "description": "Xenon turns any second screen into a touch control center for your PC.",
+      "founder": { "@type": "Person", "name": "Marcello Mastroeni", "url": "https://github.com/marcimastro98" },
+      "sameAs": [
+        "https://github.com/marcimastro98/Xenon",
+        "https://discord.gg/MBVrw9kZyg"
+      ]
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://xenon-app.com/#website",
+      "url": "https://xenon-app.com/",
+      "name": "Xenon",
+      "inLanguage": "en",
+      "publisher": { "@id": "https://xenon-app.com/#org" }
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://xenon-app.com/#app",
+      "name": "Xenon",
+      "alternateName": "Xenon Edge Widget",
+      "url": "https://xenon-app.com/",
+      "applicationCategory": "DesktopApplication",
+      "applicationSubCategory": "System monitor and desktop dashboard",
+      "operatingSystem": "Windows 10, Windows 11, macOS (beta), Linux (beta)",
+      "softwareRequirements": "Windows 10 or 11 64-bit; macOS and Linux in beta",
+      "description": "Xenon turns a spare monitor, a tablet, a phone or the CORSAIR Xeneon Edge into one touch dashboard for your PC: system monitoring, media and audio control, a voice AI, file transfer, RGB lighting and a programmable Deck. Everything runs locally — no cloud, no account, no product telemetry.",
+      "downloadUrl": "https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe",
+      "installUrl": "https://xenon-app.com/#install",
+      "releaseNotes": "https://github.com/marcimastro98/Xenon/releases/latest",
+      "softwareHelp": "https://github.com/marcimastro98/Xenon/blob/main/FEATURES.md",
+      "codeRepository": "https://github.com/marcimastro98/Xenon",
+      "license": "https://github.com/marcimastro98/Xenon/blob/main/LICENSE",
+      "isAccessibleForFree": true,
+      "inLanguage": "en",
+      "author": { "@id": "https://xenon-app.com/#org" },
+      "publisher": { "@id": "https://xenon-app.com/#org" },
+      "screenshot": { "@id": "https://xenon-app.com/#hero-image" },
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock",
+        "url": "https://xenon-app.com/"
+      },
+      "featureList": [
+        "Live system monitoring: CPU, GPU, memory, storage and sensor history",
+        "Media and now playing controls, audio output switching and microphone mute",
+        "A voice AI assistant that answers and drives the dashboard",
+        "A programmable Deck of keys for macros, apps and scenes",
+        "RGB lighting control for supported devices",
+        "Widgets: calendar with ICS sync, weather, markets, football, news, timers, tasks and notes",
+        "Twitch and OBS control, Discord voice, and an app switcher",
+        "Search that reads a plain phrase as a date, a size and a file type",
+        "A disk-space map with a protected cleanup plan",
+        "File transfer between the PC and a paired phone or tablet",
+        "Themes, animated backgrounds, ambient scenes and a widget SDK",
+        "Runs on any second screen: a spare monitor, a tablet, a phone, or the CORSAIR Xeneon Edge"
+      ]
+    },
+    {
+      "@type": "ImageObject",
+      "@id": "https://xenon-app.com/#hero-image",
+      "url": "https://xenon-app.com/images/overview.png",
+      "contentUrl": "https://xenon-app.com/images/overview.png",
+      "width": 2560,
+      "height": 720,
+      "caption": "The Xenon dashboard running at 2560×720 on a 32:9 touchscreen"
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://xenon-app.com/#webpage",
+      "url": "https://xenon-app.com/",
+      "name": "Xenon: turn any second screen into your PC's control center",
+      "isPartOf": { "@id": "https://xenon-app.com/#website" },
+      "about": { "@id": "https://xenon-app.com/#app" },
+      "primaryImageOfPage": { "@id": "https://xenon-app.com/#hero-image" },
+      "inLanguage": "en"
+    }
+  ]
+}
+</script>
 </head>
 <body>
 <!-- Platform marks, defined once and referenced wherever a download is offered.
@@ -1285,7 +1411,7 @@
             <span class="chip" data-i18n="p1.c2">“Hey Xenon” wake word</span>
             <span class="chip" data-i18n="p1.c3">Local or cloud</span>
           </div>
-          <figure class="st-media"><div class="shot-card"><img src="images/xenon-ai-chat.png" alt="Xenon AI chat answering by voice" loading="lazy"></div></figure>
+          <figure class="st-media"><div class="shot-card"><img src="images/xenon-ai-chat.png" alt="Xenon AI chat answering by voice" loading="lazy" width="844" height="660"></div></figure>
         </article>
 
         <article class="st-item">
@@ -1297,7 +1423,7 @@
             <span class="chip" data-i18n="p2.c2">Discord voice</span>
             <span class="chip" data-i18n="p2.c3">Macros & webhooks</span>
           </div>
-          <figure class="st-media"><div class="shot-card"><img src="images/deck.png" alt="The programmable Deck key grid" loading="lazy"></div></figure>
+          <figure class="st-media"><div class="shot-card"><img src="images/deck.png" alt="The programmable Deck key grid" loading="lazy" width="844" height="600"></div></figure>
         </article>
 
         <article class="st-item">
@@ -1309,7 +1435,7 @@
             <span class="chip" data-i18n="p3.c2">In-game FPS</span>
             <span class="chip" data-i18n="p3.c3">30-day history</span>
           </div>
-          <figure class="st-media"><div class="shot-card"><img src="images/system-monitor.png" alt="System monitor with live charts" loading="lazy"></div></figure>
+          <figure class="st-media"><div class="shot-card"><img src="images/system-monitor.png" alt="System monitor with live charts" loading="lazy" width="844" height="660"></div></figure>
         </article>
 
         <article class="st-item">
@@ -1470,24 +1596,24 @@
       </div>
     </div>
     <div class="strip reveal" id="strip">
-      <figure class="shot"><img src="images/media.png" loading="lazy" alt="Media widget"><figcaption><span data-i18n="g1">Media & now playing</span><span class="n">01</span></figcaption></figure>
-      <figure class="shot"><img src="images/calendar.png" loading="lazy" alt="Calendar widget"><figcaption><span data-i18n="g2">Calendar & ICS sync</span><span class="n">02</span></figcaption></figure>
-      <figure class="shot"><img src="images/twitch.png" loading="lazy" alt="Twitch and OBS control"><figcaption><span data-i18n="g3">Twitch & OBS</span><span class="n">03</span></figcaption></figure>
-      <figure class="shot"><img src="images/discord.png" loading="lazy" alt="Discord voice widget"><figcaption><span data-i18n="g4">Discord voice</span><span class="n">04</span></figcaption></figure>
-      <figure class="shot"><img src="images/stocks-widget.png" loading="lazy" alt="Markets widget"><figcaption><span data-i18n="g5">Markets & charts</span><span class="n">05</span></figcaption></figure>
-      <figure class="shot"><img src="images/football-widget.png" loading="lazy" alt="Football widget"><figcaption><span data-i18n="g6">Football, live</span><span class="n">06</span></figcaption></figure>
-      <figure class="shot"><img src="images/news-widget.png" loading="lazy" alt="News widget"><figcaption><span data-i18n="g7">News stream</span><span class="n">07</span></figcaption></figure>
-      <figure class="shot"><img src="images/weather.png" loading="lazy" alt="Weather widget"><figcaption><span data-i18n="g8">Weather</span><span class="n">08</span></figcaption></figure>
-      <figure class="shot"><img src="images/spotify.png" loading="lazy" alt="Spotify widget"><figcaption><span data-i18n="g9">Spotify player</span><span class="n">09</span></figcaption></figure>
-      <figure class="shot"><img src="images/widget-sdk.png" loading="lazy" alt="A community widget built with the SDK"><figcaption><span data-i18n="g10">Widget SDK</span><span class="n">10</span></figcaption></figure>
-      <figure class="shot"><img src="images/app-switcher.png" loading="lazy" alt="App switcher"><figcaption><span data-i18n="g11">App switcher</span><span class="n">11</span></figcaption></figure>
-      <figure class="shot"><img src="images/system-history.png" loading="lazy" alt="Sensor history charts"><figcaption><span data-i18n="g12">Sensor history</span><span class="n">12</span></figcaption></figure>
-      <figure class="shot"><img src="images/search-spotlight.png" loading="lazy" alt="Spotlight search reading a phrase as a date and a file type"><figcaption><span data-i18n="g13">Search, in your words</span><span class="n">13</span></figcaption></figure>
-      <figure class="shot"><img src="images/disk-explore.png" loading="lazy" alt="Largest folders and largest files on a drive"><figcaption><span data-i18n="g14">What is taking the space</span><span class="n">14</span></figcaption></figure>
-      <figure class="shot"><img src="images/disk-cleanup.png" loading="lazy" alt="The protected cleanup plan with its categories"><figcaption><span data-i18n="g15">Protected cleanup</span><span class="n">15</span></figcaption></figure>
-      <figure class="shot"><img src="images/transfer.png" loading="lazy" alt="The file transfer tile listing files sent from a phone and from the PC"><figcaption><span data-i18n="g16">Files from your phone</span><span class="n">16</span></figcaption></figure>
-      <figure class="shot"><img src="images/tile-shapes.png" loading="lazy" alt="Dashboard tiles cut into a hexagon and a ticket shape"><figcaption><span data-i18n="g17">Tiles with a shape</span><span class="n">17</span></figcaption></figure>
-      <figure class="shot"><img src="images/share-card.png" loading="lazy" alt="The share card with personal details blurred"><figcaption><span data-i18n="g18">Share what you built</span><span class="n">18</span></figcaption></figure>
+      <figure class="shot"><img src="images/media.png" loading="lazy" alt="Media widget" width="823" height="541"><figcaption><span data-i18n="g1">Media & now playing</span><span class="n">01</span></figcaption></figure>
+      <figure class="shot"><img src="images/calendar.png" loading="lazy" alt="Calendar widget" width="844" height="600"><figcaption><span data-i18n="g2">Calendar & ICS sync</span><span class="n">02</span></figcaption></figure>
+      <figure class="shot"><img src="images/twitch.png" loading="lazy" alt="Twitch and OBS control" width="814" height="513"><figcaption><span data-i18n="g3">Twitch & OBS</span><span class="n">03</span></figcaption></figure>
+      <figure class="shot"><img src="images/discord.png" loading="lazy" alt="Discord voice widget" width="811" height="520"><figcaption><span data-i18n="g4">Discord voice</span><span class="n">04</span></figcaption></figure>
+      <figure class="shot"><img src="images/stocks-widget.png" loading="lazy" alt="Markets widget" width="844" height="626"><figcaption><span data-i18n="g5">Markets & charts</span><span class="n">05</span></figcaption></figure>
+      <figure class="shot"><img src="images/football-widget.png" loading="lazy" alt="Football widget" width="844" height="626"><figcaption><span data-i18n="g6">Football, live</span><span class="n">06</span></figcaption></figure>
+      <figure class="shot"><img src="images/news-widget.png" loading="lazy" alt="News widget" width="844" height="626"><figcaption><span data-i18n="g7">News stream</span><span class="n">07</span></figcaption></figure>
+      <figure class="shot"><img src="images/weather.png" loading="lazy" alt="Weather widget" width="1344" height="569"><figcaption><span data-i18n="g8">Weather</span><span class="n">08</span></figcaption></figure>
+      <figure class="shot"><img src="images/spotify.png" loading="lazy" alt="Spotify widget" width="1224" height="480"><figcaption><span data-i18n="g9">Spotify player</span><span class="n">09</span></figcaption></figure>
+      <figure class="shot"><img src="images/widget-sdk.png" loading="lazy" alt="A community widget built with the SDK" width="808" height="516"><figcaption><span data-i18n="g10">Widget SDK</span><span class="n">10</span></figcaption></figure>
+      <figure class="shot"><img src="images/app-switcher.png" loading="lazy" alt="App switcher" width="1108" height="610"><figcaption><span data-i18n="g11">App switcher</span><span class="n">11</span></figcaption></figure>
+      <figure class="shot"><img src="images/system-history.png" loading="lazy" alt="Sensor history charts" width="801" height="526"><figcaption><span data-i18n="g12">Sensor history</span><span class="n">12</span></figcaption></figure>
+      <figure class="shot"><img src="images/search-spotlight.png" loading="lazy" alt="Spotlight search reading a phrase as a date and a file type" width="812" height="701"><figcaption><span data-i18n="g13">Search, in your words</span><span class="n">13</span></figcaption></figure>
+      <figure class="shot"><img src="images/disk-explore.png" loading="lazy" alt="Largest folders and largest files on a drive" width="844" height="693"><figcaption><span data-i18n="g14">What is taking the space</span><span class="n">14</span></figcaption></figure>
+      <figure class="shot"><img src="images/disk-cleanup.png" loading="lazy" alt="The protected cleanup plan with its categories" width="844" height="693"><figcaption><span data-i18n="g15">Protected cleanup</span><span class="n">15</span></figcaption></figure>
+      <figure class="shot"><img src="images/transfer.png" loading="lazy" alt="The file transfer tile listing files sent from a phone and from the PC" width="838" height="634"><figcaption><span data-i18n="g16">Files from your phone</span><span class="n">16</span></figcaption></figure>
+      <figure class="shot"><img src="images/tile-shapes.png" loading="lazy" alt="Dashboard tiles cut into a hexagon and a ticket shape" width="1700" height="720"><figcaption><span data-i18n="g17">Tiles with a shape</span><span class="n">17</span></figcaption></figure>
+      <figure class="shot"><img src="images/share-card.png" loading="lazy" alt="The share card with personal details blurred" width="760" height="732"><figcaption><span data-i18n="g18">Share what you built</span><span class="n">18</span></figcaption></figure>
     </div>
     <div class="strip-cue" data-i18n="gal.cue">← Drag · tap to enlarge →</div>
   </section>
