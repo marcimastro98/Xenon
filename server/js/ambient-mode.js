@@ -46,6 +46,33 @@ function resolveAmbientScene(cfg, packages, sdkEnabled, scenes) {
   return { builtin: false, pkg };
 }
 
+// Should the game-mode watcher tear the open scene down right now? Pure — the
+// observer gathers the flags from the DOM so this stays unit-testable.
+// state: { gameMode, wasGameMode, idleStarted }
+//
+// Two independent guards, both needed (each one alone reproduces the bug
+// reported against v4.10.1 — "Ambient Mode switches back to normal after some
+// seconds while gaming"):
+//   wasGameMode — the observer fires on EVERY body class write, and a
+//     setAttribute queues a mutation record even when the class list is
+//     unchanged. Reading the STANDING game-mode state therefore closed the
+//     scene on the next unrelated class change (the 60s `ambient-idle` pause,
+//     a toast, a settings re-apply re-adding `custom-bg-on`…) whenever a game
+//     was already running when the scene opened. Only a false→true TRANSITION
+//     counts.
+//   idleStarted — "a screensaver never sits over a game" is about the idle
+//     auto-start, which BUSY_BODY_CLASSES already suppresses during a game. A
+//     scene the user opened BY HAND is not a screensaver: they asked for it
+//     while gaming, and the builtin scene has always stayed up in that case.
+//     Without this, the 900ms game-mode dwell (settings.js) turns every
+//     Alt-Tab into a fresh false→true transition and kills the scene anyway.
+function ambientGameCloses(state) {
+  const s = state || {};
+  if (!s.gameMode) return false;
+  if (s.wasGameMode) return false;
+  return !!s.idleStarted;
+}
+
 // Should the IDLE auto-start be suppressed right now? Pure — the caller
 // gathers the flags from the DOM so this stays unit-testable.
 // state: { enabled, idleMinutes, open, hidden, fullscreen, busyBodyClass, overlayOpen }
@@ -135,10 +162,10 @@ if (typeof window !== 'undefined') (function () {
     host.replaceChildren(frame);
     overlay.hidden = false;
     document.body.classList.add('ambient-scene-open');
-    // Entering game mode must close the scene (a screensaver never sits over a
-    // game). Body-class watch covers every setter — armed only while a scene is
-    // actually open, torn down with it ("stop what you start").
-    gameWatch.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    // ENTERING game mode must close an auto-started scene (a screensaver never
+    // sits over a game). Body-class watch covers every setter — armed only while
+    // a scene is actually open, torn down with it ("stop what you start").
+    armGameWatch();
     return true;
   }
 
@@ -170,7 +197,7 @@ if (typeof window !== 'undefined') (function () {
     if (!(window.AmbientCanvas && AmbientCanvas.mount)) return false;
     const ok = AmbientCanvas.mount(scene, { onClose: close });
     // Same game-mode guard as an SDK scene: a screensaver never sits over a game.
-    if (ok) gameWatch.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    if (ok) armGameWatch();
     return ok;
   }
   function unmountCanvas() {
@@ -427,10 +454,20 @@ if (typeof window !== 'undefined') (function () {
     evaluateSystemIdle();
   }
 
-  // Observer armed by mountScene()/disarmed by unmountScene() — it only exists
-  // while a scene overlay is on screen (see mountScene for why).
+  // Observer armed by mountScene()/mountCanvas(), disarmed by their unmounts —
+  // it only exists while a scene overlay is on screen (see mountScene for why).
+  // It fires on every body class write, so it compares against the state it last
+  // SAW instead of the standing one — see ambientGameCloses for why.
+  let gameWatchSeen = false;
+  function armGameWatch() {
+    gameWatchSeen = document.body.classList.contains('game-mode');
+    gameWatch.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  }
   const gameWatch = new MutationObserver(() => {
-    if (!document.body.classList.contains('game-mode')) return;
+    const gameMode = document.body.classList.contains('game-mode');
+    const shouldClose = ambientGameCloses({ gameMode, wasGameMode: gameWatchSeen, idleStarted });
+    gameWatchSeen = gameMode;
+    if (!shouldClose) return;
     if (sceneOpen()) {
       disarmDismiss();
       idleStarted = false;
@@ -497,5 +534,6 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     resolveAmbientScene,
     ambientIdleSuppressed,
+    ambientGameCloses,
   };
 }
