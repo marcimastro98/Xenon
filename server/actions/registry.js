@@ -21,12 +21,31 @@ function normalizeUrl(s) {
   return isHttpUrl(withScheme) ? withScheme : '';
 }
 
-// What openApp may launch. macOS applications are `.app` bundles (directories,
-// which fileExists() answers for), so that extension is allowed there and only
-// there — the Windows boundary stays exactly what it was.
-const APP_PATH_EXT = process.platform === 'darwin' ? /\.(exe|lnk|app)$/i : /\.(exe|lnk)$/i;
-function isAllowedAppPath(p) {
-  return typeof p === 'string' && APP_PATH_EXT.test(p.trim());
+// What openApp may launch — per platform, because the extension is how each OS
+// spells "an application". Windows: .exe/.lnk, exactly what it always was.
+// macOS adds `.app` bundles (directories, which fileExists() answers for).
+// Linux has no extension convention at all: an app is a .desktop entry, an
+// AppImage, or a plain executable whose name carries no extension
+// (/usr/bin/firefox) — a dotted name is refused so openApp cannot become a
+// second openFile for documents. Takes `platform` like the two gates below, so
+// each rule is testable off the OS it targets; before that parameter existed
+// the Linux branch fell back to the Windows list and every openApp key on
+// Linux validated nothing and failed with bad_app_path.
+const APP_PATH_EXT = /\.(exe|lnk)$/i;
+const APP_PATH_EXT_DARWIN = /\.(exe|lnk|app)$/i;
+const APP_PATH_EXT_LINUX = /\.(desktop|appimage)$/i;
+function isAllowedAppPath(p, platform) {
+  if (typeof p !== 'string') return false;
+  const v = p.trim();
+  if (!v) return false;
+  const plat = platform || process.platform;
+  if (plat === 'darwin') return APP_PATH_EXT_DARWIN.test(v);
+  if (plat === 'linux') {
+    if (APP_PATH_EXT_LINUX.test(v)) return true;
+    const base = v.split('/').pop();
+    return !!base && !base.includes('.');
+  }
+  return APP_PATH_EXT.test(v);
 }
 
 // Percentage value for the volume/brightness 'set' modes: accepts a decimal
@@ -184,12 +203,21 @@ function createRegistry(deps) {
           // pointed at the app's install FOLDER — resolve it to the primary
           // executable inside (re-resolved on every tap, so versioned apps like
           // Discord/Slack 'app-X.Y.Z' keep working after an update).
-          if (!isAllowedAppPath(p)) {
+          if (!isAllowedAppPath(p, platform)) {
             const resolved = (typeof d.resolveAppDir === 'function') ? String(d.resolveAppDir(p) || '') : '';
-            if (!resolved || !isAllowedAppPath(resolved)) return { ok: false, error: 'bad_app_path' };
+            if (!resolved || !isAllowedAppPath(resolved, platform)) return { ok: false, error: 'bad_app_path' };
             p = resolved;
           }
           if (!d.fileExists(p)) return { ok: false, error: 'not_found' };
+          // Linux has no registered-handler route to "run this program":
+          // xdg-open on a binary or a .desktop file OPENS it as a document (or
+          // refuses), so launching goes through its own dep. macOS' `open` and
+          // Windows' Start-Process both launch apps natively via openExternal.
+          if (platform === 'linux') {
+            if (typeof d.launchApp !== 'function') return { ok: false, error: 'unavailable' };
+            const r = await d.launchApp(p);
+            return r && r.ok === false ? { ok: false, error: r.error || 'launch_failed' } : { ok: true };
+          }
           await d.openExternal(p);
           return { ok: true };
         }

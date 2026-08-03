@@ -282,6 +282,9 @@ function createDarwinMedia(options) {
     buf = '';
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', (chunk) => {
+      // 'exit' can fire before stdout drains, so a trailing chunk from a
+      // retired child could interleave into the replacement's buffer.
+      if (proc !== child) return;
       buf += chunk;
       if (buf.length > MAX_LINE_BYTES) { buf = ''; return; }
       let nl;

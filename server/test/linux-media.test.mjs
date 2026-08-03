@@ -145,6 +145,13 @@ test('commandArgs: transport verbs and absolute seek map to exact playerctl argv
   assert.deepEqual(lm.commandArgs('playpause'), ['play-pause']);
   assert.deepEqual(lm.commandArgs('next'), ['next']);
   assert.deepEqual(lm.commandArgs('previous'), ['previous']);
+  // Every verb acts on the player the tile is SHOWING, never on whichever
+  // playerctl's own default resolution picks: with Spotify playing and a
+  // paused browser tab alive, an unscoped play-pause can hit the wrong app.
+  assert.deepEqual(lm.commandArgs('playpause', undefined, 'spotify'),
+    ['--player', 'spotify', 'play-pause']);
+  assert.deepEqual(lm.commandArgs('next', undefined, 'chromium.instance2317'),
+    ['--player', 'chromium.instance2317', 'next']);
   assert.deepEqual(lm.commandArgs('seek', 12.345678, 'spotify'),
     ['--player', 'spotify', 'position', '12.345678']);
   assert.deepEqual(lm.commandArgs('seek', 0), ['position', '0']);

@@ -8,9 +8,24 @@ test('isHttpUrl / isAllowedAppPath', () => {
   assert.equal(reg.isHttpUrl('https://x.com'), true);
   assert.equal(reg.isHttpUrl('ftp://x'), false);
   assert.equal(reg.isHttpUrl('javascript:alert(1)'), false);
-  assert.equal(reg.isAllowedAppPath('C:/a/b.exe'), true);
-  assert.equal(reg.isAllowedAppPath('C:/a/b.LNK'), true);
-  assert.equal(reg.isAllowedAppPath('C:/a/b.bat'), false);
+  // Platform passed explicitly, like the other two gates: each rule must be
+  // assertable wherever the suite runs. Windows: .exe/.lnk, exactly as ever.
+  assert.equal(reg.isAllowedAppPath('C:/a/b.exe', 'win32'), true);
+  assert.equal(reg.isAllowedAppPath('C:/a/b.LNK', 'win32'), true);
+  assert.equal(reg.isAllowedAppPath('C:/a/b.bat', 'win32'), false);
+  // macOS adds .app bundles and nothing else.
+  assert.equal(reg.isAllowedAppPath('/Applications/Safari.app', 'darwin'), true);
+  assert.equal(reg.isAllowedAppPath('/usr/bin/firefox', 'darwin'), false);
+  // Linux has no extension convention: a .desktop entry, an AppImage, or a
+  // plain extensionless executable is an app; a dotted document name is not —
+  // openApp must never become a second openFile. Before the platform branch
+  // existed Linux fell back to the Windows list and every key failed.
+  assert.equal(reg.isAllowedAppPath('/usr/share/applications/firefox.desktop', 'linux'), true);
+  assert.equal(reg.isAllowedAppPath('/home/me/Apps/Krita.AppImage', 'linux'), true);
+  assert.equal(reg.isAllowedAppPath('/usr/bin/firefox', 'linux'), true);
+  assert.equal(reg.isAllowedAppPath('/home/me/notes.txt', 'linux'), false);
+  assert.equal(reg.isAllowedAppPath('/home/me/run.sh', 'linux'), false);
+  assert.equal(reg.isAllowedAppPath('', 'linux'), false);
 });
 
 test('run rejects unknown actions', async () => {
@@ -21,18 +36,49 @@ test('run rejects unknown actions', async () => {
 
 test('run openApp enforces extension + existence', async () => {
   const calls = [];
-  const deps = { fileExists: () => true, openExternal: (p) => { calls.push(p); return Promise.resolve(); } };
+  const deps = { platform: 'win32', fileExists: () => true, openExternal: (p) => { calls.push(p); return Promise.resolve(); } };
   assert.deepEqual(await reg.createRegistry(deps).run({ type: 'openApp', path: 'C:/x/y.txt' }), { ok: false, error: 'bad_app_path' });
-  const okDeps = { fileExists: () => false, openExternal: () => Promise.resolve() };
+  const okDeps = { platform: 'win32', fileExists: () => false, openExternal: () => Promise.resolve() };
   assert.deepEqual(await reg.createRegistry(okDeps).run({ type: 'openApp', path: 'C:/x/y.exe' }), { ok: false, error: 'not_found' });
   assert.deepEqual(await reg.createRegistry(deps).run({ type: 'openApp', path: 'C:/x/y.exe' }), { ok: true });
   assert.deepEqual(calls, ['C:/x/y.exe']);
+});
+
+test('run openApp on Linux routes through launchApp, never xdg-open', async () => {
+  const launched = [];
+  const opened = [];
+  const deps = {
+    platform: 'linux',
+    fileExists: () => true,
+    openExternal: (p) => { opened.push(p); return Promise.resolve(); },
+    launchApp: (p) => { launched.push(p); return Promise.resolve({ ok: true }); },
+  };
+  const r = reg.createRegistry(deps);
+  assert.deepEqual(await r.run({ type: 'openApp', path: '/usr/share/applications/firefox.desktop' }), { ok: true });
+  assert.deepEqual(await r.run({ type: 'openApp', path: '/usr/bin/firefox' }), { ok: true });
+  // xdg-open OPENS a document; it never launches a program — the generic
+  // opener must not have been touched by either launch.
+  assert.deepEqual(opened, []);
+  assert.deepEqual(launched, ['/usr/share/applications/firefox.desktop', '/usr/bin/firefox']);
+  // No launcher dep wired (a non-linux host asked to validate a linux action,
+  // or a stripped test double) → a clean refusal, not a silent xdg-open.
+  const noLauncher = { platform: 'linux', fileExists: () => true, openExternal: () => Promise.resolve() };
+  assert.deepEqual(await reg.createRegistry(noLauncher).run({ type: 'openApp', path: '/usr/bin/firefox' }),
+    { ok: false, error: 'unavailable' });
+  // A launcher failure surfaces as its error, so the key flashes red honestly.
+  const failing = {
+    platform: 'linux', fileExists: () => true,
+    launchApp: () => Promise.resolve({ ok: false, error: 'launch_failed' }),
+  };
+  assert.deepEqual(await reg.createRegistry(failing).run({ type: 'openApp', path: '/usr/bin/firefox' }),
+    { ok: false, error: 'launch_failed' });
 });
 
 test('run openApp resolves a folder target to an executable via resolveAppDir', async () => {
   const calls = [];
   // A folder path (no .exe/.lnk) is resolved to the exe inside it.
   const deps = {
+    platform: 'win32',
     fileExists: () => true,
     openExternal: (p) => { calls.push(p); return Promise.resolve(); },
     resolveAppDir: (p) => (p === 'C:/Users/me/AppData/Local/Discord' ? 'C:/Users/me/AppData/Local/Discord/app-1.0.0/Discord.exe' : ''),
@@ -42,7 +88,7 @@ test('run openApp resolves a folder target to an executable via resolveAppDir', 
   // A folder the resolver can't map → still bad_app_path (no silent success).
   assert.deepEqual(await reg.createRegistry(deps).run({ type: 'openApp', path: 'C:/some/empty/dir' }), { ok: false, error: 'bad_app_path' });
   // Without a resolver dep, a non-exe path is rejected as before.
-  const noResolver = { fileExists: () => true, openExternal: () => Promise.resolve() };
+  const noResolver = { platform: 'win32', fileExists: () => true, openExternal: () => Promise.resolve() };
   assert.deepEqual(await reg.createRegistry(noResolver).run({ type: 'openApp', path: 'C:/x/folder' }), { ok: false, error: 'bad_app_path' });
 });
 
@@ -175,10 +221,13 @@ test('isRunnableScriptPath: the POSIX list is its own, in both directions', () =
 });
 
 test('isBlockedOpenPath: openFile blocks one-tap execution on every platform', () => {
-  // The Windows vocabulary, unchanged.
-  for (const ext of ['exe', 'lnk', 'bat', 'ps1', 'js', 'hta', 'desktop']) {
+  // The Windows vocabulary, unchanged — and it applies as the BASE list on
+  // every platform (the POSIX list only ever adds). `.jar` matters off
+  // Windows too: a desktop with a Java file association executes it on open.
+  for (const ext of ['exe', 'lnk', 'bat', 'ps1', 'js', 'hta', 'desktop', 'jar']) {
     assert.equal(reg.isBlockedOpenPath(`C:/x/f.${ext}`, 'win32'), true, ext);
     assert.equal(reg.isBlockedOpenPath(`/x/f.${ext}`, 'darwin'), true, ext);
+    assert.equal(reg.isBlockedOpenPath(`/x/f.${ext}`, 'linux'), true, ext);
   }
   // What `open` would execute, launch or install on one tap. None of it means
   // anything to the Windows handler, which is why it needed its own list.
@@ -200,7 +249,7 @@ test('isBlockedOpenPath: openFile blocks one-tap execution on every platform', (
 });
 
 test('run returns {ok:false} when an injected effect throws (never propagates)', async () => {
-  const deps = { fileExists: () => true, openExternal: () => Promise.reject(new Error('boom')) };
+  const deps = { platform: 'win32', fileExists: () => true, openExternal: () => Promise.reject(new Error('boom')) };
   assert.deepEqual(await reg.createRegistry(deps).run({ type: 'openApp', path: 'C:/x/y.exe' }), { ok: false, error: 'boom' });
 });
 

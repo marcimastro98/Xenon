@@ -40,7 +40,11 @@ function renderDiskInto(root, disk) {
   if (small) small.textContent = formatBytes(disk.free) + ' ' + t('gb_free');
   if (sub) sub.textContent = formatBytes(disk.used) + ' / ' + formatBytes(disk.total);
   if (detail) {
-    const parts = [disk.label, disk.fileSystem, disk.driveType].map(p => String(p || '').trim()).filter(Boolean);
+    // Most Windows volumes carry no label at all, which left this line reading
+    // "NTFS - Fixed". The disk's own name is the better answer when there is no
+    // label, and it is what people expect to see under a drive.
+    const parts = [disk.label || disk.model, disk.fileSystem, disk.driveType]
+      .map(p => String(p || '').trim()).filter(Boolean);
     detail.textContent = parts.length ? parts.join(' - ') : t('disk_detail_unavailable');
   }
   if (fill) setFill(fill, disk.percent);
@@ -776,9 +780,16 @@ async function fetchWeather() {
     if (!res.ok) throw new Error('Weather unavailable');
     applyWeather(await res.json());
   } catch {
-    applyWeather(null);
+    // The failure path RENDERS, unlike the other fetchers' empty catches, so it
+    // can throw in turn (a missing pill node, a widget relay). Left unguarded
+    // that second throw escapes the function and `fetchingWeather` never clears,
+    // which silently retires weather for the whole page: every later poll
+    // returns at the guard and the tile stays frozen on the last good reading
+    // until a reload. Both halves matter — the inner catch, and the finally.
+    try { applyWeather(null); } catch { /* nothing renderable on this surface */ }
+  } finally {
+    fetchingWeather = false;
   }
-  fetchingWeather = false;
 }
 
 async function fetchSystem() {

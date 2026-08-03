@@ -238,6 +238,19 @@ test('parseDisplaysJson: a discrete card reports VRAM in bytes', () => {
   assert.equal(g.vramTotal, 8 * 1073741824);
 });
 
+test('parseDisplaysJson: on a switchable-graphics Mac the discrete card wins', () => {
+  // 2016-2020 Intel MacBook Pros list BOTH GPUs, integrated first. The card
+  // with dedicated VRAM (spdisplays_vram — an iGPU only ever reports
+  // spdisplays_vram_shared) is the one every other platform's GPU tile shows.
+  const doc = JSON.stringify({ SPDisplaysDataType: [
+    { _name: 'Intel UHD Graphics 630', sppci_model: 'Intel UHD Graphics 630', spdisplays_vram_shared: '1536 MB' },
+    { _name: 'Radeon Pro 5500M', sppci_model: 'AMD Radeon Pro 5500M', spdisplays_vram: '8 GB' },
+  ] });
+  const g = dc.parseDisplaysJson(doc);
+  assert.equal(g.gpuName, 'AMD Radeon Pro 5500M');
+  assert.equal(g.vramTotal, 8 * 1073741824);
+});
+
 test('parseAudioDevices: splits outputs from inputs and marks the defaults', () => {
   const d = dc.parseAudioDevices(fixture('darwin-audio.json'));
   assert.deepEqual(d.outputs.map((x) => x.name), ['MacBook Pro Speakers', 'Studio Display Speakers']);

@@ -212,6 +212,14 @@ function contentDisposition(name) {
  * the function diskspace.js already exports and tests. Injectable so both
  * branches run wherever the suite does.
  */
+// This machine's parsed user-dirs.dirs, read once per process — the resolver
+// sits on the upload/status request path via defaultInboxDir(), and a
+// synchronous read-and-parse per request is exactly the hot-path cost the
+// invariants forbid (diskspace.js reads the same file once at construction for
+// the same reason). The file only changes when the user renames their folders,
+// which a restart is allowed to be the answer to. `undefined` = not read yet;
+// only the real-machine lookup is cached, injected test inputs never are.
+let _xdgCache;
 function resolveDownloadsDir(opts) {
   const o = opts || {};
   // `undefined` means "ask this machine"; an explicitly empty value means the
@@ -223,10 +231,16 @@ function resolveDownloadsDir(opts) {
   if (platform === 'linux') {
     let xdg = o.xdg;
     if (xdg === undefined) {
-      try {
-        const cfg = path.join(process.env.XDG_CONFIG_HOME || path.join(home, '.config'), 'user-dirs.dirs');
-        xdg = parseXdgUserDirs(fs.readFileSync(cfg, 'utf8'), home);
-      } catch { xdg = null; }
+      const machine = o.homedir === undefined;
+      if (machine && _xdgCache !== undefined) {
+        xdg = _xdgCache;
+      } else {
+        try {
+          const cfg = path.join(process.env.XDG_CONFIG_HOME || path.join(home, '.config'), 'user-dirs.dirs');
+          xdg = parseXdgUserDirs(fs.readFileSync(cfg, 'utf8'), home);
+        } catch { xdg = null; }
+        if (machine) _xdgCache = xdg;
+      }
     }
     if (xdg && xdg.download) return xdg.download;
     return path.join(home, 'Downloads');

@@ -195,6 +195,13 @@ than the manifest requested):
   api: 1,
   theme:  {
     appearance: 'dark'|'light',
+    // Which SKIN the dashboard is wearing: 'glass' (Liquid Glass) or 'retro'
+    // (Pixel Retro). The palette cannot carry this — Retro differs in SHAPE
+    // language, not colour: square corners, 2px borders, hard offset shadows
+    // with no blur, and a monospace face. A widget that follows only the palette
+    // still renders as a glass card inside a pixel dashboard. See *Following the
+    // skin* below. Also present on every `theme` refresh.
+    skin: 'glass'|'retro',
     // true when the user runs a 12-hour clock (Settings → Dynamic Island, auto/12/24
     // already resolved). Use it if your widget renders its own time. Also present
     // on every `theme` refresh, so a live toggle updates without a reload.
@@ -274,6 +281,7 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `notes` — `{ v, activeId, notes: [...] }`, the user's notes (privacy note: this is your private scratchpad text — grant it deliberately); pushed on save
 - `agenda` — `{ events: [...] }`, the user's calendar events; pushed on every change
 - `battery` — wireless peripheral battery levels (see *Hardware sensors*)
+- `processes` — **which apps are using the CPU, memory and GPU right now**. See *Which apps are busy* below; like `audioLevels`, this one has conditions
 
 `wavelink` and these last four are read-only data feeds; you also get the latest
 cached payload replayed right after `init`, so you paint without waiting.
@@ -320,6 +328,59 @@ than the one that introduced it — the host sends one payload of the shape
 `{ peaks: {}, problem: 'helper-too-old', minVersion: '0.7.0' }` on this same
 stream. Handle it if you want to explain yourself to the user; ignore it and you
 simply get no data, which is the case you already handle.
+
+### Which apps are busy (`processes`)
+
+The per-application view of the machine — the data behind a task-manager widget.
+One payload every 2 seconds:
+
+```js
+if (m.type === 'data' && m.stream === 'processes') {
+  const { apps, cpu, cores, totalMB, usedMB, gpuAvail } = m.data;
+  // apps: [{ n: 'chrome', c: 2.1, m: 1840, g: 3.4 }, …]
+  //   n = process name, lower-case, no .exe   c = CPU %   m = RAM in MB   g = GPU %
+  // cpu = total across EVERY process, not just the rows in `apps`
+  for (const app of apps) addRow(app);   // app.n is TEXT: use textContent
+}
+```
+
+Six things to design around:
+
+1. **Nothing runs until you are granted it.** There is no setting and no
+   collector running in the background waiting to be asked: the server starts
+   sampling because your package holds this grant and a dashboard is open, and
+   stops the moment that stops being true (including under safe mode and package
+   pause). That is also why you should not request it "just in case" — an unused
+   grant here is real CPU on someone else's machine.
+2. **`g` is zero on macOS and Linux, and `gpuAvail` tells you so.** Per-process
+   GPU exists on Windows through the WDDM performance counters. It does not exist
+   on macOS outside private APIs, and on Linux it covers one vendor at a time.
+   When `gpuAvail` is `false`, **hide the GPU column** rather than drawing zeros:
+   a column of zeros reads as "nothing is using the GPU", which is worse than no
+   column at all.
+3. **One row per app, not per process.** Twenty `chrome` processes arrive as one
+   `chrome` row with their RAM summed, the way a task manager shows them.
+4. **You get the union of the top 8 of each metric, not a single top list** —
+   typically ~15 rows. A memory hog that uses no CPU is in there, and so is a
+   GPU-only process. Sort client-side for whichever column you are drawing;
+   the rows arrive sorted by CPU.
+5. **`c` is a real delta, and a just-launched app reads 0%.** CPU is measured
+   between one poll and the next rather than sampled, which is what makes the
+   stream cheap. A process that appeared inside the window contributes its memory
+   but no CPU, because charging it its whole lifetime's CPU in one tick would make
+   every app you just opened look like it was pinning a core.
+
+6. **Show `cpu` if you show a truncated list.** It is the total across every
+   process, including the ones that did not make the cut. Without it your rows
+   add up to visibly less than the machine's own CPU figure and the widget reads
+   as wrong, when the difference is only the long tail. It is also the number to
+   compare against the `system` stream's `cpu`, which additionally counts kernel
+   and interrupt time and so runs a little higher.
+
+`totalMB`/`usedMB` are system-wide RAM, so a widget showing this needs no second
+grant for the memory total. If the data cannot be collected at all (the sensor
+host is down), the host sends `{ problem: 'unavailable', apps: [] }` once on this
+stream — say so in your empty state instead of rendering an idle-looking machine.
 
 The rich Discord streams are **lazy snapshots**, not polling feeds. Request one
 only while its UI is visible:
@@ -526,6 +587,60 @@ rest of the dashboard:
 Both are `null` on older hosts, or when the tile's tokens can't be read — always
 fall back to the solid `surfaceAlt`. Keep using the solid `surfaceAlt` for any
 surface you want to stay opaque no matter what the user sets.
+
+### The white-tile trap: declare a `color-scheme`
+
+If your widget renders as a solid **white block** inside the dark dashboard while
+every background in your CSS is `transparent`, this is why, and no amount of
+staring at your own stylesheet will find it.
+
+A sandboxed iframe is composited transparently only while its used
+`color-scheme` **matches the embedding document's**. A widget that declares none
+is treated as light; Xenon's dashboard is dark; the two disagree, so the engine
+paints an **opaque canvas** underneath your transparent backgrounds. The widget's
+own CSS is blameless and unchanged, which is what makes this so hard to spot.
+
+Declare one, and keep it in step with the theme:
+
+```css
+:root { color-scheme: dark; }          /* sensible default */
+```
+```js
+document.documentElement.style.colorScheme =
+  theme.appearance === 'light' ? 'light' : 'dark';   // on init AND on theme
+```
+
+The same mechanism, in the opposite direction, is documented in
+`server/spotlight.html` for the frameless native window: setting a scheme there
+*creates* the opaque backdrop it must not have. Either way the rule is the same —
+the canvas is transparent only when the scheme is what the surrounding surface
+expects.
+
+### Following the skin (`theme.skin`)
+
+`appearance` tells you light or dark; `skin` tells you which of Xenon's two visual
+languages is on. Reacting to it is what separates a widget that *matches* the
+dashboard from one that merely uses its colours.
+
+```js
+document.documentElement.classList.toggle('retro', theme.skin === 'retro');
+```
+
+What Pixel Retro actually is, so you can mirror it rather than invent it (the
+source of truth is `server/styles/themes-retro.css`): **zero border radius**
+everywhere, **2px** borders instead of hairlines, **hard offset shadows** with no
+blur (`3px 3px 0 rgba(0,0,0,.55)`), no top-light wash or glass sheen, uppercase
+micro-labels, and the `'VT323', 'Courier New', monospace` stack. VT323 is loaded
+by the host document and will **not** resolve inside your sandboxed frame, which
+is fine: name it first and let Courier New take over, exactly as the app does on
+a machine without the font. Do not bundle a pixel font for this.
+
+Two things worth not getting wrong. Any transition or easing should be dropped or
+stepped under Retro — a CRT console does not glide. And if you set sizes through a
+container query, remember the query can only style **descendants** of the
+container element, so `container-type` on your root plus `@container { :root {…} }`
+is a silent no-op: put the container on `body` and the variables on the element
+below it.
 
 A dual-palette theme (one that ships both a light and a dark half — see
 [THEME_SYSTEM.md](THEME_SYSTEM.md#dual-palette-themes)) is resolved before the
@@ -1023,7 +1138,7 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `wavelink`, `weather`, `youtubeLive`
+**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `processes`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `wavelink`, `weather`, `youtubeLive`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 

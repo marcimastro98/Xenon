@@ -250,6 +250,7 @@ function Invoke-Npm {
 
 $script:depsTouched = $false   # npm ran (in either mode) - node_modules may be mixed
 $script:nmBakActive = $false   # the rename-aside snapshot exists for THIS run
+$script:treeTouched = $false   # the copy step ran - $root may hold staged files
 $script:phase = 'start'        # last stage entered - maps to a reason code on failure
 
 try {
@@ -296,6 +297,7 @@ try {
   #    gets deleted; the staged tree carries no data\ folder, so user data under
   #    server\data is untouched. Exclude any data dir defensively.
   $script:phase = 'copy'
+  $script:treeTouched = $true
   robocopy $appDir $root /E /XD (Join-Path $appDir 'server\data') /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
   if ($LASTEXITCODE -ge 8) { throw "copy failed ($LASTEXITCODE)" }
   Log 'files copied'
@@ -373,13 +375,18 @@ catch {
     default       { 'unknown' }
   }
   # Failures before the copy never modified the install - there is nothing to
-  # roll back, the tree is already in its pre-update state.
+  # roll back, the tree is already in its pre-update state. Restoring anyway
+  # would be WORSE than a no-op: a backup robocopy that failed PARTWAY may
+  # already hold server\server.js, and against that partial backup
+  # Remove-UpdateAdditions reads every file the copy never reached as "added
+  # by the update" and deletes it from the untouched original install. The
+  # backup is only ever trusted once the copy step actually ran (treeTouched).
   $restoredOk = ($script:phase -in @('start', 'backup', 'stop_server'))
   # Return the install to EXACTLY the pre-update state. The (possibly broken)
   # new server may be up after step 5 and holding files - stop it first.
   Stop-Server
   try {
-    if (Test-Path (Join-Path $backupDir 'server\server.js')) {
+    if ($script:treeTouched -and (Test-Path (Join-Path $backupDir 'server\server.js'))) {
       robocopy $backupDir $root /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
       if ($LASTEXITCODE -ge 8) { Log "rollback copy incomplete ($LASTEXITCODE)" } else { Log 'rolled back from backup'; $restoredOk = $true }
       Remove-UpdateAdditions

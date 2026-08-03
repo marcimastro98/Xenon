@@ -73,7 +73,10 @@ try {
           $mem += $p.WorkingSet64
           try {
             if ($t0.ContainsKey($p.Id)) {
-              $cpuMs += [math]::Max(0, $p.TotalProcessorTime.TotalMilliseconds - $t0[$p.Id])
+              # 0.0, not 0: an integer literal binds [math]::Max(int,int) and rounds
+            # the double on the way in, so every per-process delta was truncated to
+            # a whole millisecond before being summed over a 350ms window.
+            $cpuMs += [math]::Max(0.0, $p.TotalProcessorTime.TotalMilliseconds - $t0[$p.Id])
             }
           } catch {}
         }

@@ -631,6 +631,24 @@ fi
 
 # ── 5) Wait for it to answer ─────────────────────────────────────────────────
 step 'Waiting for the dashboard to answer…'
+# curl when present, node otherwise — node is a hard requirement of this script,
+# while curl is genuinely absent on a minimal Debian/Ubuntu. Without the
+# fallback, "curl: command not found" read as "the server never came up" and a
+# perfectly healthy install reported failure (and exited 1, which made the
+# first-launch bootstrap say the installer did not complete).
+http_get() { # $1 = url, $2 = timeout in seconds
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsS --max-time "$2" "$1" 2>/dev/null
+    return $?
+  fi
+  "$NODE_BIN" -e '
+    const [url, tmo] = process.argv.slice(1);
+    fetch(url, { signal: AbortSignal.timeout(Number(tmo) * 1000) })
+      .then((r) => { if (!r.ok) process.exit(1); return r.text(); })
+      .then((t) => process.stdout.write(t))
+      .catch(() => process.exit(1));
+  ' "$1" "$2" 2>/dev/null
+}
 # The app path has more links in its chain than the direct one — launchd runs
 # `open`, LaunchServices starts the app, the app polls the port before deciding
 # nothing is there, and only then spawns node, which then boots. Forty seconds
@@ -639,13 +657,13 @@ WAIT_SECS=40
 [ "$SERVICE_KIND" = 'launchd-app' ] && WAIT_SECS=90
 UP=0
 for _ in $(seq 1 "$WAIT_SECS"); do
-  if curl -fsS --max-time 2 "http://127.0.0.1:$PORT/version" >/dev/null 2>&1; then UP=1; break; fi
+  if http_get "http://127.0.0.1:$PORT/version" 2 >/dev/null 2>&1; then UP=1; break; fi
   sleep 1
 done
 
 printf '\n  %s---------------------------------------------------%s\n' "$C_DIM" "$C_OFF"
 if [ "$UP" = "1" ]; then
-  VER="$(curl -fsS --max-time 2 "http://127.0.0.1:$PORT/version" 2>/dev/null | sed -n 's/.*"version" *: *"\([^"]*\)".*/\1/p')"
+  VER="$(http_get "http://127.0.0.1:$PORT/version" 2 | sed -n 's/.*"version" *: *"\([^"]*\)".*/\1/p')"
   printf '  %sXenon %s is running.%s\n' "$C_OK" "${VER:-}" "$C_OFF"
   printf '  %sDashboard: %s%s\n' "$C_OK" "$DASH_URL" "$C_OFF"
 else

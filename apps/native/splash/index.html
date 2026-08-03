@@ -238,7 +238,13 @@
           // button that can't help.
           if (!saidStuck && elapsed() >= 60000 && !setupShowing()) {
             saidStuck = true;
-            hintEl.textContent = 'Still no response from the Xenon widget. This app is the display for the Xenon widget — make sure the widget is installed and running (reinstall it anytime with INSTALL.bat from github.com/marcimastro98/Xenon). This screen will continue on its own once it responds.';
+            // One page serves all three platform builds, and each ships a
+            // different installer — telling a Mac or Linux user to run
+            // INSTALL.bat sends them looking for a file that does not exist.
+            var installer = /Mac/i.test(navigator.platform || '') ? 'INSTALL.command'
+              : /Win/i.test(navigator.platform || '') ? 'INSTALL.bat'
+              : 'INSTALL.sh';
+            hintEl.textContent = 'Still no response from the Xenon widget. This app is the display for the Xenon widget — make sure the widget is installed and running (reinstall it anytime with ' + installer + ' from github.com/marcimastro98/Xenon). This screen will continue on its own once it responds.';
           }
           setTimeout(probe, 500);
         });

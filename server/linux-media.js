@@ -60,19 +60,21 @@ const STATUS = { Playing: 'Playing', Paused: 'Paused', Stopped: 'Stopped' };
 const COMMANDS = { playpause: 'play-pause', next: 'next', previous: 'previous' };
 
 function commandArgs(action, position, player) {
+  // Act on the player the tile is SHOWING, not on whichever playerctl's own
+  // default resolution picks: hitting next on a paused browser tab while
+  // Spotify plays is the bug this avoids (same guard linux-mpris.js carries).
+  const selected = String(player || '').trim();
+  const scope = selected ? ['--player', selected] : [];
   if (action === 'seek') {
     const seconds = Number(position);
     if (!Number.isFinite(seconds) || seconds < 0) return null;
     const micros = Math.round(seconds * 1e6);
     if (!Number.isSafeInteger(micros)) return null;
-    const selected = String(player || '').trim();
-    return [
-      ...(selected ? ['--player', selected] : []),
-      'position',
-      String(micros / 1e6),
-    ];
+    return [...scope, 'position', String(micros / 1e6)];
   }
-  return Object.prototype.hasOwnProperty.call(COMMANDS, action) ? [COMMANDS[action]] : null;
+  return Object.prototype.hasOwnProperty.call(COMMANDS, action)
+    ? [...scope, COMMANDS[action]]
+    : null;
 }
 
 // playerctl reports the bus name's tail: "spotify", "firefox", "chromium",
@@ -242,8 +244,15 @@ function createLinuxMedia(options) {
   let bornAt = 0;
   let latest = { rec: null, at: 0 };
 
+  // Resolved once and cached, like linux-mpris.js's exe(): available() sits on
+  // the media broadcast tick, and a synchronous PATH walk per tick is exactly
+  // the hot-path cost the invariants forbid. A spawn error clears the cache so
+  // a moved binary is re-resolved instead of retried at a dead path.
+  let cachedBin = null; // null = not looked up yet, false = not found
   function exe() {
-    return exeOverride || findPlayerctl();
+    if (exeOverride) return exeOverride;
+    if (cachedBin === null) cachedBin = findPlayerctl() || false;
+    return cachedBin || null;
   }
 
   // "Can this machine report now-playing at all", which is what the doctor and
@@ -265,6 +274,14 @@ function createLinuxMedia(options) {
     buf = '';
     if (dead) { try { dead.kill(); } catch { /* already gone */ } }
     if (stopped) return;
+    // --follow exits when the last player goes away, and nothing ever pushes
+    // again after that — so a record held here would show the closed player's
+    // track forever. Clear it and tell the widget now; the respawned child
+    // re-emits the current state immediately if anything is still playing.
+    if (latest.rec) {
+      latest = { rec: null, at: 0 };
+      try { onChange(); } catch { /* never let a listener kill the host */ }
+    }
     if (Date.now() - bornAt < YOUNG_MS) failures = Math.min(failures + 1, 8);
     else failures = 0;
     if (restartTimer) return;
@@ -297,6 +314,9 @@ function createLinuxMedia(options) {
     buf = '';
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', (chunk) => {
+      // 'exit' can fire before stdout drains, so a trailing chunk from a
+      // retired child could interleave into the replacement's buffer.
+      if (proc !== child) return;
       buf += chunk;
       if (buf.length > MAX_BUFFER) { buf = ''; return; }
       let nl;
@@ -307,7 +327,7 @@ function createLinuxMedia(options) {
       }
     });
     child.stderr.on('data', () => {}); // "No players found" is normal
-    child.on('error', () => { if (proc === child) retire(); });
+    child.on('error', () => { cachedBin = null; if (proc === child) retire(); });
     child.on('exit', () => { if (proc === child) retire(); });
     child.unref();
   }

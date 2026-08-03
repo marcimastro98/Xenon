@@ -27,7 +27,12 @@ $root  = $PSScriptRoot
 # battery.ps1 is deliberately NOT here: its Bluetooth device sweep takes ~1s and
 # this host answers requests serially, so it would stall every sensor read behind
 # it. It gets its own one-shot spawn (see server/battery.js).
-$allow = @{ 'gpu.ps1' = $true; 'cpu-temp.ps1' = $true; 'network.ps1' = $true; 'idle.ps1' = $true }
+# processes.ps1 belongs here and nowhere else: every figure it reports is a delta
+# between one call and the next, so it NEEDS the $global: state this host keeps
+# alive. Spawned per call it would have to sleep for its deltas and would cost
+# more than the data is worth. It is also why it is cheap -- ~55ms per call once
+# the perf-counter categories are warm.
+$allow = @{ 'gpu.ps1' = $true; 'cpu-temp.ps1' = $true; 'network.ps1' = $true; 'idle.ps1' = $true; 'processes.ps1' = $true }
 
 function Write-Frame($obj) {
   $json = ConvertTo-Json $obj -Compress -Depth 8

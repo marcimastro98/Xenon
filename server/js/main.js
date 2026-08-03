@@ -59,13 +59,35 @@ setInterval(() => {
 // The weather cadence is user-configurable (Settings → Meteo → aggiornamento);
 // startWeatherPolling() is re-callable so a settings change restarts the timer
 // without a reload. Exposed globally for updateWeatherRefresh().
+//
+// The poll lands on the WALL CLOCK, not on "now + interval". One dashboard is
+// rendered by several surfaces at once (the Xeneon Edge kiosk, a desktop browser
+// tab, the iCUE WebView, a paired phone), each with its own timer started
+// whenever that surface happened to open. With a plain setInterval a screen left
+// on for hours and a tab opened a minute ago fetch at completely different
+// instants, so on a 30-minute cadence they can legitimately sit half an hour
+// apart — which is how two windows of the SAME dashboard on the SAME PC ended up
+// showing "20° cloudy" and "19° drizzle" side by side, reported as the app being
+// broken. Anchoring every surface to the same epoch grid makes them ask at the
+// same moment; the server's in-flight dedup (weatherPending) then hands them all
+// the identical answer, so in steady state they cannot disagree. Only a
+// just-opened surface is briefly different, and it re-joins at the next boundary.
 let weatherPollTimer = null;
 function startWeatherPolling() {
   if (!need.system) return;
-  if (weatherPollTimer) clearInterval(weatherPollTimer);
+  if (weatherPollTimer) clearTimeout(weatherPollTimer);
   const ws = (typeof hubSettings !== 'undefined' && hubSettings.weather) ? hubSettings.weather : null;
   const min = Math.max(10, Number(ws && ws.refreshMin) || 30);
-  weatherPollTimer = setInterval(fetchWeather, min * 60 * 1000);
+  const periodMs = min * 60 * 1000;
+  const scheduleAligned = () => {
+    // Epoch-based on purpose: the grid must be the same for every surface, not
+    // tied to a local offset. A timer firing a hair early would otherwise
+    // re-arm for a few milliseconds, so a sub-second delay skips to the next slot.
+    let delay = periodMs - (Date.now() % periodMs);
+    if (delay < 1000) delay += periodMs;
+    weatherPollTimer = setTimeout(() => { fetchWeather(); scheduleAligned(); }, delay);
+  };
+  scheduleAligned();
 }
 window.startWeatherPolling = startWeatherPolling;
 if (need.system) { fetchWeather(); startWeatherPolling(); }
@@ -254,6 +276,15 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
           window.Deck.refreshStates({ batteries: window.DeckModel.batteriesByName((d && d.devices) || []) });
         }
         if (window.CustomWidget) window.CustomWidget.onData('battery', d);
+      } catch {}
+    });
+    // Which apps are using the CPU / memory / GPU right now. Widget-only and
+    // demand-driven: the server does not collect this at all unless some
+    // installed package has been granted the `processes` stream, so on a normal
+    // dashboard this event simply never arrives.
+    es.addEventListener('processes', e => {
+      try {
+        if (window.CustomWidget) window.CustomWidget.onData('processes', JSON.parse(e.data));
       } catch {}
     });
     es.addEventListener('audio', e => {
