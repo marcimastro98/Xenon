@@ -130,6 +130,13 @@ if { [ -n "$MARKER_SERVICE" ] && [ -f "$MARKER_SERVICE" ]; } \
   fi
   step 'A login service is registered but its Xenon install is gone — reinstalling.'
 fi
+# curl is how everything below is downloaded, and macOS always ships it — but a
+# minimal Linux install genuinely may not. Without this check the download step
+# fails with "Could not reach GitHub. Check your connection", which sends the
+# user debugging a network that is fine.
+command -v curl >/dev/null 2>&1 \
+  || fail 'curl is required to download Xenon. Install it (for example "sudo apt install curl") and reopen Xenon.'
+
 if curl -fsS --max-time 2 "http://127.0.0.1:$PORT/version" >/dev/null 2>&1; then
   step "A Xenon backend is already running on 127.0.0.1:$PORT — nothing to do."
   exit 0

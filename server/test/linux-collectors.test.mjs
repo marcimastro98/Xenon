@@ -440,6 +440,27 @@ test('parseSysfsGpu: junk and absent files degrade to nulls, never to zeros', ()
   assert.equal(lc.parseSysfsGpu({ driver: 'amdgpu', busy: '-5' }).gpu, 0);
 });
 
+// ── Hybrid-machine card selection ───────────────────────────────────────────
+// sysfs has no "integrated" flag, so cards compete on completeness with VRAM
+// as the tie-break. The rule this replaced — first card with any non-null load
+// wins — locked in the iGPU forever, because an idle iGPU reports busy=0,
+// which is non-null, and the discrete card was read and discarded every poll.
+test('betterGpuCandidate: an idle iGPU does not shadow the discrete card', () => {
+  const igpu = { gpu: 0, gpuTemp: 45, vramUsed: 100e6, vramTotal: 512e6, gpuName: 'AMD GPU' };
+  const dgpu = { gpu: 37, gpuTemp: 61, vramUsed: 4e9, vramTotal: 16e9, gpuName: 'AMD GPU' };
+  // Same completeness → the dedicated-VRAM card wins, in either arrival order.
+  assert.equal(lc.betterGpuCandidate(igpu, dgpu), dgpu);
+  assert.equal(lc.betterGpuCandidate(dgpu, igpu), dgpu);
+  // A fuller answer beats a sparser one: an Intel iGPU whose RC6 estimate has
+  // no sample yet (gpu null) loses to a discrete card reporting everything.
+  const intel = { gpu: null, gpuTemp: 47, vramUsed: null, vramTotal: null, gpuName: null };
+  assert.equal(lc.betterGpuCandidate(intel, dgpu), dgpu);
+  assert.equal(lc.betterGpuCandidate(dgpu, intel), dgpu);
+  // One candidate at all → it wins, whatever it reports.
+  assert.equal(lc.betterGpuCandidate(null, intel), intel);
+  assert.equal(lc.betterGpuCandidate(intel, null), intel);
+});
+
 // ── Intel GPU activity from RC6 residency ───────────────────────────────────
 // Intel exposes no gpu_busy_percent and its PMU needs perf permissions this
 // backend does not have, so the load is derived from how much of the interval

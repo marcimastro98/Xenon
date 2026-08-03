@@ -28,6 +28,9 @@
 const { execFile } = require('child_process');
 const fsp = require('fs').promises;
 const os = require('os');
+// Shared with darwin-collectors.js: the delta/aggregation half of the
+// `processes` stream is identical on both, and lives in one tested place.
+const procStats = require('./process-stats');
 
 // --- Memory: /proc/meminfo, because os.freemem() means something else here ---
 // os.freemem() is MemFree, which excludes the page cache the kernel would hand
@@ -220,6 +223,26 @@ async function readCardSnapshot(dir) {
 // before — one poll of "--", then numbers.
 const _rc6Last = new Map();
 
+// The interesting card on a hybrid laptop is the discrete one, and sysfs has
+// no "integrated" flag — but the discrete card is the one that answers with
+// MORE: a load figure, a temperature and a dedicated-VRAM size. So candidates
+// compete on completeness, with the bigger VRAM as the tie-break (a dGPU's
+// dedicated memory dwarfs an APU's carve-out). The previous rule — first card
+// with any non-null load wins — locked in the iGPU, because an idle iGPU's
+// busy reading is 0, which is non-null, and the discrete card was then read
+// and thrown away on every poll. Pure and exported so the selection is
+// testable off-platform, where sysfs itself cannot be.
+function betterGpuCandidate(best, next) {
+  if (!best) return next;
+  if (!next) return best;
+  const score = (p) => (p.gpu !== null ? 2 : 0) + (p.gpuTemp !== null ? 1 : 0) + (p.vramTotal !== null ? 1 : 0);
+  const a = score(best);
+  const b = score(next);
+  if (b > a) return next;
+  if (b === a && (next.vramTotal || 0) > (best.vramTotal || 0)) return next;
+  return best;
+}
+
 async function sysfsGpu() {
   let cards;
   try {
@@ -239,11 +262,9 @@ async function sysfsGpu() {
       parsed.gpu = rc6Busy(_rc6Last.get(name), cur);
       _rc6Last.set(name, cur);
     }
-    // Prefer the card that actually reports a load: a laptop lists its
-    // integrated GPU first and the discrete one second, and the discrete one is
-    // the interesting one.
-    if (!best || (parsed.gpu !== null && best.gpu === null)) best = parsed;
-    if (best.gpu !== null && best.gpuTemp !== null) break;
+    // Every card is read: there are at most a handful, and an early break on
+    // "good enough" is what used to hide the discrete card behind the iGPU.
+    best = betterGpuCandidate(best, parsed);
   }
   return best;
 }
@@ -919,11 +940,21 @@ async function audioCommand(args) {
 }
 
 // Cheap capability probe for /actions: is a usable PipeWire mixer present?
+// A YES is cached forever, a NO only for a cooldown: the backend's login
+// service can win the race against PipeWire at session start, and a failure
+// cached for the whole uptime would hide every audio Deck key until the next
+// reboot — "not ready yet" and "not installed" are indistinguishable here, so
+// only the answer that cannot change is allowed to stick.
+const AUDIO_PROBE_RETRY_MS = 60000;
 let _audioProbe = null;
+let _audioProbeAt = 0;
 async function audioAvailable() {
-  if (_audioProbe === null) {
-    _audioProbe = pwNodes().then(() => true).catch(() => false);
+  if (_audioProbe !== null) {
+    const ok = await _audioProbe;
+    if (ok || Date.now() - _audioProbeAt <= AUDIO_PROBE_RETRY_MS) return ok;
   }
+  _audioProbeAt = Date.now();
+  _audioProbe = pwNodes().then(() => true).catch(() => false);
   return _audioProbe;
 }
 
@@ -1029,11 +1060,128 @@ async function sendKeys(combo) {
   catch { return { ok: false, error: 'ydotool_failed' }; }
 }
 
+// --- Per-process CPU/RAM for the `processes` stream -------------------------
+// One read of /proc/<pid>/stat per process carries BOTH the cumulative CPU time
+// and the resident set, so this needs no external tool and no second file.
+//
+// Per-process GPU is deliberately absent rather than approximated. It exists on
+// Linux only through DRM fdinfo (i915/amdgpu, recent kernels) or `nvidia-smi
+// pmon`, each covering one vendor and neither covering a hybrid laptop
+// correctly. `gpuAvail: false` makes the widget hide the column and say why,
+// which is the honest answer; a column of zeros would read as "nothing is using
+// the GPU" and be worse than no column at all.
+//
+// /proc/[pid]/stat fields are 1-indexed in proc(5). comm (field 2) is wrapped in
+// parentheses AND may itself contain spaces and parentheses — "((sd-pam))" is
+// real — so it is cut at the LAST ')' rather than tokenised.
+const USER_HZ = 100;   // fixed by the kernel ABI for /proc/[pid]/stat, not by CONFIG_HZ
+
+function parseProcStat(text) {
+  const line = String(text || '').trim();
+  const open = line.indexOf('(');
+  const close = line.lastIndexOf(')');
+  if (open < 0 || close < open) return null;
+  const pid = Number(line.slice(0, open).trim());
+  const name = line.slice(open + 1, close);
+  if (!Number.isInteger(pid) || pid <= 0 || !name) return null;
+  // After the closing paren the first token is field 3 (state), so field N sits
+  // at index N-3: utime=14 -> 11, stime=15 -> 12, rss=24 -> 21.
+  const rest = line.slice(close + 1).trim().split(/\s+/);
+  const utime = Number(rest[11]);
+  const stime = Number(rest[12]);
+  const rssPages = Number(rest[21]);
+  if (!Number.isFinite(utime) || !Number.isFinite(stime)) return null;
+  return {
+    pid,
+    name,
+    cpuMs: ((utime + stime) / USER_HZ) * 1000,
+    rssPages: Number.isFinite(rssPages) && rssPages > 0 ? rssPages : 0,
+  };
+}
+
+// The page size is needed to turn stat's rss (in pages) into bytes, and Node
+// exposes no sysconf(_SC_PAGESIZE). Deriving it once from OUR OWN process — where
+// both spellings of the same number are readable — is exact on 4K x86 and on the
+// 16K/64K ARM kernels a hardcoded 4096 would under-report by 4x or 16x.
+let _pageSize = 0;
+async function pageSize() {
+  if (_pageSize) return _pageSize;
+  _pageSize = 4096;
+  try {
+    const self = parseProcStat(await fsp.readFile('/proc/self/stat', 'utf8'));
+    const rssBytes = process.memoryUsage().rss;
+    if (self && self.rssPages > 0 && rssBytes > 0) {
+      const guess = rssBytes / self.rssPages;
+      for (const candidate of [4096, 8192, 16384, 65536]) {
+        if (guess >= candidate * 0.75 && guess <= candidate * 1.5) { _pageSize = candidate; break; }
+      }
+    }
+  } catch { /* keep 4096 */ }
+  return _pageSize;
+}
+
+async function sampleProcesses() {
+  const size = await pageSize();
+  let entries = [];
+  try { entries = await fsp.readdir('/proc'); } catch { return null; }
+  const pids = entries.filter((e) => /^\d+$/.test(e));
+  const sample = new Map();
+  // Bounded concurrency: /proc reads are cheap but a 500-process box would open
+  // 500 descriptors in one tick without it.
+  await mapLimit(pids, 64, async (dir) => {
+    let raw = null;
+    try { raw = await fsp.readFile('/proc/' + dir + '/stat', 'utf8'); } catch { return; }
+    const row = parseProcStat(raw);
+    if (row) sample.set(row.pid, { name: row.name, cpuMs: row.cpuMs, rss: row.rssPages * size });
+  });
+  return sample.size ? sample : null;
+}
+
+const PROC_STALE_MS = 30000;
+const PROC_PRIME_MS = 250;
+let _procPrev = null;
+let _procPrevAt = 0;
+
+async function processes(top = 8) {
+  let curr = await sampleProcesses();
+  if (!curr) return { ok: false, error: 'no_procfs' };
+  let now = Date.now();
+  // First call, or a gap long enough that the delta would be a guess: prime with
+  // a short window so THIS call already answers with real numbers. Paid once per
+  // stream start, never in the steady state.
+  if (!_procPrev || !_procPrevAt || now - _procPrevAt > PROC_STALE_MS) {
+    _procPrev = curr;
+    _procPrevAt = now;
+    await new Promise((r) => setTimeout(r, PROC_PRIME_MS));
+    curr = await sampleProcesses();
+    if (!curr) return { ok: false, error: 'no_procfs' };
+    now = Date.now();
+  }
+  const windowMs = Math.max(1, now - _procPrevAt);
+  const cores = Math.max(1, os.cpus().length);
+  const all = procStats.aggregate(_procPrev, curr, { windowMs, cores });
+  const apps = procStats.topUnion(all, top);
+  _procPrev = curr;
+  _procPrevAt = now;
+  const mem = await memory();
+  return {
+    ok: true,
+    cpu: procStats.totalCpu(all),
+    cores,
+    totalMB: Math.round((mem.total || 0) / (1024 * 1024)),
+    usedMB: Math.round((mem.used || 0) / (1024 * 1024)),
+    gpuAvail: false,
+    win: windowMs,
+    apps,
+  };
+}
+
 module.exports = {
   gpu, disks, cpuTemp, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
-  sendKeys, keysAvailable,
+  sendKeys, keysAvailable, processes,
   // exported for unit tests
-  parseGpu, parseSysfsGpu, rc6Busy, parseHwmonFans, parseDisks, parseMemInfo, parseNetDev, parsePing,
+  parseProcStat,
+  parseGpu, parseSysfsGpu, rc6Busy, betterGpuCandidate, parseHwmonFans, parseDisks, parseMemInfo, parseNetDev, parsePing,
   parseWmctrl, parseWindowProps, parseClientList, parseWindowIdentity,
   parsePwDump, buildAudioRows, resolveTargets, cubicToLinear,
   ydotoolArgs,

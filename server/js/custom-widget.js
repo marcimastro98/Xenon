@@ -125,9 +125,11 @@
   const STREAM_LABELS = {
     status: ['cw_stream_status', 'System status (mic, game mode)'],
     system: ['cw_stream_system', 'System sensors (CPU, GPU, RAM)'],
+    processes: ['cw_stream_processes', 'Which apps are using your CPU, memory and GPU'],
     media: ['cw_stream_media', 'Now playing'],
     audio: ['cw_stream_audio', 'Volume & audio devices'],
     audioLevels: ['cw_stream_audiolevels', 'How loud each app is playing'],
+    battery: ['cw_stream_battery', 'Battery level of your wireless devices'],
     wavelink: ['cw_stream_wavelink', 'Wave Link mixer state'],
     stocks: ['cw_stream_stocks', 'Stock quotes & indices'],
     football: ['cw_stream_football', 'Football fixtures & scores'],
@@ -436,6 +438,17 @@
       return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6 ? 'light' : 'dark';
     } catch { return document.documentElement.getAttribute('data-appearance') || 'dark'; }
   }
+  // Which SKIN the dashboard is wearing — 'glass' or 'retro'. The palette alone
+  // cannot carry this: the Pixel Retro skin differs from Liquid Glass in shape
+  // language (square corners, hard edges, no translucency), not only in colour,
+  // so a widget following the palette faithfully still looked like a glass tile
+  // sitting in a pixel dashboard. Read-only, no permission: it says nothing about
+  // the user and grants nothing.
+  function skinMode() {
+    const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings : {};
+    return hs.styleMode === 'retro' ? 'retro' : 'glass';
+  }
+
   function themePayload(entry) {
     const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings : {};
     // Resolved 12h/24h preference (auto/12/24 → boolean) so a widget rendering
@@ -508,10 +521,11 @@
         // that follows the user's panel opacity, and the raw 0..1 factor.
         surfaceSoft: p.surfaceSoft || null, panelAlpha: (typeof p.panelAlpha === 'number' ? p.panelAlpha : null),
       };
-      return { appearance: p.tone, overrides, clock12, ...palette, palette };
+      return { appearance: p.tone, skin: skinMode(), overrides, clock12, ...palette, palette };
     }
     return {
       appearance: surfaceAppearance(),
+      skin: skinMode(),
       accent: typeof hs.accent === 'string' ? hs.accent : '#1ed760',
       background: typeof hs.background === 'string' ? hs.background : '#070808',
       text: typeof hs.text === 'string' ? hs.text : '#f0f3f1',
@@ -2313,7 +2327,7 @@
   // when at least one listed widget falls in it, so tapping one can never empty
   // the list on its own.
   const PICK_CATS = [
-    { id: 'system', key: 'cw_cat_system', fb: 'System', streams: ['status', 'system', 'battery'] },
+    { id: 'system', key: 'cw_cat_system', fb: 'System', streams: ['status', 'system', 'battery', 'processes'] },
     { id: 'media', key: 'cw_cat_media', fb: 'Media', streams: ['media', 'audio', 'audioLevels', 'wavelink'] },
     { id: 'stream', key: 'cw_cat_stream', fb: 'Streaming', streams: ['obs', 'streamerbot', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'twitchWatch', 'twitchChat', 'youtubeLive'] },
     { id: 'info', key: 'cw_cat_info', fb: 'Info', streams: ['weather', 'stocks', 'football', 'news'] },

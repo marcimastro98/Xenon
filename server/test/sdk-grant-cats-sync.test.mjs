@@ -81,16 +81,32 @@ test('custom-widget.js ACTION_CATEGORIES mirrors sdk-widgets.js SDK_ACTION_CATEG
 
 // A stream the SDK exposes with no permission label is shown to the user as its
 // own id ("twitchChat") in the install dialog — the one moment where they decide
-// whether to hand a widget their chat. `battery` predates the label map and is
-// listed rather than fixed, so the check could go in without renaming anything.
+// whether to hand a widget their chat. `battery` used to be the one allowed gap;
+// it was labelled when `processes` was added, so there is no exception list any
+// more and a new stream cannot be shipped without a sentence explaining it.
 test('custom-widget.js STREAM_LABELS covers every SDK stream', () => {
   const src = readFileSync(join(ROOT, 'server', 'js', 'custom-widget.js'), 'utf8');
   const block = src.match(/const STREAM_LABELS = \{([\s\S]*?)\n {2}\};/);
   assert.ok(block, 'STREAM_LABELS not found in custom-widget.js');
   const labelled = new Set([...block[1].matchAll(/^\s{4}([A-Za-z]+):/gm)].map(m => m[1]));
-  const KNOWN_GAPS = new Set(['battery']);
-  const missing = [...sdk.SDK_STREAMS].filter(s => !labelled.has(s) && !KNOWN_GAPS.has(s));
+  const missing = [...sdk.SDK_STREAMS].filter(s => !labelled.has(s));
   assert.deepEqual(missing, [], 'these streams would be shown to the user as their own id');
+});
+
+// The label map is only half of it: the dialog renders the i18n KEY, so a label
+// whose key has no translation shows the fallback English to everyone. Pin every
+// stream key against the language files.
+test('every STREAM_LABELS i18n key exists in all languages', () => {
+  const src = readFileSync(join(ROOT, 'server', 'js', 'custom-widget.js'), 'utf8');
+  const block = src.match(/const STREAM_LABELS = \{([\s\S]*?)\n {2}\};/);
+  const keys = [...block[1].matchAll(/^\s{4}[A-Za-z]+:\s*\['([a-z0-9_]+)'/gm)].map(m => m[1]);
+  assert.ok(keys.length >= 20, 'expected the full stream label map');
+  const i18n = readFileSync(join(ROOT, 'server', 'js', 'i18n.js'), 'utf8');
+  for (const key of keys) {
+    // Both spellings the file uses: `key: '...'` and JSON-style `"key": "..."`.
+    const hits = (i18n.match(new RegExp('["\']?\\b' + key + '\\b["\']?\\s*:', 'g')) || []).length;
+    assert.ok(hits >= 11, `${key} is translated in ${hits} languages, expected 11`);
+  }
 });
 
 // The OTHER half of the same lockstep, and the half that was missed when `badge`

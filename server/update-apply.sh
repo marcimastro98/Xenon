@@ -88,6 +88,7 @@ NODE_BIN="$(command -v node || true)"
 NPM_BIN="$(command -v npm || true)"
 
 PHASE='start'          # last stage entered — maps to a reason code on failure
+TREE_TOUCHED=0         # the copy step ran — ROOT_DIR may hold staged files
 DEPS_TOUCHED=0         # npm ran — node_modules may be mixed
 NM_BAK_ACTIVE=0        # the rename-aside snapshot exists for THIS run
 NEW_VER=''
@@ -224,13 +225,32 @@ open_dashboard() {
   fi
 }
 
+# GET a local URL and print the body. curl when present, node otherwise — node
+# is a hard requirement of this script anyway, while curl genuinely is not
+# installed on a minimal Debian/Ubuntu. Without the fallback, "curl: command
+# not found" read as "the server is down", so every self-update on such a box
+# passed the copy and then rolled back at verification, permanently.
+http_get() { # $1 = url, $2 = timeout in seconds
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsS --max-time "$2" "$1" 2>/dev/null
+    return $?
+  fi
+  "$NODE_BIN" -e '
+    const [url, tmo] = process.argv.slice(1);
+    fetch(url, { signal: AbortSignal.timeout(Number(tmo) * 1000) })
+      .then((r) => { if (!r.ok) process.exit(1); return r.text(); })
+      .then((t) => process.stdout.write(t))
+      .catch(() => process.exit(1));
+  ' "$1" "$2" 2>/dev/null
+}
+
 # Poll GET /version until the server answers with the expected version (leading
 # "v" ignored on both sides). An answer with a DIFFERENT version is a hard
 # mismatch, not something more waiting can fix. Empty $1 = any answer will do.
 wait_server_version() { # $1 = expected version, $2 = timeout in seconds
   local want="${1#[vV]}" deadline=$(( SECONDS + $2 )) body v
   while [ "$SECONDS" -lt "$deadline" ]; do
-    body="$(curl -fsS --max-time 3 "http://127.0.0.1:$PORT/version" 2>/dev/null)"
+    body="$(http_get "http://127.0.0.1:$PORT/version" 3)"
     if [ -n "$body" ]; then
       v="$(printf '%s' "$body" | sed -n 's/.*"version" *: *"\([^"]*\)".*/\1/p')"
       v="${v#[vV]}"
@@ -380,14 +400,20 @@ die() { # $1 = message
     *)           reason='unknown' ;;
   esac
   # Failures before the copy never modified the install — there is nothing to
-  # roll back, the tree is already in its pre-update state.
+  # roll back, the tree is already in its pre-update state. Restoring anyway
+  # would be WORSE than a no-op: a backup rsync that failed PARTWAY already
+  # holds server/server.js, and against that partial backup
+  # remove_update_additions reads every file the copy never reached as "added
+  # by the update" and deletes it from the untouched original install. So the
+  # backup is only ever trusted once the copy step actually ran ($TREE_TOUCHED)
+  # — until then the strongest move is to touch nothing.
   local restored=0
   case "$PHASE" in start|backup|stop_server) restored=1 ;; esac
 
   # The (possibly broken) new server may be up after the verify step and holding
   # files — stop it before restoring.
   stop_server
-  if [ -f "$BACKUP_DIR/server/server.js" ]; then
+  if [ "$TREE_TOUCHED" = "1" ] && [ -f "$BACKUP_DIR/server/server.js" ]; then
     if rsync -a "$BACKUP_DIR"/ "$ROOT_DIR"/ 2>/dev/null; then
       log 'rolled back from backup'
       restored=1
@@ -472,6 +498,7 @@ stop_server
 #    install gets deleted; the staged tree carries no data/ folder, so user data
 #    under server/data is untouched. Excluded defensively anyway.
 PHASE='copy'
+TREE_TOUCHED=1
 rsync -a --exclude 'server/data/' "$APP_DIR"/ "$ROOT_DIR"/ || die 'copy failed'
 log 'files copied'
 

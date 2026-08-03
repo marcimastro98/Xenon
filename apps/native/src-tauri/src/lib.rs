@@ -706,8 +706,49 @@ fn find_node() -> Option<std::path::PathBuf> {
             return Some(path);
         }
     }
+    // nvm keeps node outside every fixed prefix, and a GUI process inherits
+    // launchd's minimal PATH, so the `which` below cannot see it either — an
+    // nvm-only machine (a very common way to have Node on macOS) used to fall
+    // out of this function with None, and the backend then silently never
+    // started on any launch. The layout is versioned directories; the newest
+    // wins, matching what `nvm use default` would put first in a shell.
+    if let Some(home) = std::env::var_os("HOME") {
+        let versions = std::path::Path::new(&home).join(".nvm/versions/node");
+        if let Ok(entries) = std::fs::read_dir(&versions) {
+            let mut best: Option<(Vec<u64>, std::path::PathBuf)> = None;
+            for e in entries.flatten() {
+                let node = e.path().join("bin/node");
+                if !node.is_file() {
+                    continue;
+                }
+                let name = e.file_name().to_string_lossy().into_owned();
+                let key: Vec<u64> = name
+                    .trim_start_matches('v')
+                    .split('.')
+                    .map(|p| p.parse::<u64>().unwrap_or(0))
+                    .collect();
+                if best.as_ref().map(|(k, _)| key > *k).unwrap_or(true) {
+                    best = Some((key, node));
+                }
+            }
+            if let Some((_, node)) = best {
+                return Some(node);
+            }
+        }
+    }
     let out = std::process::Command::new("/usr/bin/which")
         .arg("node")
+        .output()
+        .ok()?;
+    let found = String::from_utf8(out.stdout).ok()?.trim().to_string();
+    if !found.is_empty() {
+        return Some(std::path::PathBuf::from(found));
+    }
+    // Last resort: ask the user's login shell, which sources the profile that
+    // nvm/asdf/volta modify. One spawn, and only on the path where nothing
+    // else answered.
+    let out = std::process::Command::new("/bin/zsh")
+        .args(["-lc", "command -v node"])
         .output()
         .ok()?;
     let found = String::from_utf8(out.stdout).ok()?.trim().to_string();
@@ -768,6 +809,25 @@ fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
                         *guard = Some(child);
                     }
                 }
+            } else if let Some(installer) = entry
+                .parent()
+                .map(|p| p.join("install.sh"))
+                .filter(|p| p.exists())
+            {
+                // An install is present but no node is visible to this GUI
+                // process. Doing nothing here left the splash waiting forever
+                // with no error anywhere, on every launch. install.sh resolves
+                // node in a real shell and can install it with Homebrew, so
+                // hand the problem to it in a Terminal the user can read.
+                use std::os::unix::fs::PermissionsExt;
+                let _ = std::fs::set_permissions(
+                    &installer,
+                    std::fs::Permissions::from_mode(0o755),
+                );
+                let _ = std::process::Command::new("open")
+                    .args(["-a", "Terminal"])
+                    .arg(&installer)
+                    .status();
             }
             return;
         }

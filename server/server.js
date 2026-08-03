@@ -673,6 +673,10 @@ const DECK_ACTIONS_SCRIPT = path.join(__dirname, 'deck-actions.ps1');
 const DECK_HOTKEY_SCRIPT = path.join(__dirname, 'deck-hotkey.ps1');
 const DECK_WINDOW_SCRIPT = path.join(__dirname, 'deck-window.ps1');
 const PERFORMANCE_SCRIPT = path.join(__dirname, 'performance.ps1');
+// Per-process CPU/RAM/GPU for the `processes` SDK stream. Runs ONLY on the
+// persistent worker (see processes.ps1) — its numbers are deltas between calls,
+// so a one-shot spawn would have to sleep for every one of them.
+const PROCESSES_SCRIPT = path.join(__dirname, 'processes.ps1');
 const PERF_PRIORITY_SCRIPT = path.join(__dirname, 'perf-priority.ps1');
 const ICUE_SHARPEN_SCRIPT = path.join(__dirname, 'icue-sharpen.ps1');
 let lastIcueSharpenAt = 0; // cooldown for /api/icue/sharpen
@@ -3685,63 +3689,76 @@ const DISK_DETAILS_RETRY_MS = 60 * 1000;
 // The FIRST read blocks the /system response, so it keeps the short budget the
 // panel's first paint has always had. Every later one refreshes in the
 // background off the last known-good details, where the query can have the time
-// it actually needs: Get-Disk/Get-Partition/Get-Volume go through the Windows
-// storage WMI provider, which is routinely slower than five seconds cold.
+// it actually needs: these all go through the Windows storage WMI provider,
+// which is routinely slower than five seconds cold.
 const DISK_DETAILS_TIMEOUT_MS = 5000;
 const DISK_DETAILS_BG_TIMEOUT_MS = 15000;
-let diskDetailsCache = { data: null, updatedAt: 0, ok: false };
-let diskDetailsPending = null;
+// Get-Disk/Get-Partition are a SEPARATE probe from Get-Volume, and the split is
+// the point rather than a tidy-up: the detail line under a drive is built from
+// label/fileSystem/driveType, all of which come from Get-Volume alone, while
+// Get-Disk/Get-Partition exist only to name the physical disk (`model`) for the
+// Disk widget. Under one budget the two nobody is waiting for could eat the five
+// seconds and blank a line that was already answerable — measured on a user's
+// PC, where Get-Volume alone came back in 0.58s while the card read "Detail
+// unavailable". Models are never waited for and get a budget of their own, so a
+// slow storage provider costs a disk name on the first read and nothing else.
+const DISK_MODELS_TIMEOUT_MS = 20000;
 
-function diskDetailsFresh() {
-  if (!diskDetailsCache.data) return false;
-  const ttl = diskDetailsCache.ok ? DISK_DETAILS_TTL_MS : DISK_DETAILS_RETRY_MS;
-  return Date.now() - diskDetailsCache.updatedAt < ttl;
+const volumeDetailsProbe = { data: null, updatedAt: 0, ok: false, pending: null };
+const diskModelsProbe = { data: null, updatedAt: 0, ok: false, pending: null };
+
+function diskProbeFresh(probe) {
+  if (!probe.data) return false;
+  const ttl = probe.ok ? DISK_DETAILS_TTL_MS : DISK_DETAILS_RETRY_MS;
+  return Date.now() - probe.updatedAt < ttl;
 }
 
-async function getDiskDetails() {
-  if (diskDetailsFresh()) return diskDetailsCache.data;
-  // Nothing cached at all: this is the first read of the process, so wait for it
-  // rather than paint the disk card with no detail line and fill it in later.
-  if (!diskDetailsCache.data) return refreshDiskDetails(DISK_DETAILS_TIMEOUT_MS);
-  refreshDiskDetails(DISK_DETAILS_BG_TIMEOUT_MS);   // lands on the next cycle
-  return diskDetailsCache.data;
-}
-
-function refreshDiskDetails(timeout) {
-  if (diskDetailsPending) return diskDetailsPending;
-  const command = `
-    $ErrorActionPreference = 'Stop'
-    $models = @{}
+// Shared by both probes. `parse` returns { map, ok }: `ok` is whether the query
+// answered at all, which is not the same as whether the map has entries (a PC
+// whose disks report no friendly name answers correctly with nothing to show,
+// and must not be re-asked every minute forever).
+function runDiskProbe(probe, command, timeout, parse) {
+  if (probe.pending) return probe.pending;
+  probe.pending = (async () => {
     try {
-      $diskNames = @{}
-      Get-Disk -ErrorAction Stop | ForEach-Object {
-        $diskNames[[int]$_.Number] = ([string]$_.FriendlyName).Trim()
-      }
-      Get-Partition -ErrorAction Stop | Where-Object { $_.DriveLetter } | ForEach-Object {
-        $driveKey = (([string]$_.DriveLetter + ':').ToUpperInvariant())
-        $models[$driveKey] = ([string]$diskNames[[int]$_.DiskNumber]).Trim()
-      }
-    } catch { }
+      const { map, ok } = parse(await runPowerShellCommand(command, timeout));
+      // Volumes and disks change on plug/unplug and nothing else, so details we
+      // already have are always better than none: a read that answered nothing
+      // is recorded as a failed one (short TTL, retried) and never replaces a
+      // map that had drives in it.
+      const keep = (ok || !probe.ok) ? map : probe.data;
+      Object.assign(probe, { data: keep, updatedAt: Date.now(), ok });
+      return keep;
+    } catch {
+      const keep = probe.ok ? probe.data : {};
+      Object.assign(probe, { data: keep, updatedAt: Date.now(), ok: false });
+      return keep;
+    } finally {
+      probe.pending = null;
+    }
+  })();
+  return probe.pending;
+}
+
+const VOLUME_DETAILS_COMMAND = `
+    $ErrorActionPreference = 'Stop'
     try {
       $volumes = @(Get-Volume -ErrorAction Stop | Where-Object { $_.DriveLetter } | ForEach-Object {
-        $drive = ([string]$_.DriveLetter + ':').ToUpperInvariant()
         [pscustomobject]@{
-          drive = $drive
+          drive = (([string]$_.DriveLetter + ':').ToUpperInvariant())
           label = ([string]$_.FileSystemLabel).Trim()
-          model = ([string]$models[$drive]).Trim()
           fileSystem = ([string]$_.FileSystem).Trim()
           driveType = ([string]$_.DriveType).Trim()
         }
       })
     } catch {
       # Guarded on its own: an unguarded fallback that throws takes the whole
-      # script down with it, losing the disk models already collected above.
+      # script down with it, and this one is the last answer there is.
       try {
         $volumes = @(Get-CimInstance Win32_LogicalDisk -ErrorAction Stop | Where-Object { $_.DeviceID } | ForEach-Object {
           [pscustomobject]@{
             drive = ([string]$_.DeviceID).Trim()
             label = ([string]$_.VolumeName).Trim()
-            model = ''
             fileSystem = ([string]$_.FileSystem).Trim()
             driveType = ([string]$_.Description).Trim()
           }
@@ -3749,32 +3766,81 @@ function refreshDiskDetails(timeout) {
       } catch { $volumes = @() }
     }
     [pscustomobject]@{ volumes = $volumes } | ConvertTo-Json -Depth 4 -Compress
-  `;
+`;
 
-  diskDetailsPending = (async () => {
+const DISK_MODELS_COMMAND = `
+    $ErrorActionPreference = 'Stop'
     try {
-      const data = await runPowerShellCommand(command, timeout);
-      const map = {};
-      const volumes = Array.isArray(data.volumes) ? data.volumes : (data.volumes ? [data.volumes] : []);
-      volumes.forEach(volume => {
-        if (volume && volume.drive) map[String(volume.drive).toUpperCase()] = volume;
-      });
-      // Volumes change on plug/unplug and nothing else, so details we already
-      // have are always better than none: an empty read is recorded as a failed
-      // one (short TTL, retried) and never replaces a map that had drives in it.
-      const ok = Object.keys(map).length > 0;
-      const keep = (ok || !diskDetailsCache.ok) ? map : diskDetailsCache.data;
-      diskDetailsCache = { data: keep, updatedAt: Date.now(), ok };
-      return keep;
-    } catch {
-      const keep = diskDetailsCache.ok ? diskDetailsCache.data : {};
-      diskDetailsCache = { data: keep, updatedAt: Date.now(), ok: false };
-      return keep;
-    } finally {
-      diskDetailsPending = null;
-    }
-  })();
-  return diskDetailsPending;
+      $diskNames = @{}
+      Get-Disk -ErrorAction Stop | ForEach-Object {
+        $diskNames[[int]$_.Number] = ([string]$_.FriendlyName).Trim()
+      }
+      $models = @(Get-Partition -ErrorAction Stop | Where-Object { $_.DriveLetter } | ForEach-Object {
+        [pscustomobject]@{
+          drive = (([string]$_.DriveLetter + ':').ToUpperInvariant())
+          model = ([string]$diskNames[[int]$_.DiskNumber]).Trim()
+        }
+      })
+    } catch { $models = @() }
+    [pscustomobject]@{ models = $models } | ConvertTo-Json -Depth 4 -Compress
+`;
+
+// ConvertTo-Json turns a one-element array into a bare object, so both parsers
+// re-wrap before iterating.
+function psRows(value) {
+  return Array.isArray(value) ? value : (value ? [value] : []);
+}
+
+function refreshVolumeDetails(timeout) {
+  return runDiskProbe(volumeDetailsProbe, VOLUME_DETAILS_COMMAND, timeout, data => {
+    const map = {};
+    const rows = psRows(data.volumes);
+    rows.forEach(volume => {
+      if (volume && volume.drive) map[String(volume.drive).toUpperCase()] = volume;
+    });
+    return { map, ok: rows.length > 0 };
+  });
+}
+
+function refreshDiskModels(timeout) {
+  return runDiskProbe(diskModelsProbe, DISK_MODELS_COMMAND, timeout, data => {
+    const map = {};
+    const rows = psRows(data.models);
+    rows.forEach(row => {
+      const model = row && row.drive ? String(row.model || '').trim() : '';
+      if (model) map[String(row.drive).toUpperCase()] = model;
+    });
+    return { map, ok: rows.length > 0 };
+  });
+}
+
+async function getDiskDetails() {
+  // Started first so it is already in flight while the volumes read blocks, and
+  // never awaited: nothing on screen waits for the name of a disk.
+  const models = diskModels();
+  const volumes = await volumeDetails();
+  const out = {};
+  Object.keys(volumes).forEach(drive => {
+    out[drive] = { ...volumes[drive], model: models[drive] || '' };
+  });
+  return out;
+}
+
+function volumeDetails() {
+  if (diskProbeFresh(volumeDetailsProbe)) return volumeDetailsProbe.data;
+  // Nothing cached at all: this is the first read of the process, so wait for it
+  // rather than paint the disk card with no detail line and fill it in later.
+  if (!volumeDetailsProbe.data) return refreshVolumeDetails(DISK_DETAILS_TIMEOUT_MS);
+  refreshVolumeDetails(DISK_DETAILS_BG_TIMEOUT_MS);   // lands on the next cycle
+  return volumeDetailsProbe.data;
+}
+
+// Synchronous by design — see DISK_MODELS_TIMEOUT_MS. A stale or missing map
+// starts a refresh that lands on a later cycle; runDiskProbe swallows its own
+// failures, so the unawaited promise can never reject.
+function diskModels() {
+  if (!diskProbeFresh(diskModelsProbe)) refreshDiskModels(DISK_MODELS_TIMEOUT_MS);
+  return diskModelsProbe.data || {};
 }
 
 let _diskLettersCache = { letters: null, at: 0 };
@@ -3811,6 +3877,10 @@ async function getAllDisksInfo() {
             free,
             percent: Math.round(((total - free) / total) * 100),
             label: detail.label || '',
+            // The name of the physical disk. The detail line falls back to it
+            // when the volume has no label of its own, which is the default on
+            // a Windows install: without it that line reads "NTFS - Fixed".
+            model: detail.model || '',
             fileSystem: detail.fileSystem || '',
             driveType: detail.driveType || '',
           });
@@ -4966,6 +5036,34 @@ function openExternalPath(p) {
   });
 }
 
+// Launch an application on Linux — the half of openApp that xdg-open cannot
+// be: xdg-open OPENS a path with its mime handler, so a binary or a .desktop
+// file handed to it is treated as a document (text editor, archive manager, or
+// a refusal), never launched. A .desktop entry goes through `gio launch`,
+// which parses Exec=/Terminal=/field codes per the spec (glib ships on every
+// desktop that has .desktop files at all); an AppImage or a plain executable
+// is spawned directly, detached, resolved on the 'spawn' event so ENOENT and
+// a missing execute bit surface as clean errors instead of silent successes.
+// The registry has already validated shape + existence before this runs.
+function launchLinuxApp(p) {
+  const target = String(p);
+  if (/\.desktop$/i.test(target)) {
+    return new Promise((resolve, reject) => {
+      execFile('gio', ['launch', target], { timeout: 8000 }, (err) => {
+        if (err) reject(err); else resolve({ ok: true });
+      });
+    });
+  }
+  return new Promise((resolve, reject) => {
+    let child;
+    try {
+      child = spawn(target, [], { detached: true, stdio: 'ignore' });
+    } catch (e) { reject(e); return; }
+    child.once('error', (e) => reject(e));
+    child.once('spawn', () => { child.unref(); resolve({ ok: true }); });
+  });
+}
+
 // "Show me where this is" — the one path an executable result may take, because
 // revealing something runs nothing. Companion to openExternalPath, and shared
 // for the same reason: each platform's file manager has its own verb, and
@@ -5075,6 +5173,10 @@ const deckRegistryDeps = {
     return signalrgb.applyEffect(effect);
   },
   openExternal: (p) => openExternalPath(p),
+  // Linux app launcher (.desktop via `gio launch`, binaries spawned directly)
+  // — openExternal's xdg-open opens documents, it does not run programs. Left
+  // undefined elsewhere; the registry only routes to it on linux.
+  launchApp: process.platform === 'linux' ? (p) => launchLinuxApp(p) : undefined,
   // Run a user-configured script (the runScript action), in a visible or hidden
   // window where the platform has the concept. The path is validated to a real
   // script in the registry before it reaches here.
@@ -5368,6 +5470,7 @@ const deckRegistry = createRegistry(deckRegistryDeps);
 const perfRegistry = createPerfRegistry({
   closeWindow: (id) => runWindowsTool(['close', id], 8000),
   openExternal: (p) => openExternalPath(p),
+  launchApp: process.platform === 'linux' ? (p) => launchLinuxApp(p) : undefined,
   fileExists: (p) => { try { return fs.existsSync(p); } catch { return false; } },
   setPriority: (name, level) => runPowerShellScript(PERF_PRIORITY_SCRIPT, ['set', name, level === 'high' ? 'high' : 'normal'], 6000),
 });
@@ -9814,6 +9917,105 @@ function announceAudioLevelsProblem() {
   }
 }
 setInterval(announceAudioLevelsProblem, 5000).unref();
+
+// ── Per-process CPU / RAM / GPU — the `processes` SDK stream ─────────────────
+// Karim's ask on Discord was a mini task manager in place of the Latency panel.
+// It ships as a stream a Store widget can be granted rather than as a rewrite of
+// a built-in panel: one user finding Latency useless is not a reason to remove it
+// from everyone's dashboard, and this way the layout is the user's choice.
+//
+// The cost model, which is the whole reason this looks the way it does:
+//   * NOTHING runs unless some installed package has actually been granted the
+//     stream AND a dashboard is open. No grant, no widget, no cost — not a
+//     reduced cost, zero. sdkGrantsFor() fails closed under safe mode and
+//     per-package suspend, so both of those turn it off for free.
+//   * When it does run it is ~55ms per tick on Windows (measured, 390
+//     processes), because processes.ps1 lives on the persistent worker and reads
+//     raw performance-counter deltas instead of sampling. See its header for the
+//     Get-Counter comparison — the naive version costs 2800ms.
+//   * A tick that overruns is SKIPPED, never queued. The worker answers serially,
+//     so queuing would push the sensor collectors behind a backlog of stale
+//     process snapshots — the failure would show up as the CPU tile going
+//     sluggish, with nothing pointing here.
+const PROCESSES_POLL_MS = 2000;
+const PROCESSES_TOP = 8;          // per metric; the collector sends the union of the three
+let _processesBusy = false;
+let _processesProblemSaid = '';
+
+function processesWanted() {
+  const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
+  const grants = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants : null;
+  if (!grants) return false;
+  for (const pkgId of Object.keys(grants)) {
+    if (sdkGrantsFor(pkgId).streams.includes('processes')) return true;
+  }
+  return false;
+}
+
+// The collector is ours, but this is still parsed input crossing a boundary:
+// rebuild the shape explicitly rather than broadcasting whatever came back.
+// `n` is a process name and reaches a third-party widget, so it is bounded here
+// and must be rendered with textContent there (documented in WIDGET_SDK.md).
+function normalizeProcesses(raw) {
+  if (!raw || typeof raw !== 'object' || raw.ok !== true) return null;
+  const clamp = (v, max) => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 0) return 0;
+    return Math.min(max, Math.round(n * 10) / 10);
+  };
+  const apps = [];
+  for (const a of (Array.isArray(raw.apps) ? raw.apps : [])) {
+    if (!a || typeof a !== 'object') continue;
+    const n = String(a.n == null ? '' : a.n).slice(0, 64).trim();
+    if (!n) continue;
+    apps.push({ n, c: clamp(a.c, 100), m: Math.round(clamp(a.m, 1024 * 1024)), g: clamp(a.g, 100) });
+    if (apps.length >= 48) break;
+  }
+  return {
+    cpu: clamp(raw.cpu, 100),
+    cores: Math.max(1, Math.round(Number(raw.cores) || 1)),
+    totalMB: Math.max(0, Math.round(Number(raw.totalMB) || 0)),
+    usedMB: Math.max(0, Math.round(Number(raw.usedMB) || 0)),
+    gpuAvail: raw.gpuAvail === true,
+    apps,
+  };
+}
+
+// Said ONCE on the same channel, so a widget that can never get data renders its
+// own explanation instead of an empty list that looks like an idle machine.
+function announceProcessesProblem(problem) {
+  if (problem === _processesProblemSaid) return;
+  _processesProblemSaid = problem;
+  if (problem && sseClients.size > 0) broadcastSSE('processes', { problem, apps: [] });
+}
+
+setInterval(async () => {
+  if (sseClients.size === 0) return;
+  if (!processesWanted()) return;
+  if (_processesBusy) return;
+  _processesBusy = true;
+  try {
+    let raw = null;
+    if (nativeCollectors && typeof nativeCollectors.processes === 'function') {
+      raw = await nativeCollectors.processes(PROCESSES_TOP);
+    } else if (POWERSHELL_SUPPORTED) {
+      // runPowerShellWorker, NOT runCollector: runCollector falls back to a
+      // one-shot spawn, and this script spawned per call would pay its priming
+      // sleep every single tick. If the worker is gone, the honest answer is
+      // "unavailable", not a version that costs 25x more and reports a 250ms
+      // window as if it were the poll interval.
+      raw = parseJsonOutput(await runPowerShellWorker(PROCESSES_SCRIPT, [String(PROCESSES_TOP)], 9000));
+    }
+    const data = normalizeProcesses(raw);
+    if (!data) { announceProcessesProblem('unavailable'); return; }
+    announceProcessesProblem('');
+    if (sseClients.size > 0) broadcastSSE('processes', data);
+  } catch {
+    announceProcessesProblem('unavailable');
+  } finally {
+    _processesBusy = false;
+  }
+}, PROCESSES_POLL_MS).unref();
 
 // ── Local "Hey Xenon" wake word ─────────────────────────────────────────────
 // Same lifecycle discipline as the notification mirror: the ffmpeg capture

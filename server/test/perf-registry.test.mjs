@@ -31,15 +31,32 @@ test('run rejects unknown actions', async () => {
 
 test('launchApp enforces extension + existence before opening', async () => {
   const calls = [];
-  const okDeps = { fileExists: () => true, openExternal: (p) => { calls.push(p); return Promise.resolve(); } };
+  const okDeps = { platform: 'win32', fileExists: () => true, openExternal: (p) => { calls.push(p); return Promise.resolve(); } };
   // Non-executable path is rejected before existence is checked.
   assert.deepEqual(await createPerfRegistry(okDeps).run({ type: 'launchApp', path: 'C:/x/doc.txt' }), { ok: false, error: 'bad_app_path' });
   // Executable that doesn't exist → not_found.
-  const missingDeps = { fileExists: () => false, openExternal: () => Promise.resolve() };
+  const missingDeps = { platform: 'win32', fileExists: () => false, openExternal: () => Promise.resolve() };
   assert.deepEqual(await createPerfRegistry(missingDeps).run({ type: 'launchApp', path: 'C:/x/app.exe' }), { ok: false, error: 'not_found' });
   // Existing executable launches.
   assert.deepEqual(await createPerfRegistry(okDeps).run({ type: 'launchApp', path: 'C:/x/app.exe' }), { ok: true });
   assert.deepEqual(calls, ['C:/x/app.exe']);
+});
+
+test('launchApp on Linux routes through the dedicated launcher, like the Deck registry', async () => {
+  const launched = [];
+  const opened = [];
+  const deps = {
+    platform: 'linux',
+    fileExists: () => true,
+    openExternal: (p) => { opened.push(p); return Promise.resolve(); },
+    launchApp: (p) => { launched.push(p); return Promise.resolve({ ok: true }); },
+  };
+  assert.deepEqual(await createPerfRegistry(deps).run({ type: 'launchApp', path: '/usr/bin/firefox' }), { ok: true });
+  assert.deepEqual(opened, []);
+  assert.deepEqual(launched, ['/usr/bin/firefox']);
+  const noLauncher = { platform: 'linux', fileExists: () => true, openExternal: () => Promise.resolve() };
+  assert.deepEqual(await createPerfRegistry(noLauncher).run({ type: 'launchApp', path: '/usr/bin/firefox' }),
+    { ok: false, error: 'unavailable' });
 });
 
 test('closeApp passes the validated id to the injected window helper', async () => {

@@ -42,6 +42,9 @@
 const { execFile } = require('child_process');
 const os = require('os');
 const path = require('path');
+// Shared with linux-collectors.js: the delta/aggregation half of the
+// `processes` stream is identical on both, and lives in one tested place.
+const procStats = require('./process-stats');
 
 // Promise wrapper around execFile with a hard timeout; resolves stdout.
 function run(cmd, args, timeoutMs) {
@@ -311,8 +314,17 @@ function parseDisplaysJson(raw) {
   let doc;
   try { doc = JSON.parse(raw); } catch { return { gpuName: null, vramTotal: null }; }
   const list = doc && Array.isArray(doc.SPDisplaysDataType) ? doc.SPDisplaysDataType : [];
-  const card = list[0];
-  if (!card || typeof card !== 'object') return { gpuName: null, vramTotal: null };
+  // Switchable-graphics Intel Macs list BOTH GPUs, and the integrated one can
+  // come first. The discrete card is the one with dedicated VRAM — an iGPU
+  // only ever reports spdisplays_vram_shared — so it wins over a first-listed
+  // iGPU instead of taking whatever enumeration order gives. Apple Silicon
+  // lists exactly one entry and is untouched by the preference.
+  let card = null;
+  for (const c of list) {
+    if (!c || typeof c !== 'object') continue;
+    if (!card || (String(c.spdisplays_vram || '').trim() && !String(card.spdisplays_vram || '').trim())) card = c;
+  }
+  if (!card) return { gpuName: null, vramTotal: null };
   const gpuName = String(card.sppci_model || card._name || '').trim() || null;
   // Discrete cards report e.g. "8 GB"; Apple Silicon reports nothing at all
   // because the GPU shares system memory -- null is the honest answer there.
@@ -874,11 +886,19 @@ async function audioCommand(args) {
 }
 
 // Cheap capability probe for /actions: can we read the system volume at all?
+// A YES is cached forever, a NO only for a cooldown — a probe that loses a
+// race at login (session services still coming up) must not hide the audio
+// Deck keys for the whole uptime. Same rule as the Linux twin.
+const AUDIO_PROBE_RETRY_MS = 60000;
 let _audioProbe = null;
+let _audioProbeAt = 0;
 async function audioAvailable() {
-  if (_audioProbe === null) {
-    _audioProbe = osa('get volume settings', 5000).then((out) => out !== null);
+  if (_audioProbe !== null) {
+    const ok = await _audioProbe;
+    if (ok || Date.now() - _audioProbeAt <= AUDIO_PROBE_RETRY_MS) return ok;
   }
+  _audioProbeAt = Date.now();
+  _audioProbe = osa('get volume settings', 5000).then((out) => out !== null);
   return _audioProbe;
 }
 
@@ -905,9 +925,110 @@ async function lock() {
   if (slept === null) throw new Error('lock unavailable: no helper and pmset failed');
 }
 
+// --- Per-process CPU/RAM for the `processes` stream -------------------------
+// `ps -Ao pid=,rss=,time=,comm=` is the whole data source: one process, no
+// permission prompt, and — unlike Linux — macOS ps prints cumulative CPU time
+// with HUNDREDTHS, so a two-second delta has 10ms resolution and does not
+// quantise small consumers to zero.
+//
+// Deliberately NOT `ps -o %cpu`: on macOS that column is a decayed average over
+// the process's whole LIFETIME, so a browser that was busy an hour ago still
+// reads high while it sits idle. It looks like an instantaneous figure and is
+// not one, which is the worst kind of wrong number to put on a dashboard.
+//
+// Per-process GPU does not exist here outside private IOKit accounting, so
+// `gpuAvail: false` and the widget hides the column rather than showing zeros.
+
+// [[dd-]hh:]mm:ss[.cc] -> milliseconds.
+function parsePsTime(s) {
+  const raw = String(s || '').trim();
+  if (!raw) return null;
+  let days = 0;
+  let rest = raw;
+  const dash = rest.indexOf('-');
+  if (dash > 0) {
+    days = Number(rest.slice(0, dash));
+    rest = rest.slice(dash + 1);
+    if (!Number.isFinite(days)) return null;
+  }
+  const parts = rest.split(':');
+  if (parts.length < 2 || parts.length > 3) return null;
+  const nums = parts.map(Number);
+  if (nums.some((n) => !Number.isFinite(n))) return null;
+  const [h, m, sec] = parts.length === 3 ? nums : [0, nums[0], nums[1]];
+  return (((days * 24 + h) * 60 + m) * 60 + sec) * 1000;
+}
+
+// comm is last on purpose: it is a full executable path and may contain spaces,
+// so it takes the remainder of the line instead of a fixed column.
+const PS_ROW_RE = /^\s*(\d+)\s+(\d+)\s+(\S+)\s+(.+)$/;
+
+function parsePsProcesses(text) {
+  const out = new Map();
+  for (const line of String(text || '').split(/\r?\n/)) {
+    const m = PS_ROW_RE.exec(line);
+    if (!m) continue;
+    const pid = Number(m[1]);
+    const rssKb = Number(m[2]);
+    const cpuMs = parsePsTime(m[3]);
+    if (!Number.isInteger(pid) || pid <= 0 || cpuMs === null) continue;
+    const name = String(m[4]).trim().split('/').pop();
+    if (!name) continue;
+    out.set(pid, { name, cpuMs, rss: (Number.isFinite(rssKb) ? rssKb : 0) * 1024 });
+  }
+  return out;
+}
+
+const PROC_STALE_MS = 30000;
+const PROC_PRIME_MS = 250;
+let _procPrev = null;
+let _procPrevAt = 0;
+
+async function sampleProcesses() {
+  const out = await runSoft('/bin/ps', ['-Ao', 'pid=,rss=,time=,comm='], 6000);
+  if (out === null) return null;
+  const sample = parsePsProcesses(out);
+  return sample.size ? sample : null;
+}
+
+async function processes(top = 8) {
+  let curr = await sampleProcesses();
+  if (!curr) return { ok: false, error: 'ps_failed' };
+  let now = Date.now();
+  // First call, or a gap long enough that the delta would be a guess: prime with
+  // a short window so THIS call already answers with real numbers.
+  if (!_procPrev || !_procPrevAt || now - _procPrevAt > PROC_STALE_MS) {
+    _procPrev = curr;
+    _procPrevAt = now;
+    await new Promise((r) => setTimeout(r, PROC_PRIME_MS));
+    curr = await sampleProcesses();
+    if (!curr) return { ok: false, error: 'ps_failed' };
+    now = Date.now();
+  }
+  const windowMs = Math.max(1, now - _procPrevAt);
+  const cores = Math.max(1, os.cpus().length);
+  const all = procStats.aggregate(_procPrev, curr, { windowMs, cores });
+  const apps = procStats.topUnion(all, top);
+  _procPrev = curr;
+  _procPrevAt = now;
+  const mem = await memory();
+  return {
+    ok: true,
+    cpu: procStats.totalCpu(all),
+    cores,
+    totalMB: Math.round((mem.total || 0) / (1024 * 1024)),
+    usedMB: Math.round((mem.used || 0) / (1024 * 1024)),
+    gpuAvail: false,
+    win: windowMs,
+    apps,
+  };
+}
+
 module.exports = {
   gpu, disks, cpuTemp, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
+  processes,
   // exported for unit tests
+  parsePsTime, parsePsProcesses,
   parseMacmon, parseHelperTemps, parseDisplaysJson, parseDisks, parseMountTypes, parsePing,
   parseNetstatIb, parseAppList, parseHelperWindows, parseVmStat, parseVolumeSettings, parseAudioDevices,
   buildAudioRows, isCaptureTarget, ratioToPct,

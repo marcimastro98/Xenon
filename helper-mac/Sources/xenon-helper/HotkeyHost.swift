@@ -93,6 +93,20 @@ enum HotkeyHost {
             return
         }
         emit(.obj([("event", .s("ready"))]))
+        // Stdin EOF = the parent is gone or is retiring us. server.js's
+        // _stopHotkeyListener closes stdin FIRST and only escalates to a kill
+        // after a 2s grace — the C# twin exits on that close, and without this
+        // reader the Swift host never noticed: every stop burned the full
+        // grace period, and a quick combo change could race the old process's
+        // still-live registration into a false 'hotkey_taken'. Unregister on
+        // the main queue (NSApplication.run pumps it), then leave.
+        DispatchQueue.global(qos: .utility).async {
+            while readLine(strippingNewline: false) != nil {}
+            DispatchQueue.main.async {
+                if let ref = hotKeyRef { UnregisterEventHotKey(ref) }
+                exit(0)
+            }
+        }
         // NSApplication.run(), not RunLoop.run(). A Carbon hot key is delivered
         // through the Carbon event loop that AppKit's run loop pumps; a bare
         // RunLoop keeps the process alive and never dispatches the event, which
