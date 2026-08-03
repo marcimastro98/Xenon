@@ -336,9 +336,12 @@ One payload every 2 seconds:
 
 ```js
 if (m.type === 'data' && m.stream === 'processes') {
-  const { apps, cpu, cores, totalMB, usedMB, gpuAvail } = m.data;
-  // apps: [{ n: 'chrome', c: 2.1, m: 1840, g: 3.4 }, …]
-  //   n = process name, lower-case, no .exe   c = CPU %   m = RAM in MB   g = GPU %
+  const { apps, cpu, cores, totalMB, usedMB, gpuAvail, gpus } = m.data;
+  // apps: [{ n: 'chrome', c: 2.1, m: 1840, g: 3.4, gs: { 1: 3.4 } }, …]
+  //   n = process name, lower-case, no .exe   c = CPU %   m = RAM in MB
+  //   g  = GPU % on the app's BUSIEST adapter
+  //   gs = GPU % per adapter, keyed by its index in `gpus` (absent when idle)
+  // gpus: [{ i: 0, id: '<luid>', name: 'NVIDIA GeForce RTX 5080', t: 12.4 }, …]
   // cpu = total across EVERY process, not just the rows in `apps`
   for (const app of apps) addRow(app);   // app.n is TEXT: use textContent
 }
@@ -358,6 +361,16 @@ Six things to design around:
    When `gpuAvail` is `false`, **hide the GPU column** rather than drawing zeros:
    a column of zeros reads as "nothing is using the GPU", which is worse than no
    column at all.
+2b. **A PC can have several graphics adapters, and a process runs on ONE of
+   them.** `gpus` lists them (busiest first, stable order, named where Windows
+   can name them) and `app.gs` gives that app's load per adapter. On a hybrid
+   machine this is not a detail: measured on a laptop-style desktop,
+   `msedgewebview2` sat at 14.6% on the **integrated** Radeon while the discrete
+   RTX genuinely read 0%, so a widget folding the adapters together shows a
+   number belonging to no chip and openly contradicting the dashboard's own GPU
+   tile, which reads one card. If `gpus.length > 1`, say which adapter your
+   figure is for, and let the user pick. `g` is the app's busiest adapter, never
+   a sum.
 3. **One row per app, not per process.** Twenty `chrome` processes arrive as one
    `chrome` row with their RAM summed, the way a task manager shows them.
 4. **You get the union of the top 8 of each metric, not a single top list** —
