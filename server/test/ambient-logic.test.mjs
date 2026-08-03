@@ -89,3 +89,32 @@ test('idle suppression: null/garbage state suppresses (fail closed)', () => {
   assert.equal(ambient.ambientIdleSuppressed(undefined), true);
   assert.equal(ambient.ambientIdleSuppressed({}), true);
 });
+
+// ── ambientGameCloses (the game-mode watcher) ────────────────────────────────
+
+test('game watch: entering game mode closes an auto-started screensaver', () => {
+  assert.equal(ambient.ambientGameCloses({ gameMode: true, wasGameMode: false, idleStarted: true }), true);
+});
+
+test('game watch: a scene opened by hand survives, gaming or not', () => {
+  // The reported bug: opened during a game, killed by the next unrelated body
+  // class change — and, once that was a transition check alone, by the next
+  // Alt-Tab (game-mode drops and comes back after the 900ms dwell).
+  assert.equal(ambient.ambientGameCloses({ gameMode: true, wasGameMode: true, idleStarted: false }), false);
+  assert.equal(ambient.ambientGameCloses({ gameMode: true, wasGameMode: false, idleStarted: false }), false);
+});
+
+test('game watch: an unrelated class change while already gaming closes nothing', () => {
+  assert.equal(ambient.ambientGameCloses({ gameMode: true, wasGameMode: true, idleStarted: true }), false);
+});
+
+test('game watch: not gaming never closes', () => {
+  assert.equal(ambient.ambientGameCloses({ gameMode: false, wasGameMode: true, idleStarted: true }), false);
+  assert.equal(ambient.ambientGameCloses({ gameMode: false, wasGameMode: false, idleStarted: true }), false);
+});
+
+test('game watch: null/garbage state closes nothing', () => {
+  assert.equal(ambient.ambientGameCloses(null), false);
+  assert.equal(ambient.ambientGameCloses(undefined), false);
+  assert.equal(ambient.ambientGameCloses({}), false);
+});
