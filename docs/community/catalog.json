@@ -2,6 +2,36 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "aracne",
+      "kind": "bundle",
+      "name": "Aracne",
+      "author": "xenon",
+      "authorSupporter": true,
+      "supportersOnly": true,
+      "locked": true,
+      "perfWarning": true,
+      "featured": "main",
+      "description": "A night pack built on a real orb web, and a tile where the web IS the gauge: three wedges, one each for CPU, GPU and RAM, each woven out to its own load, with the spider sitting on the busiest. Plus a scene that hangs you from a line down an avenue, sun setting at the end of it.",
+      "category": "style",
+      "tags": [
+        "silk",
+        "gauge",
+        "night",
+        "sunset",
+        "supporter"
+      ],
+      "version": "1.0.0",
+      "appVersionMin": "4.11.0",
+      "preview": {
+        "accent": "#F0134D",
+        "bg": "#070A16",
+        "text": "#ECE7DE"
+      },
+      "shots": 3,
+      "addedAt": "2026-08-05",
+      "codeFile": true
+    },
+    {
       "id": "dgm-telemetry",
       "kind": "widget",
       "name": "DGM Telemetry",
@@ -174,7 +204,7 @@
       "authorSupporter": true,
       "supportersOnly": true,
       "locked": true,
-      "featured": "main",
+      "featured": "on",
       "description": "An impasto night sky in the spirit of Van Gogh. The stars and swirls really move, the widget paints CPU, GPU and temperature as brushstrokes, and the Ambient scene shows only the time, the weather and what is playing.",
       "category": "style",
       "tags": [
