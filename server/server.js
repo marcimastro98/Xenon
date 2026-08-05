@@ -7503,6 +7503,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // NOT `surface`: that key is the theme's panel colour. See surfaceChoiceFrom().
   surfaceChoice: Object.freeze({ kind: 'auto', asked: false, monitor: '', label: '' }),
   language: '', // '' = follow the browser; a WEATHER_LANGS code persists the user's chosen UI language across browser-storage resets
+  // Identity of this settings store, minted on the first write (see
+  // SETTINGS_STORE_ID_RE). Empty here because a default blob has not been
+  // persisted yet; server-owned, so POST /settings keeps the stored value.
+  storeId: '',
 });
 
 // In-memory mirror of the hub settings — the wake loop reads it on every clip and
@@ -8455,6 +8459,25 @@ function normalizeFileTransfer(value) {
   };
 }
 
+// Identity of this settings STORE — a random value minted the first time
+// settings.json is written and never again (the keep-prev guard in POST
+// /settings is what makes "never again" true). It is not an install id and has
+// nothing to do with supporter-redeem.js's: it identifies the FILE, so deleting
+// server/data mints a new one, which is exactly the "start clean" signal.
+//
+// Why it exists: every surface mirrors the settings blob into its browser's
+// localStorage, keyed by origin, and the boot hydrate resolves a conflict by
+// comparing `rev`. But `rev` counts up from 0 per store, so a store that was
+// just created loses to ANY surface that still holds an older mirror of the
+// same origin. Measured on Discord: a user reinstalled Windows and Xenon, the
+// PC's LAN address came back the same, and the phone paired before the wipe
+// re-published its months-old layout over the fresh install — pleasant that
+// time, but the symmetric case is a freshly configured dashboard overwritten by
+// a mirror nobody meant to restore. Comparing the store id turns "higher rev"
+// into "higher rev in the SAME store"; a mirror from another store is not newer,
+// it is somebody else's. The client half is in js/settings.js.
+const SETTINGS_STORE_ID_RE = /^[0-9a-f]{32}$/;
+
 function normalizeHubSettings(value) {
   const source = value && typeof value === 'object' ? value : {};
   // One-time migration: saved layouts older than the current version are
@@ -8650,6 +8673,8 @@ function normalizeHubSettings(value) {
     // boot-time merge can compare it against the local copy and avoid clobbering
     // a newer local layout with a stale server one.
     rev: Number.isFinite(source.rev) && source.rev > 0 ? Math.floor(source.rev) : 0,
+    // Identity of THIS settings store — see the mint in writeHubSettings.
+    storeId: SETTINGS_STORE_ID_RE.test(String(source.storeId || '')) ? String(source.storeId) : '',
     // First-run tutorial state (client-owned): round-tripped so a Xeneon Edge
     // WebView localStorage wipe can't make the tour reappear every boot.
     onboarding: normalizeServerOnboarding(source.onboarding),
@@ -8935,10 +8960,21 @@ function normalizeLighting(value) {
   };
 }
 
+// The store id this process has seen on disk. Held so that a write which
+// somehow starts from a blob without one (a writer basing itself on
+// DEFAULT_HUB_SETTINGS before the boot read landed) RE-STAMPS the same id
+// instead of minting a fresh one: rotating it would tell every surface that the
+// store changed, which is precisely when their mirrors are the only remaining
+// copy of the settings. A new id is minted only when this process has never
+// seen one, i.e. a genuinely new store.
+let _settingsStoreId = '';
+
 async function readHubSettings() {
   try {
     const raw = await fs.promises.readFile(SETTINGS_FILE, 'utf8');
-    return normalizeHubSettings(JSON.parse(raw));
+    const parsed = normalizeHubSettings(JSON.parse(raw));
+    if (parsed.storeId) _settingsStoreId = parsed.storeId;
+    return parsed;
   } catch (e) {
     if (e.code === 'ENOENT') return null;
     throw e;
@@ -8963,6 +8999,11 @@ async function geminiKeyFor(bodyKey) {
 
 async function writeHubSettings(settings) {
   const safe = normalizeHubSettings(settings);
+  // Mint the store id on the first write that lacks one, which covers a fresh
+  // install and an existing one updating into this build. `_settingsStoreId`
+  // first, so only a store this process has never seen gets a new value.
+  if (!safe.storeId) safe.storeId = _settingsStoreId || crypto.randomBytes(16).toString('hex');
+  _settingsStoreId = safe.storeId;
   await writeFileAtomic(SETTINGS_FILE, JSON.stringify(safe, null, 2));
   // Reclaim any per-tile decoration images no surviving tile references (grace-
   // windowed so a just-uploaded asset isn't swept before its layout save lands).
@@ -9405,6 +9446,11 @@ async function applyBackup(bundle) {
           incoming.uiFont = null;
         }
       }
+      // A backup carries the store id of the machine it was EXPORTED from, and
+      // restoring one does not make this machine that install: keep ours (the
+      // first write mints one when there is none). Adopting the backup's would
+      // tell every surface here that the store changed under them.
+      incoming.storeId = (prev && prev.storeId) || '';
       // Bump rev past the current copy so every client's hydrate (which keeps the
       // newer rev) adopts the imported settings instead of clobbering them back.
       incoming.rev = Math.max(Number(incoming.rev) || 0, (prev && prev.rev) || 0) + 1;
@@ -13926,6 +13972,14 @@ const handleRequest = async (req, res) => {
       // else. Its only writer is POST /api/transfer/settings.
       if (prev && prev.fileTransfer && typeof prev.fileTransfer === 'object') {
         incoming.fileTransfer = prev.fileTransfer;
+      }
+      // The store id is minted once and belongs to this file, so a save can only
+      // ever echo it back — and a save from a surface still holding a mirror of a
+      // PREVIOUS store would echo THAT one, which would make this store answer
+      // with the identity of the install it just replaced and disarm the check
+      // for every other surface. Keep the persisted value.
+      if (prev && prev.storeId) {
+        incoming.storeId = prev.storeId;
       }
       // Vitals state is widget-owned and monotonic: a refill stamps "now", XP
       // only grows, the daily counter resets on a new day. A stale settings
@@ -19460,6 +19514,18 @@ function _startListen(host) {
       // corrupt the retention curve permanently. See version-ping.js.
       _settingsFileMissingAtBoot = (s === null);
       if (s) _serverHubSettings = s;
+      // Mint the store id NOW rather than on the first save. A fresh install
+      // whose settings.json does not exist yet answers GET /settings with no
+      // payload at all, and the client's legacy seed path then pushes its own
+      // localStorage copy up — which is the very restore-from-a-stale-surface
+      // this identity exists to stop. One write, only when it is missing.
+      if (!s || !s.storeId) {
+        withHubSettingsLock(async () => {
+          const cur = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+          if (cur.storeId) return;                    // another writer got there first
+          _serverHubSettings = await writeHubSettings(cur);   // writeHubSettings mints
+        }).catch(e => console.error('[settings] store id init failed:', e.message));
+      }
       // The settings are in memory now, so the transfer caps can finally come
       // from them rather than from DEFAULT_HUB_SETTINGS (see fileTransfer.init).
       try { _applyTransferLimits(); } catch (e) { console.error('Transfer limits init failed:', e.message); }
