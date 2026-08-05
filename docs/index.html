@@ -778,7 +778,18 @@
     transition: border-color .25s; cursor: pointer;
   }
   .shot:hover { border-color: var(--green); }
-  .shot img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top center; }
+  /* The shots in this strip run from 1.04:1 (the share card) to 2.55:1 (the
+     Spotify player), and a 16:10 bed with `cover` cut the widest ones down their
+     own middle: the Spotify title, the Discord channel list and the Twitch
+     controls all lost both edges, so the strip advertised widgets by showing half
+     of them. A SQUARE bed with `contain` shows every shot whole at its own ratio
+     — the same "the frame is a bed, each shot sits on it" rule the story section
+     above already follows — and, being one ratio for every card, it also makes
+     every caption land on the same line instead of wherever its image ended. */
+  .shot img {
+    width: 100%; height: auto; aspect-ratio: 1 / 1; object-fit: contain;
+    background: var(--ink); padding: 12px;
+  }
   .shot figcaption {
     font-size: 12.5px; color: var(--muted); padding: 11px 14px;
     display: flex; justify-content: space-between; gap: 10px;
