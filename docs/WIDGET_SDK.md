@@ -1030,10 +1030,16 @@ Declare it in your manifest like any other category:
 
 Rules worth knowing before you build on it:
 
-- **It navigates the tile the user is looking at.** A Browser tile on another
-  dashboard page is never touched; replacing a page nobody can see would throw away
-  whatever was open there. If no Browser tile is visible you get `no_browser_tile`;
-  handle it, and tell the user to add one rather than failing silently.
+- **It navigates the tile the user is looking at, and brings one into view when
+  there is none.** A Browser tile is never replaced out of sight. If none is on
+  screen — it is the inactive tab of a tab group, or it lives on another dashboard
+  page — Xenon activates that tab or scrolls to that page first, preferring a tile
+  on the current page so a tab switch is chosen over a page change. This matters
+  more than it sounds: a widget and the Browser it aims at are very often two tabs
+  of one tile, which is the one arrangement in which they can never be visible
+  together. `no_browser_tile` now means what it says, that the dashboard has no
+  Browser tile at all; handle it by telling the user to add one. (Before v4.11 it
+  also came back whenever the tile was merely hidden.)
 - **It replaces the tile's active tab.** Treat it as "put this on screen", not as
   "open a window I own". The user can still use the tabs, the address bar and their
   own favourites afterwards.
