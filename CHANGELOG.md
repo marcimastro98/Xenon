@@ -3,7 +3,7 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [v4.11.0]
+## [v4.11.0] - 05-08-2026
 ### ✨ New
 - **The Claude Code widget now mirrors what is actually happening in the session, and every control on it does something real.** The tile could tell you a session was busy and very little else, and in three places it showed a control that did nothing. The worst was the question card: when Claude asked you to choose between options, the card showed the question and the options, the options could not be tapped, and the one button on it just made the card go away. Nothing reached the session. It is now a real question — **tap an option and answer**, and Claude carries on with your choice instead of waiting at the keyboard. Multiple-choice questions accept several answers, and there is still a button to leave it to the terminal if that is where you would rather answer it.
 
