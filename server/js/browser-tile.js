@@ -309,8 +309,12 @@
     saveTabs(group);                     // persist
     renderTabStrip(group);               // label may change immediately
     showLoading(group);                  // show progress immediately on a new address
-    if (!tab.opened) openTab(group, tab);
-    else relaySend({ type: 'navigate', tile: tab.tileId, url });
+    if (tab.opened) { relaySend({ type: 'navigate', tile: tab.tileId, url }); return; }
+    // A hidden group's stage measures 0, so opening here would launch the page at
+    // the 64px floor and leave it there until the resize watchdog caught up.
+    // showGroup()'s openActive opens it at the real size the moment the tile comes
+    // into view — the same deferral switchTab() already makes.
+    if (group.visible) openTab(group, tab);
   }
 
   // `data` is the JPEG as a Uint8Array (binary relay) or a base64 string (older
@@ -1133,6 +1137,71 @@
     return !host.includes('.');   // a bare name is an intranet host
   }
 
+  // Which hidden tile to bring into view. Pure so the rule is testable: prefer one
+  // already on the page the user is looking at, so a tab switch is preferred over a
+  // page change, and fall back to the first mounted tile anywhere. Ties keep source
+  // order, which is the dashboard's own order.
+  function pickRevealTarget(candidates) {
+    const list = Array.isArray(candidates) ? candidates : [];
+    let first = null;
+    for (const c of list) {
+      if (!c) continue;
+      if (c.onPage === true) return c;
+      if (!first) first = c;
+    }
+    return first;
+  }
+
+  // Bring a Browser tile into view when none is visible. Refusing instead was the
+  // shipped behaviour and it made the feature unusable in the layout people
+  // actually build: put the widget that asks and the Browser it aims at in one tab
+  // group — the obvious way to fit two big tiles on the Edge — and they can never
+  // be visible at the same time, so every call answered `no_browser_tile`.
+  //
+  // The refusal existed so a tile was never navigated behind the user's back, out
+  // of sight. Revealing it is the answer to that concern rather than an exception
+  // to it: the tile the widget replaces is the tile the user is then looking at.
+  //
+  // A perf/game-mode pause is left alone. That is a deliberate global stop with the
+  // user in a game, and stealing the screen back for a widget is not a repair.
+  function revealBrowserTile() {
+    if (perfPaused) return null;
+    const pager = typeof window !== 'undefined' ? window.DashboardPager : null;
+    const candidates = [];
+    groups.forEach((group) => {
+      const section = group.section;
+      if (!section || !section.isConnected) return;
+      const onPage = (pager && typeof pager.isOnCurrentPage === 'function')
+        ? pager.isOnCurrentPage(section) : true;
+      candidates.push({ group, onPage });
+    });
+    const pick = pickRevealTarget(candidates);
+    if (!pick) return null;
+    if (!pick.onPage && pager && typeof pager.goToPage === 'function') {
+      const page = pick.group.section.closest('.pager-page');
+      const pageId = page && page.dataset ? page.dataset.page : '';
+      if (pageId) pager.goToPage(pageId);
+    }
+    activateGroupTab(pick.group);
+    return pick.group;
+  }
+
+  // Make this tile the active tab of its tab group, if it is in one. `fromUser` is
+  // false: a manual pick locks the tab by disabling the media-driven auto-switch,
+  // and a widget asking for a page is not the user changing that preference.
+  function activateGroupTab(group) {
+    const TG = typeof window !== 'undefined' ? window.DashboardTabGroups : null;
+    if (!TG || typeof TG.setGroupActive !== 'function' || typeof TG.widgetGroupOf !== 'function') return;
+    if (typeof getDashboardLayout !== 'function') return;
+    let layout = null;
+    try { layout = getDashboardLayout(); } catch (e) { return; }
+    const map = layout && layout.groups;
+    if (!map) return;
+    const gid = TG.widgetGroupOf(map, group.id);
+    if (!gid || !map[gid] || map[gid].active === group.id) return;
+    TG.setGroupActive(gid, group.id, false);
+  }
+
   function openFromSdk(rawUrl, opts) {
     // http(s) only. The relay refuses other schemes too ('blocked_scheme'), but
     // stopping a file:/javascript: address here means it never reaches Chromium.
@@ -1140,11 +1209,11 @@
     try { parsed = new URL(String(rawUrl || '').trim()); } catch (e) { return { ok: false, error: 'bad_url' }; }
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return { ok: false, error: 'bad_url' };
     if (sdkBlockedHost(parsed.hostname.toLowerCase())) return { ok: false, error: 'blocked_host' };
-    // Only a tile the user can actually see. Navigating a Browser tile sitting
-    // on another dashboard page would throw away whatever was open there, out of
-    // sight — the user would come back to a page they never asked for.
+    // A tile the user can actually see, first. When there is none, bring one into
+    // view instead of refusing — never navigate one that stays out of sight.
     let target = null;
     groups.forEach((group) => { if (!target && group.visible) target = group; });
+    if (!target) target = revealBrowserTile();
     if (!target) return { ok: false, error: 'no_browser_tile' };
     navigateActive(target, parsed.href);
     // Opt-in, and deliberately not silent: expand() paints the tile over the
@@ -1157,5 +1226,5 @@
   }
 
   // Expose pure helpers for tests / debugging, plus restart()/reconcile for settings.js.
-  window.BrowserTile = { mapPointerToPage, cdpModifiers, tabLabel, restart, reconcileFromSettings, openFromSdk, sdkBlockedHost };
+  window.BrowserTile = { mapPointerToPage, cdpModifiers, tabLabel, restart, reconcileFromSettings, openFromSdk, sdkBlockedHost, pickRevealTarget };
 })();
