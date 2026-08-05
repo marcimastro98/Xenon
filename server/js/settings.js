@@ -1,6 +1,11 @@
 'use strict';
 
 const SETTINGS_STORAGE_KEY = 'xeneonedge.settings.v1';
+// Which settings store the mirror above belongs to (server.js mints one per
+// settings.json). Its own key, not a field inside the blob: the blob is rebuilt
+// by normalizeSettings on every save and would carry this value back to the
+// server, and the one thing this must never do is travel.
+const SETTINGS_STORE_KEY = 'xeneonedge.store.v1';
 const SETTINGS_MAX_BACKGROUND_BYTES = 200 * 1024 * 1024;
 const SETTINGS_MIN_PANEL_ALPHA = 0.18;
 const SETTINGS_BACKGROUND_TYPES = Object.freeze(new Set([
@@ -2981,6 +2986,42 @@ function scheduleHubHydrateRetry() {
   }, 4000);
 }
 
+// Does this browser's settings mirror belong to a DIFFERENT store than the one
+// the server is serving? Pure, so the rule is unit-testable
+// (test/settings-store-identity.test.mjs).
+//
+// The mirror is keyed by ORIGIN, and an origin is an address, not an install: a
+// reinstalled PC that gets the same LAN address back is the same origin as the
+// one that was wiped, so every surface still holds a full mirror of a store that
+// no longer exists. `rev` cannot see that — it counts from 0 per store, so the
+// new store loses to any old mirror and gets overwritten by it. Reported on
+// Discord after a clean Windows install: the phone paired before the wipe
+// republished its months-old layout over the fresh install. It landed well that
+// time; the same mechanism aimed at a dashboard the user has just rebuilt is a
+// silent loss of their work.
+//
+// An UNKNOWN id on either side answers false, and that is deliberate rather than
+// cautious: absent means "this side cannot say" (a mirror written before this
+// build, a server too old to mint one), never "different". Answering true there
+// would throw away the one case the rev comparison exists for — a save that
+// never reached the server before a shutdown — for every surface at once, on the
+// single load after the update. Every surface stamps its store on its first
+// hydrate, so the window is one load wide.
+function settingsMirrorIsForeign(serverStoreId, knownStoreId) {
+  const server = typeof serverStoreId === 'string' ? serverStoreId : '';
+  const known = typeof knownStoreId === 'string' ? knownStoreId : '';
+  if (!server || !known) return false;
+  return server !== known;
+}
+
+function readKnownSettingsStore() {
+  try { return localStorage.getItem(SETTINGS_STORE_KEY) || ''; } catch { return ''; }
+}
+function rememberSettingsStore(storeId) {
+  if (!storeId) return;
+  try { localStorage.setItem(SETTINGS_STORE_KEY, storeId); } catch { /* private mode / quota */ }
+}
+
 let _hubHydrateInflight = null;
 // Dedupe concurrent hydrates. es.onopen fires on the FIRST SSE connect too, so the
 // module-load hydrate and the SSE-onopen reconcile can both start before either
@@ -3020,7 +3061,13 @@ async function _hydrateHubSettingsImpl() {
     // a moved widget) that didn't reach the server before the last shutdown —
     // keep local and push it back, instead of letting the stale server copy
     // clobber it. Otherwise the server copy wins (covers a wiped localStorage).
-    const localNewer = localRev > serverRev;
+    //
+    // "Newer" only means anything WITHIN one settings store: a mirror left over
+    // from a store that was replaced (a reinstall, a deleted server/data) always
+    // outranks the fresh one, whose rev restarts at 0. See settingsMirrorIsForeign.
+    const serverStoreId = typeof data.settings.storeId === 'string' ? data.settings.storeId : '';
+    const foreignStore = settingsMirrorIsForeign(serverStoreId, readKnownSettingsStore());
+    const localNewer = localRev > serverRev && !foreignStore;
     const base = localNewer ? localRaw : data.settings;
     // Grid-units laundering fence (mirror of the server's POST /settings
     // guard): when the RAW local copy predates the 24-column grid (no
@@ -3118,6 +3165,21 @@ async function _hydrateHubSettingsImpl() {
     // The merge landed — server-bound saves are safe from here on: whatever we
     // push now carries the server-informed state, never blind defaults.
     _hubHydratedFromServer = true;
+    // Adopt the store we just merged with, so the next load can tell a mirror of
+    // THIS store from one left behind by an install it replaced.
+    rememberSettingsStore(serverStoreId);
+    // Say it once, and only when the check actually changed the outcome: this
+    // surface was holding a newer-looking copy of a store that no longer exists,
+    // and its dashboard has just been replaced by the one on the PC. Swapping a
+    // user's whole layout without a word is the "reads like a broken setting"
+    // failure the scene-fallback toast exists for.
+    if (foreignStore && localRev > serverRev && window.XenonToast) {
+      window.XenonToast.show({
+        type: 'info',
+        title: t('settings_store_changed'),
+        message: t('settings_store_changed_hint'),
+      });
+    }
     // Back the local copy up to the server when it won the merge, when it holds
     // an API key the server was missing (also triggers wake-word start), or when
     // a save was parked while we were still blind (pre-hydrate user change).

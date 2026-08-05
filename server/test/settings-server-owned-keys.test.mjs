@@ -62,6 +62,12 @@ const SERVER_OWNED = {
   // user's chosen folder would reset on every save from any surface and
   // arrivals would quietly start landing somewhere else.
   fileTransfer: 'incoming.fileTransfer = prev.fileTransfer;',
+  // Identity of the settings store, minted once by writeHubSettings. The browser
+  // never models it, and it must not: a surface still holding a mirror of a
+  // PREVIOUS store would echo that store's id back and make this one answer with
+  // the identity of the install it replaced, disarming the check for every other
+  // surface. See settingsMirrorIsForeign in js/settings.js.
+  storeId: 'incoming.storeId = prev.storeId;',
 };
 
 test('every settings key the browser does not send is kept from the persisted copy', () => {

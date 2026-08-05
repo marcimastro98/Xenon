@@ -127,17 +127,21 @@ Either way — the **Complete setup** button in Option A and `INSTALL.bat` in Op
 
 #### If Windows blocks the download, or flags Xenon as a virus
 
-You may see SmartScreen refuse to run the setup, your browser cancel the download as "malicious", or Defender quarantine `xenon-native.exe` with a name like **`Trojan:Win32/Sonbokli.A!cl`**.
+You may see SmartScreen refuse to run the setup, your browser cancel the download as "malicious", or Defender quarantine `Xenon-Setup-x64.exe` or `xenon-native.exe`. Two different things can be behind it, and the name of the detection tells you which one you are looking at.
 
-**This is a false positive, and the `!cl` suffix says so:** it means the verdict came from Defender's cloud *machine-learning* model, not from a signature matching known malware. Xenon is not yet **code-signed** — a certificate is a paid, identity-verified thing and this is a free one-person project — and an unsigned installer that almost nobody has downloaded yet starts from zero reputation. Every new release resets that counter. Code signing is the real fix and it's on the roadmap; until then the detection can come and go release by release.
+**A name ending in `!cl`, such as `Trojan:Win32/Sonbokli.A!cl`.** The suffix means the verdict came from Defender's cloud *machine-learning* model rather than from a signature matching known malware. What that model weighs most is reputation, and Xenon is not **code-signed** yet, because a certificate is a paid, identity-verified thing and this is a free one-person project. An unsigned installer that almost nobody has downloaded starts from zero reputation, and every new release resets the counter.
 
-**Check for yourself before trusting any of this.** Every release ships a `SHA256SUMS` file signed with the project's Ed25519 key. Compare the hash of what you downloaded:
+**A plain name with no suffix, such as `Trojan:Win32/Vigorf.A`.** This is a generic behavioural signature, so the reasoning above does not apply to it, and it is worth being straight about what Defender is reacting to. The setup carries a PowerShell script inside it: the backend installer. When you choose **Complete setup** in the app, that script downloads an archive from GitHub, verifies its signature before unpacking anything, and registers the task that starts the dashboard when you sign in. It also installs LibreHardwareMonitor and the PawnIO driver, which are what read CPU and disk temperatures. None of it happens behind your back: the setup itself only installs the app, and the script runs in a console window you can read and stop. But compressed into one sentence, "an unsigned installer carrying a script that downloads code and installs a kernel driver" is also an accurate description of a dropper, and a generic signature has no way to tell the two apart.
+
+Two things are worth knowing about that last part. Those temperature components are installed through **winget**, so their binaries come from their own developers through Microsoft's package manager, not from this project. And PawnIO is the *signed* replacement for WinRing0, the driver behind most of the older hardware-monitoring false positives. Xenon has never shipped WinRing0 and never will.
+
+**Neither explanation is proof, so check the file yourself.** Every release ships a `SHA256SUMS` file signed with the project's Ed25519 key. Compare the hash of what you downloaded:
 
 ```powershell
 Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256
 ```
 
-If it matches the `Xenon-Setup-x64.exe` line in that release's `SHA256SUMS`, the file is byte-for-byte the one GitHub Actions built from the public source at that tag. You can also paste the file into [VirusTotal](https://www.virustotal.com/) — a handful of engines flagging it while the rest come back clean is the signature of a reputation problem, not of malware.
+If it matches the `Xenon-Setup-x64.exe` line in that release's `SHA256SUMS`, the file is byte-for-byte the one GitHub Actions built from the public source at that tag. You can also paste the file into [VirusTotal](https://www.virustotal.com/): a handful of engines flagging it while the rest come back clean is the signature of a reputation problem, not of malware. Code signing is the real fix and it is on the roadmap. Until then, either kind of detection can come and go release by release.
 
 **To install it anyway:**
 
@@ -386,7 +390,7 @@ iCUE's embedded WebView can reject some MP4 files even when they play fine in Ch
 - **Port 3030 already in use** — close any other instance, or change the port in `server/server.js`.
 - **No CPU temperature** — rerun `INSTALL.bat` and accept the admin prompt so it can install LibreHardwareMonitor/PawnIO and register the elevated startup task.
 - **Mic mute does nothing on first launch** — wait a second or two; the device cache populates right after startup.
-- **Defender quarantined Xenon, or the download was blocked** — a false positive from an unsigned build with no reputation yet. See [If Windows blocks the download, or flags Xenon as a virus](#if-windows-blocks-the-download-or-flags-xenon-as-a-virus) for how to verify the file and restore it.
+- **Defender quarantined Xenon, or the download was blocked** — a false positive: either an unsigned build with no reputation yet, or a generic signature reacting to an installer that downloads what it installs. See [If Windows blocks the download, or flags Xenon as a virus](#if-windows-blocks-the-download-or-flags-xenon-as-a-virus) for how to tell which, verify the file, and restore it.
 - **Nothing happens when you launch Xenon, and Defender never said anything** — on Windows 11 this is usually Smart App Control, which is separate from your antivirus and is not affected by an exclusion. See [If Xenon simply will not start: Smart App Control](#if-xenon-simply-will-not-start-smart-app-control).
 
 ---
