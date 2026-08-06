@@ -257,11 +257,79 @@ jobs:
       # so `if: secrets.X != ''` is an invalid-context error at parse time.
       # Values are written with the heredoc form so a secret containing newlines
       # cannot inject arbitrary variables into the environment file.
-      - name: Enable Apple signing and notarization when the secrets exist
+      # The keychain is built HERE rather than left to Tauri, and the reason is
+      # the one thing a self-signed certificate does differently: it is not
+      # TRUSTED, and identity lookup ignores untrusted identities. Handing Tauri
+      # APPLE_CERTIFICATE makes it import the .p12 into a keychain of its own and
+      # then look the identity up, which answers "0 valid identities found" and
+      # ends the build with `failed to resolve signing identity` — observed on
+      # the first signed release attempt, with `1 identity imported` printed
+      # immediately above it. Marking the certificate as a code-signing root in
+      # the keychain we control is what makes it resolvable; `codesign` itself
+      # never needed the trust, only the lookup does.
+      #
+      # So APPLE_CERTIFICATE and its password stop here and are NOT exported:
+      # exporting them is what would send Tauri back down its own import path.
+      # Only APPLE_SIGNING_IDENTITY continues, naming an identity that now
+      # resolves from the default search list.
+      - name: Import the macOS signing certificate into a trusted keychain
         env:
           IN_APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           IN_APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           IN_APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -eu
+          if [ -z "$IN_APPLE_SIGNING_IDENTITY" ] || [ -z "$IN_APPLE_CERTIFICATE" ]; then
+            echo "no signing certificate configured - building unsigned"
+            echo "::warning::unsigned build: every macOS permission users granted will be lost on this update"
+            exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/xenon-signing.keychain-db"
+          KEYCHAIN_PW=$(openssl rand -base64 24)
+          P12="$RUNNER_TEMP/xenon-signing.p12"
+          CER="$RUNNER_TEMP/xenon-signing.pem"
+          printf '%s' "$IN_APPLE_CERTIFICATE" | base64 --decode > "$P12"
+
+          security create-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
+          # No auto-lock: the build runs for well over the default five minutes,
+          # and a keychain that relocks mid-bundle fails the same way a missing
+          # one does, only less obviously.
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN"
+          security import "$P12" -k "$KEYCHAIN" -P "$IN_APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -f pkcs12
+          # Without this, codesign is prompted for keychain access it cannot
+          # answer on a headless runner and simply hangs until the job times out.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PW" "$KEYCHAIN" >/dev/null
+
+          # Trust, so the identity is resolvable. The admin domain needs sudo and
+          # is the reliable form on a headless runner; the user domain is the
+          # fallback for a runner where sudo is not available.
+          openssl pkcs12 -in "$P12" -clcerts -nokeys -passin "pass:$IN_APPLE_CERTIFICATE_PASSWORD" -out "$CER"
+          sudo security add-trusted-cert -d -r trustRoot -p codeSign -k /Library/Keychains/System.keychain "$CER" \
+            || security add-trusted-cert -r trustRoot -p codeSign -k "$KEYCHAIN" "$CER"
+
+          # Prepend, never replace: dropping the login keychain from the search
+          # list would take the Tauri updater's own signing key with it. The
+          # existing entries are flattened to one space-separated line FIRST —
+          # `security` prints them quoted and indented, one per line, and feeding
+          # that back unflattened turns the whole block into a single bogus path
+          # (seen while rehearsing this: the search list ended up holding one
+          # entry made of two paths glued together).
+          OTHER_KEYCHAINS=$(security list-keychains -d user | sed -e 's/^[[:space:]]*//' -e 's/"//g' | tr '\n' ' ')
+          security list-keychains -d user -s "$KEYCHAIN" $OTHER_KEYCHAINS
+          rm -f "$P12" "$CER"
+
+          echo "identities visible to the bundler:"
+          security find-identity -v -p codesigning | tail -3
+          security find-identity -v -p codesigning | grep -q "$IN_APPLE_SIGNING_IDENTITY" \
+            || { echo "::error::the certificate imported but '$IN_APPLE_SIGNING_IDENTITY' does not resolve"; exit 1; }
+          printf 'APPLE_SIGNING_IDENTITY=%s\n' "$IN_APPLE_SIGNING_IDENTITY" >> "$GITHUB_ENV"
+
+      # Notarization is separate and still absent: it needs the paid Apple
+      # Developer membership. Values are written with the heredoc form so a
+      # secret containing newlines cannot inject variables into the file.
+      - name: Enable notarization when its secrets exist
+        env:
           IN_APPLE_ID: ${{ secrets.APPLE_ID }}
           IN_APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           IN_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -277,13 +345,9 @@ jobs:
             } >> "$GITHUB_ENV"
             echo "exported $name"
           }
-          export_secret APPLE_CERTIFICATE          "$IN_APPLE_CERTIFICATE"
-          export_secret APPLE_CERTIFICATE_PASSWORD "$IN_APPLE_CERTIFICATE_PASSWORD"
-          export_secret APPLE_SIGNING_IDENTITY     "$IN_APPLE_SIGNING_IDENTITY"
-          export_secret APPLE_ID                   "$IN_APPLE_ID"
-          export_secret APPLE_PASSWORD             "$IN_APPLE_PASSWORD"
-          export_secret APPLE_TEAM_ID              "$IN_APPLE_TEAM_ID"
-          [ -n "$IN_APPLE_SIGNING_IDENTITY" ] || echo "no Apple certificate configured - building unsigned (Gatekeeper will prompt on first open)"
+          export_secret APPLE_ID       "$IN_APPLE_ID"
+          export_secret APPLE_PASSWORD "$IN_APPLE_PASSWORD"
+          export_secret APPLE_TEAM_ID  "$IN_APPLE_TEAM_ID"
 
       - name: Build the native app (signed updater artifacts)
         working-directory: apps/native
@@ -299,10 +363,18 @@ jobs:
       # on their machine, not here. So assert what was actually produced rather
       # than trusting that the signing step ran.
       #
-      # `certificate leaf` is the whole point: an ad-hoc signature yields a
-      # cdhash-based requirement instead, which is the build-specific form that
-      # does not survive an update. Unset identity = the deliberate unsigned
-      # build, which warns and continues.
+      # What it looks for is a CERTIFICATE-bound requirement, in either wording:
+      # a self-signed certificate is its own chain, so codesign writes
+      # `certificate leaf` when it is untrusted and `certificate root` when it is
+      # a trust root — which is exactly what the import step above makes it, so
+      # the release build produces the `root` form. Both were verified on macOS
+      # 26 to be satisfied by the same app on a machine that trusts neither, and
+      # a wrong hash to be refused, so the check is not vacuous. Testing for
+      # `leaf` alone would have failed this build for being correctly signed.
+      #
+      # What must NOT appear is `cdhash`: that is the ad-hoc form, the
+      # build-specific one that does not survive an update. Unset identity = the
+      # deliberate unsigned build, which warns and continues.
       - name: Verify the app carries a stable signing identity
         run: |
           set -eu
@@ -315,8 +387,14 @@ jobs:
             exit 0
           fi
           case "$REQ" in
-            *"certificate leaf"*) echo "signed: the requirement is certificate-bound and survives updates" ;;
-            *) echo "::error::signing was configured but the app is not certificate-signed: $REQ"; exit 1 ;;
+            *cdhash*)
+              echo "::error::signed ad-hoc: this requirement is build-specific and would drop every user's macOS permissions: $REQ"
+              exit 1 ;;
+            *"certificate root"*|*"certificate leaf"*)
+              echo "signed: the requirement is certificate-bound and survives updates" ;;
+            *)
+              echo "::error::signing was configured but the requirement is neither: $REQ"
+              exit 1 ;;
           esac
 
       # mediaremote-adapter — the macOS now-playing bridge (BSD-3-Clause,
