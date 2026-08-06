@@ -135,10 +135,14 @@ async function fetchNetwork() {
   if (sys.length && !sys.some(onVisiblePage)) return;
   fetchingNetwork = true;
   try {
-    const res = await fetch(SERVER + '/network');
+    const res = await fetchWithDeadline(SERVER + '/network', POLL_FETCH_TIMEOUT_MS);
     if (!res.ok) throw new Error('Network unavailable');
     const data = await res.json();
     applyNetwork(data);
-  } catch { }
-  fetchingNetwork = false;
+  } catch { } finally {
+    // Deadline + `finally`: this one has no SSE path behind it, so a single hung
+    // request would freeze the network stats until a manual reload (see
+    // fetchWithDeadline in utils.js).
+    fetchingNetwork = false;
+  }
 }
