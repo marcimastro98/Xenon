@@ -91,9 +91,22 @@ jobs:
         with:
           path: docs
 
+      # `timeout` is not how long the deploy takes — this step uploads nothing and
+      # builds nothing, it polls GitHub every 5s asking whether the site is live.
+      # It is the point at which the action gives up AND CANCELS the queued
+      # deployment, which is the expensive half: a cancelled deployment marks that
+      # commit's Pages deployment failed for good (its ID *is* the commit SHA), so
+      # no re-run can ever revive it and only a fresh commit can deploy again.
+      # Measured on 2026-08-06 as Pages' queue degraded through the day: 35s the
+      # evening before, 5m50s at 08:49, 9m24s at 11:50 (success, 36s of margin),
+      # then a 13:50 push that ran out the default 10 minutes and threw the work
+      # away. 30 minutes costs nothing when the queue is fast and keeps a slow
+      # queue from turning into a dead commit.
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          timeout: 1800000
 
       # Announces the URLs this run changed to the IndexNow engines (Bing, and
       # through it Copilot; Yandex, Seznam, Naver). It runs AFTER the deploy on
