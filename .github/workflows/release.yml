@@ -301,10 +301,18 @@ jobs:
           # answer on a headless runner and simply hangs until the job times out.
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PW" "$KEYCHAIN" >/dev/null
 
-          # Trust, so the identity is resolvable. The admin domain needs sudo and
-          # is the reliable form on a headless runner; the user domain is the
-          # fallback for a runner where sudo is not available.
-          openssl pkcs12 -in "$P12" -clcerts -nokeys -passin "pass:$IN_APPLE_CERTIFICATE_PASSWORD" -out "$CER"
+          # Trust, so the identity is resolvable. The certificate is exported
+          # from the keychain that just imported it, NOT re-read from the .p12
+          # with openssl: a .p12 written by macOS's own openssl carries the
+          # legacy RC2-40-CBC encryption, which the OpenSSL 3 on the runner
+          # refuses outright ("unsupported ... RC2-40-CBC") — and refuses only
+          # there, which is why rehearsing this on a Mac passed and the build
+          # did not. `security` reads what `security` wrote, on every machine.
+          #
+          # The admin domain needs sudo and is the reliable form on a headless
+          # runner; the user domain is the fallback where sudo is unavailable.
+          security find-certificate -c "$IN_APPLE_SIGNING_IDENTITY" -p "$KEYCHAIN" > "$CER"
+          [ -s "$CER" ] || { echo "::error::the certificate is not in the keychain after import"; exit 1; }
           sudo security add-trusted-cert -d -r trustRoot -p codeSign -k /Library/Keychains/System.keychain "$CER" \
             || security add-trusted-cert -r trustRoot -p codeSign -k "$KEYCHAIN" "$CER"
 
