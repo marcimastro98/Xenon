@@ -460,6 +460,14 @@ const STATIC_ROUTES = [
   { loc: '/', file: 'docs/index.html', priority: '1.0', changefreq: 'weekly' },
   { loc: '/catalog/', file: 'docs/community/catalog.json', priority: '0.9', changefreq: 'daily' },
   { loc: '/create/', file: 'docs/create/index.html', priority: '0.8', changefreq: 'monthly' },
+  // These three carry `robots: index, follow` and a canonical of their own, so
+  // they were always meant to be found — they were simply never listed here,
+  // which left the two pages that answer real search queries ("is Xenon a
+  // virus", "use a phone as a second screen") out of the only file that tells
+  // Google they exist.
+  { loc: '/faq.html', file: 'docs/faq.html', priority: '0.7', changefreq: 'monthly' },
+  { loc: '/phone.html', file: 'docs/phone.html', priority: '0.7', changefreq: 'monthly' },
+  { loc: '/demo/', file: 'docs/demo/index.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/submit/', file: 'docs/submit/index.html', priority: '0.5', changefreq: 'monthly' },
   { loc: '/privacy.html', file: 'docs/privacy.html', priority: '0.3', changefreq: 'yearly' },
 ];
