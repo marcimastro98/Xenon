@@ -2,11 +2,15 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Xenon — uninstall for macOS and Linux, the twin of UNINSTALL.bat.
 #
-# Removes the login service and stops the backend. Your settings, layouts,
-# notes and Deck profiles are KEPT unless you ask for them to go:
+# Removes Xenon: the app, the login service, the running server, your data and
+# the install folder. It asks once before it touches anything, and it can be
+# told to keep the parts you want to keep:
 #
-#   ./UNINSTALL.sh                only the service and the running server
-#   ./UNINSTALL.sh --purge-data   also delete server/data (irreversible)
+#   ./UNINSTALL.sh               remove everything (asks first)
+#   ./UNINSTALL.sh --keep-data   keep server/data and the install folder
+#   ./UNINSTALL.sh --keep-files  keep the install folder, remove the data
+#   ./UNINSTALL.sh --dry-run     list what would go; change nothing
+#   ./UNINSTALL.sh --yes         skip the confirmation (for scripts)
 #
 # On macOS you can double-click UNINSTALL.command instead, which runs this.
 # ─────────────────────────────────────────────────────────────────────────────

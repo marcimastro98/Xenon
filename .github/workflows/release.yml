@@ -398,6 +398,16 @@ jobs:
           ' "$SIG" "$URL" "$VERSION"
           cp "$TARBALL" "stage/$(basename "$TARBALL")"
           cp "$SIG" "stage/$(basename "$SIG")"
+          # Give the image its Finder window layout. Tauri's bundler runs
+          # create-dmg with --skip-jenkins, which by its own description produces
+          # "a DMG without any custom background or icons positioning" - so
+          # without this the app sits to the RIGHT of the Applications folder and
+          # the drag reads backwards. This copies a committed .DS_Store in rather
+          # than driving Finder, which no CI runner can do. It is deliberately
+          # not fatal: a plain window is a shippable release, a missing dmg is
+          # not, so a failure warns and ships what Tauri built.
+          bash apps/native/src-tauri/macos/apply-dmg-layout.sh "$DMG" ||
+            echo "::warning::could not apply the dmg window layout - shipping the plain image"
           cp "$DMG" "stage/$(basename "$DMG")"
           # Stable-named copy, the macOS twin of Xenon-Setup-x64.exe: a permanent
           # link the README and the website can point at.

@@ -755,6 +755,63 @@ fn find_node() -> Option<std::path::PathBuf> {
     (!found.is_empty()).then(|| std::path::PathBuf::from(found))
 }
 
+/// Open a script in Terminal.app and, when `marker` is given, make sure it
+/// actually ran.
+///
+/// macOS cannot hand a command to Terminal. `open -a Terminal <file>` starts a
+/// window, starts a shell in it, and TYPES the file's path at that shell — so
+/// the install depends on a race it cannot see: if the shell is still sourcing
+/// its startup files, the typed text arrives corrupted. Observed on a first
+/// launch as `o cer/Users/.../xenon-bootstrap.sh`, answered by zsh with
+/// "command not found: o". The window was there, the user watched it do
+/// nothing, and the splash waited for a backend that was never being installed.
+///
+/// There is no API that avoids the typing (Terminal's own `do script` is the
+/// same mechanism, plus an Automation prompt), so the fix is to VERIFY instead:
+/// the bootstrap touches `marker` on its first line, and a window that never
+/// gets there is opened once more. The retry is the cheap half — the second
+/// attempt meets a Terminal that is already running, which is the state the
+/// garbling was never reproducible in (measured: 1/1 warm, 3/3 cold-started
+/// here, so this is a rare race and not a certainty).
+///
+/// One retry, never a loop: two windows is a wart, an endless stack of them is
+/// a worse bug than the one being fixed.
+#[cfg(target_os = "macos")]
+fn open_bootstrap_terminal(script: &std::path::Path, marker: Option<&std::path::Path>) {
+    use std::os::unix::fs::PermissionsExt;
+    // Tauri copies resources without the executable bit, and `open -a Terminal`
+    // on a non-executable file opens it in an editor instead of running it.
+    let _ = std::fs::set_permissions(script, std::fs::Permissions::from_mode(0o755));
+    for _ in 0..2 {
+        if let Some(m) = marker {
+            // A marker from an earlier run would answer for this one.
+            let _ = std::fs::remove_file(m);
+        }
+        let _ = std::process::Command::new("open")
+            .args(["-a", "Terminal"])
+            .arg(script)
+            .status();
+        let Some(m) = marker else { return };
+        // Generous on purpose: the window has to appear, a login shell has to
+        // source the user's startup files, and only then does line one run.
+        for _ in 0..40 {
+            if m.exists() {
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(500));
+        }
+    }
+}
+
+/// The file `xenon-bootstrap.sh` touches as it starts, on macOS. Built from
+/// `$HOME` alone, with no environment lookup, because the script and this app
+/// must agree on it exactly — a path either could resolve differently would
+/// make every launch open a second window.
+#[cfg(target_os = "macos")]
+fn bootstrap_marker(home: &std::path::Path) -> std::path::PathBuf {
+    home.join("Library/Application Support/Xenon/.bootstrap-started")
+}
+
 #[cfg(target_os = "macos")]
 fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
     use tauri::path::BaseDirectory;
@@ -819,15 +876,9 @@ fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
                 // with no error anywhere, on every launch. install.sh resolves
                 // node in a real shell and can install it with Homebrew, so
                 // hand the problem to it in a Terminal the user can read.
-                use std::os::unix::fs::PermissionsExt;
-                let _ = std::fs::set_permissions(
-                    &installer,
-                    std::fs::Permissions::from_mode(0o755),
-                );
-                let _ = std::process::Command::new("open")
-                    .args(["-a", "Terminal"])
-                    .arg(&installer)
-                    .status();
+                // No marker: install.sh is not the bootstrap and does not write
+                // one, so this window is opened without the verify-and-retry.
+                open_bootstrap_terminal(&installer, None);
             }
             return;
         }
@@ -837,15 +888,8 @@ fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
         if !script.exists() {
             return;
         }
-        // Tauri copies resources without the executable bit, and `open -a
-        // Terminal` on a non-executable file opens it in an editor instead of
-        // running it.
-        use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755));
-        let _ = std::process::Command::new("open")
-            .args(["-a", "Terminal"])
-            .arg(&script)
-            .status();
+        let marker = home.as_deref().map(bootstrap_marker);
+        open_bootstrap_terminal(&script, marker.as_deref());
     });
 }
 

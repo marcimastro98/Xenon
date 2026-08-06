@@ -244,7 +244,7 @@ Just open **`http://127.0.0.1:3030/`**.
 
 > **Nothing.** The engine starts automatically when you log in and the native app reopens itself on its display — the dashboard is live before you even settle in. (Using iCUE instead? It remembers your layout too.)
 
-To remove the startup entry, double-click **`UNINSTALL.bat`** on Windows or **`UNINSTALL.command`** on macOS, and run `./UNINSTALL.sh` on Linux. All three keep your settings, layouts and notes unless you add `--purge-data`.
+To remove Xenon, double-click **`UNINSTALL.bat`** on Windows or **`UNINSTALL.command`** on macOS, and run `./UNINSTALL.sh` on Linux. All three ask once, then take the whole thing with them: the app, the startup entry, the local server, your data and the install folder. Add `--keep-data` (`-KeepData` on Windows) to keep your settings, layouts and notes, or `--dry-run` to see what would go without changing anything.
 
 ### Updating
 
