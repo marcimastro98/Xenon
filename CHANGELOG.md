@@ -3,6 +3,14 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v4.11.2] - 06-08-2026
+### 🐛 Fixed
+- **Installing Xenon on a Mac from the .dmg now finishes.** The app opened, the setup window appeared, it found the release, downloaded it and verified its signature — and then stopped on the line right before it started copying anything, with `INSTALL_ROOT: unbound variable`. The window closed itself, nothing was installed, and the app sat on "Waiting for the Xenon service..." forever. There was no way to tell from the outside that anything had gone wrong.
+
+  The cause was one missing pair of braces. macOS still ships bash 3.2, released in 2007, and that version reads the bytes of the `…` character glued to the end of a variable name as part of the name — so a message meant to say "Installing to <folder>…" asked for a variable that does not exist, and the script is set to stop dead rather than continue on an empty path. Every other shell, including the one on Linux and the one your Terminal opens by default, handles it correctly, which is why it only ever happened on a Mac.
+
+- **Uninstalling on a Mac now works too — in v4.11.1 it stopped before removing anything.** The same line was in the uninstaller, at the point where it stops the running dashboard, so on a Mac it quit right there: no app removed, no login item removed, nothing. If you ran it and Xenon was still on your machine afterwards, that is why — run it again from this version and it will finish the job. A test now refuses to let that shape of line back into any script in the project, and every shipped script was checked against the shell macOS actually runs them with.
+
 ## [v4.11.1] - 06-08-2026
 ### 🐛 Fixed
 - **Uninstalling on macOS and Linux now actually uninstalls Xenon.** It stopped the backend and removed the startup entry, and then printed a list of the things it had deliberately left behind: the app, the folder, your data. That list made sense to whoever wrote it and to nobody else. What you saw was an uninstaller that finished, a Xenon icon still sitting in Applications, and Xenon still coming up when you searched for it — so the reasonable conclusion was that it had not worked. Worse, opening that leftover app re-registered its own start-at-login entry, so a machine you thought was clean started Xenon again at the next sign-in.

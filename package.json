@@ -1,6 +1,6 @@
 {
   "name": "xenon-edge-widget",
-  "version": "4.11.1",
+  "version": "4.11.2",
   "description": "A self-contained local dashboard for any second screen — a monitor, a touchscreen, a paired phone or tablet, a CORSAIR Xeneon Edge: media controls, audio devices, microphone mute, calendar, notes and live system stats, on Windows, macOS and Linux.",
   "private": true,
   "main": "server/server.js",

@@ -321,7 +321,10 @@ if [ -n "$PIDS" ]; then
   if [ "$DRY_RUN" = 1 ]; then
     info "would stop the server listening on port $PORT"
   else
-    step "Stopping the server on port $PORT…"
+    # Braced on purpose: bash 3.2 (what macOS ships) folds the bytes of the
+    # following non-ASCII character into the variable NAME. See the note in
+    # xenon-bootstrap.sh and scripts-ascii.test.mjs.
+    step "Stopping the server on port ${PORT}…"
     for pid in $PIDS; do [ -n "$pid" ] && kill "$pid" 2>/dev/null; done
     sleep 1
     for pid in $PIDS; do [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null; done

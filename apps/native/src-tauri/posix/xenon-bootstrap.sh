@@ -252,7 +252,14 @@ fi
 step 'Signature verified.'
 
 # ── 5) Extract into the install root (merge, never a mirror) ─────────────────
-step "Installing to $INSTALL_ROOT…"
+# Braces are load-bearing, not style: macOS ships bash 3.2, which reads the
+# bytes of a non-ASCII character as part of an unbraced expansion's NAME. So
+# the unbraced form, with the ellipsis below glued to it, expanded the variable
+# `INSTALL_ROOT<e2>` instead of this one -- unset, and under
+# `set -u` that aborts the script. It happened here, after the download and the
+# signature check, so the window closed with the install never started and the
+# app's splash waited forever. See scripts-ascii.test.mjs, which pins the rule.
+step "Installing to ${INSTALL_ROOT}…"
 EXTRACT="$TMP/extract"
 mkdir -p "$EXTRACT"
 # unzip is standard on macOS and usual but not guaranteed on Linux; bsdtar

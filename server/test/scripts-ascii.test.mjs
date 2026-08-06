@@ -69,6 +69,54 @@ test('shell scripts are pure ASCII, so no code page can change how they parse', 
   );
 });
 
+// The POSIX half of the same trap, and it bites where the code page cannot: a
+// .sh may hold UTF-8 (box rules, an ellipsis) because every shell that runs one
+// reads it as bytes -- but macOS ships bash 3.2, and its parser accepts the
+// bytes of a non-ASCII character as part of an UNBRACED expansion's name. So
+//
+//   step "Installing to $INSTALL_ROOT..."     (with a real U+2026)
+//
+// expanded the variable `INSTALL_ROOT<e2>`, which is unset, and `set -u` ended
+// the script on the spot. Proven on macOS 26 / bash 3.2.57 in every UTF-8 and
+// 8859 locale (only LC_ALL=C escapes it); zsh and bash 5 are both fine, which is
+// why it survived review and every Linux run. It struck xenon-bootstrap.sh after
+// the download and signature check: the window closed with nothing installed and
+// the app's splash waited for a backend that was never coming.
+//
+// Braces end the name explicitly and fix it everywhere, so the rule is: an
+// expansion in a shell script is braced whenever a non-ASCII character follows.
+const POSIX_EXTENSIONS = ['.sh', '.command'];
+const POSIX_SCRIPTS = (function collectPosix(dir, found = []) {
+  for (const entry of readdirSync(dir)) {
+    if (SKIP_DIRS.has(entry)) continue;
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) collectPosix(full, found);
+    else if (POSIX_EXTENSIONS.some((ext) => entry.toLowerCase().endsWith(ext))) found.push(full);
+  }
+  return found;
+})(ROOT);
+
+test('POSIX scripts brace any expansion a non-ASCII character follows', () => {
+  assert.ok(POSIX_SCRIPTS.length > 3, `expected the repo's POSIX scripts, found ${POSIX_SCRIPTS.length}`);
+  const offenders = [];
+
+  for (const file of POSIX_SCRIPTS) {
+    const lines = readFileSync(file, 'utf8').split('\n');
+    for (let i = 0; i < lines.length; i += 1) {
+      // eslint-disable-next-line no-control-regex
+      const m = /\$[A-Za-z_][A-Za-z0-9_]*(?=[^\x00-\x7f])/.exec(lines[i]);
+      if (!m) continue;
+      offenders.push(`${relative(ROOT, file).split(sep).join('/')}:${i + 1}  ${m[0]} -> write \${${m[0].slice(1)}}`);
+    }
+  }
+
+  assert.deepEqual(
+    offenders,
+    [],
+    `bash 3.2 would read the following character's bytes as part of the name:\n${offenders.join('\n')}`,
+  );
+});
+
 test('.bat/.cmd files never start with a BOM, which cmd.exe would try to execute', () => {
   const offenders = SCRIPTS
     .filter((file) => /\.(bat|cmd)$/i.test(file))
