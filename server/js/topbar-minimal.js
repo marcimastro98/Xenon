@@ -61,6 +61,26 @@
   // or it is dropped on the next settings save.
   const ISLAND_SEG_IDS = ['time', 'date', 'weather', 'media', 'vitals', 'dots', 'badges', 'claude'];
 
+  // The chrome BUTTONS, keyed the same way and carried by the same settings
+  // object (topbarClock.actions). Selector per id, resolved against the whole
+  // document rather than a container, because a button that has been moved to the
+  // other side is no longer where its markup put it. Unlike the island segments
+  // these are NOT required: an id whose element is missing is skipped, and must
+  // never fail the capture — captureTopbarEls returning null disables Minimal
+  // entirely, which is far too big a consequence for one absent button.
+  const ACTION_SELECTORS = {
+    lock: '.qbtn-lock',
+    ambient: '#ambient-topbtn',
+    xenon: '.topbtn-xenon',
+    search: '.qbtn-search',
+    mini: '#topbar-mini-slot',
+    layout: '#layout-edit-toggle',
+    settings: '.qbtn-settings',
+    apps: '.qbtn-apps',
+    favorites: '#app-favorites',
+  };
+  const ACTION_IDS = Object.keys(ACTION_SELECTORS);
+
   function captureTopbarEls() {
     if (els) return els;
     const topbar = document.querySelector('.topbar');
@@ -101,6 +121,27 @@
       case 'claude': return els.clockClaude;
       default: return null;
     }
+  }
+
+  // Element for a chrome-button id, or null when that button is not in this
+  // document (embed views, a future build, a phone). Looked up live: the button
+  // may have been moved into the other container.
+  function actionEl(id) {
+    const sel = ACTION_SELECTORS[id];
+    return sel ? document.querySelector(sel) : null;
+  }
+
+  // Read the configured button list. Absent settings mean "canonical order, all
+  // visible", which matches the settings default — including the SDK mini slot,
+  // which is empty rather than hidden until a package draws in it.
+  function readActionItems() {
+    const cfg = (typeof hubSettings !== 'undefined' && hubSettings && hubSettings.topbarClock) || null;
+    if (cfg && Array.isArray(cfg.actions) && cfg.actions.length) return cfg.actions;
+    return ACTION_IDS.map(id => ({
+      id,
+      hidden: false,
+      side: (id === 'layout' || id === 'settings' || id === 'apps' || id === 'favorites') ? 'right' : 'left',
+    }));
   }
 
   // Read the configured island item list (order + hidden), defaulting to the
@@ -169,6 +210,54 @@
         || itemById.get('weather')?.hidden === true;
       els.metaSep.classList.toggle('topbar-item-hidden', hideSep);
     }
+    // The clock is a two-row column (face over meta) centred as ONE block, so a
+    // meta row holding nothing but the 6px status dot still pushes the time up —
+    // measured at 5.5px off the bar's centre with date, weather and music hidden,
+    // which is exactly the "the clock isn't centred" report. The dot is the
+    // online indicator and has to stay, so instead the bare row stops taking a
+    // row of its own (CSS below) and the face centres on the bar.
+    if (els.clock) {
+      const metaAlive = [els.clockDate, els.clockWeather, els.clockMedia, els.clockVitals, els.clockBadges, els.clockClaude]
+        .some((el) => el && el.hidden !== true && !el.classList.contains('topbar-item-hidden'));
+      els.clock.classList.toggle('clock-meta-bare', !metaAlive);
+    }
+    applyActionLayout();
+  }
+
+  // The chrome buttons: hide, order, and which side they live on. Runs inside
+  // applyIslandLayout so there is ONE place that decides where a piece of the
+  // chrome is — enable()/disable() move the two containers wholesale and never
+  // reorder their children, so a side chosen here survives a chrome switch and
+  // nothing else may quietly disagree with it.
+  //
+  // `.topbar-item-hidden` (Topbar.css) is the same mechanism the island segments
+  // use and already works in both chromes, so hiding needs no new CSS. Ordering
+  // is `style.order`, which holds in all four combinations: quickbar and
+  // .top-actions are flex rows in Full, and both rails are flex columns in
+  // Minimal. Moving sides is an appendChild into the other container, which is
+  // why "left" means the same thing in each chrome: the quickbar BECOMES the left
+  // rail and .top-actions the right one.
+  function applyActionLayout() {
+    if (!els) return;
+    const hosts = { left: els.quickbar, right: els.topActions };
+    if (!hosts.left || !hosts.right) return;
+    const items = readActionItems();
+    items.forEach((it, index) => {
+      const el = actionEl(it && it.id);
+      if (!el) return;   // absent button: skip it, never fail the whole pass
+      el.classList.toggle('topbar-item-hidden', it.hidden === true);
+      const host = hosts[it.side === 'right' ? 'right' : 'left'];
+      if (host && el.parentElement !== host) host.appendChild(el);
+      el.style.order = String(index);
+    });
+    // The page dots are the one thing sharing .top-actions that is NOT a button:
+    // they are an island segment whose native home happens to be this container.
+    // Ordering the buttons gives every one of them an `order`, and an unordered
+    // sibling defaults to 0 — which would silently move the dots to the FRONT of
+    // the row the moment this feature shipped. In Full they belong last, exactly
+    // where the markup puts them; in Minimal they live in the pill and the island
+    // layout owns their order, so leave them alone there.
+    if (els.pagerDots && !active) els.pagerDots.style.order = String(items.length);
   }
 
   // ── Island morph ────────────────────────────────────────────────────────────

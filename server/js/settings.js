@@ -238,6 +238,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     // the other segments step aside until it pauses. Off by default — it hides
     // the clock, which nobody should lose without asking for it.
     mediaTakeover: false,
+    // Page dots as labelled pills carrying the page names. Off by default: a
+    // dashboard that was never renamed would only gain "Pagina 2" chips.
+    pageLabels: false,
     hiddenSources: [],
     items: [
       { id: 'time', hidden: false },
@@ -248,6 +251,26 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
       { id: 'dots', hidden: false },
       { id: 'badges', hidden: false },
       { id: 'claude', hidden: false },
+    ],
+    // The BUTTONS of the chrome, as opposed to the clock contents above. Order
+    // and side apply in both chromes (quickbar/top-actions in Full become the
+    // left/right rail in Minimal), so "left" means the same thing in each.
+    // `mini` is the SDK mini-widget slot. It starts VISIBLE like every other row
+    // — a package the user just installed has to appear without them hunting for
+    // a switch — and takes no room until something draws in it: the element
+    // carries its own `hidden` attribute while empty (js/sdk-mini.js). The two
+    // are different statements: "there is nothing to show" versus "I do not want
+    // this here", and only the second belongs in this list.
+    actions: [
+      { id: 'lock', hidden: false, side: 'left' },
+      { id: 'ambient', hidden: false, side: 'left' },
+      { id: 'xenon', hidden: false, side: 'left' },
+      { id: 'search', hidden: false, side: 'left' },
+      { id: 'mini', hidden: false, side: 'left' },
+      { id: 'layout', hidden: false, side: 'right' },
+      { id: 'settings', hidden: false, side: 'right' },
+      { id: 'apps', hidden: false, side: 'right' },
+      { id: 'favorites', hidden: false, side: 'right' },
     ],
   },
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language (en → 12h)
@@ -1348,7 +1371,74 @@ function normalizeTopbarClock(value, legacyRoot) {
       if (typeof id === 'string' && sourceRe.test(id) && !hiddenSources.includes(id)) hiddenSources.push(id);
     }
   }
-  return { version: 2, align, items, hiddenSources, takeovers: v.takeovers !== false, mediaTakeover: v.mediaTakeover === true };
+  const actions = normalizeTopbarActions(v.actions);
+  // Opt-in: the page dots render the page names instead of anonymous circles.
+  // Off by default so an existing dashboard looks exactly as it did, and applied
+  // in BOTH chromes (the dots host lives in the topbar and is only carried into
+  // the pill by Minimal), not only in the island.
+  return {
+    version: 2, align, items, actions, hiddenSources,
+    takeovers: v.takeovers !== false,
+    mediaTakeover: v.mediaTakeover === true,
+    pageLabels: v.pageLabels === true,
+  };
+}
+
+// The chrome BUTTONS — order, side and visibility — as opposed to `items`, which
+// is the clock's own contents. Same rebuild-from-canonical shape: unknown ids and
+// duplicates are dropped, missing ones are appended in default order, and the
+// input is never spread.
+//
+// `settings` and `layout` are in the list so they can be reordered and moved, but
+// their `hidden` is forced false: they are the two ways back IN. Without Settings
+// there is no way to undo anything on a touch kiosk with no keyboard, and without
+// Layout there is no way to rearrange the dashboard again — both are doors, not
+// features, and a door you can remove from the inside is a trap. That repair
+// lives HERE and not in the editor because the editor is not the authority: a
+// list arriving from a backup, from a hand-edited settings.json or from a future
+// version has to come back correct, not merely be drawn correctly by a UI that
+// happens to disable two eye buttons. Mirrored by normalizeTopbarActions on the
+// server. The list is inlined for the same TDZ reason as the island's
+// (normalizeSettings runs at load time).
+function normalizeTopbarActions(value) {
+  // Inlined, not a module const: normalizeSettings runs at load time from
+  // loadHubSettings(), which is ABOVE this line, so a top-level const would be
+  // in its temporal dead zone and throw on the very first read of settings.
+  const alwaysShown = ['settings', 'layout'];
+  const canonical = [
+    { id: 'lock', side: 'left', hidden: false },
+    { id: 'ambient', side: 'left', hidden: false },
+    { id: 'xenon', side: 'left', hidden: false },
+    { id: 'search', side: 'left', hidden: false },
+    { id: 'mini', side: 'left', hidden: false },
+    { id: 'layout', side: 'right', hidden: false },
+    { id: 'settings', side: 'right', hidden: false },
+    { id: 'apps', side: 'right', hidden: false },
+    { id: 'favorites', side: 'right', hidden: false },
+  ];
+  const byId = new Map(canonical.map((entry) => [entry.id, entry]));
+  const seen = new Set();
+  const out = [];
+  const add = (def, raw) => {
+    seen.add(def.id);
+    out.push({
+      id: def.id,
+      hidden: alwaysShown.includes(def.id) ? false : (raw ? raw.hidden === true : def.hidden),
+      side: (raw && (raw.side === 'left' || raw.side === 'right')) ? raw.side : def.side,
+    });
+  };
+  if (Array.isArray(value)) {
+    for (const it of value) {
+      const id = it && typeof it === 'object' ? it.id : null;
+      const def = byId.get(id);
+      if (!def || seen.has(id)) continue;
+      add(def, it);
+    }
+  }
+  for (const def of canonical) {
+    if (!seen.has(def.id)) add(def, null);
+  }
+  return out;
 }
 
 // Rebuild the imported-themes list from untrusted input (localStorage, server
@@ -2141,6 +2231,8 @@ function normalizeSdkWidgets(value) {
         islandDynamic: g.islandDynamic === true,
         islandFull: g.islandFull === true,
         badge: g.badge === true,
+        badgeAction: g.badgeAction === true,
+        mini: g.mini === true,
         clipboard: g.clipboard === true,
         accent: g.accent === true,
         expand: g.expand === true,
@@ -8152,6 +8244,14 @@ function updateTopbarStyle(style) {
 
 // Built-in island segment id → i18n label key (editor rows).
 const TOPBAR_ISLAND_LABELS = { time: 'topbar_el_time', date: 'topbar_el_date', weather: 'topbar_el_weather', media: 'topbar_el_media', vitals: 'topbar_el_vitals', dots: 'topbar_el_dots', badges: 'topbar_el_badges', claude: 'topbar_el_claude' };
+// Chrome-button id → i18n label key. Must stay in step with ACTION_SELECTORS in
+// js/topbar-minimal.js and with the canonical list in BOTH normalizers
+// (js/settings.js and its server.js twin) — pinned by test/topbar-island-sync.
+const TOPBAR_ACTION_LABELS = {
+  lock: 'topbar_btn_lock', ambient: 'topbar_btn_ambient', xenon: 'topbar_btn_xenon',
+  search: 'topbar_btn_search', mini: 'topbar_btn_mini', layout: 'topbar_btn_layout',
+  settings: 'topbar_btn_settings', apps: 'topbar_btn_apps', favorites: 'topbar_btn_favorites',
+};
 const EYE_OPEN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5C5 5 2 12 2 12s3 7 10 7 10-7 10-7-3-7-10-7Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm0-6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg>';
 const EYE_OFF_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.8 3.2 1.4 4.6l3.1 3.1A12.9 12.9 0 0 0 2 12s3 7 10 7a10.8 10.8 0 0 0 4.4-.9l3 3 1.4-1.4L2.8 3.2ZM12 16a4 4 0 0 1-3.9-4.9l1.7 1.7A2 2 0 0 0 12 14a2 2 0 0 0 .2 0l1.7 1.7A4 4 0 0 1 12 16Zm0-11c7 0 10 7 10 7a13 13 0 0 1-2.2 3.2l-2.9-2.9A4 4 0 0 0 12 8a4 4 0 0 0-.4 0L9.2 5.6A10.9 10.9 0 0 1 12 5Z"/></svg>';
 const CARET_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -8170,17 +8270,19 @@ function syncTopbarClockControls() {
     btn.setAttribute('aria-pressed', String(active));
   });
   renderTopbarIslandEditor();
+  renderTopbarActionsEditor();
   const takeovers = $('settings-island-takeovers');
   if (takeovers) takeovers.checked = cfg.takeovers !== false;
 }
 
-// Build the island segment list: one row per item in display order, each with a
-// drag handle (reorder) and an eye toggle (show/hide). Rebuilt on every change.
-function renderTopbarIslandEditor() {
-  const host = document.getElementById('topbar-island-editor');
+// Build one editor list: a row per item in display order, each with a drag handle
+// (reorder) and an eye toggle (show/hide). Shared by the island-segment list and
+// the chrome-button list so the two cannot drift apart; the caller supplies the
+// host, the items, the label map and the two writers.
+function renderTopbarSegmentEditor(opts) {
+  const host = document.getElementById(opts.hostId);
   if (!host) return;
-  const items = (hubSettings.topbarClock && Array.isArray(hubSettings.topbarClock.items))
-    ? hubSettings.topbarClock.items : [];
+  const items = Array.isArray(opts.items) ? opts.items : [];
   host.replaceChildren();
   items.forEach((it, index) => {
     const row = document.createElement('div');
@@ -8194,24 +8296,34 @@ function renderTopbarIslandEditor() {
 
     const label = document.createElement('span');
     label.className = 'island-edit-label';
-    label.textContent = t(TOPBAR_ISLAND_LABELS[it.id] || it.id);
+    label.textContent = t(opts.labels[it.id] || it.id);
 
     const hidden = it.hidden === true;
+    // A row may refuse to be hidden (Settings). The eye stays, disabled and
+    // explained: a control that silently disappears reads as a fault, and the
+    // user still needs to see that this one is deliberately always on.
+    const locked = typeof opts.locked === 'function' && opts.locked(it.id);
     const eye = document.createElement('button');
     eye.type = 'button';
     eye.className = 'island-edit-eye';
     eye.classList.toggle('is-hidden', hidden);
+    eye.classList.toggle('is-locked', locked);
+    eye.disabled = locked;
     eye.setAttribute('aria-pressed', String(!hidden));
-    eye.title = t(hidden ? 'topbar_el_show' : 'topbar_el_hide');
+    eye.title = locked ? t('topbar_btn_always_hint') : t(hidden ? 'topbar_el_show' : 'topbar_el_hide');
     eye.innerHTML = hidden ? EYE_OFF_SVG : EYE_OPEN_SVG; // static, trusted markup
-    eye.addEventListener('click', () => toggleTopbarIslandItem(it.id));
+    if (!locked) eye.addEventListener('click', () => opts.onToggle(it.id));
 
     row.append(handle, label);
-    // Segments that carry their own options get a chevron; today only Musica
-    // does. The open/closed state is view-only (never persisted) but must
-    // survive the full re-render every settings change triggers, or toggling
-    // the option inside the panel would slam the panel shut.
-    const sub = islandItemOptions(it.id);
+    if (typeof opts.buildSide === 'function') {
+      const side = opts.buildSide(it);
+      if (side) row.append(side);
+    }
+    // Segments that carry their own options get a chevron. The open/closed state
+    // is view-only (never persisted) but must survive the full re-render every
+    // settings change triggers, or toggling the option inside the panel would
+    // slam the panel shut.
+    const sub = typeof opts.buildOptions === 'function' ? opts.buildOptions(it.id) : null;
     if (sub) {
       const caret = document.createElement('button');
       caret.type = 'button';
@@ -8234,13 +8346,58 @@ function renderTopbarIslandEditor() {
     }
     host.appendChild(row);
   });
-  initTopbarIslandDrag(host);
+  initTopbarIslandDrag(host, opts.onReorder);
+}
+
+function renderTopbarIslandEditor() {
+  renderTopbarSegmentEditor({
+    hostId: 'topbar-island-editor',
+    items: (hubSettings.topbarClock && Array.isArray(hubSettings.topbarClock.items))
+      ? hubSettings.topbarClock.items : [],
+    labels: TOPBAR_ISLAND_LABELS,
+    onToggle: toggleTopbarIslandItem,
+    onReorder: reorderTopbarIslandItem,
+    buildOptions: islandItemOptions,
+  });
+}
+
+// The chrome buttons. Same component, plus a left/right control per row: unlike
+// an island segment, a button lives in one of two containers and the user gets to
+// say which. Ordering is within the side it ends up on.
+function renderTopbarActionsEditor() {
+  renderTopbarSegmentEditor({
+    hostId: 'topbar-actions-editor',
+    items: (hubSettings.topbarClock && Array.isArray(hubSettings.topbarClock.actions))
+      ? hubSettings.topbarClock.actions : [],
+    labels: TOPBAR_ACTION_LABELS,
+    locked: (id) => id === 'settings' || id === 'layout',
+    onToggle: toggleTopbarActionItem,
+    onReorder: reorderTopbarActionItem,
+    buildSide: buildTopbarActionSide,
+  });
+}
+
+// Left/right segmented control for one button row.
+function buildTopbarActionSide(item) {
+  const wrap = document.createElement('div');
+  wrap.className = 'island-edit-side';
+  [['left', 'topbar_btn_side_left'], ['right', 'topbar_btn_side_right']].forEach(([side, key]) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'island-edit-side-btn' + (item.side === side ? ' active' : '');
+    btn.textContent = t(key);
+    btn.setAttribute('aria-pressed', String(item.side === side));
+    btn.addEventListener('click', () => setTopbarActionSide(item.id, side));
+    wrap.appendChild(btn);
+  });
+  return wrap;
 }
 
 // Build the options panel for a segment, or null when it has none.
 function islandItemOptions(id) {
-  if (id !== 'media') return null;
+  if (id !== 'media' && id !== 'dots') return null;
   const cfg = hubSettings.topbarClock || {};
+  const media = id === 'media';
   const sub = document.createElement('div');
   sub.className = 'island-edit-sub';
   const row = document.createElement('label');
@@ -8248,19 +8405,41 @@ function islandItemOptions(id) {
   const input = document.createElement('input');
   input.className = 'settings-check';
   input.type = 'checkbox';
-  input.checked = cfg.mediaTakeover === true;
-  input.addEventListener('change', () => updateIslandMediaTakeover(input.checked));
+  input.checked = media ? cfg.mediaTakeover === true : cfg.pageLabels === true;
+  input.addEventListener('change', () => (media
+    ? updateIslandMediaTakeover(input.checked)
+    : updateIslandPageLabels(input.checked)));
   const line = document.createElement('span');
   line.className = 'settings-label-line';
   const name = document.createElement('span');
-  name.textContent = t('topbar_el_media_full');
+  name.textContent = t(media ? 'topbar_el_media_full' : 'topbar_el_dots_labels');
   const hint = document.createElement('span');
   hint.className = 'settings-hint';
-  hint.textContent = t('topbar_el_media_full_hint');
+  hint.textContent = t(media ? 'topbar_el_media_full_hint' : 'topbar_el_dots_labels_hint');
   line.append(name, hint);
   row.append(input, line);
   sub.append(row);
   return sub;
+}
+
+// Page dots carry the page names instead of being anonymous circles. The option
+// is filed under the island's "Page dots" row because that is where the element
+// is configured, but it applies to BOTH chromes — the dots host lives in the
+// topbar and Minimal only carries it into the pill.
+function updateIslandPageLabels(checked) {
+  hubSettings = normalizeSettings({
+    ...hubSettings,
+    topbarClock: { ...(hubSettings.topbarClock || {}), pageLabels: checked === true },
+  });
+  saveHubSettings();
+  if (window.DashboardPager && typeof DashboardPager.renderDots === 'function') DashboardPager.renderDots();
+  // Circles become pills, so the dots row changes width — and in Minimal that row
+  // is INSIDE the island pill, whose width is what every top-row tile was tucked
+  // clear of. Without this the pill grows over tile headers that keep their stale
+  // inset until some unrelated event happens to reflow. Same rule sdk-badges.js
+  // follows when a chip appears: a structural change re-runs the island layout.
+  applyTopbarClockSettings();
+  setSettingsStatus('settings_saved', 'ok');
 }
 
 // While a track plays, hand the whole capsule to the player and step the other
@@ -8280,10 +8459,13 @@ function updateIslandMediaTakeover(checked) {
 // Pointer-based vertical reorder for the island editor, delegated once on the
 // list host. touch-action:none on the grip (CSS) lets the drag own the gesture
 // without the settings panel scrolling. Same tap-vs-drag shape as app favorites.
-let _islandDragInit = false;
-function initTopbarIslandDrag(host) {
-  if (_islandDragInit) return;
-  _islandDragInit = true;
+// Bound once PER HOST — the two lists are separate elements with separate
+// writers, so a single module-level flag would arm whichever rendered first and
+// leave the other permanently undraggable.
+const _islandDragBound = new WeakSet();
+function initTopbarIslandDrag(host, onReorder) {
+  if (_islandDragBound.has(host)) return;
+  _islandDragBound.add(host);
   let row = null, fromIndex = -1, startY = 0, dragging = false;
 
   host.addEventListener('pointerdown', (e) => {
@@ -8319,7 +8501,7 @@ function initTopbarIslandDrag(host) {
       const rect = s.getBoundingClientRect();
       if (e.clientY > rect.top + rect.height / 2) insert++;
     }
-    reorderTopbarIslandItem(fromIndex, insert);
+    onReorder(fromIndex, insert);
   };
 
   host.addEventListener('pointerup', (e) => finish(e, true));
@@ -8342,6 +8524,47 @@ function toggleTopbarIslandItem(id) {
     ? hubSettings.topbarClock.items : [];
   const items = source.map(it => ({ id: it.id, hidden: it.id === id ? it.hidden !== true : it.hidden === true }));
   _saveTopbarIslandItems(items);
+}
+
+// Move a chrome button to a new position. Order is a single list; which side a
+// button ends up on is its own field, so a reorder never changes a side.
+function reorderTopbarActionItem(fromIndex, toIndex) {
+  const items = _topbarActionItems();
+  if (fromIndex < 0 || fromIndex >= items.length) return;
+  const [moved] = items.splice(fromIndex, 1);
+  items.splice(Math.max(0, Math.min(items.length, toIndex)), 0, moved);
+  _saveTopbarActions(items);
+}
+
+// Show/hide a chrome button. The two doors back in — Settings and Layout — are
+// refused here as well as in the normalizer: the editor disables their eyes, but
+// this is the function a future caller would reach for.
+function toggleTopbarActionItem(id) {
+  if (id === 'settings' || id === 'layout') return;
+  _saveTopbarActions(_topbarActionItems().map(it => (
+    it.id === id ? { ...it, hidden: it.hidden !== true } : it
+  )));
+}
+
+function setTopbarActionSide(id, side) {
+  if (side !== 'left' && side !== 'right') return;
+  _saveTopbarActions(_topbarActionItems().map(it => (it.id === id ? { ...it, side } : it)));
+}
+
+function _topbarActionItems() {
+  return (hubSettings.topbarClock && Array.isArray(hubSettings.topbarClock.actions))
+    ? hubSettings.topbarClock.actions.map(it => ({ ...it })) : [];
+}
+
+function _saveTopbarActions(actions) {
+  hubSettings = normalizeSettings({
+    ...hubSettings,
+    topbarClock: { ...(hubSettings.topbarClock || {}), actions },
+  });
+  saveHubSettings();
+  syncTopbarClockControls();
+  applyTopbarClockSettings();
+  setSettingsStatus('settings_saved', 'ok');
 }
 
 function _saveTopbarIslandItems(items) {
@@ -8400,7 +8623,7 @@ async function renderDynamicIslandSources() {
   catch { payload = { packages: [] }; }
   if (!host.isConnected) return;
   const packages = (payload && Array.isArray(payload.packages) ? payload.packages : [])
-    .filter((pkg) => pkg && (pkg.island === true || pkg.islandDynamic === true || pkg.badge === true))
+    .filter((pkg) => pkg && (pkg.island === true || pkg.islandDynamic === true || pkg.badge === true || pkg.mini === true))
     .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)));
   host.replaceChildren();
   if (!packages.length) {
@@ -8426,6 +8649,7 @@ async function renderDynamicIslandSources() {
     else if (pkg.islandDynamic === true) keys.push('island_source_dynamic');
     else if (pkg.island === true) keys.push('island_source_live');
     if (pkg.badge === true) keys.push('island_source_badge');
+    if (pkg.mini === true) keys.push('island_source_mini');
     capabilities.textContent = keys.map((key) => t(key)).join(' · ');
     copy.append(title, capabilities);
 
@@ -8452,6 +8676,7 @@ function toggleDynamicIslandSource(pkgId, enabled) {
   saveHubSettings();
   if (window.SdkIsland) window.SdkIsland.apply();
   if (window.SdkBadges) window.SdkBadges.apply();
+  if (window.SdkMini) window.SdkMini.apply();
   setSettingsStatus('settings_saved', 'ok');
 }
 
@@ -8466,15 +8691,29 @@ function updateDynamicIslandTakeovers(checked) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
-function resetDynamicIslandSettings() {
+// Puts the WHOLE bar back to how it shipped: chrome style, island position,
+// island elements, the button layout (hidden/order/side), the rails, the clock
+// format and every per-package opt-out. It asks first — since v4.12 this throws
+// away an arrangement the user may have spent real time on, and there is no undo.
+async function resetDynamicIslandSettings() {
+  if (typeof settingsPrompt === 'function') {
+    const ok = await settingsPrompt({
+      type: 'confirm',
+      title: t('settings_island_reset'),
+      message: t('settings_island_reset_confirm'),
+      okLabel: t('settings_island_reset'),
+    });
+    if (ok !== true) return;
+  }
   const items = DEFAULT_HUB_SETTINGS.topbarClock.items.map((item) => ({ ...item }));
+  const actions = DEFAULT_HUB_SETTINGS.topbarClock.actions.map((item) => ({ ...item }));
   hubSettings = normalizeSettings({
     ...hubSettings,
     topbarStyle: DEFAULT_HUB_SETTINGS.topbarStyle,
     topbarRails: { ...DEFAULT_HUB_SETTINGS.topbarRails },
     topbarRailsAutoHide: DEFAULT_HUB_SETTINGS.topbarRailsAutoHide,
     clockFormat: DEFAULT_HUB_SETTINGS.clockFormat,
-    topbarClock: { version: 2, align: 'center', takeovers: true, mediaTakeover: false, hiddenSources: [], items },
+    topbarClock: { version: 2, align: 'center', takeovers: true, mediaTakeover: false, pageLabels: false, hiddenSources: [], items, actions },
     dashboardLayout: { ...getDashboardLayout(), topbarHidden: false },
     claudeWidget: { ...(hubSettings.claudeWidget || {}), topbar: true },
     vitals: { ...(hubSettings.vitals || {}), topbar: false },
@@ -8490,6 +8729,7 @@ function resetDynamicIslandSettings() {
   if (window.CustomWidget && typeof window.CustomWidget.refreshTheme === 'function') window.CustomWidget.refreshTheme();
   if (window.SdkIsland) window.SdkIsland.apply();
   if (window.SdkBadges) window.SdkBadges.apply();
+  if (window.SdkMini) window.SdkMini.apply();
   renderDynamicIslandSources();
   if (typeof applyDashboardLayoutWithTransition === 'function') applyDashboardLayoutWithTransition();
   setSettingsStatus('settings_saved', 'ok');

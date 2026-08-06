@@ -834,6 +834,42 @@ input[type="range"] { accent-color: var(--green); }
 .island-edit-eye svg { width: 17px; height: 17px; fill: currentColor; }
 .island-edit-eye:hover { background: rgba(var(--accent-rgb),0.1); }
 .island-edit-eye.is-hidden { color: var(--dim-text); }
+/* A row that may not be hidden (Settings) keeps its eye, dimmed and inert, with
+   the reason on the tooltip. Removing the control instead would read as a bug. */
+.island-edit-eye.is-locked {
+  color: var(--dim-text);
+  opacity: 0.45;
+  cursor: default;
+}
+.island-edit-eye.is-locked:hover { background: transparent; }
+
+/* Left/right chooser on a chrome-button row. Compact on purpose: it sits
+   between a label that may be long and the eye, and the Edge is a touchscreen,
+   so the two targets stay finger-sized while the control stays narrow. */
+.island-edit-side {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--floating-ui-border);
+  border-radius: 9px;
+  background: rgba(255,255,255,0.03);
+}
+.island-edit-side-btn {
+  min-width: 42px;
+  padding: 4px 7px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--dim-text);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.island-edit-side-btn:hover { color: var(--text); }
+.island-edit-side-btn.active { background: rgba(var(--accent-rgb),0.16); color: var(--accent); }
 
 /* ── Appearance (light / dark / auto) segmented control ──── */
 .settings-appearance-seg { grid-template-columns: repeat(3, minmax(0,1fr)); }

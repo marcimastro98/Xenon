@@ -22,6 +22,21 @@ test('normalizePagesList clamps long names and preserves nameKey', () => {
   assert.equal(long[0].name.length, 40);
 });
 
+test('resolveRenamedPageName stores a typed name and clamps it', () => {
+  assert.equal(p.resolveRenamedPageName('  Media  ', true, 'Pagina 2'), 'Media');
+  assert.equal(p.resolveRenamedPageName('z'.repeat(80), false, 'Pagina 2').length, 40);
+});
+
+test('an emptied rename resets instead of exposing the page id', () => {
+  // With a seed key: store '' so pageDisplayName falls through to the key and
+  // the page follows the interface language again.
+  assert.equal(p.resolveRenamedPageName('', true, 'Pagina 1'), '');
+  assert.equal(p.resolveRenamedPageName('   ', true, 'Pagina 1'), '');
+  // Without one, '' would leave pageDisplayName on the raw id (page-lx3k9).
+  assert.equal(p.resolveRenamedPageName('', false, 'Pagina 2'), 'Pagina 2');
+  assert.equal(p.resolveRenamedPageName(null, false, 'Pagina 2'), 'Pagina 2');
+});
+
 test('reassignOrphanWidgetPages sends widgets on missing pages to the first page', () => {
   const widgets = { a: { page: 'gone' }, b: { page: 'dashboard' } };
   p.reassignOrphanWidgetPages(widgets, ['dashboard', 'lighting'], 'dashboard');

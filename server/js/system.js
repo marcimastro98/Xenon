@@ -161,6 +161,27 @@ function tempUnitSuffix() {
   return (typeof hubSettings === 'object' && hubSettings && hubSettings.tempUnit === 'f') ? 'F' : 'C';
 }
 
+// A forecast that failed now says WHICH link broke. The server answers ok:false
+// with an `error` (server.js getWeather) instead of a 500, because "unavailable"
+// alone is indistinguishable from a bug in Xenon: the same blank tile means the
+// PC never got its coordinates, or the city was not found, or the weather
+// services were down — three different things to do about it, and the user was
+// shown none of them. Unknown/absent error (a fetch that never reached the
+// server) keeps the old generic wording.
+const WEATHER_ERROR_KEYS = {
+  no_location: 'weather_err_no_location',
+  city_not_found: 'weather_err_city',
+  providers_down: 'weather_err_providers',
+};
+function weatherErrorLabel(data) {
+  const key = WEATHER_ERROR_KEYS[data && data.error];
+  return key ? t(key) : t('weather_no_data');
+}
+function weatherErrorHint(data) {
+  const key = WEATHER_ERROR_KEYS[data && data.error];
+  return key ? t(`${key}_hint`) : t('weather_retry_hint');
+}
+
 function applyWeather(data) {
   weatherData = data || null;
   // Relay to granted SDK widgets/scenes. Weather is client-polled (no SSE
@@ -175,7 +196,7 @@ function applyWeather(data) {
     pill.classList.add('offline');
     $('weather-temp').textContent = '--°';
     $('weather-place').textContent = t('weather_unavailable');
-    pill.title = t('weather_unavailable');
+    pill.title = [t('weather_unavailable'), weatherErrorLabel(data)].join(' · ');
     applyWeatherPillState(null);
     renderWeatherDetails();
     renderWeatherTile();
@@ -424,7 +445,7 @@ function buildWeatherHeroCard(data) {
   temp.textContent = ok ? `${toDisplayTemp(data.tempC)}°` : '--°';
   const cond = document.createElement('div');
   cond.className = 'weather-hero-condition';
-  cond.textContent = ok ? (data.condition || t('weather_title')) : t('weather_no_data');
+  cond.textContent = ok ? (data.condition || t('weather_title')) : weatherErrorLabel(data);
   card.append(place, temp, cond);
 
   if (ok) {
@@ -715,12 +736,14 @@ function renderWeatherDetails() {
     setWeatherModalState(null);
     place.textContent = t('weather_unavailable');
     temp.textContent = '--°';
-    condition.textContent = t('weather_no_data');
+    condition.textContent = weatherErrorLabel(data);
     updated.textContent = '';
     if (heroFeels) heroFeels.textContent = '--';
     if (heroWind) heroWind.textContent = '--';
     if (heroRain) heroRain.textContent = '--';
-    metrics.replaceChildren(createWeatherMetric(t('weather_status'), t('offline'), t('weather_retry_hint')));
+    const explain = createWeatherMetric(t('weather_status'), weatherErrorLabel(data), weatherErrorHint(data));
+    explain.classList.add('weather-metric--explain');
+    metrics.replaceChildren(explain);
     hourly.replaceChildren();
     forecast.replaceChildren();
     return;

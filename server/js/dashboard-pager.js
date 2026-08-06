@@ -128,15 +128,69 @@
     });
   }
 
+  // Opt-in (topbarClock.pageLabels): the dots carry the page names instead of
+  // being anonymous circles. Read live rather than cached — the option lives in
+  // the island editor and must take effect on the next renderDots() with no
+  // reload. Applies in BOTH chromes: the dots host sits in the topbar and is
+  // only carried into the pill by Minimal.
+  function labelsEnabled() {
+    const cfg = (typeof hubSettings !== 'undefined' && hubSettings && hubSettings.topbarClock) || null;
+    return !!(cfg && cfg.pageLabels === true);
+  }
+
+  // Re-label a registered page without rebuilding the pager. A label is captured
+  // at registration, so a page named by a seed key would otherwise stay in the
+  // previous language until the next page mutation — invisible while the dots
+  // were circles, plain to see once they carry text.
+  function setLabel(id, label) {
+    const page = pages.find(p => p.id === id);
+    if (!page || typeof label !== 'string' || !label) return false;
+    if (page.label === label) return false;
+    page.label = label;
+    return true;
+  }
+
   // One navigation dot for the topbar host.
   function navDot(page, i) {
     const dot = document.createElement('button');
     dot.type = 'button';
-    dot.className = 'pager-dot' + (i === currentIndex ? ' is-active' : '');
+    const labelled = labelsEnabled();
+    dot.className = 'pager-dot' + (labelled ? ' is-labelled' : '') + (i === currentIndex ? ' is-active' : '');
+    // The name is user-written: textContent, never innerHTML. aria-label stays
+    // on the button either way, so nothing about the a11y contract changes.
+    if (labelled) {
+      const text = document.createElement('span');
+      text.className = 'pager-dot-label';
+      text.textContent = page.label;
+      dot.appendChild(text);
+      dot.title = page.label;
+    }
     dot.setAttribute('aria-label', page.label);
     dot.setAttribute('aria-current', i === currentIndex ? 'true' : 'false');
     dot.addEventListener('click', () => goToPage(page.id));
     return dot;
+  }
+
+  // Rename the page you are on, from Layout mode. settingsPrompt (settings.js)
+  // rather than the native prompt(): the Edge WebView does not answer that one
+  // reliably, which is exactly why the helper exists. An empty answer is a
+  // reset, not a blank name — DashboardPages.rename resolves what that means.
+  async function renameCurrentPage() {
+    const id = getCurrentPage();
+    if (!id || !window.DashboardPages || typeof window.DashboardPages.rename !== 'function') return;
+    const label = (key, fb) => (typeof t === 'function' ? t(key) : fb);
+    const current = typeof window.DashboardPages.storedName === 'function'
+      ? window.DashboardPages.storedName(id) : '';
+    if (typeof settingsPrompt !== 'function') return;
+    const next = await settingsPrompt({
+      type: 'text',
+      title: label('layout_rename_page', 'Rename page'),
+      message: label('layout_rename_page_hint', 'Leave empty to restore the default name.'),
+      value: current,
+      maxLength: 40,
+    });
+    if (next === null) return;   // cancelled — an empty string is a deliberate reset
+    window.DashboardPages.rename(id, next);
   }
 
   function renderDots() {
@@ -172,6 +226,15 @@
       };
       dotsHost.appendChild(mkMove(-1, '‹', 'layout_move_page_left', 'Move page left', herePos <= 0));
       dotsHost.appendChild(mkMove(1, '›', 'layout_move_page_right', 'Move page right', herePos < 0 || herePos >= activeIdx.length - 1));
+
+      const rename = document.createElement('button');
+      rename.type = 'button';
+      rename.className = 'pager-page-btn pager-page-rename';
+      rename.textContent = '✎';
+      rename.title = label('layout_rename_page', 'Rename page');
+      rename.setAttribute('aria-label', rename.title);
+      rename.addEventListener('click', () => renameCurrentPage());
+      dotsHost.appendChild(rename);
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'pager-page-btn pager-page-remove';
@@ -372,7 +435,7 @@
   }
 
   if (typeof window !== 'undefined') {
-    window.DashboardPager = { init, registerPage, goToPage, getCurrentPage, isOnCurrentPage, setActivePages, setPages, renderDots, refreshSwipe };
+    window.DashboardPager = { init, registerPage, setLabel, goToPage, getCurrentPage, isOnCurrentPage, setActivePages, setPages, renderDots, refreshSwipe };
     // Shared rule for the layout module so "which pages are active" lives in one
     // place. Caller supplies the current (dynamic) page-id list.
     window.computeActivePagesForLayout = (allPageIds, widgets, editing) => computeActivePages(allPageIds, widgets, editing);

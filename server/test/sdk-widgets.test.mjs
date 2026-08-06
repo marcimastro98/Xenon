@@ -16,6 +16,7 @@ test('manifest: valid minimal manifest normalizes', () => {
   assert.deepEqual(r.manifest, {
     id: 'clock', api: 1, name: 'Clock', version: '0.0.0', author: '',
     description: '', surface: 'tile', background: false, island: false, islandDynamic: false, islandFull: false, badge: false,
+    badgeAction: false, mini: false,
     clipboard: false, accent: false, expand: false, shape: null, storage: false, storageGroup: '', secrets: false,
     entry: 'index.html', streams: [], actions: [],
     hosts: [], userHosts: [], hooks: [], deck: { actions: [], states: [], handlers: [] },
@@ -102,6 +103,35 @@ test('manifest: badge defaults off, opts in only on the exact true literal', () 
   assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', badge: 1 }, 'x0').manifest.badge, false);
   assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', badge: 'yes' }, 'x0').manifest.badge, false);
   assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', badge: {} }, 'x0').manifest.badge, false);
+});
+
+test('manifest: a tappable badge is a separate opt-in that implies the badge', () => {
+  // Same split as island's dynamic/full: an approval given to the read-only chip
+  // must never grow into a pressable one when the package updates.
+  const plain = sdk.normalizeManifest({ api: 1, name: 'X', badge: true }, 'x0').manifest;
+  assert.equal(plain.badge, true);
+  assert.equal(plain.badgeAction, false);
+  const tap = sdk.normalizeManifest({ api: 1, name: 'X', badge: { action: true } }, 'x0').manifest;
+  assert.equal(tap.badge, true);
+  assert.equal(tap.badgeAction, true);
+  // Truthy junk inside the object buys nothing either.
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', badge: { action: 1 } }, 'x0').manifest.badgeAction, false);
+});
+
+test('manifest: mini defaults off, opts in only on the exact true literal', () => {
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X' }, 'm0').manifest.mini, false);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', mini: true }, 'm1').manifest.mini, true);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', mini: 'true' }, 'm2').manifest.mini, false);
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', mini: 1 }, 'm3').manifest.mini, false);
+});
+
+test('manifest: a mini slot justifies a background frame', () => {
+  // Same rule as badge and dynamic island: a persistent readout the user put in
+  // the bar has to keep updating with no tile on screen, or it goes stale.
+  const m = sdk.normalizeManifest({ api: 1, name: 'X', mini: true, background: true }, 'm4').manifest;
+  assert.equal(m.background, true);
+  // ...and a package asking for background with nothing persistent still gets none.
+  assert.equal(sdk.normalizeManifest({ api: 1, name: 'X', background: true }, 'm5').manifest.background, false);
 });
 
 test('manifest: clipboard defaults off, opts in only on the exact true literal', () => {

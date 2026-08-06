@@ -3167,10 +3167,49 @@ function metnoBucket(symbol) {
 // for AUTO mode; wttr self-geolocates so it doesn't. Cached like the forecast,
 // and the last good answer is persisted to DATA_DIR: the backend restarts at
 // every boot (native-app nudge), so an in-memory-only value is gone exactly
-// when it's needed most — if ipwho.is is then down or slow, one surface gets
+// when it's needed most — if the lookup is then down or slow, one surface gets
 // coordinates (open-meteo) and another gets none (wttr's own IP guess), i.e.
 // two different forecasts for the same PC until the next refresh (#72). Stale
 // coordinates beat no coordinates.
+//
+// Several sources are tried in order, because losing this step is far more
+// expensive than it looks: with no coordinates open-meteo AND met.no are skipped
+// outright (both return null on the first line), so the whole feature silently
+// degrades to wttr — the least reliable of the three — and stays there until the
+// day wttr is rate-limited too, at which point the tile blanks. That is exactly
+// the Discord report against v4.11.3 ("Weather not working and still wrong next
+// hours"): the wrong hours were the tell that the machine had been running on
+// the wttr fallback for weeks. One hostname is one point of failure, and the
+// realistic causes here (a DNS-level blocker on the PC or the router, a filtering
+// antivirus, a corporate resolver) block SOME names and not others — so a second
+// and third name is a far cheaper fix than asking a user to audit blocklists.
+// Keep every source free, key-less and https, and keep the parsers pure: they are
+// fixture-tested in test/weather-geo-sources.test.mjs against real payloads.
+const GEO_IP_SOURCES = Object.freeze([
+  { name: 'ipwho.is', url: 'https://ipwho.is/',
+    parse: (g) => (g && g.success === false ? null : { lat: g && g.latitude, lon: g && g.longitude, location: g && g.city, region: g && g.region, country: g && g.country }) },
+  { name: 'geojs', url: 'https://get.geojs.io/v1/ip/geo.json',
+    parse: (g) => ({ lat: g && g.latitude, lon: g && g.longitude, location: g && g.city, region: g && g.region, country: g && g.country }) },
+  { name: 'ipapi', url: 'https://ipapi.co/json/',
+    parse: (g) => (g && g.error ? null : { lat: g && g.latitude, lon: g && g.longitude, location: g && g.city, region: g && g.region, country: g && g.country_name }) },
+]);
+// Shape-check one source's answer. Coordinates arrive as numbers from one
+// service and as strings from another, so everything goes through Number();
+// 0/0 is refused because it is what a service returns when it does NOT know
+// (null island is in the Atlantic, and a forecast for it looks like real data).
+function normalizeGeoIpValue(parsed) {
+  const lat = Number(parsed && parsed.lat);
+  const lon = Number(parsed && parsed.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+  if (lat === 0 && lon === 0) return null;
+  return {
+    lat, lon,
+    location: String((parsed && parsed.location) || ''),
+    region: String((parsed && parsed.region) || ''),
+    country: String((parsed && parsed.country) || ''),
+  };
+}
 const WEATHER_GEO_FILE = path.join(DATA_DIR, 'weather-geo.json');
 let weatherAutoLocation = { value: null, updatedAt: 0 };
 let weatherGeoLoad = null; // shared promise — concurrent boot fetches read the file once
@@ -3192,8 +3231,13 @@ async function loadPersistedAutoLocation() {
     }
   } catch { /* first run or unreadable — resolve fresh below */ }
 }
-let weatherGeoRefresh = null; // in-flight ipwho.is lookup, shared across concurrent callers
+let weatherGeoRefresh = null; // in-flight lookup, shared across concurrent callers
 let weatherGeoFailAt = 0;     // last failed lookup — skip retrying for a cooldown
+// Which source answered / how the last attempt went. Diagnostics only: it rides
+// the failure payload of /weather so a support report says WHY instead of just
+// "unavailable" — the whole reason this class of bug took three reports to place.
+let weatherGeoSource = '';
+let weatherGeoAttempts = '';
 const WEATHER_GEO_FAIL_COOLDOWN_MS = 60 * 1000;
 async function resolveAutoLocation() {
   if (!weatherGeoLoad) weatherGeoLoad = loadPersistedAutoLocation();
@@ -3207,27 +3251,32 @@ async function resolveAutoLocation() {
     return weatherAutoLocation.value || null;
   }
   // Concurrent misses (several surfaces/languages refreshing at the same tick)
-  // share one lookup: ipwho.is is a free, rate-limited service, and a burst of
-  // parallel requests is exactly what gets throttled.
+  // share one lookup: these are free, rate-limited services, and a burst of
+  // parallel requests is exactly what gets throttled. The sources are tried in
+  // order and the FIRST usable answer wins — a later one is never consulted, so
+  // the normal case still costs exactly one request, as it did before.
   if (!weatherGeoRefresh) {
     weatherGeoRefresh = (async () => {
-      try {
-        const geo = await fetchJson('https://ipwho.is/', 3000);
-        const lat = Number(geo && geo.latitude);
-        const lon = Number(geo && geo.longitude);
-        if (geo && geo.success !== false && Number.isFinite(lat) && Number.isFinite(lon)) {
-          const value = {
-            lat, lon,
-            location: String(geo.city || ''),
-            region: String(geo.region || ''),
-            country: String(geo.country || ''),
-          };
-          weatherAutoLocation = { value, updatedAt: Date.now() };
-          writeFileAtomic(WEATHER_GEO_FILE, JSON.stringify({ ...value, updatedAt: weatherAutoLocation.updatedAt }))
-            .catch(() => { /* best-effort — memory copy still serves this run */ });
-          return value;
+      const attempts = [];
+      for (const source of GEO_IP_SOURCES) {
+        let value = null;
+        try {
+          value = normalizeGeoIpValue(source.parse(await fetchJson(source.url, 3000)));
+          attempts.push(`${source.name}:${value ? 'ok' : 'no_data'}`);
+        } catch (e) {
+          // A blocked hostname fails here (NXDOMAIN / refused connection / a
+          // filter's HTML interstitial that won't parse as JSON) — try the next.
+          attempts.push(`${source.name}:${String((e && e.code) || 'error').slice(0, 24)}`);
         }
-      } catch { /* fall through to the last known place */ }
+        if (!value) continue;
+        weatherAutoLocation = { value, updatedAt: Date.now() };
+        weatherGeoSource = source.name;
+        weatherGeoAttempts = attempts.join(', ');
+        writeFileAtomic(WEATHER_GEO_FILE, JSON.stringify({ ...value, updatedAt: weatherAutoLocation.updatedAt }))
+          .catch(() => { /* best-effort — memory copy still serves this run */ });
+        return value;
+      }
+      weatherGeoAttempts = attempts.join(', ');
       weatherGeoFailAt = Date.now();
       return null;
     })().finally(() => { weatherGeoRefresh = null; });
@@ -3564,10 +3613,20 @@ async function getWeather(lang = 'en', requestedLocation = null) {
     }
 
     // Try providers in order; the first that answers wins. A single source being
-    // down or coordinate-less never blanks the widget.
+    // down or coordinate-less never blanks the widget. The outcome of each is
+    // recorded: when they ALL fail, the difference between "we never got
+    // coordinates" and "the services didn't answer" is the whole diagnosis, and
+    // until now neither the user nor a support reply could tell them apart.
+    const hasCoords = Number.isFinite(ctx.lat) && Number.isFinite(ctx.lon);
+    const tried = {};
     let data = null;
     for (const name of weatherProviderOrder(provider)) {
+      // open-meteo and met.no return null on their first line without
+      // coordinates; naming that as skipped rather than failed keeps the report
+      // honest about which link in the chain actually broke.
+      if (!hasCoords && name !== 'wttr') { tried[name] = 'no_coordinates'; continue; }
       data = await WEATHER_FETCHERS[name](ctx);
+      tried[name] = data && data.ok ? 'ok' : 'failed';
       if (data && data.ok) break;
     }
     if (!data || !data.ok) {
@@ -3576,7 +3635,18 @@ async function getWeather(lang = 'en', requestedLocation = null) {
       // never blanks the tile while the providers recover (#88).
       const bridge = cached ? cached.data : newestWeatherForLocation(provider, location.mode, location.city);
       if (bridge) return { ...bridge, stale: true };
-      throw new Error('Weather unavailable from all providers');
+      // Answered rather than thrown: a 500 with a stack message tells the tile
+      // nothing it can show, and the tile is where the user is. The failure is
+      // NOT cached — the next poll retries in full.
+      return {
+        ok: false,
+        error: hasCoords ? 'providers_down' : (location.mode === 'manual' ? 'city_not_found' : 'no_location'),
+        providers: tried,
+        geo: location.mode === 'manual' ? '' : (weatherGeoSource || weatherGeoAttempts || 'none'),
+        locationMode: location.mode,
+        requestedCity: location.city,
+        updatedAt: Date.now(),
+      };
     }
 
     data.locationMode = location.mode;
@@ -7327,6 +7397,20 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     // Music takeover: the player owns the whole capsule while a track plays, and
     // the other segments return the moment it pauses. Off by default.
     mediaTakeover: false,
+    // Page dots as labelled pills carrying the page names. Off by default.
+    pageLabels: false,
+    // The chrome buttons: order, side, visibility (see normalizeTopbarActions).
+    actions: Object.freeze([
+      Object.freeze({ id: 'lock', hidden: false, side: 'left' }),
+      Object.freeze({ id: 'ambient', hidden: false, side: 'left' }),
+      Object.freeze({ id: 'xenon', hidden: false, side: 'left' }),
+      Object.freeze({ id: 'search', hidden: false, side: 'left' }),
+      Object.freeze({ id: 'mini', hidden: false, side: 'left' }),
+      Object.freeze({ id: 'layout', hidden: false, side: 'right' }),
+      Object.freeze({ id: 'settings', hidden: false, side: 'right' }),
+      Object.freeze({ id: 'apps', hidden: false, side: 'right' }),
+      Object.freeze({ id: 'favorites', hidden: false, side: 'right' }),
+    ]),
     hiddenSources: Object.freeze([]),
     items: Object.freeze([
       Object.freeze({ id: 'time', hidden: false }),
@@ -8431,7 +8515,57 @@ function normalizeTopbarClock(value, legacyRoot) {
       if (typeof id === 'string' && sourceRe.test(id) && !hiddenSources.includes(id)) hiddenSources.push(id);
     }
   }
-  return { version: 2, align, items, hiddenSources, takeovers: v.takeovers !== false, mediaTakeover: v.mediaTakeover === true };
+  return {
+    version: 2, align, items, actions: normalizeTopbarActions(v.actions), hiddenSources,
+    takeovers: v.takeovers !== false,
+    mediaTakeover: v.mediaTakeover === true,
+    pageLabels: v.pageLabels === true,   // page dots render the page names
+  };
+}
+
+// The chrome BUTTONS — order, side, visibility. Twin of normalizeTopbarActions in
+// js/settings.js; both must agree or a save from any surface resets the list.
+// `settings` and `layout` are forced visible: they are the two ways back IN (undo
+// anything; rearrange the dashboard again), and on a touch kiosk with no keyboard
+// there is no other route to either. The repair belongs in the normalizer rather
+// than in the editor, so a list from a backup or a hand-edited file comes back
+// correct instead of merely being drawn correctly.
+const TOPBAR_ALWAYS_SHOWN = ['settings', 'layout'];
+const TOPBAR_ACTION_DEFAULTS = [
+  { id: 'lock', side: 'left', hidden: false },
+  { id: 'ambient', side: 'left', hidden: false },
+  { id: 'xenon', side: 'left', hidden: false },
+  { id: 'search', side: 'left', hidden: false },
+  { id: 'mini', side: 'left', hidden: false },
+  { id: 'layout', side: 'right', hidden: false },
+  { id: 'settings', side: 'right', hidden: false },
+  { id: 'apps', side: 'right', hidden: false },
+  { id: 'favorites', side: 'right', hidden: false },
+];
+function normalizeTopbarActions(value) {
+  const byId = new Map(TOPBAR_ACTION_DEFAULTS.map((entry) => [entry.id, entry]));
+  const seen = new Set();
+  const out = [];
+  const add = (def, raw) => {
+    seen.add(def.id);
+    out.push({
+      id: def.id,
+      hidden: TOPBAR_ALWAYS_SHOWN.includes(def.id) ? false : (raw ? raw.hidden === true : def.hidden),
+      side: (raw && (raw.side === 'left' || raw.side === 'right')) ? raw.side : def.side,
+    });
+  };
+  if (Array.isArray(value)) {
+    for (const it of value) {
+      const id = it && typeof it === 'object' ? it.id : null;
+      const def = byId.get(id);
+      if (!def || seen.has(id)) continue;
+      add(def, it);
+    }
+  }
+  for (const def of TOPBAR_ACTION_DEFAULTS) {
+    if (!seen.has(def.id)) add(def, null);
+  }
+  return out;
 }
 
 // Scrolling ticker bar config: enabled, edge position, marquee speed and which

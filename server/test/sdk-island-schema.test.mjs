@@ -70,3 +70,61 @@ test('dynamic island: clear scopes normalize and malformed payloads reject', () 
   assert.equal(schema.normalize({ op: 'present', blocks: [{ type: 'html', html: '<b>x</b>' }] }), null);
   assert.equal(schema.normalize(null), null);
 });
+
+// ── Mini slot ─────────────────────────────────────────────────────────────
+// The topbar's button row is a much smaller room than the island, and it is a
+// STATE rather than an announcement. normalizeMini shares the block vocabulary
+// and tightens everything around it; these pin the differences that matter.
+
+test('mini: shares the island block vocabulary but caps blocks at 4', () => {
+  const view = schema.normalizeMini({
+    op: 'present',
+    blocks: [
+      { type: 'icon', text: '★', color: '#ffcc00' },
+      { type: 'text', text: 'Stars', tone: 'muted' },
+      { type: 'progress', value: 2 },
+      { type: 'bars', values: [0.2, 0.9] },
+      { type: 'text', text: 'dropped' },
+    ],
+  });
+  assert.equal(view.op, 'present');
+  assert.equal(view.blocks.length, 4);
+  assert.equal(view.blocks[0].color, '#ffcc00');
+  assert.equal(view.blocks[2].value, 1);          // clamped, same helper as the island
+  assert.equal(view.blocks.some((b) => b.text === 'dropped'), false);
+});
+
+test('mini: at most one button, and no builtin mirroring', () => {
+  const view = schema.normalizeMini({
+    op: 'present',
+    blocks: [
+      { type: 'button', id: 'one', label: 'One' },
+      { type: 'button', id: 'two', label: 'Two' },
+      // A clock mirrored into a slot that may sit beside the real clock is a
+      // duplicate, not a feature — the type is simply not in the mini list.
+      { type: 'builtin', value: 'time' },
+      { type: 'text', text: 'ok' },
+    ],
+  });
+  assert.equal(view.blocks.filter((b) => b.type === 'button').length, 1);
+  assert.equal(view.blocks.some((b) => b.type === 'builtin'), false);
+  assert.equal(view.blocks.some((b) => b.text === 'ok'), true);
+});
+
+test('mini: no takeover lane, no duration, no layout', () => {
+  const view = schema.normalizeMini({
+    op: 'present', mode: 'takeover', duration: 30000, layout: 'full',
+    blocks: [{ type: 'text', text: 'x' }],
+  });
+  assert.equal(view.mode, undefined);
+  assert.equal(view.duration, undefined);
+  assert.equal(view.layout, undefined);
+});
+
+test('mini: clear is scopeless, and malformed payloads reject', () => {
+  assert.deepEqual(schema.normalizeMini({ op: 'clear', scope: 'live' }), { op: 'clear' });
+  assert.equal(schema.normalizeMini({ op: 'present', blocks: [] }), null);
+  assert.equal(schema.normalizeMini({ op: 'present', blocks: [{ type: 'html', html: '<b>x</b>' }] }), null);
+  assert.equal(schema.normalizeMini({ blocks: [{ type: 'text', text: 'x' }] }), null);
+  assert.equal(schema.normalizeMini(null), null);
+});
