@@ -1621,7 +1621,7 @@ Rules the host enforces:
   reply message either way.
 - **Coalesced updates.** Bursts are rate-limited (~500 ms); the latest text
   always lands.
-- **Tappable, if you ask for it (v4.12).** `"badge": true` stays exactly what it
+- **Tappable, if you ask for it (v4.11.4).** `"badge": true` stays exactly what it
   has always been: a read-only chip that does nothing when pressed. Declare
   `"badge": { "action": true }` instead and the chip becomes a real button; a tap
   posts `{ type: 'badge_action' }` to your frame and your widget decides what
@@ -1654,9 +1654,9 @@ Rules the host enforces:
   chip within a few seconds.
 - An empty `text` on `set` counts as `clear`. There is no reply message.
 
-### 9d. Mini slot — `mini` (widget → host) (v4.12)
+### 9d. Mini slot — `mini` (widget → host) (v4.11.4)
 
-Since v4.12 the user can hide the top bar's buttons they never use — Lock,
+Since v4.11.4 the user can hide the top bar's buttons they never use — Lock,
 Ambient, Xenon, Search, Layout, Apps — reorder them and choose which side they
 sit on. The room that frees up is not meant to stay empty, and the **mini slot**
 is how a package can occupy it.
