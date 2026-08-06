@@ -916,11 +916,28 @@ fn spawn_backend_nudge(app: &tauri::AppHandle, port: u16) {
 /// space in it. Returning false is a real outcome: a desktop with no terminal at
 /// all cannot be shown an installer, and the README's manual command is then the
 /// only honest answer.
+///
+/// Two details are what make this actually reach the user from inside an
+/// AppImage:
+///
+///  * the terminal is a HOST binary and must not be handed the AppImage's
+///    environment (see host_env_command). Spawned with it, gnome-terminal on
+///    Fedora 43 dies instantly with "undefined symbol: g_once_init_enter_pointer"
+///    — the host's libvte against the AppImage's older bundled glib;
+///  * `spawn()` succeeding does not mean the terminal opened. That is exactly the
+///    failure above: the process starts and exits 127 before drawing anything,
+///    while this reported success and moved on, leaving the splash spinning at a
+///    user who was never shown a thing. So a candidate that DIES quickly is a
+///    candidate that failed, and the next one is tried. Still running, or gone
+///    with status 0, both count as opened: gnome-terminal is a client that hands
+///    the window to gnome-terminal-server and returns 0 immediately.
 #[cfg(target_os = "linux")]
 fn run_in_terminal(script: &std::path::Path) -> bool {
     const TERMINALS: &[(&str, &[&str])] = &[
         ("x-terminal-emulator", &["-e"]), // Debian/Ubuntu alternatives symlink
         ("gnome-terminal", &["--"]),
+        ("ptyxis", &["--"]), // Fedora 40+ / GNOME 47+ default
+        ("kgx", &["-e"]),    // GNOME Console
         ("konsole", &["-e"]),
         ("xfce4-terminal", &["-x"]),
         ("mate-terminal", &["--"]),
@@ -933,17 +950,65 @@ fn run_in_terminal(script: &std::path::Path) -> bool {
     ];
     for (bin, prefix) in TERMINALS {
         let Some(exe) = find_in_path(bin) else { continue };
-        let ok = std::process::Command::new(exe)
-            .args(*prefix)
-            .arg("bash")
-            .arg(script)
-            .spawn()
-            .is_ok();
-        if ok {
-            return true;
+        let mut command = host_env_command(&exe);
+        let Ok(mut child) = command.args(*prefix).arg("bash").arg(script).spawn() else {
+            continue;
+        };
+        // ~1.5s: long enough for a loader error to land, short enough that the
+        // splash's own setup button is still responsive behind it.
+        for _ in 0..15 {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            match child.try_wait() {
+                Ok(Some(status)) if !status.success() => break,
+                Ok(Some(_)) | Ok(None) => return true,
+                Err(_) => return true,
+            }
         }
+        // Fell out of the loop: it exited non-zero. Nothing was shown — next.
     }
     false
+}
+
+/// A `Command` for a HOST binary, with the AppImage's environment stripped back
+/// out of it.
+///
+/// An AppImage's AppRun exports LD_LIBRARY_PATH, GTK_PATH, GIO_EXTRA_MODULES,
+/// PYTHONHOME and a dozen more, all pointing into the read-only mount, and every
+/// child inherits them. That is right for our own bundled binaries and wrong for
+/// anything from /usr/bin: the host binary gets loaded against the AppImage's
+/// (older, Ubuntu-built) libraries and dies on a missing symbol. So drop every
+/// variable whose value points into $APPDIR, and for the two that are LISTS
+/// (PATH, XDG_DATA_DIRS) drop only the AppDir entries — emptying those outright
+/// would break the child in a different way.
+///
+/// Outside an AppImage $APPDIR is unset and this is a plain `Command::new`.
+#[cfg(target_os = "linux")]
+fn host_env_command(exe: &std::path::Path) -> std::process::Command {
+    let mut command = std::process::Command::new(exe);
+    let Some(appdir) = std::env::var_os("APPDIR") else {
+        return command;
+    };
+    let appdir = appdir.to_string_lossy().to_string();
+    if appdir.is_empty() {
+        return command;
+    }
+    for (key, value) in std::env::vars_os() {
+        let value = value.to_string_lossy().to_string();
+        if !value.contains(&appdir) {
+            continue;
+        }
+        let key_str = key.to_string_lossy().to_string();
+        if key_str == "PATH" || key_str == "XDG_DATA_DIRS" {
+            let kept: Vec<&str> = value
+                .split(':')
+                .filter(|entry| !entry.is_empty() && !entry.contains(&appdir))
+                .collect();
+            command.env(&key, kept.join(":"));
+        } else {
+            command.env_remove(&key);
+        }
+    }
+    command
 }
 
 /// Locate a binary on PATH. A dependency-free stand-in for `which`.
@@ -995,6 +1060,132 @@ fn current_uid() -> Option<String> {
     Some(uid)
 }
 
+/// The libraries an AppImage must NOT be allowed to shadow, and why this exists
+/// at all.
+///
+/// The AppImage is built on Ubuntu 22.04 and bundles the whole GTK/WebKit stack,
+/// which drags `libwayland-client.so.0` in with it. The graphics DRIVER, though,
+/// is always the host's: `libEGL_mesa.so` is dlopened out of /usr/lib, and it
+/// carries a DT_NEEDED on that same soname — which the loader then resolves to
+/// the AppImage's copy, because AppRun put the mount first on LD_LIBRARY_PATH.
+/// On any host whose Mesa is newer than the build machine's wayland (Fedora 43:
+/// Mesa 25.3 against wayland 1.25, wanting `wl_proxy_get_display`,
+/// `wl_fixes_interface`, …) that dlopen fails, so `eglGetDisplay` returns
+/// EGL_NO_DISPLAY, and WebKit — which treats a missing EGL display as fatal —
+/// prints "Could not create default EGL display: EGL_BAD_PARAMETER. Aborting..."
+/// and kills its web process before it paints. The window is up, titled, empty,
+/// and stays that way forever: no error reaches the user, and the splash it was
+/// meant to show (which is also the "finish installing" offer) never renders.
+///
+/// The rule is the fix: a library the host's own drivers link against has to come
+/// from the host, whatever the AppImage brought. Only sonames the AppImage
+/// actually bundles AND the host actually has are redirected, so this is a no-op
+/// on a host missing any of them, and the direction is always
+/// bundled(old) → host(new) because the host is what the driver was built for.
+#[cfg(target_os = "linux")]
+const HOST_OWNED_LIBS: &[&str] = &[
+    "libwayland-client.so.0",
+    "libwayland-cursor.so.0",
+    "libwayland-egl.so.1",
+    "libwayland-server.so.0",
+    "libgbm.so.1",
+    "libdrm.so.2",
+];
+
+/// Put the host's copy of every [`HOST_OWNED_LIBS`] soname ahead of the
+/// AppImage's, by re-exec'ing ourselves with a directory of symlinks prepended to
+/// LD_LIBRARY_PATH.
+///
+/// A re-exec and not a `dlopen`: by the time `main` runs, the loader has already
+/// bound the bundled copy through GTK's own DT_NEEDED, and a second copy loaded
+/// by path would not win the soname lookup that Mesa later does. Only a fresh
+/// process with a fixed search path can. It happens before Tauri builds anything,
+/// costs one exec on AppImage launches only, and is guarded by an environment
+/// variable so the second process never does it again.
+///
+/// Every failure here is silent and non-fatal: this is a repair, and a machine it
+/// cannot be applied to must still get whatever the unrepaired app manages.
+#[cfg(target_os = "linux")]
+fn prefer_host_graphics_libs() {
+    use std::os::unix::process::CommandExt;
+
+    const GUARD: &str = "XENON_HOST_LIBS_FIXED";
+    if std::env::var_os(GUARD).is_some() {
+        return;
+    }
+    let Some(appdir) = std::env::var_os("APPDIR").map(std::path::PathBuf::from) else {
+        return; // not an AppImage — the host's libraries are already the only ones
+    };
+    // Where AppRun's LD_LIBRARY_PATH points, i.e. where a bundled soname would be
+    // found. Listing the whole path rather than guessing one lib dir: linuxdeploy
+    // uses usr/lib on some builds and usr/lib/x86_64-linux-gnu on others.
+    let bundled_dirs: Vec<std::path::PathBuf> = std::env::var_os("LD_LIBRARY_PATH")
+        .map(|p| std::env::split_paths(&p).collect())
+        .unwrap_or_default();
+    const HOST_DIRS: &[&str] = &[
+        "/usr/lib64",
+        "/usr/lib/x86_64-linux-gnu",
+        "/usr/lib",
+        "/lib64",
+        "/lib/x86_64-linux-gnu",
+    ];
+
+    // Per-user and per-boot: the symlinks must be refreshed after a host library
+    // upgrade, and they must never be writable by another user.
+    let shim = std::env::var_os("XDG_RUNTIME_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir)
+        .join("xenon-host-libs");
+    if std::fs::create_dir_all(&shim).is_err() {
+        return;
+    }
+
+    let mut linked = 0;
+    for soname in HOST_OWNED_LIBS {
+        let bundled = bundled_dirs
+            .iter()
+            .any(|dir| dir.starts_with(&appdir) && dir.join(soname).exists());
+        if !bundled {
+            continue;
+        }
+        let Some(host) = HOST_DIRS
+            .iter()
+            .map(|dir| std::path::Path::new(dir).join(soname))
+            .find(|p| p.exists())
+        else {
+            continue;
+        };
+        let link = shim.join(soname);
+        let _ = std::fs::remove_file(&link);
+        if std::os::unix::fs::symlink(&host, &link).is_ok() {
+            linked += 1;
+        }
+    }
+    if linked == 0 {
+        return; // nothing to shadow: leave the process exactly as it is
+    }
+
+    let mut search = vec![shim];
+    search.extend(bundled_dirs);
+    let Ok(joined) = std::env::join_paths(search) else {
+        return;
+    };
+    let Ok(exe) = std::env::current_exe() else {
+        return;
+    };
+    // exec, so the pid the AppImage runtime is waiting on stays ours. Returns
+    // only on failure, and then the app simply carries on unrepaired.
+    let error = std::process::Command::new(exe)
+        .args(std::env::args_os().skip(1))
+        .env("LD_LIBRARY_PATH", joined)
+        .env(GUARD, "1")
+        .exec();
+    let _ = error;
+}
+
+#[cfg(not(target_os = "linux"))]
+fn prefer_host_graphics_libs() {}
+
 /// Entry point shared by the desktop `main.rs` (and a future mobile target).
 ///
 /// The window itself — borderless, full-screen kiosk pointed at the bundled
@@ -1007,6 +1198,10 @@ fn current_uid() -> Option<String> {
 /// presence-aware features (wake word, FPS) behave just like an open browser tab.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Before anything can touch a display: an AppImage whose bundled libraries
+    // shadow the host's driver stack renders NOTHING, and never says so.
+    prefer_host_graphics_libs();
+
     let mut builder = tauri::Builder::default()
         // Only one kiosk instance may own the Edge. A second launch re-focuses
         // the existing window instead of opening a duplicate.
