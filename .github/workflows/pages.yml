@@ -87,31 +87,86 @@ jobs:
         run: node tools/build-seo.mjs
 
       - name: Upload docs/ artifact
+        id: upload
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs
 
-      # This step builds and uploads nothing: it polls GitHub every 5s asking
-      # whether the site is live, and when it gives up it CANCELS the deployment.
-      # That cancel is the expensive half — a deployment's ID *is* the commit SHA,
-      # and a cancelled one stays failed, so no re-run can revive it and only a
-      # fresh commit can deploy again.
+      # Creates the deployment the same way actions/deploy-pages does — same POST,
+      # same OIDC token, same artifact — and then does NOT wait for it. That one
+      # difference is the whole point.
       #
-      # Do NOT try to raise the wait with `timeout:`. It is capped in the action
-      # itself (`MAX_TIMEOUT = 600000` in src/internal/deployment.js,
-      # `Math.min(timeoutInput, MAX_TIMEOUT)`), so a larger value is silently
-      # clamped back to 10 minutes with only a warning in the log. Tried on
-      # 2026-08-06 and it changed nothing.
+      # deploy-pages polls for at most 10 minutes and then CANCELS the deployment,
+      # and a cancelled one stays failed forever: a deployment's ID *is* the commit
+      # SHA, so no re-run can revive it and only a fresh commit can publish again.
+      # The wait cannot be extended either — `MAX_TIMEOUT = 600000` is hardcoded in
+      # the action (src/internal/deployment.js takes Math.min of the input and it),
+      # so a bigger `timeout:` is clamped back with a warning and nothing else.
       #
-      # So when Pages itself needs more than 10 minutes, this step cannot succeed.
-      # Measured that day as Pages degraded: 35s the evening before, 5m50s at
-      # 08:49, 9m24s at 11:50 (success, 36s of margin), then >10min all afternoon
-      # and every deploy failed. Nothing was wrong here and GitHub reported no
-      # incident; the only fixes are to wait it out, or to stop waiting at all by
-      # creating the deployment through the Pages API and not polling for it.
-      - name: Deploy to GitHub Pages
+      # On 2026-08-06 Pages published this site in 35s the evening before, 9m24s at
+      # 11:50, and then needed more than 10 minutes for the whole afternoon with no
+      # incident reported by GitHub. Three commits in a row were stranded that way,
+      # each one a green build whose finished artifact was thrown away by our own
+      # side. Nothing here was broken; the client-side deadline was the fault.
+      #
+      # We keep `id: deployment` because the job's environment url reads
+      # steps.deployment.outputs.page_url, and page_url comes back in this POST.
+      - name: Create the Pages deployment
         id: deployment
-        uses: actions/deploy-pages@v4
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact_id }}
+        run: |
+          set -euo pipefail
+          # Read with :- so a missing grant reports itself instead of dying on
+          # `set -u` before the message below can explain what is wrong.
+          req_url="${ACTIONS_ID_TOKEN_REQUEST_URL:-}"
+          req_tok="${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          if [ -z "$req_url" ] || [ -z "$req_tok" ]; then
+            echo '::error::No OIDC request env. Is `id-token: write` still in this workflow permissions block?'
+            exit 1
+          fi
+          # No audience argument, to match the action's own core.getIDToken().
+          oidc=$(curl -sf -H "Authorization: bearer $req_tok" "$req_url" | jq -r '.value')
+          if [ -z "$oidc" ] || [ "$oidc" = null ]; then
+            echo '::error::The OIDC endpoint answered without a token.'
+            exit 1
+          fi
+          # -F types artifact_id as a number; -f would send it as a string and the
+          # API rejects that.
+          resp=$(gh api -X POST "repos/$GITHUB_REPOSITORY/pages/deployments" \
+                   -F artifact_id="$ARTIFACT_ID" \
+                   -f pages_build_version="$GITHUB_SHA" \
+                   -f oidc_token="$oidc")
+          echo "page_url=$(jq -r '.page_url // ""' <<<"$resp")" >> "$GITHUB_OUTPUT"
+          echo "Created. GitHub will finish it in its own time: $(jq -r '.status_url // "no status_url"' <<<"$resp")"
+
+      # Reporting only, and deliberately unable to do harm: it never cancels, and
+      # it never fails the run. If Pages is having a slow day the deployment stays
+      # alive and completes after this step has stopped watching — the only thing
+      # lost is the IndexNow ping below, which is gated on having seen it go live.
+      - name: Wait for Pages to publish
+        id: live
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          s=''
+          for i in $(seq 1 150); do            # 150 × 10s = 25 minutes
+            s=$(gh api "repos/$GITHUB_REPOSITORY/pages/deployments/$GITHUB_SHA" -q '.status' 2>/dev/null || echo '')
+            case "$s" in
+              # 'succeed' is the exact string the Pages API reports, not 'success'.
+              succeed)
+                echo "live=true" >> "$GITHUB_OUTPUT"
+                echo "Published after about $((i * 10))s."
+                exit 0 ;;
+              deployment_failed|deployment_content_failed|deployment_cancelled|deployment_lost)
+                echo "::warning::Pages reported '$s'. The site was not updated."
+                exit 0 ;;
+            esac
+            sleep 10
+          done
+          echo "::warning::Still '$s' after 25 minutes. The deployment is alive and will finish on its own; IndexNow was not pinged."
 
       # Announces the URLs this run changed to the IndexNow engines (Bing, and
       # through it Copilot; Yandex, Seznam, Naver). It runs AFTER the deploy on
@@ -125,7 +180,12 @@ jobs:
       # The commit range is what the push actually moved; the script also reads
       # the working tree, which is what catches a catalog page that build-seo
       # regenerated from a bot's catalog.json edit without any commit naming it.
+      #
+      # The `if` is what keeps "after the deploy" true now that the step above
+      # reports instead of blocking: inviting a crawl of a page that is still
+      # publishing would send every engine at the OLD copy.
       - name: Ping IndexNow
+        if: steps.live.outputs.live == 'true'
         continue-on-error: true
         env:
           INDEXNOW_BEFORE: ${{ github.event.before }}
