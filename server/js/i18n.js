@@ -1052,6 +1052,10 @@ const i18n = {
     ytl_chat_wait: 'La chat parte quando vai in onda',
     ytl_waiting: 'In attesa di OBS',
     youtube_not_connected: 'Collega in Impostazioni',
+
+    youtube_w_setup: 'Collega il tuo account YouTube in Impostazioni → Streaming',
+
+    tww_setup: 'Collega il tuo account Twitch in Impostazioni → Streaming',
     layout_hidden_youtube: 'Sezioni YouTube nascoste',
     youtube_health: 'Stream',
     youtube_health_good: 'Buona',
@@ -3748,6 +3752,10 @@ const i18n = {
     ytl_chat_wait: 'Chat starts when you go live',
     ytl_waiting: 'Waiting for OBS',
     youtube_not_connected: 'Connect in Settings',
+
+    youtube_w_setup: 'Connect your YouTube account in Settings → Streaming',
+
+    tww_setup: 'Connect your Twitch account in Settings → Streaming',
     layout_hidden_youtube: 'Hidden YouTube sections',
     youtube_health: 'Stream',
     youtube_health_good: 'Good',
@@ -6056,6 +6064,10 @@ Object.assign(i18n, {
     ytl_chat_wait: '라이브를 시작하면 채팅이 열립니다',
     ytl_waiting: 'OBS 대기 중',
     youtube_not_connected: '설정에서 연결',
+
+    youtube_w_setup: '설정 → 스트리밍에서 YouTube 계정을 연결하세요',
+
+    tww_setup: '설정 → 스트리밍에서 Twitch 계정을 연결하세요',
     layout_hidden_youtube: '숨겨진 YouTube 섹션',
     youtube_health: '스트림',
     youtube_health_good: '양호',
@@ -8305,6 +8317,10 @@ Object.assign(i18n, {
     ytl_chat_wait: 'ライブを開始するとチャットが始まります',
     ytl_waiting: 'OBS を待っています',
     youtube_not_connected: '設定で連携',
+
+    youtube_w_setup: '設定 → ストリーミング で YouTube アカウントを接続',
+
+    tww_setup: '設定 → ストリーミング で Twitch アカウントを接続',
     layout_hidden_youtube: '非表示のYouTubeセクション',
     youtube_health: 'ストリーム',
     youtube_health_good: '良好',
@@ -10553,6 +10569,10 @@ Object.assign(i18n, {
     ytl_chat_wait: '开播后聊天才会开始',
     ytl_waiting: '等待 OBS',
     youtube_not_connected: '在设置中连接',
+
+    youtube_w_setup: '在 设置 → 直播 中连接你的 YouTube 账号',
+
+    tww_setup: '在 设置 → 直播 中连接你的 Twitch 账号',
     layout_hidden_youtube: '隐藏的 YouTube 区块',
     youtube_health: '推流',
     youtube_health_good: '良好',
@@ -12172,6 +12192,12 @@ Object.assign(i18n, {
     ytl_chat_wait: "El chat empieza cuando entres en directo",
     ytl_waiting: "Esperando a OBS",
     youtube_not_connected: "Conecta en Ajustes",
+
+    youtube_w_setup: "Conecta tu cuenta de YouTube en Ajustes → Streaming",
+
+    tww_setup: "Conecta tu cuenta de Twitch en Ajustes → Streaming",
+
+    twitch_not_connected: "Conecta en Ajustes",
     youtube_health: "Emisión",
     youtube_health_good: "Buena",
     youtube_health_ok: "Correcta",
@@ -13475,6 +13501,12 @@ Object.assign(i18n, {
     ytl_chat_wait: "Le chat démarre quand tu passes en direct",
     ytl_waiting: "En attente d'OBS",
     youtube_not_connected: "Connecte-toi dans les Réglages",
+
+    youtube_w_setup: "Connecte ton compte YouTube dans Réglages → Streaming",
+
+    tww_setup: "Connecte ton compte Twitch dans Réglages → Streaming",
+
+    twitch_not_connected: "Connecte-toi dans les Réglages",
     youtube_health: "Diffusion",
     youtube_health_good: "Bonne",
     youtube_health_ok: "Correcte",
@@ -14775,6 +14807,12 @@ Object.assign(i18n, {
     ytl_chat_wait: "Der Chat startet, wenn du auf Sendung gehst",
     ytl_waiting: "Warten auf OBS",
     youtube_not_connected: "In den Einstellungen verbinden",
+
+    youtube_w_setup: "Verbinde dein YouTube-Konto in Einstellungen → Streaming",
+
+    tww_setup: "Verbinde dein Twitch-Konto in Einstellungen → Streaming",
+
+    twitch_not_connected: "In den Einstellungen verbinden",
     youtube_health: "Stream",
     youtube_health_good: "Gut",
     youtube_health_ok: "OK",
@@ -16075,6 +16113,12 @@ Object.assign(i18n, {
     ytl_chat_wait: "O chat começa quando entrares no ar",
     ytl_waiting: "À espera do OBS",
     youtube_not_connected: "Liga nas Definições",
+
+    youtube_w_setup: "Liga a tua conta YouTube em Definições → Streaming",
+
+    tww_setup: "Liga a tua conta Twitch em Definições → Streaming",
+
+    twitch_not_connected: "Liga nas Definições",
     youtube_health: "Transmissão",
     youtube_health_good: "Boa",
     youtube_health_ok: "Aceitável",
@@ -17375,6 +17419,12 @@ Object.assign(i18n, {
     ytl_chat_wait: "Чат начнётся, когда вы выйдете в эфир",
     ytl_waiting: "Ожидание OBS",
     youtube_not_connected: "Подключите в настройках",
+
+    youtube_w_setup: "Подключите аккаунт YouTube в Настройки → Streaming",
+
+    tww_setup: "Подключите аккаунт Twitch в Настройки → Streaming",
+
+    twitch_not_connected: "Подключите в настройках",
     youtube_health: "Трансляция",
     youtube_health_good: "Хорошее",
     youtube_health_ok: "Нормальное",
@@ -19393,6 +19443,10 @@ Object.assign(i18n, {
     "ytl_chat_wait": "De chat begint als je live gaat",
     "ytl_waiting": "Wachten op OBS",
     "youtube_not_connected": "Maak verbinding in Instellingen",
+
+    "youtube_w_setup": "Verbind je YouTube-account via Instellingen → Streaming",
+
+    "tww_setup": "Verbind je Twitch-account via Instellingen → Streaming",
     "layout_hidden_youtube": "Verborgen YouTube-onderdelen",
     "youtube_health": "Stream",
     "youtube_health_good": "Goed",

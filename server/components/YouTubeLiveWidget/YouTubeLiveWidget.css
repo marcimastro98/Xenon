@@ -22,7 +22,19 @@
   opacity: 0.08; pointer-events: none; z-index: 0;
 }
 .ytl-watermark svg { width: 100%; height: auto; }
-.ytl-head, .ytl-cards { position: relative; z-index: 1; }
+.ytl-head, .ytl-cards, .ytl-setup { position: relative; z-index: 1; }
+
+/* "No account connected" call-to-action — opens Settings → Streaming. The info
+   card has a connect line too, but that card is hidden when there is no account,
+   so this one lives outside the cards and is what remains on screen. */
+.ytl-setup {
+  display: flex; align-items: center; gap: 8px; width: 100%; flex: 0 0 auto;
+  margin: 2px 0 4px; padding: 8px 11px; border-radius: 10px; cursor: pointer;
+  text-align: left; font: inherit; font-size: 0.8rem; font-weight: 700;
+  color: #ff6b6b; background: rgba(255,0,0,0.10); border: 1px solid rgba(255,0,0,0.32);
+}
+/* `display: flex` outranks the UA `[hidden]{display:none}` rule. */
+.ytl-setup[hidden] { display: none; }
 
 /* Header */
 .ytl-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: 0 0 auto; min-width: 0; }

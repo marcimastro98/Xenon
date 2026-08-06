@@ -3,6 +3,16 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+### 🐛 Fixed
+- **The YouTube and Twitch widgets now tell you they need an account, instead of sitting there empty.** With no account connected, both tiles took all their contents off screen and left the logo on an empty background. Nothing said why, nothing offered a way forward, and the tile looked identical to one that had broken. It was most confusing in layout editing mode, which forces the contents back into view: the widget appeared to work there and appeared broken everywhere else, which reads like a display fault rather than a setting.
+
+  Each tile now shows one line saying the account has to be connected, and tapping it opens the page where you connect it. This covers the YouTube watching widget, the YouTube Live widget and the Twitch watching widget. The YouTube Live tile had that line already, but it lived inside the panel that gets hidden, so it disappeared at exactly the moment it was the only thing worth saying.
+
+- **Those widgets no longer say "Loading…" over an answer they already have.** The video and channel lists showed the loading line for two different situations: the check for a connected account still being in flight, and that check having come back with a definite no. The second one never resolves, so the list sat on "Loading…" indefinitely on a dashboard where nothing was actually loading. A definite no now says the account is not connected.
+
+- **Five languages showed one of those messages in English.** Spanish, French, German, Portuguese and Russian had no translation for the "connect in Settings" line used by the Discord widget, so it fell back to English while the identical line in the YouTube widget right next to it was translated. All the new text here is available in all 11 languages.
+
 ## [v4.11.3] - 06-08-2026
 ### ✨ Added
 - **macOS stops forgetting Xenon's permissions every time it updates.** This is the cause of most of what is fixed below, and it had been true since the Mac build shipped. macOS ties a permission — Full Disk Access above all — to the app's code signature, and Xenon's signature was generated fresh at every build. So every release looked to macOS like a completely different app, and everything you had allowed silently stopped applying: the switch in System Settings still showed as on, and did nothing, because that list shows a name while macOS compares a signature.

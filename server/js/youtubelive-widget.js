@@ -44,6 +44,12 @@
   // offering a button that could only fail.
   const isRemote = !!window.__xenonRemote;
 
+  function openStreamingSettings() {
+    const overlay = document.getElementById('settings-overlay');
+    if (overlay && overlay.hidden && typeof window.toggleSettings === 'function') window.toggleSettings();
+    if (typeof window.settingsSetCategory === 'function') window.settingsSetCategory('streaming');
+  }
+
   const POLL_MS = 30000;
   const CHAT_MAX = 150;                  // messages kept in the list
   let poll = null;
@@ -169,8 +175,10 @@
 
   // ── DOM ───────────────────────────────────────────────────────────────────
   function ensure(mount) {
-    if (mount.dataset.ytlBuilt === '1' && mount.firstChild) return;
-    mount.dataset.ytlBuilt = '1';
+    // Bumped when the built markup changes: a hidden widget's DOM is kept in the
+    // pool rather than destroyed, so a stale build would never gain the notice.
+    if (mount.dataset.ytlBuilt === '2' && mount.firstChild) return;
+    mount.dataset.ytlBuilt = '2';
     const wrap = el('div', 'ytl-wrap');
 
     const wm = el('div', 'ytl-watermark'); wm.innerHTML = ICONS.logo;      // static, trusted SVG
@@ -183,6 +191,14 @@
     pill.append(el('span', 'ytl-pill-dot'), el('span', 'ytl-pill-txt'));
     head.append(brand, pill);
     wrap.appendChild(head);
+
+    // The info card carries a "connect" line of its own, but paint() hides that
+    // card when there is no account — so the explanation went away exactly when
+    // it was the only thing left to say. This notice sits OUTSIDE the cards.
+    const notice = el('button', 'ytl-setup'); notice.type = 'button'; notice.hidden = true;
+    notice.append(el('span', 'ytl-setup-txt', t('youtube_w_setup', 'Connect your YouTube account in Settings → Streaming')));
+    notice.addEventListener('click', openStreamingSettings);
+    wrap.appendChild(notice);
 
     const cards = el('div', 'ytl-cards');
     cards.append(buildInfoCard(), buildActionsCard(), buildChatCard());
@@ -499,6 +515,13 @@
       const editing = document.body.classList.contains('layout-editing');
       info.style.display = (connected !== false || editing) ? '' : 'none';
       info.replaceChildren(buildInfo());
+      const setup = mount.querySelector('.ytl-setup');
+      // Only a definite "no account": while the check is still out the cards are
+      // on screen and saying "connect" would be a guess.
+      if (setup) {
+        setup.hidden = connected !== false;
+        setup.querySelector('.ytl-setup-txt').textContent = t('youtube_w_setup', 'Connect your YouTube account in Settings → Streaming');
+      }
     });
     paintActions();
     paintChat();

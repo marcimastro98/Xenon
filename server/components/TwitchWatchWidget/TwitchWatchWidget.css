@@ -29,7 +29,19 @@
   opacity: 0.09; pointer-events: none; z-index: 0;
 }
 .tww-watermark svg { width: 100%; height: auto; }
-.tww-head, .tww-cards { position: relative; z-index: 1; }
+.tww-head, .tww-cards, .tww-setup { position: relative; z-index: 1; }
+
+/* "No account connected" call-to-action — opens Settings → Streaming. With no
+   account all three cards below are taken off screen, so without this the tile is
+   a watermark on an empty background and nothing says why. */
+.tww-setup {
+  display: flex; align-items: center; gap: 8px; width: 100%; flex: 0 0 auto;
+  margin: 2px 0 4px; padding: 8px 11px; border-radius: 10px; cursor: pointer;
+  text-align: left; font: inherit; font-size: 0.8rem; font-weight: 700;
+  color: #c39bff; background: rgba(145,70,255,0.12); border: 1px solid rgba(145,70,255,0.34);
+}
+/* `display: flex` outranks the UA `[hidden]{display:none}` rule. */
+.tww-setup[hidden] { display: none; }
 
 .tww-head { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; min-width: 0; }
 .tww-logo { font-size: 0.92rem; font-weight: 900; letter-spacing: 0.02em; color: #a970ff; }

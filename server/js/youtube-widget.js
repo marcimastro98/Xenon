@@ -89,6 +89,17 @@
   };
   const cur = () => (player.qi >= 0 ? player.queue[player.qi] : null) || null;
 
+  // Both cards are taken off screen when no account is connected, which used to
+  // leave the tile as a logo on an empty background for as long as that stayed
+  // true — unavailable is meant to be hidden OR explained, and that was neither.
+  // The notice below is what remains, and it is the way in: tapping it lands on
+  // the page where the account is connected.
+  function openStreamingSettings() {
+    const overlay = document.getElementById('settings-overlay');
+    if (overlay && overlay.hidden && typeof window.toggleSettings === 'function') window.toggleSettings();
+    if (typeof window.settingsSetCategory === 'function') window.settingsSetCategory('streaming');
+  }
+
   function showActionErr(btn, reason) {
     const card = btn.closest('.yt-card');
     if (!card) return;
@@ -392,8 +403,10 @@
 
   // ── DOM ───────────────────────────────────────────────────────────────────
   function ensure(mount) {
-    if (mount.dataset.ytBuilt === '2' && mount.firstChild) return;
-    mount.dataset.ytBuilt = '2';
+    // Bumped when the built markup changes: a hidden widget's DOM is kept in the
+    // pool rather than destroyed, so a stale build would never gain the notice.
+    if (mount.dataset.ytBuilt === '3' && mount.firstChild) return;
+    mount.dataset.ytBuilt = '3';
     const wrap = el('div', 'yt-wrap');
 
     const wm = el('div', 'yt-watermark'); wm.innerHTML = ICONS.logo;   // static, trusted SVG
@@ -404,6 +417,11 @@
     brand.append(el('span', 'yt-logo', 'YouTube'));
     head.append(brand);
     wrap.appendChild(head);
+
+    const notice = el('button', 'yt-setup'); notice.type = 'button'; notice.hidden = true;
+    notice.append(el('span', 'yt-setup-txt', t('youtube_w_setup', 'Connect your YouTube account in Settings → Streaming')));
+    notice.addEventListener('click', openStreamingSettings);
+    wrap.appendChild(notice);
 
     const cards = el('div', 'yt-cards');
     cards.append(buildPlayerCard(), buildLibraryCard());
@@ -668,7 +686,10 @@
       if (list.dataset.ytSig === sig) return;
       list.dataset.ytSig = sig;
       // Still waiting on the connection check: say so instead of leaving a blank
-      // panel that reads as a broken widget.
+      // panel that reads as a broken widget. A definite "no account" is NOT that
+      // and must not borrow the same line: it never resolves, so "Loading…" there
+      // is a spinner that spins forever over an answer we already have.
+      if (connected === false) { list.replaceChildren(el('div', 'yt-list-note', t('youtube_not_connected', 'Connect in Settings'))); return; }
       if (connected !== true) { list.replaceChildren(el('div', 'yt-list-note', t('browser_loading', 'Loading…'))); return; }
       if (lib.loading) { list.replaceChildren(el('div', 'yt-list-note', t('browser_loading', 'Loading…'))); return; }
       if (lib.error) { list.replaceChildren(el('div', 'yt-list-note yt-list-err', t('youtube_list_failed', 'Could not load this list.'))); return; }
@@ -707,6 +728,14 @@
     });
     const inp = mount.querySelector('.yt-search-input');
     if (inp) inp.placeholder = t('youtube_search_ph', 'Search on YouTube');
+    const stx = mount.querySelector('.yt-setup-txt');
+    if (stx) stx.textContent = t('youtube_w_setup', 'Connect your YouTube account in Settings → Streaming');
+    const setup = mount.querySelector('.yt-setup');
+    // Only a definite "no account" shows it: while the check is still out
+    // (connected === null) the cards are on screen and saying "connect" would be
+    // a guess. Shown in layout editing too, where the cards are forced visible —
+    // it is the one place the empty player and list have an explanation next to them.
+    if (setup) setup.hidden = connected !== false;
   }
 
   function paint() {
