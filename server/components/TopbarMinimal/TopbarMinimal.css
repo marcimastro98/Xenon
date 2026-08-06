@@ -565,7 +565,7 @@ body.topbar-minimal:not([data-panel]) .edge-rail {
    editing: the tile handles along both edges become reachable again. */
 body.topbar-minimal.layout-editing:not([data-panel]) .edge-rail { display: none; }
 
-/* A rail with nothing in it goes away, handle and all. Since v4.12 every button
+/* A rail with nothing in it goes away, handle and all. Since v4.11.4 every button
    can be hidden or sent to the other side, so a rail can end up holding nothing
    — and what was left on screen was a lone arrow that opened an empty capsule:
    a control that promises something and delivers a blank.

@@ -8693,7 +8693,7 @@ function updateDynamicIslandTakeovers(checked) {
 
 // Puts the WHOLE bar back to how it shipped: chrome style, island position,
 // island elements, the button layout (hidden/order/side), the rails, the clock
-// format and every per-package opt-out. It asks first — since v4.12 this throws
+// format and every per-package opt-out. It asks first — since v4.11.4 this throws
 // away an arrangement the user may have spent real time on, and there is no undo.
 async function resetDynamicIslandSettings() {
   if (typeof settingsPrompt === 'function') {

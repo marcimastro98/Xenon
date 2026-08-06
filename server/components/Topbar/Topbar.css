@@ -204,7 +204,7 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
   .topbtn { padding: 0; width: 36px; justify-content: center; }
 }
 
-/* The width cap is NOT scoped to a side: since v4.12 the user can move this strip
+/* The width cap is NOT scoped to a side: since v4.11.4 the user can move this strip
    between the two ends of the bar, and a cap that applied on only one of them
    would let the strip grow without limit on the other — which is the whole reason
    it exists. The rail has its own sizing (TopbarMinimal.css) and overrides it. */
