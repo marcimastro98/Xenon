@@ -565,6 +565,22 @@ body.topbar-minimal:not([data-panel]) .edge-rail {
    editing: the tile handles along both edges become reachable again. */
 body.topbar-minimal.layout-editing:not([data-panel]) .edge-rail { display: none; }
 
+/* A rail with nothing in it goes away, handle and all. Since v4.12 every button
+   can be hidden or sent to the other side, so a rail can end up holding nothing
+   — and what was left on screen was a lone arrow that opened an empty capsule:
+   a control that promises something and delivers a blank.
+   Deliberately CSS rather than a JS pass: the two things that can fill a rail
+   without any settings change are the favourites strip (starring an app) and the
+   SDK mini slot (a package drawing into it), so a class computed on the settings
+   apply would be stale exactly when it mattered. `:has()` re-evaluates itself.
+   Note this can never hide BOTH rails: Settings and Layout cannot be hidden, so
+   whichever side they are on always has content. */
+body.topbar-minimal:not([data-panel]) .edge-rail:not(:has(
+  .edge-rail-body .topbtn:not(.topbar-item-hidden),
+  .edge-rail-body .app-favorites:not(:empty):not(.topbar-item-hidden),
+  .edge-rail-body .topbar-mini-slot:not([hidden]):not(.topbar-item-hidden)
+)) { display: none; }
+
 body.topbar-minimal .edge-rail-left.is-collapsed  { transform: translate(calc(-100% + 22px), -50%); }
 body.topbar-minimal .edge-rail-right.is-collapsed { transform: translate(calc(100% - 22px), -50%); }
 
