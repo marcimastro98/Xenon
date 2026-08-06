@@ -177,7 +177,7 @@ Universal build: one download for both Apple Silicon and Intel.
 > **"Xenon can't be opened because Apple cannot check it."** Expected for now: the app is not notarized yet (that needs a paid Apple Developer membership, which this project does not have). On **macOS 15 and later** open **System Settings → Privacy & Security**, scroll to the bottom and click **Open Anyway** next to Xenon — Apple removed the old right-click → Open shortcut. On **macOS 11–14** right-click the app → **Open** → **Open** still works. Either way it is once per version.
 
 <a id="macos-full-disk-access"></a>
-##### Give Xenon Full Disk Access — and again after each update
+##### Give Xenon Full Disk Access — once
 
 The Trash and most of `~/Library/Caches` sit behind a permission macOS grants **per app**. Without it the Disk widget and search still work, they just cannot see those folders — and a folder macOS refuses to list looks exactly like an empty one, so nothing reports an error. On the Mac this was measured on, the Trash alone was 2.4 GB the cleanup could not offer and the disk map was under-reporting by 15 GB.
 
@@ -187,7 +187,9 @@ The Trash and most of `~/Library/Caches` sit behind a permission macOS grants **
 
 You give it to **Xenon**, not to Node: the app starts the dashboard itself precisely so one grant under a name you recognise covers it, instead of handing the same access to an interpreter that runs every other script on your machine.
 
-> **This has to be redone after every Xenon update, until the app is signed.** macOS ties the permission to the app's code signature, and an unsigned build gets a fresh one at every release — so the grant silently stops applying. If Xenon is already listed, toggle it **off and on**; if that does not take, select it, press **−**, and add it again with **+**. The giveaway that it has lapsed: the Disk widget shows a Trash of 0 B, or the total space it accounts for drops by several GB overnight. A signing certificate is the real fix and is [on the list](#platform-support).
+> **Until 4.11.3 this had to be redone after every update, and now it does not.** macOS ties the permission to the app's code signature. Xenon used to be ad-hoc signed, which gives every build a different identity, so each release silently looked like a different app and the grant stopped applying — with no error anywhere, and a permission dialog for the Desktop, Documents, Downloads, Photos and Music every time the index ran. Xenon is now signed with its own certificate, which stays the same across releases, so the grant survives updates. **The 4.11.3 update itself resets it one last time**, because that is the release where the identity changes; grant it again there and it holds from then on.
+>
+> If Xenon is listed but the permission is clearly not working, select it, press **−**, and add it again with **+** — that rewrites the entry against the app currently on disk. Xenon now notices this state by itself and says so on the dashboard rather than leaving you to guess. (The certificate is self-signed, so it changes nothing about the warning on first open: that needs Apple notarization, which is [still on the list](#platform-support).)
 
 macOS needs **Node.js** and will say so if it is missing. The optional tools below each light up one thing, and Xenon tells you which are absent instead of failing later:
 

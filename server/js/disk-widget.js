@@ -1740,6 +1740,32 @@
     return el('div', cls, lastReport.pending ? (lastReport.text || tr('disk_cleaning', 'Pulizia…')) : lastReport.text);
   }
 
+  // The Full Disk Access card. It is deliberately concrete about the cause —
+  // "an update revoked it" is the difference between a user who fixes it in ten
+  // seconds and one who concludes the widget is broken — and it opens the pane
+  // itself, because the setting sits four levels deep under a name that differs
+  // per macOS version and per language.
+  function renderFdaHint() {
+    const hint = el('div', 'diskw-hint');
+    hint.appendChild(el('div', 'diskw-hint-mark', '⚿'));
+    hint.appendChild(el('div', 'diskw-hint-title', tr('disk_fda_title', 'macOS ha revocato un permesso a Xenon')));
+    hint.appendChild(el('div', 'diskw-hint-text', tr('disk_fda_text',
+      'Dopo ogni aggiornamento macOS toglie a Xenon l’Accesso completo al disco. Senza, la mappa del disco e la ricerca restano vuote. Riattivalo: togli Xenon dall’elenco e riaggiungila.')));
+    const btn = el('button', 'diskw-btn', tr('disk_fda_open', 'Apri le impostazioni'));
+    btn.type = 'button';
+    btn.addEventListener('click', () => {
+      btn.disabled = true;
+      // api() posts when it is handed a body; an empty object is the POST.
+      api('/macos/fda-settings', {})
+        .catch(() => {})
+        // Re-enabled either way: the pane may have opened behind the dashboard,
+        // and a button that stays dead looks like it did nothing at all.
+        .finally(() => { btn.disabled = false; });
+    });
+    hint.appendChild(btn);
+    return hint;
+  }
+
   function render(mount) {
     mount.replaceChildren();
     if (!status) {
@@ -1762,6 +1788,18 @@
 
     const roots = status.roots || [];
     if (!roots.length) {
+      // macOS took the permission away, and it does so on its own: the grant is
+      // tied to the app's signature, which changes with every Xenon update. The
+      // generic "turn the live index on" card below sends the user to a setting
+      // that is already right, so this case has to name what actually happened.
+      // Xenon keeps out of the home folder in the meantime, because walking it
+      // without the grant means a macOS dialog for the Desktop, one for
+      // Documents, one for Downloads, one for Photos and one for Music, on
+      // every pass.
+      if (status.fdaBlocked) {
+        mount.appendChild(renderFdaHint());
+        return;
+      }
       const hint = el('div', 'diskw-hint');
       hint.appendChild(el('div', 'diskw-hint-mark', '✦'));
       hint.appendChild(el('div', 'diskw-hint-title', tr('disk_enable_title', 'Accendi l’indice vivo')));

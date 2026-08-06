@@ -1016,14 +1016,73 @@ function refreshHotkeyListener() {
 //   absent      nobody has chosen yet          → this platform's default
 //   empty       the user switched it off       → stays off
 //   unusable    saved elsewhere, non-empty     → this platform's default
+// macOS only: is Full Disk Access in force right now? Cached, because
+// usableIndexRoots() is synchronous and on the settings path; refreshed by the
+// timer below, which is also what makes granting the permission take effect
+// without restarting anything. Every other platform is granted by definition —
+// there is no TCC to withhold anything.
+let _macFdaGranted = true;
+// The roots we actually withheld, so the UI can say WHY the index is off
+// instead of leaving the user with an empty map and no explanation.
+let _macFdaBlockedRoots = [];
+let _macFdaTimer = null;
+
+// The roots that make the home directory reachable, and therefore every folder
+// macOS protects. Dropping exactly these is the difference between one honest
+// message and a dialog per protected folder, per walk. The test lives with the
+// rest of the macOS seam (darwin-collectors.js), where it can be run against a
+// home directory that is not this machine's.
+function macRootReachesHome(root) {
+  if (!nativeCollectors || typeof nativeCollectors.rootReachesHome !== 'function') return false;
+  return nativeCollectors.rootReachesHome(root, os.homedir());
+}
+
 function usableIndexRoots(saved) {
   const platformDefault = POWERSHELL_SUPPORTED ? 'C:\\' : os.homedir();
-  if (!Array.isArray(saved)) return [platformDefault];
-  if (!saved.length) return [];
-  const usable = saved.filter((r) => (process.platform === 'win32'
-    ? /^[A-Za-z]:\\/.test(String(r))
-    : String(r).startsWith('/')));
-  return usable.length ? usable : [platformDefault];
+  let roots;
+  if (!Array.isArray(saved)) roots = [platformDefault];
+  else if (!saved.length) roots = [];
+  else {
+    const usable = saved.filter((r) => (process.platform === 'win32'
+      ? /^[A-Za-z]:\\/.test(String(r))
+      : String(r).startsWith('/')));
+    roots = usable.length ? usable : [platformDefault];
+  }
+  // The macOS gate, applied AFTER the default is resolved — the default IS the
+  // home directory here, so gating before it would hand the home root straight
+  // back. Without Full Disk Access, walking the home means Desktop, Documents,
+  // Downloads, Pictures and Music, and macOS raises a permission dialog for
+  // each, on every walk, forever. Those folders are unreadable either way; the
+  // only thing the walk adds is the prompts.
+  //
+  // A root the user chose explicitly is left alone even when it is protected:
+  // they pointed Xenon at that folder, so one dialog for that one folder is an
+  // answer to a question they asked. What is dropped is only the root that
+  // sweeps up folders nobody asked about.
+  if (process.platform === 'darwin' && !_macFdaGranted) {
+    const kept = roots.filter((r) => !macRootReachesHome(r));
+    _macFdaBlockedRoots = roots.filter((r) => macRootReachesHome(r));
+    return kept;
+  }
+  _macFdaBlockedRoots = [];
+  return roots;
+}
+
+// Ask macOS whether the grant still holds, and re-point the index when the
+// answer changes. It CHANGES on its own: the grant is bound to the app's code
+// signature, Xenon's is ad-hoc, and its hash moves with every build — so an
+// update silently revokes Full Disk Access and this is what notices. Polling
+// beats asking once at startup for the same reason it beats asking the user:
+// granting the permission then takes effect on its own, within a minute, with
+// nothing to restart.
+async function refreshMacFdaState() {
+  if (process.platform !== 'darwin') return;
+  if (!nativeCollectors || typeof nativeCollectors.fullDiskAccess !== 'function') return;
+  let granted = true;
+  try { granted = await nativeCollectors.fullDiskAccess(); } catch { return; }
+  if (granted === _macFdaGranted) return;
+  _macFdaGranted = granted;
+  refreshLivingIndex();
 }
 
 // Point the Living Index at the configured roots (idempotent — setRoots
@@ -11104,6 +11163,10 @@ const CSRF_MUTATION_PATHS = new Set([
   // guarded here too: a cross-site drive-by must not be able to make the local
   // server throw an administrator prompt at the user.
   '/system/enable-sensors',
+  // Opens a System Settings pane in front of whatever the user was doing. It
+  // grants nothing and takes no input, but a page that could throw the
+  // permissions pane on screen at will is a nuisance a drive-by should not have.
+  '/macos/fda-settings',
   // Answering a call focuses another application and presses keys into it, or
   // joins a Discord voice channel. POST-only, but listed for the same reason
   // /api/claude/decide is: a sandboxed SDK widget posts with Origin: null, and
@@ -17091,7 +17154,31 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/index/status' && req.method === 'GET') {
     // Living Index state for Settings + the disk widget: on/off, building
     // progress, file count, resident RAM, roots. Read-only.
-    try { json(await livingIndex.stats()); } catch (e) { err500(e.message); }
+    //
+    // `fdaBlocked` rides along because an index that is off for a REASON and
+    // one that is off because nobody turned it on look identical from here,
+    // and on macOS the reason is the whole story: the permission went away by
+    // itself when Xenon updated.
+    try {
+      json({
+        ...(await livingIndex.stats()),
+        fdaBlocked: process.platform === 'darwin' && !_macFdaGranted && _macFdaBlockedRoots.length > 0,
+        fdaRoots: _macFdaBlockedRoots.slice(0, 8),
+      });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/macos/fda-settings' && req.method === 'POST') {
+    // Open the one System Settings pane the user needs. It exists because the
+    // path there is four levels deep and its name differs per macOS version and
+    // per language, so "go to Privacy & Security, scroll to Full Disk Access"
+    // is instructions, not a fix. The URL is a fixed literal — nothing from the
+    // request reaches the command line (spawn invariant).
+    if (process.platform !== 'darwin') { json({ ok: false, error: 'unsupported' }); return; }
+    try {
+      execFile('open', ['x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles'],
+        { windowsHide: true }, () => {});
+      json({ ok: true });
+    } catch (e) { json({ ok: false, error: String(e.message || e) }); }
 
   } else if (reqPath === '/spotlight/claimed' && req.method === 'POST') {
     // The native kiosk claims the hotkey: it just opened the frameless
@@ -17120,7 +17207,17 @@ const handleRequest = async (req, res) => {
     // Disk widget state: helper presence, scan progress, last summary and —
     // after a scan — the treemap tree, categories, top files and verified
     // duplicates. Read-only; the widget polls this only while a scan runs.
-    try { json(await diskSpace.status()); } catch (e) { err500(e.message); }
+    //
+    // `fdaBlocked` rides along for the same reason it does on /index/status:
+    // without it, a macOS install that lost Full Disk Access shows the widget's
+    // "turn the live index on" card, which is advice for a different problem
+    // and leads the user to a setting that is already correct.
+    try {
+      json({
+        ...(await diskSpace.status()),
+        fdaBlocked: process.platform === 'darwin' && !_macFdaGranted && _macFdaBlockedRoots.length > 0,
+      });
+    } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/disk/overview' && req.method === 'GET') {
     // Per-root live overview (Living-Index path): ?i=N indexes the configured
@@ -19547,8 +19644,23 @@ function _startListen(host) {
       // when off; delayed so they never compete with boot).
       setTimeout(() => {
         try { refreshHotkeyListener(); } catch { /* ignore */ }
-        try { refreshLivingIndex(); } catch { /* ignore */ }
+        // Full Disk Access is asked BEFORE the index is first pointed at
+        // anything, because the entire point of the gate is that the first walk
+        // never touches a protected folder — asking afterwards would raise the
+        // dialogs once and only then settle down, which is the bug.
+        refreshMacFdaState()
+          .catch(() => {})
+          .finally(() => { try { refreshLivingIndex(); } catch { /* ignore */ } });
       }, 5000).unref();
+      // And keep asking. The grant disappears on its own — it is bound to the
+      // app's code signature, which changes with every build — so the state
+      // this reads is not something a startup probe can hold. It also means
+      // granting the permission is enough on its own: the index comes back
+      // within a minute, with nothing to restart and nothing to click in Xenon.
+      if (process.platform === 'darwin') {
+        _macFdaTimer = setInterval(() => { refreshMacFdaState().catch(() => {}); }, 60000);
+        _macFdaTimer.unref();
+      }
     }).catch(() => {});
   });
 }

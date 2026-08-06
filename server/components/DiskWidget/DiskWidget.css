@@ -1528,7 +1528,8 @@
   line-height: 1.5;
 }
 
-.diskw-state-card .diskw-btn {
+.diskw-state-card .diskw-btn,
+.diskw-hint .diskw-btn {
   margin-top: 12px;
 }
 

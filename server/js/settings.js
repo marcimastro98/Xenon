@@ -4985,6 +4985,17 @@ function renderSearchDiskSettings() {
     else {
       fetch('/index/status').then((r) => r.json()).then((st) => {
         if (_settingsCat !== 'search' || !st) return;
+        // macOS revoked Full Disk Access — which it does by itself, on every
+        // Xenon update, because the grant is bound to the app's signature. The
+        // list above still shows the folder the user chose and it is still
+        // correct, so every other message here ("add a folder", "rerun the
+        // installer") would send them to fix something that is not broken.
+        if (st.fdaBlocked) {
+          idxStatus.textContent = t('settings_search_idx_fda',
+            'macOS ha revocato a Xenon l’Accesso completo al disco: succede a ogni aggiornamento. Finché manca, Xenon non indicizza la tua cartella utente — altrimenti macOS chiederebbe il permesso per Scrivania, Documenti, Download, Foto e Musica a ogni scansione. Riattivalo in Impostazioni di Sistema → Privacy e Sicurezza → Accesso completo al disco: togli Xenon dall’elenco e riaggiungila.');
+          idxStatus.hidden = false;
+          return;
+        }
         idxStatus.textContent = !st.on || !st.helper
           ? t('settings_search_idx_helper', 'L’indice vivo non è disponibile: aggiungi una cartella qui sopra, oppure rilancia l’installer di Xenon.')
           : st.building
