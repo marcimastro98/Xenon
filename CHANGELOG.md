@@ -3,7 +3,7 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased] - v4.11.1
+## [v4.11.1] - 06-08-2026
 ### 🐛 Fixed
 - **Uninstalling on macOS and Linux now actually uninstalls Xenon.** It stopped the backend and removed the startup entry, and then printed a list of the things it had deliberately left behind: the app, the folder, your data. That list made sense to whoever wrote it and to nobody else. What you saw was an uninstaller that finished, a Xenon icon still sitting in Applications, and Xenon still coming up when you searched for it — so the reasonable conclusion was that it had not worked. Worse, opening that leftover app re-registered its own start-at-login entry, so a machine you thought was clean started Xenon again at the next sign-in.
 
