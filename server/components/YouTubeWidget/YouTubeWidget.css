@@ -123,10 +123,20 @@
 .yt-playpause:hover:not(:disabled) { background: rgba(255,0,0,1); }
 .yt-playpause svg { width: 20px; height: 20px; }
 
+/* Sits ON the picture, inside .yt-player-stage. It has to: when YouTube refuses a
+   video it paints its own error over the whole frame, so our explanation has to
+   cover that or it is never seen. It was a line of text under the transport before,
+   and the reported symptom was a user staring at YouTube's raw error with our text
+   nowhere in sight. Opaque, not translucent — the point is to replace what is
+   underneath, not to sit on top of it. */
 .yt-blocked {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  font-size: 0.74rem; font-weight: 600; color: var(--text-dim, #8b91a1);
+  position: absolute; inset: 0; z-index: 3;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 12px 16px; text-align: center;
+  background: rgba(8, 8, 10, 0.94);
+  font-size: 0.74rem; font-weight: 600; color: var(--text, #e7e9ee);
 }
+.yt-blocked-txt { max-width: 30ch; line-height: 1.35; }
 .yt-blocked-btn {
   font: inherit; font-size: 0.72rem; font-weight: 800; cursor: pointer;
   padding: 4px 10px; border-radius: 8px; color: #fff;
@@ -199,10 +209,12 @@ body.yt-expanded .yt-wrap { container-type: normal; }
   background: linear-gradient(to top, rgba(0,0,0,0.88), rgba(0,0,0,0.55) 42%, transparent);
   pointer-events: none;
 }
+/* .yt-blocked is deliberately NOT in this list any more: it is no longer a row in
+   the control strip, it is the layer covering the picture, and giving it
+   `position: relative` here would drop it back behind the frame it has to hide. */
 .yt-card--player.is-expanded .yt-now,
 .yt-card--player.is-expanded .yt-seek-row,
-.yt-card--player.is-expanded .yt-transport,
-.yt-card--player.is-expanded .yt-blocked { position: relative; z-index: 2; padding-left: 20px; padding-right: 20px; }
+.yt-card--player.is-expanded .yt-transport { position: relative; z-index: 2; padding-left: 20px; padding-right: 20px; }
 .yt-card--player.is-expanded .yt-transport { padding-bottom: 16px; justify-content: center; gap: 10px; }
 .yt-card--player.is-expanded .yt-seek-row { margin-bottom: 8px; }
 .yt-card--player.is-expanded .yt-now-title { font-size: 1.05rem; }

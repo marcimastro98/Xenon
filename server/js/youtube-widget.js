@@ -82,7 +82,8 @@
     time: 0, duration: 0,
     muted: false,
     expanded: false,
-    blocked: false,     // the uploader refuses embedding — offer the browser instead
+    blocked: false,     // the embed refuses this video — offer the browser instead
+    heard: false,       // the current frame has answered us at least once
     hello: null,
     idle: false, idleT: null,   // full-screen controls faded out (see armIdle)
   };
@@ -132,12 +133,23 @@
   }
   // The embed only starts reporting back once we say we're listening. It can miss
   // the first message while it boots, so say it a few times and stop on the reply.
+  // Giving up is a RESULT, not silence: a frame that never answers is one that
+  // never became a player — YouTube has served its own error page inside it, and
+  // that page speaks none of this protocol. Without the fallback below the user was
+  // left looking at YouTube's raw "Video unavailable" rectangle with nothing from us
+  // explaining it. Eight seconds, not the old five: the give-up is now user-visible,
+  // so it has to outlast a slow embed on a cold start.
   function sayHello() {
     clearInterval(player.hello);
     let n = 0;
     const tick = () => {
       const f = player.frame;
-      if (!f || !f.contentWindow || ++n > 12) { clearInterval(player.hello); player.hello = null; return; }
+      if (!f || !f.contentWindow) { clearInterval(player.hello); player.hello = null; return; }
+      if (++n > 20) {
+        clearInterval(player.hello); player.hello = null;
+        if (!player.heard) { player.blocked = true; player.state = 2; paintPlayer(); }
+        return;
+      }
       try { f.contentWindow.postMessage(JSON.stringify({ event: 'listening', id: PLAYER_ID, channel: 'widget' }), EMBED_ORIGIN); } catch { /* gone */ }
     };
     player.hello = setInterval(tick, 400);
@@ -151,13 +163,17 @@
     let d = null;
     try { d = JSON.parse(typeof e.data === 'string' ? e.data : ''); } catch { return; }
     if (!d || typeof d !== 'object') return;
+    player.heard = true;
     if (player.hello) { clearInterval(player.hello); player.hello = null; }
     const info = d.info;
     if (d.event === 'onStateChange') {
       applyState(Number(info));
     } else if (d.event === 'onError') {
-      // 101 / 150 = the uploader disabled embedding. Nothing to retry: offer the
-      // browser instead of leaving a dead black rectangle.
+      // 101 / 150 = this embed may not play this video. That is not always a flag on
+      // the video: the same id can be embeddable in one country and refused in
+      // another, because the restriction belongs to whoever owns the content. Either
+      // way there is nothing to retry — offer the browser instead of leaving YouTube's
+      // own error rectangle on screen with no explanation.
       player.blocked = true; player.state = 2;
       paintPlayer();
     } else if (d.event === 'infoDelivery' || d.event === 'initialDelivery') {
@@ -205,6 +221,10 @@
 
   function mountFrame(stage, videoId) {
     destroyFrame();
+    // A fresh frame has told us nothing yet. Only remounts reset this: swapping the
+    // video inside a LIVE player keeps a partner that has already answered, and that
+    // player is the thing that reports the next video's error.
+    player.heard = false;
     const f = document.createElement('iframe');
     f.className = 'yt-frame';
     f.title = 'YouTube';
@@ -405,6 +425,11 @@
     const fit = el('div', 'yt-stage-fit');
     const stage = el('div', 'yt-player-stage');
     stage.appendChild(el('div', 'yt-player-empty', t('youtube_player_empty', 'Pick a video from the list below')));
+    // Over the picture, not under the controls. YouTube paints its own error inside
+    // the frame and it fills the whole stage, so an explanation anywhere else is an
+    // explanation nobody reads — the reported symptom was exactly that. Added after
+    // the iframe's slot so it paints above it (mountFrame inserts the frame first).
+    stage.appendChild(buildBlockedOverlay());
     fit.appendChild(stage); stageWrap.appendChild(fit);
     card.appendChild(stageWrap);
     // Above the video, below the controls. Only takes input while the controls
@@ -453,14 +478,17 @@
     );
     card.appendChild(bar);
 
+    return card;
+  }
+
+  function buildBlockedOverlay() {
     const blocked = el('div', 'yt-blocked');
-    blocked.append(el('span', null, t('youtube_no_embed', 'This video cannot be played inside apps.')));
+    blocked.append(el('span', 'yt-blocked-txt', t('youtube_no_embed', 'This video cannot be played inside apps.')));
     const bb = el('button', 'yt-blocked-btn', t('youtube_open_browser', 'Open in the browser'));
     bb.type = 'button';
     bb.addEventListener('click', async () => { const v = cur(); const url = v && watchUrl(v.id); if (url) await openOut(url); });
     blocked.appendChild(bb);
-    card.appendChild(blocked);
-    return card;
+    return blocked;
   }
 
   function buildLibraryCard() {
