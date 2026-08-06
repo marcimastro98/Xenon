@@ -30,7 +30,21 @@
   opacity: 0.08; pointer-events: none; z-index: 0;
 }
 .yt-watermark svg { width: 100%; height: auto; }
-.yt-head, .yt-cards { position: relative; z-index: 1; }
+.yt-head, .yt-cards, .yt-setup { position: relative; z-index: 1; }
+
+/* "No account connected" call-to-action — opens Settings → Streaming. With no
+   account both cards below are taken off screen, so without this the tile is a
+   watermark on an empty background and nothing says why. Same shape as the
+   Discord widget's notice, in YouTube's red. */
+.yt-setup {
+  display: flex; align-items: center; gap: 8px; width: 100%; flex: 0 0 auto;
+  margin: 2px 0 4px; padding: 8px 11px; border-radius: 10px; cursor: pointer;
+  text-align: left; font: inherit; font-size: 0.8rem; font-weight: 700;
+  color: #ff6b6b; background: rgba(255,0,0,0.10); border: 1px solid rgba(255,0,0,0.32);
+}
+/* `display: flex` above outranks the UA `[hidden]{display:none}` rule, so the
+   notice needs an explicit guard or it never hides once an account is connected. */
+.yt-setup[hidden] { display: none; }
 
 /* Header */
 .yt-head { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; min-width: 0; }

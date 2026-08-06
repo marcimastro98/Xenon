@@ -235,8 +235,10 @@
 
   // ── DOM ───────────────────────────────────────────────────────────────────
   function ensure(mount) {
-    if (mount.dataset.twwBuilt === '1' && mount.firstChild) return;
-    mount.dataset.twwBuilt = '1';
+    // Bumped when the built markup changes: a hidden widget's DOM is kept in the
+    // pool rather than destroyed, so a stale build would never gain the notice.
+    if (mount.dataset.twwBuilt === '2' && mount.firstChild) return;
+    mount.dataset.twwBuilt = '2';
     const wrap = el('div', 'tww-wrap');
 
     const wm = el('div', 'tww-watermark'); wm.innerHTML = ICONS.logo;      // static, trusted SVG
@@ -245,6 +247,13 @@
     const head = el('div', 'tww-head');
     head.appendChild(el('span', 'tww-logo', 'Twitch'));
     wrap.appendChild(head);
+
+    // All three cards are taken off screen with no account connected, which left
+    // the tile as a watermark on an empty background with nothing saying why.
+    const notice = el('button', 'tww-setup'); notice.type = 'button'; notice.hidden = true;
+    notice.append(el('span', 'tww-setup-txt', t('tww_setup', 'Connect your Twitch account in Settings → Streaming')));
+    notice.addEventListener('click', openStreamingSettings);
+    wrap.appendChild(notice);
 
     const cards = el('div', 'tww-cards');
     cards.append(buildPlayerCard(), buildLibraryCard(), buildChatCard());
@@ -678,6 +687,9 @@
       if (list.dataset.twwSig === sig) return;
       list.dataset.twwSig = sig;
 
+      // A definite "no account" never resolves, so it must not borrow the loading
+      // line — that is a spinner over an answer we already have.
+      if (connected === false) { list.replaceChildren(el('div', 'tww-list-note', t('twitch_not_connected', 'Connect in Settings'))); return; }
       if (connected !== true) { list.replaceChildren(el('div', 'tww-list-note', t('browser_loading', 'Loading…'))); return; }
       if (lib.loading) { list.replaceChildren(el('div', 'tww-list-note', t('browser_loading', 'Loading…'))); return; }
       if (lib.error === 'scope') {
@@ -759,6 +771,13 @@
     if (inp) inp.placeholder = t('tww_search_ph', 'Search a channel');
     const ci = mount.querySelector('.tww-chat-input');
     if (ci) ci.placeholder = t('tww_chat_ph', 'Send a message');
+    const setup = mount.querySelector('.tww-setup');
+    // Only a definite "no account": while the check is still out the cards are on
+    // screen and saying "connect" would be a guess.
+    if (setup) {
+      setup.hidden = connected !== false;
+      setup.querySelector('.tww-setup-txt').textContent = t('tww_setup', 'Connect your Twitch account in Settings → Streaming');
+    }
   }
 
   function paint() {
