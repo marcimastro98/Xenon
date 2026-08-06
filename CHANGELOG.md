@@ -3,7 +3,7 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [v4.11.4] - 06-08-2026
 ### ✨ Added
 - **The buttons in the top bar are yours to arrange.** Lock, Ambient, Xenon, Search, Layout, Apps and the favourite apps can each be hidden, dragged into the order you want, and moved to the left or the right side. It works the same in the full bar and in the Dynamic Island's side rails, so it does not depend on which of the two you use. Until now the only way to get rid of a button you never press was to close a whole rail, which took the others with it, or to switch the bar off entirely, which did not remove the buttons at all — it just moved them.
 
