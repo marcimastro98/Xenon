@@ -1346,6 +1346,24 @@
         </span>
         <span class="demo-go" data-i18n="cta.demo">Try it in your browser</span>
       </a>
+
+      <!-- A second shot, under the first. The hero image answers "what is it";
+           this one answers "what is ON it" — several widgets working at the same
+           time, which is the one thing a screenshot of a single feature can never
+           show. Reuses .sec-head.center + .edge-frame, so it needs no new CSS.
+           Lazy and deliberately NOT preloaded: the image above is the LCP
+           candidate and must not share the connection with a second ~1 MB file. -->
+      <div class="sec-head center reveal" style="margin-top:var(--s-7);margin-bottom:var(--s-4)">
+        <span class="eyebrow"><span data-i18n="wall.k">More than 40 widgets</span></span>
+        <h2 data-i18n-html="wall.h">Everything you keep in tabs, <em>on one screen.</em></h2>
+        <p data-i18n="wall.p">One dashboard, not a collage. A video playing with your own liked videos and playlists next to it, a real browser you can actually use, and a live map of every drive that says how much space you can safely get back. Plus the clock, the weather, the mic and whatever is playing, along the top. You place them where you want, on as many pages as you want, and you can build your own.</p>
+      </div>
+      <div class="edge-frame reveal" style="margin-top:0">
+        <div class="edge-body">
+          <img src="images/overview2.png" alt="One Xenon dashboard at 32:9 showing a YouTube player with its playlists, a browser tile, and the disk space map with cleanup suggestions" width="2559" height="718" loading="lazy">
+        </div>
+        <div class="edge-glow" aria-hidden="true"></div>
+      </div>
     </div>
   </header>
 
@@ -1924,6 +1942,12 @@ I18N.en = {
   'dl.phone.a': 'See how →',
   'dl.onphone.t': 'You are on a phone right now.',
   'dl.onphone.p': 'Xenon installs on the PC it monitors, so start there. Then this screen becomes one of its panels: scan the pairing QR from the PC, or send yourself this link.',
+  'wall.k': 'More than 40 widgets',
+
+  'wall.h': 'Everything you keep in tabs, <em>on one screen.</em>',
+
+  'wall.p': 'One dashboard, not a collage. A video playing with your own liked videos and playlists next to it, a real browser you can actually use, and a live map of every drive that says how much space you can safely get back. Plus the clock, the weather, the mic and whatever is playing, along the top. You place them where you want, on as many pages as you want, and you can build your own.',
+
   'proof.1t': '100% local', 'proof.1s': 'Your data never leaves your PC',
   'proof.2t': 'Zero telemetry', 'proof.2s': 'No ads, no accounts, no tracking in the app',
   'proof.3t': 'Free forever', 'proof.3s': 'Open source, funded by coffee',
@@ -2066,6 +2090,12 @@ I18N.it = {
   'dl.phone.a': 'Guarda come →',
   'dl.onphone.t': 'Adesso sei su un telefono.',
   'dl.onphone.p': 'Xenon si installa sul PC che monitora, quindi si parte da lì. Poi questo schermo diventa uno dei suoi pannelli: scansiona il QR di abbinamento dal PC, o mandati questo link.',
+  'wall.k': 'Più di 40 widget',
+
+  'wall.h': 'Tutto quello che tieni nelle schede, <em>su un solo schermo.</em>',
+
+  'wall.p': 'Una dashboard sola, non un collage. Un video che va con i tuoi Mi piace e le tue playlist accanto, un browser vero che puoi usare davvero, e la mappa dei dischi che dice quanto spazio puoi recuperare senza rischi. Più l\'ora, il meteo, il microfono e quello che sta suonando, lungo il bordo alto. Li metti dove vuoi, su quante pagine vuoi, e i tuoi te li puoi costruire.',
+
   'proof.1t': '100% locale', 'proof.1s': 'I tuoi dati non lasciano mai il tuo PC',
   'proof.2t': 'Zero telemetria', 'proof.2s': "Nessuna pubblicità, account o tracciamento nell'app",
   'proof.3t': 'Gratis per sempre', 'proof.3s': 'Open source, va avanti a caffè',
@@ -2208,6 +2238,12 @@ I18N.ko = {
   'dl.phone.a': '방법 보기 →',
   'dl.onphone.t': '지금 휴대폰으로 보고 계시네요.',
   'dl.onphone.p': 'Xenon은 감시할 PC에 설치하므로 거기서 시작하세요. 그다음 이 화면이 그 패널 중 하나가 됩니다: PC에서 연결 QR을 스캔하거나, 이 링크를 자신에게 보내세요.',
+  'wall.k': '40개가 넘는 위젯',
+
+  'wall.h': '탭에 쌓아 둔 모든 것을, <em>한 화면에.</em>',
+
+  'wall.p': '여러 화면을 이어 붙인 것이 아니라 하나의 대시보드입니다. 좋아한 영상과 재생목록을 옆에 둔 채로 재생되는 영상, 실제로 쓸 수 있는 브라우저, 그리고 안전하게 되찾을 수 있는 용량을 알려 주는 드라이브 지도. 위쪽 바에는 시계와 날씨, 마이크, 지금 재생 중인 것이 함께 있습니다. 원하는 자리에, 원하는 만큼의 페이지에 놓을 수 있고, 직접 만들 수도 있습니다.',
+
   'proof.1t': '100% 로컬', 'proof.1s': '데이터가 PC를 떠나지 않습니다',
   'proof.2t': '텔레메트리 제로', 'proof.2s': '앱에는 광고, 계정, 추적이 없습니다',
   'proof.3t': '영원히 무료', 'proof.3s': '오픈소스, 커피로 굴러갑니다',
@@ -2350,6 +2386,12 @@ I18N.ja = {
   'dl.phone.a': 'やり方を見る →',
   'dl.onphone.t': 'いまスマホでご覧ですね。',
   'dl.onphone.p': 'Xenon は監視する PC に入れるので、まずはそちらから。そのあとこの画面がパネルの 1 つになります: PC からペアリング用 QR を読み取るか、このリンクを自分宛てに送ってください。',
+  'wall.k': '40 を超えるウィジェット',
+
+  'wall.h': 'タブに溜めているもの、<em>ぜんぶ 1 画面に。</em>',
+
+  'wall.p': '寄せ集めではなく、ひとつのダッシュボードです。高評価した動画と再生リストを横に並べたまま再生できる動画、実際に使えるブラウザ、そして安全に取り戻せる容量を教えてくれるドライブのマップ。上のバーには時計、天気、マイク、再生中の曲。好きな場所に、好きなページ数だけ置けますし、自分で作ることもできます。',
+
   'proof.1t': '100% ローカル', 'proof.1s': 'データが PC の外に出ることはありません',
   'proof.2t': 'テレメトリゼロ', 'proof.2s': 'アプリに広告・アカウント・トラッキングはありません',
   'proof.3t': 'ずっと無料', 'proof.3s': 'オープンソース、コーヒーで回っています',
@@ -2492,6 +2534,12 @@ I18N.zh = {
   'dl.phone.a': '看看怎么做 →',
   'dl.onphone.t': '你现在正用手机浏览。',
   'dl.onphone.p': 'Xenon 装在它要监控的那台 PC 上，所以从那儿开始。之后这块屏就成了它的一个面板：在 PC 上扫配对二维码，或者把这个链接发给自己。',
+  'wall.k': '40 多个小组件',
+
+  'wall.h': '你堆在标签页里的一切，<em>都在一块屏幕上。</em>',
+
+  'wall.p': '这是一个完整的仪表盘，不是拼接的截图。正在播放的视频旁边就是你自己的点赞和播放列表，一个真正能用的浏览器，还有一张实时的磁盘地图，告诉你可以安全清理出多少空间。顶部一条还有时钟、天气、麦克风和正在播放的内容。你想放在哪里就放在哪里，想分几页就分几页，也可以自己做一个。',
+
   'proof.1t': '100% 本地', 'proof.1s': '你的数据永不离开你的 PC',
   'proof.2t': '零遥测', 'proof.2s': '应用内无广告、无账号、无跟踪',
   'proof.3t': '永久免费', 'proof.3s': '开源项目，靠咖啡运转',
