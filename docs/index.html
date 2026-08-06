@@ -2973,13 +2973,32 @@ I18N.zh = {
     // and counting them would inflate this several times over.
     //
     // The three platforms are named separately rather than by extension alone.
-    // "setup" catches both Windows names (the stable Xenon-Setup-x64.exe and the
-    // versioned one); the other three are matched by suffix. A bare /\.exe$/
-    // would have swept in xenon-helper.exe, which is a component every install
-    // pulls and every update pulls again — not a person choosing to install
-    // Xenon. Until v4.11.0 this filter was "setup" alone, so the moment the mac
-    // and Linux builds shipped the counter would have kept reporting Windows
-    // only and looked stuck.
+    // A bare /\.exe$/ would have swept in xenon-helper.exe, which is a component
+    // every install pulls and every update pulls again — not a person choosing
+    // to install Xenon. Until v4.11.0 this filter was "setup" alone, so the
+    // moment the mac and Linux builds shipped the counter would have kept
+    // reporting Windows only and looked stuck.
+    //
+    // The harder half: an UPDATE is the same person, and the Tauri updater
+    // downloads a real installer to perform it. tauri.conf.json points the app
+    // at latest.json, whose windows-x86_64 entry is Xenon_<version>_x64-setup.exe
+    // and whose linux entry is Xenon_<version>_amd64.AppImage — both of which a
+    // name-shape filter counts, so every native-app user updating v4.10 → v4.11
+    // used to add one "download" forever. (The backend's own self-update does
+    // not: it fetches the tag's source zip, and GitHub exposes no counter for
+    // auto-generated zips. macOS is safe too, its updater artifact is a .tar.gz.)
+    //
+    // What separates the two is the NAME, not the version: the site and the
+    // README link the permanent-URL assets (Xenon-Setup-x64.exe and friends),
+    // while the updater always fetches a version-stamped one. So a release that
+    // HAS a stable-named installer counts only those, and one that does not —
+    // every release before v4.5.1, which predates the stable name — falls back
+    // to the shape filter. That keeps the early history without hardcoding a
+    // version here, and it stays correct on its own the next time the asset set
+    // changes. The cost is the person who opens the GitHub release page and
+    // picks the versioned file by hand; undercounting them is the right trade
+    // against counting one user's every update as a new install.
+    const STABLE = /^Xenon-(Setup-x64\.exe|macOS-universal\.dmg|Linux-x86_64\.(AppImage|deb))$/i;
     const INSTALLER = /setup|\.(dmg|appimage|deb)$/i;
     (async function () {
       try {
@@ -2988,8 +3007,11 @@ I18N.zh = {
         let total = 0;
         for (const r of all) {
           if (!r || r.draft) continue;
-          for (const a of (r.assets || [])) {
-            if (INSTALLER.test(a.name) && !/\.sig$/i.test(a.name)) total += (a.download_count || 0);
+          const assets = (r.assets || []).filter((a) => a && !/\.sig$/i.test(a.name));
+          const hasStable = assets.some((a) => STABLE.test(a.name));
+          for (const a of assets) {
+            const counted = hasStable ? STABLE.test(a.name) : INSTALLER.test(a.name);
+            if (counted) total += (a.download_count || 0);
           }
         }
         if (total > 0) { counts.downloads = total; render(); }

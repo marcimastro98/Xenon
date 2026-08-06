@@ -94,3 +94,22 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      # Announces the URLs this run changed to the IndexNow engines (Bing, and
+      # through it Copilot; Yandex, Seznam, Naver). It runs AFTER the deploy on
+      # purpose: the ping invites an immediate crawl, so the page has to be live
+      # before it goes out.
+      #
+      # `continue-on-error` plus the script's own exit-0 discipline: a search
+      # engine that is down must never turn a successful website deploy into a
+      # red run.
+      #
+      # The commit range is what the push actually moved; the script also reads
+      # the working tree, which is what catches a catalog page that build-seo
+      # regenerated from a bot's catalog.json edit without any commit naming it.
+      - name: Ping IndexNow
+        continue-on-error: true
+        env:
+          INDEXNOW_BEFORE: ${{ github.event.before }}
+          INDEXNOW_AFTER: ${{ github.sha }}
+        run: node tools/indexnow.mjs
