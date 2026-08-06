@@ -325,7 +325,15 @@ body.yt-expanded .yt-wrap { container-type: normal; }
   font-size: 0.8rem; font-weight: 700; color: var(--text, #e7e9ee);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.yt-row-sub { font-size: 0.67rem; font-weight: 600; color: var(--text-dim, #8b91a1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The channel name gives up its width to the tag, not the other way round: the tag
+   is the short, fixed thing and the one carrying news. */
+.yt-row-subline { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.yt-row-sub { font-size: 0.67rem; font-weight: 600; color: var(--text-dim, #8b91a1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.yt-row-tag {
+  flex: 0 0 auto; font-size: 0.58rem; font-weight: 800; letter-spacing: 0.04em;
+  text-transform: uppercase; white-space: nowrap; padding: 1px 6px; border-radius: 999px;
+  color: #ff8a8a; background: rgba(255,0,0,0.13); border: 1px solid rgba(255,0,0,0.28);
+}
 .yt-row-play {
   flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; border-radius: 50%; color: #fff; background: rgba(255,0,0,0.85);

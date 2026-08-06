@@ -213,6 +213,57 @@ test('durations parse hours and survive a value the API never sends', async () =
   assert.equal(r.videos[1].seconds, null);   // never a wrong number
 });
 
+// Whether a video may play outside youtube.com rides the SAME request as the
+// duration, and the widget marks the ones that may not. The direction of the
+// default is the whole point: an answer that does not say has to mean "nothing
+// says otherwise", because a wrong `false` hides a video that plays perfectly.
+test('embeddable: only an explicit false marks a video as YouTube-only', async () => {
+  const p = connectedYt([
+    { match: 'myRating=like', json: { items: [
+      { id: 'vid00001', snippet: { title: 'Refused' }, status: { embeddable: false } },
+      { id: 'vid00002', snippet: { title: 'Allowed' }, status: { embeddable: true } },
+      { id: 'vid00003', snippet: { title: 'No status block at all' } },
+      { id: 'vid00004', snippet: { title: 'Status, but silent on it' }, status: { privacyStatus: 'public' } },
+    ] } },
+  ]);
+  const r = await p.likedVideos();
+  assert.deepEqual(r.videos.map(v => v.embeddable), [false, true, true, true]);
+});
+
+test('the liked list asks for the status part, or there is nothing to read', async () => {
+  const calls = [];
+  const p = connectedYt([{ match: 'myRating=like', calls, json: { items: [] } }]);
+  await p.likedVideos();
+  assert.match(calls[0], /part=snippet%2CcontentDetails%2Cstatus|part=snippet,contentDetails,status/);
+});
+
+test('the batched call carries both parts, and marks the rows it covers', async () => {
+  const calls = [];
+  const p = connectedYt([
+    { match: '/playlistItems', json: { items: [
+      { contentDetails: { videoId: 'vid00001' }, snippet: { title: 'One' } },
+      { contentDetails: { videoId: 'vid00002' }, snippet: { title: 'Two' } },
+    ] } },
+    { match: '/videos', calls, json: { items: [
+      { id: 'vid00001', contentDetails: { duration: 'PT4M' }, status: { embeddable: false } },
+      { id: 'vid00002', contentDetails: { duration: 'PT2M' }, status: { embeddable: true } },
+    ] } },
+  ]);
+  const r = await p.playlistVideos('PLxxxxxxxxxxxxxxxxxx');
+  assert.match(calls[0], /part=contentDetails%2Cstatus|part=contentDetails,status/);
+  assert.deepEqual(r.videos.map(v => [v.seconds, v.embeddable]), [[240, false], [120, true]]);
+});
+
+test('a row the batched call never answered for keeps playing, and has no duration', async () => {
+  const p = connectedYt([
+    { match: '/playlistItems', json: { items: [{ contentDetails: { videoId: 'vid00009' }, snippet: { title: 'Missed' } }] } },
+    { match: '/videos', json: { items: [] } },
+  ]);
+  const r = await p.playlistVideos('PLxxxxxxxxxxxxxxxxxx');
+  assert.equal(r.videos[0].seconds, null);
+  assert.equal(r.videos[0].embeddable, true);
+});
+
 test('thumbnails that are not https are dropped, never painted', async () => {
   const p = connectedYt([{ match: 'myRating=like', json: { items: [
     { id: 'vid00001', snippet: { title: 'X', thumbnails: { medium: { url: 'javascript:alert(1)' } } } },
