@@ -394,6 +394,7 @@ drop_mac_agent() {
 # so the cleanup categories came back empty and the disk map under-reported.
 register_macos_app_agent() {
   local app="$1"
+  MAC_APP_PATH="$app"
   mkdir -p "$HOME/Library/LaunchAgents" "$MAC_LOG_DIR"
   # `open -a` and not the bundle executable: LaunchServices is what gives the
   # process its bundle identity, which is what the permission is attached to.
@@ -432,6 +433,41 @@ PLIST_EOF
     fail "launchctl refused to load $PLIST."
   fi
   open -a "$app" >/dev/null 2>&1 || true
+}
+
+# Set by register_macos_app_agent so the wait loop below can restart the very
+# app it just registered.
+MAC_APP_PATH=''
+
+# Make the running app look for the backend again.
+#
+# `open -a` ACTIVATES an app that is already running, and on a first install it
+# always is: this script was launched by Xenon's own first-launch bootstrap, so
+# the app is on screen waiting for the very backend being installed here — and
+# its one check for a backend ran at startup, before any of this existed.
+# Nothing else would ever start it either, because the login agent's command is
+# `open -a Xenon`, which against a running Xenon is the same no-op. So a first
+# install that had actually succeeded ended in a 90-second timeout, an error in
+# this window, and a splash that kept turning until the user thought to quit
+# Xenon and open it again.
+#
+# Quitting and reopening IS the fix: the fresh launch runs that check again,
+# finds the install, and starts the backend as its own CHILD — which is what
+# gives it Xenon's Full Disk Access instead of node's, the whole reason the app
+# holds the backend on this platform.
+#
+# Only ever called while the dashboard is NOT answering, so there is no live
+# backend child to orphan. The executable name comes from the bundle rather
+# than being written here, so a rename cannot silently turn this into a no-op.
+restart_mac_app() {
+  [ -n "$MAC_APP_PATH" ] || return 0
+  local exe
+  exe="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$MAC_APP_PATH/Contents/Info.plist" 2>/dev/null)"
+  [ -n "$exe" ] || return 0
+  pgrep -x "$exe" >/dev/null 2>&1 || return 0
+  pkill -x "$exe" >/dev/null 2>&1
+  sleep 2
+  open -a "$MAC_APP_PATH" >/dev/null 2>&1 || true
 }
 
 # Set by register_macos so the caller knows which chain it is waiting on: the
@@ -656,8 +692,19 @@ http_get() { # $1 = url, $2 = timeout in seconds
 WAIT_SECS=40
 [ "$SERVICE_KIND" = 'launchd-app' ] && WAIT_SECS=90
 UP=0
+RESTARTED=0
+ELAPSED=0
 for _ in $(seq 1 "$WAIT_SECS"); do
   if http_get "http://127.0.0.1:$PORT/version" 2 >/dev/null 2>&1; then UP=1; break; fi
+  ELAPSED=$((ELAPSED + 1))
+  # See restart_mac_app: on the app path the app that is already running has to
+  # be restarted before it will notice this install. Ten seconds in and once
+  # only — an app `open -a` launched a moment ago may still be booting, and
+  # killing it then would just cost another launch.
+  if [ "$SERVICE_KIND" = 'launchd-app' ] && [ "$RESTARTED" = 0 ] && [ "$ELAPSED" -ge 10 ]; then
+    RESTARTED=1
+    restart_mac_app
+  fi
   sleep 1
 done
 
@@ -667,9 +714,10 @@ if [ "$UP" = "1" ]; then
   printf '  %sXenon %s is running.%s\n' "$C_OK" "${VER:-}" "$C_OFF"
   printf '  %sDashboard: %s%s\n' "$C_OK" "$DASH_URL" "$C_OFF"
 else
-  printf '  %sThe service was registered but did not answer within 40s.%s\n' "$C_WARN" "$C_OFF"
+  printf '  %sThe service was registered but did not answer within %ss.%s\n' "$C_WARN" "$WAIT_SECS" "$C_OFF"
   case "$SERVICE_KIND" in
     launchd)   printf '  %sCheck the log: %s/backend.err.log%s\n' "$C_DIM" "$MAC_LOG_DIR" "$C_OFF" ;;
+    launchd-app) printf '  %sOpen Xenon again -- it starts the dashboard when it launches.%s\n' "$C_DIM" "$C_OFF" ;;
     systemd)   printf '  %sCheck the log: journalctl --user -u %s -n 50%s\n' "$C_DIM" "$UNIT_NAME" "$C_OFF" ;;
     autostart) printf '  %sTry starting it by hand: node %s/server.js%s\n' "$C_DIM" "$SERVER_DIR" "$C_OFF" ;;
   esac

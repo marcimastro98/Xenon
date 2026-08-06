@@ -1,6 +1,6 @@
 [package]
 name = "xenon-native"
-version = "4.11.2"
+version = "4.11.3"
 description = "Xenon native kiosk shell for any second screen"
 authors = ["Marcello Mastroeni (marcimastro98)"]
 edition = "2021"

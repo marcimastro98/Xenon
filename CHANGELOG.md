@@ -3,6 +3,12 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v4.11.3] - 06-08-2026
+### 🐛 Fixed
+- **The first install on a Mac now ends with the dashboard on screen, instead of a spinner and an error.** With 4.11.2 the setup finally ran to the end — it downloaded Xenon, installed it, registered it to start at login — and then nothing started it. The window reported that the dashboard had not answered, and the app kept turning on "Waiting for the Xenon service" forever, on an installation that had actually succeeded. Quitting Xenon and opening it again fixed it, which is not something anyone should have to guess.
+
+  The reason is that the piece which starts the dashboard is Xenon itself, and Xenon was already open — it is what opened the setup window in the first place. It looks for a dashboard once, when it launches, and at that moment there was nothing installed yet to find. The command that starts Xenon at login does nothing when Xenon is already running, so no one ever asked it to look again. The installer now closes and reopens the app itself once the install is done, so that second look happens. Xenon holds the dashboard on a Mac on purpose: started that way it inherits the app's Full Disk Access, which is what lets the Disk widget and search see the Trash and your caches.
+
 ## [v4.11.2] - 06-08-2026
 ### 🐛 Fixed
 - **Installing Xenon on a Mac from the .dmg now finishes.** The app opened, the setup window appeared, it found the release, downloaded it and verified its signature — and then stopped on the line right before it started copying anything, with `INSTALL_ROOT: unbound variable`. The window closed itself, nothing was installed, and the app sat on "Waiting for the Xenon service..." forever. There was no way to tell from the outside that anything had gone wrong.
