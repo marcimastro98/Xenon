@@ -3,6 +3,12 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased] - v4.11.1
+### 🐛 Fixed
+- **The YouTube widget now tells you when a video will not play, instead of leaving YouTube's own error on screen.** Some videos cannot be played outside YouTube itself. That is a decision of whoever owns the video, not of Xenon, and it can even differ from country to country: the same video can play inside apps in one place and be refused in another, which is why videos from a channel you follow can work while others from that same channel do not, and why all of them still play fine on YouTube. Xenon already knew about this case and offered to open the video in your browser, but the offer was a line of text below the controls, while YouTube's own "Video unavailable" rectangle stayed sitting over the whole picture. So the only thing you actually saw was the error, and it looked like the widget was broken. Now the explanation and the **Open in the browser** button are drawn over the picture, in place of that rectangle.
+
+  There was also a case where nothing was said at all: when YouTube refuses a video, what it puts in the frame is a plain error page, and that page cannot talk to Xenon. If that happened, the widget waited for a player that was never coming and left the black box there. It now gives that wait a deadline and shows the same explanation.
+
 ## [v4.11.0] - 05-08-2026
 ### ✨ New
 - **The Claude Code widget now mirrors what is actually happening in the session, and every control on it does something real.** The tile could tell you a session was busy and very little else, and in three places it showed a control that did nothing. The worst was the question card: when Claude asked you to choose between options, the card showed the question and the options, the options could not be tapped, and the one button on it just made the card go away. Nothing reached the session. It is now a real question — **tap an option and answer**, and Claude carries on with your choice instead of waiting at the keyboard. Multiple-choice questions accept several answers, and there is still a button to leave it to the terminal if that is where you would rather answer it.
