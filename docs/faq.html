@@ -382,7 +382,7 @@
       <summary data-i18n="f.q.autostart">Does it start with my PC, and can I stop that?</summary>
       <div class="body" data-i18n-html="f.a.autostart">
         <p>Yes, it starts when you log in, so the dashboard is already live when you sit down. It runs inside your own session rather than as a system service, and that is deliberate: outside your session there is no audio device list, no window list, no microphone and no way to open an app, so half the features would silently stop working.</p>
-        <p>To remove the startup entry, run <code>UNINSTALL.bat</code> on Windows, <code>UNINSTALL.command</code> on macOS, or <code>./UNINSTALL.sh</code> on Linux.</p>
+        <p>To remove Xenon, run <code>UNINSTALL.bat</code> on Windows, <code>UNINSTALL.command</code> on macOS, or <code>./UNINSTALL.sh</code> on Linux.</p>
       </div>
     </details>
 
@@ -396,7 +396,7 @@
     <details>
       <summary data-i18n="f.q.uninstall">How do I uninstall it?</summary>
       <div class="body" data-i18n-html="f.a.uninstall">
-        <p>Run <code>UNINSTALL.bat</code> on Windows, <code>UNINSTALL.command</code> on macOS, or <code>./UNINSTALL.sh</code> on Linux. All three leave your settings, layouts and notes alone unless you add <code>--purge-data</code>. Deleting the data folder removes everything Xenon ever stored, including the random id used so a store rating counts once.</p>
+        <p>Run <code>UNINSTALL.bat</code> on Windows, <code>UNINSTALL.command</code> on macOS, or <code>./UNINSTALL.sh</code> on Linux. All three ask once, then remove Xenon completely: the app, the startup entry, the local server, your data and the install folder. Add <code>--keep-data</code> (<code>-KeepData</code> on Windows) to keep your settings, layouts and notes. Deleting the data folder removes everything Xenon ever stored, including the random id used so a store rating counts once.</p>
       </div>
     </details>
 
@@ -571,11 +571,11 @@ const I18N = {
   "f.q.installer": "What does the installer actually do?",
   "f.a.installer": "<p>On Windows it installs the app, installs the dashboard engine under <code>%LOCALAPPDATA%\\Xenon</code>, installs Node.js if you do not already have it, and registers a task so the dashboard starts when you log in. It also fetches the optional pieces: FFmpeg, LibreHardwareMonitor and PawnIO for temperatures, PresentMon for real in-game FPS.</p><p><strong>Nothing runs hidden.</strong> The setup itself only installs the app and opens it; the dashboard half is offered by the app afterwards and runs in a console window you can watch and interrupt. An earlier version did that silently in the background, and that is precisely the shape that gets an unsigned installer quarantined, so it was removed.</p>",
   "f.q.autostart": "Does it start with my PC, and can I stop that?",
-  "f.a.autostart": "<p>Yes, it starts when you log in, so the dashboard is already live when you sit down. It runs inside your own session rather than as a system service, and that is deliberate: outside your session there is no audio device list, no window list, no microphone and no way to open an app, so half the features would silently stop working.</p><p>To remove the startup entry, run <code>UNINSTALL.bat</code> on Windows, <code>UNINSTALL.command</code> on macOS, or <code>./UNINSTALL.sh</code> on Linux.</p>",
+  "f.a.autostart": "<p>Yes, it starts when you log in, so the dashboard is already live when you sit down. It runs inside your own session rather than as a system service, and that is deliberate: outside your session there is no audio device list, no window list, no microphone and no way to open an app, so half the features would silently stop working.</p><p>To remove Xenon, run <code>UNINSTALL.bat</code> on Windows, <code>UNINSTALL.command</code> on macOS, or <code>./UNINSTALL.sh</code> on Linux.</p>",
   "f.q.update": "How do I update?",
   "f.a.update": "<p>Xenon updates itself. When a release is out the dashboard shows a prompt; one tap downloads it, checks its signature <em>before</em> extracting anything, installs the engine and then the app, and puts the previous version back automatically if anything fails. Your settings, layouts and notes are always kept, and files left over from older versions are cleaned up.</p>",
   "f.q.uninstall": "How do I uninstall it?",
-  "f.a.uninstall": "<p>Run <code>UNINSTALL.bat</code> on Windows, <code>UNINSTALL.command</code> on macOS, or <code>./UNINSTALL.sh</code> on Linux. All three leave your settings, layouts and notes alone unless you add <code>--purge-data</code>. Deleting the data folder removes everything Xenon ever stored, including the random id used so a store rating counts once.</p>",
+  "f.a.uninstall": "<p>Run <code>UNINSTALL.bat</code> on Windows, <code>UNINSTALL.command</code> on macOS, or <code>./UNINSTALL.sh</code> on Linux. All three ask once, then remove Xenon completely: the app, the startup entry, the local server, your data and the install folder. Add <code>--keep-data</code> (<code>-KeepData</code> on Windows) to keep your settings, layouts and notes. Deleting the data folder removes everything Xenon ever stored, including the random id used so a store rating counts once.</p>",
   "f.q.admin": "Why does it ask for administrator rights?",
   "f.a.admin": "<p>Once, during install, and for two things: setting up CPU and disk temperature reading (LibreHardwareMonitor and PawnIO, which need a driver-level component), and registering the startup task. Decline it and everything else still works, you simply get no temperatures. Xenon does not run elevated afterwards.</p>",
   "f.q.port": "It says port 3030 is already in use",
@@ -658,11 +658,11 @@ const I18N = {
   "f.q.installer": "Cosa fa davvero l'installer?",
   "f.a.installer": "<p>Su Windows installa l'app, installa il motore della dashboard sotto <code>%LOCALAPPDATA%\\Xenon</code>, installa Node.js se non ce l'hai già, e registra un'attività perché la dashboard parta quando accedi. Scarica anche i pezzi opzionali: FFmpeg, LibreHardwareMonitor e PawnIO per le temperature, PresentMon per gli FPS reali in gioco.</p><p><strong>Niente gira di nascosto.</strong> Il setup installa solo l'app e la apre; la metà dashboard te la propone l'app dopo, e gira in una finestra di console che puoi guardare e interrompere. Una versione precedente lo faceva in silenzio in background, ed è esattamente la forma che fa mettere in quarantena un installer non firmato, quindi è stata rimossa.</p>",
   "f.q.autostart": "Parte da solo con il PC, e posso evitarlo?",
-  "f.a.autostart": "<p>Sì, parte quando accedi, così la dashboard è già viva quando ti siedi. Gira dentro la tua sessione e non come servizio di sistema, ed è voluto: fuori dalla tua sessione non esistono l'elenco dei dispositivi audio, l'elenco delle finestre, il microfono né un modo per aprire un'app, quindi metà delle funzioni smetterebbe di funzionare in silenzio.</p><p>Per togliere l'avvio automatico esegui <code>UNINSTALL.bat</code> su Windows, <code>UNINSTALL.command</code> su macOS o <code>./UNINSTALL.sh</code> su Linux.</p>",
+  "f.a.autostart": "<p>Sì, parte quando accedi, così la dashboard è già viva quando ti siedi. Gira dentro la tua sessione e non come servizio di sistema, ed è voluto: fuori dalla tua sessione non esistono l'elenco dei dispositivi audio, l'elenco delle finestre, il microfono né un modo per aprire un'app, quindi metà delle funzioni smetterebbe di funzionare in silenzio.</p><p>Per rimuovere Xenon esegui <code>UNINSTALL.bat</code> su Windows, <code>UNINSTALL.command</code> su macOS o <code>./UNINSTALL.sh</code> su Linux.</p>",
   "f.q.update": "Come si aggiorna?",
   "f.a.update": "<p>Xenon si aggiorna da solo. Quando esce una release la dashboard mostra un avviso; un tocco la scarica, ne verifica la firma <em>prima</em> di estrarre qualsiasi cosa, installa il motore e poi l'app, e rimette automaticamente la versione precedente se qualcosa va storto. Impostazioni, layout e note restano sempre al loro posto, e i file rimasti da versioni vecchie vengono ripuliti.</p>",
   "f.q.uninstall": "Come lo disinstallo?",
-  "f.a.uninstall": "<p>Esegui <code>UNINSTALL.bat</code> su Windows, <code>UNINSTALL.command</code> su macOS o <code>./UNINSTALL.sh</code> su Linux. Tutti e tre lasciano stare impostazioni, layout e note a meno che non aggiunga <code>--purge-data</code>. Cancellare la cartella dei dati rimuove tutto quello che Xenon ha salvato, incluso l'id casuale che serve a far contare una volta sola una valutazione nello Store.</p>",
+  "f.a.uninstall": "<p>Esegui <code>UNINSTALL.bat</code> su Windows, <code>UNINSTALL.command</code> su macOS o <code>./UNINSTALL.sh</code> su Linux. Tutti e tre chiedono conferma una volta, poi rimuovono Xenon del tutto: l'app, l'avvio automatico, il server locale, i tuoi dati e la cartella di installazione. Aggiungi <code>--keep-data</code> (<code>-KeepData</code> su Windows) per conservare impostazioni, layout e note. Cancellare la cartella dei dati rimuove tutto quello che Xenon ha salvato, incluso l'id casuale che serve a far contare una volta sola una valutazione nello Store.</p>",
   "f.q.admin": "Perché chiede i permessi di amministratore?",
   "f.a.admin": "<p>Una volta sola, durante l'installazione, e per due cose: preparare la lettura delle temperature di CPU e dischi (LibreHardwareMonitor e PawnIO, che richiedono un componente a livello di driver) e registrare l'avvio automatico. Se lo rifiuti tutto il resto funziona lo stesso, semplicemente non avrai le temperature. Dopo, Xenon non gira con privilegi elevati.</p>",
   "f.q.port": "Dice che la porta 3030 è già in uso",
@@ -745,11 +745,11 @@ const I18N = {
   "f.q.installer": "설치 프로그램은 실제로 무엇을 하나요?",
   "f.a.installer": "<p>Windows에서는 앱을 설치하고, 대시보드 엔진을 <code>%LOCALAPPDATA%\\Xenon</code> 아래에 설치하고, Node.js가 없으면 설치하고, 로그인할 때 대시보드가 시작되도록 작업을 등록합니다. 선택적인 구성 요소도 받아 옵니다. 온도를 위한 FFmpeg, LibreHardwareMonitor, PawnIO와 실제 게임 내 FPS를 위한 PresentMon입니다.</p><p><strong>숨어서 도는 것은 없습니다.</strong> 설치 프로그램 자체는 앱을 설치하고 여는 일만 하며, 대시보드 쪽은 그 뒤에 앱이 제안하고 사용자가 지켜보고 중단할 수 있는 콘솔 창에서 실행됩니다. 예전 버전은 이 작업을 백그라운드에서 조용히 했는데, 그것이 바로 서명되지 않은 설치 파일을 격리시키는 전형적인 형태라서 없앴습니다.</p>",
   "f.q.autostart": "PC를 켜면 같이 시작되나요? 끌 수 있나요?",
-  "f.a.autostart": "<p>네, 로그인할 때 시작하므로 자리에 앉았을 때 대시보드가 이미 살아 있습니다. 시스템 서비스가 아니라 사용자 세션 안에서 도는데, 이는 의도적입니다. 세션 밖에서는 오디오 장치 목록도, 창 목록도, 마이크도 없고 앱을 열 방법도 없어서 기능의 절반이 조용히 멈춥니다.</p><p>시작 항목을 없애려면 Windows에서는 <code>UNINSTALL.bat</code>, macOS에서는 <code>UNINSTALL.command</code>, Linux에서는 <code>./UNINSTALL.sh</code>를 실행하세요.</p>",
+  "f.a.autostart": "<p>네, 로그인할 때 시작하므로 자리에 앉았을 때 대시보드가 이미 살아 있습니다. 시스템 서비스가 아니라 사용자 세션 안에서 도는데, 이는 의도적입니다. 세션 밖에서는 오디오 장치 목록도, 창 목록도, 마이크도 없고 앱을 열 방법도 없어서 기능의 절반이 조용히 멈춥니다.</p><p>Xenon을 제거하려면 Windows에서는 <code>UNINSTALL.bat</code>, macOS에서는 <code>UNINSTALL.command</code>, Linux에서는 <code>./UNINSTALL.sh</code>를 실행하세요.</p>",
   "f.q.update": "어떻게 업데이트하나요?",
   "f.a.update": "<p>Xenon은 스스로 업데이트합니다. 새 릴리스가 나오면 대시보드에 알림이 뜨고, 한 번 누르면 내려받아 무엇을 풀기 <em>전에</em> 서명을 확인한 뒤 엔진을 먼저, 그다음 앱을 설치합니다. 문제가 생기면 이전 버전을 자동으로 되돌립니다. 설정, 레이아웃, 메모는 항상 유지되고 옛 버전이 남긴 파일은 정리됩니다.</p>",
   "f.q.uninstall": "어떻게 제거하나요?",
-  "f.a.uninstall": "<p>Windows에서는 <code>UNINSTALL.bat</code>, macOS에서는 <code>UNINSTALL.command</code>, Linux에서는 <code>./UNINSTALL.sh</code>를 실행하세요. 세 가지 모두 <code>--purge-data</code>를 붙이지 않는 한 설정, 레이아웃, 메모는 그대로 둡니다. 데이터 폴더를 지우면 스토어 평가가 한 번만 반영되도록 쓰는 임의의 id를 포함해 Xenon이 저장한 모든 것이 사라집니다.</p>",
+  "f.a.uninstall": "<p>Windows에서는 <code>UNINSTALL.bat</code>, macOS에서는 <code>UNINSTALL.command</code>, Linux에서는 <code>./UNINSTALL.sh</code>를 실행하세요. 세 가지 모두 한 번 확인을 받은 뒤 앱, 시작 항목, 로컬 서버, 데이터, 설치 폴더까지 Xenon을 완전히 제거합니다. 설정, 레이아웃, 메모를 남기려면 <code>--keep-data</code>(Windows에서는 <code>-KeepData</code>)를 붙이세요. 데이터 폴더를 지우면 스토어 평가가 한 번만 반영되도록 쓰는 임의의 id를 포함해 Xenon이 저장한 모든 것이 사라집니다.</p>",
   "f.q.admin": "왜 관리자 권한을 요구하나요?",
   "f.a.admin": "<p>설치할 때 한 번, 두 가지 때문입니다. CPU와 디스크 온도 읽기 설정(드라이버 수준 구성 요소가 필요한 LibreHardwareMonitor와 PawnIO), 그리고 시작 작업 등록입니다. 거부해도 나머지는 그대로 동작하고 온도만 나오지 않습니다. 이후 Xenon은 관리자 권한으로 실행되지 않습니다.</p>",
   "f.q.port": "포트 3030이 이미 사용 중이라고 나옵니다",
@@ -832,11 +832,11 @@ const I18N = {
   "f.q.installer": "インストーラーは実際に何をしますか",
   "f.a.installer": "<p>Windows では、アプリをインストールし、ダッシュボードのエンジンを <code>%LOCALAPPDATA%\\Xenon</code> の下に入れ、Node.js がなければ入れ、ログイン時にダッシュボードが起動するタスクを登録します。任意の部品も取得します。温度用の FFmpeg、LibreHardwareMonitor、PawnIO と、ゲーム中の実 FPS 用の PresentMon です。</p><p><strong>隠れて動くものはありません。</strong> セットアップ自体はアプリを入れて開くだけで、ダッシュボード側はその後アプリが提案し、見て中断できるコンソールウィンドウで実行されます。以前のバージョンはこれをバックグラウンドで黙って行っていましたが、それこそ未署名のインストーラーが隔離される典型的な形なので廃止しました。</p>",
   "f.q.autostart": "PC の起動と一緒に立ち上がりますか。止められますか",
-  "f.a.autostart": "<p>はい、ログイン時に起動するので、席に着いたときにはダッシュボードがもう動いています。システムサービスではなくユーザーのセッション内で動くのは意図的で、セッションの外にはオーディオデバイス一覧もウィンドウ一覧もマイクもなく、アプリを開く手段もないため、機能の半分が静かに動かなくなるからです。</p><p>自動起動を外すには、Windows なら <code>UNINSTALL.bat</code>、macOS なら <code>UNINSTALL.command</code>、Linux なら <code>./UNINSTALL.sh</code> を実行してください。</p>",
+  "f.a.autostart": "<p>はい、ログイン時に起動するので、席に着いたときにはダッシュボードがもう動いています。システムサービスではなくユーザーのセッション内で動くのは意図的で、セッションの外にはオーディオデバイス一覧もウィンドウ一覧もマイクもなく、アプリを開く手段もないため、機能の半分が静かに動かなくなるからです。</p><p>Xenon を削除するには、Windows なら <code>UNINSTALL.bat</code>、macOS なら <code>UNINSTALL.command</code>、Linux なら <code>./UNINSTALL.sh</code> を実行してください。</p>",
   "f.q.update": "どうやって更新しますか",
   "f.a.update": "<p>Xenon は自分で更新します。新しいリリースが出るとダッシュボードに通知が出て、一度タップすればダウンロードし、何かを展開する<em>前に</em>署名を検証し、エンジン、続いてアプリの順に入れます。途中で失敗したら自動的に前のバージョンに戻します。設定、レイアウト、メモは常に保持され、古いバージョンの残骸は片付けられます。</p>",
   "f.q.uninstall": "アンインストールはどうしますか",
-  "f.a.uninstall": "<p>Windows では <code>UNINSTALL.bat</code>、macOS では <code>UNINSTALL.command</code>、Linux では <code>./UNINSTALL.sh</code> を実行します。<code>--purge-data</code> を付けない限り、三つとも設定、レイアウト、メモには手を触れません。データフォルダーを削除すると、ストアの評価が一度だけ数えられるように使うランダムな id を含め、Xenon が保存したものはすべて消えます。</p>",
+  "f.a.uninstall": "<p>Windows では <code>UNINSTALL.bat</code>、macOS では <code>UNINSTALL.command</code>、Linux では <code>./UNINSTALL.sh</code> を実行します。三つとも一度確認したうえで、アプリ、自動起動、ローカルサーバー、データ、インストールフォルダーまで Xenon を完全に削除します。設定、レイアウト、メモを残したい場合は <code>--keep-data</code>（Windows では <code>-KeepData</code>）を付けてください。データフォルダーを削除すると、ストアの評価が一度だけ数えられるように使うランダムな id を含め、Xenon が保存したものはすべて消えます。</p>",
   "f.q.admin": "なぜ管理者権限を求めるのですか",
   "f.a.admin": "<p>インストール時に一度だけ、二つの理由でです。CPU とディスクの温度読み取りの準備（ドライバーレベルの部品が必要な LibreHardwareMonitor と PawnIO）と、起動タスクの登録です。断っても他はすべて動き、温度が出ないだけです。その後 Xenon が管理者権限で動くことはありません。</p>",
   "f.q.port": "ポート 3030 はすでに使用中と表示されます",
@@ -919,11 +919,11 @@ const I18N = {
   "f.q.installer": "安装程序到底做了什么？",
   "f.a.installer": "<p>在 Windows 上，它安装应用，把仪表盘引擎装到 <code>%LOCALAPPDATA%\\Xenon</code> 下，如果你没有 Node.js 就装上，并注册一个任务，让仪表盘在你登录时启动。它还会取回可选组件：用于温度的 FFmpeg、LibreHardwareMonitor 和 PawnIO，以及用于游戏内真实 FPS 的 PresentMon。</p><p><strong>没有任何东西在暗中运行。</strong> 安装程序本身只负责装好应用并打开它；仪表盘那一半由应用随后提出，并在一个你可以看着、也可以中断的控制台窗口里执行。早先的版本是在后台悄悄做这件事的，而这恰恰是让未签名安装程序被隔离的典型形态，所以已经去掉了。</p>",
   "f.q.autostart": "它会随电脑启动吗？可以关掉吗？",
-  "f.a.autostart": "<p>会，登录时就启动，所以你坐下时仪表盘已经在运行了。它跑在你自己的会话里而不是系统服务里，这是有意为之：会话之外没有音频设备列表、没有窗口列表、没有麦克风，也没有办法打开应用，一半功能会悄悄失效。</p><p>要去掉开机启动项，Windows 上运行 <code>UNINSTALL.bat</code>，macOS 上运行 <code>UNINSTALL.command</code>，Linux 上运行 <code>./UNINSTALL.sh</code>。</p>",
+  "f.a.autostart": "<p>会，登录时就启动，所以你坐下时仪表盘已经在运行了。它跑在你自己的会话里而不是系统服务里，这是有意为之：会话之外没有音频设备列表、没有窗口列表、没有麦克风，也没有办法打开应用，一半功能会悄悄失效。</p><p>要卸载 Xenon，Windows 上运行 <code>UNINSTALL.bat</code>，macOS 上运行 <code>UNINSTALL.command</code>，Linux 上运行 <code>./UNINSTALL.sh</code>。</p>",
   "f.q.update": "怎么更新？",
   "f.a.update": "<p>Xenon 会自己更新。有新版本时仪表盘会提示，点一下就会下载，在解压任何东西<em>之前</em>先验证签名，先装引擎再装应用，中途出问题会自动回退到上一个版本。你的设置、布局和笔记始终保留，旧版本残留的文件也会被清理。</p>",
   "f.q.uninstall": "怎么卸载？",
-  "f.a.uninstall": "<p>Windows 上运行 <code>UNINSTALL.bat</code>，macOS 上运行 <code>UNINSTALL.command</code>，Linux 上运行 <code>./UNINSTALL.sh</code>。除非加上 <code>--purge-data</code>，这三者都不会动你的设置、布局和笔记。删除数据文件夹会清除 Xenon 保存过的一切，包括用于让商店评分只计一次的那个随机 id。</p>",
+  "f.a.uninstall": "<p>Windows 上运行 <code>UNINSTALL.bat</code>，macOS 上运行 <code>UNINSTALL.command</code>，Linux 上运行 <code>./UNINSTALL.sh</code>。三者都会先确认一次，然后彻底移除 Xenon：应用、开机启动项、本地服务、你的数据和安装文件夹。想保留设置、布局和笔记，请加上 <code>--keep-data</code>（Windows 上是 <code>-KeepData</code>）。删除数据文件夹会清除 Xenon 保存过的一切，包括用于让商店评分只计一次的那个随机 id。</p>",
   "f.q.admin": "为什么要管理员权限？",
   "f.a.admin": "<p>只在安装时要一次，为了两件事：配置 CPU 和硬盘温度读取（LibreHardwareMonitor 和 PawnIO，需要一个驱动级组件），以及注册开机启动任务。拒绝的话其他功能照常，只是没有温度。之后 Xenon 不会以管理员身份运行。</p>",
   "f.q.port": "提示端口 3030 已被占用",

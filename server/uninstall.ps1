@@ -117,12 +117,19 @@ if (-not $isAdmin) {
 $removeData   = -not $KeepData
 $removeFolder = (-not $KeepFiles) -and (-not $KeepData)
 
+# A git checkout is somebody's working copy, not an install: it holds their
+# branches, their unpushed commits and whatever they keep next to it. A release
+# download has no .git, so this costs a real user nothing. Same guard as
+# server\uninstall.sh, so the three uninstallers agree on what is safe to delete.
+$rootIsCheckout = Test-Path -LiteralPath (Join-Path $root '.git')
+if ($removeFolder -and $rootIsCheckout) { $removeFolder = $false }
+
 Write-Host ''
 Write-Host '  Xenon - full uninstall' -ForegroundColor White
 Write-Host '  ----------------------' -ForegroundColor White
 Info "Install folder : $root"
 Info ("User data      : " + $(if ($removeData) { 'WILL BE DELETED (server\data)' } else { 'kept (-KeepData)' }))
-Info ("Install folder : " + $(if ($removeFolder) { 'WILL BE DELETED' } elseif ($KeepFiles) { 'kept (-KeepFiles)' } else { 'kept (-KeepData implies keeping it)' }))
+Info ("Install folder : " + $(if ($removeFolder) { 'WILL BE DELETED' } elseif ($rootIsCheckout) { 'kept (this is a git checkout, not an install)' } elseif ($KeepFiles) { 'kept (-KeepFiles)' } else { 'kept (-KeepData implies keeping it)' }))
 Info ("Shared apps    : " + $(if ($RemoveShared) { 'removed without asking (-RemoveShared)' } else { 'asked one by one (only -RemoveShared skips these prompts)' }))
 if ($DryRun) { Warn 'DRY RUN - nothing will actually be removed.' }
 

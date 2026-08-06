@@ -68,6 +68,22 @@ case "$(uname -s)" in
     ;;
 esac
 
+# Proof, for the app that opened this window, that the window really started
+# running the script. macOS has no way to hand a command to Terminal: `open -a
+# Terminal <script>` makes Terminal TYPE the script's path into a shell it has
+# just started, and when that shell is still sourcing its startup files the text
+# can arrive mangled. Seen once as `o cer/Users/.../xenon-bootstrap.sh`, which
+# zsh answered with "command not found: o" — a window that opened, said nothing
+# useful, installed nothing, and left the app's splash waiting for a backend
+# that was never going to arrive. Nothing about that is visible from outside, so
+# the app waits for this file and reopens the window once if it never appears
+# (see open_bootstrap_terminal in src/lib.rs). macOS only: every Linux terminal
+# takes the command as real arguments, so there is nothing to garble there.
+if [ "$XENON_OS" = 'macos' ]; then
+  mkdir -p "$INSTALL_ROOT" 2>/dev/null
+  : > "$INSTALL_ROOT/.bootstrap-started" 2>/dev/null
+fi
+
 C_STEP=$'\033[36m'; C_OK=$'\033[32m'; C_WARN=$'\033[33m'; C_ERR=$'\033[31m'; C_DIM=$'\033[90m'; C_OFF=$'\033[0m'
 step() { printf '%s==>%s %s\n' "$C_STEP" "$C_OFF" "$1"; }
 fail() {
