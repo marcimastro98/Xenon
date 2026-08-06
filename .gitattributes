@@ -38,6 +38,9 @@ docs/phone.html                 export-ignore
 docs/CNAME                      export-ignore
 docs/.nojekyll                  export-ignore
 docs/google1e9e2b8c85c56502.html export-ignore
+# IndexNow ownership proof — must stay reachable at the site root, and has no
+# business in the tree users download. tools/indexnow.mjs finds it by name.
+docs/ffe1471367022be0d335321cee3c19ec.txt export-ignore
 
 # Site data + maintainer notes, not read by the app
 docs/supporters.json            export-ignore
