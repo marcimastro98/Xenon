@@ -1,6 +1,6 @@
 {
   "name": "@xenon/native",
-  "version": "4.11.2",
+  "version": "4.11.3",
   "private": true,
   "description": "Xenon native kiosk app (Tauri) for any screen you give it, a CORSAIR Xeneon Edge included. Renders the same dashboard as the browser and the iCUE iframe, loaded from the local backend service.",
   "license": "SEE LICENSE IN ../../LICENSE",
