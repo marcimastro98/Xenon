@@ -254,7 +254,11 @@
     const wanted = src[index] && src[index].id;
     // Track the tapped video by id, not by position: the filter below can drop a
     // row, and an index into the unfiltered list would then start the wrong video.
-    const q = src.filter(v => v && VIDEO_ID_RE.test(String(v.id || '')));
+    // Videos YouTube has already told us it will not play outside youtube.com are
+    // kept out of the QUEUE too, so "play this playlist" plays the rest instead of
+    // stopping dead on the first one. They are visibly marked in the list, so this
+    // skips nothing the user was not already told about.
+    const q = src.filter(v => v && VIDEO_ID_RE.test(String(v.id || '')) && v.embeddable !== false);
     if (!q.length) return;
     const found = q.findIndex(v => v.id === wanted);
     const i = found >= 0 ? found : 0;
@@ -540,10 +544,19 @@
     if (v.seconds != null) art.appendChild(el('span', 'yt-row-dur', fmtTime(v.seconds)));
     const meta = el('div', 'yt-row-meta');
     meta.append(el('span', 'yt-row-name', v.title || '—'));
-    if (v.channel) meta.append(el('span', 'yt-row-sub', v.channel));
+    // YouTube tells us in the same request that carries the duration whether a
+    // video may play anywhere but youtube.com. Saying it here turns a tap that
+    // ends in an error into a row that never promised to play in the first place.
+    const sub = el('div', 'yt-row-subline');
+    if (v.channel) sub.append(el('span', 'yt-row-sub', v.channel));
+    if (v.embeddable === false) sub.append(el('span', 'yt-row-tag', t('youtube_only_yt', 'YouTube only')));
+    if (sub.childNodes.length) meta.append(sub);
     const play = el('span', 'yt-row-play'); play.innerHTML = ICONS.play;   // static, trusted SVG
     b.append(art, meta, play);
     b.addEventListener('click', async () => {
+      // Nothing to try: this one is going to the browser either way, so go there
+      // instead of loading a player only to explain why it refused.
+      if (v.embeddable === false) { const u = watchUrl(v.id); if (u) await openOut(u); return; }
       const wrap = b.closest('.yt-wrap');
       const stage = wrap ? wrap.querySelector('.yt-player-stage') : null;
       // The player card can be switched off in layout edit mode. Someone who did

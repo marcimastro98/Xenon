@@ -239,26 +239,42 @@ function createYouTubeProvider(deps) {
   }
   const VIDEO_ID_RE = /^[A-Za-z0-9_-]{6,24}$/;
 
-  // One batched videos.list for the durations of a whole page (1 quota unit).
-  async function durationsFor(ids) {
+  // One batched videos.list for a whole page (1 quota unit): the durations, and
+  // whether YouTube will let each video play anywhere other than youtube.com.
+  // videos.list costs the same unit whatever parts are asked for, so the second
+  // answer is free — and it is the one that turns "tap it and find out" into
+  // something the list can say up front.
+  async function detailsFor(ids) {
     const clean = ids.filter(id => VIDEO_ID_RE.test(id)).slice(0, 50);
     const out = new Map();
     if (!clean.length) return out;
-    const r = await apiRequest('GET', '/videos?part=contentDetails&id=' + encodeURIComponent(clean.join(',')));
+    const r = await apiRequest('GET', '/videos?part=contentDetails,status&id=' + encodeURIComponent(clean.join(',')));
     const items = (r.ok && r.data && Array.isArray(r.data.items)) ? r.data.items : [];
-    items.forEach(v => {
-      if (v && v.id) out.set(v.id, isoSeconds(v.contentDetails && v.contentDetails.duration));
-    });
+    items.forEach(v => { if (v && v.id) out.set(v.id, videoDetail(v)); });
     return out;
   }
 
-  function mapVideo(id, snippet, seconds) {
+  // An explicit `false` is the only value worth acting on. A missing status block —
+  // an answer that came back partial, a video the batch didn't cover — has to read
+  // as "nothing says otherwise", never as "refuse this one": marking a playable
+  // video as YouTube-only hides something that works, while missing a mark costs a
+  // tap and the player explains itself anyway.
+  function videoDetail(v) {
+    const st = v && v.status;
+    return {
+      seconds: isoSeconds(v && v.contentDetails && v.contentDetails.duration),
+      embeddable: !(st && st.embeddable === false),
+    };
+  }
+
+  function mapVideo(id, snippet, det) {
     return {
       id,
       title: (snippet && snippet.title) || '',
       channel: (snippet && (snippet.videoOwnerChannelTitle || snippet.channelTitle)) || '',
       image: thumb(snippet && snippet.thumbnails),
-      seconds: (seconds == null ? null : seconds),
+      seconds: (det && det.seconds != null) ? det.seconds : null,
+      embeddable: !(det && det.embeddable === false),
       published: (snippet && snippet.publishedAt) || '',
     };
   }
@@ -290,10 +306,10 @@ function createYouTubeProvider(deps) {
     if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
     const hit = cacheGet('liked', LIST_TTL_MS);
     if (hit) return hit;
-    const r = await apiRequest('GET', '/videos?part=snippet,contentDetails&myRating=like&maxResults=25');
+    const r = await apiRequest('GET', '/videos?part=snippet,contentDetails,status&myRating=like&maxResults=25');
     if (!r.ok || !r.data) return { ok: false, error: apiReason(r) };
     const items = Array.isArray(r.data.items) ? r.data.items : [];
-    const videos = items.filter(v => v && v.id).map(v => mapVideo(v.id, v.snippet, isoSeconds(v.contentDetails && v.contentDetails.duration)));
+    const videos = items.filter(v => v && v.id).map(v => mapVideo(v.id, v.snippet, videoDetail(v)));
     return cacheSet('liked', { ok: true, videos });
   }
 
@@ -313,8 +329,8 @@ function createYouTubeProvider(deps) {
         || (it && it.snippet && it.snippet.resourceId && it.snippet.resourceId.videoId) || '';
       return VIDEO_ID_RE.test(vid) ? { vid, snippet: it.snippet } : null;
     }).filter(Boolean);
-    const dur = await durationsFor(rows.map(r2 => r2.vid));
-    const videos = rows.map(r2 => mapVideo(r2.vid, r2.snippet, dur.has(r2.vid) ? dur.get(r2.vid) : null));
+    const det = await detailsFor(rows.map(r2 => r2.vid));
+    const videos = rows.map(r2 => mapVideo(r2.vid, r2.snippet, det.get(r2.vid)));
     return cacheSet('pl:' + pid, { ok: true, videos });
   }
 
@@ -350,8 +366,8 @@ function createYouTubeProvider(deps) {
     });
     rows.sort((a, b) => String((b.snippet && b.snippet.publishedAt) || '').localeCompare(String((a.snippet && a.snippet.publishedAt) || '')));
     const top = rows.slice(0, 30);
-    const dur = await durationsFor(top.map(r2 => r2.vid));
-    const videos = top.map(r2 => mapVideo(r2.vid, r2.snippet, dur.has(r2.vid) ? dur.get(r2.vid) : null));
+    const det = await detailsFor(top.map(r2 => r2.vid));
+    const videos = top.map(r2 => mapVideo(r2.vid, r2.snippet, det.get(r2.vid)));
     return cacheSet('subs', { ok: true, videos });
   }
 
@@ -371,8 +387,8 @@ function createYouTubeProvider(deps) {
       const vid = it && it.id && it.id.videoId;
       return VIDEO_ID_RE.test(String(vid || '')) ? { vid, snippet: it.snippet } : null;
     }).filter(Boolean);
-    const dur = await durationsFor(rows.map(r2 => r2.vid));
-    const videos = rows.map(r2 => mapVideo(r2.vid, r2.snippet, dur.has(r2.vid) ? dur.get(r2.vid) : null));
+    const det = await detailsFor(rows.map(r2 => r2.vid));
+    const videos = rows.map(r2 => mapVideo(r2.vid, r2.snippet, det.get(r2.vid)));
     return cacheSet(key, { ok: true, videos });
   }
 
