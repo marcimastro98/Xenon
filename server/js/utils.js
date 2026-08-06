@@ -23,6 +23,29 @@ async function apiJson(path, opts) {
   try { const r = await fetch(path, opts); return await r.json(); } catch { return null; }
 }
 
+// fetch with a deadline. A `fetch` carries NO timeout of its own: a request that
+// never settles leaves its awaiting function pending forever. That is harmless
+// in a one-shot, and permanent in a poller guarded by an "already fetching"
+// flag — the flag never clears, so every later tick returns at the guard and the
+// reading is retired for the whole page until someone reloads it by hand. The
+// dashboard is left open for days on the Edge and in the kiosk app, so one hung
+// connection (a sleep/resume, a stack hiccup) only has to happen once. Reported
+// on Discord against v4.11.3 as the weather tile emptying and never coming back
+// while the same URL answered fine in a browser at that moment.
+// Use this for any polled fetch, and keep the flag reset in a `finally`.
+// The frequent local pollers (/system, /network, /audio). Loopback to a server
+// on this machine: seconds is already far past its worst case, and the cap only
+// has to be shorter than "forever". Declared here rather than in system.js
+// because volume.js loads BEFORE it — a `const` in another classic script is in
+// the temporal dead zone until that script runs.
+const POLL_FETCH_TIMEOUT_MS = 15 * 1000;
+function fetchWithDeadline(url, ms, opts) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { ...(opts || {}), signal: ctrl.signal })
+    .finally(() => clearTimeout(timer));
+}
+
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }

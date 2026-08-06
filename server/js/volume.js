@@ -263,10 +263,13 @@ async function fetchAudio() {
   if (fetchingAudio) return;
   fetchingAudio = true;
   try {
-    const res = await fetch(SERVER + '/audio');
+    const res = await fetchWithDeadline(SERVER + '/audio', POLL_FETCH_TIMEOUT_MS);
     const data = await res.json();
     applyAudio(data);
     setOnline();
-  } catch { setOffline(); }
-  fetchingAudio = false;
+  } catch { setOffline(); } finally {
+    // Deadline + `finally`: without both, one hung request retires this poller
+    // for the whole page (see fetchWithDeadline in utils.js).
+    fetchingAudio = false;
+  }
 }

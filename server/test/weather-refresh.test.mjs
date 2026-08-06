@@ -40,16 +40,23 @@ test('a timer firing on the boundary cannot re-arm into a tight loop', () => {
 });
 
 // ── The re-entrancy guard must always clear ─────────────────────────────────
-// fetchWeather is the one fetcher whose catch RENDERS (applyWeather(null)) instead
-// of swallowing. A throw there escapes the function, `fetchingWeather` stays true
-// and every later poll returns at the guard: weather is retired for the whole page
-// and freezes on its last good reading until a reload — indistinguishable from a
-// stale forecast, which is exactly what the report above looked like.
+// fetchWeather is the one fetcher whose catch RENDERS instead of swallowing. A
+// throw there escapes the function, `fetchingWeather` stays true and every later
+// poll returns at the guard: weather is retired for the whole page and freezes on
+// its last good reading until a reload — indistinguishable from a stale forecast,
+// which is exactly what the report above looked like.
+//
+// The other way into that same state is a request that never settles, which is
+// what actually shipped and was reported against v4.11.3; the deadline covering
+// it, and the same guarantee for the sibling pollers, live in
+// test/poller-deadline.test.mjs.
 
 test('fetchWeather clears its guard in a finally, and its failure render cannot escape', () => {
   const src = read('js/system.js');
   const fn = src.slice(src.indexOf('async function fetchWeather('));
   const body = fn.slice(0, fn.indexOf('\nasync function '));
   assert.match(body, /\}\s*finally\s*\{\s*[\s\S]*?fetchingWeather\s*=\s*false;/, 'the guard must clear in a finally');
-  assert.match(body, /try\s*\{\s*applyWeather\(null\);\s*\}\s*catch/, 'the failure render must be guarded');
+  // What is rendered on failure changed (a recent reading is kept and marked
+  // stale rather than blanked); that the render is WRAPPED has not.
+  assert.match(body, /try\s*\{\s*applyWeather\(.*\);\s*\}\s*catch/, 'the failure render must be guarded');
 });

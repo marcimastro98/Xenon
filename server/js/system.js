@@ -182,7 +182,26 @@ function weatherErrorHint(data) {
   return key ? t(`${key}_hint`) : t('weather_retry_hint');
 }
 
+// The last reading that actually arrived, kept so a failed poll degrades to
+// "this is a bit old" instead of to nothing. A forecast is hours-scale data: the
+// one from 15 minutes ago is still worth reading, and throwing it away turns a
+// single missed request into a tile that looks broken. Bounded, because a
+// forecast from this morning shown as if it were current is worse than an empty
+// card — past the cap the failure is reported honestly.
+let lastGoodWeather = null;
+const WEATHER_STALE_MAX_MS = 3 * 60 * 60 * 1000;
+// Well under the shortest refresh interval (10 min), so a hung request is
+// abandoned long before the next poll is due rather than blocking it.
+const WEATHER_FETCH_TIMEOUT_MS = 20 * 1000;
+function weatherStaleFallback() {
+  if (!lastGoodWeather) return null;
+  const age = Date.now() - Number(lastGoodWeather.updatedAt || 0);
+  if (!(age >= 0) || age > WEATHER_STALE_MAX_MS) return null;
+  return { ...lastGoodWeather, stale: true };
+}
+
 function applyWeather(data) {
+  if (data && data.ok && !data.stale) lastGoodWeather = data;
   weatherData = data || null;
   // Relay to granted SDK widgets/scenes. Weather is client-polled (no SSE
   // event); CustomWidget caches lastData so late-joining frames seed on hello.
@@ -799,17 +818,26 @@ async function fetchWeather() {
     } else {
       params.set('mode', 'auto');
     }
-    const res = await fetch(`${SERVER}/weather?${params.toString()}`);
+    // The deadline is load-bearing, not a nicety — see fetchWithDeadline in
+    // utils.js for what a hung request does to a flag-guarded poller. This is
+    // the tile it was reported on.
+    const res = await fetchWithDeadline(`${SERVER}/weather?${params.toString()}`, WEATHER_FETCH_TIMEOUT_MS);
     if (!res.ok) throw new Error('Weather unavailable');
     applyWeather(await res.json());
   } catch {
+    // A request that did not arrive says nothing about the weather, so the last
+    // reading is kept and marked stale rather than blanked — the tile stays
+    // useful across a hiccup, and the modal shows how old it is. Only when there
+    // is nothing recent to fall back on does the failure state render. A server
+    // that ANSWERS ok:false is different and is not routed here: it has already
+    // bridged to its own cache, so its reason is what the user needs to see.
+    //
     // The failure path RENDERS, unlike the other fetchers' empty catches, so it
     // can throw in turn (a missing pill node, a widget relay). Left unguarded
     // that second throw escapes the function and `fetchingWeather` never clears,
-    // which silently retires weather for the whole page: every later poll
-    // returns at the guard and the tile stays frozen on the last good reading
-    // until a reload. Both halves matter — the inner catch, and the finally.
-    try { applyWeather(null); } catch { /* nothing renderable on this surface */ }
+    // with the same permanent effect as the hang above. Both halves matter —
+    // the inner catch, and the finally.
+    try { applyWeather(weatherStaleFallback()); } catch { /* nothing renderable on this surface */ }
   } finally {
     fetchingWeather = false;
   }
@@ -819,10 +847,14 @@ async function fetchSystem() {
   if (fetchingSystem) return;
   fetchingSystem = true;
   try {
-    const res = await fetch(SERVER + '/system');
+    const res = await fetchWithDeadline(SERVER + '/system', POLL_FETCH_TIMEOUT_MS);
     if (!res.ok) throw new Error('System unavailable');
     const data = await res.json();
     applySystem(data);
-  } catch { }
-  fetchingSystem = false;
+  } catch { } finally {
+    // In a `finally`, and behind a deadline: this is the SSE fallback poller, so
+    // one hung request would strand the dashboard on the path that exists
+    // precisely because the live stream is already unavailable.
+    fetchingSystem = false;
+  }
 }
