@@ -166,6 +166,10 @@ const REMOTE_DENY_PREFIXES = [];
 // set out of server.js and fails if this one has drifted behind it.
 const DEFAULT_GET_MUTATORS = new Set([
   '/system/enable-sensors', '/toggle', '/mic/volume', '/volume/set', '/speaker/mute',
+  // Puts a System Settings window in front of whatever is on the Mac. Harmless
+  // in itself, but a navigation is the one request shape this door cannot
+  // attribute, and nothing should be able to throw a window on screen with it.
+  '/macos/fda-settings',
   // Answering a call IS reachable from a paired device — a phone showing the
   // ringing card is the whole point — but only by POST. Answering focuses
   // another app and presses keys into it, so a top-level GET navigation to this

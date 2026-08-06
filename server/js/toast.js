@@ -272,7 +272,15 @@
     let wasDragged = false; // set on a horizontal swipe so it doesn't count as a tap
     el.addEventListener('pointerdown', (e) => {
       if (e.button != null && e.button !== 0) return;
-      if (e.target.closest('.xtoast-close')) return;   // let the close button work
+      // Let the toast's own controls work. The close button was exempted from
+      // the start; the ACTION buttons were not, and that made them dead: the
+      // drag below calls setPointerCapture on the toast, which retargets the
+      // click away from the button it was aimed at, so the handler never ran.
+      // Seen on the macOS permission toast, whose only button did nothing at
+      // all — and it was worse on a toast that also has a tap action, because
+      // the retargeted click ran THAT: "Skip this version" installed the
+      // update it was declining.
+      if (e.target.closest('.xtoast-close, .xtoast-action')) return;
       wasDragged = false;
       drag = { startX: e.clientX, startY: e.clientY, dx: 0, horizontal: false };
       el.classList.add('is-held');
@@ -315,7 +323,10 @@
     if (typeof o.onClick === 'function') {
       el.classList.add('xtoast-clickable');
       el.addEventListener('click', (e) => {
-        if (wasDragged || e.target.closest('.xtoast-close')) return;
+        // `.xtoast-action` is named here as well as in the pointerdown exemption
+        // above: the two guard different halves of the same mistake, and this
+        // one keeps holding if a future change reintroduces the capture.
+        if (wasDragged || e.target.closest('.xtoast-close, .xtoast-action')) return;
         try { o.onClick(); } catch { /* action must not break the toast */ }
       });
     }

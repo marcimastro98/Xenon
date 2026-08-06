@@ -222,13 +222,35 @@ jobs:
         working-directory: apps/native
         run: npm run tauri -- icon ../../docs/images/logo-mark.png
 
-      # Apple signing + notarization are OPT-IN: they need a paid Apple Developer
-      # Program membership, which this project does not have yet. Each variable
-      # is exported ONLY when its secret actually exists, because Tauri treats an
-      # empty APPLE_CERTIFICATE / APPLE_SIGNING_IDENTITY as "sign with this" and
-      # fails on the empty .p12 — an UNSET variable is what makes it skip signing
-      # cleanly. Until the certificate lands the build still produces a working
-      # .app/.dmg; Gatekeeper asks the user to confirm it on first open.
+      # SIGNING and NOTARIZATION are two different things here, and only the
+      # second one costs money. Both are opt-in on their own secrets.
+      #
+      # Signing uses a SELF-SIGNED certificate (APPLE_CERTIFICATE +
+      # APPLE_CERTIFICATE_PASSWORD + APPLE_SIGNING_IDENTITY = "Xenon Code
+      # Signing"), and it is not cosmetic: macOS binds every privacy permission
+      # to the app's DESIGNATED REQUIREMENT. Ad-hoc signed, that requirement is
+      # the build's own code hash, so every release looked like a different app
+      # and silently lost Full Disk Access, Accessibility and the rest — after
+      # which the Living Index walked the home directory and macOS raised a
+      # dialog per protected folder, forever. With a certificate the requirement
+      # becomes `identifier "com.marcimastro98.xenon" and certificate leaf =
+      # H"..."`, which is the SAME for every build the same certificate signs.
+      # Measured on macOS 26: permission granted to one build, then two
+      # different builds installed over it, grant still in force, nothing
+      # re-asked. The certificate never expires within any horizon that matters
+      # (2046) and must not be rotated casually — a new one resets every user's
+      # permissions once.
+      #
+      # Notarization is what still needs the paid Apple Developer membership,
+      # and it stays off: APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID are unset,
+      # so `spctl` keeps rejecting the app and the user confirms it on first
+      # open exactly as before. A self-signed certificate does not change that
+      # and is not meant to.
+      #
+      # Each variable is exported ONLY when its secret actually exists, because
+      # Tauri treats an empty APPLE_CERTIFICATE / APPLE_SIGNING_IDENTITY as
+      # "sign with this" and fails on the empty .p12 — an UNSET variable is what
+      # makes it skip signing cleanly.
       #
       # The emptiness test has to live in the shell, not in a step `if:`: the
       # `secrets` context is not available to step conditionals (only to `env:`),
@@ -269,6 +291,33 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run build:mac
+
+      # A build that quietly lost its signature is the failure this cannot be
+      # allowed to ship: it looks identical, installs fine, and takes away every
+      # macOS permission the user had granted — with the symptom (search and the
+      # disk map going empty, or a storm of folder dialogs) arriving days later
+      # on their machine, not here. So assert what was actually produced rather
+      # than trusting that the signing step ran.
+      #
+      # `certificate leaf` is the whole point: an ad-hoc signature yields a
+      # cdhash-based requirement instead, which is the build-specific form that
+      # does not survive an update. Unset identity = the deliberate unsigned
+      # build, which warns and continues.
+      - name: Verify the app carries a stable signing identity
+        run: |
+          set -eu
+          APP=$(ls -d apps/native/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app 2>/dev/null | head -1)
+          [ -n "$APP" ] || { echo "no .app was produced"; exit 1; }
+          REQ=$(codesign -d -r- "$APP" 2>&1 | tail -1)
+          echo "$REQ"
+          if [ -z "${APPLE_SIGNING_IDENTITY:-}" ]; then
+            echo "::warning::built unsigned - every macOS permission users granted will be lost on this update"
+            exit 0
+          fi
+          case "$REQ" in
+            *"certificate leaf"*) echo "signed: the requirement is certificate-bound and survives updates" ;;
+            *) echo "::error::signing was configured but the app is not certificate-signed: $REQ"; exit 1 ;;
+          esac
 
       # mediaremote-adapter — the macOS now-playing bridge (BSD-3-Clause,
       # © 2025 Jonas van den Berg and contributors). Built here rather than
