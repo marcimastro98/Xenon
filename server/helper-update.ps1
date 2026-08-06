@@ -37,8 +37,11 @@ $exe = Join-Path $HelperDir 'xenon-helper.exe'
 function Write-HU($m) { Write-Host "[helper-update] $m" }
 
 # Clean up renamed leftovers from a previous update (kept while a running server
-# still had the old image mapped; deletable once it has restarted).
-try { Get-ChildItem -Path $HelperDir -Filter 'xenon-helper.old*' -ErrorAction Stop | Remove-Item -Force -ErrorAction SilentlyContinue } catch { }
+# still had the old image mapped; deletable once it has restarted). The pattern
+# covers BOTH spellings: the swap below appends to the full filename, producing
+# 'xenon-helper.exe.old-<ts>', while older tooling wrote 'xenon-helper.old-'.
+# Matching only the second meant this never cleaned what it created itself.
+try { Get-ChildItem -Path $HelperDir -Filter 'xenon-helper*.old-*' -ErrorAction Stop | Remove-Item -Force -ErrorAction SilentlyContinue } catch { }
 
 $have = $null
 if (Test-Path $exe) {
@@ -79,17 +82,26 @@ try {
     throw "downloaded helper v$dlVer is older than required v$minVersion (release asset not updated yet)"
   }
 
+  # Move the old image ASIDE rather than deleting it, and drop the aside copy only
+  # once the fresh one is in place. A running server still has the old exe mapped,
+  # so deleting is blocked while renaming a running image is allowed, and if the
+  # final move fails, the working helper goes back. Deleting first left machines
+  # with no helper at all when that second step failed, which nothing heals
+  # automatically: the in-app updater is an updater, not an installer, and returns
+  # early when the exe is missing.
+  $aside = $null
   if (Test-Path $exe) {
-    try {
-      Remove-Item $exe -Force -ErrorAction Stop
-    } catch {
-      # A running server still has the old exe mapped: deleting is blocked, but
-      # renaming a running image is allowed. The next server restart picks up the
-      # fresh exe; the .old leftover is cleaned on the next run.
-      Move-Item $exe ("$exe.old-" + (Get-Date -Format 'yyyyMMddHHmmss')) -Force
-    }
+    $aside = "$exe.old-" + (Get-Date -Format 'yyyyMMddHHmmss')
+    Move-Item $exe $aside -Force
   }
-  Move-Item $download $exe -Force
+  try {
+    Move-Item $download $exe -Force
+  } catch {
+    if ($aside -and (Test-Path $aside)) { Move-Item $aside $exe -Force }
+    throw
+  }
+  # Best effort: still mapped by a running child; cleaned on the next run.
+  if ($aside) { Remove-Item $aside -Force -ErrorAction SilentlyContinue }
   Write-HU "installed v$dlVer"
   exit 0
 } catch {

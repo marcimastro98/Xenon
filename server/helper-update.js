@@ -75,10 +75,14 @@ function createHelperUpdate(opts) {
 
   // Drop temp/rename leftovers from a previous refresh (a .download that never
   // completed, or a .old-<ts> image released once the old server restarted).
+  // BOTH spellings: the swap below names them `xenon-helper.exe.old-<ts>` (it
+  // appends to the full filename) while older tooling wrote `xenon-helper.old-`.
+  // This used to match only the second, so it could never clean up what it made
+  // itself, and the orphans accumulated at ~12 MB each until someone noticed.
   function _cleanupLeftovers() {
     try {
       for (const n of f.readdirSync(helperDir)) {
-        if (n.startsWith('xenon-helper.old-') || n === 'xenon-helper.exe.download') {
+        if (/^xenon-helper(\.exe)?\.old-/.test(n) || n === 'xenon-helper.exe.download') {
           try { f.rmSync(path.join(helperDir, n), { force: true }); } catch { /* ignore */ }
         }
       }
@@ -149,10 +153,31 @@ function createHelperUpdate(opts) {
       // Install. A running server may hold the old exe mapped: deleting is blocked,
       // but RENAMING a running image is allowed — the fresh exe is picked up on the
       // next restart and the .old leftover is cleaned next run. rename() can't
-      // overwrite an existing target on Windows, so the old exe must go first.
-      try { f.rmSync(helperExe, { force: true }); }
-      catch { try { f.renameSync(helperExe, helperExe + '.old-' + now()); } catch { /* left in place → next rename throws → retry */ } }
-      f.renameSync(dl, helperExe);
+      // overwrite an existing target on Windows, so the old exe must move first.
+      //
+      // It moves ASIDE rather than away, and only after the new one is in place is
+      // the aside copy dropped. The previous shape deleted the old exe and then
+      // renamed the download over it, so a failure of that second step left the
+      // machine with NO helper at all — silently, since the catch below just
+      // returns 'error'. Nothing heals that: refresh() opens with a
+      // `no-helper` early return, because it is an updater and never an installer,
+      // so the exe stays missing until someone re-runs the setup by hand. Observed
+      // in the wild, with only a `xenon-helper.exe.old-<ts>` orphan left behind.
+      const aside = helperExe + '.old-' + now();
+      let moved = false;
+      try { f.renameSync(helperExe, aside); moved = true; }
+      catch { try { f.rmSync(helperExe, { force: true }); } catch { /* gone already */ } }
+      try {
+        f.renameSync(dl, helperExe);
+      } catch {
+        // Put the working helper back before giving up: a retry later is fine,
+        // a machine with no helper is not.
+        if (moved) { try { f.renameSync(aside, helperExe); } catch { /* ignore */ } }
+        try { f.rmSync(dl, { force: true }); } catch { /* ignore */ }
+        return 'error';
+      }
+      // Best effort: still mapped by a running child → cleaned on the next run.
+      if (moved) { try { f.rmSync(aside, { force: true }); } catch { /* ignore */ } }
       return 'installed';
     } catch {
       return 'error';
