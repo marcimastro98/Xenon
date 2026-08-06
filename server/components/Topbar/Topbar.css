@@ -102,6 +102,35 @@
   box-shadow: 0 4px 14px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.06);
   transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.12s ease;
 }
+/* Impostazioni and Layout are the two buttons the user cannot remove, because
+   they are the way back in rather than features. A control you are stuck with
+   should not also be the loudest thing on the bar, so they step back: no plate,
+   no border, no shadow, dimmed until touched. They keep the full 36px target —
+   quieter to look at, not harder to hit. */
+.topbtn.qbtn-settings,
+.topbtn.qbtn-layout {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--dim-text);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.topbtn.qbtn-settings:hover,
+.topbtn.qbtn-layout:hover {
+  background: var(--floating-ui-bg);
+  border-color: var(--floating-ui-border);
+  color: var(--text);
+}
+/* Layout editing is a MODE you are inside, so while it is on the button comes
+   back to full strength — that is a state worth seeing, unlike the resting one. */
+.topbtn.qbtn-layout.active,
+body.layout-editing .topbtn.qbtn-layout {
+  border-color: var(--floating-ui-border);
+  background: var(--floating-ui-bg);
+  color: var(--accent);
+}
+
 .topbtn svg {
   width: 16px;
   height: 16px;
@@ -175,11 +204,17 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
   .topbtn { padding: 0; width: 36px; justify-content: center; }
 }
 
+/* The width cap is NOT scoped to a side: since v4.12 the user can move this strip
+   between the two ends of the bar, and a cap that applied on only one of them
+   would let the strip grow without limit on the other — which is the whole reason
+   it exists. The rail has its own sizing (TopbarMinimal.css) and overrides it. */
 .app-favorites {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   min-width: 0;
+  max-width: min(250px, 34vw);
+  overflow: hidden;
   flex-wrap: nowrap;
 }
 
@@ -256,10 +291,6 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
   gap: 7px;
   min-width: 0;
 }
-.top-actions .app-favorites {
-  max-width: min(250px, 34vw);
-  overflow: hidden;
-}
 
 /* ── Clock ───────────────────────────────────────────────── */
 .clock {
@@ -274,6 +305,21 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
    segment class too; this host-level class is what makes the same eye switch
    authoritative in the classic full topbar. */
 .topbar-item-hidden { display: none !important; }
+
+/* Nothing left in the meta row but the status dot (date, weather, music and the
+   rest hidden). The clock centres as one block, so that 6px dot plus the 5px gap
+   pushed the time 5.5px above the bar's centre — measured, and the reason the
+   clock read as off-centre once someone stripped the island down. Take the bare
+   row out of the flow so the FACE is what gets centred; the dot keeps its place
+   just under the digits, where it already was. */
+.clock.clock-meta-bare { position: relative; }
+.clock.clock-meta-bare > .clock-meta {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 1px;
+}
 
 /* ── Face: big digit display ─────────────────────────────── */
 .clock-face {

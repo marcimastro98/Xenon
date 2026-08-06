@@ -10,6 +10,19 @@ function clampPageName(name, fallback) {
   return s || fallback || '';
 }
 
+// What a rename should STORE, given the typed input. A non-empty name is kept
+// (clamped); an empty one means "reset to the default", which is the seed key
+// when the page still carries one — `name` wins over `nameKey` in
+// pageDisplayName, so storing '' is what lets the localised seed name come
+// back — and otherwise the positional fallback. It must never resolve to the
+// empty string on a page with no key, or the display name drops through to the
+// raw page id (`page-lx3k9`).
+function resolveRenamedPageName(input, hasNameKey, fallback) {
+  const next = clampPageName(input, '');
+  if (next) return next;
+  return hasNameKey ? '' : clampPageName(fallback, '');
+}
+
 // Normalise a saved page list: unique non-empty ids, clamped names, 1..MAX;
 // empty/invalid falls back to the seed.
 function normalizePagesList(pages, seed) {
@@ -189,19 +202,34 @@ function addDashboardPage() {
   const layout = getDashboardLayout();
   if (layout.pages.length >= DASHBOARD_PAGES_MAX) return;
   const id = 'page-' + Date.now().toString(36);
-  const label = (typeof t === 'function' ? t('page_default') : 'Page') + ' ' + (layout.pages.length + 1);
-  layout.pages.push({ id, name: label });
+  layout.pages.push({ id, name: defaultPageName(layout.pages.length) });
   saveDashboardLayout(layout);
   rebuildDashboardPages();
   if (typeof refreshDashboardLayoutEditor === 'function') refreshDashboardLayoutEditor();
 }
 
+// The name a rename dialog should start from: what the user actually typed,
+// never the resolved display name. Pre-filling with a name derived from
+// `nameKey` and confirming it unchanged would freeze the translation into a
+// literal string, and the page would stop following the interface language.
+function storedPageName(id) {
+  const page = dashboardPagesList().find(p => p.id === id);
+  return page ? (page.name || '') : '';
+}
+
+// Name a page created — or cleared — at `index`, matching what the + button
+// produces so an emptied field lands back on the same default.
+function defaultPageName(index) {
+  return (typeof t === 'function' ? t('page_default') : 'Page') + ' ' + (index + 1);
+}
+
 function renameDashboardPage(id, name) {
   const layout = getDashboardLayout();
-  const page = layout.pages.find(p => p.id === id);
-  if (!page) return;
-  page.name = clampPageName(name, '');
-  delete page.nameKey;          // a user-set name overrides the seed key
+  const index = layout.pages.findIndex(p => p.id === id);
+  if (index < 0) return;
+  const page = layout.pages[index];
+  // The seed key is KEPT rather than deleted (see resolveRenamedPageName).
+  page.name = resolveRenamedPageName(name, !!page.nameKey, defaultPageName(index));
   saveDashboardLayout(layout);
   rebuildDashboardPages();
 }
@@ -306,6 +334,19 @@ function removeDashboardPage(id, options) {
   return true;
 }
 
+// Push the current display names into the pager after a language change. A page
+// named by a seed key resolves through t(), and the pager captured that string
+// when the page was registered — cheap to refresh, and far cheaper than
+// rebuilding every page grid just to re-read a label.
+function relabelDashboardPages() {
+  if (!window.DashboardPager || typeof window.DashboardPager.setLabel !== 'function') return;
+  let changed = false;
+  dashboardPagesList().forEach(page => {
+    if (window.DashboardPager.setLabel(page.id, pageDisplayName(page))) changed = true;
+  });
+  if (changed && typeof window.DashboardPager.renderDots === 'function') window.DashboardPager.renderDots();
+}
+
 function moveDashboardPage(id, dir) {
   const layout = getDashboardLayout();
   layout.pages = movePageInList(layout.pages, id, dir);
@@ -321,11 +362,13 @@ if (typeof window !== 'undefined') {
     pageDisplayName,
     add: addDashboardPage,
     rename: renameDashboardPage,
+    storedName: storedPageName,
+    relabel: relabelDashboardPages,
     remove: removeDashboardPage,
     move: moveDashboardPage,
   };
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { DASHBOARD_PAGES_MAX, clampPageName, normalizePagesList, reassignOrphanWidgetPages, movePageInList, promoteSurvivingPrimaries, removePageInstances };
+  module.exports = { DASHBOARD_PAGES_MAX, clampPageName, resolveRenamedPageName, normalizePagesList, reassignOrphanWidgetPages, movePageInList, promoteSurvivingPrimaries, removePageInstances };
 }

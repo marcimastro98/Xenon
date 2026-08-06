@@ -1158,6 +1158,12 @@ const i18n = {
     weather_details_title: 'Condizioni live', weather_refresh: 'Aggiorna meteo', weather_updated: 'Aggiornato alle',
     weather_hourly: 'Prossime ore', weather_forecast: 'Prossimi giorni', weather_today: 'Oggi', weather_no_data: 'Nessun dato disponibile',
     weather_status: 'Stato', weather_retry_hint: 'Riprova tra poco', weather_rain_short: 'Pioggia', weather_sun: 'Sole',
+    weather_err_no_location: 'Posizione non rilevata',
+    weather_err_no_location_hint: 'Xenon non riesce a ottenere le coordinate di questo PC. Controlla la connessione, un blocco DNS o un antivirus con filtro web, oppure imposta la città a mano nelle impostazioni.',
+    weather_err_city: 'Città non trovata',
+    weather_err_city_hint: 'Prova con il nome di una città vicina, senza via, numero civico o CAP.',
+    weather_err_providers: 'Servizi non raggiungibili',
+    weather_err_providers_hint: 'I servizi meteo non hanno risposto. Il prossimo aggiornamento riprova da solo.',
     weather_metric_feels: 'Percepita', weather_metric_humidity: 'Umidità', weather_metric_humidity_sub: 'aria relativa',
     weather_metric_wind: 'Vento', weather_metric_rain: 'Precipitazioni',
     weather_metric_pressure: 'Pressione', weather_metric_pressure_sub: 'livello mare',
@@ -3858,6 +3864,12 @@ const i18n = {
     weather_details_title: 'Live conditions', weather_refresh: 'Refresh weather', weather_updated: 'Updated at',
     weather_hourly: 'Next hours', weather_forecast: 'Next days', weather_today: 'Today', weather_no_data: 'No data available',
     weather_status: 'Status', weather_retry_hint: 'Try again shortly', weather_rain_short: 'Rain', weather_sun: 'Sun',
+    weather_err_no_location: 'Location not detected',
+    weather_err_no_location_hint: "Xenon could not get this PC's coordinates. Check the connection, a DNS blocker or an antivirus web filter, or set the city by hand in the settings.",
+    weather_err_city: 'City not found',
+    weather_err_city_hint: 'Try a nearby city name, without street, number or postcode.',
+    weather_err_providers: 'Services unreachable',
+    weather_err_providers_hint: 'The weather services did not answer. The next refresh retries on its own.',
     weather_metric_feels: 'Feels like', weather_metric_humidity: 'Humidity', weather_metric_humidity_sub: 'relative air',
     weather_metric_wind: 'Wind', weather_metric_rain: 'Precipitation',
     weather_metric_pressure: 'Pressure', weather_metric_pressure_sub: 'sea level',
@@ -6170,6 +6182,12 @@ Object.assign(i18n, {
     weather_details_title: '실시간 상태', weather_refresh: '날씨 새로고침', weather_updated: '업데이트 시간',
     weather_hourly: '다음 시간대', weather_forecast: '다음 며칠', weather_today: '오늘', weather_no_data: '데이터 없음',
     weather_status: '상태', weather_retry_hint: '잠시 후 다시 시도하세요', weather_rain_short: '비', weather_sun: '맑음',
+    weather_err_no_location: '위치를 확인할 수 없음',
+    weather_err_no_location_hint: 'Xenon이 이 PC의 좌표를 가져오지 못했습니다. 인터넷 연결, DNS 차단기 또는 백신의 웹 필터를 확인하거나 설정에서 도시를 직접 입력하세요.',
+    weather_err_city: '도시를 찾을 수 없음',
+    weather_err_city_hint: '가까운 도시 이름으로 시도하세요. 도로명, 번지, 우편번호는 빼고 입력합니다.',
+    weather_err_providers: '서비스에 연결할 수 없음',
+    weather_err_providers_hint: '날씨 서비스가 응답하지 않았습니다. 다음 새로 고침에서 자동으로 다시 시도합니다.',
     weather_metric_feels: '체감', weather_metric_humidity: '습도', weather_metric_humidity_sub: '상대 습도',
     weather_metric_wind: '바람', weather_metric_rain: '강수량',
     weather_metric_pressure: '기압', weather_metric_pressure_sub: '해수면 기준',
@@ -8423,6 +8441,12 @@ Object.assign(i18n, {
     weather_details_title: '現在の状況', weather_refresh: '天気を更新', weather_updated: '更新時刻',
     weather_hourly: '今後の時間', weather_forecast: '今後の日', weather_today: '今日', weather_no_data: 'データなし',
     weather_status: '状態', weather_retry_hint: '少し後でもう一度お試しください', weather_rain_short: '雨', weather_sun: '晴れ',
+    weather_err_no_location: '現在地を取得できません',
+    weather_err_no_location_hint: 'XenonはこのPCの座標を取得できませんでした。接続、DNSブロッカー、ウイルス対策のWebフィルターを確認するか、設定で都市名を手動で入力してください。',
+    weather_err_city: '都市が見つかりません',
+    weather_err_city_hint: '近くの都市名でお試しください。番地や郵便番号は入れずに入力します。',
+    weather_err_providers: 'サービスに接続できません',
+    weather_err_providers_hint: '天気サービスから応答がありませんでした。次の更新で自動的に再試行します。',
     weather_metric_feels: '体感', weather_metric_humidity: '湿度', weather_metric_humidity_sub: '相対湿度',
     weather_metric_wind: '風', weather_metric_rain: '降水量',
     weather_metric_pressure: '気圧', weather_metric_pressure_sub: '海面気圧',
@@ -10675,6 +10699,12 @@ Object.assign(i18n, {
     weather_details_title: '实时天气', weather_refresh: '刷新天气', weather_updated: '更新时间',
     weather_hourly: '未来几小时', weather_forecast: '未来几天', weather_today: '今天', weather_no_data: '没有可用数据',
     weather_status: '状态', weather_retry_hint: '请稍后重试', weather_rain_short: '雨', weather_sun: '晴',
+    weather_err_no_location: '未能获取位置',
+    weather_err_no_location_hint: 'Xenon 无法获取本机坐标。请检查网络连接、DNS 拦截或杀毒软件的网页过滤，或在设置中手动填写城市。',
+    weather_err_city: '未找到城市',
+    weather_err_city_hint: '请尝试附近的城市名称，不要包含街道、门牌号或邮编。',
+    weather_err_providers: '服务无法连接',
+    weather_err_providers_hint: '天气服务没有响应。下次刷新会自动重试。',
     weather_metric_feels: '体感', weather_metric_humidity: '湿度', weather_metric_humidity_sub: '相对湿度',
     weather_metric_wind: '风', weather_metric_rain: '降水',
     weather_metric_pressure: '气压', weather_metric_pressure_sub: '海平面',
@@ -12747,6 +12777,12 @@ Object.assign(i18n, {
     weather_no_data: 'No hay datos disponibles',
     weather_status: 'Estado',
     weather_retry_hint: 'Vuelve a intentarlo en breve',
+    weather_err_no_location: 'Ubicación no detectada',
+    weather_err_no_location_hint: 'Xenon no ha podido obtener las coordenadas de este PC. Comprueba la conexión, un bloqueador DNS o un antivirus con filtro web, o escribe la ciudad a mano en los ajustes.',
+    weather_err_city: 'Ciudad no encontrada',
+    weather_err_city_hint: 'Prueba con el nombre de una ciudad cercana, sin calle, número ni código postal.',
+    weather_err_providers: 'Servicios no disponibles',
+    weather_err_providers_hint: 'Los servicios meteorológicos no han respondido. La próxima actualización lo reintenta sola.',
     weather_rain_short: 'Lluvia',
     weather_sun: 'Sol',
     weather_metric_feels: 'Sensación',
@@ -14053,6 +14089,12 @@ Object.assign(i18n, {
     weather_no_data: 'Aucune donnée disponible',
     weather_status: 'État',
     weather_retry_hint: 'Réessayez bientôt',
+    weather_err_no_location: 'Position non détectée',
+    weather_err_no_location_hint: "Xenon n'a pas pu obtenir les coordonnées de ce PC. Vérifiez la connexion, un bloqueur DNS ou un antivirus avec filtre web, ou saisissez la ville à la main dans les réglages.",
+    weather_err_city: 'Ville introuvable',
+    weather_err_city_hint: "Essayez le nom d'une ville proche, sans rue, numéro ni code postal.",
+    weather_err_providers: 'Services injoignables',
+    weather_err_providers_hint: "Les services météo n'ont pas répondu. La prochaine actualisation réessaie toute seule.",
     weather_rain_short: 'Pluie',
     weather_sun: 'Soleil',
     weather_metric_feels: 'Ressenti',
@@ -15359,6 +15401,12 @@ Object.assign(i18n, {
     weather_no_data: 'Keine Daten verfügbar',
     weather_status: 'Status',
     weather_retry_hint: 'Gleich erneut versuchen',
+    weather_err_no_location: 'Standort nicht erkannt',
+    weather_err_no_location_hint: 'Xenon konnte die Koordinaten dieses PCs nicht ermitteln. Prüfe die Verbindung, einen DNS-Blocker oder einen Antiviren-Webfilter, oder trage die Stadt in den Einstellungen von Hand ein.',
+    weather_err_city: 'Stadt nicht gefunden',
+    weather_err_city_hint: 'Versuche den Namen einer Stadt in der Nähe, ohne Straße, Hausnummer oder Postleitzahl.',
+    weather_err_providers: 'Dienste nicht erreichbar',
+    weather_err_providers_hint: 'Die Wetterdienste haben nicht geantwortet. Die nächste Aktualisierung versucht es von selbst erneut.',
     weather_rain_short: 'Regen',
     weather_sun: 'Sonne',
     weather_metric_feels: 'Gefühlt',
@@ -16665,6 +16713,12 @@ Object.assign(i18n, {
     weather_no_data: 'Sem dados disponíveis',
     weather_status: 'Estado',
     weather_retry_hint: 'Tenta novamente em breve',
+    weather_err_no_location: 'Localização não detectada',
+    weather_err_no_location_hint: 'O Xenon não conseguiu obter as coordenadas deste PC. Verifica a ligação, um bloqueador de DNS ou um antivírus com filtro web, ou escreve a cidade à mão nas definições.',
+    weather_err_city: 'Cidade não encontrada',
+    weather_err_city_hint: 'Tenta o nome de uma cidade próxima, sem rua, número ou código postal.',
+    weather_err_providers: 'Serviços indisponíveis',
+    weather_err_providers_hint: 'Os serviços meteorológicos não responderam. A próxima atualização tenta outra vez sozinha.',
     weather_rain_short: 'Chuva',
     weather_sun: 'Sol',
     weather_metric_feels: 'Sensação',
@@ -17971,6 +18025,12 @@ Object.assign(i18n, {
     weather_no_data: 'Нет данных',
     weather_status: 'Статус',
     weather_retry_hint: 'Повторите попытку позже',
+    weather_err_no_location: 'Местоположение не определено',
+    weather_err_no_location_hint: 'Xenon не смог получить координаты этого ПК. Проверьте подключение, блокировщик DNS или веб-фильтр антивируса либо укажите город вручную в настройках.',
+    weather_err_city: 'Город не найден',
+    weather_err_city_hint: 'Попробуйте название ближайшего города — без улицы, номера дома и индекса.',
+    weather_err_providers: 'Сервисы недоступны',
+    weather_err_providers_hint: 'Погодные сервисы не ответили. Следующее обновление повторит попытку само.',
     weather_rain_short: 'Дождь',
     weather_sun: 'Солнце',
     weather_metric_feels: 'Ощущается',
@@ -19558,6 +19618,12 @@ Object.assign(i18n, {
     "weather_no_data": "Geen gegevens beschikbaar",
     "weather_status": "Status",
     "weather_retry_hint": "Probeer het zo weer",
+    "weather_err_no_location": "Locatie niet gevonden",
+    "weather_err_no_location_hint": "Xenon kon de coördinaten van deze pc niet ophalen. Controleer de verbinding, een DNS-blokkering of een antivirus-webfilter, of vul de stad handmatig in bij de instellingen.",
+    "weather_err_city": "Stad niet gevonden",
+    "weather_err_city_hint": "Probeer de naam van een stad in de buurt, zonder straat, huisnummer of postcode.",
+    "weather_err_providers": "Diensten onbereikbaar",
+    "weather_err_providers_hint": "De weerdiensten reageerden niet. De volgende verversing probeert het vanzelf opnieuw.",
     "weather_rain_short": "Regen",
     "weather_sun": "Zon",
     "weather_metric_feels": "Gevoelstemperatuur",
@@ -21595,9 +21661,9 @@ Object.assign(i18n, {
 Object.assign(i18n.it, {
   settings_cat_island: 'Dynamic Island', settings_island_hint: 'contenuti e stile della barra superiore',
   topbar_island_hint_v2: 'mostra o nascondi in Full e Minimal; trascina per ordinare la capsula Minimal',
-  settings_island_sources: 'App e widget', settings_island_sources_hint: 'compaiono solo le estensioni installate che aggiungono qualcosa all’isola',
+  settings_island_sources: 'App e widget nella barra', settings_island_sources_hint: 'tutto quello che un’estensione installata aggiunge alla barra: nell’isola, accanto all’orologio o fra i bottoni. Spegni quelle che non vuoi vedere',
   settings_island_takeovers: 'Consenti takeover temporanei', settings_island_takeovers_hint: 'un gol, una nuova traccia o un risultato può sostituire temporaneamente il contenuto normale e poi ripristinarlo',
-  settings_island_reset: 'Ripristina Dynamic Island', settings_island_empty: 'Nessuna app o widget installato aggiunge contenuti alla Dynamic Island.', settings_island_loading: 'Caricamento delle estensioni installate…',
+  settings_island_reset: 'Ripristina tutta la barra', settings_island_reset_hint: 'rimette la barra com’era appena installata: stile, elementi dell’isola, bottoni, barre laterali e tutte le estensioni riaccese', settings_island_reset_confirm: 'Rimette la barra com’era appena installata. I bottoni che hai nascosto, il loro ordine, il lato su cui stanno, gli elementi dell’isola e le estensioni che hai spento tornano tutti al punto di partenza. Non si può annullare.', settings_island_empty: 'Nessuna app o widget installato aggiunge qualcosa alla barra.', settings_island_loading: 'Caricamento delle estensioni installate…',
   island_source_live: 'Riga live', island_source_dynamic: 'Attività dinamiche', island_source_badge: 'Badge',
   cw_perm_island_dynamic: 'Può creare attività nella Dynamic Island:', cw_perm_island_dynamic_val: 'Può sostituire temporaneamente l’orologio con testo, indicatori e pulsanti disegnati da Xenon',
   cw_perm_background_island: 'Questo widget può restare attivo nascosto in background, così le sue attività nella Dynamic Island restano aggiornate anche senza un tile sullo schermo.',
@@ -21605,65 +21671,65 @@ Object.assign(i18n.it, {
 Object.assign(i18n.en, {
   settings_cat_island: 'Dynamic Island', settings_island_hint: 'top-bar content and style',
   topbar_island_hint_v2: 'show or hide in Full and Minimal; drag to order the Minimal capsule',
-  settings_island_sources: 'Apps and widgets', settings_island_sources_hint: 'only installed extensions that add something to the island appear here',
+  settings_island_sources: 'Apps and widgets in the bar', settings_island_sources_hint: 'everything an installed extension adds to the bar: in the island, next to the clock or among the buttons. Switch off the ones you do not want to see',
   settings_island_takeovers: 'Allow temporary takeovers', settings_island_takeovers_hint: 'a goal, new track or result may briefly replace the normal content, then restore it',
-  settings_island_reset: 'Reset Dynamic Island', settings_island_empty: 'No installed app or widget adds content to the Dynamic Island.', settings_island_loading: 'Loading installed extensions…',
+  settings_island_reset: 'Reset the whole bar', settings_island_reset_hint: 'puts the bar back to how it shipped: style, island elements, buttons, side rails, and every extension switched back on', settings_island_reset_confirm: 'Puts the bar back to how it shipped. The buttons you hid, their order, the side they sit on, the island elements and the extensions you switched off all go back to the start. This cannot be undone.', settings_island_empty: 'No installed app or widget adds anything to the bar.', settings_island_loading: 'Loading installed extensions…',
   island_source_live: 'Live line', island_source_dynamic: 'Dynamic activities', island_source_badge: 'Badge',
   cw_perm_island_dynamic: 'It can create Dynamic Island activities:', cw_perm_island_dynamic_val: 'It may temporarily replace the clock with Xenon-drawn text, meters and buttons',
   cw_perm_background_island: 'This widget can keep running hidden in the background so its Dynamic Island activities stay up to date even with no tile on screen.',
 });
 Object.assign(i18n.ko, {
   settings_cat_island: 'Dynamic Island', settings_island_hint: '상단 바 콘텐츠 및 스타일', topbar_island_hint_v2: 'Full과 Minimal에서 표시 여부를 정하고 Minimal 캡슐의 순서를 드래그하세요',
-  settings_island_sources: '앱 및 위젯', settings_island_sources_hint: '아일랜드에 콘텐츠를 추가하는 설치된 확장만 표시됩니다', settings_island_takeovers: '임시 전환 허용', settings_island_takeovers_hint: '골, 새 곡 또는 결과가 일반 콘텐츠를 잠시 대체한 뒤 복원할 수 있습니다',
-  settings_island_reset: 'Dynamic Island 초기화', settings_island_empty: 'Dynamic Island에 콘텐츠를 추가하는 앱이나 위젯이 없습니다.', settings_island_loading: '설치된 확장 불러오는 중…', island_source_live: '라이브 줄', island_source_dynamic: '동적 활동', island_source_badge: '배지',
+  settings_island_sources: '바에 표시되는 앱과 위젯', settings_island_sources_hint: '설치된 확장이 바에 추가하는 모든 것: 아일랜드, 시계 옆, 버튼 사이. 보고 싶지 않은 것은 끄면 됩니다', settings_island_takeovers: '임시 전환 허용', settings_island_takeovers_hint: '골, 새 곡 또는 결과가 일반 콘텐츠를 잠시 대체한 뒤 복원할 수 있습니다',
+  settings_island_reset: '바 전체 초기화', settings_island_reset_hint: '바를 설치 직후 상태로 되돌립니다: 스타일, 아일랜드 요소, 버튼, 사이드 레일, 그리고 모든 확장을 다시 켭니다', settings_island_reset_confirm: '바를 설치 직후 상태로 되돌립니다. 숨긴 버튼, 그 순서, 좌우 위치, 아일랜드 요소, 그리고 끈 확장이 모두 처음으로 돌아갑니다. 되돌릴 수 없습니다.', settings_island_empty: '바에 무언가를 추가하는 설치된 앱이나 위젯이 없습니다.', settings_island_loading: '설치된 확장 불러오는 중…', island_source_live: '라이브 줄', island_source_dynamic: '동적 활동', island_source_badge: '배지',
   cw_perm_island_dynamic: 'Dynamic Island 활동을 만들 수 있음:', cw_perm_island_dynamic_val: '시계를 Xenon이 그린 텍스트, 미터 및 버튼으로 잠시 대체할 수 있음', cw_perm_background_island: '타일이 없어도 Dynamic Island 활동이 최신 상태를 유지하도록 이 위젯을 백그라운드에서 실행할 수 있습니다.',
 });
 Object.assign(i18n.ja, {
   settings_cat_island: 'Dynamic Island', settings_island_hint: '上部バーの内容とスタイル', topbar_island_hint_v2: 'Full と Minimal で表示を切り替え、Minimal カプセルはドラッグで並べ替え',
-  settings_island_sources: 'アプリとウィジェット', settings_island_sources_hint: 'アイランドに内容を追加するインストール済み拡張のみ表示', settings_island_takeovers: '一時的な切り替えを許可', settings_island_takeovers_hint: 'ゴール、新しい曲、結果などが通常の内容を一時的に置き換え、その後復元します',
-  settings_island_reset: 'Dynamic Island をリセット', settings_island_empty: 'Dynamic Island に内容を追加するアプリやウィジェットはありません。', settings_island_loading: 'インストール済み拡張を読み込み中…', island_source_live: 'ライブ行', island_source_dynamic: '動的アクティビティ', island_source_badge: 'バッジ',
+  settings_island_sources: 'バーに表示されるアプリとウィジェット', settings_island_sources_hint: 'インストール済みの拡張がバーに追加するものすべて: アイランド、時計の隣、ボタンの間。見たくないものはオフにできます', settings_island_takeovers: '一時的な切り替えを許可', settings_island_takeovers_hint: 'ゴール、新しい曲、結果などが通常の内容を一時的に置き換え、その後復元します',
+  settings_island_reset: 'バー全体をリセット', settings_island_reset_hint: 'バーをインストール直後の状態に戻します: スタイル、アイランドの要素、ボタン、サイドレール、すべての拡張をオンに', settings_island_reset_confirm: 'バーをインストール直後の状態に戻します。隠したボタン、その順序、左右の位置、アイランドの要素、オフにした拡張がすべて最初に戻ります。取り消せません。', settings_island_empty: 'バーに何かを追加するアプリやウィジェットはインストールされていません。', settings_island_loading: 'インストール済み拡張を読み込み中…', island_source_live: 'ライブ行', island_source_dynamic: '動的アクティビティ', island_source_badge: 'バッジ',
   cw_perm_island_dynamic: 'Dynamic Island アクティビティを作成できます:', cw_perm_island_dynamic_val: '時計を Xenon が描画するテキスト、メーター、ボタンで一時的に置き換えられます', cw_perm_background_island: 'タイルがなくても Dynamic Island の内容を更新するため、このウィジェットはバックグラウンドで実行できます。',
 });
 Object.assign(i18n.zh, {
   settings_cat_island: 'Dynamic Island', settings_island_hint: '顶部栏内容和样式', topbar_island_hint_v2: '在完整和极简模式中显示或隐藏；拖动以排列极简胶囊',
-  settings_island_sources: '应用和小组件', settings_island_sources_hint: '仅显示会向灵动岛添加内容的已安装扩展', settings_island_takeovers: '允许临时接管', settings_island_takeovers_hint: '进球、新曲目或比赛结果可短暂替换正常内容，然后自动恢复',
-  settings_island_reset: '重置 Dynamic Island', settings_island_empty: '没有已安装的应用或小组件向 Dynamic Island 添加内容。', settings_island_loading: '正在加载已安装扩展…', island_source_live: '实时行', island_source_dynamic: '动态活动', island_source_badge: '徽章',
+  settings_island_sources: '顶栏中的应用和小组件', settings_island_sources_hint: '已安装的扩展添加到顶栏的所有内容：胶囊里、时钟旁边或按钮之间。不想看到的可以关掉', settings_island_takeovers: '允许临时接管', settings_island_takeovers_hint: '进球、新曲目或比赛结果可短暂替换正常内容，然后自动恢复',
+  settings_island_reset: '重置整个顶栏', settings_island_reset_hint: '把顶栏恢复到刚安装时的样子：样式、胶囊元素、按钮、侧边栏，以及重新开启所有扩展', settings_island_reset_confirm: '把顶栏恢复到刚安装时的样子。你隐藏的按钮、它们的顺序和所在一侧、胶囊元素，以及你关闭的扩展都会回到最初状态。此操作无法撤销。', settings_island_empty: '没有已安装的应用或小组件向顶栏添加内容。', settings_island_loading: '正在加载已安装扩展…', island_source_live: '实时行', island_source_dynamic: '动态活动', island_source_badge: '徽章',
   cw_perm_island_dynamic: '可以创建 Dynamic Island 活动：', cw_perm_island_dynamic_val: '可暂时用 Xenon 绘制的文字、指示条和按钮替换时钟', cw_perm_background_island: '此小组件可在后台继续运行，即使屏幕上没有磁贴也能更新 Dynamic Island 活动。',
 });
 Object.assign(i18n.es, {
   settings_cat_island: 'Dynamic Island', settings_island_hint: 'contenido y estilo de la barra superior', topbar_island_hint_v2: 'muestra u oculta en Full y Minimal; arrastra para ordenar la cápsula Minimal',
-  settings_island_sources: 'Apps y widgets', settings_island_sources_hint: 'solo aparecen las extensiones instaladas que añaden algo a la isla', settings_island_takeovers: 'Permitir reemplazos temporales', settings_island_takeovers_hint: 'un gol, una nueva canción o un resultado puede reemplazar brevemente el contenido normal y restaurarlo después',
-  settings_island_reset: 'Restablecer Dynamic Island', settings_island_empty: 'Ninguna app o widget instalado añade contenido a Dynamic Island.', settings_island_loading: 'Cargando extensiones instaladas…', island_source_live: 'Línea en vivo', island_source_dynamic: 'Actividades dinámicas', island_source_badge: 'Insignia',
+  settings_island_sources: 'Apps y widgets en la barra', settings_island_sources_hint: 'todo lo que una extensión instalada añade a la barra: en la cápsula, junto al reloj o entre los botones. Apaga las que no quieras ver', settings_island_takeovers: 'Permitir reemplazos temporales', settings_island_takeovers_hint: 'un gol, una nueva canción o un resultado puede reemplazar brevemente el contenido normal y restaurarlo después',
+  settings_island_reset: 'Restablecer toda la barra', settings_island_reset_hint: 'deja la barra como venía: estilo, elementos de la cápsula, botones, barras laterales y todas las extensiones de nuevo activas', settings_island_reset_confirm: 'Deja la barra como venía. Los botones que ocultaste, su orden, el lado en el que están, los elementos de la cápsula y las extensiones que apagaste vuelven todos al principio. No se puede deshacer.', settings_island_empty: 'Ninguna app o widget instalado añade nada a la barra.', settings_island_loading: 'Cargando extensiones instaladas…', island_source_live: 'Línea en vivo', island_source_dynamic: 'Actividades dinámicas', island_source_badge: 'Insignia',
   cw_perm_island_dynamic: 'Puede crear actividades en Dynamic Island:', cw_perm_island_dynamic_val: 'Puede reemplazar temporalmente el reloj con texto, indicadores y botones dibujados por Xenon', cw_perm_background_island: 'Este widget puede seguir activo en segundo plano para actualizar sus actividades de Dynamic Island aunque no haya ningún mosaico en pantalla.',
 });
 Object.assign(i18n.fr, {
   settings_cat_island: 'Dynamic Island', settings_island_hint: 'contenu et style de la barre supérieure', topbar_island_hint_v2: 'affichez ou masquez dans Full et Minimal ; faites glisser pour ordonner la capsule Minimal',
-  settings_island_sources: 'Apps et widgets', settings_island_sources_hint: 'seules les extensions installées qui ajoutent du contenu à l’île apparaissent', settings_island_takeovers: 'Autoriser les remplacements temporaires', settings_island_takeovers_hint: 'un but, un nouveau titre ou un résultat peut remplacer brièvement le contenu normal, puis le restaurer',
-  settings_island_reset: 'Réinitialiser Dynamic Island', settings_island_empty: 'Aucune app ou widget installé n’ajoute de contenu à Dynamic Island.', settings_island_loading: 'Chargement des extensions installées…', island_source_live: 'Ligne en direct', island_source_dynamic: 'Activités dynamiques', island_source_badge: 'Badge',
+  settings_island_sources: 'Apps et widgets dans la barre', settings_island_sources_hint: 'tout ce qu’une extension installée ajoute à la barre : dans la capsule, à côté de l’horloge ou parmi les boutons. Désactivez celles que vous ne voulez pas voir', settings_island_takeovers: 'Autoriser les remplacements temporaires', settings_island_takeovers_hint: 'un but, un nouveau titre ou un résultat peut remplacer brièvement le contenu normal, puis le restaurer',
+  settings_island_reset: 'Réinitialiser toute la barre', settings_island_reset_hint: 'remet la barre comme à l’installation : style, éléments de la capsule, boutons, rails latéraux, et toutes les extensions réactivées', settings_island_reset_confirm: 'Remet la barre comme à l’installation. Les boutons masqués, leur ordre, le côté où ils se trouvent, les éléments de la capsule et les extensions désactivées reviennent tous au départ. C’est irréversible.', settings_island_empty: 'Aucune app ou widget installé n’ajoute quoi que ce soit à la barre.', settings_island_loading: 'Chargement des extensions installées…', island_source_live: 'Ligne en direct', island_source_dynamic: 'Activités dynamiques', island_source_badge: 'Badge',
   cw_perm_island_dynamic: 'Peut créer des activités Dynamic Island :', cw_perm_island_dynamic_val: 'Peut remplacer temporairement l’horloge par du texte, des jauges et des boutons dessinés par Xenon', cw_perm_background_island: 'Ce widget peut rester actif en arrière-plan afin de mettre à jour ses activités Dynamic Island même sans tuile à l’écran.',
 });
 Object.assign(i18n.de, {
   settings_cat_island: 'Dynamic Island', settings_island_hint: 'Inhalt und Stil der oberen Leiste', topbar_island_hint_v2: 'in Full und Minimal ein- oder ausblenden; ziehen, um die Minimal-Kapsel zu sortieren',
-  settings_island_sources: 'Apps und Widgets', settings_island_sources_hint: 'nur installierte Erweiterungen mit Island-Inhalten erscheinen hier', settings_island_takeovers: 'Temporäre Übernahmen erlauben', settings_island_takeovers_hint: 'ein Tor, neuer Titel oder Ergebnis kann den normalen Inhalt kurz ersetzen und danach wiederherstellen',
-  settings_island_reset: 'Dynamic Island zurücksetzen', settings_island_empty: 'Keine installierte App und kein Widget fügt Dynamic Island Inhalte hinzu.', settings_island_loading: 'Installierte Erweiterungen werden geladen…', island_source_live: 'Live-Zeile', island_source_dynamic: 'Dynamische Aktivitäten', island_source_badge: 'Badge',
+  settings_island_sources: 'Apps und Widgets in der Leiste', settings_island_sources_hint: 'alles, was eine installierte Erweiterung zur Leiste hinzufügt: in der Kapsel, neben der Uhr oder zwischen den Schaltflächen. Schalte aus, was du nicht sehen willst', settings_island_takeovers: 'Temporäre Übernahmen erlauben', settings_island_takeovers_hint: 'ein Tor, neuer Titel oder Ergebnis kann den normalen Inhalt kurz ersetzen und danach wiederherstellen',
+  settings_island_reset: 'Ganze Leiste zurücksetzen', settings_island_reset_hint: 'setzt die Leiste auf den Auslieferungszustand: Stil, Kapselelemente, Schaltflächen, Seitenleisten und alle Erweiterungen wieder an', settings_island_reset_confirm: 'Setzt die Leiste auf den Auslieferungszustand. Ausgeblendete Schaltflächen, ihre Reihenfolge, ihre Seite, die Kapselelemente und die ausgeschalteten Erweiterungen gehen alle auf Anfang. Das lässt sich nicht rückgängig machen.', settings_island_empty: 'Keine installierte App und kein Widget fügt der Leiste etwas hinzu.', settings_island_loading: 'Installierte Erweiterungen werden geladen…', island_source_live: 'Live-Zeile', island_source_dynamic: 'Dynamische Aktivitäten', island_source_badge: 'Badge',
   cw_perm_island_dynamic: 'Darf Dynamic-Island-Aktivitäten erstellen:', cw_perm_island_dynamic_val: 'Darf die Uhr vorübergehend durch von Xenon gezeichnete Texte, Anzeigen und Schaltflächen ersetzen', cw_perm_background_island: 'Dieses Widget darf im Hintergrund aktiv bleiben, damit seine Dynamic-Island-Aktivitäten auch ohne Kachel aktuell bleiben.',
 });
 Object.assign(i18n.pt, {
   settings_cat_island: 'Dynamic Island', settings_island_hint: 'conteúdo e estilo da barra superior', topbar_island_hint_v2: 'mostre ou oculte em Full e Minimal; arraste para ordenar a cápsula Minimal',
-  settings_island_sources: 'Apps e widgets', settings_island_sources_hint: 'só aparecem extensões instaladas que adicionam conteúdo à ilha', settings_island_takeovers: 'Permitir substituições temporárias', settings_island_takeovers_hint: 'um golo, uma nova faixa ou um resultado pode substituir brevemente o conteúdo normal e depois restaurá-lo',
-  settings_island_reset: 'Repor Dynamic Island', settings_island_empty: 'Nenhuma app ou widget instalado adiciona conteúdo à Dynamic Island.', settings_island_loading: 'A carregar extensões instaladas…', island_source_live: 'Linha ao vivo', island_source_dynamic: 'Atividades dinâmicas', island_source_badge: 'Emblema',
+  settings_island_sources: 'Apps e widgets na barra', settings_island_sources_hint: 'tudo o que uma extensão instalada acrescenta à barra: na cápsula, ao lado do relógio ou entre os botões. Desliga as que não queres ver', settings_island_takeovers: 'Permitir substituições temporárias', settings_island_takeovers_hint: 'um golo, uma nova faixa ou um resultado pode substituir brevemente o conteúdo normal e depois restaurá-lo',
+  settings_island_reset: 'Repor toda a barra', settings_island_reset_hint: 'repõe a barra como veio: estilo, elementos da cápsula, botões, barras laterais e todas as extensões novamente ligadas', settings_island_reset_confirm: 'Repõe a barra como veio. Os botões que escondeste, a ordem, o lado onde estão, os elementos da cápsula e as extensões que desligaste voltam todos ao início. Não é possível anular.', settings_island_empty: 'Nenhuma app ou widget instalado acrescenta nada à barra.', settings_island_loading: 'A carregar extensões instaladas…', island_source_live: 'Linha ao vivo', island_source_dynamic: 'Atividades dinâmicas', island_source_badge: 'Emblema',
   cw_perm_island_dynamic: 'Pode criar atividades na Dynamic Island:', cw_perm_island_dynamic_val: 'Pode substituir temporariamente o relógio por texto, medidores e botões desenhados pelo Xenon', cw_perm_background_island: 'Este widget pode continuar ativo em segundo plano para manter as atividades da Dynamic Island atualizadas mesmo sem um bloco no ecrã.',
 });
 Object.assign(i18n.ru, {
   settings_cat_island: 'Dynamic Island', settings_island_hint: 'содержимое и стиль верхней панели', topbar_island_hint_v2: 'показывайте или скрывайте в Full и Minimal; перетаскивайте для изменения порядка в Minimal',
-  settings_island_sources: 'Приложения и виджеты', settings_island_sources_hint: 'показаны только установленные расширения, добавляющие содержимое в остров', settings_island_takeovers: 'Разрешить временную замену', settings_island_takeovers_hint: 'гол, новый трек или результат может ненадолго заменить обычное содержимое, а затем восстановить его',
-  settings_island_reset: 'Сбросить Dynamic Island', settings_island_empty: 'Ни одно установленное приложение или виджет не добавляет содержимое в Dynamic Island.', settings_island_loading: 'Загрузка установленных расширений…', island_source_live: 'Строка Live', island_source_dynamic: 'Динамические активности', island_source_badge: 'Значок',
+  settings_island_sources: 'Приложения и виджеты в панели', settings_island_sources_hint: 'всё, что установленное расширение добавляет в панель: в капсуле, рядом с часами или среди кнопок. Выключите то, что не хотите видеть', settings_island_takeovers: 'Разрешить временную замену', settings_island_takeovers_hint: 'гол, новый трек или результат может ненадолго заменить обычное содержимое, а затем восстановить его',
+  settings_island_reset: 'Сбросить всю панель', settings_island_reset_hint: 'возвращает панель к исходному виду: стиль, элементы капсулы, кнопки, боковые рейки и все расширения снова включены', settings_island_reset_confirm: 'Возвращает панель к исходному виду. Скрытые кнопки, их порядок, сторона, на которой они стоят, элементы капсулы и выключенные расширения вернутся к началу. Отменить это нельзя.', settings_island_empty: 'Ни одно установленное приложение или виджет ничего не добавляет в панель.', settings_island_loading: 'Загрузка установленных расширений…', island_source_live: 'Строка Live', island_source_dynamic: 'Динамические активности', island_source_badge: 'Значок',
   cw_perm_island_dynamic: 'Может создавать активности Dynamic Island:', cw_perm_island_dynamic_val: 'Может временно заменить часы текстом, индикаторами и кнопками, отрисованными Xenon', cw_perm_background_island: 'Этот виджет может работать в фоне, чтобы обновлять активности Dynamic Island даже без плитки на экране.',
 });
 Object.assign(i18n.nl, {
   settings_cat_island: 'Dynamic Island', settings_island_hint: 'inhoud en stijl van de bovenbalk', topbar_island_hint_v2: 'toon of verberg in Full en Minimal; sleep om de Minimal-capsule te ordenen',
-  settings_island_sources: 'Apps en widgets', settings_island_sources_hint: 'alleen geïnstalleerde extensies die iets aan het eiland toevoegen verschijnen hier', settings_island_takeovers: 'Tijdelijke overnames toestaan', settings_island_takeovers_hint: 'een doelpunt, nieuw nummer of resultaat kan de normale inhoud kort vervangen en daarna herstellen',
-  settings_island_reset: 'Dynamic Island herstellen', settings_island_empty: 'Geen geïnstalleerde app of widget voegt inhoud toe aan Dynamic Island.', settings_island_loading: 'Geïnstalleerde extensies laden…', island_source_live: 'Live-regel', island_source_dynamic: 'Dynamische activiteiten', island_source_badge: 'Badge',
+  settings_island_sources: 'Apps en widgets in de balk', settings_island_sources_hint: 'alles wat een geïnstalleerde extensie aan de balk toevoegt: in de capsule, naast de klok of tussen de knoppen. Zet uit wat je niet wilt zien', settings_island_takeovers: 'Tijdelijke overnames toestaan', settings_island_takeovers_hint: 'een doelpunt, nieuw nummer of resultaat kan de normale inhoud kort vervangen en daarna herstellen',
+  settings_island_reset: 'De hele balk herstellen', settings_island_reset_hint: 'zet de balk terug zoals hij kwam: stijl, capsule-elementen, knoppen, zijrails, en alle extensies weer aan', settings_island_reset_confirm: 'Zet de balk terug zoals hij kwam. De knoppen die je verborg, hun volgorde, de kant waar ze staan, de capsule-elementen en de extensies die je uitzette gaan allemaal terug naar het begin. Dit kan niet ongedaan worden gemaakt.', settings_island_empty: 'Geen geïnstalleerde app of widget voegt iets aan de balk toe.', settings_island_loading: 'Geïnstalleerde extensies laden…', island_source_live: 'Live-regel', island_source_dynamic: 'Dynamische activiteiten', island_source_badge: 'Badge',
   cw_perm_island_dynamic: 'Kan Dynamic Island-activiteiten maken:', cw_perm_island_dynamic_val: 'Kan de klok tijdelijk vervangen door tekst, meters en knoppen die Xenon tekent', cw_perm_background_island: 'Deze widget kan verborgen op de achtergrond actief blijven zodat Dynamic Island-activiteiten ook zonder tegel actueel blijven.',
 });
 
@@ -21761,6 +21827,243 @@ Object.assign(i18n.nl, {
   topbar_el_media: 'Muziek', topbar_el_options: 'Opties',
   topbar_el_media_full: 'De hele capsule vullen tijdens het afspelen',
   topbar_el_media_full_hint: 'tijd, datum en weer gaan opzij zolang muziek speelt en komen terug zodra je pauzeert of de speler sluit',
+});
+
+// Page dots as labelled buttons — the 'dots' island option — and the rename
+// dialog that gives those buttons something to say (Layout mode, pencil).
+Object.assign(i18n.it, {
+  topbar_el_dots_labels: 'Mostra i nomi delle pagine',
+  topbar_el_dots_labels_hint: 'i pallini diventano bottoni con il nome della pagina, nella barra in alto e nell\'isola. Per dare un nome a una pagina apri Layout e tocca la matita',
+  layout_rename_page: 'Rinomina pagina',
+  layout_rename_page_hint: 'Lascia vuoto per tornare al nome predefinito.',
+});
+Object.assign(i18n.en, {
+  topbar_el_dots_labels: 'Show the page names',
+  topbar_el_dots_labels_hint: 'the dots become buttons carrying the page name, in the top bar and in the island. To name a page, open Layout and tap the pencil',
+  layout_rename_page: 'Rename page',
+  layout_rename_page_hint: 'Leave it empty to restore the default name.',
+});
+Object.assign(i18n.ko, {
+  topbar_el_dots_labels: '페이지 이름 표시',
+  topbar_el_dots_labels_hint: '점이 페이지 이름을 담은 버튼이 되며, 상단 바와 아일랜드 모두에 적용됩니다. 이름은 레이아웃에서 연필을 눌러 지정합니다',
+  layout_rename_page: '페이지 이름 변경',
+  layout_rename_page_hint: '비워 두면 기본 이름으로 돌아갑니다.',
+});
+Object.assign(i18n.ja, {
+  topbar_el_dots_labels: 'ページ名を表示',
+  topbar_el_dots_labels_hint: 'ドットがページ名の付いたボタンになります。上部バーとアイランドの両方に適用され、名前はレイアウトの鉛筆から付けます',
+  layout_rename_page: 'ページ名を変更',
+  layout_rename_page_hint: '空にすると既定の名前に戻ります。',
+});
+Object.assign(i18n.zh, {
+  topbar_el_dots_labels: '显示页面名称',
+  topbar_el_dots_labels_hint: '圆点会变成带页面名称的按钮，顶栏和胶囊中都是如此。要命名页面，请打开布局并点按铅笔',
+  layout_rename_page: '重命名页面',
+  layout_rename_page_hint: '留空可恢复默认名称。',
+});
+Object.assign(i18n.es, {
+  topbar_el_dots_labels: 'Mostrar los nombres de las páginas',
+  topbar_el_dots_labels_hint: 'los puntos pasan a ser botones con el nombre de la página, en la barra superior y en la cápsula. Para poner nombre a una página, abre Diseño y toca el lápiz',
+  layout_rename_page: 'Cambiar el nombre de la página',
+  layout_rename_page_hint: 'Déjalo vacío para volver al nombre predeterminado.',
+});
+Object.assign(i18n.fr, {
+  topbar_el_dots_labels: 'Afficher les noms des pages',
+  topbar_el_dots_labels_hint: 'les points deviennent des boutons portant le nom de la page, dans la barre du haut comme dans la capsule. Pour nommer une page, ouvrez Disposition et touchez le crayon',
+  layout_rename_page: 'Renommer la page',
+  layout_rename_page_hint: 'Laissez vide pour revenir au nom par défaut.',
+});
+Object.assign(i18n.de, {
+  topbar_el_dots_labels: 'Seitennamen anzeigen',
+  topbar_el_dots_labels_hint: 'die Punkte werden zu Schaltflächen mit dem Seitennamen, in der oberen Leiste und in der Kapsel. Einen Namen vergibst du im Layout über den Stift',
+  layout_rename_page: 'Seite umbenennen',
+  layout_rename_page_hint: 'Leer lassen, um den Standardnamen wiederherzustellen.',
+});
+Object.assign(i18n.pt, {
+  topbar_el_dots_labels: 'Mostrar os nomes das páginas',
+  topbar_el_dots_labels_hint: 'os pontos passam a botões com o nome da página, na barra de cima e na cápsula. Para dar nome a uma página, abre o Layout e toca no lápis',
+  layout_rename_page: 'Mudar o nome da página',
+  layout_rename_page_hint: 'Deixa vazio para voltar ao nome predefinido.',
+});
+Object.assign(i18n.ru, {
+  topbar_el_dots_labels: 'Показывать названия страниц',
+  topbar_el_dots_labels_hint: 'точки становятся кнопками с названием страницы — и в верхней панели, и в капсуле. Название задаётся в режиме «Макет» кнопкой с карандашом',
+  layout_rename_page: 'Переименовать страницу',
+  layout_rename_page_hint: 'Оставьте поле пустым, чтобы вернуть имя по умолчанию.',
+});
+Object.assign(i18n.nl, {
+  topbar_el_dots_labels: 'De paginanamen tonen',
+  topbar_el_dots_labels_hint: 'de bolletjes worden knoppen met de naam van de pagina, in de bovenbalk en in de capsule. Een naam geef je in Indeling via het potlood',
+  layout_rename_page: 'Pagina hernoemen',
+  layout_rename_page_hint: 'Laat het leeg om de standaardnaam terug te zetten.',
+});
+
+// The chrome buttons list (Settings → Dynamic Island), the SDK mini slot, and the
+// two permission lines the new SDK capabilities add.
+Object.assign(i18n.it, {
+  cw_perm_background_mini: 'Questo widget può restare in funzione nascosto, così il suo mini widget resta nella barra in alto e sempre aggiornato anche senza nessuna tile sullo schermo.',
+  topbar_btn_head: 'Bottoni della barra',
+  topbar_btn_hint: 'nascondi quelli che non usi, trascina per ordinarli e scegli su quale lato stanno; vale in Full e in Minimal',
+  topbar_btn_lock: 'Blocca', topbar_btn_ambient: 'Ambiente', topbar_btn_xenon: 'Xenon',
+  topbar_btn_search: 'Cerca', topbar_btn_mini: 'Mini widget', topbar_btn_layout: 'Layout',
+  topbar_btn_settings: 'Impostazioni', topbar_btn_apps: 'App', topbar_btn_favorites: 'App preferite',
+  topbar_btn_side_left: 'Sinistra', topbar_btn_side_right: 'Destra',
+  topbar_btn_always_hint: 'Impostazioni e Layout restano sempre visibili: sono il modo per tornare indietro, e nascondendoli su uno schermo touch non avresti più come riaprirli',
+  island_source_mini: 'Mini widget',
+  cw_perm_badge_action: 'Il suo badge si può toccare:',
+  cw_perm_badge_action_val: 'toccarlo avvisa il widget, che decide cosa fare',
+  cw_perm_mini: 'Può mostrare un mini widget nella barra in alto:',
+  cw_perm_mini_val: 'testo, icone e barre disegnati da Xenon, dove lo metti tu',
+});
+Object.assign(i18n.en, {
+  cw_perm_background_mini: 'This widget can keep running hidden in the background, so its mini widget stays in the top bar and up to date even with no tile on screen.',
+  topbar_btn_head: 'Bar buttons',
+  topbar_btn_hint: 'hide the ones you do not use, drag to reorder them and pick which side they sit on; applies in Full and in Minimal',
+  topbar_btn_lock: 'Lock', topbar_btn_ambient: 'Ambient', topbar_btn_xenon: 'Xenon',
+  topbar_btn_search: 'Search', topbar_btn_mini: 'Mini widgets', topbar_btn_layout: 'Layout',
+  topbar_btn_settings: 'Settings', topbar_btn_apps: 'Apps', topbar_btn_favorites: 'Favourite apps',
+  topbar_btn_side_left: 'Left', topbar_btn_side_right: 'Right',
+  topbar_btn_always_hint: 'Settings and Layout always stay visible: they are the way back in, and hiding them on a touchscreen would leave no way to open them again',
+  island_source_mini: 'Mini widget',
+  cw_perm_badge_action: 'Its badge can be tapped:',
+  cw_perm_badge_action_val: 'tapping it tells the widget, which decides what to do',
+  cw_perm_mini: 'It can show a mini widget in the top bar:',
+  cw_perm_mini_val: 'Xenon-drawn text, icons and meters, where you put it',
+});
+Object.assign(i18n.ko, {
+  cw_perm_background_mini: '이 위젯은 백그라운드에서 계속 실행될 수 있어, 화면에 타일이 없어도 미니 위젯이 상단 바에 남아 최신 상태를 유지합니다.',
+  topbar_btn_head: '바 버튼',
+  topbar_btn_hint: '쓰지 않는 것은 숨기고, 끌어서 순서를 바꾸고, 어느 쪽에 둘지 고릅니다. 전체와 미니멀 모두에 적용됩니다',
+  topbar_btn_lock: '잠금', topbar_btn_ambient: '앰비언트', topbar_btn_xenon: 'Xenon',
+  topbar_btn_search: '검색', topbar_btn_mini: '미니 위젯', topbar_btn_layout: '레이아웃',
+  topbar_btn_settings: '설정', topbar_btn_apps: '앱', topbar_btn_favorites: '즐겨찾는 앱',
+  topbar_btn_side_left: '왼쪽', topbar_btn_side_right: '오른쪽',
+  topbar_btn_always_hint: '설정과 레이아웃은 항상 표시됩니다. 되돌아가는 통로이며, 터치스크린에서 숨기면 다시 열 방법이 없습니다',
+  island_source_mini: '미니 위젯',
+  cw_perm_badge_action: '배지를 누를 수 있습니다:',
+  cw_perm_badge_action_val: '누르면 위젯에 전달되고, 무엇을 할지는 위젯이 정합니다',
+  cw_perm_mini: '상단 바에 미니 위젯을 표시할 수 있습니다:',
+  cw_perm_mini_val: 'Xenon이 그리는 텍스트·아이콘·미터를 사용자가 둔 자리에 표시',
+});
+Object.assign(i18n.ja, {
+  cw_perm_background_mini: 'このウィジェットはバックグラウンドで動き続けられるので、タイルが画面になくてもミニウィジェットは上部バーに残り、最新の状態を保ちます。',
+  topbar_btn_head: 'バーのボタン',
+  topbar_btn_hint: '使わないものは隠し、ドラッグで並べ替え、どちら側に置くかを選べます。フルでもミニマルでも有効です',
+  topbar_btn_lock: 'ロック', topbar_btn_ambient: 'アンビエント', topbar_btn_xenon: 'Xenon',
+  topbar_btn_search: '検索', topbar_btn_mini: 'ミニウィジェット', topbar_btn_layout: 'レイアウト',
+  topbar_btn_settings: '設定', topbar_btn_apps: 'アプリ', topbar_btn_favorites: 'お気に入りのアプリ',
+  topbar_btn_side_left: '左', topbar_btn_side_right: '右',
+  topbar_btn_always_hint: '設定とレイアウトは常に表示されます。戻るための入口であり、タッチスクリーンで隠すと開き直す手段がなくなります',
+  island_source_mini: 'ミニウィジェット',
+  cw_perm_badge_action: 'バッジをタップできます:',
+  cw_perm_badge_action_val: 'タップするとウィジェットに伝わり、動作はウィジェットが決めます',
+  cw_perm_mini: '上部バーにミニウィジェットを表示できます:',
+  cw_perm_mini_val: 'Xenon が描くテキスト・アイコン・メーターを、置いた場所に表示します',
+});
+Object.assign(i18n.zh, {
+  cw_perm_background_mini: '该小组件可以在后台继续运行，因此即使屏幕上没有磁贴，它的迷你小组件也会留在顶栏并保持最新。',
+  topbar_btn_head: '顶栏按钮',
+  topbar_btn_hint: '隐藏用不到的按钮，拖动排序，并选择它们位于哪一侧；在完整和极简样式下都有效',
+  topbar_btn_lock: '锁定', topbar_btn_ambient: '环境模式', topbar_btn_xenon: 'Xenon',
+  topbar_btn_search: '搜索', topbar_btn_mini: '迷你小组件', topbar_btn_layout: '布局',
+  topbar_btn_settings: '设置', topbar_btn_apps: '应用', topbar_btn_favorites: '常用应用',
+  topbar_btn_side_left: '左', topbar_btn_side_right: '右',
+  topbar_btn_always_hint: '设置和布局始终可见：它们是返回的入口，在触摸屏上隐藏后将无法再打开',
+  island_source_mini: '迷你小组件',
+  cw_perm_badge_action: '它的徽章可以点按：',
+  cw_perm_badge_action_val: '点按会通知小组件，由它决定要做什么',
+  cw_perm_mini: '它可以在顶栏显示一个迷你小组件：',
+  cw_perm_mini_val: '由 Xenon 绘制的文字、图标和条形，显示在你放置的位置',
+});
+Object.assign(i18n.es, {
+  cw_perm_background_mini: 'Este widget puede seguir funcionando oculto, así su mini widget se queda en la barra superior y actualizado aunque no haya ninguna tarjeta en pantalla.',
+  topbar_btn_head: 'Botones de la barra',
+  topbar_btn_hint: 'oculta los que no uses, arrastra para ordenarlos y elige en qué lado están; vale en Completa y en Minimal',
+  topbar_btn_lock: 'Bloquear', topbar_btn_ambient: 'Ambiente', topbar_btn_xenon: 'Xenon',
+  topbar_btn_search: 'Buscar', topbar_btn_mini: 'Mini widgets', topbar_btn_layout: 'Diseño',
+  topbar_btn_settings: 'Ajustes', topbar_btn_apps: 'Apps', topbar_btn_favorites: 'Apps favoritas',
+  topbar_btn_side_left: 'Izquierda', topbar_btn_side_right: 'Derecha',
+  topbar_btn_always_hint: 'Ajustes y Diseño quedan siempre visibles: son la forma de volver atrás, y ocultarlos en una pantalla táctil no dejaría manera de abrirlos otra vez',
+  island_source_mini: 'Mini widget',
+  cw_perm_badge_action: 'Su insignia se puede tocar:',
+  cw_perm_badge_action_val: 'al tocarla se avisa al widget, que decide qué hacer',
+  cw_perm_mini: 'Puede mostrar un mini widget en la barra superior:',
+  cw_perm_mini_val: 'texto, iconos y medidores dibujados por Xenon, donde tú lo pongas',
+});
+Object.assign(i18n.fr, {
+  cw_perm_background_mini: 'Ce widget peut continuer à tourner en arrière-plan, si bien que son mini widget reste dans la barre du haut et à jour même sans aucune tuile à l’écran.',
+  topbar_btn_head: 'Boutons de la barre',
+  topbar_btn_hint: 'masquez ceux que vous n’utilisez pas, glissez pour les réordonner et choisissez leur côté ; valable en Complète et en Minimal',
+  topbar_btn_lock: 'Verrouiller', topbar_btn_ambient: 'Ambiance', topbar_btn_xenon: 'Xenon',
+  topbar_btn_search: 'Rechercher', topbar_btn_mini: 'Mini widgets', topbar_btn_layout: 'Disposition',
+  topbar_btn_settings: 'Réglages', topbar_btn_apps: 'Apps', topbar_btn_favorites: 'Apps favorites',
+  topbar_btn_side_left: 'Gauche', topbar_btn_side_right: 'Droite',
+  topbar_btn_always_hint: 'Réglages et Disposition restent toujours visibles : ce sont la porte de retour, et les masquer sur un écran tactile ne laisserait aucun moyen de les rouvrir',
+  island_source_mini: 'Mini widget',
+  cw_perm_badge_action: 'Son badge peut être touché :',
+  cw_perm_badge_action_val: 'le toucher prévient le widget, qui décide quoi faire',
+  cw_perm_mini: 'Il peut afficher un mini widget dans la barre du haut :',
+  cw_perm_mini_val: 'du texte, des icônes et des jauges dessinés par Xenon, là où vous le placez',
+});
+Object.assign(i18n.de, {
+  cw_perm_background_mini: 'Dieses Widget kann versteckt weiterlaufen, sodass sein Mini-Widget in der oberen Leiste bleibt und aktuell ist, auch ohne Kachel auf dem Bildschirm.',
+  topbar_btn_head: 'Schaltflächen der Leiste',
+  topbar_btn_hint: 'blende aus, was du nicht brauchst, ziehe zum Sortieren und wähle die Seite; gilt in Voll und in Minimal',
+  topbar_btn_lock: 'Sperren', topbar_btn_ambient: 'Ambiente', topbar_btn_xenon: 'Xenon',
+  topbar_btn_search: 'Suchen', topbar_btn_mini: 'Mini-Widgets', topbar_btn_layout: 'Layout',
+  topbar_btn_settings: 'Einstellungen', topbar_btn_apps: 'Apps', topbar_btn_favorites: 'Lieblings-Apps',
+  topbar_btn_side_left: 'Links', topbar_btn_side_right: 'Rechts',
+  topbar_btn_always_hint: 'Einstellungen und Layout bleiben immer sichtbar: sie sind der Weg zurück, und ausgeblendet gäbe es auf einem Touchscreen keine Möglichkeit, sie wieder zu öffnen',
+  island_source_mini: 'Mini-Widget',
+  cw_perm_badge_action: 'Sein Badge lässt sich antippen:',
+  cw_perm_badge_action_val: 'ein Tippen meldet sich beim Widget, das entscheidet, was passiert',
+  cw_perm_mini: 'Es kann ein Mini-Widget in der oberen Leiste zeigen:',
+  cw_perm_mini_val: 'von Xenon gezeichneter Text, Symbole und Balken, dort wo du es hinstellst',
+});
+Object.assign(i18n.pt, {
+  cw_perm_background_mini: 'Este widget pode continuar a correr escondido, por isso o seu mini widget fica na barra de cima e atualizado mesmo sem nenhum mosaico no ecrã.',
+  topbar_btn_head: 'Botões da barra',
+  topbar_btn_hint: 'esconde os que não usas, arrasta para os ordenar e escolhe de que lado ficam; vale em Completa e em Minimal',
+  topbar_btn_lock: 'Bloquear', topbar_btn_ambient: 'Ambiente', topbar_btn_xenon: 'Xenon',
+  topbar_btn_search: 'Procurar', topbar_btn_mini: 'Mini widgets', topbar_btn_layout: 'Esquema',
+  topbar_btn_settings: 'Definições', topbar_btn_apps: 'Apps', topbar_btn_favorites: 'Apps favoritas',
+  topbar_btn_side_left: 'Esquerda', topbar_btn_side_right: 'Direita',
+  topbar_btn_always_hint: 'Definições e Esquema ficam sempre visíveis: são a forma de voltar atrás e, escondidos num ecrã tátil, não haveria maneira de os reabrir',
+  island_source_mini: 'Mini widget',
+  cw_perm_badge_action: 'O emblema pode ser tocado:',
+  cw_perm_badge_action_val: 'tocar avisa o widget, que decide o que fazer',
+  cw_perm_mini: 'Pode mostrar um mini widget na barra de cima:',
+  cw_perm_mini_val: 'texto, ícones e barras desenhados pelo Xenon, no sítio onde o puseres',
+});
+Object.assign(i18n.ru, {
+  cw_perm_background_mini: 'Этот виджет может продолжать работать скрыто, поэтому его мини-виджет остаётся в верхней панели и обновляется даже без плитки на экране.',
+  topbar_btn_head: 'Кнопки панели',
+  topbar_btn_hint: 'скройте те, которыми не пользуетесь, перетащите для порядка и выберите сторону; работает и в полной, и в минимальной панели',
+  topbar_btn_lock: 'Блокировка', topbar_btn_ambient: 'Фон', topbar_btn_xenon: 'Xenon',
+  topbar_btn_search: 'Поиск', topbar_btn_mini: 'Мини-виджеты', topbar_btn_layout: 'Макет',
+  topbar_btn_settings: 'Настройки', topbar_btn_apps: 'Приложения', topbar_btn_favorites: 'Избранные приложения',
+  topbar_btn_side_left: 'Слева', topbar_btn_side_right: 'Справа',
+  topbar_btn_always_hint: 'Настройки и Макет всегда остаются на виду: это путь назад, и если скрыть их на сенсорном экране, открыть их снова будет нечем',
+  island_source_mini: 'Мини-виджет',
+  cw_perm_badge_action: 'Его значок можно нажать:',
+  cw_perm_badge_action_val: 'нажатие передаётся виджету, и он решает, что делать',
+  cw_perm_mini: 'Может показывать мини-виджет в верхней панели:',
+  cw_perm_mini_val: 'текст, значки и полосы, нарисованные Xenon, там, где вы его разместите',
+});
+Object.assign(i18n.nl, {
+  cw_perm_background_mini: 'Dit widget kan verborgen blijven draaien, zodat het mini-widget in de bovenbalk blijft staan en actueel blijft, ook zonder tegel op het scherm.',
+  topbar_btn_head: 'Knoppen van de balk',
+  topbar_btn_hint: 'verberg wat je niet gebruikt, sleep om te ordenen en kies aan welke kant ze staan; geldt in Volledig en in Minimal',
+  topbar_btn_lock: 'Vergrendelen', topbar_btn_ambient: 'Ambient', topbar_btn_xenon: 'Xenon',
+  topbar_btn_search: 'Zoeken', topbar_btn_mini: 'Mini-widgets', topbar_btn_layout: 'Indeling',
+  topbar_btn_settings: 'Instellingen', topbar_btn_apps: 'Apps', topbar_btn_favorites: 'Favoriete apps',
+  topbar_btn_side_left: 'Links', topbar_btn_side_right: 'Rechts',
+  topbar_btn_always_hint: 'Instellingen en Indeling blijven altijd zichtbaar: ze zijn de weg terug, en verborgen op een aanraakscherm is er geen manier om ze weer te openen',
+  island_source_mini: 'Mini-widget',
+  cw_perm_badge_action: 'De badge kan worden aangetikt:',
+  cw_perm_badge_action_val: 'aantikken laat het widget weten wat er gebeurde; het widget bepaalt wat het doet',
+  cw_perm_mini: 'Het kan een mini-widget in de bovenbalk tonen:',
+  cw_perm_mini_val: 'door Xenon getekende tekst, pictogrammen en balken, op de plek die jij kiest',
 });
 
 // ── Paired-device access (R1.1) — Settings → Telefono ───────────────────────
@@ -28240,6 +28543,9 @@ function applyTranslations() {
   }
   tickClock();
   renderAppFavorites();
+  // Page names resolved from a seed key were captured by the pager when the
+  // page was registered; with labelled dots that stale string is on screen.
+  if (window.DashboardPages && typeof window.DashboardPages.relabel === 'function') window.DashboardPages.relabel();
   if (typeof refreshDashboardLayoutEditor === 'function') refreshDashboardLayoutEditor();
   if ($('app-switcher') && !$('app-switcher').hidden) renderAppWindows();
   if ($('settings-overlay') && !$('settings-overlay').hidden) renderSettingsModal();

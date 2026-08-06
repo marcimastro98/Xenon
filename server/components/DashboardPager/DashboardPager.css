@@ -67,6 +67,54 @@ body.layout-editing .pager-page.is-parked { content-visibility: visible; }
 .pager-dot:hover { background-color: rgba(var(--accent-rgb), 0.5); }
 .pager-dot.is-active { background-color: var(--accent); transform: scale(1.25); }
 
+/* Labelled mode (topbarClock.pageLabels): the dot becomes a pill carrying the
+   page name. Same tokens as the tab-group tabs (DashboardGrid.css) so themes
+   already cover it, but a class of its own — .tabgroup-tab drags `cursor: grab`
+   and the per-theme overrides of a different component along with it.
+   Height stays 25px: this row sits in the topbar and inside the Minimal island
+   pill, and neither may grow because a page was renamed. */
+.pager-dot.is-labelled {
+  width: auto;
+  min-width: 0;
+  max-width: 132px;
+  height: 25px;
+  padding: 0 11px;
+  border-radius: 13px;
+  background-clip: border-box;
+  font: inherit;   /* a <button> would otherwise keep the UA font */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(var(--accent-rgb), 0.1);
+  color: var(--dim-text);
+  transition: background-color 160ms ease, color 160ms ease;
+}
+/* The circle's pop would shove the neighbouring pills sideways. */
+.pager-dot.is-labelled.is-active {
+  transform: none;
+  background-color: rgba(var(--accent-rgb), 0.18);
+  color: var(--accent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.pager-dot.is-labelled:hover { background-color: rgba(var(--accent-rgb), 0.22); }
+.pager-dots:has(.pager-dot.is-labelled) { gap: 4px; }
+/* A long name must be cut, never widen the row: eight pages have to fit. */
+.pager-dot-label {
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  /* letter-spacing is added after the LAST letter as well, so it sits inside the
+     box and pushes the glyphs half of it left of centre. Cancel it, or the name
+     reads fractionally off inside a pill whose padding is exactly even. */
+  margin-right: -0.5px;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* The existing dashboard becomes the content of page 1. It used to be the
    second grid row of .shell (auto-stretched to fill height); nested inside a
    .pager-page (display:block) it needs an explicit height:100% so its own
@@ -102,6 +150,8 @@ body.layout-editing .pager-page.is-parked { content-visibility: visible; }
 .pager-page-btn:hover { background: rgba(var(--accent-rgb), 0.24); }
 .pager-page-btn:active { transform: scale(0.92); }
 .pager-page-btn:disabled { opacity: 0.3; pointer-events: none; }
+/* Rename (✎) — the glyph is smaller than the ‹ › × ones at the same size. */
+.pager-page-rename { font-size: 12px; }
 /* Always red — touch has no hover, so the delete affordance must read as
    destructive on sight. */
 .pager-page-remove {

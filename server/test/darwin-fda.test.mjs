@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, chmodSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, chmodSync, rmSync, openSync, closeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
@@ -21,6 +21,23 @@ const { fullDiskAccess, rootReachesHome } = require('../darwin-collectors.js');
 // A real refusal cannot be arranged on a machine that HAS the grant (every
 // child of a granted process inherits it), which is why the probe takes its
 // paths as an argument here.
+//
+// Staging one takes a chmod-000 file, and not every environment can: root
+// ignores the mode bits, and on Windows chmod moves only the read-only flag, so
+// the file comes back as mode 444 and opens fine (measured). ASKING whether the
+// file really refuses beats naming the platforms that cannot -- it covers root,
+// Windows, a volume mounted without permissions, and a container running as
+// root, without the list having to be right. Where it cannot be staged the two
+// tests below would prove nothing, so they skip instead of passing for the
+// wrong reason: the fourth one asserts `true`, which a readable "denied" file
+// returns anyway, and a green test that never exercised its subject is worse
+// than no test at all.
+function stageDenied(dir, name) {
+  const p = join(dir, name);
+  writeFileSync(p, 'x');
+  try { chmodSync(p, 0o000); } catch { return null; }
+  try { closeSync(openSync(p, 'r')); return null; } catch { return p; }
+}
 
 test('fullDiskAccess: a file it can open means the grant is in force', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'xenon-fda-'));
@@ -34,15 +51,10 @@ test('fullDiskAccess: a file it can open means the grant is in force', async () 
 });
 
 test('fullDiskAccess: a refusal means the grant is gone', async (t) => {
-  if (process.getuid && process.getuid() === 0) {
-    t.skip('root reads a chmod-000 file, so the refusal cannot be staged');
-    return;
-  }
   const dir = mkdtempSync(join(tmpdir(), 'xenon-fda-'));
   try {
-    const denied = join(dir, 'denied');
-    writeFileSync(denied, 'x');
-    chmodSync(denied, 0o000);
+    const denied = stageDenied(dir, 'denied');
+    if (!denied) { t.skip('this environment reads a chmod-000 file, so the refusal cannot be staged'); return; }
     assert.equal(await fullDiskAccess([denied]), false);
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -62,14 +74,12 @@ test('fullDiskAccess: a probe that is simply absent is not a refusal', async () 
 });
 
 test('fullDiskAccess: one refusal among several still answers granted when another opens', async (t) => {
-  if (process.getuid && process.getuid() === 0) { t.skip('root ignores the mode bits'); return; }
   const dir = mkdtempSync(join(tmpdir(), 'xenon-fda-'));
   try {
-    const denied = join(dir, 'denied');
+    const denied = stageDenied(dir, 'denied');
+    if (!denied) { t.skip('this environment reads a chmod-000 file, so the refusal cannot be staged'); return; }
     const ok = join(dir, 'readable');
-    writeFileSync(denied, 'x');
     writeFileSync(ok, 'x');
-    chmodSync(denied, 0o000);
     // The real list is the user's TCC.db then the system one: opening EITHER
     // proves the grant, so a refusal must not veto a success found later.
     assert.equal(await fullDiskAccess([denied, ok]), true);

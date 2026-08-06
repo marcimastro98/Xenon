@@ -387,6 +387,57 @@ body.layout-editing .cw-wrap.cw-mounted .cw-frame { pointer-events: none; }
   color: var(--text, #e7e9ee);
   white-space: nowrap;
 }
+/* ── SDK mini slot — Widget SDK `mini` capability (js/sdk-mini.js) ──
+   A row of host-drawn blocks living among the topbar BUTTONS rather than in the
+   clock, wherever the user placed it (Settings → Dynamic Island → Bottoni della
+   barra). It borrows the island's block styles verbatim — the same renderer
+   draws them — and adds only the container: a plate that reads as one object
+   sitting between buttons, at the buttons' own height so the bar never grows.
+   In Minimal the whole thing rides its rail, which is a vertical flex, so the
+   plate must not assume a horizontal neighbourhood beyond its own contents. */
+.topbar-mini-slot { display: inline-flex; align-items: center; gap: 8px; }
+.topbar-mini-slot[hidden] { display: none; }
+.topbar-mini-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 190px;
+  padding: 5px 10px;
+  border-radius: 11px;
+  background: rgba(255,255,255,0.05);
+  overflow: hidden;
+  --island-accent: var(--accent);
+}
+/* Text inside the slot is the one thing that can run long, and the bar has no
+   room to give: cut it rather than let one package push the buttons off. */
+.topbar-mini-item .sdk-island-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A chip that CAN be tapped (`badge: { action: true }`) is a real <button>, and
+   it has to look like one — the comment above explains that a raised pill next
+   to the clock reads as pressable, which is exactly what this one is. It keeps
+   the flat chip's type and spacing and adds only the affordance: a faint plate,
+   a pressed state, and a comfortable target on the Edge touchscreen. */
+.sdk-badge-btn {
+  border: 0;
+  border-radius: 9px;
+  padding: 4px 8px;
+  margin: -4px 0;   /* the plate must not raise the clock row */
+  background: rgba(255,255,255,0.06);
+  font: inherit;
+  font-size: 13px; font-weight: 700; line-height: 1;
+  color: var(--text, #e7e9ee);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+.sdk-badge-btn:hover { background: rgba(255,255,255,0.12); }
+.sdk-badge-btn:active { transform: scale(0.94); }
+@media (prefers-reduced-motion: reduce) {
+  .sdk-badge-btn { transition: none; }
+  .sdk-badge-btn:active { transform: none; }
+}
 /* The widget's own glyph. Its colour is set inline from the (hex-validated)
    badge payload — a star is gold, a battery is green — and falls back to the
    chip's text colour when the widget names none. */

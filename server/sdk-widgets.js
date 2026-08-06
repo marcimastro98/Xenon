@@ -622,7 +622,20 @@ function normalizeManifest(raw, folderId) {
   // implies dynamic — there is no way to fill a bar with the one-line text API.
   const islandFull = !!(islandObj && raw.island.full === true);
   const island = raw.island === true || islandDynamic || islandFull;
-  const badge = raw.badge === true;
+  // Same backward-compatible split as `island`: `badge:true` stays the read-only
+  // chip it has always been, and an object must opt into `action:true` to become
+  // tappable. A chip the user can press is a different promise from a number they
+  // can read, so an approval given to the old form must not grow into it.
+  const badgeObj = !!(raw.badge && typeof raw.badge === 'object' && !Array.isArray(raw.badge));
+  const badgeAction = !!(badgeObj && raw.badge.action === true);
+  // Exactly the island's rule: an object alone asks for nothing, so `badge: {}`
+  // stays off — only `true` or an object that opts into something turns it on.
+  const badge = raw.badge === true || badgeAction;
+  // The mini slot: a small host-rendered block in the topbar's button row, drawn
+  // with the island's own block vocabulary. A separate capability from `island`
+  // on purpose — it is a different place on screen, so the permission dialog has
+  // to be able to offer it, and the user to refuse it, on its own.
+  const mini = raw.mini === true;
   const clipboard = raw.clipboard === true;
   const accent = raw.accent === true;
   // Asking to cover the dashboard. Normalized away for an ambient package: an
@@ -654,7 +667,7 @@ function normalizeManifest(raw, folderId) {
       surface: raw.surface === 'ambient' ? 'ambient' : 'tile',
       // A package may ask to run headless: handlers, badges and structured Live
       // Activities are the capabilities that can meaningfully outlive a tile.
-      background: raw.background === true && (deck.deck.handlers.length > 0 || badge || islandDynamic || islandFull),
+      background: raw.background === true && (deck.deck.handlers.length > 0 || badge || mini || islandDynamic || islandFull),
       // Legacy text projection + the separately-consented structured surfaces.
       // All remain host-rendered and never weaken the widget iframe sandbox.
       island,
@@ -664,6 +677,12 @@ function normalizeManifest(raw, folderId) {
       // both topbar chromes — up to a few widgets at once (unlike `island`,
       // which is a single shared slot). Same host-rendered/grant-gated shape.
       badge,
+      badgeAction,
+      // A small block in the topbar's button row, in the place the USER put it
+      // (Settings → Dynamic Island → Bottoni della barra). Host-rendered from the
+      // island's block allowlist — never guest DOM, so the chrome never becomes a
+      // surface that runs package code.
+      mini,
       // The widget may ask to write to the system clipboard — but only through a
       // host-rendered confirmation the user taps for each copy (the widget never
       // copies on its own). Write-only, no read; enforced entirely host-side in

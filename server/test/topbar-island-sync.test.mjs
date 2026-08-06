@@ -28,10 +28,10 @@ const renderer = arrayLiteral(
   'ISLAND_SEG_IDS in topbar-minimal.js',
 );
 
-function clientNormalizer() {
-  const src = read('server', 'js', 'settings.js');
-  const start = src.indexOf('function normalizeTopbarClock(value, legacyRoot)');
-  assert.ok(start >= 0, 'normalizeTopbarClock implementation not found');
+// Slice one top-level `function <name>(…) { … }` out of a source file.
+function fnSource(src, signature, what) {
+  const start = src.indexOf(signature);
+  assert.ok(start >= 0, what + ' implementation not found');
   const open = src.indexOf('{', start);
   let depth = 0;
   let end = -1;
@@ -39,9 +39,41 @@ function clientNormalizer() {
     if (src[i] === '{') depth++;
     else if (src[i] === '}' && --depth === 0) { end = i + 1; break; }
   }
-  assert.ok(end > open, 'normalizeTopbarClock closing brace not found');
-  return Function('return (' + src.slice(start, end) + ')')();
+  assert.ok(end > open, what + ' closing brace not found');
+  return src.slice(start, end);
 }
+
+// normalizeTopbarClock delegates the button list to normalizeTopbarActions, so
+// both have to be in scope for the evaluated copy to run.
+function clientNormalizer() {
+  const src = read('server', 'js', 'settings.js');
+  const clock = fnSource(src, 'function normalizeTopbarClock(value, legacyRoot)', 'normalizeTopbarClock');
+  const actions = fnSource(src, 'function normalizeTopbarActions(value)', 'normalizeTopbarActions');
+  return Function(actions + '\nreturn (' + clock + ')')();
+}
+
+// The server keeps its canonical list and its always-shown set in module consts,
+// so both come along with the function.
+function serverNormalizer() {
+  const src = read('server', 'server.js');
+  const defaults = src.match(/const TOPBAR_ACTION_DEFAULTS\s*=\s*\[[\s\S]*?\n\];/);
+  assert.ok(defaults, 'TOPBAR_ACTION_DEFAULTS not found in server.js');
+  const always = src.match(/const TOPBAR_ALWAYS_SHOWN\s*=\s*\[[^\]]*\];/);
+  assert.ok(always, 'TOPBAR_ALWAYS_SHOWN not found in server.js');
+  return Function(defaults[0] + '\n' + always[0]
+    + '\n' + fnSource(src, 'function normalizeTopbarActions(value)', 'server normalizeTopbarActions')
+    + '\nreturn normalizeTopbarActions;')();
+}
+
+// The chrome-button list lives in the same three places as the island one, plus
+// the selector map that turns an id into an element.
+const actionRenderer = Object.keys(
+  Object.fromEntries(
+    [...read('server', 'js', 'topbar-minimal.js')
+      .match(/ACTION_SELECTORS\s*=\s*\{([^}]*)\}/)[1]
+      .matchAll(/(\w+):\s*'([^']+)'/g)].map(m => [m[1], m[2]]),
+  ),
+);
 
 test('settings.js normalizeTopbarClock covers every island segment the renderer draws', () => {
   const client = arrayLiteral(
@@ -105,6 +137,76 @@ test('island source opt-outs are deduped, bounded and fail closed on ids', () =>
   assert.equal(result.hiddenSources.length, 64);
   assert.equal(result.hiddenSources.includes('Bad Source'), false);
   assert.equal(result.hiddenSources.includes('../escape'), false);
+});
+
+test('both normalizers cover every chrome button the renderer can place', () => {
+  const client = clientNormalizer()(null, {}).actions.map(a => a.id);
+  const server = serverNormalizer()(null).map(a => a.id);
+  assert.deepEqual([...client].sort(), [...actionRenderer].sort());
+  assert.deepEqual([...server].sort(), [...actionRenderer].sort());
+  // Order matters too: the two lists seed a user's initial layout, and a bar that
+  // comes out differently depending on which side answered first is a bug the
+  // user would see as the buttons rearranging themselves.
+  assert.deepEqual(client, server);
+});
+
+test('the two doors back in can be moved and reordered but never hidden', () => {
+  // Settings (undo anything) and Layout (rearrange the dashboard again) are the
+  // only ways back in, and on a touchscreen there is no keyboard shortcut to fall
+  // back on. The repair belongs to the normalizer, not the editor: this input is
+  // exactly what a hand-edited settings.json, an old backup or a hostile payload
+  // looks like, and none of those go through the editor's disabled eye.
+  const hostile = [
+    { id: 'settings', hidden: true, side: 'left' },
+    { id: 'layout', hidden: true, side: 'left' },
+  ];
+  for (const out of [clientNormalizer()({ actions: hostile }, {}).actions, serverNormalizer()(hostile)]) {
+    for (const id of ['settings', 'layout']) {
+      const row = out.find(a => a.id === id);
+      assert.equal(row.hidden, false, id + ' must never be hidden');
+      assert.equal(row.side, 'left');   // moving it IS allowed
+    }
+    // ...and the rule is narrow: every other button still honours `hidden`.
+    const other = clientNormalizer()({ actions: [{ id: 'search', hidden: true }] }, {}).actions;
+    assert.equal(other.find(a => a.id === 'search').hidden, true);
+  }
+});
+
+test('the button list drops unknown ids and duplicates, and keeps every canonical one', () => {
+  for (const run of [
+    (v) => clientNormalizer()({ actions: v }, {}).actions,
+    (v) => serverNormalizer()(v),
+  ]) {
+    const out = run([
+      { id: 'search', hidden: true, side: 'right' },
+      { id: 'search', hidden: false, side: 'left' },   // duplicate: dropped
+      { id: 'nope', hidden: true },                     // unknown: dropped
+      { id: 'lock', side: 'sideways' },                 // bad side: default
+    ]);
+    assert.equal(out.filter(a => a.id === 'search').length, 1);
+    assert.equal(out.find(a => a.id === 'search').hidden, true);
+    assert.equal(out.find(a => a.id === 'search').side, 'right');
+    assert.equal(out.find(a => a.id === 'lock').side, 'left');
+    assert.equal(out.some(a => a.id === 'nope'), false);
+    assert.deepEqual([...out.map(a => a.id)].sort(), [...actionRenderer].sort());
+    // The ids the caller DID send keep their order, ahead of the appended rest.
+    assert.equal(out[0].id, 'search');
+  }
+});
+
+test('every chrome button has an editor label key, and that key exists in i18n', () => {
+  const labelsSrc = read('server', 'js', 'settings.js')
+    .match(/TOPBAR_ACTION_LABELS\s*=\s*\{([^}]*)\}/);
+  assert.ok(labelsSrc, 'TOPBAR_ACTION_LABELS not found in settings.js');
+  const labels = new Map();
+  for (const m of labelsSrc[1].matchAll(/(\w+):\s*'([^']+)'/g)) labels.set(m[1], m[2]);
+  const i18n = read('server', 'js', 'i18n.js');
+  for (const id of actionRenderer) {
+    const key = labels.get(id);
+    assert.ok(key, 'chrome button "' + id + '" has no TOPBAR_ACTION_LABELS entry');
+    assert.ok(new RegExp('"?' + key + '"?:\\s*[\'"]').test(i18n),
+      'label key "' + key + '" is missing from i18n.js');
+  }
 });
 
 test('every island segment has an editor label key, and that key exists in i18n', () => {

@@ -89,6 +89,18 @@
   };
   const cur = () => (player.qi >= 0 ? player.queue[player.qi] : null) || null;
 
+  // Videos this dashboard has SEEN refuse to play, by id. YouTube's own answer to
+  // "may this be embedded" is the owner's flag, and the player can still refuse a
+  // video whose flag says yes — measured on a real one that every embed checker
+  // reports as allowed and that returns error 150 on both youtube.com and
+  // youtube-nocookie, with and without an origin, with and without autoplay. So
+  // the flag alone marks almost none of the videos that actually fail. What the
+  // player told us is the better source, and it is free. In memory only: a refusal
+  // can be about where you are or about a claim that gets lifted, and a wrong mark
+  // that survived a restart would hide a video that plays.
+  const refused = new Set();
+  const isRefused = (v) => !!v && (v.embeddable === false || refused.has(v.id));
+
   // Both cards are taken off screen when no account is connected, which used to
   // leave the tile as a logo on an empty background for as long as that stayed
   // true — unavailable is meant to be hidden OR explained, and that was neither.
@@ -180,12 +192,14 @@
     if (d.event === 'onStateChange') {
       applyState(Number(info));
     } else if (d.event === 'onError') {
-      // 101 / 150 = this embed may not play this video. That is not always a flag on
-      // the video: the same id can be embeddable in one country and refused in
-      // another, because the restriction belongs to whoever owns the content. Either
-      // way there is nothing to retry — offer the browser instead of leaving YouTube's
-      // own error rectangle on screen with no explanation.
+      // 101 / 150 = this embed may not play this video. There is nothing to retry,
+      // so offer the browser instead of leaving YouTube's own error rectangle on
+      // screen with no explanation — and REMEMBER it, because this is the only
+      // trustworthy source we have. The list can then mark it without the user
+      // having to tap it a second time to find out again.
       player.blocked = true; player.state = 2;
+      const v = cur();
+      if (v && v.id && !refused.has(v.id)) { refused.add(v.id); paintLibrary(); }
       paintPlayer();
     } else if (d.event === 'infoDelivery' || d.event === 'initialDelivery') {
       if (info && typeof info === 'object') {
@@ -265,11 +279,10 @@
     const wanted = src[index] && src[index].id;
     // Track the tapped video by id, not by position: the filter below can drop a
     // row, and an index into the unfiltered list would then start the wrong video.
-    // Videos YouTube has already told us it will not play outside youtube.com are
-    // kept out of the QUEUE too, so "play this playlist" plays the rest instead of
-    // stopping dead on the first one. They are visibly marked in the list, so this
-    // skips nothing the user was not already told about.
-    const q = src.filter(v => v && VIDEO_ID_RE.test(String(v.id || '')) && v.embeddable !== false);
+    // Videos known to refuse are kept out of the QUEUE too, so "play this playlist"
+    // plays the rest instead of stopping dead on the first one. They are visibly
+    // marked in the list, so this skips nothing the user was not already told about.
+    const q = src.filter(v => v && VIDEO_ID_RE.test(String(v.id || '')) && !isRefused(v));
     if (!q.length) return;
     const found = q.findIndex(v => v.id === wanted);
     const i = found >= 0 ? found : 0;
@@ -567,14 +580,14 @@
     // ends in an error into a row that never promised to play in the first place.
     const sub = el('div', 'yt-row-subline');
     if (v.channel) sub.append(el('span', 'yt-row-sub', v.channel));
-    if (v.embeddable === false) sub.append(el('span', 'yt-row-tag', t('youtube_only_yt', 'YouTube only')));
+    if (isRefused(v)) sub.append(el('span', 'yt-row-tag', t('youtube_only_yt', 'YouTube only')));
     if (sub.childNodes.length) meta.append(sub);
     const play = el('span', 'yt-row-play'); play.innerHTML = ICONS.play;   // static, trusted SVG
     b.append(art, meta, play);
     b.addEventListener('click', async () => {
       // Nothing to try: this one is going to the browser either way, so go there
       // instead of loading a player only to explain why it refused.
-      if (v.embeddable === false) { const u = watchUrl(v.id); if (u) await openOut(u); return; }
+      if (isRefused(v)) { const u = watchUrl(v.id); if (u) await openOut(u); return; }
       const wrap = b.closest('.yt-wrap');
       const stage = wrap ? wrap.querySelector('.yt-player-stage') : null;
       // The player card can be switched off in layout edit mode. Someone who did
@@ -681,7 +694,11 @@
       // Rebuilding an unchanged list on every status poll would throw away the
       // user's scroll position every 30 seconds, so only rebuild on a real change.
       const rows = lib.openPl ? lib.plItems : lib.data[lib.tab];
-      const sig = [connected, document.documentElement.lang, lib.tab, lib.openPl && lib.openPl.id, lib.loading, lib.error,
+      // `refused.size` is in the signature because a refusal changes how an ALREADY
+      // rendered row must look, and nothing else in here would have changed: without
+      // it the mark only appeared on the next tab switch, which is the one moment the
+      // user is no longer looking at the video that just failed.
+      const sig = [connected, document.documentElement.lang, lib.tab, lib.openPl && lib.openPl.id, lib.loading, lib.error, refused.size,
         rows === null || rows === undefined ? 'n' : rows.map(r => r.id).join(',')].join('|');
       if (list.dataset.ytSig === sig) return;
       list.dataset.ytSig = sig;

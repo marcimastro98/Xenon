@@ -649,6 +649,8 @@
       islandDynamic: !!(grant && grant.islandDynamic === true),
       islandFull: !!(grant && grant.islandFull === true),
       badge: !!(grant && grant.badge === true),
+      badgeAction: !!(grant && grant.badgeAction === true),
+      mini: !!(grant && grant.mini === true),
       clipboard: !!(grant && grant.clipboard === true),
       accent: !!(grant && grant.accent === true),
       expand: !!(grant && grant.expand === true),
@@ -1121,8 +1123,40 @@
       entry.badgeFlushTimer = null;
       entry.badgeFlushAt = Date.now();
       if (!window.SdkBadges) return;
-      if (entry.badgeText) SdkBadges.set(entry.pkgId, entry.badgeText, entry.badgeTooltip, entry.badgeIcon, entry.badgeColor);
+      // A tap is offered only when the package declared `badge: { action: true }`
+      // AND holds that grant; otherwise no callback is passed and the chip stays
+      // the plain, unpressable text it has always been.
+      const tappable = pkg.badgeAction === true && grant.badgeAction === true;
+      const onAction = tappable ? () => post(entry, { type: 'badge_action' }) : null;
+      if (entry.badgeText) SdkBadges.set(entry.pkgId, entry.badgeText, entry.badgeTooltip, entry.badgeIcon, entry.badgeColor, onAction);
       else SdkBadges.clear(entry.pkgId);
+    }, wait);
+  }
+
+  // Mini slot: a small block in the topbar's button row, in the place the USER
+  // put it. Same trust shape as the island — manifest + grant checked, the
+  // payload validated by the island's own schema (so the vocabulary cannot drift
+  // between the two surfaces), host-rendered, never guest DOM. What differs is
+  // the room: `normalizeMini` caps it harder and drops the takeover lane, because
+  // a slot in the bar is a STATE, not an announcement with a duration.
+  function onBridgeMini(entry, grant, msg) {
+    const pkg = packageById(entry.pkgId);
+    if (!pkg || pkg.mini !== true || !grant.mini || !window.SdkIslandSchema) return;
+    if (typeof SdkIslandSchema.normalizeMini !== 'function') return;
+    const view = msg.op === 'clear' ? { op: 'clear' } : SdkIslandSchema.normalizeMini(msg);
+    if (!view) return;
+    entry.miniView = view;
+    if (entry.miniFlushTimer) return;   // a flush is pending; it carries the latest view
+    const since = Date.now() - (entry.miniFlushAt || 0);
+    const wait = since >= ISLAND_MIN_INTERVAL_MS ? 0 : (ISLAND_MIN_INTERVAL_MS - since);
+    entry.miniFlushTimer = setTimeout(() => {
+      entry.miniFlushTimer = null;
+      entry.miniFlushAt = Date.now();
+      const pending = entry.miniView;
+      entry.miniView = null;
+      if (!window.SdkMini || !pending) return;
+      if (pending.op === 'clear') SdkMini.clear(entry.pkgId);
+      else SdkMini.set(entry.pkgId, pending, (id) => post(entry, { type: 'mini_action', id }));
     }, wait);
   }
 
@@ -1470,6 +1504,8 @@
       if (entry.ready) onBridgeIsland(entry, grant, d);
     } else if (d.type === 'badge') {
       if (entry.ready) onBridgeBadge(entry, grant, d);
+    } else if (d.type === 'mini') {
+      if (entry.ready) onBridgeMini(entry, grant, d);
     } else if (d.type === 'expand') {
       if (entry.ready) onBridgeExpand(entry, grant, d);
     } else if (d.type === 'clipboard') {
@@ -1787,7 +1823,11 @@
         const handlersLive = declared.some(h => grant.handlers.includes(h.id));
         const badgeLive = pkg.badge === true && grant.badge;
         const islandLive = pkg.islandDynamic === true && grant.island && grant.islandDynamic;
-        if (!handlersLive && !badgeLive && !islandLive) continue;
+        // A mini slot is a persistent readout like a badge, so it justifies a
+        // headless frame for the same reason: the user put it in the bar to watch
+        // it, not to watch it go stale whenever its tile is off screen.
+        const miniLive = pkg.mini === true && grant.mini;
+        if (!handlersLive && !badgeLive && !islandLive && !miniLive) continue;
         wanted.set('svc:' + pkg.id, pkg);
         count++;
       }
@@ -2093,6 +2133,8 @@
     const wantsIslandDynamic = pkg.islandDynamic === true;
     const wantsIslandFull = pkg.islandFull === true;
     const wantsBadge = pkg.badge === true;
+    const wantsBadgeAction = pkg.badgeAction === true;
+    const wantsMini = pkg.mini === true;
     const wantsClipboard = pkg.clipboard === true;
     const wantsAccent = pkg.accent === true;
     const wantsExpand = pkg.expand === true;
@@ -2159,6 +2201,16 @@
     if (wantsBadge) {
       addSection('cw_perm_badge', 'It can show a small badge next to the clock:', [t('cw_perm_badge_val', 'Short text only — never links or images')], {});
     }
+    // A badge you can PRESS is a different promise from one you can read, so it
+    // is named on its own line rather than folded into the one above.
+    if (wantsBadgeAction) {
+      addSection('cw_perm_badge_action', 'Its badge can be tapped:', [t('cw_perm_badge_action_val', 'Tapping it tells the widget, which decides what to do')], {});
+    }
+    // The mini slot: a small block in the top bar's button row, in the place the
+    // user chose for it. Host-drawn like the island, never the widget's own page.
+    if (wantsMini) {
+      addSection('cw_perm_mini', 'It can show a mini widget in the top bar:', [t('cw_perm_mini_val', 'Xenon-drawn text, icons and meters, where you put it')], {});
+    }
     // Clipboard: the widget can ask to copy text, but every copy needs a tap on a
     // Xenon-drawn confirmation first — it can never copy silently or read what you
     // have copied. Say exactly that, so "can copy" doesn't read as "can snoop".
@@ -2180,20 +2232,22 @@
     // Headless running. The manifest normalizer only keeps `background` when the
     // package has something that outlives a tile (handlers, badge or island), so
     // name whichever it actually is rather than always saying "Deck keys".
-    if (pkg.background === true && (deckHandlers.length || wantsBadge || wantsIslandDynamic)) {
+    if (pkg.background === true && (deckHandlers.length || wantsBadge || wantsMini || wantsIslandDynamic)) {
       const note = (deckHandlers.length && wantsBadge)
         ? t('cw_perm_background_both', 'This widget can keep running hidden in the background, so its Deck keys always answer and its badge stays up to date with no tile on screen.')
         : (wantsIslandDynamic
           ? t('cw_perm_background_island', 'This widget can keep running hidden in the background so its Dynamic Island activities stay up to date even with no tile on screen.')
           : wantsBadge
           ? t('cw_perm_background_badge', 'This widget can keep running hidden in the background, so its badge stays in the top bar and up to date even with no tile on screen.')
+          : wantsMini
+          ? t('cw_perm_background_mini', 'This widget can keep running hidden in the background, so its mini widget stays in the top bar and up to date even with no tile on screen.')
           : t('cw_perm_background', 'This widget can keep running hidden in the background so its Deck keys always answer.'));
       panel.appendChild(el('div', 'cw-perm-note', note));
     }
     // Every capability that produced a section above must appear here too, or a
     // widget asking for only that one is announced as "Nothing". `accent` was
     // already missing; `expand` joins the list in the same breath.
-    if (!pkg.streams.length && !pkg.actions.length && !hosts.length && !userHostSlots.length && !hooks.length && !deckNames.length && !wantsStorage && !wantsSecrets && !wantsIsland && !wantsBadge && !wantsClipboard && !wantsAccent && !wantsExpand) {
+    if (!pkg.streams.length && !pkg.actions.length && !hosts.length && !userHostSlots.length && !hooks.length && !deckNames.length && !wantsStorage && !wantsSecrets && !wantsIsland && !wantsBadge && !wantsMini && !wantsClipboard && !wantsAccent && !wantsExpand) {
       panel.appendChild(el('div', 'cw-perm-sec cw-perm-nothing', t('cw_perm_none', 'Nothing — it only draws its own content')));
     }
     panel.appendChild(el('div', 'cw-perm-note', t('cw_perm_note', 'Widgets run isolated from the dashboard, with no network access, and can only use what you allow here. Only install widgets from people you trust.')));
@@ -2239,7 +2293,7 @@
       if (!uh.ok) { refresh(); return; }
       const cur = sdk();
       const patch = {
-        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, secrets: wantsSecrets, island: wantsIsland, islandDynamic: wantsIslandDynamic, islandFull: wantsIslandFull, badge: wantsBadge, clipboard: wantsClipboard, accent: wantsAccent, expand: wantsExpand } },
+        grants: { ...(cur.grants || {}), [pkg.id]: { streams: pkg.streams.slice(), actions: pkg.actions.slice(), hosts: hosts.slice(), userHosts: uh.values, hooks: hooks.slice(), handlers: deckHandlers.map(h => h.id), storage: wantsStorage, secrets: wantsSecrets, island: wantsIsland, islandDynamic: wantsIslandDynamic, islandFull: wantsIslandFull, badge: wantsBadge, badgeAction: wantsBadgeAction, mini: wantsMini, clipboard: wantsClipboard, accent: wantsAccent, expand: wantsExpand } },
       };
       if (instId != null) patch.assign = { ...(cur.assign || {}), [instId]: pkg.id };
       persist(patch);
@@ -2543,6 +2597,8 @@
       || (pkg.islandDynamic === true && !g.islandDynamic)
       || (pkg.islandFull === true && !g.islandFull)
       || (pkg.badge === true && !g.badge)
+      || (pkg.badgeAction === true && !g.badgeAction)
+      || (pkg.mini === true && !g.mini)
       || (pkg.clipboard === true && !g.clipboard)
       || (pkg.accent === true && !g.accent)
       || (pkg.expand === true && !g.expand);

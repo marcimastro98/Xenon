@@ -93,7 +93,8 @@ not need to do anything to support it.
 | `storageGroup` | no | A shared-store id (`^[a-z0-9][a-z0-9-]{0,40}$`). Every widget declaring the same group reads/writes ONE store, so a set of sibling widgets can share config/cache. Implies `storage`. |
 | `secrets` | no | `true` → your widget may store API keys in a **write-only** vault and use them via `{{secret:NAME}}` in proxied requests, so a published package ships no keys. See *Secrets & API keys*. |
 | `island` | no | `true` keeps the v4.6 **short plain-text line** API. `{ "dynamic": true }` requests the separate advanced permission for host-rendered Live Activities, timed takeovers and action buttons in **Full and Minimal**. `{ "full": true }` requests a third permission on top: activities that span the **whole top bar**. See *Dynamic Island*. |
-| `badge` | no | `true` → your widget may show a small **always-on** text chip next to the clock, in both topbar chromes. Host-rendered, grant-gated — see *Persistent badge*. |
+| `badge` | no | `true` → your widget may show a small **always-on** text chip next to the clock, in both topbar chromes. `{ "action": true }` requests a separate permission on top: the chip becomes a **button** and tapping it tells your widget. Host-rendered, grant-gated — see *Persistent badge*. |
+| `mini` | no | `true` → your widget may draw a **mini widget in the top bar's button row**, where the user placed it (Settings → Dynamic Island → bar buttons). Same host-rendered block vocabulary as the Dynamic Island, in a smaller room. See *Mini slot*. |
 | `clipboard` | no | `true` → your widget may **ask** to copy text to the system clipboard. It can never copy silently and can never read the clipboard: each copy shows a Xenon confirmation the user taps. See *Clipboard*. |
 | `accent` | no | `true` → your widget may tint the **dashboard accent colour** while it runs (the same channel the album-art accent uses). Accent only, never saved, released when your widget goes away. See *Dashboard accent*. |
 | `expand` | no | `true` → your widget may **ask to fill the screen**, painting its tile over the whole dashboard, for content that genuinely needs the room (a board, a map, a game). Only in response to the user touching your widget; the way back out is drawn by Xenon. Ignored on an `ambient` package, which is already fullscreen. See *Filling the screen*. |
@@ -1620,8 +1621,20 @@ Rules the host enforces:
   reply message either way.
 - **Coalesced updates.** Bursts are rate-limited (~500 ms); the latest text
   always lands.
-- **No tap action yet.** Badges are display-only in this version — they don't
-  navigate anywhere when tapped.
+- **Tappable, if you ask for it (v4.12).** `"badge": true` stays exactly what it
+  has always been: a read-only chip that does nothing when pressed. Declare
+  `"badge": { "action": true }` instead and the chip becomes a real button; a tap
+  posts `{ type: 'badge_action' }` to your frame and your widget decides what
+  happens. It is a **separate permission line** for the same reason the island's
+  `dynamic` is: an approval the user gave to a number they can read must never
+  grow into something they can press when your package updates. Without the
+  grant, the chip renders as the plain text version and no message is sent.
+
+  ```js
+  addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'badge_action') refreshNow();
+  });
+  ```
 - **The user owns the slot.** Settings → Dynamic Island can hide the badge row
   globally or disable your package's island/badge contribution specifically.
   Treat the badge as a bonus glance, never as the only place your widget shows
@@ -1640,6 +1653,75 @@ Rules the host enforces:
   no service frame, package uninstalled, SDK switched off) the host drops your
   chip within a few seconds.
 - An empty `text` on `set` counts as `clear`. There is no reply message.
+
+### 9d. Mini slot — `mini` (widget → host) (v4.12)
+
+Since v4.12 the user can hide the top bar's buttons they never use — Lock,
+Ambient, Xenon, Search, Layout, Apps — reorder them and choose which side they
+sit on. The room that frees up is not meant to stay empty, and the **mini slot**
+is how a package can occupy it.
+
+It is the third place a widget can appear outside its tile, and it is worth being
+clear about which to reach for:
+
+| | where | shape | lives for |
+|---|---|---|---|
+| Island | centre, replacing the clock | text, meters, buttons | an activity, transient |
+| Badge | inside the clock | one chip: glyph + value | as long as you keep it |
+| **Mini** | **among the bar's buttons, where the user put it** | **a small row of blocks** | **as long as you keep it** |
+
+Declare it and send the same block payload the island takes:
+
+```json
+{ "mini": true, "background": true }
+```
+
+```js
+parent.postMessage({
+  xenonSdk: 1, type: 'mini', op: 'present',
+  tooltip: 'Home Assistant',
+  blocks: [
+    { type: 'icon', text: '🌡', color: '#ffb03a' },
+    { type: 'text', text: '21.4°', weight: 'strong' },
+    { type: 'button', id: 'boost', label: 'Boost' },
+  ],
+}, '*');
+```
+
+`op: 'clear'` removes it. A tap on your button posts
+`{ type: 'mini_action', id: 'boost' }` back to your frame, exactly like
+`island_action`.
+
+What differs from the island, and why:
+
+- **4 blocks, 1 button.** The slot sits between real buttons on a bar that also
+  has to hold a clock. Blocks past the fourth are dropped, as is a second button.
+- **No `builtin`.** Mirroring the clock into a slot that may sit right next to the
+  actual clock is a duplicate, not a feature.
+- **No `mode`, no `duration`, no `layout`.** A slot in the bar is a **state**, not
+  an announcement that expires. It stays until you clear it or your package goes
+  away. If you want something that appears, says its piece and leaves, that is the
+  island's takeover lane.
+- **Long text is cut, not wrapped.** The bar has no room to give, and one package
+  must never push the user's buttons off screen. Send the short form yourself
+  rather than relying on the ellipsis.
+- **3 packages at once.** A fourth is silently ignored, like the badge cap.
+
+Everything else is the island's rules, unchanged: `accent` must be plain 6-digit
+hex, updates are coalesced (~200 ms), every block is rebuilt by Xenon from the
+allowlist — your HTML, CSS and event handlers never reach the bar — and the whole
+thing is host-rendered, so the widget sandbox is untouched by any of it.
+
+**The user owns the place, and whether it is there at all.** They choose which
+side the slot sits on and its position among the buttons, they can hide the slot
+entirely, and they can switch your package's contribution off on its own in
+Settings → Dynamic Island. Design for it being absent: the mini slot is a glance,
+never the only place your widget says something.
+
+**Outliving the tile — declare `background: true`.** Same reasoning as the badge:
+a readout the user deliberately parked in their top bar is worth having precisely
+when your tile is not on screen. Without it, your slot is dropped a few seconds
+after your last frame goes away.
 
 ## Persistent storage
 

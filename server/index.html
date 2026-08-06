@@ -182,6 +182,11 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm0 2.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM20.7 22.1l-4.8-4.8 1.4-1.4 4.8 4.8-1.4 1.4Z"/></svg>
         <span data-i18n="ui_search">Cerca</span>
       </button>
+      <!-- SDK mini-widget slot (js/sdk-mini.js). Host-rendered like the island and
+           the badges — never an iframe. `hidden` while no package is drawing in
+           it, so it takes no room; the user owns where it sits and whether it is
+           there at all (Settings → Dynamic Island → Bottoni della barra). -->
+      <span class="topbar-mini-slot" id="topbar-mini-slot" hidden></span>
     </div>
 
     <div class="clock">
@@ -1293,6 +1298,10 @@
               <span class="settings-label-line"><span data-i18n="topbar_island_head">Elementi dell'isola</span><span class="settings-hint" data-i18n="topbar_island_hint_v2">mostra o nascondi in Full e Minimal; trascina per ordinare la capsula Minimal</span></span>
               <div class="island-edit-list" id="topbar-island-editor"></div>
             </div>
+            <div class="settings-row full">
+              <span class="settings-label-line"><span data-i18n="topbar_btn_head">Bottoni della barra</span><span class="settings-hint" data-i18n="topbar_btn_hint">nascondi quelli che non usi, trascina per ordinarli e scegli su quale lato stanno; vale in Full e in Minimal</span></span>
+              <div class="island-edit-list" id="topbar-actions-editor"></div>
+            </div>
           <label class="settings-toggle-row full" id="topbar-rails-personalize">
             <input class="settings-check" id="settings-rails-autohide" type="checkbox" onchange="updateTopbarRailsAutoHide(this.checked)">
             <span class="settings-label-line">
@@ -1305,15 +1314,16 @@
 
       <div class="settings-group settings-behavior-group" data-settings-cat="island">
         <div class="settings-group-head">
-          <span data-i18n="settings_island_sources">App e widget</span>
-          <span class="settings-hint" data-i18n="settings_island_sources_hint">compaiono solo le estensioni installate che aggiungono qualcosa all'isola</span>
+          <span data-i18n="settings_island_sources">App e widget nella barra</span>
+          <span class="settings-hint" data-i18n="settings_island_sources_hint">tutto quello che un'estensione installata aggiunge alla barra: nell'isola, accanto all'orologio o fra i bottoni. Spegni quelle che non vuoi vedere</span>
         </div>
         <label class="settings-toggle-row full">
           <input class="settings-check" id="settings-island-takeovers" type="checkbox" onchange="updateDynamicIslandTakeovers(this.checked)">
           <span class="settings-label-line"><span data-i18n="settings_island_takeovers">Consenti takeover temporanei</span><span class="settings-hint" data-i18n="settings_island_takeovers_hint">un gol, una nuova traccia o un risultato può sostituire temporaneamente il contenuto normale e poi ripristinarlo</span></span>
         </label>
         <div class="island-source-list" id="settings-island-sources" aria-live="polite"></div>
-        <button class="settings-btn settings-btn-ghost" type="button" onclick="resetDynamicIslandSettings()" data-i18n="settings_island_reset">Ripristina Dynamic Island</button>
+        <span class="settings-hint" data-i18n="settings_island_reset_hint">rimette la barra com'era appena installata: stile, elementi dell'isola, bottoni, barre laterali e tutte le estensioni riaccese</span>
+        <button class="settings-btn settings-btn-ghost" type="button" onclick="resetDynamicIslandSettings()" data-i18n="settings_island_reset">Ripristina tutta la barra</button>
       </div>
 
       <div class="settings-group settings-behavior-group" data-settings-cat="general" id="settings-auto-open-row" hidden>
@@ -3772,6 +3782,7 @@
 <script src="js/sdk-island-schema.js"></script>
 <script src="js/sdk-island.js"></script>
 <script src="js/sdk-badges.js"></script>
+<script src="js/sdk-mini.js"></script>
 <script src="js/lockscreen.js"></script>
 <script src="js/ambient-mode.js"></script>
 <script src="js/ai.js"></script>

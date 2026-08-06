@@ -108,7 +108,50 @@
     };
   }
 
-  const api = { MAX_BLOCKS, MAX_ACTIONS, MAX_BARS, BLOCK_TYPES, BUILTINS, LAYOUTS, normalize };
+  // The mini slot (topbar button row) speaks the SAME block vocabulary as the
+  // island, so a widget author learns one thing and the two surfaces cannot
+  // drift apart. What differs is the room and the nature of the surface:
+  //  - it sits between real buttons, so 4 blocks and 1 action, not 10 and 2;
+  //  - there is no `builtin`: mirroring the clock into a slot that may sit right
+  //    beside the actual clock is a duplicate, not a feature;
+  //  - there is no takeover lane and no duration. A slot in the bar is a STATE
+  //    the user chose to keep on screen, not an announcement that expires;
+  //  - there is no layout: the slot's size is the bar's business, not the
+  //    package's.
+  const MINI_MAX_BLOCKS = 4;
+  const MINI_MAX_ACTIONS = 1;
+  const MINI_BLOCK_TYPES = Object.freeze(['text', 'icon', 'progress', 'bars', 'button']);
+
+  function normalizeMini(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    if (raw.op === 'clear') return { op: 'clear' };
+    if (raw.op !== 'present' && raw.op !== 'show' && raw.op !== 'set') return null;
+    const actionIds = new Set();
+    const source = Array.isArray(raw.blocks) ? raw.blocks : [];
+    const blocks = [];
+    for (const candidate of source) {
+      if (!candidate || typeof candidate !== 'object' || !MINI_BLOCK_TYPES.includes(candidate.type)) continue;
+      // normalizeBlock enforces the ISLAND's budget (MAX_ACTIONS), which is
+      // larger, so the mini cap has to be applied here — deleting this line does
+      // not fall back to one button, it silently raises the slot to two.
+      if (candidate.type === 'button' && actionIds.size >= MINI_MAX_ACTIONS) continue;
+      const block = normalizeBlock(candidate, actionIds);
+      if (block) blocks.push(block);
+      if (blocks.length >= MINI_MAX_BLOCKS) break;
+    }
+    if (!blocks.length) return null;
+    return {
+      op: 'present',
+      accent: typeof raw.accent === 'string' && HEX_RE.test(raw.accent.trim()) ? raw.accent.trim().toLowerCase() : '',
+      tooltip: cleanText(raw.tooltip, 60),
+      blocks,
+    };
+  }
+
+  const api = {
+    MAX_BLOCKS, MAX_ACTIONS, MAX_BARS, BLOCK_TYPES, BUILTINS, LAYOUTS, normalize,
+    MINI_MAX_BLOCKS, MINI_MAX_ACTIONS, MINI_BLOCK_TYPES, normalizeMini,
+  };
   if (root && typeof root === 'object') root.SdkIslandSchema = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

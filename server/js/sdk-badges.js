@@ -71,18 +71,38 @@
       return;
     }
     // A chip appearing changes the pill's structure; a chip's TEXT changing does
-    // not (see syncIslandLayout).
+    // not (see syncIslandLayout). A chip that GAINS or LOSES its tap is also
+    // structural: it changes element type, so the old node is replaced rather
+    // than mutated — a <span> cannot be given a button's keyboard and focus
+    // behaviour by adding a class.
+    const wantAction = typeof owner.onAction === 'function';
     let structural = false;
-    if (!owner.chip || !owner.chip.isConnected) {
-      const chip = document.createElement('span');
-      chip.className = 'sdk-badge';
+    if (!owner.chip || !owner.chip.isConnected || owner.chipAction !== wantAction) {
+      const old = (owner.chip && owner.chip.isConnected) ? owner.chip : null;
+      const chip = document.createElement(wantAction ? 'button' : 'span');
+      chip.className = 'sdk-badge' + (wantAction ? ' sdk-badge-btn' : '');
+      if (wantAction) {
+        chip.type = 'button';
+        // The handler reads owner.onAction at click time, never the value
+        // captured now: a package that updates its badge replaces the callback,
+        // and a stale one would post into a frame that has since been rebuilt.
+        chip.addEventListener('click', () => {
+          const fn = owners.get(pkgId) && owners.get(pkgId).onAction;
+          if (typeof fn === 'function') fn();
+        });
+      }
       const ico = document.createElement('span');
       ico.className = 'sdk-badge-ico';
       const val = document.createElement('span');
       val.className = 'sdk-badge-val';
       chip.append(ico, val);
       owner.chip = chip;
-      h.appendChild(chip);
+      owner.chipAction = wantAction;
+      // Swap in place when there was a chip here: appending would send this
+      // package's chip to the end of the row, so a badge merely GAINING its tap
+      // would reshuffle everyone else's — the chips are in claim order and the
+      // user reads them by position.
+      if (old) old.replaceWith(chip); else h.appendChild(chip);
       structural = true;
     }
     // Untrusted widget strings -> textContent ONLY, never markup. The colour
@@ -126,7 +146,10 @@
     }
   }
 
-  function set(pkgId, text, tooltip, icon, color) {
+  // `onAction` is supplied by custom-widget.js only when the package declared
+  // `badge: { action: true }` AND holds the badge grant; absent, the chip is the
+  // plain read-only text it has always been.
+  function set(pkgId, text, tooltip, icon, color, onAction) {
     if (typeof pkgId !== 'string' || !pkgId || typeof text !== 'string' || !text) return;
     if (!owners.has(pkgId) && owners.size >= MAX_BADGES) return;   // cap reached: silent no-op
     const cur = owners.get(pkgId) || {};
@@ -135,7 +158,9 @@
       tooltip: typeof tooltip === 'string' ? tooltip : '',
       icon: typeof icon === 'string' ? icon : '',
       color: typeof color === 'string' ? color : '',
+      onAction: typeof onAction === 'function' ? onAction : null,
       chip: cur.chip,
+      chipAction: cur.chipAction,
     });
     render(pkgId);
     syncSweep();

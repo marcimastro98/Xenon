@@ -571,6 +571,22 @@
   text-overflow: ellipsis;
 }
 
+/* The failure card explains WHY in a full sentence, so it spans the whole grid
+   and wraps. The metric primitive above is a quarter-width cell with
+   nowrap + ellipsis — correct for "18 km/h", useless for an explanation, which
+   it would cut down to two words and leave as uninformative as the blank tile
+   it replaced. */
+.weather-metric--explain { grid-column: 1 / -1; }
+.weather-metric--explain .weather-metric-value {
+  font-size: 15px;
+  line-height: 1.25;
+  white-space: normal;
+}
+.weather-metric--explain .weather-metric-sub {
+  white-space: normal;
+  line-height: 1.35;
+}
+
 /* ─────────────────────────────────────────────────────────
    Hourly & Forecast blocks
 ────────────────────────────────────────────────────────── */

@@ -415,5 +415,9 @@
     reconcile(true);
   }
 
-  window.SdkIsland = { show, present, clear, apply, sourceEnabled };
+  // renderBlock is shared with the mini slot (js/sdk-mini.js) rather than copied:
+  // the two surfaces speak one block vocabulary (see sdk-island-schema.js), and a
+  // second renderer is how a block type ends up drawn two different ways — or
+  // safely in one place and carelessly in the other.
+  window.SdkIsland = { show, present, clear, apply, sourceEnabled, renderBlock };
 })();
