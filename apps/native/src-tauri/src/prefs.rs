@@ -43,9 +43,10 @@ pub enum Placement {
 pub struct DisplayPrefs {
     /// Open full-screen (on `monitor`, or the primary display) instead of windowed.
     pub fullscreen: bool,
-    /// Best-effort key of the chosen monitor (its OS name); `None` = primary.
+    /// Best-effort key of the chosen monitor — its OS name, or `fp:<shape>` for an
+    /// output the OS did not name (see `monitor::display_id`); `None` = primary.
     /// Monitor identity is not perfectly stable across replug/reboot, so a saved
-    /// name that no longer matches falls back to `monitor_fingerprint`, and then
+    /// id that no longer matches falls back to `monitor_fingerprint`, and then
     /// (in `Auto` only) to the primary display.
     pub monitor: Option<String>,
     /// Which screen the user picked. Absent in files written before v4.11 →

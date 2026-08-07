@@ -1317,7 +1317,8 @@ pub fn run() {
             // tauri.conf.json) so it can carry an initialization script and a
             // navigation hook: external links open in the OS browser while the
             // webview itself never leaves the splash/dashboard. Props mirror the
-            // former config window (borderless, full-screen, 2560×720 Edge size).
+            // former config window (borderless, full-screen), except the size,
+            // which now comes from the screen that will host it.
             let nav_handle = app.handle().clone();
             // The saved screen choice, read once here: it decides the initial
             // window visibility, seeds the watchdog's in-memory mirror, and
@@ -1378,6 +1379,15 @@ pub fn run() {
                     "updateEvents": true,
                     "lowPowerGpu": matches!(gpu_flag, Some("--force_low_power_gpu")),
                     "displayPicker": true,
+                    // The monitor list, injected BEFORE the page loads. It used
+                    // to arrive only with the first `push_display_state`, after
+                    // the dashboard had loaded — so the first-run screen picker
+                    // opened with no screens on it and, if that push never
+                    // landed, stayed that way: a question about which screen to
+                    // use, asked without offering one. The snapshot has no
+                    // `display.active` (no window exists yet); that half still
+                    // comes with the push.
+                    "displays": monitor::display_list_json(app.handle()),
                     "phoneMode": !display_prefs.shows_on_this_pc(),
                 })
             );
@@ -1395,9 +1405,17 @@ pub fn run() {
                 setup_available
             );
             let init_script = format!("{EXTERNAL_LINK_SHIM}\n{caps_js}\n{port_js}\n{setup_js}");
+            // Sized from the screen that will host it — the Edge's own 2560×720
+            // when one is attached, otherwise a large window on the primary
+            // display (see monitor::initial_window_size). The literal 2560×720
+            // that used to be here made every machine without an Edge open a
+            // window shaped like a panel it does not have, which on macOS (where
+            // the window cannot be built full-screen) is the first thing an
+            // installer shows you.
+            let (init_w, init_h) = monitor::initial_window_size(app.handle());
             let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("Xenon")
-                .inner_size(2560.0, 720.0)
+                .inner_size(init_w, init_h)
                 .min_inner_size(640.0, 240.0)
                 .resizable(true)
                 .decorations(false)
@@ -1431,8 +1449,15 @@ pub fn run() {
             // method exists on every platform and only its RUNTIME meaning
             // differs. That check answers "does this API exist here", never
             // "does this combination work here".
+            //
+            // Full-screen at BUILD time only when an Edge is attached, because
+            // there it is the final state. Everywhere else `place_now` turns the
+            // window back into an ordinary one a moment later, so building it
+            // full-screen meant a launch that covers your whole desktop for a
+            // frame and then does not — the "why did Xenon take over my screen?"
+            // half of opening it for the first time.
             #[cfg(not(target_os = "macos"))]
-            let builder = builder.fullscreen(true);
+            let builder = builder.fullscreen(monitor::edge_attached(app.handle()));
             let builder = builder
                 // The kiosk lives on the Edge and is controlled from the system
                 // tray (show/hide/restart/exit), so keep it out of the main
