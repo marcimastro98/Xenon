@@ -210,11 +210,21 @@ pub fn apply_rdp_hide_now(window: &WebviewWindow) {
     }
 }
 
-/// Widest the windowed dashboard opens; the actual size is capped to fit the
-/// monitor so it never spills off a small screen. The window keeps the Edge's
-/// 3.556:1 aspect so the wide dashboard layout is never distorted.
-const MAX_WINDOW_WIDTH: f64 = 1600.0;
-const WINDOW_ASPECT: f64 = EDGE_WIDTH as f64 / EDGE_HEIGHT as f64;
+/// How much of the host screen a windowed dashboard fills. Large enough to read
+/// as "Xenon opened on this screen", short of the edges so it is still visibly a
+/// window: the title bar is reachable, the desktop shows around it, and nothing
+/// is hidden behind a taskbar or a menu bar.
+///
+/// It used to be `min(92% of the width, 1600px)` at the EDGE's 3.556:1 aspect,
+/// which is why a fresh install on an ordinary monitor opened a 1600×450 letter
+/// slot: the shape of a CORSAIR Xeneon Edge on a screen that is not one. The
+/// dashboard lays out for the window it is given, so there was never anything to
+/// protect by keeping that aspect — only a panel size copied onto every machine.
+const WINDOW_SCREEN_FRACTION: f64 = 0.88;
+
+/// Floor for the windowed size, matching the window's own minimum (640×240).
+const MIN_WINDOW_WIDTH: f64 = 640.0;
+const MIN_WINDOW_HEIGHT: f64 = 240.0;
 
 /// How often the watchdog re-checks the window is on the Edge.
 const WATCHDOG_INTERVAL: Duration = Duration::from_secs(3);
@@ -334,21 +344,67 @@ fn enter_borderless_fullscreen(window: &WebviewWindow, _monitor: &Monitor) {
     let _ = window.set_fullscreen(true);
 }
 
-/// A window size that fits inside the given monitor (never wider or taller than
-/// the screen), keeping the Edge's wide aspect so the dashboard is not distorted.
+/// A window sized to the screen that HOSTS it: the monitor's own proportions, at
+/// `WINDOW_SCREEN_FRACTION` of its logical size, never larger than the screen and
+/// never below the window's own 640×240 minimum.
+///
+/// The Edge does not come through here — that panel is always the borderless
+/// kiosk (`place_on_edge`), which owns the whole display.
 fn windowed_size_for(monitor: &Monitor) -> LogicalSize<f64> {
     let scale = monitor.scale_factor();
     let mon_w = monitor.size().width as f64 / scale;
     let mon_h = monitor.size().height as f64 / scale;
-    let mut w = (mon_w * 0.92).min(MAX_WINDOW_WIDTH);
-    let mut h = w / WINDOW_ASPECT;
-    let max_h = mon_h * 0.9;
-    if h > max_h {
-        h = max_h;
-        w = h * WINDOW_ASPECT;
+    // Clamped to the screen AFTER the minimum is applied: on a display smaller
+    // than 640×240 the floor would otherwise push the window off its own screen.
+    let w = (mon_w * WINDOW_SCREEN_FRACTION).max(MIN_WINDOW_WIDTH).min(mon_w);
+    let h = (mon_h * WINDOW_SCREEN_FRACTION).max(MIN_WINDOW_HEIGHT).min(mon_h);
+    LogicalSize::new(w, h)
+}
+
+/// The size the window should be BUILT at, before it exists and before `place_now`
+/// can measure anything.
+///
+/// The builder used to hardcode 2560×720 — the Edge panel — so on macOS, where the
+/// window cannot be built full-screen (see the note in `lib.rs`), the very first
+/// frame after an install was an Edge-shaped window on a machine that had no Edge.
+/// Asking the app handle for the monitors costs nothing here and gets the first
+/// frame right: the Edge's own size when one is attached, otherwise a window sized
+/// to the primary screen exactly as `windowed_size_for` will size it a moment later.
+pub fn initial_window_size(app: &AppHandle) -> (f64, f64) {
+    let monitors = app.available_monitors().unwrap_or_default();
+    if let Some(edge) = monitors.iter().find(|m| is_edge_panel(m)) {
+        let scale = edge.scale_factor();
+        return (
+            edge.size().width as f64 / scale,
+            edge.size().height as f64 / scale,
+        );
     }
-    // Never ask for less than the window's own minimum (640×240).
-    LogicalSize::new(w.max(640.0), h.max(240.0))
+    let primary = app
+        .primary_monitor()
+        .ok()
+        .flatten()
+        .or_else(|| monitors.into_iter().next());
+    match primary {
+        Some(m) => {
+            let size = windowed_size_for(&m);
+            (size.width, size.height)
+        }
+        // No monitor answered — the Edge's own size is as good a guess as any,
+        // and `place_now` corrects it as soon as a screen can be read.
+        None => (EDGE_WIDTH as f64, EDGE_HEIGHT as f64),
+    }
+}
+
+/// Is a Xeneon Edge panel attached right now? Asked before the window exists, to
+/// decide whether it should be BUILT full-screen: on the Edge that is the final
+/// state and building it any other way is a visible flash, while everywhere else
+/// it was a full-screen window that `place_now` immediately shrank — a launch that
+/// covers your desktop for one frame and then does not.
+pub fn edge_attached(app: &AppHandle) -> bool {
+    app.available_monitors()
+        .unwrap_or_default()
+        .iter()
+        .any(is_edge_panel)
 }
 
 /// Ordinary, controllable desktop window on the given monitor: a title bar, a
@@ -396,6 +452,35 @@ fn monitor_by_name(window: &WebviewWindow, name: &str) -> Option<Monitor> {
         .find(|m| m.name().map(|n| n.to_string()).as_deref() == Some(name))
 }
 
+/// Prefix marking a display id that is a SHAPE, not an OS name (see `display_id`).
+const FP_ID_PREFIX: &str = "fp:";
+
+/// The id every surface uses to name a screen — the tray menu, the first-run
+/// picker, Settings → Screen and `display.json` alike.
+///
+/// The OS name when there is one. Where there is not — Wayland and macOS both
+/// hand back `None` for some outputs — the shape fingerprint stands in, prefixed
+/// so it can never be mistaken for a name. Without it those displays had a `null`
+/// id, and a display with no id was skipped by the tray menu and rendered as a
+/// disabled button in the picker: the screen was listed and could not be chosen,
+/// which on a machine where NO output is named means the question "which screen?"
+/// had no answer at all.
+fn display_id(monitor: &Monitor) -> String {
+    match monitor.name() {
+        Some(name) if !name.is_empty() => name.to_string(),
+        _ => format!("{FP_ID_PREFIX}{}", fingerprint(monitor)),
+    }
+}
+
+/// Resolve an id from `display_id` back to a live monitor: by OS name, or by
+/// shape for the `fp:` form. `None` means that screen is not connected now.
+fn monitor_by_id(window: &WebviewWindow, id: &str) -> Option<Monitor> {
+    match id.strip_prefix(FP_ID_PREFIX) {
+        Some(fp) => monitor_by_fingerprint(window, fp),
+        None => monitor_by_name(window, id),
+    }
+}
+
 /// The monitor a saved preference points at, falling back to the primary display.
 /// Used in `Auto` only, where the saved name is a *preference*; an explicit
 /// choice must never silently land somewhere else (see `chosen_monitor`).
@@ -403,7 +488,7 @@ fn preferred_monitor(window: &WebviewWindow, prefs: &prefs::DisplayPrefs) -> Opt
     prefs
         .monitor
         .as_deref()
-        .and_then(|n| monitor_by_name(window, n))
+        .and_then(|n| monitor_by_id(window, n))
         .or_else(|| primary_or_first(window))
 }
 
@@ -428,7 +513,7 @@ fn monitor_by_fingerprint(window: &WebviewWindow, fp: &str) -> Option<Monitor> {
 /// Resolve the screen the user explicitly chose: by name first, then by shape.
 /// `None` means it is genuinely not connected right now.
 fn chosen_monitor(window: &WebviewWindow, cache: &PlacementCache) -> Option<Monitor> {
-    if let Some(found) = cache.monitor.as_deref().and_then(|n| monitor_by_name(window, n)) {
+    if let Some(found) = cache.monitor.as_deref().and_then(|n| monitor_by_id(window, n)) {
         return Some(found);
     }
     cache.fingerprint.as_deref().and_then(|fp| monitor_by_fingerprint(window, fp))
@@ -779,7 +864,8 @@ pub fn exit_home(window: &WebviewWindow) {
 /// One entry per connected monitor, shared by the tray picker and the dashboard's
 /// Settings → Screen list so the two can never disagree about what is attached.
 pub struct DisplayInfo {
-    pub id: Option<String>,
+    /// Never empty — see `display_id`. An unnamed output is identified by shape.
+    pub id: String,
     pub label: String,
     pub width: u32,
     pub height: u32,
@@ -811,22 +897,35 @@ impl DisplayInfo {
 /// the dashboard renders them as chips, and the tray, which has no chips, spells
 /// them into the label itself (see `tray_label`).
 pub fn displays(window: &WebviewWindow) -> Vec<DisplayInfo> {
-    let primary_name = window
-        .primary_monitor()
-        .ok()
-        .flatten()
-        .and_then(|m| m.name().cloned());
-    window
-        .available_monitors()
-        .ok()
-        .unwrap_or_default()
+    let primary = window.primary_monitor().ok().flatten();
+    let monitors = window.available_monitors().ok().unwrap_or_default();
+    describe(monitors, primary)
+}
+
+/// The same list, read from the app handle instead of a window.
+///
+/// The screens can be enumerated before the window exists, and that is the point:
+/// the caps the shell injects into the page carry the monitor list from the very
+/// first render (see `lib.rs`), so the first-run picker draws its screens straight
+/// away instead of waiting on `push_display_state` — a push that arrives after the
+/// dashboard loads, and that a page which never gets one leaves stuck on "Reading
+/// the screens on this PC…".
+pub fn displays_for_app(app: &AppHandle) -> Vec<DisplayInfo> {
+    let primary = app.primary_monitor().ok().flatten();
+    let monitors = app.available_monitors().unwrap_or_default();
+    describe(monitors, primary)
+}
+
+fn describe(monitors: Vec<Monitor>, primary: Option<Monitor>) -> Vec<DisplayInfo> {
+    let primary_id = primary.as_ref().map(display_id);
+    monitors
         .into_iter()
         .enumerate()
         .map(|(i, m)| {
             let s = m.size();
-            let id = m.name().cloned();
+            let id = display_id(&m);
             let edge = is_edge_panel(&m);
-            let primary = id.is_some() && id == primary_name;
+            let primary = Some(&id) == primary_id.as_ref();
             DisplayInfo {
                 id,
                 label: format!("Display {} — {}×{}", i + 1, s.width, s.height),
@@ -840,24 +939,32 @@ pub fn displays(window: &WebviewWindow) -> Vec<DisplayInfo> {
         .collect()
 }
 
+/// The monitor list as the dashboard consumes it, without the placement half of
+/// `display_state` (which needs a window to report the ACTIVE screen honestly).
+pub fn display_list_json(app: &AppHandle) -> serde_json::Value {
+    serde_json::Value::Array(displays_for_app(app).iter().map(display_json).collect())
+}
+
+fn display_json(d: &DisplayInfo) -> serde_json::Value {
+    serde_json::json!({
+        "id": d.id, "label": d.label, "width": d.width, "height": d.height,
+        "scale": d.scale, "primary": d.primary, "edge": d.edge,
+    })
+}
+
 /// The whole display state, as the dashboard consumes it. `active` is the screen
 /// the window is really on — the page shows the truth, not the intent.
 pub fn display_state(window: &WebviewWindow) -> serde_json::Value {
     let cache = placement_cache();
-    let list: Vec<serde_json::Value> = displays(window)
-        .into_iter()
-        .map(|d| {
-            serde_json::json!({
-                "id": d.id, "label": d.label, "width": d.width, "height": d.height,
-                "scale": d.scale, "primary": d.primary, "edge": d.edge,
-            })
-        })
-        .collect();
+    let list: Vec<serde_json::Value> = displays(window).iter().map(display_json).collect();
+    // Reported with `display_id`, the same key the list uses, so the dashboard's
+    // `d.id === state.active` comparison keeps working on outputs the OS did not
+    // name (where it used to compare against `null` and never match).
     let active = window
         .current_monitor()
         .ok()
         .flatten()
-        .and_then(|m| m.name().cloned());
+        .map(|m| display_id(&m));
     let missing = cache.mode == Placement::Screen && chosen_monitor(window, &cache).is_none();
     serde_json::json!({
         "displays": list,
@@ -904,20 +1011,22 @@ pub fn set_fullscreen_pref(app: &AppHandle, on: bool) {
     push_display_state(app);
 }
 
-/// Tray/Settings action: put the window on this monitor, by OS name.
+/// Tray/Settings action: put the window on this monitor, by display id.
 ///
 /// Picking a display IS the explicit choice, so it also switches the mode to
 /// `Screen` — and there is no longer an "a Xeneon Edge is attached, so no"
 /// early-return: refusing the pick was exactly the behaviour this replaces.
 pub fn move_to_named_monitor(app: &AppHandle, name: &str) {
     let Some(window) = app.get_webview_window("main") else { return };
-    // A name we did not just read from the OS is not a name. Resolving before
+    // An id we did not just read from the OS is not an id. Resolving before
     // writing is what stops any caller from putting an arbitrary string into
     // display.json and leaving the window unplaceable at the next launch.
-    let Some(monitor) = monitor_by_name(&window, name) else { return };
+    let Some(monitor) = monitor_by_id(&window, name) else { return };
     let mut snapshot = prefs::DisplayPrefs::default();
     prefs::update(app, |p| {
-        p.monitor = monitor.name().cloned();
+        // The id, not the raw OS name: an unnamed output would otherwise save a
+        // `null` monitor and lean entirely on the fingerprint fallback.
+        p.monitor = Some(display_id(&monitor));
         p.monitor_fingerprint = Some(fingerprint(&monitor));
         p.placement = Placement::Screen;
         snapshot = p.clone();

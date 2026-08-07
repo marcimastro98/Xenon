@@ -34,7 +34,7 @@ pub fn build(app: &App) -> tauri::Result<()> {
         Placement::Auto => window.as_ref().map(monitor::edge_present).unwrap_or(false),
         Placement::Screen => displays_now
             .iter()
-            .any(|d| d.edge && d.id.is_some() && d.id == saved.monitor),
+            .any(|d| d.edge && Some(&d.id) == saved.monitor.as_ref()),
         Placement::Phone => false,
     };
     let phone = saved.placement == Placement::Phone;
@@ -51,14 +51,15 @@ pub fn build(app: &App) -> tauri::Result<()> {
 
     // "Show on ▸ <display>" — only when more than one monitor is connected.
     //
-    // The item id carries the monitor's OS NAME, not its index. This menu is
-    // built once at startup and never rebuilt, and on Windows the index is the
-    // unstable half (`\\.\DISPLAYn` is assigned by order), so an id keyed on the
-    // index would quietly point at a different physical screen after a replug.
-    // A stale name simply no longer resolves, and the pick is refused.
+    // The item id carries the monitor's display id (its OS name, or its shape for
+    // an output the OS did not name — see `monitor::display_id`), not its index.
+    // This menu is built once at startup and never rebuilt, and on Windows the
+    // index is the unstable half (`\\.\DISPLAYn` is assigned by order), so an id
+    // keyed on the index would quietly point at a different physical screen after
+    // a replug. A stale id simply no longer resolves, and the pick is refused.
     let displays = Submenu::new(app, "Show on", !phone)?;
     for d in &displays_now {
-        let Some(id) = d.id.as_deref() else { continue };
+        let id = &d.id;
         let item = MenuItem::with_id(app, format!("mon:{id}"), d.tray_label(), true, None::<&str>)?;
         displays.append(&item)?;
     }
