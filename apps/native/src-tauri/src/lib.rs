@@ -256,7 +256,15 @@ fn apply_display_signal(app: &tauri::AppHandle, path: &str, query: Option<&str>)
 /// Percent-decode a query value. `tauri::Url` hands us the raw query, and the
 /// monitor ids we round-trip are Windows device names full of backslashes.
 fn percent_decode(raw: &str) -> String {
-    let bytes = raw.replace('+', " ").into_bytes();
+    // Percent escapes ONLY. `+` means a literal plus here, not a space: the sole
+    // producer of these query strings is `encodeURIComponent` in native-bridge.js,
+    // which writes a space as `%20` and never as `+`. Treating `+` as a space is
+    // the `application/x-www-form-urlencoded` rule, which no caller here uses —
+    // and it would corrupt a display id, since an unnamed screen is identified as
+    // `fp:2560x1440@1+1920,0` (see monitor::display_ids). A mangled id does not
+    // fail loudly: it resolves to no monitor, which reads as "the screen you chose
+    // is unplugged" and hides the window.
+    let bytes = raw.as_bytes().to_vec();
     let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
     let mut i = 0;
     while i < bytes.len() {
@@ -1405,14 +1413,14 @@ pub fn run() {
                 setup_available
             );
             let init_script = format!("{EXTERNAL_LINK_SHIM}\n{caps_js}\n{port_js}\n{setup_js}");
-            // Sized from the screen that will host it — the Edge's own 2560×720
-            // when one is attached, otherwise a large window on the primary
-            // display (see monitor::initial_window_size). The literal 2560×720
-            // that used to be here made every machine without an Edge open a
-            // window shaped like a panel it does not have, which on macOS (where
-            // the window cannot be built full-screen) is the first thing an
-            // installer shows you.
-            let (init_w, init_h) = monitor::initial_window_size(app.handle());
+            // Size and full-screen state both come from the screen that will host
+            // it, by the same rule `place_now` is about to apply (see
+            // monitor::initial_window). The literal 2560×720 that used to be here
+            // made every machine without an Edge open a window shaped like a panel
+            // it does not have, which on macOS — where the window cannot be built
+            // full-screen — is the first thing an installer shows you.
+            let (init_w, init_h, init_fullscreen) =
+                monitor::initial_window(app.handle(), &display_prefs);
             let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("Xenon")
                 .inner_size(init_w, init_h)
@@ -1450,14 +1458,15 @@ pub fn run() {
             // differs. That check answers "does this API exist here", never
             // "does this combination work here".
             //
-            // Full-screen at BUILD time only when an Edge is attached, because
-            // there it is the final state. Everywhere else `place_now` turns the
-            // window back into an ordinary one a moment later, so building it
-            // full-screen meant a launch that covers your whole desktop for a
-            // frame and then does not — the "why did Xenon take over my screen?"
-            // half of opening it for the first time.
+            // Full-screen at BUILD time only where that is the state the window is
+            // about to be placed in anyway — the Edge kiosk, or a screen the user
+            // chose and asked to fill. Everywhere else `place_now` turns it back
+            // into an ordinary window a moment later, so building it full-screen
+            // meant a launch that covers your whole desktop for a frame and then
+            // does not: the "why did Xenon take over my screen?" half of opening it
+            // for the first time.
             #[cfg(not(target_os = "macos"))]
-            let builder = builder.fullscreen(monitor::edge_attached(app.handle()));
+            let builder = builder.fullscreen(init_fullscreen);
             let builder = builder
                 // The kiosk lives on the Edge and is controlled from the system
                 // tray (show/hide/restart/exit), so keep it out of the main
