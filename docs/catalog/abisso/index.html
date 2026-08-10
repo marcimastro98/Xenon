@@ -72,6 +72,25 @@ font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(
 .btn.fill{background:var(--green);border-color:var(--green);color:#052012}
 .btn:hover{border-color:rgba(240,243,241,.24)}
 .note{margin-top:14px;font-size:14px;color:var(--dim);max-width:62ch}
+.steps{margin:0;padding-left:22px;color:#c6cfca;max-width:66ch}
+.steps li{margin-bottom:7px}
+.steps li:last-child{margin-bottom:0}
+.facts{list-style:none;margin:0;padding:0;color:#c6cfca;max-width:66ch}
+.facts li{display:flex;flex-wrap:wrap;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
+.facts li:last-child{border-bottom:0}
+.facts b{font-weight:600;color:var(--muted);flex:0 0 148px;font-size:13.5px;letter-spacing:.02em}
+/* Without a basis the long value ("Runs on") wrapped under its own label while
+   every short row stayed beside it, so the column read as broken every few rows.
+   Below 560px the label goes on its own line for all of them, together. */
+.facts li>span{flex:1 1 220px;min-width:0}
+@media(max-width:559px){.facts b{flex-basis:100%}}
+.rel{display:grid;gap:10px;grid-template-columns:1fr}
+.rel a{display:flex;align-items:baseline;gap:10px;text-decoration:none;border:1px solid var(--line);
+background:var(--panel);border-radius:11px;padding:12px 15px;transition:border-color .2s}
+.rel a:hover{border-color:rgba(240,243,241,.24)}
+.rel .n{font-weight:600;font-size:15px}
+.rel .k{font-size:12.5px;color:var(--dim);margin-left:auto;white-space:nowrap}
+@media(min-width:640px){.rel{grid-template-columns:1fr 1fr}}
 footer{border-top:1px solid var(--line);padding:26px 0;color:var(--dim);font-size:14px}
 footer a{color:var(--muted);text-decoration:none}
 footer a:hover{color:var(--green)}
@@ -96,7 +115,7 @@ footer a:hover{color:var(--green)}
       },
       "image": "https://assets.xenon-app.com/community/shots/abisso.webp",
       "applicationCategory": "DesktopApplication",
-      "operatingSystem": "Windows 10, Windows 11",
+      "operatingSystem": "Windows, macOS, Linux",
       "softwareRequirements": "Xenon 4.6.0 or later",
       "version": "1.0.0",
       "datePublished": "2026-07-23",
@@ -153,11 +172,36 @@ footer a:hover{color:var(--green)}
     <p class="desc">The deep ocean at night: jellyfish and marine snow in the backdrop, a calm Ambient clock, and the Dive widget where CPU load becomes dive depth. Descend from sunlight to the hadal zone, meet the anglerfish under heavy load, and a hydrothermal vent ignites when the CPU runs hot.</p>
     <div class="shots"><img src="https://assets.xenon-app.com/community/shots/abisso.webp" alt="Abisso — screenshot 1 of 3" loading="eager" decoding="async" onerror="this.onerror=function(){this.remove()};this.src='https://assets.xenon-app.com/community/shots/abisso.png'"><img src="https://assets.xenon-app.com/community/shots/abisso-2.webp" alt="Abisso — screenshot 2 of 3" loading="lazy" decoding="async" onerror="this.onerror=function(){this.remove()};this.src='https://assets.xenon-app.com/community/shots/abisso-2.png'"><img src="https://assets.xenon-app.com/community/shots/abisso-3.webp" alt="Abisso — screenshot 3 of 3" loading="lazy" decoding="async" onerror="this.onerror=function(){this.remove()};this.src='https://assets.xenon-app.com/community/shots/abisso-3.png'"></div>
     
+    <section class="sec"><h2>What a package does</h2><p>A package installs several pieces at once — typically a theme, a background and one or more widgets built to look like each other — so the whole dashboard changes in one paste.</p></section>
     <section class="sec"><h2>Palette</h2><div class="sw"><span><i style="background:#3ee6d2"></i>#3ee6d2</span><span><i style="background:#030a12"></i>#030a12</span><span><i style="background:#ddf1f2"></i>#ddf1f2</span></div></section>
     <section class="sec"><h2>Tags</h2><div class="tags"><span>#ocean</span><span>#dark</span><span>#ambient</span><span>#calm</span><span>#jellyfish</span></div></section>
     
     <div class="cta"><a class="btn fill" href="/catalog/#abisso">Open in the catalog</a></div>
     <p class="note">A supporters' item — unlock it in the catalog, then paste the code into Xenon under Settings → Widgets &amp; sharing → Import.</p>
+    <section class="sec"><h2>How to install it</h2><ol class="steps"><li><a href="/catalog/#abisso">Open Abisso in the catalog</a> and unlock it with your supporter code. One code unlocks it on up to three machines.</li><li>In Xenon, open <b>Settings → Widgets &amp; sharing → Import</b> and paste the code.</li><li>Xenon shows you what the code contains before anything is applied. Confirm, and Abisso is on your dashboard.</li><li>This one needs <a href="/">Xenon 4.6.0 or later</a>. An older install refuses the code rather than importing half of it.</li></ol></section>
+    <section class="sec"><h2>At a glance</h2>
+      <ul class="facts">
+        <li><b>Type</b><span>Package</span></li>
+        <li><b>Category</b><span>Style</span></li>
+        <li><b>Made by</b><span>xenon</span></li>
+        <li><b>Version</b><span>v1.0.0</span></li>
+        <li><b>Needs</b><span>Xenon 4.6.0 or later</span></li>
+        <li><b>Runs on</b><span>Windows, macOS and Linux — on a second monitor, a Xeneon Edge, a tablet or a paired phone</span></li>
+        <li><b>Price</b><span>Supporters</span></li>
+        <li><b>Added</b><span>2026-07-23</span></li>
+      </ul>
+    </section>
+    <section class="sec"><h2>More from the catalog</h2>
+      <div class="rel">
+        <a href="/catalog/nocturne-drift/"><span class="n">Nocturne Drift</span><span class="k">Background</span></a>
+        <a href="/catalog/afterimage/"><span class="n">Afterimage</span><span class="k">Package</span></a>
+        <a href="/catalog/kintsugi/"><span class="n">Kintsugi</span><span class="k">Package</span></a>
+        <a href="/catalog/nocturne-pack/"><span class="n">Nocturne Pack</span><span class="k">Package</span></a>
+        <a href="/catalog/nocturne-theme/"><span class="n">Nocturne</span><span class="k">Theme</span></a>
+        <a href="/catalog/tranquility/"><span class="n">Tranquility</span><span class="k">Background</span></a>
+      </div>
+      <p class="note"><a href="/catalog/">See all community items →</a></p>
+    </section>
   </main>
 </div>
 

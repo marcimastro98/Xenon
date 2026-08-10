@@ -72,6 +72,25 @@ font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(
 .btn.fill{background:var(--green);border-color:var(--green);color:#052012}
 .btn:hover{border-color:rgba(240,243,241,.24)}
 .note{margin-top:14px;font-size:14px;color:var(--dim);max-width:62ch}
+.steps{margin:0;padding-left:22px;color:#c6cfca;max-width:66ch}
+.steps li{margin-bottom:7px}
+.steps li:last-child{margin-bottom:0}
+.facts{list-style:none;margin:0;padding:0;color:#c6cfca;max-width:66ch}
+.facts li{display:flex;flex-wrap:wrap;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
+.facts li:last-child{border-bottom:0}
+.facts b{font-weight:600;color:var(--muted);flex:0 0 148px;font-size:13.5px;letter-spacing:.02em}
+/* Without a basis the long value ("Runs on") wrapped under its own label while
+   every short row stayed beside it, so the column read as broken every few rows.
+   Below 560px the label goes on its own line for all of them, together. */
+.facts li>span{flex:1 1 220px;min-width:0}
+@media(max-width:559px){.facts b{flex-basis:100%}}
+.rel{display:grid;gap:10px;grid-template-columns:1fr}
+.rel a{display:flex;align-items:baseline;gap:10px;text-decoration:none;border:1px solid var(--line);
+background:var(--panel);border-radius:11px;padding:12px 15px;transition:border-color .2s}
+.rel a:hover{border-color:rgba(240,243,241,.24)}
+.rel .n{font-weight:600;font-size:15px}
+.rel .k{font-size:12.5px;color:var(--dim);margin-left:auto;white-space:nowrap}
+@media(min-width:640px){.rel{grid-template-columns:1fr 1fr}}
 footer{border-top:1px solid var(--line);padding:26px 0;color:var(--dim);font-size:14px}
 footer a{color:var(--muted);text-decoration:none}
 footer a:hover{color:var(--green)}
@@ -156,11 +175,35 @@ footer a:hover{color:var(--green)}
     <p class="desc">Cool cyan on abyssal navy: calm, high-contrast and easy on the eyes at night.</p>
     
     
+    <section class="sec"><h2>What a theme does</h2><p>A theme repaints the whole dashboard: accent, background, surfaces and text, on every screen the dashboard is open on. It changes nothing about which widgets you run.</p></section>
     <section class="sec"><h2>Palette</h2><div class="sw"><span><i style="background:#4cc3ff"></i>#4cc3ff</span><span><i style="background:#050d16"></i>#050d16</span><span><i style="background:#eaf4fb"></i>#eaf4fb</span></div></section>
     
     <p class="note">This one asks a little more of the machine than most — it is worth knowing before you load it onto a small screen.</p>
     <div class="cta"><a class="btn fill" href="/catalog/#deep-ocean">Copy the code in the catalog</a><a class="btn" href="/">Get Xenon</a></div>
     <p class="note">Free. Copy the share code, then paste it into Xenon under Settings → Widgets &amp; sharing → Import. Everything stays on your machine.</p>
+    <section class="sec"><h2>How to install it</h2><ol class="steps"><li><a href="/catalog/#deep-ocean">Open Deep Ocean in the catalog</a> and press Copy code.</li><li>In Xenon, open <b>Settings → Widgets &amp; sharing → Import</b> and paste the code.</li><li>Xenon shows you what the code contains before anything is applied. Confirm, and Deep Ocean is on your dashboard.</li><li>Do not have Xenon yet? <a href="/">It is free and open source</a>, for Windows, macOS and Linux.</li></ol></section>
+    <section class="sec"><h2>At a glance</h2>
+      <ul class="facts">
+        <li><b>Type</b><span>Theme</span></li>
+        <li><b>Category</b><span>Style</span></li>
+        <li><b>Made by</b><span>Xenon</span></li>
+        <li><b>Needs</b><span>Any recent Xenon</span></li>
+        <li><b>Runs on</b><span>Windows, macOS and Linux — on a second monitor, a Xeneon Edge, a tablet or a paired phone</span></li>
+        <li><b>Price</b><span>Free</span></li>
+        <li><b>Added</b><span>2026-07-09</span></li>
+      </ul>
+    </section>
+    <section class="sec"><h2>More from the catalog</h2>
+      <div class="rel">
+        <a href="/catalog/ember-nights/"><span class="n">Ember Nights</span><span class="k">Theme</span></a>
+        <a href="/catalog/nocturne-theme/"><span class="n">Nocturne</span><span class="k">Theme</span></a>
+        <a href="/catalog/nocturne-drift/"><span class="n">Nocturne Drift</span><span class="k">Background</span></a>
+        <a href="/catalog/nocturne-hours/"><span class="n">Nocturne Hours</span><span class="k">Ambient scene</span></a>
+        <a href="/catalog/silk-waves/"><span class="n">Silk Waves</span><span class="k">Background</span></a>
+        <a href="/catalog/forest/"><span class="n">Forest</span><span class="k">Theme</span></a>
+      </div>
+      <p class="note"><a href="/catalog/">See all community items →</a></p>
+    </section>
   </main>
 </div>
 
