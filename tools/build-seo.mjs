@@ -104,6 +104,32 @@ const CAT_LABEL = {
 // pulled — so the type follows what the thing actually is.
 const SOFTWARE_KINDS = new Set(['widget', 'deck', 'bundle']);
 
+// One sentence per kind, saying what installing it actually changes on the
+// dashboard. Pages of the same kind share theirs, which is fine: it is the
+// paragraph that lets a page answer "what is a Xenon ambient scene" at all,
+// and the name, description, palette, tags and related list around it are what
+// keep the page distinct from its siblings.
+const KIND_BLURB = {
+  theme: 'A theme repaints the whole dashboard: accent, background, surfaces and text, ' +
+    'on every screen the dashboard is open on. It changes nothing about which widgets you run.',
+  bg: 'A background replaces the dashboard\'s backdrop with an animated scene that draws behind ' +
+    'your tiles. It runs locally on your own machine, with no video file to download.',
+  page: 'A page is a ready-made dashboard layout: which widgets sit where, at what size, ' +
+    'across the grid. Importing it adds the page alongside the ones you already have.',
+  deck: 'A Deck profile is a set of touch keys — apps, files, sites, media controls, macros — ' +
+    'laid out ready to press. You can edit every key after importing it.',
+  widget: 'A widget is a tile that lives on your dashboard grid. It runs sandboxed, with no ' +
+    'network access unless its manifest asks for named hosts and you approve them at install.',
+  bundle: 'A package installs several pieces at once — typically a theme, a background and one ' +
+    'or more widgets built to look like each other — so the whole dashboard changes in one paste.',
+  ambient: 'An ambient scene takes over the full screen when the dashboard goes idle, and steps ' +
+    'aside the moment you touch it. It is the screensaver the Xeneon Edge never had.',
+  icons: 'An icon pack replaces the artwork on your Deck keys, so a profile can look like one ' +
+    'thing rather than a grid of defaults.',
+  sounds: 'A sound pack replaces the dashboard\'s own feedback sounds — key presses, alerts, ' +
+    'the voice session chimes.',
+};
+
 /* ── the per-entry page ──────────────────────────────────────────────────── */
 
 const PAGE_CSS = `
@@ -155,13 +181,73 @@ font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(
 .btn.fill{background:var(--green);border-color:var(--green);color:#052012}
 .btn:hover{border-color:rgba(240,243,241,.24)}
 .note{margin-top:14px;font-size:14px;color:var(--dim);max-width:62ch}
+.steps{margin:0;padding-left:22px;color:#c6cfca;max-width:66ch}
+.steps li{margin-bottom:7px}
+.steps li:last-child{margin-bottom:0}
+.facts{list-style:none;margin:0;padding:0;color:#c6cfca;max-width:66ch}
+.facts li{display:flex;flex-wrap:wrap;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
+.facts li:last-child{border-bottom:0}
+.facts b{font-weight:600;color:var(--muted);flex:0 0 148px;font-size:13.5px;letter-spacing:.02em}
+/* Without a basis the long value ("Runs on") wrapped under its own label while
+   every short row stayed beside it, so the column read as broken every few rows.
+   Below 560px the label goes on its own line for all of them, together. */
+.facts li>span{flex:1 1 220px;min-width:0}
+@media(max-width:559px){.facts b{flex-basis:100%}}
+.rel{display:grid;gap:10px;grid-template-columns:1fr}
+.rel a{display:flex;align-items:baseline;gap:10px;text-decoration:none;border:1px solid var(--line);
+background:var(--panel);border-radius:11px;padding:12px 15px;transition:border-color .2s}
+.rel a:hover{border-color:rgba(240,243,241,.24)}
+.rel .n{font-weight:600;font-size:15px}
+.rel .k{font-size:12.5px;color:var(--dim);margin-left:auto;white-space:nowrap}
+@media(min-width:640px){.rel{grid-template-columns:1fr 1fr}}
 footer{border-top:1px solid var(--line);padding:26px 0;color:var(--dim);font-size:14px}
 footer a{color:var(--muted);text-decoration:none}
 footer a:hover{color:var(--green)}
 @media(min-width:720px){.shots{grid-template-columns:1fr 1fr}.shots img:first-child{grid-column:1/-1}}
 `.trim();
 
-function entryPage(e, indexable) {
+// Every entry page used to link only to /, /catalog/ and the two evergreen
+// pages, which made the catalog a star: one hub and 45 leaves with nothing
+// between them. A crawler reads that shape as 45 pages nobody links to, and
+// Search Console said so — "discovered, currently not indexed" on all of them.
+// These links are the lateral edges. Related is scored, never random: CI
+// regenerates every page on each deploy, so a shuffled list would rewrite 45
+// files on every run and bury a real catalog change in the noise.
+//
+// Only LIVE entries are eligible. A page outside its active window ships
+// noindex, and pointing a crawler at noindexed pages wastes the very budget
+// this block exists to attract.
+function relatedFor(e, live) {
+  const mine = new Set((e.tags || []).map((t) => String(t).toLowerCase()));
+  const scored = [];
+  for (const o of live) {
+    if (o.id === e.id) continue;
+    const theirs = (o.tags || []).map((t) => String(t).toLowerCase());
+    // A shared tag is the strongest signal the catalog carries: it is the only
+    // field an author writes about what the thing IS rather than what it is.
+    let score = theirs.filter((t) => mine.has(t)).length * 3;
+    if (o.category && o.category === e.category) score += 2;
+    if (o.author === e.author) score += 2;
+    if (o.kind === e.kind) score += 1;
+    if (score > 0) scored.push({ o, score });
+  }
+  // id breaks ties, so the same catalog always produces byte-identical pages.
+  scored.sort((a, b) => b.score - a.score || (a.o.id < b.o.id ? -1 : 1));
+  const out = scored.slice(0, 6).map((x) => x.o);
+  // A brand-new entry with unusual tags can score zero against everything. It
+  // still deserves a way out of the page, so the newest items fill the gap.
+  if (out.length < 4) {
+    const have = new Set([e.id, ...out.map((o) => o.id)]);
+    const rest = live
+      .filter((o) => !have.has(o.id))
+      .sort((a, b) => String(b.addedAt || '').localeCompare(String(a.addedAt || '')) ||
+        (a.id < b.id ? -1 : 1));
+    out.push(...rest.slice(0, 4 - out.length));
+  }
+  return out;
+}
+
+function entryPage(e, indexable, live = []) {
   const url = `${SITE}/catalog/${encodeURIComponent(e.id)}/`;
   const kindLabel = KIND_LABEL[e.kind] || e.kind;
   const catLabel = e.category ? (CAT_LABEL[e.category] || e.category) : '';
@@ -194,7 +280,9 @@ function entryPage(e, indexable) {
   };
   if (SOFTWARE_KINDS.has(e.kind)) {
     work.applicationCategory = 'DesktopApplication';
-    work.operatingSystem = 'Windows 10, Windows 11';
+    // Xenon has run on all three since v4.11.0. This said "Windows 10, Windows 11"
+    // and was telling Google the opposite on 23 pages.
+    work.operatingSystem = 'Windows, macOS, Linux';
     // The item runs inside Xenon, not on its own — say so rather than let it
     // read as a standalone download.
     work.softwareRequirements = e.appVersionMin ? `Xenon ${e.appVersionMin} or later` : 'Xenon';
@@ -289,6 +377,61 @@ function entryPage(e, indexable) {
       `Settings → Widgets &amp; sharing → Import. Everything stays on your machine.`;
   }
 
+  // The steps a visitor actually has to perform, written out instead of implied
+  // by a button. Import is the same three moves for everything in the catalog;
+  // what changes is how you come by the code, which is exactly the part a
+  // supporters' item or a limited drop needs explained on its own page.
+  const steps = [];
+  if (limited && soldOut) {
+    steps.push(
+      `This drop is closed — all ${esc(limited.total)} copies were claimed.`,
+      `<a href="/catalog/">Browse the rest of the catalog</a> for something still available.`
+    );
+  } else {
+    if (limited) {
+      steps.push(`<a href="${esc(limited.reserveUrl || DISCORD)}" rel="noopener">Reserve a copy on Discord</a>. ` +
+        `Discord verifies your account and sends you a personal access code.`);
+    } else if (locked) {
+      steps.push(`<a href="${inCatalog}">Open ${esc(e.name)} in the catalog</a> and unlock it with your ` +
+        `supporter code. One code unlocks it on up to three machines.`);
+    } else {
+      steps.push(`<a href="${inCatalog}">Open ${esc(e.name)} in the catalog</a> and press Copy code.`);
+    }
+    steps.push(`In Xenon, open <b>Settings → Widgets &amp; sharing → Import</b> and paste the code.`);
+    steps.push(`Xenon shows you what the code contains before anything is applied. Confirm, and ` +
+      `${esc(e.name)} is on your dashboard.`);
+    steps.push(e.appVersionMin
+      ? `This one needs <a href="/">Xenon ${esc(e.appVersionMin)} or later</a>. An older install ` +
+        `refuses the code rather than importing half of it.`
+      : `Do not have Xenon yet? <a href="/">It is free and open source</a>, for Windows, macOS and Linux.`);
+  }
+
+  // A plain facts table. Every row is a field the catalog already carries, and
+  // together they are what someone comparing two items wants without opening
+  // the interactive catalog and clicking through.
+  const facts = [['Type', esc(kindLabel)]];
+  if (catLabel) facts.push(['Category', esc(catLabel)]);
+  facts.push(['Made by', esc(e.author) + (e.authorSupporter ? ' (supporter)' : '')]);
+  if (e.version) facts.push(['Version', 'v' + esc(e.version)]);
+  facts.push(['Needs', e.appVersionMin ? `Xenon ${esc(e.appVersionMin)} or later` : 'Any recent Xenon']);
+  facts.push(['Runs on', 'Windows, macOS and Linux — on a second monitor, a Xeneon Edge, ' +
+    'a tablet or a paired phone']);
+  facts.push(['Price', limited ? 'Reserved on Discord' : locked ? 'Supporters' : 'Free']);
+  if (published) facts.push(['Added', esc(published)]);
+  if (modified && modified !== published) facts.push(['Updated', esc(modified)]);
+
+  const related = relatedFor(e, live);
+  const relatedBlock = related.length
+    ? `<section class="sec"><h2>More from the catalog</h2>
+      <div class="rel">
+${related.map((o) =>
+      `        <a href="/catalog/${encodeURIComponent(o.id)}/"><span class="n">${esc(o.name)}</span>` +
+      `<span class="k">${esc(KIND_LABEL[o.kind] || o.kind)}</span></a>`).join('\n')}
+      </div>
+      <p class="note"><a href="/catalog/">See all community items →</a></p>
+    </section>`
+    : '';
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -344,6 +487,9 @@ ${ld({ '@context': 'https://schema.org', '@graph': graph })}
     ${e.description ? `<p class="desc">${esc(e.description)}</p>` : ''}
     ${shotTags.length ? `<div class="shots">${shotTags.join('')}</div>` : ''}
     ${e.changelog ? `<section class="sec"><h2>What's in it</h2><p>${esc(e.changelog)}</p></section>` : ''}
+    ${KIND_BLURB[e.kind]
+      ? `<section class="sec"><h2>What a ${esc(kindLabel.toLowerCase())} does</h2><p>${KIND_BLURB[e.kind]}</p></section>`
+      : ''}
     ${swatches ? `<section class="sec"><h2>Palette</h2><div class="sw">${swatches}</div></section>` : ''}
     ${Array.isArray(e.tags) && e.tags.length
       ? `<section class="sec"><h2>Tags</h2><div class="tags">${e.tags.map((t) => `<span>#${esc(t)}</span>`).join('')}</div></section>`
@@ -353,6 +499,16 @@ ${ld({ '@context': 'https://schema.org', '@graph': graph })}
       : ''}
     <div class="cta">${buttons}</div>
     <p class="note">${note}</p>
+    ${steps.length
+      ? `<section class="sec"><h2>How to install it</h2><ol class="steps">` +
+        steps.map((s) => `<li>${s}</li>`).join('') + `</ol></section>`
+      : ''}
+    <section class="sec"><h2>At a glance</h2>
+      <ul class="facts">
+${facts.map(([k, v]) => `        <li><b>${k}</b><span>${v}</span></li>`).join('\n')}
+      </ul>
+    </section>
+    ${relatedBlock}
   </main>
 </div>
 
@@ -504,8 +660,12 @@ function main() {
 
   const built = new Set();
   const live = [];
+  const usable = [];
   let indexed = 0;
 
+  // Two passes, because a page's Related block links to its neighbours and so
+  // cannot be written until every neighbour is known to be live. The first pass
+  // decides what exists; the second writes it.
   for (const e of entries) {
     // The id is the directory name and rides into URLs — anything outside the
     // catalog's own id shape is a path-traversal risk, not a catalog entry.
@@ -518,9 +678,7 @@ function main() {
       continue;
     }
     const isLive = visible(e, now);
-    const dir = path.join(DOCS, 'catalog', e.id);
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'index.html'), entryPage(e, isLive));
+    usable.push({ e, isLive });
     built.add(e.id);
     if (isLive) {
       indexed++;
@@ -532,6 +690,13 @@ function main() {
         priority: e.featured ? '0.8' : '0.6',
       });
     }
+  }
+
+  // Second pass: `live` is complete, so each page can link to its neighbours.
+  for (const { e, isLive } of usable) {
+    const dir = path.join(DOCS, 'catalog', e.id);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'index.html'), entryPage(e, isLive, live));
   }
 
   // An entry pulled from catalog.json leaves a page behind that says something
