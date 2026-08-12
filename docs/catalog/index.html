@@ -2435,7 +2435,8 @@ function applyLang(lang) {
        index cannot disagree with itself: the last index simply means "flush right". */
     let idx = 0;
     let at = 0;          // the offset currently painted, in px, always <= 0
-    let drag = null;     // { id, x0, from, moved }
+    let drag = null;     // { id, x0, from, moved, captured }
+    let swallowClick = false;   // set by the last drag, read by the click below
 
     // Read the geometry every time rather than caching it: the card width is a
     // clamp against the viewport, and the page is used at 32:9 and on a phone.
@@ -2486,10 +2487,17 @@ function applyLang(lang) {
     // Dragging replaces the native swipe the overflow scroller used to give us for
     // free. Without it the rail would be arrow-only, which on a touchscreen is a
     // regression however good the arrows look.
+    /* Pointer capture is taken only once the finger has actually MOVED, never on
+       pointerdown. A capture active over a pointerdown/pointerup pair retargets the
+       click that follows to the capture element, so the click landed on the row and
+       the card's own handler never ran: every card in a rail was unopenable while
+       the identical card in a grid opened fine (measured — the click's target was
+       the row). Capturing on the first real move keeps the drag working past the
+       rail's edges and leaves a plain tap alone. */
     row.addEventListener('pointerdown', (e) => {
       if (e.button != null && e.button !== 0) return;
-      drag = { id: e.pointerId, x0: e.clientX, from: at, moved: 0 };
-      row.setPointerCapture && row.setPointerCapture(e.pointerId);
+      swallowClick = false;   // a drag whose click never arrived must not eat the next tap
+      drag = { id: e.pointerId, x0: e.clientX, from: at, moved: 0, captured: false };
     });
     row.addEventListener('pointermove', (e) => {
       if (!drag || e.pointerId !== drag.id) return;
@@ -2498,6 +2506,10 @@ function applyLang(lang) {
       // Rubber-band a little past the ends rather than stopping dead: a row that
       // stops moving under the finger reads as broken, not as finished.
       if (drag.moved > 6) {
+        if (!drag.captured) {
+          drag.captured = true;
+          try { row.setPointerCapture && row.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+        }
         pause();
         const raw = drag.from + dx;
         const lim = maxShift();
@@ -2508,6 +2520,7 @@ function applyLang(lang) {
       if (!drag || (e.pointerId != null && e.pointerId !== drag.id)) return;
       const moved = drag.moved;
       drag = null;
+      swallowClick = moved > 6;
       if (moved > 6) goto(nearest(at), true);
       else row.classList.remove('is-dragging');
     };
@@ -2515,9 +2528,12 @@ function applyLang(lang) {
     row.addEventListener('pointercancel', endDrag);
     // A drag ends over a card, so the browser fires its click too. Swallow it in
     // the capture phase, before the card's own handler opens an entry the user was
-    // only sliding past.
+    // only sliding past. The flag is read here rather than `drag`, which endDrag has
+    // already cleared by the time the click arrives.
     row.addEventListener('click', (e) => {
-      if (drag && drag.moved > 6) { e.stopPropagation(); e.preventDefault(); }
+      if (!swallowClick) return;
+      swallowClick = false;
+      e.stopPropagation(); e.preventDefault();
     }, true);
 
     /* Two listeners here live on window/document rather than on the rail, and
