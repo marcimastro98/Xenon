@@ -3184,6 +3184,40 @@
             <button type="button" class="settings-btn" id="settings-gemini-reset" onclick="resetAiKey()" data-i18n="settings_key_reset" hidden>Rimuovi chiave</button>
           </label>
 
+          <!-- Gemini models, one per role. Filled live from the models API (see
+               AI_MODEL_CONTROLS in js/settings.js): "Auto" follows the newest
+               model of a family, a concrete id is a pin. The line under each
+               dropdown says which id Auto currently resolves to. -->
+          <div class="settings-subpanel full" id="settings-gemini-models" hidden>
+            <label class="settings-row full">
+              <span class="settings-label-line"><span data-i18n="settings_gemini_model">Modello chat</span><span class="settings-hint" data-i18n="settings_model_live_hint">i più recenti dal tuo account</span></span>
+              <select class="settings-text-input" id="settings-gemini-model" data-custom-select data-cs-fixed onchange="onAiModelSelect('geminiModel', this.value)"></select>
+              <input class="settings-text-input" id="settings-gemini-model-custom" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="gemini-3.7-flash" oninput="updateAiModelChoice('geminiModel', this.value)" hidden>
+              <span class="settings-hint" id="settings-gemini-model-used" hidden></span>
+            </label>
+            <label class="settings-row full">
+              <span class="settings-label-line"><span data-i18n="settings_gemini_model_pro">Modello ragionamento avanzato</span></span>
+              <select class="settings-text-input" id="settings-gemini-model-pro" data-custom-select data-cs-fixed onchange="onAiModelSelect('geminiModelPro', this.value)"></select>
+              <input class="settings-text-input" id="settings-gemini-model-pro-custom" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="gemini-3.1-pro-preview" oninput="updateAiModelChoice('geminiModelPro', this.value)" hidden>
+              <span class="settings-hint" id="settings-gemini-model-pro-used" hidden></span>
+            </label>
+            <details class="settings-advanced">
+              <summary data-i18n="settings_model_voice_adv">Modelli vocali</summary>
+              <label class="settings-row full">
+                <span class="settings-label-line"><span data-i18n="settings_gemini_model_tts">Modello voce (TTS)</span></span>
+                <select class="settings-text-input" id="settings-gemini-model-tts" data-custom-select data-cs-fixed onchange="onAiModelSelect('geminiModelTts', this.value)"></select>
+                <input class="settings-text-input" id="settings-gemini-model-tts-custom" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="gemini-3.1-flash-tts-preview" oninput="updateAiModelChoice('geminiModelTts', this.value)" hidden>
+                <span class="settings-hint" id="settings-gemini-model-tts-used" hidden></span>
+              </label>
+              <label class="settings-row full">
+                <span class="settings-label-line"><span data-i18n="settings_gemini_model_live">Modello Voce Live</span></span>
+                <select class="settings-text-input" id="settings-gemini-model-live" data-custom-select data-cs-fixed onchange="onAiModelSelect('geminiModelLive', this.value)"></select>
+                <input class="settings-text-input" id="settings-gemini-model-live-custom" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="gemini-3.1-flash-live-preview" oninput="updateAiModelChoice('geminiModelLive', this.value)" hidden>
+                <span class="settings-hint" id="settings-gemini-model-live-used" hidden></span>
+              </label>
+            </details>
+          </div>
+
           <!-- ChatGPT (OpenAI): key + model. The key is server-only (never shown
                back); once saved the field shows a "saved" placeholder. -->
           <div class="settings-subpanel full" id="settings-openai-panel" hidden>
@@ -3196,7 +3230,26 @@
               <span class="settings-label-line"><span data-i18n="settings_openai_model">Modello</span><span class="settings-hint" data-i18n="settings_model_live_hint">i più recenti dal tuo account</span></span>
               <select class="settings-text-input" id="settings-openai-model" data-custom-select data-cs-fixed onchange="onOpenaiModelSelect(this.value)"></select>
               <input class="settings-text-input" id="settings-openai-model-custom" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="gpt-4o" oninput="updateOpenaiModel(this.value)" hidden>
+              <span class="settings-hint" id="settings-openai-model-used" hidden></span>
             </label>
+            <!-- Speech models. Advanced because most users never change them,
+                 but selectable because whisper-1/tts-1 used to be hardcoded and
+                 an OpenAI retirement would have taken the voice with it. -->
+            <details class="settings-advanced">
+              <summary data-i18n="settings_model_voice_adv">Modelli vocali</summary>
+              <label class="settings-row full">
+                <span class="settings-label-line"><span data-i18n="settings_openai_stt_model">Modello trascrizione (STT)</span></span>
+                <select class="settings-text-input" id="settings-openai-stt-model" data-custom-select data-cs-fixed onchange="onAiModelSelect('openaiSttModel', this.value)"></select>
+                <input class="settings-text-input" id="settings-openai-stt-model-custom" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="whisper-1" oninput="updateAiModelChoice('openaiSttModel', this.value)" hidden>
+                <span class="settings-hint" id="settings-openai-stt-model-used" hidden></span>
+              </label>
+              <label class="settings-row full">
+                <span class="settings-label-line"><span data-i18n="settings_openai_tts_model">Modello voce (TTS)</span></span>
+                <select class="settings-text-input" id="settings-openai-tts-model" data-custom-select data-cs-fixed onchange="onAiModelSelect('openaiTtsModel', this.value)"></select>
+                <input class="settings-text-input" id="settings-openai-tts-model-custom" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="tts-1" oninput="updateAiModelChoice('openaiTtsModel', this.value)" hidden>
+                <span class="settings-hint" id="settings-openai-tts-model-used" hidden></span>
+              </label>
+            </details>
           </div>
 
           <!-- Claude (Anthropic): key + model. Server-only key, same pattern. -->
@@ -3210,6 +3263,7 @@
               <span class="settings-label-line"><span data-i18n="settings_anthropic_model">Modello</span><span class="settings-hint" data-i18n="settings_model_live_hint">i più recenti dal tuo account</span></span>
               <select class="settings-text-input" id="settings-anthropic-model" data-custom-select data-cs-fixed onchange="onAnthropicModelSelect(this.value)"></select>
               <input class="settings-text-input" id="settings-anthropic-model-custom" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="claude-sonnet-5" oninput="updateAnthropicModel(this.value)" hidden>
+              <span class="settings-hint" id="settings-anthropic-model-used" hidden></span>
             </label>
           </div>
           <label class="settings-toggle-row">

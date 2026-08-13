@@ -17,17 +17,35 @@ const aiLocal = require('./ai-local');
 
 const OPENAI_BASE = 'https://api.openai.com/v1';
 
-// Defaults are stable, broadly-available models; the chat model is overridable
-// in Settings → Xenon AI (any GPT model the user's key can reach).
+// Defaults are stable, broadly-available models: they are the OFFLINE fallback,
+// used when the live list is unreachable. What the user actually runs is resolved
+// by ai-models.js — `auto` follows whatever this key can reach today, a pinned id
+// is honoured forever.
 const DEFAULT_CHAT_MODEL = 'gpt-4o';
 const STT_MODEL = 'whisper-1';
 const TTS_MODEL = 'tts-1';
 const TTS_VOICE = 'alloy';
 
+const DEFAULTS = Object.freeze({ chat: DEFAULT_CHAT_MODEL, stt: STT_MODEL, tts: TTS_MODEL });
+
+// The roles an OpenAI id can be selected for. Speech has one family each, so
+// `auto` there simply means "the newest speech model of that kind".
+const ROLES = Object.freeze({
+  chat: { kind: 'chat', family: 'gpt' },
+  stt:  { kind: 'stt',  family: '' },
+  tts:  { kind: 'tts',  family: '' },
+});
+
+const SENTINEL_RE = /^auto(?::[a-z0-9.-]{1,24})?$/;
+
 // Sanitize a user-entered model tag: OpenAI model ids are lowercase letters,
-// digits, dots and hyphens (e.g. gpt-4o, gpt-4.1-mini). Anything else → default.
+// digits, dots and hyphens (e.g. gpt-4o, gpt-4.1-mini). The `auto` / `auto:<family>`
+// sentinel is accepted ahead of that rule — it carries a colon, which the id
+// pattern rejects, so without this branch every auto setting would silently
+// collapse back to the hardcoded default. Anything else → default.
 function sanitizeModel(value) {
   const v = String(value || '').trim();
+  if (SENTINEL_RE.test(v)) return v;
   if (v.length > 0 && v.length <= 60 && /^[a-z0-9._-]+$/i.test(v)) return v;
   return DEFAULT_CHAT_MODEL;
 }
@@ -151,15 +169,24 @@ async function oneShot({ apiKey, model, systemText, userText, maxTokens }) {
   return (msg && typeof msg.content === 'string') ? msg.content.trim() : '';
 }
 
+// A concrete id or nothing. The speech routes are handed an ALREADY-resolved
+// model by server.js, so a sentinel arriving here means something upstream
+// skipped resolution — send the stable default rather than a literal "auto".
+function _concrete(value, fallback) {
+  const v = String(value || '').trim();
+  if (!v || SENTINEL_RE.test(v)) return fallback;
+  return /^[a-z0-9._-]{1,60}$/i.test(v) ? v : fallback;
+}
+
 // Speech-to-text via Whisper. `wavBuffer` is a WAV Buffer (same input the local
 // Whisper.cpp path gets). Returns the transcript text. Multipart upload.
-async function stt({ apiKey, wavBuffer, lang }) {
+async function stt({ apiKey, wavBuffer, lang, model }) {
   const key = String(apiKey || '').trim();
   if (!key) { const e = new Error('ChatGPT (OpenAI): no API key configured.'); e.code = 'no_key'; throw e; }
   if (!wavBuffer || !wavBuffer.length) return '';
   const form = new FormData();
   form.append('file', new Blob([wavBuffer], { type: 'audio/wav' }), 'audio.wav');
-  form.append('model', STT_MODEL);
+  form.append('model', _concrete(model, STT_MODEL));
   const code = String(lang || '').toLowerCase().slice(0, 2);
   if (code && /^[a-z]{2}$/.test(code)) form.append('language', code);
   const ctrl = new AbortController();
@@ -177,7 +204,7 @@ async function stt({ apiKey, wavBuffer, lang }) {
 
 // Text-to-speech. Returns a WAV Buffer (response_format 'wav') so it matches the
 // server-side WAV player the Gemini/local TTS paths feed.
-async function tts({ apiKey, text, voice }) {
+async function tts({ apiKey, text, voice, model }) {
   const key = String(apiKey || '').trim();
   const clean = String(text || '').trim().slice(0, 2000);
   if (!key || !clean) return Buffer.alloc(0);
@@ -188,7 +215,7 @@ async function tts({ apiKey, text, voice }) {
     res = await fetch(OPENAI_BASE + '/audio/speech', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
-      body: JSON.stringify({ model: TTS_MODEL, voice: voice || TTS_VOICE, input: clean, response_format: 'wav' }),
+      body: JSON.stringify({ model: _concrete(model, TTS_MODEL), voice: voice || TTS_VOICE, input: clean, response_format: 'wav' }),
       signal: ctrl.signal,
     });
   } finally { clearTimeout(timer); }
@@ -197,10 +224,36 @@ async function tts({ apiKey, text, voice }) {
   return buf;
 }
 
-// List the chat-capable models available to this key, newest first. Powers the
-// model picker so it always reflects what OpenAI currently offers — no hardcoded
-// list to keep up to date. Returns [{ id, label }]. Non-chat models (embeddings,
-// audio/whisper/tts, image, moderation, realtime…) are filtered out.
+// Classify one /models entry into the shape ai-models.js ranks over. OpenAI's
+// list is a flat set of ids with a `created` stamp and no capability metadata, so
+// the role has to be read off the id — but only the SPEECH roles need pattern
+// matching, since a transcription or speech model says so in its name
+// (whisper-1, gpt-4o-transcribe, tts-1, gpt-4o-mini-tts). Returns null for
+// everything we do not drive (embeddings, images, moderation, realtime, the
+// audio-in-chat variants that speak a different request shape).
+function classify(m) {
+  const id = m && typeof m.id === 'string' ? m.id : '';
+  if (!id) return null;
+  const low = id.toLowerCase();
+  const rank = Number(m.created) || 0;
+  const preview = /preview/.test(low);
+  const base = { id, label: id, rank, preview, alias: false };
+
+  if (/whisper|transcribe/.test(low)) return { ...base, kind: 'stt', family: '' };
+  if (/(^|-)tts(-|$)/.test(low)) return { ...base, kind: 'tts', family: '' };
+  if (/(embedding|image|dall|moderation|realtime|audio|search|instruct|codex)/.test(low)) return null;
+  if (!/^(gpt-|o\d|chatgpt)/.test(low)) return null;
+  // Families a user would actually ask for: the flagship line, the cheap line,
+  // and the reasoning line. A version number is not a family — it is what `auto`
+  // is allowed to move across.
+  const family = /(mini|nano|small)/.test(low) ? 'mini'
+    : (/^o\d/.test(low) ? 'reasoning' : 'gpt');
+  return { ...base, kind: 'chat', family };
+}
+
+// List the models available to this key, classified. Powers the model picker so
+// it always reflects what OpenAI currently offers — no hardcoded list to keep up
+// to date — and feeds the `auto` resolution in ai-models.js.
 async function listModels({ apiKey }) {
   const key = String(apiKey || '').trim();
   if (!key) return [];
@@ -213,16 +266,14 @@ async function listModels({ apiKey }) {
   if (!res.ok) throw _httpError(res.status, await res.text().catch(() => ''));
   const j = await res.json();
   const data = Array.isArray(j && j.data) ? j.data : [];
-  const isChat = (id) => /^(gpt-|o\d|chatgpt)/i.test(id)
-    && !/(embedding|whisper|tts|audio|realtime|image|dall|moderation|transcribe|search|instruct)/i.test(id);
-  return data
-    .filter(m => m && typeof m.id === 'string' && isChat(m.id))
-    .sort((a, b) => (b.created || 0) - (a.created || 0))
-    .map(m => ({ id: m.id, label: m.id }));
+  return data.map(classify).filter(Boolean).sort((a, b) => b.rank - a.rank);
 }
 
 module.exports = {
   DEFAULT_CHAT_MODEL,
+  DEFAULTS,
+  ROLES,
+  classify,
   STT_MODEL,
   TTS_MODEL,
   TTS_VOICE,

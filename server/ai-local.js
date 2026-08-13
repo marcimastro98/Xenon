@@ -87,6 +87,19 @@ const MODEL_REQUIREMENTS = Object.freeze({
   'gemma4:12b':  { minVramGB: 12, minRamGB: 32 },
 });
 
+// Clamp a requirement pair that came from outside this file. Out-of-range or
+// non-numeric values are dropped entirely rather than coerced: a requirement of
+// 0 GB would wave through a model that cannot run, which is the one outcome this
+// gate exists to prevent.
+function _sanitizedReq(extra) {
+  if (!extra || typeof extra !== 'object') return null;
+  const v = Number(extra.minVramGB);
+  const r = Number(extra.minRamGB);
+  if (!Number.isFinite(v) || !Number.isFinite(r)) return null;
+  if (v < 1 || v > 128 || r < 1 || r > 512) return null;
+  return { minVramGB: v, minRamGB: r };
+}
+
 // Pure tier calculation from rounded GB figures. Mirrors the thresholds in the
 // design spec §4.1, kept in lock-step with MODEL_REQUIREMENTS so `auto` never
 // recommends a model the hardware can't run. Returns { tier, recommended }.
@@ -102,11 +115,15 @@ function computeTier({ ramGB = 0, vramGB = 0, cores = 0 } = {}) {
 // 'unknown' (custom tag we can't size — allowed, the tier gate still guards weak
 // machines), or 'insufficient' (refuse — neither VRAM nor RAM is enough). The
 // reason string is user-facing Italian, shown verbatim when a download is blocked.
-function modelSafety(model, scan) {
+// `extraReq` carries the requirements the remote download catalog published for
+// a model this table does not know ({ minVramGB, minRamGB }). The LOCAL table
+// always wins where it has an entry: it is the safety gate, and a file fetched
+// over the network must not be able to lower the bar on a machine it cannot see.
+function modelSafety(model, scan, extraReq) {
   const s = scan || {};
   const vram = Number(s.vram) || 0;
   const ram = Number(s.ram) || 0;
-  const req = MODEL_REQUIREMENTS[model];
+  const req = MODEL_REQUIREMENTS[model] || _sanitizedReq(extraReq);
   if (!req) return { ok: true, code: 'unknown', reason: '' };
   if (vram >= req.minVramGB) return { ok: true, code: 'gpu', reason: '' };
   if (ram >= req.minRamGB) return { ok: true, code: 'cpu', reason: '' };
@@ -471,7 +488,7 @@ async function localChat(opts) {
 
 async function _localChatOnce({ baseUrl, model, geminiTools, history, systemText, executeTool }, progress) {
   const tools = geminiToolsToOpenAI(geminiTools); // native tools share the OpenAI shape
-  const supportsVision = modelSupportsVision(model);
+  const supportsVision = await supportsVisionLive(baseUrl, model);
   const messages = [{ role: 'system', content: systemText }, ...geminiHistoryToNative(history, { supportsVision })];
   const clientActions = [];
   let finalText = '';
@@ -884,6 +901,68 @@ function listOllamaModels(baseUrl, timeoutMs = 3000) {
   });
 }
 
+// What an INSTALLED model can actually do, from Ollama itself. POST /api/show
+// returns a `capabilities` array (e.g. ["completion","tools","vision"]) computed
+// from the model's own template and architecture, which is the only non-guess
+// answer available: VISION_MODELS above is a hand-maintained list of name
+// patterns and it silently misses every model published after it was written.
+// Never rejects — an empty array means "Ollama did not say", and callers fall
+// back to the pattern list rather than declaring a capability absent.
+function showModelCapabilities(baseUrl, model, timeoutMs = 4000) {
+  return new Promise((resolve) => {
+    let u;
+    try { u = new URL('/api/show', baseUrl); } catch { return resolve([]); }
+    const payload = JSON.stringify({ model: String(model || '') });
+    const req = http.request({
+      hostname: u.hostname, port: u.port || 11434, path: u.pathname, method: 'POST', family: 4,
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+    }, (res) => {
+      if (res.statusCode < 200 || res.statusCode >= 300) { res.resume(); return resolve([]); }
+      let data = '';
+      res.on('data', c => { data += c; });
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          const caps = Array.isArray(parsed && parsed.capabilities) ? parsed.capabilities : [];
+          resolve(caps.filter(c => typeof c === 'string').map(c => c.toLowerCase()));
+        } catch { resolve([]); }
+      });
+    });
+    req.on('error', () => resolve([]));
+    req.setTimeout(timeoutMs, () => { req.destroy(); resolve([]); });
+    req.write(payload);
+    req.end();
+  });
+}
+
+// Capabilities are a property of an installed tag, so they are cached per model.
+// Bounded (never an unbounded Map) and small: a machine has a handful of models.
+const _capsCache = new Map();
+const CAPS_CACHE_MAX = 32;
+
+async function capabilitiesFor(baseUrl, model) {
+  const key = String(model || '');
+  if (!key) return [];
+  if (_capsCache.has(key)) return _capsCache.get(key);
+  const caps = await showModelCapabilities(baseUrl, key);
+  if (caps.length) {
+    if (_capsCache.size >= CAPS_CACHE_MAX) _capsCache.delete(_capsCache.keys().next().value);
+    _capsCache.set(key, caps);
+  }
+  return caps;
+}
+
+// Does this model accept images? Ask Ollama first; fall back to the name-pattern
+// list only when it does not answer. The order matters: a model published after
+// VISION_MODELS was last edited is invisible to the pattern list, and silently
+// dropping the screenshot is the "looks alive, does nothing" failure — the user
+// asks about what is on screen and gets an answer about nothing.
+async function supportsVisionLive(baseUrl, model) {
+  const caps = await capabilitiesFor(baseUrl, model);
+  if (caps.length) return caps.includes('vision');
+  return modelSupportsVision(model);
+}
+
 // Stream `ollama pull` progress. Calls onProgress({status,total,completed}) for
 // each NDJSON line. Resolves on completion, rejects on connection/HTTP errors.
 function pullModel(baseUrl, model, onProgress) {
@@ -1265,6 +1344,9 @@ module.exports = {
   MODEL_WHITELIST,
   MODEL_REQUIREMENTS,
   modelSafety,
+  showModelCapabilities,
+  capabilitiesFor,
+  supportsVisionLive,
   VISION_MODELS,
   EDGE_VOICES,
   EDGE_VOICE_FALLBACK,
