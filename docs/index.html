@@ -187,7 +187,11 @@
      Words where a word is clearer, marks only where the mark IS the name. */
   .top { position: sticky; top: 0; z-index: 50; background: var(--paper); border-bottom: 1px solid var(--hair); }
   .nav-inner { max-width: var(--rail); margin-inline: auto; padding-inline: var(--pad); height: 60px; display: flex; align-items: center; gap: 24px; }
-  .logo { display: inline-flex; align-items: center; gap: 0; flex-shrink: 0; font-family: var(--mono); font-weight: 600; font-size: 17px; letter-spacing: 0.01em; text-decoration: none; color: var(--ink); }
+  /* The shared wordmark (site.css) with the two things only this page needs:
+     it must not shrink in the nav flex row, and it takes the ink colour. This
+     page is the one that links site.css BEFORE its own style, so the values are
+     repeated here rather than inherited — keep the two in step. */
+  .logo { display: inline-flex; align-items: baseline; gap: 0; flex-shrink: 0; font-family: 'Archivo', 'Archivo Fallback', system-ui, sans-serif; font-weight: 700; font-size: 17px; letter-spacing: 0.02em; line-height: 1; text-decoration: none; color: var(--ink); }
   /* The mark is the X of the wordmark: images/logo-x.png is the art trimmed to
      the glyph (logo.png carries 28% transparent padding a side, which is what
      pushed the word away from it). Its left chevron is near-white, so on paper
@@ -355,10 +359,14 @@
   .feat:first-of-type { border-top: 0; padding-top: 8px; }
   .feat p { margin-top: 12px; font-size: 16px; color: var(--ink-1); max-width: 42ch; }
   .feat-media { justify-self: end; width: 100%; max-width: 620px; }
-  /* A shot narrower than the column is shown at its own size instead of being
-     blown up to fill it: the lighting card is 580px wide and was rendering
-     upscaled, which is both softer and a seventh identical rectangle. */
+  /* The picture carries as much weight as the words next to it: a two-line
+     entry gets a smaller shot than a five-line one. It also stops the lighting
+     card, which is 580px wide, from being blown up past its own size. */
   .feat-media--card { max-width: 440px; }
+  /* Search and disk space share one entry, so they share one media row. The
+     columns are in the ratio of the two videos' own aspects (1.94 and 1.22), so
+     both land on the same height instead of leaving a hole under the wider one. */
+  .feat-duo { display: grid; grid-template-columns: 1.94fr 1.22fr; gap: 18px; align-items: start; }
   .feat-media img, .feat-media video { width: 100%; border: 1px solid var(--hair); background: var(--well); }
   .feat--wide { grid-template-columns: minmax(0, 1fr); }
   .feat--wide p { max-width: 64ch; }
@@ -385,16 +393,9 @@
   .wall-row { list-style: none; }
   .wall-row li { font-size: 15px; line-height: 2.05; color: var(--ink); }
 
-  .wide-shot { margin-top: 44px; }
+  .wide-shot { margin-top: 44px; cursor: zoom-in; }
   .wide-shot img { width: 100%; border: 1px solid var(--hair); background: var(--well); }
   .wide-shot figcaption { margin-top: 10px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
-
-  .strip { display: flex; gap: 16px; overflow-x: auto; margin-top: 44px; padding-bottom: 14px; cursor: grab; align-items: flex-start; scrollbar-width: thin; scrollbar-color: var(--hair-2) transparent; }
-  .strip.drag { cursor: grabbing; }
-  .shot { flex: 0 0 auto; }
-  .shot img { height: 208px; width: auto; max-width: none; border: 1px solid var(--hair); background: var(--well); }
-  .shot figcaption { margin-top: 9px; font-size: 13px; color: var(--ink-2); }
-  .shot figcaption .n { display: none; }
 
   .more-foot { margin-top: 26px; font-size: 15px; }
   .more-foot a, .inline-link { color: var(--ink-1); text-decoration: underline; text-underline-offset: 4px; text-decoration-color: var(--hair-2); }
@@ -409,9 +410,6 @@
   .lb-x { position: fixed; top: 20px; right: 24px; font-size: 20px; color: var(--bone); padding: 10px; }
 
   /* ── Catalog ── */
-  .cat-film { margin: 0; }
-  .cat-film video { width: 100%; border: 1px solid var(--hair); border-radius: 0; background: var(--well); }
-  .cat-film figcaption { margin-top: 10px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
 
   .drops { display: grid; gap: 20px; margin-top: 44px; }
   .drops.duo { grid-template-columns: 1fr 1fr; }
@@ -435,6 +433,9 @@
   .drop-see:hover { color: var(--ink); text-decoration-color: currentColor; }
 
   .catalog-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 44px; }
+  /* This page's stylesheet loads after site.css, so its own [hidden] rule would
+     lose to the display:grid above. Said here or the fallback never hides. */
+  .catalog-grid[hidden] { display: none; }
   .cat-card { display: block; text-decoration: none; }
   .cat-card .art { position: relative; display: block; aspect-ratio: 16 / 9; overflow: hidden; background: var(--well); border: 1px solid var(--hair); }
   .cat-card .cc-grad, .cat-card .cc-bg { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -475,13 +476,6 @@
   .dl-phone .txt p { font-size: 14.5px; color: var(--ink-2); margin-top: 4px; max-width: 60ch; }
   .dl-phone .go { flex: 0 0 auto; font-size: 14.5px; color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
 
-  .inst-note { margin-top: 36px; max-width: 760px; }
-  .inst-note > p { font-size: 15px; color: var(--ink-1); }
-  .inst-embed { display: flex; gap: 12px; align-items: stretch; margin-top: 12px; }
-  .inst-embed code { flex: 1; font-family: var(--mono); font-size: 12px; color: var(--ink-1); background: var(--paper-2); border: 1px solid var(--hair); padding: 12px 14px; overflow-x: auto; white-space: nowrap; }
-  .inst-copy { font-family: var(--mono); font-size: 12px; padding: 0 16px; border: 1px solid var(--hair-2); border-radius: 3px; color: var(--ink-1); }
-  .inst-copy:hover { color: var(--ink); border-color: var(--ink); }
-  .inst-copy.ok { color: var(--paper); background: var(--ink); border-color: var(--ink); }
 
   /* ── Supporters ── */
   .support-coffee { display: inline-flex; align-items: center; margin-top: 4px; padding: 11px 18px; font-size: 15px; font-weight: 600; color: var(--gold-ink); border: 1px solid var(--gold-ink); border-radius: 3px; text-decoration: none; }
@@ -549,6 +543,7 @@
   @media (max-width: 860px) {
     .feat { grid-template-columns: minmax(0, 1fr); }
     .feat-media { justify-self: stretch; max-width: none; margin-top: 8px; }
+    .feat-duo { gap: 12px; }
     .drops.duo { grid-template-columns: 1fr; }
     .catalog-grid { grid-template-columns: repeat(2, 1fr); }
     /* Two columns: the third and fourth category fall to a second row, so the
@@ -582,6 +577,7 @@
   }
   @media (max-width: 560px) {
     .catalog-grid { grid-template-columns: 1fr; }
+    .feat-duo { grid-template-columns: minmax(0, 1fr); }
     .nav-inner { gap: 10px; padding-inline: 16px; height: 56px; }
     .nav-actions { gap: 11px; }
     .nav-mark svg { width: 16px; height: 16px; }
@@ -840,12 +836,12 @@
   </div>
 </section>
 
-<!-- ── What it does: seven areas, one fact each. ── -->
+<!-- ── What it does: five entries, one fact each. ── -->
 <section class="sec" id="features">
   <div class="rail spine">
     <div class="spine-id">
       <h2 data-i18n-html="run.h2">What it does</h2>
-      <p data-i18n="run.p">Seven of the areas it covers; the full list of widgets is further down.</p>
+      <p data-i18n="run.p">Five of the areas it covers; the full list of widgets is further down.</p>
     </div>
     <div class="spine-body">
 
@@ -870,40 +866,28 @@
         <h3><span data-i18n="p3.h">Monitoring</span></h3>
         <p data-i18n="p3.p">CPU, GPU, RAM, network and the real in-game frame rate, kept for thirty days.</p>
       </div>
-      <figure class="feat-media"><img src="images/system-monitor.png" alt="System monitor with live charts" loading="lazy" width="844" height="660"></figure>
+      <figure class="feat-media feat-media--card"><img src="images/system-monitor.png" alt="System monitor with live charts" loading="lazy" width="844" height="660"></figure>
     </article>
 
-    <!-- The two panoramic shots take the whole column, with the words above
-         them: a 2:1 and a 3.6:1 frame squeezed into the same box as a square
-         one is how seven different things end up looking like one thing. -->
+    <!-- Search and disk space were two entries because they are two screens, not
+         because they are two features: both read the index the app keeps current
+         in the background. One entry, both videos side by side, and the section
+         is 550px shorter for it. -->
     <article class="feat feat--wide">
       <div>
-        <h3><span data-i18n="fs1.h">Search</span></h3>
-        <p data-i18n="fs1.p">Pull the top bar down and type the way you would say it, like "photos from december", and it searches an index that lives on your own disk.</p>
+        <h3><span data-i18n="fs1.h">Search and disk space</span></h3>
+        <p data-i18n="fs1.p">Pull the top bar down and type the way you would say it, like "photos from december". The same index, kept current on the PC in the background, is what draws the map of a drive the moment you open it; cleanup proposes only what is on a fixed list of caches and temporary files, and what it removes goes to the Recycle Bin.</p>
       </div>
-      <figure class="feat-media"><video data-autoplay width="920" height="474" muted loop playsinline preload="none" poster="images/search-poster.webp" aria-label="Pulling the top bar down to open Xenon's search and typing a phrase">
-        <source src="images/search.webm" type="video/webm">
-        <source src="images/search.mp4" type="video/mp4">
-      </video></figure>
-    </article>
-
-    <article class="feat">
-      <div>
-        <h3><span data-i18n="fs3.h">Disk space</span></h3>
-        <p data-i18n="fs3.p">Open a drive and the map is already drawn, because the index behind it is kept current in the background instead of rebuilt on demand. Cleanup proposes only what is on a fixed list of caches and temporary files, and what it removes goes to the Recycle Bin.</p>
-      </div>
-      <figure class="feat-media"><video data-autoplay width="720" height="590" muted loop playsinline preload="none" poster="images/disk-poster.webp" aria-label="Tapping through the disk space map, then the protected cleanup plan">
-        <source src="images/disk.webm" type="video/webm">
-        <source src="images/disk.mp4" type="video/mp4">
-      </video></figure>
-    </article>
-
-    <article class="feat feat--wide">
-      <div>
-        <h3><span data-i18n="p4.h">Bit</span></h3>
-        <p data-i18n="p4.p">Vitals watches hydration, focus and posture, but only if you switch it on, and Bit is the pixel pet that keeps asking until you take the break.</p>
-      </div>
-      <figure class="feat-media"><img src="images/vitals-widget.png" width="831" height="230" alt="Vitals meters with Bit, the pixel guardian" loading="lazy"></figure>
+      <figure class="feat-media feat-duo">
+        <video data-autoplay width="920" height="474" muted loop playsinline preload="none" poster="images/search-poster.webp" aria-label="Pulling the top bar down to open Xenon's search and typing a phrase">
+          <source src="images/search.webm" type="video/webm">
+          <source src="images/search.mp4" type="video/mp4">
+        </video>
+        <video data-autoplay width="720" height="590" muted loop playsinline preload="none" poster="images/disk-poster.webp" aria-label="Tapping through the disk space map, then the protected cleanup plan">
+          <source src="images/disk.webm" type="video/webm">
+          <source src="images/disk.mp4" type="video/mp4">
+        </video>
+      </figure>
     </article>
 
     <article class="feat">
@@ -992,31 +976,11 @@
       </section>
     </div>
 
-    <!-- Several of them at once, on one 32:9 screen. -->
-    <figure class="wide-shot">
+    <!-- Several of them at once, on one 32:9 screen. Tap to see it full size:
+         the file is 1997px wide and the page shows it at about half that. -->
+    <figure class="wide-shot" id="wide-shot" tabindex="0" role="button">
       <img src="images/overview-browser.webp" width="1997" height="605" loading="lazy" alt="One Xenon dashboard at 32:9: a YouTube player with its playlists, a browser tile, and the disk space map with cleanup suggestions">
     </figure>
-
-    <div class="strip" id="strip">
-      <figure class="shot"><img src="images/media.png" loading="lazy" alt="Media widget" width="823" height="541"><figcaption><span data-i18n="g1">Media & now playing</span></figcaption></figure>
-      <figure class="shot"><img src="images/calendar.png" loading="lazy" alt="Calendar widget" width="844" height="600"><figcaption><span data-i18n="g2">Calendar & ICS sync</span></figcaption></figure>
-      <figure class="shot"><img src="images/twitch.png" loading="lazy" alt="Twitch and OBS control" width="814" height="513"><figcaption><span data-i18n="g3">Twitch & OBS</span></figcaption></figure>
-      <figure class="shot"><img src="images/discord.png" loading="lazy" alt="Discord voice widget" width="811" height="520"><figcaption><span data-i18n="g4">Discord voice</span></figcaption></figure>
-      <figure class="shot"><img src="images/stocks-widget.png" loading="lazy" alt="Markets widget" width="844" height="626"><figcaption><span data-i18n="g5">Markets & charts</span></figcaption></figure>
-      <figure class="shot"><img src="images/football-widget.png" loading="lazy" alt="Football widget" width="844" height="626"><figcaption><span data-i18n="g6">Football, live</span></figcaption></figure>
-      <figure class="shot"><img src="images/news-widget.png" loading="lazy" alt="News widget" width="844" height="626"><figcaption><span data-i18n="g7">News stream</span></figcaption></figure>
-      <figure class="shot"><img src="images/weather.png" loading="lazy" alt="Weather widget" width="1344" height="569"><figcaption><span data-i18n="g8">Weather</span></figcaption></figure>
-      <figure class="shot"><img src="images/spotify.png" loading="lazy" alt="Spotify widget" width="1224" height="480"><figcaption><span data-i18n="g9">Spotify player</span></figcaption></figure>
-      <figure class="shot"><img src="images/widget-sdk.png" loading="lazy" alt="A community widget built with the SDK" width="808" height="516"><figcaption><span data-i18n="g10">Widget SDK</span></figcaption></figure>
-      <figure class="shot"><img src="images/app-switcher.png" loading="lazy" alt="App switcher" width="1108" height="610"><figcaption><span data-i18n="g11">App switcher</span></figcaption></figure>
-      <figure class="shot"><img src="images/system-history.png" loading="lazy" alt="Sensor history charts" width="801" height="526"><figcaption><span data-i18n="g12">Sensor history</span></figcaption></figure>
-      <figure class="shot"><img src="images/search-spotlight.png" loading="lazy" alt="Spotlight search reading a phrase as a date and a file type" width="812" height="701"><figcaption><span data-i18n="g13">Search, in your words</span></figcaption></figure>
-      <figure class="shot"><img src="images/disk-explore.png" loading="lazy" alt="Largest folders and largest files on a drive" width="844" height="693"><figcaption><span data-i18n="g14">What is taking the space</span></figcaption></figure>
-      <figure class="shot"><img src="images/disk-cleanup.png" loading="lazy" alt="The protected cleanup plan with its categories" width="844" height="693"><figcaption><span data-i18n="g15">Protected cleanup</span></figcaption></figure>
-      <figure class="shot"><img src="images/transfer.png" loading="lazy" alt="The file transfer tile listing files sent from a phone and from the PC" width="838" height="634"><figcaption><span data-i18n="g16">Files from your phone</span></figcaption></figure>
-      <figure class="shot"><img src="images/tile-shapes.png" loading="lazy" alt="Dashboard tiles cut into a hexagon and a ticket shape" width="1700" height="720"><figcaption><span data-i18n="g17">Tiles with a shape</span></figcaption></figure>
-      <figure class="shot"><img src="images/share-card.png" loading="lazy" alt="The share card with personal details blurred" width="760" height="732"><figcaption><span data-i18n="g18">Share what you built</span></figcaption></figure>
-    </div>
 
     <p class="more-foot">
       <a href="https://github.com/marcimastro98/Xenon/blob/main/FEATURES.md" target="_blank" rel="noopener" data-i18n="more.foot">See the full list of what&#39;s in there</a>
@@ -1034,19 +998,18 @@
     </div>
     <div class="spine-body">
 
-    <figure class="cat-film">
-      <video data-autoplay width="1600" height="450" muted loop playsinline preload="none"
-             poster="images/ambient-edge-poster.webp"
-             aria-label="The Nova Neon District ambient scene running on a Xeneon Edge">
-        <source src="images/ambient-edge.webm" type="video/webm">
-        <source src="images/ambient-edge.mp4" type="video/mp4">
-      </video>
-      <figcaption data-i18n="com.film">Nova Neon District, from the catalog, on a Xeneon Edge.</figcaption>
-    </figure>
-
+    <!-- A fixed video of one pack used to lead this section. It advertised an
+         entry the drops below do not necessarily carry, and the two are picked
+         by different rules, so the day a night-city pack was featured the
+         section showed what looked like the same thing twice. The drops are the
+         live half; they lead on their own. -->
     <div class="drops" id="drops" hidden></div>
 
-    <div class="catalog-grid">
+    <!-- Six hand-written cards, shown only when the live drops above could not
+         be built (offline, the catalog host down, nothing published). With real
+         drops on the page these are a second gallery of the same thing, so the
+         renderer hides them. -->
+    <div class="catalog-grid" id="catalog-fallback">
       <a class="cat-card" href="catalog/">
         <span class="art">
           <span class="cc-grad" style="background:radial-gradient(120% 130% at 20% 10%, rgba(255,77,109,.45), #2d1b36 60%)"></span>
@@ -1156,13 +1119,6 @@
       <a class="go" href="phone.html" data-i18n="dl.phone.a" data-track="phone_guide_click" data-track-location="downloads_mobile">See how</a>
     </div>
 
-    <div class="inst-note">
-      <p data-i18n-html="inst.icue">Using iCUE instead of the native app? Add a <b>Web page</b> (HTML) widget and paste this to embed the dashboard full-screen:</p>
-      <div class="inst-embed">
-        <code id="embed-code">&lt;iframe src="http://127.0.0.1:3030/" width="100%" height="100%" frameborder="0"&gt;&lt;/iframe&gt;</code>
-        <button class="inst-copy" type="button" id="embed-copy" data-i18n="inst.copy">Copy</button>
-      </div>
-    </div>
     </div>
   </div>
 </section>
@@ -1350,7 +1306,6 @@
     "rel.file": "File",
     "rel.req": "Requirements",
     "rel.more": "More",
-    "com.film": "Nova Neon District, from the catalog, on a Xeneon Edge.",
     "surf.monitor": "Monitor",
     "surf.laptop": "Laptop",
     "surf.tablet": "Tablet",
@@ -1396,33 +1351,11 @@
     "p2.p": "A grid of programmable keys that open apps, switch OBS scenes, send hotkeys and webhooks, or drive Discord voice and Spotify.",
     "p3.h": "Monitoring",
     "p3.p": "CPU, GPU, RAM, network and the real in-game frame rate, kept for thirty days.",
-    "p4.h": "Bit",
-    "p4.p": "Vitals watches hydration, focus and posture, but only if you switch it on, and Bit is the pixel pet that keeps asking until you take the break.",
-    "fs1.h": "Search",
-    "fs1.p": "Pull the top bar down and type the way you would say it, like \"photos from december\", and it searches an index that lives on your own disk.",
-    "fs3.h": "Disk space",
-    "fs3.p": "Open a drive and the map is already drawn, because the index behind it is kept current in the background instead of rebuilt on demand. Cleanup proposes only what is on a fixed list of caches and temporary files, and what it removes goes to the Recycle Bin.",
+    "fs1.h": "Search and disk space",
+    "fs1.p": "Pull the top bar down and type the way you would say it, like \"photos from december\". The same index, kept current on the PC in the background, is what draws the map of a drive the moment you open it; cleanup proposes only what is on a fixed list of caches and temporary files, and what it removes goes to the Recycle Bin.",
     "rgb.h2": "Lighting",
     "rgb.p": "Hue, WLED, Govee, LIFX, Nanoleaf and your CORSAIR gear, driven by CPU temperature, album art or a timer running out.",
     "more.foot": "See the full list of what's in there",
-    "g1": "Media & now playing",
-    "g2": "Calendar & ICS sync",
-    "g3": "Twitch & OBS",
-    "g4": "Discord voice",
-    "g5": "Markets & charts",
-    "g6": "Football, live",
-    "g7": "News stream",
-    "g8": "Weather",
-    "g9": "Spotify player",
-    "g10": "Widget SDK",
-    "g11": "App switcher",
-    "g12": "Sensor history",
-    "g13": "Search, in your words",
-    "g14": "What is taking the space",
-    "g15": "Protected cleanup",
-    "g16": "Files from your phone",
-    "g17": "Tiles with a shape",
-    "g18": "Share what you built",
     "com.h2": "From the catalog",
     "com.p": "Themes, backgrounds, widgets and whole packs made by other users. Copy a code, paste it into Xenon and it is applied.",
     "com.by": "by",
@@ -1443,9 +1376,6 @@
     "drop.see": "See what's inside",
     "inst.h2": "Installing",
     "inst.p": "One installer, which sets up the app, the dashboard engine behind it and the task that starts them at login.",
-    "inst.icue": "Using iCUE instead of the native app? Add a <b>Web page</b> (HTML) widget and paste this to embed the dashboard full-screen:",
-    "inst.copy": "Copy",
-    "inst.copied": "Copied",
     "sup2.t": "Xenon is written by one person.",
     "sup2.b": "Buy me a coffee",
     "sup.h2": "Supporters",
@@ -1465,7 +1395,7 @@
     "foot.support": "Support",
     "foot.coffee": "Buy me a coffee",
     "run.h2": "What it does",
-    "run.p": "Seven of the areas it covers; the full list of widgets is further down.",
+    "run.p": "Five of the areas it covers; the full list of widgets is further down.",
     "ix.h2": "Widgets",
     "ix.agenda": "Agenda",
     "ix.calendar": "Calendar",
@@ -1519,7 +1449,6 @@
     "rel.file": "File",
     "rel.req": "Requisiti",
     "rel.more": "Altro",
-    "com.film": "Nova Neon District, dal catalogo, su un Xeneon Edge.",
     "surf.monitor": "Monitor",
     "surf.laptop": "Portatile",
     "surf.tablet": "Tablet",
@@ -1565,33 +1494,11 @@
     "p2.p": "Una griglia di tasti programmabili che aprono app, cambiano scena in OBS, mandano hotkey e webhook, o comandano la voce di Discord e Spotify.",
     "p3.h": "Monitoraggio",
     "p3.p": "CPU, GPU, RAM, rete e gli FPS reali in gioco, tenuti per trenta giorni.",
-    "p4.h": "Bit",
-    "p4.p": "Vitals tiene d’occhio idratazione, concentrazione e postura solo se lo accendi tu, e Bit è il pet pixel che insiste finché non ti alzi.",
-    "fs1.h": "Ricerca",
-    "fs1.p": "Tiri giù la barra in alto e scrivi come lo diresti, tipo «foto di dicembre», e cerca dentro un indice che sta sul tuo disco.",
-    "fs3.h": "Spazio su disco",
-    "fs3.p": "Apri un disco e la mappa è già disegnata, perché l’indice dietro viene tenuto aggiornato in background invece di essere ricostruito ogni volta. La pulizia propone solo quello che sta in un elenco fisso di cache e file temporanei, e quello che rimuove finisce nel Cestino.",
+    "fs1.h": "Ricerca e spazio su disco",
+    "fs1.p": "Tiri giù la barra in alto e scrivi come lo diresti, tipo «foto di dicembre». Lo stesso indice, che il PC tiene aggiornato in background, è quello che disegna la mappa di un disco appena lo apri; la pulizia propone solo quello che sta in un elenco fisso di cache e file temporanei, e quello che rimuove finisce nel Cestino.",
     "rgb.h2": "Illuminazione",
     "rgb.p": "Hue, WLED, Govee, LIFX, Nanoleaf e il tuo hardware CORSAIR, guidati da temperatura CPU, copertina o timer che scade.",
     "more.foot": "Guarda la lista completa di cosa c'è dentro",
-    "g1": "Media e now playing",
-    "g2": "Calendario e sync ICS",
-    "g3": "Twitch e OBS",
-    "g4": "Voce Discord",
-    "g5": "Mercati e grafici",
-    "g6": "Calcio live",
-    "g7": "Flusso news",
-    "g8": "Meteo",
-    "g9": "Player Spotify",
-    "g10": "Widget SDK",
-    "g11": "App switcher",
-    "g12": "Storico sensori",
-    "g13": "Ricerca, a parole tue",
-    "g14": "Cosa occupa lo spazio",
-    "g15": "Pulizia protetta",
-    "g16": "File dal telefono",
-    "g17": "Tile con una forma",
-    "g18": "Condividi quello che hai costruito",
     "com.h2": "Dal catalogo",
     "com.p": "Temi, sfondi, widget e pacchetti interi fatti da altri utenti. Copi un codice, lo incolli in Xenon e viene applicato.",
     "com.by": "di",
@@ -1612,9 +1519,6 @@
     "drop.see": "Guarda cosa c'è dentro",
     "inst.h2": "Installazione",
     "inst.p": "Un installer, che mette a posto l’app, il motore della dashboard dietro di essa e l’attività che le avvia al login.",
-    "inst.icue": "Usi iCUE invece dell'app nativa? Aggiungi un widget <b>Pagina web</b> (HTML) e incolla questo per incorporare la dashboard a schermo intero:",
-    "inst.copy": "Copia",
-    "inst.copied": "Copiato",
     "sup2.t": "Xenon lo scrive una persona sola.",
     "sup2.b": "Offrimi un caffè",
     "sup.h2": "Sostenitori",
@@ -1634,7 +1538,7 @@
     "foot.support": "Sostieni",
     "foot.coffee": "Offrimi un caffè",
     "run.h2": "Cosa fa",
-    "run.p": "Sette delle aree che copre; l’elenco completo dei widget è più sotto.",
+    "run.p": "Cinque delle aree che copre; l’elenco completo dei widget è più sotto.",
     "ix.h2": "Widget",
     "ix.agenda": "Agenda",
     "ix.calendar": "Calendario",
@@ -1688,7 +1592,6 @@
     "rel.file": "파일",
     "rel.req": "요구 사항",
     "rel.more": "기타",
-    "com.film": "카탈로그의 Nova Neon District, Xeneon Edge에서.",
     "surf.monitor": "모니터",
     "surf.laptop": "노트북",
     "surf.tablet": "태블릿",
@@ -1734,33 +1637,11 @@
     "p2.p": "앱을 열고, OBS 장면을 바꾸고, 단축키와 웹훅을 보내고, 디스코드 음성과 Spotify를 다루는 프로그래밍 가능한 키 그리드입니다.",
     "p3.h": "모니터링",
     "p3.p": "CPU, GPU, RAM, 네트워크와 게임 중 실제 FPS를 30일 동안 보관합니다.",
-    "p4.h": "Bit",
-    "p4.p": "Vitals는 직접 켰을 때만 수분, 집중, 자세를 살피고, Bit은 쉬러 갈 때까지 계속 말을 거는 픽셀 펫입니다.",
-    "fs1.h": "검색",
-    "fs1.p": "상단 바를 내리고 “12월 사진”처럼 말하듯 입력하면, 이 PC 디스크에 있는 색인에서 찾습니다.",
-    "fs3.h": "디스크 공간",
-    "fs3.p": "드라이브를 열면 지도가 이미 그려져 있습니다. 뒤에 있는 색인을 그때그때 다시 만들지 않고 백그라운드에서 최신 상태로 유지하기 때문입니다. 정리는 캐시와 임시 파일로 정해진 목록에서만 제안하고, 지운 것은 모두 휴지통으로 갑니다.",
+    "fs1.h": "검색과 디스크 공간",
+    "fs1.p": "상단 바를 내리고 “12월 사진”처럼 말하듯 입력합니다. PC가 백그라운드에서 최신 상태로 유지하는 같은 색인이, 드라이브를 여는 순간 지도까지 그려 줍니다. 정리는 캐시와 임시 파일로 정해진 목록에서만 제안하고, 지운 것은 모두 휴지통으로 갑니다.",
     "rgb.h2": "조명",
     "rgb.p": "Hue, WLED, Govee, LIFX, Nanoleaf, CORSAIR 장비를 CPU 온도나 앨범 아트, 타이머로 제어합니다.",
     "more.foot": "안에 무엇이 있는지 전체 목록 보기",
-    "g1": "미디어 & 재생 정보",
-    "g2": "캘린더 & ICS 동기화",
-    "g3": "Twitch & OBS",
-    "g4": "Discord 음성",
-    "g5": "마켓 & 차트",
-    "g6": "축구 라이브",
-    "g7": "뉴스 스트림",
-    "g8": "날씨",
-    "g9": "Spotify 플레이어",
-    "g10": "위젯 SDK",
-    "g11": "앱 전환기",
-    "g12": "센서 기록",
-    "g13": "내 말로 하는 검색",
-    "g14": "공간을 차지하는 것",
-    "g15": "보호된 정리",
-    "g16": "휴대폰에서 온 파일",
-    "g17": "형태가 있는 타일",
-    "g18": "만든 것을 공유",
     "com.h2": "카탈로그에서",
     "com.p": "다른 사용자가 만든 테마, 배경, 위젯, 패키지입니다. 코드를 복사해 Xenon에 붙여넣으면 적용됩니다.",
     "com.by": "제작:",
@@ -1781,9 +1662,6 @@
     "drop.see": "무엇이 들어 있는지 보기",
     "inst.h2": "설치",
     "inst.p": "설치 파일 하나가 앱과 그 뒤의 대시보드 엔진, 그리고 로그인할 때 실행하는 작업까지 설정합니다.",
-    "inst.icue": "네이티브 앱 대신 iCUE를 쓰시나요? <b>웹 페이지</b>(HTML) 위젯을 추가하고 아래를 붙여넣어 대시보드를 전체 화면으로 임베드하세요:",
-    "inst.copy": "복사",
-    "inst.copied": "복사됨",
     "sup2.t": "Xenon은 한 사람이 만듭니다.",
     "sup2.b": "커피 사주기",
     "sup.h2": "서포터",
@@ -1803,7 +1681,7 @@
     "foot.support": "후원",
     "foot.coffee": "커피 사주기",
     "run.h2": "무엇을 하는지",
-    "run.p": "여기 있는 것은 일곱 가지 영역이고, 위젯 전체 목록은 아래에 있습니다.",
+    "run.p": "여기 있는 것은 다섯 가지 영역이고, 위젯 전체 목록은 아래에 있습니다.",
     "ix.h2": "위젯",
     "ix.agenda": "일정",
     "ix.calendar": "캘린더",
@@ -1857,7 +1735,6 @@
     "rel.file": "ファイル",
     "rel.req": "動作環境",
     "rel.more": "その他",
-    "com.film": "カタログの Nova Neon District、Xeneon Edge で。",
     "surf.monitor": "モニター",
     "surf.laptop": "ノートPC",
     "surf.tablet": "タブレット",
@@ -1903,33 +1780,11 @@
     "p2.p": "アプリを開き、OBS のシーンを切り替え、ホットキーや Webhook を送り、Discord ボイスや Spotify を操作できる、プログラム可能なキーのグリッドです。",
     "p3.h": "モニタリング",
     "p3.p": "CPU・GPU・RAM・ネットワークとゲーム中の実 FPS を 30 日分ためておきます。",
-    "p4.h": "Bit",
-    "p4.p": "Vitals は自分でオンにしたときだけ水分・集中・姿勢を見て、Bit は休憩するまで声をかけ続けるピクセルのペットです。",
-    "fs1.h": "検索",
-    "fs1.p": "上のバーを引き下げて「12月の写真」のように話す言葉で打つと、自分のディスク上にある索引から探します。",
-    "fs3.h": "ディスク容量",
-    "fs3.p": "ドライブを開いた時点でマップはできています。裏の索引をその都度作り直さず、バックグラウンドで最新に保っているからです。整理に出てくるのはキャッシュと一時ファイルの決まった一覧だけで、消したものはすべてごみ箱に入ります。",
+    "fs1.h": "検索とディスク容量",
+    "fs1.p": "上のバーを引き下げて「12月の写真」のように話す言葉で打ちます。PC がバックグラウンドで最新に保っている同じ索引が、ドライブを開いた瞬間のマップも描いています。整理に出てくるのはキャッシュと一時ファイルの決まった一覧だけで、消したものはすべてごみ箱に入ります。",
     "rgb.h2": "ライティング",
     "rgb.p": "Hue、WLED、Govee、LIFX、Nanoleaf と CORSAIR 機器を、CPU 温度やアルバムアート、タイマーで動かします。",
     "more.foot": "中身の全リストを見る",
-    "g1": "メディア & 再生情報",
-    "g2": "カレンダー & ICS 同期",
-    "g3": "Twitch & OBS",
-    "g4": "Discord ボイス",
-    "g5": "マーケット & チャート",
-    "g6": "サッカーライブ",
-    "g7": "ニュースストリーム",
-    "g8": "天気",
-    "g9": "Spotify プレイヤー",
-    "g10": "ウィジェット SDK",
-    "g11": "アプリスイッチャー",
-    "g12": "センサー履歴",
-    "g13": "自分の言葉で検索",
-    "g14": "容量を使っているもの",
-    "g15": "保護されたクリーンアップ",
-    "g16": "スマホから届いたファイル",
-    "g17": "形のあるタイル",
-    "g18": "作ったものを共有",
     "com.h2": "カタログから",
     "com.p": "他のユーザーが作ったテーマ、背景、ウィジェット、パッケージです。コードをコピーして Xenon に貼り付けると適用されます。",
     "com.by": "作者:",
@@ -1950,9 +1805,6 @@
     "drop.see": "中身を見る",
     "inst.h2": "インストール",
     "inst.p": "インストーラー一つで、アプリと、その裏で動くダッシュボードのエンジン、ログイン時に起動するタスクまで設定します。",
-    "inst.icue": "ネイティブアプリの代わりに iCUE を使っていますか？ <b>Web ページ</b>（HTML）ウィジェットを追加して、これを貼り付ければダッシュボードをフルスクリーンで埋め込めます：",
-    "inst.copy": "コピー",
-    "inst.copied": "コピーしました",
     "sup2.t": "Xenon はひとりで作っています。",
     "sup2.b": "コーヒーをおごる",
     "sup.h2": "サポーター",
@@ -1972,7 +1824,7 @@
     "foot.support": "応援する",
     "foot.coffee": "コーヒーをおごる",
     "run.h2": "何をするか",
-    "run.p": "ここにあるのは七つの領域で、ウィジェットの一覧は下にあります。",
+    "run.p": "ここにあるのは五つの領域で、ウィジェットの一覧は下にあります。",
     "ix.h2": "ウィジェット",
     "ix.agenda": "予定",
     "ix.calendar": "カレンダー",
@@ -2026,7 +1878,6 @@
     "rel.file": "文件",
     "rel.req": "系统要求",
     "rel.more": "其他",
-    "com.film": "目录里的 Nova Neon District，运行在 Xeneon Edge 上。",
     "surf.monitor": "显示器",
     "surf.laptop": "笔记本",
     "surf.tablet": "平板",
@@ -2072,33 +1923,11 @@
     "p2.p": "一块可编程按键的网格，用来打开应用、切换 OBS 场景、发送快捷键和 Webhook，或者控制 Discord 语音和 Spotify。",
     "p3.h": "监控",
     "p3.p": "CPU、GPU、内存、网络和游戏里的真实 FPS，保留三十天。",
-    "p4.h": "Bit",
-    "p4.p": "Vitals 只有你打开才会看着饮水、专注和坐姿，Bit 是那只会一直提醒你去休息的像素宠物。",
-    "fs1.h": "搜索",
-    "fs1.p": "把顶栏拉下来，像说话一样输入，比如“十二月的照片”，它会在你自己硬盘上的索引里查找。",
-    "fs3.h": "磁盘空间",
-    "fs3.p": "打开一个硬盘时地图已经画好了，因为背后的索引是在后台保持更新，而不是每次重新扫描。清理只会从一份固定的缓存和临时文件清单里提议，删掉的东西全都进回收站。",
+    "fs1.h": "搜索与磁盘空间",
+    "fs1.p": "把顶栏拉下来，像说话一样输入，比如“十二月的照片”。电脑在后台保持更新的同一份索引，也就是你打开硬盘时那张已经画好的地图。清理只会从一份固定的缓存和临时文件清单里提议，删掉的东西全都进回收站。",
     "rgb.h2": "灯光",
     "rgb.p": "Hue、WLED、Govee、LIFX、Nanoleaf 和你的 CORSAIR 硬件，由 CPU 温度、专辑封面或倒计时驱动。",
     "more.foot": "查看里面所有功能的完整列表",
-    "g1": "媒体 & 播放信息",
-    "g2": "日历 & ICS 同步",
-    "g3": "Twitch & OBS",
-    "g4": "Discord 语音",
-    "g5": "行情 & 图表",
-    "g6": "足球直播",
-    "g7": "新闻流",
-    "g8": "天气",
-    "g9": "Spotify 播放器",
-    "g10": "小组件 SDK",
-    "g11": "应用切换器",
-    "g12": "传感器历史",
-    "g13": "用你自己的话搜索",
-    "g14": "占空间的是什么",
-    "g15": "受保护的清理",
-    "g16": "来自手机的文件",
-    "g17": "有形状的磁贴",
-    "g18": "分享你搭好的桌面",
     "com.h2": "来自目录",
     "com.p": "其他用户做的主题、背景、小组件和整包内容。复制一个代码，粘贴进 Xenon 就会应用。",
     "com.by": "作者:",
@@ -2119,9 +1948,6 @@
     "drop.see": "看看里面有什么",
     "inst.h2": "安装",
     "inst.p": "一个安装程序，装好应用、它背后的仪表盘引擎，以及登录时启动它们的任务。",
-    "inst.icue": "在用 iCUE 而不是原生应用?添加一个<b>网页</b>(HTML)组件,粘贴以下代码即可全屏嵌入仪表盘:",
-    "inst.copy": "复制",
-    "inst.copied": "已复制",
     "sup2.t": "Xenon 由一个人开发。",
     "sup2.b": "请我喝咖啡",
     "sup.h2": "支持者",
@@ -2141,7 +1967,7 @@
     "foot.support": "支持",
     "foot.coffee": "请我喝咖啡",
     "run.h2": "它做什么",
-    "run.p": "这里是其中七个方面，完整的小组件列表在下面。",
+    "run.p": "这里是其中五个方面，完整的小组件列表在下面。",
     "ix.h2": "小组件",
     "ix.agenda": "日程",
     "ix.calendar": "日历",
@@ -2350,34 +2176,26 @@
     place();
   })();
 
-  // Gallery strip: drag to scroll, tap to inspect.
+  // The 32:9 shot, full size. It is the one image on the page the layout has to
+  // shrink by half to fit, so it is the one worth opening; the eighteen-thumbnail
+  // strip that used to own this lightbox is gone.
   (function () {
-    const strip = document.getElementById('strip');
-    if (!strip) return;
-    const shots = Array.from(strip.querySelectorAll('.shot'));
-
-    let down = false, sx = 0, sl = 0, moved = 0;
-    strip.addEventListener('pointerdown', (e) => { down = true; moved = 0; sx = e.clientX; sl = strip.scrollLeft; });
-    window.addEventListener('pointermove', (e) => {
-      if (!down) return;
-      const dx = e.clientX - sx;
-      moved = Math.max(moved, Math.abs(dx));
-      if (moved > 6) strip.classList.add('drag');
-      strip.scrollLeft = sl - dx;
-    });
-    window.addEventListener('pointerup', () => { down = false; setTimeout(() => strip.classList.remove('drag'), 0); });
-
+    const fig = document.getElementById('wide-shot');
     const lb = document.getElementById('lightbox');
     const lbImg = document.getElementById('lb-img');
+    if (!fig || !lb || !lbImg) return;
     const lbCap = document.getElementById('lb-cap');
     const close = () => lb.classList.remove('on');
-    shots.forEach((s) => s.addEventListener('click', () => {
-      if (moved > 8) return;
-      const img = s.querySelector('img');
-      lbImg.src = img.src; lbImg.alt = img.alt;
-      lbCap.textContent = s.querySelector('figcaption span').textContent;
+    const open = () => {
+      const img = fig.querySelector('img');
+      lbImg.src = img.currentSrc || img.src;
+      lbImg.alt = img.alt;
+      if (lbCap) lbCap.textContent = '';
       lb.classList.add('on');
-    }));
+    };
+    fig.addEventListener('click', open);
+    // role="button" without a keyboard path is a button nobody can press.
+    fig.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
     lb.addEventListener('click', (e) => { if (e.target !== lbImg) close(); });
     document.getElementById('lb-x').addEventListener('click', close);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
@@ -2531,26 +2349,6 @@
     document.querySelectorAll('[data-discord]').forEach((a) => { a.href = DISCORD_INVITE; });
   })();
 
-  // Copy button for the iCUE embed snippet. The label is translated, so it is
-  // restored from the dict (not a hardcoded string) after the "Copied" flash.
-  (function () {
-    const btn = document.getElementById('embed-copy');
-    const code = document.getElementById('embed-code');
-    if (!btn || !code || !navigator.clipboard) return;
-    let timer = 0;
-    btn.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(code.textContent.trim());
-        btn.textContent = window.XT('inst.copied') || 'Copied';
-        btn.classList.add('ok');
-        clearTimeout(timer);
-        timer = setTimeout(() => {
-          btn.textContent = window.XT('inst.copy') || 'Copy';
-          btn.classList.remove('ok');
-        }, 1600);
-      } catch { /* clipboard denied — the text stays selectable either way */ }
-    });
-  })();
 </script>
 <script>
   // Fills #drops from the same catalog.json the app and the catalog page read,
@@ -2798,6 +2596,10 @@
     paint();
     document.addEventListener('xenon:lang', paint);
     box.hidden = false;
+    // These cards are real, current and linked to their entries; the static six
+    // below were the stand-in for this failing. Only one of the two is needed.
+    const fallback = document.getElementById('catalog-fallback');
+    if (fallback) fallback.hidden = true;
   })();
 </script>
 <script>
