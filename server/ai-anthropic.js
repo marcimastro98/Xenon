@@ -32,12 +32,13 @@ const SENTINEL_RE = /^auto(?::[a-z0-9.-]{1,24})?$/;
 // claude-sonnet-5, claude-opus-4-8). The `auto` / `auto:<family>` sentinel is
 // accepted first: it contains a colon, which the id pattern rejects, so without
 // this branch every auto setting would collapse back to the hardcoded default.
-// Anything else → default.
+// Anything else falls back to `auto` rather than to a named version, which is
+// the only fallback that cannot go stale (see the same note in ai-openai.js).
 function sanitizeModel(value) {
   const v = String(value || '').trim();
   if (SENTINEL_RE.test(v)) return v;
   if (v.length > 0 && v.length <= 60 && /^[a-z0-9._-]+$/i.test(v)) return v;
-  return DEFAULT_CHAT_MODEL;
+  return 'auto';
 }
 
 // Lowercase Gemini's UPPERCASE schema types into standard JSON Schema, which is

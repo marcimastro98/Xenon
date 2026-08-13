@@ -3,6 +3,10 @@
   "updated": "2026-08-13",
   "note": "Curated download list for Xenon's local AI (Ollama). Served over HTTPS from the site and read by server/ai-models.js, so a new model becomes offerable without an app update. DISCOVERY ONLY: which model actually runs is still decided on the user's machine by the hardware scan in server/ai-local.js, and the built-in MODEL_REQUIREMENTS win for the models listed there. Every tag below was verified against registry.ollama.ai (manifest 200) and sizeGB is the real sum of its layers; do not add a tag you have not checked, a Download button that 404s is worse than no button.",
   "models": [
+    { "tag": "qwen3.5:2b", "label": "Qwen 3.5 2B", "sizeGB": 2.74, "vramGB": 4, "ramGB": 8, "capabilities": ["tools"] },
+    { "tag": "qwen3.5:4b", "label": "Qwen 3.5 4B", "sizeGB": 3.39, "vramGB": 6, "ramGB": 16, "capabilities": ["tools"] },
+    { "tag": "qwen3.5:9b", "label": "Qwen 3.5 9B", "sizeGB": 6.59, "vramGB": 10, "ramGB": 24, "capabilities": ["tools"] },
+    { "tag": "qwen3.5:35b-a3b", "label": "Qwen 3.5 35B A3B", "sizeGB": 23.87, "vramGB": 32, "ramGB": 64, "capabilities": ["tools"] },
     { "tag": "qwen3:1.7b", "label": "Qwen 3 1.7B", "sizeGB": 1.36, "vramGB": 4, "ramGB": 8, "capabilities": ["tools"] },
     { "tag": "qwen3:4b", "label": "Qwen 3 4B", "sizeGB": 2.5, "vramGB": 4, "ramGB": 8, "capabilities": ["tools"] },
     { "tag": "qwen3:8b", "label": "Qwen 3 8B", "sizeGB": 5.23, "vramGB": 6, "ramGB": 16, "capabilities": ["tools"] },

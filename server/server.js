@@ -8840,8 +8840,10 @@ function normalizeHubSettings(value) {
     // are validated by each provider module.
     openaiApiKey: String(source.openaiApiKey || '').trim().slice(0, 200),
     openaiModel: aiOpenai.sanitizeModel(source.openaiModel),
-    openaiSttModel: aiOpenai.sanitizeModel(source.openaiSttModel),
-    openaiTtsModel: aiOpenai.sanitizeModel(source.openaiTtsModel),
+    // Speech slots are validated against the model KIND, not just the id shape:
+    // a chat model in the TTS field is an error at the moment the user speaks.
+    openaiSttModel: aiOpenai.sanitizeSpeechModel(source.openaiSttModel, 'stt'),
+    openaiTtsModel: aiOpenai.sanitizeSpeechModel(source.openaiTtsModel, 'tts'),
     anthropicApiKey: String(source.anthropicApiKey || '').trim().slice(0, 200),
     anthropicModel: aiAnthropic.sanitizeModel(source.anthropicModel),
     // Gemini, one per role. Same sanitizer for all four: `auto`/`auto:<family>`

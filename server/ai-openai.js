@@ -42,12 +42,33 @@ const SENTINEL_RE = /^auto(?::[a-z0-9.-]{1,24})?$/;
 // digits, dots and hyphens (e.g. gpt-4o, gpt-4.1-mini). The `auto` / `auto:<family>`
 // sentinel is accepted ahead of that rule — it carries a colon, which the id
 // pattern rejects, so without this branch every auto setting would silently
-// collapse back to the hardcoded default. Anything else → default.
+// collapse back to the hardcoded default.
+//
+// Anything else falls back to `auto`, NOT to the chat model. That fallback used
+// to be DEFAULT_CHAT_MODEL, which was harmless while this validated one field
+// and wrong the moment it validated three: an absent openaiSttModel came back as
+// `gpt-4o`, the client stored that as a deliberate pin, and the transcription
+// and speech rows in Settings both showed a chat model. `auto` is the only
+// fallback that is right for every role, because it is resolved per role.
 function sanitizeModel(value) {
   const v = String(value || '').trim();
   if (SENTINEL_RE.test(v)) return v;
   if (v.length > 0 && v.length <= 60 && /^[a-z0-9._-]+$/i.test(v)) return v;
-  return DEFAULT_CHAT_MODEL;
+  return 'auto';
+}
+
+// A speech slot may only hold a speech model. The pin is classified by the SAME
+// function that builds the picker's list, so "what may be stored" and "what is
+// offered" cannot drift apart — and a chat id that reached one of these fields
+// (see above) is repaired to `auto` on the next normalize rather than needing a
+// migration. An id we cannot classify is refused too: on these two routes the
+// model name is sent verbatim to OpenAI, and a wrong one is an error at the
+// moment the user speaks.
+function sanitizeSpeechModel(value, kind) {
+  const v = sanitizeModel(value);
+  if (SENTINEL_RE.test(v)) return v;
+  const c = classify({ id: v });
+  return (c && c.kind === kind) ? v : 'auto';
 }
 
 // Turn an OpenAI error body/status into a message the user can act on.
@@ -274,6 +295,7 @@ module.exports = {
   DEFAULTS,
   ROLES,
   classify,
+  sanitizeSpeechModel,
   STT_MODEL,
   TTS_MODEL,
   TTS_VOICE,
