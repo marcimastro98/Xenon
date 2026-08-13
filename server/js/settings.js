@@ -9323,15 +9323,6 @@ async function aiLocalLoadModels() {
   } catch {
     _ollamaInstalledModels = [];
   }
-  // The download catalog comes from the site, so it can carry a model published
-  // after this release. A failure here is not an error state: the dropdown just
-  // shows what it always showed.
-  try {
-    const cat = await (await fetch('/api/ai/models?provider=ollama')).json();
-    _ollamaCatalog = Array.isArray(cat && cat.catalog) ? cat.catalog : [];
-  } catch {
-    _ollamaCatalog = [];
-  }
   const list = $('ai-model-list');
   if (list) {
     list.textContent = '';
@@ -9343,6 +9334,24 @@ async function aiLocalLoadModels() {
   }
   _populateInstalledModelOptions();
   _aiUpdateModelDownloadState();
+
+  // The download catalog is fetched AFTER the list above is on screen, and never
+  // awaited in front of it. It crosses the internet (the file lives on the site
+  // so it can carry a model published after this release), and putting that in
+  // front of the local list meant the models you already have appeared only once
+  // a request to another machine had finished — on the first open after a
+  // restart, long enough to open the dropdown and find them missing. An empty
+  // catalog is a normal state, not an error: the list simply stays as it was.
+  try {
+    const cat = await (await fetch('/api/ai/models?provider=ollama')).json();
+    _ollamaCatalog = Array.isArray(cat && cat.catalog) ? cat.catalog : [];
+  } catch {
+    _ollamaCatalog = [];
+  }
+  if (_ollamaCatalog.length) {
+    _populateCatalogModelOptions();
+    _reflectModelSelection();
+  }
 }
 
 // Surface the actually-installed Ollama models as selectable options in the model
