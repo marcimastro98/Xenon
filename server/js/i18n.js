@@ -28573,6 +28573,100 @@ Object.assign(i18n.nl, {
   ra_guide_hide_browser: "Dit is het dashboard in een browser, dus er is geen venster om te verbergen. In de Xenon-app kun je ook kiezen dat het niet meer op deze pc opent.",
 });
 
+// ── Stacked vs grid layout (Settings → General) ────────────────────────────
+// The override for what js/phone-view.js measures. Stored per device, which the
+// note has to say: the same dashboard is open on screens that want different
+// answers, and a setting that looks global while acting local is worse than no
+// setting at all.
+Object.assign(i18n.it, {
+  settings_stack: 'Disposizione dei riquadri',
+  settings_stack_hint: 'solo su questo dispositivo',
+  settings_stack_auto: 'Automatica',
+  settings_stack_on: 'In colonna',
+  settings_stack_off: 'A griglia',
+  settings_stack_note: "In colonna i riquadri si impilano a tutta larghezza, uno sotto l'altro, nello stesso ordine in cui li leggi sulla griglia. Serve a uno schermo montato in verticale e ai telefoni. La scelta resta su questo dispositivo e non viene sincronizzata con gli altri.",
+});
+Object.assign(i18n.en, {
+  settings_stack: 'Tile layout',
+  settings_stack_hint: 'this device only',
+  settings_stack_auto: 'Automatic',
+  settings_stack_on: 'Single column',
+  settings_stack_off: 'Grid',
+  settings_stack_note: 'In a single column the tiles stack full width, one under the other, in the order you read them on the grid. It suits a screen mounted vertically, and phones. The choice stays on this device and is not synced to the others.',
+});
+Object.assign(i18n.es, {
+  settings_stack: 'Disposición de los paneles',
+  settings_stack_hint: 'solo en este dispositivo',
+  settings_stack_auto: 'Automática',
+  settings_stack_on: 'En una columna',
+  settings_stack_off: 'En cuadrícula',
+  settings_stack_note: 'En una columna los paneles se apilan a todo el ancho, uno debajo de otro, en el mismo orden en que los lees en la cuadrícula. Sirve para una pantalla montada en vertical y para los teléfonos. La elección se queda en este dispositivo y no se sincroniza con los demás.',
+});
+Object.assign(i18n.fr, {
+  settings_stack: 'Disposition des tuiles',
+  settings_stack_hint: 'cet appareil uniquement',
+  settings_stack_auto: 'Automatique',
+  settings_stack_on: 'Une colonne',
+  settings_stack_off: 'Grille',
+  settings_stack_note: "En une colonne, les tuiles s'empilent sur toute la largeur, l'une sous l'autre, dans l'ordre où vous les lisez sur la grille. C'est ce qu'il faut pour un écran monté à la verticale et pour les téléphones. Ce choix reste sur cet appareil et n'est pas synchronisé avec les autres.",
+});
+Object.assign(i18n.de, {
+  settings_stack: 'Anordnung der Kacheln',
+  settings_stack_hint: 'nur auf diesem Gerät',
+  settings_stack_auto: 'Automatisch',
+  settings_stack_on: 'Eine Spalte',
+  settings_stack_off: 'Raster',
+  settings_stack_note: 'In einer Spalte stapeln sich die Kacheln über die volle Breite untereinander, in derselben Reihenfolge, in der du sie im Raster liest. Das passt zu einem hochkant montierten Bildschirm und zu Telefonen. Die Wahl bleibt auf diesem Gerät und wird nicht mit den anderen synchronisiert.',
+});
+Object.assign(i18n.pt, {
+  settings_stack: 'Disposição dos painéis',
+  settings_stack_hint: 'apenas neste dispositivo',
+  settings_stack_auto: 'Automática',
+  settings_stack_on: 'Numa coluna',
+  settings_stack_off: 'Em grelha',
+  settings_stack_note: 'Numa coluna os painéis empilham-se a toda a largura, um debaixo do outro, pela mesma ordem em que os lês na grelha. Serve para um ecrã montado na vertical e para os telemóveis. A escolha fica neste dispositivo e não é sincronizada com os outros.',
+});
+Object.assign(i18n.nl, {
+  settings_stack: 'Indeling van de tegels',
+  settings_stack_hint: 'alleen op dit apparaat',
+  settings_stack_auto: 'Automatisch',
+  settings_stack_on: 'Eén kolom',
+  settings_stack_off: 'Raster',
+  settings_stack_note: 'In één kolom stapelen de tegels over de volle breedte, onder elkaar, in dezelfde volgorde als je ze op het raster leest. Dat past bij een scherm dat rechtop hangt en bij telefoons. De keuze blijft op dit apparaat en wordt niet met de andere gesynchroniseerd.',
+});
+Object.assign(i18n.ru, {
+  settings_stack: 'Расположение плиток',
+  settings_stack_hint: 'только на этом устройстве',
+  settings_stack_auto: 'Автоматически',
+  settings_stack_on: 'В одну колонку',
+  settings_stack_off: 'Сеткой',
+  settings_stack_note: 'В одну колонку плитки складываются на всю ширину, одна под другой, в том же порядке, в каком вы читаете их на сетке. Это нужно экрану, повёрнутому вертикально, и телефонам. Выбор остаётся на этом устройстве и не синхронизируется с остальными.',
+});
+Object.assign(i18n.ja, {
+  settings_stack: 'タイルの並べ方',
+  settings_stack_hint: 'この端末だけ',
+  settings_stack_auto: '自動',
+  settings_stack_on: '1列',
+  settings_stack_off: 'グリッド',
+  settings_stack_note: '1列にすると、グリッドで読む順番のまま、タイルが画面幅いっぱいに上から下へ積み重なります。縦向きに設置した画面やスマートフォンに向いた並べ方です。この設定はこの端末に残り、ほかの画面には同期されません。',
+});
+Object.assign(i18n.ko, {
+  settings_stack: '타일 배치',
+  settings_stack_hint: '이 기기에만',
+  settings_stack_auto: '자동',
+  settings_stack_on: '한 열',
+  settings_stack_off: '그리드',
+  settings_stack_note: '한 열로 두면 그리드에서 읽는 순서 그대로 타일이 화면 너비에 맞춰 위에서 아래로 쌓입니다. 세로로 설치한 화면과 휴대폰에 맞는 배치입니다. 이 선택은 이 기기에만 남으며 다른 화면과 동기화되지 않습니다.',
+});
+Object.assign(i18n.zh, {
+  settings_stack: '磁贴排列',
+  settings_stack_hint: '仅此设备',
+  settings_stack_auto: '自动',
+  settings_stack_on: '单列',
+  settings_stack_off: '网格',
+  settings_stack_note: '单列时，磁贴按你在网格上阅读的顺序，占满宽度自上而下排列。适合竖向安装的屏幕和手机。此选择只留在这台设备上，不会同步到其他屏幕。',
+});
+
 
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)

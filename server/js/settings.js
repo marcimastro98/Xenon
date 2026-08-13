@@ -1546,9 +1546,15 @@ function normalizeFanLabels(value) {
 // or a concrete model id the user pinned. Mirrors sanitizeModel() in the three
 // provider modules — the colon in the sentinel is why the id pattern alone is
 // not enough, and getting that wrong silently un-pins every auto setting.
+//
+// This is the FIRST of the five copies a value meets: it is what the Custom…
+// field writes. So the case fold matters most here — `AUTO` stored as a pin from
+// this function is what the server then dutifully sends to the provider. The four
+// others repeat the rule; test/ai-model-sentinel-sync.test.mjs holds them level.
 function normalizeModelChoice(value) {
   const v = typeof value === 'string' ? value.trim() : '';
-  if (/^auto(?::[a-z0-9.-]{1,24})?$/.test(v)) return v;
+  const low = v.toLowerCase();
+  if (/^auto(?::[a-z0-9.-]{1,24})?$/.test(low)) return low;
   if (v && v.length <= 60 && /^[a-z0-9._-]+$/i.test(v)) return v;
   return 'auto';
 }
@@ -4682,6 +4688,7 @@ function syncSettingsControls() {
   syncSwipeHomeControl();
   syncHideRdpControl();
   syncNativeZoomControl();
+  syncStackModeControls();
   syncBrowserAdblockControl();
   syncWeatherSettingsControls();
   syncStocksTickerControls();
@@ -7841,6 +7848,39 @@ function updateNativeZoom(value) {
   hubSettings = normalizeSettings({ ...hubSettings, nativeZoom: value });
   saveHubSettings();
   syncNativeZoomControl();
+}
+
+// ── Stacked vs grid layout ──────────────────────────────────────────────────
+// The dashboard stacks into one full-width column on a screen too narrow for the
+// 24-column grid. `js/phone-view.js` decides that from the viewport; this is the
+// override, and it is the only user-facing way to reach a decision that until now
+// could only be measured.
+//
+// It is deliberately NOT a hubSettings key. The value answers "what suits THIS
+// screen", which differs between the Edge, a phone and a vertically mounted
+// monitor looking at the same dashboard, and hubSettings is mirrored to every
+// surface — one of them would always be wrong. PhoneView owns the storage
+// (localStorage, per device) and this reads it back rather than keeping a copy.
+function syncStackModeControls() {
+  const pref = (window.PhoneView && typeof window.PhoneView.getPreference === 'function')
+    ? window.PhoneView.getPreference()
+    : 'auto';
+  const mode = ['auto', 'on', 'off'].includes(pref) ? pref : 'auto';
+  document.querySelectorAll('.settings-stack-mode[data-stack-mode]').forEach(btn => {
+    const active = btn.dataset.stackMode === mode;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
+}
+
+function updateStackMode(mode) {
+  if (!['auto', 'on', 'off'].includes(mode)) return;
+  if (!window.PhoneView || typeof window.PhoneView.setPreference !== 'function') return;
+  // setPreference re-runs the measurement, so the layout changes under the panel
+  // as the button is pressed. Nothing is posted to the server on purpose.
+  window.PhoneView.setPreference(mode);
+  syncStackModeControls();
+  setSettingsStatus('settings_saved', 'ok');
 }
 
 function updateAutoOpenBrowser(checked) {

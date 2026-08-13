@@ -4,10 +4,10 @@
 //! saved `placement` and the live monitor list. Three outcomes:
 //!
 //!   * `Auto` (default): the Xeneon Edge if one is attached (it reports its
-//!     native 2560×720, which is how we find it), otherwise an ordinary window
-//!     on the preferred/primary display. A watchdog upgrades to the kiosk the
-//!     moment an Edge appears, and re-pins after display reorders, replug or
-//!     resume from standby.
+//!     native panel size, in either orientation, which is how we find it),
+//!     otherwise an ordinary window on the preferred/primary display. A watchdog
+//!     upgrades to the kiosk the moment an Edge appears, and re-pins after
+//!     display reorders, replug or resume from standby.
 //!   * `Screen`: the user NAMED a display and it wins, Edge attached or not. If
 //!     that display is gone the window HIDES rather than reappearing somewhere
 //!     the user did not ask for; the watchdog restores it when the screen is back.
@@ -74,6 +74,23 @@ fn gpu_mismatch() -> bool {
 /// Native resolution of the CORSAIR Xeneon Edge 14.5" panel.
 const EDGE_WIDTH: u32 = 2560;
 const EDGE_HEIGHT: u32 = 720;
+
+/// True when a reported size IS the Edge panel, in EITHER orientation.
+///
+/// The OS reports the rotated mode, so a panel the user has mounted vertically
+/// answers 720×2560 and an ordered comparison stops recognising it. That was not
+/// a cosmetic loss: `is_edge_panel` has no name fallback, so a vertical Edge fell
+/// out of the kiosk path entirely and opened as a decorated window at 88% of the
+/// screen, with the "(Xeneon Edge)" chip gone from the picker that would have let
+/// the user say otherwise. Reported by a user who wanted a vertical mount.
+///
+/// A monitor genuinely 720 wide and 2560 tall that is NOT an Edge gets the kiosk
+/// treatment under `Auto`, which is the same bet the landscape signature already
+/// makes on 2560×720, and the screen picker is there to override it.
+fn is_edge_size(size: PhysicalSize<u32>) -> bool {
+    (size.width == EDGE_WIDTH && size.height == EDGE_HEIGHT)
+        || (size.width == EDGE_HEIGHT && size.height == EDGE_WIDTH)
+}
 
 /// Diameter (physical px) of the round floating "return to Xenon" button the
 /// kiosk shrinks to when the user swipes up to the desktop: a small, centred,
@@ -244,11 +261,10 @@ const WATCHDOG_INTERVAL: Duration = Duration::from_secs(3);
 const MAX_REPIN_ATTEMPTS: u32 = 5;
 
 /// True when a monitor's physical size matches the Edge panel. Some hubs also let
-/// us confirm via the device name, but the exact 2560×720 size is the reliable
+/// us confirm via the device name, but the exact panel size is the reliable
 /// signal across DisplayPort/USB-C connections.
 fn is_edge(monitor: &Monitor) -> bool {
-    let size = monitor.size();
-    if size.width == EDGE_WIDTH && size.height == EDGE_HEIGHT {
+    if is_edge_size(*monitor.size()) {
         return true;
     }
     // Secondary hint: a name containing "Xeneon" / "Edge" (best-effort only).
@@ -608,7 +624,8 @@ fn chosen_monitor(window: &WebviewWindow, cache: &PlacementCache) -> Option<Moni
     cache.fingerprint.as_deref().and_then(|fp| monitor_by_fingerprint(window, fp))
 }
 
-/// True when this monitor IS the Edge panel, judged on size alone.
+/// True when this monitor IS the Edge panel, judged on size alone (either
+/// orientation — see `is_edge_size`).
 ///
 /// Deliberately not `is_edge`: that one also matches any display whose OS name
 /// merely contains "edge" or "xeneon", which is a fine hint for the auto-pin and
@@ -616,8 +633,7 @@ fn chosen_monitor(window: &WebviewWindow, cache: &PlacementCache) -> Option<Moni
 /// user's chosen monitor into a borderless, undecorated, taskbar-hidden window
 /// with no title bar and no way out.
 fn is_edge_panel(monitor: &Monitor) -> bool {
-    let size = monitor.size();
-    size.width == EDGE_WIDTH && size.height == EDGE_HEIGHT
+    is_edge_size(*monitor.size())
 }
 
 /// True when a Xeneon Edge is connected right now.

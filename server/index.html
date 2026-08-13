@@ -1396,6 +1396,25 @@
         </label>
       </div>
 
+      <!-- Stacked vs grid layout. Stored per DEVICE in localStorage by
+           js/phone-view.js, never in hubSettings: which chrome suits THIS screen
+           is not a property of the user's configuration, and the blob is mirrored
+           to every surface. -->
+      <div class="settings-group settings-behavior-group" data-settings-cat="general">
+        <div class="settings-group-head">
+          <span data-i18n="settings_stack">Disposizione dei riquadri</span>
+          <span class="settings-hint" data-i18n="settings_stack_hint">solo su questo dispositivo</span>
+        </div>
+        <div class="settings-row full">
+          <div class="settings-segmented" role="group" aria-label="Disposizione dei riquadri">
+            <button class="settings-stack-mode settings-segment-btn" type="button" data-stack-mode="auto" onclick="updateStackMode('auto')" aria-pressed="true" data-i18n="settings_stack_auto">Automatica</button>
+            <button class="settings-stack-mode settings-segment-btn" type="button" data-stack-mode="on" onclick="updateStackMode('on')" aria-pressed="false" data-i18n="settings_stack_on">In colonna</button>
+            <button class="settings-stack-mode settings-segment-btn" type="button" data-stack-mode="off" onclick="updateStackMode('off')" aria-pressed="false" data-i18n="settings_stack_off">A griglia</button>
+          </div>
+          <span class="settings-note" data-i18n="settings_stack_note">In colonna i riquadri si impilano a tutta larghezza, uno sotto l'altro, nello stesso ordine in cui li leggi sulla griglia. Serve a uno schermo montato in verticale e ai telefoni. La scelta resta su questo dispositivo e non viene sincronizzata con gli altri.</span>
+        </div>
+      </div>
+
       <!-- Native-app only: revealed by syncNativeZoomControl() inside the Tauri kiosk. -->
       <div class="settings-group settings-behavior-group" data-settings-cat="general" id="settings-native-zoom-row" hidden>
         <div class="settings-group-head">

@@ -34,9 +34,16 @@ const SENTINEL_RE = /^auto(?::[a-z0-9.-]{1,24})?$/;
 // this branch every auto setting would collapse back to the hardcoded default.
 // Anything else falls back to `auto` rather than to a named version, which is
 // the only fallback that cannot go stale (see the same note in ai-openai.js).
+//
+// The sentinel is tested CASE-FOLDED, and the folded form is what gets stored, so
+// there is one spelling of it on disk. Without the fold, `AUTO` fell through to
+// the id pattern below — which is case-insensitive — and was kept as a literal
+// pin on a model no provider has. See parseStored() in ai-models.js for the full
+// account of why that could never repair itself.
 function sanitizeModel(value) {
   const v = String(value || '').trim();
-  if (SENTINEL_RE.test(v)) return v;
+  const low = v.toLowerCase();
+  if (SENTINEL_RE.test(low)) return low;
   if (v.length > 0 && v.length <= 60 && /^[a-z0-9._-]+$/i.test(v)) return v;
   return 'auto';
 }
@@ -227,9 +234,19 @@ function classify(m, index) {
   const low = id.toLowerCase();
   const family = FAMILIES.find(f => low.includes(f)) || '';
   // created_at is an ISO string; fall back to list position (the API returns
-  // newest first) so a missing stamp still ranks in the right order.
+  // newest first) so a missing stamp still ranks in the right order among the
+  // other unstamped entries.
+  //
+  // NEGATIVE, not `MAX_SAFE_INTEGER - index`. Both order the unstamped group the
+  // same way, but pickLatest sorts ONE flat list descending, and ~9e15 beats
+  // every epoch-ms stamp (~1.7e12) — so a single beta shipped without a stamp
+  // would outrank every dated model in its family and become the answer to
+  // `auto`, which is precisely the stale-vs-current mismatch this resolver
+  // exists to prevent. Below zero, an unstamped entry ranks against its own kind
+  // and loses to anything dated, which is the only claim list position supports.
+  // Anthropic stamps every entry today, so this is a guard, not a repair.
   const stamp = Date.parse(m.created_at || '');
-  const rank = Number.isFinite(stamp) ? stamp : (Number.MAX_SAFE_INTEGER - (index || 0));
+  const rank = Number.isFinite(stamp) ? stamp : -(index || 0);
   return {
     id,
     label: typeof m.display_name === 'string' && m.display_name ? m.display_name : id,

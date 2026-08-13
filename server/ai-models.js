@@ -128,9 +128,24 @@ function _persist() {
 // ── Pure ranking ─────────────────────────────────────────────────────────────
 
 // Parse a stored value. { auto:false } means it is a pin and must be used as-is.
+//
+// The sentinel is matched case-folded, and this is the site that explains why for
+// all five copies of the rule (the three sanitizeModel functions, the client's
+// normalizeModelChoice, and here). `auto` is a keyword this app defines, but the
+// id pattern the sentinel falls through to is case-INSENSITIVE, so `AUTO` typed
+// into the Custom… field looked like a perfectly good model id and was stored as
+// a deliberate pin. Nothing repairs that: no provider has a model called AUTO, so
+// every request 404s, and markMissing() only drops entries from the cached list,
+// where an id nobody published never appeared. The setting reads as configured
+// while every turn silently pays a failed request.
+//
+// The family is captured from the FOLDED string on purpose — `auto:SONNET` must
+// produce `sonnet`, or it would be compared against the lowercase `e.family` in
+// pickLatest and match nothing. The id keeps its original case: an unrecognised
+// value is a pin, and a pin is the provider's string, not ours.
 function parseStored(stored) {
   const v = String(stored || '').trim();
-  const m = SENTINEL_RE.exec(v);
+  const m = SENTINEL_RE.exec(v.toLowerCase());
   if (!m) return { auto: false, family: '', id: v };
   return { auto: true, family: m[1] || '', id: '' };
 }

@@ -69,9 +69,16 @@ const SENTINEL_RE = /^auto(?::[a-z0-9.-]{1,24})?$/;
 // A stored model value is either a concrete id or the `auto` / `auto:<family>`
 // sentinel that ai-models.js resolves. Anything else falls back to `auto`, which
 // is the safe answer: it always resolves to something that exists.
+//
+// The sentinel is tested CASE-FOLDED, and the folded form is what gets stored, so
+// there is one spelling of it on disk. Without the fold, `AUTO` fell through to
+// the id pattern below — which is case-insensitive — and was kept as a literal
+// pin on a model no provider has. See parseStored() in ai-models.js for the full
+// account of why that could never repair itself.
 function sanitizeModel(value) {
   const v = String(value || '').trim();
-  if (SENTINEL_RE.test(v)) return v;
+  const low = v.toLowerCase();
+  if (SENTINEL_RE.test(low)) return low;
   if (v.length > 0 && v.length <= 60 && /^[a-z0-9._-]+$/i.test(v)) return v;
   return 'auto';
 }
