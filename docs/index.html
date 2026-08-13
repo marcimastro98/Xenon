@@ -355,6 +355,10 @@
   .feat:first-of-type { border-top: 0; padding-top: 8px; }
   .feat p { margin-top: 12px; font-size: 16px; color: var(--ink-1); max-width: 42ch; }
   .feat-media { justify-self: end; width: 100%; max-width: 620px; }
+  /* A shot narrower than the column is shown at its own size instead of being
+     blown up to fill it: the lighting card is 580px wide and was rendering
+     upscaled, which is both softer and a seventh identical rectangle. */
+  .feat-media--card { max-width: 440px; }
   .feat-media img, .feat-media video { width: 100%; border: 1px solid var(--hair); background: var(--well); }
   .feat--wide { grid-template-columns: minmax(0, 1fr); }
   .feat--wide p { max-width: 64ch; }
@@ -848,7 +852,7 @@
     <article class="feat">
       <div>
         <h3><span data-i18n="p1.h">Xenon AI</span></h3>
-        <p data-i18n="p1.p">Say "Hey Xenon" and it answers, through Gemini, ChatGPT or Claude, or through a local model that sends nothing out of the machine.</p>
+        <p data-i18n="p1.p">Say "Hey Xenon" and it answers, through Gemini, ChatGPT or Claude, or through Ollama on the same PC.</p>
       </div>
       <figure class="feat-media"><img src="images/xenon-ai-chat.png" alt="Xenon AI chat answering by voice" loading="lazy" width="844" height="660"></figure>
     </article>
@@ -864,7 +868,7 @@
     <article class="feat">
       <div>
         <h3><span data-i18n="p3.h">Monitoring</span></h3>
-        <p data-i18n="p3.p">CPU, GPU, RAM, network and the real in-game frame rate, kept for thirty days so you can go back and see what happened. The numbers are read on the machine itself.</p>
+        <p data-i18n="p3.p">CPU, GPU, RAM, network and the real in-game frame rate, kept for thirty days.</p>
       </div>
       <figure class="feat-media"><img src="images/system-monitor.png" alt="System monitor with live charts" loading="lazy" width="844" height="660"></figure>
     </article>
@@ -875,7 +879,7 @@
     <article class="feat feat--wide">
       <div>
         <h3><span data-i18n="fs1.h">Search</span></h3>
-        <p data-i18n="fs1.p">Pull the top bar down and type the way you would say it, like "photos from december". The index that answers is built on your PC and stays there.</p>
+        <p data-i18n="fs1.p">Pull the top bar down and type the way you would say it, like "photos from december", and it searches an index that lives on your own disk.</p>
       </div>
       <figure class="feat-media"><video data-autoplay width="920" height="474" muted loop playsinline preload="none" poster="images/search-poster.webp" aria-label="Pulling the top bar down to open Xenon's search and typing a phrase">
         <source src="images/search.webm" type="video/webm">
@@ -897,7 +901,7 @@
     <article class="feat feat--wide">
       <div>
         <h3><span data-i18n="p4.h">Bit</span></h3>
-        <p data-i18n="p4.p">Vitals keeps an eye on hydration, focus and posture, and Bit is the pixel pet that keeps asking until you take the break. Neither one runs unless you turn it on.</p>
+        <p data-i18n="p4.p">Vitals watches hydration, focus and posture, but only if you switch it on, and Bit is the pixel pet that keeps asking until you take the break.</p>
       </div>
       <figure class="feat-media"><img src="images/vitals-widget.png" width="831" height="230" alt="Vitals meters with Bit, the pixel guardian" loading="lazy"></figure>
     </article>
@@ -907,7 +911,7 @@
         <h3><span data-i18n="rgb.h2">Lighting</span></h3>
         <p data-i18n="rgb.p">Hue, WLED, Govee, LIFX, Nanoleaf and your CORSAIR gear, driven by CPU temperature, album art or a timer running out.</p>
       </div>
-      <figure class="feat-media"><img src="images/lighting-card.png" width="580" height="545" alt="Xenon lighting controls: animations, CPU temperature to colour, album art to LEDs" loading="lazy"></figure>
+      <figure class="feat-media feat-media--card"><img src="images/lighting-card.png" width="580" height="545" alt="Xenon lighting controls: animations, CPU temperature to colour, album art to LEDs" loading="lazy"></figure>
     </article>
     </div>
   </div>
@@ -918,7 +922,6 @@
   <div class="rail spine">
     <div class="spine-id">
       <h2 data-i18n="ix.h2">Widgets</h2>
-      <p data-i18n="ix.p">Forty, in the four categories the app uses.</p>
     </div>
     <div class="spine-body">
     <!-- The four groups, under the names the dashboard's own add menu uses
@@ -992,7 +995,6 @@
     <!-- Several of them at once, on one 32:9 screen. -->
     <figure class="wide-shot">
       <img src="images/overview-browser.webp" width="1997" height="605" loading="lazy" alt="One Xenon dashboard at 32:9: a YouTube player with its playlists, a browser tile, and the disk space map with cleanup suggestions">
-      <figcaption data-i18n="ix.shot">One screen: the browser tile, YouTube and the disk map, together.</figcaption>
     </figure>
 
     <div class="strip" id="strip">
@@ -1344,7 +1346,6 @@
     "cat.media": "Media",
     "cat.prod": "Productivity",
     "nav.coffee": "Coffee",
-    "ix.shot": "One screen: the browser tile, YouTube and the disk map, together.",
     "rel.platform": "Platform",
     "rel.file": "File",
     "rel.req": "Requirements",
@@ -1390,15 +1391,15 @@
     "dl.onphone.t": "You are on a phone right now.",
     "dl.onphone.p": "Xenon installs on the PC it monitors, so start there. Then this screen becomes one of its panels: scan the pairing QR from the PC, or send yourself this link.",
     "p1.h": "Xenon AI",
-    "p1.p": "Say \"Hey Xenon\" and it answers, through Gemini, ChatGPT or Claude, or through a local model that sends nothing out of the machine.",
+    "p1.p": "Say \"Hey Xenon\" and it answers, through Gemini, ChatGPT or Claude, or through Ollama on the same PC.",
     "p2.h": "Deck",
     "p2.p": "A grid of programmable keys that open apps, switch OBS scenes, send hotkeys and webhooks, or drive Discord voice and Spotify.",
     "p3.h": "Monitoring",
-    "p3.p": "CPU, GPU, RAM, network and the real in-game frame rate, kept for thirty days so you can go back and see what happened. The numbers are read on the machine itself.",
+    "p3.p": "CPU, GPU, RAM, network and the real in-game frame rate, kept for thirty days.",
     "p4.h": "Bit",
-    "p4.p": "Vitals keeps an eye on hydration, focus and posture, and Bit is the pixel pet that keeps asking until you take the break. Neither one runs unless you turn it on.",
+    "p4.p": "Vitals watches hydration, focus and posture, but only if you switch it on, and Bit is the pixel pet that keeps asking until you take the break.",
     "fs1.h": "Search",
-    "fs1.p": "Pull the top bar down and type the way you would say it, like \"photos from december\". The index that answers is built on your PC and stays there.",
+    "fs1.p": "Pull the top bar down and type the way you would say it, like \"photos from december\", and it searches an index that lives on your own disk.",
     "fs3.h": "Disk space",
     "fs3.p": "Open a drive and the map is already drawn, because the index behind it is kept current in the background instead of rebuilt on demand. Cleanup proposes only what is on a fixed list of caches and temporary files, and what it removes goes to the Recycle Bin.",
     "rgb.h2": "Lighting",
@@ -1466,7 +1467,6 @@
     "run.h2": "What it does",
     "run.p": "Seven of the areas it covers; the full list of widgets is further down.",
     "ix.h2": "Widgets",
-    "ix.p": "Forty, in the four categories the app uses.",
     "ix.agenda": "Agenda",
     "ix.calendar": "Calendar",
     "ix.tasks": "Tasks",
@@ -1515,7 +1515,6 @@
     "cat.media": "Media",
     "cat.prod": "Produttività",
     "nav.coffee": "Caffè",
-    "ix.shot": "Un solo schermo: il tile browser, YouTube e la mappa del disco, insieme.",
     "rel.platform": "Piattaforma",
     "rel.file": "File",
     "rel.req": "Requisiti",
@@ -1561,15 +1560,15 @@
     "dl.onphone.t": "Adesso sei su un telefono.",
     "dl.onphone.p": "Xenon si installa sul PC che monitora, quindi si parte da lì. Poi questo schermo diventa uno dei suoi pannelli: scansiona il QR di abbinamento dal PC, o mandati questo link.",
     "p1.h": "Xenon AI",
-    "p1.p": "Dici «Hey Xenon» e risponde, con Gemini, ChatGPT o Claude, oppure con un modello locale che non manda niente fuori dalla macchina.",
+    "p1.p": "Dici «Hey Xenon» e risponde, con Gemini, ChatGPT o Claude, oppure con Ollama sullo stesso PC.",
     "p2.h": "Deck",
     "p2.p": "Una griglia di tasti programmabili che aprono app, cambiano scena in OBS, mandano hotkey e webhook, o comandano la voce di Discord e Spotify.",
     "p3.h": "Monitoraggio",
-    "p3.p": "CPU, GPU, RAM, rete e gli FPS reali in gioco, tenuti per trenta giorni così puoi tornare a vedere cosa è successo. I valori vengono letti sulla macchina stessa.",
+    "p3.p": "CPU, GPU, RAM, rete e gli FPS reali in gioco, tenuti per trenta giorni.",
     "p4.h": "Bit",
-    "p4.p": "Vitals tiene d’occhio idratazione, concentrazione e postura, e Bit è il pet pixel che continua a chiedertelo finché non ti alzi. Nessuno dei due parte se non lo accendi tu.",
+    "p4.p": "Vitals tiene d’occhio idratazione, concentrazione e postura solo se lo accendi tu, e Bit è il pet pixel che insiste finché non ti alzi.",
     "fs1.h": "Ricerca",
-    "fs1.p": "Tiri giù la barra in alto e scrivi come lo diresti, tipo «foto di dicembre». L’indice che risponde viene costruito sul tuo PC e resta lì.",
+    "fs1.p": "Tiri giù la barra in alto e scrivi come lo diresti, tipo «foto di dicembre», e cerca dentro un indice che sta sul tuo disco.",
     "fs3.h": "Spazio su disco",
     "fs3.p": "Apri un disco e la mappa è già disegnata, perché l’indice dietro viene tenuto aggiornato in background invece di essere ricostruito ogni volta. La pulizia propone solo quello che sta in un elenco fisso di cache e file temporanei, e quello che rimuove finisce nel Cestino.",
     "rgb.h2": "Illuminazione",
@@ -1637,7 +1636,6 @@
     "run.h2": "Cosa fa",
     "run.p": "Sette delle aree che copre; l’elenco completo dei widget è più sotto.",
     "ix.h2": "Widget",
-    "ix.p": "Quaranta, nelle quattro categorie dell’app.",
     "ix.agenda": "Agenda",
     "ix.calendar": "Calendario",
     "ix.tasks": "Task",
@@ -1686,7 +1684,6 @@
     "cat.media": "미디어",
     "cat.prod": "생산성",
     "nav.coffee": "커피",
-    "ix.shot": "한 화면에: 브라우저 타일, YouTube, 디스크 지도까지 함께.",
     "rel.platform": "플랫폼",
     "rel.file": "파일",
     "rel.req": "요구 사항",
@@ -1732,15 +1729,15 @@
     "dl.onphone.t": "지금 휴대폰으로 보고 계시네요.",
     "dl.onphone.p": "Xenon은 감시할 PC에 설치하므로 거기서 시작하세요. 그다음 이 화면이 그 패널 중 하나가 됩니다: PC에서 연결 QR을 스캔하거나, 이 링크를 자신에게 보내세요.",
     "p1.h": "Xenon AI",
-    "p1.p": "“Hey Xenon”이라고 말하면 Gemini, ChatGPT, Claude로 대답하거나, 아무것도 밖으로 보내지 않는 로컬 모델로 대답합니다.",
+    "p1.p": "“Hey Xenon”이라고 말하면 Gemini, ChatGPT, Claude로 대답하고, 같은 PC에서 도는 Ollama로도 대답합니다.",
     "p2.h": "Deck",
     "p2.p": "앱을 열고, OBS 장면을 바꾸고, 단축키와 웹훅을 보내고, 디스코드 음성과 Spotify를 다루는 프로그래밍 가능한 키 그리드입니다.",
     "p3.h": "모니터링",
-    "p3.p": "CPU, GPU, RAM, 네트워크와 게임 중 실제 FPS를 30일 동안 보관해 지난 상황을 다시 볼 수 있습니다. 수치는 PC에서 직접 읽습니다.",
+    "p3.p": "CPU, GPU, RAM, 네트워크와 게임 중 실제 FPS를 30일 동안 보관합니다.",
     "p4.h": "Bit",
-    "p4.p": "Vitals는 수분, 집중, 자세를 살피고, Bit은 쉬러 갈 때까지 계속 말을 거는 픽셀 펫입니다. 둘 다 직접 켜야 동작합니다.",
+    "p4.p": "Vitals는 직접 켰을 때만 수분, 집중, 자세를 살피고, Bit은 쉬러 갈 때까지 계속 말을 거는 픽셀 펫입니다.",
     "fs1.h": "검색",
-    "fs1.p": "상단 바를 내리고 말하듯 “12월 사진”처럼 입력합니다. 답을 주는 색인은 PC에서 만들어지고 PC에 남습니다.",
+    "fs1.p": "상단 바를 내리고 “12월 사진”처럼 말하듯 입력하면, 이 PC 디스크에 있는 색인에서 찾습니다.",
     "fs3.h": "디스크 공간",
     "fs3.p": "드라이브를 열면 지도가 이미 그려져 있습니다. 뒤에 있는 색인을 그때그때 다시 만들지 않고 백그라운드에서 최신 상태로 유지하기 때문입니다. 정리는 캐시와 임시 파일로 정해진 목록에서만 제안하고, 지운 것은 모두 휴지통으로 갑니다.",
     "rgb.h2": "조명",
@@ -1808,7 +1805,6 @@
     "run.h2": "무엇을 하는지",
     "run.p": "여기 있는 것은 일곱 가지 영역이고, 위젯 전체 목록은 아래에 있습니다.",
     "ix.h2": "위젯",
-    "ix.p": "앱과 같은 네 가지 분류로 마흔 개.",
     "ix.agenda": "일정",
     "ix.calendar": "캘린더",
     "ix.tasks": "작업",
@@ -1857,7 +1853,6 @@
     "cat.media": "メディア",
     "cat.prod": "生産性",
     "nav.coffee": "コーヒー",
-    "ix.shot": "1 画面に: ブラウザタイル、YouTube、ディスクマップが同時に。",
     "rel.platform": "プラットフォーム",
     "rel.file": "ファイル",
     "rel.req": "動作環境",
@@ -1903,15 +1898,15 @@
     "dl.onphone.t": "いまスマホでご覧ですね。",
     "dl.onphone.p": "Xenon は監視する PC に入れるので、まずはそちらから。そのあとこの画面がパネルの 1 つになります: PC からペアリング用 QR を読み取るか、このリンクを自分宛てに送ってください。",
     "p1.h": "Xenon AI",
-    "p1.p": "「Hey Xenon」と言えば、Gemini や ChatGPT、Claude で答えます。何も外に送らないローカルモデルで答えることもできます。",
+    "p1.p": "「Hey Xenon」と言えば、Gemini や ChatGPT、Claude で答えます。同じ PC で動く Ollama で答えることもできます。",
     "p2.h": "Deck",
     "p2.p": "アプリを開き、OBS のシーンを切り替え、ホットキーや Webhook を送り、Discord ボイスや Spotify を操作できる、プログラム可能なキーのグリッドです。",
     "p3.h": "モニタリング",
-    "p3.p": "CPU・GPU・RAM・ネットワークとゲーム中の実 FPS を 30 日分ためておくので、後から何が起きていたかを見直せます。数値は PC 上で読み取ります。",
+    "p3.p": "CPU・GPU・RAM・ネットワークとゲーム中の実 FPS を 30 日分ためておきます。",
     "p4.h": "Bit",
-    "p4.p": "Vitals が水分・集中・姿勢を見て、Bit は休憩するまで声をかけ続けるピクセルのペットです。どちらも自分でオンにしないと動きません。",
+    "p4.p": "Vitals は自分でオンにしたときだけ水分・集中・姿勢を見て、Bit は休憩するまで声をかけ続けるピクセルのペットです。",
     "fs1.h": "検索",
-    "fs1.p": "上のバーを引き下げて、「12月の写真」のように話す言葉で打ちます。答えを返す索引は PC 上で作られ、PC に残ります。",
+    "fs1.p": "上のバーを引き下げて「12月の写真」のように話す言葉で打つと、自分のディスク上にある索引から探します。",
     "fs3.h": "ディスク容量",
     "fs3.p": "ドライブを開いた時点でマップはできています。裏の索引をその都度作り直さず、バックグラウンドで最新に保っているからです。整理に出てくるのはキャッシュと一時ファイルの決まった一覧だけで、消したものはすべてごみ箱に入ります。",
     "rgb.h2": "ライティング",
@@ -1979,7 +1974,6 @@
     "run.h2": "何をするか",
     "run.p": "ここにあるのは七つの領域で、ウィジェットの一覧は下にあります。",
     "ix.h2": "ウィジェット",
-    "ix.p": "アプリと同じ四つの分類で四十個。",
     "ix.agenda": "予定",
     "ix.calendar": "カレンダー",
     "ix.tasks": "タスク",
@@ -2028,7 +2022,6 @@
     "cat.media": "媒体",
     "cat.prod": "效率",
     "nav.coffee": "咖啡",
-    "ix.shot": "同一块屏幕上：浏览器磁贴、YouTube 和磁盘地图，同时显示。",
     "rel.platform": "平台",
     "rel.file": "文件",
     "rel.req": "系统要求",
@@ -2074,15 +2067,15 @@
     "dl.onphone.t": "你现在正用手机浏览。",
     "dl.onphone.p": "Xenon 装在它要监控的那台 PC 上，所以从那儿开始。之后这块屏就成了它的一个面板：在 PC 上扫配对二维码，或者把这个链接发给自己。",
     "p1.h": "Xenon AI",
-    "p1.p": "说一句“Hey Xenon”，它会用 Gemini、ChatGPT 或 Claude 回答，也可以用完全不外发数据的本地模型。",
+    "p1.p": "说一句“Hey Xenon”，它会用 Gemini、ChatGPT 或 Claude 回答，也可以用跑在这台电脑上的 Ollama。",
     "p2.h": "Deck",
     "p2.p": "一块可编程按键的网格，用来打开应用、切换 OBS 场景、发送快捷键和 Webhook，或者控制 Discord 语音和 Spotify。",
     "p3.h": "监控",
-    "p3.p": "CPU、GPU、内存、网络和游戏里的真实 FPS，保留三十天，方便回头看当时发生了什么。数值都在这台电脑上读取。",
+    "p3.p": "CPU、GPU、内存、网络和游戏里的真实 FPS，保留三十天。",
     "p4.h": "Bit",
-    "p4.p": "Vitals 看着饮水、专注和坐姿，Bit 是那只会一直提醒你去休息的像素宠物。两者都要你自己打开才会运行。",
+    "p4.p": "Vitals 只有你打开才会看着饮水、专注和坐姿，Bit 是那只会一直提醒你去休息的像素宠物。",
     "fs1.h": "搜索",
-    "fs1.p": "把顶栏拉下来，像说话一样输入，比如“十二月的照片”。负责回答的索引在你的电脑上建立，也留在这里。",
+    "fs1.p": "把顶栏拉下来，像说话一样输入，比如“十二月的照片”，它会在你自己硬盘上的索引里查找。",
     "fs3.h": "磁盘空间",
     "fs3.p": "打开一个硬盘时地图已经画好了，因为背后的索引是在后台保持更新，而不是每次重新扫描。清理只会从一份固定的缓存和临时文件清单里提议，删掉的东西全都进回收站。",
     "rgb.h2": "灯光",
@@ -2150,7 +2143,6 @@
     "run.h2": "它做什么",
     "run.p": "这里是其中七个方面，完整的小组件列表在下面。",
     "ix.h2": "小组件",
-    "ix.p": "四十个，按应用里的四个分类。",
     "ix.agenda": "日程",
     "ix.calendar": "日历",
     "ix.tasks": "任务",
