@@ -3,6 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
 <title>Xenon — community catalog</title>
 <meta name="robots" content="noindex">
 <!--
@@ -27,9 +33,14 @@
 </script>
 <style>
   body { margin: 0; min-height: 100vh; display: grid; place-items: center;
-         background: #05080c; color: #9fb0c0; font: 15px/1.6 system-ui, sans-serif; }
-  a { color: #1ed760; }
+         background: var(--g-0); color: var(--bone-1); font: 15px/1.6 system-ui, sans-serif; }
+  a { color: var(--bone-0); }
 </style>
+<!-- PANEL token layer. Linked AFTER the inline <style> above on purpose:
+     this file owns the palette, the type and the motion for every page on the
+     site, and each page kept its own drifted copy of those tokens. Later wins,
+     so one file re-skins all nine. Page-specific rules above are untouched. -->
+<link rel="stylesheet" href="/site.css">
 </head>
 <body>
   <p>The community catalog moved — <a href="../catalog/">continue to xenon-app.com/catalog/</a>.</p>

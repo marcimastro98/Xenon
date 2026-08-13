@@ -31,6 +31,11 @@ docs/demo/                      export-ignore
 
 # Site root: entry page, analytics, Pages/DNS plumbing, search-console token
 docs/index.html                 export-ignore
+# The shared token/type layer and the self-hosted OFL faces (PANEL, 2026-08).
+# Nothing on a user's machine reads either; without these lines every install
+# would carry ~260 KB of webfonts it never renders.
+docs/site.css                   export-ignore
+docs/fonts/                     export-ignore
 docs/analytics.js               export-ignore
 docs/consent.js                 export-ignore
 docs/privacy.html               export-ignore

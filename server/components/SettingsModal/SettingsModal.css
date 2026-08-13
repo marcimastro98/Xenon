@@ -3707,7 +3707,10 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
   box-shadow: 0 6px 18px -6px rgba(var(--xd), 0.8);
 }
 
-.xdrop-body { padding: 16px 20px 18px; display: flex; flex-direction: column; overflow-y: auto; }
+/* `min-height: 0` is what makes the `overflow-y` real. Without it this flex item
+   refuses to shrink below its content, so on a short viewport the card (which is
+   `overflow: hidden`) simply cut the body off instead of scrolling it. */
+.xdrop-body { padding: 16px 20px 18px; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .xdrop-kicker {
   display: inline-flex; align-items: center; gap: 7px; align-self: flex-start;
   font-size: 0.74rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
@@ -3722,7 +3725,11 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 .xdrop-barfill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, rgba(var(--xd), 0.7), rgb(var(--xd))); box-shadow: 0 0 14px rgba(var(--xd), 0.6); }
 .xdrop-left { font-size: 0.78rem; font-weight: 600; color: rgba(var(--xd), 1); font-variant-numeric: tabular-nums; }
 
-.xdrop-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+/* `flex: none` on both: they are the two things in the card that must keep their
+   size. A flex item shrinks by default, so on a phone the list above them took
+   the space and these two were squeezed toward zero height and PAINTED OVER it —
+   the CTA sitting across a drop's name, the opt-out across another. */
+.xdrop-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; flex: none; }
 .xdrop-btn {
   appearance: none; border: 0; cursor: pointer; font-family: inherit;
   border-radius: 14px; font-weight: 700; letter-spacing: -0.01em;
@@ -3744,6 +3751,10 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 
 .xdrop-foot {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  /* Wraps rather than squashing: the opt-out label is a full sentence in every
+     language, and at 390px it and "Maybe later" do not share one line. */
+  flex-wrap: wrap; row-gap: 6px;
+  flex: none;
   margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--glass-border, rgba(255, 255, 255, 0.09));
 }
 .xdrop-dontshow { display: inline-flex; align-items: center; gap: 9px; cursor: pointer; user-select: none; color: var(--text-dim, #8b91a1); font-size: 0.8rem; }
@@ -3761,7 +3772,18 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
    card wears the theme accent (it holds mixed tiers); each ROW carries its
    own tier colour, gold or violet. */
 .xdrop-card.is-batch { --xd: var(--accent-rgb, 53, 224, 142); --xd-ink: #04240f; width: min(470px, 96vw); }
-.xdrop-batch { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; min-height: 0; }
+/* The LIST is the scroller here, not the body: nine drops on a 390px screen are
+   taller than the card, and the "Open the Store" CTA and the opt-out have to stay
+   where the thumb expects them instead of being pushed off the bottom. */
+.xdrop-card.is-batch .xdrop-body { overflow-y: hidden; }
+.xdrop-batch {
+  display: flex; flex-direction: column; gap: 10px; margin-top: 14px;
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  scrollbar-width: thin;
+}
+/* Each row keeps its own height. Left shrinkable, the 52px thumbnail (`flex: none`)
+   outgrew its row and spilled over the row below it. */
+.xdrop-row { flex: none; }
 .xdrop-row {
   --xr: 255, 180, 84;                 /* supporters gold (default) */
   appearance: none; font-family: inherit; text-align: left; cursor: pointer;

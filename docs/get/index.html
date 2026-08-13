@@ -35,6 +35,10 @@
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
 <script src="/analytics.js" defer></script>
 <script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
 <!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
      for every visitor (GA4 only counts those who accept the banner), so it is the
      honest denominator the GA4 numbers are read against. -->
@@ -50,20 +54,21 @@
      links (follow), and robots.txt keeps the crawl off it as well. -->
 <meta name="robots" content="noindex, follow">
 <link rel="canonical" href="https://xenon-app.com/get/">
-<meta name="theme-color" content="#070808">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
 <link rel="icon" type="image/png" href="../images/favicon.png">
 <style>
   /* Small, self-contained QR landing — same palette as the main site, but system
      fonts only so it paints instantly on a phone. */
   :root {
-    --ink:    #04060a;
-    --panel:  rgba(140, 255, 200, 0.04);
-    --line:   rgba(120, 245, 180, 0.14);
-    --line-2: rgba(120, 245, 180, 0.28);
-    --plasma: #1ee07a;
-    --plasma-2: #40dca5;
-    --text:   #e9f2ee;
-    --muted:  #8fa39c;
+    --ink:    var(--g-0);
+    --panel:  var(--g-1);
+    --line:   var(--rule);
+    --line-2: var(--rule-2);
+    --plasma: var(--bone-0);
+    --plasma-2: var(--bone-1);
+    --text:   var(--bone-0);
+    --muted:  var(--bone-1);
     --mono:   ui-monospace, 'JetBrains Mono', 'Cascadia Mono', Consolas, monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -72,27 +77,29 @@
     min-height: 100dvh; display: flex; align-items: center; justify-content: center;
     padding: 22px 16px; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
     color: var(--text); line-height: 1.55; -webkit-font-smoothing: antialiased;
+    /* Two decorative washes used to sit here — a green at transparent
+       and a cyan at transparent. That green was a FOURTH one: the site
+       carried #1ed760 on the home, #1ee07a here in the tokens, #4ce38a and
+       var(--bone-1) as hover steps, and this one in the gradient. Nobody can hold four
+       greens in their head, which is how a palette drifts. */
     background: var(--ink);
-    background-image:
-      radial-gradient(90% 60% at 50% -10%, rgba(30,224,122,0.10), transparent 60%),
-      radial-gradient(70% 50% at 85% 110%, rgba(118,247,255,0.06), transparent 65%);
   }
   a { color: inherit; text-decoration: none; }
-  ::selection { background: var(--plasma); color: #021; }
+  ::selection { background: var(--plasma); color: var(--g-0); }
 
   .card {
     width: 100%; max-width: 520px; padding: 30px 26px 26px; border-radius: 22px;
     border: 1px solid var(--line); background: var(--panel);
-    box-shadow: 0 24px 70px rgba(0,0,0,0.5);
+    box-shadow: none;
   }
   .logo {
     display: inline-flex; align-items: center; gap: 10px; margin-bottom: 22px;
     font-weight: 800; font-size: 19px; letter-spacing: 0.08em;
   }
-  .logo img { height: 30px; width: auto; mix-blend-mode: screen; }
+  .logo img { height: 30px; width: auto;  }
   .tag {
-    display: block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.3em;
-    text-transform: uppercase; color: var(--plasma-2); margin-bottom: 12px;
+    display: block; font-size: 13px; letter-spacing: 0;
+    text-transform: none; color: var(--bone-2); margin-bottom: 12px;
   }
   h1 { font-size: clamp(24px, 6vw, 30px); line-height: 1.12; letter-spacing: -0.01em; }
   .sub { color: var(--muted); font-size: 14.5px; margin-top: 12px; }
@@ -100,7 +107,7 @@
   textarea {
     width: 100%; margin-top: 20px; padding: 13px 14px; resize: none;
     font-family: var(--mono); font-size: 12px; line-height: 1.6; word-break: break-all;
-    color: var(--plasma-2); background: rgba(0,0,0,0.4);
+    color: var(--plasma-2); background: var(--g-1);
     border: 1px solid var(--line-2); border-radius: 12px; outline: none;
   }
   textarea:focus { border-color: var(--plasma); }
@@ -109,10 +116,10 @@
     display: flex; width: 100%; align-items: center; justify-content: center; gap: 9px;
     margin-top: 14px; padding: 15px 20px; border: 0; border-radius: 999px; cursor: pointer;
     font-family: var(--mono); font-weight: 700; font-size: 14px; letter-spacing: 0.05em;
-    color: #021b0e; background: var(--plasma); box-shadow: 0 10px 34px rgba(30,224,122,0.35);
+    color: var(--g-0); background: var(--bone-0); box-shadow: none;
     transition: transform .15s ease, background .2s, box-shadow .2s;
   }
-  .btn:hover { background: var(--plasma-2); box-shadow: 0 12px 40px rgba(30,224,122,0.45); }
+  .btn:hover { background: var(--bone-1); box-shadow: none; }
   .btn:active { transform: translateY(2px); }
   .copied {
     min-height: 20px; margin-top: 10px; text-align: center;
@@ -128,7 +135,7 @@
     content: counter(st); position: absolute; left: 0; top: 10px;
     width: 26px; height: 26px; border-radius: 999px; display: grid; place-items: center;
     font-family: var(--mono); font-weight: 700; font-size: 12px;
-    color: #07100b; background: var(--plasma);
+    color: var(--g-0); background: var(--plasma);
   }
   ol.steps li b { color: var(--text); font-weight: 600; }
 
@@ -139,14 +146,19 @@
   footer {
     margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line);
     font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em;
-    text-transform: uppercase; color: var(--muted); text-align: center;
+    text-transform: none; letter-spacing: 0; color: var(--bone-2); text-align: center;
   }
   [hidden] { display: none !important; }
 </style>
+<!-- PANEL token layer. Linked AFTER the inline <style> above on purpose:
+     this file owns the palette, the type and the motion for every page on the
+     site, and each page kept its own drifted copy of those tokens. Later wins,
+     so one file re-skins all nine. Page-specific rules above are untouched. -->
+<link rel="stylesheet" href="/site.css">
 </head>
 <body>
 <main class="card">
-  <a class="logo" href="/"><img src="../images/logo.png" alt="" width="42" height="28">XENON</a>
+  <a class="logo" href="/" aria-label="Xenon"><img class="logo-mark" src="../images/logo-x.png" alt="" width="33" height="26">ENON</a>
 
   <!-- Shown when the URL carries #code=<share code> -->
   <div id="has-code" hidden>

@@ -207,6 +207,28 @@ function onVisiblePage(el) {
   return !(p && p.isOnCurrentPage) || p.isOnCurrentPage(el);
 }
 
+// Limited-edition stock, derived rather than trusted. `catalog.json` publishes
+// `total` + `claimed`; `left` and `soldOut` are ADDED by the server proxy
+// (community-catalog.js → normalizeLimited) and refreshed from the hub. Any
+// surface reading a catalog that did not pass through that proxy — the website's
+// static demo is one, and it is the one visitors see — therefore has neither,
+// and printing `lim.left` straight into the string put "undefined of 50 left" in
+// front of them, with a sold-out drop still announced as available beside it.
+// One derivation for every meter and count, in the shape those call sites want.
+// Returns null when the entry carries no usable stock at all, which every caller
+// reads as "no meter" rather than as a zero.
+function limitedStock(lim) {
+  if (!lim || typeof lim !== 'object') return null;
+  const total = Math.max(0, Math.round(Number(lim.total) || 0));
+  if (!total) return null;
+  const claimed = Math.min(total, Math.max(0, Math.round(Number(lim.claimed) || 0)));
+  const rawLeft = Number(lim.left);
+  // An explicit `left` wins (the hub's live count is fresher than the published
+  // `claimed`); absent or unusable, the published pair still answers the question.
+  const left = Number.isFinite(rawLeft) ? Math.min(total, Math.max(0, Math.round(rawLeft))) : total - claimed;
+  return { total, left, claimed: total - left, soldOut: lim.soldOut === true || left <= 0 };
+}
+
 function parseAppFavorites(raw) {
   try {
     // Accept either a JSON string (localStorage) or an already-parsed array

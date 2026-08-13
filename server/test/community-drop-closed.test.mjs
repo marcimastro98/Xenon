@@ -15,6 +15,17 @@ import vm from 'node:vm';
 // landed on a claim page that turned them away.
 const GALLERY = readFileSync(fileURLToPath(new URL('../js/community-gallery.js', import.meta.url)), 'utf8');
 const DROP = readFileSync(fileURLToPath(new URL('../js/catalog-drop.js', import.meta.url)), 'utf8');
+const UTILS = readFileSync(fileURLToPath(new URL('../js/utils.js', import.meta.url)), 'utf8');
+
+// Both gates read their stock through limitedStock() (utils.js), so it has to be
+// in the context with them — lifted the same way, from the same source.
+function limitedStockSource() {
+  const start = UTILS.indexOf('function limitedStock(');
+  assert.ok(start > 0, 'limitedStock not found — did utils.js move it?');
+  const close = UTILS.indexOf('\n}', start);
+  assert.ok(close > start, 'limitedStock block not delimited as expected');
+  return UTILS.slice(start, close + 2) + '\n';
+}
 
 function loadClaimGate() {
   const start = GALLERY.indexOf('  const dropClosed =');
@@ -26,6 +37,7 @@ function loadClaimGate() {
     "const HUB_BASE = 'https://hub.test';\n"
     + 'const el = () => ({});\n'
     + 'const t = (k, fb) => fb;\n'
+    + limitedStockSource()
     + GALLERY.slice(start, close + 4)
     + '\nthis.dropClosed = dropClosed; this.dropUnavailable = dropUnavailable; this.directClaimUrlFor = directClaimUrlFor;',
     ctx,
@@ -39,7 +51,7 @@ function loadIsPaidDrop() {
   const close = DROP.indexOf('\n  }', start);
   assert.ok(close > start, 'isPaidDrop block not delimited as expected');
   const ctx = vm.createContext({});
-  vm.runInContext(DROP.slice(start, close + 4) + '\nthis.isPaidDrop = isPaidDrop;', ctx);
+  vm.runInContext(limitedStockSource() + DROP.slice(start, close + 4) + '\nthis.isPaidDrop = isPaidDrop;', ctx);
   return ctx.isPaidDrop;
 }
 

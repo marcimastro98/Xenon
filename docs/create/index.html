@@ -35,6 +35,10 @@
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
 <script src="/analytics.js" defer></script>
 <script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
 <!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
      for every visitor (GA4 only counts those who accept the banner), so it is the
      honest denominator the GA4 numbers are read against. -->
@@ -60,7 +64,8 @@
 <meta name="twitter:image" content="https://xenon-app.com/images/overview.png">
 <link rel="canonical" href="https://xenon-app.com/create/">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
-<meta name="theme-color" content="#070808">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
 
 <!-- TechArticle rather than Article: this is a how-to for building something,
      and the more specific type is the one that describes it honestly. -->
@@ -95,27 +100,24 @@
 </script>
 
 <script>document.documentElement.classList.add('js');</script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" media="print" onload="this.media='all';this.onload=null" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
-<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"></noscript>
+<noscript></noscript>
 
 <style>
   :root {
-    --ink:      #070808;
+    --ink:      var(--g-0);
     --ink-2:    #0b0d0c;
     --panel:    rgba(240, 243, 241, 0.03);
     --panel-2:  rgba(240, 243, 241, 0.055);
     --line:     rgba(240, 243, 241, 0.08);
     --line-2:   rgba(240, 243, 241, 0.16);
-    --plasma:   #1ed760;   /* the locked Xenon brand green */
+    --plasma:   var(--bone-0);   /* PANEL: nessun accento, vedi /site.css */
     --plasma-2: #4ce38a;   /* lighter step for text-on-dark hovers */
     --green-ink:#052012;   /* text on a green fill */
     --ion:      #6cb8ff;   /* docs-info blue (callouts, keys) — not the Orb cyan */
     --hot:      #ffd75e;   /* string literals */
-    --text:     #f0f3f1;
-    --muted:    #9aa8a1;
-    --dim:      #66736c;
+    --text:     var(--bone-0);
+    --muted:    var(--bone-1);
+    --dim:      var(--bone-2);
     --display:  'Inter', system-ui, sans-serif;
     --body:     'Inter', system-ui, -apple-system, sans-serif;
     --mono:     'JetBrains Mono', ui-monospace, monospace;
@@ -138,19 +140,19 @@
   /* Ambient background wash */
   body::before {
     content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background: radial-gradient(80% 55% at 82% -8%, rgba(30,215,96,0.08), transparent 60%);
+    background: radial-gradient(80% 55% at 82% -8%, var(--rule), transparent 60%);
   }
 
   /* ───────── Top bar ───────── */
   .topbar {
     position: fixed; inset: 0 0 auto 0; z-index: 50; height: var(--nav-h);
     display: flex; align-items: center; gap: 18px; padding: 0 22px;
-    background: rgba(5,8,12,0.72); backdrop-filter: blur(16px) saturate(150%);
+    background: color-mix(in srgb, var(--g-0) 72%, transparent); backdrop-filter: blur(16px) saturate(150%);
     border-bottom: 1px solid var(--line);
   }
   .brand { display: flex; align-items: center; gap: 9px; font-family: var(--display); font-weight: 700; font-size: 18px; letter-spacing: 0.06em; flex: none; }
-  .brand img { height: 28px; width: auto; margin: -6px 0; mix-blend-mode: screen; filter: drop-shadow(0 0 8px rgba(30,215,96,0.25)); }
-  .brand .sub { font-family: var(--mono); font-weight: 500; font-size: 11px; letter-spacing: 0.14em; color: var(--plasma-2); text-transform: uppercase; padding-left: 12px; margin-left: 4px; border-left: 1px solid var(--line-2); }
+  .brand img { height: 28px; width: auto; margin: -6px 0;  filter: drop-shadow(0 0 8px var(--rule-2)); }
+  .brand .sub { font-weight: 400; font-size: 13px; letter-spacing: 0; color: var(--bone-2); text-transform: none; padding-left: 12px; margin-left: 4px; border-left: 1px solid var(--line-2); }
   .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
   .tb-link { font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; color: var(--muted); padding: 8px 12px; border-radius: 9px; transition: color .2s, background .2s; }
   .tb-link:hover { color: var(--text); background: var(--panel-2); }
@@ -168,7 +170,7 @@
     padding: 30px 14px 60px 22px; border-right: 1px solid var(--line);
   }
   .side-group { margin-bottom: 22px; }
-  .side-group h4 { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); margin: 0 0 8px 10px; }
+  .side-group h4 { font-size: 12.5px; letter-spacing: 0; text-transform: none; color: var(--bone-2); margin: 0 0 8px 10px; }
   .side-group a {
     display: block; font-size: 13.5px; color: var(--muted); padding: 6px 10px; border-radius: 8px;
     border-left: 2px solid transparent; transition: color .16s, background .16s, border-color .16s;
@@ -194,25 +196,25 @@
   section.no-rule > h2 { border-top: none; padding-top: 0; }
   section > h2 .step { font-family: var(--mono); font-size: 0.5em; color: var(--plasma); letter-spacing: 0.1em; vertical-align: middle; margin-right: 12px; }
   h3 { font-family: var(--display); font-weight: 600; font-size: clamp(17px, 2.2vw, 21px); margin: 30px 0 10px; }
-  p { margin-bottom: 14px; color: #c9d2ce; }
+  p { margin-bottom: 14px; color: var(--bone-1); }
   .content a.inline { color: var(--plasma-2); border-bottom: 1px solid var(--line-2); }
   .content a.inline:hover { color: var(--plasma); }
   strong { color: var(--text); font-weight: 700; }
   .muted { color: var(--muted); }
-  em { color: var(--ion); font-style: normal; font-family: var(--mono); font-size: 0.92em; background: rgba(108,184,255,0.08); padding: 1px 6px; border-radius: 5px; }
+  em { color: var(--ion); font-style: normal; font-family: var(--mono); font-size: 0.92em; background: var(--g-2); padding: 1px 6px; border-radius: 5px; }
 
-  ul, ol { margin: 0 0 16px 2px; padding-left: 20px; color: #c9d2ce; }
+  ul, ol { margin: 0 0 16px 2px; padding-left: 20px; color: var(--bone-1); }
   li { margin-bottom: 7px; }
   li::marker { color: var(--plasma-2); }
 
   /* Eyebrow tag */
-  .tag { font-family: var(--body); font-size: 12px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--plasma); display: inline-flex; align-items: center; margin-bottom: 16px; }
+  .tag { font-family: var(--body); font-size: 13px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--bone-2); display: inline-flex; align-items: center; margin-bottom: 16px; }
 
   /* Cards / callouts */
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px 24px; margin: 18px 0; }
-  .note { border-left: 3px solid var(--ion); background: rgba(108,184,255,0.06); border-radius: 0 12px 12px 0; padding: 14px 18px; margin: 18px 0; font-size: 14.5px; }
+  .note { border-left: 3px solid var(--ion); background: var(--g-2); border-radius: 0 12px 12px 0; padding: 14px 18px; margin: 18px 0; font-size: 14.5px; }
   .note b { color: var(--ion); }
-  .safe { border-left-color: var(--plasma); background: rgba(30,215,96,0.05); }
+  .safe { border-left-color: var(--plasma); background: var(--g-1); }
   .safe b { color: var(--plasma); }
 
   /* Path steps (numbered) */
@@ -230,9 +232,9 @@
   /* Code blocks + copy */
   .code { position: relative; margin: 16px 0; }
   .code-bar { display: flex; align-items: center; flex-wrap: nowrap; gap: 8px; background: #0a0f14; border: 1px solid var(--line); border-bottom: none; border-radius: 12px 12px 0 0; padding: 8px 90px 8px 14px; font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
-  .code-bar .dot { width: 9px; height: 9px; border-radius: 50%; background: #26303a; flex: none; }
+  .code-bar .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--rule-2); flex: none; }
   .code-bar .fname { margin-left: 4px; letter-spacing: 0.03em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .code-bar .badge { margin-left: auto; flex: none; white-space: nowrap; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--plasma); background: rgba(30,215,96,0.1); border: 1px solid var(--line); padding: 2px 8px; border-radius: 20px; }
+  .code-bar .badge { margin-left: auto; flex: none; white-space: nowrap; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--plasma); background: var(--rule); border: 1px solid var(--line); padding: 2px 8px; border-radius: 20px; }
   pre { background: #060a0e; border: 1px solid var(--line); border-radius: 0 0 12px 12px; padding: 16px 18px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; color: #d5ddd9; }
   pre.solo { border-radius: 12px; }
   pre code { white-space: pre; word-break: normal; }
@@ -243,7 +245,7 @@
   .copy-btn {
     position: absolute; top: 6px; right: 10px; z-index: 3;
     font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.05em; cursor: pointer;
-    background: rgba(30,215,96,0.12); border: 1px solid var(--line-2); color: var(--plasma-2);
+    background: var(--rule); border: 1px solid var(--line-2); color: var(--plasma-2);
     padding: 6px 13px; border-radius: 8px; transition: all .18s;
   }
   .copy-btn:hover { background: var(--plasma); color: var(--green-ink); border-color: var(--plasma); }
@@ -253,7 +255,7 @@
   .table-wrap { overflow-x: auto; margin: 20px 0; border: 1px solid var(--line); border-radius: 14px; }
   table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
   th, td { text-align: left; padding: 13px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--plasma-2); background: rgba(30,215,96,0.04); }
+  th { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.02em; text-transform: none; color: var(--bone-1); background: var(--g-1); }
   tr:last-child td { border-bottom: none; }
   td .goal { color: var(--text); font-weight: 600; }
   td a { color: var(--plasma-2); border-bottom: 1px solid var(--line-2); }
@@ -273,7 +275,7 @@
   /* Path pill row */
   .paths { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 24px 0; }
   .path { background: linear-gradient(160deg, var(--panel-2), transparent); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
-  .path .n { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; color: var(--plasma); text-transform: uppercase; }
+  .path .n { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.02em; color: var(--bone-1); text-transform: none; }
   .path h4 { font-family: var(--display); font-weight: 600; font-size: 18px; margin: 8px 0 6px; }
   .path p { font-size: 13.5px; color: var(--muted); margin: 0; }
 
@@ -297,15 +299,20 @@
       transform: translateX(-102%); transition: transform .28s var(--ease); padding-top: 24px;
     }
     body.nav-open .sidebar { transform: translateX(0); }
-    .scrim { position: fixed; inset: var(--nav-h) 0 0 0; background: rgba(0,0,0,0.5); z-index: 44; opacity: 0; pointer-events: none; transition: opacity .28s; }
+    .scrim { position: fixed; inset: var(--nav-h) 0 0 0; background: color-mix(in srgb, var(--g-0) 62%, transparent); z-index: 44; opacity: 0; pointer-events: none; transition: opacity .28s; }
     body.nav-open .scrim { opacity: 1; pointer-events: auto; }
   }
 </style>
+<!-- PANEL token layer. Linked AFTER the inline <style> above on purpose:
+     this file owns the palette, the type and the motion for every page on the
+     site, and each page kept its own drifted copy of those tokens. Later wins,
+     so one file re-skins all nine. Page-specific rules above are untouched. -->
+<link rel="stylesheet" href="/site.css">
 </head>
 <body data-track-view="create_start">
 
 <header class="topbar">
-  <a class="brand" href="../"><img src="../images/logo.png" alt="" width="42" height="28"> XENON <span class="sub">Create</span></a>
+  <a class="brand" href="../"><img class="logo-mark" src="../images/logo-x.png" alt="" width="33" height="26"> XENON <span class="sub">Create</span></a>
   <button class="menu-btn" id="menuBtn" aria-label="Open sections">☰</button>
   <nav class="topbar-actions">
     <a class="tb-link" href="../catalog/">Catalog</a>
@@ -711,8 +718,8 @@
 { xenonSdk:1, type:<span class="tok-s">'init'</span>,
   theme:{ appearance:<span class="tok-s">'dark'</span>, overrides:[<span class="tok-s">'accent'</span>],
     palette:{
-      background:<span class="tok-s">'#070808'</span>, surface:<span class="tok-s">'#111314'</span>, surfaceAlt:<span class="tok-s">'#16191a'</span>, control:<span class="tok-s">'#1c2021'</span>,
-      text:<span class="tok-s">'#f0f3f1'</span>, muted:<span class="tok-s">'#a6b1ad'</span>, dim:<span class="tok-s">'#7f8a86'</span>, line:<span class="tok-s">'#46504c'</span>,
+      background:<span class="tok-s">'var(--g-0)'</span>, surface:<span class="tok-s">'#111314'</span>, surfaceAlt:<span class="tok-s">'#16191a'</span>, control:<span class="tok-s">'#1c2021'</span>,
+      text:<span class="tok-s">'var(--bone-0)'</span>, muted:<span class="tok-s">'#a6b1ad'</span>, dim:<span class="tok-s">'#7f8a86'</span>, line:<span class="tok-s">'#46504c'</span>,
       accent:<span class="tok-s">'#1ed760'</span>, onAccent:<span class="tok-s">'#111111'</span>,
       success:<span class="tok-s">'#45d483'</span>, warning:<span class="tok-s">'#f0b84f'</span>, danger:<span class="tok-s">'#ff6268'</span>, info:<span class="tok-s">'#62cbea'</span>,
       surfaceSoft:<span class="tok-s">'rgba(22,25,26,0.92)'</span>, panelAlpha:<span class="tok-s">0.92</span>  <span class="tok-c">// card surface at the user's panel opacity (null → use surfaceAlt)</span>
@@ -746,7 +753,7 @@
         <pre><code>&lt;!doctype html&gt;
 &lt;meta charset="utf-8"&gt;
 &lt;style&gt;
-  :root { --accent:#1ed760; --text:#e9f2ee; }
+  :root { --accent:#1ed760; --text:var(--bone-0); }
   body { margin:0; display:grid; place-items:center; height:100vh;
          font-family:system-ui; color:var(--text); background:transparent; }
   #v { font-size:14vw; font-weight:700; color:var(--accent); }
@@ -903,7 +910,7 @@
 &lt;style&gt;
   body { margin:0; height:100vh; display:grid; place-items:center; background:transparent; }
   button { font:600 5vw system-ui; padding:.5em 1em; border-radius:16px; cursor:pointer;
-           border:1px solid #2a3a34; color:#e9f2ee; background:#0e1512; }
+           border:1px solid #2a3a34; color:var(--bone-0); background:#0e1512; }
 &lt;/style&gt;
 &lt;button id="b"&gt;🎙 Mute&lt;/button&gt;
 &lt;script&gt;
