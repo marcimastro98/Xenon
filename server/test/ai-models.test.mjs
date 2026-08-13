@@ -117,6 +117,35 @@ test('every provider sanitizer accepts the sentinel — the colon is the trap', 
   assert.equal(anthropic.sanitizeModel('claude-sonnet-5'), 'claude-sonnet-5');
 });
 
+test('an absent setting falls back to auto, never to a named model', () => {
+  // The fallback used to be each module's chat model, which was invisible while
+  // one field per provider used this and wrong the moment three did: an absent
+  // openaiSttModel came back as `gpt-4o`, the client stored it as a deliberate
+  // pin, and both speech rows in Settings showed a chat model.
+  for (const mod of [gemini, openai, anthropic]) {
+    assert.equal(mod.sanitizeModel(undefined), 'auto');
+    assert.equal(mod.sanitizeModel(''), 'auto');
+    assert.equal(mod.sanitizeModel('nope nope'), 'auto');
+  }
+});
+
+test('a speech slot refuses a model that is not a speech model', () => {
+  const s = openai.sanitizeSpeechModel;
+  assert.equal(s('whisper-1', 'stt'), 'whisper-1');
+  assert.equal(s('gpt-4o-transcribe', 'stt'), 'gpt-4o-transcribe');
+  assert.equal(s('tts-1', 'tts'), 'tts-1');
+  assert.equal(s('gpt-4o-mini-tts', 'tts'), 'gpt-4o-mini-tts');
+  assert.equal(s('auto', 'tts'), 'auto');
+  assert.equal(s('auto:gpt', 'stt'), 'auto:gpt');
+  // The repair: a chat id that reached a speech field goes back to auto, so the
+  // value already written to disk by the bug above heals on the next normalize.
+  assert.equal(s('gpt-4o', 'tts'), 'auto');
+  assert.equal(s('gpt-4o', 'stt'), 'auto');
+  assert.equal(s('tts-1', 'stt'), 'auto', 'a speech model of the WRONG kind is refused too');
+  assert.equal(s('whisper-1', 'tts'), 'auto');
+  assert.equal(s('something-unclassifiable', 'tts'), 'auto');
+});
+
 // ── Resolution ───────────────────────────────────────────────────────────────
 
 test('resolve: a pin is returned untouched, auto follows the list', () => {
