@@ -1,7 +1,9 @@
 'use strict';
 
 // ── Xenon AI Module ─────────────────────────────────────────────
-// Chat / function calling: gemini-3.1-flash-tts-preview via POST /api/ai
+// Chat / function calling via POST /api/ai. The concrete model id is chosen
+// server-side (ai-models.js) from the user's setting — this module never names
+// one, which is why the picker can follow new releases without touching it.
 // Voice input (STT) and output (TTS) both run server-side (/api/stt/*, /api/speak)
 //   so they work focus-independently and inside the iCUE WebView.
 // Voice sessions are triggered via the 🎙 button (startVoiceSession).
@@ -19,8 +21,8 @@ function _aiProviderCfg() {
   // model from its own settings (server-only key path), so this is informational
   // there; for ollama it selects the local model.
   let model = 'auto';
-  if (provider === 'openai') model = typeof s.openaiModel === 'string' ? s.openaiModel : 'gpt-4o';
-  else if (provider === 'anthropic') model = typeof s.anthropicModel === 'string' ? s.anthropicModel : 'claude-sonnet-5';
+  if (provider === 'openai') model = typeof s.openaiModel === 'string' ? s.openaiModel : 'auto';
+  else if (provider === 'anthropic') model = typeof s.anthropicModel === 'string' ? s.anthropicModel : 'auto';
   else if (provider === 'ollama') model = typeof s.ollamaModel === 'string' ? s.ollamaModel : 'auto';
   return {
     provider,

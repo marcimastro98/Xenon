@@ -442,10 +442,18 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // never holds them. The model tags are user-overridable.
   openaiApiKey: '',
   openaiApiKeySet: false,
-  openaiModel: 'gpt-4o',
+  // 'auto' / 'auto:<family>' = follow the provider's newest model of that family
+  // (resolved server-side in ai-models.js); a concrete id is a pin.
+  openaiModel: 'auto',
+  openaiSttModel: 'auto',
+  openaiTtsModel: 'auto',
   anthropicApiKey: '',
   anthropicApiKeySet: false,
-  anthropicModel: 'claude-sonnet-5',
+  anthropicModel: 'auto',
+  geminiModel: 'auto',
+  geminiModelPro: 'auto',
+  geminiModelTts: 'auto',
+  geminiModelLive: 'auto',
   hardwareScan: null,   // server-generated hardware probe; mirrored back as-is
   aiTtsEnabled: true,
   aiMicSensitivity: 50, // 0..100 — wake-word mic sensitivity slider (lower = stricter, fewer false positives)
@@ -1533,6 +1541,18 @@ function normalizeFanLabels(value) {
   return out;
 }
 
+// A stored AI model choice: either `auto` / `auto:<family>` (follow the
+// provider's newest model of that family, resolved server-side by ai-models.js)
+// or a concrete model id the user pinned. Mirrors sanitizeModel() in the three
+// provider modules — the colon in the sentinel is why the id pattern alone is
+// not enough, and getting that wrong silently un-pins every auto setting.
+function normalizeModelChoice(value) {
+  const v = typeof value === 'string' ? value.trim() : '';
+  if (/^auto(?::[a-z0-9.-]{1,24})?$/.test(v)) return v;
+  if (v && v.length <= 60 && /^[a-z0-9._-]+$/i.test(v)) return v;
+  return 'auto';
+}
+
 function normalizeSettings(source) {
   const value = source && typeof source === 'object' ? source : {};
   // One-time migration: if the saved layout predates the current version,
@@ -1627,12 +1647,19 @@ function normalizeSettings(source) {
     // *Set booleans carry "a key is saved" so the UI and the ready-gate know.
     openaiApiKey: String(value.openaiApiKey || '').trim().slice(0, 200),
     openaiApiKeySet: value.openaiApiKeySet === true || !!String(value.openaiApiKey || '').trim(),
-    openaiModel: (typeof value.openaiModel === 'string' && value.openaiModel.trim() && value.openaiModel.length <= 60)
-      ? value.openaiModel.trim() : 'gpt-4o',
+    openaiModel: normalizeModelChoice(value.openaiModel),
+    openaiSttModel: normalizeModelChoice(value.openaiSttModel),
+    openaiTtsModel: normalizeModelChoice(value.openaiTtsModel),
     anthropicApiKey: String(value.anthropicApiKey || '').trim().slice(0, 200),
     anthropicApiKeySet: value.anthropicApiKeySet === true || !!String(value.anthropicApiKey || '').trim(),
-    anthropicModel: (typeof value.anthropicModel === 'string' && value.anthropicModel.trim() && value.anthropicModel.length <= 60)
-      ? value.anthropicModel.trim() : 'claude-sonnet-5',
+    anthropicModel: normalizeModelChoice(value.anthropicModel),
+    // Gemini, one per role. Same shape as the two above: `auto` / `auto:<family>`
+    // follows the provider's releases, a concrete id is a pin. The server
+    // resolves them (ai-models.js); the client only stores the choice.
+    geminiModel: normalizeModelChoice(value.geminiModel),
+    geminiModelPro: normalizeModelChoice(value.geminiModelPro),
+    geminiModelTts: normalizeModelChoice(value.geminiModelTts),
+    geminiModelLive: normalizeModelChoice(value.geminiModelLive),
     ollamaUrl: (typeof value.ollamaUrl === 'string'
       && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(value.ollamaUrl))
       ? value.ollamaUrl.replace(/\/+$/, '') : 'http://localhost:11434',
@@ -9282,6 +9309,12 @@ let _aiProviderBound = false;
 // aiLocalLoadModels(). Drives the custom-field autocomplete + download state.
 let _ollamaInstalledModels = [];
 
+// Models the site's curated list offers for download — [{tag,label,sizeGB,…}].
+// Kept separate from the installed list: one says what you have, the other what
+// you could have. Empty until the fetch lands, and empty is a valid state (the
+// four preset tiers and the custom field work exactly as before without it).
+let _ollamaCatalog = [];
+
 // Fetch the installed Ollama models and populate the autocomplete datalist.
 async function aiLocalLoadModels() {
   try {
@@ -9289,6 +9322,15 @@ async function aiLocalLoadModels() {
     _ollamaInstalledModels = Array.isArray(data && data.models) ? data.models : [];
   } catch {
     _ollamaInstalledModels = [];
+  }
+  // The download catalog comes from the site, so it can carry a model published
+  // after this release. A failure here is not an error state: the dropdown just
+  // shows what it always showed.
+  try {
+    const cat = await (await fetch('/api/ai/models?provider=ollama')).json();
+    _ollamaCatalog = Array.isArray(cat && cat.catalog) ? cat.catalog : [];
+  } catch {
+    _ollamaCatalog = [];
   }
   const list = $('ai-model-list');
   if (list) {
@@ -9327,7 +9369,35 @@ function _populateInstalledModelOptions() {
     const customOpt = modelSel.querySelector('option[value="__custom__"]');
     modelSel.insertBefore(group, customOpt);
   }
+  _populateCatalogModelOptions();
   _reflectModelSelection();
+}
+
+// Models from the site's curated list that are NOT installed yet, so the
+// dropdown can offer a model published after this release instead of only the
+// four tiers written into the app. Selecting one leaves it un-installed; the
+// Download button below the list is what fetches it, and the hardware gate on
+// the server still has the last word on whether it may.
+function _populateCatalogModelOptions() {
+  const modelSel = $('ai-model-select');
+  if (!modelSel) return;
+  const prev = $('ai-model-catalog-group');
+  if (prev) prev.remove();
+  const already = new Set([...AI_KNOWN_MODELS, ..._ollamaInstalledModels]);
+  const extras = _ollamaCatalog.filter(m => m && m.tag && !already.has(m.tag) && !_isModelInstalled(m.tag));
+  if (!extras.length) return;
+  const group = document.createElement('optgroup');
+  group.id = 'ai-model-catalog-group';
+  group.label = t('ai_model_catalog_group');
+  for (const m of extras) {
+    const opt = document.createElement('option');
+    opt.value = m.tag;
+    // The size is the thing worth knowing before picking: these are gigabytes.
+    opt.textContent = m.sizeGB ? `${m.label || m.tag} (${m.sizeGB} GB)` : (m.label || m.tag);
+    group.appendChild(opt);
+  }
+  const customOpt = modelSel.querySelector('option[value="__custom__"]');
+  modelSel.insertBefore(group, customOpt);
 }
 
 // Reflect the persisted ollamaModel into the model <select>: pick the matching
@@ -9416,6 +9486,7 @@ function _reflectAiProviderRows(provider) {
   const show = (id, on) => { const el = $(id); if (el) el.hidden = !on; };
   show('ai-local-panel', provider === 'ollama');
   show('settings-gemini-key-row', provider === 'gemini');
+  show('settings-gemini-models', provider === 'gemini');
   show('settings-openai-panel', provider === 'openai');
   show('settings-anthropic-panel', provider === 'anthropic');
 }
@@ -9442,8 +9513,7 @@ function syncAiProviderControls() {
   const aKey = $('settings-anthropic-key'); if (aKey) { aKey.value = ''; aKey.placeholder = cfg.anthropicApiKeySet ? savedPh : 'sk-ant-…'; }
   const oReset = $('settings-openai-reset'); if (oReset) oReset.hidden = !cfg.openaiApiKeySet;
   const aReset = $('settings-anthropic-reset'); if (aReset) aReset.hidden = !cfg.anthropicApiKeySet;
-  if (provider === 'openai') _aiLoadProviderModels('openai');
-  else if (provider === 'anthropic') _aiLoadProviderModels('anthropic');
+  if (provider === 'openai' || provider === 'anthropic' || provider === 'gemini') _aiLoadProviderModels(provider);
 
   const urlInput = $('ai-ollama-url');
   if (urlInput) urlInput.value = cfg.ollamaUrl || 'http://localhost:11434';
@@ -9691,7 +9761,7 @@ function initAiProviderSettings() {
       _reflectAiProviderRows(r.value);
       persistAiProviderSettings();
       if (r.value === 'ollama') { await aiLocalScan(); await aiLocalRefreshStatus(); await aiLocalSyncAutostart(); }
-      else if (r.value === 'openai' || r.value === 'anthropic') _aiLoadProviderModels(r.value);
+      else _aiLoadProviderModels(r.value);
     });
   });
 
@@ -9780,8 +9850,7 @@ function updateOpenaiKey(value) {
   if (v.length > 8) _aiScheduleModelRefresh('openai'); // a real key was entered → refresh the model list once it's saved
 }
 function updateOpenaiModel(value) {
-  hubSettings = normalizeSettings({ ...hubSettings, openaiModel: String(value || '').trim().slice(0, 60) || 'gpt-4o' });
-  saveHubSettings();
+  updateAiModelChoice('openaiModel', value);
 }
 function updateAnthropicKey(value) {
   const v = String(value || '').trim().slice(0, 200);
@@ -9791,49 +9860,127 @@ function updateAnthropicKey(value) {
   if (v.length > 8) _aiScheduleModelRefresh('anthropic'); // a real key was entered → refresh the model list once it's saved
 }
 function updateAnthropicModel(value) {
-  hubSettings = normalizeSettings({ ...hubSettings, anthropicModel: String(value || '').trim().slice(0, 60) || 'claude-sonnet-5' });
-  saveHubSettings();
+  updateAiModelChoice('anthropicModel', value);
 }
 
-// ── ChatGPT / Claude model pickers ──────────────────────────────────────────
-// The dropdowns are filled LIVE from each provider's own models API (via
-// /api/ai/models), so they always reflect the newest models the provider offers
-// — no hardcoded list to keep current. A "Custom…" entry stays as a fallback for
-// a model not in the list (or when offline), and the saved model is always kept
-// selectable even if the API doesn't return it.
-function _aiPopulateModelSelect(selId, custId, models, saved) {
-  const sel = $(selId), cust = $(custId);
+// ── AI model pickers (Gemini / ChatGPT / Claude) ─────────────────────────────
+// Every dropdown is filled LIVE from the provider's own models API (via
+// /api/ai/models), so it always reflects what that provider offers today — no
+// hardcoded list to keep current. Each one carries two kinds of choice:
+//
+//   • "Auto", optionally per family ("Auto — Flash"): stored as the `auto` /
+//     `auto:<family>` sentinel and resolved server-side on every request, so a
+//     model released tomorrow is in use tomorrow. The line under the dropdown
+//     names the id it currently resolves to, because a setting whose effect you
+//     cannot read is a setting you cannot reason about.
+//   • A concrete model: a pin, honoured until the user changes it.
+//
+// "Custom…" stays as the fallback for a model the list does not carry (or when
+// offline), and a saved value is always kept selectable even if the API omits it.
+const AI_MODEL_CONTROLS = [
+  { provider: 'gemini', role: 'chat', key: 'geminiModel', sel: 'settings-gemini-model' },
+  { provider: 'gemini', role: 'chatPro', key: 'geminiModelPro', sel: 'settings-gemini-model-pro' },
+  { provider: 'gemini', role: 'tts', key: 'geminiModelTts', sel: 'settings-gemini-model-tts' },
+  { provider: 'gemini', role: 'live', key: 'geminiModelLive', sel: 'settings-gemini-model-live' },
+  { provider: 'openai', role: 'chat', key: 'openaiModel', sel: 'settings-openai-model' },
+  { provider: 'openai', role: 'stt', key: 'openaiSttModel', sel: 'settings-openai-stt-model' },
+  { provider: 'openai', role: 'tts', key: 'openaiTtsModel', sel: 'settings-openai-tts-model' },
+  { provider: 'anthropic', role: 'chat', key: 'anthropicModel', sel: 'settings-anthropic-model' },
+];
+
+// Last answer per provider, so re-rendering one row does not re-fetch the list.
+const _aiModelCatalog = Object.create(null);
+
+function _aiControlsFor(provider) { return AI_MODEL_CONTROLS.filter(c => c.provider === provider); }
+
+// NOTE the key: `ai_model_auto` is already taken by the Ollama tier dropdown
+// ("Auto (consigliato)"), and a duplicate key in the same dictionary silently
+// wins over the first — which would have retitled that control too.
+function _aiAutoLabel(family) {
+  if (!family) return t('ai_model_auto_latest');
+  // "Auto — Flash Lite": the family name is the provider's own word for the tier
+  // and is not translated; only the "Auto" part is.
+  const pretty = family.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  return t('ai_model_auto_latest') + ' — ' + pretty;
+}
+
+function _aiPopulateModelSelect(ctl, data) {
+  const sel = $(ctl.sel);
   if (!sel) return;
-  const list = Array.isArray(models) ? models : [];
+  const cust = $(ctl.sel + '-custom');
+  const used = $(ctl.sel + '-used');
+  const saved = normalizeModelChoice(hubSettings[ctl.key]);
+  const spec = (data && data.roles && data.roles[ctl.role]) || { kind: 'chat', family: '' };
+  const all = (data && Array.isArray(data.models)) ? data.models : [];
+  const list = all.filter(m => m && m.kind === spec.kind);
+
   sel.innerHTML = '';
-  if (saved && !list.some((m) => m && m.id === saved)) {
-    const o = document.createElement('option'); o.value = saved; o.textContent = saved; sel.appendChild(o);
+  const autoGroup = document.createElement('optgroup');
+  autoGroup.label = t('ai_model_auto_group');
+  const addOpt = (parent, value, label) => {
+    const o = document.createElement('option');
+    o.value = value;
+    o.textContent = label;
+    parent.appendChild(o);
+  };
+  addOpt(autoGroup, 'auto', _aiAutoLabel(''));
+  const families = [];
+  for (const m of list) if (m.family && !families.includes(m.family)) families.push(m.family);
+  for (const f of families) addOpt(autoGroup, 'auto:' + f, _aiAutoLabel(f));
+  sel.appendChild(autoGroup);
+
+  if (list.length) {
+    const pinGroup = document.createElement('optgroup');
+    pinGroup.label = t('ai_model_pin_group');
+    // A pinned id the API no longer returns must stay selectable, or opening
+    // Settings would silently re-point the user's choice at something else.
+    if (saved && !saved.startsWith('auto') && !list.some(m => m.id === saved)) addOpt(pinGroup, saved, saved);
+    for (const m of list) addOpt(pinGroup, m.id, m.label || m.id);
+    sel.appendChild(pinGroup);
+  } else if (saved && !saved.startsWith('auto')) {
+    addOpt(sel, saved, saved);
   }
-  for (const m of list) {
-    if (!m || !m.id) continue;
-    const o = document.createElement('option'); o.value = m.id; o.textContent = m.label || m.id; sel.appendChild(o);
+  addOpt(sel, '__custom__', t('ai_model_custom'));
+
+  const known = Array.from(sel.options).some(o => o.value === saved);
+  sel.value = known ? saved : '__custom__';
+  if (cust) {
+    cust.hidden = known;
+    if (!known) cust.value = saved;
   }
-  const co = document.createElement('option'); co.value = '__custom__'; co.textContent = t('ai_model_custom'); sel.appendChild(co);
-  sel.value = saved || (list[0] && list[0].id) || '';
   if (typeof sel._csSync === 'function') sel._csSync(); // .value assignment fires no event
-  if (cust) cust.hidden = true;
+
+  // The resolved id, shown only when it differs from what the dropdown says.
+  if (used) {
+    const resolved = (data && data.resolved && data.resolved[ctl.role]) || '';
+    const show = resolved && saved.startsWith('auto');
+    used.hidden = !show;
+    used.textContent = show ? t('ai_model_resolved').replace('{model}', resolved) : '';
+  }
 }
 
-async function _aiLoadProviderModels(provider) {
-  const isO = provider === 'openai';
-  const selId = isO ? 'settings-openai-model' : 'settings-anthropic-model';
-  const custId = selId + '-custom';
-  const saved = isO ? (hubSettings.openaiModel || 'gpt-4o') : (hubSettings.anthropicModel || 'claude-sonnet-5');
-  if (!$(selId)) return;
-  // Show the saved value immediately, then enrich from the API in the background.
-  _aiPopulateModelSelect(selId, custId, [], saved);
-  const keySet = isO ? hubSettings.openaiApiKeySet : hubSettings.anthropicApiKeySet;
+function _aiRenderProviderControls(provider) {
+  const data = _aiModelCatalog[provider] || null;
+  for (const ctl of _aiControlsFor(provider)) _aiPopulateModelSelect(ctl, data);
+}
+
+async function _aiLoadProviderModels(provider, opts) {
+  if (!_aiControlsFor(provider).some(c => $(c.sel))) return;
+  // Render from what we already have (or from nothing) first, so the panel is
+  // never empty while the request is in flight.
+  _aiRenderProviderControls(provider);
+  const keySet = provider === 'openai' ? hubSettings.openaiApiKeySet
+    : provider === 'anthropic' ? hubSettings.anthropicApiKeySet
+      : hubSettings.geminiApiKeySet;
   if (!keySet) return; // no key yet → nothing to fetch
   try {
-    const r = await fetch('/api/ai/models?provider=' + provider);
+    const r = await fetch('/api/ai/models?provider=' + provider + ((opts && opts.force) ? '&refresh=1' : ''));
     const d = await r.json();
-    if (d && Array.isArray(d.models) && d.models.length) _aiPopulateModelSelect(selId, custId, d.models, saved);
-  } catch { /* offline — keep the saved-only list */ }
+    if (d && Array.isArray(d.models)) {
+      _aiModelCatalog[provider] = d;
+      _aiRenderProviderControls(provider);
+    }
+  } catch { /* offline — keep whatever the last render showed */ }
 }
 
 // After a key is entered, the /api/ai/models endpoint reads it from the SERVER
@@ -9846,18 +9993,26 @@ function _aiScheduleModelRefresh(provider) {
   _aiModelRefreshTimer = setTimeout(() => { _aiModelRefreshTimer = null; _aiLoadProviderModels(provider); }, 700);
 }
 
-function onOpenaiModelSelect(v) {
-  const cust = $('settings-openai-model-custom');
-  if (v === '__custom__') { if (cust) { cust.hidden = false; cust.value = ''; cust.focus(); } return; }
-  if (cust) cust.hidden = true;
-  updateOpenaiModel(v);
+// One handler for every dropdown: persist the choice, then re-render so the
+// "in use" line follows immediately instead of waiting for the next hydrate.
+function updateAiModelChoice(key, value) {
+  const next = normalizeModelChoice(value);
+  hubSettings = normalizeSettings({ ...hubSettings, [key]: next });
+  saveHubSettings();
+  const ctl = AI_MODEL_CONTROLS.find(c => c.key === key);
+  if (ctl) _aiRenderProviderControls(ctl.provider);
 }
-function onAnthropicModelSelect(v) {
-  const cust = $('settings-anthropic-model-custom');
-  if (v === '__custom__') { if (cust) { cust.hidden = false; cust.value = ''; cust.focus(); } return; }
+
+function onAiModelSelect(key, value) {
+  const ctl = AI_MODEL_CONTROLS.find(c => c.key === key);
+  const cust = ctl ? $(ctl.sel + '-custom') : null;
+  if (value === '__custom__') { if (cust) { cust.hidden = false; cust.value = ''; cust.focus(); } return; }
   if (cust) cust.hidden = true;
-  updateAnthropicModel(v);
+  updateAiModelChoice(key, value);
 }
+
+function onOpenaiModelSelect(v) { onAiModelSelect('openaiModel', v); }
+function onAnthropicModelSelect(v) { onAiModelSelect('anthropicModel', v); }
 
 // Remove a saved OpenAI/Anthropic key. Sends key='' with *Set=false, which the
 // server honours as an explicit clear (preserveAiProviderCreds skips preserving
