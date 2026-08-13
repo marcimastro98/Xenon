@@ -229,6 +229,38 @@ test('openai: speech models are classified, not filtered out; chat noise is', ()
     'newest by created within the family');
 });
 
+// The one id where the two family rules collide, and the reason the o-series
+// test has to run first. `o3-mini` is the cheap REASONING tier, not a cheap chat
+// model. Classifying it on the 'mini' substring split the reasoning family in
+// half and cost money in both directions: `auto:reasoning` could never land on
+// the cheap reasoning model and always paid for the full o-series, while
+// `auto:mini` mixed chat models with reasoning ones that bill for thinking
+// tokens, so which you got came down to release dates.
+test('openai: the o-mini line is the cheap REASONING tier, not the mini chat tier', () => {
+  const list = [
+    { id: 'o3-mini', created: 400 }, { id: 'o1-mini', created: 100 },
+    { id: 'o4-mini', created: 500 }, { id: 'o3', created: 300 },
+    { id: 'gpt-4o-mini', created: 450 }, { id: 'gpt-5.1-nano', created: 460 },
+  ];
+  const out = list.map(openai.classify).filter(Boolean);
+  const by = Object.fromEntries(out.map(e => [e.id, e]));
+  for (const id of ['o3-mini', 'o1-mini', 'o4-mini', 'o3']) {
+    assert.equal(by[id].family, 'reasoning', `${id} is a reasoning model`);
+  }
+  for (const id of ['gpt-4o-mini', 'gpt-5.1-nano']) {
+    assert.equal(by[id].family, 'mini', `${id} is a cheap CHAT model`);
+  }
+  const entries = out.map(models.normalizeEntry);
+  assert.equal(models.pickLatest(entries, 'chat', 'reasoning'), 'o4-mini',
+    'auto:reasoning must be able to reach the cheap reasoning tier');
+  // The newest of the two cheap CHAT models, and the claim worth pinning is not
+  // which of them wins on a timestamp — it is that no o-series id can be in this
+  // pool at all, because those bill for thinking tokens nobody asked for.
+  const mini = models.pickLatest(entries, 'chat', 'mini');
+  assert.equal(mini, 'gpt-5.1-nano', 'newest within the cheap chat family');
+  assert.doesNotMatch(mini, /^o\d/, 'auto:mini must never hand back a reasoning model');
+});
+
 test('anthropic: the family is the tier the user pays for, and auto stays inside it', () => {
   const list = [
     { id: 'claude-opus-5', display_name: 'Claude Opus 5', created_at: '2026-05-01T00:00:00Z' },
@@ -248,6 +280,30 @@ test('anthropic: a missing created_at falls back to list order, not to zero', ()
     .map(anthropic.classify).map(models.normalizeEntry);
   assert.equal(models.pickLatest(out, 'chat', 'sonnet'), 'claude-sonnet-9',
     'the API returns newest first; that order must survive a missing stamp');
+});
+
+// …and the other half, which the test above cannot see because every entry in it
+// is unstamped. pickLatest sorts ONE flat list descending, so the fallback has to
+// live BELOW every real timestamp, not above it. It used to be
+// `MAX_SAFE_INTEGER - index` (~9e15) against epoch ms (~1.7e12), so one beta
+// shipped without a stamp would have outranked every dated model in its family
+// and become the answer to `auto` — the exact stale-vs-current mismatch this
+// resolver exists to prevent.
+test('anthropic: an unstamped entry never outranks a dated one', () => {
+  const out = [
+    { id: 'claude-sonnet-9-beta' },
+    { id: 'claude-sonnet-5', created_at: '2026-04-01T00:00:00Z' },
+    { id: 'claude-sonnet-4-5', created_at: '2025-09-01T00:00:00Z' },
+  ].map(anthropic.classify).map(models.normalizeEntry);
+  assert.equal(models.pickLatest(out, 'chat', 'sonnet'), 'claude-sonnet-5',
+    'a dated model must win, whatever position the unstamped one holds');
+  // Position must not rescue it either: first in the list is the strongest case.
+  const first = out.find(e => e.id === 'claude-sonnet-9-beta');
+  const dated = out.find(e => e.id === 'claude-sonnet-4-5');
+  assert.ok(first.rank < dated.rank, 'the fallback rank must sit below every stamp');
+  // It stays selectable BY HAND — this is about what `auto` may land on, not
+  // about hiding a model from the picker.
+  assert.ok(Number.isFinite(first.rank), 'an unstamped entry must survive normalizeEntry');
 });
 
 // ── The Ollama download catalog (remote, therefore untrusted) ────────────────

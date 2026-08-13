@@ -50,9 +50,16 @@ const SENTINEL_RE = /^auto(?::[a-z0-9.-]{1,24})?$/;
 // `gpt-4o`, the client stored that as a deliberate pin, and the transcription
 // and speech rows in Settings both showed a chat model. `auto` is the only
 // fallback that is right for every role, because it is resolved per role.
+//
+// The sentinel is tested CASE-FOLDED, and the folded form is what gets stored, so
+// there is one spelling of it on disk. Without the fold, `AUTO` fell through to
+// the id pattern below — which is case-insensitive — and was kept as a literal
+// pin on a model no provider has. See parseStored() in ai-models.js for the full
+// account of why that could never repair itself.
 function sanitizeModel(value) {
   const v = String(value || '').trim();
-  if (SENTINEL_RE.test(v)) return v;
+  const low = v.toLowerCase();
+  if (SENTINEL_RE.test(low)) return low;
   if (v.length > 0 && v.length <= 60 && /^[a-z0-9._-]+$/i.test(v)) return v;
   return 'auto';
 }
@@ -267,8 +274,17 @@ function classify(m) {
   // Families a user would actually ask for: the flagship line, the cheap line,
   // and the reasoning line. A version number is not a family — it is what `auto`
   // is allowed to move across.
-  const family = /(mini|nano|small)/.test(low) ? 'mini'
-    : (/^o\d/.test(low) ? 'reasoning' : 'gpt');
+  //
+  // The o-series test runs FIRST, and the order is the whole rule. `o3-mini` is
+  // the cheap REASONING tier, not a cheap chat model, so matching the 'mini'
+  // substring first put the entire o-mini line in `mini` and split the reasoning
+  // family in half: `o1/o3/o4` in one place, `o1-mini/o3-mini/o4-mini` in
+  // another. It cost twice over, and both costs are money. `auto:reasoning`
+  // could never land on the cheap reasoning model and always paid for the full
+  // o-series; `auto:mini` mixed chat models with reasoning ones that bill for
+  // thinking tokens, so which of the two a user got came down to release dates.
+  const family = /^o\d/.test(low) ? 'reasoning'
+    : (/(mini|nano|small)/.test(low) ? 'mini' : 'gpt');
   return { ...base, kind: 'chat', family };
 }
 
