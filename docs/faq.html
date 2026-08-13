@@ -34,12 +34,18 @@
 </script>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
 <script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
 <!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
      for every visitor (GA4 only counts those who accept the banner), so it is the
      honest denominator the GA4 numbers are read against. -->
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
 <title>Xenon — Frequently asked questions</title>
 <meta name="description" content="Why Windows sometimes calls Xenon a virus and how to check the file yourself, what Smart App Control is, how to install on macOS and Linux, updating, privacy, and where to get help.">
 <meta name="robots" content="index, follow">
@@ -49,20 +55,17 @@
 <meta property="og:type" content="article">
 <link rel="canonical" href="https://xenon-app.com/faq.html">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 <style>
   :root {
-    --ink:   #070808;
-    --panel: rgba(240,243,241,0.03);
-    --line:  rgba(240,243,241,0.08);
-    --line-2:rgba(240,243,241,0.16);
-    --green: #1ed760;
-    --text:  #f0f3f1;
-    --muted: #9aa8a1;
-    --dim:   #66736c;
+    --ink:   var(--g-0);
+    --panel: var(--g-1);
+    --line:  var(--rule);
+    --line-2:var(--rule-2);
+    --green: var(--bone-0);
+    --text:  var(--bone-0);
+    --muted: var(--bone-1);
+    --dim:   var(--bone-2);
     --sans:  'Inter', system-ui, -apple-system, sans-serif;
     --mono:  'JetBrains Mono', ui-monospace, monospace;
     --maxw:  820px;
@@ -80,7 +83,7 @@
   header.top {
     border-bottom: 1px solid var(--line);
     padding: 20px 0; position: sticky; top: 0; z-index: 10;
-    background: rgba(7,8,8,0.82); backdrop-filter: blur(12px);
+    background: color-mix(in srgb, var(--g-0) 82%, transparent); backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
   }
   header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
@@ -115,7 +118,7 @@
   li { margin-bottom: 8px; }
   code {
     font-family: var(--mono); font-size: 13px;
-    background: rgba(240,243,241,0.06); padding: 2px 6px; border-radius: 6px;
+    background: var(--g-2); padding: 2px 6px; border-radius: 6px;
     color: var(--text); overflow-wrap: anywhere;
   }
 
@@ -149,7 +152,7 @@
     background: var(--panel); border: 1px solid var(--line);
     border-radius: var(--radius); padding: 22px 24px; margin: 26px 0;
   }
-  .card.accent { border-color: rgba(30,215,96,0.28); background: rgba(30,215,96,0.045); }
+  .card.accent { border-color: var(--rule-2); background: var(--g-1); }
   .card p:last-child, .card ul:last-child { margin-bottom: 0; }
   .card h3 { margin: 0 0 10px; font-size: 16.5px; }
 
@@ -173,7 +176,7 @@
   .lang { position: relative; }
   .lang-menu {
     position: absolute; top: calc(100% + 10px); right: 0; min-width: 168px; z-index: 60;
-    background: rgba(11,13,12,0.96); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    background: color-mix(in srgb, var(--g-1) 96%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
     border: 1px solid var(--line-2); border-radius: 12px; padding: 6px;
     opacity: 0; transform: translateY(-6px); pointer-events: none;
     transition: opacity .22s ease, transform .22s ease;
@@ -184,17 +187,22 @@
     background: none; border: 0; border-radius: 8px; color: var(--muted);
     font-family: var(--sans); font-size: 13.5px; cursor: pointer; text-align: left;
   }
-  .lang-menu button:hover { background: rgba(240,243,241,0.06); color: var(--text); }
+  .lang-menu button:hover { background: var(--g-2); color: var(--text); }
   .lang-menu button.on { color: var(--green); }
   .lang-menu .nat { margin-left: auto; font-size: 11px; color: var(--dim); letter-spacing: .08em; }
   @media (max-width: 480px) { .back { display: none; } }
 </style>
+<!-- PANEL token layer. Linked AFTER the inline <style> above on purpose:
+     this file owns the palette, the type and the motion for every page on the
+     site, and each page kept its own drifted copy of those tokens. Later wins,
+     so one file re-skins all nine. Page-specific rules above are untouched. -->
+<link rel="stylesheet" href="/site.css">
 </head>
 <body>
 
 <header class="top">
   <div class="wrap">
-    <a class="logo" href="/"><img src="images/logo.png" alt="" width="34" height="23"> XENON</a>
+    <a class="logo" href="/" aria-label="Xenon"><img class="logo-mark" src="images/logo-x.png" alt="" width="33" height="26">ENON</a>
     <div class="head-right">
       <a class="back" href="/" data-i18n="f.nav.back">← Back to the site</a>
       <div class="lang" id="lang">

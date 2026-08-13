@@ -1,0 +1,544 @@
+/* ============================================================================
+   PANEL — the shared token layer for xenon-app.com
+   ============================================================================
+
+   Every page under docs/ used to carry its own copy of the tokens, and they had
+   drifted into three different greens (#1ed760, #1ee07a, #40dca5), two different
+   grounds (#070808, #04060a), two names for the same variable (--green on the
+   home and the FAQ, --plasma on catalog/create/get/submit), and a --mono token
+   that was set to Inter on the catalog page. A visitor moving between two pages
+   of the same site was looking at two different palettes.
+
+   This file is the single place those values live now. Every page links it
+   BEFORE its own <style> block, so a page can still override something it
+   genuinely owns (a container width, a sidebar rail) while the palette, the
+   type and the motion stay one system.
+
+   ── The palette has no accent colour, and that is the design ───────────────
+
+   The old palette was a neutral near-black (#070808) carrying one saturated
+   accent (#1ed760, which is Spotify's brand green to the digit). That pairing
+   is the single most generated look on the web, and the accent was used as
+   wallpaper: 12 radial glows, 42 coloured tails on 9 headlines, every hover,
+   every border, every icon. A colour present in every viewport is decoration,
+   not signal.
+
+   So the site's CSS now has no saturated value in it at all. The only colour on
+   any page arrives from the product itself — the screenshots, and the live
+   dashboard in the demo. That is also the honest hierarchy: the app is the
+   colourful thing, the site is the surface it sits on.
+
+   The one exception is the two tier inks kept at the bottom of this file, and
+   they are kept because they IDENTIFY something rather than decorate it. See
+   the note there.
+
+   ── The ground is not neutral ──────────────────────────────────────────────
+
+   Measured across ~35 hand-made product sites, the dark grounds carry a cast:
+   Ghostty #0f0f11, Linear #08090a, Cursor #14120b, Bun #14151b, and teenage
+   engineering and Analogue independently ship the identical #0f0e12. (Elektron
+   is the counter-example that keeps this honest: it ships a flat #151515.)
+   A pure grey tends to read as "no decision was made". Ours carries a cool
+   cast, which is what a panel actually looks like with the backlight off.
+   ========================================================================== */
+
+:root {
+  /* Ground. Four steps, cool cast, never chroma 0. */
+  --g-0: #090B0D;   /* page */
+  --g-1: #0E1214;   /* raised surface */
+  --g-2: #141A1D;   /* surface above that */
+  --g-3: #1B2226;   /* the highest a surface goes */
+
+  /* Rules. Hairlines carry the structure now that the glows are gone, so there
+     are two: one that recedes and one that answers a hover. --rule sits at
+     2.1:1 against --g-0, which is visible on a decent panel and does not
+     disappear on a bad laptop the way rgba(255,255,255,0.08) did. */
+  --rule:   #2E383E;
+  --rule-2: #3E4B52;
+
+  /* Text. Three steps, and the third is the one that mattered: the old --dim
+     (#66736c) sat at 4.04:1 on #070808, i.e. below the 4.5:1 floor, on the
+     supporting line of most cards on the site. --bone-2 is 5.4:1. */
+  --bone-0: #E8EDEC;
+  --bone-1: #A7B2B4;
+  --bone-2: #7C8A8D;
+
+  /* Radii. The old sheet carried 40 border-radius declarations and 14px was on
+     everything, which is the texture a component library ships with. Two
+     values: square, and a 2px that only softens what the eye reads as a
+     physical edge. */
+  --r-0: 0;
+  --r-1: 2px;
+  /* index.html still declares --r-2: 12px and --r-3: 20px and five rules read
+     them. Collapsing them here rather than editing those five keeps the whole
+     site on two radii without a sixth pass over the markup. */
+  --r-2: var(--r-1);
+  --r-3: var(--r-1);
+
+  /* Motion. The old sheet contained exactly ONE easing curve for the whole
+     site — cubic-bezier(0.16, 1, 0.3, 1), easeOutExpo off easings.net, the
+     most-pasted curve on the web — and it drove everything from a button
+     hover to a section reveal.
+
+     Three durations with three jobs, and two curves that were chosen rather
+     than copied. Nothing interactive may exceed --d-surface: across every site
+     measured, hover and state changes land at 0.15-0.25s and nothing sits in
+     the 0.4-0.8s band that generated pages default to. */
+  --d-state:   120ms;  /* hover, focus, a value ticking over */
+  --d-surface: 220ms;  /* something opening or closing */
+  --d-band:    420ms;  /* a whole region changing, and only that */
+  --ease-out:     cubic-bezier(.33, .90, .28, 1);
+  --ease-in-hard: cubic-bezier(.45, 0, .85, .35);
+
+  /* Spacing. Kept from the 2026-07 rework, which was the one genuinely
+     designed part of the old sheet. */
+  --s-1: 8px;  --s-2: 14px; --s-3: 22px;  --s-4: 34px;
+  --s-5: 56px; --s-6: 88px; --s-7: 132px; --s-8: 190px;
+
+  /* Vertical rhythm. Three densities, and the rule that goes with them: two
+     adjacent sections may not use the same one. A scroller who can predict
+     where the next boundary falls is reading a template. */
+  --lead-tight: 42px;
+  --lead:      112px;
+  --lead-wide: 224px;
+
+  /* Type scale. Unchanged sizes for now — Phase 2 replaces the faces and adds
+     the tracking table. The families below are the fallbacks that hold until
+     the self-hosted OFL faces land, which is why they are system stacks and
+     not another Google Fonts round trip. */
+  --t-micro: 11px;
+  --t-label: 13px;
+  --t-body:  17px;
+  --t-lead:  21px;
+  --t-h3:    clamp(22px, 2.6vw, 30px);
+  --t-h2:    clamp(28px, 3.6vw, 44px);
+  --t-h1:    clamp(34px, 5.4vw, 64px);
+  --t-display: clamp(38px, min(6.6vw, 9.6svh), 92px);
+
+  /* --maxw is deliberately NOT set here. This file is linked AFTER each page's
+     own <style> so that it wins the palette, which means anything it declares
+     also wins — and the container width is the one token pages legitimately
+     own at different values (1200 on the home and the catalog, 820 on the FAQ,
+     760 on submit, which is a form and should stay narrow). Declaring it here
+     would silently widen two pages. */
+
+  /* ── Legacy aliases ──────────────────────────────────────────────────────
+     Every page's CSS is written against these names. Pointing them at the new
+     system changes the whole site's skin without touching several thousand
+     individual declarations, and it means a rule that has not been migrated
+     yet degrades to "correct but plain" rather than to "invisible".
+
+     Note what happens to --green / --plasma: they become BONE. A filled button
+     that asked for a green fill with dark text now gets a white fill with dark
+     text, which on graphite is the strongest affordance on the page. That is
+     deliberate — the download CTA is an unsigned binary fighting SmartScreen
+     and it does not also need a weaker button. */
+  --ink:       var(--g-0);
+  --ink-2:     var(--g-1);
+  --panel:     var(--g-1);
+  --panel-2:   var(--g-2);
+  --line:      var(--rule);
+  --line-2:    var(--rule-2);
+  --text:      var(--bone-0);
+  --muted:     var(--bone-1);
+  --dim:       var(--bone-2);
+  --radius:    var(--r-1);
+  --ease:      var(--ease-out);
+
+  --green:     var(--bone-0);
+  --green-ink: var(--g-0);
+  --green-dim: var(--g-2);
+  --plasma:    var(--bone-0);
+  --plasma-2:  var(--bone-1);
+
+  /* create/ and submit/ carry two more of their own. Both were saturated
+     syntax-highlighting inks on a dark code surface; they become bone steps so
+     the code blocks keep their hierarchy without introducing a hue. */
+  --ion: var(--bone-1);
+  --hot: var(--bone-0);
+
+  /* ── The two inks that stay ──────────────────────────────────────────────
+     These are not accents. They IDENTIFY a tier in the catalog — supporter and
+     limited — the way Panic assigns a hex per product and Ableton ships 39
+     background utilities so an item can carry its own colour. Colour that
+     names a thing is information; colour sprayed on a hover is decoration.
+     Both are pulled down from where they were so they sit on graphite without
+     glowing. */
+  --gold: #D9A441;
+  --iris: #7E74C9;
+  --danger: #D8412F;   /* used once on the whole property */
+
+  /* Two third-party marks, for the same reason: they NAME a service. A grey
+     Discord glyph is just a glyph, and the GitHub star is the one thing in that
+     button worth looking at. Both are the brands' own values, pulled down only
+     as far as this ground needs. */
+  --discord: #5865F2;
+  --gh-star: #F0B429;
+
+  /* The hairline several pages draw with instead of --rule. */
+  --edge: rgba(240, 243, 241, 0.09);
+
+  color-scheme: dark;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   THE TWO GROUNDS
+   ════════════════════════════════════════════════════════════════════════════
+
+   The site has a light half and a dark half, and the visitor picks: light,
+   dark, or whatever the system says. System is the DEFAULT — with no choice
+   stored, no attribute is written and the media query below decides, which is
+   what a person means when they set their OS to dark at sunset.
+
+   Only the BASE tokens are redeclared. Every alias above is written as
+   `var(--g-1)`, and a custom property containing var() is substituted on the
+   element that DECLARES it — :root here, the same element that carries
+   [data-theme] — so the whole alias table follows without being repeated.
+   That is the entire mechanism: nine values change and 56 pages turn over.
+
+   Three rules, in this order, and the order is the point:
+     1. :root above is the dark set, so a page with no support still renders.
+     2. the media query catches "system" ONLY when the visitor has not asked
+        for dark explicitly.
+     3. [data-theme="light"] comes last, so an explicit choice beats the OS in
+        both directions (equal specificity, later wins).
+
+   The light values are not lightened dark ones; they were measured. --bone-2
+   is tuned against --g-1 rather than --g-0, because grey supporting text
+   almost always lands on a raised surface rather than on the page, and the
+   three identifying inks are pulled down until they clear 4.5:1 there too:
+   the GitHub star at #F0B429 sits at 1.58:1 on paper, which is invisible.
+   ────────────────────────────────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --g-0: #F7F8F7;  --g-1: #EDEFED;  --g-2: #E3E6E4;  --g-3: #D6DAD8;
+    --bone-0: #101312;  --bone-1: #3B4341;  --bone-2: #4E585B;
+    --rule: #D9DDDB;  --rule-2: #B7BDBA;
+    --edge: rgba(9, 11, 13, 0.14);
+    --gh-star: #9A6A00;
+    --gold:    #85610F;
+    --iris:    #574DA3;
+    --discord: #4550C6;
+    --danger:  #B22D1E;
+    color-scheme: light;
+  }
+}
+
+:root[data-theme="light"] {
+  --g-0: #F7F8F7;  --g-1: #EDEFED;  --g-2: #E3E6E4;  --g-3: #D6DAD8;
+  --bone-0: #101312;  --bone-1: #3B4341;  --bone-2: #4E585B;
+  --rule: #D9DDDB;  --rule-2: #B7BDBA;
+  --edge: rgba(9, 11, 13, 0.14);
+  --gh-star: #9A6A00;
+  --gold:    #85610F;
+  --iris:    #574DA3;
+  --discord: #4550C6;
+  --danger:  #B22D1E;
+  color-scheme: light;
+}
+
+/* ── Type ────────────────────────────────────────────────────────────────────
+   Inter left the site. It stays the app's voice, which is the right split —
+   plenty of products have a site that is not their UI — but on a marketing page
+   in 2026 Inter is the statistical centre of every generated layout, and the
+   page was fetching it, JetBrains Mono and VT323 from fonts.googleapis.com while
+   claiming things stay on your machine. There are now zero third-party requests
+   for type.
+
+   ARCHIVO (Omnibus-Type, OFL) carries everything a reader reads. It ships a real
+   `wdth` axis from 62% to 125%, so ONE file gives a condensed display voice and a
+   normal running text — which is the move Elektron makes with Neue Haas Grotesk
+   Text Pro plus Display Pro, and Ableton with three cuts of futura-pt. Two cuts
+   of one family beats two unrelated families, and it is the difference between
+   type that was set and type that was picked from a menu.
+
+   MARTIAN MONO (Evil Martians, OFL) carries every number: the download count,
+   the resolutions, the physical sizes, the version. It also has a `wdth` axis,
+   and it is used here at its narrowest so a figure stays compact next to its
+   label. It is chosen over JetBrains Mono deliberately — JetBrains Mono is the
+   single most-shipped mono on the web and reads as a default, and Martian's
+   squared-off construction belongs next to a spec table.
+
+   VT323 (OFL) is Bit's face and nothing else's.
+
+   Self-hosting is not a preference here, it is the licence: docs/ is a public
+   repository serving GitHub Pages, so shipping a font means redistributing it,
+   and only an open licence permits that. All three are OFL — see fonts/OFL.txt.
+   ------------------------------------------------------------------------- */
+
+/* latin-ext first so the narrower latin range wins where both could match. */
+@font-face {
+  font-family: 'Archivo'; font-style: normal;
+  font-weight: 100 900; font-stretch: 62% 125%; font-display: swap;
+  src: url('/fonts/archivo-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Archivo'; font-style: normal;
+  font-weight: 100 900; font-stretch: 62% 125%; font-display: swap;
+  src: url('/fonts/archivo-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Martian Mono'; font-style: normal;
+  font-weight: 100 800; font-stretch: 75% 112.5%; font-display: swap;
+  src: url('/fonts/martianmono-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Martian Mono'; font-style: normal;
+  font-weight: 100 800; font-stretch: 75% 112.5%; font-display: swap;
+  src: url('/fonts/martianmono-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'VT323'; font-style: normal; font-weight: 400; font-display: swap;
+  src: url('/fonts/vt323-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+
+/* The metric-matched fallback. Archivo is noticeably wider than Arial, so
+   without this the page reflows when the file lands — and a visible reflow undoes
+   the impression the typography just made. Analogue and Wooting both ship this
+   for their own faces; it is one of the cheapest tells of a hand-set page. */
+@font-face {
+  font-family: 'Archivo Fallback'; src: local('Arial');
+  ascent-override: 92%; descent-override: 24%; size-adjust: 103%;
+}
+
+:root {
+  --sans:    'Archivo', 'Archivo Fallback', system-ui, -apple-system, sans-serif;
+  --display: var(--sans);
+  --body:    var(--sans);
+  --mono:    'Martian Mono', ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --code:    var(--mono);
+  --pixel:   'VT323', var(--mono);
+}
+
+/* Two cuts of the one family, which is what a display face IS here. The
+   condensed width is a real axis position, not a transform, so the strokes stay
+   the weight they were drawn at. */
+h1, h2, .hero h1, .sec-head h2, .final h2 {
+  font-family: var(--display);
+  font-stretch: 88%;
+  font-synthesis: none;
+}
+
+/* A real tracking table, five values, moving OPPOSITE to size. Spacing looks
+   looser as type grows and tighter as it shrinks, so it has to be corrected the
+   other way. One tracking value for the whole page is the giveaway; this is the
+   thing that separates set type from picked type more reliably than the face. */
+:root       { letter-spacing: 0; }
+h1          { letter-spacing: -0.035em; }
+h2          { letter-spacing: -0.025em; }
+h3          { letter-spacing: -0.015em; }
+small, .surf-spec, .social-item .l { letter-spacing: 0.01em; }
+
+/* Numbers are the ornament on this site, so they are set rather than typed:
+   the narrowest width of the mono, tabular so they cannot reflow their line, and
+   a slashed zero because half the figures on the page are technical. */
+
+/* The site ships in en, it, ko, ja and zh, and document.documentElement.lang is
+   set on every switch, so these fire. A CJK webfont is never loaded: the
+   smallest useful subset is megabytes, and every one of these systems already
+   has a better face for its own script than we could ship. Latin tracking is
+   zeroed because negative tracking on CJK closes counters that need the room. */
+html[lang="ko"] { --sans: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; letter-spacing: 0; }
+html[lang="ja"] { --sans: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", sans-serif; letter-spacing: 0; }
+html[lang="zh"] { --sans: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif; letter-spacing: 0; }
+
+/* Numbers must not twitch. The download counter, the version, the date and
+   every sensor readout in a screenshot caption change under the reader, and
+   proportional figures reflow the line each time one does. This is a
+   correctness fix before it is a taste one. */
+:root { font-variant-numeric: tabular-nums slashed-zero; }
+
+/* ── What the deletions leave behind ─────────────────────────────────────────
+   Safety nets, so a rule that is still on a page but no longer wanted cannot
+   reintroduce the look. These are deliberately blunt and they are cheaper than
+   hunting every call site in nine files.
+   ------------------------------------------------------------------------- */
+
+/* 30 elements on the home page were hidden until an IntersectionObserver let
+   them in, on the pasted curve. Content that is invisible until it is scrolled
+   to is the single loudest generated-page tell, it costs a paint per element,
+   and it hides the page from anything that does not scroll. Whatever survives
+   deletion is visible. */
+
+/* Nothing on this site lifts under the cursor. A hover moves the rule under an
+   element, it does not move the element. */
+a:hover, button:hover, .card:hover { transform: none; }
+
+/* Focus has to be louder now than it was, and that is a consequence of the
+   palette rather than an afterthought. Half the interactive elements on this
+   site used to announce themselves by turning green; with no accent left, a
+   keyboard user had nothing. Two pixels of bone with a two-pixel offset reads on
+   every surface here, including inside the demo frame, and :focus-visible keeps
+   it off the mouse. */
+:focus-visible {
+  outline: 2px solid var(--bone-0);
+  outline-offset: 2px;
+  border-radius: var(--r-1);
+}
+:focus:not(:focus-visible) { outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE LAYOUT SYSTEM
+   ═══════════════════════════════════════════════════════════════════════════
+
+   Measured off Apple (macbook-pro, mac-mini), NVIDIA 40-series, Meta, Stripe,
+   Linear, Framer, Vercel, Tailwind and Resend. Values below are traceable to a
+   declaration on one of those pages, named where it matters.
+
+   THE ALIGNMENT RULE, which is the one this page had backwards:
+   **the box is always centred, the words are never centred, and exactly one
+   block on the page centres its words — the closing CTA.**
+   Stripe never centres text in its section system; Vercel has one `text-center`
+   block on the whole page; NVIDIA writes the alignment as a token per section
+   (`d-left-align` / `d-center-align`) and its dense sections are all left.
+   Apple READS as centred and is not: every header sits left inside a symmetric
+   offset, so the ragged edge stays on the left.
+
+   And no breakpoint flip. Linear centres on desktop and goes left below 640,
+   Tailwind does the opposite, Apple centres more as it narrows — they
+   contradict each other. Stripe and Vercel never flip, and that is the one
+   being copied. One rule, all widths.
+   ------------------------------------------------------------------------- */
+
+:root {
+  --w-content: 1280px;   /* Resend max-w-7xl · Stripe 1264 · Apple 1260 · NVIDIA 1290 */
+  --w-media:   1600px;   /* Meta ._a5fx · Apple hero cap, engaged only above 1441 */
+  --pad:        24px;    /* Resend px-6 · Vercel --geist-page-margin · Linear --page-padding-inline */
+  --gutter:     16px;    /* Stripe: 16px at EVERY breakpoint. The gutter is not responsive. */
+
+  /* The column module falls out of those three and is not a taste decision:
+     1280 - 48 = 1232 inner, minus 11 gutters at 16 = 1056, over 12 = 88px.
+     That is Stripe's module byte for byte, which is why every cap below
+     matches one of its values exactly. n columns = n*88 + (n-1)*16. */
+  --m-4:  400px;   --m-5:  504px;   --m-6:  608px;
+  --m-7:  712px;   --m-8:  816px;   --m-10: 1024px;
+  /* --edge lives with the palette above, not here: declared in this block it
+     would sit AFTER the two theme blocks and stay dark on the light ground. */
+}
+@media (max-width: 639px) { :root { --pad: 16px; } }
+
+
+
+/* ── La griglia ──────────────────────────────────────────────────────────────
+   Dodici colonne su TUTTA la larghezza del viewport, non dentro una scatola da
+   1280. I riquadri di testo si tappano in ch, non in pixel, cosi' le righe
+   restano leggibili a 2560 mentre la pagina usa la larghezza che ha.
+
+   Le due tracce di bordo valgono --pad meno un gutter perche' il column-gap si
+   applica anche a loro: 8px di traccia + 16px di gap = i 24px di --pad, e a
+   16px di --pad la traccia va a zero e resta il solo gap. Senza questo
+   aggiustamento ogni cosa allineata al binario starebbe 16px piu' dentro di
+   quanto dice --pad, che e' esattamente il tipo di sfasatura che si vede senza
+   saperla nominare. */
+.xn-lay {
+  display: grid;
+  grid-template-columns:
+    [full-start] max(0px, calc(var(--pad) - var(--gutter)))
+    [rail-start] repeat(12, minmax(0, 1fr))
+    [rail-end] max(0px, calc(var(--pad) - var(--gutter))) [full-end];
+  column-gap: var(--gutter);
+  align-items: start;
+}
+.xn-lay > *      { grid-column: rail-start / rail-end; min-width: 0; }
+.xn-lay > .xn-bleed { grid-column: full-start / full-end; }
+
+/* ── Perche' qui NON ci sono .container / .grid / .bleed-full ────────────────
+   C'erano, come utility della griglia a 12 colonne, e nessun elemento del sito
+   le usava: le sezioni hanno i loro nomi (.hero-grid, .sscreen, .rule-row).
+   In compenso .grid ESISTE gia' in altre due pagine — catalog/index.html la
+   dichiara `repeat(auto-fill, minmax(270px, 1fr))` e phone.html la usa — e
+   questo foglio e' linkato PER ULTIMO, quindi la mia versione a 12 colonne
+   vinceva: le schede del catalogo finivano in colonne da 81px con il testo
+   tagliato a meta'.
+
+   La regola che ne esce, e che vale per ogni cosa aggiunta qui: in un foglio
+   globale caricato per ultimo un nome di classe generico non e' una utility,
+   e' un dirottamento. O il nome e' specifico del sistema (.rule-row), o la
+   regola sta dentro la pagina che la usa. */
+
+/* ── The wordmark ────────────────────────────────────────────────────────────
+   The mark IS the X, so the word beside it is "ENON" and it has to sit against
+   the glyph like a letter, not beside it like a label. The 9px gap read as two
+   objects. The accessible name stays "Xenon" through aria-label on the anchor —
+   without it a screen reader announces "enon". */
+.logo { gap: 0; }
+.logo img { margin-right: 1px; }
+
+/* One wordmark for the whole site. images/logo-x.png is the mark trimmed to
+   the glyph — logo.png carries ~28% transparent padding a side, which is what
+   used to push "ENON" away from its own X and made the pair read as two
+   objects at five different sizes across the site.
+
+   The art is drawn white-on-transparent for a dark ground, so on the light
+   theme it is inverted and the hue rotated back, which keeps the right half's
+   blue and violet. Pages used to solve this with mix-blend-mode: screen, which
+   does the opposite of what is needed on paper: screen with white IS white. */
+.logo img, .brand img, header.top > img, .logo-mark {
+  width: 33px; height: 26px; object-fit: contain;
+  mix-blend-mode: normal; filter: none;
+}
+:root[data-theme="light"] .logo img,
+:root[data-theme="light"] .brand img,
+:root[data-theme="light"] header.top > img,
+:root[data-theme="light"] .logo-mark { filter: invert(1) hue-rotate(180deg); }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .logo img,
+  :root:not([data-theme="dark"]) .brand img,
+  :root:not([data-theme="dark"]) header.top > img,
+  :root:not([data-theme="dark"]) .logo-mark { filter: invert(1) hue-rotate(180deg); }
+}
+
+/* ── Filmati ─────────────────────────────────────────────────────────────────
+   Le due GIF pesavano 3,2 MB a 11 e 14 fotogrammi al secondo, con 256 colori
+   retinati su un'interfaccia scura: erano insieme il contenuto piu' pesante e
+   il piu' brutto della pagina. Stesso girato in mp4 + webm, 712 KB.
+   Il filmato del catalogo e' ripreso dallo schermo vero, non e' un mockup. */
+/* La regola che rimpicciolisce il contenuto di una scheda esisteva solo per
+   <img>. Sostituendo le GIF con <video> l'attributo width="920" tornava a
+   valere e su un telefono la colonna usciva a 921px: scroll orizzontale su
+   tutta la pagina. Quando si cambia il tipo di elemento va guardato chi lo
+   stava vestendo. */
+.shot-card img, .shot-card video { display: block; width: 100%; height: auto; }
+
+.cat-film { margin: 0 0 44px; }
+.cat-film video {
+  display: block; width: 100%; height: auto;
+  border: 1px solid var(--rule); border-radius: var(--r-1); background: var(--g-1);
+}
+.cat-film figcaption { margin-top: 12px; font-size: 13px; color: var(--bone-2); }
+
+/* ── The hairline ────────────────────────────────────────────────────────────
+   Separation is a LINE, not a box and not a gap. With no accent colour, no
+   photography and a graphite ground, a card is a rectangle of very slightly
+   different graphite, and three in a row is the most template-looking object on
+   the web. Four of the nine fetched sites draw the line instead: Stripe on the
+   container edge, Tailwind as a divide-x overlay, Vercel as --guide-width:1px,
+   Linear as this dotted one.  (Linear .ko0qIq_divider, 8px 1px, opacity .4) */
+
+/* ── The three-item row ─────────────────────────────────────────────────────
+   One component for every group of three on the page. Tailwind's exact shape:
+   repeat(3, minmax(N,1fr)), NO gap, hairlines between, scrolls if it will not
+   fit. The floor is what stops a third column collapsing into two words. */
+.rule-row > * { padding: 22px 28px; }
+.rule-row > * + * { border-left: 1px solid var(--edge); }
+@media (max-width: 860px) {
+  .rule-row > * { padding: 20px 0; }
+  .rule-row > * + * { border-left: 0; border-top: 1px solid var(--edge); }
+}
+/* When the count is not three — the footer, the supporters wall — the count
+   falls out of the width instead of being hardcoded, which is what stops the
+   last row going ragged. (Stripe .columns--auto) */
+.rule-row--auto { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+
+

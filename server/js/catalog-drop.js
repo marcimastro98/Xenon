@@ -56,7 +56,10 @@
   // hub never answered) means open — the published numbers stand, as before.
   function isPaidDrop(e) {
     if (!e || !e.id) return false;
-    if (e.limited) return !e.limited.soldOut && e.limited.active !== false;
+    // Stock through limitedStock(): `soldOut` is added by the server proxy, so a
+    // catalog read that skipped it (the website demo) had every drop reading as
+    // available — including one whose copies were all claimed.
+    if (e.limited) { const s = limitedStock(e.limited); return !!s && !s.soldOut && e.limited.active !== false; }
     return !!(e.locked || e.supportersOnly);
   }
 
@@ -175,14 +178,14 @@
     body.appendChild(el('p', 'xdrop-sub', sub));
 
     // Limited → real scarcity meter (no invented countdown; only true left/total).
-    if (isLim) {
-      const lim = entry.limited;
-      const total = Math.max(1, Number(lim.total) || 0), left = Math.max(0, Number(lim.left) || 0);
+    const stock = isLim ? limitedStock(entry.limited) : null;
+    if (stock) {
+      const { total, left } = stock;
       const meter = el('div', 'xdrop-meter');
       const bar = el('div', 'xdrop-bar'); const fill = el('div', 'xdrop-barfill');
       fill.style.width = Math.round(((total - left) / total) * 100) + '%'; bar.appendChild(fill);
       meter.appendChild(bar);
-      meter.appendChild(el('span', 'xdrop-left', t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(lim.left)).replace('{t}', String(lim.total))));
+      meter.appendChild(el('span', 'xdrop-left', t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(left)).replace('{t}', String(total))));
       body.appendChild(meter);
     }
 
@@ -265,9 +268,10 @@
       const tier = el('span', 'xdrop-row-tier', isLim ? t('gallery_limited_badge', 'Limited') : t('gallery_locked_badge', 'Supporters'));
       mid.appendChild(tier);
       mid.appendChild(el('span', 'xdrop-row-name', entry.name || ''));
-      if (isLim && entry.limited && !entry.limited.soldOut) {
+      const rowStock = isLim ? limitedStock(entry.limited) : null;
+      if (rowStock && !rowStock.soldOut) {
         mid.appendChild(el('span', 'xdrop-row-left',
-          t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(entry.limited.left)).replace('{t}', String(entry.limited.total))));
+          t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(rowStock.left)).replace('{t}', String(rowStock.total))));
       }
       row.appendChild(mid);
       row.addEventListener('click', () => { close(); window.CommunityGallery.openEntry(entry); });

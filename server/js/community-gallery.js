@@ -58,9 +58,19 @@
   const dropClosed = (entry) => !!(entry && entry.limited && entry.limited.active === false);
   // "No copy is coming out of this drop right now" — the one question every CTA
   // site below actually asks. Sold out and closed differ only in what we SAY.
-  const dropUnavailable = (entry) => !!(entry && entry.limited && (entry.limited.soldOut || dropClosed(entry)));
+  // Stock is DERIVED (limitedStock in utils.js), never read raw: `soldOut` and
+  // `left` are added by the server proxy, so a catalog read that skipped it
+  // showed a drop with every copy claimed as available — and printed
+  // "undefined of 50 left" under it.
+  const dropSoldOut = (entry) => { const s = entry && limitedStock(entry.limited); return !!s && s.soldOut; };
+  // `!limitedStock(...)` is the third case: a limited entry whose numbers cannot
+  // be read at all. It can only reach us from a catalog that skipped the server
+  // proxy, and "no copy right now" is the honest answer — never a meter built on
+  // nothing. It also means every meter site below can trust its stock object.
+  const dropUnavailable = (entry) => !!(entry && entry.limited
+    && (dropSoldOut(entry) || dropClosed(entry) || !limitedStock(entry.limited)));
   function unavailableLabel(entry) {
-    return el('span', 'cgal-soldout', entry.limited && entry.limited.soldOut
+    return el('span', 'cgal-soldout', dropSoldOut(entry)
       ? t('gallery_limited_soldout', 'Sold out')
       : t('gallery_limited_closed', 'Claims closed'));
   }
@@ -858,11 +868,11 @@
       const lim = entry.limited;
       if (dropUnavailable(entry)) appendUnavailable(cta, entry);
       else {
-        const total = Math.max(1, Number(lim.total) || 0), left = Math.max(0, Number(lim.left) || 0);
+        const { total, left } = limitedStock(lim);
         const meterWrap = el('div', 'cgal-hero-meter');
         const bar = el('div', 'cgal-hero-bar'); const fill = el('div', 'cgal-hero-barfill');
         fill.style.width = Math.round(((total - left) / total) * 100) + '%'; bar.appendChild(fill); meterWrap.appendChild(bar);
-        meterWrap.appendChild(el('span', 'cgal-hero-left', t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(lim.left)).replace('{t}', String(lim.total))));
+        meterWrap.appendChild(el('span', 'cgal-hero-left', t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(left)).replace('{t}', String(total))));
         cta.appendChild(meterWrap);
         appendLimitedButtons(cta, entry);
       }
@@ -984,12 +994,11 @@
       if (dropUnavailable(entry)) {
         appendUnavailable(cta, entry);
       } else {
-        const total = Math.max(1, Number(lim.total) || 0);
-        const left = Math.max(0, Number(lim.left) || 0);
+        const { total, left } = limitedStock(lim);
         const meter = el('div', 'cgal-hero-meter');
         const bar = el('div', 'cgal-hero-bar'); const fill = el('div', 'cgal-hero-barfill');
         fill.style.width = Math.round(((total - left) / total) * 100) + '%'; bar.appendChild(fill); meter.appendChild(bar);
-        meter.appendChild(el('span', 'cgal-hero-left', t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(lim.left)).replace('{t}', String(lim.total))));
+        meter.appendChild(el('span', 'cgal-hero-left', t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(left)).replace('{t}', String(total))));
         info.appendChild(meter);
         appendLimitedButtons(cta, entry);
       }
@@ -1060,8 +1069,9 @@
       if (dropUnavailable(entry)) appendUnavailable(row, entry);
       else {
         appendLimitedButtons(row, entry);
+        const stock = limitedStock(lim);
         row.appendChild(el('span', 'cgal-limcount',
-          t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(lim.left)).replace('{t}', String(lim.total))));
+          t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(stock.left)).replace('{t}', String(stock.total))));
       }
     } else {
       row.appendChild(importButton(entry, locked ? 'cgal-btn cgal-unlock' : 'cgal-btn primary',
@@ -1185,8 +1195,9 @@
         appendUnavailable(row, entry);
       } else {
         appendLimitedButtons(row, entry);
+        const stock = limitedStock(lim);
         row.appendChild(el('span', 'cgal-limcount',
-          t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(lim.left)).replace('{t}', String(lim.total))));
+          t('gallery_limited_left', '{n} of {t} left').replace('{n}', String(stock.left)).replace('{t}', String(stock.total))));
       }
       body.appendChild(row); card.appendChild(body);
       return card;

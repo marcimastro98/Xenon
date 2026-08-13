@@ -104,6 +104,51 @@
 }
 #demo-convert .dc-no:hover { color: #f0f3f1; }
 
+/* ── Phone: neither piece of demo chrome may sit on the app's own bar ────── */
+/* The dashboard's phone view (server/components/PhoneView.css) puts a thumb dock
+   along the bottom of the screen as a real grid ROW, so nothing the dashboard
+   lays out can end up underneath it — and these two are FIXED to the viewport,
+   which is exactly the case that rule cannot cover. At 390px the badge landed on
+   the dock's first button and the sheet covered the whole bar, so the demo's own
+   chrome hid the controls it exists to sell. `--ph-dock-h` is measured from the
+   real element by measureDock() in js/phone-view.js (the dock wraps to a second
+   line on a narrow screen and grows with the safe-area inset); the fallback only
+   covers the frame before the first measurement. Same list, same reason as the
+   `.is-phone .discord-invite` block in that file. */
+@media (max-width: 620px) {
+  #demo-badge {
+    /* Centred pill, not an edge-to-edge bar: it stays a badge, and it covers as
+       little of the tile behind it as its own content needs. */
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    max-width: calc(100vw - 16px);
+    bottom: calc(var(--ph-dock-h, 64px) + 10px);
+  }
+  /* The sheet is the loudest thing on the screen and it is not what the visitor
+     came for: full width above the dock, and it still closes on one tap. */
+  #demo-convert {
+    left: 8px;
+    right: 8px;
+    width: auto;
+    bottom: calc(var(--ph-dock-h, 64px) + 10px);
+  }
+  /* Both want the same slot, and they carry the same call to action. While the
+     sheet is up the badge stands down — a phone has room for one of them, and
+     stacking two green bars over the dock is worse than either. The badge is
+     mounted first and the sheet is appended later, so this is the `:has()`
+     direction that can see it. */
+  #demo-badge:has(~ #demo-convert) { display: none; }
+  /* And it stands down for the app's own dialogs. The badge is fixed above
+     everything (it has to be: edge-preview.js scales <body> underneath it), so on
+     a phone it landed across the buttons of whatever modal was open — the Store's
+     "new drops" card had its CTA and its opt-out behind it. `overlay-frozen` is
+     the class the dashboard already sets on <body> for exactly "a dialog owns the
+     screen" (js/ambient-freeze.js), so this follows the app instead of listing
+     modals it would have to keep in step with. */
+  html:has(body.overlay-frozen) #demo-badge { display: none; }
+}
+
 /* ── "Runs on your PC" veil over tiles that stream from a real machine ──── */
 .demo-na {
   position: absolute;

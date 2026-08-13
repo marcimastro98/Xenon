@@ -7,8 +7,14 @@
 <meta name="description" content="CPU and GPU temperature, VRAM and RAM in one card. Tap any row to swap which value leads, and pick which monitors you want. Reads sensors only, with no…">
 <link rel="canonical" href="https://xenon-app.com/catalog/thermal-card/">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
-<meta name="theme-color" content="#070808">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
 <link rel="icon" type="image/png" href="/images/favicon.png">
+
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
 
 <meta property="og:type" content="product">
 <meta property="og:site_name" content="Xenon">
@@ -25,9 +31,9 @@
 
 <link rel="preconnect" href="https://assets.xenon-app.com" crossorigin>
 <style>*{box-sizing:border-box;margin:0;padding:0}
-:root{--ink:#070808;--panel:rgba(240,243,241,.04);--line:rgba(240,243,241,.10);
---green:#1ed760;--gold:#ffc44d;--iris:#8b7bff;--text:#f0f3f1;--muted:#9aa8a1;--dim:#66736c;
---sans:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif}
+:root{--ink:var(--g-0);--panel:var(--g-1);--line:var(--rule);
+--green:var(--bone-0);--text:var(--bone-0);--muted:var(--bone-1);--dim:var(--bone-2);
+--sans:'Archivo','Archivo Fallback',system-ui,-apple-system,'Segoe UI',sans-serif}
 html{-webkit-text-size-adjust:100%}
 body{font-family:var(--sans);background:var(--ink);color:var(--text);line-height:1.6;font-size:16px;
 -webkit-font-smoothing:antialiased}
@@ -55,12 +61,12 @@ h1{font-size:clamp(30px,5vw,44px);line-height:1.12;letter-spacing:-.02em;font-we
 .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
 .chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 12px;
 font-size:13px;color:var(--muted)}
-.desc{margin-top:22px;font-size:17px;color:#d4dcd7;max-width:66ch}
+.desc{margin-top:22px;font-size:17px;color:var(--bone-1);max-width:66ch}
 .shots{margin-top:28px;display:grid;gap:14px}
 .shots img{border:1px solid var(--line);border-radius:12px;width:100%;background:var(--panel)}
 .sec{margin-top:34px}
 .sec h2{font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
-.sec p{color:#c6cfca;max-width:66ch}
+.sec p{color:var(--bone-1);max-width:66ch}
 .sw{display:flex;flex-wrap:wrap;gap:14px}
 .sw span{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 .sw i{width:15px;height:15px;border-radius:4px;border:1px solid var(--line);display:block}
@@ -69,13 +75,13 @@ font-size:13px;color:var(--muted)}
 .cta{margin-top:36px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
 .btn{display:inline-flex;align-items:center;gap:9px;border-radius:11px;padding:13px 20px;font-weight:600;
 font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(--panel);color:var(--text)}
-.btn.fill{background:var(--green);border-color:var(--green);color:#052012}
-.btn:hover{border-color:rgba(240,243,241,.24)}
+.btn.fill{background:var(--green);border-color:var(--green);color:var(--g-0)}
+.btn:hover{border-color:var(--rule-2)}
 .note{margin-top:14px;font-size:14px;color:var(--dim);max-width:62ch}
-.steps{margin:0;padding-left:22px;color:#c6cfca;max-width:66ch}
+.steps{margin:0;padding-left:22px;color:var(--bone-1);max-width:66ch}
 .steps li{margin-bottom:7px}
 .steps li:last-child{margin-bottom:0}
-.facts{list-style:none;margin:0;padding:0;color:#c6cfca;max-width:66ch}
+.facts{list-style:none;margin:0;padding:0;color:var(--bone-1);max-width:66ch}
 .facts li{display:flex;flex-wrap:wrap;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
 .facts li:last-child{border-bottom:0}
 .facts b{font-weight:600;color:var(--muted);flex:0 0 148px;font-size:13.5px;letter-spacing:.02em}
@@ -87,7 +93,7 @@ font-size:15px;text-decoration:none;border:1px solid var(--line);background:var(
 .rel{display:grid;gap:10px;grid-template-columns:1fr}
 .rel a{display:flex;align-items:baseline;gap:10px;text-decoration:none;border:1px solid var(--line);
 background:var(--panel);border-radius:11px;padding:12px 15px;transition:border-color .2s}
-.rel a:hover{border-color:rgba(240,243,241,.24)}
+.rel a:hover{border-color:var(--rule-2)}
 .rel .n{font-weight:600;font-size:15px}
 .rel .k{font-size:12.5px;color:var(--dim);margin-left:auto;white-space:nowrap}
 @media(min-width:640px){.rel{grid-template-columns:1fr 1fr}}
@@ -95,6 +101,11 @@ footer{border-top:1px solid var(--line);padding:26px 0;color:var(--dim);font-siz
 footer a{color:var(--muted);text-decoration:none}
 footer a:hover{color:var(--green)}
 @media(min-width:720px){.shots{grid-template-columns:1fr 1fr}.shots img:first-child{grid-column:1/-1}}</style>
+<!-- AFTER the inline block on purpose: /site.css owns the palette, the type and
+     the motion for the whole site, and later wins. Without this line these 47
+     pages are the only place the pre-PANEL design is still on the internet, one
+     click from the catalog that links them. -->
+<link rel="stylesheet" href="/site.css">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -161,7 +172,7 @@ footer a:hover{color:var(--green)}
 
 <header class="top">
   <div class="wrap">
-    <a class="logo" href="/"><img src="/images/logo.png" alt="" width="42" height="28"> XENON</a>
+    <a class="logo" href="/" aria-label="Xenon"><img class="logo-mark" src="/images/logo-x.png" alt="" width="33" height="26">ENON</a>
     <a class="top-cta" href="/catalog/">All community items →</a>
   </div>
 </header>

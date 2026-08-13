@@ -34,11 +34,17 @@
 </script>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
 <script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
 <!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
      for every visitor (GA4 only counts those who accept the banner), so it is the
      honest denominator the GA4 numbers are read against. -->
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
 <title>Xenon: use your phone as the second screen</title>
 <meta name="description" content="To use Xenon you need a screen you can leave on all day. You already have one in your pocket. How to open your dashboard on a phone or tablet: thirty seconds at home, or five minutes to have it work from anywhere as an app.">
 <meta name="robots" content="index, follow">
@@ -48,21 +54,18 @@
 <meta property="og:type" content="article">
 <link rel="canonical" href="https://xenon-app.com/phone.html">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 <style>
 
   :root {
-    --ink:   #070808;
-    --panel: rgba(240,243,241,0.03);
-    --line:  rgba(240,243,241,0.08);
-    --line-2:rgba(240,243,241,0.16);
-    --green: #1ed760;
-    --text:  #f0f3f1;
-    --muted: #9aa8a1;
-    --dim:   #66736c;
+    --ink:   var(--g-0);
+    --panel: var(--g-1);
+    --line:  var(--rule);
+    --line-2:var(--rule-2);
+    --green: var(--bone-0);
+    --text:  var(--bone-0);
+    --muted: var(--bone-1);
+    --dim:   var(--bone-2);
     --sans:  'Inter', system-ui, -apple-system, sans-serif;
     --mono:  'JetBrains Mono', ui-monospace, monospace;
     --maxw:  820px;
@@ -80,7 +83,7 @@
   header.top {
     border-bottom: 1px solid var(--line);
     padding: 20px 0; position: sticky; top: 0; z-index: 10;
-    background: rgba(7,8,8,0.82); backdrop-filter: blur(12px);
+    background: color-mix(in srgb, var(--g-0) 82%, transparent); backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
   }
   header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
@@ -110,7 +113,7 @@
   li { margin-bottom: 10px; }
   code {
     font-family: var(--mono); font-size: 13px;
-    background: rgba(240,243,241,0.06); padding: 2px 6px; border-radius: 6px;
+    background: var(--g-2); padding: 2px 6px; border-radius: 6px;
     color: var(--text); overflow-wrap: anywhere;
   }
 
@@ -118,17 +121,17 @@
     background: var(--panel); border: 1px solid var(--line);
     border-radius: var(--radius); padding: 22px 24px; margin: 24px 0;
   }
-  .card.accent { border-color: rgba(30,215,96,0.28); background: rgba(30,215,96,0.045); }
+  .card.accent { border-color: var(--rule-2); background: var(--g-1); }
   .card p:last-child, .card ul:last-child, .card ol:last-child { margin-bottom: 0; }
   .card h3 { margin-top: 0; }
 
   /* ── The two routes, side by side ─────────────────────────────── */
   .routes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin: 28px 0 8px; }
   .route { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 22px 20px; }
-  .route.pick { border-color: rgba(30,215,96,0.3); }
+  .route.pick { border-color: var(--rule-2); }
   .route .tag {
     display: inline-block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
-    text-transform: uppercase; color: var(--green); border: 1px solid rgba(30,215,96,0.35);
+    text-transform: uppercase; color: var(--green); border: 1px solid var(--rule-2);
     border-radius: 999px; padding: 3px 10px; margin-bottom: 12px;
   }
   /* Beta mark for the feature this whole page is about. Gold, not green: green
@@ -136,8 +139,8 @@
   .beta-pill {
     display: inline-block; vertical-align: middle; margin-left: 12px;
     font-family: var(--mono); font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase;
-    color: #ffc44d; background: rgba(255,196,77,0.12);
-    border: 1px solid rgba(255,196,77,0.3); border-radius: 999px; padding: 3px 10px;
+    color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent); border-radius: 999px; padding: 3px 10px;
   }
   .route h3 { margin: 0 0 6px; font-size: 18px; color: var(--text); }
   .route .time { font-family: var(--mono); font-size: 12.5px; color: var(--dim); margin: 0 0 12px; }
@@ -155,7 +158,7 @@
     content: counter(s);
     position: absolute; left: -15px; top: -2px;
     width: 30px; height: 30px; border-radius: 50%;
-    background: var(--ink); border: 1px solid rgba(30,215,96,0.35);
+    background: var(--ink); border: 1px solid var(--rule-2);
     color: var(--green); font-family: var(--mono); font-size: 13px; font-weight: 500;
     display: grid; place-items: center;
   }
@@ -174,7 +177,7 @@
   .shot { text-align: center; margin: 0; max-width: 100%; }
   .shot figcaption { font-family: var(--mono); font-size: 11.5px; color: var(--dim); margin-top: 12px; letter-spacing: 0.04em; }
 
-  .dev { background: #121614; border: 2px solid rgba(240,243,241,0.14); box-shadow: 0 18px 44px rgba(0,0,0,0.5); }
+  .dev { background: #121614; border: 2px solid var(--rule); box-shadow: none; }
   .dev-phone { width: 176px; height: 360px; border-radius: 24px; padding: 7px 5px; }
   .dev-tab   { width: 300px; height: 226px; border-radius: 16px; padding: 7px; }
   .screen { width: 100%; height: 100%; border-radius: 16px; overflow: hidden;
@@ -184,44 +187,44 @@
 
   .bar { height: 15px; margin: 5px 5px 6px; border-radius: 6px; background: rgba(240,243,241,0.07);
          display: flex; align-items: center; gap: 4px; padding: 0 5px; }
-  .bar i { display: block; height: 5px; border-radius: 3px; background: rgba(240,243,241,0.22); }
-  .bar i.a { width: 16px; background: rgba(30,215,96,0.55); }
+  .bar i { display: block; height: 5px; border-radius: 3px; background: var(--rule-2); }
+  .bar i.a { width: 16px; background: var(--bone-1); }
   .bar i.b { width: 26px; }
   .bar i.c { width: 12px; margin-left: auto; }
 
   /* phone: one column, tiles of different heights, thumb dock at the bottom */
   .stack { flex: 1; display: flex; flex-direction: column; gap: 5px; padding: 0 5px; overflow: hidden; }
-  .stack > div { border-radius: 7px; background: rgba(240,243,241,0.055); border: 1px solid rgba(240,243,241,0.06); }
+  .stack > div { border-radius: 7px; background: var(--g-2); border: 1px solid var(--g-2); }
   .stack > div.t1 { height: 46px; }
   .stack > div.t2 { height: 72px; }
   .stack > div.t3 { height: 38px; }
   .stack > div.t4 { height: 58px; }
-  .stack > div.hl { background: rgba(30,215,96,0.13); border-color: rgba(30,215,96,0.3); }
+  .stack > div.hl { background: var(--g-2); border-color: var(--rule-2); }
   .dock { height: 26px; margin: 6px 5px 5px; border-radius: 9px; background: rgba(240,243,241,0.09);
           display: flex; align-items: center; justify-content: space-around; padding: 0 6px; }
-  .dock i { display: block; width: 13px; height: 13px; border-radius: 5px; background: rgba(240,243,241,0.22); }
-  .dock i:first-child { background: rgba(30,215,96,0.5); }
+  .dock i { display: block; width: 13px; height: 13px; border-radius: 5px; background: var(--rule-2); }
+  .dock i:first-child { background: var(--bone-1); }
 
   /* tablet: the real 24-column grid, kept */
   .grid { flex: 1; display: grid; grid-template-columns: repeat(6, 1fr); grid-auto-rows: 30px; gap: 5px; padding: 0 5px 5px; }
-  .grid > div { border-radius: 6px; background: rgba(240,243,241,0.055); border: 1px solid rgba(240,243,241,0.06); }
+  .grid > div { border-radius: 6px; background: var(--g-2); border: 1px solid var(--g-2); }
   .grid > div.w2 { grid-column: span 2; }
   .grid > div.w3 { grid-column: span 3; }
   .grid > div.w4 { grid-column: span 4; }
   .grid > div.h2 { grid-row: span 2; }
-  .grid > div.hl { background: rgba(30,215,96,0.13); border-color: rgba(30,215,96,0.3); }
+  .grid > div.hl { background: var(--g-2); border-color: var(--rule-2); }
 
   /* ── A reproduction of the settings rows ──────────────────────── */
   .ui { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin: 20px 0; background: rgba(240,243,241,0.02); }
   .ui-row { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
   .ui-row:last-child { border-bottom: none; }
-  .sw { width: 34px; height: 20px; border-radius: 999px; background: rgba(240,243,241,0.14); flex: none; position: relative; margin-top: 2px; }
-  .sw.on { background: rgba(30,215,96,0.75); }
+  .sw { width: 34px; height: 20px; border-radius: 999px; background: var(--rule); flex: none; position: relative; margin-top: 2px; }
+  .sw.on { background: var(--bone-0); }
   .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #0b0d0c; }
   .sw.on::after { left: auto; right: 3px; background: #08110c; }
   .ui-txt strong { display: block; color: var(--text); font-size: 14.5px; font-weight: 600; }
   .ui-txt span { display: block; color: var(--dim); font-size: 13px; line-height: 1.5; }
-  .ui-btn { display: inline-block; background: rgba(30,215,96,0.14); border: 1px solid rgba(30,215,96,0.35);
+  .ui-btn { display: inline-block; background: var(--g-2); border: 1px solid var(--rule-2);
             color: var(--green); border-radius: 9px; padding: 8px 16px; font-size: 14px; font-weight: 600; }
 
   .yn { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; margin: 22px 0; }
@@ -229,7 +232,7 @@
   .yn li { display: flex; gap: 9px; font-size: 15px; margin-bottom: 9px; align-items: flex-start; }
   .yn .k { flex: none; font-weight: 700; line-height: 1.5; }
   .can .k { color: var(--green); }
-  .cant .k { color: #e26d5c; }
+  .cant .k { color: var(--danger); }
 
   .note { font-size: 14px; color: var(--dim); border-left: 2px solid var(--line-2); padding-left: 14px; margin: 18px 0; }
 
@@ -267,7 +270,7 @@
   .lang { position: relative; }
   .lang-menu {
     position: absolute; top: calc(100% + 10px); right: 0; min-width: 168px; z-index: 60;
-    background: rgba(11,13,12,0.96); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    background: color-mix(in srgb, var(--g-1) 96%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
     border: 1px solid var(--line-2); border-radius: 12px; padding: 6px;
     opacity: 0; transform: translateY(-6px); pointer-events: none;
     transition: opacity .22s ease, transform .22s ease;
@@ -278,18 +281,23 @@
     background: none; border: 0; border-radius: 8px; color: var(--muted);
     font-family: var(--sans); font-size: 13.5px; cursor: pointer; text-align: left;
   }
-  .lang-menu button:hover { background: rgba(240,243,241,0.06); color: var(--text); }
+  .lang-menu button:hover { background: var(--g-2); color: var(--text); }
   .lang-menu button.on { color: var(--green); }
   .lang-menu .nat { margin-left: auto; font-size: 11px; color: var(--dim); letter-spacing: .08em; }
   @media (max-width: 480px) { .back { display: none; } }
 
 </style>
+<!-- PANEL token layer. Linked AFTER the inline <style> above on purpose:
+     this file owns the palette, the type and the motion for every page on the
+     site, and each page kept its own drifted copy of those tokens. Later wins,
+     so one file re-skins all nine. Page-specific rules above are untouched. -->
+<link rel="stylesheet" href="/site.css">
 </head>
 <body>
 
 <header class="top">
   <div class="wrap">
-    <a class="logo" href="/"><img src="images/logo.png" alt="" width="34" height="23"> XENON</a>
+    <a class="logo" href="/" aria-label="Xenon"><img class="logo-mark" src="images/logo-x.png" alt="" width="33" height="26">ENON</a>
     <div class="head-right">
       <a class="back" href="/" data-i18n="nav.back">← Back to the site</a>
       <div class="lang" id="lang">

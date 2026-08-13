@@ -94,10 +94,26 @@
   /* `dvh` for the same reason the shell uses it: this bound is the SCROLLING
      BAND, and a band measured against a viewport height the phone is not
      actually showing lets a tile grow past the bottom of the screen. */
-  height: clamp(180px, calc(var(--ph-rows, 8) * 34px), min(80dvh, calc(100dvh - var(--ph-chrome, 158px)))) !important;
+  /* The lower bound is a VARIABLE, so a widget whose content has a real floor can
+     raise its own — see `--ph-min` below. 180px is the general case. */
+  height: clamp(var(--ph-min, 180px), calc(var(--ph-rows, 8) * 34px), min(80dvh, calc(100dvh - var(--ph-chrome, 158px)))) !important;
   min-height: 0 !important;
   transform: none !important;
 }
+/* ── A tile whose content cannot be compressed ───────────────────────────── */
+/* 34px per grid row is a proportion, not a promise, and a widget built out of a
+   FIXED number of rows has a height below which it stops being readable rather
+   than merely getting tighter. The month grid is the clearest case: it is six
+   week rows however short the tile is, so at the 272px an 8-row agenda tile gets
+   here, each row was computed to 7.4px against 13.5px digits — every number
+   painted across the two below it, which is what the calendar looked like on a
+   phone (reported, and visible in the demo). The rows below give the grid a
+   minimum row height, and this floor is what keeps the tile from having to
+   scroll internally to honour it.
+   Add to this list only when a widget's own minimum is structural like this
+   one's; the answer for a widget that is merely tight is its internal scroll. */
+.is-stacked .dashboard.grid-stack > .grid-stack-item:has(.agenda-panel),
+.is-stacked .dashboard.grid-stack > .grid-stack-item:has(.calendar-panel) { --ph-min: 380px; }
 /* A tablet has no thumb dock and a roomier topbar, so the band a tile may fill
    is taller — the number is the chrome above and below it, not a guess. */
 .is-tablet { --ph-chrome: 108px; }
@@ -284,6 +300,48 @@
 }
 .is-stacked .system-block { flex: 0 0 auto; min-height: min-content; }
 .is-stacked .stat-box { min-height: min-content; }
+
+/* Calendar. `minmax(0, 1fr)` rows are right on the Edge, where the tile is tall
+   and the month should fill it; here they let a week row fall under the height of
+   the digit inside it, and a grid row does not clip its item — it overflows, so
+   the numbers were drawn through their neighbours. A floor of 26px keeps a cell a
+   cell (and a touch target); the `1fr` still distributes anything above it.
+   The card then takes its natural height instead of a share of a short one, and
+   `.cal-pane` carries the remainder — which with the `--ph-min` floor above is
+   normally nothing, and is a scroll rather than a clip when the user has sized
+   the tile smaller still. */
+.is-stacked .calendar-days {
+  grid-template-rows: repeat(var(--calendar-weeks, 5), minmax(26px, 1fr));
+  grid-auto-rows: minmax(26px, 1fr);
+}
+/* The four tabs above it (Calendario / Task / Timer / Appunti) are one row that
+   does not scroll and sits inside `overflow: hidden`, so at 360px the last label
+   was cut through — "APPU". A flex item's automatic minimum is its min-content
+   width and each label is ONE word, so no button gives ground: what has to give
+   is the space around the words. Padding, gap and letter-spacing, in that order,
+   because they cost the reader nothing; the type only drops half a point.
+   That is enough for every phone from 360px up. Below it, the tabs you are NOT
+   on give ground and shorten with an ellipsis — never the active one, which is
+   the label that has to keep saying where you are. Applied to all four with
+   `min-width: 0` instead, the four share the width equally and the tab you are
+   actually on is the first to lose its name. */
+.is-stacked .cal-task-btn {
+  padding: 6px 6px;
+  gap: 4px;
+  font-size: 10px;
+  letter-spacing: 0.2px;
+}
+.is-stacked .cal-task-btn:not(.active) { min-width: 0; }
+.is-stacked .cal-task-btn:not(.active) span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.is-stacked .cal-pane { overflow-y: auto; }
+.is-stacked .cal-pane .calendar-card,
+.is-stacked .upcoming-block { flex: 0 0 auto; }
 
 /* ── The thumb dock ──────────────────────────────────────────────────────── */
 .ph-dock {

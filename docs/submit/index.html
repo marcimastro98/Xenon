@@ -35,6 +35,10 @@
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
 <script src="/analytics.js" defer></script>
 <script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
 <!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
      for every visitor (GA4 only counts those who accept the banner), so it is the
      honest denominator the GA4 numbers are read against. -->
@@ -46,7 +50,8 @@
 <link rel="icon" type="image/png" href="../images/favicon.png">
 <link rel="canonical" href="https://xenon-app.com/submit/">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
-<meta name="theme-color" content="#070808">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
 
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Xenon">
@@ -91,13 +96,10 @@
 }
 </script>
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
 <link rel="stylesheet" media="print" onload="this.media='all';this.onload=null" href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700,500&display=swap">
 <noscript><link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700,500&display=swap"></noscript>
-<link rel="stylesheet" media="print" onload="this.media='all';this.onload=null" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
-<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"></noscript>
+<noscript></noscript>
 <!-- Cloudflare Turnstile (the anti-spam gate; the hub verifies the token server-side). -->
 <!-- Three things here are load-bearing. All three were wrong, and each alone was
      enough to leave the page unusable: window.turnstile never gains .render, no
@@ -121,9 +123,9 @@
 
 <style>
   :root {
-    --ink: #04060a; --panel: rgba(140,255,200,0.035); --line: rgba(120,245,180,0.14);
-    --line-2: rgba(120,245,180,0.26); --plasma: #1ee07a; --plasma-2: #40dca5;
-    --danger: #ff5a63; --text: #e9f2ee; --muted: #8fa39c; --dim: #5f706a;
+    --ink: var(--g-0); --panel: var(--g-1); --line: var(--rule);
+    --line-2: var(--rule-2); --plasma: var(--bone-0); --plasma-2: var(--bone-1);
+    --danger: var(--danger); --text: var(--bone-0); --muted: var(--bone-1); --dim: var(--bone-2);
     --display: 'Clash Display','Hanken Grotesk',system-ui,sans-serif;
     --body: 'Hanken Grotesk',system-ui,-apple-system,sans-serif;
     --mono: 'JetBrains Mono',ui-monospace,monospace;
@@ -134,7 +136,7 @@
   body {
     font-family: var(--body); background: var(--ink); color: var(--text);
     line-height: 1.55; min-height: 100dvh; -webkit-font-smoothing: antialiased;
-    background-image: radial-gradient(90% 55% at 50% -8%, rgba(30,224,122,0.09), transparent 60%);
+
   }
   a { color: var(--plasma-2); }
   .wrap { max-width: var(--maxw); margin: 0 auto; padding: 32px 20px 80px; }
@@ -153,7 +155,7 @@
   label.f small { color: var(--dim); }
   input[type=text], select, textarea {
     width: 100%; font: inherit; font-size: 0.95rem; color: var(--text);
-    background: rgba(0,0,0,0.35); border: 1px solid var(--line); border-radius: 10px;
+    background: var(--g-1); border: 1px solid var(--line); border-radius: 10px;
     padding: 10px 12px; outline: none; transition: border-color 0.15s var(--ease);
   }
   input:focus, select:focus, textarea:focus { border-color: var(--line-2); }
@@ -163,27 +165,27 @@
   .btn {
     font: inherit; font-weight: 600; cursor: pointer; border-radius: 10px;
     padding: 10px 18px; border: 1px solid var(--line-2);
-    background: rgba(30,224,122,0.1); color: var(--text);
+    background: var(--g-2); color: var(--text);
     transition: background 0.15s var(--ease), transform 0.1s var(--ease);
   }
-  .btn:hover { background: rgba(30,224,122,0.18); }
-  .btn.primary { background: var(--plasma); color: #04160c; border-color: transparent; font-weight: 700; }
+  .btn:hover { background: var(--g-3); }
+  .btn.primary { background: var(--plasma); color: var(--g-0); border-color: transparent; font-weight: 700; }
   .btn.primary:hover { background: var(--plasma-2); }
   .btn.primary:disabled { opacity: 0.5; cursor: default; }
   .btn.ghost { background: transparent; border-color: var(--line); color: var(--muted); }
   .hint { font-size: 0.82rem; color: var(--dim); margin-top: 6px; }
   .hint.good { color: var(--plasma); }
-  .hint.warn { color: #ffb454; }
+  .hint.warn { color: var(--gold); }
   .hint.bad { color: var(--danger); }
   /* Automatic pre-submit check */
   .audit-line { font-size: 0.88rem; color: var(--muted); margin-top: 10px; }
   .audit-findings { display: grid; gap: 10px; margin-top: 10px; max-height: 320px; overflow-y: auto; padding-right: 4px; }
-  .finding { border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; background: rgba(0,0,0,0.25); font-size: 0.88rem; }
+  .finding { border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; background: var(--g-1); font-size: 0.88rem; }
   .finding .floc { font-family: var(--mono); font-size: 0.74rem; color: var(--dim); margin-top: 2px; }
   .finding .fwhy { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
   .finding code.fex {
     display: block; font-family: var(--mono); font-size: 0.72rem; color: var(--muted);
-    background: rgba(0,0,0,0.35); border: 1px solid var(--line); border-radius: 8px;
+    background: var(--g-1); border: 1px solid var(--line); border-radius: 8px;
     padding: 6px 8px; margin-top: 6px; white-space: pre-wrap; word-break: break-word;
     max-height: 110px; overflow-y: auto;
   }
@@ -191,9 +193,9 @@
     display: inline-block; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.05em;
     border-radius: 999px; padding: 2px 8px; margin-right: 8px; vertical-align: 1px;
   }
-  .sev.block { color: var(--danger); background: rgba(255,90,99,0.12); border: 1px solid rgba(255,90,99,0.35); }
-  .sev.warn { color: #ffb454; background: rgba(255,180,84,0.1); border: 1px solid rgba(255,180,84,0.3); }
-  .sev.info { color: var(--muted); background: rgba(0,0,0,0.3); border: 1px solid var(--line); }
+  .sev.block { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); }
+  .sev.warn { color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent); }
+  .sev.info { color: var(--muted); background: var(--g-1); border: 1px solid var(--line); }
   .audit-notes { margin-top: 8px; }
   .audit-notes summary { cursor: pointer; font-size: 0.82rem; color: var(--dim); }
   .audit-export { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
@@ -210,7 +212,7 @@
   label.f > span.cf { display: flex; gap: 8px; align-items: center; margin-bottom: 0; }
   .cf input[type=color] {
     flex: none; width: 42px; height: 42px; padding: 3px; cursor: pointer;
-    background: rgba(0,0,0,0.35); border: 1px solid var(--line); border-radius: 10px;
+    background: var(--g-1); border: 1px solid var(--line); border-radius: 10px;
   }
   .cf input[type=text] { flex: 1; min-width: 0; font-family: var(--mono); font-size: 0.85rem; text-transform: lowercase; }
   .shots { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
@@ -218,7 +220,7 @@
   .shot .box {
     aspect-ratio: 16/9; border: 1px dashed var(--line-2); border-radius: 10px;
     display: flex; align-items: center; justify-content: center; overflow: hidden;
-    color: var(--dim); font-size: 0.85rem; cursor: pointer; background: rgba(0,0,0,0.25);
+    color: var(--dim); font-size: 0.85rem; cursor: pointer; background: var(--g-1);
   }
   .shot .box img { width: 100%; height: 100%; object-fit: cover; }
   .shot .rm { width: 100%; margin-top: 4px; font-size: 0.75rem; padding: 4px; }
@@ -228,17 +230,22 @@
   .ok-screen h2 { font-family: var(--display); margin: 12px 0 8px; }
   .ok-screen p { color: var(--muted); max-width: 46ch; margin: 0 auto 8px; }
   .turnstile-wrap { margin: 14px 0 4px; min-height: 66px; }
-  .captcha-broken { color: var(--danger); font-size: 0.85rem; line-height: 1.5; border: 1px solid rgba(255,90,99,0.3); border-radius: 10px; padding: 10px 12px; background: rgba(255,90,99,0.06); }
+  .captcha-broken { color: var(--danger); font-size: 0.85rem; line-height: 1.5; border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent); border-radius: 10px; padding: 10px 12px; background: color-mix(in srgb, var(--danger) 6%, transparent); }
   .langbar { display: flex; gap: 6px; }
   .langbar button { background: none; border: 0; color: var(--dim); cursor: pointer; font: inherit; font-size: 0.8rem; }
   .langbar button.on { color: var(--plasma); font-weight: 700; }
   footer { margin-top: 40px; color: var(--dim); font-size: 0.82rem; text-align: center; }
 </style>
+<!-- PANEL token layer. Linked AFTER the inline <style> above on purpose:
+     this file owns the palette, the type and the motion for every page on the
+     site, and each page kept its own drifted copy of those tokens. Later wins,
+     so one file re-skins all nine. Page-specific rules above are untouched. -->
+<link rel="stylesheet" href="/site.css">
 </head>
 <body data-track-view="submit_start">
 <div class="wrap">
   <header class="top">
-    <img src="../images/logo-mark.png" alt="Xenon">
+    <img class="logo-mark" src="../images/logo-x.png" alt="Xenon" width="33" height="26">
     <div class="langbar" id="langbar"></div>
     <a class="back" href="../catalog/" data-t="back">← Community catalog</a>
   </header>

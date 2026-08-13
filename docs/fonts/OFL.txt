@@ -1,0 +1,36 @@
+Fonts shipped with xenon-app.com
+================================
+
+Every typeface in this directory is licensed under the SIL Open Font License,
+Version 1.1. That licence is what makes it lawful for this repository — which is
+public, and which GitHub Pages serves directly — to redistribute the font files
+themselves. A commercial webfont licence would not permit it, whatever it cost.
+
+Full licence text: https://openfontlicense.org/open-font-license-official-text/
+
+  archivo-latin.woff2
+  archivo-latin-ext.woff2
+      Archivo — Omnibus-Type (Héctor Gatti and the Omnibus-Type team)
+      Variable: wght 100–900, wdth 62–125
+      https://github.com/Omnibus-Type/Archivo
+      Copyright (c) The Archivo Project Authors
+
+  martianmono-latin.woff2
+  martianmono-latin-ext.woff2
+      Martian Mono — Evil Martians (Roman Shamin, Nikita Sapogov)
+      Variable: wght 100–800, wdth 75–112.5
+      https://github.com/evilmartians/mono
+      Copyright (c) The Martian Mono Project Authors
+
+  vt323-latin.woff2
+      VT323 — Peter Hull
+      https://github.com/phoikoi/VT323
+      Copyright (c) The VT323 Project Authors
+
+Subsets are Google Fonts' own latin and latin-ext ranges, taken unmodified. The
+unicode-range declarations that go with them live in ../site.css; changing a
+subset means changing both or a glyph silently stops resolving.
+
+Nothing here is loaded from a third party at runtime. That is deliberate on a
+site whose claim is that things stay on your machine: a webfont request tells
+another company which page a visitor opened, and there is no reason for it.

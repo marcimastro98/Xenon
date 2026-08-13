@@ -3,6 +3,16 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+### 🐛 Fixed
+- **The calendar is readable on a phone again.** On a phone or a tablet the tiles leave the grid and stack, and each one gets a height worked out from how tall you made it on the desktop. The month grid is six week rows whatever that height turns out to be, so on an ordinary 8 row agenda tile each row was given about 7 pixels for a 13 pixel number: every date was drawn across the two below it, and the whole tile read as damage. A week row now has a floor of 26 pixels, which is also a size a thumb can hit, and the agenda tile has a floor of its own so the month, the tabs and the upcoming events all fit without the tile having to scroll inside itself. The four tabs above it (Calendar, Tasks, Timer, Notes) fit whole down to 360 pixels instead of having the last one cut through, and below that the tabs you are not on shorten with an ellipsis while the one you are on keeps its name.
+
+- **The "new in the Store" card no longer paints its own buttons over its list.** When several creations land at once the card lists them, and on a phone screen that list is taller than the card. Nothing was allowed to scroll, so the list took the room and the "Open the Store" button and the opt out below it were squeezed to nothing and drawn on top of the entries, one across a drop's name. The list scrolls now and the two controls stay where they are, and the opt out and "Maybe later" take a second line rather than sharing one that is too narrow for them.
+
+- **A limited edition drop can no longer say "undefined of 50 left".** The number of copies still available is worked out by Xenon's own server before the Store sees it, so anywhere reading the catalogue without it, which is what the browser demo on the website does, had no number to print and printed that. Beside it, a drop whose every copy was already claimed was announced as available, for the same reason. Both numbers are now worked out wherever they are shown, from the copies published and the copies claimed, so a sold out drop reads as sold out and a meter never shows a word where a number belongs.
+
+- **The website demo's own badge stays off the app's controls.** Opened on a phone, the green "live demo" pill and the download prompt sat exactly where the dashboard puts its bar of buttons, covering the first of them, and the pill also covered the buttons of any dialog that opened over it. Both now sit above the bar, only one of them appears at a time, and the pill steps aside while a dialog is open.
+
 ## [v4.11.4] - 10-08-2026
 ### ✨ Added
 - **The buttons in the top bar are yours to arrange.** Lock, Ambient, Xenon, Search, Layout, Apps and the favourite apps can each be hidden, dragged into the order you want, and moved to the left or the right side. It works the same in the full bar and in the Dynamic Island's side rails, so it does not depend on which of the two you use. Until now the only way to get rid of a button you never press was to close a whole rail, which took the others with it, or to switch the bar off entirely, which did not remove the buttons at all — it just moved them.
