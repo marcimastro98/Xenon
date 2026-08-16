@@ -5122,11 +5122,23 @@ function renderSearchDiskSettings() {
           idxStatus.hidden = false;
           return;
         }
+        // The entry cap, said where the roots are chosen. The Disk widget has
+        // always shown it; this pane, the one place the user can DO something
+        // about it, showed "Living index active: 2,000,000 files" — which reads
+        // as success while search can no longer see a whole drive. Reported
+        // during the build too: past the cap the walk has stopped adding, so
+        // waiting for `ready` would keep saying "learning your disk" over an
+        // index that has finished growing.
+        const roots = (st.cappedRoots || []).filter(Boolean);
+        const capNote = !st.capped ? '' : ' '
+          + t('settings_search_idx_capped', 'Limite raggiunto: Xenon ha smesso di aggiungere file, quindi la ricerca non li vede tutti. Togli una cartella dall’elenco qui sopra, oppure indica cartelle precise invece di interi dischi.')
+          + (roots.length ? ' ' + t('settings_search_idx_capped_roots', 'Rimasto fuori:') + ' ' + roots.join(', ') : '');
         idxStatus.textContent = !st.on || !st.helper
           ? t('settings_search_idx_helper', 'L’indice vivo non è disponibile: aggiungi una cartella qui sopra, oppure rilancia l’installer di Xenon.')
           : st.building
-            ? t('settings_search_idx_building', 'Sto imparando il disco…') + ' ' + ((st.progress && st.progress.files) || st.files || 0).toLocaleString() + ' file'
-            : t('settings_search_idx_on', 'Indice vivo attivo:') + ' ' + (st.files || 0).toLocaleString() + ' file · ~' + (st.ramMB || 0) + ' MB RAM';
+            ? t('settings_search_idx_building', 'Sto imparando il disco…') + ' ' + ((st.progress && st.progress.files) || st.files || 0).toLocaleString() + ' file' + capNote
+            : t('settings_search_idx_on', 'Indice vivo attivo:') + ' ' + (st.files || 0).toLocaleString() + ' file · ~' + (st.ramMB || 0) + ' MB RAM' + capNote;
+        idxStatus.classList.toggle('settings-note-warn', !!capNote);
         idxStatus.hidden = !idxStatus.textContent;
       }).catch(() => { idxStatus.hidden = true; });
     }

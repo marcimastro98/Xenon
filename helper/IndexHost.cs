@@ -132,7 +132,16 @@ internal static class IndexHost
             // events are harmless because AddEntryLocked is an upsert; an
             // overflow marks the root dirty for the repair loop below.
             foreach (var r in Roots) StartWatcher(r);
-            foreach (var r in Roots) { if (!Cancelled) WalkRoot(r); }
+            // A root the cap cut short is RECORDED, not just counted. The walk is
+            // sequential, so hitting MaxEntries on an early root leaves every
+            // later one essentially absent — and "2.000.000 files indexed" reads
+            // as success while search quietly cannot see a whole drive. Naming
+            // the roots is what turns that into something the user can act on.
+            foreach (var r in Roots)
+            {
+                if (Cancelled) break;
+                if (!WalkRoot(r)) lock (Gate) IncompleteRoots.Add(r);
+            }
             lock (Gate)
             {
                 Entries.TrimExcess();
@@ -742,6 +751,10 @@ internal static class IndexHost
                 // True when MaxEntries stopped the walk: the index is still
                 // useful but not complete — consumers can say so honestly.
                 ["capped"] = Capped,
+                // ...and WHICH roots were left incomplete, so the UI can name
+                // the drive that search cannot see instead of only saying that
+                // some limit was reached.
+                ["cappedRoots"] = IncompleteRoots.ToList(),
             };
         }
     }
@@ -750,7 +763,11 @@ internal static class IndexHost
 
     // ── build + live updates ──────────────────────────────────────────────────
 
-    private static void WalkRoot(string root) => WalkRoot(root, CurrentGen);
+    private static bool WalkRoot(string root) => WalkRoot(root, CurrentGen);
+
+    // Roots whose initial walk did not see the whole root (display case, as the
+    // user typed them). Guarded by Gate like every other index field.
+    private static readonly List<string> IncompleteRoots = new();
 
     // Entries are added in batches under ONE lock acquisition instead of one
     // per file. On a 2M-entry root the per-file version held the index lock
@@ -758,7 +775,10 @@ internal static class IndexHost
     // for the whole walk — see rule 1 in the header.
     private const int LockBatch = 512;
 
-    private static void WalkRoot(string root, int gen)
+    // false = this walk did NOT see the whole root: the entry cap truncated it,
+    // the enumeration could not start, or it was cancelled. Callers use it to
+    // decide whether "this walk did not touch it" is evidence a file is gone.
+    private static bool WalkRoot(string root, int gen)
     {
         var opts = new EnumerationOptions
         {
@@ -770,18 +790,21 @@ internal static class IndexHost
         var lastProgress = Environment.TickCount64;
         var batch = new List<(string dir, string name, long size, long mtime)>(LockBatch);
         IEnumerable<FileInfo> files;
+        // The enumeration never started, so this walk is evidence of nothing.
+        // Reporting it as complete would let a repair sweep every entry under a
+        // momentarily unreadable root out of the index.
         try { files = new DirectoryInfo(root).EnumerateFiles("*", opts); }
-        catch { return; }
+        catch { return false; }
         foreach (var fi in files)
         {
-            if (Cancelled) return;
+            if (Cancelled) return false;
             long len, mt;
             string? dir;
             try { len = fi.Length; mt = new DateTimeOffset(fi.LastWriteTimeUtc).ToUnixTimeMilliseconds(); dir = fi.DirectoryName; }
             catch { continue; }
             if (dir == null) continue;
             batch.Add((dir, fi.Name, len, mt));
-            if (batch.Count >= LockBatch && !FlushWalkBatch(batch, gen)) return;
+            if (batch.Count >= LockBatch && !FlushWalkBatch(batch, gen)) return false;
             emitted++;
             var now = Environment.TickCount64;
             // Progress is a BUILD signal only: emitting it during a repair
@@ -794,7 +817,7 @@ internal static class IndexHost
                 Emit(new Dictionary<string, object?> { ["event"] = "progress", ["files"] = emitted, ["root"] = root });
             }
         }
-        FlushWalkBatch(batch, gen);
+        return FlushWalkBatch(batch, gen);
     }
 
     // false = the entry cap stopped the walk.
@@ -1107,10 +1130,16 @@ internal static class IndexHost
         Repairing = true;
         try
         {
-            WalkRoot(root, gen);
             // A walk that stopped early saw only part of the root, so "not
-            // touched" is not evidence that anything is gone.
-            if (!Cancelled && !Capped) SweepStaleUnder(root, gen);
+            // touched" is not evidence that anything is gone. That question is
+            // about THIS walk: `Capped` is a sticky whole-index report flag, so
+            // gating the sweep on it disabled stale removal permanently, for
+            // every root, the first time any root touched the cap — leaving
+            // deleted files in the index forever, in exactly the state where the
+            // index is already least accurate. The index may lag; it must never
+            // stay wrong.
+            var complete = WalkRoot(root, gen);
+            if (!Cancelled && complete) SweepStaleUnder(root, gen);
         }
         finally
         {

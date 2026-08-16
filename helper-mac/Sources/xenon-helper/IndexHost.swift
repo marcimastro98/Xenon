@@ -42,6 +42,9 @@ final class FileIndex {
     private(set) var entries: [Entry] = []
     private(set) var building = true
     private(set) var capped = false
+    // The roots the cap left incomplete, so the UI can name the folder search
+    // cannot see instead of only saying that some limit was reached.
+    private(set) var cappedRoots: [String] = []
     private(set) var roots: [String] = []
     private let lock = NSLock()
 
@@ -50,10 +53,11 @@ final class FileIndex {
         return entries
     }
 
-    func setEntries(_ list: [Entry], capped: Bool) {
+    func setEntries(_ list: [Entry], capped: Bool, cappedRoots: [String]) {
         lock.lock()
         self.entries = list
         self.capped = capped
+        self.cappedRoots = cappedRoots
         lock.unlock()
     }
 
@@ -70,6 +74,11 @@ final class FileIndex {
         lock.lock(); defer { lock.unlock() }
         return capped
     }
+
+    var incompleteRoots: [String] {
+        lock.lock(); defer { lock.unlock() }
+        return cappedRoots
+    }
 }
 
 enum IndexHost {
@@ -79,15 +88,20 @@ enum IndexHost {
 
     // ── Walking ─────────────────────────────────────────────────────────────
 
-    static func walk(_ roots: [String], onProgress: (Int, String) -> Void) -> ([FileIndex.Entry], Bool) {
+    static func walk(_ roots: [String], onProgress: (Int, String) -> Void) -> ([FileIndex.Entry], Bool, [String]) {
         var out: [FileIndex.Entry] = []
         out.reserveCapacity(200_000)
         var capped = false
+        // Every root this walk did not see whole. Past the cap the rest are not
+        // walked at all, so they are as absent from the index as the one that
+        // was cut short — and the user has no way to tell which drive that is
+        // unless they are named.
+        var incomplete: [String] = []
         let fm = FileManager.default
         let keys: [URLResourceKey] = [.isDirectoryKey, .isSymbolicLinkKey, .fileSizeKey, .contentModificationDateKey, .nameKey]
 
         for root in roots {
-            guard !capped else { break }
+            guard !capped else { incomplete.append(root); continue }
             // skipsPackageDescendants is deliberately NOT set: an .app bundle is
             // where a lot of a Mac's disk actually goes, and hiding it would
             // make the sizes disagree with Finder's own Get Info.
@@ -105,10 +119,11 @@ enum IndexHost {
             guard let e = fm.enumerator(at: URL(fileURLWithPath: root),
                                         includingPropertiesForKeys: keys,
                                         options: [],
-                                        errorHandler: { _, _ in true }) else { continue }
+                                        errorHandler: { _, _ in true }) else { incomplete.append(root); continue }
             var since = 0
+            var truncated = false
             while let url = e.nextObject() as? URL {
-                if out.count >= FileIndex.maxEntries { capped = true; break }
+                if out.count >= FileIndex.maxEntries { capped = true; truncated = true; break }
                 guard let values = try? url.resourceValues(forKeys: Set(keys)) else { continue }
                 // Never descend through a link: it would make the walk unbounded
                 // and could count another volume into this root's total.
@@ -122,9 +137,10 @@ enum IndexHost {
                 since += 1
                 if since >= 20_000 { since = 0; onProgress(out.count, root) }
             }
+            if truncated { incomplete.append(root) }
             onProgress(out.count, root)
         }
-        return (out, capped)
+        return (out, capped, incomplete)
     }
 
     // ── Aggregates ──────────────────────────────────────────────────────────
@@ -213,6 +229,7 @@ enum IndexHost {
                 ("bytes", .n(Double(bytes))),
                 ("ramMB", .n(ramMB.rounded())),
                 ("capped", .b(index.isCapped)),
+                ("cappedRoots", .arr(index.incompleteRoots.map { .s($0) })),
             ])
 
         case "query":
@@ -444,10 +461,10 @@ enum IndexHost {
         // is still going — `building` tells the caller the answers are partial,
         // which is better than a search box that does nothing for a minute.
         DispatchQueue.global(qos: .utility).async {
-            let (list, capped) = walk(rootList) { count, root in
+            let (list, capped, cappedRoots) = walk(rootList) { count, root in
                 push([("event", .s("progress")), ("files", .i(count)), ("root", .s(root))])
             }
-            index.setEntries(list, capped: capped)
+            index.setEntries(list, capped: capped, cappedRoots: cappedRoots)
             index.finishBuilding()
             push([("event", .s("ready"))])
             startWatchers()
@@ -501,8 +518,8 @@ enum IndexHost {
         refreshPending = true
         refreshLock.unlock()
         DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 3) {
-            let (list, capped) = walk(rootList) { _, _ in }
-            index.setEntries(list, capped: capped)
+            let (list, capped, cappedRoots) = walk(rootList) { _, _ in }
+            index.setEntries(list, capped: capped, cappedRoots: cappedRoots)
             refreshLock.lock(); refreshPending = false; refreshLock.unlock()
         }
     }

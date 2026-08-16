@@ -316,6 +316,10 @@ input[type="range"] { accent-color: var(--green); }
   display: block;
   margin-top: -3px;
 }
+/* A note that reports a limit the user should act on (the living index hitting
+   its entry cap), rather than merely describing state. */
+.settings-note-warn { color: var(--color-warn); }
+
 /* "This colour is hidden by an active background" — reads as a reason, not a hint. */
 .settings-bg-covered-note { color: var(--color-warn); margin-top: 2px; }
 .settings-bg-covered-note[hidden] { display: none; }

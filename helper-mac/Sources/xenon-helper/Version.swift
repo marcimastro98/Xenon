@@ -21,4 +21,8 @@
 //           sendHotkey). `keys --check` is the capability probe and posts
 //           nothing, so the server can ask whether Accessibility is granted
 //           without typing into whatever the user has open.
-let helperVersion = "0.5.0"
+//   0.5.1 = index-serve's `stats` reports WHICH roots the entry cap left
+//           incomplete (`cappedRoots`), so Settings can name the folder search
+//           cannot see instead of only saying a limit was reached. Matches
+//           helper/XenonHelper.csproj 0.12.2.
+let helperVersion = "0.5.1"
