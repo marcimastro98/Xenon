@@ -124,6 +124,137 @@ test('redeem: whitelisted errors pass through, unknown ones map to network', wit
   }
 }));
 
+test('saved pass: an XS code is remembered after it works, and reused when the field is empty', withTransport(async () => {
+  const dir = tmp();
+  let seen = null;
+  redeemMod._setTransport(async (url, body) => { seen = body; return { ok: true, cek: 'Q0VL', name: 'July' }; });
+
+  assert.deepEqual(await redeemMod.savedStatus(dir), { ok: true, saved: false });
+
+  const first = await redeemMod.redeem({ ...GOOD, dataDir: dir });
+  assert.equal(first.ok, true);
+  assert.equal(first.saved, true, 'the client is told it was remembered');
+  assert.deepEqual(await redeemMod.savedStatus(dir), { ok: true, saved: true });
+  // Canonical form on disk, and the file holds nothing else about the user.
+  assert.deepEqual(
+    JSON.parse(readFileSync(path.join(dir, 'supporter-code.json'), 'utf8')),
+    { code: 'XSABCDEFGHJKLM' },
+  );
+
+  // Second drop, empty code: the pass comes off disk and travels canonicalised.
+  seen = null;
+  const second = await redeemMod.redeem({ entryId: 'august-drop', code: '', dataDir: dir });
+  assert.equal(second.ok, true);
+  assert.equal(second.saved, false, 'nothing new was learned');
+  assert.equal(seen.code, 'XSABCDEFGHJKLM');
+  assert.equal(seen.entryId, 'august-drop');
+}));
+
+test('saved pass: XL item codes are never remembered', withTransport(async () => {
+  const dir = tmp();
+  redeemMod._setTransport(async () => ({ ok: true, cek: 'Q0VL' }));
+  const out = await redeemMod.redeem({ entryId: GOOD.entryId, code: 'XL-ABCD-EFGH-JKLM', dataDir: dir });
+  assert.equal(out.ok, true);
+  assert.equal(out.saved, false);
+  // An XL code opens exactly one drop: reusing it elsewhere would answer
+  // 'wrong_code' at a user who typed nothing.
+  assert.deepEqual(await redeemMod.savedStatus(dir), { ok: true, saved: false });
+  assert.ok(!existsSync(path.join(dir, 'supporter-code.json')));
+}));
+
+test('saved pass: a failed redeem is not remembered', withTransport(async () => {
+  const dir = tmp();
+  redeemMod._setTransport(async () => ({ ok: false, error: 'expired' }));
+  assert.deepEqual(await redeemMod.redeem({ ...GOOD, dataDir: dir }), { ok: false, error: 'expired' });
+  assert.deepEqual(await redeemMod.savedStatus(dir), { ok: true, saved: false });
+}));
+
+test('saved pass: forget removes it, and forgetting nothing still succeeds', withTransport(async () => {
+  const dir = tmp();
+  redeemMod._setTransport(async () => ({ ok: true, cek: 'Q0VL' }));
+  await redeemMod.redeem({ ...GOOD, dataDir: dir });
+  assert.deepEqual(await redeemMod.forgetCode(dir), { ok: true, saved: false });
+  assert.deepEqual(await redeemMod.savedStatus(dir), { ok: true, saved: false });
+  assert.deepEqual(await redeemMod.forgetCode(dir), { ok: true, saved: false }, 'idempotent');
+}));
+
+test('saved pass: a code typed in Settings is stored on shape alone', withTransport(async () => {
+  const dir = tmp();
+  assert.deepEqual(await redeemMod.saveTypedCode(dir, 'xs-abcd efgh_jklm'), { ok: true, saved: true });
+  assert.deepEqual(
+    JSON.parse(readFileSync(path.join(dir, 'supporter-code.json'), 'utf8')),
+    { code: 'XSABCDEFGHJKLM' },
+    'canonicalised on the way in, so the field is forgiving about spacing',
+  );
+  // Whether it WORKS is a question only the hub answers, and it answers it
+  // against a specific entry — there is nothing to check against here.
+  for (const bad of ['', 'XS-SHORT', 'XL-ABCD-EFGH-JKLM', 'nonsense', null, undefined]) {
+    assert.deepEqual(await redeemMod.saveTypedCode(tmp(), bad), { ok: false, error: 'bad_code' }, String(bad));
+  }
+}));
+
+test('saved pass: bad_code from the hub drops it, the other errors keep it', withTransport(async () => {
+  // A reissue hub-side deactivates the previous code, so a saved pass that had
+  // already worked and now answers bad_code is dead, not mistyped.
+  const dir = tmp();
+  await redeemMod.saveTypedCode(dir, GOOD.code);
+  redeemMod._setTransport(async () => ({ ok: false, error: 'bad_code' }));
+  assert.deepEqual(
+    await redeemMod.redeem({ entryId: GOOD.entryId, code: '', dataDir: dir }),
+    { ok: false, error: 'bad_code', forgot: true },
+  );
+  assert.deepEqual(await redeemMod.savedStatus(dir), { ok: true, saved: false });
+
+  // 'expired' above all must NOT clear it: the hub extends the SAME code on
+  // renewal, so the saved pass comes back to life on its own.
+  for (const err of ['expired', 'limit', 'wrong_code', 'rate_limited', 'network']) {
+    const d = tmp();
+    await redeemMod.saveTypedCode(d, GOOD.code);
+    redeemMod._setTransport(async () => ({ ok: false, error: err }));
+    const out = await redeemMod.redeem({ entryId: GOOD.entryId, code: '', dataDir: d });
+    assert.equal(out.forgot, undefined, err);
+    assert.deepEqual(await redeemMod.savedStatus(d), { ok: true, saved: true }, err + ' kept the pass');
+  }
+}));
+
+test('saved pass: a TYPED code that answers bad_code never touches the saved one', withTransport(async () => {
+  const dir = tmp();
+  await redeemMod.saveTypedCode(dir, GOOD.code);
+  redeemMod._setTransport(async () => ({ ok: false, error: 'bad_code' }));
+  // Someone pasting a wrong code for one drop must not lose the pass that works.
+  const out = await redeemMod.redeem({ entryId: GOOD.entryId, code: 'XS-ZZZZ-ZZZZ-ZZZZ', dataDir: dir });
+  assert.deepEqual(out, { ok: false, error: 'bad_code' });
+  assert.deepEqual(await redeemMod.savedStatus(dir), { ok: true, saved: true });
+}));
+
+test('saved pass: an empty code with nothing saved is still bad_request, with no network', withTransport(async () => {
+  const dir = tmp();
+  let called = 0;
+  redeemMod._setTransport(async () => { called++; return { ok: true, cek: 'x' }; });
+  assert.deepEqual(
+    await redeemMod.redeem({ entryId: GOOD.entryId, code: '', dataDir: dir }),
+    { ok: false, error: 'bad_request' },
+  );
+  assert.equal(called, 0);
+}));
+
+test('saved pass: a corrupt or tampered store reads as "nothing saved"', withTransport(async () => {
+  const dir = tmp();
+  const file = path.join(dir, 'supporter-code.json');
+  const { writeFileSync } = await import('node:fs');
+  for (const junk of ['not json', '{"code":"nope"}', '{"code":"XL-ABCD-EFGH-JKLM"}', '{}']) {
+    writeFileSync(file, junk, 'utf8');
+    assert.deepEqual(await redeemMod.savedStatus(dir), { ok: true, saved: false }, junk);
+    let called = 0;
+    redeemMod._setTransport(async () => { called++; return { ok: true, cek: 'x' }; });
+    assert.deepEqual(
+      await redeemMod.redeem({ entryId: GOOD.entryId, code: '', dataDir: dir }),
+      { ok: false, error: 'bad_request' },
+    );
+    assert.equal(called, 0, 'a junk store never reaches the hub');
+  }
+}));
+
 test('redeem: transport rejection maps to network, never throws', withTransport(async () => {
   const dir = tmp();
   redeemMod._setTransport(async () => { throw new Error('boom'); });

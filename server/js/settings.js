@@ -5015,7 +5015,79 @@ function settingsSetCategory(cat) {
   // while the ticker still streams news — mount the same editor here, and let
   // it go when another pane is showing so it stops taking repaints.
   if (window.NewsWidget) NewsWidget.mountFeedManager(cat === 'stocks' ? $('settings-news-feeds') : null);
+  // Read when the pane opens rather than on every settings render: it is one
+  // request, and the answer only changes when this same pane or an unlock
+  // changes it.
+  if (cat === 'sdk') syncSupporterCodeBox();
 }
+
+// ── Supporter pass ───────────────────────────────────────────────────────────
+// The code itself NEVER comes back from the server: it is a server-only secret
+// (see the preserve-on-save + redact-on-wire invariant), and this settings blob
+// is mirrored into every surface's localStorage and travels to every paired
+// phone. All this box ever learns is whether the PC holds one.
+async function syncSupporterCodeBox() {
+  const state = $('settings-supporter-state');
+  const forget = $('settings-supporter-forget');
+  const field = $('settings-supporter-code');
+  if (!state || !forget || !field) return;
+  let saved = false;
+  try {
+    const res = await fetch('/api/community/supporter', { cache: 'no-store' });
+    const out = await res.json();
+    saved = !!(out && out.saved);
+  } catch { /* offline: the box still works, it just cannot report */ }
+  state.textContent = saved
+    ? t('settings_supporter_saved')
+    : t('settings_supporter_none');
+  forget.hidden = !saved;
+  // Never repopulate the field: there is nothing to put in it, and a masked
+  // placeholder in a text box invites the user to "fix" a value that is fine.
+  if (saved) field.value = '';
+}
+
+async function saveSupporterCode() {
+  const field = $('settings-supporter-code');
+  if (!field) return;
+  const code = String(field.value || '').trim();
+  if (!code) { field.focus(); return; }
+  const btn = $('settings-supporter-save');
+  if (btn) btn.disabled = true;
+  let out = null;
+  try {
+    const res = await fetch('/api/community/supporter/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    out = await res.json();
+  } catch { out = null; }
+  if (btn) btn.disabled = false;
+  if (out && out.ok) {
+    field.value = '';
+    setSettingsStatus('settings_supporter_stored', 'ok');
+  } else if (out && out.error === 'bad_code') {
+    // Shape, not validity: the hub is the only thing that can say whether a
+    // well-formed code works, and it answers that against a specific drop.
+    setSettingsStatus('settings_supporter_bad', 'error');
+    field.focus();
+  } else {
+    setSettingsStatus('settings_supporter_failed', 'error');
+  }
+  syncSupporterCodeBox();
+}
+
+async function forgetSupporterCode() {
+  const btn = $('settings-supporter-forget');
+  if (btn) btn.disabled = true;
+  try { await fetch('/api/community/supporter/forget', { method: 'POST' }); }
+  catch { /* offline: nothing changed, the state line below says so */ }
+  if (btn) btn.disabled = false;
+  setSettingsStatus('settings_supporter_removed', 'ok');
+  syncSupporterCodeBox();
+}
+window.saveSupporterCode = saveSupporterCode;
+window.forgetSupporterCode = forgetSupporterCode;
 
 // On a narrow screen the category sidebar collapses to the current category
 // alone (see the max-width:720px block in SettingsModal.css). The rule is one

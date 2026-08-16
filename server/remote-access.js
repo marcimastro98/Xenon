@@ -182,6 +182,13 @@ const DEFAULT_GET_MUTATORS = new Set([
   '/api/community/catalog', '/api/community/code', '/api/community/messages',
   '/api/community/installed', '/api/community/installs', '/api/community/poll',
   '/api/community/redeem', '/api/community/limited-status', '/api/community/ratings',
+  // The remembered supporter pass. Both are POST-only for the same reason the
+  // redeem above is: a top-level navigation is a GET, and these throw away
+  // something only the user can put back, or plant a code they never typed. The
+  // matching read (/api/community/supporter, a boolean) is deliberately absent —
+  // the import dialog makes it from a paired phone.
+  '/api/community/supporter/forget',
+  '/api/community/supporter/save',
   '/api/community/rate', '/icon-pack', '/sound-pack', '/api/lighting/sdk-install',
   '/api/claude/event', '/api/claude/permission', '/api/claude/question', '/api/claude/turn-end',
   '/api/claude/decide', '/api/claude/answer', '/api/claude/reply', '/api/claude/link',

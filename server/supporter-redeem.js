@@ -15,6 +15,7 @@ const fs = require('fs');
 const fsp = fs.promises;
 const path = require('path');
 const crypto = require('crypto');
+const { writeFileAtomic } = require('./atomic-write.js');
 
 // Author-owned hub base URL — fixed like CATALOG_BASE, never user-configurable
 // (a settings field would be attack/typo surface with no user benefit).
@@ -102,6 +103,65 @@ async function getScopedId(dataDir, scope) {
   return scoped;
 }
 
+// ── The remembered supporter pass ────────────────────────────────────────────
+// A supporter pass unlocks every supporter drop, so before this the same code
+// was typed again for every single one. It is remembered HERE, next to the
+// install id, and never in settings.json: that blob is mirrored into every
+// surface's localStorage and travels to every paired phone (the geminiApiKey
+// lesson, v4.11.0). The browser is told a BOOLEAN and never the value.
+//
+// Only the XS pass is saved. An XL code opens exactly one drop, so reusing it
+// on the next one would answer 'wrong_code' at a user who typed nothing.
+const SUPPORTER_FILE = 'supporter-code.json';
+const SAVEABLE_RE = /^XS[A-Z0-9]{12}$/;
+
+// Deliberately uncached: it is read once per unlock tap, and a cache would have
+// to be invalidated by both the save and the forget below to stay honest.
+async function readSavedCode(dataDir) {
+  try {
+    const parsed = JSON.parse(await fsp.readFile(path.join(dataDir, SUPPORTER_FILE), 'utf8'));
+    const canon = canonCode(parsed && parsed.code);
+    return SAVEABLE_RE.test(canon) ? canon : '';
+  } catch { return ''; }
+}
+
+async function saveCode(dataDir, code) {
+  const canon = canonCode(code);
+  if (!SAVEABLE_RE.test(canon)) return false;
+  try {
+    await writeFileAtomic(path.join(dataDir, SUPPORTER_FILE), JSON.stringify({ code: canon }));
+    return true;
+  } catch { return false; }
+}
+
+/** Reset path for the remembered pass. Missing file = already forgotten. */
+async function forgetCode(dataDir) {
+  try { await fsp.unlink(path.join(dataDir, SUPPORTER_FILE)); }
+  catch (e) { if (e && e.code !== 'ENOENT') return { ok: false, error: 'network' }; }
+  return { ok: true, saved: false };
+}
+
+/** What the dashboard is allowed to know: whether there is one, not what it is. */
+async function savedStatus(dataDir) {
+  return { ok: true, saved: !!(await readSavedCode(dataDir)) };
+}
+
+/**
+ * Stores a pass the user typed in Settings, before any drop needs it.
+ *
+ * Shape-checked only, and deliberately: validity is a question only the hub can
+ * answer, and it answers it against a specific ENTRY (`redeem` takes an
+ * entryId), so there is nothing to verify against here. A typo therefore
+ * survives until the first unlock, which is why the UI says this is a place to
+ * keep the code and not a proof that it works.
+ */
+async function saveTypedCode(dataDir, code) {
+  const canon = canonCode(code);
+  if (!SAVEABLE_RE.test(canon)) return { ok: false, error: 'bad_code' };
+  const ok = await saveCode(dataDir, canon);
+  return ok ? { ok: true, saved: true } : { ok: false, error: 'network' };
+}
+
 // ── Outbound POST ────────────────────────────────────────────────────────────
 let _transport = postJson; // swappable for tests
 
@@ -149,7 +209,12 @@ function postJson(url, body) {
 // ── Redemption ───────────────────────────────────────────────────────────────
 async function redeem({ entryId, code, dataDir }) {
   const id = String(entryId || '');
-  const canon = canonCode(code);
+  let canon = canonCode(code);
+  // No code on the request means "use the pass this machine already redeemed
+  // with". The client sends nothing rather than the value, so the pass stays on
+  // disk here even while the tap comes from a paired phone.
+  const fromSaved = !canon;
+  if (fromSaved) canon = await readSavedCode(dataDir);
   if (!ENTRY_ID_RE.test(id) || !HUB_CODE_RE.test(canon)) {
     return { ok: false, error: 'bad_request' };
   }
@@ -160,14 +225,39 @@ async function redeem({ entryId, code, dataDir }) {
   try { out = await _transport(HUB_BASE + '/redeem', { entryId: id, code: canon, scopedId }); }
   catch { return { ok: false, error: 'network' }; }
   if (out && out.ok === true && typeof out.cek === 'string' && out.cek) {
-    return { ok: true, cek: out.cek, name: typeof out.name === 'string' ? out.name.slice(0, 120) : '' };
+    // Remember it only once it has been proven to work, and only when the user
+    // typed it: a pass that came FROM disk has nothing to learn.
+    const saved = !fromSaved && await saveCode(dataDir, canon);
+    return {
+      ok: true,
+      cek: out.cek,
+      name: typeof out.name === 'string' ? out.name.slice(0, 120) : '',
+      saved: saved === true,
+    };
   }
   const error = out && KNOWN_ERRORS.has(out.error) ? out.error : 'network';
+  // A pass the hub no longer knows was REPLACED or revoked: reissuing a code
+  // hub-side deactivates the previous one, and a saved pass had already worked
+  // once, so 'bad_code' here means it is dead rather than mistyped. Drop it, or
+  // the user re-presses Import forever against a code they cannot even see.
+  //
+  // Only this error. 'expired' must NOT clear it: the hub extends the SAME code
+  // on renewal (upsertSupporter finds the supporter by email and raises
+  // expires_at; nothing deactivates a code on expiry), so the saved pass comes
+  // back to life on its own the moment the user renews. 'limit' and
+  // 'wrong_code' are statements about this request, not about the code.
+  if (fromSaved && error === 'bad_code') {
+    const dropped = await forgetCode(dataDir);
+    if (dropped && dropped.ok) return { ok: false, error, forgot: true };
+  }
   return { ok: false, error };
 }
 
 module.exports = {
   redeem,
+  savedStatus,
+  saveTypedCode,
+  forgetCode,
   getInstallId,
   getScopedId,
   SCOPE_RATINGS,

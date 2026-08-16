@@ -745,6 +745,20 @@ function Register-StartupTask {
   $oldLnk = Join-Path $startup "$appName.lnk"
   if (Test-Path $oldLnk) { Remove-Item $oldLnk -Force }
 
+  # A task can be REGISTERED and switched OFF, in which case nothing ever starts
+  # Xenon and every symptom looks like a broken install: the app waits on a
+  # backend that is never coming, and reinstalling "does nothing" because the
+  # files were never the problem. Windows offers that switch in Task Manager
+  # under "Startup apps", and cleanup tools reach it too (reported on Discord,
+  # Aug 2026 on a machine where nobody had touched it). Re-registering below
+  # already turns it back on, because -Force replaces the whole definition, but
+  # it does it in silence. This is the one moment we can say what was wrong.
+  $wasDisabled = $false
+  try {
+    $existing = Get-ScheduledTask -TaskName $appName -ErrorAction Stop
+    $wasDisabled = ($existing.State -eq 'Disabled') -or ($existing.Settings.Enabled -eq $false)
+  } catch { }
+
   $taskUser = Get-CurrentTaskUserId
   $isElevated = Test-IsElevated
   $runLevel = if ($isElevated) { 'Highest' } else { 'Limited' }
@@ -755,11 +769,19 @@ function Register-StartupTask {
   $action   = New-ScheduledTaskAction -Execute (Join-Path $env:WINDIR 'System32\wscript.exe') -Argument "`"$runner`"" -WorkingDirectory $filesDir
   $trigger  = New-ScheduledTaskTrigger -AtLogon -User $taskUser
   $principal = New-ScheduledTaskPrincipal -UserId $taskUser -LogonType Interactive -RunLevel $runLevel
+  # The two battery flags are NOT cosmetic and NOT defaults we can leave alone:
+  # New-ScheduledTaskSettingsSet turns BOTH on unless told otherwise, so every
+  # laptop install so far refused to start Xenon while on battery and STOPPED it
+  # the moment the charger came out (reported on Discord, Aug 2026): the task
+  # read "Stop On Battery Mode, No Start On Batteries". A dashboard that
+  # disappears when you unplug is indistinguishable from a crash.
   $settings = New-ScheduledTaskSettingsSet `
     -ExecutionTimeLimit ([TimeSpan]::Zero) `
     -RestartCount 3 `
     -RestartInterval (New-TimeSpan -Minutes 1) `
-    -StartWhenAvailable
+    -StartWhenAvailable `
+    -AllowStartIfOnBatteries `
+    -DontStopIfGoingOnBatteries
 
   try {
     Register-ScheduledTask `
@@ -780,7 +802,34 @@ function Register-StartupTask {
     if ($LASTEXITCODE -ne 0) {
       throw "schtasks.exe could not register the startup task (exit code $LASTEXITCODE)."
     }
+    # schtasks.exe has no switch for the battery conditions, so the task it
+    # creates carries the same two defaults described above. Try to clear them
+    # through the cmdlets anyway, best-effort, because this branch only runs
+    # when those cmdlets already failed once.
+    try {
+      $task = Get-ScheduledTask -TaskName $appName -ErrorAction Stop
+      $task.Settings.DisallowStartIfOnBatteries = $false
+      $task.Settings.StopIfGoingOnBatteries = $false
+      Set-ScheduledTask -InputObject $task -ErrorAction Stop | Out-Null
+    } catch {
+      Write-Host 'Xenon will not start while this PC runs on battery (Task Scheduler default). Fix it in Task Scheduler > Xenon Edge Widget > Properties > Conditions.' -ForegroundColor Yellow
+    }
   }
+
+  if ($wasDisabled) {
+    Write-Host 'Xenon startup task was switched OFF on this PC and has been switched back on.' -ForegroundColor Yellow
+    Write-Host 'Xenon never does that itself. Windows (Task Manager > Startup apps) and cleanup or' -ForegroundColor Gray
+    Write-Host 'antivirus tools can, and while it is off nothing starts the dashboard when you sign in.' -ForegroundColor Gray
+  }
+  # Registering is not the same as having registered: if the task somehow ends
+  # up off anyway, say so here rather than let the user find out at the next
+  # sign-in, when there is nothing on screen to explain it.
+  try {
+    $registered = Get-ScheduledTask -TaskName $appName -ErrorAction Stop
+    if ($registered.State -eq 'Disabled') {
+      Write-Host 'The startup task is registered but still switched off. Turn it on in Task Manager > Startup apps (Xenon), or run: schtasks /Change /TN "Xenon Edge Widget" /ENABLE' -ForegroundColor Yellow
+    }
+  } catch { }
 }
 
 function Test-WidgetServer {

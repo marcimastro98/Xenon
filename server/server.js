@@ -11419,6 +11419,15 @@ const CSRF_MUTATION_PATHS = new Set([
   // drive-by (or a sandboxed iframe posting with Origin: null) must not be able
   // to burn a user's activations or pump the hub.
   '/api/community/redeem',
+  // Same shape one step further: the remembered pass. /forget destroys
+  // something only the user can restore (by typing the code again) and /save
+  // would let a sandboxed widget plant a code of its own, so neither may be
+  // reachable from a drive-by. Both POST-only, so a navigation misses them too.
+  // The matching GET (/api/community/supporter) is a pure read and is
+  // deliberately NOT here: listing it would refuse it on the paired-device door,
+  // where the import dialog needs it.
+  '/api/community/supporter/forget',
+  '/api/community/supporter/save',
   // Automatic limited stock is a read, but a cache miss reaches the Hub.
   '/api/community/limited-status',
   // A YouTube search is 100 of the account's 10,000 daily quota units, so the
@@ -14479,12 +14488,38 @@ const handleRequest = async (req, res) => {
     // validates shape, attaches the persisted install id and forwards to the
     // author-owned hub (see server/supporter-redeem.js) — the one-time /
     // 3-device policy is enforced hub-side. In CSRF_MUTATION_PATHS.
+    // An EMPTY code is not a malformed request: it means "use the supporter
+    // pass this machine already redeemed with" (supporter-redeem.js).
     try {
       const body = JSON.parse(await readBody(req) || '{}');
       json(await supporterRedeem.redeem({
         entryId: body.entryId, code: body.code, dataDir: DATA_DIR,
       }));
     } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/supporter' && req.method === 'GET') {
+    // Does this machine remember a supporter pass? A boolean, never the code:
+    // it is a server-only secret and this answer is readable from every paired
+    // device (preserve-on-save + redact-on-wire).
+    try { json(await supporterRedeem.savedStatus(DATA_DIR)); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/supporter/save' && req.method === 'POST') {
+    // Storing the pass from Settings, before any drop asks for it. Shape only:
+    // whether it WORKS is a question the hub answers against a specific entry,
+    // so there is nothing to check against here. In CSRF_MUTATION_PATHS.
+    //
+    // Its own path rather than a POST on /api/community/supporter: that GET is a
+    // pure read the import dialog makes from every surface, including a paired
+    // phone, and listing a path in CSRF_MUTATION_PATHS refuses its GET on the
+    // remote door. Splitting the write off keeps the read reachable.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await supporterRedeem.saveTypedCode(DATA_DIR, body.code));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/supporter/forget' && req.method === 'POST') {
+    // The reset path for that memory. In CSRF_MUTATION_PATHS.
+    try { json(await supporterRedeem.forgetCode(DATA_DIR)); } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/community/limited-status' && req.method === 'GET') {
     // Live stock for automatic limited drops. The local proxy pins the Hub

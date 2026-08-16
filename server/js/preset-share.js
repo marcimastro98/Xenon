@@ -2655,6 +2655,48 @@
         'Your code is personal and works on up to 3 of your devices. Don’t share it — codes used beyond that are detected and blocked.');
       unlockWrap.appendChild(unlockNote);
 
+      // A supporter pass opens every supporter drop, so typing it again for
+      // each one was pure friction. The server remembers it after the first
+      // successful unlock and fills it in from disk when this field is left
+      // empty — the code itself never comes back to the browser, so all we get
+      // here is whether there is one (GET /api/community/supporter).
+      let savedPass = false;
+      let askedSaved = false;
+      // Asked the first time a remote-locked payload is actually recognised, not
+      // on every Import dialog: most imports are an ordinary shared theme and
+      // have no business asking about supporter passes.
+      const askSavedOnce = () => {
+        if (askedSaved) return;
+        askedSaved = true;
+        // Best-effort and unawaited: the dialog works either way, and a failed
+        // read simply means the code gets typed as it always did.
+        fetch('/api/community/supporter')
+          .then((r) => r.json())
+          .then((r) => { if (r && r.saved) { savedPass = true; syncUnlockVisibility(); } })
+          .catch(() => {});
+      };
+      const savedRow = document.createElement('div');
+      savedRow.className = 'preset-unlock-saved';
+      savedRow.hidden = true;
+      const savedText = document.createElement('span');
+      savedText.textContent = tr('preset_redeem_saved',
+        'Your supporter code is saved on this PC — leave this empty to use it.');
+      const forgetBtn = document.createElement('button');
+      forgetBtn.type = 'button';
+      forgetBtn.className = 'settings-btn subtle preset-unlock-forget';
+      forgetBtn.textContent = tr('preset_redeem_forget', 'Forget it');
+      forgetBtn.addEventListener('click', async () => {
+        forgetBtn.disabled = true;
+        try { await fetch('/api/community/supporter/forget', { method: 'POST' }); } catch { /* offline: the field still works */ }
+        forgetBtn.disabled = false;
+        savedPass = false;
+        syncUnlockVisibility();
+        unlockField.focus();
+        toast(tr('preset_redeem_forgotten', 'Code forgotten on this PC.'), '', 'info');
+      });
+      savedRow.appendChild(savedText); savedRow.appendChild(forgetBtn);
+      unlockWrap.appendChild(savedRow);
+
       // Remote-locked (v2) bundles take a hub code redeemed via the local
       // server instead of an offline unlock code — same field, clearer label.
       // XS = supporter pass, XL = per-drop code (limited/purchased).
@@ -2662,9 +2704,13 @@
         const locked = peekLocked(field.value);
         unlockWrap.hidden = !locked;
         unlockNote.hidden = !(locked && locked.remote);
+        savedRow.hidden = !(locked && locked.remote && savedPass);
         if (locked && locked.remote) {
+          askSavedOnce();
           unlockText.textContent = tr('preset_redeem_label2', 'Unlock code (XS-… or XL-…)');
-          unlockField.placeholder = tr('preset_redeem_placeholder2', 'XS-XXXX-XXXX-XXXX / XL-XXXX-XXXX-XXXX');
+          unlockField.placeholder = savedPass
+            ? tr('preset_redeem_saved_placeholder', 'Leave empty to use your saved code')
+            : tr('preset_redeem_placeholder2', 'XS-XXXX-XXXX-XXXX / XL-XXXX-XXXX-XXXX');
         } else {
           unlockText.textContent = tr('preset_unlock_label', 'Unlock code');
           unlockField.placeholder = tr('preset_unlock_placeholder', 'Enter your code…');
@@ -2702,14 +2748,23 @@
         let env;
         if (locked) {
           if (unlockWrap.hidden) {
-            syncUnlockVisibility(); unlockField.focus();
-            toast(tr(locked.remote ? 'preset_redeem_needed2' : 'preset_unlock_needed',
-              locked.remote
-                ? 'This drop is protected. Enter your personal code (XS-… or XL-…) to unlock it.'
-                : 'This preset is protected. Enter the access code to import it.'), '', 'info');
-            return;
+            syncUnlockVisibility();
+            // With a saved pass there is nothing to ask for — reveal the field
+            // for the record and carry on with the unlock.
+            if (!(locked.remote && savedPass)) {
+              unlockField.focus();
+              toast(tr(locked.remote ? 'preset_redeem_needed2' : 'preset_unlock_needed',
+                locked.remote
+                  ? 'This drop is protected. Enter your personal code (XS-… or XL-…) to unlock it.'
+                  : 'This preset is protected. Enter the access code to import it.'), '', 'info');
+              return;
+            }
           }
-          if (!canonCode(unlockField.value)) { unlockField.focus(); return; }
+          // An empty field is a valid submission for a remote drop when this PC
+          // has a saved pass: the server fills it in. Everywhere else it is
+          // still nothing to work with.
+          const usingSaved = locked.remote && savedPass && !canonCode(unlockField.value);
+          if (!usingSaved && !canonCode(unlockField.value)) { unlockField.focus(); return; }
           let inner;
           if (locked.remote) {
             if (!importSource.sourceId) importSource = { source: 'catalog', sourceId: locked.entryId, sourceVersion: '' };
@@ -2728,7 +2783,15 @@
             importBtn.disabled = false;
             if (!r || !r.ok) {
               const err = r && r.error;
-              if (err === 'expired') {
+              if (r && r.forgot) {
+                // The saved pass was replaced or revoked hub-side and has just
+                // been dropped from this PC. Say that, rather than "wrong or
+                // unknown code" about something the user never typed.
+                savedPass = false;
+                syncUnlockVisibility();
+                unlockField.focus();
+                toast(tr('preset_redeem_saved_stale', 'Your saved code no longer works — it was replaced or revoked. Paste the newest one from your email.'), '', 'error');
+              } else if (err === 'expired') {
                 toast(tr('preset_redeem_expired', 'Your supporter period has ended — renew it to unlock new drops. Anything you already unlocked stays yours.'), '', 'error');
               } else if (err === 'limit') {
                 toast(tr('preset_redeem_limit', 'This code has reached its 3-device limit. Contact support to reset it.'), '', 'error');
@@ -2739,7 +2802,14 @@
               } else {
                 toast(tr('preset_redeem_offline', 'Couldn’t reach the unlock service — check your connection and try again.'), '', 'error');
               }
+              // The saved pass was the one that failed, and the user typed
+              // nothing: hand the field back rather than leave them re-pressing
+              // Import against a code they cannot see.
+              if (usingSaved) unlockField.focus();
               return;
+            }
+            if (r.saved) {
+              toast(tr('preset_redeem_saved_toast', 'Code saved on this PC — you won’t have to paste it again.'), '', 'info');
             }
             inner = await unlockWithCek(locked, r.cek);
           } else {
