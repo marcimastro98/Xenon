@@ -280,7 +280,7 @@ install_media_adapter
 # so re-running the installer is the whole update path and it has to be able to
 # move the version. Bump this with helper-mac/…/Version.swift whenever a mode
 # is added or its answers change.
-MIN_MAC_HELPER='0.5.0'
+MIN_MAC_HELPER='0.5.1'
 
 # Compare dotted versions without sort -V, which BSD sort does not have.
 mac_helper_outdated() {

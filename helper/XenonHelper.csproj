@@ -76,8 +76,16 @@
                   overflowed, and the overflow triggered another re-walk: a
                   permanent rebuild loop at ~1 core, with the index dropping to a
                   quarter of its content on every pass. Version-gated because an
-                  existing install would otherwise keep the looping exe. -->
-    <Version>0.12.1</Version>
+                  existing install would otherwise keep the looping exe;
+         0.12.2 = index-serve reports WHICH roots the entry cap left incomplete
+                  (`stats.cappedRoots`), and the repair sweep is gated on whether
+                  THAT walk saw the whole root instead of on the sticky whole-index
+                  `capped` flag. The old gate disabled stale removal permanently,
+                  for every root, the first time any root touched the cap, so
+                  deleted files stayed in the index forever. Version-gated: the
+                  new field is what lets the UI name the drive search cannot
+                  see. -->
+    <Version>0.12.2</Version>
     <Description>Xenon Helper — native companion process for the Xenon dashboard server</Description>
   </PropertyGroup>
 
