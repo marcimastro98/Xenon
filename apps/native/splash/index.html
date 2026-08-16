@@ -82,7 +82,7 @@
     <div class="status" id="status">Starting…</div>
     <div class="hint" id="hint"></div>
     <div class="setup" id="setup">
-      <div class="setup-title">Xenon isn't finished installing</div>
+      <div class="setup-title" id="setup-title">Xenon isn't finished installing</div>
       <div class="setup-body" id="setup-body">
         This app is the screen; the Xenon dashboard engine that draws it isn't on this PC yet.
         Setting it up takes a few minutes and only happens once — a window will open and show
@@ -103,6 +103,7 @@
     var statusEl = document.getElementById('status');
     var hintEl = document.getElementById('hint');
     var setupEl = document.getElementById('setup');
+    var setupTitleEl = document.getElementById('setup-title');
     var setupBodyEl = document.getElementById('setup-body');
     var setupBtn = document.getElementById('setup-btn');
     var okStreak = 0;
@@ -140,8 +141,51 @@
     // something might genuinely still be starting; this flag says nothing is.
     function backendAbsent() { return window.__XENON_BACKEND_ABSENT__ === true; }
 
+    // The THIRD state, and the one that used to be invisible: the engine is
+    // installed and its logon task is registered, but the task is switched OFF,
+    // so nothing will ever start it. Windows offers that toggle in Task
+    // Manager's "Startup apps" and cleanup tools flip it too. A `schtasks
+    // /Query` succeeds on a disabled task, so the shell used to read this as
+    // "installed" and the page ended on the install panel, whose button runs a
+    // bootstrap that answers "already installed, nothing to do" — a dead end you
+    // could sit in forever (reported on Discord, Aug 2026). The shell now reads
+    // the task's XML and says so; the panel below offers the switch instead.
+    var panelMode = ''; // '' | 'install' | 'enable'
+    function taskDisabled() { return window.__XENON_TASK_DISABLED__ === true; }
+
+    function offerEnable() {
+      if (done || panelMode === 'enable') return;
+      panelMode = 'enable';
+      setupTitleEl.textContent = 'Xenon’s startup is switched off';
+      setupBodyEl.textContent =
+        'The Xenon dashboard engine is installed on this PC, but the task that starts it when ' +
+        'you sign in is turned off, so nothing is running. Switching it back on takes a second, ' +
+        'and it starts on its own from then on.';
+      setupBtn.textContent = 'Turn it back on';
+      setupBtn.disabled = false;
+      setupEl.classList.add('show');
+      hintEl.textContent = '';
+      statusEl.textContent = 'One more step';
+    }
+
+    // Windows can refuse the switch when the task was registered at the highest
+    // run level: that needs an administrator, and nothing else here would say
+    // so — the page would keep spinning at a task still switched off.
+    var saidEnableFailed = false;
+    function enableFailed() {
+      if (saidEnableFailed || done) return;
+      saidEnableFailed = true;
+      setupBtn.disabled = false;
+      setupBtn.textContent = 'Try again';
+      setupBodyEl.textContent =
+        'Windows would not let us switch it back on from here, which usually means it needs an ' +
+        'administrator. You can do it by hand: press Ctrl+Shift+Esc for Task Manager, open ' +
+        '"Startup apps", find Xenon in the list and set it to Enabled.';
+    }
+
     function offerSetup() {
       if (!canSetup || done || setupEl.classList.contains('show')) return;
+      panelMode = 'install';
       setupEl.classList.add('show');
       hintEl.textContent = ''; // the panel is the call to action now
       // "Waiting for the Xenon service…" over a panel that says the service is
@@ -157,6 +201,16 @@
     setupBtn.addEventListener('click', function () {
       setupClickedAt = Date.now();
       setupBtn.disabled = true;
+      if (panelMode === 'enable') {
+        saidEnableFailed = false; // a retry gets to report its own failure
+        setupBtn.textContent = 'Turning it on…';
+        setupBodyEl.textContent =
+          'Switching the startup back on and starting Xenon. This screen takes over by itself ' +
+          'as soon as the dashboard is up.';
+        // Not a navigation: the shell intercepts this scheme and never loads it.
+        window.location.href = 'xenon-setup:enable-task';
+        return;
+      }
       setupBtn.textContent = 'Setup started';
       setupBodyEl.textContent =
         'Setup is running in the window that just opened — follow it there. This screen ' +
@@ -172,6 +226,16 @@
     // shell allows a fresh run once its console is gone (see BOOTSTRAP_CHILD).
     function rearmSetup() {
       if (setupBtn.disabled === false) return;
+      if (panelMode === 'enable') {
+        // The switch went in and still nothing answers: the task is on now, so
+        // what is left is starting it, and a restart is the reliable way there.
+        setupBtn.disabled = false;
+        setupBtn.textContent = 'Try again';
+        setupBodyEl.textContent =
+          'The startup is switched back on, but nothing is answering yet. Restarting the PC ' +
+          'usually finishes the job, since Xenon starts when you sign in.';
+        return;
+      }
       setupBtn.disabled = false;
       setupBtn.textContent = 'Try setup again';
       setupBodyEl.textContent =
@@ -218,6 +282,11 @@
             saidSlow = true;
             hintEl.textContent = 'The backend service is taking longer than usual to start. Still trying…';
           }
+          // The shell knows within a couple of seconds when the task is merely
+          // switched off, and that panel is the right one whether or not this
+          // build could install anything.
+          if (taskDisabled()) offerEnable();
+          if (window.__XENON_TASK_ENABLE_FAILED__ === true) enableFailed();
           // 20s with no answer, and this build can install the engine itself:
           // offer it. The shell's logon-task nudge (see lib.rs) has had its shot
           // by now, so silence this long means "not installed", not "slow".

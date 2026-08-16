@@ -3021,6 +3021,31 @@
             <p class="settings-note settings-safenote" data-i18n="settings_share_note">All'importazione vedi sempre cosa contiene prima di confermare. Tema, pagina e Deck cambiano solo aspetto e disposizione; widget e pacchetti installano widget della community in sandbox, che restano nascosti finché non ne approvi i permessi. Importa solo da persone di cui ti fidi. E puoi esportare solo le tue creazioni: ciò che hai installato da altri non è ridistribuibile.</p>
           </section>
 
+          <!-- The supporter pass lives here because this is where a user looks
+               for it: before this it was only ever visible inside the import
+               dialog of a protected drop, so there was nowhere to check whether
+               this PC held one, and nowhere to take it off a shared machine. -->
+          <section class="settings-subcard">
+            <div class="settings-subcard-head">
+              <span class="settings-subcard-ico settings-subcard-ico--share" aria-hidden="true">🎟</span>
+              <span class="settings-subcard-titles">
+                <b data-i18n="settings_supporter_title">Codice supporter</b>
+                <span class="settings-hint" data-i18n="settings_supporter_lead">Tienilo qui e non dovrai più incollarlo: i drop riservati ai supporter si sbloccano con un tocco. Resta su questo PC e non viene mai inviato agli altri tuoi schermi.</span>
+              </span>
+            </div>
+            <div class="settings-supporter-row">
+              <input type="text" class="settings-supporter-field" id="settings-supporter-code"
+                     autocomplete="off" spellcheck="false" placeholder="XS-XXXX-XXXX-XXXX"
+                     data-i18n-placeholder="preset_redeem_placeholder">
+              <button type="button" class="settings-btn primary" id="settings-supporter-save"
+                      onclick="saveSupporterCode()" data-i18n="settings_supporter_save">Salva</button>
+              <button type="button" class="settings-btn" id="settings-supporter-forget"
+                      onclick="forgetSupporterCode()" data-i18n="settings_supporter_forget" hidden>Rimuovi</button>
+            </div>
+            <p class="settings-note" id="settings-supporter-state" data-i18n="settings_supporter_none">Nessun codice salvato su questo PC.</p>
+            <p class="settings-note settings-safenote" data-i18n="settings_supporter_note">Il codice viene controllato quando sblocchi un drop, non qui: se lo sbagli te ne accorgi al primo sblocco. Vale finché il tuo periodo da supporter è attivo, funziona su un massimo di 3 dispositivi, e quello che hai già sbloccato resta tuo per sempre.</p>
+          </section>
+
           <section class="settings-subcard">
             <div class="settings-subcard-head">
               <span class="settings-subcard-ico settings-subcard-ico--create" aria-hidden="true">🛠</span>
