@@ -95,7 +95,7 @@ pub fn start(window: &WebviewWindow) {
     KIOSK_HWND.store(hwnd.0 as isize, Ordering::Relaxed);
 
     let app = window.app_handle().clone();
-    thread::spawn(move || loop {
+    crate::crash_log::spawn_supervised("xenon-cursor-guard", move || loop {
         thread::sleep(POLL_INTERVAL);
         if app.get_webview_window("main").is_none() {
             break; // window destroyed → stop the watcher

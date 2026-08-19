@@ -1,5 +1,6 @@
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
+mod crash_log;
 #[cfg(windows)]
 mod cursor_guard;
 #[cfg(windows)]
@@ -367,6 +368,10 @@ fn spawn_update_install(app: tauri::AppHandle) {
         match result {
             Ok(()) => {
                 report_update_event(&app, json!({ "phase": "restarting" }));
+                // Same reason the backend is stopped here: restart() execs past
+                // the run loop, so the crash diary has to close its own session
+                // or the update would read as a process that vanished.
+                crash_log::session_end("restarting after update");
                 // restart() execs: the run loop's Exit arm may never run, so the
                 // backend we own is stopped here rather than orphaned.
                 stop_owned_backend();
@@ -1383,6 +1388,12 @@ fn prefer_host_graphics_libs() {}
 /// presence-aware features (wake word, FPS) behave just like an open browser tab.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // First of all, so that everything below it is covered: the crash diary. A
+    // stripped, console-less kiosk that dies has no other way to say why, and
+    // "it closed on its own after a while" is unfixable without one.
+    crash_log::install();
+    crash_log::session_start();
+
     // Before anything can touch a display: an AppImage whose bundled libraries
     // shadow the host's driver stack renders NOTHING, and never says so.
     prefer_host_graphics_libs();
@@ -1629,6 +1640,7 @@ pub fn run() {
                             // when called from there — so nothing else would stop
                             // the backend child before the process is exec'd away.
                             "restart" => {
+                                crash_log::session_end("restart from the dashboard");
                                 stop_owned_backend();
                                 nav_handle.restart()
                             }
@@ -1899,11 +1911,18 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building the Xenon native app")
         .run(|_app, _event| {
-            // Whatever we started, we stop. On macOS the backend is this app's
-            // own child (see spawn_backend_nudge), so quitting must take it with
-            // us rather than leave a headless server holding port 3030.
-            #[cfg(target_os = "macos")]
             if matches!(_event, tauri::RunEvent::Exit) {
+                // Close the session in the crash diary. A launch with no exit
+                // line and no panic after it is the signature of a process that
+                // was killed from the outside — antivirus, Task Manager, or the
+                // PC going down hard — and that distinction is the whole point
+                // of keeping the file.
+                crash_log::session_end("clean shutdown");
+                // Whatever we started, we stop. On macOS the backend is this
+                // app's own child (see spawn_backend_nudge), so quitting must
+                // take it with us rather than leave a headless server holding
+                // port 3030.
+                #[cfg(target_os = "macos")]
                 stop_owned_backend();
             }
         });

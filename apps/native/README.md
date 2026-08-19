@@ -16,6 +16,18 @@ browser to open by hand.
 - **Startup race:** if the service is not up yet, the splash retries (it does not
   error out). Once the dashboard is loaded, its own offline handling takes over.
 - **Single instance:** a second launch re-focuses the existing kiosk window.
+- **Crash diary (`src-tauri/src/crash_log.rs`):** the shell is a console-less,
+  stripped binary, so anything that killed it used to leave nothing behind at
+  all. A panic hook now writes the thread, the message and the `file:line` of
+  the panic site to `crash.log` in the app config dir (beside `display.json`),
+  along with one line per launch and one per deliberate stop — the `RunEvent::Exit`
+  arm plus all three `restart()` paths, which exec past it. A `launched` with no
+  `exited` and no `PANIC` after it is therefore itself the diagnosis: the process
+  was ended from outside, which on Windows is nearly always AV quarantining the
+  exe mid-session. The release profile unwinds rather than aborts (see
+  `Cargo.toml`) so a panic in one of the polling threads no longer ends the
+  process, and `crash_log::spawn_supervised` catches it, records it and restarts
+  that thread up to three times. Reachable from the tray as **Open crash log**.
 
 - **Monitor targeting (`src-tauri/src/monitor.rs`):** the kiosk window is pinned
   to the Xeneon Edge (matched by its 2560×720 panel size) and a lightweight

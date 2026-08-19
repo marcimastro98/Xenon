@@ -29,7 +29,14 @@ serde_json = "1"
 custom-protocol = ["tauri/custom-protocol"]
 
 [profile.release]
-panic = "abort"
+# Unwind, not abort. `panic = "abort"` turns a panic anywhere — including the
+# display watchdog and the cursor/focus guards, three threads that poll the OS
+# forever — into an immediate process death, with no window, no message and (in
+# a `windows_subsystem = "windows"` build) nowhere to print anything: the app
+# simply vanishes mid-session. Unwinding costs a little binary size and keeps the
+# kiosk alive when a background poll fails; `crash_log::spawn_supervised` catches
+# the panic, writes it down and restarts the thread.
+panic = "unwind"
 codegen-units = 1
 lto = true
 opt-level = "s"
