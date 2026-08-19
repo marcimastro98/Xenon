@@ -7980,6 +7980,16 @@ function updateAutoOpenBrowser(checked) {
     body: JSON.stringify({ enabled }),
   }).then(r => r.json()).then(data => {
     if (data && data.supported === false) { _autoOpenSupported = false; syncAutoOpenBrowserControl(); return; }
+    // The server refused because open-dashboard.vbs is not on disk — an antivirus
+    // quarantine, or an install that never finished. Registering the task anyway
+    // is what produces the "Can not find script file" box at every logon, so the
+    // row goes away here exactly as it does where the feature is unsupported.
+    if (data && data.reason === 'launcher_missing') {
+      _autoOpenSupported = false;
+      syncAutoOpenBrowserControl();
+      setSettingsStatus('settings_error', 'error');
+      return;
+    }
     if (!data || data.ok !== true) { setSettingsStatus('settings_error', 'error'); return; }
     setSettingsStatus('settings_saved', 'ok');
   }).catch(() => setSettingsStatus('settings_error', 'error'));
@@ -8043,6 +8053,10 @@ async function reconcileAutoOpenBrowser() {
     if (!res.ok) { syncAutoOpenBrowserControl(); return; } // old server / not yet restarted
     const data = await res.json().catch(() => ({}));
     if (!data || data.supported === false) { _autoOpenSupported = false; syncAutoOpenBrowserControl(); return; }
+    // Same as above, on the path that runs on every page load: with no launcher
+    // on disk there is nothing to reconcile towards, and re-posting the request
+    // each time would only keep asking for a task that cannot work.
+    if (data.reason === 'launcher_missing') { _autoOpenSupported = false; syncAutoOpenBrowserControl(); return; }
     _autoOpenSupported = true;
     const want = hubSettings.autoOpenBrowser !== false;
     if (data.enabled !== want) {
