@@ -1263,7 +1263,7 @@ fn topology_signature(window: &WebviewWindow) -> String {
 /// Captures the `AppHandle` (Send + Sync) and looks the window up each tick, so
 /// the loop stops cleanly once the window is gone.
 pub fn start_watchdog(app: AppHandle) {
-    thread::spawn(move || {
+    crate::crash_log::spawn_supervised("xenon-display-watchdog", move || {
         // Baseline the layout on the first tick so a genuine change is detectable
         // without re-pinning once at startup for no reason.
         let mut last_topology = String::new();
