@@ -289,7 +289,15 @@ function createTailscale({ runner = defaultRunner, exe = null, exists = null, pl
     // Derived from the CLI we already resolved rather than from a second
     // hardcoded path: the two ship in the same directory, and an install that
     // moved would otherwise be half-found.
-    const gui = nodePath.join(nodePath.dirname(path_), GUI_EXE);
+    // Windows path rules, not the host's. `platform` is an injected option — that
+    // is what lets this module be exercised off Windows — but nodePath follows
+    // the machine it runs on, and POSIX reads
+    // "C:\Program Files\Tailscale\tailscale.exe" as one long filename with no
+    // directory in it, so the GUI "beside the CLI" came out as a bare
+    // "tailscale-ipn.exe" in the working directory. On Windows itself the two are
+    // the same object, so nothing changes where it matters.
+    const win = nodePath.win32;
+    const gui = win.join(win.dirname(path_), GUI_EXE);
     if (!(await Promise.resolve(fileExists(gui)).catch(() => false))) {
       return { ok: false, reason: 'not_installed' };
     }
