@@ -16,7 +16,7 @@ community catalog) — every one of those calls is listed in the [privacy page](
 ![platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D6)
 ![node](https://img.shields.io/badge/node-%E2%89%A5%2018.15-brightgreen)
 ![license](https://img.shields.io/badge/license-non--commercial-blue)
-![version](https://img.shields.io/badge/version-4.11.4-informational)
+![version](https://img.shields.io/badge/version-4.11.5-informational)
 [![Discord](https://img.shields.io/badge/Discord-join%20the%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/MBVrw9kZyg)
 
 ![Xenon dashboard overview](docs/images/overview.png)
@@ -122,6 +122,8 @@ Either way — the **Complete setup** button in Option A and `INSTALL.bat` in Op
 - starts the engine and opens `http://127.0.0.1:3030/` so you can confirm it works.
 
 > **Gray or empty screen in the app?** That means the dashboard engine isn't installed or running. Leave the app open: after a few seconds it offers the **Complete setup** button, which installs or repairs it. If the button says Xenon is already installed and the screen still doesn't come up, restart your PC — the engine starts on sign-in. Running `INSTALL.bat` again repairs it too. (Re-running `Xenon-Setup-x64.exe` only reinstalls the app itself, not the engine.)
+
+> **Where the setup writes down what it did:** `%LOCALAPPDATA%\Xenon\setup.log` (the run before it is kept as `setup.log.1`). Both the **Complete setup** button and `INSTALL.bat` append to it, including the elevated part that runs in its own window and closes as soon as it finishes. If setup fails — or the app folder ends up holding only `xenon-native.exe`, `uninstall.exe` and `windows\` — that file says which step never ran. Attach it to a bug report. It goes away with the uninstaller.
 
 > The installer **does not** download the free local-AI components (Ollama / Whisper) — that keeps first-time setup fast. You set those up on demand from **Settings → Xenon AI** only if you switch to the local provider. See [FEATURES.md](FEATURES.md#xenon-ai).
 
@@ -410,7 +412,7 @@ iCUE's embedded WebView can reject some MP4 files even when they play fine in Ch
 
 ## Support
 
-**Found a bug?** Open a [Bug Report](https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md) with your Windows version, what you did and what happened, and any error text from `INSTALL.bat`.
+**Found a bug?** Open a [Bug Report](https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md) with your Windows version, what you did and what happened, and any error text from `INSTALL.bat`. For anything that went wrong while installing, attach `%LOCALAPPDATA%\Xenon\setup.log`.
 
 **Have an idea?** Open a [Feature Request](https://github.com/marcimastro98/Xenon/issues/new?template=feature_request.md) — all feedback is welcome.
 

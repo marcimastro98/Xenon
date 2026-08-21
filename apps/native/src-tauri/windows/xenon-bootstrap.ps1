@@ -42,6 +42,60 @@ $DashUrl = 'http://127.0.0.1:3030/'
 # without UAC, and never inside OneDrive-synced folders (Desktop/Documents).
 $InstallRoot = Join-Path $env:LOCALAPPDATA 'Programs\Xenon'
 
+# Where this run is written down. The console IS the UI, and a console is
+# exactly what a failed install does not leave behind: it is closed, it scrolls,
+# or PowerShell hits a terminating error and the window - which the app created
+# for this process alone - disappears with the one line that explained why.
+# Reported on Discord as an install whose folder held only the app shell, with
+# nothing anywhere on the PC to say which step never ran.
+#
+# %LOCALAPPDATA%\Xenon is the native app's own folder: it exists wherever this
+# script can run, needs no elevation, and the uninstaller already removes it
+# (Remove-PathSafe in server\uninstall.ps1) - so the log never outlives Xenon.
+# It is deliberately NOT under $InstallRoot: on a first install that folder is
+# what the run is trying to create, and a failure before that point is precisely
+# the one worth keeping.
+$LogDir = Join-Path $env:LOCALAPPDATA 'Xenon'
+$LogPath = Join-Path $LogDir 'setup.log'
+$script:Logging = $false
+try {
+  New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
+  # Keep the previous run. The interesting one is often the attempt BEFORE the
+  # retry that finally gets reported.
+  if (Test-Path $LogPath) {
+    Move-Item -LiteralPath $LogPath -Destination "$LogPath.1" -Force -ErrorAction SilentlyContinue
+  }
+  Start-Transcript -Path $LogPath -Force | Out-Null
+  $script:Logging = $true
+} catch {
+  # No log is a worse install, not a failed one - carry on regardless.
+}
+
+function Stop-Log {
+  if (-not $script:Logging) { return }
+  $script:Logging = $false
+  try { Stop-Transcript | Out-Null } catch { }
+}
+
+# Pick the same file back up after handing it to the installer (below): two
+# processes cannot hold one transcript, so this one lets go while the elevated
+# install writes, and appends again afterwards.
+function Resume-Log {
+  if ($script:Logging) { return }
+  try {
+    Start-Transcript -Path $LogPath -Append -Force | Out-Null
+    $script:Logging = $true
+  } catch { }
+}
+
+# Printed by every exit, success or not: a user who has to ask for help should
+# already know which file to attach, without being told to go and find it.
+function Show-LogHint {
+  if (-not (Test-Path $LogPath)) { return }
+  Write-Host '  Everything above is also saved in:' -ForegroundColor Gray
+  Write-Host "    $LogPath" -ForegroundColor Gray
+}
+
 function Write-Step($m) { Write-Host "==> $m" -ForegroundColor Cyan }
 function Fail($m) {
   Write-Host ''
@@ -49,9 +103,25 @@ function Fail($m) {
   Write-Host '  Nothing was changed on your PC beyond the Xenon app itself.' -ForegroundColor Gray
   Write-Host '  You can retry by running the Xenon setup again, or install manually:' -ForegroundColor Gray
   Write-Host "  https://github.com/$Repo#readme" -ForegroundColor Gray
+  Show-LogHint
   Write-Host ''
+  Stop-Log
   Read-Host 'Press Enter to close this window'
   exit 1
+}
+
+# Anything that stops the script the hard way - a cmdlet failing under
+# -ErrorAction Stop, an unreadable path, a corrupt archive - used to end it
+# instantly: PowerShell printed the error and the window closed on top of it.
+# This turns every one of them into the same visible, logged, paused failure as
+# an expected one.
+trap {
+  Write-Host ''
+  Write-Host "  Unexpected error: $($_.Exception.Message)" -ForegroundColor Red
+  if ($_.InvocationInfo) {
+    Write-Host "  at line $($_.InvocationInfo.ScriptLineNumber): $($_.InvocationInfo.Line.Trim())" -ForegroundColor DarkGray
+  }
+  Fail 'The setup stopped on an unexpected error.'
 }
 # "Nothing to do" still has to be READ. This window is spawned with its own
 # console by the app, so an exit closes it instantly: bailing out silently would
@@ -62,7 +132,9 @@ function Done($m) {
   Write-Host "  $m" -ForegroundColor Green
   Write-Host '  If the dashboard still does not appear, restart your PC - the' -ForegroundColor Gray
   Write-Host '  Xenon engine starts automatically when you sign in.' -ForegroundColor Gray
+  Show-LogHint
   Write-Host ''
+  Stop-Log
   Read-Host 'Press Enter to close this window'
   exit 0
 }
@@ -289,20 +361,29 @@ $installer = Join-Path $InstallRoot 'server\install.ps1'
 if (-not (Test-Path $installer)) { Fail 'install.ps1 is missing from the downloaded release.' }
 Write-Step 'Running the Xenon installer (a separate window opens)...'
 $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
-$psArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$installer`"", '-Mode', 'native', '-SkipNativeApp')
+# -LogPath hands this run's log to the installer: it opens in a console of its
+# own, elevated, which closes the instant it ends - so its half of the story
+# would otherwise be the half nobody can read. Two processes cannot hold one
+# transcript, so this one lets go for the duration and appends again after.
+$psArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$installer`"", '-Mode', 'native', '-SkipNativeApp', '-LogPath', "`"$LogPath`"")
 $ranInstaller = $false
+Stop-Log
 try {
   Start-Process -FilePath $psExe -Verb RunAs -ArgumentList $psArgs -Wait -ErrorAction Stop
   $ranInstaller = $true
 } catch {
+  Resume-Log
   Write-Host '  Administrator rights declined - continuing without them (CPU temperature on some systems may stay unavailable).' -ForegroundColor Yellow
+  Stop-Log
   try {
     Start-Process -FilePath $psExe -ArgumentList $psArgs -Wait -ErrorAction Stop
     $ranInstaller = $true
   } catch {
+    Resume-Log
     Fail "The Xenon installer could not be started ($($_.Exception.Message))."
   }
 }
+Resume-Log
 if (-not $ranInstaller) { Fail 'The Xenon installer did not run.' }
 
 Write-Host ''
@@ -311,6 +392,8 @@ Write-Host '  Xenon is installed. The app on your Xeneon Edge will' -ForegroundC
 Write-Host '  come alive in a moment; the dashboard is also at:' -ForegroundColor Green
 Write-Host "    $DashUrl" -ForegroundColor White
 Write-Host '  ---------------------------------------------------' -ForegroundColor DarkGray
+Show-LogHint
 Write-Host ''
+Stop-Log
 Read-Host 'Press Enter to close this window'
 exit 0
