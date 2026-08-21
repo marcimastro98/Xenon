@@ -177,7 +177,9 @@
       setupBodyEl.textContent =
         'Still nothing answering. If the setup window never appeared, or it closed saying ' +
         'Xenon was already installed, the engine is on this PC but not starting — restarting ' +
-        'the PC usually fixes it. Otherwise you can run the setup again.';
+        'the PC usually fixes it. Otherwise you can run the setup again. Whatever the setup ' +
+        'did, it wrote it down in %LOCALAPPDATA%\\Xenon\\setup.log — that file is what to ' +
+        'send if you ask for help.';
     }
 
     function go() {

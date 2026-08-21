@@ -6,9 +6,16 @@
 # outdated one would be silently reinstalled over itself here, and a silent NSIS
 # install terminates the running exe, killing the kiosk halfway through the
 # setup the user is watching. The shell has its own updater for that.
+#
+# -LogPath appends this run to a log file. The bootstrap passes the file it is
+# already writing, so ONE file holds the whole story - the download and the
+# elevated install that follows it, which runs in a console of its own that
+# closes the moment it ends. Absent, the installer picks its own file (that is
+# the INSTALL.bat path, which had nowhere to look either).
 param(
   [ValidateSet('native', 'icue', '')][string]$Mode = '',
-  [switch]$SkipNativeApp
+  [switch]$SkipNativeApp,
+  [string]$LogPath = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -27,6 +34,54 @@ $url = 'http://127.0.0.1:3030/'
 
 function Write-Step($Message) {
   Write-Host "==> $Message" -ForegroundColor Cyan
+}
+
+# ---- The install log ---------------------------------------------------------
+# An install that fails leaves nothing behind to read: this console belongs to
+# the installer alone, so it closes with it, and the elevated one the bootstrap
+# opens closes twice as fast. Every run is now written to a file that outlives
+# the window, so "which step failed" is a question with an answer.
+#
+# %LOCALAPPDATA%\Xenon is the native app's folder: no elevation needed, present
+# on any machine that can run this, and already removed by uninstall.ps1.
+$script:InstallLog = ''
+function Start-InstallLog {
+  $path = $LogPath
+  if (-not $path) {
+    try {
+      $dir = Join-Path $env:LOCALAPPDATA 'Xenon'
+      New-Item -ItemType Directory -Path $dir -Force | Out-Null
+      $path = Join-Path $dir 'setup.log'
+    } catch { return }
+  }
+  try {
+    Start-Transcript -Path $path -Append -Force | Out-Null
+    $script:InstallLog = $path
+  } catch { }
+}
+function Stop-InstallLog {
+  if (-not $script:InstallLog) { return }
+  try { Stop-Transcript | Out-Null } catch { }
+}
+function Show-InstallLogHint {
+  if (-not $script:InstallLog) { return }
+  Write-Host ''
+  Write-Host '   A log of this install is in:' -ForegroundColor Gray
+  Write-Host "     $($script:InstallLog)" -ForegroundColor Gray
+  Write-Host '   Attach it to a bug report - it says which step failed.' -ForegroundColor DarkGray
+}
+
+# Unhandled terminating error: say what it was, in the log as well as on screen,
+# instead of letting the window close over a red line nobody got to read.
+trap {
+  Write-Host ''
+  Write-Host "   The install stopped: $($_.Exception.Message)" -ForegroundColor Red
+  if ($_.InvocationInfo) {
+    Write-Host "   at line $($_.InvocationInfo.ScriptLineNumber): $($_.InvocationInfo.Line.Trim())" -ForegroundColor DarkGray
+  }
+  Show-InstallLogHint
+  Stop-InstallLog
+  exit 1
 }
 
 # Read the version we are installing straight from package.json so the banner
@@ -461,6 +516,11 @@ function Invoke-RelocateFromVolatileRoot([string]$Reason) {
   $childArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $relocatedInstaller)
   if ($Mode) { $childArgs += @('-Mode', $Mode) }
   if ($SkipNativeApp) { $childArgs += '-SkipNativeApp' }
+  # Hand the log over with the install: the child appends to the same file, and
+  # it cannot do that while this process still holds it open.
+  $log = $script:InstallLog
+  if ($log) { $childArgs += @('-LogPath', $log) }
+  Stop-InstallLog
   & $psExe @childArgs
   exit $LASTEXITCODE
 }
@@ -1145,6 +1205,11 @@ function Write-ComponentSummary {
 $appVersion = Get-AppVersion
 Show-Banner -Version $appVersion
 
+# From here on, everything printed is also written down. Started AFTER the
+# banner on purpose: the intro is cosmetic and animated, and a log wants the
+# steps, not the frames.
+Start-InstallLog
+
 # Before ANY component is installed or any task is registered: refuse to make a
 # temporary folder the permanent home of the backend (never returns if it fires).
 $volatileReason = Get-VolatileRootReason $root
@@ -1229,3 +1294,5 @@ if (-not $installerElevated) {
   Write-Host '   admin sensor access, rerun INSTALL.bat once as Administrator.' -ForegroundColor Yellow
 }
 Write-Host '   ---------------------------------------------------' -ForegroundColor DarkGray
+Show-InstallLogHint
+Stop-InstallLog
