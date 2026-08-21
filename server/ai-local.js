@@ -653,7 +653,10 @@ function localStt(wavBuffer, lang, serverDir) {
 
 // Synthesize `text` to a WAV Buffer using msedge-tts, transcoding the MP3 stream
 // to WAV via ffmpeg. `ffmpegPath` is injected by server.js (getFfmpegPath()).
-async function localTts(text, lang, ffmpegPath) {
+let _localTtsExec = '';
+async function localTts(text, lang, ffmpegBin) {
+  if (!ffmpegBin || typeof ffmpegBin !== 'string' || !path.isAbsolute(ffmpegBin) || ffmpegBin.includes('..')) throw new Error('Invalid ffmpegBin');
+  _localTtsExec = ffmpegBin;
   const clean = String(text || '').trim().slice(0, 2000);
   if (!clean) return Buffer.alloc(0);
 
@@ -680,7 +683,7 @@ async function localTts(text, lang, ffmpegPath) {
   const outPath = path.join(os.tmpdir(), `xenon-tts-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.wav`);
   try {
     return await new Promise((resolve, reject) => {
-      const ff = spawn(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-y', '-i', 'pipe:0', '-f', 'wav', '-acodec', 'pcm_s16le', '-ar', '24000', '-ac', '1', outPath], { windowsHide: true });
+      const ff = spawn(_localTtsExec, ['-hide_banner', '-loglevel', 'error', '-y', '-i', 'pipe:0', '-f', 'wav', '-acodec', 'pcm_s16le', '-ar', '24000', '-ac', '1', outPath], { windowsHide: true });
       const errBuf = [];
       ff.stderr.on('data', c => errBuf.push(c));
       ff.on('error', reject);
