@@ -3,7 +3,9 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [v4.11.5] - unreleased
+## [Unreleased]
+
+## [v4.11.5] - 21-08-2026
 ### ✨ Added
 - **You can choose which AI model Xenon uses, and it keeps itself current.** Every provider now has a model list in Settings under Xenon AI, filled from your own account, so it shows what that provider offers today rather than a list written when Xenon was released. Gemini had no picker at all until now, and its four models (chat, advanced reasoning, voice, Live Voice) were fixed in the code.
 
@@ -24,6 +26,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **The list of local models to download comes from the website.** Xenon's local AI offered four models chosen when the feature was written. That list now comes from a file on xenon-app.com, so new models can be added without an app update, and it carries the real download size and hardware requirement of each one. Your machine still decides what it can run: the hardware check is local and the built-in limits always win, so nothing on the internet can talk your PC into loading a model it cannot hold. And a model you have already installed is now asked directly what it can do, instead of being guessed at by its name, so a newer model that can read images is no longer treated as text-only.
 
 ### 🐛 Fixed
+- **A Windows install that goes wrong now leaves something to read.** The app you download on Windows is only the screen. The dashboard engine behind it is installed by the **Complete setup** button on the first-run panel, in a console window that opens for it — and that window was the only place the setup ever said anything. So when it failed, or was closed, or PowerShell hit an error that ended the script and took the window down with its own explanation, nothing was left anywhere on the PC to say what had happened. What you are left looking at is an install folder holding three things — `xenon-native.exe`, the uninstaller and a `windows` folder — with no `server` folder, no Node.js, and no way to tell which step never ran. Reported on Discord more than once, and every time the only way forward was to ask the person to do the whole thing again and watch it happen.
+
+  Every run of the setup is now written to `%LOCALAPPDATA%\Xenon\setup.log` as it goes, and the run before it is kept beside it as `setup.log.1` — the interesting one is often the attempt before the retry that finally gets reported. The elevated half of the install, which runs in a second window that closes the instant it ends, appends to that same file, so one file holds the whole story from the download to the last component. `INSTALL.bat` writes it too. Every run ends by printing where the file is, whether it worked or not, and the first-run panel names it as well when the setup did not take. The uninstaller removes it with everything else.
+
+  And an unexpected error no longer closes the window over its own message. Anything that stops either script the hard way is now caught, named along with the line that raised it, written to the log, and left on screen with the window waiting for you.
+
 - **Xenon starts on a laptop running on battery, and no longer stops when you unplug.** The task that starts the dashboard when you sign in was registered with the two conditions Windows applies when nobody says otherwise: do not start on battery, and stop if the charger comes out. On a desktop that never showed. On a laptop it meant the dashboard was missing whenever you were unplugged, and vanished mid-use the moment you pulled the cable, which reads exactly like a crash. New installs no longer carry those conditions. An install you already have keeps them until the app repairs it, which it now offers to do (see the next entry), or you can clear them yourself in Task Scheduler under Xenon Edge Widget, Properties, Conditions.
 
 - **Upcoming events show their name instead of their date.** The strip under the calendar gave the date and time all the room they wanted and left the event name whatever was over, which on a row of five events was about thirty pixels: every entry read as a single letter and three dots, and the only way to know what any of them was was to tap it. The name now gets the space. An event today shows its time, and anything later shows how far off it is, like 2d or 3w, which is both shorter and the thing you actually wanted to know from a section called Upcoming. The full date and time are on the tooltip when you hover, and tapping still opens the day.

@@ -141,7 +141,8 @@
   a { color: var(--plasma-2); }
   .wrap { max-width: var(--maxw); margin: 0 auto; padding: 32px 20px 80px; }
   header.top { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }
-  header.top img { width: 38px; height: 38px; }
+  /* The only image in this header is the wordmark's X, and its size is set once
+     for the whole site in site.css. A 38px square here stretched it. */
   header.top .back { margin-left: auto; font-size: 0.9rem; color: var(--muted); text-decoration: none; }
   header.top .back:hover { color: var(--text); }
   h1 { font-family: var(--display); font-weight: 700; font-size: clamp(1.6rem, 4vw, 2.2rem); letter-spacing: -0.01em; }
@@ -245,7 +246,7 @@
 <body data-track-view="submit_start">
 <div class="wrap">
   <header class="top">
-    <img class="logo-mark" src="../images/logo-x.png" alt="Xenon" width="33" height="26">
+    <a class="logo" href="../" aria-label="Xenon"><img class="logo-mark" src="../images/logo-x.png" alt="" width="33" height="26">ENON</a>
     <div class="langbar" id="langbar"></div>
     <a class="back" href="../catalog/" data-t="back">← Community catalog</a>
   </header>

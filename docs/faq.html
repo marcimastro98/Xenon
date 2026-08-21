@@ -445,6 +445,7 @@
       <summary data-i18n="f.q.browser">Do I have to use the app?</summary>
       <div class="body" data-i18n-html="f.a.browser">
         <p>No. The app is a window around the dashboard, and the dashboard is a local web page: open <code>http://127.0.0.1:3030/</code> in any browser, on any monitor. The app is worth having on a touchscreen because it adds game-safe touch and a tray icon. Inside iCUE, an iFrame widget pointing at the same address works too.</p>
+        <p>To do that, add a <b>Web page</b> (HTML) widget in iCUE and paste this into it: <code>&lt;iframe src='http://127.0.0.1:3030/' width='100%' height='100%' frameborder='0'&gt;&lt;/iframe&gt;</code></p>
       </div>
     </details>
 
@@ -603,7 +604,7 @@ const I18N = {
   "f.q.phone": "Can I really use my phone as the screen?",
   "f.a.phone": "<p>Yes, and it is your dashboard rather than a remote: same layout, same widgets, same theme, and Deck keys really run on the PC. No account, no cloud, nothing to install, and on your own Wi-Fi nothing leaves your home network. It takes about thirty seconds. The <a href='phone.html'>phone guide</a> covers both routes, at home and from anywhere.</p>",
   "f.q.browser": "Do I have to use the app?",
-  "f.a.browser": "<p>No. The app is a window around the dashboard, and the dashboard is a local web page: open <code>http://127.0.0.1:3030/</code> in any browser, on any monitor. The app is worth having on a touchscreen because it adds game-safe touch and a tray icon. Inside iCUE, an iFrame widget pointing at the same address works too.</p>",
+  "f.a.browser": "<p>No. The app is a window around the dashboard, and the dashboard is a local web page: open <code>http://127.0.0.1:3030/</code> in any browser, on any monitor. The app is worth having on a touchscreen because it adds game-safe touch and a tray icon. Inside iCUE, an iFrame widget pointing at the same address works too.</p><p>To do that, add a <b>Web page</b> (HTML) widget in iCUE and paste this into it: <code>&lt;iframe src='http://127.0.0.1:3030/' width='100%' height='100%' frameborder='0'&gt;&lt;/iframe&gt;</code></p>",
   "f.q.ai": "Do I need an API key for the AI?",
   "f.a.ai": "<p>Only if you want a cloud provider, and a Gemini key is free to create. Everything else in Xenon works without one.</p><p>There is also a fully local option: Ollama for the chat and Whisper for speech, set up on demand from Settings, with nothing leaving your PC. If you do choose a cloud provider, your prompts go to that provider under their terms, and Xenon never sends anything to a model you did not pick.</p>",
   "f.q.temp": "There is no CPU temperature",
@@ -692,7 +693,7 @@ const I18N = {
   "f.q.phone": "Posso davvero usare il telefono come schermo?",
   "f.a.phone": "<p>Sì, ed è la tua dashboard, non un telecomando: stesso layout, stessi widget, stesso tema, e i tasti del Deck girano davvero sul PC. Nessun account, nessun cloud, niente da installare, e sulla tua Wi-Fi niente esce dalla rete di casa. Ci vogliono circa trenta secondi. La <a href='phone.html'>guida per il telefono</a> copre entrambe le strade, a casa e da fuori.</p>",
   "f.q.browser": "Devo per forza usare l'app?",
-  "f.a.browser": "<p>No. L'app è una finestra attorno alla dashboard, e la dashboard è una pagina web locale: apri <code>http://127.0.0.1:3030/</code> in qualsiasi browser, su qualsiasi monitor. L'app conviene su un touchscreen perché aggiunge il tocco sicuro in gioco e l'icona nella tray. Dentro iCUE funziona anche un widget iFrame puntato allo stesso indirizzo.</p>",
+  "f.a.browser": "<p>No. L'app è una finestra attorno alla dashboard, e la dashboard è una pagina web locale: apri <code>http://127.0.0.1:3030/</code> in qualsiasi browser, su qualsiasi monitor. L'app conviene su un touchscreen perché aggiunge il tocco sicuro in gioco e l'icona nella tray. Dentro iCUE funziona anche un widget iFrame puntato allo stesso indirizzo.</p><p>Per farlo, aggiungi in iCUE un widget <b>Pagina web</b> (HTML) e incollaci dentro questo: <code>&lt;iframe src='http://127.0.0.1:3030/' width='100%' height='100%' frameborder='0'&gt;&lt;/iframe&gt;</code></p>",
   "f.q.ai": "Serve una chiave API per l'AI?",
   "f.a.ai": "<p>Solo se vuoi un provider cloud, e una chiave Gemini si crea gratis. Tutto il resto di Xenon funziona senza.</p><p>C'è anche l'opzione completamente locale: Ollama per la chat e Whisper per il parlato, installati su richiesta dalle Impostazioni, con niente che esce dal tuo PC. Se scegli un provider cloud, i tuoi prompt vanno a quel provider secondo le sue condizioni, e Xenon non manda mai niente a un modello che non hai scelto.</p>",
   "f.q.temp": "Non vedo la temperatura della CPU",
@@ -781,7 +782,7 @@ const I18N = {
   "f.q.phone": "정말 휴대폰을 화면으로 쓸 수 있나요?",
   "f.a.phone": "<p>네, 그리고 원격 조종기가 아니라 여러분의 대시보드입니다. 레이아웃도, 위젯도, 테마도 같고 Deck 키는 실제로 PC에서 실행됩니다. 계정도, 클라우드도, 설치할 것도 없고, 집 Wi-Fi에서는 아무것도 홈 네트워크를 벗어나지 않습니다. 30초 정도면 됩니다. <a href='phone.html'>휴대폰 가이드</a>에 집에서 쓰는 방법과 밖에서 쓰는 방법이 모두 있습니다.</p>",
   "f.q.browser": "꼭 앱을 써야 하나요?",
-  "f.a.browser": "<p>아닙니다. 앱은 대시보드를 감싼 창일 뿐이고, 대시보드는 로컬 웹 페이지입니다. 어떤 브라우저에서든, 어떤 모니터에서든 <code>http://127.0.0.1:3030/</code>을 열면 됩니다. 터치스크린에서는 게임 중에도 안전한 터치와 트레이 아이콘이 있어 앱이 낫습니다. iCUE 안에서는 같은 주소를 가리키는 iFrame 위젯도 동작합니다.</p>",
+  "f.a.browser": "<p>아닙니다. 앱은 대시보드를 감싼 창일 뿐이고, 대시보드는 로컬 웹 페이지입니다. 어떤 브라우저에서든, 어떤 모니터에서든 <code>http://127.0.0.1:3030/</code>을 열면 됩니다. 터치스크린에서는 게임 중에도 안전한 터치와 트레이 아이콘이 있어 앱이 낫습니다. iCUE 안에서는 같은 주소를 가리키는 iFrame 위젯도 동작합니다.</p><p>그렇게 하려면 iCUE에서 <b>웹 페이지</b>(HTML) 위젯을 추가하고 여기에 다음을 붙여 넣으세요: <code>&lt;iframe src='http://127.0.0.1:3030/' width='100%' height='100%' frameborder='0'&gt;&lt;/iframe&gt;</code></p>",
   "f.q.ai": "AI를 쓰려면 API 키가 필요한가요?",
   "f.a.ai": "<p>클라우드 제공자를 쓸 때만 필요하고, Gemini 키는 무료로 만들 수 있습니다. Xenon의 나머지 기능은 키 없이 동작합니다.</p><p>완전히 로컬로 쓰는 방법도 있습니다. 대화는 Ollama, 음성은 Whisper를 설정에서 필요할 때 설치하면 되고, 아무것도 PC를 떠나지 않습니다. 클라우드 제공자를 고르면 프롬프트는 그 제공자의 약관에 따라 전송되며, Xenon은 사용자가 고르지 않은 모델에 무언가를 보내는 일이 절대 없습니다.</p>",
   "f.q.temp": "CPU 온도가 나오지 않습니다",
@@ -870,7 +871,7 @@ const I18N = {
   "f.q.phone": "本当にスマホを画面として使えますか",
   "f.a.phone": "<p>はい。しかもリモコンではなくあなたのダッシュボードです。レイアウトもウィジェットもテーマも同じで、Deck キーは実際に PC 上で実行されます。アカウントもクラウドもインストールも不要で、自宅の Wi-Fi なら何も家庭内ネットワークの外に出ません。30秒ほどで終わります。<a href='phone.html'>スマホ向けガイド</a> に、自宅で使う方法と外から使う方法の両方があります。</p>",
   "f.q.browser": "アプリを使わないとだめですか",
-  "f.a.browser": "<p>いいえ。アプリはダッシュボードを包むウィンドウで、ダッシュボード自体はローカルの Web ページです。どのブラウザーでも、どのモニターでも <code>http://127.0.0.1:3030/</code> を開けば使えます。タッチスクリーンではゲーム中も安全なタッチとトレイアイコンが付くのでアプリが便利です。iCUE の中なら、同じアドレスを指す iFrame ウィジェットでも動きます。</p>",
+  "f.a.browser": "<p>いいえ。アプリはダッシュボードを包むウィンドウで、ダッシュボード自体はローカルの Web ページです。どのブラウザーでも、どのモニターでも <code>http://127.0.0.1:3030/</code> を開けば使えます。タッチスクリーンではゲーム中も安全なタッチとトレイアイコンが付くのでアプリが便利です。iCUE の中なら、同じアドレスを指す iFrame ウィジェットでも動きます。</p><p>その場合は iCUE で <b>Web ページ</b>（HTML）ウィジェットを追加し、次を貼り付けてください: <code>&lt;iframe src='http://127.0.0.1:3030/' width='100%' height='100%' frameborder='0'&gt;&lt;/iframe&gt;</code></p>",
   "f.q.ai": "AI を使うのに API キーは必要ですか",
   "f.a.ai": "<p>クラウドのプロバイダーを使う場合だけで、Gemini のキーは無料で作れます。Xenon の他の機能はキーなしで動きます。</p><p>完全にローカルで動かす選択肢もあります。会話は Ollama、音声は Whisper を設定から必要に応じて導入でき、何も PC の外に出ません。クラウドのプロバイダーを選んだ場合、プロンプトはそのプロバイダーの規約のもとで送られ、Xenon が自分で選んでいないモデルに何かを送ることは決してありません。</p>",
   "f.q.temp": "CPU の温度が表示されません",
@@ -959,7 +960,7 @@ const I18N = {
   "f.q.phone": "真的可以把手机当屏幕用吗？",
   "f.a.phone": "<p>可以，而且它是你的仪表盘，不是遥控器：一样的布局、一样的组件、一样的主题，Deck 按键真的运行在电脑上。没有账号、没有云、不用装任何东西，在自家 Wi-Fi 下也没有任何数据离开家里的网络。大约三十秒就好。<a href='phone.html'>手机指南</a>里写了两条路线，在家用的和在外面用的。</p>",
   "f.q.browser": "一定要用那个应用吗？",
-  "f.a.browser": "<p>不用。应用只是包住仪表盘的一个窗口，而仪表盘本身是一个本地网页：在任何浏览器、任何显示器上打开 <code>http://127.0.0.1:3030/</code> 就行。在触摸屏上应用值得装，因为它带来了游戏中也安全的触控和托盘图标。在 iCUE 里，一个指向同一地址的 iFrame 组件同样可用。</p>",
+  "f.a.browser": "<p>不用。应用只是包住仪表盘的一个窗口，而仪表盘本身是一个本地网页：在任何浏览器、任何显示器上打开 <code>http://127.0.0.1:3030/</code> 就行。在触摸屏上应用值得装，因为它带来了游戏中也安全的触控和托盘图标。在 iCUE 里，一个指向同一地址的 iFrame 组件同样可用。</p><p>做法是在 iCUE 里添加一个<b>网页</b>（HTML）组件，把下面这段粘贴进去：<code>&lt;iframe src='http://127.0.0.1:3030/' width='100%' height='100%' frameborder='0'&gt;&lt;/iframe&gt;</code></p>",
   "f.q.ai": "用 AI 需要 API 密钥吗？",
   "f.a.ai": "<p>只有想用云端服务商时才需要，而 Gemini 的密钥可以免费创建。Xenon 的其他功能不需要它也能用。</p><p>还有完全本地的选项：对话用 Ollama，语音用 Whisper，在设置里按需安装，任何东西都不会离开你的电脑。如果你选择了云端服务商，你的提示词会按该服务商的条款发送给它，而 Xenon 绝不会把内容发给你没有选择的模型。</p>",
   "f.q.temp": "看不到 CPU 温度",
