@@ -6,7 +6,16 @@
 #
 # /get/       renders whatever share code is handed to it — no content of its
 #             own, and a thousand codes would be a thousand near-identical URLs.
-# /community/ is a redirect stub that forwards old Discord links to /catalog/.
+# /community/ is a redirect stub that forwards old Discord links to /catalog/,
+#             and the folder also holds the per-entry share codes, which are
+#             thousands of near-identical files and pure crawl budget.
+#
+# The one exception under it is catalog.json, and it has to be an exception:
+# /catalog/ and the gallery strip on the home page are BUILT from that file at
+# render time (fetch('../community/catalog.json')). A crawler that cannot read
+# it renders the gallery's error state, so the site's most-updated page would
+# look empty to the index. Allow is listed before Disallow for readability only
+# — Google and Bing resolve by longest match, not by order.
 #
 # Both also carry <meta name="robots" content="noindex">, which is the directive
 # that actually removes a URL from an index — a Disallow only stops the crawl,
@@ -44,6 +53,7 @@ User-agent: cohere-ai
 User-agent: MistralAI-User
 User-agent: YouBot
 Allow: /
+Allow: /community/catalog.json
 Disallow: /get/
 Disallow: /community/
 

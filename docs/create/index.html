@@ -151,7 +151,9 @@
     border-bottom: 1px solid var(--line);
   }
   .brand { display: flex; align-items: center; gap: 9px; font-family: var(--display); font-weight: 700; font-size: 18px; letter-spacing: 0.06em; flex: none; }
-  .brand img { height: 28px; width: auto; margin: -6px 0;  filter: drop-shadow(0 0 8px var(--rule-2)); }
+  /* The mark's size, filter and spacing are the shared wordmark's (site.css).
+     What was left here was a -6px vertical margin that pulled the X out of its
+     own line box, so the header measured 23px for a 26px mark. */
   .brand .sub { font-weight: 400; font-size: 13px; letter-spacing: 0; color: var(--bone-2); text-transform: none; padding-left: 12px; margin-left: 4px; border-left: 1px solid var(--line-2); }
   .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
   .tb-link { font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; color: var(--muted); padding: 8px 12px; border-radius: 9px; transition: color .2s, background .2s; }
@@ -312,7 +314,9 @@
 <body data-track-view="create_start">
 
 <header class="topbar">
-  <a class="brand" href="../"><img class="logo-mark" src="../images/logo-x.png" alt="" width="33" height="26"> XENON <span class="sub">Create</span></a>
+  <!-- The mark IS the X, so the word is ENON and there is no space before it,
+       exactly as on every other page. The section name stays a separate label. -->
+  <a class="brand" href="../" aria-label="Xenon Create"><img class="logo-mark" src="../images/logo-x.png" alt="" width="33" height="26">ENON<span class="sub">Create</span></a>
   <button class="menu-btn" id="menuBtn" aria-label="Open sections">☰</button>
   <nav class="topbar-actions">
     <a class="tb-link" href="../catalog/">Catalog</a>

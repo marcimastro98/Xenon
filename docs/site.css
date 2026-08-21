@@ -471,9 +471,30 @@ a:hover, button:hover, .card:hover { transform: none; }
    The mark IS the X, so the word beside it is "ENON" and it has to sit against
    the glyph like a letter, not beside it like a label. The 9px gap read as two
    objects. The accessible name stays "Xenon" through aria-label on the anchor —
-   without it a screen reader announces "enon". */
-.logo { gap: 0; }
-.logo img { margin-right: 1px; }
+   without it a screen reader announces "enon".
+
+   ONE wordmark for the whole site, and it lives here because it was drawn six
+   different ways: 14px at 0.16em on the FAQ, 1.05rem at 0.04em on the catalog,
+   19px at 0.08em on the redeem page, 17px of MONO on the home, the full word
+   "XENON" beside its own X on create/, and the mark at four heights. Every one
+   of those pages also loads this file AFTER its own <style>, so what is set
+   here wins without touching them; the home page is the one exception (it
+   links this file first) and carries the same values in its own rule.
+
+   Two things make it a wordmark rather than a picture next to a word. The word
+   is BASELINE-aligned to the mark: a flex item that is an image takes its
+   bottom edge as its baseline, and the art is trimmed to the glyph, so "ENON"
+   sits on the X's own baseline and the X rises over it at twice the cap height.
+   And the face is named outright rather than taken from --display, which is
+   swapped per language for CJK: a wordmark that changes typeface on the Korean
+   page is not a wordmark. */
+.logo, .brand {
+  display: inline-flex; align-items: baseline; gap: 0;
+  font-family: 'Archivo', 'Archivo Fallback', system-ui, -apple-system, sans-serif;
+  font-weight: 700; font-size: 17px; letter-spacing: 0.02em; line-height: 1;
+  text-decoration: none;
+}
+.logo img, .brand img { margin-right: 1px; }
 
 /* One wordmark for the whole site. images/logo-x.png is the mark trimmed to
    the glyph — logo.png carries ~28% transparent padding a side, which is what
