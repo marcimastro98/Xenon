@@ -42,6 +42,16 @@ use std::sync::OnceLock;
 const EDGE_WIDTH: u32 = 2560;
 const EDGE_HEIGHT: u32 = 720;
 
+/// The Edge panel in EITHER orientation, mirroring `monitor::is_edge_size`.
+///
+/// This module and `monitor.rs` must agree about which screen the kiosk presents
+/// on, or the pin aims at the adapter driving a display the window is not on. A
+/// panel mounted vertically reports 720×2560, so recognising rotation in only one
+/// of the two files would reintroduce exactly that split.
+fn is_edge_size(width: u32, height: u32) -> bool {
+    (width == EDGE_WIDTH && height == EDGE_HEIGHT) || (width == EDGE_HEIGHT && height == EDGE_WIDTH)
+}
+
 /// Render on the discrete adapter. Named rather than repeated so the launch value
 /// and the mismatch comparison cannot drift apart from a typo.
 const FLAG_DISCRETE: &str = "--force_high_performance_gpu";
@@ -228,14 +238,14 @@ pub fn virtual_display_names() -> Vec<String> {
 }
 
 /// The display the kiosk will present on: the Edge when it is connected (matched by
-/// its 2560×720 panel), else the primary, else whatever is first — i.e. wherever
-/// `monitor::place_now` lands the window.
+/// its panel size in either orientation), else the primary, else whatever is first —
+/// i.e. wherever `monitor::place_now` lands the window.
 ///
 /// Virtual displays are excluded by the caller, not here, so this reads exactly like
 /// `monitor::find_edge`: same panel size, same preference order, same skip.
 fn target<'a>(real: &'a [&'a Display]) -> Option<&'a Display> {
     real.iter()
-        .find(|d| d.width == EDGE_WIDTH && d.height == EDGE_HEIGHT)
+        .find(|d| is_edge_size(d.width, d.height))
         .or_else(|| real.iter().find(|d| d.primary))
         .or_else(|| real.first())
         .copied()
@@ -418,6 +428,27 @@ mod tests {
             ]),
             Some(FLAG_DISCRETE)
         );
+    }
+
+    /// A panel MOUNTED VERTICALLY reports its rotated mode, so the same Edge
+    /// answers 720×2560. `monitor.rs` recognises that now, and this module has to
+    /// agree or the pin aims at the adapter driving a screen the window is not on
+    /// — the same split the virtual-display test below exists for.
+    #[test]
+    fn a_vertically_mounted_edge_is_still_the_target() {
+        assert_eq!(
+            decide(&[
+                d(RADEON, 2560, 1440, true),
+                d(IGPU, EDGE_HEIGHT, EDGE_WIDTH, false),
+            ]),
+            Some(FLAG_INTEGRATED)
+        );
+        assert!(is_edge_size(EDGE_HEIGHT, EDGE_WIDTH));
+        assert!(is_edge_size(EDGE_WIDTH, EDGE_HEIGHT));
+        // …and rotation must not widen the signature into "either dimension".
+        assert!(!is_edge_size(EDGE_WIDTH, EDGE_WIDTH));
+        assert!(!is_edge_size(EDGE_HEIGHT, EDGE_HEIGHT));
+        assert!(!is_edge_size(1920, 1080));
     }
 
     /// No Edge attached: the kiosk lands on the primary, so the flag follows it.

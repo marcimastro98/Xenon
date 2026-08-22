@@ -32,8 +32,9 @@
 
   // 24 columns need roughly 22px each to stay legible, so the grid stops being
   // usable somewhere below ~530px. 620 covers every phone in portrait with room
-  // to spare while staying clear of the Xeneon Edge mounted vertically (720)
-  // and of tablets, whose owners can still turn it on by hand.
+  // to spare while staying clear of tablets, which get their own band below.
+  // A display mounted vertically is wider than this and is claimed by the
+  // TALL_DISPLAY_RATIO rule instead, on its shape rather than its width.
   const PHONE_MAX_W = 620;
 
   // The same phone on its side. Rotating was originally left on the grid on the
@@ -63,10 +64,27 @@
 
   // A DISPLAY MOUNTED VERTICALLY is not a tablet held in portrait, and the
   // difference matters: a Xeneon Edge stood on its end is 720x2560, inside the
-  // width band above, and its owner built a layout for exactly that shape.
-  // Restacking it into two columns would throw that away. The two are
-  // distinguishable by how extreme the ratio is — 2560/720 is 3.6, while every
-  // tablet in portrait sits near 1.4 — so anything this tall keeps the grid.
+  // width band above, and two columns of ~360px is not what that screen wants.
+  // The two are distinguishable by how extreme the ratio is — 2560/720 is 3.6,
+  // while every tablet in portrait sits near 1.4 — so anything this tall gets
+  // ONE column instead.
+  //
+  // This used to keep the grid, on the reasoning that the owner of a vertical
+  // mount had built a layout for that shape. That premise is false: there is one
+  // layout, shared by every surface the dashboard renders on, so a layout built
+  // for a vertical screen is the layout on the user's PC too. What the rule
+  // actually produced was the 24-column grid squeezed into 720px — the landscape
+  // layout rendered as a miniature of itself, which is the exact failure the
+  // stacked view exists to prevent. Reported by a user asking how to mount their
+  // screen vertically without the dashboard "scrunching up super tiny".
+  //
+  // Anything wider than TABLET_MAX_W is left alone before this rule is reached,
+  // and that boundary is deliberately the SAME one the grid-vs-stack question
+  // already uses rather than a second, taller-only threshold. Turning a screen
+  // does not change how wide its columns are: at 1200px the grid gives 50px
+  // columns whether the screen is 900 or 3600 tall, so the "squeezed" problem is
+  // identical in both and is already answered. What being tall adds is empty
+  // space below the tiles, which is not a reason to restack a layout that reads.
   const TALL_DISPLAY_RATIO = 2.5;
 
   // Height per grid row when stacked. The user's `gs-h` is respected as a
@@ -90,7 +108,9 @@
    *
    * One function rather than two booleans because the three answers are
    * mutually exclusive and their ORDER is the policy — a phone in landscape is
-   * inside the tablet width band and must never be answered with 'tablet'.
+   * inside the tablet width band and must never be answered with 'tablet', and
+   * a display mounted vertically must be judged on its width BEFORE its shape,
+   * or a tall screen wide enough for the grid would lose it.
    */
   function stackMode(input) {
     const o = input || {};
@@ -115,7 +135,7 @@
     const hasH = Number.isFinite(h) && h > 0;
     if (hasH && h <= PHONE_MAX_H && w <= PHONE_LANDSCAPE_MAX_W) return 'phone';
     if (w > TABLET_MAX_W) return 'off';
-    if (hasH && h / w >= TALL_DISPLAY_RATIO) return 'off';
+    if (hasH && h / w >= TALL_DISPLAY_RATIO) return 'phone';
     return 'tablet';
   }
 

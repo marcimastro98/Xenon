@@ -252,6 +252,48 @@ function checkCalendarDayRollover() {
   renderCalendar();       // recomputes `today`; also refreshes _calendarRenderedDay
 }
 
+// The "when" on an Upcoming chip is an ANSWER, not a timestamp. Two reasons it
+// is not the absolute date it used to be.
+//
+// The section is called Upcoming, so what a glance wants is how far off the
+// event is; "Aug 18, 08:00 AM" makes the reader do that subtraction themselves.
+// And the chip is a grid (`auto 1fr auto`, CalendarView.css) in which the name
+// is the ONLY flexible cell, so a nowrap absolute date took ~100px of a ~155px
+// chip and every title rendered as "K…" — the name, which is the information,
+// was the one thing being sacrificed (reported on Discord, Aug 2026).
+//
+// The unit comes from Intl.NumberFormat's narrow UNIT style, not from
+// RelativeTimeFormat: the latter's narrow form is only short in some locales
+// ("in 2d" in en-US, but "in 2 days" in en-GB and "in 2 Tagen" in German), which
+// would have left the same squeeze in place for most of the 11 languages. The
+// unit style is 2-6 characters everywhere, and needs no new strings.
+//
+// Pure and self-contained on purpose: test/calendar-upcoming.test.mjs evaluates
+// this very function out of the source.
+function upcomingWhenLabel(startsAt, now, locale) {
+  const start = new Date(startsAt);
+  if (Number.isNaN(start.getTime())) return '';
+  const ref = new Date(now);
+  // Calendar days apart, never 24h chunks: at 23:00 an event at 08:00 tomorrow
+  // is "1d" to a person and "9h" to a subtraction.
+  const midnight = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((midnight(start) - midnight(ref)) / 86400000);
+  // Today (or the minute just gone — the list keeps events up to 60s old): the
+  // time of day is the thing that matters, and it is just as short.
+  if (days <= 0) {
+    return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(start);
+  }
+  const [value, unit] = days < 14 ? [days, 'day']
+    : days < 60 ? [Math.round(days / 7), 'week']
+      : [Math.round(days / 30), 'month'];
+  try {
+    return new Intl.NumberFormat(locale, { style: 'unit', unit, unitDisplay: 'narrow' }).format(value);
+  } catch {
+    // An engine without the unit style throws RangeError rather than degrading.
+    return value + unit.charAt(0);
+  }
+}
+
 function _buildUpcomingInto(list) {
   const now = Date.now();
   const upcoming = allCalendarEvents()
@@ -266,20 +308,27 @@ function _buildUpcomingInto(list) {
     list.appendChild(empty);
     return;
   }
-  const fmt = new Intl.DateTimeFormat(t('locale'), { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const locale = t('locale');
+  const fmt = new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   upcoming.forEach(e => {
     const item = document.createElement('div');
     item.className = 'upcoming-item';
     item.style.cursor = 'pointer';
     item.onclick = () => openDayModal(String(e.startsAt).slice(0, 10));
+    const title = e.title || t('ph_title');
+    // The exact date is not lost, it moves where it costs no width: the tooltip
+    // carries the full name too, since the chip shows it with an ellipsis when
+    // several events share the row. The tap still opens the day, which is the
+    // touchscreen's answer to the same question.
+    item.title = title + '\n' + fmt.format(new Date(e.startsAt));
     const dot = document.createElement('span');
     dot.className = 'upcoming-dot';
     const name = document.createElement('span');
     name.className = 'upcoming-name';
-    name.textContent = e.title || t('ph_title');
+    name.textContent = title;
     const when = document.createElement('span');
     when.className = 'upcoming-when';
-    when.textContent = fmt.format(new Date(e.startsAt));
+    when.textContent = upcomingWhenLabel(e.startsAt, now, locale);
     item.appendChild(dot);
     item.appendChild(name);
     item.appendChild(when);

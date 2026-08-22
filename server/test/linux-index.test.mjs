@@ -116,6 +116,7 @@ test('the walk indexes a real tree, skips caches, and does not follow symlinks',
     assert.equal(s.on, true);
     assert.equal(s.ready, true);
     assert.equal(s.capped, false);
+    assert.deepEqual(s.cappedRoots, [], 'a complete walk leaves nothing out');
     idx.stop();
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
@@ -130,10 +131,37 @@ test('the entry cap stops the walk and is reported', { skip: NEEDS_POSIX }, asyn
     idx.setRoots([tmp]);
     await idx._rebuild();
     assert.ok(idx._entryCount() <= 10);
-    assert.equal((await idx.stats()).capped, true);
+    const s = await idx.stats();
+    assert.equal(s.capped, true);
+    assert.deepEqual(s.cappedRoots, [tmp], 'the truncated root is named');
     idx.stop();
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+// The walk is sequential, so a cap reached on an early root leaves every later
+// one essentially absent. "2,000,000 files" then reads as success while search
+// cannot see a whole drive — naming the roots is what makes that actionable.
+test('a root left out entirely by an earlier cap is named too', { skip: NEEDS_POSIX }, async () => {
+  const first = fs.mkdtempSync(join(os.tmpdir(), 'xenon-cap-a-'));
+  const second = fs.mkdtempSync(join(os.tmpdir(), 'xenon-cap-b-'));
+  try {
+    for (let i = 0; i < 40; i++) fs.writeFileSync(join(first, `f${i}.txt`), 'x');
+    fs.writeFileSync(join(second, 'never-indexed.txt'), 'x');
+    const idx = li.createLinuxIndex({ maxEntries: 10 });
+    idx.setRoots([first, second]);
+    await idx._rebuild();
+
+    const s = await idx.stats();
+    assert.equal(s.capped, true);
+    assert.deepEqual(s.cappedRoots, [first, second]);
+    assert.equal((await idx.query({ terms: ['never-indexed'] })).items.length, 0,
+      'the second root really is absent — the report is not cosmetic');
+    idx.stop();
+  } finally {
+    fs.rmSync(first, { recursive: true, force: true });
+    fs.rmSync(second, { recursive: true, force: true });
   }
 });
 

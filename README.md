@@ -149,7 +149,7 @@ If it matches the `Xenon-Setup-x64.exe` line in that release's `SHA256SUMS`, the
 
 1. **Browser blocked the download** — open your downloads list (`Ctrl+J`) and choose **Keep** / **Keep anyway** on the cancelled file.
 2. **Defender already quarantined it** — open **Windows Security → Virus & threat protection → Protection history**, find the Xenon entry, and choose **Actions → Restore**.
-3. **Add an exclusion** so it isn't re-quarantined mid-install — **Virus & threat protection → Manage settings → Exclusions → Add an exclusion → Folder**, and add `%LOCALAPPDATA%\Xenon`.
+3. **Add an exclusion** so it isn't re-quarantined mid-install, or later while it runs — **Virus & threat protection → Manage settings → Exclusions → Add an exclusion → Folder** — for both of the folders Xenon uses: `%LOCALAPPDATA%\Xenon` (the app) and `%LOCALAPPDATA%\Programs\Xenon` (the dashboard engine).
 4. **SmartScreen warning on launch** — click **More info**, then **Run anyway**.
 
 **Please also report it to Microsoft.** It's a two-minute form at [microsoft.com/wdsi/filesubmission](https://www.microsoft.com/en-us/wdsi/filesubmission) — pick *Home customer* and *Incorrectly detected as malware*. Reports from real users carry weight and get the detection pulled for everyone, usually within a few days.
@@ -165,6 +165,27 @@ Smart App Control blocks any app it does not already trust, and it decides that 
 That leaves two settings: **Evaluation**, where Windows watches how you use the PC and decides for itself whether to keep it on, and **Off**.
 
 > **Read this before you change it: turning Smart App Control off is a one-way door.** Windows will not let you switch it back on afterwards without resetting or reinstalling the PC. That is Microsoft's design and not something Xenon can work around. If you would rather keep it on, the honest answer today is that Xenon cannot run on that machine. Code signing is what will change that, and it is the same missing piece behind the Defender false positive above.
+
+#### If Xenon closes on its own while you are using it
+
+The window disappears mid-session with no message, no error and nothing left on screen. Two completely different things look identical from the outside, so the app now writes down which one it was.
+
+Open the **tray menu → Open crash log**. It is a plain text file — `%APPDATA%\com.marcimastro98.xenon\crash.log`, and `~/Library/Application Support/com.marcimastro98.xenon/` or `~/.config/com.marcimastro98.xenon/` off Windows — with one line per event:
+
+```
+[2026-08-18T19:27:04Z] v4.11.4 launched windows
+[2026-08-18T21:02:11Z] v4.11.4 exited clean shutdown
+```
+
+**A `launched` line followed by a `PANIC` line.** The app itself failed, and the line names the thread and the exact source line it failed on. Paste it into the [Discord](https://discord.gg/MBVrw9kZyg) or a [bug report](https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md) — with that one line the fix is usually quick. A failure inside one of the background watchers (the display watchdog, the cursor and focus guards) no longer closes the app either: it is recorded, the watcher restarts, and the window stays where it is.
+
+**A `launched` line with nothing after it at all.** Nothing inside the app decided to stop, so something outside it ended the process — on Windows, almost always your antivirus quarantining `xenon-native.exe` *while it is running*. Open **Windows Security → Virus & threat protection → Protection history** and look for an entry timed to the moment the window vanished. That is the same false positive as [the one above](#if-windows-blocks-the-download-or-flags-xenon-as-a-virus), just caught mid-session instead of during the download, and it is fixed the same way:
+
+1. **Restore** the quarantined file from Protection history.
+2. **Exclude both folders** — **Manage settings → Exclusions → Add an exclusion → Folder** — because Xenon lives in two of them: `%LOCALAPPDATA%\Xenon` (the app) and `%LOCALAPPDATA%\Programs\Xenon` (the dashboard engine). Excluding only the first leaves the half that runs all day unprotected from the same detection.
+3. **Report it** at [microsoft.com/wdsi/filesubmission](https://www.microsoft.com/en-us/wdsi/filesubmission) — *Home customer*, *Incorrectly detected as malware*. That is the only step that helps everyone else too.
+
+> Turning your antivirus off is not on that list on purpose: an exclusion for a file whose hash you checked is a decision about one program, and switching off real-time protection is a decision about every program you will run this week.
 
 #### macOS
 
@@ -396,6 +417,8 @@ iCUE's embedded WebView can reject some MP4 files even when they play fine in Ch
 - **Mic mute does nothing on first launch** — wait a second or two; the device cache populates right after startup.
 - **Defender quarantined Xenon, or the download was blocked** — a false positive: either an unsigned build with no reputation yet, or a generic signature reacting to an installer that downloads what it installs. See [If Windows blocks the download, or flags Xenon as a virus](#if-windows-blocks-the-download-or-flags-xenon-as-a-virus) for how to tell which, verify the file, and restore it.
 - **Nothing happens when you launch Xenon, and Defender never said anything** — on Windows 11 this is usually Smart App Control, which is separate from your antivirus and is not affected by an exclusion. See [If Xenon simply will not start: Smart App Control](#if-xenon-simply-will-not-start-smart-app-control).
+- **"Can not find script file …\server\open-dashboard.vbs" every time you sign in, but Xenon starts anyway** — that is the optional "open the dashboard in your browser at logon" task, pointing at a launcher that is no longer where it was: the install moved, or an antivirus quarantined the `.vbs`. Xenon now repoints or removes that task the next time the engine starts, so the box stops after one more sign-in. To clear it by hand: **Task Scheduler → Task Scheduler Library → Xenon Edge Dashboard → Delete**, or in PowerShell `Unregister-ScheduledTask -TaskName 'Xenon Edge Dashboard' -Confirm:$false`. If the script was quarantined, **Protection history** has it, and restoring it plus the folder exclusions above brings the feature back.
+- **Xenon closes on its own after a while** — the tray menu's **Open crash log** tells you whether the app stopped itself (a `PANIC` line, worth reporting) or something outside it killed the process, which on Windows is usually antivirus quarantining it mid-session. See [If Xenon closes on its own while you are using it](#if-xenon-closes-on-its-own-while-you-are-using-it).
 
 ---
 

@@ -211,19 +211,24 @@ function createLinuxIndex(o = {}) {
   let building = false;
   let ready = false;
   let capped = false;
+  let cappedRoots = [];    // the roots the cap left incomplete — swapped in with `entries`
   let stats_ = { files: 0, dirs: 0, bytes: 0 };
   let scanToken = 0;       // invalidates a walk whose roots changed under it
   let scanning = false;    // a walk is in flight — distinct from `building`, which is what a query reports
   let rescanTimer = null;
   let stopped = false;
 
+  // false = this walk did not see the whole root (the entry cap stopped it, or
+  // the scan was superseded). The caller records which roots those were, so the
+  // UI can name the folder search cannot see rather than only saying that some
+  // limit was reached.
   async function walkRoot(root, token, acc) {
     // An explicit stack, not recursion: a deep tree would otherwise be bounded
     // by the JS call stack rather than by the entry cap, and blow up on the
     // machines with the most files — exactly the ones this has to survive.
     const stack = [root];
     while (stack.length) {
-      if (token !== scanToken || stopped) return;
+      if (token !== scanToken || stopped) return false;
       const dir = stack.pop();
       if (isSkippedPath(dir)) continue;
       let dirents;
@@ -233,7 +238,7 @@ function createLinuxIndex(o = {}) {
         continue; // unreadable (permissions, races) — skip, never fail the walk
       }
       for (const de of dirents) {
-        if (acc.length >= maxEntries) { capped = true; return; }
+        if (acc.length >= maxEntries) { capped = true; return false; }
         const abs = path.join(dir, de.name);
         // Symlinks are recorded but never followed: following them is how a
         // walk ends up in a cycle, and how a link into / turns a home-directory
@@ -251,6 +256,7 @@ function createLinuxIndex(o = {}) {
         if (isDir) { stats_.dirs++; stack.push(abs); } else { stats_.files++; stats_.bytes += size; }
       }
     }
+    return true;
   }
 
   async function rebuild() {
@@ -260,14 +266,21 @@ function createLinuxIndex(o = {}) {
     capped = false;
     stats_ = { files: 0, dirs: 0, bytes: 0 };
     const acc = [];
+    // Collected locally and published with `entries` below, for the same reason
+    // that list is: a superseded walk must not leave its half-finished verdict
+    // behind for a query to read.
+    const incomplete = [];
     try {
       for (const r of roots) {
         if (token !== scanToken || stopped) return;
         try {
           const st = await fsp.stat(r);
           if (!st.isDirectory()) continue;
-        } catch { continue; }
-        await walkRoot(r, token, acc);
+        } catch { incomplete.push(r); continue; }
+        // Past the cap the remaining roots are still visited, but the first
+        // batch of entries is already refused — so they are as absent from the
+        // index as the root that was cut short, and are named the same way.
+        if (!(await walkRoot(r, token, acc))) incomplete.push(r);
       }
       if (token !== scanToken || stopped) return;
       // Swapped in one assignment, never mutated in place: a query that runs
@@ -275,6 +288,7 @@ function createLinuxIndex(o = {}) {
       // half-built list that would silently return "no results" for a file that
       // is there.
       entries = acc;
+      cappedRoots = incomplete;
       building = false;
       ready = true;
     } finally {
@@ -349,6 +363,7 @@ function createLinuxIndex(o = {}) {
       ramMB: Math.round((entries.length * 220) / (1024 * 1024)),
       roots: roots.slice(),
       capped,
+      cappedRoots: cappedRoots.slice(),
       progress: building ? { files: stats_.files, dirs: stats_.dirs } : null,
     };
   }
