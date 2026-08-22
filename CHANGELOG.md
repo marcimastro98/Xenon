@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-## [v4.11.5] - 21-08-2026
+## [v4.11.5] - 22-08-2026
 ### ✨ Added
 - **You can choose which AI model Xenon uses, and it keeps itself current.** Every provider now has a model list in Settings under Xenon AI, filled from your own account, so it shows what that provider offers today rather than a list written when Xenon was released. Gemini had no picker at all until now, and its four models (chat, advanced reasoning, voice, Live Voice) were fixed in the code.
 
