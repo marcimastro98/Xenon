@@ -19,6 +19,11 @@ pub fn build(app: &App) -> tauri::Result<()> {
     let show = MenuItem::with_id(app, "show", "Show Xenon", true, None::<&str>)?;
     let hide = MenuItem::with_id(app, "hide", "Hide", true, None::<&str>)?;
     let restart = MenuItem::with_id(app, "restart", "Restart", true, None::<&str>)?;
+    // Where the shell writes down what happened to it (see crash_log.rs). It is
+    // in the tray because the file's entire purpose is to be found and pasted
+    // into a bug report, and "open %APPDATA%\com.marcimastro98.xenon" is the
+    // kind of instruction that gets a report abandoned instead of answered.
+    let crash_log = MenuItem::with_id(app, "crash-log", "Open crash log", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Exit", true, None::<&str>)?;
 
     let window = app.get_webview_window("main");
@@ -129,6 +134,7 @@ pub fn build(app: &App) -> tauri::Result<()> {
         menu.append(&gpu_pin)?;
     }
     menu.append(&PredefinedMenuItem::separator(app)?)?;
+    menu.append(&crash_log)?;
     menu.append(&restart)?;
     menu.append(&quit)?;
 
@@ -189,10 +195,28 @@ pub fn build(app: &App) -> tauri::Result<()> {
                 // hiding it under the menu that was just used reads as a crash.
                 // It takes effect at the next launch, as it always has.
                 "place-phone" => monitor::set_placement(app, Placement::Phone, false),
+                // Opened with whatever handles a .log file (Notepad on Windows);
+                // if nothing does, show it selected in the file manager instead
+                // so the menu item is never a no-op.
+                "crash-log" => {
+                    use tauri_plugin_opener::OpenerExt;
+                    if let Some(path) = crate::crash_log::path() {
+                        let opened = app
+                            .opener()
+                            .open_path(path.to_string_lossy(), None::<&str>)
+                            .is_ok();
+                        if !opened {
+                            let _ = app.opener().reveal_item_in_dir(&path);
+                        }
+                    }
+                }
                 // The backend is stopped first: this handler runs on the main
                 // thread, where restart() execs WITHOUT emitting RunEvent::Exit,
-                // so the run loop's own teardown never gets to run.
+                // so the run loop's own teardown never gets to run — which is
+                // also why the crash diary has to close its own session here,
+                // rather than leaving a launch that appears never to have ended.
                 "restart" => {
+                    crate::crash_log::session_end("restart from the tray");
                     crate::stop_owned_backend();
                     app.restart()
                 }

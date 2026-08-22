@@ -1396,6 +1396,25 @@
         </label>
       </div>
 
+      <!-- Stacked vs grid layout. Stored per DEVICE in localStorage by
+           js/phone-view.js, never in hubSettings: which chrome suits THIS screen
+           is not a property of the user's configuration, and the blob is mirrored
+           to every surface. -->
+      <div class="settings-group settings-behavior-group" data-settings-cat="general">
+        <div class="settings-group-head">
+          <span data-i18n="settings_stack">Disposizione dei riquadri</span>
+          <span class="settings-hint" data-i18n="settings_stack_hint">solo su questo dispositivo</span>
+        </div>
+        <div class="settings-row full">
+          <div class="settings-segmented" role="group" aria-label="Disposizione dei riquadri">
+            <button class="settings-stack-mode settings-segment-btn" type="button" data-stack-mode="auto" onclick="updateStackMode('auto')" aria-pressed="true" data-i18n="settings_stack_auto">Automatica</button>
+            <button class="settings-stack-mode settings-segment-btn" type="button" data-stack-mode="on" onclick="updateStackMode('on')" aria-pressed="false" data-i18n="settings_stack_on">In colonna</button>
+            <button class="settings-stack-mode settings-segment-btn" type="button" data-stack-mode="off" onclick="updateStackMode('off')" aria-pressed="false" data-i18n="settings_stack_off">A griglia</button>
+          </div>
+          <span class="settings-note" data-i18n="settings_stack_note">In colonna i riquadri si impilano a tutta larghezza, uno sotto l'altro, nello stesso ordine in cui li leggi sulla griglia. Serve a uno schermo montato in verticale e ai telefoni. La scelta resta su questo dispositivo e non viene sincronizzata con gli altri.</span>
+        </div>
+      </div>
+
       <!-- Native-app only: revealed by syncNativeZoomControl() inside the Tauri kiosk. -->
       <div class="settings-group settings-behavior-group" data-settings-cat="general" id="settings-native-zoom-row" hidden>
         <div class="settings-group-head">
@@ -3002,6 +3021,31 @@
             <p class="settings-note settings-safenote" data-i18n="settings_share_note">All'importazione vedi sempre cosa contiene prima di confermare. Tema, pagina e Deck cambiano solo aspetto e disposizione; widget e pacchetti installano widget della community in sandbox, che restano nascosti finché non ne approvi i permessi. Importa solo da persone di cui ti fidi. E puoi esportare solo le tue creazioni: ciò che hai installato da altri non è ridistribuibile.</p>
           </section>
 
+          <!-- The supporter pass lives here because this is where a user looks
+               for it: before this it was only ever visible inside the import
+               dialog of a protected drop, so there was nowhere to check whether
+               this PC held one, and nowhere to take it off a shared machine. -->
+          <section class="settings-subcard">
+            <div class="settings-subcard-head">
+              <span class="settings-subcard-ico settings-subcard-ico--share" aria-hidden="true">🎟</span>
+              <span class="settings-subcard-titles">
+                <b data-i18n="settings_supporter_title">Codice supporter</b>
+                <span class="settings-hint" data-i18n="settings_supporter_lead">Tienilo qui e non dovrai più incollarlo: i drop riservati ai supporter si sbloccano con un tocco. Resta su questo PC e non viene mai inviato agli altri tuoi schermi.</span>
+              </span>
+            </div>
+            <div class="settings-supporter-row">
+              <input type="text" class="settings-supporter-field" id="settings-supporter-code"
+                     autocomplete="off" spellcheck="false" placeholder="XS-XXXX-XXXX-XXXX"
+                     data-i18n-placeholder="preset_redeem_placeholder">
+              <button type="button" class="settings-btn primary" id="settings-supporter-save"
+                      onclick="saveSupporterCode()" data-i18n="settings_supporter_save">Salva</button>
+              <button type="button" class="settings-btn" id="settings-supporter-forget"
+                      onclick="forgetSupporterCode()" data-i18n="settings_supporter_forget" hidden>Rimuovi</button>
+            </div>
+            <p class="settings-note" id="settings-supporter-state" data-i18n="settings_supporter_none">Nessun codice salvato su questo PC.</p>
+            <p class="settings-note settings-safenote" data-i18n="settings_supporter_note">Il codice viene controllato quando sblocchi un drop, non qui: se lo sbagli te ne accorgi al primo sblocco. Vale finché il tuo periodo da supporter è attivo, funziona su un massimo di 3 dispositivi, e quello che hai già sbloccato resta tuo per sempre.</p>
+          </section>
+
           <section class="settings-subcard">
             <div class="settings-subcard-head">
               <span class="settings-subcard-ico settings-subcard-ico--create" aria-hidden="true">🛠</span>
@@ -3184,6 +3228,40 @@
             <button type="button" class="settings-btn" id="settings-gemini-reset" onclick="resetAiKey()" data-i18n="settings_key_reset" hidden>Rimuovi chiave</button>
           </label>
 
+          <!-- Gemini models, one per role. Filled live from the models API (see
+               AI_MODEL_CONTROLS in js/settings.js): "Auto" follows the newest
+               model of a family, a concrete id is a pin. The line under each
+               dropdown says which id Auto currently resolves to. -->
+          <div class="settings-subpanel full" id="settings-gemini-models" hidden>
+            <label class="settings-row full">
+              <span class="settings-label-line"><span data-i18n="settings_gemini_model">Modello chat</span><span class="settings-hint" data-i18n="settings_model_live_hint">i più recenti dal tuo account</span></span>
+              <select class="settings-text-input" id="settings-gemini-model" data-custom-select data-cs-fixed onchange="onAiModelSelect('geminiModel', this.value)"></select>
+              <input class="settings-text-input" id="settings-gemini-model-custom" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="gemini-3.7-flash" oninput="updateAiModelChoice('geminiModel', this.value)" hidden>
+              <span class="settings-hint" id="settings-gemini-model-used" hidden></span>
+            </label>
+            <label class="settings-row full">
+              <span class="settings-label-line"><span data-i18n="settings_gemini_model_pro">Modello ragionamento avanzato</span></span>
+              <select class="settings-text-input" id="settings-gemini-model-pro" data-custom-select data-cs-fixed onchange="onAiModelSelect('geminiModelPro', this.value)"></select>
+              <input class="settings-text-input" id="settings-gemini-model-pro-custom" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="gemini-3.1-pro-preview" oninput="updateAiModelChoice('geminiModelPro', this.value)" hidden>
+              <span class="settings-hint" id="settings-gemini-model-pro-used" hidden></span>
+            </label>
+            <details class="settings-advanced">
+              <summary data-i18n="settings_model_voice_adv">Modelli vocali</summary>
+              <label class="settings-row full">
+                <span class="settings-label-line"><span data-i18n="settings_gemini_model_tts">Modello voce (TTS)</span></span>
+                <select class="settings-text-input" id="settings-gemini-model-tts" data-custom-select data-cs-fixed onchange="onAiModelSelect('geminiModelTts', this.value)"></select>
+                <input class="settings-text-input" id="settings-gemini-model-tts-custom" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="gemini-3.1-flash-tts-preview" oninput="updateAiModelChoice('geminiModelTts', this.value)" hidden>
+                <span class="settings-hint" id="settings-gemini-model-tts-used" hidden></span>
+              </label>
+              <label class="settings-row full">
+                <span class="settings-label-line"><span data-i18n="settings_gemini_model_live">Modello Voce Live</span></span>
+                <select class="settings-text-input" id="settings-gemini-model-live" data-custom-select data-cs-fixed onchange="onAiModelSelect('geminiModelLive', this.value)"></select>
+                <input class="settings-text-input" id="settings-gemini-model-live-custom" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="gemini-3.1-flash-live-preview" oninput="updateAiModelChoice('geminiModelLive', this.value)" hidden>
+                <span class="settings-hint" id="settings-gemini-model-live-used" hidden></span>
+              </label>
+            </details>
+          </div>
+
           <!-- ChatGPT (OpenAI): key + model. The key is server-only (never shown
                back); once saved the field shows a "saved" placeholder. -->
           <div class="settings-subpanel full" id="settings-openai-panel" hidden>
@@ -3196,7 +3274,26 @@
               <span class="settings-label-line"><span data-i18n="settings_openai_model">Modello</span><span class="settings-hint" data-i18n="settings_model_live_hint">i più recenti dal tuo account</span></span>
               <select class="settings-text-input" id="settings-openai-model" data-custom-select data-cs-fixed onchange="onOpenaiModelSelect(this.value)"></select>
               <input class="settings-text-input" id="settings-openai-model-custom" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="gpt-4o" oninput="updateOpenaiModel(this.value)" hidden>
+              <span class="settings-hint" id="settings-openai-model-used" hidden></span>
             </label>
+            <!-- Speech models. Advanced because most users never change them,
+                 but selectable because whisper-1/tts-1 used to be hardcoded and
+                 an OpenAI retirement would have taken the voice with it. -->
+            <details class="settings-advanced">
+              <summary data-i18n="settings_model_voice_adv">Modelli vocali</summary>
+              <label class="settings-row full">
+                <span class="settings-label-line"><span data-i18n="settings_openai_stt_model">Modello trascrizione (STT)</span></span>
+                <select class="settings-text-input" id="settings-openai-stt-model" data-custom-select data-cs-fixed onchange="onAiModelSelect('openaiSttModel', this.value)"></select>
+                <input class="settings-text-input" id="settings-openai-stt-model-custom" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="whisper-1" oninput="updateAiModelChoice('openaiSttModel', this.value)" hidden>
+                <span class="settings-hint" id="settings-openai-stt-model-used" hidden></span>
+              </label>
+              <label class="settings-row full">
+                <span class="settings-label-line"><span data-i18n="settings_openai_tts_model">Modello voce (TTS)</span></span>
+                <select class="settings-text-input" id="settings-openai-tts-model" data-custom-select data-cs-fixed onchange="onAiModelSelect('openaiTtsModel', this.value)"></select>
+                <input class="settings-text-input" id="settings-openai-tts-model-custom" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="tts-1" oninput="updateAiModelChoice('openaiTtsModel', this.value)" hidden>
+                <span class="settings-hint" id="settings-openai-tts-model-used" hidden></span>
+              </label>
+            </details>
           </div>
 
           <!-- Claude (Anthropic): key + model. Server-only key, same pattern. -->
@@ -3210,6 +3307,7 @@
               <span class="settings-label-line"><span data-i18n="settings_anthropic_model">Modello</span><span class="settings-hint" data-i18n="settings_model_live_hint">i più recenti dal tuo account</span></span>
               <select class="settings-text-input" id="settings-anthropic-model" data-custom-select data-cs-fixed onchange="onAnthropicModelSelect(this.value)"></select>
               <input class="settings-text-input" id="settings-anthropic-model-custom" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="claude-sonnet-5" oninput="updateAnthropicModel(this.value)" hidden>
+              <span class="settings-hint" id="settings-anthropic-model-used" hidden></span>
             </label>
           </div>
           <label class="settings-toggle-row">

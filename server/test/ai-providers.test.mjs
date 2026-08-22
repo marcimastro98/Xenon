@@ -87,13 +87,22 @@ test('geminiHistoryToAnthropic merges consecutive same-role turns (Anthropic nee
   assert.equal(msgs[1].role, 'assistant');
 });
 
-test('provider model sanitizers accept valid tags and fall back to a default', () => {
+test('provider model sanitizers accept valid tags and fall back to auto', () => {
+  // The fallback was each module's DEFAULT_CHAT_MODEL until these sanitizers
+  // started validating more than one field per provider. Then it was actively
+  // wrong: an absent openaiSttModel came back as the CHAT model, the client
+  // stored that as a deliberate pin, and Settings showed `gpt-4o` in both the
+  // transcription and the speech rows. `auto` is the only fallback that is
+  // right for every role, because it is resolved per role (ai-models.js).
   assert.equal(openai.sanitizeModel('gpt-4o'), 'gpt-4o');
   assert.equal(openai.sanitizeModel('gpt-4.1-mini'), 'gpt-4.1-mini');
-  assert.equal(openai.sanitizeModel('   '), openai.DEFAULT_CHAT_MODEL);
-  assert.equal(openai.sanitizeModel('bad tag!'), openai.DEFAULT_CHAT_MODEL);
+  assert.equal(openai.sanitizeModel('   '), 'auto');
+  assert.equal(openai.sanitizeModel('bad tag!'), 'auto');
   assert.equal(anthropic.sanitizeModel('claude-opus-4-8'), 'claude-opus-4-8');
-  assert.equal(anthropic.sanitizeModel(''), anthropic.DEFAULT_CHAT_MODEL);
+  assert.equal(anthropic.sanitizeModel(''), 'auto');
+  // The defaults themselves stay: they are what `auto` resolves to offline.
+  assert.equal(openai.DEFAULTS.chat, openai.DEFAULT_CHAT_MODEL);
+  assert.equal(anthropic.DEFAULTS.chat, anthropic.DEFAULT_CHAT_MODEL);
 });
 
 // ── geminiApiKey became server-only in v4.11.0 ───────────────────────────────

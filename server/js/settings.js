@@ -442,10 +442,18 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // never holds them. The model tags are user-overridable.
   openaiApiKey: '',
   openaiApiKeySet: false,
-  openaiModel: 'gpt-4o',
+  // 'auto' / 'auto:<family>' = follow the provider's newest model of that family
+  // (resolved server-side in ai-models.js); a concrete id is a pin.
+  openaiModel: 'auto',
+  openaiSttModel: 'auto',
+  openaiTtsModel: 'auto',
   anthropicApiKey: '',
   anthropicApiKeySet: false,
-  anthropicModel: 'claude-sonnet-5',
+  anthropicModel: 'auto',
+  geminiModel: 'auto',
+  geminiModelPro: 'auto',
+  geminiModelTts: 'auto',
+  geminiModelLive: 'auto',
   hardwareScan: null,   // server-generated hardware probe; mirrored back as-is
   aiTtsEnabled: true,
   aiMicSensitivity: 50, // 0..100 — wake-word mic sensitivity slider (lower = stricter, fewer false positives)
@@ -1533,6 +1541,24 @@ function normalizeFanLabels(value) {
   return out;
 }
 
+// A stored AI model choice: either `auto` / `auto:<family>` (follow the
+// provider's newest model of that family, resolved server-side by ai-models.js)
+// or a concrete model id the user pinned. Mirrors sanitizeModel() in the three
+// provider modules — the colon in the sentinel is why the id pattern alone is
+// not enough, and getting that wrong silently un-pins every auto setting.
+//
+// This is the FIRST of the five copies a value meets: it is what the Custom…
+// field writes. So the case fold matters most here — `AUTO` stored as a pin from
+// this function is what the server then dutifully sends to the provider. The four
+// others repeat the rule; test/ai-model-sentinel-sync.test.mjs holds them level.
+function normalizeModelChoice(value) {
+  const v = typeof value === 'string' ? value.trim() : '';
+  const low = v.toLowerCase();
+  if (/^auto(?::[a-z0-9.-]{1,24})?$/.test(low)) return low;
+  if (v && v.length <= 60 && /^[a-z0-9._-]+$/i.test(v)) return v;
+  return 'auto';
+}
+
 function normalizeSettings(source) {
   const value = source && typeof source === 'object' ? source : {};
   // One-time migration: if the saved layout predates the current version,
@@ -1627,12 +1653,19 @@ function normalizeSettings(source) {
     // *Set booleans carry "a key is saved" so the UI and the ready-gate know.
     openaiApiKey: String(value.openaiApiKey || '').trim().slice(0, 200),
     openaiApiKeySet: value.openaiApiKeySet === true || !!String(value.openaiApiKey || '').trim(),
-    openaiModel: (typeof value.openaiModel === 'string' && value.openaiModel.trim() && value.openaiModel.length <= 60)
-      ? value.openaiModel.trim() : 'gpt-4o',
+    openaiModel: normalizeModelChoice(value.openaiModel),
+    openaiSttModel: normalizeModelChoice(value.openaiSttModel),
+    openaiTtsModel: normalizeModelChoice(value.openaiTtsModel),
     anthropicApiKey: String(value.anthropicApiKey || '').trim().slice(0, 200),
     anthropicApiKeySet: value.anthropicApiKeySet === true || !!String(value.anthropicApiKey || '').trim(),
-    anthropicModel: (typeof value.anthropicModel === 'string' && value.anthropicModel.trim() && value.anthropicModel.length <= 60)
-      ? value.anthropicModel.trim() : 'claude-sonnet-5',
+    anthropicModel: normalizeModelChoice(value.anthropicModel),
+    // Gemini, one per role. Same shape as the two above: `auto` / `auto:<family>`
+    // follows the provider's releases, a concrete id is a pin. The server
+    // resolves them (ai-models.js); the client only stores the choice.
+    geminiModel: normalizeModelChoice(value.geminiModel),
+    geminiModelPro: normalizeModelChoice(value.geminiModelPro),
+    geminiModelTts: normalizeModelChoice(value.geminiModelTts),
+    geminiModelLive: normalizeModelChoice(value.geminiModelLive),
     ollamaUrl: (typeof value.ollamaUrl === 'string'
       && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(value.ollamaUrl))
       ? value.ollamaUrl.replace(/\/+$/, '') : 'http://localhost:11434',
@@ -4655,6 +4688,7 @@ function syncSettingsControls() {
   syncSwipeHomeControl();
   syncHideRdpControl();
   syncNativeZoomControl();
+  syncStackModeControls();
   syncBrowserAdblockControl();
   syncWeatherSettingsControls();
   syncStocksTickerControls();
@@ -4981,7 +5015,79 @@ function settingsSetCategory(cat) {
   // while the ticker still streams news — mount the same editor here, and let
   // it go when another pane is showing so it stops taking repaints.
   if (window.NewsWidget) NewsWidget.mountFeedManager(cat === 'stocks' ? $('settings-news-feeds') : null);
+  // Read when the pane opens rather than on every settings render: it is one
+  // request, and the answer only changes when this same pane or an unlock
+  // changes it.
+  if (cat === 'sdk') syncSupporterCodeBox();
 }
+
+// ── Supporter pass ───────────────────────────────────────────────────────────
+// The code itself NEVER comes back from the server: it is a server-only secret
+// (see the preserve-on-save + redact-on-wire invariant), and this settings blob
+// is mirrored into every surface's localStorage and travels to every paired
+// phone. All this box ever learns is whether the PC holds one.
+async function syncSupporterCodeBox() {
+  const state = $('settings-supporter-state');
+  const forget = $('settings-supporter-forget');
+  const field = $('settings-supporter-code');
+  if (!state || !forget || !field) return;
+  let saved = false;
+  try {
+    const res = await fetch('/api/community/supporter', { cache: 'no-store' });
+    const out = await res.json();
+    saved = !!(out && out.saved);
+  } catch { /* offline: the box still works, it just cannot report */ }
+  state.textContent = saved
+    ? t('settings_supporter_saved')
+    : t('settings_supporter_none');
+  forget.hidden = !saved;
+  // Never repopulate the field: there is nothing to put in it, and a masked
+  // placeholder in a text box invites the user to "fix" a value that is fine.
+  if (saved) field.value = '';
+}
+
+async function saveSupporterCode() {
+  const field = $('settings-supporter-code');
+  if (!field) return;
+  const code = String(field.value || '').trim();
+  if (!code) { field.focus(); return; }
+  const btn = $('settings-supporter-save');
+  if (btn) btn.disabled = true;
+  let out = null;
+  try {
+    const res = await fetch('/api/community/supporter/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    out = await res.json();
+  } catch { out = null; }
+  if (btn) btn.disabled = false;
+  if (out && out.ok) {
+    field.value = '';
+    setSettingsStatus('settings_supporter_stored', 'ok');
+  } else if (out && out.error === 'bad_code') {
+    // Shape, not validity: the hub is the only thing that can say whether a
+    // well-formed code works, and it answers that against a specific drop.
+    setSettingsStatus('settings_supporter_bad', 'error');
+    field.focus();
+  } else {
+    setSettingsStatus('settings_supporter_failed', 'error');
+  }
+  syncSupporterCodeBox();
+}
+
+async function forgetSupporterCode() {
+  const btn = $('settings-supporter-forget');
+  if (btn) btn.disabled = true;
+  try { await fetch('/api/community/supporter/forget', { method: 'POST' }); }
+  catch { /* offline: nothing changed, the state line below says so */ }
+  if (btn) btn.disabled = false;
+  setSettingsStatus('settings_supporter_removed', 'ok');
+  syncSupporterCodeBox();
+}
+window.saveSupporterCode = saveSupporterCode;
+window.forgetSupporterCode = forgetSupporterCode;
 
 // On a narrow screen the category sidebar collapses to the current category
 // alone (see the max-width:720px block in SettingsModal.css). The rule is one
@@ -5088,11 +5194,23 @@ function renderSearchDiskSettings() {
           idxStatus.hidden = false;
           return;
         }
+        // The entry cap, said where the roots are chosen. The Disk widget has
+        // always shown it; this pane, the one place the user can DO something
+        // about it, showed "Living index active: 2,000,000 files" — which reads
+        // as success while search can no longer see a whole drive. Reported
+        // during the build too: past the cap the walk has stopped adding, so
+        // waiting for `ready` would keep saying "learning your disk" over an
+        // index that has finished growing.
+        const roots = (st.cappedRoots || []).filter(Boolean);
+        const capNote = !st.capped ? '' : ' '
+          + t('settings_search_idx_capped', 'Limite raggiunto: Xenon ha smesso di aggiungere file, quindi la ricerca non li vede tutti. Togli una cartella dall’elenco qui sopra, oppure indica cartelle precise invece di interi dischi.')
+          + (roots.length ? ' ' + t('settings_search_idx_capped_roots', 'Rimasto fuori:') + ' ' + roots.join(', ') : '');
         idxStatus.textContent = !st.on || !st.helper
           ? t('settings_search_idx_helper', 'L’indice vivo non è disponibile: aggiungi una cartella qui sopra, oppure rilancia l’installer di Xenon.')
           : st.building
-            ? t('settings_search_idx_building', 'Sto imparando il disco…') + ' ' + ((st.progress && st.progress.files) || st.files || 0).toLocaleString() + ' file'
-            : t('settings_search_idx_on', 'Indice vivo attivo:') + ' ' + (st.files || 0).toLocaleString() + ' file · ~' + (st.ramMB || 0) + ' MB RAM';
+            ? t('settings_search_idx_building', 'Sto imparando il disco…') + ' ' + ((st.progress && st.progress.files) || st.files || 0).toLocaleString() + ' file' + capNote
+            : t('settings_search_idx_on', 'Indice vivo attivo:') + ' ' + (st.files || 0).toLocaleString() + ' file · ~' + (st.ramMB || 0) + ' MB RAM' + capNote;
+        idxStatus.classList.toggle('settings-note-warn', !!capNote);
         idxStatus.hidden = !idxStatus.textContent;
       }).catch(() => { idxStatus.hidden = true; });
     }
@@ -7816,6 +7934,39 @@ function updateNativeZoom(value) {
   syncNativeZoomControl();
 }
 
+// ── Stacked vs grid layout ──────────────────────────────────────────────────
+// The dashboard stacks into one full-width column on a screen too narrow for the
+// 24-column grid. `js/phone-view.js` decides that from the viewport; this is the
+// override, and it is the only user-facing way to reach a decision that until now
+// could only be measured.
+//
+// It is deliberately NOT a hubSettings key. The value answers "what suits THIS
+// screen", which differs between the Edge, a phone and a vertically mounted
+// monitor looking at the same dashboard, and hubSettings is mirrored to every
+// surface — one of them would always be wrong. PhoneView owns the storage
+// (localStorage, per device) and this reads it back rather than keeping a copy.
+function syncStackModeControls() {
+  const pref = (window.PhoneView && typeof window.PhoneView.getPreference === 'function')
+    ? window.PhoneView.getPreference()
+    : 'auto';
+  const mode = ['auto', 'on', 'off'].includes(pref) ? pref : 'auto';
+  document.querySelectorAll('.settings-stack-mode[data-stack-mode]').forEach(btn => {
+    const active = btn.dataset.stackMode === mode;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
+}
+
+function updateStackMode(mode) {
+  if (!['auto', 'on', 'off'].includes(mode)) return;
+  if (!window.PhoneView || typeof window.PhoneView.setPreference !== 'function') return;
+  // setPreference re-runs the measurement, so the layout changes under the panel
+  // as the button is pressed. Nothing is posted to the server on purpose.
+  window.PhoneView.setPreference(mode);
+  syncStackModeControls();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
 function updateAutoOpenBrowser(checked) {
   const enabled = checked === true;
   hubSettings = normalizeSettings({ ...hubSettings, autoOpenBrowser: enabled });
@@ -7829,6 +7980,16 @@ function updateAutoOpenBrowser(checked) {
     body: JSON.stringify({ enabled }),
   }).then(r => r.json()).then(data => {
     if (data && data.supported === false) { _autoOpenSupported = false; syncAutoOpenBrowserControl(); return; }
+    // The server refused because open-dashboard.vbs is not on disk — an antivirus
+    // quarantine, or an install that never finished. Registering the task anyway
+    // is what produces the "Can not find script file" box at every logon, so the
+    // row goes away here exactly as it does where the feature is unsupported.
+    if (data && data.reason === 'launcher_missing') {
+      _autoOpenSupported = false;
+      syncAutoOpenBrowserControl();
+      setSettingsStatus('settings_error', 'error');
+      return;
+    }
     if (!data || data.ok !== true) { setSettingsStatus('settings_error', 'error'); return; }
     setSettingsStatus('settings_saved', 'ok');
   }).catch(() => setSettingsStatus('settings_error', 'error'));
@@ -7892,6 +8053,10 @@ async function reconcileAutoOpenBrowser() {
     if (!res.ok) { syncAutoOpenBrowserControl(); return; } // old server / not yet restarted
     const data = await res.json().catch(() => ({}));
     if (!data || data.supported === false) { _autoOpenSupported = false; syncAutoOpenBrowserControl(); return; }
+    // Same as above, on the path that runs on every page load: with no launcher
+    // on disk there is nothing to reconcile towards, and re-posting the request
+    // each time would only keep asking for a task that cannot work.
+    if (data.reason === 'launcher_missing') { _autoOpenSupported = false; syncAutoOpenBrowserControl(); return; }
     _autoOpenSupported = true;
     const want = hubSettings.autoOpenBrowser !== false;
     if (data.enabled !== want) {
@@ -9282,6 +9447,12 @@ let _aiProviderBound = false;
 // aiLocalLoadModels(). Drives the custom-field autocomplete + download state.
 let _ollamaInstalledModels = [];
 
+// Models the site's curated list offers for download — [{tag,label,sizeGB,…}].
+// Kept separate from the installed list: one says what you have, the other what
+// you could have. Empty until the fetch lands, and empty is a valid state (the
+// four preset tiers and the custom field work exactly as before without it).
+let _ollamaCatalog = [];
+
 // Fetch the installed Ollama models and populate the autocomplete datalist.
 async function aiLocalLoadModels() {
   try {
@@ -9301,6 +9472,24 @@ async function aiLocalLoadModels() {
   }
   _populateInstalledModelOptions();
   _aiUpdateModelDownloadState();
+
+  // The download catalog is fetched AFTER the list above is on screen, and never
+  // awaited in front of it. It crosses the internet (the file lives on the site
+  // so it can carry a model published after this release), and putting that in
+  // front of the local list meant the models you already have appeared only once
+  // a request to another machine had finished — on the first open after a
+  // restart, long enough to open the dropdown and find them missing. An empty
+  // catalog is a normal state, not an error: the list simply stays as it was.
+  try {
+    const cat = await (await fetch('/api/ai/models?provider=ollama')).json();
+    _ollamaCatalog = Array.isArray(cat && cat.catalog) ? cat.catalog : [];
+  } catch {
+    _ollamaCatalog = [];
+  }
+  if (_ollamaCatalog.length) {
+    _populateCatalogModelOptions();
+    _reflectModelSelection();
+  }
 }
 
 // Surface the actually-installed Ollama models as selectable options in the model
@@ -9327,7 +9516,35 @@ function _populateInstalledModelOptions() {
     const customOpt = modelSel.querySelector('option[value="__custom__"]');
     modelSel.insertBefore(group, customOpt);
   }
+  _populateCatalogModelOptions();
   _reflectModelSelection();
+}
+
+// Models from the site's curated list that are NOT installed yet, so the
+// dropdown can offer a model published after this release instead of only the
+// four tiers written into the app. Selecting one leaves it un-installed; the
+// Download button below the list is what fetches it, and the hardware gate on
+// the server still has the last word on whether it may.
+function _populateCatalogModelOptions() {
+  const modelSel = $('ai-model-select');
+  if (!modelSel) return;
+  const prev = $('ai-model-catalog-group');
+  if (prev) prev.remove();
+  const already = new Set([...AI_KNOWN_MODELS, ..._ollamaInstalledModels]);
+  const extras = _ollamaCatalog.filter(m => m && m.tag && !already.has(m.tag) && !_isModelInstalled(m.tag));
+  if (!extras.length) return;
+  const group = document.createElement('optgroup');
+  group.id = 'ai-model-catalog-group';
+  group.label = t('ai_model_catalog_group');
+  for (const m of extras) {
+    const opt = document.createElement('option');
+    opt.value = m.tag;
+    // The size is the thing worth knowing before picking: these are gigabytes.
+    opt.textContent = m.sizeGB ? `${m.label || m.tag} (${m.sizeGB} GB)` : (m.label || m.tag);
+    group.appendChild(opt);
+  }
+  const customOpt = modelSel.querySelector('option[value="__custom__"]');
+  modelSel.insertBefore(group, customOpt);
 }
 
 // Reflect the persisted ollamaModel into the model <select>: pick the matching
@@ -9416,6 +9633,7 @@ function _reflectAiProviderRows(provider) {
   const show = (id, on) => { const el = $(id); if (el) el.hidden = !on; };
   show('ai-local-panel', provider === 'ollama');
   show('settings-gemini-key-row', provider === 'gemini');
+  show('settings-gemini-models', provider === 'gemini');
   show('settings-openai-panel', provider === 'openai');
   show('settings-anthropic-panel', provider === 'anthropic');
 }
@@ -9442,8 +9660,7 @@ function syncAiProviderControls() {
   const aKey = $('settings-anthropic-key'); if (aKey) { aKey.value = ''; aKey.placeholder = cfg.anthropicApiKeySet ? savedPh : 'sk-ant-…'; }
   const oReset = $('settings-openai-reset'); if (oReset) oReset.hidden = !cfg.openaiApiKeySet;
   const aReset = $('settings-anthropic-reset'); if (aReset) aReset.hidden = !cfg.anthropicApiKeySet;
-  if (provider === 'openai') _aiLoadProviderModels('openai');
-  else if (provider === 'anthropic') _aiLoadProviderModels('anthropic');
+  if (provider === 'openai' || provider === 'anthropic' || provider === 'gemini') _aiLoadProviderModels(provider);
 
   const urlInput = $('ai-ollama-url');
   if (urlInput) urlInput.value = cfg.ollamaUrl || 'http://localhost:11434';
@@ -9691,7 +9908,7 @@ function initAiProviderSettings() {
       _reflectAiProviderRows(r.value);
       persistAiProviderSettings();
       if (r.value === 'ollama') { await aiLocalScan(); await aiLocalRefreshStatus(); await aiLocalSyncAutostart(); }
-      else if (r.value === 'openai' || r.value === 'anthropic') _aiLoadProviderModels(r.value);
+      else _aiLoadProviderModels(r.value);
     });
   });
 
@@ -9780,8 +9997,7 @@ function updateOpenaiKey(value) {
   if (v.length > 8) _aiScheduleModelRefresh('openai'); // a real key was entered → refresh the model list once it's saved
 }
 function updateOpenaiModel(value) {
-  hubSettings = normalizeSettings({ ...hubSettings, openaiModel: String(value || '').trim().slice(0, 60) || 'gpt-4o' });
-  saveHubSettings();
+  updateAiModelChoice('openaiModel', value);
 }
 function updateAnthropicKey(value) {
   const v = String(value || '').trim().slice(0, 200);
@@ -9791,49 +10007,127 @@ function updateAnthropicKey(value) {
   if (v.length > 8) _aiScheduleModelRefresh('anthropic'); // a real key was entered → refresh the model list once it's saved
 }
 function updateAnthropicModel(value) {
-  hubSettings = normalizeSettings({ ...hubSettings, anthropicModel: String(value || '').trim().slice(0, 60) || 'claude-sonnet-5' });
-  saveHubSettings();
+  updateAiModelChoice('anthropicModel', value);
 }
 
-// ── ChatGPT / Claude model pickers ──────────────────────────────────────────
-// The dropdowns are filled LIVE from each provider's own models API (via
-// /api/ai/models), so they always reflect the newest models the provider offers
-// — no hardcoded list to keep current. A "Custom…" entry stays as a fallback for
-// a model not in the list (or when offline), and the saved model is always kept
-// selectable even if the API doesn't return it.
-function _aiPopulateModelSelect(selId, custId, models, saved) {
-  const sel = $(selId), cust = $(custId);
+// ── AI model pickers (Gemini / ChatGPT / Claude) ─────────────────────────────
+// Every dropdown is filled LIVE from the provider's own models API (via
+// /api/ai/models), so it always reflects what that provider offers today — no
+// hardcoded list to keep current. Each one carries two kinds of choice:
+//
+//   • "Auto", optionally per family ("Auto — Flash"): stored as the `auto` /
+//     `auto:<family>` sentinel and resolved server-side on every request, so a
+//     model released tomorrow is in use tomorrow. The line under the dropdown
+//     names the id it currently resolves to, because a setting whose effect you
+//     cannot read is a setting you cannot reason about.
+//   • A concrete model: a pin, honoured until the user changes it.
+//
+// "Custom…" stays as the fallback for a model the list does not carry (or when
+// offline), and a saved value is always kept selectable even if the API omits it.
+const AI_MODEL_CONTROLS = [
+  { provider: 'gemini', role: 'chat', key: 'geminiModel', sel: 'settings-gemini-model' },
+  { provider: 'gemini', role: 'chatPro', key: 'geminiModelPro', sel: 'settings-gemini-model-pro' },
+  { provider: 'gemini', role: 'tts', key: 'geminiModelTts', sel: 'settings-gemini-model-tts' },
+  { provider: 'gemini', role: 'live', key: 'geminiModelLive', sel: 'settings-gemini-model-live' },
+  { provider: 'openai', role: 'chat', key: 'openaiModel', sel: 'settings-openai-model' },
+  { provider: 'openai', role: 'stt', key: 'openaiSttModel', sel: 'settings-openai-stt-model' },
+  { provider: 'openai', role: 'tts', key: 'openaiTtsModel', sel: 'settings-openai-tts-model' },
+  { provider: 'anthropic', role: 'chat', key: 'anthropicModel', sel: 'settings-anthropic-model' },
+];
+
+// Last answer per provider, so re-rendering one row does not re-fetch the list.
+const _aiModelCatalog = Object.create(null);
+
+function _aiControlsFor(provider) { return AI_MODEL_CONTROLS.filter(c => c.provider === provider); }
+
+// NOTE the key: `ai_model_auto` is already taken by the Ollama tier dropdown
+// ("Auto (consigliato)"), and a duplicate key in the same dictionary silently
+// wins over the first — which would have retitled that control too.
+function _aiAutoLabel(family) {
+  if (!family) return t('ai_model_auto_latest');
+  // "Auto — Flash Lite": the family name is the provider's own word for the tier
+  // and is not translated; only the "Auto" part is.
+  const pretty = family.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  return t('ai_model_auto_latest') + ' — ' + pretty;
+}
+
+function _aiPopulateModelSelect(ctl, data) {
+  const sel = $(ctl.sel);
   if (!sel) return;
-  const list = Array.isArray(models) ? models : [];
+  const cust = $(ctl.sel + '-custom');
+  const used = $(ctl.sel + '-used');
+  const saved = normalizeModelChoice(hubSettings[ctl.key]);
+  const spec = (data && data.roles && data.roles[ctl.role]) || { kind: 'chat', family: '' };
+  const all = (data && Array.isArray(data.models)) ? data.models : [];
+  const list = all.filter(m => m && m.kind === spec.kind);
+
   sel.innerHTML = '';
-  if (saved && !list.some((m) => m && m.id === saved)) {
-    const o = document.createElement('option'); o.value = saved; o.textContent = saved; sel.appendChild(o);
+  const autoGroup = document.createElement('optgroup');
+  autoGroup.label = t('ai_model_auto_group');
+  const addOpt = (parent, value, label) => {
+    const o = document.createElement('option');
+    o.value = value;
+    o.textContent = label;
+    parent.appendChild(o);
+  };
+  addOpt(autoGroup, 'auto', _aiAutoLabel(''));
+  const families = [];
+  for (const m of list) if (m.family && !families.includes(m.family)) families.push(m.family);
+  for (const f of families) addOpt(autoGroup, 'auto:' + f, _aiAutoLabel(f));
+  sel.appendChild(autoGroup);
+
+  if (list.length) {
+    const pinGroup = document.createElement('optgroup');
+    pinGroup.label = t('ai_model_pin_group');
+    // A pinned id the API no longer returns must stay selectable, or opening
+    // Settings would silently re-point the user's choice at something else.
+    if (saved && !saved.startsWith('auto') && !list.some(m => m.id === saved)) addOpt(pinGroup, saved, saved);
+    for (const m of list) addOpt(pinGroup, m.id, m.label || m.id);
+    sel.appendChild(pinGroup);
+  } else if (saved && !saved.startsWith('auto')) {
+    addOpt(sel, saved, saved);
   }
-  for (const m of list) {
-    if (!m || !m.id) continue;
-    const o = document.createElement('option'); o.value = m.id; o.textContent = m.label || m.id; sel.appendChild(o);
+  addOpt(sel, '__custom__', t('ai_model_custom'));
+
+  const known = Array.from(sel.options).some(o => o.value === saved);
+  sel.value = known ? saved : '__custom__';
+  if (cust) {
+    cust.hidden = known;
+    if (!known) cust.value = saved;
   }
-  const co = document.createElement('option'); co.value = '__custom__'; co.textContent = t('ai_model_custom'); sel.appendChild(co);
-  sel.value = saved || (list[0] && list[0].id) || '';
   if (typeof sel._csSync === 'function') sel._csSync(); // .value assignment fires no event
-  if (cust) cust.hidden = true;
+
+  // The resolved id, shown only when it differs from what the dropdown says.
+  if (used) {
+    const resolved = (data && data.resolved && data.resolved[ctl.role]) || '';
+    const show = resolved && saved.startsWith('auto');
+    used.hidden = !show;
+    used.textContent = show ? t('ai_model_resolved').replace('{model}', resolved) : '';
+  }
 }
 
-async function _aiLoadProviderModels(provider) {
-  const isO = provider === 'openai';
-  const selId = isO ? 'settings-openai-model' : 'settings-anthropic-model';
-  const custId = selId + '-custom';
-  const saved = isO ? (hubSettings.openaiModel || 'gpt-4o') : (hubSettings.anthropicModel || 'claude-sonnet-5');
-  if (!$(selId)) return;
-  // Show the saved value immediately, then enrich from the API in the background.
-  _aiPopulateModelSelect(selId, custId, [], saved);
-  const keySet = isO ? hubSettings.openaiApiKeySet : hubSettings.anthropicApiKeySet;
+function _aiRenderProviderControls(provider) {
+  const data = _aiModelCatalog[provider] || null;
+  for (const ctl of _aiControlsFor(provider)) _aiPopulateModelSelect(ctl, data);
+}
+
+async function _aiLoadProviderModels(provider, opts) {
+  if (!_aiControlsFor(provider).some(c => $(c.sel))) return;
+  // Render from what we already have (or from nothing) first, so the panel is
+  // never empty while the request is in flight.
+  _aiRenderProviderControls(provider);
+  const keySet = provider === 'openai' ? hubSettings.openaiApiKeySet
+    : provider === 'anthropic' ? hubSettings.anthropicApiKeySet
+      : hubSettings.geminiApiKeySet;
   if (!keySet) return; // no key yet → nothing to fetch
   try {
-    const r = await fetch('/api/ai/models?provider=' + provider);
+    const r = await fetch('/api/ai/models?provider=' + provider + ((opts && opts.force) ? '&refresh=1' : ''));
     const d = await r.json();
-    if (d && Array.isArray(d.models) && d.models.length) _aiPopulateModelSelect(selId, custId, d.models, saved);
-  } catch { /* offline — keep the saved-only list */ }
+    if (d && Array.isArray(d.models)) {
+      _aiModelCatalog[provider] = d;
+      _aiRenderProviderControls(provider);
+    }
+  } catch { /* offline — keep whatever the last render showed */ }
 }
 
 // After a key is entered, the /api/ai/models endpoint reads it from the SERVER
@@ -9846,18 +10140,26 @@ function _aiScheduleModelRefresh(provider) {
   _aiModelRefreshTimer = setTimeout(() => { _aiModelRefreshTimer = null; _aiLoadProviderModels(provider); }, 700);
 }
 
-function onOpenaiModelSelect(v) {
-  const cust = $('settings-openai-model-custom');
-  if (v === '__custom__') { if (cust) { cust.hidden = false; cust.value = ''; cust.focus(); } return; }
-  if (cust) cust.hidden = true;
-  updateOpenaiModel(v);
+// One handler for every dropdown: persist the choice, then re-render so the
+// "in use" line follows immediately instead of waiting for the next hydrate.
+function updateAiModelChoice(key, value) {
+  const next = normalizeModelChoice(value);
+  hubSettings = normalizeSettings({ ...hubSettings, [key]: next });
+  saveHubSettings();
+  const ctl = AI_MODEL_CONTROLS.find(c => c.key === key);
+  if (ctl) _aiRenderProviderControls(ctl.provider);
 }
-function onAnthropicModelSelect(v) {
-  const cust = $('settings-anthropic-model-custom');
-  if (v === '__custom__') { if (cust) { cust.hidden = false; cust.value = ''; cust.focus(); } return; }
+
+function onAiModelSelect(key, value) {
+  const ctl = AI_MODEL_CONTROLS.find(c => c.key === key);
+  const cust = ctl ? $(ctl.sel + '-custom') : null;
+  if (value === '__custom__') { if (cust) { cust.hidden = false; cust.value = ''; cust.focus(); } return; }
   if (cust) cust.hidden = true;
-  updateAnthropicModel(v);
+  updateAiModelChoice(key, value);
 }
+
+function onOpenaiModelSelect(v) { onAiModelSelect('openaiModel', v); }
+function onAnthropicModelSelect(v) { onAiModelSelect('anthropicModel', v); }
 
 // Remove a saved OpenAI/Anthropic key. Sends key='' with *Set=false, which the
 // server honours as an explicit clear (preserveAiProviderCreds skips preserving

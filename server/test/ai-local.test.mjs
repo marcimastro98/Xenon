@@ -110,6 +110,25 @@ test('modelSafety: unknown custom tag is allowed (tier gate still guards weak PC
   assert.equal(r.code, 'unknown');
 });
 
+test('modelSafety: the download catalog can size a model this table never knew', () => {
+  const r = ai.modelSafety('qwen9:70b', { vram: 8, ram: 16 }, { minVramGB: 48, minRamGB: 96 });
+  assert.equal(r.ok, false, 'a model too big for this PC is refused even if only the catalog sized it');
+  assert.equal(r.code, 'insufficient');
+});
+
+test('modelSafety: the local table wins, and junk figures are ignored rather than trusted', () => {
+  // A remote file may raise the bar for a model we never sized. It may never
+  // lower the bar for one we did, and it may never wave a model through with a
+  // zero requirement — that is the one outcome this gate exists to prevent.
+  const lowered = ai.modelSafety('gemma4:12b', { vram: 8, ram: 16 }, { minVramGB: 1, minRamGB: 1 });
+  assert.equal(lowered.ok, false, 'the local table still refuses it');
+  for (const junk of [{ minVramGB: 0, minRamGB: 0 }, { minVramGB: 'lots', minRamGB: 8 },
+    { minVramGB: -5, minRamGB: 8 }, { minVramGB: 9999, minRamGB: 9999 }, null, 'nope']) {
+    const r = ai.modelSafety('unknown:99b', { vram: 4, ram: 8 }, junk);
+    assert.equal(r.code, 'unknown', `junk requirements must read as unknown: ${JSON.stringify(junk)}`);
+  }
+});
+
 test('geminiToolsToOpenAI converts names, descriptions and types', () => {
   const gemini = [
     { name: 'toggle_mic', description: 'Toggle mic', parameters: { type: 'OBJECT', properties: {} } },

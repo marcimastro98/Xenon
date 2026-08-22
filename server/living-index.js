@@ -196,6 +196,12 @@ function createLivingIndex(opts) {
         files: s.files || 0, dirs: s.dirs || 0, bytes: s.bytes || 0,
         ramMB: s.ramMB || 0, roots: host.roots.slice(),
         capped: s.capped === true,
+        // The roots the entry cap left incomplete. Validated the same way every
+        // other value off the helper wire is: strings only, bounded, and only
+        // roots we actually asked for — the UI names these to the user.
+        cappedRoots: Array.isArray(s.cappedRoots)
+          ? s.cappedRoots.filter((r) => typeof r === 'string' && r).slice(0, 16)
+          : [],
         // What the host is doing BEYOND the initial build. Without these, a
         // host stuck re-walking a root reads exactly like an idle one that
         // happens to be using a core, which is how a permanent rebuild loop

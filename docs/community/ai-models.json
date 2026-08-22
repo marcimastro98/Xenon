@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "updated": "2026-08-13",
+  "note": "Curated download list for Xenon's local AI (Ollama). Served over HTTPS from the site and read by server/ai-models.js, so a new model becomes offerable without an app update. DISCOVERY ONLY: which model actually runs is still decided on the user's machine by the hardware scan in server/ai-local.js, and the built-in MODEL_REQUIREMENTS win for the models listed there. Every tag below was verified against registry.ollama.ai (manifest 200) and sizeGB is the real sum of its layers; do not add a tag you have not checked, a Download button that 404s is worse than no button.",
+  "models": [
+    { "tag": "qwen3.5:2b", "label": "Qwen 3.5 2B", "sizeGB": 2.74, "vramGB": 4, "ramGB": 8, "capabilities": ["tools"] },
+    { "tag": "qwen3.5:4b", "label": "Qwen 3.5 4B", "sizeGB": 3.39, "vramGB": 6, "ramGB": 16, "capabilities": ["tools"] },
+    { "tag": "qwen3.5:9b", "label": "Qwen 3.5 9B", "sizeGB": 6.59, "vramGB": 10, "ramGB": 24, "capabilities": ["tools"] },
+    { "tag": "qwen3.5:35b-a3b", "label": "Qwen 3.5 35B A3B", "sizeGB": 23.87, "vramGB": 32, "ramGB": 64, "capabilities": ["tools"] },
+    { "tag": "qwen3:1.7b", "label": "Qwen 3 1.7B", "sizeGB": 1.36, "vramGB": 4, "ramGB": 8, "capabilities": ["tools"] },
+    { "tag": "qwen3:4b", "label": "Qwen 3 4B", "sizeGB": 2.5, "vramGB": 4, "ramGB": 8, "capabilities": ["tools"] },
+    { "tag": "qwen3:8b", "label": "Qwen 3 8B", "sizeGB": 5.23, "vramGB": 6, "ramGB": 16, "capabilities": ["tools"] },
+    { "tag": "qwen3:14b", "label": "Qwen 3 14B", "sizeGB": 9.28, "vramGB": 12, "ramGB": 32, "capabilities": ["tools"] },
+    { "tag": "qwen3-vl:8b", "label": "Qwen 3 VL 8B", "sizeGB": 6.14, "vramGB": 8, "ramGB": 16, "capabilities": ["tools", "vision"] },
+    { "tag": "qwen2.5:3b", "label": "Qwen 2.5 3B", "sizeGB": 1.93, "vramGB": 4, "ramGB": 8, "capabilities": ["tools"] },
+    { "tag": "qwen2.5:7b", "label": "Qwen 2.5 7B", "sizeGB": 4.68, "vramGB": 6, "ramGB": 16, "capabilities": ["tools"] },
+    { "tag": "llama3.2:3b", "label": "Llama 3.2 3B", "sizeGB": 2.02, "vramGB": 4, "ramGB": 8, "capabilities": ["tools"] },
+    { "tag": "llama3.1:8b", "label": "Llama 3.1 8B", "sizeGB": 4.92, "vramGB": 6, "ramGB": 16, "capabilities": ["tools"] },
+    { "tag": "granite3.3:8b", "label": "Granite 3.3 8B", "sizeGB": 4.94, "vramGB": 6, "ramGB": 16, "capabilities": ["tools"] },
+    { "tag": "gemma4:e2b", "label": "Gemma 4 E2B", "sizeGB": 7.16, "vramGB": 8, "ramGB": 16, "capabilities": ["tools", "vision"] },
+    { "tag": "gemma4:e4b", "label": "Gemma 4 E4B", "sizeGB": 9.61, "vramGB": 10, "ramGB": 24, "capabilities": ["tools", "vision"] },
+    { "tag": "gemma4:12b", "label": "Gemma 4 12B", "sizeGB": 7.56, "vramGB": 12, "ramGB": 32, "capabilities": ["tools", "vision"] },
+    { "tag": "gemma4:26b", "label": "Gemma 4 26B", "sizeGB": 17.99, "vramGB": 24, "ramGB": 48, "capabilities": ["tools", "vision"] },
+    { "tag": "mistral-small3.2:24b", "label": "Mistral Small 3.2 24B", "sizeGB": 15.18, "vramGB": 20, "ramGB": 48, "capabilities": ["tools", "vision"] },
+    { "tag": "minicpm-v:8b", "label": "MiniCPM-V 8B", "sizeGB": 5.47, "vramGB": 8, "ramGB": 16, "capabilities": ["vision"] }
+  ]
+}

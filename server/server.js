@@ -60,6 +60,8 @@ const themePalette = require('./js/theme-palette.js'); // single owner of the se
 const aiLocal = require('./ai-local');
 const aiOpenai = require('./ai-openai');
 const aiAnthropic = require('./ai-anthropic');
+const aiGemini = require('./ai-gemini');
+const aiModels = require('./ai-models');
 const { preserveAiProviderCreds, redactAiProviderCreds } = require('./ai-provider-creds');
 const { createGuardian } = require('./guardian');
 const { createBatteryMonitor } = require('./battery');
@@ -347,18 +349,53 @@ let _duckSavedVolume   = null;
 let _aiFocusedScreen   = null; // last monitor the AI captured — its "focus" for follow-ups
 
 // ── AI model ids ─────────────────────────────────────────────────────────────
-// Centralized so a model upgrade is a one-line change instead of a hunt through
-// the file. `chat` is the default Gemini model for chat / function-calling / STT
-// / web-search; `chatPro` is the opt-in stronger model for hard reasoning
-// (Settings → Funzioni AI → "Ragionamento avanzato"); `tts` is the speech model.
-const AI_MODELS = Object.freeze({
-  chat: 'gemini-3.5-flash',
-  chatPro: 'gemini-3.5-pro',
-  tts: 'gemini-3.1-flash-tts-preview',
-  // Realtime full-duplex voice (Voce Live). Preview model — if a key lacks Live
-  // access the session closes on connect and we fall back to the turn-based path.
-  live: 'gemini-3.1-flash-live-preview',
+// `chat` is the Gemini model for chat / function-calling / STT / web-search;
+// `chatPro` is the opt-in stronger model for hard reasoning (Settings → Funzioni
+// AI → "Ragionamento avanzato"); `tts` is the speech model; `live` is the
+// realtime full-duplex one (Voce Live) — if a key lacks Live access the session
+// closes on connect and we fall back to the turn-based path.
+//
+// These used to be four frozen strings, which meant a model Google published
+// after a release was unreachable and one it retired was a hard failure — and it
+// had already happened: `gemini-3.5-pro` was no longer in the API's own model
+// list, so every "advanced reasoning" turn silently fell back to the fast model.
+// They are now GETTERS over the user's setting: `auto` resolves against the live
+// list (ai-models.js), a concrete id is honoured as a pin. Every call site below
+// stays `AI_MODELS.chat` and needs no change.
+const GEMINI_MODEL_KEYS = Object.freeze({
+  chat: 'geminiModel', chatPro: 'geminiModelPro', tts: 'geminiModelTts', live: 'geminiModelLive',
 });
+
+// Reads the in-memory settings mirror (`_serverHubSettings`, kept fresh by every
+// writer) rather than the disk, because these are read per AI request and several
+// of the callers below are small sync helpers that only ever receive an API key.
+function geminiModelFor(role) {
+  const s = _serverHubSettings || {};
+  return aiModels.resolve('gemini', role, s[GEMINI_MODEL_KEYS[role]], s.geminiApiKey);
+}
+
+const AI_MODELS = Object.freeze({
+  get chat() { return geminiModelFor('chat'); },
+  get chatPro() { return geminiModelFor('chatPro'); },
+  get tts() { return geminiModelFor('tts'); },
+  get live() { return geminiModelFor('live'); },
+});
+
+// The same resolution for the two server-mediated cloud providers. `settings` is
+// passed in where the caller already read it (every one of them does, for the
+// server-only key); the mirror is the fallback.
+const PROVIDER_MODEL_KEYS = Object.freeze({
+  openai: { chat: 'openaiModel', stt: 'openaiSttModel', tts: 'openaiTtsModel' },
+  anthropic: { chat: 'anthropicModel' },
+});
+
+function providerModelFor(provider, role, settings) {
+  const s = settings || _serverHubSettings || {};
+  const key = (PROVIDER_MODEL_KEYS[provider] || {})[role];
+  if (!key) return '';
+  const apiKey = provider === 'openai' ? s.openaiApiKey : s.anthropicApiKey;
+  return aiModels.resolve(provider, role, s[key], apiKey);
+}
 
 // Core Xenon AI function declarations — the always-available tools (dashboard,
 // media, audio, system, timers, notes/tasks/calendar, lighting, deck, memory,
@@ -691,6 +728,9 @@ const DATA_DIR = path.join(__dirname, 'data');
 // erroring when the site is momentarily unreachable. Read is tolerant of an absent
 // file; the writable dir is ensured by migrateLegacyData() before any fetch writes.
 communityCatalog.initCache({ dataDir: DATA_DIR });
+// Last-known model lists, so the first AI turn after a restart resolves against
+// what the providers actually offer instead of the built-in offline defaults.
+aiModels.initCache({ dataDir: DATA_DIR });
 // Deck soundboard library: uploaded clips live here under server-generated
 // names; the extension set mirrors the /deck/sound streaming allowlist.
 const DECK_SOUNDS_DIR = path.join(DATA_DIR, 'sounds');
@@ -2035,6 +2075,18 @@ function runPowerShellCommand(command, timeout = 5000) {
 // just opens the browser tab for people who use the dashboard in a real browser
 // (Xeneon Edge loads the iframe itself, so it never wants this). Registered on
 // demand from the client and reflected back so the toggle shows the true state.
+//
+// The task outlives the file it points at, and that asymmetry is the whole bug
+// behind the "Can not find script file ...\server\open-dashboard.vbs" box some
+// people meet at every single logon while Xenon itself starts perfectly well:
+// Windows keeps running the task, wscript.exe finds nothing at the path, and
+// says so in a modal nobody can act on. Two things put the pair out of step —
+// the install root moving (the engine lives in %LOCALAPPDATA%\Programs\Xenon
+// now, and a task registered by an older layout still carries the old one), and
+// the script no longer being on disk at all, a .vbs run at logon being textbook
+// antivirus bait for an unsigned project. So the task is reconciled against the
+// disk at boot: repointed when the path is stale, removed when there is no
+// launcher left for it to point at.
 const BROWSER_TASK_NAME = 'Xenon Edge Dashboard';
 const OPEN_DASHBOARD_VBS = path.join(__dirname, 'open-dashboard.vbs');
 const AUTO_OPEN_SUPPORTED = process.platform === 'win32';
@@ -2043,23 +2095,64 @@ function psSingleQuote(value) {
   return String(value).replace(/'/g, "''");
 }
 
-// Returns { enabled } reflecting whether the logon task currently exists.
+// Is the launcher this feature needs still on disk?
+function openDashboardLauncherPresent() {
+  try { return fs.existsSync(OPEN_DASHBOARD_VBS); } catch { return false; }
+}
+
+// What to do with the logon task, given where it points and what is on disk:
+//   'none'   — no task at all, or one that already points at the launcher we ship;
+//   'repair' — it points somewhere else (an install that moved) while the launcher
+//              is right here, so re-register it at the correct path;
+//   'remove' — there is no launcher any more, so the task can only produce the
+//              wscript error box. Take it out rather than leave it firing forever.
+// It never answers 'create': a task is only ever registered by an explicit choice
+// in the dashboard, so a pure-Edge install cannot grow a surprise browser tab out
+// of a repair pass. Pure, so the rule is testable without a Windows scheduler.
+function autoOpenTaskFix(state) {
+  // The task stores its target as a quoted wscript argument, so the quotes come
+  // back with it. Windows paths are case-insensitive and accept either slash.
+  const norm = (p) => String(p == null ? '' : p)
+    .trim()
+    .replace(/^"+|"+$/g, '')
+    .replace(/\//g, '\\')
+    .replace(/\\+$/, '')
+    .toLowerCase();
+  const taskScript = norm(state && state.taskScript);
+  if (!taskScript) return 'none';                       // nothing registered
+  if (!(state && state.launcherPresent)) return 'remove';
+  return taskScript === norm(state.scriptPath) ? 'none' : 'repair';
+}
+
+// Returns { enabled, launcher, taskScript }. `enabled` is the state worth
+// reporting to the dashboard — the task exists AND the script it runs is there —
+// so the toggle can no longer sit on "on" for a task that only raises an error.
 async function getBrowserAutoOpenState() {
-  if (!AUTO_OPEN_SUPPORTED) return { enabled: false };
+  if (!AUTO_OPEN_SUPPORTED) return { enabled: false, launcher: 'ok', taskScript: '' };
+  const launcher = openDashboardLauncherPresent() ? 'ok' : 'missing';
   const cmd =
     `$t = Get-ScheduledTask -TaskName '${psSingleQuote(BROWSER_TASK_NAME)}' -ErrorAction SilentlyContinue; ` +
-    `Write-Output (@{ ok = $true; enabled = [bool]$t } | ConvertTo-Json -Compress)`;
+    `$arg = ''; if ($t) { $a = @($t.Actions)[0]; if ($a) { $arg = [string]$a.Arguments } } ` +
+    `Write-Output (@{ ok = $true; enabled = [bool]$t; argument = $arg } | ConvertTo-Json -Compress)`;
   try {
     const out = await runPowerShellCommand(cmd, 8000);
-    return { enabled: out && out.enabled === true };
+    const exists = !!(out && out.enabled === true);
+    return { enabled: exists && launcher === 'ok', launcher, taskScript: (out && out.argument) || '' };
   } catch {
-    return { enabled: false };
+    return { enabled: false, launcher, taskScript: '' };
   }
 }
 
-// Registers (enabled) or removes the logon task. Returns { enabled }.
+// Registers (enabled) or removes the logon task. Returns { enabled }, plus a
+// `reason` when the request could not be honoured.
 async function setBrowserAutoOpen(enabled) {
   if (!AUTO_OPEN_SUPPORTED) return { enabled: false };
+  // Registering a task for a script that is not there buys an error box at every
+  // logon and nothing else. Refuse, and name the reason so the dashboard can stop
+  // asking for it instead of re-posting the same request on every page load.
+  if (enabled === true && !openDashboardLauncherPresent()) {
+    return { enabled: false, reason: 'launcher_missing' };
+  }
   let cmd;
   if (enabled) {
     const vbs = psSingleQuote(OPEN_DASHBOARD_VBS);
@@ -2085,6 +2178,28 @@ async function setBrowserAutoOpen(enabled) {
   const out = await runPowerShellCommand(cmd, 12000);
   if (out && out.ok === false) throw new Error(out.error || 'Task registration failed');
   return { enabled: enabled === true };
+}
+
+// Bring the logon task in line with what is actually on disk. Called once at
+// boot; silent and free when there is nothing to fix, which is the normal case.
+// Note this can only take effect from the NEXT logon: by the time the server is
+// up, the task has already run for this one.
+async function reconcileBrowserAutoOpenTask() {
+  if (!AUTO_OPEN_SUPPORTED) return;
+  const state = await getBrowserAutoOpenState();
+  const fix = autoOpenTaskFix({
+    taskScript: state.taskScript,
+    scriptPath: OPEN_DASHBOARD_VBS,
+    launcherPresent: state.launcher === 'ok',
+  });
+  if (fix === 'none') return;
+  if (fix === 'repair') {
+    await setBrowserAutoOpen(true);
+    console.log('[startup] browser auto-open task repointed at ' + OPEN_DASHBOARD_VBS);
+    return;
+  }
+  await setBrowserAutoOpen(false);
+  console.log('[startup] browser auto-open task removed: ' + OPEN_DASHBOARD_VBS + ' is missing');
 }
 
 // ── Persistent PowerShell collector worker ───────────────────────────────────
@@ -6089,11 +6204,23 @@ function speakOnServer(text, langPrefix, apiKey, provider) {
     const key = String(apiKey || '').trim();
     if (useOpenai && !openaiKey) return resolve();
     if (!useLocal && !useOpenai && !key) return resolve();
-    const synth = (t) => useLocal
-      ? aiLocal.localTts(t, langPrefix, getFfmpegPath())
-      : useOpenai
-        ? aiOpenai.tts({ apiKey: openaiKey, text: t })
-        : _geminiTtsToWav(t, key, 'Charon');
+    // The Gemini branch degrades to the local Edge voice rather than failing: it
+    // runs on a preview model, and both callers below treat a synth error as
+    // "say nothing", so a retired model would take the assistant's voice away
+    // with the only trace in the log. See the same fallback on /api/tts.
+    const synth = async (t) => {
+      if (useLocal) return aiLocal.localTts(t, langPrefix, getFfmpegPath());
+      if (useOpenai) return aiOpenai.tts({ apiKey: openaiKey, text: t, model: providerModelFor('openai', 'tts') });
+      try {
+        return await _geminiTtsToWav(t, key, 'Charon');
+      } catch (e) {
+        process.stdout.write(`[TTS] Gemini failed (${e.message}) — falling back to the local voice\n`);
+        if (/not found|not supported|NOT_FOUND|404/i.test(String(e.message || ''))) {
+          aiModels.markMissing('gemini', AI_MODELS.tts);
+        }
+        return aiLocal.localTts(t, langPrefix, getFfmpegPath());
+      }
+    };
 
     const chunks = splitSentences(clean);
 
@@ -7491,9 +7618,18 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // are SERVER-ONLY (redacted on the wire; see ai-provider-creds.js), unlike the
   // browser-shipped geminiApiKey. Models are user-overridable.
   openaiApiKey: '',
-  openaiModel: aiOpenai.DEFAULT_CHAT_MODEL,
+  openaiModel: 'auto',
+  openaiSttModel: 'auto',
+  openaiTtsModel: 'auto',
   anthropicApiKey: '',
-  anthropicModel: aiAnthropic.DEFAULT_CHAT_MODEL,
+  anthropicModel: 'auto',
+  // Gemini models, one per role. `auto` (or `auto:<family>`) follows whatever the
+  // user's key can reach — see ai-models.js — so a model Google ships tomorrow is
+  // in use without an app update, while a concrete id here is a pin kept forever.
+  geminiModel: 'auto',
+  geminiModelPro: 'auto',
+  geminiModelTts: 'auto',
+  geminiModelLive: 'auto',
   hardwareScan: null,   // { ram, vram, cores, tier, recommended } — populated by /api/ai-local/scan
   aiTtsEnabled: true,
   aiMicSensitivity: 50, // 0..100 slider — maps to the STT input gain (see _sttGain)
@@ -8779,8 +8915,18 @@ function normalizeHubSettings(value) {
     // are validated by each provider module.
     openaiApiKey: String(source.openaiApiKey || '').trim().slice(0, 200),
     openaiModel: aiOpenai.sanitizeModel(source.openaiModel),
+    // Speech slots are validated against the model KIND, not just the id shape:
+    // a chat model in the TTS field is an error at the moment the user speaks.
+    openaiSttModel: aiOpenai.sanitizeSpeechModel(source.openaiSttModel, 'stt'),
+    openaiTtsModel: aiOpenai.sanitizeSpeechModel(source.openaiTtsModel, 'tts'),
     anthropicApiKey: String(source.anthropicApiKey || '').trim().slice(0, 200),
     anthropicModel: aiAnthropic.sanitizeModel(source.anthropicModel),
+    // Gemini, one per role. Same sanitizer for all four: `auto`/`auto:<family>`
+    // or a concrete id, anything else falls back to `auto`.
+    geminiModel: aiGemini.sanitizeModel(source.geminiModel),
+    geminiModelPro: aiGemini.sanitizeModel(source.geminiModelPro),
+    geminiModelTts: aiGemini.sanitizeModel(source.geminiModelTts),
+    geminiModelLive: aiGemini.sanitizeModel(source.geminiModelLive),
     hardwareScan: normalizeHardwareScan(source.hardwareScan),
     aiTtsEnabled: source.aiTtsEnabled !== false,
     aiMicSensitivity: clampNumber(source.aiMicSensitivity, 0, 100, DEFAULT_HUB_SETTINGS.aiMicSensitivity),
@@ -11348,6 +11494,15 @@ const CSRF_MUTATION_PATHS = new Set([
   // drive-by (or a sandboxed iframe posting with Origin: null) must not be able
   // to burn a user's activations or pump the hub.
   '/api/community/redeem',
+  // Same shape one step further: the remembered pass. /forget destroys
+  // something only the user can restore (by typing the code again) and /save
+  // would let a sandboxed widget plant a code of its own, so neither may be
+  // reachable from a drive-by. Both POST-only, so a navigation misses them too.
+  // The matching GET (/api/community/supporter) is a pure read and is
+  // deliberately NOT here: listing it would refuse it on the paired-device door,
+  // where the import dialog needs it.
+  '/api/community/supporter/forget',
+  '/api/community/supporter/save',
   // Automatic limited stock is a read, but a cache miss reaches the Hub.
   '/api/community/limited-status',
   // A YouTube search is 100 of the account's 10,000 daily quota units, so the
@@ -12448,7 +12603,7 @@ async function _aiPerformancePlan({ activity, appNames, opts, provider, key, mod
       const settings = await readHubSettings().catch(() => null);
       const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
       const provKey = provider === 'openai' ? (settings && settings.openaiApiKey) : (settings && settings.anthropicApiKey);
-      const provModel = provider === 'openai' ? (settings && settings.openaiModel) : (settings && settings.anthropicModel);
+      const provModel = providerModelFor(provider, 'chat', settings);
       if (!provKey) return null;
       const text = await mod.oneShot({ apiKey: provKey, model: provModel, systemText: 'You output only a single JSON object, never prose or markdown.', userText: prompt, maxTokens: 500 });
       return _normalizePerfPlan(text, names);
@@ -14408,12 +14563,38 @@ const handleRequest = async (req, res) => {
     // validates shape, attaches the persisted install id and forwards to the
     // author-owned hub (see server/supporter-redeem.js) — the one-time /
     // 3-device policy is enforced hub-side. In CSRF_MUTATION_PATHS.
+    // An EMPTY code is not a malformed request: it means "use the supporter
+    // pass this machine already redeemed with" (supporter-redeem.js).
     try {
       const body = JSON.parse(await readBody(req) || '{}');
       json(await supporterRedeem.redeem({
         entryId: body.entryId, code: body.code, dataDir: DATA_DIR,
       }));
     } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/supporter' && req.method === 'GET') {
+    // Does this machine remember a supporter pass? A boolean, never the code:
+    // it is a server-only secret and this answer is readable from every paired
+    // device (preserve-on-save + redact-on-wire).
+    try { json(await supporterRedeem.savedStatus(DATA_DIR)); } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/supporter/save' && req.method === 'POST') {
+    // Storing the pass from Settings, before any drop asks for it. Shape only:
+    // whether it WORKS is a question the hub answers against a specific entry,
+    // so there is nothing to check against here. In CSRF_MUTATION_PATHS.
+    //
+    // Its own path rather than a POST on /api/community/supporter: that GET is a
+    // pure read the import dialog makes from every surface, including a paired
+    // phone, and listing a path in CSRF_MUTATION_PATHS refuses its GET on the
+    // remote door. Splitting the write off keeps the read reachable.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      json(await supporterRedeem.saveTypedCode(DATA_DIR, body.code));
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/community/supporter/forget' && req.method === 'POST') {
+    // The reset path for that memory. In CSRF_MUTATION_PATHS.
+    try { json(await supporterRedeem.forgetCode(DATA_DIR)); } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/api/community/limited-status' && req.method === 'GET') {
     // Live stock for automatic limited drops. The local proxy pins the Hub
@@ -15197,14 +15378,22 @@ const handleRequest = async (req, res) => {
     // (Windows only) and whether the logon task currently exists.
     try {
       const state = await getBrowserAutoOpenState();
-      json({ ok: true, supported: AUTO_OPEN_SUPPORTED, enabled: state.enabled });
+      // `reason` tells the dashboard the difference between "you have this off"
+      // and "this cannot work here": without it the client would keep posting
+      // enabled=true on every page load against a launcher that is not there.
+      json({
+        ok: true,
+        supported: AUTO_OPEN_SUPPORTED,
+        enabled: state.enabled,
+        reason: state.launcher === 'missing' ? 'launcher_missing' : undefined,
+      });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/startup/auto-open' && req.method === 'POST') {
     try {
       const body = JSON.parse(await readBody(req));
       const state = await setBrowserAutoOpen(body && body.enabled === true);
-      json({ ok: true, supported: AUTO_OPEN_SUPPORTED, enabled: state.enabled });
+      json({ ok: true, supported: AUTO_OPEN_SUPPORTED, enabled: state.enabled, reason: state.reason });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/deck-config' && req.method === 'GET') {
@@ -15867,7 +16056,7 @@ const handleRequest = async (req, res) => {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'missing_key' })); return;
         }
-        const provModel = provider === 'openai' ? (settings && settings.openaiModel) : (settings && settings.anthropicModel);
+        const provModel = providerModelFor(provider, 'chat', settings);
         // web_search for these providers runs key-free via DuckDuckGo (see below),
         // whose snippets are often English — reinforce the language lock, exactly
         // like the local path does.
@@ -15897,11 +16086,20 @@ const handleRequest = async (req, res) => {
       // model (for this call AND the rest of the tool loop) so the user is never
       // stranded by an opt-in setting — including when the failure happens on a
       // later loop iteration, AFTER a tool call already mutated state.
+      //
+      // A model the API says it does not have is also DROPPED from the cached
+      // list, so the next turn resolves to the runner-up instead of re-sending a
+      // dead id forever. That is the difference between a fallback and a repair:
+      // `gemini-3.5-pro` had been retired and every advanced-reasoning turn paid
+      // a failed request before falling back, with nothing saying so.
+      const isMissingModel = (err) => /not found|is not found|not supported|NOT_FOUND|404/i.test(String((err && err.message) || ''));
       const callGeminiWithFallback = async (msgs) => {
         try {
           return await callGemini(msgs);
         } catch (err) {
-          if (chatModel !== AI_MODELS.chat) { chatModel = AI_MODELS.chat; return await callGemini(msgs); }
+          if (isMissingModel(err)) aiModels.markMissing('gemini', chatModel);
+          const fast = AI_MODELS.chat;
+          if (chatModel !== fast) { chatModel = fast; return await callGemini(msgs); }
           throw err;
         }
       };
@@ -16009,7 +16207,7 @@ const handleRequest = async (req, res) => {
         const settings = await readHubSettings().catch(() => null);
         const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
         const provKey = provider === 'openai' ? (settings && settings.openaiApiKey) : (settings && settings.anthropicApiKey);
-        const provModel = provider === 'openai' ? (settings && settings.openaiModel) : (settings && settings.anthropicModel);
+        const provModel = providerModelFor(provider, 'chat', settings);
         if (!provKey) { json({ summary: prev }); return; }
         const out = await mod.oneShot({ apiKey: provKey, model: provModel, systemText: sysText, userText, maxTokens: 400 }).catch(() => '');
         if (out) summary = String(out).trim().slice(0, 2000);
@@ -16094,7 +16292,7 @@ const handleRequest = async (req, res) => {
         const settings = await readHubSettings().catch(() => null);
         const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
         const provKey = provider === 'openai' ? (settings && settings.openaiApiKey) : (settings && settings.anthropicApiKey);
-        const provModel = provider === 'openai' ? (settings && settings.openaiModel) : (settings && settings.anthropicModel);
+        const provModel = providerModelFor(provider, 'chat', settings);
         if (provKey) text = await mod.oneShot({ apiKey: provKey, model: provModel, systemText: sysText, userText, maxTokens: 100 }).catch(() => '');
       } else {
         if (apiKey) text = await _geminiOneShot(apiKey, [{ text: userText }], sysText, 100).catch(() => '');
@@ -16388,24 +16586,38 @@ const handleRequest = async (req, res) => {
     }
 
   } else if (reqPath === '/api/ai/models' && req.method === 'GET') {
-    // Live model list for the picker (ChatGPT / Claude), fetched from each
-    // provider's own models API with the server-only key so it always reflects
-    // what the provider currently offers. Degrades to an empty list (never an
-    // error page) when there's no key or the call fails.
+    // Live model list for the picker, fetched from each provider's own models
+    // API with the user's key so it always reflects what that provider currently
+    // offers. Degrades to whatever the cache holds (never an error page) when
+    // there is no key or the call fails.
+    //
+    // `resolved` is the half the UI cannot compute for itself: it says which
+    // concrete id each `auto` role lands on right now. A sentinel the panel
+    // cannot explain is a setting the user has no way to reason about.
     try {
       const prov = aiLocal.sanitizeProvider(urlObj.searchParams.get('provider'));
       const settings = await readHubSettings().catch(() => null);
-      let models = [];
-      if (prov === 'openai') {
-        const key = String((settings && settings.openaiApiKey) || '').trim();
-        if (key) models = await aiOpenai.listModels({ apiKey: key }).catch(() => []);
-      } else if (prov === 'anthropic') {
-        const key = String((settings && settings.anthropicApiKey) || '').trim();
-        if (key) models = await aiAnthropic.listModels({ apiKey: key }).catch(() => []);
+      const s = settings || {};
+      if (prov === 'ollama') {
+        // The local provider has no key and no remote resolution: what it can
+        // offer is the curated download catalog plus what is already installed.
+        await aiModels.refreshOllamaCatalog({ force: urlObj.searchParams.has('refresh') });
+        json({ models: [], catalog: aiModels.ollamaCatalog() });
+        return;
       }
-      json({ models });
+      const keyFor = { gemini: s.geminiApiKey, openai: s.openaiApiKey, anthropic: s.anthropicApiKey };
+      const apiKey = String(keyFor[prov] || '').trim();
+      if (apiKey) {
+        await aiModels.refresh(prov, apiKey, { force: urlObj.searchParams.has('refresh') });
+      }
+      const stored = {};
+      const roles = (aiModels.PROVIDERS[prov] && aiModels.PROVIDERS[prov].ROLES) || {};
+      for (const role of Object.keys(roles)) {
+        stored[role] = prov === 'gemini' ? s[GEMINI_MODEL_KEYS[role]] : s[(PROVIDER_MODEL_KEYS[prov] || {})[role]];
+      }
+      json(aiModels.catalog(prov, stored, apiKey));
     } catch (e) {
-      json({ models: [], error: e.message });
+      json({ models: [], resolved: {}, families: [], error: e.message });
     }
 
   } else if (reqPath === '/api/transcribe' && req.method === 'POST') {
@@ -16454,7 +16666,7 @@ const handleRequest = async (req, res) => {
             ff.stdin.end();
           });
           const text = tProvider === 'openai'
-            ? await aiOpenai.stt({ apiKey: openaiKey, wavBuffer, lang: safeLang })
+            ? await aiOpenai.stt({ apiKey: openaiKey, wavBuffer, lang: safeLang, model: providerModelFor('openai', 'stt') })
             : await aiLocal.localStt(wavBuffer, safeLang, __dirname);
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ text })); return;
@@ -16526,7 +16738,7 @@ const handleRequest = async (req, res) => {
             const s = await readHubSettings().catch(() => null);
             const oKey = String((s && s.openaiApiKey) || '').trim();
             if (!oKey) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'missing_key' })); return; }
-            wavBuf = await aiOpenai.tts({ apiKey: oKey, text: rawText });
+            wavBuf = await aiOpenai.tts({ apiKey: oKey, text: rawText, model: providerModelFor('openai', 'tts', s) });
           } else {
             wavBuf = await aiLocal.localTts(rawText, ttsLang, getFfmpegPath());
           }
@@ -16551,10 +16763,11 @@ const handleRequest = async (req, res) => {
       });
       process.stdout.write(`[TTS] request voice=${voice} chars=${rawText.length}\n`);
       const _ttsStart = Date.now();
-      const inlineData = await new Promise((resolve, reject) => {
+      const ttsModel = AI_MODELS.tts;
+      const askGemini = () => new Promise((resolve, reject) => {
         const ttsReq = https.request({
           hostname: 'generativelanguage.googleapis.com',
-          path: `/v1beta/models/${AI_MODELS.tts}:generateContent?key=${encodeURIComponent(apiKey)}`,
+          path: `/v1beta/models/${ttsModel}:generateContent?key=${encodeURIComponent(apiKey)}`,
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ttsPayload), 'User-Agent': 'Xenon/2.0' },
         }, (ttsRes) => {
@@ -16579,6 +16792,32 @@ const handleRequest = async (req, res) => {
         ttsReq.write(ttsPayload);
         ttsReq.end();
       });
+
+      // Gemini TTS runs on a preview model, and a preview model is a thing that
+      // gets retired. Losing the assistant's voice outright over that would be a
+      // hard failure where a soft one exists: the local Edge neural voice is
+      // already installed, already used by two other providers on the lines
+      // above, and needs no key. So a Gemini TTS failure degrades to it instead
+      // of answering 500 — the voice changes, the feature keeps working.
+      let inlineData;
+      try {
+        inlineData = await askGemini();
+      } catch (err) {
+        process.stdout.write(`[TTS] Gemini failed (${err.message}) — falling back to the local voice\n`);
+        if (/not found|not supported|NOT_FOUND|404/i.test(String(err.message || ''))) {
+          aiModels.markMissing('gemini', ttsModel);
+        }
+        const localWav = await aiLocal.localTts(rawText, ttsLang, getFfmpegPath()).catch(() => null);
+        if (localWav && localWav.length) {
+          res.writeHead(200, {
+            'Content-Type': 'audio/wav', 'Content-Length': String(localWav.length),
+            'Cache-Control': 'no-store', 'X-Xenon-Tts-Fallback': 'local',
+          });
+          res.end(localWav);
+          return;
+        }
+        throw err;
+      }
       const pcmBytes = Buffer.from(inlineData.data, 'base64');
       const rateMatch = String(inlineData.mimeType || '').match(/rate=(\d+)/);
       const sampleRate = rateMatch ? parseInt(rateMatch[1]) : 24000;
@@ -16639,6 +16878,20 @@ const handleRequest = async (req, res) => {
       res.end(JSON.stringify({ error: e.message }));
     }
 
+  } else if (reqPath === '/api/ai-local/capabilities' && req.method === 'GET') {
+    // What an INSTALLED model can actually do, straight from Ollama's /api/show,
+    // so the Settings row can say "tool calling: yes" about a model published
+    // after this release instead of guessing from its name.
+    try {
+      const settings = await readHubSettings().catch(() => null);
+      const baseUrl = aiLocal.sanitizeOllamaUrl(settings && settings.ollamaUrl);
+      const model = aiLocal.sanitizeModel(urlObj.searchParams.get('model'));
+      const caps = await aiLocal.capabilitiesFor(baseUrl, model);
+      json({ model, capabilities: caps });
+    } catch {
+      json({ model: '', capabilities: [] });
+    }
+
   } else if (reqPath === '/api/ai-local/models' && req.method === 'GET') {
     try {
       const settings = await readHubSettings().catch(() => null);
@@ -16672,7 +16925,12 @@ const handleRequest = async (req, res) => {
         res.write(`data: ${JSON.stringify({ error: 'Il tuo hardware non è adatto all’AI locale (serve almeno ~8 GB di RAM o ~4 GB di VRAM). Non è stato scaricato nulla: usa Xenon AI in cloud (Gemini).', done: true })}\n\n`);
         return res.end();
       }
-      const safety = aiLocal.modelSafety(concrete, scan);
+      // A model the local table does not know can still be gated, using the
+      // requirements the download catalog published for it. The local table wins
+      // where it has an entry, and junk figures are dropped rather than trusted
+      // (see _sanitizedReq in ai-local.js) — a remote file may raise the bar for
+      // a model we never sized, never lower it for one we did.
+      const safety = aiLocal.modelSafety(concrete, scan, aiModels.ollamaRequirements(concrete));
       if (!safety.ok) {
         res.write(`data: ${JSON.stringify({ error: safety.reason, done: true })}\n\n`);
         return res.end();
@@ -17266,7 +17524,7 @@ const handleRequest = async (req, res) => {
       } else if (provider === 'openai' || provider === 'anthropic') {
         const mod = provider === 'openai' ? aiOpenai : aiAnthropic;
         const provKey = provider === 'openai' ? (settings && settings.openaiApiKey) : (settings && settings.anthropicApiKey);
-        const provModel = provider === 'openai' ? (settings && settings.openaiModel) : (settings && settings.anthropicModel);
+        const provModel = providerModelFor(provider, 'chat', settings);
         if (!provKey) { json({ ok: false, error: 'no_provider' }); return; }
         text = await mod.oneShot({ apiKey: provKey, model: provModel, systemText: sysText, userText, maxTokens: 300 }).catch(() => '');
       } else {
@@ -17441,9 +17699,7 @@ const handleRequest = async (req, res) => {
         const key = provider === 'openai'
           ? settings && settings.openaiApiKey
           : settings && settings.anthropicApiKey;
-        const model = provider === 'openai'
-          ? settings && settings.openaiModel
-          : settings && settings.anthropicModel;
+        const model = providerModelFor(provider, 'chat', settings);
         if (!key) { json({ ok: false, error: 'no_provider' }); return; }
         text = await mod.oneShot({
           apiKey: key, model, systemText: sysText, userText, maxTokens: 1500,
@@ -19689,6 +19945,11 @@ function _startListen(host) {
     // Refresh an outdated native helper left behind by an in-app self-update. Delayed
     // and fire-and-forget so it never competes with boot; runs at most once per version.
     setTimeout(() => { try { ensureHelperUpToDate(); } catch { /* ignore */ } }, 8000);
+    // The logon task that opens the dashboard in a browser outlives the script it
+    // points at, and a stale one greets the user with a wscript error box at every
+    // sign-in (see reconcileBrowserAutoOpenTask). Delayed and fire-and-forget: it
+    // reads one scheduled task, and only writes when something is out of step.
+    setTimeout(() => { reconcileBrowserAutoOpenTask().catch(() => {}); }, 6000);
     getAudioInfo().then(info => {
       if (info && info.mic && typeof info.mic.muted === 'boolean') isMuted = info.mic.muted;
       console.log('Speaker cache:', cachedSpeakerId);

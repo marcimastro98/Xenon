@@ -316,6 +316,10 @@ input[type="range"] { accent-color: var(--green); }
   display: block;
   margin-top: -3px;
 }
+/* A note that reports a limit the user should act on (the living index hitting
+   its entry cap), rather than merely describing state. */
+.settings-note-warn { color: var(--color-warn); }
+
 /* "This colour is hidden by an active background" — reads as a reason, not a hint. */
 .settings-bg-covered-note { color: var(--color-warn); margin-top: 2px; }
 .settings-bg-covered-note[hidden] { display: none; }
@@ -3325,6 +3329,30 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
 }
 .preset-unlock-field:focus { outline: none; border-color: rgba(var(--accent-rgb, 53, 224, 142), 0.5); }
 .preset-unlock-note { margin-top: 7px; font-size: 0.76rem; line-height: 1.45; color: var(--text-dim, rgba(231, 233, 238, 0.55)); }
+/* The supporter pass, kept in Settings. Same field treatment as the unlock box
+   in the import dialog, so the two read as the same thing in two places. Wraps
+   on a narrow screen instead of shrinking the buttons below a thumb. */
+.settings-supporter-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-top: 10px;
+}
+.settings-supporter-field {
+  flex: 1 1 210px; min-width: 0;
+  padding: 9px 11px; font: inherit; font-size: 0.9rem;
+  font-family: ui-monospace, monospace; letter-spacing: 0.04em;
+  color: var(--text, #e7e9ee); background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12)); border-radius: 10px;
+}
+.settings-supporter-field:focus { outline: none; border-color: rgba(var(--accent-rgb, 53, 224, 142), 0.5); }
+
+/* "Your code is already saved here" + its reset. Wraps on a phone rather than
+   squeezing the button, which is also the smallest touch target in the modal. */
+.preset-unlock-saved {
+  margin-top: 7px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  font-size: 0.76rem; line-height: 1.45; color: var(--text-dim, rgba(231, 233, 238, 0.55));
+}
+.preset-unlock-saved > span { flex: 1 1 12ch; }
+.preset-unlock-forget { flex: none; padding: 6px 12px; font-size: 0.76rem; }
 
 /* ── "Widgets & sharing" hub: intro + two explainer sub-cards ─────────────
    Groups the code-that-extends (community widgets) and the data-you-share

@@ -126,7 +126,7 @@ pub fn start(window: &WebviewWindow) {
     KIOSK_HWND.store(hwnd.0 as isize, Ordering::Relaxed);
 
     let app = window.app_handle().clone();
-    thread::spawn(move || {
+    crate::crash_log::spawn_supervised("xenon-focus-guard", move || {
         let mut last_fg: isize = 0;
         let mut tick: u32 = 0;
         loop {
