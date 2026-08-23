@@ -4,6 +4,17 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### 🐛 Fixed
+- **"Don't show again" now means it, on the two cards that greet you at startup.** The What's New panel and the Discord invite card each carry a button that is supposed to silence them for good, and for some people it did nothing: both were back at the next boot, every boot, with the button already pressed. Reported on Discord.
+
+  Neither card was ignoring the click. Both flags were kept in the browser's own storage for the dashboard's address, which sounds like the obvious place until you notice what shares a switch with it. "Clear cookies and site data when you close all windows" — a setting in Chrome and Edge, with an equivalent in Firefox, that plenty of people turn on and never think about again — takes the dismissal with it at every shutdown, as does any cleanup tool, as does a private window. The card then came back exactly as it does for someone who has never seen it, because as far as Xenon could tell that is who was looking.
+
+  The same storage is also per-surface, not per-user. The native app and a real browser tab are separate stores even though the address is the identical `127.0.0.1:3030`, so anyone running both had to dismiss each card twice, in two places, with nothing on screen explaining why the first time had not counted.
+
+  Both flags now live with the rest of your settings, in a file on the PC. That makes them survive any browser cleanup, and it makes one dismissal count everywhere at once — the app, a browser tab, the iCUE panel, a paired phone. Whether you have read the 4.11 announcement is a fact about you, not about which screen you happened to read it on. If you had already dismissed either card, it stays dismissed: the old per-device answer is carried over the first time this build talks to the dashboard engine. If your browser had already wiped it, there is nothing left to carry over — press the button once more and it holds from then on.
+
+  There was a third way to hit this, and it is fixed by the same change: on a screen whose storage is unavailable outright, every one of these writes failed silently. The button worked visually, the card slid away, and nothing was written anywhere. It now takes the settings route, which reports and retries instead of shrugging.
+
 
 ## [v4.11.5] - 22-08-2026
 ### ✨ Added
