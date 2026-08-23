@@ -67,6 +67,30 @@ const MIN_TILE_H = 4;
 // leaves space beneath, and can be corner-resized shorter. A page with two or more
 // tiles is never floored — those keep filling the viewport exactly.
 const MIN_FILL_ROWS = 8;
+// Cap on the row height, applied ONLY when the page viewport is taller than it
+// is wide — i.e. a display mounted vertically.
+//
+// A row has no fixed size: fitGridHeights() stretches it so the layout's rows
+// fill the page exactly, which is right on a landscape screen and wrong on a
+// portrait one. The layout is shared by every surface, so a tall screen shows
+// the SAME handful of rows a wide screen does, over three times the height —
+// on a rotated 1440x2560 panel a page spanning 8 rows gives a 300px row. Two
+// things follow, and both were reported: the vertical resize has as many stops
+// as the layout has rows (against 24 across, so it reads as "it only resizes
+// sideways"), and MIN_TILE_H, which is a floor in ROWS, becomes 4x300 = half
+// the screen — a tile that cannot be made smaller than that.
+//
+// So on a portrait screen the extra height buys MORE rows instead of taller
+// ones: the tiles keep the size they have on every other screen, the two axes
+// get comparable resolution, and what is left below them is real grid you can
+// drag into. That is also what js/phone-view.js already tells the user happens
+// when a tall screen is wide enough to keep the grid ("what being tall adds is
+// empty space below the tiles") — until now the code did the opposite.
+//
+// 90px sits above every value a landscape dashboard produces (the Edge's
+// 2560x720 lands around 75), so even if the orientation test were ever wrong
+// the cap could not bite there. At the cap, MIN_TILE_H is a ~360px floor.
+const MAX_PORTRAIT_CELL = 90;
 const _grids = new Map();   // pageId → GridStack instance
 let _editing = false;
 let _suppress = false;      // guard so programmatic placement doesn't trigger persistence
@@ -796,6 +820,40 @@ function pageTileCount(pageId) {
   return count;
 }
 
+// How many rows a page is divided into, and how tall each one is, for a box of a
+// given size. Pure, so both thresholds can be checked without a browser — the
+// same reason js/phone-view.js keeps its own policy pure.
+//
+// GridStack's grid height = rows × cellHeight (the margin lives *inside* each
+// cell as the inter-item gap, it is NOT added on top), so filling the page
+// exactly means cellHeight = avail / rows, with no margin subtraction.
+//
+// Two things stop a row from growing without limit, and they answer different
+// failures:
+//
+//   * MIN_FILL_ROWS, on a page holding a SINGLE tile. A lone tile otherwise
+//     drives the row height to whatever fills the viewport, so shrinking it
+//     (fewer rows over the same height → taller rows) left its pixel size
+//     unchanged and the resize looked like it did nothing.
+//   * MAX_PORTRAIT_CELL, on a portrait page, whatever it holds. Same failure
+//     one level up: the layout comes from a landscape screen, so a tall screen
+//     stretches its few rows over three times the height.
+//
+// Asking for MORE rows only ever lowers the row height, so neither can overflow
+// the page and force a scroll.
+function fitPageRows({ avail, width, rows, tiles }) {
+  const h = Number(avail) || 0;
+  const w = Number(width) || 0;
+  const baseRows = Math.max(1, Number(rows) || 1);
+  let effRows = (Number(tiles) || 0) <= 1 ? Math.max(baseRows, MIN_FILL_ROWS) : baseRows;
+  // Measured against the page box, not the window: it is the space the tiles
+  // actually get, and it is what makes this true for the iCUE panel and a
+  // resized browser window as well as for a rotated monitor.
+  const portrait = w > 0 && h > w;
+  if (portrait) effRows = Math.max(effRows, Math.ceil(h / MAX_PORTRAIT_CELL));
+  return { rows: effRows, cellHeight: Math.max(18, Math.floor(h / effRows)), portrait };
+}
+
 function fitGridHeights() {
   _grids.forEach((grid, pageId) => {
     try {
@@ -810,17 +868,20 @@ function fitGridHeights() {
       let rows = pageRowSpan(pageId);
       if (rows < 1) rows = (typeof grid.getRow === 'function' ? grid.getRow() : 0) || 0;
       if (rows < 1) return;
-      // GridStack's grid height = rows × cellHeight (the margin lives *inside*
-      // each cell as the inter-item gap, it is NOT added on top). So to fill the
-      // page exactly, cellHeight = avail / rows — no margin subtraction. On a page
-      // that holds a SINGLE tile, divide by at least MIN_FILL_ROWS: a lone tile that
-      // tall or taller still fills the viewport (neat by default), while a shorter
-      // one keeps that row height and so tops out with space below instead of
-      // ballooning to full-screen (which made shrinking it a no-op — see
-      // MIN_FILL_ROWS). A page with several tiles always fills exactly. Dividing by
-      // MORE rows only lowers the height, so it can never overflow and force a scroll.
-      const effRows = pageTileCount(pageId) <= 1 ? Math.max(rows, MIN_FILL_ROWS) : rows;
-      const ch = Math.max(18, Math.floor(avail / effRows));
+      const fit = fitPageRows({
+        avail,
+        width: parent ? parent.clientWidth : 0,
+        rows,
+        tiles: pageTileCount(pageId),
+      });
+      const ch = fit.cellHeight;
+      // The grid element is sized to its CONTENT, so on a portrait screen the
+      // rows the cap just bought would be outside it: not drawn, not a drop
+      // target, and a hard stop for a tile being dragged down. Stretching the box
+      // to the page hands that space over. A style rather than GridStack's own
+      // minRow because cellHeight() skips its style pass when the height has not
+      // changed, which is exactly the case here on every re-fit after the first.
+      if (el && el.style) el.style.minHeight = fit.portrait ? avail + 'px' : '';
       // Suppress the 'change' handler: a cellHeight change can reposition nodes
       // and fire 'change' → serialize → save, which previously drifted geometry.
       const wasSuppressed = _suppress;
@@ -851,5 +912,5 @@ if (typeof window !== 'undefined') {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps, packPageItems, distributeCols };
+  module.exports = { availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps, packPageItems, distributeCols, fitPageRows, MIN_TILE_H, MIN_FILL_ROWS, MAX_PORTRAIT_CELL, GRID_COLUMNS };
 }
