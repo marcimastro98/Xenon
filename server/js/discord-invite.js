@@ -11,14 +11,26 @@
   // Permanent "don't show again" flag for the startup card. A plain close (×) is
   // session-only — the card returns next launch — so users who ignore it still get
   // a gentle reminder, while "Don't show again" silences it for good.
-  const DISMISS_KEY = 'xenonedge.discordInvite.v1';
+  //
+  // Stored in hub settings since v4.11.6, with the pre-v4.11.6 localStorage key
+  // kept in step as a per-device fallback; js/settings.js owns both. It used to
+  // live only in localStorage, which meant a browser set to clear its site data
+  // on exit put this card back at every boot with "don't show again" already
+  // pressed — see the note on XenonStartupCards there.
+  //
+  // Without that module nothing can be remembered, so the card must not go up at
+  // all: one shown a second time is a nuisance, one that cannot be dismissed for
+  // good is the complaint this came from.
+  const CARDS = () => (window.XenonStartupCards || null);
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
 
   function dismissed() {
-    try { return localStorage.getItem(DISMISS_KEY) === 'dismissed'; } catch { return false; }
+    const c = CARDS();
+    return c ? c.discordInviteDismissed() : true;
   }
   function setDismissed() {
-    try { localStorage.setItem(DISMISS_KEY, 'dismissed'); } catch { /* ignore */ }
+    const c = CARDS();
+    if (c) c.rememberDiscordInvite();
   }
 
   // Official Discord mark; inherits `currentColor` so CSS controls the tint.
@@ -91,9 +103,17 @@
   }
 
   function maybeShowStartup() {
-    if (dismissed()) return;
-    // A short delay so it doesn't fight the initial dashboard paint / greeting.
-    setTimeout(showCard, 1400);
+    // Asked only once the stored answer is actually known — before hydration the
+    // settings copy is the blind local mirror, and on a device whose site data is
+    // cleared at every exit that mirror is empty, so this card would go up over a
+    // dismissal sitting safely on disk.
+    const c = CARDS();
+    const decide = () => {
+      if (dismissed()) return;
+      // A short delay so it doesn't fight the initial dashboard paint / greeting.
+      setTimeout(showCard, 1400);
+    };
+    if (c && typeof c.whenReady === 'function') c.whenReady(decide); else decide();
   }
 
   function init() {

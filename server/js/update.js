@@ -792,9 +792,17 @@
   // build-shipped server/whatsnew.json. It reappears at every startup until the
   // user taps "Don't show again" for that release's id, and only comes back when
   // a later build ships a new id (a bugfix release keeps the old id → no re-nag).
-  const WHATSNEW_KEY = 'xenon.whatsnew.dismissed';
-  function dismissedWhatsNew() { try { return localStorage.getItem(WHATSNEW_KEY) || ''; } catch { return ''; } }
-  function rememberWhatsNew(id) { try { localStorage.setItem(WHATSNEW_KEY, String(id || '')); } catch { /* ignore */ } }
+  //
+  // The dismissal is stored in hub settings (a file on the PC) since v4.11.6,
+  // with the pre-v4.11.6 localStorage key kept in step as a per-device fallback.
+  // js/settings.js owns both — see the note on XenonStartupCards there for why a
+  // browser that clears its site data used to put this modal back at every boot.
+  // Without that module (a stripped page, a load order that went wrong) nothing
+  // can be remembered, so the modal must not open at all rather than open and be
+  // un-dismissable.
+  const CARDS = () => (window.XenonStartupCards || null);
+  function dismissedWhatsNew(id) { const c = CARDS(); return c ? c.whatsNewDismissed(id) : true; }
+  function rememberWhatsNew(id) { const c = CARDS(); if (c) c.rememberWhatsNew(id); }
 
   // Text fields may be a plain string or a { <lang>: string } map — pick the UI
   // language (set on <html lang> by i18n), then English, then whatever exists.
@@ -826,9 +834,8 @@
   // one flag, one meaning, and the modal comes back on its own at the NEXT
   // release, which is when it starts being true.
   async function suppressForFreshInstall() {
-    if (dismissedWhatsNew()) return;
     const wn = await loadWhatsNew();
-    if (wn && wn.id && !dismissedWhatsNew()) rememberWhatsNew(wn.id);
+    if (wn && wn.id && !dismissedWhatsNew(wn.id)) rememberWhatsNew(wn.id);
   }
 
   function openWhatsNew(wn) {
@@ -1010,15 +1017,24 @@
 
   async function boot() {
     const [info, wn] = await Promise.all([check(false), loadWhatsNew()]);
+    // Wait for the stored dismissal to be known before deciding anything. The
+    // check() above already went to the network, so in practice the local
+    // /settings fetch this waits on has long since answered; the guarantee still
+    // has to be stated, or on a slow/failed release check the order flips and a
+    // dismissed modal re-opens. Bounded inside whenReady — see settings.js.
+    await new Promise((resolve) => {
+      const c = CARDS();
+      if (c && typeof c.whenReady === 'function') c.whenReady(resolve); else resolve();
+    });
     refreshIndicators(info);
     surfacePendingUpdateNotices(info); // fire-and-forget; only ever shows toasts
     // Re-read the dismissed flag HERE, after the awaits: on a first run
     // settings.js marks this release as seen while those fetches are still in
     // flight, and reading it before them would show the modal it just suppressed.
-    const wnPending = !!(wn && wn.id && dismissedWhatsNew() !== wn.id
+    const wnPending = !!(wn && wn.id && !dismissedWhatsNew(wn.id)
       && Array.isArray(wn.highlights) && wn.highlights.length);
     const updatePending = !!(info && info.updateAvailable && !isVersionSkipped(info.latest));
-    if (wnPending) whenNothingElseIsUp(() => { if (dismissedWhatsNew() !== wn.id) openWhatsNew(wn); });
+    if (wnPending) whenNothingElseIsUp(() => { if (!dismissedWhatsNew(wn.id)) openWhatsNew(wn); });
     // On the native app, don't auto-pop this web modal: the shell shows its own
     // in-app "update available — tap to install" toast (native-bridge.js), and
     // two competing popups is exactly how a user ended up on the GitHub page.

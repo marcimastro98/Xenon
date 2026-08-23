@@ -7593,6 +7593,22 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // one stays off until its owner chooses. Turning it on for everyone during an
   // update is the move that costs trust.
   catalogStats: true,
+  // The two startup cards' "don't show again": the What's New modal (the release
+  // id the user dismissed) and the Discord invite card (a plain flag).
+  //
+  // Both lived ONLY in localStorage until v4.11.6, which made a permanent choice
+  // exactly as durable as the browser's site data — a browser set to clear it on
+  // exit, or a cleanup tool, put both cards back at every boot with the
+  // dismissal gone. They also never crossed surfaces: the native WebView and a
+  // browser tab are separate stores on the same URL, so each had to be told.
+  // Reported on Discord. Same move hubMessages/catalogDrops made in v4.9.0.
+  //
+  // Empty/false on a fresh install: nobody has dismissed anything yet, and the
+  // legacy key is promoted into these by the client on first hydrate (see
+  // promoteLegacySeenFlags in js/settings.js), so an existing user does not have
+  // to answer either card a second time.
+  whatsNewSeen: '',
+  discordInviteSeen: false,
   // Opt-in ad-blocker for the Browser tile (Settings → Browser). OFF by default;
   // when on, the server loads an unpacked uBOL MV3 extension into the tile's Edge.
   browserAdblock: false,
@@ -8874,6 +8890,13 @@ function normalizeHubSettings(value) {
     hubMessages: source.hubMessages !== false,
     catalogDrops: source.catalogDrops !== false,
     catalogStats: source.catalogStats === true,
+    // The release id the What's New modal was dismissed for, and the Discord
+    // card's flag. Both `=== true`/bounded-string rather than `!== false`: an
+    // absent key means "never dismissed", which is the honest reading of a blob
+    // written before v4.11.6 — the client promotes the legacy localStorage value
+    // over it on first hydrate when there is one.
+    whatsNewSeen: typeof source.whatsNewSeen === 'string' ? source.whatsNewSeen.trim().slice(0, 64) : '',
+    discordInviteSeen: source.discordInviteSeen === true,
     browserAdblock: source.browserAdblock === true,
     dashboardLayout: resetLayout
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
