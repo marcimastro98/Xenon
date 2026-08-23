@@ -545,15 +545,31 @@
 }
 
 /* ── Things that do not belong on a phone ────────────────────────────────── */
-/* Layout editing: the grid is not being shown at its real geometry here, so a
-   drag would move a tile somewhere the user cannot see. `.layout-fab` is the
-   button that OPENS it and lives outside `.layout-controls`, so hiding the
-   controls left the button floating in the corner offering an editor this view
+/* Layout editing, split by what the stacked view can actually mean.
+
+   GEOMETRY cannot survive here: tiles are drawn in reading order, not at their
+   grid coordinates, so a drag moves a tile somewhere nobody can see and the
+   corner handle resizes against a width the tile does not have. The overlay is
+   hidden for tidiness, but the real refusal is in js/dashboard-grid.js, which
+   keeps the grid static while this view is on — the drag handle is the tile
+   CONTENT, so hiding an overlay was never going to stop a drag by itself.
+
+   EVERYTHING ELSE is fine and now stays: adding a widget from the dock, hiding
+   one, moving one to another page. Hiding those too is what made a screen set
+   to a single column look like it could not be edited at all — reported once
+   the v4.11.5 "Tile layout" switch let people choose this view on a monitor,
+   where there is a whole topbar to reach it from. */
+.is-stacked .gs-edit-overlay { display: none !important; }
+
+/* On a PHONE the editor stays out of reach entirely, which is a different
+   reason: a 24-column layout is not a thumb job, and the controls are tap
+   targets crowded onto a tile that is already narrow. `.layout-fab` is the
+   button that OPENS the editor and lives outside `.layout-controls`, so hiding
+   only the controls left it floating in the corner offering an editor this view
    refuses to show. */
-.is-stacked .layout-controls,
-.is-stacked .layout-fab,
-.is-stacked .gs-edit-overlay,
-.is-stacked .pager-page-btn { display: none !important; }
+.is-phone .layout-controls,
+.is-phone .layout-fab,
+.is-phone .pager-page-btn { display: none !important; }
 /* The home bar is a native-kiosk gesture strip; on a phone it overlaps the dock. */
 .is-phone #xenon-home-bar { display: none; }
 
