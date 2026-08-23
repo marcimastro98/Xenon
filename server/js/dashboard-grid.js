@@ -104,7 +104,7 @@ function mountPageGrid(pageId, gridEl) {
   if (_grids.has(pageId)) { try { _grids.get(pageId).destroy(false); } catch (e) { /* ignore */ } _grids.delete(pageId); }
   const grid = GridStack.init({
     column: GRID_COLUMNS, cellHeight: 35, margin: 7, float: true,
-    staticGrid: !_editing,
+    staticGrid: shouldGridBeStatic(),
     // The drag handle is the CONTENT NODE itself. GridStack resolves the handle
     // elements ONCE, when it constructs a widget's draggable — so the handle must
     // be a node that always exists and is never replaced by re-renders. The old
@@ -363,9 +363,45 @@ function pruneGrids(validPageIds) {
   });
 }
 
+// A stacked view (phone, tablet or a screen deliberately set to one column)
+// draws the tiles in reading order, NOT at their grid coordinates. So the two
+// geometric gestures cannot mean anything there: a drag would move a tile to a
+// place nobody can see, and the corner handle would resize against a width the
+// tile does not have.
+//
+// They are refused at the source — the grid simply stays static — rather than by
+// hiding the handles, because the drag handle is the tile CONTENT itself
+// (`draggable.handle` at mount), so a hidden overlay would not have stopped a
+// drag from starting on the tile body.
+//
+// The rest of the editor is untouched and works exactly as it does on the grid:
+// adding a widget from the dock, hiding one, moving one to another page. None of
+// those is geometry, and refusing them was what made a dashboard set to one
+// column look like it could not be edited at all.
+function isStackedView() {
+  try {
+    return !!(window.PhoneView && typeof window.PhoneView.isActive === 'function' && window.PhoneView.isActive());
+  } catch (e) { return false; }
+}
+
+// The rule itself, pure so it can be pinned without a browser: the grid is
+// draggable ONLY while the editor is open AND the tiles are where their
+// coordinates say they are.
+function gridStaticFor(editing, stacked) { return !editing || !!stacked; }
+
+function shouldGridBeStatic() { return gridStaticFor(_editing, isStackedView()); }
+
+// Re-applied when the stacked view goes on or off (PhoneView calls this), since
+// that can happen while the editor is already open — a rotation, or the Tile
+// layout switch in Settings.
+function syncStatic() {
+  const stat = shouldGridBeStatic();
+  _grids.forEach(grid => { try { grid.setStatic(stat); } catch (e) { /* ignore */ } });
+}
+
 function setEditing(on) {
   _editing = !!on;
-  _grids.forEach(grid => { try { grid.setStatic(!_editing); } catch (e) { /* ignore */ } });
+  syncStatic();
   document.body.classList.toggle('layout-editing', _editing);
 }
 
@@ -896,7 +932,7 @@ function fitGridHeights() {
 }
 
 if (typeof window !== 'undefined') {
-  window.DashboardGrid = { mountPageGrid, pruneGrids, setEditing, serialize, applyWidgetGeometry, addWidgetToPage, packPageItems, availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps, fitGridHeights, refreshPageAddAffordances, ensureTileHandles, forEachInstance, GRID_COLUMNS, removePlacement, cycleTileSize };
+  window.DashboardGrid = { mountPageGrid, pruneGrids, setEditing, syncStatic, serialize, applyWidgetGeometry, addWidgetToPage, packPageItems, availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps, fitGridHeights, refreshPageAddAffordances, ensureTileHandles, forEachInstance, GRID_COLUMNS, removePlacement, cycleTileSize };
   let _fitT = null;
   window.addEventListener('resize', () => { clearTimeout(_fitT); _fitT = setTimeout(fitGridHeights, 120); });
   // A render-parked page (content-visibility, dashboard-pager .is-parked) reports
@@ -912,5 +948,5 @@ if (typeof window !== 'undefined') {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps, packPageItems, distributeCols, fitPageRows, MIN_TILE_H, MIN_FILL_ROWS, MAX_PORTRAIT_CELL, GRID_COLUMNS };
+  module.exports = { availableWidgets, addableWidgetIds, firstFreeSlot, largestFreeRect, resolveLayoutOverlaps, packPageItems, distributeCols, fitPageRows, gridStaticFor, MIN_TILE_H, MIN_FILL_ROWS, MAX_PORTRAIT_CELL, GRID_COLUMNS };
 }

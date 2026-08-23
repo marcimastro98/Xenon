@@ -102,15 +102,45 @@
   // ── Policy ────────────────────────────────────────────────────────────────
 
   /**
-   * Which layout this viewport wants: 'off' (the grid), 'phone' (one column
-   * plus the compact chrome and the thumb dock) or 'tablet' (two columns,
-   * ordinary chrome). Pure, so every threshold is testable without a browser.
+   * Is this viewport a PHONE — the device, not the layout? Width alone below the
+   * threshold, or the same phone on its side (short and not too wide). Split out
+   * because the answer decides the CHROME, which is a different question from
+   * how many columns to draw; see stackMode.
    *
-   * One function rather than two booleans because the three answers are
-   * mutually exclusive and their ORDER is the policy — a phone in landscape is
-   * inside the tablet width band and must never be answered with 'tablet', and
-   * a display mounted vertically must be judged on its width BEFORE its shape,
-   * or a tall screen wide enough for the grid would lose it.
+   * Height is optional so a caller that only knows the width still gets an
+   * answer instead of a throw or a wrong one. Without it a phone on its side is
+   * indistinguishable from a small tablet, and the safe reading of a bare width
+   * in that band is "not a phone".
+   */
+  function isPhoneSized(w, h) {
+    if (!Number.isFinite(w) || w <= 0) return false;
+    if (w <= PHONE_MAX_W) return true;
+    const hasH = Number.isFinite(h) && h > 0;
+    return hasH && h <= PHONE_MAX_H && w <= PHONE_LANDSCAPE_MAX_W;
+  }
+
+  /**
+   * Which layout this viewport wants:
+   *   'off'     the grid
+   *   'tablet'  two columns, ordinary chrome
+   *   'column'  one column, ordinary chrome
+   *   'phone'   one column PLUS the compact chrome and the thumb dock
+   *
+   * Pure, so every threshold is testable without a browser.
+   *
+   * One function rather than several booleans because the answers are mutually
+   * exclusive and their ORDER is the policy — a phone in landscape is inside the
+   * tablet width band and must never be answered with 'tablet', and a display
+   * mounted vertically must be judged on its width BEFORE its shape, or a tall
+   * screen wide enough for the grid would lose it.
+   *
+   * 'phone' and 'column' draw the SAME single column and differ only in chrome,
+   * and keeping them apart is what fixes this: until v4.11.6 an explicit "Single
+   * column" answered 'phone' on any screen, so choosing a LAYOUT in Settings also
+   * bought the phone's chrome — the compact topbar, the thumb dock, and with them
+   * the layout button. On a monitor deliberately set to one column that read as
+   * "the dashboard can no longer be edited", which is how it was reported. The
+   * preference decides the columns; the screen decides the chrome.
    */
   function stackMode(input) {
     const o = input || {};
@@ -122,19 +152,20 @@
     // nobody asked — and it wins over an explicit preference, because the
     // preference is about THIS device's dashboard, not about an embed.
     if (o.embedded) return 'off';
-    if (o.preference === 'on') return 'phone';
     if (o.preference === 'off') return 'off';
     const w = Number(o.width);
-    if (!Number.isFinite(w) || w <= 0) return 'off';
-    if (w <= PHONE_MAX_W) return 'phone';
     const h = Number(o.height);
-    // Height is optional so a caller that only knows the width still gets an
-    // answer instead of a throw or a wrong one. Without it a phone on its side
-    // is indistinguishable from a small tablet, and the safe reading of a bare
-    // width in this band is the roomier layout.
-    const hasH = Number.isFinite(h) && h > 0;
-    if (hasH && h <= PHONE_MAX_H && w <= PHONE_LANDSCAPE_MAX_W) return 'phone';
+    const phone = isPhoneSized(w, h);
+    if (o.preference === 'on') return phone ? 'phone' : 'column';
+    if (!Number.isFinite(w) || w <= 0) return 'off';
+    if (phone) return 'phone';
     if (w > TABLET_MAX_W) return 'off';
+    // A display mounted vertically. Still answered with the phone's chrome
+    // rather than 'column': this branch only catches panels under
+    // TABLET_MAX_W and shaped past TALL_DISPLAY_RATIO — a vertical Edge is
+    // 720px wide — where the ordinary topbar has no more room than it does on
+    // a phone. Widening that is a separate question from the one above.
+    const hasH = Number.isFinite(h) && h > 0;
     if (hasH && h / w >= TALL_DISPLAY_RATIO) return 'phone';
     return 'tablet';
   }
@@ -539,6 +570,8 @@
     active = mode;
     const cl = document.documentElement.classList;
     cl.add('is-stacked');
+    // 'column' carries `is-stacked` and nothing else: one column (the CSS default
+    // for --ph-cols) with the ordinary chrome left exactly as it is.
     cl.toggle('is-phone', mode === 'phone');
     cl.toggle('is-tablet', mode === 'tablet');
     // The dock exists because the topbar sits where a thumb cannot reach on a
@@ -559,12 +592,26 @@
     document.querySelectorAll('.pager').forEach((p) => observer.observe(p, {
       childList: true, subtree: true, attributeFilter: ['gs-x', 'gs-y', 'gs-h'],
     }));
+    syncGridStatic();
+  }
+
+  // Tiles are not at their grid coordinates here, so dragging or corner-resizing
+  // one would move it somewhere nobody can see. DashboardGrid keeps the grid
+  // static while this view is on — told here rather than asked for on every
+  // frame, because the mode changes far more rarely than the grid is touched.
+  function syncGridStatic() {
+    try {
+      if (window.DashboardGrid && typeof window.DashboardGrid.syncStatic === 'function') {
+        window.DashboardGrid.syncStatic();
+      }
+    } catch { /* the layout must never depend on the editor being loaded */ }
   }
 
   function disable() {
     if (!active) return;
     active = null;
     document.documentElement.classList.remove('is-stacked', 'is-phone', 'is-tablet');
+    syncGridStatic();
     if (observer) observer.disconnect();
     if (pending) { cancelAnimationFrame(pending); pending = 0; }
     clearStamps();
@@ -679,7 +726,7 @@
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-      stackMode, shouldUsePhoneView, readingOrder,
+      stackMode, shouldUsePhoneView, isPhoneSized, readingOrder,
       PHONE_MAX_W, PHONE_MAX_H, PHONE_LANDSCAPE_MAX_W, ROW_PX,
       TABLET_MAX_W, TALL_DISPLAY_RATIO,
     };

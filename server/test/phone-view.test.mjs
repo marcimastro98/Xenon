@@ -74,11 +74,60 @@ test('a missing height decides on width alone', () => {
 });
 
 test('an explicit preference beats the measurement in both directions', () => {
-  assert.equal(pv.shouldUsePhoneView({ width: 2560, preference: 'on' }), true);
+  // "Single column" on a 2560px monitor stacks — but as 'column', not 'phone'.
+  // The preference is a choice about COLUMNS; the chrome is still the screen's
+  // to decide. Before v4.11.6 this answered 'phone' and the monitor lost the
+  // compact-chrome half of the phone view along with it, the layout button
+  // included, which read as "one column cannot be edited". See the split below.
+  assert.equal(pv.stackMode({ width: 2560, preference: 'on' }), 'column');
+  assert.equal(pv.shouldUsePhoneView({ width: 2560, preference: 'on' }), false);
   assert.equal(pv.shouldUsePhoneView({ width: 390, preference: 'off' }), false);
+  assert.equal(pv.stackMode({ width: 390, preference: 'off' }), 'off');
   // …and nothing else counts as a preference.
   assert.equal(pv.shouldUsePhoneView({ width: 390, preference: 'yes' }), true);
   assert.equal(pv.shouldUsePhoneView({ width: 2560, preference: 'yes' }), false);
+});
+
+// ── The layout and the chrome are two questions ──────────────────────────────
+// Both answers draw ONE column. They differ only in what surrounds it, and the
+// screen decides that — a phone gets the compact topbar and the thumb dock, a
+// monitor keeps the chrome it already had, including the way into the editor.
+test('"single column" keeps the phone chrome on a phone and drops it elsewhere', () => {
+  for (const box of [
+    { width: 390, height: 844 },     // phone upright
+    { width: 932, height: 430 },     // the same phone on its side
+    { width: 620, height: 900 },     // the widest phone the threshold admits
+  ]) {
+    assert.equal(pv.stackMode({ ...box, preference: 'on' }), 'phone', JSON.stringify(box));
+  }
+  for (const box of [
+    { width: 1440, height: 2560 },   // a monitor mounted vertically
+    { width: 2560, height: 1440 },   // an ordinary monitor
+    { width: 768, height: 1024 },    // a tablet
+    { width: 2560, height: 720 },    // the Xeneon Edge
+  ]) {
+    assert.equal(pv.stackMode({ ...box, preference: 'on' }), 'column', JSON.stringify(box));
+  }
+});
+
+// The chrome test is the phone test and nothing else: it must not start
+// answering yes for a screen that merely chose one column.
+test('the phone test is about the device, not about the layout', () => {
+  assert.equal(pv.isPhoneSized(390, 844), true);
+  assert.equal(pv.isPhoneSized(932, 430), true, 'the same phone on its side');
+  assert.equal(pv.isPhoneSized(1440, 2560), false, 'a vertical monitor is not a phone');
+  assert.equal(pv.isPhoneSized(2560, 1440), false);
+  assert.equal(pv.isPhoneSized(0, 800), false);
+  assert.equal(pv.isPhoneSized(NaN, NaN), false);
+});
+
+// 'auto' is untouched by the split: nothing about an unattended screen changes.
+test('the automatic answers are exactly what they were', () => {
+  assert.equal(pv.stackMode({ width: 390, height: 844, preference: 'auto' }), 'phone');
+  assert.equal(pv.stackMode({ width: 768, height: 1024, preference: 'auto' }), 'tablet');
+  assert.equal(pv.stackMode({ width: 720, height: 2560, preference: 'auto' }), 'phone', 'a vertical Edge');
+  assert.equal(pv.stackMode({ width: 2560, height: 720, preference: 'auto' }), 'off');
+  assert.equal(pv.stackMode({ width: 1440, height: 2560, preference: 'auto' }), 'off', 'wide enough to keep the grid');
 });
 
 // A `?panel=…` iCUE embed and the Edge preview stage are both narrow for
@@ -181,7 +230,7 @@ test('desktops are left alone entirely', () => {
 
 test('the preference and the embed rule still beat every measurement', () => {
   assert.equal(pv.stackMode({ width: 768, height: 1024, preference: 'off' }), 'off');
-  assert.equal(pv.stackMode({ width: 2560, height: 1440, preference: 'on' }), 'phone');
+  assert.equal(pv.stackMode({ width: 2560, height: 1440, preference: 'on' }), 'column');
   for (const pref of ['auto', 'on', 'off']) {
     assert.equal(pv.stackMode({ width: 768, height: 1024, preference: pref, embedded: true }), 'off', pref);
   }

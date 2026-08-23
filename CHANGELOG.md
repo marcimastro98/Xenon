@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **A dashboard set to a single column can be edited again.** Choosing "Single column" under Settings → General → Tile layout took the layout editor away with it: no way in from the top bar, and no controls on the tiles. Adding a widget, hiding one, moving one to another page — all gone, on a screen with a mouse and a full top bar sitting right there. Switching back to Grid was the only way to change anything. Reported on Discord.
+
+  The single column was built for a phone, where hiding the editor is the right call: a 24-column drag is not a thumb gesture. When v4.11.5 turned that layout into something you can *choose* on any screen, the phone's whole treatment came along with it — the compact top bar, the thumb dock, and the missing editor — because one answer was doing two jobs. Picking how many columns you want is not the same as telling Xenon what kind of device it is running on.
+
+  Those are now two questions. The setting decides the columns; the screen decides everything else. A monitor set to a single column keeps the top bar it always had, the way into the editor included, while a phone is unchanged in every respect.
+
+  Inside the editor, the split is the same one. Dragging a tile and pulling its corner are the only things a stacked view genuinely cannot offer — the tiles are drawn one under the other rather than at their grid positions, so a drag would move a tile somewhere you cannot see it. Those two are refused. Everything else works exactly as it does on the grid: the "+" opens the widget palette, tiles can be hidden or sent to another page, presets save and load.
+
 - **A screen mounted vertically can resize its tiles again.** On a vertical mount that stays on the grid, a tile could be made narrower a column at a time but barely shorter at all: the vertical handle moved in enormous steps and then stopped, at a tile roughly half the height of the screen, refusing to go smaller. It read as though only the horizontal direction worked. Reported on Discord.
 
   The two directions were not the same kind of thing. Across, the dashboard is always 24 columns, so it has 24 stops on any screen. Down, there was no fixed number of rows: the dashboard used however many rows your layout happened to occupy and stretched them to fill the height. That is right on a wide screen. On a tall one it is not, because there is one layout shared by every screen you own, so a vertical panel was drawing the same handful of rows built for a wide screen over three times the height. On a rotated 1440x2560 monitor that made a single row 300 pixels tall, and the smallest allowed tile is four rows: 1200 pixels, half the panel, to the pixel.
