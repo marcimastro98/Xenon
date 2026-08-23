@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **A screen mounted vertically can resize its tiles again.** On a vertical mount that stays on the grid, a tile could be made narrower a column at a time but barely shorter at all: the vertical handle moved in enormous steps and then stopped, at a tile roughly half the height of the screen, refusing to go smaller. It read as though only the horizontal direction worked. Reported on Discord.
+
+  The two directions were not the same kind of thing. Across, the dashboard is always 24 columns, so it has 24 stops on any screen. Down, there was no fixed number of rows: the dashboard used however many rows your layout happened to occupy and stretched them to fill the height. That is right on a wide screen. On a tall one it is not, because there is one layout shared by every screen you own, so a vertical panel was drawing the same handful of rows built for a wide screen over three times the height. On a rotated 1440x2560 monitor that made a single row 300 pixels tall, and the smallest allowed tile is four rows: 1200 pixels, half the panel, to the pixel.
+
+  On a vertical screen the extra height now buys **more rows** rather than taller ones. The same monitor gets 27 stops instead of 8, and the smallest tile drops from half the screen to about a seventh of it. Tiles keep the size they have on your other screens instead of being inflated to fill, and what is left below them is real grid: you can drag a tile down into it, or stretch one to reach it, where before there was a hard stop at the last row.
+
+  Nothing changes on a screen wider than it is tall. The Xeneon Edge, an ordinary monitor and a resized browser window all keep the sizing they had — a row on the Edge measures 73 pixels, comfortably under the ceiling this adds, so it cannot be affected by it.
+
 - **"Don't show again" now means it, on the two cards that greet you at startup.** The What's New panel and the Discord invite card each carry a button that is supposed to silence them for good, and for some people it did nothing: both were back at the next boot, every boot, with the button already pressed. Reported on Discord.
 
   Neither card was ignoring the click. Both flags were kept in the browser's own storage for the dashboard's address, which sounds like the obvious place until you notice what shares a switch with it. "Clear cookies and site data when you close all windows" — a setting in Chrome and Edge, with an equivalent in Firefox, that plenty of people turn on and never think about again — takes the dismissal with it at every shutdown, as does any cleanup tool, as does a private window. The card then came back exactly as it does for someone who has never seen it, because as far as Xenon could tell that is who was looking.
