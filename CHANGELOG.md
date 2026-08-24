@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **An install can no longer be stopped by a library that refuses to be installed.** This is the step before the one below, and it is where the broken install actually came from. One of the dashboard's libraries, `msedge-tts`, ships a guard that runs before it installs and is designed to fail unless the installer is a particular tool that Xenon does not use. On most machines that guard quietly passes. On a machine missing the `%APPDATA%\npm` folder — a folder that only appears once you install something globally, and that cleanup tools delete — the guard cannot even run: it errors out, npm gives up on the whole set of libraries part-way through, and what is left on disk is the half-finished install the entry below describes.
+
+  The setup now installs the libraries without running any of their setup scripts. Nothing is lost by that: one library has no such scripts, the guard is the only one the second has, and the third's — the one behind RGB control — never delivered anything in the first place, because its compiled part arrives as an ordinary download picked for your version of Windows. Xenon's own post-install step, which the same switch would have skipped, is now run explicitly instead of being left to npm.
+
+  It is also simply the right thing for a setup running on someone else's PC. The scripts a library can ask to run at install time are arbitrary programs, and Xenon needs none of them.
+
 - **The setup now notices when a library is only half there, and repairs it.** This is the cause behind the install that never finishes: the setup checked for the dashboard's libraries by looking for their folders, and a folder is not a library. An npm install interrupted part-way — a window closed, a connection dropped, an antivirus holding a file while it was being written — leaves the folders behind with nothing usable inside them. The setup saw the folders, reported "dependencies already installed", listed every component as OK, and skipped the repair. The engine then failed to start on every single launch, for the exact library that was never finished.
 
   That is what the loop was made of. Nothing was wrong with the app's diagnosis and nothing was wrong with the setup's: they were asking different questions and both answering honestly. Running the setup again could never help, because the check that decided there was nothing to do gave the same wrong answer every time.

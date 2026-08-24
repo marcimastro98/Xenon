@@ -594,6 +594,32 @@ function Get-UnloadableNodeDeps {
   return @($missing)
 }
 
+# Our OWN postinstall, run explicitly.
+#
+# package.json's postinstall is `node tools/link-shared.mjs`, which creates the
+# junctions server\shared and widget\shared -> packages\core. They are not in
+# the release tree (git-ignored, created at install time) and the dashboard
+# serves /shared/src/*.js through them, so without this the engine starts and
+# the page is missing its shared modules.
+#
+# npm ran it for us until the install above became --ignore-scripts, which skips
+# our scripts along with the dependency tree's. Doing it here rather than
+# re-enabling scripts keeps the reason in one place: we want OUR step, not
+# theirs. Idempotent and soft-failing by design (see the script's own header),
+# so it is safe to run on every pass, including one where nothing was installed.
+function Restore-SharedFolderLinks {
+  $linkScript = Join-Path $root 'tools\link-shared.mjs'
+  if (-not (Test-Path $linkScript)) { return }   # trimmed tree: nothing to link
+  $nodeForLink = Get-NodePath
+  if (-not $nodeForLink) { return }              # reported already by the caller
+  try {
+    Start-Process -FilePath $nodeForLink -ArgumentList "`"$linkScript`"" `
+      -WorkingDirectory $root -Wait -NoNewWindow | Out-Null
+  } catch {
+    Write-Host "  Could not create the shared folder links: $($_.Exception.Message)" -ForegroundColor Yellow
+  }
+}
+
 function Install-NpmDependenciesIfNeeded {
   # The widget needs all three runtime dependencies: ws (the server's WebSocket relay,
   # required to even start), koffi (RGB bridge) and msedge-tts (local AI voice). Only
@@ -604,6 +630,9 @@ function Install-NpmDependenciesIfNeeded {
   $missing = Get-UnloadableNodeDeps -NodePath $probeNode
   if ($missing.Count -eq 0) {
     Write-Step 'Node.js dependencies already installed.'
+    # Still ensure the junctions: a tree unzipped fresh has none, and the npm
+    # install that would have made them is the very step being skipped here.
+    Restore-SharedFolderLinks
     return
   }
 
@@ -629,6 +658,28 @@ function Install-NpmDependenciesIfNeeded {
     return
   }
 
+  # --ignore-scripts, and the reason is a dependency that refuses to be installed
+  # by npm at all: msedge-tts declares `preinstall: npx only-allow pnpm`, a guard
+  # whose whole purpose is to fail the install unless the caller is pnpm. On most
+  # machines npx quietly satisfies it; on one where %APPDATA%\npm does not exist
+  # (that folder only appears once something is installed globally, and cleanup
+  # tools remove it) npx itself dies with ENOENT, the preinstall fails, npm aborts
+  # the whole tree, and node_modules is left half-written - which is exactly the
+  # broken install reported on Discord, with the engine then dying on
+  # require('ws') at every launch.
+  #
+  # Nothing we need is lost by skipping scripts. ws has none. koffi's native
+  # binary arrives as a per-platform PACKAGE (@koromix/koffi-<os>-<arch>), not as
+  # a build step - its `install` script is only the fallback for a platform with
+  # no prebuilt, and it is not one Xenon ships to. msedge-tts's only script is the
+  # guard above. Verified by installing all three with --ignore-scripts and
+  # calling into koffi's native layer.
+  #
+  # It is also the right default for an installer running on someone else's PC:
+  # a dependency tree's lifecycle scripts are arbitrary code, and we do not need
+  # any of it. What IS needed is our OWN postinstall, which --ignore-scripts also
+  # skips - see Restore-SharedFolderLinks, called below.
+  #
   # Registry/network hiccups make npm fail transiently, and a single failed pass
   # used to just tell the user to do it by hand (issue #87) - retry it instead.
   $maxAttempts = 3
@@ -640,13 +691,13 @@ function Install-NpmDependenciesIfNeeded {
 
     if (Test-Path $npmCli) {
       $process = Start-Process -FilePath $nodePath `
-        -ArgumentList "`"$npmCli`"", 'install' `
+        -ArgumentList "`"$npmCli`"", 'install', '--ignore-scripts' `
         -WorkingDirectory $root `
         -Wait -PassThru -NoNewWindow
     } else {
       # Fallback: invoke npm.cmd explicitly (never npm.ps1) through cmd.exe.
       $process = Start-Process -FilePath $env:ComSpec `
-        -ArgumentList '/c', "`"$npmCmd`"", 'install' `
+        -ArgumentList '/c', "`"$npmCmd`"", 'install', '--ignore-scripts' `
         -WorkingDirectory $root `
         -Wait -PassThru -NoNewWindow
     }
@@ -663,6 +714,7 @@ function Install-NpmDependenciesIfNeeded {
     $stillMissing = Get-UnloadableNodeDeps -NodePath $nodePath
     if ($stillMissing.Count -eq 0) {
       Write-Step 'Node.js dependencies installed.'
+      Restore-SharedFolderLinks
       return
     }
     Write-Host "  Dependencies still missing after npm install: $($stillMissing -join ', ')." -ForegroundColor Yellow
