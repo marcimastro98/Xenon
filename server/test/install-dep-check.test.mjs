@@ -208,3 +208,26 @@ test('the explicit call and package.json name the same script', () => {
   const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
   assert.match(pkg.scripts.postinstall, /link-shared\.mjs/);
 });
+
+// ── What a stuck user is told to type ────────────────────────────────────────
+//
+// The advice used to be a plain `npm install`, which after this release walks
+// straight back into the guard that breaks the install. The reporter followed
+// exactly that instruction and hit exactly that wall. Whatever the setup prints
+// when it gives up has to be a command that can actually work.
+
+test('the manual instructions carry the flag and the link step', () => {
+  const hint = PS1.slice(PS1.indexOf('function Show-ManualInstallHint'));
+  const body = hint.slice(0, hint.indexOf('\n}'));
+  assert.match(body, /npm install --ignore-scripts/);
+  assert.match(body, /link-shared\.mjs/, 'the step --ignore-scripts skips must be named too');
+});
+
+test('no bare "npm install" is ever suggested to the user', () => {
+  const suggestions = (PS1.match(/Write-Host[^\n]*npm install[^\n]*/g) || [])
+    // Progress lines about what the setup itself is doing are not instructions.
+    .filter((l) => !/Retrying npm install|npm install failed|missing after npm install/.test(l));
+  for (const line of suggestions) {
+    assert.match(line, /--ignore-scripts/, `advice without the flag: ${line.trim()}`);
+  }
+});
