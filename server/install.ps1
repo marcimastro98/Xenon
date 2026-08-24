@@ -955,7 +955,34 @@ function Start-WidgetServer {
     if (Test-WidgetServer) { return }
   }
 
-  Write-Host 'The server may still be starting. If the browser page is blank, wait a few seconds and refresh.' -ForegroundColor Yellow
+  # Five seconds and nothing answering is not "still starting" - node is spawned
+  # by start-hidden.vbs with the window hidden, so it either bound the port in
+  # that time or it died. Calling it a maybe is what closed the loop reported on
+  # Discord: the setup ended cheerfully, the app still had no engine, its splash
+  # offered "Try setup again", and this ran again to the same cheerful end.
+  #
+  # The engine writes down why it failed since v4.11.6 (server/startup-log.js),
+  # so there is now something to point at rather than a shrug.
+  Write-Host ''
+  Write-Host '   The engine did not answer after starting it.' -ForegroundColor Red
+  Write-Host '   Everything is installed - it is the start itself that failed, so running' -ForegroundColor Yellow
+  Write-Host '   this setup again will not change anything.' -ForegroundColor Yellow
+  $engineLog = Join-Path $env:LOCALAPPDATA 'Xenon\server.log'
+  if (Test-Path $engineLog) {
+    Write-Host ''
+    Write-Host '   The engine wrote down why:' -ForegroundColor Gray
+    try {
+      Get-Content -Path $engineLog -Tail 6 -ErrorAction Stop |
+        ForEach-Object { Write-Host "     $_" -ForegroundColor DarkGray }
+    } catch { }
+    Write-Host ''
+    Write-Host "   Full log: $engineLog" -ForegroundColor Gray
+  } else {
+    Write-Host ''
+    Write-Host "   Nothing was written to $engineLog either, which points at node" -ForegroundColor Gray
+    Write-Host '   itself not being reachable. Open a new terminal and run: node -v' -ForegroundColor Gray
+  }
+  Write-Host '   Send that with a bug report - it names the cause.' -ForegroundColor DarkGray
 }
 
 # The backend must run in the USER'S interactive session - never as a session-0

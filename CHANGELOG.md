@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **When the engine will not start, it now says why.** Some fresh installs land in a loop with no way out: the app shows "Xenon isn't finished installing", you press "Try setup again", a console opens and reports that everything is already installed, you press Enter — and the same screen comes back. Restarting the PC changes nothing. Reported on Discord.
+
+  Both halves were telling the truth. Everything *is* installed; it is the start itself that fails. The dashboard engine is launched by a hidden window with no console attached, so when it died it died completely silently: no message, no file, nothing in Event Viewer. The setup then found every file where it belonged and had nothing to report either. The one fact that would have ended the loop — the error node printed as it exited — was thrown away by design, every single time.
+
+  The engine now keeps a log of its own start, at `%LOCALAPPDATA%\Xenon\server.log`, beside the setup log that arrived in v4.11.5, with the run before it kept as `server.log.1`. It records that it started, that it reached the point of listening, and, if it failed, what the error was and what it usually means — a dependency that never finished installing, another program already holding port 3030, a permission or antivirus refusal. That file is what to attach to a bug report.
+
+  The setup has stopped being cheerful about it too. When it starts the engine and nothing answers, that was reported as "the server may still be starting", in yellow, and the script ended successfully — which is what made running it again look like the next thing to try. It now says plainly that the install is fine and the start is what failed, prints the last few lines the engine wrote, and points at the log.
+
 - **A dashboard set to a single column can be edited again.** Choosing "Single column" under Settings → General → Tile layout took the layout editor away with it: no way in from the top bar, and no controls on the tiles. Adding a widget, hiding one, moving one to another page — all gone, on a screen with a mouse and a full top bar sitting right there. Switching back to Grid was the only way to change anything. Reported on Discord.
 
   The single column was built for a phone, where hiding the editor is the right call: a 24-column drag is not a thumb gesture. When v4.11.5 turned that layout into something you can *choose* on any screen, the phone's whole treatment came along with it — the compact top bar, the thumb dock, and the missing editor — because one answer was doing two jobs. Picking how many columns you want is not the same as telling Xenon what kind of device it is running on.
