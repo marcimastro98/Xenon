@@ -24,6 +24,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const PS1 = readFileSync(new URL('../install.ps1', import.meta.url), 'utf8');
+const LOCK = JSON.parse(readFileSync(new URL('../../package-lock.json', import.meta.url), 'utf8'));
 
 /** The probe exactly as install.ps1 builds it, with $dep filled in. */
 function probeFor(dep) {
@@ -135,4 +136,75 @@ test('an unanswerable probe reports everything missing, not everything fine', ()
   assert.match(fn, /if \(-not \$NodePath\) \{ return @\(\$requiredNodeDeps\) \}/);
   // …and a probe that throws counts against the module too.
   assert.match(fn, /catch \{[\s\S]*\$missing \+= \$dep/);
+});
+
+// ── Why the install may skip lifecycle scripts ───────────────────────────────
+//
+// The install that broke never finished because of a dependency that refuses to
+// be installed by npm: msedge-tts declares `preinstall: npx only-allow pnpm`, a
+// guard whose purpose is to fail unless the caller is pnpm. On the reporter's PC
+// %APPDATA%\npm did not exist, so npx itself died with ENOENT, the preinstall
+// failed, npm aborted the tree, and node_modules was left half-written.
+//
+// So the setup installs with --ignore-scripts. These pin the two facts that make
+// that safe, against the lockfile, so a dependency bump that changed either one
+// fails here instead of on a user's machine.
+
+test('the setup installs without running dependency lifecycle scripts', () => {
+  const installs = PS1.match(/-ArgumentList[^\n]*'install'[^\n]*/g) || [];
+  assert.ok(installs.length >= 2, 'both npm invocations must be covered');
+  for (const line of installs) {
+    assert.match(line, /'--ignore-scripts'/, `npm invocation without the flag: ${line.trim()}`);
+  }
+});
+
+// The load-bearing one. koffi is native, so if its binary arrived from a BUILD
+// step, skipping scripts would leave the RGB bridge dead — silently, and only on
+// the user's machine. It does not: npm ships one prebuilt package per platform,
+// selected by `os`, and none of them has an install script of its own. koffi's
+// own install script is the fallback for a platform with no prebuilt package.
+test("koffi's native binary arrives as a package, not as a build step", () => {
+  const prebuilts = Object.entries(LOCK.packages)
+    .filter(([name]) => name.includes('@koromix/koffi-'));
+  assert.ok(prebuilts.length > 0, 'koffi must still ship per-platform prebuilt packages');
+
+  const windows = prebuilts.filter(([, meta]) => (meta.os || []).includes('win32'));
+  assert.ok(windows.length > 0, 'the platform Xenon installs on must have a prebuilt package');
+
+  for (const [name, meta] of prebuilts) {
+    assert.ok(!meta.hasInstallScript, `${name} must not need a script to install`);
+    assert.equal(meta.optional, true, `${name} is selected by platform, so it must be optional`);
+  }
+});
+
+// ws must stay script-free, and the two that do declare scripts must stay the
+// two we have reasoned about. A NEW dependency with an install script would need
+// its own judgement before --ignore-scripts could be assumed harmless for it.
+test('only the packages we have reasoned about declare install scripts', () => {
+  const withScripts = Object.entries(LOCK.packages)
+    .filter(([, meta]) => meta.hasInstallScript)
+    .map(([name]) => name.replace(/^node_modules\//, ''));
+  // '' is the root project — that entry IS our own postinstall, the one
+  // Restore-SharedFolderLinks now runs by hand. koffi's is the no-prebuilt
+  // fallback and msedge-tts's is the pnpm guard; both are covered above. A NEW
+  // name here is a dependency whose install script nobody has judged yet, and
+  // --ignore-scripts must not be assumed harmless for it until someone has.
+  assert.deepEqual(withScripts.sort(), ['', 'koffi', 'msedge-tts']);
+});
+
+// --ignore-scripts skips OUR postinstall too, and that one is required: it makes
+// the server\shared junction the dashboard serves /shared/src/*.js through.
+test('the setup runs our own postinstall explicitly', () => {
+  assert.match(PS1, /function Restore-SharedFolderLinks/);
+  assert.match(PS1, /tools\\link-shared\.mjs/, 'it must call the same script package.json does');
+  const fn = PS1.slice(PS1.indexOf('function Install-NpmDependenciesIfNeeded'));
+  const calls = fn.match(/Restore-SharedFolderLinks/g) || [];
+  assert.ok(calls.length >= 2, 'both the skip path and the success path must link');
+});
+
+// package.json is what defines the step; if the postinstall is ever renamed or
+// dropped, the explicit call above is pointing at nothing.
+test('the explicit call and package.json name the same script', () => {
+  const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
+  assert.match(pkg.scripts.postinstall, /link-shared\.mjs/);
 });
