@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **The setup now notices when a library is only half there, and repairs it.** This is the cause behind the install that never finishes: the setup checked for the dashboard's libraries by looking for their folders, and a folder is not a library. An npm install interrupted part-way — a window closed, a connection dropped, an antivirus holding a file while it was being written — leaves the folders behind with nothing usable inside them. The setup saw the folders, reported "dependencies already installed", listed every component as OK, and skipped the repair. The engine then failed to start on every single launch, for the exact library that was never finished.
+
+  That is what the loop was made of. Nothing was wrong with the app's diagnosis and nothing was wrong with the setup's: they were asking different questions and both answering honestly. Running the setup again could never help, because the check that decided there was nothing to do gave the same wrong answer every time.
+
+  All three places that ask now ask **Node itself** whether the library loads — the same question the engine asks when it starts, so the two can no longer disagree. That covers the check before installing, the verification afterwards, and the component summary at the end, which is also what decides whether the automatic retry runs. A half-written library is now reported as missing, reinstalled, and verified.
+
 - **When the engine will not start, it now says why.** Some fresh installs land in a loop with no way out: the app shows "Xenon isn't finished installing", you press "Try setup again", a console opens and reports that everything is already installed, you press Enter — and the same screen comes back. Restarting the PC changes nothing. Reported on Discord.
 
   Both halves were telling the truth. Everything *is* installed; it is the start itself that fails. The dashboard engine is launched by a hidden window with no console attached, so when it died it died completely silently: no message, no file, nothing in Event Viewer. The setup then found every file where it belonged and had nothing to report either. The one fact that would have ended the loop — the error node printed as it exited — was thrown away by design, every single time.

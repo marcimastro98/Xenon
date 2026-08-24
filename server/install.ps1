@@ -555,13 +555,53 @@ function Install-FfmpegIfNeeded {
   return $null
 }
 
+# Which of the runtime dependencies the SERVER cannot load, asked of node itself.
+#
+# This used to be `Test-Path node_modules\<dep>`, and a folder is not a module: an
+# npm install that was interrupted - a closed window, a dropped connection, an
+# antivirus grabbing a file mid-write - leaves the directory behind with nothing
+# usable in it. Test-Path says yes, `require('ws')` says MODULE_NOT_FOUND, and
+# the two disagreed forever: the setup reported "dependencies already installed"
+# and skipped the repair, the engine died on startup every time, and the app's
+# "Try setup again" led straight back to the same skip. That loop is what was
+# reported on Discord, with the engine's own error naming `ws` exactly.
+#
+# require.resolve is the very call the server makes, so agreeing with it is the
+# only check that means anything. Run from $root, which is the folder whose
+# node_modules the server resolves against.
+function Get-UnloadableNodeDeps {
+  param([string]$NodePath)
+
+  # No node, no answer - report everything missing so the caller installs rather
+  # than skipping on a question it could not ask.
+  if (-not $NodePath) { return @($requiredNodeDeps) }
+
+  $missing = @()
+  foreach ($dep in $requiredNodeDeps) {
+    # No spaces in the script, so it needs no quoting gymnastics of its own.
+    $probe = "try{require.resolve('$dep');process.exit(0)}catch(e){process.exit(1)}"
+    try {
+      $probeProcess = Start-Process -FilePath $NodePath `
+        -ArgumentList '-e', "`"$probe`"" `
+        -WorkingDirectory $root `
+        -Wait -PassThru -NoNewWindow
+      if ($probeProcess.ExitCode -ne 0) { $missing += $dep }
+    } catch {
+      # A probe that cannot even run is not evidence the module is fine.
+      $missing += $dep
+    }
+  }
+  return @($missing)
+}
+
 function Install-NpmDependenciesIfNeeded {
   # The widget needs all three runtime dependencies: ws (the server's WebSocket relay,
   # required to even start), koffi (RGB bridge) and msedge-tts (local AI voice). Only
-  # skip the install when every one is present - a partial node_modules must not pass,
-  # or the server crashes on require('ws').
+  # skip the install when every one actually LOADS - a partial node_modules must not
+  # pass, or the server crashes on require('ws').
   $deps = $requiredNodeDeps
-  $missing = @($deps | Where-Object { -not (Test-Path (Join-Path $root "node_modules\$_")) })
+  $probeNode = Get-NodePath
+  $missing = Get-UnloadableNodeDeps -NodePath $probeNode
   if ($missing.Count -eq 0) {
     Write-Step 'Node.js dependencies already installed.'
     return
@@ -617,8 +657,10 @@ function Install-NpmDependenciesIfNeeded {
     }
 
     # A zero exit code alone is not proof of success - the old npm.ps1/Notepad failure
-    # returned 0 while installing nothing. Verify the modules actually landed.
-    $stillMissing = @($deps | Where-Object { -not (Test-Path (Join-Path $root "node_modules\$_")) })
+    # returned 0 while installing nothing. Verify the modules actually LOAD, for the
+    # same reason as the check above: a directory left behind by an interrupted
+    # install passes any test that only asks whether a path exists.
+    $stillMissing = Get-UnloadableNodeDeps -NodePath $nodePath
     if ($stillMissing.Count -eq 0) {
       Write-Step 'Node.js dependencies installed.'
       return
@@ -1235,7 +1277,13 @@ function Write-InstallModeMarker {
 function Get-ComponentStatus {
   return [ordered]@{
     'Node.js'               = [bool](Get-NodePath)
-    'Dashboard libraries'   = (@($requiredNodeDeps | Where-Object { -not (Test-Path (Join-Path $root "node_modules\$_")) }).Count -eq 0)
+    # Asked of node, not of the filesystem. This entry decides two things: the
+    # OK/MISSING summary the user reads at the end, and whether the retry pass
+    # re-runs the npm install. A path check reported OK for a node_modules an
+    # interrupted install had left half-written, so the summary said everything
+    # was installed, the retry never fired, and the engine died on require('ws')
+    # every time. See Get-UnloadableNodeDeps.
+    'Dashboard libraries'   = ((Get-UnloadableNodeDeps -NodePath (Get-NodePath)).Count -eq 0)
     'FFmpeg (AI voice)'     = [bool](Get-FfmpegPath)
     'LibreHardwareMonitor'  = [bool](Get-LibreHardwareMonitorPath)
     'PawnIO driver'         = [bool](Get-PawnIoDriver)
