@@ -594,6 +594,26 @@ function Get-UnloadableNodeDeps {
   return @($missing)
 }
 
+# What to type when the setup could not do it for you.
+#
+# It used to say `npm install`, and after v4.11.6 that advice walks straight
+# back into the wall this release exists to avoid: msedge-tts's preinstall guard
+# is what breaks the install in the first place, so the manual command has to
+# carry --ignore-scripts too. And because that flag also skips OUR postinstall,
+# the link step has to be named beside it or the engine comes up without the
+# shared modules the dashboard loads.
+#
+# One place, so the two commands cannot drift apart or be given by halves.
+function Show-ManualInstallHint {
+  Write-Host ''
+  Write-Host '   Open a terminal and run BOTH of these:' -ForegroundColor Gray
+  Write-Host "     cd /d `"$root`"" -ForegroundColor White
+  Write-Host '     npm install --ignore-scripts' -ForegroundColor White
+  Write-Host '     node tools\link-shared.mjs' -ForegroundColor White
+  Write-Host '   The second is not optional - the first one skips it.' -ForegroundColor DarkGray
+  Write-Host '   Then run INSTALL.bat again.' -ForegroundColor Gray
+}
+
 # Our OWN postinstall, run explicitly.
 #
 # package.json's postinstall is `node tools/link-shared.mjs`, which creates the
@@ -647,14 +667,16 @@ function Install-NpmDependenciesIfNeeded {
   # -NoNewWindow launches it reliably regardless of PATHEXT ordering.
   $nodePath = Get-NodePath
   if (-not $nodePath) {
-    Write-Host 'Node.js not found. Run "npm install" in the project folder, then start the widget.' -ForegroundColor Yellow
+    Write-Host 'Node.js not found. Install Node.js, then run the two commands under' -ForegroundColor Yellow
+    Show-ManualInstallHint
     return
   }
   $nodeDir = Split-Path -Parent $nodePath
   $npmCli = Join-Path $nodeDir 'node_modules\npm\bin\npm-cli.js'
   $npmCmd = Join-Path $nodeDir 'npm.cmd'
   if (-not (Test-Path $npmCli) -and -not (Test-Path $npmCmd)) {
-    Write-Host 'npm not found next to Node.js. Run "npm install" in the project folder.' -ForegroundColor Yellow
+    Write-Host 'npm not found next to Node.js. Reinstall Node.js, then:' -ForegroundColor Yellow
+    Show-ManualInstallHint
     return
   }
 
@@ -720,7 +742,8 @@ function Install-NpmDependenciesIfNeeded {
     Write-Host "  Dependencies still missing after npm install: $($stillMissing -join ', ')." -ForegroundColor Yellow
   }
 
-  Write-Host "Node.js dependencies could not be installed after $maxAttempts attempts. Run 'npm install' in the project folder manually, then run INSTALL.bat again." -ForegroundColor Red
+  Write-Host "Node.js dependencies could not be installed after $maxAttempts attempts." -ForegroundColor Red
+  Show-ManualInstallHint
 }
 
 function Get-LibreHardwareMonitorPath {
