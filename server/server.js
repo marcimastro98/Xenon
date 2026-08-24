@@ -3,6 +3,13 @@
  * Custom non-commercial license. Personal use only; no commercial use or
  * redistribution as your own. Attribution required. See LICENSE for terms.
  */
+// FIRST, before every other require: this arms the handlers that write down why
+// the engine did not start. The failure it most needs to catch is one of the
+// requires below throwing — a dependency that never finished installing — and a
+// handler armed after the throw would never see it. See startup-log.js for why
+// this process was the last of the three that could still die without a word.
+const startupLog = require('./startup-log');
+startupLog.install();
 const http = require('http');
 const { execFile, spawn } = require('child_process');
 const fs = require('fs');
@@ -19965,6 +19972,10 @@ function _startListen(host) {
   _listenHost = host;
   server.listen(PORT, host, () => {
     console.log('Widget server running on http://' + host + ':' + PORT);
+    // Into the log as well: under the hidden launcher this console goes nowhere,
+    // and "did it ever reach listening?" is the question that splits a start
+    // that failed from one that started and then died.
+    startupLog.write('listening on http://' + host + ':' + PORT);
     // Refresh an outdated native helper left behind by an in-app self-update. Delayed
     // and fire-and-forget so it never competes with boot; runs at most once per version.
     setTimeout(() => { try { ensureHelperUpToDate(); } catch { /* ignore */ } }, 8000);
@@ -20101,6 +20112,11 @@ server.on('error', err => {
       return;
     }
     console.error('Port ' + PORT + ' is already in use. Close the other node process before restarting.');
+    // Same reason as the listening line above. This one matters more: the fix is
+    // not "reinstall Xenon", which is what the splash otherwise sends people to
+    // do, it is "find what else is on 3030" — and nothing said so anywhere.
+    startupLog.write('FAILED: port ' + PORT + ' is already in use by another program, after '
+      + EADDRINUSE_MAX_RETRIES + ' retries. Xenon cannot share it.');
     process.exit(1);
   } else if ((err.code === 'EAFNOSUPPORT' || err.code === 'EADDRNOTAVAIL') && server.listening === false) {
     // IPv6 not available on this system — fall back to IPv4 loopback
