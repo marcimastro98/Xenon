@@ -1,0 +1,267 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Xenon — YouTube embed probe</title>
+<!--
+  Why this file exists.
+
+  Issue #126: on macOS every YouTube list loads and no video plays — error 153,
+  "video player configuration error". 153 is the embed rejecting the referrer it
+  was opened with. Xenon sends the SAME embed parameters on Windows and macOS
+  (the dashboard is http://127.0.0.1:3030/ on both), so the difference is not in
+  what we ask for — it is in what the webview actually puts in the Referer
+  header. macOS is WKWebView; Windows is WebView2/Chromium.
+
+  Guessing a fix and shipping it is not worth much when nobody can see the
+  result. This measures instead: it plays the same video through a matrix of
+  embed configurations and reports which ones start and which ones return 153.
+  Whatever comes back green is the change to make in js/youtube-widget.js.
+
+  HOW TO RUN IT — no Xenon build needed.
+
+  The macOS app uses WKWebView, and so does Safari, so Safari reproduces it.
+  What matters is that the page is served over http from loopback, exactly like
+  the dashboard, NOT opened as a file:// document.
+
+      cd <folder containing this file>
+      python3 -m http.server 8000
+
+  then open  http://localhost:8000/youtube-embed-probe.html  in Safari.
+
+  Run it in Chrome on the same Mac too: that separates "WebKit does this" from
+  "this Mac/network does this", which is the first thing worth knowing.
+-->
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 24px; background: #0d0f14; color: #e8ecf4;
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+  h1 { font-size: 19px; margin: 0 0 4px; }
+  .sub { color: #97a0b5; margin: 0 0 20px; font-size: 13px; }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
+  input, button {
+    font: inherit; border-radius: 8px; border: 1px solid #2a3040;
+    background: #161a23; color: #e8ecf4; padding: 8px 12px;
+  }
+  input { width: 260px; }
+  button { cursor: pointer; font-weight: 600; }
+  button:hover:not(:disabled) { background: #1e2431; }
+  button:disabled { opacity: .5; cursor: default; }
+  table { border-collapse: collapse; width: 100%; max-width: 940px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #1e2431; vertical-align: top; }
+  th { color: #97a0b5; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  td.v { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; color: #b9c2d4; }
+  .res { font-weight: 700; white-space: nowrap; }
+  .ok { color: #46d17f; }
+  .bad { color: #ff6b6b; }
+  .wait { color: #97a0b5; }
+  #env { margin: 22px 0 0; padding: 12px 14px; background: #12151d; border-radius: 10px;
+         font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px;
+         color: #b9c2d4; white-space: pre-wrap; word-break: break-all; max-width: 940px; }
+  #warn { display: none; margin-bottom: 16px; padding: 10px 14px; border-radius: 10px;
+          background: #3a1d1d; border: 1px solid #6b2b2b; color: #ffb4b4; max-width: 940px; }
+  #stage { position: fixed; left: -10000px; top: 0; width: 480px; height: 270px; }
+</style>
+
+<h1>YouTube embed probe</h1>
+<p class="sub">Plays one video through several embed configurations and reports which ones YouTube accepts. For Xenon issue&nbsp;#126.</p>
+
+<div id="warn">
+  This page is open as a <code>file://</code> document. YouTube embeds behave differently there and
+  the result will not mean anything — serve it over http first (see the comment at the top of this file).
+</div>
+
+<div class="bar">
+  <label>Video ID <input id="vid" value="M7lc1UVf-VE" spellcheck="false"></label>
+  <button id="run">Run the probe</button>
+  <button id="copy" disabled>Copy result</button>
+</div>
+
+<table>
+  <thead>
+    <tr><th>#</th><th>Configuration</th><th>Result</th></tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<div id="env"></div>
+<div id="stage"></div>
+
+<script>
+'use strict';
+
+// One row per thing worth ruling in or out. Kept small on purpose: each variant
+// costs up to 12s, and a matrix nobody finishes tells you nothing.
+//
+// `policy` is the iframe's referrerPolicy attribute. Xenon ships
+// strict-origin-when-cross-origin today (variant 1), so that row is the control:
+// it should reproduce the reported failure. If it does not, the problem is not
+// the one this file is testing and the rest of the results do not matter.
+var VARIANTS = [
+  { name: 'Xenon today — nocookie, strict-origin-when-cross-origin, origin sent',
+    host: 'https://www.youtube-nocookie.com', policy: 'strict-origin-when-cross-origin', origin: true },
+  { name: 'nocookie, referrerPolicy: origin',
+    host: 'https://www.youtube-nocookie.com', policy: 'origin', origin: true },
+  { name: 'nocookie, referrerPolicy: no-referrer-when-downgrade',
+    host: 'https://www.youtube-nocookie.com', policy: 'no-referrer-when-downgrade', origin: true },
+  { name: 'nocookie, no referrerPolicy attribute at all',
+    host: 'https://www.youtube-nocookie.com', policy: null, origin: true },
+  { name: 'nocookie, referrerPolicy: origin, NO origin parameter',
+    host: 'https://www.youtube-nocookie.com', policy: 'origin', origin: false },
+  { name: 'youtube.com (not nocookie), referrerPolicy: origin',
+    host: 'https://www.youtube.com', policy: 'origin', origin: true },
+  { name: 'youtube.com, Xenon’s current settings',
+    host: 'https://www.youtube.com', policy: 'strict-origin-when-cross-origin', origin: true },
+];
+
+// Long enough for a cold embed on a slow line. The widget itself waits 8s before
+// giving up; 12 here so a slow PASS is never recorded as a failure.
+var TIMEOUT_MS = 12000;
+var PLAYER_ID = 'xenon-yt-probe';
+
+var rowsEl = document.getElementById('rows');
+var envEl = document.getElementById('env');
+var stage = document.getElementById('stage');
+var runBtn = document.getElementById('run');
+var copyBtn = document.getElementById('copy');
+var results = [];
+
+if (location.protocol === 'file:') document.getElementById('warn').style.display = 'block';
+
+function env() {
+  return [
+    'origin:      ' + location.origin,
+    'protocol:    ' + location.protocol,
+    'user agent:  ' + navigator.userAgent,
+    'webkit:      ' + (/AppleWebKit/.test(navigator.userAgent) && !/Chrome|Chromium|Edg/.test(navigator.userAgent)
+                        ? 'yes — this is the engine the macOS app uses' : 'no (Chromium-family)'),
+  ].join('\n');
+}
+envEl.textContent = env();
+
+function paint() {
+  rowsEl.innerHTML = '';
+  VARIANTS.forEach(function (v, i) {
+    var r = results[i];
+    var tr = document.createElement('tr');
+
+    var n = document.createElement('td'); n.className = 'v'; n.textContent = String(i + 1);
+    var name = document.createElement('td');
+    name.appendChild(document.createTextNode(v.name));
+    var meta = document.createElement('div');
+    meta.className = 'v';
+    meta.textContent = v.host.replace('https://www.', '') +
+      ' · referrerPolicy=' + (v.policy || '(unset)') +
+      ' · origin=' + (v.origin ? location.origin : '(omitted)');
+    name.appendChild(meta);
+
+    var res = document.createElement('td');
+    res.className = 'res ' + (!r ? 'wait' : r.ok ? 'ok' : 'bad');
+    res.textContent = !r ? '—' : r.label;
+
+    tr.append(n, name, res);
+    rowsEl.appendChild(tr);
+  });
+}
+paint();
+
+// Run one variant. Resolves with { ok, label } — never rejects, so one bad row
+// cannot end the run.
+function probe(v, videoId) {
+  return new Promise(function (resolve) {
+    var done = false;
+    var frame = document.createElement('iframe');
+    var hello = null;
+    var timer = null;
+
+    function finish(ok, label) {
+      if (done) return;
+      done = true;
+      clearInterval(hello);
+      clearTimeout(timer);
+      window.removeEventListener('message', onMsg);
+      try { frame.remove(); } catch (e) { /* already gone */ }
+      resolve({ ok: ok, label: label });
+    }
+
+    function onMsg(e) {
+      if (e.origin !== v.host) return;
+      if (!frame.contentWindow || e.source !== frame.contentWindow) return;
+      var d = null;
+      try { d = JSON.parse(typeof e.data === 'string' ? e.data : ''); } catch (err) { return; }
+      if (!d || typeof d !== 'object') return;
+
+      if (d.event === 'onError') {
+        var code = Number(d.info) || 0;
+        finish(false, 'FAIL — error ' + (code || '?') + (code === 153 ? '  (the reported one)' : ''));
+      } else if (d.event === 'onReady' || d.event === 'initialDelivery' ||
+                 d.event === 'infoDelivery' || d.event === 'onStateChange') {
+        // Any of these means a real player booted and is talking to us, which is
+        // exactly what 153 prevents. Playing is not required — only reaching the
+        // player, since the error fires before that.
+        finish(true, 'PASS — player started');
+      }
+    }
+    window.addEventListener('message', onMsg);
+
+    frame.width = 480; frame.height = 270; frame.title = 'probe';
+    frame.allow = 'autoplay; encrypted-media; picture-in-picture';
+    if (v.policy) frame.referrerPolicy = v.policy;
+
+    var p = new URLSearchParams({
+      enablejsapi: '1', autoplay: '1', rel: '0', playsinline: '1', modestbranding: '1', mute: '1',
+    });
+    if (v.origin) { p.set('origin', location.origin); p.set('widget_referrer', location.origin); }
+    frame.src = v.host + '/embed/' + encodeURIComponent(videoId) + '?' + p.toString();
+
+    // The embed only reports back once told we are listening, and can miss the
+    // first message while it boots — same handshake the widget uses.
+    function sayHello() {
+      if (!frame.contentWindow) return;
+      try {
+        frame.contentWindow.postMessage(
+          JSON.stringify({ event: 'listening', id: PLAYER_ID, channel: 'widget' }), v.host);
+      } catch (e) { /* torn down */ }
+    }
+    frame.addEventListener('load', sayHello);
+    stage.appendChild(frame);
+    hello = setInterval(sayHello, 400);
+    timer = setTimeout(function () {
+      // No answer at all. YouTube served its own error page into the frame, and
+      // that page speaks none of this protocol — indistinguishable from a dead
+      // network, so say so rather than calling it a pass or a 153.
+      finish(false, 'FAIL — no answer in ' + (TIMEOUT_MS / 1000) + 's');
+    }, TIMEOUT_MS);
+  });
+}
+
+runBtn.addEventListener('click', async function () {
+  var videoId = document.getElementById('vid').value.trim();
+  if (!/^[A-Za-z0-9_-]{6,24}$/.test(videoId)) { alert('That does not look like a YouTube video id.'); return; }
+  runBtn.disabled = true; copyBtn.disabled = true;
+  results = [];
+  paint();
+  for (var i = 0; i < VARIANTS.length; i++) {
+    results[i] = { ok: false, label: 'running…' };
+    paint();
+    results[i] = await probe(VARIANTS[i], videoId);
+    paint();
+  }
+  runBtn.disabled = false; copyBtn.disabled = false;
+});
+
+copyBtn.addEventListener('click', function () {
+  var text = ['Xenon YouTube embed probe — issue #126', '', env(), '',
+              'video: ' + document.getElementById('vid').value.trim(), ''];
+  VARIANTS.forEach(function (v, i) {
+    text.push((i + 1) + '. ' + v.name);
+    text.push('   ' + v.host + ' · referrerPolicy=' + (v.policy || '(unset)') +
+              ' · origin=' + (v.origin ? 'sent' : 'omitted'));
+    text.push('   => ' + (results[i] ? results[i].label : 'not run'));
+  });
+  var out = text.join('\n');
+  navigator.clipboard.writeText(out).then(
+    function () { copyBtn.textContent = 'Copied'; setTimeout(function () { copyBtn.textContent = 'Copy result'; }, 1500); },
+    function () { window.prompt('Copy this:', out); });
+});
+</script>
