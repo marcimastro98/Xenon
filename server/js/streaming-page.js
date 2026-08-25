@@ -133,12 +133,29 @@
       'streaming_discord_notif_hide', 'Hide content until tapped',
       'streaming_discord_notif_hide_hint', 'Show who wrote, but keep the text masked until you tap the notification.',
       dn.hide, (on) => { if (typeof updateDiscordNotifications === 'function') updateDiscordNotifications('hide', on); });
-    // Show the re-link note ONLY on a CONFIRMED scope failure: the server sets
-    // st.notif='scope_missing' when the live watch actually tried to subscribe
-    // with the stored token and Discord refused. 'off' just means the watch
-    // hasn't (re)probed yet — right after a successful Connect the scope check
-    // takes a beat, and showing the warning then reads as "it failed again".
-    const relinkNeeded = (on) => on && st.connected && st.notif === 'scope_missing';
+    // Two ways to know a re-link is needed, and the first is the useful one.
+    //
+    // st.notifScope === 'missing' reads the GRANT: the stored token records what
+    // Discord actually gave it, and the notification scope is not in the list. So
+    // the warning can appear the moment the switch goes on, before anything has
+    // been waited for. That matters because reconnecting cannot fix it — Discord
+    // reuses an existing authorization and hands back the scopes already granted —
+    // so someone who is not told now waits, sees nothing arrive, and reconnects
+    // several times before finding out. Reported on Discord as exactly that.
+    //
+    // st.notif === 'scope_missing' stays as the backstop: a CONFIRMED failure,
+    // set when the live watch really tried to subscribe and Discord refused. It
+    // still catches a grant revoked from Discord's side after linking, which the
+    // stored scope list cannot know about.
+    //
+    // 'unknown' (a token from before the scope was recorded) deliberately shows
+    // nothing: it is not evidence, and a warning in front of someone whose
+    // notifications work would be worse than the wait it saves. Those users still
+    // get the backstop. And 'off' is not a failure either — right after a
+    // successful Connect the scope check takes a beat, and warning then reads as
+    // "it failed again".
+    const relinkNeeded = (on) => on && st.connected
+      && (st.notifScope === 'missing' || st.notif === 'scope_missing');
     // The fallback used to say "Disconnect and reconnect once", which is the one
     // thing that does NOT work: Discord's RPC AUTHORIZE reuses an existing
     // authorization and hands back a code for the scopes already granted, so the
