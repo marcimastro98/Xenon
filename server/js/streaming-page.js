@@ -139,8 +139,15 @@
     // hasn't (re)probed yet — right after a successful Connect the scope check
     // takes a beat, and showing the warning then reads as "it failed again".
     const relinkNeeded = (on) => on && st.connected && st.notif === 'scope_missing';
+    // The fallback used to say "Disconnect and reconnect once", which is the one
+    // thing that does NOT work: Discord's RPC AUTHORIZE reuses an existing
+    // authorization and hands back a code for the scopes already granted, so the
+    // new one is never asked for. The grant has to be removed on Discord's side
+    // first. Kept in step with the translated string, which says the same.
     const relink = el('p', 'settings-note streaming-warn',
-      t('streaming_discord_notif_relink', 'To activate, Disconnect and reconnect Discord once — the link needs the extra notification permission.'));
+      t('streaming_discord_notif_relink',
+        'Discord has not granted this app notification access — reconnecting alone will not help. '
+        + 'Remove the app in Discord → User Settings → Authorizations, then link again.'));
     box.appendChild(toggleRow(
       'streaming_discord_notif', 'Mirror notifications on the dashboard',
       'streaming_discord_notif_hint', 'DMs and mentions appear in the Discord widget. Read locally from the desktop app — nothing leaves this PC.',
