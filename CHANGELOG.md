@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **The "+" drop-zone steps aside while you move or resize a tile.** In edit mode the "+" stretches to cover the page's whole empty area — deliberately, so it is an easy target — but it is a real button sitting on top of the grid, and it stayed there while you were dragging. So every gesture ended on top of it, and the click that follows letting go opened the widget palette. Reported as the "+ panel getting in the way" of rearranging and resizing.
+
+  It now fades and stops taking the pointer for as long as a tile is being moved or resized, and comes straight back when you let go. It is dimmed rather than hidden: a target that disappears under the cursor reads as a glitch, and it is still the space you are dragging toward.
+
 - **The accent colour picker says when something else is painting over it.** Two things can take the accent over, and neither used to admit it — so the colour you picked was stored, kept, and nowhere on screen, with a picker that looked simply broken. Reported as the accent "staying yellow", which is the Pixel Retro style's own.
 
   Pixel Retro owns a fixed CRT palette on purpose: it is a whole look, not a colour scheme, and letting an accent through would break it. The album theme is the other one — while music plays the accent follows the cover art, which is the feature working as intended.
