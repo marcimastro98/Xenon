@@ -544,6 +544,16 @@ body.low-power-gpu .grid-stack-item[data-tile-glass] > .grid-stack-item-content 
   box-sizing: border-box;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
+/* While a tile is being moved or resized, the drop-zone stands down: it covers
+   the whole free area, so otherwise it is what the gesture ends on top of and
+   what the release-click opens. Dimmed rather than hidden — it vanishing under
+   the cursor reads as a glitch, and it is still the target you are dragging
+   toward. dashboard-grid.js owns the class. */
+body.gs-manipulating .page-add-widget {
+  pointer-events: none;
+  opacity: 0.35;
+}
+
 .layout-editing .page-add-widget:hover { background: rgba(var(--accent-rgb), 0.16); border-color: rgba(var(--accent-rgb), 0.75); }
 /* When the page grid has no items, blow the "+" up into a centred placeholder. */
 .layout-editing .pager-page:not(:has(.grid-stack-item)) .page-add-widget {

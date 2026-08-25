@@ -122,6 +122,29 @@ function mountPageGrid(pageId, gridEl) {
     disableOneColumnMode: true,
   }, gridEl);
   grid.on('change', () => { if (!_suppress) serialize(); scheduleAffordances(); });
+  // The "+" drop-zone is sized to cover the page's whole free area (see
+  // refreshPageAddAffordances), and it is a real button on top of the grid —
+  // measured at 614x794 with pointer-events:auto, the topmost element over every
+  // empty cell. So while a tile is being MOVED or RESIZED it is competing for the
+  // pointer with the thing the user is actually doing: the gesture ends over the
+  // "+", and the click that follows a release lands on it and opens the palette.
+  // Reported as "the + panel gets in the way" of resizing and rearranging.
+  //
+  // It only has to stand down for the length of the gesture, so a body class is
+  // enough — nothing about the "+" itself changes, it just stops taking the
+  // pointer while the pointer belongs to a tile. See DashboardGrid.css.
+  //
+  // start/stop only, never the per-tick 'resize': that one is deliberately not
+  // subscribed (see the note at resizable below), and a class toggle has no
+  // business running on every frame of a drag anyway.
+  const manipulating = (on) => {
+    try { document.body.classList.toggle('gs-manipulating', !!on); } catch (e) { /* ignore */ }
+  };
+  grid.on('dragstart', () => manipulating(true));
+  grid.on('resizestart', () => manipulating(true));
+  // Cleared on stop AND on 'change' — a gesture that ends in a way GridStack
+  // resolves without a stop event must not leave the "+" inert for good.
+  grid.on('resizestop', () => manipulating(false));
   // While dragging, track the tile whose CENTRE the pointer is over (excluding
   // the dragged one). With float:true GridStack shoves the target out of the way
   // as you hover, so we can't rely on what's under the pointer at release — we
@@ -136,6 +159,7 @@ function mountPageGrid(pageId, gridEl) {
     if (t) t.classList.add('gs-merge-target');
   });
   grid.on('dragstop', (ev, el) => {
+    manipulating(false);
     const target = _dragHover;
     if (target) target.classList.remove('gs-merge-target');
     _dragHover = null;
