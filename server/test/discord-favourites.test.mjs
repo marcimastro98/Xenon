@@ -165,6 +165,11 @@ test('the three labels are translated in every language the app ships', () => {
 
 test('the star reads as filled when pinned and quiet when not', () => {
   assert.match(CSS, /\.dc-chan-fav\.is-on svg \{ fill: currentColor/, 'filled when pinned');
+  // The classic favourite gold, fixed rather than the theme accent: a star means
+  // "favourite" partly BY being yellow, and on a theme whose accent is already
+  // the colour of every lit control the pinned rows would stop standing out.
+  assert.match(CSS, /\.dc-chan-fav\.is-on \{[^}]*color: #f5c518/, 'the star is gold on every theme');
+  assert.ok(!/\.dc-chan-fav\.is-on \{[^}]*var\(--accent/.test(CSS), 'and does not follow the accent');
   const rule = CSS.slice(CSS.indexOf('.dc-chan-fav {'));
   assert.match(rule.slice(0, rule.indexOf('}')), /opacity: 0\.\d+/, 'dimmed until the row is touched');
   assert.match(CSS, /\.dc-chan-row:hover \.dc-chan-fav/, 'and lit on hover');

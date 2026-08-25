@@ -213,11 +213,17 @@ body.overlay-frozen .dc-pill.in-voice .dc-pill-dot::after { animation-play-state
 .dc-chan-fav:focus-visible { opacity: 1; }
 .dc-chan-fav:hover { background: rgba(88,101,242,0.16); color: #c7ccdd; }
 .dc-chan-fav svg { width: 14px; height: 14px; }
-.dc-chan-fav.is-on { opacity: 1; color: var(--accent, #f5c518); }
+/* The classic favourite gold, not the theme accent. A star means "favourite"
+   everywhere it appears, and that reading comes from the colour as much as the
+   shape — a green or violet star is just a shape. It also stops the pinned rows
+   from disappearing into a theme whose accent is already the colour of every
+   other lit control in the widget. Fixed on purpose, so it reads the same on
+   every theme, Retro included. */
+.dc-chan-fav.is-on { opacity: 1; color: #f5c518; }
 /* Filled when pinned: the outline/solid pair reads at a glance and needs no
    second glyph to keep in step with the first. */
 .dc-chan-fav.is-on svg { fill: currentColor; }
-.dc-guild--fav { border-color: rgba(var(--accent-rgb, 245 197 24), 0.45); }
+.dc-guild--fav { border-color: rgba(245, 197, 24, 0.45); }
 .dc-chan {
   display: flex; align-items: center; gap: 8px; width: 100%;
   padding: 5px 9px; border-radius: 8px; cursor: pointer; text-align: left;
