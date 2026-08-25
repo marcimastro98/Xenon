@@ -29132,6 +29132,28 @@ Object.assign(i18n.ko, { youtube_embed_config: 'YouTube가 여기서 재생기�
 Object.assign(i18n.ja, { youtube_embed_config: 'YouTube がここでプレーヤーを起動できませんでした。動画側の問題ではありません — ブラウザーで開いてください。' });
 Object.assign(i18n.zh, { youtube_embed_config: 'YouTube 未能在这里启动播放器。这不是视频的问题 — 请在浏览器中打开。' });
 
+// v4.11.6 — saying that a picked Ambient scene replaces the whole screen.
+//
+// Only the classic scene is translucent, so only it shows the wallpaper behind
+// it. Any other scene sits on an opaque overlay and IS the picture. Reported on
+// Discord: a user uploaded a background, opened Ambient, and saw the artwork of
+// the scene he had chosen days earlier — nothing broken, and nothing saying so.
+Object.assign(i18n.it, { ambient_scene_covers: 'Questa scena riempie tutto lo schermo: sfondo e widget del blocco non si vedono. Scegli “Classica (widget)” per rivederli.' });
+Object.assign(i18n.en, { ambient_scene_covers: 'This scene fills the whole screen: your wallpaper and the lock widgets are not shown. Pick “Classic (widgets)” to see them again.' });
+Object.assign(i18n.es, { ambient_scene_covers: 'Esta escena ocupa toda la pantalla: tu fondo y los widgets de bloqueo no se ven. Elige “Clásica (widgets)” para volver a verlos.' });
+Object.assign(i18n.fr, { ambient_scene_covers: 'Cette scène occupe tout l’écran : votre fond et les widgets de verrouillage ne s’affichent pas. Choisissez « Classique (widgets) » pour les revoir.' });
+Object.assign(i18n.de, { ambient_scene_covers: 'Diese Szene füllt den ganzen Bildschirm: Hintergrund und Sperr-Widgets sind nicht zu sehen. Wähle „Klassisch (Widgets)“, um sie wieder anzuzeigen.' });
+Object.assign(i18n.pt, { ambient_scene_covers: 'Esta cena ocupa o ecrã inteiro: o teu fundo e os widgets de bloqueio não aparecem. Escolhe “Clássica (widgets)” para os veres de novo.' });
+Object.assign(i18n.nl, { ambient_scene_covers: 'Deze scène vult het hele scherm: je achtergrond en de vergrendel-widgets zijn niet te zien. Kies “Klassiek (widgets)” om ze terug te zien.' });
+Object.assign(i18n.ru, { ambient_scene_covers: 'Эта сцена занимает весь экран: фон и виджеты блокировки не видны. Выберите «Классическая (виджеты)», чтобы вернуть их.' });
+Object.assign(i18n.ko, { ambient_scene_covers: '이 장면은 화면 전체를 채웁니다. 배경 화면과 잠금 위젯은 보이지 않습니다. 다시 보려면 "클래식(위젯)"을 선택하세요.' });
+Object.assign(i18n.ja, { ambient_scene_covers: 'このシーンは画面全体を覆います。壁紙とロックウィジェットは表示されません。再び表示するには「クラシック（ウィジェット）」を選んでください。' });
+Object.assign(i18n.zh, { ambient_scene_covers: '此场景会铺满整个屏幕：你的壁纸和锁屏小组件都不会显示。选择“经典（小组件）”即可重新看到它们。' });
+
+// …and the option this note points at was itself untranslated in Dutch, which
+// would have named a choice that is not in the list.
+Object.assign(i18n.nl, { ambient_scene_builtin: 'Klassiek (widgets)' });
+
 
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)
