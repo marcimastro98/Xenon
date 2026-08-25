@@ -3955,6 +3955,34 @@ if (typeof window !== 'undefined') window.getEffectiveThemePalette = getEffectiv
 // to tint the theme, or null to clear THAT source and fall back — to the other
 // source if it is still set, else to the user's chosen accent. One toggle
 // (dynamicAlbumTheme) governs both sources on purpose.
+// Which override, if any, is painting over the accent the user picked.
+//
+// The colour is stored and kept either way — it is just not what is on screen,
+// so the picker looks broken. Exactly the situation the "covered by an active
+// background" note already exists for one row below; this is the same note for
+// the same reason.
+//
+// Retro first: it wins in getEffectiveThemePalette(), where the dynamic tint is
+// applied and then overwritten by the fixed CRT palette. Reporting them in the
+// other order would name a cause that is not the one in effect.
+function accentOverrideKey() {
+  if (hubSettings.styleMode === 'retro') return 'settings_accent_covered_retro';
+  if (hubSettings.dynamicAlbumTheme !== false && _dynamicAccent) return 'settings_accent_covered_album';
+  return '';
+}
+
+function syncAccentOverrideNote() {
+  const note = typeof $ === 'function' ? $('settings-accent-covered-note') : null;
+  if (!note) return;
+  const key = accentOverrideKey();
+  note.hidden = !key;
+  if (!key) { note.textContent = ''; note.removeAttribute('data-i18n'); return; }
+  // data-i18n as well as the text: the language can change while Settings is
+  // open, and the re-translate pass reads the attribute.
+  note.setAttribute('data-i18n', key);
+  note.textContent = t(key);
+}
+
 function setDynamicAccent(hex, source) {
   const valid = hubSettings.dynamicAlbumTheme !== false
     && typeof hex === 'string'
@@ -3966,6 +3994,9 @@ function setDynamicAccent(hex, source) {
   if (eff === _dynamicAccent) return;
   _dynamicAccent = eff;
   applyAccentColor();
+  // The note's wording depends on whether a tint is live right now, and this is
+  // the only place that changes without a settings re-render.
+  syncAccentOverrideNote();
   // A tile with a custom style carries a FROZEN copy of the palette inline
   // (dashboard-layout.js stamps --accent and friends on the wrapper), so
   // repainting :root alone left those tiles — and every SDK widget inside them,
@@ -4193,6 +4224,7 @@ function applyHubSettings() {
   // they don't count). Runs before the early-return below so it always updates.
   const bgCoveredNote = $('settings-bg-covered-note');
   if (bgCoveredNote) bgCoveredNote.hidden = !(staticOn || customOn || !!media);
+  syncAccentOverrideNote();
 
   if (!bgLayer || !image || !video) return;
   if (!media) {
