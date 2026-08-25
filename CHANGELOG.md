@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **The accent colour picker says when something else is painting over it.** Two things can take the accent over, and neither used to admit it — so the colour you picked was stored, kept, and nowhere on screen, with a picker that looked simply broken. Reported as the accent "staying yellow", which is the Pixel Retro style's own.
+
+  Pixel Retro owns a fixed CRT palette on purpose: it is a whole look, not a colour scheme, and letting an accent through would break it. The album theme is the other one — while music plays the accent follows the cover art, which is the feature working as intended.
+
+  Neither behaviour changes. The accent row now carries a line naming whichever is in effect and how to get your colour back, in the same place and the same style as the "covered by an active background" note that has always sat one row below. When Retro is on it is named first even if music is playing, because Retro is the one that actually wins — sending you to switch off the album theme would have changed nothing.
+
 - **When something goes wrong, the reason is now written down instead of spoken to an empty room.** The dashboard engine runs in a hidden window with no console attached, and it explains itself the way programs do — by printing. Forty-odd of those explanations exist for real problems, and every one of them was being written to nowhere. It stopped being theoretical when someone asked why their Discord notifications would not arrive: the engine had already recorded the exact reason Discord gave, and there was no way for anyone to read it. The answer existed and was thrown away.
 
   Warnings and errors are now copied into `%LOCALAPPDATA%\Xenon\server.log`, beside the reason-it-would-not-start added earlier in this release. Ordinary progress messages are not — they would bury the lines that matter. Nothing is moved: a machine with a real console still shows everything it always did. And the copy stops after 500 lines, so a fault that repeats in a loop cannot fill your disk with its own complaint.

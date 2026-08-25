@@ -1101,6 +1101,12 @@
               <div class="settings-color-preview" id="settings-accent-swatch" onclick="openSettingsColorPicker('accent',this)"></div>
               <input class="settings-hex-input" id="settings-accent" type="text" maxlength="7" placeholder="#1ed760" spellcheck="false" autocomplete="off" oninput="onHexInput('accent',this.value)" onchange="onHexInput('accent',this.value)">
             </div>
+            <!-- Same idea as the "covered by a background" note below: this colour
+                 is stored and kept, but something else is painting over it, so the
+                 picker looks broken. Two things can: the Pixel Retro style, which
+                 owns a fixed CRT palette, and the album tint while music plays.
+                 syncAccentOverrideNote() picks the wording. -->
+            <span class="settings-note settings-accent-covered-note" id="settings-accent-covered-note" hidden></span>
           </label>
           <label class="settings-row">
             <span class="settings-label-line"><span data-i18n="settings_background">Sfondo base</span><span class="settings-hint" data-i18n="settings_background_hint">dietro i pannelli</span></span>
