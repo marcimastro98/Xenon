@@ -28957,6 +28957,163 @@ Object.assign(i18n.zh, {
   preset_redeem_saved_toast: '代码已保存在这台电脑上，以后不必再粘贴。',
 });
 
+// v4.11.6 — Settings → "Media background", translated.
+//
+// The whole group shipped English-only in es/fr/de/pt/ru (and nl, which was also
+// missing the SVG-paste dialog and the covered-colour note). Everything around
+// it was translated, so on a Spanish dashboard the ONE row that uploads a
+// wallpaper was the one row in English — reported on Discord by a user who was
+// told "Settings → Background", went looking, and answered "I don't see the
+// location, is it one of those two?" while sitting on the right page. A string
+// nobody can find is a feature nobody has.
+Object.assign(i18n.es, {
+  settings_background_media: 'Fondo multimedia',
+  settings_bg_upload: 'Sube una imagen, GIF o vídeo',
+  settings_bg_upload_hint: 'PNG, JPG, WEBP, GIF, MP4 o WEBM hasta 200 MB; los archivos MP4 se convierten a WebM cuando es posible',
+  settings_bg_image_loaded: 'Imagen/GIF activa',
+  settings_bg_video_loaded: 'Vídeo activo',
+  settings_bg_clear: 'Quitar',
+  settings_bg_uploading: 'Subiendo el fondo…',
+  settings_bg_uploaded: 'Fondo actualizado',
+  settings_bg_upload_failed: 'No se pudo subir el fondo',
+  settings_bg_converted: 'MP4 convertido automáticamente a WebM para iCUE',
+  settings_bg_convert_missing: 'MP4 subido, pero ffmpeg no está disponible para convertirlo a WebM',
+  settings_bg_convert_failed: 'MP4 subido, pero la conversión a WebM falló',
+  settings_bg_unsupported: 'Formato no compatible: usa imágenes, GIF, MP4 o WEBM',
+  settings_bg_video_failed: 'Vídeo no compatible con iCUE: usa WebM VP8/VP9',
+  settings_bg_too_large: 'Archivo demasiado grande: máximo 200 MB',
+  settings_bg_removed: 'Fondo eliminado',
+  settings_bg_dim: 'Oscurecer fondo',
+  settings_bg_blur: 'Desenfoque del fondo',
+  settings_bg_blur_note_empty: 'Visible tras subir una imagen, GIF o vídeo.',
+  settings_bg_blur_note_active: 'Solo desenfoca el fondo multimedia subido.',
+});
+
+Object.assign(i18n.fr, {
+  settings_background_media: 'Fond multimédia',
+  settings_bg_upload: 'Importer une image, un GIF ou une vidéo',
+  settings_bg_upload_hint: 'PNG, JPG, WEBP, GIF, MP4 ou WEBM jusqu’à 200 Mo ; les fichiers MP4 sont convertis en WebM si possible',
+  settings_bg_image_loaded: 'Image/GIF active',
+  settings_bg_video_loaded: 'Vidéo active',
+  settings_bg_clear: 'Retirer',
+  settings_bg_uploading: 'Import du fond…',
+  settings_bg_uploaded: 'Fond mis à jour',
+  settings_bg_upload_failed: 'Impossible d’importer le fond',
+  settings_bg_converted: 'MP4 converti automatiquement en WebM pour iCUE',
+  settings_bg_convert_missing: 'MP4 importé, mais ffmpeg n’est pas disponible pour le convertir en WebM',
+  settings_bg_convert_failed: 'MP4 importé, mais la conversion en WebM a échoué',
+  settings_bg_unsupported: 'Format non pris en charge : utilisez des images, GIF, MP4 ou WEBM',
+  settings_bg_video_failed: 'Vidéo non prise en charge par iCUE : utilisez WebM VP8/VP9',
+  settings_bg_too_large: 'Fichier trop volumineux : 200 Mo maximum',
+  settings_bg_removed: 'Fond supprimé',
+  settings_bg_dim: 'Assombrissement du fond',
+  settings_bg_blur: 'Flou du fond',
+  settings_bg_blur_note_empty: 'Visible après avoir importé une image, un GIF ou une vidéo.',
+  settings_bg_blur_note_active: 'Ne floute que le fond multimédia importé.',
+});
+
+Object.assign(i18n.de, {
+  settings_background_media: 'Medienhintergrund',
+  settings_bg_upload: 'Bild, GIF oder Video hochladen',
+  settings_bg_upload_hint: 'PNG, JPG, WEBP, GIF, MP4 oder WEBM bis 200 MB; MP4-Dateien werden nach Möglichkeit in WebM umgewandelt',
+  settings_bg_image_loaded: 'Bild/GIF aktiv',
+  settings_bg_video_loaded: 'Video aktiv',
+  settings_bg_clear: 'Entfernen',
+  settings_bg_uploading: 'Hintergrund wird hochgeladen…',
+  settings_bg_uploaded: 'Hintergrund aktualisiert',
+  settings_bg_upload_failed: 'Hintergrund konnte nicht hochgeladen werden',
+  settings_bg_converted: 'MP4 automatisch für iCUE in WebM umgewandelt',
+  settings_bg_convert_missing: 'MP4 hochgeladen, aber ffmpeg ist nicht verfügbar, um es in WebM umzuwandeln',
+  settings_bg_convert_failed: 'MP4 hochgeladen, aber die Umwandlung in WebM ist fehlgeschlagen',
+  settings_bg_unsupported: 'Format nicht unterstützt: Bilder, GIF, MP4 oder WEBM verwenden',
+  settings_bg_video_failed: 'Video von iCUE nicht unterstützt: WebM VP8/VP9 verwenden',
+  settings_bg_too_large: 'Datei zu groß: maximal 200 MB',
+  settings_bg_removed: 'Hintergrund entfernt',
+  settings_bg_dim: 'Hintergrund abdunkeln',
+  settings_bg_blur: 'Hintergrund weichzeichnen',
+  settings_bg_blur_note_empty: 'Sichtbar, sobald ein Bild, GIF oder Video hochgeladen wurde.',
+  settings_bg_blur_note_active: 'Zeichnet nur den hochgeladenen Medienhintergrund weich.',
+});
+
+Object.assign(i18n.pt, {
+  settings_background_media: 'Fundo multimédia',
+  settings_bg_upload: 'Carrega uma imagem, GIF ou vídeo',
+  settings_bg_upload_hint: 'PNG, JPG, WEBP, GIF, MP4 ou WEBM até 200 MB; os ficheiros MP4 são convertidos para WebM sempre que possível',
+  settings_bg_image_loaded: 'Imagem/GIF ativa',
+  settings_bg_video_loaded: 'Vídeo ativo',
+  settings_bg_clear: 'Remover',
+  settings_bg_uploading: 'A carregar o fundo…',
+  settings_bg_uploaded: 'Fundo atualizado',
+  settings_bg_upload_failed: 'Não foi possível carregar o fundo',
+  settings_bg_converted: 'MP4 convertido automaticamente para WebM para o iCUE',
+  settings_bg_convert_missing: 'MP4 carregado, mas o ffmpeg não está disponível para o converter para WebM',
+  settings_bg_convert_failed: 'MP4 carregado, mas a conversão para WebM falhou',
+  settings_bg_unsupported: 'Formato não suportado: usa imagens, GIF, MP4 ou WEBM',
+  settings_bg_video_failed: 'Vídeo não suportado pelo iCUE: usa WebM VP8/VP9',
+  settings_bg_too_large: 'Ficheiro demasiado grande: máximo 200 MB',
+  settings_bg_removed: 'Fundo removido',
+  settings_bg_dim: 'Escurecer o fundo',
+  settings_bg_blur: 'Desfocar o fundo',
+  settings_bg_blur_note_empty: 'Visível depois de carregares uma imagem, GIF ou vídeo.',
+  settings_bg_blur_note_active: 'Desfoca apenas o fundo multimédia carregado.',
+});
+
+Object.assign(i18n.ru, {
+  settings_background_media: 'Медиафон',
+  settings_bg_upload: 'Загрузить изображение, GIF или видео',
+  settings_bg_upload_hint: 'PNG, JPG, WEBP, GIF, MP4 или WEBM до 200 МБ; файлы MP4 по возможности конвертируются в WebM',
+  settings_bg_image_loaded: 'Изображение/GIF активно',
+  settings_bg_video_loaded: 'Видео активно',
+  settings_bg_clear: 'Убрать',
+  settings_bg_uploading: 'Загрузка фона…',
+  settings_bg_uploaded: 'Фон обновлён',
+  settings_bg_upload_failed: 'Не удалось загрузить фон',
+  settings_bg_converted: 'MP4 автоматически конвертирован в WebM для iCUE',
+  settings_bg_convert_missing: 'MP4 загружен, но ffmpeg недоступен для конвертации в WebM',
+  settings_bg_convert_failed: 'MP4 загружен, но конвертация в WebM не удалась',
+  settings_bg_unsupported: 'Формат не поддерживается: используйте изображения, GIF, MP4 или WEBM',
+  settings_bg_video_failed: 'Видео не поддерживается iCUE: используйте WebM VP8/VP9',
+  settings_bg_too_large: 'Файл слишком большой: максимум 200 МБ',
+  settings_bg_removed: 'Фон удалён',
+  settings_bg_dim: 'Затемнение фона',
+  settings_bg_blur: 'Размытие фона',
+  settings_bg_blur_note_empty: 'Появится после загрузки изображения, GIF или видео.',
+  settings_bg_blur_note_active: 'Размывает только загруженный медиафон.',
+});
+
+// Dutch was missing the SVG-paste dialog and the covered-colour note as well —
+// the latter is the one the accent-override note was written against, still
+// English-only here since v4.11.4.
+Object.assign(i18n.nl, {
+  settings_background_media: 'Media-achtergrond',
+  settings_bg_upload: 'Afbeelding, GIF of video uploaden',
+  settings_bg_upload_hint: 'PNG, JPG, WEBP, GIF, MP4 of WEBM tot 200 MB; MP4-bestanden worden indien mogelijk omgezet naar WebM',
+  settings_bg_image_loaded: 'Afbeelding/GIF actief',
+  settings_bg_video_loaded: 'Video actief',
+  settings_bg_clear: 'Verwijderen',
+  settings_bg_uploading: 'Achtergrond uploaden…',
+  settings_bg_uploaded: 'Achtergrond bijgewerkt',
+  settings_bg_upload_failed: 'Kon de achtergrond niet uploaden',
+  settings_bg_converted: 'MP4 automatisch omgezet naar WebM voor iCUE',
+  settings_bg_convert_missing: 'MP4 geüpload, maar ffmpeg is niet beschikbaar om het naar WebM om te zetten',
+  settings_bg_convert_failed: 'MP4 geüpload, maar de conversie naar WebM is mislukt',
+  settings_bg_unsupported: 'Niet-ondersteund formaat: gebruik afbeeldingen, GIF, MP4 of WEBM',
+  settings_bg_video_failed: 'Video niet ondersteund door iCUE: gebruik WebM VP8/VP9',
+  settings_bg_too_large: 'Bestand te groot: maximaal 200 MB',
+  settings_bg_removed: 'Achtergrond verwijderd',
+  settings_bg_dim: 'Achtergrond dimmen',
+  settings_bg_blur: 'Achtergrond vervagen',
+  settings_bg_blur_note_empty: 'Zichtbaar nadat je een afbeelding, GIF of video hebt geüpload.',
+  settings_bg_blur_note_active: 'Vervaagt alleen de geüploade media-achtergrond.',
+  settings_background_covered: 'Verborgen door een actieve achtergrond — verwijder de achtergrond om deze kleur te zien.',
+  svg_paste: 'SVG plakken',
+  svg_paste_title: 'SVG-code plakken',
+  svg_paste_insert: 'Invoegen',
+  svg_paste_cancel: 'Annuleren',
+  svg_paste_hint: 'Plak de volledige <svg>…</svg>-markup. Die wordt gebruikt als afbeelding, net als een geüploade foto.',
+  svg_paste_invalid: 'Dat lijkt geen geldige SVG — het moet beginnen met <svg en eindigen met </svg>.',
+});
+
 
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)
