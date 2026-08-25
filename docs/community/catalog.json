@@ -2,6 +2,36 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "atelier-78",
+      "kind": "bundle",
+      "name": "Atelier 78",
+      "author": "xenon",
+      "authorSupporter": true,
+      "supportersOnly": true,
+      "locked": true,
+      "description": "A working turntable, as a tile and as a full-screen Ambient scene. Lift the tonearm off the record and the music stops, put it back and it plays; turn the record to move through the track, flick it sideways to change record, swipe the wheel for volume. Your album art is the label.",
+      "category": "media",
+      "tags": [
+        "turntable",
+        "vinyl",
+        "tonearm",
+        "album-art",
+        "interactive"
+      ],
+      "version": "5.3.0",
+      "appVersionMin": "4.11.0",
+      "preview": {
+        "accent": "#a861c5",
+        "bg": "#120b0f",
+        "text": "#f2e6d4"
+      },
+      "shots": 4,
+      "active": true,
+      "activeUntil": "2026-09-25T23:59:59+02:00",
+      "addedAt": "2026-08-25",
+      "codeFile": true
+    },
+    {
       "id": "workload",
       "kind": "widget",
       "name": "Workload",
