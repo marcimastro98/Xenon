@@ -82,7 +82,8 @@
     time: 0, duration: 0,
     muted: false,
     expanded: false,
-    blocked: false,     // the embed refuses this video — offer the browser instead
+    blocked: false,     // the embed refuses to play — offer the browser instead
+    errCode: 0,         // the code YouTube gave, because they do not all mean the same thing
     heard: false,       // the current frame has answered us at least once
     hello: null,
     idle: false, idleT: null,   // full-screen controls faded out (see armIdle)
@@ -192,14 +193,25 @@
     if (d.event === 'onStateChange') {
       applyState(Number(info));
     } else if (d.event === 'onError') {
-      // 101 / 150 = this embed may not play this video. There is nothing to retry,
-      // so offer the browser instead of leaving YouTube's own error rectangle on
-      // screen with no explanation — and REMEMBER it, because this is the only
-      // trustworthy source we have. The list can then mark it without the user
-      // having to tap it a second time to find out again.
+      // There is nothing to retry either way, so offer the browser instead of
+      // leaving YouTube's own error rectangle on screen with no explanation. What
+      // differs is whether the answer is about THIS VIDEO or about this whole
+      // installation, and only the first kind may be remembered.
+      //
+      //   101 / 150 — the owner disallowed embedding. About the video, true
+      //     everywhere, and the only trustworthy source we have for it: remember
+      //     it so the list can mark it without the user tapping it again.
+      //   153 — the embed did not like our referrer. Reported on macOS (#126)
+      //     against a build where every list loads and no video plays. Nothing to
+      //     do with the video: remembering it would mark the user's whole library
+      //     unplayable one tap at a time, and those marks would outlive the fix.
+      //   2 / 5 / 100 — bad parameter, player fault, video gone. Also not a
+      //     statement about embedding, so also not remembered.
       player.blocked = true; player.state = 2;
+      player.errCode = Number(info) || 0;
+      const perVideo = player.errCode === 101 || player.errCode === 150;
       const v = cur();
-      if (v && v.id && !refused.has(v.id)) { refused.add(v.id); paintLibrary(); }
+      if (perVideo && v && v.id && !refused.has(v.id)) { refused.add(v.id); paintLibrary(); }
       paintPlayer();
     } else if (d.event === 'infoDelivery' || d.event === 'initialDelivery') {
       if (info && typeof info === 'object') {
@@ -225,7 +237,7 @@
     const prev = player.state;
     if (next === prev) return;
     player.state = next;
-    if (next === 1) player.blocked = false;
+    if (next === 1) { player.blocked = false; player.errCode = 0; }
     // Pausing brings the controls back and keeps them; starting to play begins
     // the countdown to hiding them again.
     if (player.expanded) wakeControls();
@@ -287,7 +299,7 @@
     const found = q.findIndex(v => v.id === wanted);
     const i = found >= 0 ? found : 0;
     player.queue = q; player.qi = i;
-    player.time = 0; player.duration = q[i].seconds || 0; player.blocked = false; player.state = 3;
+    player.time = 0; player.duration = q[i].seconds || 0; player.blocked = false; player.errCode = 0; player.state = 3;
     const target = stage || player.stage || document.querySelector('.yt-player-stage');
     if (!target) return;
     // Same frame, still alive, only a different video: swap it in place — that
@@ -300,7 +312,7 @@
   function playAt(i) {
     if (i < 0 || i >= player.queue.length) return;
     player.qi = i; player.time = 0; player.duration = player.queue[i].seconds || 0;
-    player.blocked = false; player.state = 3;
+    player.blocked = false; player.errCode = 0; player.state = 3;
     if (player.frame && player.stage) cmd('loadVideoById', [player.queue[i].id]);
     paintPlayer();
   }
@@ -319,7 +331,7 @@
   function stopPlayer() {
     destroyFrame();
     player.queue = []; player.qi = -1; player.state = -1;
-    player.time = 0; player.duration = 0; player.blocked = false;
+    player.time = 0; player.duration = 0; player.blocked = false; player.errCode = 0;
     setExpanded(false);
     paintPlayer();
   }
@@ -516,9 +528,20 @@
     return card;
   }
 
+  // "This video cannot be played inside apps" is the right sentence for a video
+  // the owner locked, and the wrong one for error 153, where every video fails
+  // and none of them is at fault. Saying it anyway sent a macOS user hunting
+  // through his library for one that would work (#126).
+  function blockedText() {
+    if (player.errCode === 153) {
+      return t('youtube_embed_config', 'YouTube would not start the player here. This is not the video — open it in the browser.');
+    }
+    return t('youtube_no_embed', 'This video cannot be played inside apps.');
+  }
+
   function buildBlockedOverlay() {
     const blocked = el('div', 'yt-blocked');
-    blocked.append(el('span', 'yt-blocked-txt', t('youtube_no_embed', 'This video cannot be played inside apps.')));
+    blocked.append(el('span', 'yt-blocked-txt', blockedText()));
     const bb = el('button', 'yt-blocked-btn', t('youtube_open_browser', 'Open in the browser'));
     bb.type = 'button';
     bb.addEventListener('click', async () => { const v = cur(); const url = v && watchUrl(v.id); if (url) await openOut(url); });
@@ -674,7 +697,12 @@
       card.querySelector('.yt-time-cur').textContent = fmtTime(player.time);
       card.querySelector('.yt-time-dur').textContent = fmtTime(dur);
 
-      card.querySelector('.yt-blocked').style.display = (owns && player.blocked) ? '' : 'none';
+      // The overlay is built once and only shown/hidden here, so its text has to be
+      // refreshed on every paint: which sentence is right depends on the error we
+      // are holding right now, and on the language, both of which change under it.
+      const blocked = card.querySelector('.yt-blocked');
+      blocked.style.display = (owns && player.blocked) ? '' : 'none';
+      blocked.querySelector('.yt-blocked-txt').textContent = blockedText();
     });
   }
 
