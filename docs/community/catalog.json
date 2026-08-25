@@ -2,6 +2,35 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "pit-wall",
+      "kind": "bundle",
+      "name": "Pit Wall",
+      "author": "xenon",
+      "authorSupporter": true,
+      "supportersOnly": true,
+      "locked": true,
+      "description": "A racing cluster drawn the way a current one is: black faces, fine graduations, one bright pointer, no chrome. CPU on a 100-line comb, GPU on a 48-segment bar, RAM on a half-circle capacity gauge, each naming what it measures and keeping a tell-tale on the last minute peak. Behind them, a circuit.",
+      "category": "style",
+      "tags": [
+        "racing",
+        "cockpit",
+        "gauges",
+        "minimal",
+        "supporter"
+      ],
+      "version": "1.2.0",
+      "changelog": "1.2.0: the instruments redrawn flat — no bezel, no glass, no centre hand — three different scales instead of one repeated three times, a peak tell-tale, and a circuit behind them instead of a texture.",
+      "appVersionMin": "4.11.0",
+      "preview": {
+        "accent": "#2F6DA8",
+        "bg": "#0F1319",
+        "text": "#E9EEF4"
+      },
+      "shots": 4,
+      "addedAt": "2026-08-25",
+      "codeFile": true
+    },
+    {
       "id": "atelier-78",
       "kind": "bundle",
       "name": "Atelier 78",
