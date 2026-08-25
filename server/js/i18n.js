@@ -29114,6 +29114,24 @@ Object.assign(i18n.nl, {
   svg_paste_invalid: 'Dat lijkt geen geldige SVG — het moet beginnen met <svg en eindigen met </svg>.',
 });
 
+// v4.11.6 — YouTube error 153, told apart from "the owner disabled embedding".
+//
+// Reported on macOS (#126): every list loads, no video plays. 153 is about the
+// referrer the embed was opened with, not about the video, so the existing
+// sentence ("This video cannot be played inside apps") sent the reporter looking
+// for a video that would work. There isn't one — it fails on all of them.
+Object.assign(i18n.it, { youtube_embed_config: 'YouTube non ha avviato il player qui. Non dipende dal video: aprilo nel browser.' });
+Object.assign(i18n.en, { youtube_embed_config: 'YouTube would not start the player here. This is not the video — open it in the browser.' });
+Object.assign(i18n.es, { youtube_embed_config: 'YouTube no ha iniciado el reproductor aquí. No es el vídeo: ábrelo en el navegador.' });
+Object.assign(i18n.fr, { youtube_embed_config: 'YouTube n’a pas lancé le lecteur ici. Ce n’est pas la vidéo : ouvrez-la dans le navigateur.' });
+Object.assign(i18n.de, { youtube_embed_config: 'YouTube hat den Player hier nicht gestartet. Es liegt nicht am Video — öffne es im Browser.' });
+Object.assign(i18n.pt, { youtube_embed_config: 'O YouTube não iniciou o leitor aqui. Não é o vídeo: abre-o no navegador.' });
+Object.assign(i18n.nl, { youtube_embed_config: 'YouTube startte de speler hier niet. Het ligt niet aan de video — open hem in de browser.' });
+Object.assign(i18n.ru, { youtube_embed_config: 'YouTube не запустил плеер здесь. Дело не в видео — откройте его в браузере.' });
+Object.assign(i18n.ko, { youtube_embed_config: 'YouTube가 여기서 재생기를 시작하지 못했습니다. 동영상 문제가 아니니 브라우저에서 열어 보세요.' });
+Object.assign(i18n.ja, { youtube_embed_config: 'YouTube がここでプレーヤーを起動できませんでした。動画側の問題ではありません — ブラウザーで開いてください。' });
+Object.assign(i18n.zh, { youtube_embed_config: 'YouTube 未能在这里启动播放器。这不是视频的问题 — 请在浏览器中打开。' });
+
 
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)
