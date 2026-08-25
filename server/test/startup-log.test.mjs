@@ -158,3 +158,74 @@ test('installing twice does not rotate away the current run', () => {
     assert.ok(!existsSync(path.join(dir, 'server.log.1')), 'nothing was rotated');
   });
 });
+
+// ── The console, copied ──────────────────────────────────────────────────────
+//
+// Under the hidden launcher the engine has no console, so its 44 diagnostics go
+// nowhere. That stopped being abstract when a user asked why Discord
+// notifications would not arrive: the engine had already logged the exact
+// rejection Discord gave, and nobody could read it. Whether the cause was the
+// missing scope or something else was unanswerable on information the program
+// had and discarded.
+
+test('error and warn reach the file; progress chatter does not', () => {
+  withLogDir((dir) => {
+    const r = run(dir, `
+      console.error('rejected:', 'invalid_scope');
+      console.warn('odd', { a: 1 });
+      console.log('progress, not evidence');
+    `);
+    assert.match(r.log, /\[error\] rejected: invalid_scope/);
+    assert.match(r.log, /\[warn\] odd \{ a: 1 \}/);
+    assert.ok(!/progress, not evidence/.test(r.log), 'console.log must not be copied');
+  });
+});
+
+// The copy is a copy. A machine that DOES have a console must behave exactly as
+// it did before — this may add a destination, never move one.
+test('the real console still receives everything', () => {
+  withLogDir((dir) => {
+    const r = run(dir, `
+      console.error('still on stderr');
+      console.log('still on stdout');
+    `);
+    assert.match(r.stderr, /still on stderr/);
+    assert.match(r.stdout, /still on stdout/);
+  });
+});
+
+test('an Error is written the way console writes it, stack and all', () => {
+  withLogDir((dir) => {
+    const r = run(dir, `console.error(new Error('boom'));`);
+    assert.match(r.log, /\[error\] Error: boom/);
+    assert.match(r.log, /\s+at\s/, 'the stack comes with it');
+  });
+});
+
+// A fault that retries in a loop could otherwise write until the disk is full,
+// which is a worse bug than the one being recorded.
+test('a runaway logger stops itself and says so once', () => {
+  withLogDir((dir) => {
+    const r = run(dir, `
+      for (let i = 0; i < 600; i++) console.error('line', i);
+      console.error('after the cap');
+    `);
+    const notices = (r.log.match(/further console output is not copied/g) || []).length;
+    assert.equal(notices, 1, 'the cap announces itself exactly once');
+    assert.ok(!/after the cap/.test(r.log), 'nothing is copied past the cap');
+    // …and the real console is untouched by the cap: it is our file we are
+    // protecting, not the user's terminal.
+    assert.match(r.stderr, /after the cap/);
+  });
+});
+
+// The tee runs inside the process it is recording. If it could throw, it would
+// turn every logged warning into a crash.
+test('a console call with awkward arguments cannot break the caller', () => {
+  withLogDir((dir) => {
+    const circular = `const c = {}; c.self = c; console.error('circular:', c);`;
+    const r = run(dir, `${circular} console.error(undefined, null, Symbol('s')); console.log('survived');`);
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /survived/);
+  });
+});

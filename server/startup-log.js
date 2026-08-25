@@ -27,6 +27,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const util = require('util');
 
 // Beside setup.log on Windows. That folder is what the splash and the installer
 // already tell people to send, so one place holds the whole story of a bad
@@ -72,6 +73,15 @@ function rotate() {
     fs.renameSync(LOG, PREV);
   } catch { /* keep appending to the existing file rather than losing the run */ }
 }
+
+// Ceiling on teed console lines per run. The engine's console carries 44
+// diagnostics, none of them per-request — but a fault that retries in a loop
+// could still write forever, and a log that fills the disk is a worse bug than
+// the one it was recording. At the cap it says so once and goes quiet; the
+// original console is never touched, so nothing is lost that was not already
+// being discarded.
+const MAX_TEED_LINES = 500;
+let teed = 0;
 
 let installed = false;
 
@@ -122,6 +132,45 @@ function install() {
   process.on('exit', (code) => {
     if (code !== 0) write(`engine exited with code ${code}`);
   });
+
+  teeConsole();
 }
 
-module.exports = { install, write, LOG, PREV };
+// Copy console.error/console.warn into the file as well.
+//
+// Under the hidden launcher the engine has no console at all, so every one of
+// those diagnostics is written to nowhere. That is not hypothetical: when a user
+// asked why Discord notifications would not arrive, the engine had already
+// logged the exact rejection Discord gave — and there was no way for anyone to
+// read it. Whether the cause was the missing scope or something else was
+// unanswerable from the outside, on information the program had and threw away.
+//
+// error/warn only. console.log is progress, not evidence, and the ordinary
+// startup chatter would bury the lines that matter.
+//
+// The original functions are still called, first and always: a machine that DOES
+// have a console keeps behaving exactly as before, and a failure in the tee can
+// never cost a message. util.format is what console itself uses, so an Error or
+// an object reads the same in the file as it does on screen.
+function teeConsole() {
+  for (const level of ['error', 'warn']) {
+    const original = console[level];
+    if (typeof original !== 'function') continue;
+    console[level] = function teedConsole(...args) {
+      try { original.apply(console, args); } catch { /* keep going: the copy still matters */ }
+      try {
+        if (teed >= MAX_TEED_LINES) return;
+        teed += 1;
+        if (teed === MAX_TEED_LINES) {
+          write(`[console] ${MAX_TEED_LINES} lines recorded; further console output is not copied here.`);
+          return;
+        }
+        // Bounded per line as well — one enormous object must not become the
+        // whole file.
+        write('[' + level + '] ' + util.format(...args).slice(0, 2000));
+      } catch { /* a log that cannot be written must never be the problem */ }
+    };
+  }
+}
+
+module.exports = { install, write, teeConsole, LOG, PREV, MAX_TEED_LINES };
