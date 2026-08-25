@@ -1111,6 +1111,9 @@ const i18n = {
     discord_w_undeafen: 'Riattiva',
     discord_w_leave: 'Esci',
     discord_w_no_channels: 'Nessun canale vocale',
+    discord_w_favourites: 'Preferiti',
+    discord_w_favourite: 'Fissa in cima',
+    discord_w_unfavourite: 'Togli dai preferiti',
     discord_w_soundboard: 'Soundboard',
     discord_w_sound_hint: 'Entra in un canale vocale per riprodurre un suono',
     discord_w_no_sounds: 'Nessun suono nel soundboard',
@@ -3833,6 +3836,9 @@ const i18n = {
     discord_w_undeafen: 'Undeafen',
     discord_w_leave: 'Leave',
     discord_w_no_channels: 'No voice channels',
+    discord_w_favourites: 'Favourites',
+    discord_w_favourite: 'Pin to the top',
+    discord_w_unfavourite: 'Remove from favourites',
     discord_w_soundboard: 'Soundboard',
     discord_w_sound_hint: 'Join a voice channel to play a sound',
     discord_w_no_sounds: 'No soundboard sounds',
@@ -6167,6 +6173,9 @@ Object.assign(i18n, {
     discord_w_undeafen: '차단 해제',
     discord_w_leave: '나가기',
     discord_w_no_channels: '음성 채널 없음',
+    discord_w_favourites: '즐겨찾기',
+    discord_w_favourite: '맨 위에 고정',
+    discord_w_unfavourite: '즐겨찾기에서 제거',
     discord_w_soundboard: '사운드보드',
     discord_w_sound_hint: '사운드를 재생하려면 음성 채널에 참여하세요',
     discord_w_no_sounds: '사운드보드 사운드 없음',
@@ -8442,6 +8451,9 @@ Object.assign(i18n, {
     discord_w_undeafen: 'ミュート解除（受信）',
     discord_w_leave: '退出',
     discord_w_no_channels: 'ボイスチャンネルなし',
+    discord_w_favourites: 'お気に入り',
+    discord_w_favourite: '上部にピン留め',
+    discord_w_unfavourite: 'お気に入りから削除',
     discord_w_soundboard: 'サウンドボード',
     discord_w_sound_hint: 'サウンドを再生するにはボイスチャンネルに参加してください',
     discord_w_no_sounds: 'サウンドボードのサウンドがありません',
@@ -10716,6 +10728,9 @@ Object.assign(i18n, {
     discord_w_undeafen: '取消拒听',
     discord_w_leave: '离开',
     discord_w_no_channels: '无语音频道',
+    discord_w_favourites: '收藏',
+    discord_w_favourite: '置顶',
+    discord_w_unfavourite: '取消收藏',
     discord_w_soundboard: '音效板',
     discord_w_sound_hint: '加入语音频道以播放音效',
     discord_w_no_sounds: '没有音效板音效',
@@ -12274,6 +12289,9 @@ Object.assign(i18n, {
 ,
   es: {
     ...i18n.en,
+    discord_w_favourites: 'Favoritos',
+    discord_w_favourite: 'Fijar arriba',
+    discord_w_unfavourite: 'Quitar de favoritos',
     // YouTube widget + live broadcasting.
     youtube_offline: "Sin emisión",
     ytl_no_broadcast: "No hay ningún directo programado",
@@ -13593,6 +13611,9 @@ Object.assign(i18n, {
   },
   fr: {
     ...i18n.en,
+    discord_w_favourites: 'Favoris',
+    discord_w_favourite: 'Épingler en haut',
+    discord_w_unfavourite: 'Retirer des favoris',
     // YouTube widget + live broadcasting.
     youtube_offline: "Hors ligne",
     ytl_no_broadcast: "Aucun direct programmé",
@@ -14909,6 +14930,9 @@ Object.assign(i18n, {
   },
   de: {
     ...i18n.en,
+    discord_w_favourites: 'Favoriten',
+    discord_w_favourite: 'Oben anheften',
+    discord_w_unfavourite: 'Aus Favoriten entfernen',
     // YouTube widget + live broadcasting.
     youtube_offline: "Offline",
     ytl_no_broadcast: "Kein Livestream geplant",
@@ -16225,6 +16249,9 @@ Object.assign(i18n, {
   },
   pt: {
     ...i18n.en,
+    discord_w_favourites: 'Favoritos',
+    discord_w_favourite: 'Fixar no topo',
+    discord_w_unfavourite: 'Remover dos favoritos',
     // YouTube widget + live broadcasting.
     youtube_offline: "Fora do ar",
     ytl_no_broadcast: "Nenhuma transmissão agendada",
@@ -17541,6 +17568,9 @@ Object.assign(i18n, {
   },
   ru: {
     ...i18n.en,
+    discord_w_favourites: 'Избранное',
+    discord_w_favourite: 'Закрепить сверху',
+    discord_w_unfavourite: 'Убрать из избранного',
     // YouTube widget + live broadcasting.
     youtube_offline: "Не в эфире",
     ytl_no_broadcast: "Трансляция не запланирована",
@@ -18857,6 +18887,9 @@ Object.assign(i18n, {
   },
   nl: {
     ...i18n.en,
+    discord_w_favourites: 'Favorieten',
+    discord_w_favourite: 'Bovenaan vastzetten',
+    discord_w_unfavourite: 'Uit favorieten verwijderen',
     settings_accent_covered_retro: 'De stijl Pixel Retro gebruikt zijn eigen vaste CRT-palet — kies een andere stijl bij Weergave → Thema\'s om deze kleur te zien.',
     settings_accent_covered_album: 'De accentkleur volgt op dit moment de albumhoes. Zet “Albumthema” uit om deze kleur te gebruiken.',
     settings_version_ping: 'Deze installatie anoniem meetellen',

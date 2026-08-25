@@ -381,6 +381,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // they stopped being localStorage-only in v4.11.6.
   whatsNewSeen: '',
   discordInviteSeen: false,
+  // Voice channels pinned to the top of the Discord widget. Mirror of server.js;
+  // see the note there for why this one is NOT per-device.
+  discordFavChannels: Object.freeze([]),
   // Opt-in ad-blocker for the Browser tile (Settings → Browser). OFF by default.
   browserAdblock: false,
   // Stock-market (Borsa) widget + ticker. Keys are server-only (redacted); the
@@ -1564,6 +1567,21 @@ function normalizeModelChoice(value) {
   return 'auto';
 }
 
+// Mirror of normalizeSnowflakeList in server.js — keep in step. Bounded and
+// deduped: this list is used as a DOM key in the Discord widget, and the server
+// rebuilds the blob from whatever the browser sends.
+function normalizeSnowflakeList(value, max = 50) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const raw of value) {
+    const id = String(raw == null ? '' : raw).trim();
+    if (!/^\d{5,25}$/.test(id) || out.includes(id)) continue;
+    out.push(id);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 function normalizeSettings(source) {
   const value = source && typeof source === 'object' ? source : {};
   // One-time migration: if the saved layout predates the current version,
@@ -1627,6 +1645,7 @@ function normalizeSettings(source) {
     // Mirror of normalizeHubSettings in server.js — keep in step.
     whatsNewSeen: typeof value.whatsNewSeen === 'string' ? value.whatsNewSeen.trim().slice(0, 64) : '',
     discordInviteSeen: value.discordInviteSeen === true,
+    discordFavChannels: normalizeSnowflakeList(value.discordFavChannels),
     catalogStats: value.catalogStats === true,
     browserAdblock: value.browserAdblock === true,
     dashboardLayout: resetLayout
