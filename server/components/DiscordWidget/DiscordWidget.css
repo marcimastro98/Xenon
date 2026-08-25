@@ -191,6 +191,33 @@ body.overlay-frozen .dc-pill.in-voice .dc-pill-dot::after { animation-play-state
   background: #1b1e2c; border: 1px solid rgba(88,101,242,0.3); border-radius: 7px;
 }
 .dc-guild:first-child { margin-top: 0; }
+
+/* ── Favourite channels ─────────────────────────────────────────────────────
+   The row is a wrapper holding the join button and the star as SIBLINGS (a
+   button inside a button is invalid and only one of the two would be
+   reachable). The join button takes all the room it can; the star keeps a
+   fixed, thumb-sized column so the names below it stay aligned. */
+.dc-chan-row { display: flex; align-items: stretch; gap: 4px; }
+.dc-chan-row > .dc-chan { flex: 1 1 auto; min-width: 0; }
+.dc-chan-fav {
+  flex: 0 0 auto; width: 30px; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: 7px; cursor: pointer;
+  background: transparent; color: #6f7690;
+  transition: color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+  /* Dim until the row is touched: a column of stars down an untouched list is
+     louder than the channel names, which are what the tab is for. The pinned
+     ones stay lit, because that IS their state. */
+  opacity: 0.45;
+}
+.dc-chan-row:hover .dc-chan-fav,
+.dc-chan-fav:focus-visible { opacity: 1; }
+.dc-chan-fav:hover { background: rgba(88,101,242,0.16); color: #c7ccdd; }
+.dc-chan-fav svg { width: 14px; height: 14px; }
+.dc-chan-fav.is-on { opacity: 1; color: var(--accent, #f5c518); }
+/* Filled when pinned: the outline/solid pair reads at a glance and needs no
+   second glyph to keep in step with the first. */
+.dc-chan-fav.is-on svg { fill: currentColor; }
+.dc-guild--fav { border-color: rgba(var(--accent-rgb, 245 197 24), 0.45); }
 .dc-chan {
   display: flex; align-items: center; gap: 8px; width: 100%;
   padding: 5px 9px; border-radius: 8px; cursor: pointer; text-align: left;

@@ -7616,6 +7616,12 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // to answer either card a second time.
   whatsNewSeen: '',
   discordInviteSeen: false,
+  // Voice channels pinned to the top of the Discord widget's Channels tab, as
+  // Discord channel ids. Server-side rather than per-device on purpose: which
+  // channels you care about is a fact about YOU, so it should follow you to the
+  // phone and the Edge. Contrast the tile layout, which is per-device precisely
+  // because the right answer differs from screen to screen.
+  discordFavChannels: Object.freeze([]),
   // Opt-in ad-blocker for the Browser tile (Settings → Browser). OFF by default;
   // when on, the server loads an unpacked uBOL MV3 extension into the tile's Edge.
   browserAdblock: false,
@@ -8830,6 +8836,20 @@ function normalizeFileTransfer(value) {
 // it is somebody else's. The client half is in js/settings.js.
 const SETTINGS_STORE_ID_RE = /^[0-9a-f]{32}$/;
 
+// A bounded, deduped list of Discord snowflake ids. Shared by the server store
+// and mirrored in js/settings.js — see discordFavChannels.
+function normalizeSnowflakeList(value, max = 50) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const raw of value) {
+    const id = String(raw == null ? '' : raw).trim();
+    if (!/^\d{5,25}$/.test(id) || out.includes(id)) continue;
+    out.push(id);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 function normalizeHubSettings(value) {
   const source = value && typeof value === 'object' ? value : {};
   // One-time migration: saved layouts older than the current version are
@@ -8904,6 +8924,10 @@ function normalizeHubSettings(value) {
     // over it on first hydrate when there is one.
     whatsNewSeen: typeof source.whatsNewSeen === 'string' ? source.whatsNewSeen.trim().slice(0, 64) : '',
     discordInviteSeen: source.discordInviteSeen === true,
+    // Snowflakes only, deduped and capped. This list is echoed straight back to
+    // every surface and used as a DOM key, so anything that is not a Discord id
+    // has no business surviving a round trip through the store.
+    discordFavChannels: normalizeSnowflakeList(source.discordFavChannels),
     browserAdblock: source.browserAdblock === true,
     dashboardLayout: resetLayout
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)

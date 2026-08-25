@@ -14,6 +14,9 @@
 // .discord-widget-mount.
 (function () {
   const ICONS = {
+    // Filled by CSS via currentColor + fill; the outline reads as "not pinned"
+    // and the filled star as "pinned", with no second glyph to keep in step.
+    star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 3.6 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.8l5.9-.9z"/></svg>',
     micOn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
     micOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 18 18M9 9v2a3 3 0 0 0 4.5 2.6M15 11V6a3 3 0 0 0-5.7-1.3M5 11a7 7 0 0 0 10 6.3M12 18v3"/></svg>',
     deafOn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="2" y="14" width="5" height="6" rx="1.5"/><rect x="17" y="14" width="5" height="6" rx="1.5"/></svg>',
@@ -256,6 +259,47 @@
 
   // Group the flat channel list by server (guild), preserving first-seen order so
   // the list reads the same way every render.
+  // ── Favourite voice channels ───────────────────────────────────────────────
+  // Pinned channels come out as their own group at the TOP, above the per-server
+  // ones, and are removed from the server group they came from. Shown in one
+  // place only: a row repeated under both headings would duplicate its member
+  // strip too, and "why is this channel twice?" is a worse question than "where
+  // did it go?" — which the star on the row already answers.
+  //
+  // Pure, so the ordering can be checked without a browser or a Discord account.
+  // Favourites keep the order the user starred them in, not Discord's: the point
+  // is to put the one you always join first, and re-sorting them by name would
+  // take that back.
+  function splitFavourites(list, favIds) {
+    const fav = Array.isArray(favIds) ? favIds : [];
+    const byId = new Map((list || []).map((c) => [String(c && c.id), c]));
+    const pinned = fav.map((id) => byId.get(String(id))).filter(Boolean);
+    const pinnedIds = new Set(pinned.map((c) => String(c.id)));
+    const rest = (list || []).filter((c) => !pinnedIds.has(String(c && c.id)));
+    return { pinned, rest };
+  }
+
+  function favIds() {
+    const v = (typeof hubSettings === 'object' && hubSettings) ? hubSettings.discordFavChannels : null;
+    return Array.isArray(v) ? v : [];
+  }
+
+  function isFav(id) { return favIds().includes(String(id)); }
+
+  // Appended rather than prepended: a new favourite goes to the BOTTOM of the
+  // pinned group, so starring a second channel never moves the first one out
+  // from under the pointer that is about to click it.
+  function toggleFav(id) {
+    const key = String(id);
+    if (typeof hubSettings !== 'object' || !hubSettings) return;
+    if (typeof normalizeSettings !== 'function' || typeof saveHubSettings !== 'function') return;
+    const cur = favIds();
+    const next = cur.includes(key) ? cur.filter((x) => x !== key) : cur.concat([key]);
+    hubSettings = normalizeSettings({ ...hubSettings, discordFavChannels: next });
+    saveHubSettings({ server: true });
+    renderWidgets();
+  }
+
   function groupByGuild(list) {
     const groups = new Map();
     list.forEach(c => {
@@ -337,7 +381,11 @@
     const sig = !linked ? 'x' : (!channels || !channels.length) ? 'e'
       : channels.map(c => c.id + ':' + (c.name || '') + ':' + (c.id === activeId ? 1 : 0) + ':'
           + membersFor(c).map(m => (m.name || '') + (m.speaking ? 's' : '') + (m.mute ? 'm' : '') + (m.deaf ? 'd' : '')).join(',')
-        ).join('|');
+        ).join('|')
+      // The pinned list is part of what is drawn, so it belongs in the signature:
+      // without it, starring a channel would change nothing until the next tick
+      // that happened to move a member.
+      + '#' + favIds().join(',');
     if (list.dataset.dcSig === sig) return;
     list.dataset.dcSig = sig;
     if (!linked) { list.replaceChildren(el('div', 'dc-chan-empty', t('twitch_notlinked', 'Not linked'))); return; }
@@ -346,29 +394,56 @@
       return;
     }
     const frag = document.createDocumentFragment();
-    groupByGuild(channels).forEach((chs, guild) => {
+
+    // One channel row: the join button and the star are SIBLINGS inside a
+    // wrapper, never nested. A button inside a button is invalid and only one of
+    // the two would be reachable — the same reason soundTile() below is built
+    // this way.
+    const channelRow = (c) => {
+      const isActive = c.id === activeId;
+      // Members: the live voice state (with speaking) for the channel you're in,
+      // the polled roster for every other channel. Either may be absent.
+      const members = (isActive && voice && Array.isArray(voice.members))
+        ? voice.members
+        : (roster ? (roster.get(c.id) || []) : []);
+      const row = el('div', 'dc-chan-row');
+      const b = el('button', 'dc-chan');
+      b.type = 'button';
+      b.classList.toggle('is-active', isActive);
+      const ico = el('span', 'dc-chan-ico'); ico.innerHTML = ICONS.join;   // static, trusted SVG
+      b.append(ico, el('span', 'dc-chan-name', c.name || ''));
+      if (members.length) b.appendChild(el('span', 'dc-chan-count', String(members.length)));
+      b.addEventListener('click', () => runAction(b, { type: 'discordJoin', channel: c.id }));
+      const pinned = isFav(c.id);
+      const star = el('button', 'dc-chan-fav');
+      star.type = 'button';
+      star.classList.toggle('is-on', pinned);
+      star.innerHTML = ICONS.star;                                          // static, trusted SVG
+      const label = pinned
+        ? t('discord_w_unfavourite', 'Remove from favourites')
+        : t('discord_w_favourite', 'Pin to the top');
+      star.title = label;
+      star.setAttribute('aria-label', label);
+      star.setAttribute('aria-pressed', String(pinned));
+      star.addEventListener('click', (ev) => { ev.stopPropagation(); toggleFav(c.id); });
+      row.append(b, star);
+      frag.appendChild(row);
+      // Who's inside — a compact member strip under the channel row.
+      if (members.length) {
+        const strip = el('div', 'dc-chan-members');
+        members.forEach(m => strip.appendChild(memberChip(m)));
+        frag.appendChild(strip);
+      }
+    };
+
+    const { pinned, rest } = splitFavourites(channels, favIds());
+    if (pinned.length) {
+      frag.appendChild(el('div', 'dc-guild dc-guild--fav', t('discord_w_favourites', 'Favourites')));
+      pinned.forEach(channelRow);
+    }
+    groupByGuild(rest).forEach((chs, guild) => {
       if (guild) frag.appendChild(el('div', 'dc-guild', guild));
-      chs.forEach(c => {
-        const isActive = c.id === activeId;
-        // Members: the live voice state (with speaking) for the channel you're in,
-        // the polled roster for every other channel. Either may be absent.
-        const members = (isActive && voice && Array.isArray(voice.members))
-          ? voice.members
-          : (roster ? (roster.get(c.id) || []) : []);
-        const b = el('button', 'dc-chan');
-        b.classList.toggle('is-active', isActive);
-        const ico = el('span', 'dc-chan-ico'); ico.innerHTML = ICONS.join;   // static, trusted SVG
-        b.append(ico, el('span', 'dc-chan-name', c.name || ''));
-        if (members.length) b.appendChild(el('span', 'dc-chan-count', String(members.length)));
-        b.addEventListener('click', () => runAction(b, { type: 'discordJoin', channel: c.id }));
-        frag.appendChild(b);
-        // Who's inside — a compact member strip under the channel row.
-        if (members.length) {
-          const strip = el('div', 'dc-chan-members');
-          members.forEach(m => strip.appendChild(memberChip(m)));
-          frag.appendChild(strip);
-        }
-      });
+      chs.forEach(channelRow);
     });
     list.replaceChildren(frag);
   }
@@ -724,5 +799,10 @@
   // Re-evaluate the roster poll when the page is hidden/shown (stop while hidden).
   document.addEventListener('visibilitychange', syncRosterPolling);
 
-  window.DiscordWidget = { renderWidgets, onSSE, onNotification };
+  // splitFavourites is published for the tests: this file cannot be required in
+  // node (it reaches for browser globals at IIFE top level, unlike
+  // js/phone-view.js), so the suite lifts that one pure function out of the
+  // source and runs it instead. Reaching the rendered list would need a linked
+  // Discord account, which no test has.
+  window.DiscordWidget = { renderWidgets, onSSE, onNotification, splitFavourites };
 })();

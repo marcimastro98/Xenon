@@ -4,6 +4,13 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### ✨ Added
+- **Pin the voice channels you actually use to the top.** Until now the Channels tab listed them in whatever order Discord gave, so the one you join every evening sat wherever it happened to sit, often below a server you never touch. A star on each row now pins it, and pinned channels gather into a Favourites group above everything else. Asked for on Discord.
+
+  They stay in the order you starred them, not alphabetically — the point is to put the one you always join first, and re-sorting would take that back. A new favourite joins the bottom of the group, so pinning a second one never shifts the first out from under your finger. A pinned channel appears in the Favourites group only, not twice.
+
+  The list is saved with your settings rather than on the machine you starred it from, so it follows you to a paired phone, the Xeneon Edge and every browser tab. That is the opposite of the tile layout, which deliberately stays per-device: how many columns suit a screen is a question about that screen, while which channels matter is a question about you.
+
 ### 🐛 Fixed
 - **The "+" drop-zone steps aside while you move or resize a tile.** In edit mode the "+" stretches to cover the page's whole empty area — deliberately, so it is an easy target — but it is a real button sitting on top of the grid, and it stayed there while you were dragging. So every gesture ended on top of it, and the click that follows letting go opened the widget palette. Reported as the "+ panel getting in the way" of rearranging and resizing.
 
