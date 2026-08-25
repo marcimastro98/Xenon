@@ -81,6 +81,13 @@ function createTokenStore({ tokensFile, storeKey, normalize }) {
       // Providers may omit refresh_token on refresh (Google does) — keep the stored one.
       refreshToken: data.refresh_token || current.refreshToken,
       expiresAt,
+      // What the grant actually covers, as the provider reported it. Offered to
+      // every provider and kept only by those whose normalizer declares it, so
+      // this costs nothing for the ones that never ask. Discord keeps it because
+      // a scope granted at link time cannot be added later without re-linking,
+      // and knowing beats finding out when a subscription is refused.
+      // A refresh may omit it — the grant has not changed, so keep the stored one.
+      scope: data.scope || current.scope || '',
     });
   }
   // A valid access token, refreshing via the injected provider-specific

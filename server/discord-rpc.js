@@ -54,9 +54,30 @@ const DEFAULT_USER_VOL = 100;
 // without limit.
 const MAX_USER_OVERRIDES = 200;
 
-const normalizeDiscordCreds = makeCredsNormalizer({ userId: 40, username: 100 });
+// `scope` is the space-separated list Discord reported when the token was issued.
+// 400 is far above the ~60 characters the five scopes take, and short enough that
+// a corrupted file cannot bloat the store.
+const normalizeDiscordCreds = makeCredsNormalizer({ userId: 40, username: 100, scope: 400 });
 
 // ── Pure helpers (unit-tested; no I/O) ──────────────────────────────────────
+
+// Does the stored grant cover the notification feed?
+//
+// THREE answers, and the third is the point. A token issued before v4.11.6 has
+// no recorded scope, and "we never wrote it down" is not the same as "it was not
+// granted" — treating it as missing would put a re-link warning in front of every
+// user whose notifications work fine. Only a scope list we actually have, that
+// does not contain the notification scope, is a confirmed 'missing'.
+//
+// Worth knowing eagerly because of how Discord behaves: a scope not asked for at
+// link time cannot be added later by reconnecting — AUTHORIZE reuses the existing
+// authorization and returns a code for what was already granted. So this is the
+// difference between telling someone before they wait, and after.
+function notifScopeState(scope) {
+  const list = String(scope || '').trim();
+  if (!list) return 'unknown';
+  return list.split(/\s+/).includes(NOTIF_SCOPE) ? 'granted' : 'missing';
+}
 
 // A Discord snowflake id (channel/guild/user) is a run of digits. Validate any
 // channel id from the wire before sending it to SELECT_VOICE_CHANNEL.
@@ -672,7 +693,13 @@ function createDiscordProvider(deps) {
   // Client-safe state — NEVER includes tokens.
   async function status() {
     const c = await creds();
-    return { connected: !!c.accessToken, login: c.username, configured: configured(), notif: notifState };
+    return {
+      connected: !!c.accessToken, login: c.username, configured: configured(), notif: notifState,
+      // 'granted' | 'missing' | 'unknown' — read from the grant itself, so the UI
+      // can say a re-link is needed the moment the switch goes on rather than
+      // after a subscription has been refused. See notifScopeState.
+      notifScope: notifScopeState(c.scope),
+    };
   }
 
   // ── Voice actions (each resolves to { ok } and never throws) ──────────────
@@ -1203,6 +1230,8 @@ module.exports = {
   channelMembers,
   encodeFrame,
   createDecoder,
+  notifScopeState,
+  NOTIF_SCOPE,
   errDetail,
   loginCloseError,
   authorizeError,
