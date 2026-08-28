@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **The empty artwork box no longer claims nothing is playing.** Reported with a screenshot of the Playback tile: the source, the track, a running position and working transport buttons — and, where the cover goes, the words "No Media".
+
+  That box is only ever visible when a track has no picture; a cover hides it the instant one loads. So it had exactly one thing to say and said something else, which is how an ordinary missing cover reads as a broken player. It now says "No artwork", and it says it in your own language — it was the one string in that panel written straight into the markup, so it had stayed English everywhere.
+
 - **On a Mac, a Deck key that opens an app now works with the path macOS shows you.** Reported by someone trying Xenon on a Mac: folder keys and URL keys worked, and every "Open app" key did nothing.
 
   macOS hides the `.app` extension. Finder says "Helium", Get Info says "Helium", the Applications folder says "Helium" — so the path you type is `/Applications/Helium`, which is not an app and not a file. The key was refusing it, correctly and silently.
