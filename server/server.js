@@ -20067,7 +20067,13 @@ function _startListen(host) {
         available: () => { try { return deckChroma.getStatus().available; } catch (e) { return false; } },
       });
     } catch (e) { console.error('Lighting Chroma runtime init failed:', e.message); }
+    // Whether the boot read got as far as answering at all, so the catch below
+    // can tell "this settings file could not be read" from "something later in
+    // this block threw". Those need different sentences: only the first one
+    // means the running app is not the user's configuration.
+    let settingsBootRead = false;
     readHubSettings().then(s => {
+      settingsBootRead = true;
       // readHubSettings() answers null on ENOENT, and that is the ONE honest
       // signal that this is a genuinely fresh install rather than an existing one
       // whose owner just switched the version ping on. It has to be captured HERE,
@@ -20076,6 +20082,19 @@ function _startListen(host) {
       // corrupt the retention curve permanently. See version-ping.js.
       _settingsFileMissingAtBoot = (s === null);
       if (s) _serverHubSettings = s;
+      // Which store this process is actually running on, written down where a
+      // person can read it. Reported on Discord as "my whole layout is back to
+      // the factory default after an update", and there was no way to answer it:
+      // a layout that resets and a layout that was never loaded look identical
+      // from the dashboard, and nothing on the machine said which had happened.
+      // The path is part of the line on purpose — an install pointed at a second
+      // data folder is the other way the same screen appears, and the log is then
+      // the only place that says so.
+      startupLog.write(s
+        ? 'settings: loaded ' + SETTINGS_FILE + ' (rev ' + (Number(s.rev) || 0)
+            + ', store ' + (String(s.storeId || '').slice(0, 8) || 'none') + ')'
+        : 'settings: no file at ' + SETTINGS_FILE
+            + ' — starting a NEW store, so this run begins from the factory defaults');
       // Mint the store id NOW rather than on the first save. A fresh install
       // whose settings.json does not exist yet answers GET /settings with no
       // payload at all, and the client's legacy seed path then pushes its own
@@ -20126,7 +20145,23 @@ function _startListen(host) {
         _macFdaTimer = setInterval(() => { refreshMacFdaState().catch(() => {}); }, 60000);
         _macFdaTimer.unref();
       }
-    }).catch(() => {});
+    }).catch(err => {
+      // Was `.catch(() => {})`. A settings file that exists but cannot be read —
+      // a permission the OS took away, a half-copied data folder — left the
+      // engine serving DEFAULT_HUB_SETTINGS with the transfer caps, the bind
+      // host and the lighting config all unapplied, and said nothing anywhere.
+      // It is not even a silent fallback the user can work around: POST
+      // /settings is fail-closed against the same read, so every save is
+      // refused too and the dashboard keeps showing defaults it can never
+      // persist. Exactly the state that needs a line in the log.
+      const why = (err && err.message) ? err.message : String(err);
+      startupLog.write(settingsBootRead
+        ? 'settings: loaded, but a startup step after it failed: ' + why
+        : 'FAILED to read ' + SETTINGS_FILE + ': ' + why
+            + ' — this run falls back to the factory defaults, and every settings save is'
+            + ' refused until that file can be read. Do not re-create your setup yet.');
+      console.error('[settings] boot read failed:', why);
+    });
   });
 }
 
