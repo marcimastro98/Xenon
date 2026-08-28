@@ -38,7 +38,7 @@
       "authorSupporter": true,
       "supportersOnly": true,
       "locked": true,
-      "description": "A working turntable, as a tile and as a full-screen Ambient scene. Lift the tonearm off the record and the music stops, put it back and it plays; turn the record to move through the track, flick it sideways to change record, swipe the wheel for volume. Your album art is the label.",
+      "description": "A working turntable, as a tile and as a full-screen Ambient scene. Lift the tonearm off the record and the music stops, put it back and it plays; turn the record to move through the track, flick it sideways to change record, swipe the wheel for volume and tap it to mute. Your album art is the label.",
       "category": "media",
       "tags": [
         "turntable",
@@ -47,7 +47,7 @@
         "album-art",
         "interactive"
       ],
-      "version": "5.3.0",
+      "version": "5.3.1",
       "appVersionMin": "4.11.0",
       "preview": {
         "accent": "#a861c5",
@@ -58,7 +58,8 @@
       "active": true,
       "activeUntil": "2026-09-25T23:59:59+02:00",
       "addedAt": "2026-08-25",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-08-28"
     },
     {
       "id": "workload",
