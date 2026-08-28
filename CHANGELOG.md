@@ -4,6 +4,8 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [v4.11.6] - 28-08-2026
 ### ✨ Added
 - **Pin the voice channels you actually use to the top.** Until now the Channels tab listed them in whatever order Discord gave, so the one you join every evening sat wherever it happened to sit, often below a server you never touch. A star on each row now pins it, and pinned channels gather into a Favourites group above everything else. Asked for on Discord.
 
@@ -77,6 +79,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Both flags now live with the rest of your settings, in a file on the PC. That makes them survive any browser cleanup, and it makes one dismissal count everywhere at once — the app, a browser tab, the iCUE panel, a paired phone. Whether you have read the 4.11 announcement is a fact about you, not about which screen you happened to read it on. If you had already dismissed either card, it stays dismissed: the old per-device answer is carried over the first time this build talks to the dashboard engine. If your browser had already wiped it, there is nothing left to carry over — press the button once more and it holds from then on.
 
   There was a third way to hit this, and it is fixed by the same change: on a screen whose storage is unavailable outright, every one of these writes failed silently. The button worked visually, the card slid away, and nothing was written anywhere. It now takes the settings route, which reports and retries instead of shrugging.
+
+- **Ambient now says when a chosen scene is what you are looking at, not your wallpaper.** Someone was told he could put a GIF behind Ambient mode, uploaded one, opened Ambient and saw a painting. Nothing was broken: his Ambient scene was set to an installed one days earlier, and two of the three scene overlays are opaque — they *are* the picture, edge to edge. The setting that was overriding his wallpaper sat three rows above the one he had just used, and the app said nothing either way. That row now carries the note, the same shape as the one the background colour row has carried for the same kind of surprise. A test pins the CSS fact the note asserts, so it cannot quietly become untrue.
+
+- **YouTube error 153 no longer marks your whole library unplayable.** Reported on macOS: the account links, every list loads, and no video plays. 153 is the embed refusing the referrer it was opened with — it is not a statement about a video, and it fails on all of them equally. It was being handled like 101/150 ("this video cannot be played inside apps"), which sent the reporter hunting for a video that would work, and each id he tried was added to the remembered set of refusals, so tapping through a library marked the library dead — marks that would have outlived the actual fix. Only 101 and 150 are remembered now; 153 says plainly that it is not the video, and still offers to open it in the browser. The referrer question behind the original report is still open.
+
+- **The Media background settings were English-only in six languages.** The whole group, including the sidebar entry for the category, shipped untranslated in Spanish, French, German, Portuguese, Russian and Dutch. Everything around it was translated, so on a Spanish dashboard the one page that uploads a wallpaper was the one page in English — which is exactly how a user, told "Settings → Background", ended up sending a screenshot of that page asking which of the two options it was. An untranslated key is not a blank: it falls back to English and looks deliberate, which is why it survived. A new test walks every language across the whole group so it cannot come undone.
 
 
 ## [v4.11.5] - 22-08-2026
