@@ -4455,7 +4455,11 @@ function settingsPrompt(opts) {
     cancel.type = 'button'; cancel.className = 'settings-btn subtle';
     cancel.textContent = o.cancelLabel || t('dlg_cancel');
     const ok = document.createElement('button');
-    ok.type = 'button'; ok.className = 'settings-btn primary';
+    // `danger`: the confirm button for something that destroys data. It is
+    // styled as the destructive action rather than the inviting one, and the
+    // focus below goes to Cancel — a dialog that opens with the destructive
+    // button focused is one keypress from doing the thing it is asking about.
+    ok.type = 'button'; ok.className = o.danger === true ? 'settings-btn danger' : 'settings-btn primary';
     ok.textContent = o.okLabel || t('dlg_save');
     row.appendChild(cancel); row.appendChild(ok);
     body.appendChild(row);
@@ -4479,7 +4483,7 @@ function settingsPrompt(opts) {
     overlay.addEventListener('click', (e) => { if (e.target === overlay) finish(null); });
     document.addEventListener('keydown', onKey);
     document.body.appendChild(overlay);
-    if (input) { input.focus(); input.select(); } else ok.focus();
+    if (input) { input.focus(); input.select(); } else (o.danger === true ? cancel : ok).focus();
   });
 }
 
@@ -9325,7 +9329,26 @@ function restartXenon() {
 // subscriptions are preserved (they're structural/personal, not "settings" the
 // user is trying to reset). Server-only secrets (Gemini key, integration
 // passwords/tokens) are preserved server-side on save, so they survive this too.
-function resetAllSettings() {
+// Confirmed, since v4.11.7, and the confirmation names what goes. This button
+// used to fire on a single click — no dialog — from the accent-coloured PRIMARY
+// slot at the bottom of the panel, directly under "Restart Xenon", whose own
+// hint promises that nothing will be lost. Reported on Discord by a supporter
+// who pressed it by mistake: "i resetted xenon by error and lost everything".
+//
+// "Settings" undersells it, which is the other half of the problem. The layout
+// and the calendar feeds survive; every widget tile's ASSIGNMENT and permission
+// grant, every install receipt, every saved page preset, every custom theme,
+// background and Ambient scene do not. The packages stay on disk — nothing is
+// uninstalled — but the dashboard comes back empty, which is what "everything"
+// means to the person looking at it.
+async function resetAllSettings() {
+  const title = t('settings_reset_all', 'Reset all settings');
+  const msg = t('settings_reset_all_confirm',
+    'Reset every setting to its defaults? Your dashboard layout stays, but each tile loses the widget assigned to it, along with its permissions, your install list, your saved page presets, and your custom themes, backgrounds and Ambient scenes. Installed widgets stay on your PC and can be assigned again. This cannot be undone.');
+  const ok = (typeof settingsPrompt === 'function')
+    ? await settingsPrompt({ type: 'confirm', danger: true, title, message: msg, okLabel: title })
+    : (typeof window.confirm !== 'function' || window.confirm(msg));
+  if (!ok) return;
   hubSettings = normalizeSettings({
     ...DEFAULT_HUB_SETTINGS,
     dashboardLayout: hubSettings.dashboardLayout,

@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **"Reset all settings" now asks first, and says what it takes.** Mentioned in passing on Discord by a supporter, while he was helping us debug something else: *"yesterday I reset Xenon by error and lost everything."*
+
+  It fired on a single click. No dialog, nothing to cancel — and from the accent-coloured button at the bottom of the settings panel, directly under "Restart Xenon", whose own hint promises in so many words that nothing will be lost. The harmless button was the one asking for confirmation; the irreversible one was not.
+
+  "Settings" also undersold it. The dashboard layout and the calendar feeds survive. What does not: the widget assigned to every tile and the permissions you granted it, your list of installed content, your saved page presets, and every custom theme, background and Ambient scene you made. That is why the person who pressed it did not describe the result as losing his settings.
+
+  It now asks, in the destructive colour, with Cancel focused rather than the button that does the thing — and the question lists what goes and what stays, including the part that matters most afterwards: your widgets are still installed on the PC and can be assigned back. A line under the button says the same before you ever press it.
+
 - **A widget could install, report success, and then not exist.** Reported by a supporter who installed the same widget three times: the Store said "Installed" each time, three receipts were recorded, and the tile picker never listed it. He went further than we could have asked — he opened the engine's own package list in a browser and searched it for the name. Not there either: not as a widget, and not as a package that had failed to load. Then he put the folder in place by hand, with exactly the same result.
 
   The engine loads a bounded number of installed packages. Reaching that number stopped the scan dead — and every package past it was installed, valid, sitting on disk, while being absent from the widget list, absent from the failed-to-load list, and therefore absent from the picker, the palette and the Store's idea of what you own. Nothing was logged, nothing was counted, and the only visible symptom was a list that was shorter than the truth, which is indistinguishable from a smaller collection. Folders are read in name order, so it was always the same alphabetical tail that disappeared — which is why one particular widget was unfindable while everything else worked.

@@ -1439,6 +1439,8 @@ const i18n = {
     settings_saved: 'Preferenze salvate', settings_persist_note: 'Le preferenze restano salvate su questo PC.',
     settings_reset: 'Ripristina default', settings_reset_done: 'Aspetto ripristinato',
     settings_reset_all: 'Ripristina tutte le impostazioni', settings_reset_all_done: 'Impostazioni ripristinate', settings_restart_app: 'Riavvia Xenon', settings_restart_hint: 'Chiude e riapre l\'app per ripulire eventuali blocchi, senza perdere nulla: impostazioni, widget, layout e sfondi restano.', settings_restart_confirm: 'Riavviare Xenon? Le tue impostazioni, i widget e gli sfondi restano — serve solo a ripulire eventuali blocchi.', settings_restart_running: 'Riavvio in corso…',
+    settings_reset_all_confirm: "Riportare tutte le impostazioni ai valori di fabbrica? Il layout resta, ma ogni tile perde il widget assegnato e i suoi permessi, insieme a elenco installazioni, preset di pagina, temi, sfondi e scene Ambient personalizzati. I widget restano installati sul PC e puoi riassegnarli. Non si può annullare.",
+    settings_reset_all_hint: "Le tile perdono il widget assegnato e i suoi permessi, insieme a elenco installazioni, preset di pagina e temi, sfondi e scene Ambient personalizzati. Il layout resta, e i widget restano installati sul PC.",
     settings_ai: 'Xenon AI', settings_ai_hint: 'Assistente intelligente',
     settings_ai_desc: 'Xenon AI è il tuo assistente vocale e testuale integrato nel dashboard. Parla o scrivi per controllare tutto.',
     settings_ai_caps_label: 'Cosa può fare:',
@@ -4179,6 +4181,8 @@ const i18n = {
     settings_saved: 'Preferences saved', settings_persist_note: 'Preferences stay saved on this PC.',
     settings_reset: 'Reset defaults', settings_reset_done: 'Appearance reset',
     settings_reset_all: 'Reset all settings', settings_reset_all_done: 'All settings reset', settings_restart_app: 'Restart Xenon', settings_restart_hint: 'Closes and reopens the app to clear any glitches, without losing anything: settings, widgets, layout and backgrounds all stay.', settings_restart_confirm: 'Restart Xenon? Your settings, widgets and backgrounds stay — this only clears any glitches.', settings_restart_running: 'Restarting…',
+    settings_reset_all_confirm: "Reset every setting to its defaults? Your dashboard layout stays, but each tile loses the widget assigned to it, along with its permissions, your install list, your saved page presets, and your custom themes, backgrounds and Ambient scenes. Installed widgets stay on your PC and can be assigned again. This cannot be undone.",
+    settings_reset_all_hint: "Tiles lose the widget assigned to them and its permissions, along with your install list, page presets, and custom themes, backgrounds and Ambient scenes. The layout stays, and widgets stay installed on your PC.",
     settings_ai: 'Xenon AI', settings_ai_hint: 'Intelligent assistant',
     settings_ai_desc: 'Xenon AI is your built-in voice and text assistant. Speak or type to control everything on your dashboard.',
     settings_ai_caps_label: 'What it can do:',
@@ -26441,6 +26445,8 @@ Object.assign(i18n.ko, {
   settings_gamemode_mangohud_missing: '게임 내 FPS에는 MangoHud가 필요합니다. 배포판의 패키지 관리자로 설치한 뒤(예: 「sudo dnf install mangohud」 또는 「sudo apt install mangohud」) 게임을 그것으로 실행하세요. Steam에서는 실행 옵션에 「mangohud %command%」를 넣으면 됩니다. 게임 감지는 없어도 동작합니다.',
   settings_gamemode_mangohud_ready: 'MangoHud가 설치되어 있습니다. FPS는 MangoHud로 실행한 게임에만 표시됩니다. Steam에서는 실행 옵션에 「mangohud %command%」를, 그 외에는 「mangohud ./game」으로 실행하세요. Linux에서는 게임의 협조 없이 프레임 레이트를 읽을 방법이 없습니다.',
   settings_reset_all: '모든 설정 초기화',
+  settings_reset_all_confirm: "모든 설정을 기본값으로 되돌릴까요? 레이아웃은 그대로지만, 각 타일에 지정한 위젯과 그 권한, 설치 목록, 페이지 프리셋, 직접 만든 테마·배경·Ambient 장면이 사라집니다. 위젯 자체는 PC에 설치된 채로 남아 다시 지정할 수 있습니다. 되돌릴 수 없습니다.",
+  settings_reset_all_hint: "타일에 지정한 위젯과 권한, 설치 목록, 페이지 프리셋, 직접 만든 테마·배경·Ambient 장면이 사라집니다. 레이아웃은 남고, 위젯도 PC에 설치된 채로 남습니다.",
   settings_reset_all_done: '모든 설정을 초기화했습니다',
 });
 Object.assign(i18n.ja, {
@@ -26487,6 +26493,8 @@ Object.assign(i18n.ja, {
   settings_gamemode_mangohud_missing: 'ゲーム内 FPS には MangoHud が必要です。ディストリビューションのパッケージ マネージャーでインストールし（例:「sudo dnf install mangohud」または「sudo apt install mangohud」）、ゲームをそれ経由で起動してください。Steam では起動オプションに「mangohud %command%」を設定します。ゲームの検出は無くても動作します。',
   settings_gamemode_mangohud_ready: 'MangoHud はインストール済みです。FPS は MangoHud 経由で起動したゲームにのみ表示されます。Steam では起動オプションに「mangohud %command%」を、それ以外では「mangohud ./game」で実行してください。Linux では、ゲーム側の協力なしにフレーム レートを読む方法はありません。',
   settings_reset_all: 'すべての設定をリセット',
+  settings_reset_all_confirm: "すべての設定を初期値に戻しますか？レイアウトは残りますが、各タイルに割り当てたウィジェットとその権限、インストール一覧、ページのプリセット、自作のテーマ・背景・Ambient シーンは失われます。ウィジェット自体は PC に残り、割り当て直せます。元に戻せません。",
+  settings_reset_all_hint: "タイルは割り当てたウィジェットと権限を失い、インストール一覧、ページのプリセット、自作のテーマ・背景・Ambient シーンも消えます。レイアウトは残り、ウィジェットも PC に残ります。",
   settings_reset_all_done: 'すべての設定をリセットしました',
 });
 Object.assign(i18n.zh, {
@@ -26533,6 +26541,8 @@ Object.assign(i18n.zh, {
   settings_gamemode_mangohud_missing: '游戏内 FPS 需要 MangoHud：请用你发行版的包管理器安装（例如「sudo dnf install mangohud」或「sudo apt install mangohud」），然后通过它启动游戏。在 Steam 上，把「mangohud %command%」设为启动选项。没有它，游戏检测依然可用。',
   settings_gamemode_mangohud_ready: 'MangoHud 已安装。FPS 只会显示在通过它启动的游戏上：在 Steam 上把「mangohud %command%」设为启动选项，其他情况用「mangohud ./game」运行。在 Linux 上，没有游戏本身的配合就无法读取帧率。',
   settings_reset_all: '重置所有设置',
+  settings_reset_all_confirm: "将所有设置恢复为默认值？布局会保留，但每个磁贴都会失去指定的小组件及其权限，同时清空安装列表、页面预设，以及你自定义的主题、背景和 Ambient 场景。小组件仍然装在电脑上，可以重新指定。此操作无法撤销。",
+  settings_reset_all_hint: "磁贴会失去指定的小组件及其权限，安装列表、页面预设和你自定义的主题、背景、Ambient 场景也会一并清空。布局保留，小组件仍装在电脑上。",
   settings_reset_all_done: '已重置所有设置',
 });
 
@@ -26580,6 +26590,8 @@ Object.assign(i18n.es, {
   settings_gamemode_mangohud_missing: 'Los FPS en juego necesitan MangoHud: instálalo desde el gestor de paquetes de tu distribución (por ejemplo «sudo dnf install mangohud» o «sudo apt install mangohud») y luego lanza el juego a través de él: en Steam, pon «mangohud %command%» como opción de lanzamiento. La detección de juegos ya funciona sin él.',
   settings_gamemode_mangohud_ready: 'MangoHud está instalado. Los FPS solo aparecen en juegos lanzados a través de él: en Steam pon «mangohud %command%» como opción de lanzamiento; en otros casos ejecuta el juego como «mangohud ./game». En Linux no hay forma de leer la tasa de fotogramas de un juego sin su cooperación.',
   settings_reset_all: 'Restablecer todos los ajustes',
+  settings_reset_all_confirm: "¿Restablecer todos los ajustes a sus valores de fábrica? El diseño se mantiene, pero cada casilla pierde el widget asignado y sus permisos, junto con la lista de instalaciones, los preajustes de página y tus temas, fondos y escenas Ambient personalizados. Los widgets siguen instalados en el PC y puedes volver a asignarlos. No se puede deshacer.",
+  settings_reset_all_hint: "Las casillas pierden el widget asignado y sus permisos, junto con la lista de instalaciones, los preajustes de página y tus temas, fondos y escenas Ambient. El diseño se mantiene y los widgets siguen instalados.",
   settings_reset_all_done: 'Todos los ajustes restablecidos',
 });
 Object.assign(i18n.fr, {
@@ -26626,6 +26638,8 @@ Object.assign(i18n.fr, {
   settings_gamemode_mangohud_missing: 'Les FPS en jeu nécessitent MangoHud : installez-le depuis le gestionnaire de paquets de votre distribution (par exemple « sudo dnf install mangohud » ou « sudo apt install mangohud »), puis lancez le jeu à travers lui : sur Steam, mettez « mangohud %command% » en option de lancement. La détection des jeux fonctionne déjà sans lui.',
   settings_gamemode_mangohud_ready: 'MangoHud est installé. Les FPS n’apparaissent que pour les jeux lancés à travers lui : sur Steam mettez « mangohud %command% » en option de lancement, ailleurs lancez le jeu avec « mangohud ./game ». Sous Linux, il n’y a aucun moyen de lire le nombre d’images par seconde d’un jeu sans sa coopération.',
   settings_reset_all: 'Réinitialiser tous les réglages',
+  settings_reset_all_confirm: "Rétablir tous les réglages par défaut ? La disposition reste, mais chaque tuile perd le widget qui lui est affecté et ses autorisations, ainsi que la liste des installations, les préréglages de page et vos thèmes, fonds et scènes Ambient personnalisés. Les widgets restent installés sur le PC et peuvent être réaffectés. Action irréversible.",
+  settings_reset_all_hint: "Les tuiles perdent leur widget et ses autorisations, ainsi que la liste des installations, les préréglages de page et vos thèmes, fonds et scènes Ambient. La disposition reste, et les widgets restent installés.",
   settings_reset_all_done: 'Tous les réglages réinitialisés',
 });
 Object.assign(i18n.de, {
@@ -26672,6 +26686,8 @@ Object.assign(i18n.de, {
   settings_gamemode_mangohud_missing: 'FPS im Spiel brauchen MangoHud: Installiere es über die Paketverwaltung deiner Distribution (zum Beispiel „sudo dnf install mangohud“ oder „sudo apt install mangohud“) und starte das Spiel dann darüber: Setze auf Steam „mangohud %command%“ als Startoption. Die Spielerkennung funktioniert auch ohne.',
   settings_gamemode_mangohud_ready: 'MangoHud ist installiert. FPS erscheinen nur für Spiele, die darüber gestartet werden: Setze auf Steam „mangohud %command%“ als Startoption, sonst starte das Spiel als „mangohud ./game“. Unter Linux gibt es keine Möglichkeit, die Bildrate eines Spiels ohne dessen Mitwirkung zu lesen.',
   settings_reset_all: 'Alle Einstellungen zurücksetzen',
+  settings_reset_all_confirm: "Alle Einstellungen auf die Standardwerte zurücksetzen? Das Layout bleibt, aber jede Kachel verliert das zugewiesene Widget samt seinen Berechtigungen, dazu die Installationsliste, die Seiten-Presets und deine eigenen Themes, Hintergründe und Ambient-Szenen. Die Widgets bleiben auf dem PC installiert und lassen sich neu zuweisen. Nicht rückgängig zu machen.",
+  settings_reset_all_hint: "Kacheln verlieren ihr zugewiesenes Widget samt Berechtigungen, dazu Installationsliste, Seiten-Presets und eigene Themes, Hintergründe und Ambient-Szenen. Das Layout bleibt, die Widgets bleiben installiert.",
   settings_reset_all_done: 'Alle Einstellungen zurückgesetzt',
 });
 
@@ -26719,6 +26735,8 @@ Object.assign(i18n.pt, {
   settings_gamemode_mangohud_missing: 'Os FPS em jogo precisam do MangoHud: instala-o pelo gestor de pacotes da tua distribuição (por exemplo «sudo dnf install mangohud» ou «sudo apt install mangohud») e depois lança o jogo através dele: na Steam, põe «mangohud %command%» como opção de lançamento. A deteção de jogos já funciona sem ele.',
   settings_gamemode_mangohud_ready: 'O MangoHud está instalado. Os FPS só aparecem em jogos lançados através dele: na Steam põe «mangohud %command%» como opção de lançamento, noutros casos executa o jogo como «mangohud ./game». No Linux não há forma de ler a taxa de fotogramas de um jogo sem a cooperação dele.',
   settings_reset_all: 'Repor todas as definições',
+  settings_reset_all_confirm: "Repor todas as definições para os valores de origem? A disposição mantém-se, mas cada mosaico perde o widget atribuído e as respetivas permissões, além da lista de instalações, das predefinições de página e dos teus temas, fundos e cenas Ambient personalizados. Os widgets continuam instalados no PC e podem ser atribuídos de novo. Não é possível anular.",
+  settings_reset_all_hint: "Os mosaicos perdem o widget atribuído e as permissões, além da lista de instalações, das predefinições de página e dos teus temas, fundos e cenas Ambient. A disposição mantém-se e os widgets continuam instalados.",
   settings_reset_all_done: 'Todas as definições repostas',
 });
 Object.assign(i18n.ru, {
@@ -26765,6 +26783,8 @@ Object.assign(i18n.ru, {
   settings_gamemode_mangohud_missing: 'Для FPS в игре нужен MangoHud: установите его из пакетного менеджера вашего дистрибутива (например, «sudo dnf install mangohud» или «sudo apt install mangohud»), затем запускайте игру через него: в Steam укажите «mangohud %command%» в параметрах запуска. Определение игр работает и без него.',
   settings_gamemode_mangohud_ready: 'MangoHud установлен. FPS показываются только для игр, запущенных через него: в Steam укажите «mangohud %command%» в параметрах запуска, в остальных случаях запускайте игру как «mangohud ./game». В Linux нет способа прочитать частоту кадров игры без её участия.',
   settings_reset_all: 'Сбросить все настройки',
+  settings_reset_all_confirm: "Сбросить все настройки к заводским? Раскладка останется, но каждая плитка потеряет назначенный виджет и его разрешения, а также список установок, пресеты страниц и ваши темы, фоны и сцены Ambient. Виджеты останутся установленными на ПК, их можно назначить заново. Отменить нельзя.",
+  settings_reset_all_hint: "Плитки теряют назначенный виджет и его разрешения, вместе со списком установок, пресетами страниц и вашими темами, фонами и сценами Ambient. Раскладка остаётся, виджеты остаются установленными.",
   settings_reset_all_done: 'Все настройки сброшены',
 });
 Object.assign(i18n.nl, {
@@ -26811,6 +26831,8 @@ Object.assign(i18n.nl, {
   settings_gamemode_mangohud_missing: 'FPS in games vereist MangoHud: installeer het via de pakketbeheerder van je distributie (bijvoorbeeld “sudo dnf install mangohud” of “sudo apt install mangohud”) en start de game er daarna mee: zet op Steam “mangohud %command%” als opstartoptie. Gamedetectie werkt ook zonder.',
   settings_gamemode_mangohud_ready: 'MangoHud is geïnstalleerd. FPS verschijnt alleen bij games die er via gestart worden: zet op Steam “mangohud %command%” als opstartoptie, elders start je de game als “mangohud ./game”. Op Linux is er geen manier om de framerate van een game te lezen zonder medewerking van de game zelf.',
   settings_reset_all: 'Alle instellingen herstellen',
+  settings_reset_all_confirm: "Alle instellingen terugzetten naar de standaardwaarden? De indeling blijft, maar elke tegel verliest het toegewezen widget en zijn rechten, samen met je installatielijst, paginapresets en eigen thema’s, achtergronden en Ambient-scènes. Widgets blijven op de pc geïnstalleerd en kun je opnieuw toewijzen. Dit kan niet ongedaan worden gemaakt.",
+  settings_reset_all_hint: "Tegels verliezen hun widget en de bijbehorende rechten, plus je installatielijst, paginapresets en eigen thema’s, achtergronden en Ambient-scènes. De indeling blijft, en widgets blijven geïnstalleerd.",
   settings_reset_all_done: 'Alle instellingen hersteld',
 });
 
