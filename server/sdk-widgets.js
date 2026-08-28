@@ -866,7 +866,7 @@ function injectPerfProbe(html) {
 
 // Scan the packages dir. Returns { packages:[manifest…], invalid:[{id,reason}] }.
 // Bounded, async, tolerant: a broken folder shows up as invalid with a reason
-// (surfaced in Settings) instead of hiding or throwing.
+// (shown under the tile widget picker) instead of hiding or throwing.
 async function listPackages(rootDir) {
   const packages = [];
   const invalid = [];
