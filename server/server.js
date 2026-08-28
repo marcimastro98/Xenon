@@ -5870,8 +5870,26 @@ const TILE_ASSET_GC_GRACE_MS = 10 * 60 * 1000;
 const TILE_ASSET_GC_MIN_INTERVAL_MS = 5 * 60 * 1000;
 let _tileAssetGcSig = null;
 let _tileAssetGcAt = 0;
+// Tile decorations named by a layout the version migration set aside. Without
+// this the first save after an upgrade sweeps them, and the kept layout restores
+// the positions with every picture missing — a backup that is worth less than it
+// looks. Read once and memoized only on success: the file is written at boot and
+// never changes, but a sweep that runs before it exists must not cache "none".
+let _layoutBackupRefs = null;
+function layoutBackupAssetRefs() {
+  if (_layoutBackupRefs) return _layoutBackupRefs;
+  try {
+    const raw = JSON.parse(fs.readFileSync(LAYOUT_BACKUP_FILE, 'utf8'));
+    const set = new Set();
+    for (const m of JSON.stringify(raw.dashboardLayout || {}).matchAll(/\/uploads\/(tileasset-[A-Za-z0-9._-]+)/g)) set.add(m[1]);
+    _layoutBackupRefs = set;
+    return set;
+  } catch { return new Set(); }   // no backup, or unreadable — nothing to protect
+}
+
 function cleanupUnreferencedTileAssets(layout, presets) {
   const referenced = collectTileAssetRefs(layout, presets);
+  for (const f of layoutBackupAssetRefs()) referenced.add(f);
   const sig = [...referenced].sort().join('|');
   const now = Date.now();
   if (sig === _tileAssetGcSig && (now - _tileAssetGcAt) < TILE_ASSET_GC_MIN_INTERVAL_MS) return;
@@ -9388,6 +9406,44 @@ async function geminiKeyFor(bodyKey) {
   if (given) return given;
   const s = await readHubSettings().catch(() => null);
   return String((s && s.geminiApiKey) || '').trim().slice(0, 200);
+}
+
+// The layout-version migration REPLACES the dashboard, and until now it did so
+// with no way back: the stored layout was overwritten by the factory default on
+// the next save, and the only copy of what the user had built was gone. Every
+// other destructive step in this app is either confirmed or reversible; this one
+// runs at boot, unasked, and the person finds out by looking at their screen.
+//
+// So the superseded layout is copied out first. Not a restore feature — a file
+// on disk and a line in the log, which is the difference between "rebuild it from
+// memory" and "it is right here". Read SYNCHRONOUSLY and before the store-id mint
+// below can rewrite the file, because the raw old version only exists until the
+// first write of this run.
+//
+// Never overwrites an existing backup: the migration fires once (the next write
+// stamps the new version), but a second pass must not be able to save the
+// factory default over the real one.
+const LAYOUT_BACKUP_FILE = path.join(DATA_DIR, 'dashboard-layout.backup.json');
+// Answers { file, from } when a layout was copied out, null otherwise. `from` is
+// read off the RAW file on purpose: the normalized settings are already stamped
+// with the current version, so asking them which version this install is
+// upgrading FROM always answers "the one it is upgrading to".
+function backupSupersededLayout() {
+  try {
+    if (fs.existsSync(LAYOUT_BACKUP_FILE)) return null;
+    const raw = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+    const from = Number(raw && raw.dashboardLayoutVersion) || 0;
+    if (from >= DASHBOARD_LAYOUT_VERSION) return null;
+    const layout = raw && raw.dashboardLayout;
+    if (!layout || typeof layout !== 'object') return null;   // nothing built yet
+    fs.writeFileSync(LAYOUT_BACKUP_FILE, JSON.stringify({
+      savedAt: new Date().toISOString(),
+      fromVersion: from,
+      toVersion: DASHBOARD_LAYOUT_VERSION,
+      dashboardLayout: layout,
+    }, null, 2));
+    return { file: LAYOUT_BACKUP_FILE, from };
+  } catch { return null; }   // a backup that throws must never block the boot
 }
 
 async function writeHubSettings(settings) {
@@ -14390,6 +14446,25 @@ const handleRequest = async (req, res) => {
       // else. Its only writer is POST /api/transfer/settings.
       if (prev && prev.fileTransfer && typeof prev.fileTransfer === 'object') {
         incoming.fileTransfer = prev.fileTransfer;
+      }
+      // The layout-version migration reads the INCOMING body, and it is the only
+      // check in normalizeHubSettings whose failure mode is losing the single
+      // largest thing the user built. It is described as a one-time upgrade step,
+      // but it lives in the general normalizer, so it re-runs on every save: a body
+      // that does not carry `dashboardLayoutVersion` reads as version 0, and the
+      // whole dashboard is replaced by the factory default while every other
+      // setting in the same save survives untouched — then the file is re-stamped
+      // with the current version, so nothing is left on disk to find afterwards.
+      //
+      // Reported on Discord after an update: layout back to the factory default,
+      // theme unchanged, connected accounts intact, installed widgets intact. That
+      // is this check's signature and nothing else in the codebase has it.
+      //
+      // So: an absent version means "this writer does not model the field", exactly
+      // like remoteAccess and fileTransfer below. What may legitimately be OLD is
+      // the layout on DISK, and that is what the migration is now judged against.
+      if (prev && incoming.dashboardLayoutVersion == null && prev.dashboardLayoutVersion != null) {
+        incoming.dashboardLayoutVersion = prev.dashboardLayoutVersion;
       }
       // The store id is minted once and belongs to this file, so a save can only
       // ever echo it back — and a save from a surface still holding a mirror of a
@@ -20099,6 +20174,18 @@ function _startListen(host) {
             + ', store ' + (String(s.storeId || '').slice(0, 8) || 'none') + ')'
         : 'settings: no file at ' + SETTINGS_FILE
             + ' — starting a NEW store, so this run begins from the factory defaults');
+      // A layout about to be replaced by the version migration is copied out
+      // before anything writes over it, and the fact is stated — the reset itself
+      // is silent from every surface, which is how it reads as a bug rather than
+      // as the upgrade step it is.
+      if (s) {
+        const backup = backupSupersededLayout();
+        if (backup) {
+          startupLog.write('settings: this build replaces the saved dashboard layout with the new default'
+            + ' (layout format ' + backup.from + ' → ' + DASHBOARD_LAYOUT_VERSION + ').'
+            + ' The layout you had is kept at ' + backup.file);
+        }
+      }
       // Mint the store id NOW rather than on the first save. A fresh install
       // whose settings.json does not exist yet answers GET /settings with no
       // payload at all, and the client's legacy seed path then pushes its own

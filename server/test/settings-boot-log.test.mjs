@@ -39,12 +39,16 @@ test('both endings of the boot read are written to the log', () => {
 
 // The path is the half that separates "my layout reset" from "this install is
 // reading a different folder than the one my layout is in" — the second install
-// being the other way the reported screen appears.
+// being the other way the reported screen appears. Every line here has to end at
+// somewhere the reader can go and look: the store itself, or the file a
+// superseded layout was kept in.
 test('every settings line names the file it is talking about', () => {
   const lines = CHAIN.split('startupLog.write(').slice(1);
+  assert.ok(lines.length >= 2, 'there are lines to check');
   for (const line of lines) {
     const call = line.slice(0, line.indexOf(');'));
-    assert.match(call, /SETTINGS_FILE/, 'a settings log line without the path cannot be acted on');
+    assert.match(call, /SETTINGS_FILE|backup\.file/,
+      'a settings log line without a path cannot be acted on');
   }
 });
 
