@@ -48,6 +48,26 @@ function isAllowedAppPath(p, platform) {
   return APP_PATH_EXT.test(v);
 }
 
+// macOS hides the `.app` extension everywhere a person can see a path: Finder
+// shows "Helium", so does Get Info, so does the Applications folder. The path a
+// Mac user reads off their own screen and types into a key is therefore
+// /Applications/Helium — which is neither a bundle nor a file, so the key failed
+// with bad_app_path having never launched anything. Reported on Discord by
+// someone whose folder and URL keys worked and whose app keys all did not.
+//
+// This widens nothing. The completed path still has to pass isAllowedAppPath and
+// still has to exist; the only change is that one obvious place is checked before
+// giving up. A path that already carries an extension is left alone, so a
+// document can never be turned into an app by appending to it.
+function completeDarwinBundle(p, platform, fileExists) {
+  if ((platform || process.platform) !== 'darwin' || typeof fileExists !== 'function') return '';
+  const v = String(p == null ? '' : p).replace(/\/+$/, '');
+  const base = v.split('/').pop();
+  if (!base || base.includes('.')) return '';
+  const bundle = v + '.app';
+  return fileExists(bundle) ? bundle : '';
+}
+
 // Percentage value for the volume/brightness 'set' modes: accepts a decimal
 // comma, clamps to 0–100, returns null on anything non-numeric (reject loud).
 // Empty/whitespace is EXPLICITLY null — Number('') is 0, and a "set volume"
@@ -204,7 +224,13 @@ function createRegistry(deps) {
           // executable inside (re-resolved on every tap, so versioned apps like
           // Discord/Slack 'app-X.Y.Z' keep working after an update).
           if (!isAllowedAppPath(p, platform)) {
-            const resolved = (typeof d.resolveAppDir === 'function') ? String(d.resolveAppDir(p) || '') : '';
+            // On macOS the likeliest miss is the hidden .app extension; on
+            // Windows it is a path to the install FOLDER. Try the bundle first —
+            // resolveAppDir is a Windows notion and has nothing to say about
+            // /Applications/Helium.
+            const completed = completeDarwinBundle(p, platform, d.fileExists);
+            const resolved = completed
+              || ((typeof d.resolveAppDir === 'function') ? String(d.resolveAppDir(p) || '') : '');
             if (!resolved || !isAllowedAppPath(resolved, platform)) return { ok: false, error: 'bad_app_path' };
             p = resolved;
           }
@@ -726,4 +752,4 @@ function resolveOutputDevice(id, speakers) {
   return list.find((s) => s && typeof s.id === 'string' && s.id === wanted) || null;
 }
 
-module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, isBlockedOpenPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys, resolveOutputDevice };
+module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, completeDarwinBundle, isBlockedOpenPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys, resolveOutputDevice };

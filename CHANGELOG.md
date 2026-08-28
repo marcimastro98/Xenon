@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **On a Mac, a Deck key that opens an app now works with the path macOS shows you.** Reported by someone trying Xenon on a Mac: folder keys and URL keys worked, and every "Open app" key did nothing.
+
+  macOS hides the `.app` extension. Finder says "Helium", Get Info says "Helium", the Applications folder says "Helium" — so the path you type is `/Applications/Helium`, which is not an app and not a file. The key was refusing it, correctly and silently.
+
+  It now completes the name when the bundle really is there. `/Applications/Helium` finds `/Applications/Helium.app` and launches it. Nothing else opened up: the completed path still has to be a real `.app`, a name that already carries an extension is left alone so a document can never become an app, and Windows and Linux keep exactly the rules they had.
+
 - **An update that cannot be applied now says so, instead of restarting the app and changing nothing.** Reported with a screenshot: "Update available · v4.11.6" sitting over "Xenon v4.11.5", and pressing Update relaunched the app to exactly the same pill.
 
   Xenon is two pieces — the shell your PC launches, and the dashboard engine behind it — and the version you see is the engine’s. The updater asks the engine first whether it can replace itself. It already handled the engine not answering at all, but when the engine answered "no" it quietly skipped that half and updated the shell alone: a download, a restart, and the same version on screen, which from the outside is a button that does nothing.
