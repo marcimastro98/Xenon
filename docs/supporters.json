@@ -1,5 +1,5 @@
 {
-  "_generated": "2026-08-27T09:24:29.942Z",
+  "_generated": "2026-08-28T09:26:55.165Z",
   "_note": "Auto-generated from Buy Me a Coffee + GitHub Sponsors (plus any manualSupporters) by tools/build-supporters.mjs. Do not edit by hand — change docs/supporters-overrides.json instead. Names are privacy-masked (manual entries show as typed); full names and profile links are never published. Active members / recurring sponsors carry \"tier\":\"member\" and are highlighted on the site.",
   "supporters": [
     {
@@ -19,6 +19,10 @@
     },
     {
       "name": "Forlin"
+    },
+    {
+      "name": "M4dM4x",
+      "tier": "member"
     },
     {
       "name": "cassoce"
