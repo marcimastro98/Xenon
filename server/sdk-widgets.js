@@ -239,7 +239,22 @@ function widgetCspFor(host, secure) {
 }
 
 const MANIFEST_MAX_BYTES = 32 * 1024;
-const MAX_PACKAGES = 32;
+// How many installed packages the scan will load. Was 32, which a supporter
+// with a shelf of community widgets passes without noticing — and passing it
+// was silent: the scan stopped, and every folder past the cap existed on disk,
+// installed correctly, while being absent from the package list, absent from
+// the invalid list, and therefore absent from the tile picker, the palette and
+// the Store's idea of what is installed. Reported on Discord as a widget that
+// installs, reports success, and cannot be found afterwards — reinstalled three
+// times, and dropped into the folder by hand, with the identical result. The
+// folders are read in name order, so it is always the same alphabetical tail
+// that disappears.
+//
+// Two answers, and both are needed. The number moves to a size no real library
+// reaches (a scan is a stat + a bounded read + a parse per folder, cached and
+// re-run only on install or Rescan), and listPackages now COUNTS what it left
+// out so the surfaces can say so instead of showing a shorter list.
+const MAX_PACKAGES = 96;
 
 // Caps for the manifest extensions (all additive to api 1).
 const MAX_HOSTS = 8;
@@ -870,15 +885,19 @@ function injectPerfProbe(html) {
 async function listPackages(rootDir) {
   const packages = [];
   const invalid = [];
+  let skipped = 0;               // real packages past MAX_PACKAGES — see the cap
   let entries = [];
   try {
     entries = await fs.promises.readdir(rootDir, { withFileTypes: true });
   } catch {
-    return { packages, invalid };   // dir missing → nothing installed
+    return { packages, invalid, skipped };   // dir missing → nothing installed
   }
   for (const ent of entries) {
-    if (packages.length >= MAX_PACKAGES) break;
     if (!ent.isDirectory()) continue;
+    // Past the cap: keep walking, but only to count. Skipping the loop entirely
+    // is what made the overflow invisible, and the count costs no disk — the
+    // directory entries are already in hand.
+    if (packages.length >= MAX_PACKAGES) { skipped++; continue; }
     const id = ent.name;
     if (!WIDGET_ID_RE.test(id)) { invalid.push({ id: String(id).slice(0, 60), reason: 'bad_id' }); continue; }
     let raw;
@@ -900,7 +919,7 @@ async function listPackages(rootDir) {
     }
     packages.push(res.manifest);
   }
-  return { packages, invalid };
+  return { packages, invalid, skipped };
 }
 
 // ── Installable package PAYLOAD (a widget shipped inside a shared bundle) ────

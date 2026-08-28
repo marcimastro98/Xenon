@@ -1327,7 +1327,7 @@ async function sdkPackagesCached() {
 }
 async function refreshSdkScan() {
   const scan = await sdkWidgets.listPackages(SDK_WIDGETS_DIR);
-  _sdkScanCache = { at: Date.now(), packages: scan.packages, invalid: scan.invalid };
+  _sdkScanCache = { at: Date.now(), packages: scan.packages, invalid: scan.invalid, skipped: scan.skipped || 0 };
   return _sdkScanCache;
 }
 
@@ -18548,7 +18548,11 @@ const handleRequest = async (req, res) => {
       exportable: widgetExportable(p.id),
       catalogVersion: widgetCatalogVersionOf(p.id),
     }));
-    json({ ok: true, api: sdkWidgets.SDK_API_VERSION, packages, invalid: scan.invalid });
+    // `skipped` is how many installed packages this scan did not load because
+    // MAX_PACKAGES was already reached. It travels with the list because a
+    // shorter list is indistinguishable from a smaller library — which is
+    // exactly how a widget came to be installed, working and unfindable.
+    json({ ok: true, api: sdkWidgets.SDK_API_VERSION, packages, invalid: scan.invalid, skipped: scan.skipped || 0 });
 
   } else if (reqPath === '/sdk/fetch' && req.method === 'POST') {
     // Host-mediated network for SDK widgets. The sandboxed iframe has NO network
