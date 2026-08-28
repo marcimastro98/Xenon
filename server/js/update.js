@@ -665,7 +665,7 @@
       const why = (st.reason ? ' (' + st.reason + ')' : '');
       ctrl.fail(tr('update_failed_title', 'Aggiornamento non riuscito'),
         tr('update_self_unsupported',
-          'Questa installazione non può aggiornarsi da sola. Scarica l’ultima versione e reinstallala.') + why);
+          'Questa installazione non può aggiornarsi da sola, e reinstallare non la ripara. Mandaci questo motivo:') + why);
       return;
     }
 
