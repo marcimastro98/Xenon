@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **An update that cannot be applied now says so, instead of restarting the app and changing nothing.** Reported with a screenshot: "Update available · v4.11.6" sitting over "Xenon v4.11.5", and pressing Update relaunched the app to exactly the same pill.
+
+  Xenon is two pieces — the shell your PC launches, and the dashboard engine behind it — and the version you see is the engine’s. The updater asks the engine first whether it can replace itself. It already handled the engine not answering at all, but when the engine answered "no" it quietly skipped that half and updated the shell alone: a download, a restart, and the same version on screen, which from the outside is a button that does nothing.
+
+  It now stops there and tells you the installation cannot update itself, so the fix is one download rather than an afternoon of pressing the same button. Nothing else about the flow changed — an installation that can update itself never reaches this path.
+
 - **A widget that installs but does not load now says so, instead of just not being there.** Reported by a supporter who installed Workload, saw "Installed" in the Store, then typed its name into a tile’s widget picker and got "No widget matches this search."
 
   The two surfaces were reading different things. The Store answers from the install receipt; the picker lists what the engine accepts when it rescans the widgets folder. A package whose files land but whose manifest fails that scan is installed and invisible at the same time, and the failure looked exactly like a search that found nothing.
