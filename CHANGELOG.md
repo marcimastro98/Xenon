@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **A settings save can no longer replace your whole dashboard with the factory one.** Reported on a Mac after an update: the layout back to the factory default, the Deck tile gone with it — and the theme unchanged, the connected Google Calendar still there, every installed widget still installed, and the settings file itself sitting where it belongs. One thing in that file had reverted while everything beside it survived untouched.
+
+  Xenon stamps the saved layout with a format number, so that a build which changes the layout format can replace an incompatible one instead of drawing it wrong. That is a one-time step on an upgrade — but the check had been written into the routine that runs on *every* save, and it read the number off the arriving save rather than off the file on disk. Any save that did not carry it therefore read as "format 0": the entire dashboard was replaced by the default, every other setting in the same save was kept, and the file was then re-stamped with the current number, so nothing was left to find afterwards.
+
+  A save that does not carry the number now inherits the one already stored — the same rule this app already applies to paired-device access, your transfer folder and several other settings that only one screen knows about. An absent value means "this writer does not model it", never "set it back to zero". What can legitimately be old is the layout on the disk, and that is what the upgrade step is now judged against.
+
+- **And when that upgrade step really does run, your old layout is kept.** It was the one destructive thing in Xenon that was neither confirmed nor reversible: it happens at startup, without asking, and you find out by looking at your screen. The layout it replaces is now copied to `dashboard-layout.backup.json` in your Xenon data folder before anything writes over it, the startup log says so and says where, and the pictures you had set on your tiles are protected from the cleanup that would otherwise sweep them on the next save — a backup that restores the tiles and loses every image on them is worth less than it looks.
+
 - **"Reset all settings" now asks first, and says what it takes.** Mentioned in passing on Discord by a supporter, while he was helping us debug something else: *"yesterday I reset Xenon by error and lost everything."*
 
   It fired on a single click. No dialog, nothing to cancel — and from the accent-coloured button at the bottom of the settings panel, directly under "Restart Xenon", whose own hint promises in so many words that nothing will be lost. The harmless button was the one asking for confirmation; the irreversible one was not.
