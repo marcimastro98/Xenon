@@ -590,3 +590,59 @@ test('there is no Deck action that answers a pending permission', () => {
   const claude = ACTION_CATALOG.filter(a => a.group === 'claude').map(a => a.type);
   assert.deepEqual(claude.sort(), ['claudeAsk', 'claudeStop']);
 });
+
+// macOS hides the .app extension in Finder, so the path a Mac user types is the
+// one macOS showed them: /Applications/Helium, not /Applications/Helium.app.
+// Reported on Discord — folder and URL keys worked, every app key did not.
+test('openApp on macOS completes the hidden .app extension', async () => {
+  const opened = [];
+  const deps = {
+    platform: 'darwin',
+    // Only the real bundle exists, which is exactly the state on disk.
+    fileExists: (p) => p === '/Applications/Helium.app',
+    openExternal: (p) => { opened.push(p); return Promise.resolve(); },
+  };
+  assert.deepEqual(
+    await reg.createRegistry(deps).run({ type: 'openApp', path: '/Applications/Helium' }),
+    { ok: true },
+  );
+  assert.deepEqual(opened, ['/Applications/Helium.app'], 'the bundle is what gets launched');
+
+  // A trailing slash is how a path arrives when it was dragged rather than typed.
+  opened.length = 0;
+  assert.deepEqual(
+    await reg.createRegistry(deps).run({ type: 'openApp', path: '/Applications/Helium/' }),
+    { ok: true },
+  );
+  assert.deepEqual(opened, ['/Applications/Helium.app']);
+});
+
+test('completing the extension cannot invent an app that is not there', async () => {
+  const deps = { platform: 'darwin', fileExists: () => false, openExternal: () => Promise.resolve() };
+  assert.deepEqual(
+    await reg.createRegistry(deps).run({ type: 'openApp', path: '/Applications/Nope' }),
+    { ok: false, error: 'bad_app_path' },
+  );
+});
+
+// The completion must never turn a document into an app: notes.txt.app is not a
+// thing, and a name that already carries an extension is left alone.
+test('a path with an extension is never completed', () => {
+  const exists = () => true;
+  assert.equal(reg.completeDarwinBundle('/Users/me/notes.txt', 'darwin', exists), '');
+  assert.equal(reg.completeDarwinBundle('/Applications/Safari.app', 'darwin', exists), '');
+  assert.equal(reg.completeDarwinBundle('/Applications/Helium', 'darwin', exists), '/Applications/Helium.app');
+});
+
+// Windows and Linux keep the boundary they had: no .app is invented anywhere else.
+test('the .app completion is macOS only', async () => {
+  for (const platform of ['win32', 'linux']) {
+    assert.equal(reg.completeDarwinBundle('/Applications/Helium', platform, () => true), '',
+      platform + ' does not complete bundles');
+  }
+  const winDeps = { platform: 'win32', fileExists: () => true, openExternal: () => Promise.resolve() };
+  assert.deepEqual(
+    await reg.createRegistry(winDeps).run({ type: 'openApp', path: 'C:/Apps/Helium' }),
+    { ok: false, error: 'bad_app_path' },
+  );
+});
