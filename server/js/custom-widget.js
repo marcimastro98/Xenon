@@ -404,8 +404,8 @@
     pkgFetchPromise = (async () => {
       try {
         const d = await api('/sdk/widgets');
-        if (d && d.ok) pkgCache = { packages: d.packages || [], invalid: d.invalid || [] };
-        else if (!pkgCache) pkgCache = { packages: [], invalid: [] };
+        if (d && d.ok) pkgCache = { packages: d.packages || [], invalid: d.invalid || [], skipped: Number(d.skipped) || 0 };
+        else if (!pkgCache) pkgCache = { packages: [], invalid: [], skipped: 0 };
       } finally { pkgFetchPromise = null; }
     })();
     await pkgFetchPromise;
@@ -2571,9 +2571,19 @@
     // the widget would leave the panel saying nothing again.
     // Ids and reasons come from folder names on disk — el() sets textContent.
     const broken = (pkgCache && Array.isArray(pkgCache.invalid) ? pkgCache.invalid : []).slice(0, PICK_BROKEN_MAX);
-    if (broken.length) {
+    // Packages the engine stopped short of loading. Not a broken folder — these
+    // are installed and fine, and the list simply ends before them. It belongs in
+    // the same box for the same reason: somebody is looking for a widget that is
+    // not here, and the answer is on this screen or nowhere.
+    const skipped = Math.max(0, Number(pkgCache && pkgCache.skipped) || 0);
+    if (broken.length || skipped) {
       const box = el('div', 'cw-pick-broken');
       box.appendChild(el('div', 'cw-pick-broken-title', t('cw_pick_broken', 'Some installed widgets did not load')));
+      if (skipped) {
+        box.appendChild(el('div', 'cw-pick-broken-row',
+          t('cw_pick_skipped', 'This dashboard loads a limited number of widgets, and #n more are installed beyond it. Remove some in Settings to make room.')
+            .replace('#n', String(skipped))));
+      }
       broken.forEach((b) => {
         const id = String((b && b.id) || '').slice(0, 60);
         const code = String((b && b.reason) || '');
@@ -2581,8 +2591,10 @@
         const said = known ? t(known.key, known.fb) : code;
         box.appendChild(el('div', 'cw-pick-broken-row', said ? id + ' — ' + said : id));
       });
-      box.appendChild(el('div', 'cw-pick-broken-hint',
-        t('cw_pick_broken_hint', 'Reinstall them from the Store, or remove them there.')));
+      if (broken.length) {
+        box.appendChild(el('div', 'cw-pick-broken-hint',
+          t('cw_pick_broken_hint', 'Reinstall them from the Store, or remove them there.')));
+      }
       frag.appendChild(box);
     }
 
@@ -2977,7 +2989,7 @@
   // Package list access for AmbientMode / the Settings scene picker.
   async function getPackages(force) {
     if (!pkgCache || force) await fetchPackages(!!force);
-    return pkgCache || { packages: [], invalid: [] };
+    return pkgCache || { packages: [], invalid: [], skipped: 0 };
   }
   function cachedPackages() {
     return (pkgCache && Array.isArray(pkgCache.packages)) ? pkgCache.packages : [];
