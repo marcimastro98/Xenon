@@ -2391,6 +2391,23 @@
   // Below this many entries the list is already scannable and the filter bar
   // would cost more tile height than it saves.
   const PICK_FILTER_MIN = 6;
+  // Why the rescan skipped a folder, in words. GET /sdk/widgets has always
+  // returned these alongside the packages and nothing ever displayed them, so a
+  // package whose manifest fails validation was installed, listed as "Installed"
+  // in the Store, and absent from this picker with nothing said anywhere —
+  // indistinguishable from a search that simply found nothing.
+  // Only the reasons a user can act on get a sentence. Anything else falls
+  // through as its raw code on purpose: an unexplained code is still the thing
+  // that gets pasted into a bug report, and swallowing it is how this became
+  // invisible in the first place.
+  const PICK_BROKEN_REASONS = {
+    missing_manifest: { key: 'cw_pick_broken_no_manifest', fb: 'its manifest.json is missing' },
+    bad_manifest: { key: 'cw_pick_broken_bad_manifest', fb: 'its manifest.json could not be read' },
+    missing_entry: { key: 'cw_pick_broken_no_entry', fb: 'the file it names as its entry point is missing' },
+    unsupported_api: { key: 'cw_pick_broken_api', fb: 'it was built for a different SDK version' },
+  };
+  // A folder full of junk must not push the widgets off the panel.
+  const PICK_BROKEN_MAX = 6;
   // Search text and active chip, per tile instance. Kept outside the DOM so a
   // repaint (a rescan, a package install) doesn't drop what the user typed.
   const pickFilter = new Map();
@@ -2546,6 +2563,29 @@
 
     renderRows();
     frag.appendChild(list);
+
+    // Installed, on disk, and skipped by the rescan. Deliberately OUTSIDE
+    // renderRows and never filtered by the search or the chips: the situation
+    // this exists for is somebody typing the name of the widget that is not
+    // there, and hiding the explanation behind the same filter that is hiding
+    // the widget would leave the panel saying nothing again.
+    // Ids and reasons come from folder names on disk — el() sets textContent.
+    const broken = (pkgCache && Array.isArray(pkgCache.invalid) ? pkgCache.invalid : []).slice(0, PICK_BROKEN_MAX);
+    if (broken.length) {
+      const box = el('div', 'cw-pick-broken');
+      box.appendChild(el('div', 'cw-pick-broken-title', t('cw_pick_broken', 'Some installed widgets did not load')));
+      broken.forEach((b) => {
+        const id = String((b && b.id) || '').slice(0, 60);
+        const code = String((b && b.reason) || '');
+        const known = PICK_BROKEN_REASONS[code];
+        const said = known ? t(known.key, known.fb) : code;
+        box.appendChild(el('div', 'cw-pick-broken-row', said ? id + ' — ' + said : id));
+      });
+      box.appendChild(el('div', 'cw-pick-broken-hint',
+        t('cw_pick_broken_hint', 'Reinstall them from the Store, or remove them there.')));
+      frag.appendChild(box);
+    }
+
     body.replaceChildren(frag);
   }
 

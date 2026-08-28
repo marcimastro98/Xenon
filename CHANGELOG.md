@@ -4,6 +4,12 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### 🐛 Fixed
+- **A widget that installs but does not load now says so, instead of just not being there.** Reported by a supporter who installed Workload, saw "Installed" in the Store, then typed its name into a tile’s widget picker and got "No widget matches this search."
+
+  The two surfaces were reading different things. The Store answers from the install receipt; the picker lists what the engine accepts when it rescans the widgets folder. A package whose files land but whose manifest fails that scan is installed and invisible at the same time, and the failure looked exactly like a search that found nothing.
+
+  The engine had been reporting those folders all along — one entry per folder, each with a reason — and the dashboard fetched that list, cached it, and never showed it. It is now under the picker, naming each package and why it was skipped: a missing manifest.json, one that could not be read, a missing entry file, or a widget built for a different SDK version. A reason we have no sentence for still appears as its raw code, because that code is what belongs in a bug report. The notice sits outside the search filter on purpose — the moment it matters is when a search has just emptied the list.
 
 ## [v4.11.6] - 28-08-2026
 ### ✨ Added
