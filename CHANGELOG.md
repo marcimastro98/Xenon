@@ -23,7 +23,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
   Xenon is two pieces — the shell your PC launches, and the dashboard engine behind it — and the version you see is the engine’s. The updater asks the engine first whether it can replace itself. It already handled the engine not answering at all, but when the engine answered "no" it quietly skipped that half and updated the shell alone: a download, a restart, and the same version on screen, which from the outside is a button that does nothing.
 
-  It now stops there and tells you the installation cannot update itself, so the fix is one download rather than an afternoon of pressing the same button. Nothing else about the flow changed — an installation that can update itself never reaches this path.
+  It now stops there and tells you the installation cannot update itself, with the reason, instead of restarting into the same screen. Reinstalling is deliberately not offered as the cure: the setup script bails out the moment it sees a backend already running, so running it over a working install replaces the shell and leaves the dashboard exactly where it was. Nothing else about the flow changed — an installation that can update itself never reaches this path.
 
 - **A widget that installs but does not load now says so, instead of just not being there.** Reported by a supporter who installed Workload, saw "Installed" in the Store, then typed its name into a tile’s widget picker and got "No widget matches this search."
 
