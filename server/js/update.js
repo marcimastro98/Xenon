@@ -649,6 +649,21 @@
       return;
     }
 
+    // The backend needs updating and this install says it cannot update itself
+    // — a dev checkout, or a build whose applier script is missing. Running the
+    // shell phase alone would download a new shell, restart, and leave the
+    // dashboard serving the OLD version with nothing said: the app relaunches
+    // and the update pill is still there, which is indistinguishable from the
+    // button doing nothing. That is the half-update in silence this flow exists
+    // to kill — the guard above catches a status that could not be read, and
+    // this one catches a status that was read and said no.
+    if (backendOutdated && st && !st.supported) {
+      ctrl.fail(tr('update_failed_title', 'Aggiornamento non riuscito'),
+        tr('update_self_unsupported',
+          'Questa installazione non può aggiornarsi da sola. Scarica l’ultima versione e reinstallala.'));
+      return;
+    }
+
     if (backendOutdated && st && st.supported) {
       ctrl.setTitle(tr('update_native_backend_phase', 'Aggiorno la dashboard…'));
       const staged = !!(st.staged && stripV(String(st.staged.version || '')) === latest);
