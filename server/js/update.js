@@ -658,9 +658,14 @@
     // to kill — the guard above catches a status that could not be read, and
     // this one catches a status that was read and said no.
     if (backendOutdated && st && !st.supported) {
+      // The reason rides along in the same parenthetical shape the prepare
+      // failure uses. It is a code, not a sentence, and deliberately so: it is
+      // there to be read back to us, and a stuck install is diagnosed from it in
+      // one line instead of a round of guesses.
+      const why = (st.reason ? ' (' + st.reason + ')' : '');
       ctrl.fail(tr('update_failed_title', 'Aggiornamento non riuscito'),
         tr('update_self_unsupported',
-          'Questa installazione non può aggiornarsi da sola. Scarica l’ultima versione e reinstallala.'));
+          'Questa installazione non può aggiornarsi da sola. Scarica l’ultima versione e reinstallala.') + why);
       return;
     }
 
