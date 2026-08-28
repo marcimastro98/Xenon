@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **A Deck key that fails now tells you why, instead of only flashing red.** Reported by someone setting up an "Open app" key: the path was a real application, correctly spelled, and pressing the key flashed red and did nothing else. There was no way to tell a path that does not exist from one the system refuses to launch from an app that simply would not start.
+
+  The reason was always there. The dashboard asks the engine to run the action, the engine answers with both a yes/no and a reason — and the dashboard read the answer, kept the yes/no, and dropped the reason on the next line. It now shows it: the key still flashes, and a short message names what went wrong. A reason we have no wording for appears as its raw code rather than as nothing, because that code is what belongs in a bug report.
+
+  Repeats of the same message collapse for a few seconds, so a slider being dragged against a broken action cannot bury the screen — but a *different* failure still comes through straight away.
+
 - **An install that cannot update itself now says which part is missing.** Following the report above: the status page answered `supported: false` and stopped there, which told the person holding the machine — and us — equally little. Three different situations produce that answer and each has a different fix.
 
   It now names the one in effect: a developer checkout, an operating system with no applier, or the applier script itself missing from the install. That last one is worth knowing about, because a PowerShell script whose job is to copy files into the install folder is exactly the sort of thing an antivirus quarantines — and a quarantine survives reinstalling, which is why the app can look permanently stuck one version behind. The reason travels with the failure message too, so it can be read off the screen without opening anything.

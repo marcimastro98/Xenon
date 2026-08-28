@@ -797,8 +797,49 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(action),
       });
       const data = await res.json().catch(() => null);
-      return !!(data && data.ok);   // the dispatcher reports {ok:false,error} for e.g. a missing path / OBS offline
+      // The dispatcher reports {ok:false,error} — a missing path, a path the
+      // allowlist refuses, OBS offline. That reason used to be read here and
+      // dropped on the next line, leaving a key that flashes red and says
+      // nothing: someone on Discord spent an evening on an "Open app" key whose
+      // path was right, with no way to tell a refused path from one that failed
+      // to launch. The key still flashes; now it also says why.
+      if (!(data && data.ok)) reportActionError(data && data.error);
+      return !!(data && data.ok);
     } catch (e) { return false; }
+  }
+
+  // Sentences for the reasons a person can act on; anything else still shows its
+  // raw code, because an unexplained code is what gets pasted into a report and
+  // swallowing it is what made this invisible. The code is appended either way.
+  const DECK_ERR_TEXT = {
+    not_found: ['deck_err_not_found', 'that path does not exist on this PC'],
+    bad_app_path: ['deck_err_bad_app_path', 'that is not something this system can launch'],
+    launch_failed: ['deck_err_launch_failed', 'the app would not start'],
+    blocked_ext: ['deck_err_blocked_ext', 'that kind of file cannot be opened this way'],
+    unavailable: ['deck_err_unavailable', 'that action is not available on this system'],
+  };
+  // A slider posts one action per 100ms while it is dragged, so a failing one
+  // would bury the screen. Identical messages collapse for a few seconds; a
+  // DIFFERENT failure still gets through immediately.
+  let _lastDeckErr = { msg: '', at: 0 };
+  function reportActionError(code) {
+    if (!window.XenonToast) return;
+    const known = DECK_ERR_TEXT[code];
+    const said = known ? tt(known[0], known[1]) : '';
+    const msg = said ? (code ? said + ' (' + code + ')' : said) : String(code || '');
+    if (!msg) return;
+    const now = Date.now();
+    if (msg === _lastDeckErr.msg && now - _lastDeckErr.at < 3000) return;
+    _lastDeckErr = { msg, at: now };
+    window.XenonToast.show({
+      type: 'error',
+      title: tt('deck_err_title', 'This key could not run'),
+      message: msg,
+      duration: 3600,
+    });
+  }
+  function tt(key, fallback) {
+    return (typeof window.t === 'function' && window.t(key)) || fallback;
   }
   // Briefly flash a key red to surface a failed action (path not found, OBS
   // offline, …) — actions must not fail silently.
