@@ -14114,7 +14114,19 @@ const handleRequest = async (req, res) => {
           at: String(m.at || ''),
         };
       }
-      json({ supported: selfUpdate.supported(), staged: selfUpdate.staged(), lastResult });
+      // `reason` names WHICH precondition failed, so a stuck install can be
+      // diagnosed from this one URL instead of a round of guesses. Empty when
+      // self-update is available. `applier` is the path that has to exist —
+      // quoted here because "restore this file" is only actionable if the user
+      // is told which file.
+      const unsupportedFor = selfUpdate.unsupportedReason();
+      json({
+        supported: !unsupportedFor,
+        reason: unsupportedFor,
+        applier: unsupportedFor === 'no_applier' ? String(selfUpdate.applierPath || '') : undefined,
+        staged: selfUpdate.staged(),
+        lastResult,
+      });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/update/prepare' && req.method === 'POST') {

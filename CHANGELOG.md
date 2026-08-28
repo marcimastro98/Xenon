@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **An install that cannot update itself now says which part is missing.** Following the report above: the status page answered `supported: false` and stopped there, which told the person holding the machine — and us — equally little. Three different situations produce that answer and each has a different fix.
+
+  It now names the one in effect: a developer checkout, an operating system with no applier, or the applier script itself missing from the install. That last one is worth knowing about, because a PowerShell script whose job is to copy files into the install folder is exactly the sort of thing an antivirus quarantines — and a quarantine survives reinstalling, which is why the app can look permanently stuck one version behind. The reason travels with the failure message too, so it can be read off the screen without opening anything.
+
 - **The empty artwork box no longer claims nothing is playing.** Reported with a screenshot of the Playback tile: the source, the track, a running position and working transport buttons — and, where the cover goes, the words "No Media".
 
   That box is only ever visible when a track has no picture; a cover hides it the instant one loads. So it had exactly one thing to say and said something else, which is how an ordinary missing cover reads as a broken player. It now says "No artwork", and it says it in your own language — it was the one string in that panel written straight into the markup, so it had stayed English everywhere.
