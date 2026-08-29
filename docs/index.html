@@ -298,6 +298,39 @@
   .dl-row .f { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); overflow-wrap: anywhere; }
   .dl-row .b { font-family: var(--mono); font-size: 10px; font-weight: 400; letter-spacing: 0.04em; border: 1px solid var(--hair-2); padding: 1px 5px; color: var(--ink-2); }
 
+  /* ── "Windows might block it" ──
+     Appears only after a Windows download click, never before it: the download
+     is the thing the visitor came for and nothing should stand between them and
+     it. The panel opens under the picker at the moment the file starts arriving,
+     which is also the moment before SmartScreen speaks. */
+  .ss-help[hidden] { display: none; }
+  .ss-help {
+    margin-top: 26px; padding: 22px 24px 24px;
+    border: 1px solid var(--hair-2); border-left: 3px solid var(--ink);
+    background: var(--paper-2);
+  }
+  .ss-help h3 { font-size: 17px; font-weight: 640; color: var(--ink); margin: 0 0 8px; }
+  .ss-help p { margin: 0 0 14px; color: var(--ink-1); max-width: 68ch; }
+  .ss-help ol { margin: 0 0 16px; padding-left: 20px; color: var(--ink-1); }
+  .ss-help li { margin-bottom: 5px; }
+  .ss-help li strong { color: var(--ink); }
+  .ss-hash { border-top: 1px solid var(--hair); padding-top: 14px; }
+  .ss-hash .lab { font-size: 13px; color: var(--ink-1); margin-bottom: 8px; }
+  .ss-cmd { display: flex; align-items: stretch; gap: 0; border: 1px solid var(--hair-2); background: var(--paper); }
+  .ss-cmd code {
+    flex: 1; min-width: 0; padding: 9px 12px; font-family: var(--mono); font-size: 12px;
+    color: var(--ink); overflow-x: auto; white-space: nowrap;
+  }
+  .ss-cmd button {
+    flex: 0 0 auto; padding: 0 14px; border: 0; border-left: 1px solid var(--hair-2);
+    background: none; cursor: pointer; font: inherit; font-size: 12.5px; color: var(--ink-1);
+  }
+  .ss-cmd button:hover { background: var(--paper-2); color: var(--ink); }
+  .ss-links { margin-top: 12px; font-size: 13px; }
+  .ss-links a { color: var(--ink-1); }
+  .ss-close { margin-top: 14px; background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-size: 13px; color: var(--ink-2); text-decoration: underline; }
+  @media (max-width: 640px) { .ss-cmd { flex-direction: column; } .ss-cmd button { border-left: 0; border-top: 1px solid var(--hair-2); padding: 9px 0; } }
+
   /* ── The demo band ──
      The real dashboard, running in the page, in a frame the size of a screen
      Xenon ships on. The only full-bleed object on the page, and the only dark
@@ -786,6 +819,32 @@
           <span class="f">Xenon-Linux-x86_64.AppImage</span>
         </a>
       </div>
+    </div>
+
+    <!-- Shown only after a Windows download click. The file is already on its
+         way by then; this is the sentence that keeps the blue box from reading
+         as "you just downloaded a virus", which is where most people stop. -->
+    <div class="ss-help" id="ss-help" hidden>
+      <h3 data-i18n="ss.title">Windows may block it. It is not a virus.</h3>
+      <p data-i18n="ss.lead">Xenon is not code-signed — a certificate costs money every year and Xenon is free. Windows treats an unsigned installer few people have downloaded as an unknown, so it shows a blue box with only "Don't run" in sight.</p>
+      <ol>
+        <li data-i18n-html="ss.s1">Click <strong>More info</strong> in the blue box.</li>
+        <li data-i18n-html="ss.s2">Click <strong>Run anyway</strong>.</li>
+        <li data-i18n-html="ss.s3">If your browser cancelled the download instead, open its downloads list and choose <strong>Keep</strong>.</li>
+      </ol>
+      <div class="ss-hash">
+        <div class="lab" data-i18n="ss.hash">Don't take my word for it — check the file is exactly the one published here:</div>
+        <div class="ss-cmd">
+          <code id="ss-cmd-text">Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256</code>
+          <button type="button" id="ss-copy" data-i18n="ss.copy">Copy</button>
+        </div>
+        <div class="ss-links">
+          <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/SHA256SUMS" target="_blank" rel="noopener" data-i18n="ss.compare">Compare it with the published list</a>
+          &nbsp;·&nbsp;
+          <a href="/faq.html#warnings" data-i18n="ss.more">More on the warnings</a>
+        </div>
+      </div>
+      <button type="button" class="ss-close" id="ss-close" data-i18n="ss.close">Close</button>
     </div>
   </div>
 </header>
@@ -1293,6 +1352,73 @@
 </script>
 
 
+<!-- "Windows may block it" — opened by a Windows download press, never before.
+     Two GA events, because the whole point is to find out whether this is a big
+     problem or a small one instead of guessing: ss_view counts the people who
+     reach the warning, hash_copy the ones who actually go and verify. -->
+<script>
+(function () {
+  'use strict';
+  const panel = document.getElementById('ss-help');
+  if (!panel) return;
+  const track = (n, p) => { try { if (window.xtrack) window.xtrack(n, p); } catch (e) {} };
+
+  // Only the Windows installer: SmartScreen is a Windows thing, and showing this
+  // to someone downloading the .dmg would be noise about a box they will never see.
+  function isWindowsDownload(a) {
+    const href = (a && a.getAttribute('href')) || '';
+    return /Xenon-Setup-x64\.exe$/.test(href);
+  }
+
+  let shown = false;
+  document.addEventListener('click', function (e) {
+    const a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a || !isWindowsDownload(a)) return;
+    // The download itself is untouched — the link keeps working exactly as it
+    // did, and this only opens a panel underneath it.
+    panel.hidden = false;
+    if (!shown) { shown = true; track('smartscreen_help_view', { location: a.getAttribute('data-track-location') || 'site' }); }
+    // Deferred so the browser has started the download before the page moves.
+    setTimeout(function () {
+      try { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (_) { }
+    }, 250);
+  }, true);
+
+  const copy = document.getElementById('ss-copy');
+  const cmd = document.getElementById('ss-cmd-text');
+  if (copy && cmd) {
+    copy.addEventListener('click', function () {
+      const text = cmd.textContent || '';
+      const done = () => {
+        const was = copy.textContent;
+        // The site's own lookup, so the confirmation is in the reader's language
+        // like everything else on the panel.
+        copy.textContent = (window.XT && window.XT('ss.copied')) || 'Copied';
+        setTimeout(function () { copy.textContent = was; }, 1600);
+        track('hash_copy', {});
+      };
+      // navigator.clipboard needs a secure context; the textarea fallback keeps
+      // the button honest on anything that does not have one.
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
+      } else { fallback(text, done); }
+    });
+  }
+  function fallback(text, done) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); ta.remove(); done();
+    } catch (_) { /* nothing to do: the text is on screen and selectable */ }
+  }
+
+  const close = document.getElementById('ss-close');
+  if (close) close.addEventListener('click', function () { panel.hidden = true; });
+})();
+</script>
+
 <!-- ═══════════════ I18N — EN / IT / KO / JA / ZH ═══════════════ -->
 <script>
   // The five dictionaries carry the same key set; a key missing from one
@@ -1302,6 +1428,17 @@
   const I18N = {};
 
   I18N.en = {
+    "ss.copied": "Copied",
+    "ss.title": "Windows may block it. It is not a virus.",
+    "ss.lead": "Xenon is not code-signed — a certificate costs money every year and Xenon is free. Windows treats an unsigned installer few people have downloaded as an unknown, so it shows a blue box with only \"Don't run\" in sight.",
+    "ss.s1": "Click <strong>More info</strong> in the blue box.",
+    "ss.s2": "Click <strong>Run anyway</strong>.",
+    "ss.s3": "If your browser cancelled the download instead, open its downloads list and choose <strong>Keep</strong>.",
+    "ss.hash": "Don't take my word for it — check the file is exactly the one published here:",
+    "ss.copy": "Copy",
+    "ss.compare": "Compare it with the published list",
+    "ss.more": "More on the warnings",
+    "ss.close": "Close",
     "cat.stream": "Streaming",
     "cat.system": "System",
     "cat.media": "Media",
@@ -1446,6 +1583,17 @@
   };
 
   I18N.it = {
+    "ss.copied": "Copiato",
+    "ss.title": "Windows potrebbe bloccarlo. Non è un virus.",
+    "ss.lead": "Xenon non ha una firma digitale: il certificato si paga ogni anno e Xenon è gratis. Windows tratta un installer non firmato e scaricato da poche persone come uno sconosciuto, quindi mostra un riquadro blu dove l'unico pulsante in vista è \"Non eseguire\".",
+    "ss.s1": "Clicca <strong>Ulteriori informazioni</strong> nel riquadro blu.",
+    "ss.s2": "Clicca <strong>Esegui comunque</strong>.",
+    "ss.s3": "Se invece è stato il browser ad annullare il download, apri l'elenco dei download e scegli <strong>Mantieni</strong>.",
+    "ss.hash": "Non fidarti sulla parola: verifica che il file sia esattamente quello pubblicato qui.",
+    "ss.copy": "Copia",
+    "ss.compare": "Confrontalo con la lista pubblicata",
+    "ss.more": "Di più sugli avvisi",
+    "ss.close": "Chiudi",
     "cat.stream": "Streaming",
     "cat.system": "Sistema",
     "cat.media": "Media",
@@ -1590,6 +1738,17 @@
   };
 
   I18N.ko = {
+    "ss.copied": "복사됨",
+    "ss.title": "Windows가 막을 수 있습니다. 바이러스가 아닙니다.",
+    "ss.lead": "Xenon에는 코드 서명이 없습니다. 인증서는 해마다 돈이 들고 Xenon은 무료입니다. Windows는 서명이 없고 내려받은 사람도 적은 설치 파일을 낯선 것으로 보고, \"실행 안 함\"만 보이는 파란 창을 띄웁니다.",
+    "ss.s1": "파란 창에서 <strong>추가 정보</strong>를 누르세요.",
+    "ss.s2": "<strong>실행</strong>을 누르세요.",
+    "ss.s3": "브라우저가 다운로드를 취소했다면 다운로드 목록에서 <strong>유지</strong>를 선택하세요.",
+    "ss.hash": "말만 믿지 마세요. 받은 파일이 여기 공개된 것과 같은지 직접 확인할 수 있습니다.",
+    "ss.copy": "복사",
+    "ss.compare": "공개된 목록과 비교하기",
+    "ss.more": "경고에 대해 더 보기",
+    "ss.close": "닫기",
     "cat.stream": "스트리밍",
     "cat.system": "시스템",
     "cat.media": "미디어",
@@ -1734,6 +1893,17 @@
   };
 
   I18N.ja = {
+    "ss.copied": "コピーしました",
+    "ss.title": "Windows がブロックすることがあります。ウイルスではありません。",
+    "ss.lead": "Xenon にはコード署名がありません。証明書は毎年費用がかかり、Xenon は無料だからです。Windows は署名がなくダウンロード数も少ないインストーラーを未知のものとして扱い、「実行しない」しか見えない青い画面を出します。",
+    "ss.s1": "青い画面の <strong>詳細情報</strong> をクリックします。",
+    "ss.s2": "<strong>実行</strong> をクリックします。",
+    "ss.s3": "ブラウザ側がダウンロードを取り消した場合は、ダウンロード一覧で <strong>保存</strong> を選んでください。",
+    "ss.hash": "言葉を信じる必要はありません。受け取ったファイルがここで公開されたものと同じか、自分で確かめられます。",
+    "ss.copy": "コピー",
+    "ss.compare": "公開されている一覧と照合する",
+    "ss.more": "警告について詳しく",
+    "ss.close": "閉じる",
     "cat.stream": "配信",
     "cat.system": "システム",
     "cat.media": "メディア",
@@ -1878,6 +2048,17 @@
   };
 
   I18N.zh = {
+    "ss.copied": "已复制",
+    "ss.title": "Windows 可能会拦截它。这不是病毒。",
+    "ss.lead": "Xenon 没有代码签名——证书每年都要花钱，而 Xenon 是免费的。Windows 把没有签名、下载量又少的安装程序当作陌生文件，所以会弹出一个蓝色窗口，能看见的只有\"不运行\"。",
+    "ss.s1": "在蓝色窗口里点<strong>更多信息</strong>。",
+    "ss.s2": "点<strong>仍要运行</strong>。",
+    "ss.s3": "如果是浏览器取消了下载，打开下载列表选择<strong>保留</strong>。",
+    "ss.hash": "不用只听我说：你可以自己核对下载到的文件和这里发布的是不是同一个。",
+    "ss.copy": "复制",
+    "ss.compare": "与发布的清单对照",
+    "ss.more": "更多关于这些警告",
+    "ss.close": "关闭",
     "cat.stream": "直播",
     "cat.system": "系统",
     "cat.media": "媒体",
