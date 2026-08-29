@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **A Deck key now works with an app or folder whose name has spaces in it.** Reported on a Mac: an "Open app" key pointing at an application with spaces in its name did nothing, and renaming the application to remove them made the same key work.
+
+  Launching was never the problem. The trouble is what ends up in the field. The ordinary way to get a path on a Mac is to drag the file into Terminal, and what that writes is `/Applications/Epic\ Games\ Launcher.app` — every space escaped, because it is meant for a shell. Some copy tools wrap the whole thing in quotes instead. Either way the text names a file that does not exist, so the key fails forever while the field looks exactly right, and the only workaround is a name with no spaces in it.
+
+  Windows has had the matching fix for a while: paths copied from File Explorer arrive wrapped in quotes, and those get stripped. The Mac and Linux equivalent was missing, and it is a little more careful, because a backslash and a quote are both legal in a filename there — so it is settled by the disk rather than by the characters. A path that already points at something real is never reinterpreted, and a rewritten one is only used when it actually exists. It applies to app keys, file and folder keys, and script keys alike.
+
 - **Updating no longer fails on the machines where installing was fixed in v4.11.6.** Reported with a screenshot of "dependency installation failed", and it turned out to be a bug we had already found once and only half-fixed.
 
   One of the packages Xenon depends on ships a guard that deliberately fails installation unless a particular tool is doing the installing. On most PCs a helper quietly satisfies that guard and nobody notices. On a PC missing one specific folder — it only exists once you have installed something globally, and cleanup utilities delete it — the helper itself cannot start, the guard fails, and the whole install is aborted half-written. That is the broken install v4.11.6 fixed, by telling the installer to skip those scripts entirely.

@@ -68,6 +68,54 @@ function completeDarwinBundle(p, platform, fileExists) {
   return fileExists(bundle) ? bundle : '';
 }
 
+// The POSIX counterpart of unquotePath (js/deck-actions.js), and it exists for
+// the same reason: the normal way to get a path onto the clipboard hands you a
+// path that is escaped for a SHELL, and those escapes are not part of the name.
+//
+// On Windows that was Explorer's "Copy as path" and its double quotes. On macOS
+// it is dragging a file into Terminal, which is how most people get a path at
+// all — and what it writes is `/Applications/Epic\ Games\ Launcher.app`, with
+// every space backslash-escaped. Some shells and copy helpers wrap the whole
+// thing in single quotes instead. Either way the string names a file that does
+// not exist, the key answers not_found forever, and the field looks exactly
+// right. Reported on Discord by someone who worked around it by renaming the
+// application to remove the spaces — which is precisely the shape of a bug that
+// only bites paths with spaces in them.
+//
+// A backslash and a single quote are both LEGAL in a POSIX filename, so unlike
+// the Windows case this cannot be decided by the characters alone. It is decided
+// by the filesystem instead, and fail-closed twice over: a path that already
+// exists is never reinterpreted, and a rewritten candidate is only returned when
+// it exists. So the worst case is the behaviour we have today.
+//
+// Widens nothing: the result still faces every extension gate, every blocklist
+// and the existence check that follow. It only changes WHICH string those are
+// asked about.
+function completePosixTypedPath(p, platform, fileExists) {
+  if ((platform || process.platform) === 'win32') return '';
+  if (typeof fileExists !== 'function') return '';
+  const v = String(p == null ? '' : p).trim();
+  if (!v || fileExists(v)) return '';        // a real path is never second-guessed
+  const unquote = (x) => {
+    if (x.length < 2) return x;
+    const q = x[0];
+    if ((q !== "'" && q !== '"') || x[x.length - 1] !== q) return x;
+    const inner = x.slice(1, -1);
+    return (inner && !inner.includes(q)) ? inner : x;
+  };
+  // `\x` -> `x` for every escaped character, which is what a shell would have
+  // done with it. A trailing lone backslash is left alone rather than eaten.
+  const unescape = (x) => x.replace(/\\(.)/g, '$1');
+  // Ordered so the commonest form is tried first, and the combination last.
+  const tried = new Set([v]);
+  for (const cand of [unescape(v), unquote(v), unescape(unquote(v)), unquote(unescape(v))]) {
+    if (!cand || tried.has(cand)) continue;
+    tried.add(cand);
+    if (fileExists(cand)) return cand;
+  }
+  return '';
+}
+
 // Percentage value for the volume/brightness 'set' modes: accepts a decimal
 // comma, clamps to 0–100, returns null on anything non-numeric (reject loud).
 // Empty/whitespace is EXPLICITLY null — Number('') is 0, and a "set volume"
@@ -219,6 +267,11 @@ function createRegistry(deps) {
       switch (action.type) {
         case 'openApp': {
           let p = action.path.trim();
+          // Before anything else: a path that is escaped or quoted for a shell
+          // names no file at all, so every gate below would be judging a string
+          // the user never meant. No-op unless the literal path is missing AND a
+          // rewritten one really exists.
+          p = completePosixTypedPath(p, platform, d.fileExists) || p;
           // A direct .exe/.lnk launches as-is. If it isn't one, the user may have
           // pointed at the app's install FOLDER — resolve it to the primary
           // executable inside (re-resolved on every tap, so versioned apps like
@@ -248,7 +301,10 @@ function createRegistry(deps) {
           return { ok: true };
         }
         case 'openFile': {
-          const p = action.path.trim();
+          const raw = action.path.trim();
+          // Same shell-escaping trap as openApp above — and the likelier one, since
+          // a folder key is exactly what people build by dragging a folder somewhere.
+          const p = completePosixTypedPath(raw, platform, d.fileExists) || raw;
           if (!p) return { ok: false, error: 'empty_path' };
           // openFile opens with the registered handler, so executables/scripts
           // are blocked here — only openApp may launch an .exe/.lnk.
@@ -262,7 +318,12 @@ function createRegistry(deps) {
           // a real script that exists, then handed to the dedicated 'runscript'
           // runner (never openFile's registered handler). `window` (visible by
           // default) decides whether the console is shown — an installer needs it.
-          const p = action.path.trim();
+          //
+          // The shell-escape completion applies here too, and it is no wider than
+          // on the two cases above: the extension allowlist and the existence check
+          // below are unchanged, and a path that already exists is never rewritten.
+          const rawScript = action.path.trim();
+          const p = completePosixTypedPath(rawScript, platform, d.fileExists) || rawScript;
           if (!p) return { ok: false, error: 'empty_path' };
           if (!isRunnableScriptPath(p, platform)) return { ok: false, error: 'bad_script_ext' };
           if (!d.fileExists(p)) return { ok: false, error: 'not_found' };
@@ -752,4 +813,4 @@ function resolveOutputDevice(id, speakers) {
   return list.find((s) => s && typeof s.id === 'string' && s.id === wanted) || null;
 }
 
-module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, completeDarwinBundle, isBlockedOpenPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys, resolveOutputDevice };
+module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, completeDarwinBundle, completePosixTypedPath, isBlockedOpenPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys, resolveOutputDevice };
