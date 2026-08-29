@@ -11,6 +11,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
   The updater was never told the same thing. So on exactly those PCs a fresh install worked perfectly while every in-app update walked into the same wall, failed at that step, and rolled back cleanly — which made a bug we shipped look like something wrong with one person's computer. Both now install the same way, and the updater also runs the one build step that skipping scripts skips.
 
+  **If this is happening to you, updating into this version will not fix it — reinstalling once will.** The update is applied by the copy of the updater already on your PC, so the corrected one only takes effect from the update *after* you are running it. Download this release and run its installer over your existing setup: it keeps your settings, widgets and layout, and it is the last time this is needed.
+
 - **A failed update now tells you what actually went wrong, in the words of the thing that failed.** Reported with a screenshot of the whole message we had: *"The update could not be applied and your previous version was restored (dependency installation failed)."* True, and useless. That same sentence appears whether the PC is offline, sitting behind a company proxy, out of disk space, or has an antivirus holding a file open — four situations with four different fixes, and no way to tell which one you are in.
 
   Part of an update is fetching the pieces the new version needs, and that job is done by npm, which prints exactly what went wrong. It printed it to a window nobody sees: the step was run with its output going nowhere at all. So we had the name of the stage that failed and threw away the reason it failed, on the one screen where the reason was the entire question.
