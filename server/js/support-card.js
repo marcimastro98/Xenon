@@ -49,7 +49,14 @@
   const CARDS = () => (window.XenonStartupCards || null);
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
 
-  const HEART = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9A5.3 5.3 0 0 1 12 6.2 5.3 5.3 0 0 1 21.6 12c-2.1 4.4-9.6 9-9.6 9z"/></svg>';
+  // The viewBox starts at y = 0.25 and not at 0, which is the whole reason this
+  // heart looks centred. The path is symmetric left to right, but its ink runs
+  // from y 3.49 to y 21.0 — its middle is 12.246, not 12 — so a plain
+  // "0 0 24 24" box hangs the heart a quarter of a unit high in whatever holds
+  // it. Shifting the window down by that quarter unit puts the shape's own
+  // middle on the box's middle. If the path is ever redrawn, re-measure with
+  // getBBox() and move this number with it.
+  const HEART = '<svg viewBox="0 0.25 24 24" fill="currentColor" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9A5.3 5.3 0 0 1 12 6.2 5.3 5.3 0 0 1 21.6 12c-2.1 4.4-9.6 9-9.6 9z"/></svg>';
   // One glyph per perk. Drawn rather than written because three small objects
   // read as things you get; the same three facts in a grey sentence read as
   // small print, and this card has one job.

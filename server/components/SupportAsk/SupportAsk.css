@@ -147,7 +147,11 @@
    is the contrast, and it is also the thing the eye lands on first. */
 .support-ask .support-ask-heart {
   flex: 0 0 auto;
-  width: 21px; height: 21px;
+  /* 22 and 12, both even, on purpose: the disc centres the glyph by sharing out
+     what is left over, and 21 minus 12 is 9, which is four and a half pixels a
+     side. Half a pixel is enough to see once the card is looked at closely, and
+     it was the first thing anyone noticed. Even numbers leave five and five. */
+  width: 22px; height: 22px;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 50%;
   background: #fff;
