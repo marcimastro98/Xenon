@@ -241,10 +241,48 @@ function Remove-StaleAppFiles($stagedFiles, $oldVer) {
 # ExternalScript), and 'cmd /c "...npm.ps1"' cannot run a .ps1 - it pops the
 # Windows "select an app for this .ps1" picker and stalls the update.
 $npmCmd = (Get-Command npm.cmd -ErrorAction SilentlyContinue).Source
+# npm's own account of why it failed.
+#
+# This ran with no redirection, so everything npm printed went to a console
+# nobody sees - and "dependency installation failed" was the whole of what came
+# back. Reported on Discord as exactly that screenshot: a correct, honest reason
+# code that names the STAGE and says nothing about the cause, while npm had just
+# written the cause out in full. The causes it hides are ordinary and each has a
+# different fix: no network or a proxy in the way, a registry refusing the
+# connection, antivirus locking a file inside node_modules, a full disk, a node
+# too old for a new dependency.
+#
+# So capture it. The full transcript goes beside the update log, its tail goes
+# into that log, and the first npm ERR! line becomes a one-line detail the
+# dashboard can show - which is the line that turns a screenshot into a fix.
+$npmOut = Join-Path $updDir 'npm-install.log'
+$npmErr = Join-Path $updDir 'npm-install.err.log'
+$script:npmDetail = ''
 function Invoke-Npm {
+  # Two separate files: Start-Process refuses to redirect both streams to one.
   $proc = Start-Process -FilePath $env:ComSpec `
     -ArgumentList '/c', "`"$npmCmd`"", 'install', '--no-audit', '--no-fund' `
-    -WorkingDirectory $root -Wait -PassThru -NoNewWindow
+    -WorkingDirectory $root -Wait -PassThru -NoNewWindow `
+    -RedirectStandardOutput $npmOut -RedirectStandardError $npmErr
+  if ($proc.ExitCode -ne 0) {
+    $lines = @()
+    foreach ($f in @($npmErr, $npmOut)) {
+      try { if (Test-Path $f) { $lines += (Get-Content -LiteralPath $f -ErrorAction Stop) } } catch {}
+    }
+    $lines = $lines | Where-Object { $_ -and $_.Trim() }
+    if ($lines.Count) {
+      Log ('npm said (last 20 lines, full output in ' + $npmOut + '):')
+      foreach ($l in ($lines | Select-Object -Last 20)) { Log ("  " + $l) }
+      # The first ERR! line is npm's own summary of the failure; anything else
+      # is progress noise. Fall back to the last line when npm failed without
+      # one (a shell that could not start it at all).
+      $first = $lines | Where-Object { $_ -match 'npm ERR!' } | Select-Object -First 1
+      if (-not $first) { $first = $lines | Select-Object -Last 1 }
+      $d = ($first -replace '^\s*npm ERR!\s*', '').Trim()
+      if ($d.Length -gt 200) { $d = $d.Substring(0, 200) }
+      $script:npmDetail = $d
+    }
+  }
   return $proc.ExitCode
 }
 
@@ -362,6 +400,11 @@ try {
 }
 catch {
   Log "ERROR: $($_.Exception.Message)"
+  # Snapshot npm's reason NOW. The rollback below may run Invoke-Npm again to
+  # reconcile against the restored lockfile, and if THAT fails it would overwrite
+  # $script:npmDetail - leaving the result describing the recovery instead of the
+  # failure the user is looking at.
+  $failDetail = $script:npmDetail
   # Map the stage that blew up to a stable reason code the dashboard can
   # translate ("dependency installation failed", ...). Unknown stages fall
   # through as-is so they stay diagnosable from a screenshot.
@@ -413,8 +456,11 @@ catch {
   else { Log 'rollback NOT verified: previous version did not answer within 45s' }
   # Persist the failure so the dashboard can explain what happened (and that the
   # previous version is back) instead of spinning to a blind timeout.
+  # `detail` is npm's own one-line reason, present only when npm is what failed.
+  # Bounded and free text - the dashboard renders it as text and it exists to be
+  # read, and pasted, by whoever is stuck.
   Write-ApplyResult @{
-    ok = $false; reason = $reason; rolledBack = $restoredOk
+    ok = $false; reason = $reason; rolledBack = $restoredOk; detail = $failDetail
     rollbackVerified = $rollbackVerified; from = $oldVer; to = $newVer
     at = [DateTime]::UtcNow.ToString('o')
   }
