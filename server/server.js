@@ -132,6 +132,7 @@ const remoteControlTailscale = require('./remote-control/tailscale');
 const remoteControlInstaller = require('./remote-control/installer');
 const { createSelfUpdate } = require('./self-update');
 const { createHelperUpdate } = require('./helper-update');
+const startupTask = require('./startup-task');
 const { createTwitchProvider } = require('./stream-twitch');
 const { createDiscordProvider } = require('./discord-rpc');
 const { createYouTubeProvider } = require('./stream-youtube');
@@ -14147,6 +14148,22 @@ const handleRequest = async (req, res) => {
       }).catch(() => { /* best-effort: a failed ping is never user-visible */ });
     } catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/api/startup-task' && req.method === 'GET') {
+    // Will Xenon still be here after the next sign-in? Answered from the last
+    // check (boot, then every few hours) rather than by spawning schtasks per
+    // request — the answer changes on the timescale of somebody running a
+    // cleanup tool, not of a page load. `repaired` names conditions this engine
+    // put back on its own, which the user is entitled to be told about.
+    json({
+      ok: true,
+      checked: _startupTaskState.checked,
+      found: _startupTaskState.found,
+      problems: _startupTaskState.problems,
+      repaired: _startupTaskState.repaired,
+      failed: _startupTaskState.failed,
+      at: _startupTaskState.at,
+    });
+
   } else if (reqPath === '/update/self-status' && req.method === 'GET') {
     // Whether one-click self-update is possible here (not a git checkout, applier
     // present), and whether a validated build is already staged and ready to apply.
@@ -20000,6 +20017,35 @@ function _handleLiveClient(client) {
 // this exe, verifying it keeps this auto path from ever running a swapped/MITM'd
 // binary. Best-effort and off the boot hot path; the PowerShell fallback covers the
 // gap until the next restart, and a machine with no helper is left alone.
+// Last look at the per-logon startup task: whether Xenon will still be here
+// after the next sign-in. Held in memory so the dashboard can ask without
+// paying for a schtasks spawn per page load — see startup-task.js for why this
+// is checked at all, and why the three conditions are repaired while `disabled`
+// is only ever reported.
+let _startupTaskState = { checked: false, found: false, problems: [], repaired: [], failed: '', at: 0 };
+const STARTUP_TASK_CHECK_MS = 6 * 60 * 60 * 1000;   // twice a working day is plenty
+async function refreshStartupTaskState() {
+  const res = await startupTask.checkStartupTask({ dataDir: DATA_DIR }).catch(() => null);
+  if (!res) return _startupTaskState;
+  _startupTaskState = { ...res, at: Date.now() };
+  // Both halves belong in the log, and for opposite reasons: a repair is a
+  // change made to this PC without the user asking, and an unrepaired problem is
+  // the reason Xenon will not be there tomorrow.
+  if (res.repaired.length) {
+    startupLog.write('startup task: put back ' + res.repaired.join(', ')
+      + ' on "' + startupTask.TASK_NAME + '" — something had changed settings this install owns.');
+  }
+  if (res.failed) {
+    startupLog.write('startup task: could not repair "' + startupTask.TASK_NAME + '": ' + res.failed);
+  }
+  if (res.problems.includes('disabled')) {
+    startupLog.write('startup task: "' + startupTask.TASK_NAME + '" is switched OFF.'
+      + ' Xenon will not start at the next sign-in until it is switched back on'
+      + ' (Task Manager > Startup apps). Xenon never switches it off itself.');
+  }
+  return _startupTaskState;
+}
+
 const HELPER_CHECK_MARKER = path.join(DATA_DIR, 'helper-checked.txt');
 const HELPER_REFRESH_MAX_TRIES = 6;             // in-session retries before falling back to next boot
 const HELPER_REFRESH_RETRY_MS = 3 * 60 * 1000;  // 3 min apart → ~15 min of coverage after the first try
@@ -20219,6 +20265,11 @@ function _startListen(host) {
       // when off; delayed so they never compete with boot).
       setTimeout(() => {
         try { refreshHotkeyListener(); } catch { /* ignore */ }
+        // Whether this install still starts itself at sign-in. Delayed with the
+        // rest of the non-urgent boot work: nothing on screen depends on it, and
+        // the answer matters for tomorrow rather than for this second.
+        refreshStartupTaskState().catch(() => {});
+        setInterval(() => { refreshStartupTaskState().catch(() => {}); }, STARTUP_TASK_CHECK_MS).unref();
         // Full Disk Access is asked BEFORE the index is first pointed at
         // anything, because the entire point of the gate is that the first walk
         // never touches a protected folder — asking afterwards would raise the
