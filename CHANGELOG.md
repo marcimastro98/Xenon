@@ -4,6 +4,17 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### ✨ Added
+- **Xenon asks for support once, and only once.** There has been a donate button since the beginning — in the app, on the site, on GitHub, on Discord — and it has never asked for anything, so only people who went looking ever found it. Now it asks, one time in the life of an installation, and then never again.
+
+  It waits until the question is a fair one: thirty days after your first run **and** ten separate days of actually opening the dashboard. Someone who has come back on ten different days over a month has decided Xenon is useful; anyone earlier is still deciding, and asking them is asking a stranger for money. Days are counted when a dashboard opens, not when the engine starts, so a PC that runs it at logon and never gets looked at earns no credit.
+
+  It never appears for someone who already supports the project, never over a voice session, the lock screen, a game or an Ambient scene — it simply does not come up that day — and it makes no sound and blocks nothing. It is the same small card as the Discord invite, in the same corner, dismissed the same way. And because "once" has to mean once, the answer is kept on your PC rather than in the browser: clearing your browsing data will not bring it back.
+
+  The card says what is true — one person writes this, in their spare time, with no ads, no investors and no paid version, and that is not changing — and then what supporting gets you: the exclusive themes and widgets, a role on Discord, your name on the site. **A few euros a month is the offer**, with a one-off beside it; until now the only framing was "buy me a coffee", which is a one-off by its nature.
+
+  There is also a third, quieter button: *I already support Xenon*. Xenon can only see supporters who have redeemed their pass in the app, so somebody who gave and never claimed their perks would otherwise be asked for money they already send. That button silences the card for good and takes them to where they can finally claim what they paid for.
+
 ### 🐛 Fixed
 - **The Deck action list opens when you ask it to, and closes when you pick something.** Reported on macOS: pressing "+ Add action" in the key editor made the list of actions appear on its own, and choosing an option from it left the list open instead of collapsing.
 

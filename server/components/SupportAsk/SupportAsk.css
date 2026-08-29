@@ -1,0 +1,64 @@
+/* The one-time supporter ask. Deliberately the SAME object as the Discord invite
+   card — same corner, same size, same motion, same dismissal — because it is the
+   same kind of thing and a second visual language would make it read as an ad.
+   js/support-card.js gives it both classes; only what genuinely differs is here:
+   the accent (a heart, not the Discord mark), a second line for the perks, and a
+   third quieter action underneath. */
+
+.support-ask {
+  /* The Discord card's outer glow is Discord-blurple. This one takes the user's
+     own accent, so the ask arrives in the colours they chose rather than in a
+     brand's. */
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5),
+              0 0 0 1px rgba(var(--accent-rgb, 43, 108, 255), 0.16);
+}
+:root[data-appearance="light"] .support-ask {
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.18),
+              0 0 0 1px rgba(var(--accent-rgb, 43, 108, 255), 0.16);
+}
+
+.support-ask .support-ask-logo { background: var(--accent, #5865F2); }
+.support-ask .support-ask-logo svg { width: 19px; height: 19px; }
+
+/* The perks line is a fact, not a pitch: smaller, dimmer, and separated from the
+   paragraph above by a hairline so it reads as "here is what that gets you"
+   rather than as more prose. */
+.support-ask-perks {
+  margin: 0 0 14px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--muted-text, #9aa0aa);
+}
+:root[data-appearance="light"] .support-ask-perks { border-top-color: rgba(0, 0, 0, 0.07); }
+
+/* Monthly is the ask, so it gets the filled button; the one-off sits beside it
+   as a link-weight action. Anything else would be pretending the two are equal. */
+.support-ask .support-ask-monthly { background: var(--accent, #5865F2); }
+.support-ask .support-ask-monthly svg { width: 15px; height: 15px; }
+
+/* "I already support Xenon" — full width under the pair, quiet on purpose. It is
+   not a call to action, it is a way out for someone this card should never have
+   reached. */
+.support-ask-already {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 7px 0 0;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  background: none;
+  color: var(--muted-text, #9aa0aa);
+  font: inherit;
+  font-size: 11.5px;
+  text-align: center;
+  cursor: pointer;
+  transition: color .15s ease;
+}
+:root[data-appearance="light"] .support-ask-already { border-top-color: rgba(0, 0, 0, 0.07); }
+.support-ask-already:hover { color: var(--text, #e7e9ee); }
+
+@media (prefers-reduced-motion: reduce) {
+  .support-ask { transition: opacity .2s ease; transform: none; }
+}
