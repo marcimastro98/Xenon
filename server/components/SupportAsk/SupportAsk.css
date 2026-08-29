@@ -1,64 +1,172 @@
-/* The one-time supporter ask. Deliberately the SAME object as the Discord invite
-   card — same corner, same size, same motion, same dismissal — because it is the
-   same kind of thing and a second visual language would make it read as an ad.
-   js/support-card.js gives it both classes; only what genuinely differs is here:
-   the accent (a heart, not the Discord mark), a second line for the perks, and a
-   third quieter action underneath. */
+/* The one-time supporter ask.
+ *
+ * It shares the Discord invite's shell — same corner, same size, same motion, so
+ * it is recognisably the same kind of object and not an advert that wandered in.
+ * Everything below is what has to be different, and the reason it is different:
+ * this card has to be worth reading, and the first version was a grey wall of
+ * text with a coloured square glued to the corner.
+ *
+ * The accent is the user's OWN, so nothing here may assume a hue. Every colour is
+ * built from --accent-rgb at an opacity, which behaves on a lime green and on a
+ * deep blue alike; the one place the raw accent appears at full strength is the
+ * button that is the actual ask.
+ */
 
 .support-ask {
-  /* The Discord card's outer glow is Discord-blurple. This one takes the user's
-     own accent, so the ask arrives in the colours they chose rather than in a
-     brand's. */
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5),
-              0 0 0 1px rgba(var(--accent-rgb, 43, 108, 255), 0.16);
+  /* A little more room than the invite card: this one has a list in it, and the
+     cramped version was the first thing that read as junk mail. */
+  width: min(372px, calc(100vw - 36px));
+  padding: 0;                       /* sections own their padding — see below */
+  overflow: hidden;                 /* so the tinted header can reach the corners */
+  border-color: rgba(var(--accent-rgb, 43, 108, 255), 0.22);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.55),
+              0 0 0 1px rgba(var(--accent-rgb, 43, 108, 255), 0.10);
 }
 :root[data-appearance="light"] .support-ask {
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.18),
-              0 0 0 1px rgba(var(--accent-rgb, 43, 108, 255), 0.16);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.16),
+              0 0 0 1px rgba(var(--accent-rgb, 43, 108, 255), 0.10);
 }
 
-.support-ask .support-ask-logo { background: var(--accent, #5865F2); }
-.support-ask .support-ask-logo svg { width: 19px; height: 19px; }
+/* ── Header ───────────────────────────────────────────────────────────────
+   A tinted band rather than a solid block of accent. The old logo tile was a
+   saturated square shouting next to a title, which is what made the whole card
+   read as an advert; a wash the title sits INSIDE reads as a heading. */
+.support-ask .discord-invite-head {
+  padding: 15px 16px 14px;
+  background:
+    radial-gradient(120% 180% at 0% 0%, rgba(var(--accent-rgb, 43, 108, 255), 0.20), transparent 62%),
+    linear-gradient(180deg, rgba(var(--accent-rgb, 43, 108, 255), 0.10), transparent);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+:root[data-appearance="light"] .support-ask .discord-invite-head {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
 
-/* The perks line is a fact, not a pitch: smaller, dimmer, and separated from the
-   paragraph above by a hairline so it reads as "here is what that gets you"
-   rather than as more prose. */
+.support-ask .support-ask-logo {
+  width: 30px; height: 30px;
+  border-radius: 9px;
+  /* The heart is in the accent; the tile behind it only holds it. A filled tile
+     at full accent is a traffic light, and this is not an alert. */
+  background: rgba(var(--accent-rgb, 43, 108, 255), 0.16);
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb, 43, 108, 255), 0.28);
+}
+.support-ask .support-ask-logo svg { width: 16px; height: 16px; color: var(--accent, #5865F2); }
+
+.support-ask .discord-invite-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.012em;
+  line-height: 1.25;
+}
+
+/* ── Body ─────────────────────────────────────────────────────────────── */
+.support-ask .discord-invite-text {
+  margin: 0;
+  padding: 14px 16px 12px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text, #e7e9ee);      /* the pitch is the message, not a footnote */
+  opacity: 0.86;
+}
+
+/* The three things you get. Concrete objects with a glyph each: a list is read,
+   a sentence listing the same three is skimmed past. */
 .support-ask-perks {
-  margin: 0 0 14px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-  font-size: 11.5px;
-  line-height: 1.5;
-  color: var(--muted-text, #9aa0aa);
+  margin: 0;
+  padding: 0 16px 14px;
+  list-style: none;
+  display: grid;
+  gap: 8px;
 }
-:root[data-appearance="light"] .support-ask-perks { border-top-color: rgba(0, 0, 0, 0.07); }
+.support-ask-perks li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text, #e7e9ee);
+  opacity: 0.92;
+}
+.support-perk-icon {
+  flex: 0 0 auto;
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 7px;
+  background: rgba(var(--accent-rgb, 43, 108, 255), 0.12);
+  color: var(--accent, #5865F2);
+}
+.support-perk-icon svg { width: 13px; height: 13px; }
 
-/* Monthly is the ask, so it gets the filled button; the one-off sits beside it
-   as a link-weight action. Anything else would be pretending the two are equal. */
-.support-ask .support-ask-monthly { background: var(--accent, #5865F2); }
-.support-ask .support-ask-monthly svg { width: 15px; height: 15px; }
+/* ── Actions ──────────────────────────────────────────────────────────── */
+.support-ask .support-ask-actions {
+  padding: 0 16px 12px;
+  gap: 10px;
+}
 
-/* "I already support Xenon" — full width under the pair, quiet on purpose. It is
-   not a call to action, it is a way out for someone this card should never have
-   reached. */
+/* Monthly is the ask, so it is the only filled thing on the card. Full width of
+   what is left after the secondary action, so it reads as the path. */
+.support-ask .support-ask-monthly {
+  flex: 1 1 auto;
+  justify-content: center;
+  padding: 11px 14px;
+  border-radius: 11px;
+  background: var(--accent, #5865F2);
+  color: var(--accent-text, #fff);
+  font-weight: 650;
+  font-size: 12.5px;
+  box-shadow: 0 8px 22px rgba(var(--accent-rgb, 43, 108, 255), 0.30);
+  transition: transform .14s ease, box-shadow .14s ease, filter .14s ease;
+}
+.support-ask .support-ask-monthly:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 12px 28px rgba(var(--accent-rgb, 43, 108, 255), 0.38);
+}
+.support-ask .support-ask-monthly svg { width: 14px; height: 14px; }
+
+/* The one-off is a real option and not a filled button: two equal buttons is the
+   shape of a card that has not decided what it is asking for. */
+.support-ask .support-ask-once {
+  flex: 0 0 auto;
+  padding: 11px 12px;
+  border-radius: 11px;
+  background: none;
+  font-size: 12px;
+  color: var(--muted-text, #9aa0aa);
+  transition: color .15s ease, background .15s ease;
+}
+.support-ask .support-ask-once:hover {
+  color: var(--text, #e7e9ee);
+  background: rgba(255, 255, 255, 0.05);
+}
+:root[data-appearance="light"] .support-ask .support-ask-once:hover { background: rgba(0, 0, 0, 0.045); }
+
+/* "I already support Xenon" — the way out for someone this card should never
+   have reached. On its own strip so it cannot be mistaken for a third ask. */
 .support-ask-already {
   display: block;
   width: 100%;
-  margin-top: 12px;
-  padding: 7px 0 0;
+  margin: 0;
+  padding: 10px 16px 12px;
   border: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-  background: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
   color: var(--muted-text, #9aa0aa);
   font: inherit;
   font-size: 11.5px;
   text-align: center;
   cursor: pointer;
-  transition: color .15s ease;
+  transition: color .15s ease, background .15s ease;
 }
-:root[data-appearance="light"] .support-ask-already { border-top-color: rgba(0, 0, 0, 0.07); }
-.support-ask-already:hover { color: var(--text, #e7e9ee); }
+:root[data-appearance="light"] .support-ask-already {
+  border-top-color: rgba(0, 0, 0, 0.06);
+  background: rgba(0, 0, 0, 0.02);
+}
+.support-ask-already:hover { color: var(--text, #e7e9ee); background: rgba(var(--accent-rgb, 43, 108, 255), 0.08); }
+
+.support-ask .discord-invite-close { margin-right: -4px; }
 
 @media (prefers-reduced-motion: reduce) {
   .support-ask { transition: opacity .2s ease; transform: none; }
+  .support-ask .support-ask-monthly:hover { transform: none; }
 }
