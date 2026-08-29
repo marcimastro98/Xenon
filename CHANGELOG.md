@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **Updating no longer fails on the machines where installing was fixed in v4.11.6.** Reported with a screenshot of "dependency installation failed", and it turned out to be a bug we had already found once and only half-fixed.
+
+  One of the packages Xenon depends on ships a guard that deliberately fails installation unless a particular tool is doing the installing. On most PCs a helper quietly satisfies that guard and nobody notices. On a PC missing one specific folder — it only exists once you have installed something globally, and cleanup utilities delete it — the helper itself cannot start, the guard fails, and the whole install is aborted half-written. That is the broken install v4.11.6 fixed, by telling the installer to skip those scripts entirely.
+
+  The updater was never told the same thing. So on exactly those PCs a fresh install worked perfectly while every in-app update walked into the same wall, failed at that step, and rolled back cleanly — which made a bug we shipped look like something wrong with one person's computer. Both now install the same way, and the updater also runs the one build step that skipping scripts skips.
+
 - **A failed update now tells you what actually went wrong, in the words of the thing that failed.** Reported with a screenshot of the whole message we had: *"The update could not be applied and your previous version was restored (dependency installation failed)."* True, and useless. That same sentence appears whether the PC is offline, sitting behind a company proxy, out of disk space, or has an antivirus holding a file open — four situations with four different fixes, and no way to tell which one you are in.
 
   Part of an update is fetching the pieces the new version needs, and that job is done by npm, which prints exactly what went wrong. It printed it to a window nobody sees: the step was run with its output going nowhere at all. So we had the name of the stage that failed and threw away the reason it failed, on the one screen where the reason was the entire question.

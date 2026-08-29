@@ -255,13 +255,29 @@ $npmCmd = (Get-Command npm.cmd -ErrorAction SilentlyContinue).Source
 # So capture it. The full transcript goes beside the update log, its tail goes
 # into that log, and the first npm ERR! line becomes a one-line detail the
 # dashboard can show - which is the line that turns a screenshot into a fix.
+# --ignore-scripts, for the same reason install.ps1 carries it since v4.11.6:
+# msedge-tts declares `preinstall: npx only-allow pnpm`, a guard whose whole
+# purpose is to fail the install unless the caller is pnpm. On most machines npx
+# quietly satisfies it; where %APPDATA%\npm does not exist (that folder appears
+# only once something is installed globally, and cleanup tools remove it) npx
+# itself dies with ENOENT, the preinstall fails, and npm aborts the whole tree.
+#
+# v4.11.6 fixed that in the installer and NOT here, so a fresh install worked
+# while every self-update on such a machine failed at this exact step -- and
+# rolled back cleanly, which made it look like a problem with that one PC. That
+# is the "dependency installation failed" reported on Discord.
+#
+# Nothing needed is lost by skipping scripts (ws has none; koffi ships its native
+# binary as a per-platform package; msedge-tts has only the guard) EXCEPT our own
+# postinstall, which is why Restore-SharedLinks below is not optional -- the same
+# pairing install.ps1 makes between --ignore-scripts and Restore-SharedFolderLinks.
 $npmOut = Join-Path $updDir 'npm-install.log'
 $npmErr = Join-Path $updDir 'npm-install.err.log'
 $script:npmDetail = ''
 function Invoke-Npm {
   # Two separate files: Start-Process refuses to redirect both streams to one.
   $proc = Start-Process -FilePath $env:ComSpec `
-    -ArgumentList '/c', "`"$npmCmd`"", 'install', '--no-audit', '--no-fund' `
+    -ArgumentList '/c', "`"$npmCmd`"", 'install', '--ignore-scripts', '--no-audit', '--no-fund' `
     -WorkingDirectory $root -Wait -PassThru -NoNewWindow `
     -RedirectStandardOutput $npmOut -RedirectStandardError $npmErr
   if ($proc.ExitCode -ne 0) {
@@ -284,6 +300,22 @@ function Invoke-Npm {
     }
   }
   return $proc.ExitCode
+}
+
+# The postinstall --ignore-scripts skips: it builds server\shared, which the
+# dashboard loads from. Best effort and never fatal - server.js re-creates the
+# link at boot if it is missing (ensureSharedLink) and the client keeps inline
+# fallbacks, so a failure here costs nothing that the next start does not repair.
+function Restore-SharedLinks {
+  $linkScript = Join-Path $root 'tools\link-shared.mjs'
+  if (-not (Test-Path $linkScript)) { Log 'no link-shared.mjs in this build; nothing to link'; return }
+  $nodeExe = (Get-Command node.exe -ErrorAction SilentlyContinue).Source
+  if (-not $nodeExe) { Log 'node.exe not on PATH; shared links left to the server boot'; return }
+  try {
+    $p = Start-Process -FilePath $nodeExe -ArgumentList "`"$linkScript`"" `
+      -WorkingDirectory $root -Wait -PassThru -NoNewWindow
+    Log "shared links restored (exit $($p.ExitCode))"
+  } catch { Log "shared link step failed: $($_.Exception.Message)" }
 }
 
 $script:depsTouched = $false   # npm ran (in either mode) - node_modules may be mixed
@@ -369,6 +401,7 @@ try {
     $code = Invoke-Npm
     if ($code -ne 0) { throw "npm install failed ($code)" }
     Log 'npm install done'
+    Restore-SharedLinks
   } else {
     Log 'npm.cmd not found; keeping existing node_modules'
   }
