@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **Deck keys that outlived their tile can be brought back, instead of only thrown away.** Following the reset above: when a dashboard is replaced, the Deck tiles on it go too — and every key programmed on them becomes unreachable while still sitting safely on disk. The reporter went looking and found a profile list holding one default and several same-named copies, none of them the one he had built.
+
+  Three rules had grown up around this, each sensible on its own. A leftover deck configuration is only deleted automatically when it is empty, deliberately, because keys are data and data is not thrown away quietly. Leftovers are hidden from the profile menu, so a deck you removed does not haunt the list of the ones you kept. And the profile menu offered exactly one thing to do about them: a button that deletes them.
+
+  Together those made a trap. The keys were kept, hidden, and the only action available was the one that destroys them. The profile menu now lists them — under "From a Deck no longer on your dashboard" — and tapping one copies it into the deck you are looking at, which is the same one-tap move that already existed for a profile on another deck. Each row shows how many keys it holds, because after a reset the list routinely holds two profiles with the same name, one empty and one with the work in it, and the number is the only thing that tells them apart. It is not hidden behind edit mode: recovering something you lost is not editing a layout.
+
+  The delete button is still there, and now says what it costs — how many programmed keys go with it, and that they do not come back. When there is nothing to lose it stays as calm as it was.
+
 - **Xenon now notices when something stops it starting with Windows — and repairs what it can.** Reported by someone whose dashboard kept going quiet: *"something keeps disabling the requirements in task scheduler."* He had spent days reporting features that had stopped working. They had not: the engine behind them was simply not running, and nothing anywhere said so.
 
   Xenon starts through an entry in Windows' own Task Scheduler, and the installer sets three things on it on purpose. Start while on battery, because otherwise unplugging a laptop closes the dashboard and looks like a crash. Do not stop when the charger comes out, for the same reason. And no time limit, because Windows otherwise ends the task after three days — a program meant to run all day, stopped by a stopwatch. Those three were checked once, at install, and never again.

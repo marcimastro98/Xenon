@@ -394,6 +394,48 @@
     }
     return out;
   }
+  // The profiles sitting in configs whose deck tile is gone — and the reason this
+  // list exists at all.
+  //
+  // Three rules had grown up around orphaned configs, and together they made a
+  // trap. pruneOrphanEmptyConfigs deletes only EMPTY orphans, on the stated
+  // principle that "data is surfaced, not silently deleted". isLiveInstance then
+  // hides every orphan's profiles from the profile menu and the share picker, so
+  // a removed deck cannot leave ghosts behind. And the profile menu offered
+  // exactly one thing to do about them: a 🗑 button that throws them away.
+  //
+  // So keys the app had promised to keep were kept, hidden, and offered only for
+  // deletion. Reported after a dashboard was replaced by the factory default: the
+  // deck tiles went with it, and every key on them became unreachable while still
+  // sitting in deck.json. This is the half that was missing — the same one-tap
+  // copy that already exists for a profile on another deck, pointed at the decks
+  // that are no longer there.
+  //
+  // Deliberately NOT deduped by name against this deck, unlike listOtherDeckProfiles:
+  // the reason someone is looking here is that a profile with the name they
+  // remember is present but empty, and hiding the real one behind the empty
+  // namesake is the exact failure being fixed. The key count is carried so the
+  // rows can say which is which.
+  function listOrphanProfiles() {
+    const M = window.DeckModel;
+    const all = readStore();
+    const out = [];
+    for (const id of listOrphanInstances()) {
+      let cfg; try { cfg = M.normalizeDeckConfig(all[id]); } catch { continue; }
+      for (const prof of (cfg.profiles || [])) {
+        const keys = countProfileKeys(prof);
+        if (keys > 0) out.push({ instanceId: id, profileId: prof.id, name: prof.name, keys });
+      }
+    }
+    return out;
+  }
+  // How many keys the 🗑 button is about to destroy. The confirmation used to
+  // describe what it removed as leftovers, which is true of the config and false
+  // of what is in it.
+  function orphanKeyCount() {
+    return listOrphanProfiles().reduce((n, p) => n + p.keys, 0);
+  }
+
   // Copy profile `profileId` from `sourceInstanceId` into `targetInstanceId` as a new
   // profile (fresh id, reshaped to the target grid) and make it active. A COPY — the
   // decks stay independent, exactly like inserting a preset.
@@ -2713,6 +2755,35 @@
       menu.appendChild(plist);
     }
 
+    // Keys from decks that are no longer on the dashboard. Tap one to copy it in,
+    // exactly like a profile from another deck — the only difference is that the
+    // deck it came from is gone, which is precisely why it is worth offering.
+    // Outside edit mode too: recovering work is not editing the layout, and the
+    // person looking for a profile they lost should not have to guess that the
+    // pencil icon is what reveals it.
+    const lost = listOrphanProfiles();
+    if (lost.length) {
+      menu.appendChild(el('div', 'deck-pmenu-head', tr('deck_profiles_lost', 'Da un Deck non più sulla dashboard')));
+      const llist = el('div', 'deck-pmenu-list');
+      lost.forEach((op) => {
+        const row = el('div', 'deck-pmenu-row');
+        const pick = el('button', 'deck-pmenu-pick'); pick.type = 'button';
+        pick.appendChild(el('span', 'deck-pmenu-name', op.name));
+        // The count is what tells two same-named profiles apart, which is the
+        // state this list is most often reached in.
+        pick.appendChild(el('span', 'deck-pmenu-count', String(op.keys)));
+        pick.addEventListener('click', () => {
+          copyDeckProfileInto(instanceId, op.instanceId, op.profileId);
+          state.path = []; state.pageIndex = 0;
+          closeProfileMenu(state, instanceId);
+          render(tile, instanceId);
+        });
+        row.appendChild(pick);
+        llist.appendChild(row);
+      });
+      menu.appendChild(llist);
+    }
+
     // Clean up leftovers from removed deck tiles (configs that outlived their tile).
     // Shown only in edit mode and only when such orphans actually exist, so a tidy
     // dashboard never sees it. The current, live decks are never touched.
@@ -2724,7 +2795,14 @@
         clean.title = tr('deck_purge_orphans_hint', 'Elimina i profili rimasti da Deck rimossi dalla dashboard');
         clean.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (typeof confirm === 'function' && !confirm(tr('deck_purge_orphans_confirm', 'Rimuovere i profili rimasti da Deck non più presenti sulla dashboard? I Deck attuali non vengono toccati.'))) return;
+          // Say how many keys go with them. "Leftovers" is true of the configs and
+          // false of their contents, and this button is the only way those contents
+          // can be lost for good.
+          const keys = orphanKeyCount();
+          const msg = keys
+            ? tr('deck_purge_orphans_confirm_keys', 'Rimuovere i profili rimasti da Deck non più presenti? Perderai #n tasti già programmati, e non si possono recuperare. I Deck attuali non vengono toccati.').replace('#n', String(keys))
+            : tr('deck_purge_orphans_confirm', 'Rimuovere i profili rimasti da Deck non più presenti sulla dashboard? I Deck attuali non vengono toccati.');
+          if (typeof confirm === 'function' && !confirm(msg)) return;
           purgeOrphanInstances();
           render(tile, instanceId);
         });
