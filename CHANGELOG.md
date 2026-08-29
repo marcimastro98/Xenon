@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **A fix to the updater now helps the update that carries it, instead of the one after.** This is the reason the entry above ends with "reinstalling once will fix it", and it should not have needed to.
+
+  An update is applied by the copy of the updater already on your PC — it has to be, because the new one arrives in the middle of the job. So a repair to that updater has always taken effect one update late: the people it was written for could not receive it by updating, because the step it repairs is the step that fails for them. That is exactly what happened with the dependency failure above.
+
+  There is one moment where the work can safely change hands: after the new files are in place, which is when the new updater is sitting on disk, and before anything that depends on what the first half did. At that point, if the update brought a *different* updater, it is handed the rest of the job.
+
+  It is built to be boring. If the updater is unchanged — almost every update — it is one comparison and nothing else happens. Exactly one process is ever in charge: the first waits for the second rather than letting go, so there is never a moment with two of them running, or none. The second announces itself before it does anything at all, so "it took over and something went wrong" can never be confused with "it never started", and if it truly never starts the first one simply carries on as it always did. And it runs with the permissions already granted, so no second Windows prompt can appear.
+
 - **A Deck key now works with an app or folder whose name has spaces in it.** Reported on a Mac: an "Open app" key pointing at an application with spaces in its name did nothing, and renaming the application to remove them made the same key work.
 
   Launching was never the problem. The trouble is what ends up in the field. The ordinary way to get a path on a Mac is to drag the file into Terminal, and what that writes is `/Applications/Epic\ Games\ Launcher.app` — every space escaped, because it is meant for a shell. Some copy tools wrap the whole thing in quotes instead. Either way the text names a file that does not exist, so the key fails forever while the field looks exactly right, and the only workaround is a name with no spaces in it.
