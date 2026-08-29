@@ -14180,6 +14180,11 @@ const handleRequest = async (req, res) => {
         lastResult = {
           ok: m.ok,
           reason: String(m.reason || ''),
+          // The failing tool's OWN sentence, when the applier captured one (npm's
+          // first ERR! line). The reason code names the stage and stops there,
+          // which is the same text for four failures with four different fixes.
+          // Free text from a tool, so it is bounded here and rendered as text.
+          detail: String(m.detail || '').slice(0, 200),
           rolledBack: m.rolledBack !== false,
           rollbackVerified: m.rollbackVerified !== false,
           from: String(m.from || ''),

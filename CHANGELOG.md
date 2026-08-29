@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **A failed update now tells you what actually went wrong, in the words of the thing that failed.** Reported with a screenshot of the whole message we had: *"The update could not be applied and your previous version was restored (dependency installation failed)."* True, and useless. That same sentence appears whether the PC is offline, sitting behind a company proxy, out of disk space, or has an antivirus holding a file open — four situations with four different fixes, and no way to tell which one you are in.
+
+  Part of an update is fetching the pieces the new version needs, and that job is done by npm, which prints exactly what went wrong. It printed it to a window nobody sees: the step was run with its output going nowhere at all. So we had the name of the stage that failed and threw away the reason it failed, on the one screen where the reason was the entire question.
+
+  It is kept now. The full transcript is saved next to the update log, its last lines go into that log, and npm's own one-line summary is shown right after the reason on the failure dialog — untranslated, because those are a tool's own words and they are what you paste to someone who can help. If the recovery afterwards hits its own trouble, the message still describes the failure you are looking at rather than the recovery.
+
 - **Deck keys that outlived their tile can be brought back, instead of only thrown away.** Following the reset above: when a dashboard is replaced, the Deck tiles on it go too — and every key programmed on them becomes unreachable while still sitting safely on disk. The reporter went looking and found a profile list holding one default and several same-named copies, none of them the one he had built.
 
   Three rules had grown up around this, each sensible on its own. A leftover deck configuration is only deleted automatically when it is empty, deliberately, because keys are data and data is not thrown away quietly. Leftovers are hidden from the profile menu, so a deck you removed does not haunt the list of the ones you kept. And the profile menu offered exactly one thing to do about them: a button that deletes them.
