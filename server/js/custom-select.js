@@ -40,6 +40,10 @@ function _csArmGlobal() {
 function initCustomSelect(selectEl) {
   if (!selectEl || selectEl.dataset.csInit) return;
   selectEl.dataset.csInit = '1';
+  // When this control came into existence. Compared against the timestamp of a
+  // click to tell a click aimed AT it from a click that merely landed on it —
+  // see the trigger handler for the gesture that produces the second kind.
+  const bornAt = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
   selectEl.hidden = true;
 
   // ── Build wrapper ──────────────────────────────────────────
@@ -255,6 +259,21 @@ function initCustomSelect(selectEl) {
   trigger.addEventListener('click', e => {
     e.stopPropagation();
     e.preventDefault();   // if the <select> sits in a <label>, don't let the click also activate the hidden native control
+    // One press can produce TWO clicks when the first one rebuilds the DOM
+    // underneath the pointer. Measured in the Deck key editor, which is the
+    // place that does exactly that: pressing "+ Add action" rebuilds the whole
+    // action list inside its own click handler, and the browser then fires a
+    // SECOND trusted click — detail 0, so not a pointer gesture, and carrying
+    // the original gesture's timestamp — at whatever now sits under the pointer.
+    // What now sits there is the dropdown this very rebuild created, so the list
+    // opened by itself; and choosing an option (which rebuilds the list the same
+    // way) re-opened it, which is what "the list does not collapse" looked like.
+    // Reported on Discord and reproduced in a browser, in both engines.
+    //
+    // The discriminator needs no threshold and no guesswork: a click whose
+    // gesture happened BEFORE this control existed cannot have been aimed at it.
+    // Only for trusted events, so a scripted .click() is never refused.
+    if (e.isTrusted && e.timeStamp && e.timeStamp < bornAt) return;
     wrap.classList.contains('cs-open') ? close() : open();
   });
 

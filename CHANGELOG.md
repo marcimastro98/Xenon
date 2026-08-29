@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **The Deck action list opens when you ask it to, and closes when you pick something.** Reported on macOS: pressing "+ Add action" in the key editor made the list of actions appear on its own, and choosing an option from it left the list open instead of collapsing.
+
+  One press was producing two clicks. Pressing "+ Add action" rebuilds the whole list of actions from scratch, right there inside the handler for that press — and when the thing under your finger is replaced mid-click, the browser fires a second click at whatever has taken its place. What had taken its place was the dropdown that rebuild had just created, so it opened itself. Picking an option rebuilds the list the same way, so the second click re-opened it the instant it closed: from the outside, a list that will not collapse.
+
+  A control now ignores a click belonging to a gesture that happened before it existed, which is exactly what those stray clicks are — they carry the timestamp of the press that created the control. No delays and no guessed thresholds: a click from before something existed was not aimed at it. Deliberate clicks, keyboard use, and anything driving the control from code all behave exactly as before.
+
+  Reproduced against the real dashboard in a browser before it was changed, and verified there afterwards, in both engines.
+
 - **A fix to the updater now helps the update that carries it, instead of the one after.** This is the reason the entry above ends with "reinstalling once will fix it", and it should not have needed to.
 
   An update is applied by the copy of the updater already on your PC — it has to be, because the new one arrives in the middle of the job. So a repair to that updater has always taken effect one update late: the people it was written for could not receive it by updating, because the step it repairs is the step that fails for them. That is exactly what happened with the dependency failure above.
