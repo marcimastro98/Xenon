@@ -979,6 +979,40 @@
   // back after the page was closed (the applier's persisted result), or a shell
   // update that errored right before the reload (flag set by runShellPhase).
   // Shown once, then acknowledged.
+  // ── Will Xenon still be here after the next sign-in? ───────────────────────
+  // The engine checks its own per-logon startup task and puts back the three
+  // conditions the installer owns (see server/startup-task.js). Two things are
+  // worth a word here, and nothing else is: a repair, because the app changed
+  // something on this PC without being asked; and a task that is switched OFF,
+  // because that one is the user's to turn back on and until they do, Xenon
+  // will simply not be there tomorrow — with nothing on screen to say why. That
+  // silence is what this exists for: it was reported as days of features going
+  // wrong, by someone whose engine kept being stopped.
+  //
+  // Once per load, and never on a healthy install.
+  async function surfaceStartupTaskNotice() {
+    let st = null;
+    try { st = await fetch('/api/startup-task').then((r) => r.json()); } catch { return; }
+    if (!st || !st.ok || !st.found || !window.XenonToast) return;
+    const problems = Array.isArray(st.problems) ? st.problems : [];
+    const repaired = Array.isArray(st.repaired) ? st.repaired : [];
+    if (problems.includes('disabled')) {
+      window.XenonToast.show({
+        type: 'warning',
+        duration: 0,   // sticky: this is the one notice that costs the user their next session
+        title: tr('startup_task_off_title', 'Xenon will not start at your next sign-in'),
+        message: tr('startup_task_off_msg', 'Its startup entry has been switched off. Xenon never does that itself — Windows and cleanup or antivirus tools can. Turn it back on in Task Manager, under Startup apps, where it is listed as Xenon.'),
+      });
+    } else if (repaired.length) {
+      window.XenonToast.show({
+        type: 'info',
+        duration: 10000,
+        title: tr('startup_task_fixed_title', 'Xenon repaired its own startup entry'),
+        message: tr('startup_task_fixed_msg', 'Something had changed the conditions it starts under — it would have stopped on battery, or been stopped after a few days. Those are back as they were installed.'),
+      });
+    }
+  }
+
   async function surfacePendingUpdateNotices(info) {
     try {
       if (localStorage.getItem(SHELL_ERR_KEY)) {
@@ -1048,6 +1082,7 @@
     });
     refreshIndicators(info);
     surfacePendingUpdateNotices(info); // fire-and-forget; only ever shows toasts
+    surfaceStartupTaskNotice();        // same: silent on a healthy install
     // Re-read the dismissed flag HERE, after the awaits: on a first run
     // settings.js marks this release as seen while those fetches are still in
     // flight, and reading it before them would show the modal it just suppressed.

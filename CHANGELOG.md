@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **Xenon now notices when something stops it starting with Windows — and repairs what it can.** Reported by someone whose dashboard kept going quiet: *"something keeps disabling the requirements in task scheduler."* He had spent days reporting features that had stopped working. They had not: the engine behind them was simply not running, and nothing anywhere said so.
+
+  Xenon starts through an entry in Windows' own Task Scheduler, and the installer sets three things on it on purpose. Start while on battery, because otherwise unplugging a laptop closes the dashboard and looks like a crash. Do not stop when the charger comes out, for the same reason. And no time limit, because Windows otherwise ends the task after three days — a program meant to run all day, stopped by a stopwatch. Those three were checked once, at install, and never again.
+
+  The engine now checks its own startup entry shortly after it starts and every few hours after that. Those three conditions are ours, so if something has changed them they are put back, and you are told it happened — the app changed a setting on your PC and should say so. Whether the entry is switched **on** is not ours: Windows offers you that switch in Task Manager, and flipping it back behind you would be overriding a real choice. So that one is reported instead, and it stays on screen until you dismiss it, because it is the one that costs you the whole next session: it says Xenon will not start when you next sign in, that Xenon never switches itself off, and exactly where to turn it back on.
+
+  A machine with no such entry — a developer checkout, a portable run, a Mac — is left entirely alone and says nothing.
+
 - **A settings save can no longer replace your whole dashboard with the factory one.** Reported on a Mac after an update: the layout back to the factory default, the Deck tile gone with it — and the theme unchanged, the connected Google Calendar still there, every installed widget still installed, and the settings file itself sitting where it belongs. One thing in that file had reverted while everything beside it survived untouched.
 
   Xenon stamps the saved layout with a format number, so that a build which changes the layout format can replace an incompatible one instead of drawing it wrong. That is a one-time step on an upgrade — but the check had been written into the routine that runs on *every* save, and it read the number off the arriving save rather than off the file on disk. Any save that did not carry it therefore read as "format 0": the entire dashboard was replaced by the default, every other setting in the same save was kept, and the file was then re-stamped with the current number, so nothing was left to find afterwards.
