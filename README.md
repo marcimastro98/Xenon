@@ -457,4 +457,6 @@ This project was built with AI assistance throughout — architecture, code, deb
 
 Xenon is **free for personal, non-commercial use**, and you're welcome to read, run, and modify it for yourself. What is **not** allowed without the author's written permission: selling or monetizing it, integrating it into a commercial product, redistributing or repackaging it as your own work, or using the **Xenon** name and branding for another product. Any permitted fork or redistribution must keep attribution to the original author. See **[LICENSE](LICENSE)** for the full terms.
 
+**Want to use it commercially?** Ask — the answer is often yes, with conditions. Email [marcellomastroeni4@gmail.com](mailto:marcellomastroeni4@gmail.com) or bring it up on the [Discord](https://discord.gg/MBVrw9kZyg). "Not allowed by default" is not the same as "never", and there is no way to find that out if nobody says it.
+
 Includes [SoundVolumeView](https://www.nirsoft.net/utils/sound_volume_view.html) © Nir Sofer (freeware, redistributed unmodified).
