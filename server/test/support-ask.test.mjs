@@ -156,6 +156,38 @@ test('monthly is the offer, one-off is the alternative', () => {
     'and the one-off is not');
 });
 
+// ── The heart sits in the middle of the thing holding it ───────────────────
+// Two separate ways to be a pixel off, both of which were visible on the first
+// build and neither of which is obvious from reading the CSS.
+test('the heart is centred in its disc and in its tile', () => {
+  const css = readFileSync(new URL('../components/SupportAsk/SupportAsk.css', import.meta.url), 'utf8');
+
+  // 1. The glyph's own ink is not centred in a 0 0 24 24 box: it runs from
+  //    y 3.49 to y 21, so its middle is 12.246. The viewBox is shifted down by
+  //    that quarter unit to put the shape's middle on the box's middle.
+  assert.match(CARD, /const HEART = '<svg viewBox="0 0\.25 24 24"/,
+    'the heart viewBox is offset to centre the ink, not the box');
+
+  // 2. A holder centres by sharing out what is left over, so an odd remainder
+  //    lands the glyph half a pixel off to one side. Both holders must leave an
+  //    even gap.
+  const size = (selector) => {
+    const rule = css.match(new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\{([^}]*)\\}'));
+    assert.ok(rule, `no rule for ${selector}`);
+    const w = rule[1].match(/width:\s*(\d+)px/);
+    assert.ok(w, `${selector} has no pixel width`);
+    return Number(w[1]);
+  };
+  for (const [holder, glyph] of [
+    ['.support-ask .support-ask-heart', '.support-ask .support-ask-heart svg'],
+    ['.support-ask .support-ask-logo', '.support-ask .support-ask-logo svg'],
+  ]) {
+    const gap = size(holder) - size(glyph);
+    assert.equal(gap % 2, 0,
+      `${holder} leaves ${gap}px around the glyph, so it sits ${gap / 2}px from one side and cannot be centred`);
+  }
+});
+
 // ── The palette ────────────────────────────────────────────────────────────
 // This card is the one surface in Xenon that does not follow the theme accent,
 // and the reason is written at the top of its stylesheet: on a lime accent it
