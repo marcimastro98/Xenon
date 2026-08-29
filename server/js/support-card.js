@@ -151,10 +151,15 @@
     const monthly = document.createElement('button');
     monthly.type = 'button';
     monthly.className = 'discord-invite-join support-ask-monthly';
-    monthly.innerHTML = HEART;             // static, trusted markup
+    // The heart rides on its own disc inside the button — a red heart drawn
+    // straight onto the pink is the same brightness as the pink and simply is
+    // not visible. SupportAsk.css owns the disc.
+    const monthlyHeart = document.createElement('span');
+    monthlyHeart.className = 'support-ask-heart';
+    monthlyHeart.innerHTML = HEART;        // static, trusted markup
     const monthlyLabel = document.createElement('span');
     monthlyLabel.textContent = t('support_ask_monthly', 'Support monthly');
-    monthly.appendChild(monthlyLabel);
+    monthly.append(monthlyHeart, monthlyLabel);
     monthly.addEventListener('click', () => { open(BMC_MONTHLY); remember(); hide(); });
 
     const once = document.createElement('button');

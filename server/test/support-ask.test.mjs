@@ -150,10 +150,54 @@ test('monthly is the offer, one-off is the alternative', () => {
   const css = readFileSync(new URL('../components/SupportAsk/SupportAsk.css', import.meta.url), 'utf8');
   // The only filled thing on the card. Two equal buttons is the shape of a card
   // that has not decided what it is asking for.
-  assert.match(css, /\.support-ask \.support-ask-monthly \{[\s\S]*?background: var\(--accent/,
+  assert.match(css, /\.support-ask \.support-ask-monthly \{[\s\S]*?background: linear-gradient\([^)]*var\(--sup-pink-deep\)/,
     'monthly is the filled button');
   assert.match(css, /\.support-ask \.support-ask-once \{[\s\S]*?background: none;/,
     'and the one-off is not');
+});
+
+// ── The palette ────────────────────────────────────────────────────────────
+// This card is the one surface in Xenon that does not follow the theme accent,
+// and the reason is written at the top of its stylesheet: on a lime accent it
+// read as a system notice, and on a pink one the ask vanished into its own
+// header. If someone ever "fixes" that by wiring --accent back in, the card
+// silently goes back to being a themed panel — so the absence is a test.
+test('the card carries its own pink, on every theme', () => {
+  const css = readFileSync(new URL('../components/SupportAsk/SupportAsk.css', import.meta.url), 'utf8');
+  const rules = css.replace(/\/\*[\s\S]*?\*\//g, '');   // comments explain the choice; they are not it
+  assert.ok(!/--accent/.test(rules), 'nothing on this card is painted from the theme accent');
+  assert.match(rules, /--sup-pink:\s*255,\s*45,\s*138/, 'the neon pink is declared once, on the card');
+  assert.match(rules, /--sup-red:\s*#ff2b3d/, 'and the heart has its own red');
+});
+
+// A red heart drawn straight onto the pink is 1.06:1 against it: the shape is
+// not there at all. It gets a white disc, and the label gets the deep end of
+// the gradient under it so white text clears AA at 12.5px.
+test('the ask is readable: white on the pink, and the heart on white', () => {
+  const css = readFileSync(new URL('../components/SupportAsk/SupportAsk.css', import.meta.url), 'utf8');
+  assert.match(css, /\.support-ask \.support-ask-heart \{[\s\S]*?background: #fff;/,
+    'the heart rides on a white disc');
+  assert.match(css, /\.support-ask \.support-ask-heart svg \{[^}]*color: var\(--sup-red\)/,
+    'and the heart itself is the red');
+
+  const lum = (hex) => {
+    const n = hex.replace('#', '');
+    const c = [0, 2, 4].map((i) => parseInt(n.slice(i, i + 2), 16) / 255)
+      .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  };
+  const contrast = (a, b) => {
+    const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+    return (hi + 0.05) / (lo + 0.05);
+  };
+  const deep = css.match(/--sup-pink-deep:\s*(\d+),\s*(\d+),\s*(\d+)/);
+  assert.ok(deep, 'the deep end of the gradient is declared');
+  const hex = '#' + deep.slice(1, 4).map((n) => Number(n).toString(16).padStart(2, '0')).join('');
+  assert.ok(contrast(hex, '#ffffff') >= 4.5,
+    `white on ${hex} is ${contrast(hex, '#ffffff').toFixed(2)}:1, below AA`);
+  const red = css.match(/--sup-red:\s*(#[0-9a-f]{6})/i);
+  assert.ok(red && contrast(red[1], '#ffffff') >= 3,
+    'the heart is visible on its white disc');
 });
 
 test('the card is loaded, styled, and every string exists in all eleven languages', () => {
