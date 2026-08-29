@@ -1645,6 +1645,14 @@ function normalizeSettings(source) {
     // Mirror of normalizeHubSettings in server.js — keep in step.
     whatsNewSeen: typeof value.whatsNewSeen === 'string' ? value.whatsNewSeen.trim().slice(0, 64) : '',
     discordInviteSeen: value.discordInviteSeen === true,
+    // Usage history, server-owned (server.js counts the days; POST /settings
+    // keeps its own values). Round-tripped here for the same reason as every
+    // other mirrored key: the known-key rebuild would otherwise drop them from
+    // the blob this client sends back.
+    firstRunDay: typeof value.firstRunDay === 'string' ? value.firstRunDay.slice(0, 10) : '',
+    lastUsageDay: typeof value.lastUsageDay === 'string' ? value.lastUsageDay.slice(0, 10) : '',
+    usageDays: Math.max(0, Math.floor(Number(value.usageDays) || 0)),
+    supportAskSeen: value.supportAskSeen === true,
     discordFavChannels: normalizeSnowflakeList(value.discordFavChannels),
     catalogStats: value.catalogStats === true,
     browserAdblock: value.browserAdblock === true,
@@ -8205,6 +8213,32 @@ function discordInviteDismissed() {
   return legacyCardFlag('discordInviteSeen') === 'dismissed';
 }
 
+// The one-time supporter ask. Unlike the two cards above there is no legacy
+// localStorage key to promote: it ships straight into hub settings, because the
+// whole point is that it happens ONCE in the life of an install and a cleared
+// browser store must not bring it back.
+function supportAskDismissed() {
+  return !!(hubSettings && hubSettings.supportAskSeen === true);
+}
+
+function rememberSupportAskSeen() {
+  if (hubSettings && hubSettings.supportAskSeen === true) return;
+  hubSettings = normalizeSettings({ ...hubSettings, supportAskSeen: true });
+  saveHubSettings();
+}
+
+// How long this install has been used, for the ask's own gate. Answers null
+// until the server copy has landed: before that the numbers are a blind local
+// mirror, and on a device whose site data is cleared every exit that mirror
+// reads as a brand-new install — which is exactly when the card must NOT go up.
+function usageHistory() {
+  if (!_hubHydratedFromServer) return null;
+  return {
+    firstRunDay: (hubSettings && hubSettings.firstRunDay) || '',
+    usageDays: Math.max(0, Math.floor(Number(hubSettings && hubSettings.usageDays) || 0)),
+  };
+}
+
 function rememberDiscordInviteSeen() {
   try { localStorage.setItem(LEGACY_CARD_KEYS.discordInviteSeen, 'dismissed'); } catch { /* ignore */ }
   if (hubSettings && hubSettings.discordInviteSeen === true) return;
@@ -8266,6 +8300,9 @@ window.XenonStartupCards = {
   rememberWhatsNew: rememberWhatsNewSeen,
   discordInviteDismissed,
   rememberDiscordInvite: rememberDiscordInviteSeen,
+  supportAskDismissed,
+  rememberSupportAsk: rememberSupportAskSeen,
+  usageHistory,
 };
 
 // Brings the real scheduled task in line with the user's saved intent — but

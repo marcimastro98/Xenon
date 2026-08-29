@@ -7834,6 +7834,22 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // SETTINGS_STORE_ID_RE). Empty here because a default blob has not been
   // persisted yet; server-owned, so POST /settings keeps the stored value.
   storeId: '',
+  // How long this install has actually been USED, which is the only honest basis
+  // for asking anything of the person using it. All three are server-owned like
+  // storeId above — the browser never writes them, and POST /settings keeps the
+  // stored values, or clearing site data would reset the clock and the ask could
+  // come round again.
+  //
+  // `usageDays` counts DAYS the dashboard was opened, not launches and not hours:
+  // an engine that runs at logon on a PC nobody looks at must not accumulate
+  // credit. See noteUsageDay().
+  firstRunDay: '',          // YYYY-MM-DD, stamped the first time a dashboard connects
+  lastUsageDay: '',         // the last day counted, so a day counts exactly once
+  usageDays: 0,
+  // The one-time supporter ask (js/support-card.js). Shown once in the life of an
+  // install and never again — on disk, not in localStorage, because a browser set
+  // to clear its site data would otherwise bring it back for good.
+  supportAskSeen: false,
 });
 
 // In-memory mirror of the hub settings — the wake loop reads it on every clip and
@@ -8869,6 +8885,41 @@ function normalizeSnowflakeList(value, max = 50) {
   return out;
 }
 
+// A calendar day as this file stores it. Local time on purpose: "days I used
+// Xenon" is a human unit, and a UTC boundary would count an evening session as
+// tomorrow for a whole hemisphere.
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+function localDay(d) {
+  const t = d || new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate());
+}
+
+// One day of real use, counted once. Called when a dashboard connects, which is
+// the only signal that someone actually LOOKED at Xenon: the engine starts at
+// logon on machines nobody opens, and counting launches would hand those the
+// same credit as a person using it daily.
+//
+// Writes at most once per day, and only when something changed.
+async function noteUsageDay() {
+  try {
+    const today = localDay();
+    const cur = _serverHubSettings || {};
+    if (cur.lastUsageDay === today) return;               // already counted today
+    await withHubSettingsLock(async () => {
+      const prev = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+      if (prev.lastUsageDay === today) return;            // another surface got there first
+      const next = {
+        ...prev,
+        firstRunDay: prev.firstRunDay || today,
+        lastUsageDay: today,
+        usageDays: (Number(prev.usageDays) || 0) + 1,
+      };
+      _serverHubSettings = await writeHubSettings(next);
+    });
+  } catch { /* a counter is never worth failing a page load over */ }
+}
+
 function normalizeHubSettings(value) {
   const source = value && typeof value === 'object' ? value : {};
   // One-time migration: saved layouts older than the current version are
@@ -8943,6 +8994,13 @@ function normalizeHubSettings(value) {
     // over it on first hydrate when there is one.
     whatsNewSeen: typeof source.whatsNewSeen === 'string' ? source.whatsNewSeen.trim().slice(0, 64) : '',
     discordInviteSeen: source.discordInviteSeen === true,
+    // Usage history. Server-owned; the POST guard below keeps a client save from
+    // touching them. Bounded so a hand-edited file cannot make the ask unreachable
+    // (a negative count) or claim a decade of use.
+    firstRunDay: DAY_RE.test(String(source.firstRunDay || '')) ? String(source.firstRunDay) : '',
+    lastUsageDay: DAY_RE.test(String(source.lastUsageDay || '')) ? String(source.lastUsageDay) : '',
+    usageDays: clampNumber(Math.floor(Number(source.usageDays) || 0), 0, 100000, 0),
+    supportAskSeen: source.supportAskSeen === true,
     // Snowflakes only, deduped and capped. This list is echoed straight back to
     // every surface and used as a DOM key, so anything that is not a Discord id
     // has no business surviving a round trip through the store.
@@ -14496,6 +14554,20 @@ const handleRequest = async (req, res) => {
       if (prev && prev.storeId) {
         incoming.storeId = prev.storeId;
       }
+      // Usage history is server-owned for the same reason storeId is: the browser
+      // does not model it, so every generic save would arrive without it and
+      // normalizeHubSettings would rebuild it as a brand-new install — resetting
+      // the clock, and letting the one-time ask come round again. An absent key
+      // means "this writer does not know about it", never "start over".
+      if (prev) {
+        if (prev.firstRunDay) incoming.firstRunDay = prev.firstRunDay;
+        if (prev.lastUsageDay) incoming.lastUsageDay = prev.lastUsageDay;
+        if (Number(prev.usageDays) > 0) incoming.usageDays = prev.usageDays;
+        // …except supportAskSeen, which the BROWSER owns: pressing "not now" is
+        // the one thing here a person actually does. Once true it never goes back,
+        // so a stale mirror cannot un-dismiss it.
+        if (prev.supportAskSeen === true) incoming.supportAskSeen = true;
+      }
       // Vitals state is widget-owned and monotonic: a refill stamps "now", XP
       // only grows, the daily counter resets on a new day. A stale settings
       // mirror from another surface must never rewind a refill the user just
@@ -19580,6 +19652,8 @@ const handleRequest = async (req, res) => {
     refreshAudioLevelsWatch();
     req.on('close', () => { sseClients.delete(res); if (sseClients.size === 0) obsLocalWanted = false; _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWlWatch(); refreshUnifiEventsWatch(); refreshWinNotifWatch(); refreshWakeWordWatch(); refreshAudioLevelsWatch(); });
 
+    // A dashboard is open, which is what "a day of use" means — see noteUsageDay.
+    noteUsageDay();
     // Push current state immediately so the client doesn't wait for the first tick.
     Promise.all([
       getSystemInfo().catch(() => null),
