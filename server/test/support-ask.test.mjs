@@ -109,19 +109,60 @@ test('it never interrupts a voice session, the lock screen, a game or a scene', 
   assert.match(show.slice(0, 400), /if \(busyRightNow\(\)\) return;/);
 });
 
+// Three objects you get, each with its own glyph. The same three facts in one
+// sentence were skimmed past, which is what made the card read as small print.
+test('the perks are a list of things, not a sentence about them', () => {
+  const fn = CARD.slice(CARD.indexOf("perks.className = 'support-ask-perks'"));
+  const body = fn.slice(0, fn.indexOf('\n    });'));
+  for (const key of ['support_perk_themes', 'support_perk_discord', 'support_perk_name']) {
+    assert.match(body, new RegExp(key), key + ' is its own row');
+  }
+  assert.match(body, /createElement\('li'\)/, 'rendered as list items');
+  assert.match(body, /support-perk-icon/, 'each with its own glyph');
+});
+
+// Pressing it used to close the card and silently open a settings page, which
+// from the outside looks like nothing happened -- the first question asked about
+// this card was "what does that button even do?".
+test('"I already support Xenon" says what it just did', () => {
+  const fn = CARD.slice(CARD.indexOf("already.addEventListener"));
+  const body = fn.slice(0, fn.indexOf('\n    });'));
+  assert.match(body, /support_thanks_title/, 'it thanks them');
+  assert.match(body, /support_thanks_msg/, 'and says where the code goes');
+  assert.match(body, /important: true/, 'the reply to a press is never held back by quiet hours');
+});
+
+// Plain speech. The em dash is the tell of text written to sound impressive
+// rather than to be read, and it was the first thing called out on the draft.
+test('the card speaks plainly, with no em dashes', () => {
+  let checked = 0;
+  for (const m of I18N.matchAll(/support_(?:ask|perk|thanks)_[a-z]+"?:\s*("(?:[^"\\]|\\.)*")/g)) {
+    checked++;
+    assert.ok(!JSON.parse(m[1]).includes('\u2014'), 'em dash in: ' + m[1].slice(0, 50));
+  }
+  assert.ok(checked >= 110, 'every card string was checked, in every language');
+});
+
 test('monthly is the offer, one-off is the alternative', () => {
   assert.ok(CARD.indexOf('support_ask_monthly') < CARD.indexOf('support_ask_once'),
     'the monthly button comes first');
   assert.match(CARD, /BMC_MONTHLY = BMC \+ '\/membership'/, 'and it opens the membership page');
-  assert.match(readFileSync(new URL('../components/SupportAsk/SupportAsk.css', import.meta.url), 'utf8'),
-    /\.support-ask-monthly \{ background: var\(--accent/, 'it is the filled button');
+  const css = readFileSync(new URL('../components/SupportAsk/SupportAsk.css', import.meta.url), 'utf8');
+  // The only filled thing on the card. Two equal buttons is the shape of a card
+  // that has not decided what it is asking for.
+  assert.match(css, /\.support-ask \.support-ask-monthly \{[\s\S]*?background: var\(--accent/,
+    'monthly is the filled button');
+  assert.match(css, /\.support-ask \.support-ask-once \{[\s\S]*?background: none;/,
+    'and the one-off is not');
 });
 
 test('the card is loaded, styled, and every string exists in all eleven languages', () => {
   assert.match(HTML, /<script src="js\/support-card\.js"><\/script>/);
   assert.match(HTML, /components\/SupportAsk\/SupportAsk\.css/);
-  for (const key of ['support_ask_title', 'support_ask_text', 'support_ask_perks',
-    'support_ask_monthly', 'support_ask_once', 'support_ask_already']) {
+  for (const key of ['support_ask_title', 'support_ask_text',
+    'support_perk_themes', 'support_perk_discord', 'support_perk_name',
+    'support_ask_monthly', 'support_ask_once', 'support_ask_already',
+    'support_thanks_title', 'support_thanks_msg']) {
     const found = new Set();
     let current = null;
     for (const line of I18N.split('\n')) {
