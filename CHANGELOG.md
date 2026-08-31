@@ -14,7 +14,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### ✨ Added
 - **A stopwatch, in the same tile as the timers.** Leave the duration empty and press +: instead of a countdown you get a clock that counts up, for measuring how long something actually took. Pause, resume, reset, keep and delete are the buttons you already know, because underneath it is the same clock — only running the other way.
 
-  There is no second button to learn: the format hint under the fields says *vuoto = cronometro*, and that is the whole gesture. A stopwatch never rings and never sends a notification, since it has no end to reach; a small mark before its name tells it apart from a countdown when both are paused. There is a Deck action for it too, and the assistant reports the time spent when you ask what is running.
+  There is no second button to learn, and the duration field carries the whole vocabulary: `5` is a countdown, empty is a stopwatch, and **`+5` is a stopwatch that chimes every 5 minutes**. That last one arrived from the same thread, where an "interval timer" turned out to mean exactly this: it counts up and sounds an alert at intervals, for stretching breaks. It is not a third kind of clock, so it costs one character rather than a control.
+
+  A stopwatch never rings for having finished, since it has no end to reach, and it interrupts you only if you asked it to. The alert reaches your phone the same way a finished timer does, a missed hour of them wakes you to one notification rather than four, and pausing or resetting silences it. A small mark before the name tells a stopwatch from a countdown when both are paused, and a chiming one shows how often beside it. There is a Deck action, with the interval as an optional field, and the assistant reports the time spent when you ask what is running.
 
   Asked for on Discord, alongside an interval timer that is deliberately not here yet.
 

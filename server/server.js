@@ -5585,13 +5585,13 @@ const deckRegistryDeps = {
     // Same contract as start(), minus the duration: a key pressed twice
     // restarts the stopwatch from zero rather than stacking a second one, which
     // is what "start my task clock" means when you press it again.
-    stopwatch: async (label) => {
+    stopwatch: async (label, intervalSecs = 0) => {
       const idx = _timers.findIndex((t) => t.label.toLowerCase() === label.toLowerCase());
       if (idx >= 0) {
-        _timers[idx] = { ..._timers[idx], kind: 'stopwatch', durationSecs: 0, startedAt: Date.now(), pausedElapsed: 0, status: 'running' };
+        _timers[idx] = { ..._timers[idx], kind: 'stopwatch', durationSecs: 0, intervalSecs, chimes: 0, startedAt: Date.now(), pausedElapsed: 0, status: 'running' };
       } else {
         if (_timers.length >= TIMERS_MAX) return { ok: false, error: 'max_timers' };
-        _timers.push(_normalizeTimer({ label, kind: 'stopwatch', status: 'running', startedAt: Date.now(), pausedElapsed: 0 }));
+        _timers.push(_normalizeTimer({ label, kind: 'stopwatch', intervalSecs, status: 'running', startedAt: Date.now(), pausedElapsed: 0 }));
       }
       await _saveTimers();
       broadcastSSE('timer_update', { timers: _timers });
@@ -7054,7 +7054,8 @@ async function executeAiTool(fnName, fnArgs, deps) {
         // the only reading it has.
         timers: _timers.map(t => (t.kind === 'stopwatch'
           ? { id: t.id, label: t.label, status: t.status, kind: 'stopwatch',
-              elapsed_secs: Math.floor(_getTimerElapsed(t)) }
+              elapsed_secs: Math.floor(_getTimerElapsed(t)),
+              ...(t.intervalSecs > 0 ? { chimes_every_secs: t.intervalSecs } : {}) }
           : { id: t.id, label: t.label, status: t.status, kind: 'countdown',
               remaining_secs: Math.ceil(_getTimerRemaining(t)),
               duration_secs: t.durationSecs })),
@@ -11063,11 +11064,21 @@ function _normalizeTimer(item) {
   // "is this a countdown" test honest, including in a settings file somebody
   // has edited by hand.
   const durationSecs = kind === 'stopwatch' ? 0 : Math.max(1, Math.round(Number(item && item.durationSecs) || 60));
+  // A stopwatch may CHIME every N seconds. Zero is off, which is what every
+  // stopwatch was until somebody said what they actually use one for: "it goes
+  // up and sounds an alert at specified intervals, I use it for stretching".
+  // Meaningless on a countdown, which already has one alert at the end.
+  const intervalSecs = kind === 'stopwatch'
+    ? Math.max(0, Math.min(86400, Math.round(Number(item && item.intervalSecs) || 0)))
+    : 0;
+  // How many have already sounded. Persisted rather than derived, so a restart
+  // mid-run does not replay every chime the stopwatch has ever made.
+  const chimes = Math.max(0, Math.round(Number(item && item.chimes) || 0));
   const status      = ['running', 'paused', 'done'].includes(item && item.status) ? item.status : 'running';
   const startedAt   = Number.isFinite(Number(item && item.startedAt)) ? Number(item.startedAt) : Date.now();
   const pausedElapsed = Math.max(0, Number(item && item.pausedElapsed) || 0);
   const createdAt   = item && item.createdAt ? String(item.createdAt).slice(0, 40) : new Date().toISOString();
-  return { id, label, kind, durationSecs, status, startedAt, pausedElapsed, createdAt };
+  return { id, label, kind, durationSecs, intervalSecs, chimes, status, startedAt, pausedElapsed, createdAt };
 }
 
 /** Seconds counted so far, for either kind. The stopwatch's whole reading. */
@@ -11095,8 +11106,27 @@ async function _saveTimers() {
 function _checkTimers() {
   let changed = false;
   for (const t of _timers) {
-    // A stopwatch never finishes, so it never rings and never pushes.
-    if (t.kind === 'stopwatch') continue;
+    // A stopwatch never finishes, so it never rings for having ENDED. It can
+    // still chime on the way, if its owner asked for that.
+    if (t.kind === 'stopwatch') {
+      if (t.status !== 'running' || !(t.intervalSecs > 0)) continue;
+      const due = Math.floor(_getTimerElapsed(t) / t.intervalSecs);
+      if (due <= (t.chimes || 0)) continue;
+      // One event even if several intervals passed while the machine slept:
+      // waking to four stacked toasts for a stretch reminder is worse than
+      // waking to one.
+      t.chimes = due;
+      changed = true;
+      broadcastSSE('timer_chime', { id: t.id, label: t.label, every: t.intervalSecs, elapsed: Math.floor(_getTimerElapsed(t)) });
+      try { lighting.onEvent('timer'); } catch {}
+      webPushNotify({
+        title: 'Xenon',
+        body: t.label ? t.label : 'Stopwatch',
+        tag: 'chime-' + t.id,
+        url: '/',
+      }, { urgency: 'high', ttl: 300 });
+      continue;
+    }
     if (t.status === 'running' && _getTimerRemaining(t) <= 0) {
       t.status = 'done';
       changed = true;
@@ -15853,6 +15883,7 @@ const handleRequest = async (req, res) => {
         label: String(body.label || (kind === 'stopwatch' ? 'Stopwatch' : 'Timer')).trim(),
         kind,
         durationSecs: Math.max(1, Math.round(Number(body.duration_secs) || 60)),
+        intervalSecs: Math.max(0, Math.round(Number(body.interval_secs) || 0)),
         status: 'running',
         startedAt: Date.now(),
         pausedElapsed: 0,
@@ -15880,8 +15911,11 @@ const handleRequest = async (req, res) => {
       } else if (action === 'reset') {
         t.startedAt = Date.now();
         t.pausedElapsed = 0;
+        // The chimes already sounded belong to the run that just ended.
+        t.chimes = 0;
         t.status = 'running';
       } else if (action === 'stop') {
+        t.chimes = 0;
         // Back to its full time and HELD there. The difference from `reset` is
         // one word — `paused` instead of `running` — and it is the whole point:
         // until now the only way to keep a timer for later was to leave it

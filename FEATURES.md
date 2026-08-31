@@ -467,6 +467,16 @@ Part of the **Agenda** hub (or pull it out into its own tile from the Layout edi
 
 Part of the **Agenda** hub (or its own tile). Create a timer by typing a label and a duration (`5:00`, `1:30:00`, or a plain number of minutes) and tapping **+**.
 
+The duration field carries the whole vocabulary, so there is nothing else to learn and no second button:
+
+| you type | you get |
+| --- | --- |
+| `5` · `5:30` · `1:05:00` | a countdown |
+| *(empty)* | a **stopwatch**, counting up |
+| `+5` | a stopwatch that **chimes every 5 minutes** |
+
+A stopwatch shares every control with a countdown, because underneath it is the same clock running the other way: pause, resume, reset, keep and delete all behave identically. It never rings for having finished, since it has no end to reach, and it only interrupts you if you asked it to with `+`. A small mark before its name tells it from a countdown when both are paused, and a chiming one shows how often beside it.
+
 - **SVG ring arc** shows real-time progress around each card
 - Countdown updates ~4×/second for a smooth readout
 - **Pause / Resume / Restart / Delete** on each card
