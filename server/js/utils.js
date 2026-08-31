@@ -292,7 +292,22 @@ function clockUses12h() {
 // `extra` carries the date parts a caller also wants (weekday, day, month), so
 // this composes instead of replacing each call site's own shape.
 function timeParts(extra) {
-  return Object.assign({}, extra || {}, { hour: '2-digit', minute: '2-digit', hour12: clockUses12h() });
+  const base = Object.assign({}, extra || {}, { hour: '2-digit', minute: '2-digit' });
+  // Asymmetric on purpose, and the two halves are not the same decision.
+  //
+  // 24h asks for hourCycle 'h23' rather than hour12:false, because hour12:false
+  // lets the engine pick between h23 (00:30) and h24 (24:30) and they do not all
+  // pick the same one — the "24:00" midnight is a real rendering, not a myth.
+  // V8 answers h23 today; naming it means every engine does, WebKit included,
+  // and a dashboard on a paired iPhone is a WebKit dashboard.
+  //
+  // 12h keeps hour12:true rather than 'h12', because the twelve-hour clock is
+  // not written the same way everywhere: Japanese midnight is 午前00:30 (h11)
+  // and forcing h12 would print 午前12:30, which is not how it is said. Here the
+  // locale genuinely knows better than we do.
+  if (clockUses12h()) base.hour12 = true;
+  else base.hourCycle = 'h23';
+  return base;
 }
 
 function toDateInputValue(date) {
