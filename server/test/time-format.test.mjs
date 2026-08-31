@@ -22,7 +22,12 @@ const UTILS = read('utils.js');
 test('the shared options carry the user choice, not the locale default', () => {
   const fn = UTILS.slice(UTILS.indexOf('function timeParts('));
   const body = fn.slice(0, fn.indexOf('\n}'));
-  assert.match(body, /hour12: clockUses12h\(\)/, 'timeParts must resolve the setting, not omit it');
+  assert.match(body, /clockUses12h\(\)/, 'timeParts must resolve the setting, not omit it');
+  // 24h names its hour cycle instead of saying hour12:false, which leaves the
+  // engine free to choose h24 and render midnight as "24:30". 12h does NOT,
+  // because the twelve-hour clock is written differently per locale.
+  assert.match(body, /hourCycle = 'h23'/, '24-hour must name h23, not merely refuse hour12');
+  assert.match(body, /hour12 = true/);
   // The date parts a caller wants have to survive, or every call site that
   // wanted a weekday or a month silently loses it.
   assert.match(body, /extra/, 'timeParts composes with the caller shape');
@@ -75,4 +80,15 @@ test('12 and 24 both come out of the same call', () => {
   assert.match(fmt(make('12', 'it-IT')), /09[:.]30/, 'and an explicit 12 must beat an Italian one');
   assert.match(fmt(make('auto', 'en-GB')), /09[:.]30/, 'auto follows the language: English is 12h');
   assert.match(fmt(make('auto', 'it-IT')), /21[:.]30/, 'and every other language is 24h');
+
+  // Midnight is where hour12:false and h23 part company. Half past midnight is
+  // 00:30 in 24-hour form; an engine that chose h24 would print 24:30.
+  const mid = new Date(Date.UTC(2026, 0, 2, 0, 30));
+  const at = (parts) => new Intl.DateTimeFormat('en-GB', Object.assign({ timeZone: 'UTC' }, parts)).format(mid);
+  for (const loc of ['en-GB', 'it-IT', 'ja-JP', 'de-DE']) {
+    assert.match(at(make('24', loc)), /00[:.]30/, 'midnight in 24h form, ' + loc);
+  }
+  // …and the twelve-hour side keeps whatever each language actually says, which
+  // is why it is not pinned to a single string here.
+  assert.match(at(make('12', 'en-GB')), /12[:.]30\s?(AM|am)/);
 });

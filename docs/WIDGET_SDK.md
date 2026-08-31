@@ -203,9 +203,14 @@ than the manifest requested):
     // still renders as a glass card inside a pixel dashboard. See *Following the
     // skin* below. Also present on every `theme` refresh.
     skin: 'glass'|'retro',
-    // true when the user runs a 12-hour clock (Settings → Dynamic Island, auto/12/24
-    // already resolved). Use it if your widget renders its own time. Also present
-    // on every `theme` refresh, so a live toggle updates without a reload.
+    // true when the user runs a 12-hour clock. The setting is Settings → Clock →
+    // Time format (auto / 12 / 24), already resolved for you: `auto` follows the
+    // interface language, so you never have to guess from the locale. Use it
+    // whenever your widget renders a time of day — since v4.11.7 the whole
+    // dashboard honours this, so a widget that formats by locale instead is now
+    // the one thing on screen disagreeing with everything around it. Also
+    // present on every `theme` refresh, so a live toggle updates without a
+    // reload.
     clock12: false,
     // Explicit per-tile role overrides, empty for the global palette:
     overrides: ['accent', 'panel'],
