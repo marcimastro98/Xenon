@@ -4,6 +4,13 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### 🐛 Fixed
+- **The time format you chose is now used everywhere, not only on the clock.** Settings → Clock → Time format has been there for a long time and reached exactly two places: the dashboard clock and the lock-screen clock. Every other hour Xenon printed asked the *language* instead — so if you set 24-hour and read English, the clock said 21:30 while the calendar right beside it said 09:30 PM.
+
+  Eleven places were ignoring it: the calendar and its Upcoming list, the agenda, the Ambient scenes, the lock screen's event list, the football fixtures, the stock ticker, the Discord widget and the weather timestamp. They all go through one shared formatter now, and a test fails the build if a twelfth ever decides for itself.
+
+  Reported on Discord by Piotr as a missing option on the Calendar widget. The option already existed; it was simply not being listened to.
+
 ### ✨ Added
 - **Voicemeeter, from the inside.** Windows shows Voicemeeter's virtual cards like any other sound device, so Xenon could already pick one and set its volume. What it could not reach was anything *inside* the mixer, which is the part people actually bind to a key: the gain of one strip, its mute, and the A1/A2/B1/B2 buttons that decide where each source goes. Asked for on Discord by a supporter running Potato, with three other tools doing it for reference.
 

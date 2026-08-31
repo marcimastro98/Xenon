@@ -228,9 +228,7 @@ function renderLockEvents(enabled, upcoming = getLockUpcomingEvents()) {
   const count = $('lock-events-count');
   if (count) count.textContent = String(upcoming.length);
 
-  const fmt = new Intl.DateTimeFormat(t('locale'), {
-    weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
-  });
+  const fmt = new Intl.DateTimeFormat(t('locale'), timeParts({ weekday: 'short', day: '2-digit', month: 'short' }));
   list.replaceChildren(...upcoming.map(event => {
     const item = document.createElement('button');
     item.type = 'button';

@@ -74,7 +74,7 @@
     const d = new Date(n * 1000);
     try {
       return (range === '1d' || range === '1w')
-        ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        ? d.toLocaleTimeString([], timeParts())
         : d.toLocaleDateString([], { day: '2-digit', month: 'short' });
     } catch { return ''; }
   }
