@@ -451,7 +451,14 @@ function createRegistry(deps) {
           if (!d.timers || typeof d.timers.stopwatch !== 'function') return { ok: false, error: 'unavailable' };
           const swLabel = action.label.trim();
           if (!swLabel) return { ok: false, error: 'empty_label' };
-          const rw = await d.timers.stopwatch(swLabel);
+          // Optional: chime every N minutes on the way up. Absent or unreadable
+          // means a silent stopwatch, which is what the key did before this
+          // param existed — an unparseable value must not turn a working key
+          // into a failing one.
+          const every = Number(String(action.everyMinutes || '').replace(',', '.'));
+          const everySecs = Number.isFinite(every) && every > 0
+            ? Math.min(86400, Math.max(10, Math.round(every * 60))) : 0;
+          const rw = await d.timers.stopwatch(swLabel, everySecs);
           return (rw && rw.ok === false) ? { ok: false, error: rw.error || 'timer_failed' } : { ok: true };
         }
         case 'timerToggle': {

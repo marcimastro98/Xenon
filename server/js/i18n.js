@@ -1597,7 +1597,7 @@ const i18n = {
     timer_reset: 'Ricomincia',
     timer_stop: 'Ferma e conserva',
     timer_delete: 'Elimina',
-    timer_format_hint: '5 = 5 min · 5:30 = min:sec · 1:05:00 = ore:min:sec · vuoto = cronometro',
+    timer_format_hint: '5 = 5 min · 5:30 = min:sec · 1:05:00 = ore:min:sec · vuoto = cronometro · +5 = avvisa ogni 5 min',
     lighting_master: 'Illuminazione',
     lighting_effect_temperature: 'Temperatura CPU → colore',
     lighting_effect_music: 'Album → LED',
@@ -4355,7 +4355,7 @@ const i18n = {
     timer_reset: 'Restart',
     timer_stop: 'Stop and keep',
     timer_delete: 'Delete',
-    timer_format_hint: '5 = 5 min · 5:30 = min:sec · 1:05:00 = h:min:sec · empty = stopwatch',
+    timer_format_hint: '5 = 5 min · 5:30 = min:sec · 1:05:00 = h:min:sec · empty = stopwatch · +5 = chime every 5 min',
     lighting_master: 'Lighting',
     lighting_effect_temperature: 'CPU temperature → colour',
     lighting_effect_music: 'Album → LEDs',
@@ -6713,7 +6713,7 @@ Object.assign(i18n, {
     timer_reset: '다시 시작',
     timer_stop: '정지 후 보관',
     timer_delete: '삭제',
-    timer_format_hint: '5 = 5분 · 5:30 = 분:초 · 1:05:00 = 시:분:초 · 비우면 스톱워치',
+    timer_format_hint: '5 = 5분 · 5:30 = 분:초 · 1:05:00 = 시:분:초 · 비우면 스톱워치 · +5 = 5분마다 알림',
     lighting_master: '조명',
     lighting_effect_temperature: 'CPU 온도 → 색상',
     lighting_effect_music: '앨범 → LED',
@@ -9022,7 +9022,7 @@ Object.assign(i18n, {
     timer_reset: '再スタート',
     timer_stop: '停止して保存',
     timer_delete: '削除',
-    timer_format_hint: '5 = 5分 · 5:30 = 分:秒 · 1:05:00 = 時:分:秒 · 空欄 = ストップウォッチ',
+    timer_format_hint: '5 = 5分 · 5:30 = 分:秒 · 1:05:00 = 時:分:秒 · 空欄 = ストップウォッチ · +5 = 5分ごとに通知',
     lighting_master: 'ライティング',
     lighting_effect_temperature: 'CPU温度 → 色',
     lighting_effect_music: 'アルバム → LED',
@@ -11330,7 +11330,7 @@ Object.assign(i18n, {
     timer_reset: '重新开始',
     timer_stop: '停止并保留',
     timer_delete: '删除',
-    timer_format_hint: '5 = 5分钟 · 5:30 = 分:秒 · 1:05:00 = 时:分:秒 · 留空 = 秒表',
+    timer_format_hint: '5 = 5分钟 · 5:30 = 分:秒 · 1:05:00 = 时:分:秒 · 留空 = 秒表 · +5 = 每 5 分钟提醒',
     lighting_master: '灯光',
     lighting_effect_temperature: 'CPU温度 → 颜色',
     lighting_effect_music: '专辑 → LED',
@@ -13358,7 +13358,7 @@ Object.assign(i18n, {
     timer_reset: 'Reiniciar',
     timer_stop: 'Parar y guardar',
     timer_delete: 'Eliminar',
-    timer_format_hint: '5 = 5 min · 5:30 = min:seg · 1:05:00 = h:min:seg · vacío = cronómetro',
+    timer_format_hint: '5 = 5 min · 5:30 = min:seg · 1:05:00 = h:min:seg · vacío = cronómetro · +5 = avisa cada 5 min',
     onb_aria: 'Tour guiado',
     onb_skip: 'Omitir',
     onb_back: 'Atrás',
@@ -14708,7 +14708,7 @@ Object.assign(i18n, {
     timer_reset: 'Redémarrer',
     timer_stop: 'Arrêter et garder',
     timer_delete: 'Supprimer',
-    timer_format_hint: '5 = 5 min · 5:30 = min:sec · 1:05:00 = h:min:sec · vide = chronomètre',
+    timer_format_hint: '5 = 5 min · 5:30 = min:sec · 1:05:00 = h:min:sec · vide = chronomètre · +5 = alerte toutes les 5 min',
     onb_aria: 'Visite guidée',
     onb_skip: 'Passer',
     onb_back: 'Retour',
@@ -16058,7 +16058,7 @@ Object.assign(i18n, {
     timer_reset: 'Neu starten',
     timer_stop: 'Stoppen und behalten',
     timer_delete: 'Löschen',
-    timer_format_hint: '5 = 5 Min · 5:30 = Min:Sek · 1:05:00 = Std:Min:Sek · leer = Stoppuhr',
+    timer_format_hint: '5 = 5 Min · 5:30 = Min:Sek · 1:05:00 = Std:Min:Sek · leer = Stoppuhr · +5 = Hinweis alle 5 Min',
     onb_aria: 'Geführte Tour',
     onb_skip: 'Überspringen',
     onb_back: 'Zurück',
@@ -17408,7 +17408,7 @@ Object.assign(i18n, {
     timer_reset: 'Reiniciar',
     timer_stop: 'Parar e guardar',
     timer_delete: 'Eliminar',
-    timer_format_hint: '5 = 5 min · 5:30 = min:seg · 1:05:00 = h:min:seg · vazio = cronómetro',
+    timer_format_hint: '5 = 5 min · 5:30 = min:seg · 1:05:00 = h:min:seg · vazio = cronómetro · +5 = avisa a cada 5 min',
     onb_aria: 'Visita guiada',
     onb_skip: 'Ignorar',
     onb_back: 'Voltar',
@@ -18758,7 +18758,7 @@ Object.assign(i18n, {
     timer_reset: 'Заново',
     timer_stop: 'Остановить и сохранить',
     timer_delete: 'Удалить',
-    timer_format_hint: '5 = 5 мин · 5:30 = мин:сек · 1:05:00 = ч:мин:сек · пусто = секундомер',
+    timer_format_hint: '5 = 5 мин · 5:30 = мин:сек · 1:05:00 = ч:мин:сек · пусто = секундомер · +5 = сигнал каждые 5 мин',
     onb_aria: 'Обзор-тур',
     onb_skip: 'Пропустить',
     onb_back: 'Назад',
@@ -20825,7 +20825,7 @@ Object.assign(i18n, {
     "timer_reset": "Herstarten",
     "timer_stop": "Stoppen en bewaren",
     "timer_delete": "Verwijderen",
-    "timer_format_hint": "5 = 5 min · 5:30 = min:sec · 1:05:00 = u:min:sec · leeg = stopwatch",
+    "timer_format_hint": "5 = 5 min · 5:30 = min:sec · 1:05:00 = u:min:sec · leeg = stopwatch · +5 = elke 5 min een seintje",
     "lighting_master": "Verlichting",
     "lighting_effect_temperature": "CPU-temperatuur → kleur",
     "lighting_effect_music": "Album → leds",
@@ -29516,6 +29516,66 @@ Object.assign(i18n.zh, { ambient_scene_covers: '此场景会铺满整个屏幕�
 // …and the option this note points at was itself untranslated in Dutch, which
 // would have named a choice that is not in the list.
 Object.assign(i18n.nl, { ambient_scene_builtin: 'Klassiek (widgets)' });
+
+// v4.11.7 - the stopwatch can chime on the way up. Asked for as an "interval
+// timer" for stretching breaks; it is not a third clock, it is this one with an
+// alarm, so it costs one character in a field that already has a grammar.
+Object.assign(i18n.it, {
+  timer_every: 'ogni {n}',
+  timer_chime_alert: 'Sono passati {n}',
+  deck_param_every_minutes: 'Avvisa ogni (minuti, facoltativo)',
+});
+Object.assign(i18n.en, {
+  timer_every: 'every {n}',
+  timer_chime_alert: '{n} have passed',
+  deck_param_every_minutes: 'Chime every (minutes, optional)',
+});
+Object.assign(i18n.ko, {
+  timer_every: '{n}마다',
+  timer_chime_alert: '{n} 지났습니다',
+  deck_param_every_minutes: '알림 간격 (분, 선택)',
+});
+Object.assign(i18n.ja, {
+  timer_every: '{n}ごと',
+  timer_chime_alert: '{n} 経過しました',
+  deck_param_every_minutes: '通知の間隔 (分・任意)',
+});
+Object.assign(i18n.zh, {
+  timer_every: '每 {n}',
+  timer_chime_alert: '已经过去 {n}',
+  deck_param_every_minutes: '提醒间隔（分钟，可选）',
+});
+Object.assign(i18n.es, {
+  timer_every: 'cada {n}',
+  timer_chime_alert: 'Han pasado {n}',
+  deck_param_every_minutes: 'Avisar cada (minutos, opcional)',
+});
+Object.assign(i18n.fr, {
+  timer_every: 'toutes les {n}',
+  timer_chime_alert: '{n} se sont écoulées',
+  deck_param_every_minutes: 'Alerter toutes les (minutes, facultatif)',
+});
+Object.assign(i18n.de, {
+  timer_every: 'alle {n}',
+  timer_chime_alert: '{n} sind vergangen',
+  deck_param_every_minutes: 'Hinweis alle (Minuten, optional)',
+});
+Object.assign(i18n.pt, {
+  timer_every: 'a cada {n}',
+  timer_chime_alert: 'Passaram {n}',
+  deck_param_every_minutes: 'Avisar a cada (minutos, opcional)',
+});
+Object.assign(i18n.ru, {
+  timer_every: 'каждые {n}',
+  timer_chime_alert: 'Прошло {n}',
+  deck_param_every_minutes: 'Напоминать каждые (минуты, необязательно)',
+});
+Object.assign(i18n.nl, {
+  timer_every: 'elke {n}',
+  timer_chime_alert: 'Er is {n} verstreken',
+  deck_param_every_minutes: 'Waarschuw elke (minuten, optioneel)',
+});
+
 
 // v4.11.7 - the Timer tile gained a STOPWATCH. No new button: an empty duration
 // is the gesture, so the format hint is where it is discoverable.

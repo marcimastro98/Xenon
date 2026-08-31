@@ -51,7 +51,7 @@ const ACTION_CATALOG = [
   // timerToggle and timerCancel already work by label and a stopwatch keeps the
   // same clock underneath, so the key you bind to stop one is the one you
   // already have.
-  { type: 'stopwatchStart', group: 'timer', labelKey: 'deck_act_stopwatchStart', params: [{ name: 'label', kind: 'text' }] },
+  { type: 'stopwatchStart', group: 'timer', labelKey: 'deck_act_stopwatchStart', params: [{ name: 'label', kind: 'text' }, { name: 'everyMinutes', kind: 'text', optional: true, labelKey: 'deck_param_every_minutes' }] },
   { type: 'timerToggle', group: 'timer', labelKey: 'deck_act_timerToggle', params: [{ name: 'label', kind: 'text' }] },
   { type: 'timerCancel', group: 'timer', labelKey: 'deck_act_timerCancel', params: [{ name: 'label', kind: 'text' }] },
   { type: 'micMute',  group: 'audio',  labelKey: 'deck_act_micMute',  params: [{ name: 'mode', kind: 'select', options: ['toggle', 'mute', 'unmute'] }] },

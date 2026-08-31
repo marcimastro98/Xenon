@@ -141,6 +141,14 @@ function _buildTimerCard(timer) {
   // ring tells them apart (one drains, one sweeps), but a paused stopwatch
   // reading 0:34 beside a paused countdown reading 0:34 is genuinely ambiguous.
   // One small mark before the name, and only on the kind that needs explaining.
+  // A chiming stopwatch has to say so on its face: the difference between one
+  // that will interrupt you every 30 minutes and one that will not is the whole
+  // reason somebody set it, and it is invisible otherwise.
+  const every = sw && timer.intervalSecs > 0 ? timer.intervalSecs : 0;
+  const everyText = every
+    ? ((typeof t === 'function' ? t('timer_every') : '') || 'every {n}').replace('{n}', _formatTime(every, true))
+    : '';
+  const everyMark = every ? `<span class="timer-every">${_escHtml(everyText)}</span>` : '';
   const swMark = sw
     ? `<svg class="timer-kind-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><title>${_escHtml((typeof t === 'function' ? t('timer_stopwatch') : '') || 'Stopwatch')}</title><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9M9.5 2.5h5"/></svg>`
     : '';
@@ -177,7 +185,7 @@ function _buildTimerCard(timer) {
       </svg>
     </div>
     <div class="timer-info">
-      <div class="timer-label">${swMark}${_escHtml(timer.label)}</div>
+      <div class="timer-label">${swMark}${_escHtml(timer.label)}${everyMark}</div>
       <div class="timer-time" id="timer-time-${tid}" data-timer-time="${tid}">${isDone ? '0:00' : _formatTime(rem, sw)}</div>
     </div>
     <div class="timer-actions">
@@ -221,8 +229,24 @@ function addTimerFromInput() {
   // would cost more room than the feature is worth. Typed-but-unparseable still
   // shakes, because that is a mistake rather than a choice.
   const typed = durEl.value.trim();
-  const durationSecs = _parseTimerDuration(typed);
-  const stopwatch = typed === '';
+  // One more character on a grammar that already exists. The field takes 5,
+  // 5:30 and 1:05:00; a LEADING + means "count up and chime every this". So:
+  //   (empty) → a silent stopwatch      5 → a five minute countdown
+  //   +5      → a stopwatch that chimes every five minutes
+  // Asked for on Discord as an "interval timer" for stretching breaks. It is
+  // not a third kind of clock, it is the stopwatch with an alarm on the way,
+  // which is why it costs a character rather than a control.
+  const everyMode = typed.startsWith('+');
+  const body = everyMode ? typed.slice(1).trim() : typed;
+  const durationSecs = _parseTimerDuration(body);
+  const stopwatch = everyMode || body === '';
+  const intervalSecs = everyMode ? durationSecs : 0;
+  // A bare "+" says count up and chime every nothing, which is not a thing.
+  if (everyMode && (!intervalSecs || intervalSecs < 1)) {
+    durEl.classList.add('timer-input-error');
+    setTimeout(() => durEl.classList.remove('timer-input-error'), 1200);
+    return;
+  }
   if (!stopwatch && (!durationSecs || durationSecs < 1)) {
     durEl.classList.add('timer-input-error');
     setTimeout(() => durEl.classList.remove('timer-input-error'), 1200);
@@ -245,7 +269,7 @@ function addTimerFromInput() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(stopwatch
-      ? { label, kind: 'stopwatch' }
+      ? { label, kind: 'stopwatch', interval_secs: intervalSecs }
       : { label, duration_secs: durationSecs }),
   })
     .then(r => r.json())
@@ -313,6 +337,26 @@ function _patchTimer(id, action) {
 }
 
 // ── SSE callbacks (called from main.js) ─────────────────────────
+
+// A stopwatch reaching one of its intervals. NOT timer_done: nothing finished,
+// the clock keeps running, and marking it done would stop the thing the person
+// asked to keep going.
+function onTimerChime(id, label, every) {
+  fetch('/api/chime', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kind: 'wake' }),
+  }).catch(() => {});
+  if (!window.XenonToast) return;
+  const msg = ((typeof t === 'function' ? t('timer_chime_alert') : '') || 'every {n}')
+    .replace('{n}', _formatTime(Number(every) || 0, true));
+  window.XenonToast.show({
+    type: 'timer',
+    kicker: (typeof t === 'function' ? t('timer_title') : '') || 'Timer',
+    title: label || 'Stopwatch',
+    message: msg,
+  });
+}
 
 function onTimerUpdate(timers) {
   _timerState = timers || [];
