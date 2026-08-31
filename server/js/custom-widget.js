@@ -33,6 +33,7 @@
     lighting: ['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice'],
     chroma: ['chromaColor', 'chromaOff'],
     wavelink: ['wlInputVolume', 'wlInputMute', 'wlOutputVolume', 'wlOutputMute', 'wlSwitchMonitoring', 'wlSetMonitorMix'],
+    voicemeeter: ['vmStripMute', 'vmStripGain', 'vmStripBus', 'vmBusMute', 'vmBusGain', 'vmMacro'],
     spotify: ['spotifyPlay', 'spotifyNext', 'spotifyPrev', 'spotifySave', 'spotifyLike', 'spotifyShuffle', 'spotifyRepeat', 'spotifyVolume', 'spotifySeek', 'spotifyPlaylist', 'spotifyDevice'],
     obs: ['obsScene', 'obsSceneNext', 'obsRecord', 'obsStream', 'obsMute', 'obsInputVolume'],
     discord: ['discordMute', 'discordDeafen', 'discordPtt', 'discordJoin', 'discordLeave', 'discordInputVol', 'discordOutputVol', 'discordUserVol', 'discordUserMute', 'discordAudioToggle', 'discordSoundboard'],
@@ -131,6 +132,7 @@
     audioLevels: ['cw_stream_audiolevels', 'How loud each app is playing'],
     battery: ['cw_stream_battery', 'Battery level of your wireless devices'],
     wavelink: ['cw_stream_wavelink', 'Wave Link mixer state'],
+    voicemeeter: ['cw_stream_voicemeeter', 'Voicemeeter mixer state'],
     stocks: ['cw_stream_stocks', 'Stock quotes & indices'],
     football: ['cw_stream_football', 'Football fixtures & scores'],
     news: ['cw_stream_news', 'News headlines'],
@@ -158,6 +160,7 @@
     lighting: ['cw_act_lighting', 'Control the RGB lighting'],
     chroma: ['cw_act_chroma', 'Control Razer Chroma lighting'],
     wavelink: ['cw_act_wavelink', 'Control the Wave Link mixer'],
+    voicemeeter: ['cw_act_voicemeeter', 'Control the Voicemeeter mixer'],
     spotify: ['cw_act_spotify', 'Control Spotify playback'],
     obs: ['cw_act_obs', 'Control OBS (scenes, recording, audio)'],
     discord: ['cw_act_discord', 'Control Discord voice'],
@@ -2382,7 +2385,7 @@
   // the list on its own.
   const PICK_CATS = [
     { id: 'system', key: 'cw_cat_system', fb: 'System', streams: ['status', 'system', 'battery', 'processes'] },
-    { id: 'media', key: 'cw_cat_media', fb: 'Media', streams: ['media', 'audio', 'audioLevels', 'wavelink'] },
+    { id: 'media', key: 'cw_cat_media', fb: 'Media', streams: ['media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter'] },
     { id: 'stream', key: 'cw_cat_stream', fb: 'Streaming', streams: ['obs', 'streamerbot', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'twitchWatch', 'twitchChat', 'youtubeLive'] },
     { id: 'info', key: 'cw_cat_info', fb: 'Info', streams: ['weather', 'stocks', 'football', 'news'] },
     { id: 'work', key: 'cw_cat_work', fb: 'Productivity', streams: ['tasks', 'notes', 'agenda', 'claude'] },

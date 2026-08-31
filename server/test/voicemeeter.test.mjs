@@ -242,3 +242,70 @@ test('a stored key survives the round trip through the shared validator', () => 
   assert.equal(a.type, 'vmStripBus');
   assert.equal(a.bus, 'B1', 'validateAction returns params FLAT on the action');
 });
+
+// ── The SDK surface ─────────────────────────────────────────────────────────
+
+test('a widget may drive the mixer, but not shut it down', () => {
+  const { SDK_ACTION_CATEGORIES, SDK_STREAMS, SDK_ACTION_TYPES } = require('../sdk-widgets.js');
+  const granted = SDK_ACTION_CATEGORIES.voicemeeter;
+  assert.ok(granted, 'there is no voicemeeter grant unit');
+  assert.deepEqual([...granted].sort(),
+    ['vmBusGain', 'vmBusMute', 'vmMacro', 'vmStripBus', 'vmStripGain', 'vmStripMute'].sort());
+
+  // The one deliberate omission, and the reason it is deliberate: vmParam names
+  // ANY parameter the mixer has, which includes Command.Shutdown and
+  // Command.Restart. Same call as leaving haCallService out — the typed actions
+  // cover normal control, and "close the user's audio mixer" is not implied by
+  // any of them. It stays a Deck-key privilege.
+  assert.equal(granted.includes('vmParam'), false);
+  // SDK_ACTION_TYPES is the gate a manifest macro step is checked against, so
+  // this is the assertion that actually keeps it out of reach.
+  assert.equal(SDK_ACTION_TYPES.includes('vmParam'), false);
+  assert.ok(SDK_ACTION_TYPES.includes('vmStripBus'));
+
+  assert.ok(SDK_STREAMS.includes('voicemeeter'), 'a widget that can press but not see is a Deck key');
+});
+
+test('every list that mirrors the SDK allowlist agrees with it', () => {
+  // Five copies of the same truth live in this repo, and the previous four
+  // additions each forgot one. They are listed here so a sixth cannot.
+  const { SDK_ACTION_CATEGORIES, SDK_STREAMS } = require('../sdk-widgets.js');
+  const files = {
+    'js/custom-widget.js': readFileSync(new URL('../js/custom-widget.js', import.meta.url), 'utf8'),
+    'js/settings.js': readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8'),
+    '../docs/WIDGET_SDK.md': readFileSync(new URL('../../docs/WIDGET_SDK.md', import.meta.url), 'utf8'),
+  };
+  for (const [name, src] of Object.entries(files)) {
+    assert.ok(/voicemeeter/.test(src), name + ' does not know about the voicemeeter category');
+  }
+  // The client mirror has to grant exactly what the server grants, or a widget
+  // is offered a permission the host will refuse.
+  const cw = files['js/custom-widget.js'];
+  const mirror = /voicemeeter: \[([^\]]*)\]/.exec(cw);
+  assert.ok(mirror, 'js/custom-widget.js has no voicemeeter action list');
+  const listed = mirror[1].split(',').map((x) => x.trim().replace(/'/g, '')).filter(Boolean);
+  assert.deepEqual(listed.sort(), [...SDK_ACTION_CATEGORIES.voicemeeter].sort());
+  assert.ok(SDK_STREAMS.includes('voicemeeter'));
+
+  // And the user-facing copy for both grants exists in every language.
+  const i18n = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+  for (const key of ['cw_act_voicemeeter', 'cw_stream_voicemeeter']) {
+    const n = i18n.split('\n').filter((l) => l.trimStart().startsWith(key + ':')).length;
+    assert.equal(n, 11, key + ' is in ' + n + ' languages, expected 11');
+  }
+});
+
+test('the live read is sized to the edition, and says what a widget can draw', () => {
+  const { client, store } = fakeClient({ type: 2, params: { 'Strip[1].Mute': 1, 'Strip[1].Gain': -6, 'Strip[1].A1': 1, 'Bus[3].Gain': -3 } });
+  const v = client.values();
+  assert.equal(v.edition, 'Voicemeeter Banana');
+  assert.equal(v.strips.length, 5);
+  assert.equal(v.buses.length, 5);
+  assert.equal(v.strips[1].mute, true);
+  assert.equal(v.strips[1].gain, -6);
+  assert.equal(v.strips[1].routes.A1, true);
+  assert.equal(v.strips[1].routes.B2, false, 'a route the mixer has not set reads false, not undefined');
+  assert.equal(v.buses[3].label, 'B1');
+  assert.equal(v.buses[3].gain, -3);
+  assert.equal(store['Strip[1].Mute'], 1, 'reading changed nothing');
+});

@@ -47,7 +47,7 @@ const SDK_API_VERSION = 1;
 // dashboard where that tile is absent. That is the whole reason `twitchChat` has
 // no loader at all — a widget must never be able to make Xenon hold a socket
 // open to Twitch on an idle dashboard just by asking for a refresh.
-const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'audioLevels', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes']);
+const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes']);
 
 // Action categories a package may request → the deck-action types each grants.
 // Deliberately a small, low-blast-radius subset of the action registry; every
@@ -64,6 +64,13 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   lighting: Object.freeze(['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice']),
   chroma: Object.freeze(['chromaColor', 'chromaOff']),
   wavelink: Object.freeze(['wlInputVolume', 'wlInputMute', 'wlOutputVolume', 'wlOutputMute', 'wlSwitchMonitoring', 'wlSetMonitorMix']),
+  // Voicemeeter strips, buses and routing. `vmParam` is deliberately LEFT OUT,
+  // for the same reason haCallService is: it names any parameter the mixer has,
+  // which includes Command.Shutdown and Command.Restart, and "close the user's
+  // audio mixer" is not something the typed actions imply. `vmMacro` is in — it
+  // presses a macro button the USER built inside Voicemeeter, which is the same
+  // shape of trust as sbDoAction.
+  voicemeeter: Object.freeze(['vmStripMute', 'vmStripGain', 'vmStripBus', 'vmBusMute', 'vmBusGain', 'vmMacro']),
   // Service-control categories (grant-gated). Each action type is already
   // validated by the registry against the connected service; a widget can only
   // reach the service the user connected AND granted. `haCallService` is

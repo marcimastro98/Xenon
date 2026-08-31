@@ -29523,6 +29523,8 @@ Object.assign(i18n.nl, { ambient_scene_builtin: 'Klassiek (widgets)' });
 // once; a key missing here falls back to English in t().
 Object.assign(i18n.it, {
   deck_cat_voicemeeter: 'Voicemeeter',
+  cw_stream_voicemeeter: 'Stato del mixer Voicemeeter',
+  cw_act_voicemeeter: 'Comandare il mixer Voicemeeter',
   deck_param_vm_macro: 'Pulsante macro (0-79)',
   deck_cat_hint_voicemeeter: 'canali, uscite e instradamento dentro il mixer',
   deck_act_vmStripMute: 'Voicemeeter: muto di un canale',
@@ -29538,6 +29540,8 @@ Object.assign(i18n.it, {
 });
 Object.assign(i18n.en, {
   deck_cat_voicemeeter: 'Voicemeeter',
+  cw_stream_voicemeeter: 'Voicemeeter mixer state',
+  cw_act_voicemeeter: 'Control the Voicemeeter mixer',
   deck_param_vm_macro: 'Macro button (0-79)',
   deck_cat_hint_voicemeeter: 'strips, buses and routing inside the mixer',
   deck_act_vmStripMute: 'Voicemeeter: mute a strip',
@@ -29553,6 +29557,8 @@ Object.assign(i18n.en, {
 });
 Object.assign(i18n.ko, {
   deck_cat_voicemeeter: 'Voicemeeter',
+  cw_stream_voicemeeter: 'Voicemeeter 믹서 상태',
+  cw_act_voicemeeter: 'Voicemeeter 믹서 제어',
   deck_param_vm_macro: '매크로 버튼 (0-79)',
   deck_cat_hint_voicemeeter: '믹서 내부의 스트립, 버스, 라우팅',
   deck_act_vmStripMute: 'Voicemeeter: 스트립 음소거',
@@ -29568,6 +29574,8 @@ Object.assign(i18n.ko, {
 });
 Object.assign(i18n.ja, {
   deck_cat_voicemeeter: 'Voicemeeter',
+  cw_stream_voicemeeter: 'Voicemeeter ミキサーの状態',
+  cw_act_voicemeeter: 'Voicemeeter ミキサーを操作',
   deck_param_vm_macro: 'マクロボタン (0-79)',
   deck_cat_hint_voicemeeter: 'ミキサー内部のストリップ、バス、ルーティング',
   deck_act_vmStripMute: 'Voicemeeter: ストリップをミュート',
@@ -29583,6 +29591,8 @@ Object.assign(i18n.ja, {
 });
 Object.assign(i18n.zh, {
   deck_cat_voicemeeter: 'Voicemeeter',
+  cw_stream_voicemeeter: 'Voicemeeter 调音台状态',
+  cw_act_voicemeeter: '控制 Voicemeeter 调音台',
   deck_param_vm_macro: '宏按钮（0-79）',
   deck_cat_hint_voicemeeter: '调音台内部的输入条、总线和路由',
   deck_act_vmStripMute: 'Voicemeeter：静音输入条',
@@ -29598,6 +29608,8 @@ Object.assign(i18n.zh, {
 });
 Object.assign(i18n.es, {
   deck_cat_voicemeeter: 'Voicemeeter',
+  cw_stream_voicemeeter: 'Estado del mezclador Voicemeeter',
+  cw_act_voicemeeter: 'Controlar el mezclador Voicemeeter',
   deck_param_vm_macro: 'Botón de macro (0-79)',
   deck_cat_hint_voicemeeter: 'canales, buses y enrutado dentro del mezclador',
   deck_act_vmStripMute: 'Voicemeeter: silenciar un canal',
@@ -29613,6 +29625,8 @@ Object.assign(i18n.es, {
 });
 Object.assign(i18n.fr, {
   deck_cat_voicemeeter: 'Voicemeeter',
+  cw_stream_voicemeeter: 'État du mélangeur Voicemeeter',
+  cw_act_voicemeeter: 'Piloter le mélangeur Voicemeeter',
   deck_param_vm_macro: 'Bouton macro (0-79)',
   deck_cat_hint_voicemeeter: 'voies, bus et routage à l’intérieur du mélangeur',
   deck_act_vmStripMute: 'Voicemeeter : couper une voie',
@@ -29628,6 +29642,8 @@ Object.assign(i18n.fr, {
 });
 Object.assign(i18n.de, {
   deck_cat_voicemeeter: 'Voicemeeter',
+  cw_stream_voicemeeter: 'Zustand des Voicemeeter-Mixers',
+  cw_act_voicemeeter: 'Den Voicemeeter-Mixer steuern',
   deck_param_vm_macro: 'Makro-Taste (0-79)',
   deck_cat_hint_voicemeeter: 'Kanäle, Busse und Routing im Mixer',
   deck_act_vmStripMute: 'Voicemeeter: Kanal stummschalten',
@@ -29643,6 +29659,8 @@ Object.assign(i18n.de, {
 });
 Object.assign(i18n.pt, {
   deck_cat_voicemeeter: 'Voicemeeter',
+  cw_stream_voicemeeter: 'Estado do mixer Voicemeeter',
+  cw_act_voicemeeter: 'Controlar o mixer Voicemeeter',
   deck_param_vm_macro: 'Botão de macro (0-79)',
   deck_cat_hint_voicemeeter: 'canais, barramentos e encaminhamento dentro do mixer',
   deck_act_vmStripMute: 'Voicemeeter: silenciar um canal',
@@ -29658,6 +29676,8 @@ Object.assign(i18n.pt, {
 });
 Object.assign(i18n.ru, {
   deck_cat_voicemeeter: 'Voicemeeter',
+  cw_stream_voicemeeter: 'Состояние микшера Voicemeeter',
+  cw_act_voicemeeter: 'Управлять микшером Voicemeeter',
   deck_param_vm_macro: 'Кнопка макроса (0-79)',
   deck_cat_hint_voicemeeter: 'каналы, шины и маршрутизация внутри микшера',
   deck_act_vmStripMute: 'Voicemeeter: заглушить канал',
@@ -29673,6 +29693,8 @@ Object.assign(i18n.ru, {
 });
 Object.assign(i18n.nl, {
   deck_cat_voicemeeter: 'Voicemeeter',
+  cw_stream_voicemeeter: 'Status van de Voicemeeter-mixer',
+  cw_act_voicemeeter: 'De Voicemeeter-mixer bedienen',
   deck_param_vm_macro: 'Macroknop (0-79)',
   deck_cat_hint_voicemeeter: 'kanalen, bussen en routering binnen de mixer',
   deck_act_vmStripMute: 'Voicemeeter: kanaal dempen',
