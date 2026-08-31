@@ -401,6 +401,10 @@ It is designed to **share control with iCUE**, not fight it: turn the bridge off
 
 **Elgato Wave Link.** Enable **Wave Link** (Settings → Streaming) to drive your Wave Link audio mixer from Xenon: Deck keys and Widget-SDK actions to set input/output volumes, mute a channel on the local or stream mix, flip monitoring and switch the monitor mix — with a live stream of the mixer so widgets can show real faders. Off by default; requires the **Wave Link** app running.
 
+**Voicemeeter.** Windows shows Voicemeeter's virtual cards like any other sound device, so picking one and setting its volume always worked — but everything *inside* the mixer was out of reach. Deck keys and Widget-SDK actions now reach it directly through the Remote API: mute a strip, set or nudge its gain, send a strip to a bus (the A1/A2/B1/B2 buttons), mute or set a bus, and press one of your own macro buttons. A Deck key can also set **any** named parameter the mixer has, which covers the EQ, the compressor, the gate, the patch and the recorder.
+
+The strip and bus pickers are filled from the mixer that is actually running, so the lists are as long as your edition and no longer: Voicemeeter has 3 strips and 2 buses, Banana 5 and 5, Potato 8 and 8. Buses are stored by **label** (A1, B2) rather than by number, because the number behind a label differs per edition — B1 is bus 1 on Voicemeeter, bus 3 on Banana and bus 5 on Potato. A live `voicemeeter` stream carries mute, gain and the routing flags so a widget can draw real faders. No setting to switch on: having Voicemeeter installed is the whole opt-in, and on a PC without it nothing loads and the category is not offered. Windows only.
+
 **Advanced: OpenRGB.** Power users can also bridge **OpenRGB** (ASUS Aura, MSI, Gigabyte, Razer, RAM, motherboards…) from the collapsed *Advanced* group: run OpenRGB with its SDK Server enabled and add it by IP (it is never auto-scanned). Corsair devices are always skipped there, so OpenRGB and iCUE never fight over the same gear.
 
 ---
