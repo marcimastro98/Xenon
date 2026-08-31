@@ -674,6 +674,23 @@ function createRegistry(deps) {
           const r = await d.waveLink(action);
           return r && r.ok === false ? { ok: false, error: r.error || 'wavelink_failed' } : { ok: true };
         }
+        case 'vmStripMute':
+        case 'vmStripGain':
+        case 'vmStripBus':
+        case 'vmBusMute':
+        case 'vmBusGain':
+        case 'vmMacro':
+        case 'vmParam': {
+          // Voicemeeter strip/bus/routing control through the local Remote API
+          // DLL. One dep fronts the client, which owns the session and the
+          // edition check: a strip index or bus label the running mixer does
+          // not have comes back {ok:false} rather than as a write that lands
+          // nowhere. Absent Voicemeeter, absent DLL and non-Windows all degrade
+          // to a named error the key can show.
+          if (typeof d.voicemeeter !== 'function') return { ok: false, error: 'voicemeeter_unavailable' };
+          const r = await d.voicemeeter(action);
+          return r && r.ok === false ? { ok: false, error: r.error || 'voicemeeter_failed' } : { ok: true };
+        }
         case 'lightPower':
         case 'lightColor':
         case 'lightAuto':

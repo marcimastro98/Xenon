@@ -118,6 +118,8 @@
   let homeAssistantConfigured = null;
   let chromaEnabled = null;
   let wavelinkEnabled = null;
+  let voicemeeterAvailable = null;
+  let vmStatePromise = null;    // one read of the running mixer feeds both pickers
   let signalrgbEnabled = null;
   let lightingConfigured = null;
   let claudeLinked = null;        // Claude Code hooks installed (gates the claude group)
@@ -155,11 +157,12 @@
       const nextHa = !!(d && d.capabilities && d.capabilities.homeAssistantConfigured);
       const nextChroma = !!(d && d.capabilities && d.capabilities.chromaEnabled);
       const nextWl = !!(d && d.capabilities && d.capabilities.wavelinkEnabled);
+      const nextVm = !!(d && d.capabilities && d.capabilities.voicemeeterAvailable);
       const nextSignalRgb = !!(d && d.capabilities && d.capabilities.signalrgbEnabled);
       const nextLighting = !!(d && d.capabilities && d.capabilities.lightingConfigured);
       const nextClaude = !!(d && d.capabilities && d.capabilities.claudeLinked);
       serverCaps = (d && d.capabilities) || null;
-      const changed = nextObs !== obsConfigured || nextRemote !== remoteConfigured || nextTwitch !== twitchConnected || nextYouTube !== youtubeConnected || nextSb !== streamerbotConfigured || nextDiscord !== discordConnected || nextSpotify !== spotifyConnected || nextHa !== homeAssistantConfigured || nextChroma !== chromaEnabled || nextWl !== wavelinkEnabled || nextSignalRgb !== signalrgbEnabled || nextLighting !== lightingConfigured || nextClaude !== claudeLinked;
+      const changed = nextObs !== obsConfigured || nextRemote !== remoteConfigured || nextTwitch !== twitchConnected || nextYouTube !== youtubeConnected || nextSb !== streamerbotConfigured || nextDiscord !== discordConnected || nextSpotify !== spotifyConnected || nextHa !== homeAssistantConfigured || nextChroma !== chromaEnabled || nextWl !== wavelinkEnabled || nextVm !== voicemeeterAvailable || nextSignalRgb !== signalrgbEnabled || nextLighting !== lightingConfigured || nextClaude !== claudeLinked;
       obsConfigured = nextObs;
       remoteConfigured = nextRemote;
       twitchConnected = nextTwitch;
@@ -170,10 +173,11 @@
       homeAssistantConfigured = nextHa;
       chromaEnabled = nextChroma;
       wavelinkEnabled = nextWl;
+      voicemeeterAvailable = nextVm;
       signalrgbEnabled = nextSignalRgb;
       lightingConfigured = nextLighting;
       claudeLinked = nextClaude;
-      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; haDomains = null; wlChannelsPromise = null; wlStatePromise = null; lightDevicesPromise = null; signalRgbEffectsPromise = null; claudeProjectsPromise = null; }   // config changed → re-fetch the lists
+      if (changed) { scenesPromise = null; sourcesPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; haDomains = null; wlChannelsPromise = null; wlStatePromise = null; vmStatePromise = null; lightDevicesPromise = null; signalRgbEffectsPromise = null; claudeProjectsPromise = null; }   // config changed → re-fetch the lists
       // Compute the set of HA device domains the user actually HAS, so the action
       // picker offers only the actions relevant to their devices (generic, not
       // hardcoded). This runs after the fast capability check; the caller does a
@@ -309,6 +313,24 @@
       return generic.concat(named);
     });
   }
+  // The running Voicemeeter, read once. `strips` and `buses` come back sized for
+  // the edition that is actually running, which is the whole point: offering
+  // Bus[7] to somebody on plain Voicemeeter builds a key that writes nowhere.
+  function vmState() {
+    if (!vmStatePromise) vmStatePromise = fetch('/api/voicemeeter/state').then((r) => r.json()).catch(() => null);
+    return vmStatePromise;
+  }
+  function vmStripOptions() {
+    return vmState().then((s) => ((s && Array.isArray(s.strips)) ? s.strips : [])
+      .map((x) => ({ value: String(x.index), label: x.index + ' — ' + x.label })));
+  }
+  // Buses are offered BY LABEL, never by index: A1/B2 are the words on the
+  // mixer's own buttons, and the index behind a label moves between editions.
+  function vmBusOptions() {
+    return vmState().then((s) => ((s && Array.isArray(s.buses)) ? s.buses : [])
+      .map((x) => ({ value: x.label, label: x.label + ' — ' + x.name })));
+  }
+
   // Effects are per channel, but their ids are unique across the mixer, so the
   // picker lists them all and qualifies each with the channel it belongs to.
   function wlEffectOptions() {
@@ -767,7 +789,7 @@
     // Re-fetch OBS scene/source lists and the running-app list on each open so
     // scenes/sources just created in OBS — and apps just launched — show up
     // without a page reload.
-    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; wlChannelsPromise = null; wlStatePromise = null; lightDevicesPromise = null; sdkWidgetsPromise = null; signalRgbEffectsPromise = null;
+    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; wlChannelsPromise = null; wlStatePromise = null; vmStatePromise = null; lightDevicesPromise = null; sdkWidgetsPromise = null; signalRgbEffectsPromise = null;
     const DA = window.DeckActions;
     const DM = window.DeckModel;
     // Hard dependencies: bail cleanly (rather than throwing mid-build and leaving
@@ -1620,6 +1642,7 @@
       { group: 'homeassistant', labelKey: 'deck_cat_homeassistant' },
       { group: 'chroma', labelKey: 'deck_cat_chroma' },
       { group: 'wavelink', labelKey: 'deck_cat_wavelink' },
+      { group: 'voicemeeter', labelKey: 'deck_cat_voicemeeter' },
       { group: 'lighting', labelKey: 'deck_cat_lighting' },
       { group: 'window', labelKey: 'deck_cat_window' },
       { group: 'remote', labelKey: 'deck_cat_remote' },
@@ -1727,6 +1750,7 @@
       homeassistant: 'deck_cat_hint_homeassistant',
       chroma: 'deck_cat_hint_chroma',
       wavelink: 'deck_cat_hint_wavelink',
+      voicemeeter: 'deck_cat_hint_voicemeeter',
       lighting: 'deck_cat_hint_lighting',
       remote: 'deck_cat_hint_remote',
     };
@@ -1754,6 +1778,9 @@
       if (a.group === 'spotify' && spotifyConnected === false) return false;
       if (a.group === 'chroma' && chromaEnabled === false) return false;
       if (a.group === 'wavelink' && wavelinkEnabled === false) return false;
+      // No opt-in flag for Voicemeeter: the DLL only exists on a machine that
+      // installed it, so its presence IS the answer to "do you use this".
+      if (a.group === 'voicemeeter' && voicemeeterAvailable === false) return false;
       // SignalRGB is a separate opt-in scene switcher: it lives in the lighting
       // group but is gated on its OWN enable flag, not the colour-rig config — so
       // it can be offered even when no iCUE/Hue/WLED rig is set up (and hidden
@@ -2582,6 +2609,18 @@
         if (p.kind === 'wlChannel') {
           if (step.params[p.name] == null) step.params[p.name] = '';
           f.appendChild(wlChannelPickControl(step, p.name));
+          host.appendChild(f);
+          return;
+        }
+        if (p.kind === 'vmStrip') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(wlPickControl(step, p.name, vmStripOptions, t('deck_param_vm_strip')));
+          host.appendChild(f);
+          return;
+        }
+        if (p.kind === 'vmBus') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(wlPickControl(step, p.name, vmBusOptions, t('deck_param_vm_bus')));
           host.appendChild(f);
           return;
         }

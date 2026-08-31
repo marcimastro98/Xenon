@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### ✨ Added
+- **Voicemeeter, from the inside.** Windows shows Voicemeeter's virtual cards like any other sound device, so Xenon could already pick one and set its volume. What it could not reach was anything *inside* the mixer, which is the part people actually bind to a key: the gain of one strip, its mute, and the A1/A2/B1/B2 buttons that decide where each source goes. Asked for on Discord by a supporter running Potato, with three other tools doing it for reference.
+
+  There are now seven Deck actions under **Voicemeeter**: mute a strip, strip volume, send a strip to a bus, mute a bus, bus volume, press a macro button, and one free-form action that sets any parameter the mixer has. That last one is not a leftover: every control in Voicemeeter is a named parameter, so the EQ, the compressor, the gate, the patch and the recorder are all reachable today without waiting for a release per knob.
+
+  The strip and bus pickers are filled from the mixer that is actually running, so the list is as long as your edition and no longer: Voicemeeter has 3 strips and 2 buses, Banana 5 and 5, Potato 8 and 8. A key stores a bus by its **label** (A1, B2) rather than by its number, because the number behind a label moves between editions — B1 is bus 1 on Voicemeeter, bus 3 on Banana and bus 5 on Potato — and a key that stored the number would quietly start muting a different output the day its owner upgraded. An index the running mixer does not have is refused where you can see it, rather than written into nothing.
+
+  Nothing is loaded on a machine without Voicemeeter, the category is not offered there at all, and volume set on a key is clamped to the fader the mixer really has (−60 to +12 dB) instead of being silently clamped later.
+
 - **Xenon asks for support once, and only once.** There has been a donate button since the beginning — in the app, on the site, on GitHub, on Discord — and it has never asked for anything, so only people who went looking ever found it. Now it asks, one time in the life of an installation, and then never again.
 
   It waits until the question is a fair one: thirty days after your first run **and** ten separate days of actually opening the dashboard. Someone who has come back on ten different days over a month has decided Xenon is useful; anyone earlier is still deciding, and asking them is asking a stranger for money. Days are counted when a dashboard opens, not when the engine starts, so a PC that runs it at logon and never gets looked at earns no credit.

@@ -144,6 +144,26 @@ const ACTION_CATALOG = [
   { type: 'wlOutputDevice', group: 'wavelink', labelKey: 'deck_act_wlOutputDevice', params: [{ name: 'deviceId', kind: 'wlOutput' }] },
   { type: 'wlSwitchMonitoring', group: 'wavelink', labelKey: 'deck_act_wlSwitchMonitoring', params: [] },
   { type: 'wlSetMonitorMix',    group: 'wavelink', labelKey: 'deck_act_wlSetMonitorMix',    params: [{ name: 'monitorMix', kind: 'text' }] },
+  // Voicemeeter — the mixer's own strips, buses and routing, through the local
+  // Remote API DLL (host-mediated; see actions/voicemeeter.js). Windows already
+  // shows Voicemeeter's virtual cards, so volume and device selection worked
+  // before this; what did not exist was any way to reach INSIDE the mixer.
+  //
+  // `strip` is an index because that is what the API takes, and `bus` is a
+  // LABEL (A1, B2) because that is what the buttons say — and because the index
+  // behind a label moves between editions: B1 is Bus[1] on Voicemeeter, Bus[3]
+  // on Banana and Bus[5] on Potato. A key that stored the index would quietly
+  // point at a different output the day its owner upgrades.
+  { type: 'vmStripMute', group: 'voicemeeter', labelKey: 'deck_act_vmStripMute', params: [{ name: 'strip', kind: 'vmStrip', labelKey: 'deck_param_vm_strip' }, { name: 'mode', kind: 'select', options: ['toggle', 'on', 'off'] }] },
+  { type: 'vmStripGain', group: 'voicemeeter', labelKey: 'deck_act_vmStripGain', params: [{ name: 'strip', kind: 'vmStrip', labelKey: 'deck_param_vm_strip' }, { name: 'mode', kind: 'select', options: ['set', 'up', 'down'] }, { name: 'value', kind: 'text' }] },
+  { type: 'vmStripBus',  group: 'voicemeeter', labelKey: 'deck_act_vmStripBus',  params: [{ name: 'strip', kind: 'vmStrip', labelKey: 'deck_param_vm_strip' }, { name: 'bus', kind: 'vmBus', labelKey: 'deck_param_vm_bus' }, { name: 'mode', kind: 'select', options: ['toggle', 'on', 'off'] }] },
+  { type: 'vmBusMute',   group: 'voicemeeter', labelKey: 'deck_act_vmBusMute',   params: [{ name: 'bus', kind: 'vmBus', labelKey: 'deck_param_vm_bus' }, { name: 'mode', kind: 'select', options: ['toggle', 'on', 'off'] }] },
+  { type: 'vmBusGain',   group: 'voicemeeter', labelKey: 'deck_act_vmBusGain',   params: [{ name: 'bus', kind: 'vmBus', labelKey: 'deck_param_vm_bus' }, { name: 'mode', kind: 'select', options: ['set', 'up', 'down'] }, { name: 'value', kind: 'text' }] },
+  { type: 'vmMacro',     group: 'voicemeeter', labelKey: 'deck_act_vmMacro',     params: [{ name: 'index', kind: 'text', labelKey: 'deck_param_vm_macro' }, { name: 'mode', kind: 'select', options: ['toggle', 'on', 'off'] }] },
+  // The escape hatch. Every control in Voicemeeter is a named parameter, so
+  // this one action reaches anything the five above do not — EQ, compressor,
+  // gate, patch, recorder — without a release per knob.
+  { type: 'vmParam',     group: 'voicemeeter', labelKey: 'deck_act_vmParam',     params: [{ name: 'param', kind: 'text', maxLen: 64, labelKey: 'deck_param_vm_param' }, { name: 'mode', kind: 'select', options: ['set', 'toggle', 'up', 'down'] }, { name: 'value', kind: 'text' }] },
   // Personal task list — add / toggle / delete a to-do (the `tasks` category).
   // Kept out of the Deck editor (no 'tasks' entry in its category list) AND flagged
   // hidden; exposed to SDK widgets via SDK_ACTION_CATEGORIES so a granted widget can
