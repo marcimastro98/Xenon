@@ -12,6 +12,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Reported on Discord by Piotr as a missing option on the Calendar widget. The option already existed; it was simply not being listened to.
 
 ### ✨ Added
+- **A stopwatch, in the same tile as the timers.** Leave the duration empty and press +: instead of a countdown you get a clock that counts up, for measuring how long something actually took. Pause, resume, reset, keep and delete are the buttons you already know, because underneath it is the same clock — only running the other way.
+
+  There is no second button to learn: the format hint under the fields says *vuoto = cronometro*, and that is the whole gesture. A stopwatch never rings and never sends a notification, since it has no end to reach; a small mark before its name tells it apart from a countdown when both are paused. There is a Deck action for it too, and the assistant reports the time spent when you ask what is running.
+
+  Asked for on Discord, alongside an interval timer that is deliberately not here yet.
+
 - **You choose what the Upcoming list shows.** Settings → Calendario now has two controls: how many events the tile lists (3, 5, 8 or 10) and how far ahead it looks (no limit, 7, 14 or 30 days).
 
   This came from a request for "a custom date range", saying the widget shows the next two weeks. It never did: it took the next **five** events and their dates fell wherever they fell, so a quiet fortnight put an eleven-day chip on screen and that looked like a rule. The count was the only limit there was, and it was not adjustable either. Now both are, and the days are counted the way a person counts them — a 7-day horizon set at 11pm still includes an event seven sleeps away at 8am, which counting 7×24h would have dropped.

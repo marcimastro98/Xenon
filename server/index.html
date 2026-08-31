@@ -430,7 +430,9 @@
                 onkeydown="onTimerInputKeydown(event)">
               <button class="timer-add-btn" type="button" onclick="addTimerFromInput()" data-i18n-title="timer_add" title="Aggiungi timer" aria-label="Aggiungi timer">+</button>
             </div>
-            <div class="timer-format-hint" data-i18n="timer_format_hint">5 min · 5:30 min:sec · 1:05:00 ore:min:sec</div>
+            <!-- The hint is where the stopwatch is discoverable: there is no
+                 second button, an empty duration is the gesture. -->
+            <div class="timer-format-hint" data-i18n="timer_format_hint">5 min · 5:30 min:sec · 1:05:00 ore:min:sec · vuoto = cronometro</div>
           </div>
           <div class="timer-list" id="timer-list" data-timerf="list"></div>
         </div>
