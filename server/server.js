@@ -7626,6 +7626,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     ]),
   }),
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
+  // What the Upcoming list shows. 0 days = no horizon, which is what it always
+  // did — the list simply took the next five, wherever they landed.
+  upcomingCount: 5,
+  upcomingDays: 0,
   swipeNavigation: true, // drag / finger-swipe to change dashboard page
   // Native app only: quick up-swipe from the bottom of the screen collapses the
   // kiosk to a slim strip and reveals the Windows desktop (native-bridge.js).
@@ -9024,6 +9028,8 @@ function normalizeHubSettings(value) {
     topbarRailsAutoHide: source.topbarRailsAutoHide !== false,
     topbarClock: normalizeTopbarClock(source.topbarClock, source),
     weekStart: ['mon', 'sun'].includes(source.weekStart) ? source.weekStart : 'mon',
+    upcomingCount: [3, 5, 8, 10].includes(Number(source.upcomingCount)) ? Number(source.upcomingCount) : 5,
+    upcomingDays: [0, 7, 14, 30].includes(Number(source.upcomingDays)) ? Number(source.upcomingDays) : 0,
     swipeNavigation: source.swipeNavigation !== false,
     swipeHomeGesture: source.swipeHomeGesture !== false,
     nativeZoom: clampNumber(source.nativeZoom, 0.6, 1.6, DEFAULT_HUB_SETTINGS.nativeZoom),

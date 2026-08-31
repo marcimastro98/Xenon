@@ -12,6 +12,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Reported on Discord by Piotr as a missing option on the Calendar widget. The option already existed; it was simply not being listened to.
 
 ### ✨ Added
+- **You choose what the Upcoming list shows.** Settings → Calendario now has two controls: how many events the tile lists (3, 5, 8 or 10) and how far ahead it looks (no limit, 7, 14 or 30 days).
+
+  This came from a request for "a custom date range", saying the widget shows the next two weeks. It never did: it took the next **five** events and their dates fell wherever they fell, so a quiet fortnight put an eleven-day chip on screen and that looked like a rule. The count was the only limit there was, and it was not adjustable either. Now both are, and the days are counted the way a person counts them — a 7-day horizon set at 11pm still includes an event seven sleeps away at 8am, which counting 7×24h would have dropped.
+
+  Leaving both alone keeps exactly what Xenon did before: five events, no horizon.
+
 - **Voicemeeter, from the inside.** Windows shows Voicemeeter's virtual cards like any other sound device, so Xenon could already pick one and set its volume. What it could not reach was anything *inside* the mixer, which is the part people actually bind to a key: the gain of one strip, its mute, and the A1/A2/B1/B2 buttons that decide where each source goes. Asked for on Discord by a supporter running Potato, with three other tools doing it for reference.
 
   There are now seven Deck actions under **Voicemeeter**: mute a strip, strip volume, send a strip to a bus, mute a bus, bus volume, press a macro button, and one free-form action that sets any parameter the mixer has. That last one is not a leftover: every control in Voicemeeter is a named parameter, so the EQ, the compressor, the gate, the patch and the recorder are all reachable today without waiting for a release per knob.

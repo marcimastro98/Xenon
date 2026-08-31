@@ -29517,6 +29517,131 @@ Object.assign(i18n.zh, { ambient_scene_covers: '此场景会铺满整个屏幕�
 // would have named a choice that is not in the list.
 Object.assign(i18n.nl, { ambient_scene_builtin: 'Klassiek (widgets)' });
 
+// v4.11.7 - the Upcoming list gained two knobs (how many, how far ahead), and
+// the Calendar settings hint had to stop promising only a first-day-of-week.
+Object.assign(i18n.it, {
+  settings_upcoming_count: 'Eventi in arrivo',
+  settings_upcoming_count_hint: 'quanti mostrarne nel riquadro Calendario',
+  settings_upcoming_days: 'Fino a',
+  settings_upcoming_days_hint: 'nasconde gli eventi più lontani di così',
+  settings_upcoming_days_any: 'Nessun limite',
+  settings_upcoming_days_7: '7 giorni',
+  settings_upcoming_days_14: '14 giorni',
+  settings_upcoming_days_30: '30 giorni',
+  settings_calendar_hint: 'primo giorno della settimana ed eventi in arrivo',
+});
+Object.assign(i18n.en, {
+  settings_upcoming_count: 'Upcoming events',
+  settings_upcoming_count_hint: 'how many the Calendar tile lists',
+  settings_upcoming_days: 'Looking ahead',
+  settings_upcoming_days_hint: 'hides anything further away than this',
+  settings_upcoming_days_any: 'No limit',
+  settings_upcoming_days_7: '7 days',
+  settings_upcoming_days_14: '14 days',
+  settings_upcoming_days_30: '30 days',
+  settings_calendar_hint: 'first day of the week, and the upcoming list',
+});
+Object.assign(i18n.ko, {
+  settings_upcoming_count: '예정된 일정',
+  settings_upcoming_count_hint: '캘린더 타일에 몇 개를 표시할지',
+  settings_upcoming_days: '조회 범위',
+  settings_upcoming_days_hint: '이보다 먼 일정은 숨깁니다',
+  settings_upcoming_days_any: '제한 없음',
+  settings_upcoming_days_7: '7일',
+  settings_upcoming_days_14: '14일',
+  settings_upcoming_days_30: '30일',
+  settings_calendar_hint: '주 시작 요일과 예정된 일정 목록',
+});
+Object.assign(i18n.ja, {
+  settings_upcoming_count: '今後の予定',
+  settings_upcoming_count_hint: 'カレンダーに表示する件数',
+  settings_upcoming_days: '表示する期間',
+  settings_upcoming_days_hint: 'これより先の予定は隠します',
+  settings_upcoming_days_any: '制限なし',
+  settings_upcoming_days_7: '7日',
+  settings_upcoming_days_14: '14日',
+  settings_upcoming_days_30: '30日',
+  settings_calendar_hint: '週の始まりと今後の予定リスト',
+});
+Object.assign(i18n.zh, {
+  settings_upcoming_count: '即将到来的日程',
+  settings_upcoming_count_hint: '日历磁贴显示几条',
+  settings_upcoming_days: '向前查看',
+  settings_upcoming_days_hint: '隐藏比这更远的日程',
+  settings_upcoming_days_any: '不限',
+  settings_upcoming_days_7: '7 天',
+  settings_upcoming_days_14: '14 天',
+  settings_upcoming_days_30: '30 天',
+  settings_calendar_hint: '一周的第一天，以及即将到来的日程',
+});
+Object.assign(i18n.es, {
+  settings_upcoming_count: 'Próximos eventos',
+  settings_upcoming_count_hint: 'cuántos muestra el panel Calendario',
+  settings_upcoming_days: 'Hasta',
+  settings_upcoming_days_hint: 'oculta lo que esté más lejos que esto',
+  settings_upcoming_days_any: 'Sin límite',
+  settings_upcoming_days_7: '7 días',
+  settings_upcoming_days_14: '14 días',
+  settings_upcoming_days_30: '30 días',
+  settings_calendar_hint: 'primer día de la semana y la lista de próximos',
+});
+Object.assign(i18n.fr, {
+  settings_upcoming_count: 'Événements à venir',
+  settings_upcoming_count_hint: 'combien la tuile Calendrier en affiche',
+  settings_upcoming_days: 'Jusqu’à',
+  settings_upcoming_days_hint: 'masque tout ce qui est plus loin',
+  settings_upcoming_days_any: 'Sans limite',
+  settings_upcoming_days_7: '7 jours',
+  settings_upcoming_days_14: '14 jours',
+  settings_upcoming_days_30: '30 jours',
+  settings_calendar_hint: 'premier jour de la semaine et la liste à venir',
+});
+Object.assign(i18n.de, {
+  settings_upcoming_count: 'Kommende Termine',
+  settings_upcoming_count_hint: 'wie viele die Kalender-Kachel zeigt',
+  settings_upcoming_days: 'Vorausschau',
+  settings_upcoming_days_hint: 'blendet alles weiter Entfernte aus',
+  settings_upcoming_days_any: 'Ohne Grenze',
+  settings_upcoming_days_7: '7 Tage',
+  settings_upcoming_days_14: '14 Tage',
+  settings_upcoming_days_30: '30 Tage',
+  settings_calendar_hint: 'erster Tag der Woche und die Terminliste',
+});
+Object.assign(i18n.pt, {
+  settings_upcoming_count: 'Próximos eventos',
+  settings_upcoming_count_hint: 'quantos o painel Calendário mostra',
+  settings_upcoming_days: 'Até',
+  settings_upcoming_days_hint: 'esconde o que estiver mais longe do que isto',
+  settings_upcoming_days_any: 'Sem limite',
+  settings_upcoming_days_7: '7 dias',
+  settings_upcoming_days_14: '14 dias',
+  settings_upcoming_days_30: '30 dias',
+  settings_calendar_hint: 'primeiro dia da semana e a lista de próximos',
+});
+Object.assign(i18n.ru, {
+  settings_upcoming_count: 'Ближайшие события',
+  settings_upcoming_count_hint: 'сколько показывает плитка календаря',
+  settings_upcoming_days: 'Горизонт',
+  settings_upcoming_days_hint: 'скрывает всё, что дальше этого',
+  settings_upcoming_days_any: 'Без ограничения',
+  settings_upcoming_days_7: '7 дней',
+  settings_upcoming_days_14: '14 дней',
+  settings_upcoming_days_30: '30 дней',
+  settings_calendar_hint: 'первый день недели и список ближайших',
+});
+Object.assign(i18n.nl, {
+  settings_upcoming_count: 'Aankomende afspraken',
+  settings_upcoming_count_hint: 'hoeveel de Agenda-tegel toont',
+  settings_upcoming_days: 'Vooruitkijken',
+  settings_upcoming_days_hint: 'verbergt alles wat verder weg is',
+  settings_upcoming_days_any: 'Geen limiet',
+  settings_upcoming_days_7: '7 dagen',
+  settings_upcoming_days_14: '14 dagen',
+  settings_upcoming_days_30: '30 dagen',
+  settings_calendar_hint: 'eerste dag van de week en de lijst met afspraken',
+});
+
+
 // v4.11.7 - Voicemeeter. The mixer's own strips, buses and routing, which
 // Windows cannot show because they live inside the app rather than on a device.
 // Appended as one overlay per language so every locale gets the whole set at
