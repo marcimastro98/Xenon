@@ -29517,6 +29517,177 @@ Object.assign(i18n.zh, { ambient_scene_covers: '此场景会铺满整个屏幕�
 // would have named a choice that is not in the list.
 Object.assign(i18n.nl, { ambient_scene_builtin: 'Klassiek (widgets)' });
 
+// v4.11.7 - Voicemeeter. The mixer's own strips, buses and routing, which
+// Windows cannot show because they live inside the app rather than on a device.
+// Appended as one overlay per language so every locale gets the whole set at
+// once; a key missing here falls back to English in t().
+Object.assign(i18n.it, {
+  deck_cat_voicemeeter: 'Voicemeeter',
+  deck_param_vm_macro: 'Pulsante macro (0-79)',
+  deck_cat_hint_voicemeeter: 'canali, uscite e instradamento dentro il mixer',
+  deck_act_vmStripMute: 'Voicemeeter: muto di un canale',
+  deck_act_vmStripGain: 'Voicemeeter: volume di un canale',
+  deck_act_vmStripBus: 'Voicemeeter: manda un canale a un’uscita',
+  deck_act_vmBusMute: 'Voicemeeter: muto di un’uscita',
+  deck_act_vmBusGain: 'Voicemeeter: volume di un’uscita',
+  deck_act_vmMacro: 'Voicemeeter: pulsante macro',
+  deck_act_vmParam: 'Voicemeeter: parametro qualsiasi',
+  deck_param_vm_strip: 'Canale',
+  deck_param_vm_bus: 'Uscita (A1, B2…)',
+  deck_param_vm_param: 'Parametro, es. Strip[0].Mute',
+});
+Object.assign(i18n.en, {
+  deck_cat_voicemeeter: 'Voicemeeter',
+  deck_param_vm_macro: 'Macro button (0-79)',
+  deck_cat_hint_voicemeeter: 'strips, buses and routing inside the mixer',
+  deck_act_vmStripMute: 'Voicemeeter: mute a strip',
+  deck_act_vmStripGain: 'Voicemeeter: strip volume',
+  deck_act_vmStripBus: 'Voicemeeter: send a strip to a bus',
+  deck_act_vmBusMute: 'Voicemeeter: mute a bus',
+  deck_act_vmBusGain: 'Voicemeeter: bus volume',
+  deck_act_vmMacro: 'Voicemeeter: macro button',
+  deck_act_vmParam: 'Voicemeeter: any parameter',
+  deck_param_vm_strip: 'Strip',
+  deck_param_vm_bus: 'Bus (A1, B2…)',
+  deck_param_vm_param: 'Parameter, e.g. Strip[0].Mute',
+});
+Object.assign(i18n.ko, {
+  deck_cat_voicemeeter: 'Voicemeeter',
+  deck_param_vm_macro: '매크로 버튼 (0-79)',
+  deck_cat_hint_voicemeeter: '믹서 내부의 스트립, 버스, 라우팅',
+  deck_act_vmStripMute: 'Voicemeeter: 스트립 음소거',
+  deck_act_vmStripGain: 'Voicemeeter: 스트립 볼륨',
+  deck_act_vmStripBus: 'Voicemeeter: 스트립을 버스로 보내기',
+  deck_act_vmBusMute: 'Voicemeeter: 버스 음소거',
+  deck_act_vmBusGain: 'Voicemeeter: 버스 볼륨',
+  deck_act_vmMacro: 'Voicemeeter: 매크로 버튼',
+  deck_act_vmParam: 'Voicemeeter: 임의의 파라미터',
+  deck_param_vm_strip: '스트립',
+  deck_param_vm_bus: '버스 (A1, B2…)',
+  deck_param_vm_param: '파라미터, 예: Strip[0].Mute',
+});
+Object.assign(i18n.ja, {
+  deck_cat_voicemeeter: 'Voicemeeter',
+  deck_param_vm_macro: 'マクロボタン (0-79)',
+  deck_cat_hint_voicemeeter: 'ミキサー内部のストリップ、バス、ルーティング',
+  deck_act_vmStripMute: 'Voicemeeter: ストリップをミュート',
+  deck_act_vmStripGain: 'Voicemeeter: ストリップの音量',
+  deck_act_vmStripBus: 'Voicemeeter: ストリップをバスへ送る',
+  deck_act_vmBusMute: 'Voicemeeter: バスをミュート',
+  deck_act_vmBusGain: 'Voicemeeter: バスの音量',
+  deck_act_vmMacro: 'Voicemeeter: マクロボタン',
+  deck_act_vmParam: 'Voicemeeter: 任意のパラメーター',
+  deck_param_vm_strip: 'ストリップ',
+  deck_param_vm_bus: 'バス (A1, B2…)',
+  deck_param_vm_param: 'パラメーター 例: Strip[0].Mute',
+});
+Object.assign(i18n.zh, {
+  deck_cat_voicemeeter: 'Voicemeeter',
+  deck_param_vm_macro: '宏按钮（0-79）',
+  deck_cat_hint_voicemeeter: '调音台内部的输入条、总线和路由',
+  deck_act_vmStripMute: 'Voicemeeter：静音输入条',
+  deck_act_vmStripGain: 'Voicemeeter：输入条音量',
+  deck_act_vmStripBus: 'Voicemeeter：把输入条送到总线',
+  deck_act_vmBusMute: 'Voicemeeter：静音总线',
+  deck_act_vmBusGain: 'Voicemeeter：总线音量',
+  deck_act_vmMacro: 'Voicemeeter：宏按钮',
+  deck_act_vmParam: 'Voicemeeter：任意参数',
+  deck_param_vm_strip: '输入条',
+  deck_param_vm_bus: '总线（A1、B2…）',
+  deck_param_vm_param: '参数，例如 Strip[0].Mute',
+});
+Object.assign(i18n.es, {
+  deck_cat_voicemeeter: 'Voicemeeter',
+  deck_param_vm_macro: 'Botón de macro (0-79)',
+  deck_cat_hint_voicemeeter: 'canales, buses y enrutado dentro del mezclador',
+  deck_act_vmStripMute: 'Voicemeeter: silenciar un canal',
+  deck_act_vmStripGain: 'Voicemeeter: volumen de un canal',
+  deck_act_vmStripBus: 'Voicemeeter: enviar un canal a un bus',
+  deck_act_vmBusMute: 'Voicemeeter: silenciar un bus',
+  deck_act_vmBusGain: 'Voicemeeter: volumen de un bus',
+  deck_act_vmMacro: 'Voicemeeter: botón de macro',
+  deck_act_vmParam: 'Voicemeeter: cualquier parámetro',
+  deck_param_vm_strip: 'Canal',
+  deck_param_vm_bus: 'Bus (A1, B2…)',
+  deck_param_vm_param: 'Parámetro, p. ej. Strip[0].Mute',
+});
+Object.assign(i18n.fr, {
+  deck_cat_voicemeeter: 'Voicemeeter',
+  deck_param_vm_macro: 'Bouton macro (0-79)',
+  deck_cat_hint_voicemeeter: 'voies, bus et routage à l’intérieur du mélangeur',
+  deck_act_vmStripMute: 'Voicemeeter : couper une voie',
+  deck_act_vmStripGain: 'Voicemeeter : volume d’une voie',
+  deck_act_vmStripBus: 'Voicemeeter : envoyer une voie vers un bus',
+  deck_act_vmBusMute: 'Voicemeeter : couper un bus',
+  deck_act_vmBusGain: 'Voicemeeter : volume d’un bus',
+  deck_act_vmMacro: 'Voicemeeter : bouton macro',
+  deck_act_vmParam: 'Voicemeeter : paramètre libre',
+  deck_param_vm_strip: 'Voie',
+  deck_param_vm_bus: 'Bus (A1, B2…)',
+  deck_param_vm_param: 'Paramètre, ex. Strip[0].Mute',
+});
+Object.assign(i18n.de, {
+  deck_cat_voicemeeter: 'Voicemeeter',
+  deck_param_vm_macro: 'Makro-Taste (0-79)',
+  deck_cat_hint_voicemeeter: 'Kanäle, Busse und Routing im Mixer',
+  deck_act_vmStripMute: 'Voicemeeter: Kanal stummschalten',
+  deck_act_vmStripGain: 'Voicemeeter: Kanallautstärke',
+  deck_act_vmStripBus: 'Voicemeeter: Kanal auf einen Bus legen',
+  deck_act_vmBusMute: 'Voicemeeter: Bus stummschalten',
+  deck_act_vmBusGain: 'Voicemeeter: Buslautstärke',
+  deck_act_vmMacro: 'Voicemeeter: Makro-Taste',
+  deck_act_vmParam: 'Voicemeeter: beliebiger Parameter',
+  deck_param_vm_strip: 'Kanal',
+  deck_param_vm_bus: 'Bus (A1, B2…)',
+  deck_param_vm_param: 'Parameter, z. B. Strip[0].Mute',
+});
+Object.assign(i18n.pt, {
+  deck_cat_voicemeeter: 'Voicemeeter',
+  deck_param_vm_macro: 'Botão de macro (0-79)',
+  deck_cat_hint_voicemeeter: 'canais, barramentos e encaminhamento dentro do mixer',
+  deck_act_vmStripMute: 'Voicemeeter: silenciar um canal',
+  deck_act_vmStripGain: 'Voicemeeter: volume de um canal',
+  deck_act_vmStripBus: 'Voicemeeter: enviar um canal para um barramento',
+  deck_act_vmBusMute: 'Voicemeeter: silenciar um barramento',
+  deck_act_vmBusGain: 'Voicemeeter: volume de um barramento',
+  deck_act_vmMacro: 'Voicemeeter: botão de macro',
+  deck_act_vmParam: 'Voicemeeter: qualquer parâmetro',
+  deck_param_vm_strip: 'Canal',
+  deck_param_vm_bus: 'Barramento (A1, B2…)',
+  deck_param_vm_param: 'Parâmetro, ex. Strip[0].Mute',
+});
+Object.assign(i18n.ru, {
+  deck_cat_voicemeeter: 'Voicemeeter',
+  deck_param_vm_macro: 'Кнопка макроса (0-79)',
+  deck_cat_hint_voicemeeter: 'каналы, шины и маршрутизация внутри микшера',
+  deck_act_vmStripMute: 'Voicemeeter: заглушить канал',
+  deck_act_vmStripGain: 'Voicemeeter: громкость канала',
+  deck_act_vmStripBus: 'Voicemeeter: отправить канал на шину',
+  deck_act_vmBusMute: 'Voicemeeter: заглушить шину',
+  deck_act_vmBusGain: 'Voicemeeter: громкость шины',
+  deck_act_vmMacro: 'Voicemeeter: кнопка макроса',
+  deck_act_vmParam: 'Voicemeeter: любой параметр',
+  deck_param_vm_strip: 'Канал',
+  deck_param_vm_bus: 'Шина (A1, B2…)',
+  deck_param_vm_param: 'Параметр, напр. Strip[0].Mute',
+});
+Object.assign(i18n.nl, {
+  deck_cat_voicemeeter: 'Voicemeeter',
+  deck_param_vm_macro: 'Macroknop (0-79)',
+  deck_cat_hint_voicemeeter: 'kanalen, bussen en routering binnen de mixer',
+  deck_act_vmStripMute: 'Voicemeeter: kanaal dempen',
+  deck_act_vmStripGain: 'Voicemeeter: kanaalvolume',
+  deck_act_vmStripBus: 'Voicemeeter: kanaal naar een bus sturen',
+  deck_act_vmBusMute: 'Voicemeeter: bus dempen',
+  deck_act_vmBusGain: 'Voicemeeter: busvolume',
+  deck_act_vmMacro: 'Voicemeeter: macroknop',
+  deck_act_vmParam: 'Voicemeeter: willekeurige parameter',
+  deck_param_vm_strip: 'Kanaal',
+  deck_param_vm_bus: 'Bus (A1, B2…)',
+  deck_param_vm_param: 'Parameter, bijv. Strip[0].Mute',
+});
+
+
 
 function t(key) {
   // Fallback: selected language → English → key name (never silently shows Italian to non-Italian users)

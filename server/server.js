@@ -88,6 +88,7 @@ const { createStreamerbot } = require('./actions/streamerbot');
 const { createHomeAssistant, normalizeHomeAssistant, preserveHaToken, redactHaToken } = require('./actions/home-assistant');
 const { createChroma } = require('./actions/chroma');
 const { createWaveLink } = require('./actions/wavelink');
+const { createClient: createVoicemeeter } = require('./actions/voicemeeter');
 const { createEmbeddedBrowser, findEdge } = require('./embedded-browser');
 const browserAdblock = require('./embedded-browser-adblock');
 const { createBrowserSurfaceSync } = require('./browser-surface-sync');
@@ -4708,6 +4709,13 @@ const deckWaveLink = createWaveLink(async () => {
   return { enabled: wl.enabled === true, port: wl.port };
 });
 
+// Voicemeeter Remote API client. Nothing is loaded until a key is pressed or the
+// Deck editor asks what the mixer has: the DLL is only present on a machine that
+// installed Voicemeeter, and everywhere else this stays a few closures. No
+// enabled flag — unlike Wave Link there is no port to probe and no process to
+// wake, so the presence of the DLL is the whole opt-in.
+const deckVoicemeeter = createVoicemeeter();
+
 // Embedded-browser host for the "Browser" dashboard widget. Launches ONE headless
 // Edge on demand (when a tile opens) and kills it when the last tile closes, so an
 // unused widget costs nothing. Frames/input are relayed over a loopback WebSocket
@@ -5646,6 +5654,10 @@ const deckRegistryDeps = {
   // flag from live settings and rejects when off, so a disabled integration
   // surfaces as a clean {ok:false} (no localhost probe) via run().
   waveLink: (action) => deckWaveLink.runAction(action),
+  // Voicemeeter strips, buses and routing. The client owns the session and the
+  // edition check; a machine without Voicemeeter answers a named error rather
+  // than throwing.
+  voicemeeter: (action) => deckVoicemeeter.runAction(action),
   // Move/snap/minimise the foreground window (a discrete allowlisted verb passed
   // as a single argv element to the window helper — never a shell string).
   windowAction: async (verb) => {
@@ -13918,8 +13930,16 @@ const handleRequest = async (req, res) => {
       // rides SMTC on Windows and mediaremote-adapter on macOS, and the adapter
       // is optional, so the answer is "is there a media host" — not "which OS".
       const mediaAvailable = powershellAvailable || !!(nativeMedia && nativeMedia.available());
-      json({ catalog: ACTION_CATALOG, capabilities: { powershell: powershellAvailable, keys: keySendAvailable(), media: mediaAvailable, soundVolumeView: audioControlAvailable, appAudio: appAudioAvailable, obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked, phone: phoneKeysAvailable() } });
+      json({ catalog: ACTION_CATALOG, capabilities: { powershell: powershellAvailable, keys: keySendAvailable(), media: mediaAvailable, soundVolumeView: audioControlAvailable, appAudio: appAudioAvailable, obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), voicemeeterAvailable: deckVoicemeeter.state().available === true, signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked, phone: phoneKeysAvailable() } });
     } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/voicemeeter/state' && req.method === 'GET') {
+    // What the Deck editor's strip/bus pickers are filled from, and the honest
+    // answer when there is nothing to fill them with: `available` says the DLL
+    // is there, `running` says the mixer is up, and `reason` names which of the
+    // two is missing. Never throws — an absent Voicemeeter is a state.
+    try { json(deckVoicemeeter.state()); }
+    catch (e) { json({ ok: true, available: false, running: false, reason: 'voicemeeter_unavailable' }); }
 
   } else if (reqPath === '/api/wavelink/state' && req.method === 'GET') {
     // Current Wave Link mixer snapshot (for a tile's first paint before SSE ticks).
