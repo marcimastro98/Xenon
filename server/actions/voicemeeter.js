@@ -316,7 +316,57 @@ function createClient(deps = {}) {
       label,
       name: label[0] === 'A' ? 'Physical out ' + label : 'Virtual out ' + label,
     }));
-    return { ok: true, available: true, running: true, type: ed.id, edition: ed.name, strips, buses };
+    // The live values ride along: the Deck editor ignores them, and a widget
+    // drawing faders would otherwise need a second round trip to learn anything
+    // beyond how many strips there are.
+    const live = values();
+    return {
+      ok: true, available: true, running: true, type: ed.id, edition: ed.name, strips, buses,
+      values: live ? { strips: live.strips, buses: live.buses } : null,
+    };
+  }
+
+  /**
+   * True when something in the mixer changed since the last call. One DLL call,
+   * and the whole reason a poller here is cheap: the full read below is ~96
+   * calls on a Potato, and it only happens on the ticks that changed anything.
+   */
+  function dirty() {
+    if (!login()) return false;
+    try { return fns.dirty() > 0; } catch { return false; }
+  }
+
+  /**
+   * Everything a widget needs to DRAW the mixer: mute, gain and the routing
+   * flags per strip, mute and gain per bus. Sized to the running edition, so a
+   * plain Voicemeeter never reports eight strips it does not have.
+   *
+   * Reads are best-effort per field: a parameter the running version does not
+   * know comes back absent rather than failing the whole snapshot, because one
+   * unknown field must not blank a mixer that is otherwise readable.
+   */
+  function values() {
+    const ed = edition();
+    if (!ed) return null;
+    const labels = busLabels(ed.id);
+    const num = (name) => { const r = getParam(name); return r.ok ? r.value : null; };
+    const strips = [];
+    for (let i = 0; i < ed.strips; i++) {
+      const routes = {};
+      for (const label of labels) routes[label] = num(paramName('strip', i, label)) > 0.5;
+      strips.push({
+        index: i,
+        mute: num(paramName('strip', i, 'Mute')) > 0.5,
+        gain: num(paramName('strip', i, 'Gain')),
+        routes,
+      });
+    }
+    const buses = labels.map((label, index) => ({
+      index, label,
+      mute: num(paramName('bus', index, 'Mute')) > 0.5,
+      gain: num(paramName('bus', index, 'Gain')),
+    }));
+    return { type: ed.id, edition: ed.name, strips, buses };
   }
 
   function close() {
@@ -409,7 +459,7 @@ function createClient(deps = {}) {
     return setParam(name, v);
   }
 
-  return { state, runAction, edition, getParam, setParam, macroButton, close, get lastError() { return lastError; } };
+  return { state, values, dirty, runAction, edition, getParam, setParam, macroButton, close, get lastError() { return lastError; } };
 }
 
 module.exports = {

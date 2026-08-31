@@ -13,6 +13,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
   Nothing is loaded on a machine without Voicemeeter, the category is not offered there at all, and volume set on a key is clamped to the fader the mixer really has (−60 to +12 dB) instead of being silently clamped later.
 
+  **Installed widgets can use it too.** `voicemeeter` is a new SDK permission, so a widget you install can drive the mixer once you grant it, and a new `voicemeeter` data stream pushes the live state — mute, gain and the routing flags per strip, mute and gain per bus — so a widget can draw real faders instead of blind buttons. The free-form parameter action is deliberately not part of that grant: it can name anything the mixer has, including "shut down Voicemeeter", and that stays a Deck-key privilege. The stream is read from the mixer's own change flag and only while a dashboard is open, so it costs nothing when nobody is looking.
+
 - **Xenon asks for support once, and only once.** There has been a donate button since the beginning — in the app, on the site, on GitHub, on Discord — and it has never asked for anything, so only people who went looking ever found it. Now it asks, one time in the life of an installation, and then never again.
 
   It waits until the question is a fair one: thirty days after your first run **and** ten separate days of actually opening the dashboard. Someone who has come back on ten different days over a month has decided Xenon is useful; anyone earlier is still deciding, and asking them is asking a stranger for money. Days are counted when a dashboard opens, not when the engine starts, so a PC that runs it at logon and never gets looked at earns no credit.

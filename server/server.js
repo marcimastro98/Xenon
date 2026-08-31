@@ -5072,6 +5072,43 @@ async function refreshWlWatch() {
   }
 }
 
+// ── Voicemeeter mixer state → SSE `voicemeeter` ──────────────────────────────
+// For SDK widgets that draw the mixer rather than only pressing it. Polled, not
+// pushed: the Remote API has no callback, it has IsParametersDirty(), which is
+// ONE call and answers "did anything move". The full read is ~96 calls on a
+// Potato and only happens on the ticks that changed something.
+//
+// Gated twice, like every other periodic job here: nothing runs with no
+// dashboard connected, and nothing runs on a machine that has no Voicemeeter —
+// where `available` is false, this never even opens a session.
+const VM_POLL_MS = 250;
+let vmPollTimer = null;
+let vmLastJson = '';
+
+function refreshVoicemeeterWatch() {
+  const want = sseClients.size > 0 && deckVoicemeeter.state().available === true;
+  if (want && !vmPollTimer) {
+    vmPollTimer = setInterval(() => {
+      try {
+        if (!deckVoicemeeter.dirty()) return;
+        const v = deckVoicemeeter.values();
+        if (!v) return;
+        // The dirty flag also fires for things this frame does not carry (a
+        // level meter, a window move), so the payload is compared before it is
+        // sent: a widget re-rendering 4x a second for nothing is the cost this
+        // avoids.
+        const json = JSON.stringify(v);
+        if (json === vmLastJson) return;
+        vmLastJson = json;
+        broadcastSSE('voicemeeter', v);
+      } catch { /* a mixer that went away is not worth a log line per tick */ }
+    }, VM_POLL_MS);
+    if (vmPollTimer.unref) vmPollTimer.unref();
+  } else if (!want && vmPollTimer) {
+    clearInterval(vmPollTimer); vmPollTimer = null; vmLastJson = '';
+  }
+}
+
 // ── UniFi Protect camera notifications (person/vehicle/motion/ring) ───────────
 // While a Cameras tile is on screen (SSE clients > 0) AND notifications are enabled,
 // hold ONE live WebSocket to the console's updates stream and surface each new
@@ -19666,11 +19703,12 @@ const handleRequest = async (req, res) => {
     refreshHaWatch();
     refreshSbWatch();
     refreshWlWatch();
+    refreshVoicemeeterWatch();
     refreshUnifiEventsWatch();
     refreshWinNotifWatch();
     refreshWakeWordWatch();
     refreshAudioLevelsWatch();
-    req.on('close', () => { sseClients.delete(res); if (sseClients.size === 0) obsLocalWanted = false; _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWlWatch(); refreshUnifiEventsWatch(); refreshWinNotifWatch(); refreshWakeWordWatch(); refreshAudioLevelsWatch(); });
+    req.on('close', () => { sseClients.delete(res); if (sseClients.size === 0) obsLocalWanted = false; _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWlWatch(); refreshVoicemeeterWatch(); refreshUnifiEventsWatch(); refreshWinNotifWatch(); refreshWakeWordWatch(); refreshAudioLevelsWatch(); });
 
     // A dashboard is open, which is what "a day of use" means — see noteUsageDay.
     noteUsageDay();
