@@ -1501,7 +1501,7 @@
       <div class="settings-group settings-behavior-group" data-settings-cat="general">
         <div class="settings-group-head">
           <span data-i18n="settings_calendar">Calendario</span>
-          <span class="settings-hint" data-i18n="settings_calendar_hint">primo giorno della settimana</span>
+          <span class="settings-hint" data-i18n="settings_calendar_hint">primo giorno della settimana ed eventi in arrivo</span>
         </div>
         <div class="settings-row full">
           <span class="settings-label-line"><span data-i18n="settings_week_start">Primo giorno</span></span>
@@ -1510,6 +1510,34 @@
             <button class="settings-week-start settings-segment-btn" type="button" data-week-start="sun" onclick="updateWeekStart('sun')" aria-pressed="false" data-i18n="settings_week_sun">Domenica</button>
           </div>
         </div>
+        <!-- What the Upcoming list shows. There was never a rule about "the next
+             two weeks", which is what it looked like from outside: the list took
+             the next five events and the dates fell where they fell. These are
+             the two knobs that were missing — how many, and how far. -->
+        <label class="settings-row full">
+          <span class="settings-label-line">
+            <span data-i18n="settings_upcoming_count">Eventi in arrivo</span>
+            <span class="settings-hint" data-i18n="settings_upcoming_count_hint">quanti mostrarne nel riquadro Calendario</span>
+          </span>
+          <select class="settings-select" id="settings-upcoming-count" data-custom-select data-cs-fixed onchange="updateUpcomingCount(this.value)">
+            <option value="3">3</option>
+            <option value="5" selected>5</option>
+            <option value="8">8</option>
+            <option value="10">10</option>
+          </select>
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line">
+            <span data-i18n="settings_upcoming_days">Fino a</span>
+            <span class="settings-hint" data-i18n="settings_upcoming_days_hint">nasconde gli eventi più lontani di così</span>
+          </span>
+          <select class="settings-select" id="settings-upcoming-days" data-custom-select data-cs-fixed onchange="updateUpcomingDays(this.value)">
+            <option value="0" selected data-i18n="settings_upcoming_days_any">Nessun limite</option>
+            <option value="7" data-i18n="settings_upcoming_days_7">7 giorni</option>
+            <option value="14" data-i18n="settings_upcoming_days_14">14 giorni</option>
+            <option value="30" data-i18n="settings_upcoming_days_30">30 giorni</option>
+          </select>
+        </label>
       </div>
 
       <div class="settings-group settings-behavior-group" data-settings-cat="general">

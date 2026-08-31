@@ -275,6 +275,11 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   },
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language (en → 12h)
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
+  // What the Upcoming list shows. There was never a two-week rule, which is how
+  // it read from outside: the list took the next five events and their dates
+  // fell where they fell. 0 days = no horizon, which is what it always did.
+  upcomingCount: 5,
+  upcomingDays: 0,
   swipeNavigation: true, // drag / finger-swipe to change dashboard page (touchscreen-friendly)
   swipeHomeGesture: true, // native app: swipe up from the bottom → Windows desktop (native-bridge.js)
   hideOnRdp: false, // native app: hide the kiosk during a Windows Remote Desktop session (opt-in; native-bridge.js)
@@ -1600,6 +1605,8 @@ function normalizeSettings(source) {
     topbarClock: normalizeTopbarClock(value.topbarClock, value),
     clockFormat: ['auto', '12', '24'].includes(value.clockFormat) ? value.clockFormat : DEFAULT_HUB_SETTINGS.clockFormat,
     weekStart: ['mon', 'sun'].includes(value.weekStart) ? value.weekStart : DEFAULT_HUB_SETTINGS.weekStart,
+    upcomingCount: [3, 5, 8, 10].includes(Number(value.upcomingCount)) ? Number(value.upcomingCount) : DEFAULT_HUB_SETTINGS.upcomingCount,
+    upcomingDays: [0, 7, 14, 30].includes(Number(value.upcomingDays)) ? Number(value.upcomingDays) : DEFAULT_HUB_SETTINGS.upcomingDays,
     swipeNavigation: value.swipeNavigation !== false,
     swipeHomeGesture: value.swipeHomeGesture !== false,
     hideOnRdp: value.hideOnRdp === true,
@@ -4767,6 +4774,7 @@ function syncSettingsControls() {
   if (window.SdkIsland) window.SdkIsland.apply();
   syncClockFormatControls();
   syncWeekStartControls();
+  syncUpcomingControls();
   syncLockWidgetSettings();
   syncAutoOpenBrowserControl();
   syncSwipeHomeControl();
@@ -9191,6 +9199,41 @@ function updateClockFormat(fmt) {
   // the resolved 12h/24h flag from the theme bridge — re-push it so they follow.
   if (window.CustomWidget && typeof window.CustomWidget.refreshTheme === 'function') window.CustomWidget.refreshTheme();
   setSettingsStatus('settings_saved', 'ok');
+}
+
+// How many upcoming events the Calendar tile lists, and how far ahead it looks.
+// Display-only, like the first-day-of-week beside them: repaint immediately so
+// the change is visible without waiting for the next calendar refresh.
+function updateUpcomingCount(value) {
+  const n = Number(value);
+  if (![3, 5, 8, 10].includes(n)) return;
+  hubSettings = normalizeSettings({ ...hubSettings, upcomingCount: n });
+  saveHubSettings();
+  syncUpcomingControls();
+  if (typeof renderUpcoming === 'function') renderUpcoming();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function updateUpcomingDays(value) {
+  const n = Number(value);
+  if (![0, 7, 14, 30].includes(n)) return;
+  hubSettings = normalizeSettings({ ...hubSettings, upcomingDays: n });
+  saveHubSettings();
+  syncUpcomingControls();
+  if (typeof renderUpcoming === 'function') renderUpcoming();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function syncUpcomingControls() {
+  for (const [id, value] of [['settings-upcoming-count', hubSettings.upcomingCount],
+    ['settings-upcoming-days', hubSettings.upcomingDays]]) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.value = String(value);
+    // The native <select> is hidden behind the custom dropdown, so setting
+    // .value alone leaves the visible label on the old option.
+    if (typeof el._csSync === 'function') el._csSync();
+  }
 }
 
 // Reflect the active first-day-of-week (Mon / Sun) on its segmented control.

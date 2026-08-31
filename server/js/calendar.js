@@ -294,12 +294,40 @@ function upcomingWhenLabel(startsAt, now, locale) {
   }
 }
 
+// How many events the Upcoming list shows, and how far ahead it looks.
+//
+// There was never a rule about "the next two weeks" — the report that asked for
+// a custom range had read one off the screen. The list took the next FIVE
+// events, wherever they landed, so somebody with a quiet fortnight saw a chip
+// eleven days out and concluded there was a fortnight-shaped window. The count
+// was the only limit, and it was not adjustable either.
+//
+// Both are settings now. `upcomingDays` of 0 keeps exactly the old behaviour:
+// no horizon, take what comes.
+function upcomingLimits() {
+  const s = (typeof hubSettings === 'object' && hubSettings) || {};
+  const count = [3, 5, 8, 10].includes(Number(s.upcomingCount)) ? Number(s.upcomingCount) : 5;
+  const days = [0, 7, 14, 30].includes(Number(s.upcomingDays)) ? Number(s.upcomingDays) : 0;
+  return { count, days };
+}
+
 function _buildUpcomingInto(list) {
   const now = Date.now();
+  const { count, days } = upcomingLimits();
+  // The horizon is counted in CALENDAR days, like the chip labels beside it: a
+  // "7 days" that hid tomorrow evening because it is 7×24h+1 away would be
+  // wrong in the one way a person would notice.
+  let until = Infinity;
+  if (days > 0) {
+    const end = new Date(now);
+    end.setHours(0, 0, 0, 0);
+    end.setDate(end.getDate() + days + 1);
+    until = end.getTime();
+  }
   const upcoming = allCalendarEvents()
-    .filter(e => Date.parse(e.startsAt) >= now - 60000)
+    .filter(e => { const at = Date.parse(e.startsAt); return at >= now - 60000 && at < until; })
     .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt))
-    .slice(0, 5);
+    .slice(0, count);
   list.innerHTML = '';
   if (!upcoming.length) {
     const empty = document.createElement('div');
