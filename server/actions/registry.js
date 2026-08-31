@@ -443,6 +443,17 @@ function createRegistry(deps) {
           const r = await d.timers.start(label, secs);
           return (r && r.ok === false) ? { ok: false, error: r.error || 'timer_failed' } : { ok: true };
         }
+        case 'stopwatchStart': {
+          // A stopwatch has no duration to validate, which is the only
+          // difference from timerStart above. Pausing and cancelling reuse
+          // timerToggle/timerCancel: both address a timer by label and a
+          // stopwatch keeps the same clock underneath.
+          if (!d.timers || typeof d.timers.stopwatch !== 'function') return { ok: false, error: 'unavailable' };
+          const swLabel = action.label.trim();
+          if (!swLabel) return { ok: false, error: 'empty_label' };
+          const rw = await d.timers.stopwatch(swLabel);
+          return (rw && rw.ok === false) ? { ok: false, error: rw.error || 'timer_failed' } : { ok: true };
+        }
         case 'timerToggle': {
           if (!d.timers || typeof d.timers.toggle !== 'function') return { ok: false, error: 'unavailable' };
           const label = action.label.trim();

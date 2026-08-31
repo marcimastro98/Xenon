@@ -496,7 +496,7 @@ function buildCoreAiFunctions() {
           label: { type: 'STRING', description: 'Short label for the timer, e.g. "Pasta", "Break", "Meeting"' },
           duration_secs: { type: 'NUMBER', description: 'Duration in seconds (e.g. 300 for 5 minutes, 3600 for 1 hour)' },
         }, required: ['duration_secs'] } },
-        { name: 'list_timers', description: 'List all active timers and their remaining time', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'list_timers', description: 'List all active timers and stopwatches: a countdown reports remaining_secs, a stopwatch reports elapsed_secs', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'delete_timer', description: 'Delete a timer by its id', parameters: { type: 'OBJECT', properties: {
           id: { type: 'STRING', description: 'Timer id to delete' },
         }, required: ['id'] } },
@@ -5582,6 +5582,21 @@ const deckRegistryDeps = {
       broadcastSSE('timer_update', { timers: _timers });
       return { ok: true };
     },
+    // Same contract as start(), minus the duration: a key pressed twice
+    // restarts the stopwatch from zero rather than stacking a second one, which
+    // is what "start my task clock" means when you press it again.
+    stopwatch: async (label) => {
+      const idx = _timers.findIndex((t) => t.label.toLowerCase() === label.toLowerCase());
+      if (idx >= 0) {
+        _timers[idx] = { ..._timers[idx], kind: 'stopwatch', durationSecs: 0, startedAt: Date.now(), pausedElapsed: 0, status: 'running' };
+      } else {
+        if (_timers.length >= TIMERS_MAX) return { ok: false, error: 'max_timers' };
+        _timers.push(_normalizeTimer({ label, kind: 'stopwatch', status: 'running', startedAt: Date.now(), pausedElapsed: 0 }));
+      }
+      await _saveTimers();
+      broadcastSSE('timer_update', { timers: _timers });
+      return { ok: true };
+    },
     toggle: async (label) => {
       const t = _timers.find((x) => x.label.toLowerCase() === label.toLowerCase());
       if (!t) return { ok: false, error: 'not_found' };
@@ -7034,11 +7049,15 @@ async function executeAiTool(fnName, fnArgs, deps) {
       }
     } else if (fnName === 'list_timers') {
       fnResult = {
-        timers: _timers.map(t => ({
-          id: t.id, label: t.label, status: t.status,
-          remaining_secs: Math.ceil(_getTimerRemaining(t)),
-          duration_secs: t.durationSecs,
-        })),
+        // A stopwatch has no remaining time, and reporting Infinity to a model
+        // is worse than reporting nothing: it says elapsed instead, which is
+        // the only reading it has.
+        timers: _timers.map(t => (t.kind === 'stopwatch'
+          ? { id: t.id, label: t.label, status: t.status, kind: 'stopwatch',
+              elapsed_secs: Math.floor(_getTimerElapsed(t)) }
+          : { id: t.id, label: t.label, status: t.status, kind: 'countdown',
+              remaining_secs: Math.ceil(_getTimerRemaining(t)),
+              duration_secs: t.durationSecs })),
       };
     } else if (fnName === 'delete_timer') {
       const delId = String(fnArgs.id || '').trim();
@@ -11025,18 +11044,42 @@ function saveNotesGuarded(body) {
 let _timers = []; // in-memory timer list; persisted to TIMERS_FILE
 let _timerCheckInterval = null;
 
+// A timer is one of two things, and everything about running it is the same.
+// A countdown has a duration and ends; a STOPWATCH counts up and does not.
+// They share startedAt/pausedElapsed/status, so pause, resume, reset and stop
+// are one implementation — the only places that branch are the two that ask
+// "how long is left", which for a stopwatch is not a question.
+//
+// Asked for on Discord: "count the time up and monitor the length of time spent
+// on a task". Modelled here rather than as a second feature because a stopwatch
+// IS a timer whose duration nobody set.
+const TIMER_KINDS = Object.freeze(['countdown', 'stopwatch']);
+
 function _normalizeTimer(item) {
   const id          = String(item && item.id || `t${Date.now()}-${Math.random().toString(16).slice(2)}`).slice(0, 80);
   const label       = String(item && item.label || 'Timer').trim().slice(0, 40);
-  const durationSecs = Math.max(1, Math.round(Number(item && item.durationSecs) || 60));
+  const kind        = TIMER_KINDS.includes(item && item.kind) ? item.kind : 'countdown';
+  // A stopwatch has no duration. Storing 0 rather than a fake 60 keeps every
+  // "is this a countdown" test honest, including in a settings file somebody
+  // has edited by hand.
+  const durationSecs = kind === 'stopwatch' ? 0 : Math.max(1, Math.round(Number(item && item.durationSecs) || 60));
   const status      = ['running', 'paused', 'done'].includes(item && item.status) ? item.status : 'running';
   const startedAt   = Number.isFinite(Number(item && item.startedAt)) ? Number(item.startedAt) : Date.now();
   const pausedElapsed = Math.max(0, Number(item && item.pausedElapsed) || 0);
   const createdAt   = item && item.createdAt ? String(item.createdAt).slice(0, 40) : new Date().toISOString();
-  return { id, label, durationSecs, status, startedAt, pausedElapsed, createdAt };
+  return { id, label, kind, durationSecs, status, startedAt, pausedElapsed, createdAt };
+}
+
+/** Seconds counted so far, for either kind. The stopwatch's whole reading. */
+function _getTimerElapsed(t) {
+  if (t.status === 'running') return t.pausedElapsed + (Date.now() - t.startedAt) / 1000;
+  return t.pausedElapsed;
 }
 
 function _getTimerRemaining(t) {
+  // A stopwatch has nothing remaining, and answering 0 would make _checkTimers
+  // ring it the instant it starts.
+  if (t.kind === 'stopwatch') return Infinity;
   if (t.status === 'done')   return 0;
   if (t.status === 'paused') return Math.max(0, t.durationSecs - t.pausedElapsed);
   const elapsed = t.pausedElapsed + (Date.now() - t.startedAt) / 1000;
@@ -11052,6 +11095,8 @@ async function _saveTimers() {
 function _checkTimers() {
   let changed = false;
   for (const t of _timers) {
+    // A stopwatch never finishes, so it never rings and never pushes.
+    if (t.kind === 'stopwatch') continue;
     if (t.status === 'running' && _getTimerRemaining(t) <= 0) {
       t.status = 'done';
       changed = true;
@@ -15800,8 +15845,13 @@ const handleRequest = async (req, res) => {
     try {
       const body = JSON.parse(await readBody(req));
       if (_timers.length >= TIMERS_MAX) { res.writeHead(400); res.end(JSON.stringify({ error: 'max timers reached' })); return; }
+      // No duration means a stopwatch — which is also how the tile creates one,
+      // by leaving the field empty rather than growing a second button.
+      const kind = body.kind === 'stopwatch' || (body.kind == null && !Number(body.duration_secs))
+        ? 'stopwatch' : 'countdown';
       const timer = _normalizeTimer({
-        label: String(body.label || 'Timer').trim(),
+        label: String(body.label || (kind === 'stopwatch' ? 'Stopwatch' : 'Timer')).trim(),
+        kind,
         durationSecs: Math.max(1, Math.round(Number(body.duration_secs) || 60)),
         status: 'running',
         startedAt: Date.now(),

@@ -42,6 +42,16 @@ function _startTimerTick() {
   _timerTickId = requestAnimationFrame(tick);
 }
 
+// Two kinds, one set of controls. A countdown has a duration and ends; a
+// STOPWATCH counts up and does not. Pause, resume, reset and stop are shared
+// because the underlying clock is: both accumulate pausedElapsed the same way.
+const _isStopwatch = (t) => t && t.kind === 'stopwatch';
+
+function _getElapsed(t) {
+  if (t.status === 'running') return (t.pausedElapsed || 0) + (Date.now() - t.startedAt) / 1000;
+  return t.pausedElapsed || 0;
+}
+
 function _getRemaining(t) {
   if (t.status === 'done')   return 0;
   if (t.status === 'paused') return Math.max(0, t.durationSecs - (t.pausedElapsed || 0));
@@ -49,8 +59,16 @@ function _getRemaining(t) {
   return Math.max(0, t.durationSecs - elapsed);
 }
 
-function _formatTime(secs) {
-  const s = Math.ceil(Math.max(0, secs));
+/** What the card SHOWS: time left on a countdown, time spent on a stopwatch. */
+function _getReading(t) {
+  return _isStopwatch(t) ? _getElapsed(t) : _getRemaining(t);
+}
+
+// A countdown rounds UP, so a timer with 0.4s left still reads 0:01 and never
+// shows 0:00 while it is still running. A stopwatch rounds DOWN, or it would
+// read 0:01 the instant it was started.
+function _formatTime(secs, roundDown) {
+  const s = roundDown ? Math.floor(Math.max(0, secs)) : Math.ceil(Math.max(0, secs));
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
@@ -68,17 +86,21 @@ function _updateTimerDisplays() {
   let needDone = false;
   _timerState.forEach(timer => {
     if (timer.status !== 'running') return;
-    const rem = _getRemaining(timer);
+    const sw = _isStopwatch(timer);
+    const reading = _getReading(timer);
     // Use data-timer-time / data-timer-arc so updates reach all instances
     // (clones have their IDs stripped by stripCloneFor, but data attrs survive).
     document.querySelectorAll(`[data-timer-time="${timer.id}"]`).forEach(el => {
-      el.textContent = _formatTime(rem);
+      el.textContent = _formatTime(reading, sw);
     });
     const r = 20, circ = 2 * Math.PI * r;
     document.querySelectorAll(`[data-timer-arc="${timer.id}"]`).forEach(arc => {
-      arc.style.strokeDashoffset = String(circ * (1 - (rem / timer.durationSecs)));
+      // A stopwatch has no end to draw a fraction of, so its ring sweeps once a
+      // minute: a moving second hand rather than a progress bar with no total.
+      const pct = sw ? (1 - (reading % 60) / 60) : (1 - (reading / timer.durationSecs));
+      arc.style.strokeDashoffset = String(circ * pct);
     });
-    if (rem <= 0 && timer.status === 'running') needDone = true;
+    if (!sw && reading <= 0 && timer.status === 'running') needDone = true;
   });
   if (needDone) loadTimers(); // server already set status='done'; reload to sync
 }
@@ -86,10 +108,11 @@ function _updateTimerDisplays() {
 // ── Render ──────────────────────────────────────────────────────
 
 function _buildTimerCard(timer) {
-  const rem  = _getRemaining(timer);
+  const sw   = _isStopwatch(timer);
+  const rem  = _getReading(timer);
   const r    = 20;
   const circ = 2 * Math.PI * r;
-  const pct  = timer.status === 'done' ? 0 : Math.max(0, rem / timer.durationSecs);
+  const pct  = sw ? (rem % 60) / 60 : (timer.status === 'done' ? 0 : Math.max(0, rem / timer.durationSecs));
   const offset = circ * (1 - pct);
   const isDone   = timer.status === 'done';
   const isPaused = timer.status === 'paused';
@@ -114,6 +137,13 @@ function _buildTimerCard(timer) {
   const SVG_RESTART = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.6-6.3"/><path d="M3 4v5h5"/></svg>';
   const SVG_DELETE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   const SVG_STOP = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2.2"/></svg>';
+  // Stopped, the two kinds are the same card: a name and a time. Moving, the
+  // ring tells them apart (one drains, one sweeps), but a paused stopwatch
+  // reading 0:34 beside a paused countdown reading 0:34 is genuinely ambiguous.
+  // One small mark before the name, and only on the kind that needs explaining.
+  const swMark = sw
+    ? `<svg class="timer-kind-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><title>${_escHtml((typeof t === 'function' ? t('timer_stopwatch') : '') || 'Stopwatch')}</title><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9M9.5 2.5h5"/></svg>`
+    : '';
 
   let actionBtn = '';
   if (!isDone) {
@@ -147,8 +177,8 @@ function _buildTimerCard(timer) {
       </svg>
     </div>
     <div class="timer-info">
-      <div class="timer-label">${_escHtml(timer.label)}</div>
-      <div class="timer-time" id="timer-time-${tid}" data-timer-time="${tid}">${isDone ? '0:00' : _formatTime(rem)}</div>
+      <div class="timer-label">${swMark}${_escHtml(timer.label)}</div>
+      <div class="timer-time" id="timer-time-${tid}" data-timer-time="${tid}">${isDone ? '0:00' : _formatTime(rem, sw)}</div>
     </div>
     <div class="timer-actions">
       ${actionBtn}
@@ -185,14 +215,24 @@ function addTimerFromInput() {
   const durEl   = document.getElementById('timer-duration-input');
   if (!durEl) return;
 
-  const durationSecs = _parseTimerDuration(durEl.value.trim());
-  if (!durationSecs || durationSecs < 1) {
+  // An EMPTY duration field means a stopwatch. That is the whole gesture for
+  // creating one: this tile is small and already carries two fields, an add
+  // button and up to five cards, and a second button to say "count up instead"
+  // would cost more room than the feature is worth. Typed-but-unparseable still
+  // shakes, because that is a mistake rather than a choice.
+  const typed = durEl.value.trim();
+  const durationSecs = _parseTimerDuration(typed);
+  const stopwatch = typed === '';
+  if (!stopwatch && (!durationSecs || durationSecs < 1)) {
     durEl.classList.add('timer-input-error');
     setTimeout(() => durEl.classList.remove('timer-input-error'), 1200);
     return;
   }
 
-  const label = ((labelEl?.value || '').trim() || 'Timer').slice(0, 40);
+  const fallback = stopwatch
+    ? ((typeof t === 'function' ? t('timer_stopwatch') : '') || 'Stopwatch')
+    : 'Timer';
+  const label = ((labelEl?.value || '').trim() || fallback).slice(0, 40);
 
   // Clear inputs immediately — state sync happens via SSE timer_update broadcast,
   // which the server fires right after creating the timer.  Adding the timer to
@@ -204,7 +244,9 @@ function addTimerFromInput() {
   fetch('/api/timers', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ label, duration_secs: durationSecs }),
+    body: JSON.stringify(stopwatch
+      ? { label, kind: 'stopwatch' }
+      : { label, duration_secs: durationSecs }),
   })
     .then(r => r.json())
     .then(({ timer, error }) => {

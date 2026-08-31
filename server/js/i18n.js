@@ -1597,7 +1597,7 @@ const i18n = {
     timer_reset: 'Ricomincia',
     timer_stop: 'Ferma e conserva',
     timer_delete: 'Elimina',
-    timer_format_hint: '5 = 5 min · 5:30 = min:sec · 1:05:00 = ore:min:sec',
+    timer_format_hint: '5 = 5 min · 5:30 = min:sec · 1:05:00 = ore:min:sec · vuoto = cronometro',
     lighting_master: 'Illuminazione',
     lighting_effect_temperature: 'Temperatura CPU → colore',
     lighting_effect_music: 'Album → LED',
@@ -4355,7 +4355,7 @@ const i18n = {
     timer_reset: 'Restart',
     timer_stop: 'Stop and keep',
     timer_delete: 'Delete',
-    timer_format_hint: '5 = 5 min · 5:30 = min:sec · 1:05:00 = h:min:sec',
+    timer_format_hint: '5 = 5 min · 5:30 = min:sec · 1:05:00 = h:min:sec · empty = stopwatch',
     lighting_master: 'Lighting',
     lighting_effect_temperature: 'CPU temperature → colour',
     lighting_effect_music: 'Album → LEDs',
@@ -6713,7 +6713,7 @@ Object.assign(i18n, {
     timer_reset: '다시 시작',
     timer_stop: '정지 후 보관',
     timer_delete: '삭제',
-    timer_format_hint: '5 = 5분 · 5:30 = 분:초 · 1:05:00 = 시:분:초',
+    timer_format_hint: '5 = 5분 · 5:30 = 분:초 · 1:05:00 = 시:분:초 · 비우면 스톱워치',
     lighting_master: '조명',
     lighting_effect_temperature: 'CPU 온도 → 색상',
     lighting_effect_music: '앨범 → LED',
@@ -9022,7 +9022,7 @@ Object.assign(i18n, {
     timer_reset: '再スタート',
     timer_stop: '停止して保存',
     timer_delete: '削除',
-    timer_format_hint: '5 = 5分 · 5:30 = 分:秒 · 1:05:00 = 時:分:秒',
+    timer_format_hint: '5 = 5分 · 5:30 = 分:秒 · 1:05:00 = 時:分:秒 · 空欄 = ストップウォッチ',
     lighting_master: 'ライティング',
     lighting_effect_temperature: 'CPU温度 → 色',
     lighting_effect_music: 'アルバム → LED',
@@ -11330,7 +11330,7 @@ Object.assign(i18n, {
     timer_reset: '重新开始',
     timer_stop: '停止并保留',
     timer_delete: '删除',
-    timer_format_hint: '5 = 5分钟 · 5:30 = 分:秒 · 1:05:00 = 时:分:秒',
+    timer_format_hint: '5 = 5分钟 · 5:30 = 分:秒 · 1:05:00 = 时:分:秒 · 留空 = 秒表',
     lighting_master: '灯光',
     lighting_effect_temperature: 'CPU温度 → 颜色',
     lighting_effect_music: '专辑 → LED',
@@ -13358,7 +13358,7 @@ Object.assign(i18n, {
     timer_reset: 'Reiniciar',
     timer_stop: 'Parar y guardar',
     timer_delete: 'Eliminar',
-    timer_format_hint: '5 = 5 min · 5:30 = min:seg · 1:05:00 = h:min:seg',
+    timer_format_hint: '5 = 5 min · 5:30 = min:seg · 1:05:00 = h:min:seg · vacío = cronómetro',
     onb_aria: 'Tour guiado',
     onb_skip: 'Omitir',
     onb_back: 'Atrás',
@@ -14708,7 +14708,7 @@ Object.assign(i18n, {
     timer_reset: 'Redémarrer',
     timer_stop: 'Arrêter et garder',
     timer_delete: 'Supprimer',
-    timer_format_hint: '5 = 5 min · 5:30 = min:sec · 1:05:00 = h:min:sec',
+    timer_format_hint: '5 = 5 min · 5:30 = min:sec · 1:05:00 = h:min:sec · vide = chronomètre',
     onb_aria: 'Visite guidée',
     onb_skip: 'Passer',
     onb_back: 'Retour',
@@ -16058,7 +16058,7 @@ Object.assign(i18n, {
     timer_reset: 'Neu starten',
     timer_stop: 'Stoppen und behalten',
     timer_delete: 'Löschen',
-    timer_format_hint: '5 = 5 Min · 5:30 = Min:Sek · 1:05:00 = Std:Min:Sek',
+    timer_format_hint: '5 = 5 Min · 5:30 = Min:Sek · 1:05:00 = Std:Min:Sek · leer = Stoppuhr',
     onb_aria: 'Geführte Tour',
     onb_skip: 'Überspringen',
     onb_back: 'Zurück',
@@ -17408,7 +17408,7 @@ Object.assign(i18n, {
     timer_reset: 'Reiniciar',
     timer_stop: 'Parar e guardar',
     timer_delete: 'Eliminar',
-    timer_format_hint: '5 = 5 min · 5:30 = min:seg · 1:05:00 = h:min:seg',
+    timer_format_hint: '5 = 5 min · 5:30 = min:seg · 1:05:00 = h:min:seg · vazio = cronómetro',
     onb_aria: 'Visita guiada',
     onb_skip: 'Ignorar',
     onb_back: 'Voltar',
@@ -18758,7 +18758,7 @@ Object.assign(i18n, {
     timer_reset: 'Заново',
     timer_stop: 'Остановить и сохранить',
     timer_delete: 'Удалить',
-    timer_format_hint: '5 = 5 мин · 5:30 = мин:сек · 1:05:00 = ч:мин:сек',
+    timer_format_hint: '5 = 5 мин · 5:30 = мин:сек · 1:05:00 = ч:мин:сек · пусто = секундомер',
     onb_aria: 'Обзор-тур',
     onb_skip: 'Пропустить',
     onb_back: 'Назад',
@@ -20825,7 +20825,7 @@ Object.assign(i18n, {
     "timer_reset": "Herstarten",
     "timer_stop": "Stoppen en bewaren",
     "timer_delete": "Verwijderen",
-    "timer_format_hint": "5 = 5 min · 5:30 = min:sec · 1:05:00 = u:min:sec",
+    "timer_format_hint": "5 = 5 min · 5:30 = min:sec · 1:05:00 = u:min:sec · leeg = stopwatch",
     "lighting_master": "Verlichting",
     "lighting_effect_temperature": "CPU-temperatuur → kleur",
     "lighting_effect_music": "Album → leds",
@@ -29516,6 +29516,54 @@ Object.assign(i18n.zh, { ambient_scene_covers: '此场景会铺满整个屏幕�
 // …and the option this note points at was itself untranslated in Dutch, which
 // would have named a choice that is not in the list.
 Object.assign(i18n.nl, { ambient_scene_builtin: 'Klassiek (widgets)' });
+
+// v4.11.7 - the Timer tile gained a STOPWATCH. No new button: an empty duration
+// is the gesture, so the format hint is where it is discoverable.
+Object.assign(i18n.it, {
+  timer_stopwatch: 'Cronometro',
+  deck_act_stopwatchStart: 'Timer: avvia un cronometro',
+});
+Object.assign(i18n.en, {
+  timer_stopwatch: 'Stopwatch',
+  deck_act_stopwatchStart: 'Timer: start a stopwatch',
+});
+Object.assign(i18n.ko, {
+  timer_stopwatch: '스톱워치',
+  deck_act_stopwatchStart: '타이머: 스톱워치 시작',
+});
+Object.assign(i18n.ja, {
+  timer_stopwatch: 'ストップウォッチ',
+  deck_act_stopwatchStart: 'タイマー: ストップウォッチを開始',
+});
+Object.assign(i18n.zh, {
+  timer_stopwatch: '秒表',
+  deck_act_stopwatchStart: '计时器：启动秒表',
+});
+Object.assign(i18n.es, {
+  timer_stopwatch: 'Cronómetro',
+  deck_act_stopwatchStart: 'Temporizador: iniciar un cronómetro',
+});
+Object.assign(i18n.fr, {
+  timer_stopwatch: 'Chronomètre',
+  deck_act_stopwatchStart: 'Minuteur : démarrer un chronomètre',
+});
+Object.assign(i18n.de, {
+  timer_stopwatch: 'Stoppuhr',
+  deck_act_stopwatchStart: 'Timer: Stoppuhr starten',
+});
+Object.assign(i18n.pt, {
+  timer_stopwatch: 'Cronómetro',
+  deck_act_stopwatchStart: 'Temporizador: iniciar um cronómetro',
+});
+Object.assign(i18n.ru, {
+  timer_stopwatch: 'Секундомер',
+  deck_act_stopwatchStart: 'Таймер: запустить секундомер',
+});
+Object.assign(i18n.nl, {
+  timer_stopwatch: 'Stopwatch',
+  deck_act_stopwatchStart: 'Timer: een stopwatch starten',
+});
+
 
 // v4.11.7 - the Upcoming list gained two knobs (how many, how far ahead), and
 // the Calendar settings hint had to stop promising only a first-day-of-week.

@@ -47,6 +47,11 @@ const ACTION_CATALOG = [
   // Countdown timers — the same list the Timers tile shows, addressed by label.
   // timerStart creates (or restarts) a timer; toggle pauses/resumes; cancel removes.
   { type: 'timerStart',  group: 'timer', labelKey: 'deck_act_timerStart',  params: [{ name: 'label', kind: 'text' }, { name: 'minutes', kind: 'text' }] },
+  // A stopwatch, started by name. Pausing and cancelling need no second action:
+  // timerToggle and timerCancel already work by label and a stopwatch keeps the
+  // same clock underneath, so the key you bind to stop one is the one you
+  // already have.
+  { type: 'stopwatchStart', group: 'timer', labelKey: 'deck_act_stopwatchStart', params: [{ name: 'label', kind: 'text' }] },
   { type: 'timerToggle', group: 'timer', labelKey: 'deck_act_timerToggle', params: [{ name: 'label', kind: 'text' }] },
   { type: 'timerCancel', group: 'timer', labelKey: 'deck_act_timerCancel', params: [{ name: 'label', kind: 'text' }] },
   { type: 'micMute',  group: 'audio',  labelKey: 'deck_act_micMute',  params: [{ name: 'mode', kind: 'select', options: ['toggle', 'mute', 'unmute'] }] },
