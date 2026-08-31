@@ -859,6 +859,20 @@
     launch_failed: ['deck_err_launch_failed', 'the app would not start'],
     blocked_ext: ['deck_err_blocked_ext', 'that kind of file cannot be opened this way'],
     unavailable: ['deck_err_unavailable', 'that action is not available on this system'],
+    // Voicemeeter. Every one of these is something the person holding the
+    // machine can fix — install it, start it, pick a strip their edition has —
+    // which is the bar this map sets. The opaque ones (read/write refused by
+    // the DLL) deliberately stay raw codes: a sentence that says nothing is
+    // worse than a code somebody can paste into a report.
+    voicemeeter_not_installed: ['deck_err_vm_not_installed', 'Voicemeeter is not installed on this PC'],
+    voicemeeter_not_running: ['deck_err_vm_not_running', 'Voicemeeter is installed but not running'],
+    voicemeeter_windows_only: ['deck_err_vm_windows_only', 'Voicemeeter only exists on Windows'],
+    voicemeeter_unavailable: ['deck_err_vm_unavailable', 'Xenon cannot reach Voicemeeter'],
+    voicemeeter_bad_strip: ['deck_err_vm_bad_strip', 'the Voicemeeter you are running does not have that strip'],
+    voicemeeter_bad_bus: ['deck_err_vm_bad_bus', 'the Voicemeeter you are running does not have that bus'],
+    voicemeeter_bad_param: ['deck_err_vm_bad_param', 'that is not a Voicemeeter parameter name'],
+    voicemeeter_bad_macro: ['deck_err_vm_bad_macro', 'that macro button number does not exist'],
+    voicemeeter_bad_value: ['deck_err_vm_bad_value', 'Voicemeeter will not take that value'],
   };
   // A slider posts one action per 100ms while it is dragged, so a failing one
   // would bury the screen. Identical messages collapse for a few seconds; a

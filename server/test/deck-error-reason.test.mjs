@@ -9,15 +9,28 @@
 // from the outside and the only way to tell them apart was to guess.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
 const DECK = readFileSync(new URL('../js/deck.js', import.meta.url), 'utf8');
 const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
 const REGISTRY = readFileSync(new URL('../actions/registry.js', import.meta.url), 'utf8');
+// The registry dispatches to provider modules, and a provider names its own
+// failures — the registry only passes them through (`r.error || '…_failed'`).
+// Voicemeeter was the first entry in the table whose codes live entirely in a
+// provider, and this test read the registry alone and called them invented.
+const PROVIDERS = readdirSync(new URL('../actions/', import.meta.url))
+  .filter((f) => f.endsWith('.js'))
+  .map((f) => readFileSync(new URL('../actions/' + f, import.meta.url), 'utf8'))
+  .join('\n');
 
 const KEYS = [
   'deck_err_title', 'deck_err_not_found', 'deck_err_bad_app_path',
   'deck_err_launch_failed', 'deck_err_blocked_ext', 'deck_err_unavailable',
+  // Voicemeeter: every one of these is something the person at the machine can
+  // fix, which is the bar for getting a sentence rather than a raw code.
+  'deck_err_vm_not_installed', 'deck_err_vm_not_running', 'deck_err_vm_windows_only',
+  'deck_err_vm_unavailable', 'deck_err_vm_bad_strip', 'deck_err_vm_bad_bus',
+  'deck_err_vm_bad_param', 'deck_err_vm_bad_macro', 'deck_err_vm_bad_value',
 ];
 const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
 
@@ -40,7 +53,9 @@ test('every explained code is one the registry emits', () => {
   for (const code of codes) {
     // Quoted anywhere in the registry: some are returned literally, others as a
     // fallback (`r.error || 'launch_failed'`), and both are codes it can emit.
-    assert.match(REGISTRY, new RegExp("'" + code + "'"), `${code} is a real dispatcher error`);
+    const quoted = new RegExp("'" + code + "'");
+    assert.ok(quoted.test(REGISTRY) || quoted.test(PROVIDERS),
+      `${code} is explained on screen but no dispatcher or provider emits it`);
   }
 });
 
