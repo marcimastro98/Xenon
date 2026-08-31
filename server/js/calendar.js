@@ -281,7 +281,7 @@ function upcomingWhenLabel(startsAt, now, locale) {
   // Today (or the minute just gone — the list keeps events up to 60s old): the
   // time of day is the thing that matters, and it is just as short.
   if (days <= 0) {
-    return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(start);
+    return new Intl.DateTimeFormat(locale, timeParts()).format(start);
   }
   const [value, unit] = days < 14 ? [days, 'day']
     : days < 60 ? [Math.round(days / 7), 'week']
@@ -309,7 +309,7 @@ function _buildUpcomingInto(list) {
     return;
   }
   const locale = t('locale');
-  const fmt = new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const fmt = new Intl.DateTimeFormat(locale, timeParts({ day: '2-digit', month: 'short' }));
   upcoming.forEach(e => {
     const item = document.createElement('div');
     item.className = 'upcoming-item';
@@ -381,7 +381,7 @@ function renderDayModalEvents() {
     list.appendChild(empty);
     return;
   }
-  const fmt = new Intl.DateTimeFormat(t('locale'), { hour: '2-digit', minute: '2-digit' });
+  const fmt = new Intl.DateTimeFormat(t('locale'), timeParts());
   events.forEach(event => {
     const item = document.createElement('div');
     item.className = 'event-item';
@@ -581,7 +581,7 @@ async function deleteCalendarEvent(id) {
 }
 
 function showReminder(event) {
-  const fmt = new Intl.DateTimeFormat(t('locale'), { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+  const fmt = new Intl.DateTimeFormat(t('locale'), timeParts({ weekday: 'short' }));
   const meta = fmt.format(new Date(event.startsAt));
   if (window.XenonToast) {
     window.XenonToast.show({

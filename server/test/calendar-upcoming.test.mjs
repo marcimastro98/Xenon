@@ -18,16 +18,24 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // and the slice below looks for a line that is exactly "}".
 const SRC = readFileSync(join(__dirname, '..', 'js', 'calendar.js'), 'utf8').replace(/\r\n/g, '\n');
 
-function loadLabel() {
+// The label now asks Settings → Time format which shape an hour takes, through
+// the shared timeParts() in utils.js, so the harness supplies it. Before that
+// the locale decided alone, which is the bug Piotr reported: an English user who
+// chose 24-hour still read "09:30 PM" here while their clock read 21:30.
+function loadLabel(clockFormat) {
   const start = SRC.indexOf('function upcomingWhenLabel(');
   assert.ok(start >= 0, 'upcomingWhenLabel declaration not found');
   const end = SRC.indexOf('\n}\n', start);
   assert.ok(end > start, 'could not find the end of upcomingWhenLabel');
   const body = SRC.slice(start, end + 2);
-  return new Function(body + '; return upcomingWhenLabel;')();
+  const timeParts = (extra) => Object.assign({}, extra || {},
+    { hour: '2-digit', minute: '2-digit', hour12: clockFormat === '12' });
+  return new Function('timeParts', body + '; return upcomingWhenLabel;')(timeParts);
 }
 
-const label = loadLabel();
+// The existing assertions all pin the DISTANCE labels and the today-time in 24h
+// form, so they read the same as before against an explicit 24-hour setting.
+const label = loadLabel('24');
 const at = (s) => new Date(s).getTime();
 // A Sunday 09:00, so "later today", "tonight" and "tomorrow" are all expressible.
 const NOW = at('2026-08-16T09:00:00');
@@ -36,6 +44,18 @@ test('an event today shows the time, not a distance', () => {
   assert.equal(label('2026-08-16T18:30:00', NOW, 'en-GB'), '18:30');
   // The list keeps events up to a minute old; those are still "today".
   assert.equal(label('2026-08-16T08:59:30', NOW, 'en-GB'), '08:59');
+});
+
+test('the today-time follows the setting, not the locale', () => {
+  // The whole of Piotr's report. Same event, same locale, two settings: what
+  // decides is Settings → Time format, which the clock has always honoured and
+  // this label did not.
+  const h24 = loadLabel('24');
+  const h12 = loadLabel('12');
+  assert.equal(h24('2026-08-16T18:30:00', NOW, 'en-US'), '18:30', 'an explicit 24 beats an American locale');
+  assert.match(h12('2026-08-16T18:30:00', NOW, 'it-IT'), /06[:.]30\s?(PM|pm)/, 'and an explicit 12 beats an Italian one');
+  // The distance labels carry no hour at all, so they are unaffected either way.
+  assert.equal(h12('2026-08-18T09:00:00', NOW, 'en-US'), '2d');
 });
 
 test('later days are counted in calendar days, not 24h chunks', () => {

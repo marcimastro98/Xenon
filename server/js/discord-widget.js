@@ -502,7 +502,7 @@
 
   function fmtNotifTime(at) {
     if (!Number.isFinite(at)) return '';
-    try { return new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+    try { return new Date(at).toLocaleTimeString([], timeParts()); }
     catch { return ''; }
   }
 

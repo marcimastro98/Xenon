@@ -280,6 +280,21 @@ function clockUses12h() {
   return locale.toLowerCase().startsWith('en');
 }
 
+// The options every clock time in the app is formatted with. It exists because
+// clockUses12h() did not travel: the dashboard clock and the lock screen asked
+// it, and the twelve OTHER places that print an hour did not — they handed
+// Intl.DateTimeFormat a locale and let it decide. So a user who chose 24h in
+// Settings still read "09:30 PM" in the calendar, the agenda, the Ambient
+// scenes, the football fixtures, the stock ticker and the Discord widget.
+// Reported on Discord as a missing Calendar option; it was the setting being
+// ignored in eleven places at once.
+//
+// `extra` carries the date parts a caller also wants (weekday, day, month), so
+// this composes instead of replacing each call site's own shape.
+function timeParts(extra) {
+  return Object.assign({}, extra || {}, { hour: '2-digit', minute: '2-digit', hour12: clockUses12h() });
+}
+
 function toDateInputValue(date) {
   if (_xcFmt) return _xcFmt.toDateInputValue(date);
   const d = new Date(date);
