@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **A Browser tile no longer freezes when the dashboard is open in two places at once.** Reported on GitHub with a camera stream that stopped after a while: with the dashboard on the Xeneon Edge *and* in a browser window on the PC, one of the two Browser tiles held its last picture and never moved again. Closing either dashboard brought the other back to life, and after a restart the roles could swap.
+
+  Each screen opens its own page for the tile, on purpose — they can be different sizes, so they cannot share one. Those pages were opened as tabs of a single window, and a browser only draws the tab in front. The tile's picture comes from a stream of frames, and a page nobody is drawing produces none: whichever screen opened last took the front and the other simply stopped receiving. It never looked like an error, because there was nothing to report — only a picture that had stopped being replaced.
+
+  Every tile now gets a window of its own, so no screen can be behind another. Measured on the way in and out: two tiles on a page that redraws constantly went from 0 and 23.7 frames a second to 24.0 and 23.8, and three screens at three different sizes now hold their own rate through a resize.
+
+  It also explains the half-height picture in the same report. A frozen tile keeps showing whatever it was showing, so a tile resized in the meantime still displayed the page laid out for its old size — which is why hiding and showing the toolbar appeared to be the cure, while reloading the page did nothing at all.
+
+- **Setup now says what went wrong, instead of closing on a red line.** Reported on GitHub as a screenshot of the black window with *“The term 'cmd' is not recognized”*, from a PC where that program is exactly where Windows keeps it. The list of folders Windows searches had lost `C:\Windows\System32` — which happens on its own when a long list is edited past the length the old settings dialog can store, or when a “debloat” script rewrites it — and setup was asking for its tools by name.
+
+  Setup no longer asks. It reaches Windows' own tools where they live, and each setup script puts that folder back on its own search list for as long as it runs, changing nothing on the PC. Four more ways in used to end the same way, in a window that closed over the reason: a declined administrator prompt exited without a word, a missing PowerShell reported a file not found three times, running the installer from a network folder carried on from the wrong place, and double-clicking it inside the downloaded .zip — where Windows unpacks that one file alone — reached a check that had nothing to say about zips. Each now names itself and the fix.
+
+  A last one that was a genuine crash rather than a bad message: a Windows user name containing an apostrophe, which is allowed and does happen, broke the line that asks for administrator rights.
+
 - **The time format you chose is now used everywhere, not only on the clock.** Settings → Clock → Time format has been there for a long time and reached exactly two places: the dashboard clock and the lock-screen clock. Every other hour Xenon printed asked the *language* instead — so if you set 24-hour and read English, the clock said 21:30 while the calendar right beside it said 09:30 PM.
 
   Eleven places were ignoring it: the calendar and its Upcoming list, the agenda, the Ambient scenes, the lock screen's event list, the football fixtures, the stock ticker, the Discord widget and the weather timestamp. They all go through one shared formatter now, and a test fails the build if a twelfth ever decides for itself.
@@ -12,6 +26,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Reported on Discord by Piotr as a missing option on the Calendar widget. The option already existed; it was simply not being listened to.
 
 ### ✨ Added
+- **Widgets can read clock speeds and your frame rate.** Asked for by someone building a monitoring widget who had run out of numbers to draw: Xenon knew the CPU and GPU clocks and the frame rate in a game, and none of it reached the widgets people write.
+
+  Four readings join the system data any widget can already be granted — CPU clock, GPU core clock, GPU memory clock, and frames per second. There is no new permission to approve: a widget you have already allowed to see system data can use them, and one that has not been allowed still sees nothing.
+
+  They cost nothing to collect. Every one of them rides a reading Xenon was already taking on the same tick, so a dashboard showing them does no more work than one that does not, and the rate everything arrives at is unchanged — the sensors underneath are the expensive part, and speeding them up is a decision that belongs to you in Settings rather than to a widget.
+
 - **A stopwatch, in the same tile as the timers.** Leave the duration empty and press +: instead of a countdown you get a clock that counts up, for measuring how long something actually took. Pause, resume, reset, keep and delete are the buttons you already know, because underneath it is the same clock — only running the other way.
 
   There is no second button to learn, and the duration field carries the whole vocabulary: `5` is a countdown, empty is a stopwatch, and **`+5` is a stopwatch that chimes every 5 minutes**. That last one arrived from the same thread, where an "interval timer" turned out to mean exactly this: it counts up and sounds an alert at intervals, for stretching breaks. It is not a third kind of clock, so it costs one character rather than a control.
