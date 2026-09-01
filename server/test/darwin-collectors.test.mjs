@@ -206,11 +206,35 @@ test('parseMacmon: the older flat/tuple payload still reads', () => {
   assert.equal(s.cpuTemp, 55);
   assert.equal(s.gpuTemp, 50);
   assert.equal(s.gpu, 42);
+  // The tuple's first element is the live clock in MHz. It is free to read —
+  // the sample was parsed for the ratio anyway — so the monitoring widgets get
+  // a CPU and GPU clock on Apple Silicon rather than a blank where Windows has
+  // a number. This fixture reports only the efficiency cluster.
+  assert.equal(s.gpuClockMHz, 700);
+  assert.equal(s.cpuClockMHz, 1100);
+});
+
+test('parseMacmon: the performance cluster is the CPU clock when both are reported', () => {
+  // "CPU clock" on a monitor means the fast cluster; an average across clusters
+  // reads low whenever macOS is parking work on the efficiency cores, which on
+  // an idle machine is most of the time. Same rule as the fastest-core pick on
+  // Windows and Linux.
+  const s = dc.parseMacmon('{"ecpu_usage":[1100,0.2],"pcpu_usage":[3400,0.6],"gpu_usage":[900,0.1]}');
+  assert.equal(s.cpuClockMHz, 3400);
+  assert.equal(s.gpuClockMHz, 900);
+});
+
+test('parseMacmon: a build reporting a bare ratio leaves the clock null, not zero', () => {
+  const s = dc.parseMacmon('{"gpu_usage_ratio":0.5,"cpu_temp_avg":40}');
+  assert.equal(s.gpu, 50);
+  assert.equal(s.cpuClockMHz, null);
+  assert.equal(s.gpuClockMHz, null);
 });
 
 test('parseMacmon: garbage and partial lines degrade to nulls', () => {
-  assert.deepEqual(dc.parseMacmon(''), { cpuTemp: null, gpu: null, gpuTemp: null });
-  assert.deepEqual(dc.parseMacmon('not json'), { cpuTemp: null, gpu: null, gpuTemp: null });
+  const nothing = { cpuTemp: null, gpu: null, gpuTemp: null, cpuClockMHz: null, gpuClockMHz: null };
+  assert.deepEqual(dc.parseMacmon(''), nothing);
+  assert.deepEqual(dc.parseMacmon('not json'), nothing);
   // A truncated final line must not discard the complete sample before it.
   const s = dc.parseMacmon(fixture('darwin-macmon.jsonl').trim() + '\n{"temp":{"cpu_te');
   assert.equal(s.cpuTemp, 48.5);

@@ -11,6 +11,8 @@ $vramTotal = $null
 $gpuWatts = $null
 $gpuFanRpm = $null
 $gpuFans = @()
+$gpuClockMHz = $null
+$vramClockMHz = $null
 
 # GPU temperature via LibreHardwareMonitor - works for AMD, Intel, and NVIDIA without nvidia-smi.
 # LHM is already installed by INSTALL.bat for CPU temps, so no new dependency is introduced.
@@ -64,21 +66,43 @@ function Get-GpuLhmComputer {
   }
 }
 
-# Per-fan RPM straight from each card's tachometer. Cards with the fans stopped
-# (idle zero-RPM mode) legitimately report 0 - that is a reading, not a gap, so
-# it is kept. A GPU with no fan sensors at all (integrated graphics, a passive
-# card) contributes nothing and the caller falls back to whatever it has.
-function Get-LhmGpuFans {
+# Per-fan RPM straight from each card's tachometer, plus the core and memory
+# clocks off the same enumeration. Cards with the fans stopped (idle zero-RPM
+# mode) legitimately report 0 - that is a reading, not a gap, so it is kept. A
+# GPU with no fan sensors at all (integrated graphics, a passive card)
+# contributes nothing and the caller falls back to whatever it has.
+#
+# Clocks ride this walk rather than one of their own: the tree is already
+# enumerated and Update()d here, so they cost nothing on top. Returns a hashtable
+# so a card that exposes clocks but no fans is still worth the call.
+function Get-LhmGpuReadings {
   $fans = @()
+  $coreClock = $null
+  $memClock = $null
   try {
     $computer = Get-GpuLhmComputer
-    if ($null -eq $computer) { return $fans }
+    if ($null -eq $computer) { return @{ fans = $fans; coreClock = $null; memClock = $null } }
     foreach ($hardware in @($computer.Hardware)) {
       if ($hardware.HardwareType.ToString() -notmatch 'Gpu') { continue }
       try { $hardware.Update() } catch { }
       foreach ($sensor in @($hardware.Sensors)) {
         try {
-          if ($sensor.SensorType.ToString() -ne 'Fan' -or $null -eq $sensor.Value) { continue }
+          if ($null -eq $sensor.Value) { continue }
+          $stype = $sensor.SensorType.ToString()
+          if ($stype -eq 'Clock') {
+            # LHM names them "GPU Core" and "GPU Memory"; "GPU Shader" exists on
+            # older cards and is not what a monitoring widget asks for. Both are
+            # taken from the FIRST card that reports them - a machine with a
+            # discrete card and an iGPU would otherwise have the iGPU overwrite
+            # the reading anyone is actually looking at.
+            $cname = [string]$sensor.Name
+            $mhz = [double]$sensor.Value
+            if ($mhz -lt 1 -or $mhz -gt 20000) { continue }
+            if ($null -eq $coreClock -and $cname -match 'Core') { $coreClock = [int][Math]::Round($mhz) }
+            elseif ($null -eq $memClock -and $cname -match 'Memory|VRAM') { $memClock = [int][Math]::Round($mhz) }
+            continue
+          }
+          if ($stype -ne 'Fan') { continue }
           $rpm = [int][Math]::Round([double]$sensor.Value)
           if ($rpm -lt 0 -or $rpm -gt 20000) { continue }
           $name = ([string]$sensor.Name).Trim()
@@ -93,7 +117,7 @@ function Get-LhmGpuFans {
     try { $global:XenonGpuLhm.Close() } catch { }
     $global:XenonGpuLhm = $null
   }
-  return $fans
+  return @{ fans = $fans; coreClock = $coreClock; memClock = $memClock }
 }
 
 try {
@@ -104,17 +128,21 @@ try {
     if ($nvidiaSmi) { $global:XenonNvidiaSmiPath = $nvidiaSmi.Source }
   }
   if ($global:XenonNvidiaSmiPath) {
-    $line = & $global:XenonNvidiaSmiPath --query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total,power.draw,fan.speed,name --format=csv,noheader,nounits 2>$null | Select-Object -First 1
+    $line = & $global:XenonNvidiaSmiPath --query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total,power.draw,fan.speed,clocks.gr,clocks.mem,name --format=csv,noheader,nounits 2>$null | Select-Object -First 1
     if ($line) {
       # Split on commas rather than one all-or-nothing regex: any field can be
       # "[N/A]" on some cards/drivers, so each is parsed independently. The name is
       # the last field (rejoined in case a model name ever contains a comma).
       $parts = $line -split '\s*,\s*'
-      if ($parts.Count -ge 7) {
+      # The name is LAST and rejoined, so every new field goes BEFORE it and the
+      # count below moves with the query above. Two clock fields were added here
+      # (clocks.gr / clocks.mem): they cost nothing, being answered by the same
+      # invocation that was already reading temperature and power.
+      if ($parts.Count -ge 9) {
         $out = @{
           gpu     = $(if ($parts[0] -match '^\d+$') { [int]$parts[0] } else { $null })
           gpuTemp = $(if ($parts[1] -match '^\d+$') { [int]$parts[1] } else { $null })
-          gpuName = ($parts[6..($parts.Count - 1)] -join ', ').Trim()
+          gpuName = ($parts[8..($parts.Count - 1)] -join ', ').Trim()
         }
         # nvidia-smi reports memory in MiB (nounits); convert to bytes so the client
         # formats VRAM with the same helper it uses for RAM/disk.
@@ -134,7 +162,16 @@ try {
         # the stale list) from "no read happened" (keep it) by the key's mere
         # presence, so omitting it on an empty result would freeze old RPM
         # forever on a card that genuinely stopped reporting.
-        $out.gpuFans = @(Get-LhmGpuFans)
+        # clocks.gr is the graphics/core clock, clocks.mem the memory clock, both
+        # in MHz. "[N/A]" on a card or driver that does not report one leaves the
+        # key absent, which the server reads as "no answer" rather than zero.
+        if ($parts[6] -match '^\d+$') { $out.gpuClockMHz  = [int]$parts[6] }
+        if ($parts[7] -match '^\d+$') { $out.vramClockMHz = [int]$parts[7] }
+        $lhm = Get-LhmGpuReadings
+        $out.gpuFans = @($lhm.fans)
+        # LHM only fills a gap here - nvidia-smi is the authority on an NVIDIA card.
+        if ($null -eq $out.gpuClockMHz  -and $null -ne $lhm.coreClock) { $out.gpuClockMHz  = $lhm.coreClock }
+        if ($null -eq $out.vramClockMHz -and $null -ne $lhm.memClock)  { $out.vramClockMHz = $lhm.memClock }
         $out | ConvertTo-Json -Compress
         # `return` (not `exit`) ends the script for both the one-shot `-File` run and
         # the persistent worker's call-operator invocation, without killing the host.
@@ -174,6 +211,18 @@ try {
               if ($sname -notmatch 'Shared' -and $null -ne $sensor.Value) {
                 if ($sname -match 'Memory Used'  -and $null -eq $vramUsed)  { $vramUsed  = [int64]([double]$sensor.Value * 1048576) }
                 if ($sname -match 'Memory Total' -and $null -eq $vramTotal) { $vramTotal = [int64]([double]$sensor.Value * 1048576) }
+              }
+            } elseif ($stype -eq 'Clock') {
+              # Core and memory clocks in MHz, off the walk that is already here.
+              # "GPU Shader" also lands in this bucket on older cards and is not
+              # what a monitoring widget asks for, so only Core/Memory are taken.
+              $cname = [string]$sensor.Name
+              if ($null -ne $sensor.Value) {
+                $mhz = [double]$sensor.Value
+                if ($mhz -ge 1 -and $mhz -le 20000) {
+                  if ($cname -match 'Core' -and $null -eq $gpuClockMHz) { $gpuClockMHz = [int][Math]::Round($mhz) }
+                  elseif ($cname -match 'Memory|VRAM' -and $null -eq $vramClockMHz) { $vramClockMHz = [int][Math]::Round($mhz) }
+                }
               }
             } elseif ($stype -eq 'Power') {
               # Board/package power draw in watts (AMD/Intel path - NVIDIA returns
@@ -216,7 +265,7 @@ try {
     }
   }
   $gpu = [Math]::Min(100, [Math]::Max(0, [Math]::Round($sum, 0)))
-  @{ gpu = $gpu; gpuTemp = $gpuTemp; gpuName = $gpuName; vramUsed = $vramUsed; vramTotal = $vramTotal; gpuWatts = $gpuWatts; gpuFanRpm = $gpuFanRpm; gpuFans = @($gpuFans) } | ConvertTo-Json -Compress
+  @{ gpu = $gpu; gpuTemp = $gpuTemp; gpuName = $gpuName; vramUsed = $vramUsed; vramTotal = $vramTotal; gpuWatts = $gpuWatts; gpuFanRpm = $gpuFanRpm; gpuFans = @($gpuFans); gpuClockMHz = $gpuClockMHz; vramClockMHz = $vramClockMHz } | ConvertTo-Json -Compress
 } catch {
-  @{ gpu = $null; gpuTemp = $gpuTemp; gpuName = $gpuName; vramUsed = $vramUsed; vramTotal = $vramTotal; gpuWatts = $gpuWatts; gpuFanRpm = $gpuFanRpm; gpuFans = @($gpuFans); error = $_.Exception.Message } | ConvertTo-Json -Compress
+  @{ gpu = $null; gpuTemp = $gpuTemp; gpuName = $gpuName; vramUsed = $vramUsed; vramTotal = $vramTotal; gpuWatts = $gpuWatts; gpuFanRpm = $gpuFanRpm; gpuFans = @($gpuFans); gpuClockMHz = $gpuClockMHz; vramClockMHz = $vramClockMHz; error = $_.Exception.Message } | ConvertTo-Json -Compress
 }

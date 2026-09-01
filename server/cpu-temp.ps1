@@ -8,6 +8,7 @@ $script:tempCandidates = @()
 $script:fanReadings = @()
 $script:cpuWattCandidates = @()
 $script:psuWattCandidates = @()
+$script:cpuClockCandidates = @()
 
 function Add-CpuTempCandidate {
   param(
@@ -106,11 +107,15 @@ function Add-HardwareTemperatureSensors {
   }
 }
 
-# Fan RPM and power (watts) live on the same LHM trees the temps come from:
-# Cpu (package power), Motherboard->SubHardware/SuperIO (chassis/CPU fan headers)
-# and Psu (digital PSUs like Corsair HXi/RMi). 0 RPM is kept - a stopped fan is
-# real data, not a missing sensor.
-function Add-HardwareFanPowerSensors {
+# Fan RPM, power (watts) and CPU clock live on the same LHM trees the temps come
+# from: Cpu (package power, per-core clocks), Motherboard->SubHardware/SuperIO
+# (chassis/CPU fan headers) and Psu (digital PSUs like Corsair HXi/RMi). 0 RPM is
+# kept - a stopped fan is real data, not a missing sensor.
+#
+# All three ride THIS walk rather than one of their own. The tree is already
+# enumerated and Update()d here; a second pass for clocks would have doubled the
+# per-read cost of the collector that is already the worker's heaviest.
+function Add-HardwareSensors {
   param($Hardware, [string]$Context, [string]$NamePrefix)
 
   if ($null -eq $Hardware) { return }
@@ -133,6 +138,18 @@ function Add-HardwareFanPowerSensors {
         # AIO/hub controller ('ctrl') isn't a header either.
         $kind = if ($Context -eq 'Psu') { 'psu' } elseif ($Context -eq 'Cooler') { 'ctrl' } else { 'mb' }
         $script:fanReadings += [pscustomobject]@{ name = $name; rpm = $rpm; kind = $kind }
+      } elseif ($stype -eq 'Clock' -and $Context -eq 'Cpu') {
+        # Per-core clocks, reported live. "Bus Speed" is the reference clock
+        # (~100 MHz), not a core speed, and would win nothing but confusion; the
+        # per-core sensors are the ones that move with boost. The highest core is
+        # what a monitoring widget means by "CPU clock" - an average across cores
+        # reads low the moment Windows parks half of them, which on an idle
+        # desktop is most of the time.
+        $name = [string]$sensor.Name
+        if ($name -match 'Bus') { continue }
+        $mhz = [double]$sensor.Value
+        if ($mhz -lt 100 -or $mhz -gt 10000) { continue }
+        $script:cpuClockCandidates += $mhz
       } elseif ($stype -eq 'Power') {
         $watts = [Math]::Round([double]$sensor.Value, 1)
         # Exactly 0 W is never a real reading from a powered rail: LHM keeps the
@@ -155,7 +172,7 @@ function Add-HardwareFanPowerSensors {
   }
 
   foreach ($subHardware in @($Hardware.SubHardware)) {
-    Add-HardwareFanPowerSensors $subHardware $Context $NamePrefix
+    Add-HardwareSensors $subHardware $Context $NamePrefix
   }
 }
 
@@ -367,20 +384,20 @@ function Add-SensorsFromLibreHardwareMonitorLibrary {
       if ($htype -match 'Cpu') {
         Update-HardwareTree $hardware
         Add-HardwareTemperatureSensors $hardware
-        Add-HardwareFanPowerSensors $hardware 'Cpu'
+        Add-HardwareSensors $hardware 'Cpu'
       } elseif ($htype -match 'Motherboard') {
         Update-HardwareTree $hardware
-        Add-HardwareFanPowerSensors $hardware 'Motherboard'
+        Add-HardwareSensors $hardware 'Motherboard'
       } elseif ($htype -match 'Psu') {
         Update-HardwareTree $hardware
-        Add-HardwareFanPowerSensors $hardware 'Psu'
+        Add-HardwareSensors $hardware 'Psu'
         $sawPsu = $true
       } elseif ($htype -match 'Cooler') {
         # AIO / fan-hub controllers: their Fan sensors (fans AND pump) are the
         # readings a motherboard-only scan can never see.
         Update-HardwareTree $hardware
         $prefix = try { ([string]$hardware.Name).Trim() } catch { '' }
-        Add-HardwareFanPowerSensors $hardware 'Cooler' $prefix
+        Add-HardwareSensors $hardware 'Cooler' $prefix
       }
     }
   } catch {
@@ -445,6 +462,11 @@ $cpuWatts = $script:cpuWattCandidates |
   Sort-Object @{ Expression = 'Priority'; Descending = $true }, @{ Expression = 'Value'; Descending = $true } |
   Select-Object -First 1 -ExpandProperty Value
 
+$cpuClock = $null
+if ($script:cpuClockCandidates.Count -gt 0) {
+  $cpuClock = [int][Math]::Round((($script:cpuClockCandidates | Measure-Object -Maximum).Maximum))
+}
+
 $psuWatts = $script:psuWattCandidates |
   Sort-Object @{ Expression = 'Priority'; Descending = $true }, @{ Expression = 'Value'; Descending = $true } |
   Select-Object -First 1 -ExpandProperty Value
@@ -460,5 +482,6 @@ if ($global:XenonCpuLhm) { $sensorAccess = if (Test-SensorAdmin) { 'ok' } else {
   fans         = @($script:fanReadings)
   cpuWatts     = if ($null -ne $cpuWatts) { [double]$cpuWatts } else { $null }
   psuWatts     = if ($null -ne $psuWatts) { [double]$psuWatts } else { $null }
+  cpuClockMHz  = $cpuClock
   sensorAccess = $sensorAccess
 } | ConvertTo-Json -Compress -Depth 4

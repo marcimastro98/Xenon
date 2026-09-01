@@ -265,7 +265,7 @@ widget explicitly requests them, as described below.
 The payloads are the dashboard's own SSE events, unmodified:
 
 - `status` — mic mute, game mode/activity, foreground process
-- `system` — `cpu` (%), `gpu` (%|null), `memory.percent`, temperatures, uptime…
+- `system` — `cpu` (%), `gpu` (%|null), `memory.percent`, temperatures, clock speeds, `fps`, uptime… see *Clock speeds and frame rate* below
 - `media` — `title`, `artist`, `album`, playback state, source, plus `position` and `duration` in seconds. A zero/absent `duration` means the current source has no seekable timeline
 - `audio` — volume, mute, output device, and `speakerApps[]` / `micApps[]`: the per-application mixer (one entry per active session, with `proc`, `volume`, `muted` and a resolved `icon`). Polled, so it updates about every 8 seconds
 - `audioLevels` — **how loud each app actually is right now**: `{ "discord": 0.42, "spotify": 0.81 }`, peak per process in `0..1`, roughly 12 times a second. See *Real audio levels* below — this one has conditions
@@ -578,6 +578,42 @@ those. `sources` tells you whether each backend answered at all, so you can
 distinguish "no devices" from "iCUE is off". Peripherals on a proprietary
 2.4GHz dongle (Logitech Unifying/Lightspeed and most custom keyboards) report no
 battery to Windows and cannot appear.
+
+### 3c. Clock speeds and frame rate (v4.11.7)
+
+Four more numbers ride the `system` payload, so `streams: ["system"]` is the
+whole grant — there is nothing extra to request and nothing new to approve.
+
+```js
+{ // …the rest of the system payload…
+  cpuClockMHz: 4550,     // the fastest core right now, in MHz
+  gpuClockMHz: 2610,     // GPU core clock
+  vramClockMHz: 10501,   // GPU memory clock
+  fps: 143,              // frames per second in the game being played
+}
+```
+
+- **`cpuClockMHz` is the fastest core, not an average.** An average reads low the
+  moment the OS parks half the cores, which on an idle desktop is most of the
+  time — so it would show a number nobody recognises. On Apple Silicon it is the
+  performance cluster, for the same reason.
+- **`fps` is `null` unless a game is actually being measured.** It comes from
+  PresentMon on Windows and MangoHud on Linux, and there is no source on macOS,
+  so `null` there always. `null` means "nothing to report", never zero.
+- **Every one of them is nullable**, and on more machines than you would guess:
+  a clock needs LibreHardwareMonitor with sensor access (`sensorAccess: 'ok'`),
+  `vramClockMHz` has no meaning on Apple Silicon's unified memory, and a card or
+  driver that answers `[N/A]` leaves the field null rather than zero. `Number(null)`
+  is `0`, so guard with `v != null` before formatting or you will print a
+  confident `0 MHz` where the truth is "not readable here".
+
+**On how often they arrive.** `system` is pushed every 5 seconds, and these four
+are on that tick like everything else. That cadence is deliberate: the sensor
+reads underneath it are LibreHardwareMonitor round-trips held in a 5-second
+cache, paid continuously on a machine that is often also running the game being
+measured. A widget that wants a smoother-looking number should interpolate
+between ticks rather than expect a faster one — the rate is a setting for the
+user to raise knowing what it costs, not something a widget can ask for.
 
 ### 4. `theme` — host → widget
 
