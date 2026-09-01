@@ -21,6 +21,27 @@
 param([switch]$Worker, [switch]$NoElevate, [switch]$Resume, [string]$FromVersion)
 
 $ErrorActionPreference = 'Stop'
+
+# ---- PATH repair -------------------------------------------------------------
+# Every native tool this script reaches for - schtasks, robocopy, sc.exe, cmd -
+# lives in System32, and is found only because System32 is on PATH. That is not
+# a given. A PATH edited past the 2047-character limit of the old System
+# Properties dialog is truncated in place, and "debloat" scripts rewrite it
+# wholesale; either can leave a perfectly healthy Windows with no System32 entry.
+# The first native call then dies with "The term 'x' is not recognized" and the
+# user is told a file is missing that is exactly where it belongs (issue #127).
+#
+# Repaired for THIS PROCESS only. Nothing on the machine is changed, and a PATH
+# that is already correct is left untouched.
+foreach ($dir in @(
+  (Join-Path $env:SystemRoot 'System32'),
+  (Join-Path $env:SystemRoot 'System32\Wbem'),
+  (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0')
+)) {
+  if ((Test-Path -LiteralPath $dir) -and (($env:Path -split ';') -notcontains $dir)) {
+    $env:Path = "$dir;$env:Path"
+  }
+}
 $ProgressPreference = 'SilentlyContinue'
 
 $server    = $PSScriptRoot                         # ...\server

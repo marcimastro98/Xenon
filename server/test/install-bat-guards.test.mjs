@@ -72,3 +72,52 @@ test('INSTALL.bat explains a declined UAC prompt instead of exiting quietly', ()
   assert.match(text, /catch \{ exit 3 \}/, 'a failed Start-Process must be distinguishable from a granted one');
   assert.match(text, /Run as administrator/);
 });
+
+// ---------------------------------------------------------------------------
+// The same failure, one layer down. Issue #127 arrived as a screenshot of the
+// bootstrap console: "The term 'cmd' is not recognized as the name of a cmdlet,
+// function, script file, or operable program", at the line that asked cmd to
+// run schtasks for it. cmd.exe was present and healthy; System32 was simply not
+// on that machine's PATH, which happens when a PATH is edited past the
+// 2047-character limit of the old System Properties dialog (Windows truncates
+// it in place) or rewritten by a debloat script.
+//
+// Fixing only the reported line would have moved the crash to the next native
+// call - robocopy, sc.exe, schtasks - so every entry-point script now puts
+// System32 back on its OWN PATH before doing anything. These tests hold that
+// line: the repair present in each, and the reported call no longer routed
+// through a program that has to be found first.
+
+const ENTRY_SCRIPTS = [
+  'apps/native/src-tauri/windows/xenon-bootstrap.ps1',
+  'server/install.ps1',
+  'server/uninstall.ps1',
+  'server/update-apply.ps1',
+  'server/install-native.ps1',
+];
+
+for (const name of ENTRY_SCRIPTS) {
+  test(`${name} puts System32 back on its own PATH`, () => {
+    const text = read(name);
+    assert.match(text, /PATH repair/, 'no PATH repair: the first native call dies on a truncated PATH');
+    assert.match(
+      text,
+      /Join-Path \$env:SystemRoot 'System32'/,
+      'the repair has to resolve System32 from $env:SystemRoot, not assume C:\\Windows',
+    );
+    assert.match(text, /\$env:Path = "\$dir;\$env:Path"/, 'the repair must prepend to the process PATH');
+    assert.ok(
+      !/\[Environment\]::SetEnvironmentVariable\(\s*'Path'/i.test(text),
+      'the repair is for this process only - it must never write the machine or user PATH',
+    );
+  });
+}
+
+test('the bootstrap asks for the startup task without going through cmd', () => {
+  const text = read('apps/native/src-tauri/windows/xenon-bootstrap.ps1');
+  assert.ok(!/^\s*cmd\s+\/c/m.test(text), 'cmd has to be found on PATH first; that is the bug (issue #127)');
+  assert.match(text, /Join-Path \$env:SystemRoot 'System32\\schtasks\.exe'/);
+  // Issue #95 lives in the same three lines: schtasks writes to stderr when the
+  // task is absent, and 'Stop' turns that into a terminating NativeCommandError.
+  assert.match(text, /\$ErrorActionPreference = 'Continue'/, 'an absent task must stay an answer, not a crash');
+});
