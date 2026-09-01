@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, lstatSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative, sep } from 'node:path';
 
@@ -28,17 +28,29 @@ const ROOT = join(__dirname, '..', '..');
 const EXTENSIONS = ['.ps1', '.bat', '.cmd'];
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'target', 'out']);
 
-function collect(dir, found = []) {
+// One walker for both passes below.
+//
+// It lstats and tolerates a failure. `statSync` follows symlinks and throws
+// ENOENT on a dangling one, which took the whole suite down rather than one
+// test: the Browser tile's Chromium profile under server/data — git-ignored, so
+// it exists only on a machine that has actually opened a Browser tile — keeps a
+// `SingletonCookie` symlink pointing at a host:pid that is long gone. Nothing
+// here needs to follow a link anyway: a symlinked script is still checked
+// wherever the real file lives.
+function collect(dir, extensions, found = []) {
   for (const entry of readdirSync(dir)) {
     if (SKIP_DIRS.has(entry)) continue;
     const full = join(dir, entry);
-    if (statSync(full).isDirectory()) collect(full, found);
-    else if (EXTENSIONS.some((ext) => entry.toLowerCase().endsWith(ext))) found.push(full);
+    let st;
+    try { st = lstatSync(full); } catch { continue; }
+    if (st.isSymbolicLink()) continue;
+    if (st.isDirectory()) collect(full, extensions, found);
+    else if (extensions.some((ext) => entry.toLowerCase().endsWith(ext))) found.push(full);
   }
   return found;
 }
 
-const SCRIPTS = collect(ROOT);
+const SCRIPTS = collect(ROOT, EXTENSIONS);
 
 test('shell scripts exist to be checked', () => {
   assert.ok(SCRIPTS.length > 20, `expected the repo's scripts, found ${SCRIPTS.length}`);
@@ -86,15 +98,7 @@ test('shell scripts are pure ASCII, so no code page can change how they parse', 
 // Braces end the name explicitly and fix it everywhere, so the rule is: an
 // expansion in a shell script is braced whenever a non-ASCII character follows.
 const POSIX_EXTENSIONS = ['.sh', '.command'];
-const POSIX_SCRIPTS = (function collectPosix(dir, found = []) {
-  for (const entry of readdirSync(dir)) {
-    if (SKIP_DIRS.has(entry)) continue;
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) collectPosix(full, found);
-    else if (POSIX_EXTENSIONS.some((ext) => entry.toLowerCase().endsWith(ext))) found.push(full);
-  }
-  return found;
-})(ROOT);
+const POSIX_SCRIPTS = collect(ROOT, POSIX_EXTENSIONS);
 
 test('POSIX scripts brace any expansion a non-ASCII character follows', () => {
   assert.ok(POSIX_SCRIPTS.length > 3, `expected the repo's POSIX scripts, found ${POSIX_SCRIPTS.length}`);
