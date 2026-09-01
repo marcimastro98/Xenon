@@ -29517,6 +29517,120 @@ Object.assign(i18n.zh, { ambient_scene_covers: '此场景会铺满整个屏幕�
 // would have named a choice that is not in the list.
 Object.assign(i18n.nl, { ambient_scene_builtin: 'Klassiek (widgets)' });
 
+// Sensor cadence (Settings -> Performance). The three notes carry the weight: a
+// faster rate is a real trade, so each step says what it costs at the moment
+// someone picks it, rather than in a manual nobody opens.
+Object.assign(i18n.it, {
+  settings_sensorrate_title: 'Frequenza sensori',
+  settings_sensorrate_hint: 'ogni quanto si aggiornano temperature, carico, clock e FPS',
+  settings_sensorrate_5s: '5 secondi',
+  settings_sensorrate_2s: '2 secondi',
+  settings_sensorrate_1s: '1 secondo',
+  settings_sensorrate_note_5000: 'Il ritmo normale. Non costa niente in più.',
+  settings_sensorrate_note_2000: 'Più del doppio delle letture hardware. Si nota su un PC che sta anche giocando.',
+  settings_sensorrate_note_1000: 'Cinque volte le letture hardware. Scegli questo solo se guardi davvero i numeri mentre giochi.',
+});
+Object.assign(i18n.en, {
+  settings_sensorrate_title: 'Sensor refresh rate',
+  settings_sensorrate_hint: 'how often temperatures, load, clocks and FPS update',
+  settings_sensorrate_5s: '5 seconds',
+  settings_sensorrate_2s: '2 seconds',
+  settings_sensorrate_1s: '1 second',
+  settings_sensorrate_note_5000: 'The normal pace. Costs nothing extra.',
+  settings_sensorrate_note_2000: 'More than twice the hardware reads. Noticeable on a PC that is also gaming.',
+  settings_sensorrate_note_1000: 'Five times the hardware reads. Pick this only if you really watch the numbers while playing.',
+});
+Object.assign(i18n.es, {
+  settings_sensorrate_title: 'Frecuencia de sensores',
+  settings_sensorrate_hint: 'cada cuánto se actualizan temperaturas, carga, frecuencias y FPS',
+  settings_sensorrate_5s: '5 segundos',
+  settings_sensorrate_2s: '2 segundos',
+  settings_sensorrate_1s: '1 segundo',
+  settings_sensorrate_note_5000: 'El ritmo normal. No cuesta nada más.',
+  settings_sensorrate_note_2000: 'Más del doble de lecturas de hardware. Se nota en un PC que además está jugando.',
+  settings_sensorrate_note_1000: 'Cinco veces las lecturas de hardware. Elígelo solo si de verdad miras los números mientras juegas.',
+});
+Object.assign(i18n.fr, {
+  settings_sensorrate_title: 'Fréquence des capteurs',
+  settings_sensorrate_hint: 'à quelle fréquence températures, charge, fréquences et FPS se mettent à jour',
+  settings_sensorrate_5s: '5 secondes',
+  settings_sensorrate_2s: '2 secondes',
+  settings_sensorrate_1s: '1 seconde',
+  settings_sensorrate_note_5000: 'Le rythme normal. Ne coûte rien de plus.',
+  settings_sensorrate_note_2000: 'Plus du double de lectures matérielles. Ça se sent sur un PC qui joue en même temps.',
+  settings_sensorrate_note_1000: 'Cinq fois plus de lectures matérielles. À choisir seulement si vous regardez vraiment les chiffres en jouant.',
+});
+Object.assign(i18n.de, {
+  settings_sensorrate_title: 'Sensor-Aktualisierung',
+  settings_sensorrate_hint: 'wie oft Temperaturen, Auslastung, Takt und FPS aktualisiert werden',
+  settings_sensorrate_5s: '5 Sekunden',
+  settings_sensorrate_2s: '2 Sekunden',
+  settings_sensorrate_1s: '1 Sekunde',
+  settings_sensorrate_note_5000: 'Das normale Tempo. Kostet nichts extra.',
+  settings_sensorrate_note_2000: 'Mehr als doppelt so viele Hardware-Abfragen. Auf einem PC, der nebenbei spielt, merkbar.',
+  settings_sensorrate_note_1000: 'Fünfmal so viele Hardware-Abfragen. Nur wählen, wenn du die Werte beim Spielen wirklich ansiehst.',
+});
+Object.assign(i18n.pt, {
+  settings_sensorrate_title: 'Frequência dos sensores',
+  settings_sensorrate_hint: 'de quanto em quanto tempo temperaturas, carga, clocks e FPS atualizam',
+  settings_sensorrate_5s: '5 segundos',
+  settings_sensorrate_2s: '2 segundos',
+  settings_sensorrate_1s: '1 segundo',
+  settings_sensorrate_note_5000: 'O ritmo normal. Não custa nada a mais.',
+  settings_sensorrate_note_2000: 'Mais do que o dobro de leituras de hardware. Dá para notar num PC que também está a jogar.',
+  settings_sensorrate_note_1000: 'Cinco vezes as leituras de hardware. Escolhe isto só se olhas mesmo para os números enquanto jogas.',
+});
+Object.assign(i18n.nl, {
+  "settings_sensorrate_title": 'Sensorfrequentie',
+  "settings_sensorrate_hint": 'hoe vaak temperaturen, belasting, kloksnelheden en FPS bijwerken',
+  "settings_sensorrate_5s": '5 seconden',
+  "settings_sensorrate_2s": '2 seconden',
+  "settings_sensorrate_1s": '1 seconde',
+  "settings_sensorrate_note_5000": 'Het normale tempo. Kost niets extra.',
+  "settings_sensorrate_note_2000": 'Ruim twee keer zo veel hardware-uitlezingen. Merkbaar op een pc die ook aan het gamen is.',
+  "settings_sensorrate_note_1000": 'Vijf keer zo veel hardware-uitlezingen. Kies dit alleen als je de cijfers echt bekijkt tijdens het spelen.',
+});
+Object.assign(i18n.ru, {
+  settings_sensorrate_title: 'Частота опроса датчиков',
+  settings_sensorrate_hint: 'как часто обновляются температуры, нагрузка, частоты и FPS',
+  settings_sensorrate_5s: '5 секунд',
+  settings_sensorrate_2s: '2 секунды',
+  settings_sensorrate_1s: '1 секунда',
+  settings_sensorrate_note_5000: 'Обычный ритм. Ничего не стоит дополнительно.',
+  settings_sensorrate_note_2000: 'Больше чем вдвое чаще обращения к железу. Заметно на ПК, который ещё и играет.',
+  settings_sensorrate_note_1000: 'В пять раз больше обращений к железу. Выбирайте, только если действительно смотрите на цифры во время игры.',
+});
+Object.assign(i18n.ko, {
+  settings_sensorrate_title: '센서 갱신 주기',
+  settings_sensorrate_hint: '온도, 사용량, 클럭, FPS가 갱신되는 간격',
+  settings_sensorrate_5s: '5초',
+  settings_sensorrate_2s: '2초',
+  settings_sensorrate_1s: '1초',
+  settings_sensorrate_note_5000: '기본 속도입니다. 추가 비용이 없습니다.',
+  settings_sensorrate_note_2000: '하드웨어 조회가 두 배 넘게 늘어납니다. 게임 중인 PC에서는 체감됩니다.',
+  settings_sensorrate_note_1000: '하드웨어 조회가 다섯 배가 됩니다. 게임하면서 실제로 수치를 볼 때만 고르세요.',
+});
+Object.assign(i18n.ja, {
+  settings_sensorrate_title: 'センサーの更新間隔',
+  settings_sensorrate_hint: '温度・使用率・クロック・FPS が更新される間隔',
+  settings_sensorrate_5s: '5秒',
+  settings_sensorrate_2s: '2秒',
+  settings_sensorrate_1s: '1秒',
+  settings_sensorrate_note_5000: '通常の間隔です。追加の負荷はありません。',
+  settings_sensorrate_note_2000: 'ハードウェア読み取りが 2 倍以上になります。ゲーム中の PC では体感できます。',
+  settings_sensorrate_note_1000: 'ハードウェア読み取りが 5 倍になります。プレイ中に本当に数値を見る場合だけ選んでください。',
+});
+Object.assign(i18n.zh, {
+  settings_sensorrate_title: '传感器刷新频率',
+  settings_sensorrate_hint: '温度、占用、频率和 FPS 多久更新一次',
+  settings_sensorrate_5s: '5 秒',
+  settings_sensorrate_2s: '2 秒',
+  settings_sensorrate_1s: '1 秒',
+  settings_sensorrate_note_5000: '常规节奏，不增加任何开销。',
+  settings_sensorrate_note_2000: '硬件读取增加一倍以上。在同时游戏的电脑上能感觉到。',
+  settings_sensorrate_note_1000: '硬件读取变成五倍。只有你真的会在游戏时盯着这些数字才选它。',
+});
+
 // v4.11.7 - the stopwatch can chime on the way up. Asked for as an "interval
 // timer" for stretching breaks; it is not a third clock, it is this one with an
 // alarm, so it costs one character in a field that already has a grammar.

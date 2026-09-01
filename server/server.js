@@ -2615,6 +2615,13 @@ function normalizeGpuFans(raw) {
     .map(f => ({ name: String(f.name || 'GPU Fan').slice(0, 48), rpm: Math.round(collectorNum(f.rpm)) }));
 }
 
+// The chosen cadence, live. Read per tick and per cache check rather than
+// captured once, so changing it in Settings takes effect on the next reading
+// instead of at the next restart.
+function sensorRateMs() {
+  return normalizeSensorRate(_serverHubSettings && _serverHubSettings.sensorRateMs);
+}
+
 let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, vramUsed: null, vramTotal: null, gpuWatts: null, gpuFanRpm: null, gpuFanPct: null, gpuFans: [], gpuClockMHz: null, vramClockMHz: null, updatedAt: 0 };
 let cpuTempCache = { cpuTemp: null, fans: [], cpuWatts: null, psuWatts: null, cpuClockMHz: null, sensorAccess: null, updatedAt: 0 };
 // Why the LHM-backed sensors (fan RPM, CPU/PSU watts) are unavailable, so the
@@ -3862,7 +3869,7 @@ function getCpuName() {
 
 async function getCpuTemp() {
   const age = Date.now() - cpuTempCache.updatedAt;
-  if (age < 5000) return cpuTempCache.cpuTemp;
+  if (age < sensorRateMs()) return cpuTempCache.cpuTemp;
   if (cpuTempPending) return cpuTempPending;
 
   cpuTempPending = (async () => {
@@ -3904,7 +3911,7 @@ async function getCpuTemp() {
 
 async function getGpuInfo() {
   const age = Date.now() - gpuCache.updatedAt;
-  if (age < 5000) return gpuCache;
+  if (age < sensorRateMs()) return gpuCache;
   if (gpuPending) return gpuPending;
   gpuPending = (async () => {
   try {
@@ -7586,6 +7593,15 @@ const WEATHER_FIELDS_ALL_ON = Object.freeze(
   WEATHER_FIELD_IDS.reduce((acc, id) => { acc[id] = true; return acc; }, {}),
 );
 
+// How often the sensor readings refresh, in ms. 5000 is the cadence everything
+// was built around and stays the default; the two faster steps are opt-in and
+// say what they cost, because the cost is real (see SENSOR_RATES).
+const SENSOR_RATE_MS = Object.freeze([5000, 2000, 1000]);
+function normalizeSensorRate(value) {
+  const n = Math.round(Number(value));
+  return SENSOR_RATE_MS.includes(n) ? n : 5000;
+}
+
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   appearance: 'dark',
   autoPalette: false,
@@ -9075,6 +9091,9 @@ function normalizeHubSettings(value) {
     topbarRails: normalizeTopbarRails(source.topbarRails),
     topbarRailsAutoHide: source.topbarRailsAutoHide !== false,
     topbarClock: normalizeTopbarClock(source.topbarClock, source),
+    // Sensor cadence (ms). Drives the system broadcast AND the caches under it:
+    // broadcasting faster alone would only re-send readings up to 5s old.
+    sensorRateMs: normalizeSensorRate(source.sensorRateMs),
     weekStart: ['mon', 'sun'].includes(source.weekStart) ? source.weekStart : 'mon',
     upcomingCount: [3, 5, 8, 10].includes(Number(source.upcomingCount)) ? Number(source.upcomingCount) : 5,
     upcomingDays: [0, 7, 14, 30].includes(Number(source.upcomingDays)) ? Number(source.upcomingDays) : 0,
@@ -20798,15 +20817,26 @@ setInterval(() => { broadcastMediaNow().catch(() => {}); }, 2000).unref();
 // round-trips through the persistent worker, paid continuously on a machine that
 // is often also running a game. If a faster rate is ever offered it belongs in
 // Settings, saying what it costs, not as a new default for everyone.
-setInterval(async () => {
-  if (sseClients.size === 0) return;
-  try {
-    const sys = await getSystemInfo();
-    broadcastSSE('system', sys);
-    lighting.onSystem(sys);
-    try { briefing.onSystemSample(sys); } catch {}
-  } catch {}
-}, 5000).unref();
+// Self-rescheduling rather than a fixed interval: the cadence is a setting now,
+// and a setInterval would hold whatever it was created with until a restart.
+// Each tick reads it again, so a change in Settings applies to the next one.
+//
+// The delay is taken AFTER the await, not before: a read that takes longer than
+// the interval (a cold LHM call, a busy machine) would otherwise queue ticks on
+// top of each other, and at 1s that stops being theoretical.
+async function _systemTick() {
+  if (sseClients.size > 0) {
+    try {
+      const sys = await getSystemInfo();
+      broadcastSSE('system', sys);
+      lighting.onSystem(sys);
+      try { briefing.onSystemSample(sys); } catch {}
+    } catch {}
+  }
+  const t = setTimeout(_systemTick, sensorRateMs());
+  t.unref && t.unref();
+}
+{ const t = setTimeout(_systemTick, sensorRateMs()); t.unref && t.unref(); }
 
 // Peripheral battery moves on a minutes scale and its sources are relatively
 // expensive (iCUE SDK round-trips + a Bluetooth PnP scan), so it gets its own

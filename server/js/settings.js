@@ -799,6 +799,16 @@ const BG_CUSTOM_CODE_MAX = 60000;
 // An older build normalizes an unknown kind to 'auto', which is the safe
 // direction — the window stays visible rather than disappearing.
 const SURFACE_KINDS = ['auto', 'screen', 'phone', 'both'];
+// How often the sensor readings refresh, in ms. Mirrors SENSOR_RATE_MS in
+// server.js — the server clamps to this same set, so an out-of-range value
+// saved by anything else lands back on the default rather than being honoured.
+//
+// Declared HERE, beside SURFACE_KINDS, and not next to the function that reads
+// it: normalizeSettings runs during `let hubSettings = loadHubSettings()` below,
+// so a const declared after that line is in its temporal dead zone and the read
+// throws — which boots the dashboard empty. settings-load-order.test.mjs is the
+// guard, and it caught exactly that.
+const SENSOR_RATE_MS = [5000, 2000, 1000];
 // normalizeNewsClient() runs during that same init too, and reaches this table
 // through defaultNewsFeedsClient() when there is no saved feed list — a fresh
 // install, or a settings blob that predates the key. It sat beside that function
@@ -1629,6 +1639,10 @@ function normalizeSettings(source) {
     bgDim: clampNumber(value.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
     bgBlur: clampNumber(value.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
     idleAnimationPause: value.idleAnimationPause !== false,
+    // Sensor cadence (ms). Mirrors normalizeSensorRate in server.js: both sides
+    // persist this key, so both have to rebuild it the same way or a save from
+    // one would strip what the other wrote.
+    sensorRateMs: SENSOR_RATE_MS.includes(Math.round(Number(value.sensorRateMs))) ? Math.round(Number(value.sensorRateMs)) : 5000,
     safeMode: value.safeMode === true,
     hybridGpuAnimationPause: value.hybridGpuAnimationPause !== false,
     uiRoundness: clampNumber(value.uiRoundness, 0, 2, DEFAULT_HUB_SETTINGS.uiRoundness),
@@ -7282,6 +7296,39 @@ function _savePerformance(patch) {
   if (window.PerfMode && typeof window.PerfMode.refresh === 'function') window.PerfMode.refresh();
 }
 
+// The cadence everything sensor-shaped runs at. Saving it is enough: the server
+// reads the value per tick and per cache check, so the next reading uses it —
+// there is nothing to restart and nothing to tell the dashboard.
+function updateSensorRate(ms) {
+  const next = SENSOR_RATE_MS.includes(Math.round(Number(ms))) ? Math.round(Number(ms)) : 5000;
+  hubSettings = normalizeSettings({ ...hubSettings, sensorRateMs: next });
+  saveHubSettings();
+  syncSensorRateControls();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function syncSensorRateControls() {
+  const rate = SENSOR_RATE_MS.includes(Math.round(Number(hubSettings.sensorRateMs)))
+    ? Math.round(Number(hubSettings.sensorRateMs)) : 5000;
+  const seg = $('settings-sensor-rate');
+  if (seg) {
+    seg.querySelectorAll('.settings-seg-btn').forEach((b) => {
+      const on = Number(b.dataset.rate) === rate;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+  }
+  // The note says what THIS step costs, not what the feature is. A faster
+  // cadence is a real trade and the person choosing it should read the price at
+  // the moment they choose, not in a manual.
+  const note = $('settings-sensor-rate-hint');
+  if (note) {
+    const key = 'settings_sensorrate_note_' + rate;
+    note.setAttribute('data-i18n', key);
+    if (typeof t === 'function') note.textContent = t(key);
+  }
+}
+
 function updatePerformanceEnabled(enabled) {
   _savePerformance({ enabled: !!enabled });
   syncPerformanceControls();
@@ -7459,6 +7506,7 @@ function restorePerformance() {
 }
 
 function syncPerformanceControls() {
+  syncSensorRateControls();
   const p = normalizePerformance(hubSettings.performance);
   const setChecked = (id, checked) => { const el = $(id); if (el) el.checked = checked; };
   setChecked('settings-perf-enabled', p.enabled);

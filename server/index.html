@@ -2349,6 +2349,29 @@
            empty one. -->
       <div id="settings-sensors-hub" data-settings-cat="performance"></div>
 
+      <!-- Sensor cadence. Its own group rather than a row inside Performance
+           Mode: that block is gated behind an "Enable" switch, and this is not a
+           mode - it is how often the readings underneath everything refresh,
+           which matters to someone whose dashboard is a monitor whether or not
+           they optimize anything. Asked for by a widget author building exactly
+           that. -->
+      <div class="settings-group" data-settings-cat="performance">
+        <div class="settings-group-head">
+          <span data-i18n="settings_sensorrate_title">Frequenza sensori</span>
+          <span class="settings-hint" data-i18n="settings_sensorrate_hint">ogni quanto si aggiornano temperature, carico, clock e FPS</span>
+        </div>
+        <div class="settings-grid">
+          <div class="settings-row full">
+            <div class="settings-seg" id="settings-sensor-rate" role="radiogroup" aria-label="Sensor refresh rate">
+              <button type="button" class="settings-seg-btn" data-rate="5000" role="radio" aria-checked="false" onclick="updateSensorRate(5000)" data-i18n="settings_sensorrate_5s">5 secondi</button>
+              <button type="button" class="settings-seg-btn" data-rate="2000" role="radio" aria-checked="false" onclick="updateSensorRate(2000)" data-i18n="settings_sensorrate_2s">2 secondi</button>
+              <button type="button" class="settings-seg-btn" data-rate="1000" role="radio" aria-checked="false" onclick="updateSensorRate(1000)" data-i18n="settings_sensorrate_1s">1 secondo</button>
+            </div>
+            <span class="settings-note" id="settings-sensor-rate-hint" data-i18n="settings_sensorrate_note_5000"></span>
+          </div>
+        </div>
+      </div>
+
       <div class="settings-group" data-settings-cat="performance">
         <div class="settings-group-head">
           <span data-i18n="settings_perf_title">Modalità Performance</span>
