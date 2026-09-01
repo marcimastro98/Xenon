@@ -2615,8 +2615,8 @@ function normalizeGpuFans(raw) {
     .map(f => ({ name: String(f.name || 'GPU Fan').slice(0, 48), rpm: Math.round(collectorNum(f.rpm)) }));
 }
 
-let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, vramUsed: null, vramTotal: null, gpuWatts: null, gpuFanRpm: null, gpuFanPct: null, gpuFans: [], updatedAt: 0 };
-let cpuTempCache = { cpuTemp: null, fans: [], cpuWatts: null, psuWatts: null, sensorAccess: null, updatedAt: 0 };
+let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, vramUsed: null, vramTotal: null, gpuWatts: null, gpuFanRpm: null, gpuFanPct: null, gpuFans: [], gpuClockMHz: null, vramClockMHz: null, updatedAt: 0 };
+let cpuTempCache = { cpuTemp: null, fans: [], cpuWatts: null, psuWatts: null, cpuClockMHz: null, sensorAccess: null, updatedAt: 0 };
 // Why the LHM-backed sensors (fan RPM, CPU/PSU watts) are unavailable, so the
 // widgets can give the one hint that helps instead of guessing.
 const SENSOR_ACCESS = new Set(['ok', 'needs_admin', 'missing']);
@@ -3885,6 +3885,10 @@ async function getCpuTemp() {
           })),
         cpuWatts: collectorNum(data.cpuWatts),
         psuWatts: collectorNum(data.psuWatts),
+        // Live core clock in MHz — the fastest core, not an average across them
+        // (see cpu-temp.ps1). A platform whose collector cannot read one leaves
+        // it null rather than reporting the nominal speed as if it were current.
+        cpuClockMHz: collectorNum(data.cpuClockMHz) === null ? null : Math.round(collectorNum(data.cpuClockMHz)),
         sensorAccess: SENSOR_ACCESS.has(data.sensorAccess) ? data.sensorAccess : null,
         updatedAt: Date.now(),
       };
@@ -3918,6 +3922,12 @@ async function getGpuInfo() {
       // carried no answer at all (keep the last list); an empty array means the
       // card reported no fans (drop it) — see normalizeGpuFans.
       gpuFans: normalizeGpuFans(data.gpuFans) ?? gpuCache.gpuFans,
+      // Core and memory clock in MHz. Held like every other reading here: a read
+      // that carried no answer keeps the last one rather than blinking the tile
+      // to "—" for a cycle, which is what a card reporting [N/A] intermittently
+      // would otherwise do.
+      gpuClockMHz: collectorNum(data.gpuClockMHz) === null ? gpuCache.gpuClockMHz : Math.round(collectorNum(data.gpuClockMHz)),
+      vramClockMHz: collectorNum(data.vramClockMHz) === null ? gpuCache.vramClockMHz : Math.round(collectorNum(data.vramClockMHz)),
       updatedAt: Date.now(),
     };
   } catch {
@@ -4262,6 +4272,10 @@ async function getSystemInfo() {
     cpu: getCpuUsage(),
     cpuTemp,
     cpuName: getCpuName(),
+    // Live clock speeds in MHz, null where the platform exposes none. Added for
+    // the SDK's `system` stream, which forwards this payload untouched — so a
+    // monitoring widget reads them with the grant it already has.
+    cpuClockMHz: cpuTempCache.cpuClockMHz,
     // Why the LHM-backed readings (cpuTemp, `fans`, power.cpu/psu) may be empty:
     // 'ok' | 'needs_admin' (LHM installed but unelevated → no kernel driver) |
     // 'missing'. Lets the widgets name the actual fix instead of guessing.
@@ -4278,6 +4292,20 @@ async function getSystemInfo() {
     gpuTemp: gpu.gpuTemp,
     vramUsed: gpu.vramUsed,
     vramTotal: gpu.vramTotal,
+    gpuClockMHz: gpu.gpuClockMHz === undefined ? null : gpu.gpuClockMHz,
+    vramClockMHz: gpu.vramClockMHz === undefined ? null : gpu.vramClockMHz,
+    // In-game frame rate, or null when nothing is being measured.
+    //
+    // It rides `system` rather than `status`, which is where it was asked for.
+    // `status` is broadcast ONLY when it changes, plus a 30s heartbeat, because
+    // its payload is identical tick after tick on an idle PC and every SSE event
+    // wakes each connected renderer. FPS changes constantly, so putting it there
+    // would turn a mostly-silent stream into a permanent 3s broadcast on every
+    // open dashboard — reinstating exactly the idle cost that dedup removed.
+    // `system` already broadcasts unconditionally every 5s, so this rides along
+    // for the price of an in-memory read: PresentMon (or MangoHud on Linux)
+    // fills the table continuously, and getCurrentFps only looks at it.
+    fps: (() => { try { return fpsMonitor.getCurrentFps(); } catch { return null; } })(),
     fans,
     power,
     disks,

@@ -104,17 +104,23 @@ async function mapLimit(items, limit, fn) {
 // and converted MiB -> bytes (value * 1048576). We reproduce that exactly.
 // nvidia-smi is the NVIDIA path only; AMD and Intel are read straight from the
 // kernel's DRM sysfs by parseSysfsGpu below, which needs no tool at all.
-const EMPTY_GPU = { gpu: null, gpuTemp: null, gpuName: null, vramUsed: null, vramTotal: null };
+const EMPTY_GPU = { gpu: null, gpuTemp: null, gpuName: null, vramUsed: null, vramTotal: null, gpuClockMHz: null, vramClockMHz: null };
+// The name is LAST and rejoined (model names contain commas), so every field
+// added to the query above goes BEFORE it and the length guard moves with it.
 function parseGpu(out) {
   const first = splitLines(String(out || '').trim())[0] || '';
   const p = first.split(',').map((s) => s.trim());
-  if (p.length < 5) return { ...EMPTY_GPU };
+  if (p.length < 7) return { ...EMPTY_GPU };
   return {
     gpu: isNum(p[0]) ? Math.round(Number(p[0])) : null,
     gpuTemp: isNum(p[1]) ? Math.round(Number(p[1])) : null,
     vramUsed: isNum(p[2]) ? Math.round(Number(p[2])) * 1048576 : null,
     vramTotal: isNum(p[3]) ? Math.round(Number(p[3])) * 1048576 : null,
-    gpuName: p.slice(4).join(', ').trim() || null,
+    // "[N/A]" on a card or driver that does not report a clock — isNum rejects
+    // it and the field stays null, which the server reads as "no answer".
+    gpuClockMHz: isNum(p[4]) ? Math.round(Number(p[4])) : null,
+    vramClockMHz: isNum(p[5]) ? Math.round(Number(p[5])) : null,
+    gpuName: p.slice(6).join(', ').trim() || null,
   };
 }
 // --- GPU without nvidia-smi: the kernel's own DRM sysfs -----------------------
@@ -272,7 +278,7 @@ async function sysfsGpu() {
 async function gpu() {
   try {
     return parseGpu(await run('nvidia-smi',
-      ['--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total,name',
+      ['--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total,clocks.gr,clocks.mem,name',
        '--format=csv,noheader,nounits'], 5000));
   } catch {
     // No NVIDIA driver (or no nvidia-smi): fall through to the kernel's own
@@ -439,8 +445,47 @@ async function readHwmonFans() {
   return parseHwmonFans(rows);
 }
 
+// Current core clock, in MHz, from the kernel's own cpufreq files.
+//
+// The highest core rather than an average, matching cpu-temp.ps1: an average
+// reads low the moment the governor idles half the cores, which on a desktop is
+// most of the time. scaling_cur_freq is in kHz. A machine with no cpufreq driver
+// (a VM, some ARM boards) has no such file and reports null rather than the
+// nominal speed dressed up as the current one.
+//
+// One readdir plus one small read per core, all from a virtual filesystem — the
+// same shape as the hwmon walk it rides along with, and cheap for the same
+// reason: nothing here touches a disk.
+// The pick, split from the read so it is testable off a machine with cpufreq —
+// the same split parseHwmonFans uses. Takes what the files contained, in kHz.
+function pickCpuClockMHz(rawKhzValues) {
+  let best = null;
+  for (const raw of rawKhzValues) {
+    const khz = Number(raw);
+    if (!Number.isFinite(khz) || khz <= 0) continue;
+    const mhz = Math.round(khz / 1000);
+    // A driver reporting nonsense and a value read mid-transition both land
+    // here; neither is a clock a person would recognise.
+    if (mhz < 100 || mhz > 10000) continue;
+    if (best === null || mhz > best) best = mhz;
+  }
+  return best;
+}
+
+async function readCpuClockMHz() {
+  const base = '/sys/devices/system/cpu/cpufreq';
+  const values = [];
+  try {
+    for (const d of await fsp.readdir(base)) {
+      if (!/^policy\d+$/.test(d)) continue;
+      try { values.push(await readText(`${base}/${d}/scaling_cur_freq`)); } catch { /* gone mid-walk */ }
+    }
+  } catch { /* no cpufreq on this machine */ }
+  return pickCpuClockMHz(values);
+}
+
 async function cpuTemp() {
-  const fans = await readHwmonFans();
+  const [fans, cpuClockMHz] = await Promise.all([readHwmonFans(), readCpuClockMHz()]);
   try {
     const base = '/sys/class/hwmon';
     for (const d of await fsp.readdir(base)) {
@@ -455,12 +500,12 @@ async function cpuTemp() {
         try { label = await readText(`${dir}/temp${i}_label`); } catch { /* unlabelled */ }
         if (/Tctl|Tdie|Tccd|Package|Core 0/i.test(label) || i === 1) {
           const milli = Number(raw);
-          if (Number.isFinite(milli)) return { cpuTemp: Math.round((milli / 1000) * 10) / 10, fans };
+          if (Number.isFinite(milli)) return { cpuTemp: Math.round((milli / 1000) * 10) / 10, fans, cpuClockMHz };
         }
       }
     }
   } catch { /* no hwmon, or unreadable */ }
-  return { cpuTemp: null, fans };
+  return { cpuTemp: null, fans, cpuClockMHz };
 }
 
 // --- Network: ping (1.1.1.1) + /proc/net/dev, matching network.ps1 shape -----
@@ -1184,7 +1229,7 @@ module.exports = {
   sendKeys, keysAvailable, processes,
   // exported for unit tests
   parseProcStat,
-  parseGpu, parseSysfsGpu, rc6Busy, betterGpuCandidate, parseHwmonFans, parseDisks, parseMemInfo, parseNetDev, parsePing,
+  parseGpu, parseSysfsGpu, rc6Busy, pickCpuClockMHz, betterGpuCandidate, parseHwmonFans, parseDisks, parseMemInfo, parseNetDev, parsePing,
   parseWmctrl, parseWindowProps, parseClientList, parseWindowIdentity,
   parsePwDump, buildAudioRows, resolveTargets, cubicToLinear,
   ydotoolArgs,

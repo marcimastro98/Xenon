@@ -133,8 +133,19 @@ function ratioToPct(v) {
   return Math.round(v > 1 ? v : v * 100);
 }
 
+// A macmon usage field is either a bare ratio or the tuple [freq_mhz, ratio].
+// Where the tuple form is used, the frequency is the live clock and is free to
+// take — the sample is already parsed. A build that reports only the ratio
+// leaves the clock null rather than inventing one.
+function tupleFreq(v) {
+  if (!Array.isArray(v) || v.length < 1) return null;
+  const mhz = Number(v[0]);
+  if (!Number.isFinite(mhz) || mhz < 1 || mhz > 20000) return null;
+  return Math.round(mhz);
+}
+
 function parseMacmon(raw) {
-  const empty = { cpuTemp: null, gpu: null, gpuTemp: null };
+  const empty = { cpuTemp: null, gpu: null, gpuTemp: null, cpuClockMHz: null, gpuClockMHz: null };
   // `macmon pipe` emits one JSON document per sample; take the last complete one.
   const lines = splitLines(raw).map((l) => l.trim()).filter(Boolean);
   let doc = null;
@@ -153,10 +164,20 @@ function parseMacmon(raw) {
     gpuRatio = isFiniteNum(doc.gpu_usage[1]) ? doc.gpu_usage[1] : null;
   }
 
+  // Apple Silicon splits the CPU into efficiency and performance clusters. The
+  // performance cluster is what "CPU clock" means to anyone reading a monitor,
+  // and it is the higher of the two whenever both are reported — same rule as
+  // the fastest-core pick on the other two platforms.
+  const pClock = tupleFreq(doc.pcpu_usage);
+  const eClock = tupleFreq(doc.ecpu_usage);
+  const cpuClockMHz = pClock !== null && eClock !== null ? Math.max(pClock, eClock) : (pClock ?? eClock);
+
   return {
     cpuTemp: isFiniteNum(cpuTemp) ? Math.round(cpuTemp * 10) / 10 : null,
     gpu: ratioToPct(gpuRatio),
     gpuTemp: isFiniteNum(gpuTemp) ? Math.round(gpuTemp * 10) / 10 : null,
+    cpuClockMHz,
+    gpuClockMHz: tupleFreq(doc.gpu_usage),
   };
 }
 
@@ -273,7 +294,7 @@ async function readHelperTemps() {
 // temperatures and the other knows the GPU load reports both instead of
 // whichever happened to run.
 const SENSOR_TTL_MS = 2500;
-const EMPTY_SENSORS = { cpuTemp: null, gpu: null, gpuTemp: null, vramUsed: null };
+const EMPTY_SENSORS = { cpuTemp: null, gpu: null, gpuTemp: null, vramUsed: null, cpuClockMHz: null, gpuClockMHz: null };
 let sensorCache = { data: { ...EMPTY_SENSORS }, at: 0 };
 let sensorInFlight = null;
 
@@ -282,7 +303,10 @@ function refreshSensors() {
   sensorInFlight = (async () => {
     const helper = await readHelperTemps();
     if (helper && helper.cpuTemp !== null && helper.gpu !== null && helper.gpuTemp !== null) {
-      sensorCache = { data: helper, at: Date.now() };
+      // Complete for everything the helper can answer. It reads no clocks, and
+      // spawning macmon purely for them would undo the point of this shortcut —
+      // so they stay null here rather than costing a process every 2.5 seconds.
+      sensorCache = { data: { ...helper, cpuClockMHz: null, gpuClockMHz: null }, at: Date.now() };
       return;                       // complete: macmon is not spawned at all
     }
     await refreshMacmon();
@@ -293,6 +317,9 @@ function refreshSensors() {
       gpu: pick(helper && helper.gpu, mac.gpu),
       gpuTemp: pick(helper && helper.gpuTemp, mac.gpuTemp),
       vramUsed: pick(helper && helper.vramUsed, null),
+      // Clocks come from macmon only — the helper reads temperatures and load.
+      cpuClockMHz: mac.cpuClockMHz ?? null,
+      gpuClockMHz: mac.gpuClockMHz ?? null,
     };
     sensorCache = { data: merged, at: Date.now() };
   })().catch(() => { /* keep the previous sample */ })
@@ -309,7 +336,7 @@ function liveSensors() {
 // --- GPU: name/VRAM from system_profiler, load/temp from macmon -------------
 // system_profiler takes seconds, and the answer never changes while the machine
 // is running, so it is resolved once and memoised for the process lifetime.
-const EMPTY_GPU = { gpu: null, gpuTemp: null, gpuName: null, vramUsed: null, vramTotal: null };
+const EMPTY_GPU = { gpu: null, gpuTemp: null, gpuName: null, vramUsed: null, vramTotal: null, gpuClockMHz: null, vramClockMHz: null };
 
 function parseDisplaysJson(raw) {
   let doc;
@@ -363,6 +390,10 @@ async function gpu() {
       // both halves are real and the readout works.
       vramUsed: live.vramUsed,
       vramTotal,
+      // Apple reports a GPU frequency but no separate memory clock: unified
+      // memory has no clock of its own to report.
+      gpuClockMHz: live.gpuClockMHz,
+      vramClockMHz: null,
     };
   } catch {
     return { ...EMPTY_GPU };
@@ -371,7 +402,8 @@ async function gpu() {
 
 // --- CPU temperature --------------------------------------------------------
 async function cpuTemp() {
-  return { cpuTemp: liveSensors().cpuTemp };
+  const live = liveSensors();
+  return { cpuTemp: live.cpuTemp, cpuClockMHz: live.cpuClockMHz };
 }
 
 // --- Disks: df + mount, matching getAllDisksInfo()'s drive object shape ------
