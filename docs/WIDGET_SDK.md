@@ -607,13 +607,23 @@ whole grant — there is nothing extra to request and nothing new to approve.
   is `0`, so guard with `v != null` before formatting or you will print a
   confident `0 MHz` where the truth is "not readable here".
 
-**On how often they arrive.** `system` is pushed every 5 seconds, and these four
-are on that tick like everything else. That cadence is deliberate: the sensor
-reads underneath it are LibreHardwareMonitor round-trips held in a 5-second
-cache, paid continuously on a machine that is often also running the game being
-measured. A widget that wants a smoother-looking number should interpolate
-between ticks rather than expect a faster one — the rate is a setting for the
-user to raise knowing what it costs, not something a widget can ask for.
+**On how often they arrive.** `system` is pushed every 5 seconds by default, and
+these four are on that tick like everything else. That cadence is deliberate: the
+sensor reads underneath it are LibreHardwareMonitor round-trips held in a cache
+of the same length, paid continuously on a machine that is often also running the
+game being measured.
+
+**The user can raise it** in Settings → Performance → *Sensor refresh rate*: 5
+seconds, 2, or 1. It moves the broadcast and the caches together, so 1 second
+really is 1 second rather than the same reading sent five times. Each step says
+what it costs where it is chosen, because five times the hardware reads is a real
+price and it is theirs to accept.
+
+**A widget cannot ask for it, and should not need to.** Write for the default and
+interpolate between ticks for a smooth-looking number; if someone has raised the
+rate, the same code simply gets fresher values. Never assume an interval — read
+the payload when it arrives. A widget that treats 5 seconds as a constant will be
+wrong on the machines that care most about it.
 
 ### 4. `theme` — host → widget
 
