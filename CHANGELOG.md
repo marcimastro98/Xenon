@@ -3,6 +3,14 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [4.11.8] — in development
+### ✨ Added
+- **Widgets can keep artwork instead of downloading it again every time.** A widget showing album covers, game art or video thumbnails had nowhere to put them: the only store it has caps a single value at 16 KB and the whole thing at 256 KB, and an image encoded as text is bigger still. So every cover was fetched again on every redraw, over a bridge built for small messages. Asked for by someone building exactly those widgets, who had already written this for himself and told us where his own version fell short.
+
+  Pictures now come down a route Xenon already had for map tiles, which hands them to the widget as an ordinary image instead of squeezing them through that bridge, and the ones worth keeping are written to disk so they survive a restart. Nothing about what a widget may reach changed: the address still has to be one the widget declared and you approved, and the same protections apply.
+
+  **The part that took the work is the forgetting.** A cache that only ever grows is a slow leak, and left alone this one would have been a big one: every album played and every game in a library is another file. So there is a ceiling per widget and a ceiling for all of them together, whatever is thrown away is really deleted rather than merely forgotten, an hourly pass removes anything left behind by an interrupted write, what goes first is what you have looked at least recently, and uninstalling a widget takes its pictures with it. A cover is also re-checked after a week, because an image can quietly change behind an address that stays the same.
+
 ## [Unreleased]
 ### 🐛 Fixed
 - **A Browser tile no longer freezes when the dashboard is open in two places at once.** Reported on GitHub with a camera stream that stopped after a while: with the dashboard on the Xeneon Edge *and* in a browser window on the PC, one of the two Browser tiles held its last picture and never moved again. Closing either dashboard brought the other back to life, and after a restart the roles could swap.
