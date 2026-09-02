@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readdirSync, existsSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readdirSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+const ROOT = join(import.meta.dirname, '..', '..');
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -95,6 +96,23 @@ test('the caps are sized for artwork that really exists, not for a guess', () =>
   // never all of it.
   assert.ok(ac.MAX_BYTES_TOTAL >= ac.MAX_BYTES_PER_PKG * 4,
     'a single widget must not be able to claim most of the total');
+});
+
+test('the artwork gate fits the burst artwork actually arrives in', () => {
+  // The widget author lays his covers out 10 by 10, so opening ONE artist is 100
+  // new images — 83% of the tile budget in a single gesture. Opening a second
+  // artist inside the same ten seconds would have 429'd eighty of them, which is
+  // ordinary browsing rather than abuse. Two grids fit now; a widget looping on
+  // a bug still meets a wall.
+  const SERVER = readFileSync(join(ROOT, 'server/server.js'), 'utf8');
+  const m = SERVER.match(/const SDK_GATE_RATE = Object\.freeze\(\{ tile: (\d+), asset: (\d+) \}\)/);
+  assert.ok(m, 'the two budgets moved or were merged back into one');
+  const [tile, asset] = [Number(m[1]), Number(m[2])];
+  const GRID = 10 * 10;
+  assert.ok(asset >= GRID * 2, `${asset} leaves no room for a second grid of ${GRID}`);
+  assert.ok(asset < GRID * 10, `${asset} is wide enough to stop being a limit`);
+  assert.ok(tile <= asset, 'a map pans a few tiles at a time; artwork arrives all at once');
+  assert.match(SERVER, /sdkTileGate\(pkgId, persist \? 'asset' : 'tile'\)/, 'the route must pick the right budget');
 });
 
 // ── The disk side ───────────────────────────────────────────────────────────
