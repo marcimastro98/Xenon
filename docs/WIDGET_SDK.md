@@ -625,6 +625,25 @@ rate, the same code simply gets fresher values. Never assume an interval — rea
 the payload when it arrives. A widget that treats 5 seconds as a constant will be
 wrong on the machines that care most about it.
 
+### 3d. `lang` — host → widget (v4.11.8)
+
+The `init` payload carries `lang` (the dashboard's language code). It is also
+**pushed whenever the user changes the language**, so a widget already on screen
+can re-render its own text:
+
+```js
+{ xenonSdk: 1, type: 'lang', lang: 'de' }
+```
+
+Handle it if your widget shows text of its own. Before v4.11.8 the code arrived
+only at mount, so a widget open while its owner switched language stayed in the
+old one until something reloaded it — which looked like the widget ignoring the
+setting.
+
+Xenon itself ships in eleven languages, so a widget that follows this is one
+that feels native to everyone who installs it. A widget with no text of its own
+can ignore the message entirely.
+
 ### 4. `theme` — host → widget
 
 Sent whenever the dashboard theme changes: `{ type: 'theme', theme: {…} }`.

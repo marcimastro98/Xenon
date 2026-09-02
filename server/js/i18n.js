@@ -30282,6 +30282,15 @@ function setLang(l) {
   if (nextLang === lang) return; // already active — persisted above, nothing to re-render
   lang = nextLang;
   applyTranslations();
+  // Installed widgets render their own text and were handed the language code
+  // at mount. Without this they keep it until something reloads them, so a
+  // dashboard switched to another language would sit next to a widget still in
+  // the old one.
+  try {
+    if (window.CustomWidget && typeof window.CustomWidget.refreshLang === 'function') {
+      window.CustomWidget.refreshLang();
+    }
+  } catch (e) { /* a widget bridge that is not up yet is not an error */ }
   if (typeof syncLangButtons === 'function') syncLangButtons();
   // The AI key fields set their own placeholder ("•••••••• saved" vs the format
   // hint) because applyTranslations can only restore one of the two — without
