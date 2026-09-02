@@ -17,6 +17,28 @@
 //
 // Pure and requireable (no server state) so the hostile-input paths are unit
 // tested in server/test/sdk-widgets.test.mjs.
+//
+// ── CHANGING WHAT WIDGETS CAN SEE OR DO ─────────────────────────────────────
+// The lists below are the SDK's public surface, and they are mirrored. Change
+// one without the others and the grant is silently unusable, or worse, granted
+// and undocumented. All of these move together:
+//
+//   1. here                       SDK_STREAMS / SDK_ACTION_CATEGORIES
+//   2. server/js/custom-widget.js the bridge that dispatches, and the
+//                                 permission LABEL the user reads
+//   3. server/js/settings.js      SDK_WIDGET_STREAMS / SDK_WIDGET_ACTION_CATS,
+//                                 which the permission dialog is built from
+//   4. server/js/i18n.js          that label, in all 11 languages
+//   5. docs/WIDGET_SDK.md         the capability table — regenerate with
+//                                 tools/gen-sdk-reference.mjs (a test fails if
+//                                 the generated block goes stale)
+//
+// The generated block covers the NAMES. It cannot know that a payload gained a
+// field or that a setting now changes what a stream carries, so anything of
+// that kind is documented by hand and pinned with a test — a promise in the
+// guide that nothing enforces is a promise that goes stale. Recent examples to
+// copy: section 3c (readings added to `system`), and the note on `agenda`
+// saying the Upcoming tile's limits do not filter the stream.
 
 const fs = require('fs');
 const path = require('path');
