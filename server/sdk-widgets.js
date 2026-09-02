@@ -69,7 +69,7 @@ const SDK_API_VERSION = 1;
 // dashboard where that tile is absent. That is the whole reason `twitchChat` has
 // no loader at all — a widget must never be able to make Xenon hold a socket
 // open to Twitch on an idle dashboard just by asking for a refresh.
-const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes']);
+const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'spotify']);
 
 // Action categories a package may request → the deck-action types each grants.
 // Deliberately a small, low-blast-radius subset of the action registry; every
@@ -98,7 +98,7 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // reach the service the user connected AND granted. `haCallService` is
   // deliberately left OUT — an arbitrary HA service call is too broad to hand to
   // untrusted widget code; the typed device actions cover normal control.
-  spotify: Object.freeze(['spotifyPlay', 'spotifyNext', 'spotifyPrev', 'spotifySave', 'spotifyLike', 'spotifyShuffle', 'spotifyRepeat', 'spotifyVolume', 'spotifySeek', 'spotifyPlaylist', 'spotifyDevice']),
+  spotify: Object.freeze(['spotifyPlay', 'spotifyNext', 'spotifyPrev', 'spotifySave', 'spotifyLike', 'spotifyShuffle', 'spotifyRepeat', 'spotifyVolume', 'spotifySeek', 'spotifyPlaylist', 'spotifyPlayUri', 'spotifyDevice']),
   obs: Object.freeze(['obsScene', 'obsSceneNext', 'obsRecord', 'obsStream', 'obsMute', 'obsInputVolume']),
   // discordUserVol/discordUserMute change what THIS machine hears from one
   // person in the user's own voice channel — local playback, not moderation and

@@ -26,6 +26,11 @@ const API = 'https://api.spotify.com/v1';
 // Read playback + queue/devices, control playback (add-to-queue, shuffle, transfer,
 // start a playlist), read the user's playlists, and save tracks to Liked Songs.
 // Playback CONTROL requires Spotify Premium; reads work on free accounts too.
+// The last two are for the SDK query API's `recent` and `followedArtists`, and
+// they are the only ones here that a CONNECTED user does not already have. An
+// existing token keeps working with the scopes it was granted — nothing breaks —
+// but those two operations answer `insufficient_scope` until that person
+// reconnects, which the error path below already knows how to say.
 const SCOPES = [
   'user-read-playback-state',
   'user-modify-playback-state',
@@ -33,6 +38,8 @@ const SCOPES = [
   'playlist-read-private',
   'user-library-read',
   'user-library-modify',
+  'user-read-recently-played',
+  'user-follow-read',
 ].join(' ');
 
 const PENDING_TTL_MS = 10 * 60 * 1000;   // an unfinished authorize expires after 10 min
@@ -638,6 +645,7 @@ function createSpotifyProvider(deps) {
     switch (action.type) {
       case 'spotifySave': return saveCurrent();
       case 'spotifyPlaylist': return playPlaylist(action.playlist);
+      case 'spotifyPlayUri': return playUri(action.uri);
       case 'spotifyShuffle': return setShuffle(action.mode);
       case 'spotifyDevice': return transferDevice(action.device);
       case 'spotifyPlay': return playPause(action.mode);
@@ -651,9 +659,99 @@ function createSpotifyProvider(deps) {
     }
   }
 
+  // ── Read API for SDK widgets (GET /stream/spotify/query) ───────────────────
+  //
+  // A widget that browses a library needs authenticated reads, and the two ways
+  // to give it those are to hand over the token or to name the reads. This names
+  // them. The widget never sees a token, cannot reach a path we did not write,
+  // and cannot turn this into a general Spotify proxy: `op` indexes a table of
+  // functions, so an op we do not have is simply not a request.
+  //
+  // Requested by a widget author who had built the library browser against a
+  // private sidecar of his own and wanted to delete it.
+  //
+  // Spotify's own objects are passed through unshaped, and that is deliberate.
+  // Reshaping them would drop fields a widget legitimately wants and would make
+  // Xenon the owner of a schema it does not control; documenting them as
+  // "Spotify's shapes, proxied" is the honest contract.
+  // An id for a path segment. Delegates to spotifyId above, which already accepts
+  // a bare id, a spotify: URI or an open.spotify.com link — a widget should not
+  // have to know which of the three it is holding — and then caps the length,
+  // because that one is unbounded and this value is about to be a URL path.
+  const queryId = (v, kind) => {
+    const id = spotifyId(v, kind);
+    return /^[A-Za-z0-9]{1,40}$/.test(id) ? id : '';
+  };
+  // clampInt is already in scope above and floors junk to `lo`; paging wants a
+  // sensible DEFAULT when a field is simply absent, which is a different thing.
+  const pageInt = (v, lo, hi, dflt) => (v === undefined || v === null || v === ''
+    ? dflt : clampInt(v, lo, hi));
+  // Paging matters more than it looks: without it a library browser shows the
+  // first page of a 2000-track collection and nothing else, which is how this
+  // kind of API quietly ships half-working.
+  const page = (p, max) => 'limit=' + pageInt(p.limit, 1, max, Math.min(50, max))
+    + '&offset=' + pageInt(p.offset, 0, 10000, 0);
+
+  const SEARCH_TYPES = ['track', 'album', 'artist', 'playlist'];
+
+  const QUERY_OPS = Object.freeze({
+    player:          () => '/me/player',
+    queue:           () => '/me/player/queue',
+    devices:         () => '/me/player/devices',
+    playlists:       (p) => '/me/playlists?' + page(p, 50),
+    savedAlbums:     (p) => '/me/albums?' + page(p, 50),
+    savedTracks:     (p) => '/me/tracks?' + page(p, 50),
+    recent:          (p) => '/me/player/recently-played?limit=' + pageInt(p.limit, 1, 50, 50),
+    followedArtists: (p) => '/me/following?type=artist&limit=' + pageInt(p.limit, 1, 50, 50),
+    artistAlbums:    (p) => (queryId(p.id, 'artist') ? '/artists/' + queryId(p.id, 'artist') + '/albums?' + page(p, 50) : ''),
+    albumTracks:     (p) => (queryId(p.id, 'album') ? '/albums/' + queryId(p.id, 'album') + '/tracks?' + page(p, 50) : ''),
+    playlistTracks:  (p) => (queryId(p.id, 'playlist') ? '/playlists/' + queryId(p.id, 'playlist') + '/tracks?' + page(p, 100) : ''),
+    search:          (p) => {
+      const q = String(p.q || '').trim().slice(0, 200);
+      if (!q) return '';
+      const types = String(p.types || 'track,album,artist,playlist').split(',')
+        .map((x) => x.trim()).filter((x) => SEARCH_TYPES.includes(x));
+      if (!types.length) return '';
+      return '/search?type=' + types.join(',') + '&limit=' + pageInt(p.limit, 1, 50, 20)
+        + '&offset=' + pageInt(p.offset, 0, 1000, 0) + '&q=' + encodeURIComponent(q);
+    },
+  });
+
+  async function query(op, params) {
+    // hasOwn, not a plain lookup: `QUERY_OPS.constructor` resolves up the
+    // prototype chain to a real function, so `op: 'constructor'` would have
+    // passed the guard, been called, and handed apiRequest an object where a
+    // path belongs. `toString`, `valueOf` and friends are the same door.
+    // Object.freeze does not close it — only asking about OWN keys does.
+    const name = String(op || '');
+    const build = Object.hasOwn(QUERY_OPS, name) ? QUERY_OPS[name] : null;
+    if (typeof build !== 'function') return { ok: false, error: 'bad_op' };
+    const path = build(params && typeof params === 'object' ? params : {});
+    if (!path) return { ok: false, error: 'bad_params' };
+    const r = await apiRequest('GET', path);
+    if (r.ok) return { ok: true, data: r.data };
+    // The two new scopes are the one failure worth naming: a user connected
+    // before they existed holds a perfectly valid token that simply cannot read
+    // these, and "reconnect" is the fix rather than anything the widget did.
+    if (r.status === 403) return { ok: false, error: 'insufficient_scope', status: 403 };
+    return { ok: false, error: r.error || 'failed', status: r.status || 0 };
+  }
+
+  // Start a specific Spotify URI. The four kinds a browser needs, and no others:
+  // a `context` for the collections, `uris` for a single track, which is the
+  // distinction Spotify's own play endpoint draws.
+  const URI_RE = /^spotify:(track|album|artist|playlist):[A-Za-z0-9]{1,40}$/;
+  async function playUri(uri) {
+    const u = String(uri || '');
+    if (!URI_RE.test(u)) return { ok: false, error: 'bad_uri' };
+    const body = u.startsWith('spotify:track:') ? { uris: [u] } : { context_uri: u };
+    const r = await apiRequest('PUT', '/me/player/play', body);
+    return r.ok ? { ok: true } : { ok: false, error: r.error || 'play_failed', status: r.status || 0 };
+  }
+
   return {
     configured, status, logout, buildAuthUrl, exchangeCode, getAccessToken,
-    getQueue, getPlaylists, getDevices, getPlayer, search,
+    getQueue, getPlaylists, getDevices, getPlayer, search, query, playUri,
     saveCurrent, playPlaylist, playSearch, queueSearch, setShuffle, transferDevice, transferToId,
     playPause, skipNext, skipPrev, setRepeat, toggleLike, setVolume, seek, runAction,
   };

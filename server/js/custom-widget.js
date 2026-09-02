@@ -35,7 +35,7 @@
     wavelink: ['wlInputVolume', 'wlInputMute', 'wlOutputVolume', 'wlOutputMute', 'wlSwitchMonitoring', 'wlSetMonitorMix'],
     voicemeeter: ['vmStripMute', 'vmStripGain', 'vmStripBus', 'vmBusMute', 'vmBusGain', 'vmMacro'],
     steam: ['launchSteamGame'],
-    spotify: ['spotifyPlay', 'spotifyNext', 'spotifyPrev', 'spotifySave', 'spotifyLike', 'spotifyShuffle', 'spotifyRepeat', 'spotifyVolume', 'spotifySeek', 'spotifyPlaylist', 'spotifyDevice'],
+    spotify: ['spotifyPlay', 'spotifyNext', 'spotifyPrev', 'spotifySave', 'spotifyLike', 'spotifyShuffle', 'spotifyRepeat', 'spotifyVolume', 'spotifySeek', 'spotifyPlaylist', 'spotifyPlayUri', 'spotifyDevice'],
     obs: ['obsScene', 'obsSceneNext', 'obsRecord', 'obsStream', 'obsMute', 'obsInputVolume'],
     discord: ['discordMute', 'discordDeafen', 'discordPtt', 'discordJoin', 'discordLeave', 'discordInputVol', 'discordOutputVol', 'discordUserVol', 'discordUserMute', 'discordAudioToggle', 'discordSoundboard'],
     homeassistant: ['haToggle', 'haLight', 'haMedia', 'haCover', 'haClimate', 'haFan', 'haVacuum', 'haLock', 'haAlarm', 'haScene', 'haScript', 'haButton'],
@@ -134,6 +134,7 @@
     battery: ['cw_stream_battery', 'Battery level of your wireless devices'],
     wavelink: ['cw_stream_wavelink', 'Wave Link mixer state'],
     voicemeeter: ['cw_stream_voicemeeter', 'Voicemeeter mixer state'],
+    spotify: ['cw_stream_spotify', 'Read your Spotify library, queue and history'],
     stocks: ['cw_stream_stocks', 'Stock quotes & indices'],
     football: ['cw_stream_football', 'Football fixtures & scores'],
     news: ['cw_stream_news', 'News headlines'],
@@ -773,6 +774,40 @@
     const shaped = stream === 'youtubeLive' ? sanitizeYoutubeLive(payload) : payload;
     localStreamLoadedAt[stream] = Date.now();
     onData(stream, shaped);
+  }
+
+  // Authenticated Spotify READS for a widget that browses a library (queue,
+  // playlists, saved albums, an artist's albums, search…). Request/response with
+  // a correlation id, because browsing is a question with an answer rather than
+  // a feed to subscribe to.
+  //
+  // Gated by the `spotify` STREAM grant, not by the `spotify` ACTION grant, and
+  // that distinction is the point. The action grant reads "Control Spotify
+  // playback" — someone who agreed to that agreed to play, pause and skip. Their
+  // listening history, saved music and followed artists are a different thing to
+  // hand over, and folding them into a permission people already granted would
+  // widen it under them. So it is its own line in the dialog, and a widget that
+  // only controls playback still cannot read a thing.
+  //
+  // The widget never receives a token: the server holds it, the op names a read
+  // it is allowed to make, and only the answer comes back.
+  async function onBridgeSpotifyQuery(entry, grant, msg) {
+    const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
+    const reply = (payload) => post(entry, Object.assign({ type: 'spotifyQueryResult', id: reqId }, payload));
+    if (!grant.streams.includes('spotify')) { reply({ ok: false, error: 'not_allowed' }); return; }
+    const op = typeof msg.op === 'string' ? msg.op : '';
+    if (!op) { reply({ ok: false, error: 'bad_op' }); return; }
+    const p = msg.params && typeof msg.params === 'object' ? msg.params : {};
+    const qs = new URLSearchParams({ pkg: entry.pkgId, op });
+    for (const k of ['id', 'q', 'types', 'limit', 'offset']) {
+      if (p[k] !== undefined && p[k] !== null) qs.set(k, String(p[k]).slice(0, 300));
+    }
+    try {
+      const r = await api('/stream/spotify/query?' + qs.toString());
+      reply(r && r.ok ? { ok: true, data: r.data } : { ok: false, error: (r && r.error) || 'failed' });
+    } catch {
+      reply({ ok: false, error: 'failed' });
+    }
   }
 
   async function onBridgeRefresh(entry, grant, msg) {
@@ -1497,6 +1532,8 @@
       if (entry.ready) onBridgeAction(entry, grant, d);
     } else if (d.type === 'fetch') {
       if (entry.ready) onBridgeFetch(entry, grant, d);
+    } else if (d.type === 'spotifyQuery') {
+      if (entry.ready) onBridgeSpotifyQuery(entry, grant, d);
     } else if (d.type === 'refresh') {
       if (entry.ready) onBridgeRefresh(entry, grant, d);
     } else if (d.type === 'store') {
