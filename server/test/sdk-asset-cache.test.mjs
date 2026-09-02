@@ -82,6 +82,21 @@ test('extFor accepts only formats a browser renders, and reads the type we valid
   assert.equal(ac.extFor(''), null);
 });
 
+test('the caps are sized for artwork that really exists, not for a guess', () => {
+  // 32 MB was derived from album and game art at 20-30 KB. Artist covers turned
+  // out to reach 200 KB, and a realistic mixed library — 500 albums plus 100
+  // artists — comes to 31.7 MB: exactly the old ceiling, so a heavy user would
+  // have lived permanently at the eviction boundary, re-downloading what they
+  // had just been shown. Sized off the real numbers now, with headroom.
+  const mixed = (500 * 25 + 100 * 200) * 1024;
+  assert.ok(ac.MAX_BYTES_PER_PKG > mixed * 1.5,
+    `a realistic library is ${(mixed / 1048576).toFixed(1)} MB and the cap is ${(ac.MAX_BYTES_PER_PKG / 1048576)} MB — too close to churn`);
+  // And the total still protects the disk: one widget may claim a share of it,
+  // never all of it.
+  assert.ok(ac.MAX_BYTES_TOTAL >= ac.MAX_BYTES_PER_PKG * 4,
+    'a single widget must not be able to claim most of the total');
+});
+
 // ── The disk side ───────────────────────────────────────────────────────────
 
 test('a stored image comes back, and a second widget cannot see it', async () => {

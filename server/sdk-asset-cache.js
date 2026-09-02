@@ -41,9 +41,21 @@ const POSITIVE_TTL_MS = 7 * 24 * 3600 * 1000;
 // One hour is enough to stop a render loop hammering a dead url.
 const NEGATIVE_TTL_MS = 60 * 60 * 1000;
 // Bytes, not entries: entries are metadata and cost nothing, files are the
-// thing that fills a disk. 32 MB is roughly 600 album covers or 150 pieces of
-// game art — past what a widget legitimately needs on screen.
-const MAX_BYTES_PER_PKG = 32 * 1024 * 1024;
+// thing that fills a disk.
+//
+// 64 MB, and the number is measured rather than guessed. It started at 32,
+// derived from artwork at 20-30 KB — which is what album and game art actually
+// weighs, confirmed by the widget author who asked for this. Then he corrected
+// it: ARTIST covers are a different animal and reach 200 KB. A realistic mixed
+// library (500 albums plus 100 artists) lands at 31.7 MB, which is to say
+// exactly on the old cap — a heavy user would have sat permanently at the
+// eviction boundary, re-downloading what they had just been shown. That is the
+// one failure mode a cache exists to avoid.
+//
+// The TOTAL is deliberately not doubled with it. The per-package cap stops one
+// widget crowding out the others; the total is what protects the disk, and it
+// is the one a user would notice. One widget may now claim a quarter of it.
+const MAX_BYTES_PER_PKG = 64 * 1024 * 1024;
 // And the sum of them. 96 packages each holding their per-package cap would be
 // 3 GB, which is not a defensible number for a picture cache, so the total is
 // enforced independently and evicts the globally least-recently-used.
