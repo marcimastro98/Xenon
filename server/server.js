@@ -1501,6 +1501,31 @@ function sdkGrantsFor(pkgId) {
 // writes are atomic + change-driven.
 const SDK_STORE_DIR = path.join(DATA_DIR, 'widget-store');
 const SDK_SECRETS_DIR = path.join(DATA_DIR, 'widget-secrets');
+// Widget artwork, kept across restarts (GET /sdk/asset/…). Bounded per package
+// and in total, swept on a timer; see sdk-asset-cache.js for why the bound is
+// the feature rather than a detail of it.
+const SDK_ASSETS_DIR = path.join(DATA_DIR, 'widget-assets');
+const sdkAssetCache = require('./sdk-asset-cache');
+const sdkAssets = sdkAssetCache.createAssetStore({ root: SDK_ASSETS_DIR });
+// Hourly, and once shortly after boot: expiry, orphans and the total cap are
+// all things no single request can see. Unref'd, so it never holds the process
+// open, and it runs whether or not anyone is looking at a dashboard - a cache
+// that only shrinks while in use is not bounded.
+async function _sweepSdkAssets() {
+  try {
+    // An uninstalled widget must not leave its artwork on the disk. Done here
+    // rather than in the uninstall path on purpose: a cache that is only
+    // cleaned when the tidy path runs is not cleaned after a crash, a manual
+    // folder delete, or a restore from a backup taken on another machine.
+    const scan = await sdkPackagesCached().catch(() => null);
+    if (scan && Array.isArray(scan.packages)) {
+      await sdkAssets.dropPackages(scan.packages.map((p) => p.id)).catch(() => {});
+    }
+    await sdkAssets.sweep();
+  } catch { /* a sweep that fails is retried on the next tick */ }
+}
+{ const t = setTimeout(_sweepSdkAssets, 60_000); t.unref && t.unref(); }
+{ const t = setInterval(_sweepSdkAssets, 60 * 60 * 1000); t.unref && t.unref(); }
 const _sdkStoreCache = new Map();     // namespace → map (lazy, kept in sync on write)
 const _sdkSecretCache = new Map();    // pkgId → map
 // A namespace ('g:<group>' or '<pkgId>') → a Windows-safe filename. The colon in
@@ -1602,14 +1627,19 @@ function sdkTileGate(pkgId) {
 
 // Fetch (or coalesce onto an in-flight fetch of) one tile through the hardened
 // proxy. Resolves { contentType, buffer } for an image, or throws.
-function sdkTileFetch(url) {
+function sdkTileFetch(url, opts) {
+  // `memoryCache: false` is the artwork path: it keeps its answer on disk, and
+  // filling the small tile LRU with covers would evict the tiles a map is
+  // actively panning through. Coalescing is shared either way — two widgets
+  // asking for the same cover at once is exactly when it matters.
+  const memoryCache = !(opts && opts.memoryCache === false);
   const inflight = _sdkTileInflight.get(url);
   if (inflight) return inflight;
   const p = (async () => {
     const r = await sdkProxy.proxyFetch({ url, method: 'GET', headers: {}, body: '' });
     const ct = String(r.contentType || '');
     if ((r.status || 0) >= 400 || !/^image\//i.test(ct)) { const e = new Error('not_a_tile'); e.status = r.status; throw e; }
-    sdkTileCachePut(url, ct, r.buffer);
+    if (memoryCache) sdkTileCachePut(url, ct, r.buffer);
     return { contentType: ct, buffer: r.buffer };
   })().finally(() => { _sdkTileInflight.delete(url); });
   _sdkTileInflight.set(url, p);
@@ -19059,17 +19089,33 @@ const handleRequest = async (req, res) => {
       else json({ ok: false, error: (e && e.message) || 'bad_request' });
     }
 
-  } else if (req.method === 'GET' && reqPath.startsWith('/sdk/tile/')) {
-    // Same-origin image proxy for map/radar tiles. The widget points an
-    // <img>/Leaflet tile layer straight at this URL — allowed by the widget CSP's
-    // `img-src 'self'` with NO relaxation — so a slippy map paints at native
-    // speed instead of base64-ing every tile over the fetch bridge at ~1 req/s.
-    // Same trust boundary as the fetch proxy (allowlisted + user-GRANTED host,
-    // guardedLookup SSRF block, size cap) plus a bounded LRU + per-package gate.
-    // Read-only, images only, and secrets are NEVER injected here.
+  } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/tile/') || reqPath.startsWith('/sdk/asset/'))) {
+    // Same-origin image proxy for map/radar tiles, and for widget artwork. The
+    // widget points an <img>/Leaflet tile layer straight at this URL — allowed
+    // by the widget CSP's `img-src 'self'` with NO relaxation — so a slippy map
+    // paints at native speed instead of base64-ing every tile over the fetch
+    // bridge at ~1 req/s. Same trust boundary as the fetch proxy (allowlisted +
+    // user-GRANTED host, guardedLookup SSRF block, size cap) plus a bounded
+    // cache + per-package gate. Read-only, images only, and secrets are NEVER
+    // injected here.
+    //
+    // TWO PATHS, ONE DOOR. `/sdk/asset/` differs from `/sdk/tile/` in exactly
+    // one respect: where the answer is kept. Tiles live in a small memory LRU,
+    // because a radar frame is stale in minutes and worthless tomorrow; artwork
+    // goes to disk, because an album cover is the same next week and re-fetching
+    // it is the whole cost worth avoiding. Everything before that — the host
+    // check, the SSRF guard, the redirect handling, the image-only rule, the
+    // rate gate — is the same code on both, deliberately: a second route would
+    // be a second copy of a security model to keep in step, and the day they
+    // drift one of them is the weaker door.
+    //
+    // Asked for by a widget author caching album, game and video art, who had
+    // hit the store's 16 KB per value / 256 KB total ceiling doing it in base64.
     try {
       if (!sdkFeatureEnabled()) { res.writeHead(404); res.end(); return; }
-      const pkgId = decodeURIComponent(reqPath.slice('/sdk/tile/'.length));
+      const persist = reqPath.startsWith('/sdk/asset/');
+      const prefix = persist ? '/sdk/asset/' : '/sdk/tile/';
+      const pkgId = decodeURIComponent(reqPath.slice(prefix.length));
       if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(pkgId)) { res.writeHead(404); res.end(); return; }
       const scan = await sdkPackagesCached();
       const pkg = scan.packages.find(p => p.id === pkgId);
@@ -19086,20 +19132,41 @@ const handleRequest = async (req, res) => {
       const serve = (contentType, buffer, hit) => {
         res.writeHead(200, {
           'Content-Type': contentType,
-          'Cache-Control': 'public, max-age=600',
+          // A cover is worth keeping in the browser too; a radar frame is not.
+          'Cache-Control': persist ? 'public, max-age=86400' : 'public, max-age=600',
           'Content-Security-Policy': "default-src 'none'; sandbox",
           'X-Content-Type-Options': 'nosniff',
-          'X-Xenon-Tile': hit ? 'hit' : 'miss',
+          [persist ? 'X-Xenon-Asset' : 'X-Xenon-Tile']: hit ? 'hit' : 'miss',
         });
         res.end(buffer);
       };
-      const cached = sdkTileCacheGet(v.url);
-      if (cached) { serve(cached.contentType, cached.buffer, true); return; }
+      if (persist) {
+        const hit = await sdkAssets.get(pkgId, v.url).catch(() => null);
+        if (hit && hit.buffer) { serve(hit.contentType, hit.buffer, true); return; }
+        // A failure remembered briefly, so a render loop does not re-ask a dead
+        // url every frame. Short-lived on purpose: artwork 404s are usually a
+        // CDN mid-rename, and an hour of blank tiles is punishment enough.
+        if (hit && hit.negative) { res.writeHead(hit.status, { 'Cache-Control': 'no-store' }); res.end(); return; }
+      } else {
+        const cached = sdkTileCacheGet(v.url);
+        if (cached) { serve(cached.contentType, cached.buffer, true); return; }
+      }
+      // Only a MISS is gated: a cache hit costs nothing outbound, and a widget
+      // painting from its own cache must never be throttled. A miss on the
+      // persistent path costs a fetch AND a file, so it needs the gate more than
+      // a tile does, not less.
       const release = sdkTileGate(pkgId);
       if (!release) { res.writeHead(429); res.end(); return; }
       try {
-        const tile = await sdkTileFetch(v.url);
+        const tile = await sdkTileFetch(v.url, { memoryCache: !persist });
+        if (persist) await sdkAssets.put(pkgId, v.url, tile.contentType, tile.buffer).catch(() => {});
         serve(tile.contentType, tile.buffer, false);
+      } catch (e) {
+        if (persist) {
+          const st = Number(e && e.status);
+          await sdkAssets.putNegative(pkgId, v.url, st >= 400 && st < 600 ? st : 502).catch(() => {});
+        }
+        throw e;
       } finally { release(); }
     } catch (e) {
       const st = e && Number(e.status);

@@ -2071,6 +2071,45 @@ same 1 MB size cap. Responses are **images only**, cached briefly (a bounded LRU
 so panning back doesn't re-hit the origin, and rate-limited per package. Bundle
 the map library itself (Leaflet's JS/CSS/marker images) in your package as usual.
 
+## Artwork that stays cached (`/sdk/asset/`) (v4.11.8)
+
+Album covers, game art, video thumbnails — images that are the same next week
+and are worth not fetching again. Same shape as the tile proxy above, and the
+same door: declared host, granted host, SSRF guard, 1 MB cap, images only. The
+one difference is where the answer is kept.
+
+```js
+const assetUrl = (u) => `/sdk/asset/${pkgId}?u=${encodeURIComponent(u)}`;
+img.src = assetUrl(track.albumArtUrl);
+```
+
+**Use `/sdk/asset/` when the image does not change, `/sdk/tile/` when it does.**
+Tiles are held in a small memory cache for minutes, because a radar frame is
+stale almost immediately and worthless tomorrow. Assets are written to disk and
+survive a restart, because a cover is not.
+
+**Do not put images in your store.** A store value caps at 16 KB and the whole
+store at 256 KB, so base64 artwork does not fit, and this exists so it never has
+to. The `<img>` is same-origin, so nothing crosses the bridge at all.
+
+What the cache guarantees, and what it does not:
+
+- **It is bounded, and it forgets.** Per widget and in total, oldest-used first,
+  with the files actually deleted. Your artwork can disappear at any time — it is
+  a cache, not storage. Ask again and it comes back.
+- **Seven days, then re-fetched.** An image can change behind an unchanged URL,
+  and a month of showing the old one is too long to be wrong.
+- **A failure is remembered for an hour**, so a render loop does not re-ask a
+  dead URL every frame. Handle `onerror` and draw a placeholder.
+- **It is per widget.** Two widgets caching the same URL each keep their own
+  copy; neither can see the other's.
+- **Misses are rate-limited** (a miss costs a download and a file). Cache hits
+  never are, so painting from cache is always free. A burst of new images can
+  return 429 — retry later rather than looping.
+
+Requested by a widget author caching Steam, Spotify and YouTube artwork, who had
+already hit the store ceiling doing it by hand.
+
 ## Ambient scenes (`surface: "ambient"`)
 
 Declare `"surface": "ambient"` in the manifest and your package becomes an
