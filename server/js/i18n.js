@@ -29517,6 +29517,44 @@ Object.assign(i18n.zh, { ambient_scene_covers: '此场景会铺满整个屏幕�
 // would have named a choice that is not in the list.
 Object.assign(i18n.nl, { ambient_scene_builtin: 'Klassiek (widgets)' });
 
+// The permission line for the `steam` action category. It says what the widget
+// gets to do rather than which API it calls: someone approving this is agreeing
+// that clicking a tile may start a game.
+Object.assign(i18n.it, {
+  cw_act_steam: 'Avviare un gioco Steam',
+});
+Object.assign(i18n.en, {
+  cw_act_steam: 'Launch a Steam game',
+});
+Object.assign(i18n.es, {
+  cw_act_steam: 'Iniciar un juego de Steam',
+});
+Object.assign(i18n.fr, {
+  cw_act_steam: 'Lancer un jeu Steam',
+});
+Object.assign(i18n.de, {
+  cw_act_steam: 'Ein Steam-Spiel starten',
+});
+Object.assign(i18n.pt, {
+  cw_act_steam: 'Abrir um jogo da Steam',
+});
+Object.assign(i18n.nl, {
+  "cw_act_steam": 'Een Steam-game starten',
+});
+Object.assign(i18n.ru, {
+  cw_act_steam: 'Запускать игру в Steam',
+});
+Object.assign(i18n.ko, {
+  cw_act_steam: 'Steam 게임 실행',
+});
+Object.assign(i18n.ja, {
+  cw_act_steam: 'Steam のゲームを起動する',
+});
+Object.assign(i18n.zh, {
+  cw_act_steam: '启动 Steam 游戏',
+});
+
+
 // Sensor cadence (Settings -> Performance). The three notes carry the weight: a
 // faster rate is a real trade, so each step says what it costs at the moment
 // someone picks it, rather than in a manual nobody opens.
