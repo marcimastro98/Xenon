@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [4.11.8] — in development
 ### ✨ Added
+- **A widget can browse your Spotify library without ever touching your account.** Widgets could already control playback — play, pause, skip — but not read anything, so anyone building a Spotify browser had to run a private server of their own alongside Xenon just to fetch a playlist. One did exactly that, and asked for the honest version instead.
+
+  Xenon now answers a fixed list of Spotify questions on a widget's behalf: what is playing, the queue, your playlists and devices, your saved albums and songs, what you played recently, the artists you follow, the contents of an album or playlist, and search. The widget names one of those and gets the answer. It never receives your Spotify login, cannot ask for anything not on the list, and can start a track, album, artist or playlist it found — nothing else.
+
+  **Reading is a separate permission from controlling.** "Control Spotify playback" is play, pause and skip; your listening history, saved music and followed artists are a different thing to hand over, so they are asked for on their own line and a widget that only controls playback still sees nothing. Two new Spotify permissions are requested at connection time for the history and followed artists; if you connected Spotify before this release, everything keeps working and only those two ask you to reconnect — and say so when they do.
+
 - **Widgets follow the language you pick, instead of the one you had when they loaded.** A widget writes its own text, and Xenon told it which language to use — once, when it appeared. Change the dashboard language afterwards and every widget on screen stayed in the old one until something reloaded it, sitting next to a dashboard that had already switched. Now they are told, the same way they are already told when you change the theme.
 
   Noticed while a widget author was showing a tile he had written in French: a German user would have had a French tile on a German dashboard, with nothing to explain why.

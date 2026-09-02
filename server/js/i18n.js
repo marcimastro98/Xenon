@@ -29517,6 +29517,56 @@ Object.assign(i18n.zh, { ambient_scene_covers: '此场景会铺满整个屏幕�
 // would have named a choice that is not in the list.
 Object.assign(i18n.nl, { ambient_scene_builtin: 'Klassiek (widgets)' });
 
+// The `spotify` STREAM grant (library reads) and the spotifyPlayUri action.
+// The read line is deliberately separate from "Control Spotify playback": one
+// is play/pause, the other is a person’s listening history and saved music,
+// and a permission already granted for the first must not quietly become the
+// second.
+Object.assign(i18n.it, {
+  cw_stream_spotify: 'Leggere la tua libreria, coda e cronologia Spotify',
+  deck_act_spotifyPlayUri: 'Riproduci un URI Spotify',
+});
+Object.assign(i18n.en, {
+  cw_stream_spotify: 'Read your Spotify library, queue and history',
+  deck_act_spotifyPlayUri: 'Play a Spotify URI',
+});
+Object.assign(i18n.es, {
+  cw_stream_spotify: 'Leer tu biblioteca, cola e historial de Spotify',
+  deck_act_spotifyPlayUri: 'Reproducir un URI de Spotify',
+});
+Object.assign(i18n.fr, {
+  cw_stream_spotify: 'Lire votre bibliothèque, file d’attente et historique Spotify',
+  deck_act_spotifyPlayUri: 'Lire un URI Spotify',
+});
+Object.assign(i18n.de, {
+  cw_stream_spotify: 'Deine Spotify-Bibliothek, Warteschlange und Historie lesen',
+  deck_act_spotifyPlayUri: 'Eine Spotify-URI abspielen',
+});
+Object.assign(i18n.pt, {
+  cw_stream_spotify: 'Ler a tua biblioteca, fila e histórico do Spotify',
+  deck_act_spotifyPlayUri: 'Reproduzir um URI do Spotify',
+});
+Object.assign(i18n.nl, {
+  "cw_stream_spotify": 'Je Spotify-bibliotheek, wachtrij en geschiedenis lezen',
+  "deck_act_spotifyPlayUri": 'Een Spotify-URI afspelen',
+});
+Object.assign(i18n.ru, {
+  cw_stream_spotify: 'Читать вашу медиатеку, очередь и историю Spotify',
+  deck_act_spotifyPlayUri: 'Воспроизвести Spotify URI',
+});
+Object.assign(i18n.ko, {
+  cw_stream_spotify: 'Spotify 라이브러리, 대기열, 기록 읽기',
+  deck_act_spotifyPlayUri: 'Spotify URI 재생',
+});
+Object.assign(i18n.ja, {
+  cw_stream_spotify: 'Spotify のライブラリ・キュー・履歴を読む',
+  deck_act_spotifyPlayUri: 'Spotify URI を再生',
+});
+Object.assign(i18n.zh, {
+  cw_stream_spotify: '读取你的 Spotify 音乐库、队列和历史',
+  deck_act_spotifyPlayUri: '播放 Spotify URI',
+});
+
 // The permission line for the `steam` action category. It says what the widget
 // gets to do rather than which API it calls: someone approving this is agreeing
 // that clicking a tile may start a game.

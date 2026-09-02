@@ -644,6 +644,80 @@ Xenon itself ships in eleven languages, so a widget that follows this is one
 that feels native to everyone who installs it. A widget with no text of its own
 can ignore the message entirely.
 
+### 3e. Reading Spotify — `spotifyQuery` (v4.11.8)
+
+A widget that browses a library needs authenticated reads. It gets them by
+naming one, never by holding a token:
+
+```js
+addEventListener('message', (e) => {
+  const m = e.data;
+  if (m && m.xenonSdk === 1 && m.type === 'spotifyQueryResult' && m.id === 7) {
+    if (m.ok) render(m.data); else showError(m.error);
+  }
+});
+
+window.parent.postMessage({
+  xenonSdk: 1, type: 'spotifyQuery', id: 7,
+  op: 'savedAlbums', params: { limit: 50, offset: 0 },
+}, '*');
+```
+
+`id` is yours and comes back on the reply, so several reads can be in flight at
+once. Requires the **`spotify` stream** grant (`"streams": ["spotify"]`).
+
+| `op` | params | reads |
+| --- | --- | --- |
+| `player` | — | current playback state |
+| `queue` | — | what is playing and what is next |
+| `devices` | — | the account's playback devices |
+| `playlists` | `limit`, `offset` | the user's playlists |
+| `savedAlbums` | `limit`, `offset` | saved albums |
+| `savedTracks` | `limit`, `offset` | Liked Songs |
+| `recent` | `limit` | recently played |
+| `followedArtists` | `limit` | followed artists |
+| `artistAlbums` | `id`, `limit`, `offset` | an artist's albums |
+| `albumTracks` | `id`, `limit`, `offset` | an album's tracks |
+| `playlistTracks` | `id`, `limit`, `offset` | a playlist's tracks |
+| `search` | `q`, `types`, `limit`, `offset` | search (`track,album,artist,playlist`) |
+
+`id` takes a bare id, a `spotify:` URI or an `open.spotify.com` link — whichever
+you happen to be holding.
+
+**The data is Spotify's own, passed through unshaped.** Reshaping it would drop
+fields your widget wants and would make Xenon the owner of a schema it does not
+control, so the objects you get are the ones Spotify's Web API documents.
+
+Four things to expect:
+
+- **`limit` and `offset` are clamped** (50 per page, 100 for `playlistTracks`).
+  A library is paged — ask for the next page rather than a bigger one.
+- **`error: 'insufficient_scope'`** means the user connected Spotify before
+  `recent` and `followedArtists` existed. Their token is fine for everything
+  else; tell them to reconnect Spotify in Settings, and only for those two.
+- **`error: 'rate_limited'`** is your own budget, not Spotify's. These calls
+  spend the *user's* Spotify quota, which the dashboard's own Spotify tile
+  shares — search on a debounce, not on every keystroke, or you will stop their
+  music working and it will look like Xenon broke.
+- **`error: 'not_connected'`** means no Spotify account is linked at all. Say so
+  rather than showing an empty library.
+
+**Playing something you found** is an action, under the separate `spotify`
+action grant:
+
+```js
+{ xenonSdk: 1, type: 'action', action: { type: 'spotifyPlayUri', uri: 'spotify:album:…' } }
+```
+
+`track`, `album`, `artist` and `playlist` URIs only, validated before use.
+
+**Why two grants.** Reading is the `spotify` **stream**; controlling playback is
+the `spotify` **action** category, and they are asked for separately on purpose.
+"Control Spotify playback" is play, pause and skip — someone's listening
+history, saved music and followed artists are a different thing to hand over,
+and a permission already granted for the first must not quietly become the
+second. A widget that only controls playback still cannot read anything.
+
 ### 4. `theme` — host → widget
 
 Sent whenever the dashboard theme changes: `{ type: 'theme', theme: {…} }`.
@@ -1293,7 +1367,7 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `processes`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtubeLive`
+**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `processes`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtubeLive`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 
@@ -1309,7 +1383,7 @@ the user granted, and every action is re-validated server-side.
 | `mic` | `micMute` |
 | `obs` | `obsScene`, `obsSceneNext`, `obsRecord`, `obsStream`, `obsMute`, `obsInputVolume` |
 | `soundboard` | `playSound`, `soundStopAll` |
-| `spotify` | `spotifyPlay`, `spotifyNext`, `spotifyPrev`, `spotifySave`, `spotifyLike`, `spotifyShuffle`, `spotifyRepeat`, `spotifyVolume`, `spotifySeek`, `spotifyPlaylist`, `spotifyDevice` |
+| `spotify` | `spotifyPlay`, `spotifyNext`, `spotifyPrev`, `spotifySave`, `spotifyLike`, `spotifyShuffle`, `spotifyRepeat`, `spotifyVolume`, `spotifySeek`, `spotifyPlaylist`, `spotifyPlayUri`, `spotifyDevice` |
 | `steam` | `launchSteamGame` |
 | `streamerbot` | `sbDoAction`, `sbSendMessage`, `sbCodeTrigger` |
 | `tasks` | `taskAdd`, `taskToggle`, `taskDelete` |

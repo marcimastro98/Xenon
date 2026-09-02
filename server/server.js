@@ -19455,6 +19455,32 @@ const handleRequest = async (req, res) => {
     try { await readBody(req); json(await streamSpotify.logout()); }
     catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/stream/spotify/query' && req.method === 'GET') {
+    // Authenticated Spotify READS for SDK widgets: an allowlisted `op` plus
+    // bounded params, never a path and never the token. The allowlist lives in
+    // stream-spotify.js so there is one table rather than a route that can be
+    // talked into a general proxy.
+    //
+    // Gated per package: a miss is a call against the USER's Spotify quota, and
+    // that quota is shared with Xenon's own Spotify tile — a widget searching on
+    // every keystroke would stop the dashboard's music working, which the person
+    // would experience as Xenon being broken. Same gate the image routes use.
+    try {
+      const pkgId = String(urlObj.searchParams.get('pkg') || '');
+      if (!sdkFeatureEnabled() || !/^[a-z0-9][a-z0-9-]{1,40}$/.test(pkgId)) { json({ ok: false, error: 'not_allowed' }); return; }
+      if (!sdkGrantsFor(pkgId).streams.includes('spotify')) { json({ ok: false, error: 'not_allowed' }); return; }
+      const release = sdkTileGate(pkgId, 'tile');
+      if (!release) { json({ ok: false, error: 'rate_limited' }); return; }
+      try {
+        const params = {};
+        for (const k of ['id', 'q', 'types', 'limit', 'offset']) {
+          const v = urlObj.searchParams.get(k);
+          if (v !== null) params[k] = v;
+        }
+        json(await streamSpotify.query(urlObj.searchParams.get('op') || '', params));
+      } finally { release(); }
+    } catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+
   } else if (reqPath === '/stream/spotify/queue' && req.method === 'GET') {
     // "Up Next": the currently-playing track + the upcoming queue, for the widget.
     // The client polls this only while the tile is visible.
