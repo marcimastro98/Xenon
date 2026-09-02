@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [4.11.8] — in development
 ### ✨ Added
+- **Widgets follow the language you pick, instead of the one you had when they loaded.** A widget writes its own text, and Xenon told it which language to use — once, when it appeared. Change the dashboard language afterwards and every widget on screen stayed in the old one until something reloaded it, sitting next to a dashboard that had already switched. Now they are told, the same way they are already told when you change the theme.
+
+  Noticed while a widget author was showing a tile he had written in French: a German user would have had a French tile on a German dashboard, with nothing to explain why.
+
 - **A widget can start a game you own.** A Steam tile that shows what you played last and launches one when you tap it needed a permission that did not exist: Xenon could already start a game by its Steam id, but only from a Deck key, never from a widget. Now it is a permission like any other, listed as "Launch a Steam game" and off until you approve it.
 
   It is its own permission rather than a wider version of "open web links", which is the point: those two look similar and are not. A widget that may open a link should not silently gain the ability to start programs, least of all one you already approved for links months ago. A widget names a game id — digits, nothing else — and never a command.

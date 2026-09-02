@@ -1858,6 +1858,24 @@
     }
   }
 
+  // The dashboard's language changed (called from setLang in i18n.js).
+  //
+  // `lang` was already in `init`, which was enough for a widget that renders
+  // once — and not enough for the ones people actually keep on screen. A widget
+  // open while its owner switches the dashboard to another language kept the
+  // code it was handed at mount, so it stayed in the old one until something
+  // reloaded it. Nothing said so, which is the worst version: a widget author
+  // reads `lang` in init, does the right thing with it, and is still wrong.
+  //
+  // Same shape as the theme push above it, for the same reason: the host
+  // changed something the widget rendered from, so the host says so.
+  function refreshLang() {
+    const code = langCode();
+    for (const [, entry] of frames) {
+      if (entry.ready) post(entry, { type: 'lang', lang: code });
+    }
+  }
+
   // Theme changed (called from settings.js after applyHubSettings).
   function refreshTheme() {
     for (const [, entry] of frames) {
@@ -3041,7 +3059,7 @@
   }
 
   window.CustomWidget = {
-    renderWidgets, onData, onDiscordNotification, onHook, onHandler, onStoreChanged, onToastState, refreshTheme, refreshPackages: () => fetchPackages(true), clearAssign,
+    renderWidgets, onData, onDiscordNotification, onHook, onHandler, onStoreChanged, onToastState, refreshTheme, refreshLang, refreshPackages: () => fetchPackages(true), clearAssign,
     // How a builtin tile feeds a stream it is already reading (Twitch watch,
     // Twitch chat, YouTube Live) instead of every widget paying for its own copy.
     publishStream,
