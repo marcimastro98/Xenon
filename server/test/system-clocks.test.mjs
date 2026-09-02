@@ -110,3 +110,17 @@ test('the SDK guide documents the four readings and their nullability', () => {
   assert.match(doc, /Number\(null\)`?\s*\n?\s*is `?0/, 'the null trap has to be spelled out');
   assert.match(doc, /pushed every 5 seconds/, 'the cadence is part of the contract');
 });
+
+test('the agenda stream really is unfiltered, as the guide promises', () => {
+  // The Upcoming tile gained a count and a horizon in Settings. Both are
+  // DISPLAY settings for that tile: upcomingLimits() lives in the client-side
+  // calendar, and the broadcast sends the whole normalized list. The guide now
+  // says so in as many words, and a doc promise nobody enforces is a doc
+  // promise that goes stale — so the code is held to it here.
+  const server = read('server/server.js');
+  assert.match(server, /broadcastSSE\('agenda', \{ events: safe \}\)/,
+    'the agenda broadcast must send the whole list, not a windowed slice');
+  assert.ok(!/upcomingLimits/.test(server),
+    'the Upcoming limits belong to the tile — filtering the stream by them would silently shrink what every widget sees');
+  assert.match(read('docs/WIDGET_SDK.md'), /Every event, not the slice the Upcoming tile shows/);
+});
