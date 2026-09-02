@@ -87,6 +87,14 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   twitch: Object.freeze(['twitchClip', 'twitchMarker', 'twitchAd', 'twitchTitle', 'twitchGame', 'twitchChat', 'twitchShoutout', 'twitchChatMode']),
   youtube: Object.freeze(['ytBroadcast']),
   streamerbot: Object.freeze(['sbDoAction', 'sbSendMessage', 'sbCodeTrigger']),
+  // Launching a game the user owns, and nothing else. The AppID is digits-only
+  // before it is interpolated into steam://rungameid/<id>, so the widget names a
+  // number rather than a command. Deliberately NOT folded into `url`: that one
+  // is http(s) links, and widening it to protocol handlers would hand every
+  // widget already granted `url` the ability to invoke any registered scheme on
+  // the machine, retroactively and with no prompt. Asked for by a widget author
+  // whose Steam tile launches the game you click.
+  steam: Object.freeze(['launchSteamGame']),
   url: Object.freeze(['openUrl']),
   // Show a page in the Browser tile already on the dashboard. `openUrl` hands
   // the address to the Windows shell, so the page lands on the default browser

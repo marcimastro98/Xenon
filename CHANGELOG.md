@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [4.11.8] — in development
 ### ✨ Added
+- **A widget can start a game you own.** A Steam tile that shows what you played last and launches one when you tap it needed a permission that did not exist: Xenon could already start a game by its Steam id, but only from a Deck key, never from a widget. Now it is a permission like any other, listed as "Launch a Steam game" and off until you approve it.
+
+  It is its own permission rather than a wider version of "open web links", which is the point: those two look similar and are not. A widget that may open a link should not silently gain the ability to start programs, least of all one you already approved for links months ago. A widget names a game id — digits, nothing else — and never a command.
+
 - **Widgets can keep artwork instead of downloading it again every time.** A widget showing album covers, game art or video thumbnails had nowhere to put them: the only store it has caps a single value at 16 KB and the whole thing at 256 KB, and an image encoded as text is bigger still. So every cover was fetched again on every redraw, over a bridge built for small messages. Asked for by someone building exactly those widgets, who had already written this for himself and told us where his own version fell short.
 
   Pictures now come down a route Xenon already had for map tiles, which hands them to the widget as an ordinary image instead of squeezing them through that bridge, and the ones worth keeping are written to disk so they survive a restart. Nothing about what a widget may reach changed: the address still has to be one the widget declared and you approved, and the same protections apply.
