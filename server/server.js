@@ -1607,31 +1607,19 @@ function sdkTileCachePut(url, contentType, buffer) {
     _sdkTileCache.delete(oldest);
   }
 }
-// Per-package gate — a miss costs an outbound fetch, so bound both live
-// concurrency and a rolling rate so a widget can't turn the route into a
+// Per-package tile gate — a miss costs an outbound fetch, so bound both live
+// concurrency and a rolling rate so a widget can't turn the tile route into a
 // scraper. Cache HITS are free and never gated. Returns a release fn, or null
-// when over budget (→ 429). Bounded further by the package install cap.
-//
-// Two budgets, because the two paths burst differently. Panning a map asks for
-// a handful of tiles at a time and keeps asking; 120 in ten seconds is generous
-// for that. An artwork grid is one shot: the widget author who asked for the
-// asset route lays his out 10 by 10, so opening ONE artist is 100 new images —
-// 83% of the tile budget in a single gesture. Opening a second artist within the
-// same window then 429s eighty of them, which is ordinary browsing, not abuse.
-// So the persistent path gets room for two full grids and no more: enough that a
-// person flicking between artists never sees it, tight enough that a widget
-// looping on a bug still hits a wall.
-const SDK_GATE_RATE = Object.freeze({ tile: 120, asset: 240 });
+// when over budget (→ 429). Maps are bounded by the ≤32-package install cap.
 const _sdkTileConc = new Map();   // pkgId → inflight miss count
 const _sdkTileRate = new Map();   // pkgId → { windowStart, count }
-function sdkTileGate(pkgId, kind) {
-  const limit = SDK_GATE_RATE[kind] || SDK_GATE_RATE.tile;
+function sdkTileGate(pkgId) {
   const conc = _sdkTileConc.get(pkgId) || 0;
   if (conc >= 6) return null;
   const now = Date.now();
   let r = _sdkTileRate.get(pkgId);
   if (!r || now - r.windowStart > 10000) { r = { windowStart: now, count: 0 }; _sdkTileRate.set(pkgId, r); }
-  if (r.count >= limit) return null;
+  if (r.count >= 120) return null;
   r.count++;
   _sdkTileConc.set(pkgId, conc + 1);
   return () => { _sdkTileConc.set(pkgId, Math.max(0, (_sdkTileConc.get(pkgId) || 1) - 1)); };
@@ -19167,7 +19155,7 @@ const handleRequest = async (req, res) => {
       // painting from its own cache must never be throttled. A miss on the
       // persistent path costs a fetch AND a file, so it needs the gate more than
       // a tile does, not less.
-      const release = sdkTileGate(pkgId, persist ? 'asset' : 'tile');
+      const release = sdkTileGate(pkgId);
       if (!release) { res.writeHead(429); res.end(); return; }
       try {
         const tile = await sdkTileFetch(v.url, { memoryCache: !persist });
