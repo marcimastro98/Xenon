@@ -36,6 +36,24 @@ function probe(onUrl, status = 200, body = { ok: 1 }) {
   });
 }
 
+/** Same, but the fetch does not answer until `gate` resolves — for the two
+ *  callers that have to fold into one upstream call. */
+function probeSlow(onUrl, gate, status = 200, body = { ok: 1 }) {
+  const file = join(tmpdir(), `xe-sq-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  writeFileSync(file, JSON.stringify({
+    spotify: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6 },
+  }));
+  return createSpotifyProvider({
+    clientId: 'cid',
+    tokensFile: file,
+    fetch: async (url) => {
+      onUrl(String(url));
+      await gate;
+      return { ok: status < 400, status, json: async () => body };
+    },
+  });
+}
+
 test('every documented op maps to a real Spotify path', async () => {
   const seen = [];
   const p = probe((u) => seen.push(u));
@@ -164,6 +182,109 @@ test('the endpoint is rate-gated, because the quota is the user\'s', () => {
   assert.match(body, /rate_limited/);
 });
 
+// ── Absorbing the bursts ─────────────────────────────────────────────────────
+// The same widget author came back with "spotify's api burst rates": paging a
+// library ten albums at a time, plus the covers, spends the USER's quota — the
+// same quota the dashboard's own Spotify tile needs to keep playing music. The
+// host collapses repeats so a widget does not have to build a cache of its own.
+
+test('two identical reads in flight at once cost one call to Spotify', async () => {
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const seen = [];
+  const p = probeSlow((u) => seen.push(u), gate);
+  const a = p.query('savedAlbums', { limit: 10 });
+  const b = p.query('savedAlbums', { limit: 10 });
+  release();
+  const [ra, rb] = await Promise.all([a, b]);
+  assert.equal(seen.length, 1, 'a re-render mid-fetch must fold into the read already running');
+  assert.equal(ra.ok, true);
+  assert.deepEqual(rb, ra);
+});
+
+test('a repeat within the window is answered from memory', async () => {
+  const seen = [];
+  const p = probe((u) => seen.push(u));
+  await p.query('playlists', {});
+  await p.query('playlists', {});
+  assert.equal(seen.length, 1, 'scrolling back to a page just read must not spend the quota again');
+});
+
+test('a different page is a different read', async () => {
+  const seen = [];
+  const p = probe((u) => seen.push(u));
+  await p.query('savedAlbums', { offset: 0 });
+  await p.query('savedAlbums', { offset: 10 });
+  assert.equal(seen.length, 2, 'the cache is keyed on the path, not on the op');
+});
+
+test('a failure is never cached', async () => {
+  // Ten seconds of a widget that looks broken, from one blip, is worse than the
+  // extra call — and a rate-limit answer held past its own cooldown would keep
+  // telling a widget to wait after the way is clear.
+  const seen = [];
+  const p = probe((u) => seen.push(u), 500, {});
+  await p.query('playlists', {});
+  await p.query('playlists', {});
+  assert.equal(seen.length, 2);
+});
+
+test('a 429 says how long to wait', async () => {
+  // Without the number a widget guesses, and a widget that guesses short keeps
+  // the whole account — Xenon's own tile included — pinned in the penalty box.
+  const p = probe(() => {}, 429, {});
+  const r = await p.query('playlists', {});
+  assert.equal(r.error, 'rate_limited');
+  assert.equal(r.status, 429);
+  assert.ok(r.retryAfterMs > 0, 'a widget cannot back off for an unknown length of time');
+  // The breaker is now up: the next read is refused without touching Spotify.
+  let called = false;
+  const again = await p.query('savedTracks', {});
+  assert.equal(again.error, 'rate_limited');
+  assert.ok(again.retryAfterMs > 0);
+  assert.equal(called, false);
+});
+
+test('playing something drops what was cached about playback', async () => {
+  // A widget that starts an album and immediately re-reads the queue must not be
+  // handed the queue from before it pressed play.
+  const seen = [];
+  const p = probe((u) => seen.push(u));
+  await p.query('queue', {});
+  await p.playUri('spotify:album:4Z8W4fKeB5YxbusRsdQVPb');
+  await p.query('queue', {});
+  const queues = seen.filter((u) => u.includes('/me/player/queue'));
+  assert.equal(queues.length, 2, 'a mutation has to invalidate the reads it changes');
+});
+
+test('signing out drops the previous account\'s library', async () => {
+  // Sign out, sign a different account in: the cache is keyed on the PATH, and
+  // /me/playlists is the same path for both people. Without this the second
+  // account would be shown the first one's playlists.
+  const seen = [];
+  const p = probe((u) => seen.push(u));
+  const before = await p.query('playlists', {});
+  assert.equal(before.ok, true);
+  await p.logout();
+  const after = await p.query('playlists', {});
+  assert.equal(after.ok, false, 'a signed-out read must not be answered from memory');
+  assert.equal(after.error, 'not_connected');
+  assert.equal(seen.length, 1, 'and it must not reach Spotify either');
+  assert.match(read('server/stream-spotify.js'),
+    /async function logout\(\) \{ await clearCreds\(\); queryCacheClear\(\);/);
+});
+
+test('the cache stays small and short — a burst absorber, not a store', () => {
+  const src = read('server/stream-spotify.js');
+  assert.match(src, /const QUERY_CACHE_MAX = 16;/);
+  assert.match(src, /const QUERY_TTL_MS = 10000;/);
+  assert.match(src, /const QUERY_TTL_VOLATILE_MS = 3000;/);
+  assert.match(src, /QUERY_VOLATILE = new Set\(\['player', 'queue', 'devices'\]\)/,
+    'what is playing right now cannot be held for ten seconds');
+  assert.match(src, /while \(_queryCache\.size > QUERY_CACHE_MAX\)/,
+    'an unbounded map of Spotify pages is a memory leak with a nice name');
+});
+
 test('the SDK guide documents the ops, the clamps and the two grants', () => {
   const doc = read('docs/WIDGET_SDK.md');
   assert.match(doc, /### 3e\. Reading Spotify/);
@@ -172,6 +293,10 @@ test('the SDK guide documents the ops, the clamps and the two grants', () => {
     assert.ok(doc.includes('| `' + op + '`'), `${op} is undocumented`);
   }
   assert.match(doc, /insufficient_scope/);
+  assert.match(doc, /retryAfterMs/, 'a widget cannot back off for an unknown length of time');
+  assert.match(doc, /absorbs bursts, so don't build a cache of your own/);
+  assert.match(doc, /page 2 is a different read from page 1/,
+    'the one thing the host CANNOT collapse has to be said, or the advice is misleading');
   assert.match(doc, /Why two grants/);
   assert.match(doc, /passed through unshaped/);
 });
