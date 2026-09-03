@@ -47,6 +47,7 @@
     soundboard: ['playSound', 'soundStopAll'],
     browser: ['browserOpen'],
     watch: ['twitchWatchPlay', 'ytWatchPlay'],
+    youtubePlayer: ['ytPlayer'],
   };
   // The only playSound.file shape an SDK widget may use — an installed sound
   // pack's clip, never an arbitrary local path (that stays a Deck-key-only
@@ -148,6 +149,7 @@
     twitchWatch: ['cw_stream_twitchwatch', 'Which channels you follow are live, and what you are watching'],
     twitchChat: ['cw_stream_twitchchat', 'The chat of the Twitch channel you are watching'],
     youtubeLive: ['cw_stream_youtubelive', 'Your YouTube broadcast (live, viewers, likes)'],
+    youtube: ['cw_stream_youtube', 'Read your YouTube subscriptions, channels and playlists'],
     homeassistant: ['cw_stream_homeassistant', 'Home Assistant device states'],
     tasks: ['cw_stream_tasks', 'Your task list'],
     notes: ['cw_stream_notes', 'Your notes'],
@@ -170,6 +172,7 @@
     homeassistant: ['cw_act_homeassistant', 'Control your Home Assistant devices'],
     twitch: ['cw_act_twitch', 'Control your Twitch channel'],
     youtube: ['cw_act_youtube', 'Control your YouTube stream'],
+    youtubePlayer: ['cw_act_youtubeplayer', 'Play YouTube videos inside this widget'],
     streamerbot: ['cw_act_streamerbot', 'Trigger Streamer.bot actions'],
     url: ['cw_act_url', 'Open web links on this PC'],
     tasks: ['cw_act_tasks', 'Add and complete your to-do tasks'],
@@ -700,6 +703,8 @@
     if (!force && entry.visible === visible) return;
     entry.visible = visible;
     post(entry, { type: 'visibility', visible });
+    // Off screen takes the borrowed YouTube player with it — see reconcileSdkPlayer.
+    if (!visible && window.SdkYouTubePlayer) window.SdkYouTubePlayer.release(entry);
     // Back on screen: hand over the current snapshot of every granted stream. It
     // received no `data` while hidden, so it is showing whatever it last saw and
     // most of these feeds only push when something CHANGES.
@@ -708,6 +713,7 @@
 
   function syncVisibility() {
     for (const [, entry] of frames) postVisibility(entry);
+    reconcileSdkPlayer();
   }
 
   // ── Pop-up awareness (`notice`) ─────────────────────────────────────────────
@@ -808,6 +814,87 @@
     } catch {
       reply({ ok: false, error: 'failed' });
     }
+  }
+
+  // Authenticated YouTube READS, for a widget that browses subscriptions, a
+  // channel or a playlist. Same request/response shape as the Spotify one, and
+  // gated by the `youtube` STREAM grant rather than by any action category: the
+  // action categories here are "control your YouTube stream" and "play a video
+  // in this widget", and neither of those is permission to read what someone is
+  // subscribed to.
+  //
+  // POST, unlike Spotify's: one search costs 100 of the account's 10,000 daily
+  // YouTube units, so the route is on the CSRF list with /stream/youtube/search.
+  async function onBridgeYoutubeQuery(entry, grant, msg) {
+    const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
+    const reply = (payload) => post(entry, Object.assign({ type: 'youtubeQueryResult', id: reqId }, payload));
+    if (!grant.streams.includes('youtube')) { reply({ ok: false, error: 'not_allowed' }); return; }
+    const op = typeof msg.op === 'string' ? msg.op : '';
+    if (!op) { reply({ ok: false, error: 'bad_op' }); return; }
+    const p = msg.params && typeof msg.params === 'object' ? msg.params : {};
+    const params = {};
+    for (const k of ['id', 'q', 'pageToken']) {
+      if (p[k] !== undefined && p[k] !== null) params[k] = String(p[k]).slice(0, 400);
+    }
+    try {
+      const r = await api('/stream/youtube/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pkg: entry.pkgId, op, params }),
+      });
+      reply(r && r.ok ? { ok: true, data: r.data } : { ok: false, error: (r && r.error) || 'failed' });
+    } catch {
+      reply({ ok: false, error: 'failed' });
+    }
+  }
+
+  // The host's YouTube player, lent to a widget (js/sdk-youtube-player.js).
+  //
+  // A widget cannot embed YouTube itself — its frame has an opaque origin and a
+  // CSP that blocks all network — so a widget that wants a video inside its own
+  // layout asks Xenon to place one over its frame. The widget sends a video id
+  // and a rectangle in its own coordinates; it never gets the player, and every
+  // value it sends is re-validated in the player module.
+  //
+  // Its own action category, not the `youtube` one: "control your YouTube
+  // stream" is about someone's broadcast, and playing a video inside their
+  // dashboard is a different thing to agree to.
+  const YT_PLAYER_OPS = ['show', 'load', 'rect', 'play', 'pause', 'mute', 'seek', 'hide'];
+  function onBridgeYoutubePlayer(entry, grant, msg) {
+    const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
+    const reply = (payload) => post(entry, Object.assign({ type: 'youtubePlayerResult', id: reqId }, payload));
+    if (!grant.actions.includes('ytPlayer')) { reply({ ok: false, error: 'not_allowed' }); return; }
+    // A background service frame has no tile, so it has nowhere to put a player —
+    // and a widget playing video from a headless frame is exactly the thing that
+    // must not be possible.
+    if (entry.service) { reply({ ok: false, error: 'unavailable' }); return; }
+    const op = typeof msg.op === 'string' ? msg.op : '';
+    if (!YT_PLAYER_OPS.includes(op)) { reply({ ok: false, error: 'bad_op' }); return; }
+    const host = window.SdkYouTubePlayer;
+    if (!host) { reply({ ok: false, error: 'unavailable' }); return; }
+    // A tile the user cannot see does not get a player: it would be a video
+    // playing behind the dashboard with no way to reach it.
+    if (op !== 'hide' && !entryOnScreen(entry)) { reply({ ok: false, error: 'not_visible' }); return; }
+    const box = entry.frame && entry.frame.parentNode;
+    if (!box) { reply({ ok: false, error: 'unavailable' }); return; }
+    const r = host.exec(entry, box, op, msg.params, (ev) => post(entry, Object.assign({ type: 'youtubePlayerEvent' }, ev)));
+    reply(r && r.ok ? { ok: true } : { ok: false, error: (r && r.error) || 'failed' });
+  }
+
+  // A player outlives nothing. Whenever the set of live frames changes or a tile
+  // leaves the screen, the widget holding the player has to still be there and
+  // still be visible — otherwise the video is torn down and the widget is told.
+  function reconcileSdkPlayer() {
+    const host = window.SdkYouTubePlayer;
+    if (!host || !host.active()) return;
+    for (const [, entry] of frames) {
+      if (!host.owns(entry)) continue;
+      if (!entry.frame || !entry.frame.isConnected || !entryOnScreen(entry)) host.release(entry);
+      return;
+    }
+    // The owner is not in `frames` at all any more (swapped, uninstalled, safe
+    // mode, SDK turned off). It cannot be named, so it is simply closed.
+    host.closeAny();
   }
 
   async function onBridgeRefresh(entry, grant, msg) {
@@ -1534,6 +1621,10 @@
       if (entry.ready) onBridgeFetch(entry, grant, d);
     } else if (d.type === 'spotifyQuery') {
       if (entry.ready) onBridgeSpotifyQuery(entry, grant, d);
+    } else if (d.type === 'youtubeQuery') {
+      if (entry.ready) onBridgeYoutubeQuery(entry, grant, d);
+    } else if (d.type === 'youtubePlayer') {
+      if (entry.ready) onBridgeYoutubePlayer(entry, grant, d);
     } else if (d.type === 'refresh') {
       if (entry.ready) onBridgeRefresh(entry, grant, d);
     } else if (d.type === 'store') {
@@ -2753,8 +2844,10 @@
   function paint() {
     // Before anything else: an expanded widget whose frame has gone away (swap,
     // uninstall, safe mode, SDK off) would otherwise leave a full-screen empty
-    // panel with no way out.
+    // panel with no way out. The borrowed YouTube player is the same class of
+    // leftover — a video still playing for a widget that is no longer there.
     reconcileExpanded();
+    reconcileSdkPlayer();
     const seen = new Set();
     const wantShapes = new Map();   // what this pass decided each tile's silhouette is
     tiles().forEach(tile => {

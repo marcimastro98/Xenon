@@ -200,6 +200,7 @@ function createYouTubeProvider(deps) {
   const LIST_TTL_MS = 5 * 60 * 1000;         // liked videos, playlist contents
   const FEED_TTL_MS = 15 * 60 * 1000;        // subscriptions feed (costs ~18 units)
   const SEARCH_TTL_MS = 30 * 60 * 1000;      // a search costs 100 units — cache hard
+  const UPLOADS_TTL_MS = 12 * 60 * 60 * 1000; // a channel's uploads-playlist id, which never changes
   const FEED_CHANNELS = 15;                  // channels polled per feed build
   const FEED_PER_CHANNEL = 3;
   let plCache = { at: 0, data: null };   // quota-kind: every surface shares one read
@@ -238,6 +239,28 @@ function createYouTubeProvider(deps) {
     return (+(m[1] || 0)) * 86400 + (+(m[2] || 0)) * 3600 + (+(m[3] || 0)) * 60 + (+(m[4] || 0));
   }
   const VIDEO_ID_RE = /^[A-Za-z0-9_-]{6,24}$/;
+  const CHANNEL_ID_RE = /^UC[A-Za-z0-9_-]{20,30}$/;
+
+  // ── Paging ──────────────────────────────────────────────────────────────────
+  // Google's page tokens are opaque, so we do not parse them — but one arrives
+  // from a widget and ends up inside a query string, so the alphabet is checked
+  // at the boundary. `null` means "unusable": callers must refuse rather than
+  // fall back to page one, since answering page one under the name of page two is
+  // how a widget ends up paging forever over the same rows.
+  // Shared with the live-chat reader below, which was the first caller: same
+  // opaque tokens, same alphabet, and one shape check is easier to trust than two.
+  const PAGE_TOKEN_RE = /^[A-Za-z0-9_.\-=]{1,400}$/;
+  function pageArg(v) {
+    if (v == null || v === '') return '';
+    const t = String(v);
+    return PAGE_TOKEN_RE.test(t) ? t : null;
+  }
+  function pageQs(tok) { return tok ? '&pageToken=' + encodeURIComponent(tok) : ''; }
+  // Only a token we would accept back is worth handing out.
+  function nextToken(data) {
+    const t = data && data.nextPageToken;
+    return (typeof t === 'string' && PAGE_TOKEN_RE.test(t)) ? t : '';
+  }
 
   // One batched videos.list for a whole page (1 quota unit): the durations, and
   // whether YouTube will let each video play anywhere other than youtube.com.
@@ -315,13 +338,22 @@ function createYouTubeProvider(deps) {
 
   // The videos inside one playlist. Durations need a second (batched) call —
   // playlistItems doesn't carry them.
-  async function playlistVideos(id) {
+  async function playlistVideos(id, pageToken) {
     if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
     const pid = String(id == null ? '' : id).trim();
     if (!PLAYLIST_ID_RE.test(pid)) return { ok: false, error: 'bad_id' };
-    const hit = cacheGet('pl:' + pid, LIST_TTL_MS);
+    // A page token is opaque to us and comes back from a widget, so it is checked
+    // against the alphabet Google actually uses before it is pasted into a query.
+    // An unusable token is refused rather than silently dropped: dropping it would
+    // hand back page one under the name of page two, which is a paging loop.
+    const tok = pageArg(pageToken);
+    if (tok === null) return { ok: false, error: 'bad_page' };
+    // The key carries the page, or page two would be served from page one's entry.
+    // No token keeps the ORIGINAL key, so the builtin widget's cache is untouched.
+    const key = 'pl:' + pid + (tok ? '@' + tok : '');
+    const hit = cacheGet(key, LIST_TTL_MS);
     if (hit) return hit;
-    const r = await apiRequest('GET', '/playlistItems?part=snippet,contentDetails&playlistId=' + encodeURIComponent(pid) + '&maxResults=50');
+    const r = await apiRequest('GET', '/playlistItems?part=snippet,contentDetails&playlistId=' + encodeURIComponent(pid) + '&maxResults=50' + pageQs(tok));
     if (!r.ok || !r.data) return { ok: false, error: apiReason(r) };
     const items = Array.isArray(r.data.items) ? r.data.items : [];
     const rows = items.map(it => {
@@ -331,7 +363,7 @@ function createYouTubeProvider(deps) {
     }).filter(Boolean);
     const det = await detailsFor(rows.map(r2 => r2.vid));
     const videos = rows.map(r2 => mapVideo(r2.vid, r2.snippet, det.get(r2.vid)));
-    return cacheSet('pl:' + pid, { ok: true, videos });
+    return cacheSet(key, { ok: true, videos, nextPageToken: nextToken(r.data) });
   }
 
   // Latest uploads from the channels the user is subscribed to. There is no
@@ -374,14 +406,16 @@ function createYouTubeProvider(deps) {
   // Search. This is the one expensive call in the widget (100 quota units of a
   // 10,000/day default), so it only ever runs on an explicit search and the
   // result is cached for half an hour per query.
-  async function searchVideos(q) {
+  async function searchVideos(q, pageToken) {
     if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
     const query = String(q == null ? '' : q).trim().slice(0, 100);
     if (query.length < 2) return { ok: false, error: 'empty' };
-    const key = 'q:' + query.toLowerCase();
+    const tok = pageArg(pageToken);
+    if (tok === null) return { ok: false, error: 'bad_page' };
+    const key = 'q:' + query.toLowerCase() + (tok ? '@' + tok : '');
     const hit = cacheGet(key, SEARCH_TTL_MS);
     if (hit) return hit;
-    const r = await apiRequest('GET', '/search?part=snippet&type=video&maxResults=25&q=' + encodeURIComponent(query));
+    const r = await apiRequest('GET', '/search?part=snippet&type=video&maxResults=25&q=' + encodeURIComponent(query) + pageQs(tok));
     if (!r.ok || !r.data) return { ok: false, error: apiReason(r) };
     const rows = (Array.isArray(r.data.items) ? r.data.items : []).map(it => {
       const vid = it && it.id && it.id.videoId;
@@ -389,7 +423,111 @@ function createYouTubeProvider(deps) {
     }).filter(Boolean);
     const det = await detailsFor(rows.map(r2 => r2.vid));
     const videos = rows.map(r2 => mapVideo(r2.vid, r2.snippet, det.get(r2.vid)));
-    return cacheSet(key, { ok: true, videos });
+    return cacheSet(key, { ok: true, videos, nextPageToken: nextToken(r.data) });
+  }
+
+  // ── Channel reads ───────────────────────────────────────────────────────────
+  // Added for widgets (see query() below): the built-in tile browses your own
+  // library, a widget may want to browse a CHANNEL. All three are 1 quota unit a
+  // page — deliberately not search, which is 100.
+
+  // The channels the user subscribes to. Alphabetical rather than `relevance`,
+  // because this is a list to look down rather than a feed to rank.
+  async function subscriptionChannels(pageToken) {
+    if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
+    const tok = pageArg(pageToken);
+    if (tok === null) return { ok: false, error: 'bad_page' };
+    const key = 'subch' + (tok ? '@' + tok : '');
+    const hit = cacheGet(key, FEED_TTL_MS);
+    if (hit) return hit;
+    const r = await apiRequest('GET', '/subscriptions?part=snippet&mine=true&order=alphabetical&maxResults=50' + pageQs(tok));
+    if (!r.ok || !r.data) return { ok: false, error: apiReason(r) };
+    const channels = (Array.isArray(r.data.items) ? r.data.items : []).map(it => {
+      const sn = it && it.snippet;
+      const id = sn && sn.resourceId && sn.resourceId.channelId;
+      return CHANNEL_ID_RE.test(String(id || '')) ? { id, title: (sn && sn.title) || '', image: thumb(sn && sn.thumbnails) } : null;
+    }).filter(Boolean);
+    return cacheSet(key, { ok: true, channels, nextPageToken: nextToken(r.data) });
+  }
+
+  // A channel's uploads. Every channel's uploads are a playlist, so this is the
+  // cheap route: resolve the playlist id once (cached for the day — a channel's
+  // uploads playlist id never changes) and then page it like any other playlist.
+  async function channelVideos(id, pageToken) {
+    if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
+    const cid = String(id == null ? '' : id).trim();
+    if (!CHANNEL_ID_RE.test(cid)) return { ok: false, error: 'bad_id' };
+    let uploads = cacheGet('up:' + cid, UPLOADS_TTL_MS);
+    if (!uploads) {
+      const c = await apiRequest('GET', '/channels?part=contentDetails&id=' + encodeURIComponent(cid));
+      if (!c.ok || !c.data) return { ok: false, error: apiReason(c) };
+      const first = Array.isArray(c.data.items) ? c.data.items[0] : null;
+      const pid = first && first.contentDetails && first.contentDetails.relatedPlaylists && first.contentDetails.relatedPlaylists.uploads;
+      if (!PLAYLIST_ID_RE.test(String(pid || ''))) return { ok: false, error: 'not_found' };
+      uploads = cacheSet('up:' + cid, pid);
+    }
+    return playlistVideos(uploads, pageToken);
+  }
+
+  // A channel's public playlists. Same shape listPlaylists returns for your own,
+  // so a widget can draw one list component for both.
+  async function channelPlaylists(id, pageToken) {
+    if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
+    const cid = String(id == null ? '' : id).trim();
+    if (!CHANNEL_ID_RE.test(cid)) return { ok: false, error: 'bad_id' };
+    const tok = pageArg(pageToken);
+    if (tok === null) return { ok: false, error: 'bad_page' };
+    const key = 'chpl:' + cid + (tok ? '@' + tok : '');
+    const hit = cacheGet(key, LIST_TTL_MS);
+    if (hit) return hit;
+    const r = await apiRequest('GET', '/playlists?part=snippet,contentDetails&channelId=' + encodeURIComponent(cid) + '&maxResults=50' + pageQs(tok));
+    if (!r.ok || !r.data) return { ok: false, error: apiReason(r) };
+    const playlists = (Array.isArray(r.data.items) ? r.data.items : []).filter(Boolean).map(pl => ({
+      id: pl.id || '',
+      title: (pl.snippet && pl.snippet.title) || '',
+      count: (pl.contentDetails && pl.contentDetails.itemCount != null) ? pl.contentDetails.itemCount : null,
+      image: thumb(pl.snippet && pl.snippet.thumbnails),
+    })).filter(pl => pl.id);
+    return cacheSet(key, { ok: true, playlists, nextPageToken: nextToken(r.data) });
+  }
+
+  // ── The SDK read surface ────────────────────────────────────────────────────
+  // Six named reads for community widgets, and nothing else. Same shape as the
+  // Spotify one: a widget names an `op`, never a path, and never holds the
+  // account — the token stays here.
+  //
+  // Two differences from Spotify's, both because of quota. YouTube gives an app
+  // 10,000 units a day and a single search costs 100 of them, so the answers
+  // here are the ones this file already caches, and the rows are Xenon's own
+  // compact shape rather than Google's raw objects: the widget gets the fields a
+  // list actually draws, and we keep one place where the API's shape is read.
+  const QUERY_OPS = Object.freeze({
+    subscriptionFeed:    () => subscriptionsFeed(),
+    subscriptionChannels: (p) => subscriptionChannels(p.pageToken),
+    searchVideos:        (p) => searchVideos(p.q, p.pageToken),
+    channelVideos:       (p) => channelVideos(p.id, p.pageToken),
+    channelPlaylists:    (p) => channelPlaylists(p.id, p.pageToken),
+    playlistVideos:      (p) => playlistVideos(p.id, p.pageToken),
+  });
+
+  async function query(op, params) {
+    // hasOwn, not a plain lookup: `constructor` and friends resolve up the
+    // prototype chain to real functions, so a bare index would have called one.
+    // Object.freeze does not close that — asking about OWN keys does.
+    const name = String(op || '');
+    const run = Object.hasOwn(QUERY_OPS, name) ? QUERY_OPS[name] : null;
+    if (typeof run !== 'function') return { ok: false, error: 'bad_op' };
+    const r = await run(params && typeof params === 'object' ? params : {});
+    if (!r || r.ok !== true) return { ok: false, error: (r && r.error) || 'failed' };
+    // The op decides what the answer holds, so the reply is the row list plus the
+    // token — never the provider object, which would leak whatever a future read
+    // happens to put in it.
+    const data = {};
+    if (Array.isArray(r.videos)) data.videos = r.videos;
+    if (Array.isArray(r.channels)) data.channels = r.channels;
+    if (Array.isArray(r.playlists)) data.playlists = r.playlists;
+    data.nextPageToken = typeof r.nextPageToken === 'string' ? r.nextPageToken : '';
+    return { ok: true, data };
   }
 
   // Playlist id → the URL the client should open. A watch URL on the first video
@@ -441,9 +579,6 @@ function createYouTubeProvider(deps) {
 
   // ── Creator mode: start a stream from nothing, chat, privacy, ingest ───────
   const PRIVACY = ['public', 'unlisted', 'private'];
-  // YouTube's chat page tokens are opaque; the shape is checked before one goes
-  // into a URL, because this is the one creator value that arrives from the wire.
-  const PAGE_TOKEN_RE = /^[A-Za-z0-9_.\-=]{4,400}$/;
 
   // The channel's reusable ingestion endpoint — its RTMP address and stream key.
   // Every channel that has ever streamed has one; a channel that has not gets one
@@ -604,6 +739,7 @@ function createYouTubeProvider(deps) {
     broadcastStatus, transitionBroadcast, updateBroadcastTitle,
     createBroadcast, cancelBroadcast, setPrivacy, streamKey, chatMessages, sendChat,
     listPlaylists, resolvePlaylistUrl, likedVideos, playlistVideos, subscriptionsFeed, searchVideos,
+    subscriptionChannels, channelVideos, channelPlaylists, query,
   };
 }
 
