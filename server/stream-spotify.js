@@ -164,6 +164,10 @@ function createSpotifyProvider(deps) {
   // limits, so this matters most there.
   let _rateLimitedUntil = 0;
   function rateLimited() { return Date.now() < _rateLimitedUntil; }
+  // How long the breaker still holds. Handed to SDK widgets so a widget can
+  // wait exactly that long instead of guessing — a widget guessing short is
+  // what keeps the whole account pinned in the penalty box.
+  function retryAfterMs() { return Math.max(0, _rateLimitedUntil - Date.now()); }
   function noteRateLimit(res) {
     let secs = 5;
     try { const h = res && res.headers && res.headers.get('retry-after'); const n = h && parseInt(h, 10); if (n) secs = Math.min(3600, Math.max(1, n)); } catch { /* default */ }
@@ -195,8 +199,45 @@ function createSpotifyProvider(deps) {
   let _playerGen = 0;           // bumped on every mutation; a read tagged with a stale gen won't cache
   const PLAYER_TTL_MS = 4000;   // upstream cap: a 204 (paused) costs a 2nd call, so with two surfaces polling this bounds /me/player to ~30 Spotify calls/min; the 1s client ticker hides the coarser snapshot
 
+  // ── SDK read cache ──────────────────────────────────────────────────────────
+  // Every `query` op below spends the USER's Spotify quota, and that quota is
+  // shared with Xenon's own tile: a widget re-reading a page on each render does
+  // not only slow itself down, it can stop the dashboard's music working. A
+  // widget author paging a library ten albums at a time reported exactly that,
+  // as "spotify's api burst rates".
+  //
+  // Two collapses, both keyed on the built path — the same key the widget cannot
+  // choose, so nothing here can be steered from outside:
+  //   in-flight  two identical reads still running share one upstream call (two
+  //              tiles of the same widget, or a re-render mid-fetch)
+  //   short TTL  a repeat within seconds (scrolling back, a remount, a tile
+  //              coming out of hiding) is answered from memory
+  //
+  // Deliberately small and short: this is a burst absorber, not a store. Sixteen
+  // entries for a few seconds means the library still visibly changes, and the
+  // memory it can hold is bounded by what the widget already has on screen.
+  const QUERY_TTL_MS = 10000;           // library reads: pages, search results
+  const QUERY_TTL_VOLATILE_MS = 3000;   // what is playing right now, on which device
+  const QUERY_VOLATILE = new Set(['player', 'queue', 'devices']);
+  const QUERY_CACHE_MAX = 16;
+  const _queryCache = new Map();        // path -> { at, ttl, res }
+  const _queryPending = new Map();      // path -> in-flight promise, shared
+
+  function queryCacheClear() { _queryCache.clear(); }
+  function queryCacheGet(path) {
+    const hit = _queryCache.get(path);
+    if (!hit) return null;
+    if (Date.now() - hit.at > hit.ttl) { _queryCache.delete(path); return null; }
+    return hit.res;
+  }
+  function queryCachePut(path, ttl, res) {
+    _queryCache.delete(path);           // re-set keeps a Map's ORIGINAL position, and position is the eviction order
+    _queryCache.set(path, { at: Date.now(), ttl, res });
+    while (_queryCache.size > QUERY_CACHE_MAX) _queryCache.delete(_queryCache.keys().next().value);
+  }
+
   async function apiRequest(method, pathWithQuery, bodyObj) {
-    if (method !== 'GET') { _playerCache = null; _playerGen++; }   // a mutation invalidates the snapshot AND any in-flight read
+    if (method !== 'GET') { _playerCache = null; _playerGen++; queryCacheClear(); }   // a mutation invalidates the snapshot AND any in-flight read — including the widgets', or a widget's own play lands on a stale queue
     if (rateLimited()) return { ok: false, status: 429, error: 'rate_limited' };
     const token = await getAccessToken();
     if (!token) return { ok: false, error: 'not_connected' };
@@ -234,7 +275,7 @@ function createSpotifyProvider(deps) {
 
   // Spotify has no token-revocation endpoint for the PKCE flow; clearing the
   // stored creds fully disconnects the account from this app's perspective.
-  async function logout() { await clearCreds(); return { ok: true }; }
+  async function logout() { await clearCreds(); queryCacheClear(); return { ok: true }; }
 
   // ── Reads for the dashboard widget (trimmed, client-safe shapes) ───────────
   // Smallest album image for a compact list; the full array is widest-first.
@@ -728,13 +769,32 @@ function createSpotifyProvider(deps) {
     if (typeof build !== 'function') return { ok: false, error: 'bad_op' };
     const path = build(params && typeof params === 'object' ? params : {});
     if (!path) return { ok: false, error: 'bad_params' };
-    const r = await apiRequest('GET', path);
-    if (r.ok) return { ok: true, data: r.data };
-    // The two new scopes are the one failure worth naming: a user connected
-    // before they existed holds a perfectly valid token that simply cannot read
-    // these, and "reconnect" is the fix rather than anything the widget did.
-    if (r.status === 403) return { ok: false, error: 'insufficient_scope', status: 403 };
-    return { ok: false, error: r.error || 'failed', status: r.status || 0 };
+
+    const cached = queryCacheGet(path);
+    if (cached) return cached;
+    const inflight = _queryPending.get(path);
+    if (inflight) return inflight;
+
+    const ttl = QUERY_VOLATILE.has(name) ? QUERY_TTL_VOLATILE_MS : QUERY_TTL_MS;
+    const p = apiRequest('GET', path).then((r) => {
+      if (r.ok) return { ok: true, data: r.data };
+      // The two new scopes are the one failure worth naming: a user connected
+      // before they existed holds a perfectly valid token that simply cannot read
+      // these, and "reconnect" is the fix rather than anything the widget did.
+      if (r.status === 403) return { ok: false, error: 'insufficient_scope', status: 403 };
+      // Say how long, so a widget can wait rather than retry into the same wall.
+      if (r.status === 429) return { ok: false, error: 'rate_limited', status: 429, retryAfterMs: retryAfterMs() };
+      return { ok: false, error: r.error || 'failed', status: r.status || 0 };
+    }).then((res) => {
+      // Only an answer is worth keeping. Caching a failure would turn one blip
+      // into ten seconds of a widget that looks broken, and a rate-limit answer
+      // held past its own cooldown would keep telling a widget to wait when the
+      // way is already clear.
+      if (res.ok) queryCachePut(path, ttl, res);
+      return res;
+    });
+    _queryPending.set(path, p);
+    try { return await p; } finally { _queryPending.delete(path); }
   }
 
   // Start a specific Spotify URI. The four kinds a browser needs, and no others:

@@ -698,9 +698,26 @@ Four things to expect:
 - **`error: 'rate_limited'`** is your own budget, not Spotify's. These calls
   spend the *user's* Spotify quota, which the dashboard's own Spotify tile
   shares — search on a debounce, not on every keystroke, or you will stop their
-  music working and it will look like Xenon broke.
+  music working and it will look like Xenon broke. The reply carries
+  **`retryAfterMs`**: wait that long. Retrying sooner keeps the whole account —
+  the user's Spotify tile included — in the penalty box for longer.
 - **`error: 'not_connected'`** means no Spotify account is linked at all. Say so
   rather than showing an empty library.
+
+**The host already absorbs bursts, so don't build a cache of your own** (v4.11.8).
+Two identical reads still in flight share one call to Spotify, and a repeat
+within a few seconds is answered from memory: 10 s for library pages and search
+results, 3 s for `player`, `queue` and `devices`. So a re-render, a remount, a
+tile coming back from hidden, or two tiles of the same widget cost nothing extra
+— write the straightforward thing and let the host collapse it.
+
+What that does *not* cover is paging: page 2 is a different read from page 1, and
+scrolling a large library still spends one call per page. Fetch a page when it is
+about to be seen rather than pre-loading the whole library, and keep what you
+have drawn. Only answers are cached, never failures, so an error is always the
+current state and a retry (after `retryAfterMs`) is always a real attempt.
+Starting playback drops what was cached about playback, so the read you do right
+after `spotifyPlayUri` sees the new queue.
 
 **Playing something you found** is an action, under the separate `spotify`
 action grant:

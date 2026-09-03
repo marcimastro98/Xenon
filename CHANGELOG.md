@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [4.11.8] — in development
 ### ✨ Added
+- **Xenon now absorbs the Spotify bursts a widget makes.** From the same widget author, building a library browser: Spotify limits how much an account may ask for in a short window, and a widget that re-reads a page every time it redraws burns through that limit fast — a limit shared with Xenon's own Spotify tile, so the person's music stops and it looks like Xenon broke.
+
+  Repeated reads no longer reach Spotify. Two identical reads happening at the same time share one call, and a read repeated within a few seconds is answered from memory — so redrawing, reopening a tile, or having the same widget on two screens now costs nothing. It is deliberately a few seconds and a handful of pages, not a store: your library still visibly changes, and what is playing right now is never held for long.
+
+  When the limit is hit anyway, the answer now says how many milliseconds to wait, so a widget can wait exactly that long instead of guessing — guessing short is what keeps an account stuck. And starting playback from a widget clears what was remembered about playback, so the queue it reads straight after is the new one.
+
 - **A widget can browse your Spotify library without ever touching your account.** Widgets could already control playback — play, pause, skip — but not read anything, so anyone building a Spotify browser had to run a private server of their own alongside Xenon just to fetch a playlist. One did exactly that, and asked for the honest version instead.
 
   Xenon now answers a fixed list of Spotify questions on a widget's behalf: what is playing, the queue, your playlists and devices, your saved albums and songs, what you played recently, the artists you follow, the contents of an album or playlist, and search. The widget names one of those and gets the answer. It never receives your Spotify login, cannot ask for anything not on the list, and can start a track, album, artist or playlist it found — nothing else.
