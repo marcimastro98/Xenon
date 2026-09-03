@@ -810,7 +810,8 @@ library), `bad_id`, `bad_page`, `bad_op`, `rate_limited` (the per-widget gate),
 
 `ytWatchPlay` (§ action categories) plays a video in **Xenon's** YouTube tile.
 This is the other thing: a player **inside your own widget**, at a rectangle you
-choose. Requires the **`youtubePlayer` action** grant (`"actions": ["ytPlayer"]`).
+choose. Requires the **`youtubePlayer` action** grant (`"actions": ["youtubePlayer"]` —
+the category name, like every other entry in `actions`).
 
 Your frame cannot embed YouTube — it has an opaque origin and a CSP that blocks
 all network, which is what makes installing a widget safe. So Xenon owns the
