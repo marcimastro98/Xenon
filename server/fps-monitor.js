@@ -36,6 +36,12 @@ if (process.platform === 'linux') {
     pauseFpsMonitor: () => impl.pause(),
     stopFpsMonitor: () => impl.stop(),
     getCurrentFps: () => impl.getCurrentFps(),
+    // MangoHud reports one frame rate — the game's own. There is no display-side
+    // number to compare it with, so the pair is answered honestly rather than by
+    // repeating `fps` twice under two names: a widget that gets `displayFps: null`
+    // knows this platform cannot tell it, instead of being told they are equal.
+    getFpsDetail: () => ({ fps: impl.getCurrentFps(), presentFps: impl.getCurrentFps(), displayFps: null }),
+    setForegroundPid: () => { /* MangoHud only ever sees the game it launched */ },
     getGamingProcess: () => impl.getGamingProcess(),
     isGaming: () => impl.isGaming(),
     isAvailable: () => impl.isAvailable(),

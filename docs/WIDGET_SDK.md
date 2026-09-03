@@ -265,7 +265,7 @@ widget explicitly requests them, as described below.
 The payloads are the dashboard's own SSE events, unmodified:
 
 - `status` — mic mute, game mode/activity, foreground process
-- `system` — `cpu` (%), `gpu` (%|null), `memory.percent`, temperatures, clock speeds, `fps`, uptime… see *Clock speeds and frame rate* below
+- `system` — `cpu` (%), `gpu` (%|null), `memory.percent`, temperatures, clock speeds, `fps` / `presentFps` / `displayFps`, uptime… see *Clock speeds and frame rate* below
 - `media` — `title`, `artist`, `album`, playback state, source, plus `position` and `duration` in seconds. A zero/absent `duration` means the current source has no seekable timeline
 - `audio` — volume, mute, output device, and `speakerApps[]` / `micApps[]`: the per-application mixer (one entry per active session, with `proc`, `volume`, `muted` and a resolved `icon`). Polled, so it updates about every 8 seconds
 - `audioLevels` — **how loud each app actually is right now**: `{ "discord": 0.42, "spotify": 0.81 }`, peak per process in `0..1`, roughly 12 times a second. See *Real audio levels* below — this one has conditions
@@ -590,7 +590,7 @@ battery to Windows and cannot appear.
 
 ### 3c. Clock speeds and frame rate (v4.11.7)
 
-Four more numbers ride the `system` payload, so `streams: ["system"]` is the
+Six more numbers ride the `system` payload, so `streams: ["system"]` is the
 whole grant — there is nothing extra to request and nothing new to approve.
 
 ```js
@@ -598,7 +598,9 @@ whole grant — there is nothing extra to request and nothing new to approve.
   cpuClockMHz: 4550,     // the fastest core right now, in MHz
   gpuClockMHz: 2610,     // GPU core clock
   vramClockMHz: 10501,   // GPU memory clock
-  fps: 143,              // frames per second in the game being played
+  fps: 152,              // frames per second the person is SEEING
+  presentFps: 223,       // frames handed over per second      (v4.11.8)
+  displayFps: 152,       // frames the screen actually showed   (v4.11.8)
 }
 ```
 
@@ -609,6 +611,18 @@ whole grant — there is nothing extra to request and nothing new to approve.
 - **`fps` is `null` unless a game is actually being measured.** It comes from
   PresentMon on Windows and MangoHud on Linux, and there is no source on macOS,
   so `null` there always. `null` means "nothing to report", never zero.
+- **`fps` is the frame rate on the SCREEN** (v4.11.8). Frame generation pulls
+  the two apart: DLSS FG at x2 on one game presented 223 frames a second and
+  displayed 152, with RTSS and the NVIDIA overlay both reading ~155. `fps`
+  follows the display side wherever the capture carries it, so it agrees with
+  the other overlays instead of quoting a number no one else shows. Before
+  4.11.8 it was the present side, and read high under FG.
+- **`presentFps` and `displayFps` are those two halves**, for a monitoring widget
+  that wants to show what frame generation is doing — the gap between them *is*
+  the generated frames. Either can be null on its own: MangoHud and the DWM
+  fallback report one number rather than two, and `displayFps` needs a capture
+  with display timing in it. **Draw `fps` unless you specifically want the
+  difference** — it is the one that is always the best available answer.
 - **Every one of them is nullable**, and on more machines than you would guess:
   a clock needs LibreHardwareMonitor with sensor access (`sensorAccess: 'ok'`),
   `vramClockMHz` has no meaning on Apple Silicon's unified memory, and a card or

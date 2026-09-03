@@ -124,47 +124,92 @@ function normHeader(name) {
 }
 
 // Build a column-index map from the CSV header, tolerant of version differences.
+//
+// TWO frame times are read, because with frame generation they stop agreeing.
+//
+//   present-side  how often the application (or the driver on its behalf) hands
+//                 a frame over.  msBetweenPresents (PresentMon 1.x) / FrameTime (2.x)
+//   display-side  how often the screen actually changes.
+//                 msBetweenDisplayChange (1.x) / DisplayedTime (2.x)
+//
+// Without frame generation the two are within a frame of each other. With DLSS
+// Frame Generation on they diverge hard — measured on one game at x2: presents
+// 223/s, displayed 152/s, with RTSS and the NVIDIA overlay both reading ~155.
+// Xenon read the present side and so showed ~220, a number nothing else agreed
+// with. Reported by a widget author building an FPS monitor, with a PresentMon
+// 2.3.1 capture attached.
+//
+// Display-side is the honest answer to "what frame rate am I seeing", so it is
+// preferred wherever the CSV carries it — and it is the closer number even
+// WITHOUT frame generation (69.2 displayed vs 65.6 presented, against an
+// in-game counter reading 69.0 in the same capture).
+//
+// Careful with the near-misses: PresentMon 1.x also has msUntilDisplayed, which
+// is a LATENCY, not an interval, and matching it would turn the frame rate into
+// nonsense. Hence the exact-ish tests below rather than a loose `displayed`.
 function parseHeader(fields) {
   const norm = fields.map(normHeader);
   const find = pred => norm.findIndex(pred);
-  const frameTime = find(n => n.includes('betweenpresents')); // msBetweenPresents
+  const frameTime = find(n => n.includes('betweenpresents') || n === 'frametime');
+  const displayTime = find(n => n.includes('betweendisplaychange') || n === 'displayedtime');
   const fps = find(n => n === 'fps' || n.endsWith('fps') || n.includes('displayedfps'));
   const app = find(n => n === 'application' || n.includes('processname'));
   const pid = find(n => n.includes('processid'));
   const presentMode = find(n => n.includes('presentmode'));
-  if (frameTime < 0 && fps < 0) return null; // nothing usable
-  return { frameTime, fps, app, pid, presentMode };
+  if (frameTime < 0 && displayTime < 0 && fps < 0) return null; // nothing usable
+  return { frameTime, displayTime, fps, app, pid, presentMode };
 }
 
-function handleRow(fields) {
-  if (!_cols) return;
-  const pidRaw = _cols.pid >= 0 ? fields[_cols.pid] : '';
-  const pid = String(pidRaw || '').trim() || (_cols.app >= 0 ? fields[_cols.app] : '?');
-  const name = (_cols.app >= 0 ? String(fields[_cols.app] || '') : '').trim().toLowerCase();
-  if (isIgnoredProc(name)) return;
+// One CSV row → what it says, or null when the row is not ours to count.
+// Pure, so the whole of "which numbers does a PresentMon line yield" can be
+// pinned without a Windows box and a game running on it.
+function rowValues(cols, fields) {
+  if (!cols) return null;
+  const pidRaw = cols.pid >= 0 ? fields[cols.pid] : '';
+  const pid = String(pidRaw || '').trim() || (cols.app >= 0 ? fields[cols.app] : '?');
+  const name = (cols.app >= 0 ? String(fields[cols.app] || '') : '').trim().toLowerCase();
+  if (isIgnoredProc(name)) return null;
 
   // When PresentMon reports the present mode, keep only flip-model (game) presents
   // so windowed desktop apps and the dashboard's own browser don't count.
-  if (_cols.presentMode >= 0 && !isGamingPresentMode(fields[_cols.presentMode])) return;
+  if (cols.presentMode >= 0 && !isGamingPresentMode(fields[cols.presentMode])) return null;
 
-  let value, usesFps;
-  if (_cols.frameTime >= 0) {
-    const ft = parseFloat(fields[_cols.frameTime]);
-    if (!Number.isFinite(ft) || ft <= 0 || ft > 1000) return;
-    value = ft; usesFps = false;
-  } else {
-    const f = parseFloat(fields[_cols.fps]);
-    if (!Number.isFinite(f) || f <= 0 || f > 1000) return;
-    value = f; usesFps = true;
+  let present = null, usesFps = false;
+  if (cols.frameTime >= 0) {
+    const ft = parseFloat(fields[cols.frameTime]);
+    if (Number.isFinite(ft) && ft > 0 && ft <= 1000) present = ft;
+  } else if (cols.fps >= 0) {
+    const f = parseFloat(fields[cols.fps]);
+    if (Number.isFinite(f) && f > 0 && f <= 1000) { present = f; usesFps = true; }
   }
 
-  let entry = _byPid.get(pid);
-  if (!entry) { entry = { name, samples: [], usesFps, lastSeen: 0 }; _byPid.set(pid, entry); }
-  entry.name = name || entry.name;
-  entry.usesFps = usesFps;
-  entry.samples.push(value);
-  if (entry.samples.length > MAX_SAMPLES) entry.samples.shift();
+  // A frame that was never displayed carries no display interval — blank, zero
+  // or negative depending on the version. Those rows are dropped frames, and
+  // counting one as an interval of zero would read as an infinite frame rate.
+  let display = null;
+  if (cols.displayTime >= 0) {
+    const dt = parseFloat(fields[cols.displayTime]);
+    if (Number.isFinite(dt) && dt > 0 && dt <= 1000) display = dt;
+  }
+  if (present == null && display == null) return null;
+  return { pid, name, present, display, usesFps };
+}
+
+function handleRow(fields) {
+  const r = rowValues(_cols, fields);
+  if (!r) return;
+  let entry = _byPid.get(r.pid);
+  if (!entry) { entry = { name: r.name, samples: [], display: [], usesFps: r.usesFps, lastSeen: 0 }; _byPid.set(r.pid, entry); }
+  entry.name = r.name || entry.name;
+  entry.usesFps = r.usesFps;
+  if (r.present != null) push(entry.samples, r.present);
+  if (r.display != null) push(entry.display, r.display);
   entry.lastSeen = Date.now();
+}
+
+function push(arr, v) {
+  arr.push(v);
+  if (arr.length > MAX_SAMPLES) arr.shift();
 }
 
 function onData(chunk) {
@@ -227,31 +272,85 @@ function median(arr) {
 // PID seen over a 24/7 uptime.
 const STALE_ENTRY_MS = 60000;
 
-// The busiest recently-presenting process (i.e. our best "active game" guess).
-// Doubles as the pruning pass: stale PIDs are evicted while we scan, keeping
-// the map bounded to processes that presented in the last minute.
+// Which process is the game. PresentMon captures EVERY presenter on the machine,
+// so one of them has to be chosen — and "the busiest" is a guess that goes wrong
+// in the obvious way: a launcher, an overlay or a second game left running can
+// out-present the game the user is actually looking at.
+//
+// The foreground window is the better answer when we have it, so it wins when it
+// is also presenting. Supplied by server.js rather than required here, because
+// gamedetect.js already reads THIS module for its own hint and two modules
+// requiring each other is how that ends badly.
+let _foregroundPid = null;       // () => number|0
+function setForegroundPid(fn) { _foregroundPid = typeof fn === 'function' ? fn : null; }
+
+// The process to read the frame rate from. Doubles as the pruning pass: stale
+// PIDs are evicted while we scan, keeping the map bounded to processes that
+// presented in the last minute.
+// Pure, and prunes nothing — the caller decides what to evict. `wantedPid` is
+// the foreground window's, '' when unknown.
+function pickEntry(byPid, now, wantedPid) {
+  let best = null;
+  let front = null;
+  const wanted = String(wantedPid || '');
+  for (const [pid, entry] of byPid) {
+    if (now - entry.lastSeen > SAMPLE_WINDOW_MS) continue;
+    if (!entry.samples.length && !entry.display.length) continue;
+    if (wanted && String(pid) === wanted) front = entry;
+    if (!best || weight(entry) > weight(best)) best = entry;
+  }
+  // The foreground window only wins when it is actually presenting: one that
+  // hands over no frames (the dashboard, a paused game) must not silence a game
+  // still running behind it. The loop above has already established that.
+  return front || best;
+}
+function weight(entry) { return Math.max(entry.samples.length, entry.display.length); }
+
+function medianOf(arr) {
+  if (!arr || !arr.length) return null;
+  const m = median(arr);
+  return Number.isFinite(m) && m > 0 ? m : null;
+}
+
+// Both sides of one entry.
+//
+//   presentFps  how often frames are handed over. What Xenon has always read.
+//   displayFps  how often the screen actually changes — the number RTSS and the
+//               NVIDIA overlay show, and the only one that stays honest under
+//               frame generation. Null when the capture carries no display
+//               timing (display tracking off, or a CSV that never had it).
+//   fps         the frame rate the person is SEEING: display-side when we have
+//               it, present-side otherwise.
+function entryFps(entry) {
+  if (!entry) return { fps: null, presentFps: null, displayFps: null };
+  const p = medianOf(entry.samples);
+  const d = medianOf(entry.display);
+  const presentFps = p == null ? null : Math.round(entry.usesFps ? p : 1000 / p);
+  const displayFps = d == null ? null : Math.round(1000 / d);
+  return { fps: displayFps != null ? displayFps : presentFps, presentFps, displayFps };
+}
+
+// The live table's pick. Doubles as the pruning pass: stale PIDs are evicted
+// while we scan, keeping the map bounded to processes that presented recently.
 function _bestEntry() {
   const now = Date.now();
-  let best = null;
   for (const [pid, entry] of _byPid) {
-    if (now - entry.lastSeen > STALE_ENTRY_MS) { _byPid.delete(pid); continue; }
-    if (now - entry.lastSeen > SAMPLE_WINDOW_MS) continue;
-    if (!entry.samples.length) continue;
-    if (!best || entry.samples.length > best.samples.length) best = entry;
+    if (now - entry.lastSeen > STALE_ENTRY_MS) _byPid.delete(pid);
   }
-  return best;
+  let wanted = '';
+  try { wanted = _foregroundPid ? String(_foregroundPid() || '') : ''; } catch { wanted = ''; }
+  return pickEntry(_byPid, now, wanted);
 }
 
-function _entryFps(entry) {
-  const m = median(entry.samples);
-  if (!Number.isFinite(m) || m <= 0) return null;
-  return Math.round(entry.usesFps ? m : 1000 / m);
-}
-
-// FPS of the busiest recently-presenting process (the active game), or null.
+// FPS of the active game, or null.
 function getCurrentFps() {
-  const best = _bestEntry();
-  return best ? _entryFps(best) : null;
+  return entryFps(_bestEntry()).fps;
+}
+
+// Both sides, for a widget that wants to show what frame generation is doing.
+// Either may be null on its own.
+function getFpsDetail() {
+  return entryFps(_bestEntry());
 }
 
 // Diagnostic: name + fps of the process currently driving game detection, or
@@ -259,7 +358,7 @@ function getCurrentFps() {
 function getGamingProcess() {
   const best = _bestEntry();
   if (!best) return null;
-  const fps = _entryFps(best);
+  const { fps } = entryFps(best);
   return fps == null ? null : { name: best.name || '?', fps };
 }
 
@@ -310,4 +409,11 @@ function stopFpsMonitor() {
   _byPid.clear();
 }
 
-module.exports = { startFpsMonitor, stopFpsMonitor, pauseFpsMonitor, resumeFpsMonitor, getCurrentFps, getGamingProcess, isGaming, isAvailable, reload };
+module.exports = {
+  startFpsMonitor, stopFpsMonitor, pauseFpsMonitor, resumeFpsMonitor,
+  getCurrentFps, getFpsDetail, getGamingProcess, setForegroundPid,
+  isGaming, isAvailable, reload,
+  // Pure, and exported so every decision this module makes can be pinned
+  // without a Windows box with a game running on it.
+  parseHeader, rowValues, pickEntry, entryFps,
+};
