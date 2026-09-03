@@ -97,13 +97,26 @@ test('an album the app actually sent is never second-guessed', () => {
   assert.equal(r.album, 'Real Album');
 });
 
-test('two em dashes are left alone, because nothing can say which one splits', () => {
-  // An artist name may contain one and so may an album title. Inventing the
-  // wrong album is worse than leaving the line as the app sent it.
-  const artist = 'A — B — C';
-  const r = normalizeMedia(media({ artist }));
-  assert.equal(r.artist, artist);
-  assert.equal(r.album, '');
+test('a dashed album title splits at the join, not at nothing', () => {
+  // This shipped as "only when there is exactly one dash", which declined here.
+  // The reporter came back with a real album and a count: across ~22,000 Apple
+  // catalogue rows, artist names containing an em dash appeared 0 times and
+  // album titles containing one appeared twice — both of which the first-dash
+  // rule gets right, because Apple puts the artist first.
+  const r = normalizeMedia(media({
+    artist: 'Tom Holkenborg — Rebel Moon — Part One: A Child of Fire (Soundtrack from the Netflix Film)',
+  }));
+  assert.equal(r.artist, 'Tom Holkenborg');
+  assert.equal(r.album, 'Rebel Moon — Part One: A Child of Fire (Soundtrack from the Netflix Film)');
+});
+
+test('an artist whose own name held the dash is what this trades away', () => {
+  // Stated rather than hidden: nobody could find one in the catalogue, but if it
+  // exists the artist line loses the tail. That is the accepted cost of not
+  // leaving every dashed soundtrack mashed onto one line.
+  const r = normalizeMedia(media({ artist: 'A — B — Album' }));
+  assert.equal(r.artist, 'A');
+  assert.equal(r.album, 'B — Album');
 });
 
 test('only Apple Music, because the em dash is their convention and not a rule', () => {

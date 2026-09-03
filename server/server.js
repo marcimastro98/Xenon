@@ -2984,22 +2984,36 @@ function repairThumbnail(raw) {
 // Apple Music packs "Artist — Album" into the artist field and leaves the album
 // empty, so the dashboard showed both on one line and had no album at all.
 //
-// Split on the em dash ONLY when there is exactly one of them. With two or more
-// there is no way to tell which is the separator — an artist name may contain
-// one and so may an album title — and inventing an album is worse than leaving
-// the line as the app sent it. Scoped to Apple Music, because this is Apple's
-// convention rather than a fact about media sessions, and an artist elsewhere
-// whose name genuinely reads "A — B" must be left alone.
+// Split at the FIRST em dash, which is where Apple's convention puts the join:
+// the artist comes first. This shipped as "split only when there is exactly one
+// dash", on the reasoning that with two there is no telling which one separates.
+// The reporter answered that with numbers, and they are one-sided enough to
+// settle it — about 22,000 Apple catalogue rows, weighted toward the genres that
+// use long dashed titles:
+//
+//   artist names containing an em dash    0
+//   album titles containing an em dash    2   (a Netflix soundtrack, and an
+//                                              Ólafur Arnalds reworks album)
+//
+// So the case "exactly one" declines on is real and recurring — every track of
+// "Tom Holkenborg — Rebel Moon — Part One: …" has two — while the case
+// first-dash gets wrong could not be found at all. The near misses are mostly
+// OTHER characters (en dash, the katakana prolonged mark) that neither rule
+// keys on, so the em dash is a narrow signal and this is a narrow use of it.
+//
+// Still scoped to Apple Music: this is their convention rather than a fact about
+// media sessions, and an artist elsewhere whose name genuinely reads "A — B"
+// must be left alone.
 const APPLE_MUSIC_RE = /AppleMusic/i;
 const EM_DASH_SPLIT = ' \u2014 ';
 function splitAppleArtist(data) {
   if (!APPLE_MUSIC_RE.test(String(data.source || ''))) return;
   if (String(data.album || '').trim()) return;
   const artist = String(data.artist || '');
-  const parts = artist.split(EM_DASH_SPLIT);
-  if (parts.length !== 2) return;
-  const left = parts[0].trim();
-  const right = parts[1].trim();
+  const at = artist.indexOf(EM_DASH_SPLIT);
+  if (at < 0) return;
+  const left = artist.slice(0, at).trim();
+  const right = artist.slice(at + EM_DASH_SPLIT.length).trim();
   if (!left || !right) return;
   data.artist = left;
   data.album = right;
