@@ -208,16 +208,21 @@
   // ── Loading ───────────────────────────────────────────────────────────────
   const LIB_PATH = { followed: '/stream/twitch/followed', top: '/stream/twitch/top' };
 
-  async function loadTab(tab, force) {
+  // `quiet` is the 60s poll re-reading a tab it already has: no spinner, and a
+  // failed read keeps the last good list instead of replacing it with an error.
+  // A network blip must not blank a list that was correct a minute ago.
+  let bgLoad = '';
+  async function loadTab(tab, force, quiet) {
     if (!connected) return;
     if (tab === 'search') return;                        // explicit action only
     if (!force && lib.data[tab] !== null) return;
-    if (lib.loading === tab) return;
-    lib.loading = tab; lib.error = ''; paintLibrary();
+    if (lib.loading === tab || bgLoad === tab) return;
+    if (quiet) bgLoad = tab;
+    else { lib.loading = tab; lib.error = ''; paintLibrary(); }
     const r = await api(LIB_PATH[tab]);
-    lib.loading = '';
-    if (r && r.ok) lib.data[tab] = r.channels || [];
-    else lib.error = (r && r.error) || 'failed';
+    if (quiet) bgLoad = ''; else lib.loading = '';
+    if (r && r.ok) { lib.data[tab] = r.channels || []; lib.error = ''; }
+    else if (!quiet) lib.error = (r && r.error) || 'failed';
     paintLibrary();
     publishWatch();
   }
@@ -797,7 +802,19 @@
     const was = connected;
     if (s) connected = !!s.connected;
     if (connected) {
-      if (lib.tab !== 'search' && lib.data[lib.tab] === null && !lib.loading) loadTab(lib.tab);
+      // Re-read the list, don't just load it once. The poll used to fetch a tab
+      // only when it had never been fetched, so after the first paint the channel
+      // list never changed again: whoever was live stayed lit after going offline,
+      // and whoever went live never appeared. The timer was running, it just had
+      // nothing to do.
+      //
+      // The re-read is quiet because it happens every minute behind the user: no
+      // spinner, and a failed read keeps the list that was right a minute ago.
+      // `search` is left alone — those results are the user's query, not a feed.
+      if (lib.tab !== 'search') {
+        if (lib.data[lib.tab] === null) loadTab(lib.tab);
+        else loadTab(lib.tab, true, true);
+      }
     } else if (connected === false && was !== false) {
       // Signed out, possibly to sign a different account in: drop everything the
       // previous account put on screen.
