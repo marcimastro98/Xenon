@@ -377,6 +377,20 @@ internal sealed class MediaHost
         };
     }
 
+    // A thumbnail's ContentType can be a comma-separated LIST of equivalent
+    // types — Apple Music reports "image/jpeg,image/jpe,image/jpg". In a data
+    // URI the first comma ends the media type, so passing that through whole
+    // gives the browser a media type of "image/jpeg" and leaves the rest,
+    // base64 payload included, to be read as ordinary text. It never decodes:
+    // a valid JPEG lost to a punctuation mark (issue #128). Take the first
+    // type, and only when it is an image MIME.
+    private static readonly Regex ImageMimeRe = new Regex(@"^image/[A-Za-z0-9][A-Za-z0-9.+\-]*$", RegexOptions.Compiled);
+    private static string ImageContentType(string? raw)
+    {
+        var first = string.IsNullOrEmpty(raw) ? "" : raw.Split(',')[0].Trim();
+        return ImageMimeRe.IsMatch(first) ? first : "image/jpeg";
+    }
+
     private static string GetAppName(string source, string title, string album)
     {
         if (Regex.IsMatch(source, "Spotify", Rx)) return "Spotify";
@@ -451,8 +465,7 @@ internal sealed class MediaHost
                 await Await(reader.LoadAsync((uint)stream.Size));
                 var bytes = new byte[(int)stream.Size];
                 reader.ReadBytes(bytes);
-                var contentType = string.IsNullOrEmpty(stream.ContentType) ? "image/jpeg" : stream.ContentType;
-                thumbnail = "data:" + contentType + ";base64," + Convert.ToBase64String(bytes);
+                thumbnail = "data:" + ImageContentType(stream.ContentType) + ";base64," + Convert.ToBase64String(bytes);
             }
         }
         catch
