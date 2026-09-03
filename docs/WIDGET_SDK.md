@@ -448,6 +448,15 @@ to give you.
 account has been connected with the follows permission — `connected: false` is a
 normal state to draw, not an error. Refreshable (60 s).
 
+The tile re-reads the Followed list every 60 s and pushes the new snapshot, so a
+widget that just draws what arrives stays current without asking for anything.
+(Before v4.11.7 that list was read once and then held, which meant a widget could
+sit on a `live` array that had stopped being true — if you shipped a widget with
+its own refresh timer to work around that, you can drop it.) When the read fails,
+the previous snapshot stands rather than being replaced by an empty one: `live`
+going empty means the user follows nobody who is on air, never that a check
+failed.
+
 **`twitchChat`** — the chat of the channel being watched:
 
 ```js
