@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [4.11.8] — in development
 ### ✨ Added
+- **The frame rate now agrees with your other overlays, including with frame generation on.** Reported by the author of a monitoring widget, with measurements: on one game with DLSS Frame Generation at x2, Xenon read about 220 frames a second while RTSS and the NVIDIA overlay both said about 155.
+
+  Nothing was broken — Xenon was answering a slightly different question. It counted how often the game *hands a frame over*, which with frame generation is no longer how often the screen actually changes. It now counts what reaches the display, which is what everyone means by their frame rate, and the number lines up with the overlays. In the same measurements it is the closer number even with frame generation switched off.
+
+  Widgets can also read both halves separately now — frames handed over and frames shown — because the gap between them is exactly what frame generation is doing, and a monitoring widget may want to show it.
+
+  Xenon also picks *which* program to read the frame rate from more carefully: the window you are actually looking at, when it is producing frames, rather than whichever program on the machine happens to be the busiest. A launcher, an overlay, or a second game left running in the background could win that contest before.
+
 - **Widgets can read YouTube, and put a real YouTube player inside themselves.** The author building a YouTube widget had to run a private server of his own alongside Xenon to get at either. Both are now part of the SDK, as two separate permissions.
 
   **Reading** covers six things: the latest uploads from the channels you follow, the channels themselves, a search, a channel's videos, a channel's playlists, and what is in a playlist — with proper paging, so a widget can walk a large library instead of showing the first page and stopping. The widget names one of those and gets the answer; it never receives your YouTube login and cannot ask for anything else. YouTube gives an account a fixed budget of requests a day, shared with Xenon's own YouTube tile, so the answers are cached and a search — which costs a hundred times an ordinary read — is only made when something actually asks for one.

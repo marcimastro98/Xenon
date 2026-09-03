@@ -48,6 +48,11 @@ const signalrgb = require('./signalrgb');
 // titles, so the game detector also gets PresentMon's busiest flip-model
 // presenter as a hint — when it matches the focused window, that's a game.
 gameDetect.setGameHint(() => fpsMonitor.getGamingProcess());
+// …and the other way: PresentMon sees every presenter on the machine, so it asks
+// which window is in front before deciding which one is the game. Wired here
+// rather than by requiring across, because these two modules already read each
+// other and a require cycle is how that ends badly.
+try { fpsMonitor.setForegroundPid(() => gameDetect.getForegroundPid()); } catch { /* platform without one */ }
 const lighting = require('./lighting');
 const icueSdkInstall = require('./icue-sdk-install');
 const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
@@ -4464,14 +4469,25 @@ async function _getNetworkInfoRaw() {
 
   // Prefer PresentMon's real in-game FPS (works in exclusive fullscreen);
   // fall back to the PowerShell DWM/LHM reading when it isn't available.
-  let fps = null;
-  try { fps = fpsMonitor.getCurrentFps(); } catch { fps = null; }
+  //
+  // `fps` is the frame rate the person is SEEING — display-side where the
+  // capture carries it. `presentFps` and `displayFps` are the two halves, which
+  // frame generation pulls apart: with DLSS FG at x2 one game presented 223
+  // frames a second and displayed 152, and every other overlay on the screen
+  // said ~155. Either half can be null on its own (the DWM fallback and MangoHud
+  // report one number, not two), and a widget should draw `fps` unless it
+  // specifically wants to show the difference.
+  let detail = null;
+  try { detail = fpsMonitor.getFpsDetail(); } catch { detail = null; }
+  let fps = detail ? detail.fps : null;
   if (fps == null) fps = data.fps ?? null;
 
   return {
     ping: data.ping ?? null,
     latency: data.latency ?? null,
     fps,
+    presentFps: (detail && detail.presentFps != null) ? detail.presentFps : null,
+    displayFps: (detail && detail.displayFps != null) ? detail.displayFps : null,
     gpuLatency: data.gpuLatency ?? null,
     downloadBps: downBps,
     uploadBps: upBps,
