@@ -41,6 +41,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **Apple Music album art now appears, and the album is back on its own line.** Reported on GitHub with the payload attached: on Windows, Apple Music tracks showed no cover at all, and the artist line read “Artist — Album” with both mashed together. Spotify was unaffected.
+
+  The cover was being fetched correctly every time and then thrown away by a comma. Apple Music describes its artwork with a *list* of equivalent format names, and Xenon passed that list on whole — but in the address a picture travels in, the first comma ends the format name, so the browser read everything after it, the picture included, as ordinary text and never turned it back into an image. A perfectly good photo, lost to punctuation.
+
+  That one comma cost the cover twice: because a broken address still counts as *an* address, it also switched off the backup that looks the artwork up online, and the accent colour Xenon takes from the cover quietly gave up on every track. All three work again, and the cover you get is the real one from the app rather than a lookup that might find the wrong release.
+
+  Apple Music also puts the album into the artist field and leaves the album blank. It is now split back into two, and only where that is safe: when the app sent no album of its own and there is exactly one em dash to split on. With more than one there is no way to tell which one separates the two, so the line is left exactly as the app sent it rather than inventing an album.
+
 - **The Twitch widget's live list now refreshes on its own.** Reported on Discord: “I can't refresh the live channels — channels that went offline are still shown as live, and channels that just went live don't appear.”
 
   The widget checks in with Twitch every minute and always has. It just never asked for the list again: it fetched the channels once when the tile appeared and then only ever re-used what it already had, so the timer ran for hours with nothing to do. Whoever was live when you opened the dashboard stayed lit until you switched tabs or reloaded the page.
