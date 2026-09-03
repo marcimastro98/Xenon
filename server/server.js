@@ -11885,6 +11885,10 @@ const CSRF_MUTATION_PATHS = new Set([
   // cost is the attack: a couple of hundred drive-by requests would leave the
   // user's own YouTube integration dead for the rest of the day.
   '/stream/youtube/search',
+  // The SDK read surface reaches searchVideos, so it is the same 100 units a
+  // drive-by away — and the paged reads defeat their own caches the way the chat
+  // read does, one distinct page token at a time.
+  '/stream/youtube/query',
   // The live-chat read spends quota too, and its cache cannot protect it from a
   // drive-by: the answer is held per PAGE TOKEN, so a loop over distinct ?page=
   // values misses every time, and with no broadcast on air the miss also costs
@@ -18676,6 +18680,34 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/stream/youtube/subscriptions' && req.method === 'GET') {
     try { json(await streamYouTube.subscriptionsFeed()); }
     catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/youtube/query' && req.method === 'POST') {
+    // Authenticated YouTube READS for SDK widgets: an allowlisted `op` plus
+    // bounded params, never a path and never the token. The allowlist lives in
+    // stream-youtube.js so there is one table rather than a route that can be
+    // talked into a general Google proxy.
+    //
+    // POST for the same reason /stream/youtube/search is (quota, not state), and
+    // gated per package on top: a miss spends the USER's 10,000 units a day, and
+    // those units are shared with Xenon's own YouTube tile. A widget that burns
+    // them leaves the person with a dead YouTube integration until midnight
+    // Pacific, which they would experience as Xenon being broken.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const pkgId = String(body.pkg || '');
+      if (!sdkFeatureEnabled() || !/^[a-z0-9][a-z0-9-]{1,40}$/.test(pkgId)) { json({ ok: false, error: 'not_allowed' }); return; }
+      if (!sdkGrantsFor(pkgId).streams.includes('youtube')) { json({ ok: false, error: 'not_allowed' }); return; }
+      const release = sdkTileGate(pkgId, 'tile');
+      if (!release) { json({ ok: false, error: 'rate_limited' }); return; }
+      try {
+        const p = (body.params && typeof body.params === 'object') ? body.params : {};
+        const params = {};
+        for (const k of ['id', 'q', 'pageToken']) {
+          if (p[k] !== undefined && p[k] !== null) params[k] = String(p[k]).slice(0, 400);
+        }
+        json(await streamYouTube.query(String(body.op || ''), params));
+      } finally { release(); }
+    } catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
 
   } else if (reqPath === '/stream/youtube/search' && req.method === 'POST') {
     // POST, and in CSRF_MUTATION_PATHS, because of what it costs rather than what

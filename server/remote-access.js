@@ -210,6 +210,10 @@ const DEFAULT_GET_MUTATORS = new Set([
   // POST-only for that reason; listing it here is what refuses the top-level GET
   // navigation, the one shape the Origin check cannot see.
   '/stream/youtube/search',
+  // The SDK read surface reaches that same search, so it carries the same cost
+  // and gets the same treatment: POST-only, and named here so a top-level GET
+  // navigation to it is refused too.
+  '/stream/youtube/query',
   // Creator-side writes on the user's own YouTube channel: they create or throw
   // away a broadcast, change who can watch it, or speak in the chat under the
   // user's name. All POST-only for that reason.

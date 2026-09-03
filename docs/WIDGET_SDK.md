@@ -81,9 +81,9 @@ not need to do anything to support it.
 | `name` | yes | ≤ 60 chars. |
 | `version`, `author`, `description` | no | Shown to the user (description ≤ 200 chars). |
 | `entry` | no | HTML entry document, defaults to `index.html`. Must live in the package root. |
-| `streams` | no | Data streams you request: `status`, `system`, `media`, `audio`, `audioLevels`, `wavelink`, `voicemeeter`, `stocks`, `football`, `news`, `claude`, `obs`, `discord`, `discordChannels`, `discordSoundboard`, `discordNotifications`, `streamerbot`, `homeassistant`, `twitchWatch`, `twitchChat`, `youtubeLive`, `tasks`, `notes`, `agenda`, `weather`, `battery`. *Capability reference* below is generated from the code and is the list that cannot go stale. See *Hardware sensors* for fans/power/battery. |
+| `streams` | no | Data streams you request: `status`, `system`, `media`, `audio`, `audioLevels`, `wavelink`, `voicemeeter`, `stocks`, `football`, `news`, `claude`, `obs`, `discord`, `discordChannels`, `discordSoundboard`, `discordNotifications`, `streamerbot`, `homeassistant`, `twitchWatch`, `twitchChat`, `youtubeLive`, `youtube`, `tasks`, `notes`, `agenda`, `weather`, `battery`. *Capability reference* below is generated from the code and is the list that cannot go stale. See *Hardware sensors* for fans/power/battery. |
 | `surface` | no | `"tile"` (default) or `"ambient"` — an ambient package renders fullscreen as an Ambient/screensaver scene instead of a dashboard tile (see *Ambient scenes*). |
-| `actions` | no | Action categories you request: `media`, `volume`, `audioDevice`, `mic`, `lighting`, `chroma`, `wavelink`, `voicemeeter`, `spotify`, `steam`, `obs`, `discord`, `homeassistant`, `twitch`, `youtube`, `streamerbot`, `url`, `browser`, `watch`, `tasks`, `soundboard`. *Capability reference* below is generated from the code and is the list that cannot go stale. |
+| `actions` | no | Action categories you request: `media`, `volume`, `audioDevice`, `mic`, `lighting`, `chroma`, `wavelink`, `voicemeeter`, `spotify`, `steam`, `obs`, `discord`, `homeassistant`, `twitch`, `youtube`, `youtubePlayer`, `streamerbot`, `url`, `browser`, `watch`, `tasks`, `soundboard`. *Capability reference* below is generated from the code and is the list that cannot go stale. |
 | `hosts` | no | Up to 8 exact hostnames the widget may reach **through the host-mediated fetch proxy** (see *Network*). Loopback/link-local names are rejected at install time. |
 | `userHosts` | no | Up to 4 addresses **the user types in**, for servers you can't know in advance (a NAS, Docker, a printer). Each is `{ id, label, scope }` — `id` (`^[a-z0-9][a-z0-9-]{0,40}$`) is what you read the value back under, `label` (≤ 60 chars) is the text above the field, `scope` is `"private"` (default — LAN only) or `"any"`. See *User-supplied addresses*. |
 | `hooks` | no | Up to 8 hook ids (`^[a-z0-9][a-z0-9-]{0,40}$`) the widget may receive local webhook events on (see *Local webhooks*). |
@@ -744,6 +744,134 @@ history, saved music and followed artists are a different thing to hand over,
 and a permission already granted for the first must not quietly become the
 second. A widget that only controls playback still cannot read anything.
 
+### 3f. Reading YouTube — `youtubeQuery` (v4.11.8)
+
+The same shape as `spotifyQuery`, for a widget that browses YouTube. Requires the
+**`youtube` stream** grant (`"streams": ["youtube"]`).
+
+```js
+addEventListener('message', (e) => {
+  const m = e.data;
+  if (m && m.xenonSdk === 1 && m.type === 'youtubeQueryResult' && m.id === 12) {
+    if (m.ok) render(m.data.videos, m.data.nextPageToken); else showError(m.error);
+  }
+});
+
+window.parent.postMessage({
+  xenonSdk: 1, type: 'youtubeQuery', id: 12,
+  op: 'channelVideos', params: { id: 'UC…', pageToken: '' },
+}, '*');
+```
+
+| `op` | params | answers |
+| --- | --- | --- |
+| `subscriptionFeed` | — | `{ videos }` — the latest uploads from the channels the user follows |
+| `subscriptionChannels` | `pageToken` | `{ channels }` — the channels themselves |
+| `searchVideos` | `q`, `pageToken` | `{ videos }` |
+| `channelVideos` | `id`, `pageToken` | `{ videos }` — a channel's uploads |
+| `channelPlaylists` | `id`, `pageToken` | `{ playlists }` |
+| `playlistVideos` | `id`, `pageToken` | `{ videos }` |
+
+Every answer also carries **`nextPageToken`**: pass it back as `params.pageToken`
+for the next page, and stop when it comes back `''`. Tokens are opaque — hand
+back exactly what you were given. `subscriptionFeed` never pages (it is built
+from several channels at once, not read from one list).
+
+**The rows are Xenon's, not Google's** — the opposite call from the Spotify
+reads, and for a reason worth knowing: these are the same rows the built-in
+YouTube tile draws, so you get the fields a list needs and one place stays
+responsible for reading Google's shape.
+
+```js
+video    { id, title, channel, image, seconds, embeddable, published }
+channel  { id, title, image }
+playlist { id, title, count, image }
+```
+
+`embeddable: false` means the owner does not allow the video to play outside
+youtube.com — mark it in your list rather than letting someone tap it and find
+out. `seconds` is `null` when the duration could not be read; draw no chip rather
+than a wrong one.
+
+**Quota is the thing to design around.** YouTube gives the account 10,000 units a
+day, shared with Xenon's own YouTube tile, and **one `searchVideos` costs 100 of
+them** while every other op costs 1 per page. So search on an explicit action,
+never as-you-type. The host caches: search for 30 minutes per query and per page,
+the subscription reads for 15 minutes, playlists and channel videos for 5, and a
+channel's uploads-playlist id for half a day. Repeating a read you have already
+made inside those windows costs nothing, so page forward and back freely — it is
+new queries that cost.
+
+Errors: `not_connected` (no YouTube account linked — say so, don't draw an empty
+library), `bad_id`, `bad_page`, `bad_op`, `rate_limited` (the per-widget gate),
+`quotaExceeded` and Google's other reasons passed through by name.
+
+### 3g. A YouTube player inside your widget — `youtubePlayer` (v4.11.8)
+
+`ytWatchPlay` (§ action categories) plays a video in **Xenon's** YouTube tile.
+This is the other thing: a player **inside your own widget**, at a rectangle you
+choose. Requires the **`youtubePlayer` action** grant (`"actions": ["ytPlayer"]`).
+
+Your frame cannot embed YouTube — it has an opaque origin and a CSP that blocks
+all network, which is what makes installing a widget safe. So Xenon owns the
+player and places it over your frame; you send commands and receive state.
+
+```js
+// Show it over the top half of your widget, then drive it.
+send({ op: 'show', params: { video: 'dQw4w9WgXcQ', x: 0, y: 0, w: 320, h: 180 } });
+send({ op: 'pause' });
+send({ op: 'seek', params: { seconds: 90 } });
+send({ op: 'hide' });
+
+function send(m) {
+  window.parent.postMessage({ xenonSdk: 1, type: 'youtubePlayer', id: ++n, ...m }, '*');
+}
+```
+
+| `op` | params | does |
+| --- | --- | --- |
+| `show` | `video`, `x`, `y`, `w`, `h` | put a player there and start it |
+| `load` | `video`, `x`, `y`, `w`, `h` | swap the video in the player you already have |
+| `rect` | `x`, `y`, `w`, `h` | move/resize it |
+| `play` / `pause` | — | |
+| `mute` | `muted` (default `true`) | |
+| `seek` | `seconds` | |
+| `hide` | — | take it away |
+
+Each reply is `{ type: 'youtubePlayerResult', id, ok, error }`. State arrives
+unasked, as `{ type: 'youtubePlayerEvent', event, video, state, position,
+duration, muted }` — `event` is `state`, `position`, `ended`, `error` (with
+`code`) or `closed` (with `reason`), and `state` is one of `unstarted`,
+`playing`, `paused`, `buffering`, `cued`, `ended`. Position updates arrive about
+once a second; state changes arrive immediately.
+
+Seven things the host decides, not you:
+
+- **The rectangle is in YOUR viewport**, the same pixels the `size` message
+  reports, with `0,0` at your top-left. It is clamped into your tile, so a
+  rectangle reaching past the edge is trimmed rather than refused.
+- **A player has a floor of 96×54 px** (`too_small` under that, and on a tile
+  too small to hold one at all). A player nobody can see is a speaker, and a
+  widget does not get one of those.
+- **Re-send `rect` when your layout moves** — after a `size` message, after
+  expand, after scrolling the player out of place. The host does not track your
+  DOM; it cannot see inside your frame.
+- **One player exists on a dashboard.** A second widget asking takes it over, and
+  the first gets `closed` with `reason: 'replaced'` — so two videos can never
+  talk at once. Handle `closed` and draw your fallback.
+- **Your tile must be on screen.** Off-screen (another page, hidden, another tab)
+  the player is torn down with `closed`/`gone`, and `show` answers `not_visible`.
+  Ask again when `visibility` says you are back.
+- **A video id is a video id.** `dQw4w9WgXcQ`, never a URL — `bad_video`
+  otherwise. `seek` takes seconds, `bad_seconds` otherwise.
+- **`error` code 101 or 150** means the owner disallowed embedding: that video
+  will not play anywhere but youtube.com, so offer `openUrl` instead of retrying.
+  Other codes are about this player or this PC, not about the video.
+
+Fullscreen is deliberately withheld from the embed (it breaks the kiosk surface),
+so YouTube's own fullscreen button does not appear. Make the player bigger with
+`rect` — or, if the user expanded your tile, with `rect` again at the new size.
+
 ### 4. `theme` — host → widget
 
 Sent whenever the dashboard theme changes: `{ type: 'theme', theme: {…} }`.
@@ -1127,6 +1255,7 @@ the same gate Deck keys go through):
 | `homeassistant` | `haToggle`, `haLight`, `haMedia`, `haCover`, `haClimate`, `haFan`, `haVacuum`, `haLock`, `haAlarm`, `haScene`, `haScript`, `haButton` — control your Home Assistant devices (params/entity ids match the Deck HA actions). `haCallService` (arbitrary service calls) is deliberately **not** exposed to widgets. Requires HA configured. |
 | `twitch` | `twitchClip`, `twitchMarker`, `twitchAd`, `twitchTitle`, `twitchGame`, `twitchChat`, `twitchShoutout`, `twitchChatMode` — control your Twitch channel. Requires Twitch connected. |
 | `youtube` | `ytBroadcast` — start/stop your YouTube broadcast. Requires YouTube connected. |
+| `youtubePlayer` | `ytPlayer` — a YouTube player **inside your own widget**, owned by Xenon and driven through validated messages. Not a `/actions/run` action: see [A YouTube player inside your widget](#3g-a-youtube-player-inside-your-widget--youtubeplayer-v4118). Separate from `youtube`, which is about the user's broadcast, and from `watch`, which plays in Xenon's own tile. |
 | `streamerbot` | `sbDoAction`, `sbSendMessage`, `sbCodeTrigger` — trigger Streamer.bot actions, send chat, fire code triggers. Requires Streamer.bot connected. |
 | `url` | `{ type: 'openUrl', url: 'https://…' }` (http/https only). Opens in the user's **default browser**, on whichever monitor Windows puts it. Use `browser` below when the page should stay on the dashboard screen. |
 | `browser` | `{ type: 'browserOpen', url: 'https://…', expand?: true }` (http/https only). Shows the page in the **Browser tile** already on the dashboard. See [Opening a page on the dashboard](#opening-a-page-on-the-dashboard-browser) below. |
@@ -1393,7 +1522,7 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `processes`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtubeLive`
+**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `processes`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 
@@ -1420,6 +1549,7 @@ the user granted, and every action is re-validated server-side.
 | `watch` | `twitchWatchPlay`, `ytWatchPlay` |
 | `wavelink` | `wlInputVolume`, `wlInputMute`, `wlOutputVolume`, `wlOutputMute`, `wlSwitchMonitoring`, `wlSetMonitorMix` |
 | `youtube` | `ytBroadcast` |
+| `youtubePlayer` | `ytPlayer` |
 <!-- SDK-REFERENCE:END -->
 
 ### 6. Network — `fetch` (widget → host) and `fetch_result` (host → widget)

@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [4.11.8] — in development
 ### ✨ Added
+- **Widgets can read YouTube, and put a real YouTube player inside themselves.** The author building a YouTube widget had to run a private server of his own alongside Xenon to get at either. Both are now part of the SDK, as two separate permissions.
+
+  **Reading** covers six things: the latest uploads from the channels you follow, the channels themselves, a search, a channel's videos, a channel's playlists, and what is in a playlist — with proper paging, so a widget can walk a large library instead of showing the first page and stopping. The widget names one of those and gets the answer; it never receives your YouTube login and cannot ask for anything else. YouTube gives an account a fixed budget of requests a day, shared with Xenon's own YouTube tile, so the answers are cached and a search — which costs a hundred times an ordinary read — is only made when something actually asks for one.
+
+  **The player** is the other half. A widget's own frame is sealed off from the network, which is what makes installing one safe, so it cannot embed YouTube itself: it asks Xenon to place a player inside its layout, and Xenon owns it. The widget says which video and where, then plays, pauses, mutes, seeks and moves it, and hears back what the player is doing. Only one exists on a dashboard at a time, so two videos can never talk over each other; it cannot be shrunk to a size nobody would see; and it goes away with the tile — a video does not keep playing for a widget that is no longer on screen.
+
+  **Two permissions, asked for separately.** Reading your subscriptions is not the same as playing a video inside a tile, and neither is the same as the existing "control your YouTube stream", which is about your own broadcast. A widget that has one still cannot do the others.
+
 - **Xenon now absorbs the Spotify bursts a widget makes.** From the same widget author, building a library browser: Spotify limits how much an account may ask for in a short window, and a widget that re-reads a page every time it redraws burns through that limit fast — a limit shared with Xenon's own Spotify tile, so the person's music stops and it looks like Xenon broke.
 
   Repeated reads no longer reach Spotify. Two identical reads happening at the same time share one call, and a read repeated within a few seconds is answered from memory — so redrawing, reopening a tile, or having the same widget on two screens now costs nothing. It is deliberately a few seconds and a handful of pages, not a store: your library still visibly changes, and what is playing right now is never held for long.
