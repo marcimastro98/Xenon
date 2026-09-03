@@ -33,6 +33,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### 🐛 Fixed
+- **The Twitch widget's live list now refreshes on its own.** Reported on Discord: “I can't refresh the live channels — channels that went offline are still shown as live, and channels that just went live don't appear.”
+
+  The widget checks in with Twitch every minute and always has. It just never asked for the list again: it fetched the channels once when the tile appeared and then only ever re-used what it already had, so the timer ran for hours with nothing to do. Whoever was live when you opened the dashboard stayed lit until you switched tabs or reloaded the page.
+
+  The list is now genuinely re-read each minute, quietly — no spinner blinking behind you, and if a check fails the list that was right a minute ago stays on screen instead of being replaced by an error. Search results are left alone, since those are what you asked for rather than a live feed. Widgets granted the Twitch watching data get the same fix for free: they were being handed the same frozen list.
+
 - **A Browser tile no longer freezes when the dashboard is open in two places at once.** Reported on GitHub with a camera stream that stopped after a while: with the dashboard on the Xeneon Edge *and* in a browser window on the PC, one of the two Browser tiles held its last picture and never moved again. Closing either dashboard brought the other back to life, and after a restart the roles could swap.
 
   Each screen opens its own page for the tile, on purpose — they can be different sizes, so they cannot share one. Those pages were opened as tabs of a single window, and a browser only draws the tab in front. The tile's picture comes from a stream of frames, and a page nobody is drawing produces none: whichever screen opened last took the front and the other simply stopped receiving. It never looked like an error, because there was nothing to report — only a picture that had stopped being replaced.
