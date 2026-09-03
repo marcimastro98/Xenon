@@ -278,7 +278,40 @@ test('the player is its own permission, not folded into an existing one', () => 
   const cats = require('../sdk-widgets.js').SDK_ACTION_CATEGORIES;
   assert.deepEqual([...cats.youtubePlayer], ['ytPlayer']);
   assert.deepEqual([...cats.youtube], ['ytBroadcast'], 'controlling a broadcast is a different thing to agree to');
-  assert.match(BRIDGE, /if \(!grant\.actions\.includes\('ytPlayer'\)\) \{ reply\(\{ ok: false, error: 'not_allowed' \}\); return; \}/);
+  assert.match(BRIDGE, /if \(!grant\.actions\.includes\('youtubePlayer'\)\) \{ reply\(\{ ok: false, error: 'not_allowed' \}\); return; \}/);
+});
+
+test('the gate names a permission the user can actually hold', () => {
+  // The bug this pins: `grant.actions` holds CATEGORY names — that is what the
+  // dialog offers and what settings.js keeps (SDK_WIDGET_ACTION_CATS) — while
+  // `ytPlayer` is an action TYPE inside a category. Gating on the type compiled,
+  // read plausibly, and could never be true: the feature was unreachable, and a
+  // manifest asking for it would have had the word stripped on save.
+  const at = BRIDGE.indexOf('function onBridgeYoutubePlayer(');
+  const gate = /grant\.actions\.includes\('([^']+)'\)/.exec(BRIDGE.slice(at, BRIDGE.indexOf('\n  }', at)));
+  assert.ok(gate, 'the player must still be gated on a grant');
+  const cats = require('../sdk-widgets.js').SDK_ACTION_CATEGORIES;
+  assert.ok(Object.hasOwn(cats, gate[1]),
+    `the bridge gates on "${gate[1]}", which is not an action category — a grant can never contain it`);
+  const settings = readFileSync(new URL('../js/settings.js', import.meta.url), 'utf8');
+  const kept = /const SDK_WIDGET_ACTION_CATS = Object\.freeze\(\[([^\]]+)\]\)/.exec(settings);
+  assert.ok(kept && kept[1].includes("'" + gate[1] + "'"),
+    'and settings.js must keep it, or it is filtered out of the saved grant');
+  // The manifest tells authors the same word, or they declare something that is
+  // thrown away and the widget mounts without the permission it asked for.
+  const doc = readFileSync(new URL('../../docs/WIDGET_SDK.md', import.meta.url), 'utf8');
+  assert.ok(doc.includes('`"actions": ["' + gate[1] + '"]`'), 'the guide must name the same grant');
+});
+
+test('taking the permission away stops a video that is already playing', () => {
+  // The bridge re-checks per command, so revoking blocks the NEXT one — but the
+  // video already on screen would have kept playing until the tile moved. That
+  // is the shape reconcileExpanded avoids for the expanded panel.
+  const at = BRIDGE.indexOf('function reconcileSdkPlayer(');
+  const body = BRIDGE.slice(at, BRIDGE.indexOf('\n  }', at));
+  assert.match(body, /grantsFor\(entry\.pkgId\)\.actions\.includes\('youtubePlayer'\)/,
+    'the sweep must re-read the grant, not only the frame');
+  assert.match(body, /if \(!granted \|\|/);
 });
 
 test('a hidden tile and a headless frame get no player at all', () => {

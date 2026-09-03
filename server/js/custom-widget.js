@@ -863,7 +863,11 @@
   function onBridgeYoutubePlayer(entry, grant, msg) {
     const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
     const reply = (payload) => post(entry, Object.assign({ type: 'youtubePlayerResult', id: reqId }, payload));
-    if (!grant.actions.includes('ytPlayer')) { reply({ ok: false, error: 'not_allowed' }); return; }
+    // The CATEGORY, not the action type inside it: `grant.actions` holds the
+    // names the user agreed to in the dialog (see SDK_WIDGET_ACTION_CATS), and
+    // `actionAllowed` is what maps a category to the types it covers. Checking
+    // 'ytPlayer' here compiled, read plausibly, and could never be true.
+    if (!grant.actions.includes('youtubePlayer')) { reply({ ok: false, error: 'not_allowed' }); return; }
     // A background service frame has no tile, so it has nowhere to put a player —
     // and a widget playing video from a headless frame is exactly the thing that
     // must not be possible.
@@ -889,7 +893,11 @@
     if (!host || !host.active()) return;
     for (const [, entry] of frames) {
       if (!host.owns(entry)) continue;
-      if (!entry.frame || !entry.frame.isConnected || !entryOnScreen(entry)) host.release(entry);
+      // The grant is re-read here, not just at the command: taking the permission
+      // away in Settings has to stop a video that is ALREADY playing, not merely
+      // refuse the next command. Same re-check reconcileExpanded makes.
+      const granted = grantsFor(entry.pkgId).actions.includes('youtubePlayer');
+      if (!granted || !entry.frame || !entry.frame.isConnected || !entryOnScreen(entry)) host.release(entry);
       return;
     }
     // The owner is not in `frames` at all any more (swapped, uninstalled, safe

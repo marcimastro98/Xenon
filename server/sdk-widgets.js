@@ -98,6 +98,15 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // reach the service the user connected AND granted. `haCallService` is
   // deliberately left OUT — an arbitrary HA service call is too broad to hand to
   // untrusted widget code; the typed device actions cover normal control.
+  // `spotifyPlayUri` was added to this EXISTING category rather than a new one,
+  // which is the opposite of the call made for `audioDevice` and `steam` above —
+  // so the reasoning is worth stating. Those two widen a grant into a different
+  // KIND of act: "raise and lower" does not imply re-routing the machine's sound,
+  // and "open a web link" does not imply invoking a protocol handler. Starting a
+  // named track or album is the same kind of act as `spotifyPlaylist`, which has
+  // always been here and already starts any playlist the account can reach. It
+  // stays inside what "Control Spotify playback" means to the person who agreed
+  // to it, so it does not need a second line in the dialog.
   spotify: Object.freeze(['spotifyPlay', 'spotifyNext', 'spotifyPrev', 'spotifySave', 'spotifyLike', 'spotifyShuffle', 'spotifyRepeat', 'spotifyVolume', 'spotifySeek', 'spotifyPlaylist', 'spotifyPlayUri', 'spotifyDevice']),
   obs: Object.freeze(['obsScene', 'obsSceneNext', 'obsRecord', 'obsStream', 'obsMute', 'obsInputVolume']),
   // discordUserVol/discordUserMute change what THIS machine hears from one
