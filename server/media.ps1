@@ -194,7 +194,14 @@ function Read-Thumbnail($Selected) {
       [void](Await ($reader.LoadAsync([uint32]$stream.Size)) ([uint32]))
       $bytes = New-Object byte[] ([int]$stream.Size)
       $reader.ReadBytes($bytes)
-      $contentType = if ($stream.ContentType) { [string]$stream.ContentType } else { 'image/jpeg' }
+      # A thumbnail's ContentType can be a comma-separated LIST of equivalent
+      # types - Apple Music reports "image/jpeg,image/jpe,image/jpg". In a data
+      # URI the first comma ends the media type, so passing that through whole
+      # leaves the browser reading the base64 payload as ordinary text and never
+      # decoding it: a valid JPEG lost to a punctuation mark (issue #128). Take
+      # the first type, and only when it is an image MIME.
+      $firstType = if ($stream.ContentType) { ([string]$stream.ContentType).Split(',')[0].Trim() } else { '' }
+      $contentType = if ($firstType -match '^image/[A-Za-z0-9][A-Za-z0-9.+-]*$') { $firstType } else { 'image/jpeg' }
       $thumbnail = 'data:' + $contentType + ';base64,' + [Convert]::ToBase64String($bytes)
     }
   } catch {
