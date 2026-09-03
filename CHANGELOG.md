@@ -55,7 +55,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
   That one comma cost the cover twice: because a broken address still counts as *an* address, it also switched off the backup that looks the artwork up online, and the accent colour Xenon takes from the cover quietly gave up on every track. All three work again, and the cover you get is the real one from the app rather than a lookup that might find the wrong release.
 
-  Apple Music also puts the album into the artist field and leaves the album blank. It is now split back into two, and only where that is safe: when the app sent no album of its own and there is exactly one em dash to split on. With more than one there is no way to tell which one separates the two, so the line is left exactly as the app sent it rather than inventing an album.
+  Apple Music also puts the album into the artist field and leaves the album blank. It is now split back into two, at the first long dash — which is where Apple joins them, the artist always coming first. Only when the app sent no album of its own, and only for Apple Music: elsewhere an artist whose name contains a long dash is left exactly as it arrived.
 
 - **The Twitch widget's live list now refreshes on its own.** Reported on Discord: “I can't refresh the live channels — channels that went offline are still shown as live, and channels that just went live don't appear.”
 
