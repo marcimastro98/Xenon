@@ -95,7 +95,7 @@ test('the answer carries only the rows, never the provider object', async () => 
   assert.deepEqual(Object.keys(r.data).sort(), ['nextPageToken', 'videos'],
     'a future field added to a provider answer must not reach widgets by accident');
   assert.deepEqual(Object.keys(r.data.videos[0]).sort(),
-    ['channel', 'embeddable', 'id', 'image', 'published', 'seconds', 'title'],
+    ['channel', 'channelId', 'embeddable', 'id', 'image', 'published', 'seconds', 'title'],
     'the documented row shape');
 });
 
@@ -158,6 +158,77 @@ test('page two is not served from page one', async () => {
   assert.equal(one, 1, 'the same page twice is one read — the cache is the quota defence');
   await p.query('playlistVideos', { id: 'PLabc', pageToken: 'CAoQAA' });
   assert.equal(seen.filter((u) => u.includes('/playlistItems')).length, 2, 'a different page is a different read');
+});
+
+// ── Which channel a row belongs to ───────────────────────────────────────────
+// Rows carried the channel NAME but not its id, so a widget could print the name
+// and not make it clickable. Asked for so tapping it can open the channel through
+// channelVideos / channelPlaylists, with no lookup of its own.
+
+test('a video row carries the channel that uploaded it', async () => {
+  const p = probe([
+    { match: '/playlistItems', json: { items: [{
+      contentDetails: { videoId: 'vid00001' },
+      snippet: { title: 'One', videoOwnerChannelTitle: 'Chan', videoOwnerChannelId: CH },
+    }] } },
+    VIDEOS,
+  ]);
+  const r = await p.query('playlistVideos', { id: 'PLabc' });
+  assert.equal(r.data.videos[0].channelId, CH);
+});
+
+test('on a playlist row it is the uploader, never the playlist owner', async () => {
+  // The trap this exists to avoid: on a playlistItem, `channelId` is whoever
+  // MADE THE PLAYLIST, and `videoOwnerChannelId` is whoever uploaded the video.
+  // Reading the first would send someone tapping a channel name to the wrong
+  // channel — and it would look right on any playlist you made yourself.
+  const owner = 'UCowneROWNERowneROWNERow';
+  const p = probe([
+    { match: '/playlistItems', json: { items: [{
+      contentDetails: { videoId: 'vid00001' },
+      snippet: { title: 'One', videoOwnerChannelId: CH, channelId: owner },
+    }] } },
+    VIDEOS,
+  ]);
+  const r = await p.query('playlistVideos', { id: 'PLabc' });
+  assert.equal(r.data.videos[0].channelId, CH);
+  assert.notEqual(r.data.videos[0].channelId, owner);
+});
+
+test('a search row falls back to the only id it has', async () => {
+  const p = probe([
+    { match: '/search', json: { items: [{ id: { videoId: 'vid00002' }, snippet: { title: 'S', channelId: CH } }] } },
+    VIDEOS,
+  ]);
+  const r = await p.query('searchVideos', { q: 'radiohead' });
+  assert.equal(r.data.videos[0].channelId, CH);
+});
+
+test('an id the API did not give, or one we would refuse, is empty', async () => {
+  // Empty is testable by a widget. A malformed value handed back would only fail
+  // one call later, inside channelVideos, where it reads as a broken feature.
+  for (const bad of [undefined, '', 'PLnotachannel', 'UC', '../../evil', 'UC' + 'x'.repeat(40)]) {
+    const p = probe([
+      { match: '/playlistItems', json: { items: [{ contentDetails: { videoId: 'vid00001' }, snippet: { title: 'One', videoOwnerChannelId: bad } }] } },
+      VIDEOS,
+    ]);
+    const r = await p.query('playlistVideos', { id: 'PLabc' });
+    assert.equal(r.data.videos[0].channelId, '', String(bad));
+  }
+});
+
+test('the id it hands out is one channelVideos will accept', async () => {
+  // The whole point is that a widget can feed it straight back.
+  const seen = [];
+  const p = probe([
+    { match: '/channels', json: { items: [{ contentDetails: { relatedPlaylists: { uploads: 'UUabc' } } }] } },
+    { match: '/playlistItems', json: { items: [{ contentDetails: { videoId: 'vid00001' }, snippet: { title: 'One', videoOwnerChannelId: CH } }] } },
+    VIDEOS,
+  ], seen);
+  const row = await p.query('playlistVideos', { id: 'PLabc' });
+  const id = row.data.videos[0].channelId;
+  assert.equal((await p.query('channelVideos', { id })).ok, true);
+  assert.ok(seen.some((u) => u.includes('id=' + id)), 'the round trip is the feature');
 });
 
 // ── Ordering ─────────────────────────────────────────────────────────────────
@@ -286,6 +357,7 @@ test('the SDK guide documents the ops, the rows and the quota', () => {
   assert.match(doc, /one `searchVideos` costs 100 of\s*\nthem/,
     'the one number a widget author has to design around');
   assert.match(doc, /The rows are Xenon's, not Google's/);
+  assert.match(doc, /`channelId` is the channel that \*\*uploaded\*\* the video/);
   assert.match(doc, /`relevance` — YouTube's own ranking/);
   assert.match(doc, /refused as `bad_order`/);
 });

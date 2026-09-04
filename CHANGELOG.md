@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [4.11.8] — in development
 ### ✨ Added
+- **Video rows a widget reads now say which channel they came from.** They carried the channel's name but not its id, so a widget could print the name and not make it open anything. Tapping a channel name works again — and it is the channel that *uploaded* the video, not whoever made the playlist it was read from, which is the mistake the same data invites.
+
 - **A widget can ask for YouTube's own channel order.** The subscription list a widget reads was always alphabetical, so a widget offering "YouTube order" was showing A–Z under another name. It can now ask for YouTube's own ranking, or for channels with something unwatched first — and an order Xenon does not have is refused rather than quietly answered in the default one, which is what let the wrong label go unnoticed in the first place.
 
 - **A widget can play a song without throwing away the album it came from.** Reported by the widget author who moved his Spotify browser onto the SDK: tapping a track inside an album played that track and then stopped, with the rest of the album gone.
