@@ -29549,6 +29549,16 @@ Object.assign(i18n.nl, {
 Object.assign(i18n.it, {
   cw_stream_spotify: 'Leggere la tua libreria, coda e cronologia Spotify',
   deck_act_spotifyPlayUri: 'Riproduci un URI Spotify',
+  deck_param_context_uri: '在其中播放（专辑或播放列表 URI）',
+  deck_param_context_uri: 'この中で再生（アルバムまたはプレイリストの URI）',
+  deck_param_context_uri: '이 안에서 재생 (앨범 또는 재생목록 URI)',
+  deck_param_context_uri: 'Играть внутри (URI альбома или плейлиста)',
+  deck_param_context_uri: 'Reproduzir dentro de (URI de álbum ou playlist)',
+  deck_param_context_uri: 'Abspielen innerhalb (Album- oder Playlist-URI)',
+  deck_param_context_uri: 'Lire dans (URI d’album ou de playlist)',
+  deck_param_context_uri: 'Reproducir dentro de (URI de álbum o lista)',
+  deck_param_context_uri: 'Play inside (album or playlist URI)',
+  deck_param_context_uri: 'Riproduci dentro (URI album o playlist)',
 });
 Object.assign(i18n.en, {
   cw_stream_spotify: 'Read your Spotify library, queue and history',
@@ -29573,6 +29583,7 @@ Object.assign(i18n.pt, {
 Object.assign(i18n.nl, {
   "cw_stream_spotify": 'Je Spotify-bibliotheek, wachtrij en geschiedenis lezen',
   "deck_act_spotifyPlayUri": 'Een Spotify-URI afspelen',
+  "deck_param_context_uri": 'Afspelen binnen (album- of afspeellijst-URI)',
 });
 Object.assign(i18n.ru, {
   cw_stream_spotify: 'Читать вашу медиатеку, очередь и историю Spotify',

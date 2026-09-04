@@ -105,7 +105,7 @@ const ACTION_CATALOG = [
   { type: 'spotifyVolume',   group: 'spotify', labelKey: 'deck_act_spotifyVolume',   params: [{ name: 'mode', kind: 'select', options: ['up', 'down', 'set'] }, { name: 'value', kind: 'text' }] },
   { type: 'spotifySeek',     group: 'spotify', labelKey: 'deck_act_spotifySeek',     params: [{ name: 'value', kind: 'text' }] },
   { type: 'spotifyPlaylist', group: 'spotify', labelKey: 'deck_act_spotifyPlaylist', params: [{ name: 'playlist', kind: 'text' }] },
-  { type: 'spotifyPlayUri',  group: 'spotify', labelKey: 'deck_act_spotifyPlayUri',  params: [{ name: 'uri', kind: 'text' }] },
+  { type: 'spotifyPlayUri',  group: 'spotify', labelKey: 'deck_act_spotifyPlayUri',  params: [{ name: 'uri', kind: 'text' }, { name: 'contextUri', kind: 'text', optional: true, labelKey: 'deck_param_context_uri' }] },
   { type: 'spotifyDevice',   group: 'spotify', labelKey: 'deck_act_spotifyDevice',   params: [{ name: 'device', kind: 'text' }] },
   { type: 'haToggle',      group: 'homeassistant', labelKey: 'deck_act_haToggle',      params: [{ name: 'entity', kind: 'haEntity' }, { name: 'mode', kind: 'select', options: ['toggle', 'on', 'off'] }] },
   { type: 'haLight',       group: 'homeassistant', labelKey: 'deck_act_haLight',       params: [{ name: 'entity', kind: 'haEntity', domain: 'light' }, { name: 'mode', kind: 'select', options: ['toggle', 'on', 'off', 'brighter', 'dimmer', 'brightness'] }, { name: 'value', kind: 'text', optional: true }] },
