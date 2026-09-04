@@ -144,6 +144,13 @@ function normHeader(name) {
 // WITHOUT frame generation (69.2 displayed vs 65.6 presented, against an
 // in-game counter reading 69.0 in the same capture).
 //
+// The measurements above came from a PresentMon 2.3.1 capture, which left one
+// thing unproven: whether the 1.10 we actually ship tracks display timing
+// correctly with frame generation on. It does — confirmed on the reporter's
+// machine against the game and RTSS side by side, which is why there is no
+// PresentMon upgrade here. What remains is a couple of frames between us and
+// RTSS, from RTSS's own averaging rather than from the timing.
+//
 // Careful with the near-misses: PresentMon 1.x also has msUntilDisplayed, which
 // is a LATENCY, not an interval, and matching it would turn the frame rate into
 // nonsense. Hence the exact-ish tests below rather than a loose `displayed`.
