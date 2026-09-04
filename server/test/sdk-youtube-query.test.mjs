@@ -160,6 +160,54 @@ test('page two is not served from page one', async () => {
   assert.equal(seen.filter((u) => u.includes('/playlistItems')).length, 2, 'a different page is a different read');
 });
 
+// ── Ordering ─────────────────────────────────────────────────────────────────
+// The widget author found this by tracing his old private backend: it asked for
+// order=relevance, the native op hard-coded alphabetical, and the SDK forwarded
+// only pageToken — so his "YouTube order" mode was A–Z wearing another name.
+
+test('the order reaches YouTube, and defaults to alphabetical', async () => {
+  const seen = [];
+  const p = probe([{ match: '/subscriptions', json: { items: [] } }], seen);
+  await p.query('subscriptionChannels', {});
+  assert.ok(seen[0].includes('order=alphabetical'), seen[0]);
+  for (const order of ['relevance', 'unread']) {   // alphabetical is the default above, and cached by now
+    seen.length = 0;
+    const r = await p.query('subscriptionChannels', { order });
+    assert.equal(r.ok, true, order);
+    assert.ok(seen[0].includes('order=' + order), `${order}: ${seen[0]}`);
+  }
+});
+
+test('an order we do not have is refused, never quietly replaced', async () => {
+  // Silently defaulting is exactly the bug being fixed: a list labelled
+  // "Pertinence" that was alphabetical underneath. An error is a thing the
+  // widget can show; a confident wrong answer is not.
+  const seen = [];
+  const p = probe([], seen);
+  for (const order of ['date', 'ALPHABETICAL', 'relevance ', 'unread&maxResults=50', 'reverse']) {
+    const r = await p.query('subscriptionChannels', { order });
+    assert.equal(r.error, 'bad_order', String(order));
+  }
+  assert.deepEqual(seen, [], 'a refused order never reaches Google');
+});
+
+test('two orders are two lists, not one cache entry', async () => {
+  const seen = [];
+  const p = probe([{ match: '/subscriptions', json: { items: [] } }], seen);
+  await p.query('subscriptionChannels', { order: 'relevance' });
+  await p.query('subscriptionChannels', { order: 'alphabetical' });
+  await p.query('subscriptionChannels', { order: 'relevance' });
+  assert.equal(seen.length, 2, 'the third is the first one again — the second is a different list');
+  assert.ok(seen[1].includes('order=alphabetical'));
+});
+
+test('the order survives the bridge and the route', () => {
+  // Both forward a fixed list of param names, so a param missing from either
+  // one is dropped between the widget and the provider that reads it.
+  assert.match(read('server/js/custom-widget.js'), /for \(const k of \['id', 'q', 'pageToken', 'order'\]\)/);
+  assert.match(read('server/server.js'), /for \(const k of \['id', 'q', 'pageToken', 'order'\]\)/);
+});
+
 // ── Quota ────────────────────────────────────────────────────────────────────
 
 test("a channel's uploads playlist is resolved once, then paged like any playlist", async () => {
@@ -238,4 +286,6 @@ test('the SDK guide documents the ops, the rows and the quota', () => {
   assert.match(doc, /one `searchVideos` costs 100 of\s*\nthem/,
     'the one number a widget author has to design around');
   assert.match(doc, /The rows are Xenon's, not Google's/);
+  assert.match(doc, /`relevance` — YouTube's own ranking/);
+  assert.match(doc, /refused as `bad_order`/);
 });

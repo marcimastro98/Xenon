@@ -803,11 +803,19 @@ window.parent.postMessage({
 | `op` | params | answers |
 | --- | --- | --- |
 | `subscriptionFeed` | — | `{ videos }` — the latest uploads from the channels the user follows |
-| `subscriptionChannels` | `pageToken` | `{ channels }` — the channels themselves |
+| `subscriptionChannels` | `order`, `pageToken` | `{ channels }` — the channels themselves |
 | `searchVideos` | `q`, `pageToken` | `{ videos }` |
 | `channelVideos` | `id`, `pageToken` | `{ videos }` — a channel's uploads |
 | `channelPlaylists` | `id`, `pageToken` | `{ playlists }` |
 | `playlistVideos` | `id`, `pageToken` | `{ videos }` |
+
+`subscriptionChannels` takes an **`order`**: `alphabetical` (the default),
+`relevance` — YouTube's own ranking, which is what its apps show — or `unread`.
+Anything else is refused as `bad_order` rather than quietly served in the default
+order, so a widget offering "YouTube order" cannot end up showing A–Z under that
+label. There is no descending order in the API; reverse a page yourself if you
+offer Z–A, and say so if your list is paged, since reversing one page is not
+reversing the list.
 
 Every answer also carries **`nextPageToken`**: pass it back as `params.pageToken`
 for the next page, and stop when it comes back `''`. Tokens are opaque — hand
