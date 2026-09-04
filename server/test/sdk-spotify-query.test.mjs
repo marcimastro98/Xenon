@@ -21,7 +21,7 @@ const { createSpotifyProvider } = require('../stream-spotify.js');
 
 /** A connected provider wired to a fake fetch, so the paths it builds can be
  *  read back. Same shape as stream-spotify.test.mjs: a live token on disk. */
-function probe(onUrl, status = 200, body = { ok: 1 }) {
+function probe(onUrl, status = 200, body = { ok: 1 }, seen = null) {
   const file = join(tmpdir(), `xe-sq-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
   writeFileSync(file, JSON.stringify({
     spotify: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6 },
@@ -29,8 +29,15 @@ function probe(onUrl, status = 200, body = { ok: 1 }) {
   return createSpotifyProvider({
     clientId: 'cid',
     tokensFile: file,
-    fetch: async (url) => {
+    fetch: async (url, init) => {
       onUrl(String(url));
+      // `seen` collects what was actually SENT — the body is the whole question
+      // for the play endpoint, where the URL is the same either way.
+      if (seen) {
+        let parsed = null;
+        try { parsed = init && init.body ? JSON.parse(init.body) : null; } catch { parsed = null; }
+        seen.push({ url: String(url), method: (init && init.method) || 'GET', body: parsed });
+      }
       return { ok: status < 400, status, json: async () => body };
     },
   });
@@ -141,6 +148,91 @@ test('playUri takes the four kinds a browser needs, and nothing else', async () 
     assert.equal(r.ok, false, bad);
     assert.equal(r.error, 'bad_uri', bad);
   }
+});
+
+// ── Playing a track without losing what it came from ─────────────────────────
+// Reported after the same author moved his Spotify browser onto the SDK: tapping
+// a track inside an album played it and then stopped, the rest of the album
+// gone. Playing a track by its own URI is a queue of exactly one song, which is
+// Spotify's behaviour and not a bug — but it is not what tapping a row in a list
+// means. `contextUri` restores "play this album, starting here".
+
+test('a track played inside a context starts the context at that track', () => {
+  const seen = [];
+  const p = probe(() => {}, 204, {}, seen);
+  return p.playUri('spotify:track:4Z8W4fKeB5YxbusRsdQVPb', 'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M')
+    .then((r) => {
+      assert.equal(r.ok, true);
+      assert.deepEqual(seen[0].body, {
+        context_uri: 'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M',
+        offset: { uri: 'spotify:track:4Z8W4fKeB5YxbusRsdQVPb' },
+      });
+    });
+});
+
+test('an album context works the same way', async () => {
+  const seen = [];
+  const p = probe(() => {}, 204, {}, seen);
+  await p.playUri('spotify:track:4Z8W4fKeB5YxbusRsdQVPb', 'spotify:album:2noRn2Aes5aoNVsU6iWThc');
+  assert.equal(seen[0].body.context_uri, 'spotify:album:2noRn2Aes5aoNVsU6iWThc');
+});
+
+test('no context is the old behaviour, exactly', async () => {
+  const seen = [];
+  const p = probe(() => {}, 204, {}, seen);
+  await p.playUri('spotify:track:4Z8W4fKeB5YxbusRsdQVPb');
+  assert.deepEqual(seen[0].body, { uris: ['spotify:track:4Z8W4fKeB5YxbusRsdQVPb'] });
+});
+
+test('a context that cannot be honoured plays the tapped track, never another one', async () => {
+  // Spotify accepts an offset for album and playlist contexts only, so an artist
+  // context cannot start at a chosen song. Playing the artist from the top would
+  // play a DIFFERENT track than the one tapped — a worse surprise than losing
+  // the surrounding list, which is merely the old behaviour. Same for anything
+  // malformed: this field is always safe to send.
+  const track = 'spotify:track:4Z8W4fKeB5YxbusRsdQVPb';
+  for (const ctx of [
+    'spotify:artist:0OdUWJ0sBjDrqHygGUXeCF',
+    'spotify:track:2noRn2Aes5aoNVsU6iWThc',
+    'https://open.spotify.com/playlist/x',
+    'spotify:playlist:../../evil',
+    '',
+  ]) {
+    const seen = [];
+    const p = probe(() => {}, 204, {}, seen);
+    const r = await p.playUri(track, ctx);
+    assert.equal(r.ok, true, ctx);
+    assert.deepEqual(seen[0].body, { uris: [track] }, ctx);
+  }
+});
+
+test('a context is ignored for anything that is not a track', async () => {
+  const seen = [];
+  const p = probe(() => {}, 204, {}, seen);
+  await p.playUri('spotify:album:2noRn2Aes5aoNVsU6iWThc', 'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M');
+  assert.deepEqual(seen[0].body, { context_uri: 'spotify:album:2noRn2Aes5aoNVsU6iWThc' },
+    'an album inside a playlist is not a thing the API can express');
+});
+
+test('the field survives the action catalog, which strips what it does not know', () => {
+  // validateAction rebuilds the action from the catalog's declared params, so a
+  // field that is not declared never reaches the provider — the whole feature
+  // would have been silently dropped one layer above where it is implemented.
+  const { validateAction } = require('../js/deck-actions.js');
+  const out = validateAction({
+    type: 'spotifyPlayUri', uri: 'spotify:track:abc', contextUri: 'spotify:album:def',
+  });
+  assert.equal(out.contextUri, 'spotify:album:def');
+  assert.equal(validateAction({ type: 'spotifyPlayUri', uri: 'spotify:track:abc' }).contextUri, undefined,
+    'and it stays absent when unused, so stored Deck keys do not churn');
+  assert.match(read('server/stream-spotify.js'), /case 'spotifyPlayUri': return playUri\(action\.uri, action\.contextUri\);/);
+});
+
+test('the SDK guide says when to send it and that it is always safe to', () => {
+  const doc = read('docs/WIDGET_SDK.md');
+  assert.match(doc, /Add `contextUri` when the track came from somewhere/);
+  assert.match(doc, /queue of exactly one song/);
+  assert.match(doc, /always safe to send/);
 });
 
 test('a track plays as a track, a collection as a context', () => {

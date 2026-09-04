@@ -686,7 +686,7 @@ function createSpotifyProvider(deps) {
     switch (action.type) {
       case 'spotifySave': return saveCurrent();
       case 'spotifyPlaylist': return playPlaylist(action.playlist);
-      case 'spotifyPlayUri': return playUri(action.uri);
+      case 'spotifyPlayUri': return playUri(action.uri, action.contextUri);
       case 'spotifyShuffle': return setShuffle(action.mode);
       case 'spotifyDevice': return transferDevice(action.device);
       case 'spotifyPlay': return playPause(action.mode);
@@ -800,11 +800,32 @@ function createSpotifyProvider(deps) {
   // Start a specific Spotify URI. The four kinds a browser needs, and no others:
   // a `context` for the collections, `uris` for a single track, which is the
   // distinction Spotify's own play endpoint draws.
+  //
+  // `contextUri` is what you were listening INSIDE. Playing a track by its own
+  // URI replaces whatever was playing with a queue of exactly one song, so
+  // tapping a track in an album played it and then stopped — the rest of the
+  // album gone. Reported by the widget author who moved a Spotify browser onto
+  // the SDK and lost the surrounding context in the move.
+  //
+  // With a context, the same tap becomes "play this album, starting here", which
+  // is what Spotify's own clients do and what the queue afterwards should look
+  // like.
   const URI_RE = /^spotify:(track|album|artist|playlist):[A-Za-z0-9]{1,40}$/;
-  async function playUri(uri) {
+  const CONTEXT_RE = /^spotify:(album|playlist|artist):[A-Za-z0-9]{1,40}$/;
+  async function playUri(uri, contextUri) {
     const u = String(uri || '');
     if (!URI_RE.test(u)) return { ok: false, error: 'bad_uri' };
-    const body = u.startsWith('spotify:track:') ? { uris: [u] } : { context_uri: u };
+    const ctx = String(contextUri || '');
+    // A context is only meaningful for a track — it is the thing the track sits
+    // in. Spotify accepts an offset for album and playlist contexts only, so an
+    // artist context cannot start at a chosen song; rather than silently playing
+    // a DIFFERENT track from the one that was tapped, the context is dropped and
+    // the named track plays on its own. That is the old behaviour, which is a
+    // smaller surprise than the wrong song.
+    const usable = ctx && CONTEXT_RE.test(ctx) && u.startsWith('spotify:track:') && !ctx.startsWith('spotify:artist:');
+    let body;
+    if (usable) body = { context_uri: ctx, offset: { uri: u } };
+    else body = u.startsWith('spotify:track:') ? { uris: [u] } : { context_uri: u };
     const r = await apiRequest('PUT', '/me/player/play', body);
     return r.ok ? { ok: true } : { ok: false, error: r.error || 'play_failed', status: r.status || 0 };
   }

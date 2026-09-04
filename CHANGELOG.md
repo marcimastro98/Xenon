@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [4.11.8] — in development
 ### ✨ Added
+- **A widget can play a song without throwing away the album it came from.** Reported by the widget author who moved his Spotify browser onto the SDK: tapping a track inside an album played that track and then stopped, with the rest of the album gone.
+
+  That was Spotify's own behaviour rather than a fault — asking for a single song *is* a queue of one song — but it is not what tapping a row in a list means. A widget can now say what the track came from, so the same tap means "play this album, starting here" and the rest follows, exactly as in Spotify's own apps. Sending it is always safe: anything Spotify cannot honour that way falls back to playing the song that was tapped, never a different one.
+
 - **The frame rate now agrees with your other overlays, including with frame generation on.** Reported by the author of a monitoring widget, with measurements: on one game with DLSS Frame Generation at x2, Xenon read about 220 frames a second while RTSS and the NVIDIA overlay both said about 155.
 
   Nothing was broken — Xenon was answering a slightly different question. It counted how often the game *hands a frame over*, which with frame generation is no longer how often the screen actually changes. It now counts what reaches the display, which is what everyone means by their frame rate, and the number lines up with the overlays. In the same measurements it is the closer number even with frame generation switched off.

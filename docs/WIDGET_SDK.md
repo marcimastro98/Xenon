@@ -751,6 +751,29 @@ action grant:
 
 `track`, `album`, `artist` and `playlist` URIs only, validated before use.
 
+**Add `contextUri` when the track came from somewhere** (v4.11.8) — an album, a
+playlist, a list the person was looking down:
+
+```js
+action: {
+  type: 'spotifyPlayUri',
+  uri: 'spotify:track:…',            // the track they tapped
+  contextUri: 'spotify:playlist:…',  // what they tapped it inside
+}
+```
+
+Without it, playing a track by its own URI replaces whatever was playing with a
+queue of exactly one song: the track plays and then everything stops. With it,
+the same tap means *play this playlist, starting here*, and the rest of the list
+follows — which is what Spotify's own clients do. There is no separate offset:
+the track in `uri` is where the context starts.
+
+`contextUri` takes an `album` or `playlist` URI and is used only when `uri` is a
+track. Anything else — an artist URI (Spotify cannot start an artist at a chosen
+song), a malformed URI, a `uri` that is not a track — falls back to playing the
+named track on its own rather than playing a *different* song than the one that
+was tapped. So it is always safe to send.
+
 **Why two grants.** Reading is the `spotify` **stream**; controlling playback is
 the `spotify` **action** category, and they are asked for separately on purpose.
 "Control Spotify playback" is play, pause and skip — someone's listening
