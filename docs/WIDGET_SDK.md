@@ -828,10 +828,15 @@ YouTube tile draws, so you get the fields a list needs and one place stays
 responsible for reading Google's shape.
 
 ```js
-video    { id, title, channel, image, seconds, embeddable, published }
+video    { id, title, channel, channelId, image, seconds, embeddable, published }
 channel  { id, title, image }
 playlist { id, title, count, image }
 ```
+
+`channelId` is the channel that **uploaded** the video, not the owner of the
+playlist it was read from (v4.11.8) — hand it straight to `channelVideos` or
+`channelPlaylists` to make the channel name on a row clickable. It is `''` when
+the API did not give one, so test it before drawing a link.
 
 `embeddable: false` means the owner does not allow the video to play outside
 youtube.com — mark it in your list rather than letting someone tap it and find

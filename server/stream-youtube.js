@@ -290,11 +290,25 @@ function createYouTubeProvider(deps) {
     };
   }
 
+  // Which channel a row belongs to. The order matters and is a real trap: on a
+  // playlistItem, `channelId` is the PLAYLIST OWNER's channel, while
+  // `videoOwnerChannelId` is the one that uploaded the video. Reading the first
+  // would send someone tapping a channel name in a playlist to whoever made the
+  // playlist. Same order as the title above, for the same reason.
+  // Validated here so a widget can hand it straight back to channelVideos: an id
+  // that would be refused there is better as an empty string, which a widget can
+  // test, than as a value that fails one call later.
+  function channelIdOf(snippet) {
+    const id = (snippet && (snippet.videoOwnerChannelId || snippet.channelId)) || '';
+    return CHANNEL_ID_RE.test(String(id)) ? String(id) : '';
+  }
+
   function mapVideo(id, snippet, det) {
     return {
       id,
       title: (snippet && snippet.title) || '',
       channel: (snippet && (snippet.videoOwnerChannelTitle || snippet.channelTitle)) || '',
+      channelId: channelIdOf(snippet),
       image: thumb(snippet && snippet.thumbnails),
       seconds: (det && det.seconds != null) ? det.seconds : null,
       embeddable: !(det && det.embeddable === false),
