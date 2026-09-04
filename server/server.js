@@ -18804,7 +18804,7 @@ const handleRequest = async (req, res) => {
       try {
         const p = (body.params && typeof body.params === 'object') ? body.params : {};
         const params = {};
-        for (const k of ['id', 'q', 'pageToken']) {
+        for (const k of ['id', 'q', 'pageToken', 'order']) {
           if (p[k] !== undefined && p[k] !== null) params[k] = String(p[k]).slice(0, 400);
         }
         json(await streamYouTube.query(String(body.op || ''), params));

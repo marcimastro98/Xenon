@@ -431,16 +431,29 @@ function createYouTubeProvider(deps) {
   // library, a widget may want to browse a CHANNEL. All three are 1 quota unit a
   // page — deliberately not search, which is 100.
 
-  // The channels the user subscribes to. Alphabetical rather than `relevance`,
-  // because this is a list to look down rather than a feed to rank.
-  async function subscriptionChannels(pageToken) {
+  // The channels the user subscribes to. Alphabetical by default, because a list
+  // to look down is easier to find a name in than a ranked one.
+  //
+  // `order` is the caller's, though: YouTube's own three are meaningfully
+  // different views of the same list, and a widget offering "YouTube order" has
+  // to be able to ask for it. An order we do not have is REFUSED rather than
+  // quietly replaced with the default — this whole parameter exists because a
+  // widget was showing "Pertinence" over a list that was silently alphabetical,
+  // and answering the wrong question confidently is what caused that.
+  const SUB_ORDERS = Object.freeze(['alphabetical', 'relevance', 'unread']);
+  async function subscriptionChannels(pageToken, order) {
     if (!(await getAccessToken())) return { ok: false, error: 'not_connected' };
     const tok = pageArg(pageToken);
     if (tok === null) return { ok: false, error: 'bad_page' };
-    const key = 'subch' + (tok ? '@' + tok : '');
+    const ord = (order == null || order === '') ? 'alphabetical' : String(order);
+    if (!SUB_ORDERS.includes(ord)) return { ok: false, error: 'bad_order' };
+    // The order is part of the key: the same page number in two orders is two
+    // different lists, and sharing one entry would serve whichever was asked for
+    // first under both names.
+    const key = 'subch:' + ord + (tok ? '@' + tok : '');
     const hit = cacheGet(key, FEED_TTL_MS);
     if (hit) return hit;
-    const r = await apiRequest('GET', '/subscriptions?part=snippet&mine=true&order=alphabetical&maxResults=50' + pageQs(tok));
+    const r = await apiRequest('GET', '/subscriptions?part=snippet&mine=true&order=' + ord + '&maxResults=50' + pageQs(tok));
     if (!r.ok || !r.data) return { ok: false, error: apiReason(r) };
     const channels = (Array.isArray(r.data.items) ? r.data.items : []).map(it => {
       const sn = it && it.snippet;
@@ -503,7 +516,7 @@ function createYouTubeProvider(deps) {
   // list actually draws, and we keep one place where the API's shape is read.
   const QUERY_OPS = Object.freeze({
     subscriptionFeed:    () => subscriptionsFeed(),
-    subscriptionChannels: (p) => subscriptionChannels(p.pageToken),
+    subscriptionChannels: (p) => subscriptionChannels(p.pageToken, p.order),
     searchVideos:        (p) => searchVideos(p.q, p.pageToken),
     channelVideos:       (p) => channelVideos(p.id, p.pageToken),
     channelPlaylists:    (p) => channelPlaylists(p.id, p.pageToken),

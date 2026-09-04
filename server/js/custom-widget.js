@@ -833,7 +833,7 @@
     if (!op) { reply({ ok: false, error: 'bad_op' }); return; }
     const p = msg.params && typeof msg.params === 'object' ? msg.params : {};
     const params = {};
-    for (const k of ['id', 'q', 'pageToken']) {
+    for (const k of ['id', 'q', 'pageToken', 'order']) {
       if (p[k] !== undefined && p[k] !== null) params[k] = String(p[k]).slice(0, 400);
     }
     try {
