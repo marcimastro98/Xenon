@@ -711,6 +711,17 @@ you happen to be holding.
 fields your widget wants and would make Xenon the owner of a schema it does not
 control, so the objects you get are the ones Spotify's Web API documents.
 
+**One exception, and it is a removal rather than a reshaping** (v4.11.8): `queue`
+comes back with the context wrap cut off. Spotify pads that endpoint by looping
+the album or playlist — a five-track album sitting on the third track answers
+with the two that are left and then the whole thing again, and again — and with
+repeat off none of it will play. The rows are still Spotify's own objects; what
+is gone is the part of the list that does not exist. It is only cut when repeat
+and shuffle are both off and the repetition closes on the track playing now,
+which is what tells padding apart from a queue that genuinely repeats a run of
+songs; nothing is ever removed for merely being a duplicate, and nothing is
+reordered. The same normalization the built-in Spotify tile uses.
+
 Four things to expect:
 
 - **`limit` and `offset` are clamped** (50 per page, 100 for `playlistTracks`).

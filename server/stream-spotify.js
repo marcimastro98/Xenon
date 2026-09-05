@@ -822,6 +822,30 @@ function createSpotifyProvider(deps) {
     },
   });
 
+  // One op's raw answer is not the truth, and this is where that gets fixed for
+  // widgets. Spotify pads /me/player/queue by wrapping the context — the tile's
+  // getQueue has cut that since it was reported, but a widget reading the same
+  // thing through the SDK was still handed the padding. The person who reported
+  // it uses the SDK, so the fix that skipped this path missed its own reporter.
+  //
+  // It is not a reshaping — the objects are Spotify's own, as everything here is.
+  // What comes off is the part of the list that will never play.
+  const QUERY_AFTER = Object.freeze({
+    queue: async (data) => {
+      if (!data || !Array.isArray(data.queue)) return data;
+      const p = await getPlayer();                    // cached: usually costs nothing
+      const state = (p && p.ok) ? p : null;
+      return Object.assign({}, data, {
+        queue: normalizeQueue(data.queue, data.currently_playing, state),
+      });
+    },
+  });
+  async function shapeQueryAnswer(name, data) {
+    const after = Object.hasOwn(QUERY_AFTER, name) ? QUERY_AFTER[name] : null;
+    if (typeof after !== 'function') return data;
+    try { return await after(data); } catch { return data; }
+  }
+
   async function query(op, params) {
     // hasOwn, not a plain lookup: `QUERY_OPS.constructor` resolves up the
     // prototype chain to a real function, so `op: 'constructor'` would have
@@ -840,8 +864,8 @@ function createSpotifyProvider(deps) {
     if (inflight) return inflight;
 
     const ttl = QUERY_VOLATILE.has(name) ? QUERY_TTL_VOLATILE_MS : QUERY_TTL_MS;
-    const p = apiRequest('GET', path).then((r) => {
-      if (r.ok) return { ok: true, data: r.data };
+    const p = apiRequest('GET', path).then(async (r) => {
+      if (r.ok) return { ok: true, data: await shapeQueryAnswer(name, r.data) };
       // The two new scopes are the one failure worth naming: a user connected
       // before they existed holds a perfectly valid token that simply cannot read
       // these, and "reconnect" is the fix rather than anything the widget did.

@@ -132,6 +132,43 @@ test('getQueue runs it, with the player state it already had in hand', () => {
     'no extra call: getQueue already reads the player for `reliable`');
 });
 
+// ── Both ways in ─────────────────────────────────────────────────────────────
+// The first fix reached the built-in tile and not the SDK, which is the surface
+// the person who reported it actually uses — so it missed its own reporter.
+
+test("the SDK's queue op is normalised too, not just the tile's", async () => {
+  const raw = {
+    currently_playing: { uri: 'spotify:track:C', name: 'C' },
+    queue: ['D', 'E', 'A', 'B', 'C', 'D', 'E', 'A', 'B', 'C'].map((n) => ({ uri: 'spotify:track:' + n, name: n })),
+  };
+  const player = { is_playing: true, repeat_state: 'off', shuffle_state: false, item: { uri: 'spotify:track:C', name: 'C', artists: [], album: { images: [] } }, device: {} };
+  const file = join(tmpdir(), `xe-q2-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  writeFileSync(file, JSON.stringify({
+    spotify: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6 },
+  }));
+  const p = createSpotifyProvider({
+    clientId: 'cid',
+    tokensFile: file,
+    fetch: async (url) => ({
+      ok: true, status: 200,
+      json: async () => (String(url).includes('/me/player/queue') ? raw : player),
+    }),
+  });
+  const r = await p.query('queue', {});
+  assert.equal(r.ok, true, r.error);
+  assert.deepEqual(r.data.queue.map((x) => x.name), ['D', 'E', 'A', 'B']);
+  assert.equal(r.data.currently_playing.name, 'C', 'everything else is Spotify\'s own, untouched');
+});
+
+test('the rows stay Spotify\'s objects — this removes, it does not reshape', () => {
+  const src = readFileSync(new URL('../stream-spotify.js', import.meta.url), 'utf8');
+  assert.match(src, /const QUERY_AFTER = Object\.freeze\(\{/);
+  assert.match(src, /Object\.hasOwn\(QUERY_AFTER, name\)/,
+    'the same own-keys guard the op table uses — constructor is not a shaper either');
+  const doc = readFileSync(new URL('../../docs/WIDGET_SDK.md', import.meta.url), 'utf8');
+  assert.match(doc, /One exception, and it is a removal rather than a reshaping/);
+});
+
 test('what is deliberately NOT solved is written down', () => {
   // The wrap BEFORE the current track ("A B" above) is still returned. Telling
   // it from a real playlist that runs E then A then B needs the context's own
