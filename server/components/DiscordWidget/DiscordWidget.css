@@ -286,19 +286,24 @@ body.overlay-frozen .dc-pill.in-voice .dc-pill-dot::after { animation-play-state
 .dc-member.is-local-muted .dc-member-name { text-decoration: line-through; text-decoration-color: rgba(237,66,69,0.8); }
 
 /* ── One person's volume, opened under the list ─────────────────── */
+/* Sized to sit under the chip that opened it, not to compete with it: the name
+   is a caption (you just tapped it, and it is highlighted right above), the
+   volume row matches the mic/output rows, and the mute is a chip like the audio
+   ones below — the widget's own vocabulary rather than a new one. */
 .dc-mctl {
-  margin: 0 0 6px; padding: 7px 9px 8px; border-radius: 10px;
-  background: rgba(88,101,242,0.10); border: 1px solid rgba(88,101,242,0.30);
+  margin: 1px 0 6px; padding: 6px 9px 7px; border-radius: 10px;
+  background: rgba(88,101,242,0.10); border: 1px solid rgba(88,101,242,0.28);
 }
-.dc-mctl-head { display: flex; align-items: center; margin-bottom: 4px; }
+.dc-mctl-head { display: flex; align-items: baseline; gap: 6px; margin-bottom: 1px; }
 .dc-mctl-name {
   min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  font-size: 0.7rem; font-weight: 800; color: var(--text, #e7e9ee);
+  font-size: 0.6rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase;
+  color: #a9b0ff;
 }
 .dc-mctl-vol { margin: 0; }
 .dc-mctl-mute {
-  margin-top: 6px; width: 100%; padding: 6px 10px; border-radius: 8px; cursor: pointer;
-  font: inherit; font-size: 0.7rem; font-weight: 700; color: var(--text-dim, #8b91a1);
+  margin-top: 5px; padding: 5px 11px; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 0.68rem; font-weight: 700; color: var(--text-dim, #8b91a1);
   border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.04);
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
