@@ -158,6 +158,31 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Which kind of clock this is, for the moment both are stopped and a stopwatch
+   reading 0:34 looks exactly like a countdown reading 0:34. Sits on the label
+   line so it costs no height, and shrinks nothing: the name still gets the rest
+   of the row and still ellipsises. */
+.timer-kind-mark {
+  width: .78em;
+  height: .78em;
+  margin-right: .34em;
+  vertical-align: -.08em;
+  opacity: .75;
+  flex: 0 0 auto;
+}
+
+/* "every 30:00" beside the name. A chiming stopwatch and a silent one are the
+   same card otherwise, and the difference is whether it will interrupt you. */
+.timer-every {
+  margin-left: .4em;
+  padding: .05em .38em;
+  border-radius: .5em;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  font-size: .82em;
+  font-variant-numeric: tabular-nums;
+  opacity: .8;
+}
+
 .timer-time {
   font-size: 1.15rem;
   font-weight: 600;

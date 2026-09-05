@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { createSelfUpdate, buildZipUrl, pickSingleDir } = require('../self-update.js');
 const { Writable } = require('node:stream');
+const path = require('node:path');
 
 const ROOT = 'C:\\X';
 const DATA = 'C:\\X\\server\\data';
@@ -261,4 +262,52 @@ test('parseSumsEntry(): standard sha256sum line formats, absent or malformed →
   assert.equal(parseSumsEntry(hex + '  other.zip', 'source.zip'), '', 'entry absent');
   assert.equal(parseSumsEntry('nothex  source.zip', 'source.zip'), '', 'malformed digest');
   assert.equal(parseSumsEntry('', 'source.zip'), '');
+});
+
+// "supported: false" is the answer to a question nobody was asking. A supporter
+// pasted {"supported":false,"staged":{"version":"4.11.5"},"lastResult":null} and
+// it told neither of us which of the three preconditions had failed — and each
+// one has a different fix. The reason is now named.
+test('unsupportedReason names which precondition failed', () => {
+  const root = '/install';
+  const applier = path.join(root, 'server', 'update-apply.ps1');
+
+  const mk = (platform, existing) => createSelfUpdate({
+    root, dataDir: '/data', platform,
+    fsImpl: { existsSync: (p) => existing.includes(p) },
+  });
+
+  // The reported shape: Windows, no dev checkout, applier gone. A .ps1 that
+  // copies into the install root is exactly what an antivirus quarantines, and
+  // it survives a reinstall if the quarantine happens again.
+  const gone = mk('win32', []);
+  assert.equal(gone.unsupportedReason(), 'no_applier');
+  assert.equal(gone.supported(), false, 'and supported() still agrees');
+
+  const dev = mk('win32', [path.join(root, '.git'), applier]);
+  assert.equal(dev.unsupportedReason(), 'git_checkout', 'a checkout is told apart from a missing file');
+
+  const alien = mk('sunos', [applier]);
+  assert.equal(alien.unsupportedReason(), 'unsupported_platform');
+
+  const ok = mk('win32', [applier]);
+  assert.equal(ok.unsupportedReason(), '', 'empty when there is nothing wrong');
+  assert.equal(ok.supported(), true);
+});
+
+// The two must never disagree: supported() is now derived from the reason, and
+// a future edit that reintroduces a second copy of the rules would let the
+// dashboard offer an update the applier cannot perform.
+test('supported() is exactly "no reason to refuse"', () => {
+  const applier = path.join('/i', 'server', 'update-apply.sh');
+  for (const [platform, existing] of [
+    ['darwin', [applier]], ['darwin', []], ['linux', [applier]],
+    ['win32', []], ['aix', [applier]],
+  ]) {
+    const su = createSelfUpdate({
+      root: '/i', dataDir: '/d', platform,
+      fsImpl: { existsSync: (p) => existing.includes(p) },
+    });
+    assert.equal(su.supported(), su.unsupportedReason() === '', platform + ' ' + existing.length);
+  }
 });

@@ -4,6 +4,196 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### 🐛 Fixed
+- **Apple Music album art now appears, and the album is back on its own line.** Reported on GitHub with the payload attached: on Windows, Apple Music tracks showed no cover at all, and the artist line read “Artist — Album” with both mashed together. Spotify was unaffected.
+
+  The cover was being fetched correctly every time and then thrown away by a comma. Apple Music describes its artwork with a *list* of equivalent format names, and Xenon passed that list on whole — but in the address a picture travels in, the first comma ends the format name, so the browser read everything after it, the picture included, as ordinary text and never turned it back into an image. A perfectly good photo, lost to punctuation.
+
+  That one comma cost the cover twice: because a broken address still counts as *an* address, it also switched off the backup that looks the artwork up online, and the accent colour Xenon takes from the cover quietly gave up on every track. All three work again, and the cover you get is the real one from the app rather than a lookup that might find the wrong release.
+
+  Apple Music also puts the album into the artist field and leaves the album blank. It is now split back into two, at the first long dash — which is where Apple joins them, the artist always coming first. Only when the app sent no album of its own, and only for Apple Music: elsewhere an artist whose name contains a long dash is left exactly as it arrived.
+
+- **The Twitch widget's live list now refreshes on its own.** Reported on Discord: “I can't refresh the live channels — channels that went offline are still shown as live, and channels that just went live don't appear.”
+
+  The widget checks in with Twitch every minute and always has. It just never asked for the list again: it fetched the channels once when the tile appeared and then only ever re-used what it already had, so the timer ran for hours with nothing to do. Whoever was live when you opened the dashboard stayed lit until you switched tabs or reloaded the page.
+
+  The list is now genuinely re-read each minute, quietly — no spinner blinking behind you, and if a check fails the list that was right a minute ago stays on screen instead of being replaced by an error. Search results are left alone, since those are what you asked for rather than a live feed. Widgets granted the Twitch watching data get the same fix for free: they were being handed the same frozen list.
+
+- **A Browser tile no longer freezes when the dashboard is open in two places at once.** Reported on GitHub with a camera stream that stopped after a while: with the dashboard on the Xeneon Edge *and* in a browser window on the PC, one of the two Browser tiles held its last picture and never moved again. Closing either dashboard brought the other back to life, and after a restart the roles could swap.
+
+  Each screen opens its own page for the tile, on purpose — they can be different sizes, so they cannot share one. Those pages were opened as tabs of a single window, and a browser only draws the tab in front. The tile's picture comes from a stream of frames, and a page nobody is drawing produces none: whichever screen opened last took the front and the other simply stopped receiving. It never looked like an error, because there was nothing to report — only a picture that had stopped being replaced.
+
+  Every tile now gets a window of its own, so no screen can be behind another. Measured on the way in and out: two tiles on a page that redraws constantly went from 0 and 23.7 frames a second to 24.0 and 23.8, and three screens at three different sizes now hold their own rate through a resize.
+
+  It also explains the half-height picture in the same report. A frozen tile keeps showing whatever it was showing, so a tile resized in the meantime still displayed the page laid out for its old size — which is why hiding and showing the toolbar appeared to be the cure, while reloading the page did nothing at all.
+
+- **Setup now says what went wrong, instead of closing on a red line.** Reported on GitHub as a screenshot of the black window with *“The term 'cmd' is not recognized”*, from a PC where that program is exactly where Windows keeps it. The list of folders Windows searches had lost `C:\Windows\System32` — which happens on its own when a long list is edited past the length the old settings dialog can store, or when a “debloat” script rewrites it — and setup was asking for its tools by name.
+
+  Setup no longer asks. It reaches Windows' own tools where they live, and each setup script puts that folder back on its own search list for as long as it runs, changing nothing on the PC. Four more ways in used to end the same way, in a window that closed over the reason: a declined administrator prompt exited without a word, a missing PowerShell reported a file not found three times, running the installer from a network folder carried on from the wrong place, and double-clicking it inside the downloaded .zip — where Windows unpacks that one file alone — reached a check that had nothing to say about zips. Each now names itself and the fix.
+
+  A last one that was a genuine crash rather than a bad message: a Windows user name containing an apostrophe, which is allowed and does happen, broke the line that asks for administrator rights.
+
+- **The time format you chose is now used everywhere, not only on the clock.** Settings → Clock → Time format has been there for a long time and reached exactly two places: the dashboard clock and the lock-screen clock. Every other hour Xenon printed asked the *language* instead — so if you set 24-hour and read English, the clock said 21:30 while the calendar right beside it said 09:30 PM.
+
+  Eleven places were ignoring it: the calendar and its Upcoming list, the agenda, the Ambient scenes, the lock screen's event list, the football fixtures, the stock ticker, the Discord widget and the weather timestamp. They all go through one shared formatter now, and a test fails the build if a twelfth ever decides for itself.
+
+  Reported on Discord by Piotr as a missing option on the Calendar widget. The option already existed; it was simply not being listened to.
+
+### ✨ Added
+- **Widgets can read clock speeds and your frame rate.** Asked for by someone building a monitoring widget who had run out of numbers to draw: Xenon knew the CPU and GPU clocks and the frame rate in a game, and none of it reached the widgets people write.
+
+  Four readings join the system data any widget can already be granted — CPU clock, GPU core clock, GPU memory clock, and frames per second. There is no new permission to approve: a widget you have already allowed to see system data can use them, and one that has not been allowed still sees nothing.
+
+  They cost nothing to collect. Every one of them rides a reading Xenon was already taking on the same tick, so a dashboard showing them does no more work than one that does not, and the rate everything arrives at is unchanged — the sensors underneath are the expensive part, and speeding them up is a decision that belongs to you in Settings rather than to a widget.
+
+- **A stopwatch, in the same tile as the timers.** Leave the duration empty and press +: instead of a countdown you get a clock that counts up, for measuring how long something actually took. Pause, resume, reset, keep and delete are the buttons you already know, because underneath it is the same clock — only running the other way.
+
+  There is no second button to learn, and the duration field carries the whole vocabulary: `5` is a countdown, empty is a stopwatch, and **`+5` is a stopwatch that chimes every 5 minutes**. That last one arrived from the same thread, where an "interval timer" turned out to mean exactly this: it counts up and sounds an alert at intervals, for stretching breaks. It is not a third kind of clock, so it costs one character rather than a control.
+
+  A stopwatch never rings for having finished, since it has no end to reach, and it interrupts you only if you asked it to. The alert reaches your phone the same way a finished timer does, a missed hour of them wakes you to one notification rather than four, and pausing or resetting silences it. A small mark before the name tells a stopwatch from a countdown when both are paused, and a chiming one shows how often beside it. There is a Deck action, with the interval as an optional field, and the assistant reports the time spent when you ask what is running.
+
+  Asked for on Discord, alongside an interval timer that is deliberately not here yet.
+
+- **You choose what the Upcoming list shows.** Settings → Calendario now has two controls: how many events the tile lists (3, 5, 8 or 10) and how far ahead it looks (no limit, 7, 14 or 30 days).
+
+  This came from a request for "a custom date range", saying the widget shows the next two weeks. It never did: it took the next **five** events and their dates fell wherever they fell, so a quiet fortnight put an eleven-day chip on screen and that looked like a rule. The count was the only limit there was, and it was not adjustable either. Now both are, and the days are counted the way a person counts them — a 7-day horizon set at 11pm still includes an event seven sleeps away at 8am, which counting 7×24h would have dropped.
+
+  Leaving both alone keeps exactly what Xenon did before: five events, no horizon.
+
+- **Voicemeeter, from the inside.** Windows shows Voicemeeter's virtual cards like any other sound device, so Xenon could already pick one and set its volume. What it could not reach was anything *inside* the mixer, which is the part people actually bind to a key: the gain of one strip, its mute, and the A1/A2/B1/B2 buttons that decide where each source goes. Asked for on Discord by a supporter running Potato, with three other tools doing it for reference.
+
+  There are now seven Deck actions under **Voicemeeter**: mute a strip, strip volume, send a strip to a bus, mute a bus, bus volume, press a macro button, and one free-form action that sets any parameter the mixer has. That last one is not a leftover: every control in Voicemeeter is a named parameter, so the EQ, the compressor, the gate, the patch and the recorder are all reachable today without waiting for a release per knob.
+
+  The strip and bus pickers are filled from the mixer that is actually running, so the list is as long as your edition and no longer: Voicemeeter has 3 strips and 2 buses, Banana 5 and 5, Potato 8 and 8. A key stores a bus by its **label** (A1, B2) rather than by its number, because the number behind a label moves between editions — B1 is bus 1 on Voicemeeter, bus 3 on Banana and bus 5 on Potato — and a key that stored the number would quietly start muting a different output the day its owner upgraded. An index the running mixer does not have is refused where you can see it, rather than written into nothing.
+
+  Nothing is loaded on a machine without Voicemeeter, the category is not offered there at all, and volume set on a key is clamped to the fader the mixer really has (−60 to +12 dB) instead of being silently clamped later.
+
+  A key that cannot run says why in your own language: Voicemeeter not installed, installed but not open, a strip or bus your edition does not have, a value it will not take. Before this the toast showed the raw code.
+
+  **Installed widgets can use it too.** `voicemeeter` is a new SDK permission, so a widget you install can drive the mixer once you grant it, and a new `voicemeeter` data stream pushes the live state — mute, gain and the routing flags per strip, mute and gain per bus — so a widget can draw real faders instead of blind buttons. The free-form parameter action is deliberately not part of that grant: it can name anything the mixer has, including "shut down Voicemeeter", and that stays a Deck-key privilege. The stream is read from the mixer's own change flag and only while a dashboard is open, so it costs nothing when nobody is looking.
+
+- **Xenon asks for support once, and only once.** There has been a donate button since the beginning — in the app, on the site, on GitHub, on Discord — and it has never asked for anything, so only people who went looking ever found it. Now it asks, one time in the life of an installation, and then never again.
+
+  It waits until the question is a fair one: thirty days after your first run **and** ten separate days of actually opening the dashboard. Someone who has come back on ten different days over a month has decided Xenon is useful; anyone earlier is still deciding, and asking them is asking a stranger for money. Days are counted when a dashboard opens, not when the engine starts, so a PC that runs it at logon and never gets looked at earns no credit.
+
+  It never appears for someone who already supports the project, never over a voice session, the lock screen, a game or an Ambient scene — it simply does not come up that day — and it makes no sound and blocks nothing. It is the same small card as the Discord invite, in the same corner, dismissed the same way. And because "once" has to mean once, the answer is kept on your PC rather than in the browser: clearing your browsing data will not bring it back.
+
+  The card says what is true — one person writes this, in their spare time, with no ads, no investors and no paid version, and that is not changing — and then what supporting gets you: the exclusive themes and widgets, a role on Discord, your name on the site. **A few euros a month is the offer**, with a one-off beside it; until now the only framing was "buy me a coffee", which is a one-off by its nature.
+
+  There is also a third, quieter button: *I already support Xenon*. Xenon can only see supporters who have redeemed their pass in the app, so somebody who gave and never claimed their perks would otherwise be asked for money they already send. That button silences the card for good and takes them to where they can finally claim what they paid for.
+
+### 🐛 Fixed
+- **The Deck action list opens when you ask it to, and closes when you pick something.** Reported on macOS: pressing "+ Add action" in the key editor made the list of actions appear on its own, and choosing an option from it left the list open instead of collapsing.
+
+  One press was producing two clicks. Pressing "+ Add action" rebuilds the whole list of actions from scratch, right there inside the handler for that press — and when the thing under your finger is replaced mid-click, the browser fires a second click at whatever has taken its place. What had taken its place was the dropdown that rebuild had just created, so it opened itself. Picking an option rebuilds the list the same way, so the second click re-opened it the instant it closed: from the outside, a list that will not collapse.
+
+  A control now ignores a click belonging to a gesture that happened before it existed, which is exactly what those stray clicks are — they carry the timestamp of the press that created the control. No delays and no guessed thresholds: a click from before something existed was not aimed at it. Deliberate clicks, keyboard use, and anything driving the control from code all behave exactly as before.
+
+  Reproduced against the real dashboard in a browser before it was changed, and verified there afterwards, in both engines.
+
+- **A fix to the updater now helps the update that carries it, instead of the one after.** This is the reason the entry above ends with "reinstalling once will fix it", and it should not have needed to.
+
+  An update is applied by the copy of the updater already on your PC — it has to be, because the new one arrives in the middle of the job. So a repair to that updater has always taken effect one update late: the people it was written for could not receive it by updating, because the step it repairs is the step that fails for them. That is exactly what happened with the dependency failure above.
+
+  There is one moment where the work can safely change hands: after the new files are in place, which is when the new updater is sitting on disk, and before anything that depends on what the first half did. At that point, if the update brought a *different* updater, it is handed the rest of the job.
+
+  It is built to be boring. If the updater is unchanged — almost every update — it is one comparison and nothing else happens. Exactly one process is ever in charge: the first waits for the second rather than letting go, so there is never a moment with two of them running, or none. The second announces itself before it does anything at all, so "it took over and something went wrong" can never be confused with "it never started", and if it truly never starts the first one simply carries on as it always did. And it runs with the permissions already granted, so no second Windows prompt can appear.
+
+- **A Deck key now works with an app or folder whose name has spaces in it.** Reported on a Mac: an "Open app" key pointing at an application with spaces in its name did nothing, and renaming the application to remove them made the same key work.
+
+  Launching was never the problem. The trouble is what ends up in the field. The ordinary way to get a path on a Mac is to drag the file into Terminal, and what that writes is `/Applications/Epic\ Games\ Launcher.app` — every space escaped, because it is meant for a shell. Some copy tools wrap the whole thing in quotes instead. Either way the text names a file that does not exist, so the key fails forever while the field looks exactly right, and the only workaround is a name with no spaces in it.
+
+  Windows has had the matching fix for a while: paths copied from File Explorer arrive wrapped in quotes, and those get stripped. The Mac and Linux equivalent was missing, and it is a little more careful, because a backslash and a quote are both legal in a filename there — so it is settled by the disk rather than by the characters. A path that already points at something real is never reinterpreted, and a rewritten one is only used when it actually exists. It applies to app keys, file and folder keys, and script keys alike.
+
+- **Updating no longer fails on the machines where installing was fixed in v4.11.6.** Reported with a screenshot of "dependency installation failed", and it turned out to be a bug we had already found once and only half-fixed.
+
+  One of the packages Xenon depends on ships a guard that deliberately fails installation unless a particular tool is doing the installing. On most PCs a helper quietly satisfies that guard and nobody notices. On a PC missing one specific folder — it only exists once you have installed something globally, and cleanup utilities delete it — the helper itself cannot start, the guard fails, and the whole install is aborted half-written. That is the broken install v4.11.6 fixed, by telling the installer to skip those scripts entirely.
+
+  The updater was never told the same thing. So on exactly those PCs a fresh install worked perfectly while every in-app update walked into the same wall, failed at that step, and rolled back cleanly — which made a bug we shipped look like something wrong with one person's computer. Both now install the same way, and the updater also runs the one build step that skipping scripts skips.
+
+  **If this is happening to you, updating into this version will not fix it — reinstalling once will.** The update is applied by the copy of the updater already on your PC, so the corrected one only takes effect from the update *after* you are running it. Download this release and run its installer over your existing setup: it keeps your settings, widgets and layout, and it is the last time this is needed.
+
+- **A failed update now tells you what actually went wrong, in the words of the thing that failed.** Reported with a screenshot of the whole message we had: *"The update could not be applied and your previous version was restored (dependency installation failed)."* True, and useless. That same sentence appears whether the PC is offline, sitting behind a company proxy, out of disk space, or has an antivirus holding a file open — four situations with four different fixes, and no way to tell which one you are in.
+
+  Part of an update is fetching the pieces the new version needs, and that job is done by npm, which prints exactly what went wrong. It printed it to a window nobody sees: the step was run with its output going nowhere at all. So we had the name of the stage that failed and threw away the reason it failed, on the one screen where the reason was the entire question.
+
+  It is kept now. The full transcript is saved next to the update log, its last lines go into that log, and npm's own one-line summary is shown right after the reason on the failure dialog — untranslated, because those are a tool's own words and they are what you paste to someone who can help. If the recovery afterwards hits its own trouble, the message still describes the failure you are looking at rather than the recovery.
+
+- **Deck keys that outlived their tile can be brought back, instead of only thrown away.** Following the reset above: when a dashboard is replaced, the Deck tiles on it go too — and every key programmed on them becomes unreachable while still sitting safely on disk. The reporter went looking and found a profile list holding one default and several same-named copies, none of them the one he had built.
+
+  Three rules had grown up around this, each sensible on its own. A leftover deck configuration is only deleted automatically when it is empty, deliberately, because keys are data and data is not thrown away quietly. Leftovers are hidden from the profile menu, so a deck you removed does not haunt the list of the ones you kept. And the profile menu offered exactly one thing to do about them: a button that deletes them.
+
+  Together those made a trap. The keys were kept, hidden, and the only action available was the one that destroys them. The profile menu now lists them — under "From a Deck no longer on your dashboard" — and tapping one copies it into the deck you are looking at, which is the same one-tap move that already existed for a profile on another deck. Each row shows how many keys it holds, because after a reset the list routinely holds two profiles with the same name, one empty and one with the work in it, and the number is the only thing that tells them apart. It is not hidden behind edit mode: recovering something you lost is not editing a layout.
+
+  The delete button is still there, and now says what it costs — how many programmed keys go with it, and that they do not come back. When there is nothing to lose it stays as calm as it was.
+
+- **Xenon now notices when something stops it starting with Windows — and repairs what it can.** Reported by someone whose dashboard kept going quiet: *"something keeps disabling the requirements in task scheduler."* He had spent days reporting features that had stopped working. They had not: the engine behind them was simply not running, and nothing anywhere said so.
+
+  Xenon starts through an entry in Windows' own Task Scheduler, and the installer sets three things on it on purpose. Start while on battery, because otherwise unplugging a laptop closes the dashboard and looks like a crash. Do not stop when the charger comes out, for the same reason. And no time limit, because Windows otherwise ends the task after three days — a program meant to run all day, stopped by a stopwatch. Those three were checked once, at install, and never again.
+
+  The engine now checks its own startup entry shortly after it starts and every few hours after that. Those three conditions are ours, so if something has changed them they are put back, and you are told it happened — the app changed a setting on your PC and should say so. Whether the entry is switched **on** is not ours: Windows offers you that switch in Task Manager, and flipping it back behind you would be overriding a real choice. So that one is reported instead, and it stays on screen until you dismiss it, because it is the one that costs you the whole next session: it says Xenon will not start when you next sign in, that Xenon never switches itself off, and exactly where to turn it back on.
+
+  A machine with no such entry — a developer checkout, a portable run, a Mac — is left entirely alone and says nothing.
+
+- **A settings save can no longer replace your whole dashboard with the factory one.** Reported on a Mac after an update: the layout back to the factory default, the Deck tile gone with it — and the theme unchanged, the connected Google Calendar still there, every installed widget still installed, and the settings file itself sitting where it belongs. One thing in that file had reverted while everything beside it survived untouched.
+
+  Xenon stamps the saved layout with a format number, so that a build which changes the layout format can replace an incompatible one instead of drawing it wrong. That is a one-time step on an upgrade — but the check had been written into the routine that runs on *every* save, and it read the number off the arriving save rather than off the file on disk. Any save that did not carry it therefore read as "format 0": the entire dashboard was replaced by the default, every other setting in the same save was kept, and the file was then re-stamped with the current number, so nothing was left to find afterwards.
+
+  A save that does not carry the number now inherits the one already stored — the same rule this app already applies to paired-device access, your transfer folder and several other settings that only one screen knows about. An absent value means "this writer does not model it", never "set it back to zero". What can legitimately be old is the layout on the disk, and that is what the upgrade step is now judged against.
+
+- **And when that upgrade step really does run, your old layout is kept.** It was the one destructive thing in Xenon that was neither confirmed nor reversible: it happens at startup, without asking, and you find out by looking at your screen. The layout it replaces is now copied to `dashboard-layout.backup.json` in your Xenon data folder before anything writes over it, the startup log says so and says where, and the pictures you had set on your tiles are protected from the cleanup that would otherwise sweep them on the next save — a backup that restores the tiles and loses every image on them is worth less than it looks.
+
+- **"Reset all settings" now asks first, and says what it takes.** Mentioned in passing on Discord by a supporter, while he was helping us debug something else: *"yesterday I reset Xenon by error and lost everything."*
+
+  It fired on a single click. No dialog, nothing to cancel — and from the accent-coloured button at the bottom of the settings panel, directly under "Restart Xenon", whose own hint promises in so many words that nothing will be lost. The harmless button was the one asking for confirmation; the irreversible one was not.
+
+  "Settings" also undersold it. The dashboard layout and the calendar feeds survive. What does not: the widget assigned to every tile and the permissions you granted it, your list of installed content, your saved page presets, and every custom theme, background and Ambient scene you made. That is why the person who pressed it did not describe the result as losing his settings.
+
+  It now asks, in the destructive colour, with Cancel focused rather than the button that does the thing — and the question lists what goes and what stays, including the part that matters most afterwards: your widgets are still installed on the PC and can be assigned back. A line under the button says the same before you ever press it.
+
+- **A widget could install, report success, and then not exist.** Reported by a supporter who installed the same widget three times: the Store said "Installed" each time, three receipts were recorded, and the tile picker never listed it. He went further than we could have asked — he opened the engine's own package list in a browser and searched it for the name. Not there either: not as a widget, and not as a package that had failed to load. Then he put the folder in place by hand, with exactly the same result.
+
+  The engine loads a bounded number of installed packages. Reaching that number stopped the scan dead — and every package past it was installed, valid, sitting on disk, while being absent from the widget list, absent from the failed-to-load list, and therefore absent from the picker, the palette and the Store's idea of what you own. Nothing was logged, nothing was counted, and the only visible symptom was a list that was shorter than the truth, which is indistinguishable from a smaller collection. Folders are read in name order, so it was always the same alphabetical tail that disappeared — which is why one particular widget was unfindable while everything else worked.
+
+  The limit is now far above what a real collection reaches, so this stops happening at all. And reaching it is no longer silent: the engine counts what it left out and the widget picker says how many installed widgets are beyond the limit, on the same panel where you are looking for the one that is missing.
+
+- **The engine now writes down which settings store it started on.** Reported on a Mac: "the visual layout is back to the factory default — after an update the screen was loaded with many different widgets." Three different things produce that screen. The saved layout was replaced; the saved layout was never read; or this installation is reading a different data folder than the one the layout is in. From the dashboard they are identical, and nothing on the machine said which had happened — so there was no way to answer the question, and no way to tell the person whether rebuilding their dashboard by hand was the right move or the one thing that would destroy it.
+
+  The engine knows: it reads settings.json a second after it starts. It now writes one line about it into the same `server.log` the rest of the startup story is already in — the file was loaded (with its revision and store id), or there was no file there and this run begins from the factory defaults. The full path is part of the line, because a second installation pointed elsewhere is the other way that screen appears, and the log is then the only place that says so.
+
+  And the failure in the middle is no longer silent. A settings file that exists but cannot be read — a permission the system took away, a half-copied folder — used to be swallowed whole: the engine ran on factory defaults with the transfer limits, the network binding and the lighting configuration all unapplied, while every attempt to save was refused for the same reason. Factory defaults you cannot even change, with nothing said anywhere. It is now the loudest line in the log, and it ends with the advice that matters at that moment: do not re-create your setup yet, the real one is still on disk.
+
+- **A Deck key that fails now tells you why, instead of only flashing red.** Reported by someone setting up an "Open app" key: the path was a real application, correctly spelled, and pressing the key flashed red and did nothing else. There was no way to tell a path that does not exist from one the system refuses to launch from an app that simply would not start.
+
+  The reason was always there. The dashboard asks the engine to run the action, the engine answers with both a yes/no and a reason — and the dashboard read the answer, kept the yes/no, and dropped the reason on the next line. It now shows it: the key still flashes, and a short message names what went wrong. A reason we have no wording for appears as its raw code rather than as nothing, because that code is what belongs in a bug report.
+
+  Repeats of the same message collapse for a few seconds, so a slider being dragged against a broken action cannot bury the screen — but a *different* failure still comes through straight away.
+
+- **An install that cannot update itself now says which part is missing.** Following the report above: the status page answered `supported: false` and stopped there, which told the person holding the machine — and us — equally little. Three different situations produce that answer and each has a different fix.
+
+  It now names the one in effect: a developer checkout, an operating system with no applier, or the applier script itself missing from the install. That last one is worth knowing about, because a PowerShell script whose job is to copy files into the install folder is exactly the sort of thing an antivirus quarantines — and a quarantine survives reinstalling, which is why the app can look permanently stuck one version behind. The reason travels with the failure message too, so it can be read off the screen without opening anything.
+
+- **The empty artwork box no longer claims nothing is playing.** Reported with a screenshot of the Playback tile: the source, the track, a running position and working transport buttons — and, where the cover goes, the words "No Media".
+
+  That box is only ever visible when a track has no picture; a cover hides it the instant one loads. So it had exactly one thing to say and said something else, which is how an ordinary missing cover reads as a broken player. It now says "No artwork", and it says it in your own language — it was the one string in that panel written straight into the markup, so it had stayed English everywhere.
+
+- **On a Mac, a Deck key that opens an app now works with the path macOS shows you.** Reported by someone trying Xenon on a Mac: folder keys and URL keys worked, and every "Open app" key did nothing.
+
+  macOS hides the `.app` extension. Finder says "Helium", Get Info says "Helium", the Applications folder says "Helium" — so the path you type is `/Applications/Helium`, which is not an app and not a file. The key was refusing it, correctly and silently.
+
+  It now completes the name when the bundle really is there. `/Applications/Helium` finds `/Applications/Helium.app` and launches it. Nothing else opened up: the completed path still has to be a real `.app`, a name that already carries an extension is left alone so a document can never become an app, and Windows and Linux keep exactly the rules they had.
+
+- **An update that cannot be applied now says so, instead of restarting the app and changing nothing.** Reported with a screenshot: "Update available · v4.11.6" sitting over "Xenon v4.11.5", and pressing Update relaunched the app to exactly the same pill.
+
+  Xenon is two pieces — the shell your PC launches, and the dashboard engine behind it — and the version you see is the engine’s. The updater asks the engine first whether it can replace itself. It already handled the engine not answering at all, but when the engine answered "no" it quietly skipped that half and updated the shell alone: a download, a restart, and the same version on screen, which from the outside is a button that does nothing.
+
+  It now stops there and tells you the installation cannot update itself, with the reason, instead of restarting into the same screen. Reinstalling is deliberately not offered as the cure: the setup script bails out the moment it sees a backend already running, so running it over a working install replaces the shell and leaves the dashboard exactly where it was. Nothing else about the flow changed — an installation that can update itself never reaches this path.
+
+- **A widget that installs but does not load now says so, instead of just not being there.** Reported by a supporter who installed Workload, saw "Installed" in the Store, then typed its name into a tile’s widget picker and got "No widget matches this search."
+
+  The two surfaces were reading different things. The Store answers from the install receipt; the picker lists what the engine accepts when it rescans the widgets folder. A package whose files land but whose manifest fails that scan is installed and invisible at the same time, and the failure looked exactly like a search that found nothing.
+
+  The engine had been reporting those folders all along — one entry per folder, each with a reason — and the dashboard fetched that list, cached it, and never showed it. It is now under the picker, naming each package and why it was skipped: a missing manifest.json, one that could not be read, a missing entry file, or a widget built for a different SDK version. A reason we have no sentence for still appears as its raw code, because that code is what belongs in a bug report. The notice sits outside the search filter on purpose — the moment it matters is when a search has just emptied the list.
 
 ## [v4.11.6] - 28-08-2026
 ### ✨ Added

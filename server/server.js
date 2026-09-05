@@ -88,6 +88,7 @@ const { createStreamerbot } = require('./actions/streamerbot');
 const { createHomeAssistant, normalizeHomeAssistant, preserveHaToken, redactHaToken } = require('./actions/home-assistant');
 const { createChroma } = require('./actions/chroma');
 const { createWaveLink } = require('./actions/wavelink');
+const { createClient: createVoicemeeter } = require('./actions/voicemeeter');
 const { createEmbeddedBrowser, findEdge } = require('./embedded-browser');
 const browserAdblock = require('./embedded-browser-adblock');
 const { createBrowserSurfaceSync } = require('./browser-surface-sync');
@@ -132,6 +133,7 @@ const remoteControlTailscale = require('./remote-control/tailscale');
 const remoteControlInstaller = require('./remote-control/installer');
 const { createSelfUpdate } = require('./self-update');
 const { createHelperUpdate } = require('./helper-update');
+const startupTask = require('./startup-task');
 const { createTwitchProvider } = require('./stream-twitch');
 const { createDiscordProvider } = require('./discord-rpc');
 const { createYouTubeProvider } = require('./stream-youtube');
@@ -494,7 +496,7 @@ function buildCoreAiFunctions() {
           label: { type: 'STRING', description: 'Short label for the timer, e.g. "Pasta", "Break", "Meeting"' },
           duration_secs: { type: 'NUMBER', description: 'Duration in seconds (e.g. 300 for 5 minutes, 3600 for 1 hour)' },
         }, required: ['duration_secs'] } },
-        { name: 'list_timers', description: 'List all active timers and their remaining time', parameters: { type: 'OBJECT', properties: {} } },
+        { name: 'list_timers', description: 'List all active timers and stopwatches: a countdown reports remaining_secs, a stopwatch reports elapsed_secs', parameters: { type: 'OBJECT', properties: {} } },
         { name: 'delete_timer', description: 'Delete a timer by its id', parameters: { type: 'OBJECT', properties: {
           id: { type: 'STRING', description: 'Timer id to delete' },
         }, required: ['id'] } },
@@ -1327,7 +1329,7 @@ async function sdkPackagesCached() {
 }
 async function refreshSdkScan() {
   const scan = await sdkWidgets.listPackages(SDK_WIDGETS_DIR);
-  _sdkScanCache = { at: Date.now(), packages: scan.packages, invalid: scan.invalid };
+  _sdkScanCache = { at: Date.now(), packages: scan.packages, invalid: scan.invalid, skipped: scan.skipped || 0 };
   return _sdkScanCache;
 }
 
@@ -2613,8 +2615,15 @@ function normalizeGpuFans(raw) {
     .map(f => ({ name: String(f.name || 'GPU Fan').slice(0, 48), rpm: Math.round(collectorNum(f.rpm)) }));
 }
 
-let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, vramUsed: null, vramTotal: null, gpuWatts: null, gpuFanRpm: null, gpuFanPct: null, gpuFans: [], updatedAt: 0 };
-let cpuTempCache = { cpuTemp: null, fans: [], cpuWatts: null, psuWatts: null, sensorAccess: null, updatedAt: 0 };
+// The chosen cadence, live. Read per tick and per cache check rather than
+// captured once, so changing it in Settings takes effect on the next reading
+// instead of at the next restart.
+function sensorRateMs() {
+  return normalizeSensorRate(_serverHubSettings && _serverHubSettings.sensorRateMs);
+}
+
+let gpuCache = { gpu: null, gpuName: null, gpuTemp: null, vramUsed: null, vramTotal: null, gpuWatts: null, gpuFanRpm: null, gpuFanPct: null, gpuFans: [], gpuClockMHz: null, vramClockMHz: null, updatedAt: 0 };
+let cpuTempCache = { cpuTemp: null, fans: [], cpuWatts: null, psuWatts: null, cpuClockMHz: null, sensorAccess: null, updatedAt: 0 };
 // Why the LHM-backed sensors (fan RPM, CPU/PSU watts) are unavailable, so the
 // widgets can give the one hint that helps instead of guessing.
 const SENSOR_ACCESS = new Set(['ok', 'needs_admin', 'missing']);
@@ -2935,6 +2944,92 @@ function fetchJson(url, timeout = 2500, extraHeaders) {
     req.on('timeout', () => { req.destroy(new Error('Artwork lookup timeout')); });
     req.on('error', reject);
   });
+}
+
+// ── What the media hosts hand us, made usable ───────────────────────────────
+// Reported as issue #128, on Apple Music for Windows: the cover never rendered
+// and the album title was mashed onto the artist line. Both hosts build the
+// payload from Windows' own media session, and both faults are in what that
+// session reports rather than in anything Xenon decided.
+//
+// This runs on the way in, in ONE place, for whichever host answered — and it
+// is also what fixes the artwork for people who already have xenon-helper.exe
+// installed: that is a compiled binary refreshed on release, so a fix made only
+// inside it would reach nobody until they update.
+
+// Some apps report a thumbnail's content type as a comma-separated LIST of
+// equivalent types — Apple Music sends `image/jpeg,image/jpe,image/jpg`. In a
+// data URI the FIRST COMMA ends the media type, so pasting that in whole
+// produces `data:image/jpeg,image/jpe,image/jpg;base64,…`, where the browser
+// reads the type as `image/jpeg` and everything after that comma as ordinary
+// text. It never base64-decodes it, so a perfectly good JPEG is thrown away by
+// a punctuation mark. Repaired rather than dropped: the real cover has already
+// been read off the session, and falling back to iTunes would replace it with a
+// lookup that can miss or return the wrong release.
+const DATA_URI_HEAD_RE = /^data:([^;,]*(?:,[^;,]*)*);base64,/i;
+const IMAGE_MIME_RE = /^image\/[A-Za-z0-9][A-Za-z0-9.+-]*$/;
+function repairThumbnail(raw) {
+  const v = typeof raw === 'string' ? raw : '';
+  if (!v) return '';
+  if (/^https:\/\//i.test(v)) return v;                    // a CDN cover (iTunes, Apple's mzstatic)
+  const m = DATA_URI_HEAD_RE.exec(v);
+  if (!m) return '';                                        // not a shape a browser will decode
+  const first = String(m[1] || '').split(',')[0].trim();
+  const type = IMAGE_MIME_RE.test(first) ? first : 'image/jpeg';
+  const body = v.slice(m[0].length);
+  if (!body) return '';
+  return 'data:' + type + ';base64,' + body;
+}
+
+// Apple Music packs "Artist — Album" into the artist field and leaves the album
+// empty, so the dashboard showed both on one line and had no album at all.
+//
+// Split at the FIRST em dash, which is where Apple's convention puts the join:
+// the artist comes first. This shipped as "split only when there is exactly one
+// dash", on the reasoning that with two there is no telling which one separates.
+// The reporter answered that with numbers, and they are one-sided enough to
+// settle it — about 22,000 Apple catalogue rows, weighted toward the genres that
+// use long dashed titles:
+//
+//   artist names containing an em dash    0
+//   album titles containing an em dash    2   (a Netflix soundtrack, and an
+//                                              Ólafur Arnalds reworks album)
+//
+// So the case "exactly one" declines on is real and recurring — every track of
+// "Tom Holkenborg — Rebel Moon — Part One: …" has two — while the case
+// first-dash gets wrong could not be found at all. The near misses are mostly
+// OTHER characters (en dash, the katakana prolonged mark) that neither rule
+// keys on, so the em dash is a narrow signal and this is a narrow use of it.
+//
+// Still scoped to Apple Music: this is their convention rather than a fact about
+// media sessions, and an artist elsewhere whose name genuinely reads "A — B"
+// must be left alone.
+const APPLE_MUSIC_RE = /AppleMusic/i;
+const EM_DASH_SPLIT = ' \u2014 ';
+function splitAppleArtist(data) {
+  if (!APPLE_MUSIC_RE.test(String(data.source || ''))) return;
+  if (String(data.album || '').trim()) return;
+  const artist = String(data.artist || '');
+  const at = artist.indexOf(EM_DASH_SPLIT);
+  if (at < 0) return;
+  const left = artist.slice(0, at).trim();
+  const right = artist.slice(at + EM_DASH_SPLIT.length).trim();
+  if (!left || !right) return;
+  data.artist = left;
+  data.album = right;
+}
+
+function normalizeMedia(data) {
+  if (!data || typeof data !== 'object') return data;
+  if ('thumbnail' in data) {
+    const fixed = repairThumbnail(data.thumbnail);
+    // Empty rather than a broken string: hydrateArtwork only looks up artwork
+    // when there is none, so a thumbnail a browser cannot decode used to defeat
+    // the fallback as well as the cover — one comma closing both routes.
+    data.thumbnail = fixed || null;
+  }
+  splitAppleArtist(data);
+  return data;
 }
 
 async function hydrateArtwork(data) {
@@ -3860,7 +3955,7 @@ function getCpuName() {
 
 async function getCpuTemp() {
   const age = Date.now() - cpuTempCache.updatedAt;
-  if (age < 5000) return cpuTempCache.cpuTemp;
+  if (age < sensorRateMs()) return cpuTempCache.cpuTemp;
   if (cpuTempPending) return cpuTempPending;
 
   cpuTempPending = (async () => {
@@ -3883,6 +3978,10 @@ async function getCpuTemp() {
           })),
         cpuWatts: collectorNum(data.cpuWatts),
         psuWatts: collectorNum(data.psuWatts),
+        // Live core clock in MHz — the fastest core, not an average across them
+        // (see cpu-temp.ps1). A platform whose collector cannot read one leaves
+        // it null rather than reporting the nominal speed as if it were current.
+        cpuClockMHz: collectorNum(data.cpuClockMHz) === null ? null : Math.round(collectorNum(data.cpuClockMHz)),
         sensorAccess: SENSOR_ACCESS.has(data.sensorAccess) ? data.sensorAccess : null,
         updatedAt: Date.now(),
       };
@@ -3898,7 +3997,7 @@ async function getCpuTemp() {
 
 async function getGpuInfo() {
   const age = Date.now() - gpuCache.updatedAt;
-  if (age < 5000) return gpuCache;
+  if (age < sensorRateMs()) return gpuCache;
   if (gpuPending) return gpuPending;
   gpuPending = (async () => {
   try {
@@ -3916,6 +4015,12 @@ async function getGpuInfo() {
       // carried no answer at all (keep the last list); an empty array means the
       // card reported no fans (drop it) — see normalizeGpuFans.
       gpuFans: normalizeGpuFans(data.gpuFans) ?? gpuCache.gpuFans,
+      // Core and memory clock in MHz. Held like every other reading here: a read
+      // that carried no answer keeps the last one rather than blinking the tile
+      // to "—" for a cycle, which is what a card reporting [N/A] intermittently
+      // would otherwise do.
+      gpuClockMHz: collectorNum(data.gpuClockMHz) === null ? gpuCache.gpuClockMHz : Math.round(collectorNum(data.gpuClockMHz)),
+      vramClockMHz: collectorNum(data.vramClockMHz) === null ? gpuCache.vramClockMHz : Math.round(collectorNum(data.vramClockMHz)),
       updatedAt: Date.now(),
     };
   } catch {
@@ -4260,6 +4365,10 @@ async function getSystemInfo() {
     cpu: getCpuUsage(),
     cpuTemp,
     cpuName: getCpuName(),
+    // Live clock speeds in MHz, null where the platform exposes none. Added for
+    // the SDK's `system` stream, which forwards this payload untouched — so a
+    // monitoring widget reads them with the grant it already has.
+    cpuClockMHz: cpuTempCache.cpuClockMHz,
     // Why the LHM-backed readings (cpuTemp, `fans`, power.cpu/psu) may be empty:
     // 'ok' | 'needs_admin' (LHM installed but unelevated → no kernel driver) |
     // 'missing'. Lets the widgets name the actual fix instead of guessing.
@@ -4276,6 +4385,20 @@ async function getSystemInfo() {
     gpuTemp: gpu.gpuTemp,
     vramUsed: gpu.vramUsed,
     vramTotal: gpu.vramTotal,
+    gpuClockMHz: gpu.gpuClockMHz === undefined ? null : gpu.gpuClockMHz,
+    vramClockMHz: gpu.vramClockMHz === undefined ? null : gpu.vramClockMHz,
+    // In-game frame rate, or null when nothing is being measured.
+    //
+    // It rides `system` rather than `status`, which is where it was asked for.
+    // `status` is broadcast ONLY when it changes, plus a 30s heartbeat, because
+    // its payload is identical tick after tick on an idle PC and every SSE event
+    // wakes each connected renderer. FPS changes constantly, so putting it there
+    // would turn a mostly-silent stream into a permanent 3s broadcast on every
+    // open dashboard — reinstating exactly the idle cost that dedup removed.
+    // `system` already broadcasts unconditionally every 5s, so this rides along
+    // for the price of an in-memory read: PresentMon (or MangoHud on Linux)
+    // fills the table continuously, and getCurrentFps only looks at it.
+    fps: (() => { try { return fpsMonitor.getCurrentFps(); } catch { return null; } })(),
     fans,
     power,
     disks,
@@ -4396,7 +4519,7 @@ async function getMediaInfo(force = false) {
   if (mediaPending) return mediaPending;
   mediaPending = (async () => {
   try {
-    const data = await runMediaRequest('info', 12000);
+    const data = normalizeMedia(await runMediaRequest('info', 12000));
     const hydrated = applyStickyThumb(await hydrateArtwork(data));
     mediaCache = { data: hydrated, updatedAt: Date.now() };
     mediaPending = null;
@@ -4406,7 +4529,7 @@ async function getMediaInfo(force = false) {
       mediaPending = null;
       return mediaCache.data;
     }
-    const fallback = applyStickyThumb(await hydrateArtwork(await getMediaFallback(e.message)));
+    const fallback = applyStickyThumb(await hydrateArtwork(normalizeMedia(await getMediaFallback(e.message))));
     mediaCache = { data: fallback, updatedAt: Date.now() };
     mediaPending = null;
     return fallback;
@@ -4706,6 +4829,13 @@ const deckWaveLink = createWaveLink(async () => {
   const wl = (s && s.wavelink) || {};
   return { enabled: wl.enabled === true, port: wl.port };
 });
+
+// Voicemeeter Remote API client. Nothing is loaded until a key is pressed or the
+// Deck editor asks what the mixer has: the DLL is only present on a machine that
+// installed Voicemeeter, and everywhere else this stays a few closures. No
+// enabled flag — unlike Wave Link there is no port to probe and no process to
+// wake, so the presence of the DLL is the whole opt-in.
+const deckVoicemeeter = createVoicemeeter();
 
 // Embedded-browser host for the "Browser" dashboard widget. Launches ONE headless
 // Edge on demand (when a tile opens) and kills it when the last tile closes, so an
@@ -5060,6 +5190,43 @@ async function refreshWlWatch() {
     wlStopWatch(); wlStopWatch = null;
     if (wlNotifyTimer) { clearTimeout(wlNotifyTimer); wlNotifyTimer = null; }
     try { broadcastSSE('wavelink', await buildWlState()); } catch (e) { /* ignore */ }
+  }
+}
+
+// ── Voicemeeter mixer state → SSE `voicemeeter` ──────────────────────────────
+// For SDK widgets that draw the mixer rather than only pressing it. Polled, not
+// pushed: the Remote API has no callback, it has IsParametersDirty(), which is
+// ONE call and answers "did anything move". The full read is ~96 calls on a
+// Potato and only happens on the ticks that changed something.
+//
+// Gated twice, like every other periodic job here: nothing runs with no
+// dashboard connected, and nothing runs on a machine that has no Voicemeeter —
+// where `available` is false, this never even opens a session.
+const VM_POLL_MS = 250;
+let vmPollTimer = null;
+let vmLastJson = '';
+
+function refreshVoicemeeterWatch() {
+  const want = sseClients.size > 0 && deckVoicemeeter.state().available === true;
+  if (want && !vmPollTimer) {
+    vmPollTimer = setInterval(() => {
+      try {
+        if (!deckVoicemeeter.dirty()) return;
+        const v = deckVoicemeeter.values();
+        if (!v) return;
+        // The dirty flag also fires for things this frame does not carry (a
+        // level meter, a window move), so the payload is compared before it is
+        // sent: a widget re-rendering 4x a second for nothing is the cost this
+        // avoids.
+        const json = JSON.stringify(v);
+        if (json === vmLastJson) return;
+        vmLastJson = json;
+        broadcastSSE('voicemeeter', v);
+      } catch { /* a mixer that went away is not worth a log line per tick */ }
+    }, VM_POLL_MS);
+    if (vmPollTimer.unref) vmPollTimer.unref();
+  } else if (!want && vmPollTimer) {
+    clearInterval(vmPollTimer); vmPollTimer = null; vmLastJson = '';
   }
 }
 
@@ -5536,6 +5703,21 @@ const deckRegistryDeps = {
       broadcastSSE('timer_update', { timers: _timers });
       return { ok: true };
     },
+    // Same contract as start(), minus the duration: a key pressed twice
+    // restarts the stopwatch from zero rather than stacking a second one, which
+    // is what "start my task clock" means when you press it again.
+    stopwatch: async (label, intervalSecs = 0) => {
+      const idx = _timers.findIndex((t) => t.label.toLowerCase() === label.toLowerCase());
+      if (idx >= 0) {
+        _timers[idx] = { ..._timers[idx], kind: 'stopwatch', durationSecs: 0, intervalSecs, chimes: 0, startedAt: Date.now(), pausedElapsed: 0, status: 'running' };
+      } else {
+        if (_timers.length >= TIMERS_MAX) return { ok: false, error: 'max_timers' };
+        _timers.push(_normalizeTimer({ label, kind: 'stopwatch', intervalSecs, status: 'running', startedAt: Date.now(), pausedElapsed: 0 }));
+      }
+      await _saveTimers();
+      broadcastSSE('timer_update', { timers: _timers });
+      return { ok: true };
+    },
     toggle: async (label) => {
       const t = _timers.find((x) => x.label.toLowerCase() === label.toLowerCase());
       if (!t) return { ok: false, error: 'not_found' };
@@ -5645,6 +5827,10 @@ const deckRegistryDeps = {
   // flag from live settings and rejects when off, so a disabled integration
   // surfaces as a clean {ok:false} (no localhost probe) via run().
   waveLink: (action) => deckWaveLink.runAction(action),
+  // Voicemeeter strips, buses and routing. The client owns the session and the
+  // edition check; a machine without Voicemeeter answers a named error rather
+  // than throwing.
+  voicemeeter: (action) => deckVoicemeeter.runAction(action),
   // Move/snap/minimise the foreground window (a discrete allowlisted verb passed
   // as a single argv element to the window helper — never a shell string).
   windowAction: async (verb) => {
@@ -5870,8 +6056,26 @@ const TILE_ASSET_GC_GRACE_MS = 10 * 60 * 1000;
 const TILE_ASSET_GC_MIN_INTERVAL_MS = 5 * 60 * 1000;
 let _tileAssetGcSig = null;
 let _tileAssetGcAt = 0;
+// Tile decorations named by a layout the version migration set aside. Without
+// this the first save after an upgrade sweeps them, and the kept layout restores
+// the positions with every picture missing — a backup that is worth less than it
+// looks. Read once and memoized only on success: the file is written at boot and
+// never changes, but a sweep that runs before it exists must not cache "none".
+let _layoutBackupRefs = null;
+function layoutBackupAssetRefs() {
+  if (_layoutBackupRefs) return _layoutBackupRefs;
+  try {
+    const raw = JSON.parse(fs.readFileSync(LAYOUT_BACKUP_FILE, 'utf8'));
+    const set = new Set();
+    for (const m of JSON.stringify(raw.dashboardLayout || {}).matchAll(/\/uploads\/(tileasset-[A-Za-z0-9._-]+)/g)) set.add(m[1]);
+    _layoutBackupRefs = set;
+    return set;
+  } catch { return new Set(); }   // no backup, or unreadable — nothing to protect
+}
+
 function cleanupUnreferencedTileAssets(layout, presets) {
   const referenced = collectTileAssetRefs(layout, presets);
+  for (const f of layoutBackupAssetRefs()) referenced.add(f);
   const sig = [...referenced].sort().join('|');
   const now = Date.now();
   if (sig === _tileAssetGcSig && (now - _tileAssetGcAt) < TILE_ASSET_GC_MIN_INTERVAL_MS) return;
@@ -6966,11 +7170,16 @@ async function executeAiTool(fnName, fnArgs, deps) {
       }
     } else if (fnName === 'list_timers') {
       fnResult = {
-        timers: _timers.map(t => ({
-          id: t.id, label: t.label, status: t.status,
-          remaining_secs: Math.ceil(_getTimerRemaining(t)),
-          duration_secs: t.durationSecs,
-        })),
+        // A stopwatch has no remaining time, and reporting Infinity to a model
+        // is worse than reporting nothing: it says elapsed instead, which is
+        // the only reading it has.
+        timers: _timers.map(t => (t.kind === 'stopwatch'
+          ? { id: t.id, label: t.label, status: t.status, kind: 'stopwatch',
+              elapsed_secs: Math.floor(_getTimerElapsed(t)),
+              ...(t.intervalSecs > 0 ? { chimes_every_secs: t.intervalSecs } : {}) }
+          : { id: t.id, label: t.label, status: t.status, kind: 'countdown',
+              remaining_secs: Math.ceil(_getTimerRemaining(t)),
+              duration_secs: t.durationSecs })),
       };
     } else if (fnName === 'delete_timer') {
       const delId = String(fnArgs.id || '').trim();
@@ -7470,6 +7679,15 @@ const WEATHER_FIELDS_ALL_ON = Object.freeze(
   WEATHER_FIELD_IDS.reduce((acc, id) => { acc[id] = true; return acc; }, {}),
 );
 
+// How often the sensor readings refresh, in ms. 5000 is the cadence everything
+// was built around and stays the default; the two faster steps are opt-in and
+// say what they cost, because the cost is real (see SENSOR_RATES).
+const SENSOR_RATE_MS = Object.freeze([5000, 2000, 1000]);
+function normalizeSensorRate(value) {
+  const n = Math.round(Number(value));
+  return SENSOR_RATE_MS.includes(n) ? n : 5000;
+}
+
 const DEFAULT_HUB_SETTINGS = Object.freeze({
   appearance: 'dark',
   autoPalette: false,
@@ -7558,6 +7776,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     ]),
   }),
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
+  // What the Upcoming list shows. 0 days = no horizon, which is what it always
+  // did — the list simply took the next five, wherever they landed.
+  upcomingCount: 5,
+  upcomingDays: 0,
   swipeNavigation: true, // drag / finger-swipe to change dashboard page
   // Native app only: quick up-swipe from the bottom of the screen collapses the
   // kiosk to a slim strip and reveals the Windows desktop (native-bridge.js).
@@ -7815,6 +8037,22 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // SETTINGS_STORE_ID_RE). Empty here because a default blob has not been
   // persisted yet; server-owned, so POST /settings keeps the stored value.
   storeId: '',
+  // How long this install has actually been USED, which is the only honest basis
+  // for asking anything of the person using it. All three are server-owned like
+  // storeId above — the browser never writes them, and POST /settings keeps the
+  // stored values, or clearing site data would reset the clock and the ask could
+  // come round again.
+  //
+  // `usageDays` counts DAYS the dashboard was opened, not launches and not hours:
+  // an engine that runs at logon on a PC nobody looks at must not accumulate
+  // credit. See noteUsageDay().
+  firstRunDay: '',          // YYYY-MM-DD, stamped the first time a dashboard connects
+  lastUsageDay: '',         // the last day counted, so a day counts exactly once
+  usageDays: 0,
+  // The one-time supporter ask (js/support-card.js). Shown once in the life of an
+  // install and never again — on disk, not in localStorage, because a browser set
+  // to clear its site data would otherwise bring it back for good.
+  supportAskSeen: false,
 });
 
 // In-memory mirror of the hub settings — the wake loop reads it on every clip and
@@ -8850,6 +9088,41 @@ function normalizeSnowflakeList(value, max = 50) {
   return out;
 }
 
+// A calendar day as this file stores it. Local time on purpose: "days I used
+// Xenon" is a human unit, and a UTC boundary would count an evening session as
+// tomorrow for a whole hemisphere.
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+function localDay(d) {
+  const t = d || new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate());
+}
+
+// One day of real use, counted once. Called when a dashboard connects, which is
+// the only signal that someone actually LOOKED at Xenon: the engine starts at
+// logon on machines nobody opens, and counting launches would hand those the
+// same credit as a person using it daily.
+//
+// Writes at most once per day, and only when something changed.
+async function noteUsageDay() {
+  try {
+    const today = localDay();
+    const cur = _serverHubSettings || {};
+    if (cur.lastUsageDay === today) return;               // already counted today
+    await withHubSettingsLock(async () => {
+      const prev = (await readHubSettings().catch(() => null)) || { ...DEFAULT_HUB_SETTINGS };
+      if (prev.lastUsageDay === today) return;            // another surface got there first
+      const next = {
+        ...prev,
+        firstRunDay: prev.firstRunDay || today,
+        lastUsageDay: today,
+        usageDays: (Number(prev.usageDays) || 0) + 1,
+      };
+      _serverHubSettings = await writeHubSettings(next);
+    });
+  } catch { /* a counter is never worth failing a page load over */ }
+}
+
 function normalizeHubSettings(value) {
   const source = value && typeof value === 'object' ? value : {};
   // One-time migration: saved layouts older than the current version are
@@ -8904,7 +9177,12 @@ function normalizeHubSettings(value) {
     topbarRails: normalizeTopbarRails(source.topbarRails),
     topbarRailsAutoHide: source.topbarRailsAutoHide !== false,
     topbarClock: normalizeTopbarClock(source.topbarClock, source),
+    // Sensor cadence (ms). Drives the system broadcast AND the caches under it:
+    // broadcasting faster alone would only re-send readings up to 5s old.
+    sensorRateMs: normalizeSensorRate(source.sensorRateMs),
     weekStart: ['mon', 'sun'].includes(source.weekStart) ? source.weekStart : 'mon',
+    upcomingCount: [3, 5, 8, 10].includes(Number(source.upcomingCount)) ? Number(source.upcomingCount) : 5,
+    upcomingDays: [0, 7, 14, 30].includes(Number(source.upcomingDays)) ? Number(source.upcomingDays) : 0,
     swipeNavigation: source.swipeNavigation !== false,
     swipeHomeGesture: source.swipeHomeGesture !== false,
     nativeZoom: clampNumber(source.nativeZoom, 0.6, 1.6, DEFAULT_HUB_SETTINGS.nativeZoom),
@@ -8924,6 +9202,13 @@ function normalizeHubSettings(value) {
     // over it on first hydrate when there is one.
     whatsNewSeen: typeof source.whatsNewSeen === 'string' ? source.whatsNewSeen.trim().slice(0, 64) : '',
     discordInviteSeen: source.discordInviteSeen === true,
+    // Usage history. Server-owned; the POST guard below keeps a client save from
+    // touching them. Bounded so a hand-edited file cannot make the ask unreachable
+    // (a negative count) or claim a decade of use.
+    firstRunDay: DAY_RE.test(String(source.firstRunDay || '')) ? String(source.firstRunDay) : '',
+    lastUsageDay: DAY_RE.test(String(source.lastUsageDay || '')) ? String(source.lastUsageDay) : '',
+    usageDays: clampNumber(Math.floor(Number(source.usageDays) || 0), 0, 100000, 0),
+    supportAskSeen: source.supportAskSeen === true,
     // Snowflakes only, deduped and capped. This list is echoed straight back to
     // every surface and used as a DOM key, so anything that is not a Discord id
     // has no business surviving a round trip through the store.
@@ -9388,6 +9673,44 @@ async function geminiKeyFor(bodyKey) {
   if (given) return given;
   const s = await readHubSettings().catch(() => null);
   return String((s && s.geminiApiKey) || '').trim().slice(0, 200);
+}
+
+// The layout-version migration REPLACES the dashboard, and until now it did so
+// with no way back: the stored layout was overwritten by the factory default on
+// the next save, and the only copy of what the user had built was gone. Every
+// other destructive step in this app is either confirmed or reversible; this one
+// runs at boot, unasked, and the person finds out by looking at their screen.
+//
+// So the superseded layout is copied out first. Not a restore feature — a file
+// on disk and a line in the log, which is the difference between "rebuild it from
+// memory" and "it is right here". Read SYNCHRONOUSLY and before the store-id mint
+// below can rewrite the file, because the raw old version only exists until the
+// first write of this run.
+//
+// Never overwrites an existing backup: the migration fires once (the next write
+// stamps the new version), but a second pass must not be able to save the
+// factory default over the real one.
+const LAYOUT_BACKUP_FILE = path.join(DATA_DIR, 'dashboard-layout.backup.json');
+// Answers { file, from } when a layout was copied out, null otherwise. `from` is
+// read off the RAW file on purpose: the normalized settings are already stamped
+// with the current version, so asking them which version this install is
+// upgrading FROM always answers "the one it is upgrading to".
+function backupSupersededLayout() {
+  try {
+    if (fs.existsSync(LAYOUT_BACKUP_FILE)) return null;
+    const raw = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+    const from = Number(raw && raw.dashboardLayoutVersion) || 0;
+    if (from >= DASHBOARD_LAYOUT_VERSION) return null;
+    const layout = raw && raw.dashboardLayout;
+    if (!layout || typeof layout !== 'object') return null;   // nothing built yet
+    fs.writeFileSync(LAYOUT_BACKUP_FILE, JSON.stringify({
+      savedAt: new Date().toISOString(),
+      fromVersion: from,
+      toVersion: DASHBOARD_LAYOUT_VERSION,
+      dashboardLayout: layout,
+    }, null, 2));
+    return { file: LAYOUT_BACKUP_FILE, from };
+  } catch { return null; }   // a backup that throws must never block the boot
 }
 
 async function writeHubSettings(settings) {
@@ -10855,18 +11178,52 @@ function saveNotesGuarded(body) {
 let _timers = []; // in-memory timer list; persisted to TIMERS_FILE
 let _timerCheckInterval = null;
 
+// A timer is one of two things, and everything about running it is the same.
+// A countdown has a duration and ends; a STOPWATCH counts up and does not.
+// They share startedAt/pausedElapsed/status, so pause, resume, reset and stop
+// are one implementation — the only places that branch are the two that ask
+// "how long is left", which for a stopwatch is not a question.
+//
+// Asked for on Discord: "count the time up and monitor the length of time spent
+// on a task". Modelled here rather than as a second feature because a stopwatch
+// IS a timer whose duration nobody set.
+const TIMER_KINDS = Object.freeze(['countdown', 'stopwatch']);
+
 function _normalizeTimer(item) {
   const id          = String(item && item.id || `t${Date.now()}-${Math.random().toString(16).slice(2)}`).slice(0, 80);
   const label       = String(item && item.label || 'Timer').trim().slice(0, 40);
-  const durationSecs = Math.max(1, Math.round(Number(item && item.durationSecs) || 60));
+  const kind        = TIMER_KINDS.includes(item && item.kind) ? item.kind : 'countdown';
+  // A stopwatch has no duration. Storing 0 rather than a fake 60 keeps every
+  // "is this a countdown" test honest, including in a settings file somebody
+  // has edited by hand.
+  const durationSecs = kind === 'stopwatch' ? 0 : Math.max(1, Math.round(Number(item && item.durationSecs) || 60));
+  // A stopwatch may CHIME every N seconds. Zero is off, which is what every
+  // stopwatch was until somebody said what they actually use one for: "it goes
+  // up and sounds an alert at specified intervals, I use it for stretching".
+  // Meaningless on a countdown, which already has one alert at the end.
+  const intervalSecs = kind === 'stopwatch'
+    ? Math.max(0, Math.min(86400, Math.round(Number(item && item.intervalSecs) || 0)))
+    : 0;
+  // How many have already sounded. Persisted rather than derived, so a restart
+  // mid-run does not replay every chime the stopwatch has ever made.
+  const chimes = Math.max(0, Math.round(Number(item && item.chimes) || 0));
   const status      = ['running', 'paused', 'done'].includes(item && item.status) ? item.status : 'running';
   const startedAt   = Number.isFinite(Number(item && item.startedAt)) ? Number(item.startedAt) : Date.now();
   const pausedElapsed = Math.max(0, Number(item && item.pausedElapsed) || 0);
   const createdAt   = item && item.createdAt ? String(item.createdAt).slice(0, 40) : new Date().toISOString();
-  return { id, label, durationSecs, status, startedAt, pausedElapsed, createdAt };
+  return { id, label, kind, durationSecs, intervalSecs, chimes, status, startedAt, pausedElapsed, createdAt };
+}
+
+/** Seconds counted so far, for either kind. The stopwatch's whole reading. */
+function _getTimerElapsed(t) {
+  if (t.status === 'running') return t.pausedElapsed + (Date.now() - t.startedAt) / 1000;
+  return t.pausedElapsed;
 }
 
 function _getTimerRemaining(t) {
+  // A stopwatch has nothing remaining, and answering 0 would make _checkTimers
+  // ring it the instant it starts.
+  if (t.kind === 'stopwatch') return Infinity;
   if (t.status === 'done')   return 0;
   if (t.status === 'paused') return Math.max(0, t.durationSecs - t.pausedElapsed);
   const elapsed = t.pausedElapsed + (Date.now() - t.startedAt) / 1000;
@@ -10882,6 +11239,27 @@ async function _saveTimers() {
 function _checkTimers() {
   let changed = false;
   for (const t of _timers) {
+    // A stopwatch never finishes, so it never rings for having ENDED. It can
+    // still chime on the way, if its owner asked for that.
+    if (t.kind === 'stopwatch') {
+      if (t.status !== 'running' || !(t.intervalSecs > 0)) continue;
+      const due = Math.floor(_getTimerElapsed(t) / t.intervalSecs);
+      if (due <= (t.chimes || 0)) continue;
+      // One event even if several intervals passed while the machine slept:
+      // waking to four stacked toasts for a stretch reminder is worse than
+      // waking to one.
+      t.chimes = due;
+      changed = true;
+      broadcastSSE('timer_chime', { id: t.id, label: t.label, every: t.intervalSecs, elapsed: Math.floor(_getTimerElapsed(t)) });
+      try { lighting.onEvent('timer'); } catch {}
+      webPushNotify({
+        title: 'Xenon',
+        body: t.label ? t.label : 'Stopwatch',
+        tag: 'chime-' + t.id,
+        url: '/',
+      }, { urgency: 'high', ttl: 300 });
+      continue;
+    }
     if (t.status === 'running' && _getTimerRemaining(t) <= 0) {
       t.status = 'done';
       changed = true;
@@ -13803,8 +14181,16 @@ const handleRequest = async (req, res) => {
       // rides SMTC on Windows and mediaremote-adapter on macOS, and the adapter
       // is optional, so the answer is "is there a media host" — not "which OS".
       const mediaAvailable = powershellAvailable || !!(nativeMedia && nativeMedia.available());
-      json({ catalog: ACTION_CATALOG, capabilities: { powershell: powershellAvailable, keys: keySendAvailable(), media: mediaAvailable, soundVolumeView: audioControlAvailable, appAudio: appAudioAvailable, obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked, phone: phoneKeysAvailable() } });
+      json({ catalog: ACTION_CATALOG, capabilities: { powershell: powershellAvailable, keys: keySendAvailable(), media: mediaAvailable, soundVolumeView: audioControlAvailable, appAudio: appAudioAvailable, obsConfigured: !!s.obsHost || obsLocalWanted, streamerbotConfigured: !!s.streamerbotHost, remoteConfigured, twitchConnected: !!tw.connected, youtubeConnected: !!yt.connected, discordConnected: !!dc.connected, spotifyConnected: !!sp.connected, homeAssistantConfigured: !!(haCfg.url && haCfg.token), chromaEnabled: !!(s.chroma && s.chroma.enabled === true), wavelinkEnabled: !!(s.wavelink && s.wavelink.enabled === true), voicemeeterAvailable: deckVoicemeeter.state().available === true, signalrgbEnabled: !!(s.signalrgb && s.signalrgb.enabled === true), lightingConfigured, claudeLinked, phone: phoneKeysAvailable() } });
     } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/voicemeeter/state' && req.method === 'GET') {
+    // What the Deck editor's strip/bus pickers are filled from, and the honest
+    // answer when there is nothing to fill them with: `available` says the DLL
+    // is there, `running` says the mixer is up, and `reason` names which of the
+    // two is missing. Never throws — an absent Voicemeeter is a state.
+    try { json(deckVoicemeeter.state()); }
+    catch (e) { json({ ok: true, available: false, running: false, reason: 'voicemeeter_unavailable' }); }
 
   } else if (reqPath === '/api/wavelink/state' && req.method === 'GET') {
     // Current Wave Link mixer snapshot (for a tile's first paint before SSE ticks).
@@ -14091,6 +14477,22 @@ const handleRequest = async (req, res) => {
       }).catch(() => { /* best-effort: a failed ping is never user-visible */ });
     } catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/api/startup-task' && req.method === 'GET') {
+    // Will Xenon still be here after the next sign-in? Answered from the last
+    // check (boot, then every few hours) rather than by spawning schtasks per
+    // request — the answer changes on the timescale of somebody running a
+    // cleanup tool, not of a page load. `repaired` names conditions this engine
+    // put back on its own, which the user is entitled to be told about.
+    json({
+      ok: true,
+      checked: _startupTaskState.checked,
+      found: _startupTaskState.found,
+      problems: _startupTaskState.problems,
+      repaired: _startupTaskState.repaired,
+      failed: _startupTaskState.failed,
+      at: _startupTaskState.at,
+    });
+
   } else if (reqPath === '/update/self-status' && req.method === 'GET') {
     // Whether one-click self-update is possible here (not a git checkout, applier
     // present), and whether a validated build is already staged and ready to apply.
@@ -14107,6 +14509,11 @@ const handleRequest = async (req, res) => {
         lastResult = {
           ok: m.ok,
           reason: String(m.reason || ''),
+          // The failing tool's OWN sentence, when the applier captured one (npm's
+          // first ERR! line). The reason code names the stage and stops there,
+          // which is the same text for four failures with four different fixes.
+          // Free text from a tool, so it is bounded here and rendered as text.
+          detail: String(m.detail || '').slice(0, 200),
           rolledBack: m.rolledBack !== false,
           rollbackVerified: m.rollbackVerified !== false,
           from: String(m.from || ''),
@@ -14114,7 +14521,19 @@ const handleRequest = async (req, res) => {
           at: String(m.at || ''),
         };
       }
-      json({ supported: selfUpdate.supported(), staged: selfUpdate.staged(), lastResult });
+      // `reason` names WHICH precondition failed, so a stuck install can be
+      // diagnosed from this one URL instead of a round of guesses. Empty when
+      // self-update is available. `applier` is the path that has to exist —
+      // quoted here because "restore this file" is only actionable if the user
+      // is told which file.
+      const unsupportedFor = selfUpdate.unsupportedReason();
+      json({
+        supported: !unsupportedFor,
+        reason: unsupportedFor,
+        applier: unsupportedFor === 'no_applier' ? String(selfUpdate.applierPath || '') : undefined,
+        staged: selfUpdate.staged(),
+        lastResult,
+      });
     } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/update/prepare' && req.method === 'POST') {
@@ -14379,6 +14798,25 @@ const handleRequest = async (req, res) => {
       if (prev && prev.fileTransfer && typeof prev.fileTransfer === 'object') {
         incoming.fileTransfer = prev.fileTransfer;
       }
+      // The layout-version migration reads the INCOMING body, and it is the only
+      // check in normalizeHubSettings whose failure mode is losing the single
+      // largest thing the user built. It is described as a one-time upgrade step,
+      // but it lives in the general normalizer, so it re-runs on every save: a body
+      // that does not carry `dashboardLayoutVersion` reads as version 0, and the
+      // whole dashboard is replaced by the factory default while every other
+      // setting in the same save survives untouched — then the file is re-stamped
+      // with the current version, so nothing is left on disk to find afterwards.
+      //
+      // Reported on Discord after an update: layout back to the factory default,
+      // theme unchanged, connected accounts intact, installed widgets intact. That
+      // is this check's signature and nothing else in the codebase has it.
+      //
+      // So: an absent version means "this writer does not model the field", exactly
+      // like remoteAccess and fileTransfer below. What may legitimately be OLD is
+      // the layout on DISK, and that is what the migration is now judged against.
+      if (prev && incoming.dashboardLayoutVersion == null && prev.dashboardLayoutVersion != null) {
+        incoming.dashboardLayoutVersion = prev.dashboardLayoutVersion;
+      }
       // The store id is minted once and belongs to this file, so a save can only
       // ever echo it back — and a save from a surface still holding a mirror of a
       // PREVIOUS store would echo THAT one, which would make this store answer
@@ -14386,6 +14824,20 @@ const handleRequest = async (req, res) => {
       // for every other surface. Keep the persisted value.
       if (prev && prev.storeId) {
         incoming.storeId = prev.storeId;
+      }
+      // Usage history is server-owned for the same reason storeId is: the browser
+      // does not model it, so every generic save would arrive without it and
+      // normalizeHubSettings would rebuild it as a brand-new install — resetting
+      // the clock, and letting the one-time ask come round again. An absent key
+      // means "this writer does not know about it", never "start over".
+      if (prev) {
+        if (prev.firstRunDay) incoming.firstRunDay = prev.firstRunDay;
+        if (prev.lastUsageDay) incoming.lastUsageDay = prev.lastUsageDay;
+        if (Number(prev.usageDays) > 0) incoming.usageDays = prev.usageDays;
+        // …except supportAskSeen, which the BROWSER owns: pressing "not now" is
+        // the one thing here a person actually does. Once true it never goes back,
+        // so a stale mirror cannot un-dismiss it.
+        if (prev.supportAskSeen === true) incoming.supportAskSeen = true;
       }
       // Vitals state is widget-owned and monotonic: a refill stamps "now", XP
       // only grows, the daily counter resets on a new day. A stale settings
@@ -15556,9 +16008,15 @@ const handleRequest = async (req, res) => {
     try {
       const body = JSON.parse(await readBody(req));
       if (_timers.length >= TIMERS_MAX) { res.writeHead(400); res.end(JSON.stringify({ error: 'max timers reached' })); return; }
+      // No duration means a stopwatch — which is also how the tile creates one,
+      // by leaving the field empty rather than growing a second button.
+      const kind = body.kind === 'stopwatch' || (body.kind == null && !Number(body.duration_secs))
+        ? 'stopwatch' : 'countdown';
       const timer = _normalizeTimer({
-        label: String(body.label || 'Timer').trim(),
+        label: String(body.label || (kind === 'stopwatch' ? 'Stopwatch' : 'Timer')).trim(),
+        kind,
         durationSecs: Math.max(1, Math.round(Number(body.duration_secs) || 60)),
+        intervalSecs: Math.max(0, Math.round(Number(body.interval_secs) || 0)),
         status: 'running',
         startedAt: Date.now(),
         pausedElapsed: 0,
@@ -15586,8 +16044,11 @@ const handleRequest = async (req, res) => {
       } else if (action === 'reset') {
         t.startedAt = Date.now();
         t.pausedElapsed = 0;
+        // The chimes already sounded belong to the run that just ended.
+        t.chimes = 0;
         t.status = 'running';
       } else if (action === 'stop') {
+        t.chimes = 0;
         // Back to its full time and HELD there. The difference from `reset` is
         // one word — `paused` instead of `running` — and it is the whole point:
         // until now the only way to keep a timer for later was to leave it
@@ -18536,7 +18997,11 @@ const handleRequest = async (req, res) => {
       exportable: widgetExportable(p.id),
       catalogVersion: widgetCatalogVersionOf(p.id),
     }));
-    json({ ok: true, api: sdkWidgets.SDK_API_VERSION, packages, invalid: scan.invalid });
+    // `skipped` is how many installed packages this scan did not load because
+    // MAX_PACKAGES was already reached. It travels with the list because a
+    // shorter list is indistinguishable from a smaller library — which is
+    // exactly how a widget came to be installed, working and unfindable.
+    json({ ok: true, api: sdkWidgets.SDK_API_VERSION, packages, invalid: scan.invalid, skipped: scan.skipped || 0 });
 
   } else if (reqPath === '/sdk/fetch' && req.method === 'POST') {
     // Host-mediated network for SDK widgets. The sandboxed iframe has NO network
@@ -19461,12 +19926,15 @@ const handleRequest = async (req, res) => {
     refreshHaWatch();
     refreshSbWatch();
     refreshWlWatch();
+    refreshVoicemeeterWatch();
     refreshUnifiEventsWatch();
     refreshWinNotifWatch();
     refreshWakeWordWatch();
     refreshAudioLevelsWatch();
-    req.on('close', () => { sseClients.delete(res); if (sseClients.size === 0) obsLocalWanted = false; _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWlWatch(); refreshUnifiEventsWatch(); refreshWinNotifWatch(); refreshWakeWordWatch(); refreshAudioLevelsWatch(); });
+    req.on('close', () => { sseClients.delete(res); if (sseClients.size === 0) obsLocalWanted = false; _syncFpsMonitor(); refreshObsWatch(); refreshDiscordWatch(); refreshHaWatch(); refreshSbWatch(); refreshWlWatch(); refreshVoicemeeterWatch(); refreshUnifiEventsWatch(); refreshWinNotifWatch(); refreshWakeWordWatch(); refreshAudioLevelsWatch(); });
 
+    // A dashboard is open, which is what "a day of use" means — see noteUsageDay.
+    noteUsageDay();
     // Push current state immediately so the client doesn't wait for the first tick.
     Promise.all([
       getSystemInfo().catch(() => null),
@@ -19909,6 +20377,35 @@ function _handleLiveClient(client) {
 // this exe, verifying it keeps this auto path from ever running a swapped/MITM'd
 // binary. Best-effort and off the boot hot path; the PowerShell fallback covers the
 // gap until the next restart, and a machine with no helper is left alone.
+// Last look at the per-logon startup task: whether Xenon will still be here
+// after the next sign-in. Held in memory so the dashboard can ask without
+// paying for a schtasks spawn per page load — see startup-task.js for why this
+// is checked at all, and why the three conditions are repaired while `disabled`
+// is only ever reported.
+let _startupTaskState = { checked: false, found: false, problems: [], repaired: [], failed: '', at: 0 };
+const STARTUP_TASK_CHECK_MS = 6 * 60 * 60 * 1000;   // twice a working day is plenty
+async function refreshStartupTaskState() {
+  const res = await startupTask.checkStartupTask({ dataDir: DATA_DIR }).catch(() => null);
+  if (!res) return _startupTaskState;
+  _startupTaskState = { ...res, at: Date.now() };
+  // Both halves belong in the log, and for opposite reasons: a repair is a
+  // change made to this PC without the user asking, and an unrepaired problem is
+  // the reason Xenon will not be there tomorrow.
+  if (res.repaired.length) {
+    startupLog.write('startup task: put back ' + res.repaired.join(', ')
+      + ' on "' + startupTask.TASK_NAME + '" — something had changed settings this install owns.');
+  }
+  if (res.failed) {
+    startupLog.write('startup task: could not repair "' + startupTask.TASK_NAME + '": ' + res.failed);
+  }
+  if (res.problems.includes('disabled')) {
+    startupLog.write('startup task: "' + startupTask.TASK_NAME + '" is switched OFF.'
+      + ' Xenon will not start at the next sign-in until it is switched back on'
+      + ' (Task Manager > Startup apps). Xenon never switches it off itself.');
+  }
+  return _startupTaskState;
+}
+
 const HELPER_CHECK_MARKER = path.join(DATA_DIR, 'helper-checked.txt');
 const HELPER_REFRESH_MAX_TRIES = 6;             // in-session retries before falling back to next boot
 const HELPER_REFRESH_RETRY_MS = 3 * 60 * 1000;  // 3 min apart → ~15 min of coverage after the first try
@@ -20055,7 +20552,13 @@ function _startListen(host) {
         available: () => { try { return deckChroma.getStatus().available; } catch (e) { return false; } },
       });
     } catch (e) { console.error('Lighting Chroma runtime init failed:', e.message); }
+    // Whether the boot read got as far as answering at all, so the catch below
+    // can tell "this settings file could not be read" from "something later in
+    // this block threw". Those need different sentences: only the first one
+    // means the running app is not the user's configuration.
+    let settingsBootRead = false;
     readHubSettings().then(s => {
+      settingsBootRead = true;
       // readHubSettings() answers null on ENOENT, and that is the ONE honest
       // signal that this is a genuinely fresh install rather than an existing one
       // whose owner just switched the version ping on. It has to be captured HERE,
@@ -20064,6 +20567,31 @@ function _startListen(host) {
       // corrupt the retention curve permanently. See version-ping.js.
       _settingsFileMissingAtBoot = (s === null);
       if (s) _serverHubSettings = s;
+      // Which store this process is actually running on, written down where a
+      // person can read it. Reported on Discord as "my whole layout is back to
+      // the factory default after an update", and there was no way to answer it:
+      // a layout that resets and a layout that was never loaded look identical
+      // from the dashboard, and nothing on the machine said which had happened.
+      // The path is part of the line on purpose — an install pointed at a second
+      // data folder is the other way the same screen appears, and the log is then
+      // the only place that says so.
+      startupLog.write(s
+        ? 'settings: loaded ' + SETTINGS_FILE + ' (rev ' + (Number(s.rev) || 0)
+            + ', store ' + (String(s.storeId || '').slice(0, 8) || 'none') + ')'
+        : 'settings: no file at ' + SETTINGS_FILE
+            + ' — starting a NEW store, so this run begins from the factory defaults');
+      // A layout about to be replaced by the version migration is copied out
+      // before anything writes over it, and the fact is stated — the reset itself
+      // is silent from every surface, which is how it reads as a bug rather than
+      // as the upgrade step it is.
+      if (s) {
+        const backup = backupSupersededLayout();
+        if (backup) {
+          startupLog.write('settings: this build replaces the saved dashboard layout with the new default'
+            + ' (layout format ' + backup.from + ' → ' + DASHBOARD_LAYOUT_VERSION + ').'
+            + ' The layout you had is kept at ' + backup.file);
+        }
+      }
       // Mint the store id NOW rather than on the first save. A fresh install
       // whose settings.json does not exist yet answers GET /settings with no
       // payload at all, and the client's legacy seed path then pushes its own
@@ -20097,6 +20625,11 @@ function _startListen(host) {
       // when off; delayed so they never compete with boot).
       setTimeout(() => {
         try { refreshHotkeyListener(); } catch { /* ignore */ }
+        // Whether this install still starts itself at sign-in. Delayed with the
+        // rest of the non-urgent boot work: nothing on screen depends on it, and
+        // the answer matters for tomorrow rather than for this second.
+        refreshStartupTaskState().catch(() => {});
+        setInterval(() => { refreshStartupTaskState().catch(() => {}); }, STARTUP_TASK_CHECK_MS).unref();
         // Full Disk Access is asked BEFORE the index is first pointed at
         // anything, because the entire point of the gate is that the first walk
         // never touches a protected folder — asking afterwards would raise the
@@ -20114,7 +20647,23 @@ function _startListen(host) {
         _macFdaTimer = setInterval(() => { refreshMacFdaState().catch(() => {}); }, 60000);
         _macFdaTimer.unref();
       }
-    }).catch(() => {});
+    }).catch(err => {
+      // Was `.catch(() => {})`. A settings file that exists but cannot be read —
+      // a permission the OS took away, a half-copied data folder — left the
+      // engine serving DEFAULT_HUB_SETTINGS with the transfer caps, the bind
+      // host and the lighting config all unapplied, and said nothing anywhere.
+      // It is not even a silent fallback the user can work around: POST
+      // /settings is fail-closed against the same read, so every save is
+      // refused too and the dashboard keeps showing defaults it can never
+      // persist. Exactly the state that needs a line in the log.
+      const why = (err && err.message) ? err.message : String(err);
+      startupLog.write(settingsBootRead
+        ? 'settings: loaded, but a startup step after it failed: ' + why
+        : 'FAILED to read ' + SETTINGS_FILE + ': ' + why
+            + ' — this run falls back to the factory defaults, and every settings save is'
+            + ' refused until that file can be read. Do not re-create your setup yet.');
+      console.error('[settings] boot read failed:', why);
+    });
   });
 }
 
@@ -20354,15 +20903,26 @@ setInterval(() => { broadcastMediaNow().catch(() => {}); }, 2000).unref();
 // round-trips through the persistent worker, paid continuously on a machine that
 // is often also running a game. If a faster rate is ever offered it belongs in
 // Settings, saying what it costs, not as a new default for everyone.
-setInterval(async () => {
-  if (sseClients.size === 0) return;
-  try {
-    const sys = await getSystemInfo();
-    broadcastSSE('system', sys);
-    lighting.onSystem(sys);
-    try { briefing.onSystemSample(sys); } catch {}
-  } catch {}
-}, 5000).unref();
+// Self-rescheduling rather than a fixed interval: the cadence is a setting now,
+// and a setInterval would hold whatever it was created with until a restart.
+// Each tick reads it again, so a change in Settings applies to the next one.
+//
+// The delay is taken AFTER the await, not before: a read that takes longer than
+// the interval (a cold LHM call, a busy machine) would otherwise queue ticks on
+// top of each other, and at 1s that stops being theoretical.
+async function _systemTick() {
+  if (sseClients.size > 0) {
+    try {
+      const sys = await getSystemInfo();
+      broadcastSSE('system', sys);
+      lighting.onSystem(sys);
+      try { briefing.onSystemSample(sys); } catch {}
+    } catch {}
+  }
+  const t = setTimeout(_systemTick, sensorRateMs());
+  t.unref && t.unref();
+}
+{ const t = setTimeout(_systemTick, sensorRateMs()); t.unref && t.unref(); }
 
 // Peripheral battery moves on a minutes scale and its sources are relatively
 // expensive (iCUE SDK round-trips + a Bluetooth PnP scan), so it gets its own

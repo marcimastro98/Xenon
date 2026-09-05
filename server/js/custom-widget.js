@@ -33,6 +33,7 @@
     lighting: ['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice'],
     chroma: ['chromaColor', 'chromaOff'],
     wavelink: ['wlInputVolume', 'wlInputMute', 'wlOutputVolume', 'wlOutputMute', 'wlSwitchMonitoring', 'wlSetMonitorMix'],
+    voicemeeter: ['vmStripMute', 'vmStripGain', 'vmStripBus', 'vmBusMute', 'vmBusGain', 'vmMacro'],
     spotify: ['spotifyPlay', 'spotifyNext', 'spotifyPrev', 'spotifySave', 'spotifyLike', 'spotifyShuffle', 'spotifyRepeat', 'spotifyVolume', 'spotifySeek', 'spotifyPlaylist', 'spotifyDevice'],
     obs: ['obsScene', 'obsSceneNext', 'obsRecord', 'obsStream', 'obsMute', 'obsInputVolume'],
     discord: ['discordMute', 'discordDeafen', 'discordPtt', 'discordJoin', 'discordLeave', 'discordInputVol', 'discordOutputVol', 'discordUserVol', 'discordUserMute', 'discordAudioToggle', 'discordSoundboard'],
@@ -131,6 +132,7 @@
     audioLevels: ['cw_stream_audiolevels', 'How loud each app is playing'],
     battery: ['cw_stream_battery', 'Battery level of your wireless devices'],
     wavelink: ['cw_stream_wavelink', 'Wave Link mixer state'],
+    voicemeeter: ['cw_stream_voicemeeter', 'Voicemeeter mixer state'],
     stocks: ['cw_stream_stocks', 'Stock quotes & indices'],
     football: ['cw_stream_football', 'Football fixtures & scores'],
     news: ['cw_stream_news', 'News headlines'],
@@ -158,6 +160,7 @@
     lighting: ['cw_act_lighting', 'Control the RGB lighting'],
     chroma: ['cw_act_chroma', 'Control Razer Chroma lighting'],
     wavelink: ['cw_act_wavelink', 'Control the Wave Link mixer'],
+    voicemeeter: ['cw_act_voicemeeter', 'Control the Voicemeeter mixer'],
     spotify: ['cw_act_spotify', 'Control Spotify playback'],
     obs: ['cw_act_obs', 'Control OBS (scenes, recording, audio)'],
     discord: ['cw_act_discord', 'Control Discord voice'],
@@ -404,8 +407,8 @@
     pkgFetchPromise = (async () => {
       try {
         const d = await api('/sdk/widgets');
-        if (d && d.ok) pkgCache = { packages: d.packages || [], invalid: d.invalid || [] };
-        else if (!pkgCache) pkgCache = { packages: [], invalid: [] };
+        if (d && d.ok) pkgCache = { packages: d.packages || [], invalid: d.invalid || [], skipped: Number(d.skipped) || 0 };
+        else if (!pkgCache) pkgCache = { packages: [], invalid: [], skipped: 0 };
       } finally { pkgFetchPromise = null; }
     })();
     await pkgFetchPromise;
@@ -2382,7 +2385,7 @@
   // the list on its own.
   const PICK_CATS = [
     { id: 'system', key: 'cw_cat_system', fb: 'System', streams: ['status', 'system', 'battery', 'processes'] },
-    { id: 'media', key: 'cw_cat_media', fb: 'Media', streams: ['media', 'audio', 'audioLevels', 'wavelink'] },
+    { id: 'media', key: 'cw_cat_media', fb: 'Media', streams: ['media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter'] },
     { id: 'stream', key: 'cw_cat_stream', fb: 'Streaming', streams: ['obs', 'streamerbot', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'twitchWatch', 'twitchChat', 'youtubeLive'] },
     { id: 'info', key: 'cw_cat_info', fb: 'Info', streams: ['weather', 'stocks', 'football', 'news'] },
     { id: 'work', key: 'cw_cat_work', fb: 'Productivity', streams: ['tasks', 'notes', 'agenda', 'claude'] },
@@ -2391,6 +2394,23 @@
   // Below this many entries the list is already scannable and the filter bar
   // would cost more tile height than it saves.
   const PICK_FILTER_MIN = 6;
+  // Why the rescan skipped a folder, in words. GET /sdk/widgets has always
+  // returned these alongside the packages and nothing ever displayed them, so a
+  // package whose manifest fails validation was installed, listed as "Installed"
+  // in the Store, and absent from this picker with nothing said anywhere —
+  // indistinguishable from a search that simply found nothing.
+  // Only the reasons a user can act on get a sentence. Anything else falls
+  // through as its raw code on purpose: an unexplained code is still the thing
+  // that gets pasted into a bug report, and swallowing it is how this became
+  // invisible in the first place.
+  const PICK_BROKEN_REASONS = {
+    missing_manifest: { key: 'cw_pick_broken_no_manifest', fb: 'its manifest.json is missing' },
+    bad_manifest: { key: 'cw_pick_broken_bad_manifest', fb: 'its manifest.json could not be read' },
+    missing_entry: { key: 'cw_pick_broken_no_entry', fb: 'the file it names as its entry point is missing' },
+    unsupported_api: { key: 'cw_pick_broken_api', fb: 'it was built for a different SDK version' },
+  };
+  // A folder full of junk must not push the widgets off the panel.
+  const PICK_BROKEN_MAX = 6;
   // Search text and active chip, per tile instance. Kept outside the DOM so a
   // repaint (a rescan, a package install) doesn't drop what the user typed.
   const pickFilter = new Map();
@@ -2546,6 +2566,41 @@
 
     renderRows();
     frag.appendChild(list);
+
+    // Installed, on disk, and skipped by the rescan. Deliberately OUTSIDE
+    // renderRows and never filtered by the search or the chips: the situation
+    // this exists for is somebody typing the name of the widget that is not
+    // there, and hiding the explanation behind the same filter that is hiding
+    // the widget would leave the panel saying nothing again.
+    // Ids and reasons come from folder names on disk — el() sets textContent.
+    const broken = (pkgCache && Array.isArray(pkgCache.invalid) ? pkgCache.invalid : []).slice(0, PICK_BROKEN_MAX);
+    // Packages the engine stopped short of loading. Not a broken folder — these
+    // are installed and fine, and the list simply ends before them. It belongs in
+    // the same box for the same reason: somebody is looking for a widget that is
+    // not here, and the answer is on this screen or nowhere.
+    const skipped = Math.max(0, Number(pkgCache && pkgCache.skipped) || 0);
+    if (broken.length || skipped) {
+      const box = el('div', 'cw-pick-broken');
+      box.appendChild(el('div', 'cw-pick-broken-title', t('cw_pick_broken', 'Some installed widgets did not load')));
+      if (skipped) {
+        box.appendChild(el('div', 'cw-pick-broken-row',
+          t('cw_pick_skipped', 'This dashboard loads a limited number of widgets, and #n more are installed beyond it. Remove some in Settings to make room.')
+            .replace('#n', String(skipped))));
+      }
+      broken.forEach((b) => {
+        const id = String((b && b.id) || '').slice(0, 60);
+        const code = String((b && b.reason) || '');
+        const known = PICK_BROKEN_REASONS[code];
+        const said = known ? t(known.key, known.fb) : code;
+        box.appendChild(el('div', 'cw-pick-broken-row', said ? id + ' — ' + said : id));
+      });
+      if (broken.length) {
+        box.appendChild(el('div', 'cw-pick-broken-hint',
+          t('cw_pick_broken_hint', 'Reinstall them from the Store, or remove them there.')));
+      }
+      frag.appendChild(box);
+    }
+
     body.replaceChildren(frag);
   }
 
@@ -2937,7 +2992,7 @@
   // Package list access for AmbientMode / the Settings scene picker.
   async function getPackages(force) {
     if (!pkgCache || force) await fetchPackages(!!force);
-    return pkgCache || { packages: [], invalid: [] };
+    return pkgCache || { packages: [], invalid: [], skipped: 0 };
   }
   function cachedPackages() {
     return (pkgCache && Array.isArray(pkgCache.packages)) ? pkgCache.packages : [];

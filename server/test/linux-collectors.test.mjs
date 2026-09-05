@@ -372,12 +372,30 @@ test('resolveTargets: an empty target matches NOTHING, never everything', () => 
 // --- GPU --------------------------------------------------------------------
 
 test('parseGpu: converts MiB to bytes and keeps commas in the model name', () => {
-  const g = lc.parseGpu('11, 45, 1653, 32607, NVIDIA GeForce RTX 5090\n');
+  const g = lc.parseGpu('11, 45, 1653, 32607, 2610, 10501, NVIDIA GeForce RTX 5090\n');
   assert.equal(g.gpu, 11);
   assert.equal(g.gpuTemp, 45);
   assert.equal(g.vramUsed, 1653 * 1048576);
   assert.equal(g.vramTotal, 32607 * 1048576);
+  assert.equal(g.gpuClockMHz, 2610);
+  assert.equal(g.vramClockMHz, 10501);
   assert.equal(g.gpuName, 'NVIDIA GeForce RTX 5090');
+});
+
+test('parseGpu: the model name survives the two clock fields in front of it', () => {
+  // The name is the LAST field and is rejoined, because model names contain
+  // commas. Every field added to the query goes before it, so this is the guard
+  // that a future addition does not silently truncate the name at its comma.
+  const g = lc.parseGpu('11, 45, 1653, 32607, 2610, 10501, NVIDIA GeForce RTX 4070, Ti SUPER');
+  assert.equal(g.gpuName, 'NVIDIA GeForce RTX 4070, Ti SUPER');
+});
+
+test('parseGpu: a card reporting [N/A] clocks answers null, not zero', () => {
+  const g = lc.parseGpu('11, 45, 1653, 32607, [N/A], [N/A], Some GPU');
+  assert.equal(g.gpuClockMHz, null);
+  assert.equal(g.vramClockMHz, null);
+  assert.equal(g.gpu, 11, 'the rest of the row is still read');
+  assert.equal(g.gpuName, 'Some GPU');
 });
 
 test('parseGpu: a short or empty row yields nulls, never NaN', () => {
@@ -386,6 +404,30 @@ test('parseGpu: a short or empty row yields nulls, never NaN', () => {
     assert.equal(g.gpu, null);
     assert.equal(g.vramTotal, null);
   }
+});
+
+// --- CPU clock ---------------------------------------------------------------
+// scaling_cur_freq, one file per cpufreq policy, in kHz. The values here are the
+// file CONTENTS, so the pick is testable off a machine that has cpufreq at all
+// (a container or a VM usually does not) - same split as parseHwmonFans.
+
+test('pickCpuClockMHz: the fastest core wins, not the average', () => {
+  // An average reads low the moment the governor idles half the cores, which on
+  // a desktop is most of the time - a number nobody would recognise as theirs.
+  assert.equal(lc.pickCpuClockMHz(['4550123', '800000', '3800000']), 4550);
+});
+
+test('pickCpuClockMHz: junk, zeros and impossible speeds are dropped', () => {
+  assert.equal(lc.pickCpuClockMHz(['0', '', 'n/a', '99999999', '3200000']), 3200);
+  // 50 MHz is below the floor: a real core does not idle there, so it is a
+  // driver artefact rather than a reading.
+  assert.equal(lc.pickCpuClockMHz(['50000']), null);
+});
+
+test('pickCpuClockMHz: no cpufreq at all is null, never 0', () => {
+  // 0 would render as a confident "0 MHz" in a widget. Null means unknown.
+  assert.equal(lc.pickCpuClockMHz([]), null);
+  assert.equal(lc.pickCpuClockMHz(['garbage']), null);
 });
 
 // --- GPU without nvidia-smi -------------------------------------------------

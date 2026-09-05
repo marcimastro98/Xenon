@@ -624,6 +624,12 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         if (typeof onTimerDone === 'function') onTimerDone(data.id, data.label);
       } catch {}
     });
+    es.addEventListener('timer_chime', e => {
+      try {
+        const data = JSON.parse(e.data);
+        if (typeof onTimerChime === 'function') onTimerChime(data.id, data.label, data.every);
+      } catch {}
+    });
 
     es.onopen = () => {
       reconnectDelay = 2000;

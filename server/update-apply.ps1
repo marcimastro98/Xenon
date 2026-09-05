@@ -14,9 +14,34 @@
 #   the staged version; until then the backup is kept, and a build that cannot
 #   boot is rolled back instead of stranding the user.
 
-param([switch]$Worker, [switch]$NoElevate)
+# -Resume / -FromVersion are set only by the hand-off in step 3c: this script
+# starting the copy of ITSELF that the update just installed. See
+# Invoke-UpdaterHandoff for why, and for everything the successor must be told
+# because it can no longer read it off the disk.
+param([switch]$Worker, [switch]$NoElevate, [switch]$Resume, [string]$FromVersion)
 
 $ErrorActionPreference = 'Stop'
+
+# ---- PATH repair -------------------------------------------------------------
+# Every native tool this script reaches for - schtasks, robocopy, sc.exe, cmd -
+# lives in System32, and is found only because System32 is on PATH. That is not
+# a given. A PATH edited past the 2047-character limit of the old System
+# Properties dialog is truncated in place, and "debloat" scripts rewrite it
+# wholesale; either can leave a perfectly healthy Windows with no System32 entry.
+# The first native call then dies with "The term 'x' is not recognized" and the
+# user is told a file is missing that is exactly where it belongs (issue #127).
+#
+# Repaired for THIS PROCESS only. Nothing on the machine is changed, and a PATH
+# that is already correct is left untouched.
+foreach ($dir in @(
+  (Join-Path $env:SystemRoot 'System32'),
+  (Join-Path $env:SystemRoot 'System32\Wbem'),
+  (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0')
+)) {
+  if ((Test-Path -LiteralPath $dir) -and (($env:Path -split ';') -notcontains $dir)) {
+    $env:Path = "$dir;$env:Path"
+  }
+}
 $ProgressPreference = 'SilentlyContinue'
 
 $server    = $PSScriptRoot                         # ...\server
@@ -26,6 +51,11 @@ $updDir    = Join-Path $dataDir 'update'
 $appDir    = Join-Path $updDir 'app'               # staged new version (validated by prepare)
 $backupDir = Join-Path $updDir 'backup'
 $log       = Join-Path $updDir 'update.log'
+# Proof of which updater is running, captured NOW because step 3 overwrites this
+# very file. Compared after the copy to decide whether the update brought a
+# different updater with it. Best effort: no hash, no hand-off.
+$script:selfHashBefore = ""
+try { $script:selfHashBefore = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash } catch { }
 $runner    = Join-Path $server 'start-hidden.vbs'
 $dashUrl   = 'http://127.0.0.1:3030/'
 $nm        = Join-Path $root 'node_modules'
@@ -99,6 +129,64 @@ if (-not $Worker) {
     Log "relaunch failed: $($_.Exception.Message)"
   }
   exit
+}
+
+# Hand the rest of the update to the updater the update just installed.
+#
+# The script running an update is the copy that was ALREADY on the machine, so a
+# fix to this file can never fix the update that delivers it: it takes effect one
+# update later. That is not a theoretical wart. v4.11.6 fixed a broken `npm
+# install` in install.ps1 and the same fix landed here only in v4.11.7, which
+# means the users it was written for could not receive it by updating - the very
+# step it fixes is the one that fails. They had to reinstall by hand.
+#
+# Step 3 has just written the new updater over this file. From step 4 onwards
+# nothing needs state that only this process holds, so this is the one seam where
+# the work can change hands. Everything the successor cannot re-derive is passed
+# to it: -Resume (the tree is already swapped and the backup is valid, do not
+# redo steps 1-3) and -FromVersion (package.json on disk is the NEW one now, so
+# the version being upgraded FROM is no longer readable anywhere).
+#
+# Four rules keep this from being a new way to break an update:
+#
+#   * It only happens when the updater actually CHANGED. Same hash, no hand-off -
+#     so for almost every update this is a hash comparison and nothing else.
+#   * -Wait, never fire-and-forget. Exactly one process owns the update at any
+#     moment; there is no window with two runners, and none with none.
+#   * The successor touches a marker as its first statement. Marker present means
+#     it took ownership and its exit code is the update's outcome. Marker absent
+#     means it never got going and nothing was done, so this process simply
+#     carries on - the behaviour we had before this existed.
+#   * No elevation switch: a plain Start-Process inherits this token, so an
+#     elevated run stays elevated and no second UAC prompt can appear.
+#
+# Returns $null to continue in-process, or the successor's exit code to stop.
+function Invoke-UpdaterHandoff($fromVer) {
+  try {
+    if (-not $script:selfHashBefore) { Log 'handoff: no baseline hash for this updater; continuing in-process'; return $null }
+    $after = ''
+    try { $after = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash } catch { }
+    if (-not $after) { Log 'handoff: cannot read the installed updater; continuing in-process'; return $null }
+    if ($after -eq $script:selfHashBefore) { Log 'handoff: the update ships the same updater; continuing in-process'; return $null }
+
+    $marker = Join-Path $updDir 'handoff.started'
+    Remove-Item -LiteralPath $marker -Force -ErrorAction SilentlyContinue
+    $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $a = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ("`"$PSCommandPath`""),
+           '-Worker', '-Resume', '-FromVersion', ("`"$fromVer`""))
+    Log 'handoff: this update ships a different updater - handing the rest over to it'
+    $p = Start-Process -FilePath $psExe -ArgumentList $a -WindowStyle Hidden -PassThru -Wait -ErrorAction Stop
+    if (Test-Path $marker) {
+      Log "handoff: the installed updater ran and exited with $($p.ExitCode); this instance is done"
+      Remove-Item -LiteralPath $marker -Force -ErrorAction SilentlyContinue
+      return [int]$p.ExitCode
+    }
+    Log 'handoff: the installed updater never started; continuing in-process'
+    return $null
+  } catch {
+    Log "handoff: could not hand over ($($_.Exception.Message)); continuing in-process"
+    return $null
+  }
 }
 
 function Stop-Server {
@@ -241,11 +329,81 @@ function Remove-StaleAppFiles($stagedFiles, $oldVer) {
 # ExternalScript), and 'cmd /c "...npm.ps1"' cannot run a .ps1 - it pops the
 # Windows "select an app for this .ps1" picker and stalls the update.
 $npmCmd = (Get-Command npm.cmd -ErrorAction SilentlyContinue).Source
+# npm's own account of why it failed.
+#
+# This ran with no redirection, so everything npm printed went to a console
+# nobody sees - and "dependency installation failed" was the whole of what came
+# back. Reported on Discord as exactly that screenshot: a correct, honest reason
+# code that names the STAGE and says nothing about the cause, while npm had just
+# written the cause out in full. The causes it hides are ordinary and each has a
+# different fix: no network or a proxy in the way, a registry refusing the
+# connection, antivirus locking a file inside node_modules, a full disk, a node
+# too old for a new dependency.
+#
+# So capture it. The full transcript goes beside the update log, its tail goes
+# into that log, and the first npm ERR! line becomes a one-line detail the
+# dashboard can show - which is the line that turns a screenshot into a fix.
+# --ignore-scripts, for the same reason install.ps1 carries it since v4.11.6:
+# msedge-tts declares `preinstall: npx only-allow pnpm`, a guard whose whole
+# purpose is to fail the install unless the caller is pnpm. On most machines npx
+# quietly satisfies it; where %APPDATA%\npm does not exist (that folder appears
+# only once something is installed globally, and cleanup tools remove it) npx
+# itself dies with ENOENT, the preinstall fails, and npm aborts the whole tree.
+#
+# v4.11.6 fixed that in the installer and NOT here, so a fresh install worked
+# while every self-update on such a machine failed at this exact step -- and
+# rolled back cleanly, which made it look like a problem with that one PC. That
+# is the "dependency installation failed" reported on Discord.
+#
+# Nothing needed is lost by skipping scripts (ws has none; koffi ships its native
+# binary as a per-platform package; msedge-tts has only the guard) EXCEPT our own
+# postinstall, which is why Restore-SharedLinks below is not optional -- the same
+# pairing install.ps1 makes between --ignore-scripts and Restore-SharedFolderLinks.
+$npmOut = Join-Path $updDir 'npm-install.log'
+$npmErr = Join-Path $updDir 'npm-install.err.log'
+$script:npmDetail = ''
 function Invoke-Npm {
+  # Two separate files: Start-Process refuses to redirect both streams to one.
   $proc = Start-Process -FilePath $env:ComSpec `
-    -ArgumentList '/c', "`"$npmCmd`"", 'install', '--no-audit', '--no-fund' `
-    -WorkingDirectory $root -Wait -PassThru -NoNewWindow
+    -ArgumentList '/c', "`"$npmCmd`"", 'install', '--ignore-scripts', '--no-audit', '--no-fund' `
+    -WorkingDirectory $root -Wait -PassThru -NoNewWindow `
+    -RedirectStandardOutput $npmOut -RedirectStandardError $npmErr
+  if ($proc.ExitCode -ne 0) {
+    $lines = @()
+    foreach ($f in @($npmErr, $npmOut)) {
+      try { if (Test-Path $f) { $lines += (Get-Content -LiteralPath $f -ErrorAction Stop) } } catch {}
+    }
+    $lines = $lines | Where-Object { $_ -and $_.Trim() }
+    if ($lines.Count) {
+      Log ('npm said (last 20 lines, full output in ' + $npmOut + '):')
+      foreach ($l in ($lines | Select-Object -Last 20)) { Log ("  " + $l) }
+      # The first ERR! line is npm's own summary of the failure; anything else
+      # is progress noise. Fall back to the last line when npm failed without
+      # one (a shell that could not start it at all).
+      $first = $lines | Where-Object { $_ -match 'npm ERR!' } | Select-Object -First 1
+      if (-not $first) { $first = $lines | Select-Object -Last 1 }
+      $d = ($first -replace '^\s*npm ERR!\s*', '').Trim()
+      if ($d.Length -gt 200) { $d = $d.Substring(0, 200) }
+      $script:npmDetail = $d
+    }
+  }
   return $proc.ExitCode
+}
+
+# The postinstall --ignore-scripts skips: it builds server\shared, which the
+# dashboard loads from. Best effort and never fatal - server.js re-creates the
+# link at boot if it is missing (ensureSharedLink) and the client keeps inline
+# fallbacks, so a failure here costs nothing that the next start does not repair.
+function Restore-SharedLinks {
+  $linkScript = Join-Path $root 'tools\link-shared.mjs'
+  if (-not (Test-Path $linkScript)) { Log 'no link-shared.mjs in this build; nothing to link'; return }
+  $nodeExe = (Get-Command node.exe -ErrorAction SilentlyContinue).Source
+  if (-not $nodeExe) { Log 'node.exe not on PATH; shared links left to the server boot'; return }
+  try {
+    $p = Start-Process -FilePath $nodeExe -ArgumentList "`"$linkScript`"" `
+      -WorkingDirectory $root -Wait -PassThru -NoNewWindow
+    Log "shared links restored (exit $($p.ExitCode))"
+  } catch { Log "shared link step failed: $($_.Exception.Message)" }
 }
 
 $script:depsTouched = $false   # npm ran (in either mode) - node_modules may be mixed
@@ -254,7 +412,16 @@ $script:treeTouched = $false   # the copy step ran - $root may hold staged files
 $script:phase = 'start'        # last stage entered - maps to a reason code on failure
 
 try {
-  Log '=== apply start ==='
+  if ($Resume) {
+    # First statement of a resumed run, before anything can fail: the predecessor
+    # is blocked on our exit and reads this to tell "took ownership" from "never
+    # started". Written even if everything after it goes wrong - a resumed run
+    # that fails still OWNS the failure, and rolls it back itself.
+    try { New-Item -ItemType File -Force -Path (Join-Path $updDir 'handoff.started') | Out-Null } catch { }
+    Log '=== apply resumed (the updater this update shipped took over) ==='
+  } else {
+    Log '=== apply start ==='
+  }
   if (-not (Test-Path (Join-Path $appDir 'server\server.js'))) { Log 'no staged build; abort'; exit 1 }
 
   # Versions for the post-swap / post-rollback health checks. Best effort - an
@@ -262,7 +429,16 @@ try {
   $newVer = ''
   try { $newVer = ('' + (Get-Content (Join-Path $updDir 'staged.json') -Raw | ConvertFrom-Json).version).Trim() } catch {}
   $oldVer = ''
-  try { $oldVer = ('' + (Get-Content (Join-Path $root 'package.json') -Raw | ConvertFrom-Json).version).Trim() } catch {}
+  if ($Resume) {
+    # package.json on disk is the NEW version now - step 3 overwrote it - so the
+    # version being upgraded FROM is not readable anywhere here. It is passed in.
+    # Getting this wrong would be quiet and nasty: the rollback waits for the OLD
+    # version to answer, and against the new number it would call a perfectly good
+    # rollback unverified.
+    $oldVer = ('' + $FromVersion).Trim()
+  } else {
+    try { $oldVer = ('' + (Get-Content (Join-Path $root 'package.json') -Raw | ConvertFrom-Json).version).Trim() } catch {}
+  }
   Log "applying v$newVer over v$oldVer"
 
   # Recover a node_modules snapshot left by a previous interrupted run. Only the
@@ -279,35 +455,62 @@ try {
     }
   }
 
-  # 1) Back up the current install (exclude user data, node_modules, .git - those
-  #    are never overwritten by the merge; node_modules gets its own rename
-  #    snapshot in step 4, which keeps this copy small and fast).
-  $script:phase = 'backup'
-  if (Test-Path $backupDir) { Remove-Item $backupDir -Recurse -Force }
-  New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
-  robocopy $root $backupDir /E /XD $nm $nmBak $dataDir (Join-Path $root '.git') /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
-  if ($LASTEXITCODE -ge 8) { throw "backup failed ($LASTEXITCODE)" }
-  Log 'backup done'
+  if ($Resume) {
+    # Steps 1-3b already ran, in the process that handed over. Repeating them would
+    # be actively destructive: a second backup would capture the NEW tree, and the
+    # rollback would then "restore" the update it is meant to undo.
+    #
+    # The tree IS swapped and the backup IS valid, so a failure from here on must
+    # roll back exactly as it would have without the hand-off.
+    $script:treeTouched = $true
+    $script:phase = 'cleanup'
+    # Not a repeat of step 3b: Remove-StaleAppFiles is the part that acted and is
+    # deliberately skipped, while $stagedFiles is a pure read of the staged tree
+    # that the SUCCESS path needs (it writes the installed-file manifest the next
+    # update reads). Without it the manifest would ship empty and the next update
+    # would silently stop cleaning up stale files.
+    $stagedFiles = Get-StagedFileList
+    Log "resumed with the tree already swapped; $($stagedFiles.Count) staged file(s) known"
+  } else {
 
-  # 2) Free port 3030 (stop the running server that launched us).
-  $script:phase = 'stop_server'
-  Stop-Server
+    # 1) Back up the current install (exclude user data, node_modules, .git - those
+    #    are never overwritten by the merge; node_modules gets its own rename
+    #    snapshot in step 4, which keeps this copy small and fast).
+    $script:phase = 'backup'
+    if (Test-Path $backupDir) { Remove-Item $backupDir -Recurse -Force }
+    New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
+    robocopy $root $backupDir /E /XD $nm $nmBak $dataDir (Join-Path $root '.git') /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
+    if ($LASTEXITCODE -ge 8) { throw "backup failed ($LASTEXITCODE)" }
+    Log 'backup done'
 
-  # 3) Swap in the new files. MERGE only (never /MIR), so nothing in the install
-  #    gets deleted; the staged tree carries no data\ folder, so user data under
-  #    server\data is untouched. Exclude any data dir defensively.
-  $script:phase = 'copy'
-  $script:treeTouched = $true
-  robocopy $appDir $root /E /XD (Join-Path $appDir 'server\data') /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
-  if ($LASTEXITCODE -ge 8) { throw "copy failed ($LASTEXITCODE)" }
-  Log 'files copied'
+    # 2) Free port 3030 (stop the running server that launched us).
+    $script:phase = 'stop_server'
+    Stop-Server
 
-  # 3b) Remove files the previous version shipped that the new one no longer
-  #     does (see Remove-StaleAppFiles). Runs after the backup exists and before
-  #     the /version health check, so a failure here rolls back like any other.
-  $script:phase = 'cleanup'
-  $stagedFiles = Get-StagedFileList
-  Remove-StaleAppFiles $stagedFiles $oldVer
+    # 3) Swap in the new files. MERGE only (never /MIR), so nothing in the install
+    #    gets deleted; the staged tree carries no data\ folder, so user data under
+    #    server\data is untouched. Exclude any data dir defensively.
+    $script:phase = 'copy'
+    $script:treeTouched = $true
+    robocopy $appDir $root /E /XD (Join-Path $appDir 'server\data') /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
+    if ($LASTEXITCODE -ge 8) { throw "copy failed ($LASTEXITCODE)" }
+    Log 'files copied'
+
+    # 3b) Remove files the previous version shipped that the new one no longer
+    #     does (see Remove-StaleAppFiles). Runs after the backup exists and before
+    #     the /version health check, so a failure here rolls back like any other.
+    $script:phase = 'cleanup'
+    $stagedFiles = Get-StagedFileList
+    Remove-StaleAppFiles $stagedFiles $oldVer
+
+    # 3c) The update has just installed its own updater over this file. If it is a
+    #     different one, let it finish the job - otherwise a fix to this script can
+    #     only ever help the update AFTER the one carrying it. Returns only when the
+    #     hand-off did not happen; see Invoke-UpdaterHandoff.
+    $handoff = Invoke-UpdaterHandoff $oldVer
+    if ($null -ne $handoff) { exit $handoff }
+
+  }   # end of the steps a resumed run skips
 
   # 4) Reconcile dependencies (the release zip has no node_modules; deps may have
   #    changed). The old tree is snapshotted by RENAME first - instant, and a
@@ -331,6 +534,7 @@ try {
     $code = Invoke-Npm
     if ($code -ne 0) { throw "npm install failed ($code)" }
     Log 'npm install done'
+    Restore-SharedLinks
   } else {
     Log 'npm.cmd not found; keeping existing node_modules'
   }
@@ -362,6 +566,11 @@ try {
 }
 catch {
   Log "ERROR: $($_.Exception.Message)"
+  # Snapshot npm's reason NOW. The rollback below may run Invoke-Npm again to
+  # reconcile against the restored lockfile, and if THAT fails it would overwrite
+  # $script:npmDetail - leaving the result describing the recovery instead of the
+  # failure the user is looking at.
+  $failDetail = $script:npmDetail
   # Map the stage that blew up to a stable reason code the dashboard can
   # translate ("dependency installation failed", ...). Unknown stages fall
   # through as-is so they stay diagnosable from a screenshot.
@@ -413,8 +622,11 @@ catch {
   else { Log 'rollback NOT verified: previous version did not answer within 45s' }
   # Persist the failure so the dashboard can explain what happened (and that the
   # previous version is back) instead of spinning to a blind timeout.
+  # `detail` is npm's own one-line reason, present only when npm is what failed.
+  # Bounded and free text - the dashboard renders it as text and it exists to be
+  # read, and pasted, by whoever is stuck.
   Write-ApplyResult @{
-    ok = $false; reason = $reason; rolledBack = $restoredOk
+    ok = $false; reason = $reason; rolledBack = $restoredOk; detail = $failDetail
     rollbackVerified = $rollbackVerified; from = $oldVer; to = $newVer
     at = [DateTime]::UtcNow.ToString('o')
   }

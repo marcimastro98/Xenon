@@ -81,9 +81,9 @@ not need to do anything to support it.
 | `name` | yes | ≤ 60 chars. |
 | `version`, `author`, `description` | no | Shown to the user (description ≤ 200 chars). |
 | `entry` | no | HTML entry document, defaults to `index.html`. Must live in the package root. |
-| `streams` | no | Data streams you request: `status`, `system`, `media`, `audio`, `audioLevels`, `wavelink`, `stocks`, `football`, `news`, `claude`, `obs`, `discord`, `discordChannels`, `discordSoundboard`, `discordNotifications`, `streamerbot`, `homeassistant`, `twitchWatch`, `twitchChat`, `youtubeLive`, `tasks`, `notes`, `agenda`, `weather`, `battery`. *Capability reference* below is generated from the code and is the list that cannot go stale. See *Hardware sensors* for fans/power/battery. |
+| `streams` | no | Data streams you request: `status`, `system`, `media`, `audio`, `audioLevels`, `wavelink`, `voicemeeter`, `stocks`, `football`, `news`, `claude`, `obs`, `discord`, `discordChannels`, `discordSoundboard`, `discordNotifications`, `streamerbot`, `homeassistant`, `twitchWatch`, `twitchChat`, `youtubeLive`, `tasks`, `notes`, `agenda`, `weather`, `battery`. *Capability reference* below is generated from the code and is the list that cannot go stale. See *Hardware sensors* for fans/power/battery. |
 | `surface` | no | `"tile"` (default) or `"ambient"` — an ambient package renders fullscreen as an Ambient/screensaver scene instead of a dashboard tile (see *Ambient scenes*). |
-| `actions` | no | Action categories you request: `media`, `volume`, `audioDevice`, `mic`, `lighting`, `chroma`, `wavelink`, `spotify`, `obs`, `discord`, `homeassistant`, `twitch`, `youtube`, `streamerbot`, `url`, `browser`, `watch`, `tasks`, `soundboard`. *Capability reference* below is generated from the code and is the list that cannot go stale. |
+| `actions` | no | Action categories you request: `media`, `volume`, `audioDevice`, `mic`, `lighting`, `chroma`, `wavelink`, `voicemeeter`, `spotify`, `obs`, `discord`, `homeassistant`, `twitch`, `youtube`, `streamerbot`, `url`, `browser`, `watch`, `tasks`, `soundboard`. *Capability reference* below is generated from the code and is the list that cannot go stale. |
 | `hosts` | no | Up to 8 exact hostnames the widget may reach **through the host-mediated fetch proxy** (see *Network*). Loopback/link-local names are rejected at install time. |
 | `userHosts` | no | Up to 4 addresses **the user types in**, for servers you can't know in advance (a NAS, Docker, a printer). Each is `{ id, label, scope }` — `id` (`^[a-z0-9][a-z0-9-]{0,40}$`) is what you read the value back under, `label` (≤ 60 chars) is the text above the field, `scope` is `"private"` (default — LAN only) or `"any"`. See *User-supplied addresses*. |
 | `hooks` | no | Up to 8 hook ids (`^[a-z0-9][a-z0-9-]{0,40}$`) the widget may receive local webhook events on (see *Local webhooks*). |
@@ -203,9 +203,14 @@ than the manifest requested):
     // still renders as a glass card inside a pixel dashboard. See *Following the
     // skin* below. Also present on every `theme` refresh.
     skin: 'glass'|'retro',
-    // true when the user runs a 12-hour clock (Settings → Dynamic Island, auto/12/24
-    // already resolved). Use it if your widget renders its own time. Also present
-    // on every `theme` refresh, so a live toggle updates without a reload.
+    // true when the user runs a 12-hour clock. The setting is Settings → Clock →
+    // Time format (auto / 12 / 24), already resolved for you: `auto` follows the
+    // interface language, so you never have to guess from the locale. Use it
+    // whenever your widget renders a time of day — since v4.11.7 the whole
+    // dashboard honours this, so a widget that formats by locale instead is now
+    // the one thing on screen disagreeing with everything around it. Also
+    // present on every `theme` refresh, so a live toggle updates without a
+    // reload.
     clock12: false,
     // Explicit per-tile role overrides, empty for the global palette:
     overrides: ['accent', 'panel'],
@@ -260,7 +265,7 @@ widget explicitly requests them, as described below.
 The payloads are the dashboard's own SSE events, unmodified:
 
 - `status` — mic mute, game mode/activity, foreground process
-- `system` — `cpu` (%), `gpu` (%|null), `memory.percent`, temperatures, uptime…
+- `system` — `cpu` (%), `gpu` (%|null), `memory.percent`, temperatures, clock speeds, `fps`, uptime… see *Clock speeds and frame rate* below
 - `media` — `title`, `artist`, `album`, playback state, source, plus `position` and `duration` in seconds. A zero/absent `duration` means the current source has no seekable timeline
 - `audio` — volume, mute, output device, and `speakerApps[]` / `micApps[]`: the per-application mixer (one entry per active session, with `proc`, `volume`, `muted` and a resolved `icon`). Polled, so it updates about every 8 seconds
 - `audioLevels` — **how loud each app actually is right now**: `{ "discord": 0.42, "spotify": 0.81 }`, peak per process in `0..1`, roughly 12 times a second. See *Real audio levels* below — this one has conditions
@@ -443,6 +448,15 @@ to give you.
 account has been connected with the follows permission — `connected: false` is a
 normal state to draw, not an error. Refreshable (60 s).
 
+The tile re-reads the Followed list every 60 s and pushes the new snapshot, so a
+widget that just draws what arrives stays current without asking for anything.
+(Before v4.11.7 that list was read once and then held, which meant a widget could
+sit on a `live` array that had stopped being true — if you shipped a widget with
+its own refresh timer to work around that, you can drop it.) When the read fails,
+the previous snapshot stands rather than being replaced by an empty one: `live`
+going empty means the user follows nobody who is on air, never that a check
+failed.
+
 **`twitchChat`** — the chat of the channel being watched:
 
 ```js
@@ -573,6 +587,52 @@ those. `sources` tells you whether each backend answered at all, so you can
 distinguish "no devices" from "iCUE is off". Peripherals on a proprietary
 2.4GHz dongle (Logitech Unifying/Lightspeed and most custom keyboards) report no
 battery to Windows and cannot appear.
+
+### 3c. Clock speeds and frame rate (v4.11.7)
+
+Four more numbers ride the `system` payload, so `streams: ["system"]` is the
+whole grant — there is nothing extra to request and nothing new to approve.
+
+```js
+{ // …the rest of the system payload…
+  cpuClockMHz: 4550,     // the fastest core right now, in MHz
+  gpuClockMHz: 2610,     // GPU core clock
+  vramClockMHz: 10501,   // GPU memory clock
+  fps: 143,              // frames per second in the game being played
+}
+```
+
+- **`cpuClockMHz` is the fastest core, not an average.** An average reads low the
+  moment the OS parks half the cores, which on an idle desktop is most of the
+  time — so it would show a number nobody recognises. On Apple Silicon it is the
+  performance cluster, for the same reason.
+- **`fps` is `null` unless a game is actually being measured.** It comes from
+  PresentMon on Windows and MangoHud on Linux, and there is no source on macOS,
+  so `null` there always. `null` means "nothing to report", never zero.
+- **Every one of them is nullable**, and on more machines than you would guess:
+  a clock needs LibreHardwareMonitor with sensor access (`sensorAccess: 'ok'`),
+  `vramClockMHz` has no meaning on Apple Silicon's unified memory, and a card or
+  driver that answers `[N/A]` leaves the field null rather than zero. `Number(null)`
+  is `0`, so guard with `v != null` before formatting or you will print a
+  confident `0 MHz` where the truth is "not readable here".
+
+**On how often they arrive.** `system` is pushed every 5 seconds by default, and
+these four are on that tick like everything else. That cadence is deliberate: the
+sensor reads underneath it are LibreHardwareMonitor round-trips held in a cache
+of the same length, paid continuously on a machine that is often also running the
+game being measured.
+
+**The user can raise it** in Settings → Performance → *Sensor refresh rate*: 5
+seconds, 2, or 1. It moves the broadcast and the caches together, so 1 second
+really is 1 second rather than the same reading sent five times. Each step says
+what it costs where it is chosen, because five times the hardware reads is a real
+price and it is theirs to accept.
+
+**A widget cannot ask for it, and should not need to.** Write for the default and
+interpolate between ticks for a smooth-looking number; if someone has raised the
+rate, the same code simply gets fresher values. Never assume an interval — read
+the payload when it arrives. A widget that treats 5 seconds as a constant will be
+wrong on the machines that care most about it.
 
 ### 4. `theme` — host → widget
 
@@ -949,6 +1009,7 @@ the same gate Deck keys go through):
 | `lighting` | `{ type: 'lightPower', state: 'toggle' \| 'on' \| 'off' }`, `{ type: 'lightColor', color: '#rrggbb' }`, `{ type: 'lightAuto' }`, `{ type: 'lightEffect', style, color }`, `{ type: 'lightDevice', device, mode, color }` — the whole RGB system (iCUE + WLED/Hue/Nanoleaf/OpenRGB/Home Assistant lights/Chroma). `style`: `none\|solid\|breathing\|cycle\|wave\|aurora\|candle\|palette`; `mode`: `follow\|color\|animation\|temperature\|album\|off`; `color`: `#rrggbb`. `lightColor` sets a fixed colour across the whole rig, `lightAuto` clears it back to your configured lighting. Requires lighting configured in Settings → Illuminazione. |
 | `chroma` | `{ type: 'chromaColor', device, color }`, `{ type: 'chromaOff', device }` — Razer Chroma per-device lighting (`device`: `all` \| `keyboard` \| `mouse` \| `mousepad` \| `headset` \| `keypad` \| `chromalink`; `color`: `#rrggbb`). Requires the user to enable Razer Chroma in Settings. |
 | `wavelink` | `{ type: 'wlInputVolume', mixId, mix, value }`, `{ type: 'wlInputMute', mixId, mix }`, `{ type: 'wlOutputVolume', mix, value }`, `{ type: 'wlOutputMute', mix }`, `{ type: 'wlSwitchMonitoring' }`, `{ type: 'wlSetMonitorMix', monitorMix }` — Elgato Wave Link mixer (`mix`: `stream` \| `local` \| `all`; `value`: 0–100; `mixId` from the `wavelink` stream). Requires the user to enable Wave Link in Settings. |
+| `voicemeeter` | `{ type: 'vmStripMute', strip, mode }`, `{ type: 'vmStripGain', strip, mode, value }`, `{ type: 'vmStripBus', strip, bus, mode }`, `{ type: 'vmBusMute', bus, mode }`, `{ type: 'vmBusGain', bus, mode, value }`, `{ type: 'vmMacro', index, mode }` — Voicemeeter strips, buses and routing (`strip`: index; `bus`: a LABEL, `A1`…`B3`; `mode`: `toggle` \| `on` \| `off` for the flags, `set` \| `up` \| `down` for gain; gain in dB, clamped to −60…+12). Windows only, and only while Voicemeeter is running. `vmParam` is a Deck-key privilege and is **not** in this category: it names any parameter the mixer has, `Command.Shutdown` included. |
 | `spotify` | `spotifyPlay`, `spotifyNext`, `spotifyPrev`, `spotifySave`, `spotifyLike`, `spotifyShuffle`, `spotifyRepeat`, `spotifyVolume`, `spotifySeek`, `spotifyPlaylist`, `spotifyDevice` — control Spotify playback (params match the Deck Spotify actions; playback control needs Spotify Premium). Requires the user to connect Spotify in Settings. |
 | `obs` | `obsScene`, `obsSceneNext`, `obsRecord`, `obsStream`, `obsMute`, `obsInputVolume` — OBS scenes, recording/streaming and audio. Requires OBS connected (WebSocket) in Settings. |
 | `discord` | `discordMute`, `discordDeafen`, `discordPtt`, `discordJoin`, `discordLeave`, `discordInputVol`, `discordOutputVol`, `discordUserVol`, `discordUserMute`, `discordAudioToggle`, `discordSoundboard` — Discord voice via the local RPC. Requires Discord running and connected. See [Turning one person up or down](#5d-turning-one-person-up-or-down-discorduservol-v411) for the per-user pair. |
@@ -963,6 +1024,8 @@ the same gate Deck keys go through):
 | `soundboard` | `{ type: 'playSound', file, mode?: 'play' \| 'toggle' \| 'stop', volume? }`, `{ type: 'soundStopAll' }` — play clips from an **installed sound pack** (the `sounds` preset kind). `file` MUST be a pack-relative reference of the exact shape `packs/<packId>/<clipId>.<mp3\|ogg\|wav>` — arbitrary local paths are rejected for widgets (that stays a Deck-key-only, user-configured privilege). Same rule applies to `playSound` steps inside manifest `deck.actions` macros (validated at install). Playback happens on the surface where your widget runs. Ship your clips as a companion sound pack, or document which pack the widget expects. |
 
 The `wavelink` **stream** pushes the live mixer state — `{ connected, inputs: [{ mixId, name, bgColor, localVolumeIn, streamVolumeIn, isLocalInMuted, isStreamInMuted, … }], output, monitorMix, switchState }` — so a widget can render real faders and read the `mixId`s to target. Razer Chroma and the whole-system `lighting` category are write-only (no stream): fire the actions or show a static control. Since there's no lighting stream, the whole-rig `lighting` actions (`lightPower`/`lightColor`/`lightAuto`/`lightEffect`) need no ids; `lightDevice` targets a device id you already know.
+
+The `voicemeeter` **stream** does the same for Voicemeeter: `{ type, edition, strips: [{ index, mute, gain, routes: { A1: true, B1: false, … } }], buses: [{ index, label, mute, gain }] }`, sized to the edition that is running (Voicemeeter 3 strips / 2 buses, Banana 5 / 5, Potato 8 / 8). Target a bus by its **label**, never by its index: `B1` is bus 1 on Voicemeeter, bus 3 on Banana and bus 5 on Potato, so an index stored in a widget would point at a different output on someone else's machine. The stream is polled from the mixer's own change flag and only while a dashboard is connected, so it costs nothing on a PC that has no Voicemeeter.
 
 > Local-hardware note: apps like Razer Synapse and Wave Link expose a **loopback** endpoint, which the sandbox and fetch proxy deliberately block. These `chroma`/`wavelink` categories are the supported path — Xenon's backend does the local talking, you request the category, the user grants it. Do **not** try to reach `127.0.0.1` from a widget; it won't work by design.
 
@@ -1151,6 +1214,67 @@ action: { type: 'discordUserMute', user: '123456789012345678', mode: 'toggle' }
 Requires Discord running and connected in Settings, like every other action in
 the category.
 
+### 5e. Driving the Voicemeeter mixer: `voicemeeter` (v4.11.7)
+
+Windows shows Voicemeeter's virtual cards like any other sound device, so the
+`volume` and `audioDevice` categories could always set "Voicemeeter Output"
+loudness. Everything *inside* the mixer — per-strip gain, mute, and the
+A1/A2/B1/B2 routing buttons — lives behind Voicemeeter's Remote API, which is
+what this category reaches.
+
+```js
+// Mute the microphone strip
+action: { type: 'vmStripMute', strip: '0', mode: 'toggle' }
+// Set a strip's gain, in dB (-60…+12), or nudge it by 3
+action: { type: 'vmStripGain', strip: '3', mode: 'set', value: '-6' }
+action: { type: 'vmStripGain', strip: '3', mode: 'down', value: '3' }
+// Routing: send strip 3 to bus B1 (the buttons on the mixer)
+action: { type: 'vmStripBus', strip: '3', bus: 'B1', mode: 'toggle' }
+// A whole bus
+action: { type: 'vmBusMute', bus: 'A1', mode: 'on' }
+action: { type: 'vmBusGain', bus: 'A1', mode: 'set', value: '0' }
+// One of the user's own macro buttons
+action: { type: 'vmMacro', index: '3', mode: 'toggle' }
+```
+
+```json
+{ "streams": ["voicemeeter"], "actions": ["voicemeeter"] }
+```
+
+- **Read the stream before you draw anything.** It reports the edition and is
+  sized to it: `{ type, edition, strips: [{ index, mute, gain, routes }],
+  buses: [{ index, label, mute, gain }] }`. Voicemeeter has 3 strips and 2
+  buses, Banana 5 and 5, Potato 8 and 8, so a widget that hardcodes eight faders
+  draws five dead ones on most machines.
+- **Target a bus by `label`, never by index.** `B1` is bus 1 on Voicemeeter,
+  bus 3 on Banana and bus 5 on Potato. A widget that stored the index would
+  mute a different output on somebody else's edition, silently. `routes` is
+  keyed by the same labels, so `strips[3].routes.B1` and
+  `{ type: 'vmStripBus', strip: 3, bus: 'B1' }` are the same button.
+- `mode` is `toggle` / `on` / `off` for anything that is a flag, and
+  `set` / `up` / `down` for gain, where `value` is dB for `set` and the step
+  size for a nudge (default 3). Gain is clamped to the fader Voicemeeter really
+  has, so sending 40 stores +12 rather than being clamped invisibly later.
+- Errors say which part was wrong: `voicemeeter_not_installed`,
+  `voicemeeter_not_running`, `voicemeeter_windows_only`, `voicemeeter_bad_strip`,
+  `voicemeeter_bad_bus`, `voicemeeter_bad_macro`, `voicemeeter_bad_value`. An
+  index the running edition does not have is refused rather than written: the
+  DLL does not report a write to `Strip[7]` on a 3-strip mixer as an error, it
+  just goes nowhere.
+- **`vmParam` is not in this category.** A Deck key can set any named parameter
+  the mixer has — the EQ, the compressor, the patch, the recorder — but so can
+  `Command.Shutdown`, and closing the user's audio mixer is not something the
+  typed actions above imply. If your widget needs a control that is not here,
+  say which parameter and it can be added as a typed action rather than as a
+  blanket grant.
+- The stream is polled from Voicemeeter's own change flag, only while a
+  dashboard is connected, and the payload is compared before it is sent — so a
+  level meter moving does not re-render your widget. On a PC without
+  Voicemeeter nothing runs and the category is never offered.
+
+Windows only, and only while Voicemeeter is running. There is no setting to
+switch on: having it installed is the whole opt-in.
+
 <!-- SDK-REFERENCE:START (auto-generated by tools/gen-sdk-reference.mjs — do not edit by hand) -->
 ### Capability reference (auto-generated)
 
@@ -1158,7 +1282,7 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `processes`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `wavelink`, `weather`, `youtubeLive`
+**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `processes`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtubeLive`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 
@@ -1179,6 +1303,7 @@ the user granted, and every action is re-validated server-side.
 | `tasks` | `taskAdd`, `taskToggle`, `taskDelete` |
 | `twitch` | `twitchClip`, `twitchMarker`, `twitchAd`, `twitchTitle`, `twitchGame`, `twitchChat`, `twitchShoutout`, `twitchChatMode` |
 | `url` | `openUrl` |
+| `voicemeeter` | `vmStripMute`, `vmStripGain`, `vmStripBus`, `vmBusMute`, `vmBusGain`, `vmMacro` |
 | `volume` | `volume`, `appVolume`, `appMute` |
 | `watch` | `twitchWatchPlay`, `ytWatchPlay` |
 | `wavelink` | `wlInputVolume`, `wlInputMute`, `wlOutputVolume`, `wlOutputMute`, `wlSwitchMonitoring`, `wlSetMonitorMix` |

@@ -181,7 +181,7 @@
         if (sig === item.sig) return sig;
         const list = item.body.querySelector('.ac-list');
         let fmt = null;
-        try { fmt = new Intl.DateTimeFormat(t('locale'), { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch { /* fall back below */ }
+        try { fmt = new Intl.DateTimeFormat(t('locale'), timeParts({ weekday: 'short', day: '2-digit', month: 'short' })); } catch { /* fall back below */ }
         list.replaceChildren(...upcoming.map(e => {
           const row = el('div', 'ac-list-row');
           const title = el('span', 'ac-list-title');

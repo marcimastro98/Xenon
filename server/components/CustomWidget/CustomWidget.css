@@ -208,6 +208,20 @@ body.layout-editing .cw-wrap.cw-mounted .cw-frame { pointer-events: none; }
   flex: 0 0 auto; padding: 14px 2px; text-align: center;
   font-size: 0.72rem; font-weight: 600; opacity: 0.6;
 }
+/* Installed packages the rescan refused. Pinned under the list rather than in
+   it, so it stays on screen while the list scrolls and while a search is
+   filtering everything else away — the case it exists for is a search that
+   finds nothing because the widget never loaded. */
+.cw-pick-broken {
+  flex: 0 0 auto; margin-top: 8px; padding: 8px 10px; border-radius: 9px;
+  border: 1px solid rgba(255, 176, 32, 0.35); background: rgba(255, 176, 32, 0.07);
+}
+.cw-pick-broken-title { font-size: 0.7rem; font-weight: 800; opacity: 0.9; }
+.cw-pick-broken-row {
+  font-size: 0.68rem; font-weight: 600; opacity: 0.8; margin-top: 3px;
+  overflow-wrap: anywhere;
+}
+.cw-pick-broken-hint { font-size: 0.66rem; font-weight: 600; opacity: 0.6; margin-top: 5px; }
 .cw-pick-list {
   flex: 1 1 auto; min-height: 0; overflow-y: auto;
   display: flex; flex-direction: column; gap: 6px; padding: 1px 4px 0 0;

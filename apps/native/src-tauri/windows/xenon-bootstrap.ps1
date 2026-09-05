@@ -34,6 +34,27 @@
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
+# ---- PATH repair -------------------------------------------------------------
+# Every native tool this script reaches for - schtasks, robocopy, sc.exe, cmd -
+# lives in System32, and is found only because System32 is on PATH. That is not
+# a given. A PATH edited past the 2047-character limit of the old System
+# Properties dialog is truncated in place, and "debloat" scripts rewrite it
+# wholesale; either can leave a perfectly healthy Windows with no System32 entry.
+# The first native call then dies with "The term 'x' is not recognized" and the
+# user is told a file is missing that is exactly where it belongs (issue #127).
+#
+# Repaired for THIS PROCESS only. Nothing on the machine is changed, and a PATH
+# that is already correct is left untouched.
+foreach ($dir in @(
+  (Join-Path $env:SystemRoot 'System32'),
+  (Join-Path $env:SystemRoot 'System32\Wbem'),
+  (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0')
+)) {
+  if ((Test-Path -LiteralPath $dir) -and (($env:Path -split ';') -notcontains $dir)) {
+    $env:Path = "$dir;$env:Path"
+  }
+}
+
 $Repo = 'marcimastro98/Xenon'
 $TaskName = 'Xenon Edge Widget'
 $DashUrl = 'http://127.0.0.1:3030/'
@@ -139,6 +160,33 @@ function Done($m) {
   exit 0
 }
 
+# Is the startup task already registered? Two things make this three lines
+# longer than it looks.
+#
+# schtasks writes to stderr precisely when the task is ABSENT - i.e. on every
+# fresh install this script exists for - and under $ErrorActionPreference =
+# 'Stop' PowerShell 5.1 turns redirected native stderr into a terminating
+# NativeCommandError (issue #95: the bootstrap console flashed and died right
+# here). Relaxing the preference for the length of the call is what keeps the
+# absent task an answer rather than a crash.
+#
+# It used to hand the redirect to `cmd /c` instead, which made the check depend
+# on cmd being findable on PATH. That is not a given: a PATH edited past the
+# 2047-character limit of the old System Properties dialog is truncated in
+# place, and debloat scripts rewrite it wholesale, either of which can leave a
+# Windows install without System32 on it. Reported as issue #127 - "The term
+# 'cmd' is not recognized" - on a PC where cmd.exe was exactly where it belongs.
+# Nothing here is looked up on PATH any more.
+function Test-BackendTask {
+  $exe = Join-Path $env:SystemRoot 'System32\schtasks.exe'
+  if (-not (Test-Path -LiteralPath $exe)) { return $false }
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try { & $exe /Query /TN $TaskName 2>&1 | Out-Null } catch { return $false }
+  finally { $ErrorActionPreference = $prev }
+  return ($LASTEXITCODE -eq 0)
+}
+
 Write-Host ''
 # ASCII only in every string that reaches the console: this file has no BOM, so
 # PowerShell 5.1 decodes it as the system ANSI codepage and any non-ASCII
@@ -151,13 +199,7 @@ Write-Host ''
 # Backend present -> done. The splash only offers the button after ~20s of
 # silence on 3030, but that is a timing heuristic, not proof: this check is what
 # actually makes a stray click harmless.
-# The stderr redirect MUST happen inside cmd, not in PowerShell: under
-# $ErrorActionPreference = 'Stop', PS 5.1 turns redirected native stderr into a
-# terminating NativeCommandError - and schtasks writes to stderr precisely when
-# the task is absent, i.e. on every fresh install this script exists for
-# (issue #95: the bootstrap console flashed and died right here).
-cmd /c "schtasks /Query /TN `"$TaskName`" >nul 2>&1"
-if ($LASTEXITCODE -eq 0) {
+if (Test-BackendTask) {
   Done 'The Xenon backend is already installed - nothing to do.'
 }
 

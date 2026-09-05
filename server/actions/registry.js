@@ -48,6 +48,74 @@ function isAllowedAppPath(p, platform) {
   return APP_PATH_EXT.test(v);
 }
 
+// macOS hides the `.app` extension everywhere a person can see a path: Finder
+// shows "Helium", so does Get Info, so does the Applications folder. The path a
+// Mac user reads off their own screen and types into a key is therefore
+// /Applications/Helium — which is neither a bundle nor a file, so the key failed
+// with bad_app_path having never launched anything. Reported on Discord by
+// someone whose folder and URL keys worked and whose app keys all did not.
+//
+// This widens nothing. The completed path still has to pass isAllowedAppPath and
+// still has to exist; the only change is that one obvious place is checked before
+// giving up. A path that already carries an extension is left alone, so a
+// document can never be turned into an app by appending to it.
+function completeDarwinBundle(p, platform, fileExists) {
+  if ((platform || process.platform) !== 'darwin' || typeof fileExists !== 'function') return '';
+  const v = String(p == null ? '' : p).replace(/\/+$/, '');
+  const base = v.split('/').pop();
+  if (!base || base.includes('.')) return '';
+  const bundle = v + '.app';
+  return fileExists(bundle) ? bundle : '';
+}
+
+// The POSIX counterpart of unquotePath (js/deck-actions.js), and it exists for
+// the same reason: the normal way to get a path onto the clipboard hands you a
+// path that is escaped for a SHELL, and those escapes are not part of the name.
+//
+// On Windows that was Explorer's "Copy as path" and its double quotes. On macOS
+// it is dragging a file into Terminal, which is how most people get a path at
+// all — and what it writes is `/Applications/Epic\ Games\ Launcher.app`, with
+// every space backslash-escaped. Some shells and copy helpers wrap the whole
+// thing in single quotes instead. Either way the string names a file that does
+// not exist, the key answers not_found forever, and the field looks exactly
+// right. Reported on Discord by someone who worked around it by renaming the
+// application to remove the spaces — which is precisely the shape of a bug that
+// only bites paths with spaces in them.
+//
+// A backslash and a single quote are both LEGAL in a POSIX filename, so unlike
+// the Windows case this cannot be decided by the characters alone. It is decided
+// by the filesystem instead, and fail-closed twice over: a path that already
+// exists is never reinterpreted, and a rewritten candidate is only returned when
+// it exists. So the worst case is the behaviour we have today.
+//
+// Widens nothing: the result still faces every extension gate, every blocklist
+// and the existence check that follow. It only changes WHICH string those are
+// asked about.
+function completePosixTypedPath(p, platform, fileExists) {
+  if ((platform || process.platform) === 'win32') return '';
+  if (typeof fileExists !== 'function') return '';
+  const v = String(p == null ? '' : p).trim();
+  if (!v || fileExists(v)) return '';        // a real path is never second-guessed
+  const unquote = (x) => {
+    if (x.length < 2) return x;
+    const q = x[0];
+    if ((q !== "'" && q !== '"') || x[x.length - 1] !== q) return x;
+    const inner = x.slice(1, -1);
+    return (inner && !inner.includes(q)) ? inner : x;
+  };
+  // `\x` -> `x` for every escaped character, which is what a shell would have
+  // done with it. A trailing lone backslash is left alone rather than eaten.
+  const unescape = (x) => x.replace(/\\(.)/g, '$1');
+  // Ordered so the commonest form is tried first, and the combination last.
+  const tried = new Set([v]);
+  for (const cand of [unescape(v), unquote(v), unescape(unquote(v)), unquote(unescape(v))]) {
+    if (!cand || tried.has(cand)) continue;
+    tried.add(cand);
+    if (fileExists(cand)) return cand;
+  }
+  return '';
+}
+
 // Percentage value for the volume/brightness 'set' modes: accepts a decimal
 // comma, clamps to 0–100, returns null on anything non-numeric (reject loud).
 // Empty/whitespace is EXPLICITLY null — Number('') is 0, and a "set volume"
@@ -199,12 +267,23 @@ function createRegistry(deps) {
       switch (action.type) {
         case 'openApp': {
           let p = action.path.trim();
+          // Before anything else: a path that is escaped or quoted for a shell
+          // names no file at all, so every gate below would be judging a string
+          // the user never meant. No-op unless the literal path is missing AND a
+          // rewritten one really exists.
+          p = completePosixTypedPath(p, platform, d.fileExists) || p;
           // A direct .exe/.lnk launches as-is. If it isn't one, the user may have
           // pointed at the app's install FOLDER — resolve it to the primary
           // executable inside (re-resolved on every tap, so versioned apps like
           // Discord/Slack 'app-X.Y.Z' keep working after an update).
           if (!isAllowedAppPath(p, platform)) {
-            const resolved = (typeof d.resolveAppDir === 'function') ? String(d.resolveAppDir(p) || '') : '';
+            // On macOS the likeliest miss is the hidden .app extension; on
+            // Windows it is a path to the install FOLDER. Try the bundle first —
+            // resolveAppDir is a Windows notion and has nothing to say about
+            // /Applications/Helium.
+            const completed = completeDarwinBundle(p, platform, d.fileExists);
+            const resolved = completed
+              || ((typeof d.resolveAppDir === 'function') ? String(d.resolveAppDir(p) || '') : '');
             if (!resolved || !isAllowedAppPath(resolved, platform)) return { ok: false, error: 'bad_app_path' };
             p = resolved;
           }
@@ -222,7 +301,10 @@ function createRegistry(deps) {
           return { ok: true };
         }
         case 'openFile': {
-          const p = action.path.trim();
+          const raw = action.path.trim();
+          // Same shell-escaping trap as openApp above — and the likelier one, since
+          // a folder key is exactly what people build by dragging a folder somewhere.
+          const p = completePosixTypedPath(raw, platform, d.fileExists) || raw;
           if (!p) return { ok: false, error: 'empty_path' };
           // openFile opens with the registered handler, so executables/scripts
           // are blocked here — only openApp may launch an .exe/.lnk.
@@ -236,7 +318,12 @@ function createRegistry(deps) {
           // a real script that exists, then handed to the dedicated 'runscript'
           // runner (never openFile's registered handler). `window` (visible by
           // default) decides whether the console is shown — an installer needs it.
-          const p = action.path.trim();
+          //
+          // The shell-escape completion applies here too, and it is no wider than
+          // on the two cases above: the extension allowlist and the existence check
+          // below are unchanged, and a path that already exists is never rewritten.
+          const rawScript = action.path.trim();
+          const p = completePosixTypedPath(rawScript, platform, d.fileExists) || rawScript;
           if (!p) return { ok: false, error: 'empty_path' };
           if (!isRunnableScriptPath(p, platform)) return { ok: false, error: 'bad_script_ext' };
           if (!d.fileExists(p)) return { ok: false, error: 'not_found' };
@@ -355,6 +442,24 @@ function createRegistry(deps) {
           const secs = Math.min(86400, Math.max(5, Math.round(mins * 60)));
           const r = await d.timers.start(label, secs);
           return (r && r.ok === false) ? { ok: false, error: r.error || 'timer_failed' } : { ok: true };
+        }
+        case 'stopwatchStart': {
+          // A stopwatch has no duration to validate, which is the only
+          // difference from timerStart above. Pausing and cancelling reuse
+          // timerToggle/timerCancel: both address a timer by label and a
+          // stopwatch keeps the same clock underneath.
+          if (!d.timers || typeof d.timers.stopwatch !== 'function') return { ok: false, error: 'unavailable' };
+          const swLabel = action.label.trim();
+          if (!swLabel) return { ok: false, error: 'empty_label' };
+          // Optional: chime every N minutes on the way up. Absent or unreadable
+          // means a silent stopwatch, which is what the key did before this
+          // param existed — an unparseable value must not turn a working key
+          // into a failing one.
+          const every = Number(String(action.everyMinutes || '').replace(',', '.'));
+          const everySecs = Number.isFinite(every) && every > 0
+            ? Math.min(86400, Math.max(10, Math.round(every * 60))) : 0;
+          const rw = await d.timers.stopwatch(swLabel, everySecs);
+          return (rw && rw.ok === false) ? { ok: false, error: rw.error || 'timer_failed' } : { ok: true };
         }
         case 'timerToggle': {
           if (!d.timers || typeof d.timers.toggle !== 'function') return { ok: false, error: 'unavailable' };
@@ -587,6 +692,23 @@ function createRegistry(deps) {
           const r = await d.waveLink(action);
           return r && r.ok === false ? { ok: false, error: r.error || 'wavelink_failed' } : { ok: true };
         }
+        case 'vmStripMute':
+        case 'vmStripGain':
+        case 'vmStripBus':
+        case 'vmBusMute':
+        case 'vmBusGain':
+        case 'vmMacro':
+        case 'vmParam': {
+          // Voicemeeter strip/bus/routing control through the local Remote API
+          // DLL. One dep fronts the client, which owns the session and the
+          // edition check: a strip index or bus label the running mixer does
+          // not have comes back {ok:false} rather than as a write that lands
+          // nowhere. Absent Voicemeeter, absent DLL and non-Windows all degrade
+          // to a named error the key can show.
+          if (typeof d.voicemeeter !== 'function') return { ok: false, error: 'voicemeeter_unavailable' };
+          const r = await d.voicemeeter(action);
+          return r && r.ok === false ? { ok: false, error: r.error || 'voicemeeter_failed' } : { ok: true };
+        }
         case 'lightPower':
         case 'lightColor':
         case 'lightAuto':
@@ -726,4 +848,4 @@ function resolveOutputDevice(id, speakers) {
   return list.find((s) => s && typeof s.id === 'string' && s.id === wanted) || null;
 }
 
-module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, isBlockedOpenPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys, resolveOutputDevice };
+module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, completeDarwinBundle, completePosixTypedPath, isBlockedOpenPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys, resolveOutputDevice };

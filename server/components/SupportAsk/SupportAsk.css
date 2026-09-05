@@ -1,0 +1,219 @@
+/* The one-time supporter ask.
+ *
+ * It shares the Discord invite's shell — same corner, same size, same motion, so
+ * it is recognisably the same kind of object and not an advert that wandered in.
+ * Everything below is what has to be different, and the reason it is different:
+ * this card has to be worth reading, and the first version was a grey wall of
+ * text with a coloured square glued to the corner.
+ *
+ * WHY THIS ONE CARD IGNORES THE THEME ACCENT
+ * Every other surface in Xenon is painted from --accent, and this card was too.
+ * That made it a panel in the user's colours, which is exactly what it must not
+ * be: with a lime accent it read as a system notice, with a blue one as another
+ * settings pane, and on the theme whose accent IS pink the "support" button
+ * disappeared into the header behind it. A card that asks for something has to
+ * be the one object on screen that is unmistakably itself, so it carries its own
+ * palette — one pink, one red heart — on every theme, light and dark alike. It
+ * is the only place in the app that does this, and it does it once per install.
+ */
+
+.support-ask {
+  /* One palette for the whole card, declared here so nothing below repeats a
+     literal and the two hues can be retuned in one place. */
+  --sup-pink: 255, 45, 138;         /* the neon */
+  --sup-pink-deep: 214, 0, 110;     /* the end of the gradient that carries text */
+  --sup-red: #ff2b3d;               /* the heart, and only the heart */
+
+  /* A little more room than the invite card: this one has a list in it, and the
+     cramped version was the first thing that read as junk mail. */
+  width: min(372px, calc(100vw - 36px));
+  padding: 0;                       /* sections own their padding — see below */
+  overflow: hidden;                 /* so the tinted header can reach the corners */
+  border-color: rgba(var(--sup-pink), 0.24);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.55),
+              0 0 0 1px rgba(var(--sup-pink), 0.12);
+}
+:root[data-appearance="light"] .support-ask {
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.16),
+              0 0 0 1px rgba(var(--sup-pink), 0.14);
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────
+   A tinted band rather than a solid block. The old logo tile was a saturated
+   square shouting next to a title, which is what made the whole card read as an
+   advert; a wash the title sits INSIDE reads as a heading. */
+.support-ask .discord-invite-head {
+  padding: 15px 16px 14px;
+  background:
+    radial-gradient(120% 180% at 0% 0%, rgba(var(--sup-pink), 0.22), transparent 62%),
+    linear-gradient(180deg, rgba(var(--sup-pink), 0.11), transparent);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+:root[data-appearance="light"] .support-ask .discord-invite-head {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+.support-ask .support-ask-logo {
+  width: 30px; height: 30px;
+  border-radius: 9px;
+  /* The heart is red; the tile behind it only holds it. A filled tile at full
+     saturation is a traffic light, and this is not an alert. */
+  background: rgba(var(--sup-pink), 0.16);
+  box-shadow: inset 0 0 0 1px rgba(var(--sup-pink), 0.30);
+}
+.support-ask .support-ask-logo svg { width: 16px; height: 16px; color: var(--sup-red); }
+
+.support-ask .discord-invite-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.012em;
+  line-height: 1.25;
+}
+
+/* ── Body ─────────────────────────────────────────────────────────────── */
+.support-ask .discord-invite-text {
+  margin: 0;
+  padding: 14px 16px 12px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text, #e7e9ee);      /* the pitch is the message, not a footnote */
+  opacity: 0.86;
+}
+
+/* The three things you get. Concrete objects with a glyph each: a list is read,
+   a sentence listing the same three is skimmed past. */
+.support-ask-perks {
+  margin: 0;
+  padding: 0 16px 14px;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.support-ask-perks li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text, #e7e9ee);
+  opacity: 0.92;
+}
+.support-perk-icon {
+  flex: 0 0 auto;
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 7px;
+  background: rgba(var(--sup-pink), 0.13);
+  color: rgb(var(--sup-pink));
+}
+:root[data-appearance="light"] .support-perk-icon { color: rgb(var(--sup-pink-deep)); }
+.support-perk-icon svg { width: 13px; height: 13px; }
+
+/* ── Actions ──────────────────────────────────────────────────────────── */
+.support-ask .support-ask-actions {
+  padding: 0 16px 12px;
+  gap: 10px;
+}
+
+/* Monthly is the ask, so it is the only filled thing on the card, and the one
+   place the pink runs at full strength.
+   The gradient goes from the deep end to the neon one along the reading
+   direction, so the label starts over the darkest part of it: white on the neon
+   alone is 3.5:1, white on the deep end is 5.1:1, and this is a button people
+   have to be able to read at 12.5px. */
+.support-ask .support-ask-monthly {
+  flex: 1 1 auto;
+  justify-content: center;
+  padding: 10px 14px;
+  border-radius: 11px;
+  background: linear-gradient(100deg, rgb(var(--sup-pink-deep)) 0%, rgb(var(--sup-pink)) 62%, #ff4fa3 100%);
+  color: #fff;
+  font-weight: 700;
+  font-size: 12.5px;
+  /* The glow is what makes it read as neon rather than as a pink rectangle. */
+  box-shadow: 0 8px 22px rgba(var(--sup-pink), 0.38),
+              inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transition: transform .14s ease, box-shadow .14s ease, filter .14s ease;
+}
+.support-ask .support-ask-monthly:hover {
+  transform: translateY(-1px);
+  filter: saturate(1.08) brightness(1.05);
+  box-shadow: 0 12px 30px rgba(var(--sup-pink), 0.5),
+              inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+/* The heart sits on a white disc INSIDE the button. A red heart drawn straight
+   onto the pink is 1.06:1 against it — the shape simply is not there. The disc
+   is the contrast, and it is also the thing the eye lands on first. */
+.support-ask .support-ask-heart {
+  flex: 0 0 auto;
+  /* 22 and 12, both even, on purpose: the disc centres the glyph by sharing out
+     what is left over, and 21 minus 12 is 9, which is four and a half pixels a
+     side. Half a pixel is enough to see once the card is looked at closely, and
+     it was the first thing anyone noticed. Even numbers leave five and five. */
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(120, 0, 55, 0.28);
+}
+.support-ask .support-ask-heart svg { width: 12px; height: 12px; color: var(--sup-red); }
+/* A heartbeat, not an animation: two beats when the card arrives and then it
+   stops. Anything that keeps moving in the corner of a dashboard is an advert. */
+@keyframes support-heartbeat {
+  0%, 62%, 100% { transform: scale(1); }
+  70% { transform: scale(1.18); }
+  78% { transform: scale(1); }
+  86% { transform: scale(1.12); }
+}
+.support-ask.is-in .support-ask-heart svg { animation: support-heartbeat 2.6s ease-in-out .6s 2; }
+
+/* The one-off is a real option and not a filled button: two equal buttons is the
+   shape of a card that has not decided what it is asking for. */
+.support-ask .support-ask-once {
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: none;
+  font-size: 12px;
+  color: var(--muted-text, #9aa0aa);
+  transition: color .15s ease, background .15s ease;
+}
+.support-ask .support-ask-once:hover {
+  color: var(--text, #e7e9ee);
+  background: rgba(var(--sup-pink), 0.10);
+  text-decoration: none;
+}
+:root[data-appearance="light"] .support-ask .support-ask-once:hover { color: rgb(var(--sup-pink-deep)); }
+
+/* "I already support Xenon" — the way out for someone this card should never
+   have reached. On its own strip so it cannot be mistaken for a third ask. */
+.support-ask-already {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 10px 16px 12px;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--muted-text, #9aa0aa);
+  font: inherit;
+  font-size: 11.5px;
+  text-align: center;
+  cursor: pointer;
+  transition: color .15s ease, background .15s ease;
+}
+:root[data-appearance="light"] .support-ask-already {
+  border-top-color: rgba(0, 0, 0, 0.06);
+  background: rgba(0, 0, 0, 0.02);
+}
+.support-ask-already:hover { color: var(--text, #e7e9ee); background: rgba(var(--sup-pink), 0.09); }
+:root[data-appearance="light"] .support-ask-already:hover { color: rgb(var(--sup-pink-deep)); }
+
+.support-ask .discord-invite-close { margin-right: -4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .support-ask { transition: opacity .2s ease; transform: none; }
+  .support-ask .support-ask-monthly:hover { transform: none; }
+  .support-ask.is-in .support-ask-heart svg { animation: none; }
+}

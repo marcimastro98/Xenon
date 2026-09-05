@@ -116,6 +116,7 @@
 <link rel="stylesheet" href="components/SmartHomePanel/SmartHomePanel.css">
 <link rel="stylesheet" href="components/UnifiPanel/UnifiPanel.css">
 <link rel="stylesheet" href="components/DiscordInvite/DiscordInvite.css">
+<link rel="stylesheet" href="components/SupportAsk/SupportAsk.css">
 <link rel="stylesheet" href="components/Spotlight/Spotlight.css">
 <link rel="stylesheet" href="components/SearchWidget/SearchWidget.css">
 <link rel="stylesheet" href="components/DiskWidget/DiskWidget.css">
@@ -261,7 +262,7 @@
       <div class="media-art" data-mf="media-art">
         <div class="media-placeholder">
           <div class="ph-eq"><span></span><span></span><span></span><span></span><span></span></div>
-          <div class="ph-label">No Media</div>
+          <div class="ph-label" data-i18n="media_no_art">No artwork</div>
         </div>
       </div>
       <div class="media-content">
@@ -429,7 +430,9 @@
                 onkeydown="onTimerInputKeydown(event)">
               <button class="timer-add-btn" type="button" onclick="addTimerFromInput()" data-i18n-title="timer_add" title="Aggiungi timer" aria-label="Aggiungi timer">+</button>
             </div>
-            <div class="timer-format-hint" data-i18n="timer_format_hint">5 min · 5:30 min:sec · 1:05:00 ore:min:sec</div>
+            <!-- The hint is where the stopwatch is discoverable: there is no
+                 second button, an empty duration is the gesture. -->
+            <div class="timer-format-hint" data-i18n="timer_format_hint">5 min · 5:30 min:sec · 1:05:00 ore:min:sec · vuoto = cronometro · +5 = avvisa ogni 5 min</div>
           </div>
           <div class="timer-list" id="timer-list" data-timerf="list"></div>
         </div>
@@ -1500,7 +1503,7 @@
       <div class="settings-group settings-behavior-group" data-settings-cat="general">
         <div class="settings-group-head">
           <span data-i18n="settings_calendar">Calendario</span>
-          <span class="settings-hint" data-i18n="settings_calendar_hint">primo giorno della settimana</span>
+          <span class="settings-hint" data-i18n="settings_calendar_hint">primo giorno della settimana ed eventi in arrivo</span>
         </div>
         <div class="settings-row full">
           <span class="settings-label-line"><span data-i18n="settings_week_start">Primo giorno</span></span>
@@ -1509,6 +1512,34 @@
             <button class="settings-week-start settings-segment-btn" type="button" data-week-start="sun" onclick="updateWeekStart('sun')" aria-pressed="false" data-i18n="settings_week_sun">Domenica</button>
           </div>
         </div>
+        <!-- What the Upcoming list shows. There was never a rule about "the next
+             two weeks", which is what it looked like from outside: the list took
+             the next five events and the dates fell where they fell. These are
+             the two knobs that were missing — how many, and how far. -->
+        <label class="settings-row full">
+          <span class="settings-label-line">
+            <span data-i18n="settings_upcoming_count">Eventi in arrivo</span>
+            <span class="settings-hint" data-i18n="settings_upcoming_count_hint">quanti mostrarne nel riquadro Calendario</span>
+          </span>
+          <select class="settings-select" id="settings-upcoming-count" data-custom-select data-cs-fixed onchange="updateUpcomingCount(this.value)">
+            <option value="3">3</option>
+            <option value="5" selected>5</option>
+            <option value="8">8</option>
+            <option value="10">10</option>
+          </select>
+        </label>
+        <label class="settings-row full">
+          <span class="settings-label-line">
+            <span data-i18n="settings_upcoming_days">Fino a</span>
+            <span class="settings-hint" data-i18n="settings_upcoming_days_hint">nasconde gli eventi più lontani di così</span>
+          </span>
+          <select class="settings-select" id="settings-upcoming-days" data-custom-select data-cs-fixed onchange="updateUpcomingDays(this.value)">
+            <option value="0" selected data-i18n="settings_upcoming_days_any">Nessun limite</option>
+            <option value="7" data-i18n="settings_upcoming_days_7">7 giorni</option>
+            <option value="14" data-i18n="settings_upcoming_days_14">14 giorni</option>
+            <option value="30" data-i18n="settings_upcoming_days_30">30 giorni</option>
+          </select>
+        </label>
       </div>
 
       <div class="settings-group settings-behavior-group" data-settings-cat="general">
@@ -2317,6 +2348,29 @@
            leaving it in the flow trades a titled empty box for an untitled
            empty one. -->
       <div id="settings-sensors-hub" data-settings-cat="performance"></div>
+
+      <!-- Sensor cadence. Its own group rather than a row inside Performance
+           Mode: that block is gated behind an "Enable" switch, and this is not a
+           mode - it is how often the readings underneath everything refresh,
+           which matters to someone whose dashboard is a monitor whether or not
+           they optimize anything. Asked for by a widget author building exactly
+           that. -->
+      <div class="settings-group" data-settings-cat="performance">
+        <div class="settings-group-head">
+          <span data-i18n="settings_sensorrate_title">Frequenza sensori</span>
+          <span class="settings-hint" data-i18n="settings_sensorrate_hint">ogni quanto si aggiornano temperature, carico, clock e FPS</span>
+        </div>
+        <div class="settings-grid">
+          <div class="settings-row full">
+            <div class="settings-seg" id="settings-sensor-rate" role="radiogroup" aria-label="Sensor refresh rate">
+              <button type="button" class="settings-seg-btn" data-rate="5000" role="radio" aria-checked="false" onclick="updateSensorRate(5000)" data-i18n="settings_sensorrate_5s">5 secondi</button>
+              <button type="button" class="settings-seg-btn" data-rate="2000" role="radio" aria-checked="false" onclick="updateSensorRate(2000)" data-i18n="settings_sensorrate_2s">2 secondi</button>
+              <button type="button" class="settings-seg-btn" data-rate="1000" role="radio" aria-checked="false" onclick="updateSensorRate(1000)" data-i18n="settings_sensorrate_1s">1 secondo</button>
+            </div>
+            <span class="settings-note" id="settings-sensor-rate-hint" data-i18n="settings_sensorrate_note_5000"></span>
+          </div>
+        </div>
+      </div>
 
       <div class="settings-group" data-settings-cat="performance">
         <div class="settings-group-head">
@@ -3505,7 +3559,8 @@
       <div class="settings-status" id="settings-status" aria-live="polite"></div>
       <button class="settings-btn" type="button" onclick="restartXenon()" data-i18n="settings_restart_app">Riavvia Xenon</button>
       <div class="settings-hint" data-i18n="settings_restart_hint">Chiude e riapre l'app per ripulire eventuali blocchi, senza perdere nulla: impostazioni, widget, layout e sfondi restano.</div>
-      <button class="settings-btn primary" type="button" onclick="resetAllSettings()" data-i18n="settings_reset_all">Ripristina tutte le impostazioni</button>
+      <button class="settings-btn danger" type="button" onclick="resetAllSettings()" data-i18n="settings_reset_all">Ripristina tutte le impostazioni</button>
+      <div class="settings-hint" data-i18n="settings_reset_all_hint">Le tile perdono il widget assegnato e i suoi permessi, insieme a elenco installazioni, preset di pagina e temi, sfondi e scene Ambient personalizzati. Il layout resta, e i widget restano installati sul PC.</div>
     </div>
   </section>
 </div>
@@ -3873,6 +3928,7 @@
 <script src="js/tab-switcher.js"></script>
 <script src="js/ambient-freeze.js"></script>
 <script src="js/discord-invite.js"></script>
+<script src="js/support-card.js"></script>
 <script src="js/custom-bg.js"></script>
 <script src="js/slideshow-widget.js"></script>
 <script src="js/theme-palette.js"></script>

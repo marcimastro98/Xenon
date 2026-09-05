@@ -275,6 +275,11 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   },
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language (en → 12h)
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
+  // What the Upcoming list shows. There was never a two-week rule, which is how
+  // it read from outside: the list took the next five events and their dates
+  // fell where they fell. 0 days = no horizon, which is what it always did.
+  upcomingCount: 5,
+  upcomingDays: 0,
   swipeNavigation: true, // drag / finger-swipe to change dashboard page (touchscreen-friendly)
   swipeHomeGesture: true, // native app: swipe up from the bottom → Windows desktop (native-bridge.js)
   hideOnRdp: false, // native app: hide the kiosk during a Windows Remote Desktop session (opt-in; native-bridge.js)
@@ -794,6 +799,16 @@ const BG_CUSTOM_CODE_MAX = 60000;
 // An older build normalizes an unknown kind to 'auto', which is the safe
 // direction — the window stays visible rather than disappearing.
 const SURFACE_KINDS = ['auto', 'screen', 'phone', 'both'];
+// How often the sensor readings refresh, in ms. Mirrors SENSOR_RATE_MS in
+// server.js — the server clamps to this same set, so an out-of-range value
+// saved by anything else lands back on the default rather than being honoured.
+//
+// Declared HERE, beside SURFACE_KINDS, and not next to the function that reads
+// it: normalizeSettings runs during `let hubSettings = loadHubSettings()` below,
+// so a const declared after that line is in its temporal dead zone and the read
+// throws — which boots the dashboard empty. settings-load-order.test.mjs is the
+// guard, and it caught exactly that.
+const SENSOR_RATE_MS = [5000, 2000, 1000];
 // normalizeNewsClient() runs during that same init too, and reaches this table
 // through defaultNewsFeedsClient() when there is no saved feed list — a fresh
 // install, or a settings blob that predates the key. It sat beside that function
@@ -832,8 +847,8 @@ const NEWS_DEFAULT_TOPIC = Object.freeze({
 // — a grant carrying a stream/action the server allows but this list omits gets
 // silently stripped on save, so the widget is granted a capability it can never
 // use. server/test/sdk-grant-cats-sync guards that half.
-const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'audioLevels', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes']);
-const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'audioDevice', 'mic', 'lighting', 'chroma', 'wavelink', 'spotify', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'streamerbot', 'url', 'tasks', 'soundboard', 'browser', 'watch']);
+const SDK_WIDGET_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes']);
+const SDK_WIDGET_ACTION_CATS = Object.freeze(['media', 'volume', 'audioDevice', 'mic', 'lighting', 'chroma', 'wavelink', 'voicemeeter', 'spotify', 'obs', 'discord', 'homeassistant', 'twitch', 'youtube', 'streamerbot', 'url', 'tasks', 'soundboard', 'browser', 'watch']);
 const SDK_PACKAGE_ID_RE = /^[a-z0-9][a-z0-9-]{1,40}$/;
 // Grant-side mirrors of the server manifest rules (sdk-widgets.js is the
 // authority; a grant can never widen what the manifest declared, so a loose
@@ -1600,6 +1615,8 @@ function normalizeSettings(source) {
     topbarClock: normalizeTopbarClock(value.topbarClock, value),
     clockFormat: ['auto', '12', '24'].includes(value.clockFormat) ? value.clockFormat : DEFAULT_HUB_SETTINGS.clockFormat,
     weekStart: ['mon', 'sun'].includes(value.weekStart) ? value.weekStart : DEFAULT_HUB_SETTINGS.weekStart,
+    upcomingCount: [3, 5, 8, 10].includes(Number(value.upcomingCount)) ? Number(value.upcomingCount) : DEFAULT_HUB_SETTINGS.upcomingCount,
+    upcomingDays: [0, 7, 14, 30].includes(Number(value.upcomingDays)) ? Number(value.upcomingDays) : DEFAULT_HUB_SETTINGS.upcomingDays,
     swipeNavigation: value.swipeNavigation !== false,
     swipeHomeGesture: value.swipeHomeGesture !== false,
     hideOnRdp: value.hideOnRdp === true,
@@ -1622,6 +1639,10 @@ function normalizeSettings(source) {
     bgDim: clampNumber(value.bgDim, 0.05, 0.9, DEFAULT_HUB_SETTINGS.bgDim),
     bgBlur: clampNumber(value.bgBlur, 0, 24, DEFAULT_HUB_SETTINGS.bgBlur),
     idleAnimationPause: value.idleAnimationPause !== false,
+    // Sensor cadence (ms). Mirrors normalizeSensorRate in server.js: both sides
+    // persist this key, so both have to rebuild it the same way or a save from
+    // one would strip what the other wrote.
+    sensorRateMs: SENSOR_RATE_MS.includes(Math.round(Number(value.sensorRateMs))) ? Math.round(Number(value.sensorRateMs)) : 5000,
     safeMode: value.safeMode === true,
     hybridGpuAnimationPause: value.hybridGpuAnimationPause !== false,
     uiRoundness: clampNumber(value.uiRoundness, 0, 2, DEFAULT_HUB_SETTINGS.uiRoundness),
@@ -1645,6 +1666,14 @@ function normalizeSettings(source) {
     // Mirror of normalizeHubSettings in server.js — keep in step.
     whatsNewSeen: typeof value.whatsNewSeen === 'string' ? value.whatsNewSeen.trim().slice(0, 64) : '',
     discordInviteSeen: value.discordInviteSeen === true,
+    // Usage history, server-owned (server.js counts the days; POST /settings
+    // keeps its own values). Round-tripped here for the same reason as every
+    // other mirrored key: the known-key rebuild would otherwise drop them from
+    // the blob this client sends back.
+    firstRunDay: typeof value.firstRunDay === 'string' ? value.firstRunDay.slice(0, 10) : '',
+    lastUsageDay: typeof value.lastUsageDay === 'string' ? value.lastUsageDay.slice(0, 10) : '',
+    usageDays: Math.max(0, Math.floor(Number(value.usageDays) || 0)),
+    supportAskSeen: value.supportAskSeen === true,
     discordFavChannels: normalizeSnowflakeList(value.discordFavChannels),
     catalogStats: value.catalogStats === true,
     browserAdblock: value.browserAdblock === true,
@@ -4455,7 +4484,11 @@ function settingsPrompt(opts) {
     cancel.type = 'button'; cancel.className = 'settings-btn subtle';
     cancel.textContent = o.cancelLabel || t('dlg_cancel');
     const ok = document.createElement('button');
-    ok.type = 'button'; ok.className = 'settings-btn primary';
+    // `danger`: the confirm button for something that destroys data. It is
+    // styled as the destructive action rather than the inviting one, and the
+    // focus below goes to Cancel — a dialog that opens with the destructive
+    // button focused is one keypress from doing the thing it is asking about.
+    ok.type = 'button'; ok.className = o.danger === true ? 'settings-btn danger' : 'settings-btn primary';
     ok.textContent = o.okLabel || t('dlg_save');
     row.appendChild(cancel); row.appendChild(ok);
     body.appendChild(row);
@@ -4479,7 +4512,7 @@ function settingsPrompt(opts) {
     overlay.addEventListener('click', (e) => { if (e.target === overlay) finish(null); });
     document.addEventListener('keydown', onKey);
     document.body.appendChild(overlay);
-    if (input) { input.focus(); input.select(); } else ok.focus();
+    if (input) { input.focus(); input.select(); } else (o.danger === true ? cancel : ok).focus();
   });
 }
 
@@ -4755,6 +4788,7 @@ function syncSettingsControls() {
   if (window.SdkIsland) window.SdkIsland.apply();
   syncClockFormatControls();
   syncWeekStartControls();
+  syncUpcomingControls();
   syncLockWidgetSettings();
   syncAutoOpenBrowserControl();
   syncSwipeHomeControl();
@@ -7262,6 +7296,39 @@ function _savePerformance(patch) {
   if (window.PerfMode && typeof window.PerfMode.refresh === 'function') window.PerfMode.refresh();
 }
 
+// The cadence everything sensor-shaped runs at. Saving it is enough: the server
+// reads the value per tick and per cache check, so the next reading uses it —
+// there is nothing to restart and nothing to tell the dashboard.
+function updateSensorRate(ms) {
+  const next = SENSOR_RATE_MS.includes(Math.round(Number(ms))) ? Math.round(Number(ms)) : 5000;
+  hubSettings = normalizeSettings({ ...hubSettings, sensorRateMs: next });
+  saveHubSettings();
+  syncSensorRateControls();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function syncSensorRateControls() {
+  const rate = SENSOR_RATE_MS.includes(Math.round(Number(hubSettings.sensorRateMs)))
+    ? Math.round(Number(hubSettings.sensorRateMs)) : 5000;
+  const seg = $('settings-sensor-rate');
+  if (seg) {
+    seg.querySelectorAll('.settings-seg-btn').forEach((b) => {
+      const on = Number(b.dataset.rate) === rate;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+  }
+  // The note says what THIS step costs, not what the feature is. A faster
+  // cadence is a real trade and the person choosing it should read the price at
+  // the moment they choose, not in a manual.
+  const note = $('settings-sensor-rate-hint');
+  if (note) {
+    const key = 'settings_sensorrate_note_' + rate;
+    note.setAttribute('data-i18n', key);
+    if (typeof t === 'function') note.textContent = t(key);
+  }
+}
+
 function updatePerformanceEnabled(enabled) {
   _savePerformance({ enabled: !!enabled });
   syncPerformanceControls();
@@ -7439,6 +7506,7 @@ function restorePerformance() {
 }
 
 function syncPerformanceControls() {
+  syncSensorRateControls();
   const p = normalizePerformance(hubSettings.performance);
   const setChecked = (id, checked) => { const el = $(id); if (el) el.checked = checked; };
   setChecked('settings-perf-enabled', p.enabled);
@@ -8201,6 +8269,32 @@ function discordInviteDismissed() {
   return legacyCardFlag('discordInviteSeen') === 'dismissed';
 }
 
+// The one-time supporter ask. Unlike the two cards above there is no legacy
+// localStorage key to promote: it ships straight into hub settings, because the
+// whole point is that it happens ONCE in the life of an install and a cleared
+// browser store must not bring it back.
+function supportAskDismissed() {
+  return !!(hubSettings && hubSettings.supportAskSeen === true);
+}
+
+function rememberSupportAskSeen() {
+  if (hubSettings && hubSettings.supportAskSeen === true) return;
+  hubSettings = normalizeSettings({ ...hubSettings, supportAskSeen: true });
+  saveHubSettings();
+}
+
+// How long this install has been used, for the ask's own gate. Answers null
+// until the server copy has landed: before that the numbers are a blind local
+// mirror, and on a device whose site data is cleared every exit that mirror
+// reads as a brand-new install — which is exactly when the card must NOT go up.
+function usageHistory() {
+  if (!_hubHydratedFromServer) return null;
+  return {
+    firstRunDay: (hubSettings && hubSettings.firstRunDay) || '',
+    usageDays: Math.max(0, Math.floor(Number(hubSettings && hubSettings.usageDays) || 0)),
+  };
+}
+
 function rememberDiscordInviteSeen() {
   try { localStorage.setItem(LEGACY_CARD_KEYS.discordInviteSeen, 'dismissed'); } catch { /* ignore */ }
   if (hubSettings && hubSettings.discordInviteSeen === true) return;
@@ -8262,6 +8356,9 @@ window.XenonStartupCards = {
   rememberWhatsNew: rememberWhatsNewSeen,
   discordInviteDismissed,
   rememberDiscordInvite: rememberDiscordInviteSeen,
+  supportAskDismissed,
+  rememberSupportAsk: rememberSupportAskSeen,
+  usageHistory,
 };
 
 // Brings the real scheduled task in line with the user's saved intent — but
@@ -9152,6 +9249,41 @@ function updateClockFormat(fmt) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
+// How many upcoming events the Calendar tile lists, and how far ahead it looks.
+// Display-only, like the first-day-of-week beside them: repaint immediately so
+// the change is visible without waiting for the next calendar refresh.
+function updateUpcomingCount(value) {
+  const n = Number(value);
+  if (![3, 5, 8, 10].includes(n)) return;
+  hubSettings = normalizeSettings({ ...hubSettings, upcomingCount: n });
+  saveHubSettings();
+  syncUpcomingControls();
+  if (typeof renderUpcoming === 'function') renderUpcoming();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function updateUpcomingDays(value) {
+  const n = Number(value);
+  if (![0, 7, 14, 30].includes(n)) return;
+  hubSettings = normalizeSettings({ ...hubSettings, upcomingDays: n });
+  saveHubSettings();
+  syncUpcomingControls();
+  if (typeof renderUpcoming === 'function') renderUpcoming();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
+function syncUpcomingControls() {
+  for (const [id, value] of [['settings-upcoming-count', hubSettings.upcomingCount],
+    ['settings-upcoming-days', hubSettings.upcomingDays]]) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.value = String(value);
+    // The native <select> is hidden behind the custom dropdown, so setting
+    // .value alone leaves the visible label on the old option.
+    if (typeof el._csSync === 'function') el._csSync();
+  }
+}
+
 // Reflect the active first-day-of-week (Mon / Sun) on its segmented control.
 function syncWeekStartControls() {
   const val = ['mon', 'sun'].includes(hubSettings.weekStart) ? hubSettings.weekStart : 'mon';
@@ -9325,7 +9457,26 @@ function restartXenon() {
 // subscriptions are preserved (they're structural/personal, not "settings" the
 // user is trying to reset). Server-only secrets (Gemini key, integration
 // passwords/tokens) are preserved server-side on save, so they survive this too.
-function resetAllSettings() {
+// Confirmed, since v4.11.7, and the confirmation names what goes. This button
+// used to fire on a single click — no dialog — from the accent-coloured PRIMARY
+// slot at the bottom of the panel, directly under "Restart Xenon", whose own
+// hint promises that nothing will be lost. Reported on Discord by a supporter
+// who pressed it by mistake: "i resetted xenon by error and lost everything".
+//
+// "Settings" undersells it, which is the other half of the problem. The layout
+// and the calendar feeds survive; every widget tile's ASSIGNMENT and permission
+// grant, every install receipt, every saved page preset, every custom theme,
+// background and Ambient scene do not. The packages stay on disk — nothing is
+// uninstalled — but the dashboard comes back empty, which is what "everything"
+// means to the person looking at it.
+async function resetAllSettings() {
+  const title = t('settings_reset_all', 'Reset all settings');
+  const msg = t('settings_reset_all_confirm',
+    'Reset every setting to its defaults? Your dashboard layout stays, but each tile loses the widget assigned to it, along with its permissions, your install list, your saved page presets, and your custom themes, backgrounds and Ambient scenes. Installed widgets stay on your PC and can be assigned again. This cannot be undone.');
+  const ok = (typeof settingsPrompt === 'function')
+    ? await settingsPrompt({ type: 'confirm', danger: true, title, message: msg, okLabel: title })
+    : (typeof window.confirm !== 'function' || window.confirm(msg));
+  if (!ok) return;
   hubSettings = normalizeSettings({
     ...DEFAULT_HUB_SETTINGS,
     dashboardLayout: hubSettings.dashboardLayout,

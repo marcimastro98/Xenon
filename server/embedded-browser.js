@@ -420,6 +420,44 @@ function createEmbeddedBrowser(opts) {
     return ready;
   }
 
+  // Open a page in a browser WINDOW of its own rather than as a tab in the
+  // shared one.
+  //
+  // Chromium composites only the foreground tab of a window, and
+  // `Page.startScreencast` is driven by the compositor - so as tabs, every tile
+  // but the most recently created one simply stopped producing frames. It never
+  // looked like a stall: the older tile kept its last picture, forever, because
+  // a screencast is change-driven and there were no more changes to send.
+  //
+  // That is GitHub #116. Two dashboards open at once (a browser window on the PC
+  // and the XENEON EDGE) each open their own page for the same tile, by design -
+  // they can be different sizes. Whichever opened last took the foreground and
+  // the other froze, and closing either one brought the survivor back to life,
+  // which is exactly what the reporter described. Measured here before and after:
+  // two 1280x720 tiles on a page repainting every frame went from 0.0 and 23.7
+  // frames per second to 24.0 and 23.8.
+  //
+  // The throttling flags in edgeArgs are a different fault with a similar smell
+  // (a stream dying ~5 minutes in, #116's original report) and are still needed:
+  // they keep an off-screen window's timers running. They cannot help here,
+  // because a background TAB is not composited at all.
+  //
+  // `newWindow` has been understood since Chrome 86 and headless accepts it (its
+  // own error for width/height says they are "only for new windows"). A build
+  // that rejects it still gets a tile - one that behaves exactly as it did
+  // before - rather than no tile at all.
+  let newWindowSupported = true;
+  async function createTargetWindow(url) {
+    if (newWindowSupported) {
+      try { return await send('Target.createTarget', { url, newWindow: true }); }
+      catch (e) {
+        if (!/invalid parameter|newwindow|not supported|unknown/i.test(String((e && e.message) || e))) throw e;
+        newWindowSupported = false;
+      }
+    }
+    return send('Target.createTarget', { url });
+  }
+
   // Prime Widevine right after launch. Edge registers its bundled Widevine CDM
   // lazily and asynchronously, on the first `requestMediaKeySystemAccess` call —
   // so the first DRM site loaded on a fresh Edge (e.g. a tile auto-reopening to
@@ -432,7 +470,7 @@ function createEmbeddedBrowser(opts) {
     widevineReady = (async () => {
       let targetId;
       try {
-        ({ targetId } = await send('Target.createTarget', { url: 'about:blank' }));
+        ({ targetId } = await createTargetWindow('about:blank'));
         scratchTargets.add(targetId);   // ours, internal — the orphan sweep must skip it
         const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
         const expr = "navigator.requestMediaKeySystemAccess('com.widevine.alpha',[{initDataTypes:['cenc'],videoCapabilities:[{contentType:'video/mp4;codecs=\"avc1.42E01E\"',robustness:'SW_SECURE_DECODE'}]}]).then(function(){return 'ok';}).catch(function(){return 'no';})";
@@ -729,9 +767,9 @@ function createEmbeddedBrowser(opts) {
     // reqDpr is re-used to recompute the render scale when the tile is resized.
     const reqDpr = Number.isFinite(dpr) && dpr > 0 ? Math.min(dpr, 3) : 1;
     const scale = renderScale(width, height, reqDpr);
-    // Size is applied via Emulation.setDeviceMetricsOverride below — passing
-    // width/height here is rejected in headless ("only for new windows").
-    const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
+    // Size is applied via Emulation.setDeviceMetricsOverride below, not here:
+    // the window is created empty and the viewport emulated into it.
+    const { targetId } = await createTargetWindow('about:blank');
     // Shield the fresh page from the orphan sweep until it's registered in
     // `tiles` — a sweep scheduled by a recent closeTile (close tab → open tab
     // is a common sequence) could otherwise fire between createTarget and the

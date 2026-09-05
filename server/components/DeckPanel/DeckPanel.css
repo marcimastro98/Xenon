@@ -229,6 +229,15 @@
 }
 .deck-pmenu-pick:hover { background: rgba(255, 255, 255, .05); }
 .deck-pmenu-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Key count on a recoverable profile from a deck that is no longer on the
+   dashboard. Two profiles there routinely share a name — one empty namesake and
+   one holding the work — so the number is what tells them apart. Pushed to the
+   far edge and dimmed: it is a disambiguator, not a label. */
+.deck-pmenu-count {
+  margin-left: auto; flex: 0 0 auto; padding: 1px 6px; border-radius: 999px;
+  background: rgba(255, 255, 255, .07); color: var(--text-dim, #aeb4c2);
+  font-size: 11px; font-variant-numeric: tabular-nums;
+}
 .deck-pmenu-dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; background: rgba(255, 255, 255, .2); }
 .deck-pmenu-row.active .deck-pmenu-dot {
   background: var(--accent, #7aa2ff);
