@@ -61,6 +61,19 @@ test('a one-track context repeating is collapsed to nothing, not to itself', () 
   assert.deepEqual(names(normalizeQueue(raw, t('A'), PLAYING)), []);
 });
 
+test('the captured payload, kept as it was caught', () => {
+  // A real 16-row answer from a four-track album, sent by the reporter with the
+  // context order alongside it: Waves Became the Sky → King of the Wood → From
+  // Dominion → The Told and the Leadened, playing the first, repeat and shuffle
+  // off. Sixteen rows for three that will play. Kept verbatim because a real
+  // capture is worth more than a case anyone would think to invent — and the
+  // current track being the album's FIRST is why nothing is left over here.
+  const cycle = ['King of the Wood', 'From Dominion', 'The Told and the Leadened', 'Waves Became the Sky'];
+  const raw = Array.from({ length: 16 }, (_, i) => t(cycle[i % 4]));
+  const out = normalizeQueue(raw, t('Waves Became the Sky'), PLAYING);
+  assert.deepEqual(names(out), ['King of the Wood', 'From Dominion', 'The Told and the Leadened']);
+});
+
 // ── What must survive ────────────────────────────────────────────────────────
 
 test('a playlist that holds the same song twice keeps both', () => {
