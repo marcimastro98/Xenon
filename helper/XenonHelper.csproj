@@ -84,7 +84,7 @@
                   for every root, the first time any root touched the cap, so
                   deleted files stayed in the index forever. Version-gated: the
                   new field is what lets the UI name the drive search cannot
-                  see. -->
+                  see;
          0.12.3 = media-serve takes the FIRST type out of a thumbnail's
                   ContentType list instead of passing the list on whole. Apple
                   Music reports "image/jpeg,image/jpe,image/jpg", and in a data
