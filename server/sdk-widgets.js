@@ -47,7 +47,7 @@ const SDK_API_VERSION = 1;
 // dashboard where that tile is absent. That is the whole reason `twitchChat` has
 // no loader at all — a widget must never be able to make Xenon hold a socket
 // open to Twitch on an idle dashboard just by asking for a refresh.
-const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'audioLevels', 'wavelink', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes']);
+const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes']);
 
 // Action categories a package may request → the deck-action types each grants.
 // Deliberately a small, low-blast-radius subset of the action registry; every
@@ -64,6 +64,13 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   lighting: Object.freeze(['lighting', 'lightPower', 'lightColor', 'lightAuto', 'lightEffect', 'lightDevice']),
   chroma: Object.freeze(['chromaColor', 'chromaOff']),
   wavelink: Object.freeze(['wlInputVolume', 'wlInputMute', 'wlOutputVolume', 'wlOutputMute', 'wlSwitchMonitoring', 'wlSetMonitorMix']),
+  // Voicemeeter strips, buses and routing. `vmParam` is deliberately LEFT OUT,
+  // for the same reason haCallService is: it names any parameter the mixer has,
+  // which includes Command.Shutdown and Command.Restart, and "close the user's
+  // audio mixer" is not something the typed actions imply. `vmMacro` is in — it
+  // presses a macro button the USER built inside Voicemeeter, which is the same
+  // shape of trust as sbDoAction.
+  voicemeeter: Object.freeze(['vmStripMute', 'vmStripGain', 'vmStripBus', 'vmBusMute', 'vmBusGain', 'vmMacro']),
   // Service-control categories (grant-gated). Each action type is already
   // validated by the registry against the connected service; a widget can only
   // reach the service the user connected AND granted. `haCallService` is
@@ -239,7 +246,22 @@ function widgetCspFor(host, secure) {
 }
 
 const MANIFEST_MAX_BYTES = 32 * 1024;
-const MAX_PACKAGES = 32;
+// How many installed packages the scan will load. Was 32, which a supporter
+// with a shelf of community widgets passes without noticing — and passing it
+// was silent: the scan stopped, and every folder past the cap existed on disk,
+// installed correctly, while being absent from the package list, absent from
+// the invalid list, and therefore absent from the tile picker, the palette and
+// the Store's idea of what is installed. Reported on Discord as a widget that
+// installs, reports success, and cannot be found afterwards — reinstalled three
+// times, and dropped into the folder by hand, with the identical result. The
+// folders are read in name order, so it is always the same alphabetical tail
+// that disappears.
+//
+// Two answers, and both are needed. The number moves to a size no real library
+// reaches (a scan is a stat + a bounded read + a parse per folder, cached and
+// re-run only on install or Rescan), and listPackages now COUNTS what it left
+// out so the surfaces can say so instead of showing a shorter list.
+const MAX_PACKAGES = 96;
 
 // Caps for the manifest extensions (all additive to api 1).
 const MAX_HOSTS = 8;
@@ -866,19 +888,23 @@ function injectPerfProbe(html) {
 
 // Scan the packages dir. Returns { packages:[manifest…], invalid:[{id,reason}] }.
 // Bounded, async, tolerant: a broken folder shows up as invalid with a reason
-// (surfaced in Settings) instead of hiding or throwing.
+// (shown under the tile widget picker) instead of hiding or throwing.
 async function listPackages(rootDir) {
   const packages = [];
   const invalid = [];
+  let skipped = 0;               // real packages past MAX_PACKAGES — see the cap
   let entries = [];
   try {
     entries = await fs.promises.readdir(rootDir, { withFileTypes: true });
   } catch {
-    return { packages, invalid };   // dir missing → nothing installed
+    return { packages, invalid, skipped };   // dir missing → nothing installed
   }
   for (const ent of entries) {
-    if (packages.length >= MAX_PACKAGES) break;
     if (!ent.isDirectory()) continue;
+    // Past the cap: keep walking, but only to count. Skipping the loop entirely
+    // is what made the overflow invisible, and the count costs no disk — the
+    // directory entries are already in hand.
+    if (packages.length >= MAX_PACKAGES) { skipped++; continue; }
     const id = ent.name;
     if (!WIDGET_ID_RE.test(id)) { invalid.push({ id: String(id).slice(0, 60), reason: 'bad_id' }); continue; }
     let raw;
@@ -900,7 +926,7 @@ async function listPackages(rootDir) {
     }
     packages.push(res.manifest);
   }
-  return { packages, invalid };
+  return { packages, invalid, skipped };
 }
 
 // ── Installable package PAYLOAD (a widget shipped inside a shared bundle) ────

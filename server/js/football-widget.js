@@ -100,7 +100,7 @@
   function timeText(ev) {
     const d = matchDate(ev);
     if (!d) return '';
-    try { return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
+    try { return d.toLocaleTimeString([], timeParts()); } catch { return ''; }
   }
   function whenShort(ev) {
     const d = matchDate(ev);
@@ -108,14 +108,14 @@
     try {
       const now = new Date();
       const days = Math.round((d - now) / 86400000);
-      if (days >= 0 && days <= 6) return d.toLocaleDateString([], { weekday: 'short' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      if (days >= 0 && days <= 6) return d.toLocaleDateString([], { weekday: 'short' }) + ' ' + d.toLocaleTimeString([], timeParts());
       return d.toLocaleDateString([], { day: '2-digit', month: 'short' });
     } catch { return ''; }
   }
   function whenLong(ev) {
     const d = matchDate(ev);
     if (!d) return '';
-    try { return d.toLocaleDateString([], { weekday: 'short', day: '2-digit', month: 'short' }) + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+    try { return d.toLocaleDateString([], { weekday: 'short', day: '2-digit', month: 'short' }) + ' · ' + d.toLocaleTimeString([], timeParts()); }
     catch { return ''; }
   }
   function relTime(ts) {

@@ -48,12 +48,22 @@
   }
 
   // One-line explanation of a failed apply from the applier's persisted result.
+  //
+  // `detail` is the failing tool's OWN sentence, when there is one — today that
+  // means npm's first `npm ERR!` line, captured by update-apply.ps1. The reason
+  // code names the stage that failed and stops there, which is a true answer to a
+  // question nobody is asking: "dependency installation failed" is the same text
+  // whether the machine is offline, behind a proxy, out of disk, or has an
+  // antivirus holding a file open, and those have four different fixes. It is
+  // shown verbatim and untranslated on purpose: it is a tool's own words, and it
+  // exists to be read and pasted by whoever is stuck.
   function applyFailureText(lastResult) {
     const base = lastResult && lastResult.rolledBack === false
       ? tr('update_failed_not_rolled_back', 'The update failed and automatic recovery also failed — please re-run INSTALL.bat.')
       : tr('update_failed_rolled_back', 'The update could not be applied and your previous version was restored.');
     const reason = updReasonText(lastResult && lastResult.reason);
-    return base + (reason ? ' (' + reason + ')' : '');
+    const detail = String((lastResult && lastResult.detail) || '').trim().slice(0, 200);
+    return base + (reason ? ' (' + reason + ')' : '') + (detail ? ' — ' + detail : '');
   }
 
   async function fetchSelfStatus() {
@@ -649,6 +659,26 @@
       return;
     }
 
+    // The backend needs updating and this install says it cannot update itself
+    // — a dev checkout, or a build whose applier script is missing. Running the
+    // shell phase alone would download a new shell, restart, and leave the
+    // dashboard serving the OLD version with nothing said: the app relaunches
+    // and the update pill is still there, which is indistinguishable from the
+    // button doing nothing. That is the half-update in silence this flow exists
+    // to kill — the guard above catches a status that could not be read, and
+    // this one catches a status that was read and said no.
+    if (backendOutdated && st && !st.supported) {
+      // The reason rides along in the same parenthetical shape the prepare
+      // failure uses. It is a code, not a sentence, and deliberately so: it is
+      // there to be read back to us, and a stuck install is diagnosed from it in
+      // one line instead of a round of guesses.
+      const why = (st.reason ? ' (' + st.reason + ')' : '');
+      ctrl.fail(tr('update_failed_title', 'Aggiornamento non riuscito'),
+        tr('update_self_unsupported',
+          'Questa installazione non può aggiornarsi da sola, e reinstallare non la ripara. Mandaci questo motivo:') + why);
+      return;
+    }
+
     if (backendOutdated && st && st.supported) {
       ctrl.setTitle(tr('update_native_backend_phase', 'Aggiorno la dashboard…'));
       const staged = !!(st.staged && stripV(String(st.staged.version || '')) === latest);
@@ -959,6 +989,40 @@
   // back after the page was closed (the applier's persisted result), or a shell
   // update that errored right before the reload (flag set by runShellPhase).
   // Shown once, then acknowledged.
+  // ── Will Xenon still be here after the next sign-in? ───────────────────────
+  // The engine checks its own per-logon startup task and puts back the three
+  // conditions the installer owns (see server/startup-task.js). Two things are
+  // worth a word here, and nothing else is: a repair, because the app changed
+  // something on this PC without being asked; and a task that is switched OFF,
+  // because that one is the user's to turn back on and until they do, Xenon
+  // will simply not be there tomorrow — with nothing on screen to say why. That
+  // silence is what this exists for: it was reported as days of features going
+  // wrong, by someone whose engine kept being stopped.
+  //
+  // Once per load, and never on a healthy install.
+  async function surfaceStartupTaskNotice() {
+    let st = null;
+    try { st = await fetch('/api/startup-task').then((r) => r.json()); } catch { return; }
+    if (!st || !st.ok || !st.found || !window.XenonToast) return;
+    const problems = Array.isArray(st.problems) ? st.problems : [];
+    const repaired = Array.isArray(st.repaired) ? st.repaired : [];
+    if (problems.includes('disabled')) {
+      window.XenonToast.show({
+        type: 'warning',
+        duration: 0,   // sticky: this is the one notice that costs the user their next session
+        title: tr('startup_task_off_title', 'Xenon will not start at your next sign-in'),
+        message: tr('startup_task_off_msg', 'Its startup entry has been switched off. Xenon never does that itself — Windows and cleanup or antivirus tools can. Turn it back on in Task Manager, under Startup apps, where it is listed as Xenon.'),
+      });
+    } else if (repaired.length) {
+      window.XenonToast.show({
+        type: 'info',
+        duration: 10000,
+        title: tr('startup_task_fixed_title', 'Xenon repaired its own startup entry'),
+        message: tr('startup_task_fixed_msg', 'Something had changed the conditions it starts under — it would have stopped on battery, or been stopped after a few days. Those are back as they were installed.'),
+      });
+    }
+  }
+
   async function surfacePendingUpdateNotices(info) {
     try {
       if (localStorage.getItem(SHELL_ERR_KEY)) {
@@ -1028,6 +1092,7 @@
     });
     refreshIndicators(info);
     surfacePendingUpdateNotices(info); // fire-and-forget; only ever shows toasts
+    surfaceStartupTaskNotice();        // same: silent on a healthy install
     // Re-read the dismissed flag HERE, after the awaits: on a first run
     // settings.js marks this release as seen while those fetches are still in
     // flight, and reading it before them would show the modal it just suppressed.

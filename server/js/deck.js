@@ -394,6 +394,48 @@
     }
     return out;
   }
+  // The profiles sitting in configs whose deck tile is gone — and the reason this
+  // list exists at all.
+  //
+  // Three rules had grown up around orphaned configs, and together they made a
+  // trap. pruneOrphanEmptyConfigs deletes only EMPTY orphans, on the stated
+  // principle that "data is surfaced, not silently deleted". isLiveInstance then
+  // hides every orphan's profiles from the profile menu and the share picker, so
+  // a removed deck cannot leave ghosts behind. And the profile menu offered
+  // exactly one thing to do about them: a 🗑 button that throws them away.
+  //
+  // So keys the app had promised to keep were kept, hidden, and offered only for
+  // deletion. Reported after a dashboard was replaced by the factory default: the
+  // deck tiles went with it, and every key on them became unreachable while still
+  // sitting in deck.json. This is the half that was missing — the same one-tap
+  // copy that already exists for a profile on another deck, pointed at the decks
+  // that are no longer there.
+  //
+  // Deliberately NOT deduped by name against this deck, unlike listOtherDeckProfiles:
+  // the reason someone is looking here is that a profile with the name they
+  // remember is present but empty, and hiding the real one behind the empty
+  // namesake is the exact failure being fixed. The key count is carried so the
+  // rows can say which is which.
+  function listOrphanProfiles() {
+    const M = window.DeckModel;
+    const all = readStore();
+    const out = [];
+    for (const id of listOrphanInstances()) {
+      let cfg; try { cfg = M.normalizeDeckConfig(all[id]); } catch { continue; }
+      for (const prof of (cfg.profiles || [])) {
+        const keys = countProfileKeys(prof);
+        if (keys > 0) out.push({ instanceId: id, profileId: prof.id, name: prof.name, keys });
+      }
+    }
+    return out;
+  }
+  // How many keys the 🗑 button is about to destroy. The confirmation used to
+  // describe what it removed as leftovers, which is true of the config and false
+  // of what is in it.
+  function orphanKeyCount() {
+    return listOrphanProfiles().reduce((n, p) => n + p.keys, 0);
+  }
+
   // Copy profile `profileId` from `sourceInstanceId` into `targetInstanceId` as a new
   // profile (fresh id, reshaped to the target grid) and make it active. A COPY — the
   // decks stay independent, exactly like inserting a preset.
@@ -797,8 +839,63 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(action),
       });
       const data = await res.json().catch(() => null);
-      return !!(data && data.ok);   // the dispatcher reports {ok:false,error} for e.g. a missing path / OBS offline
+      // The dispatcher reports {ok:false,error} — a missing path, a path the
+      // allowlist refuses, OBS offline. That reason used to be read here and
+      // dropped on the next line, leaving a key that flashes red and says
+      // nothing: someone on Discord spent an evening on an "Open app" key whose
+      // path was right, with no way to tell a refused path from one that failed
+      // to launch. The key still flashes; now it also says why.
+      if (!(data && data.ok)) reportActionError(data && data.error);
+      return !!(data && data.ok);
     } catch (e) { return false; }
+  }
+
+  // Sentences for the reasons a person can act on; anything else still shows its
+  // raw code, because an unexplained code is what gets pasted into a report and
+  // swallowing it is what made this invisible. The code is appended either way.
+  const DECK_ERR_TEXT = {
+    not_found: ['deck_err_not_found', 'that path does not exist on this PC'],
+    bad_app_path: ['deck_err_bad_app_path', 'that is not something this system can launch'],
+    launch_failed: ['deck_err_launch_failed', 'the app would not start'],
+    blocked_ext: ['deck_err_blocked_ext', 'that kind of file cannot be opened this way'],
+    unavailable: ['deck_err_unavailable', 'that action is not available on this system'],
+    // Voicemeeter. Every one of these is something the person holding the
+    // machine can fix — install it, start it, pick a strip their edition has —
+    // which is the bar this map sets. The opaque ones (read/write refused by
+    // the DLL) deliberately stay raw codes: a sentence that says nothing is
+    // worse than a code somebody can paste into a report.
+    voicemeeter_not_installed: ['deck_err_vm_not_installed', 'Voicemeeter is not installed on this PC'],
+    voicemeeter_not_running: ['deck_err_vm_not_running', 'Voicemeeter is installed but not running'],
+    voicemeeter_windows_only: ['deck_err_vm_windows_only', 'Voicemeeter only exists on Windows'],
+    voicemeeter_unavailable: ['deck_err_vm_unavailable', 'Xenon cannot reach Voicemeeter'],
+    voicemeeter_bad_strip: ['deck_err_vm_bad_strip', 'the Voicemeeter you are running does not have that strip'],
+    voicemeeter_bad_bus: ['deck_err_vm_bad_bus', 'the Voicemeeter you are running does not have that bus'],
+    voicemeeter_bad_param: ['deck_err_vm_bad_param', 'that is not a Voicemeeter parameter name'],
+    voicemeeter_bad_macro: ['deck_err_vm_bad_macro', 'that macro button number does not exist'],
+    voicemeeter_bad_value: ['deck_err_vm_bad_value', 'Voicemeeter will not take that value'],
+  };
+  // A slider posts one action per 100ms while it is dragged, so a failing one
+  // would bury the screen. Identical messages collapse for a few seconds; a
+  // DIFFERENT failure still gets through immediately.
+  let _lastDeckErr = { msg: '', at: 0 };
+  function reportActionError(code) {
+    if (!window.XenonToast) return;
+    const known = DECK_ERR_TEXT[code];
+    const said = known ? tt(known[0], known[1]) : '';
+    const msg = said ? (code ? said + ' (' + code + ')' : said) : String(code || '');
+    if (!msg) return;
+    const now = Date.now();
+    if (msg === _lastDeckErr.msg && now - _lastDeckErr.at < 3000) return;
+    _lastDeckErr = { msg, at: now };
+    window.XenonToast.show({
+      type: 'error',
+      title: tt('deck_err_title', 'This key could not run'),
+      message: msg,
+      duration: 3600,
+    });
+  }
+  function tt(key, fallback) {
+    return (typeof window.t === 'function' && window.t(key)) || fallback;
   }
   // Briefly flash a key red to surface a failed action (path not found, OBS
   // offline, …) — actions must not fail silently.
@@ -2672,6 +2769,35 @@
       menu.appendChild(plist);
     }
 
+    // Keys from decks that are no longer on the dashboard. Tap one to copy it in,
+    // exactly like a profile from another deck — the only difference is that the
+    // deck it came from is gone, which is precisely why it is worth offering.
+    // Outside edit mode too: recovering work is not editing the layout, and the
+    // person looking for a profile they lost should not have to guess that the
+    // pencil icon is what reveals it.
+    const lost = listOrphanProfiles();
+    if (lost.length) {
+      menu.appendChild(el('div', 'deck-pmenu-head', tr('deck_profiles_lost', 'Da un Deck non più sulla dashboard')));
+      const llist = el('div', 'deck-pmenu-list');
+      lost.forEach((op) => {
+        const row = el('div', 'deck-pmenu-row');
+        const pick = el('button', 'deck-pmenu-pick'); pick.type = 'button';
+        pick.appendChild(el('span', 'deck-pmenu-name', op.name));
+        // The count is what tells two same-named profiles apart, which is the
+        // state this list is most often reached in.
+        pick.appendChild(el('span', 'deck-pmenu-count', String(op.keys)));
+        pick.addEventListener('click', () => {
+          copyDeckProfileInto(instanceId, op.instanceId, op.profileId);
+          state.path = []; state.pageIndex = 0;
+          closeProfileMenu(state, instanceId);
+          render(tile, instanceId);
+        });
+        row.appendChild(pick);
+        llist.appendChild(row);
+      });
+      menu.appendChild(llist);
+    }
+
     // Clean up leftovers from removed deck tiles (configs that outlived their tile).
     // Shown only in edit mode and only when such orphans actually exist, so a tidy
     // dashboard never sees it. The current, live decks are never touched.
@@ -2683,7 +2809,14 @@
         clean.title = tr('deck_purge_orphans_hint', 'Elimina i profili rimasti da Deck rimossi dalla dashboard');
         clean.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (typeof confirm === 'function' && !confirm(tr('deck_purge_orphans_confirm', 'Rimuovere i profili rimasti da Deck non più presenti sulla dashboard? I Deck attuali non vengono toccati.'))) return;
+          // Say how many keys go with them. "Leftovers" is true of the configs and
+          // false of their contents, and this button is the only way those contents
+          // can be lost for good.
+          const keys = orphanKeyCount();
+          const msg = keys
+            ? tr('deck_purge_orphans_confirm_keys', 'Rimuovere i profili rimasti da Deck non più presenti? Perderai #n tasti già programmati, e non si possono recuperare. I Deck attuali non vengono toccati.').replace('#n', String(keys))
+            : tr('deck_purge_orphans_confirm', 'Rimuovere i profili rimasti da Deck non più presenti sulla dashboard? I Deck attuali non vengono toccati.');
+          if (typeof confirm === 'function' && !confirm(msg)) return;
           purgeOrphanInstances();
           render(tile, instanceId);
         });

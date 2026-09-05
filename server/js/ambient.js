@@ -87,7 +87,7 @@
   // Today's next events (max 3) for the morning-briefing card in the splash.
   function todayAgenda(now) {
     if (typeof calendarEvents === 'undefined' || !Array.isArray(calendarEvents)) return [];
-    const fmt = new Intl.DateTimeFormat(t('locale'), { hour: '2-digit', minute: '2-digit' });
+    const fmt = new Intl.DateTimeFormat(t('locale'), timeParts());
     const out = [];
     for (const ev of calendarEvents) {
       if (!ev || !ev.startsAt || !ev.title) continue;
@@ -156,7 +156,7 @@
       const mins = (starts - now) / 60000;
       if (mins <= 0 || mins > HEADSUP_MIN) continue;
       notifiedEventIds.add(ev.id);
-      const time = new Intl.DateTimeFormat(t('locale'), { hour: '2-digit', minute: '2-digit' }).format(new Date(starts));
+      const time = new Intl.DateTimeFormat(t('locale'), timeParts()).format(new Date(starts));
       const text = t('ambient_event_soon').replace('{title}', ev.title || t('ph_title')).replace('{time}', time);
       if (typeof showHubToast === 'function') showHubToast('Xenon', text, '');
       speak(text);

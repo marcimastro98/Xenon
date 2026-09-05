@@ -275,7 +275,7 @@ function formatWeatherDate(dateValue) {
 function formatWeatherUpdated(timestamp) {
   const date = new Date(timestamp || Date.now());
   if (!Number.isFinite(date.getTime())) return '--';
-  return `${t('weather_updated')} ${date.toLocaleTimeString(i18n[lang].locale, { hour: '2-digit', minute: '2-digit' })}`;
+  return `${t('weather_updated')} ${date.toLocaleTimeString(i18n[lang].locale, timeParts())}`;
 }
 
 const WEATHER_CLEAR_CODES = new Set([113]);

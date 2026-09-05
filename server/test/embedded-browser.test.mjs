@@ -145,6 +145,72 @@ test('open() creates a target, attaches a session and navigates; startScreencast
   host.shutdown();
 });
 
+test('every page opens in a browser window of its own (#116)', async () => {
+  // Chromium composites only the FOREGROUND tab of a window, and a screencast is
+  // driven by the compositor. Created as tabs, all but the newest tile stopped
+  // sending frames and kept their last picture forever - a screencast is
+  // change-driven, so nothing ever corrected it and nothing looked like an error.
+  //
+  // That is what two open dashboards did to each other: the Edge panel and a
+  // browser window on the PC each open their own page for the same tile (they can
+  // be different sizes), so whichever opened last froze the other, and closing
+  // either one brought the survivor back. Measured against a real Chromium: two
+  // 1280x720 tiles on a page repainting every frame went from 0.0 and 23.7 frames
+  // per second to 24.0 and 23.8.
+  const created = [];
+  class SpyWS extends makeFakeWS(true) {
+    send(raw) { const m = JSON.parse(raw); if (m.method === 'Target.createTarget') created.push(m.params); return super.send(raw); }
+  }
+  const proc = { on() {}, kill() {}, unref() {} };
+  const host = eb.createEmbeddedBrowser({ WebSocketImpl: SpyWS, launch: async () => ({ proc, wsUrl: 'ws://x' }), idleMs: 10000 });
+
+  await host.open('edge', 'example.com', 800, 480, 1, () => {});
+  await host.open('desktop', 'example.com', 1600, 900, 1, () => {});
+  await delay(30);
+
+  assert.ok(created.length >= 2, 'both tiles created a target');
+  for (const params of created) {
+    assert.equal(params.newWindow, true, 'a tile created as a tab freezes every older tile');
+  }
+  host.shutdown();
+});
+
+test('a browser that rejects newWindow still gets a tile', async () => {
+  // One tile in a shared window behaves exactly as it did before, so a build that
+  // does not understand the parameter must fall back rather than fail to open.
+  const created = [];
+  class PickyWS extends makeFakeWS(true) {
+    send(raw) {
+      const m = JSON.parse(raw);
+      if (m.method === 'Target.createTarget') {
+        created.push(m.params);
+        if (m.params && m.params.newWindow) {
+          setTimeout(() => this._emit('message', { data: JSON.stringify({
+            id: m.id, error: { code: -32602, message: 'Invalid parameters: newWindow' },
+          }) }), 0);
+          return;
+        }
+      }
+      return super.send(raw);
+    }
+  }
+  const proc = { on() {}, kill() {}, unref() {} };
+  const host = eb.createEmbeddedBrowser({ WebSocketImpl: PickyWS, launch: async () => ({ proc, wsUrl: 'ws://x' }), idleMs: 10000 });
+
+  await host.open('edge', 'example.com', 800, 480, 1, () => {});
+  await delay(30);
+  assert.equal(host._tiles.has('edge'), true, 'the tile opened anyway');
+  assert.ok(created.some((p) => p && p.newWindow === true), 'it asked for a window first');
+  assert.ok(created.some((p) => !p || p.newWindow !== true), 'then retried without the parameter');
+
+  // The refusal is remembered: the next tile does not pay for the round trip again.
+  created.length = 0;
+  await host.open('desktop', 'example.com', 800, 480, 1, () => {});
+  await delay(30);
+  assert.ok(created.length > 0 && created.every((p) => !p || p.newWindow !== true), 'it stopped asking');
+  host.shutdown();
+});
+
 test('a popup auto-attaches as a stacked page and detaches back to the opener', async () => {
   let wsInstance = null;
   class DriveWS extends makeFakeWS(true) {

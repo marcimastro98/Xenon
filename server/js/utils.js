@@ -280,6 +280,36 @@ function clockUses12h() {
   return locale.toLowerCase().startsWith('en');
 }
 
+// The options every clock time in the app is formatted with. It exists because
+// clockUses12h() did not travel: the dashboard clock and the lock screen asked
+// it, and the twelve OTHER places that print an hour did not — they handed
+// Intl.DateTimeFormat a locale and let it decide. So a user who chose 24h in
+// Settings still read "09:30 PM" in the calendar, the agenda, the Ambient
+// scenes, the football fixtures, the stock ticker and the Discord widget.
+// Reported on Discord as a missing Calendar option; it was the setting being
+// ignored in eleven places at once.
+//
+// `extra` carries the date parts a caller also wants (weekday, day, month), so
+// this composes instead of replacing each call site's own shape.
+function timeParts(extra) {
+  const base = Object.assign({}, extra || {}, { hour: '2-digit', minute: '2-digit' });
+  // Asymmetric on purpose, and the two halves are not the same decision.
+  //
+  // 24h asks for hourCycle 'h23' rather than hour12:false, because hour12:false
+  // lets the engine pick between h23 (00:30) and h24 (24:30) and they do not all
+  // pick the same one — the "24:00" midnight is a real rendering, not a myth.
+  // V8 answers h23 today; naming it means every engine does, WebKit included,
+  // and a dashboard on a paired iPhone is a WebKit dashboard.
+  //
+  // 12h keeps hour12:true rather than 'h12', because the twelve-hour clock is
+  // not written the same way everywhere: Japanese midnight is 午前00:30 (h11)
+  // and forcing h12 would print 午前12:30, which is not how it is said. Here the
+  // locale genuinely knows better than we do.
+  if (clockUses12h()) base.hour12 = true;
+  else base.hourCycle = 'h23';
+  return base;
+}
+
 function toDateInputValue(date) {
   if (_xcFmt) return _xcFmt.toDateInputValue(date);
   const d = new Date(date);

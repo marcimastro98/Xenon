@@ -115,9 +115,24 @@ function createSelfUpdate(opts) {
   // unsupported on anything else keeps the flow fail-closed (the dashboard
   // offers a download link instead of an in-place update) rather than letting
   // apply() spawn an interpreter that isn't on this machine.
+  // WHY it is unsupported, or '' when it is not. A bare boolean is the answer to
+  // a question nobody was asking: an install that cannot update itself looks, to
+  // the person holding it, exactly like an update button that does nothing, and
+  // "supported: false" in the status told a supporter and me equally little.
+  // Each value names a different fix — reinstall over a dev checkout, restore a
+  // file (a .ps1 that copies into the install root is the sort of thing an
+  // antivirus quarantines), or there is no applier for this OS at all.
+  function unsupportedReason() {
+    if (platform !== 'win32' && !isPosix) return 'unsupported_platform';
+    try {
+      if (isGitCheckout()) return 'git_checkout';
+      if (!f.existsSync(applierPath)) return 'no_applier';
+    } catch { return 'no_applier'; }
+    return '';
+  }
+
   function supported() {
-    if (platform !== 'win32' && !isPosix) return false;
-    try { return !isGitCheckout() && f.existsSync(applierPath); } catch { return false; }
+    return unsupportedReason() === '';
   }
 
   function _rm(p) { try { f.rmSync(p, { recursive: true, force: true }); } catch { /* ignore */ } }
@@ -330,7 +345,7 @@ function createSelfUpdate(opts) {
     return { ok: true, started: true };
   }
 
-  return { isGitCheckout, supported, staged, prepare, apply, _buildZipUrl: (t) => buildZipUrl(repo, t) };
+  return { isGitCheckout, supported, unsupportedReason, applierPath, staged, prepare, apply, _buildZipUrl: (t) => buildZipUrl(repo, t) };
 }
 
 module.exports = {
