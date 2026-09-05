@@ -4,6 +4,12 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [4.11.8] — in development
+### 🐛 Fixed
+- **“Up next” no longer shows the same album over and over.** Playing a short album or the end of a playlist, Spotify answers the queue question by padding its reply — the tracks that are left, then the whole thing again from the top, and again. With repeat off none of that will ever play: after the last track, playback stops. Xenon was passing the padding straight through, so the Spotify tile's Up Next, and any widget reading the queue, listed the same songs several times over.
+
+  The repetition is now cut. Carefully, because two of these look identical from the outside: a playlist is allowed to hold the same song twice, and a queue is allowed to play one twice in a row, so nothing is removed for being a repeat of something. What gets cut is the sequence starting over as a whole, and only when the album is *not* set to repeat, the queue is not shuffled, and the loop comes back round to the track playing right now — which is what proves it is padding rather than somebody's actual queue.
+
+
 ### ✨ Added
 - **Video rows a widget reads now say which channel they came from.** They carried the channel's name but not its id, so a widget could print the name and not make it open anything. Tapping a channel name works again — and it is the channel that *uploaded* the video, not whoever made the playlist it was read from, which is the mistake the same data invites.
 
