@@ -6,6 +6,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### ✨ Added
 - **Turn one person in a voice call up or down, from the Discord widget.** One friend twice as loud as everyone else is the oldest problem in voice chat, and Discord's own fix is buried in a right-click menu in another window. Tap someone's name in the Discord widget's call list and you get their volume and a mute that applies to you alone — they carry on talking to everyone else exactly as before.
 
+  It is one row and no words: a speaker to silence them, a slider, the number. The name is not repeated — it is lit up in the list right above it.
+
   Your own name is not one of them: Discord has no per-person setting for your own account, and your levels are the microphone and output rows just above.
 
   Two things that look alike are drawn differently on purpose. Someone who muted their own microphone is dimmed, as before; someone *you* turned down or muted carries a mark of your own, so "they went quiet" and "I turned them down" never look like the same thing.
