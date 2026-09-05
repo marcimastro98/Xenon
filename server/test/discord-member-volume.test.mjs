@@ -68,10 +68,38 @@ test('a member with no id is never actionable', () => {
 
 test('an unreported volume reads as a dash, never as 100', () => {
   // channelMembers sends null rather than a default precisely so this cannot
-  // show a number for a setting the machine may not be in. Printing 100 there
-  // would be inventing the answer.
-  assert.match(WIDGET, /m\.volume == null \? '—' : String\(m\.volume\)/);
+  // show a number for a setting the machine may not be in. The thumb has to rest
+  // somewhere, so it rests at the default — but the NUMBER stays honest, and the
+  // row is marked so the slider does not read as a live value.
+  assert.match(WIDGET, /const known = m\.volume != null;/);
+  assert.match(WIDGET, /val\.textContent = known \? String\(m\.volume\) : '—';/);
+  assert.match(WIDGET, /row\.classList\.toggle\('is-unknown', !known\)/);
+  assert.match(CSS, /\.dc-mctl-row\.is-unknown/);
   assert.match(RPC, /volume: Number\.isFinite\(vs\.volume\) \? Math\.round\(vs\.volume\) : null/);
+});
+
+test('dragging talks to Discord once, when the finger lifts', () => {
+  // A slider fires `input` per pixel. Writing each one would be a burst of RPC
+  // calls for a value the user is still choosing — so the number follows the
+  // thumb locally and the level is written on `change`.
+  assert.match(WIDGET, /range\.addEventListener\('input', \(\) => \{ val\.textContent = range\.value;/);
+  assert.match(WIDGET, /range\.addEventListener\('change', commit\);/);
+  const commit = WIDGET.slice(WIDGET.indexOf('const commit = () =>'), WIDGET.indexOf('range.addEventListener(\'change\''));
+  assert.match(commit, /mode: 'set', value: range\.value/);
+});
+
+test('the repaint does not yank the thumb out from under a finger', () => {
+  // paint() runs on every SSE push. Rebuilding the row mid-drag, or writing
+  // Discord's value back into it, would fight the person using it.
+  assert.match(WIDGET, /if \(dragging\) return;   \/\/ their finger is on it/);
+  assert.match(WIDGET, /if \(box\.dataset\.dcFor !== m\.id \|\| !box\.firstChild\)/,
+    'and the row is rebuilt only when it is a different person');
+});
+
+test('the labels survive as tooltips, so nothing is lost with the prose', () => {
+  assert.match(WIDGET, /mute\.title = label;/);
+  assert.match(WIDGET, /mute\.setAttribute\('aria-label', label\)/);
+  assert.match(WIDGET, /range\.setAttribute\('aria-label', \(m\.name \|\| ''\) \+ ' — ' \+ range\.title\)/);
 });
 
 test('"I turned them down" is drawn differently from "they muted themselves"', () => {
@@ -89,20 +117,20 @@ test('the panel is rebuilt on every paint, so it follows Discord', () => {
   assert.match(WIDGET, /fillMemberCtl\(call\.querySelector\('\.dc-call-mctl'\)\)/);
   const body = WIDGET.slice(WIDGET.indexOf('function fillMemberCtl('));
   assert.match(body.slice(0, 900), /callMembers\(\)\.find\(x => x\.id === openMember\)/);
+  assert.match(body.slice(0, 900), /refreshMemberCtl\(box\.firstChild, m\)/);
 });
 
 test('a person who leaves takes their open panel with them', () => {
   const body = WIDGET.slice(WIDGET.indexOf('function fillMemberCtl('), WIDGET.indexOf('function fillMemberCtl(') + 900);
-  assert.match(body, /if \(!m \|\| !canAdjust\(m\)\) \{ openMember = ''; .*box\.hidden = true; return; \}/);
+  assert.match(body, /if \(!m \|\| !canAdjust\(m\)\) \{ openMember = ''; dragging = false;/);
   assert.match(WIDGET, /openMember = '';   \/\/ left the call/);
 });
 
 // ── The wiring ───────────────────────────────────────────────────────────────
 
 test('the controls send the actions that already existed', () => {
-  assert.match(WIDGET, /\{ type: 'discordUserVol', user: m\.id, mode: 'down' \}/);
-  assert.match(WIDGET, /\{ type: 'discordUserVol', user: m\.id, mode: 'up' \}/);
-  assert.match(WIDGET, /\{ type: 'discordUserMute', user: m\.id, mode: 'toggle' \}/);
+  assert.match(WIDGET, /\{ type: 'discordUserVol', user: openMember, mode: 'set', value: range\.value \}/);
+  assert.match(WIDGET, /\{ type: 'discordUserMute', user: openMember, mode: 'toggle' \}/);
   assert.match(RPC, /case 'discordUserVol':  return await setUserVolume\(a\.user, a\.mode, a\.value\);/,
     'no new server surface: this is the SDK action, given a button');
 });

@@ -286,29 +286,54 @@ body.overlay-frozen .dc-pill.in-voice .dc-pill-dot::after { animation-play-state
 .dc-member.is-local-muted .dc-member-name { text-decoration: line-through; text-decoration-color: rgba(237,66,69,0.8); }
 
 /* ── One person's volume, opened under the list ─────────────────── */
-/* Sized to sit under the chip that opened it, not to compete with it: the name
-   is a caption (you just tapped it, and it is highlighted right above), the
-   volume row matches the mic/output rows, and the mute is a chip like the audio
-   ones below — the widget's own vocabulary rather than a new one. */
-.dc-mctl {
-  margin: 1px 0 6px; padding: 6px 9px 7px; border-radius: 10px;
-  background: rgba(88,101,242,0.10); border: 1px solid rgba(88,101,242,0.28);
-}
-.dc-mctl-head { display: flex; align-items: baseline; gap: 6px; margin-bottom: 1px; }
-.dc-mctl-name {
-  min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  font-size: 0.6rem; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase;
-  color: #a9b0ff;
-}
-.dc-mctl-vol { margin: 0; }
+/* One row, no prose: a speaker to mute them just for you, a slider, the number.
+   The name is not repeated — it is lit up in the chip directly above — and every
+   label lives on as a tooltip so the row stays readable and translated. */
+.dc-mctl { margin: 2px 0 6px; }
+.dc-mctl-row { display: flex; align-items: center; gap: 9px; padding: 0 2px 0 4px; }
+
 .dc-mctl-mute {
-  margin-top: 5px; padding: 5px 11px; border-radius: 999px; cursor: pointer;
-  font: inherit; font-size: 0.68rem; font-weight: 700; color: var(--text-dim, #8b91a1);
+  flex: 0 0 auto; width: 26px; height: 26px; padding: 0; border-radius: 8px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-dim, #8b91a1);
   border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.04);
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.dc-mctl-mute:hover:not(:disabled) { background: rgba(255,255,255,0.08); }
-.dc-mctl-mute.on { color: #ffc9ca; border-color: rgba(237,66,69,0.55); background: rgba(237,66,69,0.16); }
+.dc-mctl-mute svg { width: 15px; height: 15px; }
+.dc-mctl-mute:hover:not(:disabled) { background: rgba(255,255,255,0.09); color: var(--text, #e7e9ee); }
+.dc-mctl-mute.on { color: #ff9b9d; border-color: rgba(237,66,69,0.5); background: rgba(237,66,69,0.16); }
+
+.dc-mctl-range {
+  flex: 1 1 auto; min-width: 0; height: 18px; margin: 0; cursor: pointer;
+  -webkit-appearance: none; appearance: none; background: transparent;
+}
+.dc-mctl-range::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 999px; background: rgba(255,255,255,0.13);
+}
+.dc-mctl-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; margin-top: -5px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #7d8cff; border: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.45);
+  transition: transform 0.12s ease, background 0.15s ease;
+}
+.dc-mctl-range:hover::-webkit-slider-thumb { transform: scale(1.12); }
+.dc-mctl-range:active::-webkit-slider-thumb { transform: scale(1.2); }
+.dc-mctl-range:focus-visible { outline: 2px solid rgba(125,140,255,0.7); outline-offset: 3px; border-radius: 999px; }
+
+/* The number, wide enough for "200" so the slider never shifts as it changes. */
+.dc-mctl-val {
+  flex: 0 0 auto; min-width: 30px; text-align: right;
+  font-size: 0.7rem; font-weight: 800; color: var(--text, #e7e9ee); font-variant-numeric: tabular-nums;
+}
+/* Discord did not report a level. The thumb has to rest somewhere, so it rests
+   at the default and the row says so — a number here would be a guess. */
+.dc-mctl-row.is-unknown .dc-mctl-val { color: var(--text-dim, #8b91a1); }
+.dc-mctl-row.is-unknown .dc-mctl-range::-webkit-slider-thumb { background: #5b6478; }
+
+/* Muted for you: the level is still there and still adjustable, but nothing is
+   coming through, and the row should not look live while that is true. */
+.dc-mctl-row:has(.dc-mctl-mute.on) .dc-mctl-range::-webkit-slider-thumb { background: #8a5f6a; }
+.dc-mctl-row:has(.dc-mctl-mute.on) .dc-mctl-val { color: var(--text-dim, #8b91a1); text-decoration: line-through; }
 
 /* ── Audio processing chips ─────────────────────────────────────── */
 .dc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
