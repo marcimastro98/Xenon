@@ -320,6 +320,13 @@ function createSpotifyProvider(deps) {
   // The trailing current track goes with it, for the same reason it identified
   // the wrap: it cannot come round again.
   //
+  // What is NOT padding, confirmed on a real account: when an album runs out,
+  // Spotify replaces the queue with recommendations rather than looping it. Those
+  // are unrelated tracks that WILL play, they do not repeat, and none of the three
+  // conditions above is true of them — so they pass through untouched, which is
+  // correct. Written down because a list of songs from nowhere, right after an
+  // album ends, looks exactly like something this function failed to clean up.
+  //
   // NOT solved here, deliberately: the part of the wrap BEFORE the current track
   // (the "A B" above) is still returned. Identifying it needs the context's own
   // track order — from the queue alone, "…, E, A, B, …" and a real playlist that
