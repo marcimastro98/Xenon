@@ -29536,6 +29536,65 @@ Object.assign(i18n.zh, { ambient_scene_covers: '此场景会铺满整个屏幕�
 // …and the option this note points at was itself untranslated in Dutch, which
 // would have named a choice that is not in the list.
 Object.assign(i18n.nl, { ambient_scene_builtin: 'Klassiek (widgets)' });
+
+// Per-person volume in the Discord widget. The action pair behind it has been
+// in the SDK since 4.11; these are the labels for the control that finally
+// exposes it to someone who is not writing a widget.
+Object.assign(i18n.it, {
+  dc_member_vol: 'Volume per te',
+  dc_member_mute: 'Muta solo per me',
+  dc_member_unmute: 'Riattiva solo per me',
+});
+Object.assign(i18n.en, {
+  dc_member_vol: 'Volume for you',
+  dc_member_mute: 'Mute for me',
+  dc_member_unmute: 'Unmute for me',
+});
+Object.assign(i18n.es, {
+  dc_member_vol: 'Volumen para ti',
+  dc_member_mute: 'Silenciar solo para mí',
+  dc_member_unmute: 'Reactivar solo para mí',
+});
+Object.assign(i18n.fr, {
+  dc_member_vol: 'Volume pour toi',
+  dc_member_mute: 'Couper pour moi',
+  dc_member_unmute: 'Réactiver pour moi',
+});
+Object.assign(i18n.de, {
+  dc_member_vol: 'Lautstärke für dich',
+  dc_member_mute: 'Nur für mich stumm',
+  dc_member_unmute: 'Nur für mich laut',
+});
+Object.assign(i18n.pt, {
+  dc_member_vol: 'Volume para ti',
+  dc_member_mute: 'Silenciar só para mim',
+  dc_member_unmute: 'Reativar só para mim',
+});
+Object.assign(i18n.nl, {
+  "dc_member_vol": 'Volume voor jou',
+  "dc_member_mute": 'Alleen voor mij dempen',
+  "dc_member_unmute": 'Alleen voor mij aanzetten',
+});
+Object.assign(i18n.ru, {
+  dc_member_vol: 'Громкость для вас',
+  dc_member_mute: 'Заглушить только для меня',
+  dc_member_unmute: 'Включить только для меня',
+});
+Object.assign(i18n.ko, {
+  dc_member_vol: '나에게 들리는 음량',
+  dc_member_mute: '나만 음소거',
+  dc_member_unmute: '나만 음소거 해제',
+});
+Object.assign(i18n.ja, {
+  dc_member_vol: '自分に聞こえる音量',
+  dc_member_mute: '自分だけミュート',
+  dc_member_unmute: '自分だけミュート解除',
+});
+Object.assign(i18n.zh, {
+  dc_member_vol: '你听到的音量',
+  dc_member_mute: '仅对我静音',
+  dc_member_unmute: '仅对我取消静音',
+});
 Object.assign(i18n.nl, {
   cw_stream_youtube: 'Je YouTube-abonnementen, kanalen en afspeellijsten lezen',
   cw_act_youtubeplayer: 'YouTube-video\'s in deze widget afspelen',

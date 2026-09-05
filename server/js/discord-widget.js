@@ -190,7 +190,8 @@
     pCtl.appendChild(vols);
     // Current call: title + members (with live speaking). Hidden when not in a call.
     const call = el('div', 'dc-call'); call.hidden = true;
-    call.append(el('div', 'dc-sec-label dc-call-label'), el('div', 'dc-members dc-call-members'));
+    const mctl = el('div', 'dc-mctl dc-call-mctl'); mctl.hidden = true;
+    call.append(el('div', 'dc-sec-label dc-call-label'), el('div', 'dc-members dc-call-members'), mctl);
     pCtl.appendChild(call);
     // Audio processing toggles.
     const audio = el('div', 'dc-ctl-group dc-ctl-audio');
@@ -310,11 +311,48 @@
     return groups;
   }
 
+  // ── Turning one person up or down ─────────────────────────────────────────
+  // Discord lets you set the volume of one person in your channel, and mute them
+  // for yourself only — the thing you reach for when one friend is twice as loud
+  // as everyone else. It has been available to community widgets since 4.11 and
+  // had no control of its own here, so the only way to use it was to write a
+  // widget. Someone asked where the setting was, which is a fair question to ask
+  // about a feature with no setting.
+  //
+  // Tapping a name opens the controls under the list rather than in a popover: a
+  // popover needs positioning, a dismiss rule and a z-index on a surface that is
+  // often a touchscreen, and this widget already speaks in rows.
+  let openMember = '';       // id of the person whose controls are open, '' for none
+
+  function callMembers() {
+    return (voice && Array.isArray(voice.members)) ? voice.members : [];
+  }
+  // Your own row is not one of these: Discord has no per-user setting for your
+  // own account (your levels are the mic/output rows above), and the server
+  // answers `self_not_supported` — so the row simply isn't a button.
+  function canAdjust(m) {
+    return !!(m && m.id && voice && voice.channel && m.id !== (voice.selfId || ''));
+  }
+
   // A compact member chip: display name + a live speaking highlight + a muted/
   // deafened marker. Names are dynamic Discord data → textContent (via el), never
   // innerHTML. Reused by the current-call strip and the per-channel roster.
-  function memberChip(m) {
-    const chip = el('span', 'dc-member');
+  function memberChip(m, adjustable) {
+    const chip = el(adjustable ? 'button' : 'span', 'dc-member');
+    if (adjustable) {
+      chip.type = 'button';
+      chip.classList.add('is-adjustable');
+      chip.classList.toggle('is-open', openMember === m.id);
+      // "I turned them down" is a different fact from "they muted themselves",
+      // and the two markers must not be the same one: the dot is theirs, this is
+      // yours. Without it, turning someone to zero looks identical to them
+      // having muted their own microphone.
+      chip.classList.toggle('is-local-muted', !!m.localMute);
+      chip.addEventListener('click', () => {
+        openMember = (openMember === m.id) ? '' : m.id;
+        paint();
+      });
+    }
     chip.classList.toggle('is-speaking', !!m.speaking);
     chip.classList.toggle('is-muted', !!(m.mute || m.deaf));
     chip.append(el('span', 'dc-member-dot'), el('span', 'dc-member-name', m.name || '—'));
@@ -323,10 +361,42 @@
 
   // Fill a container with member chips for the current call.
   function fillMembers(box) {
-    const members = (voice && Array.isArray(voice.members)) ? voice.members : [];
+    const members = callMembers();
     const frag = document.createDocumentFragment();
-    members.forEach(m => frag.appendChild(memberChip(m)));
+    members.forEach(m => frag.appendChild(memberChip(m, canAdjust(m))));
     box.replaceChildren(frag);
+  }
+
+  // The controls for the person whose name is open, or nothing. Rebuilt on every
+  // paint so the value follows Discord (the SSE push lands here too) instead of
+  // holding whatever it was when the row was opened.
+  function fillMemberCtl(box) {
+    const m = openMember ? callMembers().find(x => x.id === openMember) : null;
+    // They left, or you did: close rather than leave controls pointing at nobody.
+    if (!m || !canAdjust(m)) { openMember = ''; box.replaceChildren(); box.hidden = true; return; }
+    box.hidden = false;
+
+    const head = el('div', 'dc-mctl-head');
+    head.append(el('span', 'dc-mctl-name', m.name || '—'));
+    const row = el('div', 'dc-vol dc-mctl-vol');
+    row.appendChild(el('span', 'dc-vol-lbl', t('dc_member_vol', 'Volume for you')));
+    const ctr = el('div', 'dc-vol-ctr');
+    const down = el('button', 'dc-vol-btn'); down.innerHTML = ICONS.minus;   // static, trusted SVG
+    down.addEventListener('click', () => runAction(down, { type: 'discordUserVol', user: m.id, mode: 'down' }));
+    // null, not 100, when Discord does not report it — a number here would be a
+    // guess at a setting the machine may not be in.
+    const val = el('span', 'dc-vol-val', m.volume == null ? '—' : String(m.volume));
+    const up = el('button', 'dc-vol-btn'); up.innerHTML = ICONS.plus;        // static, trusted SVG
+    up.addEventListener('click', () => runAction(up, { type: 'discordUserVol', user: m.id, mode: 'up' }));
+    ctr.append(down, val, up);
+    row.appendChild(ctr);
+
+    const mute = el('button', 'dc-mctl-mute');
+    mute.classList.toggle('on', !!m.localMute);
+    mute.textContent = t(m.localMute ? 'dc_member_unmute' : 'dc_member_mute', m.localMute ? 'Unmute for me' : 'Mute for me');
+    mute.addEventListener('click', () => runAction(mute, { type: 'discordUserMute', user: m.id, mode: 'toggle' }));
+
+    box.replaceChildren(head, row, mute);
   }
 
   // Re-apply every static (language-dependent) label. ensure() sets these once at
@@ -695,6 +765,9 @@
         if (inChan) {
           call.querySelector('.dc-call-label').textContent = callTitle();
           fillMembers(call.querySelector('.dc-call-members'));
+          fillMemberCtl(call.querySelector('.dc-call-mctl'));
+        } else {
+          openMember = '';   // left the call: nothing to point at any more
         }
       }
 

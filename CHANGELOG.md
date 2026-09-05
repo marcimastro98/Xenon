@@ -3,6 +3,15 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+### ✨ Added
+- **Turn one person in a voice call up or down, from the Discord widget.** One friend twice as loud as everyone else is the oldest problem in voice chat, and Discord's own fix is buried in a right-click menu in another window. Tap someone's name in the Discord widget's call list and you get their volume and a mute that applies to you alone — they carry on talking to everyone else exactly as before.
+
+  Your own name is not one of them: Discord has no per-person setting for your own account, and your levels are the microphone and output rows just above.
+
+  Two things that look alike are drawn differently on purpose. Someone who muted their own microphone is dimmed, as before; someone *you* turned down or muted carries a mark of your own, so "they went quiet" and "I turned them down" never look like the same thing.
+
+  Xenon has been able to do this since 4.11 — but only for widget authors, through the SDK, so the only way to use it was to write a widget. Someone went looking for the setting and there wasn't one. Now there is.
+
 ## [4.11.8] — in development
 ### 🐛 Fixed
 - **“Up next” no longer shows the same album over and over.** Playing a short album or the end of a playlist, Spotify answers the queue question by padding its reply — the tracks that are left, then the whole thing again from the top, and again. With repeat off none of that will ever play: after the last track, playback stops. Xenon was passing the padding straight through, so the Spotify tile's Up Next, and any widget reading the queue, listed the same songs several times over.
