@@ -290,6 +290,68 @@ function createSpotifyProvider(deps) {
     };
   }
 
+  // ── The queue Spotify hands back is not always a queue ──────────────────────
+  // Reported by a widget author: playing a short album, /me/player/queue answers
+  // with the remaining tracks and then the whole context again, and again —
+  // "D E A B C D E A B C" for a five-track album sitting on C. It is padding a
+  // fixed-length answer by wrapping around the context, and with repeat OFF none
+  // of that wrap will ever play: after E, playback stops.
+  //
+  // Deduplicating by track would be the wrong tool. A playlist may hold the same
+  // song twice on purpose, and a queue may genuinely play one twice in a row, so
+  // this works on the ORDER and never on the set: it looks for the sequence
+  // repeating as a whole and cuts the repetition, leaving what remains in place
+  // and in order.
+  //
+  // Three conditions, all required, because each is a way for the repetition to
+  // be REAL rather than padding:
+  //   repeat off   with repeat on, the album really does play again — collapsing
+  //                it would hide the truth rather than reveal it
+  //   shuffle off  with shuffle on the queue is not the context's order, so
+  //                "the sequence repeats" says nothing about a wrap
+  //   the cycle ends on the track that is playing  — this is the signal that
+  //                makes it safe. A context wrap always reads
+  //                [next … end, start … current], so the block ends on the
+  //                current track; and with repeat off the current track cannot
+  //                play again, which is what proves the block is padding rather
+  //                than a coincidence. A queue that happens to repeat a run of
+  //                songs does not end on the one playing now.
+  //
+  // The trailing current track goes with it, for the same reason it identified
+  // the wrap: it cannot come round again.
+  //
+  // NOT solved here, deliberately: the part of the wrap BEFORE the current track
+  // (the "A B" above) is still returned. Identifying it needs the context's own
+  // track order — from the queue alone, "…, E, A, B, …" and a real playlist that
+  // runs E then A then B are the same five bytes. Left in rather than guessed at.
+  function queueCycleLength(keys, currentKey) {
+    const n = keys.length;
+    if (n < 2 || !currentKey) return n;
+    for (let p = 1; p < n; p++) {
+      if (keys[p - 1] !== currentKey) continue;   // a cycle ends on the current track
+      let repeats = true;
+      for (let i = p; i < n; i++) {
+        if (keys[i] !== keys[i - p]) { repeats = false; break; }
+      }
+      if (repeats) return p;
+    }
+    return n;
+  }
+
+  /** The upcoming tracks, with a context wrap cut off. Pure — `state` is
+   *  { repeat, shuffle } as getPlayer reports them. */
+  function normalizeQueue(queue, current, state) {
+    const list = Array.isArray(queue) ? queue : [];
+    const st = state || {};
+    if (st.repeat !== 'off' || st.shuffle) return list;
+    const currentKey = (current && current.uri) || '';
+    if (!currentKey || list.length < 2) return list;
+    const keys = list.map(t => (t && t.uri) || '');
+    const p = queueCycleLength(keys, currentKey);
+    if (p >= list.length) return list;            // nothing repeats: leave it alone
+    return list.slice(0, p - 1);                  // drop the trailing current track too
+  }
+
   async function getQueue() {
     const r = await apiRequest('GET', '/me/player/queue');
     if (!r.ok || !r.data) return { ok: false, error: r.error || 'no_playback' };
@@ -301,10 +363,12 @@ function createSpotifyProvider(deps) {
     // cached, so this rarely costs an extra call.
     const p = await getPlayer();
     const reliable = !!(p && p.ok && p.context);
+    const current = trackLite(r.data.currently_playing);
+    const raw = Array.isArray(r.data.queue) ? r.data.queue.slice(0, 20).map(trackLite).filter(Boolean) : [];
     return {
       ok: true,
-      current: trackLite(r.data.currently_playing),
-      queue: Array.isArray(r.data.queue) ? r.data.queue.slice(0, 20).map(trackLite).filter(Boolean) : [],
+      current,
+      queue: normalizeQueue(raw, current, p && p.ok ? p : null),
       reliable,
     };
   }
@@ -833,6 +897,7 @@ function createSpotifyProvider(deps) {
   return {
     configured, status, logout, buildAuthUrl, exchangeCode, getAccessToken,
     getQueue, getPlaylists, getDevices, getPlayer, search, query, playUri,
+    normalizeQueue,   // pure, and exported so the wrap rules can be pinned without an account
     saveCurrent, playPlaylist, playSearch, queueSearch, setShuffle, transferDevice, transferToId,
     playPause, skipNext, skipPrev, setRepeat, toggleLike, setVolume, seek, runAction,
   };
