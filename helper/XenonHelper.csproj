@@ -85,7 +85,14 @@
                   deleted files stayed in the index forever. Version-gated: the
                   new field is what lets the UI name the drive search cannot
                   see. -->
-    <Version>0.12.2</Version>
+         0.12.3 = media-serve takes the FIRST type out of a thumbnail's
+                  ContentType list instead of passing the list on whole. Apple
+                  Music reports "image/jpeg,image/jpe,image/jpg", and in a data
+                  URI the first comma ends the media type, so the artwork was
+                  handed to the browser as text and never decoded. Version-gated
+                  because an existing install would otherwise keep the exe that
+                  loses every Apple Music cover. -->
+    <Version>0.12.3</Version>
     <Description>Xenon Helper — native companion process for the Xenon dashboard server</Description>
   </PropertyGroup>
 
