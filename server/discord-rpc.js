@@ -983,6 +983,13 @@ function createDiscordProvider(deps) {
   async function voiceState() {
     try {
       const vs = await command('GET_VOICE_SETTINGS');
+      // Which of the people in the list is YOU. Discord has no per-user setting
+      // for your own account (your levels are discordInputVol/OutputVol), so the
+      // widget needs this to leave your own row alone rather than offering a
+      // slider that answers `self_not_supported`. Your own id, on your own
+      // dashboard, next to your own name — nothing is revealed that the list
+      // does not already show.
+      const selfId = await selfUserId();
       let channel = null;
       let members = [];
       try {
@@ -1015,7 +1022,7 @@ function createDiscordProvider(deps) {
           automatic_gain_control: !!(vs && vs.automatic_gain_control),
           qos: !!(vs && vs.qos),
         },
-        channel, members,
+        channel, members, selfId,
       };
     } catch (e) {
       const msg = (e && e.message) || 'discord_failed';

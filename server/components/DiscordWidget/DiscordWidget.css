@@ -275,6 +275,36 @@ body.overlay-frozen .dc-pill.in-voice .dc-pill-dot::after { animation-play-state
 .dc-member.is-muted { opacity: 0.5; }
 .dc-member.is-muted .dc-member-dot { background: #ed4245; box-shadow: none; }
 
+/* A name you can act on. Only members of the CURRENT call become buttons, and
+   never your own: Discord has no per-user setting for your own account. */
+.dc-member.is-adjustable { cursor: pointer; font: inherit; font-size: 0.68rem; font-weight: 700; }
+.dc-member.is-adjustable:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.16); }
+.dc-member.is-open { color: #cdd3ff; border-color: rgba(88,101,242,0.65); background: rgba(88,101,242,0.20); }
+/* "I turned them down" is not "they muted themselves" — the dot is theirs, this
+   ring is yours. Without it, turning someone to zero looks like their own mute. */
+.dc-member.is-local-muted { box-shadow: inset 0 0 0 1px rgba(237,66,69,0.55); }
+.dc-member.is-local-muted .dc-member-name { text-decoration: line-through; text-decoration-color: rgba(237,66,69,0.8); }
+
+/* ── One person's volume, opened under the list ─────────────────── */
+.dc-mctl {
+  margin: 0 0 6px; padding: 7px 9px 8px; border-radius: 10px;
+  background: rgba(88,101,242,0.10); border: 1px solid rgba(88,101,242,0.30);
+}
+.dc-mctl-head { display: flex; align-items: center; margin-bottom: 4px; }
+.dc-mctl-name {
+  min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 0.7rem; font-weight: 800; color: var(--text, #e7e9ee);
+}
+.dc-mctl-vol { margin: 0; }
+.dc-mctl-mute {
+  margin-top: 6px; width: 100%; padding: 6px 10px; border-radius: 8px; cursor: pointer;
+  font: inherit; font-size: 0.7rem; font-weight: 700; color: var(--text-dim, #8b91a1);
+  border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.04);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.dc-mctl-mute:hover:not(:disabled) { background: rgba(255,255,255,0.08); }
+.dc-mctl-mute.on { color: #ffc9ca; border-color: rgba(237,66,69,0.55); background: rgba(237,66,69,0.16); }
+
 /* ── Audio processing chips ─────────────────────────────────────── */
 .dc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .dc-chip {
