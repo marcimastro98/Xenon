@@ -545,6 +545,22 @@
     return (typeof t === 'function' && t('locale')) || 'en';
   }
 
+  // Celsius or Fahrenheit, as the user set it in Settings. Sent for the same
+  // reason `lang` is: a widget that draws a temperature — a monitor showing CPU
+  // and GPU, a weather tile — has no other way to know, and one showing °C on a
+  // dashboard where everything else says °F is wrong in a way the widget author
+  // cannot fix from inside. Not a permission: it is a preference about how to
+  // format, and it says nothing about the user beyond which unit they read.
+  //
+  // Values ARE NOT converted. Xenon reports Celsius everywhere it reports a
+  // temperature, and it keeps doing that: converting on the way out would mean a
+  // widget could not tell 30 °C from 30 °F without reading this field anyway, and
+  // the two together are the only pair that cannot be misread.
+  function tempUnit() {
+    const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings : {};
+    return hs.tempUnit === 'f' ? 'f' : 'c';
+  }
+
   // ── postMessage bridge ───────────────────────────────────────────
   // The iframe origin is opaque ('null'), so identity is established by
   // matching event.source against our own iframes — never by origin — and the
@@ -1573,6 +1589,7 @@
         pkgId: entry.pkgId,   // the package id — lets a widget build /sdk/tile/<id> URLs
         theme: themePayload(entry),
         lang: langCode(),
+        tempUnit: tempUnit(),
         streams: grant.streams.slice(),
         actions: grant.actions.slice(),
         hosts: grant.hosts.slice(),
@@ -2005,6 +2022,17 @@
   //
   // Same shape as the theme push above it, for the same reason: the host
   // changed something the widget rendered from, so the host says so.
+  // The user changed the unit in Settings. Same shape as the theme and language
+  // pushes: the host changed something the widget rendered from, so the host
+  // says so — rather than leaving a monitor widget printing °C until it happens
+  // to be reloaded.
+  function refreshTempUnit() {
+    const unit = tempUnit();
+    for (const [, entry] of frames) {
+      if (entry.ready) post(entry, { type: 'tempUnit', tempUnit: unit });
+    }
+  }
+
   function refreshLang() {
     const code = langCode();
     for (const [, entry] of frames) {
@@ -3197,7 +3225,7 @@
   }
 
   window.CustomWidget = {
-    renderWidgets, onData, onDiscordNotification, onHook, onHandler, onStoreChanged, onToastState, refreshTheme, refreshLang, refreshPackages: () => fetchPackages(true), clearAssign,
+    renderWidgets, onData, onDiscordNotification, onHook, onHandler, onStoreChanged, onToastState, refreshTheme, refreshLang, refreshTempUnit, refreshPackages: () => fetchPackages(true), clearAssign,
     // How a builtin tile feeds a stream it is already reading (Twitch watch,
     // Twitch chat, YouTube Live) instead of every widget paying for its own copy.
     publishStream,

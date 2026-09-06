@@ -9315,6 +9315,11 @@ function updateTempUnit(unit) {
   syncWeatherSettingsControls();
   if (typeof applyWeather === 'function') applyWeather(typeof weatherData !== 'undefined' ? weatherData : null);
   if (typeof renderLockScreen === 'function') renderLockScreen();
+  // Widgets draw temperatures too (a monitor tile, a weather tile). Tell them,
+  // the same way a theme or language change is told — see refreshTempUnit.
+  if (window.CustomWidget && typeof window.CustomWidget.refreshTempUnit === 'function') {
+    window.CustomWidget.refreshTempUnit();
+  }
   setSettingsStatus('settings_weather_saved', 'ok');
 }
 

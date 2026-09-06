@@ -667,6 +667,33 @@ Xenon itself ships in eleven languages, so a widget that follows this is one
 that feels native to everyone who installs it. A widget with no text of its own
 can ignore the message entirely.
 
+### 3d-bis. `tempUnit` — Celsius or Fahrenheit (v4.11.8)
+
+Same shape as `lang`, for the same reason. The `init` payload carries
+`tempUnit` — `'c'` or `'f'`, as the user set it in Settings — and a change is
+pushed to every widget already on screen:
+
+```js
+{ xenonSdk: 1, type: 'tempUnit', tempUnit: 'f' }
+```
+
+**The numbers are not converted, and will not be.** Every temperature Xenon
+reports — `cpuTemp`, `gpuTemp`, the weather stream, everything — is Celsius, and
+stays Celsius whatever this says. Converting on the way out would leave you
+unable to tell 30 °C from 30 °F without reading this field anyway, so the field
+is the honest half of the pair: the value is always the same unit, and this tells
+you which one to *show*.
+
+```js
+const f = (c) => c * 9 / 5 + 32;
+draw(unit === 'f' ? Math.round(f(cpuTemp)) + '°F' : Math.round(cpuTemp) + '°C');
+```
+
+Worth handling in anything that prints a temperature: a monitor widget showing
+°C on a dashboard where the clock, the weather and the lock screen all say °F is
+wrong in a way its author cannot see from their own machine. There is no
+permission here — it says nothing about the user except which unit they read.
+
 ### 3e. Reading Spotify — `spotifyQuery` (v4.11.8)
 
 A widget that browses a library needs authenticated reads. It gets them by
