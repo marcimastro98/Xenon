@@ -24,6 +24,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
 ### ✨ Added
+- **Widgets are told whether you read Celsius or Fahrenheit.** A widget that draws a temperature had no way to know which one you use, so one showing °C on a dashboard where the clock, the weather and the lock screen all say °F was wrong in a way its author could not see from their own machine. The setting is now handed to widgets at start and again the moment you change it, alongside the language.
+
+  The numbers themselves are unchanged and always Celsius, as they have always been — what a widget gets is which unit to show them in. Converting them on the way out would leave a widget unable to tell 30 °C from 30 °F, and would quietly change what every widget already installed is drawing.
+
 - **Video rows a widget reads now say which channel they came from.** They carried the channel's name but not its id, so a widget could print the name and not make it open anything. Tapping a channel name works again — and it is the channel that *uploaded* the video, not whoever made the playlist it was read from, which is the mistake the same data invites.
 
 - **A widget can ask for YouTube's own channel order.** The subscription list a widget reads was always alphabetical, so a widget offering "YouTube order" was showing A–Z under another name. It can now ask for YouTube's own ranking, or for channels with something unwatched first — and an order Xenon does not have is refused rather than quietly answered in the default one, which is what let the wrong label go unnoticed in the first place.
