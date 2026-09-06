@@ -479,6 +479,15 @@ The duration field carries the whole vocabulary, so there is nothing else to lea
 
 A stopwatch shares every control with a countdown, because underneath it is the same clock running the other way: pause, resume, reset, keep and delete all behave identically. It never rings for having finished, since it has no end to reach, and it only interrupts you if you asked it to with `+`. A small mark before its name tells it from a countdown when both are paused, and a chiming one shows how often beside it.
 
+**On a Deck key it looks different, and it has to.** The tile reads one field because you are typing at the moment you start the clock. A Deck key is set up once and pressed weeks later, so it has to know what it starts before you press it — the choice lives in the action list rather than in text typed at press time. There are two:
+
+| Deck action | starts |
+| --- | --- |
+| **Start a timer** | a countdown, of the duration you set |
+| **Timer: start a stopwatch** | a stopwatch — leave *Chime every* empty for a silent one, or put a number in it to chime at that interval |
+
+So the `+5` shorthand belongs to the tile, and *Chime every* is the same thing on a key. Reported by someone who read the tile's rules and went looking for them in the Deck editor.
+
 - **SVG ring arc** shows real-time progress around each card
 - Countdown updates ~4×/second for a smooth readout
 - **Pause / Resume / Restart / Delete** on each card
