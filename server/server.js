@@ -19607,7 +19607,11 @@ const handleRequest = async (req, res) => {
       if (!release) { json({ ok: false, error: 'rate_limited' }); return; }
       try {
         const params = {};
-        for (const k of ['id', 'q', 'types', 'limit', 'offset']) {
+        // Every field an op can read has to be named here AND in the bridge that
+        // builds the request. A field missing from either list is not an error:
+        // it is silently absent, and the op answers page 1 as if it had never
+        // been asked for anything else.
+        for (const k of ['id', 'q', 'types', 'limit', 'offset', 'after', 'before']) {
           const v = urlObj.searchParams.get(k);
           if (v !== null) params[k] = v;
         }

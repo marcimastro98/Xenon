@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [4.11.8] — in development
 ### 🐛 Fixed
+- **A widget told to wait by Spotify is now told how long.** When Spotify refuses a read because too much was asked of it at once, it says how many seconds to leave it alone, and Xenon works that out and passes it on — the widget guide has always documented it. It was being thrown away at the last step, on the way into the widget, so widgets got the refusal without the wait and had to guess. Guessing short is the expensive mistake: retrying too early keeps the whole account in the penalty box, the user's own Spotify tile included.
+
 - **“Up next” no longer shows the same album over and over.** Playing a short album or the end of a playlist, Spotify answers the queue question by padding its reply — the tracks that are left, then the whole thing again from the top, and again. With repeat off none of that will ever play: after the last track, playback stops. Xenon was passing the padding straight through, so the Spotify tile's Up Next, and any widget reading the queue, listed the same songs several times over.
 
   Widgets reading the queue get the same answer as the tile — the two used to go down different paths, and the first version of this fix reached only one of them.
@@ -13,6 +15,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
 ### ✨ Added
+- **Widgets can read past the first fifty followed artists.** Saved albums, playlists and Liked Songs could always be paged through to the end; followed artists and recently played could not — Spotify pages those two by a marker rather than by a page number, and there was no way to send the marker back. A widget saw the first fifty and stopped there. It can now ask for the rest, and a marker it gets wrong is refused rather than answered with the first page again, which is the version of this bug that looks like an endless list of the same names. Reported by the author of the Spotify library browser.
+
 - **Xenon is now in Windows' own list of installed apps.** It installs from a folder rather than through an MSI, and Windows had no idea it was there: nothing under **Settings → Apps → Installed apps**, nothing in Control Panel. The only way out was `UNINSTALL.bat`, back inside the folder — findable if you knew it was there, invisible if you did not.
 
   So people deleted the folder instead, which takes the files and leaves behind everything that lives outside them. Chief among those is the entry that starts Xenon when you sign in: Windows kept running it, found no script where it pointed, and said so in a box you can only click OK on — at every single boot, on a PC with no Xenon left on it to explain where the box was coming from. Reported on Discord by someone it had been greeting for a while.

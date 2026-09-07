@@ -392,3 +392,102 @@ test('the SDK guide documents the ops, the clamps and the two grants', () => {
   assert.match(doc, /Why two grants/);
   assert.match(doc, /passed through unshaped/);
 });
+
+// ── Cursor paging, and what survives a failure ──────────────────────────────
+// Two gaps found by the same widget author, finishing the library browser.
+//
+// `savedAlbums`, `playlists` and `savedTracks` page by limit/offset and always
+// have. `followedArtists` and `recent` do not — Spotify walks those by cursor —
+// so a widget could read the first 50 followed artists and had no way to ask
+// for the 51st. The cursor was in the answer the whole time; there was simply
+// nothing that would carry it back.
+//
+// And a failed read reached the widget as a bare word. The provider works out
+// `status` and `retryAfterMs` on a 429 and the SDK reference promises both, but
+// the bridge rebuilt the reply from `error` alone, so a widget backing off
+// "politely" was guessing — and guessing short keeps the user's whole account,
+// their own Spotify tile included, rate-limited for longer.
+
+test('followedArtists pages by the cursor Spotify gives back', async () => {
+  const urls = [];
+  const sp = probe((u) => urls.push(u));
+  await sp.query('followedArtists', { limit: 20, after: '2CIMQHirSU0MQqyYHq0eOx' });
+  assert.match(urls[0], /\/me\/following\?type=artist&limit=20&after=2CIMQHirSU0MQqyYHq0eOx$/);
+});
+
+test('recent pages backwards by timestamp', async () => {
+  const urls = [];
+  const sp = probe((u) => urls.push(u));
+  await sp.query('recent', { limit: 50, before: '1739620000000' });
+  assert.match(urls[0], /recently-played\?limit=50&before=1739620000000$/);
+});
+
+test('no cursor is the first page, exactly as before', async () => {
+  const urls = [];
+  const sp = probe((u) => urls.push(u));
+  await sp.query('followedArtists', { limit: 50 });
+  await sp.query('recent', { limit: 50, before: '' });
+  assert.match(urls[0], /\/me\/following\?type=artist&limit=50$/);
+  assert.match(urls[1], /recently-played\?limit=50$/);
+});
+
+test('a cursor that cannot be read is refused, not silently dropped', async () => {
+  // Dropping it would answer page 1 again, which a "load more" cannot tell from
+  // a real page: it appends the same rows and asks again, on the user's quota.
+  const urls = [];
+  const sp = probe((u) => urls.push(u));
+  for (const bad of ['../../me', 'abc def', '1;2', { }, 'x'.repeat(60) + '/']) {
+    assert.deepEqual(await sp.query('followedArtists', { after: bad }), { ok: false, error: 'bad_params' });
+  }
+  for (const bad of ['now', '-1', '17e9', '1 2']) {
+    assert.deepEqual(await sp.query('recent', { before: bad }), { ok: false, error: 'bad_params' });
+  }
+  assert.equal(urls.length, 0, 'a bad cursor must never reach Spotify');
+});
+
+test('a cursor cannot carry anything but a cursor', async () => {
+  const urls = [];
+  const sp = probe((u) => urls.push(u));
+  await sp.query('followedArtists', { after: 'spotify:artist:2CIMQHirSU0MQqyYHq0eOx' });
+  assert.match(urls[0], /&after=2CIMQHirSU0MQqyYHq0eOx$/);
+  assert.ok(!urls[0].split('?')[1].includes(':'), 'the URI form must not reach the query string');
+});
+
+test('each cursor page is its own read, so page 2 is never page 1 from memory', async () => {
+  let n = 0;
+  const sp = probe(() => { n++; });
+  await sp.query('followedArtists', { limit: 50 });
+  await sp.query('followedArtists', { limit: 50, after: '2CIMQHirSU0MQqyYHq0eOx' });
+  assert.equal(n, 2);
+});
+
+test('the cursors reach the provider through both lists that can drop them', () => {
+  // The recurring shape of this bug: a param has to be named in the bridge that
+  // builds the request AND in the route that reads it back. Missing from either
+  // is not an error — the field is simply gone, and the op answers page 1.
+  const bridge = read('server/js/custom-widget.js');
+  const route = read('server/server.js');
+  const list = /\['id', 'q', 'types', 'limit', 'offset', 'after', 'before'\]/;
+  assert.match(bridge, list, 'the bridge drops the cursors before the route sees them');
+  assert.match(route, list, 'the route drops the cursors before the provider sees them');
+});
+
+test('a rate limit crosses into the sandbox with its status and its wait', () => {
+  const src = read('server/js/custom-widget.js');
+  const fn = src.slice(src.indexOf('async function onBridgeSpotifyQuery'));
+  const body = fn.slice(0, fn.indexOf('\n  }\n'));
+  assert.match(body, /Number\.isFinite\(r\.status\)/);
+  assert.match(body, /Number\.isFinite\(r\.retryAfterMs\)/);
+  // Field by field, never a spread: this reply crosses into a sandbox, so what
+  // may pass has to be a list rather than whatever the route happened to hold.
+  assert.ok(!/\.\.\.r\b/.test(body), 'the route answer must not be spread into the sandbox');
+});
+
+test('the guide documents both cursors and what a failure carries', () => {
+  const doc = read('docs/WIDGET_SDK.md');
+  assert.match(doc, /\| `recent` \| `limit`, `before` \|/);
+  assert.match(doc, /\| `followedArtists` \| `limit`, `after` \|/);
+  assert.match(doc, /artists\.cursors\.after/);
+  assert.match(doc, /data\.cursors\.before/);
+  assert.match(doc, /status: 429/);
+});

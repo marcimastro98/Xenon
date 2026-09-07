@@ -821,12 +821,30 @@
     if (!op) { reply({ ok: false, error: 'bad_op' }); return; }
     const p = msg.params && typeof msg.params === 'object' ? msg.params : {};
     const qs = new URLSearchParams({ pkg: entry.pkgId, op });
-    for (const k of ['id', 'q', 'types', 'limit', 'offset']) {
+    // `after` and `before` are the cursors the two non-offset ops page by, and
+    // this list is the reason they need naming twice: whatever is not in it is
+    // dropped here, before the route ever sees it, and the op then answers the
+    // first page as though nothing had been asked. Same list as the route's.
+    for (const k of ['id', 'q', 'types', 'limit', 'offset', 'after', 'before']) {
       if (p[k] !== undefined && p[k] !== null) qs.set(k, String(p[k]).slice(0, 300));
     }
     try {
       const r = await api('/stream/spotify/query?' + qs.toString());
-      reply(r && r.ok ? { ok: true, data: r.data } : { ok: false, error: (r && r.error) || 'failed' });
+      if (r && r.ok) { reply({ ok: true, data: r.data }); return; }
+      // A failure is more than a word. The provider already works out how long
+      // Spotify wants to be left alone (429 → `retryAfterMs`) and which status
+      // the refusal came from, and the SDK reference promises a widget gets
+      // both — but the reply was rebuilt from `error` alone, so every widget
+      // was told to back off for a length of time it had to guess. Guessing
+      // short keeps the whole account, the user's own Spotify tile included, in
+      // the penalty box for longer.
+      //
+      // Copied field by field rather than spread: this crosses into a sandbox,
+      // so what may pass is a list, not whatever the route happened to return.
+      const out = { ok: false, error: (r && r.error) || 'failed' };
+      if (r && Number.isFinite(r.status)) out.status = r.status;
+      if (r && Number.isFinite(r.retryAfterMs)) out.retryAfterMs = r.retryAfterMs;
+      reply(out);
     } catch {
       reply({ ok: false, error: 'failed' });
     }

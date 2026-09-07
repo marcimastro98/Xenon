@@ -724,8 +724,8 @@ once. Requires the **`spotify` stream** grant (`"streams": ["spotify"]`).
 | `playlists` | `limit`, `offset` | the user's playlists |
 | `savedAlbums` | `limit`, `offset` | saved albums |
 | `savedTracks` | `limit`, `offset` | Liked Songs |
-| `recent` | `limit` | recently played |
-| `followedArtists` | `limit` | followed artists |
+| `recent` | `limit`, `before` | recently played |
+| `followedArtists` | `limit`, `after` | followed artists |
 | `artistAlbums` | `id`, `limit`, `offset` | an artist's albums |
 | `albumTracks` | `id`, `limit`, `offset` | an album's tracks |
 | `playlistTracks` | `id`, `limit`, `offset` | a playlist's tracks |
@@ -733,6 +733,24 @@ once. Requires the **`spotify` stream** grant (`"streams": ["spotify"]`).
 
 `id` takes a bare id, a `spotify:` URI or an `open.spotify.com` link — whichever
 you happen to be holding.
+
+**Two ops page by cursor, not by `offset`** (v4.11.8). Spotify does not offer
+`offset` on either, and it does not use the same cursor for both:
+
+- `followedArtists` continues from the last artist it gave you. Read
+  `data.artists.cursors.after` off a page and send it back as `after`; when it
+  is absent you are at the end.
+- `recent` walks backwards in time. Read `data.cursors.before` and send it back
+  as `before`.
+
+```js
+{ xenonSdk: 1, type: 'spotifyQuery', id: 8,
+  op: 'followedArtists', params: { limit: 50, after: page1.artists.cursors.after } }
+```
+
+A cursor that is sent but unreadable comes back `error: 'bad_params'` rather
+than quietly answering page 1 again — a "load more" cannot tell that apart from
+a real page, so it would append the same rows and ask again forever.
 
 **The data is Spotify's own, passed through unshaped.** Reshaping it would drop
 fields your widget wants and would make Xenon the owner of a schema it does not
@@ -759,9 +777,13 @@ Four things to expect:
 - **`error: 'rate_limited'`** is your own budget, not Spotify's. These calls
   spend the *user's* Spotify quota, which the dashboard's own Spotify tile
   shares — search on a debounce, not on every keystroke, or you will stop their
-  music working and it will look like Xenon broke. The reply carries
-  **`retryAfterMs`**: wait that long. Retrying sooner keeps the whole account —
-  the user's Spotify tile included — in the penalty box for longer.
+  music working and it will look like Xenon broke. When the refusal came from
+  Spotify the reply carries **`status: 429`** and **`retryAfterMs`**: wait that
+  long. Retrying sooner keeps the whole account — the user's Spotify tile
+  included — in the penalty box for longer. When it came from Xenon's own
+  per-widget budget instead there is no `status`, and a second or two is enough.
+  (Before 4.11.8 both fields were dropped on the way into the sandbox, so every
+  widget had to guess.)
 - **`error: 'not_connected'`** means no Spotify account is linked at all. Say so
   rather than showing an empty library.
 

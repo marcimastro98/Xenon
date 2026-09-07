@@ -807,6 +807,29 @@ function createSpotifyProvider(deps) {
   const page = (p, max) => 'limit=' + pageInt(p.limit, 1, max, Math.min(50, max))
     + '&offset=' + pageInt(p.offset, 0, 10000, 0);
 
+  // Two of these endpoints do not page by offset at all — Spotify walks them by
+  // cursor, and differently from each other: `followedArtists` continues from
+  // the last artist id it handed back (`artists.cursors.after`), `recent` walks
+  // backwards in time from a unix-ms timestamp (`cursors.before`). Both cursors
+  // are already in the answer, which goes to widgets unshaped, so a widget reads
+  // one off a page and hands it straight back. Papering the difference over with
+  // one uniform cursor of our own would only build a request Spotify does not
+  // honour.
+  //
+  // Without this, a library browser sees the first 50 followed artists and has
+  // no way to ask for the 51st — `offset` is not a thing on either endpoint.
+  // Reported by the author of the Spotify library browser.
+  const cursorMs = (v) => (/^\d{1,20}$/.test(String(v).trim()) ? String(v).trim() : '');
+  // A cursor that is present but unreadable is refused rather than dropped. Drop
+  // it and the request quietly becomes "page 1 again", which a widget's "load
+  // more" cannot tell from a real page — it appends the same rows and asks
+  // again, forever, spending the user's quota on a loop.
+  const cursorPath = (base, key, raw, clean) => {
+    if (raw === undefined || raw === null || raw === '') return base;
+    const v = clean(raw);
+    return v ? base + '&' + key + '=' + v : '';
+  };
+
   const SEARCH_TYPES = ['track', 'album', 'artist', 'playlist'];
 
   const QUERY_OPS = Object.freeze({
@@ -816,8 +839,8 @@ function createSpotifyProvider(deps) {
     playlists:       (p) => '/me/playlists?' + page(p, 50),
     savedAlbums:     (p) => '/me/albums?' + page(p, 50),
     savedTracks:     (p) => '/me/tracks?' + page(p, 50),
-    recent:          (p) => '/me/player/recently-played?limit=' + pageInt(p.limit, 1, 50, 50),
-    followedArtists: (p) => '/me/following?type=artist&limit=' + pageInt(p.limit, 1, 50, 50),
+    recent:          (p) => cursorPath('/me/player/recently-played?limit=' + pageInt(p.limit, 1, 50, 50), 'before', p.before, cursorMs),
+    followedArtists: (p) => cursorPath('/me/following?type=artist&limit=' + pageInt(p.limit, 1, 50, 50), 'after', p.after, (v) => queryId(v, 'artist')),
     artistAlbums:    (p) => (queryId(p.id, 'artist') ? '/artists/' + queryId(p.id, 'artist') + '/albums?' + page(p, 50) : ''),
     albumTracks:     (p) => (queryId(p.id, 'album') ? '/albums/' + queryId(p.id, 'album') + '/tracks?' + page(p, 50) : ''),
     playlistTracks:  (p) => (queryId(p.id, 'playlist') ? '/playlists/' + queryId(p.id, 'playlist') + '/tracks?' + page(p, 100) : ''),
