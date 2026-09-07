@@ -3719,10 +3719,12 @@ const APPEARANCE_COLOR_KEYS = Object.freeze([
   'successColor', 'warningColor', 'dangerColor', 'infoColor',
 ]);
 
-// Windows app theme read from the server registry (reliable). Cached in
-// localStorage so a reload starts on the correct scheme immediately, instead of
-// the WebView's (unreliable) prefers-color-scheme — which otherwise flashed the
-// dashboard white on 'auto' until the first /system/theme fetch landed (up to 30s).
+// The OS colour scheme, read server-side from the OS itself (server/os-theme.js:
+// the Windows registry, macOS `defaults`, GNOME `gsettings`) rather than from the
+// WebView's unreliable prefers-color-scheme. Cached in localStorage so a reload
+// starts on the correct scheme immediately, instead of flashing the dashboard
+// white on 'auto' until the first /system/theme fetch landed (up to 30s).
+// `null` means no platform reading — only then does the media query decide.
 const OS_THEME_KEY = 'xeneonedge.osDark.v1';
 let _osPrefersDark = (() => {
   try { const v = localStorage.getItem(OS_THEME_KEY); return v === 'true' ? true : v === 'false' ? false : null; }
@@ -3732,9 +3734,10 @@ let _osThemeChecked = false;   // one fresh /system/theme read per page load
 
 function resolveAppearance(mode) {
   if (mode === 'light' || mode === 'dark') return mode;
-  // 'auto' follows the OS colour scheme. Prefer the server's registry reading
-  // (the embedded WebView's prefers-color-scheme is unreliable); fall back to
-  // the media query until that value is available.
+  // 'auto' follows the OS colour scheme. Prefer the server's reading of the OS
+  // itself (the embedded WebView's prefers-color-scheme is unreliable, and on
+  // macOS reports light for a moment after every display wake); fall back to the
+  // media query only until that value is available, or where there is none.
   if (typeof _osPrefersDark === 'boolean') return _osPrefersDark ? 'dark' : 'light';
   const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   return prefersDark ? 'dark' : 'light';
@@ -3765,12 +3768,13 @@ function freezePaletteVariants(settings) {
   return frozen;
 }
 
-// Poll the OS theme from the server (Windows registry) so "Auto" is reliable
-// even when the WebView doesn't report prefers-color-scheme correctly.
+// Ask the server what the OS actually says (Windows registry, macOS `defaults`,
+// GNOME `gsettings`) so "Auto" is reliable even where the WebView doesn't report
+// prefers-color-scheme correctly — which on macOS is every time the display
+// wakes. See server/os-theme.js.
 function refreshOsTheme() {
-  // The OS scheme only matters in 'auto', and the endpoint spawns reg.exe server-side.
-  // Skip the poll unless we're on auto and the tab is visible — OS theme flips are
-  // also caught live by the matchMedia listener below, so this is only a fallback.
+  // The OS scheme only matters in 'auto', and the endpoint spawns a process
+  // server-side. Skip the poll unless we're on auto and the page is visible.
   if (document.hidden || !hubSettings || hubSettings.appearance !== 'auto') return;
   fetch('/system/theme')
     .then(res => (res.ok ? res.json() : null))
@@ -3785,6 +3789,11 @@ function refreshOsTheme() {
 }
 refreshOsTheme();
 setInterval(refreshOsTheme, 30000);
+// Coming back from display sleep is precisely when the WebView's own reading is
+// least trustworthy, so ask the OS again the moment the page is visible rather
+// than up to 30 s later — that gap is how long a wrongly repainted dashboard
+// used to stay wrong.
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshOsTheme(); });
 
 function setAppearance(mode) {
   if (!['light', 'dark', 'auto'].includes(mode)) return;
@@ -3857,10 +3866,19 @@ function syncStyleModeControls() {
 }
 
 // Re-apply when the OS scheme flips, but only while the user is on 'auto'.
+//
+// The media query says "look again", not "you are light now". Where the OS can
+// be read directly that reading decides, and this only asks for a fresh one:
+// after a macOS display wakes, the WebView announces light on a Mac that never
+// left dark, and repainting on its word turned the whole dashboard white until
+// something else forced a repaint. The WebView gets the last word only on a
+// platform where nothing can be read at all.
 if (window.matchMedia) {
   try {
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-      if (hubSettings && hubSettings.appearance === 'auto') applyHubSettings();
+      if (!hubSettings || hubSettings.appearance !== 'auto') return;
+      refreshOsTheme();
+      if (typeof _osPrefersDark !== 'boolean') applyHubSettings();
     });
   } catch {}
 }

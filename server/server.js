@@ -9,6 +9,7 @@
 // handler armed after the throw would never see it. See startup-log.js for why
 // this process was the last of the three that could still die without a word.
 const startupLog = require('./startup-log');
+const osTheme = require('./os-theme');
 startupLog.install();
 const http = require('http');
 const { execFile, spawn } = require('child_process');
@@ -13350,18 +13351,19 @@ const handleRequest = async (req, res) => {
     json(st);
 
   } else if (reqPath === '/system/theme' && req.method === 'GET') {
-    // Reliable OS theme for the "Auto" appearance: the embedded WebView's
-    // prefers-color-scheme is unreliable, so read Windows' app theme from the
-    // registry. AppsUseLightTheme: 0x0 = dark apps, 0x1 = light apps.
-    execFile('reg', ['query', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize', '/v', 'AppsUseLightTheme'],
-      { windowsHide: true, timeout: 4000 }, (e, stdout) => {
-        let osDark = null;
-        if (!e && stdout) {
-          const m = stdout.match(/AppsUseLightTheme\s+REG_DWORD\s+0x([0-9a-fA-F]+)/i);
-          if (m) osDark = parseInt(m[1], 16) === 0;
-        }
-        json({ osDark });
-      });
+    // The OS colour scheme, for the "Auto" appearance. The embedded WebView's
+    // prefers-color-scheme is not an authority — it is wrong at exactly the
+    // moments that matter. On macOS it reports LIGHT for a moment after the
+    // display wakes, which fired the media-query listener and repainted the
+    // whole dashboard white; nothing corrected it afterwards, because nothing
+    // else on that platform knew any better. Reported on Discord from a Mac
+    // mini (Sep 2026): dark before the screen slept, white after it woke.
+    //
+    // So the OS is asked directly, per platform, and that reading is what Auto
+    // resolves against. `osDark: null` means "no reading here" and sends the
+    // client back to the media query — an unknown must never be answered as
+    // light, since light is the wrong half of the guess.
+    json(await osTheme.read());
 
   } else if (reqPath === '/audio' && req.method === 'GET') {
     // On failure (SoundVolumeView missing/blocked) return an explicit

@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [4.11.8] — in development
 ### 🐛 Fixed
+- **The dashboard no longer wakes up white on a Mac.** With the appearance set to Auto, every time the display went to sleep the dark dashboard came back light — reported from a Mac mini, and reproducible on every wake.
+
+  Auto follows the system, and the only way it had to ask on macOS was the WebView's own answer, which after a display wake is briefly “light” on a Mac that never left dark. That was enough to repaint everything, and nothing afterwards disagreed: the reliable reading Xenon already used on Windows was a registry read, and a Mac has no registry.
+
+  It now asks the operating system itself on all three platforms — the registry on Windows, `defaults` on macOS, `gsettings` on GNOME — and asks again the instant the screen comes back rather than up to half a minute later. Where an answer genuinely cannot be had, the system's own preference is still used, but “no idea” is never read as light, which is the half the old code guessed wrong.
+
 - **A widget told to wait by Spotify is now told how long.** When Spotify refuses a read because too much was asked of it at once, it says how many seconds to leave it alone, and Xenon works that out and passes it on — the widget guide has always documented it. It was being thrown away at the last step, on the way into the widget, so widgets got the refusal without the wait and had to guess. Guessing short is the expensive mistake: retrying too early keeps the whole account in the penalty box, the user's own Spotify tile included.
 
 - **“Up next” no longer shows the same album over and over.** Playing a short album or the end of a playlist, Spotify answers the queue question by padding its reply — the tracks that are left, then the whole thing again from the top, and again. With repeat off none of that will ever play: after the last track, playback stops. Xenon was passing the padding straight through, so the Spotify tile's Up Next, and any widget reading the queue, listed the same songs several times over.
