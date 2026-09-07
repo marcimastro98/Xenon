@@ -1567,6 +1567,19 @@ pub fn run() {
                 monitor::initial_window(app.handle(), &display_prefs);
             let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("Xenon")
+                // The window's own backing, under the web content. Left unset it
+                // is the platform default - WHITE - and every moment the page is
+                // not painting its own background shows through as a white
+                // dashboard. On Windows that is the launch flash the Spotlight
+                // window already guards against; on macOS it outlives the launch:
+                // after the display sleeps, WebKit brings the page back without
+                // repainting the root background, so the white backing shows in
+                // every gap and the tiles - which are translucent - composite
+                // over it as pale grey. Reported on Discord from a Mac mini
+                // (Sep 2026) on a dashboard explicitly set to Dark, which is why
+                // it was not the theme: the palette was never wrong, the surface
+                // behind it was. Near-black, matching --bg in styles/global.css.
+                .background_color(tauri::window::Color(6, 8, 10, 255))
                 .inner_size(init_w, init_h)
                 .min_inner_size(640.0, 240.0)
                 .resizable(true)
