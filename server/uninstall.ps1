@@ -343,6 +343,11 @@ if ((Get-Service -Name 'XenonEdgeService' -ErrorAction SilentlyContinue) -or (Te
 $startup = [Environment]::GetFolderPath('Startup')
 Remove-PathSafe (Join-Path $startup "$appName.lnk") "legacy startup shortcut"
 
+# The Windows "Installed apps" entry (install.ps1 > Register-UninstallEntry).
+# It points at UNINSTALL.bat inside a folder this script is about to delete, so
+# leaving it would put a dead Uninstall button in Windows' own list.
+Remove-RegItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\XenonEdge' 'the "Installed apps" entry (HKCU\...\Uninstall\XenonEdge)'
+
 # -- 2b) what Xenon wrote into OTHER programs ---------------------------------
 # Two entries that live outside every folder this script deletes, and that a
 # user would never connect back to Xenon once Xenon is gone. Both are the

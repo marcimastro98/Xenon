@@ -1030,6 +1030,80 @@ function Register-StartupTask {
   } catch { }
 }
 
+# -- "Installed apps" entry ---------------------------------------------------
+# Xenon installs from a folder, not from an MSI, so Windows had no idea it was
+# there: nothing under Settings > Apps > Installed apps, nothing in Control
+# Panel. The only way out was UNINSTALL.bat, and someone who no longer has the
+# folder open in Explorer has no way to guess that it exists. What people do
+# instead is delete the folder - which takes the files and leaves behind every
+# footprint outside them. Chief among those: the per-logon tasks, which keep
+# firing at scripts that are gone, so Windows raises
+# "Can not find script file ...\server\start-hidden.vbs" in a modal at every
+# single sign-in, forever, with nothing left on the machine to explain where it
+# comes from (reported on Discord, Sep 2026, from a 4.0.0 folder run straight
+# out of Downloads). Registering here puts Xenon where Windows users actually
+# look for it, and hands the removal to the script that knows about the tasks.
+#
+# Per-user (HKCU) to match the install: no admin rights needed, and it belongs
+# to the account that installed it rather than to everyone on the PC.
+#
+# On a native install the kiosk's own NSIS entry (also "Xenon", written by the
+# Tauri bundle) sits beside this one. Both roads end in a clean machine: ours
+# runs the NSIS uninstaller as one of its steps, and the NSIS one removes only
+# the kiosk and leaves this entry in place, so the rest is still one click away.
+$uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\XenonEdge'
+
+function Register-UninstallEntry {
+  Write-Step 'Registering Xenon in Windows "Installed apps"...'
+  $bat = Join-Path $root 'UNINSTALL.bat'
+  if (-not (Test-Path -LiteralPath $bat)) {
+    Write-Host 'UNINSTALL.bat is not in the install folder - skipping the "Installed apps" entry rather than registering one whose Uninstall button leads nowhere.' -ForegroundColor Yellow
+    return
+  }
+  $values = [ordered]@{
+    DisplayName     = 'Xenon'
+    DisplayVersion  = (Get-AppVersion)
+    Publisher       = 'marcimastro98'
+    InstallLocation = $root
+    UninstallString = ('"{0}"' -f $bat)
+    NoModify        = 1
+    NoRepair        = 1
+  }
+  # "Uninstall" in Windows' own list must not stop to ask questions in a console
+  # the user never opened, so the quiet form skips the confirmation prompt. It is
+  # the same script either way.
+  $ps1 = Join-Path $filesDir 'uninstall.ps1'
+  if (Test-Path -LiteralPath $ps1) {
+    $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $values['QuietUninstallString'] = ('"{0}" -NoProfile -ExecutionPolicy Bypass -File "{1}" -Yes' -f $psExe, $ps1)
+  }
+  foreach ($candidate in @(
+    (Join-Path $root 'apps\native\src-tauri\icons\icon.ico'),
+    (Join-Path $env:LOCALAPPDATA 'Xenon\xenon-native.exe')
+  )) {
+    if (Test-Path -LiteralPath $candidate) { $values['DisplayIcon'] = $candidate; break }
+  }
+  # The size Windows shows beside the entry, in KB. Best-effort: a blank column
+  # is not worth failing the install over, and node_modules makes the walk the
+  # slowest thing here.
+  try {
+    $bytes = (Get-ChildItem -LiteralPath $root -Recurse -File -Force -ErrorAction SilentlyContinue |
+      Measure-Object -Property Length -Sum).Sum
+    if ($bytes) { $values['EstimatedSize'] = [int][math]::Round($bytes / 1KB) }
+  } catch { }
+
+  try {
+    if (-not (Test-Path -LiteralPath $uninstallKey)) { New-Item -Path $uninstallKey -Force | Out-Null }
+    foreach ($name in $values.Keys) {
+      $type = if ($values[$name] -is [int]) { 'DWord' } else { 'String' }
+      New-ItemProperty -Path $uninstallKey -Name $name -Value $values[$name] -PropertyType $type -Force | Out-Null
+    }
+    Write-Host 'Xenon is now listed in Settings > Apps > Installed apps, with an Uninstall button.' -ForegroundColor Gray
+  } catch {
+    Write-Host "Could not register the 'Installed apps' entry: $($_.Exception.Message). UNINSTALL.bat in the install folder still removes everything." -ForegroundColor Yellow
+  }
+}
+
 function Test-WidgetServer {
   try {
     $response = Invoke-WebRequest -Uri "$url/status" -UseBasicParsing -TimeoutSec 2
@@ -1459,6 +1533,7 @@ Invoke-ComponentRetryPass
 # installs off the service first, then register the task and start the backend.
 Remove-BackendServiceIfPresent | Out-Null
 Register-StartupTask
+Register-UninstallEntry
 Start-WidgetServer -RestartExisting:$installerElevated
 
 # Record the chosen surface, then act on it. Native installs the Tauri kiosk;

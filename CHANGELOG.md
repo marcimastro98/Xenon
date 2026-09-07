@@ -3,17 +3,6 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-### ✨ Added
-- **Turn one person in a voice call up or down, from the Discord widget.** One friend twice as loud as everyone else is the oldest problem in voice chat, and Discord's own fix is buried in a right-click menu in another window. Tap someone's name in the Discord widget's call list and you get their volume and a mute that applies to you alone — they carry on talking to everyone else exactly as before.
-
-  It is one row and no words: a speaker to silence them, a slider, the number. The name is not repeated — it is lit up in the list right above it.
-
-  Your own name is not one of them: Discord has no per-person setting for your own account, and your levels are the microphone and output rows just above.
-
-  Two things that look alike are drawn differently on purpose. Someone who muted their own microphone is dimmed, as before; someone *you* turned down or muted carries a mark of your own, so "they went quiet" and "I turned them down" never look like the same thing.
-
-  Xenon has been able to do this since 4.11 — but only for widget authors, through the SDK, so the only way to use it was to write a widget. Someone went looking for the setting and there wasn't one. Now there is.
-
 ## [4.11.8] — in development
 ### 🐛 Fixed
 - **“Up next” no longer shows the same album over and over.** Playing a short album or the end of a playlist, Spotify answers the queue question by padding its reply — the tracks that are left, then the whole thing again from the top, and again. With repeat off none of that will ever play: after the last track, playback stops. Xenon was passing the padding straight through, so the Spotify tile's Up Next, and any widget reading the queue, listed the same songs several times over.
@@ -24,6 +13,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
 ### ✨ Added
+- **Xenon is now in Windows' own list of installed apps.** It installs from a folder rather than through an MSI, and Windows had no idea it was there: nothing under **Settings → Apps → Installed apps**, nothing in Control Panel. The only way out was `UNINSTALL.bat`, back inside the folder — findable if you knew it was there, invisible if you did not.
+
+  So people deleted the folder instead, which takes the files and leaves behind everything that lives outside them. Chief among those is the entry that starts Xenon when you sign in: Windows kept running it, found no script where it pointed, and said so in a box you can only click OK on — at every single boot, on a PC with no Xenon left on it to explain where the box was coming from. Reported on Discord by someone it had been greeting for a while.
+
+  Installing now registers a normal uninstall entry, so Xenon is removed the way every other program is, and that route takes the startup entries with it. Already deleted the folder? The two lines that clear the leftovers are in README's troubleshooting section.
+
+- **Turn one person in a voice call up or down, from the Discord widget.** One friend twice as loud as everyone else is the oldest problem in voice chat, and Discord's own fix is buried in a right-click menu in another window. Tap someone's name in the Discord widget's call list and you get their volume and a mute that applies to you alone — they carry on talking to everyone else exactly as before.
+
+  It is one row and no words: a speaker to silence them, a slider, the number. The name is not repeated — it is lit up in the list right above it.
+
+  Your own name is not one of them: Discord has no per-person setting for your own account, and your levels are the microphone and output rows just above.
+
+  Two things that look alike are drawn differently on purpose. Someone who muted their own microphone is dimmed, as before; someone *you* turned down or muted carries a mark of your own, so "they went quiet" and "I turned them down" never look like the same thing.
+
+  Xenon has been able to do this since 4.11 — but only for widget authors, through the SDK, so the only way to use it was to write a widget. Someone went looking for the setting and there wasn't one. Now there is.
+
 - **Widgets are told whether you read Celsius or Fahrenheit.** A widget that draws a temperature had no way to know which one you use, so one showing °C on a dashboard where the clock, the weather and the lock screen all say °F was wrong in a way its author could not see from their own machine. The setting is now handed to widgets at start and again the moment you change it, alongside the language.
 
   The numbers themselves are unchanged and always Celsius, as they have always been — what a widget gets is which unit to show them in. Converting them on the way out would leave a widget unable to tell 30 °C from 30 °F, and would quietly change what every widget already installed is drawing.
