@@ -1579,6 +1579,16 @@ pub fn run() {
                 // (Sep 2026) on a dashboard explicitly set to Dark, which is why
                 // it was not the theme: the palette was never wrong, the surface
                 // behind it was. Near-black, matching --bg in styles/global.css.
+                //
+                // On macOS this needs `macOSPrivateApi` in tauri.conf.json, and
+                // that is the ONLY reason it is on. WKWebView paints an opaque
+                // WHITE background of its own, and the switch that turns it off
+                // (`drawsBackground`) is a private key — so wry only compiles
+                // that call in under the private-api feature. Without it the
+                // colour set here lands on the NSWindow, which the white webview
+                // then covers completely: the window would be dark and the app
+                // still white. Xenon is not distributed through the App Store,
+                // where private APIs are refused; it ships as a signed .dmg.
                 .background_color(tauri::window::Color(6, 8, 10, 255))
                 .inner_size(init_w, init_h)
                 .min_inner_size(640.0, 240.0)
@@ -1591,12 +1601,12 @@ pub fn run() {
                 .visible(!start_hidden)
                 .focused(!start_hidden)
                 .center();
-            // `transparent` is not on the macOS builder at all: making a window
-            // transparent there needs a private API, so Tauri hides the method
-            // unless the `macos-private-api` feature is enabled. Opting into a
-            // private API to declare that the window is NOT transparent would be
-            // absurd — and false is the default everywhere — so this states the
-            // intent only on the platforms where stating it is free.
+            // `transparent` is not on the macOS builder at all: it is gated
+            // behind the `macos-private-api` feature, which `macOSPrivateApi` in
+            // tauri.conf.json now switches on — for `background_color` above
+            // rather than for transparency (see that comment). The window stays
+            // opaque either way; false is the default everywhere, so the intent
+            // is stated only on the platforms where the method exists.
             #[cfg(not(target_os = "macos"))]
             let builder = builder.transparent(false);
             // Borderless + native fullscreen is a combination macOS does not

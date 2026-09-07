@@ -56,6 +56,23 @@ test('the backing matches the page background it stands in for', () => {
     `the window backing should be #${m[1]}, the same colour the page paints`);
 });
 
+test('macOS is actually reached, which takes one config flag', () => {
+  // The colour alone does nothing on a Mac. WKWebView paints an opaque WHITE
+  // background of its own, and the switch that turns it off (`drawsBackground`)
+  // is a private key — wry compiles that call in only under its `transparent`
+  // feature, which Tauri enables from `macOSPrivateApi`. Without the flag the
+  // colour lands on the NSWindow and the white webview covers it: a dark window
+  // behind a white app, which is no fix at all.
+  const conf = JSON.parse(read('../../apps/native/src-tauri/tauri.conf.json'));
+  assert.equal(conf.app.macOSPrivateApi, true,
+    'without macOSPrivateApi the window backing never reaches macOS');
+  // Private APIs are refused by the App Store. Xenon does not ship there — if a
+  // Mac App Store target ever appears, this pairing has to be reconsidered.
+  const targets = (conf.bundle && conf.bundle.targets) || [];
+  assert.ok(!targets.includes('app') && !targets.includes('dmg-mas'),
+    'macOSPrivateApi and an App Store target cannot both be true');
+});
+
 test('the tiles really are translucent, which is why white leaked into them', () => {
   // If the panels were opaque, a white backing would show only in the gaps and
   // would never have read as a light theme.

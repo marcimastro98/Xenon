@@ -5,7 +5,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [4.11.8] — in development
 ### 🐛 Fixed
-- **The app window is dark behind the dashboard, instead of white.** A window has its own colour underneath the web page, and Xenon's main window never set one — so it was the system default, white. Any moment the page was not painting its own background, that white showed through: a flash at launch on Windows, and on macOS something that outlasted it. After the display slept, the page came back without repainting its background, and the white underneath showed in every gap between the tiles — which are semi-transparent, so they turned pale grey on top of it. The whole dashboard looked like it had switched to the light theme, on a Mac set firmly to Dark. Reported from a Mac mini, with before-and-after screenshots that made it clear the colours themselves had never changed.
+- **The app window is dark behind the dashboard, instead of white.** The web view Xenon draws into paints a background of its own underneath the page, and nobody had ever told it which colour — so it was the default, white. Any moment the page was not painting its own background, that white showed through: a flash at launch on Windows, and on macOS something that outlasted the launch. After the display slept, the page came back without repainting its background, and the white underneath showed in every gap between the tiles — which are semi-transparent, so they turned pale grey sitting on it. The whole dashboard looked like it had switched to the light theme, on a Mac set firmly to Dark. The same white flashed for an instant on every theme change, which is the clue that solved it.
+
+  Reported from a Mac mini with before-and-after screenshots, which is what made it clear the colours themselves had never changed.
 
 - **The dashboard no longer wakes up white on a Mac.** With the appearance set to Auto, every time the display went to sleep the dark dashboard came back light — reported from a Mac mini, and reproducible on every wake.
 
