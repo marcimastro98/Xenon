@@ -112,6 +112,25 @@ jobs:
       - name: Publish helper
         run: dotnet publish helper -c Release -o out
 
+      - name: Sign the helper when a certificate is configured
+        shell: pwsh
+        env:
+          IN_THUMBPRINT: ${{ secrets.WINDOWS_SIGN_THUMBPRINT }}
+        run: |
+          # Opt-in on one secret, and unset is this repo's state until the
+          # certificate lands: no secret means the step says so and exits 0,
+          # leaving the exe exactly as it shipped before.
+          #
+          # The test lives in the shell because the `secrets` context is not
+          # available to step `if:` conditionals - the same constraint the
+          # macOS job works around.
+          if ([string]::IsNullOrWhiteSpace($env:IN_THUMBPRINT)) {
+            Write-Host 'no code-signing certificate configured - shipping xenon-helper.exe unsigned'
+            exit 0
+          }
+          $env:XENON_SIGN_THUMBPRINT = $env:IN_THUMBPRINT
+          & "$env:GITHUB_WORKSPACE/tools/sign-windows.ps1" -Path 'out/xenon-helper.exe'
+
       - name: Upload helper artifact
         uses: actions/upload-artifact@v5
         with:
@@ -143,12 +162,87 @@ jobs:
         working-directory: apps/native
         run: npm run tauri -- icon ../../docs/images/logo-mark.png
 
+      # -- Authenticode signing ---------------------------------------------
+      # Entirely opt-in on ONE secret, WINDOWS_SIGN_THUMBPRINT, and unset is
+      # this repo's state until the certificate lands. Unset means: no
+      # signCommand ever reaches Tauri (the overlay config is passed on the
+      # command line, and only when there is something to sign with), the
+      # bootstrap script is bundled exactly as before, and the build is the
+      # same unsigned build that shipped yesterday. Nothing added here can
+      # break a release that has no certificate.
+      #
+      # The emptiness test lives in the shell rather than in a step `if:`,
+      # because the `secrets` context is not available to step conditionals -
+      # the same constraint the macOS job works around.
+      - name: Decide whether this build is Authenticode-signed
+        shell: pwsh
+        env:
+          IN_THUMBPRINT: ${{ secrets.WINDOWS_SIGN_THUMBPRINT }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:IN_THUMBPRINT)) {
+            Write-Host 'no code-signing certificate configured - building unsigned'
+            Write-Host '::warning::unsigned build: SmartScreen and Defender reputation restarts from zero for this release'
+            exit 0
+          }
+          $script = Join-Path $env:GITHUB_WORKSPACE 'tools/sign-windows.ps1'
+          $config = Join-Path $env:GITHUB_WORKSPACE 'apps/native/src-tauri/windows/sign.conf.json'
+          foreach ($f in @($script, $config)) {
+            if (-not (Test-Path -LiteralPath $f)) { throw "signing was requested but $f is missing" }
+          }
+          "XENON_SIGN_THUMBPRINT=$($env:IN_THUMBPRINT)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "XENON_SIGN_SCRIPT=$script" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "XENON_SIGN_CONFIG=$config" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host 'signing enabled for this build'
+
+      # Before the build, not after: the script is bundled INTO the installer
+      # as a Tauri resource, so signing it afterwards would sign a copy nobody
+      # runs. `-ExecutionPolicy Bypass` in run_backend_bootstrap() stays for
+      # now, and must stay until a signed script has actually shipped -
+      # dropping the flag while the script is unsigned breaks the install on
+      # every default Windows box.
+      - name: Sign the bundled bootstrap script
+        if: env.XENON_SIGN_THUMBPRINT != ''
+        shell: pwsh
+        run: |
+          & "$env:XENON_SIGN_SCRIPT" -Path 'apps/native/src-tauri/windows/xenon-bootstrap.ps1'
+
       - name: Build the native app (signed updater artifacts)
         working-directory: apps/native
+        shell: pwsh
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npm run build
+        run: |
+          # The overlay adds bundle.windows.signCommand and nothing else, so
+          # Tauri signs every binary it bundles: xenon-native.exe AND the setup
+          # that carries it. Signing the setup alone would leave the exe inside
+          # it unsigned, and that is the one antivirus quarantines mid-session.
+          # With no certificate the flag is absent and this is the plain build.
+          if ($env:XENON_SIGN_CONFIG) {
+            npm run build -- --config "$env:XENON_SIGN_CONFIG"
+          } else {
+            npm run build
+          }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # A build that quietly lost its signature is worth failing for: it ships
+      # looking fine and spends the reputation of a certificate it never used.
+      - name: Verify the installer is signed
+        if: env.XENON_SIGN_THUMBPRINT != ''
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem 'apps/native/src-tauri/target/release/bundle/nsis' -Filter *-setup.exe |
+            Select-Object -First 1
+          if (-not $setup) { throw 'no installer was produced' }
+          $sig = Get-AuthenticodeSignature -LiteralPath $setup.FullName
+          if ($sig.Status -ne 'Valid') {
+            throw "the installer is not validly signed: $($sig.Status) - $($sig.StatusMessage)"
+          }
+          Write-Host "installer signed by: $($sig.SignerCertificate.Subject)"
+          # The exe INSIDE the installer cannot be read without unpacking the
+          # NSIS payload. Tauri signs it through the same signCommand, but
+          # confirm it by hand on the first signed release: install, then run
+          # Get-AuthenticodeSignature on %LOCALAPPDATA%\Xenon\xenon-native.exe.
 
       - name: Stage artifacts and the windows updater fragment
         shell: pwsh

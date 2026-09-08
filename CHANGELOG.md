@@ -5,6 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [v4.11.8] - 08-09-2026
+### ✨ Added
+- **The release pipeline can now sign what it builds.** Nothing users can see yet, and that is the point: the wiring is in place so that the day a code-signing certificate arrives, a release goes out signed without touching the build.
+
+  Everything hangs off a single repository secret. Without it the pipeline behaves exactly as it did yesterday and produces the same unsigned build, because the signing configuration is passed on the command line only when there is a certificate to sign with — it is not part of `tauri.conf.json`, where it would run on every build whether or not there was anything behind it.
+
+  With it, three binaries get signed instead of one: the setup, `xenon-native.exe` inside it, and `xenon-helper.exe`, which never passes through the bundler and needed its own step. Signing only the setup would have left the exe inside it bare, and the exe inside it is the one antivirus quarantines while Xenon is running. The bundled `xenon-bootstrap.ps1` is signed too, before the build, since it travels inside the installer as a resource.
+
+  Signatures are timestamped and verified before anything ships. A build that silently lost its signature fails the release rather than spending the reputation of a certificate it never used.
+
+  Worth being straight about what this buys, because the industry answer changed and most guides have not caught up: **a certificate does not clear SmartScreen on day one.** Microsoft removed instant reputation for EV certificates in 2024 and now treats every code-signing certificate the same. What a signature does is stop the reputation resetting to zero with every new release, and start accumulating it against one stable identity instead.
+
+### 📘 Documentation
+- **The code-signing notes in DEVELOPER.md were out of date in the two places that would have cost money.** They recommended Azure Trusted Signing as the realistic option for a solo maintainer — individual onboarding has been paused since April 2025 — and said an EV certificate clears SmartScreen immediately, which stopped being true in 2024. Rewritten against what is actually purchasable in September 2026, with the constraint that decides it: certificates are now valid for at most 459 days.
+
 ## [v4.11.7] - 05-09-2026
 ### ✨ Added
 - **Widgets can read clock speeds and your frame rate.** Asked for by someone building a monitoring widget who had run out of numbers to draw: Xenon knew the CPU and GPU clocks and the frame rate in a game, and none of it reached the widgets people write.
