@@ -5,6 +5,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [4.11.8] — in development
 ### 🐛 Fixed
+- **The dashboard now actually moves onto the screen you choose, on a Mac.** Picking the Xeneon Edge — or any second display — left Xenon sitting as a window on the main screen. The panel was found, labelled “Xeneon Edge” in the picker and selected; the dashboard simply never went there, and nothing said why. Reported by the first person to run Xenon on a Mac with an Edge attached.
+
+  Two macOS APIs measure in different units and neither mentions it: asking a screen where it is gives an answer scaled to that screen, while telling a window where to go is read in the scale of the screen it is on at that moment. With a Retina main display next to the Edge the two disagree by a factor of two, so “go to the Edge” came out as a point still inside the main display. The move succeeded, at the wrong place. Every screen Xenon can be sent to is now measured in units that mean the same thing on both.
 - **The app window is dark behind the dashboard, instead of white.** The web view Xenon draws into paints a background of its own underneath the page, and nobody had ever told it which colour — so it was the default, white. Any moment the page was not painting its own background, that white showed through: a flash at launch on Windows, and on macOS something that outlasted the launch. After the display slept, the page came back without repainting its background, and the white underneath showed in every gap between the tiles — which are semi-transparent, so they turned pale grey sitting on it. The whole dashboard looked like it had switched to the light theme, on a Mac set firmly to Dark. The same white flashed for an instant on every theme change, which is the clue that solved it.
 
   Reported from a Mac mini with before-and-after screenshots, which is what made it clear the colours themselves had never changed.

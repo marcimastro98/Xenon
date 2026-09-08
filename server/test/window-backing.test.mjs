@@ -66,6 +66,13 @@ test('macOS is actually reached, which takes one config flag', () => {
   const conf = JSON.parse(read('../../apps/native/src-tauri/tauri.conf.json'));
   assert.equal(conf.app.macOSPrivateApi, true,
     'without macOSPrivateApi the window backing never reaches macOS');
+  // tauri-build CHECKS that the two agree and fails the build rather than
+  // deriving one from the other, so the config flag alone does not compile.
+  const cargo = read('../../apps/native/src-tauri/Cargo.toml');
+  const feats = cargo.match(/^tauri = \{[^}]*features = \[([^\]]*)\]/m);
+  assert.ok(feats, 'the tauri dependency no longer declares a feature list');
+  assert.match(feats[1], /"macos-private-api"/,
+    'tauri.conf.json asks for macOSPrivateApi but Cargo.toml does not enable it — the build fails');
   // Private APIs are refused by the App Store. Xenon does not ship there — if a
   // Mac App Store target ever appears, this pairing has to be reconsidered.
   const targets = (conf.bundle && conf.bundle.targets) || [];
