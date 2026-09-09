@@ -196,21 +196,20 @@ Write-Host '  The Xenon app is only the screen; this sets up the' -ForegroundCol
 Write-Host '  Xenon dashboard itself (one time, a few minutes).' -ForegroundColor Gray
 Write-Host ''
 
-# Backend present -> done. The splash only offers the button after ~20s of
-# silence on 3030, but that is a timing heuristic, not proof: this check is what
-# actually makes a stray click harmless.
-if (Test-BackendTask) {
-  Done 'The Xenon backend is already installed - nothing to do.'
-}
-
-# Second signal: the scheduled task is only a proxy for "backend installed" -
-# a user who starts the server manually (task removed, dev checkout, task
-# registered under another Windows account) has a live backend with no task.
-# If anything already answers on the Xenon port, installing a SECOND backend
-# would only fight it for 3030 - bail out.
-# The bail-out is decided OUTSIDE the try on purpose: `catch { }` here swallows
-# everything, so calling Done (which pauses on Read-Host) from inside it would
-# turn a redirected-stdin failure into "carry on and install a second backend".
+# Is a backend already here? Two independent signals, because neither is
+# sufficient on its own.
+#
+# The startup task is the usual one. The splash only offers the button after
+# ~20s of silence on 3030, but that is a timing heuristic, not proof: the task
+# check is what actually makes a stray click harmless.
+#
+# The port is the second, because the task is only a proxy for "installed" - a
+# user who starts the server by hand (task removed, dev checkout, task
+# registered under another Windows account) has a live backend and no task.
+# The probe is decided OUTSIDE its try on purpose: `catch { }` here swallows
+# everything, so bailing out from inside it would turn a redirected-stdin
+# failure into "carry on and install a second backend".
+$taskPresent = Test-BackendTask
 $portTaken = $false
 try {
   $tcp = New-Object Net.Sockets.TcpClient
@@ -218,9 +217,44 @@ try {
   $portTaken = $probe.AsyncWaitHandle.WaitOne(1500) -and $tcp.Connected
   $tcp.Close()
 } catch { }
-if ($portTaken) {
-  Done 'A Xenon backend is already running on 127.0.0.1:3030 - nothing to do.'
+$backendPresent = $taskPresent -or $portTaken
+
+# WHICH version is already here. "A backend exists" used to end this script on
+# the spot, and that is how a setup named after a version could leave a PC on an
+# older one: the .exe replaces the app shell, this script is what replaces the
+# ENGINE, and it declined every time because an engine was already there. The
+# result is a machine whose Apps & Features says 4.11.7 while the dashboard says
+# 4.11.6 and offers an update - reported on Discord by someone who reran the
+# 4.11.7 setup twice and could not understand why nothing moved.
+#
+# Asked of the running engine first (it answers wherever it is installed, which
+# need not be $InstallRoot), and of the install folder's package.json when
+# nothing is answering.
+function Get-InstalledEngineVersion {
+  try {
+    $st = Invoke-RestMethod -Uri 'http://127.0.0.1:3030/status' -TimeoutSec 4
+    if ($st -and $st.version) { return ([string]$st.version).Trim() }
+  } catch { }
+  try {
+    $pkg = Join-Path $InstallRoot 'package.json'
+    if (Test-Path -LiteralPath $pkg) {
+      return ('' + (Get-Content $pkg -Raw | ConvertFrom-Json).version).Trim()
+    }
+  } catch { }
+  return ''
 }
+
+# x.y.z on both sides or no comparison at all: a tag we cannot parse must not be
+# read as "newer" and trigger an install nobody asked for.
+function Test-VersionNewer($candidate, $current) {
+  try {
+    $a = [version](($candidate -replace '^v', '') -split '-')[0]
+    $b = [version](($current   -replace '^v', '') -split '-')[0]
+    return $a -gt $b
+  } catch { return $false }
+}
+
+$installedVersion = if ($backendPresent) { Get-InstalledEngineVersion } else { '' }
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $headers = @{ 'User-Agent' = 'XenonBootstrap'; 'Accept' = 'application/vnd.github+json' }
@@ -232,11 +266,32 @@ Write-Step 'Looking up the latest Xenon release...'
 try {
   $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -Headers $headers -TimeoutSec 25
 } catch {
+  # A machine that already HAS a backend used to never get this far, and must
+  # not be handed a red failure for it now: unreachable GitHub with Xenon
+  # already installed is "nothing to do", exactly as before.
+  if ($backendPresent) {
+    Done 'The Xenon backend is already installed. (Could not reach GitHub to check for a newer one.)'
+  }
   Fail "Could not reach GitHub to find the latest release ($($_.Exception.Message)). Check your connection and retry."
 }
 $tag = [string]$release.tag_name
 if (-not $tag) { Fail 'The latest release has no tag - please retry later.' }
 Write-Step "Latest release: $tag"
+
+# Now the decision this script used to make before it knew anything: leave an
+# existing backend alone, or replace it because it is behind.
+if ($backendPresent) {
+  if (-not $installedVersion) {
+    Done 'The Xenon backend is already installed - nothing to do.'
+  }
+  if (-not (Test-VersionNewer $tag $installedVersion)) {
+    Done "The Xenon backend is already installed and up to date (version $installedVersion)."
+  }
+  Write-Host ''
+  Write-Host "  The Xenon engine on this PC is version $installedVersion, and $tag is out." -ForegroundColor Yellow
+  Write-Host '  Updating it now. Your settings, layouts, notes and Deck keys are kept.' -ForegroundColor Gray
+  Write-Host ''
+}
 
 # -- 2) Download the source zip + its signed checksums ------------------------
 $zipPath  = Join-Path $tmp 'source.zip'

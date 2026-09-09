@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [4.11.8] — in development
 ### 🐛 Fixed
+- **A versioned setup that left the engine on the old version.** The `.exe` on the Releases page installs the app you see; the dashboard engine behind it is installed by a second step, and that step began by asking only whether an engine was already there — and stopping if it was. True on every PC that already runs Xenon, whatever version it runs. So reinstalling with `Xenon_4.11.7_x64-setup.exe` replaced the app, left the engine where it was, and finished happily: Windows' *Apps & features* said 4.11.7, Xenon itself said 4.11.6 with an update waiting, and running the setup again changed nothing at all.
+
+  Reported by someone who did exactly that, twice, on our own advice — after a failed update we had told him to reinstall over the top, which was the right idea and the wrong file.
+
+  It now asks *which* version is installed before deciding: an engine that is behind the release gets updated (settings, layouts, notes and Deck keys kept), one that is level or ahead is left alone by name and version, and a PC that cannot reach GitHub is told that rather than shown a failure.
+
 - **A setup that reported success while changing nothing.** There are two ways to install Xenon — `INSTALL.bat` runs from wherever you unpacked it, the setup `.exe` installs into its own folder — and anyone who used both ended up with two copies on the PC. Only one of them can answer on the port the dashboard lives at, and the setup could not tell the two apart: it asked whether *something* was answering, not whether *its own* engine was. So it stopped a copy it could not find, waited for a port that was never freed, started an engine that died instantly because the port was taken, saw the old copy still answering, and called the install a success — leaving the machine on exactly the version it started from. Twice in a row, with a restart in between, and no error anywhere.
 
   Reported by someone who had been told to reinstall over the top after the dependency fix in v4.11.6, and who had been doing it right all along.
