@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [4.11.8] — in development
 ### 🐛 Fixed
+- **The settings sidebar no longer squeezes its categories into a strip on a short screen.** The list of categories scrolls, and under it sits a block that does not: the support links, the update button, the platform notice and the version number. On a tall screen that is the right arrangement. On a Xeneon Edge — wide and only 720 pixels tall — the fixed half took 337 of the sidebar's 549 pixels, leaving twenty-seven categories scrolling through a window four and a half rows high. Reported from an Edge; a 1366×768 laptop had the same squeeze and nobody had mentioned it.
+
+  On any short screen the sidebar now scrolls as one column: the categories keep their full height, the rest follows underneath. Eleven categories where there were four.
+
 - **A versioned setup that left the engine on the old version.** The `.exe` on the Releases page installs the app you see; the dashboard engine behind it is installed by a second step, and that step began by asking only whether an engine was already there — and stopping if it was. True on every PC that already runs Xenon, whatever version it runs. So reinstalling with `Xenon_4.11.7_x64-setup.exe` replaced the app, left the engine where it was, and finished happily: Windows' *Apps & features* said 4.11.7, Xenon itself said 4.11.6 with an update waiting, and running the setup again changed nothing at all.
 
   Reported by someone who did exactly that, twice, on our own advice — after a failed update we had told him to reinstall over the top, which was the right idea and the wrong file.
