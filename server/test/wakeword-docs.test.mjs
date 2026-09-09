@@ -18,6 +18,8 @@ const require = createRequire(import.meta.url);
 const wake = require('../wakeword.js');
 const FEATURES = readFileSync(new URL('../../FEATURES.md', import.meta.url), 'utf8');
 const SRC = readFileSync(new URL('../wakeword.js', import.meta.url), 'utf8');
+const I18N = readFileSync(new URL('../js/i18n.js', import.meta.url), 'utf8');
+const LANGS = ['it', 'en', 'es', 'fr', 'de', 'pt', 'nl', 'ru', 'ko', 'ja', 'zh'];
 
 test('the documented pause limit is the one the code enforces', () => {
   const ms = Number(SRC.match(/const MAX_SEGMENT_MS = (\d+);/)[1]);
@@ -48,5 +50,33 @@ test('the loose match still refuses ordinary speech', () => {
   // dashboard that opens while you talk to someone.
   for (const said of ['se non', 'season', 'sano', 'send it over', 'the sun on my face']) {
     assert.ok(!wake.matchesWakeWord(said), `"${said}" would wake the assistant`);
+  }
+});
+
+test('the setting itself says how to say it, in every language', () => {
+  // FEATURES.md is where someone looks afterwards; the hint under the switch is
+  // where they look BEFORE trying it, which is when the timing matters. Five of
+  // these languages used to inherit the English hint through the `...i18n.en`
+  // spread, so the whole setting read in English for them.
+  for (const key of ['settings_wake', 'settings_wake_hint']) {
+    const owned = I18N.split('\n').filter((l) => {
+      const t = l.trimStart();
+      return t.startsWith(`${key}:`) || t.startsWith(`'${key}':`) || t.startsWith(`"${key}":`);
+    });
+    assert.equal(owned.length, LANGS.length,
+      `${key} is defined ${owned.length} times, expected one per language (${LANGS.length})`);
+  }
+});
+
+test('every hint carries the pause, not just the phrase', () => {
+  // The one thing that makes the difference between it working and not.
+  const hints = I18N.split('\n').filter((l) => l.trimStart().replace(/^["']/, '').startsWith('settings_wake_hint'));
+  assert.equal(hints.length, LANGS.length);
+  for (const line of hints) {
+    // Each language words it its own way; what has to be there is a second
+    // sentence about saying it alone, so a one-sentence hint fails this.
+    const value = line.slice(line.indexOf(':') + 1);
+    assert.ok(value.split(/[.。！]/).filter((p) => p.trim()).length >= 4,
+      `a hint lost its timing sentence: ${value.slice(0, 60)}…`);
   }
 });
