@@ -321,6 +321,10 @@ The mic re-opens only **after** Xenon finishes speaking, and near-silent or nois
 
 **Hands-free with "Hey Xenon" (opt-in):** turn on the wake word in **Settings → Xenon AI** and saying *"Hey Xenon"* opens the voice session without touching the screen. Detection is 100% local (the same on-device Whisper the voice chat can use — one-tap download if missing): no cloud, no account, no audio ever leaves your PC or gets stored. It listens only while a dashboard is open, ignores long speech and music so it never drains the CPU, and muting your microphone silences it too. Off by default.
 
+> **How to say it.** Say it **on its own, then pause** — *"Hey Xenon."* … the chat opens … *then* your request. Saying it as the start of a sentence (*"Hey Xenon, what's the weather?"*, all in one breath) is the one way to miss: anything longer than **3 seconds of unbroken speech** is treated as conversation rather than a wake phrase and thrown away, which is what stops music and a chat across the room from waking it. The **"Hey" is optional** — the name alone is enough.
+>
+> **Your accent does not matter.** The match is deliberately loose, because the local Whisper hears the name differently in every voice: *zenon*, *senon*, *sanon*, *zenone*, *xeneon* and a dozen more all count. There is no pronunciation to learn and no voice to train — say it the way it comes out.
+
 ### Voce Live — real-time, talk-over-it voice (beta)
 
 Turn on **Voce Live** in **Settings → Xenon AI** and the voice button opens a genuine **full-duplex** conversation instead of the turn-by-turn one. Xenon streams its reply as it speaks, and you can **cut in and talk over it at any moment** — it stops and listens instantly, with no button press and no waiting for it to finish. It's powered by Google's **Gemini Live** realtime model and still runs every dashboard command by voice (volume, timers, lighting, media, notes…), remembering you and keeping the conversation's context like the normal chat.
