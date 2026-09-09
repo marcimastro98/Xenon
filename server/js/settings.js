@@ -280,6 +280,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // fell where they fell. 0 days = no horizon, which is what it always did.
   upcomingCount: 5,
   upcomingDays: 0,
+  upcomingColumns: 0,   // 0 = as many as fit; 1 or 2 = the user's own choice
   swipeNavigation: true, // drag / finger-swipe to change dashboard page (touchscreen-friendly)
   swipeHomeGesture: true, // native app: swipe up from the bottom → Windows desktop (native-bridge.js)
   hideOnRdp: false, // native app: hide the kiosk during a Windows Remote Desktop session (opt-in; native-bridge.js)
@@ -1617,6 +1618,7 @@ function normalizeSettings(source) {
     weekStart: ['mon', 'sun'].includes(value.weekStart) ? value.weekStart : DEFAULT_HUB_SETTINGS.weekStart,
     upcomingCount: [3, 5, 8, 10].includes(Number(value.upcomingCount)) ? Number(value.upcomingCount) : DEFAULT_HUB_SETTINGS.upcomingCount,
     upcomingDays: [0, 7, 14, 30].includes(Number(value.upcomingDays)) ? Number(value.upcomingDays) : DEFAULT_HUB_SETTINGS.upcomingDays,
+    upcomingColumns: [0, 1, 2].includes(Number(value.upcomingColumns)) ? Number(value.upcomingColumns) : DEFAULT_HUB_SETTINGS.upcomingColumns,
     swipeNavigation: value.swipeNavigation !== false,
     swipeHomeGesture: value.swipeHomeGesture !== false,
     hideOnRdp: value.hideOnRdp === true,
@@ -9290,9 +9292,20 @@ function updateUpcomingDays(value) {
   setSettingsStatus('settings_saved', 'ok');
 }
 
+function updateUpcomingColumns(value) {
+  const n = Number(value);
+  if (![0, 1, 2].includes(n)) return;
+  hubSettings = normalizeSettings({ ...hubSettings, upcomingColumns: n });
+  saveHubSettings();
+  syncUpcomingControls();
+  if (typeof renderUpcoming === 'function') renderUpcoming();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
 function syncUpcomingControls() {
   for (const [id, value] of [['settings-upcoming-count', hubSettings.upcomingCount],
-    ['settings-upcoming-days', hubSettings.upcomingDays]]) {
+    ['settings-upcoming-days', hubSettings.upcomingDays],
+    ['settings-upcoming-cols', hubSettings.upcomingColumns]]) {
     const el = document.getElementById(id);
     if (!el) continue;
     el.value = String(value);

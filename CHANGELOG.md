@@ -28,6 +28,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
 ### ✨ Added
+- **The Calendar's upcoming events stop splitting into columns too narrow to read.** Past a certain width the list broke into two columns, and on a wide, short panel like the Xeneon Edge — where every tile is narrow — that meant two columns of one word each: “FC Barcel…” beside “Levante - FC…”. The width it split at was the width of a whole row, not of the event name inside one, and a row spends most of itself on the dot, the padding and the time. A second column now appears only when it is wide enough to carry a name whole, so the same tile shows five full titles where it used to show ten halves.
+
+  And if you would rather decide it yourself, **Settings → Calendar → Columns** now offers *Automatic*, *One* or *Two*. Requested with a screenshot from an Edge.
+
 - **Widgets can read past the first fifty followed artists.** Saved albums, playlists and Liked Songs could always be paged through to the end; followed artists and recently played could not — Spotify pages those two by a marker rather than by a page number, and there was no way to send the marker back. A widget saw the first fifty and stopped there. It can now ask for the rest, and a marker it gets wrong is refused rather than answered with the first page again, which is the version of this bug that looks like an endless list of the same names. Reported by the author of the Spotify library browser.
 
 - **Xenon is now in Windows' own list of installed apps.** It installs from a folder rather than through an MSI, and Windows had no idea it was there: nothing under **Settings → Apps → Installed apps**, nothing in Control Panel. The only way out was `UNINSTALL.bat`, back inside the folder — findable if you knew it was there, invisible if you did not.

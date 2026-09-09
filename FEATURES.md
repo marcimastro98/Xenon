@@ -440,6 +440,7 @@ A programmable, **Stream Deck-style key grid** you can add to any dashboard page
 - Tap any day to open the **Day Modal** with full event details
 - **Reminder toasts** pop up at the configured time — no external app needed
 - Stored locally in `server/events.json`
+- **Upcoming events**, under the month grid: how many to list, how far ahead to look, and how many **columns** to lay them out in — all in **Settings → Calendar**. Columns is normally *Automatic*, which fits a second one only when it is wide enough to carry a whole event name; **One** and **Two** decide it yourself, which is what a wide, short panel like the Xeneon Edge tends to want.
 
 ### External calendar sync (Outlook & Google)
 

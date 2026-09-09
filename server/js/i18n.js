@@ -29932,6 +29932,11 @@ Object.assign(i18n.it, {
   settings_upcoming_days_7: '7 giorni',
   settings_upcoming_days_14: '14 giorni',
   settings_upcoming_days_30: '30 giorni',
+  settings_upcoming_cols: 'Colonne',
+  settings_upcoming_cols_hint: 'come disporre gli eventi in arrivo',
+  settings_upcoming_cols_auto: 'Automatico',
+  settings_upcoming_cols_1: 'Una',
+  settings_upcoming_cols_2: 'Due',
   settings_calendar_hint: 'primo giorno della settimana ed eventi in arrivo',
 });
 Object.assign(i18n.en, {
@@ -29943,6 +29948,11 @@ Object.assign(i18n.en, {
   settings_upcoming_days_7: '7 days',
   settings_upcoming_days_14: '14 days',
   settings_upcoming_days_30: '30 days',
+  settings_upcoming_cols: 'Columns',
+  settings_upcoming_cols_hint: 'how the upcoming list is laid out',
+  settings_upcoming_cols_auto: 'Automatic',
+  settings_upcoming_cols_1: 'One',
+  settings_upcoming_cols_2: 'Two',
   settings_calendar_hint: 'first day of the week, and the upcoming list',
 });
 Object.assign(i18n.ko, {
@@ -29954,6 +29964,11 @@ Object.assign(i18n.ko, {
   settings_upcoming_days_7: '7일',
   settings_upcoming_days_14: '14일',
   settings_upcoming_days_30: '30일',
+  settings_upcoming_cols: '열',
+  settings_upcoming_cols_hint: '예정된 일정을 몇 열로 배치할지',
+  settings_upcoming_cols_auto: '자동',
+  settings_upcoming_cols_1: '1열',
+  settings_upcoming_cols_2: '2열',
   settings_calendar_hint: '주 시작 요일과 예정된 일정 목록',
 });
 Object.assign(i18n.ja, {
@@ -29965,6 +29980,11 @@ Object.assign(i18n.ja, {
   settings_upcoming_days_7: '7日',
   settings_upcoming_days_14: '14日',
   settings_upcoming_days_30: '30日',
+  settings_upcoming_cols: '列',
+  settings_upcoming_cols_hint: '予定リストの並べ方',
+  settings_upcoming_cols_auto: '自動',
+  settings_upcoming_cols_1: '1 列',
+  settings_upcoming_cols_2: '2 列',
   settings_calendar_hint: '週の始まりと今後の予定リスト',
 });
 Object.assign(i18n.zh, {
@@ -29976,6 +29996,11 @@ Object.assign(i18n.zh, {
   settings_upcoming_days_7: '7 天',
   settings_upcoming_days_14: '14 天',
   settings_upcoming_days_30: '30 天',
+  settings_upcoming_cols: '列数',
+  settings_upcoming_cols_hint: '即将到来的事件如何排列',
+  settings_upcoming_cols_auto: '自动',
+  settings_upcoming_cols_1: '一列',
+  settings_upcoming_cols_2: '两列',
   settings_calendar_hint: '一周的第一天，以及即将到来的日程',
 });
 Object.assign(i18n.es, {
@@ -29987,6 +30012,11 @@ Object.assign(i18n.es, {
   settings_upcoming_days_7: '7 días',
   settings_upcoming_days_14: '14 días',
   settings_upcoming_days_30: '30 días',
+  settings_upcoming_cols: 'Columnas',
+  settings_upcoming_cols_hint: 'cómo se distribuyen los próximos eventos',
+  settings_upcoming_cols_auto: 'Automático',
+  settings_upcoming_cols_1: 'Una',
+  settings_upcoming_cols_2: 'Dos',
   settings_calendar_hint: 'primer día de la semana y la lista de próximos',
 });
 Object.assign(i18n.fr, {
@@ -29998,6 +30028,11 @@ Object.assign(i18n.fr, {
   settings_upcoming_days_7: '7 jours',
   settings_upcoming_days_14: '14 jours',
   settings_upcoming_days_30: '30 jours',
+  settings_upcoming_cols: 'Colonnes',
+  settings_upcoming_cols_hint: 'comment les événements à venir sont disposés',
+  settings_upcoming_cols_auto: 'Automatique',
+  settings_upcoming_cols_1: 'Une',
+  settings_upcoming_cols_2: 'Deux',
   settings_calendar_hint: 'premier jour de la semaine et la liste à venir',
 });
 Object.assign(i18n.de, {
@@ -30009,6 +30044,11 @@ Object.assign(i18n.de, {
   settings_upcoming_days_7: '7 Tage',
   settings_upcoming_days_14: '14 Tage',
   settings_upcoming_days_30: '30 Tage',
+  settings_upcoming_cols: 'Spalten',
+  settings_upcoming_cols_hint: 'wie die anstehenden Termine angeordnet werden',
+  settings_upcoming_cols_auto: 'Automatisch',
+  settings_upcoming_cols_1: 'Eine',
+  settings_upcoming_cols_2: 'Zwei',
   settings_calendar_hint: 'erster Tag der Woche und die Terminliste',
 });
 Object.assign(i18n.pt, {
@@ -30020,6 +30060,11 @@ Object.assign(i18n.pt, {
   settings_upcoming_days_7: '7 dias',
   settings_upcoming_days_14: '14 dias',
   settings_upcoming_days_30: '30 dias',
+  settings_upcoming_cols: 'Colunas',
+  settings_upcoming_cols_hint: 'como os próximos eventos são dispostos',
+  settings_upcoming_cols_auto: 'Automático',
+  settings_upcoming_cols_1: 'Uma',
+  settings_upcoming_cols_2: 'Duas',
   settings_calendar_hint: 'primeiro dia da semana e a lista de próximos',
 });
 Object.assign(i18n.ru, {
@@ -30031,6 +30076,11 @@ Object.assign(i18n.ru, {
   settings_upcoming_days_7: '7 дней',
   settings_upcoming_days_14: '14 дней',
   settings_upcoming_days_30: '30 дней',
+  settings_upcoming_cols: 'Столбцы',
+  settings_upcoming_cols_hint: 'как расположены ближайшие события',
+  settings_upcoming_cols_auto: 'Автоматически',
+  settings_upcoming_cols_1: 'Один',
+  settings_upcoming_cols_2: 'Два',
   settings_calendar_hint: 'первый день недели и список ближайших',
 });
 Object.assign(i18n.nl, {
@@ -30042,6 +30092,11 @@ Object.assign(i18n.nl, {
   settings_upcoming_days_7: '7 dagen',
   settings_upcoming_days_14: '14 dagen',
   settings_upcoming_days_30: '30 dagen',
+  'settings_upcoming_cols': 'Kolommen',
+  'settings_upcoming_cols_hint': 'hoe de aankomende items worden geplaatst',
+  'settings_upcoming_cols_auto': 'Automatisch',
+  'settings_upcoming_cols_1': 'Eén',
+  'settings_upcoming_cols_2': 'Twee',
   settings_calendar_hint: 'eerste dag van de week en de lijst met afspraken',
 });
 

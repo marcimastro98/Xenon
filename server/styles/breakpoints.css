@@ -227,7 +227,13 @@ body[data-panel="agenda"] .audio-panel { display: none; }
   .calendar-weekdays span { font-size: 9px; }
   .day-cell { font-size: 12.5px; border-radius: 6px; }
   .upcoming-block { padding: 6px 7px; gap: 4px; border-radius: 10px; }
-  .upcoming-list { grid-template-columns: repeat(auto-fit, minmax(116px, 1fr)); gap: 4px; }
+  /* The base rule at this breakpoint's smaller type (11px names, ~60px of
+     furniture): the same titles need about 260px. Kept in step with the 300px
+     above — raising one and not the other just moves the one-word columns to a
+     different tile size. */
+  .upcoming-list { grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 4px; }
+  .upcoming-list[data-cols="1"] { grid-template-columns: minmax(0, 1fr); }
+  .upcoming-list[data-cols="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .upcoming-item { gap: 5px; padding: 4px 6px; border-radius: 7px; }
   .upcoming-name { font-size: 11px; }
   .upcoming-when { font-size: 10px; }

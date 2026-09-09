@@ -1540,6 +1540,21 @@
             <option value="30" data-i18n="settings_upcoming_days_30">30 giorni</option>
           </select>
         </label>
+        <!-- The list fills the width it is given, and on a wide short panel that
+             means two columns of titles cut to one word. "Automatico" still fits
+             what it can, only later — a second column now has to be wide enough
+             to carry a name. These two are for deciding it yourself. -->
+        <label class="settings-row full">
+          <span class="settings-label-line">
+            <span data-i18n="settings_upcoming_cols">Colonne</span>
+            <span class="settings-hint" data-i18n="settings_upcoming_cols_hint">come disporre gli eventi in arrivo</span>
+          </span>
+          <select class="settings-select" id="settings-upcoming-cols" data-custom-select data-cs-fixed onchange="updateUpcomingColumns(this.value)">
+            <option value="0" selected data-i18n="settings_upcoming_cols_auto">Automatico</option>
+            <option value="1" data-i18n="settings_upcoming_cols_1">Una</option>
+            <option value="2" data-i18n="settings_upcoming_cols_2">Due</option>
+          </select>
+        </label>
       </div>
 
       <div class="settings-group settings-behavior-group" data-settings-cat="general">
