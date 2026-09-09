@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [4.11.8] — in development
 ### 🐛 Fixed
+- **A setup that reported success while changing nothing.** There are two ways to install Xenon — `INSTALL.bat` runs from wherever you unpacked it, the setup `.exe` installs into its own folder — and anyone who used both ended up with two copies on the PC. Only one of them can answer on the port the dashboard lives at, and the setup could not tell the two apart: it asked whether *something* was answering, not whether *its own* engine was. So it stopped a copy it could not find, waited for a port that was never freed, started an engine that died instantly because the port was taken, saw the old copy still answering, and called the install a success — leaving the machine on exactly the version it started from. Twice in a row, with a restart in between, and no error anywhere.
+
+  Reported by someone who had been told to reinstall over the top after the dependency fix in v4.11.6, and who had been doing it right all along.
+
+  The setup now checks *which* Xenon holds the port. If it is another copy, it says which folder that copy lives in, stops it, and takes over; if it is a program that is not Xenon at all, it says that instead of failing silently. And it only counts an install as finished when its own engine is the one answering.
+
 - **The dashboard now actually moves onto the screen you choose, on a Mac.** Picking the Xeneon Edge — or any second display — left Xenon sitting as a window on the main screen. The panel was found, labelled “Xeneon Edge” in the picker and selected; the dashboard simply never went there, and nothing said why. Reported by the first person to run Xenon on a Mac with an Edge attached.
 
   Two macOS APIs measure in different units and neither mentions it: asking a screen where it is gives an answer scaled to that screen, while telling a window where to go is read in the scale of the screen it is on at that moment. With a Retina main display next to the Edge the two disagree by a factor of two, so “go to the Edge” came out as a point still inside the main display. The move succeeded, at the wrong place. Every screen Xenon can be sent to is now measured in units that mean the same thing on both.

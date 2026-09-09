@@ -1122,6 +1122,121 @@ function Get-WidgetServerProcesses {
   return @()
 }
 
+# -- A SECOND Xenon, installed somewhere else --------------------------------
+# Everything above asks about THIS install: our node, running our server.js. That
+# was the whole picture while there was one way to install Xenon. There are two
+# now - INSTALL.bat unpacks and runs wherever the zip was extracted (a Downloads
+# folder, typically), while the setup .exe always installs into
+# %LOCALAPPDATA%\Programs\Xenon - and somebody who was told to "reinstall over the
+# top" with the other one ends up with both.
+#
+# The two cannot coexist: port 3030 belongs to whichever started first. And the
+# checks around it could not tell them apart. Test-WidgetServer asks whether
+# ANYTHING answers on 3030, Stop-WidgetServer only knows how to stop OUR node, so
+# a setup run over an older folder install went: something is answering, stop it
+# (nothing matched, so nothing stopped), wait for the port (never freed), start
+# our engine (dies instantly on EADDRINUSE), ask whether something answers - the
+# OLD one still does - and report a clean, successful install. Every time, on
+# every rerun, with no error anywhere. Reported on Discord by someone who ran the
+# 4.11.7 setup twice and restarted in between, still on the install he had.
+#
+# So this half of the file has to be able to see the other install. Same rule
+# uninstall.ps1 uses, in miniature: a server.js is far too common a name to go
+# killing node processes over, but a server.js sitting next to one of our own
+# PowerShell hosts is unmistakably ours.
+$xenonServerMarkers = @('media.ps1', 'gpu.ps1', 'performance.ps1', 'deck-actions.ps1')
+
+function Get-XenonServerDirFromCommandLine($commandLine) {
+  if (-not $commandLine) { return $null }
+  $needle = '\server\server.js'
+  # IndexOf rather than -like: a legal Windows path may contain [ and ], which
+  # -like would read as wildcards.
+  $at = $commandLine.IndexOf($needle, [System.StringComparison]::OrdinalIgnoreCase)
+  while ($at -ge 0) {
+    $upTo = $commandLine.Substring(0, $at + $needle.Length)
+    # An unquoted command line runs several paths together, so try every
+    # drive-letter start and let the filesystem say which one is real.
+    foreach ($start in [regex]::Matches($upTo, '[A-Za-z]:\\')) {
+      $path = $upTo.Substring($start.Index)
+      if (Test-Path -LiteralPath $path -PathType Leaf) {
+        $dir = Split-Path -Parent $path
+        foreach ($m in $xenonServerMarkers) {
+          if (Test-Path -LiteralPath (Join-Path $dir $m) -PathType Leaf) { return $dir }
+        }
+      }
+    }
+    $at = $commandLine.IndexOf($needle, $at + 1, [System.StringComparison]::OrdinalIgnoreCase)
+  }
+  return $null
+}
+
+# Every running Xenon engine on this PC, ours included, as
+# @{ ProcessId; ServerDir }.
+function Get-AllXenonEngines {
+  try {
+    return @(Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" -ErrorAction Stop |
+      ForEach-Object {
+        $dir = Get-XenonServerDirFromCommandLine $_.CommandLine
+        if ($dir) { [pscustomobject]@{ ProcessId = [int]$_.ProcessId; ServerDir = $dir } }
+      })
+  } catch { }
+  return @()
+}
+
+# Who is actually holding port 3030:
+#   'free'    - nobody
+#   'ours'    - this install's engine (or we could not read the listener and one
+#               of ours is running, which is no evidence of a stranger)
+#   'foreign' - a Xenon engine from another folder; $script:foreignServerDir says
+#               which one
+#   'other'   - something on the port that is not Xenon at all
+#
+# The unknown-listener case deliberately resolves in our favour: reading the TCP
+# table can fail, and treating that as "a stranger has the port" would restart a
+# perfectly healthy engine on every setup run.
+$script:foreignServerDir = ''
+function Get-Port3030Identity {
+  $script:foreignServerDir = ''
+  $answering = Test-WidgetServer
+  $owner = 0
+  try {
+    $conn = @(Get-NetTCPConnection -LocalPort 3030 -State Listen -ErrorAction Stop)
+    if ($conn.Count -gt 0) { $owner = [int]$conn[0].OwningProcess }
+  } catch { }
+  if (-not $answering -and $owner -le 0) { return 'free' }
+
+  $ourPids = @(Get-WidgetServerProcesses | ForEach-Object { [int]$_.ProcessId })
+  if ($owner -le 0) { return $(if ($ourPids.Count -gt 0) { 'ours' } else { 'other' }) }
+  if ($ourPids -contains $owner) { return 'ours' }
+
+  $engine = @(Get-AllXenonEngines | Where-Object { $_.ProcessId -eq $owner })
+  if ($engine.Count -gt 0) {
+    $script:foreignServerDir = Split-Path -Parent $engine[0].ServerDir
+    return 'foreign'
+  }
+  # A listener we cannot attribute, with one of ours running, is far more likely
+  # to be ours seen through a failed lookup than a stranger.
+  if ($ourPids.Count -gt 0) { return 'ours' }
+  return 'other'
+}
+
+# Stop the Xenon engine that is holding the port when it is not ours. Only ever a
+# process Get-AllXenonEngines has already identified as a Xenon engine, so no
+# unrelated node is ever touched.
+function Stop-ForeignWidgetServer {
+  $dir = $script:foreignServerDir
+  foreach ($engine in (Get-AllXenonEngines)) {
+    if ((Split-Path -Parent $engine.ServerDir) -eq $dir) {
+      try {
+        Stop-Process -Id $engine.ProcessId -Force -ErrorAction Stop
+        Write-Step "Stopped the Xenon engine still running from $dir (PID $($engine.ProcessId))."
+      } catch {
+        Write-Host "Could not stop the Xenon engine running from $dir (PID $($engine.ProcessId)): $($_.Exception.Message)" -ForegroundColor Yellow
+      }
+    }
+  }
+}
+
 function Stop-WidgetServer {
   $processes = @(Get-WidgetServerProcesses)
   foreach ($process in $processes) {
@@ -1137,7 +1252,28 @@ function Stop-WidgetServer {
 function Start-WidgetServer {
   param([switch]$RestartExisting)
 
-  if (Test-WidgetServer) {
+  # WHO is on the port, not merely whether somebody is. "Something answers on
+  # 3030" used to be the whole test, and a Xenon from another folder answers it
+  # just as convincingly as ours - which is how a setup could run to a cheerful
+  # end while leaving the machine on the install it started with. See
+  # Get-Port3030Identity.
+  $who = Get-Port3030Identity
+  if ($who -eq 'foreign') {
+    Write-Host ''
+    Write-Host "Another Xenon is already running from $script:foreignServerDir and holds port 3030." -ForegroundColor Yellow
+    Write-Host 'Stopping it so this install can take over. Remove that copy when you get a chance:' -ForegroundColor Gray
+    Write-Host "  $script:foreignServerDir\UNINSTALL.bat" -ForegroundColor White
+    Write-Host '  (or Settings > Apps > Installed apps, if it registered an entry there)' -ForegroundColor DarkGray
+    Stop-ForeignWidgetServer
+    for ($i = 0; $i -lt 20; $i++) {
+      Start-Sleep -Milliseconds 300
+      if ((Get-Port3030Identity) -ne 'foreign') { break }
+    }
+  } elseif ($who -eq 'other') {
+    Write-Host ''
+    Write-Host 'Port 3030 is held by a program that is not Xenon. The engine cannot start while it is.' -ForegroundColor Yellow
+    Write-Host '  Find it with:  Get-Process -Id (Get-NetTCPConnection -LocalPort 3030 -State Listen).OwningProcess' -ForegroundColor White
+  } elseif ($who -eq 'ours') {
     if ($RestartExisting) {
       Stop-WidgetServer
       for ($i = 0; $i -lt 10; $i++) {
@@ -1162,9 +1298,23 @@ function Start-WidgetServer {
   Write-Step 'Starting the widget server in the background...'
   Start-Process -FilePath (Join-Path $env:WINDIR 'System32\wscript.exe') -ArgumentList ('"' + $runner + '"') -WorkingDirectory $filesDir
 
+  # Success is OUR engine holding the port, not an answer from the port. The
+  # difference is the whole bug: our node dies on EADDRINUSE in milliseconds and
+  # the other install keeps answering, so the old test passed on a start that had
+  # already failed.
   for ($i = 0; $i -lt 10; $i++) {
     Start-Sleep -Milliseconds 500
-    if (Test-WidgetServer) { return }
+    $who = Get-Port3030Identity
+    if ($who -eq 'ours') { return }
+    if ($who -eq 'foreign') { break }
+  }
+  if ($script:foreignServerDir) {
+    Write-Host ''
+    Write-Host "   The engine could not start: another Xenon, in $script:foreignServerDir," -ForegroundColor Red
+    Write-Host '   is still holding port 3030. Remove that copy and run this setup again:' -ForegroundColor Yellow
+    Write-Host "     $script:foreignServerDir\UNINSTALL.bat" -ForegroundColor White
+    Write-Host '   Nothing here is broken - there are simply two Xenons on this PC.' -ForegroundColor Gray
+    return
   }
 
   # Five seconds and nothing answering is not "still starting" - node is spawned
