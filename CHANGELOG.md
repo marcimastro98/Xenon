@@ -44,6 +44,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
 ### ✨ Added
+- **The Deck's minimal finish is finally minimal.** *Personalizzazione → Base → Nessuna* takes the Deck's body away and leaves the keys floating on the dashboard — except for the title bar on top, which stayed exactly where it was. That bar belongs to the faceplate, and this is the one finish with no faceplate: a profile name, a page badge and a pencil, hanging over nothing. It now collapses with the rest of the chassis.
+
+  Not removed, collapsed: that bar is the only way into edit mode and the only place to switch profile, so hiding it outright would shut you out of your own Deck. It becomes a thin strip — hover it, or tap it on a touchscreen, and it comes back; it stays up on its own while you are editing or picking a profile.
+
+  Asked for from a Xeneon Edge, where the Deck sat next to a Calendar, a Player and a Timer that are all just a border and their contents.
+
+- **The Deck stops saying "1 / 1".** The page counter in the title bar showed even on a Deck with a single page, where it has nothing to report, and duplicated the arrows and dots that already appear under the keys the moment a second page exists. It now appears only when there is somewhere to page to — on every finish, not just the minimal one.
+
 - **The Calendar's upcoming events stop splitting into columns too narrow to read.** Past a certain width the list broke into two columns, and on a wide, short panel like the Xeneon Edge — where every tile is narrow — that meant two columns of one word each: “FC Barcel…” beside “Levante - FC…”. The width it split at was the width of a whole row, not of the event name inside one, and a row spends most of itself on the dot, the padding and the time. A second column now appears only when it is wide enough to carry a name whole, so the same tile shows five full titles where it used to show ten halves.
 
   And if you would rather decide it yourself, **Settings → Calendar → Columns** now offers *Automatic*, *One* or *Two*. Requested with a screenshot from an Edge.

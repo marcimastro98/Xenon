@@ -2268,6 +2268,11 @@
     tile.replaceChildren(...keepControls);
     const root = el('div', 'deck-root');
     root.classList.toggle('is-editing', state.editing);
+    // The "Nessuna" faceplate takes the chassis away and the header goes with it
+    // (DeckPanel.css [data-plate="none"] .deck-bar). It has to come BACK while
+    // it is being used, or the profile menu would float over a bar that had
+    // collapsed underneath it and Done would be unreachable in edit mode.
+    root.classList.toggle('bar-open', !!(state.editing || state.profileMenu));
     root.dataset.keysize = cfg.keySize;
     // Whole-device look: cap material, cap shape and faceplate finish (see
     // DeckPanel.css [data-capstyle] / [data-shape] / [data-plate] variants).
@@ -2310,7 +2315,14 @@
       bar.appendChild(el('span', 'deck-crumb', crumbLabel(cfg, state)));
     }
     bar.appendChild(el('span', 'deck-spacer'));
-    bar.appendChild(el('span', 'deck-index', (view.pageIndex + 1) + ' / ' + view.pageCount));
+    // Only when there is somewhere to page TO. The footer below already carries
+    // arrows and dots the moment a second page exists, so this readout was a
+    // duplicate then and, on a single-page deck, a badge that says nothing at
+    // all — "1 / 1", taking the same height as a control. Reported from a Xeneon
+    // Edge, where the bar is a real share of a short tile.
+    if (view.pageCount > 1) {
+      bar.appendChild(el('span', 'deck-index', (view.pageIndex + 1) + ' / ' + view.pageCount));
+    }
     const edit = el('button', 'deck-edit');
     edit.type = 'button';
     if (state.editing) edit.classList.add('is-on');
@@ -2318,6 +2330,20 @@
     edit.title = state.editing ? 'done' : 'edit';
     edit.addEventListener('click', () => { state.editing = !state.editing; render(tile, instanceId); });
     bar.appendChild(edit);
+
+    // A touchscreen has no hover, and the Xeneon Edge is one. Tapping the
+    // collapsed strip peeks the bar for a few seconds — long enough to reach the
+    // profile menu or the pencil, short enough that it goes away on its own if
+    // the tap was a miss. The class goes straight on the node rather than
+    // through state + re-render: a re-render would rebuild the keys under the
+    // finger that is on its way to the pencil.
+    bar.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse') return;          // hover already handles it
+      if (e.target !== bar) return;                   // a tap ON a control is that control's
+      root.classList.add('bar-peek');
+      clearTimeout(root._barPeek);
+      root._barPeek = setTimeout(() => root.classList.remove('bar-peek'), 4000);
+    });
 
     // The profile switcher popover is portaled to <body> at the END of render (so
     // it escapes the deck tile's `overflow:hidden`); here we only tear it down

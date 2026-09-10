@@ -816,6 +816,42 @@ body.low-power-gpu .deck-key.anim-shift .deck-key-anim::before { animation: none
 .deck-root[data-plate="none"] .deck-device::before { display: none; }
 .deck-root[data-plate="none"] .deck-well { background: transparent; box-shadow: none; }
 
+/* …and the header goes with it. It is the FACEPLATE's header — the CSS above
+   calls it that — so leaving it behind on the one finish that has no faceplate
+   left a profile name, a page badge and a pencil hanging in mid-air over nothing,
+   which is exactly the "it takes space and looks out of place" this finish exists
+   to avoid. Reported from a Xeneon Edge, where the tile is short and 26px of
+   chrome is a row of keys.
+
+   Collapsed to a strip rather than removed: the bar is the ONLY way into edit
+   mode and the only profile switcher, so hiding it outright would trap someone
+   in a deck they cannot change. Hovering the strip brings it back — a menu bar
+   that gets out of the way, not a menu bar that is gone.
+
+   The strip is the trigger, never the whole device: revealing on any hover over
+   the deck would slide the keys down every time the pointer crossed the tile. */
+.deck-root[data-plate="none"] .deck-bar {
+  min-height: 0;
+  max-height: 10px;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height .18s ease, opacity .18s ease;
+}
+/* `bar-open` is set while the bar is in USE (edit mode, profile menu open) and
+   `bar-peek` by a tap on a touchscreen, which has no hover to offer — see the
+   pointerdown handler in deck.js. 64px is a ceiling for a 26px bar, not a size:
+   max-height cannot animate to `auto`. */
+.deck-root[data-plate="none"] .deck-bar:hover,
+.deck-root[data-plate="none"] .deck-bar:focus-within,
+.deck-root[data-plate="none"].bar-open .deck-bar,
+.deck-root[data-plate="none"].bar-peek .deck-bar {
+  max-height: 64px;
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .deck-root[data-plate="none"] .deck-bar { transition: none; }
+}
+
 /* A failed action (path not found, OBS offline, …) flashes the key red + shakes
    briefly so failures aren't silent. */
 .deck-key.has-error { animation: deck-key-error .55s ease both; }
