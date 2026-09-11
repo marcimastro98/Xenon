@@ -1498,6 +1498,14 @@
             <button class="settings-clock-format settings-segment-btn" type="button" data-clock-format="24" onclick="updateClockFormat('24')" aria-pressed="false" data-i18n="settings_clock_24h">24 ore</button>
           </div>
         </div>
+        <div class="settings-row full">
+          <span class="settings-label-line"><span data-i18n="settings_clock_date_format">Formato data</span></span>
+          <div class="settings-segmented" role="group" aria-label="Formato data">
+            <button class="settings-clock-date-format settings-segment-btn active" type="button" data-clock-date-format="full" onclick="updateClockDateFormat('full')" aria-pressed="true" data-i18n="settings_clock_date_full">Completo</button>
+            <button class="settings-clock-date-format settings-segment-btn" type="button" data-clock-date-format="medium" onclick="updateClockDateFormat('medium')" aria-pressed="false" data-i18n="settings_clock_date_medium">Medio</button>
+            <button class="settings-clock-date-format settings-segment-btn" type="button" data-clock-date-format="short" onclick="updateClockDateFormat('short')" aria-pressed="false" data-i18n="settings_clock_date_short">Corto</button>
+          </div>
+        </div>
         <!-- Size lives beside the format, in the section that already owns the
              top bar ("contenuti e stile della barra superiore"): someone who
              wants a bigger date is looking at the top bar, not at Aspetto, and a

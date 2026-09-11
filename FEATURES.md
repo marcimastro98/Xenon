@@ -988,7 +988,7 @@ Once per part of the day, Xenon welcomes you with a **fullscreen cinematic greet
 
 Designed for clarity on a touchscreen — every action is a clear **labelled button** (icon + text), collapsing to icons only on very narrow widths.
 
-- **Big centred live clock** (configurable format **and size**) with a pulsing accent colon; AM/PM reads as a clean, box-less superscript. **Settings → Dynamic Island → Clock** carries a slider for the time and a separate one for the date, 80–200% — they scale whatever size your screen already draws, so a Xeneon Edge or a laptop keeps its own smaller starting point
+- **Big centred live clock** (configurable format **and size**) with a pulsing accent colon; AM/PM reads as a clean, box-less superscript. **Settings → Dynamic Island → Clock** carries a slider for the time and a separate one for the date, 80–200% — they scale whatever size your screen already draws, so a Xeneon Edge or a laptop keeps its own smaller starting point. The **date format** sits beside them: *Full* (`Friday, 11 September`), *Medium* (`Fri 11 Sep`) or *Short* (`11/09`), each asked of your system so every language gets the short form it really uses
 - A prominent **weather chip** with a **live animated condition icon**, a large temperature, and a soft tint matching the current weather — tap to open the weather modal
 - **Lock** (Windows lock) · **Ambient** (fullscreen ambient/screensaver mode) on the left
 - **Page dots** · **Xenon** (AI voice) in the centre

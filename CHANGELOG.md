@@ -46,6 +46,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
 ### ✨ Added
+- **The date in the top bar can be shortened, too.** It always spelled the day out in full — *Friday, 11 September* — which is a lot of bar once you have made it bigger. **Settings → Dynamic Island → Clock → Date format** now offers *Full*, *Medium* (*Fri 11 Sep*) and *Short* (*11/09*).
+
+  Each one is asked of the system rather than cut out of the long version, so every language gets the short form it actually uses — American English even swaps the halves, and writes 09/11.
+
 - **The clock and the date in the top bar can be made bigger.** Asked for by someone who wanted to read the date from across the room: the top bar offered a time format and nothing else, and the date was a fixed size no theme could touch. **Settings → Dynamic Island → Clock** now has two sliders beside the format — one for the time, one for the date — from 80% to 200%.
 
   Two sliders rather than one because the date is deliberately the quiet half of that corner: someone who wants a readable date does not necessarily want a bigger clock, and the request was for the date.

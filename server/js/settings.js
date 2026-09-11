@@ -281,6 +281,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // wanted to read the date across a room.
   clockScale: 1,
   clockDateScale: 1,
+  clockDateFormat: 'full', // 'full' | 'medium' | 'short' — how much of the date the top bar spells out
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
   // What the Upcoming list shows. There was never a two-week rule, which is how
   // it read from outside: the list took the next five events and their dates
@@ -1624,6 +1625,7 @@ function normalizeSettings(source) {
     clockFormat: ['auto', '12', '24'].includes(value.clockFormat) ? value.clockFormat : DEFAULT_HUB_SETTINGS.clockFormat,
     clockScale: clampNumber(value.clockScale, 0.8, 2, DEFAULT_HUB_SETTINGS.clockScale),
     clockDateScale: clampNumber(value.clockDateScale, 0.8, 2, DEFAULT_HUB_SETTINGS.clockDateScale),
+    clockDateFormat: ['full', 'medium', 'short'].includes(value.clockDateFormat) ? value.clockDateFormat : DEFAULT_HUB_SETTINGS.clockDateFormat,
     weekStart: ['mon', 'sun'].includes(value.weekStart) ? value.weekStart : DEFAULT_HUB_SETTINGS.weekStart,
     upcomingCount: [3, 5, 8, 10].includes(Number(value.upcomingCount)) ? Number(value.upcomingCount) : DEFAULT_HUB_SETTINGS.upcomingCount,
     upcomingDays: [0, 7, 14, 30].includes(Number(value.upcomingDays)) ? Number(value.upcomingDays) : DEFAULT_HUB_SETTINGS.upcomingDays,
@@ -8692,10 +8694,28 @@ function updateWeatherMode(mode) {
 }
 
 // Reflect the active clock format (Auto / 12h / 24h) on its segmented control.
+// How much of the date the top bar spells out. Display-only, like the time
+// format beside it: redraw now rather than at the next tick, or the segmented
+// control moves and nothing else does for up to a second.
+function updateClockDateFormat(fmt) {
+  if (!['full', 'medium', 'short'].includes(fmt)) return;
+  hubSettings = normalizeSettings({ ...hubSettings, clockDateFormat: fmt });
+  saveHubSettings();
+  syncClockFormatControls();
+  if (typeof tickClock === 'function') tickClock();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
 function syncClockFormatControls() {
   const fmt = ['auto', '12', '24'].includes(hubSettings.clockFormat) ? hubSettings.clockFormat : 'auto';
   document.querySelectorAll('.settings-clock-format[data-clock-format]').forEach(btn => {
     const active = btn.dataset.clockFormat === fmt;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
+  const dfmt = ['full', 'medium', 'short'].includes(hubSettings.clockDateFormat) ? hubSettings.clockDateFormat : 'full';
+  document.querySelectorAll('.settings-clock-date-format[data-clock-date-format]').forEach(btn => {
+    const active = btn.dataset.clockDateFormat === dfmt;
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-pressed', String(active));
   });
