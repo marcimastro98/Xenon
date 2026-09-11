@@ -340,6 +340,16 @@ function getForegroundProcess() {
   return '';
 }
 
+// The PID of the window in front, or 0 when nothing recent is known. Read by
+// fpsmon.js to choose WHICH presenting process to report the frame rate of:
+// PresentMon captures them all, and "the busiest" picks a launcher or a second
+// game as readily as the one being played.
+function getForegroundPid() {
+  const s = _last;
+  if (s && (Date.now() - s.at) < STALE_MS) return Number(s.pid) || 0;
+  return 0;
+}
+
 // Diagnostic: the foreground window state currently driving detection, or null.
 function getGamingWindow() {
   const s = _last;
@@ -359,4 +369,4 @@ function stopGameDetect() {
   if (_linuxProbe) { try { _linuxProbe.stop(); } catch { /* ignore */ } _linuxProbe = null; }
 }
 
-module.exports = { startGameDetect, stopGameDetect, isGaming, isGameRunning, getActivity, getForegroundProcess, getGameProcess, getGameDiag, classifyActivity, getGamingWindow, setGameHint, onGamingChange, isIgnoredProc };
+module.exports = { startGameDetect, stopGameDetect, isGaming, isGameRunning, getActivity, getForegroundProcess, getForegroundPid, getGameProcess, getGameDiag, classifyActivity, getGamingWindow, setGameHint, onGamingChange, isIgnoredProc };

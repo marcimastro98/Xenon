@@ -1030,6 +1030,80 @@ function Register-StartupTask {
   } catch { }
 }
 
+# -- "Installed apps" entry ---------------------------------------------------
+# Xenon installs from a folder, not from an MSI, so Windows had no idea it was
+# there: nothing under Settings > Apps > Installed apps, nothing in Control
+# Panel. The only way out was UNINSTALL.bat, and someone who no longer has the
+# folder open in Explorer has no way to guess that it exists. What people do
+# instead is delete the folder - which takes the files and leaves behind every
+# footprint outside them. Chief among those: the per-logon tasks, which keep
+# firing at scripts that are gone, so Windows raises
+# "Can not find script file ...\server\start-hidden.vbs" in a modal at every
+# single sign-in, forever, with nothing left on the machine to explain where it
+# comes from (reported on Discord, Sep 2026, from a 4.0.0 folder run straight
+# out of Downloads). Registering here puts Xenon where Windows users actually
+# look for it, and hands the removal to the script that knows about the tasks.
+#
+# Per-user (HKCU) to match the install: no admin rights needed, and it belongs
+# to the account that installed it rather than to everyone on the PC.
+#
+# On a native install the kiosk's own NSIS entry (also "Xenon", written by the
+# Tauri bundle) sits beside this one. Both roads end in a clean machine: ours
+# runs the NSIS uninstaller as one of its steps, and the NSIS one removes only
+# the kiosk and leaves this entry in place, so the rest is still one click away.
+$uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\XenonEdge'
+
+function Register-UninstallEntry {
+  Write-Step 'Registering Xenon in Windows "Installed apps"...'
+  $bat = Join-Path $root 'UNINSTALL.bat'
+  if (-not (Test-Path -LiteralPath $bat)) {
+    Write-Host 'UNINSTALL.bat is not in the install folder - skipping the "Installed apps" entry rather than registering one whose Uninstall button leads nowhere.' -ForegroundColor Yellow
+    return
+  }
+  $values = [ordered]@{
+    DisplayName     = 'Xenon'
+    DisplayVersion  = (Get-AppVersion)
+    Publisher       = 'marcimastro98'
+    InstallLocation = $root
+    UninstallString = ('"{0}"' -f $bat)
+    NoModify        = 1
+    NoRepair        = 1
+  }
+  # "Uninstall" in Windows' own list must not stop to ask questions in a console
+  # the user never opened, so the quiet form skips the confirmation prompt. It is
+  # the same script either way.
+  $ps1 = Join-Path $filesDir 'uninstall.ps1'
+  if (Test-Path -LiteralPath $ps1) {
+    $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $values['QuietUninstallString'] = ('"{0}" -NoProfile -ExecutionPolicy Bypass -File "{1}" -Yes' -f $psExe, $ps1)
+  }
+  foreach ($candidate in @(
+    (Join-Path $root 'apps\native\src-tauri\icons\icon.ico'),
+    (Join-Path $env:LOCALAPPDATA 'Xenon\xenon-native.exe')
+  )) {
+    if (Test-Path -LiteralPath $candidate) { $values['DisplayIcon'] = $candidate; break }
+  }
+  # The size Windows shows beside the entry, in KB. Best-effort: a blank column
+  # is not worth failing the install over, and node_modules makes the walk the
+  # slowest thing here.
+  try {
+    $bytes = (Get-ChildItem -LiteralPath $root -Recurse -File -Force -ErrorAction SilentlyContinue |
+      Measure-Object -Property Length -Sum).Sum
+    if ($bytes) { $values['EstimatedSize'] = [int][math]::Round($bytes / 1KB) }
+  } catch { }
+
+  try {
+    if (-not (Test-Path -LiteralPath $uninstallKey)) { New-Item -Path $uninstallKey -Force | Out-Null }
+    foreach ($name in $values.Keys) {
+      $type = if ($values[$name] -is [int]) { 'DWord' } else { 'String' }
+      New-ItemProperty -Path $uninstallKey -Name $name -Value $values[$name] -PropertyType $type -Force | Out-Null
+    }
+    Write-Host 'Xenon is now listed in Settings > Apps > Installed apps, with an Uninstall button.' -ForegroundColor Gray
+  } catch {
+    Write-Host "Could not register the 'Installed apps' entry: $($_.Exception.Message). UNINSTALL.bat in the install folder still removes everything." -ForegroundColor Yellow
+  }
+}
+
 function Test-WidgetServer {
   try {
     $response = Invoke-WebRequest -Uri "$url/status" -UseBasicParsing -TimeoutSec 2
@@ -1048,6 +1122,121 @@ function Get-WidgetServerProcesses {
   return @()
 }
 
+# -- A SECOND Xenon, installed somewhere else --------------------------------
+# Everything above asks about THIS install: our node, running our server.js. That
+# was the whole picture while there was one way to install Xenon. There are two
+# now - INSTALL.bat unpacks and runs wherever the zip was extracted (a Downloads
+# folder, typically), while the setup .exe always installs into
+# %LOCALAPPDATA%\Programs\Xenon - and somebody who was told to "reinstall over the
+# top" with the other one ends up with both.
+#
+# The two cannot coexist: port 3030 belongs to whichever started first. And the
+# checks around it could not tell them apart. Test-WidgetServer asks whether
+# ANYTHING answers on 3030, Stop-WidgetServer only knows how to stop OUR node, so
+# a setup run over an older folder install went: something is answering, stop it
+# (nothing matched, so nothing stopped), wait for the port (never freed), start
+# our engine (dies instantly on EADDRINUSE), ask whether something answers - the
+# OLD one still does - and report a clean, successful install. Every time, on
+# every rerun, with no error anywhere. Reported on Discord by someone who ran the
+# 4.11.7 setup twice and restarted in between, still on the install he had.
+#
+# So this half of the file has to be able to see the other install. Same rule
+# uninstall.ps1 uses, in miniature: a server.js is far too common a name to go
+# killing node processes over, but a server.js sitting next to one of our own
+# PowerShell hosts is unmistakably ours.
+$xenonServerMarkers = @('media.ps1', 'gpu.ps1', 'performance.ps1', 'deck-actions.ps1')
+
+function Get-XenonServerDirFromCommandLine($commandLine) {
+  if (-not $commandLine) { return $null }
+  $needle = '\server\server.js'
+  # IndexOf rather than -like: a legal Windows path may contain [ and ], which
+  # -like would read as wildcards.
+  $at = $commandLine.IndexOf($needle, [System.StringComparison]::OrdinalIgnoreCase)
+  while ($at -ge 0) {
+    $upTo = $commandLine.Substring(0, $at + $needle.Length)
+    # An unquoted command line runs several paths together, so try every
+    # drive-letter start and let the filesystem say which one is real.
+    foreach ($start in [regex]::Matches($upTo, '[A-Za-z]:\\')) {
+      $path = $upTo.Substring($start.Index)
+      if (Test-Path -LiteralPath $path -PathType Leaf) {
+        $dir = Split-Path -Parent $path
+        foreach ($m in $xenonServerMarkers) {
+          if (Test-Path -LiteralPath (Join-Path $dir $m) -PathType Leaf) { return $dir }
+        }
+      }
+    }
+    $at = $commandLine.IndexOf($needle, $at + 1, [System.StringComparison]::OrdinalIgnoreCase)
+  }
+  return $null
+}
+
+# Every running Xenon engine on this PC, ours included, as
+# @{ ProcessId; ServerDir }.
+function Get-AllXenonEngines {
+  try {
+    return @(Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" -ErrorAction Stop |
+      ForEach-Object {
+        $dir = Get-XenonServerDirFromCommandLine $_.CommandLine
+        if ($dir) { [pscustomobject]@{ ProcessId = [int]$_.ProcessId; ServerDir = $dir } }
+      })
+  } catch { }
+  return @()
+}
+
+# Who is actually holding port 3030:
+#   'free'    - nobody
+#   'ours'    - this install's engine (or we could not read the listener and one
+#               of ours is running, which is no evidence of a stranger)
+#   'foreign' - a Xenon engine from another folder; $script:foreignServerDir says
+#               which one
+#   'other'   - something on the port that is not Xenon at all
+#
+# The unknown-listener case deliberately resolves in our favour: reading the TCP
+# table can fail, and treating that as "a stranger has the port" would restart a
+# perfectly healthy engine on every setup run.
+$script:foreignServerDir = ''
+function Get-Port3030Identity {
+  $script:foreignServerDir = ''
+  $answering = Test-WidgetServer
+  $owner = 0
+  try {
+    $conn = @(Get-NetTCPConnection -LocalPort 3030 -State Listen -ErrorAction Stop)
+    if ($conn.Count -gt 0) { $owner = [int]$conn[0].OwningProcess }
+  } catch { }
+  if (-not $answering -and $owner -le 0) { return 'free' }
+
+  $ourPids = @(Get-WidgetServerProcesses | ForEach-Object { [int]$_.ProcessId })
+  if ($owner -le 0) { return $(if ($ourPids.Count -gt 0) { 'ours' } else { 'other' }) }
+  if ($ourPids -contains $owner) { return 'ours' }
+
+  $engine = @(Get-AllXenonEngines | Where-Object { $_.ProcessId -eq $owner })
+  if ($engine.Count -gt 0) {
+    $script:foreignServerDir = Split-Path -Parent $engine[0].ServerDir
+    return 'foreign'
+  }
+  # A listener we cannot attribute, with one of ours running, is far more likely
+  # to be ours seen through a failed lookup than a stranger.
+  if ($ourPids.Count -gt 0) { return 'ours' }
+  return 'other'
+}
+
+# Stop the Xenon engine that is holding the port when it is not ours. Only ever a
+# process Get-AllXenonEngines has already identified as a Xenon engine, so no
+# unrelated node is ever touched.
+function Stop-ForeignWidgetServer {
+  $dir = $script:foreignServerDir
+  foreach ($engine in (Get-AllXenonEngines)) {
+    if ((Split-Path -Parent $engine.ServerDir) -eq $dir) {
+      try {
+        Stop-Process -Id $engine.ProcessId -Force -ErrorAction Stop
+        Write-Step "Stopped the Xenon engine still running from $dir (PID $($engine.ProcessId))."
+      } catch {
+        Write-Host "Could not stop the Xenon engine running from $dir (PID $($engine.ProcessId)): $($_.Exception.Message)" -ForegroundColor Yellow
+      }
+    }
+  }
+}
+
 function Stop-WidgetServer {
   $processes = @(Get-WidgetServerProcesses)
   foreach ($process in $processes) {
@@ -1063,7 +1252,28 @@ function Stop-WidgetServer {
 function Start-WidgetServer {
   param([switch]$RestartExisting)
 
-  if (Test-WidgetServer) {
+  # WHO is on the port, not merely whether somebody is. "Something answers on
+  # 3030" used to be the whole test, and a Xenon from another folder answers it
+  # just as convincingly as ours - which is how a setup could run to a cheerful
+  # end while leaving the machine on the install it started with. See
+  # Get-Port3030Identity.
+  $who = Get-Port3030Identity
+  if ($who -eq 'foreign') {
+    Write-Host ''
+    Write-Host "Another Xenon is already running from $script:foreignServerDir and holds port 3030." -ForegroundColor Yellow
+    Write-Host 'Stopping it so this install can take over. Remove that copy when you get a chance:' -ForegroundColor Gray
+    Write-Host "  $script:foreignServerDir\UNINSTALL.bat" -ForegroundColor White
+    Write-Host '  (or Settings > Apps > Installed apps, if it registered an entry there)' -ForegroundColor DarkGray
+    Stop-ForeignWidgetServer
+    for ($i = 0; $i -lt 20; $i++) {
+      Start-Sleep -Milliseconds 300
+      if ((Get-Port3030Identity) -ne 'foreign') { break }
+    }
+  } elseif ($who -eq 'other') {
+    Write-Host ''
+    Write-Host 'Port 3030 is held by a program that is not Xenon. The engine cannot start while it is.' -ForegroundColor Yellow
+    Write-Host '  Find it with:  Get-Process -Id (Get-NetTCPConnection -LocalPort 3030 -State Listen).OwningProcess' -ForegroundColor White
+  } elseif ($who -eq 'ours') {
     if ($RestartExisting) {
       Stop-WidgetServer
       for ($i = 0; $i -lt 10; $i++) {
@@ -1088,9 +1298,23 @@ function Start-WidgetServer {
   Write-Step 'Starting the widget server in the background...'
   Start-Process -FilePath (Join-Path $env:WINDIR 'System32\wscript.exe') -ArgumentList ('"' + $runner + '"') -WorkingDirectory $filesDir
 
+  # Success is OUR engine holding the port, not an answer from the port. The
+  # difference is the whole bug: our node dies on EADDRINUSE in milliseconds and
+  # the other install keeps answering, so the old test passed on a start that had
+  # already failed.
   for ($i = 0; $i -lt 10; $i++) {
     Start-Sleep -Milliseconds 500
-    if (Test-WidgetServer) { return }
+    $who = Get-Port3030Identity
+    if ($who -eq 'ours') { return }
+    if ($who -eq 'foreign') { break }
+  }
+  if ($script:foreignServerDir) {
+    Write-Host ''
+    Write-Host "   The engine could not start: another Xenon, in $script:foreignServerDir," -ForegroundColor Red
+    Write-Host '   is still holding port 3030. Remove that copy and run this setup again:' -ForegroundColor Yellow
+    Write-Host "     $script:foreignServerDir\UNINSTALL.bat" -ForegroundColor White
+    Write-Host '   Nothing here is broken - there are simply two Xenons on this PC.' -ForegroundColor Gray
+    return
   }
 
   # Five seconds and nothing answering is not "still starting" - node is spawned
@@ -1459,6 +1683,7 @@ Invoke-ComponentRetryPass
 # installs off the service first, then register the task and start the backend.
 Remove-BackendServiceIfPresent | Out-Null
 Register-StartupTask
+Register-UninstallEntry
 Start-WidgetServer -RestartExisting:$installerElevated
 
 # Record the chosen surface, then act on it. Native installs the Tauri kiosk;

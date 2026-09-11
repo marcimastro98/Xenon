@@ -311,9 +311,35 @@ function upcomingLimits() {
   return { count, days };
 }
 
+// How many columns the list is laid out in. 0 is "as many as fit", which is what
+// it always did and still the default; 1 and 2 are the user overriding that.
+//
+// The automatic answer is a CSS `auto-fit` on a minimum width, and that minimum
+// was set to the width of the ITEM rather than of the name inside it. An item
+// spends about 70px on its dot, its gaps, its padding and the time on the right,
+// so a 130px column left the title around eight characters — which is how a
+// Xeneon Edge ended up showing "FC Barcel…" and "Levante - FC…" side by side,
+// two columns of one word each. Reported with a screenshot from an Edge, where
+// the panel is wide and short and every tile is narrow.
+//
+// The minimum is now the width at which a title is actually worth reading, so
+// the second column appears later and carries something when it does. The manual
+// setting is for the case that is nobody's business but the user's: a tile whose
+// events all have long names, where one column is right at any width.
+function upcomingColumns() {
+  const s = (typeof hubSettings === 'object' && hubSettings) || {};
+  return [0, 1, 2].includes(Number(s.upcomingColumns)) ? Number(s.upcomingColumns) : 0;
+}
+
 function _buildUpcomingInto(list) {
   const now = Date.now();
   const { count, days } = upcomingLimits();
+  // Stamped on the list itself rather than on <body>: two Calendar tiles on the
+  // same page (a second dashboard instance, the phone view) are laid out by the
+  // same rule, and neither can be told apart by a body-level attribute.
+  const cols = upcomingColumns();
+  if (cols) list.dataset.cols = String(cols);
+  else delete list.dataset.cols;
   // The horizon is counted in CALENDAR days, like the chip labels beside it: a
   // "7 days" that hid tomorrow evening because it is 7×24h+1 away would be
   // wrong in the one way a person would notice.

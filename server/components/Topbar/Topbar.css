@@ -329,9 +329,22 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
   line-height: 1;
 }
 
+/* ── Clock size (Impostazioni → Dynamic Island → Orologio) ──────────────────
+   Each rule declares the BASE size as a custom property and reads it back
+   through the user's multiplier, so the two stay separable: the breakpoints
+   below (and the phone view) override only the base, and a user who has asked
+   for a bigger clock still gets the smaller base the Edge or a phone needs
+   rather than a desktop size forced onto a 720px panel.
+
+   Everything the time is made of scales together — digits, colon, the AM/PM
+   suffix and the offsets tuned against them — or the pieces drift apart at any
+   value but 1. The date has its own multiplier: it is deliberately the quiet
+   half of the clock, and "make the date bigger" is a different wish from "make
+   the time bigger". Asked for on Discord. */
 .clock-h,
 .clock-m {
-  font-size: 45px;
+  --clock-base: 45px;
+  font-size: calc(var(--clock-base) * var(--clock-time-scale, 1));
   font-weight: 800;
   color: var(--text);
   text-shadow: var(--readability-shadow);
@@ -343,7 +356,8 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
 
 /* Accent colon with smooth blink animation */
 .clock-sep {
-  font-size: 37px;
+  --clock-base: 37px;
+  font-size: calc(var(--clock-base) * var(--clock-time-scale, 1));
   font-weight: 300;
   color: var(--accent);
   text-shadow: var(--readability-shadow);
@@ -381,14 +395,16 @@ body.low-power-gpu .status-dot-inline::after { animation: none; opacity: 0.6; }
    The bordered pill read as clutter next to the big numerals; a bare
    letter-spaced label sits like a superscript and lets the time breathe. */
 .clock-ampm {
-  font-size: 12.5px;
+  --clock-base: 12.5px;
+  font-size: calc(var(--clock-base) * var(--clock-time-scale, 1));
   font-weight: 800;
   letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--dim-text);
   align-self: flex-start;
-  margin-top: 7px;
-  margin-left: 6px;
+  /* Tuned against the digits, so they travel with them. */
+  margin-top: calc(7px * var(--clock-time-scale, 1));
+  margin-left: calc(6px * var(--clock-time-scale, 1));
   line-height: 1;
   text-shadow: var(--readability-shadow);
 }
@@ -403,7 +419,8 @@ body.low-power-gpu .status-dot-inline::after { animation: none; opacity: 0.6; }
 }
 
 .clock-date {
-  font-size: 12px;
+  --clock-base: 12px;
+  font-size: calc(var(--clock-base) * var(--clock-date-scale, 1));
   font-weight: 700;
   color: var(--muted-text);
   text-shadow: var(--readability-shadow);
@@ -421,6 +438,33 @@ body.low-power-gpu .status-dot-inline::after { animation: none; opacity: 0.6; }
   user-select: none;
   margin-bottom: 1px;
 }
+
+/* ── The rest of the date line follows the date ─────────────────────────────
+   "Date size" sizes the LINE the date is on, not one word of it: a 200% date
+   beside a stock-size weather chip and a 6px dot reads as a mistake rather than
+   a setting. Scoped to .clock-meta so the same classes keep their own size in
+   the System panel and the weather modal, which share them.
+
+   The opt-in chips in this row — now playing, vitals, third-party SDK badges —
+   deliberately keep theirs: each is its own feature with its own switch, and the
+   SDK ones are content a widget author sized, not ours to stretch. */
+.clock-meta .clock-meta-sep { font-size: calc(14.5px * var(--clock-date-scale, 1)); }
+.clock-meta .status-dot-inline {
+  width: calc(6px * var(--clock-date-scale, 1));
+  height: calc(6px * var(--clock-date-scale, 1));
+}
+.clock-meta .clock-weather {
+  height: calc(38px * var(--clock-date-scale, 1));
+  max-width: calc(200px * var(--clock-date-scale, 1));
+  gap: calc(9px * var(--clock-date-scale, 1));
+  padding: 0 calc(10px * var(--clock-date-scale, 1));
+}
+.clock-meta .clock-weather .weather-mini-icon {
+  width: calc(26px * var(--clock-date-scale, 1));
+  height: calc(22px * var(--clock-date-scale, 1));
+}
+.clock-meta .clock-weather .weather-temp { font-size: calc(17px * var(--clock-date-scale, 1)); }
+.clock-meta .clock-weather .weather-place { font-size: calc(11px * var(--clock-date-scale, 1)); }
 
 /* ── Status dot — live indicator ─────────────────────────── */
 /* The breathing glow lives on a pseudo-element whose OPACITY pulses: opacity

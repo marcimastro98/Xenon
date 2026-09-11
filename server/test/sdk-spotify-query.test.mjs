@@ -1,0 +1,493 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const read = (p) => readFileSync(join(ROOT, p), 'utf8');
+const { createSpotifyProvider } = require('../stream-spotify.js');
+
+// A widget that browses a Spotify library needs authenticated reads, and there
+// are two ways to give it those: hand over the token, or name the reads. This
+// names them — an `op` indexes a table of functions, so an op we do not have is
+// not a request, and no path a widget sends can become a URL.
+//
+// Requested by a widget author who had built the browser against a private
+// sidecar of his own and wanted to delete it.
+
+/** A connected provider wired to a fake fetch, so the paths it builds can be
+ *  read back. Same shape as stream-spotify.test.mjs: a live token on disk. */
+function probe(onUrl, status = 200, body = { ok: 1 }, seen = null) {
+  const file = join(tmpdir(), `xe-sq-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  writeFileSync(file, JSON.stringify({
+    spotify: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6 },
+  }));
+  return createSpotifyProvider({
+    clientId: 'cid',
+    tokensFile: file,
+    fetch: async (url, init) => {
+      onUrl(String(url));
+      // `seen` collects what was actually SENT — the body is the whole question
+      // for the play endpoint, where the URL is the same either way.
+      if (seen) {
+        let parsed = null;
+        try { parsed = init && init.body ? JSON.parse(init.body) : null; } catch { parsed = null; }
+        seen.push({ url: String(url), method: (init && init.method) || 'GET', body: parsed });
+      }
+      return { ok: status < 400, status, json: async () => body };
+    },
+  });
+}
+
+/** Same, but the fetch does not answer until `gate` resolves — for the two
+ *  callers that have to fold into one upstream call. */
+function probeSlow(onUrl, gate, status = 200, body = { ok: 1 }) {
+  const file = join(tmpdir(), `xe-sq-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  writeFileSync(file, JSON.stringify({
+    spotify: { accessToken: 'AT', refreshToken: 'RT', expiresAt: Date.now() + 1e6 },
+  }));
+  return createSpotifyProvider({
+    clientId: 'cid',
+    tokensFile: file,
+    fetch: async (url) => {
+      onUrl(String(url));
+      await gate;
+      return { ok: status < 400, status, json: async () => body };
+    },
+  });
+}
+
+test('every documented op maps to a real Spotify path', async () => {
+  const seen = [];
+  const p = probe((u) => seen.push(u));
+  const OPS = [
+    ['player', {}, '/me/player'],
+    ['queue', {}, '/me/player/queue'],
+    ['devices', {}, '/me/player/devices'],
+    ['playlists', {}, '/me/playlists?'],
+    ['savedAlbums', {}, '/me/albums?'],
+    ['savedTracks', {}, '/me/tracks?'],
+    ['recent', {}, '/me/player/recently-played?'],
+    ['followedArtists', {}, '/me/following?type=artist'],
+    ['artistAlbums', { id: '4Z8W4fKeB5YxbusRsdQVPb' }, '/artists/4Z8W4fKeB5YxbusRsdQVPb/albums?'],
+    ['albumTracks', { id: '4Z8W4fKeB5YxbusRsdQVPb' }, '/albums/4Z8W4fKeB5YxbusRsdQVPb/tracks?'],
+    ['playlistTracks', { id: '4Z8W4fKeB5YxbusRsdQVPb' }, '/playlists/4Z8W4fKeB5YxbusRsdQVPb/tracks?'],
+    ['search', { q: 'radiohead' }, '/search?type='],
+  ];
+  for (const [op, params, expect] of OPS) {
+    seen.length = 0;
+    const r = await p.query(op, params);
+    assert.equal(r.ok, true, `${op} failed: ${r.error}`);
+    assert.ok(seen[0] && seen[0].includes(expect), `${op} built ${seen[0]}`);
+  }
+});
+
+test('an op we do not have is not a request', async () => {
+  let called = false;
+  const p = probe(() => { called = true; });
+  for (const op of ['', 'nope', 'constructor', '__proto__', 'toString', '/me/tracks']) {
+    const r = await p.query(op, {});
+    assert.equal(r.ok, false, op);
+    assert.equal(r.error, 'bad_op', op);
+  }
+  assert.equal(called, false, 'a rejected op must never reach the network');
+});
+
+test('an id can never carry a path, and a missing one is refused', async () => {
+  let called = false;
+  const p = probe(() => { called = true; });
+  for (const id of ['../../me/tracks', 'abc/def', 'a?b=c', '', null, 'x'.repeat(80)]) {
+    const r = await p.query('albumTracks', { id });
+    assert.equal(r.ok, false, String(id));
+    assert.equal(r.error, 'bad_params', String(id));
+  }
+  assert.equal(called, false, 'a rejected id must never reach the network');
+});
+
+test('paging is clamped, so one call cannot ask for a whole library', async () => {
+  const seen = [];
+  const p = probe((u) => seen.push(u));
+  await p.query('savedTracks', { limit: 5000, offset: -20 });
+  assert.match(seen[0], /limit=50/);
+  assert.match(seen[0], /offset=0/);
+  seen.length = 0;
+  await p.query('playlistTracks', { id: '4Z8W4fKeB5YxbusRsdQVPb', limit: 999 });
+  assert.match(seen[0], /limit=100/, 'playlist tracks get the larger page and no more');
+});
+
+test('search takes only the four types it documents', async () => {
+  const seen = [];
+  const p = probe((u) => seen.push(u));
+  await p.query('search', { q: 'x', types: 'track,evil,album' });
+  assert.match(seen[0], /type=track,album/, 'an unknown type is dropped, not passed on');
+  const bad = await p.query('search', { q: 'x', types: 'evil' });
+  assert.equal(bad.error, 'bad_params');
+  const empty = await p.query('search', { q: '   ' });
+  assert.equal(empty.error, 'bad_params');
+});
+
+test('a 403 is named, because it means "reconnect" and nothing the widget did', async () => {
+  // The two new scopes are the only ones a CONNECTED user might lack: their
+  // token stays valid for everything else, so this must not read as a failure
+  // of the widget or of Spotify.
+  const p = probe(() => {}, 403, {});
+  const r = await p.query('recent', {});
+  assert.deepEqual(r, { ok: false, error: 'insufficient_scope', status: 403 });
+});
+
+test('playUri takes the four kinds a browser needs, and nothing else', async () => {
+  const seen = [];
+  const p = probe((u) => seen.push(u));
+  assert.equal((await p.playUri('spotify:album:4Z8W4fKeB5YxbusRsdQVPb')).ok, true);
+  for (const bad of ['spotify:user:me', 'https://evil/x', 'spotify:track:../x', '', 'spotify:track:' + 'x'.repeat(80)]) {
+    const r = await p.playUri(bad);
+    assert.equal(r.ok, false, bad);
+    assert.equal(r.error, 'bad_uri', bad);
+  }
+});
+
+// ── Playing a track without losing what it came from ─────────────────────────
+// Reported after the same author moved his Spotify browser onto the SDK: tapping
+// a track inside an album played it and then stopped, the rest of the album
+// gone. Playing a track by its own URI is a queue of exactly one song, which is
+// Spotify's behaviour and not a bug — but it is not what tapping a row in a list
+// means. `contextUri` restores "play this album, starting here".
+
+test('a track played inside a context starts the context at that track', () => {
+  const seen = [];
+  const p = probe(() => {}, 204, {}, seen);
+  return p.playUri('spotify:track:4Z8W4fKeB5YxbusRsdQVPb', 'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M')
+    .then((r) => {
+      assert.equal(r.ok, true);
+      assert.deepEqual(seen[0].body, {
+        context_uri: 'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M',
+        offset: { uri: 'spotify:track:4Z8W4fKeB5YxbusRsdQVPb' },
+      });
+    });
+});
+
+test('an album context works the same way', async () => {
+  const seen = [];
+  const p = probe(() => {}, 204, {}, seen);
+  await p.playUri('spotify:track:4Z8W4fKeB5YxbusRsdQVPb', 'spotify:album:2noRn2Aes5aoNVsU6iWThc');
+  assert.equal(seen[0].body.context_uri, 'spotify:album:2noRn2Aes5aoNVsU6iWThc');
+});
+
+test('no context is the old behaviour, exactly', async () => {
+  const seen = [];
+  const p = probe(() => {}, 204, {}, seen);
+  await p.playUri('spotify:track:4Z8W4fKeB5YxbusRsdQVPb');
+  assert.deepEqual(seen[0].body, { uris: ['spotify:track:4Z8W4fKeB5YxbusRsdQVPb'] });
+});
+
+test('a context that cannot be honoured plays the tapped track, never another one', async () => {
+  // Spotify accepts an offset for album and playlist contexts only, so an artist
+  // context cannot start at a chosen song. Playing the artist from the top would
+  // play a DIFFERENT track than the one tapped — a worse surprise than losing
+  // the surrounding list, which is merely the old behaviour. Same for anything
+  // malformed: this field is always safe to send.
+  const track = 'spotify:track:4Z8W4fKeB5YxbusRsdQVPb';
+  for (const ctx of [
+    'spotify:artist:0OdUWJ0sBjDrqHygGUXeCF',
+    'spotify:track:2noRn2Aes5aoNVsU6iWThc',
+    'https://open.spotify.com/playlist/x',
+    'spotify:playlist:../../evil',
+    '',
+  ]) {
+    const seen = [];
+    const p = probe(() => {}, 204, {}, seen);
+    const r = await p.playUri(track, ctx);
+    assert.equal(r.ok, true, ctx);
+    assert.deepEqual(seen[0].body, { uris: [track] }, ctx);
+  }
+});
+
+test('a context is ignored for anything that is not a track', async () => {
+  const seen = [];
+  const p = probe(() => {}, 204, {}, seen);
+  await p.playUri('spotify:album:2noRn2Aes5aoNVsU6iWThc', 'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M');
+  assert.deepEqual(seen[0].body, { context_uri: 'spotify:album:2noRn2Aes5aoNVsU6iWThc' },
+    'an album inside a playlist is not a thing the API can express');
+});
+
+test('the field survives the action catalog, which strips what it does not know', () => {
+  // validateAction rebuilds the action from the catalog's declared params, so a
+  // field that is not declared never reaches the provider — the whole feature
+  // would have been silently dropped one layer above where it is implemented.
+  const { validateAction } = require('../js/deck-actions.js');
+  const out = validateAction({
+    type: 'spotifyPlayUri', uri: 'spotify:track:abc', contextUri: 'spotify:album:def',
+  });
+  assert.equal(out.contextUri, 'spotify:album:def');
+  assert.equal(validateAction({ type: 'spotifyPlayUri', uri: 'spotify:track:abc' }).contextUri, undefined,
+    'and it stays absent when unused, so stored Deck keys do not churn');
+  assert.match(read('server/stream-spotify.js'), /case 'spotifyPlayUri': return playUri\(action\.uri, action\.contextUri\);/);
+});
+
+test('the SDK guide says when to send it and that it is always safe to', () => {
+  const doc = read('docs/WIDGET_SDK.md');
+  assert.match(doc, /Add `contextUri` when the track came from somewhere/);
+  assert.match(doc, /queue of exactly one song/);
+  assert.match(doc, /always safe to send/);
+});
+
+test('a track plays as a track, a collection as a context', () => {
+  // Spotify's play endpoint draws that distinction itself; getting it wrong
+  // plays one song from an album instead of the album.
+  const src = read('server/stream-spotify.js');
+  assert.match(src, /u\.startsWith\('spotify:track:'\) \? \{ uris: \[u\] \} : \{ context_uri: u \}/);
+});
+
+test('the two new scopes are requested', () => {
+  const src = read('server/stream-spotify.js');
+  assert.match(src, /'user-read-recently-played'/);
+  assert.match(src, /'user-follow-read'/);
+});
+
+test('reading is a separate grant from controlling playback', () => {
+  // "Control Spotify playback" is play/pause/skip. Listening history, saved
+  // music and followed artists are a different thing to hand over, and a
+  // permission already granted for the first must not become the second.
+  const sdk = require('../sdk-widgets.js');
+  assert.ok(sdk.SDK_STREAMS.includes('spotify'), 'the reads need a grant of their own');
+  assert.ok(!sdk.SDK_ACTION_CATEGORIES.spotify.includes('spotifyQuery'),
+    'reading must not ride the playback action category');
+  const bridge = read('server/js/custom-widget.js');
+  assert.match(bridge, /if \(!grant\.streams\.includes\('spotify'\)\) \{ reply\(\{ ok: false, error: 'not_allowed' \}\); return; \}/);
+  const server = read('server/server.js');
+  assert.match(server, /sdkGrantsFor\(pkgId\)\.streams\.includes\('spotify'\)/,
+    'the server has to check it too — the bridge is convenience, not the boundary');
+});
+
+test('the endpoint is rate-gated, because the quota is the user\'s', () => {
+  // These calls spend the USER's Spotify quota, shared with the dashboard's own
+  // Spotify tile: a widget searching on every keystroke would stop their music
+  // working, and it would look like Xenon broke.
+  const server = read('server/server.js');
+  const start = server.indexOf("reqPath === '/stream/spotify/query'");
+  const body = server.slice(start, start + 1600);
+  assert.match(body, /sdkTileGate\(pkgId/, 'no gate on a route that spends someone else\'s quota');
+  assert.match(body, /rate_limited/);
+});
+
+// ── Absorbing the bursts ─────────────────────────────────────────────────────
+// The same widget author came back with "spotify's api burst rates": paging a
+// library ten albums at a time, plus the covers, spends the USER's quota — the
+// same quota the dashboard's own Spotify tile needs to keep playing music. The
+// host collapses repeats so a widget does not have to build a cache of its own.
+
+test('two identical reads in flight at once cost one call to Spotify', async () => {
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const seen = [];
+  const p = probeSlow((u) => seen.push(u), gate);
+  const a = p.query('savedAlbums', { limit: 10 });
+  const b = p.query('savedAlbums', { limit: 10 });
+  release();
+  const [ra, rb] = await Promise.all([a, b]);
+  assert.equal(seen.length, 1, 'a re-render mid-fetch must fold into the read already running');
+  assert.equal(ra.ok, true);
+  assert.deepEqual(rb, ra);
+});
+
+test('a repeat within the window is answered from memory', async () => {
+  const seen = [];
+  const p = probe((u) => seen.push(u));
+  await p.query('playlists', {});
+  await p.query('playlists', {});
+  assert.equal(seen.length, 1, 'scrolling back to a page just read must not spend the quota again');
+});
+
+test('a different page is a different read', async () => {
+  const seen = [];
+  const p = probe((u) => seen.push(u));
+  await p.query('savedAlbums', { offset: 0 });
+  await p.query('savedAlbums', { offset: 10 });
+  assert.equal(seen.length, 2, 'the cache is keyed on the path, not on the op');
+});
+
+test('a failure is never cached', async () => {
+  // Ten seconds of a widget that looks broken, from one blip, is worse than the
+  // extra call — and a rate-limit answer held past its own cooldown would keep
+  // telling a widget to wait after the way is clear.
+  const seen = [];
+  const p = probe((u) => seen.push(u), 500, {});
+  await p.query('playlists', {});
+  await p.query('playlists', {});
+  assert.equal(seen.length, 2);
+});
+
+test('a 429 says how long to wait', async () => {
+  // Without the number a widget guesses, and a widget that guesses short keeps
+  // the whole account — Xenon's own tile included — pinned in the penalty box.
+  const p = probe(() => {}, 429, {});
+  const r = await p.query('playlists', {});
+  assert.equal(r.error, 'rate_limited');
+  assert.equal(r.status, 429);
+  assert.ok(r.retryAfterMs > 0, 'a widget cannot back off for an unknown length of time');
+  // The breaker is now up: the next read is refused without touching Spotify.
+  let called = false;
+  const again = await p.query('savedTracks', {});
+  assert.equal(again.error, 'rate_limited');
+  assert.ok(again.retryAfterMs > 0);
+  assert.equal(called, false);
+});
+
+test('playing something drops what was cached about playback', async () => {
+  // A widget that starts an album and immediately re-reads the queue must not be
+  // handed the queue from before it pressed play.
+  const seen = [];
+  const p = probe((u) => seen.push(u));
+  await p.query('queue', {});
+  await p.playUri('spotify:album:4Z8W4fKeB5YxbusRsdQVPb');
+  await p.query('queue', {});
+  const queues = seen.filter((u) => u.includes('/me/player/queue'));
+  assert.equal(queues.length, 2, 'a mutation has to invalidate the reads it changes');
+});
+
+test('signing out drops the previous account\'s library', async () => {
+  // Sign out, sign a different account in: the cache is keyed on the PATH, and
+  // /me/playlists is the same path for both people. Without this the second
+  // account would be shown the first one's playlists.
+  const seen = [];
+  const p = probe((u) => seen.push(u));
+  const before = await p.query('playlists', {});
+  assert.equal(before.ok, true);
+  await p.logout();
+  const after = await p.query('playlists', {});
+  assert.equal(after.ok, false, 'a signed-out read must not be answered from memory');
+  assert.equal(after.error, 'not_connected');
+  assert.equal(seen.length, 1, 'and it must not reach Spotify either');
+  assert.match(read('server/stream-spotify.js'),
+    /async function logout\(\) \{ await clearCreds\(\); queryCacheClear\(\);/);
+});
+
+test('the cache stays small and short — a burst absorber, not a store', () => {
+  const src = read('server/stream-spotify.js');
+  assert.match(src, /const QUERY_CACHE_MAX = 16;/);
+  assert.match(src, /const QUERY_TTL_MS = 10000;/);
+  assert.match(src, /const QUERY_TTL_VOLATILE_MS = 3000;/);
+  assert.match(src, /QUERY_VOLATILE = new Set\(\['player', 'queue', 'devices'\]\)/,
+    'what is playing right now cannot be held for ten seconds');
+  assert.match(src, /while \(_queryCache\.size > QUERY_CACHE_MAX\)/,
+    'an unbounded map of Spotify pages is a memory leak with a nice name');
+});
+
+test('the SDK guide documents the ops, the clamps and the two grants', () => {
+  const doc = read('docs/WIDGET_SDK.md');
+  assert.match(doc, /### 3e\. Reading Spotify/);
+  for (const op of ['player', 'queue', 'devices', 'playlists', 'savedAlbums', 'savedTracks',
+    'recent', 'followedArtists', 'artistAlbums', 'albumTracks', 'playlistTracks', 'search']) {
+    assert.ok(doc.includes('| `' + op + '`'), `${op} is undocumented`);
+  }
+  assert.match(doc, /insufficient_scope/);
+  assert.match(doc, /retryAfterMs/, 'a widget cannot back off for an unknown length of time');
+  assert.match(doc, /absorbs bursts, so don't build a cache of your own/);
+  assert.match(doc, /page 2 is a different read from page 1/,
+    'the one thing the host CANNOT collapse has to be said, or the advice is misleading');
+  assert.match(doc, /Why two grants/);
+  assert.match(doc, /passed through unshaped/);
+});
+
+// ── Cursor paging, and what survives a failure ──────────────────────────────
+// Two gaps found by the same widget author, finishing the library browser.
+//
+// `savedAlbums`, `playlists` and `savedTracks` page by limit/offset and always
+// have. `followedArtists` and `recent` do not — Spotify walks those by cursor —
+// so a widget could read the first 50 followed artists and had no way to ask
+// for the 51st. The cursor was in the answer the whole time; there was simply
+// nothing that would carry it back.
+//
+// And a failed read reached the widget as a bare word. The provider works out
+// `status` and `retryAfterMs` on a 429 and the SDK reference promises both, but
+// the bridge rebuilt the reply from `error` alone, so a widget backing off
+// "politely" was guessing — and guessing short keeps the user's whole account,
+// their own Spotify tile included, rate-limited for longer.
+
+test('followedArtists pages by the cursor Spotify gives back', async () => {
+  const urls = [];
+  const sp = probe((u) => urls.push(u));
+  await sp.query('followedArtists', { limit: 20, after: '2CIMQHirSU0MQqyYHq0eOx' });
+  assert.match(urls[0], /\/me\/following\?type=artist&limit=20&after=2CIMQHirSU0MQqyYHq0eOx$/);
+});
+
+test('recent pages backwards by timestamp', async () => {
+  const urls = [];
+  const sp = probe((u) => urls.push(u));
+  await sp.query('recent', { limit: 50, before: '1739620000000' });
+  assert.match(urls[0], /recently-played\?limit=50&before=1739620000000$/);
+});
+
+test('no cursor is the first page, exactly as before', async () => {
+  const urls = [];
+  const sp = probe((u) => urls.push(u));
+  await sp.query('followedArtists', { limit: 50 });
+  await sp.query('recent', { limit: 50, before: '' });
+  assert.match(urls[0], /\/me\/following\?type=artist&limit=50$/);
+  assert.match(urls[1], /recently-played\?limit=50$/);
+});
+
+test('a cursor that cannot be read is refused, not silently dropped', async () => {
+  // Dropping it would answer page 1 again, which a "load more" cannot tell from
+  // a real page: it appends the same rows and asks again, on the user's quota.
+  const urls = [];
+  const sp = probe((u) => urls.push(u));
+  for (const bad of ['../../me', 'abc def', '1;2', { }, 'x'.repeat(60) + '/']) {
+    assert.deepEqual(await sp.query('followedArtists', { after: bad }), { ok: false, error: 'bad_params' });
+  }
+  for (const bad of ['now', '-1', '17e9', '1 2']) {
+    assert.deepEqual(await sp.query('recent', { before: bad }), { ok: false, error: 'bad_params' });
+  }
+  assert.equal(urls.length, 0, 'a bad cursor must never reach Spotify');
+});
+
+test('a cursor cannot carry anything but a cursor', async () => {
+  const urls = [];
+  const sp = probe((u) => urls.push(u));
+  await sp.query('followedArtists', { after: 'spotify:artist:2CIMQHirSU0MQqyYHq0eOx' });
+  assert.match(urls[0], /&after=2CIMQHirSU0MQqyYHq0eOx$/);
+  assert.ok(!urls[0].split('?')[1].includes(':'), 'the URI form must not reach the query string');
+});
+
+test('each cursor page is its own read, so page 2 is never page 1 from memory', async () => {
+  let n = 0;
+  const sp = probe(() => { n++; });
+  await sp.query('followedArtists', { limit: 50 });
+  await sp.query('followedArtists', { limit: 50, after: '2CIMQHirSU0MQqyYHq0eOx' });
+  assert.equal(n, 2);
+});
+
+test('the cursors reach the provider through both lists that can drop them', () => {
+  // The recurring shape of this bug: a param has to be named in the bridge that
+  // builds the request AND in the route that reads it back. Missing from either
+  // is not an error — the field is simply gone, and the op answers page 1.
+  const bridge = read('server/js/custom-widget.js');
+  const route = read('server/server.js');
+  const list = /\['id', 'q', 'types', 'limit', 'offset', 'after', 'before'\]/;
+  assert.match(bridge, list, 'the bridge drops the cursors before the route sees them');
+  assert.match(route, list, 'the route drops the cursors before the provider sees them');
+});
+
+test('a rate limit crosses into the sandbox with its status and its wait', () => {
+  const src = read('server/js/custom-widget.js');
+  const fn = src.slice(src.indexOf('async function onBridgeSpotifyQuery'));
+  const body = fn.slice(0, fn.indexOf('\n  }\n'));
+  assert.match(body, /Number\.isFinite\(r\.status\)/);
+  assert.match(body, /Number\.isFinite\(r\.retryAfterMs\)/);
+  // Field by field, never a spread: this reply crosses into a sandbox, so what
+  // may pass has to be a list rather than whatever the route happened to hold.
+  assert.ok(!/\.\.\.r\b/.test(body), 'the route answer must not be spread into the sandbox');
+});
+
+test('the guide documents both cursors and what a failure carries', () => {
+  const doc = read('docs/WIDGET_SDK.md');
+  assert.match(doc, /\| `recent` \| `limit`, `before` \|/);
+  assert.match(doc, /\| `followedArtists` \| `limit`, `after` \|/);
+  assert.match(doc, /artists\.cursors\.after/);
+  assert.match(doc, /data\.cursors\.before/);
+  assert.match(doc, /status: 429/);
+});

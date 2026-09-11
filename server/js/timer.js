@@ -17,6 +17,7 @@ function loadTimers() {
     .then(({ timers }) => {
       _timerState = timers || [];
       renderTimers();
+      applyTimerAddCollapsed();
       _startTimerTick();
     })
     .catch(() => {});
@@ -393,4 +394,57 @@ function _showTimerDoneToast(label) {
 // Enter key in duration input
 function onTimerInputKeydown(e) {
   if (e.key === 'Enter') { e.preventDefault(); addTimerFromInput(); }
+  // Escape folds the row away without losing what was typed — the same gesture
+  // that closes every other transient thing on the dashboard.
+  if (e.key === 'Escape') { e.preventDefault(); setTimerAddCollapsed(true); }
+}
+
+// ── Collapsing the add row ───────────────────────────────────────
+// The add row and its format hint are used once per timer and then sit there.
+// Asked for from a Xeneon Edge, where the widget is wide and short and that band
+// is a third of it. Collapsed, the section is a slim "+ New timer" strip: the
+// way to add one is folded away, never hidden.
+//
+// There is exactly one add row on the dashboard — a Timer copy is cloned without
+// it (stripTimerClone in dashboard-layout.js) — so this is one flag, not one per
+// instance, and it rides on dashboardLayout beside topbarHidden.
+function _timerAddSection() { return document.querySelector('[data-timerf="add-section"]'); }
+
+function isTimerAddCollapsed() {
+  if (typeof getDashboardLayout !== 'function') return false;
+  return getDashboardLayout().timerAddCollapsed === true;
+}
+
+// Paint the saved state. Called on load, and again by the settings apply pass so
+// a change made on another surface lands here too.
+function applyTimerAddCollapsed() {
+  const section = _timerAddSection();
+  if (!section) return;
+  section.dataset.collapsed = isTimerAddCollapsed() ? 'true' : 'false';
+  const strip = section.querySelector('[data-timerf="add-strip"]');
+  if (strip) strip.setAttribute('aria-expanded', section.dataset.collapsed === 'true' ? 'false' : 'true');
+}
+
+function setTimerAddCollapsed(collapsed) {
+  const want = collapsed === true;
+  const section = _timerAddSection();
+  if (section) {
+    section.dataset.collapsed = want ? 'true' : 'false';
+    const strip = section.querySelector('[data-timerf="add-strip"]');
+    if (strip) strip.setAttribute('aria-expanded', want ? 'false' : 'true');
+    // Opening from the strip should land ready to type: the strip is the thing
+    // that was just tapped, so the caret has to be moved deliberately.
+    if (!want) {
+      const labelEl = section.querySelector('.timer-add-label-input');
+      if (labelEl) setTimeout(() => labelEl.focus(), 0);
+    } else if (section.contains(document.activeElement)) {
+      // Collapsing while a field has focus would leave the caret in a box that
+      // is no longer on screen (and keep the on-screen keyboard up on a touch
+      // panel), so hand focus back to the strip.
+      document.activeElement.blur();
+    }
+  }
+  if (typeof saveDashboardLayout === 'function' && typeof getDashboardLayout === 'function') {
+    saveDashboardLayout({ ...getDashboardLayout(), timerAddCollapsed: want }, { status: false });
+  }
 }

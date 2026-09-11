@@ -17,6 +17,28 @@
 //
 // Pure and requireable (no server state) so the hostile-input paths are unit
 // tested in server/test/sdk-widgets.test.mjs.
+//
+// ── CHANGING WHAT WIDGETS CAN SEE OR DO ─────────────────────────────────────
+// The lists below are the SDK's public surface, and they are mirrored. Change
+// one without the others and the grant is silently unusable, or worse, granted
+// and undocumented. All of these move together:
+//
+//   1. here                       SDK_STREAMS / SDK_ACTION_CATEGORIES
+//   2. server/js/custom-widget.js the bridge that dispatches, and the
+//                                 permission LABEL the user reads
+//   3. server/js/settings.js      SDK_WIDGET_STREAMS / SDK_WIDGET_ACTION_CATS,
+//                                 which the permission dialog is built from
+//   4. server/js/i18n.js          that label, in all 11 languages
+//   5. docs/WIDGET_SDK.md         the capability table — regenerate with
+//                                 tools/gen-sdk-reference.mjs (a test fails if
+//                                 the generated block goes stale)
+//
+// The generated block covers the NAMES. It cannot know that a payload gained a
+// field or that a setting now changes what a stream carries, so anything of
+// that kind is documented by hand and pinned with a test — a promise in the
+// guide that nothing enforces is a promise that goes stale. Recent examples to
+// copy: section 3c (readings added to `system`), and the note on `agenda`
+// saying the Upcoming tile's limits do not filter the stream.
 
 const fs = require('fs');
 const path = require('path');
@@ -47,7 +69,12 @@ const SDK_API_VERSION = 1;
 // dashboard where that tile is absent. That is the whole reason `twitchChat` has
 // no loader at all — a widget must never be able to make Xenon hold a socket
 // open to Twitch on an idle dashboard just by asking for a refresh.
-const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes']);
+// `scriptStates` is the read side of POST /state/set — the named values any
+// local script sets (see DEVELOPER.md, "Deck script states"). A widget can
+// REACT to one but never set one: writing into that shared map from a sandbox
+// would let one package overwrite another's name, and a package already has
+// `deck.states` for states of its own, which are declared and namespaced.
+const SDK_STREAMS = Object.freeze(['status', 'system', 'media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter', 'stocks', 'football', 'news', 'claude', 'obs', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'streamerbot', 'homeassistant', 'twitchWatch', 'twitchChat', 'youtubeLive', 'youtube', 'tasks', 'notes', 'agenda', 'weather', 'battery', 'processes', 'spotify', 'scriptStates']);
 
 // Action categories a package may request → the deck-action types each grants.
 // Deliberately a small, low-blast-radius subset of the action registry; every
@@ -76,7 +103,16 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // reach the service the user connected AND granted. `haCallService` is
   // deliberately left OUT — an arbitrary HA service call is too broad to hand to
   // untrusted widget code; the typed device actions cover normal control.
-  spotify: Object.freeze(['spotifyPlay', 'spotifyNext', 'spotifyPrev', 'spotifySave', 'spotifyLike', 'spotifyShuffle', 'spotifyRepeat', 'spotifyVolume', 'spotifySeek', 'spotifyPlaylist', 'spotifyDevice']),
+  // `spotifyPlayUri` was added to this EXISTING category rather than a new one,
+  // which is the opposite of the call made for `audioDevice` and `steam` above —
+  // so the reasoning is worth stating. Those two widen a grant into a different
+  // KIND of act: "raise and lower" does not imply re-routing the machine's sound,
+  // and "open a web link" does not imply invoking a protocol handler. Starting a
+  // named track or album is the same kind of act as `spotifyPlaylist`, which has
+  // always been here and already starts any playlist the account can reach. It
+  // stays inside what "Control Spotify playback" means to the person who agreed
+  // to it, so it does not need a second line in the dialog.
+  spotify: Object.freeze(['spotifyPlay', 'spotifyNext', 'spotifyPrev', 'spotifySave', 'spotifyLike', 'spotifyShuffle', 'spotifyRepeat', 'spotifyVolume', 'spotifySeek', 'spotifyPlaylist', 'spotifyPlayUri', 'spotifyDevice']),
   obs: Object.freeze(['obsScene', 'obsSceneNext', 'obsRecord', 'obsStream', 'obsMute', 'obsInputVolume']),
   // discordUserVol/discordUserMute change what THIS machine hears from one
   // person in the user's own voice channel — local playback, not moderation and
@@ -86,7 +122,20 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   homeassistant: Object.freeze(['haToggle', 'haLight', 'haMedia', 'haCover', 'haClimate', 'haFan', 'haVacuum', 'haLock', 'haAlarm', 'haScene', 'haScript', 'haButton']),
   twitch: Object.freeze(['twitchClip', 'twitchMarker', 'twitchAd', 'twitchTitle', 'twitchGame', 'twitchChat', 'twitchShoutout', 'twitchChatMode']),
   youtube: Object.freeze(['ytBroadcast']),
+  // The host's own YouTube player, driven by a widget through validated
+  // messages. Its own line in the dialog: playing a video INSIDE someone's
+  // dashboard is not the same ask as reading their subscriptions, and neither
+  // is the same ask as controlling their broadcast.
+  youtubePlayer: Object.freeze(['ytPlayer']),
   streamerbot: Object.freeze(['sbDoAction', 'sbSendMessage', 'sbCodeTrigger']),
+  // Launching a game the user owns, and nothing else. The AppID is digits-only
+  // before it is interpolated into steam://rungameid/<id>, so the widget names a
+  // number rather than a command. Deliberately NOT folded into `url`: that one
+  // is http(s) links, and widening it to protocol handlers would hand every
+  // widget already granted `url` the ability to invoke any registered scheme on
+  // the machine, retroactively and with no prompt. Asked for by a widget author
+  // whose Steam tile launches the game you click.
+  steam: Object.freeze(['launchSteamGame']),
   url: Object.freeze(['openUrl']),
   // Show a page in the Browser tile already on the dashboard. `openUrl` hands
   // the address to the Windows shell, so the page lands on the default browser

@@ -34,7 +34,8 @@
     chroma: ['chromaColor', 'chromaOff'],
     wavelink: ['wlInputVolume', 'wlInputMute', 'wlOutputVolume', 'wlOutputMute', 'wlSwitchMonitoring', 'wlSetMonitorMix'],
     voicemeeter: ['vmStripMute', 'vmStripGain', 'vmStripBus', 'vmBusMute', 'vmBusGain', 'vmMacro'],
-    spotify: ['spotifyPlay', 'spotifyNext', 'spotifyPrev', 'spotifySave', 'spotifyLike', 'spotifyShuffle', 'spotifyRepeat', 'spotifyVolume', 'spotifySeek', 'spotifyPlaylist', 'spotifyDevice'],
+    steam: ['launchSteamGame'],
+    spotify: ['spotifyPlay', 'spotifyNext', 'spotifyPrev', 'spotifySave', 'spotifyLike', 'spotifyShuffle', 'spotifyRepeat', 'spotifyVolume', 'spotifySeek', 'spotifyPlaylist', 'spotifyPlayUri', 'spotifyDevice'],
     obs: ['obsScene', 'obsSceneNext', 'obsRecord', 'obsStream', 'obsMute', 'obsInputVolume'],
     discord: ['discordMute', 'discordDeafen', 'discordPtt', 'discordJoin', 'discordLeave', 'discordInputVol', 'discordOutputVol', 'discordUserVol', 'discordUserMute', 'discordAudioToggle', 'discordSoundboard'],
     homeassistant: ['haToggle', 'haLight', 'haMedia', 'haCover', 'haClimate', 'haFan', 'haVacuum', 'haLock', 'haAlarm', 'haScene', 'haScript', 'haButton'],
@@ -46,6 +47,7 @@
     soundboard: ['playSound', 'soundStopAll'],
     browser: ['browserOpen'],
     watch: ['twitchWatchPlay', 'ytWatchPlay'],
+    youtubePlayer: ['ytPlayer'],
   };
   // The only playSound.file shape an SDK widget may use — an installed sound
   // pack's clip, never an arbitrary local path (that stays a Deck-key-only
@@ -133,6 +135,7 @@
     battery: ['cw_stream_battery', 'Battery level of your wireless devices'],
     wavelink: ['cw_stream_wavelink', 'Wave Link mixer state'],
     voicemeeter: ['cw_stream_voicemeeter', 'Voicemeeter mixer state'],
+    spotify: ['cw_stream_spotify', 'Read your Spotify library, queue and history'],
     stocks: ['cw_stream_stocks', 'Stock quotes & indices'],
     football: ['cw_stream_football', 'Football fixtures & scores'],
     news: ['cw_stream_news', 'News headlines'],
@@ -146,11 +149,13 @@
     twitchWatch: ['cw_stream_twitchwatch', 'Which channels you follow are live, and what you are watching'],
     twitchChat: ['cw_stream_twitchchat', 'The chat of the Twitch channel you are watching'],
     youtubeLive: ['cw_stream_youtubelive', 'Your YouTube broadcast (live, viewers, likes)'],
+    youtube: ['cw_stream_youtube', 'Read your YouTube subscriptions, channels and playlists'],
     homeassistant: ['cw_stream_homeassistant', 'Home Assistant device states'],
     tasks: ['cw_stream_tasks', 'Your task list'],
     notes: ['cw_stream_notes', 'Your notes'],
     agenda: ['cw_stream_agenda', 'Your calendar events'],
     weather: ['cw_stream_weather', 'Weather conditions & forecast'],
+    scriptStates: ['cw_stream_scriptstates', 'States your own scripts set (see them, not set them)'],
   };
   const ACTION_LABELS = {
     media: ['cw_act_media', 'Control media playback'],
@@ -161,12 +166,14 @@
     chroma: ['cw_act_chroma', 'Control Razer Chroma lighting'],
     wavelink: ['cw_act_wavelink', 'Control the Wave Link mixer'],
     voicemeeter: ['cw_act_voicemeeter', 'Control the Voicemeeter mixer'],
+    steam: ['cw_act_steam', 'Launch a Steam game'],
     spotify: ['cw_act_spotify', 'Control Spotify playback'],
     obs: ['cw_act_obs', 'Control OBS (scenes, recording, audio)'],
     discord: ['cw_act_discord', 'Control Discord voice'],
     homeassistant: ['cw_act_homeassistant', 'Control your Home Assistant devices'],
     twitch: ['cw_act_twitch', 'Control your Twitch channel'],
     youtube: ['cw_act_youtube', 'Control your YouTube stream'],
+    youtubePlayer: ['cw_act_youtubeplayer', 'Play YouTube videos inside this widget'],
     streamerbot: ['cw_act_streamerbot', 'Trigger Streamer.bot actions'],
     url: ['cw_act_url', 'Open web links on this PC'],
     tasks: ['cw_act_tasks', 'Add and complete your to-do tasks'],
@@ -459,6 +466,13 @@
     // dashboard instead of hard-coding 24h. Sent on init AND on refreshTheme, so
     // toggling the format in Settings updates a live widget without a reload.
     const clock12 = (typeof clockUses12h === 'function') ? clockUses12h() : false;
+    // ...and how much of the DATE the user wants spelled out (v4.11.8's Settings
+    // → Clock → Date format). Same reason as clock12: a widget that prints a date
+    // beside a dashboard set to "Fri 11 Sep" should not be the one thing on
+    // screen writing "Friday, 11 September". A NAME, not a formatted string: the
+    // widget asks Intl for that shape in its own locale, because slicing a long
+    // date apart produces nonsense in ten of the eleven languages Xenon speaks.
+    const dateFormat = (typeof clockDateShape === 'function') ? clockDateShape() : 'full';
     let p = (typeof window.getEffectiveThemePalette === 'function')
       ? window.getEffectiveThemePalette()
       : null;
@@ -524,7 +538,7 @@
         // that follows the user's panel opacity, and the raw 0..1 factor.
         surfaceSoft: p.surfaceSoft || null, panelAlpha: (typeof p.panelAlpha === 'number' ? p.panelAlpha : null),
       };
-      return { appearance: p.tone, skin: skinMode(), overrides, clock12, ...palette, palette };
+      return { appearance: p.tone, skin: skinMode(), overrides, clock12, dateFormat, ...palette, palette };
     }
     return {
       appearance: surfaceAppearance(),
@@ -533,10 +547,27 @@
       background: typeof hs.background === 'string' ? hs.background : '#070808',
       text: typeof hs.text === 'string' ? hs.text : '#f0f3f1',
       clock12,
+      dateFormat,
     };
   }
   function langCode() {
     return (typeof t === 'function' && t('locale')) || 'en';
+  }
+
+  // Celsius or Fahrenheit, as the user set it in Settings. Sent for the same
+  // reason `lang` is: a widget that draws a temperature — a monitor showing CPU
+  // and GPU, a weather tile — has no other way to know, and one showing °C on a
+  // dashboard where everything else says °F is wrong in a way the widget author
+  // cannot fix from inside. Not a permission: it is a preference about how to
+  // format, and it says nothing about the user beyond which unit they read.
+  //
+  // Values ARE NOT converted. Xenon reports Celsius everywhere it reports a
+  // temperature, and it keeps doing that: converting on the way out would mean a
+  // widget could not tell 30 °C from 30 °F without reading this field anyway, and
+  // the two together are the only pair that cannot be misread.
+  function tempUnit() {
+    const hs = (typeof hubSettings === 'object' && hubSettings) ? hubSettings : {};
+    return hs.tempUnit === 'f' ? 'f' : 'c';
   }
 
   // ── postMessage bridge ───────────────────────────────────────────
@@ -697,6 +728,8 @@
     if (!force && entry.visible === visible) return;
     entry.visible = visible;
     post(entry, { type: 'visibility', visible });
+    // Off screen takes the borrowed YouTube player with it — see reconcileSdkPlayer.
+    if (!visible && window.SdkYouTubePlayer) window.SdkYouTubePlayer.release(entry);
     // Back on screen: hand over the current snapshot of every granted stream. It
     // received no `data` while hidden, so it is showing whatever it last saw and
     // most of these feeds only push when something CHANGES.
@@ -705,6 +738,7 @@
 
   function syncVisibility() {
     for (const [, entry] of frames) postVisibility(entry);
+    reconcileSdkPlayer();
   }
 
   // ── Pop-up awareness (`notice`) ─────────────────────────────────────────────
@@ -771,6 +805,147 @@
     const shaped = stream === 'youtubeLive' ? sanitizeYoutubeLive(payload) : payload;
     localStreamLoadedAt[stream] = Date.now();
     onData(stream, shaped);
+  }
+
+  // Authenticated Spotify READS for a widget that browses a library (queue,
+  // playlists, saved albums, an artist's albums, search…). Request/response with
+  // a correlation id, because browsing is a question with an answer rather than
+  // a feed to subscribe to.
+  //
+  // Gated by the `spotify` STREAM grant, not by the `spotify` ACTION grant, and
+  // that distinction is the point. The action grant reads "Control Spotify
+  // playback" — someone who agreed to that agreed to play, pause and skip. Their
+  // listening history, saved music and followed artists are a different thing to
+  // hand over, and folding them into a permission people already granted would
+  // widen it under them. So it is its own line in the dialog, and a widget that
+  // only controls playback still cannot read a thing.
+  //
+  // The widget never receives a token: the server holds it, the op names a read
+  // it is allowed to make, and only the answer comes back.
+  async function onBridgeSpotifyQuery(entry, grant, msg) {
+    const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
+    const reply = (payload) => post(entry, Object.assign({ type: 'spotifyQueryResult', id: reqId }, payload));
+    if (!grant.streams.includes('spotify')) { reply({ ok: false, error: 'not_allowed' }); return; }
+    const op = typeof msg.op === 'string' ? msg.op : '';
+    if (!op) { reply({ ok: false, error: 'bad_op' }); return; }
+    const p = msg.params && typeof msg.params === 'object' ? msg.params : {};
+    const qs = new URLSearchParams({ pkg: entry.pkgId, op });
+    // `after` and `before` are the cursors the two non-offset ops page by, and
+    // this list is the reason they need naming twice: whatever is not in it is
+    // dropped here, before the route ever sees it, and the op then answers the
+    // first page as though nothing had been asked. Same list as the route's.
+    for (const k of ['id', 'q', 'types', 'limit', 'offset', 'after', 'before']) {
+      if (p[k] !== undefined && p[k] !== null) qs.set(k, String(p[k]).slice(0, 300));
+    }
+    try {
+      const r = await api('/stream/spotify/query?' + qs.toString());
+      if (r && r.ok) { reply({ ok: true, data: r.data }); return; }
+      // A failure is more than a word. The provider already works out how long
+      // Spotify wants to be left alone (429 → `retryAfterMs`) and which status
+      // the refusal came from, and the SDK reference promises a widget gets
+      // both — but the reply was rebuilt from `error` alone, so every widget
+      // was told to back off for a length of time it had to guess. Guessing
+      // short keeps the whole account, the user's own Spotify tile included, in
+      // the penalty box for longer.
+      //
+      // Copied field by field rather than spread: this crosses into a sandbox,
+      // so what may pass is a list, not whatever the route happened to return.
+      const out = { ok: false, error: (r && r.error) || 'failed' };
+      if (r && Number.isFinite(r.status)) out.status = r.status;
+      if (r && Number.isFinite(r.retryAfterMs)) out.retryAfterMs = r.retryAfterMs;
+      reply(out);
+    } catch {
+      reply({ ok: false, error: 'failed' });
+    }
+  }
+
+  // Authenticated YouTube READS, for a widget that browses subscriptions, a
+  // channel or a playlist. Same request/response shape as the Spotify one, and
+  // gated by the `youtube` STREAM grant rather than by any action category: the
+  // action categories here are "control your YouTube stream" and "play a video
+  // in this widget", and neither of those is permission to read what someone is
+  // subscribed to.
+  //
+  // POST, unlike Spotify's: one search costs 100 of the account's 10,000 daily
+  // YouTube units, so the route is on the CSRF list with /stream/youtube/search.
+  async function onBridgeYoutubeQuery(entry, grant, msg) {
+    const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
+    const reply = (payload) => post(entry, Object.assign({ type: 'youtubeQueryResult', id: reqId }, payload));
+    if (!grant.streams.includes('youtube')) { reply({ ok: false, error: 'not_allowed' }); return; }
+    const op = typeof msg.op === 'string' ? msg.op : '';
+    if (!op) { reply({ ok: false, error: 'bad_op' }); return; }
+    const p = msg.params && typeof msg.params === 'object' ? msg.params : {};
+    const params = {};
+    for (const k of ['id', 'q', 'pageToken', 'order']) {
+      if (p[k] !== undefined && p[k] !== null) params[k] = String(p[k]).slice(0, 400);
+    }
+    try {
+      const r = await api('/stream/youtube/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pkg: entry.pkgId, op, params }),
+      });
+      reply(r && r.ok ? { ok: true, data: r.data } : { ok: false, error: (r && r.error) || 'failed' });
+    } catch {
+      reply({ ok: false, error: 'failed' });
+    }
+  }
+
+  // The host's YouTube player, lent to a widget (js/sdk-youtube-player.js).
+  //
+  // A widget cannot embed YouTube itself — its frame has an opaque origin and a
+  // CSP that blocks all network — so a widget that wants a video inside its own
+  // layout asks Xenon to place one over its frame. The widget sends a video id
+  // and a rectangle in its own coordinates; it never gets the player, and every
+  // value it sends is re-validated in the player module.
+  //
+  // Its own action category, not the `youtube` one: "control your YouTube
+  // stream" is about someone's broadcast, and playing a video inside their
+  // dashboard is a different thing to agree to.
+  const YT_PLAYER_OPS = ['show', 'load', 'rect', 'play', 'pause', 'mute', 'seek', 'hide'];
+  function onBridgeYoutubePlayer(entry, grant, msg) {
+    const reqId = (typeof msg.id === 'string' || typeof msg.id === 'number') ? msg.id : null;
+    const reply = (payload) => post(entry, Object.assign({ type: 'youtubePlayerResult', id: reqId }, payload));
+    // The CATEGORY, not the action type inside it: `grant.actions` holds the
+    // names the user agreed to in the dialog (see SDK_WIDGET_ACTION_CATS), and
+    // `actionAllowed` is what maps a category to the types it covers. Checking
+    // 'ytPlayer' here compiled, read plausibly, and could never be true.
+    if (!grant.actions.includes('youtubePlayer')) { reply({ ok: false, error: 'not_allowed' }); return; }
+    // A background service frame has no tile, so it has nowhere to put a player —
+    // and a widget playing video from a headless frame is exactly the thing that
+    // must not be possible.
+    if (entry.service) { reply({ ok: false, error: 'unavailable' }); return; }
+    const op = typeof msg.op === 'string' ? msg.op : '';
+    if (!YT_PLAYER_OPS.includes(op)) { reply({ ok: false, error: 'bad_op' }); return; }
+    const host = window.SdkYouTubePlayer;
+    if (!host) { reply({ ok: false, error: 'unavailable' }); return; }
+    // A tile the user cannot see does not get a player: it would be a video
+    // playing behind the dashboard with no way to reach it.
+    if (op !== 'hide' && !entryOnScreen(entry)) { reply({ ok: false, error: 'not_visible' }); return; }
+    const box = entry.frame && entry.frame.parentNode;
+    if (!box) { reply({ ok: false, error: 'unavailable' }); return; }
+    const r = host.exec(entry, box, op, msg.params, (ev) => post(entry, Object.assign({ type: 'youtubePlayerEvent' }, ev)));
+    reply(r && r.ok ? { ok: true } : { ok: false, error: (r && r.error) || 'failed' });
+  }
+
+  // A player outlives nothing. Whenever the set of live frames changes or a tile
+  // leaves the screen, the widget holding the player has to still be there and
+  // still be visible — otherwise the video is torn down and the widget is told.
+  function reconcileSdkPlayer() {
+    const host = window.SdkYouTubePlayer;
+    if (!host || !host.active()) return;
+    for (const [, entry] of frames) {
+      if (!host.owns(entry)) continue;
+      // The grant is re-read here, not just at the command: taking the permission
+      // away in Settings has to stop a video that is ALREADY playing, not merely
+      // refuse the next command. Same re-check reconcileExpanded makes.
+      const granted = grantsFor(entry.pkgId).actions.includes('youtubePlayer');
+      if (!granted || !entry.frame || !entry.frame.isConnected || !entryOnScreen(entry)) host.release(entry);
+      return;
+    }
+    // The owner is not in `frames` at all any more (swapped, uninstalled, safe
+    // mode, SDK turned off). It cannot be named, so it is simply closed.
+    host.closeAny();
   }
 
   async function onBridgeRefresh(entry, grant, msg) {
@@ -1441,6 +1616,7 @@
         pkgId: entry.pkgId,   // the package id — lets a widget build /sdk/tile/<id> URLs
         theme: themePayload(entry),
         lang: langCode(),
+        tempUnit: tempUnit(),
         streams: grant.streams.slice(),
         actions: grant.actions.slice(),
         hosts: grant.hosts.slice(),
@@ -1495,6 +1671,12 @@
       if (entry.ready) onBridgeAction(entry, grant, d);
     } else if (d.type === 'fetch') {
       if (entry.ready) onBridgeFetch(entry, grant, d);
+    } else if (d.type === 'spotifyQuery') {
+      if (entry.ready) onBridgeSpotifyQuery(entry, grant, d);
+    } else if (d.type === 'youtubeQuery') {
+      if (entry.ready) onBridgeYoutubeQuery(entry, grant, d);
+    } else if (d.type === 'youtubePlayer') {
+      if (entry.ready) onBridgeYoutubePlayer(entry, grant, d);
     } else if (d.type === 'refresh') {
       if (entry.ready) onBridgeRefresh(entry, grant, d);
     } else if (d.type === 'store') {
@@ -1853,6 +2035,35 @@
       frame.src = sdkAssetBase(pkg.id) + pkg.entry + '?v=' + assetVersion;
       frames.set(key, { frame, pkgId: pkg.id, ready: false, lastAction: 0, service: true, assetVersion });
       serviceHost().appendChild(frame);
+    }
+  }
+
+  // The dashboard's language changed (called from setLang in i18n.js).
+  //
+  // `lang` was already in `init`, which was enough for a widget that renders
+  // once — and not enough for the ones people actually keep on screen. A widget
+  // open while its owner switches the dashboard to another language kept the
+  // code it was handed at mount, so it stayed in the old one until something
+  // reloaded it. Nothing said so, which is the worst version: a widget author
+  // reads `lang` in init, does the right thing with it, and is still wrong.
+  //
+  // Same shape as the theme push above it, for the same reason: the host
+  // changed something the widget rendered from, so the host says so.
+  // The user changed the unit in Settings. Same shape as the theme and language
+  // pushes: the host changed something the widget rendered from, so the host
+  // says so — rather than leaving a monitor widget printing °C until it happens
+  // to be reloaded.
+  function refreshTempUnit() {
+    const unit = tempUnit();
+    for (const [, entry] of frames) {
+      if (entry.ready) post(entry, { type: 'tempUnit', tempUnit: unit });
+    }
+  }
+
+  function refreshLang() {
+    const code = langCode();
+    for (const [, entry] of frames) {
+      if (entry.ready) post(entry, { type: 'lang', lang: code });
     }
   }
 
@@ -2384,7 +2595,7 @@
   // when at least one listed widget falls in it, so tapping one can never empty
   // the list on its own.
   const PICK_CATS = [
-    { id: 'system', key: 'cw_cat_system', fb: 'System', streams: ['status', 'system', 'battery', 'processes'] },
+    { id: 'system', key: 'cw_cat_system', fb: 'System', streams: ['status', 'system', 'battery', 'processes', 'scriptStates'] },
     { id: 'media', key: 'cw_cat_media', fb: 'Media', streams: ['media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter'] },
     { id: 'stream', key: 'cw_cat_stream', fb: 'Streaming', streams: ['obs', 'streamerbot', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'twitchWatch', 'twitchChat', 'youtubeLive'] },
     { id: 'info', key: 'cw_cat_info', fb: 'Info', streams: ['weather', 'stocks', 'football', 'news'] },
@@ -2696,8 +2907,10 @@
   function paint() {
     // Before anything else: an expanded widget whose frame has gone away (swap,
     // uninstall, safe mode, SDK off) would otherwise leave a full-screen empty
-    // panel with no way out.
+    // panel with no way out. The borrowed YouTube player is the same class of
+    // leftover — a video still playing for a widget that is no longer there.
     reconcileExpanded();
+    reconcileSdkPlayer();
     const seen = new Set();
     const wantShapes = new Map();   // what this pass decided each tile's silhouette is
     tiles().forEach(tile => {
@@ -3039,7 +3252,7 @@
   }
 
   window.CustomWidget = {
-    renderWidgets, onData, onDiscordNotification, onHook, onHandler, onStoreChanged, onToastState, refreshTheme, refreshPackages: () => fetchPackages(true), clearAssign,
+    renderWidgets, onData, onDiscordNotification, onHook, onHandler, onStoreChanged, onToastState, refreshTheme, refreshLang, refreshTempUnit, refreshPackages: () => fetchPackages(true), clearAssign,
     // How a builtin tile feeds a stream it is already reading (Twitch watch,
     // Twitch chat, YouTube Live) instead of every widget paying for its own copy.
     publishStream,

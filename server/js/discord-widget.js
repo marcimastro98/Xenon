@@ -25,6 +25,7 @@
     vad: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h2l2-5 3 12 3-16 2 9h4"/></svg>',
     leave: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4"/><path d="M10 17 5 12l5-5M5 12h11"/></svg>',
     join: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M16 9a5 5 0 0 1 0 6"/></svg>',
+    spkOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="m16 10 5 4M21 10l-5 4"/></svg>',
     minus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>',
     plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
     play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
@@ -190,7 +191,8 @@
     pCtl.appendChild(vols);
     // Current call: title + members (with live speaking). Hidden when not in a call.
     const call = el('div', 'dc-call'); call.hidden = true;
-    call.append(el('div', 'dc-sec-label dc-call-label'), el('div', 'dc-members dc-call-members'));
+    const mctl = el('div', 'dc-mctl dc-call-mctl'); mctl.hidden = true;
+    call.append(el('div', 'dc-sec-label dc-call-label'), el('div', 'dc-members dc-call-members'), mctl);
     pCtl.appendChild(call);
     // Audio processing toggles.
     const audio = el('div', 'dc-ctl-group dc-ctl-audio');
@@ -310,11 +312,48 @@
     return groups;
   }
 
+  // ── Turning one person up or down ─────────────────────────────────────────
+  // Discord lets you set the volume of one person in your channel, and mute them
+  // for yourself only — the thing you reach for when one friend is twice as loud
+  // as everyone else. It has been available to community widgets since 4.11 and
+  // had no control of its own here, so the only way to use it was to write a
+  // widget. Someone asked where the setting was, which is a fair question to ask
+  // about a feature with no setting.
+  //
+  // Tapping a name opens the controls under the list rather than in a popover: a
+  // popover needs positioning, a dismiss rule and a z-index on a surface that is
+  // often a touchscreen, and this widget already speaks in rows.
+  let openMember = '';       // id of the person whose controls are open, '' for none
+
+  function callMembers() {
+    return (voice && Array.isArray(voice.members)) ? voice.members : [];
+  }
+  // Your own row is not one of these: Discord has no per-user setting for your
+  // own account (your levels are the mic/output rows above), and the server
+  // answers `self_not_supported` — so the row simply isn't a button.
+  function canAdjust(m) {
+    return !!(m && m.id && voice && voice.channel && m.id !== (voice.selfId || ''));
+  }
+
   // A compact member chip: display name + a live speaking highlight + a muted/
   // deafened marker. Names are dynamic Discord data → textContent (via el), never
   // innerHTML. Reused by the current-call strip and the per-channel roster.
-  function memberChip(m) {
-    const chip = el('span', 'dc-member');
+  function memberChip(m, adjustable) {
+    const chip = el(adjustable ? 'button' : 'span', 'dc-member');
+    if (adjustable) {
+      chip.type = 'button';
+      chip.classList.add('is-adjustable');
+      chip.classList.toggle('is-open', openMember === m.id);
+      // "I turned them down" is a different fact from "they muted themselves",
+      // and the two markers must not be the same one: the dot is theirs, this is
+      // yours. Without it, turning someone to zero looks identical to them
+      // having muted their own microphone.
+      chip.classList.toggle('is-local-muted', !!m.localMute);
+      chip.addEventListener('click', () => {
+        openMember = (openMember === m.id) ? '' : m.id;
+        paint();
+      });
+    }
     chip.classList.toggle('is-speaking', !!m.speaking);
     chip.classList.toggle('is-muted', !!(m.mute || m.deaf));
     chip.append(el('span', 'dc-member-dot'), el('span', 'dc-member-name', m.name || '—'));
@@ -323,10 +362,86 @@
 
   // Fill a container with member chips for the current call.
   function fillMembers(box) {
-    const members = (voice && Array.isArray(voice.members)) ? voice.members : [];
+    const members = callMembers();
     const frag = document.createDocumentFragment();
-    members.forEach(m => frag.appendChild(memberChip(m)));
+    members.forEach(m => frag.appendChild(memberChip(m, canAdjust(m))));
     box.replaceChildren(frag);
+  }
+
+  // One row, no prose: a speaker you can tap to mute them just for you, a slider,
+  // and the number. The name is not repeated — you tapped it a moment ago and it
+  // is lit up directly above. Every label survives as a tooltip, so the row is
+  // still readable to a screen reader and still translated.
+  const USER_VOL_MAX = 200;   // Discord's own ceiling for a per-person level
+  const VOL_STEP = 5;
+  let dragging = false;       // true while a finger/pointer is on the slider
+
+  function buildMemberCtl(m) {
+    const row = el('div', 'dc-mctl-row');
+
+    const mute = el('button', 'dc-mctl-mute');
+    mute.type = 'button';
+    mute.addEventListener('click', () => runAction(mute, { type: 'discordUserMute', user: openMember, mode: 'toggle' }));
+
+    const range = el('input', 'dc-mctl-range');
+    range.type = 'range'; range.min = '0'; range.max = String(USER_VOL_MAX); range.step = String(VOL_STEP);
+    const val = el('span', 'dc-mctl-val');
+
+    // Dragging must not talk to Discord on every pixel: the number follows the
+    // thumb locally, and the level is written once, when the finger lifts. The
+    // flag also stops the SSE repaint from yanking the thumb out from under it.
+    range.addEventListener('pointerdown', () => { dragging = true; });
+    range.addEventListener('input', () => { val.textContent = range.value; row.classList.remove('is-unknown'); });
+    const commit = () => {
+      if (!dragging) return;
+      dragging = false;
+      runAction(range, { type: 'discordUserVol', user: openMember, mode: 'set', value: range.value });
+    };
+    range.addEventListener('change', commit);
+    range.addEventListener('pointercancel', () => { dragging = false; });
+    // Keyboard: arrows fire `change` per press on some engines and not others,
+    // so commit on release as well rather than leaving the level unwritten.
+    range.addEventListener('keyup', () => { if (!dragging) runAction(range, { type: 'discordUserVol', user: openMember, mode: 'set', value: range.value }); });
+
+    row.append(mute, range, val);
+    return row;
+  }
+
+  // Values only — called on every paint, including the SSE pushes, so the row
+  // follows Discord without being rebuilt under the user's finger.
+  function refreshMemberCtl(row, m) {
+    const mute = row.querySelector('.dc-mctl-mute');
+    const range = row.querySelector('.dc-mctl-range');
+    const val = row.querySelector('.dc-mctl-val');
+    const label = t(m.localMute ? 'dc_member_unmute' : 'dc_member_mute', m.localMute ? 'Unmute for me' : 'Mute for me');
+    mute.classList.toggle('on', !!m.localMute);
+    mute.innerHTML = m.localMute ? ICONS.spkOff : ICONS.join;   // static, trusted SVG
+    mute.title = label;
+    mute.setAttribute('aria-label', label);
+    range.title = t('dc_member_vol', 'Volume for you');
+    range.setAttribute('aria-label', (m.name || '') + ' — ' + range.title);
+    if (dragging) return;   // their finger is on it; Discord's copy can wait
+    // A volume Discord does not report is not 100. The thumb has to sit
+    // somewhere, so it rests at the default and the row says the value is not
+    // known — a number would be a guess at a setting the machine may not be in.
+    const known = m.volume != null;
+    row.classList.toggle('is-unknown', !known);
+    range.value = String(known ? m.volume : 100);
+    val.textContent = known ? String(m.volume) : '—';
+  }
+
+  // The controls for the person whose name is open, or nothing.
+  function fillMemberCtl(box) {
+    const m = openMember ? callMembers().find(x => x.id === openMember) : null;
+    // They left, or you did: close rather than leave controls pointing at nobody.
+    if (!m || !canAdjust(m)) { openMember = ''; dragging = false; box.replaceChildren(); box.hidden = true; box.dataset.dcFor = ''; return; }
+    box.hidden = false;
+    if (box.dataset.dcFor !== m.id || !box.firstChild) {
+      dragging = false;
+      box.replaceChildren(buildMemberCtl(m));
+      box.dataset.dcFor = m.id;
+    }
+    refreshMemberCtl(box.firstChild, m);
   }
 
   // Re-apply every static (language-dependent) label. ensure() sets these once at
@@ -695,6 +810,9 @@
         if (inChan) {
           call.querySelector('.dc-call-label').textContent = callTitle();
           fillMembers(call.querySelector('.dc-call-members'));
+          fillMemberCtl(call.querySelector('.dc-call-mctl'));
+        } else {
+          openMember = '';   // left the call: nothing to point at any more
         }
       }
 
