@@ -3,7 +3,9 @@
 All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [4.11.8] — in development
+## [Unreleased]
+
+## [v4.11.8] - 11-09-2026
 ### 🐛 Fixed
 - **The settings sidebar no longer squeezes its categories into a strip on a short screen.** The list of categories scrolls, and under it sits a block that does not: the support links, the update button, the platform notice and the version number. On a tall screen that is the right arrangement. On a Xeneon Edge — wide and only 720 pixels tall — the fixed half took 337 of the sidebar's 549 pixels, leaving twenty-seven categories scrolling through a window four and a half rows high. Reported from an Edge; a 1366×768 laptop had the same squeeze and nobody had mentioned it.
 
@@ -127,8 +129,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Pictures now come down a route Xenon already had for map tiles, which hands them to the widget as an ordinary image instead of squeezing them through that bridge, and the ones worth keeping are written to disk so they survive a restart. Nothing about what a widget may reach changed: the address still has to be one the widget declared and you approved, and the same protections apply.
 
   **The part that took the work is the forgetting.** A cache that only ever grows is a slow leak, and left alone this one would have been a big one: every album played and every game in a library is another file. So there is a ceiling per widget and a ceiling for all of them together, whatever is thrown away is really deleted rather than merely forgotten, an hourly pass removes anything left behind by an interrupted write, what goes first is what you have looked at least recently, and uninstalling a widget takes its pictures with it. A cover is also re-checked after a week, because an image can quietly change behind an address that stays the same.
-
-## [Unreleased]
 
 ## [v4.11.7] - 05-09-2026
 ### ✨ Added
