@@ -196,6 +196,10 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
   // freeing the full surface for widgets. A floating Layout button re-opens the
   // editor (which temporarily reveals the bar) so the user can never get stuck.
   topbarHidden: false,
+  // When true the Timer widget's add row (label + duration + format hint) is
+  // folded to a slim "+ New timer" strip. One flag, not one per instance: a
+  // Timer copy is cloned without the add row (stripTimerClone).
+  timerAddCollapsed: false,
 });
 
 // The activities Performance Mode can detect and react to. One list, used by
@@ -1351,6 +1355,7 @@ function normalizeDashboardLayout(value) {
   layout.calendarTabs = normalizeCalendarTabs(source.calendarTabs);
   layout.mediaView = normalizeMediaView(source.mediaView);
   layout.topbarHidden = source.topbarHidden === true;
+  layout.timerAddCollapsed = source.timerAddCollapsed === true;
   layout.gridCols = DASHBOARD_GRID_COLUMNS;  // units flag — see scaleDashboardLayoutUnits
   return layout;
 }

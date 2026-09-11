@@ -485,6 +485,8 @@ The duration field carries the whole vocabulary, so there is nothing else to lea
 
 A stopwatch shares every control with a countdown, because underneath it is the same clock running the other way: pause, resume, reset, keep and delete all behave identically. It never rings for having finished, since it has no end to reach, and it only interrupts you if you asked it to with `+`. A small mark before its name tells it from a countdown when both are paused, and a chiming one shows how often beside it.
 
+**The add field gets out of the way.** The line of format examples above appears while the row has focus — exactly while you are typing a duration — and is gone the rest of the time. The whole row folds away too: the chevron beside **+** collapses it to a slim **+ New timer** strip, one tap brings it back with the cursor already in the label box, Escape folds it again, and the choice is remembered across restarts. On a wide, short panel that band was a third of the widget for something used once per timer; the timer list gets the space instead.
+
 **On a Deck key it looks different, and it has to.** The tile reads one field because you are typing at the moment you start the clock. A Deck key is set up once and pressed weeks later, so it has to know what it starts before you press it — the choice lives in the action list rather than in text typed at press time. There are two:
 
 | Deck action | starts |

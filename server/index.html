@@ -420,19 +420,41 @@
         </div>
 
         <div class="cal-pane" id="cal-pane-timer" data-calpane="timer" hidden>
-          <div class="timer-add-section">
-            <div class="timer-add-row">
-              <input class="timer-add-label-input" id="timer-label-input" type="text" maxlength="40"
-                data-i18n-placeholder="timer_label_placeholder" placeholder="Es. Pasta, Focus…"
-                onkeydown="onTimerInputKeydown(event)">
-              <input class="timer-add-dur-input" id="timer-duration-input" type="text" maxlength="10"
-                placeholder="5:00"
-                onkeydown="onTimerInputKeydown(event)">
-              <button class="timer-add-btn" type="button" onclick="addTimerFromInput()" data-i18n-title="timer_add" title="Aggiungi timer" aria-label="Aggiungi timer">+</button>
+          <div class="timer-add-section" data-timerf="add-section">
+            <!-- Collapsed face: one slim strip that brings the row back. The add
+                 row and its hint are used once and then sit there; on a wide,
+                 short panel (a Xeneon Edge) that is a third of the widget spent
+                 on something already done. The strip still says what it does, so
+                 collapsing never hides the way to add a timer. -->
+            <button class="timer-add-strip" type="button" data-timerf="add-strip"
+              onclick="setTimerAddCollapsed(false)"
+              data-i18n-title="timer_add_expand" title="Aggiungi un timer"
+              data-i18n-aria-label="timer_add_expand" aria-label="Aggiungi un timer">
+              <span class="timer-add-strip-plus" aria-hidden="true">+</span>
+              <span data-i18n="timer_add_new">Nuovo timer</span>
+            </button>
+            <div class="timer-add-body" data-timerf="add-body">
+              <div class="timer-add-row">
+                <input class="timer-add-label-input" id="timer-label-input" type="text" maxlength="40"
+                  data-i18n-placeholder="timer_label_placeholder" placeholder="Es. Pasta, Focus…"
+                  onkeydown="onTimerInputKeydown(event)">
+                <input class="timer-add-dur-input" id="timer-duration-input" type="text" maxlength="10"
+                  placeholder="5:00"
+                  onkeydown="onTimerInputKeydown(event)">
+                <button class="timer-add-btn" type="button" onclick="addTimerFromInput()" data-i18n-title="timer_add" title="Aggiungi timer" aria-label="Aggiungi timer">+</button>
+                <button class="timer-add-collapse" type="button" data-timerf="add-collapse"
+                  onclick="setTimerAddCollapsed(true)"
+                  data-i18n-title="timer_add_collapse" title="Nascondi il campo"
+                  data-i18n-aria-label="timer_add_collapse" aria-label="Nascondi il campo">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 8.6 6 6-1.4 1.4-4.6-4.6-4.6 4.6L6 14.6l6-6Z"/></svg>
+                </button>
+              </div>
+              <!-- The hint is where the stopwatch is discoverable: there is no
+                   second button, an empty duration is the gesture. So it is not
+                   deleted, it is moved to when it is wanted — it fades in while
+                   the row has focus and is out of the way the rest of the time. -->
+              <div class="timer-format-hint"><span data-i18n="timer_format_hint">5 min · 5:30 min:sec · 1:05:00 ore:min:sec · vuoto = cronometro · +5 = avvisa ogni 5 min</span></div>
             </div>
-            <!-- The hint is where the stopwatch is discoverable: there is no
-                 second button, an empty duration is the gesture. -->
-            <div class="timer-format-hint" data-i18n="timer_format_hint">5 min · 5:30 min:sec · 1:05:00 ore:min:sec · vuoto = cronometro · +5 = avvisa ogni 5 min</div>
           </div>
           <div class="timer-list" id="timer-list" data-timerf="list"></div>
         </div>

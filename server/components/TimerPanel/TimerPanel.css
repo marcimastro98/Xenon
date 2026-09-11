@@ -5,7 +5,11 @@
 .timer-add-section {
   flex-shrink: 0;
   padding: 10px 12px 4px;
+  transition: padding .22s ease;
 }
+/* Collapsed, the section's own padding would keep 14px of empty band above the
+   list for a strip that is 24px tall. */
+.timer-add-section[data-collapsed="true"] { padding: 5px 12px 3px; }
 
 .timer-add-row {
   display: flex;
@@ -13,13 +17,110 @@
   align-items: center;
 }
 
-/* Format hint shown below the inputs */
-.timer-format-hint {
-  font-size: .70rem;
+/* ── Collapsing the add row ──────────────────────────────────────────
+   The row and its hint are used once per timer and then sit there. Collapsed,
+   the section is a single slim strip that still reads "+ New timer", so the way
+   to add one is never hidden — only folded away. Which face is showing is
+   driven by [data-collapsed] on .timer-add-section (timer.js), persisted in
+   dashboardLayout.timerAddCollapsed. */
+.timer-add-body {
+  overflow: hidden;
+  /* grid-template-rows animates from a content-sized row to nothing, which
+     max-height cannot do without a magic number that clips a wrapped hint. */
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows .22s ease, opacity .18s ease;
+}
+.timer-add-body > * { min-height: 0; }
+.timer-add-section[data-collapsed="true"] .timer-add-body {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The collapsed face. Hidden (not just transparent) while the row is open, so
+   it never eats a tap meant for the inputs. */
+.timer-add-strip {
+  display: none;
+  width: 100%;
+  align-items: center;
+  gap: 7px;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  color: var(--muted-text);
+  font: inherit;
+  font-size: .76rem;
+  padding: 3px 4px;
+  cursor: pointer;
+  text-align: left;
+  transition: color .15s, background .15s;
+}
+.timer-add-section[data-collapsed="true"] .timer-add-strip { display: flex; }
+.timer-add-strip:hover, .timer-add-strip:focus-visible {
+  color: rgba(var(--accent-rgb), 1);
+  background: rgba(var(--accent-rgb), .08);
+  outline: none;
+}
+.timer-add-strip-plus {
+  flex-shrink: 0;
+  width: 18px; height: 18px;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(var(--accent-rgb), .18);
+  border: 1px solid rgba(var(--accent-rgb), .4);
+  color: rgba(var(--accent-rgb), 1);
+  font-size: .9rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* The chevron that folds the row away, sitting after the + button. */
+.timer-add-collapse {
+  flex-shrink: 0;
+  width: 24px; height: 30px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 8px;
   color: var(--dim-text);
-  padding: 3px 2px 0;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: color .15s, background .15s;
+}
+.timer-add-collapse svg { width: 17px; height: 17px; fill: currentColor; }
+.timer-add-collapse:hover, .timer-add-collapse:focus-visible {
+  color: var(--text);
+  background: rgba(255,255,255,.07);
+  outline: none;
+}
+
+/* Format hint: the only place the stopwatch (an empty duration) is discoverable,
+   so it stays — but only while the row has focus, i.e. exactly while someone is
+   filling it in. Permanently on screen it was two lines of 11px grey that a
+   Xeneon Edge could not render legibly and nobody needed after the first timer.
+   Shown, it is sized and coloured to be read, not squinted at. */
+.timer-format-hint {
+  font-size: .74rem;
+  line-height: 1.35;
+  color: var(--muted-text);
+  padding: 0 2px;
   letter-spacing: .01em;
   user-select: none;
+  /* Same grid trick as the body: the hint takes no height until it is wanted,
+     so the list below gains the space instead of sitting under a blank gap. */
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  overflow: hidden;
+  transition: grid-template-rows .2s ease, opacity .16s ease, padding .2s ease;
+}
+.timer-format-hint > * { min-height: 0; }
+.timer-add-row:focus-within ~ .timer-format-hint,
+.timer-format-hint:hover {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  padding-top: 5px;
 }
 
 .timer-add-label-input,
