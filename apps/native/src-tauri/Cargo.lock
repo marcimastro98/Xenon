@@ -5204,7 +5204,7 @@ dependencies = [
 
 [[package]]
 name = "xenon-native"
-version = "4.11.6"
+version = "4.11.7"
 dependencies = [
  "serde",
  "serde_json",
