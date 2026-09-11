@@ -4,6 +4,11 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### ✨ Added
+- **A second Discord tile, showing a different tab.** The widget has four tabs — Controls, Channels, Soundboard, Notifications — and only one could be on screen at a time, because only one Discord tile could exist. Asked for by someone who wanted his DM notifications above and the voice-chat controls below, on the same screen.
+
+  It can now be added twice from the **"+"** palette, and **each tile remembers its own open tab**. Both read the same connection to your Discord app, so the second one costs no extra polling — and when either tile is showing Notifications, the unread badge stays where it belongs: at zero.
+
 
 ## [v4.11.8] - 11-09-2026
 ### 🐛 Fixed
