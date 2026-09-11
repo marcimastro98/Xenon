@@ -5683,6 +5683,13 @@ function updateSettingsRange(key, value) {
   saveHubSettings();
   applyHubSettings();
   syncSettingsControls();
+  // A bigger clock makes the minimal island's capsule taller, and the tiles that
+  // sit under it inset themselves by its MEASURED height — so the measurement has
+  // to be retaken or the top row keeps clearing the old pill.
+  if ((key === 'clockScale' || key === 'clockDateScale')
+    && window.TopbarMinimal && typeof window.TopbarMinimal.reflowIsland === 'function') {
+    window.TopbarMinimal.reflowIsland();
+  }
 }
 
 // ── Background FX controls (aurora + grid) ────────────────────────
@@ -8703,6 +8710,11 @@ function updateClockDateFormat(fmt) {
   saveHubSettings();
   syncClockFormatControls();
   if (typeof tickClock === 'function') tickClock();
+  // A shorter date makes the island's capsule narrower, and the tiles beneath it
+  // clear a pill whose width was measured before the change.
+  if (window.TopbarMinimal && typeof window.TopbarMinimal.reflowIsland === 'function') {
+    window.TopbarMinimal.reflowIsland();
+  }
   setSettingsStatus('settings_saved', 'ok');
 }
 

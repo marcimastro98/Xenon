@@ -23,6 +23,7 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const TOPBAR = read('../components/Topbar/Topbar.css');
 const BREAKPOINTS = read('../styles/breakpoints.css');
 const PHONE = read('../components/PhoneView/PhoneView.css');
+const MINI = read('../components/TopbarMinimal/TopbarMinimal.css');
 const SETTINGS = read('../js/settings.js');
 const SERVER = read('../server.js');
 const HTML = read('../index.html');
@@ -183,4 +184,52 @@ test('every language names the date format and its three choices', () => {
     }).length;
     assert.equal(n, LANGS.length, `${key} is defined ${n} times, expected ${LANGS.length}`);
   }
+});
+
+// ── The other bar ───────────────────────────────────────────────────────────
+// There are two top bars, and the minimal island draws its own much smaller
+// clock with its own font sizes. Those sizes outrank the base rule, so a setting
+// that only reached the full bar would do nothing at all for anyone using the
+// island — silently, on the bar they chose.
+
+test('the minimal island scales with the same two multipliers', () => {
+  // Every clock part the island restyles has to go through the multiplier. A
+  // bare `font-size: 19px` here outranks the base rule and silently pins the
+  // island to one size — on the bar somebody deliberately chose.
+  const parts = [
+    ['.clock-h,', '--clock-time-scale'],
+    ['.topbar-mini .clock-sep {', '--clock-time-scale'],
+    ['.topbar-mini .clock-ampm {', '--clock-time-scale'],
+    ['.topbar-mini .clock-date {', '--clock-date-scale'],
+  ];
+  for (const [needle, scale] of parts) {
+    const at = MINI.indexOf(needle);
+    assert.ok(at >= 0, `the island rule containing "${needle}" moved`);
+    const body = MINI.slice(at, MINI.indexOf('}', at));
+    assert.match(body, new RegExp(`font-size: calc\\(var\\(--clock-base\\) \\* var\\(${scale}, 1\\)\\)`),
+      `${needle} is pinned to a fixed size`);
+  }
+  // And nothing in the island sets a plain px font-size on a clock part any more.
+  const bare = [...MINI.matchAll(/\.(clock-h|clock-m|clock-sep|clock-ampm|clock-date)[^{]*\{[^}]*font-size:\s*[\d.]+px/g)];
+  assert.equal(bare.length, 0, `a clock part is still hard-sized: ${bare.map((m) => m[0].slice(0, 40))}`);
+});
+
+test('the island keeps its own smaller starting point', () => {
+  // 19px there against 45px in the full bar: scaling must start from the
+  // island's own size, not inherit the big one.
+  assert.match(MINI, /--clock-base: 19px;/);
+  assert.match(MINI, /--clock-base: 12\.5px;/);
+});
+
+test('a size change re-measures the floating capsule', () => {
+  // The pill floats over the tiles and the ones beneath it inset by its MEASURED
+  // height (reflowIsland). Grow the clock without re-measuring and the top row
+  // keeps clearing a pill that is no longer that size.
+  const fn = SETTINGS.slice(SETTINGS.indexOf('function updateSettingsRange'));
+  const body = fn.slice(0, fn.indexOf('\n}'));
+  assert.match(body, /clockScale' \|\| key === 'clockDateScale'/);
+  assert.match(body, /TopbarMinimal\.reflowIsland\(\)/);
+  // the date format changes the pill's WIDTH, so it needs the same
+  const dfn = SETTINGS.slice(SETTINGS.indexOf('function updateClockDateFormat'));
+  assert.match(dfn.slice(0, dfn.indexOf('\n}')), /TopbarMinimal\.reflowIsland\(\)/);
 });
