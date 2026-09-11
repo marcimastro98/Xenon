@@ -348,6 +348,10 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       try {
         const d = JSON.parse(e.data);
         if (window.Deck) window.Deck.refreshStates({ scriptStates: (d && d.states) || {} });
+        // ...and to sandboxed SDK widgets granted the `scriptStates` stream, so a
+        // widget can react to a state a script set (read-only: a widget publishes
+        // its OWN states with deck.states instead).
+        if (window.CustomWidget) window.CustomWidget.onData('scriptStates', d);
       } catch {}
     });
     es.addEventListener('ha_states', e => {

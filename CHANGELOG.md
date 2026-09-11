@@ -66,9 +66,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
   The key changes face the instant that runs, on the dashboard and in the Virtual Deck together. Send the same name with no value to clear it. The endpoint answers only to the machine it runs on: a web page cannot reach it, and neither can a widget.
 
+  Widgets can follow those states too: the SDK gains a `scriptStates` stream, asked for in the manifest and granted by the user like any other ("States your own scripts set"). Reading only — a widget publishes states of its own with `deck.states`, which are declared and namespaced, so no package can overwrite a name belonging to another one or to your script.
+
 - **The date in the top bar can be shortened, too.** It always spelled the day out in full — *Friday, 11 September* — which is a lot of bar once you have made it bigger. **Settings → Dynamic Island → Clock → Date format** now offers *Full*, *Medium* (*Fri 11 Sep*) and *Short* (*11/09*).
 
   Each one is asked of the system rather than cut out of the long version, so every language gets the short form it actually uses — American English even swaps the halves, and writes 09/11.
+
+  Widgets follow it as well. The time format beside it has reached them since v4.11.7; the date format now travels the same way (`theme.dateFormat`, re-pushed the moment you change it), so a widget printing a date is not the one thing on screen still spelling out the whole weekday.
 
 - **The clock and the date in the top bar can be made bigger.** Asked for by someone who wanted to read the date from across the room: the top bar offered a time format and nothing else, and the date was a fixed size no theme could touch. **Settings → Dynamic Island → Clock** now has two sliders beside the format — one for the time, one for the date — from 80% to 200%.
 

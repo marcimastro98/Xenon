@@ -212,6 +212,19 @@ than the manifest requested):
     // present on every `theme` refresh, so a live toggle updates without a
     // reload.
     clock12: false,
+    // How much of the DATE the user wants spelled out — Settings → Clock →
+    // Date format: 'full' (Friday, 11 September), 'medium' (Fri 11 Sep) or
+    // 'short' (11/09). A NAME, not a formatted string: ask Intl for that shape
+    // in your own locale rather than cutting a long date apart, which produces
+    // nonsense in most of the eleven languages Xenon speaks. Since v4.11.8, and
+    // re-pushed with every `theme` refresh like clock12:
+    //   const SHAPES = {
+    //     full:   { weekday: 'long',  day: '2-digit', month: 'long' },
+    //     medium: { weekday: 'short', day: 'numeric', month: 'short' },
+    //     short:  { day: '2-digit', month: '2-digit' },
+    //   };
+    //   new Intl.DateTimeFormat(lang, SHAPES[theme.dateFormat] || SHAPES.full).format(d)
+    dateFormat: 'full',
     // Explicit per-tile role overrides, empty for the global palette:
     overrides: ['accent', 'panel'],
     // Flat legacy aliases remain available:
@@ -693,6 +706,45 @@ Worth handling in anything that prints a temperature: a monitor widget showing
 °C on a dashboard where the clock, the weather and the lock screen all say °F is
 wrong in a way its author cannot see from their own machine. There is no
 permission here — it says nothing about the user except which unit they read.
+
+### 3d-ter. States your scripts set — `scriptStates` (v4.11.8)
+
+Xenon has a named-value store any program on the machine can write to with one
+HTTP call, so a Deck key can mirror something Xenon has no integration for (see
+DEVELOPER.md → *Deck script states*). The user's shell, `.bat`, AppleScript or
+Python does this:
+
+```bash
+curl -X POST 127.0.0.1:3030/state/set \
+     -H 'Content-Type: application/json' \
+     -d '{"name":"audio-out","value":"speakers"}'
+```
+
+Request the `scriptStates` stream and your widget sees the same values:
+
+```js
+// { xenonSdk: 1, type: 'data', stream: 'scriptStates', data: { states: { … } } }
+if (m.type === 'data' && m.stream === 'scriptStates') {
+  render(m.data.states['audio-out'] || '');   // 'speakers' | 'headphones' | undefined
+}
+```
+
+Values are strings (≤ 200 chars); a name the script cleared is simply absent.
+The map is pushed on every change **and once when your frame is granted the
+stream**, empty map included — so an empty `states` means "nothing is set", not
+"not told yet", and you never have to guess on a cold start.
+
+**Read-only, by design.** There is no bridge message to WRITE one, and
+`/state/set` refuses any call from a page or a sandboxed iframe (its opaque
+origin reads as cross-site), so a widget cannot set one even by trying. That
+store is shared and unnamespaced: one package writing `audio-out` would silently
+fight another package — and the user's own script — over the same name. Your
+package publishes **its own** states with `deck.states` instead (see §8), which
+are declared in the manifest, namespaced `your-pkg/state-id`, and bindable to a
+Deck key in exactly the same way.
+
+So: `deck.states` to publish what *your widget* knows; `scriptStates` to react to
+what the *user's scripts* know.
 
 ### 3e. Reading Spotify — `spotifyQuery` (v4.11.8)
 
@@ -1633,7 +1685,7 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `processes`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
+**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `processes`, `scriptStates`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 
