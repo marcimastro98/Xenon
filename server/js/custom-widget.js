@@ -155,6 +155,7 @@
     notes: ['cw_stream_notes', 'Your notes'],
     agenda: ['cw_stream_agenda', 'Your calendar events'],
     weather: ['cw_stream_weather', 'Weather conditions & forecast'],
+    scriptStates: ['cw_stream_scriptstates', 'States your own scripts set (see them, not set them)'],
   };
   const ACTION_LABELS = {
     media: ['cw_act_media', 'Control media playback'],
@@ -465,6 +466,13 @@
     // dashboard instead of hard-coding 24h. Sent on init AND on refreshTheme, so
     // toggling the format in Settings updates a live widget without a reload.
     const clock12 = (typeof clockUses12h === 'function') ? clockUses12h() : false;
+    // ...and how much of the DATE the user wants spelled out (v4.11.8's Settings
+    // → Clock → Date format). Same reason as clock12: a widget that prints a date
+    // beside a dashboard set to "Fri 11 Sep" should not be the one thing on
+    // screen writing "Friday, 11 September". A NAME, not a formatted string: the
+    // widget asks Intl for that shape in its own locale, because slicing a long
+    // date apart produces nonsense in ten of the eleven languages Xenon speaks.
+    const dateFormat = (typeof clockDateShape === 'function') ? clockDateShape() : 'full';
     let p = (typeof window.getEffectiveThemePalette === 'function')
       ? window.getEffectiveThemePalette()
       : null;
@@ -530,7 +538,7 @@
         // that follows the user's panel opacity, and the raw 0..1 factor.
         surfaceSoft: p.surfaceSoft || null, panelAlpha: (typeof p.panelAlpha === 'number' ? p.panelAlpha : null),
       };
-      return { appearance: p.tone, skin: skinMode(), overrides, clock12, ...palette, palette };
+      return { appearance: p.tone, skin: skinMode(), overrides, clock12, dateFormat, ...palette, palette };
     }
     return {
       appearance: surfaceAppearance(),
@@ -539,6 +547,7 @@
       background: typeof hs.background === 'string' ? hs.background : '#070808',
       text: typeof hs.text === 'string' ? hs.text : '#f0f3f1',
       clock12,
+      dateFormat,
     };
   }
   function langCode() {
@@ -2586,7 +2595,7 @@
   // when at least one listed widget falls in it, so tapping one can never empty
   // the list on its own.
   const PICK_CATS = [
-    { id: 'system', key: 'cw_cat_system', fb: 'System', streams: ['status', 'system', 'battery', 'processes'] },
+    { id: 'system', key: 'cw_cat_system', fb: 'System', streams: ['status', 'system', 'battery', 'processes', 'scriptStates'] },
     { id: 'media', key: 'cw_cat_media', fb: 'Media', streams: ['media', 'audio', 'audioLevels', 'wavelink', 'voicemeeter'] },
     { id: 'stream', key: 'cw_cat_stream', fb: 'Streaming', streams: ['obs', 'streamerbot', 'discord', 'discordChannels', 'discordSoundboard', 'discordNotifications', 'twitchWatch', 'twitchChat', 'youtubeLive'] },
     { id: 'info', key: 'cw_cat_info', fb: 'Info', streams: ['weather', 'stocks', 'football', 'news'] },

@@ -20244,8 +20244,11 @@ const handleRequest = async (req, res) => {
     try { if (Object.keys(_sdkDeckStates.states).length) res.write(`event: sdk_states\ndata: ${JSON.stringify(_sdkDeckStates)}\n\n`); } catch (e) { /* ignore */ }
     // Same reason: a surface that connects AFTER a script set a state would
     // otherwise draw its key dark until the next change, which for a state that
-    // changes twice a day is most of the day.
-    try { if (Object.keys(_scriptStates.states).length) res.write(`event: script_states\ndata: ${JSON.stringify(_scriptStates)}\n\n`); } catch (e) { /* ignore */ }
+    // changes twice a day is most of the day. Sent even when the map is EMPTY,
+    // unlike the relayed SDK states above: a widget granted the `scriptStates`
+    // stream has no other way to tell "nothing is set" from "not told yet", and
+    // an empty map is one short line per connection.
+    try { res.write(`event: script_states\ndata: ${JSON.stringify(_scriptStates)}\n\n`); } catch (e) { /* ignore */ }
 
   } else {
     res.writeHead(404); res.end();
