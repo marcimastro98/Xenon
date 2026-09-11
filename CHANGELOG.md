@@ -46,6 +46,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
 ### ✨ Added
+- **A Deck key can now follow a state set by any script on your PC.** Keys have always been able to show a second face — a different icon, label and colour — while something is on, but only for the sixteen things Xenon watches itself: the mic, OBS, a Home Assistant entity, a widget's published state. Anything else on the machine was invisible to them.
+
+  Asked for by someone with an AppleScript that swaps between two audio outputs, who wanted the key to show which output was live.
+
+  There is now a seventeenth source: **Reflect a script state**, in the key editor. Give the state a name, give the key its second face, and end your script — `.bat`, PowerShell, AppleScript, Python, anything — with one line:
+
+  ```
+  curl -X POST 127.0.0.1:3030/state/set -H "Content-Type: application/json" -d '{"name":"audio-out","value":"speakers"}'
+  ```
+
+  The key changes face the instant that runs, on the dashboard and in the Virtual Deck together. Send the same name with no value to clear it. The endpoint answers only to the machine it runs on: a web page cannot reach it, and neither can a widget.
+
 - **The date in the top bar can be shortened, too.** It always spelled the day out in full — *Friday, 11 September* — which is a lot of bar once you have made it bigger. **Settings → Dynamic Island → Clock → Date format** now offers *Full*, *Medium* (*Fri 11 Sep*) and *Short* (*11/09*).
 
   Each one is asked of the system rather than cut out of the long version, so every language gets the short form it actually uses — American English even swaps the halves, and writes 09/11.

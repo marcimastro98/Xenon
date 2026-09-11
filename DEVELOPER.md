@@ -252,6 +252,29 @@ All endpoints are served from `127.0.0.1:3030`. The server validates the `Host`/
 | `PATCH` | `/api/timers/:id` | `{ action: "pause" \| "resume" \| "reset" }`. |
 | `DELETE` | `/api/timers/:id` | Delete. |
 
+### Deck script states
+
+A named value any local script can set, so a Deck key can mirror something Xenon
+has no integration for. Bind a key to the `scriptState` source (Deck key editor →
+*Reflect a script state*) with that name, give it an alternate ON face, and the
+key follows the script. `POST /state/set` is on the CSRF-sensitive list: a page
+or a sandboxed widget iframe cannot reach it, a local shell can.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/state/set` | `{ name, value }` set a named state (max 64 names, 200 chars per value; name `[A-Za-z0-9][A-Za-z0-9_.-]{0,63}`). Omit `value` or send `null` to clear it. |
+| `GET`  | `/state/get` | Read back every state currently set. |
+
+```bash
+curl -X POST 127.0.0.1:3030/state/set \
+     -H 'Content-Type: application/json' \
+     -d '{"name":"audio-out","value":"speakers"}'
+```
+
+Every change broadcasts the `script_states` SSE event (and the current map is
+seeded on connect), so the dashboard deck and the Virtual Deck popup repaint
+together.
+
 ### Xenon AI
 
 | Method | Endpoint | Purpose |
@@ -307,7 +330,7 @@ Both upgrade on the same server and are rejected unless the request passes the l
 
 ### SSE events
 
-`GET /sse` pushes named events: `status`, `media`, `system`, `audio`, `wake_word`, `timer_update`, `timer_done`, `stop_session`, plus integration streams such as `homeassistant`, `streamerbot_event`, and notification events for the Notifications tile. Do not remove or rename `/sse` without updating `main.js` and the broadcast timers at the end of `server.js`.
+`GET /sse` pushes named events: `status`, `media`, `system`, `audio`, `wake_word`, `timer_update`, `timer_done`, `stop_session`, `script_states`, plus integration streams such as `homeassistant`, `streamerbot_event`, and notification events for the Notifications tile. Do not remove or rename `/sse` without updating `main.js` and the broadcast timers at the end of `server.js`.
 
 ---
 

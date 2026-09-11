@@ -1710,6 +1710,51 @@ function sdkHandlerShutdown() {
 // per-value cap MUST match onBridgeState's 200-char cap in custom-widget.js or
 // a value-equality sdkState binding matches on the dashboard but not in the popup.
 const SDK_DECK_STATES_MAX = 256;
+// ── Script states: a Deck key that mirrors something Xenon cannot see ───────
+// Deck keys light up from sixteen things Xenon knows about — the mic, OBS, Home
+// Assistant, a widget's published state. What they could not do is mirror
+// anything ELSE on the machine: asked on Discord by someone with an AppleScript
+// that swaps between two audio outputs, who wanted the key to carry a different
+// icon per output. The key already supports two faces (deck-model.js
+// `stateStyle`); what was missing was something to tell it which side it is on.
+//
+// So: a named value any local script can set, and any key can bind to. The
+// AppleScript ends with one curl and the icon follows.
+//
+// A SEPARATE store from the SDK one on purpose. /sdk/deck-states is a full-map
+// MIRROR of what the widgets in the dashboard page are publishing — it replaces
+// the map on every relay — so a script writing into it would erase every widget
+// state and be erased right back on the next relay. These merge instead, and
+// nothing else writes here.
+const SCRIPT_STATES_MAX = 64;
+const SCRIPT_STATE_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
+const _scriptStates = { states: {} };
+let _scriptStatesLast = '';
+
+// Set or clear one named value. A null/absent value REMOVES it, so a script can
+// tidy up after itself rather than leaving a key lit forever. Returns the reason
+// it refused, or '' on success.
+function setScriptState(name, value) {
+  const key = String(name == null ? '' : name).trim();
+  if (!SCRIPT_STATE_NAME_RE.test(key)) return 'bad_name';
+  if (value == null || value === '') {
+    if (!Object.hasOwn(_scriptStates.states, key)) return '';
+    delete _scriptStates.states[key];
+  } else {
+    // A new name past the cap is refused; an existing one may always be updated,
+    // or a full map would freeze at whatever happened to fill it first.
+    if (!Object.hasOwn(_scriptStates.states, key)
+      && Object.keys(_scriptStates.states).length >= SCRIPT_STATES_MAX) return 'too_many';
+    _scriptStates.states[key] = String(value).slice(0, 200);
+  }
+  const sig = JSON.stringify(_scriptStates);
+  if (sig !== _scriptStatesLast) {
+    _scriptStatesLast = sig;
+    broadcastSSE('script_states', _scriptStates);
+  }
+  return '';
+}
+
 const _sdkDeckStates = { states: {}, meta: {} };
 let _sdkDeckStatesLast = '';   // change guard: identical relays don't rebroadcast
 function acceptSdkDeckStates(body) {
@@ -13198,7 +13243,7 @@ const handleRequest = async (req, res) => {
   // accepts `Origin: null` (Qt WebEngine) — so a hostile page's sandboxed iframe
   // (opaque origin → Origin: null) could otherwise reach them. Prefix match:
   // /sdk/hook carries a /<pkg>/<id> tail. Loopback tools send no Sec-Fetch-Site.
-  const isSdkSensitive = reqPath === '/sdk/fetch' || reqPath.startsWith('/sdk/hook/') || reqPath === '/sdk/handler-ack' || reqPath === '/sdk/deck-states' || reqPath === '/sdk/store' || reqPath === '/sdk/secret';
+  const isSdkSensitive = reqPath === '/sdk/fetch' || reqPath.startsWith('/sdk/hook/') || reqPath === '/sdk/handler-ack' || reqPath === '/sdk/deck-states' || reqPath === '/sdk/store' || reqPath === '/sdk/secret' || reqPath === '/state/set';
   // Pack DELETE carries a /<id> tail (not an exact CSRF_MUTATION_PATHS entry),
   // so guard it by prefix — the same belt-and-suspenders the POST installs get,
   // so an Origin:null iframe can never remove a user's installed packs even if
@@ -19366,6 +19411,29 @@ const handleRequest = async (req, res) => {
       json({ ok: true, matched: sdkHandlerAck(body.callId, body.ok !== false, body.error) });
     } catch (e) { json({ ok: false, error: (e && e.message) || 'bad_request' }); }
 
+  } else if (reqPath === '/state/set' && req.method === 'POST') {
+    // Local scripts only. On the CSRF-sensitive list below, which refuses any
+    // cross-site fetch and any top-level navigation — so a page cannot reach it
+    // and neither can a sandboxed widget iframe (origin null reads as
+    // cross-site). A shell has no Sec-Fetch headers at all and is allowed.
+    //
+    //   curl -X POST 127.0.0.1:3030/state/set \
+    //        -H 'Content-Type: application/json' \
+    //        -d '{"name":"audio-out","value":"speakers"}'
+    //
+    // Omit `value` (or send null) to clear it.
+    try {
+      const body = JSON.parse(await readBody(req, 4096) || '{}');
+      const err = setScriptState(body.name, body.value);
+      if (err) { json({ ok: false, error: err }); return; }
+      json({ ok: true, states: _scriptStates.states });
+    } catch (e) { json({ ok: false, error: (e && e.message) || 'bad_request' }); }
+
+  } else if (reqPath === '/state/get' && req.method === 'GET') {
+    // So a script can read back what it set (and a person can check their curl
+    // landed) without opening the dashboard.
+    json({ ok: true, states: _scriptStates.states });
+
   } else if (reqPath === '/sdk/deck-states' && req.method === 'POST') {
     // The HOST page mirrors widget-published deck states here so the Virtual
     // Deck popup (no widget frames) can light sdkState keys. POST-only JSON
@@ -20169,6 +20237,10 @@ const handleRequest = async (req, res) => {
     // And the relayed SDK deck states, so a fresh Virtual Deck popup paints its
     // sdkState keys without waiting for the next widget state change.
     try { if (Object.keys(_sdkDeckStates.states).length) res.write(`event: sdk_states\ndata: ${JSON.stringify(_sdkDeckStates)}\n\n`); } catch (e) { /* ignore */ }
+    // Same reason: a surface that connects AFTER a script set a state would
+    // otherwise draw its key dark until the next change, which for a state that
+    // changes twice a day is most of the day.
+    try { if (Object.keys(_scriptStates.states).length) res.write(`event: script_states\ndata: ${JSON.stringify(_scriptStates)}\n\n`); } catch (e) { /* ignore */ }
 
   } else {
     res.writeHead(404); res.end();
