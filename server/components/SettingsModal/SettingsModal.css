@@ -1540,6 +1540,34 @@ input[type="range"] { accent-color: var(--green); }
   padding-top: 6px;
   border-top: 1px solid rgba(255,255,255,0.07);
 }
+
+/* ── A short screen: one scroller, not a list squeezed under a fixed block ──
+   The pane above is a scrolling category list with the support block, the
+   update button, the platform card and the version pinned under it. That split
+   is right on a tall screen and upside down on a short one, because the pinned
+   half never shrinks: measured on a Xeneon Edge (2560x720), the pane is 549px,
+   the footer takes 337px of it, and the 27 categories are left scrolling
+   through a 206px window - four and a half rows. Reported from an Edge, where
+   picking a settings category meant scrolling a strip.
+
+   Here the pane scrolls as ONE column: the categories keep their natural
+   height, the footer follows them at the end, and nothing is pinned. The same
+   move the phone breakpoint below already makes, for the same reason.
+
+   Keyed on height alone, so it catches every screen with the problem - the Edge
+   at either of its zoom levels, and a 1366x768 laptop, where the squeeze is the
+   same and nobody had reported it yet. */
+@media (max-height: 820px) {
+  .settings-nav { overflow-y: auto; }
+  .settings-nav-scroll {
+    /* Not `flex: 1` any more: it must take the height its rows need and let the
+       pane do the scrolling, or the list keeps its own window inside a scroller
+       and neither of them shows more than before. */
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+  .settings-nav-footer { margin-top: 10px; }
+}
 .settings-nav-btn {
   display: flex;
   align-items: center;

@@ -341,6 +341,19 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // tile and the Energy widget (its `energy` selection rides the same event).
       try { const d = JSON.parse(e.data); if (window.SmartHome) window.SmartHome.onSSE(d); if (window.PowerWidget) window.PowerWidget.onHaSSE(d); if (window.CustomWidget) window.CustomWidget.onData('homeassistant', d); } catch {}
     });
+    es.addEventListener('script_states', e => {
+      // States any local script set over POST /state/set — a Deck key bound to
+      // 'scriptState' (and its second face) follows them. Seeded on connect, so
+      // a surface that opens after the script ran still draws the right face.
+      try {
+        const d = JSON.parse(e.data);
+        if (window.Deck) window.Deck.refreshStates({ scriptStates: (d && d.states) || {} });
+        // ...and to sandboxed SDK widgets granted the `scriptStates` stream, so a
+        // widget can react to a state a script set (read-only: a widget publishes
+        // its OWN states with deck.states instead).
+        if (window.CustomWidget) window.CustomWidget.onData('scriptStates', d);
+      } catch {}
+    });
     es.addEventListener('ha_states', e => {
       // Live states for the HA entities Deck keys are bound to (the server
       // watches only the entity set the deck subscribed via /ha/deck-watch).

@@ -20,9 +20,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
-use tauri::{
-    AppHandle, LogicalSize, Manager, Monitor, PhysicalPosition, PhysicalSize, WebviewWindow,
-};
+use tauri::{AppHandle, LogicalSize, Manager, Monitor, PhysicalSize, WebviewWindow};
 
 use crate::prefs;
 use crate::prefs::Placement;
@@ -308,6 +306,78 @@ fn window_is_on(window: &WebviewWindow, monitor: &Monitor) -> bool {
     }
 }
 
+/// ── Monitor geometry, in the units the WINDOW will read it back in ──────────
+///
+/// `Monitor::position()` and `Monitor::size()` are built with the scale factor of
+/// the monitor being asked about. `set_position` and `set_size` convert whatever
+/// they are given with the scale factor of the display the window is on RIGHT
+/// NOW. On Windows and Linux both are physical pixels and the two agree. On macOS
+/// they are two different numbers the moment the screens differ — a Retina main
+/// display beside a 1× Xeneon Edge — and the mismatch is silent, because nothing
+/// fails: asking for the Edge's origin (1512, 0) while the window still sits on a
+/// 2× screen lands it at (756, 0), which is a point INSIDE the main display. The
+/// window never leaves it, and the kiosk that was supposed to own the panel stays
+/// a window on the other screen.
+///
+/// Reported by the first person to run Xenon on a Mac with an Edge attached: the
+/// panel was detected, tagged "Xeneon Edge" in the picker and chosen, and the
+/// dashboard opened as a window on his main display anyway — which is what makes
+/// this worth a helper rather than a cast at each call site. It is every screen,
+/// not only the Edge: moving the dashboard to ANY second display with a different
+/// backing scale had the same fate.
+///
+/// So on macOS everything is expressed in LOGICAL units, which pass through that
+/// conversion unchanged and therefore mean the same thing on either display.
+/// Elsewhere the physical values are already right and mixed-DPI Windows depends
+/// on them, so nothing about those platforms changes.
+struct MonitorRect {
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+}
+
+fn monitor_rect(monitor: &Monitor) -> MonitorRect {
+    let p = monitor.position();
+    let s = monitor.size();
+    // The one line that differs per platform, kept here so every caller below is
+    // written once and reads the same on all three.
+    #[cfg(target_os = "macos")]
+    let k = 1.0 / monitor.scale_factor().max(1.0);
+    #[cfg(not(target_os = "macos"))]
+    let k = 1.0;
+    MonitorRect {
+        x: p.x as f64 * k,
+        y: p.y as f64 * k,
+        w: s.width as f64 * k,
+        h: s.height as f64 * k,
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn point(x: f64, y: f64) -> tauri::Position {
+    tauri::Position::Logical(tauri::LogicalPosition::new(x, y))
+}
+#[cfg(not(target_os = "macos"))]
+fn point(x: f64, y: f64) -> tauri::Position {
+    tauri::Position::Physical(tauri::PhysicalPosition::new(
+        x.round() as i32,
+        y.round() as i32,
+    ))
+}
+
+#[cfg(target_os = "macos")]
+fn extent(w: f64, h: f64) -> tauri::Size {
+    tauri::Size::Logical(LogicalSize::new(w.max(1.0), h.max(1.0)))
+}
+#[cfg(not(target_os = "macos"))]
+fn extent(w: f64, h: f64) -> tauri::Size {
+    tauri::Size::Physical(PhysicalSize::new(
+        w.max(1.0).round() as u32,
+        h.max(1.0).round() as u32,
+    ))
+}
+
 /// Move the kiosk window onto the Edge and make it borderless full-screen there.
 ///
 /// Fullscreen follows the monitor the window sits on, so we must drop fullscreen,
@@ -325,14 +395,14 @@ fn window_is_on(window: &WebviewWindow, monitor: &Monitor) -> bool {
 /// (the case the topology check exists for) without ever stealing focus from
 /// another app.
 fn place_on_edge(window: &WebviewWindow, edge: &Monitor, focus: bool) {
-    let origin: PhysicalPosition<i32> = *edge.position();
+    let rect = monitor_rect(edge);
     let _ = window.set_fullscreen(false);
     // Enforce the kiosk chrome: borderless and hidden from the taskbar/Alt-Tab, so
     // that upgrading a windowed session (no Edge → Edge plugged in) becomes a full
     // kiosk, not just a full-screen window with a title bar.
     let _ = window.set_decorations(false);
     let _ = window.set_skip_taskbar(true);
-    let _ = window.set_position(origin);
+    let _ = window.set_position(point(rect.x, rect.y));
     enter_borderless_fullscreen(window, edge);
     if focus {
         let _ = window.set_focus();
@@ -350,10 +420,11 @@ fn place_on_edge(window: &WebviewWindow, edge: &Monitor, focus: bool) {
 /// being moved into a Space of its own.
 #[cfg(target_os = "macos")]
 fn enter_borderless_fullscreen(window: &WebviewWindow, monitor: &Monitor) {
-    let _ = window.set_size(*monitor.size());
+    let rect = monitor_rect(monitor);
+    let _ = window.set_size(extent(rect.w, rect.h));
     // Position again AFTER the resize: growing a window near a screen edge can
     // let AppKit nudge it back inside the previous frame.
-    let _ = window.set_position(*monitor.position());
+    let _ = window.set_position(point(rect.x, rect.y));
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -479,7 +550,8 @@ fn place_windowed_on(window: &WebviewWindow, monitor: &Monitor) {
     let _ = window.set_skip_taskbar(false);
     let _ = window.set_size(windowed_size_for(monitor));
     // Sit on the target monitor, then centre within it.
-    let _ = window.set_position(*monitor.position());
+    let rect = monitor_rect(monitor);
+    let _ = window.set_position(point(rect.x, rect.y));
     let _ = window.center();
     let _ = window.set_focus();
 }
@@ -492,7 +564,8 @@ fn place_fullscreen_on(window: &WebviewWindow, monitor: &Monitor) {
     let _ = window.set_fullscreen(false);
     let _ = window.set_decorations(true);
     let _ = window.set_skip_taskbar(false);
-    let _ = window.set_position(*monitor.position());
+    let rect = monitor_rect(monitor);
+    let _ = window.set_position(point(rect.x, rect.y));
     let _ = window.set_fullscreen(true);
     let _ = window.set_focus();
 }
@@ -934,14 +1007,19 @@ pub fn enter_home(window: &WebviewWindow) {
     let _ = window.set_shadow(false);
     let mut diameter = HOME_BTN_DIAMETER;
     if let Some(monitor) = target {
-        let origin: PhysicalPosition<i32> = *monitor.position();
-        let size = monitor.size();
-        diameter = HOME_BTN_DIAMETER.min(size.width).min(size.height);
-        let _ = window.set_size(PhysicalSize::new(diameter, diameter));
+        // Same units the placement helpers use, for the same reason: on macOS an
+        // origin taken from one screen's scale factor and applied under another's
+        // lands the button on the wrong display entirely.
+        let rect = monitor_rect(&monitor);
+        diameter = HOME_BTN_DIAMETER
+            .min(rect.w.max(1.0) as u32)
+            .min(rect.h.max(1.0) as u32);
+        let d = diameter as f64;
+        let _ = window.set_size(extent(d, d));
         // Centred horizontally, a small gap below the top, so the taskbar at the
         // bottom stays uncovered and the round button reads as floating.
-        let x = origin.x + ((size.width - diameter) / 2) as i32;
-        let _ = window.set_position(PhysicalPosition::new(x, origin.y + HOME_BTN_TOP_MARGIN));
+        let x = rect.x + (rect.w - d) / 2.0;
+        let _ = window.set_position(point(x, rect.y + HOME_BTN_TOP_MARGIN as f64));
     }
     // Clip to a circle only AFTER the window is sized, so the region matches.
     #[cfg(windows)]

@@ -9,6 +9,7 @@
 // handler armed after the throw would never see it. See startup-log.js for why
 // this process was the last of the three that could still die without a word.
 const startupLog = require('./startup-log');
+const osTheme = require('./os-theme');
 startupLog.install();
 const http = require('http');
 const { execFile, spawn } = require('child_process');
@@ -48,6 +49,11 @@ const signalrgb = require('./signalrgb');
 // titles, so the game detector also gets PresentMon's busiest flip-model
 // presenter as a hint — when it matches the focused window, that's a game.
 gameDetect.setGameHint(() => fpsMonitor.getGamingProcess());
+// …and the other way: PresentMon sees every presenter on the machine, so it asks
+// which window is in front before deciding which one is the game. Wired here
+// rather than by requiring across, because these two modules already read each
+// other and a require cycle is how that ends badly.
+try { fpsMonitor.setForegroundPid(() => gameDetect.getForegroundPid()); } catch { /* platform without one */ }
 const lighting = require('./lighting');
 const icueSdkInstall = require('./icue-sdk-install');
 const deckStore = require('./js/deck-store'); // pure per-instance Deck merge helpers (shared with the client + tests)
@@ -1501,6 +1507,31 @@ function sdkGrantsFor(pkgId) {
 // writes are atomic + change-driven.
 const SDK_STORE_DIR = path.join(DATA_DIR, 'widget-store');
 const SDK_SECRETS_DIR = path.join(DATA_DIR, 'widget-secrets');
+// Widget artwork, kept across restarts (GET /sdk/asset/…). Bounded per package
+// and in total, swept on a timer; see sdk-asset-cache.js for why the bound is
+// the feature rather than a detail of it.
+const SDK_ASSETS_DIR = path.join(DATA_DIR, 'widget-assets');
+const sdkAssetCache = require('./sdk-asset-cache');
+const sdkAssets = sdkAssetCache.createAssetStore({ root: SDK_ASSETS_DIR });
+// Hourly, and once shortly after boot: expiry, orphans and the total cap are
+// all things no single request can see. Unref'd, so it never holds the process
+// open, and it runs whether or not anyone is looking at a dashboard - a cache
+// that only shrinks while in use is not bounded.
+async function _sweepSdkAssets() {
+  try {
+    // An uninstalled widget must not leave its artwork on the disk. Done here
+    // rather than in the uninstall path on purpose: a cache that is only
+    // cleaned when the tidy path runs is not cleaned after a crash, a manual
+    // folder delete, or a restore from a backup taken on another machine.
+    const scan = await sdkPackagesCached().catch(() => null);
+    if (scan && Array.isArray(scan.packages)) {
+      await sdkAssets.dropPackages(scan.packages.map((p) => p.id)).catch(() => {});
+    }
+    await sdkAssets.sweep();
+  } catch { /* a sweep that fails is retried on the next tick */ }
+}
+{ const t = setTimeout(_sweepSdkAssets, 60_000); t.unref && t.unref(); }
+{ const t = setInterval(_sweepSdkAssets, 60 * 60 * 1000); t.unref && t.unref(); }
 const _sdkStoreCache = new Map();     // namespace → map (lazy, kept in sync on write)
 const _sdkSecretCache = new Map();    // pkgId → map
 // A namespace ('g:<group>' or '<pkgId>') → a Windows-safe filename. The colon in
@@ -1602,14 +1633,19 @@ function sdkTileGate(pkgId) {
 
 // Fetch (or coalesce onto an in-flight fetch of) one tile through the hardened
 // proxy. Resolves { contentType, buffer } for an image, or throws.
-function sdkTileFetch(url) {
+function sdkTileFetch(url, opts) {
+  // `memoryCache: false` is the artwork path: it keeps its answer on disk, and
+  // filling the small tile LRU with covers would evict the tiles a map is
+  // actively panning through. Coalescing is shared either way — two widgets
+  // asking for the same cover at once is exactly when it matters.
+  const memoryCache = !(opts && opts.memoryCache === false);
   const inflight = _sdkTileInflight.get(url);
   if (inflight) return inflight;
   const p = (async () => {
     const r = await sdkProxy.proxyFetch({ url, method: 'GET', headers: {}, body: '' });
     const ct = String(r.contentType || '');
     if ((r.status || 0) >= 400 || !/^image\//i.test(ct)) { const e = new Error('not_a_tile'); e.status = r.status; throw e; }
-    sdkTileCachePut(url, ct, r.buffer);
+    if (memoryCache) sdkTileCachePut(url, ct, r.buffer);
     return { contentType: ct, buffer: r.buffer };
   })().finally(() => { _sdkTileInflight.delete(url); });
   _sdkTileInflight.set(url, p);
@@ -1674,6 +1710,51 @@ function sdkHandlerShutdown() {
 // per-value cap MUST match onBridgeState's 200-char cap in custom-widget.js or
 // a value-equality sdkState binding matches on the dashboard but not in the popup.
 const SDK_DECK_STATES_MAX = 256;
+// ── Script states: a Deck key that mirrors something Xenon cannot see ───────
+// Deck keys light up from sixteen things Xenon knows about — the mic, OBS, Home
+// Assistant, a widget's published state. What they could not do is mirror
+// anything ELSE on the machine: asked on Discord by someone with an AppleScript
+// that swaps between two audio outputs, who wanted the key to carry a different
+// icon per output. The key already supports two faces (deck-model.js
+// `stateStyle`); what was missing was something to tell it which side it is on.
+//
+// So: a named value any local script can set, and any key can bind to. The
+// AppleScript ends with one curl and the icon follows.
+//
+// A SEPARATE store from the SDK one on purpose. /sdk/deck-states is a full-map
+// MIRROR of what the widgets in the dashboard page are publishing — it replaces
+// the map on every relay — so a script writing into it would erase every widget
+// state and be erased right back on the next relay. These merge instead, and
+// nothing else writes here.
+const SCRIPT_STATES_MAX = 64;
+const SCRIPT_STATE_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
+const _scriptStates = { states: {} };
+let _scriptStatesLast = '';
+
+// Set or clear one named value. A null/absent value REMOVES it, so a script can
+// tidy up after itself rather than leaving a key lit forever. Returns the reason
+// it refused, or '' on success.
+function setScriptState(name, value) {
+  const key = String(name == null ? '' : name).trim();
+  if (!SCRIPT_STATE_NAME_RE.test(key)) return 'bad_name';
+  if (value == null || value === '') {
+    if (!Object.hasOwn(_scriptStates.states, key)) return '';
+    delete _scriptStates.states[key];
+  } else {
+    // A new name past the cap is refused; an existing one may always be updated,
+    // or a full map would freeze at whatever happened to fill it first.
+    if (!Object.hasOwn(_scriptStates.states, key)
+      && Object.keys(_scriptStates.states).length >= SCRIPT_STATES_MAX) return 'too_many';
+    _scriptStates.states[key] = String(value).slice(0, 200);
+  }
+  const sig = JSON.stringify(_scriptStates);
+  if (sig !== _scriptStatesLast) {
+    _scriptStatesLast = sig;
+    broadcastSSE('script_states', _scriptStates);
+  }
+  return '';
+}
+
 const _sdkDeckStates = { states: {}, meta: {} };
 let _sdkDeckStatesLast = '';   // change guard: identical relays don't rebroadcast
 function acceptSdkDeckStates(body) {
@@ -4448,14 +4529,25 @@ async function _getNetworkInfoRaw() {
 
   // Prefer PresentMon's real in-game FPS (works in exclusive fullscreen);
   // fall back to the PowerShell DWM/LHM reading when it isn't available.
-  let fps = null;
-  try { fps = fpsMonitor.getCurrentFps(); } catch { fps = null; }
+  //
+  // `fps` is the frame rate the person is SEEING — display-side where the
+  // capture carries it. `presentFps` and `displayFps` are the two halves, which
+  // frame generation pulls apart: with DLSS FG at x2 one game presented 223
+  // frames a second and displayed 152, and every other overlay on the screen
+  // said ~155. Either half can be null on its own (the DWM fallback and MangoHud
+  // report one number, not two), and a widget should draw `fps` unless it
+  // specifically wants to show the difference.
+  let detail = null;
+  try { detail = fpsMonitor.getFpsDetail(); } catch { detail = null; }
+  let fps = detail ? detail.fps : null;
   if (fps == null) fps = data.fps ?? null;
 
   return {
     ping: data.ping ?? null,
     latency: data.latency ?? null,
     fps,
+    presentFps: (detail && detail.presentFps != null) ? detail.presentFps : null,
+    displayFps: (detail && detail.displayFps != null) ? detail.displayFps : null,
     gpuLatency: data.gpuLatency ?? null,
     downloadBps: downBps,
     uploadBps: upBps,
@@ -7665,6 +7757,10 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
   calendarTabs: Object.freeze({ order: ['calendar', 'tasks', 'timer'], active: 'calendar' }),
   mediaView: Object.freeze({ active: 'media' }),
   topbarHidden: false,
+  // Mirrors js/settings.js — the Timer widget's add row folded to a strip. A
+  // field missing from THIS copy is silently dropped on save, so the flag would
+  // never survive a reload.
+  timerAddCollapsed: false,
 });
 
 const CALENDAR_FEED_PALETTE = Object.freeze(['#1ed760', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#14b8a6']);
@@ -7716,6 +7812,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   uiRoundness: 1,
   glassBlur: 22,
   glassSaturate: 160,
+  clockScale: 1,
+  clockDateScale: 1,
+  clockDateFormat: 'full',
   panelBorderStrength: 1,
   panelShadowStrength: 1,
   mutedText: null,
@@ -7780,6 +7879,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // did — the list simply took the next five, wherever they landed.
   upcomingCount: 5,
   upcomingDays: 0,
+  upcomingColumns: 0,
   swipeNavigation: true, // drag / finger-swipe to change dashboard page
   // Native app only: quick up-swipe from the bottom of the screen collapses the
   // kiosk to a slim strip and reveals the Windows desktop (native-bridge.js).
@@ -8508,6 +8608,7 @@ function normalizeDashboardLayout(value) {
   layout.calendarTabs = normalizeCalendarTabs(source.calendarTabs);
   layout.mediaView = normalizeMediaView(source.mediaView);
   layout.topbarHidden = source.topbarHidden === true;
+  layout.timerAddCollapsed = source.timerAddCollapsed === true;
   layout.gridCols = DASHBOARD_GRID_COLUMNS;  // units flag — see scaleDashboardLayoutUnits
   return layout;
 }
@@ -9162,6 +9263,9 @@ function normalizeHubSettings(value) {
     uiRoundness: clampNumber(source.uiRoundness, 0, 2, DEFAULT_HUB_SETTINGS.uiRoundness),
     glassBlur: clampNumber(source.glassBlur, 0, 40, DEFAULT_HUB_SETTINGS.glassBlur),
     glassSaturate: clampNumber(source.glassSaturate, 100, 220, DEFAULT_HUB_SETTINGS.glassSaturate),
+    clockScale: clampNumber(source.clockScale, 0.8, 2, DEFAULT_HUB_SETTINGS.clockScale),
+    clockDateScale: clampNumber(source.clockDateScale, 0.8, 2, DEFAULT_HUB_SETTINGS.clockDateScale),
+    clockDateFormat: ['full', 'medium', 'short'].includes(source.clockDateFormat) ? source.clockDateFormat : DEFAULT_HUB_SETTINGS.clockDateFormat,
     panelBorderStrength: clampNumber(source.panelBorderStrength, 0, 2, DEFAULT_HUB_SETTINGS.panelBorderStrength),
     panelShadowStrength: clampNumber(source.panelShadowStrength, 0, 2, DEFAULT_HUB_SETTINGS.panelShadowStrength),
     mutedText: normalizeHex(source.mutedText, null),
@@ -9183,6 +9287,7 @@ function normalizeHubSettings(value) {
     weekStart: ['mon', 'sun'].includes(source.weekStart) ? source.weekStart : 'mon',
     upcomingCount: [3, 5, 8, 10].includes(Number(source.upcomingCount)) ? Number(source.upcomingCount) : 5,
     upcomingDays: [0, 7, 14, 30].includes(Number(source.upcomingDays)) ? Number(source.upcomingDays) : 0,
+    upcomingColumns: [0, 1, 2].includes(Number(source.upcomingColumns)) ? Number(source.upcomingColumns) : 0,
     swipeNavigation: source.swipeNavigation !== false,
     swipeHomeGesture: source.swipeHomeGesture !== false,
     nativeZoom: clampNumber(source.nativeZoom, 0.6, 1.6, DEFAULT_HUB_SETTINGS.nativeZoom),
@@ -11941,6 +12046,10 @@ const CSRF_MUTATION_PATHS = new Set([
   // cost is the attack: a couple of hundred drive-by requests would leave the
   // user's own YouTube integration dead for the rest of the day.
   '/stream/youtube/search',
+  // The SDK read surface reaches searchVideos, so it is the same 100 units a
+  // drive-by away — and the paged reads defeat their own caches the way the chat
+  // read does, one distinct page token at a time.
+  '/stream/youtube/query',
   // The live-chat read spends quota too, and its cache cannot protect it from a
   // drive-by: the answer is held per PAGE TOKEN, so a loop over distinct ?page=
   // values misses every time, and with no broadcast on air the miss also costs
@@ -13139,7 +13248,7 @@ const handleRequest = async (req, res) => {
   // accepts `Origin: null` (Qt WebEngine) — so a hostile page's sandboxed iframe
   // (opaque origin → Origin: null) could otherwise reach them. Prefix match:
   // /sdk/hook carries a /<pkg>/<id> tail. Loopback tools send no Sec-Fetch-Site.
-  const isSdkSensitive = reqPath === '/sdk/fetch' || reqPath.startsWith('/sdk/hook/') || reqPath === '/sdk/handler-ack' || reqPath === '/sdk/deck-states' || reqPath === '/sdk/store' || reqPath === '/sdk/secret';
+  const isSdkSensitive = reqPath === '/sdk/fetch' || reqPath.startsWith('/sdk/hook/') || reqPath === '/sdk/handler-ack' || reqPath === '/sdk/deck-states' || reqPath === '/sdk/store' || reqPath === '/sdk/secret' || reqPath === '/state/set';
   // Pack DELETE carries a /<id> tail (not an exact CSRF_MUTATION_PATHS entry),
   // so guard it by prefix — the same belt-and-suspenders the POST installs get,
   // so an Origin:null iframe can never remove a user's installed packs even if
@@ -13300,18 +13409,19 @@ const handleRequest = async (req, res) => {
     json(st);
 
   } else if (reqPath === '/system/theme' && req.method === 'GET') {
-    // Reliable OS theme for the "Auto" appearance: the embedded WebView's
-    // prefers-color-scheme is unreliable, so read Windows' app theme from the
-    // registry. AppsUseLightTheme: 0x0 = dark apps, 0x1 = light apps.
-    execFile('reg', ['query', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize', '/v', 'AppsUseLightTheme'],
-      { windowsHide: true, timeout: 4000 }, (e, stdout) => {
-        let osDark = null;
-        if (!e && stdout) {
-          const m = stdout.match(/AppsUseLightTheme\s+REG_DWORD\s+0x([0-9a-fA-F]+)/i);
-          if (m) osDark = parseInt(m[1], 16) === 0;
-        }
-        json({ osDark });
-      });
+    // The OS colour scheme, for the "Auto" appearance. The embedded WebView's
+    // prefers-color-scheme is not an authority — it is wrong at exactly the
+    // moments that matter. On macOS it reports LIGHT for a moment after the
+    // display wakes, which fired the media-query listener and repainted the
+    // whole dashboard white; nothing corrected it afterwards, because nothing
+    // else on that platform knew any better. Reported on Discord from a Mac
+    // mini (Sep 2026): dark before the screen slept, white after it woke.
+    //
+    // So the OS is asked directly, per platform, and that reading is what Auto
+    // resolves against. `osDark: null` means "no reading here" and sends the
+    // client back to the media query — an unknown must never be answered as
+    // light, since light is the wrong half of the guess.
+    json(await osTheme.read());
 
   } else if (reqPath === '/audio' && req.method === 'GET') {
     // On failure (SoundVolumeView missing/blocked) return an explicit
@@ -18733,6 +18843,34 @@ const handleRequest = async (req, res) => {
     try { json(await streamYouTube.subscriptionsFeed()); }
     catch (e) { err500(e.message); }
 
+  } else if (reqPath === '/stream/youtube/query' && req.method === 'POST') {
+    // Authenticated YouTube READS for SDK widgets: an allowlisted `op` plus
+    // bounded params, never a path and never the token. The allowlist lives in
+    // stream-youtube.js so there is one table rather than a route that can be
+    // talked into a general Google proxy.
+    //
+    // POST for the same reason /stream/youtube/search is (quota, not state), and
+    // gated per package on top: a miss spends the USER's 10,000 units a day, and
+    // those units are shared with Xenon's own YouTube tile. A widget that burns
+    // them leaves the person with a dead YouTube integration until midnight
+    // Pacific, which they would experience as Xenon being broken.
+    try {
+      const body = JSON.parse(await readBody(req) || '{}');
+      const pkgId = String(body.pkg || '');
+      if (!sdkFeatureEnabled() || !/^[a-z0-9][a-z0-9-]{1,40}$/.test(pkgId)) { json({ ok: false, error: 'not_allowed' }); return; }
+      if (!sdkGrantsFor(pkgId).streams.includes('youtube')) { json({ ok: false, error: 'not_allowed' }); return; }
+      const release = sdkTileGate(pkgId, 'tile');
+      if (!release) { json({ ok: false, error: 'rate_limited' }); return; }
+      try {
+        const p = (body.params && typeof body.params === 'object') ? body.params : {};
+        const params = {};
+        for (const k of ['id', 'q', 'pageToken', 'order']) {
+          if (p[k] !== undefined && p[k] !== null) params[k] = String(p[k]).slice(0, 400);
+        }
+        json(await streamYouTube.query(String(body.op || ''), params));
+      } finally { release(); }
+    } catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
+
   } else if (reqPath === '/stream/youtube/search' && req.method === 'POST') {
     // POST, and in CSRF_MUTATION_PATHS, because of what it costs rather than what
     // it changes: one search is 100 of the account's 10,000 daily quota units, so
@@ -19145,17 +19283,33 @@ const handleRequest = async (req, res) => {
       else json({ ok: false, error: (e && e.message) || 'bad_request' });
     }
 
-  } else if (req.method === 'GET' && reqPath.startsWith('/sdk/tile/')) {
-    // Same-origin image proxy for map/radar tiles. The widget points an
-    // <img>/Leaflet tile layer straight at this URL — allowed by the widget CSP's
-    // `img-src 'self'` with NO relaxation — so a slippy map paints at native
-    // speed instead of base64-ing every tile over the fetch bridge at ~1 req/s.
-    // Same trust boundary as the fetch proxy (allowlisted + user-GRANTED host,
-    // guardedLookup SSRF block, size cap) plus a bounded LRU + per-package gate.
-    // Read-only, images only, and secrets are NEVER injected here.
+  } else if (req.method === 'GET' && (reqPath.startsWith('/sdk/tile/') || reqPath.startsWith('/sdk/asset/'))) {
+    // Same-origin image proxy for map/radar tiles, and for widget artwork. The
+    // widget points an <img>/Leaflet tile layer straight at this URL — allowed
+    // by the widget CSP's `img-src 'self'` with NO relaxation — so a slippy map
+    // paints at native speed instead of base64-ing every tile over the fetch
+    // bridge at ~1 req/s. Same trust boundary as the fetch proxy (allowlisted +
+    // user-GRANTED host, guardedLookup SSRF block, size cap) plus a bounded
+    // cache + per-package gate. Read-only, images only, and secrets are NEVER
+    // injected here.
+    //
+    // TWO PATHS, ONE DOOR. `/sdk/asset/` differs from `/sdk/tile/` in exactly
+    // one respect: where the answer is kept. Tiles live in a small memory LRU,
+    // because a radar frame is stale in minutes and worthless tomorrow; artwork
+    // goes to disk, because an album cover is the same next week and re-fetching
+    // it is the whole cost worth avoiding. Everything before that — the host
+    // check, the SSRF guard, the redirect handling, the image-only rule, the
+    // rate gate — is the same code on both, deliberately: a second route would
+    // be a second copy of a security model to keep in step, and the day they
+    // drift one of them is the weaker door.
+    //
+    // Asked for by a widget author caching album, game and video art, who had
+    // hit the store's 16 KB per value / 256 KB total ceiling doing it in base64.
     try {
       if (!sdkFeatureEnabled()) { res.writeHead(404); res.end(); return; }
-      const pkgId = decodeURIComponent(reqPath.slice('/sdk/tile/'.length));
+      const persist = reqPath.startsWith('/sdk/asset/');
+      const prefix = persist ? '/sdk/asset/' : '/sdk/tile/';
+      const pkgId = decodeURIComponent(reqPath.slice(prefix.length));
       if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(pkgId)) { res.writeHead(404); res.end(); return; }
       const scan = await sdkPackagesCached();
       const pkg = scan.packages.find(p => p.id === pkgId);
@@ -19172,20 +19326,41 @@ const handleRequest = async (req, res) => {
       const serve = (contentType, buffer, hit) => {
         res.writeHead(200, {
           'Content-Type': contentType,
-          'Cache-Control': 'public, max-age=600',
+          // A cover is worth keeping in the browser too; a radar frame is not.
+          'Cache-Control': persist ? 'public, max-age=86400' : 'public, max-age=600',
           'Content-Security-Policy': "default-src 'none'; sandbox",
           'X-Content-Type-Options': 'nosniff',
-          'X-Xenon-Tile': hit ? 'hit' : 'miss',
+          [persist ? 'X-Xenon-Asset' : 'X-Xenon-Tile']: hit ? 'hit' : 'miss',
         });
         res.end(buffer);
       };
-      const cached = sdkTileCacheGet(v.url);
-      if (cached) { serve(cached.contentType, cached.buffer, true); return; }
+      if (persist) {
+        const hit = await sdkAssets.get(pkgId, v.url).catch(() => null);
+        if (hit && hit.buffer) { serve(hit.contentType, hit.buffer, true); return; }
+        // A failure remembered briefly, so a render loop does not re-ask a dead
+        // url every frame. Short-lived on purpose: artwork 404s are usually a
+        // CDN mid-rename, and an hour of blank tiles is punishment enough.
+        if (hit && hit.negative) { res.writeHead(hit.status, { 'Cache-Control': 'no-store' }); res.end(); return; }
+      } else {
+        const cached = sdkTileCacheGet(v.url);
+        if (cached) { serve(cached.contentType, cached.buffer, true); return; }
+      }
+      // Only a MISS is gated: a cache hit costs nothing outbound, and a widget
+      // painting from its own cache must never be throttled. A miss on the
+      // persistent path costs a fetch AND a file, so it needs the gate more than
+      // a tile does, not less.
       const release = sdkTileGate(pkgId);
       if (!release) { res.writeHead(429); res.end(); return; }
       try {
-        const tile = await sdkTileFetch(v.url);
+        const tile = await sdkTileFetch(v.url, { memoryCache: !persist });
+        if (persist) await sdkAssets.put(pkgId, v.url, tile.contentType, tile.buffer).catch(() => {});
         serve(tile.contentType, tile.buffer, false);
+      } catch (e) {
+        if (persist) {
+          const st = Number(e && e.status);
+          await sdkAssets.putNegative(pkgId, v.url, st >= 400 && st < 600 ? st : 502).catch(() => {});
+        }
+        throw e;
       } finally { release(); }
     } catch (e) {
       const st = e && Number(e.status);
@@ -19240,6 +19415,29 @@ const handleRequest = async (req, res) => {
       const body = JSON.parse(await readBody(req, 4096) || '{}');
       json({ ok: true, matched: sdkHandlerAck(body.callId, body.ok !== false, body.error) });
     } catch (e) { json({ ok: false, error: (e && e.message) || 'bad_request' }); }
+
+  } else if (reqPath === '/state/set' && req.method === 'POST') {
+    // Local scripts only. On the CSRF-sensitive list below, which refuses any
+    // cross-site fetch and any top-level navigation — so a page cannot reach it
+    // and neither can a sandboxed widget iframe (origin null reads as
+    // cross-site). A shell has no Sec-Fetch headers at all and is allowed.
+    //
+    //   curl -X POST 127.0.0.1:3030/state/set \
+    //        -H 'Content-Type: application/json' \
+    //        -d '{"name":"audio-out","value":"speakers"}'
+    //
+    // Omit `value` (or send null) to clear it.
+    try {
+      const body = JSON.parse(await readBody(req, 4096) || '{}');
+      const err = setScriptState(body.name, body.value);
+      if (err) { json({ ok: false, error: err }); return; }
+      json({ ok: true, states: _scriptStates.states });
+    } catch (e) { json({ ok: false, error: (e && e.message) || 'bad_request' }); }
+
+  } else if (reqPath === '/state/get' && req.method === 'GET') {
+    // So a script can read back what it set (and a person can check their curl
+    // landed) without opening the dashboard.
+    json({ ok: true, states: _scriptStates.states });
 
   } else if (reqPath === '/sdk/deck-states' && req.method === 'POST') {
     // The HOST page mirrors widget-published deck states here so the Virtual
@@ -19473,6 +19671,36 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/stream/spotify/logout' && req.method === 'POST') {
     try { await readBody(req); json(await streamSpotify.logout()); }
     catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/stream/spotify/query' && req.method === 'GET') {
+    // Authenticated Spotify READS for SDK widgets: an allowlisted `op` plus
+    // bounded params, never a path and never the token. The allowlist lives in
+    // stream-spotify.js so there is one table rather than a route that can be
+    // talked into a general proxy.
+    //
+    // Gated per package: a miss is a call against the USER's Spotify quota, and
+    // that quota is shared with Xenon's own Spotify tile — a widget searching on
+    // every keystroke would stop the dashboard's music working, which the person
+    // would experience as Xenon being broken. Same gate the image routes use.
+    try {
+      const pkgId = String(urlObj.searchParams.get('pkg') || '');
+      if (!sdkFeatureEnabled() || !/^[a-z0-9][a-z0-9-]{1,40}$/.test(pkgId)) { json({ ok: false, error: 'not_allowed' }); return; }
+      if (!sdkGrantsFor(pkgId).streams.includes('spotify')) { json({ ok: false, error: 'not_allowed' }); return; }
+      const release = sdkTileGate(pkgId, 'tile');
+      if (!release) { json({ ok: false, error: 'rate_limited' }); return; }
+      try {
+        const params = {};
+        // Every field an op can read has to be named here AND in the bridge that
+        // builds the request. A field missing from either list is not an error:
+        // it is silently absent, and the op answers page 1 as if it had never
+        // been asked for anything else.
+        for (const k of ['id', 'q', 'types', 'limit', 'offset', 'after', 'before']) {
+          const v = urlObj.searchParams.get(k);
+          if (v !== null) params[k] = v;
+        }
+        json(await streamSpotify.query(urlObj.searchParams.get('op') || '', params));
+      } finally { release(); }
+    } catch (e) { json({ ok: false, error: String((e && e.message) || e) }); }
 
   } else if (reqPath === '/stream/spotify/queue' && req.method === 'GET') {
     // "Up Next": the currently-playing track + the upcoming queue, for the widget.
@@ -20014,6 +20242,13 @@ const handleRequest = async (req, res) => {
     // And the relayed SDK deck states, so a fresh Virtual Deck popup paints its
     // sdkState keys without waiting for the next widget state change.
     try { if (Object.keys(_sdkDeckStates.states).length) res.write(`event: sdk_states\ndata: ${JSON.stringify(_sdkDeckStates)}\n\n`); } catch (e) { /* ignore */ }
+    // Same reason: a surface that connects AFTER a script set a state would
+    // otherwise draw its key dark until the next change, which for a state that
+    // changes twice a day is most of the day. Sent even when the map is EMPTY,
+    // unlike the relayed SDK states above: a widget granted the `scriptStates`
+    // stream has no other way to tell "nothing is set" from "not told yet", and
+    // an empty map is one short line per connection.
+    try { res.write(`event: script_states\ndata: ${JSON.stringify(_scriptStates)}\n\n`); } catch (e) { /* ignore */ }
 
   } else {
     res.writeHead(404); res.end();

@@ -26,6 +26,11 @@ const API = 'https://api.spotify.com/v1';
 // Read playback + queue/devices, control playback (add-to-queue, shuffle, transfer,
 // start a playlist), read the user's playlists, and save tracks to Liked Songs.
 // Playback CONTROL requires Spotify Premium; reads work on free accounts too.
+// The last two are for the SDK query API's `recent` and `followedArtists`, and
+// they are the only ones here that a CONNECTED user does not already have. An
+// existing token keeps working with the scopes it was granted — nothing breaks —
+// but those two operations answer `insufficient_scope` until that person
+// reconnects, which the error path below already knows how to say.
 const SCOPES = [
   'user-read-playback-state',
   'user-modify-playback-state',
@@ -33,6 +38,8 @@ const SCOPES = [
   'playlist-read-private',
   'user-library-read',
   'user-library-modify',
+  'user-read-recently-played',
+  'user-follow-read',
 ].join(' ');
 
 const PENDING_TTL_MS = 10 * 60 * 1000;   // an unfinished authorize expires after 10 min
@@ -157,6 +164,10 @@ function createSpotifyProvider(deps) {
   // limits, so this matters most there.
   let _rateLimitedUntil = 0;
   function rateLimited() { return Date.now() < _rateLimitedUntil; }
+  // How long the breaker still holds. Handed to SDK widgets so a widget can
+  // wait exactly that long instead of guessing — a widget guessing short is
+  // what keeps the whole account pinned in the penalty box.
+  function retryAfterMs() { return Math.max(0, _rateLimitedUntil - Date.now()); }
   function noteRateLimit(res) {
     let secs = 5;
     try { const h = res && res.headers && res.headers.get('retry-after'); const n = h && parseInt(h, 10); if (n) secs = Math.min(3600, Math.max(1, n)); } catch { /* default */ }
@@ -188,8 +199,45 @@ function createSpotifyProvider(deps) {
   let _playerGen = 0;           // bumped on every mutation; a read tagged with a stale gen won't cache
   const PLAYER_TTL_MS = 4000;   // upstream cap: a 204 (paused) costs a 2nd call, so with two surfaces polling this bounds /me/player to ~30 Spotify calls/min; the 1s client ticker hides the coarser snapshot
 
+  // ── SDK read cache ──────────────────────────────────────────────────────────
+  // Every `query` op below spends the USER's Spotify quota, and that quota is
+  // shared with Xenon's own tile: a widget re-reading a page on each render does
+  // not only slow itself down, it can stop the dashboard's music working. A
+  // widget author paging a library ten albums at a time reported exactly that,
+  // as "spotify's api burst rates".
+  //
+  // Two collapses, both keyed on the built path — the same key the widget cannot
+  // choose, so nothing here can be steered from outside:
+  //   in-flight  two identical reads still running share one upstream call (two
+  //              tiles of the same widget, or a re-render mid-fetch)
+  //   short TTL  a repeat within seconds (scrolling back, a remount, a tile
+  //              coming out of hiding) is answered from memory
+  //
+  // Deliberately small and short: this is a burst absorber, not a store. Sixteen
+  // entries for a few seconds means the library still visibly changes, and the
+  // memory it can hold is bounded by what the widget already has on screen.
+  const QUERY_TTL_MS = 10000;           // library reads: pages, search results
+  const QUERY_TTL_VOLATILE_MS = 3000;   // what is playing right now, on which device
+  const QUERY_VOLATILE = new Set(['player', 'queue', 'devices']);
+  const QUERY_CACHE_MAX = 16;
+  const _queryCache = new Map();        // path -> { at, ttl, res }
+  const _queryPending = new Map();      // path -> in-flight promise, shared
+
+  function queryCacheClear() { _queryCache.clear(); }
+  function queryCacheGet(path) {
+    const hit = _queryCache.get(path);
+    if (!hit) return null;
+    if (Date.now() - hit.at > hit.ttl) { _queryCache.delete(path); return null; }
+    return hit.res;
+  }
+  function queryCachePut(path, ttl, res) {
+    _queryCache.delete(path);           // re-set keeps a Map's ORIGINAL position, and position is the eviction order
+    _queryCache.set(path, { at: Date.now(), ttl, res });
+    while (_queryCache.size > QUERY_CACHE_MAX) _queryCache.delete(_queryCache.keys().next().value);
+  }
+
   async function apiRequest(method, pathWithQuery, bodyObj) {
-    if (method !== 'GET') { _playerCache = null; _playerGen++; }   // a mutation invalidates the snapshot AND any in-flight read
+    if (method !== 'GET') { _playerCache = null; _playerGen++; queryCacheClear(); }   // a mutation invalidates the snapshot AND any in-flight read — including the widgets', or a widget's own play lands on a stale queue
     if (rateLimited()) return { ok: false, status: 429, error: 'rate_limited' };
     const token = await getAccessToken();
     if (!token) return { ok: false, error: 'not_connected' };
@@ -227,7 +275,7 @@ function createSpotifyProvider(deps) {
 
   // Spotify has no token-revocation endpoint for the PKCE flow; clearing the
   // stored creds fully disconnects the account from this app's perspective.
-  async function logout() { await clearCreds(); return { ok: true }; }
+  async function logout() { await clearCreds(); queryCacheClear(); return { ok: true }; }
 
   // ── Reads for the dashboard widget (trimmed, client-safe shapes) ───────────
   // Smallest album image for a compact list; the full array is widest-first.
@@ -242,6 +290,78 @@ function createSpotifyProvider(deps) {
     };
   }
 
+  // ── The queue Spotify hands back is not always a queue ──────────────────────
+  // Reported by a widget author: playing a short album, /me/player/queue answers
+  // with the remaining tracks and then the whole context again, and again —
+  // "D E A B C D E A B C" for a five-track album sitting on C. It is padding a
+  // fixed-length answer by wrapping around the context, and with repeat OFF none
+  // of that wrap will ever play: after E, playback stops.
+  //
+  // Deduplicating by track would be the wrong tool. A playlist may hold the same
+  // song twice on purpose, and a queue may genuinely play one twice in a row, so
+  // this works on the ORDER and never on the set: it looks for the sequence
+  // repeating as a whole and cuts the repetition, leaving what remains in place
+  // and in order.
+  //
+  // Three conditions, all required, because each is a way for the repetition to
+  // be REAL rather than padding:
+  //   repeat off   with repeat on, the album really does play again — collapsing
+  //                it would hide the truth rather than reveal it
+  //   shuffle off  with shuffle on the queue is not the context's order, so
+  //                "the sequence repeats" says nothing about a wrap
+  //   the cycle ends on the track that is playing  — this is the signal that
+  //                makes it safe. A context wrap always reads
+  //                [next … end, start … current], so the block ends on the
+  //                current track; and with repeat off the current track cannot
+  //                play again, which is what proves the block is padding rather
+  //                than a coincidence. A queue that happens to repeat a run of
+  //                songs does not end on the one playing now.
+  //
+  // The trailing current track goes with it, for the same reason it identified
+  // the wrap: it cannot come round again.
+  //
+  // What is NOT ours to touch, checked on a real account: at the END of a context
+  // Spotify's own client shows a queue again — the reporter first described it as
+  // recommendations and then as the previous queue reloaded — and either way the
+  // track does not start playing again. So whatever appears there is what Spotify
+  // itself displays, and a widget showing the same thing is right rather than
+  // broken. The conditions above do not hold for it and it passes through
+  // untouched. Written down because a list of songs appearing right after an album
+  // ends looks exactly like something this function failed to clean up, and the
+  // temptation is to keep cutting.
+  //
+  // NOT solved here, deliberately: the part of the wrap BEFORE the current track
+  // (the "A B" above) is still returned. Identifying it needs the context's own
+  // track order — from the queue alone, "…, E, A, B, …" and a real playlist that
+  // runs E then A then B are the same five bytes. Left in rather than guessed at.
+  function queueCycleLength(keys, currentKey) {
+    const n = keys.length;
+    if (n < 2 || !currentKey) return n;
+    for (let p = 1; p < n; p++) {
+      if (keys[p - 1] !== currentKey) continue;   // a cycle ends on the current track
+      let repeats = true;
+      for (let i = p; i < n; i++) {
+        if (keys[i] !== keys[i - p]) { repeats = false; break; }
+      }
+      if (repeats) return p;
+    }
+    return n;
+  }
+
+  /** The upcoming tracks, with a context wrap cut off. Pure — `state` is
+   *  { repeat, shuffle } as getPlayer reports them. */
+  function normalizeQueue(queue, current, state) {
+    const list = Array.isArray(queue) ? queue : [];
+    const st = state || {};
+    if (st.repeat !== 'off' || st.shuffle) return list;
+    const currentKey = (current && current.uri) || '';
+    if (!currentKey || list.length < 2) return list;
+    const keys = list.map(t => (t && t.uri) || '');
+    const p = queueCycleLength(keys, currentKey);
+    if (p >= list.length) return list;            // nothing repeats: leave it alone
+    return list.slice(0, p - 1);                  // drop the trailing current track too
+  }
+
   async function getQueue() {
     const r = await apiRequest('GET', '/me/player/queue');
     if (!r.ok || !r.data) return { ok: false, error: r.error || 'no_playback' };
@@ -253,10 +373,12 @@ function createSpotifyProvider(deps) {
     // cached, so this rarely costs an extra call.
     const p = await getPlayer();
     const reliable = !!(p && p.ok && p.context);
+    const current = trackLite(r.data.currently_playing);
+    const raw = Array.isArray(r.data.queue) ? r.data.queue.slice(0, 20).map(trackLite).filter(Boolean) : [];
     return {
       ok: true,
-      current: trackLite(r.data.currently_playing),
-      queue: Array.isArray(r.data.queue) ? r.data.queue.slice(0, 20).map(trackLite).filter(Boolean) : [],
+      current,
+      queue: normalizeQueue(raw, current, p && p.ok ? p : null),
       reliable,
     };
   }
@@ -638,6 +760,7 @@ function createSpotifyProvider(deps) {
     switch (action.type) {
       case 'spotifySave': return saveCurrent();
       case 'spotifyPlaylist': return playPlaylist(action.playlist);
+      case 'spotifyPlayUri': return playUri(action.uri, action.contextUri);
       case 'spotifyShuffle': return setShuffle(action.mode);
       case 'spotifyDevice': return transferDevice(action.device);
       case 'spotifyPlay': return playPause(action.mode);
@@ -651,9 +774,187 @@ function createSpotifyProvider(deps) {
     }
   }
 
+  // ── Read API for SDK widgets (GET /stream/spotify/query) ───────────────────
+  //
+  // A widget that browses a library needs authenticated reads, and the two ways
+  // to give it those are to hand over the token or to name the reads. This names
+  // them. The widget never sees a token, cannot reach a path we did not write,
+  // and cannot turn this into a general Spotify proxy: `op` indexes a table of
+  // functions, so an op we do not have is simply not a request.
+  //
+  // Requested by a widget author who had built the library browser against a
+  // private sidecar of his own and wanted to delete it.
+  //
+  // Spotify's own objects are passed through unshaped, and that is deliberate.
+  // Reshaping them would drop fields a widget legitimately wants and would make
+  // Xenon the owner of a schema it does not control; documenting them as
+  // "Spotify's shapes, proxied" is the honest contract.
+  // An id for a path segment. Delegates to spotifyId above, which already accepts
+  // a bare id, a spotify: URI or an open.spotify.com link — a widget should not
+  // have to know which of the three it is holding — and then caps the length,
+  // because that one is unbounded and this value is about to be a URL path.
+  const queryId = (v, kind) => {
+    const id = spotifyId(v, kind);
+    return /^[A-Za-z0-9]{1,40}$/.test(id) ? id : '';
+  };
+  // clampInt is already in scope above and floors junk to `lo`; paging wants a
+  // sensible DEFAULT when a field is simply absent, which is a different thing.
+  const pageInt = (v, lo, hi, dflt) => (v === undefined || v === null || v === ''
+    ? dflt : clampInt(v, lo, hi));
+  // Paging matters more than it looks: without it a library browser shows the
+  // first page of a 2000-track collection and nothing else, which is how this
+  // kind of API quietly ships half-working.
+  const page = (p, max) => 'limit=' + pageInt(p.limit, 1, max, Math.min(50, max))
+    + '&offset=' + pageInt(p.offset, 0, 10000, 0);
+
+  // Two of these endpoints do not page by offset at all — Spotify walks them by
+  // cursor, and differently from each other: `followedArtists` continues from
+  // the last artist id it handed back (`artists.cursors.after`), `recent` walks
+  // backwards in time from a unix-ms timestamp (`cursors.before`). Both cursors
+  // are already in the answer, which goes to widgets unshaped, so a widget reads
+  // one off a page and hands it straight back. Papering the difference over with
+  // one uniform cursor of our own would only build a request Spotify does not
+  // honour.
+  //
+  // Without this, a library browser sees the first 50 followed artists and has
+  // no way to ask for the 51st — `offset` is not a thing on either endpoint.
+  // Reported by the author of the Spotify library browser.
+  const cursorMs = (v) => (/^\d{1,20}$/.test(String(v).trim()) ? String(v).trim() : '');
+  // A cursor that is present but unreadable is refused rather than dropped. Drop
+  // it and the request quietly becomes "page 1 again", which a widget's "load
+  // more" cannot tell from a real page — it appends the same rows and asks
+  // again, forever, spending the user's quota on a loop.
+  const cursorPath = (base, key, raw, clean) => {
+    if (raw === undefined || raw === null || raw === '') return base;
+    const v = clean(raw);
+    return v ? base + '&' + key + '=' + v : '';
+  };
+
+  const SEARCH_TYPES = ['track', 'album', 'artist', 'playlist'];
+
+  const QUERY_OPS = Object.freeze({
+    player:          () => '/me/player',
+    queue:           () => '/me/player/queue',
+    devices:         () => '/me/player/devices',
+    playlists:       (p) => '/me/playlists?' + page(p, 50),
+    savedAlbums:     (p) => '/me/albums?' + page(p, 50),
+    savedTracks:     (p) => '/me/tracks?' + page(p, 50),
+    recent:          (p) => cursorPath('/me/player/recently-played?limit=' + pageInt(p.limit, 1, 50, 50), 'before', p.before, cursorMs),
+    followedArtists: (p) => cursorPath('/me/following?type=artist&limit=' + pageInt(p.limit, 1, 50, 50), 'after', p.after, (v) => queryId(v, 'artist')),
+    artistAlbums:    (p) => (queryId(p.id, 'artist') ? '/artists/' + queryId(p.id, 'artist') + '/albums?' + page(p, 50) : ''),
+    albumTracks:     (p) => (queryId(p.id, 'album') ? '/albums/' + queryId(p.id, 'album') + '/tracks?' + page(p, 50) : ''),
+    playlistTracks:  (p) => (queryId(p.id, 'playlist') ? '/playlists/' + queryId(p.id, 'playlist') + '/tracks?' + page(p, 100) : ''),
+    search:          (p) => {
+      const q = String(p.q || '').trim().slice(0, 200);
+      if (!q) return '';
+      const types = String(p.types || 'track,album,artist,playlist').split(',')
+        .map((x) => x.trim()).filter((x) => SEARCH_TYPES.includes(x));
+      if (!types.length) return '';
+      return '/search?type=' + types.join(',') + '&limit=' + pageInt(p.limit, 1, 50, 20)
+        + '&offset=' + pageInt(p.offset, 0, 1000, 0) + '&q=' + encodeURIComponent(q);
+    },
+  });
+
+  // One op's raw answer is not the truth, and this is where that gets fixed for
+  // widgets. Spotify pads /me/player/queue by wrapping the context — the tile's
+  // getQueue has cut that since it was reported, but a widget reading the same
+  // thing through the SDK was still handed the padding. The person who reported
+  // it uses the SDK, so the fix that skipped this path missed its own reporter.
+  //
+  // It is not a reshaping — the objects are Spotify's own, as everything here is.
+  // What comes off is the part of the list that will never play.
+  const QUERY_AFTER = Object.freeze({
+    queue: async (data) => {
+      if (!data || !Array.isArray(data.queue)) return data;
+      const p = await getPlayer();                    // cached: usually costs nothing
+      const state = (p && p.ok) ? p : null;
+      return Object.assign({}, data, {
+        queue: normalizeQueue(data.queue, data.currently_playing, state),
+      });
+    },
+  });
+  async function shapeQueryAnswer(name, data) {
+    const after = Object.hasOwn(QUERY_AFTER, name) ? QUERY_AFTER[name] : null;
+    if (typeof after !== 'function') return data;
+    try { return await after(data); } catch { return data; }
+  }
+
+  async function query(op, params) {
+    // hasOwn, not a plain lookup: `QUERY_OPS.constructor` resolves up the
+    // prototype chain to a real function, so `op: 'constructor'` would have
+    // passed the guard, been called, and handed apiRequest an object where a
+    // path belongs. `toString`, `valueOf` and friends are the same door.
+    // Object.freeze does not close it — only asking about OWN keys does.
+    const name = String(op || '');
+    const build = Object.hasOwn(QUERY_OPS, name) ? QUERY_OPS[name] : null;
+    if (typeof build !== 'function') return { ok: false, error: 'bad_op' };
+    const path = build(params && typeof params === 'object' ? params : {});
+    if (!path) return { ok: false, error: 'bad_params' };
+
+    const cached = queryCacheGet(path);
+    if (cached) return cached;
+    const inflight = _queryPending.get(path);
+    if (inflight) return inflight;
+
+    const ttl = QUERY_VOLATILE.has(name) ? QUERY_TTL_VOLATILE_MS : QUERY_TTL_MS;
+    const p = apiRequest('GET', path).then(async (r) => {
+      if (r.ok) return { ok: true, data: await shapeQueryAnswer(name, r.data) };
+      // The two new scopes are the one failure worth naming: a user connected
+      // before they existed holds a perfectly valid token that simply cannot read
+      // these, and "reconnect" is the fix rather than anything the widget did.
+      if (r.status === 403) return { ok: false, error: 'insufficient_scope', status: 403 };
+      // Say how long, so a widget can wait rather than retry into the same wall.
+      if (r.status === 429) return { ok: false, error: 'rate_limited', status: 429, retryAfterMs: retryAfterMs() };
+      return { ok: false, error: r.error || 'failed', status: r.status || 0 };
+    }).then((res) => {
+      // Only an answer is worth keeping. Caching a failure would turn one blip
+      // into ten seconds of a widget that looks broken, and a rate-limit answer
+      // held past its own cooldown would keep telling a widget to wait when the
+      // way is already clear.
+      if (res.ok) queryCachePut(path, ttl, res);
+      return res;
+    });
+    _queryPending.set(path, p);
+    try { return await p; } finally { _queryPending.delete(path); }
+  }
+
+  // Start a specific Spotify URI. The four kinds a browser needs, and no others:
+  // a `context` for the collections, `uris` for a single track, which is the
+  // distinction Spotify's own play endpoint draws.
+  //
+  // `contextUri` is what you were listening INSIDE. Playing a track by its own
+  // URI replaces whatever was playing with a queue of exactly one song, so
+  // tapping a track in an album played it and then stopped — the rest of the
+  // album gone. Reported by the widget author who moved a Spotify browser onto
+  // the SDK and lost the surrounding context in the move.
+  //
+  // With a context, the same tap becomes "play this album, starting here", which
+  // is what Spotify's own clients do and what the queue afterwards should look
+  // like.
+  const URI_RE = /^spotify:(track|album|artist|playlist):[A-Za-z0-9]{1,40}$/;
+  const CONTEXT_RE = /^spotify:(album|playlist|artist):[A-Za-z0-9]{1,40}$/;
+  async function playUri(uri, contextUri) {
+    const u = String(uri || '');
+    if (!URI_RE.test(u)) return { ok: false, error: 'bad_uri' };
+    const ctx = String(contextUri || '');
+    // A context is only meaningful for a track — it is the thing the track sits
+    // in. Spotify accepts an offset for album and playlist contexts only, so an
+    // artist context cannot start at a chosen song; rather than silently playing
+    // a DIFFERENT track from the one that was tapped, the context is dropped and
+    // the named track plays on its own. That is the old behaviour, which is a
+    // smaller surprise than the wrong song.
+    const usable = ctx && CONTEXT_RE.test(ctx) && u.startsWith('spotify:track:') && !ctx.startsWith('spotify:artist:');
+    let body;
+    if (usable) body = { context_uri: ctx, offset: { uri: u } };
+    else body = u.startsWith('spotify:track:') ? { uris: [u] } : { context_uri: u };
+    const r = await apiRequest('PUT', '/me/player/play', body);
+    return r.ok ? { ok: true } : { ok: false, error: r.error || 'play_failed', status: r.status || 0 };
+  }
+
   return {
     configured, status, logout, buildAuthUrl, exchangeCode, getAccessToken,
-    getQueue, getPlaylists, getDevices, getPlayer, search,
+    getQueue, getPlaylists, getDevices, getPlayer, search, query, playUri,
+    normalizeQueue,   // pure, and exported so the wrap rules can be pinned without an account
     saveCurrent, playPlaylist, playSearch, queueSearch, setShuffle, transferDevice, transferToId,
     playPause, skipNext, skipPrev, setRepeat, toggleLike, setVolume, seek, runAction,
   };

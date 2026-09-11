@@ -14,6 +14,11 @@
  *                      sponsors read access. Only PUBLIC sponsorships are pulled, so
  *                      consent is respected the same way as BMC. If missing/failing,
  *                      GitHub Sponsors are simply skipped.
+ *   HUB_WALL_URL     — (optional) overrides the supporter hub's public wall feed, which
+ *                      carries the donations that reached the project outside both
+ *                      platforms (PayPal, a bank transfer). No token: the endpoint is
+ *                      public and serves only what an admin deliberately published.
+ *                      Unreachable or malformed, it is skipped like the others.
  *
  * Even with no API tokens at all, supporters listed by hand under
  * `manualSupporters` in docs/supporters-overrides.json are still written out.
@@ -90,6 +95,24 @@ function periodsCharged(startedOn, periodDays) {
   return Math.floor(elapsedDays / periodDays) + 1;
 }
 
+// The supporter hub's public wall feed. Same host the app redeems codes against
+// (server/supporter-redeem.js HUB_BASE), and the only source for money that did
+// not pass through Buy Me a Coffee or GitHub Sponsors.
+const HUB_WALL_URL = process.env.HUB_WALL_URL
+  || 'https://xenon-supporter-hub.xenonedge.workers.dev/supporters/wall';
+
+// The names in a previously written supporters.json. Anything unreadable counts
+// as "nothing published yet", which is the answer that lets a run proceed.
+function publishedNames(text) {
+  try {
+    const data = JSON.parse(text);
+    return (data && Array.isArray(data.supporters) ? data.supporters : [])
+      .map((s) => s && s.name).filter((n) => typeof n === 'string' && n.trim());
+  } catch {
+    return [];
+  }
+}
+
 const overrides = existsSync(OVERRIDES) ? JSON.parse(readFileSync(OVERRIDES, 'utf8')) : {};
 const privacyMode = overrides.privacyMode || 'first';
 const topCount = Number.isFinite(overrides.topCount) ? overrides.topCount : 1;
@@ -152,6 +175,23 @@ async function fetchGitHubSponsors() {
     after = info.endCursor;
   }
   return out;
+}
+
+// Donations the two platforms never saw: PayPal, a bank transfer, cash at a
+// meetup. The hub's admin panel is where those are recorded, and this endpoint
+// publishes only the ones an admin deliberately marked for this page — a name
+// the donor agreed to show and the amount they gave, in their own currency. No
+// email, no id, nothing else, so there is nothing here to mask.
+//
+// Best-effort like every other source: an unreachable hub, a bad status or a
+// payload that is not the shape we expect all mean "no off-platform donors this
+// run", never a blanked wall.
+async function fetchHubSupporters() {
+  const res = await fetch(HUB_WALL_URL, { headers: { Accept: 'application/json' } });
+  if (!res.ok) throw new Error(`hub wall ${res.status} ${res.statusText}`);
+  const json = await res.json();
+  const list = json && Array.isArray(json.supporters) ? json.supporters : [];
+  return list.filter((s) => s && typeof s.name === 'string' && s.name.trim());
 }
 
 // Best-effort name on any BMC record (one-off, membership or extra all carry it).
@@ -220,6 +260,12 @@ function displayName(rawName) {
   // GitHub Sponsors are optional and best-effort — a failure never blanks the wall.
   const ghSponsors = await fetchGitHubSponsors()
     .catch((e) => { console.error(`GitHub Sponsors fetch skipped: ${e.message}`); return []; });
+  // The supporter hub is optional in exactly the same way, and for the same
+  // reason: a wall that blanks itself because one source had a bad minute is
+  // worse than a wall missing one name until tomorrow's run.
+  let hubFailed = false;
+  const hubDonors = await fetchHubSupporters()
+    .catch((e) => { console.error(`Supporter hub fetch skipped: ${e.message}`); hubFailed = true; return []; });
 
   // Aggregate total USD given per (raw) name so repeat supporters rank by their sum, and
   // remember who is an active member so the site can highlight them specially. The unit is
@@ -263,6 +309,24 @@ function displayName(rawName) {
     if (!s.isOneTimePayment) memberNames.add(norm(name));
   }
 
+  // Off-platform donations, ranked by the same yardstick as everything above:
+  // real money, normalised to USD. The hub reports the amount in the currency it
+  // was given in, and toUsd converts it here — the hub deliberately does not
+  // convert, because two FX tables rounding the same figure twice would produce
+  // an ordering neither side could explain.
+  //
+  // These names were typed for publication, so they are shown exactly as given,
+  // like a manual entry and unlike a platform name (which gets masked). `hide`
+  // still applies: it is the one place in this repo that can take a name off the
+  // wall without waiting for the panel, and consent is worth a second lever.
+  const hubDisplay = new Map();
+  for (const s of hubDonors) {
+    const name = s.name.trim();
+    if (hide.has(norm(name))) continue;
+    addUsd(name, toUsd(s.amount, s.currency));
+    hubDisplay.set(norm(name), name);
+  }
+
   // Fold manually-curated supporters into the SAME ranking, so they land in the right
   // podium spot instead of being tacked on at the end. Used for channels the APIs don't
   // cover yet (e.g. a GitHub Sponsor before GH_SPONSORS_TOKEN is set). Each is shown
@@ -273,6 +337,9 @@ function displayName(rawName) {
   // merged (not duplicated), so it's safe to leave a manual entry in place afterwards.
   const manual = Array.isArray(overrides.manualSupporters) ? overrides.manualSupporters : [];
   const manualDisplay = new Map(); // norm(name) -> verbatim display name (bypasses masking)
+  // Hub names are published names too, so they share that map. Seeded first, so
+  // an entry written by hand here still overrides what the panel published.
+  for (const [key, name] of hubDisplay) manualDisplay.set(key, name);
   const forceTop = new Set();      // norm(name) -> pinned to the front of the ranking
   // Names an API source (BMC / GitHub Sponsors) already ranked. A manual entry for the
   // same person then ONLY refines the display name — it must not add its `coffees` again,
@@ -324,12 +391,31 @@ function displayName(rawName) {
 
   const payload = {
     _generated: new Date().toISOString(),
-    _note: 'Auto-generated from Buy Me a Coffee + GitHub Sponsors (plus any manualSupporters) by tools/build-supporters.mjs. Do not edit by hand — change docs/supporters-overrides.json instead. Names are privacy-masked (manual entries show as typed); full names and profile links are never published. Active members / recurring sponsors carry "tier":"member" and are highlighted on the site.',
+    _note: 'Auto-generated from Buy Me a Coffee + GitHub Sponsors + the supporter hub (plus any manualSupporters) by tools/build-supporters.mjs. Do not edit by hand — change docs/supporters-overrides.json instead. Names are privacy-masked (manual entries show as typed); full names and profile links are never published. Active members / recurring sponsors carry "tier":"member" and are highlighted on the site.',
     supporters,
   };
 
   const next = `${JSON.stringify(payload, null, 2)}\n`;
   const prev = existsSync(OUT) ? readFileSync(OUT, 'utf8') : '';
+
+  // A source that failed must never UN-THANK anyone. Buy Me a Coffee and GitHub
+  // republish their supporters on every run, so a name missing after a failure
+  // comes back tomorrow; the hub's donors have no other source, so a minute of
+  // downtime would drop them off a public thank-you page and the commit would
+  // record it. When the hub failed AND that cost someone their place, the file
+  // is left exactly as published.
+  //
+  // Deliberately conditional rather than "bail out whenever the hub is down":
+  // a wrong URL, or this running before the endpoint is deployed, would then
+  // freeze the whole wall forever and silently. Nothing to lose, nothing to
+  // protect, so the run proceeds and the other sources keep the page current.
+  if (hubFailed) {
+    const dropped = publishedNames(prev).filter((name) => !supporters.some((s) => s.name === name));
+    if (dropped.length) {
+      console.log(`Supporter hub unreachable and ${dropped.length} published name(s) depend on it — leaving supporters.json unchanged.`);
+      process.exit(0);
+    }
+  }
   // Compare ignoring the timestamp so unchanged supporter lists don't churn commits.
   const stripTs = (t) => t.replace(/"_generated":\s*"[^"]*",?\s*/, '');
   if (stripTs(prev) === stripTs(next)) {

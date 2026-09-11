@@ -904,7 +904,7 @@ function applyStyleToPage(config, nav, style) {
 // Live state sources a key can bind to. Booleans (mic/speaker/obsRecording/
 // obsStreaming) read a flag from the snapshot; parameterised ones compare a
 // stored value (obsScene→scene, obsInputMuted→input) against the snapshot.
-const DECK_STATE_SOURCES = ['micMuted', 'speakerMuted', 'obsRecording', 'obsStreaming', 'obsScene', 'obsInputMuted', 'remoteConnected', 'remoteActive', 'sbGlobal', 'sdkState', 'discordMuted', 'discordDeafened', 'mediaPlaying', 'spotifyPlaying', 'haEntity', 'timerRunning'];
+const DECK_STATE_SOURCES = ['micMuted', 'speakerMuted', 'obsRecording', 'obsStreaming', 'obsScene', 'obsInputMuted', 'remoteConnected', 'remoteActive', 'sbGlobal', 'sdkState', 'scriptState', 'discordMuted', 'discordDeafened', 'mediaPlaying', 'spotifyPlaying', 'haEntity', 'timerRunning'];
 
 // HA state strings that read as "on" for an entity binding without an explicit
 // value to match — covers switches/lights, covers, media, presence, locks,
@@ -1092,6 +1092,9 @@ function evaluateKeyState(state, snapshot) {
     // On while the value is truthy, or (when a value is given) exactly equals it.
     case 'sbGlobal':  return matchNamedState(state, snapshot.sbGlobals);
     case 'sdkState':  return matchNamedState(state, snapshot.sdkStates);
+    // A state any local script set over POST /state/set — same named-value rule,
+    // so a shell/AppleScript can drive a key's second face without an SDK widget.
+    case 'scriptState': return matchNamedState(state, snapshot.scriptStates);
     case 'discordMuted':    return !!snapshot.discordMuted;
     case 'discordDeafened': return !!snapshot.discordDeafened;
     case 'mediaPlaying':    return !!snapshot.mediaPlaying;

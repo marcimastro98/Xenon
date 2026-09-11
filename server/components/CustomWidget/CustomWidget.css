@@ -112,7 +112,18 @@ body.cw-has-expanded .shell { z-index: 70; }
 .cw-wrap:not(.cw-expanded) .cw-expand-close { display: none; }
 
 /* ── Guest iframe ────────────────────────────────────────────────── */
-.cw-body { flex: 1 1 auto; min-height: 0; display: flex; }
+/* The host's YouTube player (js/sdk-youtube-player.js) is placed over the guest
+   frame at a rectangle the widget reports, so the body is the positioning
+   context. Only `position` is added — the player is clamped into this box by
+   the host rather than clipped by it, so nothing else in here changes shape. */
+.cw-body { flex: 1 1 auto; min-height: 0; display: flex; position: relative; }
+.sdk-yt-frame {
+  position: absolute; border: 0; z-index: 2; background: #000;
+  border-radius: 10px; overflow: hidden;
+}
+/* Same reasoning as .cw-frame: while the layout is being arranged the tile has
+   to be draggable, and a video swallowing the pointer makes it unusable. */
+body.layout-editing .sdk-yt-frame { pointer-events: none; }
 .cw-frame {
   flex: 1 1 auto; width: 100%; height: 100%; min-height: 0;
   /* Follows the tile's radius rather than a literal: a widget whose tile was

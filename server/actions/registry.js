@@ -620,6 +620,7 @@ function createRegistry(deps) {
         }
         case 'spotifySave':
         case 'spotifyPlaylist':
+        case 'spotifyPlayUri':
         case 'spotifyShuffle':
         case 'spotifyDevice':
         case 'spotifyPlay':

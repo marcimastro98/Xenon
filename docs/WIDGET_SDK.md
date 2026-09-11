@@ -81,9 +81,9 @@ not need to do anything to support it.
 | `name` | yes | ≤ 60 chars. |
 | `version`, `author`, `description` | no | Shown to the user (description ≤ 200 chars). |
 | `entry` | no | HTML entry document, defaults to `index.html`. Must live in the package root. |
-| `streams` | no | Data streams you request: `status`, `system`, `media`, `audio`, `audioLevels`, `wavelink`, `voicemeeter`, `stocks`, `football`, `news`, `claude`, `obs`, `discord`, `discordChannels`, `discordSoundboard`, `discordNotifications`, `streamerbot`, `homeassistant`, `twitchWatch`, `twitchChat`, `youtubeLive`, `tasks`, `notes`, `agenda`, `weather`, `battery`. *Capability reference* below is generated from the code and is the list that cannot go stale. See *Hardware sensors* for fans/power/battery. |
+| `streams` | no | Data streams you request: `status`, `system`, `media`, `audio`, `audioLevels`, `wavelink`, `voicemeeter`, `stocks`, `football`, `news`, `claude`, `obs`, `discord`, `discordChannels`, `discordSoundboard`, `discordNotifications`, `streamerbot`, `homeassistant`, `twitchWatch`, `twitchChat`, `youtubeLive`, `youtube`, `tasks`, `notes`, `agenda`, `weather`, `battery`. *Capability reference* below is generated from the code and is the list that cannot go stale. See *Hardware sensors* for fans/power/battery. |
 | `surface` | no | `"tile"` (default) or `"ambient"` — an ambient package renders fullscreen as an Ambient/screensaver scene instead of a dashboard tile (see *Ambient scenes*). |
-| `actions` | no | Action categories you request: `media`, `volume`, `audioDevice`, `mic`, `lighting`, `chroma`, `wavelink`, `voicemeeter`, `spotify`, `obs`, `discord`, `homeassistant`, `twitch`, `youtube`, `streamerbot`, `url`, `browser`, `watch`, `tasks`, `soundboard`. *Capability reference* below is generated from the code and is the list that cannot go stale. |
+| `actions` | no | Action categories you request: `media`, `volume`, `audioDevice`, `mic`, `lighting`, `chroma`, `wavelink`, `voicemeeter`, `spotify`, `steam`, `obs`, `discord`, `homeassistant`, `twitch`, `youtube`, `youtubePlayer`, `streamerbot`, `url`, `browser`, `watch`, `tasks`, `soundboard`. *Capability reference* below is generated from the code and is the list that cannot go stale. |
 | `hosts` | no | Up to 8 exact hostnames the widget may reach **through the host-mediated fetch proxy** (see *Network*). Loopback/link-local names are rejected at install time. |
 | `userHosts` | no | Up to 4 addresses **the user types in**, for servers you can't know in advance (a NAS, Docker, a printer). Each is `{ id, label, scope }` — `id` (`^[a-z0-9][a-z0-9-]{0,40}$`) is what you read the value back under, `label` (≤ 60 chars) is the text above the field, `scope` is `"private"` (default — LAN only) or `"any"`. See *User-supplied addresses*. |
 | `hooks` | no | Up to 8 hook ids (`^[a-z0-9][a-z0-9-]{0,40}$`) the widget may receive local webhook events on (see *Local webhooks*). |
@@ -212,6 +212,19 @@ than the manifest requested):
     // present on every `theme` refresh, so a live toggle updates without a
     // reload.
     clock12: false,
+    // How much of the DATE the user wants spelled out — Settings → Clock →
+    // Date format: 'full' (Friday, 11 September), 'medium' (Fri 11 Sep) or
+    // 'short' (11/09). A NAME, not a formatted string: ask Intl for that shape
+    // in your own locale rather than cutting a long date apart, which produces
+    // nonsense in most of the eleven languages Xenon speaks. Since v4.11.8, and
+    // re-pushed with every `theme` refresh like clock12:
+    //   const SHAPES = {
+    //     full:   { weekday: 'long',  day: '2-digit', month: 'long' },
+    //     medium: { weekday: 'short', day: 'numeric', month: 'short' },
+    //     short:  { day: '2-digit', month: '2-digit' },
+    //   };
+    //   new Intl.DateTimeFormat(lang, SHAPES[theme.dateFormat] || SHAPES.full).format(d)
+    dateFormat: 'full',
     // Explicit per-tile role overrides, empty for the global palette:
     overrides: ['accent', 'panel'],
     // Flat legacy aliases remain available:
@@ -265,7 +278,7 @@ widget explicitly requests them, as described below.
 The payloads are the dashboard's own SSE events, unmodified:
 
 - `status` — mic mute, game mode/activity, foreground process
-- `system` — `cpu` (%), `gpu` (%|null), `memory.percent`, temperatures, clock speeds, `fps`, uptime… see *Clock speeds and frame rate* below
+- `system` — `cpu` (%), `gpu` (%|null), `memory.percent`, temperatures, clock speeds, `fps` / `presentFps` / `displayFps`, uptime… see *Clock speeds and frame rate* below
 - `media` — `title`, `artist`, `album`, playback state, source, plus `position` and `duration` in seconds. A zero/absent `duration` means the current source has no seekable timeline
 - `audio` — volume, mute, output device, and `speakerApps[]` / `micApps[]`: the per-application mixer (one entry per active session, with `proc`, `volume`, `muted` and a resolved `icon`). Polled, so it updates about every 8 seconds
 - `audioLevels` — **how loud each app actually is right now**: `{ "discord": 0.42, "spotify": 0.81 }`, peak per process in `0..1`, roughly 12 times a second. See *Real audio levels* below — this one has conditions
@@ -285,7 +298,7 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `homeassistant` — Home Assistant device/entity states (privacy note: this exposes your smart-home state — grant it deliberately)
 - `tasks` — `{ tasks: [...] }`, the user's to-do list; pushed on every change
 - `notes` — `{ v, activeId, notes: [...] }`, the user's notes (privacy note: this is your private scratchpad text — grant it deliberately); pushed on save
-- `agenda` — `{ events: [...] }`, the user's calendar events; pushed on every change
+- `agenda` — `{ events: [...] }`, the user's calendar events; pushed on every change. **Every event, not the slice the Upcoming tile shows.** That tile has its own count and horizon in Settings → Calendar, and they are display settings for the tile alone: what reaches you here is unfiltered, so filter and sort it yourself rather than assuming a window
 - `battery` — wireless peripheral battery levels (see *Hardware sensors*)
 - `processes` — **which apps are using the CPU, memory and GPU right now**. See *Which apps are busy* below; like `audioLevels`, this one has conditions
 
@@ -590,7 +603,7 @@ battery to Windows and cannot appear.
 
 ### 3c. Clock speeds and frame rate (v4.11.7)
 
-Four more numbers ride the `system` payload, so `streams: ["system"]` is the
+Six more numbers ride the `system` payload, so `streams: ["system"]` is the
 whole grant — there is nothing extra to request and nothing new to approve.
 
 ```js
@@ -598,7 +611,9 @@ whole grant — there is nothing extra to request and nothing new to approve.
   cpuClockMHz: 4550,     // the fastest core right now, in MHz
   gpuClockMHz: 2610,     // GPU core clock
   vramClockMHz: 10501,   // GPU memory clock
-  fps: 143,              // frames per second in the game being played
+  fps: 152,              // frames per second the person is SEEING
+  presentFps: 223,       // frames handed over per second      (v4.11.8)
+  displayFps: 152,       // frames the screen actually showed   (v4.11.8)
 }
 ```
 
@@ -609,6 +624,18 @@ whole grant — there is nothing extra to request and nothing new to approve.
 - **`fps` is `null` unless a game is actually being measured.** It comes from
   PresentMon on Windows and MangoHud on Linux, and there is no source on macOS,
   so `null` there always. `null` means "nothing to report", never zero.
+- **`fps` is the frame rate on the SCREEN** (v4.11.8). Frame generation pulls
+  the two apart: DLSS FG at x2 on one game presented 223 frames a second and
+  displayed 152, with RTSS and the NVIDIA overlay both reading ~155. `fps`
+  follows the display side wherever the capture carries it, so it agrees with
+  the other overlays instead of quoting a number no one else shows. Before
+  4.11.8 it was the present side, and read high under FG.
+- **`presentFps` and `displayFps` are those two halves**, for a monitoring widget
+  that wants to show what frame generation is doing — the gap between them *is*
+  the generated frames. Either can be null on its own: MangoHud and the DWM
+  fallback report one number rather than two, and `displayFps` needs a capture
+  with display timing in it. **Draw `fps` unless you specifically want the
+  difference** — it is the one that is always the best available answer.
 - **Every one of them is nullable**, and on more machines than you would guess:
   a clock needs LibreHardwareMonitor with sensor access (`sensorAccess: 'ok'`),
   `vramClockMHz` has no meaning on Apple Silicon's unified memory, and a card or
@@ -633,6 +660,380 @@ interpolate between ticks for a smooth-looking number; if someone has raised the
 rate, the same code simply gets fresher values. Never assume an interval — read
 the payload when it arrives. A widget that treats 5 seconds as a constant will be
 wrong on the machines that care most about it.
+
+### 3d. `lang` — host → widget (v4.11.8)
+
+The `init` payload carries `lang` (the dashboard's language code). It is also
+**pushed whenever the user changes the language**, so a widget already on screen
+can re-render its own text:
+
+```js
+{ xenonSdk: 1, type: 'lang', lang: 'de' }
+```
+
+Handle it if your widget shows text of its own. Before v4.11.8 the code arrived
+only at mount, so a widget open while its owner switched language stayed in the
+old one until something reloaded it — which looked like the widget ignoring the
+setting.
+
+Xenon itself ships in eleven languages, so a widget that follows this is one
+that feels native to everyone who installs it. A widget with no text of its own
+can ignore the message entirely.
+
+### 3d-bis. `tempUnit` — Celsius or Fahrenheit (v4.11.8)
+
+Same shape as `lang`, for the same reason. The `init` payload carries
+`tempUnit` — `'c'` or `'f'`, as the user set it in Settings — and a change is
+pushed to every widget already on screen:
+
+```js
+{ xenonSdk: 1, type: 'tempUnit', tempUnit: 'f' }
+```
+
+**The numbers are not converted, and will not be.** Every temperature Xenon
+reports — `cpuTemp`, `gpuTemp`, the weather stream, everything — is Celsius, and
+stays Celsius whatever this says. Converting on the way out would leave you
+unable to tell 30 °C from 30 °F without reading this field anyway, so the field
+is the honest half of the pair: the value is always the same unit, and this tells
+you which one to *show*.
+
+```js
+const f = (c) => c * 9 / 5 + 32;
+draw(unit === 'f' ? Math.round(f(cpuTemp)) + '°F' : Math.round(cpuTemp) + '°C');
+```
+
+Worth handling in anything that prints a temperature: a monitor widget showing
+°C on a dashboard where the clock, the weather and the lock screen all say °F is
+wrong in a way its author cannot see from their own machine. There is no
+permission here — it says nothing about the user except which unit they read.
+
+### 3d-ter. States your scripts set — `scriptStates` (v4.11.8)
+
+Xenon has a named-value store any program on the machine can write to with one
+HTTP call, so a Deck key can mirror something Xenon has no integration for (see
+DEVELOPER.md → *Deck script states*). The user's shell, `.bat`, AppleScript or
+Python does this:
+
+```bash
+curl -X POST 127.0.0.1:3030/state/set \
+     -H 'Content-Type: application/json' \
+     -d '{"name":"audio-out","value":"speakers"}'
+```
+
+Request the `scriptStates` stream and your widget sees the same values:
+
+```js
+// { xenonSdk: 1, type: 'data', stream: 'scriptStates', data: { states: { … } } }
+if (m.type === 'data' && m.stream === 'scriptStates') {
+  render(m.data.states['audio-out'] || '');   // 'speakers' | 'headphones' | undefined
+}
+```
+
+Values are strings (≤ 200 chars); a name the script cleared is simply absent.
+The map is pushed on every change **and once when your frame is granted the
+stream**, empty map included — so an empty `states` means "nothing is set", not
+"not told yet", and you never have to guess on a cold start.
+
+**Read-only, by design.** There is no bridge message to WRITE one, and
+`/state/set` refuses any call from a page or a sandboxed iframe (its opaque
+origin reads as cross-site), so a widget cannot set one even by trying. That
+store is shared and unnamespaced: one package writing `audio-out` would silently
+fight another package — and the user's own script — over the same name. Your
+package publishes **its own** states with `deck.states` instead (see §8), which
+are declared in the manifest, namespaced `your-pkg/state-id`, and bindable to a
+Deck key in exactly the same way.
+
+So: `deck.states` to publish what *your widget* knows; `scriptStates` to react to
+what the *user's scripts* know.
+
+### 3e. Reading Spotify — `spotifyQuery` (v4.11.8)
+
+A widget that browses a library needs authenticated reads. It gets them by
+naming one, never by holding a token:
+
+```js
+addEventListener('message', (e) => {
+  const m = e.data;
+  if (m && m.xenonSdk === 1 && m.type === 'spotifyQueryResult' && m.id === 7) {
+    if (m.ok) render(m.data); else showError(m.error);
+  }
+});
+
+window.parent.postMessage({
+  xenonSdk: 1, type: 'spotifyQuery', id: 7,
+  op: 'savedAlbums', params: { limit: 50, offset: 0 },
+}, '*');
+```
+
+`id` is yours and comes back on the reply, so several reads can be in flight at
+once. Requires the **`spotify` stream** grant (`"streams": ["spotify"]`).
+
+| `op` | params | reads |
+| --- | --- | --- |
+| `player` | — | current playback state |
+| `queue` | — | what is playing and what is next |
+| `devices` | — | the account's playback devices |
+| `playlists` | `limit`, `offset` | the user's playlists |
+| `savedAlbums` | `limit`, `offset` | saved albums |
+| `savedTracks` | `limit`, `offset` | Liked Songs |
+| `recent` | `limit`, `before` | recently played |
+| `followedArtists` | `limit`, `after` | followed artists |
+| `artistAlbums` | `id`, `limit`, `offset` | an artist's albums |
+| `albumTracks` | `id`, `limit`, `offset` | an album's tracks |
+| `playlistTracks` | `id`, `limit`, `offset` | a playlist's tracks |
+| `search` | `q`, `types`, `limit`, `offset` | search (`track,album,artist,playlist`) |
+
+`id` takes a bare id, a `spotify:` URI or an `open.spotify.com` link — whichever
+you happen to be holding.
+
+**Two ops page by cursor, not by `offset`** (v4.11.8). Spotify does not offer
+`offset` on either, and it does not use the same cursor for both:
+
+- `followedArtists` continues from the last artist it gave you. Read
+  `data.artists.cursors.after` off a page and send it back as `after`; when it
+  is absent you are at the end.
+- `recent` walks backwards in time. Read `data.cursors.before` and send it back
+  as `before`.
+
+```js
+{ xenonSdk: 1, type: 'spotifyQuery', id: 8,
+  op: 'followedArtists', params: { limit: 50, after: page1.artists.cursors.after } }
+```
+
+A cursor that is sent but unreadable comes back `error: 'bad_params'` rather
+than quietly answering page 1 again — a "load more" cannot tell that apart from
+a real page, so it would append the same rows and ask again forever.
+
+**The data is Spotify's own, passed through unshaped.** Reshaping it would drop
+fields your widget wants and would make Xenon the owner of a schema it does not
+control, so the objects you get are the ones Spotify's Web API documents.
+
+**One exception, and it is a removal rather than a reshaping** (v4.11.8): `queue`
+comes back with the context wrap cut off. Spotify pads that endpoint by looping
+the album or playlist — a five-track album sitting on the third track answers
+with the two that are left and then the whole thing again, and again — and with
+repeat off none of it will play. The rows are still Spotify's own objects; what
+is gone is the part of the list that does not exist. It is only cut when repeat
+and shuffle are both off and the repetition closes on the track playing now,
+which is what tells padding apart from a queue that genuinely repeats a run of
+songs; nothing is ever removed for merely being a duplicate, and nothing is
+reordered. The same normalization the built-in Spotify tile uses.
+
+Four things to expect:
+
+- **`limit` and `offset` are clamped** (50 per page, 100 for `playlistTracks`).
+  A library is paged — ask for the next page rather than a bigger one.
+- **`error: 'insufficient_scope'`** means the user connected Spotify before
+  `recent` and `followedArtists` existed. Their token is fine for everything
+  else; tell them to reconnect Spotify in Settings, and only for those two.
+- **`error: 'rate_limited'`** is your own budget, not Spotify's. These calls
+  spend the *user's* Spotify quota, which the dashboard's own Spotify tile
+  shares — search on a debounce, not on every keystroke, or you will stop their
+  music working and it will look like Xenon broke. When the refusal came from
+  Spotify the reply carries **`status: 429`** and **`retryAfterMs`**: wait that
+  long. Retrying sooner keeps the whole account — the user's Spotify tile
+  included — in the penalty box for longer. When it came from Xenon's own
+  per-widget budget instead there is no `status`, and a second or two is enough.
+  (Before 4.11.8 both fields were dropped on the way into the sandbox, so every
+  widget had to guess.)
+- **`error: 'not_connected'`** means no Spotify account is linked at all. Say so
+  rather than showing an empty library.
+
+**The host already absorbs bursts, so don't build a cache of your own** (v4.11.8).
+Two identical reads still in flight share one call to Spotify, and a repeat
+within a few seconds is answered from memory: 10 s for library pages and search
+results, 3 s for `player`, `queue` and `devices`. So a re-render, a remount, a
+tile coming back from hidden, or two tiles of the same widget cost nothing extra
+— write the straightforward thing and let the host collapse it.
+
+What that does *not* cover is paging: page 2 is a different read from page 1, and
+scrolling a large library still spends one call per page. Fetch a page when it is
+about to be seen rather than pre-loading the whole library, and keep what you
+have drawn. Only answers are cached, never failures, so an error is always the
+current state and a retry (after `retryAfterMs`) is always a real attempt.
+Starting playback drops what was cached about playback, so the read you do right
+after `spotifyPlayUri` sees the new queue.
+
+**Playing something you found** is an action, under the separate `spotify`
+action grant:
+
+```js
+{ xenonSdk: 1, type: 'action', action: { type: 'spotifyPlayUri', uri: 'spotify:album:…' } }
+```
+
+`track`, `album`, `artist` and `playlist` URIs only, validated before use.
+
+**Add `contextUri` when the track came from somewhere** (v4.11.8) — an album, a
+playlist, a list the person was looking down:
+
+```js
+action: {
+  type: 'spotifyPlayUri',
+  uri: 'spotify:track:…',            // the track they tapped
+  contextUri: 'spotify:playlist:…',  // what they tapped it inside
+}
+```
+
+Without it, playing a track by its own URI replaces whatever was playing with a
+queue of exactly one song: the track plays and then everything stops. With it,
+the same tap means *play this playlist, starting here*, and the rest of the list
+follows — which is what Spotify's own clients do. There is no separate offset:
+the track in `uri` is where the context starts.
+
+`contextUri` takes an `album` or `playlist` URI and is used only when `uri` is a
+track. Anything else — an artist URI (Spotify cannot start an artist at a chosen
+song), a malformed URI, a `uri` that is not a track — falls back to playing the
+named track on its own rather than playing a *different* song than the one that
+was tapped. So it is always safe to send.
+
+**Why two grants.** Reading is the `spotify` **stream**; controlling playback is
+the `spotify` **action** category, and they are asked for separately on purpose.
+"Control Spotify playback" is play, pause and skip — someone's listening
+history, saved music and followed artists are a different thing to hand over,
+and a permission already granted for the first must not quietly become the
+second. A widget that only controls playback still cannot read anything.
+
+### 3f. Reading YouTube — `youtubeQuery` (v4.11.8)
+
+The same shape as `spotifyQuery`, for a widget that browses YouTube. Requires the
+**`youtube` stream** grant (`"streams": ["youtube"]`).
+
+```js
+addEventListener('message', (e) => {
+  const m = e.data;
+  if (m && m.xenonSdk === 1 && m.type === 'youtubeQueryResult' && m.id === 12) {
+    if (m.ok) render(m.data.videos, m.data.nextPageToken); else showError(m.error);
+  }
+});
+
+window.parent.postMessage({
+  xenonSdk: 1, type: 'youtubeQuery', id: 12,
+  op: 'channelVideos', params: { id: 'UC…', pageToken: '' },
+}, '*');
+```
+
+| `op` | params | answers |
+| --- | --- | --- |
+| `subscriptionFeed` | — | `{ videos }` — the latest uploads from the channels the user follows |
+| `subscriptionChannels` | `order`, `pageToken` | `{ channels }` — the channels themselves |
+| `searchVideos` | `q`, `pageToken` | `{ videos }` |
+| `channelVideos` | `id`, `pageToken` | `{ videos }` — a channel's uploads |
+| `channelPlaylists` | `id`, `pageToken` | `{ playlists }` |
+| `playlistVideos` | `id`, `pageToken` | `{ videos }` |
+
+`subscriptionChannels` takes an **`order`**: `alphabetical` (the default),
+`relevance` — YouTube's own ranking, which is what its apps show — or `unread`.
+Anything else is refused as `bad_order` rather than quietly served in the default
+order, so a widget offering "YouTube order" cannot end up showing A–Z under that
+label. There is no descending order in the API; reverse a page yourself if you
+offer Z–A, and say so if your list is paged, since reversing one page is not
+reversing the list.
+
+Every answer also carries **`nextPageToken`**: pass it back as `params.pageToken`
+for the next page, and stop when it comes back `''`. Tokens are opaque — hand
+back exactly what you were given. `subscriptionFeed` never pages (it is built
+from several channels at once, not read from one list).
+
+**The rows are Xenon's, not Google's** — the opposite call from the Spotify
+reads, and for a reason worth knowing: these are the same rows the built-in
+YouTube tile draws, so you get the fields a list needs and one place stays
+responsible for reading Google's shape.
+
+```js
+video    { id, title, channel, channelId, image, seconds, embeddable, published }
+channel  { id, title, image }
+playlist { id, title, count, image }
+```
+
+`channelId` is the channel that **uploaded** the video, not the owner of the
+playlist it was read from (v4.11.8) — hand it straight to `channelVideos` or
+`channelPlaylists` to make the channel name on a row clickable. It is `''` when
+the API did not give one, so test it before drawing a link.
+
+`embeddable: false` means the owner does not allow the video to play outside
+youtube.com — mark it in your list rather than letting someone tap it and find
+out. `seconds` is `null` when the duration could not be read; draw no chip rather
+than a wrong one.
+
+**Quota is the thing to design around.** YouTube gives the account 10,000 units a
+day, shared with Xenon's own YouTube tile, and **one `searchVideos` costs 100 of
+them** while every other op costs 1 per page. So search on an explicit action,
+never as-you-type. The host caches: search for 30 minutes per query and per page,
+the subscription reads for 15 minutes, playlists and channel videos for 5, and a
+channel's uploads-playlist id for half a day. Repeating a read you have already
+made inside those windows costs nothing, so page forward and back freely — it is
+new queries that cost.
+
+Errors: `not_connected` (no YouTube account linked — say so, don't draw an empty
+library), `bad_id`, `bad_page`, `bad_op`, `rate_limited` (the per-widget gate),
+`quotaExceeded` and Google's other reasons passed through by name.
+
+### 3g. A YouTube player inside your widget — `youtubePlayer` (v4.11.8)
+
+`ytWatchPlay` (§ action categories) plays a video in **Xenon's** YouTube tile.
+This is the other thing: a player **inside your own widget**, at a rectangle you
+choose. Requires the **`youtubePlayer` action** grant (`"actions": ["youtubePlayer"]` —
+the category name, like every other entry in `actions`).
+
+Your frame cannot embed YouTube — it has an opaque origin and a CSP that blocks
+all network, which is what makes installing a widget safe. So Xenon owns the
+player and places it over your frame; you send commands and receive state.
+
+```js
+// Show it over the top half of your widget, then drive it.
+send({ op: 'show', params: { video: 'dQw4w9WgXcQ', x: 0, y: 0, w: 320, h: 180 } });
+send({ op: 'pause' });
+send({ op: 'seek', params: { seconds: 90 } });
+send({ op: 'hide' });
+
+function send(m) {
+  window.parent.postMessage({ xenonSdk: 1, type: 'youtubePlayer', id: ++n, ...m }, '*');
+}
+```
+
+| `op` | params | does |
+| --- | --- | --- |
+| `show` | `video`, `x`, `y`, `w`, `h` | put a player there and start it |
+| `load` | `video`, `x`, `y`, `w`, `h` | swap the video in the player you already have |
+| `rect` | `x`, `y`, `w`, `h` | move/resize it |
+| `play` / `pause` | — | |
+| `mute` | `muted` (default `true`) | |
+| `seek` | `seconds` | |
+| `hide` | — | take it away |
+
+Each reply is `{ type: 'youtubePlayerResult', id, ok, error }`. State arrives
+unasked, as `{ type: 'youtubePlayerEvent', event, video, state, position,
+duration, muted }` — `event` is `state`, `position`, `ended`, `error` (with
+`code`) or `closed` (with `reason`), and `state` is one of `unstarted`,
+`playing`, `paused`, `buffering`, `cued`, `ended`. Position updates arrive about
+once a second; state changes arrive immediately.
+
+Seven things the host decides, not you:
+
+- **The rectangle is in YOUR viewport**, the same pixels the `size` message
+  reports, with `0,0` at your top-left. It is clamped into your tile, so a
+  rectangle reaching past the edge is trimmed rather than refused.
+- **A player has a floor of 96×54 px** (`too_small` under that, and on a tile
+  too small to hold one at all). A player nobody can see is a speaker, and a
+  widget does not get one of those.
+- **Re-send `rect` when your layout moves** — after a `size` message, after
+  expand, after scrolling the player out of place. The host does not track your
+  DOM; it cannot see inside your frame.
+- **One player exists on a dashboard.** A second widget asking takes it over, and
+  the first gets `closed` with `reason: 'replaced'` — so two videos can never
+  talk at once. Handle `closed` and draw your fallback.
+- **Your tile must be on screen.** Off-screen (another page, hidden, another tab)
+  the player is torn down with `closed`/`gone`, and `show` answers `not_visible`.
+  Ask again when `visibility` says you are back.
+- **A video id is a video id.** `dQw4w9WgXcQ`, never a URL — `bad_video`
+  otherwise. `seek` takes seconds, `bad_seconds` otherwise.
+- **`error` code 101 or 150** means the owner disallowed embedding: that video
+  will not play anywhere but youtube.com, so offer `openUrl` instead of retrying.
+  Other codes are about this player or this PC, not about the video.
+
+Fullscreen is deliberately withheld from the embed (it breaks the kiosk surface),
+so YouTube's own fullscreen button does not appear. Make the player bigger with
+`rect` — or, if the user expanded your tile, with `rect` again at the new size.
 
 ### 4. `theme` — host → widget
 
@@ -1009,6 +1410,7 @@ the same gate Deck keys go through):
 | `lighting` | `{ type: 'lightPower', state: 'toggle' \| 'on' \| 'off' }`, `{ type: 'lightColor', color: '#rrggbb' }`, `{ type: 'lightAuto' }`, `{ type: 'lightEffect', style, color }`, `{ type: 'lightDevice', device, mode, color }` — the whole RGB system (iCUE + WLED/Hue/Nanoleaf/OpenRGB/Home Assistant lights/Chroma). `style`: `none\|solid\|breathing\|cycle\|wave\|aurora\|candle\|palette`; `mode`: `follow\|color\|animation\|temperature\|album\|off`; `color`: `#rrggbb`. `lightColor` sets a fixed colour across the whole rig, `lightAuto` clears it back to your configured lighting. Requires lighting configured in Settings → Illuminazione. |
 | `chroma` | `{ type: 'chromaColor', device, color }`, `{ type: 'chromaOff', device }` — Razer Chroma per-device lighting (`device`: `all` \| `keyboard` \| `mouse` \| `mousepad` \| `headset` \| `keypad` \| `chromalink`; `color`: `#rrggbb`). Requires the user to enable Razer Chroma in Settings. |
 | `wavelink` | `{ type: 'wlInputVolume', mixId, mix, value }`, `{ type: 'wlInputMute', mixId, mix }`, `{ type: 'wlOutputVolume', mix, value }`, `{ type: 'wlOutputMute', mix }`, `{ type: 'wlSwitchMonitoring' }`, `{ type: 'wlSetMonitorMix', monitorMix }` — Elgato Wave Link mixer (`mix`: `stream` \| `local` \| `all`; `value`: 0–100; `mixId` from the `wavelink` stream). Requires the user to enable Wave Link in Settings. |
+| `steam` | `{ type: 'launchSteamGame', gameId }` — start a game the user owns, by Steam AppID. `gameId` is digits only (it becomes `steam://rungameid/<id>`), so a widget names a number, never a command. Steam has to be installed for the protocol handler to exist; nothing happens otherwise. Not part of `url`: that category is http(s) links, and it stays that way. |
 | `voicemeeter` | `{ type: 'vmStripMute', strip, mode }`, `{ type: 'vmStripGain', strip, mode, value }`, `{ type: 'vmStripBus', strip, bus, mode }`, `{ type: 'vmBusMute', bus, mode }`, `{ type: 'vmBusGain', bus, mode, value }`, `{ type: 'vmMacro', index, mode }` — Voicemeeter strips, buses and routing (`strip`: index; `bus`: a LABEL, `A1`…`B3`; `mode`: `toggle` \| `on` \| `off` for the flags, `set` \| `up` \| `down` for gain; gain in dB, clamped to −60…+12). Windows only, and only while Voicemeeter is running. `vmParam` is a Deck-key privilege and is **not** in this category: it names any parameter the mixer has, `Command.Shutdown` included. |
 | `spotify` | `spotifyPlay`, `spotifyNext`, `spotifyPrev`, `spotifySave`, `spotifyLike`, `spotifyShuffle`, `spotifyRepeat`, `spotifyVolume`, `spotifySeek`, `spotifyPlaylist`, `spotifyDevice` — control Spotify playback (params match the Deck Spotify actions; playback control needs Spotify Premium). Requires the user to connect Spotify in Settings. |
 | `obs` | `obsScene`, `obsSceneNext`, `obsRecord`, `obsStream`, `obsMute`, `obsInputVolume` — OBS scenes, recording/streaming and audio. Requires OBS connected (WebSocket) in Settings. |
@@ -1016,6 +1418,7 @@ the same gate Deck keys go through):
 | `homeassistant` | `haToggle`, `haLight`, `haMedia`, `haCover`, `haClimate`, `haFan`, `haVacuum`, `haLock`, `haAlarm`, `haScene`, `haScript`, `haButton` — control your Home Assistant devices (params/entity ids match the Deck HA actions). `haCallService` (arbitrary service calls) is deliberately **not** exposed to widgets. Requires HA configured. |
 | `twitch` | `twitchClip`, `twitchMarker`, `twitchAd`, `twitchTitle`, `twitchGame`, `twitchChat`, `twitchShoutout`, `twitchChatMode` — control your Twitch channel. Requires Twitch connected. |
 | `youtube` | `ytBroadcast` — start/stop your YouTube broadcast. Requires YouTube connected. |
+| `youtubePlayer` | `ytPlayer` — a YouTube player **inside your own widget**, owned by Xenon and driven through validated messages. Not a `/actions/run` action: see [A YouTube player inside your widget](#3g-a-youtube-player-inside-your-widget--youtubeplayer-v4118). Separate from `youtube`, which is about the user's broadcast, and from `watch`, which plays in Xenon's own tile. |
 | `streamerbot` | `sbDoAction`, `sbSendMessage`, `sbCodeTrigger` — trigger Streamer.bot actions, send chat, fire code triggers. Requires Streamer.bot connected. |
 | `url` | `{ type: 'openUrl', url: 'https://…' }` (http/https only). Opens in the user's **default browser**, on whichever monitor Windows puts it. Use `browser` below when the page should stay on the dashboard screen. |
 | `browser` | `{ type: 'browserOpen', url: 'https://…', expand?: true }` (http/https only). Shows the page in the **Browser tile** already on the dashboard. See [Opening a page on the dashboard](#opening-a-page-on-the-dashboard-browser) below. |
@@ -1282,7 +1685,7 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `processes`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtubeLive`
+**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `processes`, `scriptStates`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 
@@ -1298,7 +1701,8 @@ the user granted, and every action is re-validated server-side.
 | `mic` | `micMute` |
 | `obs` | `obsScene`, `obsSceneNext`, `obsRecord`, `obsStream`, `obsMute`, `obsInputVolume` |
 | `soundboard` | `playSound`, `soundStopAll` |
-| `spotify` | `spotifyPlay`, `spotifyNext`, `spotifyPrev`, `spotifySave`, `spotifyLike`, `spotifyShuffle`, `spotifyRepeat`, `spotifyVolume`, `spotifySeek`, `spotifyPlaylist`, `spotifyDevice` |
+| `spotify` | `spotifyPlay`, `spotifyNext`, `spotifyPrev`, `spotifySave`, `spotifyLike`, `spotifyShuffle`, `spotifyRepeat`, `spotifyVolume`, `spotifySeek`, `spotifyPlaylist`, `spotifyPlayUri`, `spotifyDevice` |
+| `steam` | `launchSteamGame` |
 | `streamerbot` | `sbDoAction`, `sbSendMessage`, `sbCodeTrigger` |
 | `tasks` | `taskAdd`, `taskToggle`, `taskDelete` |
 | `twitch` | `twitchClip`, `twitchMarker`, `twitchAd`, `twitchTitle`, `twitchGame`, `twitchChat`, `twitchShoutout`, `twitchChatMode` |
@@ -1308,6 +1712,7 @@ the user granted, and every action is re-validated server-side.
 | `watch` | `twitchWatchPlay`, `ytWatchPlay` |
 | `wavelink` | `wlInputVolume`, `wlInputMute`, `wlOutputVolume`, `wlOutputMute`, `wlSwitchMonitoring`, `wlSetMonitorMix` |
 | `youtube` | `ytBroadcast` |
+| `youtubePlayer` | `ytPlayer` |
 <!-- SDK-REFERENCE:END -->
 
 ### 6. Network — `fetch` (widget → host) and `fetch_result` (host → widget)
@@ -2079,6 +2484,45 @@ fetch proxy — same allowlist, same SSRF guard (loopback/link-local unreachable
 same 1 MB size cap. Responses are **images only**, cached briefly (a bounded LRU)
 so panning back doesn't re-hit the origin, and rate-limited per package. Bundle
 the map library itself (Leaflet's JS/CSS/marker images) in your package as usual.
+
+## Artwork that stays cached (`/sdk/asset/`) (v4.11.8)
+
+Album covers, game art, video thumbnails — images that are the same next week
+and are worth not fetching again. Same shape as the tile proxy above, and the
+same door: declared host, granted host, SSRF guard, 1 MB cap, images only. The
+one difference is where the answer is kept.
+
+```js
+const assetUrl = (u) => `/sdk/asset/${pkgId}?u=${encodeURIComponent(u)}`;
+img.src = assetUrl(track.albumArtUrl);
+```
+
+**Use `/sdk/asset/` when the image does not change, `/sdk/tile/` when it does.**
+Tiles are held in a small memory cache for minutes, because a radar frame is
+stale almost immediately and worthless tomorrow. Assets are written to disk and
+survive a restart, because a cover is not.
+
+**Do not put images in your store.** A store value caps at 16 KB and the whole
+store at 256 KB, so base64 artwork does not fit, and this exists so it never has
+to. The `<img>` is same-origin, so nothing crosses the bridge at all.
+
+What the cache guarantees, and what it does not:
+
+- **It is bounded, and it forgets.** Per widget and in total, oldest-used first,
+  with the files actually deleted. Your artwork can disappear at any time — it is
+  a cache, not storage. Ask again and it comes back.
+- **Seven days, then re-fetched.** An image can change behind an unchanged URL,
+  and a month of showing the old one is too long to be wrong.
+- **A failure is remembered for an hour**, so a render loop does not re-ask a
+  dead URL every frame. Handle `onerror` and draw a placeholder.
+- **It is per widget.** Two widgets caching the same URL each keep their own
+  copy; neither can see the other's.
+- **Misses are rate-limited** (a miss costs a download and a file). Cache hits
+  never are, so painting from cache is always free. A burst of new images can
+  return 429 — retry later rather than looping.
+
+Requested by a widget author caching Steam, Spotify and YouTube artwork, who had
+already hit the store ceiling doing it by hand.
 
 ## Ambient scenes (`surface: "ambient"`)
 

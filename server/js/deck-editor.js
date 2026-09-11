@@ -1381,9 +1381,17 @@
     function manualSdkState() {
       return sdkStateName ? Object.assign({ source: 'sdkState', name: sdkStateName }, sdkStateValue ? { value: sdkStateValue } : {}) : null;
     }
+    // "Reflect a script state" binding: any local script can set a named value
+    // with POST /state/set (curl, .bat, AppleScript, Python...), and the key —
+    // second face included — follows it. Same named-value shape as the two above.
+    let scriptStateName = (existing && existing.state && existing.state.source === 'scriptState' && existing.state.name) ? String(existing.state.name) : '';
+    let scriptStateValue = (existing && existing.state && existing.state.source === 'scriptState' && existing.state.value != null) ? String(existing.state.value) : '';
+    function manualScriptState() {
+      return scriptStateName ? Object.assign({ source: 'scriptState', name: scriptStateName }, scriptStateValue ? { value: scriptStateValue } : {}) : null;
+    }
     // The key's effective state binding: an explicit global binding wins, else the
     // action-derived one. Used by the LED "follows state" default and on save.
-    function effectiveKeyState() { return manualSbState() || manualSdkState() || detectKeyState(); }
+    function effectiveKeyState() { return manualSbState() || manualSdkState() || manualScriptState() || detectKeyState(); }
 
     const fKind = field('deck_edit_kind');
     const selKind = document.createElement('select');
@@ -1623,6 +1631,44 @@
     syncSdkState();
     // Visibility (states available AND kind=action) is owned by syncKind() below.
     paneAction.appendChild(fSdkState);
+
+    // ── Reflect a SCRIPT state: no service to configure — any local script can
+    // POST /state/set, so the field is always offered on action keys. The name is
+    // typed (a script may not have run yet); names already set are offered as a
+    // datalist so a running script's states can just be picked. ──
+    const fScriptState = field('deck_edit_scriptstate');
+    const scrNameIn = input('text', scriptStateName);
+    scrNameIn.placeholder = t('deck_ph_scriptstate');
+    const scrList = document.createElement('datalist');
+    scrList.id = 'deck-ed-scriptstates';
+    scrNameIn.setAttribute('list', scrList.id);
+    scrNameIn.addEventListener('input', () => { scriptStateName = scrNameIn.value.trim(); syncScriptState(); });
+    fScriptState.appendChild(scrNameIn);
+    fScriptState.appendChild(scrList);
+    fetch('/state/get').then((r) => r.json()).then((d) => {
+      const names = Object.keys((d && d.states) || {});
+      if (!names.length) return;
+      scrList.replaceChildren(...names.map((n) => { const o = document.createElement('option'); o.value = n; return o; }));
+    }).catch(() => {});
+    // Optional exact-value match (empty = on for any truthy value).
+    const scrValWrap = document.createElement('div'); scrValWrap.className = 'deck-ed-subfield';
+    const scrValLbl = document.createElement('span'); scrValLbl.className = 'deck-ed-label';
+    scrValLbl.setAttribute('data-i18n', 'deck_edit_scriptstateval'); scrValLbl.textContent = t('deck_edit_scriptstateval');
+    const scrValIn = input('text', scriptStateValue); scrValIn.placeholder = t('deck_ph_sbglobalval');
+    scrValIn.addEventListener('input', () => { scriptStateValue = scrValIn.value.trim(); });
+    scrValWrap.appendChild(scrValLbl); scrValWrap.appendChild(scrValIn);
+    fScriptState.appendChild(scrValWrap);
+    const scrHint = document.createElement('div'); scrHint.className = 'deck-ed-hint';
+    scrHint.setAttribute('data-i18n', 'deck_scriptstate_hint'); scrHint.textContent = t('deck_scriptstate_hint');
+    fScriptState.appendChild(scrHint);
+    function syncScriptState() {
+      const on = !!scriptStateName;
+      scrValWrap.style.display = on ? '' : 'none';
+      refreshLedDurDefault();   // a script-state binding makes the key stateful too
+    }
+    syncScriptState();
+    // Visibility (kind=action) is owned by syncKind() below.
+    paneAction.appendChild(fScriptState);
 
     // Action picker categories (in display order); each maps an ACTION_CATALOG
     // `group` to a localized header. The `lighting` group carries the visible
@@ -2742,6 +2788,8 @@
       // Widget-state binding: only once the package scan found published states
       // (or the key already carries one) — hidden noise-free for everyone else.
       fSdkState.style.display = (isAction && sdkStatesAvail) ? '' : 'none';
+      // Script-state binding: always available (it needs no configured service).
+      fScriptState.style.display = isAction ? '' : 'none';
       // Alternate ON face: stateful action keys only (state is action-only too).
       fStateStyle.style.display = isAction ? '' : 'none';
       // Live value badge: action keys only (normalizeKey drops it on folders).

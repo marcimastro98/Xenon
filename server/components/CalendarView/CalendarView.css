@@ -293,12 +293,37 @@
   text-transform: uppercase;
 }
 
+/* The minimum here is the width of a whole ITEM, not of the name inside it, and
+   that distinction is the bug it used to have. An item spends ~70px on its dot,
+   its two gaps, its padding and the time on the right, so a 130px column left the
+   title about eight characters and the second column arrived as soon as the tile
+   passed ~265px. On a Xeneon Edge — wide, short, every tile narrow — that read as
+   two columns of one word each: "FC Barcel…" beside "Levante - FC…". Reported
+   with a screenshot from an Edge.
+
+   300px is the width at which real event titles survive — measured against the
+   ones in that report ("FC Barcelona - Feyenoord", "Festiwal Roślin w Poznaniu"),
+   which need about 230px of name after the ~70px of furniture. So a second column
+   now appears only where it reads as well as one, and a tile wide enough for two
+   full titles still gets them side by side. `data-cols` is the user overriding
+   the whole question from Settings → Calendar.
+
+   `min(300px, 100%)` and not a bare 300px: a grid track never shrinks below its
+   own minimum, so on a tile narrower than that the row would run past the edge
+   and .upcoming-block, which hides its overflow, would simply clip the time off
+   the right of every event. The min() caps the track at the width there is. */
 .upcoming-list {
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
   gap: 5px;
 }
+
+/* minmax(0, …) rather than 1fr: a grid track's automatic minimum is its content,
+   so a long event name would push the column wider than the tile and take the
+   row with it. */
+.upcoming-list[data-cols="1"] { grid-template-columns: minmax(0, 1fr); }
+.upcoming-list[data-cols="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 .upcoming-item {
   display: grid;

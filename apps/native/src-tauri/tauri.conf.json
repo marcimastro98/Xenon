@@ -1,12 +1,13 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Xenon",
-  "version": "4.11.7",
+  "version": "4.11.8",
   "identifier": "com.marcimastro98.xenon",
   "build": {
     "frontendDist": "../splash"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [],
     "security": {
       "csp": null

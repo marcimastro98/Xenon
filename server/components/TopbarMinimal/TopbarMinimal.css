@@ -97,24 +97,35 @@ body.topbar-minimal:not([data-panel])[data-topbar-align="right"] .topbar-mini {
    hairlines below carry the spacing, so the pieces read as an organised set. */
 body.topbar-minimal .topbar-mini .clock { flex-direction: row; align-items: center; gap: 14px; }
 body.topbar-minimal .topbar-mini .clock-face { align-items: baseline; }
+/* The island draws its own, much smaller clock — and it obeys the size sliders
+   like the full bar does, because the bar somebody uses is the bar the setting
+   has to work on. Same shape as Topbar.css: the BASE lives in --clock-base and
+   the multiplier is applied on top, so this stays the island's 19px at 100% and
+   scales from there rather than from a desktop size.
+   The capsule is an inline-flex with no fixed height, so it grows with what is
+   inside it, and reflowIsland() measures the real pill — the tiles beneath
+   re-inset themselves at any size. */
 body.topbar-minimal .topbar-mini .clock-h,
 body.topbar-minimal .topbar-mini .clock-m {
-  font-size: 19px;
+  --clock-base: 19px;
+  font-size: calc(var(--clock-base) * var(--clock-time-scale, 1));
   font-weight: 800;
   letter-spacing: -0.5px;
   min-width: auto;
 }
 body.topbar-minimal .topbar-mini .clock-sep {
-  font-size: 17px;
+  --clock-base: 17px;
+  font-size: calc(var(--clock-base) * var(--clock-time-scale, 1));
   font-weight: 400;
   margin-bottom: 0;
   padding: 0 1px;
 }
 /* am/pm keeps the clean box-less suffix from Topbar.css, just smaller */
 body.topbar-minimal .topbar-mini .clock-ampm {
-  font-size: 10px;
+  --clock-base: 10px;
+  font-size: calc(var(--clock-base) * var(--clock-time-scale, 1));
   letter-spacing: 1px;
-  margin: 0 0 0 4px;
+  margin: 0 0 0 calc(4px * var(--clock-time-scale, 1));
   align-self: center;
 }
 
@@ -127,7 +138,8 @@ body.topbar-minimal .topbar-mini .clock-meta {
 }
 body.topbar-minimal .topbar-mini .status-dot-inline { display: none; }
 body.topbar-minimal .topbar-mini .clock-date {
-  font-size: 12.5px;
+  --clock-base: 12.5px;
+  font-size: calc(var(--clock-base) * var(--clock-date-scale, 1));
   font-weight: 650;
   color: var(--muted-text);
   white-space: nowrap;
@@ -135,7 +147,7 @@ body.topbar-minimal .topbar-mini .clock-date {
 /* The mid-dot becomes a slim vertical hairline (date | weather) */
 body.topbar-minimal .topbar-mini .clock-meta-sep {
   width: 1px;
-  height: 15px;
+  height: calc(15px * var(--clock-date-scale, 1));
   background: var(--floating-ui-border);
   color: transparent;
   font-size: 0;
@@ -157,7 +169,11 @@ body.topbar-minimal .topbar-mini .clock-weather {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-body.topbar-minimal .topbar-mini .clock-weather .weather-mini-icon { width: 23px; height: 20px; }
+/* The island's own smaller icon, scaled like everything else on this line. */
+body.topbar-minimal .topbar-mini .clock-weather .weather-mini-icon {
+  width: calc(23px * var(--clock-date-scale, 1));
+  height: calc(20px * var(--clock-date-scale, 1));
+}
 body.topbar-minimal .topbar-mini .weather-temp { font-size: 15px; }
 
 /* SDK badge chips (js/sdk-badges.js) — size them to the pill's density. The row
