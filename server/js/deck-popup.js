@@ -55,6 +55,8 @@
     // /sdk/deck-states; seeded on connect) — without this listener every
     // sdkState-bound key/face would stay dark here.
     on('sdk_states', (d) => { if (D()) D().refreshStates({ sdkStates: (d && d.states) || {}, sdkStateMeta: (d && d.meta) || {} }); });
+    // States any local script set over POST /state/set (seeded on connect).
+    on('script_states', (d) => { if (D()) D().refreshStates({ scriptStates: (d && d.states) || {} }); });
     on('timer_update', (d) => {
       if (!D() || !window.DeckModel || !window.DeckModel.timersByLabel) return;
       D().refreshStates({ timers: window.DeckModel.timersByLabel(d.timers) });

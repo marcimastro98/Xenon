@@ -24,7 +24,7 @@
   let lastServerRev = 0;                      // newest server-assigned store rev we've seen (GET ack / POST ack / SSE)
 
   // Latest known live state; key nodes bound via data-state-bound reflect it.
-  const stateSnapshot = { micMuted: false, speakerMuted: false, obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, remoteConnected: false, remoteActive: false, sbGlobals: {}, sdkStates: {}, sdkStateMeta: {}, discordMuted: false, discordDeafened: false, mediaPlaying: false, mediaSource: '', haStates: {}, timers: {}, masterVolume: NaN, discordInputVolume: NaN, discordOutputVolume: NaN };
+  const stateSnapshot = { micMuted: false, speakerMuted: false, obsRecording: false, obsStreaming: false, obsScene: '', obsMutes: {}, remoteConnected: false, remoteActive: false, sbGlobals: {}, sdkStates: {}, sdkStateMeta: {}, scriptStates: {}, discordMuted: false, discordDeafened: false, mediaPlaying: false, mediaSource: '', haStates: {}, timers: {}, masterVolume: NaN, discordInputVolume: NaN, discordOutputVolume: NaN };
   // Latest OBS program-scene thumbnail; painted onto one host key by applyScenePreview.
   let scenePreview = { scene: '', image: '' };
   let obsToastTimer = null;   // auto-dismiss timer for the "OBS pronto" toast
