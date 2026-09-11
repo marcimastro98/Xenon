@@ -7757,6 +7757,10 @@ const DEFAULT_DASHBOARD_LAYOUT = Object.freeze({
   calendarTabs: Object.freeze({ order: ['calendar', 'tasks', 'timer'], active: 'calendar' }),
   mediaView: Object.freeze({ active: 'media' }),
   topbarHidden: false,
+  // Mirrors js/settings.js — the Timer widget's add row folded to a strip. A
+  // field missing from THIS copy is silently dropped on save, so the flag would
+  // never survive a reload.
+  timerAddCollapsed: false,
 });
 
 const CALENDAR_FEED_PALETTE = Object.freeze(['#1ed760', '#3b82f6', '#f59e0b', '#ef4444', '#a855f7', '#14b8a6']);
@@ -8604,6 +8608,7 @@ function normalizeDashboardLayout(value) {
   layout.calendarTabs = normalizeCalendarTabs(source.calendarTabs);
   layout.mediaView = normalizeMediaView(source.mediaView);
   layout.topbarHidden = source.topbarHidden === true;
+  layout.timerAddCollapsed = source.timerAddCollapsed === true;
   layout.gridCols = DASHBOARD_GRID_COLUMNS;  // units flag — see scaleDashboardLayoutUnits
   return layout;
 }

@@ -46,6 +46,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
 ### ✨ Added
+- **The Timer's add field folds away, and its help line only appears while you are typing.** The label box, the duration box and the line of format examples under them sat on screen permanently — used once per timer, then in the way. On a Xeneon Edge, wide and only 720 pixels tall, that band was a third of the widget, and the help line was two rows of small grey text the panel could not render legibly even with Xenon scaled to 125%.
+
+  Reported from an Edge, with the suggestion that the whole top could collapse to a strip. It does.
+
+  The chevron beside **+** folds the row to a slim **+ New timer** strip — one tap brings it back, with the cursor already in the label box — and the choice is remembered across restarts. Escape folds it away too.
+
+  The help line is not gone, because it is the only place the stopwatch is discoverable: an empty duration is the whole gesture. It now appears while the row has focus — exactly while you are filling it in — and is bigger and brighter than it was, then gets out of the way. The timer list gains the space.
+
 - **A Deck key can now follow a state set by any script on your PC.** Keys have always been able to show a second face — a different icon, label and colour — while something is on, but only for the sixteen things Xenon watches itself: the mic, OBS, a Home Assistant entity, a widget's published state. Anything else on the machine was invisible to them.
 
   Asked for by someone with an AppleScript that swaps between two audio outputs, who wanted the key to show which output was live.
