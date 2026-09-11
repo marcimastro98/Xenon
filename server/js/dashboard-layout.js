@@ -116,6 +116,19 @@ function stripTimerClone(clone) {
 // id to the one shared AI session. Copies instead get a read-only log mirror plus
 // a thin forwarding input, injected by media.js (mirrorChatCopies). The now-playing
 // preview / no-key notice (data-chatf) stay in the clone and are looped per-instance.
+// A Discord clone drops the BUILT markup, not a sub-control: discord-widget.js
+// builds each tile's body once into `.discord-widget-mount` and marks it
+// `data-dc-built`. cloneNode copies that markup and the marker but NOT one event
+// listener, so a copy left as-is looks perfect and answers nothing — every
+// button, tab and slider dead. Emptied here, `ensure()` rebuilds it live on the
+// next paint, with its own listeners and its own open tab.
+function stripDiscordClone(clone) {
+  clone.querySelectorAll('.discord-widget-mount').forEach((mount) => {
+    mount.replaceChildren();
+    delete mount.dataset.dcBuilt;
+    delete mount.dataset.dcTab;   // a fresh copy opens on Controls, like a fresh tile
+  });
+}
 function stripChatClone(clone) {
   clone.querySelectorAll('.ai-chat, .ai-status, .ai-attach-preview, .ai-input-row, .ai-voice-view')
     .forEach(el => el.remove());
@@ -205,6 +218,7 @@ const CLONE_STRIPPERS = {
   agenda: stripAgendaClone,
   tasks: stripTasksClone,
   timer: stripTimerClone,
+  discord: stripDiscordClone,
   chat: stripChatClone,
   deck: stripDeckClone,
   custom: stripCustomClone,

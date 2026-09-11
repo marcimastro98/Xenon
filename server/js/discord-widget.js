@@ -76,7 +76,23 @@
     { id: 'soundboard', labelKey: 'discord_w_soundboard', fb: 'Soundboard' },
     { id: 'notifs', labelKey: 'discord_w_notifs', fb: 'Notifications' },
   ];
-  let activeTab = 'controls';   // shared across this widget's tiles (session-scoped)
+  // Which tab is open is a property of the TILE, not of the widget. It used to be
+  // one shared variable, which was invisible while only one Discord tile could
+  // exist — and is exactly what a second tile is for: asked for on Discord by
+  // someone who wanted the notification feed on top and the voice controls
+  // underneath, both on screen at once. Stored on the mount so it survives every
+  // repaint and travels with the tile, session-scoped like it always was.
+  function mounts() {
+    return tiles().map((t) => t.querySelector('.discord-widget-mount')).filter(Boolean);
+  }
+  function tabOf(mount) {
+    const v = (mount && mount.dataset) ? mount.dataset.dcTab : '';
+    return TABS.some((tb) => tb.id === v) ? v : 'controls';
+  }
+  // Is ANY tile showing this tab? The lazy loads and the roster poll ask this
+  // rather than "is the tab open": with two tiles, one of them on Channels is
+  // reason enough to poll, and one on Notifications means the feed is being read.
+  function anyTabOpen(id) { return mounts().some((m) => tabOf(m) === id); }
 
   // Notification mirroring (opt-in): the feed's flags + a bounded item list.
   // Seeded lazily from GET /stream/discord/notifications the first time the tab
@@ -161,7 +177,7 @@
       // filled in paint(), cleared the moment the tab is tapped.
       if (tb.id === 'notifs') { const bd = el('span', 'dc-tab-badge'); bd.hidden = true; b.appendChild(bd); }
       b.addEventListener('click', () => {
-        activeTab = tb.id;
+        mount.dataset.dcTab = tb.id;   // this tile only — a sibling tile keeps its own
         if (tb.id === 'notifs') notifUnread = 0;
         paint();
       });
@@ -693,7 +709,7 @@
   }
 
   function syncNotifsLoad() {
-    if (activeTab === 'notifs' && connected === true && notifItems === null && !notifInflight) {
+    if (anyTabOpen('notifs') && connected === true && notifItems === null && !notifInflight) {
       loadNotifs().then(paint);
     }
   }
@@ -707,7 +723,7 @@
     if (notifItems.length > NOTIF_MAX) notifItems.length = NOTIF_MAX;
     notif.enabled = true;
     notif.state = 'ok';
-    if (activeTab !== 'notifs') notifUnread += 1;   // shown as the red tab badge
+    if (!anyTabOpen('notifs')) notifUnread += 1;   // no badge while a tile is showing the feed
     if (tiles().length) paint();
   }
 
@@ -724,7 +740,7 @@
   // Lazily load the soundboard the first time its tab is opened while Discord is up.
   // One-shot (no polling): once `sounds` is an array it never refetches until reset.
   function syncSoundsLoad() {
-    if (activeTab === 'soundboard' && connected === true && voice && voice.ok && sounds === null && !soundsInflight) {
+    if (anyTabOpen('soundboard') && connected === true && voice && voice.ok && sounds === null && !soundsInflight) {
       loadSounds().then(paint);
     }
   }
@@ -757,9 +773,11 @@
       const launch = mount.querySelector('.dc-launch');
       if (launch) launch.hidden = !(linked && voice && voice.ok === false);
 
-      // Tabs: reflect the active tab (controls / channels) across this widget's tiles.
-      mount.querySelectorAll('.dc-tab').forEach(tb => tb.classList.toggle('is-active', tb.dataset.dtab === activeTab));
-      mount.querySelectorAll('.dc-panel').forEach(p => { p.hidden = p.dataset.dtab !== activeTab; });
+      // Tabs: each tile reflects ITS OWN open tab, so two Discord tiles can show
+      // two different ones at the same time.
+      const tab = tabOf(mount);
+      mount.querySelectorAll('.dc-tab').forEach(tb => tb.classList.toggle('is-active', tb.dataset.dtab === tab));
+      mount.querySelectorAll('.dc-panel').forEach(p => { p.hidden = p.dataset.dtab !== tab; });
       const badge = mount.querySelector('.dc-tab-badge');
       if (badge) {
         badge.hidden = notifUnread <= 0;
@@ -859,7 +877,7 @@
   // is visible and a tile is placed — so the per-channel GET_CHANNEL reads never run
   // when nobody's looking (keeps the integration lightweight).
   function rosterWanted() {
-    return activeTab === 'channels' && connected === true && !document.hidden && tiles().some(onVisiblePage);
+    return anyTabOpen('channels') && connected === true && !document.hidden && tiles().some(onVisiblePage);
   }
 
   function syncRosterPolling() {
