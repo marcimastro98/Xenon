@@ -1488,7 +1488,7 @@
       <div class="settings-group settings-behavior-group" data-settings-cat="island">
         <div class="settings-group-head">
           <span data-i18n="settings_clock">Orologio</span>
-          <span class="settings-hint" data-i18n="settings_clock_hint">formato dell'ora</span>
+          <span class="settings-hint" data-i18n="settings_clock_hint">formato e dimensioni di ora e data</span>
         </div>
         <div class="settings-row full">
           <span class="settings-label-line"><span data-i18n="settings_clock_format">Formato ora</span></span>
@@ -1497,6 +1497,20 @@
             <button class="settings-clock-format settings-segment-btn" type="button" data-clock-format="12" onclick="updateClockFormat('12')" aria-pressed="false" data-i18n="settings_clock_12h">12 ore</button>
             <button class="settings-clock-format settings-segment-btn" type="button" data-clock-format="24" onclick="updateClockFormat('24')" aria-pressed="false" data-i18n="settings_clock_24h">24 ore</button>
           </div>
+        </div>
+        <!-- Size lives beside the format, in the section that already owns the
+             top bar ("contenuti e stile della barra superiore"): someone who
+             wants a bigger date is looking at the top bar, not at Aspetto, and a
+             second home for the clock would be one place too many to look. -->
+        <div class="settings-grid">
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_clock_scale">Dimensione ora</span><span class="settings-value" id="settings-clock-scale-value">100%</span></span>
+            <input class="settings-range" id="settings-clock-scale" type="range" min="0.8" max="2" step="0.05" oninput="updateSettingsRange('clockScale', this.value)">
+          </label>
+          <label class="settings-row">
+            <span class="settings-label-line"><span data-i18n="settings_clock_date_scale">Dimensione data</span><span class="settings-value" id="settings-clock-date-scale-value">100%</span></span>
+            <input class="settings-range" id="settings-clock-date-scale" type="range" min="0.8" max="2" step="0.05" oninput="updateSettingsRange('clockDateScale', this.value)">
+          </label>
         </div>
       </div>
 

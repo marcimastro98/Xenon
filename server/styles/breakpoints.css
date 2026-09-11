@@ -45,11 +45,15 @@
   .shell { padding: 12px 14px; gap: 10px; }
   .topbar { gap: 10px; min-height: 34px; }
   .clock { gap: 3px; }
+  /* Only the BASE moves here — the user's clock multiplier is applied on top of
+     it in Topbar.css. Setting font-size outright would win over that formula and
+     pin this screen to one size, which is the screen most likely to want a
+     bigger date. */
   .clock-h,
-  .clock-m { font-size: 38px; }
-  .clock-sep { font-size: 31px; margin-bottom: 1px; }
+  .clock-m { --clock-base: 38px; }
+  .clock-sep { --clock-base: 31px; margin-bottom: 1px; }
   .clock-meta { gap: 5px; }
-  .clock-date { font-size: 11px; }
+  .clock-date { --clock-base: 11px; }
   .dashboard { gap: 10px; }
   .media-panel { padding: 14px; gap: 14px; }
   .mic-panel { padding: 12px 14px; row-gap: 8px; column-gap: 14px; }
