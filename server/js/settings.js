@@ -274,6 +274,13 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     ],
   },
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language (en → 12h)
+  // How big the top bar's clock reads, as multipliers on the stock sizes. Two
+  // knobs rather than one: the time is already large and the date deliberately
+  // small, so "make the date bigger" and "make the time bigger" are different
+  // wishes. 1 is byte-for-byte the old look. Asked for on Discord by someone who
+  // wanted to read the date across a room.
+  clockScale: 1,
+  clockDateScale: 1,
   weekStart: 'mon', // 'mon' | 'sun' — calendar first day of week
   // What the Upcoming list shows. There was never a two-week rule, which is how
   // it read from outside: the list took the next five events and their dates
@@ -1615,6 +1622,8 @@ function normalizeSettings(source) {
     topbarRailsAutoHide: value.topbarRailsAutoHide !== false,
     topbarClock: normalizeTopbarClock(value.topbarClock, value),
     clockFormat: ['auto', '12', '24'].includes(value.clockFormat) ? value.clockFormat : DEFAULT_HUB_SETTINGS.clockFormat,
+    clockScale: clampNumber(value.clockScale, 0.8, 2, DEFAULT_HUB_SETTINGS.clockScale),
+    clockDateScale: clampNumber(value.clockDateScale, 0.8, 2, DEFAULT_HUB_SETTINGS.clockDateScale),
     weekStart: ['mon', 'sun'].includes(value.weekStart) ? value.weekStart : DEFAULT_HUB_SETTINGS.weekStart,
     upcomingCount: [3, 5, 8, 10].includes(Number(value.upcomingCount)) ? Number(value.upcomingCount) : DEFAULT_HUB_SETTINGS.upcomingCount,
     upcomingDays: [0, 7, 14, 30].includes(Number(value.upcomingDays)) ? Number(value.upcomingDays) : DEFAULT_HUB_SETTINGS.upcomingDays,
@@ -4132,6 +4141,12 @@ function applyHubSettings() {
   const panelBorderAlpha = Math.min(0.4, (0.045 + (hubSettings.panelAlpha * 0.08)) * borderStrength);
   const panelShadowAlpha = Math.min(0.6, (0.05 + (hubSettings.panelAlpha * 0.18)) * shadowStrength);
   const panelHighlightAlpha = Math.min(0.07, 0.012 + (hubSettings.panelAlpha * 0.04));
+  // The top bar's clock. Stamped as plain multipliers and applied in Topbar.css,
+  // where each breakpoint owns the BASE size it scales — the Edge and the phone
+  // draw a smaller clock than a desktop, and a single hard-coded size here would
+  // undo that.
+  const clockScale = clampNumber(hubSettings.clockScale, 0.8, 2, 1);
+  const clockDateScale = clampNumber(hubSettings.clockDateScale, 0.8, 2, 1);
   const bgSafeDim = Math.max(hubSettings.bgDim, 0.18);
   const bgSafeDimStrong = Math.min(0.9, bgSafeDim + 0.11);
   const bgBlur = Math.round(hubSettings.bgBlur);
@@ -4181,6 +4196,8 @@ function applyHubSettings() {
   root.style.setProperty('--panel-soft-alpha', (comic ? 1 : panelSoftAlpha).toFixed(2));
   root.style.setProperty('--panel-border-alpha', (light ? 0.10 * borderStrength : panelBorderAlpha).toFixed(3));
   root.style.setProperty('--panel-shadow-alpha', (light ? 0.10 * shadowStrength : panelShadowAlpha).toFixed(3));
+  root.style.setProperty('--clock-time-scale', String(clockScale));
+  root.style.setProperty('--clock-date-scale', String(clockDateScale));
   root.style.setProperty('--panel-highlight-alpha', light ? '0.55' : panelHighlightAlpha.toFixed(3));
 
   // Comic is opaque paper by default; the palette engine already maps its
@@ -4758,6 +4775,8 @@ function syncSettingsControls() {
   const rangeMap = [
     ['settings-panel-alpha', String(hubSettings.panelAlpha)],
     ['settings-panel-border', String(hubSettings.panelBorderStrength)],
+    ['settings-clock-scale', String(hubSettings.clockScale)],
+    ['settings-clock-date-scale', String(hubSettings.clockDateScale)],
     ['settings-panel-shadow', String(hubSettings.panelShadowStrength)],
     ['settings-roundness', String(hubSettings.uiRoundness)],
     ['settings-glass-blur', String(hubSettings.glassBlur)],
@@ -4779,6 +4798,10 @@ function syncSettingsControls() {
   if (borderVal) borderVal.textContent = formatPercent(hubSettings.panelBorderStrength);
   const shadowVal = $('settings-panel-shadow-value');
   if (shadowVal) shadowVal.textContent = formatPercent(hubSettings.panelShadowStrength);
+  const clockVal = $('settings-clock-scale-value');
+  if (clockVal) clockVal.textContent = formatPercent(hubSettings.clockScale);
+  const clockDateVal = $('settings-clock-date-scale-value');
+  if (clockDateVal) clockDateVal.textContent = formatPercent(hubSettings.clockDateScale);
   const glassBlurVal = $('settings-glass-blur-value');
   if (glassBlurVal) glassBlurVal.textContent = `${Math.round(hubSettings.glassBlur)}px`;
   const glassSatVal = $('settings-glass-saturate-value');
@@ -5653,7 +5676,7 @@ function onHexInput(key, rawValue) {
 }
 
 function updateSettingsRange(key, value) {
-  if (!['panelAlpha', 'bgDim', 'bgBlur', 'uiRoundness', 'glassBlur', 'glassSaturate', 'panelBorderStrength', 'panelShadowStrength'].includes(key)) return;
+  if (!['panelAlpha', 'bgDim', 'bgBlur', 'uiRoundness', 'glassBlur', 'glassSaturate', 'panelBorderStrength', 'panelShadowStrength', 'clockScale', 'clockDateScale'].includes(key)) return;
   hubSettings = normalizeSettings({ ...hubSettings, [key]: value });
   saveHubSettings();
   applyHubSettings();

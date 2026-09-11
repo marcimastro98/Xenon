@@ -46,6 +46,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
 ### ✨ Added
+- **The clock and the date in the top bar can be made bigger.** Asked for by someone who wanted to read the date from across the room: the top bar offered a time format and nothing else, and the date was a fixed size no theme could touch. **Settings → Dynamic Island → Clock** now has two sliders beside the format — one for the time, one for the date — from 80% to 200%.
+
+  Two sliders rather than one because the date is deliberately the quiet half of that corner: someone who wants a readable date does not necessarily want a bigger clock, and the request was for the date.
+
+  They scale whatever size your screen already draws, not a fixed number: a Xeneon Edge and a laptop start from a smaller clock than a desktop does, and both keep that proportion at any setting. A phone is left out — the top bar there has no room to give.
+
 - **The Deck's minimal finish is finally minimal.** *Personalizzazione → Base → Nessuna* takes the Deck's body away and leaves the keys floating on the dashboard — except for the title bar on top, which stayed exactly where it was. That bar belongs to the faceplate, and this is the one finish with no faceplate: a profile name, a page badge and a pencil, hanging over nothing. It now collapses with the rest of the chassis.
 
   Not removed, collapsed: that bar is the only way into edit mode and the only place to switch profile, so hiding it outright would shut you out of your own Deck. It becomes a thin strip — hover it, or tap it on a touchscreen, and it comes back; it stays up on its own while you are editing or picking a profile.

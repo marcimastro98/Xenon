@@ -329,9 +329,22 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
   line-height: 1;
 }
 
+/* ── Clock size (Impostazioni → Dynamic Island → Orologio) ──────────────────
+   Each rule declares the BASE size as a custom property and reads it back
+   through the user's multiplier, so the two stay separable: the breakpoints
+   below (and the phone view) override only the base, and a user who has asked
+   for a bigger clock still gets the smaller base the Edge or a phone needs
+   rather than a desktop size forced onto a 720px panel.
+
+   Everything the time is made of scales together — digits, colon, the AM/PM
+   suffix and the offsets tuned against them — or the pieces drift apart at any
+   value but 1. The date has its own multiplier: it is deliberately the quiet
+   half of the clock, and "make the date bigger" is a different wish from "make
+   the time bigger". Asked for on Discord. */
 .clock-h,
 .clock-m {
-  font-size: 45px;
+  --clock-base: 45px;
+  font-size: calc(var(--clock-base) * var(--clock-time-scale, 1));
   font-weight: 800;
   color: var(--text);
   text-shadow: var(--readability-shadow);
@@ -343,7 +356,8 @@ body.ai-voice-mode .topbtn.topbtn-xenon { box-shadow: 0 0 0 2px rgba(var(--accen
 
 /* Accent colon with smooth blink animation */
 .clock-sep {
-  font-size: 37px;
+  --clock-base: 37px;
+  font-size: calc(var(--clock-base) * var(--clock-time-scale, 1));
   font-weight: 300;
   color: var(--accent);
   text-shadow: var(--readability-shadow);
@@ -381,14 +395,16 @@ body.low-power-gpu .status-dot-inline::after { animation: none; opacity: 0.6; }
    The bordered pill read as clutter next to the big numerals; a bare
    letter-spaced label sits like a superscript and lets the time breathe. */
 .clock-ampm {
-  font-size: 12.5px;
+  --clock-base: 12.5px;
+  font-size: calc(var(--clock-base) * var(--clock-time-scale, 1));
   font-weight: 800;
   letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--dim-text);
   align-self: flex-start;
-  margin-top: 7px;
-  margin-left: 6px;
+  /* Tuned against the digits, so they travel with them. */
+  margin-top: calc(7px * var(--clock-time-scale, 1));
+  margin-left: calc(6px * var(--clock-time-scale, 1));
   line-height: 1;
   text-shadow: var(--readability-shadow);
 }
@@ -403,7 +419,8 @@ body.low-power-gpu .status-dot-inline::after { animation: none; opacity: 0.6; }
 }
 
 .clock-date {
-  font-size: 12px;
+  --clock-base: 12px;
+  font-size: calc(var(--clock-base) * var(--clock-date-scale, 1));
   font-weight: 700;
   color: var(--muted-text);
   text-shadow: var(--readability-shadow);
