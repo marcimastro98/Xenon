@@ -54,6 +54,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
   Two sliders rather than one because the date is deliberately the quiet half of that corner: someone who wants a readable date does not necessarily want a bigger clock, and the request was for the date.
 
+  **Date size** sizes the whole line the date is on — the live dot, the separator and the weather beside it come with it, or a big date next to a stock-size weather chip reads as a mistake rather than a setting. The opt-in chips on that row (now playing, vitals, widget badges) keep their own size: each is its own feature, and the widget ones were sized by their author.
+
   They scale whatever size your screen already draws, not a fixed number: a Xeneon Edge and a laptop start from a smaller clock than a desktop does, and both keep that proportion at any setting. A phone is left out — the top bar there has no room to give.
 
 - **The Deck's minimal finish is finally minimal.** *Personalizzazione → Base → Nessuna* takes the Deck's body away and leaves the keys floating on the dashboard — except for the title bar on top, which stayed exactly where it was. That bar belongs to the faceplate, and this is the one finish with no faceplate: a profile name, a page badge and a pencil, hanging over nothing. It now collapses with the rest of the chassis.

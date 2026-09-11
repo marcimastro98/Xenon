@@ -233,3 +233,47 @@ test('a size change re-measures the floating capsule', () => {
   const dfn = SETTINGS.slice(SETTINGS.indexOf('function updateClockDateFormat'));
   assert.match(dfn.slice(0, dfn.indexOf('\n}')), /TopbarMinimal\.reflowIsland\(\)/);
 });
+
+// ── The whole date line, not one word of it ─────────────────────────────────
+// A 200% date beside a stock-size weather chip and a 6px status dot reads as a
+// mistake rather than a setting.
+
+test('everything on the date line scales with the date', () => {
+  const block = TOPBAR.slice(TOPBAR.indexOf('.clock-meta .clock-meta-sep'), TOPBAR.indexOf('/* ── Status dot'));
+  for (const part of ['.clock-meta-sep', '.status-dot-inline', '.clock-weather',
+    '.weather-mini-icon', '.weather-temp', '.weather-place']) {
+    assert.ok(block.includes(part), `${part} does not follow the date`);
+  }
+  // Every one of them through the DATE multiplier, never the time one.
+  assert.ok(!block.includes('--clock-time-scale'), 'part of the date line follows the clock instead');
+  const calls = block.match(/var\(--clock-date-scale, 1\)/g) || [];
+  assert.ok(calls.length >= 8, `only ${calls.length} properties scale — the line will come apart`);
+});
+
+test('the shared weather classes keep their size everywhere else', () => {
+  // .weather-temp and .weather-place are also the System panel's and the weather
+  // modal's. Scoping to .clock-meta is what stops the top bar's setting from
+  // resizing a tile nobody was touching.
+  const block = TOPBAR.slice(TOPBAR.indexOf('.clock-meta .clock-meta-sep'), TOPBAR.indexOf('/* ── Status dot'));
+  for (const line of block.split('\n').filter((l) => l.includes('{'))) {
+    assert.match(line, /^\.clock-meta /, `"${line.trim()}" is not scoped to the top bar's date line`);
+  }
+});
+
+test('the island scales its own smaller chip', () => {
+  const at = MINI.indexOf('body.topbar-minimal .topbar-mini .clock-weather .weather-mini-icon');
+  assert.ok(at >= 0, 'the island icon rule moved');
+  const body = MINI.slice(at, MINI.indexOf('}', at));
+  assert.match(body, /width: calc\(23px \* var\(--clock-date-scale, 1\)\)/,
+    'the island keeps its own 23px base rather than the full bar\'s 26px');
+});
+
+test('the opt-in chips are deliberately left alone', () => {
+  // Now playing, vitals and third-party SDK badges each have their own switch,
+  // and the SDK ones are content a widget author sized. Stretching them would be
+  // this setting reaching past what it is named after.
+  const block = TOPBAR.slice(TOPBAR.indexOf('.clock-meta .clock-meta-sep'), TOPBAR.indexOf('/* ── Status dot'));
+  for (const other of ['.clock-media', '.clock-vitals', '.clock-sdkbadges']) {
+    assert.ok(!block.includes(other), `${other} is being resized by the date setting`);
+  }
+});
