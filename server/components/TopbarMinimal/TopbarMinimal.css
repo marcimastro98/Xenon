@@ -147,7 +147,7 @@ body.topbar-minimal .topbar-mini .clock-date {
 /* The mid-dot becomes a slim vertical hairline (date | weather) */
 body.topbar-minimal .topbar-mini .clock-meta-sep {
   width: 1px;
-  height: 15px;
+  height: calc(15px * var(--clock-date-scale, 1));
   background: var(--floating-ui-border);
   color: transparent;
   font-size: 0;
@@ -169,7 +169,11 @@ body.topbar-minimal .topbar-mini .clock-weather {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-body.topbar-minimal .topbar-mini .clock-weather .weather-mini-icon { width: 23px; height: 20px; }
+/* The island's own smaller icon, scaled like everything else on this line. */
+body.topbar-minimal .topbar-mini .clock-weather .weather-mini-icon {
+  width: calc(23px * var(--clock-date-scale, 1));
+  height: calc(20px * var(--clock-date-scale, 1));
+}
 body.topbar-minimal .topbar-mini .weather-temp { font-size: 15px; }
 
 /* SDK badge chips (js/sdk-badges.js) — size them to the pill's density. The row
