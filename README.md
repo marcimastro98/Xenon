@@ -458,7 +458,7 @@ iCUE's embedded WebView can reject some MP4 files even when they play fine in Ch
 |---|---|
 | **$5, a coffee** | One month of supporter-only themes and widgets, the Supporter role on Discord, your name in the [Hall of supporters](https://xenon-app.com/#support). |
 | **$15, a supporter pass** | Three months of drops, paid once. Nothing renews by itself. |
-| **$30, a whole year** | Every drop for twelve months, as one payment or as a [yearly membership](https://www.buymeacoffee.com/marcimastro98/membership). |
+| **$50, a whole year** | Twelve months of drops as a [yearly membership](https://www.buymeacoffee.com/marcimastro98/membership). It renews by itself and stops whenever you say. |
 
 <a href="https://www.buymeacoffee.com/marcimastro98" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" height="50" width="210"></a>
 
