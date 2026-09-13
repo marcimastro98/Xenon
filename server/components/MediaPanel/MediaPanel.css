@@ -770,23 +770,50 @@
   .media-panel .control-btn.primary svg { width: 15px; height: 15px; }
 }
 
-/* ── Short but wide: lay the content out as a strip ───────────────────────────
+/* ── Short but wide: two blocks, not four things in a queue ───────────────────
    The default content column stacks chip / title / transport vertically, which
-   is what runs out of height first. With this much width the same pieces fit on
-   one line beside each other, so the tile uses the space it has instead of
-   dropping content and leaving the right half empty. The title block takes the
-   slack, pushing the transport to the far end. */
+   is what runs out of height first. With this much width the pieces fit beside
+   each other — but laying all FOUR of them on one line (cover, source chip,
+   title, transport) gave the tile no hierarchy at all: everything sat on the
+   same baseline, the source chip read as a peer of the track title and pushed it
+   rightwards, and the transport ended up marooned across a gap.
+
+   So the row is two blocks instead. The cover anchors the left; next to it one
+   text column reading top-down in the order it should be read — source above,
+   title, artist, and the per-app volume under them — and the transport alone on
+   the right, vertically centred against the whole block. The same order the tall
+   tile already uses, turned on its side. */
 @container mediatile (max-height: 300px) and (min-width: 430px) {
-  .media-panel .media-content { flex-direction: row; align-items: center; gap: 16px; }
-  .media-panel .media-textblock { flex: 1 1 auto; min-width: 0; }
-  .media-panel .media-app-row,
-  .media-panel .media-actions { flex: 0 0 auto; }
+  .media-panel .media-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    /* auto rows: a hidden chip or volume collapses to nothing instead of leaving
+       a gap where it would have been. */
+    grid-template-rows: auto auto auto;
+    align-items: center;
+    column-gap: 20px;
+    row-gap: 3px;
+  }
+  .media-panel .media-app-row   { grid-column: 1; grid-row: 1; align-self: end; }
+  .media-panel .media-textblock { grid-column: 1; grid-row: 2; }
+  .media-panel .media-volume    { grid-column: 1; grid-row: 3; align-self: start; }
+  .media-panel .media-actions   { grid-column: 2; grid-row: 1 / -1; justify-self: end; }
   /* Restore what the height steps above gave up: there is room for both now. */
   .media-panel .media-app-row { display: flex; }
   .media-panel .media-artist { display: block; }
+  /* An eyebrow, not a badge: it says where the music comes from and should be
+     read before the title without competing with it. */
+  .media-panel .app-pill { height: 22px; padding: 0 9px; font-size: 10px; }
+  .media-panel .app-pill .media-app-icon { width: 13px; height: 13px; }
   /* Two lines fit here even when the tile is short, and a track title is what
      the space should go to. */
   .media-panel .media-title { -webkit-line-clamp: 2; }
+  /* The cover may take more of the height here. The 44cqh cap exists so a short
+     tile does not clip it, but the text beside it is now a compact three-row
+     block rather than a full-height column — so the cover was the only thing
+     left holding the row's height, and capping it low left the bottom third of a
+     wide tile empty for no reason. */
+  .media-panel .media-art { width: min(34cqw, 62cqh, 170px); }
 }
 
 /* Very wide strip: give the title back its full weight — at this width it is

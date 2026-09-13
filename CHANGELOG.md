@@ -22,6 +22,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   It can now be added twice from the **"+"** palette, and **each tile remembers its own open tab**. Both read the same connection to your Discord app, so the second one costs no extra polling — and when either tile is showing Notifications, the unread badge stays where it belongs: at zero.
 
 
+### 🐛 Fixed
+- **The Media tile has a hierarchy again on a wide, short screen.** On a tile that is much wider than it is tall — the shape every tile has on a Xeneon Edge — the four pieces were laid out in a single queue: cover, source chip, track title, transport, all on one baseline. Nothing read as the important one. The **SPOTIFY** chip sat as a peer of the song title and shoved it rightwards, and the buttons ended up marooned across an empty gap.
+
+  It is two blocks now. The cover anchors the left; beside it one column read top-down in the order it should be read — source, then title, then artist, then the per-app volume — and the transport alone on the right, centred against the whole block. The same order the tall tile has always used, turned on its side. The source chip is sized as an eyebrow rather than a badge, so it introduces the title instead of competing with it, and the cover takes the height the text column no longer needs instead of leaving the bottom third of the tile empty.
+
+  Only that shape changes. The tall and narrow tiles are untouched.
+
 ## [v4.11.8] - 11-09-2026
 ### 🐛 Fixed
 - **The settings sidebar no longer squeezes its categories into a strip on a short screen.** The list of categories scrolls, and under it sits a block that does not: the support links, the update button, the platform notice and the version number. On a tall screen that is the right arrangement. On a Xeneon Edge — wide and only 720 pixels tall — the fixed half took 337 of the sidebar's 549 pixels, leaving twenty-seven categories scrolling through a window four and a half rows high. Reported from an Edge; a 1366×768 laptop had the same squeeze and nobody had mentioned it.
