@@ -516,10 +516,20 @@
 
 
   /* ── Supporters ── */
-  .support-coffee { display: inline-flex; align-items: center; margin-top: 4px; padding: 11px 18px; font-size: 15px; font-weight: 600; color: var(--gold-ink); border: 1px solid var(--gold-ink); border-radius: 3px; text-decoration: none; }
-  .support-coffee:hover { background: color-mix(in srgb, var(--gold) 10%, transparent); }
-  .support-coffee:active { transform: translateY(1px); }
   .thanks-note { display: block; margin-top: 12px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+  /* The three tiers: one row on desktop, a stack on the phone. The middle one
+     is the one we would pick for someone who asks, and the only one drawn in
+     ink; the other two are the same card with a hairline. */
+  .tiers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 4px; }
+  .tier { display: flex; flex-direction: column; gap: 6px; padding: 18px 18px 20px; border: 1px solid var(--hair); border-radius: 3px; text-decoration: none; color: var(--ink); }
+  .tier:hover { border-color: var(--ink); }
+  .tier:active { transform: translateY(1px); }
+  .tier-pick { border-color: var(--gold-ink); }
+  .tier-pick:hover { background: color-mix(in srgb, var(--gold) 10%, transparent); }
+  .tier-price { font-family: var(--mono); font-size: 22px; font-weight: 640; letter-spacing: -0.01em; }
+  .tier-pick .tier-price { color: var(--gold-ink); }
+  .tier-name { font-size: 15px; font-weight: 600; }
+  .tier-what { font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
 
   .sup-wall { margin-top: 40px; }
   .sup-podium { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--ink); }
@@ -594,6 +604,7 @@
     :root { --pad: 20px; }
     .hero { padding-block: 44px 40px; }
     .hero-cta { flex-direction: column; align-items: stretch; gap: 16px; }
+    .tiers { grid-template-columns: 1fr; }
     .hero-cta .btn { width: 100%; justify-content: center; }
     .hero-dc { justify-content: center; }
     /* A separator drawn between items lands at the start of a line once the
@@ -661,7 +672,7 @@
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     .surf-stage, .surf-poster { transition: none; }
-    .btn:active, .navbtn.get:active, .drop-go:active, .support-coffee:active { transform: none; }
+    .btn:active, .navbtn.get:active, .drop-go:active, .tier:active { transform: none; }
   }
 </style>
 </head>
@@ -772,8 +783,8 @@
 <header class="hero">
   <div class="rail">
     <div>
-      <h1 data-i18n-html="hero.h1">A dashboard for your PC.</h1>
-      <p class="sub" data-i18n-html="hero.sub">It runs on your PC and appears on a spare monitor, a tablet, your phone or a CORSAIR Xeneon Edge. It is free and open source.</p>
+      <h1 data-i18n-html="hero.h1">Turn the screen you already have into your PC's control center.</h1>
+      <p class="sub" data-i18n-html="hero.sub">A spare monitor, the tablet in a drawer, your phone or a CORSAIR Xeneon Edge: Xenon runs on your PC and puts stats, media, mic, lights and an AI you can talk to on it. Free and open source, nothing leaves your PC.</p>
       <!-- One button. The second action is a link, because two buttons of equal
            size side by side is the shape of a page that has not decided what it
            wants you to do. -->
@@ -1197,8 +1208,30 @@
       <p data-i18n="sup.p">The project has no ads, no investors and no paid version. It is funded by the people listed here.</p>
     </div>
     <div class="spine-body">
-    <a class="support-coffee" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-i18n="sup2.b" data-track="coffee_click" data-track-location="thanks">Buy me a coffee</a>
-    <span class="thanks-note" data-i18n="sup2.t">Xenon is written by one person.</span>
+    <!-- Three tiers, side by side. The old page offered one button, "buy me a
+         coffee", which is a 5-dollar ask by its nature; the payment history
+         says people give 10, 15 and 25 when nobody tells them not to. Each card
+         is one honest fact: what it costs, what it unlocks, for how long. The
+         hub's month arithmetic (5 per month, 30 = the whole year) is what makes
+         every card true, so change the two together. -->
+    <div class="tiers" id="tiers">
+      <a class="tier" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="tier_coffee">
+        <span class="tier-price"><span data-i18n="tier.1.price">$5</span></span>
+        <span class="tier-name" data-i18n="tier.1.name">A coffee</span>
+        <span class="tier-what" data-i18n="tier.1.what">One month of supporter drops, the Discord role and your name here.</span>
+      </a>
+      <a class="tier tier-pick" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="tier_pass">
+        <span class="tier-price"><span data-i18n="tier.2.price">$15</span></span>
+        <span class="tier-name" data-i18n="tier.2.name">Supporter pass</span>
+        <span class="tier-what" data-i18n="tier.2.what">Three months of drops, once. Nothing renews by itself.</span>
+      </a>
+      <a class="tier" href="https://www.buymeacoffee.com/marcimastro98/membership" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="tier_year">
+        <span class="tier-price"><span data-i18n="tier.3.price">$30</span></span>
+        <span class="tier-name" data-i18n="tier.3.name">A whole year</span>
+        <span class="tier-what" data-i18n="tier.3.what">Every drop for twelve months, as one payment or a yearly membership. The way most of the project's costs get paid.</span>
+      </a>
+    </div>
+    <span class="thanks-note" data-i18n="sup2.t">Xenon is written by one person. Everything above is a gift, never a licence: the app stays free and complete without it.</span>
 
     <div id="supporters" hidden>
       <div class="sup-wall" id="sup-wall">
@@ -1469,8 +1502,8 @@
     "nav.phonelong": "Your phone as the screen",
     "nav.createlong": "Make your own widgets",
     "nav.faq": "FAQ",
-    "hero.h1": "A dashboard for your PC.",
-    "hero.sub": "It runs on your PC and appears on a spare monitor, a tablet, your phone or a CORSAIR Xeneon Edge. It is free and open source.",
+    "hero.h1": "Turn the screen you already have into your PC's control center.",
+    "hero.sub": "A spare monitor, the tablet in a drawer, your phone or a CORSAIR Xeneon Edge: Xenon runs on your PC and puts stats, media, mic, lights and an AI you can talk to on it. Free and open source, nothing leaves your PC.",
     "num.dl": "downloads",
     "num.stars": "stars",
     "num.discord": "members",
@@ -1526,7 +1559,16 @@
     "drop.see": "See what's inside",
     "inst.h2": "Installing",
     "inst.p": "One installer, which sets up the app, the dashboard engine behind it and the task that starts them at login.",
-    "sup2.t": "Xenon is written by one person.",
+    "sup2.t": "Xenon is written by one person. Everything above is a gift, never a licence: the app stays free and complete without it.",
+    "tier.1.price": "$5",
+    "tier.1.name": "A coffee",
+    "tier.1.what": "One month of supporter drops, the Discord role and your name here.",
+    "tier.2.price": "$15",
+    "tier.2.name": "Supporter pass",
+    "tier.2.what": "Three months of drops, once. Nothing renews by itself.",
+    "tier.3.price": "$30",
+    "tier.3.name": "A whole year",
+    "tier.3.what": "Every drop for twelve months, as one payment or a yearly membership. The way most of the project's costs get paid.",
     "sup2.b": "Buy me a coffee",
     "sup.h2": "Supporters",
     "sup.p": "The project has no ads, no investors and no paid version. It is funded by the people listed here.",
@@ -1626,8 +1668,8 @@
     "nav.phonelong": "Il telefono come schermo",
     "nav.createlong": "Crea i tuoi widget",
     "nav.faq": "FAQ",
-    "hero.h1": "Una dashboard per il tuo PC.",
-    "hero.sub": "Gira sul tuo PC e si vede su un monitor di scorta, un tablet, il telefono o un CORSAIR Xeneon Edge. È gratis e open source.",
+    "hero.h1": "Lo schermo che hai già diventa la console del tuo PC.",
+    "hero.sub": "Un monitor di scorta, il tablet nel cassetto, il telefono o un CORSAIR Xeneon Edge: Xenon gira sul PC e ci mette sopra sensori, musica, microfono, luci e un'AI con cui parlare. Gratis e open source, niente esce dal tuo PC.",
     "num.dl": "download",
     "num.stars": "stelle",
     "num.discord": "membri",
@@ -1683,7 +1725,16 @@
     "drop.see": "Guarda cosa c'è dentro",
     "inst.h2": "Installazione",
     "inst.p": "Un installer, che mette a posto l’app, il motore della dashboard dietro di essa e l’attività che le avvia al login.",
-    "sup2.t": "Xenon lo scrive una persona sola.",
+    "sup2.t": "Xenon lo scrive una persona sola. Tutto quello che vedi sopra è un regalo, mai una licenza: l'app resta gratis e completa anche senza.",
+    "tier.1.price": "$5",
+    "tier.1.name": "Un caffè",
+    "tier.1.what": "Un mese di drop per sostenitori, il ruolo su Discord e il tuo nome qui.",
+    "tier.2.price": "$15",
+    "tier.2.name": "Pass sostenitore",
+    "tier.2.what": "Tre mesi di drop, una volta sola. Niente si rinnova da solo.",
+    "tier.3.price": "$30",
+    "tier.3.name": "Un anno intero",
+    "tier.3.what": "Tutti i drop per dodici mesi, in un pagamento unico o come abbonamento annuale. È così che si pagano quasi tutti i costi del progetto.",
     "sup2.b": "Offrimi un caffè",
     "sup.h2": "Sostenitori",
     "sup.p": "Il progetto non ha pubblicità, investitori né una versione a pagamento. È finanziato dalle persone elencate qui.",
@@ -1783,8 +1834,8 @@
     "nav.phonelong": "휴대폰을 화면으로",
     "nav.createlong": "나만의 위젯 만들기",
     "nav.faq": "자주 묻는 질문",
-    "hero.h1": "PC를 위한 대시보드.",
-    "hero.sub": "PC에서 실행되며 남는 모니터, 태블릿, 휴대폰, CORSAIR Xeneon Edge에 표시됩니다. 무료이고 오픈 소스입니다.",
+    "hero.h1": "이미 있는 화면을 PC의 컨트롤 센터로.",
+    "hero.sub": "남는 모니터, 서랍 속 태블릿, 휴대폰, 또는 CORSAIR Xeneon Edge. Xenon은 PC에서 실행되어 그 화면에 시스템 상태, 미디어, 마이크, 조명, 그리고 대화할 수 있는 AI를 띄웁니다. 무료이고 오픈 소스이며, 아무것도 PC 밖으로 나가지 않습니다.",
     "num.dl": "다운로드",
     "num.stars": "GitHub 스타",
     "num.discord": "디스코드 멤버",
@@ -1840,7 +1891,16 @@
     "drop.see": "무엇이 들어 있는지 보기",
     "inst.h2": "설치",
     "inst.p": "설치 파일 하나가 앱과 그 뒤의 대시보드 엔진, 그리고 로그인할 때 실행하는 작업까지 설정합니다.",
-    "sup2.t": "Xenon은 한 사람이 만듭니다.",
+    "sup2.t": "Xenon은 한 사람이 만듭니다. 위의 모든 것은 선물이지 라이선스가 아닙니다. 후원하지 않아도 앱은 무료이고 완전합니다.",
+    "tier.1.price": "$5",
+    "tier.1.name": "커피 한 잔",
+    "tier.1.what": "서포터 드롭 한 달, Discord 역할, 그리고 이곳에 이름.",
+    "tier.2.price": "$15",
+    "tier.2.name": "서포터 패스",
+    "tier.2.what": "드롭 세 달, 한 번만. 저절로 갱신되지 않습니다.",
+    "tier.3.price": "$30",
+    "tier.3.name": "일 년 전체",
+    "tier.3.what": "열두 달 동안 모든 드롭. 한 번 결제하거나 연간 멤버십으로. 프로젝트 비용 대부분이 이렇게 채워집니다.",
     "sup2.b": "커피 사주기",
     "sup.h2": "서포터",
     "sup.p": "이 프로젝트에는 광고도, 투자자도, 유료 버전도 없습니다. 여기 적힌 사람들이 비용을 대고 있습니다.",
@@ -1940,8 +2000,8 @@
     "nav.phonelong": "スマホを画面に",
     "nav.createlong": "自分でウィジェットを作る",
     "nav.faq": "よくある質問",
-    "hero.h1": "PC のためのダッシュボード。",
-    "hero.sub": "PC 上で動き、余ったモニターやタブレット、スマートフォン、CORSAIR Xeneon Edge に表示されます。無料でオープンソースです。",
+    "hero.h1": "手元にある画面を、PC のコントロールセンターに。",
+    "hero.sub": "余ったモニター、引き出しのタブレット、スマートフォン、CORSAIR Xeneon Edge。Xenon は PC 上で動き、その画面にシステム情報、メディア、マイク、ライティング、そして話しかけられる AI を並べます。無料でオープンソース、データは PC の外に出ません。",
     "num.dl": "ダウンロード",
     "num.stars": "GitHub スター",
     "num.discord": "Discord メンバー",
@@ -1997,7 +2057,16 @@
     "drop.see": "中身を見る",
     "inst.h2": "インストール",
     "inst.p": "インストーラー一つで、アプリと、その裏で動くダッシュボードのエンジン、ログイン時に起動するタスクまで設定します。",
-    "sup2.t": "Xenon はひとりで作っています。",
+    "sup2.t": "Xenon はひとりで作っています。上にあるものはすべて贈り物であって、ライセンスではありません。支援がなくてもアプリは無料で、機能も欠けません。",
+    "tier.1.price": "$5",
+    "tier.1.name": "コーヒー一杯",
+    "tier.1.what": "サポーター向けドロップ一か月分、Discord のロール、そしてここにお名前。",
+    "tier.2.price": "$15",
+    "tier.2.name": "サポーターパス",
+    "tier.2.what": "ドロップ三か月分を一度だけ。自動更新はありません。",
+    "tier.3.price": "$30",
+    "tier.3.name": "まるごと一年",
+    "tier.3.what": "十二か月分のすべてのドロップ。一回払いでも年間メンバーシップでも。プロジェクトの費用の大半はこれで賄われています。",
     "sup2.b": "コーヒーをおごる",
     "sup.h2": "サポーター",
     "sup.p": "このプロジェクトに広告、投資家、有料版はありません。ここに載っている人たちが支えています。",
@@ -2097,8 +2166,8 @@
     "nav.phonelong": "把手机当屏幕",
     "nav.createlong": "做你自己的组件",
     "nav.faq": "常见问题",
-    "hero.h1": "一个给电脑用的仪表盘。",
-    "hero.sub": "它在你的电脑上运行，显示在闲置的显示器、平板、手机或 CORSAIR Xeneon Edge 上。免费且开源。",
+    "hero.h1": "把你手边的屏幕，变成电脑的控制中心。",
+    "hero.sub": "闲置的显示器、抽屉里的平板、手机，或者 CORSAIR Xeneon Edge。Xenon 在电脑上运行，把系统状态、媒体、麦克风、灯光和一个可以对话的 AI 放到那块屏幕上。免费开源，数据不离开你的电脑。",
     "num.dl": "次下载",
     "num.stars": "GitHub 星标",
     "num.discord": "Discord 成员",
@@ -2154,7 +2223,16 @@
     "drop.see": "看看里面有什么",
     "inst.h2": "安装",
     "inst.p": "一个安装程序，装好应用、它背后的仪表盘引擎，以及登录时启动它们的任务。",
-    "sup2.t": "Xenon 由一个人开发。",
+    "sup2.t": "Xenon 由一个人开发。上面的一切都是礼物，而不是许可证：不支持也不影响应用免费和完整。",
+    "tier.1.price": "$5",
+    "tier.1.name": "一杯咖啡",
+    "tier.1.what": "一个月的支持者专属内容、Discord 身份组，以及你的名字出现在这里。",
+    "tier.2.price": "$15",
+    "tier.2.name": "支持者通行证",
+    "tier.2.what": "三个月的专属内容，一次付清。不会自动续费。",
+    "tier.3.price": "$30",
+    "tier.3.name": "整整一年",
+    "tier.3.what": "十二个月的全部专属内容，可一次付清，也可按年订阅。项目的大部分开销就是这样付的。",
     "sup2.b": "请我喝咖啡",
     "sup.h2": "支持者",
     "sup.p": "这个项目没有广告、没有投资人，也没有付费版本。它由这里列出的人支持。",

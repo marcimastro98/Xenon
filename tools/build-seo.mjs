@@ -642,6 +642,11 @@ const STATIC_ROUTES = [
   // Google they exist.
   { loc: '/faq.html', file: 'docs/faq.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/phone.html', file: 'docs/phone.html', priority: '0.7', changefreq: 'monthly' },
+  // The two pages written for the queries people actually arrive with: Google
+  // is the site's first referrer and sends most of them to GitHub, because the
+  // home page does not carry those words. These do.
+  { loc: '/xeneon-edge-widgets.html', file: 'docs/xeneon-edge-widgets.html', priority: '0.8', changefreq: 'monthly' },
+  { loc: '/tablet-dashboard.html', file: 'docs/tablet-dashboard.html', priority: '0.8', changefreq: 'monthly' },
   { loc: '/demo/', file: 'docs/demo/index.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/submit/', file: 'docs/submit/index.html', priority: '0.5', changefreq: 'monthly' },
   { loc: '/privacy.html', file: 'docs/privacy.html', priority: '0.3', changefreq: 'yearly' },

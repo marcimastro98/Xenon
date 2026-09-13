@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Use an old tablet or phone as a dashboard for your PC</title>
+<meta name="description" content="Turn the tablet in a drawer into a touch control panel for your PC: temperatures, media, mic mute, audio switching, a Stream Deck style grid. Nothing to install on the tablet, nothing leaves your Wi-Fi. Free.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="images/favicon.png">
+<meta property="og:title" content="Use an old tablet or phone as a PC dashboard | Xenon">
+<meta property="og:description" content="A free dashboard your PC serves to any tablet or phone on your Wi-Fi: stats, media, mic, audio, Deck. No app on the device, no cloud.">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://xenon-app.com/images/overview.png">
+<link rel="canonical" href="https://xenon-app.com/tablet-dashboard.html">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Does the tablet need an app?", "acceptedAnswer": {"@type": "Answer", "text": "No. Any browser is enough; the dashboard is served by the PC on your own Wi-Fi."}}, {"@type": "Question", "name": "Does it work on an old iPad or Android tablet?", "acceptedAnswer": {"@type": "Answer", "text": "Yes, as long as its browser still opens modern web pages."}}, {"@type": "Question", "name": "Does anything go through the internet?", "acceptedAnswer": {"@type": "Answer", "text": "Not on your own Wi-Fi. The PC serves the page directly to the tablet."}}, {"@type": "Question", "name": "Can I use a phone instead of a tablet?", "acceptedAnswer": {"@type": "Answer", "text": "Yes, the same way. The layout reflows for a phone screen."}}, {"@type": "Question", "name": "Is Xenon free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. No paid version, no account, no ads. Source public on GitHub under a non-commercial licence."}}]}</script>
+
+<style>
+  :root {
+    --ink:   var(--g-0);
+    --panel: var(--g-1);
+    --line:  var(--rule);
+    --line-2:var(--rule-2);
+    --green: var(--bone-0);
+    --text:  var(--bone-0);
+    --muted: var(--bone-1);
+    --dim:   var(--bone-2);
+    --sans:  'Inter', system-ui, -apple-system, sans-serif;
+    --mono:  'JetBrains Mono', ui-monospace, monospace;
+    --maxw:  820px;
+    --radius:14px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--ink); color: var(--text);
+    font-family: var(--sans); font-size: 16px; line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  header.top {
+    border-bottom: 1px solid var(--line);
+    padding: 20px 0; position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--g-0) 82%, transparent); backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .logo {
+    display: inline-flex; align-items: center; gap: 10px;
+    color: var(--text); text-decoration: none;
+    font-weight: 700; letter-spacing: 0.16em; font-size: 14px;
+  }
+  .logo img { width: 34px; height: 23px; }
+  .back { color: var(--dim); text-decoration: none; font-size: 13.5px; }
+  .back:hover { color: var(--green); }
+
+  main { padding: 56px 0 96px; }
+  h1 { font-size: clamp(30px, 5.4vw, 46px); line-height: 1.12; letter-spacing: -0.025em; margin: 0 0 18px; }
+  .lede { font-size: 18.5px; color: var(--muted); margin: 0 0 12px; }
+  .lede strong { color: var(--text); font-weight: 600; }
+  .updated { font-family: var(--mono); font-size: 12.5px; color: var(--dim); margin: 0 0 34px; }
+
+  h2 {
+    font-size: 23px; letter-spacing: -0.01em; margin: 62px 0 10px;
+    padding-top: 30px; border-top: 1px solid var(--line);
+    scroll-margin-top: 88px;
+  }
+  h2 .h2n {
+    display: block; font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.14em;
+    color: var(--green); margin-bottom: 8px; font-weight: 500;
+  }
+  p { margin: 0 0 16px; color: var(--muted); }
+  p strong, li strong { color: var(--text); font-weight: 600; }
+  a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; color: var(--muted); }
+  li { margin-bottom: 8px; }
+  code {
+    font-family: var(--mono); font-size: 13px;
+    background: var(--g-2); padding: 2px 6px; border-radius: 6px;
+    color: var(--text); overflow-wrap: anywhere;
+  }
+
+  /* ── Section jump chips ───────────────────────────────────────── */
+  .jump { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+  .jump a {
+    text-decoration: none; font-size: 13.5px; color: var(--muted);
+    border: 1px solid var(--line-2); border-radius: 999px; padding: 7px 14px;
+    transition: border-color .2s, color .2s;
+  }
+  .jump a:hover { border-color: var(--green); color: var(--green); }
+
+  /* ── The question cards ───────────────────────────────────────── */
+  details { border: 1px solid var(--line); border-radius: 12px; padding: 0; margin: 10px 0; background: var(--panel); }
+  details[open] { border-color: var(--line-2); }
+  details > summary {
+    cursor: pointer; padding: 15px 18px; font-weight: 600; color: var(--text); font-size: 15.5px;
+    list-style: none; display: flex; align-items: flex-start; gap: 12px;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before {
+    content: '+'; color: var(--green); font-family: var(--mono); font-size: 17px;
+    line-height: 1.45; flex: none;
+  }
+  details[open] > summary::before { content: '–'; }
+  details .body { padding: 0 18px 16px 42px; }
+  details .body p:last-child, details .body ul:last-child, details .body ol:last-child { margin-bottom: 0; }
+  details .body ol { padding-left: 20px; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 22px 24px; margin: 26px 0;
+  }
+  .card.accent { border-color: var(--rule-2); background: var(--g-1); }
+  .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+  .card h3 { margin: 0 0 10px; font-size: 16.5px; }
+
+  .note { font-size: 14px; color: var(--dim); border-left: 2px solid var(--line-2); padding-left: 14px; margin: 18px 0; }
+
+  footer { border-top: 1px solid var(--line); padding: 30px 0 60px; color: var(--dim); font-size: 13.5px; }
+  footer a { color: var(--dim); }
+  footer a:hover { color: var(--green); }
+
+  /* Header right cluster + language picker, same markup and behaviour as the
+     home page so the choice carries across the site. */
+  .head-right { display: flex; align-items: center; gap: 14px; }
+  .navbtn {
+    font-size: 13px; font-weight: 600; padding: 8px 13px;
+    border: 1px solid var(--line-2); border-radius: 9px; color: var(--text);
+    display: inline-flex; align-items: center; gap: 8px; background: none; cursor: pointer;
+    font-family: var(--sans); transition: border-color .2s, color .2s;
+  }
+  .navbtn svg { width: 16px; height: 16px; flex: none; }
+  .navbtn:hover { border-color: var(--green); }
+  .lang { position: relative; }
+  .lang-menu {
+    position: absolute; top: calc(100% + 10px); right: 0; min-width: 168px; z-index: 60;
+    background: color-mix(in srgb, var(--g-1) 96%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--line-2); border-radius: 12px; padding: 6px;
+    opacity: 0; transform: translateY(-6px); pointer-events: none;
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  .lang.open .lang-menu { opacity: 1; transform: none; pointer-events: auto; }
+  .lang-menu button {
+    display: flex; width: 100%; align-items: center; gap: 10px; padding: 9px 12px;
+    background: none; border: 0; border-radius: 8px; color: var(--muted);
+    font-family: var(--sans); font-size: 13.5px; cursor: pointer; text-align: left;
+  }
+  .lang-menu button:hover { background: var(--g-2); color: var(--text); }
+  .lang-menu button.on { color: var(--green); }
+  .lang-menu .nat { margin-left: auto; font-size: 11px; color: var(--dim); letter-spacing: .08em; }
+  @media (max-width: 480px) { .back { display: none; } }
+</style>
+<link rel="stylesheet" href="/site.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="/" aria-label="Xenon"><img class="logo-mark" src="images/logo-x.png" alt="" width="33" height="26">ENON</a>
+    <div class="head-right">
+      <a class="back" href="/">← Back to the site</a>
+      <a class="navbtn" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_top">Download</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <h1>Use an old tablet or phone as a dashboard for your PC</h1>
+    <p class="lede">The tablet that no longer does anything can be the screen your PC is missing: temperatures, media, mic mute, audio switching and a key grid, served by the PC over your own Wi-Fi. Nothing to install on the tablet.</p>
+    <p class="updated">Last updated: 13 September 2026</p>
+
+    <nav class="jump">
+      <a href="#what">What you actually get</a>
+      <a href="#how">How it works</a>
+      <a href="#setup">Setting it up</a>
+      <a href="#limits">What it is not</a>
+      <a href="#faq">Questions</a>
+    </nav>
+
+    <h2 id="what"><span class="h2n">01</span>What you actually get</h2>
+    <p>Most people have a tablet or a phone that still works and no longer does anything. Propped next to the keyboard it can be the screen your PC is missing: the one you glance at for CPU and GPU temperature while a game runs, tap to mute the mic on a call, skip a track, switch the audio to the headphones, launch OBS, or read the notifications you would otherwise alt-tab for.</p>
+    <p>Xenon is that dashboard. It is free, it runs on Windows (macOS and Linux in beta), and the tablet needs nothing installed: the dashboard opens in the browser it already has.</p>
+
+    <h2 id="how"><span class="h2n">02</span>How it works</h2>
+    <p>Xenon runs as a small local service on the PC and serves the dashboard on your own network. The tablet or phone opens it like a web page, so an iPad, an Android tablet, an old Fire tablet, an iPhone or any phone with a browser all work, and there is no app to keep updated on the device. Pairing is a QR code shown by the PC; each paired device is listed and can be removed on its own. Nothing goes through a cloud and nothing leaves your Wi-Fi.</p>
+    <p>What you see is the real dashboard, not a remote: the same tiles, the same theme and the same pages as on a monitor, laid out again for the tablet's shape. Touch targets are sized for fingers.</p>
+
+    <h2 id="setup"><span class="h2n">03</span>Setting it up</h2>
+    <ol>
+      <li>On the PC, download <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe">Xenon-Setup-x64.exe</a>, run it, and press <strong>Complete setup</strong> when the app asks. This happens once.</li>
+      <li>Open Settings → <strong>Remote control</strong> → <strong>Phone access</strong> and turn it on. The PC shows a QR code.</li>
+      <li>Point the tablet's camera at the code. The dashboard opens in its browser. Add it to the home screen if you want it full-screen.</li>
+      <li>If the PC has no spare monitor at all, tell Xenon at first launch to show nothing on the PC: the tablet becomes the only screen, and the PC stays clean.</li>
+    </ol>
+    <p>The <a href="phone.html">phone guide</a> has the same steps with screenshots, plus the optional route for reaching the dashboard from outside the house.</p>
+
+    <h2 id="limits"><span class="h2n">04</span>What it is not</h2>
+    <p>It is not a second monitor. Windows will not put a window on the tablet; you get a dashboard on it, with controls that act on the PC. If what you want is a genuine extra desktop on a small screen, Xenon's <em>Second screen</em> tile does that on a real monitor (Windows only), which is a different thing. Tablet and phone access is also marked beta in the current release: it works well on a home Wi-Fi, and it is still young.</p>
+    <p>One more honest note: the Windows installer is not code-signed yet, so the first download may draw a SmartScreen warning. <a href="faq.html#warnings">The FAQ explains why and how to check the file</a>; a certificate is being bought.</p>
+
+    <h2 id="faq"><span class="h2n">05</span>Questions</h2>
+    <details><summary>Does the tablet need an app?</summary><div class="body"><p>No. Any browser is enough. Adding the page to the home screen gives you a full-screen icon, but it is optional.</p></div></details>
+    <details><summary>Does it work on an old iPad or Android tablet?</summary><div class="body"><p>If its browser still opens modern web pages, yes. Very old devices with a browser that no longer updates may render some tiles slowly; the dashboard is light, but it is a live page.</p></div></details>
+    <details><summary>Does anything go through the internet?</summary><div class="body"><p>Not on your own Wi-Fi. The PC serves the page directly to the tablet. Reaching it from outside the house is a separate, opt-in setup described in the phone guide.</p></div></details>
+    <details><summary>Can I use a phone instead of a tablet?</summary><div class="body"><p>Yes, the same way. The layout reflows for a portrait phone screen.</p></div></details>
+    <details><summary>Is it free?</summary><div class="body"><p>Yes. No paid version, no account, no ads. Source is public on GitHub under a non-commercial licence.</p></div></details>
+
+    <div class="card accent">
+      <h3>Try it on the screen you already have</h3>
+      <p>One installer, no account, nothing leaves your PC. <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">Download Xenon for Windows</a>, or get the <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">macOS and Linux builds</a>. Questions go to the <a href="https://discord.gg/MBVrw9kZyg" rel="noopener">Discord</a>.</p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="/">xenon-app.com</a> · <a href="faq.html">FAQ</a> · <a href="phone.html">Phone</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/marcimastro98/Xenon" rel="noopener">GitHub</a> · <a href="https://discord.gg/MBVrw9kZyg" rel="noopener">Discord</a>
+  </div>
+</footer>
+<script src="/analytics.js" defer></script>
+</body>
+</html>
