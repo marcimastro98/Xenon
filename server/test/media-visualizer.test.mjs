@@ -17,15 +17,39 @@ const VIZ = read('js', 'media-viz.js');
 const SERVER = read('server.js');
 const CSS = read('components', 'MediaPanel', 'MediaPanel.css');
 
-test('the setting exists in BOTH normalizers', () => {
+test('the setting exists in BOTH normalizers, and defaults to off', () => {
   // The client owns the schema and the server keeps its own copy; a field missing
   // from the server's is silently dropped on save, so the switch would look like
   // it worked until the next reload. That has happened twice in this codebase.
   for (const file of ['js/settings.js', 'server.js']) {
     const src = read(...file.split('/'));
-    assert.ok(src.includes('mediaVisualizer: false'), `${file}: missing the default`);
-    assert.ok(/mediaVisualizer: (value|source)\.mediaVisualizer === true/.test(src), `${file}: missing the normalizer line`);
+    assert.ok(src.includes("mediaVisualizer: 'off'"), `${file}: must default to off`);
+    assert.match(src, /\['off', 'minimal', 'wave'\]\.includes\((value|source)\.mediaVisualizer\)/, `${file}: missing the normalizer line`);
   }
+});
+
+test('it is an addition: off draws nothing and the tile is untouched', () => {
+  // The whole complaint this answered. Off is the default, off allocates no
+  // canvas, and even when on the strip is absolutely positioned with no
+  // pointer events — it cannot move or cover a single control.
+  assert.match(VIZ, /let style = 'off';/);
+  const fn = VIZ.slice(VIZ.indexOf('function setStyle('), VIZ.indexOf('// ── Should it be drawing?'));
+  assert.match(fn, /if \(style === 'off'\) \{ unmount\(\); return; \}/);
+  const rule = CSS.slice(CSS.indexOf('.media-viz {'), CSS.indexOf('.media-viz.is-live'));
+  assert.match(rule, /position: absolute;/);
+  assert.match(rule, /pointer-events: none;/);
+});
+
+test('there is a quiet style as well as a full one', () => {
+  // "magari c'e chi non la vuole vedere e vuole uno stile minimal" — so the
+  // choice is three-way, and even the full one is under 60% opacity because it
+  // belongs to the artwork rather than sitting on top of it.
+  assert.match(VIZ, /const STYLES = \{/);
+  assert.match(VIZ, /minimal: \{[^}]*alpha: 0\.4/);
+  const wave = /wave:\s*\{[^}]*alpha: (0\.\d+)/.exec(VIZ);
+  assert.ok(wave && Number(wave[1]) < 0.7, 'even the full style must stay under the artwork');
+  assert.match(read('index.html'), /data-media-viz="minimal"/);
+  assert.match(read('index.html'), /data-media-viz="off"/);
 });
 
 test('turning the switch on is what starts the meter', () => {
@@ -33,7 +57,7 @@ test('turning the switch on is what starts the meter', () => {
   // to ride, so the switch is its consent — and there must be exactly one place
   // to give it, which is the whole argument in the comment above audioLevelsWanted.
   const fn = SERVER.slice(SERVER.indexOf('function audioLevelsWanted()'), SERVER.indexOf('function refreshAudioLevelsWatch()'));
-  assert.match(fn, /_serverHubSettings\.mediaVisualizer === true\) return true;/);
+  assert.match(fn, /if \(viz && viz !== 'off'\) return true;/);
   // ...and a settings save has to re-ask, or the switch would not take effect
   // until the next dashboard connected.
   const marker = '// A grant change — or the Media visualiser switch — can add or remove the';
@@ -49,6 +73,7 @@ test('it never animates without a real measurement', () => {
   // invent motion — the same call the placeholder equaliser already made by
   // having fixed bar heights.
   const fn = VIZ.slice(VIZ.indexOf('function wanted()'), VIZ.indexOf('function syncRunning()'));
+  assert.match(fn, /if \(style === 'off' \|\| !canvas\) return false;/);
   assert.match(fn, /if \(problem \|\| !sawLevels\) return false;/);
   assert.match(fn, /if \(!playing\) return false;/);
   assert.match(fn, /if \(document\.hidden\) return false;/);
@@ -110,15 +135,19 @@ test('the strip sits under the tile content, never over the controls', () => {
 });
 
 test('the settings row and its strings ship in every language', () => {
-  assert.match(read('index.html'), /id="settings-media-viz"[^>]*onchange="updateMediaVisualizer\(this\.checked\)"/);
+  assert.match(read('index.html'), /onclick="updateMediaVisualizer\('minimal'\)"/);
   assert.match(read('js', 'settings.js'), /function updateMediaVisualizer\(/);
   const i18n = read('js', 'i18n.js');
-  for (const k of ['settings_media_viz_head', 'settings_media_viz_head_hint', 'settings_media_viz', 'settings_media_viz_hint', 'settings_media_viz_note']) {
+  for (const k of ['settings_media_viz_head', 'settings_media_viz_head_hint', 'settings_media_viz_off', 'settings_media_viz_minimal', 'settings_media_viz_wave', 'settings_media_viz_note']) {
     const n = (i18n.match(new RegExp(`["']?${k}["']?\\s*:`, 'g')) || []).length;
     assert.equal(n, 11, `${k} is defined ${n} times, expected 11`);
   }
-  // The row has to admit its requirement rather than offering a dead switch.
-  assert.match(i18n, /settings_media_viz_note: 'Serve Windows con Xenon Helper/);
+  // The row has to say both things: that it changes nothing about the tile, and
+  // that it needs the helper — rather than offering a dead switch.
+  const itNote = /settings_media_viz_note: '((?:[^'\\]|\\.)*)'/.exec(i18n);
+  assert.ok(itNote, 'the Italian note is missing');
+  assert.match(itNote[1], /Non cambia nulla del riquadro/);
+  assert.match(itNote[1], /Xenon Helper/);
 });
 
 test('the module is loaded and fed', () => {

@@ -26,10 +26,21 @@
   // One tick of history per payload. The helper's own interval is 80ms; this is
   // how far apart samples are assumed to be when interpolating the scroll.
   const TICK_MS = 80;
-  const BAR_W = 3;              // CSS px
-  const BAR_GAP = 2;
   const MIN_BAR = 2;            // a silent sample is a dot on the centre line, not a gap
   const FADE_MS = 900;          // how long the strip takes to fade in/out
+
+  // Two intensities of the same honest thing, because this is an ADDITION to the
+  // Media tile and an addition has to be able to stay quiet. `minimal` is a thin
+  // line along the bottom edge that breathes — near invisible on a soft passage,
+  // never competing with the cover or the title. `wave` is the fuller strip, and
+  // even that is deliberately under half opacity: it belongs to the artwork, it
+  // is not a sticker on top of it. Off is the default and draws nothing at all.
+  const STYLES = {
+    minimal: { h: 0.09, max: 26, bar: 2, gap: 4, alpha: 0.42, curve: 0.62 },
+    wave:    { h: 0.16, max: 52, bar: 3, gap: 4, alpha: 0.58, curve: 0.72 },
+  };
+  const DEFAULT_STYLE = 'wave';
+  let look = STYLES.wave;
   // Silence sends nothing (an app at digital zero is omitted from the map), so a
   // missing key means quiet — never "closed". Decay instead of dropping.
   const SILENCE_DECAY = 0.55;
@@ -46,7 +57,7 @@
   let gradient = null;          // cached, rebuilt on resize / palette change
   let gradientKey = '';
 
-  let enabled = false;          // the user's setting
+  let style = 'off';            // 'off' | 'minimal' | 'wave'
   let playing = false;          // something is actually playing
   let proc = '';                // process name of the player, lower-case, no .exe
   let problem = '';             // '' | 'no-helper' | 'helper-too-old' | 'helper-failed'
@@ -96,12 +107,12 @@
     if (r.width < 8 || r.height < 8) return;
     dpr = Math.min(2, window.devicePixelRatio || 1);   // capped: a 3x strip costs triple for no visible gain
     cssW = Math.round(r.width);
-    cssH = Math.round(Math.max(34, Math.min(74, r.height * 0.22)));
+    cssH = Math.round(Math.max(14, Math.min(look.max, r.height * look.h)));
     canvas.style.height = cssH + 'px';
     canvas.width = Math.round(cssW * dpr);
     canvas.height = Math.round(cssH * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const next = Math.max(8, Math.ceil(cssW / (BAR_W + BAR_GAP)) + 1);
+    const next = Math.max(8, Math.ceil(cssW / (look.bar + look.gap)) + 1);
     if (next !== capacity) {
       // Keep the most recent history across a resize — a tile being dragged
       // should not blank its waveform.
@@ -196,11 +207,21 @@
     syncRunning();
   }
 
-  /** The user's setting. */
-  function setEnabled(on) {
-    enabled = !!on;
-    if (enabled) { mount(); syncRunning(); }
-    else unmount();
+  /**
+   * The user's setting: 'off' | 'minimal' | 'wave'. Anything unrecognised is
+   * off, so a settings blob from a newer build can never leave a strip running
+   * that this one cannot draw. `true` is accepted as 'wave' for the one build
+   * where this was a checkbox.
+   */
+  function setStyle(next) {
+    const want = next === true ? DEFAULT_STYLE
+      : (Object.hasOwn(STYLES, String(next)) ? String(next) : 'off');
+    if (want === style) return;
+    style = want;
+    if (style === 'off') { unmount(); return; }
+    look = STYLES[style];
+    if (canvas) { resize(); invalidate(); } else { mount(); }
+    syncRunning();
   }
 
   // ── Should it be drawing? ───────────────────────────────────────
@@ -227,7 +248,7 @@
   }
 
   function wanted() {
-    if (!enabled || !canvas) return false;
+    if (style === 'off' || !canvas) return false;
     if (document.hidden) return false;
     if (!playing) return false;
     if (problem || !sawLevels) return false;
@@ -267,7 +288,7 @@
 
   function draw(now) {
     const mid = cssH / 2;
-    const stepX = BAR_W + BAR_GAP;
+    const stepX = look.bar + look.gap;
     // Between ticks the strip slides left by a fraction of one bar, so twelve
     // samples a second read as continuous motion instead of a twelve-frame
     // stutter. Reduced motion gets the same data, parked on the grid.
@@ -276,22 +297,21 @@
       : Math.max(0, Math.min(1, (now - lastTickAt) / TICK_MS)) * stepX;
 
     ctx.save();
-    ctx.globalAlpha = opacity;
     ctx.fillStyle = buildGradient();
 
     const n = samples.length;
     for (let i = 0; i < n; i++) {
       // Newest sample sits at the right edge; older ones march left.
       const x = cssW - (n - i) * stepX - slide;
-      if (x + BAR_W < 0) continue;
+      if (x + look.bar < 0) continue;
       const v = samples[i];
       // A touch of shaping so a loud passage fills the strip without clipping:
       // the curve is on the DRAWN height only, never on the value we keep.
-      const h = Math.max(MIN_BAR, Math.pow(v, 0.72) * (cssH - 6));
+      const h = Math.max(MIN_BAR, Math.pow(v, look.curve) * (cssH - 4));
       // The oldest bars fade out rather than ending on a hard edge at x=0.
-      const edge = Math.min(1, x / 48);
-      ctx.globalAlpha = opacity * (0.25 + 0.75 * edge);
-      round(ctx, x, mid - h / 2, BAR_W, h, BAR_W / 2);
+      const edge = Math.min(1, x / 64);
+      ctx.globalAlpha = opacity * look.alpha * (0.2 + 0.8 * edge);
+      round(ctx, x, mid - h / 2, look.bar, h, look.bar / 2);
     }
     ctx.restore();
   }
@@ -317,8 +337,9 @@
   document.addEventListener('scroll', invalidate, { passive: true, capture: true });
 
   window.MediaViz = {
-    setEnabled, setPalette, setPlaying, setSource, onLevels,
+    setStyle, setPalette, setPlaying, setSource, onLevels,
+    STYLES: Object.keys(STYLES),
     // For tests and the settings preview.
-    _state: () => ({ enabled, playing, proc, problem, sawLevels, samples: samples.length, running: raf !== null }),
+    _state: () => ({ style, playing, proc, problem, sawLevels, samples: samples.length, running: raf !== null }),
   };
 })();

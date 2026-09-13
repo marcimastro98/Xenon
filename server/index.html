@@ -1313,15 +1313,13 @@
           <span data-i18n="settings_media_viz_head">Riquadro Media</span>
           <span class="settings-hint" data-i18n="settings_media_viz_head_hint">onda sonora sotto la copertina</span>
         </div>
-        <label class="settings-toggle-row">
-          <input class="settings-check" id="settings-media-viz" type="checkbox" onchange="updateMediaVisualizer(this.checked)">
-          <span class="settings-label-line">
-            <span data-i18n="settings_media_viz">Mostra l'onda sonora</span>
-            <span class="settings-hint" data-i18n="settings_media_viz_hint">disegna il suono che l'app sta davvero producendo, colorato dalla copertina</span>
-          </span>
-        </label>
         <div class="settings-row full">
-          <span class="settings-note" data-i18n="settings_media_viz_note">Serve Windows con Xenon Helper installato: il livello audio non si puo misurare senza di lui, e non esiste un ripiego. Accendendo questa voce parte la misurazione, che si ferma da sola quando la spegni.</span>
+          <div class="settings-segmented" role="group" aria-label="Onda sonora">
+            <button class="settings-media-viz settings-segment-btn active" type="button" data-media-viz="off" onclick="updateMediaVisualizer('off')" aria-pressed="true" data-i18n="settings_media_viz_off">Nessuna</button>
+            <button class="settings-media-viz settings-segment-btn" type="button" data-media-viz="minimal" onclick="updateMediaVisualizer('minimal')" aria-pressed="false" data-i18n="settings_media_viz_minimal">Minimal</button>
+            <button class="settings-media-viz settings-segment-btn" type="button" data-media-viz="wave" onclick="updateMediaVisualizer('wave')" aria-pressed="false" data-i18n="settings_media_viz_wave">Onda</button>
+          </div>
+          <span class="settings-note" data-i18n="settings_media_viz_note">Disegna il suono che l'app sta davvero producendo, con i colori della copertina. Non cambia nulla del riquadro: si aggiunge sotto, e con Nessuna non viene disegnato niente. Minimal e una riga sottile che respira, Onda e la versione piena. Serve Windows con Xenon Helper installato: senza di lui il livello audio non si puo misurare e non esiste un ripiego. La misurazione parte solo quando scegli Minimal o Onda.</span>
         </div>
       </div>
 

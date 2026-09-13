@@ -7829,9 +7829,10 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   contentInstalls: Object.freeze([]),
   weather: Object.freeze({ mode: 'auto', city: '', provider: 'auto', refreshMin: 30, forecastDays: 3, tile: Object.freeze({ metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }) }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
-  // Mirrors js/settings.js. Read by audioLevelsWanted(): this switch is a
-  // first-party reason to run the helper's meter, beside the SDK grants.
-  mediaVisualizer: false,
+  // Mirrors js/settings.js: 'off' | 'minimal' | 'wave'. Read by
+  // audioLevelsWanted(): anything but 'off' is a first-party reason to run the
+  // helper's meter, beside the SDK grants.
+  mediaVisualizer: 'off',
   clockFormat: 'auto', // 'auto' | '12' | '24' — auto follows the UI language
   topbarStyle: 'full', // 'full' | 'minimal' — minimal docks the topbar actions into collapsible edge rails
   // Minimal-mode edge-rail drawer positions (true = collapsed). Persisted here —
@@ -9279,7 +9280,7 @@ function normalizeHubSettings(value) {
     ambientMode: normalizeAmbientMode(source.ambientMode),
     weather: normalizeSettingsWeather(source.weather),
     tempUnit: source.tempUnit === 'f' ? 'f' : 'c',
-    mediaVisualizer: source.mediaVisualizer === true,
+    mediaVisualizer: ['off', 'minimal', 'wave'].includes(source.mediaVisualizer) ? source.mediaVisualizer : (source.mediaVisualizer === true ? 'wave' : 'off'),
     clockFormat: ['auto', '12', '24'].includes(source.clockFormat) ? source.clockFormat : 'auto',
     topbarStyle: source.topbarStyle === 'minimal' ? 'minimal' : 'full',
     topbarRails: normalizeTopbarRails(source.topbarRails),
@@ -10759,7 +10760,8 @@ function audioLevelsWanted() {
   // switch of its own for the reason the comment above gives about widgets:
   // turning the feature on IS the consent, and there is exactly one place to do
   // it. A built-in has no grant to ride, so this is that one place.
-  if (_serverHubSettings && _serverHubSettings.mediaVisualizer === true) return true;
+  const viz = _serverHubSettings && _serverHubSettings.mediaVisualizer;
+  if (viz && viz !== 'off') return true;
   const sw = _serverHubSettings && _serverHubSettings.sdkWidgets;
   const grants = sw && sw.grants && typeof sw.grants === 'object' ? sw.grants : null;
   if (!grants) return false;
