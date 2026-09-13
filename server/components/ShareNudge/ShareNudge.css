@@ -1,0 +1,6 @@
+/* The share invitation (js/share-nudge.js) reuses the Discord invite's shell:
+   same corner, same motion, same buttons. The one thing of its own is the disc
+   behind the camera. Left alone it is Discord's blue, and a blue disc says
+   "Discord" before a word is read. The theme accent says "this app". */
+.share-nudge .share-nudge-logo { background: var(--accent, #7c5cff); }
+.share-nudge .share-nudge-logo svg { color: #fff; }
