@@ -633,6 +633,14 @@ function patchCatalogPage(live) {
 // noindex, and a sitemap that lists noindexed URLs is a Search Console warning.
 const STATIC_ROUTES = [
   { loc: '/', file: 'docs/index.html', priority: '1.0', changefreq: 'weekly' },
+  // One indexable copy of the home page per language, generated from the
+  // English one by tools/build-i18n.mjs. Spanish is the first language among
+  // the app's users and had no findable page at all until these existed.
+  { loc: '/es/', file: 'docs/es/index.html', priority: '0.9', changefreq: 'weekly' },
+  { loc: '/it/', file: 'docs/it/index.html', priority: '0.9', changefreq: 'weekly' },
+  { loc: '/ko/', file: 'docs/ko/index.html', priority: '0.8', changefreq: 'weekly' },
+  { loc: '/ja/', file: 'docs/ja/index.html', priority: '0.8', changefreq: 'weekly' },
+  { loc: '/zh/', file: 'docs/zh/index.html', priority: '0.8', changefreq: 'weekly' },
   { loc: '/catalog/', file: 'docs/community/catalog.json', priority: '0.9', changefreq: 'daily' },
   { loc: '/create/', file: 'docs/create/index.html', priority: '0.8', changefreq: 'monthly' },
   // These three carry `robots: index, follow` and a canonical of their own, so
@@ -651,6 +659,10 @@ const STATIC_ROUTES = [
   // people who found an unfamiliar process and want a straight answer, which the
   // home page is the wrong shape to give them.
   { loc: '/xenon-exe.html', file: 'docs/xenon-exe.html', priority: '0.7', changefreq: 'monthly' },
+  // "xenon download" and "xenon linux": 74 impressions in Search Console and
+  // no clicks, because the home page's title carried neither word.
+  { loc: '/download.html', file: 'docs/download.html', priority: '0.9', changefreq: 'weekly' },
+  { loc: '/linux.html', file: 'docs/linux.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/demo/', file: 'docs/demo/index.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/submit/', file: 'docs/submit/index.html', priority: '0.5', changefreq: 'monthly' },
   { loc: '/privacy.html', file: 'docs/privacy.html', priority: '0.3', changefreq: 'yearly' },

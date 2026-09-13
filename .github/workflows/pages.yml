@@ -83,6 +83,13 @@ jobs:
       # bot commit that only touches the catalog still republishes with the
       # crawlable surface in step — the committed output is the same, so this is
       # a safety net, not the only path.
+      # One copy of the home page per language, with the strings baked in so a
+      # crawler indexes Spanish at /es/ instead of the English it renders
+      # everywhere with an English browser. Must run before build-seo.mjs,
+      # which lists the copies in the sitemap.
+      - name: Build language copies of the home page
+        run: node tools/build-i18n.mjs
+
       - name: Build SEO surface
         run: node tools/build-seo.mjs
 
