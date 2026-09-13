@@ -370,12 +370,13 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     tile: Object.freeze({ metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }),
   }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
-  // The Media tile's waveform. Off by default and deliberately a switch of its
-  // own: turning it on is what starts the helper's peak metering (~12 pushes a
-  // second), so the cost follows an explicit choice — the same rule the SDK
-  // `audioLevels` grant follows, which until now was the only thing that could
-  // start it.
-  mediaVisualizer: false,
+  // The Media tile's waveform: 'off' | 'minimal' | 'wave'. An ADDITION to that
+  // tile, so it defaults to off and has a quiet setting as well as a full one —
+  // nobody gets a busier Media tile than the one they already had. Off is also
+  // what keeps the helper's peak metering (~12 pushes a second) from running:
+  // the cost follows the choice, the same rule the SDK `audioLevels` grant
+  // follows, which until now was the only thing that could start it.
+  mediaVisualizer: 'off',
   // Open the dashboard in the default browser at Windows logon (default on).
   // Only reconciled into a real scheduled task from a standalone browser view —
   // never from inside the Xeneon Edge iframe (see reconcileAutoOpenBrowser).
@@ -1683,7 +1684,7 @@ function normalizeSettings(source) {
     ambientScenes: normalizeAmbientScenes(value.ambientScenes),
     weather: normalizeWeatherSettings(value.weather),
     tempUnit: value.tempUnit === 'f' ? 'f' : 'c',
-    mediaVisualizer: value.mediaVisualizer === true,
+    mediaVisualizer: ['off', 'minimal', 'wave'].includes(value.mediaVisualizer) ? value.mediaVisualizer : (value.mediaVisualizer === true ? 'wave' : 'off'),
     autoOpenBrowser: value.autoOpenBrowser !== false,
     versionPing: value.versionPing === true,
     hubMessages: value.hubMessages !== false,
@@ -8076,14 +8077,24 @@ function syncAutoOpenBrowserControl() {
 // metering, so there is no second place to enable anything (see the note on
 // audioLevelsWanted in server.js). saveHubSettings reaches the server, which
 // re-reads that gate on every save and starts or stops the meter child.
-function syncMediaVisualizerControl() {
-  const el = $('settings-media-viz');
-  if (el) el.checked = hubSettings.mediaVisualizer === true;
-  if (window.MediaViz) window.MediaViz.setEnabled(hubSettings.mediaVisualizer === true);
+function mediaVisualizerMode() {
+  const v = hubSettings && hubSettings.mediaVisualizer;
+  return ['off', 'minimal', 'wave'].includes(v) ? v : 'off';
 }
 
-function updateMediaVisualizer(checked) {
-  hubSettings = normalizeSettings({ ...hubSettings, mediaVisualizer: checked === true });
+function syncMediaVisualizerControl() {
+  const mode = mediaVisualizerMode();
+  document.querySelectorAll('.settings-media-viz[data-media-viz]').forEach((btn) => {
+    const active = btn.dataset.mediaViz === mode;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
+  if (window.MediaViz) window.MediaViz.setStyle(mode);
+}
+
+function updateMediaVisualizer(mode) {
+  if (!['off', 'minimal', 'wave'].includes(mode)) return;
+  hubSettings = normalizeSettings({ ...hubSettings, mediaVisualizer: mode });
   saveHubSettings();
   syncMediaVisualizerControl();
   setSettingsStatus('settings_saved', 'ok');

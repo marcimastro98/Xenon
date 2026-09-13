@@ -7,13 +7,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### ✨ Added
 - **The Media tile can show the sound wave of what is playing.** Asked for by a supporter on Buy Me a Coffee: *"wish there was a media bar and visualization"*. The bar was already there — the now-playing strip in the top bar, with cover and transport, under **Settings → Dynamic Island**. The visualisation was not.
 
-  **Settings → Aspetto → Riquadro Media** now adds a waveform across the bottom of the tile, coloured by the album cover — the same colours the LED strip already takes from it.
+  **Settings → Aspetto → Riquadro Media** now offers **Nessuna / Minimal / Onda**, coloured by the album cover — the same colours the LED strip already takes from it.
+
+  It is an addition, and it behaves like one. The tile is unchanged: the strip is added underneath the content, it can never move or cover a control, and **Nessuna** is the default and draws nothing at all. **Minimal** is a thin line along the bottom edge that breathes with the music, for anyone who wants the dashboard to stay quiet; **Onda** is the fuller strip. Neither competes with the cover or the title — both are drawn under the artwork rather than on top of it.
 
   It is not decoration. Xenon can measure the peak level of each app about twelve times a second, and every bar in the strip is one of those measurements: the last few seconds of them, scrolling past, newest on the right. So a quiet passage looks quiet and a drop looks like a drop. It reads the *player's* level specifically, so a Discord call or a game never makes your music dance.
 
   What it deliberately is **not** is a spectrum analyser. Xenon measures one number per app, not frequency bands, and drawing sixty bars from one number would be a picture of nothing. The same reason the placeholder equaliser in this tile has never animated.
 
-  It needs **Windows with Xenon Helper** — peak levels cannot be read without it and there is no fallback — so everywhere else the tile draws no wave at all rather than faking one, and the setting says so under the switch. Turning it on is what starts the measurement, and turning it off stops it again; nothing runs while the tile is off screen, the music is paused, or the dashboard is in the background.
+  It needs **Windows with Xenon Helper** — peak levels cannot be read without it and there is no fallback — so everywhere else the tile draws no wave at all rather than faking one, and the setting says so under the choice. Picking Minimal or Onda is what starts the measurement, and Nessuna stops it again; nothing runs while the tile is off screen, the music is paused, or the dashboard is in the background.
 
 - **A second Discord tile, showing a different tab.** The widget has four tabs — Controls, Channels, Soundboard, Notifications — and only one could be on screen at a time, because only one Discord tile could exist. Asked for by someone who wanted his DM notifications above and the voice-chat controls below, on the same screen.
 
