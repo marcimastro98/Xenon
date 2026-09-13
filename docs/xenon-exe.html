@@ -236,18 +236,24 @@
     <p>If instead you are looking at <code>xenon-native.exe</code> or <code>xenon-helper.exe</code>, those are ours, and the rest of this page says exactly what each one does.</p>
 
     <h2 id="list"><span class="h2n">02</span>What Xenon does run on Windows</h2>
-    <p>Four things, and nothing else:</p>
+    <p>Four things of its own:</p>
     <div class="tablewrap"><table>
       <thead><tr><th>File</th><th>What it is</th></tr></thead>
       <tbody>
         <tr><td><code>Xenon-Setup-x64.exe</code></td><td>The installer. You run it once; it does not stay on the system as a process.</td></tr>
         <tr><td><code>xenon-native.exe</code></td><td>The dashboard window itself, a small native shell that draws the interface on the screen you chose. This is the one you see in the system tray.</td></tr>
-        <tr><td><code>xenon-helper.exe</code></td><td>The bridge to the parts of Windows a web app cannot reach on its own: audio devices and per-app volume, media keys, notifications, the window list, global hotkeys, disk scanning, and the Bluetooth phone link. It is started by the dashboard and answers it over standard input and output.</td></tr>
+        <tr><td><code>xenon-helper.exe</code></td><td>The bridge to the parts of Windows a web app cannot reach on its own: audio devices and per-app volume, media keys, notifications, the window list, global hotkeys, disk scanning, and the Bluetooth phone link. It is started by the engine and answers it over standard input and output.</td></tr>
         <tr><td><code>node.exe</code></td><td>The dashboard engine. Xenon is a local web app, so the thing serving it is plain Node.js listening on <code>127.0.0.1:3030</code> — your own machine only, not the network.</td></tr>
       </tbody>
     </table></div>
-    <p>They live in two folders under your user profile, never in Windows itself: <code>%LOCALAPPDATA%\Xenon</code> and <code>%LOCALAPPDATA%\Programs\Xenon</code>. A per-logon scheduled task starts the engine when you sign in. Nothing runs as a service and nothing runs as SYSTEM.</p>
-    <p>Two more components are installed <em>through winget</em>, from their own developers rather than from this project, and only if you let the setup do it: <strong>LibreHardwareMonitor</strong> and <strong>PawnIO</strong>, which are what read CPU and disk temperatures. PawnIO is the signed replacement for WinRing0, the driver behind most older hardware-monitoring false positives. Xenon has never shipped WinRing0 and never will.</p>
+    <p>They live in two folders under your user profile, never in Windows itself: <code>%LOCALAPPDATA%\Xenon</code> and <code>%LOCALAPPDATA%\Programs\Xenon</code>. A per-logon scheduled task starts the engine when you sign in, under your own account. If you accepted the administrator prompt at setup, that task runs elevated, which is what lets it read temperatures; nothing is installed as a Windows service.</p>
+    <p>Then there are the tools Xenon runs for specific features, each from its own developers rather than from this project, and each only when the feature that needs it is on:</p>
+    <ul>
+      <li><strong>LibreHardwareMonitor</strong> and <strong>PawnIO</strong>, installed through winget, read CPU and disk temperatures. PawnIO is a signed kernel driver, and the replacement for WinRing0, the driver behind most older hardware-monitoring false positives. Xenon has never shipped WinRing0 and never will.</li>
+      <li><strong>PresentMon</strong>, Intel's frame-time tool, downloaded into Xenon's own folder, for the real in-game FPS counter.</li>
+      <li><strong>FFmpeg</strong> for voice input and spoken replies, and <strong>Ollama</strong> only if you switch the assistant to the free local provider. The installer does not download either; you set them up from Settings when you want them.</li>
+      <li><strong>Sunshine</strong> and <strong>Tailscale</strong>, only if you turn on remote PC control.</li>
+    </ul>
 
     <h2 id="check"><span class="h2n">03</span>How to check what you actually have</h2>
     <ol>
