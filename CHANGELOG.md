@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### ✨ Added
+- **The Media tile can show the sound wave of what is playing.** Asked for by a supporter on Buy Me a Coffee: *"wish there was a media bar and visualization"*. The bar was already there — the now-playing strip in the top bar, with cover and transport, under **Settings → Dynamic Island**. The visualisation was not.
+
+  **Settings → Aspetto → Riquadro Media** now adds a waveform across the bottom of the tile, coloured by the album cover — the same colours the LED strip already takes from it.
+
+  It is not decoration. Xenon can measure the peak level of each app about twelve times a second, and every bar in the strip is one of those measurements: the last few seconds of them, scrolling past, newest on the right. So a quiet passage looks quiet and a drop looks like a drop. It reads the *player's* level specifically, so a Discord call or a game never makes your music dance.
+
+  What it deliberately is **not** is a spectrum analyser. Xenon measures one number per app, not frequency bands, and drawing sixty bars from one number would be a picture of nothing. The same reason the placeholder equaliser in this tile has never animated.
+
+  It needs **Windows with Xenon Helper** — peak levels cannot be read without it and there is no fallback — so everywhere else the tile draws no wave at all rather than faking one, and the setting says so under the switch. Turning it on is what starts the measurement, and turning it off stops it again; nothing runs while the tile is off screen, the music is paused, or the dashboard is in the background.
+
 - **A second Discord tile, showing a different tab.** The widget has four tabs — Controls, Channels, Soundboard, Notifications — and only one could be on screen at a time, because only one Discord tile could exist. Asked for by someone who wanted his DM notifications above and the voice-chat controls below, on the same screen.
 
   It can now be added twice from the **"+"** palette, and **each tile remembers its own open tab**. Both read the same connection to your Discord app, so the second one costs no extra polling — and when either tile is showing Notifications, the unread badge stays where it belongs: at zero.

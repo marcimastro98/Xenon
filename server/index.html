@@ -1304,6 +1304,27 @@
         </div>
       </div>
 
+      <!-- Media visualiser. Windows + Xenon Helper only: peak metering does not
+           exist without the native companion (server/audio-levels.js), and there
+           is no fallback to degrade to. The row says so under the switch rather
+           than offering a toggle that silently does nothing. -->
+      <div class="settings-group settings-behavior-group" data-settings-cat="appearance">
+        <div class="settings-group-head">
+          <span data-i18n="settings_media_viz_head">Riquadro Media</span>
+          <span class="settings-hint" data-i18n="settings_media_viz_head_hint">onda sonora sotto la copertina</span>
+        </div>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-media-viz" type="checkbox" onchange="updateMediaVisualizer(this.checked)">
+          <span class="settings-label-line">
+            <span data-i18n="settings_media_viz">Mostra l'onda sonora</span>
+            <span class="settings-hint" data-i18n="settings_media_viz_hint">disegna il suono che l'app sta davvero producendo, colorato dalla copertina</span>
+          </span>
+        </label>
+        <div class="settings-row full">
+          <span class="settings-note" data-i18n="settings_media_viz_note">Serve Windows con Xenon Helper installato: il livello audio non si puo misurare senza di lui, e non esiste un ripiego. Accendendo questa voce parte la misurazione, che si ferma da sola quando la spegni.</span>
+        </div>
+      </div>
+
       <div class="settings-group settings-behavior-group" data-settings-cat="island">
         <div class="settings-group-head">
           <span data-i18n="settings_cat_island">Dynamic Island</span>
@@ -3998,6 +4019,7 @@
 <script src="js/tile-shape-presets.js"></script>
 <script src="js/dashboard-layout.js"></script>
 <script src="js/topbar-minimal.js"></script>
+<script src="js/media-viz.js"></script>
 <script src="js/topbar-media.js"></script>
 <script src="js/sdk-island-schema.js"></script>
 <script src="js/sdk-island.js"></script>

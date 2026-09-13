@@ -370,6 +370,12 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
     tile: Object.freeze({ metrics: true, hourly: true, forecast: true, fields: WEATHER_FIELDS_ALL_ON }),
   }),
   tempUnit: 'c', // 'c' | 'f' — weather temperature display unit
+  // The Media tile's waveform. Off by default and deliberately a switch of its
+  // own: turning it on is what starts the helper's peak metering (~12 pushes a
+  // second), so the cost follows an explicit choice — the same rule the SDK
+  // `audioLevels` grant follows, which until now was the only thing that could
+  // start it.
+  mediaVisualizer: false,
   // Open the dashboard in the default browser at Windows logon (default on).
   // Only reconciled into a real scheduled task from a standalone browser view —
   // never from inside the Xeneon Edge iframe (see reconcileAutoOpenBrowser).
@@ -1677,6 +1683,7 @@ function normalizeSettings(source) {
     ambientScenes: normalizeAmbientScenes(value.ambientScenes),
     weather: normalizeWeatherSettings(value.weather),
     tempUnit: value.tempUnit === 'f' ? 'f' : 'c',
+    mediaVisualizer: value.mediaVisualizer === true,
     autoOpenBrowser: value.autoOpenBrowser !== false,
     versionPing: value.versionPing === true,
     hubMessages: value.hubMessages !== false,
@@ -4137,6 +4144,7 @@ function applyHubSettings() {
   // and keep its settings control in sync.
   if (window.DashboardPager && DashboardPager.refreshSwipe) DashboardPager.refreshSwipe();
   syncSwipeNavigationControl();
+  syncMediaVisualizerControl();
   syncSwipeHomeControl();
   syncHideRdpControl();
   const root = document.documentElement;
@@ -8063,6 +8071,24 @@ function syncAutoOpenBrowserControl() {
 // Reflects the checkbox and re-applies the gesture on the pager (native
 // horizontal scroll + JS drag-pan). Default on; disabling keeps dot/keyboard
 // navigation working.
+// ── Media visualiser ────────────────────────────────────────────────────────
+// The switch is the consent: turning it on is what starts the helper's peak
+// metering, so there is no second place to enable anything (see the note on
+// audioLevelsWanted in server.js). saveHubSettings reaches the server, which
+// re-reads that gate on every save and starts or stops the meter child.
+function syncMediaVisualizerControl() {
+  const el = $('settings-media-viz');
+  if (el) el.checked = hubSettings.mediaVisualizer === true;
+  if (window.MediaViz) window.MediaViz.setEnabled(hubSettings.mediaVisualizer === true);
+}
+
+function updateMediaVisualizer(checked) {
+  hubSettings = normalizeSettings({ ...hubSettings, mediaVisualizer: checked === true });
+  saveHubSettings();
+  syncMediaVisualizerControl();
+  setSettingsStatus('settings_saved', 'ok');
+}
+
 function syncSwipeNavigationControl() {
   const el = $('settings-swipe-nav');
   if (el) el.checked = hubSettings.swipeNavigation !== false;

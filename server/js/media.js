@@ -374,6 +374,8 @@ let _lastAlbumLedHex = null; // de-dupe identical LED pushes across media ticks
 function applyAlbumColor(pair) {
   if (typeof setDynamicAccent === 'function') setDynamicAccent(pair ? pair.accent : null);
   pushAlbumToLighting(pair);
+  // Same colours the LEDs get: the waveform is tinted by the cover it sits under.
+  if (window.MediaViz) window.MediaViz.setPalette(pair);
 }
 
 // Best-effort push of the cover colour(s) to the lighting bridge. The server
@@ -748,6 +750,10 @@ function updateMediaSource() {
   const session = findMediaAppSession();
   _mediaVolSession = session;
   updateMediaSourceIcon(session);
+  // The visualiser draws the level of THIS process, so a Discord call or a game
+  // never makes the music's waveform dance. `audiolevels` is keyed by process
+  // name, which is exactly what the session carries.
+  if (window.MediaViz) window.MediaViz.setSource(session ? session.proc : '');
 
   const wrap = $('media-volume');
   if (!wrap) return;

@@ -159,6 +159,28 @@
 }
 .media-panel.has-image .media-bg-fallback { opacity: 0; }
 
+/* ── Visualiser ───────────────────────────────────────────────────
+   The waveform of what is actually playing (js/media-viz.js), laid across the
+   bottom of the tile. Above the blurred cover, BELOW the content — it is part of
+   the artwork, not a control, and it must never sit over the transport buttons.
+   Created only when the setting is on, so a default dashboard has no canvas and
+   no compositor layer here at all. */
+.media-viz {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  width: 100%;
+  z-index: 0;
+  pointer-events: none;
+  /* Fades with the strip's own opacity easing; the mask keeps it from ending on
+     a hard line against the tile's rounded corner. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 100%);
+          mask-image: linear-gradient(90deg, transparent, #000 12%, #000 100%);
+}
+/* Promoted ONLY while it is actually animating — the same rule the blurred cover
+   follows above, and for the same reason: a permanently promoted layer is what
+   makes hybrid-GPU laptops flicker the whole window. */
+.media-viz.is-live { will-change: transform; }
+
 .media-overlay {
   position: absolute;
   inset: 0;
