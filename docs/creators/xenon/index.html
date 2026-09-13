@@ -99,9 +99,12 @@ footer a:hover{color:var(--green)}
 @media(min-width:720px){.shots{grid-template-columns:1fr 1fr}.shots img:first-child{grid-column:1/-1}}
 .cr-sum{display:flex;flex-wrap:wrap;gap:10px 28px;margin:18px 0 6px;font-size:15px;color:var(--muted)}
 .cr-sum b{display:block;font-size:26px;font-weight:700;color:var(--text);line-height:1.1;font-variant-numeric:tabular-nums}
-.cr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:22px}
-.cr-card{display:flex;flex-direction:column;gap:6px;padding:16px 16px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);text-decoration:none;color:var(--text)}
+.cr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-top:22px}
+.cr-card{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;background:var(--panel);text-decoration:none;color:var(--text);overflow:hidden}
 .cr-card:hover{border-color:var(--green)}
+.cr-shot{display:block;aspect-ratio:16/9;background:color-mix(in srgb,var(--text) 6%,transparent);border-bottom:1px solid var(--line)}
+.cr-shot img{width:100%;height:100%;object-fit:cover;display:block}
+.cr-body{display:flex;flex-direction:column;gap:6px;padding:14px 15px 13px}
 .cr-k{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
 .cr-n{font-weight:600;font-size:16px}
 .cr-d{font-size:13.5px;color:var(--muted);line-height:1.45}
@@ -352,160 +355,238 @@ footer a:hover{color:var(--green)}
 
     <div class="cr-grid">
       <a class="cr-card" href="/catalog/pit-wall/">
-        <span class="cr-k">Package · supporters</span>
-        <span class="cr-n">Pit Wall</span>
-        <span class="cr-d">A racing cluster drawn the way a current one is: black faces, fine graduations, one bright pointer, no chrome. CPU on a 100-line comb, GPU…</span>
-        <span class="cr-live"><span data-iid="pit-wall"></span><span data-rid="pit-wall"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/pit-wall.webp" alt="Pit Wall running in Xenon" loading="eager" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/pit-wall.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Package · supporters</span>
+          <span class="cr-n">Pit Wall</span>
+          <span class="cr-d">A racing cluster drawn the way a current one is: black faces, fine graduations, one bright pointer, no chrome. CPU on a 100-line comb, GPU…</span>
+          <span class="cr-live"><span data-iid="pit-wall"></span><span data-rid="pit-wall"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/atelier-78/">
-        <span class="cr-k">Package · supporters</span>
-        <span class="cr-n">Atelier 78</span>
-        <span class="cr-d">A working turntable, as a tile and as a full-screen Ambient scene. Lift the tonearm off the record and the music stops, put it back and it…</span>
-        <span class="cr-live"><span data-iid="atelier-78"></span><span data-rid="atelier-78"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/atelier-78.webp" alt="Atelier 78 running in Xenon" loading="eager" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/atelier-78.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Package · supporters</span>
+          <span class="cr-n">Atelier 78</span>
+          <span class="cr-d">A working turntable, as a tile and as a full-screen Ambient scene. Lift the tonearm off the record and the music stops, put it back and it…</span>
+          <span class="cr-live"><span data-iid="atelier-78"></span><span data-rid="atelier-78"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/workload/">
-        <span class="cr-k">Widget · supporters</span>
-        <span class="cr-n">Workload</span>
-        <span class="cr-d">Which apps are using this PC right now: CPU, memory and GPU per app, in one sortable list. Tap a column header to rank by it. Takes its…</span>
-        <span class="cr-live"><span data-iid="workload"></span><span data-rid="workload"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/workload.webp" alt="Workload running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/workload.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget · supporters</span>
+          <span class="cr-n">Workload</span>
+          <span class="cr-d">Which apps are using this PC right now: CPU, memory and GPU per app, in one sortable list. Tap a column header to rank by it. Takes its…</span>
+          <span class="cr-live"><span data-iid="workload"></span><span data-rid="workload"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/aracne/">
-        <span class="cr-k">Package · supporters</span>
-        <span class="cr-n">Aracne</span>
-        <span class="cr-d">A night pack built on a real orb web, and a tile where the web IS the gauge: three wedges, one each for CPU, GPU and RAM, each woven out…</span>
-        <span class="cr-live"><span data-iid="aracne"></span><span data-rid="aracne"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/aracne.webp" alt="Aracne running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/aracne.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Package · supporters</span>
+          <span class="cr-n">Aracne</span>
+          <span class="cr-d">A night pack built on a real orb web, and a tile where the web IS the gauge: three wedges, one each for CPU, GPU and RAM, each woven out…</span>
+          <span class="cr-live"><span data-iid="aracne"></span><span data-rid="aracne"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/codex/">
-        <span class="cr-k">Package · supporters</span>
-        <span class="cr-n">Codex</span>
-        <span class="cr-d">A herbarium you tend. Sow a specimen, let it grow in your real local weather, then hold the press and release inside the ink window. Each…</span>
-        <span class="cr-live"><span data-iid="codex"></span><span data-rid="codex"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/codex.webp" alt="Codex running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/codex.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Package · supporters</span>
+          <span class="cr-n">Codex</span>
+          <span class="cr-d">A herbarium you tend. Sow a specimen, let it grow in your real local weather, then hold the press and release inside the ink window. Each…</span>
+          <span class="cr-live"><span data-iid="codex"></span><span data-rid="codex"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/lakeside/">
-        <span class="cr-k">Theme · supporters</span>
-        <span class="cr-n">Lakeside</span>
-        <span class="cr-d">A painted mountain lake that follows the real world: the season turns with the calendar and the sun and moon cross the sky at your actual…</span>
-        <span class="cr-live"><span data-iid="lakeside"></span><span data-rid="lakeside"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/lakeside.webp" alt="Lakeside running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/lakeside.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Theme · supporters</span>
+          <span class="cr-n">Lakeside</span>
+          <span class="cr-d">A painted mountain lake that follows the real world: the season turns with the calendar and the sun and moon cross the sky at your actual…</span>
+          <span class="cr-live"><span data-iid="lakeside"></span><span data-rid="lakeside"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/kintsugi/">
-        <span class="cr-k">Package</span>
-        <span class="cr-n">Kintsugi</span>
-        <span class="cr-d">Dark urushi lacquer mended with veins of gold, inspired by Japanese kintsugi. Ships a light and a dark palette, an animated golden-seams…</span>
-        <span class="cr-live"><span data-iid="kintsugi"></span><span data-rid="kintsugi"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/kintsugi.webp" alt="Kintsugi running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/kintsugi.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Package</span>
+          <span class="cr-n">Kintsugi</span>
+          <span class="cr-d">Dark urushi lacquer mended with veins of gold, inspired by Japanese kintsugi. Ships a light and a dark palette, an animated golden-seams…</span>
+          <span class="cr-live"><span data-iid="kintsugi"></span><span data-rid="kintsugi"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/limnograph/">
-        <span class="cr-k">Package</span>
-        <span class="cr-n">Limnograph</span>
-        <span class="cr-d">A 1970s alpine field station built around a mountain-lake photograph. Frosted survey panels, slow natural water refraction, and a…</span>
-        <span class="cr-live"><span data-iid="limnograph"></span><span data-rid="limnograph"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/limnograph.webp" alt="Limnograph running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/limnograph.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Package</span>
+          <span class="cr-n">Limnograph</span>
+          <span class="cr-d">A 1970s alpine field station built around a mountain-lake photograph. Frosted survey panels, slow natural water refraction, and a…</span>
+          <span class="cr-live"><span data-iid="limnograph"></span><span data-rid="limnograph"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/afterimage/">
-        <span class="cr-k">Package</span>
-        <span class="cr-n">Afterimage</span>
-        <span class="cr-d">An early-2000s night-city desktop for Xenon. Opaque indigo panels clean up every native widget, the wallpaper drifts like a film exposure…</span>
-        <span class="cr-live"><span data-iid="afterimage"></span><span data-rid="afterimage"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/afterimage.webp" alt="Afterimage running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/afterimage.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Package</span>
+          <span class="cr-n">Afterimage</span>
+          <span class="cr-d">An early-2000s night-city desktop for Xenon. Opaque indigo panels clean up every native widget, the wallpaper drifts like a film exposure…</span>
+          <span class="cr-live"><span data-iid="afterimage"></span><span data-rid="afterimage"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/daybook/">
-        <span class="cr-k">Widget</span>
-        <span class="cr-n">Daybook</span>
-        <span class="cr-d">A local timecard for your workday. Daybook records the foreground app in 15-second slots, turns the day into a punched activity tape, and…</span>
-        <span class="cr-live"><span data-iid="daybook"></span><span data-rid="daybook"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/daybook.webp" alt="Daybook running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/daybook.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget</span>
+          <span class="cr-n">Daybook</span>
+          <span class="cr-d">A local timecard for your workday. Daybook records the foreground app in 15-second slots, turns the day into a punched activity tape, and…</span>
+          <span class="cr-live"><span data-iid="daybook"></span><span data-rid="daybook"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/mixer/">
-        <span class="cr-k">Widget</span>
-        <span class="cr-n">Mixer</span>
-        <span class="cr-d">Console mixer: un fader per ogni app che suona, piu&#39; il master. Trascina per regolare, tocca l&#39;icona per mutare, salva e richiama scene…</span>
-        <span class="cr-live"><span data-iid="mixer"></span><span data-rid="mixer"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/mixer.webp" alt="Mixer running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/mixer.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget</span>
+          <span class="cr-n">Mixer</span>
+          <span class="cr-d">Console mixer: un fader per ogni app che suona, piu&#39; il master. Trascina per regolare, tocca l&#39;icona per mutare, salva e richiama scene…</span>
+          <span class="cr-live"><span data-iid="mixer"></span><span data-rid="mixer"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/keyring/">
-        <span class="cr-k">Widget</span>
-        <span class="cr-n">Keyring</span>
-        <span class="cr-d">Encrypted 2FA codes and passwords in one place. Codes stay on screen by your keyboard with a countdown ring; the code for a focused…</span>
-        <span class="cr-live"><span data-iid="keyring"></span><span data-rid="keyring"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/keyring.webp" alt="Keyring running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/keyring.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget</span>
+          <span class="cr-n">Keyring</span>
+          <span class="cr-d">Encrypted 2FA codes and passwords in one place. Codes stay on screen by your keyboard with a countdown ring; the code for a focused…</span>
+          <span class="cr-live"><span data-iid="keyring"></span><span data-rid="keyring"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/thermal-card/">
-        <span class="cr-k">Widget</span>
-        <span class="cr-n">Thermal Card</span>
-        <span class="cr-d">CPU and GPU temperature, VRAM and RAM in one card. Tap any row to swap which value leads, and pick which monitors you want. Reads sensors…</span>
-        <span class="cr-live"><span data-iid="thermal-card"></span><span data-rid="thermal-card"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/thermal-card.webp" alt="Thermal Card running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/thermal-card.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget</span>
+          <span class="cr-n">Thermal Card</span>
+          <span class="cr-d">CPU and GPU temperature, VRAM and RAM in one card. Tap any row to swap which value leads, and pick which monitors you want. Reads sensors…</span>
+          <span class="cr-live"><span data-iid="thermal-card"></span><span data-rid="thermal-card"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/vanguard-50/">
-        <span class="cr-k">Package</span>
-        <span class="cr-n">VANGUARD 50 // VOICE RELAY</span>
-        <span class="cr-d">A Discord voice console with live session telemetry, set in an observatory night sky with an obsidian Deck. 50 copies, each carrying its…</span>
-        <span class="cr-live"><span data-iid="vanguard-50"></span><span data-rid="vanguard-50"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/vanguard-50.webp" alt="VANGUARD 50 // VOICE RELAY running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/vanguard-50.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Package</span>
+          <span class="cr-n">VANGUARD 50 // VOICE RELAY</span>
+          <span class="cr-d">A Discord voice console with live session telemetry, set in an observatory night sky with an obsidian Deck. 50 copies, each carrying its…</span>
+          <span class="cr-live"><span data-iid="vanguard-50"></span><span data-rid="vanguard-50"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/ambra/">
-        <span class="cr-k">Package</span>
-        <span class="cr-n">Ambra</span>
-        <span class="cr-d">A warm, minimal pack: an amber theme on deep espresso with the animated &#39;Bruma d&#39;Ambra&#39; background, a redesigned weather widget…</span>
-        <span class="cr-live"><span data-iid="ambra"></span><span data-rid="ambra"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/ambra.webp" alt="Ambra running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/ambra.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Package</span>
+          <span class="cr-n">Ambra</span>
+          <span class="cr-d">A warm, minimal pack: an amber theme on deep espresso with the animated &#39;Bruma d&#39;Ambra&#39; background, a redesigned weather widget…</span>
+          <span class="cr-live"><span data-iid="ambra"></span><span data-rid="ambra"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/teleprompter/">
-        <span class="cr-k">Widget</span>
-        <span class="cr-n">Teleprompter</span>
-        <span class="cr-d">Write a script, then read it like a pro: large auto-scrolling prompter text with the current sentence lit, a 3-2-1 countdown…</span>
-        <span class="cr-live"><span data-iid="teleprompter"></span><span data-rid="teleprompter"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/teleprompter.webp" alt="Teleprompter running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/teleprompter.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget</span>
+          <span class="cr-n">Teleprompter</span>
+          <span class="cr-d">Write a script, then read it like a pro: large auto-scrolling prompter text with the current sentence lit, a 3-2-1 countdown…</span>
+          <span class="cr-live"><span data-iid="teleprompter"></span><span data-rid="teleprompter"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/nova-neon-district/">
-        <span class="cr-k">Package</span>
-        <span class="cr-n">NØVA // NEON DISTRICT</span>
-        <span class="cr-d">A limited cyberpunk drop: a neon duotone theme, the animated Megacity Drift background with a holographic whale, the Orbitron display…</span>
-        <span class="cr-live"><span data-iid="nova-neon-district"></span><span data-rid="nova-neon-district"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/nova-neon-district.webp" alt="NØVA // NEON DISTRICT running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/nova-neon-district.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Package</span>
+          <span class="cr-n">NØVA // NEON DISTRICT</span>
+          <span class="cr-d">A limited cyberpunk drop: a neon duotone theme, the animated Megacity Drift background with a holographic whale, the Orbitron display…</span>
+          <span class="cr-live"><span data-iid="nova-neon-district"></span><span data-rid="nova-neon-district"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/ember-nights/">
-        <span class="cr-k">Theme</span>
-        <span class="cr-n">Ember Nights</span>
-        <span class="cr-d">Warm amber accent over a deep charcoal glass, a cozy evening look for the Edge.</span>
-        <span class="cr-live"><span data-iid="ember-nights"></span><span data-rid="ember-nights"></span></span>
+        <span class="cr-shot"></span>
+        <span class="cr-body">
+          <span class="cr-k">Theme</span>
+          <span class="cr-n">Ember Nights</span>
+          <span class="cr-d">Warm amber accent over a deep charcoal glass, a cozy evening look for the Edge.</span>
+          <span class="cr-live"><span data-iid="ember-nights"></span><span data-rid="ember-nights"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/deep-ocean/">
-        <span class="cr-k">Theme</span>
-        <span class="cr-n">Deep Ocean</span>
-        <span class="cr-d">Cool cyan on abyssal navy: calm, high-contrast and easy on the eyes at night.</span>
-        <span class="cr-live"><span data-iid="deep-ocean"></span><span data-rid="deep-ocean"></span></span>
+        <span class="cr-shot"></span>
+        <span class="cr-body">
+          <span class="cr-k">Theme</span>
+          <span class="cr-n">Deep Ocean</span>
+          <span class="cr-d">Cool cyan on abyssal navy: calm, high-contrast and easy on the eyes at night.</span>
+          <span class="cr-live"><span data-iid="deep-ocean"></span><span data-rid="deep-ocean"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/silk-waves/">
-        <span class="cr-k">Background</span>
-        <span class="cr-n">Silk Waves</span>
-        <span class="cr-d">Slow flowing wave lines over a midnight gradient, an animated backdrop that stays out of the way.</span>
-        <span class="cr-live"><span data-iid="silk-waves"></span><span data-rid="silk-waves"></span></span>
+        <span class="cr-shot"></span>
+        <span class="cr-body">
+          <span class="cr-k">Background</span>
+          <span class="cr-n">Silk Waves</span>
+          <span class="cr-d">Slow flowing wave lines over a midnight gradient, an animated backdrop that stays out of the way.</span>
+          <span class="cr-live"><span data-iid="silk-waves"></span><span data-rid="silk-waves"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/nocturne-theme/">
-        <span class="cr-k">Theme</span>
-        <span class="cr-n">Nocturne</span>
-        <span class="cr-d">A quiet late-night look: sage-teal accent over deep charcoal-navy glass, with a soft drifting backdrop baked in. Calm and easy on the eyes…</span>
-        <span class="cr-live"><span data-iid="nocturne-theme"></span><span data-rid="nocturne-theme"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/nocturne-theme.webp" alt="Nocturne running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/nocturne-theme.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Theme</span>
+          <span class="cr-n">Nocturne</span>
+          <span class="cr-d">A quiet late-night look: sage-teal accent over deep charcoal-navy glass, with a soft drifting backdrop baked in. Calm and easy on the eyes…</span>
+          <span class="cr-live"><span data-iid="nocturne-theme"></span><span data-rid="nocturne-theme"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/nocturne-drift/">
-        <span class="cr-k">Background</span>
-        <span class="cr-n">Nocturne Drift</span>
-        <span class="cr-d">A calm animated backdrop: slow sage glows drifting over a near-black wash with a faint twinkling starfield. Bounded and quiet, it stays…</span>
-        <span class="cr-live"><span data-iid="nocturne-drift"></span><span data-rid="nocturne-drift"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/nocturne-drift.webp" alt="Nocturne Drift running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/nocturne-drift.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Background</span>
+          <span class="cr-n">Nocturne Drift</span>
+          <span class="cr-d">A calm animated backdrop: slow sage glows drifting over a near-black wash with a faint twinkling starfield. Bounded and quiet, it stays…</span>
+          <span class="cr-live"><span data-iid="nocturne-drift"></span><span data-rid="nocturne-drift"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/nocturne-deck/">
-        <span class="cr-k">Deck profile</span>
-        <span class="cr-n">Nocturne Control</span>
-        <span class="cr-d">An eight-key Deck profile for everyday control: media transport, mic mute, volume up or down, a 25-minute focus timer and a volume fader…</span>
-        <span class="cr-live"><span data-iid="nocturne-deck"></span><span data-rid="nocturne-deck"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/nocturne-deck.webp" alt="Nocturne Control running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/nocturne-deck.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Deck profile</span>
+          <span class="cr-n">Nocturne Control</span>
+          <span class="cr-d">An eight-key Deck profile for everyday control: media transport, mic mute, volume up or down, a 25-minute focus timer and a volume fader…</span>
+          <span class="cr-live"><span data-iid="nocturne-deck"></span><span data-rid="nocturne-deck"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/nocturne-now/">
-        <span class="cr-k">Widget</span>
-        <span class="cr-n">Nocturne Now Playing</span>
-        <span class="cr-d">A now-playing player: the album cover fills the tile behind the track, artist, a progress bar and play/pause, previous and next controls…</span>
-        <span class="cr-live"><span data-iid="nocturne-now"></span><span data-rid="nocturne-now"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/nocturne-now.webp" alt="Nocturne Now Playing running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/nocturne-now.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget</span>
+          <span class="cr-n">Nocturne Now Playing</span>
+          <span class="cr-d">A now-playing player: the album cover fills the tile behind the track, artist, a progress bar and play/pause, previous and next controls…</span>
+          <span class="cr-live"><span data-iid="nocturne-now"></span><span data-rid="nocturne-now"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/nocturne-hours/">
-        <span class="cr-k">Ambient scene</span>
-        <span class="cr-n">Nocturne Hours</span>
-        <span class="cr-d">A calm fullscreen clock for Ambient mode: big time, the date and one slow breathing glow on a dim OLED-friendly background. Requests no…</span>
-        <span class="cr-live"><span data-iid="nocturne-hours"></span><span data-rid="nocturne-hours"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/nocturne-hours.webp" alt="Nocturne Hours running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/nocturne-hours.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Ambient scene</span>
+          <span class="cr-n">Nocturne Hours</span>
+          <span class="cr-d">A calm fullscreen clock for Ambient mode: big time, the date and one slow breathing glow on a dim OLED-friendly background. Requests no…</span>
+          <span class="cr-live"><span data-iid="nocturne-hours"></span><span data-rid="nocturne-hours"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/nocturne-pack/">
-        <span class="cr-k">Package</span>
-        <span class="cr-n">Nocturne Pack</span>
-        <span class="cr-d">The whole Nocturne look in one install: the theme with its drifting backdrop, the now-playing widget, the ambient clock scene, the Deck…</span>
-        <span class="cr-live"><span data-iid="nocturne-pack"></span><span data-rid="nocturne-pack"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/nocturne-pack.webp" alt="Nocturne Pack running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/nocturne-pack.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Package</span>
+          <span class="cr-n">Nocturne Pack</span>
+          <span class="cr-d">The whole Nocturne look in one install: the theme with its drifting backdrop, the now-playing widget, the ambient clock scene, the Deck…</span>
+          <span class="cr-live"><span data-iid="nocturne-pack"></span><span data-rid="nocturne-pack"></span></span>
+        </span>
       </a>
     </div>
 
@@ -537,7 +618,10 @@ footer a:hover{color:var(--green)}
     IDS.forEach(function (id) {
       var n = Number(counts[id]) || 0; total += n;
       var el = document.querySelector('[data-iid="' + id + '"]');
-      if (el && n > 0) el.textContent = n + (n === 1 ? ' install' : ' installs');
+      // Same floor the catalog grid uses (10): under it a per-item count is
+      // noise rather than a signal. The total above is exact, because a sum
+      // over a whole body of work is not the same kind of number.
+      if (el && n >= 10) el.textContent = n + ' installs';
     });
     txt('cr-installs', String(total));
   }).catch(function () { txt('cr-installs', '–'); });

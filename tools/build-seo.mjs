@@ -628,15 +628,31 @@ function creatorPage(c) {
     },
   ];
 
-  const cards = c.entries.map((e) => {
+  const cards = c.entries.map((e, i) => {
     const kindLabel = KIND_LABEL[e.kind] || e.kind;
     const locked = e.locked === true || e.supportersOnly === true;
     const desc = e.description ? clamp(e.description, 140) : '';
+    const shots = Number.isInteger(e.shots) ? e.shots : 0;
+
+    // The first shot, webp then png then gone — the same two-step the catalog
+    // does at runtime. The box keeps its 16/9 whether or not the image lands,
+    // so a missing screenshot leaves a tinted rectangle instead of collapsing
+    // the card and reflowing the grid under the reader's cursor. The first two
+    // load eagerly because they are above the fold on a phone; the rest wait.
+    const thumb = shots > 0
+      ? `<img src="${esc(shotUrl(e.id, 1))}" alt="${esc(e.name)} running in Xenon"` +
+        ` loading="${i < 2 ? 'eager' : 'lazy'}" decoding="async"` +
+        ` onerror="this.onerror=function(){this.style.display='none'};this.src='${esc(shotUrl(e.id, 1, 'png'))}'">`
+      : '';
+
     return `      <a class="cr-card" href="/catalog/${encodeURIComponent(e.id)}/">
-        <span class="cr-k">${esc(kindLabel)}${locked ? ' · supporters' : ''}</span>
-        <span class="cr-n">${esc(e.name)}</span>
-        ${desc ? `<span class="cr-d">${esc(desc)}</span>` : ''}
-        <span class="cr-live"><span data-iid="${esc(e.id)}"></span><span data-rid="${esc(e.id)}"></span></span>
+        <span class="cr-shot">${thumb}</span>
+        <span class="cr-body">
+          <span class="cr-k">${esc(kindLabel)}${locked ? ' · supporters' : ''}</span>
+          <span class="cr-n">${esc(e.name)}</span>
+          ${desc ? `<span class="cr-d">${esc(desc)}</span>` : ''}
+          <span class="cr-live"><span data-iid="${esc(e.id)}"></span><span data-rid="${esc(e.id)}"></span></span>
+        </span>
       </a>`;
   }).join('\n');
 
@@ -670,9 +686,12 @@ function creatorPage(c) {
 <style>${PAGE_CSS}
 .cr-sum{display:flex;flex-wrap:wrap;gap:10px 28px;margin:18px 0 6px;font-size:15px;color:var(--muted)}
 .cr-sum b{display:block;font-size:26px;font-weight:700;color:var(--text);line-height:1.1;font-variant-numeric:tabular-nums}
-.cr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:22px}
-.cr-card{display:flex;flex-direction:column;gap:6px;padding:16px 16px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);text-decoration:none;color:var(--text)}
+.cr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-top:22px}
+.cr-card{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;background:var(--panel);text-decoration:none;color:var(--text);overflow:hidden}
 .cr-card:hover{border-color:var(--green)}
+.cr-shot{display:block;aspect-ratio:16/9;background:color-mix(in srgb,var(--text) 6%,transparent);border-bottom:1px solid var(--line)}
+.cr-shot img{width:100%;height:100%;object-fit:cover;display:block}
+.cr-body{display:flex;flex-direction:column;gap:6px;padding:14px 15px 13px}
 .cr-k{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
 .cr-n{font-weight:600;font-size:16px}
 .cr-d{font-size:13.5px;color:var(--muted);line-height:1.45}
@@ -741,7 +760,10 @@ ${cards}
     IDS.forEach(function (id) {
       var n = Number(counts[id]) || 0; total += n;
       var el = document.querySelector('[data-iid="' + id + '"]');
-      if (el && n > 0) el.textContent = n + (n === 1 ? ' install' : ' installs');
+      // Same floor the catalog grid uses (10): under it a per-item count is
+      // noise rather than a signal. The total above is exact, because a sum
+      // over a whole body of work is not the same kind of number.
+      if (el && n >= 10) el.textContent = n + ' installs';
     });
     txt('cr-installs', String(total));
   }).catch(function () { txt('cr-installs', '–'); });

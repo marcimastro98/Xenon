@@ -99,9 +99,12 @@ footer a:hover{color:var(--green)}
 @media(min-width:720px){.shots{grid-template-columns:1fr 1fr}.shots img:first-child{grid-column:1/-1}}
 .cr-sum{display:flex;flex-wrap:wrap;gap:10px 28px;margin:18px 0 6px;font-size:15px;color:var(--muted)}
 .cr-sum b{display:block;font-size:26px;font-weight:700;color:var(--text);line-height:1.1;font-variant-numeric:tabular-nums}
-.cr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:22px}
-.cr-card{display:flex;flex-direction:column;gap:6px;padding:16px 16px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);text-decoration:none;color:var(--text)}
+.cr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-top:22px}
+.cr-card{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;background:var(--panel);text-decoration:none;color:var(--text);overflow:hidden}
 .cr-card:hover{border-color:var(--green)}
+.cr-shot{display:block;aspect-ratio:16/9;background:color-mix(in srgb,var(--text) 6%,transparent);border-bottom:1px solid var(--line)}
+.cr-shot img{width:100%;height:100%;object-fit:cover;display:block}
+.cr-body{display:flex;flex-direction:column;gap:6px;padding:14px 15px 13px}
 .cr-k{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
 .cr-n{font-weight:600;font-size:16px}
 .cr-d{font-size:13.5px;color:var(--muted);line-height:1.45}
@@ -274,82 +277,121 @@ footer a:hover{color:var(--green)}
 
     <div class="cr-grid">
       <a class="cr-card" href="/catalog/dgm-telemetry/">
-        <span class="cr-k">Widget</span>
-        <span class="cr-n">DGM Telemetry</span>
-        <span class="cr-d">DGM Telemetry is a responsive system-monitoring widget for Xenon. Standard Mode shows CPU, GPU, memory and storage through the official…</span>
-        <span class="cr-live"><span data-iid="dgm-telemetry"></span><span data-rid="dgm-telemetry"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/dgm-telemetry.webp" alt="DGM Telemetry running in Xenon" loading="eager" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/dgm-telemetry.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget</span>
+          <span class="cr-n">DGM Telemetry</span>
+          <span class="cr-d">DGM Telemetry is a responsive system-monitoring widget for Xenon. Standard Mode shows CPU, GPU, memory and storage through the official…</span>
+          <span class="cr-live"><span data-iid="dgm-telemetry"></span><span data-rid="dgm-telemetry"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/dgm-personal-training/">
-        <span class="cr-k">Widget</span>
-        <span class="cr-n">DGM Personal Training</span>
-        <span class="cr-d">DGM Personal Training is a responsive monthly workout calendar for Xenon. Create, edit and delete training sessions by day, navigate…</span>
-        <span class="cr-live"><span data-iid="dgm-personal-training"></span><span data-rid="dgm-personal-training"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/dgm-personal-training.webp" alt="DGM Personal Training running in Xenon" loading="eager" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/dgm-personal-training.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget</span>
+          <span class="cr-n">DGM Personal Training</span>
+          <span class="cr-d">DGM Personal Training is a responsive monthly workout calendar for Xenon. Create, edit and delete training sessions by day, navigate…</span>
+          <span class="cr-live"><span data-iid="dgm-personal-training"></span><span data-rid="dgm-personal-training"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/dgm-marcas-personales/">
-        <span class="cr-k">Widget</span>
-        <span class="cr-n">DGM Personal Exercise</span>
-        <span class="cr-d">DGM Personal Records is an editable strength-tracking widget for Xenon. Record exercise names and personal bests in kilograms, update or…</span>
-        <span class="cr-live"><span data-iid="dgm-marcas-personales"></span><span data-rid="dgm-marcas-personales"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/dgm-marcas-personales.webp" alt="DGM Personal Exercise running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/dgm-marcas-personales.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget</span>
+          <span class="cr-n">DGM Personal Exercise</span>
+          <span class="cr-d">DGM Personal Records is an editable strength-tracking widget for Xenon. Record exercise names and personal bests in kilograms, update or…</span>
+          <span class="cr-live"><span data-iid="dgm-marcas-personales"></span><span data-rid="dgm-marcas-personales"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/dgm-clasificaci-n/">
-        <span class="cr-k">Widget</span>
-        <span class="cr-n">DGM league table</span>
-        <span class="cr-d">DGM Clasificación is a responsive football standings widget for Xenon. It displays league tables with position, matches played, goal…</span>
-        <span class="cr-live"><span data-iid="dgm-clasificaci-n"></span><span data-rid="dgm-clasificaci-n"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/dgm-clasificaci-n.webp" alt="DGM league table running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/dgm-clasificaci-n.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget</span>
+          <span class="cr-n">DGM league table</span>
+          <span class="cr-d">DGM Clasificación is a responsive football standings widget for Xenon. It displays league tables with position, matches played, goal…</span>
+          <span class="cr-live"><span data-iid="dgm-clasificaci-n"></span><span data-rid="dgm-clasificaci-n"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/dgm-resultados/">
-        <span class="cr-k">Widget</span>
-        <span class="cr-n">DGM Results</span>
-        <span class="cr-d">DGM Resultados is a responsive football results widget for Xenon. It displays live and recent scores, fixtures, competition details and…</span>
-        <span class="cr-live"><span data-iid="dgm-resultados"></span><span data-rid="dgm-resultados"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/dgm-resultados.webp" alt="DGM Results running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/dgm-resultados.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget</span>
+          <span class="cr-n">DGM Results</span>
+          <span class="cr-d">DGM Resultados is a responsive football results widget for Xenon. It displays live and recent scores, fixtures, competition details and…</span>
+          <span class="cr-live"><span data-iid="dgm-resultados"></span><span data-rid="dgm-resultados"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/dgm-calidad-del-aire/">
-        <span class="cr-k">Widget</span>
-        <span class="cr-n">DGM Air Quality</span>
-        <span class="cr-d">DGM Air Quality shows the European Air Quality Index and concentrations of PM2.5, PM10, ozone and nitrogen dioxide for the city shared by…</span>
-        <span class="cr-live"><span data-iid="dgm-calidad-del-aire"></span><span data-rid="dgm-calidad-del-aire"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/dgm-calidad-del-aire.webp" alt="DGM Air Quality running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/dgm-calidad-del-aire.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget</span>
+          <span class="cr-n">DGM Air Quality</span>
+          <span class="cr-d">DGM Air Quality shows the European Air Quality Index and concentrations of PM2.5, PM10, ozone and nitrogen dioxide for the city shared by…</span>
+          <span class="cr-live"><span data-iid="dgm-calidad-del-aire"></span><span data-rid="dgm-calidad-del-aire"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/dgm-tiempo-actual/">
-        <span class="cr-k">Widget</span>
-        <span class="cr-n">DGM Current weather</span>
-        <span class="cr-d">DGM Current Weather shows temperature, feels-like temperature, humidity, wind and precipitation for a manually selected city. It supports…</span>
-        <span class="cr-live"><span data-iid="dgm-tiempo-actual"></span><span data-rid="dgm-tiempo-actual"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/dgm-tiempo-actual.webp" alt="DGM Current weather running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/dgm-tiempo-actual.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget</span>
+          <span class="cr-n">DGM Current weather</span>
+          <span class="cr-d">DGM Current Weather shows temperature, feels-like temperature, humidity, wind and precipitation for a manually selected city. It supports…</span>
+          <span class="cr-live"><span data-iid="dgm-tiempo-actual"></span><span data-rid="dgm-tiempo-actual"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/dgm-previsi-n-7-d-as/">
-        <span class="cr-k">Widget</span>
-        <span class="cr-n">DGM 7-Day Forecast</span>
-        <span class="cr-d">DGM 7-Day Forecast shows daily high and low temperatures, precipitation and wind for the next seven days. It uses the city shared by DGM…</span>
-        <span class="cr-live"><span data-iid="dgm-previsi-n-7-d-as"></span><span data-rid="dgm-previsi-n-7-d-as"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/dgm-previsi-n-7-d-as.webp" alt="DGM 7-Day Forecast running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/dgm-previsi-n-7-d-as.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget</span>
+          <span class="cr-n">DGM 7-Day Forecast</span>
+          <span class="cr-d">DGM 7-Day Forecast shows daily high and low temperatures, precipitation and wind for the next seven days. It uses the city shared by DGM…</span>
+          <span class="cr-live"><span data-iid="dgm-previsi-n-7-d-as"></span><span data-rid="dgm-previsi-n-7-d-as"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/dgm-radar-de-tormentas/">
-        <span class="cr-k">Widget</span>
-        <span class="cr-n">DGM weather radar</span>
-        <span class="cr-d">DGM Weather Radar displays the latest available RainViewer precipitation layer for the city configured in DGM Current Weather. It supports…</span>
-        <span class="cr-live"><span data-iid="dgm-radar-de-tormentas"></span><span data-rid="dgm-radar-de-tormentas"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/dgm-radar-de-tormentas.webp" alt="DGM weather radar running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/dgm-radar-de-tormentas.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget</span>
+          <span class="cr-n">DGM weather radar</span>
+          <span class="cr-d">DGM Weather Radar displays the latest available RainViewer precipitation layer for the city configured in DGM Current Weather. It supports…</span>
+          <span class="cr-live"><span data-iid="dgm-radar-de-tormentas"></span><span data-rid="dgm-radar-de-tormentas"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/dgm-news-sports/">
-        <span class="cr-k">Widget</span>
-        <span class="cr-n">DGM News Sports</span>
-        <span class="cr-d">DGM News Sports delivers balanced sports headlines from Marca, AS, Mundo Deportivo, BBC Sport, The Guardian and ESPN. It offers Spanish…</span>
-        <span class="cr-live"><span data-iid="dgm-news-sports"></span><span data-rid="dgm-news-sports"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/dgm-news-sports.webp" alt="DGM News Sports running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/dgm-news-sports.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget</span>
+          <span class="cr-n">DGM News Sports</span>
+          <span class="cr-d">DGM News Sports delivers balanced sports headlines from Marca, AS, Mundo Deportivo, BBC Sport, The Guardian and ESPN. It offers Spanish…</span>
+          <span class="cr-live"><span data-iid="dgm-news-sports"></span><span data-rid="dgm-news-sports"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/dgm-news-technology/">
-        <span class="cr-k">Widget</span>
-        <span class="cr-n">DGM News Technology</span>
-        <span class="cr-d">DGM News Technology delivers balanced technology headlines from Xataka, Hipertextual, Microsiervos, BBC Technology, The Guardian and Ars…</span>
-        <span class="cr-live"><span data-iid="dgm-news-technology"></span><span data-rid="dgm-news-technology"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/dgm-news-technology.webp" alt="DGM News Technology running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/dgm-news-technology.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget</span>
+          <span class="cr-n">DGM News Technology</span>
+          <span class="cr-d">DGM News Technology delivers balanced technology headlines from Xataka, Hipertextual, Microsiervos, BBC Technology, The Guardian and Ars…</span>
+          <span class="cr-live"><span data-iid="dgm-news-technology"></span><span data-rid="dgm-news-technology"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/explorador-de-mapas/">
-        <span class="cr-k">Widget</span>
-        <span class="cr-n">Map Explorer</span>
-        <span class="cr-d">DGM Map Explorer is a responsive visual catalogue for opening external video game maps from Xenon. It includes built-in games, persistent…</span>
-        <span class="cr-live"><span data-iid="explorador-de-mapas"></span><span data-rid="explorador-de-mapas"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/explorador-de-mapas.webp" alt="Map Explorer running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/explorador-de-mapas.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget</span>
+          <span class="cr-n">Map Explorer</span>
+          <span class="cr-d">DGM Map Explorer is a responsive visual catalogue for opening external video game maps from Xenon. It includes built-in games, persistent…</span>
+          <span class="cr-live"><span data-iid="explorador-de-mapas"></span><span data-rid="explorador-de-mapas"></span></span>
+        </span>
       </a>
       <a class="cr-card" href="/catalog/dgm-news-general/">
-        <span class="cr-k">Widget</span>
-        <span class="cr-n">DGM News General</span>
-        <span class="cr-d">DGM News General delivers balanced headlines from El Mundo, El País, BBC News, The Guardian, The New York Times and Le Monde. It offers…</span>
-        <span class="cr-live"><span data-iid="dgm-news-general"></span><span data-rid="dgm-news-general"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/dgm-news-general.webp" alt="DGM News General running in Xenon" loading="lazy" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/dgm-news-general.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget</span>
+          <span class="cr-n">DGM News General</span>
+          <span class="cr-d">DGM News General delivers balanced headlines from El Mundo, El País, BBC News, The Guardian, The New York Times and Le Monde. It offers…</span>
+          <span class="cr-live"><span data-iid="dgm-news-general"></span><span data-rid="dgm-news-general"></span></span>
+        </span>
       </a>
     </div>
 
@@ -381,7 +423,10 @@ footer a:hover{color:var(--green)}
     IDS.forEach(function (id) {
       var n = Number(counts[id]) || 0; total += n;
       var el = document.querySelector('[data-iid="' + id + '"]');
-      if (el && n > 0) el.textContent = n + (n === 1 ? ' install' : ' installs');
+      // Same floor the catalog grid uses (10): under it a per-item count is
+      // noise rather than a signal. The total above is exact, because a sum
+      // over a whole body of work is not the same kind of number.
+      if (el && n >= 10) el.textContent = n + ' installs';
     });
     txt('cr-installs', String(total));
   }).catch(function () { txt('cr-installs', '–'); });

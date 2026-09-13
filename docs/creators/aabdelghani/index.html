@@ -99,9 +99,12 @@ footer a:hover{color:var(--green)}
 @media(min-width:720px){.shots{grid-template-columns:1fr 1fr}.shots img:first-child{grid-column:1/-1}}
 .cr-sum{display:flex;flex-wrap:wrap;gap:10px 28px;margin:18px 0 6px;font-size:15px;color:var(--muted)}
 .cr-sum b{display:block;font-size:26px;font-weight:700;color:var(--text);line-height:1.1;font-variant-numeric:tabular-nums}
-.cr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:22px}
-.cr-card{display:flex;flex-direction:column;gap:6px;padding:16px 16px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);text-decoration:none;color:var(--text)}
+.cr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-top:22px}
+.cr-card{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;background:var(--panel);text-decoration:none;color:var(--text);overflow:hidden}
 .cr-card:hover{border-color:var(--green)}
+.cr-shot{display:block;aspect-ratio:16/9;background:color-mix(in srgb,var(--text) 6%,transparent);border-bottom:1px solid var(--line)}
+.cr-shot img{width:100%;height:100%;object-fit:cover;display:block}
+.cr-body{display:flex;flex-direction:column;gap:6px;padding:14px 15px 13px}
 .cr-k{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
 .cr-n{font-weight:600;font-size:16px}
 .cr-d{font-size:13.5px;color:var(--muted);line-height:1.45}
@@ -202,10 +205,13 @@ footer a:hover{color:var(--green)}
 
     <div class="cr-grid">
       <a class="cr-card" href="/catalog/prayer-times/">
-        <span class="cr-k">Widget</span>
-        <span class="cr-n">Prayer Times</span>
-        <span class="cr-d">The five daily prayers plus sunrise, with a live countdown to the next one. Times are computed on your PC from the sun&#39;s position, so…</span>
-        <span class="cr-live"><span data-iid="prayer-times"></span><span data-rid="prayer-times"></span></span>
+        <span class="cr-shot"><img src="https://assets.xenon-app.com/community/shots/prayer-times.webp" alt="Prayer Times running in Xenon" loading="eager" decoding="async" onerror="this.onerror=function(){this.style.display='none'};this.src='https://assets.xenon-app.com/community/shots/prayer-times.png'"></span>
+        <span class="cr-body">
+          <span class="cr-k">Widget</span>
+          <span class="cr-n">Prayer Times</span>
+          <span class="cr-d">The five daily prayers plus sunrise, with a live countdown to the next one. Times are computed on your PC from the sun&#39;s position, so…</span>
+          <span class="cr-live"><span data-iid="prayer-times"></span><span data-rid="prayer-times"></span></span>
+        </span>
       </a>
     </div>
 
@@ -237,7 +243,10 @@ footer a:hover{color:var(--green)}
     IDS.forEach(function (id) {
       var n = Number(counts[id]) || 0; total += n;
       var el = document.querySelector('[data-iid="' + id + '"]');
-      if (el && n > 0) el.textContent = n + (n === 1 ? ' install' : ' installs');
+      // Same floor the catalog grid uses (10): under it a per-item count is
+      // noise rather than a signal. The total above is exact, because a sum
+      // over a whole body of work is not the same kind of number.
+      if (el && n >= 10) el.textContent = n + ' installs';
     });
     txt('cr-installs', String(total));
   }).catch(function () { txt('cr-installs', '–'); });
