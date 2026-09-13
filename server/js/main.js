@@ -249,6 +249,9 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
           mediaPlaying: !!(d && d.active && d.playbackStatus === 'Playing'),
           mediaSource: (d && d.app) || '',
         });
+        // The waveform runs only while something is actually playing — paused
+        // music is a still strip, not a dancing one.
+        if (window.MediaViz) window.MediaViz.setPlaying(!!(d && d.active && d.playbackStatus === 'Playing'));
         // Relay to sandboxed SDK widgets (the bridge forwards only granted streams).
         if (window.CustomWidget) window.CustomWidget.onData('media', d);
       } catch {}
@@ -311,6 +314,9 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
             ? { peaks: {}, problem: d.problem, minVersion: d.minVersion || '' }
             : ((d && d.peaks) || {}));
         }
+        // ...and the Media tile's waveform, which is the first FIRST-PARTY
+        // consumer of this stream (it used to run only for granted SDK widgets).
+        if (window.MediaViz) window.MediaViz.onLevels(d);
       } catch {}
     });
     es.addEventListener('discord', e => {
