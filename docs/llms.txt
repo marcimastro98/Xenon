@@ -55,6 +55,8 @@ CORSAIR Xeneon Edge (a 2560×720 touch strip) and usable on anything else.
   iCUE gives an Edge owner, what Xenon adds, how to put it on the strip with or without iCUE
 - [Use an old tablet or phone as a PC dashboard](https://xenon-app.com/tablet-dashboard.html):
   the PC serves the dashboard to any browser on the Wi-Fi, nothing to install on the device
+- [xenon.exe, what it is and how to check it](https://xenon-app.com/xenon-exe.html): every Windows
+  process Xenon runs, where each lives, and how to verify a file against the signed checksums
 - [Privacy](https://xenon-app.com/privacy.html): what the app sends (almost
   nothing) and what the website collects
 

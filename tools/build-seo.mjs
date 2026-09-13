@@ -647,6 +647,10 @@ const STATIC_ROUTES = [
   // home page does not carry those words. These do.
   { loc: '/xeneon-edge-widgets.html', file: 'docs/xeneon-edge-widgets.html', priority: '0.8', changefreq: 'monthly' },
   { loc: '/tablet-dashboard.html', file: 'docs/tablet-dashboard.html', priority: '0.8', changefreq: 'monthly' },
+  // Search Console says "xenon.exe" draws 131 impressions and almost no clicks:
+  // people who found an unfamiliar process and want a straight answer, which the
+  // home page is the wrong shape to give them.
+  { loc: '/xenon-exe.html', file: 'docs/xenon-exe.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/demo/', file: 'docs/demo/index.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/submit/', file: 'docs/submit/index.html', priority: '0.5', changefreq: 'monthly' },
   { loc: '/privacy.html', file: 'docs/privacy.html', priority: '0.3', changefreq: 'yearly' },
