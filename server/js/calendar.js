@@ -270,7 +270,32 @@ function checkCalendarDayRollover() {
 //
 // Pure and self-contained on purpose: test/calendar-upcoming.test.mjs evaluates
 // this very function out of the source.
-function upcomingWhenLabel(startsAt, now, locale) {
+// Until when an event still counts as current.
+//
+// A timed event is its own start: once 15:00 has passed, the 15:00 meeting is no
+// longer upcoming. A WHOLE-DAY event is not a thing that happens at 00:00 — it
+// covers the days it names, so it stays current until the end of the last one.
+// Reading its 00:00 start as the moment it expires is what made today's all-day
+// events disappear from the list one minute after midnight: at 9am, a day that
+// had barely started was already in the past. Reported from a Mac, with Google
+// Calendar events, which is where all-day events mostly come from.
+//
+// Local midnight on purpose: an all-day event is wall-clock, not an instant.
+function eventActiveUntil(e) {
+  const start = Date.parse(e && e.startsAt);
+  if (!e || !e.allDay) return start;
+  // endsAt names the LAST day the event covers (ics-feeds.js already turns RFC
+  // 5545's exclusive DTEND into an inclusive one); a single-day event has none
+  // to speak of, so its start day is its end day.
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(e.endsAt || e.startsAt));
+  if (!m) return start;
+  return new Date(+m[1], +m[2] - 1, +m[3], 23, 59, 59, 999).getTime();
+}
+
+// `allDayLabel` is passed in rather than looked up so this stays a pure function
+// of its arguments — the unit tests evaluate it straight out of this file with
+// nothing but timeParts injected. Empty for a timed event.
+function upcomingWhenLabel(startsAt, now, locale, allDayLabel) {
   const start = new Date(startsAt);
   if (Number.isNaN(start.getTime())) return '';
   const ref = new Date(now);
@@ -281,6 +306,9 @@ function upcomingWhenLabel(startsAt, now, locale) {
   // Today (or the minute just gone — the list keeps events up to 60s old): the
   // time of day is the thing that matters, and it is just as short.
   if (days <= 0) {
+    // A whole-day event has no o'clock to report. Printing its 00:00 would say
+    // the one thing that is not true about it.
+    if (allDayLabel) return allDayLabel;
     return new Intl.DateTimeFormat(locale, timeParts()).format(start);
   }
   const [value, unit] = days < 14 ? [days, 'day']
@@ -351,7 +379,12 @@ function _buildUpcomingInto(list) {
     until = end.getTime();
   }
   const upcoming = allCalendarEvents()
-    .filter(e => { const at = Date.parse(e.startsAt); return at >= now - 60000 && at < until; })
+    // Kept while it is still current (see eventActiveUntil — a whole-day event
+    // runs to the end of its last day) and it starts inside the horizon.
+    .filter(e => {
+      const at = Date.parse(e.startsAt);
+      return Number.isFinite(at) && eventActiveUntil(e) >= now - 60000 && at < until;
+    })
     .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt))
     .slice(0, count);
   list.innerHTML = '';
@@ -382,7 +415,7 @@ function _buildUpcomingInto(list) {
     name.textContent = title;
     const when = document.createElement('span');
     when.className = 'upcoming-when';
-    when.textContent = upcomingWhenLabel(e.startsAt, now, locale);
+    when.textContent = upcomingWhenLabel(e.startsAt, now, locale, e.allDay ? t('event_all_day') : '');
     item.appendChild(dot);
     item.appendChild(name);
     item.appendChild(when);

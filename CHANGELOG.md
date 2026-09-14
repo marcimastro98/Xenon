@@ -23,6 +23,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
 ### 🐛 Fixed
+- **All-day calendar events stay in the Upcoming list for the whole day.** An all-day event from Google Calendar arrives with no time, so Xenon filed it at 00:00 — and the list, which keeps an event until it starts, retired it one minute after midnight. Turn the PC on at nine in the morning and today's all-day events were already gone. Reported from a Mac.
+
+  Two halves of the same omission. The importer has always known an event is whole-day and then dropped that fact on the way out; the list, with nothing to tell it otherwise, read a birthday as a midnight appointment. And the two cannot be separated: a one-day all-day event's end resolves to its own start day, so once the flag is gone there is genuinely nothing left to distinguish the two.
+
+  The flag now travels with the event, and a whole-day event counts as current until the end of the last day it covers — not from its 00:00. It also says **Giornata** instead of showing 00:00, which was the one thing about it that was not true. Timed events are untouched: a 15:00 meeting still leaves the list at 15:00.
+
 - **The Media tile has a hierarchy again on a wide, short screen.** On a tile that is much wider than it is tall — the shape every tile has on a Xeneon Edge — the four pieces were laid out in a single queue: cover, source chip, track title, transport, all on one baseline. Nothing read as the important one. The **SPOTIFY** chip sat as a peer of the song title and shoved it rightwards, and the buttons ended up marooned across an empty gap.
 
   It is two blocks now. The cover anchors the left; beside it one column read top-down in the order it should be read — source, then title, then artist, then the per-app volume — and the transport alone on the right, centred against the whole block. The same order the tall tile has always used, turned on its side. The source chip is sized as an eyebrow rather than a badge, so it introduces the title instead of competing with it, and the cover takes the height the text column no longer needs instead of leaving the bottom third of the tile empty.

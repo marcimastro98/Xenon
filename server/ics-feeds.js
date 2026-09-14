@@ -285,12 +285,19 @@ function mapFeedEvents(events, feed, windowStart, windowEnd) {
     const durMs = (startInstant != null && endInstant != null && endInstant > startInstant)
       ? endInstant - startInstant : 0;
     for (const startsAt of occurrences) {
+      // `allDay` travels with the event. The parser has always known (VALUE=DATE
+      // / a bare YYYYMMDD), then dropped the flag here — and a whole-day event is
+      // indistinguishable from a midnight one once it is gone, because a one-day
+      // all-day event's exclusive DTEND resolves to the SAME day as its start, so
+      // endsAt equals startsAt. Without the flag the Upcoming list read "starts
+      // 00:00" and retired today's events one minute after midnight.
       out.push({
         id: `ext:${feed.id}:${ev.uid || ev.summary || 'evt'}:${startsAt}`,
         title: ev.summary || '(untitled)',
         notes: ev.description || '',
         startsAt,
         endsAt: _occurrenceEnd(startsAt, allDay, durMs),
+        ...(allDay ? { allDay: true } : {}),
         source: feed.id,
         color: feed.color,
         readOnly: true,
