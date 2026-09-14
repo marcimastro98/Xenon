@@ -912,7 +912,11 @@
     const body = el('div', 'cgal-info-body');
     body.appendChild(el('p', 'cgal-info-lead', t('gallery_supporters_lead', 'Themes and packs reserved for Xenon supporters — become one to unlock them.')));
     const ul = el('ul', 'cgal-info-perks');
-    ['gallery_sup_perk1', 'gallery_sup_perk2', 'gallery_sup_perk3', 'gallery_sup_code_note'].forEach((k) => {
+    // perk4 is the yearly tier's commissioned theme: it sits after perk3,
+    // which sets up "more money buys more time", because the theme is the one
+    // thing money buys that is not time. The code note stays last: it is
+    // housekeeping, not a reason to support.
+    ['gallery_sup_perk1', 'gallery_sup_perk2', 'gallery_sup_perk3', 'gallery_sup_perk4', 'gallery_sup_code_note'].forEach((k) => {
       const li = document.createElement('li');
       li.appendChild(icon('check', 'cgal-info-tick'));
       li.appendChild(el('span', null, t(k, '')));
