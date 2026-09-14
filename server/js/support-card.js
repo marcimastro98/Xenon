@@ -133,7 +133,7 @@
     const text = document.createElement('p');
     text.className = 'discord-invite-text';
     text.textContent = t('support_ask_text',
-      'One person writes it, in their spare time. No ads, no investors, no paid version. If it has become useful to you: 5 a month or 50 for the year, or 25 once for five months of drops. Each one unlocks supporter-only themes and widgets, the Discord role and your name on the site.');
+      'One person writes it, in their spare time. No ads, no investors, no paid version. If it has become useful to you: 5 a month or 50 for the year, or 25 once for five months of drops. Each one unlocks supporter-only themes and widgets, the Discord role and your name on the site. The yearly one also gets you a theme built to order.');
 
     const perks = document.createElement('ul');
     perks.className = 'support-ask-perks';
