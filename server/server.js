@@ -8157,6 +8157,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // install and never again — on disk, not in localStorage, because a browser set
   // to clear its site data would otherwise bring it back for good.
   supportAskSeen: false,
+  // The one-time "show off your setup" invitation (js/share-nudge.js). Same
+  // rules as the ask above, same reason it is here and not in localStorage.
+  shareNudgeSeen: false,
 });
 
 // In-memory mirror of the hub settings — the wake loop reads it on every clip and
@@ -9319,6 +9322,7 @@ function normalizeHubSettings(value) {
     lastUsageDay: DAY_RE.test(String(source.lastUsageDay || '')) ? String(source.lastUsageDay) : '',
     usageDays: clampNumber(Math.floor(Number(source.usageDays) || 0), 0, 100000, 0),
     supportAskSeen: source.supportAskSeen === true,
+    shareNudgeSeen: source.shareNudgeSeen === true,
     // Snowflakes only, deduped and capped. This list is echoed straight back to
     // every surface and used as a DOM key, so anything that is not a Discord id
     // has no business surviving a round trip through the store.
@@ -14959,6 +14963,7 @@ const handleRequest = async (req, res) => {
         // the one thing here a person actually does. Once true it never goes back,
         // so a stale mirror cannot un-dismiss it.
         if (prev.supportAskSeen === true) incoming.supportAskSeen = true;
+        if (prev.shareNudgeSeen === true) incoming.shareNudgeSeen = true;
       }
       // Vitals state is widget-owned and monotonic: a refill stamps "now", XP
       // only grows, the daily counter resets on a new day. A stale settings

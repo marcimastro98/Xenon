@@ -133,7 +133,7 @@
     const text = document.createElement('p');
     text.className = 'discord-invite-text';
     text.textContent = t('support_ask_text',
-      'One person writes Xenon, in their spare time. There are no ads, no investors and no paid version — and that is not changing. If it has earned a place on your screen, a few euros a month is what keeps it going.');
+      'One person writes it, in their spare time. No ads, no investors, no paid version. If it has become useful to you: 5 a month or 50 for the year, or 25 once for five months of drops. Each one unlocks supporter-only themes and widgets, the Discord role and your name on the site. A year of support also gets you a theme built to order.');
 
     const perks = document.createElement('ul');
     perks.className = 'support-ask-perks';
@@ -172,7 +172,7 @@
     const once = document.createElement('button');
     once.type = 'button';
     once.className = 'discord-invite-dismiss support-ask-once';
-    once.textContent = t('support_ask_once', 'Or give once');
+    once.textContent = t('support_ask_once', 'Just once: 5 or 25');
     once.addEventListener('click', () => { open(BMC); remember(); hide(); });
 
     // Third row, quieter: for the supporter this card should never have reached.

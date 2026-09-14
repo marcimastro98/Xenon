@@ -1700,6 +1700,7 @@ function normalizeSettings(source) {
     lastUsageDay: typeof value.lastUsageDay === 'string' ? value.lastUsageDay.slice(0, 10) : '',
     usageDays: Math.max(0, Math.floor(Number(value.usageDays) || 0)),
     supportAskSeen: value.supportAskSeen === true,
+    shareNudgeSeen: value.shareNudgeSeen === true,
     discordFavChannels: normalizeSnowflakeList(value.discordFavChannels),
     catalogStats: value.catalogStats === true,
     browserAdblock: value.browserAdblock === true,
@@ -8377,6 +8378,17 @@ function rememberSupportAskSeen() {
   saveHubSettings();
 }
 
+// The share invitation (js/share-nudge.js): same shape, same home on disk.
+function shareNudgeDismissed() {
+  return !!(hubSettings && hubSettings.shareNudgeSeen === true);
+}
+
+function rememberShareNudgeSeen() {
+  if (hubSettings && hubSettings.shareNudgeSeen === true) return;
+  hubSettings = normalizeSettings({ ...hubSettings, shareNudgeSeen: true });
+  saveHubSettings();
+}
+
 // How long this install has been used, for the ask's own gate. Answers null
 // until the server copy has landed: before that the numbers are a blind local
 // mirror, and on a device whose site data is cleared every exit that mirror
@@ -8452,6 +8464,8 @@ window.XenonStartupCards = {
   rememberDiscordInvite: rememberDiscordInviteSeen,
   supportAskDismissed,
   rememberSupportAsk: rememberSupportAskSeen,
+  shareNudgeDismissed,
+  rememberShareNudge: rememberShareNudgeSeen,
   usageHistory,
 };
 
