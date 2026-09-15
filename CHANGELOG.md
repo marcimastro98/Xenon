@@ -22,6 +22,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   It can now be added twice from the **"+"** palette, and **each tile remembers its own open tab**. Both read the same connection to your Discord app, so the second one costs no extra polling — and when either tile is showing Notifications, the unread badge stays where it belongs: at zero.
 
 
+- **The Windows downloads are signed.** Until now `Xenon-Setup-x64.exe` arrived as a file nobody had vouched for, and Windows treated it that way: browsers cancelling the download, "unknown publisher" on the setup, Defender quarantining it outright. There is a code-signing certificate behind the release now, and the installer carries a real publisher name.
+
+  Two honest limits, because this is not a switch that turns the warnings off. **SmartScreen can still appear for a while**: since 2024 Microsoft grants no certificate instant trust, and reputation is earned through downloads over time. What changes is that it now accumulates against one stable identity instead of resetting with every release. And the app executable inside the installer is not covered yet, so an antivirus can still take exception to it once Xenon is running. That last piece needs the signing to happen while the installer is built, which is the next step.
+
+  If you have hit any of this, [the README section](https://github.com/marcimastro98/Xenon#if-windows-blocks-the-download-or-flags-xenon-as-a-virus) still explains how to check a download by hand and restore a quarantined file.
+
 ### 🐛 Fixed
 - **On Linux, the app comes back by itself when the page dies under it.** Reported from Bazzite with the AppImage: the clock stopped updating, then the weather stopped refreshing, and clicking on the window turned it white with no way back except restarting Xenon.
 
@@ -44,6 +50,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   It is two blocks now. The cover anchors the left; beside it one column read top-down in the order it should be read — source, then title, then artist, then the per-app volume — and the transport alone on the right, centred against the whole block. The same order the tall tile has always used, turned on its side. The source chip is sized as an eyebrow rather than a badge, so it introduces the title instead of competing with it, and the cover takes the height the text column no longer needs instead of leaving the bottom third of the tile empty.
 
   Only that shape changes. The tall and narrow tiles are untouched.
+
+### 📘 Documentation
+- **The code-signing notes in DEVELOPER.md were out of date in the two places that would have cost money.** They recommended Azure Trusted Signing, whose individual onboarding has been paused since April 2025, and said an EV certificate clears SmartScreen immediately, which stopped being true in 2024. Rewritten against what is actually purchasable, plus the signing recipe that was proven end to end rather than guessed at: which OpenSSL PKCS#11 path works with Certum's token and which one segfaults, and why the certificate chain has to be a chain.
 
 ## [v4.11.8] - 11-09-2026
 ### 🐛 Fixed
