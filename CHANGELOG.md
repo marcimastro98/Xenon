@@ -23,6 +23,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
 ### 🐛 Fixed
+- **On Linux, the app comes back by itself when the page dies under it.** Reported from Bazzite with the AppImage: the clock stopped updating, then the weather stopped refreshing, and clicking on the window turned it white with no way back except restarting Xenon.
+
+  The two frozen readings are what identified it. The clock and the weather run on two separate timers that share no code; both stop only if the engine running them is gone. On Linux the page is rendered by a **separate WebKit process**, and the shell survives its death — so the window keeps showing the last frame it was handed, looking perfectly alive, until something forces a repaint and there is nothing left to paint it.
+
+  Xenon did two things wrong there, and neither was the clock. It never recorded the event: the crash diary behind Tray → **Open crash log** carries problems in Xenon's own process, and a dead render process is not one, so the single event explaining everything the user saw left no trace anywhere. And it did nothing about it, which is why restarting by hand was the only way out.
+
+  Now the reason WebKit gives — crashed, out of memory, or stopped deliberately — goes into that diary, and the page reloads itself a moment later. If it dies over and over Xenon stops retrying rather than flickering forever, and says so in the diary. Windows and macOS already recover from this on their own, so this is Linux only.
+
+  This is the symptom, not the cause; the diary is what will tell us the cause, now that it is being written down.
+
 - **All-day calendar events stay in the Upcoming list for the whole day.** An all-day event from Google Calendar arrives with no time, so Xenon filed it at 00:00 — and the list, which keeps an event until it starts, retired it one minute after midnight. Turn the PC on at nine in the morning and today's all-day events were already gone. Reported from a Mac.
 
   Two halves of the same omission. The importer has always known an event is whole-day and then dropped that fact on the way out; the list, with nothing to tell it otherwise, read a birthday as a midnight appointment. And the two cannot be separated: a one-day all-day event's end resolves to its own start day, so once the flag is gone there is genuinely nothing left to distinguish the two.

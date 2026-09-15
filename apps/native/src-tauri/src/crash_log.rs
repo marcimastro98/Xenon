@@ -150,6 +150,18 @@ fn append(kind: &str, detail: &str) {
     let _ = f.flush();
 }
 
+/// Note that the WEB process died and the shell survived it.
+///
+/// A panic here would not do: this is not our process crashing. On Linux the
+/// page is rendered by a separate WebKit process, and when that one dies the
+/// shell is still running, the window still holds its last frame, and nothing
+/// in this diary says a word about it — which is exactly the hole a user on
+/// Bazzite fell into: a clock that stopped, a white window on the next click,
+/// and no record anywhere of why. WebKit knows the reason; this writes it down.
+pub fn web_process_died(reason: &str, action: &str) {
+    append("webprocess", &format!("{reason} -> {action}"));
+}
+
 /// Install the panic hook. Call this first thing in `run()`, before any thread
 /// exists that could beat it to a panic.
 ///

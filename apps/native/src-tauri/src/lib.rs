@@ -13,6 +13,8 @@ mod monitor;
 mod prefs;
 mod spotlight_window;
 mod tray;
+#[cfg(target_os = "linux")]
+mod webview_guard;
 
 /// WebView2 browser arguments shared by EVERY webview in this process.
 ///
@@ -1900,6 +1902,14 @@ pub fn run() {
                     }
                 });
             }
+
+            // WebKit renders the page in its own process; when that one dies the
+            // window keeps its last frame, every timer in the page stops, and the
+            // next repaint is white until the app is restarted by hand. Write the
+            // reason down and bring the page back. Linux only — Windows and macOS
+            // recover from this themselves.
+            #[cfg(target_os = "linux")]
+            webview_guard::start(&window);
 
             // System-tray icon (show / hide / restart / exit).
             if let Err(err) = tray::build(app) {

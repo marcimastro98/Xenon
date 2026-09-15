@@ -29,6 +29,13 @@ tauri-plugin-updater = "2.10.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
+# Linux only, and pinned to the exact version wry already resolves so the
+# WebView type in `with_webview` is the SAME type this crate names — a second
+# copy of webkit2gtk would compile and then refuse to match. Used by
+# `webview_guard` to hear the render process die.
+[target.'cfg(target_os = "linux")'.dependencies]
+webkit2gtk = "=2.0.2"
+
 [features]
 # Keep default empty; custom Cargo features can be added later without touching
 # tauri's own feature set.
