@@ -433,6 +433,7 @@ Everything is opt-in on a **single repository secret, `WINDOWS_SIGN_THUMBPRINT`*
 | Piece | What it does |
 | --- | --- |
 | `tools/sign-windows.ps1` | Signs one file. `signtool` for binaries, `Set-AuthenticodeSignature` for `.ps1`, RFC 3161 timestamp (default `time.certum.pl`, override with `XENON_SIGN_TIMESTAMP_URL`), three attempts against a flaky timestamp server, then `signtool verify /pa`. It **fails loudly**: it is only ever called when signing was requested. |
+| `tools/sign-windows.sh` | The same job from Linux or macOS, where `signtool` does not exist: `osslsigncode` driving the same cloud key through the SimplySign PKCS#11 module. A SimplySign session must be open, or the module loads and reports no key. For signing by hand off a CI build; the workflows use the PowerShell one. |
 | `apps/native/src-tauri/windows/sign.conf.json` | A Tauri config overlay carrying `bundle.windows.signCommand` and nothing else. It is **not** in `tauri.conf.json` on purpose: passed on the command line (`tauri build --config …`) only when there is a certificate, it cannot affect a build that has none. |
 | `native` job (`release.yml`, `native-app.yml`) | Decides signed vs unsigned, signs `windows/xenon-bootstrap.ps1` **before** the build (it is bundled as a resource, so signing it afterwards signs a copy nobody runs), builds with the overlay, then asserts the installer really is signed. |
 | `helper` job (`release.yml`, `helper.yml`) | Signs `xenon-helper.exe`, which never passes through Tauri. |
