@@ -437,13 +437,53 @@ The last two are the dropper fingerprint and were the only ones worth paying for
 
 **Every release, until a certificate lands:** after the assets are staged, submit `Xenon-Setup-x64.exe`, `xenon-native.exe` and `xenon-helper.exe` to [microsoft.com/wdsi/filesubmission](https://www.microsoft.com/en-us/wdsi/filesubmission) as *Software developer → Incorrectly detected as malware*. Turnaround is usually 1–3 days. Skipping it means users hit the block before Microsoft ever hears about it.
 
-**The actual fix** is an Authenticode certificate, which also clears SmartScreen and makes the reputation cumulative instead of per-release:
+**The actual fix** is an Authenticode certificate. It does *not* clear SmartScreen on day one — nothing does any more, and that is the first thing to unlearn here — but it makes the reputation **cumulative across releases** instead of resetting with every new file hash.
 
-- **[Azure Trusted Signing](https://learn.microsoft.com/azure/trusted-signing/)** (~$10/month) — the realistic option for a solo maintainer: Microsoft-operated, available to *individual* developers (identity validation requires a few years of verifiable history), no HSM token to buy, and an official GitHub Action.
-- **Certum Open Source Code Signing** (~€30/year) — cheapest, and this repo qualifies, but it is OV: it does not clear SmartScreen on day one, it only starts accumulating reputation.
-- **EV certificate** (SSL.com, DigiCert, Sectigo; €350–600/year) — clears SmartScreen immediately, but normally requires a registered legal entity.
+**What changed, and why the obvious answers are wrong (verified September 2026):**
 
-Wiring, when it happens: `bundle.windows.signCommand` in `tauri.conf.json` covers both `xenon-native.exe` and the NSIS setup; `xenon-helper.exe` needs its own signing step; and `windows/xenon-bootstrap.ps1` should be signed too so `run_backend_bootstrap()` can finally drop `-ExecutionPolicy Bypass`. Add the steps to **both** the `native`/`helper` jobs in `release.yml` **and** their copies in `native-app.yml`/`helper.yml` — those are duplicated on purpose.
+- **EV certificates no longer buy instant trust.** Microsoft stopped granting EV-signed files automatic SmartScreen reputation in 2024, removed the EV code-signing OIDs from its Trusted Root Program requirements, and its developer documentation now states plainly that the behaviour no longer exists. An EV certificate at €350–600/year buys nothing an OV one does not. It is off the table.
+- **[Azure Artifact Signing](https://azure.microsoft.com/products/artifact-signing)** (formerly Trusted Signing, ~$10/month) would be ideal, and is not available: **individual developer onboarding has been paused since April 2025**, and new subscriptions are limited to organisations with several years of verifiable history in a short list of countries. Re-check its eligibility page before assuming otherwise; if it ever reopens to individuals it is the better option.
+- **[Certum Open Source Code Signing](https://certum.store/open-source-code-signing-code.html)** (~€30/year plus SimplySign cloud, or a card + reader) is therefore **the plan**: individual holder, open-source non-commercial project, OV. Confirm with Certum's support *before* buying that this repo's custom non-commercial licence qualifies — it is source-available but not OSI-approved, which is also why [SignPath Foundation](https://signpath.org/) (free, and better) does **not** accept it without relicensing.
+- **[SignPath Foundation](https://signpath.org/)** signs open-source projects for free on its own HSM, but requires a recognised open-source licence. Relicensing is a product decision, not a build one.
+- Since **27 February 2026** a code-signing certificate is valid for at most **459 days**, so multi-year purchases mean re-issues, not one certificate.
+
+**One caveat that outlives the certificate:** a valid signature does not switch off Defender's behavioural and ML classifiers. The install shape above is still what it is, and the discipline that fixed it — no hook spawning PowerShell, no detached download, a console the user can see — is not something a certificate buys back the right to undo.
+
+### How the signing is wired (present, and inert without a certificate)
+
+Everything is opt-in on a **single repository secret, `WINDOWS_SIGN_THUMBPRINT`** — the SHA-1 thumbprint of the certificate in the signing machine's store. Unset, which is the state of this repo until the certificate lands, means every piece below turns itself off and the build is byte-for-byte the unsigned build that shipped before.
+
+| Piece | What it does |
+| --- | --- |
+| `tools/sign-windows.ps1` | Signs one file. `signtool` for binaries, `Set-AuthenticodeSignature` for `.ps1`, RFC 3161 timestamp (default `time.certum.pl`, override with `XENON_SIGN_TIMESTAMP_URL`), three attempts against a flaky timestamp server, then `signtool verify /pa`. It **fails loudly**: it is only ever called when signing was requested. |
+| `tools/sign-windows.sh` | The same job from Linux or macOS, where `signtool` does not exist: `osslsigncode` driving the same cloud key through the SimplySign PKCS#11 module. A SimplySign session must be open, or the module loads and reports no key. For signing by hand off a CI build; the workflows use the PowerShell one. |
+| `apps/native/src-tauri/windows/sign.conf.json` | A Tauri config overlay carrying `bundle.windows.signCommand` and nothing else. It is **not** in `tauri.conf.json` on purpose: passed on the command line (`tauri build --config …`) only when there is a certificate, it cannot affect a build that has none. |
+| `native` job (`release.yml`, `native-app.yml`) | Decides signed vs unsigned, signs `windows/xenon-bootstrap.ps1` **before** the build (it is bundled as a resource, so signing it afterwards signs a copy nobody runs), builds with the overlay, then asserts the installer really is signed. |
+| `helper` job (`release.yml`, `helper.yml`) | Signs `xenon-helper.exe`, which never passes through Tauri. |
+
+Tauri invokes the sign command **once per bundled binary**, so `xenon-native.exe` and the NSIS setup that carries it are both covered. That matters: signing the setup alone would leave the exe inside it unsigned, and the exe inside it is the one antivirus quarantines mid-session.
+
+**Confirm by hand on the first signed release**, because neither can be asserted from inside the pipeline: that `%LOCALAPPDATA%\Xenon\xenon-native.exe` carries a signature after installing (the exe lives inside the NSIS payload and cannot be read without unpacking it), and that the **in-app updater still applies an update** — the minisign `.sig` must be produced *after* Authenticode signing, or the updater will reject a download whose bytes changed under it.
+
+**Signing a release by hand, from Linux or macOS** (what the maintainer does until the Windows signing machine exists). Open a SimplySign session first — the virtual card only exists while SimplySign Desktop is logged in — then, once per machine:
+
+```sh
+# the chain, built once: the leaf from Certum's "Download PEM", plus the CA it
+# names in its own CA Issuers URL. The echo matters; see tools/sign-windows.sh.
+curl -sL -o ca.cer "$(openssl x509 -in leaf.pem -noout -text |
+  sed -n 's/.*CA Issuers - URI://p')"
+openssl x509 -inform DER -in ca.cer -out ca.pem
+{ cat leaf.pem; echo; cat ca.pem; } > ~/xenon-codesign-chain.pem
+export XENON_SIGN_CERT_PEM=~/xenon-codesign-chain.pem
+```
+
+Then per release: download `Xenon-Setup-x64.exe` and `xenon-helper.exe` from the draft, `./tools/sign-windows.sh` both, and re-upload them **before** the `publish` job hashes the assets — `SHA256SUMS` is computed over what ships, and signing changes the bytes.
+
+This reaches two of the three binaries. `xenon-native.exe` lives inside the NSIS payload and can only be signed during bundling, which is what the `native` job's `signCommand` does on Windows. Until then a release is signed where users download it and unsigned where antivirus catches it mid-session.
+
+**Still to do once a signed release has actually shipped:** drop `-ExecutionPolicy Bypass` from `run_backend_bootstrap()` in `lib.rs`. Not before — the default execution policy on Windows client SKUs refuses an unsigned script, so dropping the flag while the bundled `.ps1` is unsigned breaks the install for everyone. Sign first, ship, verify, then remove the flag.
+
+Because `native-app.yml` and `helper.yml` are deliberate copies of the `native`/`helper` jobs, a change to either copy belongs in both.
 
 ---
 

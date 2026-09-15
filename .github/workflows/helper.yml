@@ -48,6 +48,25 @@ jobs:
       - name: Publish helper
         run: dotnet publish helper -c Release -o out
 
+      - name: Sign the helper when a certificate is configured
+        shell: pwsh
+        env:
+          IN_THUMBPRINT: ${{ secrets.WINDOWS_SIGN_THUMBPRINT }}
+        run: |
+          # Opt-in on one secret, and unset is this repo's state until the
+          # certificate lands: no secret means the step says so and exits 0,
+          # leaving the exe exactly as it shipped before.
+          #
+          # The test lives in the shell because the `secrets` context is not
+          # available to step `if:` conditionals - the same constraint the
+          # macOS job works around.
+          if ([string]::IsNullOrWhiteSpace($env:IN_THUMBPRINT)) {
+            Write-Host 'no code-signing certificate configured - shipping xenon-helper.exe unsigned'
+            exit 0
+          }
+          $env:XENON_SIGN_THUMBPRINT = $env:IN_THUMBPRINT
+          & "$env:GITHUB_WORKSPACE/tools/sign-windows.ps1" -Path 'out/xenon-helper.exe'
+
       - name: Attach exe to the release
         if: inputs.tag != ''
         env:
