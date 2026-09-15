@@ -51,6 +51,7 @@ command -v osslsigncode >/dev/null 2>&1 || die \
 MODULE="${XENON_SIGN_PKCS11_MODULE:-}"
 if [ -z "$MODULE" ]; then
   for candidate in \
+    /opt/proCertumSmartSign/libSimplySignPKCS11.so \
     /usr/lib/libcryptoki.so \
     /usr/lib64/libcryptoki.so \
     /usr/lib/x86_64-linux-gnu/libcryptoki.so \
@@ -62,7 +63,8 @@ if [ -z "$MODULE" ]; then
   done
   # The CardManager bundle names it by version, e.g. sc30pkcs11-3.0.6.68-MS.so.
   if [ -z "$MODULE" ]; then
-    MODULE=$(find /usr/lib /usr/local/lib /opt -maxdepth 3 -name 'sc30pkcs11*' 2>/dev/null | head -1 || true)
+    MODULE=$(find /usr/lib /usr/local/lib /opt -maxdepth 3 \
+      \( -name 'sc30pkcs11*' -o -name 'libSimplySignPKCS11*' \) 2>/dev/null | head -1 || true)
   fi
 fi
 [ -n "$MODULE" ] && [ -f "$MODULE" ] || die \
@@ -70,7 +72,7 @@ fi
   Install SimplySign Desktop, then point XENON_SIGN_PKCS11_MODULE at its
   PKCS#11 library, for example:
     export XENON_SIGN_PKCS11_MODULE=/usr/lib/libcryptoki.so
-  Locate it with:  find / -name 'libcryptoki*' -o -name 'sc30pkcs11*' 2>/dev/null"
+  Locate it with:  find / -iname '*pkcs11*' -o -iname '*cryptoki*' 2>/dev/null"
 
 TIMESTAMP_URL="${XENON_SIGN_TIMESTAMP_URL:-http://time.certum.pl/}"
 
