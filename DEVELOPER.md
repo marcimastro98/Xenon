@@ -442,6 +442,22 @@ Tauri invokes the sign command **once per bundled binary**, so `xenon-native.exe
 
 **Confirm by hand on the first signed release**, because neither can be asserted from inside the pipeline: that `%LOCALAPPDATA%\Xenon\xenon-native.exe` carries a signature after installing (the exe lives inside the NSIS payload and cannot be read without unpacking it), and that the **in-app updater still applies an update** — the minisign `.sig` must be produced *after* Authenticode signing, or the updater will reject a download whose bytes changed under it.
 
+**Signing a release by hand, from Linux or macOS** (what the maintainer does until the Windows signing machine exists). Open a SimplySign session first — the virtual card only exists while SimplySign Desktop is logged in — then, once per machine:
+
+```sh
+# the chain, built once: the leaf from Certum's "Download PEM", plus the CA it
+# names in its own CA Issuers URL. The echo matters; see tools/sign-windows.sh.
+curl -sL -o ca.cer "$(openssl x509 -in leaf.pem -noout -text |
+  sed -n 's/.*CA Issuers - URI://p')"
+openssl x509 -inform DER -in ca.cer -out ca.pem
+{ cat leaf.pem; echo; cat ca.pem; } > ~/xenon-codesign-chain.pem
+export XENON_SIGN_CERT_PEM=~/xenon-codesign-chain.pem
+```
+
+Then per release: download `Xenon-Setup-x64.exe` and `xenon-helper.exe` from the draft, `./tools/sign-windows.sh` both, and re-upload them **before** the `publish` job hashes the assets — `SHA256SUMS` is computed over what ships, and signing changes the bytes.
+
+This reaches two of the three binaries. `xenon-native.exe` lives inside the NSIS payload and can only be signed during bundling, which is what the `native` job's `signCommand` does on Windows. Until then a release is signed where users download it and unsigned where antivirus catches it mid-session.
+
 **Still to do once a signed release has actually shipped:** drop `-ExecutionPolicy Bypass` from `run_backend_bootstrap()` in `lib.rs`. Not before — the default execution policy on Windows client SKUs refuses an unsigned script, so dropping the flag while the bundled `.ps1` is unsigned breaks the install for everyone. Sign first, ship, verify, then remove the flag.
 
 Because `native-app.yml` and `helper.yml` are deliberate copies of the `native`/`helper` jobs, a change to either copy belongs in both.

@@ -34,8 +34,16 @@
 #                              stops at "unable to get local issuer
 #                              certificate". Build it once by concatenating
 #                              the leaf and the CA certificates from the
-#                              panel's "Subordinate certificates" section:
-#                                cat leaf.pem code-signing-ca.pem > chain.pem
+#                              panel's "Subordinate certificates" section, or
+#                              from the CA Issuers URL inside the leaf itself
+#                              (openssl x509 -text | grep 'CA Issuers'):
+#                                { cat leaf.pem; echo; cat ca.pem; } > chain.pem
+#                              The echo is not decoration. A leaf PEM that ends
+#                              without a newline glues END and BEGIN onto one
+#                              line, and the result still counts two BEGIN
+#                              lines under grep while decoding as neither
+#                              certificate — which surfaces much later as
+#                              "key values mismatch" against the token.
 #                              Handing osslsigncode the certificate also means
 #                              it never has to enumerate the token.
 #   XENON_SIGN_KEY_URI         PKCS#11 URI of the private key. The default
