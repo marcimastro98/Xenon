@@ -60,6 +60,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Only that shape changes. The tall and narrow tiles are untouched.
 
 ### 📘 Documentation
+- **FEATURES.md was sending people to look for a panel that no longer exists.** Asked on Discord by a moderator: how do you create a second dashboard page, is there a "Create new page" button, and can the current layout be copied onto it. All three already existed; the guide described none of them correctly.
+
+  It still documented a **Layout → Pages manager**. Those controls moved next to the page dots some releases ago: in Layout mode, **+** adds a page, **✎** renames, **×** removes, **‹ ›** reorder. The section now says that, and — the actual question — how to copy a page you already like instead of rebuilding it: **My presets → Save page**, then tap the preset, and a saved page always comes back as a brand-new page with the same tiles in the same places.
+
+  Two claims were also plainly wrong. The guide said every duplicated widget is a "live mirror" of its source; five of them are not — a second **Deck, Browser, Remote, Discord or Custom widget** is an independent instance with its own keys, address or page. Which is why someone duplicating a page to reuse a Deck setup got an empty Deck and no explanation. The Deck section now also carries the one-tap answer: **"From another Deck"** in the profile menu copies a whole profile in, keys and look included.
+
+  And **removing a page destroys more than the guide admitted**: single tiles come back from the layout dock, but tab groups and duplicated tiles are deleted outright — a duplicated Deck takes its keys with it. Both the guide and the confirmation dialog say so now, in every language that carries it.
+
+  Prose cannot be unit-tested, but the claims can: the mirror list in the guide is now checked against the code that decides it, so the next widget added to one has to be added to the other.
+
 - **The code-signing notes in DEVELOPER.md were out of date in the two places that would have cost money.** They recommended Azure Trusted Signing, whose individual onboarding has been paused since April 2025, and said an EV certificate clears SmartScreen immediately, which stopped being true in 2024. Rewritten against what is actually purchasable, plus the signing recipe that was proven end to end rather than guessed at: which OpenSSL PKCS#11 path works with Certum's token and which one segfaults, and why the certificate chain has to be a chain.
 
 ## [v4.11.8] - 11-09-2026
