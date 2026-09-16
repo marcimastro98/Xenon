@@ -2,6 +2,32 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "tgk-youtube-player-subscriptions",
+      "kind": "widget",
+      "name": "TGK YouTube — Player & Subscriptions",
+      "author": "The.GothamKnight",
+      "perfWarning": true,
+      "description": "Watch YouTube, browse subscriptions and channels, search videos and explore playlists. Connect YouTube through Xenon and grant permissions first.\nFollows your Xenon theme and can be customized like other widgets.\nYouTube API quota may temporarily limit browsing or search. \nVideo playback requires th",
+      "category": "media",
+      "tags": [
+        "youtube",
+        "video",
+        "subscriptions",
+        "channels",
+        "playlists"
+      ],
+      "version": "1.0.0",
+      "pkgId": "tgk-youtube",
+      "preview": {
+        "accent": "#1ed760",
+        "bg": "#0b0d12",
+        "text": "#e9edf6"
+      },
+      "active": true,
+      "addedAt": "2026-09-16",
+      "codeFile": true
+    },
+    {
       "id": "pit-wall",
       "kind": "bundle",
       "name": "Pit Wall",
