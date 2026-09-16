@@ -1087,7 +1087,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: clamp(34px, 46%, 62px);
+  width: max(34px, 46%);
   aspect-ratio: 1;
   flex: 0 0 auto;
   color: var(--comic-ink) !important;

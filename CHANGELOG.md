@@ -29,6 +29,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   If you have hit any of this, [the README section](https://github.com/marcimastro98/Xenon#if-windows-blocks-the-download-or-flags-xenon-as-a-virus) still explains how to check a download by hand and restore a quarantined file.
 
 ### 🐛 Fixed
+- **A Deck profile now looks the same on every screen it is opened on.** Reported with two screenshots side by side, the same profile on a desktop browser and on a Xeneon Edge: *"icon scaling is inconsistent between the web app and the macOS app"*.
+
+  The key caps grow to fill the space the Deck is given, but the icon and the title on them did not: both stopped growing at a fixed pixel size, tuned for the largest key-size preset. Below that point everything scaled together and the two screens matched. Above it the cap kept growing around an icon that could not, so on a large display an icon drew at **24%** of its cap where the same icon on the Edge drew at **40%** — the same profile, visibly different.
+
+  It only affected *some* keys, which is what made it read as random rather than as one bug: a key whose face is a full-bleed picture is sized as a share of the cap and was always correct, so those keys stayed put while the vector icons, emoji and small icons beside them shrank.
+
+  Icon, title and the live value badge are now a fixed share of the cap at every size, with the small-screen minimums kept as they were. Nothing changes on a Deck whose caps were already under that size, which is most of them.
+
 - **On Linux, the app comes back by itself when the page dies under it.** Reported from Bazzite with the AppImage: the clock stopped updating, then the weather stopped refreshing, and clicking on the window turned it white with no way back except restarting Xenon.
 
   The two frozen readings are what identified it. The clock and the weather run on two separate timers that share no code; both stop only if the engine running them is gone. On Linux the page is rendered by a **separate WebKit process**, and the shell survives its death — so the window keeps showing the last frame it was handed, looking perfectly alive, until something forces a repaint and there is nothing left to paint it.

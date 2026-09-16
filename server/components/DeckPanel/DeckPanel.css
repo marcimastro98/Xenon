@@ -351,7 +351,7 @@
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 5px; padding: 6px; cursor: pointer;
   color: var(--text, #e7e9ee); text-align: center;
-  font-size: clamp(8px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .135), 12px);
+  font-size: max(8px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .135));
   overflow: hidden;
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.14),
@@ -396,22 +396,35 @@ body.perf-mode .deck-key.is-glint::after { display: none; }
 /* Icon + label paint above the optional backdrop-image / animation layers,
    which sit at z-index:-1 (above the cap face, below content) so the classic
    paint order — glyph and glass sheen over the label — is preserved untouched.
-   --ico-scale is the per-key icon-size preset (S/M/L, set via data-icosize). */
+   --ico-scale is the per-key icon-size preset (S/M/L, set via data-icosize).
+
+   Every size below is a FRACTION of the cap with a floor and no ceiling. The
+   floor keeps a glyph legible on a tiny cap; the missing ceiling is the point.
+   These used to be clamp(floor, fraction, ceiling) with ceilings (38/40/42/52px,
+   and 12px for the label) tuned for the largest key-size preset — about a 104px
+   cap. But .deck-grid sizes caps to FILL the well, so a deck given a lot of room
+   goes well past that: on a large desktop display the cap measures ~178px, where
+   every glyph-style icon is pinned at its ceiling and reads at 24% of the cap
+   instead of 40%, while a full-bleed picture key (sized 100% of the cap, ceiling
+   there is none) keeps its proportions. Same deck, same keys, two different
+   looks side by side — reported from a Xeneon Edge (~86px caps, everything below
+   the old ceilings) next to a desktop browser. Scaling with the cap all the way
+   up is what makes one profile look like itself on every screen it lands on. */
 .deck-key .deck-ico {
-  font-size: calc(clamp(17px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .36), 38px) * var(--ico-scale, 1));
+  font-size: calc(max(17px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .36)) * var(--ico-scale, 1));
   line-height: 1; filter: drop-shadow(0 1px 3px rgba(0,0,0,.7));
 }
 .deck-key .deck-ico img {
-  width: calc(clamp(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .38), 40px) * var(--ico-scale, 1));
-  height: calc(clamp(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .38), 40px) * var(--ico-scale, 1));
+  width: calc(max(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .38)) * var(--ico-scale, 1));
+  height: calc(max(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .38)) * var(--ico-scale, 1));
   object-fit: contain;
   filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));
 }
 /* Built-in vector icons tint to the cap's text colour and scale with the key. */
 .deck-key .deck-ico.is-builtin { display: flex; }
 .deck-key .deck-ico.is-builtin svg {
-  width: calc(clamp(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .4), 42px) * var(--ico-scale, 1));
-  height: calc(clamp(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .4), 42px) * var(--ico-scale, 1));
+  width: calc(max(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .4)) * var(--ico-scale, 1));
+  height: calc(max(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .4)) * var(--ico-scale, 1));
   fill: currentColor; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));
 }
 .deck-key[data-icosize="sm"] { --ico-scale: .72; }
@@ -661,8 +674,8 @@ body.low-power-gpu .deck-key.anim-shift .deck-key-anim::before { animation: none
   object-fit: contain; box-sizing: border-box; padding: 9%;
 }
 .deck-key .deck-ico.is-img-small img {
-  width: calc(clamp(22px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .5), 52px) * var(--ico-scale, 1));
-  height: calc(clamp(22px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .5), 52px) * var(--ico-scale, 1));
+  width: calc(max(22px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .5)) * var(--ico-scale, 1));
+  height: calc(max(22px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .5)) * var(--ico-scale, 1));
   object-fit: contain;
 }
 /* Label-on-top over a full-bleed picture: the scrim flips to the upper edge. */
@@ -922,7 +935,7 @@ body.low-power-gpu .deck-key.anim-shift .deck-key-anim::before { animation: none
 }
 .deck-key.is-add {
   color: color-mix(in srgb, var(--accent, #7aa2ff) 75%, #cfe0ff);
-  font-size: clamp(20px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .4), 40px); font-weight: 300;
+  font-size: max(20px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .4)); font-weight: 300;
   background: rgba(var(--accent-rgb, 43,108,255), .05);
   border: 1px dashed rgba(var(--accent-rgb, 43,108,255), .45);
   box-shadow: inset 0 0 12px rgba(var(--accent-rgb, 43,108,255), .12);
@@ -1524,7 +1537,7 @@ select.deck-ed-input {
 /* ── Live value badge (timer countdown / SDK widget state text) ── */
 .deck-key-live {
   position: absolute; left: 8%; right: 8%; top: 6px;
-  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+  font-size: max(12px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .135)); font-weight: 700; font-variant-numeric: tabular-nums;
   text-align: center; letter-spacing: .02em; color: var(--text, #e8eaf0);
   text-shadow: 0 1px 3px rgba(0, 0, 0, .55);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
@@ -1539,8 +1552,8 @@ select.deck-ed-input {
    icon, a state word crossing a star). Reserve the strip the badge occupies and
    the centred content clears it on its own. Sliders are exempt: their icon is
    hidden and their badge already sits low, over the track. */
-.deck-key.has-live:not(.is-slider) { padding-top: 22px; }
-.deck-key[data-labelpos="top"].has-live:not(.is-slider) { padding-top: 6px; padding-bottom: 22px; }
+.deck-key.has-live:not(.is-slider) { padding-top: max(22px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .247)); }
+.deck-key[data-labelpos="top"].has-live:not(.is-slider) { padding-top: 6px; padding-bottom: max(22px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .247)); }
 
 /* ── Touch faders (slider keys) ── */
 .deck-key.is-slider { touch-action: none; cursor: grab; }
@@ -1560,7 +1573,7 @@ select.deck-ed-input {
   transition: height .08s linear, width .08s linear;
 }
 .deck-key.is-slider[data-orient="h"] .deck-slider-fill { top: 0; bottom: 0; left: 0; right: auto; height: auto; width: 50%; }
-.deck-key.is-slider .deck-key-live { top: auto; bottom: 22%; font-size: 11px; }
+.deck-key.is-slider .deck-key-live { top: auto; bottom: 22%; font-size: max(11px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .124)); }
 .deck-key.is-slider[data-orient="h"] .deck-key-live { bottom: 8%; }
 .deck-key.is-slider .deck-label { z-index: 2; }
 
