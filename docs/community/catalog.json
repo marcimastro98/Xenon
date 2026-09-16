@@ -103,6 +103,7 @@
       ],
       "version": "1.0.0",
       "pkgId": "tgk-youtube",
+      "appVersionMin": "4.1.8",
       "preview": {
         "accent": "#1ed760",
         "bg": "#0b0d12",
@@ -111,7 +112,8 @@
       "shots": 3,
       "active": true,
       "addedAt": "2026-09-16",
-      "codeFile": true
+      "codeFile": true,
+      "updatedAt": "2026-09-16"
     },
     {
       "id": "pit-wall",
