@@ -38,15 +38,18 @@ test('the profiles on a removed deck can be listed again', () => {
   assert.match(body, /keys \}\)/, 'and each row carries how much is in it');
 });
 
-// listOtherDeckProfiles hides a source whose NAME this deck already has. Applying
-// that here would hide the recovered profile behind the empty namesake that
-// replaced it — which is the exact state someone reaches this list in.
-test('a recovered profile is not hidden behind an empty namesake', () => {
-  const body = fn('listOrphanProfiles');
-  assert.doesNotMatch(body, /mine\.has|seen\.has/,
-    'no name dedupe: two same-named profiles are the case this exists for');
-  const other = fn('listOtherDeckProfiles');
-  assert.match(other, /mine\.has\(key\)/, 'the live-deck list still dedupes, as it should');
+// Neither copy-from list may hide a source because this deck already has its name:
+// a stale namesake sitting next to the real thing is the exact state someone
+// reaches either list in. listOrphanProfiles was written that way from the start;
+// listOtherDeckProfiles was not, and the note here used to say its dedupe was
+// correct. It wasn't — reported from a duplicated page, where an obsolete
+// "Nocturne Control" landed on the new Deck and hid the current one behind it, so
+// the section disappeared and the feature read as broken.
+test('a recovered profile is not hidden behind a namesake, in either list', () => {
+  for (const name of ['listOrphanProfiles', 'listOtherDeckProfiles']) {
+    assert.doesNotMatch(fn(name), /mine\.has|seen\.has/,
+      name + ': no name dedupe — two same-named profiles are the case this exists for');
+  }
 });
 
 test('the menu offers them, with the count that tells two namesakes apart', () => {

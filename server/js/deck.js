@@ -370,14 +370,27 @@
   }
   // Profiles that live on OTHER deck instances, offered in the profile menu as one-tap
   // "copy into this deck" sources — so a newly added (independent) deck can pull in a
-  // profile already built elsewhere without first saving it as a preset. Deduped by
-  // name against this deck and across decks; empty placeholder profiles are skipped.
-  // Returns [{ instanceId, profileId, name }].
+  // profile already built elsewhere without first saving it as a preset. Empty
+  // placeholder profiles are skipped. Returns [{ instanceId, profileId, name, keys }].
+  //
+  // Deliberately NOT deduped, by name or otherwise — it used to be, and that was the
+  // bug. Two dedupes were in the way of the one case the list exists for:
+  //
+  //   · against THIS deck: a source was dropped if a profile here already had its
+  //     name. Someone duplicating a page, landing an obsolete "Nocturne Control" on
+  //     the new Deck, then coming back for the real one found nothing — the current
+  //     profile was hidden precisely BECAUSE the stale namesake was sitting next to
+  //     it. With one candidate, the whole section vanished and the answer read as
+  //     "this feature doesn't work".
+  //   · across decks: only the first profile with a given name was offered, so which
+  //     of three same-named profiles you were given came down to key order.
+  //
+  // listOrphanProfiles already learned this and says so in its own comment; the
+  // reasoning was never specific to removed decks. So every non-empty profile is
+  // listed, and the key count rides along as the thing that tells namesakes apart.
   function listOtherDeckProfiles(instanceId) {
     const M = window.DeckModel;
     const all = readStore();
-    const mine = new Set((durableConfig(instanceId, all).profiles || []).map(p => String(p.name || '').toLowerCase()));
-    const seen = new Set();
     const out = [];
     const live = liveInstanceSet();
     for (const otherId of Object.keys(all)) {
@@ -385,11 +398,9 @@
       if (!isLiveInstance(otherId, live)) continue;   // hide profiles from removed decks
       let cfg; try { cfg = M.normalizeDeckConfig(all[otherId]); } catch { continue; }
       for (const prof of (cfg.profiles || [])) {
-        const key = String(prof.name || '').toLowerCase();
-        if (!key || mine.has(key) || seen.has(key)) continue;
-        if (countProfileKeys(prof) === 0) continue; // skip empty placeholders
-        seen.add(key);
-        out.push({ instanceId: otherId, profileId: prof.id, name: prof.name });
+        const keys = countProfileKeys(prof);
+        if (keys === 0) continue;   // an empty placeholder is not worth offering
+        out.push({ instanceId: otherId, profileId: prof.id, name: prof.name, keys });
       }
     }
     return out;
@@ -2617,6 +2628,17 @@
     menu.appendChild(el('div', 'deck-pmenu-head', tr('deck_profiles', 'Profili')));
 
     const list = el('div', 'deck-pmenu-list');
+    // How many profiles here share each name. A deck that accumulated copies
+    // before they were numbered (or whose owner named two profiles the same on
+    // purpose) shows a column of rows that read identically, and the only thing
+    // separating them is the active dot — which says which one is live, not which
+    // one is the one you were looking for. Where a name is ambiguous the key count
+    // goes on the row, exactly as it does in the two copy-from lists below.
+    const nameUses = new Map();
+    cfg.profiles.forEach((p) => {
+      const k = String(p.name || '').toLowerCase();
+      nameUses.set(k, (nameUses.get(k) || 0) + 1);
+    });
     cfg.profiles.forEach((p) => {
       const row = el('div', 'deck-pmenu-row' + (p.id === cfg.activeProfile ? ' active' : ''));
       if (state.editing && state.renamingProfile === p.id) {
@@ -2640,6 +2662,9 @@
       const pick = el('button', 'deck-pmenu-pick'); pick.type = 'button';
       pick.appendChild(el('span', 'deck-pmenu-dot'));
       pick.appendChild(el('span', 'deck-pmenu-name', p.name));
+      if ((nameUses.get(String(p.name || '').toLowerCase()) || 0) > 1) {
+        pick.appendChild(el('span', 'deck-pmenu-count', String(countProfileKeys(p))));
+      }
       pick.addEventListener('click', () => {
         // Read the store once: checking the captured cfg but mutating a fresh
         // read could act on two different versions of the config.
@@ -2749,6 +2774,9 @@
         const row = el('div', 'deck-pmenu-row');
         const pick = el('button', 'deck-pmenu-pick'); pick.type = 'button';
         pick.appendChild(el('span', 'deck-pmenu-name', op.name));
+        // Same reason the lost list carries it: without a count, two rows named
+        // "Nocturne Control" are a coin flip.
+        pick.appendChild(el('span', 'deck-pmenu-count', String(op.keys)));
         pick.addEventListener('click', () => {
           copyDeckProfileInto(instanceId, op.instanceId, op.profileId);
           state.path = []; state.pageIndex = 0;

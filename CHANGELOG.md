@@ -29,6 +29,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   If you have hit any of this, [the README section](https://github.com/marcimastro98/Xenon#if-windows-blocks-the-download-or-flags-xenon-as-a-virus) still explains how to check a download by hand and restore a quarantined file.
 
 ### 🐛 Fixed
+- **Copying a Deck profile onto a second Deck works even when a profile of that name is already there.** Reported after duplicating a dashboard page to reuse a Deck setup: *"The list has 2 items, but they are early obsolete versions… the one with the green bullet is the current one, but it is not visible on the second page."*
+
+  **From another Deck** in the profile menu was dropping any profile whose name this Deck already had. So the moment an old *Nocturne Control* landed on the new Deck, the current *Nocturne Control* was hidden — hidden precisely because the stale one was sitting next to it. With nothing else to offer, the whole section disappeared, and the feature read as simply not working. It also kept only the first profile of a given name across Decks, so which of three namesakes you were handed came down to storage order.
+
+  Neither rule survives. Every non-empty profile on every Deck still on the dashboard is listed, each row carrying **how many keys it holds** — the same thing that already tells two namesakes apart in the recovery list below it. A Deck no longer on the dashboard still stays out; that gate was never the problem.
+
+  And copies no longer pile up under one name: the second copy of *Nocturne Control* is saved as *Nocturne Control 2*, the way a second download is numbered. Where a Deck already carries namesakes from before this, the profile switcher now shows the key count on those rows, so the five identical lines in that report can be told apart without opening each one.
+
 - **A Deck profile now looks the same on every screen it is opened on.** Reported with two screenshots side by side, the same profile on a desktop browser and on a Xeneon Edge: *"icon scaling is inconsistent between the web app and the macOS app"*.
 
   The key caps grow to fill the space the Deck is given, but the icon and the title on them did not: both stopped growing at a fixed pixel size, tuned for the largest key-size preset. Below that point everything scaled together and the two screens matched. Above it the cap kept growing around an icon that could not, so on a large display an icon drew at **24%** of its cap where the same icon on the Edge drew at **40%** — the same profile, visibly different.

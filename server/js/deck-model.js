@@ -725,6 +725,30 @@ function getProfile(config, profileId) {
 // profiles are never reshaped: installing a big catalog profile used to reflow
 // every other profile's composition, and that coupling is exactly what per-profile
 // grids remove. New normalized config.
+// A profile name that no profile in `profiles` is already using.
+//
+// A copy keeps the name the user recognises it by — right up until a second copy
+// of the same source lands and the switcher is two rows that read identically.
+// Reported with five of them: "I have duplicate Nocturne Control entries (the one
+// with the green bullet is the current one)". There is no way to tell those apart
+// by looking, so from the second one on the copy is numbered, the way a file
+// manager numbers a second download. The first copy is never touched: renaming
+// something that isn't ambiguous yet would be the more annoying bug.
+function uniqueProfileName(profiles, name) {
+  const taken = new Set((profiles || []).map(p => String((p && p.name) || '').toLowerCase()));
+  const base = clampStr(name, 40);
+  if (!base || !taken.has(base.toLowerCase())) return base;
+  for (let n = 2; n <= 99; n++) {
+    const suffix = ' ' + n;
+    // Trim the stem, not the number: "Nocturne Control 2" must stay ≤ the 40 a
+    // name is clamped to, and truncating the suffix away would loop forever.
+    const stem = base.length + suffix.length > 40 ? base.slice(0, 40 - suffix.length).trimEnd() : base;
+    const candidate = stem + suffix;
+    if (!taken.has(candidate.toLowerCase())) return candidate;
+  }
+  return base;   // 99 namesakes: give up rather than spin
+}
+
 function addProfileFromTemplate(config, profileTemplate) {
   const cfg = cloneConfig(normalizeDeckConfig(config));
   const active = profileOf(cfg, cfg.activeProfile);
@@ -735,6 +759,7 @@ function addProfileFromTemplate(config, profileTemplate) {
   // shared { preserve } core — it grows back as needed to hold every key.
   const prof = normalizeProfile(Object.assign({}, tpl, { id, cols: DECK_MAX, rows: DECK_MAX }), DECK_MAX, DECK_MAX, cfg.profiles.length);
   reshapeProfileInPlace(prof, profileDim(tpl.cols, active.cols), profileDim(tpl.rows, active.rows), { preserve: true });
+  prof.name = uniqueProfileName(cfg.profiles, prof.name);
   cfg.profiles.push(prof);
   cfg.activeProfile = prof.id;
   return normalizeDeckConfig(cfg);
@@ -1119,7 +1144,7 @@ function evaluateKeyState(state, snapshot) {
   }
 }
 
-const DECK_MODEL_API = { normalizeDeckConfig, normalizeDeckWellImage, normalizeDeckMediaStyle, normalizeDeckLook, effectiveDeckLook, setProfileLook, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, gridOf, reshapeDeckConfig, fitDeckGrids, foldDeckGrids, swapKeysAt, canMoveKeyToPage, moveKeyToPage, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, DECK_SENSOR_METRICS, SLIDER_TARGETS, formatLiveValue, timersByLabel, sensorsFromSystem, batteriesByName, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
+const DECK_MODEL_API = { uniqueProfileName, normalizeDeckConfig, normalizeDeckWellImage, normalizeDeckMediaStyle, normalizeDeckLook, effectiveDeckLook, setProfileLook, resolveView, setKeyAt, addPageAt, removePageAt, newKeyId, newProfileId, setActiveProfile, addProfile, renameProfile, removeProfile, getProfile, addProfileFromTemplate, cloneConfig, evaluateKeyState, gridForSize, gridOf, reshapeDeckConfig, fitDeckGrids, foldDeckGrids, swapKeysAt, canMoveKeyToPage, moveKeyToPage, keyStyleOf, applyStyleToPage, KEY_STYLE_FIELDS, KEY_SIZES, KEY_GAPS, DECK_STATE_SOURCES, DECK_LIVE_SOURCES, DECK_SENSOR_METRICS, SLIDER_TARGETS, formatLiveValue, timersByLabel, sensorsFromSystem, batteriesByName, DECK_MIN, DECK_MAX, PRESS_FX, ICON_FITS, GRAD_DIRS, LABEL_POSITIONS, STYLE_SIZES, KEY_ANIMS, CAP_STYLES, KEY_SHAPES, PLATE_STYLES };
 if (typeof window !== 'undefined') {
   window.DeckModel = DECK_MODEL_API;
 }
