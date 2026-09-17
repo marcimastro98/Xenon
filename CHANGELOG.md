@@ -29,6 +29,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   If you have hit any of this, [the README section](https://github.com/marcimastro98/Xenon#if-windows-blocks-the-download-or-flags-xenon-as-a-virus) still explains how to check a download by hand and restore a quarantined file.
 
 ### 🐛 Fixed
+- **A Deck key can point at `%APPDATA%\Spotify\Spotify.exe` and it will work.** Reported alongside another issue: *"I got a button to the exe but it tells me the path doesn't exist when I push it (but again, it does)."*
+
+  It does exist. Windows writes paths that way in its own dialogs, every install guide quotes them that way, and both Win+R and the Explorer address bar expand `%APPDATA%` on the spot — so the path reads as real everywhere a person can check it. Xenon was the only thing in the chain not expanding it, so the key reported "not found" about a file sitting right there, and the field looked perfectly correct.
+
+  Whole `%NAME%` pairs are now expanded before the path is looked up, from Xenon's own environment and with no shell involved anywhere. It is deliberately cautious: a path that already exists is never reinterpreted, an unknown or empty variable abandons the attempt rather than quietly dropping the segment (`%NOPE%\x.exe` must never become `\x.exe`), a stray percent sign in a folder name is left alone, and the expanded path still has to clear every check the typed one did. Applies to **Open app**, **Open file/folder** and **Run script** alike — the same three actions the macOS and Linux path repairs already cover.
+
 - **The Slideshow tile now says why it is empty, instead of asking you to add images you cannot add.** Reported from a folder on a NAS reached over a UNC path: *"NO error displays, but the photos slideshow shows 'No images yet' with an 'Add Images' button"* — while the same pictures in a folder on `C:\` worked.
 
   The tile was showing the **library's** empty state to someone whose source is a **folder**. "Add images" is the right prompt for a library you fill by hand and a meaningless one for a folder, so the message both withheld the problem and pointed at the one thing that could not be the fix. Everything needed to say the real thing was already there — the server answers with a reason (folder missing, not a folder, not allowed, unreadable) and Settings has shown those exact sentences in all eleven languages since the folder source shipped. Only the tile threw them away.

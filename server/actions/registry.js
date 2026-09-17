@@ -116,6 +116,48 @@ function completePosixTypedPath(p, platform, fileExists) {
   return '';
 }
 
+// The Windows counterpart of completePosixTypedPath, and it exists for the same
+// reason: the path a user can actually GET hold of is not the one fs.existsSync
+// wants.
+//
+// Windows writes `%APPDATA%\\Spotify\\Spotify.exe` in its own dialogs, every
+// install guide quotes it that way, and Win+R and the address bar both expand it
+// on the spot — so it reads as a real path everywhere a person looks. Node does
+// not expand it, so the key answers not_found forever about a file that is
+// plainly there. Reported on #130 as "it tells me the path doesn't exist (but
+// again, it does)".
+//
+// Only whole `%NAME%` pairs are substituted, and only from this process's own
+// environment — there is no shell anywhere on this path, so nothing here can be
+// injected into one. Fail-closed the same way as the POSIX completer: a path
+// that already exists is never reinterpreted, an unknown variable abandons the
+// attempt rather than collapsing to an empty segment (`%NOPE%\\x` must not
+// become `\\x`), and the rewritten candidate is only returned when it exists.
+//
+// Widens nothing: the result still faces every extension gate, every blocklist
+// and the existence check that follow. It only changes WHICH string they judge.
+const WIN_ENV_RE = /%([A-Za-z_][A-Za-z0-9_()]*)%/g;
+function completeWindowsEnvPath(p, platform, fileExists, env) {
+  if ((platform || process.platform) !== 'win32') return '';
+  if (typeof fileExists !== 'function') return '';
+  const v = String(p == null ? '' : p).trim();
+  if (!v || !v.includes('%') || fileExists(v)) return '';
+  const source = env || process.env;
+  let unknown = false;
+  const expanded = v.replace(WIN_ENV_RE, (whole, name) => {
+    // Windows environment variables are case-insensitive; Node's process.env is
+    // too on win32, but an explicitly passed map may not be.
+    const key = Object.prototype.hasOwnProperty.call(source, name)
+      ? name
+      : Object.keys(source).find(k => k.toLowerCase() === name.toLowerCase());
+    const val = key === undefined ? undefined : source[key];
+    if (typeof val !== 'string' || !val) { unknown = true; return whole; }
+    return val;
+  });
+  if (unknown || expanded === v) return '';
+  return fileExists(expanded) ? expanded : '';
+}
+
 // Percentage value for the volume/brightness 'set' modes: accepts a decimal
 // comma, clamps to 0–100, returns null on anything non-numeric (reject loud).
 // Empty/whitespace is EXPLICITLY null — Number('') is 0, and a "set volume"
@@ -271,7 +313,8 @@ function createRegistry(deps) {
           // names no file at all, so every gate below would be judging a string
           // the user never meant. No-op unless the literal path is missing AND a
           // rewritten one really exists.
-          p = completePosixTypedPath(p, platform, d.fileExists) || p;
+          p = completePosixTypedPath(p, platform, d.fileExists)
+            || completeWindowsEnvPath(p, platform, d.fileExists, d.env) || p;
           // A direct .exe/.lnk launches as-is. If it isn't one, the user may have
           // pointed at the app's install FOLDER — resolve it to the primary
           // executable inside (re-resolved on every tap, so versioned apps like
@@ -304,7 +347,8 @@ function createRegistry(deps) {
           const raw = action.path.trim();
           // Same shell-escaping trap as openApp above — and the likelier one, since
           // a folder key is exactly what people build by dragging a folder somewhere.
-          const p = completePosixTypedPath(raw, platform, d.fileExists) || raw;
+          const p = completePosixTypedPath(raw, platform, d.fileExists)
+            || completeWindowsEnvPath(raw, platform, d.fileExists, d.env) || raw;
           if (!p) return { ok: false, error: 'empty_path' };
           // openFile opens with the registered handler, so executables/scripts
           // are blocked here — only openApp may launch an .exe/.lnk.
@@ -323,7 +367,8 @@ function createRegistry(deps) {
           // on the two cases above: the extension allowlist and the existence check
           // below are unchanged, and a path that already exists is never rewritten.
           const rawScript = action.path.trim();
-          const p = completePosixTypedPath(rawScript, platform, d.fileExists) || rawScript;
+          const p = completePosixTypedPath(rawScript, platform, d.fileExists)
+            || completeWindowsEnvPath(rawScript, platform, d.fileExists, d.env) || rawScript;
           if (!p) return { ok: false, error: 'empty_path' };
           if (!isRunnableScriptPath(p, platform)) return { ok: false, error: 'bad_script_ext' };
           if (!d.fileExists(p)) return { ok: false, error: 'not_found' };
@@ -849,4 +894,4 @@ function resolveOutputDevice(id, speakers) {
   return list.find((s) => s && typeof s.id === 'string' && s.id === wanted) || null;
 }
 
-module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, completeDarwinBundle, completePosixTypedPath, isBlockedOpenPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys, resolveOutputDevice };
+module.exports = { createRegistry, isHttpUrl, isAllowedAppPath, completeDarwinBundle, completePosixTypedPath, completeWindowsEnvPath, isBlockedOpenPath, isRunnableScriptPath, isAppUserModelId, isSteamAppId, normalizeUrl, normalizeKeys, resolveOutputDevice };
