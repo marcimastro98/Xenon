@@ -81,6 +81,54 @@ test('an unreadable folder still reports the reason, and skips nothing', async (
   assert.equal(res.skipped, 0, 'nothing was enumerated, so nothing was skipped');
 });
 
+// The reporter's second data point, and the one that named the cause: he mapped
+// the share to a drive letter, pointed Xenon at it, and was told the folder does
+// not exist — "but it truly does". It does; it does not exist to THAT process.
+// Windows scopes mapped drives and cached share credentials to a logon token, and
+// Xenon's startup task runs with the elevated one, which is a different session
+// from the Explorer window that made the mapping. C:\ is unaffected, which is
+// exactly the shape of the report.
+// Asserted on the classifier rather than through listFolder: a Windows UNC path
+// is not absolute to POSIX `path`, so on the test runner it is rejected before it
+// ever reaches a filesystem call. The classification is the part under test.
+test('an unreachable network location is named as one', async () => {
+  assert.equal(await folderSrc.looksLikeNetwork('\\\\NAS\\Photos'), true,
+    'a UNC path is a network location by definition');
+  assert.equal(await folderSrc.looksLikeNetwork('\\\\server\\share\\sub\\dir'), true);
+  // Not a UNC path, just a name that starts oddly.
+  assert.equal(await folderSrc.looksLikeNetwork('\\\\'), false);
+});
+
+test('a drive letter is only blamed when the drive itself is unreachable', async () => {
+  // Z: does not exist on the runner, which is exactly the state an elevated
+  // process is in for a letter mapped by the interactive session.
+  assert.equal(await folderSrc.looksLikeNetwork('Z:\\Photos'), true);
+  // A path with no drive and no UNC prefix is nobody's network problem.
+  assert.equal(await folderSrc.looksLikeNetwork('/home/someone/pictures'), false);
+});
+
+test('a missing LOCAL folder is not blamed on the network', async () => {
+  const res = await folderSrc.listFolder(join(tmpdir(), 'xenon-definitely-not-here-' + Date.now()), { refresh: true });
+  assert.equal(res.ok, false);
+  assert.equal(res.network, false, 'a plain typo must not be explained away as a share');
+});
+
+test('a folder that reads fine never carries the hint', async () => {
+  const dir = tempFolder((d) => writeFileSync(join(d, 'a.png'), 'x'));
+  try {
+    const res = await folderSrc.listFolder(dir, { refresh: true });
+    assert.equal(res.ok, true);
+    assert.equal(res.network, false);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('the hint reaches both surfaces, appended to the reason rather than replacing it', () => {
+  assert.match(WIDGET, /folder\.network \? ' ' \+ t\('slideshow_folder_err_network'\)/,
+    'the tile must still say WHICH failure it was');
+  assert.match(SETTINGS, /d\.network \? ' ' \+ t\('slideshow_folder_err_network'\)/);
+  assert.match(WIDGET, /network: d\.network === true/, 'and the flag has to survive the fetch');
+});
+
 test('the tile explains a folder instead of offering to add images', () => {
   const at = WIDGET.indexOf('function applyEmptyReason(');
   assert.ok(at > 0, 'the tile must have a reason to show');
@@ -116,7 +164,7 @@ test('the settings pane stops saying "0 images found" when it means something el
 });
 
 test('both new sentences are translated in every language the app ships', () => {
-  for (const key of ['slideshow_folder_none_readable', 'slideshow_folder_open_settings']) {
+  for (const key of ['slideshow_folder_none_readable', 'slideshow_folder_open_settings', 'slideshow_folder_err_network']) {
     const hits = I18N.split(key + ':').length - 1;
     assert.equal(hits, LANGS.length, `${key} is in ${hits} languages, not ${LANGS.length}`);
   }

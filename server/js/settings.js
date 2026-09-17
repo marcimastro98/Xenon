@@ -6086,7 +6086,8 @@ function refreshSlideshowFolderStatus(force) {
         // rather than tested for truthiness — otherwise a raw key reaches the UI.
         const known = ['no_folder', 'not_found', 'not_a_dir', 'denied', 'read_failed'];
         const code = known.includes(d.error) ? d.error : 'read_failed';
-        out.textContent = t('slideshow_folder_err_' + code);
+        out.textContent = t('slideshow_folder_err_' + code)
+          + (d.network ? ' ' + t('slideshow_folder_err_network') : '');
       }
     })
     .catch(() => { if (seq === _slideshowFolderStatusSeq) out.textContent = t('slideshow_folder_err_read_failed'); })

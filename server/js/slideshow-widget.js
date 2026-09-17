@@ -168,12 +168,12 @@
     // asking for images by index. Re-checked on a slow cadence (a folder is a
     // human-speed thing) and immediately whenever the configured path changes.
     const FOLDER_RECHECK_MS = 300000;   // 5 min
-    let folder = { path: '', count: 0, at: 0, loading: false, error: null, skipped: 0 };
+    let folder = { path: '', count: 0, at: 0, loading: false, error: null, skipped: 0, network: false };
 
     let folderReqSeq = 0;   // orphans an in-flight response a forced refetch supersedes
     function refreshFolder(force) {
       const want = String(cfg().folder || '');
-      if (!want) { folder = { path: '', count: 0, at: 0, loading: false, error: null, skipped: 0 }; return; }
+      if (!want) { folder = { path: '', count: 0, at: 0, loading: false, error: null, skipped: 0, network: false }; return; }
       const stale = folder.path !== want || force || (Date.now() - folder.at) > FOLDER_RECHECK_MS;
       // A forced refetch supersedes an in-flight one (the pre-save fetch that
       // raced the settings flush may still be pending with the WRONG answer).
@@ -185,12 +185,12 @@
         .then(d => {
           if (seq !== folderReqSeq) return;   // superseded — never cache a stale answer
           const changed = folder.path !== want || folder.count !== (d.count | 0);
-          folder = { path: want, count: d.ok ? (d.count | 0) : 0, at: Date.now(), loading: false, error: d.ok ? null : (d.error || 'read_failed'), skipped: d.ok ? (d.skipped | 0) : 0 };
+          folder = { path: want, count: d.ok ? (d.count | 0) : 0, at: Date.now(), loading: false, error: d.ok ? null : (d.error || 'read_failed'), skipped: d.ok ? (d.skipped | 0) : 0, network: d.network === true };
           if (changed) { invalidatePlaylist(); paintAll(); }
         })
         .catch(() => {
           if (seq !== folderReqSeq) return;
-          folder = { path: want, count: 0, at: Date.now(), loading: false, error: 'read_failed', skipped: 0 };
+          folder = { path: want, count: 0, at: Date.now(), loading: false, error: 'read_failed', skipped: 0, network: false };
           invalidatePlaylist();
         });
     }
@@ -426,7 +426,12 @@
       } else if (folder.error) {
         const known = ['no_folder', 'not_found', 'not_a_dir', 'denied', 'read_failed'];
         const code = known.indexOf(folder.error) >= 0 ? folder.error : 'read_failed';
-        ui.emptyText.textContent = t('slideshow_folder_err_' + code);
+        // "Not found" about a share that is plainly there sends people looking in
+        // the wrong place — the reporter re-mapped the drive and got the same
+        // answer. Where the location is a network one, say what is actually
+        // between Xenon and it.
+        ui.emptyText.textContent = t('slideshow_folder_err_' + code)
+          + (folder.network ? ' ' + t('slideshow_folder_err_network') : '');
       } else if (folder.skipped > 0) {
         // The folder reads, and everything in it was passed over. That is a
         // different problem from an empty folder and the only one of these the

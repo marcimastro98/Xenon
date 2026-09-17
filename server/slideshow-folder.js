@@ -56,7 +56,7 @@ const NAME_MAX = 200;            // skip absurd names rather than carry them aro
 const NAME_ORDER = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
 // One folder is configured at a time, so a single-entry cache is the whole story.
-let cache = null;   // { dir, at, files: string[], error: string|null, truncated: bool, skipped: number }
+let cache = null;   // { dir, at, files: string[], error: string|null, truncated: bool, skipped: number, network: bool }
 
 function isAbsoluteDir(dir) {
   return typeof dir === 'string' && dir.length > 0 && path.isAbsolute(dir);
@@ -66,15 +66,50 @@ function isAbsoluteDir(dir) {
 // show them (natural order, so `img2.gif` precedes `img10.gif`). The sort is what
 // makes an index STABLE between the count the settings pane shows and the file the
 // widget later asks for.
+// Whether a folder we could not reach looks like it lives on the network — asked
+// only once a read has already failed, so it costs nothing in the normal case.
+//
+// This exists because "not found" is a true answer that sends people the wrong
+// way. Reported as a NAS folder that stopped working after an update: told the
+// path did not exist, the user mapped the share to a drive letter, pointed Xenon
+// at THAT, and was told the same thing — "it doesn't exist, but it truly does".
+//
+// It does exist; it does not exist *to this process*. Windows scopes mapped
+// drives and cached share credentials to a logon token, and the elevated token a
+// process gets under a "run with highest privileges" task is a different one from
+// the interactive session that made the mapping. So the letter is genuinely
+// absent and the UNC path has no credentials, while File Explorer two windows
+// away opens both. A folder on C:\ is unaffected, which is exactly the shape of
+// the report.
+//
+// Two things are knowable rather than guessed at: a UNC path is network by
+// definition, and a drive letter whose ROOT cannot be reached is either a mapping
+// this process cannot see or removable media that is gone — a local fixed disk's
+// root is always there. Anything else stays unflagged.
+const UNC_RE = /^\\\\[^\\/]/;
+const DRIVE_RE = /^([A-Za-z]:)[\\/]/;
+async function looksLikeNetwork(dir) {
+  if (UNC_RE.test(dir)) return true;
+  const m = DRIVE_RE.exec(dir);
+  if (!m) return false;
+  try {
+    await fs.promises.stat(m[1] + path.sep);
+    return false;            // the drive is there — the missing part is the folder
+  } catch {
+    return true;             // the drive itself is not reachable from here
+  }
+}
+
 async function readFolder(dir) {
   let entries;
   try {
     entries = await fs.promises.readdir(dir, { withFileTypes: true });
   } catch (e) {
-    if (e.code === 'ENOENT') return { files: [], error: 'not_found', truncated: false };
-    if (e.code === 'ENOTDIR') return { files: [], error: 'not_a_dir', truncated: false };
-    if (e.code === 'EACCES' || e.code === 'EPERM') return { files: [], error: 'denied', truncated: false };
-    return { files: [], error: 'read_failed', truncated: false };
+    const fail = async (error) => ({ files: [], error, truncated: false, network: await looksLikeNetwork(dir) });
+    if (e.code === 'ENOENT') return fail('not_found');
+    if (e.code === 'ENOTDIR') return { files: [], error: 'not_a_dir', truncated: false, network: false };
+    if (e.code === 'EACCES' || e.code === 'EPERM') return fail('denied');
+    return fail('read_failed');
   }
   const files = [];
   let truncated = false;
@@ -104,7 +139,7 @@ async function ensureCache(dir, { refresh = false } = {}) {
   const now = Date.now();
   if (!refresh && cache && cache.dir === dir && (now - cache.at) < CACHE_TTL_MS) return cache;
   const res = await readFolder(dir);
-  cache = { dir, at: now, files: res.files, error: res.error, truncated: res.truncated, skipped: res.skipped || 0 };
+  cache = { dir, at: now, files: res.files, error: res.error, truncated: res.truncated, skipped: res.skipped || 0, network: res.network === true };
   return cache;
 }
 
@@ -114,8 +149,8 @@ async function ensureCache(dir, { refresh = false } = {}) {
 async function listFolder(dir, opts) {
   if (!isAbsoluteDir(dir)) return { ok: false, count: 0, error: 'no_folder', truncated: false };
   const c = await ensureCache(dir, opts);
-  if (c.error) return { ok: false, count: 0, error: c.error, truncated: false, skipped: 0 };
-  return { ok: true, count: c.files.length, error: null, truncated: c.truncated, skipped: c.skipped || 0 };
+  if (c.error) return { ok: false, count: 0, error: c.error, truncated: false, skipped: 0, network: c.network === true };
+  return { ok: true, count: c.files.length, error: null, truncated: c.truncated, skipped: c.skipped || 0, network: false };
 }
 
 // Resolve one index to a file to stream. Returns null for anything out of range or
@@ -146,4 +181,4 @@ async function resolveFile(dir, index) {
 // Settings shows the new count immediately instead of up to CACHE_TTL_MS later.
 function invalidate() { cache = null; }
 
-module.exports = { listFolder, resolveFile, invalidate, MAX_FILES, MAX_BYTES, MIME_BY_EXT };
+module.exports = { listFolder, resolveFile, invalidate, looksLikeNetwork, MAX_FILES, MAX_BYTES, MIME_BY_EXT };
