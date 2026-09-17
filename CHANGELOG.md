@@ -29,6 +29,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   If you have hit any of this, [the README section](https://github.com/marcimastro98/Xenon#if-windows-blocks-the-download-or-flags-xenon-as-a-virus) still explains how to check a download by hand and restore a quarantined file.
 
 ### 🐛 Fixed
+- **Long dropdowns stay inside the frame in the Xeneon Edge preview.** Reported from the Deck's action picker: *"part of the list displayed when you configure a key is outside the window. Top of the list is not visible."*
+
+  The preview renders the dashboard as a fixed 2560×720 stage, scaled to fit your browser window, and hides anything that falls outside it — that is what makes it a faithful frame. But the floating menus were positioning themselves against the **browser window** instead, which in that mode is a promise of space that isn't there. A 50-row menu was placed partly above the stage's top edge and the frame simply cut it off. Measured at 110 pixels of list lost, with no scrollbar to hint that anything was missing, since as far as the menu knew it had fitted comfortably.
+
+  Both floating menus now measure the stage: the shared dropdown panel and the Deck's profile switcher, which is attached to the very element the stage is made of. They cap their height to the room actually available and scroll instead of overflowing, exactly as they already did on a real Edge.
+
+  A second fault came out with it. Inside the preview the page is *scaled*, so a menu's on-screen size and its own layout size are different units — and the positioning code was mixing the two, which left the panel landing short of its own field by the scale factor. It now measures that ratio from the menu itself rather than reading it off the page, so nothing changes at all when there is no scaling.
+
 - **A Deck key can point at `%APPDATA%\Spotify\Spotify.exe` and it will work.** Reported alongside another issue: *"I got a button to the exe but it tells me the path doesn't exist when I push it (but again, it does)."*
 
   It does exist. Windows writes paths that way in its own dialogs, every install guide quotes them that way, and both Win+R and the Explorer address bar expand `%APPDATA%` on the spot — so the path reads as real everywhere a person can check it. Xenon was the only thing in the chain not expanding it, so the key reported "not found" about a file sitting right there, and the field looked perfectly correct.

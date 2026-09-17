@@ -185,37 +185,72 @@ function initCustomSelect(selectEl) {
   // ancestor (e.g. a modal body) can't cut it off. Clamp to the viewport, cap the
   // height to the available space (the panel scrolls when the list is long), and
   // open above the trigger when there's more room there.
+  // The box the panel must stay inside, in on-screen coordinates.
+  //
+  // Normally that is the viewport. Under the Xeneon Edge preview it is NOT: that
+  // mode turns <body> into a fixed 2560x720 stage, scales it to fit and hides
+  // whatever falls outside it (styles/edge-preview.css). Clamping to the browser
+  // window there puts the panel in the letterbox, where `overflow: hidden` cuts
+  // it off — reported from the Deck's action picker as "part of the list is
+  // outside the window, top of the list is not visible", and measured at 110px
+  // of a 50-row menu lost above the stage's top edge.
+  function bounds() {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const stage = document.documentElement.classList.contains('edge-preview')
+      ? document.body : null;
+    if (!stage) return { left: 0, top: 0, width: vw, height: vh };
+    const r = stage.getBoundingClientRect();
+    // Intersected with the window: the stage can be wider than the screen while
+    // it is being resized, and half a menu off the right edge is no better.
+    const left = Math.max(0, r.left), top = Math.max(0, r.top);
+    return {
+      left,
+      top,
+      width: Math.max(0, Math.min(vw, r.right) - left),
+      height: Math.max(0, Math.min(vh, r.bottom) - top),
+    };
+  }
+
   function positionPanel() {
     if (!useFixed) return;
     const r = trigger.getBoundingClientRect();
-    const vw = window.innerWidth, vh = window.innerHeight, m = 8, gap = 5;
+    const b = bounds();
+    const m = 8, gap = 5;
     // Vertical breathing room: keep the panel visibly clear of the top/bottom
     // edges so a long list (e.g. the Deck action picker, ~50 rows) reads as a
     // bounded floating menu instead of a full-height sheet that looks clipped on
-    // the very short Xeneon Edge display. Scales with the viewport, never below m.
-    const edge = Math.max(m, Math.round(vh * 0.07));
+    // the very short Xeneon Edge display. Scales with the box, never below m.
+    const edge = Math.max(m, Math.round(b.height * 0.07));
     panel.style.position = 'fixed';
     panel.style.margin = '0';
     panel.style.right = 'auto';
     panel.style.bottom = 'auto';
     panel.style.minWidth = r.width + 'px';
     panel.style.maxHeight = 'none';                 // measure the natural height first
-    const natural = panel.scrollHeight;
-    const spaceBelow = vh - r.bottom - gap - edge;
-    const spaceAbove = r.top - gap - edge;
+    // A scaled ancestor (the Edge preview stage) means the panel's LAYOUT pixels
+    // and its ON-SCREEN pixels are different units, and every number here mixes
+    // the two: the trigger rect and the bounds are on-screen, scrollHeight is
+    // layout. Measure the ratio from the panel itself rather than reading the
+    // transform, so it holds however the scaling was applied — and so it is
+    // exactly 1, and everything below unchanged, when there is none.
+    const probe = panel.getBoundingClientRect();
+    const scale = panel.offsetHeight > 0 ? (probe.height / panel.offsetHeight) || 1 : 1;
+    const natural = panel.scrollHeight * scale;     // on-screen height of the full list
+    const spaceBelow = (b.top + b.height) - r.bottom - gap - edge;
+    const spaceAbove = r.top - b.top - gap - edge;
     // Drop below unless it doesn't fit and there's more room above.
     const placeBelow = natural <= spaceBelow || spaceBelow >= spaceAbove;
     // Cap the height to the room between the breathing margins so the panel can
     // never spill past (or butt against) the top/bottom edge. The list scrolls
     // when it's taller than the room available.
-    const h = Math.min(natural, vh - 2 * edge);
-    panel.style.maxHeight = h + 'px';
-    const wantLeft = Math.max(m, Math.min(r.left, vw - m - panel.offsetWidth));
+    const h = Math.min(natural, b.height - 2 * edge);
+    panel.style.maxHeight = (h / scale) + 'px';     // back into layout pixels
+    const wantLeft = Math.max(b.left, Math.min(r.left, b.left + b.width - m - panel.offsetWidth * scale));
     // Anchor to the trigger, then clamp so the whole panel stays within the
     // breathing margins (on a tiny screen it may overlap the trigger —
     // visible-and-scrollable beats clipped-and-unreachable).
     const top = placeBelow ? r.bottom + gap : r.top - gap - h;
-    const wantTop = Math.max(edge, Math.min(top, vh - edge - h));
+    const wantTop = Math.max(b.top + edge, Math.min(top, b.top + b.height - edge - h));
     panel.style.left = wantLeft + 'px';
     panel.style.top = wantTop + 'px';
 
@@ -225,8 +260,12 @@ function initCustomSelect(selectEl) {
     // trigger — which is what happened inside the Claude tile's panel. Rather
     // than hunt for which ancestor did it, measure where the panel actually
     // ended up and correct by the difference; that holds whatever the cause.
+    //
+    // The correction is in layout pixels while the error was measured on screen,
+    // so it is divided by the same ratio. Without that it undershoots by exactly
+    // the scale factor and one pass never lands.
     const got = panel.getBoundingClientRect();
-    const dx = wantLeft - got.left, dy = wantTop - got.top;
+    const dx = (wantLeft - got.left) / scale, dy = (wantTop - got.top) / scale;
     if (dx || dy) {
       panel.style.left = (wantLeft + dx) + 'px';
       panel.style.top = (wantTop + dy) + 'px';

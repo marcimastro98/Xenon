@@ -2556,10 +2556,20 @@
     menu.style.visibility = 'hidden';     // measure before painting to avoid a flash at 0,0
     const mw = menu.offsetWidth || 200, mh = menu.offsetHeight || 0;
     const margin = 8;
+    // The room to clamp inside, in the same layout space as the numbers above.
+    // Normally the window; under the Xeneon Edge preview NOT the window, because
+    // that mode makes <body> a fixed 2560x720 stage and hides anything outside
+    // it. This popover is portaled to that body, so its own containing block is
+    // the stage and the window's height is a promise of space that does not
+    // exist — the menu lands in the letterbox and is cut off. Same fault as the
+    // dropdown panel in js/custom-select.js, reported from the same screen.
+    const stage = document.documentElement.classList.contains('edge-preview') ? document.body : null;
+    const roomW = stage ? stage.offsetWidth : window.innerWidth;
+    const roomH = stage ? stage.offsetHeight : window.innerHeight;
     let left = rLeft;
-    left = Math.max(margin, Math.min(left, window.innerWidth - mw - margin));
+    left = Math.max(margin, Math.min(left, roomW - mw - margin));
     let top = rBottom + 6;
-    if (top + mh > window.innerHeight - margin) top = Math.max(margin, rTop - mh - 6);  // flip above if no room below
+    if (top + mh > roomH - margin) top = Math.max(margin, rTop - mh - 6);  // flip above if no room below
     menu.style.left = Math.round(left) + 'px';
     menu.style.top = Math.round(top) + 'px';
     menu.style.visibility = '';
