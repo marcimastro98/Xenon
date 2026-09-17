@@ -685,6 +685,8 @@ const i18n = {
     settings_slideshow_pause_game: 'Ferma le GIF durante i giochi',
     settings_slideshow_pause_game_hint: 'mentre sono attive la modalità gioco o quella prestazioni',
     slideshow_folder_found: '{n} immagini trovate in questa cartella.',
+    slideshow_folder_none_readable: 'Nessuna immagine leggibile in questa cartella ({n} elementi ignorati). Xenon legge PNG, JPG, WebP e GIF, e salta collegamenti e scorciatoie.',
+    slideshow_folder_open_settings: 'Apri le impostazioni',
     slideshow_folder_truncated: 'Xenon usa le prime {n} immagini di questa cartella.',
     slideshow_folder_err_no_folder: 'Serve il percorso completo di una cartella.',
     slideshow_folder_err_not_found: 'Questa cartella non esiste.',
@@ -3464,6 +3466,8 @@ const i18n = {
     settings_slideshow_pause_game: 'Stop GIFs while gaming',
     settings_slideshow_pause_game_hint: 'while game mode or performance mode is active',
     slideshow_folder_found: '{n} images found in this folder.',
+    slideshow_folder_none_readable: 'No readable images in this folder ({n} entries skipped). Xenon reads PNG, JPG, WebP and GIF, and skips links and shortcuts.',
+    slideshow_folder_open_settings: 'Open settings',
     slideshow_folder_truncated: 'Xenon uses the first {n} images in this folder.',
     slideshow_folder_err_no_folder: 'A full folder path is needed.',
     slideshow_folder_err_not_found: 'This folder does not exist.',
@@ -27840,6 +27844,8 @@ Object.assign(i18n.nl, {
 Object.assign(i18n.ko, {
   layout_widget_slideshow: '슬라이드쇼', layout_widget_fans: '팬', layout_widget_power: '에너지', layout_widget_battery: '배터리',
   slideshow_folder_found: '이 폴더에서 이미지 {n}개를 찾았습니다.',
+  slideshow_folder_none_readable: '이 폴더에서 읽을 수 있는 이미지가 없습니다(항목 {n}개 건너뜀). Xenon은 PNG, JPG, WebP, GIF를 읽으며 링크와 바로 가기는 건너뜁니다.',
+  slideshow_folder_open_settings: '설정 열기',
   slideshow_folder_truncated: 'Xenon은 이 폴더의 처음 {n}개 이미지를 사용합니다.',
   slideshow_folder_err_no_folder: '전체 폴더 경로가 필요합니다.',
   slideshow_folder_err_not_found: '이 폴더는 존재하지 않습니다.',
@@ -27876,6 +27882,8 @@ Object.assign(i18n.ko, {
 Object.assign(i18n.ja, {
   layout_widget_slideshow: 'スライドショー', layout_widget_fans: 'ファン', layout_widget_power: 'エネルギー', layout_widget_battery: 'バッテリー',
   slideshow_folder_found: 'このフォルダーで画像を {n} 件見つけました。',
+  slideshow_folder_none_readable: 'このフォルダーに読み取れる画像がありません（{n} 件をスキップ）。Xenon は PNG・JPG・WebP・GIF を読み取り、リンクとショートカットはスキップします。',
+  slideshow_folder_open_settings: '設定を開く',
   slideshow_folder_truncated: 'Xenon はこのフォルダーの最初の {n} 件の画像を使います。',
   slideshow_folder_err_no_folder: 'フォルダーの完全なパスが必要です。',
   slideshow_folder_err_not_found: 'このフォルダーは存在しません。',
@@ -27912,6 +27920,8 @@ Object.assign(i18n.ja, {
 Object.assign(i18n.zh, {
   layout_widget_slideshow: '幻灯片', layout_widget_fans: '风扇', layout_widget_power: '能耗', layout_widget_battery: '电池',
   slideshow_folder_found: '在这个文件夹中找到 {n} 张图片。',
+  slideshow_folder_none_readable: '这个文件夹中没有可读取的图片（已跳过 {n} 个条目）。Xenon 支持 PNG、JPG、WebP 和 GIF，并会跳过链接和快捷方式。',
+  slideshow_folder_open_settings: '打开设置',
   slideshow_folder_truncated: 'Xenon 使用这个文件夹里的前 {n} 张图片。',
   slideshow_folder_err_no_folder: '需要完整的文件夹路径。',
   slideshow_folder_err_not_found: '这个文件夹不存在。',
@@ -27949,6 +27959,8 @@ Object.assign(i18n.zh, {
 Object.assign(i18n.es, {
   layout_widget_slideshow: 'Presentación', layout_widget_fans: 'Ventiladores', layout_widget_power: 'Energía', layout_widget_battery: 'Baterías',
   slideshow_folder_found: '{n} imágenes encontradas en esta carpeta.',
+  slideshow_folder_none_readable: 'No hay imágenes legibles en esta carpeta ({n} elementos omitidos). Xenon lee PNG, JPG, WebP y GIF, y omite enlaces y accesos directos.',
+  slideshow_folder_open_settings: 'Abrir ajustes',
   slideshow_folder_truncated: 'Xenon usa las primeras {n} imágenes de esta carpeta.',
   slideshow_folder_err_no_folder: 'Hace falta la ruta completa de la carpeta.',
   slideshow_folder_err_not_found: 'Esta carpeta no existe.',
@@ -27985,6 +27997,8 @@ Object.assign(i18n.es, {
 Object.assign(i18n.fr, {
   layout_widget_slideshow: 'Diaporama', layout_widget_fans: 'Ventilateurs', layout_widget_power: 'Énergie', layout_widget_battery: 'Batteries',
   slideshow_folder_found: '{n} images trouvées dans ce dossier.',
+  slideshow_folder_none_readable: 'Aucune image lisible dans ce dossier ({n} éléments ignorés). Xenon lit les PNG, JPG, WebP et GIF, et ignore les liens et raccourcis.',
+  slideshow_folder_open_settings: 'Ouvrir les réglages',
   slideshow_folder_truncated: 'Xenon utilise les {n} premières images de ce dossier.',
   slideshow_folder_err_no_folder: 'Le chemin complet du dossier est nécessaire.',
   slideshow_folder_err_not_found: 'Ce dossier n’existe pas.',
@@ -28021,6 +28035,8 @@ Object.assign(i18n.fr, {
 Object.assign(i18n.de, {
   layout_widget_slideshow: 'Diashow', layout_widget_fans: 'Lüfter', layout_widget_power: 'Energie', layout_widget_battery: 'Akkus',
   slideshow_folder_found: '{n} Bilder in diesem Ordner gefunden.',
+  slideshow_folder_none_readable: 'Keine lesbaren Bilder in diesem Ordner ({n} Einträge übersprungen). Xenon liest PNG, JPG, WebP und GIF und überspringt Links und Verknüpfungen.',
+  slideshow_folder_open_settings: 'Einstellungen öffnen',
   slideshow_folder_truncated: 'Xenon verwendet die ersten {n} Bilder in diesem Ordner.',
   slideshow_folder_err_no_folder: 'Der vollständige Ordnerpfad wird benötigt.',
   slideshow_folder_err_not_found: 'Diesen Ordner gibt es nicht.',
@@ -28058,6 +28074,8 @@ Object.assign(i18n.de, {
 Object.assign(i18n.pt, {
   layout_widget_slideshow: 'Apresentação', layout_widget_fans: 'Ventoinhas', layout_widget_power: 'Energia', layout_widget_battery: 'Baterias',
   slideshow_folder_found: '{n} imagens encontradas nesta pasta.',
+  slideshow_folder_none_readable: 'Nenhuma imagem legível nesta pasta ({n} itens ignorados). O Xenon lê PNG, JPG, WebP e GIF, e ignora atalhos e links.',
+  slideshow_folder_open_settings: 'Abrir as definições',
   slideshow_folder_truncated: 'O Xenon usa as primeiras {n} imagens desta pasta.',
   slideshow_folder_err_no_folder: 'É preciso o caminho completo da pasta.',
   slideshow_folder_err_not_found: 'Esta pasta não existe.',
@@ -28094,6 +28112,8 @@ Object.assign(i18n.pt, {
 Object.assign(i18n.ru, {
   layout_widget_slideshow: 'Слайд-шоу', layout_widget_fans: 'Вентиляторы', layout_widget_power: 'Энергия', layout_widget_battery: 'Батареи',
   slideshow_folder_found: 'В этой папке найдено изображений: {n}.',
+  slideshow_folder_none_readable: 'В этой папке нет читаемых изображений (пропущено элементов: {n}). Xenon читает PNG, JPG, WebP и GIF и пропускает ссылки и ярлыки.',
+  slideshow_folder_open_settings: 'Открыть настройки',
   slideshow_folder_truncated: 'Xenon использует первые {n} изображений из этой папки.',
   slideshow_folder_err_no_folder: 'Нужен полный путь к папке.',
   slideshow_folder_err_not_found: 'Такой папки не существует.',
@@ -28130,6 +28150,8 @@ Object.assign(i18n.ru, {
 Object.assign(i18n.nl, {
   layout_widget_slideshow: 'Diavoorstelling', layout_widget_fans: 'Ventilatoren', layout_widget_power: 'Energie', layout_widget_battery: 'Accu’s',
   slideshow_folder_found: '{n} afbeeldingen gevonden in deze map.',
+  slideshow_folder_none_readable: 'Geen leesbare afbeeldingen in deze map ({n} items overgeslagen). Xenon leest PNG, JPG, WebP en GIF en slaat links en snelkoppelingen over.',
+  slideshow_folder_open_settings: 'Instellingen openen',
   slideshow_folder_truncated: 'Xenon gebruikt de eerste {n} afbeeldingen uit deze map.',
   slideshow_folder_err_no_folder: 'Het volledige pad van de map is nodig.',
   slideshow_folder_err_not_found: 'Deze map bestaat niet.',

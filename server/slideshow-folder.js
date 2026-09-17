@@ -56,7 +56,7 @@ const NAME_MAX = 200;            // skip absurd names rather than carry them aro
 const NAME_ORDER = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
 // One folder is configured at a time, so a single-entry cache is the whole story.
-let cache = null;   // { dir, at, files: string[], error: string|null, truncated: bool }
+let cache = null;   // { dir, at, files: string[], error: string|null, truncated: bool, skipped: number }
 
 function isAbsoluteDir(dir) {
   return typeof dir === 'string' && dir.length > 0 && path.isAbsolute(dir);
@@ -78,22 +78,33 @@ async function readFolder(dir) {
   }
   const files = [];
   let truncated = false;
+  // Entries that were there and were not taken. A folder that reads fine and
+  // yields nothing is otherwise indistinguishable from an empty one, and the two
+  // want completely different advice — "add some pictures" versus "these are not
+  // files I can read". Reported as a folder on a NAS that showed no images and no
+  // error at all, while the same pictures worked from C:\. Counting the skips is
+  // what turns that into an answer instead of an empty tile.
+  let skipped = 0;
   for (const ent of entries) {
-    if (!ent.isFile()) continue;                       // drops dirs AND symlinks
-    if (ent.name.length > NAME_MAX) continue;
-    if (!MIME_BY_EXT.has(path.extname(ent.name).toLowerCase())) continue;
+    // Drops directories AND symlinks: readdir reports a link as a link, so this
+    // keeps one out of a slideshow folder without a stat race. On Windows a
+    // reparse point reads as a link too, which is why the count matters — an
+    // entry vanishing here looks like nothing at all from the outside.
+    if (!ent.isFile()) { skipped++; continue; }
+    if (ent.name.length > NAME_MAX) { skipped++; continue; }
+    if (!MIME_BY_EXT.has(path.extname(ent.name).toLowerCase())) { skipped++; continue; }
     if (files.length >= MAX_FILES) { truncated = true; break; }
     files.push(ent.name);
   }
   files.sort(NAME_ORDER.compare);
-  return { files, error: null, truncated };
+  return { files, error: null, truncated, skipped };
 }
 
 async function ensureCache(dir, { refresh = false } = {}) {
   const now = Date.now();
   if (!refresh && cache && cache.dir === dir && (now - cache.at) < CACHE_TTL_MS) return cache;
   const res = await readFolder(dir);
-  cache = { dir, at: now, files: res.files, error: res.error, truncated: res.truncated };
+  cache = { dir, at: now, files: res.files, error: res.error, truncated: res.truncated, skipped: res.skipped || 0 };
   return cache;
 }
 
@@ -103,8 +114,8 @@ async function ensureCache(dir, { refresh = false } = {}) {
 async function listFolder(dir, opts) {
   if (!isAbsoluteDir(dir)) return { ok: false, count: 0, error: 'no_folder', truncated: false };
   const c = await ensureCache(dir, opts);
-  if (c.error) return { ok: false, count: 0, error: c.error, truncated: false };
-  return { ok: true, count: c.files.length, error: null, truncated: c.truncated };
+  if (c.error) return { ok: false, count: 0, error: c.error, truncated: false, skipped: 0 };
+  return { ok: true, count: c.files.length, error: null, truncated: c.truncated, skipped: c.skipped || 0 };
 }
 
 // Resolve one index to a file to stream. Returns null for anything out of range or

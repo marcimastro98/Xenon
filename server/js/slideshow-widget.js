@@ -168,12 +168,12 @@
     // asking for images by index. Re-checked on a slow cadence (a folder is a
     // human-speed thing) and immediately whenever the configured path changes.
     const FOLDER_RECHECK_MS = 300000;   // 5 min
-    let folder = { path: '', count: 0, at: 0, loading: false, error: null };
+    let folder = { path: '', count: 0, at: 0, loading: false, error: null, skipped: 0 };
 
     let folderReqSeq = 0;   // orphans an in-flight response a forced refetch supersedes
     function refreshFolder(force) {
       const want = String(cfg().folder || '');
-      if (!want) { folder = { path: '', count: 0, at: 0, loading: false, error: null }; return; }
+      if (!want) { folder = { path: '', count: 0, at: 0, loading: false, error: null, skipped: 0 }; return; }
       const stale = folder.path !== want || force || (Date.now() - folder.at) > FOLDER_RECHECK_MS;
       // A forced refetch supersedes an in-flight one (the pre-save fetch that
       // raced the settings flush may still be pending with the WRONG answer).
@@ -185,12 +185,12 @@
         .then(d => {
           if (seq !== folderReqSeq) return;   // superseded — never cache a stale answer
           const changed = folder.path !== want || folder.count !== (d.count | 0);
-          folder = { path: want, count: d.ok ? (d.count | 0) : 0, at: Date.now(), loading: false, error: d.ok ? null : (d.error || 'read_failed') };
+          folder = { path: want, count: d.ok ? (d.count | 0) : 0, at: Date.now(), loading: false, error: d.ok ? null : (d.error || 'read_failed'), skipped: d.ok ? (d.skipped | 0) : 0 };
           if (changed) { invalidatePlaylist(); paintAll(); }
         })
         .catch(() => {
           if (seq !== folderReqSeq) return;
-          folder = { path: want, count: 0, at: Date.now(), loading: false, error: 'read_failed' };
+          folder = { path: want, count: 0, at: Date.now(), loading: false, error: 'read_failed', skipped: 0 };
           invalidatePlaylist();
         });
     }
@@ -385,7 +385,7 @@
         if (shouldFreeze(root.closest('[data-dashboard-widget="slideshow"]'))) freezeTile(ui);
       });
 
-      const ui = { root, img, freeze, empty, prev, next, pausePip, dots, key, src: '', frozen: false, misses: 0 };
+      const ui = { root, img, freeze, empty, emptyText, emptyBtn, prev, next, pausePip, dots, key, src: '', frozen: false, misses: 0 };
       mount.replaceChildren(root);
       uiMap.set(mount, ui);
       return ui;
@@ -402,6 +402,44 @@
       paintAll();
     }
 
+    // Why this tile has nothing to show. Until now it always said "No images yet"
+    // with an "Add images" button — the LIBRARY's empty state, shown verbatim to
+    // someone whose source is a folder and who has therefore added nothing and
+    // never will. Reported from a folder on a NAS: no pictures, no error, and a
+    // prompt to do the one thing that was not the problem.
+    //
+    // Everything needed to say the real thing was already here: /slideshow/folder
+    // answers with a reason code, `ensureFolder` stores it, and the settings pane
+    // has shown those same strings, in every language, since the folder source
+    // shipped. Only the tile was throwing them away.
+    function applyEmptyReason(ui, c) {
+      if (c.source !== 'folder') {
+        ui.emptyText.textContent = t('slideshow_empty', 'No images yet');
+        ui.emptyBtn.textContent = t('slideshow_empty_add', 'Add images');
+        ui.emptyBtn.hidden = false;
+        return;
+      }
+      if (!c.folder) {
+        ui.emptyText.textContent = t('slideshow_folder_err_no_folder', 'No folder chosen');
+      } else if (folder.loading && !folder.at) {
+        ui.emptyText.textContent = '';               // first read in flight: say nothing yet
+      } else if (folder.error) {
+        const known = ['no_folder', 'not_found', 'not_a_dir', 'denied', 'read_failed'];
+        const code = known.indexOf(folder.error) >= 0 ? folder.error : 'read_failed';
+        ui.emptyText.textContent = t('slideshow_folder_err_' + code);
+      } else if (folder.skipped > 0) {
+        // The folder reads, and everything in it was passed over. That is a
+        // different problem from an empty folder and the only one of these the
+        // user cannot guess at, so it says how many were skipped.
+        ui.emptyText.textContent = t('slideshow_folder_none_readable').replace('{n}', String(folder.skipped));
+      } else {
+        ui.emptyText.textContent = t('slideshow_folder_found').replace('{n}', '0');
+      }
+      // "Add images" belongs to the library. Here the fix is always in Settings.
+      ui.emptyBtn.textContent = t('slideshow_folder_open_settings', 'Open settings');
+      ui.emptyBtn.hidden = false;
+    }
+
     function paintTile(tile) {
       const mount = tile.querySelector('.slideshow-widget-mount');
       if (!mount) return;
@@ -410,6 +448,7 @@
       const imgs = playlist();
       const s = stateOf(ui.key);
       ui.root.classList.toggle('is-empty', imgs.length === 0);
+      if (imgs.length === 0) applyEmptyReason(ui, c);
       ui.root.classList.toggle('sl-fit-contain', c.fit === 'contain');
       ui.root.classList.toggle('sl-fit-cover', c.fit !== 'contain');
       const multi = imgs.length > 1;

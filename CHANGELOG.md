@@ -29,6 +29,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   If you have hit any of this, [the README section](https://github.com/marcimastro98/Xenon#if-windows-blocks-the-download-or-flags-xenon-as-a-virus) still explains how to check a download by hand and restore a quarantined file.
 
 ### 🐛 Fixed
+- **The Slideshow tile now says why it is empty, instead of asking you to add images you cannot add.** Reported from a folder on a NAS reached over a UNC path: *"NO error displays, but the photos slideshow shows 'No images yet' with an 'Add Images' button"* — while the same pictures in a folder on `C:\` worked.
+
+  The tile was showing the **library's** empty state to someone whose source is a **folder**. "Add images" is the right prompt for a library you fill by hand and a meaningless one for a folder, so the message both withheld the problem and pointed at the one thing that could not be the fix. Everything needed to say the real thing was already there — the server answers with a reason (folder missing, not a folder, not allowed, unreadable) and Settings has shown those exact sentences in all eleven languages since the folder source shipped. Only the tile threw them away.
+
+  It doesn't any more: a folder that cannot be read says so on the tile, with **Open settings** rather than Add images.
+
+  And a folder that reads perfectly but yields nothing is now told apart from an empty one. "0 images found" was true in both cases and useless in both: it could not distinguish *put some pictures in it* from *these are not files Xenon can read*. The tile and the settings line now say how many entries were passed over — **"No readable images in this folder (517 entries skipped)"** — which names the supported formats and makes the difference visible instead of leaving an empty tile and no thread to pull.
+
 - **Copying a Deck profile onto a second Deck works even when a profile of that name is already there.** Reported after duplicating a dashboard page to reuse a Deck setup: *"The list has 2 items, but they are early obsolete versions… the one with the green bullet is the current one, but it is not visible on the second page."*
 
   **From another Deck** in the profile menu was dropping any profile whose name this Deck already had. So the moment an old *Nocturne Control* landed on the new Deck, the current *Nocturne Control* was hidden — hidden precisely because the stale one was sitting next to it. With nothing else to offer, the whole section disappeared, and the feature read as simply not working. It also kept only the first profile of a given name across Decks, so which of three namesakes you were handed came down to storage order.

@@ -6074,9 +6074,13 @@ function refreshSlideshowFolderStatus(force) {
     .then(d => {
       if (seq !== _slideshowFolderStatusSeq) return;
       if (d.ok) {
+        // "0 images found" is true and useless: it reads the same whether the
+        // folder is empty or full of things Xenon passed over. Say which.
         out.textContent = d.truncated
           ? t('slideshow_folder_truncated').replace('{n}', String(d.count))
-          : t('slideshow_folder_found').replace('{n}', String(d.count));
+          : (d.count === 0 && (d.skipped | 0) > 0)
+            ? t('slideshow_folder_none_readable').replace('{n}', String(d.skipped | 0))
+            : t('slideshow_folder_found').replace('{n}', String(d.count));
       } else {
         // t() falls back to the key name, so an unknown code must be mapped here
         // rather than tested for truthiness — otherwise a raw key reaches the UI.
