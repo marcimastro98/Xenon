@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### ✨ Added
+- **You can pick a track out of the Spotify widget's Up Next.** Asked for on GitHub: *"I'd love to be able to actually pick from the spotify playlist showing in Up Next. Unfortunately I can see it all, but can't press any of them. I can only use back and forward."*
+
+  Tap any row and it plays. Not just that song either — when the queue belongs to a playlist or an album, Xenon starts it **inside** that list, so playback carries on through the rest exactly as it would in Spotify itself, rather than stopping dead at the end of the one track you picked.
+
+  A track that was dropped into the queue by hand belongs to no playlist, and Spotify's API gives no way to tell those rows apart from the outside. So Xenon tries the list first and plays the track on its own if that is refused: a tap always plays what you tapped. And a row Spotify won't name a track for (the odd local file or unnamed podcast episode) stays plain rather than looking pressable and doing nothing.
+
+  On a touchscreen the play button is always there instead of waiting for a hover it will never get.
+
 - **The Media tile can show the sound wave of what is playing.** Asked for by a supporter on Buy Me a Coffee: *"wish there was a media bar and visualization"*. The bar was already there — the now-playing strip in the top bar, with cover and transport, under **Settings → Dynamic Island**. The visualisation was not.
 
   **Settings → Aspetto → Riquadro Media** now offers **Nessuna / Minimal / Onda**, coloured by the album cover — the same colours the LED strip already takes from it.
