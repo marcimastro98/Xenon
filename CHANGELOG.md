@@ -37,6 +37,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   If you have hit any of this, [the README section](https://github.com/marcimastro98/Xenon#if-windows-blocks-the-download-or-flags-xenon-as-a-virus) still explains how to check a download by hand and restore a quarantined file.
 
 ### 🐛 Fixed
+- **The Slideshow's frozen picture no longer shows a broken-image icon and a pale border while you game.** Reported as: *"it works fine on desktop, but pauses with a white border and a little picture broken icon top left corner"* when a game is running.
+
+  While a game has the machine, the slideshow paints its current picture onto a still and drops the live one — that is how an animated GIF stops costing anything. Dropping the live one means hiding it first, and **the hide was doing nothing**: five of the widget's pieces set their own display, which quietly overrules the browser's own way of hiding an element. So what stayed on screen was a picture with no picture in it, sitting behind the still: its empty frame around the edges and a broken-image icon in the corner. It only showed with **Whole picture** fit, where the still doesn't reach the tile's edges, which is why it took a while to surface.
+
+  Fixing it fixed three more of the same, all shipped and none reported: a slideshow holding **one** image kept its back/forward arrows and its position dots, both pointing nowhere, and the pause badge sat on every tile whether it was paused or not. Hiding now works on everything in the tile, written once so the next piece added can't quietly opt out of it.
+
 - **The interface scale is now in Settings wherever you open them, and it works from there.** Reported by someone who arranges their dashboard from a browser on their main monitor while the app runs on an Edge: *"the scale UI option appears only if you go in settings from edge screen, it was not shown in the settings from my browser on main screen… I spent much time trying to figure it out, and even coded a little upscale in my widgets in the beginning."*
 
   Two faults, and the first is what made the second look reasonable. The scale is stored with the rest of your settings and already reached every screen — but the only thing that ever handed it to the app was opening Settings **on the app itself**. A scale set anywhere else sat there, saved and ignored, until you opened Settings on the Edge or restarted it. So the control was hidden everywhere else, because from everywhere else it would not have worked.

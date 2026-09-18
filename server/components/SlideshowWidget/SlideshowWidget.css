@@ -138,10 +138,28 @@
 }
 .sl-pausepip svg { width: 14px; height: 14px; }
 
-/* The frozen still that replaces the <img> while nobody is looking. It carries
-   .sl-img too, so cover/contain fit and sizing are the shared rules — the swap
-   must be invisible. */
-.sl-freeze[hidden] { display: none; }
+/* `hidden` has to be made to work in here, on everything.
+   
+   The widget hides and shows seven things with `el.hidden = true`: the <img> and
+   the frozen still, the two arrows, the dots, the pause pip and the empty-state
+   button. Five of those carry a class that sets `display` — and an author rule of
+   equal specificity beats the browser's own `[hidden] { display: none }`. So for
+   five of the seven, `el.hidden = true` set the attribute and changed nothing at
+   all.
+   
+   What that looked like: a slideshow holding ONE image kept its arrows and its
+   dots, both meaningless with nowhere to go; the pause pip sat on every tile
+   whether paused or not; and freezeTile — which hides the <img> and then strips
+   its src to stop the decoding — left a live, source-less <img> on screen, a
+   broken-image icon in its corner and its empty box around the still. That last
+   one hid under `cover`, where the still covers the tile edge to edge, and showed
+   under `contain`, where it does not. Reported as "pauses with a white border and
+   a little picture broken icon top left corner" while gaming, gaming being simply
+   when the tile is frozen and still being looked at.
+   
+   Scoped to the stage and written once rather than per class, so the next element
+   given a `display` cannot quietly opt out of being hideable again. */
+.sl-stage [hidden] { display: none; }
 
 /* ── Settings panel: the image manager ── */
 .slideshow-assets {
