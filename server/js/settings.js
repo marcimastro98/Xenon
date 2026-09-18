@@ -4119,6 +4119,20 @@ function applyThemeSurfaceTokens(root, alternateSkin) {
 
 function applyHubSettings() {
   hubSettings = normalizeSettings(hubSettings);
+  // The native shell's interface scale, applied on every hydrate rather than only
+  // when this surface's settings panel is built.
+  //
+  // nativeZoom is a hubSettings field, so it already travelled to every surface —
+  // but the only thing that ever handed it to the shell was syncNativeZoomControl,
+  // which runs when the Settings panel is (re)rendered HERE. A change made on
+  // another surface therefore sat in the app's settings, correct and ignored,
+  // until someone opened Settings on the app itself or reloaded it. That is also
+  // why the control was hidden everywhere else: it would not have worked. Now it
+  // does, so it is shown. A no-op off the native app — setNativeZoom returns early
+  // when the shell is not there.
+  if (window.XenonNative && typeof window.XenonNative.setNativeZoom === 'function') {
+    window.XenonNative.setNativeZoom(hubSettings.nativeZoom);
+  }
   // Restore the persisted language from server settings (covers browser-storage resets on PC restart)
   if (hubSettings.language && typeof setLang === 'function') setLang(hubSettings.language);
   // Restore app-switcher favorites from server settings (same reason: a starred app
@@ -8180,8 +8194,25 @@ function syncNativeZoomControl() {
   const slider = $('settings-native-zoom');
   const valueEl = $('settings-native-zoom-value');
   const isNativeApp = !!(window.XenonNative && window.XenonNative.isNative);
-  // display (not `hidden`): the settings category switcher owns `hidden`.
-  if (row) row.style.display = isNativeApp ? '' : 'none';
+  // Shown on EVERY surface, which it was not.
+  //
+  // The scale applies to the native app, so the row used to appear only there —
+  // and the one place people arrange their dashboard from is a browser on the big
+  // monitor, where it simply was not in the list. Reported after a long hunt:
+  // "the scale UI option appears only if you go in settings from edge screen, it
+  // was not shown in the settings from my browser on main screen… I spent much
+  // time trying to figure it out, and even coded a little upscale in my widgets".
+  // A control that exists but is invisible from where you are looking is worse
+  // than one that is greyed out, because nothing tells you to look elsewhere.
+  //
+  // It is not merely revealed: the value lives in hubSettings and reaches every
+  // surface, and applyHubSettings now hands it to the native shell on arrival, so
+  // moving this slider in a browser really does rescale the app on the Edge while
+  // you watch it. The second note says so, since here it is not this window it
+  // resizes.
+  if (row) row.style.display = '';
+  const remoteNote = $('settings-native-zoom-remote');
+  if (remoteNote) remoteNote.hidden = isNativeApp;
   const scale = clampNumber(hubSettings.nativeZoom, 0.6, 1.6, 1);
   if (slider) slider.value = String(scale);
   if (valueEl) valueEl.textContent = formatPercent(scale);

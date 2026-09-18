@@ -37,6 +37,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   If you have hit any of this, [the README section](https://github.com/marcimastro98/Xenon#if-windows-blocks-the-download-or-flags-xenon-as-a-virus) still explains how to check a download by hand and restore a quarantined file.
 
 ### 🐛 Fixed
+- **The interface scale is now in Settings wherever you open them, and it works from there.** Reported by someone who arranges their dashboard from a browser on their main monitor while the app runs on an Edge: *"the scale UI option appears only if you go in settings from edge screen, it was not shown in the settings from my browser on main screen… I spent much time trying to figure it out, and even coded a little upscale in my widgets in the beginning."*
+
+  Two faults, and the first is what made the second look reasonable. The scale is stored with the rest of your settings and already reached every screen — but the only thing that ever handed it to the app was opening Settings **on the app itself**. A scale set anywhere else sat there, saved and ignored, until you opened Settings on the Edge or restarted it. So the control was hidden everywhere else, because from everywhere else it would not have worked.
+
+  It works now: the app picks the scale up the moment it arrives, so moving the slider in a browser rescales the app on the Edge while you watch it. And since it works, it is shown — on every screen, with a line under it saying that it resizes the **app**, not the browser window you happen to be in.
+
 - **Long dropdowns stay inside the frame in the Xeneon Edge preview.** Reported from the Deck's action picker: *"part of the list displayed when you configure a key is outside the window. Top of the list is not visible."*
 
   The preview renders the dashboard as a fixed 2560×720 stage, scaled to fit your browser window, and hides anything that falls outside it — that is what makes it a faithful frame. But the floating menus were positioning themselves against the **browser window** instead, which in that mode is a promise of space that isn't there. A 50-row menu was placed partly above the stage's top edge and the frame simply cut it off. Measured at 110 pixels of list lost, with no scrollbar to hint that anything was missing, since as far as the menu knew it had fitted comfortably.

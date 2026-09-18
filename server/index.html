@@ -1466,7 +1466,10 @@
         </div>
       </div>
 
-      <!-- Native-app only: revealed by syncNativeZoomControl() inside the Tauri kiosk. -->
+      <!-- Sets the NATIVE app's interface scale, and is shown on every surface:
+           the value lives in hubSettings, so a browser on the main monitor can set
+           the scale of the app running on the Edge. Hiding it off the native app
+           was the reported trap — see syncNativeZoomControl(). -->
       <div class="settings-group settings-behavior-group" data-settings-cat="general" id="settings-native-zoom-row" hidden>
         <div class="settings-group-head">
           <span data-i18n="settings_native_zoom">Scala interfaccia</span>
@@ -1476,6 +1479,7 @@
           <span class="settings-label-line"><span data-i18n="settings_native_zoom_label">Zoom</span><span class="settings-value" id="settings-native-zoom-value">100%</span></span>
           <input class="settings-range" id="settings-native-zoom" type="range" min="0.6" max="1.6" step="0.05" oninput="updateNativeZoom(this.value)">
           <span class="settings-note" data-i18n="settings_native_zoom_note">Ingrandisci o rimpicciolisci tutta la dashboard, indipendentemente dalla scala di Windows. Puoi anche usare Ctrl + rotellina del mouse.</span>
+          <span class="settings-note" id="settings-native-zoom-remote" data-i18n="settings_native_zoom_remote" hidden>Vale per l'app Xenon, non per questa finestra: qui usa lo zoom del browser. Puoi regolarla da qui mentre guardi l'Edge.</span>
         </label>
       </div>
 
