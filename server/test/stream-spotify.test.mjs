@@ -228,7 +228,8 @@ test('getPlayer returns a rich hero shape with largest cover + liked state', asy
     ok: true, playing: true,
     track: { id: 't1', name: 'Song', uri: '', artist: 'A', album: 'Alb', image: 'big' },
     progressMs: 1000, durationMs: 200000, shuffle: true, repeat: 'context',
-    context: '',   // no playback context in this mock → loose track
+    context: '',      // no playback context in this mock → loose track
+    contextUri: '',   // …so nothing for an Up Next row to resume into either
     device: 'PC', volume: 70, supportsVolume: true, liked: true,
   });
 });

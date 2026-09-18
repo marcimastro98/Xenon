@@ -68,6 +68,7 @@
   let player = null;         // rich now-playing state from /stream/spotify/player
   let queue = null;          // upcoming tracks (lazy, Up Next tab)
   let queueReliable = true;  // false when playing a loose track (no playlist context) → Spotify's Up Next is only a guess
+  let queueContext = '';     // the playlist/album the queue belongs to, so a tapped row can resume the rest of it
   let playlists = null;      // cached list (loaded when the Playlists tab opens)
   let devices = null;        // cached list (loaded when the Devices tab opens)
   let seeded = false;
@@ -476,13 +477,41 @@
   }
 
   // ── Track / list rows ─────────────────────────────────────────────────────
-  function trackRow(tk) {
-    const row = el('div', 'sp-track');
+  // A row in Up Next. Tapping one plays it — asked for on #130: "I'd love to be
+  // able to actually pick from the spotify playlist showing in Up Next.
+  // Unfortunately I can see it all, but can't press any of them."
+  //
+  // It was a <div> with no handler, which is why. Everything else was already
+  // here: `spotifyPlayUri` has taken a track plus the context it sits in since it
+  // was written, and the playlist rows below have always been buttons. The queue
+  // just never carried the context's identity, so it could not ask for the one
+  // thing that makes a tap behave like Spotify's own: play THIS track and carry
+  // on through the rest of the list.
+  //
+  // A row with no uri (Spotify occasionally answers with a local file or a
+  // podcast episode it will not name) stays an inert div rather than a button
+  // that does nothing when pressed.
+  function trackRow(tk, contextUri) {
+    const playable = !!(tk && tk.uri && connected === true);
+    const row = el(playable ? 'button' : 'div', 'sp-track' + (playable ? ' is-playable' : ''));
+    if (playable) row.type = 'button';
     const art = el('span', 'sp-track-art');
     if (tk.image) art.style.backgroundImage = 'url("' + encodeURI(tk.image) + '")';
     const meta = el('div', 'sp-track-meta');
     meta.append(el('span', 'sp-track-name', tk.name || '—'), el('span', 'sp-track-artist', tk.artist || ''));
     row.append(art, meta);
+    if (playable) {
+      row.title = t('spotify_w_play_track', 'Play this track');
+      const play = el('span', 'sp-track-play'); play.innerHTML = ICONS.play_s;   // static, trusted SVG
+      row.appendChild(play);
+      row.addEventListener('click', () => {
+        runAction(row, { type: 'spotifyPlayUri', uri: tk.uri, contextUri: contextUri || '' });
+        // The queue is about to be a different queue. Drop it so the next paint
+        // refetches instead of leaving the tapped track sitting in Up Next.
+        queue = null;
+        loadQueue().then(paint);
+      });
+    }
     return row;
   }
 
@@ -492,7 +521,7 @@
     // Skip the rebuild when nothing changed — paint() runs every 6s poll tick and the
     // queue is usually identical (avoids re-creating every row + its art each time).
     const sig = connected !== true ? 'x' : queue === null ? (rateLimited ? 'b' : 'l') : !queue.length ? 'e'
-      : 'q' + (queueReliable ? '' : '~') + queue.map(tk => (tk.uri || tk.name || '')).join('|');
+      : 'q' + (queueReliable ? '' : '~') + queueContext + ':' + queue.map(tk => (tk.uri || tk.name || '')).join('|');
     if (panel.dataset.spSig === sig) return;
     panel.dataset.spSig = sig;
     if (connected !== true) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_notlinked', 'Not linked'))); return; }
@@ -510,7 +539,7 @@
     if (!queueReliable) {
       frag.appendChild(el('div', 'sp-queue-note', t('spotify_w_queue_guess', 'Approximate — Spotify only knows the exact order inside a playlist or album')));
     }
-    queue.forEach(tk => frag.appendChild(trackRow(tk)));
+    queue.forEach(tk => frag.appendChild(trackRow(tk, queueContext)));
     panel.replaceChildren(frag);
   }
 
@@ -685,8 +714,9 @@
         if (d && d.ok && Array.isArray(d.queue)) {
           queue = d.queue;
           queueReliable = d.reliable !== false;   // default trusting; only an explicit false marks it a guess
+          queueContext = typeof d.contextUri === 'string' ? d.contextUri : '';
         } else if (d && d.error === 'no_playback') {
-          queue = []; queueReliable = true;       // definitive: nothing is playing → the old list is dead
+          queue = []; queueReliable = true; queueContext = '';   // definitive: nothing is playing → the old list is dead
         }
         // else: a FAILED read (rate limit, network) is not an empty queue — keep
         // the last known list; a never-loaded queue stays null so paintQueue can

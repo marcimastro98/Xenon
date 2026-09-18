@@ -265,6 +265,29 @@
 .sp-track-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
 .sp-track-name { font-size: 0.8rem; font-weight: 700; color: var(--text, #e7e9ee); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sp-track-artist { font-size: 0.7rem; font-weight: 600; color: var(--text-dim, #8b91a1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A row you can press. Deliberately the same affordance as a playlist row — the
+   green tint on hover and the play disc that grows in — because it is the same
+   act: tap a thing, that thing plays. A row Spotify gave us no uri for is left a
+   plain div, so it never looks pressable without being. */
+.sp-track.is-playable {
+  cursor: pointer; text-align: left; font: inherit; color: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.sp-track.is-playable:hover:not(:disabled) { background: var(--sp-green-soft); border-color: rgba(30,215,96,0.35); }
+.sp-track.ok { border-color: rgba(30,215,96,0.6); }
+.sp-track.err { border-color: rgba(237,66,69,0.65); }
+.sp-track-play {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 50%; color: #06210f; background: var(--sp-green);
+  opacity: 0; transform: scale(0.8); transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.sp-track-play svg { width: 13px; height: 13px; margin-left: 1px; }
+.sp-track.is-playable:hover .sp-track-play { opacity: 1; transform: scale(1); }
+/* Touchscreens have no hover: on the Edge the disc is simply always there, at a
+   lower weight so it reads as available rather than as the thing in focus. */
+@media (hover: none) {
+  .sp-track.is-playable .sp-track-play { opacity: 0.85; transform: scale(1); }
+}
 
 /* ── Playlists ──────────────────────────────────────────────────── */
 .sp-pl {

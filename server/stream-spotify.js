@@ -380,6 +380,8 @@ function createSpotifyProvider(deps) {
       current,
       queue: normalizeQueue(raw, current, p && p.ok ? p : null),
       reliable,
+      // What the queue is a queue OF, so a tapped row can resume the rest of it.
+      contextUri: (p && p.ok && p.contextUri) ? p.contextUri : '',
     };
   }
 
@@ -510,6 +512,12 @@ function createSpotifyProvider(deps) {
       // loose/"random" track (single, Liked Songs, radio). Consumed by getQueue to
       // decide whether Spotify's Up Next order can be trusted.
       context: (data.context && data.context.type) ? String(data.context.type) : '',
+      // …and the context's own URI. Playing one track OUT of a playlist needs it:
+      // `context_uri` + `offset` is what makes Spotify continue through the rest of
+      // the list afterwards, where a bare track uri would strand playback at the
+      // end of that one song. Only the type was exposed before, which was all
+      // getQueue needed; tapping a row in Up Next needs the identity.
+      contextUri: (data.context && data.context.uri) ? String(data.context.uri) : '',
       device: dev ? (dev.name || '') : '',
       volume: (dev && dev.volume_percent != null) ? dev.volume_percent : null,
       supportsVolume: !!(dev && dev.supports_volume),
@@ -944,10 +952,17 @@ function createSpotifyProvider(deps) {
     // the named track plays on its own. That is the old behaviour, which is a
     // smaller surprise than the wrong song.
     const usable = ctx && CONTEXT_RE.test(ctx) && u.startsWith('spotify:track:') && !ctx.startsWith('spotify:artist:');
-    let body;
-    if (usable) body = { context_uri: ctx, offset: { uri: u } };
-    else body = u.startsWith('spotify:track:') ? { uris: [u] } : { context_uri: u };
-    const r = await apiRequest('PUT', '/me/player/play', body);
+    const bare = u.startsWith('spotify:track:') ? { uris: [u] } : { context_uri: u };
+    const body = usable ? { context_uri: ctx, offset: { uri: u } } : bare;
+    let r = await apiRequest('PUT', '/me/player/play', body);
+    // A queue holds tracks the CONTEXT does not: anything added with "add to
+    // queue" sits in Up Next while belonging to no playlist, and Spotify rejects
+    // an offset naming a track its context has never heard of. The API gives us no
+    // way to tell those rows apart beforehand, so the offset is attempted and the
+    // named track is played on its own if it is refused — a tap always plays the
+    // song that was tapped, and only loses the "carry on through the list" part
+    // that could not have applied anyway.
+    if (!r.ok && usable) r = await apiRequest('PUT', '/me/player/play', bare);
     return r.ok ? { ok: true } : { ok: false, error: r.error || 'play_failed', status: r.status || 0 };
   }
 
