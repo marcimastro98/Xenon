@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### ✨ Added
+- **A Deck key's second face can now carry a real icon, not just an emoji.** Asked on Discord as *"is it possible to assign two icons to a single button in the Deck widget and toggle between them"*, answered with "a key can already carry two faces" — and then, on trying it: *"is this feature active? I cannot find it."*
+
+  It was active, and it was narrower than the answer implied. The face shown while a key's state is ON took an **emoji**, a label and a colour: a text box capped at eight characters. So "two faces" meant two emoji, and someone looking for the icon picker found a field asking for 🔴.
+
+  The active face now takes exactly what the normal face takes — an icon from the built-in library, a picture you upload, or an emoji — through the same picker and the same checks. A microphone that becomes a **crossed-out microphone** while muted, a record dot that becomes a **stop square** while recording: the icon swaps the instant your script posts the state, on the dashboard and in the Virtual Deck alike.
+
+  An uploaded picture sits as a compact icon rather than taking over the whole cap, so the flip is a glyph changing and not the key changing shape. Faces set before this keep working untouched, including inside shared profile codes.
+
+  It also says where it is now, which was half the problem: **key editor → Effects → Look while active**. It had been described as living under Appearance, which is not where it is.
+
 - **You can pick a track out of the Spotify widget's Up Next.** Asked for on GitHub: *"I'd love to be able to actually pick from the spotify playlist showing in Up Next. Unfortunately I can see it all, but can't press any of them. I can only use back and forward."*
 
   Tap any row and it plays. Not just that song either — when the queue belongs to a playlist or an album, Xenon starts it **inside** that list, so playback carries on through the rest exactly as it would in Spotify itself, rather than stopping dead at the end of the one track you picked.

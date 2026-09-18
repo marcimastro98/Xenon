@@ -256,8 +256,9 @@ All endpoints are served from `127.0.0.1:3030`. The server validates the `Host`/
 
 A named value any local script can set, so a Deck key can mirror something Xenon
 has no integration for. Bind a key to the `scriptState` source (Deck key editor →
-*Reflect a script state*) with that name, give it an alternate ON face, and the
-key follows the script. `POST /state/set` is on the CSRF-sensitive list: a page
+*Reflect a script state*) with that name, give it a second face under **Effects →
+Look while active** (icon, label and colour — the icon can be a built-in one, a
+picture or an emoji), and the key follows the script. `POST /state/set` is on the CSRF-sensitive list: a page
 or a sandboxed widget iframe cannot reach it, a local shell can.
 
 | Method | Endpoint | Purpose |

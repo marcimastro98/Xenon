@@ -521,6 +521,13 @@
   // icon" shortcut (pulls the exe's embedded icon or the UWP tile logo).
   function buildIconPicker(existing, onChange, hooks) {
     const getAppTarget = hooks && typeof hooks.getAppTarget === 'function' ? hooks.getAppTarget : null;
+    // glyphOnly: the picker is choosing a GLYPH, not a whole cap face. Used by the
+    // active-state face, which swaps the icon in place and cannot turn the key
+    // into a full-bleed picture and back on every flip. Hides the fit chooser
+    // (a picture there is always the compact kind, and normalizeStateIcon stores
+    // it that way) and the key-level colour/size, which belong to the key rather
+    // than to one of its two faces and would read as if they applied to this one.
+    const glyphOnly = !!(hooks && hooks.glyphOnly);
     let ready = false;   // suppress onChange during construction (callers may not be initialised yet)
     const exType = existing && existing.icon && existing.icon.type;
     const isImage = exType === 'image';
@@ -692,6 +699,7 @@
     fitSel.addEventListener('change', () => { imageFit = fitSel.value; });
     fitField.appendChild(fitLbl); fitField.appendChild(fitSel);
     wrap.appendChild(fitField);
+    if (glyphOnly) { imageFit = 'small'; fitField.style.display = 'none'; }
 
     // Icon colour (builtin vector icons tint via currentColor — shown only for
     // that mode) and icon size preset (glyph icons only: a full-bleed image's
@@ -721,6 +729,7 @@
     });
     sizeField.appendChild(sizeSeg);
     wrap.appendChild(sizeField);
+    if (glyphOnly) { colField.style.display = 'none'; sizeField.style.display = 'none'; }
 
     function syncSelected() {
       emojiPanel.querySelectorAll('.deck-ed-emoji').forEach((b) => b.classList.toggle('sel', mode === 'emoji' && b.textContent === emojiVal));
@@ -1235,19 +1244,25 @@
     // emoji, label and accent that replace the base face when .is-on. Only
     // meaningful for stateful action keys; collectKey stores it as stateStyle
     // and normalizeKey re-validates every field. ──
-    let ssIconVal = (existing && existing.stateStyle && existing.stateStyle.icon) || '';
+    // The icon here is a full icon, the same as the base face's: a built-in
+    // vector, an uploaded picture or an emoji. It used to be a text box capped at
+    // eight characters, which made "a key can carry two faces" mean two EMOJI in
+    // practice — the question it kept being offered as the answer to was "assign
+    // two icons to a single button and toggle between them", and it could not.
+    // Stored values were bare strings; normalizeStateIcon reads those as the emoji
+    // they always were, so nothing saved before this changes.
+    const ssExisting = { icon: (existing && existing.stateStyle && existing.stateStyle.icon) || null };
+    if (typeof ssExisting.icon === 'string') ssExisting.icon = { type: 'emoji', value: ssExisting.icon };
     let ssLabelVal = (existing && existing.stateStyle && existing.stateStyle.label) || '';
     let ssColorVal = (existing && existing.stateStyle && existing.stateStyle.color) || '';
     const fStateStyle = field('deck_edit_statestyle');
     const ssHint = document.createElement('div'); ssHint.className = 'deck-ed-hint';
     ssHint.setAttribute('data-i18n', 'deck_statestyle_hint'); ssHint.textContent = t('deck_statestyle_hint');
     fStateStyle.appendChild(ssHint);
+    const ssIconPicker = buildIconPicker(ssExisting, null, { glyphOnly: true });
+    ssIconPicker.element.classList.add('deck-ed-subfield');
+    fStateStyle.appendChild(ssIconPicker.element);
     const ssRow = document.createElement('div'); ssRow.className = 'deck-ed-subfield';
-    const ssIconIn = input('text', ssIconVal);
-    ssIconIn.placeholder = t('deck_ph_statestyle_icon');
-    ssIconIn.maxLength = 8;
-    ssIconIn.addEventListener('input', () => { ssIconVal = ssIconIn.value.trim(); });
-    ssRow.appendChild(ssIconIn);
     const ssLabelIn = input('text', ssLabelVal);
     ssLabelIn.placeholder = t('deck_ph_statestyle_label');
     ssLabelIn.maxLength = 40;
@@ -2863,7 +2878,10 @@
         // Alternate face while ON (only useful with a state binding, but stored
         // regardless — normalizeKey validates; the renderer ignores it stateless).
         const ss = {};
-        if (ssIconVal) ss.icon = ssIconVal;
+        // read() always answers with a shaped icon, emoji-with-no-value included,
+        // so an untouched picker must not persist an icon nobody chose.
+        const ssIcon = ssIconPicker.read();
+        if (ssIcon && ssIcon.value) ss.icon = ssIcon;
         if (ssLabelVal) ss.label = ssLabelVal;
         if (ssColorVal) ss.color = ssColorVal;
         if (Object.keys(ss).length) key.stateStyle = ss;

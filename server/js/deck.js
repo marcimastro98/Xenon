@@ -1431,7 +1431,7 @@
       // the node so applyStateStyle can swap and restore them losslessly.
       if (key.stateStyle) {
         btn._deckStateStyle = key.stateStyle;
-        btn._ssBase = { ico, labelEl: label, labelText: key.title || '', accent: key.bg || '', iconFrag: null };
+        btn._ssBase = { ico, labelEl: label, labelText: key.title || '', accent: key.bg || '', iconFrag: null, iconClass: '' };
         btn._ssApplied = false;
       }
       if (window.DeckModel.evaluateKeyState(key.state, stateSnapshot)) {
@@ -3024,6 +3024,46 @@
   // and restore the original losslessly when the state turns off. The base
   // icon's real nodes are parked in a fragment (never rebuilt from strings), so
   // image/builtin faces survive the round-trip; all text goes via textContent.
+  // Fill a `.deck-ico` with the GLYPH forms of an icon: a built-in vector, a
+  // compact picture, or an emoji. Shared by the base face (below) and by the
+  // active face in applyStateStyle, so a state icon is built by the same code
+  // that builds a normal one — the alternative was a second, drifting copy that
+  // happened to support only text, which is exactly what it did support.
+  //
+  // Full-bleed pictures are deliberately not here: those restyle the whole cap
+  // (`has-image` + the label scrim) rather than filling the glyph slot, and only
+  // the base face does that. normalizeStateIcon stores an active-face picture as
+  // 'small' for the same reason.
+  function fillGlyphIcon(ico, icon) {
+    ico.textContent = '';
+    ico.classList.remove('is-builtin', 'is-img-small');
+    const type = icon && icon.type;
+    const src = type === 'image' ? safeIconSrc(icon.value) : '';
+    if (src) {
+      const img = document.createElement('img');
+      img.draggable = false;
+      img.src = src; img.alt = '';
+      ico.classList.add('is-img-small');
+      ico.appendChild(img);
+      return true;
+    }
+    if (type === 'builtin' && window.DeckIcons && window.DeckIcons.has(icon.value)) {
+      ico.classList.add('is-builtin');
+      ico.appendChild(window.DeckIcons.el(icon.value));
+      return true;
+    }
+    // Only an EMOJI is printed as text. Without that check the value of anything
+    // that failed to render — an unknown built-in id, an image whose URL was
+    // rejected — was written onto the cap as a word, so a key that should have
+    // fallen back to its base face showed `javascript:alert(1)` instead. Harmless
+    // as text (never markup, never fetched) and wrong in every other way. The base
+    // face has always tested the type here; this is the same test.
+    const text = (type === 'emoji' && icon && typeof icon.value === 'string') ? icon.value : '';
+    if (!text) return false;
+    ico.textContent = text;
+    return true;
+  }
+
   function applyStateStyle(node, on) {
     const ss = node._deckStateStyle;
     const base = node._ssBase;
@@ -3031,11 +3071,22 @@
     node._ssApplied = on;
     if (ss.icon) {
       if (on && !base.iconFrag) {
+        // Keep the base face's nodes rather than its markup: a built-in SVG or an
+        // <img> has to come back exactly as it was, and remembering the classes
+        // is what lets `is-builtin` / `is-img-small` be restored with it.
         base.iconFrag = document.createDocumentFragment();
         while (base.ico.firstChild) base.iconFrag.appendChild(base.ico.firstChild);
-        base.ico.textContent = ss.icon;
+        base.iconClass = base.ico.className;
+        if (!fillGlyphIcon(base.ico, ss.icon)) {
+          // Nothing renderable (an unknown built-in id, a rejected image): put the
+          // base face straight back rather than leaving the key blank.
+          base.ico.className = base.iconClass;
+          while (base.iconFrag.firstChild) base.ico.appendChild(base.iconFrag.firstChild);
+          base.iconFrag = null;
+        }
       } else if (!on && base.iconFrag) {
         base.ico.textContent = '';
+        base.ico.className = base.iconClass || 'deck-ico';
         base.ico.appendChild(base.iconFrag);
         base.iconFrag = null;
       }

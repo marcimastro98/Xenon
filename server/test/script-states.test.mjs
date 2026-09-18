@@ -53,7 +53,7 @@ test('a scriptState key survives normalizeDeckConfig with its name and value', (
   });
   const key = cfg.profiles[0].root.pages[0].keys.find((k) => k && k.id === 'k1');
   assert.deepEqual(key.state, { source: 'scriptState', name: 'audio-out', value: 'speakers' });
-  assert.equal(key.stateStyle.icon, '🎧');   // the second face rides along
+  assert.deepEqual(key.stateStyle.icon, { type: 'emoji', value: '🎧' });   // the second face rides along
 });
 
 // ── The server store ────────────────────────────────────────────────────────

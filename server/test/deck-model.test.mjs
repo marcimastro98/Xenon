@@ -1051,7 +1051,9 @@ test('normalizeKey keeps state.entity and a validated stateStyle, drops hostile 
     stateStyle: { icon: '🔴', label: 'ON AIR', color: '#ff3355', evil: 'x' },
   });
   assert.equal(key.state.entity, 'light.desk');
-  assert.deepEqual(key.stateStyle, { icon: '🔴', label: 'ON AIR', color: '#ff3355' });
+  // The icon was a bare string and is now a full icon; a stored string reads as
+  // the emoji it always was, so no saved (or shared) key loses its second face.
+  assert.deepEqual(key.stateStyle, { icon: { type: 'emoji', value: '🔴' }, label: 'ON AIR', color: '#ff3355' });
   const bad = keyThrough({ id: 'k', kind: 'action', stateStyle: { color: 'javascript:alert(1)' } });
   assert.equal(bad.stateStyle, undefined);   // no valid field survives → the whole block drops
 });
