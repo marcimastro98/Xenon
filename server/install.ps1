@@ -328,6 +328,38 @@ function Test-IsElevated {
   return $false
 }
 
+# -- Where node.exe is, for the launcher -------------------------------------
+# start-hidden.vbs runs the engine, and it runs with whatever environment the
+# per-logon scheduled task hands it - NOT with this installer's. Here node is
+# resolved against the machine and user PATH freshly merged in (Refresh-Path),
+# or against the usual install folders; there, neither is a given. A PC with
+# node at F:\Nodejs installed every component cleanly, registered the task, and
+# then never started the engine once - reported on Discord, Sep 2026, on a fresh
+# install and on a full reinstall alike.
+#
+# So the launcher no longer has to guess: this writes down the exact node.exe
+# this install checked, and start-hidden.vbs reads it before looking anywhere
+# else. Beside setup.log and server.log - no elevation needed, survives an
+# update of the install folder, and already removed by uninstall.ps1 with the
+# rest of that folder.
+$script:nodePathFile = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'Xenon\node-path.txt' } else { '' }
+
+function Save-NodePath {
+  param([string]$NodePath)
+  if (-not $NodePath -or -not $script:nodePathFile) { return }
+  try {
+    $dir = Split-Path -Parent $script:nodePathFile
+    if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    # Unicode (UTF-16LE), read back by the launcher as Unicode: a profile name
+    # can hold characters the system codepage cannot, and a path written in the
+    # wrong encoding points nowhere.
+    Set-Content -LiteralPath $script:nodePathFile -Value $NodePath -Encoding Unicode -Force
+  } catch {
+    # A launcher hint that could not be written is not worth failing an install
+    # over - the launcher still has its own search to fall back on.
+  }
+}
+
 function Get-NodePath {
   Refresh-Path
   $command = Get-Command node.exe -ErrorAction SilentlyContinue
@@ -1295,6 +1327,11 @@ function Start-WidgetServer {
     Start-Sleep -Milliseconds 500
   }
 
+  # Written immediately before the launch, so the launcher - here and at every
+  # logon from now on - starts the same node this install verified, whatever
+  # PATH it is handed. See Save-NodePath.
+  Save-NodePath (Get-NodePath)
+
   Write-Step 'Starting the widget server in the background...'
   Start-Process -FilePath (Join-Path $env:WINDIR 'System32\wscript.exe') -ArgumentList ('"' + $runner + '"') -WorkingDirectory $filesDir
 
@@ -1324,7 +1361,9 @@ function Start-WidgetServer {
   # offered "Try setup again", and this ran again to the same cheerful end.
   #
   # The engine writes down why it failed since v4.11.6 (server/startup-log.js),
-  # so there is now something to point at rather than a shrug.
+  # so there is now something to point at rather than a shrug - and since
+  # v4.11.9 start-hidden.vbs writes into the same file when it cannot find a
+  # node.exe to start, which is the failure that used to leave it empty.
   Write-Host ''
   Write-Host '   The engine did not answer after starting it.' -ForegroundColor Red
   Write-Host '   Everything is installed - it is the start itself that failed, so running' -ForegroundColor Yellow
@@ -1341,8 +1380,9 @@ function Start-WidgetServer {
     Write-Host "   Full log: $engineLog" -ForegroundColor Gray
   } else {
     Write-Host ''
-    Write-Host "   Nothing was written to $engineLog either, which points at node" -ForegroundColor Gray
-    Write-Host '   itself not being reachable. Open a new terminal and run: node -v' -ForegroundColor Gray
+    Write-Host "   Nothing was written to $engineLog either - so the launcher" -ForegroundColor Gray
+    Write-Host '   itself never ran. Check that the task "Xenon Edge Widget" is enabled in' -ForegroundColor Gray
+    Write-Host '   Task Manager > Startup apps, and that nothing is blocking .vbs scripts.' -ForegroundColor Gray
   }
   Write-Host '   Send that with a bug report - it names the cause.' -ForegroundColor DarkGray
 }

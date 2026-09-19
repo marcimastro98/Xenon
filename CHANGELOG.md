@@ -47,6 +47,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   If you have hit any of this, [the README section](https://github.com/marcimastro98/Xenon#if-windows-blocks-the-download-or-flags-xenon-as-a-virus) still explains how to check a download by hand and restore a quarantined file.
 
 ### 🐛 Fixed
+- **Xenon now starts even when Node.js lives somewhere unusual.** Reported by someone whose partner's Xeneon Edge worked on the first try while his own never came up: the setup found every component, said it was done, and the app sat on *"Xenon isn't finished installing"* forever. A full uninstall and reinstall changed nothing. His Node.js was on a second drive, at `F:\Nodejs`.
+
+  The engine is started on Windows by a small hidden launcher, and that launcher asked the system to find `node` by name. The installer resolves Node properly — it had already printed the exact path, run npm with it and ticked every box — but the launcher threw that away and started from scratch, with whatever environment Windows happened to hand the startup task. A Node.js anywhere but the two or three usual folders is not in it.
+
+  Worse, the whole failure was silent. Nothing was started, so nothing wrote a log, so the setup could only report that *something* had not answered and reinstalling could only find everything in place again.
+
+  The installer now writes down the exact `node.exe` it verified, and the launcher starts that one. If it has gone missing, the launcher looks in the usual folders and then through `PATH` itself, by hand, one folder at a time — which is also how it stops depending on `cmd` being findable, the same failure [issue #127](https://github.com/marcimastro98/Xenon/issues/127) caused on a PC whose `PATH` had been rewritten by a "debloat" script. And if there is genuinely no Node.js on the machine, it says so in `server.log` — the file the setup and the app splash already tell you to send — instead of leaving it empty.
+
 - **The Slideshow's frozen picture no longer shows a broken-image icon and a pale border while you game.** Reported as: *"it works fine on desktop, but pauses with a white border and a little picture broken icon top left corner"* when a game is running.
 
   While a game has the machine, the slideshow paints its current picture onto a still and drops the live one — that is how an animated GIF stops costing anything. Dropping the live one means hiding it first, and **the hide was doing nothing**: five of the widget's pieces set their own display, which quietly overrules the browser's own way of hiding an element. So what stayed on screen was a picture with no picture in it, sitting behind the still: its empty frame around the edges and a broken-image icon in the corner. It only showed with **Whole picture** fit, where the still doesn't reach the tile's edges, which is why it took a while to surface.
