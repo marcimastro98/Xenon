@@ -39,6 +39,29 @@
   let resultsHost = null;   // the live dropdown node — updated in place so typing
                             // never rebuilds the <input> (which would drop keystrokes)
 
+  // ── reorder state ──
+  // The list is drawn in watchlist order, and until now the only way to change
+  // that order was to remove a symbol and add it again at the end (asked on
+  // Discord). A grip on each row now drags it, and the new order is saved with
+  // the watchlist, so the Borsa tile and the ticker both follow it.
+  //
+  // `dragging` is module-level rather than per-list because a repaint in the
+  // middle of a drag would replace the node being dragged: quotes arrive over
+  // SSE every few seconds, and paint() rebuilds the whole list. It holds the
+  // pointer id too, so a second finger on a touchscreen cannot hijack the drag.
+  let dragging = null;
+  let repaintPending = false;
+  // A drag ends with a click on the row (the grip lives inside the row button),
+  // which would open the detail view for whatever symbol was dropped. One
+  // capture-phase swallow, armed only by a drag that actually moved — and
+  // disarmed by the next pointerdown, because whether that click arrives at all
+  // depends on the input: with pointer capture held by the grip it never fires,
+  // and an armed swallow left standing then eats the user's NEXT tap instead.
+  // Caught in a browser, not by reading: the drop looked right and the tap
+  // after it did nothing.
+  let swallowClick = false;
+  const GRIP_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>';
+
   function tiles() {
     return Array.from(document.querySelectorAll('[data-dashboard-widget="stocks"]')).filter(n => n.closest('.pager-page'));
   }
@@ -120,6 +143,9 @@
     const dir = dirOf(q.changePct);
     const r = el('button', 'sw-row sw-' + dir);
     r.type = 'button';
+    r.dataset.sym = q.symbol;
+    const grip = gripEl();
+    if (grip) r.appendChild(grip);
     const main = el('div', 'sw-row-main');
     main.append(el('div', 'sw-row-name', q.name || q.symbol), el('div', 'sw-row-sym', q.symbol));
     r.appendChild(main);
@@ -139,12 +165,144 @@
   // closed with no history) — shown muted so the user can see and remove it.
   function unresolvedRow(q) {
     const r = el('div', 'sw-row sw-row--dead');
+    r.dataset.sym = q.symbol;
+    // A symbol the provider cannot quote is still a symbol in the list, so it
+    // moves like the others — otherwise a dead row would pin everything below
+    // it to the bottom.
+    const grip = gripEl();
+    if (grip) r.appendChild(grip);
     const main = el('div', 'sw-row-main');
     main.append(el('div', 'sw-row-name', q.name || q.symbol), el('div', 'sw-row-sym', q.symbol));
     r.appendChild(main);
     r.appendChild(el('div', 'sw-row-nodata', t('stocks_no_data', 'No data')));
     r.appendChild(removeBtn(q.symbol, true));
     return r;
+  }
+
+  // One row cannot be out of order, so the grip only appears from two rows up:
+  // a handle that can do nothing is worse than no handle.
+  function reorderable() { return displayRows().length > 1; }
+
+  function gripEl() {
+    if (!reorderable()) return null;
+    const g = el('span', 'sw-row-grip');
+    g.title = t('stocks_reorder', 'Drag to reorder');
+    g.setAttribute('aria-hidden', 'true');
+    g.innerHTML = GRIP_SVG;   // static, trusted markup
+    return g;
+  }
+
+  // Pointer-driven reorder with the rows moving under the finger, rather than a
+  // drop computed at the end: on a touchscreen a list that does not move while
+  // you drag reads as a list that is not listening.
+  //
+  // The dragged row is lifted (position stays, transform follows the pointer)
+  // and the DOM order is changed live whenever the pointer passes the middle of
+  // a neighbour; the origin is re-based at each swap so the row stays under the
+  // finger. Only the final order is sent.
+  function initListDrag(list) {
+    if (list.dataset.dragBound === '1') return;
+    list.dataset.dragBound = '1';
+
+    list.addEventListener('pointerdown', (e) => {
+      swallowClick = false;                  // a new interaction: never inherit the last drag's guard
+      if (dragging || e.button > 0) return;
+      const grip = e.target.closest('.sw-row-grip');
+      if (!grip || !list.contains(grip)) return;
+      const rowEl = grip.closest('.sw-row');
+      if (!rowEl) return;
+      dragging = { list, row: rowEl, pointerId: e.pointerId, startY: e.clientY, moved: false };
+      try { grip.setPointerCapture(e.pointerId); } catch { /* not fatal: the move/up still arrive */ }
+      e.preventDefault();
+    });
+
+    list.addEventListener('pointermove', (e) => {
+      const d = dragging;
+      if (!d || d.list !== list || e.pointerId !== d.pointerId) return;
+      const dy = e.clientY - d.startY;
+      if (!d.moved) {
+        if (Math.abs(dy) <= 6) return;     // a tap on the grip is not a drag
+        d.moved = true;
+        d.row.classList.add('is-dragging');
+        list.classList.add('is-reordering');
+      }
+      d.row.style.transform = 'translateY(' + dy + 'px)';
+
+      // Swap with a neighbour once the row has travelled HALF a row, measured
+      // against that neighbour so the gap between rows is included. Comparing
+      // the two rows' midpoints instead (the obvious version) only swaps after a
+      // FULL row of travel, which feels like the list is ignoring you.
+      //
+      // The slot is derived from the live rect minus the transform rather than
+      // remembered, so a list that scrolls or reflows mid-drag cannot leave a
+      // stale origin behind.
+      const slotTop = d.row.getBoundingClientRect().top - dy;
+      const prev = d.row.previousElementSibling;
+      const next = d.row.nextElementSibling;
+      let pitch = 0;
+      if (dy < 0 && prev && prev.classList.contains('sw-row')) {
+        const p = slotTop - prev.getBoundingClientRect().top;
+        if (p > 0 && dy < -p / 2) { list.insertBefore(d.row, prev); pitch = -p; }
+      } else if (dy > 0 && next && next.classList.contains('sw-row')) {
+        const p = next.getBoundingClientRect().top - slotTop;
+        if (p > 0 && dy > p / 2) { list.insertBefore(next, d.row); pitch = p; }
+      }
+      if (pitch) {
+        // The row jumped one slot in the layout, so re-base the origin by the
+        // same distance and it stays exactly under the finger.
+        d.startY += pitch;
+        d.row.style.transform = 'translateY(' + (e.clientY - d.startY) + 'px)';
+      }
+    });
+
+    const end = (e, commit) => {
+      const d = dragging;
+      if (!d || d.list !== list || (e && e.pointerId !== d.pointerId)) return;
+      dragging = null;
+      d.row.style.transform = '';
+      d.row.classList.remove('is-dragging');
+      list.classList.remove('is-reordering');
+      if (!d.moved) return;
+      swallowClick = true;
+      if (commit) saveOrder(list);
+      else if (repaintPending) { repaintPending = false; paint(); }
+    };
+    list.addEventListener('pointerup', (e) => end(e, true));
+    list.addEventListener('pointercancel', (e) => end(e, false));
+
+    // Capture phase: the grip sits inside the row button, so without this the
+    // pointerup that ends a drag opens the dropped symbol's detail view.
+    list.addEventListener('click', (e) => {
+      if (!swallowClick) return;
+      swallowClick = false;
+      e.stopPropagation();
+      e.preventDefault();
+    }, true);
+  }
+
+  // The DOM is the order the user just made; the watchlist entries are what the
+  // server stores. Reordering the entries (rather than rebuilding them from the
+  // rows) keeps each symbol's saved name, which the rows do not carry.
+  async function saveOrder(list) {
+    const order = Array.from(list.querySelectorAll('.sw-row')).map(r => r.dataset.sym).filter(Boolean);
+    const bySym = new Map(watchlist.map(w => [w.symbol, w]));
+    const next = order.map(sym => bySym.get(sym) || { symbol: sym });
+    // Anything the list did not show (it cannot happen today, but a filtered
+    // list later must not silently drop symbols) keeps its place at the end.
+    for (const w of watchlist) if (!order.includes(w.symbol)) next.push(w);
+    if (next.length === watchlist.length && next.every((w, i) => w.symbol === watchlist[i].symbol)) {
+      if (repaintPending) { repaintPending = false; paint(); }
+      return;                                  // dropped where it started
+    }
+    const before = watchlist;
+    watchlist = next;                          // optimistic: the rows are already there
+    repaintPending = false;
+    const ok = await postWatchlist('set', '', '', next);
+    if (!ok) {
+      watchlist = before;
+      if (window.XenonToast) window.XenonToast.show({ type: 'error', title: t('stocks_add_fail', 'Could not update watchlist') });
+    }
+    paint();
   }
 
   function removeBtn(sym, always) {
@@ -286,10 +444,12 @@
     }
   }
 
-  async function postWatchlist(action, symbol, name) {
+  async function postWatchlist(action, symbol, name, list) {
     const d = await api('/api/stocks/watchlist', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, symbol, name: name || '' }),
+      body: JSON.stringify(action === 'set'
+        ? { action, watchlist: Array.isArray(list) ? list : [] }
+        : { action, symbol, name: name || '' }),
     });
     if (d && Array.isArray(d.watchlist)) watchlist = d.watchlist;   // authoritative
     return !!(d && d.ok);
@@ -472,6 +632,7 @@
       list.appendChild(el('div', 'sw-state', t('stocks_empty', 'No stocks yet — search a company above')));
     } else {
       rows.forEach(q => list.appendChild(row(q)));
+      if (reorderable()) initListDrag(list);
     }
     wrap.appendChild(list);
     mount.replaceChildren(wrap);
@@ -483,6 +644,10 @@
   }
 
   function paint() {
+    // A repaint rebuilds the list, which would delete the row under the user's
+    // finger. Quotes arrive over SSE every few seconds, so this is not a corner
+    // case; the drag's end runs the repaint it held back.
+    if (dragging) { repaintPending = true; return; }
     tiles().forEach(tile => {
       const mount = tile.querySelector('.stocks-widget-mount');
       if (!mount) return;

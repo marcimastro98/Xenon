@@ -77,6 +77,39 @@
 .sw-row-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex: 0 0 auto; font-variant-numeric: tabular-nums; }
 .sw-row-price { font-weight: 700; font-size: 14px; color: var(--text, #f0f3f1); }
 
+/* Drag handle (reorder). Unlike the remove ×, it is always faintly visible:
+   the tile's home is a touchscreen, where there is no hover to reveal it and a
+   control nobody can see is a control nobody has. */
+.sw-row-grip {
+  flex: 0 0 auto; width: 18px; height: 26px; margin-left: -4px;
+  display: grid; place-items: center;
+  color: var(--text, #f0f3f1); opacity: 0.28;
+  cursor: grab; touch-action: none;           /* the pointer stream is ours, not the scroller's */
+  transition: opacity 0.12s;
+}
+.sw-row:hover .sw-row-grip { opacity: 0.5; }
+.sw-row-grip:hover { opacity: 0.85; }
+.sw-row-grip svg { width: 16px; height: 16px; fill: currentColor; }
+
+/* The row being dragged rides above the others and stops animating its
+   neighbours' transitions out from under itself. */
+.sw-list.is-reordering { cursor: grabbing; }
+.sw-list.is-reordering .sw-row { transition: none; }
+.sw-row.is-dragging {
+  position: relative; z-index: 2;
+  /* Opaque base + the lift tint on top, in two layers. A translucent row shows
+     the row it is passing over straight through itself, which reads as two
+     rows fighting for one slot rather than one row being carried. --panel is
+     the themed surface, so this follows light mode and the themes. */
+  background-color: var(--panel, #111314);
+  background-image: linear-gradient(rgba(255,255,255,0.1), rgba(255,255,255,0.1));
+  border-color: rgba(255,255,255,0.2);
+  box-shadow: 0 10px 26px rgba(0,0,0,0.38);
+  cursor: grabbing;
+}
+.sw-row.is-dragging:active { transform: none; }   /* the transform is the drag's */
+.sw-row.is-dragging .sw-row-grip { opacity: 0.85; cursor: grabbing; }
+
 /* per-row remove (× on hover, always shown for dead rows) */
 .sw-row-rm {
   flex: 0 0 auto; width: 26px; height: 26px; display: grid; place-items: center; margin-right: -4px;
@@ -167,6 +200,10 @@
 :root[data-appearance="light"] .sw-row,
 :root[data-appearance="light"] .sw-stat { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.08); }
 :root[data-appearance="light"] .sw-row:hover { background: rgba(0,0,0,0.055); }
+:root[data-appearance="light"] .sw-row.is-dragging {
+  background-image: linear-gradient(rgba(0,0,0,0.06), rgba(0,0,0,0.06));
+  border-color: rgba(0,0,0,0.18); box-shadow: 0 10px 26px rgba(0,0,0,0.16);
+}
 :root[data-appearance="light"] .sw-count,
 :root[data-appearance="light"] .sw-result-type { background: rgba(0,0,0,0.06); }
 :root[data-appearance="light"] .sw-chart-base { stroke: rgba(0,0,0,0.2); }
@@ -175,5 +212,5 @@
 :root[data-appearance="light"] .sw-pill--flat { background: rgba(0,0,0,0.06); }
 
 @media (prefers-reduced-motion: reduce) {
-  .sw-row, .sw-range, .sw-result, .sw-row-rm { transition: none; }
+  .sw-row, .sw-range, .sw-result, .sw-row-rm, .sw-row-grip { transition: none; }
 }

@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### ✨ Added
+- **You can re-order the list of stocks by dragging.** Asked on Discord: *"is there a way to re-order the list of stocks? besides deleting and re-adding"*. There was not — the Borsa tile drew the watchlist in the order it was stored, and adding a symbol always put it at the end, so putting one at the top meant removing everything above it and adding it all back.
+
+  Each row now has a handle on its left. Drag it and the rows move under your finger; let go and the order is saved. The **scrolling ticker** reads the same list, so it follows too, and so does any SDK widget on the `stocks` stream.
+
+  It is built for the screen it lives on: the handle is always faintly visible rather than waiting for a hover the Xeneon Edge will never get, a row swaps after **half** a row of travel rather than a whole one, and a quote arriving over the live feed mid-drag no longer rebuilds the list out from under you. A single symbol shows no handle — one row cannot be out of order.
+
 - **A Deck key's second face can now carry a real icon, not just an emoji.** Asked on Discord as *"is it possible to assign two icons to a single button in the Deck widget and toggle between them"*, answered with "a key can already carry two faces" — and then, on trying it: *"is this feature active? I cannot find it."*
 
   It was active, and it was narrower than the answer implied. The face shown while a key's state is ON took an **emoji**, a label and a colour: a text box capped at eight characters. So "two faces" meant two emoji, and someone looking for the icon picker found a field asking for 🔴.

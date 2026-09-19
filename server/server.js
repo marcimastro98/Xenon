@@ -15317,7 +15317,12 @@ const handleRequest = async (req, res) => {
       let wl = Array.isArray(cur.stocks && cur.stocks.watchlist) ? cur.stocks.watchlist.slice() : [];
       const action = String(body.action || '').toLowerCase();
       if (action === 'set' && Array.isArray(body.watchlist)) {
-        wl = body.watchlist;
+        // Through the same normalizer 'add' effectively goes through, rather
+        // than storing the posted array as it arrives: 'set' is what the
+        // widget's drag-to-reorder posts, so this is now a user-facing path and
+        // has to clean symbols, cap names and drop duplicates like every other.
+        wl = stocks.normalizeWatchlist(body.watchlist);
+        if (!wl.length) { res.writeHead(400); res.end('bad watchlist'); return; }
       } else if (action === 'remove') {
         const sym = stocks.cleanSymbol(body.symbol);
         wl = wl.filter(w => w.symbol !== sym);
