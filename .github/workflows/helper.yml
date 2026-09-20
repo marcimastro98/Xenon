@@ -33,7 +33,15 @@ concurrency:
 
 jobs:
   build:
-    runs-on: windows-latest
+    # The signing machine, not a hosted runner. The certificate lives behind
+    # the SimplySign virtual card, in the interactive session of the user who
+    # logged in, and cannot be handed to GitHub as a secret - so the Windows
+    # half of a release is built where the card is. The runner is started by
+    # hand (run.cmd) in that session, never installed as a service: a service
+    # runs in session 0 and sees no card. To release unsigned from a hosted
+    # runner instead, put windows-latest back here AND unset
+    # WINDOWS_SIGN_THUMBPRINT, or the certificate check below fails on purpose.
+    runs-on: [self-hosted, windows, xenon-signing]
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -53,9 +61,10 @@ jobs:
         env:
           IN_THUMBPRINT: ${{ secrets.WINDOWS_SIGN_THUMBPRINT }}
         run: |
-          # Opt-in on one secret, and unset is this repo's state until the
-          # certificate lands: no secret means the step says so and exits 0,
-          # leaving the exe exactly as it shipped before.
+          # Opt-in on one secret: unset means the step says so and exits 0,
+          # leaving the exe exactly as it shipped before. Set, the certificate
+          # must actually be in this runner's store - see the native job for
+          # why that is asserted rather than assumed.
           #
           # The test lives in the shell because the `secrets` context is not
           # available to step `if:` conditionals - the same constraint the
@@ -64,7 +73,12 @@ jobs:
             Write-Host 'no code-signing certificate configured - shipping xenon-helper.exe unsigned'
             exit 0
           }
-          $env:XENON_SIGN_THUMBPRINT = $env:IN_THUMBPRINT
+          $thumb = ($env:IN_THUMBPRINT -replace '[^0-9A-Fa-f]', '').ToUpperInvariant()
+          $cert = Get-ChildItem "Cert:\CurrentUser\My\$thumb" -ErrorAction SilentlyContinue
+          if (-not $cert -or -not $cert.HasPrivateKey) {
+            throw "WINDOWS_SIGN_THUMBPRINT is set but certificate $thumb is not usable in Cert:\CurrentUser\My on this runner. This job has to run on the signing machine, with SimplySign Desktop logged in."
+          }
+          $env:XENON_SIGN_THUMBPRINT = $thumb
           & "$env:GITHUB_WORKSPACE/tools/sign-windows.ps1" -Path 'out/xenon-helper.exe'
 
       - name: Attach exe to the release

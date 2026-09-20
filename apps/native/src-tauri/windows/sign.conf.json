@@ -9,8 +9,10 @@
           "-NonInteractive",
           "-ExecutionPolicy",
           "Bypass",
-          "-Command",
-          "& $env:XENON_SIGN_SCRIPT -Path \"%1\""
+          "-File",
+          "__XENON_SIGN_SCRIPT__",
+          "-Path",
+          "%1"
         ]
       }
     }

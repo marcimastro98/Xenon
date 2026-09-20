@@ -48,7 +48,15 @@ concurrency:
 
 jobs:
   build:
-    runs-on: windows-latest
+    # The signing machine, not a hosted runner. The certificate lives behind
+    # the SimplySign virtual card, in the interactive session of the user who
+    # logged in, and cannot be handed to GitHub as a secret - so the Windows
+    # half of a release is built where the card is. The runner is started by
+    # hand (run.cmd) in that session, never installed as a service: a service
+    # runs in session 0 and sees no card. To release unsigned from a hosted
+    # runner instead, put windows-latest back here AND unset
+    # WINDOWS_SIGN_THUMBPRINT, or the certificate check below fails on purpose.
+    runs-on: [self-hosted, windows, xenon-signing]
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -92,15 +100,44 @@ jobs:
             Write-Host '::warning::unsigned build: SmartScreen and Defender reputation restarts from zero for this release'
             exit 0
           }
+          $thumb = ($env:IN_THUMBPRINT -replace '[^0-9A-Fa-f]', '').ToUpperInvariant()
+          # The certificate lives in the SIGNING MACHINE's store, behind the
+          # SimplySign virtual card, in the session that logged in. A secret
+          # naming it on a machine that does not have it - a hosted runner, or
+          # this one with SimplySign logged out - has to fail HERE, before three
+          # minutes of compile, and never become an unsigned build that looks
+          # like the real thing.
+          $cert = Get-ChildItem "Cert:\CurrentUser\My\$thumb" -ErrorAction SilentlyContinue
+          if (-not $cert) {
+            throw "WINDOWS_SIGN_THUMBPRINT is set but no certificate $thumb is in Cert:\CurrentUser\My on this runner. This job has to run on the signing machine, with SimplySign Desktop logged in."
+          }
+          if (-not $cert.HasPrivateKey) {
+            throw "certificate $thumb is in the store but has no private key - is the SimplySign session open?"
+          }
+          Write-Host "signing as: $($cert.Subject)"
           $script = Join-Path $env:GITHUB_WORKSPACE 'tools/sign-windows.ps1'
-          $config = Join-Path $env:GITHUB_WORKSPACE 'apps/native/src-tauri/windows/sign.conf.json'
-          foreach ($f in @($script, $config)) {
+          $template = Join-Path $env:GITHUB_WORKSPACE 'apps/native/src-tauri/windows/sign.conf.json'
+          foreach ($f in @($script, $template)) {
             if (-not (Test-Path -LiteralPath $f)) { throw "signing was requested but $f is missing" }
           }
-          "XENON_SIGN_THUMBPRINT=$($env:IN_THUMBPRINT)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          # Tauri substitutes %1 only in an argument that IS "%1" - never inside
+          # a longer string (measured: "inside-%1-string" arrives verbatim). So
+          # the script is invoked with -File and an absolute path, and that path
+          # is filled in here, where it is known, rather than committed. Through
+          # the JSON parser, so a backslash can never break the file.
+          $cfg = Get-Content -LiteralPath $template -Raw | ConvertFrom-Json
+          $argv = $cfg.bundle.windows.signCommand.args
+          $filled = $false
+          for ($i = 0; $i -lt $argv.Count; $i++) {
+            if ($argv[$i] -eq '__XENON_SIGN_SCRIPT__') { $argv[$i] = $script; $filled = $true }
+          }
+          if (-not $filled) { throw 'sign.conf.json has no __XENON_SIGN_SCRIPT__ placeholder to fill' }
+          $config = Join-Path $env:RUNNER_TEMP 'sign.conf.json'
+          $cfg | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $config -Encoding utf8
+          "XENON_SIGN_THUMBPRINT=$thumb" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "XENON_SIGN_SCRIPT=$script" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "XENON_SIGN_CONFIG=$config" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          Write-Host 'signing enabled for this build'
+          Write-Host "signing enabled; overlay at $config"
 
       # Before the build, not after: the script is bundled INTO the installer
       # as a Tauri resource, so signing it afterwards would sign a copy nobody
@@ -139,6 +176,7 @@ jobs:
         if: env.XENON_SIGN_THUMBPRINT != ''
         shell: pwsh
         run: |
+          $PSNativeCommandUseErrorActionPreference = $false
           $setup = Get-ChildItem 'apps/native/src-tauri/target/release/bundle/nsis' -Filter *-setup.exe |
             Select-Object -First 1
           if (-not $setup) { throw 'no installer was produced' }
@@ -147,10 +185,32 @@ jobs:
             throw "the installer is not validly signed: $($sig.Status) - $($sig.StatusMessage)"
           }
           Write-Host "installer signed by: $($sig.SignerCertificate.Subject)"
-          # The exe INSIDE the installer cannot be read without unpacking the
-          # NSIS payload. Tauri signs it through the same signCommand, but
-          # confirm it by hand on the first signed release: install, then run
-          # Get-AuthenticodeSignature on %LOCALAPPDATA%\Xenon\xenon-native.exe.
+          # The exe INSIDE the installer is the one antivirus quarantines
+          # mid-session, and target/release/xenon-native.exe says nothing about
+          # it: Tauri signs the copy it packs and restores the unsigned original
+          # on disk afterwards (measured). So the installer is unpacked and the
+          # copy that ships is checked. 7-Zip reads NSIS installers.
+          $sz = @("$env:ProgramFiles\7-Zip\7z.exe", "${env:ProgramFiles(x86)}\7-Zip\7z.exe") |
+            Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $sz) { $sz = (Get-Command 7z.exe -ErrorAction SilentlyContinue).Source }
+          if (-not $sz) {
+            Write-Host '::warning::7-Zip is not on this runner, so the exe inside the installer was not verified - install 7-Zip on the signing machine'
+            exit 0
+          }
+          $dir = Join-Path $env:RUNNER_TEMP 'nsis-check'
+          if (Test-Path $dir) { Remove-Item $dir -Recurse -Force }
+          & $sz x -y "-o$dir" $setup.FullName | Out-Null
+          if ($LASTEXITCODE -gt 1) { throw "7-Zip could not unpack the installer (exit $LASTEXITCODE)" }
+          foreach ($name in @('xenon-native.exe', 'xenon-bootstrap.ps1')) {
+            $inner = Get-ChildItem $dir -Recurse -Filter $name | Select-Object -First 1
+            if (-not $inner) { throw "$name was not found inside the installer" }
+            $isig = Get-AuthenticodeSignature -LiteralPath $inner.FullName
+            if ($isig.Status -ne 'Valid') {
+              throw "$name inside the installer is not validly signed: $($isig.Status) - $($isig.StatusMessage)"
+            }
+            Write-Host "$name inside the installer signed by: $($isig.SignerCertificate.Subject)"
+          }
+          Remove-Item $dir -Recurse -Force
 
       - name: Compose latest.json and stage artifacts
         shell: pwsh
