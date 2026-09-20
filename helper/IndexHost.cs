@@ -124,7 +124,7 @@ internal static class IndexHost
         {
             var need = a.Length + b.Length;
             if (need > ChunkSize) throw new InvalidOperationException("name too long");
-            if (_pos + need > ChunkSize) { _chunks.Add(new byte[ChunkSize]); _pos = 0; }
+            if (_chunks.Count == 0 || _pos + need > ChunkSize) { _chunks.Add(new byte[ChunkSize]); _pos = 0; }
             var c = _chunks[_chunks.Count - 1];
             a.CopyTo(c.AsSpan(_pos));
             b.CopyTo(c.AsSpan(_pos + a.Length));
@@ -172,6 +172,8 @@ internal static class IndexHost
     // table ~6 bytes per key at its load factor.
     private sealed class IdTable<TKeys> where TKeys : struct, IKeys
     {
+        // Load factor 7/10: grow (or rehash out the deleted slots) past it.
+        private const int LoadNum = 10, LoadDen = 7;
         private int[] _slots = new int[1 << 16];
         private int _count, _deleted;
 
@@ -192,7 +194,7 @@ internal static class IndexHost
         // Callers Find() first: Add never checks for a duplicate.
         public void Add(int hash, int id)
         {
-            if ((_count + _deleted + 1) * 10 > _slots.Length * 7) Rehash(_slots.Length * (_count * 10 > _slots.Length * 4 ? 2 : 1));
+            if ((_count + _deleted + 1) * LoadNum > (long)_slots.Length * LoadDen) Rehash(_slots.Length * (_count * LoadNum > (long)_slots.Length * 4 ? 2 : 1));
             var mask = _slots.Length - 1;
             var i = hash & mask;
             while (_slots[i] > 0) i = (i + 1) & mask;
@@ -216,19 +218,20 @@ internal static class IndexHost
         }
 
         // Drop probe garbage and growth slack: exact size for what is stored.
-        public void Rebuild(int expected)
-        {
-            var size = 1 << 16;
-            while (size * 7 < (long)expected * 10) size <<= 1;
-            Rehash(size);
-        }
+        public void Rebuild(int expected) => Rehash(SizeFor(expected));
 
         public void Reset(int expected)
         {
-            var size = 1 << 16;
-            while (size * 7 < (long)expected * 10) size <<= 1;
-            _slots = new int[size];
+            _slots = new int[SizeFor(expected)];
             _count = 0; _deleted = 0;
+        }
+
+        // Smallest power of two that keeps `expected` keys under the load factor.
+        private static int SizeFor(int expected)
+        {
+            var size = 1 << 16;
+            while (size * LoadDen < (long)expected * LoadNum) size <<= 1;
+            return size;
         }
 
         private void Rehash(int newSize)
@@ -334,7 +337,9 @@ internal static class IndexHost
     public static int Run(string[] args)
     {
         if (args.Length < 2) { Console.Error.WriteLine("usage: xenon-helper index-serve <root> [root ...]"); return 2; }
-        lock (Gate) RegisterRootsLocked(args.Skip(1).Select(NormalizeDir).ToArray());
+        var roots = args.Skip(1).Select(a => NormalizeDir(a.Trim())).Where(r => r.TrimEnd('\\').Length > 0).ToArray();
+        if (roots.Length == 0) { Console.Error.WriteLine("index-serve: no usable root"); return 2; }
+        lock (Gate) RegisterRootsLocked(roots);
 
         // Build + watch in the background; the main thread is the request loop
         // so queries answer DURING the initial walk (partial results are honest:
@@ -407,7 +412,10 @@ internal static class IndexHost
             {
                 Emit(new Dictionary<string, object?> { ["id"] = id, ["ok"] = false, ["err"] = ex.Message });
             }
-            TrimHeapIfDue();
+            // Only once built: during the walk the marks are unset and the
+            // walk itself is allocating, so a stats poll every 1.8 s would
+            // pay a full compacting GC every 5 s for the whole build.
+            if (Ready) TrimHeapIfDue();
         }
         Cancelled = true;
         foreach (var w in Watchers) { try { w.Dispose(); } catch { } }
@@ -714,8 +722,11 @@ internal static class IndexHost
         return ans;
     }
 
-    // The first-level child of the scope that `dir` sits in: -1 when dir IS
-    // the scope (its direct files), -2 when it is not under it at all.
+    // The first-level child of the queried path that `dir` sits in: -1 when
+    // dir IS that path (its direct files), -2 when it is not under it at all.
+    // When the path is ABOVE the roots (asked about "E:\\" with a root of
+    // E:\\Games) the root itself is the child, as the old string-prefix
+    // version answered — which is what `Scope.Self` distinguishes.
     private const int ChildUnknown = -3;
     private static int ChildUnder(int dir, in Scope sc, int[] memo)
     {
@@ -727,7 +738,13 @@ internal static class IndexHost
             if (cur < 0) { result = -2; break; }
             var m = memo[cur];
             if (m != ChildUnknown) { result = m == -1 ? (prev < 0 ? -1 : prev) : m; break; }
-            if (sc.Contains(cur)) { memo[cur] = -1; result = prev < 0 ? -1 : prev; break; }
+            if (sc.Contains(cur))
+            {
+                var own = cur == sc.Self ? -1 : cur;
+                memo[cur] = own;
+                result = own == -1 ? (prev < 0 ? -1 : prev) : own;
+                break;
+            }
             prev = cur;
             cur = DirNodes[cur].Parent;
         }
@@ -737,16 +754,32 @@ internal static class IndexHost
 
     private static int[] NewChildMemo() { var m = new int[DirNodes.Count]; Array.Fill(m, ChildUnknown); return m; }
 
-    // Dir ids of `dir` and every ancestor of it up to and including the scope.
-    private static int[] AncestorChain(int dir, in Scope sc)
+    // Per-directory totals, one flat slot per dir id: an entry counts toward
+    // its own directory and every ancestor up to the scope. A walk up the
+    // tree is a few integer hops, so this replaces the per-directory ancestor
+    // arrays (280k of them per overview) the string-path version needed.
+    private sealed class DirTotals
     {
-        var list = new List<int>(8);
-        for (var d = dir; d >= 0; d = DirNodes[d].Parent)
+        public readonly long[] Size, Count, Mtime;
+        public DirTotals(int dirs) { Size = new long[dirs]; Count = new long[dirs]; Mtime = new long[dirs]; }
+        public void Add(int dir, in Scope sc, long size, long mtime)
         {
-            list.Add(d);
-            if (sc.Contains(d)) return list.ToArray();
+            for (var d = dir; d >= 0; d = DirNodes[d].Parent)
+            {
+                Size[d] += size; Count[d]++; if (mtime > Mtime[d]) Mtime[d] = mtime;
+                if (sc.Contains(d)) return;
+            }
         }
-        return Array.Empty<int>();
+        // Dirs at or above minBytes, largest first, at most max.
+        public List<Dictionary<string, object?>> Report(long minBytes, int max)
+        {
+            var ids = new List<int>();
+            for (var d = 0; d < Size.Length; d++) if (Count[d] > 0 && Size[d] >= minBytes) ids.Add(d);
+            ids.Sort((a, b) => Size[b].CompareTo(Size[a]));
+            if (ids.Count > max) ids.RemoveRange(max, ids.Count - max);
+            return ids.Select(d => new Dictionary<string, object?>
+            { ["p"] = DirPathLocked(d), ["s"] = Size[d], ["n"] = Count[d], ["m"] = Mtime[d] }).ToList();
+        }
     }
 
     // ── request handlers ──────────────────────────────────────────────────────
@@ -885,8 +918,6 @@ internal static class IndexHost
             }
         }
 
-        var aggregate = new Dictionary<int, (long s, long n, long m)>();
-        var chains = new Dictionary<int, int[]>();
         var top = new List<(long s, int idx)>(topMax * 2);
         var bySize = new Dictionary<long, List<int>>();
         var detailFiles = new List<Dictionary<string, object?>>();
@@ -899,6 +930,7 @@ internal static class IndexHost
         {
             var sc = ScopeOfLocked(path);
             var under = new byte[DirNodes.Count];
+            var aggregate = new DirTotals(DirNodes.Count);
             var detailScopes = new Scope[detailPaths.Count];
             var detailMemos = new byte[detailPaths.Count][];
             for (var d = 0; d < detailPaths.Count; d++) { detailScopes[d] = ScopeOfLocked(detailPaths[d]); detailMemos[d] = new byte[DirNodes.Count]; }
@@ -912,17 +944,7 @@ internal static class IndexHost
 
                 total += en.Size;
                 count++;
-
-                if (!chains.TryGetValue(en.Dir, out var chain))
-                {
-                    chain = AncestorChain(en.Dir, in sc);
-                    chains[en.Dir] = chain;
-                }
-                foreach (var d in chain)
-                {
-                    aggregate.TryGetValue(d, out var b);
-                    aggregate[d] = (b.s + en.Size, b.n + 1, Math.Max(b.m, en.Mtime));
-                }
+                aggregate.Add(en.Dir, in sc, en.Size, en.Mtime);
 
                 top.Add((en.Size, i));
                 if (top.Count > topMax * 4)
@@ -955,13 +977,7 @@ internal static class IndexHost
             top.Sort((a, b) => b.s.CompareTo(a.s));
             if (top.Count > topMax) top.RemoveRange(topMax, top.Count - topMax);
 
-            var dirs = aggregate.Where(kv => kv.Value.s >= dirMinBytes)
-                .OrderByDescending(kv => kv.Value.s).Take(dirMax)
-                .Select(kv => new Dictionary<string, object?>
-                {
-                    ["p"] = DirPathLocked(kv.Key), ["s"] = kv.Value.s,
-                    ["n"] = kv.Value.n, ["m"] = kv.Value.m,
-                }).ToList();
+            var dirs = aggregate.Report(dirMinBytes, dirMax);
             var topFiles = top.Select(x => Item(in Entries[x.idx], dirCache)).ToList();
             var groups = bySize.Where(kv => kv.Value.Count > 1)
                 .OrderByDescending(kv => kv.Key).Take(dupeMax)
@@ -1082,31 +1098,19 @@ internal static class IndexHost
         long minBytes = Num(req, "minBytes") ?? DefaultDirMinBytes;
         int max = (int)Math.Max(1, Math.Min(20000, Num(req, "max") ?? 5000));
         // Aggregate EVERY dir (each entry counts toward all its ancestors under
-        // path). One pass with a per-dir ancestor chain cache.
-        var agg = new Dictionary<int, (long s, long n, long m)>();
-        var chains = new Dictionary<int, int[]>();
+        // path). One pass, integer hops up the tree.
         lock (Gate)
         {
             var sc = ScopeOfLocked(path);
+            var under = new byte[DirNodes.Count];
+            var agg = new DirTotals(DirNodes.Count);
             for (int i = 0; i < Entries.Count; i++)
             {
                 ref var en = ref Entries[i];
-                if (en.Dir < 0) continue;
-                if (!chains.TryGetValue(en.Dir, out var chain))
-                {
-                    chain = AncestorChain(en.Dir, in sc);
-                    chains[en.Dir] = chain;
-                }
-                foreach (var d in chain)
-                {
-                    agg.TryGetValue(d, out var b);
-                    agg[d] = (b.s + en.Size, b.n + 1, Math.Max(b.m, en.Mtime));
-                }
+                if (en.Dir < 0 || !IsUnder(en.Dir, in sc, under)) continue;
+                agg.Add(en.Dir, in sc, en.Size, en.Mtime);
             }
-            var items = agg.Where(kv => kv.Value.s >= minBytes)
-                .OrderByDescending(kv => kv.Value.s).Take(max)
-                .Select(kv => new Dictionary<string, object?> { ["p"] = DirPathLocked(kv.Key), ["s"] = kv.Value.s, ["n"] = kv.Value.n, ["m"] = kv.Value.m })
-                .ToList();
+            var items = agg.Report(minBytes, max);
             return new Dictionary<string, object?> { ["items"] = items, ["building"] = !Ready };
         }
     }
@@ -1200,11 +1204,14 @@ internal static class IndexHost
                 ["files"] = (long)(Entries.Count - Tombstones),
                 ["dirs"] = (long)DirNodes.Count,
                 ["bytes"] = TotalBytes,
-                // The process working set — what Task Manager shows for this
-                // exe. GC.GetTotalMemory reported the managed heap alone and
-                // read 603 MB against a measured 814 MB of private memory: the
-                // one number the UI promises to be honest about was not.
-                ["ramMB"] = Environment.WorkingSet / (1024 * 1024),
+                // The process's private bytes: what it has committed and
+                // nobody else shares, the figure the 814 MB was measured as.
+                // Not the working set, which Windows trims under pressure —
+                // exactly when the user looks — and which counts shared DLL
+                // pages. GC.GetTotalMemory reported the managed heap alone and
+                // read 603 against that 814: the one number the UI promises
+                // to be honest about was not.
+                ["ramMB"] = PrivateBytes() / (1024 * 1024),
                 ["maxEntries"] = (long)MaxEntries,
                 ["roots"] = Roots.ToList(),
                 ["watchers"] = Watchers.Count,
@@ -1226,6 +1233,12 @@ internal static class IndexHost
     }
 
     private static int PendingCount() { lock (PendingGate) return Pending.Count; }
+
+    private static long PrivateBytes()
+    {
+        try { using var p = System.Diagnostics.Process.GetCurrentProcess(); return p.PrivateMemorySize64; }
+        catch { return Environment.WorkingSet; }
+    }
 
     // ── build + live updates ──────────────────────────────────────────────────
 
@@ -1514,10 +1527,15 @@ internal static class IndexHost
             {
                 if (Pending.Count > 0) { touched.AddRange(Pending); Pending.Clear(); }
             }
-            // Idle is when memory is worth giving back — see TrimHeapIfDue: a
-            // burst that ended inside the trim interval would otherwise sit
-            // in the process until the next request happened to arrive.
-            if (touched.Count == 0) { if (Ready) TrimHeapIfDue(); Thread.Sleep(DrainIntervalMs); continue; }
+            // This thread is what gives memory back once nobody is asking —
+            // see TrimHeapIfDue: a burst that ended inside the trim interval
+            // would otherwise sit in the process until the next request. It
+            // runs every pass, not only on an empty one: a system drive is
+            // never quiet for 300 ms in a row (measured: a 2M-file C:\ kept
+            // 521 MB for as long as the trim waited for an idle pass), and
+            // the call is already rate-limited by bytes and by time.
+            if (Ready) TrimHeapIfDue();
+            if (touched.Count == 0) { Thread.Sleep(DrainIntervalMs); continue; }
 
             foreach (var kv in touched)
             {

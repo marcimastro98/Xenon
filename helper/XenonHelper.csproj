@@ -74,10 +74,11 @@
                   strings, path lookup in an int-slot table instead of a Dictionary.
                   The entry cap is derived from the machine's RAM (2M on 8 GB, 6M
                   on 32 GB) and reported as `stats.maxEntries` so Settings can warn
-                  before it is hit; `stats.ramMB` is the process working set (what
-                  Task Manager shows) instead of the GC heap, which read 603 MB
-                  against a measured 814; the host trims its heap after answers so
-                  an idle index no longer keeps a burst's garbage; the watcher
+                  before it is hit; `stats.ramMB` is the process's private bytes
+                  instead of the GC heap, which read 603 MB against a measured
+                  814; the host trims its heap after answers (and on the drain
+                  thread, rate-limited) so an index no longer keeps a burst's
+                  garbage for as long as it sits there; the watcher
                   buffer is 2 MB (64 KB is the ceiling for network shares only) so
                   a build tool's burst no longer costs a whole-drive re-walk.
                   Version-gated: the cap and the RAM figure are what the UI shows;
