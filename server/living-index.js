@@ -195,6 +195,9 @@ function createLivingIndex(opts) {
         ready: s.ready === true, building: s.building === true,
         files: s.files || 0, dirs: s.dirs || 0, bytes: s.bytes || 0,
         ramMB: s.ramMB || 0, roots: host.roots.slice(),
+        // The entry cap this host derived from the machine's RAM, so the UI
+        // can warn BEFORE it is hit — "capped" arrives when it is too late.
+        maxEntries: Number.isFinite(s.maxEntries) && s.maxEntries > 0 ? Math.floor(s.maxEntries) : 0,
         capped: s.capped === true,
         // The roots the entry cap left incomplete. Validated the same way every
         // other value off the helper wire is: strings only, bounded, and only

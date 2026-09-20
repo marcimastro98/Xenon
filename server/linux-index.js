@@ -361,6 +361,7 @@ function createLinuxIndex(o = {}) {
       files: stats_.files, dirs: stats_.dirs, bytes: stats_.bytes,
       // Rough: the record plus its two strings, which is what actually grows.
       ramMB: Math.round((entries.length * 220) / (1024 * 1024)),
+      maxEntries,
       roots: roots.slice(),
       capped,
       cappedRoots: cappedRoots.slice(),

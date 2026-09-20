@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace XenonHelper;
@@ -41,49 +42,256 @@ namespace XenonHelper;
 //   list  {path,max}              → {items:[{p,n,s,m}]}         files under path
 //   top   {path,max}              → {items:[{p,n,s,m}]}         biggest files
 //   dupes {path,minBytes,max}     → {groups:[{s,paths:[]}]}     same-size candidates
-//   stats {}                      → {ready,building,files,dirs,bytes,ramMB,roots}
+//   stats {}                      → {ready,building,files,dirs,bytes,ramMB,maxEntries,roots,...}
 // Unsolicited: {"event":"progress",...} while building, {"event":"ready"}.
 //
-// Memory: the lowercase matching form is stored ONLY when it differs from the
-// display name (most files are already lowercase), the path lookup keys on a
-// (dirId, lowerName) struct so no concatenated key strings exist, and the
-        // build finishes with a compacting GC. Directories are interned once.
-// Measured ~180–230 MB per million files; MaxEntries caps the worst case.
+// Memory — the whole design of this file, because the index is resident for
+// as long as Xenon runs and the user's RAM is the one thing it competes for.
+// Measured on a real install before this layout: 1.98M files cost 814 MB of
+// private memory, ~305 MB per million, three quarters of it in per-string
+// overhead — every name a UTF-16 .NET string with a 22-byte header, a second
+// lowercase copy for the ~40% of names that carry an uppercase letter, and
+// a Dictionary entry of ~36 bytes per file just to find a path again.
+//   • Names live in ONE UTF-8 arena (16 MB chunks, no per-name object, half
+//     the bytes of UTF-16 for the Latin names that are nearly all of them).
+//     An entry addresses its name by (offset, length): 32 bytes flat.
+//   • Case-insensitive matching FOLDS ASCII on the fly instead of storing a
+//     lowercase twin. A twin is kept only for the rare name whose lowercase
+//     form differs outside ASCII (an accented capital), where folding cannot
+//     reach.
+//   • Directories are a TREE (parent id + own name), not 280k full-path
+//     strings: "under this folder" is an integer walk, and a path is rebuilt
+//     only for the few dirs an answer names.
+//   • Path lookup is an open-addressing table of int slots (~6 bytes per
+//     entry) keyed on (dir, folded name), hashed straight from the arena.
+// The entry cap is derived from the machine's RAM (2M on 8 GB, 6M on 32 GB)
+// instead of one number for every PC, and `stats.ramMB` reports the
+// process working set — the figure Task Manager shows — not the GC's own
+// view of its heap, which understated the real cost by a third.
 // Reparse points are never traversed (invariant).
 internal static class IndexHost
 {
-    private const int MaxEntries = 2_000_000;
+    // ── entry cap: a RAM budget, not a constant ──────────────────────────────
+    // One entry per 4 KB of physical RAM (≈2% of it at the measured cost),
+    // never below the old fixed 2M and never above 6M — past that, a query's
+    // linear scan is the limit, not memory.
+    private const int MinEntries = 2_000_000;
+    private const int MaxEntriesCeiling = 6_000_000;
+    private static readonly int MaxEntries = ComputeMaxEntries();
     private const long DefaultDirMinBytes = 10L * 1024 * 1024;
+
+    private static int ComputeMaxEntries()
+    {
+        long ram = 0;
+        try { ram = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes; } catch { /* unknown → floor */ }
+        if (ram <= 0) return MinEntries;
+        return (int)Math.Clamp(ram / 4096, MinEntries, MaxEntriesCeiling);
+    }
+
+    // ── storage ──────────────────────────────────────────────────────────────
 
     private struct Entry
     {
-        public string Name;        // display name
-        public string? NameLower;  // ordinal-lowercase for matching; null = Name is already lowercase
-        public int Dir;            // index into Dirs; -1 = tombstone
-        public int Gen;            // walk that last confirmed this entry (see the repair rules)
+        public int NameOff;      // arena offset of the display name (UTF-8)
+        public ushort NameLen;   // its byte length
+        public ushort LowerLen;  // >0: a lowercase twin follows the name in the arena (see MatchOf)
+        public int Dir;          // DirNodes index; -1 = tombstone
+        public int Gen;          // walk that last confirmed this entry (see the repair rules)
         public long Size;
         public long Mtime;
     }
 
-    // The matching form: the stored lowercase when the name has uppercase,
-    // the name itself otherwise (no duplicate string retained).
-    private static string LowerOf(in Entry en) => en.NameLower ?? en.Name;
+    private struct DirNode
+    {
+        public int Parent;       // DirNodes index; -1 = a root (name is the root path itself)
+        public int NameOff;      // one path component (a root: the whole root path)
+        public ushort NameLen;
+        public ushort LowerLen;
+    }
 
-    // Path-lookup key without a concatenated string: on 2M entries the old
-    // dirId+"|"+nameLower keys alone held ~150 MB.
-    private readonly record struct PathKey(int Dir, string NameLower);
+    // Names, in UTF-8, in fixed chunks: no per-name object header, no doubling
+    // copy when it grows, and an int offset addresses 2 GB of them.
+    private sealed class ByteArena
+    {
+        private const int ChunkBits = 24;
+        private const int ChunkSize = 1 << ChunkBits;
+        private readonly List<byte[]> _chunks = new();
+        private int _pos = ChunkSize;
+        public long Used { get; private set; }
+        public long Dead;        // bytes owned by tombstoned entries (reclaimed by Compact)
+
+        public int Add(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
+        {
+            var need = a.Length + b.Length;
+            if (need > ChunkSize) throw new InvalidOperationException("name too long");
+            if (_pos + need > ChunkSize) { _chunks.Add(new byte[ChunkSize]); _pos = 0; }
+            var c = _chunks[_chunks.Count - 1];
+            a.CopyTo(c.AsSpan(_pos));
+            b.CopyTo(c.AsSpan(_pos + a.Length));
+            var off = ((_chunks.Count - 1) << ChunkBits) | _pos;
+            _pos += need;
+            Used += need;
+            return off;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ReadOnlySpan<byte> Get(int off, int len)
+            => _chunks[off >> ChunkBits].AsSpan(off & (ChunkSize - 1), len);
+    }
+
+    // Struct storage in fixed chunks: growing never copies the whole array,
+    // and no single 200 MB object sits on the large-object heap.
+    private sealed class ChunkedList<T> where T : struct
+    {
+        private const int Bits = 16;
+        private const int Size = 1 << Bits;
+        private const int Mask = Size - 1;
+        private readonly List<T[]> _chunks = new();
+        private int _count;
+        public int Count => _count;
+        public ref T this[int i] { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref _chunks[i >> Bits][i & Mask]; }
+        public void Add(in T v)
+        {
+            if ((_count >> Bits) == _chunks.Count) _chunks.Add(new T[Size]);
+            _chunks[_count >> Bits][_count & Mask] = v;
+            _count++;
+        }
+    }
+
+    // How a table reads the key of an id it stores: from the index itself, so
+    // the table holds nothing but the ids.
+    private interface IKeys
+    {
+        int HashOf(int id);
+        bool Matches(int id, int parent, ReadOnlySpan<byte> lower);
+    }
+
+    // Open addressing, linear probing, int slots only (0 empty, -1 deleted,
+    // else id+1). Keys are never copied in: hashing and equality go back to
+    // the entry or dir node the id names, so a slot costs 4 bytes and the
+    // table ~6 bytes per key at its load factor.
+    private sealed class IdTable<TKeys> where TKeys : struct, IKeys
+    {
+        private int[] _slots = new int[1 << 16];
+        private int _count, _deleted;
+
+        public int Find(int hash, int parent, ReadOnlySpan<byte> lower)
+        {
+            var mask = _slots.Length - 1;
+            var i = hash & mask;
+            TKeys k = default;
+            while (true)
+            {
+                var s = _slots[i];
+                if (s == 0) return -1;
+                if (s > 0 && k.Matches(s - 1, parent, lower)) return s - 1;
+                i = (i + 1) & mask;
+            }
+        }
+
+        // Callers Find() first: Add never checks for a duplicate.
+        public void Add(int hash, int id)
+        {
+            if ((_count + _deleted + 1) * 10 > _slots.Length * 7) Rehash(_slots.Length * (_count * 10 > _slots.Length * 4 ? 2 : 1));
+            var mask = _slots.Length - 1;
+            var i = hash & mask;
+            while (_slots[i] > 0) i = (i + 1) & mask;
+            if (_slots[i] == -1) _deleted--;
+            _slots[i] = id + 1;
+            _count++;
+        }
+
+        public void Remove(int hash, int parent, ReadOnlySpan<byte> lower)
+        {
+            var mask = _slots.Length - 1;
+            var i = hash & mask;
+            TKeys k = default;
+            while (true)
+            {
+                var s = _slots[i];
+                if (s == 0) return;
+                if (s > 0 && k.Matches(s - 1, parent, lower)) { _slots[i] = -1; _count--; _deleted++; return; }
+                i = (i + 1) & mask;
+            }
+        }
+
+        // Drop probe garbage and growth slack: exact size for what is stored.
+        public void Rebuild(int expected)
+        {
+            var size = 1 << 16;
+            while (size * 7 < (long)expected * 10) size <<= 1;
+            Rehash(size);
+        }
+
+        public void Reset(int expected)
+        {
+            var size = 1 << 16;
+            while (size * 7 < (long)expected * 10) size <<= 1;
+            _slots = new int[size];
+            _count = 0; _deleted = 0;
+        }
+
+        private void Rehash(int newSize)
+        {
+            var old = _slots;
+            _slots = new int[newSize];
+            _count = 0; _deleted = 0;
+            var mask = newSize - 1;
+            TKeys k = default;
+            foreach (var s in old)
+            {
+                if (s <= 0) continue;
+                var i = k.HashOf(s - 1) & mask;
+                while (_slots[i] != 0) i = (i + 1) & mask;
+                _slots[i] = s;
+                _count++;
+            }
+        }
+    }
+
+    private readonly struct EntryKeys : IKeys
+    {
+        public int HashOf(int id) { ref var e = ref Entries[id]; return HashKey(e.Dir, MatchOf(in e)); }
+        public bool Matches(int id, int parent, ReadOnlySpan<byte> lower)
+        { ref var e = ref Entries[id]; return e.Dir == parent && FoldEquals(MatchOf(in e), lower); }
+    }
+
+    private readonly struct DirKeys : IKeys
+    {
+        public int HashOf(int id) { ref var n = ref DirNodes[id]; return HashKey(n.Parent, DirMatchOf(in n)); }
+        public bool Matches(int id, int parent, ReadOnlySpan<byte> lower)
+        { ref var n = ref DirNodes[id]; return n.Parent == parent && FoldEquals(DirMatchOf(in n), lower); }
+    }
 
     private static readonly object Gate = new();
-    private static readonly List<Entry> Entries = new();
-    private static readonly List<string> Dirs = new();                   // full dir paths (display case)
-    private static readonly Dictionary<string, int> DirIds = new(StringComparer.OrdinalIgnoreCase);
-    private static readonly Dictionary<PathKey, int> ByPath = new();     // (dirId, nameLower) → entry idx
+    private static ByteArena Arena = new();
+    private static ChunkedList<Entry> Entries = new();
+    private static ChunkedList<DirNode> DirNodes = new();
+    private static readonly IdTable<EntryKeys> ByPath = new();      // (dirId, folded name) → entry idx
+    private static readonly IdTable<DirKeys> DirChildren = new();   // (parentId, folded name) → dir id
     private static int Tombstones;
     private static volatile bool Capped;
     private static long TotalBytes;
     private static volatile bool Ready;
     private static volatile bool Cancelled;
+
+    // Roots as given (normalized, a drive keeps its trailing '\'), the same
+    // without the trailing separator (what paths are matched against), and
+    // each one's node. A root inside another root is a normal node of the
+    // outer tree, so "under C:\" still covers a C:\Users root listed as well.
     private static string[] Roots = Array.Empty<string>();
+    private static string[] RootsTrimmed = Array.Empty<string>();
+    private static int[] RootNodeIds = Array.Empty<int>();
+    private static bool[] RootNested = Array.Empty<bool>();         // walked and watched by an outer root
+    private static bool[] RootRegistered = Array.Empty<bool>();     // has a node (false only mid-registration)
+
+    // Scratch for key encoding — one for directory components, one for the
+    // file name, because interning a path and keying a name happen in the
+    // same call. Both only ever touched under Gate.
+    private static byte[] _dirScratch = new byte[4096];
+    private static byte[] _nameScratch = new byte[4096];
+    private static string? _lastDirStr;
+    private static int _lastDirId = -1;
 
     private static readonly object OutLock = new();
     private static readonly List<FileSystemWatcher> Watchers = new();
@@ -110,6 +318,13 @@ internal static class IndexHost
     private const int PendingMax = 200_000;          // beyond this the root is repaired instead
     private const int DrainIntervalMs = 300;
 
+    // The kernel buffer behind ReadDirectoryChangesW. 64 KB is the ceiling for
+    // a NETWORK share only; a local volume takes more, and every overflow here
+    // costs a re-walk of the whole root (minutes at a core on a 2M-file drive),
+    // so 2 MB of non-paged pool per root — ~20k events of headroom for a build
+    // tool's burst — is the cheapest memory in this file.
+    private const int WatcherBufferBytes = 2 * 1024 * 1024;
+
     // Entries are written under the newest generation issued. An entry the
     // drain thread adds while a repair walk is running therefore carries that
     // walk's generation and survives its sweep.
@@ -119,7 +334,7 @@ internal static class IndexHost
     public static int Run(string[] args)
     {
         if (args.Length < 2) { Console.Error.WriteLine("usage: xenon-helper index-serve <root> [root ...]"); return 2; }
-        Roots = args.Skip(1).Select(NormalizeDir).ToArray();
+        lock (Gate) RegisterRootsLocked(args.Skip(1).Select(NormalizeDir).ToArray());
 
         // Build + watch in the background; the main thread is the request loop
         // so queries answer DURING the initial walk (partial results are honest:
@@ -131,28 +346,29 @@ internal static class IndexHost
             // between the snapshot and watcher startup. Duplicate create
             // events are harmless because AddEntryLocked is an upsert; an
             // overflow marks the root dirty for the repair loop below.
-            foreach (var r in Roots) StartWatcher(r);
+            for (var i = 0; i < Roots.Length; i++) if (!RootNested[i]) StartWatcher(Roots[i]);
             // A root the cap cut short is RECORDED, not just counted. The walk is
             // sequential, so hitting MaxEntries on an early root leaves every
             // later one essentially absent — and "2.000.000 files indexed" reads
             // as success while search quietly cannot see a whole drive. Naming
             // the roots is what turns that into something the user can act on.
-            foreach (var r in Roots)
+            for (var i = 0; i < Roots.Length; i++)
             {
                 if (Cancelled) break;
-                if (!WalkRoot(r)) lock (Gate) IncompleteRoots.Add(r);
+                if (RootNested[i]) continue;
+                if (!WalkRoot(Roots[i])) lock (Gate) IncompleteRoots.Add(Roots[i]);
             }
             lock (Gate)
             {
-                Entries.TrimExcess();
-                Dirs.TrimExcess();
-                ByPath.TrimExcess();
-                DirIds.TrimExcess();
+                ByPath.Rebuild(Entries.Count - Tombstones);
+                DirChildren.Rebuild(DirNodes.Count);
             }
             // Give the walk's garbage back to the OS — the resident number the
             // user sees in Task Manager is the honest cost from here on.
             System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
             GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+            _trimMark = GC.GetTotalAllocatedBytes(precise: false);
+            _trimAt = Environment.TickCount64;
             Ready = true;
             Emit(new Dictionary<string, object?> { ["event"] = "ready" });
             // Dirty-root repair loop: a watcher overflow re-walks that root,
@@ -191,10 +407,346 @@ internal static class IndexHost
             {
                 Emit(new Dictionary<string, object?> { ["id"] = id, ["ok"] = false, ["err"] = ex.Message });
             }
+            TrimHeapIfDue();
         }
         Cancelled = true;
         foreach (var w in Watchers) { try { w.Dispose(); } catch { } }
         return 0;
+    }
+
+    // ── heap trim ─────────────────────────────────────────────────────────────
+    // An answer is garbage the moment it is written: an overview builds ~10k
+    // dictionaries, a JSON string and its base64 twin, then drops them all.
+    // The GC reclaims that on its next collection, but it hands the memory
+    // back to Windows only gradually and only while collections keep
+    // happening — and an idle host has none. Measured: a burst of five
+    // overviews left the process 110 MB above its resident index for as long
+    // as it sat idle. So after every ~32 MB of answers the host collects
+    // aggressively, which decommits. It is cheap here: the index is a few
+    // large arrays of structs and bytes with no references to trace.
+    private const long TrimEveryBytes = 32L * 1024 * 1024;
+    private const int TrimMinIntervalMs = 5_000;
+    private static long _trimMark;
+    private static long _trimAt;
+
+    private static void TrimHeapIfDue()
+    {
+        var allocated = GC.GetTotalAllocatedBytes(precise: false);
+        var now = Environment.TickCount64;
+        if (allocated - _trimMark < TrimEveryBytes || now - _trimAt < TrimMinIntervalMs) return;
+        _trimMark = allocated;
+        _trimAt = now;
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+    }
+
+    // ── names: UTF-8 arena, ASCII folded on the fly ───────────────────────────
+
+    // The bytes a name is MATCHED on: its lowercase twin when it has one, its
+    // own bytes otherwise. Either way the comparer folds A-Z, so the result
+    // equals ToLowerInvariant(name) in UTF-8 without a second string per file.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ReadOnlySpan<byte> MatchOf(in Entry e)
+        => e.LowerLen > 0 ? Arena.Get(e.NameOff + e.NameLen, e.LowerLen) : Arena.Get(e.NameOff, e.NameLen);
+    private static ReadOnlySpan<byte> NameOf(in Entry e) => Arena.Get(e.NameOff, e.NameLen);
+    private static ReadOnlySpan<byte> DirMatchOf(in DirNode n)
+        => n.LowerLen > 0 ? Arena.Get(n.NameOff + n.NameLen, n.LowerLen) : Arena.Get(n.NameOff, n.NameLen);
+    private static string NameString(in Entry e) => Encoding.UTF8.GetString(NameOf(in e));
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static byte Fold(byte c) => c >= (byte)'A' && c <= (byte)'Z' ? (byte)(c | 0x20) : c;
+
+    private static bool FoldEquals(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
+    {
+        if (a.Length != b.Length) return false;
+        for (var i = 0; i < a.Length; i++) if (Fold(a[i]) != Fold(b[i])) return false;
+        return true;
+    }
+
+    // FNV-1a over the folded bytes, seeded with the parent id, sign bit cleared.
+    private static int HashKey(int parent, ReadOnlySpan<byte> m)
+    {
+        var h = 2166136261u ^ (uint)parent * 0x9E3779B1u;
+        foreach (var c in m) h = (h ^ Fold(c)) * 16777619u;
+        h ^= h >> 15; h *= 0x2C1B3C6Du; h ^= h >> 12;
+        return (int)(h & 0x7FFFFFFF);
+    }
+
+    // `term` is lowercase; the haystack is folded as it is read. Returns the
+    // byte index of the first match, like string.IndexOf on the old strings.
+    private static int IndexOfFold(ReadOnlySpan<byte> hay, ReadOnlySpan<byte> term)
+    {
+        if (term.Length == 0) return 0;
+        if (term.Length > hay.Length) return -1;
+        var t0 = term[0];
+        var t0u = t0 >= (byte)'a' && t0 <= (byte)'z' ? (byte)(t0 - 32) : t0;
+        var last = hay.Length - term.Length;
+        var i = 0;
+        while (i <= last)
+        {
+            var k = hay.Slice(i, last - i + 1).IndexOfAny(t0, t0u);
+            if (k < 0) return -1;
+            i += k;
+            var j = 1;
+            for (; j < term.Length; j++) if (Fold(hay[i + j]) != term[j]) break;
+            if (j == term.Length) return i;
+            i++;
+        }
+        return -1;
+    }
+
+    // Does this name need a lowercase twin? Only when lowercasing changes a
+    // character OUTSIDE ASCII (or a surrogate pair, which char-wise casing
+    // cannot see) — the ASCII part is folded at compare time.
+    private static bool NeedsLowerTwin(ReadOnlySpan<char> s)
+    {
+        foreach (var c in s)
+        {
+            if (c < 0x80) continue;
+            if (char.IsSurrogate(c) || char.ToLowerInvariant(c) != c) return true;
+        }
+        return false;
+    }
+
+    // UTF-8 of the name plus, when needed, its lowercase twin, into `scratch`.
+    // Returns the name length; `lowerLen` the twin's (0 = none).
+    private static int EncodeName(ReadOnlySpan<char> s, ref byte[] scratch, out int lowerLen)
+    {
+        var need = Encoding.UTF8.GetMaxByteCount(s.Length) * 2 + 8;
+        if (scratch.Length < need) scratch = new byte[Math.Max(need, scratch.Length * 2)];
+        var n = Encoding.UTF8.GetBytes(s, scratch);
+        lowerLen = 0;
+        if (NeedsLowerTwin(s))
+            lowerLen = Encoding.UTF8.GetBytes(new string(s).ToLowerInvariant(), scratch.AsSpan(n));
+        return n;
+    }
+
+    // The bytes to LOOK a name up by: its lowercase twin's bytes when it would
+    // have one, its raw bytes otherwise (the table folds both sides).
+    private static ReadOnlySpan<byte> KeyOf(ReadOnlySpan<char> s, ref byte[] scratch)
+    {
+        var n = EncodeName(s, ref scratch, out var lowerLen);
+        return lowerLen > 0 ? scratch.AsSpan(n, lowerLen) : scratch.AsSpan(0, n);
+    }
+
+    // ── directories: a tree, one component per node ──────────────────────────
+
+    private static void RegisterRootsLocked(string[] roots)
+    {
+        Roots = roots;
+        RootsTrimmed = roots.Select(r => r.TrimEnd('\\')).ToArray();
+        RootNodeIds = new int[roots.Length];
+        RootNested = new bool[roots.Length];
+        RootRegistered = new bool[roots.Length];
+        // Shortest first, so an inner root always finds its outer one already
+        // registered and becomes a node of that tree instead of a second one.
+        foreach (var i in Enumerable.Range(0, roots.Length).OrderBy(i => RootsTrimmed[i].Length))
+        {
+            var p = RootsTrimmed[i];
+            var outer = RootIndexOf(p);
+            if (outer >= 0)
+            {
+                RootNested[i] = true;
+                RootNodeIds[i] = ResolveUnderLocked(RootNodeIds[outer], p, RootsTrimmed[outer].Length, create: true);
+            }
+            else
+            {
+                var existing = FindChildLocked(-1, p);
+                RootNodeIds[i] = existing >= 0 ? existing : AddChildLocked(-1, p);
+            }
+            RootRegistered[i] = true;
+        }
+    }
+
+    // The registered root `p` sits under (longest match, case-insensitive).
+    private static int RootIndexOf(ReadOnlySpan<char> p)
+    {
+        var best = -1; var bestLen = -1;
+        for (var i = 0; i < RootsTrimmed.Length; i++)
+        {
+            if (!RootRegistered[i]) continue;
+            var r = RootsTrimmed[i];
+            if (r.Length == 0 || r.Length > p.Length) continue;
+            if (!p.StartsWith(r, StringComparison.OrdinalIgnoreCase)) continue;
+            if (p.Length != r.Length && p[r.Length] != '\\') continue;
+            if (r.Length > bestLen) { best = i; bestLen = r.Length; }
+        }
+        return best;
+    }
+
+    // Walk `p` from `pos` component by component below `node`, creating on the way.
+    private static int ResolveUnderLocked(int node, ReadOnlySpan<char> p, int pos, bool create)
+    {
+        while (pos < p.Length)
+        {
+            if (p[pos] == '\\') { pos++; continue; }
+            var next = p.Slice(pos).IndexOf('\\');
+            next = next < 0 ? p.Length : pos + next;
+            var comp = p.Slice(pos, next - pos);
+            var child = FindChildLocked(node, comp);
+            if (child < 0)
+            {
+                if (!create) return -1;
+                child = AddChildLocked(node, comp);
+            }
+            node = child;
+            pos = next;
+        }
+        return node;
+    }
+
+    // A directory path → its node (-1 when absent and !create). A path that
+    // sits under no root is a tree of its own under parent -1: never expected
+    // (watchers only cover roots), never wrong.
+    private static int ResolveDirLocked(string path, bool create)
+    {
+        var p = path.AsSpan().TrimEnd('\\');
+        if (p.Length == 0) return -1;
+        var ri = RootIndexOf(p);
+        if (ri >= 0) return ResolveUnderLocked(RootNodeIds[ri], p, RootsTrimmed[ri].Length, create);
+        var top = FindChildLocked(-1, p);
+        if (top >= 0 || !create) return top;
+        return AddChildLocked(-1, p);
+    }
+
+    // The walk hands over the same directory string for every file in it, so
+    // one string compare replaces the tree walk almost every time.
+    private static int InternDirLocked(string dir)
+    {
+        if (_lastDirStr != null && string.Equals(dir, _lastDirStr, StringComparison.Ordinal)) return _lastDirId;
+        var id = ResolveDirLocked(dir, create: true);
+        _lastDirStr = dir; _lastDirId = id;
+        return id;
+    }
+
+    private static int FindChildLocked(int parent, ReadOnlySpan<char> comp)
+    {
+        var key = KeyOf(comp, ref _dirScratch);
+        return DirChildren.Find(HashKey(parent, key), parent, key);
+    }
+
+    private static int AddChildLocked(int parent, ReadOnlySpan<char> comp)
+    {
+        var n = EncodeName(comp, ref _dirScratch, out var lowerLen);
+        var off = Arena.Add(_dirScratch.AsSpan(0, n), _dirScratch.AsSpan(n, lowerLen));
+        var node = new DirNode { Parent = parent, NameOff = off, NameLen = (ushort)n, LowerLen = (ushort)lowerLen };
+        var id = DirNodes.Count;
+        DirNodes.Add(in node);
+        DirChildren.Add(HashKey(parent, DirMatchOf(in node)), id);
+        return id;
+    }
+
+    // Rebuilt only for the dirs an answer names. A drive root comes back as
+    // "C:\" so the joined paths read exactly as Windows writes them.
+    private static string DirPathLocked(int id)
+    {
+        var chain = new List<int>(8);
+        for (var d = id; d >= 0; d = DirNodes[d].Parent) chain.Add(d);
+        var sb = new StringBuilder(96);
+        for (var i = chain.Count - 1; i >= 0; i--)
+        {
+            if (i != chain.Count - 1) sb.Append('\\');
+            ref var n = ref DirNodes[chain[i]];
+            sb.Append(Encoding.UTF8.GetString(Arena.Get(n.NameOff, n.NameLen)));
+        }
+        if (sb.Length == 2 && sb[1] == ':') sb.Append('\\');
+        return sb.ToString();
+    }
+
+    private static string JoinPath(string dir, string name) => dir.EndsWith('\\') ? dir + name : dir + "\\" + name;
+
+    private static string FilePathLocked(in Entry e, Dictionary<int, string> dirCache)
+    {
+        if (!dirCache.TryGetValue(e.Dir, out var dp)) dirCache[e.Dir] = dp = DirPathLocked(e.Dir);
+        return JoinPath(dp, NameString(in e));
+    }
+
+    // ── scope: what an op's `path` denotes ───────────────────────────────────
+    // The node itself when it is in the tree; when the path sits ABOVE the
+    // roots (asked about "E:\" with a root of E:\Games) every root beneath it;
+    // the empty path means everything. Membership is an integer walk up the
+    // tree, memoised per op in a flat array — one byte per dir.
+    private readonly struct Scope
+    {
+        public readonly int[] Anchors;
+        public readonly int Self;   // the node itself, -1 when the path is not one node
+        public Scope(int[] anchors, int self) { Anchors = anchors; Self = self; }
+        public bool Contains(int id) { foreach (var a in Anchors) if (a == id) return true; return false; }
+    }
+
+    private static Scope ScopeOfLocked(string path)
+    {
+        var p = NormalizeDir(path).TrimEnd('\\');
+        if (p.Length == 0) return new Scope(TopRootIds(), -1);
+        var id = ResolveDirLocked(p, create: false);
+        if (id >= 0) return new Scope(new[] { id }, id);
+        var under = new List<int>();
+        for (var i = 0; i < RootsTrimmed.Length; i++)
+        {
+            var r = RootsTrimmed[i];
+            if (r.Length <= p.Length || !r.StartsWith(p, StringComparison.OrdinalIgnoreCase) || r[p.Length] != '\\') continue;
+            if (!RootNested[i]) under.Add(RootNodeIds[i]);
+        }
+        return new Scope(under.ToArray(), -1);
+    }
+
+    private static int[] TopRootIds()
+    {
+        var ids = new List<int>();
+        for (var i = 0; i < RootNodeIds.Length; i++) if (!RootNested[i]) ids.Add(RootNodeIds[i]);
+        return ids.ToArray();
+    }
+
+    // memo: 0 unknown · 1 under · 2 not. Every node on the walked path learns
+    // the answer, so the second file of a directory costs one array read.
+    private static bool IsUnder(int dir, in Scope sc, byte[] memo)
+    {
+        var cur = dir;
+        var ans = false;
+        while (cur >= 0)
+        {
+            var m = memo[cur];
+            if (m != 0) { ans = m == 1; break; }
+            if (sc.Contains(cur)) { ans = true; memo[cur] = 1; break; }
+            cur = DirNodes[cur].Parent;
+        }
+        var v = (byte)(ans ? 1 : 2);
+        for (var d = dir; d >= 0 && d != cur; d = DirNodes[d].Parent) memo[d] = v;
+        return ans;
+    }
+
+    // The first-level child of the scope that `dir` sits in: -1 when dir IS
+    // the scope (its direct files), -2 when it is not under it at all.
+    private const int ChildUnknown = -3;
+    private static int ChildUnder(int dir, in Scope sc, int[] memo)
+    {
+        var cur = dir;
+        var prev = -1;
+        int result;
+        while (true)
+        {
+            if (cur < 0) { result = -2; break; }
+            var m = memo[cur];
+            if (m != ChildUnknown) { result = m == -1 ? (prev < 0 ? -1 : prev) : m; break; }
+            if (sc.Contains(cur)) { memo[cur] = -1; result = prev < 0 ? -1 : prev; break; }
+            prev = cur;
+            cur = DirNodes[cur].Parent;
+        }
+        for (var d = dir; d >= 0 && d != cur; d = DirNodes[d].Parent) memo[d] = result;
+        return result;
+    }
+
+    private static int[] NewChildMemo() { var m = new int[DirNodes.Count]; Array.Fill(m, ChildUnknown); return m; }
+
+    // Dir ids of `dir` and every ancestor of it up to and including the scope.
+    private static int[] AncestorChain(int dir, in Scope sc)
+    {
+        var list = new List<int>(8);
+        for (var d = dir; d >= 0; d = DirNodes[d].Parent)
+        {
+            list.Add(d);
+            if (sc.Contains(d)) return list.ToArray();
+        }
+        return Array.Empty<int>();
     }
 
     // ── request handlers ──────────────────────────────────────────────────────
@@ -221,16 +773,19 @@ internal static class IndexHost
     private static long? Num(System.Text.Json.JsonElement req, string name)
         => req.TryGetProperty(name, out var el) && el.ValueKind == System.Text.Json.JsonValueKind.Number ? el.GetInt64() : null;
 
+    private static Dictionary<string, object?> Item(in Entry e, Dictionary<int, string> dirCache)
+        => new() { ["p"] = FilePathLocked(in e, dirCache), ["n"] = NameString(in e), ["s"] = e.Size, ["m"] = e.Mtime };
+
     private static Dictionary<string, object?> OpQuery(System.Text.Json.JsonElement req)
     {
-        var terms = new List<string>();
+        var terms = new List<byte[]>();
         if (req.TryGetProperty("terms", out var tEl) && tEl.ValueKind == System.Text.Json.JsonValueKind.Array)
-            foreach (var t in tEl.EnumerateArray()) { var s = t.GetString(); if (!string.IsNullOrEmpty(s)) terms.Add(s.ToLowerInvariant()); }
-        HashSet<string>? exts = null;
+            foreach (var t in tEl.EnumerateArray()) { var s = t.GetString(); if (!string.IsNullOrEmpty(s)) terms.Add(Encoding.UTF8.GetBytes(s.ToLowerInvariant())); }
+        List<byte[]>? exts = null;
         if (req.TryGetProperty("exts", out var eEl) && eEl.ValueKind == System.Text.Json.JsonValueKind.Array)
         {
-            exts = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var x in eEl.EnumerateArray()) { var s = x.GetString(); if (!string.IsNullOrEmpty(s)) exts.Add("." + s.ToLowerInvariant()); }
+            exts = new List<byte[]>();
+            foreach (var x in eEl.EnumerateArray()) { var s = x.GetString(); if (!string.IsNullOrEmpty(s)) exts.Add(Encoding.UTF8.GetBytes("." + s.ToLowerInvariant())); }
         }
         long after = Num(req, "after") ?? long.MinValue;
         long before = Num(req, "before") ?? long.MaxValue;
@@ -244,15 +799,19 @@ internal static class IndexHost
         {
             for (int i = 0; i < Entries.Count; i++)
             {
-                var en = Entries[i];
+                ref var en = ref Entries[i];
                 if (en.Dir < 0) continue;
                 if (en.Mtime < after || en.Mtime >= before) continue;
                 if (en.Size < minB || en.Size > maxB) continue;
-                var lower = LowerOf(en);
+                var lower = MatchOf(in en);
                 if (exts != null)
                 {
-                    var dot = lower.LastIndexOf('.');
-                    if (dot < 0 || !exts.Contains(lower.Substring(dot))) continue;
+                    var dot = lower.LastIndexOf((byte)'.');
+                    if (dot < 0) continue;
+                    var suffix = lower.Slice(dot);
+                    var hit = false;
+                    foreach (var x in exts) if (FoldEquals(suffix, x)) { hit = true; break; }
+                    if (!hit) continue;
                 }
                 int tier = 0;
                 foreach (var term in terms)
@@ -271,13 +830,9 @@ internal static class IndexHost
             }
             best.Sort(CompareHits);
             if (best.Count > max) best.RemoveRange(max, best.Count - max);
+            var dirCache = new Dictionary<int, string>();
             var items = new List<Dictionary<string, object?>>(best.Count);
-            foreach (var (_, _, idx) in best)
-            {
-                var en = Entries[idx];
-                items.Add(new Dictionary<string, object?>
-                { ["p"] = Dirs[en.Dir] + "\\" + en.Name, ["n"] = en.Name, ["s"] = en.Size, ["m"] = en.Mtime });
-            }
+            foreach (var (_, _, idx) in best) items.Add(Item(in Entries[idx], dirCache));
             return new Dictionary<string, object?> { ["items"] = items, ["building"] = !Ready };
         }
     }
@@ -286,14 +841,17 @@ internal static class IndexHost
         => a.tier != b.tier ? a.tier.CompareTo(b.tier) : b.mtime.CompareTo(a.mtime);
 
     // 0 exact · 1 prefix · 2 word-boundary · 3 substring · -1 miss.
-    private static int MatchTier(string nameLower, string term)
+    // Byte offsets throughout: both sides are UTF-8, and every character this
+    // looks at ('.', ' ', '-', '_', '(') is ASCII, which a continuation byte
+    // can never equal.
+    private static int MatchTier(ReadOnlySpan<byte> nameLower, ReadOnlySpan<byte> term)
     {
-        var idx = nameLower.IndexOf(term, StringComparison.Ordinal);
+        var idx = IndexOfFold(nameLower, term);
         if (idx < 0) return -1;
         if (idx == 0)
         {
             if (nameLower.Length == term.Length) return 0;
-            var dot = nameLower.LastIndexOf('.');
+            var dot = nameLower.LastIndexOf((byte)'.');
             if (dot == term.Length) return 0;   // exact up to the extension
             return 1;
         }
@@ -308,58 +866,56 @@ internal static class IndexHost
     // one pass under one consistent read lock.
     private static Dictionary<string, object?> OpOverview(System.Text.Json.JsonElement req)
     {
-        var path = NormalizeDir(Str(req, "path") ?? "");
-        var prefixLower = path.TrimEnd('\\').ToLowerInvariant();
+        var path = Str(req, "path") ?? "";
         long dirMinBytes = Num(req, "dirMinBytes") ?? DefaultDirMinBytes;
         int dirMax = (int)Math.Max(1, Math.Min(20000, Num(req, "dirMax") ?? 4000));
         int topMax = (int)Math.Max(1, Math.Min(500, Num(req, "topMax") ?? 200));
         long dupeMinBytes = Num(req, "dupeMinBytes") ?? DefaultDirMinBytes;
         int dupeMax = (int)Math.Max(1, Math.Min(500, Num(req, "dupeMax") ?? 40));
         int detailMax = (int)Math.Max(1, Math.Min(20000, Num(req, "detailMax") ?? 20000));
-        var detailRoots = new List<(string path, string lower)>();
+        var detailPaths = new List<string>();
         if (req.TryGetProperty("detailRoots", out var detailEl) &&
             detailEl.ValueKind == System.Text.Json.JsonValueKind.Array)
         {
             foreach (var item in detailEl.EnumerateArray())
             {
-                if (detailRoots.Count >= 8 || item.ValueKind != System.Text.Json.JsonValueKind.String) break;
+                if (detailPaths.Count >= 8 || item.ValueKind != System.Text.Json.JsonValueKind.String) break;
                 var detailPath = NormalizeDir(item.GetString() ?? "").TrimEnd('\\');
-                if (detailPath.Length > 2) detailRoots.Add((detailPath, detailPath.ToLowerInvariant()));
+                if (detailPath.Length > 2) detailPaths.Add(detailPath);
             }
         }
 
         var aggregate = new Dictionary<int, (long s, long n, long m)>();
         var chains = new Dictionary<int, int[]>();
-        var under = new Dictionary<int, bool>();
         var top = new List<(long s, int idx)>(topMax * 2);
         var bySize = new Dictionary<long, List<int>>();
         var detailFiles = new List<Dictionary<string, object?>>();
-        var detailCounts = new int[detailRoots.Count];
+        var detailCounts = new int[detailPaths.Count];
         var detailCapped = false;
         long total = 0;
         long count = 0;
 
         lock (Gate)
         {
+            var sc = ScopeOfLocked(path);
+            var under = new byte[DirNodes.Count];
+            var detailScopes = new Scope[detailPaths.Count];
+            var detailMemos = new byte[detailPaths.Count][];
+            for (var d = 0; d < detailPaths.Count; d++) { detailScopes[d] = ScopeOfLocked(detailPaths[d]); detailMemos[d] = new byte[DirNodes.Count]; }
+            var dirCache = new Dictionary<int, string>();
+
             for (int i = 0; i < Entries.Count; i++)
             {
-                var en = Entries[i];
+                ref var en = ref Entries[i];
                 if (en.Dir < 0) continue;
-                if (!under.TryGetValue(en.Dir, out var isUnder))
-                {
-                    var dl = Dirs[en.Dir].TrimEnd('\\').ToLowerInvariant();
-                    isUnder = dl.StartsWith(prefixLower, StringComparison.Ordinal)
-                           && (dl.Length == prefixLower.Length || dl[prefixLower.Length] == '\\');
-                    under[en.Dir] = isUnder;
-                }
-                if (!isUnder) continue;
+                if (!IsUnder(en.Dir, in sc, under)) continue;
 
                 total += en.Size;
                 count++;
 
                 if (!chains.TryGetValue(en.Dir, out var chain))
                 {
-                    chain = AncestorChain(en.Dir, prefixLower);
+                    chain = AncestorChain(en.Dir, in sc);
                     chains[en.Dir] = chain;
                 }
                 foreach (var d in chain)
@@ -382,28 +938,17 @@ internal static class IndexHost
                     if (sameSize.Count < 20) sameSize.Add(i);
                 }
 
-                if (detailRoots.Count > 0)
+                for (int d = 0; d < detailScopes.Length; d++)
                 {
-                    var dirPath = Dirs[en.Dir].TrimEnd('\\');
-                    var dirLower = dirPath.ToLowerInvariant();
-                    for (int d = 0; d < detailRoots.Count; d++)
+                    if (!IsUnder(en.Dir, in detailScopes[d], detailMemos[d])) continue;
+                    if (detailCounts[d] >= detailMax)
                     {
-                        var pref = detailRoots[d].lower;
-                        if (!dirLower.StartsWith(pref, StringComparison.Ordinal) ||
-                            (dirLower.Length > pref.Length && dirLower[pref.Length] != '\\')) continue;
-                        if (detailCounts[d] >= detailMax)
-                        {
-                            detailCapped = true;
-                            break;
-                        }
-                        detailFiles.Add(new Dictionary<string, object?>
-                        {
-                            ["p"] = dirPath + "\\" + en.Name,
-                            ["n"] = en.Name, ["s"] = en.Size, ["m"] = en.Mtime,
-                        });
-                        detailCounts[d]++;
+                        detailCapped = true;
                         break;
                     }
+                    detailFiles.Add(Item(in en, dirCache));
+                    detailCounts[d]++;
+                    break;
                 }
             }
 
@@ -414,24 +959,16 @@ internal static class IndexHost
                 .OrderByDescending(kv => kv.Value.s).Take(dirMax)
                 .Select(kv => new Dictionary<string, object?>
                 {
-                    ["p"] = Dirs[kv.Key], ["s"] = kv.Value.s,
+                    ["p"] = DirPathLocked(kv.Key), ["s"] = kv.Value.s,
                     ["n"] = kv.Value.n, ["m"] = kv.Value.m,
                 }).ToList();
-            var topFiles = top.Select(x =>
-            {
-                var en = Entries[x.idx];
-                return new Dictionary<string, object?>
-                {
-                    ["p"] = Dirs[en.Dir] + "\\" + en.Name,
-                    ["n"] = en.Name, ["s"] = en.Size, ["m"] = en.Mtime,
-                };
-            }).ToList();
+            var topFiles = top.Select(x => Item(in Entries[x.idx], dirCache)).ToList();
             var groups = bySize.Where(kv => kv.Value.Count > 1)
                 .OrderByDescending(kv => kv.Key).Take(dupeMax)
                 .Select(kv => new Dictionary<string, object?>
                 {
                     ["s"] = kv.Key,
-                    ["paths"] = kv.Value.Select(i => Dirs[Entries[i].Dir] + "\\" + Entries[i].Name).ToList(),
+                    ["paths"] = kv.Value.Select(i => (object?)FilePathLocked(in Entries[i], dirCache)).ToList(),
                 }).ToList();
 
             return new Dictionary<string, object?>
@@ -451,39 +988,30 @@ internal static class IndexHost
 
     private static Dictionary<string, object?> OpSizes(System.Text.Json.JsonElement req)
     {
-        var path = NormalizeDir(Str(req, "path") ?? "");
-        var prefixLower = path.TrimEnd('\\').ToLowerInvariant();
-        var buckets = new Dictionary<string, (long s, long n, long m)>(StringComparer.OrdinalIgnoreCase);
+        var path = Str(req, "path") ?? "";
+        var buckets = new Dictionary<int, (long s, long n, long m)>();
         long total = 0, count = 0;
         lock (Gate)
         {
-            // dirId → its first-level child under `path` (cached per unique dir).
-            var childOf = new Dictionary<int, string?>();
+            var sc = ScopeOfLocked(path);
+            var childOf = NewChildMemo();
             for (int i = 0; i < Entries.Count; i++)
             {
-                var en = Entries[i];
+                ref var en = ref Entries[i];
                 if (en.Dir < 0) continue;
-                if (!childOf.TryGetValue(en.Dir, out var child))
-                {
-                    child = FirstChildUnder(Dirs[en.Dir], prefixLower);
-                    childOf[en.Dir] = child;
-                }
-                if (child == null)
-                {
-                    // Not under path — but files DIRECTLY in path still count in total.
-                    if (string.Equals(Dirs[en.Dir].TrimEnd('\\'), path.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
-                    { total += en.Size; count++; }
-                    continue;
-                }
+                var child = ChildUnder(en.Dir, in sc, childOf);
+                if (child == -2) continue;
+                // Files DIRECTLY in path count in the total, in no bucket.
                 total += en.Size; count++;
+                if (child < 0) continue;
                 buckets.TryGetValue(child, out var b);
                 buckets[child] = (b.s + en.Size, b.n + 1, Math.Max(b.m, en.Mtime));
             }
+            var dirs = buckets.OrderByDescending(kv => kv.Value.s).Take(64)
+                .Select(kv => new Dictionary<string, object?> { ["p"] = DirPathLocked(kv.Key), ["s"] = kv.Value.s, ["n"] = kv.Value.n, ["m"] = kv.Value.m })
+                .ToList();
+            return new Dictionary<string, object?> { ["total"] = total, ["files"] = count, ["dirs"] = dirs, ["building"] = !Ready };
         }
-        var dirs = buckets.OrderByDescending(kv => kv.Value.s).Take(64)
-            .Select(kv => new Dictionary<string, object?> { ["p"] = kv.Key, ["s"] = kv.Value.s, ["n"] = kv.Value.n, ["m"] = kv.Value.m })
-            .ToList();
-        return new Dictionary<string, object?> { ["total"] = total, ["files"] = count, ["dirs"] = dirs, ["building"] = !Ready };
     }
 
     // One-level, on-demand map for a directory the Disk widget already exposed
@@ -493,35 +1021,30 @@ internal static class IndexHost
     private static Dictionary<string, object?> OpBrowse(System.Text.Json.JsonElement req)
     {
         var path = NormalizeDir(Str(req, "path") ?? "");
-        var prefixLower = path.TrimEnd('\\').ToLowerInvariant();
         int childMax = (int)Math.Max(1, Math.Min(128, Num(req, "childMax") ?? 64));
         int fileMax = (int)Math.Max(1, Math.Min(128, Num(req, "fileMax") ?? 64));
-        var buckets = new Dictionary<string, (long s, long n, long m)>(StringComparer.OrdinalIgnoreCase);
-        var childOf = new Dictionary<int, string?>();
+        var buckets = new Dictionary<int, (long s, long n, long m)>();
         var direct = new List<(long s, int idx)>(fileMax * 2);
         long total = 0, count = 0, directBytes = 0;
 
         lock (Gate)
         {
+            var sc = ScopeOfLocked(path);
+            var childOf = NewChildMemo();
             for (int i = 0; i < Entries.Count; i++)
             {
-                var en = Entries[i];
+                ref var en = ref Entries[i];
                 if (en.Dir < 0) continue;
-                if (!childOf.TryGetValue(en.Dir, out var child))
+                var child = ChildUnder(en.Dir, in sc, childOf);
+                if (child == -2) continue;
+                total += en.Size; count++;
+                if (child >= 0)
                 {
-                    child = FirstChildUnder(Dirs[en.Dir], prefixLower);
-                    childOf[en.Dir] = child;
-                }
-                if (child != null)
-                {
-                    total += en.Size; count++;
                     buckets.TryGetValue(child, out var b);
                     buckets[child] = (b.s + en.Size, b.n + 1, Math.Max(b.m, en.Mtime));
                     continue;
                 }
-                if (!string.Equals(Dirs[en.Dir].TrimEnd('\\'), path.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
-                    continue;
-                total += en.Size; count++; directBytes += en.Size;
+                directBytes += en.Size;
                 direct.Add((en.Size, i));
                 if (direct.Count > fileMax * 4)
                 {
@@ -533,20 +1056,13 @@ internal static class IndexHost
             var children = buckets.OrderByDescending(kv => kv.Value.s).Take(childMax)
                 .Select(kv => new Dictionary<string, object?>
                 {
-                    ["p"] = kv.Key, ["s"] = kv.Value.s,
+                    ["p"] = DirPathLocked(kv.Key), ["s"] = kv.Value.s,
                     ["n"] = kv.Value.n, ["m"] = kv.Value.m,
                 }).ToList();
             direct.Sort((a, b) => b.s.CompareTo(a.s));
             if (direct.Count > fileMax) direct.RemoveRange(fileMax, direct.Count - fileMax);
-            var directFiles = direct.Select(x =>
-            {
-                var en = Entries[x.idx];
-                return new Dictionary<string, object?>
-                {
-                    ["p"] = Dirs[en.Dir] + "\\" + en.Name,
-                    ["n"] = en.Name, ["s"] = en.Size, ["m"] = en.Mtime,
-                };
-            }).ToList();
+            var dirCache = new Dictionary<int, string>();
+            var directFiles = direct.Select(x => Item(in Entries[x.idx], dirCache)).ToList();
             return new Dictionary<string, object?>
             {
                 ["path"] = path,
@@ -560,22 +1076,9 @@ internal static class IndexHost
         }
     }
 
-    // "C:\a\b\c" under "c:\a" → "C:\a\b"; not under → null.
-    private static string? FirstChildUnder(string dir, string prefixLower)
-    {
-        var d = dir.TrimEnd('\\');
-        var dl = d.ToLowerInvariant();
-        if (!dl.StartsWith(prefixLower, StringComparison.Ordinal)) return null;
-        if (dl.Length == prefixLower.Length) return null;          // the dir IS path (direct files)
-        if (dl[prefixLower.Length] != '\\') return null;           // "C:\ab" vs "C:\a"
-        var next = dl.IndexOf('\\', prefixLower.Length + 1);
-        return next < 0 ? d : d.Substring(0, next);
-    }
-
     private static Dictionary<string, object?> OpDirs(System.Text.Json.JsonElement req)
     {
-        var path = NormalizeDir(Str(req, "path") ?? "");
-        var prefixLower = path.TrimEnd('\\').ToLowerInvariant();
+        var path = Str(req, "path") ?? "";
         long minBytes = Num(req, "minBytes") ?? DefaultDirMinBytes;
         int max = (int)Math.Max(1, Math.Min(20000, Num(req, "max") ?? 5000));
         // Aggregate EVERY dir (each entry counts toward all its ancestors under
@@ -584,13 +1087,14 @@ internal static class IndexHost
         var chains = new Dictionary<int, int[]>();
         lock (Gate)
         {
+            var sc = ScopeOfLocked(path);
             for (int i = 0; i < Entries.Count; i++)
             {
-                var en = Entries[i];
+                ref var en = ref Entries[i];
                 if (en.Dir < 0) continue;
                 if (!chains.TryGetValue(en.Dir, out var chain))
                 {
-                    chain = AncestorChain(en.Dir, prefixLower);
+                    chain = AncestorChain(en.Dir, in sc);
                     chains[en.Dir] = chain;
                 }
                 foreach (var d in chain)
@@ -601,53 +1105,27 @@ internal static class IndexHost
             }
             var items = agg.Where(kv => kv.Value.s >= minBytes)
                 .OrderByDescending(kv => kv.Value.s).Take(max)
-                .Select(kv => new Dictionary<string, object?> { ["p"] = Dirs[kv.Key], ["s"] = kv.Value.s, ["n"] = kv.Value.n, ["m"] = kv.Value.m })
+                .Select(kv => new Dictionary<string, object?> { ["p"] = DirPathLocked(kv.Key), ["s"] = kv.Value.s, ["n"] = kv.Value.n, ["m"] = kv.Value.m })
                 .ToList();
             return new Dictionary<string, object?> { ["items"] = items, ["building"] = !Ready };
         }
     }
 
-    // Dir ids of `dirId` and every ancestor of it that sits under prefixLower.
-    private static int[] AncestorChain(int dirId, string prefixLower)
-    {
-        var list = new List<int>();
-        var d = Dirs[dirId].TrimEnd('\\');
-        while (true)
-        {
-            var dl = d.ToLowerInvariant();
-            if (!dl.StartsWith(prefixLower, StringComparison.Ordinal)) break;
-            if (dl.Length > prefixLower.Length && dl[prefixLower.Length] != '\\') break;
-            if (DirIds.TryGetValue(d, out var id)) list.Add(id);
-            var cut = d.LastIndexOf('\\');
-            if (cut <= 2) break; // stop at drive root
-            d = d.Substring(0, cut);
-        }
-        return list.ToArray();
-    }
-
     private static Dictionary<string, object?> OpList(System.Text.Json.JsonElement req)
     {
-        var path = NormalizeDir(Str(req, "path") ?? "");
-        var prefixLower = path.TrimEnd('\\').ToLowerInvariant();
+        var path = Str(req, "path") ?? "";
         int max = (int)Math.Max(1, Math.Min(20000, Num(req, "max") ?? 5000));
         var items = new List<Dictionary<string, object?>>();
         lock (Gate)
         {
-            var under = new Dictionary<int, bool>();
+            var sc = ScopeOfLocked(path);
+            var under = new byte[DirNodes.Count];
+            var dirCache = new Dictionary<int, string>();
             for (int i = 0; i < Entries.Count && items.Count < max; i++)
             {
-                var en = Entries[i];
-                if (en.Dir < 0) continue;
-                if (!under.TryGetValue(en.Dir, out var ok))
-                {
-                    var dl = Dirs[en.Dir].TrimEnd('\\').ToLowerInvariant();
-                    ok = dl.StartsWith(prefixLower, StringComparison.Ordinal)
-                         && (dl.Length == prefixLower.Length || dl[prefixLower.Length] == '\\');
-                    under[en.Dir] = ok;
-                }
-                if (!ok) continue;
-                items.Add(new Dictionary<string, object?>
-                { ["p"] = Dirs[en.Dir] + "\\" + en.Name, ["n"] = en.Name, ["s"] = en.Size, ["m"] = en.Mtime });
+                ref var en = ref Entries[i];
+                if (en.Dir < 0 || !IsUnder(en.Dir, in sc, under)) continue;
+                items.Add(Item(in en, dirCache));
             }
         }
         return new Dictionary<string, object?> { ["items"] = items, ["building"] = !Ready };
@@ -655,70 +1133,53 @@ internal static class IndexHost
 
     private static Dictionary<string, object?> OpTop(System.Text.Json.JsonElement req)
     {
-        var path = NormalizeDir(Str(req, "path") ?? "");
-        var prefixLower = path.TrimEnd('\\').ToLowerInvariant();
+        var path = Str(req, "path") ?? "";
         int max = (int)Math.Max(1, Math.Min(500, Num(req, "max") ?? 100));
         var best = new List<(long s, int idx)>(max + 1);
         lock (Gate)
         {
-            var under = new Dictionary<int, bool>();
+            var sc = ScopeOfLocked(path);
+            var under = new byte[DirNodes.Count];
             for (int i = 0; i < Entries.Count; i++)
             {
-                var en = Entries[i];
-                if (en.Dir < 0) continue;
-                if (!under.TryGetValue(en.Dir, out var ok))
-                {
-                    var dl = Dirs[en.Dir].TrimEnd('\\').ToLowerInvariant();
-                    ok = dl.StartsWith(prefixLower, StringComparison.Ordinal)
-                         && (dl.Length == prefixLower.Length || dl[prefixLower.Length] == '\\');
-                    under[en.Dir] = ok;
-                }
-                if (!ok) continue;
+                ref var en = ref Entries[i];
+                if (en.Dir < 0 || !IsUnder(en.Dir, in sc, under)) continue;
                 best.Add((en.Size, i));
                 if (best.Count > max * 4) { best.Sort((a, b) => b.s.CompareTo(a.s)); best.RemoveRange(max, best.Count - max); }
             }
             best.Sort((a, b) => b.s.CompareTo(a.s));
             if (best.Count > max) best.RemoveRange(max, best.Count - max);
-            var items = best.Select(x =>
-            {
-                var en = Entries[x.idx];
-                return new Dictionary<string, object?> { ["p"] = Dirs[en.Dir] + "\\" + en.Name, ["n"] = en.Name, ["s"] = en.Size, ["m"] = en.Mtime };
-            }).ToList();
+            var dirCache = new Dictionary<int, string>();
+            var items = best.Select(x => Item(in Entries[x.idx], dirCache)).ToList();
             return new Dictionary<string, object?> { ["items"] = items };
         }
     }
 
     private static Dictionary<string, object?> OpDupes(System.Text.Json.JsonElement req)
     {
-        var path = NormalizeDir(Str(req, "path") ?? "");
-        var prefixLower = path.TrimEnd('\\').ToLowerInvariant();
+        var path = Str(req, "path") ?? "";
         long minBytes = Num(req, "minBytes") ?? DefaultDirMinBytes;
         int max = (int)Math.Max(1, Math.Min(500, Num(req, "max") ?? 200));
         var bySize = new Dictionary<long, List<int>>();
         lock (Gate)
         {
-            var under = new Dictionary<int, bool>();
+            var sc = ScopeOfLocked(path);
+            var under = new byte[DirNodes.Count];
             for (int i = 0; i < Entries.Count; i++)
             {
-                var en = Entries[i];
+                ref var en = ref Entries[i];
                 if (en.Dir < 0 || en.Size < minBytes) continue;
-                if (!under.TryGetValue(en.Dir, out var ok))
-                {
-                    var dl = Dirs[en.Dir].TrimEnd('\\').ToLowerInvariant();
-                    ok = dl.StartsWith(prefixLower, StringComparison.Ordinal)
-                         && (dl.Length == prefixLower.Length || dl[prefixLower.Length] == '\\');
-                    under[en.Dir] = ok;
-                }
-                if (!ok) continue;
+                if (!IsUnder(en.Dir, in sc, under)) continue;
                 if (!bySize.TryGetValue(en.Size, out var l)) bySize[en.Size] = l = new List<int>();
                 if (l.Count < 20) l.Add(i);
             }
+            var dirCache = new Dictionary<int, string>();
             var groups = bySize.Where(kv => kv.Value.Count > 1)
                 .OrderByDescending(kv => kv.Key).Take(max)
                 .Select(kv => new Dictionary<string, object?>
                 {
                     ["s"] = kv.Key,
-                    ["paths"] = kv.Value.Select(i => Dirs[Entries[i].Dir] + "\\" + Entries[i].Name).ToList(),
+                    ["paths"] = kv.Value.Select(i => (object?)FilePathLocked(in Entries[i], dirCache)).ToList(),
                 }).ToList();
             return new Dictionary<string, object?> { ["groups"] = groups };
         }
@@ -737,9 +1198,14 @@ internal static class IndexHost
                 ["ready"] = Ready,
                 ["building"] = !Ready,
                 ["files"] = (long)(Entries.Count - Tombstones),
-                ["dirs"] = (long)Dirs.Count,
+                ["dirs"] = (long)DirNodes.Count,
                 ["bytes"] = TotalBytes,
-                ["ramMB"] = GC.GetTotalMemory(false) / (1024 * 1024),
+                // The process working set — what Task Manager shows for this
+                // exe. GC.GetTotalMemory reported the managed heap alone and
+                // read 603 MB against a measured 814 MB of private memory: the
+                // one number the UI promises to be honest about was not.
+                ["ramMB"] = Environment.WorkingSet / (1024 * 1024),
+                ["maxEntries"] = (long)MaxEntries,
                 ["roots"] = Roots.ToList(),
                 ["watchers"] = Watchers.Count,
                 // What the host is doing beyond the initial build. Without
@@ -842,73 +1308,72 @@ internal static class IndexHost
 
     private static void AddEntryLocked(string dir, string name, long size, long mtime, int gen)
     {
-        if (!DirIds.TryGetValue(dir, out var dirId))
+        var dirId = InternDirLocked(dir);
+        if (dirId < 0) return;
+        var n = EncodeName(name, ref _nameScratch, out var lowerLen);
+        if (n > ushort.MaxValue || lowerLen > ushort.MaxValue) return;   // not a Windows file name
+        var key = lowerLen > 0 ? _nameScratch.AsSpan(n, lowerLen) : _nameScratch.AsSpan(0, n);
+        var hash = HashKey(dirId, key);
+        var existing = ByPath.Find(hash, dirId, key);
+        if (existing >= 0)
         {
-            dirId = Dirs.Count;
-            Dirs.Add(dir);
-            DirIds[dir] = dirId;
-        }
-        var lower = name.ToLowerInvariant();
-        // Already-lowercase names keep ONE string: the key reuses the name
-        // reference and the entry stores null (LowerOf falls back to Name).
-        if (string.Equals(lower, name, StringComparison.Ordinal)) lower = name;
-        var key = new PathKey(dirId, lower);
-        if (ByPath.TryGetValue(key, out var existing))
-        {
-            var en = Entries[existing];
+            ref var en = ref Entries[existing];
             TotalBytes += size - en.Size;
             en.Size = size; en.Mtime = mtime; en.Gen = gen;
-            Entries[existing] = en;
             return;
         }
-        Entries.Add(new Entry { Name = name, NameLower = ReferenceEquals(lower, name) ? null : lower, Dir = dirId, Gen = gen, Size = size, Mtime = mtime });
-        ByPath[key] = Entries.Count - 1;
+        var off = Arena.Add(_nameScratch.AsSpan(0, n), _nameScratch.AsSpan(n, lowerLen));
+        var entry = new Entry { NameOff = off, NameLen = (ushort)n, LowerLen = (ushort)lowerLen, Dir = dirId, Gen = gen, Size = size, Mtime = mtime };
+        Entries.Add(in entry);
+        ByPath.Add(hash, Entries.Count - 1);
         TotalBytes += size;
+    }
+
+    private static void TombstoneLocked(int idx)
+    {
+        ref var en = ref Entries[idx];
+        ByPath.Remove(HashKey(en.Dir, MatchOf(in en)), en.Dir, MatchOf(in en));
+        TotalBytes -= en.Size;
+        Arena.Dead += en.NameLen + en.LowerLen;
+        en.Dir = -1;
+        Tombstones++;
     }
 
     private static void RemoveEntryLocked(string dir, string name)
     {
-        if (!DirIds.TryGetValue(dir, out var dirId)) return;
-        var key = new PathKey(dirId, name.ToLowerInvariant());
-        if (!ByPath.TryGetValue(key, out var idx)) return;
-        var en = Entries[idx];
-        TotalBytes -= en.Size;
-        en.Dir = -1; en.Name = ""; en.NameLower = null;
-        Entries[idx] = en;
-        ByPath.Remove(key);
-        Tombstones++;
-        if (Tombstones > 50000 && Tombstones > Entries.Count / 5) CompactLocked();
+        var dirId = ResolveDirLocked(dir, create: false);
+        if (dirId < 0) return;
+        var key = KeyOf(name, ref _nameScratch);
+        var idx = ByPath.Find(HashKey(dirId, key), dirId, key);
+        if (idx < 0) return;
+        TombstoneLocked(idx);
+        MaybeCompactLocked();
+    }
+
+    // Same threshold everywhere. Compacting unconditionally rebuilt the whole
+    // path table (millions of entries) on EVERY deleted directory — and a
+    // build tool deletes directories by the hundred. The arena's dead bytes
+    // are a second trigger: a name is not freed until the index is rebuilt.
+    private static void MaybeCompactLocked()
+    {
+        if (Tombstones > 50000 && Tombstones > Entries.Count / 5) { CompactLocked(); return; }
+        if (Arena.Dead > 32L * 1024 * 1024 && Arena.Dead * 4 > Arena.Used) CompactLocked();
     }
 
     private static void RemoveSubtree(string root)
     {
-        var prefixLower = root.TrimEnd('\\').ToLowerInvariant();
         lock (Gate)
         {
-            var under = new Dictionary<int, bool>();
+            var sc = ScopeOfLocked(root);
+            if (sc.Anchors.Length == 0) return;
+            var under = new byte[DirNodes.Count];
             for (int i = 0; i < Entries.Count; i++)
             {
-                var en = Entries[i];
-                if (en.Dir < 0) continue;
-                if (!under.TryGetValue(en.Dir, out var ok))
-                {
-                    var dl = Dirs[en.Dir].TrimEnd('\\').ToLowerInvariant();
-                    ok = dl.StartsWith(prefixLower, StringComparison.Ordinal)
-                         && (dl.Length == prefixLower.Length || dl[prefixLower.Length] == '\\');
-                    under[en.Dir] = ok;
-                }
-                if (!ok) continue;
-                ByPath.Remove(new PathKey(en.Dir, LowerOf(en)));
-                TotalBytes -= en.Size;
-                en.Dir = -1; en.Name = ""; en.NameLower = null;
-                Entries[i] = en;
-                Tombstones++;
+                ref var en = ref Entries[i];
+                if (en.Dir < 0 || !IsUnder(en.Dir, in sc, under)) continue;
+                TombstoneLocked(i);
             }
-            // Same threshold as RemoveEntryLocked. Compacting unconditionally
-            // rebuilt the whole ByPath dictionary (millions of entries) on
-            // EVERY deleted directory — and a build tool deletes directories by
-            // the hundred.
-            if (Tombstones > 50000 && Tombstones > Entries.Count / 5) CompactLocked();
+            MaybeCompactLocked();
         }
     }
 
@@ -917,41 +1382,72 @@ internal static class IndexHost
     // walk's own generation, so they are never swept.
     private static void SweepStaleUnder(string root, int gen)
     {
-        var prefixLower = root.TrimEnd('\\').ToLowerInvariant();
         lock (Gate)
         {
-            var under = new Dictionary<int, bool>();
+            var sc = ScopeOfLocked(root);
+            if (sc.Anchors.Length == 0) return;
+            var under = new byte[DirNodes.Count];
             for (int i = 0; i < Entries.Count; i++)
             {
-                var en = Entries[i];
+                ref var en = ref Entries[i];
                 if (en.Dir < 0 || en.Gen == gen) continue;
-                if (!under.TryGetValue(en.Dir, out var ok))
-                {
-                    var dl = Dirs[en.Dir].TrimEnd('\\').ToLowerInvariant();
-                    ok = dl.StartsWith(prefixLower, StringComparison.Ordinal)
-                         && (dl.Length == prefixLower.Length || dl[prefixLower.Length] == '\\');
-                    under[en.Dir] = ok;
-                }
-                if (!ok) continue;
-                ByPath.Remove(new PathKey(en.Dir, LowerOf(en)));
-                TotalBytes -= en.Size;
-                en.Dir = -1; en.Name = ""; en.NameLower = null;
-                Entries[i] = en;
-                Tombstones++;
+                if (!IsUnder(en.Dir, in sc, under)) continue;
+                TombstoneLocked(i);
             }
-            if (Tombstones > 50000 && Tombstones > Entries.Count / 5) CompactLocked();
+            MaybeCompactLocked();
         }
     }
 
+    // Rebuild everything live into fresh storage: tombstoned entries, the
+    // names they owned, and every directory node no live entry sits under
+    // (a build tool's temp trees would otherwise accumulate forever). Parents
+    // are always created before their children, so ids only ever move down
+    // and a parent's new id is known when its child is copied.
     private static void CompactLocked()
     {
-        var alive = new List<Entry>(Entries.Count - Tombstones);
-        foreach (var en in Entries) if (en.Dir >= 0) alive.Add(en);
-        Entries.Clear();
-        Entries.AddRange(alive);
-        ByPath.Clear();
-        for (int i = 0; i < Entries.Count; i++) ByPath[new PathKey(Entries[i].Dir, LowerOf(Entries[i]))] = i;
+        var keep = new bool[DirNodes.Count];
+        for (int i = 0; i < Entries.Count; i++)
+        {
+            ref var en = ref Entries[i];
+            for (var d = en.Dir; d >= 0 && !keep[d]; d = DirNodes[d].Parent) keep[d] = true;
+        }
+        foreach (var r in RootNodeIds) for (var d = r; d >= 0 && !keep[d]; d = DirNodes[d].Parent) keep[d] = true;
+
+        var arena = new ByteArena();
+        var dirs = new ChunkedList<DirNode>();
+        var remap = new int[DirNodes.Count];
+        for (int i = 0; i < DirNodes.Count; i++)
+        {
+            if (!keep[i]) { remap[i] = -1; continue; }
+            ref var n = ref DirNodes[i];
+            var node = new DirNode
+            {
+                Parent = n.Parent < 0 ? -1 : remap[n.Parent],
+                NameOff = arena.Add(Arena.Get(n.NameOff, n.NameLen + n.LowerLen), default),
+                NameLen = n.NameLen, LowerLen = n.LowerLen,
+            };
+            remap[i] = dirs.Count;
+            dirs.Add(in node);
+        }
+        var entries = new ChunkedList<Entry>();
+        for (int i = 0; i < Entries.Count; i++)
+        {
+            ref var en = ref Entries[i];
+            if (en.Dir < 0) continue;
+            var e = en;
+            e.NameOff = arena.Add(Arena.Get(en.NameOff, en.NameLen + en.LowerLen), default);
+            e.Dir = remap[en.Dir];
+            entries.Add(in e);
+        }
+        for (int i = 0; i < RootNodeIds.Length; i++) RootNodeIds[i] = remap[RootNodeIds[i]];
+
+        Arena = arena; DirNodes = dirs; Entries = entries;
         Tombstones = 0;
+        _lastDirStr = null; _lastDirId = -1;
+        DirChildren.Reset(DirNodes.Count);
+        for (int i = 0; i < DirNodes.Count; i++) DirChildren.Add(HashKey(DirNodes[i].Parent, DirMatchOf(in DirNodes[i])), i);
+        ByPath.Reset(Entries.Count);
+        for (int i = 0; i < Entries.Count; i++) ByPath.Add(HashKey(Entries[i].Dir, MatchOf(in Entries[i])), i);
     }
 
     private static void StartWatcher(string root)
@@ -961,7 +1457,7 @@ internal static class IndexHost
             var w = new FileSystemWatcher(root)
             {
                 IncludeSubdirectories = true,
-                InternalBufferSize = 64 * 1024,   // max Windows allows
+                InternalBufferSize = WatcherBufferBytes,
                 NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.Size | NotifyFilters.LastWrite,
             };
             // These four callbacks run on the watcher's own threads and must
@@ -1018,7 +1514,10 @@ internal static class IndexHost
             {
                 if (Pending.Count > 0) { touched.AddRange(Pending); Pending.Clear(); }
             }
-            if (touched.Count == 0) { Thread.Sleep(DrainIntervalMs); continue; }
+            // Idle is when memory is worth giving back — see TrimHeapIfDue: a
+            // burst that ended inside the trim interval would otherwise sit
+            // in the process until the next request happened to arrive.
+            if (touched.Count == 0) { if (Ready) TrimHeapIfDue(); Thread.Sleep(DrainIntervalMs); continue; }
 
             foreach (var kv in touched)
             {
@@ -1045,8 +1544,10 @@ internal static class IndexHost
                         if (kv.Value) dirWalks.Add(full);
                         continue;
                     }
+                    // Gone. A directory the tree knows (even one that only ever
+                    // held subfolders) takes its whole subtree with it.
                     bool isDirectory;
-                    lock (Gate) isDirectory = DirIds.ContainsKey(full);
+                    lock (Gate) isDirectory = ResolveDirLocked(full, create: false) >= 0;
                     if (isDirectory) { subtreeDeletes.Add(full); continue; }
                     var cut = full.LastIndexOf('\\');
                     if (cut > 0) fileDeletes.Add((full.Substring(0, cut), full.Substring(cut + 1)));
@@ -1087,18 +1588,8 @@ internal static class IndexHost
 
     private static string? RootOf(string path)
     {
-        var pl = path.ToLowerInvariant();
-        string? best = null;
-        var bestLen = -1;
-        foreach (var r in Roots)
-        {
-            var rl = r.TrimEnd('\\').ToLowerInvariant();
-            if (rl.Length == 0) continue;
-            if (!pl.StartsWith(rl, StringComparison.Ordinal)) continue;
-            if (pl.Length != rl.Length && pl[rl.Length] != '\\') continue;
-            if (rl.Length > bestLen) { best = r; bestLen = rl.Length; }
-        }
-        return best;
+        var i = RootIndexOf(path.AsSpan().TrimEnd('\\'));
+        return i < 0 ? null : Roots[i];
     }
 
     // A root is due once the storm has stopped (or has gone on long enough to

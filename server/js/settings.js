@@ -5382,9 +5382,23 @@ function renderSearchDiskSettings() {
         // waiting for `ready` would keep saying "learning your disk" over an
         // index that has finished growing.
         const roots = (st.cappedRoots || []).filter(Boolean);
-        const capNote = !st.capped ? '' : ' '
+        // Said BEFORE the cap too. "Limit reached" arrives when a whole drive
+        // is already missing; at 85% of the way there the user still has time
+        // to trim the list, and an index that quietly stops growing next week
+        // is the "looks alive, does nothing" failure. The cap is per machine
+        // (the helper derives it from the RAM), so the number is read, never
+        // assumed.
+        const files = Number(st.files) || 0;
+        const maxEntries = Number(st.maxEntries) || 0;
+        const nearCap = !st.capped && maxEntries > 0 && files >= maxEntries * 0.85;
+        const capNote = st.capped ? ' '
           + t('settings_search_idx_capped', 'Limite raggiunto: Xenon ha smesso di aggiungere file, quindi la ricerca non li vede tutti. Togli una cartella dall’elenco qui sopra, oppure indica cartelle precise invece di interi dischi.')
-          + (roots.length ? ' ' + t('settings_search_idx_capped_roots', 'Rimasto fuori:') + ' ' + roots.join(', ') : '');
+          + (roots.length ? ' ' + t('settings_search_idx_capped_roots', 'Rimasto fuori:') + ' ' + roots.join(', ') : '')
+          : nearCap ? ' '
+            + t('settings_search_idx_near_cap', 'L’indice è al {pct}% del suo limite ({max} file): se i file crescono ancora, Xenon smetterà di aggiungerli e la ricerca non li vedrà tutti. Togli una cartella dall’elenco qui sopra, oppure indica cartelle precise invece di interi dischi.')
+              .replace('{pct}', String(Math.min(99, Math.floor((files / maxEntries) * 100))))
+              .replace('{max}', maxEntries.toLocaleString())
+            : '';
         idxStatus.textContent = !st.on || !st.helper
           ? t('settings_search_idx_helper', 'L’indice vivo non è disponibile: aggiungi una cartella qui sopra, oppure rilancia l’installer di Xenon.')
           : st.building

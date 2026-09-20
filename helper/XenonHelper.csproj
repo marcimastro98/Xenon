@@ -68,6 +68,19 @@
                   channel is held by the system driver and the public API has no
                   accept method, so `status` reports canAnswer:false rather than
                   the dashboard guessing;
+         0.13.0 = index-serve holds the index in a third of the memory: names in
+                  one UTF-8 arena instead of a .NET string each (plus a lowercase
+                  twin for 40% of them), directories as a tree instead of full-path
+                  strings, path lookup in an int-slot table instead of a Dictionary.
+                  The entry cap is derived from the machine's RAM (2M on 8 GB, 6M
+                  on 32 GB) and reported as `stats.maxEntries` so Settings can warn
+                  before it is hit; `stats.ramMB` is the process working set (what
+                  Task Manager shows) instead of the GC heap, which read 603 MB
+                  against a measured 814; the host trims its heap after answers so
+                  an idle index no longer keeps a burst's garbage; the watcher
+                  buffer is 2 MB (64 KB is the ceiling for network shares only) so
+                  a build tool's burst no longer costs a whole-drive re-walk.
+                  Version-gated: the cap and the RAM figure are what the UI shows;
          0.12.1 = index-serve watcher callbacks are non-blocking (coalesced queue
                   drained off the watcher threads) and a dirty root is repaired
                   by a generation-stamped upsert + sweep, debounced and
@@ -92,7 +105,7 @@
                   handed to the browser as text and never decoded. Version-gated
                   because an existing install would otherwise keep the exe that
                   loses every Apple Music cover. -->
-    <Version>0.12.3</Version>
+    <Version>0.13.0</Version>
     <Description>Xenon Helper — native companion process for the Xenon dashboard server</Description>
   </PropertyGroup>
 

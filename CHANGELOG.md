@@ -4,6 +4,17 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### 🛠 Fixes
+- **The live file index holds its place in memory at a third of the cost, and the number Settings shows for it is the real one.** Measured on the author's PC with three drives indexed (1.98 million files): the index process held **814 MB**, while Settings said "~603 MB". The figure came from the .NET garbage collector's view of its own heap, not from the process, so it never counted what the process actually kept.
+
+  Three things changed inside the index. File names are stored once, as compact UTF-8, instead of as a full .NET string each (plus a second lowercase copy for the 40% of names that carry a capital letter). Folders are a tree instead of 280,000 full-path strings. And finding a path again goes through a table of integers instead of a dictionary entry per file. On the same 1.88 million files of C:, the index now sits at **156 MB** at rest, and search and the Disk map answer exactly what they did before (verified answer by answer against the previous build; the Disk map's folder totals now also list folders that only contain subfolders, which used to be missed).
+
+  Two more leaks are closed. After answering a burst of requests the process used to keep the garbage from those answers for as long as it sat idle (measured: 110 MB above the index for a whole hour). It now hands that memory back to Windows within seconds of going quiet. And the buffer that collects file changes was 64 KB, a ceiling that only applies to network shares: every time a build tool overflowed it, the whole drive was re-read (minutes at a full core). It is 2 MB now.
+
+- **The index's file limit follows your RAM, and Settings warns you before you hit it.** The limit was 2,000,000 files on every PC. It is now derived from the machine (2 million on 8 GB, 6 million on 32 GB), and **Settings → Search** says when the index passes 85% of it, with the percentage and the exact limit, so you can trim the list of folders before search silently stops seeing new files. The "limit reached" message still names the drive that was left out.
+
+  *The index lives in the Xenon Helper; a fresh install gets the new one, and an existing install refreshes it with the next update.*
+
 
 ## [v4.11.9] - 20-09-2026
 ### ✨ Added
