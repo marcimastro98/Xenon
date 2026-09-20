@@ -389,6 +389,19 @@ input[type="range"] { accent-color: var(--green); }
   margin-left: 16px;
   margin-right: 16px;
 }
+/* Whatever closes a card gets room under it. Only the grid wrappers carry
+   bottom padding, so a card that ends with a row, a note, a button or a plain
+   wrapper ended 1px above its own border - measured on 20 of 27 pages. The
+   two grids are excluded because they already pad. */
+.settings-group > :last-child:not(.settings-grid):not(.settings-toggle-grid):not(.settings-group-head) {
+  margin-bottom: 12px;
+}
+.settings-group > .settings-toggle-row:last-child { margin-bottom: 8px; }
+/* Same room when the real last thing is followed only by a hidden element
+   (Notifiche ends with a note that is shown only at the calls cap). */
+.settings-group > :nth-last-child(2):not(.settings-grid):not(.settings-toggle-grid):has(+ [hidden]:last-child) {
+  margin-bottom: 12px;
+}
 /* A link that belongs to the toggle above it but must not live INSIDE its
    <label>: several browsers toggle the checkbox when a nested link is clicked,
    so reading what a setting sends would switch it on. Pulled up tight against
@@ -922,22 +935,38 @@ input[type="range"] { accent-color: var(--green); }
   grid-template-columns: repeat(2, minmax(0,1fr));
   gap: 8px;
 }
+/* A toggle is a LIST ROW, not a card. It used to be a bordered, darker box
+   inside the group card (a box in a box, 131 times across Settings), with the
+   label and its explanation side by side on one line, each squeezed into half
+   the width and the text touching the box edge. Now: checkbox, bold label, the
+   explanation under it at full width, and a halo only on hover. The three
+   theme layers that painted the box (theme-contract, light, comic) no longer
+   list this class, or they would paint it back. */
 .settings-toggle-row {
   min-width: 0;
-  min-height: 36px;
+  min-height: 34px;
   display: flex;
-  align-items: center;
-  gap: 9px;
-  border: 1px solid rgba(255,255,255,0.075);
-  border-radius: 11px;
-  background: rgba(0,0,0,0.16);
+  align-items: flex-start;
+  gap: 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
   color: var(--text);
   font-size: 12.5px;
   font-weight: 850;
-  padding: 0 10px;
+  padding: 6px 7px;
   cursor: pointer;
 }
-.settings-toggle-row:hover { border-color: rgba(var(--accent-rgb),0.28); background: rgba(var(--accent-rgb),0.055); }
+.settings-toggle-row:hover { background: rgba(var(--accent-rgb),0.07); }
+/* Checkbox on the label's first line, not centred against label + hint. */
+.settings-toggle-row > .settings-check { margin-top: 2px; }
+.settings-toggle-row > .settings-label-line {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+.settings-toggle-row .settings-hint { font-weight: 650; line-height: 1.35; }
 /* A sub-toggle that a master switch has turned off (e.g. pop-ups when notifications
    are disabled): dimmed and non-interactive, but still readable. */
 .settings-toggle-row.is-disabled { opacity: 0.42; pointer-events: none; }
@@ -1409,12 +1438,12 @@ input[type="range"] { accent-color: var(--green); }
 
 .settings-status {
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 16px;
   color: var(--muted-text);
   font-size: 11px;
   font-weight: 750;
-  text-align: center;
+  text-align: left;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1422,22 +1451,61 @@ input[type="range"] { accent-color: var(--green); }
 .settings-status.error { color: var(--color-danger); }
 .settings-status.ok { color: var(--green); }
 
+/* The bar is two things: what the panel promises (left) and two actions with
+   consequences (right). Each action is a button with its explanation UNDER it,
+   clamped to two small lines, so the bar has a fixed shape at any width instead
+   of one long line that truncated the note and wrapped the prose between the
+   buttons. The full text stays in the DOM for screen readers and the tooltip. */
 .settings-foot {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-start;
+  gap: 18px;
   padding: 10px 14px;
   border-top: 1px solid rgba(255,255,255,0.07);
+}
+.settings-foot-info {
+  flex: 0 1 300px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 2px;
 }
 .settings-foot-note {
   min-width: 0;
   color: var(--muted-text);
   font-size: 11px;
   font-weight: 750;
-  white-space: nowrap;
+  line-height: 1.35;
+}
+.settings-foot-actions {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+}
+/* Wide enough that two lines carry the whole explanation on a desktop; the
+   full text is also the tooltip, for the widths where they do not. */
+.settings-foot-action {
+  flex: 1 1 0;
+  max-width: 460px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.settings-foot-action .settings-btn { align-self: flex-start; min-height: 32px; }
+.settings-foot-hint {
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  opacity: 0.8;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 @media (min-width: 900px) {
@@ -1505,9 +1573,10 @@ input[type="range"] { accent-color: var(--green); }
   .settings-grid { grid-template-columns: 1fr; }
   .theme-presets { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .settings-upload-row { grid-template-columns: 1fr; }
-  .settings-foot { align-items: stretch; flex-direction: column; }
-  .settings-status { text-align: left; }
-  .settings-foot-note { white-space: normal; }
+  .settings-foot { align-items: stretch; flex-direction: column; gap: 10px; }
+  .settings-foot-info { flex-basis: auto; }
+  .settings-foot-actions { justify-content: flex-start; flex-wrap: wrap; }
+  .settings-foot-action { flex-basis: 100%; }
 }
 
 /* ── Settings sidebar (category nav) — overrides the legacy 2-column grid ── */
@@ -1541,32 +1610,23 @@ input[type="range"] { accent-color: var(--green); }
   border-top: 1px solid rgba(255,255,255,0.07);
 }
 
-/* ── A short screen: one scroller, not a list squeezed under a fixed block ──
-   The pane above is a scrolling category list with the support block, the
-   update button, the platform card and the version pinned under it. That split
-   is right on a tall screen and upside down on a short one, because the pinned
-   half never shrinks: measured on a Xeneon Edge (2560x720), the pane is 549px,
-   the footer takes 337px of it, and the 27 categories are left scrolling
-   through a 206px window - four and a half rows. Reported from an Edge, where
-   picking a settings category meant scrolling a strip.
+/* ── The footer under the category list is PINNED, on every screen height ──
+   The four actions there (Supporta, Discord, Segnala bug, Aggiorna) and the
+   version must be in view the moment Settings opens, without scrolling. 4.11.8
+   had unpinned them on short screens because the block was five stacked rows
+   and took 337px of the Edge's 549px pane; it is two rows of two now, about
+   100px, so the categories keep ~420px there and the block stays put. The
+   phone breakpoint below is the one exception: a collapsed picker hides it.
 
-   Here the pane scrolls as ONE column: the categories keep their natural
-   height, the footer follows them at the end, and nothing is pinned. The same
-   move the phone breakpoint below already makes, for the same reason.
-
-   Keyed on height alone, so it catches every screen with the problem - the Edge
-   at either of its zoom levels, and a 1366x768 laptop, where the squeeze is the
-   same and nobody had reported it yet. */
+   What still changes on a short screen is the bottom bar: height is what is
+   scarce there and width is not (the Edge is 2560 wide), so each action lays
+   its explanation BESIDE the button instead of under it. The bar drops from
+   ~85px to ~52px and each action is still one self-contained block. Keyed on
+   height alone: the Edge at either of its zoom levels, and a 1366x768 laptop. */
 @media (max-height: 820px) {
-  .settings-nav { overflow-y: auto; }
-  .settings-nav-scroll {
-    /* Not `flex: 1` any more: it must take the height its rows need and let the
-       pane do the scrolling, or the list keeps its own window inside a scroller
-       and neither of them shows more than before. */
-    flex: 0 0 auto;
-    overflow: visible;
-  }
-  .settings-nav-footer { margin-top: 10px; }
+  .settings-foot { padding: 8px 14px; align-items: center; }
+  .settings-foot-action { flex-direction: row; align-items: center; gap: 10px; max-width: 560px; }
+  .settings-foot-action .settings-btn { align-self: center; }
 }
 .settings-nav-btn {
   display: flex;
@@ -1617,15 +1677,6 @@ input[type="range"] { accent-color: var(--green); }
   white-space: nowrap;
   user-select: none;
 }
-/* "Sostieni Xenon" — the one deliberately loud button in the sidebar. */
-.settings-nav-btn-support {
-  margin-top: 8px;
-  color: #ff4d8d;
-  background: rgba(255,77,141,0.10);
-  border: 1px solid rgba(255,77,141,0.24);
-}
-.settings-nav-btn-support:hover { background: rgba(255,77,141,0.18); color: #ff6ba0; }
-.settings-nav-btn-support.active { background: rgba(255,77,141,0.2); color: #ff6ba0; }
 /* "Try the native app" promo — shown only on the browser/iCUE surfaces (never
    inside the native app) when the native kiosk isn't installed. A compact pill
    in the settings header opens the details as a dropdown. Both are revealed and
@@ -1722,27 +1773,39 @@ input[type="range"] { accent-color: var(--green); }
 .native-promo-status { font-size: 11px; color: var(--muted-text); }
 .native-promo-status:empty { display: none; }
 
-.settings-nav-support {
+/* Two rows of two. Five stacked rows took 178px of a 202px-wide pane on a
+   1600x900 desktop and 337px of the 549px pane on a Xeneon Edge; two rows of
+   half-width controls take about half that, with every action still labelled.
+   Each row is flex, not grid, so when update.js hides the check button behind
+   the "update available" pill, the bug link widens to the full row instead of
+   leaving a hole. */
+.settings-nav-links {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  gap: 6px;
+  margin: 0 0 6px;
 }
+.settings-nav-links > * { flex: 1 1 0; min-width: 0; }
 .settings-nav-support-btn {
   display: flex;
   align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 8px 12px;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 6px;
   border-radius: 10px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 650;
   color: var(--muted-text);
   text-decoration: none;
   opacity: 0.85;
   transition: opacity .15s ease, background .15s ease, color .15s ease;
 }
 .settings-nav-support-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.settings-nav-support-btn svg { width: 15px; height: 15px; flex: 0 0 auto; }
+.settings-nav-support-btn svg { width: 13px; height: 13px; flex: 0 0 auto; }
+/* The quiet row keeps the shape of the featured one, one step down in contrast. */
+.settings-nav-links.is-quiet .settings-nav-support-btn {
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+}
 .settings-nav-support-btn.is-donate svg { color: #ff4d8d; }
 .settings-nav-support-btn.is-discord svg { color: #5865F2; }
 .settings-nav-support-btn:hover {
@@ -1766,7 +1829,9 @@ input[type="range"] { accent-color: var(--green); }
   background: rgba(255,77,141,0.12);
   border-color: rgba(255,77,141,0.26);
 }
-.settings-nav-support-btn.is-featured.is-donate:hover { background: rgba(255,77,141,0.2); }
+.settings-nav-support-btn.is-featured.is-donate:hover,
+.settings-nav-support-btn.is-featured.is-donate.active { background: rgba(255,77,141,0.22); }
+button.settings-nav-support-btn { font: inherit; cursor: pointer; }
 .settings-nav-support-btn.is-featured.is-discord {
   background: rgba(88,101,242,0.14);
   border-color: rgba(88,101,242,0.28);
@@ -1776,7 +1841,7 @@ input[type="range"] { accent-color: var(--green); }
    the accent means a feature is on, and a caveat that borrows it stops reading
    as a caveat. Built only where it is true (see renderPlatformBeta). */
 .settings-platform-beta {
-  margin: 0 8px 8px;
+  margin: 0 0 6px;
   padding: 9px 11px;
   border-radius: 10px;
   background: rgba(255, 196, 77, 0.09);
@@ -1813,7 +1878,7 @@ input[type="range"] { accent-color: var(--green); }
 
 .settings-nav-version {
   margin-top: 0;
-  padding: 4px 12px 8px;
+  padding: 2px 4px 6px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -1840,7 +1905,7 @@ input[type="range"] { accent-color: var(--green); }
    release exists. A real link to the release page — accent-tinted but quiet. */
 .settings-update-pill {
   display: block;
-  margin: 0 8px 6px;
+  margin: 0 0 6px;
   padding: 6px 10px;
   border-radius: 9px;
   font-size: 11px;
@@ -1901,6 +1966,21 @@ input[type="range"] { accent-color: var(--green); }
 }
 #settings-content[data-cat="appearance"] > .settings-span-all { grid-column: 1 / -1; }
 #settings-content[data-cat="general"] [data-settings-cat] { grid-area: auto !important; }
+/* Two-column pages pack like a mosaic, not in rows. A CSS grid places cards
+   row by row, so a short card beside a tall one leaves a hole under it (Avvio
+   and Navigazione next to Aggiornamenti, measured: two holes on Generale, one
+   on Aspetto). packSettingsColumns() in js/settings.js turns rows into 1px
+   tracks and gives each visible card a span equal to its own height plus the
+   gap, so auto-placement drops every card into the first free room. The
+   spans are inline !important because the reset above is !important. */
+#settings-content.is-packed {
+  grid-auto-rows: 1px;
+  grid-auto-flow: row dense;
+  row-gap: 0;
+  column-gap: 10px;
+  align-items: start;
+  padding-bottom: 10px;
+}
 #settings-content [data-settings-cat][hidden] { display: none !important; }
 
 /* Visible scroll thumb so a taller category (e.g. Performance) reads as

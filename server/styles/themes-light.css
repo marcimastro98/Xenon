@@ -239,7 +239,6 @@
 :root[data-appearance="light"] .settings-preview::after { background: rgba(255,255,255,0.10); }
 :root[data-appearance="light"] .settings-close { background: var(--control-bg); }
 :root[data-appearance="light"] .settings-close:hover { background: var(--hover-bg); color: var(--lt-strong); }
-:root[data-appearance="light"] .settings-toggle-row,
 :root[data-appearance="light"] .preset-btn,
 :root[data-appearance="light"] .settings-btn {
   background: var(--control-bg);

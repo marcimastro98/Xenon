@@ -5189,7 +5189,8 @@ function settingsSetCategory(cat) {
     });
     content.scrollTop = 0;
   }
-  document.querySelectorAll('.settings-nav-btn').forEach(b => {
+  // The footer's Supporta button is the Sostieni Xenon category's entry too.
+  document.querySelectorAll('.settings-nav-btn, .settings-nav-support-btn[data-settings-cat]').forEach(b => {
     b.classList.toggle('active', b.dataset.settingsCat === cat);
   });
   // Slideshow thumbnails paint when its pane opens (and update live via applyHubSettings).
@@ -5207,6 +5208,45 @@ function settingsSetCategory(cat) {
   // request, and the answer only changes when this same pane or an unlock
   // changes it.
   if (cat === 'sdk') syncSupporterCodeBox();
+  packSettingsColumns();
+}
+
+// ── Two-column pages pack like a mosaic ─────────────────────────────────────
+// A CSS grid places cards in rows: a short card beside a tall one leaves a
+// hole under it. With 1px row tracks and each card spanning its own height,
+// auto-placement puts every card in the first free room instead. Re-run when
+// a card changes height (a section unfolds, a list grows) and on resize;
+// setting a span never changes the card's own size, so there is no loop.
+const PACK_GAP = 10;
+let _packRaf = 0;
+let _packObserver = null;
+function packSettingsColumns() {
+  const content = $('settings-content');
+  if (!content) return;
+  const twoCol = getComputedStyle(content).gridTemplateColumns.split(' ').length >= 2;
+  const cards = Array.from(content.children);
+  if (!twoCol) {
+    content.classList.remove('is-packed');
+    cards.forEach((c) => c.style.removeProperty('grid-row-end'));
+    return;
+  }
+  content.classList.add('is-packed');
+  for (const c of cards) {
+    if (c.hidden) { c.style.removeProperty('grid-row-end'); continue; }
+    const h = c.getBoundingClientRect().height;
+    c.style.setProperty('grid-row-end', 'span ' + (Math.ceil(h) + PACK_GAP), 'important');
+  }
+  if (!_packObserver && typeof ResizeObserver === 'function') {
+    _packObserver = new ResizeObserver(() => {
+      if (_packRaf) return;
+      _packRaf = requestAnimationFrame(() => { _packRaf = 0; packSettingsColumns(); });
+    });
+    cards.forEach((c) => _packObserver.observe(c));
+    window.addEventListener('resize', () => {
+      if (_packRaf) return;
+      _packRaf = requestAnimationFrame(() => { _packRaf = 0; packSettingsColumns(); });
+    });
+  }
 }
 
 // ── Supporter pass ───────────────────────────────────────────────────────────

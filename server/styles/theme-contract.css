@@ -28,7 +28,7 @@
 
 /* Repeated rows, cards, wells and editor sections. */
 :is(
-  .settings-group, .settings-subpanel, .settings-toggle-row, .settings-segmented,
+  .settings-group, .settings-subpanel, .settings-segmented,
   .settings-upload, .settings-preview-card, .ai-provider-toggle label,
   .app-card, .app-search-wrap, .tab-card, .picker-item,
   .widget-palette-item, .preset-page-item, .preset-check-row, .preset-deck-act,
@@ -43,7 +43,7 @@
 }
 
 :is(
-  .settings-group, .settings-subpanel, .settings-toggle-row, .app-card,
+  .settings-group, .settings-subpanel, .app-card,
   .tab-card, .picker-item, .widget-palette-item, .preset-page-item,
   .preset-check-row, .wc-card, .deck-ed-step
 ):hover { border-color: var(--line); }

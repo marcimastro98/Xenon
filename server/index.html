@@ -1001,24 +1001,30 @@
         <div class="settings-nav-label" data-i18n="settings_nav_system" aria-hidden="true">Sistema</div>
         <button type="button" class="settings-nav-btn" data-settings-cat="performance" onclick="settingsSetCategory('performance')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19a9 9 0 1 1 14 0"/><path d="m12 13 4-4"/><circle cx="12" cy="13" r="1.2" fill="currentColor"/></svg><span data-i18n="settings_cat_performance">Performance</span></button>
         <button type="button" class="settings-nav-btn" data-settings-cat="sdk" onclick="settingsSetCategory('sdk')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 7h4a1 1 0 0 1 1 1v3.5a1.5 1.5 0 0 0 0 3V18a1 1 0 0 1-1 1h-3.5a1.5 1.5 0 0 1-3 0H8a1 1 0 0 1-1-1v-3.5a1.5 1.5 0 0 1 0-3V8a1 1 0 0 1 1-1h3.5a1.5 1.5 0 0 1 3 0Z"/></svg><span data-i18n="settings_cat_sdk">Widget e condivisione</span></button>
-        <button type="button" class="settings-nav-btn settings-nav-btn-support" data-settings-cat="support" onclick="settingsSetCategory('support')"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span data-i18n="settings_cat_support">Sostieni Xenon</span></button>
         </div>
+        <!-- Two rows of two: the featured pair (donate, Discord) and the quiet pair
+             (bug report, update check). Short labels on purpose - the pane is
+             202px wide - with the full wording in each control's title. -->
         <div class="settings-nav-footer">
-        <div class="settings-nav-support" id="settings-nav-support">
-          <a href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener noreferrer" class="settings-nav-support-btn is-featured is-donate" data-i18n-title="support_project">
+        <div class="settings-nav-links">
+          <!-- Opens the Sostieni Xenon category (donation tiers, perks, Discord)
+               rather than the web: it replaced the category's own list entry,
+               so it is the one way to reach that page. -->
+          <button type="button" class="settings-nav-support-btn is-featured is-donate" data-settings-cat="support" onclick="settingsSetCategory('support')" data-i18n-title="settings_cat_support">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            <span data-i18n="support_project">Supporta il progetto</span>
-          </a>
+            <span data-i18n="support_short">Supporta</span>
+          </button>
           <a data-discord href="https://discord.gg/MBVrw9kZyg" target="_blank" rel="noopener noreferrer" class="settings-nav-support-btn is-featured is-discord" data-i18n-title="discord_community">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.369A19.79 19.79 0 0 0 16.885 3.1a.074.074 0 0 0-.079.037c-.34.607-.719 1.4-.984 2.02a18.27 18.27 0 0 0-5.487 0 12.6 12.6 0 0 0-.997-2.02.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.056c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.331c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
-            <span data-i18n="discord_community">Community Discord</span>
-          </a>
-          <a href="https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md" target="_blank" rel="noopener noreferrer" class="settings-nav-support-btn" data-i18n-title="report_bug">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 8v4m0 4h.01"/></svg>
-            <span data-i18n="report_bug">Segnala bug</span>
+            <span>Discord</span>
           </a>
         </div>
-        <button type="button" class="settings-update-check" id="settings-update-check" onclick="checkForUpdatesNow(this)" data-i18n="update_check_btn">Controlla aggiornamenti</button>
+        <div class="settings-nav-links is-quiet">
+          <a href="https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md" target="_blank" rel="noopener noreferrer" class="settings-nav-support-btn" data-i18n-title="report_bug">
+            <span data-i18n="report_bug_short">Segnala bug</span>
+          </a>
+          <button type="button" class="settings-update-check" id="settings-update-check" onclick="checkForUpdatesNow(this)" data-i18n="update_check_short" data-i18n-title="update_check_btn">Aggiorna</button>
+        </div>
         <!-- Filled by renderPlatformBeta() in js/settings.js, and only on the two
              platforms where it is true. Empty and hidden everywhere else. -->
         <div class="settings-platform-beta" id="settings-platform-beta" hidden></div>
@@ -3637,13 +3643,24 @@
       </div>
       </div>
     </div>
+    <!-- Each action carries its own explanation UNDER the button, small, so the
+         bar reads as two labelled controls instead of one long line of prose
+         with buttons somewhere in it. -->
     <div class="settings-foot">
-      <div class="settings-foot-note" data-i18n="settings_persist_note">Le preferenze restano salvate su questo PC.</div>
-      <div class="settings-status" id="settings-status" aria-live="polite"></div>
-      <button class="settings-btn" type="button" onclick="restartXenon()" data-i18n="settings_restart_app">Riavvia Xenon</button>
-      <div class="settings-hint" data-i18n="settings_restart_hint">Chiude e riapre l'app per ripulire eventuali blocchi, senza perdere nulla: impostazioni, widget, layout e sfondi restano.</div>
-      <button class="settings-btn danger" type="button" onclick="resetAllSettings()" data-i18n="settings_reset_all">Ripristina tutte le impostazioni</button>
-      <div class="settings-hint" data-i18n="settings_reset_all_hint">Le tile perdono il widget assegnato e i suoi permessi, insieme a elenco installazioni, preset di pagina e temi, sfondi e scene Ambient personalizzati. Il layout resta, e i widget restano installati sul PC.</div>
+      <div class="settings-foot-info">
+        <div class="settings-foot-note" data-i18n="settings_persist_note">Le preferenze restano salvate su questo PC.</div>
+        <div class="settings-status" id="settings-status" aria-live="polite"></div>
+      </div>
+      <div class="settings-foot-actions">
+        <div class="settings-foot-action">
+          <button class="settings-btn" type="button" onclick="restartXenon()" data-i18n="settings_restart_app">Riavvia Xenon</button>
+          <div class="settings-hint settings-foot-hint" data-i18n="settings_restart_hint" data-i18n-title="settings_restart_hint">Chiude e riapre l'app per ripulire eventuali blocchi, senza perdere nulla: impostazioni, widget, layout e sfondi restano.</div>
+        </div>
+        <div class="settings-foot-action">
+          <button class="settings-btn danger" type="button" onclick="resetAllSettings()" data-i18n="settings_reset_all">Ripristina tutte le impostazioni</button>
+          <div class="settings-hint settings-foot-hint" data-i18n="settings_reset_all_hint" data-i18n-title="settings_reset_all_hint">Le tile perdono il widget assegnato e i suoi permessi, insieme a elenco installazioni, preset di pagina e temi, sfondi e scene Ambient personalizzati. Il layout resta, e i widget restano installati sul PC.</div>
+        </div>
+      </div>
     </div>
   </section>
 </div>

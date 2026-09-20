@@ -129,3 +129,6 @@ packages/design-system
 # user's install root, more than doubling a ~6 MB release. Its sources are
 # tracked, in tools/demo/.
 docs/demo/
+
+# Playwright MCP screenshots and snapshots taken while checking UI work
+.playwright-mcp/
