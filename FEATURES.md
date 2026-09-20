@@ -877,6 +877,8 @@ Control **Discord** voice from your Deck keys **or the Discord dashboard widget*
 
 The **Discord widget** (added from the "+" palette, Streaming group) shows the channel you're in — with its members and who's talking — and your live mute/deafen/PTT state, and puts all of the above one tap away, across **Controls**, **Channels**, **Soundboard** and **Notifications** tabs. It updates in real time, reacting to voice changes as they happen instead of polling, so it costs essentially nothing while idle.
 
+**Collapse the servers you never join.** In the **Channels** tab each server is a heading you can tap to fold its voice channels away, with a count of what is inside it while it is shut. **Collapse all** / **Expand all** does the lot in one tap, and Xenon remembers what you closed — across a reload, a restart and every screen — so a dozen servers stop being a dozen screens of scrolling. **Favourites** is never folded: it is the shortcut past the scrolling.
+
 **Two Discord tiles, two open tabs.** Add it a second time from the "+" palette and each tile keeps its own tab — notifications on top and the voice controls underneath, or the channel list beside the call you are in. Both are live and both read the same connection to your Discord app, so a second tile costs no extra polling.
 
 Connect it from **Settings → Streaming** (Discord card). Because Discord has no cloud API for voice control, you register your own free Discord app and paste its **Client ID + Secret**, then tap **Connect** and click **Authorize** in the pop-up Discord shows you — your Discord desktop app just needs to be running. The Deck's Discord actions and the widget's controls stay inactive until you connect.

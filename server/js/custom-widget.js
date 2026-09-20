@@ -208,7 +208,16 @@
       const byId = new Map();
       if (catalog && Array.isArray(catalog.channels)) {
         catalog.channels.forEach((c) => {
-          if (c && c.id != null) byId.set(String(c.id), { id: String(c.id), name: c.name || '', guild: c.guild || '', members: [] });
+          // guildId rides along with the guild NAME so an SDK widget can group
+          // and remember servers the way the built-in Channels tab does — by
+          // something that survives a rename and tells two servers with the
+          // same name apart.
+          if (c && c.id != null) {
+            byId.set(String(c.id), {
+              id: String(c.id), name: c.name || '', guild: c.guild || '',
+              guildId: String(c.guildId || ''), members: [],
+            });
+          }
         });
       }
       if (roster && Array.isArray(roster.channels)) {

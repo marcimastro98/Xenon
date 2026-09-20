@@ -4,6 +4,17 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+### ✨ Added
+- **Discord servers fold away in the Channels tab.** Asked on Discord: *"It would be nice to be able to collapse the Discord servers underneath the Discord Channels feature so your not forever scrolling."*
+
+  Every server heading is now a button. Tap it and its voice channels fold away behind a caret, with a count of how many are in there while it is shut — so a server you never join costs one line instead of fifteen. **Collapse all** / **Expand all** sits above the list and does the lot in one tap; it is one button rather than two, because while anything is open it closes everything and once everything is closed it opens it again.
+
+  What you closed is **remembered** — the same request asked for it to stick "on future uses" — and remembered by the server's id rather than its name, so it survives a rename. **Favourites** never folds: pinning a channel to the top is the shortcut past the scrolling, and hiding it would work against the point.
+
+  A rename is not the only thing the id fixed. Channels used to be grouped by server *name*, so two servers that happen to share one (a "Friends" and another "Friends") were silently merged into a single list. They are now two, as they always were in Discord.
+
+  SDK widgets on the `discordChannels` stream get the `guildId` too, so they can group and remember servers the same way — see [WIDGET_SDK.md](docs/WIDGET_SDK.md).
+
 ### 🛠 Fixes
 - **The live file index holds its place in memory at a third of the cost, and the number Settings shows for it is the real one.** Measured on the author's PC with three drives indexed (1.98 million files): the index process held **814 MB**, while Settings said "~603 MB". The figure came from the .NET garbage collector's view of its own heap, not from the process, so it never counted what the process actually kept.
 

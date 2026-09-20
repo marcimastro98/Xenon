@@ -7947,7 +7947,14 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // channels you care about is a fact about YOU, so it should follow you to the
   // phone and the Edge. Contrast the tile layout, which is per-device precisely
   // because the right answer differs from screen to screen.
+  // Which servers the user has collapsed in the Discord widget's Channels tab,
+  // by guild id. Remembered rather than reset per visit: someone with a dozen
+  // servers collapses the ones they never join once, and a list that forgets
+  // makes them do it again at every sign-in (asked for on Discord, Sep 2026 —
+  // "so your not forever scrolling"). Guild ids, not names, so a renamed server
+  // stays collapsed and two servers with the same name are told apart.
   discordFavChannels: Object.freeze([]),
+  discordCollapsedGuilds: Object.freeze([]),
   // Opt-in ad-blocker for the Browser tile (Settings → Browser). OFF by default;
   // when on, the server loads an unpacked uBOL MV3 extension into the tile's Edge.
   browserAdblock: false,
@@ -9327,6 +9334,7 @@ function normalizeHubSettings(value) {
     // every surface and used as a DOM key, so anything that is not a Discord id
     // has no business surviving a round trip through the store.
     discordFavChannels: normalizeSnowflakeList(source.discordFavChannels),
+    discordCollapsedGuilds: normalizeSnowflakeList(source.discordCollapsedGuilds),
     browserAdblock: source.browserAdblock === true,
     dashboardLayout: resetLayout
       ? cloneDashboardLayout(DEFAULT_DASHBOARD_LAYOUT)
