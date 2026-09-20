@@ -48,8 +48,14 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref }}
 
+      # DOTNET_INSTALL_DIR: on the self-hosted signing machine the default
+      # (C:\Program Files\dotnet) is not writable without elevation and the
+      # step fails; the runner's tool cache is, and persists between jobs so
+      # the SDK is fetched once. Hosted runners ignore the difference.
       - name: Set up .NET 10
         uses: actions/setup-dotnet@v4
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.tool_cache }}/dotnet
         with:
           dotnet-version: '10.0.x'
 
