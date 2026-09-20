@@ -192,6 +192,59 @@ body.overlay-frozen .dc-pill.in-voice .dc-pill-dot::after { animation-play-state
 }
 .dc-guild:first-child { margin-top: 0; }
 
+/* ── Collapsing a server ────────────────────────────────────────────────────
+   The server heading is a BUTTON that opens and closes its channels; the
+   Favourites heading and a server we have no id for stay plain <div>s, so the
+   block rule above (with the ellipsis on the element itself) still has to
+   work. Hence the layout lives on the button variant only.
+
+   overflow is visible here and the ellipsis moves onto .dc-guild-name, which
+   is the flex child that can actually shrink — the note above about
+   overflow:hidden zeroing a flex min-height applies to this row too, and this
+   is the version of it that does not need the anti-squash rule to save it. */
+button.dc-guild {
+  display: flex; align-items: center; gap: 7px; width: 100%; overflow: visible;
+  font: inherit; font-size: 0.64rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  text-align: left; cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+button.dc-guild:hover { background: #222738; border-color: rgba(88,101,242,0.55); color: #fff; }
+.dc-guild-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* What a closed server still tells you: how much is inside it. */
+.dc-guild-count {
+  flex: 0 0 auto; min-width: 17px; padding: 1px 5px; border-radius: 999px;
+  background: rgba(88,101,242,0.22); color: #c7ccdd;
+  font-size: 0.6rem; font-weight: 800; letter-spacing: 0; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.dc-guild-caret {
+  flex: 0 0 auto; display: grid; place-items: center; width: 13px; height: 13px;
+  color: #8b93ad; transition: transform 0.18s ease, color 0.15s ease;
+}
+.dc-guild-caret svg { width: 13px; height: 13px; }
+/* Pointing down when the server is open, sideways when it is shut — the caret
+   itself is the state, so the heading needs no second glyph or wording. */
+button.dc-guild.is-collapsed .dc-guild-caret,
+.dc-guild-all-btn.is-collapsed .dc-guild-caret { transform: rotate(-90deg); }
+button.dc-guild:hover .dc-guild-caret { color: #c7ccdd; }
+button.dc-guild.is-collapsed { background: #171a26; color: #9aa2ba; }
+
+/* Collapse/expand everything — one control, because while anything is open it
+   closes everything and once all are closed it opens them. Right-aligned and
+   quiet: it is a shortcut for the headings below it, not a title above them. */
+.dc-guild-all { display: flex; justify-content: flex-end; padding: 0 1px 1px; }
+.dc-guild-all-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 8px; border-radius: 7px; cursor: pointer;
+  border: 1px solid rgba(88,101,242,0.22); background: transparent; color: #8b93ad;
+  font: inherit; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.dc-guild-all-btn:hover { background: rgba(88,101,242,0.16); border-color: rgba(88,101,242,0.5); color: #c7ccdd; }
+@media (prefers-reduced-motion: reduce) {
+  button.dc-guild, .dc-guild-all-btn, .dc-guild-caret { transition: none; }
+}
+
 /* ── Favourite channels ─────────────────────────────────────────────────────
    The row is a wrapper holding the join button and the star as SIBLINGS (a
    button inside a button is invalid and only one of the two would be

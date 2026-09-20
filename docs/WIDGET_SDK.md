@@ -288,7 +288,7 @@ The payloads are the dashboard's own SSE events, unmodified:
 - `claude` — local Claude Code usage aggregate (the "Xenon Pulse" data)
 - `obs` — OBS state (current scene, recording/streaming flags, audio sources)
 - `discord` — Discord voice state (connected, mute/deafen, current channel, speaking) plus `members[]` for the channel the user is in: `{ id, name, mute, deaf, speaking, volume, localMute }`. `mute`/`deaf` are that person's own mic state; `volume` (0-200, `null` if unreported) and `localMute` are what THIS machine hears — the pair `discordUserVol` writes
-- `discordChannels` — `{ ok, channels:[{ id, name, guild, members:[] }] }`; Discord voice-channel catalog merged with the live roster (same `members[]` shape)
+- `discordChannels` — `{ ok, channels:[{ id, name, guild, guildId, members:[] }] }`; Discord voice-channel catalog merged with the live roster (same `members[]` shape). `guild` is the server's name and `guildId` its snowflake — group by the id, not the name: it survives a rename and tells two servers that share a name apart
 - `discordSoundboard` — `{ ok, sounds:[{ id, guildId, name, guild }] }`; the soundboard catalog available to the connected Discord account
 - `discordNotifications` — `{ ok, enabled, hide, state, items:[...] }`; private DM/mention notifications, with the user's privacy setting preserved. Request this grant only when the widget genuinely displays notification content
 - `streamerbot` — Streamer.bot connection state, globals, and activity events

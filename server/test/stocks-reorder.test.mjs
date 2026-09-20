@@ -168,7 +168,11 @@ test('the handle is named in every locale that carries the stocks strings', () =
 });
 
 test('it is written down', () => {
-  const unreleased = CHANGELOG.slice(0, CHANGELOG.indexOf('\n## [4.11.8]'));
-  assert.match(unreleased, /re-order the list of stocks/);
+  // The whole file, not the [Unreleased] section: entries move into a version
+  // section when a release is cut, and pinning the section turned this into a
+  // test that broke on the release rather than on the thing it is guarding.
+  // (It had already rotted silently — the headings gained a `v` and a date, so
+  // the old slice matched nothing and read the entire file.)
+  assert.match(CHANGELOG, /re-order the list of stocks/);
   assert.match(FEATURES, /drag(ging)? (a|the) (row|stock)/i);
 });

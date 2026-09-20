@@ -151,7 +151,11 @@ test('uninstall takes the record with the rest of the folder', () => {
 });
 
 test('the fix is in the changelog', () => {
-  const unreleased = CHANGELOG.slice(0, CHANGELOG.indexOf('\n## [4.11.8]'));
-  assert.match(unreleased, /launcher starts that one/);
-  assert.match(unreleased, /F:\\Nodejs/);
+  // The whole file, not the [Unreleased] section: entries move into a version
+  // section when a release is cut, and pinning the section turned this into a
+  // test that broke on the release rather than on the thing it is guarding.
+  // (It had already rotted silently — the headings gained a `v` and a date, so
+  // the old slice matched nothing and read the entire file.)
+  assert.match(CHANGELOG, /launcher starts that one/);
+  assert.match(CHANGELOG, /F:\\Nodejs/);
 });

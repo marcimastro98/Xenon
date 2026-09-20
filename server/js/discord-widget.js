@@ -29,6 +29,7 @@
     minus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>',
     plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
     play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
+    caret: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
     logo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6a16 16 0 0 0-4-1l-.3.6a12 12 0 0 1 3.5 1.1 13 13 0 0 0-10.4 0A12 12 0 0 1 10.3 5.6L10 5a16 16 0 0 0-4 1C3.5 9.7 2.8 13.3 3.2 16.8a16 16 0 0 0 4.9 2.5l1-1.7a10 10 0 0 1-1.6-.8l.4-.3a11 11 0 0 0 9.4 0l.4.3a10 10 0 0 1-1.6.8l1 1.7a16 16 0 0 0 4.9-2.5c.5-4-.6-7.6-3.4-10.8Z"/><circle cx="9.3" cy="13" r="1.2"/><circle cx="14.7" cy="13" r="1.2"/></svg>',
   };
   // Audio-processing features → their existing Deck option i18n keys (reused).
@@ -275,8 +276,6 @@
     setTimeout(recheck, 2500);
   }
 
-  // Group the flat channel list by server (guild), preserving first-seen order so
-  // the list reads the same way every render.
   // ── Favourite voice channels ───────────────────────────────────────────────
   // Pinned channels come out as their own group at the TOP, above the per-server
   // ones, and are removed from the server group they came from. Shown in one
@@ -318,14 +317,68 @@
     renderWidgets();
   }
 
+  // Group the flat channel list by server, preserving first-seen order so the
+  // list reads the same way every render. Keyed by guild id where there is one:
+  // that is what the collapsed state is remembered by, and it also tells two
+  // servers with the SAME NAME apart, which grouping by name silently merged.
+  // Falls back to the name so a payload from an older engine still groups.
+  //
+  // Pure, so the grouping can be checked without a browser or a Discord account.
   function groupByGuild(list) {
     const groups = new Map();
-    list.forEach(c => {
-      const g = c.guild || '';
-      if (!groups.has(g)) groups.set(g, []);
-      groups.get(g).push(c);
+    (list || []).forEach(c => {
+      const id = String((c && c.guildId) || '');
+      const name = (c && c.guild) || '';
+      const key = id || ('name:' + name);
+      if (!groups.has(key)) groups.set(key, { id, name, channels: [] });
+      groups.get(key).channels.push(c);
     });
     return groups;
+  }
+
+  // ── Collapsing a server ────────────────────────────────────────────────────
+  // Asked for on Discord: "It would be nice to be able to collapse the Discord
+  // servers underneath the Discord Channels feature so your not forever
+  // scrolling." Someone in a dozen servers scrolls past every one of them to
+  // reach the two they actually join.
+  //
+  // Stored with the rest of the settings rather than in this module, so it holds
+  // across a reload, a sign-out and the other surfaces — the same request asked
+  // for it to be remembered "on future uses". A server with no id cannot be
+  // remembered and so is never collapsible; today every server has one.
+  function collapsedIds() {
+    const v = (typeof hubSettings === 'object' && hubSettings) ? hubSettings.discordCollapsedGuilds : null;
+    return Array.isArray(v) ? v : [];
+  }
+
+  function isCollapsed(guildId) { return !!guildId && collapsedIds().includes(String(guildId)); }
+
+  function saveCollapsed(next) {
+    if (typeof hubSettings !== 'object' || !hubSettings) return;
+    if (typeof normalizeSettings !== 'function' || typeof saveHubSettings !== 'function') return;
+    hubSettings = normalizeSettings({ ...hubSettings, discordCollapsedGuilds: next });
+    saveHubSettings({ server: true });
+    renderWidgets();
+  }
+
+  function toggleGuild(guildId) {
+    const key = String(guildId || '');
+    if (!key) return;
+    const cur = collapsedIds();
+    saveCollapsed(cur.includes(key) ? cur.filter(x => x !== key) : cur.concat([key]));
+  }
+
+  // One control for both halves of the request ("collapse all" and "expand
+  // all"): while anything is open it closes everything, and once everything is
+  // closed it opens everything. Two buttons would mean one of them is always
+  // the no-op you just pressed.
+  function toggleAllGuilds(ids) {
+    const known = (ids || []).filter(Boolean).map(String);
+    if (!known.length) return;
+    const anyOpen = known.some(id => !isCollapsed(id));
+    if (!anyOpen) { saveCollapsed(collapsedIds().filter(id => !known.includes(id))); return; }
+    const cur = collapsedIds();
+    saveCollapsed(cur.concat(known.filter(id => !cur.includes(id))));
   }
 
   // ── Turning one person up or down ─────────────────────────────────────────
@@ -516,7 +569,10 @@
       // The pinned list is part of what is drawn, so it belongs in the signature:
       // without it, starring a channel would change nothing until the next tick
       // that happened to move a member.
-      + '#' + favIds().join(',');
+      + '#' + favIds().join(',')
+      // Collapsing a server changes what is drawn and nothing else, so without
+      // it in the signature the tap would repaint nothing until a member moved.
+      + '#' + collapsedIds().join(',');
     if (list.dataset.dcSig === sig) return;
     list.dataset.dcSig = sig;
     if (!linked) { list.replaceChildren(el('div', 'dc-chan-empty', t('twitch_notlinked', 'Not linked'))); return; }
@@ -567,14 +623,68 @@
       }
     };
 
+    // A server heading that opens and closes its channels. The caret, the name
+    // and the count are spans inside ONE button rather than a button beside a
+    // label: the whole bar is the target, which is what a finger on the Edge
+    // needs, and there is nothing next to it to mis-hit.
+    const guildHeader = (g) => {
+      const collapsed = isCollapsed(g.id);
+      const h = el('button', 'dc-guild');
+      h.type = 'button';
+      h.classList.toggle('is-collapsed', collapsed);
+      const caret = el('span', 'dc-guild-caret');
+      caret.innerHTML = ICONS.caret;                                        // static, trusted SVG
+      h.append(caret, el('span', 'dc-guild-name', g.name || ''));
+      // The count is what a closed server still tells you: how much is in there.
+      h.appendChild(el('span', 'dc-guild-count', String(g.channels.length)));
+      h.setAttribute('aria-expanded', String(!collapsed));
+      const label = collapsed
+        ? t('discord_w_expand_server', 'Show channels')
+        : t('discord_w_collapse_server', 'Hide channels');
+      h.title = label;
+      h.setAttribute('aria-label', (g.name || '') + ' — ' + label);
+      h.addEventListener('click', () => toggleGuild(g.id));
+      return h;
+    };
+
     const { pinned, rest } = splitFavourites(channels, favIds());
+    const groups = Array.from(groupByGuild(rest).values());
+    // Favourites is not a server and never collapses: it is the shortcut PAST
+    // the scrolling, so hiding it would work against the thing being asked for.
     if (pinned.length) {
       frag.appendChild(el('div', 'dc-guild dc-guild--fav', t('discord_w_favourites', 'Favourites')));
       pinned.forEach(channelRow);
     }
-    groupByGuild(rest).forEach((chs, guild) => {
-      if (guild) frag.appendChild(el('div', 'dc-guild', guild));
-      chs.forEach(channelRow);
+    // Collapse/expand everything. Only from two servers up: with one, it is the
+    // header's own caret wearing a different hat.
+    const ids = groups.map(g => g.id).filter(Boolean);
+    if (ids.length > 1) {
+      const allShut = ids.every(isCollapsed);
+      const bar = el('div', 'dc-guild-all');
+      const b = el('button', 'dc-guild-all-btn');
+      b.type = 'button';
+      b.classList.toggle('is-collapsed', allShut);
+      const caret = el('span', 'dc-guild-caret');
+      caret.innerHTML = ICONS.caret;                                        // static, trusted SVG
+      const label = allShut
+        ? t('discord_w_expand_all', 'Expand all')
+        : t('discord_w_collapse_all', 'Collapse all');
+      b.append(caret, el('span', null, label));
+      b.title = label;
+      b.addEventListener('click', () => toggleAllGuilds(ids));
+      bar.appendChild(b);
+      frag.appendChild(bar);
+    }
+    groups.forEach((g) => {
+      // A group with no id cannot be remembered, so it is drawn the way it
+      // always was: a plain heading, always open.
+      if (!g.id) {
+        if (g.name) frag.appendChild(el('div', 'dc-guild dc-guild--plain', g.name));
+        g.channels.forEach(channelRow);
+        return;
+      }
+      frag.appendChild(guildHeader(g));
+      if (!isCollapsed(g.id)) g.channels.forEach(channelRow);
     });
     list.replaceChildren(frag);
   }

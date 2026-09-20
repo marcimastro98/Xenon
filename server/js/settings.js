@@ -408,7 +408,14 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   discordInviteSeen: false,
   // Voice channels pinned to the top of the Discord widget. Mirror of server.js;
   // see the note there for why this one is NOT per-device.
+  // Which servers the user has collapsed in the Discord widget's Channels tab,
+  // by guild id. Remembered rather than reset per visit: someone with a dozen
+  // servers collapses the ones they never join once, and a list that forgets
+  // makes them do it again at every sign-in (asked for on Discord, Sep 2026 —
+  // "so your not forever scrolling"). Guild ids, not names, so a renamed server
+  // stays collapsed and two servers with the same name are told apart.
   discordFavChannels: Object.freeze([]),
+  discordCollapsedGuilds: Object.freeze([]),
   // Opt-in ad-blocker for the Browser tile (Settings → Browser). OFF by default.
   browserAdblock: false,
   // Stock-market (Borsa) widget + ticker. Keys are server-only (redacted); the
@@ -1702,6 +1709,7 @@ function normalizeSettings(source) {
     supportAskSeen: value.supportAskSeen === true,
     shareNudgeSeen: value.shareNudgeSeen === true,
     discordFavChannels: normalizeSnowflakeList(value.discordFavChannels),
+    discordCollapsedGuilds: normalizeSnowflakeList(value.discordCollapsedGuilds),
     catalogStats: value.catalogStats === true,
     browserAdblock: value.browserAdblock === true,
     dashboardLayout: resetLayout

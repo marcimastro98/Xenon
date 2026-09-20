@@ -1139,7 +1139,7 @@ const i18n = {
     discord_w_undeafen: 'Riattiva',
     discord_w_leave: 'Esci',
     discord_w_no_channels: 'Nessun canale vocale',
-    discord_w_favourites: 'Preferiti',
+    discord_w_favourites: 'Preferiti', discord_w_collapse_server: 'Nascondi i canali', discord_w_expand_server: 'Mostra i canali', discord_w_collapse_all: 'Comprimi tutto', discord_w_expand_all: 'Espandi tutto',
     discord_w_favourite: 'Fissa in cima',
     discord_w_unfavourite: 'Togli dai preferiti',
     discord_w_soundboard: 'Soundboard',
@@ -3935,7 +3935,7 @@ const i18n = {
     discord_w_undeafen: 'Undeafen',
     discord_w_leave: 'Leave',
     discord_w_no_channels: 'No voice channels',
-    discord_w_favourites: 'Favourites',
+    discord_w_favourites: 'Favourites', discord_w_collapse_server: 'Hide channels', discord_w_expand_server: 'Show channels', discord_w_collapse_all: 'Collapse all', discord_w_expand_all: 'Expand all',
     discord_w_favourite: 'Pin to the top',
     discord_w_unfavourite: 'Remove from favourites',
     discord_w_soundboard: 'Soundboard',
@@ -6340,7 +6340,7 @@ Object.assign(i18n, {
     discord_w_undeafen: '차단 해제',
     discord_w_leave: '나가기',
     discord_w_no_channels: '음성 채널 없음',
-    discord_w_favourites: '즐겨찾기',
+    discord_w_favourites: '즐겨찾기', discord_w_collapse_server: '채널 숨기기', discord_w_expand_server: '채널 표시', discord_w_collapse_all: '모두 접기', discord_w_expand_all: '모두 펼치기',
     discord_w_favourite: '맨 위에 고정',
     discord_w_unfavourite: '즐겨찾기에서 제거',
     discord_w_soundboard: '사운드보드',
@@ -8684,7 +8684,7 @@ Object.assign(i18n, {
     discord_w_undeafen: 'ミュート解除（受信）',
     discord_w_leave: '退出',
     discord_w_no_channels: 'ボイスチャンネルなし',
-    discord_w_favourites: 'お気に入り',
+    discord_w_favourites: 'お気に入り', discord_w_collapse_server: 'チャンネルを隠す', discord_w_expand_server: 'チャンネルを表示', discord_w_collapse_all: 'すべて折りたたむ', discord_w_expand_all: 'すべて展開',
     discord_w_favourite: '上部にピン留め',
     discord_w_unfavourite: 'お気に入りから削除',
     discord_w_soundboard: 'サウンドボード',
@@ -11027,7 +11027,7 @@ Object.assign(i18n, {
     discord_w_undeafen: '取消拒听',
     discord_w_leave: '离开',
     discord_w_no_channels: '无语音频道',
-    discord_w_favourites: '收藏',
+    discord_w_favourites: '收藏', discord_w_collapse_server: '隐藏频道', discord_w_expand_server: '显示频道', discord_w_collapse_all: '全部折叠', discord_w_expand_all: '全部展开',
     discord_w_favourite: '置顶',
     discord_w_unfavourite: '取消收藏',
     discord_w_soundboard: '音效板',
@@ -12629,7 +12629,7 @@ Object.assign(i18n, {
 ,
   es: {
     ...i18n.en,
-    discord_w_favourites: 'Favoritos',
+    discord_w_favourites: 'Favoritos', discord_w_collapse_server: 'Ocultar canales', discord_w_expand_server: 'Mostrar canales', discord_w_collapse_all: 'Contraer todo', discord_w_expand_all: 'Expandir todo',
     discord_w_favourite: 'Fijar arriba',
     discord_w_unfavourite: 'Quitar de favoritos',
     // YouTube widget + live broadcasting.
@@ -14013,7 +14013,7 @@ Object.assign(i18n, {
   },
   fr: {
     ...i18n.en,
-    discord_w_favourites: 'Favoris',
+    discord_w_favourites: 'Favoris', discord_w_collapse_server: 'Masquer les salons', discord_w_expand_server: 'Afficher les salons', discord_w_collapse_all: 'Tout réduire', discord_w_expand_all: 'Tout développer',
     discord_w_favourite: 'Épingler en haut',
     discord_w_unfavourite: 'Retirer des favoris',
     // YouTube widget + live broadcasting.
@@ -15394,7 +15394,7 @@ Object.assign(i18n, {
   },
   de: {
     ...i18n.en,
-    discord_w_favourites: 'Favoriten',
+    discord_w_favourites: 'Favoriten', discord_w_collapse_server: 'Kanäle ausblenden', discord_w_expand_server: 'Kanäle einblenden', discord_w_collapse_all: 'Alle einklappen', discord_w_expand_all: 'Alle ausklappen',
     discord_w_favourite: 'Oben anheften',
     discord_w_unfavourite: 'Aus Favoriten entfernen',
     // YouTube widget + live broadcasting.
@@ -16775,7 +16775,7 @@ Object.assign(i18n, {
   },
   pt: {
     ...i18n.en,
-    discord_w_favourites: 'Favoritos',
+    discord_w_favourites: 'Favoritos', discord_w_collapse_server: 'Ocultar canais', discord_w_expand_server: 'Mostrar canais', discord_w_collapse_all: 'Recolher tudo', discord_w_expand_all: 'Expandir tudo',
     discord_w_favourite: 'Fixar no topo',
     discord_w_unfavourite: 'Remover dos favoritos',
     // YouTube widget + live broadcasting.
@@ -18156,7 +18156,7 @@ Object.assign(i18n, {
   },
   ru: {
     ...i18n.en,
-    discord_w_favourites: 'Избранное',
+    discord_w_favourites: 'Избранное', discord_w_collapse_server: 'Скрыть каналы', discord_w_expand_server: 'Показать каналы', discord_w_collapse_all: 'Свернуть все', discord_w_expand_all: 'Развернуть все',
     discord_w_favourite: 'Закрепить сверху',
     discord_w_unfavourite: 'Убрать из избранного',
     // YouTube widget + live broadcasting.
@@ -19537,7 +19537,7 @@ Object.assign(i18n, {
   },
   nl: {
     ...i18n.en,
-    discord_w_favourites: 'Favorieten',
+    discord_w_favourites: 'Favorieten', discord_w_collapse_server: 'Kanalen verbergen', discord_w_expand_server: 'Kanalen tonen', discord_w_collapse_all: 'Alles inklappen', discord_w_expand_all: 'Alles uitklappen',
     discord_w_favourite: 'Bovenaan vastzetten',
     discord_w_unfavourite: 'Uit favorieten verwijderen',
     settings_accent_covered_retro: 'De stijl Pixel Retro gebruikt zijn eigen vaste CRT-palet — kies een andere stijl bij Weergave → Thema\'s om deze kleur te zien.',
