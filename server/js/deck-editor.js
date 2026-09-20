@@ -135,6 +135,7 @@
   let sbActionsPromise = null;
   let sbCodeTriggersPromise = null;
   let sbGlobalsPromise = null;
+  let audioDevicesPromise = null;
   let discordChannelsPromise = null;
   let discordSoundsPromise = null;
   let haEntitiesPromise = null;
@@ -438,6 +439,30 @@
     if (!storeAppsPromise) storeAppsPromise = fetch('/apps/store').then((r) => r.json())
       .then((d) => (d && Array.isArray(d.apps)) ? d.apps : []).catch(() => []);
     return storeAppsPromise;
+  }
+
+  // Lazy fetch of the output devices from /audio. Returns
+  // Promise<{value,label}[]> where value is the device id the audioDevice action
+  // needs and label is what the device is called on screen. NOT reset in
+  // refreshCapabilities: the device list is not a capability flag. Re-fetched
+  // per editor open, which is often enough — a headset plugged in mid-edit shows
+  // up the next time the picker is opened.
+  function audioDevices() {
+    if (!audioDevicesPromise) audioDevicesPromise = fetch('/audio').then((r) => r.json()).then((d) => {
+      const list = (d && Array.isArray(d.speakers)) ? d.speakers : [];
+      const out = [];
+      const seen = new Set();
+      for (const s of list) {
+        const value = (s && typeof s.id === 'string') ? s.id : '';
+        if (!value || seen.has(value)) continue;
+        seen.add(value);
+        // `label` is the full "Speakers (Realtek)" reading; `name` is the bare
+        // device. Either is a name a person recognises — the id is not.
+        out.push({ value, label: (s && (s.label || s.name)) || value, isDefault: !!(s && s.isDefault) });
+      }
+      return out;
+    }).catch(() => []);
+    return audioDevicesPromise;
   }
 
   function close() {
@@ -798,7 +823,7 @@
     // Re-fetch OBS scene/source lists and the running-app list on each open so
     // scenes/sources just created in OBS — and apps just launched — show up
     // without a page reload.
-    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; wlChannelsPromise = null; wlStatePromise = null; vmStatePromise = null; lightDevicesPromise = null; sdkWidgetsPromise = null; signalRgbEffectsPromise = null;
+    scenesPromise = null; sourcesPromise = null; appsPromise = null; storeAppsPromise = null; audioDevicesPromise = null; sbActionsPromise = null; sbCodeTriggersPromise = null; sbGlobalsPromise = null; discordChannelsPromise = null; discordSoundsPromise = null; haEntitiesPromise = null; wlChannelsPromise = null; wlStatePromise = null; vmStatePromise = null; lightDevicesPromise = null; sdkWidgetsPromise = null; signalRgbEffectsPromise = null;
     const DA = window.DeckActions;
     const DM = window.DeckModel;
     // Hard dependencies: bail cleanly (rather than throwing mid-build and leaving
@@ -2451,6 +2476,42 @@
       return wrap;
     }
 
+    // A param control for the audioDevice kind. A pure dropdown, with no typed
+    // field beside it: unlike audioApp — where any process name is a legitimate
+    // target, playing or not — the server resolves this value against the LIVE
+    // output enumeration and refuses anything that is not in it. A text box here
+    // could only ever hold something that fails, which is exactly what it did.
+    //
+    // A value already saved but not in the list right now (the headset is
+    // unplugged) is kept as its own option rather than dropped: opening the
+    // editor must not quietly erase a key that works whenever the device is
+    // back.
+    function audioDevicePickControl(step, name) {
+      const wrap = document.createElement('div');
+      const sel = document.createElement('select'); sel.className = 'deck-ed-input';
+      const ph = document.createElement('option'); ph.value = '';
+      ph.setAttribute('data-i18n', 'deck_opt_devicepick'); ph.textContent = t('deck_opt_devicepick');
+      sel.appendChild(ph);
+      sel.addEventListener('change', () => { step.params[name] = sel.value; });
+      wrap.appendChild(sel);
+      audioDevices().then((items) => {
+        const cur = step.params[name] || '';
+        if (cur && !items.some((it) => it.value === cur)) {
+          const o = document.createElement('option'); o.value = cur;
+          o.textContent = t('deck_opt_device_missing', 'Saved device (not connected)');
+          sel.appendChild(o);
+        }
+        items.forEach((it) => {
+          const o = document.createElement('option'); o.value = it.value;
+          o.textContent = it.isDefault ? (it.label + ' • ' + t('deck_opt_device_current', 'current')) : it.label;
+          sel.appendChild(o);
+        });
+        sel.value = cur;
+        enhanceSelects(wrap);
+      }).catch(() => {});
+      return wrap;
+    }
+
     // Bespoke params for the AI action: a mode select, plus a prompt textarea that
     // only appears for mode 'prompt' (voice/open need no text). Edits write into
     // step.params so the generic save path picks them up unchanged.
@@ -2597,6 +2658,12 @@
         if (p.kind === 'storeApp') {
           if (step.params[p.name] == null) step.params[p.name] = '';
           f.appendChild(storeAppPickControl(step, p.name));
+          host.appendChild(f);
+          return;
+        }
+        if (p.kind === 'audioDevice') {
+          if (step.params[p.name] == null) step.params[p.name] = '';
+          f.appendChild(audioDevicePickControl(step, p.name));
           host.appendChild(f);
           return;
         }

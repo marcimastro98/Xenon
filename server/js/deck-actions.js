@@ -60,7 +60,20 @@ const ACTION_CATALOG = [
   { type: 'appVolume', group: 'audio', requires: 'appAudio', labelKey: 'deck_act_appVolume', params: [{ name: 'app', kind: 'audioApp' }, { name: 'mode', kind: 'select', options: ['up', 'down', 'set'] }, { name: 'value', kind: 'text', optional: true }] },
   { type: 'appMute',   group: 'audio', requires: 'appAudio', labelKey: 'deck_act_appMute',   params: [{ name: 'app', kind: 'audioApp' }, { name: 'mode', kind: 'select', options: ['toggle', 'mute', 'unmute'] }] },
   { type: 'appMixer',  group: 'audio', requires: 'appAudio', labelKey: 'deck_act_appMixer',  params: [] },
-  { type: 'audioDevice', group: 'audio', labelKey: 'deck_act_audioDevice', params: [{ name: 'device', kind: 'text' }] },
+  // The device is PICKED, never typed. What the server needs is the output
+  // device's id from the live enumeration — an opaque SoundVolumeView
+  // command-line id, not anything a person would call their speakers — and it
+  // refuses everything else, deliberately: that same id namespace also names
+  // microphones, so accepting an unmatched string would hand out "change the
+  // default mic" along with "change the speakers".
+  //
+  // This was a `text` field until 4.11.10, which made it a field nobody could
+  // fill in: asked on Discord after trying the Sound control panel name, the
+  // sound-processor name ("NVIDIA HD Audio", "Realtek HD Audio"), both, and the
+  // PowerShell device names — every one of them an `unknown_device`, because
+  // none of them is an id. `requires` hides the key where there is no audio
+  // control to enumerate with, rather than offering one that always fails.
+  { type: 'audioDevice', group: 'audio', requires: 'soundVolumeView', labelKey: 'deck_act_audioDevice', params: [{ name: 'device', kind: 'audioDevice' }] },
   { type: 'obsScene',  group: 'obs', labelKey: 'deck_act_obsScene',  params: [{ name: 'scene',  kind: 'obsScene' }] },
   { type: 'obsSceneNext', group: 'obs', labelKey: 'deck_act_obsSceneNext', params: [] },
   { type: 'obsRecord', group: 'obs', labelKey: 'deck_act_obsRecord', params: [{ name: 'mode', kind: 'select', options: ['toggle', 'start', 'stop'] }] },
