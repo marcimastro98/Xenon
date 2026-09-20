@@ -1,147 +1,111 @@
 {
   "_note": "Curated 'What's New' modal shown to users already on this build. See docs/whatsnew-shotlist.md for exactly which screenshot/video goes in each highlight and how to get the GitHub URL. Bump `id` ONLY for an important release you want re-announced; keep it unchanged for pure bugfix releases so it never re-nags. title/body/footer may be a string OR a { it, en, ko, ja, zh } map. `media` must be a GitHub-hosted URL (raw.githubusercontent.com/OWNER/REPO/BRANCH/path, or an immutable github.com/user-attachments/assets/... release attachment). mediaType is \"image\" or \"video\". Empty media = text-only. IMPORTANT: use raw.githubusercontent.com URLs, NOT github.com/user-attachments/assets/... — the latter are gated behind a GitHub session cookie the dashboard's <img> (esp. the native WebView) usually lacks, so they 404 and fall back to the 'open on GitHub' link even though they load fine in your logged-in browser. A .gif works as mediaType \"image\" (the host allowlist is host-based, not extension-based, and an <img> animates it). The docs/images/*.png|gif referenced below resolve once this branch is on main, which the release pipeline does before tagging; they ship inside the build and are read from disk. To swap an image for a video, drag the clip into a GitHub release/issue box and paste the user-attachments URL here, then set mediaType to \"video\" (videos are opened via the fallback link, so the cookie gate does not affect them).",
-  "id": "4.11.0",
+  "id": "4.11.9",
   "title": {
-    "it": "Novità di Xenon 4.11.0",
-    "en": "What's new in Xenon 4.11.0",
-    "ko": "Xenon 4.11.0의 새로운 기능",
-    "ja": "Xenon 4.11.0 の新機能",
-    "zh": "Xenon 4.11.0 新功能"
+    "it": "Novità di Xenon 4.11.9",
+    "en": "What's new in Xenon 4.11.9",
+    "ko": "Xenon 4.11.9의 새로운 기능",
+    "ja": "Xenon 4.11.9 の新機能",
+    "zh": "Xenon 4.11.9 新功能"
   },
   "highlights": [
     {
       "title": {
-        "it": "Il telefono o il tablet diventano il secondo schermo",
-        "en": "Your phone or tablet can be the second screen",
-        "ko": "휴대폰이나 태블릿이 두 번째 화면이 됩니다",
-        "ja": "スマホやタブレットが 2 枚目の画面になります",
-        "zh": "手机或平板可以当作第二块屏幕"
+        "it": "I download per Windows sono firmati",
+        "en": "The Windows downloads are signed",
+        "ko": "Windows 다운로드에 서명이 추가되었습니다",
+        "ja": "Windows 版のダウンロードに署名が付きました",
+        "zh": "Windows 下载文件已签名"
       },
       "body": {
-        "it": "Fino a ieri Xenon chiedeva uno schermo che tu fossi disposto a cedere. Ora la dashboard si apre nel browser di un telefono o di un tablet sulla tua Wi-Fi, senza installare niente su quel dispositivo. Colleghi l'apparecchio una volta sola da Impostazioni → Telefono, e da lì è la tua dashboard, non una versione ospite ridotta: i tasti del Deck funzionano, il blocco funziona, l'Ambient funziona. Su un tablet il layout diventa a due colonne, su un telefono si impila in una sola con una barra in basso a portata di pollice. È spento finché non lo accendi tu, ogni dispositivo è elencato per nome, e revocarne uno chiude anche la connessione aperta. Nella 4.11 è in beta e te lo dice.",
-        "en": "Until now Xenon needed a screen you were willing to give up. The dashboard now opens in the browser of a phone or tablet on your own Wi-Fi, with nothing to install on that device. You pair it once from Settings → Telefono, and from then on it is your dashboard, not a cut-down guest: the Deck keys work, the lock key works, Ambient works. On a tablet the layout becomes two columns, on a phone it stacks into one with a thumb bar at the bottom. It stays off until you switch it on, every paired device is listed by name, and revoking one also drops its open connection. It is beta in 4.11, and it says so.",
-        "ko": "지금까지 Xenon은 내어줄 수 있는 화면이 필요했습니다. 이제 같은 Wi-Fi에 있는 휴대폰이나 태블릿의 브라우저에서 대시보드가 열리며, 그 기기에는 아무것도 설치하지 않습니다. 설정 → Telefono에서 한 번만 연결하면 축소된 손님용 화면이 아니라 내 대시보드가 됩니다. Deck 키도, 잠금도, Ambient도 그대로 동작합니다. 태블릿에서는 2열, 휴대폰에서는 1열로 쌓이고 아래쪽에 엄지로 닿는 막대가 생깁니다. 켜기 전까지는 꺼져 있고, 연결된 기기는 이름으로 나열되며, 해제하면 열려 있던 연결도 끊깁니다. 4.11에서는 베타이며 그렇게 표시됩니다.",
-        "ja": "これまで Xenon には「明け渡してもいい画面」が必要でした。いまは同じ Wi-Fi にあるスマホやタブレットのブラウザでダッシュボードが開きます。その端末には何もインストールしません。設定 → Telefono から一度ペアリングすれば、機能を削った来客用画面ではなく自分のダッシュボードになります。Deck のキーもロックも Ambient も動きます。タブレットでは 2 列、スマホでは 1 列に積まれ、下に親指の届くバーが出ます。自分でオンにするまでは無効で、ペアリングした端末は名前で一覧され、解除すると開いている接続も切れます。4.11 ではベータで、その旨も表示されます。",
-        "zh": "过去 Xenon 需要你腾出一块屏幕。现在，只要在同一个 Wi-Fi 下，手机或平板的浏览器就能打开仪表板，那台设备上什么都不用装。在设置 → Telefono 里配对一次，它就是你的仪表板，而不是被削减的访客版：Deck 按键、锁屏、Ambient 都能用。平板上是两栏布局，手机上叠成一栏，底部有拇指够得到的操作条。你不打开它就一直是关闭的，配对过的设备按名字列出，撤销某台设备也会切断它已打开的连接。这在 4.11 里是 beta，界面上也会这么写。"
+        "it": "Fino a oggi l'installer arrivava come un file di cui nessuno garantiva niente, e Windows lo trattava così: browser che annullavano il download, \"editore sconosciuto\" al setup, Defender che lo metteva in quarantena. Da questa versione dietro la release c'è un certificato di firma del codice, e l'installer porta un nome di editore vero. Due limiti, detti chiaramente: SmartScreen può ancora comparire per un po', perché dal 2024 nessun certificato dà fiducia immediata e la reputazione si guadagna con i download nel tempo; e l'eseguibile dentro l'installer è coperto anch'esso, ma l'antivirus giudica il comportamento oltre alla firma, quindi una segnalazione resta possibile. Se ti è capitato, la sezione del README spiega ancora come verificare un download a mano e ripristinare un file in quarantena.",
+        "en": "Until now the installer arrived as a file nobody vouched for, and Windows treated it that way: browsers cancelling the download, \"unknown publisher\" on the setup, Defender quarantining it. From this version there is a code-signing certificate behind the release, and the installer carries a real publisher name. Two honest limits: SmartScreen can still appear for a while, because since 2024 no certificate grants instant trust and reputation is earned through downloads over time; and the executable inside the installer is covered too, but antivirus judges behaviour as well as signatures, so a flag remains possible. If you have hit any of this, the README section still explains how to check a download by hand and restore a quarantined file.",
+        "ko": "지금까지 설치 파일은 아무도 보증하지 않는 파일로 도착했고 Windows도 그렇게 취급했습니다. 브라우저가 다운로드를 취소하고, 설치 시 \"알 수 없는 게시자\"가 표시되고, Defender가 격리하기도 했습니다. 이번 버전부터 릴리스 뒤에 코드 서명 인증서가 있으며 설치 파일에 실제 게시자 이름이 표시됩니다. 두 가지 한계를 솔직히 말씀드립니다. SmartScreen은 당분간 계속 나타날 수 있습니다. 2024년 이후로는 어떤 인증서도 즉시 신뢰를 주지 않으며 평판은 시간이 지나며 다운로드로 쌓입니다. 그리고 설치 파일 안의 실행 파일도 서명되지만, 백신은 서명뿐 아니라 동작도 판단하므로 오탐이 남아 있을 수 있습니다. 이런 일을 겪으셨다면 README의 해당 섹션에서 다운로드를 직접 확인하고 격리된 파일을 복원하는 방법을 계속 안내합니다.",
+        "ja": "これまでインストーラーは誰も保証しないファイルとして届き、Windows もそのように扱っていました。ブラウザがダウンロードを取り消し、セットアップに「不明な発行元」と表示され、Defender が隔離することもありました。このバージョンからリリースの背後にコード署名証明書があり、インストーラーには実際の発行元名が付きます。正直に二つの限界を伝えます。SmartScreen はしばらく表示されることがあります。2024 年以降どの証明書も即時の信頼を与えず、評判は時間をかけてダウンロードで積み上がるためです。また、インストーラー内の実行ファイルも署名されますが、ウイルス対策ソフトは署名だけでなく挙動も判断するため、検知が残る可能性はあります。心当たりがあれば、README の該当セクションで手動でダウンロードを確認し、隔離されたファイルを復元する方法を引き続き説明しています。",
+        "zh": "此前安装程序只是一个无人担保的文件，Windows 也这样对待它：浏览器取消下载，安装时显示“未知发布者”，Defender 将其隔离。从这个版本起，发布背后有了代码签名证书，安装程序带有真实的发布者名称。坦白说明两个限制：SmartScreen 在一段时间内仍可能出现，因为自 2024 年起没有任何证书能立即获得信任，声誉要靠时间和下载量积累；安装程序内的可执行文件同样已签名，但杀毒软件除了签名还会判断行为，所以误报仍有可能。如果你遇到过这些情况，README 中的相关章节仍然说明如何手动核对下载文件并恢复被隔离的文件。"
       },
-      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/tablet-dashboard.png",
+      "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "Foto e file dal telefono a questo PC, e viceversa",
-        "en": "Photos and files from the phone to this PC, and back",
-        "ko": "휴대폰에서 이 PC로, 그리고 그 반대로",
-        "ja": "写真もファイルも、スマホからこの PC へ、その逆も",
-        "zh": "照片和文件，从手机到这台电脑，也能反过来"
+        "it": "Il riquadro Media può mostrare l'onda sonora di ciò che suona",
+        "en": "The Media tile can show the sound wave of what is playing",
+        "ko": "미디어 타일에 재생 중인 소리의 파형을 표시할 수 있습니다",
+        "ja": "メディアタイルに再生中の音の波形を表示できます",
+        "zh": "媒体磁贴可以显示正在播放内容的声波"
       },
       "body": {
-        "it": "Prendere una foto dal telefono voleva dire mandarsela in chat e riscaricarla dal PC. Ora apri Xenon sul telefono collegato, tocchi Foto e video o Altri file, e quello che scegli arriva in Download/Xenon con il suo nome. Funziona anche al contrario: trascini un file sulla tile e lo scarichi dal telefono. Tutto passa dalla tua rete e non dal server di nessuno. Le foto non vengono ricompresse né ridimensionate, un nome già occupato prende un numero invece di sostituire quello che avevi, e la cartella in cui arrivano la scegli tu, dal PC. Un file per volta: se chiudi Xenon a metà di un video, quel video riparte da capo.",
-        "en": "Getting a photo off your phone used to mean sending it to yourself in a chat and downloading it again on the PC. Now you open Xenon on the paired phone, tap Photos and videos or Other files, and what you pick lands in Download/Xenon with its own name. It works the other way too: drag a file onto the tile and download it from the phone. Everything goes over your own network, never through anyone's server. Photos are not re-encoded and not resized, a name that is already taken gets a number instead of replacing what you had, and the folder they arrive in is yours to change, from the PC. One file at a time: if you close Xenon halfway through a video, that video starts over.",
-        "ko": "휴대폰에서 사진 한 장을 꺼내려면 채팅으로 나에게 보내고 PC에서 다시 받아야 했습니다. 이제 연결된 휴대폰에서 Xenon을 열고 사진 및 동영상 또는 기타 파일을 누르면, 고른 것이 원래 이름 그대로 Download/Xenon에 들어옵니다. 반대 방향도 됩니다. 타일에 파일을 끌어다 놓고 휴대폰에서 내려받으면 됩니다. 모든 것이 내 네트워크로만 오가며 누군가의 서버를 거치지 않습니다. 사진은 재압축하거나 크기를 줄이지 않고, 이미 있는 이름은 기존 파일을 덮어쓰는 대신 번호가 붙으며, 저장되는 폴더는 PC에서 바꿀 수 있습니다. 한 번에 한 개씩 보내며, 동영상 전송 중에 Xenon을 닫으면 그 파일은 처음부터 다시 시작합니다.",
-        "ja": "スマホから写真を 1 枚取り出すのに、自分宛にチャットで送って PC で落とし直していました。これからはペアリングしたスマホで Xenon を開き、「写真とビデオ」か「その他のファイル」を押すだけで、選んだものが元の名前のまま Download/Xenon に届きます。逆向きも同じです。タイルにファイルをドラッグして、スマホから受け取れます。すべて自分のネットワークの中を通り、誰かのサーバーは経由しません。写真は再エンコードもリサイズもされず、同じ名前があるときは上書きせずに番号が付き、届き先のフォルダーは PC 側で変更できます。一度に 1 個ずつで、動画の途中で Xenon を閉じるとそのファイルは最初からになります。",
-        "zh": "以前想把手机里的一张照片弄到电脑上，得先发给自己再下载一次。现在，在已配对的手机上打开 Xenon，点「照片和视频」或「其他文件」，选中的东西就会以原来的文件名落到 Download/Xenon 里。反方向也一样：把文件拖到磁贴上，再从手机下载。所有数据只走你自己的网络，不经过任何人的服务器。照片不会被重新编码或缩小，遇到重名会加编号而不是覆盖你已有的文件，接收文件夹也可以在电脑上改。一次传一个；如果传视频传到一半关掉 Xenon，那个文件会从头再来。"
+        "it": "Impostazioni → Aspetto → Riquadro Media offre ora Nessuna, Minimal e Onda, colorate con la copertina dell'album, gli stessi colori che la striscia LED già prende da lì. È un'aggiunta e si comporta da aggiunta: il riquadro non cambia, la striscia si disegna sotto il contenuto e non copre mai un controllo, e Nessuna resta il default. Minimal è una linea sottile sul bordo inferiore che respira con la musica; Onda è la striscia piena.",
+        "en": "Settings → Appearance → Media tile now offers None, Minimal and Wave, coloured by the album cover, the same colours the LED strip already takes from it. It is an addition and behaves like one: the tile is unchanged, the strip is drawn under the content and never covers a control, and None stays the default. Minimal is a thin line along the bottom edge that breathes with the music; Wave is the fuller strip.",
+        "ko": "설정 → 모양 → 미디어 타일에서 없음, 미니멀, 파형 중 선택할 수 있으며, 앨범 커버 색상으로 칠해집니다. LED 스트립이 이미 가져오는 것과 같은 색입니다. 추가 기능이며 추가 기능답게 동작합니다. 타일은 그대로이고, 스트립은 콘텐츠 아래에 그려져 컨트롤을 가리지 않으며, 기본값은 없음입니다. 미니멀은 음악에 맞춰 숨 쉬는 아래쪽 가는 선이고, 파형은 더 풍성한 스트립입니다.",
+        "ja": "設定 → 外観 → メディアタイルで「なし」「ミニマル」「波形」を選べるようになりました。色はアルバムカバーから取られ、LED ストリップがすでに使っている色と同じです。追加機能であり、追加機能らしく振る舞います。タイルは変わらず、ストリップはコンテンツの下に描かれ、コントロールを覆うことはなく、既定は「なし」のままです。ミニマルは音楽に合わせて呼吸する下端の細い線、波形はより豊かなストリップです。",
+        "zh": "设置 → 外观 → 媒体磁贴现在提供“无”“极简”“波形”三种选择，颜色取自专辑封面，与 LED 灯带已经采用的颜色一致。这是一个附加功能，也表现得像附加功能：磁贴不变，条带绘制在内容下方，绝不遮挡任何控件，默认仍为“无”。极简是底边一条随音乐起伏的细线；波形是更完整的条带。"
       },
-      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/transfer.png",
+      "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "Un widget non è più per forza un rettangolo",
-        "en": "A widget does not have to be a rectangle any more",
-        "ko": "위젯이 더 이상 직사각형일 필요가 없습니다",
-        "ja": "ウィジェットは長方形でなくてよくなりました",
-        "zh": "组件不必再是一个矩形"
+        "it": "Un secondo riquadro Discord, con una scheda diversa",
+        "en": "A second Discord tile, showing a different tab",
+        "ko": "다른 탭을 보여주는 두 번째 Discord 타일",
+        "ja": "別のタブを表示する 2 つ目の Discord タイル",
+        "zh": "第二个 Discord 磁贴，显示不同的标签页"
       },
       "body": {
-        "it": "Dalla prima versione ogni tile era un rettangolo con gli angoli arrotondati. Ora può essere un esagono, un cerchio, un biglietto, un arco, una goccia, o un profilo che disegni tu, dall'editor di stile del widget alla voce Effetti. La sagoma ritaglia la scheda, non il contenuto: ogni forma dichiara quanto margine tenere libero, così il testo non perde un angolo. Anche un widget che installi può arrivare con la sua forma, e la tua scelta vince sempre su quella di chi l'ha fatto. Nello stesso giro tre effetti che non facevano niente (sfocatura e saturazione del vetro, e l'ombra della tile) ora fanno quello che promettono, una tile può diventare completamente trasparente, e non serve più ricolorarla prima per usarli.",
-        "en": "Since the first version every tile was a rounded rectangle. Now it can be a hexagon, a circle, a ticket, an arch, a blob, or an outline you draw yourself, from the widget's style editor under Effects. The silhouette clips the card, not the content: each shape declares how much room to keep clear, so text does not lose a corner. A widget you install can arrive with its own shape too, and your choice always wins over the creator's. In the same pass, three effects that had never done anything (glass blur, glass saturation, and the tile shadow) now do what they say, a tile can be made completely transparent, and none of it requires recolouring the tile first.",
-        "ko": "첫 버전부터 모든 타일은 모서리가 둥근 직사각형이었습니다. 이제 위젯 스타일 편집기의 '효과'에서 육각형, 원, 티켓, 아치, 물방울, 또는 직접 그린 윤곽으로 바꿀 수 있습니다. 실루엣이 잘라내는 것은 카드이지 내용이 아닙니다. 각 모양은 비워 둘 여백을 스스로 선언하므로 글자가 모서리에서 잘리지 않습니다. 설치한 위젯이 자기 모양을 가지고 올 수도 있으며, 만든 사람의 선택보다 항상 사용자의 선택이 우선합니다. 같은 작업에서, 그동안 아무 일도 하지 않던 세 가지 효과(유리 흐림, 유리 채도, 타일 그림자)가 이름대로 동작하게 되었고, 타일을 완전히 투명하게 만들 수 있으며, 이 모두가 타일 색을 먼저 바꾸지 않아도 됩니다.",
-        "ja": "最初のバージョンから、タイルは角の丸い長方形でした。これからは、ウィジェットのスタイル編集の「エフェクト」から、六角形・円・チケット・アーチ・しずく、あるいは自分で描いた輪郭にできます。シルエットが切り取るのはカードであって中身ではありません。形ごとに空けておく余白が宣言されているので、文字が角で欠けません。インストールしたウィジェットが自分の形を持ってくることもあり、その場合も作者の指定より利用者の選択が優先されます。同じ回で、これまで何もしていなかった 3 つの効果（ガラスのぼかし、ガラスの彩度、タイルの影）が名前どおりに効くようになり、タイルを完全に透明にでき、どれも先にタイルの色を変える必要がなくなりました。",
-        "zh": "从第一个版本起，每块磁贴都是圆角矩形。现在，在组件样式编辑器的「效果」里，它可以是六边形、圆形、票券、拱形、水滴，或者你自己画的轮廓。剪影裁的是卡片，不是内容：每种形状都声明了要留出的边距，所以文字不会缺一个角。你安装的组件也可以自带形状，而你的选择永远优先于作者的选择。同一轮里，三个一直没生效的效果（毛玻璃模糊、毛玻璃饱和度、磁贴阴影）现在名副其实了，磁贴可以做到完全透明，而且这些都不再需要先给磁贴改颜色。"
+        "it": "Il widget ha quattro schede, Controlli, Canali, Soundboard e Notifiche, e ne potevi vedere una sola alla volta perché poteva esistere un solo riquadro Discord. Ora ne puoi mettere due sullo stesso schermo, per esempio le notifiche dei messaggi sopra e i controlli della chat vocale sotto.",
+        "en": "The widget has four tabs, Controls, Channels, Soundboard and Notifications, and only one could be on screen at a time because only one Discord tile could exist. Now two can share a screen, for example DM notifications above and the voice-chat controls below.",
+        "ko": "위젯에는 컨트롤, 채널, 사운드보드, 알림의 네 탭이 있지만 Discord 타일이 하나만 존재할 수 있어 한 번에 하나만 볼 수 있었습니다. 이제 한 화면에 두 개를 둘 수 있습니다. 예를 들어 위에는 DM 알림, 아래에는 음성 채팅 컨트롤을 배치할 수 있습니다.",
+        "ja": "ウィジェットにはコントロール、チャンネル、サウンドボード、通知の 4 つのタブがありますが、Discord タイルは 1 つしか置けなかったため、同時に見られるのは 1 つだけでした。今は 1 つの画面に 2 つ置けます。たとえば上に DM 通知、下にボイスチャットのコントロールを並べられます。",
+        "zh": "该小组件有四个标签页：控制、频道、音效板和通知，但由于只能存在一个 Discord 磁贴，同一时间只能看到一个。现在可以在同一屏幕上放两个，比如上面显示私信通知，下面显示语音聊天控制。"
       },
-      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/tile-shapes.png",
+      "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "Un widget può prendersi tutto lo schermo",
-        "en": "A widget can fill the screen when you tap it",
-        "ko": "탭하면 위젯이 화면 전체를 채울 수 있습니다",
-        "ja": "タップでウィジェットが画面いっぱいに広がります",
-        "zh": "点一下，组件可以占满整块屏幕"
+        "it": "Puoi scegliere un brano dalla coda di Spotify",
+        "en": "You can pick a track out of the Spotify widget's Up Next",
+        "ko": "Spotify 위젯의 다음 재생 목록에서 트랙을 고를 수 있습니다",
+        "ja": "Spotify ウィジェットの「次に再生」から曲を選べます",
+        "zh": "可以从 Spotify 小组件的“接下来播放”中选取曲目"
       },
       "body": {
-        "it": "Certe cose in una tile non ci stanno: una lavagna, una mappa, un gioco. Un widget che lo chiede può ora aprirsi a tutta la dashboard e tornare indietro, sul posto, senza aprire una finestra a parte e senza perdere quello che stava facendo. Esc lo chiude, e anche passare a un'altra pagina. Resta un permesso come gli altri: un widget può farlo solo se glielo hai concesso quando l'hai installato.",
-        "en": "Some things do not fit in a tile: a board, a map, a game. A widget that asks for it can now open to the whole dashboard and come back, in place, without a separate window and without losing what it was doing. Escape closes it, and so does swiping to another page. It stays a permission like any other: a widget can only do this if you granted it when you installed it.",
-        "ko": "타일에 들어가지 않는 것들이 있습니다. 보드, 지도, 게임 같은 것들이죠. 이제 그런 위젯은 요청하면 대시보드 전체로 열렸다가 제자리로 돌아올 수 있습니다. 별도 창을 열지 않고, 하던 작업도 잃지 않습니다. Esc로 닫히고, 다른 페이지로 넘겨도 닫힙니다. 이것도 다른 권한과 같습니다. 설치할 때 허용한 위젯만 할 수 있습니다.",
-        "ja": "タイルに収まらないものがあります。ボード、地図、ゲームなど。これらのウィジェットは、要求すればダッシュボード全体に広がり、その場で元に戻れます。別ウィンドウは開かず、作業中の状態も失いません。Esc で閉じ、別のページにスワイプしても閉じます。これも他と同じ権限です。インストール時に許可したウィジェットだけが行えます。",
-        "zh": "有些东西放不进一块磁贴：白板、地图、游戏。现在，提出请求的组件可以就地展开到整个仪表板再收回来，不用另开窗口，也不会丢掉正在做的事。按 Esc 会关闭，滑到另一页也会。它仍然是一项权限：只有你在安装时授权过的组件才能这么做。"
+        "it": "La lista Prossimi del widget Spotify era solo da guardare. Ora un tocco su un brano lo fa partire, e la lista dei titoli in Borsa si riordina trascinando una riga: due cose che la gente provava a fare da tempo e che non facevano niente.",
+        "en": "The Spotify widget's Up Next list was only for looking at. Now a tap on a track plays it, and the Stocks watchlist re-orders by dragging a row: two things people had been trying to do for a while that did nothing.",
+        "ko": "Spotify 위젯의 다음 재생 목록은 보기만 할 수 있었습니다. 이제 트랙을 탭하면 재생되고, 주식 관심 목록은 행을 드래그해 순서를 바꿀 수 있습니다. 사람들이 오래전부터 시도했지만 아무 반응이 없던 두 가지입니다.",
+        "ja": "Spotify ウィジェットの「次に再生」は眺めるだけでした。今は曲をタップすると再生され、株価のウォッチリストは行をドラッグして並べ替えられます。以前から多くの人が試して何も起きなかった 2 つの操作です。",
+        "zh": "Spotify 小组件的“接下来播放”列表以前只能看。现在点一下曲目就会播放，股票自选列表也可以拖动行来重新排序：这是大家早就想做却没有反应的两件事。"
       },
-      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/widget-expand.gif",
+      "media": "",
       "mediaType": "image"
     },
     {
       "title": {
-        "it": "Condividi il tuo setup come immagine, senza darla a vedere",
-        "en": "Share your setup as a picture, without giving it away",
-        "ko": "내 설정을 사진 한 장으로, 보일 것만 보이게",
-        "ja": "自分のセットアップを 1 枚の画像で、見せたくないものは伏せて",
-        "zh": "把你的桌面分享成一张图，又不把该藏的露出去"
+        "it": "La scala interfaccia è nelle Impostazioni ovunque le apri",
+        "en": "The interface scale is in Settings wherever you open them",
+        "ko": "인터페이스 배율이 어디서 설정을 열든 설정에 있습니다",
+        "ja": "インターフェースの拡大率が、どこから開いても設定にあります",
+        "zh": "无论从哪里打开设置，界面缩放都在设置中"
       },
       "body": {
-        "it": "La card di condivisione è tornata, e stavolta fotografa lo schermo giusto. Costruisce un'immagine con la tua dashboard dentro, la tua palette e un QR, in formato post 16:9 o storia 9:16, pronta da scaricare o da copiare. Quello che hai sullo schermo però resta tuo: un interruttore per sfocare i dettagli personali nasconde appuntamenti, note, attività, nomi e percorsi dei file prima che l'immagine venga creata, e lo screenshot vero è una scelta esplicita: se non la fai, la card viene disegnata dal tuo tema senza fotografare niente.",
-        "en": "The share card is back, and this time it photographs the right screen. It builds an image with your dashboard in it, your palette and a QR code, as a 16:9 post or a 9:16 story, ready to download or copy. What is on your screen still stays yours: a blur personal details switch hides calendar entries, notes, tasks, names and file paths before the picture is made, and the real screenshot is something you turn on. If you do not, the card is drawn from your theme without photographing anything.",
-        "ko": "공유 카드가 돌아왔고, 이번에는 올바른 화면을 찍습니다. 내 대시보드와 팔레트, QR 코드를 담은 이미지를 16:9 게시물이나 9:16 스토리로 만들어 바로 저장하거나 복사할 수 있습니다. 화면에 있는 내용은 여전히 내 것입니다. 개인 정보를 흐리는 스위치가 일정, 메모, 할 일, 이름, 파일 경로를 이미지가 만들어지기 전에 가리고, 실제 스크린샷은 직접 켜야 합니다. 켜지 않으면 카드는 아무것도 찍지 않고 테마만으로 그려집니다.",
-        "ja": "共有カードが戻ってきました。今度は正しい画面を写します。自分のダッシュボードとパレット、QR コードを収めた画像を、16:9 の投稿用または 9:16 のストーリー用として作り、そのまま保存もコピーもできます。画面にあるものは自分のものです。個人的な情報をぼかすスイッチが、予定・メモ・タスク・名前・ファイルパスを画像を作る前に隠します。実際のスクリーンショットは自分でオンにするもので、オフのままならカードは何も撮らずにテーマだけから描かれます。",
-        "zh": "分享卡片回来了，而且这次拍的是正确的那块屏幕。它会生成一张含有你的仪表板、你的配色和一个二维码的图片，可选 16:9 帖子或 9:16 竖版故事，能直接下载或复制。屏幕上的内容依然是你的：模糊个人信息的开关会在出图之前把日程、笔记、待办、姓名和文件路径挡住；真实截图需要你自己打开，不打开的话，卡片只按你的主题绘制，不会拍任何东西。"
-      },
-      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/share-card.png",
-      "mediaType": "image"
-    },
-    {
-      "title": {
-        "it": "Quando ti chiamano, la dashboard squilla",
-        "en": "When someone calls you, the dashboard rings",
-        "ko": "전화가 오면 대시보드가 울립니다",
-        "ja": "着信があると、ダッシュボードが鳴ります",
-        "zh": "有人打给你时，仪表板会响"
-      },
-      "body": {
-        "it": "Discord, Teams, Zoom, o il telefono sulla scrivania attraverso Collegamento al telefono: quando arriva una chiamata Xenon si prende lo schermo con una card che dice chi ti sta chiamando e da quale app, e cosa puoi farci. Rispondi e Rifiuta compaiono solo dove quell'app si lascia davvero comandare, altrimenti trovi Apri app e Silenzia, che è la cosa onesta da offrire invece di un pulsante che non fa niente. Legge la notifica che il PC ti mostra già: non ascolta niente di nuovo.",
-        "en": "Discord, Teams, Zoom, or the phone on your desk through Phone Link: when a call comes in, Xenon takes the screen with a card showing who is calling and which app it is coming from, and what you can do about it. Answer and Decline appear only where that app can really be driven; where it cannot you get Open app and Silence instead, which is the honest thing to offer rather than a button that does nothing. It reads the notification your PC already shows you, so nothing new is listening.",
-        "ko": "Discord, Teams, Zoom, 또는 휴대폰 연결을 통한 책상 위의 전화까지. 전화가 오면 Xenon이 화면을 가져와, 누가 어떤 앱에서 거는지 보여 주는 카드를 띄웁니다. 받기와 거절은 그 앱을 실제로 제어할 수 있을 때만 나타나며, 그렇지 않으면 앱 열기와 무음이 대신 나옵니다. 동작하지 않는 버튼을 보여 주는 것보다 정직한 방식입니다. PC가 이미 보여 주는 알림을 읽을 뿐, 새로 엿듣는 것은 없습니다.",
-        "ja": "Discord、Teams、Zoom、あるいはスマホ同期でつないだ机の上の電話。着信があると Xenon が画面を取り、誰がどのアプリからかけているかを示すカードを出します。「応答」と「拒否」は、そのアプリを実際に操作できる場合にだけ現れます。できない場合は「アプリを開く」と「消音」になります。動かないボタンを並べるより、そのほうが正直だからです。PC がすでに表示している通知を読んでいるだけで、新しく聞き耳を立てるものはありません。",
-        "zh": "Discord、Teams、Zoom，或者通过「手机连接」放在桌上的手机：来电时 Xenon 会占据屏幕，用一张卡片告诉你是谁打来的、来自哪个应用。「接听」和「拒接」只在那个应用确实可以被驱动时才出现；不能时给你的是「打开应用」和「静音」，这比摆一个按不动的按钮更诚实。它读的是电脑本来就会弹给你的通知，没有任何新的东西在监听。"
-      },
-      "media": "https://raw.githubusercontent.com/marcimastro98/Xenon/main/docs/images/calls.png",
-      "mediaType": "image"
-    },
-    {
-      "title": {
-        "it": "Xenon gira su macOS e su Linux",
-        "en": "Xenon runs on macOS and on Linux",
-        "ko": "Xenon이 macOS와 Linux에서 동작합니다",
-        "ja": "Xenon が macOS と Linux で動きます",
-        "zh": "Xenon 可以在 macOS 和 Linux 上运行"
-      },
-      "body": {
-        "it": "Questa è la prima versione che su tutti e tre i sistemi si installa e si aggiorna da sola. Su Mac c'è un'app universale che gira nativa su Apple Silicon e su Intel, su Linux ci sono un AppImage e un .deb. Lì funzionano la dashboard, lo Store dei widget, i widget dei dati, la ricerca e la mappa del disco, la tile di quello che stai ascoltando, il cambio applicazione, la pulizia che passa dal Cestino, le luci in rete e le integrazioni di streaming. Sono entrambi in beta nella 4.11, e lo dicono dove altrimenti lo scopriresti sbattendoci contro: nelle Impostazioni e sulla pagina di download. Quello che per ora resta solo su Windows è scritto lì.",
-        "en": "This is the first release that installs and updates itself on all three systems. On a Mac there is a universal app that runs natively on Apple Silicon and on Intel; on Linux there is an AppImage and a .deb. The dashboard, the widget Store, the data widgets, search and the disk map, the tile showing what you are playing, the app switcher, cleanup that goes through the Trash, lighting over the network and the streaming integrations all work there. Both are beta in 4.11, and they say so where you would otherwise find out by hitting it: in Settings and on the download page. What is still Windows-only for now is named there too.",
-        "ko": "세 가지 시스템 모두에서 스스로 설치되고 업데이트되는 첫 릴리스입니다. Mac에서는 Apple Silicon과 Intel에서 네이티브로 도는 유니버설 앱이, Linux에서는 AppImage와 .deb가 있습니다. 대시보드, 위젯 스토어, 데이터 위젯, 검색과 디스크 지도, 지금 재생 중인 것을 보여 주는 타일, 앱 전환, 휴지통을 거치는 정리, 네트워크 조명, 스트리밍 연동이 모두 동작합니다. 4.11에서 둘 다 베타이며, 부딪혀서 알게 되지 않도록 설정과 다운로드 페이지에 그렇게 적혀 있습니다. 아직 Windows에만 있는 기능도 거기에 함께 적혀 있습니다.",
-        "ja": "3 つのシステムすべてで、自分でインストールし自分で更新できる最初のリリースです。Mac には Apple Silicon と Intel の両方でネイティブに動くユニバーサルアプリ、Linux には AppImage と .deb があります。ダッシュボード、ウィジェットストア、データ系ウィジェット、検索とディスクマップ、再生中の曲を映すタイル、アプリ切り替え、ゴミ箱を経由する整理、ネットワーク照明、配信連携がそこで動きます。4.11 ではどちらもベータで、ぶつかって気づくことのないよう、設定とダウンロードページにその旨が書かれています。いまのところ Windows だけの機能も、同じ場所に書かれています。",
-        "zh": "这是第一个在三种系统上都能自行安装和自行更新的版本。Mac 上有一个在 Apple Silicon 和 Intel 上都原生运行的通用应用，Linux 上有 AppImage 和 .deb。仪表板、组件商店、数据类组件、搜索与磁盘地图、显示当前播放内容的磁贴、应用切换、经由回收站的清理、网络灯光和直播集成，在那里都能用。两者在 4.11 里都是 beta，并且在你会一头撞上之前就写明了：设置里和下载页上。目前仍只支持 Windows 的部分，也写在同一个地方。"
+        "it": "Prima si trovava solo in un posto e solo su Windows. Ora sta in Impostazioni su ogni schermo da cui apri la dashboard, telefono compreso, e dice cosa costa alzarla. Nella stessa versione: il tasto Deck con la seconda faccia accetta un'icona vera e non solo un'emoji, i profili Deck si copiano su un secondo Deck anche se esiste già un profilo con quel nome, e lo Slideshow spiega perché è vuoto invece di chiederti immagini che non puoi aggiungere.",
+        "en": "It used to live in one place, and only on Windows. Now it is in Settings on every screen you open the dashboard from, phone included, and it says what raising it costs. In the same version: a Deck key's second face takes a real icon and not only an emoji, Deck profiles copy onto a second Deck even when a profile of that name is already there, and the Slideshow says why it is empty instead of asking for images you cannot add.",
+        "ko": "예전에는 한 곳에만, 그것도 Windows에서만 있었습니다. 이제 대시보드를 여는 모든 화면의 설정에 있으며, 휴대폰도 포함되고, 배율을 높이면 무엇을 치르는지 알려줍니다. 같은 버전에서 Deck 키의 두 번째 면에 이모지뿐 아니라 실제 아이콘을 넣을 수 있고, 같은 이름의 프로필이 이미 있어도 Deck 프로필을 두 번째 Deck으로 복사할 수 있으며, 슬라이드쇼는 추가할 수 없는 이미지를 요구하는 대신 왜 비어 있는지 알려줍니다.",
+        "ja": "以前は 1 か所にしかなく、Windows だけでした。今はダッシュボードを開くどの画面の設定にもあり、スマホも含まれ、上げると何を犠牲にするかを示します。同じバージョンで、Deck キーの 2 つ目の面に絵文字だけでなく本物のアイコンを置け、同名のプロファイルがすでにあっても Deck プロファイルを 2 つ目の Deck にコピーでき、スライドショーは追加できない画像を求める代わりに空である理由を伝えます。",
+        "zh": "以前它只在一个地方，而且只有 Windows 有。现在无论从哪块屏幕打开仪表板，包括手机，它都在设置里，并说明调高会付出什么代价。同一版本中：Deck 键的第二面可以使用真正的图标而不只是表情符号，即使已有同名配置文件也能把 Deck 配置复制到第二个 Deck，幻灯片会说明为何为空，而不是让你添加无法添加的图片。"
       },
       "media": "",
       "mediaType": "image"
     }
   ],
   "footer": {
-    "it": "E questi sono solo i punti principali. La 4.11 porta anche una connessione cifrata che funziona fuori casa e le notifiche che arrivano a telefono chiuso, la dashboard da provare nel browser senza installare niente, i widget separati per guardare YouTube e Twitch, un Archivio nello Store, e una finestra Impostazioni che su un telefono è finalmente fatta per un telefono. Apri le Impostazioni per il resto, e leggi il changelog completo con il pulsante \"Tutte le novità\" qui sotto.",
-    "en": "And these are only the main points. 4.11 also brings an encrypted connection that works away from home and notifications that reach a closed phone, a dashboard you can try in the browser with nothing to install, separate widgets for watching YouTube and Twitch, an Archive in the Store, and a Settings window that on a phone is finally shaped like one. Open Settings for the rest, and read the full changelog with the \"All the changes\" button below.",
-    "ko": "여기까지가 주요 내용입니다. 4.11에는 집 밖에서도 되는 암호화 연결과 꺼진 휴대폰에도 도착하는 알림, 아무것도 설치하지 않고 브라우저에서 써 보는 대시보드, YouTube와 Twitch를 보기 위한 별도 위젯, 스토어의 보관함, 그리고 휴대폰에서 드디어 휴대폰답게 생긴 설정 창도 들어 있습니다. 나머지는 설정에서 확인하고, 아래 \"모든 변경 사항\" 버튼으로 전체 변경 기록을 읽어 보세요.",
-    "ja": "ここまでが主な内容です。4.11 には、外出先でも使える暗号化接続と、閉じたスマホにも届く通知、何もインストールせずブラウザーで試せるダッシュボード、YouTube と Twitch を「見る」ための独立したウィジェット、ストアのアーカイブ、そしてスマホでようやくスマホらしい形になった設定画面も入っています。残りは設定から、変更点の全文は下の「すべての変更」ボタンからご覧ください。",
-    "zh": "以上只是主要内容。4.11 还带来了在外面也能用的加密连接、手机锁屏也能收到的通知、无需安装就能在浏览器里试用的仪表板、用于观看 YouTube 和 Twitch 的独立组件、商店里的归档区，以及在手机上终于像个手机应用的设置窗口。其余的请在设置里看，完整更新记录请点下方的「全部更新」按钮。"
+    "it": "E questi sono solo i punti principali. La 4.11.9 sistema anche gli eventi di tutto il giorno che sparivano dalla lista Prossimi dopo mezzanotte, il riquadro Media che perdeva la gerarchia sullo schermo largo e basso, il tasto Deck che ora accetta %APPDATA% in un percorso, i menù a tendina che uscivano dall'anteprima Xeneon Edge, e su Linux l'app che torna da sola se la pagina muore sotto di lei. Tutto nel changelog.",
+    "en": "And those are only the main points. 4.11.9 also fixes all-day events vanishing from Upcoming after midnight, the Media tile losing its hierarchy on a wide, short screen, Deck keys that now accept %APPDATA% in a path, dropdowns escaping the Xeneon Edge preview, and on Linux the app coming back by itself when the page dies under it. All of it is in the changelog.",
+    "ko": "이것은 주요 항목일 뿐입니다. 4.11.9는 자정 이후 다음 일정 목록에서 사라지던 종일 일정, 넓고 낮은 화면에서 계층을 잃던 미디어 타일, 이제 경로에 %APPDATA%를 쓸 수 있는 Deck 키, Xeneon Edge 미리보기 밖으로 벗어나던 드롭다운, 그리고 Linux에서 페이지가 죽으면 앱이 스스로 돌아오는 문제도 고칩니다. 모두 변경 로그에 있습니다.",
+    "ja": "これらは主な点だけです。4.11.9 では、深夜 0 時を過ぎると「次の予定」から消えていた終日イベント、横長で低い画面で階層を失っていたメディアタイル、パスに %APPDATA% を使えるようになった Deck キー、Xeneon Edge プレビューからはみ出していたドロップダウン、そして Linux でページが落ちたときにアプリが自力で戻ってくる件も修正しています。すべて変更履歴にあります。",
+    "zh": "以上只是主要内容。4.11.9 还修复了全天事件在午夜后从“即将到来”列表消失、媒体磁贴在宽而矮的屏幕上失去层次、Deck 键现在接受路径中的 %APPDATA%、下拉菜单跑出 Xeneon Edge 预览，以及 Linux 上页面崩溃后应用会自行恢复。全部都在更新日志中。"
   },
   "url": "https://github.com/marcimastro98/Xenon/releases/latest"
 }
