@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Xenon on Linux: AppImage, deb and rpm, and what works</title>
+<meta name="description" content="Xenon for Linux, in beta: the AppImage, deb and rpm downloads, what the first launch sets up, the optional packages, and an honest table of what works, what needs X11 and what is not there yet.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="images/favicon.png">
+<meta property="og:title" content="Xenon on Linux | beta">
+<meta property="og:description" content="Downloads, first launch, and the honest list of what works on Linux and what does not yet.">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://xenon-app.com/images/overview.png">
+<link rel="canonical" href="https://xenon-app.com/linux.html">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Does Xenon run on Linux?", "acceptedAnswer": {"@type": "Answer", "text": "Yes, in beta. The dashboard, widgets, catalog and integrations are identical to Windows; a few parts that read the machine are X11-only or not yet available."}}, {"@type": "Question", "name": "Which Linux package should I download?", "acceptedAnswer": {"@type": "Answer", "text": "The AppImage runs on any x86_64 desktop. There is also a .deb for Debian and Ubuntu and an .rpm for Fedora and openSUSE."}}, {"@type": "Question", "name": "Does Xenon start automatically on Linux?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. First launch registers a systemd user service, with an XDG autostart fallback where there is no user manager."}}, {"@type": "Question", "name": "Does Xenon work on Wayland?", "acceptedAnswer": {"@type": "Answer", "text": "Most of it does. The open-applications widget, the app switcher and the AI's screen vision need an X11 session."}}]}</script>
+
+<style>
+  :root {
+    --ink:   var(--g-0);
+    --panel: var(--g-1);
+    --line:  var(--rule);
+    --line-2:var(--rule-2);
+    --green: var(--bone-0);
+    --text:  var(--bone-0);
+    --muted: var(--bone-1);
+    --dim:   var(--bone-2);
+    --sans:  'Inter', system-ui, -apple-system, sans-serif;
+    --mono:  'JetBrains Mono', ui-monospace, monospace;
+    --maxw:  820px;
+    --radius:14px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--ink); color: var(--text);
+    font-family: var(--sans); font-size: 16px; line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  header.top {
+    border-bottom: 1px solid var(--line);
+    padding: 20px 0; position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--g-0) 82%, transparent); backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .logo {
+    display: inline-flex; align-items: center; gap: 10px;
+    color: var(--text); text-decoration: none;
+    font-weight: 700; letter-spacing: 0.16em; font-size: 14px;
+  }
+  .logo img { width: 34px; height: 23px; }
+  .back { color: var(--dim); text-decoration: none; font-size: 13.5px; }
+  .back:hover { color: var(--green); }
+
+  main { padding: 56px 0 96px; }
+  h1 { font-size: clamp(30px, 5.4vw, 46px); line-height: 1.12; letter-spacing: -0.025em; margin: 0 0 18px; }
+  .lede { font-size: 18.5px; color: var(--muted); margin: 0 0 12px; }
+  .lede strong { color: var(--text); font-weight: 600; }
+  .updated { font-family: var(--mono); font-size: 12.5px; color: var(--dim); margin: 0 0 34px; }
+
+  h2 {
+    font-size: 23px; letter-spacing: -0.01em; margin: 62px 0 10px;
+    padding-top: 30px; border-top: 1px solid var(--line);
+    scroll-margin-top: 88px;
+  }
+  h2 .h2n {
+    display: block; font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.14em;
+    color: var(--green); margin-bottom: 8px; font-weight: 500;
+  }
+  p { margin: 0 0 16px; color: var(--muted); }
+  p strong, li strong { color: var(--text); font-weight: 600; }
+  a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; color: var(--muted); }
+  li { margin-bottom: 8px; }
+  code {
+    font-family: var(--mono); font-size: 13px;
+    background: var(--g-2); padding: 2px 6px; border-radius: 6px;
+    color: var(--text); overflow-wrap: anywhere;
+  }
+
+  /* ── Section jump chips ───────────────────────────────────────── */
+  .jump { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+  .jump a {
+    text-decoration: none; font-size: 13.5px; color: var(--muted);
+    border: 1px solid var(--line-2); border-radius: 999px; padding: 7px 14px;
+    transition: border-color .2s, color .2s;
+  }
+  .jump a:hover { border-color: var(--green); color: var(--green); }
+
+  /* ── The question cards ───────────────────────────────────────── */
+  details { border: 1px solid var(--line); border-radius: 12px; padding: 0; margin: 10px 0; background: var(--panel); }
+  details[open] { border-color: var(--line-2); }
+  details > summary {
+    cursor: pointer; padding: 15px 18px; font-weight: 600; color: var(--text); font-size: 15.5px;
+    list-style: none; display: flex; align-items: flex-start; gap: 12px;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before {
+    content: '+'; color: var(--green); font-family: var(--mono); font-size: 17px;
+    line-height: 1.45; flex: none;
+  }
+  details[open] > summary::before { content: '–'; }
+  details .body { padding: 0 18px 16px 42px; }
+  details .body p:last-child, details .body ul:last-child, details .body ol:last-child { margin-bottom: 0; }
+  details .body ol { padding-left: 20px; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 22px 24px; margin: 26px 0;
+  }
+  .card.accent { border-color: var(--rule-2); background: var(--g-1); }
+  .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+  .card h3 { margin: 0 0 10px; font-size: 16.5px; }
+
+  .note { font-size: 14px; color: var(--dim); border-left: 2px solid var(--line-2); padding-left: 14px; margin: 18px 0; }
+
+  footer { border-top: 1px solid var(--line); padding: 30px 0 60px; color: var(--dim); font-size: 13.5px; }
+  footer a { color: var(--dim); }
+  footer a:hover { color: var(--green); }
+
+  /* Header right cluster + language picker, same markup and behaviour as the
+     home page so the choice carries across the site. */
+  .head-right { display: flex; align-items: center; gap: 14px; }
+  .navbtn {
+    font-size: 13px; font-weight: 600; padding: 8px 13px;
+    border: 1px solid var(--line-2); border-radius: 9px; color: var(--text);
+    display: inline-flex; align-items: center; gap: 8px; background: none; cursor: pointer;
+    font-family: var(--sans); transition: border-color .2s, color .2s;
+  }
+  .navbtn svg { width: 16px; height: 16px; flex: none; }
+  .navbtn:hover { border-color: var(--green); }
+  .lang { position: relative; }
+  .lang-menu {
+    position: absolute; top: calc(100% + 10px); right: 0; min-width: 168px; z-index: 60;
+    background: color-mix(in srgb, var(--g-1) 96%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--line-2); border-radius: 12px; padding: 6px;
+    opacity: 0; transform: translateY(-6px); pointer-events: none;
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  .lang.open .lang-menu { opacity: 1; transform: none; pointer-events: auto; }
+  .lang-menu button {
+    display: flex; width: 100%; align-items: center; gap: 10px; padding: 9px 12px;
+    background: none; border: 0; border-radius: 8px; color: var(--muted);
+    font-family: var(--sans); font-size: 13.5px; cursor: pointer; text-align: left;
+  }
+  .lang-menu button:hover { background: var(--g-2); color: var(--text); }
+  .lang-menu button.on { color: var(--green); }
+  .lang-menu .nat { margin-left: auto; font-size: 11px; color: var(--dim); letter-spacing: .08em; }
+  @media (max-width: 480px) { .back { display: none; } }
+</style>
+<style>
+  .dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 18px 0 8px; }
+  .dl a.pick { display: block; padding: 16px 18px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--panel); text-decoration: none; color: var(--text); }
+  .dl a.pick:hover { border-color: var(--green); }
+  .dl .os { font-weight: 600; font-size: 16px; }
+  .dl .os small { font-family: var(--mono); font-size: 11px; color: var(--dim); margin-left: 6px; letter-spacing: .06em; text-transform: uppercase; }
+  .dl .file { display: block; margin-top: 6px; font-family: var(--mono); font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+  .dl .req { display: block; margin-top: 8px; font-size: 13.5px; color: var(--dim); }
+  .tablewrap th:first-child, .tablewrap td:first-child { vertical-align: top; }
+  .tablewrap td { vertical-align: top; }
+  pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>
+<link rel="stylesheet" href="/site.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="/" aria-label="Xenon"><img class="logo-mark" src="images/logo-x.png" alt="" width="33" height="26">ENON</a>
+    <div class="head-right">
+      <a class="back" href="/">← Back to the site</a>
+      <a class="navbtn" href="faq.html">FAQ</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <h1>Xenon on Linux</h1>
+    <p class="lede">A free dashboard for any spare screen, on Linux in beta: the same dashboard as Windows, an honest list of what still differs, and the packages it needs.</p>
+    <p class="updated">Last updated: 13 September 2026 · current release 4.11.8</p>
+
+    <nav class="jump">
+      <a href="#get">Downloads</a>
+      <a href="#setup">First launch</a>
+      <a href="#works">What works</a>
+      <a href="#wayland">X11 and Wayland</a>
+    </nav>
+
+    <h2 id="get"><span class="h2n">01</span>Downloads</h2>
+    <div class="dl">
+      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage" data-track="download_click" data-track-location="linux_page_appimage"><span class="os">AppImage</span><span class="file">Xenon-Linux-x86_64.AppImage</span><span class="req">Any x86_64 desktop. <code>chmod +x</code> it and run it.</span></a>
+      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.deb" data-track="download_click" data-track-location="linux_page_deb"><span class="os">Debian, Ubuntu</span><span class="file">Xenon-Linux-x86_64.deb</span><span class="req">Installs the app; the dashboard is set up on first launch, per user.</span></a>
+      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.rpm" data-track="download_click" data-track-location="linux_page_rpm"><span class="os">Fedora, openSUSE</span><span class="file">Xenon-Linux-x86_64.rpm</span><span class="req">Same as the .deb, for RPM distributions.</span></a>
+    </div>
+    <p class="note">Linux is <strong>beta</strong>. The dashboard, the widgets, the catalog and the integrations are identical to Windows; what still differs is the part that reads and drives the machine, and the table below is the honest list. GNOME and KDE are the two desktops it is tested on.</p>
+
+    <h2 id="setup"><span class="h2n">02</span>First launch</h2>
+    <p>Open the app. The first launch offers to set the dashboard up in a terminal window: it downloads the engine, verifies the download before extracting it, and registers a <code>systemd --user</code> service so Xenon starts when you log in. Where there is no user manager it falls back to an XDG autostart entry and says so, including that the fallback has no crash-restart.</p>
+    <p>The package deliberately does not do any of that for you. Everything it would create belongs to one user account, and a package installs as root for the whole machine.</p>
+    <p>The installer also lists the optional tools you do not have. On Debian and Ubuntu:</p>
+    <pre><code>sudo apt install nodejs npm unzip           # required
+sudo apt install wireplumber                # volume, microphone and the per-app mixer
+sudo apt install wmctrl xdotool x11-utils   # the open-applications widget (X11 sessions)
+sudo apt install ffmpeg                     # voice input and spoken replies</code></pre>
+    <p>If your desktop has no terminal emulator at all, the app cannot show you the installer: download the source zip from <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">the release</a>, extract it and run <code>./INSTALL.sh</code>.</p>
+
+    <h2 id="works"><span class="h2n">03</span>What works on Linux</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Area</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Dashboard, tiles, themes, catalog, widget SDK</td><td>Works, identical to Windows.</td></tr>
+        <tr><td>Native full-screen app, starts at login, updates itself</td><td>Works.</td></tr>
+        <tr><td>CPU, RAM, disks, network</td><td>Works.</td></tr>
+        <tr><td>CPU and GPU temperature, GPU load, fan speeds</td><td>Works, through the kernel's own sensors.</td></tr>
+        <tr><td>System volume, microphone mute, per-app mixer</td><td>Works, with WirePlumber installed.</td></tr>
+        <tr><td>Now playing and media keys</td><td>Works, through MPRIS.</td></tr>
+        <tr><td>In-game FPS counter</td><td>Works, through MangoHud.</td></tr>
+        <tr><td>Xenon AI, chat, actions, "Hey Xenon" wake word</td><td>Works, cloud and local.</td></tr>
+        <tr><td>Network lighting: WLED, Hue, Nanoleaf, OpenRGB</td><td>Works.</td></tr>
+        <tr><td>Streaming, Spotify, Discord, Home Assistant</td><td>Works.</td></tr>
+        <tr><td>Phone or tablet as a second screen</td><td>Works.</td></tr>
+        <tr><td>Desktop notifications and the incoming-call card</td><td>Works.</td></tr>
+        <tr><td>Open apps, app switcher, screen vision for the AI</td><td>X11 sessions only.</td></tr>
+        <tr><td>Global search hotkey</td><td>GNOME only.</td></tr>
+        <tr><td>CORSAIR iCUE lighting</td><td>Not on Linux. iCUE is Windows software; network lights are unaffected.</td></tr>
+        <tr><td>Typing text and moving windows from the dashboard</td><td>Not yet.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">The <a href="https://github.com/marcimastro98/Xenon#platform-support" rel="noopener">platform table in the README</a> is the authoritative version of this list, with a footnote on every row that has a condition.</p>
+
+    <h2 id="wayland"><span class="h2n">04</span>X11 and Wayland</h2>
+    <p>Most of the dashboard does not care which one you run. The parts that do are the ones that have to see other windows: the open-applications widget, the app switcher and the AI's screen vision use X11 tools (<code>wmctrl</code>, <code>xdotool</code>) and are simply not shown on a Wayland session rather than offered and then failed. If those matter to you, log into an X11 session; everything else is the same on both.</p>
+
+    <div class="card accent">
+      <h3>Found something that does not work?</h3>
+      <p>Linux is beta because the honest list above still has gaps. <a href="https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md" rel="noopener">A bug report</a> with your distribution, desktop and session type is the fastest way to shorten it; the <a href="https://discord.gg/MBVrw9kZyg" rel="noopener">Discord</a> is the fastest way to ask first.</p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="/">xenon-app.com</a> · <a href="faq.html">FAQ</a> · <a href="download.html">Download</a> · <a href="linux.html">Linux</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/marcimastro98/Xenon" rel="noopener">GitHub</a> · <a href="https://discord.gg/MBVrw9kZyg" rel="noopener">Discord</a>
+  </div>
+</footer>
+<script src="/analytics.js" defer></script>
+</body>
+</html>

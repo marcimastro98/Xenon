@@ -2,6 +2,122 @@
   "_note": "Xenon community gallery catalog. Rendered by docs/index.html and served to the app via GET /api/community/catalog. Entries are moderated: submit yours with a PR (see README.md in this folder). Every field is re-validated by the app before display, and installing always goes through the normal import preview. Entries with a 'limited' block are limited-edition drops: reservation-only (via Discord), carry no code, and set total/claimed copies — claimed>=total is sold out.",
   "entries": [
     {
+      "id": "tgk-monitor-performance-metrics",
+      "kind": "widget",
+      "name": "TGK Monitor — Performance Metrics",
+      "author": "The.GothamKnight",
+      "authorSupporter": true,
+      "perfWarning": true,
+      "description": "Real-time CPU, GPU, memory, clocks, temperatures, fans and FPS monitoring.\nNo setup required. Uses Xenon native system data and follows Xenon temperature units.\nUses your current Xenon theme by default and can be customized like other widgets.\nFPS appears when a foreground game/application is detect",
+      "category": "system",
+      "tags": [
+        "monitoring",
+        "performance",
+        "cpu",
+        "gpu",
+        "fps"
+      ],
+      "version": "1.0.0",
+      "pkgId": "tgk-monitor",
+      "appVersionMin": "4.1.8",
+      "preview": {
+        "accent": "#1ed760",
+        "bg": "#0b0d12",
+        "text": "#e9edf6"
+      },
+      "shots": 2,
+      "addedAt": "2026-09-16",
+      "codeFile": true
+    },
+    {
+      "id": "tgk-steam-launcher-battery",
+      "kind": "widget",
+      "name": "TGK Steam — Launcher & Battery",
+      "author": "The.GothamKnight",
+      "authorSupporter": true,
+      "perfWarning": true,
+      "description": "Launch recent Steam games, track playtime and monitor Steam Controller battery status. Requires a SteamID64 and Steam Web API key.\nThe API key is stored through Xenon secret storage.\nBattery monitoring is optional and requires the TGK - Steam Controller Battery Millennium plugin, not publicly availa",
+      "category": "tools",
+      "tags": [
+        "steam",
+        "games",
+        "launcher",
+        "playtime",
+        "controller"
+      ],
+      "version": "1.0.0",
+      "pkgId": "tgk-steam",
+      "appVersionMin": "4.1.8",
+      "preview": {
+        "accent": "#1ed760",
+        "bg": "#0b0d12",
+        "text": "#e9edf6"
+      },
+      "shots": 3,
+      "active": true,
+      "addedAt": "2026-09-16",
+      "codeFile": true
+    },
+    {
+      "id": "tgk-spotify-player-library",
+      "kind": "widget",
+      "name": "TGK Spotify — Player & Library",
+      "author": "The.GothamKnight",
+      "authorSupporter": true,
+      "description": "Control Spotify playback, browse your library, search music, manage the queue and switch devices. Connect Spotify through Xenon first.\nSome playback features require Spotify Premium and an active device.\nFollows your Xenon theme and can be customized like other widgets.\nIf no device is active, start",
+      "category": "media",
+      "tags": [
+        "spotify",
+        "music",
+        "player",
+        "library",
+        "queue"
+      ],
+      "version": "1.0.0",
+      "pkgId": "tgk-spotify",
+      "appVersionMin": "4.1.8",
+      "preview": {
+        "accent": "#1ed760",
+        "bg": "#0b0d12",
+        "text": "#e9edf6"
+      },
+      "shots": 3,
+      "active": true,
+      "addedAt": "2026-09-16",
+      "codeFile": true,
+      "updatedAt": "2026-09-16"
+    },
+    {
+      "id": "tgk-youtube-player-subscriptions",
+      "kind": "widget",
+      "name": "TGK YouTube — Player & Subscriptions",
+      "author": "The.GothamKnight",
+      "authorSupporter": true,
+      "perfWarning": true,
+      "description": "Watch YouTube, browse subscriptions and channels, search videos and explore playlists. Connect YouTube through Xenon and grant permissions first.\nFollows your Xenon theme and can be customized like other widgets. YouTube API quota may temporarily limit browsing or search.\nVideo playback requires the",
+      "category": "media",
+      "tags": [
+        "youtube",
+        "video",
+        "subscriptions",
+        "channels",
+        "playlists"
+      ],
+      "version": "1.0.0",
+      "pkgId": "tgk-youtube",
+      "appVersionMin": "4.1.8",
+      "preview": {
+        "accent": "#1ed760",
+        "bg": "#0b0d12",
+        "text": "#e9edf6"
+      },
+      "shots": 3,
+      "active": true,
+      "addedAt": "2026-09-16",
+      "codeFile": true,
+      "updatedAt": "2026-09-16"
+    },
+    {
       "id": "pit-wall",
       "kind": "bundle",
       "name": "Pit Wall",

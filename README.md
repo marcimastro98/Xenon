@@ -19,7 +19,15 @@ community catalog) — every one of those calls is listed in the [privacy page](
 ![version](https://img.shields.io/badge/version-4.11.9-informational)
 [![Discord](https://img.shields.io/badge/Discord-join%20the%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/MBVrw9kZyg)
 
+<p align="center">
+  <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe"><img src="https://img.shields.io/badge/Download%20for%20Windows-Xenon--Setup--x64.exe-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Download Xenon for Windows"></a>
+  &nbsp;
+  <a href="https://github.com/marcimastro98/Xenon/releases/latest"><img src="https://img.shields.io/badge/macOS%20%C2%B7%20Linux-all%20downloads-555?style=for-the-badge" alt="All downloads"></a>
+</p>
+
 ![Xenon dashboard overview](docs/images/overview.png)
+
+Four people out of five find Xenon here rather than on the website, so the short version: **download the installer above, run it, press *Complete setup* when the app asks.** Everything else on this page is detail. If Windows warns you about the file, [this explains why and how to check it yourself](#if-windows-blocks-the-download-or-flags-xenon-as-a-virus).
 
 **Join the community:** share themes, swap ideas and get help on our [Discord](https://discord.gg/MBVrw9kZyg).
 
@@ -445,9 +453,17 @@ iCUE's embedded WebView can reject some MP4 files even when they play fine in Ch
 
 **Have an idea?** Open a [Feature Request](https://github.com/marcimastro98/Xenon/issues/new?template=feature_request.md) — all feedback is welcome.
 
-**If this saved you some time** — no pressure, always appreciated. 💙 Supporters get a role on our Discord + a spot in the Hall of Supporters!
+**If this saved you some time**, one person writes Xenon in their spare time, and the people below are what pays for the code-signing certificate, the domain and the servers. There is no paid version and there never will be; support is a gift, and it unlocks a few things as a thank-you:
+
+| | What it unlocks |
+|---|---|
+| **$5, a coffee** | One month of supporter-only themes and widgets, the Supporter role on Discord, your name in the [Hall of supporters](https://xenon-app.com/#support). |
+| **$25, a supporter pass** | Five months of drops, paid once. Nothing renews by itself. |
+| **$50, a whole year** | Twelve months of drops as a [yearly membership](https://www.buymeacoffee.com/marcimastro98/membership). It renews by itself and stops whenever you say. |
 
 <a href="https://www.buymeacoffee.com/marcimastro98" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" height="50" width="210"></a>
+
+Your code arrives by email within a minute of the payment; paste it once in **Settings → Support** and the drops unlock in the gallery.
 
 ---
 

@@ -51,6 +51,16 @@ CORSAIR Xeneon Edge (a 2560×720 touch strip) and usable on anything else.
   starting from zero and with no coding required
 - [Publish to the catalog](https://xenon-app.com/submit/): how to submit a
   creation; a human reviews every submission
+- [Xeneon Edge widgets and dashboards](https://xenon-app.com/xeneon-edge-widgets.html): what
+  iCUE gives an Edge owner, what Xenon adds, how to put it on the strip with or without iCUE
+- [Use an old tablet or phone as a PC dashboard](https://xenon-app.com/tablet-dashboard.html):
+  the PC serves the dashboard to any browser on the Wi-Fi, nothing to install on the device
+- [Download](https://xenon-app.com/download.html): the newest release for Windows, macOS and Linux,
+  what the installer does, and how to verify the file against the signed checksums
+- [Xenon on Linux](https://xenon-app.com/linux.html): AppImage, deb and rpm, first launch, and an honest
+  table of what works, what needs X11 and what is not there yet
+- [xenon.exe, what it is and how to check it](https://xenon-app.com/xenon-exe.html): every Windows
+  process Xenon runs, where each lives, and how to verify a file against the signed checksums
 - [Privacy](https://xenon-app.com/privacy.html): what the app sends (almost
   nothing) and what the website collects
 

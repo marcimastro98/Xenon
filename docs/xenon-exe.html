@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>xenon.exe: what it is, whether it is safe, and how to check</title>
+<meta name="description" content="Xenon does not install a file called xenon.exe. Here is every process it does run on Windows, where they live, how to verify them against the signed checksums, and what to do if you never installed it.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="images/favicon.png">
+<meta property="og:title" content="xenon.exe: what it is and how to check it | Xenon">
+<meta property="og:description" content="Every Windows process Xenon runs, where each one lives, and how to verify a file against the release checksums. Written for the person who found an unfamiliar process and wants a straight answer.">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://xenon-app.com/images/overview.png">
+<link rel="canonical" href="https://xenon-app.com/xenon-exe.html">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Is xenon.exe part of the Xenon dashboard?", "acceptedAnswer": {"@type": "Answer", "text": "No. Xenon does not install a file called xenon.exe. It runs Xenon-Setup-x64.exe as an installer, xenon-native.exe as the dashboard window, xenon-helper.exe as the bridge to Windows audio, media and notifications, and node.exe as the local engine."}}, {"@type": "Question", "name": "What is xenon-native.exe?", "acceptedAnswer": {"@type": "Answer", "text": "The dashboard window itself, a small native shell that draws the Xenon interface on the screen you picked. It is the process behind the system tray icon."}}, {"@type": "Question", "name": "What is xenon-helper.exe?", "acceptedAnswer": {"@type": "Answer", "text": "The bridge to the parts of Windows a web app cannot reach: audio devices and per-app volume, media keys, notifications, the window list, global hotkeys, disk scanning and the Bluetooth phone link."}}, {"@type": "Question", "name": "Where does Xenon install itself?", "acceptedAnswer": {"@type": "Answer", "text": "In two folders under your user profile: %LOCALAPPDATA%\\Xenon and %LOCALAPPDATA%\\Programs\\Xenon. Nothing runs as a Windows service or as SYSTEM."}}, {"@type": "Question", "name": "Why did Windows Defender flag it?", "acceptedAnswer": {"@type": "Answer", "text": "The installer is not code-signed yet, so it starts from zero reputation and Defender's cloud model treats an unknown unsigned installer as suspicious. Every release ships a signed SHA256SUMS file so you can verify the download yourself."}}, {"@type": "Question", "name": "How do I remove Xenon completely?", "acceptedAnswer": {"@type": "Answer", "text": "Settings, then Apps, then Installed apps, then Xenon, then Uninstall. It removes both folders, the scheduled task and the tray app."}}]}</script>
+
+<style>
+  :root {
+    --ink:   var(--g-0);
+    --panel: var(--g-1);
+    --line:  var(--rule);
+    --line-2:var(--rule-2);
+    --green: var(--bone-0);
+    --text:  var(--bone-0);
+    --muted: var(--bone-1);
+    --dim:   var(--bone-2);
+    --sans:  'Inter', system-ui, -apple-system, sans-serif;
+    --mono:  'JetBrains Mono', ui-monospace, monospace;
+    --maxw:  820px;
+    --radius:14px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--ink); color: var(--text);
+    font-family: var(--sans); font-size: 16px; line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  header.top {
+    border-bottom: 1px solid var(--line);
+    padding: 20px 0; position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--g-0) 82%, transparent); backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .logo {
+    display: inline-flex; align-items: center; gap: 10px;
+    color: var(--text); text-decoration: none;
+    font-weight: 700; letter-spacing: 0.16em; font-size: 14px;
+  }
+  .logo img { width: 34px; height: 23px; }
+  .back { color: var(--dim); text-decoration: none; font-size: 13.5px; }
+  .back:hover { color: var(--green); }
+
+  main { padding: 56px 0 96px; }
+  h1 { font-size: clamp(30px, 5.4vw, 46px); line-height: 1.12; letter-spacing: -0.025em; margin: 0 0 18px; }
+  .lede { font-size: 18.5px; color: var(--muted); margin: 0 0 12px; }
+  .lede strong { color: var(--text); font-weight: 600; }
+  .updated { font-family: var(--mono); font-size: 12.5px; color: var(--dim); margin: 0 0 34px; }
+
+  h2 {
+    font-size: 23px; letter-spacing: -0.01em; margin: 62px 0 10px;
+    padding-top: 30px; border-top: 1px solid var(--line);
+    scroll-margin-top: 88px;
+  }
+  h2 .h2n {
+    display: block; font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.14em;
+    color: var(--green); margin-bottom: 8px; font-weight: 500;
+  }
+  p { margin: 0 0 16px; color: var(--muted); }
+  p strong, li strong { color: var(--text); font-weight: 600; }
+  a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; color: var(--muted); }
+  li { margin-bottom: 8px; }
+  code {
+    font-family: var(--mono); font-size: 13px;
+    background: var(--g-2); padding: 2px 6px; border-radius: 6px;
+    color: var(--text); overflow-wrap: anywhere;
+  }
+
+  /* ── Section jump chips ───────────────────────────────────────── */
+  .jump { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+  .jump a {
+    text-decoration: none; font-size: 13.5px; color: var(--muted);
+    border: 1px solid var(--line-2); border-radius: 999px; padding: 7px 14px;
+    transition: border-color .2s, color .2s;
+  }
+  .jump a:hover { border-color: var(--green); color: var(--green); }
+
+  /* ── The question cards ───────────────────────────────────────── */
+  details { border: 1px solid var(--line); border-radius: 12px; padding: 0; margin: 10px 0; background: var(--panel); }
+  details[open] { border-color: var(--line-2); }
+  details > summary {
+    cursor: pointer; padding: 15px 18px; font-weight: 600; color: var(--text); font-size: 15.5px;
+    list-style: none; display: flex; align-items: flex-start; gap: 12px;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before {
+    content: '+'; color: var(--green); font-family: var(--mono); font-size: 17px;
+    line-height: 1.45; flex: none;
+  }
+  details[open] > summary::before { content: '–'; }
+  details .body { padding: 0 18px 16px 42px; }
+  details .body p:last-child, details .body ul:last-child, details .body ol:last-child { margin-bottom: 0; }
+  details .body ol { padding-left: 20px; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 22px 24px; margin: 26px 0;
+  }
+  .card.accent { border-color: var(--rule-2); background: var(--g-1); }
+  .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+  .card h3 { margin: 0 0 10px; font-size: 16.5px; }
+
+  .note { font-size: 14px; color: var(--dim); border-left: 2px solid var(--line-2); padding-left: 14px; margin: 18px 0; }
+
+  footer { border-top: 1px solid var(--line); padding: 30px 0 60px; color: var(--dim); font-size: 13.5px; }
+  footer a { color: var(--dim); }
+  footer a:hover { color: var(--green); }
+
+  /* Header right cluster + language picker, same markup and behaviour as the
+     home page so the choice carries across the site. */
+  .head-right { display: flex; align-items: center; gap: 14px; }
+  .navbtn {
+    font-size: 13px; font-weight: 600; padding: 8px 13px;
+    border: 1px solid var(--line-2); border-radius: 9px; color: var(--text);
+    display: inline-flex; align-items: center; gap: 8px; background: none; cursor: pointer;
+    font-family: var(--sans); transition: border-color .2s, color .2s;
+  }
+  .navbtn svg { width: 16px; height: 16px; flex: none; }
+  .navbtn:hover { border-color: var(--green); }
+  .lang { position: relative; }
+  .lang-menu {
+    position: absolute; top: calc(100% + 10px); right: 0; min-width: 168px; z-index: 60;
+    background: color-mix(in srgb, var(--g-1) 96%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--line-2); border-radius: 12px; padding: 6px;
+    opacity: 0; transform: translateY(-6px); pointer-events: none;
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  .lang.open .lang-menu { opacity: 1; transform: none; pointer-events: auto; }
+  .lang-menu button {
+    display: flex; width: 100%; align-items: center; gap: 10px; padding: 9px 12px;
+    background: none; border: 0; border-radius: 8px; color: var(--muted);
+    font-family: var(--sans); font-size: 13.5px; cursor: pointer; text-align: left;
+  }
+  .lang-menu button:hover { background: var(--g-2); color: var(--text); }
+  .lang-menu button.on { color: var(--green); }
+  .lang-menu .nat { margin-left: auto; font-size: 11px; color: var(--dim); letter-spacing: .08em; }
+  @media (max-width: 480px) { .back { display: none; } }
+</style>
+<style>
+  /* The first column is a list of filenames: breaking "xenon-native.exe" across
+     two lines is exactly the thing a person scanning for a process name cannot
+     do anything with. */
+  .tablewrap th:first-child, .tablewrap td:first-child { width: 1%; white-space: nowrap; vertical-align: top; }
+  .tablewrap td code { white-space: nowrap; }
+  .tablewrap td { vertical-align: top; }
+  pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>
+<link rel="stylesheet" href="/site.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="/" aria-label="Xenon"><img class="logo-mark" src="images/logo-x.png" alt="" width="33" height="26">ENON</a>
+    <div class="head-right">
+      <a class="back" href="/">← Back to the site</a>
+      <a class="navbtn" href="faq.html">FAQ</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <h1>xenon.exe: what it is, and how to check it yourself</h1>
+    <p class="lede">Someone who finds an unfamiliar process on their PC deserves a straight answer rather than a sales page. This one starts with the answer that is most often true: it probably is not us.</p>
+    <p class="updated">Last updated: 13 September 2026</p>
+
+    <nav class="jump">
+      <a href="#short">The short answer</a>
+      <a href="#list">What Xenon does run</a>
+      <a href="#check">How to check what you have</a>
+      <a href="#notmine">If you never installed it</a>
+      <a href="#flagged">If Defender flagged it</a>
+      <a href="#remove">How to remove it</a>
+    </nav>
+
+    <h2 id="short"><span class="h2n">01</span>The short answer</h2>
+    <p><strong>Xenon does not install a file called <code>xenon.exe</code>.</strong> Not the installer, not the app, not the background service. If Task Manager is showing you a process spelled exactly <code>xenon.exe</code>, it is almost certainly something else that happens to share the name, and the list below will tell you within a minute which of the two you are looking at.</p>
+    <p>If instead you are looking at <code>xenon-native.exe</code> or <code>xenon-helper.exe</code>, those are ours, and the rest of this page says exactly what each one does.</p>
+
+    <h2 id="list"><span class="h2n">02</span>What Xenon does run on Windows</h2>
+    <p>Four things of its own:</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>File</th><th>What it is</th></tr></thead>
+      <tbody>
+        <tr><td><code>Xenon-Setup-x64.exe</code></td><td>The installer. You run it once; it does not stay on the system as a process.</td></tr>
+        <tr><td><code>xenon-native.exe</code></td><td>The dashboard window itself, a small native shell that draws the interface on the screen you chose. This is the one you see in the system tray.</td></tr>
+        <tr><td><code>xenon-helper.exe</code></td><td>The bridge to the parts of Windows a web app cannot reach on its own: audio devices and per-app volume, media keys, notifications, the window list, global hotkeys, disk scanning, and the Bluetooth phone link. It is started by the engine and answers it over standard input and output.</td></tr>
+        <tr><td><code>node.exe</code></td><td>The dashboard engine. Xenon is a local web app, so the thing serving it is plain Node.js listening on <code>127.0.0.1:3030</code> — your own machine only, not the network.</td></tr>
+      </tbody>
+    </table></div>
+    <p>They live in two folders under your user profile, never in Windows itself: <code>%LOCALAPPDATA%\Xenon</code> and <code>%LOCALAPPDATA%\Programs\Xenon</code>. A per-logon scheduled task starts the engine when you sign in, under your own account. If you accepted the administrator prompt at setup, that task runs elevated, which is what lets it read temperatures; nothing is installed as a Windows service.</p>
+    <p>Then there are the tools Xenon runs for specific features, each from its own developers rather than from this project, and each only when the feature that needs it is on:</p>
+    <ul>
+      <li><strong>LibreHardwareMonitor</strong> and <strong>PawnIO</strong>, installed through winget, read CPU and disk temperatures. PawnIO is a signed kernel driver, and the replacement for WinRing0, the driver behind most older hardware-monitoring false positives. Xenon has never shipped WinRing0 and never will.</li>
+      <li><strong>PresentMon</strong>, Intel's frame-time tool, downloaded into Xenon's own folder, for the real in-game FPS counter.</li>
+      <li><strong>FFmpeg</strong> for voice input and spoken replies, and <strong>Ollama</strong> only if you switch the assistant to the free local provider. The installer does not download either; you set them up from Settings when you want them.</li>
+      <li><strong>Sunshine</strong> and <strong>Tailscale</strong>, only if you turn on remote PC control.</li>
+    </ul>
+
+    <h2 id="check"><span class="h2n">03</span>How to check what you actually have</h2>
+    <ol>
+      <li>In Task Manager, right-click the process and choose <strong>Open file location</strong>. If it is not under <code>%LOCALAPPDATA%\Xenon</code> or <code>%LOCALAPPDATA%\Programs\Xenon</code>, it is not this project.</li>
+      <li>Compare the file against what we published. Every release ships a <code>SHA256SUMS</code> file signed with the project's key:
+        <pre><code>Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256</code></pre>
+        If the hash matches the line in that release's <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">SHA256SUMS</a>, the file is byte for byte the one GitHub Actions built from public source at that tag.</li>
+      <li>Paste the file into <a href="https://www.virustotal.com/" rel="noopener">VirusTotal</a>. A handful of engines flagging it while the rest come back clean is the signature of a reputation problem, not of malware. Everything flagging it is a different story.</li>
+    </ol>
+
+    <h2 id="notmine"><span class="h2n">04</span>If you never installed Xenon</h2>
+    <p>Then whatever you are looking at is not from here, and we would rather say so plainly than claim a process we did not start. Check the file location and the publisher as above. Nothing on this site will remove software we did not install, and no page here will ask you to download a "cleaner" to get rid of it: that is the usual shape of the scam that follows a search like this one.</p>
+
+    <h2 id="flagged"><span class="h2n">05</span>If it is ours and Defender flagged it</h2>
+    <p>That happens, and the honest reason is that the installer is not code-signed yet. A certificate is a paid, identity-verified thing and this is a free one-person project; supporters are funding the first year. An unsigned installer that few people have downloaded starts from zero reputation, and every new release resets the counter.</p>
+    <p>The <a href="faq.html#warnings">FAQ explains the two kinds of detection</a>, which one the name of the warning tells you about, and how to add the exclusion if you want to keep using it. The short version: a name ending in <code>!cl</code> is the machine-learning verdict about reputation; a plain name is a behavioural signature reacting to an installer that carries a script that downloads code, which is also an accurate description of something you would not want. Neither is proof of anything on its own, which is why step 2 above exists.</p>
+
+    <h2 id="remove"><span class="h2n">06</span>How to remove it completely</h2>
+    <p>Settings → Apps → Installed apps → Xenon → Uninstall, or run <code>UNINSTALL.bat</code> from the folder you extracted if you installed the classic way. It removes both folders, the scheduled task and the tray app. The temperature components installed through winget are separate programs and are uninstalled separately, from the same Apps list.</p>
+
+    <div class="card accent">
+      <h3>If you were looking for Xenon the dashboard</h3>
+      <p>It turns a spare monitor, a tablet, your phone or a CORSAIR Xeneon Edge into a touch control panel for your PC. Free, local, no account. <a href="/">See what it does</a> or read the <a href="faq.html">FAQ</a>.</p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="/">xenon-app.com</a> · <a href="faq.html">FAQ</a> · <a href="phone.html">Phone</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/marcimastro98/Xenon" rel="noopener">GitHub</a> · <a href="https://discord.gg/MBVrw9kZyg" rel="noopener">Discord</a>
+  </div>
+</footer>
+<script src="/analytics.js" defer></script>
+</body>
+</html>

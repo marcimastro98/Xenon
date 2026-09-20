@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
+PackageIdentifier: marcimastro98.Xenon
+PackageVersion: 4.11.8
+InstallerType: nsis
+Scope: user
+InstallModes:
+- interactive
+- silent
+- silentWithProgress
+InstallerSwitches:
+  Silent: /S
+  SilentWithProgress: /S
+UpgradeBehavior: install
+ReleaseDate: 2026-09-11
+Installers:
+- Architecture: x64
+  InstallerUrl: https://github.com/marcimastro98/Xenon/releases/download/v4.11.8/Xenon-Setup-x64.exe
+  InstallerSha256: 353242F115B5E41C8650851BB5843EFA730C695781A42B4A3580EE2A396CC999
+ManifestType: installer
+ManifestVersion: 1.6.0

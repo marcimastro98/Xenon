@@ -46,9 +46,18 @@
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Xenon: turn any second screen into your PC's control center</title>
-<meta name="description" content="Xenon turns a spare monitor, a tablet, your phone or a CORSAIR Xeneon Edge into one touch dashboard: system monitor, media, voice AI, file transfer and a programmable Deck. Free, open source, and it runs on Windows, macOS and Linux.">
+<title>Xenon: a free dashboard app for your PC, on any second screen</title>
+<meta name="description" content="Xenon turns a spare monitor, a tablet, your phone or a CORSAIR Xeneon Edge into one touch dashboard: system monitor, media, voice AI, file transfer and a programmable Deck. Free download for Windows, macOS and Linux. Source on GitHub, no account.">
 <link rel="canonical" href="https://xenon-app.com/">
+<!-- One URL per language, generated from this file by tools/build-i18n.mjs.
+     The set is identical on every version, which is what hreflang requires. -->
+<link rel="alternate" hreflang="en" href="https://xenon-app.com/">
+<link rel="alternate" hreflang="it" href="https://xenon-app.com/it/">
+<link rel="alternate" hreflang="es" href="https://xenon-app.com/es/">
+<link rel="alternate" hreflang="ko" href="https://xenon-app.com/ko/">
+<link rel="alternate" hreflang="ja" href="https://xenon-app.com/ja/">
+<link rel="alternate" hreflang="zh" href="https://xenon-app.com/zh/">
+<link rel="alternate" hreflang="x-default" href="https://xenon-app.com/">
 <!-- max-image-preview:large is what lets the dashboard shot run full width in a
      result or an AI answer; without it Google caps previews at a thumbnail. -->
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
@@ -62,8 +71,8 @@
 <meta property="og:site_name" content="Xenon">
 <meta property="og:locale" content="en_US">
 <meta property="og:url" content="https://xenon-app.com/">
-<meta property="og:title" content="Xenon: turn any second screen into your PC's control center">
-<meta property="og:description" content="A spare monitor, a tablet or the phone in your pocket becomes one touch dashboard: monitor, media, voice AI, file transfer, Deck. Free, open source, and it runs on your PC. No cloud, no account, no telemetry.">
+<meta property="og:title" content="Xenon: a free dashboard app for your PC, on any second screen">
+<meta property="og:description" content="A spare monitor, a tablet or the phone in your pocket becomes one touch dashboard: monitor, media, voice AI, file transfer, Deck. Free, the code is public on GitHub, and it runs on your PC. No cloud, no account, no telemetry.">
 <meta property="og:image" content="https://xenon-app.com/images/overview.png">
 <meta property="og:image:width" content="2560">
 <meta property="og:image:height" content="720">
@@ -516,10 +525,20 @@
 
 
   /* ── Supporters ── */
-  .support-coffee { display: inline-flex; align-items: center; margin-top: 4px; padding: 11px 18px; font-size: 15px; font-weight: 600; color: var(--gold-ink); border: 1px solid var(--gold-ink); border-radius: 3px; text-decoration: none; }
-  .support-coffee:hover { background: color-mix(in srgb, var(--gold) 10%, transparent); }
-  .support-coffee:active { transform: translateY(1px); }
   .thanks-note { display: block; margin-top: 12px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+  /* The three tiers: one row on desktop, a stack on the phone. The middle one
+     is the one we would pick for someone who asks, and the only one drawn in
+     ink; the other two are the same card with a hairline. */
+  .tiers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 4px; }
+  .tier { display: flex; flex-direction: column; gap: 6px; padding: 18px 18px 20px; border: 1px solid var(--hair); border-radius: 3px; text-decoration: none; color: var(--ink); }
+  .tier:hover { border-color: var(--ink); }
+  .tier:active { transform: translateY(1px); }
+  .tier-pick { border-color: var(--gold-ink); }
+  .tier-pick:hover { background: color-mix(in srgb, var(--gold) 10%, transparent); }
+  .tier-price { font-family: var(--mono); font-size: 22px; font-weight: 640; letter-spacing: -0.01em; }
+  .tier-pick .tier-price { color: var(--gold-ink); }
+  .tier-name { font-size: 15px; font-weight: 600; }
+  .tier-what { font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
 
   .sup-wall { margin-top: 40px; }
   .sup-podium { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--ink); }
@@ -594,6 +613,7 @@
     :root { --pad: 20px; }
     .hero { padding-block: 44px 40px; }
     .hero-cta { flex-direction: column; align-items: stretch; gap: 16px; }
+    .tiers { grid-template-columns: 1fr; }
     .hero-cta .btn { width: 100%; justify-content: center; }
     .hero-dc { justify-content: center; }
     /* A separator drawn between items lands at the start of a line once the
@@ -661,7 +681,7 @@
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     .surf-stage, .surf-poster { transition: none; }
-    .btn:active, .navbtn.get:active, .drop-go:active, .support-coffee:active { transform: none; }
+    .btn:active, .navbtn.get:active, .drop-go:active, .tier:active { transform: none; }
   }
 </style>
 </head>
@@ -742,6 +762,7 @@
           <button type="button" data-lang="ko" role="option">한국어<span class="nat">KO</span></button>
           <button type="button" data-lang="ja" role="option">日本語<span class="nat">JA</span></button>
           <button type="button" data-lang="zh" role="option">中文<span class="nat">ZH</span></button>
+          <button type="button" data-lang="es" role="option">Español<span class="nat">ES</span></button>
         </div>
       </div>
       <!-- A word where a word is clearer. The two marks that stay are the two
@@ -772,8 +793,8 @@
 <header class="hero">
   <div class="rail">
     <div>
-      <h1 data-i18n-html="hero.h1">A dashboard for your PC.</h1>
-      <p class="sub" data-i18n-html="hero.sub">It runs on your PC and appears on a spare monitor, a tablet, your phone or a CORSAIR Xeneon Edge. It is free and open source.</p>
+      <h1 data-i18n-html="hero.h1">Turn the screen you already have into your PC's control center.</h1>
+      <p class="sub" data-i18n-html="hero.sub">A spare monitor, the tablet in a drawer, your phone or a CORSAIR Xeneon Edge: Xenon runs on your PC and puts stats, media, mic, lights and an AI you can talk to on it. Free, the code is public on GitHub, and nothing leaves your PC.</p>
       <!-- One button. The second action is a link, because two buttons of equal
            size side by side is the shape of a page that has not decided what it
            wants you to do. -->
@@ -1197,8 +1218,30 @@
       <p data-i18n="sup.p">The project has no ads, no investors and no paid version. It is funded by the people listed here.</p>
     </div>
     <div class="spine-body">
-    <a class="support-coffee" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-i18n="sup2.b" data-track="coffee_click" data-track-location="thanks">Buy me a coffee</a>
-    <span class="thanks-note" data-i18n="sup2.t">Xenon is written by one person.</span>
+    <!-- Three tiers, side by side. The old page offered one button, "buy me a
+         coffee", which is a 5-dollar ask by its nature; the payment history
+         says people give 10, 15 and 25 when nobody tells them not to. Each card
+         is one honest fact: what it costs, what it unlocks, for how long. The
+         hub's month arithmetic (5 per month, 30 = the whole year) is what makes
+         every card true, so change the two together. -->
+    <div class="tiers" id="tiers">
+      <a class="tier" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="tier_coffee">
+        <span class="tier-price"><span data-i18n="tier.1.price">$5</span></span>
+        <span class="tier-name" data-i18n="tier.1.name">A coffee</span>
+        <span class="tier-what" data-i18n="tier.1.what">One month of supporter drops, the Discord role and your name here.</span>
+      </a>
+      <a class="tier tier-pick" href="https://www.buymeacoffee.com/marcimastro98" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="tier_pass">
+        <span class="tier-price"><span data-i18n="tier.2.price">$25</span></span>
+        <span class="tier-name" data-i18n="tier.2.name">Supporter pass</span>
+        <span class="tier-what" data-i18n="tier.2.what">Five months of drops, paid once. Nothing renews by itself.</span>
+      </a>
+      <a class="tier" href="https://www.buymeacoffee.com/marcimastro98/membership" target="_blank" rel="noopener" data-track="coffee_click" data-track-location="tier_year">
+        <span class="tier-price"><span data-i18n="tier.3.price">$50</span></span>
+        <span class="tier-name" data-i18n="tier.3.name">A whole year</span>
+        <span class="tier-what" data-i18n="tier.3.what">Twelve months of drops, plus a theme I build for you, one request a month. On the membership page pick the yearly option, not the 5 a month. It renews by itself and stops whenever you say.</span>
+      </a>
+    </div>
+    <span class="thanks-note" data-i18n="sup2.t">Xenon is written by one person. Everything above is a gift, never a licence: the app stays free and complete without it.</span>
 
     <div id="supporters" hidden>
       <div class="sup-wall" id="sup-wall">
@@ -1221,6 +1264,7 @@
       <div class="foot-col">
         <h5 data-i18n="foot.project">Project</h5>
         <a href="https://github.com/marcimastro98/Xenon" target="_blank" rel="noopener">GitHub</a>
+        <a href="download.html" data-i18n="foot.download">Download</a>
         <a href="https://github.com/marcimastro98/Xenon/releases/latest" target="_blank" rel="noopener" data-i18n="foot.releases">Releases</a>
         <a href="https://github.com/marcimastro98/Xenon/issues/new?template=bug_report.md" target="_blank" rel="noopener" data-i18n="foot.bug">Report a bug</a>
         <a href="/faq.html" data-i18n="nav.faq">FAQ</a>
@@ -1435,6 +1479,9 @@
   const I18N = {};
 
   I18N.en = {
+    "foot.download": "Download",
+    "meta.title": "Xenon: a free dashboard app for your PC, on any second screen",
+    "meta.desc": "Xenon turns a spare monitor, a tablet, your phone or a CORSAIR Xeneon Edge into one touch dashboard: system monitor, media, voice AI, file transfer and a programmable Deck. Free download for Windows, macOS and Linux. Source on GitHub, no account.",
     "ss.copied": "Copied",
     "ss.title": "Windows may block it. It is not a virus.",
     "ss.lead": "Xenon is not code-signed — a certificate costs money every year and Xenon is free. Windows treats an unsigned installer few people have downloaded as an unknown, so it shows a blue box with only \"Don't run\" in sight.",
@@ -1469,8 +1516,8 @@
     "nav.phonelong": "Your phone as the screen",
     "nav.createlong": "Make your own widgets",
     "nav.faq": "FAQ",
-    "hero.h1": "A dashboard for your PC.",
-    "hero.sub": "It runs on your PC and appears on a spare monitor, a tablet, your phone or a CORSAIR Xeneon Edge. It is free and open source.",
+    "hero.h1": "Turn the screen you already have into your PC's control center.",
+    "hero.sub": "A spare monitor, the tablet in a drawer, your phone or a CORSAIR Xeneon Edge: Xenon runs on your PC and puts stats, media, mic, lights and an AI you can talk to on it. Free, the code is public on GitHub, and nothing leaves your PC.",
     "num.dl": "downloads",
     "num.stars": "stars",
     "num.discord": "members",
@@ -1526,7 +1573,16 @@
     "drop.see": "See what's inside",
     "inst.h2": "Installing",
     "inst.p": "One installer, which sets up the app, the dashboard engine behind it and the task that starts them at login.",
-    "sup2.t": "Xenon is written by one person.",
+    "sup2.t": "Xenon is written by one person. Everything above is a gift, never a licence: the app stays free and complete without it.",
+    "tier.1.price": "$5",
+    "tier.1.name": "A coffee",
+    "tier.1.what": "One month of supporter drops, the Discord role and your name here.",
+    "tier.2.price": "$25",
+    "tier.2.name": "Supporter pass",
+    "tier.2.what": "Five months of drops, paid once. Nothing renews by itself.",
+    "tier.3.price": "$50",
+    "tier.3.name": "A whole year",
+    "tier.3.what": "Twelve months of drops, plus a theme I build for you, one request a month. On the membership page pick the yearly option, not the 5 a month. It renews by itself and stops whenever you say.",
     "sup2.b": "Buy me a coffee",
     "sup.h2": "Supporters",
     "sup.p": "The project has no ads, no investors and no paid version. It is funded by the people listed here.",
@@ -1592,6 +1648,9 @@
   };
 
   I18N.it = {
+    "foot.download": "Scarica",
+    "meta.title": "Xenon: una dashboard gratuita per il PC, su qualsiasi secondo schermo",
+    "meta.desc": "Xenon trasforma un monitor di scorta, un tablet, il telefono o un CORSAIR Xeneon Edge in una dashboard touch: monitor di sistema, musica, AI vocale, trasferimento file e un Deck programmabile. Download gratuito per Windows, macOS e Linux. Codice su GitHub, senza account.",
     "ss.copied": "Copiato",
     "ss.title": "Windows potrebbe bloccarlo. Non è un virus.",
     "ss.lead": "Xenon non ha una firma digitale: il certificato si paga ogni anno e Xenon è gratis. Windows tratta un installer non firmato e scaricato da poche persone come uno sconosciuto, quindi mostra un riquadro blu dove l'unico pulsante in vista è \"Non eseguire\".",
@@ -1626,8 +1685,8 @@
     "nav.phonelong": "Il telefono come schermo",
     "nav.createlong": "Crea i tuoi widget",
     "nav.faq": "FAQ",
-    "hero.h1": "Una dashboard per il tuo PC.",
-    "hero.sub": "Gira sul tuo PC e si vede su un monitor di scorta, un tablet, il telefono o un CORSAIR Xeneon Edge. È gratis e open source.",
+    "hero.h1": "Lo schermo che hai già diventa la console del tuo PC.",
+    "hero.sub": "Un monitor di scorta, il tablet nel cassetto, il telefono o un CORSAIR Xeneon Edge: Xenon gira sul PC e ci mette sopra sensori, musica, microfono, luci e un'AI con cui parlare. Gratis, il codice è pubblico su GitHub e niente esce dal tuo PC.",
     "num.dl": "download",
     "num.stars": "stelle",
     "num.discord": "membri",
@@ -1683,7 +1742,16 @@
     "drop.see": "Guarda cosa c'è dentro",
     "inst.h2": "Installazione",
     "inst.p": "Un installer, che mette a posto l’app, il motore della dashboard dietro di essa e l’attività che le avvia al login.",
-    "sup2.t": "Xenon lo scrive una persona sola.",
+    "sup2.t": "Xenon lo scrive una persona sola. Tutto quello che vedi sopra è un regalo, mai una licenza: l'app resta gratis e completa anche senza.",
+    "tier.1.price": "$5",
+    "tier.1.name": "Un caffè",
+    "tier.1.what": "Un mese di drop per sostenitori, il ruolo su Discord e il tuo nome qui.",
+    "tier.2.price": "$25",
+    "tier.2.name": "Pass sostenitore",
+    "tier.2.what": "Cinque mesi di drop, pagati una volta sola. Niente si rinnova da solo.",
+    "tier.3.price": "$50",
+    "tier.3.name": "Un anno intero",
+    "tier.3.what": "Dodici mesi di drop, più un tema che costruisco per te, una richiesta al mese. Sulla pagina dell'abbonamento scegli l'annuale, non l'opzione da 5 al mese. Si rinnova da solo e lo fermi quando vuoi.",
     "sup2.b": "Offrimi un caffè",
     "sup.h2": "Sostenitori",
     "sup.p": "Il progetto non ha pubblicità, investitori né una versione a pagamento. È finanziato dalle persone elencate qui.",
@@ -1749,6 +1817,9 @@
   };
 
   I18N.ko = {
+    "foot.download": "다운로드",
+    "meta.title": "Xenon: 어떤 두 번째 화면에서도 쓰는 무료 PC 대시보드 앱",
+    "meta.desc": "Xenon은 남는 모니터, 태블릿, 휴대폰 또는 CORSAIR Xeneon Edge를 터치 대시보드로 바꿉니다. 시스템 모니터, 미디어, 음성 AI, 파일 전송, 프로그래밍 가능한 Deck. Windows, macOS, Linux용 무료 다운로드. 소스는 GitHub에 공개, 계정 불필요.",
     "ss.copied": "복사됨",
     "ss.title": "Windows가 막을 수 있습니다. 바이러스가 아닙니다.",
     "ss.lead": "Xenon에는 코드 서명이 없습니다. 인증서는 해마다 돈이 들고 Xenon은 무료입니다. Windows는 서명이 없고 내려받은 사람도 적은 설치 파일을 낯선 것으로 보고, \"실행 안 함\"만 보이는 파란 창을 띄웁니다.",
@@ -1783,8 +1854,8 @@
     "nav.phonelong": "휴대폰을 화면으로",
     "nav.createlong": "나만의 위젯 만들기",
     "nav.faq": "자주 묻는 질문",
-    "hero.h1": "PC를 위한 대시보드.",
-    "hero.sub": "PC에서 실행되며 남는 모니터, 태블릿, 휴대폰, CORSAIR Xeneon Edge에 표시됩니다. 무료이고 오픈 소스입니다.",
+    "hero.h1": "이미 있는 화면을 PC의 컨트롤 센터로.",
+    "hero.sub": "남는 모니터, 서랍 속 태블릿, 휴대폰, 또는 CORSAIR Xeneon Edge. Xenon은 PC에서 실행되어 그 화면에 시스템 상태, 미디어, 마이크, 조명, 그리고 대화할 수 있는 AI를 띄웁니다. 무료이며 소스 코드는 GitHub에 공개되어 있고, 아무것도 PC 밖으로 나가지 않습니다.",
     "num.dl": "다운로드",
     "num.stars": "GitHub 스타",
     "num.discord": "디스코드 멤버",
@@ -1840,7 +1911,16 @@
     "drop.see": "무엇이 들어 있는지 보기",
     "inst.h2": "설치",
     "inst.p": "설치 파일 하나가 앱과 그 뒤의 대시보드 엔진, 그리고 로그인할 때 실행하는 작업까지 설정합니다.",
-    "sup2.t": "Xenon은 한 사람이 만듭니다.",
+    "sup2.t": "Xenon은 한 사람이 만듭니다. 위의 모든 것은 선물이지 라이선스가 아닙니다. 후원하지 않아도 앱은 무료이고 완전합니다.",
+    "tier.1.price": "$5",
+    "tier.1.name": "커피 한 잔",
+    "tier.1.what": "서포터 드롭 한 달, Discord 역할, 그리고 이곳에 이름.",
+    "tier.2.price": "$25",
+    "tier.2.name": "서포터 패스",
+    "tier.2.what": "드롭 다섯 달, 한 번만 결제합니다. 저절로 갱신되지 않습니다.",
+    "tier.3.price": "$50",
+    "tier.3.name": "일 년 전체",
+    "tier.3.what": "열두 달 동안 드롭을 받고, 제가 직접 만들어 드리는 테마가 더해집니다. 요청은 한 달에 하나씩. 멤버십 페이지에서는 매달 5가 아니라 연간을 고르세요. 자동으로 갱신되고 언제든 중단할 수 있습니다.",
     "sup2.b": "커피 사주기",
     "sup.h2": "서포터",
     "sup.p": "이 프로젝트에는 광고도, 투자자도, 유료 버전도 없습니다. 여기 적힌 사람들이 비용을 대고 있습니다.",
@@ -1906,6 +1986,9 @@
   };
 
   I18N.ja = {
+    "foot.download": "ダウンロード",
+    "meta.title": "Xenon: どんなセカンドスクリーンでも使える、無料の PC ダッシュボードアプリ",
+    "meta.desc": "Xenon は余ったモニター、タブレット、スマートフォン、CORSAIR Xeneon Edge をタッチ操作のダッシュボードに変えます。システムモニター、メディア、音声 AI、ファイル転送、プログラム可能な Deck。Windows、macOS、Linux 向け無料ダウンロード。ソースは GitHub で公開、アカウント不要。",
     "ss.copied": "コピーしました",
     "ss.title": "Windows がブロックすることがあります。ウイルスではありません。",
     "ss.lead": "Xenon にはコード署名がありません。証明書は毎年費用がかかり、Xenon は無料だからです。Windows は署名がなくダウンロード数も少ないインストーラーを未知のものとして扱い、「実行しない」しか見えない青い画面を出します。",
@@ -1940,8 +2023,8 @@
     "nav.phonelong": "スマホを画面に",
     "nav.createlong": "自分でウィジェットを作る",
     "nav.faq": "よくある質問",
-    "hero.h1": "PC のためのダッシュボード。",
-    "hero.sub": "PC 上で動き、余ったモニターやタブレット、スマートフォン、CORSAIR Xeneon Edge に表示されます。無料でオープンソースです。",
+    "hero.h1": "手元にある画面を、PC のコントロールセンターに。",
+    "hero.sub": "余ったモニター、引き出しのタブレット、スマートフォン、CORSAIR Xeneon Edge。Xenon は PC 上で動き、その画面にシステム情報、メディア、マイク、ライティング、そして話しかけられる AI を並べます。無料で、ソースコードは GitHub で公開されています。データは PC の外に出ません。",
     "num.dl": "ダウンロード",
     "num.stars": "GitHub スター",
     "num.discord": "Discord メンバー",
@@ -1997,7 +2080,16 @@
     "drop.see": "中身を見る",
     "inst.h2": "インストール",
     "inst.p": "インストーラー一つで、アプリと、その裏で動くダッシュボードのエンジン、ログイン時に起動するタスクまで設定します。",
-    "sup2.t": "Xenon はひとりで作っています。",
+    "sup2.t": "Xenon はひとりで作っています。上にあるものはすべて贈り物であって、ライセンスではありません。支援がなくてもアプリは無料で、機能も欠けません。",
+    "tier.1.price": "$5",
+    "tier.1.name": "コーヒー一杯",
+    "tier.1.what": "サポーター向けドロップ一か月分、Discord のロール、そしてここにお名前。",
+    "tier.2.price": "$25",
+    "tier.2.name": "サポーターパス",
+    "tier.2.what": "ドロップ五か月分を一度だけ。自動更新はありません。",
+    "tier.3.price": "$50",
+    "tier.3.name": "まるごと一年",
+    "tier.3.what": "十二か月分のドロップに加えて、あなたのために作るテーマがひとつ。リクエストは月にひとつまで。メンバーシップのページでは月 5 ではなく年間を選んでください。自動で更新され、いつでも止められます。",
     "sup2.b": "コーヒーをおごる",
     "sup.h2": "サポーター",
     "sup.p": "このプロジェクトに広告、投資家、有料版はありません。ここに載っている人たちが支えています。",
@@ -2063,6 +2155,9 @@
   };
 
   I18N.zh = {
+    "foot.download": "下载",
+    "meta.title": "Xenon：免费的电脑仪表盘应用，用在任何第二块屏幕上",
+    "meta.desc": "Xenon 把闲置的显示器、平板、手机或 CORSAIR Xeneon Edge 变成一块触控仪表盘：系统监控、媒体、语音 AI、文件传输和可编程的 Deck。免费下载，支持 Windows、macOS 和 Linux。源代码公开在 GitHub，无需账号。",
     "ss.copied": "已复制",
     "ss.title": "Windows 可能会拦截它。这不是病毒。",
     "ss.lead": "Xenon 没有代码签名——证书每年都要花钱，而 Xenon 是免费的。Windows 把没有签名、下载量又少的安装程序当作陌生文件，所以会弹出一个蓝色窗口，能看见的只有\"不运行\"。",
@@ -2097,8 +2192,8 @@
     "nav.phonelong": "把手机当屏幕",
     "nav.createlong": "做你自己的组件",
     "nav.faq": "常见问题",
-    "hero.h1": "一个给电脑用的仪表盘。",
-    "hero.sub": "它在你的电脑上运行，显示在闲置的显示器、平板、手机或 CORSAIR Xeneon Edge 上。免费且开源。",
+    "hero.h1": "把你手边的屏幕，变成电脑的控制中心。",
+    "hero.sub": "闲置的显示器、抽屉里的平板、手机，或者 CORSAIR Xeneon Edge。Xenon 在电脑上运行，把系统状态、媒体、麦克风、灯光和一个可以对话的 AI 放到那块屏幕上。免费，源代码公开在 GitHub 上，数据不离开你的电脑。",
     "num.dl": "次下载",
     "num.stars": "GitHub 星标",
     "num.discord": "Discord 成员",
@@ -2154,7 +2249,16 @@
     "drop.see": "看看里面有什么",
     "inst.h2": "安装",
     "inst.p": "一个安装程序，装好应用、它背后的仪表盘引擎，以及登录时启动它们的任务。",
-    "sup2.t": "Xenon 由一个人开发。",
+    "sup2.t": "Xenon 由一个人开发。上面的一切都是礼物，而不是许可证：不支持也不影响应用免费和完整。",
+    "tier.1.price": "$5",
+    "tier.1.name": "一杯咖啡",
+    "tier.1.what": "一个月的支持者专属内容、Discord 身份组，以及你的名字出现在这里。",
+    "tier.2.price": "$25",
+    "tier.2.name": "支持者通行证",
+    "tier.2.what": "五个月的专属内容，一次付清。不会自动续费。",
+    "tier.3.price": "$50",
+    "tier.3.name": "整整一年",
+    "tier.3.what": "十二个月的专属内容，外加一套我为你制作的主题，每月可提一次需求。在订阅页面请选年度，不要选每月 5。会自动续费，随时可以取消。",
     "sup2.b": "请我喝咖啡",
     "sup.h2": "支持者",
     "sup.p": "这个项目没有广告、没有投资人，也没有付费版本。它由这里列出的人支持。",
@@ -2217,6 +2321,174 @@
     "ix.wavelink": "Wave Link",
     "ix.voicemeeter": "Voicemeeter",
     "ix.deck": "快捷面板",
+  };
+  I18N.es = {
+    "foot.download": "Descargar",
+    "meta.title": "Xenon: un panel de control gratis para tu PC, en cualquier segunda pantalla",
+    "meta.desc": "Xenon convierte un monitor de sobra, una tablet, tu móvil o una CORSAIR Xeneon Edge en un panel táctil: monitor del sistema, música, IA por voz, transferencia de archivos y un Deck programable. Descarga gratis para Windows, macOS y Linux. Código publicado en GitHub, sin cuenta.",
+    "ss.copied": "Copiado",
+    "ss.title": "Windows puede bloquearlo. No es un virus.",
+    "ss.lead": "Xenon no está firmado digitalmente: el certificado cuesta dinero cada año y Xenon es gratis. Windows trata un instalador sin firma que poca gente ha descargado como un desconocido, así que muestra un cuadro azul donde solo se ve \"No ejecutar\".",
+    "ss.fund": "Se está arreglando: los patrocinadores están pagando el primer año del certificado. <a href=\"https://buymeacoffee.com/marcimastro98/goals/share/720743\" target=\"_blank\" rel=\"noopener\">Mira cuánto falta</a> — la firma no hará desaparecer el aviso de un día para otro, pero dejará de reiniciarse con cada versión.",
+    "ss.s1": "Pulsa <strong>Más información</strong> en el cuadro azul.",
+    "ss.s2": "Pulsa <strong>Ejecutar de todas formas</strong>.",
+    "ss.s3": "Si en cambio el navegador canceló la descarga, abre su lista de descargas y elige <strong>Conservar</strong>.",
+    "ss.hash": "No te fíes de mi palabra: comprueba que el archivo es exactamente el publicado aquí:",
+    "ss.copy": "Copiar",
+    "ss.compare": "Compáralo con la lista publicada",
+    "ss.more": "Más sobre los avisos",
+    "ss.close": "Cerrar",
+    "cat.stream": "Streaming",
+    "cat.system": "Sistema",
+    "cat.media": "Multimedia",
+    "cat.prod": "Productividad",
+    "nav.coffee": "Café",
+    "rel.platform": "Plataforma",
+    "rel.file": "Archivo",
+    "rel.req": "Requisitos",
+    "rel.more": "Más",
+    "surf.monitor": "Monitor",
+    "surf.laptop": "Portátil",
+    "surf.tablet": "Tablet",
+    "surf.phone": "Móvil",
+    "nav.features": "Funciones",
+    "nav.catalog": "Catálogo",
+    "nav.install": "Instalar",
+    "nav.thanks": "Gracias",
+    "nav.get": "Descargar",
+    "nav.more": "Más",
+    "nav.phonelong": "Tu móvil como pantalla",
+    "nav.createlong": "Crea tus propios widgets",
+    "nav.faq": "Preguntas frecuentes",
+    "hero.h1": "Convierte la pantalla que ya tienes en el centro de control de tu PC.",
+    "hero.sub": "Un monitor de sobra, la tablet del cajón, tu móvil o una CORSAIR Xeneon Edge: Xenon corre en tu PC y pone ahí estadísticas, música, micrófono, luces y una IA con la que puedes hablar. Gratis, el código está publicado en GitHub y nada sale de tu PC.",
+    "num.dl": "descargas",
+    "num.stars": "estrellas",
+    "num.discord": "miembros",
+    "cta.download": "Descargar Xenon",
+    "cta.download.os": "Descargar para {os}",
+    "cta.demo": "Abrir la demo",
+    "nav.demo": "Demo",
+    "cta.discord": "Entrar al Discord",
+    "dl.you": "Tu sistema",
+    "dl.beta": "Beta",
+    "dl.files": "Todos los archivos de esta versión",
+    "dl.win.btn": "Instalador para Windows",
+    "dl.win.req": "Windows 10 u 11, 64 bits. Instala la app y la arranca al iniciar sesión.",
+    "dl.mac.btn": "Mac Universal",
+    "dl.mac.req": "macOS 11 o posterior. Apple Silicon e Intel en un solo archivo.",
+    "dl.mac.note": "Qué significa beta",
+    "dl.linux.btn": "AppImage (x86_64)",
+    "dl.linux.req": "Cualquier escritorio x86_64. GNOME y KDE son los dos en los que se prueba.",
+    "dl.linux.note": "Qué significa beta",
+    "dl.betaline": "macOS y Linux están en beta. El panel, los widgets, la tienda y las integraciones son iguales en todas partes; lo que todavía cambia es la parte que lee tu máquina, y la tabla del README dice exactamente qué funciona dónde.",
+    "dl.blocked": "¿Windows bloqueó la descarga o dijo que era un virus? Es un falso positivo: la compilación aún no está firmada, así que parte de cero reputación. Las <a href=\"faq.html#warnings\">preguntas frecuentes</a> explican cómo comprobar el hash del archivo tú mismo y cómo recuperarlo.",
+    "dl.phone.a": "Ver cómo",
+    "dl.onphone.t": "Ahora mismo estás en un móvil.",
+    "dl.onphone.p": "Xenon se instala en el PC que supervisa, así que empieza por ahí. Después esta pantalla se convierte en uno de sus paneles: escanea el QR de emparejamiento desde el PC o envíate este enlace.",
+    "p1.h": "Xenon AI",
+    "p1.p": "Di \"Hey Xenon\" y responde, a través de Gemini, ChatGPT o Claude, o de Ollama en el mismo PC.",
+    "p2.h": "Deck",
+    "p2.p": "Una cuadrícula de teclas programables que abren apps, cambian escenas de OBS, envían atajos y webhooks, o manejan la voz de Discord y Spotify.",
+    "p3.h": "Monitorización",
+    "p3.p": "CPU, GPU, RAM, red y la tasa de fotogramas real dentro del juego, guardados durante treinta días.",
+    "fs1.h": "Búsqueda y espacio en disco",
+    "fs1.p": "Baja la barra superior y escribe como lo dirías, por ejemplo \"fotos de diciembre\". El mismo índice, actualizado en el PC en segundo plano, es el que dibuja el mapa de un disco en cuanto lo abres; la limpieza solo propone lo que está en una lista fija de cachés y archivos temporales, y lo que elimina va a la Papelera de reciclaje.",
+    "rgb.h2": "Iluminación",
+    "rgb.p": "Hue, WLED, Govee, LIFX, Nanoleaf y tu equipo CORSAIR, controlados por la temperatura de la CPU, la carátula del álbum o un temporizador que se agota.",
+    "more.foot": "Ver la lista completa de lo que incluye",
+    "com.h2": "Del catálogo",
+    "com.p": "Temas, fondos, widgets y packs completos hechos por otros usuarios. Copia un código, pégalo en Xenon y se aplica.",
+    "com.by": "por",
+    "com.kind.theme": "Tema",
+    "com.kind.bg": "Fondo",
+    "com.kind.pack": "Paquete",
+    "com.cta": "Explorar el catálogo",
+    "com.cta2": "Comparte tu creación",
+    "drop.tier.sup": "Solo para patrocinadores",
+    "drop.tier.lim": "Edición limitada",
+    "drop.left": "Quedan {n} de {t}",
+    "drop.soldout": "Todas las copias reclamadas",
+    "drop.until": "Tuyo hasta el {d}",
+    "drop.closed": "Este lanzamiento ha cerrado",
+    "drop.cta.sup": "Hazte patrocinador",
+    "drop.cta.claim": "Reclama tu copia",
+    "drop.cta.next": "No te pierdas el próximo",
+    "drop.see": "Ver qué incluye",
+    "inst.h2": "Instalación",
+    "inst.p": "Un solo instalador, que configura la app, el motor del panel que hay detrás y la tarea que los arranca al iniciar sesión.",
+    "sup2.t": "Xenon lo escribe una sola persona. Todo lo de arriba es un regalo, nunca una licencia: la app sigue siendo gratis y completa sin él.",
+    "tier.1.price": "$5",
+    "tier.1.name": "Un café",
+    "tier.1.what": "Un mes de lanzamientos para patrocinadores, el rol en Discord y tu nombre aquí.",
+    "tier.2.price": "$25",
+    "tier.2.name": "Pase de patrocinador",
+    "tier.2.what": "Cinco meses de lanzamientos, pagados una sola vez. Nada se renueva solo.",
+    "tier.3.price": "$50",
+    "tier.3.name": "Un año entero",
+    "tier.3.what": "Doce meses de lanzamientos, más un tema que construyo para ti, una petición al mes. En la página de membresía elige la anual, no la de 5 al mes. Se renueva sola y la paras cuando quieras.",
+    "sup2.b": "Invítame a un café",
+    "sup.h2": "Patrocinadores",
+    "sup.p": "El proyecto no tiene anuncios, ni inversores, ni versión de pago. Lo financian las personas de esta lista.",
+    "wall.top": "Mayor patrocinador",
+    "wall.topmember": "Mayor miembro",
+    "wall.2nd": "2.º puesto",
+    "wall.3rd": "3.º puesto",
+    "foot.note": "Un panel local para cualquier segunda pantalla: un monitor, una pantalla táctil, una tablet o el móvil que ya llevas en el bolsillo. Funciona en cualquier navegador en Windows, macOS o Linux. Licencia propia no comercial.",
+    "foot.project": "Proyecto",
+    "foot.releases": "Versiones",
+    "foot.bug": "Informar de un error",
+    "foot.commercial": "Uso comercial",
+    "foot.privacy": "Privacidad",
+    "foot.community": "Comunidad",
+    "foot.catalog": "Catálogo",
+    "foot.create": "Guía para creadores",
+    "foot.support": "Apoyo",
+    "foot.coffee": "Invítame a un café",
+    "run.h2": "Qué hace",
+    "run.p": "Cinco de las áreas que cubre; la lista completa de widgets está más abajo.",
+    "ix.h2": "Widgets",
+    "ix.agenda": "Agenda",
+    "ix.calendar": "Calendario",
+    "ix.tasks": "Tareas",
+    "ix.timer": "Temporizador",
+    "ix.notes": "Notas",
+    "ix.weather": "Tiempo",
+    "ix.search": "Búsqueda",
+    "ix.transfer": "Transferencia de archivos",
+    "ix.stocks": "Bolsa",
+    "ix.football": "Fútbol",
+    "ix.news": "Noticias",
+    "ix.notifications": "Notificaciones",
+    "ix.vitals": "Constantes",
+    "ix.media": "Reproducción",
+    "ix.chat": "Chat",
+    "ix.browser": "Navegador",
+    "ix.slideshow": "Presentación",
+    "ix.system": "Sistema",
+    "ix.fans": "Ventiladores",
+    "ix.power": "Energía",
+    "ix.battery": "Baterías",
+    "ix.disk": "Espacio en disco",
+    "ix.audio": "Volumen",
+    "ix.mic": "Micrófono",
+    "ix.secondscreen": "Segunda pantalla",
+    "ix.remote": "Control remoto",
+    "ix.smarthome": "Domótica",
+    "ix.unifi": "Cámaras",
+    "ix.lighting": "Iluminación",
+    "ix.claude": "Claude Code",
+    "ix.twitch": "Twitch en directo",
+    "ix.twitchwatch": "Twitch",
+    "ix.youtube": "YouTube",
+    "ix.youtubelive": "YouTube en directo",
+    "ix.obs": "OBS",
+    "ix.discord": "Discord",
+    "ix.spotify": "Spotify",
+    "ix.streamerbot": "Streamer.bot",
+    "ix.wavelink": "Wave Link",
+    "ix.voicemeeter": "Voicemeeter",
+    "ix.deck": "Deck",
   };
 </script>
 
@@ -2294,8 +2566,17 @@
   // I18N engine — translates [data-i18n] / [data-i18n-html], persists choice,
   // auto-detects the browser language on first visit.
   (function () {
-    const LANGS = ['en', 'it', 'ko', 'ja', 'zh'];
+    const LANGS = ['en', 'it', 'ko', 'ja', 'zh', 'es'];
     const KEY = 'xenon.site.lang';
+    // Every language also has a URL of its own (/, /it/, /es/ …): copies of
+    // this page with the strings baked in, generated by tools/build-i18n.mjs,
+    // so a search engine can index each version instead of the English it
+    // gets when it renders this file with an English browser. On one of those
+    // copies the URL IS the choice — it wins over the stored preference and
+    // over the browser language — and the picker navigates to the other
+    // version instead of swapping strings in place.
+    const SITE_LANG = window.__XENON_SITE_LANG || null;
+    const urlFor = (l) => (l === 'en' ? '/' : '/' + l + '/');
     let cur = 'en';
     window.XT = (k) => {
       const d = I18N[cur] || I18N.en;
@@ -2331,10 +2612,16 @@
       });
       document.addEventListener('click', (e) => { if (!box.contains(e.target)) box.classList.remove('open'); });
       document.querySelectorAll('#lang-menu button').forEach((b) =>
-        b.addEventListener('click', () => { apply(b.dataset.lang); box.classList.remove('open'); }));
+        b.addEventListener('click', () => {
+          const l = b.dataset.lang;
+          box.classList.remove('open');
+          if (location.pathname === urlFor(l)) { apply(l); return; }
+          try { localStorage.setItem(KEY, l); } catch (e) { /* private mode */ }
+          location.href = urlFor(l) + location.hash;
+        }));
     }
-    let init = null;
-    try { init = localStorage.getItem(KEY); } catch (e) { /* private mode */ }
+    let init = SITE_LANG;
+    if (!init) { try { init = localStorage.getItem(KEY); } catch (e) { /* private mode */ } }
     if (!LANGS.includes(init)) {
       const wanted = (navigator.languages || [navigator.language || 'en']).map((s) => String(s).slice(0, 2).toLowerCase());
       init = wanted.find((l) => LANGS.includes(l)) || 'en';

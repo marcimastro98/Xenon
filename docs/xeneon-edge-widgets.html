@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Xeneon Edge widgets and dashboards: what iCUE gives you, what Xenon adds</title>
+<meta name="description" content="A free dashboard built for the CORSAIR Xeneon Edge: drag-and-drop pages, real controls for mic, audio and media, game-safe touch, an AI that builds pages, and it runs with or without iCUE. Everything local, no account.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="images/favicon.png">
+<meta property="og:title" content="Xeneon Edge widgets and dashboards | Xenon">
+<meta property="og:description" content="What the Edge does with iCUE, what Xenon adds on top, and how to put it on the strip in a few minutes. Free, local, no account.">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://xenon-app.com/images/overview.png">
+<link rel="canonical" href="https://xenon-app.com/xeneon-edge-widgets.html">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Does Xenon replace iCUE?", "acceptedAnswer": {"@type": "Answer", "text": "No. iCUE still drives your CORSAIR hardware and lighting. Xenon runs beside it, as its own window or inside an iCUE panel, and can send lighting effects to iCUE through its own bridge."}}, {"@type": "Question", "name": "Do I need the Xeneon Edge to use Xenon?", "acceptedAnswer": {"@type": "Answer", "text": "No. Any spare monitor, an old tablet, a phone on the same Wi-Fi or a touchscreen works the same way."}}, {"@type": "Question", "name": "Can I use iCUE widgets and Xenon at the same time?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Xenon takes one iCUE panel as a web widget and the other panels stay as they were."}}, {"@type": "Question", "name": "Is Xenon free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Free for personal use, source public on GitHub under a non-commercial licence, no trial and no locked features."}}]}</script>
+
+<style>
+  :root {
+    --ink:   var(--g-0);
+    --panel: var(--g-1);
+    --line:  var(--rule);
+    --line-2:var(--rule-2);
+    --green: var(--bone-0);
+    --text:  var(--bone-0);
+    --muted: var(--bone-1);
+    --dim:   var(--bone-2);
+    --sans:  'Inter', system-ui, -apple-system, sans-serif;
+    --mono:  'JetBrains Mono', ui-monospace, monospace;
+    --maxw:  820px;
+    --radius:14px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--ink); color: var(--text);
+    font-family: var(--sans); font-size: 16px; line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  header.top {
+    border-bottom: 1px solid var(--line);
+    padding: 20px 0; position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--g-0) 82%, transparent); backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .logo {
+    display: inline-flex; align-items: center; gap: 10px;
+    color: var(--text); text-decoration: none;
+    font-weight: 700; letter-spacing: 0.16em; font-size: 14px;
+  }
+  .logo img { width: 34px; height: 23px; }
+  .back { color: var(--dim); text-decoration: none; font-size: 13.5px; }
+  .back:hover { color: var(--green); }
+
+  main { padding: 56px 0 96px; }
+  h1 { font-size: clamp(30px, 5.4vw, 46px); line-height: 1.12; letter-spacing: -0.025em; margin: 0 0 18px; }
+  .lede { font-size: 18.5px; color: var(--muted); margin: 0 0 12px; }
+  .lede strong { color: var(--text); font-weight: 600; }
+  .updated { font-family: var(--mono); font-size: 12.5px; color: var(--dim); margin: 0 0 34px; }
+
+  h2 {
+    font-size: 23px; letter-spacing: -0.01em; margin: 62px 0 10px;
+    padding-top: 30px; border-top: 1px solid var(--line);
+    scroll-margin-top: 88px;
+  }
+  h2 .h2n {
+    display: block; font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.14em;
+    color: var(--green); margin-bottom: 8px; font-weight: 500;
+  }
+  p { margin: 0 0 16px; color: var(--muted); }
+  p strong, li strong { color: var(--text); font-weight: 600; }
+  a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; color: var(--muted); }
+  li { margin-bottom: 8px; }
+  code {
+    font-family: var(--mono); font-size: 13px;
+    background: var(--g-2); padding: 2px 6px; border-radius: 6px;
+    color: var(--text); overflow-wrap: anywhere;
+  }
+
+  /* ── Section jump chips ───────────────────────────────────────── */
+  .jump { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+  .jump a {
+    text-decoration: none; font-size: 13.5px; color: var(--muted);
+    border: 1px solid var(--line-2); border-radius: 999px; padding: 7px 14px;
+    transition: border-color .2s, color .2s;
+  }
+  .jump a:hover { border-color: var(--green); color: var(--green); }
+
+  /* ── The question cards ───────────────────────────────────────── */
+  details { border: 1px solid var(--line); border-radius: 12px; padding: 0; margin: 10px 0; background: var(--panel); }
+  details[open] { border-color: var(--line-2); }
+  details > summary {
+    cursor: pointer; padding: 15px 18px; font-weight: 600; color: var(--text); font-size: 15.5px;
+    list-style: none; display: flex; align-items: flex-start; gap: 12px;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before {
+    content: '+'; color: var(--green); font-family: var(--mono); font-size: 17px;
+    line-height: 1.45; flex: none;
+  }
+  details[open] > summary::before { content: '–'; }
+  details .body { padding: 0 18px 16px 42px; }
+  details .body p:last-child, details .body ul:last-child, details .body ol:last-child { margin-bottom: 0; }
+  details .body ol { padding-left: 20px; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 22px 24px; margin: 26px 0;
+  }
+  .card.accent { border-color: var(--rule-2); background: var(--g-1); }
+  .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+  .card h3 { margin: 0 0 10px; font-size: 16.5px; }
+
+  .note { font-size: 14px; color: var(--dim); border-left: 2px solid var(--line-2); padding-left: 14px; margin: 18px 0; }
+
+  footer { border-top: 1px solid var(--line); padding: 30px 0 60px; color: var(--dim); font-size: 13.5px; }
+  footer a { color: var(--dim); }
+  footer a:hover { color: var(--green); }
+
+  /* Header right cluster + language picker, same markup and behaviour as the
+     home page so the choice carries across the site. */
+  .head-right { display: flex; align-items: center; gap: 14px; }
+  .navbtn {
+    font-size: 13px; font-weight: 600; padding: 8px 13px;
+    border: 1px solid var(--line-2); border-radius: 9px; color: var(--text);
+    display: inline-flex; align-items: center; gap: 8px; background: none; cursor: pointer;
+    font-family: var(--sans); transition: border-color .2s, color .2s;
+  }
+  .navbtn svg { width: 16px; height: 16px; flex: none; }
+  .navbtn:hover { border-color: var(--green); }
+  .lang { position: relative; }
+  .lang-menu {
+    position: absolute; top: calc(100% + 10px); right: 0; min-width: 168px; z-index: 60;
+    background: color-mix(in srgb, var(--g-1) 96%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--line-2); border-radius: 12px; padding: 6px;
+    opacity: 0; transform: translateY(-6px); pointer-events: none;
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  .lang.open .lang-menu { opacity: 1; transform: none; pointer-events: auto; }
+  .lang-menu button {
+    display: flex; width: 100%; align-items: center; gap: 10px; padding: 9px 12px;
+    background: none; border: 0; border-radius: 8px; color: var(--muted);
+    font-family: var(--sans); font-size: 13.5px; cursor: pointer; text-align: left;
+  }
+  .lang-menu button:hover { background: var(--g-2); color: var(--text); }
+  .lang-menu button.on { color: var(--green); }
+  .lang-menu .nat { margin-left: auto; font-size: 11px; color: var(--dim); letter-spacing: .08em; }
+  @media (max-width: 480px) { .back { display: none; } }
+</style>
+<link rel="stylesheet" href="/site.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="/" aria-label="Xenon"><img class="logo-mark" src="images/logo-x.png" alt="" width="33" height="26">ENON</a>
+    <div class="head-right">
+      <a class="back" href="/">← Back to the site</a>
+      <a class="navbtn" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_top">Download</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <h1>Xeneon Edge widgets: what iCUE gives you, what Xenon adds</h1>
+    <p class="lede">The Edge is a good screen with a small widget catalog. Xenon is a free dashboard designed around its exact shape: pages you arrange by hand, controls that act on the PC, touch that never steals a game’s focus, and it runs with or without iCUE.</p>
+    <p class="updated">Last updated: 13 September 2026</p>
+
+    <nav class="jump">
+      <a href="#icue">What iCUE gives you</a>
+      <a href="#xenon">What Xenon adds</a>
+      <a href="#install">Putting it on the Edge</a>
+      <a href="#honest">What to know before you try</a>
+      <a href="#faq">Questions</a>
+    </nav>
+
+    <h2 id="icue"><span class="h2n">01</span>What the Edge does out of the box</h2>
+    <p>The CORSAIR Xeneon Edge is a 14.5-inch, 2560×720 touch strip that mounts on a desk stand or in a case where three 120 mm fans would go. Out of the box it is a normal secondary monitor, and iCUE turns it into a widget wall: sensor readouts, a clock, media controls, web pages, and the widgets other people export and share. CORSAIR also publishes a WidgetBuilder kit for people who want to write their own.</p>
+    <p>That is a good baseline, and for many owners it is enough. The requests that keep coming up in owner forums are the ones iCUE does not answer: a layout you can rearrange by hand, controls that do something on the PC rather than only show a number, touch that does not steal focus from a game, and a way to use the strip without iCUE running at all.</p>
+
+    <h2 id="xenon"><span class="h2n">02</span>What Xenon adds</h2>
+    <p>Xenon is a free dashboard that was designed around the Edge's exact shape, short and very wide, before it grew to run on any screen. It runs as a small local service on your PC and shows up on the Edge in one of two ways: as its own full-screen native app, which needs no iCUE at all, or inside iCUE as an iFrame panel if you would rather keep everything in one place.</p>
+    <ul>
+      <li><strong>Drag-and-drop pages.</strong> A grid of resizable tiles, up to eight pages, layouts you can save and share as a code.</li>
+      <li><strong>Controls, not only readouts.</strong> Mute the mic, switch the audio output, skip a track, mix per-app volume, run a Stream Deck style key grid for apps, OBS, hotkeys and macros.</li>
+      <li><strong>Game-safe touch.</strong> In the native app a tap on the Edge never moves your mouse away from the game or takes its focus. Only a real native window can ask Windows for that.</li>
+      <li><strong>An AI you can talk to.</strong> Say what you want on a page and it builds the page. Runs on Google Gemini or on a free local model through Ollama.</li>
+      <li><strong>Sensors that go deeper.</strong> CPU, GPU, RAM, disks, network, real in-game FPS, plus 24-hour to 30-day history. The temperature readers are the signed ones (PawnIO), never WinRing0.</li>
+      <li><strong>Lighting from data.</strong> Drive iCUE LEDs from CPU temperature, timers or album art, alongside Govee, LIFX, WLED, Hue and Nanoleaf lights on the network.</li>
+      <li><strong>A community catalog.</strong> Themes, widget packs and whole page layouts other owners share, installed with one code.</li>
+    </ul>
+    <p>Everything runs locally. There is no account, no cloud and no telemetry; the app checks for updates at launch and reaches the network only for features you switch on.</p>
+
+    <h2 id="install"><span class="h2n">03</span>Putting it on the Edge</h2>
+    <ol>
+      <li>Download <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe">Xenon-Setup-x64.exe</a> and run it. It installs the native app.</li>
+      <li>The app opens, finds no dashboard engine yet and offers <strong>Complete setup</strong>. Press it once. This installs Node.js, the sensor readers and the login task, in a window you can read.</li>
+      <li>Xenon asks which screen it should live on the first time it opens. Pick the Edge. It stays pinned there through display changes and sleep.</li>
+      <li>If you prefer iCUE: add a web widget in iCUE pointing at <code>http://127.0.0.1:3030/</code> and Xenon fills the panel.</li>
+    </ol>
+
+    <h2 id="honest"><span class="h2n">04</span>What to know before you try</h2>
+    <p>Two honest caveats. First, the installer is not code-signed yet, so SmartScreen or Defender may warn you the first time; a certificate is being bought and <a href="faq.html#warnings">the FAQ explains how to verify the file yourself</a> in the meantime. Second, Xenon is Windows-first. macOS and Linux builds exist and are in beta, and the Edge-specific parts (the reserved touch gesture, the virtual second screen, iCUE lighting) are Windows-only.</p>
+    <p>It is free and there is no paid version. If you end up using it every day, there is a supporter tier that unlocks a few extra themes and widgets, and that is the whole business model.</p>
+
+    <h2 id="faq"><span class="h2n">05</span>Questions</h2>
+    <details><summary>Does Xenon replace iCUE?</summary><div class="body"><p>No. iCUE still drives your CORSAIR hardware and its lighting. Xenon runs beside it, either as its own window or inside an iCUE panel, and can send lighting effects to iCUE through its own bridge. You can run Xenon on the Edge without iCUE open, but iCUE is still the thing that configures your devices.</p></div></details>
+    <details><summary>Do I need the Edge to use Xenon?</summary><div class="body"><p>No. The Edge was the first screen it was built for, but any spare monitor, an old tablet, a phone on the same Wi-Fi or a touchscreen works the same way. See <a href="tablet-dashboard.html">using an old tablet or phone as a PC dashboard</a>.</p></div></details>
+    <details><summary>Can I use iCUE widgets and Xenon at the same time?</summary><div class="body"><p>Yes. In iCUE the Edge is split into panels; Xenon takes one panel as a web widget and the rest stay as they were. Most people end up giving it the whole strip, but nothing forces that.</p></div></details>
+    <details><summary>Is it really free?</summary><div class="body"><p>Yes. Free for personal use, source public on GitHub under a non-commercial licence, no trial and no feature locked behind a tier. Supporters get a few extra themes as a thank-you.</p></div></details>
+
+    <div class="card accent">
+      <h3>Try it on the screen you already have</h3>
+      <p>One installer, no account, nothing leaves your PC. <a href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="seo_page_end">Download Xenon for Windows</a>, or get the <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">macOS and Linux builds</a>. Questions go to the <a href="https://discord.gg/MBVrw9kZyg" rel="noopener">Discord</a>.</p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="/">xenon-app.com</a> · <a href="faq.html">FAQ</a> · <a href="phone.html">Phone</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/marcimastro98/Xenon" rel="noopener">GitHub</a> · <a href="https://discord.gg/MBVrw9kZyg" rel="noopener">Discord</a>
+  </div>
+</footer>
+<script src="/analytics.js" defer></script>
+</body>
+</html>

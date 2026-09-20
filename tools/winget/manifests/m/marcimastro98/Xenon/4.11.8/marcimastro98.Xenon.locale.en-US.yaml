@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+PackageIdentifier: marcimastro98.Xenon
+PackageVersion: 4.11.8
+PackageLocale: en-US
+Publisher: Marcello Mastroeni (marcimastro98)
+PublisherUrl: https://github.com/marcimastro98
+PublisherSupportUrl: https://github.com/marcimastro98/Xenon/issues
+PackageName: Xenon
+PackageUrl: https://xenon-app.com/
+License: Non-commercial (custom, source-available)
+LicenseUrl: https://github.com/marcimastro98/Xenon/blob/main/LICENSE
+Copyright: Copyright (c) 2026 Marcello Mastroeni
+ShortDescription: Turn any second screen into your PC's control center.
+Description: A 100% local dashboard for a spare monitor, a tablet, a phone or the CORSAIR Xeneon Edge. System monitor, media and audio control, microphone mute, a Stream Deck style key grid, RGB lighting, a voice AI, and a community catalog of themes and widgets. No account, no cloud, no telemetry.
+Moniker: xenon
+Tags:
+- dashboard
+- second-screen
+- system-monitor
+- stream-deck
+- xeneon-edge
+- corsair
+- rgb
+ReleaseNotesUrl: https://github.com/marcimastro98/Xenon/releases/tag/v4.11.8
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

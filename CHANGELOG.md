@@ -4,6 +4,8 @@ All notable changes to Xenon are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
+
+## [v4.11.9] - 20-09-2026
 ### ✨ Added
 - **You can re-order the list of stocks by dragging.** Asked on Discord: *"is there a way to re-order the list of stocks? besides deleting and re-adding"*. There was not — the Borsa tile drew the watchlist in the order it was stored, and adding a symbol always put it at the end, so putting one at the top meant removing everything above it and adding it all back.
 

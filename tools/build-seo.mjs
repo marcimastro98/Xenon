@@ -419,7 +419,7 @@ function entryPage(e, indexable, live = []) {
   // the interactive catalog and clicking through.
   const facts = [['Type', esc(kindLabel)]];
   if (catLabel) facts.push(['Category', esc(catLabel)]);
-  facts.push(['Made by', esc(e.author) + (e.authorSupporter ? ' (supporter)' : '')]);
+  facts.push(['Made by', `<a href="/creators/${creatorSlug(e.author)}/">${esc(e.author)}</a>` + (e.authorSupporter ? ' (supporter)' : '')]);
   if (e.version) facts.push(['Version', 'v' + esc(e.version)]);
   facts.push(['Needs', e.appVersionMin ? `Xenon ${esc(e.appVersionMin)} or later` : 'Any recent Xenon']);
   facts.push(['Runs on', 'Windows, macOS and Linux — on a second monitor, a Xeneon Edge, ' +
@@ -501,7 +501,7 @@ ${ld({ '@context': 'https://schema.org', '@graph': graph })}
   <main>
     <p class="tier${tier ? ' ' + tier : ''}">${esc(tierText)}</p>
     <h1>${esc(e.name)}</h1>
-    <p class="by">${esc(kindLabel)} for the Xenon dashboard, by <b>${esc(e.author)}</b></p>
+    <p class="by">${esc(kindLabel)} for the Xenon dashboard, by <a href="/creators/${creatorSlug(e.author)}/"><b>${esc(e.author)}</b></a></p>
     ${chips.length ? `<div class="meta">${chips.map((c) => `<span class="chip">${c}</span>`).join('')}</div>` : ''}
     ${e.description ? `<p class="desc">${esc(e.description)}</p>` : ''}
     ${shotTags.length ? `<div class="shots">${shotTags.join('')}</div>` : ''}
@@ -539,6 +539,247 @@ ${facts.map(([k, v]) => `        <li><b>${k}</b><span>${v}</span></li>`).join('\
   </div>
 </footer>
 
+</body>
+</html>
+`;
+}
+
+/* ── one page per creator ─────────────────────────────────────────────────── */
+
+// A creator's own page: everything they published, with the live install and
+// rating figures the hub already serves. It exists so that a person who made
+// something has a page that is theirs to link — "your theme was installed 43
+// times" is the reason a creator shares, and every share is a door into Xenon
+// that the author of Xenon did not have to open. The catalog and every entry
+// page link here; this is what turns up when someone searches a creator's name
+// next to Xenon.
+const HUB = 'https://xenon-supporter-hub.xenonedge.workers.dev';
+
+function creatorSlug(author) {
+  return String(author || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+}
+
+// Group live entries by creator. Author strings vary in case ("xenon" and
+// "Xenon" are one person); the slug decides identity and the most-used spelling
+// is the one shown.
+function creators(live) {
+  const groups = new Map();
+  for (const e of live) {
+    const slug = creatorSlug(e.author);
+    if (!slug) continue;
+    const g = groups.get(slug) || { slug, names: new Map(), entries: [] };
+    g.names.set(e.author, (g.names.get(e.author) || 0) + 1);
+    g.entries.push(e);
+    groups.set(slug, g);
+  }
+  return [...groups.values()].map((g) => ({
+    slug: g.slug,
+    name: [...g.names.entries()].sort((a, b) => b[1] - a[1])[0][0],
+    supporter: g.entries.some((e) => e.authorSupporter === true),
+    entries: g.entries,
+  })).sort((a, b) => b.entries.length - a.entries.length || a.name.localeCompare(b.name));
+}
+
+function creatorPage(c) {
+  const url = `${SITE}/creators/${c.slug}/`;
+  const n = c.entries.length;
+  const kinds = [...new Set(c.entries.map((e) => KIND_LABEL[e.kind] || e.kind))];
+  const title = `${c.name} on Xenon: ${n} ${n === 1 ? 'creation' : 'creations'} for the dashboard`;
+  const description = clamp(
+    `${n === 1 ? 'One creation' : n + ' creations'} by ${c.name} for the Xenon dashboard: ` +
+    kinds.map((k) => k.toLowerCase()).join(', ') + '. Install any of them into your own Xenon in one paste.'
+  );
+  const image = (() => {
+    const withShot = c.entries.find((e) => Number.isInteger(e.shots) && e.shots > 0);
+    return withShot ? shotUrl(withShot.id, 1) : `${SITE}/images/overview.png`;
+  })();
+  const ids = c.entries.map((e) => e.id);
+
+  const graph = [
+    {
+      '@type': 'ProfilePage',
+      '@id': url + '#page',
+      url,
+      name: title,
+      description,
+      inLanguage: 'en',
+      isPartOf: { '@id': `${SITE}/#website` },
+      mainEntity: { '@id': url + '#person' },
+    },
+    { '@type': 'Person', '@id': url + '#person', name: c.name, url },
+    {
+      '@type': 'ItemList',
+      '@id': url + '#items',
+      name: `Creations by ${c.name}`,
+      numberOfItems: n,
+      itemListOrder: 'https://schema.org/ItemListUnordered',
+      itemListElement: c.entries.map((e, i) => ({
+        '@type': 'ListItem', position: i + 1, name: e.name,
+        url: `${SITE}/catalog/${encodeURIComponent(e.id)}/`,
+      })),
+    },
+    {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Xenon', item: SITE + '/' },
+        { '@type': 'ListItem', position: 2, name: 'Community catalog', item: SITE + '/catalog/' },
+        { '@type': 'ListItem', position: 3, name: c.name, item: url },
+      ],
+    },
+  ];
+
+  const cards = c.entries.map((e, i) => {
+    const kindLabel = KIND_LABEL[e.kind] || e.kind;
+    const locked = e.locked === true || e.supportersOnly === true;
+    const desc = e.description ? clamp(e.description, 140) : '';
+    const shots = Number.isInteger(e.shots) ? e.shots : 0;
+
+    // The first shot, webp then png then gone — the same two-step the catalog
+    // does at runtime. The box keeps its 16/9 whether or not the image lands,
+    // so a missing screenshot leaves a tinted rectangle instead of collapsing
+    // the card and reflowing the grid under the reader's cursor. The first two
+    // load eagerly because they are above the fold on a phone; the rest wait.
+    const thumb = shots > 0
+      ? `<img src="${esc(shotUrl(e.id, 1))}" alt="${esc(e.name)} running in Xenon"` +
+        ` loading="${i < 2 ? 'eager' : 'lazy'}" decoding="async"` +
+        ` onerror="this.onerror=function(){this.style.display='none'};this.src='${esc(shotUrl(e.id, 1, 'png'))}'">`
+      : '';
+
+    return `      <a class="cr-card" href="/catalog/${encodeURIComponent(e.id)}/">
+        <span class="cr-shot">${thumb}</span>
+        <span class="cr-body">
+          <span class="cr-k">${esc(kindLabel)}${locked ? ' · supporters' : ''}</span>
+          <span class="cr-n">${esc(e.name)}</span>
+          ${desc ? `<span class="cr-d">${esc(desc)}</span>` : ''}
+          <span class="cr-live"><span data-iid="${esc(e.id)}"></span><span data-rid="${esc(e.id)}"></span></span>
+        </span>
+      </a>`;
+  }).join('\n');
+
+  return `<!DOCTYPE html>
+<!-- generated: creator page (tools/build-seo.mjs) — do not edit by hand -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(title)}</title>
+<meta name="description" content="${esc(description)}">
+<link rel="canonical" href="${esc(url)}">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<link rel="icon" type="image/png" href="/images/favicon.png">
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<meta property="og:type" content="profile">
+<meta property="og:site_name" content="Xenon">
+<meta property="og:locale" content="en_US">
+<meta property="og:url" content="${esc(url)}">
+<meta property="og:title" content="${esc(title)}">
+<meta property="og:description" content="${esc(description)}">
+<meta property="og:image" content="${esc(image)}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${esc(title)}">
+<meta name="twitter:description" content="${esc(description)}">
+<meta name="twitter:image" content="${esc(image)}">
+<link rel="preconnect" href="https://assets.xenon-app.com" crossorigin>
+<style>${PAGE_CSS}
+.cr-sum{display:flex;flex-wrap:wrap;gap:10px 28px;margin:18px 0 6px;font-size:15px;color:var(--muted)}
+.cr-sum b{display:block;font-size:26px;font-weight:700;color:var(--text);line-height:1.1;font-variant-numeric:tabular-nums}
+.cr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-top:22px}
+.cr-card{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;background:var(--panel);text-decoration:none;color:var(--text);overflow:hidden}
+.cr-card:hover{border-color:var(--green)}
+.cr-shot{display:block;aspect-ratio:16/9;background:color-mix(in srgb,var(--text) 6%,transparent);border-bottom:1px solid var(--line)}
+.cr-shot img{width:100%;height:100%;object-fit:cover;display:block}
+.cr-body{display:flex;flex-direction:column;gap:6px;padding:14px 15px 13px}
+.cr-k{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+.cr-n{font-weight:600;font-size:16px}
+.cr-d{font-size:13.5px;color:var(--muted);line-height:1.45}
+.cr-live{display:flex;gap:12px;margin-top:6px;font-size:12.5px;color:var(--dim);font-variant-numeric:tabular-nums;min-height:1.2em}
+.cr-own{margin-top:30px;padding:16px 18px;border-left:2px solid var(--green);color:var(--muted);font-size:14.5px}
+</style>
+<link rel="stylesheet" href="/site.css">
+<script type="application/ld+json">
+${ld({ '@context': 'https://schema.org', '@graph': graph })}
+</script>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="/" aria-label="Xenon"><img class="logo-mark" src="/images/logo-x.png" alt="" width="33" height="26">ENON</a>
+    <a class="top-cta" href="/catalog/">All community items →</a>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Xenon</a> / <a href="/catalog/">Community catalog</a> / ${esc(c.name)}
+  </nav>
+
+  <main>
+    <p class="tier">Creator${c.supporter ? ' · supporter' : ''}</p>
+    <h1>${esc(c.name)}</h1>
+    <p class="by">${n === 1 ? 'One creation' : n + ' creations'} for the Xenon dashboard: ${esc(kinds.join(', ').toLowerCase())}.</p>
+
+    <div class="cr-sum">
+      <div><b id="cr-installs">…</b>installs, reported by the people who chose to count</div>
+      <div><b id="cr-rating">…</b>average rating</div>
+      <div><b>${n}</b>in the catalog</div>
+    </div>
+
+    <div class="cr-grid">
+${cards}
+    </div>
+
+    <p class="cr-own">Made these? This page is yours to link. It is what people find when they search your name next to Xenon, and the numbers on it are live.
+      Want to publish something new? <a href="/submit/">The submission form</a> takes a share code and up to three screenshots.</p>
+
+    <p class="note"><a href="/catalog/">See everything in the catalog →</a></p>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <a href="/">Xenon</a> · <a href="/catalog/">Catalog</a> · <a href="/create/">Make your own</a> ·
+    <a href="/submit/">Publish yours</a> · <a href="${REPO}" rel="noopener">GitHub</a>
+  </div>
+</footer>
+
+<script>
+(function () {
+  // Live figures from the hub, the same two public endpoints the catalog reads.
+  // Counts are installs REPORTED by people who left the anonymous counter on,
+  // never unique owners; ratings are shown only past the hub's minimum.
+  var IDS = ${JSON.stringify(ids)};
+  var HUB = ${JSON.stringify(HUB)};
+  var q = encodeURIComponent(IDS.join(','));
+  function txt(id, s) { var el = document.getElementById(id); if (el) el.textContent = s; }
+  fetch(HUB + '/catalog/installs?ids=' + q).then(function (r) { return r.json(); }).then(function (d) {
+    var counts = (d && d.counts) || {}; var total = 0;
+    IDS.forEach(function (id) {
+      var n = Number(counts[id]) || 0; total += n;
+      var el = document.querySelector('[data-iid="' + id + '"]');
+      // Same floor the catalog grid uses (10): under it a per-item count is
+      // noise rather than a signal. The total above is exact, because a sum
+      // over a whole body of work is not the same kind of number.
+      if (el && n >= 10) el.textContent = n + ' installs';
+    });
+    txt('cr-installs', String(total));
+  }).catch(function () { txt('cr-installs', '–'); });
+  fetch(HUB + '/ratings?ids=' + q).then(function (r) { return r.json(); }).then(function (d) {
+    var ratings = (d && d.ratings) || {}; var min = Number(d && d.minDisplayCount) || 3;
+    var sum = 0, votes = 0;
+    IDS.forEach(function (id) {
+      var r = ratings[id]; if (!r || !(r.count >= min)) return;
+      sum += Number(r.avg) * Number(r.count); votes += Number(r.count);
+      var el = document.querySelector('[data-rid="' + id + '"]');
+      if (el) el.textContent = '★ ' + Number(r.avg).toFixed(1) + ' (' + r.count + ')';
+    });
+    txt('cr-rating', votes ? (sum / votes).toFixed(1) + ' ★' : '–');
+  }).catch(function () { txt('cr-rating', '–'); });
+})();
+</script>
 </body>
 </html>
 `;
@@ -633,6 +874,14 @@ function patchCatalogPage(live) {
 // noindex, and a sitemap that lists noindexed URLs is a Search Console warning.
 const STATIC_ROUTES = [
   { loc: '/', file: 'docs/index.html', priority: '1.0', changefreq: 'weekly' },
+  // One indexable copy of the home page per language, generated from the
+  // English one by tools/build-i18n.mjs. Spanish is the first language among
+  // the app's users and had no findable page at all until these existed.
+  { loc: '/es/', file: 'docs/es/index.html', priority: '0.9', changefreq: 'weekly' },
+  { loc: '/it/', file: 'docs/it/index.html', priority: '0.9', changefreq: 'weekly' },
+  { loc: '/ko/', file: 'docs/ko/index.html', priority: '0.8', changefreq: 'weekly' },
+  { loc: '/ja/', file: 'docs/ja/index.html', priority: '0.8', changefreq: 'weekly' },
+  { loc: '/zh/', file: 'docs/zh/index.html', priority: '0.8', changefreq: 'weekly' },
   { loc: '/catalog/', file: 'docs/community/catalog.json', priority: '0.9', changefreq: 'daily' },
   { loc: '/create/', file: 'docs/create/index.html', priority: '0.8', changefreq: 'monthly' },
   // These three carry `robots: index, follow` and a canonical of their own, so
@@ -642,6 +891,19 @@ const STATIC_ROUTES = [
   // Google they exist.
   { loc: '/faq.html', file: 'docs/faq.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/phone.html', file: 'docs/phone.html', priority: '0.7', changefreq: 'monthly' },
+  // The two pages written for the queries people actually arrive with: Google
+  // is the site's first referrer and sends most of them to GitHub, because the
+  // home page does not carry those words. These do.
+  { loc: '/xeneon-edge-widgets.html', file: 'docs/xeneon-edge-widgets.html', priority: '0.8', changefreq: 'monthly' },
+  { loc: '/tablet-dashboard.html', file: 'docs/tablet-dashboard.html', priority: '0.8', changefreq: 'monthly' },
+  // Search Console says "xenon.exe" draws 131 impressions and almost no clicks:
+  // people who found an unfamiliar process and want a straight answer, which the
+  // home page is the wrong shape to give them.
+  { loc: '/xenon-exe.html', file: 'docs/xenon-exe.html', priority: '0.7', changefreq: 'monthly' },
+  // "xenon download" and "xenon linux": 74 impressions in Search Console and
+  // no clicks, because the home page's title carried neither word.
+  { loc: '/download.html', file: 'docs/download.html', priority: '0.9', changefreq: 'weekly' },
+  { loc: '/linux.html', file: 'docs/linux.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/demo/', file: 'docs/demo/index.html', priority: '0.7', changefreq: 'monthly' },
   { loc: '/submit/', file: 'docs/submit/index.html', priority: '0.5', changefreq: 'monthly' },
   { loc: '/privacy.html', file: 'docs/privacy.html', priority: '0.3', changefreq: 'yearly' },
@@ -732,11 +994,35 @@ function main() {
     }
   }
 
+  // One page per creator, from the live entries only. Same sweep rule as the
+  // catalog pages: a creator whose last entry left the catalog leaves no page.
+  const creatorsDir = path.join(DOCS, 'creators');
+  fs.mkdirSync(creatorsDir, { recursive: true });
+  const made = creators(live);
+  const keep = new Set();
+  for (const c of made) {
+    const dir = path.join(creatorsDir, c.slug);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'index.html'), creatorPage(c));
+    keep.add(c.slug);
+    urls.push({ loc: `/creators/${c.slug}/`, lastmod: '', changefreq: 'monthly', priority: '0.5' });
+  }
+  for (const name of fs.readdirSync(creatorsDir)) {
+    const dir = path.join(creatorsDir, name);
+    if (!fs.statSync(dir).isDirectory() || keep.has(name)) continue;
+    const generated = path.join(dir, 'index.html');
+    if (fs.existsSync(generated) && fs.readFileSync(generated, 'utf8').includes('generated: creator page')) {
+      fs.rmSync(dir, { recursive: true, force: true });
+      console.log(`  removed stale /creators/${name}/`);
+    }
+  }
+
   patchCatalogPage(live);
   fs.writeFileSync(path.join(DOCS, 'sitemap.xml'), sitemap(urls));
 
   console.log(`sitemap.xml: ${urls.length} URLs (${STATIC_ROUTES.length} static, ${indexed} catalog items)`);
   console.log(`catalog pages: ${built.size} built, ${built.size - indexed} noindex (outside their active window)`);
+  console.log(`creator pages: ${made.length}`);
 }
 
 main();

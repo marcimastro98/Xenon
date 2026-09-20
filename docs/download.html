@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<!-- Google tag (gtag.js) with Consent Mode v2.
+     The consent defaults must be pushed BEFORE gtag.js executes, so this block
+     stays inline and stays first — moving it below the loader would let a tag
+     fire unconsented. The banner UI lives in /consent.js. -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // EEA + UK + Switzerland require consent before anything is stored. Everywhere
+  // else keeps the granted default; the region-scoped call wins where it applies.
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied',
+    region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IS','IT','LI','LT','LU','LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','ES','GB','CH']
+  });
+  gtag('consent', 'default', {
+    ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted'
+  });
+  // Replay the visitor's stored choice before the first tag fires.
+  try {
+    var xcConsent = localStorage.getItem('xenon.site.consent');
+    if (xcConsent === 'granted' || xcConsent === 'denied') {
+      gtag('consent', 'update', {
+        ad_storage: xcConsent, ad_user_data: xcConsent,
+        ad_personalization: xcConsent, analytics_storage: xcConsent
+      });
+    }
+  } catch (e) { /* private mode */ }
+  gtag('js', new Date());
+  gtag('config', 'G-LQ8Y8WZPQF');
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ8Y8WZPQF"></script>
+<script src="/consent.js" defer></script>
+<!-- Theme, before the first paint: a deferred script would flash the other
+     ground first. /theme.js only builds the control. -->
+<script>try{var m=localStorage.getItem('xenon.site.theme');if(m==='light'||m==='dark')document.documentElement.setAttribute('data-theme',m);}catch(e){}</script>
+<script src="/theme.js" defer></script>
+<!-- Cloudflare Web Analytics — cookieless pageview count, no consent gate. It runs
+     for every visitor (GA4 only counts those who accept the banner), so it is the
+     honest denominator the GA4 numbers are read against. -->
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fdd280824bbc4c6d9168107409eaa43a"}'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#090B0D" media="(prefers-color-scheme: dark)">
+<title>Download Xenon for Windows, macOS and Linux</title>
+<meta name="description" content="Download the latest Xenon release: the Windows installer, the macOS universal app, and the Linux AppImage, deb and rpm. What happens after the download, how to verify the file, and what to do if Windows warns you.">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="images/favicon.png">
+<meta property="og:title" content="Download Xenon | Windows, macOS and Linux">
+<meta property="og:description" content="The latest release for every platform, what the installer does, and how to check the file against the signed checksums.">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://xenon-app.com/images/overview.png">
+<link rel="canonical" href="https://xenon-app.com/download.html">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Where do I download Xenon?", "acceptedAnswer": {"@type": "Answer", "text": "From the links on this page, which always point at the newest release on GitHub: Xenon-Setup-x64.exe for Windows, Xenon-macOS-universal.dmg for macOS, and an AppImage, .deb or .rpm for Linux."}}, {"@type": "Question", "name": "Is Xenon free to download?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. There is no paid version, no trial and no account. The source is public on GitHub under a non-commercial licence."}}, {"@type": "Question", "name": "Why does Windows warn me about the Xenon installer?", "acceptedAnswer": {"@type": "Answer", "text": "The installer is not code-signed yet, so it starts from zero reputation. Every release ships a signed SHA256SUMS file so you can verify the download yourself."}}, {"@type": "Question", "name": "Does Xenon update itself?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. It checks for a new release when it starts and updates itself."}}]}</script>
+
+<style>
+  :root {
+    --ink:   var(--g-0);
+    --panel: var(--g-1);
+    --line:  var(--rule);
+    --line-2:var(--rule-2);
+    --green: var(--bone-0);
+    --text:  var(--bone-0);
+    --muted: var(--bone-1);
+    --dim:   var(--bone-2);
+    --sans:  'Inter', system-ui, -apple-system, sans-serif;
+    --mono:  'JetBrains Mono', ui-monospace, monospace;
+    --maxw:  820px;
+    --radius:14px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--ink); color: var(--text);
+    font-family: var(--sans); font-size: 16px; line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  header.top {
+    border-bottom: 1px solid var(--line);
+    padding: 20px 0; position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--g-0) 82%, transparent); backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .logo {
+    display: inline-flex; align-items: center; gap: 10px;
+    color: var(--text); text-decoration: none;
+    font-weight: 700; letter-spacing: 0.16em; font-size: 14px;
+  }
+  .logo img { width: 34px; height: 23px; }
+  .back { color: var(--dim); text-decoration: none; font-size: 13.5px; }
+  .back:hover { color: var(--green); }
+
+  main { padding: 56px 0 96px; }
+  h1 { font-size: clamp(30px, 5.4vw, 46px); line-height: 1.12; letter-spacing: -0.025em; margin: 0 0 18px; }
+  .lede { font-size: 18.5px; color: var(--muted); margin: 0 0 12px; }
+  .lede strong { color: var(--text); font-weight: 600; }
+  .updated { font-family: var(--mono); font-size: 12.5px; color: var(--dim); margin: 0 0 34px; }
+
+  h2 {
+    font-size: 23px; letter-spacing: -0.01em; margin: 62px 0 10px;
+    padding-top: 30px; border-top: 1px solid var(--line);
+    scroll-margin-top: 88px;
+  }
+  h2 .h2n {
+    display: block; font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.14em;
+    color: var(--green); margin-bottom: 8px; font-weight: 500;
+  }
+  p { margin: 0 0 16px; color: var(--muted); }
+  p strong, li strong { color: var(--text); font-weight: 600; }
+  a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; color: var(--muted); }
+  li { margin-bottom: 8px; }
+  code {
+    font-family: var(--mono); font-size: 13px;
+    background: var(--g-2); padding: 2px 6px; border-radius: 6px;
+    color: var(--text); overflow-wrap: anywhere;
+  }
+
+  /* ── Section jump chips ───────────────────────────────────────── */
+  .jump { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+  .jump a {
+    text-decoration: none; font-size: 13.5px; color: var(--muted);
+    border: 1px solid var(--line-2); border-radius: 999px; padding: 7px 14px;
+    transition: border-color .2s, color .2s;
+  }
+  .jump a:hover { border-color: var(--green); color: var(--green); }
+
+  /* ── The question cards ───────────────────────────────────────── */
+  details { border: 1px solid var(--line); border-radius: 12px; padding: 0; margin: 10px 0; background: var(--panel); }
+  details[open] { border-color: var(--line-2); }
+  details > summary {
+    cursor: pointer; padding: 15px 18px; font-weight: 600; color: var(--text); font-size: 15.5px;
+    list-style: none; display: flex; align-items: flex-start; gap: 12px;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before {
+    content: '+'; color: var(--green); font-family: var(--mono); font-size: 17px;
+    line-height: 1.45; flex: none;
+  }
+  details[open] > summary::before { content: '–'; }
+  details .body { padding: 0 18px 16px 42px; }
+  details .body p:last-child, details .body ul:last-child, details .body ol:last-child { margin-bottom: 0; }
+  details .body ol { padding-left: 20px; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 22px 24px; margin: 26px 0;
+  }
+  .card.accent { border-color: var(--rule-2); background: var(--g-1); }
+  .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+  .card h3 { margin: 0 0 10px; font-size: 16.5px; }
+
+  .note { font-size: 14px; color: var(--dim); border-left: 2px solid var(--line-2); padding-left: 14px; margin: 18px 0; }
+
+  footer { border-top: 1px solid var(--line); padding: 30px 0 60px; color: var(--dim); font-size: 13.5px; }
+  footer a { color: var(--dim); }
+  footer a:hover { color: var(--green); }
+
+  /* Header right cluster + language picker, same markup and behaviour as the
+     home page so the choice carries across the site. */
+  .head-right { display: flex; align-items: center; gap: 14px; }
+  .navbtn {
+    font-size: 13px; font-weight: 600; padding: 8px 13px;
+    border: 1px solid var(--line-2); border-radius: 9px; color: var(--text);
+    display: inline-flex; align-items: center; gap: 8px; background: none; cursor: pointer;
+    font-family: var(--sans); transition: border-color .2s, color .2s;
+  }
+  .navbtn svg { width: 16px; height: 16px; flex: none; }
+  .navbtn:hover { border-color: var(--green); }
+  .lang { position: relative; }
+  .lang-menu {
+    position: absolute; top: calc(100% + 10px); right: 0; min-width: 168px; z-index: 60;
+    background: color-mix(in srgb, var(--g-1) 96%, transparent); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--line-2); border-radius: 12px; padding: 6px;
+    opacity: 0; transform: translateY(-6px); pointer-events: none;
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  .lang.open .lang-menu { opacity: 1; transform: none; pointer-events: auto; }
+  .lang-menu button {
+    display: flex; width: 100%; align-items: center; gap: 10px; padding: 9px 12px;
+    background: none; border: 0; border-radius: 8px; color: var(--muted);
+    font-family: var(--sans); font-size: 13.5px; cursor: pointer; text-align: left;
+  }
+  .lang-menu button:hover { background: var(--g-2); color: var(--text); }
+  .lang-menu button.on { color: var(--green); }
+  .lang-menu .nat { margin-left: auto; font-size: 11px; color: var(--dim); letter-spacing: .08em; }
+  @media (max-width: 480px) { .back { display: none; } }
+</style>
+<style>
+  .dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 18px 0 8px; }
+  .dl a.pick { display: block; padding: 16px 18px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--panel); text-decoration: none; color: var(--text); }
+  .dl a.pick:hover { border-color: var(--green); }
+  .dl .os { font-weight: 600; font-size: 16px; }
+  .dl .os small { font-family: var(--mono); font-size: 11px; color: var(--dim); margin-left: 6px; letter-spacing: .06em; text-transform: uppercase; }
+  .dl .file { display: block; margin-top: 6px; font-family: var(--mono); font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+  .dl .req { display: block; margin-top: 8px; font-size: 13.5px; color: var(--dim); }
+  .tablewrap th:first-child, .tablewrap td:first-child { vertical-align: top; }
+  .tablewrap td { vertical-align: top; }
+  pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>
+<link rel="stylesheet" href="/site.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="/" aria-label="Xenon"><img class="logo-mark" src="images/logo-x.png" alt="" width="33" height="26">ENON</a>
+    <div class="head-right">
+      <a class="back" href="/">← Back to the site</a>
+      <a class="navbtn" href="faq.html">FAQ</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <h1>Download Xenon</h1>
+    <p class="lede">The newest release for every platform, straight from GitHub. Free, no account, and it updates itself after this.</p>
+    <p class="updated">Last updated: 13 September 2026 · current release 4.11.8</p>
+
+    <div class="dl">
+      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Setup-x64.exe" data-track="download_click" data-track-location="download_page_win"><span class="os">Windows</span><span class="file">Xenon-Setup-x64.exe</span><span class="req">Windows 10 or 11, 64-bit. Installs the app and starts it at login.</span></a>
+      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-macOS-universal.dmg" data-track="download_click" data-track-location="download_page_mac"><span class="os">macOS<small>beta</small></span><span class="file">Xenon-macOS-universal.dmg</span><span class="req">macOS 11 or later. Apple Silicon and Intel in one file.</span></a>
+      <a class="pick" href="https://github.com/marcimastro98/Xenon/releases/latest/download/Xenon-Linux-x86_64.AppImage" data-track="download_click" data-track-location="download_page_linux"><span class="os">Linux<small>beta</small></span><span class="file">Xenon-Linux-x86_64.AppImage</span><span class="req">Any x86_64 desktop. Also as .deb and .rpm on the Linux page.</span></a>
+    </div>
+    <p class="note"><a href="linux.html">Xenon on Linux</a>: the .deb and .rpm packages, what the first launch sets up, and an honest table of what works and what does not yet.</p>
+    <p class="note">Every file above is the newest release, straight from GitHub. <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">All files for this release</a>, including the checksums, are on the release page.</p>
+
+    <h2 id="after"><span class="h2n">01</span>What happens after the download</h2>
+    <p><strong>Windows.</strong> Run the installer. It installs the app, which opens by itself, finds no dashboard engine yet and offers <strong>Complete setup</strong>. Press it once: a window opens and installs Node.js, the sensor readers and the task that starts Xenon when you sign in, showing you each step. The download is verified against the project's signing key before anything runs. It takes a few minutes and happens once.</p>
+    <p><strong>macOS and Linux.</strong> Open the app you downloaded. Its first launch offers to set the dashboard up in a terminal window, verifying the download before extracting it. On Linux the package deliberately does not do that for you, because everything it would create belongs to one user account and a package installs as root for the whole machine.</p>
+    <p>Then Xenon asks which screen it should live on. A spare monitor, a tablet, your phone or a CORSAIR Xeneon Edge all work; <a href="phone.html">the phone guide</a> covers pairing a phone or tablet in about thirty seconds.</p>
+
+    <h2 id="warning"><span class="h2n">02</span>If Windows warns you about the file</h2>
+    <p>That can happen, and the honest reason is that the installer is not code-signed yet. A certificate is a paid, identity-verified thing and this is a free one-person project; supporters are funding the first year. Until then, an unsigned installer that few people have downloaded starts from zero reputation with Windows, and each release resets the counter. The <a href="faq.html#warnings">FAQ explains the two kinds of warning</a> and how to get the file back; <a href="xenon-exe.html">this page lists every process Xenon runs</a>, for the reader who wants to know exactly what is being installed.</p>
+
+    <h2 id="verify"><span class="h2n">03</span>Check the file yourself</h2>
+    <p>Every release ships a <code>SHA256SUMS</code> file signed with the project's Ed25519 key. Compare the hash of what you downloaded:</p>
+    <pre><code>Get-FileHash .\Xenon-Setup-x64.exe -Algorithm SHA256        # Windows, PowerShell
+shasum -a 256 Xenon-macOS-universal.dmg                       # macOS
+sha256sum Xenon-Linux-x86_64.AppImage                          # Linux</code></pre>
+    <p>If it matches the line for that file in the release's <code>SHA256SUMS</code>, the file is byte for byte the one GitHub Actions built from the public source at that tag.</p>
+
+    <h2 id="other"><span class="h2n">04</span>Other ways to install</h2>
+    <p><strong>From source.</strong> Download the <a href="https://github.com/marcimastro98/Xenon/releases/latest" rel="noopener">source code zip</a> from the release, extract it, and run <code>INSTALL.bat</code> on Windows, <code>INSTALL.command</code> on macOS or <code>./INSTALL.sh</code> on Linux. Same result as the installer, for people who would rather read what runs.</p>
+    <p><strong>winget.</strong> The package manifests are written and waiting on a release that scans clean at Microsoft's end; until it is listed, the installer above is the way. This page will say <code>winget install xenon</code> the day that changes.</p>
+    <p><strong>Updating.</strong> Xenon checks for a new release when it starts and updates itself. You never need to come back here for that.</p>
+
+    <div class="card accent">
+      <h3>Not sure what Xenon is?</h3>
+      <p>A free dashboard that runs on your PC and shows up on any spare screen: system stats, media and mic controls, a Stream Deck style key grid, lighting, an AI you can talk to. No account, no cloud, nothing leaves your PC. <a href="/">The home page shows it</a>.</p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="/">xenon-app.com</a> · <a href="faq.html">FAQ</a> · <a href="download.html">Download</a> · <a href="linux.html">Linux</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/marcimastro98/Xenon" rel="noopener">GitHub</a> · <a href="https://discord.gg/MBVrw9kZyg" rel="noopener">Discord</a>
+  </div>
+</footer>
+<script src="/analytics.js" defer></script>
+</body>
+</html>
