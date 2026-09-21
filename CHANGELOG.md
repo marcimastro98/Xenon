@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### ✨ Added
+- **A widget can now see every network adapter separately.** Asked for on Discord by someone building a workstation monitor on the SDK: *"list all system network adapters instead of only the currently active/global traffic"* — a 10GbE NAS link, the internet link and a VMware VMnet, each on its own graph.
+
+  The data was always there and always thrown away: all three collectors read every adapter and returned the sum. The new **`network`** stream carries them one by one — a stable id, **the name you gave the adapter in Windows**, the hardware description, whether it is up, the link speed, and read/write throughput per second, plus the raw counters if you would rather do your own maths. Virtual adapters are included, which is the point of the request; `downloadBps`/`uploadBps` stay the sum of the **physical** ones, because a VPN or a VMnet carries the same packets a second time.
+
+  It is its own grant rather than a field on `system`: this is traffic, not a sensor, and the permission dialog says which it is. It is also **pulled**, not pushed — a widget asks at the cadence its graph wants, and while none is on screen asking, nothing runs. An adapter that has only been seen once reports `null` rather than a spike the size of its lifetime counter, and one that is unplugged simply leaves the list.
+
+  Documented in [WIDGET_SDK.md](docs/WIDGET_SDK.md) → *Per-adapter network*.
+
 - **The File transfer tile now explains itself.** Asked for on Discord: *"how did you pass a file from phone to PC? It isn't written anywhere — put a button or an info in the widget that explains it on click."*
 
   It was written down — in `FEATURES.md`, which is not where anybody is standing when the question comes up. The tile said *"drag files here, or send them from your phone"* and stopped there, and the step that matters most is the one it could never have shown you by existing: the phone has to be **paired** first, or it cannot send anything at all.

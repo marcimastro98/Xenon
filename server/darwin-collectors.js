@@ -508,33 +508,46 @@ const VIRTUAL_IFACE = /^(lo|gif|stf|utun|bridge|awdl|llw|ap\d|anpi|vmenet|vnic|p
 
 // `netstat -ib` columns for a link row:
 // Name Mtu Network Address Ipkts Ierrs Ibytes Opkts Oerrs Obytes Coll
+// Every interface is RETURNED, not dropped: the totals still sum the physical
+// ones only (the Network tile shows those, and adding a VPN would count the same
+// traffic twice), but the list carries them all with `kind` so a widget can
+// graph one link on its own. Asked for on Discord. `lo0` is the one genuine
+// exception — loopback is the machine talking to itself.
 function parseNetstatIb(out) {
   let rx = 0;
   let tx = 0;
   const seen = new Set();
+  const interfaces = [];
   for (const line of splitLines(out)) {
     const f = line.trim().split(/\s+/);
     if (f.length < 10) continue;
     const iface = f[0];
     // One row per address family; the <Link#n> row alone carries the totals.
     if (!/^<Link#\d+>$/.test(f[2])) continue;
-    if (VIRTUAL_IFACE.test(iface)) continue;
+    if (/^lo\d*$/.test(iface)) continue;
     if (seen.has(iface)) continue;
     seen.add(iface);
-    rx += Number(f[6]) || 0;
-    tx += Number(f[9]) || 0;
+    const irx = Number(f[6]) || 0;
+    const itx = Number(f[9]) || 0;
+    const real = !VIRTUAL_IFACE.test(iface);
+    if (real) { rx += irx; tx += itx; }
+    // macOS has a friendly name per service ("Wi-Fi", "Thunderbolt Ethernet"),
+    // but it lives in networksetup, a separate process spawn per poll. The BSD
+    // device name is what netstat gives and it is stable, so that is `name` too
+    // rather than paying for a nicer one every three seconds.
+    interfaces.push({ id: iface, name: iface, description: '', kind: real ? 'physical' : 'virtual', rxBytes: irx, txBytes: itx });
   }
-  return { rx, tx };
+  return { rx, tx, interfaces };
 }
 
 async function readNetBytes() {
   const out = await runSoft('netstat', ['-ib'], 5000);
-  return out === null ? { rx: 0, tx: 0 } : parseNetstatIb(out);
+  return out === null ? { rx: 0, tx: 0, interfaces: [] } : parseNetstatIb(out);
 }
 
 async function network() {
-  const [{ ping, latency }, { rx, tx }] = await Promise.all([pingStats(), readNetBytes()]);
-  return { ping, latency, rxBytes: rx, txBytes: tx, fps: null, gpuLatency: null };
+  const [{ ping, latency }, { rx, tx, interfaces }] = await Promise.all([pingStats(), readNetBytes()]);
+  return { ping, latency, rxBytes: rx, txBytes: tx, interfaces, fps: null, gpuLatency: null };
 }
 
 // --- Open applications / app switcher: System Events -----------------------

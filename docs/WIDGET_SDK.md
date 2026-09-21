@@ -81,7 +81,7 @@ not need to do anything to support it.
 | `name` | yes | ≤ 60 chars. |
 | `version`, `author`, `description` | no | Shown to the user (description ≤ 200 chars). |
 | `entry` | no | HTML entry document, defaults to `index.html`. Must live in the package root. |
-| `streams` | no | Data streams you request: `status`, `system`, `media`, `audio`, `audioLevels`, `wavelink`, `voicemeeter`, `stocks`, `football`, `news`, `claude`, `obs`, `discord`, `discordChannels`, `discordSoundboard`, `discordNotifications`, `streamerbot`, `homeassistant`, `twitchWatch`, `twitchChat`, `youtubeLive`, `youtube`, `tasks`, `notes`, `agenda`, `weather`, `battery`. *Capability reference* below is generated from the code and is the list that cannot go stale. See *Hardware sensors* for fans/power/battery. |
+| `streams` | no | Data streams you request: `status`, `system`, `network`, `media`, `audio`, `audioLevels`, `wavelink`, `voicemeeter`, `stocks`, `football`, `news`, `claude`, `obs`, `discord`, `discordChannels`, `discordSoundboard`, `discordNotifications`, `streamerbot`, `homeassistant`, `twitchWatch`, `twitchChat`, `youtubeLive`, `youtube`, `tasks`, `notes`, `agenda`, `weather`, `battery`. *Capability reference* below is generated from the code and is the list that cannot go stale. See *Hardware sensors* for fans/power/battery. |
 | `surface` | no | `"tile"` (default) or `"ambient"` — an ambient package renders fullscreen as an Ambient/screensaver scene instead of a dashboard tile (see *Ambient scenes*). |
 | `actions` | no | Action categories you request: `media`, `volume`, `audioDevice`, `mic`, `lighting`, `chroma`, `wavelink`, `voicemeeter`, `spotify`, `steam`, `obs`, `discord`, `homeassistant`, `twitch`, `youtube`, `youtubePlayer`, `streamerbot`, `url`, `browser`, `watch`, `tasks`, `soundboard`. *Capability reference* below is generated from the code and is the list that cannot go stale. |
 | `hosts` | no | Up to 8 exact hostnames the widget may reach **through the host-mediated fetch proxy** (see *Network*). Loopback/link-local names are rejected at install time. |
@@ -279,6 +279,7 @@ The payloads are the dashboard's own SSE events, unmodified:
 
 - `status` — mic mute, game mode/activity, foreground process
 - `system` — `cpu` (%), `gpu` (%|null), `memory.percent`, temperatures, clock speeds, `fps` / `presentFps` / `displayFps`, uptime… see *Clock speeds and frame rate* below
+- `network` — `{ ok, downloadBps, uploadBps, ping, latency, interfaces:[…] }`: **every network adapter the machine has, one entry each**, so a monitoring widget can graph a 10GbE NAS link, the internet link and a VMware VMnet separately. See *Per-adapter network* below. A **pull** stream: call `xenon.refresh('network')` at whatever cadence your graph wants (900ms floor)
 - `media` — `title`, `artist`, `album`, playback state, source, plus `position` and `duration` in seconds. A zero/absent `duration` means the current source has no seekable timeline
 - `audio` — volume, mute, output device, and `speakerApps[]` / `micApps[]`: the per-application mixer (one entry per active session, with `proc`, `volume`, `muted` and a resolved `icon`). Polled, so it updates about every 8 seconds
 - `audioLevels` — **how loud each app actually is right now**: `{ "discord": 0.42, "spotify": 0.81 }`, peak per process in `0..1`, roughly 12 times a second. See *Real audio levels* below — this one has conditions
@@ -600,6 +601,62 @@ those. `sources` tells you whether each backend answered at all, so you can
 distinguish "no devices" from "iCUE is off". Peripherals on a proprietary
 2.4GHz dongle (Logitech Unifying/Lightspeed and most custom keyboards) report no
 battery to Windows and cannot appear.
+
+### 3b-bis. Per-adapter network (v4.11.10)
+
+Asked for on Discord by someone building a workstation monitor: *"list all system
+network adapters instead of only the currently active/global traffic"* — a 10GbE
+NAS link, the internet link and a VMware VMnet, each on its own graph.
+
+`streams: ["network"]` is its own grant, separate from `system`: it is traffic,
+not a sensor, and the permission dialog says so in those words.
+
+```js
+{
+  ok: true,
+  downloadBps: 1340221,   // the PHYSICAL adapters, summed — what the Network tile draws
+  uploadBps: 88104,
+  ping: 12, latency: 3,
+  interfaces: [
+    {
+      id: '{9F2A…}',            // stable across reboots; key your per-adapter settings on it
+      name: 'NAS 10GbE',        // what the adapter is CALLED — your rename in Windows shows up here
+      description: 'Intel(R) X550-T1',
+      kind: 'physical',         // 'physical' | 'virtual'
+      up: true,                 // null where the platform does not say
+      speedBps: 10000000000,    // link speed, null when unknown
+      rxBytesPerSec: 1220110,   // null until this adapter has two readings of its own
+      txBytesPerSec: 41002,
+      rxBytes: 84120334455,     // the raw cumulative counters, if you would rather do your own maths
+      txBytes: 2210554,
+    },
+  ],
+}
+```
+
+- **Every adapter is listed, virtual ones included** — that is the point of the
+  request. `downloadBps`/`uploadBps` stay the sum of the **physical** ones,
+  because a VPN or a VMnet carries the same packets a second time and adding
+  them to the total would double-count.
+- **`id` is what you remember, `name` is what you show.** On Windows `id` is the
+  adapter GUID and `name` is the label the user typed in *Network Connections*;
+  on Linux and macOS both are the interface name, since there is no second one
+  to have. Do not key saved settings on `name` — renaming an adapter would lose
+  them.
+- **`rxBytesPerSec`/`txBytesPerSec` are `null`, not `0`, until there is something
+  to measure**: an adapter needs two readings of its own before it has a rate,
+  and one that appears mid-session (a VPN coming up) starts at `null` rather
+  than reporting a spike the size of its lifetime counter. `Number(null)` is
+  `0`, so guard with `v != null` or an unknown will draw as idle.
+- **It is a PULL stream.** Call `xenon.refresh('network')` at the cadence your
+  graph wants — the floor is 900ms — and the answer arrives as an ordinary
+  `data` frame. It is pulled rather than pushed because the reading costs a
+  collector run (a PowerShell round trip on Windows), and pushing it to every
+  dashboard would make every install pay for a widget almost nobody has. While
+  no granted widget is on screen asking, nothing runs at all.
+- **The list is the machine's, live.** Unplug a dock and the entry is gone on the
+  next refresh; plug it back and it returns with its rates at `null` for one
+  tick. Draw from `id`, not from an index.
 
 ### 3c. Clock speeds and frame rate (v4.11.7)
 
@@ -1685,7 +1742,7 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `football`, `homeassistant`, `media`, `news`, `notes`, `obs`, `processes`, `scriptStates`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
+**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `football`, `homeassistant`, `media`, `network`, `news`, `notes`, `obs`, `processes`, `scriptStates`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 

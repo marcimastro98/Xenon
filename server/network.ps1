@@ -43,17 +43,44 @@ try {
 # consecutive. Lettura .NET pura (niente CIM/WMI): GetAllNetworkInterfaces e'
 # in-process. Il filtro tipo+descrizione replica Get-NetAdapter -Physical
 # escludendo loopback, tunnel/VPN e adapter virtuali (che duplicherebbero i byte).
+# Ogni adapter viene EMESSO, non scartato: il totale resta la somma dei soli
+# fisici (il riquadro Rete mostra quello, e sommare una VPN conterebbe due volte
+# lo stesso traffico), ma la lista li porta tutti con `kind` = physical|virtual,
+# perche' chi monitora una VMnet o una scheda NAS vuole proprio quelle. Chiesto
+# via Discord per un widget SDK.
+#
+# .NET puro, niente CIM: GetAllNetworkInterfaces + GetIPv4Statistics sono
+# in-process, e questo script gira ogni 3s nel worker seriale.
 $rx = 0
 $tx = 0
+$ifaces = New-Object System.Collections.ArrayList
 try {
   foreach ($nic in [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces()) {
-    if ($nic.OperationalStatus -ne [System.Net.NetworkInformation.OperationalStatus]::Up) { continue }
     $nicType = $nic.NetworkInterfaceType.ToString()
-    if ($nicType -ne 'Ethernet' -and $nicType -ne 'GigabitEthernet' -and $nicType -ne 'Wireless80211') { continue }
-    if ($nic.Description -match 'virtual|hyper-v|vmware|virtualbox|tap|tun(nel)?|vpn|loopback|bluetooth') { continue }
-    $stats = $nic.GetIPv4Statistics()
-    if ($stats.BytesReceived) { $rx += [int64]$stats.BytesReceived }
-    if ($stats.BytesSent)     { $tx += [int64]$stats.BytesSent }
+    if ($nicType -eq 'Loopback') { continue }
+    $up = ($nic.OperationalStatus -eq [System.Net.NetworkInformation.OperationalStatus]::Up)
+    $real = ($nicType -eq 'Ethernet' -or $nicType -eq 'GigabitEthernet' -or $nicType -eq 'Wireless80211') -and
+            ($nic.Description -notmatch 'virtual|hyper-v|vmware|virtualbox|tap|tun(nel)?|vpn|loopback|bluetooth')
+    $stats = $null
+    try { $stats = $nic.GetIPv4Statistics() } catch { }
+    $nrx = 0; $ntx = 0
+    if ($stats) {
+      if ($stats.BytesReceived) { $nrx = [int64]$stats.BytesReceived }
+      if ($stats.BytesSent)     { $ntx = [int64]$stats.BytesSent }
+    }
+    if ($up -and $real) { $rx += $nrx; $tx += $ntx }
+    # `name` e' il nome che l'utente vede e rinomina in Windows; `description`
+    # e' l'hardware. Sono due cose diverse e servono entrambe.
+    [void]$ifaces.Add(@{
+      id          = [string]$nic.Id
+      name        = [string]$nic.Name
+      description = [string]$nic.Description
+      kind        = $(if ($real) { 'physical' } else { 'virtual' })
+      up          = $up
+      speedBps    = $(if ($nic.Speed -gt 0) { [int64]$nic.Speed } else { $null })
+      rxBytes     = $nrx
+      txBytes     = $ntx
+    })
   }
 } catch { }
 
@@ -100,6 +127,8 @@ public static class DwmFps {
 }
 }
 
+# -Depth 3: senza, ConvertTo-Json rende ogni hashtable dentro l'array come
+# "System.Collections.Hashtable" e la lista arriva al server come stringhe.
 @{
   ping       = $ping
   latency    = $latency
@@ -107,4 +136,5 @@ public static class DwmFps {
   txBytes    = $tx
   fps        = $fps
   gpuLatency = $gpuLatency
-} | ConvertTo-Json -Compress
+  interfaces = @($ifaces)
+} | ConvertTo-Json -Compress -Depth 3

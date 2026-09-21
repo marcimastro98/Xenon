@@ -166,14 +166,33 @@ test('parseNetDev: rx is field 0 and tx is field 8 after the colon', () => {
   // A single made-up interface makes the column offsets explicit: getting these
   // two indices wrong is the classic /proc/net/dev bug.
   const line = 'Inter-|\n face |\n  eth9: 111 2 0 0 0 0 0 0 999 3 0 0 0 0 0 0\n';
-  assert.deepEqual(lc.parseNetDev(line), { rx: 111, tx: 999 });
+  const out = lc.parseNetDev(line);
+  assert.equal(out.rx, 111);
+  assert.equal(out.tx, 999);
+  // The same two numbers, kept per interface instead of only summed: a widget
+  // graphing one adapter needs the breakdown the sum used to throw away.
+  assert.deepEqual(out.interfaces, [
+    { id: 'eth9', name: 'eth9', description: '', kind: 'physical', rxBytes: 111, txBytes: 999 },
+  ]);
 });
 
 test('parseNetDev: tolerates missing file content', () => {
-  assert.deepEqual(lc.parseNetDev(''), { rx: 0, tx: 0 });
+  assert.deepEqual(lc.parseNetDev(''), { rx: 0, tx: 0, interfaces: [] });
 });
 
 // --- ping -------------------------------------------------------------------
+
+// A virtual adapter is LISTED and left out of the totals — not dropped. The
+// request that prompted this names VMware's VMnet8 specifically.
+test('parseNetDev: a virtual interface is listed but not summed', () => {
+  const line = 'Inter-|\n face |\n  eth0: 100 0 0 0 0 0 0 0 200 0 0 0 0 0 0 0\n'
+    + '  vmnet8: 7 0 0 0 0 0 0 0 9 0 0 0 0 0 0 0\n'
+    + '  lo: 5 0 0 0 0 0 0 0 5 0 0 0 0 0 0 0\n';
+  const out = lc.parseNetDev(line);
+  assert.equal(out.rx, 100, 'only the physical adapter counts towards the total');
+  assert.equal(out.tx, 200);
+  assert.deepEqual(out.interfaces.map((n) => [n.id, n.kind]), [['eth0', 'physical'], ['vmnet8', 'virtual']]);
+});
 
 test('parsePing: ping is the average RTT and latency is the jitter', () => {
   const out = 'rtt min/avg/max/mdev = 6.824/12.132/18.362/4.755 ms';

@@ -128,6 +128,7 @@
   const STREAM_LABELS = {
     status: ['cw_stream_status', 'System status (mic, game mode)'],
     system: ['cw_stream_system', 'System sensors (CPU, GPU, RAM)'],
+    network: ['cw_stream_network', 'Network adapters and how much each one is moving'],
     processes: ['cw_stream_processes', 'Which apps are using your CPU, memory and GPU'],
     media: ['cw_stream_media', 'Now playing'],
     audio: ['cw_stream_audio', 'Volume & audio devices'],
@@ -200,6 +201,24 @@
   // it can never supply a URL. This keeps the iframe's network kill-switch
   // intact while making private notification content a separate visible grant.
   const LOCAL_STREAM_LOADERS = Object.freeze({
+    // Network adapters, one entry each, with per-adapter throughput. A LOADER
+    // rather than a push stream on purpose: the reading costs a collector run
+    // (a PowerShell round trip on Windows, with its ping), and pushing it to
+    // every dashboard every few seconds would make every install pay for a
+    // widget almost nobody has. Pulled, it runs only while a granted widget is
+    // on screen and asking — which is also the cadence its own graph wants.
+    network: Object.freeze({ ttl: 1500, load: async () => {
+      const d = await api('/network');
+      if (!d || typeof d !== 'object') return { ok: false, interfaces: [] };
+      return {
+        ok: true,
+        downloadBps: d.downloadBps ?? null,
+        uploadBps: d.uploadBps ?? null,
+        ping: d.ping ?? null,
+        latency: d.latency ?? null,
+        interfaces: Array.isArray(d.interfaces) ? d.interfaces : [],
+      };
+    } }),
     discordChannels: Object.freeze({ ttl: 5000, load: async () => {
       const [catalog, roster] = await Promise.all([
         api('/stream/discord/channels'),

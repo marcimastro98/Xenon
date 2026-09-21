@@ -4495,7 +4495,25 @@ async function getSystemInfo() {
 
 // --- Network info: bandwidth requires a delta between two readings ---
 let _netPrev = null; // { rx, tx, t }
+// Per-interface previous counters, keyed by the collector's stable id. Its own
+// map rather than a field on _netPrev: an interface can appear (a VPN comes up)
+// or vanish (a dock is unplugged) between two polls, and the totals must not
+// care. A vanished id is dropped so the map cannot grow forever on a laptop
+// that sees a new virtual adapter per container.
+let _netPrevIfaces = new Map();  // id -> { rx, tx, t }
 let _netPending = null;
+
+// Bytes-per-second from two cumulative readings. Returns null rather than 0 for
+// everything that is not a real measurement — no previous sample, no elapsed
+// time, or a counter that went BACKWARDS (an interface that was reset, or a
+// 32-bit counter wrapping), because a made-up 0 in a graph reads as "idle" when
+// the truth is "unknown".
+function bytesPerSec(now, prev, dtSec) {
+  if (!prev || !(dtSec > 0)) return null;
+  const d = now - prev;
+  if (!(d >= 0)) return null;
+  return Math.round(d / dtSec);
+}
 async function getNetworkInfo() {
   // In-flight dedup: with two dashboards open the 3s polls interleave, and two
   // concurrent runs would both rewrite _netPrev — corrupting the bandwidth
@@ -4527,6 +4545,46 @@ async function _getNetworkInfoRaw() {
   }
   _netPrev = { rx, tx, t: now };
 
+  // Per-interface throughput, the same delta one level down. Asked for on
+  // Discord by someone building a monitoring widget who wants his NAS link, his
+  // internet link and a VMware VMnet on separate graphs: the collectors have
+  // always read each adapter and thrown the breakdown away at the sum.
+  //
+  // Each interface keeps its OWN timestamp, so one that appears mid-session
+  // reports null until it has two readings of its own rather than inheriting
+  // the totals' clock and printing a spike the size of its lifetime counter.
+  const interfaces = [];
+  const seenIds = new Set();
+  for (const n of (Array.isArray(data.interfaces) ? data.interfaces : [])) {
+    const id = String((n && n.id) || '').slice(0, 120);
+    if (!id || seenIds.has(id)) continue;
+    seenIds.add(id);
+    const nrx = Number(n.rxBytes) || 0;
+    const ntx = Number(n.txBytes) || 0;
+    const prev = _netPrevIfaces.get(id);
+    const dt = prev ? (now - prev.t) / 1000 : 0;
+    interfaces.push({
+      id,
+      // The name the user sees and renames in Windows; the collectors fall back
+      // to the system id where the platform has no separate display name.
+      name: String((n && n.name) || id).slice(0, 120),
+      description: String((n && n.description) || '').slice(0, 160),
+      kind: n && n.kind === 'virtual' ? 'virtual' : 'physical',
+      up: n && typeof n.up === 'boolean' ? n.up : null,
+      speedBps: Number.isFinite(Number(n && n.speedBps)) && Number(n.speedBps) > 0 ? Number(n.speedBps) : null,
+      rxBytesPerSec: bytesPerSec(nrx, prev && prev.rx, dt),
+      txBytesPerSec: bytesPerSec(ntx, prev && prev.tx, dt),
+      rxBytes: nrx,
+      txBytes: ntx,
+    });
+    _netPrevIfaces.set(id, { rx: nrx, tx: ntx, t: now });
+  }
+  // Forget adapters that are gone, so the map tracks the machine rather than
+  // its history.
+  for (const id of Array.from(_netPrevIfaces.keys())) {
+    if (!seenIds.has(id)) _netPrevIfaces.delete(id);
+  }
+
   // Prefer PresentMon's real in-game FPS (works in exclusive fullscreen);
   // fall back to the PowerShell DWM/LHM reading when it isn't available.
   //
@@ -4551,6 +4609,11 @@ async function _getNetworkInfoRaw() {
     gpuLatency: data.gpuLatency ?? null,
     downloadBps: downBps,
     uploadBps: upBps,
+    // Every adapter the machine has, physical and virtual, each with its own
+    // throughput. `downloadBps`/`uploadBps` above stay the sum of the PHYSICAL
+    // ones and are what the Network tile draws: adding a VPN or a VMnet to that
+    // total would count the same packets twice.
+    interfaces,
   };
 }
 
