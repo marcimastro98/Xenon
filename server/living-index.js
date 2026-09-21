@@ -95,6 +95,12 @@ function createLivingIndex(opts) {
         else p.reject(new Error(env.err || 'index host error'));
       }
     });
+    // A write to a pipe whose child is already gone reports EPIPE/ECONNRESET
+    // ASYNCHRONOUSLY, as an 'error' event on the stream — the try/catch around
+    // stdin.write() never sees it, and an unhandled 'error' on a stream takes
+    // the whole server down. Route it to the same retire path the exit handler
+    // uses: the host is dead either way, and every caller already falls back.
+    proc.stdin.on('error', () => { if (host.proc === proc) retire('index host pipe error'); });
     proc.on('error', () => { if (host.proc === proc) retire('index host spawn error'); });
     proc.on('exit', () => { if (host.proc === proc) retire('index host exited'); });
     proc.unref();

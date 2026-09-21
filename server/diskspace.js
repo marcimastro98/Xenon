@@ -1096,6 +1096,11 @@ function createDiskSpace(opts) {
         try { done(JSON.parse(out.trim() || '{}')); } catch { done({ ok: false }); }
       });
       proc.on('error', () => { clearTimeout(timer); done({ ok: false }); });
+      // EPIPE on a child that died before reading the payload arrives as an
+      // 'error' event on the stream, not as a throw from write() — unhandled,
+      // it takes the whole server down. The exit handler already settles this
+      // call, so there is nothing to do but not crash.
+      proc.stdin.on('error', () => {});
       try {
         proc.stdin.write(JSON.stringify(payload) + '\n');
         proc.stdin.end();

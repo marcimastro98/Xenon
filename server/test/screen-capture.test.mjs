@@ -31,7 +31,12 @@ test('parseLine rejects stray / malformed lines', () => {
 
 function fakeChild() {
   const child = new EventEmitter();
-  child.stdin = { writes: [], write(s) { this.writes.push(s); return true; } };
+  // A real child's stdin is a stream, so the fake one is too: the manager
+  // attaches an 'error' listener to it (an unhandled EPIPE on that pipe would
+  // otherwise take the server down), and a plain object has nothing to attach to.
+  child.stdin = Object.assign(new EventEmitter(), {
+    writes: [], write(s) { this.writes.push(s); return true; },
+  });
   child.stdout = new EventEmitter();
   child.stdout.setEncoding = () => {};
   child.stderr = new EventEmitter();

@@ -2352,6 +2352,12 @@ function _ensureWorker() {
     }
   });
   proc.stderr.on('data', () => {}); // collectors trap their own errors; ignore
+  // A write to a pipe whose child is already gone reports EPIPE/ECONNRESET
+  // ASYNCHRONOUSLY, as an 'error' event on the stream — the try/catch around
+  // stdin.write() never sees it, and an unhandled 'error' on a stream takes the
+  // whole server down. Route it to the same retire path the exit handler uses:
+  // the host is dead either way, and every caller already falls back.
+  proc.stdin.on('error', () => _killWorker('worker pipe error'));
   proc.on('error', () => _killWorker('worker spawn error'));
   proc.on('exit', () => { if (_worker.proc === proc) _killWorker('worker exited'); });
   proc.unref(); // never keep the event loop alive on the worker's account
@@ -2509,6 +2515,12 @@ function _ensureMediaHost() {
     }
   });
   proc.stderr.on('data', () => {}); // the host traps its own errors; ignore
+  // A write to a pipe whose child is already gone reports EPIPE/ECONNRESET
+  // ASYNCHRONOUSLY, as an 'error' event on the stream — the try/catch around
+  // stdin.write() never sees it, and an unhandled 'error' on a stream takes the
+  // whole server down. Route it to the same retire path the exit handler uses:
+  // the host is dead either way, and every caller already falls back.
+  proc.stdin.on('error', () => _retireMediaHost('media host pipe error'));
   proc.on('error', () => _retireMediaHost('media host spawn error'));
   proc.on('exit', () => { if (_mediaHost.proc === proc) _retireMediaHost('media host exited'); });
   proc.unref(); // never keep the event loop alive on the host's account
@@ -17262,6 +17274,12 @@ const handleRequest = async (req, res) => {
       ], { windowsHide: true });
 
       ffmpegProc.stdin.setDefaultEncoding('utf8');
+      // Stopping a recording writes 'q' to this pipe. If ffmpeg already died
+      // (mic unplugged, device taken by another app) that write races its exit
+      // and reports EPIPE as an 'error' event on the stream, not as a throw —
+      // unhandled, it would take the server down at the end of a dictation.
+      ffmpegProc.stdin.on('error', () => {}); // the exit handler already settles it
+
       ffmpegProc.stderr.setEncoding('utf8');
 
       let stderrAccum = '';

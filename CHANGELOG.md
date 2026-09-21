@@ -40,6 +40,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   SDK widgets on the `discordChannels` stream get the `guildId` too, so they can group and remember servers the same way — see [WIDGET_SDK.md](docs/WIDGET_SDK.md).
 
 ### 🛠 Fixes
+- **A native helper crashing could take the whole server with it.** Reported as *"handling for a broken connection to the Living Index helper so Xenon can continue running and use its existing fallback behavior."* It was every helper, not that one.
+
+  Xenon talks to its native helpers over a long-lived pipe — the file index, file search, the phone host, screen capture, the PowerShell collector worker, the media host, the disk shell-delete child and the dictation recorder. Each wraps its write in a `try`/`catch` and retires the helper when it exits, which looks like enough and is not: a write that **races** the helper's death — exactly what happens when one crashes mid-request — fails with `EPIPE` **after** the call returns, reported as an event on the pipe rather than as a thrown error. Nothing was listening, and an unheard error of that kind ends the process. A helper dying, which every one of these features is written to survive, instead closed the dashboard.
+
+  All eight now listen. The long-lived hosts take themselves out of service, so the next request gets a fresh one instead of timing out against a dead one; the one-shot children are already finished with by the time it matters. Reproduced first — the crash is a race, so the test provokes it rather than describing it — and a second test walks the source for any child pipe Xenon writes to without listening.
+
 - **°F now means °F everywhere, not only in the weather.** Reported as part of a batch of local customisations: *"I extended the selected Celsius/Fahrenheit preference to CPU/GPU header temperatures and ambient notifications, including thermal warnings and session summaries."*
 
   The setting is labelled **Temperature unit**, and it reached the forecast and nothing else. Anyone running Xenon in °F read the weather in °F and the CPU and GPU headers, the Guardian overheating toasts, the sustained-thermal warning, the unusually-hot notice and the game-session recap in °C — all on the same screen, none of them saying which was which.

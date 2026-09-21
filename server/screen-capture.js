@@ -123,6 +123,12 @@ function createScreenCapture(opts) {
       });
     }
     if (p.stderr) p.stderr.on('data', () => {}); // host traps its own errors
+    // A write to a pipe whose child is already gone reports EPIPE/ECONNRESET
+    // ASYNCHRONOUSLY, as an 'error' event on the stream — the try/catch around
+    // stdin.write() never sees it, and an unhandled 'error' on a stream takes
+    // the whole server down. Route it to the same retire path the exit handler
+    // uses: the host is dead either way, and every caller already falls back.
+    if (p.stdin) p.stdin.on('error', () => { if (proc === p) _retire('screen host pipe error'); });
     p.on('error', () => { if (proc === p) _retire('screen host spawn error'); });
     p.on('exit', () => { if (proc === p) _retire('screen host exited'); });
     if (p.unref) p.unref(); // never keep the event loop alive on the host's account
