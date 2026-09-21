@@ -74,6 +74,18 @@
   margin-right: auto;                 /* keeps the usage pill hard right */
 }
 
+/* The last pixel, and it is not a rounding error. Centring the button on the
+   flex line centres it on the title's LINE BOX, which includes the font's
+   descent — and "File transfer" has no descenders, so its ink sits in the
+   upper part of that box. Measured off the rendered pixels at 4x: the circle
+   landed 0.75px low and, worse for a round shape, dipped below the baseline
+   while stopping short of the cap line. A circle reads as sagging long before
+   a number would say so.
+
+   1px up puts it on the cap band. Integer, so the 2px stroke stays crisp, and
+   a transform so nothing in the row moves. */
+.xfer-icon.xfer-help-btn { transform: translateY(-1px); }
+
 .xfer-icon.xfer-help-btn svg { width: 14px; height: 14px; }
 
 .xfer-help-btn.is-on {

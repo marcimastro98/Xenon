@@ -147,6 +147,11 @@ test('the ? is sized by a rule that can win', () => {
   const block = rule.slice(0, rule.indexOf('}') + 1);
   assert.match(block, /width: 22px/);
   assert.match(block, /height: 22px/);
+  // And the last pixel: centring on the flex line centres on the title's LINE
+  // BOX, which carries the font's descent that "File transfer" never uses — so
+  // the circle sat 0.75px low and dipped below the baseline, which on a round
+  // shape reads as sagging. Measured off the rendered pixels, not guessed.
+  assert.match(CSS, /\.xfer-icon\.xfer-help-btn \{ transform: translateY\(-1px\); \}/);
   const icon = CSS.slice(CSS.indexOf('.xfer-icon {'));
   assert.ok(CSS.indexOf('.xfer-icon {') > CSS.indexOf('.xfer-icon.xfer-help-btn {'),
     'if .xfer-icon ever moves above it, the two-class rule is what still saves this');
