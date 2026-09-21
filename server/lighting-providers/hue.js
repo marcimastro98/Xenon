@@ -11,6 +11,7 @@
 // No dependencies. API: https://developers.meethue.com/
 
 const https = require('https');
+const tls = require('tls');
 const fx = require('../lighting-effects');
 
 const meta = {
@@ -41,11 +42,60 @@ function normHost(host) {
   return String(host || '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
 }
 
-// HTTPS JSON call for CLIP v2. The bridge serves a self-signed certificate, so
-// TLS verification is skipped — HERE ONLY, for the stored bridge host, never as
-// a general fetch override (Node's fetch cannot skip verification, hence the raw
-// https.request).
-function httpsJson(host, path, method, token, body, timeoutMs) {
+// ── Who is actually answering on that address ───────────────────────────────
+// A Hue bridge serves a certificate signed by Philips' own private CA, so the
+// public trust store cannot verify it and `rejectUnauthorized` has to stay off.
+// That is a decision about the SIGNATURE, and it was being read as a decision
+// about the PEER: with verification off and nothing else checked, Xenon handed
+// its bridge key to whatever answered on the stored address. Not much of an
+// attack — it takes something on your LAN — but the ordinary way to get there
+// is a DHCP lease moving the bridge's address onto another device, and then the
+// key goes to a stranger's box for no better reason than the router reshuffling.
+//
+// So the certificate is not trusted for being signed; it is checked for being
+// the bridge's. A Hue bridge's certificate carries its BRIDGE ID as the common
+// name, and the bridge id is exactly what discovery and pairing already read.
+//
+// `createConnection` is what makes this safe rather than decorative: the socket
+// is handshaken and inspected BEFORE it is handed to the request, so a refusal
+// happens with the key still in this process. Checking on `secureConnect` of an
+// already-issued request would race the header flush that carries it.
+function certName(cert) {
+  const cn = cert && cert.subject && cert.subject.CN;
+  return String(cn || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+function bridgeIdKey(id) {
+  return String(id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+// A bridge always serves CLIP v2 here. Named rather than inlined so the tests
+// can run the real function against a local TLS server without asking for a
+// privileged port.
+const HUE_TLS_PORT = 443;
+function isIpLiteral(host) {
+  return /^\d{1,3}(\.\d{1,3}){3}$/.test(String(host || '')) || String(host || '').includes(':');
+}
+
+// The bridge id for a host: whatever pairing stored, else asked for once and
+// remembered. An install that paired before this existed has nothing stored, and
+// learning the id from the bridge is still worth doing — it is the same
+// unauthenticated read discovery has always used, and it turns "anything at this
+// address" into "the device that was there when Xenon last looked".
+const _bridgeIds = new Map();   // host → { id, at }
+const BRIDGE_ID_TTL = 60 * 60 * 1000;
+async function bridgeIdOf(host, known) {
+  if (known) return bridgeIdKey(known);
+  const hit = _bridgeIds.get(host);
+  if (hit && Date.now() - hit.at < BRIDGE_ID_TTL) return hit.id;
+  const res = await httpJson(`http://${host}/api/config`, { method: 'GET' }, 1500);
+  const id = bridgeIdKey(res && res.body && res.body.bridgeid);
+  if (id) _bridgeIds.set(host, { id, at: Date.now() });
+  return id;
+}
+
+// HTTPS JSON call for CLIP v2, over a socket whose peer has been identified.
+// `bridgeId` is the id pairing recorded; without one the check falls back to
+// whatever the bridge says it is (see bridgeIdOf).
+function httpsJson(host, path, method, token, body, timeoutMs, bridgeId) {
   return new Promise((resolve) => {
     const data = body ? JSON.stringify(body) : null;
     const req = https.request({
@@ -56,6 +106,31 @@ function httpsJson(host, path, method, token, body, timeoutMs) {
       },
       rejectUnauthorized: false,
       timeout: timeoutMs || 1500,
+      createConnection(opts, onSocket) {
+        const socket = tls.connect({
+          host, port: HUE_TLS_PORT,
+          // SNI names a host, and RFC 6066 does not allow an address there —
+          // Node already warns and will drop it. A bridge is normally reached by
+          // IP, so it is sent only when there is a name to send.
+          ...(isIpLiteral(host) ? {} : { servername: host }),
+          rejectUnauthorized: false,      // Philips' own CA; the identity check below is the real gate
+        });
+        socket.once('secureConnect', () => {
+          const want = bridgeIdKey(bridgeId);
+          const got = certName(socket.getPeerCertificate());
+          // No id to compare against (a bridge that answers nothing, an offline
+          // first run) is not a pass: a check that waves through whatever it
+          // could not identify is the behaviour being removed.
+          if (!want || !got || want !== got) {
+            socket.destroy();
+            onSocket(new Error('hue_bridge_identity'));
+            return;
+          }
+          onSocket(null, socket);
+        });
+        socket.once('error', (e) => onSocket(e));
+        return undefined;               // the request waits for onSocket
+      },
     }, (res) => {
       let buf = '';
       res.on('data', d => { buf += d; });
@@ -100,23 +175,26 @@ function buildV2State(color) {
 // sticks until a v2 write fails (then the next write re-detects → v1 fallback).
 const _api = new Map();   // host|token → { v: 'v1'|'v2', groupId?, at }
 const API_RETRY_TTL = 10 * 60 * 1000;
-async function apiOf(h, user) {
+async function apiOf(h, user, bridgeId) {
   const key = h + '|' + user;
   const hit = _api.get(key);
   if (hit && (hit.v === 'v2' || Date.now() - hit.at < API_RETRY_TTL)) return hit;
-  const bridge = await httpsJson(h, '/clip/v2/resource/bridge', 'GET', user, null, 1500);
+  // Resolved once here and carried on the result, so the writers that call
+  // apiOf() on every push do not re-ask for it.
+  const bid = await bridgeIdOf(h, bridgeId);
+  const bridge = await httpsJson(h, '/clip/v2/resource/bridge', 'GET', user, null, 1500, bid);
   if (bridge.ok) {
     // The whole-home group: the grouped_light owned by the bridge_home resource.
-    const groups = await httpsJson(h, '/clip/v2/resource/grouped_light', 'GET', user, null, 1500);
+    const groups = await httpsJson(h, '/clip/v2/resource/grouped_light', 'GET', user, null, 1500, bid);
     const list = (groups.ok && groups.body && Array.isArray(groups.body.data)) ? groups.body.data : [];
     const home = list.find(g => g && g.owner && g.owner.rtype === 'bridge_home') || list[0];
     if (home && home.id) {
-      const v2 = { v: 'v2', groupId: home.id, at: Date.now() };
+      const v2 = { v: 'v2', groupId: home.id, at: Date.now(), bridgeId: bid };
       _api.set(key, v2);
       return v2;
     }
   }
-  const v1 = { v: 'v1', at: Date.now() };
+  const v1 = { v: 'v1', at: Date.now(), bridgeId: bid };
   _api.set(key, v1);
   return v1;
 }
@@ -149,6 +227,10 @@ async function probe(host) {
     name: res.body.name || 'Hue Bridge',
     model: 'Philips Hue',
     ledCount: 0,
+    // Carried from here on: it is what the bridge's certificate is checked
+    // against, so a device record that has it is pinned to the bridge that was
+    // actually paired rather than to an address.
+    bridgeId: bridgeIdKey(res.body.bridgeid),
   };
 }
 
@@ -162,7 +244,13 @@ async function pair(host) {
   }, 2500);
   const entry = Array.isArray(res.body) ? res.body[0] : null;
   if (entry && entry.success && entry.success.username) {
-    return { ok: true, device: { id: 'hue:' + h, host: h, name: 'Hue Bridge', model: 'Philips Hue', ledCount: 0, token: entry.success.username } };
+    // The link button was just pressed on a bridge standing in front of the
+    // user, so this is the one moment its identity is known for certain. Record
+    // it with the key it just handed out.
+    const bridgeId = await bridgeIdOf(h, '');
+    const device = { id: 'hue:' + h, host: h, name: 'Hue Bridge', model: 'Philips Hue', ledCount: 0, token: entry.success.username };
+    if (bridgeId) device.bridgeId = bridgeId;
+    return { ok: true, device };
   }
   // type 101 = link button not pressed.
   return { ok: false, needsButton: true };
@@ -172,9 +260,9 @@ async function write(device, color) {
   const h = normHost(device && device.host);
   const user = device && device.token;
   if (!h || !user) return;
-  const api = await apiOf(h, user);
+  const api = await apiOf(h, user, device && device.bridgeId);
   if (api.v === 'v2') {
-    const r = await httpsJson(h, `/clip/v2/resource/grouped_light/${api.groupId}`, 'PUT', user, buildV2State(color));
+    const r = await httpsJson(h, `/clip/v2/resource/grouped_light/${api.groupId}`, 'PUT', user, buildV2State(color), 1500, api.bridgeId);
     if (r.ok) return;
     _api.delete(h + '|' + user);   // v2 stopped answering → re-detect; fall through to v1 now
   }
@@ -198,7 +286,7 @@ async function lightIdsOf(h, user, api) {
   if (hit && Date.now() - hit.at < LIGHTS_TTL && hit.v === api.v) return hit.ids;
   const ids = [];
   if (api.v === 'v2') {
-    const res = await httpsJson(h, '/clip/v2/resource/light', 'GET', user, null, 1500);
+    const res = await httpsJson(h, '/clip/v2/resource/light', 'GET', user, null, 1500, api.bridgeId);
     const list = (res.ok && res.body && Array.isArray(res.body.data)) ? res.body.data : [];
     for (const l of list) { if (l && l.id && l.color) ids.push(l.id); }   // colour-capable only
   } else {
@@ -217,7 +305,7 @@ async function writeGradient(device, palette) {
   const user = device && device.token;
   const stops = Array.isArray(palette) ? palette.filter(c => c && typeof c === 'object') : [];
   if (!h || !user || !stops.length) return;
-  const api = await apiOf(h, user);
+  const api = await apiOf(h, user, device && device.bridgeId);
   const ids = await lightIdsOf(h, user, api).catch(() => []);
   if (ids.length < 2 || stops.length < 2) {   // one bulb / one colour → uniform group write
     await write(device, stops[0]);
@@ -225,7 +313,7 @@ async function writeGradient(device, palette) {
   }
   const cols = fx.paletteGradient(stops, ids.length);
   await Promise.all(ids.map((id, i) => {
-    if (api.v === 'v2') return httpsJson(h, `/clip/v2/resource/light/${id}`, 'PUT', user, buildV2State(cols[i]));
+    if (api.v === 'v2') return httpsJson(h, `/clip/v2/resource/light/${id}`, 'PUT', user, buildV2State(cols[i]), 1500, api.bridgeId);
     const st = rgbToHueState(cols[i]);
     return httpJson(`http://${h}/api/${user}/lights/${id}/state`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -238,9 +326,9 @@ async function release(device) {
   const h = normHost(device && device.host);
   const user = device && device.token;
   if (!h || !user) return;
-  const api = await apiOf(h, user);
+  const api = await apiOf(h, user, device && device.bridgeId);
   if (api.v === 'v2') {
-    const r = await httpsJson(h, `/clip/v2/resource/grouped_light/${api.groupId}`, 'PUT', user, { on: { on: false } });
+    const r = await httpsJson(h, `/clip/v2/resource/grouped_light/${api.groupId}`, 'PUT', user, { on: { on: false } }, 1500, api.bridgeId);
     if (r.ok) return;
   }
   await httpJson(`http://${h}/api/${user}/groups/0/action`, {

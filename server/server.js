@@ -9984,6 +9984,9 @@ function normalizeLightingProviders(value) {
         optedIn: !(d && d.optedIn === false),
       };
       if (d && d.token) dev.token = String(d.token).slice(0, 256); // pairing token (Hue/Nanoleaf)
+      // The paired bridge's own id. Dropped here, it would be re-learned from
+      // whatever answers the address instead of from what was paired.
+      if (d && d.bridgeId) dev.bridgeId = String(d.bridgeId).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 32);
       return dev;
     }).filter(Boolean).slice(0, 32);
     if (devices.length) out[id] = { devices };

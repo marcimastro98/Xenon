@@ -2836,6 +2836,7 @@ function normalizeLightingProviders(value) {
         optedIn: !(dev && dev.optedIn === false),
       };
       if (dev && dev.token) out.token = String(dev.token);
+      if (dev && dev.bridgeId) out.bridgeId = String(dev.bridgeId).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 32);
       return out;
     }).filter(Boolean);
     if (devices.length) out[id] = { devices };

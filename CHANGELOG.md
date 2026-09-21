@@ -48,6 +48,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   SDK widgets on the `discordChannels` stream get the `guildId` too, so they can group and remember servers the same way — see [WIDGET_SDK.md](docs/WIDGET_SDK.md).
 
 ### 🛠 Fixes
+- **Xenon now checks WHICH Hue bridge it is talking to before handing over its key.** Raised alongside a batch of local customisations asking for *"secure discovery, pairing and API communication"* with Philips Hue.
+
+  A Hue bridge's certificate is signed by Philips' own private CA, so no public trust store can verify it and certificate checking has to stay off. That is a decision about the **signature**, and it was quietly standing in for a decision about the **peer**: with nothing else checked, Xenon sent its bridge key to whatever answered the stored address. It takes something on your own network, so it is not much of an attack — but the ordinary way to get there is a DHCP lease moving the bridge's address onto another device, and then the key goes to a stranger's box because the router reshuffled.
+
+  The certificate is no longer trusted for being signed; it is checked for being **the bridge's**. A Hue bridge's certificate carries its bridge id as its name, and the bridge id is exactly what discovery and pairing already read — so pairing, the one moment the bridge is standing in front of you with its button pressed, now records it alongside the key it hands out. An install that paired before this still gets the check: the id is read from the bridge once and remembered.
+
+  A peer that cannot be identified is refused rather than waved through, and the refusal happens while the socket is being inspected — before the request that carries the key is allowed to use it, not after.
+
 - **A Spotify list that failed to load is no longer shown as an empty one.** Reported as *"preserve loaded content during temporary failures and provide clearer status messages."*
 
   The widget already rode out Spotify's brief refusals everywhere else — the player keeps its last state, the queue is kept on purpose, the transport controls fall back to Windows' own media keys. The **Devices** and **Playlists** lists did the opposite: any answer that was not a list became an empty list, which the panel then reports as **"No devices found"** — a confident statement that the account has none. The Devices tab reloads on every poll while it is open, so one refused request was enough for your speakers to disappear until a later one happened to succeed.
