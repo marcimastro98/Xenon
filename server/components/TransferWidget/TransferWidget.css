@@ -43,11 +43,93 @@
 
 .xfer-usage[hidden] { display: none; }
 
+/* ── "How does this work" ──────────────────────────────────────────────────
+   The tile invited you to send files from your phone and never said how. The
+   steps are a button rather than four permanent lines, because a tile you have
+   used once should be a list of files and not a manual.
+
+   The ? sits between the title and the usage pill: next to the name of the
+   thing it explains, and out of the way of the pill that changes. `baseline`
+   on .xfer-head would drop a square button onto the text baseline, so it is
+   nudged back onto the line here rather than by changing the row's alignment
+   and moving the pill. */
+.xfer-help-btn {
+  flex: 0 0 auto;
+  align-self: center;
+  margin-right: auto;                 /* keeps the usage pill hard right */
+}
+
+.xfer-help-btn.is-on {
+  opacity: 1;
+  color: rgb(var(--accent-rgb));
+  background: rgba(var(--accent-rgb), .14);
+}
+
+/* An overlay over the zone, not a block above it. As a block in the same
+   column flex, opening it squeezed the list to nothing on any tile that was
+   not very tall: the help arrived and the files left. Over the zone, one thing
+   is on screen at a time and closing gives back exactly what was there.
+
+   Opaque, for the same reason the dragged Borsa row is: a translucent panel
+   with a file list showing through it is two screens at once. */
+.xfer-help {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, .09));
+  background-color: var(--panel, #111314);
+  background-image: linear-gradient(rgba(255, 255, 255, .04), rgba(255, 255, 255, .04));
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.xfer-help[hidden] { display: none; }
+
+.xfer-help-sec { display: flex; flex-direction: column; gap: 5px; }
+
+.xfer-help-head {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  opacity: .62;
+}
+
+/* Numbered because they are steps in an order, not a list of facts: the
+   pairing has to happen before the phone can send anything. */
+.xfer-help-steps {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.xfer-help-steps li { margin: 0; }
+
+.xfer-help-where {
+  margin: 0;
+  opacity: .78;
+}
+
+.xfer-help-note {
+  margin: 0;
+  font-size: 11.5px;
+  opacity: .62;
+}
+
 /* The whole body is the drop target, and it is a SURFACE rather than a
    transparent region: the tile used to be two rows of text floating on the
    wallpaper with nothing underneath, which reads as unfinished. A faint inset
    panel gives the list a floor and gives the drop zone an edge to light up. */
 .xfer-zone {
+  position: relative;          /* the help overlay covers exactly this region */
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -440,8 +522,15 @@
   min-height: 0;
 }
 
-/* The sheet already has its own title bar. */
+/* The sheet already has its own title bar — and its own ? in it, driving the
+   same panel inside the mount. */
 .xfer-sheet .xfer-head { display: none; }
+/* The sheet prints the boundaries permanently, under the list (.xfer-notes),
+   and has since 4.11.0. The panel carries the same lines for the tile, which
+   never had them — so inside a sheet that half of the panel would be the same
+   text twice on one screen. One source, shown once. */
+.xfer-sheet .xfer-help-note { display: none; }
+.xfer-sheet-title { flex: 1 1 auto; min-width: 0; }
 
 .xfer-sheet-bar {
   display: flex;
@@ -451,6 +540,7 @@
 }
 
 .xfer-sheet-title { font-size: 15px; font-weight: 600; }
+.xfer-sheet-bar .xfer-help-btn { margin-right: 0; }
 
 .xfer-notes {
   display: flex;

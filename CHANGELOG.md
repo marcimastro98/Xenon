@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### ✨ Added
+- **The File transfer tile now explains itself.** Asked for on Discord: *"how did you pass a file from phone to PC? It isn't written anywhere — put a button or an info in the widget that explains it on click."*
+
+  It was written down — in `FEATURES.md`, which is not where anybody is standing when the question comes up. The tile said *"drag files here, or send them from your phone"* and stopped there, and the step that matters most is the one it could never have shown you by existing: the phone has to be **paired** first, or it cannot send anything at all.
+
+  A **?** beside the title opens the steps. From the phone: pair it once in Settings → Phone, open Xenon there, tap **Send to PC** in the bottom bar. From the PC: drag the files in, then download them on the phone. Under that, where arriving files land and how to move that folder — and then the limits (same network or Tailscale, one file at a time, and on an iPhone the two things iOS itself does not allow), taken from the phone sheet that has worded them since 4.11.0 rather than written a second time.
+
+  It is a button and not four permanent lines, because a tile you have used once should be a list of files and not a manual. It opens **over** the list rather than above it, so a short tile does not lose its files to it, and the phone's sheet gets the same **?** in its own bar.
+
 - **Discord servers fold away in the Channels tab.** Asked on Discord: *"It would be nice to be able to collapse the Discord servers underneath the Discord Channels feature so your not forever scrolling."*
 
   Every server heading is now a button. Tap it and its voice channels fold away behind a caret, with a count of how many are in there while it is shut — so a server you never join costs one line instead of fifteen. **Collapse all** / **Expand all** sits above the list and does the lot in one tap; it is one button rather than two, because while anything is open it closes everything and once everything is closed it opens it again.

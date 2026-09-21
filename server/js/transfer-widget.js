@@ -29,6 +29,7 @@
     close: S('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
     photo: S('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>'),
     file: S('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/>'),
+    help: S('<circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.1-2.4 3.6"/><path d="M12 17.2h.01"/>'),
   };
 
   const t = (k, fb) => (typeof window.t === 'function' ? window.t(k) : (fb != null ? fb : k));
@@ -245,7 +246,14 @@
     const head = el('div', 'xfer-head');
     const title = el('div', 'xfer-title', t('xfer_title', 'Trasferimento file'));
     const usage = el('div', 'xfer-usage');
-    head.append(title, usage);
+    // The tile said "or send them from your phone" and never said HOW — the
+    // steps were in FEATURES.md and in nobody's dashboard. Asked for on
+    // Discord. It is a button rather than four permanent lines of instructions
+    // because a tile you have used once should be a list of files, not a manual.
+    const help = iconBtn(ICONS.help, t('xfer_help', 'Come funziona'), () => toggleHelp(mount));
+    help.classList.add('xfer-help-btn');
+    help.setAttribute('aria-expanded', 'false');
+    head.append(title, help, usage);
 
     const zone = el('div', 'xfer-zone');
     const actions = el('div', 'xfer-actions');
@@ -301,9 +309,68 @@
     // left, so a tall tile has no dead region under the last row — the leftover
     // space belongs to the thing the space is for. With many files it is the
     // list that grows and the panel falls back to its minimum.
-    zone.append(list, drop);
+    // The panel goes INSIDE the zone, as an overlay over it. Above the zone it
+    // was a block in the same column flex, so opening it squeezed the list to
+    // nothing on any tile that was not very tall — the help arrived and the
+    // files left. Over the zone, one thing is on screen at a time and closing
+    // it gives back exactly what was there.
+    zone.append(list, drop, helpPanel());
     mount.append(head, zone, inPhotos, inFiles);
     wireDrop(mount, zone);
+  }
+
+  // ── "how does this work" ───────────────────────────────────────────────────
+  // Both directions, in the order somebody meets them, and the pairing step
+  // first: a phone that was never paired cannot send anything, and that is the
+  // part the tile could not have shown you by existing.
+  //
+  // Built once with the tile and toggled, not built on demand: the surface is
+  // rebuilt by ensure() only when the mount is empty, so a panel created on the
+  // first press would be the one thing in here that can go missing.
+  function helpPanel() {
+    const box = el('div', 'xfer-help');
+    box.hidden = true;
+
+    const steps = (titleKey, titleFb, lines) => {
+      const sec = el('div', 'xfer-help-sec');
+      sec.append(el('div', 'xfer-help-head', t(titleKey, titleFb)));
+      const ol = document.createElement('ol');
+      ol.className = 'xfer-help-steps';
+      for (const [k, fb] of lines) ol.append(el('li', null, t(k, fb)));
+      sec.append(ol);
+      return sec;
+    };
+
+    box.append(steps('xfer_help_to_pc', 'Dal telefono a questo PC', [
+      ['xfer_help_to_pc_1', 'Associa il telefono una volta sola: Impostazioni → Telefono, e inquadra il QR.'],
+      ['xfer_help_to_pc_2', 'Sul telefono apri Xenon e tocca Invia al PC nella barra in basso.'],
+      ['xfer_help_to_pc_3', 'Scegli Foto e video oppure Altri file. Arrivano in questo elenco.'],
+    ]));
+    box.append(steps('xfer_help_to_phone', 'Da questo PC al telefono', [
+      ['xfer_help_to_phone_1', 'Trascina i file qui dentro, o usa i due tasti qui sotto.'],
+      ['xfer_help_to_phone_2', 'Sul telefono apri Xenon e tocca Scarica sulla riga del file.'],
+    ]));
+    box.append(el('p', 'xfer-help-where', t('xfer_help_where',
+      'I file che arrivano vengono copiati in Download\\Xenon. La cartella si cambia da Impostazioni → Telefono.')));
+    // The boundaries, from the one place that already words them — the phone
+    // sheet has printed these since 4.11.0 and the tile never did.
+    for (const line of sheetNotes()) box.append(el('p', 'xfer-help-note', line));
+    return box;
+  }
+
+  // Toggled per surface, and never remembered: this is a thing you read once.
+  // Every ? button on the same mount follows the panel, so the tile's and the
+  // phone sheet's cannot disagree about whether it is open.
+  function toggleHelp(mount, force) {
+    const box = mount && mount.querySelector('.xfer-help');
+    if (!box) return;
+    const open = force == null ? box.hidden : !!force;
+    box.hidden = !open;
+    const root = mount.closest('.xfer-sheet') || mount.parentElement || mount;
+    root.querySelectorAll('.xfer-help-btn').forEach((b) => {
+      b.setAttribute('aria-expanded', String(open));
+      b.classList.toggle('is-on', open);
+    });
   }
 
   // iOS does not fire `change` until it has finished exporting a video, which
@@ -560,8 +627,14 @@
     const panel = el('div', 'xfer-sheet');
     const bar = el('div', 'xfer-sheet-bar');
     const title = el('div', 'xfer-sheet-title', t('xfer_send', 'Invia al PC'));
+    // The sheet hides the tile's own header (CSS), so the ? lives here. It
+    // drives the SAME panel inside the mount — one text, two doors.
+    const help = iconBtn(ICONS.help, t('xfer_help', 'Come funziona'),
+      () => toggleHelp(panel.querySelector('.transfer-widget-mount')));
+    help.classList.add('xfer-help-btn');
+    help.setAttribute('aria-expanded', 'false');
     const close = iconBtn(ICONS.close, t('xfer_close', 'Chiudi'), closeSheet);
-    bar.append(title, close);
+    bar.append(title, help, close);
     const mount = el('div', 'transfer-widget-mount');
     const notes = el('div', 'xfer-notes');
     for (const line of sheetNotes()) notes.append(el('p', 'xfer-note-line', line));
