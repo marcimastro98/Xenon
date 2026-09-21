@@ -48,6 +48,45 @@
 
 .xfer-usage[hidden] { display: none; }
 
+/* The offer to take a delete back, for as long as the server is still holding
+   the file. It sits where the row that vanished used to be, and it is styled as
+   a row rather than a toast: the thing it undoes happened HERE. */
+.xfer-undo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(var(--accent-rgb), .35);
+  background: rgba(var(--accent-rgb), .10);
+  font-size: 12px;
+}
+
+.xfer-undo-txt {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: .85;
+}
+
+.xfer-undo-btn {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  border-radius: 7px;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: rgb(var(--accent-rgb));
+}
+
+.xfer-undo-btn:hover { filter: brightness(1.1); }
+.xfer-undo-btn:disabled { opacity: .5; cursor: default; }
+
 /* ── "How does this work" ──────────────────────────────────────────────────
    The tile invited you to send files from your phone and never said how. The
    steps are a button rather than four permanent lines, because a tile you have

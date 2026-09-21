@@ -498,8 +498,32 @@ function createFileTransfer(o) {
       if (rec && !wanted.some((r) => r.id === rec.id)) wanted.push(rec);
     }
 
-    let names = [];
-    try { names = await fsp.readdir(filesDir); } catch { names = []; }
+    // A directory we could not READ is not an empty directory, and the whole
+    // reconciliation below rests on that difference. This used to swallow the
+    // error into `names = []`, which then meant "every blob is gone" — so every
+    // record was dropped as a lie and the emptied manifest was written back over
+    // the good one. One unreadable moment at boot (antivirus holding the folder,
+    // a roaming/OneDrive-backed %LOCALAPPDATA% not yet materialised, a
+    // half-mounted profile) permanently destroyed the list while the files
+    // themselves were still sitting there, and the dashboard went on showing the
+    // old list until the next request made the server answer with nothing.
+    //
+    // Reported as "if I delete one photo they all get deleted and there is no
+    // way back": the delete was not the cause, it was the first request that
+    // asked the server and got the truth.
+    //
+    // So: when the directory cannot be listed we keep every record, reconcile
+    // nothing, and persist nothing. The records may be wrong, and a wrong record
+    // is recoverable — a deleted one is not.
+    let names = null;
+    try { names = await fsp.readdir(filesDir); } catch { names = null; }
+    if (names === null) {
+      records = wanted;
+      records.sort((a, b) => b.at - a.at);
+      usedBytes = records.reduce((n, r) => n + (Number(r.size) || 0), 0);
+      loaded = true;
+      return;                                          // nothing verified, nothing written
+    }
     const onDisk = new Set();
     for (const n of names) {
       if (n.endsWith('.part')) {
@@ -514,10 +538,14 @@ function createFileTransfer(o) {
     for (const rec of wanted) {
       if (!onDisk.has(rec.file)) continue;             // blob gone: the record is a lie
       onDisk.delete(rec.file);
+      // The blob is there (readdir just said so), so a stat that fails is the
+      // filesystem being momentarily unhelpful, not a missing file. Keep the
+      // record with the size it was stored with rather than dropping it — the
+      // same rule as above, one file down.
       try {
         const st = await fsp.stat(path.join(filesDir, rec.file));
         rec.size = st.size;                            // the file is the authority, not the record
-      } catch { continue; }
+      } catch { /* keep rec.size */ }
       records.push(rec);
       usedBytes += rec.size;
     }
@@ -527,6 +555,21 @@ function createFileTransfer(o) {
     records.sort((a, b) => b.at - a.at);
     loaded = true;
     if (wanted.length !== records.length) await persist();
+  }
+
+  /**
+   * Put back a record this session removed, if its blob is still on disk. The
+   * undo window is the caller's (server.js holds the timer); this is only the
+   * store half. Returns the record, or null when it is already gone for good.
+   */
+  async function restore(rec) {
+    if (!rec || !rec.id || records.some((r) => r.id === rec.id)) return null;
+    try { await fsp.access(absOf(rec)); } catch { return null; }
+    records.push(rec);
+    records.sort((a, b) => b.at - a.at);
+    usedBytes += Number(rec.size) || 0;
+    await persist();
+    return rec;
   }
 
   /**
@@ -679,14 +722,23 @@ function createFileTransfer(o) {
    * Remove Xenon's copy. The file already delivered into the user's folder is
    * deliberately NOT touched: this list is Xenon's, the folder is theirs.
    */
-  async function remove(id) {
+  async function remove(id, opts) {
     const idx = records.findIndex((r) => r.id === String(id || ''));
     if (idx < 0) return false;
     const [rec] = records.splice(idx, 1);
     usedBytes = Math.max(0, usedBytes - rec.size);
-    await fsp.unlink(absOf(rec)).catch(() => {});
+    // The blob survives the record when the caller asks, so an undo has
+    // something to put back. It is NOT left forever: the caller unlinks it when
+    // its window closes, and a restart reclaims it as an orphan in init().
+    if (!(opts && opts.keepBlob)) await fsp.unlink(absOf(rec)).catch(() => {});
     await persist();
-    return true;
+    return rec;
+  }
+
+  /** Finish a deferred delete: the blob a keepBlob remove() left behind. */
+  async function discardBlob(rec) {
+    if (!rec || !FILE_RE.test(String(rec.file || ''))) return;
+    await fsp.unlink(absOf(rec)).catch(() => {});
   }
 
   /**
@@ -758,7 +810,7 @@ function createFileTransfer(o) {
 
   return {
     init, begin, commit, abort, noteProgress, inflightList, markDelivered,
-    list, get, absOf, remove, prune, sweepInflight, stats, limits, deliver,
+    list, get, absOf, remove, restore, discardBlob, prune, sweepInflight, stats, limits, deliver,
     isLoaded: () => loaded,
     get dir() { return dir; },
     get filesDir() { return filesDir; },

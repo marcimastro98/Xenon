@@ -226,16 +226,19 @@ const DEFAULT_GET_MUTATORS = new Set([
   // pair above.
   '/stream/twitch/search',
   '/stream/twitch/chat/send',
-  // File transfer. The first four ARE reachable from a paired device — sending
-  // and managing files is the feature — but only by POST, because /upload
-  // writes a file to the PC and /open launches one with its registered handler.
+  // File transfer. All but /settings ARE reachable from a paired device —
+  // sending and managing files is the feature — but only by POST, because
+  // /upload writes a file to the PC and /open launches one with its registered
+  // handler. /undo restores a record and is listed for the same reason /delete
+  // is: it changes what is stored, so a top-level navigation must never be able
+  // to reach it.
   // /settings is refused outright above (REMOTE_DENY), and is listed here as
   // well so the loopback door refuses a top-level navigation to it too.
   // /api/transfer/file, /thumb and /list are deliberately absent: they are
   // reads, and /file is fetched BY a top-level navigation when the user taps
   // Download — listing it would refuse the download it exists to serve.
   '/api/transfer/upload', '/api/transfer/open', '/api/transfer/reveal',
-  '/api/transfer/delete', '/api/transfer/settings',
+  '/api/transfer/delete', '/api/transfer/undo', '/api/transfer/settings',
   // Dialling. Refused outright above; listed here as well, for the same reason
   // /api/transfer/settings is, so the loopback door also refuses a top-level
   // navigation to it. /api/phone, /contacts, /calls, /messages and /message are

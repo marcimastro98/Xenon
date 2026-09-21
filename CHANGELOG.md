@@ -32,6 +32,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   SDK widgets on the `discordChannels` stream get the `guildId` too, so they can group and remember servers the same way — see [WIDGET_SDK.md](docs/WIDGET_SDK.md).
 
 ### 🛠 Fixes
+- **The list of received files could be wiped at startup, and the files with it.** Reported as *"in the images widget, if I delete one photo they all get deleted and there is no way back."*
+
+  The delete was not the cause. At startup Xenon checks its list of received files against the folder holding them, and a folder it **could not read** was treated as an **empty** folder — so every entry was dropped as "the file is gone", and the emptied list was written over the good one. One unreadable moment (antivirus holding the folder, a OneDrive-backed profile not yet materialised, a half-mounted user profile) was enough. The dashboard went on showing the old list until the next request made the server answer with nothing, which is exactly why it looked like the delete did it — and the startup after that deleted the files themselves, as files nothing referenced any more.
+
+  A folder that cannot be listed now changes nothing: every entry is kept, nothing is written, and the next clean start reconciles as before. A file that cannot be inspected keeps the size it was stored with instead of being dropped. Reproduced and pinned in the tests, both ways — a blind start must lose nothing, and a real one must still notice a genuinely missing file.
+
+- **Removing a file from the list can be undone.** The other half of the same report. The bin is labelled *"remove from the list"*, but with the copy into your own folder turned off that list holds the **only** copy — so it was a permanent delete wearing a mild label. The row now leaves the list immediately and offers **Undo** for twelve seconds, with the file kept aside until the offer expires. A delete that fails says so, instead of looking like it worked.
+
 - **The Deck's "Output device" key can finally be filled in.** Asked on Discord after trying the Sound control panel name, the sound-processor name (*"NVIDIA HD Audio, Realtek HD Audio"*), both together, and the PowerShell device names — *"all do not work and give an error"*.
 
   They could not have worked. The key's Device field was a **text box**, but the server only accepts an output device's **id** from the live enumeration — an opaque string like `Speakers\Device\High Definition Audio Device\Render`, which is not a name anybody would call their speakers. So every name anyone could reasonably type was refused. The check itself is deliberate and stays: that same id namespace also names *microphones*, and accepting an unmatched string would turn "move my sound to the other speakers" into "change my default mic".

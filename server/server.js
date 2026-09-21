@@ -12271,6 +12271,7 @@ const CSRF_MUTATION_PATHS = new Set([
   '/api/transfer/open',
   '/api/transfer/reveal',
   '/api/transfer/delete',
+  '/api/transfer/undo',
   '/api/transfer/settings',
 ]);
 
@@ -12455,6 +12456,36 @@ function transferState(includePaths) {
 // does nothing" failure this codebase avoids everywhere else.
 function broadcastTransfer() {
   broadcastSSE('transfer', transferState(false));
+}
+
+// ── Taking a delete back ────────────────────────────────────────────────────
+// A removed record is held here, blob and all, for a few seconds. Reported as
+// "if I delete one photo they all get deleted and there is no way back": the
+// first half was a boot bug (see file-transfer.js init), the second half was
+// true on its own — the bin says "remove from the list", and with the copy into
+// your own folder turned off that list holds the only copy there is.
+//
+// In memory, not on disk: an undo is a thing you do in the next breath, and a
+// restart is exactly the moment to stop holding files nobody asked to keep.
+// init()'s orphan sweep reclaims the blob if the process dies mid-window.
+const TRANSFER_UNDO_MS = 12000;
+const _transferUndo = new Map();   // id -> { rec, timer }
+
+function holdForUndo(rec) {
+  const timer = setTimeout(() => {
+    _transferUndo.delete(rec.id);
+    fileTransfer.discardBlob(rec).catch(() => {});
+  }, TRANSFER_UNDO_MS);
+  timer.unref && timer.unref();
+  _transferUndo.set(rec.id, { rec, timer });
+}
+
+async function undoTransferDelete(id) {
+  const held = _transferUndo.get(id);
+  if (!held) return false;
+  clearTimeout(held.timer);
+  _transferUndo.delete(id);
+  return !!(await fileTransfer.restore(held.rec));
 }
 
 /**
@@ -18692,8 +18723,22 @@ const handleRequest = async (req, res) => {
     // last surprise this feature ever gave anyone. In CSRF_MUTATION_PATHS.
     try {
       const body = JSON.parse(await readBody(req, 4096) || '{}');
-      const ok = await fileTransfer.remove(body.id);
+      // The blob outlives the record for a few seconds so the delete can be
+      // taken back — "there is no way back" was half of what was reported. The
+      // RECORD comes back here, not a boolean, and it carries this PC's paths:
+      // only `ok` may travel to a phone.
+      const rec = await fileTransfer.remove(body.id, { keepBlob: true });
+      if (rec) holdForUndo(rec);
       broadcastTransfer();
+      json({ ok: !!rec, undoMs: rec ? TRANSFER_UNDO_MS : 0 });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/transfer/undo' && req.method === 'POST') {
+    // Put back a record deleted within the window. In CSRF_MUTATION_PATHS.
+    try {
+      const body = JSON.parse(await readBody(req, 4096) || '{}');
+      const ok = await undoTransferDelete(String(body.id || ''));
+      if (ok) broadcastTransfer();
       json({ ok });
     } catch (e) { err500(e.message); }
 

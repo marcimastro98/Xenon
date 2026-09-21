@@ -51,6 +51,11 @@
   let cancelled = false;
   let activeXhr = null;
   let sheet = null;
+  // The last delete, while it can still be taken back. The server holds the
+  // record (and its file) for a few seconds and tells us how many; this is only
+  // the offer. Module-level so it survives the repaint the delete itself causes.
+  let undoable = null;          // { id, name, until }
+  let undoTimer = 0;
 
   function tiles() {
     return Array.from(document.querySelectorAll('[data-dashboard-widget="transfer"]'))
@@ -495,10 +500,50 @@
       );
     }
     acts.append(iconBtn(ICONS.trash, t('xfer_delete', 'Togli dall’elenco'), async () => {
-      await act('delete', item.id);
+      const out = await act('delete', item.id);
+      if (!out.ok) { note(row, t('xfer_delete_failed', 'Non l’ho tolto.')); return; }
+      offerUndo(item, Number(out.undoMs) || 0);
     }));
 
     row.append(shot, body, acts);
+    return row;
+  }
+
+  // ── taking a delete back ───────────────────────────────────────────────────
+  // The bin says "remove from the list", and with the copy into your own folder
+  // turned off that list holds the only copy there is. Reported as "there is no
+  // way back". One line, for as long as the server is still holding the file.
+  function offerUndo(item, ms) {
+    if (!(ms > 0)) return;
+    clearTimeout(undoTimer);
+    undoable = { id: item.id, name: item.name, until: Date.now() + ms };
+    // A beat before the server's own window closes, so the offer is never still
+    // on screen after the file is gone for good.
+    undoTimer = setTimeout(() => { undoable = null; paint(); }, Math.max(0, ms - 400));
+    paint();
+  }
+
+  function undoRow() {
+    if (!undoable) return null;
+    const row = el('div', 'xfer-undo');
+    row.append(el('span', 'xfer-undo-txt',
+      t('xfer_removed', 'Tolto dall’elenco:') + ' ' + undoable.name));
+    const b = el('button', 'xfer-undo-btn', t('xfer_undo', 'Annulla'));
+    b.type = 'button';
+    b.addEventListener('click', async () => {
+      const id = undoable && undoable.id;
+      if (!id) return;
+      b.disabled = true;
+      const out = await act('undo', id);
+      clearTimeout(undoTimer);
+      undoable = null;
+      // A refused undo means the window closed while the finger was moving.
+      if (!out.ok && window.XenonToast) {
+        window.XenonToast.show({ type: 'error', title: t('xfer_undo_late', 'Troppo tardi: quel file non c’è più.') });
+      }
+      paint();
+    });
+    row.append(b);
     return row;
   }
 
@@ -586,6 +631,10 @@
     }
 
     const rows = [];
+    // First, so the offer is where the row that vanished used to be rather than
+    // at the bottom of a long list.
+    const undo = undoRow();
+    if (undo) rows.push(undo);
     for (const [id, rec] of localProgress) {
       const r = pendingRow(rec, id);
       r.dataset.xferLocal = id;
