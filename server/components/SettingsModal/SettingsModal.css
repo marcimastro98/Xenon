@@ -4072,3 +4072,44 @@ input.cgal-search:focus { outline: none; border-color: rgba(var(--accent-rgb), 0
   font-family: inherit;
   line-height: 1.4;
 }
+
+/* ── Global page shortcuts ────────────────────────────────────────────────
+   One row per shortcut: the combination, where it goes, whether the desktop
+   actually gave it to us, and a way to drop it. The state column is sized to
+   hold its longest word so a row does not reflow when a combo turns out to be
+   taken — the message appears where the empty space already was. */
+.settings-pagehk-row {
+  display: grid;
+  grid-template-columns: minmax(96px, 1fr) minmax(96px, 1fr) minmax(0, 1.1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.settings-pagehk-state {
+  font-size: .74rem;
+  line-height: 1.25;
+  opacity: .75;
+  min-width: 0;
+}
+.settings-pagehk-state.is-ok { color: var(--ok, #4ade80); opacity: 1; }
+.settings-pagehk-state.is-bad { color: var(--warn, #fbbf24); opacity: 1; }
+/* A square, quiet remove button: it sits at the end of every row, so it has to
+   read as punctuation rather than as an action competing with "Add". */
+.settings-pagehk-del {
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  line-height: 1;
+  font-size: 1.05rem;
+  justify-self: end;
+}
+#settings-pagehk-add[disabled] { opacity: .45; pointer-events: none; }
+/* Narrow: the state moves under the two controls it is about rather than
+   squeezing them, and the remove button stays on the first line with them. */
+@media (max-width: 560px) {
+  .settings-pagehk-row {
+    grid-template-columns: 1fr 1fr auto;
+    gap: 6px 8px;
+  }
+  .settings-pagehk-state { grid-column: 1 / -1; }
+}

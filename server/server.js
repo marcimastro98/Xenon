@@ -878,7 +878,49 @@ const fileSearch = createFileSearch({
 // opens/refocuses the /spotlight Edge app-mode window on the main PC. State is
 // surfaced to Settings via GET /search/hotkey-status; 'taken' means another
 // app (PowerToys Run on Alt+Space, typically) owns the combo.
-const _hotkey = { proc: null, combo: '', state: 'off', diedAt: 0 };
+const _hotkey = { proc: null, combo: '', combos: '', state: 'off', diedAt: 0, bindings: [], slots: {} };
+
+// The table the helper is handed, in the order it is handed it: the helper
+// addresses a combo by its POSITION, so this array IS the wire format and the
+// index of a press is an index into it.
+//
+// Spotlight goes first when it is on, which is also the compatibility story: a
+// helper too old to understand a list registers only the first combo and
+// reports a press with no index, which reads as index 0 — so on a stale binary
+// the search shortcut still works and the page ones are simply absent, rather
+// than the whole feature failing.
+const MAX_HOTKEY_BINDINGS = 16;
+function _hotkeyBindings() {
+  const cfg = (_serverHubSettings && _serverHubSettings.searchSettings) || {};
+  const out = [];
+  if (cfg.hotkeyEnabled === true) {
+    out.push({ slot: 'spotlight', combo: String(cfg.hotkeyCombo || 'alt+space') });
+  }
+  const pages = Array.isArray(_serverHubSettings && _serverHubSettings.pageHotkeys)
+    ? _serverHubSettings.pageHotkeys : [];
+  pages.forEach((b, i) => {
+    if (out.length >= MAX_HOTKEY_BINDINGS) return;
+    out.push({ slot: 'page-' + i, combo: String(b.combo || ''), target: String(b.target || '') });
+  });
+  return out.filter((b) => b.combo);
+}
+
+// A page shortcut fires on the PC running the server, and every dashboard
+// watching it flips. The target is resolved on the CLIENT: pages belong to a
+// device's own layout, so the server would have to guess which device's page
+// ids these are, and a phone with different pages simply ignores an id it does
+// not have.
+function routePageHotkey(binding) {
+  if (!binding || !binding.target) return;
+  broadcastSSE('page_hotkey', { target: binding.target, at: Date.now() });
+}
+
+function routeHotkeyIndex(index) {
+  const binding = _hotkey.bindings[index];
+  if (!binding) return;
+  if (binding.slot === 'spotlight') routeSpotlightHotkey();
+  else routePageHotkey(binding);
+}
 const _spotlightPopupPids = new Set();
 
 function openSpotlightPopupWindow() {
@@ -977,28 +1019,64 @@ const _linuxHotkey = process.platform === 'linux'
   ? require('./linux-hotkey').createLinuxHotkey({ port: PORT })
   : null;
 
-function refreshLinuxHotkey(want, combo) {
-  if (!want) {
+// On Linux the page shortcuts are desktop entries like the Spotlight one, one
+// per slot, and the desktop runs a command rather than pushing an event — so
+// each carries its own index in the URL it pokes. Registering is a one-shot
+// write, so this reconciles the whole set on every settings save and reports
+// per-slot state the same way the helper does.
+function refreshLinuxHotkey(want, combo, pages) {
+  if (want) {
+    if (_hotkey.state !== 'listening' || _hotkey.combo !== combo) {
+      _hotkey.state = 'starting';
+      _linuxHotkey.register(combo).then((r) => {
+        _hotkey.state = r.state || (r.ok ? 'listening' : 'error');
+        _hotkey.combo = r.ok ? combo : '';
+      }).catch(() => { _hotkey.state = 'error'; _hotkey.combo = ''; });
+    }
+  } else {
     _hotkey.state = 'off';
     _hotkey.combo = '';
     _linuxHotkey.unregister().catch(() => { /* nothing registered */ });
-    return;
   }
-  if (_hotkey.state === 'listening' && _hotkey.combo === combo) return;
-  _hotkey.state = 'starting';
-  _linuxHotkey.register(combo).then((r) => {
-    _hotkey.state = r.state || (r.ok ? 'listening' : 'error');
-    _hotkey.combo = r.ok ? combo : '';
-  }).catch(() => { _hotkey.state = 'error'; _hotkey.combo = ''; });
+  const wanted = pages.map((b, i) => ({
+    slot: b.slot,
+    combo: b.combo,
+    name: 'Xenon page ' + (i + 1),
+    // The index is the binding's position in the WHOLE table, not among the
+    // pages, so the press routes through the same _hotkey.bindings the helper
+    // path uses and there is one router rather than two.
+    route: '/pages/hotkey-press?i=' + _hotkey.bindings.indexOf(b),
+  }));
+  _linuxHotkey.syncSlots(wanted).then((r) => {
+    _hotkey.slots = {};
+    for (const [slot, res] of Object.entries((r && r.slots) || {})) {
+      _hotkey.slots[slot] = (r.ok && res) ? (res.state || (res.ok ? 'listening' : 'error')) : 'error';
+    }
+    if (r && !r.ok) for (const b of wanted) _hotkey.slots[b.slot] = r.state || 'error';
+  }).catch(() => {
+    _hotkey.slots = {};
+    for (const b of wanted) _hotkey.slots[b.slot] = 'error';
+  });
 }
 
 function refreshHotkeyListener() {
   const cfg = (_serverHubSettings && _serverHubSettings.searchSettings) || {};
-  const want = cfg.hotkeyEnabled === true;
+  const bindings = _hotkeyBindings();
+  const combos = bindings.map((b) => b.combo);
+  const want = bindings.length > 0;
+  const spotlightWanted = cfg.hotkeyEnabled === true;
   const combo = String(cfg.hotkeyCombo || 'alt+space');
-  if (_linuxHotkey) { refreshLinuxHotkey(want, combo); return; }
-  if (!want) { _cancelHotkeyRetry(); _stopHotkeyListener(); _hotkey.state = 'off'; return; }
-  if (_hotkey.proc && _hotkey.combo === combo) return;   // already right
+  // Set BEFORE dispatching: both paths read it to resolve a press, and the
+  // Linux one derives each slot's route from the index into this table.
+  const changed = combos.join('\u0000') !== _hotkey.combos;
+  _hotkey.bindings = bindings;
+  _hotkey.combos = combos.join('\u0000');
+  if (_linuxHotkey) {
+    refreshLinuxHotkey(spotlightWanted, combo, bindings.filter((b) => b.slot !== 'spotlight'));
+    return;
+  }
+  if (!want) { _cancelHotkeyRetry(); _stopHotkeyListener(); _hotkey.state = 'off'; _hotkey.slots = {}; return; }
+  if (_hotkey.proc && !changed) return;   // already right
   _stopHotkeyListener();
   let helperOk = false;
   try { helperOk = fs.existsSync(HELPER_EXE); } catch {}
@@ -1014,11 +1092,18 @@ function refreshHotkeyListener() {
     return;
   }
   let proc;
-  try { proc = spawn(HELPER_EXE, ['hotkey-serve', combo], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] }); }
+  try { proc = spawn(HELPER_EXE, ['hotkey-serve', ...combos], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] }); }
   catch { _hotkey.state = 'error'; _hotkey.diedAt = Date.now(); _scheduleHotkeyRetry(); return; }
   _hotkey.proc = proc;
   _hotkey.combo = combo;
   _hotkey.state = 'starting';
+  // Assume the worst per slot until the helper says otherwise: `ready` names
+  // the indices it holds, and anything it did not name stays 'taken'. A helper
+  // too old to name any of them reports a bare `ready`, which is exactly the
+  // single-combo case — so only slot 0 is claimed and the rest read as taken,
+  // which is what they in fact are on that binary.
+  _hotkey.slots = {};
+  for (const b of bindings) _hotkey.slots[b.slot] = 'starting';
   let buf = '';
   proc.stdout.setEncoding('utf8');
   proc.stdout.on('data', (chunk) => {
@@ -1029,9 +1114,30 @@ function refreshHotkeyListener() {
       buf = buf.slice(nl + 1);
       let ev;
       try { ev = JSON.parse(line); } catch { continue; }
-      if (ev.event === 'ready') _hotkey.state = 'listening';
-      else if (ev.event === 'hotkey') { try { routeSpotlightHotkey(); } catch {} }
-      else if (ev.event === 'error') { _hotkey.state = ev.error === 'hotkey_taken' ? 'taken' : 'error'; }
+      // An older helper sends no index at all, for the one combo it took.
+      const at = Number.isInteger(ev.index) ? ev.index : 0;
+      const slot = bindings[at] && bindings[at].slot;
+      if (ev.event === 'ready') {
+        _hotkey.state = 'listening';
+        const held = Array.isArray(ev.registered) ? ev.registered : [0];
+        for (const b of bindings) _hotkey.slots[b.slot] = 'taken';
+        for (const i of held) {
+          if (bindings[i]) _hotkey.slots[bindings[i].slot] = 'listening';
+        }
+        // The old single-combo state field tracks the Spotlight slot, which is
+        // what Settings' search row has always shown.
+        if (_hotkey.slots.spotlight && _hotkey.slots.spotlight !== 'listening') {
+          _hotkey.state = _hotkey.slots.spotlight;
+        }
+      } else if (ev.event === 'hotkey') {
+        try { routeHotkeyIndex(at); } catch {}
+      } else if (ev.event === 'error') {
+        const state = ev.error === 'hotkey_taken' ? 'taken' : 'error';
+        if (slot) _hotkey.slots[slot] = state;
+        // Only the Spotlight combo moves the legacy field; a page shortcut
+        // somebody else owns is not the search shortcut failing.
+        if (!slot || slot === 'spotlight') _hotkey.state = state;
+      }
     }
   });
   proc.on('error', () => {
@@ -8200,6 +8306,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // normalizeSearchSettings: "C:\" is not a path off Windows, and a default the
   // validator there would reject leaves the index permanently off.
   searchSettings: Object.freeze({ indexRoots: Object.freeze([POWERSHELL_SUPPORTED ? 'C:\\' : os.homedir()]), hotkeyEnabled: false, hotkeyCombo: 'alt+space', aiFullContext: false }),
+  pageHotkeys: Object.freeze([]),
   diskSettings: Object.freeze({ devFolders: Object.freeze([]), installerAgeDays: 30 }),
   bgAurora: Object.freeze({ enabled: true, intensity: 55, speed: 50 }),
   bgGrid: Object.freeze({ enabled: true, color: '#1ed760', intensity: 45, speed: 50 }),
@@ -9123,6 +9230,39 @@ function normalizeSearchSettings(value, defaultRoot) {
 
 // Disk widget knobs: dev folders (the ONLY places build-output dirs become
 // cleanable) and how old a Downloads installer must be before it classifies.
+// Global shortcuts that flip the dashboard to a page while another app has
+// focus — the whole point of a second screen you are not clicking on. Each
+// entry is a combo and what it goes to: a page id, or one of the relative
+// moves, which are what "toggle between my two pages" is actually asking for.
+//
+// The page id is NOT validated against the current pages here. Pages live in
+// the dashboard layout, which is per device, and this list is shared by all of
+// them: dropping an id the saving device happens not to have would delete
+// another screen's shortcut every time the user saved anything. The client
+// resolves the id when the shortcut fires and does nothing if it is not there.
+const MAX_PAGE_HOTKEYS = 8;
+
+function normalizePageHotkeys(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object') continue;
+    const combo = String(raw.combo || '').toLowerCase().trim().slice(0, 40);
+    // The same shape the Spotlight combo is held to, and the same reason: the
+    // helpers parse it themselves and report a combo they cannot read, so this
+    // only has to keep the argument list free of anything shell-shaped.
+    if (!/^[a-z0-9+ ]{3,40}$/.test(combo)) continue;
+    if (seen.has(combo)) continue;            // two actions on one combo: the desktop fires neither
+    const target = String(raw.target || '').trim().slice(0, 64);
+    if (!target) continue;
+    seen.add(combo);
+    out.push({ combo, target });
+    if (out.length >= MAX_PAGE_HOTKEYS) break;
+  }
+  return out;
+}
+
 function normalizeDiskSettings(value) {
   const v = value && typeof value === 'object' ? value : {};
   const folders = Array.isArray(v.devFolders)
@@ -9567,6 +9707,7 @@ function normalizeHubSettings(value) {
     // never-set default; the browser's copy of this normalizer keeps whatever
     // the server already chose.
     searchSettings: normalizeSearchSettings(source.searchSettings, POWERSHELL_SUPPORTED ? 'C:\\' : os.homedir()),
+    pageHotkeys: normalizePageHotkeys(source.pageHotkeys),
     diskSettings: normalizeDiskSettings(source.diskSettings),
     bgAurora: normalizeBgAurora(source.bgAurora),
     bgGrid: normalizeBgGrid(source.bgGrid),
@@ -18446,6 +18587,31 @@ const handleRequest = async (req, res) => {
     // pressing it only ever opens Xenon's own search window.
     try { routeSpotlightHotkey(); json({ ok: true }); }
     catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/pages/hotkey-status' && req.method === 'GET') {
+    // Settings → the page-shortcuts list: one state per row, so a combo another
+    // app already owns says so on the row that has it rather than as one verdict
+    // over the whole feature.
+    try {
+      json({
+        slots: _hotkey.slots || {},
+        bindings: (_hotkey.bindings || [])
+          .filter((b) => b.slot !== 'spotlight')
+          .map((b) => ({ slot: b.slot, combo: b.combo, target: b.target })),
+      });
+    } catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/pages/hotkey-press' && req.method === 'POST') {
+    // The Linux page shortcuts' other end, one URL per slot: the desktop runs a
+    // command and `?i=` says which shortcut ran it. Read off urlObj, because
+    // reqPath is the pathname alone and carries no query. It is routed through
+    // the same binding table the helper path uses, so an index that no longer
+    // exists (settings saved between the press and here) simply does nothing.
+    try {
+      const at = Number.parseInt(urlObj.searchParams.get('i'), 10);
+      if (Number.isInteger(at)) routeHotkeyIndex(at);
+      json({ ok: true });
+    } catch (e) { err500(e.message); }
 
   } else if (reqPath === '/disk/status' && req.method === 'GET') {
     // Disk widget state: helper presence, scan progress, last summary and —

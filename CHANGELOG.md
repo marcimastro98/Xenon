@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### ✨ Added
+- **Turn the dashboard's page without touching it.** Asked for on Discord by someone running Xenon on a second screen: *"switch or toggle dashboard pages while another app has focus."*
+
+  A second screen is something you look at while working in something else, which is exactly when reaching over to swipe it is the wrong move. **Settings → General → Page shortcuts** binds key combinations that fire while any other application has focus: one per page, **next** / **previous**, or **back to the last page** — which is what "flip between my two pages" really means, and it keeps meaning it once there are three.
+
+  Each row says for itself whether the desktop gave it out. A combination another app already owns (PowerToys Run famously owns Alt+Space) reads *already used by another app* **on that row**, and the other shortcuts still work — one clash no longer costs you the rest. The press reaches every screen watching, and each one turns to that page if it has it, so the phone in your pocket ignores a page only the desk has instead of jumping somewhere arbitrary.
+
+  Nothing new is watching your keyboard: the same helper that has always held the Spotlight shortcut now holds a list instead of one, on one message loop, and on Linux each shortcut is an entry in your desktop's own keyboard settings (GNOME) that you can see and delete like any other.
+
 - **And every disk, one by one.** The other half of the same request: *"let a widget list all detected disks and allow the user to select which ones to display individually."* Nothing per-disk was collected on any platform, so this is three implementations behind one shape.
 
   The **`diskIo`** stream gives each **physical** disk its read and write throughput, its read and write **IOPS**, a stable id, the model, the serial, the size, and the volumes that live on it — so a row can read *"Samsung 990 — C:, D:"* rather than a device name. Partitions are folded into their parent, because a partition's counters are already inside it and listing both would double every number on screen.

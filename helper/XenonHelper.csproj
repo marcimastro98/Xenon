@@ -105,8 +105,16 @@
                   URI the first comma ends the media type, so the artwork was
                   handed to the browser as text and never decoded. Version-gated
                   because an existing install would otherwise keep the exe that
-                  loses every Apple Music cover. -->
-    <Version>0.13.0</Version>
+                  loses every Apple Music cover;
+         0.14.0 = hotkey-serve takes a LIST of combos and addresses them by
+                  position: {"event":"hotkey","index":N}, one message loop for
+                  all of them, a combo another app owns reported per index and
+                  skipped rather than taking the rest down with it. This is what
+                  the dashboard page shortcuts are bound through. Version-gated
+                  because an existing install would otherwise keep an exe that
+                  registers only the first combo it is given, so every page
+                  shortcut would be silently dead. -->
+    <Version>0.14.0</Version>
     <Description>Xenon Helper — native companion process for the Xenon dashboard server</Description>
   </PropertyGroup>
 

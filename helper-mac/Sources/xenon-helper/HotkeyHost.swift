@@ -2,19 +2,22 @@ import AppKit
 import Carbon.HIToolbox
 
 // ─────────────────────────────────────────────────────────────────────────────
-// `hotkey-serve <combo>` — the global Spotlight hotkey.
+// `hotkey-serve <combo> [<combo> ...]` — the global shortcuts.
 //
-// The contract is HotkeyHost.cs's, and server.js reads exactly three events:
-//   {"event":"ready"}                      the combo is ours, we are listening
-//   {"event":"hotkey"}                     it was pressed
-//   {"event":"error","error":"hotkey_taken"} somebody else owns it
+// The contract is HotkeyHost.cs's. Combos are addressed by their POSITION in
+// the list, which is the server's binding table: index 0 is the Spotlight
+// shortcut and the rest are whatever else it wanted bound (the dashboard page
+// shortcuts). server.js reads exactly three events:
+//   {"event":"ready","registered":[0,2]}                 these indices are ours
+//   {"event":"hotkey","index":0}                         index 0 was pressed
+//   {"event":"error","error":"hotkey_taken","index":1}   somebody else owns it
 //
 // RegisterEventHotKey rather than a CGEventTap on purpose. A tap would see
 // every keystroke on the machine and needs the Accessibility grant to do it;
-// this registers ONE combination with the window server and is told when that
-// combination is pressed, nothing else. For a feature whose whole job is to
-// open a search box, watching every key the user types is not a trade worth
-// making.
+// this registers only the named combinations with the window server and is told
+// when one of them is pressed, nothing else. For a feature whose whole job is to
+// open a search box and flip a page, watching every key the user types is not a
+// trade worth making.
 // ─────────────────────────────────────────────────────────────────────────────
 enum HotkeyHost {
     // The token vocabulary server.js already accepts, mapped to virtual key
@@ -65,34 +68,67 @@ enum HotkeyHost {
         return Combo(modifiers: modifiers, keyCode: UInt32(code))
     }
 
+    private static func emitIndexedError(_ code: String, _ index: Int) {
+        emit(.obj([("event", .s("error")), ("error", .s(code)), ("index", .i(index))]))
+    }
+
     static var handlerRef: EventHandlerRef?
-    static var hotKeyRef: EventHotKeyRef?
+    static var hotKeyRefs: [EventHotKeyRef] = []
+
+    static let maxCombos = 16
+
+    // Carbon hands the handler the hotkey's own id back, which is how one
+    // handler serves every combo: id = index + 1 (0 is not a usable id), so the
+    // press maps straight back to the server's binding index.
+    private static func firedIndex(_ event: EventRef?) -> Int? {
+        guard let event = event else { return nil }
+        var id = EventHotKeyID()
+        let got = GetEventParameter(event, EventParamName(kEventParamDirectObject),
+                                    EventParamType(typeEventHotKeyID), nil,
+                                    MemoryLayout<EventHotKeyID>.size, nil, &id)
+        guard got == noErr, id.id >= 1 else { return nil }
+        return Int(id.id) - 1
+    }
 
     static func run(_ args: [String]) {
-        guard let combo = parse(args.first ?? "") else {
-            emitError("bad_combo"); return
-        }
+        let combos = Array((args.isEmpty ? ["alt+space"] : args).prefix(maxCombos))
         var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
                                       eventKind: UInt32(kEventHotKeyPressed))
-        let installed = InstallEventHandler(GetApplicationEventTarget(), { _, _, _ -> OSStatus in
-            emit(.obj([("event", .s("hotkey"))]))
+        let installed = InstallEventHandler(GetApplicationEventTarget(), { _, event, _ -> OSStatus in
+            if let index = firedIndex(event) {
+                emit(.obj([("event", .s("hotkey")), ("index", .i(index))]))
+            }
             return noErr
         }, 1, &eventType, nil, &handlerRef)
         if installed != noErr { emitError("handler_failed"); return }
 
-        // 'XENO' as the signature, and id 1: the pair only has to be unique
-        // within this process, which owns exactly one hotkey.
-        let hotKeyID = EventHotKeyID(signature: OSType(0x58454E4F), id: 1)
-        let status = RegisterEventHotKey(combo.keyCode, combo.modifiers, hotKeyID,
-                                         GetApplicationEventTarget(), 0, &hotKeyRef)
-        if status != noErr {
-            // eventHotKeyExistsErr is the specific "somebody else owns this
-            // combination" answer, which Settings shows as 'taken' so the user
-            // can pick another instead of wondering why nothing happens.
-            emitError(status == OSStatus(eventHotKeyExistsErr) ? "hotkey_taken" : "register_failed")
-            return
+        // A combo somebody else owns is reported against its own index and
+        // skipped: losing one shortcut is not a reason to lose the rest. Only
+        // when every one of them fails does the host give up, which is also
+        // what the single-combo case has always done.
+        var registered: [J] = []
+        for (i, raw) in combos.enumerated() {
+            guard let combo = parse(raw) else {
+                emitIndexedError("bad_combo", i); continue
+            }
+            // 'XENO' as the signature; the id only has to be unique within this
+            // process, so it carries the index.
+            let hotKeyID = EventHotKeyID(signature: OSType(0x58454E4F), id: UInt32(i + 1))
+            var ref: EventHotKeyRef?
+            let status = RegisterEventHotKey(combo.keyCode, combo.modifiers, hotKeyID,
+                                             GetApplicationEventTarget(), 0, &ref)
+            if status != noErr {
+                // eventHotKeyExistsErr is the specific "somebody else owns this
+                // combination" answer, which Settings shows as 'taken' so the
+                // user can pick another instead of wondering why nothing happens.
+                emitIndexedError(status == OSStatus(eventHotKeyExistsErr) ? "hotkey_taken" : "register_failed", i)
+                continue
+            }
+            if let ref = ref { hotKeyRefs.append(ref) }
+            registered.append(.i(i))
         }
-        emit(.obj([("event", .s("ready"))]))
+        if registered.isEmpty { exit(1) }
+        emit(.obj([("event", .s("ready")), ("registered", .arr(registered))]))
         // Stdin EOF = the parent is gone or is retiring us. server.js's
         // _stopHotkeyListener closes stdin FIRST and only escalates to a kill
         // after a 2s grace — the C# twin exits on that close, and without this
@@ -103,7 +139,7 @@ enum HotkeyHost {
         DispatchQueue.global(qos: .utility).async {
             while readLine(strippingNewline: false) != nil {}
             DispatchQueue.main.async {
-                if let ref = hotKeyRef { UnregisterEventHotKey(ref) }
+                for ref in hotKeyRefs { UnregisterEventHotKey(ref) }
                 exit(0)
             }
         }

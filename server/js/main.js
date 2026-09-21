@@ -611,6 +611,22 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
       // is already live; the server-side 409 guard covers multi-tab races).
       if (typeof window._aiHandleWake === 'function') window._aiHandleWake();
     });
+    es.addEventListener('page_hotkey', (e) => {
+      // A global page shortcut was pressed on the PC. The server broadcasts the
+      // target rather than resolving it: pages belong to a device's own layout,
+      // so every dashboard watching decides for itself — a phone with different
+      // pages, or none, ignores an id it does not have instead of jumping
+      // somewhere arbitrary.
+      try {
+        const pager = window.DashboardPager;
+        if (!pager) return;
+        const target = String(JSON.parse(e.data).target || '');
+        if (target === 'next') pager.goByDelta(1);
+        else if (target === 'prev') pager.goByDelta(-1);
+        else if (target === 'back') pager.goBack();
+        else if (target) pager.goToPage(target);
+      } catch {}
+    });
     es.addEventListener('spotlight_hotkey', () => {
       // Global search hotkey. Only the NATIVE kiosk can host the frameless
       // Tauri Spotlight window: it claims the hotkey (suppressing the server's

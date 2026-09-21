@@ -137,6 +137,10 @@ Removing is not, quite. Single-instance tiles are only hidden and come straight 
 
 ![layout-pages](docs/images/layout-pages.png)
 
+**Turn the page without touching the dashboard.** A second screen is something you glance at while working in something else, so reaching over to swipe it defeats the point. In **Settings → General → Page shortcuts** you can bind key combinations that work while any other application has focus: one per page, or **next / previous**, or **back to the last page** — which is what "flip between my two pages" actually means, and it keeps meaning it once there are three.
+
+Each row says for itself whether the desktop gave it to you: a combination another app already owns (PowerToys Run famously owns Alt+Space) reads *already used by another app* on that row rather than failing quietly. The other rows keep working. On Windows and macOS this needs the **Xenon Helper**; on Linux the shortcut is added to your desktop's own list (GNOME), where you can see and remove it like any other. The press reaches **every screen watching** — the PC, the tablet on the desk, the phone — and each one turns to that page if it has it.
+
 Customization goes deeper too: the individual **System cards** (CPU, GPU, RAM, Disk) and **audio sub-controls** (Volume, Speaker, Microphone) can each be reordered, resized, hidden, and restored.
 
 ---

@@ -37,8 +37,22 @@ const CUSTOM_SCHEMA = 'org.gnome.settings-daemon.plugins.media-keys.custom-keybi
 // A fixed, named path rather than the customN the Settings panel allocates:
 // customN is positional, so a user deleting an unrelated shortcut would
 // renumber ours. A named path is stable and identifies the owner at a glance.
-const KEY_PATH = '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/xenon-spotlight/';
+// A fixed, named path per SLOT. Slots are what the server binds: 'spotlight'
+// (the search popup) and 'page-<n>' (a dashboard page shortcut). Spotlight
+// keeps the path it has always had, so an existing registration is updated in
+// place instead of being orphaned beside a new one.
+const KEY_ROOT = '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/';
+const KEY_PATH = KEY_ROOT + 'xenon-spotlight/';
+const SLOT_SPOTLIGHT = 'spotlight';
 const KEY_NAME = 'Xenon Search';
+
+// Slot ids reach dconf as part of an object path, so they are held to the
+// alphabet a path can carry — anything else is refused rather than escaped.
+function keyPathFor(slot) {
+  if (slot === SLOT_SPOTLIGHT) return KEY_PATH;
+  if (!/^[a-z0-9-]{1,32}$/.test(String(slot || ''))) return null;
+  return KEY_ROOT + 'xenon-' + slot + '/';
+}
 // Where else an accelerator can already be bound. Checked before claiming one,
 // because GNOME will not tell us.
 const CONFLICT_SCHEMAS = [
@@ -162,11 +176,11 @@ function parsePathArray(raw) {
 // exit; bash's /dev/tcp is the last resort precisely because it needs no
 // package at all, which is what makes it the right floor rather than the right
 // default.
-function commandFor(port, tools = {}) {
-  const url = `http://127.0.0.1:${port}/search/hotkey-press`;
+function commandFor(port, tools = {}, route = '/search/hotkey-press') {
+  const url = `http://127.0.0.1:${port}${route}`;
   if (tools.curl) return `${tools.curl} -sS -m 2 -o /dev/null -X POST ${url}`;
   if (tools.wget) return `${tools.wget} -q -T 2 -O /dev/null --method=POST ${url}`;
-  return `/bin/bash -c "exec 3<>/dev/tcp/127.0.0.1/${port}; printf 'POST /search/hotkey-press HTTP/1.0\\r\\n\\r\\n' >&3; exec 3<&-"`;
+  return `/bin/bash -c "exec 3<>/dev/tcp/127.0.0.1/${port}; printf 'POST ${route} HTTP/1.0\\r\\n\\r\\n' >&3; exec 3<&-"`;
 }
 
 // ── runtime ─────────────────────────────────────────────────────────────────
@@ -203,7 +217,11 @@ function createLinuxHotkey(o = {}) {
     return !!schemas && schemas.split('\n').includes(SCHEMA);
   }
 
-  async function existingBindings() {
+  // `mine` are the paths this process owns right now: none of them is a
+  // conflict, because the point of a sync is to rewrite them. Without it the
+  // second page shortcut read the first one as somebody else's binding.
+  async function existingBindings(mine) {
+    const ours = new Set(mine || [KEY_PATH]);
     const found = [];
     for (const schema of CONFLICT_SCHEMAS) {
       const raw = await runner('gsettings', ['list-recursively', schema]);
@@ -213,7 +231,7 @@ function createLinuxHotkey(o = {}) {
     // and therefore do not show up in the schema listings above.
     const paths = parsePathArray(await runner('gsettings', ['get', SCHEMA, 'custom-keybindings']));
     for (const p of paths) {
-      if (p === KEY_PATH) continue;   // our own previous registration is not a conflict
+      if (ours.has(p)) continue;      // our own registrations are not conflicts
       const raw = await runner('gsettings', ['get', `${CUSTOM_SCHEMA}:${p}`, 'binding']);
       const v = String(raw || '').trim().replace(/^'|'$/g, '');
       if (v) found.push(v);
@@ -221,37 +239,51 @@ function createLinuxHotkey(o = {}) {
     return found;
   }
 
-  async function unregister() {
+  // Drop a set of our own paths from the desktop's list and wipe what they
+  // held, in one pass — the list is a single gsettings key, so removing them
+  // one at a time would be several read-modify-writes racing each other.
+  async function dropPaths(drop) {
+    const gone = new Set(drop.filter(Boolean));
+    if (!gone.size) return;
     const paths = parsePathArray(await runner('gsettings', ['get', SCHEMA, 'custom-keybindings']));
-    if (paths.includes(KEY_PATH)) {
-      const left = paths.filter((p) => p !== KEY_PATH);
+    if (paths.some((p) => gone.has(p))) {
+      const left = paths.filter((p) => !gone.has(p));
       const value = left.length ? '[' + left.map((p) => `'${p}'`).join(', ') + ']' : '@as []';
       await runner('gsettings', ['set', SCHEMA, 'custom-keybindings', value]);
     }
-    // Reset the entry's own keys too, so an unregistered shortcut leaves no
+    // Reset each entry's own keys too, so an unregistered shortcut leaves no
     // orphan under dconf that a later re-register would silently inherit.
-    for (const key of ['name', 'command', 'binding']) {
-      await runner('gsettings', ['reset', `${CUSTOM_SCHEMA}:${KEY_PATH}`, key]);
+    for (const path of gone) {
+      for (const key of ['name', 'command', 'binding']) {
+        await runner('gsettings', ['reset', `${CUSTOM_SCHEMA}:${path}`, key]);
+      }
     }
+  }
+
+  async function unregister() {
+    await dropPaths([KEY_PATH]);
     return { ok: true };
   }
 
-  async function register(combo) {
-    if (!(await gnomeAvailable())) return { ok: false, state: 'unsupported_de' };
+  // Write one slot. `taken` is the conflict list, gathered once by the caller:
+  // re-reading the whole desktop per slot is several gsettings calls each, and
+  // the answer cannot change between them anyway.
+  async function writeSlot({ slot, combo, name, route }, taken, mine) {
+    const path = keyPathFor(slot);
+    if (!path) return { ok: false, state: 'error' };
     const accel = toAccelerator(combo);
     if (!accel) return { ok: false, state: 'error' };
 
     // Compared in normalised form, never as raw strings: the desktop is full of
     // equivalent spellings (see normalizeAccel).
     const wanted = normalizeAccel(accel);
-    const taken = await existingBindings();
     if (taken.some((b) => normalizeAccel(b) === wanted)) {
       return { ok: false, state: 'taken', accelerator: accel };
     }
 
-    const command = commandFor(port, { curl: lookup('curl'), wget: lookup('wget') });
-    const entry = `${CUSTOM_SCHEMA}:${KEY_PATH}`;
-    if (await runner('gsettings', ['set', entry, 'name', KEY_NAME]) === null) return { ok: false, state: 'error' };
+    const command = commandFor(port, { curl: lookup('curl'), wget: lookup('wget') }, route);
+    const entry = `${CUSTOM_SCHEMA}:${path}`;
+    if (await runner('gsettings', ['set', entry, 'name', name]) === null) return { ok: false, state: 'error' };
     if (await runner('gsettings', ['set', entry, 'command', command]) === null) return { ok: false, state: 'error' };
     if (await runner('gsettings', ['set', entry, 'binding', accel]) === null) return { ok: false, state: 'error' };
 
@@ -259,20 +291,55 @@ function createLinuxHotkey(o = {}) {
     // path added before the entry is filled in makes it read a half-written
     // shortcut and bind nothing.
     const paths = parsePathArray(await runner('gsettings', ['get', SCHEMA, 'custom-keybindings']));
-    if (!paths.includes(KEY_PATH)) {
-      const next = [...paths, KEY_PATH];
+    if (!paths.includes(path)) {
+      const next = [...paths, path];
       const value = '[' + next.map((p) => `'${p}'`).join(', ') + ']';
       if (await runner('gsettings', ['set', SCHEMA, 'custom-keybindings', value]) === null) {
         return { ok: false, state: 'error' };
       }
     }
+    // Two of our own slots on the same accelerator is the same silent failure
+    // as clashing with another app — GNOME fires neither — so a slot that is
+    // written becomes a conflict for the slots after it.
+    mine.push(accel);
     return { ok: true, state: 'listening', accelerator: accel, command };
   }
 
-  return { register, unregister, available: gnomeAvailable, keyPath: KEY_PATH };
+  async function register(combo) {
+    if (!(await gnomeAvailable())) return { ok: false, state: 'unsupported_de' };
+    const taken = await existingBindings([KEY_PATH]);
+    return writeSlot({ slot: SLOT_SPOTLIGHT, combo, name: KEY_NAME, route: '/search/hotkey-press' }, taken, []);
+  }
+
+  // Make the desktop's shortcuts match `wanted` exactly: write every one of
+  // them, and remove the slots we own that are no longer asked for. `keep` is
+  // the slots this call must not touch (the Spotlight shortcut has its own
+  // lifecycle and is registered separately).
+  async function syncSlots(wanted, keep = [SLOT_SPOTLIGHT]) {
+    if (!(await gnomeAvailable())) {
+      return { ok: false, state: 'unsupported_de', slots: {} };
+    }
+    const wantedPaths = wanted.map((b) => keyPathFor(b.slot)).filter(Boolean);
+    const keepPaths = keep.map(keyPathFor).filter(Boolean);
+    const protectedPaths = new Set([...wantedPaths, ...keepPaths]);
+
+    // Ours, from an earlier save, that nobody wants any more.
+    const present = parsePathArray(await runner('gsettings', ['get', SCHEMA, 'custom-keybindings']));
+    await dropPaths(present.filter((p) => p.startsWith(KEY_ROOT + 'xenon-') && !protectedPaths.has(p)));
+
+    const taken = await existingBindings(protectedPaths);
+    const mine = [];
+    const slots = {};
+    for (const binding of wanted) {
+      slots[binding.slot] = await writeSlot(binding, [...taken, ...mine], mine);
+    }
+    return { ok: true, slots };
+  }
+
+  return { register, unregister, syncSlots, available: gnomeAvailable, keyPath: KEY_PATH, keyPathFor };
 }
 
 module.exports = {
   createLinuxHotkey, toAccelerator, normalizeAccel, bindingsFrom, parsePathArray, commandFor,
-  KEY_PATH, SCHEMA, CUSTOM_SCHEMA,
+  keyPathFor, KEY_PATH, KEY_ROOT, SLOT_SPOTLIGHT, SCHEMA, CUSTOM_SCHEMA,
 };

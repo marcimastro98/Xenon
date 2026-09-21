@@ -580,6 +580,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // absent is what lets the SERVER supply the platform's default, which is
   // where that decision already belongs (see normalizeSearchSettings).
   searchSettings: Object.freeze({ hotkeyEnabled: false, hotkeyCombo: 'alt+space', aiFullContext: false }),
+  pageHotkeys: Object.freeze([]),
   diskSettings: Object.freeze({ devFolders: Object.freeze([]), installerAgeDays: 30 }),
   // Third-party widget SDK (the Custom widget tile). OFF by default — community
   // packages run in a sandboxed, network-less iframe and each one gets an
@@ -836,6 +837,8 @@ const SURFACE_KINDS = ['auto', 'screen', 'phone', 'both'];
 // throws — which boots the dashboard empty. settings-load-order.test.mjs is the
 // guard, and it caught exactly that.
 const SENSOR_RATE_MS = [5000, 2000, 1000];
+// Here for that same reason: normalizePageHotkeys reads it during that init.
+const MAX_PAGE_HOTKEYS = 8;
 // normalizeNewsClient() runs during that same init too, and reaches this table
 // through defaultNewsFeedsClient() when there is no saved feed list — a fresh
 // install, or a settings blob that predates the key. It sat beside that function
@@ -1781,6 +1784,7 @@ function normalizeSettings(source) {
     phone: normalizePhoneClient(value.phone),
     wakeWord: normalizeWakeWord(value.wakeWord),
     searchSettings: normalizeSearchSettings(value.searchSettings),
+    pageHotkeys: normalizePageHotkeys(value.pageHotkeys),
     diskSettings: normalizeDiskSettings(value.diskSettings),
     sdkWidgets: normalizeSdkWidgets(value.sdkWidgets),
     bgAurora: normalizeBgAurora(value.bgAurora),
@@ -2140,6 +2144,37 @@ function normalizeSearchSettings(value, defaultRoot) {
 }
 
 // Disk widget knobs — mirrors the server's normalizeDiskSettings.
+// Global shortcuts that flip the dashboard to a page while another app has
+// focus — the whole point of a second screen you are not clicking on. Each
+// entry is a combo and what it goes to: a page id, or one of the relative
+// moves, which are what "toggle between my two pages" is actually asking for.
+//
+// The page id is NOT validated against the current pages here. Pages live in
+// the dashboard layout, which is per device, and this list is shared by all of
+// them: dropping an id the saving device happens not to have would delete
+// another screen's shortcut every time the user saved anything. The client
+// resolves the id when the shortcut fires and does nothing if it is not there.
+function normalizePageHotkeys(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object') continue;
+    const combo = String(raw.combo || '').toLowerCase().trim().slice(0, 40);
+    // The same shape the Spotlight combo is held to, and the same reason: the
+    // helpers parse it themselves and report a combo they cannot read, so this
+    // only has to keep the argument list free of anything shell-shaped.
+    if (!/^[a-z0-9+ ]{3,40}$/.test(combo)) continue;
+    if (seen.has(combo)) continue;            // two actions on one combo: the desktop fires neither
+    const target = String(raw.target || '').trim().slice(0, 64);
+    if (!target) continue;
+    seen.add(combo);
+    out.push({ combo, target });
+    if (out.length >= MAX_PAGE_HOTKEYS) break;
+  }
+  return out;
+}
+
 function normalizeDiskSettings(value) {
   const v = value && typeof value === 'object' ? value : {};
   const folders = Array.isArray(v.devFolders)
@@ -4895,6 +4930,7 @@ function syncSettingsControls() {
   syncSdkWidgetsControls();
   syncPerformanceControls();
   syncContextProfileControls();
+  renderPageHotkeyRows();
   syncSecondScreenControls();
   syncDynamicAlbumControls();
   refreshGameModeStatus();
@@ -7345,6 +7381,179 @@ function resetContextProfiles() {
   syncContextProfileControls();
   setSettingsStatus('settings_saved', 'ok');
 }
+
+
+// ── Global page shortcuts ───────────────────────────────────────────────────
+// A dashboard on a second screen is something you look at while working in
+// something else, so the way to turn its page cannot be "click the dashboard".
+// Each row is a key combination and where it goes: one of this layout's pages,
+// or a relative move — `back` is what "toggle between my two pages" is really
+// asking for, and it keeps meaning something once there are three.
+//
+// The combo is registered on the PC running the server (Xenon Helper on
+// Windows and macOS, a desktop shortcut on GNOME); the press is broadcast and
+// every dashboard watching turns its own page.
+const PAGE_HOTKEY_MOVES_UI = ['next', 'prev', 'back'];
+
+// A row whose combo has not been typed yet cannot be saved — the normalizer
+// drops it, and rightly: an empty combination is not a shortcut. So the list
+// being edited is held HERE while that is true, and not in the closure of the
+// rendered rows: anything that re-renders Settings (a hydrate arriving from
+// the server, a language switch) would otherwise make a half-finished row
+// vanish under the user's hands. Cleared the moment the list is saved.
+let _pendingPageHotkeys = null;
+
+function getPageHotkeys() {
+  if (_pendingPageHotkeys) return _pendingPageHotkeys.map((b) => ({ ...b }));
+  return Array.isArray(hubSettings.pageHotkeys) ? hubSettings.pageHotkeys.map((b) => ({ ...b })) : [];
+}
+
+// Save the rows that ARE finished and keep the whole list on screen. Holding
+// the finished ones back until every row is complete would mean an empty row
+// somebody clicked "Add" on and wandered away from silently swallows the next
+// edit they make to a different row.
+function savePageHotkeys(list) {
+  const complete = list.filter((b) => b.combo);
+  _pendingPageHotkeys = complete.length === list.length ? null : list;
+  hubSettings = normalizeSettings({ ...hubSettings, pageHotkeys: complete });
+  saveHubSettings();
+  renderPageHotkeyRows();
+}
+
+function addPageHotkey() {
+  const list = getPageHotkeys();
+  if (list.length >= MAX_PAGE_HOTKEYS) return;
+  const pages = dashboardPagesForHotkeys();
+  // A new row lands on a page rather than on nothing, so it does something the
+  // moment a combo is typed into it. Nothing to save yet — an empty combo is
+  // not a shortcut — so this only puts the row on screen.
+  list.push({ combo: '', target: (pages[0] && pages[0].id) || 'next' });
+  _pendingPageHotkeys = list;
+  renderPageHotkeyRows();
+}
+
+function removePageHotkey(index) {
+  const list = getPageHotkeys();
+  list.splice(index, 1);
+  savePageHotkeys(list);
+}
+
+function updatePageHotkey(index, patch) {
+  const list = getPageHotkeys();
+  if (!list[index]) return;
+  list[index] = { ...list[index], ...patch };
+  savePageHotkeys(list);
+}
+
+function dashboardPagesForHotkeys() {
+  const pages = (hubSettings.dashboardLayout && Array.isArray(hubSettings.dashboardLayout.pages))
+    ? hubSettings.dashboardLayout.pages : [];
+  return pages;
+}
+
+function renderPageHotkeyRows() {
+  const mount = $('settings-pagehk-rows');
+  if (!mount) return;
+  const tr = (k) => (typeof t === 'function' ? t(k) : k);
+  const list = getPageHotkeys();
+  const pages = dashboardPagesForHotkeys();
+  const pageLabel = (p) => p.name || (p.nameKey ? tr(p.nameKey) : '') || p.id;
+  const options = pages.map((p) => ({ value: p.id, label: pageLabel(p) }))
+    .concat(PAGE_HOTKEY_MOVES_UI.map((m) => ({ value: m, label: tr('settings_pagehk_move_' + m) })));
+
+  mount.textContent = '';
+  let savedIndex = 0;
+  list.forEach((binding, index) => {
+    const row = document.createElement('div');
+    row.className = 'settings-pagehk-row';
+
+    const combo = document.createElement('input');
+    combo.type = 'text';
+    combo.className = 'settings-text-input settings-pagehk-combo';
+    combo.autocomplete = 'off';
+    combo.spellcheck = false;
+    combo.placeholder = 'ctrl+alt+1';
+    combo.value = binding.combo || '';
+    combo.setAttribute('aria-label', tr('settings_search_combo'));
+    combo.addEventListener('change', () => updatePageHotkey(index, { combo: combo.value }));
+    row.appendChild(combo);
+
+    const sel = document.createElement('select');
+    sel.className = 'settings-select settings-pagehk-target';
+    sel.setAttribute('data-custom-select', '');
+    sel.setAttribute('data-cs-fixed', '');   // Settings body scrolls; anchor the panel
+    sel.setAttribute('aria-label', tr('settings_pagehk_target'));
+    let known = false;
+    for (const o of options) {
+      const opt = document.createElement('option');
+      opt.value = o.value;
+      opt.textContent = o.label;
+      if (o.value === binding.target) { opt.selected = true; known = true; }
+      sel.appendChild(opt);
+    }
+    // A page this device does not have — the list is shared by every screen —
+    // stays selectable so it can be seen and changed rather than silently
+    // snapping to another page.
+    if (!known && binding.target) {
+      const opt = document.createElement('option');
+      opt.value = binding.target;
+      opt.textContent = binding.target;
+      opt.selected = true;
+      sel.appendChild(opt);
+    }
+    sel.addEventListener('change', () => updatePageHotkey(index, { target: sel.value }));
+    row.appendChild(sel);
+
+    const state = document.createElement('span');
+    state.className = 'settings-pagehk-state';
+    // The server numbers its slots over the SAVED shortcuts, which skip any row
+    // still being filled in — so a row's slot is its position among the rows
+    // that have a combo, not its position on screen.
+    if (binding.combo) state.dataset.slot = 'page-' + savedIndex++;
+    row.appendChild(state);
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'settings-btn subtle settings-pagehk-del';
+    del.textContent = '\u00d7';
+    del.setAttribute('aria-label', tr('settings_pagehk_remove'));
+    del.addEventListener('click', () => removePageHotkey(index));
+    row.appendChild(del);
+
+    mount.appendChild(row);
+  });
+  const add = $('settings-pagehk-add');
+  if (add) add.disabled = list.length >= MAX_PAGE_HOTKEYS;
+  if (typeof initAllCustomSelects === 'function') initAllCustomSelects(mount);
+  refreshPageHotkeyStatus();
+}
+
+// Per-row state from the server: 'listening', or why not. A combo another app
+// already owns is the common case and it is a property of ONE row, so it is
+// reported on that row instead of as a verdict over the whole feature.
+async function refreshPageHotkeyStatus() {
+  const mount = $('settings-pagehk-rows');
+  if (!mount || !mount.children.length) return;
+  let slots = {};
+  try {
+    const r = await fetch('/pages/hotkey-status');
+    if (!r.ok) return;
+    slots = (await r.json()).slots || {};
+  } catch { return; }
+  mount.querySelectorAll('.settings-pagehk-state').forEach((el) => {
+    const state = el.dataset.slot ? (slots[el.dataset.slot] || '') : '';
+    const key = state === 'listening' ? 'settings_pagehk_ok'
+      : state === 'taken' ? 'settings_pagehk_taken'
+        : state === 'starting' ? 'settings_pagehk_starting'
+          : state === 'unsupported_de' ? 'settings_pagehk_unsupported'
+            : state ? 'settings_pagehk_error' : '';
+    el.textContent = key ? (typeof t === 'function' ? t(key) : key) : '';
+    el.classList.toggle('is-ok', state === 'listening');
+    el.classList.toggle('is-bad', !!state && state !== 'listening' && state !== 'starting');
+  });
+}
+
+window.addPageHotkey = addPageHotkey;
 
 function syncContextProfileControls() {
   const c = normalizeContextProfiles(hubSettings.contextProfiles);

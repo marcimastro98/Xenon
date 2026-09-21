@@ -25,4 +25,10 @@
 //           incomplete (`cappedRoots`), so Settings can name the folder search
 //           cannot see instead of only saying a limit was reached. Matches
 //           helper/XenonHelper.csproj 0.12.2.
-let helperVersion = "0.5.1"
+//   0.6.0 = hotkey-serve takes a LIST of combos and addresses them by position:
+//           {"event":"hotkey","index":N}, one event handler for all of them, a
+//           combo another app owns reported per index and skipped rather than
+//           taking the rest down with it. This is what the dashboard page
+//           shortcuts are bound through, so an older binary leaves every one of
+//           them dead. Matches helper/XenonHelper.csproj 0.14.0.
+let helperVersion = "0.6.0"

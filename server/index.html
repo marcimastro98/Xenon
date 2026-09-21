@@ -1383,6 +1383,16 @@
         <button class="settings-btn settings-btn-ghost" type="button" onclick="resetDynamicIslandSettings()" data-i18n="settings_island_reset">Ripristina tutta la barra</button>
       </div>
 
+      <div class="settings-group settings-behavior-group" data-settings-cat="general" id="settings-pagehotkeys-group">
+        <div class="settings-group-head">
+          <span data-i18n="settings_pagehk_title">Scorciatoie pagine</span>
+          <span class="settings-hint" data-i18n="settings_pagehk_hint">cambia pagina da tastiera anche mentre stai usando un'altra app</span>
+        </div>
+        <div id="settings-pagehk-rows"></div>
+        <button type="button" class="settings-btn subtle" id="settings-pagehk-add" onclick="addPageHotkey()" data-i18n="settings_pagehk_add">Aggiungi scorciatoia</button>
+        <p class="settings-hint full" data-i18n="settings_pagehk_note">Scrivi la combinazione come ctrl+alt+1 (ctrl, alt, shift, win + una lettera, un numero o F1-F12). Se un'altra app la usa già la riga te lo dice. Richiede Xenon Helper su Windows e macOS; su Linux la scorciatoia viene aggiunta a quelle del desktop (GNOME).</p>
+      </div>
+
       <div class="settings-group settings-behavior-group" data-settings-cat="general" id="settings-auto-open-row" hidden>
         <div class="settings-group-head">
           <span data-i18n="settings_startup">Avvio</span>
