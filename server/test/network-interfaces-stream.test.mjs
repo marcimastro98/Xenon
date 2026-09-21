@@ -109,8 +109,8 @@ test('the payload carries the id, the name and both, plus the raw counters', () 
 test('network is a stream of its own, mirrored everywhere it has to be', () => {
   // Its own grant rather than a field on `system`: this is traffic, not a
   // sensor, and the permission dialog should say which it is.
-  assert.match(SDK, /'status', 'system', 'network', 'media'/);
-  assert.match(SETTINGS, /'status', 'system', 'network', 'media'/,
+  assert.match(SDK, /'status', 'system', 'network',/);
+  assert.match(SETTINGS, /'status', 'system', 'network',/,
     'settings.js keeps its own copy of the stream list — a stream in one and not the other is dropped on save');
   assert.match(CUSTOM, /network: \['cw_stream_network'/);
 });

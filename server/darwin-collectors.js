@@ -480,6 +480,88 @@ async function disks() {
   }
 }
 
+// --- Per-disk I/O: ioreg ----------------------------------------------------
+// Asked for on Discord for an SDK monitoring widget. `iostat` is the obvious
+// tool and the wrong one here: on macOS it reports COMBINED transfers per disk,
+// with no read/write split, which is half of what was asked for. The IOKit
+// registry has both, as cumulative counters on each IOBlockStorageDriver:
+//
+//   +-o AppleAPFSMedia ...
+//     "Statistics" = {"Bytes (Read)"=123,"Operations (Read)"=4,
+//                     "Bytes (Write)"=567,"Operations (Write)"=8, ...}
+//     "BSD Name" = "disk0"
+//
+// server.js turns the counters into rates with the same inter-poll delta it
+// uses for the network ones.
+//
+// Pure, so the shape can be checked without a Mac. Everything is optional: a
+// registry that prints something else yields no disks rather than wrong ones.
+function parseIoregDisks(out) {
+  const text = String(out || '');
+  const disks = [];
+  // Split on the object headers ioreg prints ("+-o Name <class …>") and parse
+  // each one alone. A fixed window around the Statistics block is not enough:
+  // the identity fields of the PREVIOUS disk are inside it, and every row after
+  // the first came back wearing the first disk's name.
+  const chunks = text.split(/^\s*\+-o /m);
+  for (const chunk of chunks) {
+    const stats = /"Statistics"\s*=\s*\{([^}]*)\}/.exec(chunk);
+    if (!stats) continue;
+    const num = (key) => {
+      const g = new RegExp('"' + key.replace(/[().*+?^$|[\]{}\\]/g, '\\$&') + '"\\s*=\\s*(\\d+)').exec(stats[1]);
+      return g ? Number(g[1]) : null;
+    };
+    const pick = (key) => {
+      const g = new RegExp('"' + key + '"\\s*=\\s*"([^"]*)"').exec(chunk);
+      return g ? g[1] : '';
+    };
+    const readBytes = num('Bytes (Read)');
+    const writeBytes = num('Bytes (Write)');
+    const id = pick('BSD Name');
+    if (!id || (readBytes === null && writeBytes === null)) continue;
+    disks.push({
+      id,
+      model: (pick('Product Name') || pick('Model')).trim() || id,
+      serial: (pick('Serial Number') || '').trim(),
+      readsCompleted: num('Operations (Read)') || 0,
+      writesCompleted: num('Operations (Write)') || 0,
+      readBytes: readBytes || 0,
+      writeBytes: writeBytes || 0,
+    });
+  }
+  // One entry per BSD name: a storage stack can present the same disk twice.
+  const seen = new Set();
+  return disks.filter((d) => (seen.has(d.id) ? false : (seen.add(d.id), true)));
+}
+
+async function diskIo() {
+  const out = await runSoft('ioreg', ['-r', '-c', 'IOBlockStorageDriver', '-w0'], 5000);
+  if (out === null) return [];
+  const found = parseIoregDisks(out);
+  if (!found.length) return [];
+  // Which volumes sit on each disk, from the mount table the space collector
+  // already reads. `df` prints /dev/disk3s1s1 — the disk is the leading
+  // `diskN`.
+  let mounts = [];
+  try {
+    const df = await run('df', ['-k', '-P', '-l'], 5000);
+    mounts = splitLines(df).slice(1).map((l) => l.trim().split(/\s+/)).filter((f) => f.length >= 6)
+      .map((f) => ({ dev: f[0], mount: f.slice(5).join(' ') }))
+      .filter((r) => r.dev.startsWith('/dev/'));
+  } catch { /* no mount info: the rows simply carry none */ }
+  for (const d of found) {
+    d.volumes = mounts
+      .filter((r) => new RegExp('^/dev/' + d.id + '(s\\d|$)').test(r.dev))
+      .map((r) => ({ mount: r.mount, label: '', fstype: '' }));
+    // No temperature on this platform: SMART is not exposed to an unprivileged
+    // process, and inventing a number is worse than saying there isn't one.
+    d.temperature = null;
+    d.sizeBytes = null;
+    d.kind = '';
+  }
+  return found;
+}
+
 // --- Network: ping + netstat -ib, matching network.ps1's shape --------------
 // server.js turns the rx/tx byte counters into down/up bandwidth via its own
 // inter-poll delta, so all that is owed here is a pair of monotonic counters.
@@ -1150,11 +1232,12 @@ function rootReachesHome(root, home) {
 }
 
 module.exports = {
-  gpu, disks, cpuTemp, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
+  gpu, disks, diskIo, cpuTemp, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
   processes, fullDiskAccess, rootReachesHome,
   // exported for unit tests
   parsePsTime, parsePsProcesses,
   parseMacmon, parseHelperTemps, parseDisplaysJson, parseDisks, parseMountTypes, parsePing,
   parseNetstatIb, parseAppList, parseHelperWindows, parseVmStat, parseVolumeSettings, parseAudioDevices,
+  parseIoregDisks,
   buildAudioRows, isCaptureTarget, ratioToPct,
 };

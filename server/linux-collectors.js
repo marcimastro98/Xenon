@@ -386,6 +386,131 @@ async function disks() {
   }
 }
 
+// --- Per-disk I/O: /proc/diskstats + sysfs ----------------------------------
+// Asked for on Discord by someone building a workstation monitor on the SDK:
+// throughput and IOPS per physical disk, with a stable id, the model, and the
+// volume/mount so a person can tell which disk is which.
+//
+// /proc/diskstats is cumulative since boot, so server.js does the same
+// inter-poll delta it does for network counters. The sector size is 512 bytes
+// by convention in this file REGARDLESS of the device's real logical block
+// size — that is the kernel's documented unit here, and reading
+// queue/hw_sector_size to "correct" it is the classic way to get 4Kn drives
+// wrong by 8x.
+//
+// Fields (Documentation/admin-guide/iostats.rst), 1-indexed after major/minor/name:
+//   1 reads completed   3 sectors read   5 writes completed   7 sectors written
+const DISK_VIRTUAL = /^(loop|ram|zram|dm-|md|sr|fd|nbd|zd)/;
+function parseDiskstats(text) {
+  const out = [];
+  for (const line of splitLines(text)) {
+    const f = line.trim().split(/\s+/);
+    if (f.length < 10) continue;
+    const name = f[2];
+    if (!name || DISK_VIRTUAL.test(name)) continue;
+    out.push({
+      id: name,
+      readsCompleted: Number(f[3]) || 0,
+      sectorsRead: Number(f[5]) || 0,
+      writesCompleted: Number(f[7]) || 0,
+      sectorsWritten: Number(f[9]) || 0,
+    });
+  }
+  return out;
+}
+
+// A partition (sda1, nvme0n1p2) is not a disk: its counters are already inside
+// its parent's, so listing both would double every number on screen. sysfs
+// answers this exactly — a whole disk has a `device` link, a partition has a
+// `partition` file — with a name-shape fallback for the rare device that has
+// neither.
+const PART_SHAPE = /^(?:(?:sd|hd|vd|xvd)[a-z]+\d+|nvme\d+n\d+p\d+|mmcblk\d+p\d+)$/;
+async function isWholeDisk(name) {
+  try {
+    await fsp.access(`/sys/block/${name}`);
+    return true;                      // only whole disks appear in /sys/block
+  } catch {
+    return !PART_SHAPE.test(name);
+  }
+}
+
+// Which mounted filesystems live on this disk, so a row can say "Samsung 990 —
+// / and /home" rather than "nvme0n1". Partitions are matched by name prefix,
+// which is how the kernel names them.
+function parseMountsFor(mountsText) {
+  const rows = [];
+  for (const line of splitLines(mountsText)) {
+    const f = line.split(/\s+/);
+    if (f.length < 3) continue;
+    const dev = f[0];
+    if (!dev.startsWith('/dev/')) continue;
+    rows.push({ dev: dev.slice(5), mount: f[1].replace(/\\040/g, ' '), fstype: f[2] });
+  }
+  return rows;
+}
+
+async function diskIo() {
+  let stats;
+  try { stats = parseDiskstats(await fsp.readFile('/proc/diskstats', 'utf8')); }
+  catch { return []; }
+
+  let mounts = [];
+  try { mounts = parseMountsFor(await fsp.readFile('/proc/mounts', 'utf8')); } catch { /* none */ }
+
+  // Disk temperature is free here when the kernel publishes it: the drivetemp
+  // module for SATA, nvme's own hwmon for NVMe. No SMART poll of our own, so
+  // nothing here can wake a spun-down disk.
+  const temps = await readDriveTemps();
+
+  const out = [];
+  for (const st of stats) {
+    if (!(await isWholeDisk(st.id))) continue;
+    const base = `/sys/block/${st.id}`;
+    const readOr = async (rel, fallback = '') => { try { return await readText(`${base}/${rel}`); } catch { return fallback; } };
+    const model = (await readOr('device/model')).trim();
+    const sizeSectors = Number(await readOr('size', '0')) || 0;
+    const rotational = (await readOr('queue/rotational')) === '1';
+    const vols = mounts
+      .filter((m) => m.dev === st.id || m.dev.startsWith(st.id))
+      .map((m) => ({ mount: m.mount, label: '', fstype: m.fstype }));
+    out.push({
+      ...st,
+      // `id` is the kernel name and it is what sysfs is keyed on. It is stable
+      // for a fixed set of disks but NOT across a re-plug on some controllers,
+      // which is why the serial rides along for anyone who wants to be sure.
+      serial: (await readOr('device/serial')).trim() || (await readOr('device/wwid')).trim(),
+      model: model || st.id,
+      sizeBytes: sizeSectors * 512,
+      kind: rotational ? 'hdd' : 'ssd',
+      volumes: vols,
+      temperature: temps[st.id] ?? null,
+    });
+  }
+  return out;
+}
+
+// hwmon entries whose device link points back at a block device. Best-effort by
+// design: most desktops have nothing here unless `drivetemp` is loaded.
+async function readDriveTemps() {
+  const out = Object.create(null);
+  let dirs = [];
+  try { dirs = await fsp.readdir('/sys/class/hwmon'); } catch { return out; }
+  await Promise.all(dirs.map(async (d) => {
+    const base = `/sys/class/hwmon/${d}`;
+    try {
+      // …/hwmon/hwmonN/device/block/<name> for drivetemp; nvme exposes the
+      // controller, whose block devices are one level down.
+      let names = [];
+      try { names = await fsp.readdir(`${base}/device/block`); } catch { /* not a disk */ }
+      if (!names.length) return;
+      const milli = Number(await readText(`${base}/temp1_input`));
+      if (!Number.isFinite(milli)) return;
+      for (const n of names) out[n] = Math.round((milli / 1000) * 10) / 10;
+    } catch { /* unreadable chip */ }
+  }));
+  return out;
+}
+
 // --- CPU temperature and fans: /sys/class/hwmon ------------------------------
 // Returns { cpuTemp: number|null, fans: [{name, rpm, kind}] } to match the shape
 // CPU_TEMP_SCRIPT produces on Windows.
@@ -1252,11 +1377,12 @@ async function processes(top = 8) {
 }
 
 module.exports = {
-  gpu, disks, cpuTemp, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
+  gpu, disks, diskIo, cpuTemp, memory, network, windows, audioRows, audioCommand, audioAvailable, lock,
   sendKeys, keysAvailable, processes,
   // exported for unit tests
   parseProcStat,
   parseGpu, parseSysfsGpu, rc6Busy, pickCpuClockMHz, betterGpuCandidate, parseHwmonFans, parseDisks, parseMemInfo, parseNetDev, parsePing,
+  parseDiskstats, parseMountsFor,
   parseWmctrl, parseWindowProps, parseClientList, parseWindowIdentity,
   parsePwDump, buildAudioRows, resolveTargets, cubicToLinear,
   ydotoolArgs,

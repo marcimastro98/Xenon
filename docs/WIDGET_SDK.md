@@ -279,6 +279,7 @@ The payloads are the dashboard's own SSE events, unmodified:
 
 - `status` — mic mute, game mode/activity, foreground process
 - `system` — `cpu` (%), `gpu` (%|null), `memory.percent`, temperatures, clock speeds, `fps` / `presentFps` / `displayFps`, uptime… see *Clock speeds and frame rate* below
+- `diskIo` — `{ ok, disks:[…] }`: **per physical disk** throughput, IOPS, model and the volumes on it. See *Per-disk I/O* below. A **pull** stream, like `network`
 - `network` — `{ ok, downloadBps, uploadBps, ping, latency, interfaces:[…] }`: **every network adapter the machine has, one entry each**, so a monitoring widget can graph a 10GbE NAS link, the internet link and a VMware VMnet separately. See *Per-adapter network* below. A **pull** stream: call `xenon.refresh('network')` at whatever cadence your graph wants (900ms floor)
 - `media` — `title`, `artist`, `album`, playback state, source, plus `position` and `duration` in seconds. A zero/absent `duration` means the current source has no seekable timeline
 - `audio` — volume, mute, output device, and `speakerApps[]` / `micApps[]`: the per-application mixer (one entry per active session, with `proc`, `volume`, `muted` and a resolved `icon`). Polled, so it updates about every 8 seconds
@@ -657,6 +658,63 @@ not a sensor, and the permission dialog says so in those words.
 - **The list is the machine's, live.** Unplug a dock and the entry is gone on the
   next refresh; plug it back and it returns with its rates at `null` for one
   tick. Draw from `id`, not from an index.
+
+### 3b-ter. Per-disk I/O (v4.11.10)
+
+The other half of the same request: *"let a widget list all detected disks and
+allow the user to select which ones to display individually."* `streams:
+["diskIo"]`.
+
+```js
+{
+  ok: true,
+  disks: [
+    {
+      id: 'phys0',               // 'nvme0n1' on Linux, 'disk0' on macOS
+      model: 'Samsung SSD 990 PRO 2TB',
+      serial: 'S6Z1NJ0T...',     // '' where the platform will not say
+      kind: 'ssd',               // 'ssd' | 'hdd' | '' when not known
+      sizeBytes: 2000398934016,  // null when not known
+      volumes: [{ mount: 'C:', label: 'System', fstype: '' }],
+      temperature: 41,           // °C, or null — see below
+      readBytesPerSec: 104857600,
+      writeBytesPerSec: 2097152,
+      readIops: 812,
+      writeIops: 44,
+      readBytes: 88120334455,    // cumulative, if you would rather do your own maths
+      writeBytes: 22105548812,
+    },
+  ],
+}
+```
+
+- **Physical disks, not volumes.** A partition's counters are already inside its
+  parent's, so listing both would double every number on screen. The volumes
+  that live on a disk ride along in `volumes[]` so a row can say *"Samsung 990 —
+  C:, D:"* instead of `phys0`.
+- **Every rate is `null` until there is something to measure**, exactly like the
+  network ones: a disk needs two readings of its own before it has a rate.
+  `Number(null)` is `0`, so guard with `v != null` or an idle disk and an
+  unknown one will draw the same.
+- **`readBytesPerSec` and `readIops` are the same measurement in two units** —
+  bytes moved and operations completed. A disk doing many small reads shows high
+  IOPS and low throughput; one streaming a file shows the opposite. That
+  difference is usually the interesting part.
+- **`temperature` is `null` on Windows and macOS today**, and a real number on
+  Linux wherever the kernel publishes one (the `drivetemp` module for SATA,
+  nvme's own hwmon for NVMe). It is not an oversight: reading it elsewhere means
+  a SMART query, LibreHardwareMonitor's storage tree would run that on **every**
+  sensor read, and that wakes a spun-down mechanical disk every few seconds.
+  Until that can be charged only to whoever asked for it, the honest answer is
+  `null` rather than a number that costs other people their drives spinning up.
+- **It is a PULL stream.** `xenon.refresh('diskIo')` at your graph's cadence
+  (900ms floor; the reading is cached 2s). On Windows it is three CIM queries,
+  which is why nobody who has not asked for it pays for it — nothing runs while
+  no granted widget is on screen.
+- **`id` is stable enough to key settings on, `model` is what you show.** On
+  Windows it is the physical disk index, on Linux the kernel name, on macOS the
+  BSD name. `serial` rides along for anyone who wants to be certain across a
+  re-plug.
 
 ### 3c. Clock speeds and frame rate (v4.11.7)
 
@@ -1742,7 +1800,7 @@ The exact set the SDK exposes today, generated from the code. Request
 these in your manifest `streams` / `actions`; the host only forwards what
 the user granted, and every action is re-validated server-side.
 
-**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `football`, `homeassistant`, `media`, `network`, `news`, `notes`, `obs`, `processes`, `scriptStates`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
+**Data streams** (`streams`): `agenda`, `audio`, `audioLevels`, `battery`, `claude`, `discord`, `discordChannels`, `discordNotifications`, `discordSoundboard`, `diskIo`, `football`, `homeassistant`, `media`, `network`, `news`, `notes`, `obs`, `processes`, `scriptStates`, `spotify`, `status`, `stocks`, `streamerbot`, `system`, `tasks`, `twitchChat`, `twitchWatch`, `voicemeeter`, `wavelink`, `weather`, `youtube`, `youtubeLive`
 
 **Action categories** (`actions`) → the action `type`s each unlocks:
 

@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### ✨ Added
+- **And every disk, one by one.** The other half of the same request: *"let a widget list all detected disks and allow the user to select which ones to display individually."* Nothing per-disk was collected on any platform, so this is three implementations behind one shape.
+
+  The **`diskIo`** stream gives each **physical** disk its read and write throughput, its read and write **IOPS**, a stable id, the model, the serial, the size, and the volumes that live on it — so a row can read *"Samsung 990 — C:, D:"* rather than a device name. Partitions are folded into their parent, because a partition's counters are already inside it and listing both would double every number on screen.
+
+  **Disk temperature is `null` on Windows and macOS, and a real number on Linux** where the kernel publishes one. That is a decision, not an omission: reading it elsewhere means a SMART query, and the way to get it would run that on every sensor read — waking a spun-down mechanical drive every few seconds for everyone, including the people with no disk widget. Until it can be charged only to whoever asks for it, `null` is the honest answer.
+
+  Pulled like `network`, so on Windows its three CIM queries run only while a granted widget is on screen asking for them.
+
 - **A widget can now see every network adapter separately.** Asked for on Discord by someone building a workstation monitor on the SDK: *"list all system network adapters instead of only the currently active/global traffic"* — a 10GbE NAS link, the internet link and a VMware VMnet, each on its own graph.
 
   The data was always there and always thrown away: all three collectors read every adapter and returned the sum. The new **`network`** stream carries them one by one — a stable id, **the name you gave the adapter in Windows**, the hardware description, whether it is up, the link speed, and read/write throughput per second, plus the raw counters if you would rather do your own maths. Virtual adapters are included, which is the point of the request; `downloadBps`/`uploadBps` stay the sum of the **physical** ones, because a VPN or a VMnet carries the same packets a second time.

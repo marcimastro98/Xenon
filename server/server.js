@@ -720,6 +720,7 @@ const CPU_TEMP_SCRIPT = path.join(__dirname, 'cpu-temp.ps1');
 const ENABLE_SENSORS_SCRIPT = path.join(__dirname, 'enable-sensors.ps1');
 const GPU_SCRIPT = path.join(__dirname, 'gpu.ps1');
 const NETWORK_SCRIPT = path.join(__dirname, 'network.ps1');
+const DISK_IO_SCRIPT = path.join(__dirname, 'disk-io.ps1');
 const WINDOWS_SCRIPT = path.join(__dirname, 'windows.ps1');
 const DECK_ACTIONS_SCRIPT = path.join(__dirname, 'deck-actions.ps1');
 const DECK_HOTKEY_SCRIPT = path.join(__dirname, 'deck-hotkey.ps1');
@@ -4615,6 +4616,83 @@ async function _getNetworkInfoRaw() {
     // total would count the same packets twice.
     interfaces,
   };
+}
+
+// --- Per-disk I/O ----------------------------------------------------------
+// Asked for on Discord for an SDK monitoring widget: throughput and IOPS per
+// physical disk, with a model and a volume so a person can tell which is which.
+//
+// Pulled, never polled. Every platform's counters are cumulative, so the rate
+// is the same inter-poll delta the network interfaces use — and the same rule
+// about what an unknown rate is: null, never 0.
+//
+// `_diskPrev` is keyed by the collector's id. A disk that is unplugged is
+// forgotten on the next read, and one that appears reports null until it has
+// two readings of its own.
+let _diskPrev = new Map();     // id -> { rb, wb, ro, wo, t }
+let _diskPending = null;
+const DISK_SECTOR = 512;       // /proc/diskstats' documented unit, on every device
+
+function getDiskIo() {
+  if (_diskPending) return _diskPending;
+  _diskPending = _getDiskIoRaw().finally(() => { _diskPending = null; });
+  return _diskPending;
+}
+
+async function _getDiskIoRaw() {
+  let rows = [];
+  try {
+    if (nativeCollectors) {
+      rows = await nativeCollectors.diskIo();
+    } else {
+      const out = await runCollector(DISK_IO_SCRIPT, [], 8000);
+      rows = (out && Array.isArray(out.disks)) ? out.disks : [];
+    }
+  } catch { rows = []; }
+  if (!Array.isArray(rows)) rows = [];
+
+  const now = Date.now();
+  const seen = new Set();
+  const disks = [];
+  for (const d of rows) {
+    const id = String((d && d.id) || '').slice(0, 120);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    // Linux counts sectors, Windows and macOS count bytes. Normalise here so
+    // the SDK sees one unit and nobody has to know which OS answered.
+    const rb = Number.isFinite(Number(d.readBytes)) ? Number(d.readBytes)
+      : (Number(d.sectorsRead) || 0) * DISK_SECTOR;
+    const wb = Number.isFinite(Number(d.writeBytes)) ? Number(d.writeBytes)
+      : (Number(d.sectorsWritten) || 0) * DISK_SECTOR;
+    const ro = Number(d.readsCompleted) || 0;
+    const wo = Number(d.writesCompleted) || 0;
+    const prev = _diskPrev.get(id);
+    const dt = prev ? (now - prev.t) / 1000 : 0;
+    disks.push({
+      id,
+      model: String((d && d.model) || id).slice(0, 120),
+      serial: String((d && d.serial) || '').slice(0, 80),
+      kind: d && (d.kind === 'ssd' || d.kind === 'hdd') ? d.kind : '',
+      sizeBytes: Number.isFinite(Number(d.sizeBytes)) && Number(d.sizeBytes) > 0 ? Number(d.sizeBytes) : null,
+      volumes: Array.isArray(d.volumes) ? d.volumes.slice(0, 16).map((v) => ({
+        mount: String((v && v.mount) || '').slice(0, 160),
+        label: String((v && v.label) || '').slice(0, 80),
+        fstype: String((v && v.fstype) || '').slice(0, 24),
+      })) : [],
+      temperature: Number.isFinite(Number(d && d.temperature)) ? Number(d.temperature) : null,
+      readBytesPerSec: bytesPerSec(rb, prev && prev.rb, dt),
+      writeBytesPerSec: bytesPerSec(wb, prev && prev.wb, dt),
+      readIops: bytesPerSec(ro, prev && prev.ro, dt),
+      writeIops: bytesPerSec(wo, prev && prev.wo, dt),
+      readBytes: rb,
+      writeBytes: wb,
+    });
+    _diskPrev.set(id, { rb, wb, ro, wo, t: now });
+  }
+  for (const id of Array.from(_diskPrev.keys())) {
+    if (!seen.has(id)) _diskPrev.delete(id);
+  }
+  return { ok: true, disks };
 }
 
 // Sticky per-track album art. SMTC — browser/YouTube sessions especially —
@@ -13572,6 +13650,13 @@ const handleRequest = async (req, res) => {
   } else if (reqPath === '/network' && req.method === 'GET') {
     try   { json(await getNetworkInfo()); }
     catch (e) { err500(e.message); }
+
+  } else if (reqPath === '/api/disks/io' && req.method === 'GET') {
+    // Per-disk throughput and IOPS, for the SDK's `diskIo` stream. A read, and
+    // a costed one — it is pulled by a widget that is on screen asking, never
+    // polled by the server.
+    try   { json(await getDiskIo()); }
+    catch (e) { json({ ok: false, disks: [], error: String((e && e.message) || e) }); }
 
   } else if (reqPath === '/api/gamemode/status' && req.method === 'GET') {
     // Game mode runs off foreground full-screen detection (no PresentMon needed).

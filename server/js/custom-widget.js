@@ -129,6 +129,7 @@
     status: ['cw_stream_status', 'System status (mic, game mode)'],
     system: ['cw_stream_system', 'System sensors (CPU, GPU, RAM)'],
     network: ['cw_stream_network', 'Network adapters and how much each one is moving'],
+    diskIo: ['cw_stream_diskio', 'Which disks are busy, and how busy'],
     processes: ['cw_stream_processes', 'Which apps are using your CPU, memory and GPU'],
     media: ['cw_stream_media', 'Now playing'],
     audio: ['cw_stream_audio', 'Volume & audio devices'],
@@ -207,6 +208,15 @@
     // every dashboard every few seconds would make every install pay for a
     // widget almost nobody has. Pulled, it runs only while a granted widget is
     // on screen and asking — which is also the cadence its own graph wants.
+    // Per-disk throughput and IOPS. Pulled for the same reason `network` is —
+    // the reading costs a collector run, here three CIM queries on Windows, and
+    // nobody who has not asked for it should pay for it. A slightly longer TTL
+    // than the network one because that is what it costs.
+    diskIo: Object.freeze({ ttl: 2000, load: async () => {
+      const d = await api('/api/disks/io');
+      if (!d || typeof d !== 'object') return { ok: false, disks: [] };
+      return { ok: d.ok !== false, disks: Array.isArray(d.disks) ? d.disks : [] };
+    } }),
     network: Object.freeze({ ttl: 1500, load: async () => {
       const d = await api('/network');
       if (!d || typeof d !== 'object') return { ok: false, interfaces: [] };
