@@ -421,15 +421,25 @@ body.perf-mode .deck-key.is-glint::after { display: none; }
   filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));
 }
 /* Built-in vector icons tint to the cap's text colour and scale with the key. */
-.deck-key .deck-ico.is-builtin { display: flex; }
+/* min-height:0 + max-height on the artwork is what lets the flex column take the
+   icon's room back when the cap can't hold both it and the title: without it the
+   svg's explicit height is the icon's min-content size, the icon refuses to give
+   up a pixel, and the title is the only thing left to squeeze. */
+.deck-key .deck-ico.is-builtin { display: flex; min-height: 0; }
 .deck-key .deck-ico.is-builtin svg {
   width: calc(max(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .4)) * var(--ico-scale, 1));
   height: calc(max(18px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .4)) * var(--ico-scale, 1));
+  max-width: 100%; max-height: 100%;
   fill: currentColor; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));
 }
 .deck-key[data-icosize="sm"] { --ico-scale: .72; }
 .deck-key[data-icosize="lg"] { --ico-scale: 1.35; }
+/* The title is the fixed part of the cap and the icon is what yields. It is one
+   nowrap line, so it never needs more than that line; flex-shrink would hand it
+   a box shorter than the line and `overflow: hidden` would then slice the text
+   in half — a key captioned "Work" reading "ork", or nothing at all. */
 .deck-key .deck-label {
+  flex: 0 0 auto;
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-weight: 600; letter-spacing: .01em; text-shadow: 0 1px 2px rgba(0,0,0,.7);
 }
@@ -673,9 +683,14 @@ body.low-power-gpu .deck-key.anim-shift .deck-key-anim::before { animation: none
 .deck-key.has-image.fit-contain .deck-ico img {
   object-fit: contain; box-sizing: border-box; padding: 9%;
 }
+/* display:flex so the picture stops being an inline box: on a baseline it drags
+   the descent of .deck-ico's own (icon-sized) font along under it — a band of
+   dead space as tall as a sixth of the icon, taken straight out of the title. */
+.deck-key .deck-ico.is-img-small { display: flex; min-height: 0; }
 .deck-key .deck-ico.is-img-small img {
   width: calc(max(22px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .5)) * var(--ico-scale, 1));
   height: calc(max(22px, calc(var(--deck-cell, var(--deck-key-min, 76px)) * .5)) * var(--ico-scale, 1));
+  max-width: 100%; max-height: 100%;
   object-fit: contain;
 }
 /* Label-on-top over a full-bleed picture: the scrim flips to the upper edge. */

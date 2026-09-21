@@ -122,3 +122,75 @@ test('the comic cap style scales its icon bubble too', () => {
   assert.match(m[1], /width: max\(34px, 46%\);/);
   assert.ok(!/clamp\(34px/.test(m[1]), 'the comic bubble is back on a ceiling');
 });
+
+// ── The other half of the same story ────────────────────────────────────────
+// Letting the icon grow with the cap (above) is only safe if something else
+// gives when the cap runs out of room. It did not. The cap is a flex column —
+// icon, then title — and the title is one nowrap line that flex-shrink will
+// happily hand a box shorter than that line, at which point `overflow: hidden`
+// slices the text. The icon, sized in pixels, is its own min-content height and
+// refuses to give up anything, so the title was the only thing that could yield
+// and it yielded all of it.
+//
+// Reported from a Xeneon Edge at 150% browser zoom: "Fill or Fit: the key label
+// is visible. Icon: the key label is not visible. I tried S, M and L for the
+// label and it makes no difference." Fill and Fit escape it because their title
+// is an absolutely-positioned scrim (.has-image), not a row in the column.
+//
+// Measured in Chromium across cap sizes 68–430px, icon presets S/M/L, label
+// presets M/L and zooms 100/125/150%: before, 125 of 360 cap layouts clipped the
+// title and 31 of them lost it entirely; after, none of the image or vector ones
+// do.
+
+function ruleBody(selector) {
+  const re = new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\{([\\s\\S]*?)\\}');
+  const m = re.exec(CSS);
+  assert.ok(m, `the rule for ${selector} is gone`);
+  return m[1];
+}
+
+test('the title keeps its line: flex may not shrink it', () => {
+  // The single declaration the whole fix rests on. Without it the title is a
+  // shrinkable box around an unshrinkable line of text.
+  assert.match(ruleBody('.deck-key .deck-label'), /flex: 0 0 auto;/);
+});
+
+test('an icon gives its room back rather than taking the title with it', () => {
+  // min-height:0 is what lets the flex column reclaim the icon's room; the
+  // max-height is what makes the artwork follow the box down instead of
+  // overflowing it.
+  for (const [box, art] of [
+    ['.deck-key .deck-ico.is-img-small', '.deck-key .deck-ico.is-img-small img'],
+    ['.deck-key .deck-ico.is-builtin', '.deck-key .deck-ico.is-builtin svg'],
+  ]) {
+    assert.match(ruleBody(box), /min-height: 0;/, `${box} cannot be shrunk`);
+    assert.match(ruleBody(art), /max-height: 100%;/, `${art} does not follow its box`);
+  }
+});
+
+test('the Image Fit = Icon picture is not laid out on a baseline', () => {
+  // As an inline box it sits on the baseline of .deck-ico, whose font-size is
+  // the ICON size — so it dragged a descent as tall as a sixth of the icon
+  // along underneath it, out of the title's room, for nothing.
+  assert.match(ruleBody('.deck-key .deck-ico.is-img-small'), /display: flex;/);
+});
+
+test('at icon size L the Image Fit = Icon cap really does run out of room', () => {
+  // The arithmetic behind the report, so the tests above are pinned to a reason
+  // and not to a diff. .deck-key is `gap: 5px; padding: 6px`, the title is one
+  // line of the cap font (13.5% of the cap, ×1.24 at label size L, ×~1.2 for the
+  // line box) and --ico-scale is 1.35 at icon size L. That is 87.6% of the cap
+  // plus 17 fixed pixels, so it stops fitting somewhere around a 137px cap — and
+  // larger caps overflowed too, on the inline descent band that this fix removed
+  // and that this sum therefore no longer counts.
+  const icon = decl(SIZED.find((s) => s.what === 'small image icon'));
+  const capFont = decl(SIZED.find((s) => s.what === 'cap label'));
+  for (const cap of [EDGE_CAP, 96, 132]) {
+    const wanted = sizeAt(icon, cap, 1.35) + sizeAt(capFont, cap) * 1.24 * 1.2 + 5 + 12;
+    assert.ok(
+      wanted > cap,
+      `a ${cap}px cap would fit icon+title in ${wanted.toFixed(1)}px — the premise of ` +
+      'these tests no longer holds, so re-measure before relaxing them',
+    );
+  }
+});
