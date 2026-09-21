@@ -71,6 +71,9 @@
   let queueContext = '';     // the playlist/album the queue belongs to, so a tapped row can resume the rest of it
   let playlists = null;      // cached list (loaded when the Playlists tab opens)
   let devices = null;        // cached list (loaded when the Devices tab opens)
+  // Why the last load of each did not produce a list: '' when it did.
+  let playlistsProblem = '';
+  let devicesProblem = '';
   let seeded = false;
   let pollTimer = null;
   let tickTimer = null;
@@ -546,12 +549,16 @@
   function paintPlaylists(mount) {
     const panel = mount.querySelector('.sp-panel--playlists');
     if (!panel) return;
-    const sig = connected !== true ? 'x' : playlists === null ? 'l' : !playlists.length ? 'e'
+    const sig = connected !== true ? 'x' : playlists === null ? 'l' + playlistsProblem : !playlists.length ? 'e'
       : 'p' + playlists.map(p => (p.uri || p.name || '') + ':' + (p.tracks != null ? p.tracks : '')).join('|');
     if (panel.dataset.spSig === sig) return;
     panel.dataset.spSig = sig;
     if (connected !== true) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_notlinked', 'Not linked'))); return; }
-    if (playlists === null) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_loading', 'Loading…'))); return; }
+    if (playlists === null) {
+      panel.replaceChildren(el('div', 'sp-empty',
+        playlistsProblem ? problemLine(playlistsProblem) : t('spotify_w_loading', 'Loading…')));
+      return;
+    }
     if (!playlists.length) { panel.replaceChildren(emptyState(ICONS.note, t('spotify_w_no_playlists', 'No playlists'))); return; }
     const frag = document.createDocumentFragment();
     playlists.forEach(p => {
@@ -572,12 +579,16 @@
   function paintDevices(mount) {
     const panel = mount.querySelector('.sp-panel--devices');
     if (!panel) return;
-    const sig = connected !== true ? 'x' : devices === null ? 'l' : !devices.length ? 'e'
+    const sig = connected !== true ? 'x' : devices === null ? 'l' + devicesProblem : !devices.length ? 'e'
       : 'd' + devices.map(dv => (dv.name || '') + ':' + (dv.active ? 1 : 0) + ':' + (dv.volume != null ? dv.volume : '')).join('|');
     if (panel.dataset.spSig === sig) return;
     panel.dataset.spSig = sig;
     if (connected !== true) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_notlinked', 'Not linked'))); return; }
-    if (devices === null) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_loading', 'Loading…'))); return; }
+    if (devices === null) {
+      panel.replaceChildren(el('div', 'sp-empty',
+        devicesProblem ? problemLine(devicesProblem) : t('spotify_w_loading', 'Loading…')));
+      return;
+    }
     if (!devices.length) { panel.replaceChildren(emptyState(ICONS.computer, t('spotify_w_no_devices', 'No devices found'))); return; }
     const frag = document.createDocumentFragment();
     devices.forEach(dv => {
@@ -594,6 +605,15 @@
       frag.appendChild(b);
     });
     panel.replaceChildren(frag);
+  }
+
+  // The line a list that has NOTHING to show puts up. A blip once there is
+  // something on screen says nothing at all — the old list stays, which is the
+  // whole point — so this is only ever reached before a first successful load.
+  function problemLine(problem) {
+    if (problem === 'rate_limited') return t('spotify_w_busy', 'Spotify is busy — retrying shortly');
+    if (problem === 'not_connected') return t('spotify_w_notlinked', 'Not linked');
+    return t('spotify_w_unreachable', 'Could not reach Spotify — retrying');
   }
 
   function emptyState(iconSvg, label) {
@@ -724,15 +744,37 @@
       })
       .catch(() => { /* transient — keep the last known queue */ });
   }
+  // A list that failed to load is not an empty list. loadQueue() has always
+  // kept the last known queue on a hiccup; these two did the opposite, and it
+  // showed most where it mattered least excusably: the Devices tab reloads on
+  // every tick while it is open, so one refused request — a 429 the rest of
+  // this widget already rides out, a Wi-Fi blink — replaced the user's speakers
+  // with "No devices found" until the next tick happened to succeed.
+  //
+  // So: a real answer replaces the list, and anything else leaves it alone and
+  // records WHY, which is what the panel says instead of claiming there is
+  // nothing there. Only a list that was never loaded shows the failure on its
+  // own — once there is something on screen, a blip is not worth a message.
+  function reasonFor(d) {
+    if (d && d.error === 'rate_limited') return 'rate_limited';
+    if (d && d.error === 'not_connected') return 'not_connected';
+    return 'failed';
+  }
   function loadPlaylists() {
     return api('/stream/spotify/playlists')
-      .then(d => { playlists = (d && d.ok && Array.isArray(d.playlists)) ? d.playlists : []; })
-      .catch(() => { playlists = []; });
+      .then(d => {
+        if (d && d.ok && Array.isArray(d.playlists)) { playlists = d.playlists; playlistsProblem = ''; }
+        else playlistsProblem = reasonFor(d);
+      })
+      .catch(() => { playlistsProblem = 'failed'; });
   }
   function loadDevices() {
     return api('/stream/spotify/devices')
-      .then(d => { devices = (d && d.ok && Array.isArray(d.devices)) ? d.devices : []; })
-      .catch(() => { devices = []; });
+      .then(d => {
+        if (d && d.ok && Array.isArray(d.devices)) { devices = d.devices; devicesProblem = ''; }
+        else devicesProblem = reasonFor(d);
+      })
+      .catch(() => { devicesProblem = 'failed'; });
   }
 
   // One-shot seed on mount: status + (if linked) the now-playing state, for an
@@ -741,7 +783,7 @@
     if (!tiles().length) return;
     await loadStatus();
     if (connected) { await loadPlayer(); if (activeTab === 'queue') await loadQueue(); }
-    else { player = null; queue = null; playlists = null; devices = null; }
+    else { player = null; queue = null; playlists = null; devices = null; playlistsProblem = ''; devicesProblem = ''; }
     lastRefreshAt = Date.now();   // the first tick's reveal edge must not repeat this round
     paint();
   }

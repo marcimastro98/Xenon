@@ -48,6 +48,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   SDK widgets on the `discordChannels` stream get the `guildId` too, so they can group and remember servers the same way — see [WIDGET_SDK.md](docs/WIDGET_SDK.md).
 
 ### 🛠 Fixes
+- **A Spotify list that failed to load is no longer shown as an empty one.** Reported as *"preserve loaded content during temporary failures and provide clearer status messages."*
+
+  The widget already rode out Spotify's brief refusals everywhere else — the player keeps its last state, the queue is kept on purpose, the transport controls fall back to Windows' own media keys. The **Devices** and **Playlists** lists did the opposite: any answer that was not a list became an empty list, which the panel then reports as **"No devices found"** — a confident statement that the account has none. The Devices tab reloads on every poll while it is open, so one refused request was enough for your speakers to disappear until a later one happened to succeed.
+
+  A list that loaded now stays put, and the panel only says something is wrong when it has nothing to show at all — and then it says which: Spotify is busy, the account is not linked, or it could not be reached. A genuinely empty account still reads as empty, which is the half of this that was worth keeping.
+
 - **A native helper crashing could take the whole server with it.** Reported as *"handling for a broken connection to the Living Index helper so Xenon can continue running and use its existing fallback behavior."* It was every helper, not that one.
 
   Xenon talks to its native helpers over a long-lived pipe — the file index, file search, the phone host, screen capture, the PowerShell collector worker, the media host, the disk shell-delete child and the dictation recorder. Each wraps its write in a `try`/`catch` and retires the helper when it exits, which looks like enough and is not: a write that **races** the helper's death — exactly what happens when one crashes mid-request — fails with `EPIPE` **after** the call returns, reported as an event on the pipe rather than as a thrown error. Nothing was listening, and an unheard error of that kind ends the process. A helper dying, which every one of these features is written to survive, instead closed the dashboard.
