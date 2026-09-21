@@ -12,9 +12,14 @@
   gap: 8px;
 }
 
+/* center, not baseline. Baseline puts the title at the TOP of the row and lets
+   the tallest item set the row's height — so the ? button, which is taller than
+   the title, both defined the height and was then centred in it, landing 6px
+   below the title's optical centre (measured). Centring the row lines the three
+   up on one axis and moves the usage pill by a pixel nobody can see. */
 .xfer-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   flex: 0 0 auto;
@@ -53,11 +58,23 @@
    on .xfer-head would drop a square button onto the text baseline, so it is
    nudged back onto the line here rather than by changing the row's alignment
    and moving the pill. */
-.xfer-help-btn {
+/* Smaller than the row buttons it borrows .xfer-icon from: those are the
+   primary action on a row, this is a footnote beside a title. At 30px it also
+   set the header's height, which is what made it the thing everything else had
+   to line up with rather than the other way round. */
+/* Two classes on purpose. .xfer-icon sizes every icon button in this file and
+   is declared further down, so a single-class rule here loses the tie on order
+   alone — which is why the first version of this measured 30px and went on
+   setting the header's height. */
+.xfer-icon.xfer-help-btn {
   flex: 0 0 auto;
-  align-self: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
   margin-right: auto;                 /* keeps the usage pill hard right */
 }
+
+.xfer-icon.xfer-help-btn svg { width: 14px; height: 14px; }
 
 .xfer-help-btn.is-on {
   opacity: 1;
@@ -540,7 +557,7 @@
 }
 
 .xfer-sheet-title { font-size: 15px; font-weight: 600; }
-.xfer-sheet-bar .xfer-help-btn { margin-right: 0; }
+.xfer-sheet-bar .xfer-icon.xfer-help-btn { margin-right: 0; }
 
 .xfer-notes {
   display: flex;

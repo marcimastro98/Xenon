@@ -342,13 +342,18 @@
     };
 
     box.append(steps('xfer_help_to_pc', 'Dal telefono a questo PC', [
-      ['xfer_help_to_pc_1', 'Associa il telefono una volta sola: Impostazioni → Telefono, e inquadra il QR.'],
-      ['xfer_help_to_pc_2', 'Sul telefono apri Xenon e tocca Invia al PC nella barra in basso.'],
-      ['xfer_help_to_pc_3', 'Scegli Foto e video oppure Altri file. Arrivano in questo elenco.'],
+      // "Open Xenon on the phone" was step one for a whole version, and it never
+      // said WHERE: the phone has no app to open, it has the address the QR
+      // opened in its browser. Hence the home-screen line — the dashboard is
+      // already installable (index.html carries the apple-mobile-web-app meta),
+      // and nothing anywhere said so.
+      ['xfer_help_to_pc_1', 'Su questo PC: Impostazioni → Telefono → Aggiungi dispositivo. Inquadra il QR con la fotocamera del telefono.'],
+      ['xfer_help_to_pc_2', 'Il QR apre Xenon nel browser del telefono. Aggiungilo alla schermata Home e diventa un\'icona: da lì lo riapri quando vuoi.'],
+      ['xfer_help_to_pc_3', 'In Xenon sul telefono tocca Invia al PC nella barra in basso, poi Foto e video o Altri file.'],
     ]));
     box.append(steps('xfer_help_to_phone', 'Da questo PC al telefono', [
       ['xfer_help_to_phone_1', 'Trascina i file qui dentro, o usa i due tasti qui sotto.'],
-      ['xfer_help_to_phone_2', 'Sul telefono apri Xenon e tocca Scarica sulla riga del file.'],
+      ['xfer_help_to_phone_2', 'In Xenon sul telefono tocca Scarica sulla riga del file.'],
     ]));
     box.append(el('p', 'xfer-help-where', t('xfer_help_where',
       'I file che arrivano vengono copiati in Download\\Xenon. La cartella si cambia da Impostazioni → Telefono.')));

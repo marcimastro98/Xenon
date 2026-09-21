@@ -107,12 +107,58 @@ test('every string is in all eleven languages', () => {
   }
 });
 
+test('the steps say WHERE to open Xenon on the phone', () => {
+  // "Open Xenon on the phone" was the first wording, and it never said where:
+  // there is no app to launch, there is the address the QR opened in the
+  // phone's browser. Reported the day it shipped.
+  const it = I18N.match(/xfer_help_to_pc_2: "([^"]+)"/);
+  assert.ok(it, 'the step is gone');
+  for (const m of I18N.match(/xfer_help_to_pc_2: "([^"]+)"/g) || []) {
+    // Every locale has to name the browser and the home screen, not just say
+    // "open Xenon" again in its own language.
+    assert.ok(m.length > 60, 'a one-clause step cannot be saying where: ' + m);
+  }
+  // The pairing step names the exact path on this PC, not "Settings somewhere".
+  assert.match(I18N, /xfer_help_to_pc_1: "On this PC: Settings → Phone → Add device[^"]*QR/);
+  // …and the dashboard really is installable, or the home-screen line is a lie.
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.match(html, /name="apple-mobile-web-app-capable" content="yes"/);
+  assert.match(html, /name="apple-mobile-web-app-title" content="Xenon"/);
+});
+
+test('the ? lines up with the title', () => {
+  // Measured at +6px: the header was `align-items: baseline`, which puts the
+  // title at the TOP of the row and lets the tallest item set the row height —
+  // so the button both defined the height and was then centred in it, landing
+  // below the title's optical centre.
+  const head = CSS.slice(CSS.indexOf('.xfer-head {'));
+  assert.match(head.slice(0, head.indexOf('}') + 1), /align-items: center/);
+  assert.doesNotMatch(head.slice(0, head.indexOf('}') + 1), /align-items: baseline/);
+});
+
+test('the ? is sized by a rule that can win', () => {
+  // .xfer-icon sizes every icon button here and is declared FURTHER DOWN, so a
+  // single-class rule for the help button loses the tie on order alone — which
+  // is how the first version went on measuring 30px and setting the header's
+  // height. Two classes, or this silently stops applying again.
+  assert.match(CSS, /\.xfer-icon\.xfer-help-btn \{/);
+  assert.match(CSS, /\.xfer-icon\.xfer-help-btn svg \{/);
+  const rule = CSS.slice(CSS.indexOf('.xfer-icon.xfer-help-btn {'));
+  const block = rule.slice(0, rule.indexOf('}') + 1);
+  assert.match(block, /width: 22px/);
+  assert.match(block, /height: 22px/);
+  const icon = CSS.slice(CSS.indexOf('.xfer-icon {'));
+  assert.ok(CSS.indexOf('.xfer-icon {') > CSS.indexOf('.xfer-icon.xfer-help-btn {'),
+    'if .xfer-icon ever moves above it, the two-class rule is what still saves this');
+  assert.match(icon.slice(0, icon.indexOf('}') + 1), /width: 30px/);
+});
+
 test('no locale left an English placeholder behind', () => {
   // The pairing line is the one that matters most; a copy-pasted English one
   // would be the easiest to miss.
   const all = I18N.match(/xfer_help_to_pc_1: "([^"]+)"/g) || [];
   assert.equal(all.length, 11);
-  const english = all.filter((l) => /Pair the phone once/.test(l));
+  const english = all.filter((l) => /On this PC: Settings/.test(l));
   assert.equal(english.length, 1, 'only the English locale may carry the English line');
 });
 
