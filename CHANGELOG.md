@@ -40,6 +40,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   SDK widgets on the `discordChannels` stream get the `guildId` too, so they can group and remember servers the same way — see [WIDGET_SDK.md](docs/WIDGET_SDK.md).
 
 ### 🛠 Fixes
+- **°F now means °F everywhere, not only in the weather.** Reported as part of a batch of local customisations: *"I extended the selected Celsius/Fahrenheit preference to CPU/GPU header temperatures and ambient notifications, including thermal warnings and session summaries."*
+
+  The setting is labelled **Temperature unit**, and it reached the forecast and nothing else. Anyone running Xenon in °F read the weather in °F and the CPU and GPU headers, the Guardian overheating toasts, the sustained-thermal warning, the unusually-hot notice and the game-session recap in °C — all on the same screen, none of them saying which was which.
+
+  Every one of those now follows the preference, in all eleven languages, down to the Settings line that quotes the thresholds the thermal alert fires at. Nothing stored changed: Celsius remains the only unit inside Xenon — the sensors, the saved history, Guardian's thresholds — and the conversion happens at the moment of drawing, so switching the unit needs no re-fetch and never reinterprets a number that was already written down.
+
 - **A Deck key set to Image Fit → Icon lost its title.** Reported from a Xeneon Edge: *"Fill or Fit: the key label is visible. Icon: the key label is not visible. I tried S, M and L for the label and it makes no difference."*
 
   The cap lays its icon and its title out as a column. The title is one line and can be squeezed to nothing; the icon carried an explicit pixel size and could not be squeezed at all — so when the two did not both fit, the title was the only thing that gave, and it gave all of it. **Fill** and **Fit** never showed it because their title is a scrim painted over the picture rather than a row under it, and **Icon** was the worst case of the three: its picture is sized to half the cap (against 40% for a built-in vector), and as an inline image it also dragged the descent of the icon's own font along beneath it — a band of dead space as tall as a sixth of the icon, taken straight out of the title. At icon size **L** on the Edge, where 4.11.9 lets the icon keep growing with the cap, that came to more than the cap had.

@@ -192,16 +192,16 @@
           .replace('{avg}', String(d.avgFps))
           .replace('{max}', String(typeof d.maxFps === 'number' ? d.maxFps : d.avgFps)));
       }
-      if (typeof d.gpuTempMax === 'number') parts.push(t('brief_recap_gpu').replace('{v}', String(d.gpuTempMax)));
-      else if (typeof d.cpuTempMax === 'number') parts.push(t('brief_recap_cpu').replace('{v}', String(d.cpuTempMax)));
+      if (typeof d.gpuTempMax === 'number') parts.push(fillTemps(t('brief_recap_gpu'), { v: d.gpuTempMax }));
+      else if (typeof d.cpuTempMax === 'number') parts.push(fillTemps(t('brief_recap_cpu'), { v: d.cpuTempMax }));
       title = t('brief_recap_title');
       text = parts.join(' · ');
     } else if (d.type === 'thermal') {
       const key = d.metric === 'cpu' ? 'brief_thermal_cpu' : 'brief_thermal_gpu';
-      text = t(key).replace('{v}', String(d.value)).replace('{m}', String(d.minutes));
+      text = fillTemps(t(key), { v: d.value }).replace('{m}', String(d.minutes));
     } else if (d.type === 'anomaly') {
       const key = d.metric === 'cpu' ? 'brief_anomaly_cpu' : 'brief_anomaly_gpu';
-      text = t(key).replace('{v}', String(d.value)).replace('{b}', String(d.baseline));
+      text = fillTemps(t(key), { v: d.value, b: d.baseline });
       title = t('brief_anomaly_title');
     }
     if (!text) return;

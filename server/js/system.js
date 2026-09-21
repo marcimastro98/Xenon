@@ -86,7 +86,7 @@ function applySystemInto(root, data) {
   set('cpu-value', cpu + '%'); fillEl('cpu-fill', cpu); set('cpu-name', data.cpuName || '--');
   set('cpu-name-head', shortHwName(data.cpuName));
   const cpuTemp = Number(data.cpuTemp);
-  set('cpu-head-temp', (Number.isFinite(cpuTemp) && cpuTemp > 0) ? Math.round(cpuTemp) + '°C' : '');
+  set('cpu-head-temp', (Number.isFinite(cpuTemp) && cpuTemp > 0) ? toDisplayTemp(cpuTemp) + '°' + tempUnitSuffix() : '');
 
   const ram = data.memory ? data.memory.percent : 0;
   set('ram-value', ram + '%');
@@ -123,7 +123,7 @@ function applySystemInto(root, data) {
   set('gpu-name', data.gpuName || t('gpu_loading'));
   set('gpu-name-head', shortHwName(data.gpuName));
   const gpuTemp = Number(data.gpuTemp);
-  set('gpu-head-temp', (Number.isFinite(gpuTemp) && gpuTemp > 0) ? Math.round(gpuTemp) + '°C' : '');
+  set('gpu-head-temp', (Number.isFinite(gpuTemp) && gpuTemp > 0) ? toDisplayTemp(gpuTemp) + '°' + tempUnitSuffix() : '');
 
   if (data.disks && data.disks.length > 0) {
     systemDisks = data.disks;
@@ -146,10 +146,11 @@ function applySystem(data) {
   }
 }
 
-// Weather values arrive from the server in Celsius; the display unit is a
-// client-side preference (hubSettings.tempUnit). Convert + round on render so
-// switching the unit needs no re-fetch. Returns null/'' unchanged so callers'
-// "--" placeholder still works.
+// EVERY temperature inside Xenon is Celsius — the weather API, the hardware
+// collectors, Guardian's alert thresholds, the briefing history. Only the
+// display converts, against a client-side preference (hubSettings.tempUnit),
+// so switching the unit needs no re-fetch and no stored value is ever ambiguous.
+// Returns null/'' unchanged so callers' "--" placeholder still works.
 function toDisplayTemp(celsius) {
   if (celsius === null || celsius === undefined || celsius === '') return celsius;
   const c = Number(celsius);
@@ -159,6 +160,21 @@ function toDisplayTemp(celsius) {
 }
 function tempUnitSuffix() {
   return (typeof hubSettings === 'object' && hubSettings && hubSettings.tempUnit === 'f') ? 'F' : 'C';
+}
+
+// Fill the temperature placeholders of a translated string: each named token
+// holds a Celsius number to convert, and every `{u}` becomes the unit letter.
+// The alternative was a .replace() chain at each call site, which is how the
+// hardware headers and the Guardian/briefing toasts ended up printing a hard
+// "°C" to someone who had picked °F — the preference is labelled "Temperature
+// unit", not "Weather temperature unit", so it has to reach all of them.
+// Every token is replaced globally: an anomaly line names two temperatures.
+function fillTemps(text, values) {
+  let out = String(text == null ? '' : text);
+  for (const token of Object.keys(values || {})) {
+    out = out.split('{' + token + '}').join(String(toDisplayTemp(values[token])));
+  }
+  return out.split('{u}').join(tempUnitSuffix());
 }
 
 // A forecast that failed now says WHICH link broke. The server answers ok:false

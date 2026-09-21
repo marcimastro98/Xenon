@@ -495,8 +495,13 @@ if (['full', 'agenda'].includes(activePanel)) { if (typeof loadTimers === 'funct
         if (typeof aiFeatureEnabled === 'function' && !aiFeatureEnabled('guardian')) return;
         const d = JSON.parse(e.data);
         const key = d.type === 'gpu' ? 'guardian_alert_gpu' : d.type === 'mem' ? 'guardian_alert_mem' : 'guardian_alert_cpu';
-        if (typeof showHubToast === 'function') showHubToast('Guardian', t(key).replace('{v}', d.value), '');
-        if (window.Ambient && typeof window.Ambient.onGuardianAlert === 'function') window.Ambient.onGuardianAlert(t(key).replace('{v}', d.value));
+        // The RAM alert's {v} is a percentage, not a temperature: only the two
+        // thermal ones go through the unit conversion.
+        const text = d.type === 'mem'
+          ? t(key).replace('{v}', String(d.value))
+          : fillTemps(t(key), { v: d.value });
+        if (typeof showHubToast === 'function') showHubToast('Guardian', text, '');
+        if (window.Ambient && typeof window.Ambient.onGuardianAlert === 'function') window.Ambient.onGuardianAlert(text);
       } catch {}
     });
     es.addEventListener('briefing', e => {
