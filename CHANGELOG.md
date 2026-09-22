@@ -64,6 +64,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
   A peer that cannot be identified is refused rather than waved through, and the refusal happens while the socket is being inspected — before the request that carries the key is allowed to use it, not after.
 
+- **The Playback tile no longer pushes the artist name out through its own bottom edge.** Reported with a screenshot of the line sliced in half along the frame: *"the title is limited to 2 lines and if the text is longer, ellipsis is inserted. The artist name is moved outside the frame."*
+
+  The tile rearranges itself as it is resized, and three separate steps hand the title a **second line**. Each of them was written about the tile's width, with its height taken on trust — and below roughly 200px that trust is misplaced, because the second line does not come out of empty space. It comes out of whatever is under it. Which thing got pushed out depended only on which rule had granted the line: on a wide tile the artist, on a narrow one the transport buttons, and the tile clips either without a word.
+
+  A short tile now gets one line and an ellipsis whatever its width — which is what the report itself proposed — and shorter still the provider chip steps aside before the title has to. Underneath that, two things now hold regardless of the numbers: neither the title nor the artist can be squeezed below its own line (a box shorter than a line is not a shorter title, it is a row of half-letters), and the text block can never be taller than the row it sits in.
+
+  Measured across every tile size from 220×110 to 1000×480 with three title lengths: **328 of 4560 sizes put something outside the frame, the worst by 71px. Now none of them do.**
+
 - **"Spotify is busy" now says for how long.** Reported from the same thread: *"I hit the rate limit, waited 24 hours, and the limit persists"* — against a dashboard that kept promising to retry shortly.
 
   Spotify answers a refusal with how long to wait, and Xenon already held itself to it. It just never passed the figure on, so every message read the same whether the wait was four seconds or the rest of the afternoon — and at the long end "retrying shortly" reads as a broken integration rather than as a wait with an end. Anything from two minutes up now names the wait, everywhere the tile mentions it; below that the old wording is still the honest one.
