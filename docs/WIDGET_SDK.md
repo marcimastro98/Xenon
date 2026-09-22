@@ -1683,6 +1683,53 @@ action: { type: 'ytWatchPlay', video: 'dQw4w9WgXcQ' }
 
 Listed to the user as "Play a channel or a video in the Twitch and YouTube tiles".
 
+### 5c-bis. Turning the dashboard's page: `pages` (v4.11.10)
+
+The same move the global page shortcuts make (Settings → General → Page
+shortcuts), reachable from a widget: a control-room tile with a button per page,
+or one that brings the media page up when something starts playing.
+
+```js
+action: { type: 'dashboardPage', page: 'work' }   // one of THIS dashboard's page ids
+action: { type: 'dashboardPage', page: 'next' }   // 'next' | 'prev' | 'back'
+// { ok: true } — or { ok: false, error: 'not_found' | 'unavailable' | 'bad_page' }
+```
+
+```json
+{ "actions": ["pages"] }
+```
+
+- `page` is a **page id from the layout this widget is running on**, or one of the
+  three relative moves. `back` returns to the page the user was on before this
+  one — which is what "flip between my two pages" means, and it keeps meaning it
+  once there are three.
+- **Only the screen your widget is on turns.** Pages belong to a device's own
+  layout, so a phone and a desk PC do not have the same ones and neither should
+  follow the other's widget. If your widget is open on two screens, each copy
+  turns its own.
+- `not_found` means this screen has no such page, or it is hidden. **A page id is
+  not portable** — the same profile on another device may not have it — so treat
+  that answer as normal and not as a failure to report loudly.
+- Asking for the page you are already on is `ok: true`. `back` with nowhere to go
+  back to is `ok: false`: the action did nothing and says so.
+- There is **no confirm dialog**, for the same reason `watch` has none: what
+  travels is one of the user's own page ids, it reaches nothing outside the
+  dashboard, and the result is visible the instant it happens. The grant is what
+  the user agreed to and the turning page is its own receipt.
+- It is its **own grant**, not part of any other. A widget that can turn the page
+  can take the screen away from what its owner was reading, which is a different
+  kind of act from drawing inside your own tile.
+- **Do not fire it on a timer.** A page that turns by itself while someone is
+  reading is the one thing this capability can do that nobody wants. Tie it to a
+  tap, or to something the user would expect to change the view.
+- **You cannot read the page list**, and there is no event when the page turns.
+  Use `visibility` (§4c) to know whether your own tile is the one being looked at.
+- **Not available in manifest Deck macros**, for the same reason as `browserOpen`
+  and `watch`: the Deck action validator does not know the type, so a macro
+  declaring one fails at install instead of shipping a dead key.
+
+Listed to the user as "Turn the dashboard to another page".
+
 ### 5d. Turning one person up or down: `discordUserVol` (v4.11)
 
 Two actions in the `discord` category act on ONE member of the voice channel the
@@ -1815,6 +1862,7 @@ the user granted, and every action is re-validated server-side.
 | `media` | `media`, `mediaSeek` |
 | `mic` | `micMute` |
 | `obs` | `obsScene`, `obsSceneNext`, `obsRecord`, `obsStream`, `obsMute`, `obsInputVolume` |
+| `pages` | `dashboardPage` |
 | `soundboard` | `playSound`, `soundStopAll` |
 | `spotify` | `spotifyPlay`, `spotifyNext`, `spotifyPrev`, `spotifySave`, `spotifyLike`, `spotifyShuffle`, `spotifyRepeat`, `spotifyVolume`, `spotifySeek`, `spotifyPlaylist`, `spotifyPlayUri`, `spotifyDevice` |
 | `steam` | `launchSteamGame` |

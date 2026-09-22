@@ -72,8 +72,13 @@
 
   // The page before this one. This is what a single "toggle between my two
   // pages" shortcut actually wants, and it keeps working when there are three.
+  // Returns whether there WAS a previous page: an SDK widget is told whether its
+  // action did anything, and "nowhere to go back to" is a real answer rather
+  // than a silent success.
   function goBack() {
-    if (lastPageId) goToPage(lastPageId);
+    if (!lastPageId) return false;
+    goToPage(lastPageId);
+    return true;
   }
 
   // ── Render parking ─────────────────────────────────────────────────────────

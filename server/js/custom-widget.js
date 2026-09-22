@@ -48,6 +48,7 @@
     browser: ['browserOpen'],
     watch: ['twitchWatchPlay', 'ytWatchPlay'],
     youtubePlayer: ['ytPlayer'],
+    pages: ['dashboardPage'],
   };
   // The only playSound.file shape an SDK widget may use — an installed sound
   // pack's clip, never an arbitrary local path (that stays a Deck-key-only
@@ -1088,6 +1089,40 @@
     // looking at — not a cookie-bearing browser aimed at an address the widget
     // chose. A tile that is not on the dashboard answers 'unavailable', never a
     // silent success.
+    // Turn the dashboard to another of its own pages — the same move the global
+    // page shortcuts make. Browser-dispatched for the obvious reason: the pages
+    // belong to THIS screen's layout, and no other screen should turn because a
+    // widget on this one asked.
+    //
+    // No confirm dialog, like `watch` and unlike `browserOpen`: what travels is
+    // one of the user's own page ids or a relative move, it reaches nothing off
+    // the dashboard, and it is visible the instant it happens — the grant is
+    // what the user agreed to and the turning page is its own receipt. A page id
+    // this screen does not have is refused rather than redirected somewhere
+    // arbitrary, because a widget guessing wrong should do nothing, not
+    // something else.
+    if (msg.action.type === 'dashboardPage') {
+      const pager = window.DashboardPager;
+      if (!pager || typeof pager.goToPage !== 'function') {
+        post(entry, { type: 'action_result', id: reqId, ok: false, error: 'unavailable' });
+        return;
+      }
+      const target = String(msg.action.page == null ? '' : msg.action.page).trim().slice(0, 64);
+      let ok = false;
+      if (target === 'next') { pager.goByDelta(1); ok = true; }
+      else if (target === 'prev') { pager.goByDelta(-1); ok = true; }
+      else if (target === 'back') { ok = pager.goBack() === true; }
+      else if (target) {
+        const before = pager.getCurrentPage();
+        pager.goToPage(target);
+        // goToPage refuses an id it does not have (and a hidden page) silently,
+        // so "did anything happen" is the only honest test — and asking for the
+        // page you are already on is a success, not a miss.
+        ok = target === before || pager.getCurrentPage() === target;
+      }
+      post(entry, { type: 'action_result', id: reqId, ok, error: ok ? undefined : (target ? 'not_found' : 'bad_page') });
+      return;
+    }
     if (msg.action.type === 'twitchWatchPlay' || msg.action.type === 'ytWatchPlay') {
       const tw = msg.action.type === 'twitchWatchPlay';
       const host = tw ? window.TwitchWatchWidget : window.YouTubeWidget;

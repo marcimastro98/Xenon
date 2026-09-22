@@ -167,6 +167,27 @@ const SDK_ACTION_CATEGORIES = Object.freeze({
   // address, the id is re-validated against the tile's own pattern, and the
   // destination is a surface Xenon owns and the user is looking at.
   watch: Object.freeze(['twitchWatchPlay', 'ytWatchPlay']),
+  // Turn the dashboard to another of ITS OWN pages. The same move the global
+  // page shortcuts make, reachable from a widget: a control-room tile with a
+  // button per page, or one that brings the media page up when something starts
+  // playing.
+  //
+  // Browser-dispatched like `browser` and `watch` (no registry case — the page
+  // belongs to the dashboard, not to the machine), and NOT usable from a
+  // manifest Deck macro, so declaring one fails at install rather than shipping
+  // a dead key.
+  //
+  // Its own grant rather than a corner of an existing one, for the reason
+  // `audioDevice` was split out of `volume`: what it does is not a stronger
+  // version of anything already granted. A widget with this can take the screen
+  // away from whatever its owner was reading, which is a different KIND of act
+  // from drawing inside its own tile — and it is the one thing here the user
+  // cannot miss happening, so it has to be the one thing they agreed to.
+  //
+  // It reaches nothing outside the dashboard: no address, no file, no machine
+  // state. The target is one of the user's own page ids, or a relative move, and
+  // a page this screen does not have is refused rather than redirected.
+  pages: Object.freeze(['dashboardPage']),
 });
 
 // The only playSound.file shape SDK code (bridge actions AND manifest macros)

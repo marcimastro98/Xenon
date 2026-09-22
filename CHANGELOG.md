@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### ✨ Added
+- **A widget can turn the dashboard's page.** The same move the new page shortcuts make, handed to the SDK: a control-room tile with a button per page, or one that brings the media page up when something starts playing.
+
+  `{ type: 'dashboardPage', page: 'work' }`, or `next` / `prev` / `back`. Only the screen the widget is on turns — pages belong to a device's own layout, so a phone and a desk PC do not have the same ones and neither should follow the other's widget — and a page this screen does not have is refused rather than redirected somewhere arbitrary.
+
+  It is its **own permission**, not a corner of an existing one: a widget that can turn the page can take the screen away from what its owner was reading, which is a different kind of act from drawing inside its own tile. There is no confirm dialog, because what travels is one of the user's own page ids and the result is visible the instant it happens.
+
+  Documented in [WIDGET_SDK.md](docs/WIDGET_SDK.md) → *Turning the dashboard's page*.
+
 - **Turn the dashboard's page without touching it.** Asked for on Discord by someone running Xenon on a second screen: *"switch or toggle dashboard pages while another app has focus."*
 
   A second screen is something you look at while working in something else, which is exactly when reaching over to swipe it is the wrong move. **Settings → General → Page shortcuts** binds key combinations that fire while any other application has focus: one per page, **next** / **previous**, or **back to the last page** — which is what "flip between my two pages" really means, and it keeps meaning it once there are three.
