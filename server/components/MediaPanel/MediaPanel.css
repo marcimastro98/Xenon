@@ -279,7 +279,32 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  /* The text column may never be taller than the row it sits in. Without this
+     it simply grew, and because .media-pane-play centres its items the excess
+     went out BOTH ends, where the panel's overflow:hidden cut it — reported as
+     "the artist name is moved outside the frame", with the artist line sliced
+     in half along the tile's bottom edge.
+     The steps below keep the content within the tile at every size the tile can
+     be; this is the guarantee that holds when a step is a few pixels optimistic
+     or a font renders taller than the one it was measured with. */
+  min-height: 0;
+  max-height: 100%;
 }
+
+/* Title and artist as a column, and NEITHER of them shrinks. Letting the title
+   shrink looks like the obvious answer and is the wrong one: a clamped box with
+   a height below its own line does not lose a line, it is cut THROUGH one, so
+   the tile ends up with a row of half-letters instead of a title. How many lines
+   the title gets is decided by the steps further down, which know the tile's
+   size; what this block guarantees is only that the artist keeps the place
+   underneath it. */
+.media-textblock {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.media-textblock > .media-title,
+.media-textblock > .media-artist { flex: 0 0 auto; }
 
 .media-app-row {
   display: flex;
@@ -791,6 +816,15 @@
        a gap where it would have been. */
     grid-template-rows: auto auto auto;
     align-items: center;
+    /* Centre the TRACKS, not just each item inside its track. A grid's default
+       alignment stretches auto rows to fill the box, so on a short tile the
+       three rows were each handed more height than they asked for — and the one
+       holding the title and artist then started below where it would have sat
+       and ran past the bottom edge, which is where the artist line was being
+       cut. With the tracks centred the free space stays outside them and the
+       block sits in the middle of the tile, which is where it looks like it
+       should be anyway. */
+    align-content: center;
     column-gap: 20px;
     row-gap: 3px;
   }
@@ -854,4 +888,29 @@
   .media-panel .media-actions { gap: 8px; }
   .media-panel .control-btn { width: 32px; height: 32px; }
   .media-panel .control-btn.primary { width: 38px; height: 38px; }
+}
+
+/* ── Short tile: one line, whatever the width ─────────────────────────────── */
+
+/* LAST on purpose. Three separate blocks above hand the title a second line —
+   the wide strip ("two lines fit here even when the tile is short"), the narrow
+   single-column step, and the portrait one — and each was written about WIDTH,
+   with the tile's height taken on trust. Below ~200px that trust is misplaced,
+   and the second line does not come out of empty space: it comes out of whatever
+   is underneath it. Measured, the victim depended only on which rule had put it
+   there — the artist line pushed through the bottom edge on a wide tile, the
+   transport buttons on a narrow one, and the tile clips either without a word.
+   Reported as "the artist name is moved outside the frame", with the fix the
+   user themselves proposed: one line plus an ellipsis once the tile is short.
+   A height rule has to win over three width rules, so it is placed where the
+   cascade lets it. */
+@container mediatile (max-height: 200px) {
+  .media-panel .media-title { -webkit-line-clamp: 1; }
+}
+
+/* Shorter still and even one line plus the chip does not fit. The chip goes
+   first, exactly as it already does on a narrow tile: the cover says which app
+   is playing, and the title and the transport are what the tile is for. */
+@container mediatile (max-height: 165px) {
+  .media-panel .media-app-row { display: none; }
 }
