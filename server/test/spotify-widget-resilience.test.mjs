@@ -134,3 +134,53 @@ test('every reason has a line to print', () => {
   // …and the fallback, which is what 'failed' lands on.
   assert.match(m[0], /spotify_w_unreachable/);
 });
+
+// ── How long, not just "busy" ───────────────────────────────────────────────
+// "Spotify is busy — retrying shortly" is right for the few seconds a 429
+// usually lasts. It is wrong for the hours Spotify imposes on an app that has
+// burnt its quota, which is what was reported: "I hit the rate limit, waited 24
+// hours, and the limit persists" — against a dashboard still promising shortly.
+// The server already knew how long (it holds the breaker to Retry-After); it
+// simply never said.
+const SERVER = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'stream-spotify.js'), 'utf8');
+
+test('the refusal carries how long the breaker holds', () => {
+  const m = /async function apiRequest\(method, pathWithQuery, bodyObj\) \{[\s\S]*?\n  \}/.exec(SERVER);
+  assert.ok(m, 'apiRequest is gone');
+  const refusals = m[0].match(/error: 'rate_limited'[^}]*/g) || [];
+  assert.equal(refusals.length, 2, 'expected the pre-check and the live 429');
+  for (const r of refusals) assert.match(r, /retryAfterMs: retryAfterMs\(\)/, `a refusal says nothing about the wait: ${r}`);
+});
+
+test('the device list passes the wait on rather than flattening it', () => {
+  const m = /async function getDevices\(\) \{[\s\S]*?\n  \}/.exec(SERVER);
+  assert.ok(m, 'getDevices is gone');
+  assert.match(m[0], /error: r\.error \|\| 'failed', retryAfterMs: r\.retryAfterMs/);
+});
+
+test('the widget names the wait once it is worth naming', () => {
+  const m = /function busyLine\(\) \{[\s\S]*?\n  \}/.exec(SRC);
+  assert.ok(m, 'busyLine is gone');
+  // Under two minutes the old wording is still the honest one.
+  assert.match(m[0], /mins >= 2/);
+  assert.match(m[0], /spotify_w_busy_for/);
+  assert.match(m[0], /spotify_w_busy'/);
+});
+
+test('every place that says "busy" says it the same way', () => {
+  // Four of them, and three used to hardcode the short wording — so the same
+  // wait read as minutes in one corner of the tile and as "shortly" in another.
+  const stray = SRC.split('\n')
+    .map((line, i) => ({ line, n: i + 1 }))
+    .filter(({ line }) => /t\('spotify_w_busy',/.test(line) && !/function busyLine/.test(line));
+  assert.equal(stray.length, 1,
+    'the short wording is used outside busyLine():\n  ' + stray.map((s) => s.n + ': ' + s.line.trim()).join('\n  '));
+});
+
+test('the wait resets when the limit clears', () => {
+  // A stale figure would keep a recovered integration reading "about 40 min".
+  const m = /if \(p && p\.error === 'rate_limited'\)[\s\S]{0,160}/.exec(SRC);
+  assert.ok(m, 'the rate-limit branch is gone');
+  assert.match(m[0], /rateLimitMs = Number\(p\.retryAfterMs\) \|\| 0;/);
+  assert.match(m[0], /rateLimited = false;\s*\n\s*rateLimitMs = 0;/);
+});

@@ -64,6 +64,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
   A peer that cannot be identified is refused rather than waved through, and the refusal happens while the socket is being inspected — before the request that carries the key is allowed to use it, not after.
 
+- **"Spotify is busy" now says for how long.** Reported from the same thread: *"I hit the rate limit, waited 24 hours, and the limit persists"* — against a dashboard that kept promising to retry shortly.
+
+  Spotify answers a refusal with how long to wait, and Xenon already held itself to it. It just never passed the figure on, so every message read the same whether the wait was four seconds or the rest of the afternoon — and at the long end "retrying shortly" reads as a broken integration rather than as a wait with an end. Anything from two minutes up now names the wait, everywhere the tile mentions it; below that the old wording is still the honest one.
+
+  Worth knowing if you see it often: **the quota is your own Spotify app's**, not Xenon's — the Client ID in Settings is yours, and an app still in Spotify's development mode has a much smaller allowance than one with extended quota.
+
 - **A Spotify list that failed to load is no longer shown as an empty one.** Reported as *"preserve loaded content during temporary failures and provide clearer status messages."*
 
   The widget already rode out Spotify's brief refusals everywhere else — the player keeps its last state, the queue is kept on purpose, the transport controls fall back to Windows' own media keys. The **Devices** and **Playlists** lists did the opposite: any answer that was not a list became an empty list, which the panel then reports as **"No devices found"** — a confident statement that the account has none. The Devices tab reloads on every poll while it is open, so one refused request was enough for your speakers to disappear until a later one happened to succeed.

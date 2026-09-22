@@ -238,14 +238,19 @@ function createSpotifyProvider(deps) {
 
   async function apiRequest(method, pathWithQuery, bodyObj) {
     if (method !== 'GET') { _playerCache = null; _playerGen++; queryCacheClear(); }   // a mutation invalidates the snapshot AND any in-flight read — including the widgets', or a widget's own play lands on a stale queue
-    if (rateLimited()) return { ok: false, status: 429, error: 'rate_limited' };
+    // How long the breaker still holds travels with the refusal. Without it every
+    // caller could say only "busy", which is fine for the few seconds this
+    // usually lasts and wrong for the hours Spotify imposes on an app that has
+    // burnt its quota — reported as "waited 24 hours and the limit persists",
+    // against a dashboard that kept saying "retrying shortly".
+    if (rateLimited()) return { ok: false, status: 429, error: 'rate_limited', retryAfterMs: retryAfterMs() };
     const token = await getAccessToken();
     if (!token) return { ok: false, error: 'not_connected' };
     const init = { method, headers: { Authorization: 'Bearer ' + token } };
     if (bodyObj != null) { init.headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(bodyObj); }
     try {
       const res = await _fetch(API + pathWithQuery, init);
-      if (res.status === 429) { noteRateLimit(res); return { ok: false, status: 429, error: 'rate_limited' }; }
+      if (res.status === 429) { noteRateLimit(res); return { ok: false, status: 429, error: 'rate_limited', retryAfterMs: retryAfterMs() }; }
       const data = (res.status === 204) ? null : await res.json().catch(() => null);
       return { ok: res.ok, status: res.status, data };
     } catch { return { ok: false, error: 'network' }; }
@@ -403,7 +408,7 @@ function createSpotifyProvider(deps) {
   async function getDevices() {
     const r = await apiRequest('GET', '/me/player/devices');
     if (r.status === 403) return { ok: false, error: 'forbidden' };   // missing user-read-playback-state
-    if (!r.ok || !r.data) return { ok: false, error: r.error || 'failed' };
+    if (!r.ok || !r.data) return { ok: false, error: r.error || 'failed', retryAfterMs: r.retryAfterMs };
     const list = Array.isArray(r.data.devices) ? r.data.devices : [];
     return {
       ok: true,

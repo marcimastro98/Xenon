@@ -99,6 +99,9 @@
   // true = Spotify is rate-limiting us (429). Brief and self-clearing; we keep the
   // last known state and show a neutral "busy" note rather than flapping to empty.
   let rateLimited = false;
+  // How long Spotify said to wait. 0 when it did not say, which is most of the
+  // time and why the message has to read without it.
+  let rateLimitMs = 0;
   let backoffUntil = 0;      // while rate-limited, hold off polling until this time
   const POLL_MS = 6000;      // network refresh cadence while a tile is visible
 
@@ -132,7 +135,7 @@
     else if (e === 'forbidden') msg = t('spotify_w_reconnect', 'Reconnect Spotify in Settings → Spotify to grant permission');
     else if (e === 'no_active_device') msg = t('spotify_w_no_active', 'No active Spotify device — start playback first');
     else if (e === 'nothing_playing') msg = t('spotify_w_nothing', 'Nothing playing right now');
-    else if (e === 'rate_limited') msg = t('spotify_w_busy', 'Spotify is busy — retrying shortly');
+    else if (e === 'rate_limited') msg = busyLine();
     if (msg && typeof showHubToast === 'function') showHubToast('Spotify', msg, '');
   }
 
@@ -432,7 +435,7 @@
       const closed = !busy && !forbidden && spotifyOpen === false;
       if (busy) {
         // Rate-limited: transient, clears on its own. Don't offer an action.
-        eLbl.textContent = t('spotify_w_busy', 'Spotify is busy — retrying shortly');
+        eLbl.textContent = busyLine();
         eBtn.hidden = true;
       } else if (forbidden) {
         // The login predates the playback-read permission: Spotify can be playing and
@@ -530,7 +533,7 @@
     if (connected !== true) { panel.replaceChildren(el('div', 'sp-empty', t('spotify_w_notlinked', 'Not linked'))); return; }
     if (queue === null) {
       panel.replaceChildren(el('div', 'sp-empty', rateLimited
-        ? t('spotify_w_busy', 'Spotify is busy — retrying shortly')
+        ? busyLine()
         : t('spotify_w_loading', 'Loading…')));
       return;
     }
@@ -610,8 +613,18 @@
   // The line a list that has NOTHING to show puts up. A blip once there is
   // something on screen says nothing at all — the old list stays, which is the
   // whole point — so this is only ever reached before a first successful load.
+  // "busy" is right for the seconds this usually lasts, and wrong for the hours
+  // Spotify imposes on an app that has burnt its daily quota — where "retrying
+  // shortly" reads as a broken integration rather than as a wait with an end.
+  // So the wait is named once it is long enough to be worth naming.
+  function busyLine() {
+    const mins = Math.round(rateLimitMs / 60000);
+    if (mins >= 2) return t('spotify_w_busy_for', 'Spotify is busy — about {m} min').replace('{m}', String(mins));
+    return t('spotify_w_busy', 'Spotify is busy — retrying shortly');
+  }
+
   function problemLine(problem) {
-    if (problem === 'rate_limited') return t('spotify_w_busy', 'Spotify is busy — retrying shortly');
+    if (problem === 'rate_limited') return busyLine();
     if (problem === 'not_connected') return t('spotify_w_notlinked', 'Not linked');
     return t('spotify_w_unreachable', 'Could not reach Spotify — retrying');
   }
@@ -668,8 +681,9 @@
     const p = await api('/stream/spotify/player' + (fresh ? '?fresh=1' : ''));
     // Rate-limited (429): Spotify is briefly refusing us. Keep the last known state
     // and don't fire the extra devices call — hammering only extends the cooldown.
-    if (p && p.error === 'rate_limited') { rateLimited = true; return; }
+    if (p && p.error === 'rate_limited') { rateLimited = true; rateLimitMs = Number(p.retryAfterMs) || 0; return; }
     rateLimited = false;
+    rateLimitMs = 0;
     playbackForbidden = !!(p && p.error === 'forbidden');
     if (p && p.ok) {
       player = p;
