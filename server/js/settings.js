@@ -1133,10 +1133,20 @@ function normalizeDashboardSize(value, allowedSizes, fallback) {
 
 // Grid geometry for a widget (drag&drop model): {x,y,w,h,visible} in cells.
 // Shared per-tile style normalizer (client global / server require of the same
-// pure module), guarded so a missing dependency degrades to "no style".
+// pure module).
+//
+// Before DashboardInstances loads — which is the parse-time loadHubSettings(),
+// every boot — this must NOT degrade to "no style". That was the same data loss
+// as the copies fallback below (GitHub #130: every per-card opacity reset after
+// an update): the stripped style is harmless until a server-bound save lands
+// before the hydrate, bumps the local rev, and makes the stripped copy win the
+// merge. So pass a plain object through untouched; getDashboardLayout()
+// normalizes again on every read, and the server on every POST.
 function normTileStyle(src) {
-  return (typeof DashboardInstances !== 'undefined' && DashboardInstances.normalizeTileStyle)
-    ? DashboardInstances.normalizeTileStyle(src) : null;
+  if (typeof DashboardInstances !== 'undefined' && DashboardInstances.normalizeTileStyle) {
+    return DashboardInstances.normalizeTileStyle(src);
+  }
+  return (src && typeof src === 'object' && !Array.isArray(src)) ? src : null;
 }
 
 function normalizeDashboardGeom(sourceItem, fallbackItem) {

@@ -56,6 +56,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   SDK widgets on the `discordChannels` stream get the `guildId` too, so they can group and remember servers the same way — see [WIDGET_SDK.md](docs/WIDGET_SDK.md).
 
 ### 🛠 Fixes
+- **An update no longer resets the style you gave each card.** Reported on GitHub (#130): *"there is a (minor) bug on update where all of the opacity settings I set per card reset."*
+
+  At startup the dashboard reads your saved layout a moment before the part of the code that checks a card's style has loaded. Until now, a style it could not check yet was treated as no style at all. Usually that did no harm, because the copy on the PC arrived straight after and put everything back. But if anything saved the layout in that short window, which the first start after an update makes more likely, the stripped version counted as the newer one and replaced the copy on the PC. After that there was nothing left to restore it from.
+
+  It hit every per card setting, not just opacity: colours, font, corner radius, glass, border, shadow, shape, background and decorations. It also explains an odd detail. A widget you had duplicated kept its style while the original next to it lost it, because copies already had this protection and originals and tab groups did not. They all have it now. The style is carried through unchecked for that one moment and checked properly on every read after it, and by the server on every save.
+
+  Styles that were already lost cannot come back from this fix, so the cards will need setting again once. After that they stay.
+
 - **Xenon now checks WHICH Hue bridge it is talking to before handing over its key.** Raised alongside a batch of local customisations asking for *"secure discovery, pairing and API communication"* with Philips Hue.
 
   A Hue bridge's certificate is signed by Philips' own private CA, so no public trust store can verify it and certificate checking has to stay off. That is a decision about the **signature**, and it was quietly standing in for a decision about the **peer**: with nothing else checked, Xenon sent its bridge key to whatever answered the stored address. It takes something on your own network, so it is not much of an attack — but the ordinary way to get there is a DHCP lease moving the bridge's address onto another device, and then the key goes to a stranger's box because the router reshuffled.
