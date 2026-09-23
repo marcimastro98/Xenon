@@ -1115,8 +1115,12 @@
 
 /* ── Compact hero: current conditions on one line (GitHub #130) ──
    Settings → Weather → Current conditions → One line. The big card gives way to
-   a single row so hours and days get the tile. It keeps the card's sky gradient
-   (.weather-tile-card.state-*) and stays the button that opens the full view.
+   a single card-sized row so hours and days get the tile. It keeps the card's
+   sky gradient (.weather-tile-card.state-*) and stays the button that opens the
+   full view.
+   It is inset like the hourly/forecast cards below it rather than drawn edge to
+   edge: flush with the tile it read as the tile's title bar, not as weather.
+   Its side margins are the body's padding, so the three line up.
    It never goes side by side: a strip across the top is the whole point, and
    the landscape rules above are scoped away from it. */
 .weather-tile-card.weather-tile-compact {
@@ -1125,73 +1129,121 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: clamp(7px, 2cqi, 12px);
-  width: 100%;
+  gap: clamp(8px, 2.2cqi, 14px);
+  width: auto;
   min-height: 0;
-  padding: clamp(7px, 1.8cqi, 12px) clamp(10px, 2.8cqi, 16px);
-  border: 0;
-  border-radius: inherit;
+  margin: clamp(6px, 2cqmin, 10px) clamp(8px, 2.4cqmin, 12px) 0;
+  padding: clamp(8px, 2cqi, 12px) clamp(10px, 2.6cqi, 16px);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: clamp(12px, 3cqi, 18px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.16), 0 6px 18px rgba(0,0,0,0.22);
   text-align: left;
   font: inherit;
   color: #fff;
   cursor: pointer;
-  transition: background 0.6s ease;
+  transition: background 0.6s ease, filter 0.15s ease, transform 0.15s ease;
 }
-.weather-tile-root--compact.has-body .weather-tile-compact {
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
+@media (hover: hover) {
+  .weather-tile-compact:hover { filter: brightness(1.08); }
+  .weather-tile-compact:hover .weather-compact-chevron { transform: translateX(2px); opacity: 0.95; }
 }
+.weather-tile-compact:active { transform: scale(0.99); }
 /* Nothing below it: the row IS the tile, so fill it and centre the line. */
-.weather-tile-root--compact:not(.has-body) .weather-tile-compact { flex: 1 1 auto; }
-.weather-tile-compact .weather-mini-icon { width: 26px; height: 22px; }
+.weather-tile-root--compact:not(.has-body) .weather-tile-compact {
+  flex: 1 1 auto;
+  margin-bottom: clamp(6px, 2cqmin, 10px);
+}
+
+/* The mini icon's shapes are drawn in fixed px, so it is scaled as a whole
+   rather than resized — resizing the box would only move the drawing in it. */
+.weather-compact-icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 32px;
+}
+.weather-compact-icon .weather-mini-icon { transform: scale(1.35); }
 .weather-compact-temp {
   flex: 0 0 auto;
-  font-size: clamp(20px, 5cqi, 28px);
+  font-size: clamp(24px, 6cqi, 32px);
   font-weight: 700;
+  letter-spacing: -0.02em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-.weather-compact-condition {
+.weather-compact-text {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: clamp(12px, 2.6cqi, 14px);
-  color: rgba(255,255,255,0.88);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.2;
+}
+.weather-compact-condition,
+.weather-compact-feels {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.weather-compact-condition {
+  font-size: clamp(12px, 2.8cqi, 14px);
+  font-weight: 600;
+}
+.weather-compact-feels {
+  font-size: clamp(11px, 2.4cqi, 12.5px);
+  color: rgba(255,255,255,0.72);
+}
+/* Wind and rain: present, but a step quieter than the line on the left. */
 .weather-compact-stats {
   flex: 0 0 auto;
   display: flex;
-  gap: clamp(9px, 2.6cqi, 16px);
-  margin-left: auto;
+  align-items: center;
+  gap: clamp(10px, 2.6cqi, 16px);
+  padding-left: clamp(10px, 2.6cqi, 16px);
+  border-left: 1px solid rgba(255,255,255,0.16);
 }
 .weather-compact-stat {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  line-height: 1.15;
+  align-items: flex-start;
+  line-height: 1.2;
 }
 .weather-compact-stat b {
-  font-size: clamp(12px, 2.8cqi, 15px);
-  font-weight: 650;
+  font-size: clamp(12px, 2.6cqi, 14px);
+  font-weight: 600;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 .weather-compact-stat em {
   font-style: normal;
-  font-size: clamp(8px, 1.9cqi, 10px);
-  letter-spacing: 0.04em;
+  font-size: clamp(8.5px, 1.9cqi, 10px);
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.72);
+  color: rgba(255,255,255,0.62);
   white-space: nowrap;
 }
-/* Narrow tiles shed from the right, keeping feels-like to the last: it is the
-   one number the request named. */
-@container (max-width: 380px) {
-  .weather-compact-stat--wind,
+.weather-compact-chevron {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-left: -2px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.6;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+/* Narrow tiles shed from the right, rain before wind; the feels-like line
+   under the condition is never one of them. */
+@container (max-width: 400px) {
   .weather-compact-stat--rain { display: none; }
 }
-@container (max-width: 230px) {
-  .weather-compact-condition { display: none; }
+@container (max-width: 330px) {
+  .weather-compact-stats { display: none; }
+}
+@container (max-width: 210px) {
+  .weather-compact-chevron { display: none; }
 }

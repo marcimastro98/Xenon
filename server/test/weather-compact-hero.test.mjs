@@ -97,10 +97,20 @@ test('the compact bar is still the button that opens the full view', () => {
   const fn = extractFunction(SYSTEM, 'buildWeatherCompactBar');
   assert.match(fn, /document\.createElement\('button'\)/);
   assert.match(fn, /toggleWeatherDetails\(\)/);
-  // Each stat honours the same per-field toggle as the big card's chips.
+  // Each stat honours the same per-field toggle as the big card's chips, and
+  // feels-like sits with the temperature rather than among the extras.
   assert.match(fn, /weatherFieldEnabled\(id\)/);
+  assert.match(fn, /weatherFieldEnabled\('feels'\)/);
+  assert.match(fn, /weather-compact-chevron/);
   assert.match(extractFunction(SYSTEM, 'renderWeatherTile'),
     /sec\.compact \? buildWeatherCompactBar\(data\) : buildWeatherHeroCard\(data\)/);
+});
+
+test('narrow tiles never shed feels-like', () => {
+  const compact = CSS.slice(CSS.indexOf('/* ── Compact hero: current conditions on one line'));
+  for (const m of compact.matchAll(/@container \(max-width: \d+px\) \{([^}]*)\}/g)) {
+    assert.doesNotMatch(m[1], /feels|weather-compact-text/, 'feels-like is the one value the request named');
+  }
 });
 
 test('a compact tile never goes side by side', () => {

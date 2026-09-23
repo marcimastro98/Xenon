@@ -506,10 +506,12 @@ function buildWeatherHeroCard(data) {
 }
 
 // The one-line alternative to the hero card (GitHub #130: "I just want the next
-// hours/days, with a summary of the current temp/feels like"). Icon, temperature
-// and condition on the left, feels-like / wind / rain on the right, each honouring
-// its field toggle. It is still the button that opens the full weather view, so
-// shrinking the hero costs nothing that the big card could do.
+// hours/days, with a summary of the current temp/feels like"). Icon and
+// temperature, then the condition with feels-like under it (the one number the
+// request named, so it sits with the temperature rather than among the extras),
+// wind and rain quieter on the right, each behind its field toggle. It is still
+// the button that opens the full weather view, and the chevron says so: a
+// one-line strip does not look tappable the way the big card did.
 function buildWeatherCompactBar(data) {
   const bar = document.createElement('button');
   bar.type = 'button';
@@ -526,21 +528,33 @@ function buildWeatherCompactBar(data) {
   bar.title = place ? `${t('weather_open')} (${place})` : t('weather_open');
 
   const icon = document.createElement('span');
-  icon.className = `weather-mini-icon ${state}`;
+  icon.className = 'weather-compact-icon';
   icon.setAttribute('aria-hidden', 'true');
+  const glyph = document.createElement('span');
+  glyph.className = `weather-mini-icon ${state}`;
+  icon.appendChild(glyph);
   const temp = document.createElement('span');
   temp.className = 'weather-compact-temp';
   temp.textContent = ok ? `${toDisplayTemp(data.tempC)}°` : '--°';
+
+  const text = document.createElement('span');
+  text.className = 'weather-compact-text';
   const cond = document.createElement('span');
   cond.className = 'weather-compact-condition';
   cond.textContent = ok ? (data.condition || t('weather_title')) : weatherErrorLabel(data);
-  bar.append(icon, temp, cond);
+  text.appendChild(cond);
+  if (ok && weatherFieldEnabled('feels')) {
+    const feels = document.createElement('span');
+    feels.className = 'weather-compact-feels';
+    feels.textContent = `${t('weather_metric_feels')} ${data.feelsC != null ? `${toDisplayTemp(data.feelsC)}°` : '--'}`;
+    text.appendChild(feels);
+  }
+  bar.append(icon, temp, text);
 
   if (ok) {
     const stats = document.createElement('span');
     stats.className = 'weather-compact-stats';
     [
-      ['feels', data.feelsC != null ? `${toDisplayTemp(data.feelsC)}°` : '--', 'weather_metric_feels'],
       ['wind', displayWind(data.windKph), 'weather_metric_wind'],
       ['rain', displayPrecip(data.precipMM), 'weather_metric_rain'],
     ].forEach(([id, value, key]) => {
@@ -551,6 +565,15 @@ function buildWeatherCompactBar(data) {
     });
     if (stats.children.length) bar.appendChild(stats);
   }
+
+  const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  chevron.setAttribute('class', 'weather-compact-chevron');
+  chevron.setAttribute('viewBox', '0 0 16 16');
+  chevron.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M6 3.5 10.5 8 6 12.5');
+  chevron.appendChild(path);
+  bar.appendChild(chevron);
   return bar;
 }
 
