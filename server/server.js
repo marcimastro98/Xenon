@@ -8082,7 +8082,7 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   uiFont: null,
   lockWidgets: Object.freeze({ clock: true, weather: true, media: true, calendar: true }),
   // Ambient / Screensaver mode (client mirror in js/settings.js — keep in step).
-  ambientMode: Object.freeze({ enabled: true, idleMinutes: 0, sceneId: 'builtin' }),
+  ambientMode: Object.freeze({ enabled: true, idleMinutes: 0, sceneId: 'builtin', openOnStartup: false }),
   // Native canvas Ambient scenes (client-owned, like customThemes).
   ambientScenes: Object.freeze([]),
   contentInstalls: Object.freeze([]),
@@ -8517,6 +8517,9 @@ function normalizeAmbientMode(value) {
     enabled: source.enabled !== undefined ? !!source.enabled : defaults.enabled,
     idleMinutes: AMBIENT_IDLE_MINUTES.has(idle) ? idle : defaults.idleMinutes,
     sceneId,
+    // Mirror of js/settings.js — dropped here, the toggle would snap back off
+    // on the next hydrate.
+    openOnStartup: source.openOnStartup === true,
   };
 }
 

@@ -88,6 +88,30 @@ function ambientIdleSuppressed(state) {
   return false;
 }
 
+// Can "Open at startup" put the scene up right now? Pure, like the one above.
+// It is NOT the screensaver test: the startup open is a home screen the user
+// asked for, so it ignores idleMinutes and whole-PC idle entirely, and a game
+// already running is no reason to hold it back (the scene sits on the second
+// screen, and ambientGameCloses leaves a non-idle scene up anyway). What it
+// does wait for is anything the user has to answer or read first — the screen
+// picker, the first-run tour, the greeting, a dialog, an edit session — so it
+// never lands on top of a question.
+// A load that runs the first-run flow (the screen question, the tour) is skipped
+// outright rather than waited out: both start a beat AFTER the hydrate this runs
+// on, so "nothing on screen yet" is not "nothing coming", and the tour points at
+// dashboard parts a scene would cover. Whoever turned this option on has been
+// through that flow; the next start opens as usual.
+// state: { enabled, openOnStartup, firstRun, open, hidden, busyBodyClass, overlayOpen }
+// → 'open' | 'wait' | 'skip'
+function ambientStartupDecision(state) {
+  const s = state || {};
+  if (!s.enabled || !s.openOnStartup) return 'skip';
+  if (s.firstRun) return 'skip';
+  if (s.open) return 'skip';          // already showing (the user got there first)
+  if (s.hidden || s.busyBodyClass || s.overlayOpen) return 'wait';
+  return 'open';
+}
+
 if (typeof window !== 'undefined') (function () {
   const REARM_THROTTLE_MS = 1000;
   const IDLE_EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'];
@@ -111,6 +135,7 @@ if (typeof window !== 'undefined') (function () {
   // must not delay the screensaver's return by a full idle period.
   let lastLocalInputAt = 0;
   let idleStarted = false; // the CURRENT open was the idle auto-start (screensaver), not a manual open
+  let startupPending = false; // "Open at startup" is still waiting for a clear screen (see openOnStartup)
   const ACTIVE_IDLE_SEC = 30; // whole-PC idle below this = the user is active on SOME screen → dismiss
   const warnedFallback = new Set();   // fallback reasons already explained this session
 
@@ -232,6 +257,10 @@ if (typeof window !== 'undefined') (function () {
     // scene unmounted by game mode) can never make a MANUAL open dismiss itself
     // when the PC is used.
     idleStarted = false;
+    // Open at startup: no permission prompt at boot (like the idle path), but
+    // not a screensaver either, so it is never flagged idle-started and nothing
+    // but the user closes it.
+    const startup = !!(opts && opts.startup);
     const c = cfg();
     // The master toggle governs the mode's own surfaces (idle auto-start,
     // topbar button visibility) — an EXPLICIT request (AI command, external
@@ -248,14 +277,14 @@ if (typeof window !== 'undefined') (function () {
       // The fetch took time — if the user came back meanwhile (a fresh whole-PC
       // sample below the dismiss threshold, or input on this very window), an
       // IDLE open must abort instead of flashing a screensaver at a present user.
-      if (!manual && ((sysIdleSec != null && sysIdleSec < ACTIVE_IDLE_SEC) || Date.now() - lastLocalInputAt < 5000)) return;
+      if (!manual && !startup && ((sysIdleSec != null && sysIdleSec < ACTIVE_IDLE_SEC) || Date.now() - lastLocalInputAt < 5000)) return;
       listUnavailable = !packages.length;   // fetch failed/empty ≠ scene removed
     }
     // Flag a successful AUTO open as the screensaver and arm dismiss-on-input,
     // atomically inside the very call that opened — so a manual open that
     // interleaved during the package await above (which already made this call
     // return at the isOpen() guard) can never be mis-flagged as an idle scene.
-    const markAuto = () => { if (!manual && isOpen()) { idleStarted = true; armDismiss(); } };
+    const markAuto = () => { if (!manual && !startup && isOpen()) { idleStarted = true; armDismiss(); } };
     const scene = resolveAmbientScene(c, packages, sdkEnabled() && !sceneSuspended(c.sceneId), savedScenes());
     if (scene.builtin) {
       // Don't claim "removed" when we simply couldn't list packages right now.
@@ -280,6 +309,7 @@ if (typeof window !== 'undefined') (function () {
   }
 
   function close() {
+    startupPending = false;   // the user has taken the screen over; don't reopen on them
     disarmDismiss();
     idleStarted = false;
     if (sceneOpen()) unmountScene();
@@ -527,6 +557,66 @@ if (typeof window !== 'undefined') (function () {
 
   armIdleTimer();
 
+  // ── Open at startup (Settings → Ambient → Open at startup) ─────────────
+  // Asked for on Discord by someone whose Ambient scene IS their dashboard:
+  // "on startup/restart I need to press the button in the top left for ambient
+  // mode". The idle auto-start cannot stand in for it — it waits for the whole
+  // PC to go quiet and drops the moment the PC is used anywhere, which is the
+  // opposite of a screen you look at while working on another one.
+  //
+  // Runs once per page load, which is what "startup/restart" means here: the
+  // app launching, the PC booting, the kiosk reloading after an update. It waits
+  // for the hydrate (XenonStartupCards.whenReady) so it reads the setting from
+  // the server rather than the blind local mirror, then for anything on screen
+  // the user has to deal with first.
+  const STARTUP_BUSY_CLASSES = BUSY_BODY_CLASSES.filter(cl => cl !== 'game-mode' && cl !== 'perf-mode');
+  const STARTUP_OVERLAY_SELECTOR = '.sp-overlay, .onb-overlay, .greeting-splash';
+  const STARTUP_POLL_MS = 500;
+  const STARTUP_GIVE_UP_MS = 10 * 60 * 1000;   // a first-run tour left open all morning is not a startup any more
+
+  // The screen question still to be asked, or the tour not yet seen — read the
+  // way surface-picker.js and onboarding.js decide it themselves.
+  function firstRunPending() {
+    const sp = window.SurfacePicker;
+    if (sp && typeof sp.shouldAsk === 'function' && sp.shouldAsk()) return true;
+    if (sp && typeof sp.isOpen === 'function' && sp.isOpen()) return true;
+    const onb = window.Onboarding;
+    if (onb && typeof onb.isActive === 'function' && onb.isActive()) return true;
+    const seen = typeof window.getOnboardingSeen === 'function' ? Number(window.getOnboardingSeen()) || 0 : Infinity;
+    return !!(onb && Number(onb.version) > seen);
+  }
+
+  function collectStartupState() {
+    const c = cfg();
+    return {
+      enabled: c.enabled !== false,
+      openOnStartup: c.openOnStartup === true,
+      firstRun: firstRunPending(),
+      open: isOpen(),
+      hidden: document.hidden,
+      busyBodyClass: STARTUP_BUSY_CLASSES.some(cl => document.body.classList.contains(cl)),
+      overlayOpen: OVERLAY_IDS.some(id => overlayVisible(document.getElementById(id)))
+        || Array.prototype.some.call(document.querySelectorAll(OVERLAY_SELECTOR + ', ' + STARTUP_OVERLAY_SELECTOR), overlayVisible),
+    };
+  }
+
+  function openOnStartup() {
+    if (startupPending) return;
+    startupPending = true;
+    const deadline = Date.now() + STARTUP_GIVE_UP_MS;
+    const tick = () => {
+      if (!startupPending) return;   // cancelled: the user opened or closed Ambient meanwhile
+      const decision = ambientStartupDecision(collectStartupState());
+      if (decision === 'wait' && Date.now() < deadline) { setTimeout(tick, STARTUP_POLL_MS); return; }
+      startupPending = false;
+      if (decision === 'open') open({ manual: false, startup: true });
+    };
+    tick();
+  }
+  if (window.XenonStartupCards && typeof XenonStartupCards.whenReady === 'function') {
+    XenonStartupCards.whenReady(openOnStartup);
+  }
+
   window.AmbientMode = { toggle, open, close, isOpen, onSettingsChanged, onStatus };
 })();
 
@@ -534,6 +624,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     resolveAmbientScene,
     ambientIdleSuppressed,
+    ambientStartupDecision,
     ambientGameCloses,
   };
 }

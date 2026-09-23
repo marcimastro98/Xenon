@@ -360,7 +360,9 @@ const DEFAULT_HUB_SETTINGS = Object.freeze({
   // idleMinutes 0 = never auto-start; sceneId 'builtin' = the native scene
   // (lockscreen.js, configured by lockWidgets) or an installed SDK package id
   // whose manifest declares surface:'ambient'.
-  ambientMode: Object.freeze({ enabled: true, idleMinutes: 0, sceneId: 'builtin' }),
+  // openOnStartup: boot straight into the scene and keep it up (a home screen,
+  // not a screensaver: nothing dismisses it but the user).
+  ambientMode: Object.freeze({ enabled: true, idleMinutes: 0, sceneId: 'builtin', openOnStartup: false }),
   // Native canvas Ambient scenes the user composed (or imported). Client-owned
   // (like customThemes): referenced by ambientMode.sceneId as "canvas:<id>".
   ambientScenes: Object.freeze([]),
@@ -980,6 +982,7 @@ function normalizeAmbientMode(value) {
     enabled: source.enabled !== undefined ? !!source.enabled : defaults.enabled,
     idleMinutes: AMBIENT_IDLE_MINUTES.includes(idle) ? idle : defaults.idleMinutes,
     sceneId,
+    openOnStartup: source.openOnStartup === true,
   };
 }
 
@@ -8132,6 +8135,8 @@ function syncAmbientSettings() {
   const cfg = normalizeAmbientMode(hubSettings.ambientMode);
   const enabled = $('settings-ambient-enabled');
   if (enabled) enabled.checked = cfg.enabled;
+  const onStartup = $('settings-ambient-startup');
+  if (onStartup) onStartup.checked = cfg.openOnStartup;
   const idle = $('settings-ambient-idle');
   if (idle) {
     const want = String(cfg.idleMinutes);
@@ -8238,16 +8243,18 @@ window.addEventListener('xenon:sdk-packages', () => {
 });
 
 function updateAmbientSetting(key, value) {
-  if (!['enabled', 'idleMinutes', 'sceneId'].includes(key)) return;
+  if (!['enabled', 'idleMinutes', 'sceneId', 'openOnStartup'].includes(key)) return;
   const cur = normalizeAmbientMode(hubSettings.ambientMode);
   const next = { ...cur };
   if (key === 'enabled') next.enabled = !!value;
   else if (key === 'idleMinutes') next.idleMinutes = Number(value);
+  else if (key === 'openOnStartup') next.openOnStartup = !!value;
   else next.sceneId = String(value || 'builtin');
   // Guarded: syncAmbientSettings dispatches 'change' on the idle custom-select to
   // re-sync its visible label — an unchanged value must be a no-op, not a save
   // (and must not re-fire the scene grant prompt below).
-  if (next.enabled === cur.enabled && next.idleMinutes === cur.idleMinutes && next.sceneId === cur.sceneId) return;
+  if (next.enabled === cur.enabled && next.idleMinutes === cur.idleMinutes && next.sceneId === cur.sceneId
+      && next.openOnStartup === cur.openOnStartup) return;
   hubSettings = normalizeSettings({ ...hubSettings, ambientMode: next });
   saveHubSettings();
   syncAmbientSettings();

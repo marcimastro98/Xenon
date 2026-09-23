@@ -2003,6 +2003,11 @@
           <input class="settings-check" id="settings-ambient-enabled" type="checkbox" onchange="updateAmbientSetting('enabled', this.checked)">
           <span data-i18n="ambient_enable">Abilita la modalità Ambient</span>
         </label>
+        <label class="settings-toggle-row">
+          <input class="settings-check" id="settings-ambient-startup" type="checkbox" onchange="updateAmbientSetting('openOnStartup', this.checked)">
+          <span data-i18n="ambient_startup">Apri all'avvio</span>
+        </label>
+        <span class="settings-note" data-i18n="ambient_startup_hint">La scena si apre appena parte Xenon e resta aperta finché non la chiudi tu. Diversa da "Avvia dopo inattività", che si chiude appena usi il PC.</span>
         <div class="settings-ambient-row">
           <label class="settings-toggle-row"><span data-i18n="ambient_idle_label">Avvia dopo inattività</span></label>
           <select class="settings-select" id="settings-ambient-idle" data-custom-select data-cs-fixed onchange="updateAmbientSetting('idleMinutes', this.value)">

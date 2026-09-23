@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 ### ✨ Added
+- **Ambient can be the screen Xenon starts on.** Asked for on Discord by someone whose Ambient scene is their whole dashboard: *"On startup/restart I need to press the button in the top left for ambient mode. Having the option to skip that and boot straight into what the button press would take me to would be swell."*
+
+  **Settings → Ambient → Open at startup** does exactly that. Every time Xenon starts, the PC boots or the app reloads after an update, your scene opens on its own and stays up until you close it.
+
+  The inactivity start that already existed could not do this job, and the reason is worth knowing if you use both. It is a screensaver: it waits for the whole PC to go quiet and closes the moment you use the PC anywhere, which is the opposite of a scene you look at while working on another screen. Open at startup behaves like pressing the button yourself. Moving the mouse, typing on the main screen or starting a game leaves it where it is. The scene's own buttons still do what they did before, so tapping the weather still opens the weather view.
+
+  It waits for anything you have to answer or read first, the morning greeting or a dialog, rather than landing on top of it. And a start that is still asking the first-run questions, the choice of screen or the short tour, is left to them: the tour points at parts of the dashboard a scene would cover. The next start opens as usual. If your scene is a community one you have not approved yet, it opens the classic scene instead of asking for permission the moment the PC boots.
+
 - **The Weather tile can show current conditions on one line.** Asked for on GitHub (#130): *"Is there a way to not waste that entire screen space on that blue background with a moon? I just want the next hours/days, with a summary of the current temp/feels like."*
 
   **Settings → Weather → Current conditions → One line** swaps the big animated card for a single row: the condition icon and the temperature, the condition with feels-like right under it, and wind and precipitation a step quieter on the right. Everything below it, details, hours and days, gets the space the card used to take. On a tile shared with other widgets that is the difference that matters: in the height where the big card leaves room for today's forecast only, the row leaves the hourly strip and all three days in view with space to spare, so the tile can be made shorter and the rows handed to something else.
